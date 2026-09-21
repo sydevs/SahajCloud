@@ -32,10 +32,12 @@ export const adminOnlyFieldAccess: FieldAccess = ({ req }) => isAdminManager(req
  * Field-level access: a `clients`-collection caller may never read or write it.
  *
  * Wider than `adminOnlyFieldAccess` on purpose — a client's own managers must
- * still configure their service. `clients` is not restricted, so without this
- * lock every published API key reads the field back.
- * See `docs/rules/access.md`, "A field lock, for a collection that is not
- * restricted", for why, and why it is spelled positively.
+ * still configure their service. It guards the fields a published API key would
+ * otherwise read back on a collection it reaches: one that is not restricted
+ * (`forms`), and — for `Clients.apiKey` — the caller's own row, which
+ * self-access hands over whole whatever `RESTRICTED_COLLECTIONS` says (#822).
+ * See `docs/rules/access.md`, "A field lock, for a collection a client
+ * reaches", for why, and why it is spelled positively.
  */
 export const managersOnlyFieldAccess: FieldAccess = ({ req }) =>
   req.user?.collection === 'managers'

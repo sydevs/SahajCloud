@@ -272,6 +272,22 @@ export const Clients: CollectionConfig = {
   },
   fields: [
     {
+      // ⚠ Top level, beside `tabs`, never inside it. `mergeBaseFields` matches
+      // the auth base field by name only at the level it is handed, so a nested
+      // copy would not match and `clients` would sanitize to two `apiKey`
+      // fields. The deep merge lets ours win, so the base encrypt/decrypt hooks
+      // survive (#822).
+      //
+      // `read` only: `create` is the path key regeneration takes, and the
+      // API-key strategy authenticates on the `apiKeyIndex` hash at
+      // `overrideAccess: true`, never through this field.
+      name: 'apiKey',
+      type: 'text',
+      access: {
+        read: managersOnlyFieldAccess,
+      },
+    },
+    {
       type: 'tabs',
       tabs: [
         {
