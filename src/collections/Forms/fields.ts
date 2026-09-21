@@ -59,17 +59,13 @@ const actionTypeField: Field = {
  *
  * Nullable on purpose. A null recipient falls back to `CONTACT_EMAIL`.
  *
- * ⚠ **`managersOnlyFieldAccess` is the security boundary here, not a nicety.**
- * `forms` carries the form-builder plugin's own `read: () => true`, and
- * `managers` is in no project — which implicit read treats as shared, not
- * restrictive. Without the lock a read at `depth >= 1` hands a manager's name
- * and email address to a browser. See `docs/rules/access.md`.
- *
- * ⚠ **This closes one door, not the class.** `managers` is not in
- * `RESTRICTED_COLLECTIONS`, so a published client key still reads it directly,
- * and `Events.manager` / `Regions.managers` carry no lock at all (#821). Do not
- * read this field's access as evidence that a new `relationTo: 'managers'`
- * field is safe without one.
+ * ⚠ **`managersOnlyFieldAccess` is defence in depth here, not the boundary.**
+ * It was the boundary until #821 put `managers` in `RESTRICTED_COLLECTIONS`;
+ * populate now refuses the related read and falls back to the bare id on every
+ * `relationTo: 'managers'` field. Keep the lock anyway. `forms` carries the
+ * form-builder plugin's own `read: () => true`, which outranks the generated
+ * access config, so this is the collection where a later loosening of the
+ * shared-read rule would be felt first. See `docs/rules/access.md`.
  */
 const recipientField: Field = {
   name: 'recipient',
