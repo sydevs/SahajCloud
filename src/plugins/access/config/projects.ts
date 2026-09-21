@@ -170,16 +170,21 @@ const ALL_PROJECT_COLLECTIONS: ContentSlug[] = (() => {
  *   project and was therefore implicitly readable by every role in it; that
  *   membership is gone. Clients may create and never read. A manager's read is
  *   narrowed further, per row, in `accessConfigs.ts`.
- * - ⚠ `clients` — every service's credentials and its origin allowlist, rate
- *   limits and usage counters. Shared read let any published key scrape every
- *   other service's decrypted `apiKey`, over `GET /api/clients` and through
- *   `sy-atlas-config.canonicalFallbackClient` at `depth >= 1` (#822). The
- *   policy is now admins and a service's own listed managers, who keep read and
- *   update through the document-manager path in `accessConfigs.ts`. The one
- *   deliberate exception is `GET /api/clients/me`: self-access answers it at
- *   step 2, before this check, and the widget suspends on that read at every
- *   boot. `Clients.apiKey` carries `managersOnlyFieldAccess` so that exception
- *   still hands back no key.
+ * - ⚠ `clients` — every service's credentials, origin allowlist and usage
+ *   counters. Shared read let any published key scrape every other service's
+ *   decrypted `apiKey` (#822). Admins and a service's own listed managers now,
+ *   the latter through the document-manager path in `accessConfigs.ts`.
+ *   `GET /api/clients/me` is the deliberate exception — self-access answers it
+ *   before this check, and `Clients.apiKey`'s field lock is what makes that
+ *   safe.
+ *
+ * ⚠ **This list is a holding pattern, not the permanent mechanism.** Exactly
+ * four registered collections sit in no project, and `managers` (#821) is the
+ * only one left outside this set. A complete opt-out list is an inverted
+ * default in disguise: the fix is for step 4a to test project membership
+ * directly, so a new collection fails closed. That cannot land until #821
+ * settles how a non-admin manager still reads `managers` for the admin
+ * relationship pickers.
  */
 const RESTRICTED_COLLECTIONS: ReadonlySet<string> = new Set([
   'users',

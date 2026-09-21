@@ -23,7 +23,7 @@ import { SKIP_AVAILABLE_LOCALES_CHECK } from '@/fields/availableLocalesField'
 import type { Client, Manager } from '@/payload-types'
 
 import { testData } from '../utils/testData'
-import { createTestEnvironment } from '../utils/testHelpers'
+import { createClientAuthenticatedRequest, createTestEnvironment } from '../utils/testHelpers'
 
 /** The reader's own key. Plaintext, because `restGet` authenticates with it. */
 const ATLAS_API_KEY = 'atlas-widget-key-for-clients-access-spec'
@@ -43,17 +43,10 @@ describe('Clients access', () => {
   /** A published `sahaj-atlas-client`, the key that ships in the browser. */
   const atlasReq = (): PayloadRequest =>
     ({
+      ...createClientAuthenticatedRequest(atlasClient.id, ATLAS_API_KEY, ['sahaj-atlas-client']),
       payload,
-      headers: new Headers(),
       routeParams: {},
       context: {},
-      user: {
-        id: atlasClient.id,
-        collection: 'clients',
-        _status: 'published',
-        roles: ['sahaj-atlas-client'],
-        allowedDomains: null,
-      },
     }) as unknown as PayloadRequest
 
   const managerReq = (manager: Manager): PayloadRequest =>
@@ -67,15 +60,26 @@ describe('Clients access', () => {
     }) as unknown as PayloadRequest
 
   /** A real REST call, authenticated by the atlas client's own API key. */
-  async function restGet(path: string): Promise<{ status: number; body: unknown }> {
+  async function rest(
+    path: string,
+    init: { method?: string; json?: unknown } = {},
+  ): Promise<{ status: number; body: unknown }> {
+    const headers: Record<string, string> = {
+      Authorization: `clients API-Key ${ATLAS_API_KEY}`,
+    }
+    if (init.json !== undefined) headers['Content-Type'] = 'application/json'
     const response = await handleEndpoints({
       config,
       request: new Request(`http://localhost:3000${path}`, {
-        headers: { Authorization: `clients API-Key ${ATLAS_API_KEY}` },
+        method: init.method ?? 'GET',
+        headers,
+        body: init.json === undefined ? undefined : JSON.stringify(init.json),
       }),
     })
     return { status: response.status, body: await response.json() }
   }
+
+  const restGet = (path: string) => rest(path)
 
   beforeAll(async () => {
     const env = await createTestEnvironment()
@@ -130,8 +134,14 @@ describe('Clients access', () => {
     })
 
     it('answers GET /api/clients/me with the boot fields and no key', async () => {
+      // The widget's own boot read, field for field: `getClient` in
+      // sydevs/SahajAtlasWeb `src/config/api/fetch.ts` selects these at depth 1
+      // and populates `regions`. `apiKey` is added here so the refusal is the
+      // assertion rather than an absent request.
       const { status, body } = await restGet(
-        '/api/clients/me?depth=0&select[name]=true&select[canonical]=true&select[apiKey]=true',
+        '/api/clients/me?depth=1&select[name]=true&select[color1]=true&select[color2]=true' +
+          '&select[color3]=true&select[allowedDomains]=true&select[clientId]=true' +
+          '&select[region]=true&select[canonical]=true&select[apiKey]=true',
       )
 
       expect(status).toBe(200)
@@ -142,35 +152,69 @@ describe('Clients access', () => {
     })
 
     it('leaves a manager reading and regenerating a key alone', async () => {
+      // Its own row, so nothing later in the file depends on restoring a value
+      // this case overwrites.
+      const rotating = await testData.createClient(payload, adminManager.id, {
+        name: 'Rotating Service',
+        apiKey: 'ROTATING-SERVICE-KEY-BEFORE',
+      })
+
       const read = (await payload.findByID({
         collection: 'clients',
-        id: otherClient.id,
+        id: rotating.id,
         depth: 0,
         overrideAccess: false,
         req: managerReq(adminManager),
       })) as Client
-      expect(read.apiKey).toBe(OTHER_API_KEY)
+      expect(read.apiKey).toBe('ROTATING-SERVICE-KEY-BEFORE')
 
       const regenerated = (await payload.update({
         collection: 'clients',
-        id: otherClient.id,
-        data: { apiKey: 'REGENERATED-OTHER-SERVICE-KEY' },
+        id: rotating.id,
+        data: { apiKey: 'ROTATING-SERVICE-KEY-AFTER' },
         overrideAccess: false,
         req: managerReq(adminManager),
       })) as Client
-      expect(regenerated.apiKey).toBe('REGENERATED-OTHER-SERVICE-KEY')
+      expect(regenerated.apiKey).toBe('ROTATING-SERVICE-KEY-AFTER')
+    })
 
-      await payload.update({
-        collection: 'clients',
-        id: otherClient.id,
-        data: { apiKey: OTHER_API_KEY },
-        overrideAccess: true,
+    it('hands back no key from POST /api/clients/refresh-token', async () => {
+      // ⚠ The second self-read, and the one field access alone does not cover.
+      // Payload's `refreshOperation` re-reads the document with `findByID` and
+      // no `overrideAccess: false`, so it defaults to true and every field lock
+      // is skipped — unlike `meOperation`, which passes the flag. The collection
+      // `afterRead` hook is what closes it. `disableLocalStrategy` does not:
+      // `refresh` is the one auth operation that does not refuse on that flag.
+      const { status, body } = await rest('/api/clients/refresh-token', { method: 'POST' })
+
+      expect(status).toBe(200)
+      expect(JSON.stringify(body)).not.toContain(ATLAS_API_KEY)
+      expect((body as { user?: Client }).user?.apiKey).toBeUndefined()
+    })
+
+    it('refuses a client rewriting its own key', async () => {
+      // Self-access grants a published client `update` on its own row, so the
+      // field lock is the only thing standing between a browser-shipped key and
+      // an attacker pinning the credential to a value they chose. Payload
+      // strips a denied field rather than erroring, so the PATCH still answers
+      // 200 — only the read-back says whether it took.
+      await rest(`/api/clients/${atlasClient.id}`, {
+        method: 'PATCH',
+        json: { apiKey: 'ATTACKER-CHOSEN-KEY' },
       })
+
+      const after = (await payload.findByID({
+        collection: 'clients',
+        id: atlasClient.id,
+        depth: 0,
+        overrideAccess: true,
+      })) as Client
+      expect(after.apiKey).toBe(ATLAS_API_KEY)
     })
 
     it('sanitizes clients to exactly one apiKey field', () => {
-      // `mergeBaseFields` matches by name only at the level it is handed. A copy
-      // nested in a tab would leave the base field appended beside it.
+      // The nesting trap in `Clients.ts` — a mis-placed override appends the
+      // base field instead of merging with it.
       const names = payload.collections.clients.config.flattenedFields.map((field) =>
         'name' in field ? field.name : null,
       )
@@ -226,8 +270,7 @@ describe('Clients access', () => {
       const global = await payload.findGlobal({
         slug: 'sy-atlas-config',
         depth: 1,
-        // Globals are inside the usage plugin, so this read really does need a
-        // `select` — unlike the bare `/api/clients` case above.
+        // Globals are inside the usage plugin, so its select gate applies here.
         select: { canonicalFallbackClient: true },
         overrideAccess: false,
         req: atlasReq(),
@@ -257,11 +300,11 @@ describe('Clients access', () => {
       const updated = (await payload.update({
         collection: 'clients',
         id: otherClient.id,
-        data: { name: 'OTHER SERVICE' },
+        data: { name: 'OTHER SERVICE, RENAMED' },
         overrideAccess: false,
         req: managerReq(listedManager),
       })) as Client
-      expect(updated.name).toBe('OTHER SERVICE')
+      expect(updated.name).toBe('OTHER SERVICE, RENAMED')
     })
 
     it('gives a manager listed on nothing no clients at all', async () => {
@@ -278,11 +321,15 @@ describe('Clients access', () => {
   })
 
   describe('authentication', () => {
-    it('still resolves a client from its API key', async () => {
-      const { status, body } = await restGet('/api/clients/me?depth=0&select[name]=true')
+    it('still authorises an ordinary read for a key holder', async () => {
+      // Not `/clients/me`, which the field-lock cases already drive. A project
+      // collection proves the key both authenticates and still carries its
+      // role's grants, which is what the field lock could have broken had auth
+      // read `apiKey` rather than the `apiKeyIndex` hash.
+      const { status, body } = await restGet('/api/regions?depth=0&select[id]=true&limit=1')
 
       expect(status).toBe(200)
-      expect((body as { user: Client | null }).user?.id).toBe(atlasClient.id)
+      expect(body).toHaveProperty('docs')
     })
   })
 })

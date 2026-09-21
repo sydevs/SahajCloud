@@ -290,7 +290,12 @@ export async function waitForEmail(
  * @param apiKey The API key for the client
  */
 export function createClientAuthenticatedRequest(
-  clientId: string,
+  /**
+   * ⚠ Pass the real `client.id`, a number. The self-access bypass compares
+   * `user.id === docId` strictly, so a stringified id silently denies a client
+   * its own row.
+   */
+  clientId: number | string,
   apiKey: string,
   /** Roles the stub client holds, for role-scoped access checks. */
   roles: string[] = [],
