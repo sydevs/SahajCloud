@@ -291,11 +291,11 @@ export async function waitForEmail(
  */
 export function createClientAuthenticatedRequest(
   /**
-   * ⚠ Pass the real `client.id`, a number. The self-access bypass compares
+   * The real `client.id`. Narrow on purpose: the self-access bypass compares
    * `user.id === docId` strictly, so a stringified id silently denies a client
-   * its own row.
+   * its own row — which reads exactly like a working lock.
    */
-  clientId: number | string,
+  clientId: number,
   apiKey: string,
   /** Roles the stub client holds, for role-scoped access checks. */
   roles: string[] = [],
