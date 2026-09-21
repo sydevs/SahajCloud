@@ -23,6 +23,7 @@ import { abuseScoreSchema, calculateAbuseScore } from '@/plugins/usage'
 import { clientEmbedReport } from './endpoints/report'
 import { verifyEmbedOnDemand } from './endpoints/verifyEmbed'
 import { ensureClientId } from './hooks/ensureClientId'
+import { stripSecretsFromClientReads } from './hooks/stripSecretsFromClientReads'
 import { validateCanonicalOwnership } from './hooks/validateCanonicalOwnership'
 import { validateClientData } from './hooks/validateClientData'
 import { validateMailingList } from './hooks/validateMailingList'
@@ -152,10 +153,10 @@ const OPT_IN_NOTES: Record<MailingListProvider, string> = {
  * any service, whatever it does, may run a list.
  *
  * ⚠ **Every field carries `managersOnlyFieldAccess`, and that is the security
- * boundary rather than a nicety.** `clients` is not in
- * `RESTRICTED_COLLECTIONS`, so an API client can read a whole Clients document
- * over REST — without the lock, the atlas widget's public key would read every
- * client's provider secret. `admin.condition` covers only the UI.
+ * boundary rather than a nicety.** Self-access lets a published key read its own
+ * row whole over `GET /api/clients/me`, which no `RESTRICTED_COLLECTIONS` entry
+ * covers — without the lock a service would read back its own provider secret.
+ * `admin.condition` covers only the UI.
  *
  * `required` plus a false `admin.condition` is the whole "required only when
  * enabled" rule: Payload skips `required` while the condition is false. Same
@@ -272,19 +273,23 @@ export const Clients: CollectionConfig = {
   },
   fields: [
     {
-      // ⚠ Top level, beside `tabs`, never inside it. `mergeBaseFields` matches
+      // ⚠ Top level, beside `tabs`, never inside it — `mergeBaseFields` matches
       // the auth base field by name only at the level it is handed, so a nested
-      // copy would not match and `clients` would sanitize to two `apiKey`
-      // fields. The deep merge lets ours win, so the base encrypt/decrypt hooks
-      // survive (#822).
+      // copy sanitizes to two `apiKey` fields (#822, docs/rules/access.md).
       //
-      // `read` only: `create` is the path key regeneration takes, and the
-      // API-key strategy authenticates on the `apiKeyIndex` hash at
-      // `overrideAccess: true`, never through this field.
+      // Writes are locked too: self-access grants a published client `update` on
+      // its own row, so without it a browser-shipped key could pin the
+      // credential to a value the attacker chose. Manager regeneration is
+      // unaffected — the lock passes any `managers` caller.
+      //
+      // Not to be confused with `mailingList.apiKey` above — that one is the
+      // provider secret. Same lock, unrelated credential.
       name: 'apiKey',
       type: 'text',
       access: {
         read: managersOnlyFieldAccess,
+        create: managersOnlyFieldAccess,
+        update: managersOnlyFieldAccess,
       },
     },
     {
@@ -684,6 +689,7 @@ export const Clients: CollectionConfig = {
   ],
   endpoints: [clientEmbedReport, verifyEmbedOnDemand],
   hooks: {
+    afterRead: [stripSecretsFromClientReads],
     beforeChange: [
       validateClientData,
       ensureClientId,
