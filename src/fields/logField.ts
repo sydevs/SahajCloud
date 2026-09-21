@@ -218,6 +218,10 @@ export function logField({
     // actor falls back to an email when a manager has no name — so this column
     // holds manager PII on `events`, which the `sahaj-atlas` project reads.
     // Restricting the `managers` collection cannot reach a JSON column (#821).
+    // Spelled as a denylist rather than `managersOnlyFieldAccess` so all three
+    // keys admit the same callers, the verify action's manager write included.
+    // Equivalent, not wider: `users` is non-auth, and `hasPermission` refuses a
+    // null user before any field check runs.
     access: {
       read: ({ req }) => req.user?.collection !== 'clients',
       create: ({ req }) => req.user?.collection !== 'clients',
