@@ -166,6 +166,8 @@
     "display": {
       "about": "About this class",
       "free_meditation_class": "Free Meditation Class",
+      "unverified_title": "Unverified listing",
+      "unverified_note": "This listing has not been verified by a local coordinator yet.",
       "chip_full": "Full",
       "chip_today": "Today",
       "chip_ended": "Ended",

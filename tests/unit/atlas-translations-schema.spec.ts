@@ -192,7 +192,7 @@ describe('atlas translations schema', () => {
 
   // Every other assertion here filters a list. This one states its size, so
   // none of them can pass by walking an empty schema.
-  it('declares 193 widget-facing keys across 34 leaf groups', () => {
+  it('declares 195 widget-facing keys across 34 leaf groups', () => {
     const leafGroups = (node: Node): number =>
       Object.values(node.properties ?? {}).some(isNode)
         ? Object.values(node.properties ?? {})
@@ -208,7 +208,7 @@ describe('atlas translations schema', () => {
           !key.startsWith('event.title.') &&
           !key.startsWith('seo.'),
       ).length,
-    ).toBe(193)
+    ).toBe(195)
   })
 
   it('describes every key, naming where it appears', () => {
