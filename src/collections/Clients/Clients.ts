@@ -281,9 +281,6 @@ export const Clients: CollectionConfig = {
       // its own row, so without it a browser-shipped key could pin the
       // credential to a value the attacker chose. Manager regeneration is
       // unaffected — the lock passes any `managers` caller.
-      //
-      // Not to be confused with `mailingList.apiKey` above — that one is the
-      // provider secret. Same lock, unrelated credential.
       name: 'apiKey',
       type: 'text',
       access: {
