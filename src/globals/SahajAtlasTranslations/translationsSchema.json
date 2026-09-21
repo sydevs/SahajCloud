@@ -624,7 +624,7 @@
             },
             "unverified_note": {
               "type": "string",
-              "description": "Unverified-listing badge body, saying no local coordinator has confirmed the class yet. Event view only."
+              "description": "Unverified-listing badge body, saying no local coordinator has verified the listing yet. Event view only."
             },
             "chip_full": {
               "type": "string",
