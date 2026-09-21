@@ -41,7 +41,11 @@ import {
 import { livePreviewUrl } from '@/lib/livePreview/url'
 import { getLanguageOptions } from '@/lib/locales'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
-import { adminOnlyCondition, managersOnlyFieldAccess, ownedRegionFilterOptions } from '@/plugins/access'
+import {
+  adminOnlyCondition,
+  managersOnlyFieldAccess,
+  ownedRegionFilterOptions,
+} from '@/plugins/access'
 import { relationId } from '@/plugins/access/documentManagers'
 
 import { eventsGeoJson } from './endpoints/geojson'
@@ -461,10 +465,8 @@ export const Events: CollectionConfig = {
                   // Built-in email format validation. No hand-rolled validator.
                   type: 'email',
                   // ⚠ A manager's own address, denormalized onto a collection
-                  // the `sahaj-atlas` project reads. Restricting the `managers`
-                  // collection (#821) cannot reach it — this is a copy of the
-                  // value, not a relationship to it. `contactEmail` above is
-                  // the public one; this is not.
+                  // the `sahaj-atlas` project reads — restricting `managers`
+                  // (#821) reaches a relationship, never a copy.
                   access: {
                     read: managersOnlyFieldAccess,
                     create: managersOnlyFieldAccess,

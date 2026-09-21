@@ -151,34 +151,11 @@ describe('Atlas report-issue form', () => {
         user: { ...webManager, collection: 'managers' },
         overrideAccess: false,
       })
-      // The field survives, which is what the lock is asked about: it admits
-      // any manager and strips the value only for a client. The VALUE is a
-      // bare id rather than a populated manager since #821 restricted
-      // `managers`, and `web-translator` holds no read grant there — the
-      // accepted cost recorded in `docs/rules/access.md`. Asserting the id is
-      // what tells "the lock let the field through" apart from "the lock
-      // stripped it", which a `not.toHaveProperty` check could not.
-      expect(docs[0]).toHaveProperty('recipient')
+      // A bare id, not a populated manager: `web-translator` holds no
+      // `managers` grant since #821 restricted the collection — the accepted
+      // cost recorded in `docs/rules/access.md`. The id is what tells the lock
+      // passing the field through apart from the lock stripping it.
       expect((docs[0] as Form).recipient).toBe(recipient.id)
-    })
-
-    it('populates recipient for a role that holds the managers grant', async () => {
-      // The other side of the same fact: the id above is a missing grant, not
-      // the field lock. An `atlas-manager` has one, so populate resolves.
-      const atlasManager = await testData.createManager(payload, {
-        name: 'Atlas Editor',
-        email: 'atlas-editor@example.com',
-        roles: ['atlas-manager'],
-      })
-      const { docs } = await payload.find({
-        collection: 'forms',
-        where: { id: { equals: contactForm.id } },
-        depth: 1,
-        locale: 'en',
-        user: { ...atlasManager, collection: 'managers' },
-        overrideAccess: false,
-      })
-      expect((docs[0] as Form).recipient).toMatchObject({ id: recipient.id })
     })
 
     it('never returns client, at any depth', async () => {

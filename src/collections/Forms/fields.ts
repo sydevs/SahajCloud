@@ -59,13 +59,11 @@ const actionTypeField: Field = {
  *
  * Nullable on purpose. A null recipient falls back to `CONTACT_EMAIL`.
  *
- * ⚠ **`managersOnlyFieldAccess` is defence in depth here, not the boundary.**
- * It was the boundary until #821 put `managers` in `RESTRICTED_COLLECTIONS`;
- * populate now refuses the related read and falls back to the bare id on every
- * `relationTo: 'managers'` field. Keep the lock anyway. `forms` carries the
- * form-builder plugin's own `read: () => true`, which outranks the generated
- * access config, so this is the collection where a later loosening of the
- * shared-read rule would be felt first. See `docs/rules/access.md`.
+ * ⚠ **Defence in depth, not the boundary** — `managers` is restricted (#821),
+ * so populate already refuses the related read and hands back a bare id. Keep
+ * the lock: `forms` carries the form-builder plugin's own `read: () => true`,
+ * which outranks the generated access config, so a loosening of the shared-read
+ * rule is felt here first. See `docs/rules/access.md`.
  */
 const recipientField: Field = {
   name: 'recipient',

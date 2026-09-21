@@ -172,16 +172,13 @@ const ALL_PROJECT_COLLECTIONS: ContentSlug[] = (() => {
  * - `managers` — names and email addresses of the people who run the org
  *   (#821). No client key may read one, ever. `atlas-manager` holds the only
  *   explicit grant, because it picks on `Events.manager` and `Regions.managers`.
- *   ⚠ **Six paths reached a manager's name and email before this entry**, and
- *   five of them close here: `GET /api/managers` itself, and populate at
- *   `depth >= 1` through `Events.manager`, `Regions.managers`, `Pages.managers`
- *   and `Clients.managers` / `Clients.primaryContact`. Populate falls back to
- *   the bare id once the read is refused, so those four fields need no lock of
- *   their own. The sixth is not a relationship and this entry cannot close it:
- *   `Events.registrationNotificationEmail` denormalizes a manager's address
- *   onto a collection the atlas project reads, so it carries
- *   `managersOnlyFieldAccess` instead. A new `relationTo: 'managers'` field is
- *   covered by this entry; a new *copy* of a manager's address is not.
+ *   ⚠ **This entry reaches a relationship. It does not reach a copy.** Every
+ *   `relationTo: 'managers'` field is covered and needs no lock of its own —
+ *   populate falls back to the bare id once the related read is refused. A
+ *   field holding a manager's name or address *as a value* is not covered, and
+ *   two on `events` needed their own lock: `registrationNotificationEmail`, and
+ *   `activityLog`, whose reminder entries record the address each one went to
+ *   (`src/fields/logField.ts`). Ask which kind you have before trusting this.
  */
 const RESTRICTED_COLLECTIONS: ReadonlySet<string> = new Set([
   'users',
