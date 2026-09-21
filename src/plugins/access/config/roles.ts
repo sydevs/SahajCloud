@@ -74,6 +74,9 @@ const ROLES = {
       regions: ['create', 'update'] as PermissionLevel[],
       events: ['create', 'update', 'delete'] as PermissionLevel[],
       users: ['read'] as PermissionLevel[],
+      // Collection-wide on purpose (#821): a picker exists to list *other*
+      // managers, so a self-scoped `Where` would empty it.
+      managers: ['read'] as PermissionLevel[],
       // `user-submissions` is restricted too, so this grant is what reaches it
       // at all — and it is narrowed per row in `accessConfigs.ts`: a manager
       // reads the contact rows addressed to them, plus proposals. It does NOT

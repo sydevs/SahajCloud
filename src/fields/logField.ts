@@ -198,21 +198,19 @@ export function logField({
     // the single generated `ActivityLog` interface.
     schemaTitle: 'ActivityLog',
     schema: activityLogSchema,
-    // ⚠ `admin.readOnly` is the admin UI only, and the docblock's promise that
-    // this is "never writable through the API" was until now just that — a
-    // promise. It did not matter while `activityLog` sat on collections no API
-    // client could write; `user-submissions` accepts public creates, so a
-    // client could have posted a forged delivery history that the admin table
-    // renders as system-written fact.
+    // ⚠ `admin.readOnly` hides this in the admin UI only. The API needs a
+    // real lock: `user-submissions` accepts public creates, so a client
+    // could post a forged history the admin table renders as fact.
     //
-    // **Clients, not everyone.** `systemMetaField`'s flat `update: () => false`
-    // is wrong here: the admin verify action deliberately writes the log with
-    // `overrideAccess: false`, so that the manager's own permissions on the
-    // event are what gate it (`Events/lifecycle/verify.ts`). Denying every
-    // caller silently drops the entry from that write — the entry being the
-    // record of who verified the listing. Jobs and hooks pass `overrideAccess`
-    // and skip this either way.
+    // ⚠ Clients, not everyone. The verify action writes the log at
+    // `overrideAccess: false` (`Events/lifecycle/verify.ts`), so denying
+    // every caller would drop the record of who verified the listing.
+    // `read` is locked for a second reason: reminder entries hold manager
+    // PII, which restricting `managers` cannot reach inside a JSON column
+    // (#821). A denylist, not `managersOnlyFieldAccess`, so all three keys
+    // admit the same callers — equivalent, not wider.
     access: {
+      read: ({ req }) => req.user?.collection !== 'clients',
       create: ({ req }) => req.user?.collection !== 'clients',
       update: ({ req }) => req.user?.collection !== 'clients',
     },
