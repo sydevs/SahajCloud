@@ -136,10 +136,27 @@ export function breadcrumbAncestorIds(doc: Record<string, unknown>, docId: numbe
   return [...new Set(ids)]
 }
 
+/**
+ * The manager fields, and nothing else off the row.
+ *
+ * `DocManagerFields` already names every field this module reads, so the
+ * `select` is exactly derivable — see the note on `findManagedIds` for what an
+ * unselected row costs on `clients`.
+ */
+function docManagerSelect(fields: DocManagerFields): Record<string, true> {
+  const select: Record<string, true> = {}
+  if (fields.managersField) select[fields.managersField] = true
+  if (fields.managerField) select[fields.managerField] = true
+  if (fields.parentField) select[fields.parentField] = true
+  if (fields.hasBreadcrumbs) select.breadcrumbs = true
+  return select
+}
+
 function loadDoc(
   req: PayloadRequest,
   collection: ContentSlug,
   id: number | string,
+  fields: DocManagerFields,
 ): Promise<Record<string, unknown> | null> {
   return req.payload.findByID({
     collection: collection as CollectionSlug,
@@ -147,6 +164,7 @@ function loadDoc(
     depth: 0,
     overrideAccess: true,
     disableErrors: true,
+    select: docManagerSelect(fields) as never,
     req,
   }) as Promise<Record<string, unknown> | null>
 }
@@ -156,8 +174,9 @@ function loadDoc(
  *
  * The `select` is the point: without it each row arrives whole and runs its
  * full `afterRead` chain — on `clients` that decrypts every managed service's
- * `apiKey`, server-side, to collect a primary key (#822). The casts are because
- * the slug is only known at runtime, so both the `select` and the returned doc
+ * `apiKey`, server-side, to collect a primary key (#822). Every query in this
+ * module selects for that reason, `loadDoc` included. The casts are because the
+ * slug is only known at runtime, so both the `select` and the returned doc
  * widen to a union of every collection's shape.
  */
 async function findManagedIds(
@@ -279,7 +298,7 @@ async function userManagesAncestorViaParent(
     const parentId = relationId(current[fields.parentField!])
     if (parentId === null || visited.has(parentId)) return false
     visited.add(parentId)
-    const parent = await loadDoc(req, collection, parentId)
+    const parent = await loadDoc(req, collection, parentId, fields)
     if (!parent) return false
     if (documentListsUser(parent, userId, fields)) return true
     current = parent
@@ -297,7 +316,7 @@ export async function userManagesDocument(
   docId: number | string,
   fields: DocManagerFields,
 ): Promise<boolean> {
-  const doc = await loadDoc(req, collection, docId)
+  const doc = await loadDoc(req, collection, docId, fields)
   if (!doc) return false
 
   const uid = Number(userId)
@@ -312,6 +331,7 @@ export async function userManagesDocument(
       depth: 0,
       limit: 1,
       overrideAccess: true,
+      select: { id: true } as never,
       req,
     })
     return hit.docs.length > 0
