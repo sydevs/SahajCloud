@@ -464,9 +464,10 @@ export const Events: CollectionConfig = {
                   label: 'Send Registration Updates To',
                   // Built-in email format validation. No hand-rolled validator.
                   type: 'email',
-                  // ⚠ A manager's own address, denormalized onto a collection
-                  // the `sahaj-atlas` project reads — restricting `managers`
-                  // (#821) reaches a relationship, never a copy.
+                  // ⚠ A copy of a manager's email address, sitting on a collection
+                  // the `sahaj-atlas` project can read. Hiding the `managers`
+                  // collection hides linked manager records, never a copy like this
+                  // one, so this field carries its own lock (#821).
                   access: {
                     read: managersOnlyFieldAccess,
                     create: managersOnlyFieldAccess,
