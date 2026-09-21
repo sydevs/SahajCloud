@@ -1871,7 +1871,7 @@ export interface Event {
     | 'finished';
   activityLog?: ActivityLog;
   /**
-   * How strongly attendees confirm this event is real (0–1). Rises with confirmations, falls with denials, and stays cautious while there are few votes — the Atlas map ranks unverified listings by it. Blank until the first vote.
+   * How strongly attendees confirm this event is real (0–1). Rises with confirmations, falls with denials, and stays cautious while there are few votes. Blank until the first vote.
    */
   confidenceScore?: number | null;
   qualityReport?: EventQualityReport;
@@ -9178,7 +9178,7 @@ export interface SyAtlasTranslationsEventDisplayStrings {
    */
   unverified_title?: string;
   /**
-   * Unverified-listing badge body, saying no local coordinator has confirmed the class yet. Event view only.
+   * Unverified-listing badge body, saying no local coordinator has verified the listing yet. Event view only.
    */
   unverified_note?: string;
   /**
