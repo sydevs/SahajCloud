@@ -9174,6 +9174,14 @@ export interface SyAtlasTranslationsEventDisplayStrings {
    */
   free_meditation_class?: string;
   /**
+   * Unverified-listing badge heading. Event view only — the list card, the Calendar entry and the map marker never show it.
+   */
+  unverified_title?: string;
+  /**
+   * Unverified-listing badge body, saying no local coordinator has confirmed the class yet. Event view only.
+   */
+  unverified_note?: string;
+  /**
    * Status chip: the event has no places left.
    */
   chip_full?: string;

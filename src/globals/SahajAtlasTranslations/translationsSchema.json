@@ -618,6 +618,14 @@
               "type": "string",
               "description": "Suffix appended after the event title in the standalone page <title>."
             },
+            "unverified_title": {
+              "type": "string",
+              "description": "Unverified-listing badge heading. Event view only — the list card, the Calendar entry and the map marker never show it."
+            },
+            "unverified_note": {
+              "type": "string",
+              "description": "Unverified-listing badge body, saying no local coordinator has confirmed the class yet. Event view only."
+            },
             "chip_full": {
               "type": "string",
               "maxLength": 14,
