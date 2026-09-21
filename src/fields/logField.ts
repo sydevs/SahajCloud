@@ -212,7 +212,14 @@ export function logField({
     // caller silently drops the entry from that write — the entry being the
     // record of who verified the listing. Jobs and hooks pass `overrideAccess`
     // and skip this either way.
+    //
+    // ⚠ **`read` is here for a different reason, and it is not symmetry.** A
+    // reminder entry records the address it went to (`destination`), and an
+    // actor falls back to an email when a manager has no name — so this column
+    // holds manager PII on `events`, which the `sahaj-atlas` project reads.
+    // Restricting the `managers` collection cannot reach a JSON column (#821).
     access: {
+      read: ({ req }) => req.user?.collection !== 'clients',
       create: ({ req }) => req.user?.collection !== 'clients',
       update: ({ req }) => req.user?.collection !== 'clients',
     },
