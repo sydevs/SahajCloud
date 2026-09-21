@@ -169,10 +169,17 @@ const ALL_PROJECT_COLLECTIONS: ContentSlug[] = (() => {
  *   project and was therefore implicitly readable by every role in it; that
  *   membership is gone. Clients may create and never read. A manager's read is
  *   narrowed further, per row, in `accessConfigs.ts`.
+ * - `managers` — names and email addresses of the people who run the org
+ *   (#821). No client key may read one, ever. `atlas-manager` holds the only
+ *   explicit grant, because it picks on `Events.manager` and `Regions.managers`.
+ *   ⚠ **This entry reaches a relationship, never a copy** — a field holding a
+ *   manager's name or address as a value needs its own field lock. Ask which
+ *   kind you have before trusting this (`docs/rules/access.md`).
  */
 const RESTRICTED_COLLECTIONS: ReadonlySet<string> = new Set([
   'users',
   'user-submissions',
+  'managers',
 ])
 
 /** Whether implicit (project/shared) read must never apply to this collection. */

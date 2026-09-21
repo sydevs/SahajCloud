@@ -151,7 +151,11 @@ describe('Atlas report-issue form', () => {
         user: { ...webManager, collection: 'managers' },
         overrideAccess: false,
       })
-      expect((docs[0] as Form).recipient).toMatchObject({ id: recipient.id })
+      // A bare id, not a populated manager: `web-translator` holds no
+      // `managers` grant since #821 restricted the collection — the accepted
+      // cost recorded in `docs/rules/access.md`. The id is what tells the lock
+      // passing the field through apart from the lock stripping it.
+      expect((docs[0] as Form).recipient).toBe(recipient.id)
     })
 
     it('never returns client, at any depth', async () => {
