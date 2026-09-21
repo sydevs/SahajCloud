@@ -222,7 +222,7 @@ It is deliberately **wider** than `adminOnlyFieldAccess`, which is the wrong too
 - `Forms.recipient` — the same collection, and now defence in depth behind restricted `managers` (#821).
 - `Events.registrationNotificationEmail` — a manager's address *copied* onto a collection the `sahaj-atlas` project reads (#821).
 
-⚠ **Reach for a field lock, not `RESTRICTED_COLLECTIONS`, whenever personal data is denormalized rather than related.** The list reaches a relationship; only a lock reaches a copy. `Events.activityLog` is the same shape one step further out — a JSON column whose reminder entries record the address each one went to — so the lock lives in the `logField` factory (`src/fields/logField.ts`) and every consumer inherits it. The sibling `Events.contactEmail` deliberately has no lock: that one is the address a seeker is meant to write to.
+⚠ **Reach for a field lock, not `RESTRICTED_COLLECTIONS`, whenever personal data is denormalized rather than related.** `Events.activityLog` is the same shape one step further out — a JSON column whose reminder entries record the address each one went to — so the lock lives in the `logField` factory (`src/fields/logField.ts`) and every consumer inherits it. The sibling `Events.contactEmail` deliberately has no lock: that one is the address a seeker is meant to write to.
 
 ⚠ **A locked field still appears in `payload-types.ts`.** The lock strips the value at runtime, not the shape from the generated type.
 

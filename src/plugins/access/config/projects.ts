@@ -172,13 +172,9 @@ const ALL_PROJECT_COLLECTIONS: ContentSlug[] = (() => {
  * - `managers` — names and email addresses of the people who run the org
  *   (#821). No client key may read one, ever. `atlas-manager` holds the only
  *   explicit grant, because it picks on `Events.manager` and `Regions.managers`.
- *   ⚠ **This entry reaches a relationship. It does not reach a copy.** Every
- *   `relationTo: 'managers'` field is covered and needs no lock of its own —
- *   populate falls back to the bare id once the related read is refused. A
- *   field holding a manager's name or address *as a value* is not covered, and
- *   two on `events` needed their own lock: `registrationNotificationEmail`, and
- *   `activityLog`, whose reminder entries record the address each one went to
- *   (`src/fields/logField.ts`). Ask which kind you have before trusting this.
+ *   ⚠ **This entry reaches a relationship, never a copy** — a field holding a
+ *   manager's name or address as a value needs its own field lock. Ask which
+ *   kind you have before trusting this (`docs/rules/access.md`).
  */
 const RESTRICTED_COLLECTIONS: ReadonlySet<string> = new Set([
   'users',
