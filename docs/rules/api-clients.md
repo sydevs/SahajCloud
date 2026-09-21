@@ -10,7 +10,8 @@ REST authentication for third-party clients lives in the `Clients` collection pl
 
 ## Clients collection (`src/collections/Clients/Clients.ts`)
 
-- `useAPIKey: true` — Payload generates an API key per client. Managers can regenerate keys and manage settings.
+- `useAPIKey: true` — Payload generates an API key per client. Managers regenerate keys and manage settings through the **document-manager** path, not a role: no role holds any `clients` grant, so an admin, or a manager listed in that client's `managers` field, is the whole of who reaches the document.
+- ⚠ **`clients` is a restricted collection, and `apiKey` is locked on top of that** (#822). One key read every other service's decrypted key until both landed. The one read a client still gets is its own row, over `GET /api/clients/me`, and the field lock is what keeps the key out of that answer. See `docs/rules/access.md`.
 - A virtual `highUsageAlert` field surfaces when daily limits are exceeded. The `usage` group holds `dailyRequests`, `peakDailyRequests`, `lastRequestAt`.
 - Custom hooks (`src/collections/Clients/hooks/`): `validateClientData` (`primaryContact` must be in the managers list) and `validateCanonicalOwnership` (below).
 
