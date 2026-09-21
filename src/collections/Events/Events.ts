@@ -41,7 +41,7 @@ import {
 import { livePreviewUrl } from '@/lib/livePreview/url'
 import { getLanguageOptions } from '@/lib/locales'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
-import { adminOnlyCondition, ownedRegionFilterOptions } from '@/plugins/access'
+import { adminOnlyCondition, managersOnlyFieldAccess, ownedRegionFilterOptions } from '@/plugins/access'
 import { relationId } from '@/plugins/access/documentManagers'
 
 import { eventsGeoJson } from './endpoints/geojson'
@@ -460,6 +460,16 @@ export const Events: CollectionConfig = {
                   label: 'Send Registration Updates To',
                   // Built-in email format validation. No hand-rolled validator.
                   type: 'email',
+                  // ⚠ A manager's own address, denormalized onto a collection
+                  // the `sahaj-atlas` project reads. Restricting the `managers`
+                  // collection (#821) cannot reach it — this is a copy of the
+                  // value, not a relationship to it. `contactEmail` above is
+                  // the public one; this is not.
+                  access: {
+                    read: managersOnlyFieldAccess,
+                    create: managersOnlyFieldAccess,
+                    update: managersOnlyFieldAccess,
+                  },
                   admin: {
                     // Hidden pre-adoption. An unverified or denied event has
                     // no manager, and its registrations are recorded, but
