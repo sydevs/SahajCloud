@@ -170,6 +170,12 @@ const ALL_PROJECT_COLLECTIONS: ContentSlug[] = (() => {
  *   project and was therefore implicitly readable by every role in it; that
  *   membership is gone. Clients may create and never read. A manager's read is
  *   narrowed further, per row, in `accessConfigs.ts`.
+ * - `managers` — names and email addresses of the people who run the org
+ *   (#821). No client key may read one, ever. `atlas-manager` holds the only
+ *   explicit grant, because it picks on `Events.manager` and `Regions.managers`.
+ *   ⚠ **This entry reaches a relationship, never a copy** — a field holding a
+ *   manager's name or address as a value needs its own field lock. Ask which
+ *   kind you have before trusting this (`docs/rules/access.md`).
  * - ⚠ `clients` — every service's credentials, origin allowlist and usage
  *   counters. Shared read let any published key scrape every other service's
  *   decrypted `apiKey` (#822). Admins and a service's own listed managers now,
@@ -179,16 +185,17 @@ const ALL_PROJECT_COLLECTIONS: ContentSlug[] = (() => {
  *   safe.
  *
  * ⚠ **This list is a holding pattern, not the permanent mechanism.** Exactly
- * four registered collections sit in no project, and `managers` (#821) is the
- * only one left outside this set. A complete opt-out list is an inverted
- * default in disguise: the fix is for step 4a to test project membership
- * directly, so a new collection fails closed. That cannot land until #821
- * settles how a non-admin manager still reads `managers` for the admin
- * relationship pickers.
+ * four registered collections sit in no project, and all four are named here
+ * — so the set is complete today and fails open the day a fifth is added. A
+ * complete opt-out list is an inverted default in disguise: the fix is for
+ * step 4a to test project membership directly, so a new collection fails
+ * closed instead. Deferred, not blocked — #821 settled the question that held
+ * it up, by giving `atlas-manager` the explicit grant its pickers need.
  */
 const RESTRICTED_COLLECTIONS: ReadonlySet<string> = new Set([
   'users',
   'user-submissions',
+  'managers',
   'clients',
 ])
 
