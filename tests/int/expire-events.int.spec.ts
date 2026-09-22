@@ -5,6 +5,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, onTestFinished, 
 
 import { ExpireEvents } from '@/jobs/ExpireEvents/ExpireEvents'
 import { asNotificationLog } from '@/lib/eventVerification/log'
+import { EVENT_IMAGE_LIMIT } from '@/lib/utilities/eventImages'
 
 import { runTaskHandler } from '../utils/taskRunner'
 import { testData } from '../utils/testData'
@@ -59,18 +60,42 @@ function failEventLoad(payload: Payload, failingId: number) {
 
 const DUE = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString() // 24h ago
 
-async function createDueEvent(payload: Payload, title: string) {
-  const event = await testData.createEvent(payload, { title, verificationStage: 'verified' })
+const reload = (payload: Payload, id: number, trash = false) =>
+  payload.findByID({ collection: 'events', id, overrideAccess: true, depth: 0, trash })
+
+async function createDueEvent(
+  payload: Payload,
+  title: string,
+  overrides: Record<string, unknown> = {},
+  dueAt: string = DUE,
+) {
+  const event = await testData.createEvent(payload, {
+    title,
+    verificationStage: 'verified',
+    ...overrides,
+  } as never)
   // The handler only picks up events whose nextCheckAt has passed. `skipVerifyHook`
   // is the same context flag the real job uses so the verifyOnSave beforeChange
   // hook does not clobber our backdated value with `now + cadence`.
   await payload.update({
     collection: 'events',
     id: event.id,
-    data: { nextCheckAt: DUE },
+    data: { nextCheckAt: dueAt },
     context: { skipVerifyHook: true },
   })
   return event
+}
+
+/** The row `updateByID` reads as current, selected the way Payload selects it. */
+async function latestVersion(payload: Payload, id: number) {
+  const { docs } = await payload.findVersions({
+    collection: 'events',
+    where: { parent: { equals: id } },
+    sort: '-updatedAt',
+    limit: 1,
+    overrideAccess: true,
+  })
+  return docs[0]?.version
 }
 
 describe('ExpireEvents job', () => {
@@ -122,10 +147,10 @@ describe('ExpireEvents job', () => {
       // The failure is caught, counted, and reported to Sentry tagged with the event id.
       expect(result.failed).toBe(1)
       expect(Sentry.captureException).toHaveBeenCalledTimes(1)
-      expect(setContextMock).toHaveBeenCalledWith(
-        'expireEvents',
-        expect.objectContaining({ eventId: failing.id, dueSince: DUE }),
-      )
+      expect(setContextMock).toHaveBeenCalledWith('expireEvents', {
+        eventId: failing.id,
+        dueSince: DUE,
+      })
     } finally {
       spy.mockRestore()
     }
@@ -175,9 +200,6 @@ describe('ExpireEvents job', () => {
         context: { skipVerifyHook: true },
       })
     }
-
-    const reload = (payload: Payload, id: number) =>
-      payload.findByID({ collection: 'events', id, overrideAccess: true, depth: 0 })
 
     it('marks a run-out event finished and arms retention without unpublishing it', async () => {
       const event = await createDueEventAtStage(payload, 'Ran Out', 'verified', {
@@ -268,9 +290,6 @@ describe('ExpireEvents job', () => {
   // stage. These pin that the watermark is armed on write and honoured on run.
   // ──────────────────────────────────────────────────────────────────────────
   describe('watermark-driven transitions', () => {
-    const reload = (payload: Payload, id: number, trash = false) =>
-      payload.findByID({ collection: 'events', id, overrideAccess: true, depth: 0, trash })
-
     /** An event at a pre-adoption stage (no manager). */
     async function createUnmanagedEvent(
       payload: Payload,
@@ -442,10 +461,8 @@ describe('ExpireEvents job', () => {
   })
 
   // ──────────────────────────────────────────────────────────────────────────
-  // Invalid stored data (#835). A field validator added after a row was written
-  // makes that row invalid at rest, and Payload re-validates the whole document
-  // on every update — so a four-key bookkeeping write was refused and the event
-  // could never be advanced, finished or logged.
+  // Invalid stored data (#835) — a row that fails a validator added after it
+  // was written. See `updateBookkeeping` for why an update re-validates it.
   // ──────────────────────────────────────────────────────────────────────────
   describe('an event whose stored data fails a field validator', () => {
     const reload = (payload: Payload, id: number) =>
@@ -470,7 +487,9 @@ describe('ExpireEvents job', () => {
         pagination: false,
       })
       const latest = docs[0]
-      if (!latest) return
+      // Events is `versions: { drafts: true }`, so a row without one means the
+      // seed silently left the document valid and every case below is vacuous.
+      if (!latest) throw new Error(`event ${id} has no version row to seed`)
       await payload.db.updateVersion({
         collection: 'events',
         id: latest.id,
@@ -510,26 +529,23 @@ describe('ExpireEvents job', () => {
 
     it('finishes one stored with more images than `maxRows` allows', async () => {
       const image = await testData.createImage(payload)
-      const event = await testData.createEvent(payload, {
-        title: 'Invalid Images',
+      const event = await createDueEvent(payload, 'Invalid Images', {
         inactive: false,
         eventType: 'online',
         onlineUrl: 'https://example.com/too-many-images',
+        // A one-off two months back, so the finished-check claims it.
         schedule: {
           firstDate: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(),
           firstDate_tz: 'Europe/London',
         },
-      } as never)
-      await payload.update({
-        collection: 'events',
-        id: event.id,
-        data: { verificationStage: 'verified', nextCheckAt: DUE, _status: 'published' },
-        context: { skipVerifyHook: true },
-        overrideAccess: true,
       })
-      // One image listed eight times: `maxRows` counts rows, and eight uploads
-      // would buy the case nothing the eight rows do not already.
-      await storeInvalid(payload, event.id, { images: Array.from({ length: 8 }, () => image.id) })
+      // One image listed over the limit: `maxRows` counts rows, so extra
+      // uploads buy nothing. Derived from the limit, never a literal — raise
+      // `maxRows` against a literal and the seed becomes valid and the case
+      // vacuous.
+      await storeInvalid(payload, event.id, {
+        images: Array.from({ length: EVENT_IMAGE_LIMIT + 1 }, () => image.id),
+      })
 
       const result = await runTask(payload)
       expect(result.failed).toBe(0)
@@ -540,18 +556,7 @@ describe('ExpireEvents job', () => {
 
     it('logs the reminder it sent, so a second run does not send it again', async () => {
       const manager = await testData.createManager(payload)
-      const event = await testData.createEvent(payload, {
-        title: 'Invalid Reminder',
-        manager: manager.id,
-        verificationStage: 'verified',
-      } as never)
-      await payload.update({
-        collection: 'events',
-        id: event.id,
-        data: { nextCheckAt: DUE },
-        context: { skipVerifyHook: true },
-        overrideAccess: true,
-      })
+      const event = await createDueEvent(payload, 'Invalid Reminder', { manager: manager.id })
       await storeInvalid(payload, event.id, { contactPhone: null, contactEmail: null })
 
       const sendEmail = vi.spyOn(payload, 'sendEmail')
@@ -584,14 +589,7 @@ describe('ExpireEvents job', () => {
       const after = await reload(payload, event.id)
       expect(after.verificationStage).toBe('reminded')
 
-      const { docs } = await payload.findVersions({
-        collection: 'events',
-        where: { parent: { equals: event.id } },
-        sort: '-updatedAt',
-        limit: 1,
-        overrideAccess: true,
-      })
-      const latest = docs[0]?.version
+      const latest = await latestVersion(payload, event.id)
       expect(latest?.verificationStage).toBe(after.verificationStage)
       expect(latest?.nextCheckAt).toBe(after.nextCheckAt)
       expect(latest?._status).toBe(after._status)
@@ -610,27 +608,22 @@ describe('ExpireEvents job', () => {
       expect(reread.nextCheckAt).toBe(after.nextCheckAt)
     })
 
-    it('tags a repeated per-event failure apart from a first one', async () => {
-      const event = await createDueEvent(payload, 'Long Overdue')
-      // Overdue by a week: only a run that already failed on this event leaves
-      // its watermark that far behind.
-      await payload.update({
-        collection: 'events',
-        id: event.id,
-        data: { nextCheckAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString() },
-        context: { skipVerifyHook: true },
-        overrideAccess: true,
-      })
+    // Whether a failure repeats is read off this tag's own occurrence history in
+    // Sentry, so the tag is what has to be there — a context field is not
+    // indexed and cannot be filtered on.
+    it('tags a per-event failure with the event id, and reports its watermark', async () => {
+      const dueSince = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+      const event = await createDueEvent(payload, 'Long Overdue', {}, dueSince)
 
       const spy = failEventLoad(payload, event.id)
       try {
         await runTask(payload)
 
-        expect(setTagMock).toHaveBeenCalledWith('expire_events.repeat', 'yes')
-        expect(setContextMock).toHaveBeenCalledWith(
-          'expireEvents',
-          expect.objectContaining({ eventId: event.id, nightsOverdue: 7 }),
-        )
+        expect(setTagMock).toHaveBeenCalledWith('expire_events.event_id', String(event.id))
+        expect(setContextMock).toHaveBeenCalledWith('expireEvents', {
+          eventId: event.id,
+          dueSince,
+        })
       } finally {
         spy.mockRestore()
       }
@@ -639,12 +632,9 @@ describe('ExpireEvents job', () => {
 
   // ──────────────────────────────────────────────────────────────────────────
   describe('paused by EVENT_VERIFICATION_ENABLED', () => {
-    const reload = (payload: Payload, id: number) =>
-      payload.findByID({ collection: 'events', id, overrideAccess: true, depth: 0, trash: true })
-
     it('leaves a due event byte-identical and sends nothing', async () => {
       const event = await createDueEvent(payload, 'Paused')
-      const before = await reload(payload, event.id)
+      const before = await reload(payload, event.id, true)
 
       const sendEmail = vi.spyOn(payload, 'sendEmail').mockResolvedValue(undefined as never)
       onTestFinished(() => sendEmail.mockRestore())
@@ -664,7 +654,7 @@ describe('ExpireEvents job', () => {
       })
       expect(sendEmail).not.toHaveBeenCalled()
 
-      const after = await reload(payload, event.id)
+      const after = await reload(payload, event.id, true)
       expect(after.verificationStage).toBe(before.verificationStage)
       expect(after.nextCheckAt).toBe(before.nextCheckAt)
       expect(after.activityLog).toEqual(before.activityLog)

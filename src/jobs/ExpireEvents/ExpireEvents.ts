@@ -48,23 +48,24 @@ function capLog<T>(log: T[]): T[] {
  * Write derived bookkeeping onto an event without re-validating the document.
  *
  * Payload's `beforeValidate` field walk fills every absent field from the
- * stored document, so `beforeChange` validates the merged whole: a four-key
- * partial update is checked as if an editor had re-submitted the entire event.
- * An event whose *stored* data fails a validator added after the row was
- * written could therefore never be advanced, finished or logged (#835).
+ * stored document, so `beforeChange` validates the merged whole — a partial
+ * update is checked as if an editor had re-submitted the entire event. An event
+ * whose *stored* data fails a validator added after the row was written could
+ * therefore never be advanced, finished or logged (#835).
  *
- * `unpublishAllLocales` is the one supported argument that skips that
- * validation while still writing the main row **and** keeping the
- * `latest: true` version row in step — `saveVersion({ unpublish })` updates
- * that row in place rather than adding a version every night. `draft: true`
- * skips validation too, but writes a version and no main row, so the event
- * would keep its old stage and stay due forever.
+ * `unpublishAllLocales` is the only argument that skips that validation while
+ * still writing the main row. `draft: true` skips it too but writes a version
+ * and no main row, so the event would keep its old stage and stay due forever.
  *
- * It writes no `_status` of its own: the per-locale branch it is named for is
- * gated on `versions.drafts.localizeStatus`, which Events does not set, so the
- * only `_status` written is the one passed in `data`. Both halves are pinned in
- * `expire-events.int.spec.ts`, so a Payload bump that narrows this fails loudly
- * rather than silently re-validating.
+ * Two consequences to keep in view. It skips validation of *these* writes too,
+ * not only of the stored fields — every value here comes from a pinned helper,
+ * and `data` is where that stops being true if it widens. And
+ * `saveVersion({ unpublish })` overwrites the `latest: true` version instead of
+ * appending one: the nightly writes stop growing the version table, at the cost
+ * of the unpublishing advance leaving no published version to restore from.
+ *
+ * ⚠ Safe only while Events omits `versions.drafts.localizeStatus` — see the
+ * warning on `versions` in `Events.ts`.
  */
 async function updateBookkeeping(
   payload: Payload,
@@ -318,20 +319,6 @@ async function processEvent(args: {
   }
 }
 
-/** Nights an event has sat past its watermark, or `null` if it carries none. */
-function nightsOverdue(dueSince: string | null | undefined, now: Date): number | null {
-  if (!dueSince) return null
-  return Math.floor((now.getTime() - new Date(dueSince).getTime()) / (24 * 60 * 60 * 1000))
-}
-
-/**
- * A run only leaves an event due by failing on it, so an event a night or more
- * past its watermark failed on an earlier run too. The exception is a restart:
- * the first run after the job is paused inherits however long the pause lasted,
- * so every failure in that one run reads as repeated.
- */
-const REPEAT_FAILURE_NIGHTS = 1
-
 /**
  * Every event whose watermark has come due, with that watermark, in one query.
  *
@@ -348,7 +335,7 @@ async function dueEvents(
   payload: Payload,
   req: PayloadRequest,
   now: Date,
-): Promise<{ id: number; dueSince: string | null }[]> {
+): Promise<{ id: number; dueSince: string }[]> {
   const { docs } = await payload.find({
     collection: 'events',
     where: { nextCheckAt: { less_than_equal: now.toISOString() } },
@@ -358,7 +345,9 @@ async function dueEvents(
     overrideAccess: true,
     req,
   })
-  return docs.map((doc) => ({ id: doc.id, dueSince: doc.nextCheckAt ?? null }))
+  // The `where` above is `less_than_equal`, which no NULL satisfies, so every
+  // row here carries a watermark whatever the column's type says.
+  return docs.map((doc) => ({ id: doc.id, dueSince: doc.nextCheckAt as string }))
 }
 
 /**
@@ -450,20 +439,19 @@ export const ExpireEvents: TaskConfig<'expireEvents'> = {
         await processEvent({ payload, req, event, now, result })
       } catch (error) {
         result.failed++
-        const overdue = nightsOverdue(dueSince, now)
-        const repeated = overdue !== null && overdue >= REPEAT_FAILURE_NIGHTS
         Sentry.withScope((scope) => {
-          scope.setContext('expireEvents', { eventId: id, dueSince, nightsOverdue: overdue })
-          // A tag rather than a fingerprint or a level: it is searchable in
-          // Sentry without splitting the existing issue or re-grading alerts.
-          scope.setTag('expire_events.repeat', repeated ? 'yes' : 'no')
+          scope.setContext('expireEvents', { eventId: id, dueSince })
+          // The id as a TAG as well, because Sentry indexes tags and not
+          // contexts: filtering this issue by one event is what tells a nightly
+          // repeat from a one-off. Deriving that here cannot work — a stale
+          // import is armed at a watermark years past on its first examination.
+          scope.setTag('expire_events.event_id', String(id))
           Sentry.captureException(error)
         })
         req.payload.logger.warn({
           msg: 'ExpireEvents: per-event failure — continuing',
           eventId: id,
           dueSince,
-          nightsOverdue: overdue,
           error: error instanceof Error ? error.message : String(error),
         })
       }
