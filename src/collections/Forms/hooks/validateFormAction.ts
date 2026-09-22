@@ -2,6 +2,7 @@ import type { CollectionBeforeValidateHook } from 'payload'
 
 import { ValidationError } from 'payload'
 
+import { CLIENT_CONTEXT_KEYS } from '@/collections/UserSubmissions/submissionData'
 import type { Form } from '@/payload-types'
 
 /** The plugin's field blocks that can hold an email address a person types. */
@@ -86,6 +87,30 @@ export const validateFormAction: CollectionBeforeValidateHook<Form> = ({
       message:
         `A ${actionType} form needs ${missing.join(' and ')}. ` +
         'The Message block is static text an author writes, not an input a visitor fills.',
+    })
+  }
+
+  // A submission carries the client's own context — which page, which locale —
+  // in the same flat pairs as the answers, appended after them. So a field
+  // sharing one of those names has its visitor's answer silently replaced, and
+  // the author is the only person who can see it. Refused here for the same
+  // reason as the missing fields above: this is the one moment they are present.
+  //
+  // ⚠ Not every `BASE_SUBMISSION_KEYS` entry. `name` and `subject` are real
+  // questions the production Contact Form asks, and the intake *reads* those
+  // answers rather than overwriting them.
+  const reserved = new Set<string>(CLIENT_CONTEXT_KEYS)
+  const colliding = (Array.isArray(fields) ? fields : [])
+    .map((block) => (block as { name?: unknown }).name)
+    .filter((name): name is string => typeof name === 'string' && reserved.has(name))
+
+  if (colliding.length > 0) {
+    errors.push({
+      path: 'fields',
+      message:
+        `${colliding.map((name) => `\`${name}\``).join(', ')} ` +
+        `${colliding.length > 1 ? 'are names' : 'is a name'} the submitting client writes for ` +
+        'itself, so an answer stored under it would be overwritten. Rename the field.',
     })
   }
 

@@ -191,6 +191,18 @@ export function checkSubmissionData(
 }
 
 /**
+ * The keys the **client** writes about itself, rather than answers a visitor
+ * typed. Reserved on a form's field list (`validateFormAction`) because the
+ * client's context is appended after the answers, so a field sharing one of
+ * these names loses its answer silently.
+ *
+ * Deliberately not all of `BASE_SUBMISSION_KEYS`: `name` is a real question the
+ * production Contact Form asks, and the intake *reads* that answer
+ * (`upsertUserByEmail`) rather than overwriting it.
+ */
+export const CLIENT_CONTEXT_KEYS = ['locale', 'path', 'hostUrl', 'userAgent', 'error'] as const
+
+/**
  * Keys whose value may legitimately contain a URL, and so are never URL-scanned.
  *
  * This is the exemption `user-messages` expressed by not scanning its `context`
@@ -202,17 +214,11 @@ export function checkSubmissionData(
  *
  * ⚠ **A constraint on whatever renders these pairs.** Exempt does not mean
  * harmless: `error` holds up to 5000 characters a sender chose, links included.
- * Nothing renders `submissionData` as HTML today — the admin shows textareas —
- * so there is no live hazard, but Phase 2's delivery templates must not turn
- * these five keys into anchors.
+ * The contact email renders every answer as an escaped React child and never
+ * inside a `<Link>` (`formAnswers.ts`, `UserMessageEmail`), which is what keeps
+ * that true now the pairs reach a renderer.
  */
-export const URL_EXEMPT_KEYS: ReadonlySet<string> = new Set([
-  'path',
-  'hostUrl',
-  'error',
-  'userAgent',
-  'locale',
-])
+export const URL_EXEMPT_KEYS: ReadonlySet<string> = new Set(CLIENT_CONTEXT_KEYS)
 
 /**
  * The pairs a URL scan should look at, as `{ [key]: value }` — the shape
