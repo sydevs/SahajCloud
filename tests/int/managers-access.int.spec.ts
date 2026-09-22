@@ -50,7 +50,7 @@ describe('Managers access (#821)', () => {
 
   /** A client request, as API-key auth builds one. The key is unused: no read below goes over REST. */
   const clientReq = (): PayloadRequest => {
-    const base = createClientAuthenticatedRequest(String(client.id), 'unused', [
+    const base = createClientAuthenticatedRequest(client.id, 'unused', [
       'sahaj-atlas-client',
     ])
     return { ...base, payload, context: {} } as unknown as PayloadRequest
@@ -147,7 +147,8 @@ describe('Managers access (#821)', () => {
   })
 
   // Every read is a list, not a `findByID`: a widget reads collections, and
-  // `GET /api/<collection>` is the shape the exposure was reported against.
+  // `GET /api/<collection>` is the shape the exposure was reported against. The
+  // one exception is the client's own row, where #822 left no list to read.
   describe('a published client key', () => {
     it('reads no manager row at all', async () => {
       // 403, not 400: a bare rejection would also be satisfied by the usage
@@ -191,21 +192,34 @@ describe('Managers access (#821)', () => {
       expect(managed!.managers).toEqual([eventManager.id])
     })
 
-    it('gets bare ids, not managers, from a client at depth 1', async () => {
-      // `clients` is not restricted — #822 owns that half — so this key still
-      // reads the row. What it must not read is who runs it.
-      const { docs } = await payload.find({
+    it('reads no client row at all', async () => {
+      await expect(
+        payload.find({
+          collection: 'clients',
+          select: idOnlySelect(),
+          depth: 0,
+          overrideAccess: false,
+          req: clientReq(),
+        }),
+      ).rejects.toMatchObject({ status: 403 })
+    })
+
+    it('gets bare ids, not managers, from its own row at depth 1', async () => {
+      // The one read in this block that is not a list. #822 restricted
+      // `clients`, so the list above is refused and self-access is all that is
+      // left — the path `GET /api/clients/me` takes at every widget boot. What
+      // the key must not read there is who runs its own service.
+      const self = (await payload.findByID({
         collection: 'clients',
+        id: client.id,
         select: { name: true, managers: true, primaryContact: true },
         depth: 1,
         overrideAccess: false,
         req: clientReq(),
-      })
+      })) as Client
 
-      const self = docs.find((doc) => doc.id === client.id)
-      expect(self).toBeDefined()
-      expect(self!.managers).toEqual([eventManager.id])
-      expect(self!.primaryContact).toBe(eventManager.id)
+      expect(self.managers).toEqual([eventManager.id])
+      expect(self.primaryContact).toBe(eventManager.id)
     })
 
     it('gets no registrationNotificationEmail, even asking for it by name', async () => {
@@ -256,7 +270,7 @@ describe('Managers access (#821)', () => {
     it('carry no managers grant, in any role', () => {
       const roles = ['sahaj-atlas-client', 'wemeditate-web-client', 'wemeditate-app-client']
       for (const role of roles) {
-        const { user } = createClientAuthenticatedRequest(String(client.id), 'unused', [role])
+        const { user } = createClientAuthenticatedRequest(client.id, 'unused', [role])
         for (const operation of ['read', 'create', 'update', 'delete'] as const) {
           expect(
             hasPermission(

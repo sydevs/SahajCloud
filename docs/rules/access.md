@@ -201,30 +201,39 @@ A user can always read and update their own document in their auth collection.
 
 ### Restricted collections — "in no project" is not restrictive
 
-This cuts the opposite way from implicit read, above, and the obvious reading is wrong. `clients` and Payload's system collections sit in no project. They are reachable only by explicit permission or the admin bypass — because no role grants write on them, not because "no project" is restrictive. For read, "no project" means the opposite: shared, and readable by every role.
+This cuts the opposite way from implicit read, above, and the obvious reading is wrong. Payload's system collections sit in no project. They are reachable only by explicit permission or the admin bypass — because no role grants write on them, not because "no project" is restrictive. For read, "no project" means the opposite: shared, and readable by every role.
 
-**`RESTRICTED_COLLECTIONS`** (`config/projects.ts`) is the only way to stop that. A collection named there is skipped by implicit read, so only an explicit `read` grant, or the admin bypass, reaches it. It holds `users`, `user-submissions` and `managers` — everything carrying personal data.
+**`RESTRICTED_COLLECTIONS`** (`config/projects.ts`) is the only way to stop that. A collection named there is skipped by implicit read, so only an explicit `read` grant, or the admin bypass, reaches it. It holds `users`, `user-submissions`, `managers` and `clients` — personal data and credentials.
 
 ⚠ **`managers` is there because "no project" was reading as shared** (#821): every published API key, the Atlas widget's browser key included, read every manager's name and email. **No client role gets a grant back.** `atlas-manager` holds the only one, because it picks on `Events.manager` and `Regions.managers`; `web-translator` gets nothing and renders a raw id in the Page Editors sidebar, which is the accepted cost.
 
+⚠ **`clients` is there because the same default exposed every service's credentials** (#822): a published key read every other service's decrypted `apiKey`, origin allowlist and usage counters. A service's own listed managers still reach it, through the document-manager path in `accessConfigs.ts`.
+
 ⚠ **Restricting a collection reaches a relationship to it. It does not reach a copy of it.** Every `relationTo: 'managers'` field is covered and needs no lock of its own, because populate falls back to the bare id once the related read is refused. A field storing a manager's name or address *as a value* is not covered, and needs a field lock instead — which is the next section, and why two fields on `events` have one.
+
+⚠ **It does not cover the caller's own row.** Self-access answers at step 2, before the check, so a published client still reads its whole `clients` document over `GET /api/clients/me` — deliberately, because the atlas widget suspends on that read at every boot. Restricting `clients` is what stops a key reading *other* services (#822); the field lock below is what keeps `apiKey` out of its own answer. Neither layer does the other's job.
+
+⚠ **Treat the list as a holding pattern.** All four collections that sit in no project are named in it now, so it is complete today and fails open the day a fifth is added. The real fix is for step 4a to test project membership directly, so a new collection fails closed. Its docblock says so.
 
 ⚠ **A collection's own `access` block outranks all of this**, because `accessPlugin` composes `{ ...createAccessConfig(slug, …), ...collection.access }` so a deliberate override is never clobbered. A plugin-created collection can therefore arrive with an `access` nobody here chose: the form-builder's submissions collection ships `read: ({ req: { user } }) => !!user`, which grants read to every authenticated user, API clients included. `src/plugins/formBuilder` clears it for `user-submissions` for exactly that reason. **Adding a collection to this list proves nothing on its own** — assert it by reading rows back through `overrideAccess: false`, as `tests/int/user-submissions-access.int.spec.ts` does. Asserting `hasPermission` alone would have passed while the hole was open.
 
-### A field lock, for a collection that is not restricted
+### A field lock, for a collection a client reaches
 
-`RESTRICTED_COLLECTIONS` is collection-wide, and sometimes only one field must be hidden from a client. `managersOnlyFieldAccess` (`@/plugins/access`) is that lock, read and write alike. ⚠ **It is spelled as an allowlist** — `req.user?.collection === 'managers'` — so it denies an anonymous caller and any future auth collection, not only `clients`.
+`RESTRICTED_COLLECTIONS` is collection-wide, and sometimes only one field must be hidden from a client — on a collection the client legitimately reads, or on the one row restriction never covers, its own. `managersOnlyFieldAccess` (`@/plugins/access`) is that lock, read and write alike. ⚠ **It is spelled as an allowlist** — `req.user?.collection === 'managers'` — so it denies an anonymous caller and any future auth collection, not only `clients`.
 
-It is deliberately **wider** than `adminOnlyFieldAccess`, which is the wrong tool for this: a client's own managers must be able to configure their service, and document-level manager access already decides which clients each manager sees. Four fields carry it:
+It is deliberately **wider** than `adminOnlyFieldAccess`, which is the wrong tool for this: a client's own managers must be able to configure their service, and document-level manager access already decides which clients each manager sees. Five fields carry it:
 
-- `Clients.mailingList` — `clients` is not restricted, so without the lock every published key could read every service's provider secret (`docs/rules/api-clients.md`).
-- `Forms.client` — `forms` keeps the form-builder plugin's `read: () => true`, which outranks the generated access config, and populating a `clients` document hands over a plaintext `apiKey` (#822).
+- ⚠ `Clients.apiKey` — the base auth field Payload decrypts on `afterRead`, so without the lock `GET /api/clients/me` hands a browser-shipped key its own plaintext credential, and restricting the collection cannot stop it (#822). Declare it at the **top level** of `Clients.fields`: `mergeBaseFields` matches by name only at the level it is handed, so a copy nested in a tab sanitizes to two `apiKey` fields instead of one.
+- `Clients.mailingList` — the same self-read would otherwise hand a service's own key its provider secret (`docs/rules/api-clients.md`).
+- `Forms.client` — `forms` keeps the form-builder plugin's `read: () => true`, which outranks the generated access config, and populating a `clients` document hands over a plaintext `apiKey` (#822). Belt and braces now that `clients` is restricted, and it stays: it is the half that survives if the collection is ever unrestricted.
 - `Forms.recipient` — the same collection, and now defence in depth behind restricted `managers` (#821).
 - `Events.registrationNotificationEmail` — a manager's address *copied* onto a collection the `sahaj-atlas` project reads (#821).
 
 ⚠ **Reach for a field lock, not `RESTRICTED_COLLECTIONS`, whenever personal data is denormalized rather than related.** `Events.activityLog` is the same shape one step further out — a JSON column whose reminder entries record the address each one went to — so the lock lives in the `logField` factory (`src/fields/logField.ts`) and every consumer inherits it. The sibling `Events.contactEmail` deliberately has no lock: that one is the address a seeker is meant to write to.
 
 ⚠ **A locked field still appears in `payload-types.ts`.** The lock strips the value at runtime, not the shape from the generated type.
+
+⚠ **A field lock only covers a read that checks access, and not every self-read does.** Payload's `refreshOperation` re-reads the document with `findByID` and no `overrideAccess: false`, so it defaults to `true` and every field lock is skipped — `meOperation` passes the flag, `refresh` does not. `POST /api/clients/refresh-token` handed a browser-shipped key its own decrypted `apiKey` and its `mailingList` provider secret, with both locks in place (#822). `disableLocalStrategy` does not close it: `refresh` is the one auth operation that does not refuse on that flag. `stripLockedFieldsOnSelfRead`, the `afterRead` hook `accessPlugin` attaches to every auth collection, is what does — a hook runs on every read path, so it holds whichever operation forgets the flag next. It re-evaluates every field's own `read` lock whenever `req.user.collection` is the collection being read, so a sixth locked field needs no edit there, and the next `read` lock on `managers` is covered before anyone notices it leaks. **When you lock a field on an auth collection, lock it and then check what else re-reads the row.**
 
 | Want | Do |
 | --- | --- |

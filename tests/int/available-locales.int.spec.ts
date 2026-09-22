@@ -60,7 +60,7 @@ describe('availableLocales', () => {
     rest = await createRestClient(testEnv)
 
     const client = await testData.createClient(payload, testEnv.adminUser.id)
-    clientReq = createClientAuthenticatedRequest(String(client.id), 'unused-in-local-api')
+    clientReq = createClientAuthenticatedRequest(client.id, 'unused-in-local-api')
 
     // English published up front, so the publish-gate cases below isolate the
     // one locale each is about rather than always naming English too.
