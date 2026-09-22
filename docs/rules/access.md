@@ -114,7 +114,7 @@ hasPermission({ user, collection: 'pages', operation: 'update' }, bypassFn)
 ## Permission flow
 
 1. Block null users.
-2. Run `bypassPermissions`, in the order the code checks them: the admin bypass, then inactive-manager and unpublished-client blocking, then self-access (read your own document, and update it unless you are a client). Self-access is last, so neither an inactive manager nor a draft client reaches it.
+2. Run `bypassPermissions`, in the order the code checks them: the admin bypass, then inactive-manager and unpublished-client blocking, then self-access (read your own document, and update it if you are a manager). Self-access is last, so neither an inactive manager nor a draft client reaches it.
 3. Run an O(1) permission-table lookup.
 4. Check translate permission for a localized field update.
 5. Apply project-based implicit read: the role's project, plus every collection listed in no project (shared).

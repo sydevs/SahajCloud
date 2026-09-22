@@ -37,7 +37,7 @@ import { rolesForAllLocales } from './localizedRoles'
  * 2. Bypass checks (if provided) → allow/deny/continue
  *    - Admin managers: allow
  *    - Inactive managers/clients: deny
- *    - Self-access: allow read of own document, and update unless a client
+ *    - Self-access: allow read of own document, and update for managers
  * 3. Extract roles (handles flat array for clients, localized for managers)
  * 4. Unified permission check (single loop per role):
  *    - Implicit read: project-based visibility
