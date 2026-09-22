@@ -68,7 +68,7 @@ describe('Client query parameter validation', () => {
   })
 
   const clientReq = (): PayloadRequest =>
-    createClientAuthenticatedRequest(String(testClient.id), testClient.apiKey || 'test-key', [
+    createClientAuthenticatedRequest(testClient.id, testClient.apiKey || 'test-key', [
       'wemeditate-web-client',
     ]) as PayloadRequest
 

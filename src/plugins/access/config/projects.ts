@@ -154,10 +154,11 @@ const ALL_PROJECT_COLLECTIONS: ContentSlug[] = (() => {
 // --- Restricted collections ---
 
 /**
- * Collections that carry personal data and must NEVER fall under the
- * "not in any project → shared, readable by every role" rule. Implicit read
- * (`hasPermission` step 4a) skips these entirely; only an explicit `read`
- * grant in a role, or the admin bypass, reaches them.
+ * Collections that carry personal data or credentials and must NEVER fall
+ * under the "not in any project → shared, readable by every role" rule.
+ * Implicit read (`hasPermission` step 4a) skips these entirely; only an
+ * explicit `read` grant in a role, the admin bypass, or — for the caller's own
+ * document — self-access reaches them.
  *
  * - `users` — Atlas registrants (names + emails). Was implicitly readable by
  *   any published API client before this list existed — including the Atlas
@@ -175,11 +176,27 @@ const ALL_PROJECT_COLLECTIONS: ContentSlug[] = (() => {
  *   ⚠ **This entry reaches a relationship, never a copy** — a field holding a
  *   manager's name or address as a value needs its own field lock. Ask which
  *   kind you have before trusting this (`docs/rules/access.md`).
+ * - ⚠ `clients` — every service's credentials, origin allowlist and usage
+ *   counters. Shared read let any published key scrape every other service's
+ *   decrypted `apiKey` (#822). Admins and a service's own listed managers now,
+ *   the latter through the document-manager path in `accessConfigs.ts`.
+ *   `GET /api/clients/me` is the deliberate exception — self-access answers it
+ *   before this check, and `Clients.apiKey`'s field lock is what makes that
+ *   safe.
+ *
+ * ⚠ **This list is a holding pattern, not the permanent mechanism.** Exactly
+ * four registered collections sit in no project, and all four are named here
+ * — so the set is complete today and fails open the day a fifth is added. A
+ * complete opt-out list is an inverted default in disguise: the fix is for
+ * step 4a to test project membership directly, so a new collection fails
+ * closed instead. Deferred, not blocked — #821 settled the question that held
+ * it up, by giving `atlas-manager` the explicit grant its pickers need.
  */
 const RESTRICTED_COLLECTIONS: ReadonlySet<string> = new Set([
   'users',
   'user-submissions',
   'managers',
+  'clients',
 ])
 
 /** Whether implicit (project/shared) read must never apply to this collection. */

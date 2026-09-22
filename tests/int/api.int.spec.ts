@@ -356,7 +356,7 @@ describe('API', () => {
       const initialDailyRequests = initialClient.usage?.dailyRequests || 0
 
       const clientReq = createClientAuthenticatedRequest(
-        String(testClient.id),
+        testClient.id,
         testClient.apiKey || 'test-key',
       ) as PayloadRequest
 

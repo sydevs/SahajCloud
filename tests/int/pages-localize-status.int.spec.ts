@@ -76,7 +76,7 @@ describe('per-locale publish status', () => {
     // The role has to be on that user object: access runs off `req.user`, not
     // off a fresh read of the client row, so a req without it is denied
     // outright and every case below would pass for the wrong reason.
-    const base = createClientAuthenticatedRequest(String(client.id), 'unused-in-local-api')
+    const base = createClientAuthenticatedRequest(client.id, 'unused-in-local-api')
     clientReq = {
       ...base,
       user: { ...base.user, roles: ['wemeditate-web-client'] } as PayloadRequest['user'],
