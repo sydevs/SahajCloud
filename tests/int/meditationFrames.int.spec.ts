@@ -615,7 +615,7 @@ describe('Meditation Frames Field', () => {
       expect(reread.subtleSystemNodeWeights).toEqual(weights)
     })
 
-    it('leaves latest, parent and createdAt intact on the version row it rewrites', async () => {
+    it('leaves latest, parent and both timestamps intact on the version row it rewrites', async () => {
       const { meditation } = await meditationWithWeights()
       const before = await latestVersionRow(meditation.id)
 
@@ -634,6 +634,7 @@ describe('Meditation Frames Field', () => {
       expect(after.latest).toBe(true)
       expect(after.parent).toBe(meditation.id)
       expect(after.createdAt).toBe(before.createdAt)
+      expect(after.updatedAt).toBe(before.updatedAt)
       expect(after.version.subtleSystemNodeWeights).toEqual({ [weightedSlug]: 7 })
       expect(after.version.label).toBe(before.version.label)
     })

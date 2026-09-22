@@ -270,6 +270,10 @@ export function reportMeditationNodeWeightsCacheError(args: {
  * ⚠ `versionData.version` replaces the row's whole document — `upsertRow`
  * "replaces the entire row and does not support partial updates" — so it
  * carries the current version spread, not the one changed field.
+ *
+ * ⚠ Preserve `updatedAt`. `updateLatestVersion` stamps `now` because a user save
+ * is in flight; here only a derived field moved, so bumping it is the same churn
+ * reason 1 avoids on the main row.
  */
 export async function persistMeditationNodeWeightsCache(args: {
   diagnostics?: Record<string, unknown>
@@ -317,7 +321,7 @@ export async function persistMeditationNodeWeightsCache(args: {
         createdAt: new Date(latest.createdAt).toISOString(),
         latest: true,
         parent: meditationId,
-        updatedAt: new Date().toISOString(),
+        updatedAt: new Date(latest.updatedAt).toISOString(),
         version: { ...latest.version, subtleSystemNodeWeights: weights },
       },
     })
