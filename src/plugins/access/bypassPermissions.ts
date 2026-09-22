@@ -47,11 +47,9 @@ export const bypassPermissions: BypassPermissionFunction = (user, context) => {
   if (user.collection === collection && user.id === docId) {
     if (operation === 'read') return 'allow'
 
-    // Update is `managers` alone (#827). A manager row is a person's profile —
-    // `disableLocalStrategy` on `clients` is the structural form of the same
-    // point — while a client row is operator configuration with no editable
-    // half. Spelled as an allowlist, like `managersOnlyFieldAccess`, so a third
-    // auth collection fails closed rather than inheriting the grant.
+    // Update is `managers` alone (#827): a client row is operator
+    // configuration with no editable half. Allowlisted, so a third auth
+    // collection fails closed rather than inheriting the grant.
     if (operation === 'update' && user.collection === 'managers') return 'allow'
   }
 
