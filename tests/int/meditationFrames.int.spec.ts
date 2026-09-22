@@ -542,7 +542,7 @@ describe('Meditation Frames Field', () => {
   describe('Node Weights Cache Persistence', () => {
     // A frame with no `subtleSystemNode` contributes nothing, so a meditation
     // built from the suite's shared frames caches `{}` and every assertion below
-    // would hold vacuously. These two give the cache something to carry.
+    // would hold vacuously.
     let weightedFrame: Frame
     let weightedSlug: string
 
@@ -569,35 +569,34 @@ describe('Meditation Frames Field', () => {
       return docs[0]
     }
 
-    const meditationWithWeights = async (): Promise<Meditation> => {
+    const meditationWithWeights = async () => {
       const created = await testData.createMeditation(payload, {
         narrator: testNarrator.id,
         thumbnail: testImageMedia.id,
       })
 
-      return (await payload.update({
+      const meditation = (await payload.update({
         collection: 'meditations',
         id: created.id,
         data: { frames: [{ id: frameId(weightedFrame), timestamp: 0 }] },
       })) as Meditation
-    }
 
-    it('writes the cache to the latest version row as well as the main row', async () => {
-      const meditation = await meditationWithWeights()
       const weights = meditation.subtleSystemNodeWeights as Record<string, number>
 
       expect(weights?.[weightedSlug]).toBeGreaterThan(0)
 
+      return { meditation, weights }
+    }
+
+    it('writes the cache to the latest version row as well as the main row', async () => {
+      const { meditation, weights } = await meditationWithWeights()
       const row = await latestVersionRow(meditation.id)
 
       expect(row.version.subtleSystemNodeWeights).toEqual(weights)
     })
 
     it('survives a later update that does not touch frames or duration', async () => {
-      const meditation = await meditationWithWeights()
-      const weights = meditation.subtleSystemNodeWeights as Record<string, number>
-
-      expect(weights?.[weightedSlug]).toBeGreaterThan(0)
+      const { meditation, weights } = await meditationWithWeights()
 
       // `label`, deliberately: an update touching `frames` or `duration` re-fires
       // `recomputeMeditationNodeWeights`, which re-persists the cache and would
@@ -617,7 +616,7 @@ describe('Meditation Frames Field', () => {
     })
 
     it('leaves latest, parent and createdAt intact on the version row it rewrites', async () => {
-      const meditation = await meditationWithWeights()
+      const { meditation } = await meditationWithWeights()
       const before = await latestVersionRow(meditation.id)
 
       const persisted = await persistMeditationNodeWeightsCache({
@@ -636,12 +635,11 @@ describe('Meditation Frames Field', () => {
       expect(after.parent).toBe(meditation.id)
       expect(after.createdAt).toBe(before.createdAt)
       expect(after.version.subtleSystemNodeWeights).toEqual({ [weightedSlug]: 7 })
-      // The rest of the version document survives a write that replaces the row.
       expect(after.version.label).toBe(before.version.label)
     })
 
     it('still caches a meditation that has no version row', async () => {
-      const meditation = await meditationWithWeights()
+      const { meditation } = await meditationWithWeights()
 
       await payload.db.deleteVersions({
         collection: 'meditations',
@@ -671,20 +669,11 @@ describe('Meditation Frames Field', () => {
         thumbnail: testImageMedia.id,
       })
 
-      let versionWriteAttempted = false
-
       // `payload.update` on a drafts collection creates a version rather than
       // updating one, so any `updateVersion` inside this window is the cache's.
-      const spy = vi.spyOn(payload.db, 'updateVersion').mockImplementation((async (
-        args: Parameters<typeof payload.db.updateVersion>[0],
-      ) => {
-        if (args.collection === 'meditations') {
-          versionWriteAttempted = true
-          throw new Error('forced version cache persistence failure')
-        }
-
-        throw new Error(`unexpected updateVersion for ${args.collection}`)
-      }) as typeof payload.db.updateVersion)
+      const spy = vi
+        .spyOn(payload.db, 'updateVersion')
+        .mockRejectedValue(new Error('forced version cache persistence failure'))
 
       try {
         const updated = (await payload.update({
@@ -693,7 +682,7 @@ describe('Meditation Frames Field', () => {
           data: { frames: [{ id: frameId(weightedFrame), timestamp: 0 }] },
         })) as Meditation
 
-        expect(versionWriteAttempted).toBe(true)
+        expect(spy).toHaveBeenCalled()
         expect(updated.frames).toHaveLength(1)
       } finally {
         spy.mockRestore()

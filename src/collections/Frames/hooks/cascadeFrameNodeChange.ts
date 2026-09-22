@@ -23,8 +23,9 @@ import type { Meditation } from '@/payload-types'
  * codebase). Acceptable while the active scale stays small; revisit if the
  * meditations table grows past the order of a few thousand rows.
  *
- * Each Meditation update sets `context.skipRecomputeNodeWeights` so the
- * cascade doesn't re-trigger Meditation's own afterChange hook.
+ * The cache is written through `persistMeditationNodeWeightsCache`, which goes
+ * to the DB adapter rather than `payload.update`, so Meditation's own
+ * afterChange hook never re-fires and no context flag is needed here.
  */
 export const cascadeFrameNodeChange: CollectionAfterChangeHook = async ({
   doc,

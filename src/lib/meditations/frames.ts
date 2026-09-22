@@ -246,29 +246,30 @@ export function reportMeditationNodeWeightsCacheError(args: {
  * Persist the derived `subtleSystemNodeWeights` cache directly via the DB
  * adapter. Intentionally bypasses `payload.update` for two reasons:
  *
- * 1. A derived-field write does not re-validate the whole document. An
- *    `afterChange` hook that writes back through `payload.update` re-runs
- *    every field validator against stored data it never authored, which is
- *    how issue #835 stalled ExpireEvents.
+ * 1. `payload.update` stamps `updatedAt` on the main row before writing it, so
+ *    a derived-field write would make the document look edited — the Frames
+ *    cascade would bump every meditation using the frame. It also re-enters
+ *    this collection's `afterChange` chain, which the bypass sidesteps.
  * 2. The write is best-effort: on failure we report to logger + Sentry
  *    and return `false`, but never throw. This is the fix for issue #390
  *    — a cache-write error must never 500 the user-facing publish.
  *
+ * `payload.update({ unpublishAllLocales: true })`, the route sydevs/SahajCloud#835
+ * took for Events, skips validation but keeps both costs above.
+ *
  * Meditations is drafts-enabled, so the bypass owes the version half that
- * `payload/dist/versions/updateLatestVersion.js` performs: `payload.db.updateOne`
- * writes the main row only, while the next `payload.update` reads its starting
- * document from the `latest: true` version row
- * (`getLatestCollectionVersion`) and would write the pre-cache value back
- * over it (#843).
+ * payload's own `updateLatestVersion` performs: `payload.db.updateOne` writes
+ * the main row only, while the next `payload.update` starts from the
+ * `latest: true` version row (`getLatestCollectionVersion`) and would write the
+ * pre-cache value back over it (#843).
  *
  * ⚠ Target the `latest: true` row, not merely the newest. `updateLatestVersion`
  * filters on `parent` alone; the read filters on `latest` too, so the writer's
  * own filter can update a row the reader never looks at.
  *
- * ⚠ `versionData.version` replaces the row's whole document —
- * `@payloadcms/drizzle`'s `upsertRow` "replaces the entire row and does not
- * support partial updates" — so it carries the current version spread, not the
- * one changed field.
+ * ⚠ `versionData.version` replaces the row's whole document — `upsertRow`
+ * "replaces the entire row and does not support partial updates" — so it
+ * carries the current version spread, not the one changed field.
  */
 export async function persistMeditationNodeWeightsCache(args: {
   diagnostics?: Record<string, unknown>
