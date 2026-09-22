@@ -65,6 +65,11 @@ export async function deliverContact({ req, submission }: DeliveryContext): Prom
  * ⚠ **Gated through `isValidLocale`, not optionally.** The pair is
  * submitter-chosen text, exempt from the URL scan, and it reaches the database
  * layer as a query parameter.
+ *
+ * Choosing the visitor's locale is only safe because `buildPayloadLocales` sets
+ * `fallbackLocale: 'en'` on every non-English locale (`src/lib/locales`). Drop
+ * that and a label the author never translated arrives empty, so the recipient
+ * reads the raw field name instead of the question.
  */
 function submissionLocale(submissionData: unknown): LocaleCode {
   const locale = readSubmissionValue(submissionData, 'locale')?.trim()
