@@ -44,6 +44,46 @@ function capLog<T>(log: T[]): T[] {
   return log.length > DEFAULT_LOG_LIMIT ? log.slice(log.length - DEFAULT_LOG_LIMIT) : log
 }
 
+/**
+ * Write derived bookkeeping onto an event without re-validating the document.
+ *
+ * Payload's `beforeValidate` field walk fills every absent field from the
+ * stored document, so `beforeChange` validates the merged whole — a partial
+ * update is checked as if an editor had re-submitted the entire event. An event
+ * whose *stored* data fails a validator added after the row was written could
+ * therefore never be advanced, finished or logged (#835).
+ *
+ * `unpublishAllLocales` is the only argument that skips that validation while
+ * still writing the main row. `draft: true` skips it too but writes a version
+ * and no main row, so the event would keep its old stage and stay due forever.
+ *
+ * Two consequences to keep in view. It skips validation of *these* writes too,
+ * not only of the stored fields — every value here comes from a pinned helper,
+ * and the `data` type is what keeps a fifth field from arriving. And
+ * `saveVersion({ unpublish })` overwrites the `latest: true` version instead of
+ * appending one: the nightly writes stop growing the version table, at the cost
+ * of the unpublishing advance leaving no published version to restore from.
+ *
+ * ⚠ Safe only while Events omits `versions.drafts.localizeStatus` — see the
+ * warning on `versions` in `Events.ts`.
+ */
+async function updateBookkeeping(
+  payload: Payload,
+  req: PayloadRequest,
+  id: number,
+  data: Partial<Pick<Event, 'verificationStage' | 'nextCheckAt' | 'activityLog' | '_status'>>,
+): Promise<void> {
+  await payload.update({
+    collection: 'events',
+    id,
+    data,
+    context: { skipVerifyHook: true },
+    overrideAccess: true,
+    unpublishAllLocales: true,
+    req,
+  })
+}
+
 interface ExpireResult {
   /** Due events examined. */
   processed: number
@@ -74,24 +114,21 @@ interface ExpireResult {
  * retention window elapses (see the `finished` entry in `STAGES`).
  */
 async function finishEvent(payload: Payload, req: PayloadRequest, event: Event): Promise<void> {
-  await payload.update({
-    collection: 'events',
-    id: event.id,
-    data: {
-      verificationStage: 'finished',
-      nextCheckAt: resolveNextCheckAt({
-        stage: 'finished',
-        schedule: event.schedule,
-        inactive: event.inactive,
-      }),
-    },
-    context: { skipVerifyHook: true },
-    overrideAccess: true,
-    req,
+  await updateBookkeeping(payload, req, event.id, {
+    verificationStage: 'finished',
+    nextCheckAt: resolveNextCheckAt({
+      stage: 'finished',
+      schedule: event.schedule,
+      inactive: event.inactive,
+    }),
   })
 }
 
-/** Soft-delete an event: trashing is setting `deletedAt` (`payload.delete` is a hard delete). */
+/**
+ * Soft-delete an event: trashing is setting `deletedAt` (`payload.delete` is a
+ * hard delete). The one job write that needs no bypass of its own — `update.js`
+ * already skips validation when `deletedAt` is set on a `trash` collection.
+ */
 async function trashEvent(
   payload: Payload,
   req: PayloadRequest,
@@ -155,19 +192,12 @@ async function processEvent(args: {
   // Unreachable in practice — a due pre-adoption event has a run-out schedule,
   // which the finish-check above already claimed.
   if (action.kind === 'await-schedule') {
-    await payload.update({
-      collection: 'events',
-      id: event.id,
-      data: {
-        nextCheckAt: resolveNextCheckAt({
-          stage,
-          schedule: event.schedule,
-          inactive: event.inactive,
-        }),
-      },
-      context: { skipVerifyHook: true },
-      overrideAccess: true,
-      req,
+    await updateBookkeeping(payload, req, event.id, {
+      nextCheckAt: resolveNextCheckAt({
+        stage,
+        schedule: event.schedule,
+        inactive: event.inactive,
+      }),
     })
     return
   }
@@ -269,14 +299,7 @@ async function processEvent(args: {
         at: now.toISOString(),
       }),
     ])
-    await payload.update({
-      collection: 'events',
-      id: event.id,
-      data: { activityLog: log },
-      context: { skipVerifyHook: true },
-      overrideAccess: true,
-      req,
-    })
+    await updateBookkeeping(payload, req, event.id, { activityLog: log })
     result.remindersSent++
   }
 
@@ -287,42 +310,44 @@ async function processEvent(args: {
   // present), so the only non-delivery is a transient transport outage, which
   // self-heals on the next daily run rather than silently skipping a reminder.
   if (allDelivered) {
-    await payload.update({
-      collection: 'events',
-      id: event.id,
-      data: {
-        verificationStage: action.nextStage,
-        nextCheckAt: nextCheckAtIso,
-        ...(unpublishes ? { _status: 'draft' } : {}),
-      },
-      context: { skipVerifyHook: true },
-      overrideAccess: true,
-      req,
+    await updateBookkeeping(payload, req, event.id, {
+      verificationStage: action.nextStage,
+      nextCheckAt: nextCheckAtIso,
+      ...(unpublishes ? { _status: 'draft' } : {}),
     })
     result.advanced++
   }
 }
 
 /**
- * The ids of every event whose watermark has come due, in one query.
+ * Every event whose watermark has come due, with that watermark, in one query.
  *
  * Read-only and taken up front, because processing mutates the very column
  * being filtered on — a live paginated walk would shift rows between pages.
  * `pagination: false` is safe precisely because of the watermark: only rows
  * with something to do sit in the past, so this result set is bounded by the
  * day's work rather than by the size of the table.
+ *
+ * `nextCheckAt` rides along because the per-event `catch` reports it, and the
+ * event itself may be exactly what failed to load.
  */
-async function dueEventIds(payload: Payload, req: PayloadRequest, now: Date): Promise<number[]> {
+async function dueEvents(
+  payload: Payload,
+  req: PayloadRequest,
+  now: Date,
+): Promise<{ id: number; dueSince: string }[]> {
   const { docs } = await payload.find({
     collection: 'events',
     where: { nextCheckAt: { less_than_equal: now.toISOString() } },
     depth: 0,
-    select: {},
+    select: { nextCheckAt: true },
     pagination: false,
     overrideAccess: true,
     req,
   })
-  return docs.map((doc) => doc.id)
+  // The `where` above is `less_than_equal`, which no NULL satisfies, so every
+  // row here carries a watermark whatever the column's type says.
+  return docs.map((doc) => ({ id: doc.id, dueSince: doc.nextCheckAt as string }))
 }
 
 /**
@@ -390,11 +415,11 @@ export const ExpireEvents: TaskConfig<'expireEvents'> = {
       return { output: result }
     }
 
-    const dueIds = await dueEventIds(payload, req, now)
+    const due = await dueEvents(payload, req, now)
 
-    req.payload.logger.info({ msg: 'ExpireEvents: starting', due: dueIds.length })
+    req.payload.logger.info({ msg: 'ExpireEvents: starting', due: due.length })
 
-    for (const id of dueIds) {
+    for (const { id, dueSince } of due) {
       result.processed++
       try {
         const event = await payload.findByID({
@@ -415,12 +440,18 @@ export const ExpireEvents: TaskConfig<'expireEvents'> = {
       } catch (error) {
         result.failed++
         Sentry.withScope((scope) => {
-          scope.setContext('expireEvents', { eventId: id })
+          scope.setContext('expireEvents', { eventId: id, dueSince })
+          // The id as a TAG as well, because Sentry indexes tags and not
+          // contexts: filtering this issue by one event is what tells a nightly
+          // repeat from a one-off. Deriving that here cannot work — a stale
+          // import is armed at a watermark years past on its first examination.
+          scope.setTag('expire_events.event_id', String(id))
           Sentry.captureException(error)
         })
         req.payload.logger.warn({
           msg: 'ExpireEvents: per-event failure — continuing',
           eventId: id,
+          dueSince,
           error: error instanceof Error ? error.message : String(error),
         })
       }

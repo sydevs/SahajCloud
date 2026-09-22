@@ -107,6 +107,11 @@ const eventDescriptionEditor = lexicalEditor({
 export const Events: CollectionConfig = {
   slug: 'events',
   labels: { singular: 'Event', plural: 'Events' },
+  // ⚠ Never add `localizeStatus` here. `ExpireEvents`'s nightly bookkeeping
+  // writes pass `unpublishAllLocales` to skip validation, and that argument
+  // writes `_status: 'draft'` for every locale only on a collection which sets
+  // it — turning each of those writes into a mass unpublish. The root
+  // `experimental.localizeStatus` flag is already on, so nothing else stops it.
   versions: { drafts: true },
   // Soft delete: "archiving" a long-expired event means trashing it, and it
   // stays recoverable from the admin trash view. This replaces Atlas's
