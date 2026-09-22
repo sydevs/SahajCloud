@@ -69,7 +69,7 @@ export const gateEventFeedback: CollectionBeforeChangeHook = async ({ data, orig
  *
  * Recount (two indexed counts), never increment: concurrent votes converge on
  * the true tally instead of compounding a race. Writes the Wilson lower bound
- * to the indexed `confidenceScore` (feed ranking) and the tallies into
+ * to the indexed `confidenceScore` and the tallies into
  * `systemMeta.communityFeedback` (admin notice), preserving sibling keys.
  * When the denial threshold lands (≥5 denials AND Wilson upper bound < 0.5)
  * on a still-unverified event, the listing flips to `denied` + draft — the

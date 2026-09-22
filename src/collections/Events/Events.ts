@@ -624,10 +624,12 @@ export const Events: CollectionConfig = {
             {
               // The Wilson lower bound of registrant confirm/deny votes, in
               // [0, 1]. Null until the first vote. A real, indexed column,
-              // unlike the raw tallies in `systemMeta`, because the Atlas
-              // feeds sort and filter on it to rank unverified listings by
-              // confidence. Only the `user-submissions` vote-sync hook writes
-              // it (`UserSubmissions/hooks/eventFeedback.ts`).
+              // unlike the raw tallies in `systemMeta`, so it stays a queryable
+              // scalar — though nothing queries or sorts on it today. The two
+              // indexes (here and on the versions table) stay anyway: they are
+              // cheap, and dropping them costs a migration (#831). Only the
+              // `user-submissions` vote-sync hook writes it
+              // (`UserSubmissions/hooks/eventFeedback.ts`).
               //
               // Shown for both pre-adoption stages. `unverified` is where
               // votes get collected, and on a `denied` event the score is
@@ -642,7 +644,7 @@ export const Events: CollectionConfig = {
                 readOnly: true,
                 condition: (data) => isPreAdoptionStage(data?.verificationStage),
                 description:
-                  'How strongly attendees confirm this event is real (0–1). Rises with confirmations, falls with denials, and stays cautious while there are few votes — the Atlas map ranks unverified listings by it. Blank until the first vote.',
+                  'How strongly attendees confirm this event is real (0–1) — your check before adopting a listing, or why a denied one stays down. Rises with confirmations, falls with denials, and stays cautious while there are few votes. Blank until the first vote.',
               },
             },
           ],
