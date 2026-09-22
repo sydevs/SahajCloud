@@ -17,14 +17,8 @@ import { clientNameFor, contextFromSubmissionData } from './submissionContext'
  * is what earns the task its retry and the row its `failed` status.
  */
 export async function deliverContact({ req, submission }: DeliveryContext): Promise<DeliveryOutcome> {
-  // Two independent reads, overlapped. Their differing `req` treatment is what
-  // makes that safe: `clientNameFor` forwards `req` and so runs on the task's
-  // own isolated transaction, while `formDelivery` drops it and takes a pool
-  // connection. Two connections, two read-only queries, no shared state.
-  const [{ to, answers }, clientName] = await Promise.all([
-    formDelivery(req, submission),
-    clientNameFor(req, relationId(submission.client)),
-  ])
+  const { to, answers } = await formDelivery(req, submission)
+  const clientName = await clientNameFor(req, relationId(submission.client))
 
   try {
     await sendUserMessage({
