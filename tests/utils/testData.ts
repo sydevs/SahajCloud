@@ -114,6 +114,15 @@ const __dirname = path.dirname(__filename)
 const SAMPLE_FILES_DIR = path.join(__dirname, '../files')
 
 /**
+ * Counts the uploads this process has made, so every fixture file gets its own
+ * name. Payload picks a free `-N` suffix by reading the rows that already
+ * exist, so two concurrent uploads of one sample file both claim the same
+ * suffix and the loser trips the unique index on `filename`. A counter is
+ * enough because a Postgres test schema never leaves the process that made it.
+ */
+let uploadCount = 0
+
+/**
  * The shape Payload generates for a lexical `richText` field. Structurally
  * identical across collections, so one collection's field anchors it.
  */
@@ -216,6 +225,8 @@ export const testData = {
     const fileBuffer = fs.readFileSync(filePath)
     // Convert Buffer to Uint8Array for compatibility with file-type library
     const fileData = new Uint8Array(fileBuffer)
+    const extension = path.extname(sampleFile)
+    const uploadName = `${path.basename(sampleFile, extension)}-${(uploadCount += 1)}${extension}`
 
     return (await payload.create({
       collection: 'images',
@@ -225,8 +236,8 @@ export const testData = {
       },
       file: {
         data: fileData as unknown as Buffer,
-        mimetype: `image/${path.extname(sampleFile).slice(1)}`,
-        name: sampleFile,
+        mimetype: `image/${extension.slice(1)}`,
+        name: uploadName,
         size: fileData.length,
       },
     })) as Image

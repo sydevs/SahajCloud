@@ -4,8 +4,8 @@ import type { JSONSchema4 } from 'json-schema'
  * The `communityFeedback` namespace inside an Event's `systemMeta` JSON —
  * registrant confirm/deny vote tallies for an unverified listing. Written by
  * the `user-submissions` vote-sync hook (`UserSubmissions/hooks/eventFeedback.ts`),
- * alongside the indexed `confidenceScore` column, which stays a real column
- * because the feeds sort on it; read by the admin verification notice.
+ * alongside the indexed `confidenceScore` column (`Events.ts` carries why it is
+ * real); read by the admin verification notice.
  *
  * Declared as a JSON Schema rather than parsed by a hand-written reader:
  * Payload generates the TypeScript type from this — so
