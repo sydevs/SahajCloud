@@ -3,17 +3,21 @@
  *
  * Shared by:
  *   - Meditations field hooks (validate / beforeChange / afterRead) — see
- *     `src/collections/content/Meditations.ts`
- *   - `invalidateMeditationNodeWeights` / `recomputeMeditationNodeWeights`
- *     in `src/hooks/meditationHooks.ts`
- *   - `cascadeFrameNodeChange` in `src/hooks/frameHooks.ts`
+ *     `src/collections/Meditations/Meditations.ts`
+ *   - `cacheMeditationNodeWeights` in
+ *     `src/collections/Meditations/hooks/`
+ *   - `cascadeFrameNodeChange` in `src/collections/Frames/hooks/`
  *
  * `normalizeMeditationFrames` is idempotent: it drops malformed entries,
  * coerces string IDs to numbers, and returns diagnostics suitable for
- * `req.payload.logger.warn` and Sentry breadcrumbs. The persistence helper
- * (`persistMeditationNodeWeightsCache`) writes the derived
- * `subtleSystemNodeWeights` cache best-effort; failures must not propagate
- * to the user-facing save (root cause of issue #390).
+ * `req.payload.logger.warn` and Sentry breadcrumbs.
+ *
+ * A meditation's own save carries the derived `subtleSystemNodeWeights` in its
+ * `beforeChange` data, so payload writes the cache itself. The persistence
+ * helper (`persistMeditationNodeWeightsCache`) exists for the one writer that
+ * has no save to ride — the Frames cascade, which touches other documents. It
+ * writes best-effort; failures must not propagate to the user-facing save
+ * (root cause of issue #390).
  */
 import type { Payload, PayloadRequest } from 'payload'
 
@@ -49,8 +53,8 @@ export const meditationFramesSchema = z.array(
 /**
  * `Meditations.subtleSystemNodeWeights`: the cached `{ slug → on-screen
  * seconds }` map built by `computeMeditationNodeWeights`. Written only by the
- * recompute hook and the cascade from Frames, so the schema can be closed on
- * the value type while staying open on the keys — the keys are subtle-system
+ * meditation's own save and the cascade from Frames, so the schema can be closed
+ * on the value type while staying open on the keys — the keys are subtle-system
  * node slugs, which live in the `subtle-system` collection rather than in code.
  *
  * `null` is a legal write — the cache is cleared by setting the column to null —
@@ -243,8 +247,64 @@ export function reportMeditationNodeWeightsCacheError(args: {
 }
 
 /**
+ * One `meditations_v` row, as `payload.db.findVersions` hands it back. Local
+ * rather than payload's `TypeWithVersion`, because the whole point here is that
+ * `version` stays an opaque bag: `upsertRow` replaces the row, so the write
+ * spreads whatever it read.
+ */
+export type MeditationVersionRow = {
+  createdAt: string
+  id: number | string
+  latest?: boolean
+  parent: number | string
+  updatedAt: string
+  version: Record<string, unknown>
+}
+
+/**
+ * The `latest: true` version row for each of `meditationIds`, keyed by parent id
+ * as a string — the adapter is free to hand `parent` back as either type.
+ *
+ * One read for a whole cascade. Safe to hoist above the loop that consumes it:
+ * `latest` is unique per parent, each meditation is visited once, and the main-row
+ * write in between does not touch the version table.
+ */
+export async function findLatestMeditationVersionRows(args: {
+  meditationIds: (number | string)[]
+  payload: Payload
+  req?: PayloadRequest
+}): Promise<Map<string, MeditationVersionRow>> {
+  const { meditationIds, payload, req } = args
+  const rows = new Map<string, MeditationVersionRow>()
+
+  if (meditationIds.length === 0) return rows
+
+  const { docs } = await payload.db.findVersions<Record<string, unknown>>({
+    collection: 'meditations',
+    limit: meditationIds.length,
+    pagination: false,
+    req,
+    sort: '-updatedAt',
+    where: {
+      and: [{ parent: { in: meditationIds } }, { latest: { equals: true } }],
+    },
+  })
+
+  for (const doc of docs) {
+    rows.set(String(doc.parent), doc as unknown as MeditationVersionRow)
+  }
+
+  return rows
+}
+
+/**
  * Persist the derived `subtleSystemNodeWeights` cache directly via the DB
- * adapter. Intentionally bypasses `payload.update` for two reasons:
+ * adapter, for the one writer that has no save of its own to ride: the Frames
+ * cascade, which updates meditations other than the document being saved. A
+ * meditation's own save carries the cache in `beforeChange` data instead, so
+ * payload writes both rows itself (`cacheMeditationNodeWeights`).
+ *
+ * Intentionally bypasses `payload.update` for two reasons:
  *
  * 1. `payload.update` stamps `updatedAt` on the main row before writing it, so
  *    a derived-field write would make the document look edited — the Frames
@@ -274,9 +334,13 @@ export function reportMeditationNodeWeightsCacheError(args: {
  * ⚠ Preserve `updatedAt`. `updateLatestVersion` stamps `now` because a user save
  * is in flight; here only a derived field moved, so bumping it is the same churn
  * reason 1 avoids on the main row.
+ *
+ * `latestVersion` lets a caller supply the row it already read — `undefined`
+ * means look it up, `null` means there is none.
  */
 export async function persistMeditationNodeWeightsCache(args: {
   diagnostics?: Record<string, unknown>
+  latestVersion?: MeditationVersionRow | null
   locale?: string | null
   meditationId: number | string
   payload: Payload
@@ -284,7 +348,7 @@ export async function persistMeditationNodeWeightsCache(args: {
   req?: PayloadRequest
   weights: Record<string, number> | null
 }): Promise<boolean> {
-  const { diagnostics, locale, meditationId, payload, reason, req, weights } = args
+  const { diagnostics, latestVersion, locale, meditationId, payload, reason, req, weights } = args
 
   try {
     await payload.db.updateOne({
@@ -296,18 +360,12 @@ export async function persistMeditationNodeWeightsCache(args: {
       returning: false,
     })
 
-    const { docs } = await payload.db.findVersions<Record<string, unknown>>({
-      collection: 'meditations',
-      limit: 1,
-      pagination: false,
-      req,
-      sort: '-updatedAt',
-      where: {
-        and: [{ parent: { equals: meditationId } }, { latest: { equals: true } }],
-      },
-    })
-
-    const [latest] = docs
+    const latest =
+      latestVersion !== undefined
+        ? latestVersion
+        : ((
+            await findLatestMeditationVersionRows({ meditationIds: [meditationId], payload, req })
+          ).get(String(meditationId)) ?? null)
 
     // No version row means every read resolves to the main row already written.
     if (!latest) return true

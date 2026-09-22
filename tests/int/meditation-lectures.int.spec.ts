@@ -662,8 +662,8 @@ describe('meditationLectures endpoint', () => {
   })
 
   it('ad-hoc compute when cached weights are null', async () => {
-    // Wipe the cached weights via direct DB update with the skip flag so the
-    // afterChange hook does not immediately repopulate them. The endpoint
+    // Wipe the cached weights with the skip flag so the beforeChange hook does
+    // not immediately repopulate them. The endpoint
     // should still rank correctly by computing on the fly — and (per
     // GET-is-side-effect-free) leave the cache untouched.
     await payload.update({

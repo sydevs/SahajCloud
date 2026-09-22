@@ -4,6 +4,7 @@ import * as Sentry from '@sentry/nextjs'
 import { extractID } from 'payload/shared'
 
 import {
+  findLatestMeditationVersionRows,
   getFrameDiagnosticsLogContext,
   normalizeMeditationFrames,
   persistMeditationNodeWeightsCache,
@@ -23,9 +24,10 @@ import type { Meditation } from '@/payload-types'
  * codebase). Acceptable while the active scale stays small; revisit if the
  * meditations table grows past the order of a few thousand rows.
  *
- * The cache is written through `persistMeditationNodeWeightsCache`, which goes
- * to the DB adapter rather than `payload.update`, so Meditation's own
- * afterChange hook never re-fires and no context flag is needed here.
+ * This is the one node-weights writer with no save of its own to ride — it
+ * touches meditations other than the document being saved — so it goes through
+ * `persistMeditationNodeWeightsCache`, whose DB-adapter bypass keeps a derived
+ * write from restamping `updatedAt` on every meditation using the frame.
  */
 export const cascadeFrameNodeChange: CollectionAfterChangeHook = async ({
   doc,
@@ -74,6 +76,14 @@ export const cascadeFrameNodeChange: CollectionAfterChangeHook = async ({
 
       if (affected.length === 0) return doc
 
+      // One version-row read for the whole cascade, rather than one per
+      // meditation inside the loop.
+      const latestVersions = await findLatestMeditationVersionRows({
+        meditationIds: affected.map(({ meditation }) => meditation.id),
+        payload: req.payload,
+        req,
+      })
+
       for (const { meditation, normalized } of affected) {
         const diagnostics = {
           frameId: doc.id,
@@ -103,6 +113,7 @@ export const cascadeFrameNodeChange: CollectionAfterChangeHook = async ({
           weights,
           reason: 'frame-cascade',
           diagnostics,
+          latestVersion: latestVersions.get(String(meditation.id)) ?? null,
           req,
           locale: meditation.locale ?? undefined,
         })

@@ -469,9 +469,9 @@ describe('Meditations Collection', () => {
         thumbnail: testImageMedia.id,
       })
 
-      // Updating frames fires recomputeMeditationNodeWeights, which writes the
-      // { pingala → seconds } weights cache to the main meditations row (via
-      // db.updateOne). The title hook reads that cache on the next read.
+      // Updating frames fires cacheMeditationNodeWeights, so the save carries
+      // the { pingala → seconds } weights cache to the main meditations row.
+      // The title hook reads that cache on the next read.
       await payload.update({
         collection: 'meditations',
         id: created.id,

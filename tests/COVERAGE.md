@@ -84,7 +84,7 @@ content collection.
 | `purgeSubmissions`               | Each per-type window on both sides of its boundary, `failed` and `pending` never swept, registration and subscribe kept forever, and the `users` orphan sweep — the sender who goes with their last message, and the one a registration or a second message still pins. Plus the dry run, which reports and deletes nothing | `purge-submissions` + unit: `submission-retention.spec.ts` |
 | `deliverSubmission`              | Per-type dispatch and the retry boundary are exercised through the adapters and the outcome union; the registry is pinned total over `SUBMISSION_TYPES`, covering the window before `generate:types` where a missing deliverer is not yet a compile error; the mailing-list mapping (including that an opted-out address is never re-added, and that Klaviyo's request skips no suppression) is the unit file | unit: `submission-deliverers.spec.ts`, `mailing-list.spec.ts` |
 | `resetUsage` (cron)              | Usage-counter reset, `peakDailyRequests` preservation                     | `api`                                                                   |
-| `recomputeMeditationNodeWeights` | Weight recomputation on meditation change                                 | `meditation-lectures` + unit: `compute-meditation-node-weights.spec.ts` |
+| `cacheMeditationNodeWeights` | Weight recomputation on meditation change                                     | `meditation-lectures` + unit: `compute-meditation-node-weights.spec.ts` |
 
 ## Cross-cutting subjects (helpers / utilities / RBAC)
 
