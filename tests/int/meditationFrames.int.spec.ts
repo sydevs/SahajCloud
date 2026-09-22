@@ -2,6 +2,7 @@ import type { Payload } from 'payload'
 
 import { describe, it, beforeAll, afterAll, expect, vi } from 'vitest'
 
+import { persistMeditationNodeWeightsCache } from '@/lib/meditations/frames'
 import type { Meditation, Narrator, Image, Frame } from '@/payload-types'
 import type { KeyframeDefinition } from '@/types/frames'
 
@@ -531,6 +532,168 @@ describe('Meditation Frames Field', () => {
         })) as Meditation
 
         expect(cacheWriteAttempted).toBe(true)
+        expect(updated.frames).toHaveLength(1)
+      } finally {
+        spy.mockRestore()
+      }
+    })
+  })
+
+  describe('Node Weights Cache Persistence', () => {
+    // A frame with no `subtleSystemNode` contributes nothing, so a meditation
+    // built from the suite's shared frames caches `{}` and every assertion below
+    // would hold vacuously. These two give the cache something to carry.
+    let weightedFrame: Frame
+    let weightedSlug: string
+
+    beforeAll(async () => {
+      const node = await testData.createSubtleSystemNode(payload)
+      weightedSlug = node.slug as string
+      weightedFrame = await testData.createFrame(payload, {
+        imageSet: 'male',
+        subtleSystemNode: node.id,
+      })
+    })
+
+    const latestVersionRow = async (meditationId: number) => {
+      const { docs } = await payload.findVersions({
+        collection: 'meditations',
+        depth: 0,
+        limit: 1,
+        sort: '-updatedAt',
+        where: {
+          and: [{ parent: { equals: meditationId } }, { latest: { equals: true } }],
+        },
+      })
+
+      return docs[0]
+    }
+
+    const meditationWithWeights = async (): Promise<Meditation> => {
+      const created = await testData.createMeditation(payload, {
+        narrator: testNarrator.id,
+        thumbnail: testImageMedia.id,
+      })
+
+      return (await payload.update({
+        collection: 'meditations',
+        id: created.id,
+        data: { frames: [{ id: frameId(weightedFrame), timestamp: 0 }] },
+      })) as Meditation
+    }
+
+    it('writes the cache to the latest version row as well as the main row', async () => {
+      const meditation = await meditationWithWeights()
+      const weights = meditation.subtleSystemNodeWeights as Record<string, number>
+
+      expect(weights?.[weightedSlug]).toBeGreaterThan(0)
+
+      const row = await latestVersionRow(meditation.id)
+
+      expect(row.version.subtleSystemNodeWeights).toEqual(weights)
+    })
+
+    it('survives a later update that does not touch frames or duration', async () => {
+      const meditation = await meditationWithWeights()
+      const weights = meditation.subtleSystemNodeWeights as Record<string, number>
+
+      expect(weights?.[weightedSlug]).toBeGreaterThan(0)
+
+      // `label`, deliberately: an update touching `frames` or `duration` re-fires
+      // `recomputeMeditationNodeWeights`, which re-persists the cache and would
+      // let this case pass with the defect in place.
+      await payload.update({
+        collection: 'meditations',
+        id: meditation.id,
+        data: { label: 'Renamed after the cache was written' },
+      })
+
+      const reread = (await payload.findByID({
+        collection: 'meditations',
+        id: meditation.id,
+      })) as Meditation
+
+      expect(reread.subtleSystemNodeWeights).toEqual(weights)
+    })
+
+    it('leaves latest, parent and createdAt intact on the version row it rewrites', async () => {
+      const meditation = await meditationWithWeights()
+      const before = await latestVersionRow(meditation.id)
+
+      const persisted = await persistMeditationNodeWeightsCache({
+        payload,
+        meditationId: meditation.id,
+        weights: { [weightedSlug]: 7 },
+        reason: 'test-version-row-shape',
+      })
+
+      expect(persisted).toBe(true)
+
+      const after = await latestVersionRow(meditation.id)
+
+      expect(after.id).toBe(before.id)
+      expect(after.latest).toBe(true)
+      expect(after.parent).toBe(meditation.id)
+      expect(after.createdAt).toBe(before.createdAt)
+      expect(after.version.subtleSystemNodeWeights).toEqual({ [weightedSlug]: 7 })
+      // The rest of the version document survives a write that replaces the row.
+      expect(after.version.label).toBe(before.version.label)
+    })
+
+    it('still caches a meditation that has no version row', async () => {
+      const meditation = await meditationWithWeights()
+
+      await payload.db.deleteVersions({
+        collection: 'meditations',
+        where: { parent: { equals: meditation.id } },
+      })
+
+      const persisted = await persistMeditationNodeWeightsCache({
+        payload,
+        meditationId: meditation.id,
+        weights: { [weightedSlug]: 3 },
+        reason: 'test-no-version-row',
+      })
+
+      expect(persisted).toBe(true)
+
+      const reread = (await payload.findByID({
+        collection: 'meditations',
+        id: meditation.id,
+      })) as Meditation
+
+      expect(reread.subtleSystemNodeWeights).toEqual({ [weightedSlug]: 3 })
+    })
+
+    it('does not fail the save when the version half of the cache write fails', async () => {
+      const newMeditation = await testData.createMeditation(payload, {
+        narrator: testNarrator.id,
+        thumbnail: testImageMedia.id,
+      })
+
+      let versionWriteAttempted = false
+
+      // `payload.update` on a drafts collection creates a version rather than
+      // updating one, so any `updateVersion` inside this window is the cache's.
+      const spy = vi.spyOn(payload.db, 'updateVersion').mockImplementation((async (
+        args: Parameters<typeof payload.db.updateVersion>[0],
+      ) => {
+        if (args.collection === 'meditations') {
+          versionWriteAttempted = true
+          throw new Error('forced version cache persistence failure')
+        }
+
+        throw new Error(`unexpected updateVersion for ${args.collection}`)
+      }) as typeof payload.db.updateVersion)
+
+      try {
+        const updated = (await payload.update({
+          collection: 'meditations',
+          id: newMeditation.id,
+          data: { frames: [{ id: frameId(weightedFrame), timestamp: 0 }] },
+        })) as Meditation
+
+        expect(versionWriteAttempted).toBe(true)
         expect(updated.frames).toHaveLength(1)
       } finally {
         spy.mockRestore()

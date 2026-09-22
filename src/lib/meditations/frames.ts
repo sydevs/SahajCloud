@@ -246,12 +246,29 @@ export function reportMeditationNodeWeightsCacheError(args: {
  * Persist the derived `subtleSystemNodeWeights` cache directly via the DB
  * adapter. Intentionally bypasses `payload.update` for two reasons:
  *
- * 1. It avoids re-entering the Meditations `afterChange` hook (no need
- *    for a `skipRecomputeNodeWeights` context flag and no risk of an
- *    infinite recompute loop).
+ * 1. A derived-field write does not re-validate the whole document. An
+ *    `afterChange` hook that writes back through `payload.update` re-runs
+ *    every field validator against stored data it never authored, which is
+ *    how issue #835 stalled ExpireEvents.
  * 2. The write is best-effort: on failure we report to logger + Sentry
  *    and return `false`, but never throw. This is the fix for issue #390
  *    — a cache-write error must never 500 the user-facing publish.
+ *
+ * Meditations is drafts-enabled, so the bypass owes the version half that
+ * `payload/dist/versions/updateLatestVersion.js` performs: `payload.db.updateOne`
+ * writes the main row only, while the next `payload.update` reads its starting
+ * document from the `latest: true` version row
+ * (`getLatestCollectionVersion`) and would write the pre-cache value back
+ * over it (#843).
+ *
+ * ⚠ Target the `latest: true` row, not merely the newest. `updateLatestVersion`
+ * filters on `parent` alone; the read filters on `latest` too, so the writer's
+ * own filter can update a row the reader never looks at.
+ *
+ * ⚠ `versionData.version` replaces the row's whole document —
+ * `@payloadcms/drizzle`'s `upsertRow` "replaces the entire row and does not
+ * support partial updates" — so it carries the current version spread, not the
+ * one changed field.
  */
 export async function persistMeditationNodeWeightsCache(args: {
   diagnostics?: Record<string, unknown>
@@ -273,6 +290,37 @@ export async function persistMeditationNodeWeightsCache(args: {
       req,
       returning: false,
     })
+
+    const { docs } = await payload.db.findVersions<Record<string, unknown>>({
+      collection: 'meditations',
+      limit: 1,
+      pagination: false,
+      req,
+      sort: '-updatedAt',
+      where: {
+        and: [{ parent: { equals: meditationId } }, { latest: { equals: true } }],
+      },
+    })
+
+    const [latest] = docs
+
+    // No version row means every read resolves to the main row already written.
+    if (!latest) return true
+
+    await payload.db.updateVersion<Record<string, unknown>>({
+      collection: 'meditations',
+      id: latest.id,
+      req,
+      returning: false,
+      versionData: {
+        createdAt: new Date(latest.createdAt).toISOString(),
+        latest: true,
+        parent: meditationId,
+        updatedAt: new Date().toISOString(),
+        version: { ...latest.version, subtleSystemNodeWeights: weights },
+      },
+    })
+
     return true
   } catch (error) {
     reportMeditationNodeWeightsCacheError({
