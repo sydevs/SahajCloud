@@ -18,9 +18,10 @@
  * protected field and passes with the hole wide open.
  *
  * ⚠ The write cases assert by **reading the row back** at `overrideAccess:
- * true`. Field access strips a denied field and still answers `200`, so a
- * status-code assertion cannot fail — it passed against the open hole while
- * `apiKey` was the only locked field.
+ * true`, never by the status. A refusal is a 403 when it is collection-level
+ * and a silent strip out of a `200` when it is field-level, so only the row
+ * says which happened — and a status assertion passed against the open hole
+ * for as long as `apiKey` was the one locked field.
  */
 import type { Payload, PayloadRequest } from 'payload'
 
@@ -254,11 +255,11 @@ describe('Clients access', () => {
     })
 
     it('refuses a client rewriting its own key', async () => {
-      // Self-access grants a published client `update` on its own row, so the
-      // field lock is the only thing standing between a browser-shipped key and
-      // an attacker pinning the credential to a value they chose. Payload
-      // strips a denied field rather than erroring, so the PATCH still answers
-      // 200 — only the read-back says whether it took.
+      // The property, not the layer: a browser-shipped key never pins the
+      // credential to a value the attacker chose. #822 held that with the field
+      // lock below, under a self-access grant #827 has since withdrawn — so the
+      // refusal is now collection-level and the lock is the layer beneath it.
+      // Either way the read-back is what says whether the write took.
       await rest(`/api/clients/${atlasClient.id}`, {
         method: 'PATCH',
         json: { apiKey: 'ATTACKER-CHOSEN-KEY' },

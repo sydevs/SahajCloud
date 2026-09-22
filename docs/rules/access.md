@@ -114,7 +114,7 @@ hasPermission({ user, collection: 'pages', operation: 'update' }, bypassFn)
 ## Permission flow
 
 1. Block null users.
-2. Run `bypassPermissions`, in order: self-access (read your own document, and update it unless you are a client), inactive-user blocking (managers and clients), then admin bypass.
+2. Run `bypassPermissions`, in the order the code checks them: the admin bypass, then inactive-manager and unpublished-client blocking, then self-access (read your own document, and update it unless you are a client). Self-access is last, so neither an inactive manager nor a draft client reaches it.
 3. Run an O(1) permission-table lookup.
 4. Check translate permission for a localized field update.
 5. Apply project-based implicit read: the role's project, plus every collection listed in no project (shared).
@@ -158,7 +158,7 @@ A global has no `unlock` — its access keys are `read`, `update`, `readVersions
 
 ⚠ **Both derivations fail closed when there is no `update` to delegate to.** They write `() => false` rather than returning the config untouched — an *unset* key is refilled with the permissive `Boolean(user)` (from Payload's collection defaults for `unlock`, from `executeAccess`'s fallback for `readVersions`), which is exactly how #719 and #748 shipped. `createAccessConfig` always assigns `update` and every `access:` under `src/collections` is field-level, so the branch is unreachable through `accessPlugin` today. `tests/unit/access-derived-grants.spec.ts` reaches it directly, so the direction is asserted rather than assumed.
 
-⚠ **`args.id` is dropped before delegating, and must be.** `findVersionByID` calls access with the *version row's* primary key, not the document's — two independent sequences that happen to overlap. Forwarded to `update`, every id-sensitive branch answers about the wrong document: the self-access bypass hands a client row `N` of `_clients_v` because its own id is `N`, and `userManagesDocument` grants any row whose number matches a page the caller manages. Dropping it makes `update` answer at the list level, which `findVersionByID` then ANDs with `{ id: { equals: <row> } }` itself. `unlockOperation` passes no `id` at all today; dropping it keeps that true if a future Payload passes one.
+⚠ **`args.id` is dropped before delegating, and must be.** `findVersionByID` calls access with the *version row's* primary key, not the document's — two independent sequences that happen to overlap. Forwarded to `update`, every id-sensitive branch answers about the wrong document: the self-access bypass hands a manager row `N` of `_managers_v` because their own id is `N`, and `userManagesDocument` grants any row whose number matches a page the caller manages. Dropping it makes `update` answer at the list level, which `findVersionByID` then ANDs with `{ id: { equals: <row> } }` itself. `unlockOperation` passes no `id` at all today; dropping it keeps that true if a future Payload passes one.
 
 ### The one key still unwritten: `admin`
 
