@@ -3,6 +3,8 @@ import type { Payload } from 'payload'
 
 import { handleEndpoints } from 'payload'
 
+import { mintManagerSessionToken } from '@/plugins/login/session'
+
 
 type TestConfig = Awaited<ReturnType<typeof createTestEnvironment>>['config']
 
@@ -36,20 +38,19 @@ export type RestClient = (
 }>
 
 /**
- * Log `manager` in and return a caller that issues authenticated REST requests
- * against `config` as that manager.
+ * Return a caller that issues authenticated REST requests against `config` as
+ * `manager`.
  *
- * ⚠ The login is not incidental. Access control refuses an anonymous read with
- * **403 before any query runs**, so an unauthenticated request never reaches
- * Postgres and cannot produce the database errors these suites are about.
- * Managers built by `createTestEnvironment` and `testData.createManager` are
- * unverified, so `_verified` is set here — `payload.login` refuses otherwise
- * (`UnverifiedEmail`).
+ * ⚠ The authentication is not incidental. Access control refuses an anonymous
+ * read with **403 before any query runs**, so an unauthenticated request never
+ * reaches Postgres and cannot produce the database errors these suites are
+ * about. Managers built by `createTestEnvironment` and `testData.createManager`
+ * are unverified, so `_verified` is set here — the JWT strategy's `_verified`
+ * gate yields no user otherwise, and the request falls back to anonymous.
  */
 export async function createRestClientAs(
   env: { payload: Payload; config: TestConfig },
-  manager: { id: number | string; email: string },
-  password = 'password123',
+  manager: { id: number | string },
 ): Promise<RestClient> {
   await env.payload.update({
     collection: 'managers',
@@ -57,10 +58,7 @@ export async function createRestClientAs(
     data: { _verified: true },
   })
 
-  const { token } = await env.payload.login({
-    collection: 'managers',
-    data: { email: manager.email, password },
-  })
+  const token = await mintManagerSessionToken(env.payload, manager.id)
 
   return async (path, init) => {
     const headers: Record<string, string> = { Authorization: `JWT ${token}` }
@@ -88,7 +86,7 @@ export async function createRestClientAs(
 export async function createRestClient(env: {
   payload: Payload
   config: TestConfig
-  adminUser: { id: number | string; email: string }
+  adminUser: { id: number | string }
 }): Promise<RestClient> {
   return createRestClientAs(env, env.adminUser)
 }

@@ -11,6 +11,7 @@ import { mintLivePreviewToken } from '@/lib/livePreview/token'
 import { PREVIEW_SECRET_HEADER, resolveLivePreviewHook } from '@/lib/utilities/previewSecret'
 import type { Event, Region } from '@/payload-types'
 import { bypassPermissions, hasAnyPermission, hasPermission } from '@/plugins/access'
+import { mintManagerSessionToken } from '@/plugins/login/session'
 
 import {
   createData,
@@ -854,17 +855,14 @@ describe('Role-Based Access Control', () => {
       it('carries roles for every locale, not just the default one', async () => {
         const manager = await testData.createManager(payload, {
           type: 'manager',
-          // `Managers` configures `auth.verify`, so a login is refused until this
-          // is set explicitly — `create` does not imply it the way
-          // `first-register` does.
+          // `Managers` configures `auth.verify`, so the JWT strategy's
+          // `_verified` gate yields no user until this is set explicitly —
+          // `create` does not imply it the way `first-register` does.
           _verified: true,
           roles: { fr: ['web-translator'], cs: ['meditations-editor', 'path-editor'] },
         })
 
-        const { token } = await payload.login({
-          collection: 'managers',
-          data: { email: manager.email, password: 'password123' },
-        })
+        const token = await mintManagerSessionToken(payload, manager.id)
 
         const headers = new Headers()
         headers.set('Authorization', `JWT ${token}`)
@@ -887,10 +885,7 @@ describe('Role-Based Access Control', () => {
           roles: { fr: ['web-translator'] },
         })
 
-        const { token } = await payload.login({
-          collection: 'managers',
-          data: { email: manager.email, password: 'password123' },
-        })
+        const token = await mintManagerSessionToken(payload, manager.id)
 
         const headers = new Headers()
         headers.set('Authorization', `JWT ${token}`)

@@ -245,7 +245,7 @@ A spec that builds `req` by hand and hardcodes `locale: 'en'` cannot see a
 request that names no locale at all — Payload then resolves the *default*
 locale, and per-locale role gates deny anyone whose roles live elsewhere.
 That is #701, and `frames-by-narrator` / `user-submissions-review` cover it
-by logging in a French-only manager and varying `?locale=`.
+by authenticating a French-only manager and varying `?locale=`.
 
 Two things live only there, and both are why this exists (#684): **root
 `afterError` hooks** (`databaseErrorPlugin`) run inside
@@ -256,10 +256,14 @@ error body is the real message plus a stack, or `Something went wrong.`
 
 `createTestEnvironment({ debug })` selects that flag (default `false`,
 i.e. production's value) and returns the suite's `config`, which the
-client needs. The helper logs the suite admin in and marks it `_verified`
-first — `payload.login` refuses an unverified manager, and access control
-answers **403 before any query runs**, so an anonymous request never
-reaches Postgres at all.
+client needs. The helper marks the suite admin `_verified` and mints it a
+session with `mintManagerSessionToken` (`@/plugins/login/session`) — the
+JWT strategy's `_verified` gate yields no user otherwise, and access
+control answers **403 before any query runs**, so an anonymous request
+never reaches Postgres at all. Nothing under `tests/` calls `payload.login`
+any more except `manager-verification.int.spec.ts` and role-based-access's
+`Login-lockout reset (unlock)` suite, where password login is the mechanism
+under test.
 
 ⚠ **One environment per file still holds, and here is what violating it
 looks like.** `getPayload` caches per config, so a second

@@ -26,6 +26,11 @@ One self-contained folder per plugin/adapter, with a public API via an
 `sentry/`. Consumers (including `payload.config.ts`) import from
 `@/plugins/<name>`.
 
+`login/` is the one exception, and a temporary one: it holds the manager
+session minter and nothing else, with no barrel and no registration, because
+sydevs/SahajCloud#837 brings the `Plugin` factory that gives the folder a
+public surface. Import it by path until then. Do not copy the shape.
+
 ### `src/jobs/<JobName>/`
 
 One folder per scheduled job (`CleanupOrphanedMedia/`,
