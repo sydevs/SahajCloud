@@ -59,7 +59,7 @@ function capLog<T>(log: T[]): T[] {
  *
  * Two consequences to keep in view. It skips validation of *these* writes too,
  * not only of the stored fields — every value here comes from a pinned helper,
- * and `data` is where that stops being true if it widens. And
+ * and the `data` type is what keeps a fifth field from arriving. And
  * `saveVersion({ unpublish })` overwrites the `latest: true` version instead of
  * appending one: the nightly writes stop growing the version table, at the cost
  * of the unpublishing advance leaving no published version to restore from.
@@ -71,7 +71,7 @@ async function updateBookkeeping(
   payload: Payload,
   req: PayloadRequest,
   id: number,
-  data: Partial<Event>,
+  data: Partial<Pick<Event, 'verificationStage' | 'nextCheckAt' | 'activityLog' | '_status'>>,
 ): Promise<void> {
   await payload.update({
     collection: 'events',
