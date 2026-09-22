@@ -4,8 +4,6 @@ import { randomUUID } from 'node:crypto'
 
 import { getFieldsToSign, jwtSign } from 'payload'
 
-const MANAGERS = 'managers'
-
 /**
  * Mint a session token for a manager, without a password.
  *
@@ -26,7 +24,7 @@ export async function mintManagerSessionToken(
   payload: Payload,
   managerId: number | string,
 ): Promise<string> {
-  const collectionConfig = payload.collections[MANAGERS].config
+  const collectionConfig = payload.collections.managers.config
   const { tokenExpiration } = collectionConfig.auth
 
   // No `select`: `getFieldsToSign` reads whichever fields carry `saveToJWT`,
@@ -34,7 +32,7 @@ export async function mintManagerSessionToken(
   // `joins: false` is safe — `Managers` declares three join fields, and an
   // unset `joins` enables every one of them for a document nothing else reads.
   const user = await payload.findByID({
-    collection: MANAGERS,
+    collection: 'managers',
     id: managerId,
     depth: 0,
     joins: false,
@@ -54,7 +52,7 @@ export async function mintManagerSessionToken(
   // `user` was read at one locale, so writing it back whole would flatten the
   // localized `roles` field onto that locale.
   await payload.update({
-    collection: MANAGERS,
+    collection: 'managers',
     id: managerId,
     data: { sessions: [...live, session] },
     depth: 0,
@@ -64,7 +62,7 @@ export async function mintManagerSessionToken(
     collectionConfig,
     email: user.email,
     sid,
-    user: { ...user, collection: MANAGERS },
+    user: { ...user, collection: 'managers' },
   })
 
   const { token } = await jwtSign({ fieldsToSign, secret: payload.secret, tokenExpiration })
