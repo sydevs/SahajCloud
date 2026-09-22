@@ -43,11 +43,14 @@ export const bypassPermissions: BypassPermissionFunction = (user, context) => {
     // Fall through to self-access check below
   }
 
-  // --- SELF-ACCESS (rare - users accessing their own document) Applies to both managers and clients, checked last ---
+  // --- SELF-ACCESS (rare - users accessing their own document), checked last ---
   if (user.collection === collection && user.id === docId) {
-    if (operation === 'read' || operation === 'update') {
-      return 'allow'
-    }
+    if (operation === 'read') return 'allow'
+
+    // Update is `managers` alone (#827): a client row is operator
+    // configuration with no editable half. Allowlisted, so a third auth
+    // collection fails closed rather than inheriting the grant.
+    if (operation === 'update' && user.collection === 'managers') return 'allow'
   }
 
   return 'continue'

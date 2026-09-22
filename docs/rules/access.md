@@ -114,7 +114,7 @@ hasPermission({ user, collection: 'pages', operation: 'update' }, bypassFn)
 ## Permission flow
 
 1. Block null users.
-2. Run `bypassPermissions`, in order: self-access (read or update your own document), inactive-user blocking (managers and clients), then admin bypass.
+2. Run `bypassPermissions`, in the order the code checks them: the admin bypass, then inactive-manager and unpublished-client blocking, then self-access (read your own document, and update it if you are a manager). Self-access is last, so neither an inactive manager nor a draft client reaches it.
 3. Run an O(1) permission-table lookup.
 4. Check translate permission for a localized field update.
 5. Apply project-based implicit read: the role's project, plus every collection listed in no project (shared).
@@ -158,7 +158,7 @@ A global has no `unlock` — its access keys are `read`, `update`, `readVersions
 
 ⚠ **Both derivations fail closed when there is no `update` to delegate to.** They write `() => false` rather than returning the config untouched — an *unset* key is refilled with the permissive `Boolean(user)` (from Payload's collection defaults for `unlock`, from `executeAccess`'s fallback for `readVersions`), which is exactly how #719 and #748 shipped. `createAccessConfig` always assigns `update` and every `access:` under `src/collections` is field-level, so the branch is unreachable through `accessPlugin` today. `tests/unit/access-derived-grants.spec.ts` reaches it directly, so the direction is asserted rather than assumed.
 
-⚠ **`args.id` is dropped before delegating, and must be.** `findVersionByID` calls access with the *version row's* primary key, not the document's — two independent sequences that happen to overlap. Forwarded to `update`, every id-sensitive branch answers about the wrong document: the self-access bypass hands a client row `N` of `_clients_v` because its own id is `N`, and `userManagesDocument` grants any row whose number matches a page the caller manages. Dropping it makes `update` answer at the list level, which `findVersionByID` then ANDs with `{ id: { equals: <row> } }` itself. `unlockOperation` passes no `id` at all today; dropping it keeps that true if a future Payload passes one.
+⚠ **`args.id` is dropped before delegating, and must be.** `findVersionByID` calls access with the *version row's* primary key, not the document's — two independent sequences that happen to overlap. Forwarded to `update`, every id-sensitive branch answers about the wrong document: the self-access bypass hands a manager row `N` of `_managers_v` because their own id is `N`, and `userManagesDocument` grants any row whose number matches a page the caller manages. Dropping it makes `update` answer at the list level, which `findVersionByID` then ANDs with `{ id: { equals: <row> } }` itself. `unlockOperation` passes no `id` at all today; dropping it keeps that true if a future Payload passes one.
 
 ### The one key still unwritten: `admin`
 
@@ -197,7 +197,15 @@ Document locking is unrelated: that is the `payload-locked-documents` collection
 
 ### Self-access
 
-A user can always read and update their own document in their auth collection.
+A user can always read their own document in their auth collection. **Update is for `managers` alone** (#827).
+
+A manager row is a person's profile, so the person must edit their own name, email and password — `type` and `roles` carry admin-only field locks for the parts that are not theirs to change. A `clients` row is operator configuration end to end: `roles`, `allowedDomains`, `region`, `canonical` and the `usage` counters. There is no half of it a service may edit, so the grant is withdrawn whole rather than locked field by field, and the next field added to `Clients` is closed by default.
+
+⚠ **Read is what boots the atlas widget**, over `GET /api/clients/me`, and nothing else answers it. Narrowing the update half is safe only because no `clients` write depends on the client's own grant: every `payload.update({ collection: 'clients' })` runs with `overrideAccess: true` or in a job with no user, and `POST /api/clients/report` writes `embedMetadata` through the pg pool rather than through Payload. `disableLocalStrategy: true` means no login, logout or refresh writes the row either.
+
+Withdrawing the bypass is the whole close: no client role names `clients` at all, so the role table has nothing to fall back to.
+
+⚠ **Spelled as an allowlist** — `user.collection === 'managers'`, the same polarity as `managersOnlyFieldAccess` and for the same reason. A third auth collection then arrives with no self-update rather than inheriting it.
 
 ### Restricted collections — "in no project" is not restrictive
 
@@ -211,7 +219,7 @@ This cuts the opposite way from implicit read, above, and the obvious reading is
 
 ⚠ **Restricting a collection reaches a relationship to it. It does not reach a copy of it.** Every `relationTo: 'managers'` field is covered and needs no lock of its own, because populate falls back to the bare id once the related read is refused. A field storing a manager's name or address *as a value* is not covered, and needs a field lock instead — which is the next section, and why two fields on `events` have one.
 
-⚠ **It does not cover the caller's own row.** Self-access answers at step 2, before the check, so a published client still reads its whole `clients` document over `GET /api/clients/me` — deliberately, because the atlas widget suspends on that read at every boot. Restricting `clients` is what stops a key reading *other* services (#822); the field lock below is what keeps `apiKey` out of its own answer. Neither layer does the other's job.
+⚠ **It does not cover the caller's own row.** Self-access read answers at step 2, before the check, so a published client still reads its whole `clients` document over `GET /api/clients/me` — deliberately, because the atlas widget suspends on that read at every boot. Restricting `clients` is what stops a key reading *other* services (#822); the field lock below is what keeps `apiKey` out of its own answer. Neither layer does the other's job.
 
 ⚠ **Treat the list as a holding pattern.** All four collections that sit in no project are named in it now, so it is complete today and fails open the day a fifth is added. The real fix is for step 4a to test project membership directly, so a new collection fails closed. Its docblock says so.
 

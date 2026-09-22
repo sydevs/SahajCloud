@@ -276,9 +276,11 @@ export const Clients: CollectionConfig = {
       // the auth base field by name only at the level it is handed, so a nested
       // copy sanitizes to two `apiKey` fields (#822, docs/rules/access.md).
       //
-      // Writes are locked too: self-access grants a published client `update` on
-      // its own row, so without it a browser-shipped key could pin the
-      // credential to a value the attacker chose. Manager regeneration is
+      // `create` and `update` are unreachable today — no client role names
+      // `clients` and #827 withdrew client self-update, so nothing untrusted
+      // gets as far as field access. Kept deliberately: this is the one field
+      // whose value an attacker would choose rather than read, and the grant
+      // above it has already been widened once. Manager regeneration is
       // unaffected — the lock passes any `managers` caller.
       name: 'apiKey',
       type: 'text',
