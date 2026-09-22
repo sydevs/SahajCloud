@@ -2,7 +2,6 @@ import type { Payload } from 'payload'
 
 import { describe, it, beforeAll, afterAll, expect, vi } from 'vitest'
 
-import { persistMeditationNodeWeightsCache } from '@/lib/meditations/frames'
 import type { Meditation, Narrator, Image, Frame } from '@/payload-types'
 import type { KeyframeDefinition } from '@/types/frames'
 
@@ -593,74 +592,6 @@ describe('Meditation Frames Field', () => {
       expect(row.version.subtleSystemNodeWeights).toEqual(weights)
     })
 
-    it('survives a later update that does not touch frames or duration', async () => {
-      const { meditation, weights } = await meditationWithWeights()
-
-      // `label`, deliberately: an update touching `frames` or `duration` would
-      // recompute the cache and let this case pass with the defect in place.
-      await payload.update({
-        collection: 'meditations',
-        id: meditation.id,
-        data: { label: 'Renamed after the cache was written' },
-      })
-
-      const reread = (await payload.findByID({
-        collection: 'meditations',
-        id: meditation.id,
-      })) as Meditation
-
-      expect(reread.subtleSystemNodeWeights).toEqual(weights)
-    })
-
-    it('leaves latest, parent and both timestamps intact on the version row it rewrites', async () => {
-      const { meditation } = await meditationWithWeights()
-      const before = await latestVersionRow(meditation.id)
-
-      const persisted = await persistMeditationNodeWeightsCache({
-        payload,
-        meditationId: meditation.id,
-        weights: { [weightedSlug]: 7 },
-        reason: 'test-version-row-shape',
-      })
-
-      expect(persisted).toBe(true)
-
-      const after = await latestVersionRow(meditation.id)
-
-      expect(after.id).toBe(before.id)
-      expect(after.latest).toBe(true)
-      expect(after.parent).toBe(meditation.id)
-      expect(after.createdAt).toBe(before.createdAt)
-      expect(after.updatedAt).toBe(before.updatedAt)
-      expect(after.version.subtleSystemNodeWeights).toEqual({ [weightedSlug]: 7 })
-      expect(after.version.label).toBe(before.version.label)
-    })
-
-    it('still caches a meditation that has no version row', async () => {
-      const { meditation } = await meditationWithWeights()
-
-      await payload.db.deleteVersions({
-        collection: 'meditations',
-        where: { parent: { equals: meditation.id } },
-      })
-
-      const persisted = await persistMeditationNodeWeightsCache({
-        payload,
-        meditationId: meditation.id,
-        weights: { [weightedSlug]: 3 },
-        reason: 'test-no-version-row',
-      })
-
-      expect(persisted).toBe(true)
-
-      const reread = (await payload.findByID({
-        collection: 'meditations',
-        id: meditation.id,
-      })) as Meditation
-
-      expect(reread.subtleSystemNodeWeights).toEqual({ [weightedSlug]: 3 })
-    })
-
     it('leaves the published main row alone while a draft save moves the cache', async () => {
       const created = await testData.createMeditation(payload, {
         narrator: testNarrator.id,
@@ -729,57 +660,61 @@ describe('Meditation Frames Field', () => {
       return { frame, meditationOn }
     }
 
-    it('reads the latest version rows once for the whole cascade', async () => {
+    it('keeps cascaded weights through a later save that touches neither frames nor duration', async () => {
       const { frame, meditationOn } = await cascadeFixture()
-      const first = await meditationOn()
-      const second = await meditationOn()
+      const meditation = await meditationOn()
       const nextNode = await testData.createSubtleSystemNode(payload)
 
-      const spy = vi.spyOn(payload.db, 'findVersions')
+      await payload.update({
+        collection: 'frames',
+        id: frame.id,
+        data: { subtleSystemNode: nextNode.id },
+      })
 
-      try {
-        await payload.update({
-          collection: 'frames',
-          id: frame.id,
-          data: { subtleSystemNode: nextNode.id },
-        })
+      const cascaded = ((await payload.findByID({
+        collection: 'meditations',
+        id: meditation.id,
+      })) as Meditation).subtleSystemNodeWeights as Record<string, number>
 
-        const reads = spy.mock.calls
-          .map(([args]) => args)
-          .filter((args) => args.collection === 'meditations')
+      expect(cascaded?.[nextNode.slug as string]).toBeGreaterThan(0)
 
-        expect(reads).toHaveLength(1)
+      // The cascade reaches the main row alone, so the `latest: true` version row
+      // still names the frame's previous node. `label`, deliberately: this save
+      // recombines from that row, and only an unconditional recompute keeps the
+      // pre-cascade weights from landing back on the main row (#843).
+      await payload.update({
+        collection: 'meditations',
+        id: meditation.id,
+        data: { label: 'Renamed after the cascade' },
+      })
 
-        const parents = (
-          reads[0].where as { and: [{ parent: { in: (number | string)[] } }, unknown] }
-        ).and[0].parent.in
+      const reread = (await payload.findByID({
+        collection: 'meditations',
+        id: meditation.id,
+      })) as Meditation
 
-        expect(parents).toEqual(expect.arrayContaining([first.id, second.id]))
-      } finally {
-        spy.mockRestore()
-      }
+      expect(reread.subtleSystemNodeWeights).toEqual(cascaded)
     })
 
-    it('does not fail the frame save when the version half of the cache write fails', async () => {
+    it('does not fail the frame save when the cache write fails', async () => {
       const { frame, meditationOn } = await cascadeFixture()
       await meditationOn()
       const nextNode = await testData.createSubtleSystemNode(payload)
 
-      const original = payload.db.updateVersion.bind(payload.db)
-      let versionWriteAttempted = false
+      const original = payload.db.updateOne.bind(payload.db)
+      let cacheWriteAttempted = false
 
-      // Scoped to meditations: Frames keeps versions of its own, and the frame
-      // save under test writes one.
-      const spy = vi.spyOn(payload.db, 'updateVersion').mockImplementation((async (
-        args: Parameters<typeof payload.db.updateVersion>[0],
+      // Scoped to meditations: the frame save under test writes its own row too.
+      const spy = vi.spyOn(payload.db, 'updateOne').mockImplementation((async (
+        args: Parameters<typeof payload.db.updateOne>[0],
       ) => {
         if (args.collection === 'meditations') {
-          versionWriteAttempted = true
-          throw new Error('forced version cache persistence failure')
+          cacheWriteAttempted = true
+          throw new Error('forced cache persistence failure')
         }
 
         return original(args)
-      }) as typeof payload.db.updateVersion)
+      }) as typeof payload.db.updateOne)
 
       try {
         const updated = await payload.update({
@@ -788,7 +723,7 @@ describe('Meditation Frames Field', () => {
           data: { subtleSystemNode: nextNode.id },
         })
 
-        expect(versionWriteAttempted).toBe(true)
+        expect(cacheWriteAttempted).toBe(true)
         expect(updated.id).toBe(frame.id)
       } finally {
         spy.mockRestore()

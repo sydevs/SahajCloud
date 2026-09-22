@@ -4,7 +4,6 @@ import * as Sentry from '@sentry/nextjs'
 import { extractID } from 'payload/shared'
 
 import {
-  findLatestMeditationVersionRows,
   getFrameDiagnosticsLogContext,
   normalizeMeditationFrames,
   persistMeditationNodeWeightsCache,
@@ -27,7 +26,9 @@ import type { Meditation } from '@/payload-types'
  * This is the one node-weights writer with no save of its own to ride — it
  * touches meditations other than the document being saved — so it goes through
  * `persistMeditationNodeWeightsCache`, whose DB-adapter bypass keeps a derived
- * write from restamping `updatedAt` on every meditation using the frame.
+ * write from restamping `updatedAt` on every meditation using the frame. That
+ * write reaches the main row alone; the meditation's own next published save is
+ * what brings its `latest: true` version row back in line (#843).
  */
 export const cascadeFrameNodeChange: CollectionAfterChangeHook = async ({
   doc,
@@ -76,14 +77,6 @@ export const cascadeFrameNodeChange: CollectionAfterChangeHook = async ({
 
       if (affected.length === 0) return doc
 
-      // One version-row read for the whole cascade, rather than one per
-      // meditation inside the loop.
-      const latestVersions = await findLatestMeditationVersionRows({
-        meditationIds: affected.map(({ meditation }) => meditation.id),
-        payload: req.payload,
-        req,
-      })
-
       for (const { meditation, normalized } of affected) {
         const diagnostics = {
           frameId: doc.id,
@@ -113,7 +106,6 @@ export const cascadeFrameNodeChange: CollectionAfterChangeHook = async ({
           weights,
           reason: 'frame-cascade',
           diagnostics,
-          latestVersion: latestVersions.get(String(meditation.id)) ?? null,
           req,
           locale: meditation.locale ?? undefined,
         })
