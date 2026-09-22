@@ -18,6 +18,7 @@ import { createAccessConfig, withDerivedGrants } from './accessConfigs'
 import { getProjectSlugs, getRoleSlugs, isTranslatableCollection } from './config'
 import { applyFieldAccessForTranslatableCollections } from './fieldAccess'
 import { withLocalizedRoleAuth } from './localizedRolesAuth'
+import { stripLockedFieldsOnSelfRead } from './stripLockedFieldsOnSelfRead'
 import { createHidden } from './visibility'
 
 // Re-export permission functions for public API
@@ -79,6 +80,15 @@ export function accessPlugin(options: AccessPluginOptions = {}): (config: Config
         const collection = withLocalizedRoleAuth(original)
         return {
           ...collection,
+          // A caller reading its own auth collection may be on a path that
+          // skips field access entirely, so the `read` locks are re-applied
+          // after the read — see stripLockedFieldsOnSelfRead.ts (#822).
+          hooks: collection.auth
+            ? {
+                ...collection.hooks,
+                afterRead: [...(collection.hooks?.afterRead ?? []), stripLockedFieldsOnSelfRead],
+              }
+            : collection.hooks,
           // Apply role-based access control (preserve existing overrides).
           // `readVersions` and `unlock` are derived from the MERGED `update` by
           // one table-driven pass, so an override carries into version history

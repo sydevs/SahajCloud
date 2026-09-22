@@ -23,7 +23,6 @@ import { abuseScoreSchema, calculateAbuseScore } from '@/plugins/usage'
 import { clientEmbedReport } from './endpoints/report'
 import { verifyEmbedOnDemand } from './endpoints/verifyEmbed'
 import { ensureClientId } from './hooks/ensureClientId'
-import { stripSecretsFromClientReads } from './hooks/stripSecretsFromClientReads'
 import { validateCanonicalOwnership } from './hooks/validateCanonicalOwnership'
 import { validateClientData } from './hooks/validateClientData'
 import { validateMailingList } from './hooks/validateMailingList'
@@ -686,7 +685,6 @@ export const Clients: CollectionConfig = {
   ],
   endpoints: [clientEmbedReport, verifyEmbedOnDemand],
   hooks: {
-    afterRead: [stripSecretsFromClientReads],
     beforeChange: [
       validateClientData,
       ensureClientId,
