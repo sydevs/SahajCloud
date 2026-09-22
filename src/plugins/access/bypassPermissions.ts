@@ -43,16 +43,16 @@ export const bypassPermissions: BypassPermissionFunction = (user, context) => {
     // Fall through to self-access check below
   }
 
-  // --- SELF-ACCESS (rare - users accessing their own document) Applies to both managers and clients, checked last ---
+  // --- SELF-ACCESS (rare - users accessing their own document), checked last ---
   if (user.collection === collection && user.id === docId) {
     if (operation === 'read') return 'allow'
 
-    // A `clients` row is operator configuration end to end — roles, origin
-    // allowlist, region, canonical ownership, usage counters — so there is no
-    // half of it the service itself may edit (#827). A manager's own row is a
-    // person's profile, which they must edit, and `Managers.ts` locks the two
-    // fields that are not theirs to change.
-    if (operation === 'update' && user.collection !== 'clients') return 'allow'
+    // Update is `managers` alone (#827). A manager row is a person's profile —
+    // `disableLocalStrategy` on `clients` is the structural form of the same
+    // point — while a client row is operator configuration with no editable
+    // half. Spelled as an allowlist, like `managersOnlyFieldAccess`, so a third
+    // auth collection fails closed rather than inheriting the grant.
+    if (operation === 'update' && user.collection === 'managers') return 'allow'
   }
 
   return 'continue'

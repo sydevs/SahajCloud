@@ -29,7 +29,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { SKIP_AVAILABLE_LOCALES_CHECK } from '@/fields/availableLocalesField'
 import { getRegionOwners } from '@/lib/atlas/regionOwners'
-import type { Client, Manager, Region } from '@/payload-types'
+import type { CanonicalVerification } from '@/lib/clients/verification'
+import { EMPTY_VERIFICATION } from '@/lib/clients/verification'
+import type { Client, Manager } from '@/payload-types'
 
 import { testData } from '../utils/testData'
 import { createClientAuthenticatedRequest, createTestEnvironment } from '../utils/testHelpers'
@@ -53,7 +55,9 @@ describe('Clients access', () => {
   let atlasClient: Client
   let otherClient: Client
   let writerClient: Client
-  let unownedRegion: Region
+  let managedClient: Client
+  let unownedRegion: number
+  let managedRegion: number
 
   /** A published `sahaj-atlas-client`, the key that ships in the browser. */
   const atlasReq = (): PayloadRequest =>
@@ -64,13 +68,19 @@ describe('Clients access', () => {
       context: {},
     }) as unknown as PayloadRequest
 
-  const managerReq = (manager: Manager): PayloadRequest =>
+  /** A fresh request each call, so a per-request memo starts empty. */
+  const bareReq = (): PayloadRequest =>
     ({
       payload,
       headers: new Headers(),
       routeParams: {},
       locale: 'en',
       context: {},
+    }) as unknown as PayloadRequest
+
+  const managerReq = (manager: Manager): PayloadRequest =>
+    ({
+      ...bareReq(),
       user: { ...manager, collection: 'managers' },
     }) as unknown as PayloadRequest
 
@@ -127,23 +137,21 @@ describe('Clients access', () => {
       apiKey: OTHER_API_KEY,
     })
 
-    // No client claims it, so `validateCanonicalOwnership` would accept the
-    // forged claim below — the bypass is what refuses it, not the hook.
-    unownedRegion = (await payload.create({
-      collection: 'regions',
-      overrideAccess: true,
-      data: {
-        name: 'Selfupdatia',
-        level: 'country',
-        slug: 'selfupdatia',
-        mapboxId: 'mb-selfupdatia',
-      },
-    })) as Region
+    // Neither is claimed, so `validateCanonicalOwnership` accepts a first
+    // enable on either — the bypass is what refuses the client's, not the hook.
+    unownedRegion = await testData.createRegionNode(payload, {
+      prefix: 'clients-access',
+      slug: 'selfupdatia',
+      level: 'country',
+    })
+    managedRegion = await testData.createRegionNode(payload, {
+      prefix: 'clients-access',
+      slug: 'managedia',
+      level: 'country',
+    })
 
-    writerClient = await testData.createClient(payload, adminManager.id, {
-      name: 'Self Update Probe',
-      roles: ['sahaj-atlas-client'],
-      apiKey: WRITER_API_KEY,
+    const writerFields = {
+      roles: ['sahaj-atlas-client'] as Client['roles'],
       // Non-empty on purpose: an empty allowlist already allows every origin,
       // so widening it to '' would be indistinguishable from the write failing.
       allowedDomains: 'atlas-self-update.example',
@@ -152,6 +160,17 @@ describe('Clients access', () => {
         totalRequests: 4242,
         firstRequestAt: WRITER_FIRST_REQUEST_AT,
       },
+    }
+    writerClient = await testData.createClient(payload, adminManager.id, {
+      ...writerFields,
+      name: 'Self Update Probe',
+      apiKey: WRITER_API_KEY,
+    })
+    // The manager counterpart writes a row of its own. Sharing one would make
+    // every refusal above depend on running before it.
+    managedClient = await testData.createClient(payload, adminManager.id, {
+      ...writerFields,
+      name: 'Manager Written Probe',
     })
   })
 
@@ -363,7 +382,14 @@ describe('Clients access', () => {
   })
 
   describe('the self-update lock', () => {
-    /** A PATCH the writer client signs with its own key, as the browser could. */
+    /**
+     * A PATCH the writer client signs with its own key, as the browser could.
+     *
+     * Every case ignores the status and asserts the row instead. The first one
+     * pins the 403 once, to record that the refusal is the collection-level
+     * grant rather than five fields stripped out of a 200 — asserting it in
+     * every case would make a partial regression fail on the wrong line.
+     */
     const patchSelf = (json: unknown) =>
       rest(`/api/clients/${writerClient.id}`, { method: 'PATCH', json, apiKey: WRITER_API_KEY })
 
@@ -376,36 +402,32 @@ describe('Clients access', () => {
         overrideAccess: true,
       })) as Client
 
-    /** A forged snapshot of the shape the VerifyEmbeds job is the only writer of. */
-    const FORGED_VERIFICATION = {
+    /**
+     * A forged snapshot of what the VerifyEmbeds job is the only writer of.
+     * Typed, not cast, so it stays the shape the job writes.
+     */
+    const FORGED_VERIFICATION: CanonicalVerification = {
+      ...EMPTY_VERIFICATION,
       verified: {
         domain: 'atlas-self-update.example',
         mount: '/map',
+        routing: 'query',
         widgetVersion: 1,
         at: '2026-09-22T00:00:00.000Z',
       },
-      failureCount: 0,
-      attempts: [],
-    } as unknown as NonNullable<Client['canonical']>['verification']
-
-    /** A bare request, so `getRegionOwners`' per-request memo starts empty each time. */
-    const ownerReq = (): PayloadRequest =>
-      ({
-        payload,
-        headers: new Headers(),
-        routeParams: {},
-        locale: 'en',
-        context: {},
-      }) as unknown as PayloadRequest
+    }
 
     it('refuses the whole update, not one field at a time', async () => {
-      // `name` carries no field lock and holds nothing sensitive. It is here
-      // because it is the case per-field locks would have left open: the close
-      // is the collection-level grant, so a plain field goes with the rest.
+      // `name` carries no field lock and holds nothing sensitive, so it is the
+      // field per-field locks would have left open. `updatedAt` is what says
+      // nothing at all landed, including a field nobody thought to enumerate.
+      const before = await readWriter()
       const { status } = await patchSelf({ name: 'RENAMED BY ITS OWN KEY' })
 
+      const after = await readWriter()
+      expect(after.name).toBe('Self Update Probe')
+      expect(after.updatedAt).toBe(before.updatedAt)
       expect(status).toBe(403)
-      expect((await readWriter()).name).toBe('Self Update Probe')
     })
 
     it('refuses it new roles', async () => {
@@ -427,7 +449,7 @@ describe('Clients access', () => {
     })
 
     it('refuses it a region', async () => {
-      await patchSelf({ region: unownedRegion.id })
+      await patchSelf({ region: unownedRegion })
 
       expect((await readWriter()).region ?? null).toBeNull()
     })
@@ -445,11 +467,11 @@ describe('Clients access', () => {
     })
 
     it('refuses it canonical ownership of an unowned region', async () => {
-      // The whole claim in one PATCH, since one grant covers every part of it.
-      // No incumbent means `validateCanonicalOwnership` would accept this, so
-      // the bypass is the only thing refusing it.
+      // Region, enable, embed and a forged snapshot in one PATCH: one grant
+      // covered all four, and no incumbent means the uniqueness hook would have
+      // accepted the claim.
       await patchSelf({
-        region: unownedRegion.id,
+        region: unownedRegion,
         canonical: {
           enabled: true,
           embed: 'https://atlas-self-update.example/map',
@@ -463,8 +485,8 @@ describe('Clients access', () => {
 
       // The published consequence, not just the column: no owner resolves for
       // the region, so nothing points the public at the forged host.
-      const owners = await getRegionOwners(ownerReq())
-      expect(owners.get(unownedRegion.id)).toBeUndefined()
+      const owners = await getRegionOwners(bareReq())
+      expect(owners.get(unownedRegion)).toBeUndefined()
     })
 
     it('still records an embed report', async () => {
@@ -493,15 +515,16 @@ describe('Clients access', () => {
     })
 
     it('leaves a manager writing every one of those fields', async () => {
-      // The counterpart that keeps the cases above honest: the identical claim,
-      // made by an admin manager, resolves an owner for the same region.
-      await payload.update({
+      // The counterpart that keeps the refusals honest: the same claim, on an
+      // equally unclaimed region, lands and resolves an owner. Without it every
+      // `toBeUndefined` above would pass against a claim path that never worked.
+      const updated = (await payload.update({
         collection: 'clients',
-        id: writerClient.id,
+        id: managedClient.id,
         data: {
           roles: ['sahaj-atlas-client', 'wemeditate-web-client'],
           allowedDomains: 'atlas-self-update.example\nsecond.example',
-          region: unownedRegion.id,
+          region: managedRegion,
           usage: { highUsageDays: 0 },
           canonical: {
             enabled: true,
@@ -511,22 +534,20 @@ describe('Clients access', () => {
         },
         overrideAccess: false,
         req: managerReq(adminManager),
-      })
+      })) as Client
 
-      const after = await readWriter()
-      expect(after.roles).toEqual(['sahaj-atlas-client', 'wemeditate-web-client'])
-      expect(after.allowedDomains).toContain('second.example')
-      expect(after.usage?.highUsageDays).toBe(0)
-      expect(after.canonical?.enabled).toBe(true)
+      expect(updated.roles).toEqual(['sahaj-atlas-client', 'wemeditate-web-client'])
+      expect(updated.allowedDomains).toContain('second.example')
+      expect(updated.usage?.highUsageDays).toBe(0)
+      expect(updated.canonical?.enabled).toBe(true)
 
-      const owners = await getRegionOwners(ownerReq())
-      expect(owners.get(unownedRegion.id)?.clientId).toBe(writerClient.id)
+      const owners = await getRegionOwners(bareReq())
+      expect(owners.get(managedRegion)?.clientId).toBe(managedClient.id)
     })
 
     it('leaves a non-admin manager editing their own managers row', async () => {
-      // The half of self-access that stays: a manager row is a person's profile.
-      // `type` and `roles` carry their own admin-only locks, which is why
-      // per-field was right there and wrong on a client.
+      // The half of self-access that stays, with `type` still stripped by its
+      // own admin-only field lock.
       const updated = (await payload.update({
         collection: 'managers',
         id: outsideManager.id,

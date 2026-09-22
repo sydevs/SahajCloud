@@ -203,7 +203,9 @@ A manager row is a person's profile, so the person must edit their own name, ema
 
 ⚠ **Read is what boots the atlas widget**, over `GET /api/clients/me`, and nothing else answers it. Narrowing the update half is safe only because no `clients` write depends on the client's own grant: every `payload.update({ collection: 'clients' })` runs with `overrideAccess: true` or in a job with no user, and `POST /api/clients/report` writes `embedMetadata` through the pg pool rather than through Payload. `disableLocalStrategy: true` means no login, logout or refresh writes the row either.
 
-Once the bypass stops firing, nothing grants a client `update` on `clients`: no client role names the collection, so `createAccessConfig` runs past its manager-only branches and returns `false`.
+Withdrawing the bypass is the whole close: no client role names `clients` at all, so the role table has nothing to fall back to.
+
+⚠ **Spelled as an allowlist** — `user.collection === 'managers'`, the same polarity as `managersOnlyFieldAccess` and for the same reason. A third auth collection then arrives with no self-update rather than inheriting it.
 
 ### Restricted collections — "in no project" is not restrictive
 
