@@ -235,10 +235,15 @@ describe('UserMessageEmail', () => {
   // the rendered body cannot drift apart.
   const brand = getEmailBrand()
 
-  it('renders the message, the sender address, and every detail row', async () => {
+  const answers = [
+    { label: 'What went wrong?', value: 'The venue for this class closed last month.' },
+    { label: 'Which venue?', value: 'Berlin Mitte' },
+  ]
+
+  it('renders every answer under its own label, the sender address, and every detail row', async () => {
     const html = await renderEmail(
       createElement(UserMessageEmail, {
-        message: 'The venue for this class closed last month.',
+        answers,
         senderEmail: 'seeker@example.com',
         subject: 'Issue report',
         details,
@@ -247,17 +252,55 @@ describe('UserMessageEmail', () => {
     )
 
     expect(html).toContain('Issue report')
+    expect(html).toContain('What went wrong?')
     expect(html).toContain('The venue for this class closed last month.')
+    expect(html).toContain('Which venue?')
+    expect(html).toContain('Berlin Mitte')
     expect(html).toContain('seeker@example.com')
     expect(html).toContain('mailto:seeker@example.com')
     expect(html).toContain('Atlas Widget')
     expect(html).toContain('/events/berlin')
   })
 
+  it('gives no answer its own `Message` heading', async () => {
+    // The section is gone: every answer is a sibling row, whatever its field
+    // was named. A heading would re-privilege the one key this template used to
+    // build its whole body from (#832).
+    const html = await renderEmail(
+      createElement(UserMessageEmail, {
+        answers: [{ label: 'Your message', value: 'Hello.' }],
+        subject: 'Issue report',
+        details: [],
+        brand,
+      }),
+    )
+
+    expect(html).toContain('Your message')
+    expect(html).toContain('Hello.')
+    expect(html).not.toContain('>Message<')
+  })
+
+  it('renders an answer value as text, never as an anchor', async () => {
+    // Submitter-chosen text reaching a renderer. A manager-written row is not
+    // URL-scanned at intake (`URL_EXEMPT_KEYS`), so escaping is the only guard.
+    const html = await renderEmail(
+      createElement(UserMessageEmail, {
+        answers: [{ label: 'Details', value: '<script>x</script> see evil.example.com' }],
+        subject: 'Issue report',
+        details: [],
+        brand,
+      }),
+    )
+
+    expect(html).not.toContain('<script>')
+    expect(html).not.toContain('href="http://evil.example.com"')
+    expect(html).toContain('evil.example.com')
+  })
+
   it('says the message is unanswerable when no address was supplied', async () => {
     const html = await renderEmail(
       createElement(UserMessageEmail, {
-        message: 'Something went wrong on the map page.',
+        answers: [{ label: 'Details', value: 'Something went wrong on the map page.' }],
         subject: 'Issue report',
         details,
         brand,
@@ -274,8 +317,8 @@ describe('UserMessageEmail', () => {
   it('drops the details block entirely when there is nothing to show', async () => {
     const html = await renderEmail(
       createElement(UserMessageEmail, {
-        message: 'A message with no context at all.',
-        subject: 'Message',
+        answers: [{ label: 'What happened?', value: 'A message with no context at all.' }],
+        subject: 'Issue report',
         details: [],
         brand,
       }),
@@ -288,7 +331,7 @@ describe('UserMessageEmail', () => {
   it('renders whatever brand it is handed', async () => {
     const html = await renderEmail(
       createElement(UserMessageEmail, {
-        message: 'Branding check message body.',
+        answers: [{ label: 'Details', value: 'Branding check message body.' }],
         subject: 'Message',
         details: [],
         brand: getEmailBrand('sahaj-atlas'),
@@ -296,5 +339,30 @@ describe('UserMessageEmail', () => {
     )
 
     expect(html).toContain(getEmailBrand('sahaj-atlas').productName)
+  })
+
+  it('previews the longest answer, not the first', async () => {
+    // A form's first block is almost always its Email field, so picking by
+    // position made every inbox preview the sender's own address — which is
+    // already the `Reply-To` and already two lines into the body.
+    //
+    // `<Preview>` renders nothing at all for an empty string, so the assertion
+    // names the preview element: a bare `toContain` would pass on the answer
+    // row alone, and would not notice which answer was chosen.
+    const html = await renderEmail(
+      createElement(UserMessageEmail, {
+        answers: [
+          { label: 'Your email', value: 'seeker@example.com' },
+          { label: 'What went wrong?', value: 'The pin is in the sea.' },
+          { label: 'Contact me', value: 'No' },
+        ],
+        subject: 'Issue report',
+        details: [],
+        brand,
+      }),
+    )
+
+    expect(html).toContain('data-skip-in-text="true">The pin is in the sea.')
+    expect(html).not.toContain('data-skip-in-text="true">seeker@example.com')
   })
 })

@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react'
 
+import { Fragment } from 'react'
 import { Hr, Link, Section, Text } from 'react-email'
 
 import type { EmailBrand } from '@/plugins/email'
@@ -21,8 +22,8 @@ export interface UserMessageContext {
   userAgent?: string
 }
 
-/** One label/value row in the details block. */
-export interface UserMessageDetail {
+/** One label/value row — an answer or a detail. */
+export interface UserMessageRow {
   label: string
   value: string
 }
@@ -42,7 +43,7 @@ export function buildUserMessageDetails(args: {
   /** When the message was received (ISO 8601). */
   receivedAt: string
   context?: UserMessageContext
-}): UserMessageDetail[] {
+}): UserMessageRow[] {
   const { clientName, receivedAt, context } = args
 
   const rows: [string, string | undefined][] = [
@@ -61,14 +62,20 @@ export function buildUserMessageDetails(args: {
 }
 
 interface UserMessageEmailProps {
-  /** The sender's message, verbatim. Rendered pre-wrapped, so line breaks survive. */
-  message: string
+  /**
+   * The sender's answers, in the order the form's author asked them — see
+   * `buildFormAnswers`. Every value is rendered pre-wrapped as an escaped
+   * child, never as an anchor: these are submitter-chosen strings, and four of
+   * the context keys beside them are exempt from the URL scan
+   * (`URL_EXEMPT_KEYS`).
+   */
+  answers: UserMessageRow[]
   /** The sender's address, when they supplied one. Also the message's `Reply-To`. */
   senderEmail?: string | null
   /** The caller's label for this channel, e.g. `"Issue report"`. */
   subject: string
   /** Pre-filtered label/value rows — see {@link buildUserMessageDetails}. */
-  details: UserMessageDetail[]
+  details: UserMessageRow[]
   /**
    * Resolved brand, passed in rather than looked up here (the
    * `SessionReminderEmail` / `RegistrationDigestEmail` shape). The sender also
@@ -92,14 +99,14 @@ interface UserMessageEmailProps {
  * message's `Reply-To` is already the sender's address.
  */
 export function UserMessageEmail({
-  message,
+  answers,
   senderEmail,
   subject,
   details,
   brand,
 }: UserMessageEmailProps) {
   return (
-    <EmailLayout brand={brand} heading={subject} previewText={message.slice(0, 120)}>
+    <EmailLayout brand={brand} heading={subject} previewText={previewFrom(answers)}>
       <Text style={styles.paragraph}>
         {senderEmail ? (
           <>
@@ -117,10 +124,22 @@ export function UserMessageEmail({
         )}
       </Text>
 
-      <Section>
-        <SectionHeading>Message</SectionHeading>
-        <Text style={messageBody}>{message}</Text>
-      </Section>
+      {answers.length > 0 ? (
+        <Section>
+          <SectionHeading>Answers</SectionHeading>
+          {/*
+            Keyed by position, not by label: an author can ask two blocks the
+            same question, and `buildFormAnswers` keeps no field name to break
+            the tie with.
+          */}
+          {answers.map((answer, index) => (
+            <Fragment key={index}>
+              <Text style={answerQuestion}>{answer.label}</Text>
+              <Text style={answerValue}>{answer.value}</Text>
+            </Fragment>
+          ))}
+        </Section>
+      ) : null}
 
       {details.length > 0 ? (
         <Section>
@@ -149,8 +168,32 @@ export function UserMessageEmail({
   )
 }
 
-const messageBody: CSSProperties = {
-  fontSize: '15px',
+/**
+ * The inbox preview line: the longest answer, not the first.
+ *
+ * Position is the wrong question — a form's first block is usually its Email
+ * field, so `answers[0]` made every preview the sender's own address, which is
+ * already the `Reply-To` and already two lines into the body. Length is what
+ * separates the prose a manager wants to see from a select or a checkbox.
+ */
+function previewFrom(answers: UserMessageRow[]): string {
+  const longest = answers.reduce<string>(
+    (best, answer) => (answer.value.length > best.length ? answer.value : best),
+    '',
+  )
+  return longest.slice(0, 120)
+}
+
+// The `EventRegistrationEmail` answer pair, so the two forwarded-answer emails
+// read as one shape.
+const answerQuestion: CSSProperties = {
+  fontSize: '14px',
+  fontWeight: 600,
+  color: '#374151',
+  margin: '0 0 2px',
+}
+const answerValue: CSSProperties = {
+  fontSize: '14px',
   color: '#1f2937',
   margin: '0 0 12px',
   whiteSpace: 'pre-wrap',

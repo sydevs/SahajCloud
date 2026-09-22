@@ -177,7 +177,12 @@ describe('Atlas report-issue form', () => {
   })
 
   describe('delivering a report', () => {
-    const deliver = async (form: Form) => {
+    const deliver = async (
+      form: Form,
+      submissionData: { field: string; value: string }[] = [
+        { field: 'message', value: 'The map is wrong.' },
+      ],
+    ) => {
       sendUserMessageMock.mockClear()
       sendUserMessageMock.mockResolvedValue(undefined)
 
@@ -189,7 +194,7 @@ describe('Atlas report-issue form', () => {
           client: atlasClient.id,
           senderEmail: 'visitor@example.com',
           subject: 'Issue report',
-          submissionData: [{ field: 'message', value: 'The map is wrong.' }],
+          submissionData,
         } as never,
         overrideAccess: true,
       })) as UserSubmission
@@ -198,7 +203,10 @@ describe('Atlas report-issue form', () => {
         req: { payload } as unknown as PayloadRequest,
         submission,
       })
-      return { outcome, to: sendUserMessageMock.mock.calls[0]?.[0]?.to as string | undefined }
+      const args = sendUserMessageMock.mock.calls[0]?.[0] as
+        | { to?: string; answers?: { label: string; value: string }[] }
+        | undefined
+      return { outcome, to: args?.to, answers: args?.answers }
     }
 
     it("reaches the form's recipient", async () => {
@@ -211,6 +219,106 @@ describe('Atlas report-issue form', () => {
       const { outcome, to } = await deliver(unaddressedForm)
       expect(outcome).toMatchObject({ ok: true })
       expect(to).toBe(CONTACT_EMAIL)
+    })
+
+    it('delivers every authored answer, whatever its field is named', async () => {
+      // The defect: delivery read the single key `message`, so an author who
+      // named their textarea anything else sent an email with no body while
+      // the visitor was shown a thank-you screen. Nothing pinned that name.
+      const renamed = await createForm({
+        title: 'Report an issue, renamed',
+        actionType: 'contact',
+        recipient: recipient.id,
+        fields: [
+          { blockType: 'email', name: 'email', label: 'Your email' },
+          { blockType: 'textarea', name: 'details', label: 'What went wrong?' },
+          {
+            blockType: 'select',
+            name: 'topic',
+            label: 'Topic',
+            options: [
+              { label: 'Wrong address', value: 'address' },
+              { label: 'Class has moved', value: 'moved' },
+            ],
+          },
+          { blockType: 'checkbox', name: 'consent', label: 'Contact me' },
+        ],
+      })
+
+      const { outcome, answers } = await deliver(renamed, [
+        { field: 'email', value: 'visitor@example.com' },
+        { field: 'details', value: 'The pin is in the sea.' },
+        { field: 'topic', value: 'moved' },
+        { field: 'consent', value: 'false' },
+      ])
+
+      expect(outcome).toMatchObject({ ok: true })
+      expect(answers).toEqual([
+        { label: 'Your email', value: 'visitor@example.com' },
+        { label: 'What went wrong?', value: 'The pin is in the sea.' },
+        // The stored answer is the option's `value`; the recipient reads its label.
+        { label: 'Topic', value: 'Class has moved' },
+        // An unticked consent box is an answer, so it renders rather than vanishing.
+        { label: 'Contact me', value: 'No' },
+      ])
+    })
+
+    it('reads the labels in the submission’s own locale', async () => {
+      // The forms plugin localizes `label`, so the delivery read chooses which
+      // language the manager reads the question in. Nothing in this repo
+      // declares that — only the schema shows it
+      // (`forms_blocks_textarea_locales.label`).
+      const localized = await createForm({
+        title: 'Report an issue, localized',
+        actionType: 'contact',
+        recipient: recipient.id,
+        fields: [
+          { blockType: 'email', name: 'email', label: 'Email' },
+          { blockType: 'textarea', name: 'details', label: 'What went wrong?' },
+        ],
+      })
+
+      // ⚠ The blocks array itself is not localized — only `label` inside it is.
+      // So the German save has to carry each block's own `id`, or Payload reads
+      // the list as a replacement and drops the English labels with the rows.
+      const germanLabels: Record<string, string> = {
+        email: 'E-Mail',
+        details: 'Was ist schiefgelaufen?',
+      }
+      await payload.update({
+        collection: 'forms',
+        id: localized.id,
+        locale: 'de',
+        data: {
+          fields: (localized.fields ?? []).map((block) => ({
+            ...block,
+            label: germanLabels[(block as { name: string }).name],
+          })),
+        } as never,
+        overrideAccess: true,
+      })
+
+      const { answers } = await deliver(localized, [
+        { field: 'locale', value: 'de' },
+        { field: 'details', value: 'Die Nadel liegt im Meer.' },
+      ])
+
+      expect(answers).toEqual([
+        { label: 'Was ist schiefgelaufen?', value: 'Die Nadel liegt im Meer.' },
+      ])
+    })
+
+    it('falls back to the default locale for a locale the CMS does not have', async () => {
+      // `locale` is submitter-chosen text, exempt from the URL scan, and it
+      // reaches the database layer as a query parameter — so it is gated rather
+      // than forwarded.
+      const { outcome, answers } = await deliver(contactForm, [
+        { field: 'locale', value: 'not-a-locale' },
+        { field: 'message', value: 'The map is wrong.' },
+      ])
+
+      expect(outcome).toMatchObject({ ok: true })
+      expect(answers).toEqual([{ label: 'Message', value: 'The map is wrong.' }])
     })
   })
 })

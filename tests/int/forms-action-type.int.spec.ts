@@ -116,6 +116,73 @@ describe('Forms action types', () => {
     })
   })
 
+  describe('field names the client writes for itself', () => {
+    // A submission carries the client's own context in the same flat pairs as
+    // the answers, appended after them — so a field sharing one of those names
+    // has its visitor's answer silently replaced (#832).
+    for (const name of ['locale', 'path', 'hostUrl', 'userAgent', 'error']) {
+      it(`refuses a form whose field is named \`${name}\``, async () => {
+        expect(
+          await refusalMessages(
+            createForm({
+              actionType: 'contact',
+              recipient: manager.id,
+              fields: [EMAIL_FIELD, { ...MESSAGE_FIELD, name }],
+            }),
+          ),
+        ).toMatch(new RegExp(`cannot be named \`${name}\`.*would be overwritten`))
+      })
+    }
+
+    // ⚠ Not every `BASE_SUBMISSION_KEYS` entry. The production Contact Form
+    // authors `name` and `message`, and the intake *reads* those answers
+    // (`upsertUserByEmail`, `composeSubject`) rather than overwriting them.
+    // Reserving them would make that form unsaveable.
+    for (const name of ['name', 'subject', 'message']) {
+      it(`still saves a form whose field is named \`${name}\``, async () => {
+        const form = await createForm({
+          actionType: 'contact',
+          recipient: manager.id,
+          fields: [EMAIL_FIELD, { ...MESSAGE_FIELD, name }],
+        })
+        expect(form.fields?.[1]).toMatchObject({ name })
+      })
+    }
+
+    it('lets an unrelated edit through on a form already carrying a reserved name', async () => {
+      // Same reason the field-list rule is narrowed to a changed save: a form
+      // that predates this check must not become unsaveable in the admin.
+      const legacy = await createForm({
+        actionType: 'contact',
+        recipient: manager.id,
+        fields: [EMAIL_FIELD, MESSAGE_FIELD],
+      })
+
+      // Written through the DB layer so the guard cannot object to the setup.
+      await payload.db.updateOne({
+        collection: 'forms',
+        where: { id: { equals: legacy.id } },
+        data: {
+          // A block `id` is the blocks table's own key, so it has to be unique
+          // across every form the suite creates, not just within this one.
+          fields: [
+            { ...EMAIL_FIELD, id: 'reserved-email' },
+            { ...MESSAGE_FIELD, name: 'path', id: 'reserved-path' },
+          ],
+        },
+      })
+
+      const renamed = (await payload.update({
+        collection: 'forms',
+        id: legacy.id,
+        data: { title: 'Legacy form, renamed' } as never,
+        overrideAccess: true,
+      })) as Form
+
+      expect(renamed.title).toBe('Legacy form, renamed')
+    })
+  })
+
   describe('the conditional fields', () => {
     it('refuses a subscribe form with no client', async () => {
       // Per-action, so it cannot be `required: true` on the field — that would
