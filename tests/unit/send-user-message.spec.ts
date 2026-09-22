@@ -20,7 +20,7 @@ import { stubEmailPayload } from '../utils/sendEmailStub'
 
 const baseArgs = {
   clientName: 'Atlas Widget',
-  message: 'The venue for this class closed last month.',
+  answers: [{ label: 'What went wrong?', value: 'The venue for this class closed last month.' }],
   subject: 'Issue report',
   receivedAt: '2026-08-03T09:30:00.000Z',
 }

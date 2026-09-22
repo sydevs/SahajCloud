@@ -1,4 +1,5 @@
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
+import { CLIENT_CONTEXT_KEYS } from '@/lib/submissions/clientContext'
 import type { UserSubmission } from '@/payload-types'
 
 
@@ -202,17 +203,11 @@ export function checkSubmissionData(
  *
  * ⚠ **A constraint on whatever renders these pairs.** Exempt does not mean
  * harmless: `error` holds up to 5000 characters a sender chose, links included.
- * Nothing renders `submissionData` as HTML today — the admin shows textareas —
- * so there is no live hazard, but Phase 2's delivery templates must not turn
- * these five keys into anchors.
+ * The contact email renders every answer as an escaped React child and never
+ * inside a `<Link>` (`formAnswers.ts`, `UserMessageEmail`), which is what keeps
+ * that true now the pairs reach a renderer.
  */
-export const URL_EXEMPT_KEYS: ReadonlySet<string> = new Set([
-  'path',
-  'hostUrl',
-  'error',
-  'userAgent',
-  'locale',
-])
+export const URL_EXEMPT_KEYS: ReadonlySet<string> = new Set(CLIENT_CONTEXT_KEYS)
 
 /**
  * The pairs a URL scan should look at, as `{ [key]: value }` — the shape
