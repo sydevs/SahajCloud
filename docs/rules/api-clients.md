@@ -11,7 +11,7 @@ REST authentication for third-party clients lives in the `Clients` collection pl
 ## Clients collection (`src/collections/Clients/Clients.ts`)
 
 - `useAPIKey: true` — Payload generates an API key per client. Managers regenerate keys and manage settings through the **document-manager** path, not a role: no role holds any `clients` grant, so an admin, or a manager listed in that client's `managers` field, is the whole of who reaches the document.
-- ⚠ **`clients` is a restricted collection, and `apiKey` is locked on top of that** (#822). One key read every other service's decrypted key until both landed. The reads a client still gets are of its own row — `GET /api/clients/me` and `POST /api/clients/refresh-token` — and the field lock plus `stripSecretsFromClientReads` are what keep the key out of those answers. See `docs/rules/access.md`.
+- ⚠ **`clients` is a restricted collection, and `apiKey` is locked on top of that** (#822). One key read every other service's decrypted key until both landed. The reads a client still gets are of its own row — `GET /api/clients/me` and `POST /api/clients/refresh-token` — and the field lock plus `stripLockedFieldsOnSelfRead` are what keep the key out of those answers. See `docs/rules/access.md`.
 - A virtual `highUsageAlert` field surfaces when daily limits are exceeded. The `usage` group holds `dailyRequests`, `peakDailyRequests`, `lastRequestAt`.
 - Custom hooks (`src/collections/Clients/hooks/`): `validateClientData` (`primaryContact` must be in the managers list) and `validateCanonicalOwnership` (below).
 
@@ -197,7 +197,7 @@ A service that relays subscribe submissions names its own provider, under **Conf
 | `mailingList.apiKey` | The provider secret. Mailchimp's datacenter is read off the key's `-us14` suffix, so there is no second field for it |
 | `mailingList.doubleOptIn` | **Mailchimp only** — the one provider with a per-call lever. Brevo and Klaviyo each show their own read-only opt-in note under `provider` instead |
 
-⚠ **No API client can read any of it, at any depth.** Two things hold that up, and both are needed. The group carries `managersOnlyFieldAccess` (`@/plugins/access`), which closes the read `RESTRICTED_COLLECTIONS` never reaches — self-access hands a published key its own row whole over `GET /api/clients/me`. And `stripSecretsFromClientReads`, the collection `afterRead` hook, closes `POST /api/clients/refresh-token`, which re-reads the row at `overrideAccess: true` and so skips field access entirely (#822). The group still appears in `payload-types.ts`; both strip it at runtime, not from the generated type.
+⚠ **No API client can read any of it, at any depth.** Two things hold that up, and both are needed. The group carries `managersOnlyFieldAccess` (`@/plugins/access`), which closes the read `RESTRICTED_COLLECTIONS` never reaches — self-access hands a published key its own row whole over `GET /api/clients/me`. And `stripLockedFieldsOnSelfRead`, the `afterRead` hook `accessPlugin` gives every auth collection, closes `POST /api/clients/refresh-token`, which re-reads the row at `overrideAccess: true` and so skips field access entirely (#822). The group still appears in `payload-types.ts`; both strip it at runtime, not from the generated type.
 
 **Credentials are checked when you save them**, by `validateMailingList`, which reads the named list and refuses the save with the provider's own words. Two bounds on that:
 
