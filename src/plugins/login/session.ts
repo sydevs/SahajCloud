@@ -1,4 +1,4 @@
-import type { CollectionConfig, Payload, PayloadRequest } from 'payload'
+import type { Payload } from 'payload'
 
 import { randomUUID } from 'node:crypto'
 
@@ -20,13 +20,7 @@ const MANAGERS = 'managers'
  * is `NOT NULL`, so omitting it fails the insert rather than minting a token
  * that outlives its row.
  *
- * The token is verified by accessPlugin's `localized-roles` strategy, which
- * wraps `JWTAuthentication` and registers ahead of `local-jwt`
- * (`src/plugins/access/localizedRolesAuth.ts`), so a minted token still passes
- * the session check and the `_verified` gate, and still gets its per-locale
- * `roles` hydrated.
- *
- * Returns the raw token. Cookie writing belongs to the caller.
+ * Cookie writing belongs to the caller.
  */
 export async function mintManagerSessionToken(
   payload: Payload,
@@ -35,7 +29,16 @@ export async function mintManagerSessionToken(
   const collectionConfig = payload.collections[MANAGERS].config
   const { tokenExpiration } = collectionConfig.auth
 
-  const user = await payload.findByID({ collection: MANAGERS, id: managerId, depth: 0 })
+  // No `select`: `getFieldsToSign` reads whichever fields carry `saveToJWT`,
+  // so a field list here would silently drop the first one anybody adds.
+  // `joins: false` is safe — `Managers` declares three join fields, and an
+  // unset `joins` enables every one of them for a document nothing else reads.
+  const user = await payload.findByID({
+    collection: MANAGERS,
+    id: managerId,
+    depth: 0,
+    joins: false,
+  })
 
   const now = new Date()
   const sid = randomUUID()
@@ -54,15 +57,14 @@ export async function mintManagerSessionToken(
     collection: MANAGERS,
     id: managerId,
     data: { sessions: [...live, session] },
+    depth: 0,
   })
 
   const fieldsToSign = getFieldsToSign({
-    // Payload passes its own sanitized config here; the published signature
-    // names the unsanitized type.
-    collectionConfig: collectionConfig as unknown as CollectionConfig,
+    collectionConfig,
     email: user.email,
     sid,
-    user: { ...user, collection: MANAGERS } as PayloadRequest['user'],
+    user: { ...user, collection: MANAGERS },
   })
 
   const { token } = await jwtSign({ fieldsToSign, secret: payload.secret, tokenExpiration })

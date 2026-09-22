@@ -86,7 +86,7 @@ export async function createRestClientAs(
 export async function createRestClient(env: {
   payload: Payload
   config: TestConfig
-  adminUser: { id: number | string; email: string }
+  adminUser: { id: number | string }
 }): Promise<RestClient> {
   return createRestClientAs(env, env.adminUser)
 }
