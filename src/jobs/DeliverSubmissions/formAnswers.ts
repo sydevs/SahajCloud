@@ -1,5 +1,5 @@
 import { parseOptIn, readSubmissionValue } from '@/collections/UserSubmissions/submissionData'
-import type { UserMessageDetail } from '@/emails/UserMessageEmail'
+import type { UserMessageRow } from '@/emails/UserMessageEmail'
 import type { Form } from '@/payload-types'
 
 /**
@@ -66,10 +66,10 @@ function formatBlockAnswer(block: NamedFormField, raw: string): string {
 export function buildFormAnswers(
   fields: Form['fields'],
   submissionData: unknown,
-): UserMessageDetail[] {
+): UserMessageRow[] {
   if (!Array.isArray(fields)) return []
 
-  const answers: UserMessageDetail[] = []
+  const answers: UserMessageRow[] = []
 
   for (const block of fields) {
     if (!('name' in block)) continue

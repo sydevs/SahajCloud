@@ -1,7 +1,7 @@
 import type { DeliveryContext, DeliveryOutcome } from './types'
 
 import { readSubmissionValue } from '@/collections/UserSubmissions/submissionData'
-import type { UserMessageDetail } from '@/emails/UserMessageEmail'
+import type { UserMessageRow } from '@/emails/UserMessageEmail'
 import { CONTACT_EMAIL } from '@/lib/contact'
 import { DEFAULT_LOCALE, isValidLocale, type LocaleCode } from '@/lib/locales'
 import { sendUserMessage } from '@/lib/notifications/sendUserMessage'
@@ -91,7 +91,7 @@ function submissionLocale(submissionData: unknown): LocaleCode {
 async function formDelivery(
   req: DeliveryContext['req'],
   submission: DeliveryContext['submission'],
-): Promise<{ to: string; answers: UserMessageDetail[] }> {
+): Promise<{ to: string; answers: UserMessageRow[] }> {
   const messageOnly = [
     { label: 'Message', value: readSubmissionValue(submission.submissionData, 'message') ?? '' },
   ]

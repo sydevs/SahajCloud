@@ -22,8 +22,8 @@ export interface UserMessageContext {
   userAgent?: string
 }
 
-/** One label/value row in the details block. */
-export interface UserMessageDetail {
+/** One label/value row — an answer or a detail. */
+export interface UserMessageRow {
   label: string
   value: string
 }
@@ -43,7 +43,7 @@ export function buildUserMessageDetails(args: {
   /** When the message was received (ISO 8601). */
   receivedAt: string
   context?: UserMessageContext
-}): UserMessageDetail[] {
+}): UserMessageRow[] {
   const { clientName, receivedAt, context } = args
 
   const rows: [string, string | undefined][] = [
@@ -69,13 +69,13 @@ interface UserMessageEmailProps {
    * the context keys beside them are exempt from the URL scan
    * (`URL_EXEMPT_KEYS`).
    */
-  answers: UserMessageDetail[]
+  answers: UserMessageRow[]
   /** The sender's address, when they supplied one. Also the message's `Reply-To`. */
   senderEmail?: string | null
   /** The caller's label for this channel, e.g. `"Issue report"`. */
   subject: string
   /** Pre-filtered label/value rows — see {@link buildUserMessageDetails}. */
-  details: UserMessageDetail[]
+  details: UserMessageRow[]
   /**
    * Resolved brand, passed in rather than looked up here (the
    * `SessionReminderEmail` / `RegistrationDigestEmail` shape). The sender also
@@ -171,7 +171,7 @@ export function UserMessageEmail({
  * already the `Reply-To` and already two lines into the body. Length is what
  * separates the prose a manager wants to see from a select or a checkbox.
  */
-function previewFrom(answers: UserMessageDetail[]): string {
+function previewFrom(answers: UserMessageRow[]): string {
   const longest = answers.reduce<string>(
     (best, answer) => (answer.value.length > best.length ? answer.value : best),
     '',
