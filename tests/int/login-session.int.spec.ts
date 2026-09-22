@@ -10,6 +10,8 @@
  */
 import type { Payload } from 'payload'
 
+import { randomUUID } from 'node:crypto'
+
 import { decodeJwt } from 'jose'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -64,6 +66,29 @@ describe('mintManagerSessionToken', () => {
     // truncated to whole seconds, so they agree to within a second, never
     // exactly — a tolerance under 1s is a coin flip on the millisecond clock.
     expect(Math.abs(Date.parse(session!.expiresAt) / 1000 - exp)).toBeLessThan(2)
+  })
+
+  it('drops a session row that has already expired', async () => {
+    const manager = await createVerifiedManager()
+    const expired = {
+      id: randomUUID(),
+      createdAt: new Date(Date.now() - 2 * 86_400_000).toISOString(),
+      expiresAt: new Date(Date.now() - 86_400_000).toISOString(),
+    }
+    await payload.update({
+      collection: 'managers',
+      id: manager.id,
+      data: { sessions: [expired] },
+      depth: 0,
+    })
+
+    const token = await mintManagerSessionToken(payload, manager.id)
+    const { sid } = decodeJwt(token) as { sid: string }
+
+    // Minting is the only moment anything prunes `sessions`. The JWT strategy
+    // ignores an expired row, so nothing else would ever delete one, and a
+    // manager's array would grow by one for every sign-in they ever make.
+    expect((await sessionsOf(manager.id)).map(({ id }) => id)).toEqual([sid])
   })
 
   it('leaves an earlier token working when a second is minted', async () => {
