@@ -60,8 +60,10 @@ describe('mintManagerSessionToken', () => {
     expect(session).toBeDefined()
     // `managers_sessions.expires_at` is NOT NULL, and a row outliving its token
     // (or the reverse) would leave the strategy and the JWT disagreeing about
-    // when the session ended.
-    expect(Date.parse(session!.expiresAt) / 1000).toBeCloseTo(exp, 0)
+    // when the session ended. The two are computed moments apart and `exp` is
+    // truncated to whole seconds, so they agree to within a second, never
+    // exactly — a tolerance under 1s is a coin flip on the millisecond clock.
+    expect(Math.abs(Date.parse(session!.expiresAt) / 1000 - exp)).toBeLessThan(2)
   })
 
   it('leaves an earlier token working when a second is minted', async () => {

@@ -50,9 +50,9 @@ export async function mintManagerSessionToken(
   const live = (user.sessions ?? []).filter(({ expiresAt }) => new Date(expiresAt) > now)
 
   // `sessions` carries `access.update: () => false`, so this write depends on
-  // the local API's default `overrideAccess: true`. Writing only `sessions`
-  // also leaves the localized `roles` field at every locale untouched, which a
-  // whole-document `db.updateOne` would flatten to the default locale.
+  // the local API's default `overrideAccess: true`. Only `sessions` is sent:
+  // `user` was read at one locale, so writing it back whole would flatten the
+  // localized `roles` field onto that locale.
   await payload.update({
     collection: MANAGERS,
     id: managerId,
