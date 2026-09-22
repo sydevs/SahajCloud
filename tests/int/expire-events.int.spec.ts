@@ -465,9 +465,6 @@ describe('ExpireEvents job', () => {
   // was written. See `updateBookkeeping` for why an update re-validates it.
   // ──────────────────────────────────────────────────────────────────────────
   describe('an event whose stored data fails a field validator', () => {
-    const reload = (payload: Payload, id: number) =>
-      payload.findByID({ collection: 'events', id, overrideAccess: true, depth: 0 })
-
     /**
      * Put an event into a state its own validators refuse — the defect itself,
      * so neither `payload.create` nor `payload.update` can seed it.
