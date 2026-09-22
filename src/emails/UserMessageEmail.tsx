@@ -127,8 +127,13 @@ export function UserMessageEmail({
       {answers.length > 0 ? (
         <Section>
           <SectionHeading>Answers</SectionHeading>
-          {answers.map((answer) => (
-            <Fragment key={answer.label}>
+          {/*
+            Keyed by position, not by label: an author can ask two blocks the
+            same question, and `buildFormAnswers` keeps no field name to break
+            the tie with.
+          */}
+          {answers.map((answer, index) => (
+            <Fragment key={index}>
               <Text style={answerQuestion}>{answer.label}</Text>
               <Text style={answerValue}>{answer.value}</Text>
             </Fragment>
