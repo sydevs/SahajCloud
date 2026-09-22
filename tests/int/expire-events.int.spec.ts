@@ -4,6 +4,7 @@ import * as Sentry from '@sentry/nextjs'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 
 import { ExpireEvents } from '@/jobs/ExpireEvents/ExpireEvents'
+import { asNotificationLog } from '@/lib/eventVerification/log'
 
 import { runTaskHandler } from '../utils/taskRunner'
 import { testData } from '../utils/testData'
@@ -11,7 +12,10 @@ import { createTestEnvironment } from '../utils/testHelpers'
 
 // Hoisted so the vi.mock factory (hoisted above imports) can close over it, while
 // the tests can still assert what context the handler attached to the Sentry scope.
-const { setContextMock } = vi.hoisted(() => ({ setContextMock: vi.fn() }))
+const { setContextMock, setTagMock } = vi.hoisted(() => ({
+  setContextMock: vi.fn(),
+  setTagMock: vi.fn(),
+}))
 
 // Mocking the helper rather than `@/lib/env` keeps the bootstrapped Payload
 // instance's own env intact. Default `true` leaves every other case here
@@ -23,8 +27,13 @@ vi.mock('@/jobs/ExpireEvents/featureFlag', () => ({
 }))
 
 vi.mock('@sentry/nextjs', () => ({
-  withScope: vi.fn((callback: (scope: { setContext: typeof setContextMock }) => void) =>
-    callback({ setContext: setContextMock }),
+  withScope: vi.fn(
+    (
+      callback: (scope: {
+        setContext: typeof setContextMock
+        setTag: typeof setTagMock
+      }) => void,
+    ) => callback({ setContext: setContextMock, setTag: setTagMock }),
   ),
   captureException: vi.fn(),
   // `resolveRecipients` reports a missing region manager this way, so any stage
@@ -113,7 +122,10 @@ describe('ExpireEvents job', () => {
       // The failure is caught, counted, and reported to Sentry tagged with the event id.
       expect(result.failed).toBe(1)
       expect(Sentry.captureException).toHaveBeenCalledTimes(1)
-      expect(setContextMock).toHaveBeenCalledWith('expireEvents', { eventId: failing.id })
+      expect(setContextMock).toHaveBeenCalledWith(
+        'expireEvents',
+        expect.objectContaining({ eventId: failing.id, dueSince: DUE }),
+      )
     } finally {
       spy.mockRestore()
     }
@@ -426,6 +438,202 @@ describe('ExpireEvents job', () => {
       const after = await reload(payload, event.id)
       expect(after.verificationStage).toBe('finished')
       expect(after.deletedAt ?? null).toBeNull()
+    })
+  })
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Invalid stored data (#835). A field validator added after a row was written
+  // makes that row invalid at rest, and Payload re-validates the whole document
+  // on every update — so a four-key bookkeeping write was refused and the event
+  // could never be advanced, finished or logged.
+  // ──────────────────────────────────────────────────────────────────────────
+  describe('an event whose stored data fails a field validator', () => {
+    const reload = (payload: Payload, id: number) =>
+      payload.findByID({ collection: 'events', id, overrideAccess: true, depth: 0 })
+
+    /**
+     * Put an event into a state its own validators refuse — the defect itself,
+     * so neither `payload.create` nor `payload.update` can seed it.
+     *
+     * The `latest: true` version row is written with the main row on purpose:
+     * `updateByID` loads the document it is about to change from that version,
+     * so seeding only the main row would leave the job working from the valid
+     * one and the case would pass for the wrong reason.
+     */
+    async function storeInvalid(payload: Payload, id: number, patch: Record<string, unknown>) {
+      await payload.db.updateOne({ collection: 'events', id, data: patch })
+      const { docs } = await payload.db.findVersions({
+        collection: 'events',
+        where: { parent: { equals: id } },
+        sort: '-updatedAt',
+        limit: 1,
+        pagination: false,
+      })
+      const latest = docs[0]
+      if (!latest) return
+      await payload.db.updateVersion({
+        collection: 'events',
+        id: latest.id,
+        versionData: {
+          createdAt: new Date(latest.createdAt).toISOString(),
+          latest: true,
+          parent: id,
+          updatedAt: new Date().toISOString(),
+          version: { ...latest.version, ...patch },
+        },
+      })
+    }
+
+    it('advances one stored without the contact an inactive event must carry', async () => {
+      const event = await createDueEvent(payload, 'Invalid Phone')
+      await storeInvalid(payload, event.id, { contactPhone: null, contactEmail: null })
+
+      // Non-vacuity: the identical write through the public API is still
+      // refused, so the case below passes only because the job bypasses it.
+      await expect(
+        payload.update({
+          collection: 'events',
+          id: event.id,
+          data: { nextCheckAt: DUE },
+          context: { skipVerifyHook: true },
+          overrideAccess: true,
+        }),
+      ).rejects.toThrow(/Contact Phone Number/)
+
+      const result = await runTask(payload)
+      expect(result.failed).toBe(0)
+
+      const after = await reload(payload, event.id)
+      expect(after.verificationStage).toBe('reminded')
+      expect(new Date(after.nextCheckAt as string).getTime()).toBeGreaterThan(Date.now())
+    })
+
+    it('finishes one stored with more images than `maxRows` allows', async () => {
+      const image = await testData.createImage(payload)
+      const event = await testData.createEvent(payload, {
+        title: 'Invalid Images',
+        inactive: false,
+        eventType: 'online',
+        onlineUrl: 'https://example.com/too-many-images',
+        schedule: {
+          firstDate: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(),
+          firstDate_tz: 'Europe/London',
+        },
+      } as never)
+      await payload.update({
+        collection: 'events',
+        id: event.id,
+        data: { verificationStage: 'verified', nextCheckAt: DUE, _status: 'published' },
+        context: { skipVerifyHook: true },
+        overrideAccess: true,
+      })
+      // One image listed eight times: `maxRows` counts rows, and eight uploads
+      // would buy the case nothing the eight rows do not already.
+      await storeInvalid(payload, event.id, { images: Array.from({ length: 8 }, () => image.id) })
+
+      const result = await runTask(payload)
+      expect(result.failed).toBe(0)
+
+      const after = await reload(payload, event.id)
+      expect(after.verificationStage).toBe('finished')
+    })
+
+    it('logs the reminder it sent, so a second run does not send it again', async () => {
+      const manager = await testData.createManager(payload)
+      const event = await testData.createEvent(payload, {
+        title: 'Invalid Reminder',
+        manager: manager.id,
+        verificationStage: 'verified',
+      } as never)
+      await payload.update({
+        collection: 'events',
+        id: event.id,
+        data: { nextCheckAt: DUE },
+        context: { skipVerifyHook: true },
+        overrideAccess: true,
+      })
+      await storeInvalid(payload, event.id, { contactPhone: null, contactEmail: null })
+
+      const sendEmail = vi.spyOn(payload, 'sendEmail')
+      onTestFinished(() => sendEmail.mockRestore())
+
+      await runTask(payload)
+      await runTask(payload)
+
+      // Before the fix the log write threw, so the event stayed at `verified`
+      // and past due — and the same manager got the same reminder every night.
+      const toManager = sendEmail.mock.calls.filter((call) =>
+        String((call[0] as { to?: unknown }).to ?? '').includes(manager.email),
+      )
+      expect(toManager).toHaveLength(1)
+
+      const after = await reload(payload, event.id)
+      expect(after.verificationStage).toBe('reminded')
+      expect(asNotificationLog(after.activityLog).some((entry) => entry.kind === 'reminder')).toBe(
+        true,
+      )
+    })
+
+    // Valid stored data on purpose: the second half is an ordinary editor save,
+    // which an invalid event would refuse for the reason this block is about.
+    // The property is the job's write mechanism, which is the same either way.
+    it('leaves the latest version row carrying what the advance wrote', async () => {
+      const event = await createDueEvent(payload, 'Version In Step')
+
+      await runTask(payload)
+      const after = await reload(payload, event.id)
+      expect(after.verificationStage).toBe('reminded')
+
+      const { docs } = await payload.findVersions({
+        collection: 'events',
+        where: { parent: { equals: event.id } },
+        sort: '-updatedAt',
+        limit: 1,
+        overrideAccess: true,
+      })
+      const latest = docs[0]?.version
+      expect(latest?.verificationStage).toBe(after.verificationStage)
+      expect(latest?.nextCheckAt).toBe(after.nextCheckAt)
+      expect(latest?._status).toBe(after._status)
+
+      // The half a raw `db.updateOne` would fail: the next update starts from
+      // the version row, so a stale one writes the pre-advance stage back out.
+      await payload.update({
+        collection: 'events',
+        id: event.id,
+        data: { contactName: 'Renamed' },
+        context: { skipVerifyHook: true },
+        overrideAccess: true,
+      })
+      const reread = await reload(payload, event.id)
+      expect(reread.verificationStage).toBe(after.verificationStage)
+      expect(reread.nextCheckAt).toBe(after.nextCheckAt)
+    })
+
+    it('tags a repeated per-event failure apart from a first one', async () => {
+      const event = await createDueEvent(payload, 'Long Overdue')
+      // Overdue by a week: only a run that already failed on this event leaves
+      // its watermark that far behind.
+      await payload.update({
+        collection: 'events',
+        id: event.id,
+        data: { nextCheckAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString() },
+        context: { skipVerifyHook: true },
+        overrideAccess: true,
+      })
+
+      const spy = failEventLoad(payload, event.id)
+      try {
+        await runTask(payload)
+
+        expect(setTagMock).toHaveBeenCalledWith('expire_events.repeat', 'yes')
+        expect(setContextMock).toHaveBeenCalledWith(
+          'expireEvents',
+          expect.objectContaining({ eventId: event.id, nightsOverdue: 7 }),
+        )
+      } finally {
+        spy.mockRestore()
+      }
     })
   })
 
