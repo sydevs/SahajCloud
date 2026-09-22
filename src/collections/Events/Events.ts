@@ -625,7 +625,9 @@ export const Events: CollectionConfig = {
               // The Wilson lower bound of registrant confirm/deny votes, in
               // [0, 1]. Null until the first vote. A real, indexed column,
               // unlike the raw tallies in `systemMeta`, so it stays a queryable
-              // scalar — though nothing queries or sorts on it today. Only the
+              // scalar — though nothing queries or sorts on it today. The two
+              // indexes (here and on the versions table) stay anyway: they are
+              // cheap, and dropping them costs a migration (#831). Only the
               // `user-submissions` vote-sync hook writes it
               // (`UserSubmissions/hooks/eventFeedback.ts`).
               //
