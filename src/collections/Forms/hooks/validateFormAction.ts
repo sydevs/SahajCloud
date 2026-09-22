@@ -2,7 +2,7 @@ import type { CollectionBeforeValidateHook } from 'payload'
 
 import { ValidationError } from 'payload'
 
-import { CLIENT_CONTEXT_KEYS } from '@/collections/UserSubmissions/submissionData'
+import { CLIENT_CONTEXT_KEYS } from '@/lib/submissions/clientContext'
 import type { Form } from '@/payload-types'
 
 /** The plugin's field blocks that can hold an email address a person types. */
@@ -12,10 +12,10 @@ const EMAIL_BLOCKS = ['email'] as const
 const MESSAGE_BLOCKS = ['textarea', 'text'] as const
 
 /**
- * What each action needs from the authored field list, and from the form's own
- * configuration.
+ * What each action needs from the authored field list, what the form's own
+ * configuration must carry, and which field names are not the author's to use.
  *
- * The rule is per-action, so it cannot live on a field: `required: true` on
+ * The action rules are per-action, so they cannot live on a field: `required: true` on
  * `client` would demand one from a contact form too, and no `validate` on the
  * `fields` blocks array can see `actionType`.
  *
@@ -90,27 +90,23 @@ export const validateFormAction: CollectionBeforeValidateHook<Form> = ({
     })
   }
 
-  // A submission carries the client's own context — which page, which locale —
-  // in the same flat pairs as the answers, appended after them. So a field
-  // sharing one of those names has its visitor's answer silently replaced, and
-  // the author is the only person who can see it. Refused here for the same
-  // reason as the missing fields above: this is the one moment they are present.
+  // Refused for the same reason as the missing fields above: an answer stored
+  // under one of these names is overwritten by the client's own context, and
+  // the author is the only person who could notice. See `CLIENT_CONTEXT_KEYS`.
   //
-  // ⚠ Not every `BASE_SUBMISSION_KEYS` entry. `name` and `subject` are real
-  // questions the production Contact Form asks, and the intake *reads* those
-  // answers rather than overwriting them.
-  const reserved = new Set<string>(CLIENT_CONTEXT_KEYS)
-  const colliding = (Array.isArray(fields) ? fields : [])
-    .map((block) => (block as { name?: unknown }).name)
-    .filter((name): name is string => typeof name === 'string' && reserved.has(name))
+  // ⚠ Not every `BASE_SUBMISSION_KEYS` entry — reserving `name` or `message`
+  // would make the production Contact Form unsaveable.
+  const reserved: readonly string[] = CLIENT_CONTEXT_KEYS
+  const colliding = (fields ?? [])
+    .filter((block) => 'name' in block && reserved.includes(block.name))
+    .map((block) => `\`${(block as { name: string }).name}\``)
 
   if (colliding.length > 0) {
     errors.push({
       path: 'fields',
       message:
-        `${colliding.map((name) => `\`${name}\``).join(', ')} ` +
-        `${colliding.length > 1 ? 'are names' : 'is a name'} the submitting client writes for ` +
-        'itself, so an answer stored under it would be overwritten. Rename the field.',
+        `A field cannot be named ${colliding.join(', ')} — the submitting client writes those ` +
+        'keys for itself, so the answer would be overwritten. Rename the field.',
     })
   }
 

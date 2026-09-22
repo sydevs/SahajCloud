@@ -1,4 +1,5 @@
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
+import { CLIENT_CONTEXT_KEYS } from '@/lib/submissions/clientContext'
 import type { UserSubmission } from '@/payload-types'
 
 
@@ -189,18 +190,6 @@ export function checkSubmissionData(
 
   return problems
 }
-
-/**
- * The keys the **client** writes about itself, rather than answers a visitor
- * typed. Reserved on a form's field list (`validateFormAction`) because the
- * client's context is appended after the answers, so a field sharing one of
- * these names loses its answer silently.
- *
- * Deliberately not all of `BASE_SUBMISSION_KEYS`: `name` is a real question the
- * production Contact Form asks, and the intake *reads* that answer
- * (`upsertUserByEmail`) rather than overwriting it.
- */
-export const CLIENT_CONTEXT_KEYS = ['locale', 'path', 'hostUrl', 'userAgent', 'error'] as const
 
 /**
  * Keys whose value may legitimately contain a URL, and so are never URL-scanned.

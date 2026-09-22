@@ -111,31 +111,27 @@ describe('buildFormAnswers', () => {
     ])
   })
 
-  it("renders a checkbox's stored string as Yes or No", () => {
+  it("renders a checkbox's stored string as Yes or No, and keeps an unticked one", () => {
     // It arrives as text, never a boolean — `checkSubmissionData` refuses a
-    // non-string value — so `formatAnswer`'s boolean branch can never fire.
-    const fields = [{ blockType: 'checkbox', name: 'consent', label: 'Contact me' }] as Fields
-
-    expect(buildFormAnswers(fields, pairs({ consent: 'true' }))).toEqual([
-      { label: 'Contact me', value: 'Yes' },
-    ])
-    expect(buildFormAnswers(fields, pairs({ consent: 'false' }))).toEqual([
-      { label: 'Contact me', value: 'No' },
-    ])
-  })
-
-  it('keeps an unticked checkbox as a row', () => {
-    // The widget sends `'false'` deliberately: an unticked consent box is an
-    // answer, and dropping it would read as never having been asked.
+    // non-string value — so `parseOptIn` decides, not a boolean branch.
+    //
+    // `No` is a row, not a dropped one: the widget sends `'false'`
+    // deliberately, and an unticked consent box is an answer.
     const fields = [
       { blockType: 'checkbox', name: 'consent', label: 'Contact me' },
       { blockType: 'textarea', name: 'details', label: 'Details' },
     ] as Fields
 
-    expect(buildFormAnswers(fields, pairs({ consent: '0', details: 'a' }))).toEqual([
-      { label: 'Contact me', value: 'No' },
-      { label: 'Details', value: 'a' },
-    ])
+    for (const [stored, rendered] of [
+      ['true', 'Yes'],
+      ['false', 'No'],
+      ['0', 'No'],
+    ]) {
+      expect(buildFormAnswers(fields, pairs({ consent: stored, details: 'a' }))).toEqual([
+        { label: 'Contact me', value: rendered },
+        { label: 'Details', value: 'a' },
+      ])
+    }
   })
 
   it('drops a blank answer and an absent one', () => {

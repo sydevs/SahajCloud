@@ -242,7 +242,13 @@ describe('UserMessageEmail', () => {
 
   it('renders every answer under its own label, the sender address, and every detail row', async () => {
     const html = await renderEmail(
-      createElement(UserMessageEmail, { answers, senderEmail: 'seeker@example.com', subject: 'Issue report', details, brand }),
+      createElement(UserMessageEmail, {
+        answers,
+        senderEmail: 'seeker@example.com',
+        subject: 'Issue report',
+        details,
+        brand,
+      }),
     )
 
     expect(html).toContain('Issue report')
@@ -335,20 +341,28 @@ describe('UserMessageEmail', () => {
     expect(html).toContain(getEmailBrand('sahaj-atlas').productName)
   })
 
-  it('still carries a preview line when the only answer is not named `message`', async () => {
+  it('previews the longest answer, not the first', async () => {
+    // A form's first block is almost always its Email field, so picking by
+    // position made every inbox preview the sender's own address — which is
+    // already the `Reply-To` and already two lines into the body.
+    //
+    // `<Preview>` renders nothing at all for an empty string, so the assertion
+    // names the preview element: a bare `toContain` would pass on the answer
+    // row alone, and would not notice which answer was chosen.
     const html = await renderEmail(
       createElement(UserMessageEmail, {
-        answers: [{ label: 'What went wrong?', value: 'The pin is in the sea.' }],
+        answers: [
+          { label: 'Your email', value: 'seeker@example.com' },
+          { label: 'What went wrong?', value: 'The pin is in the sea.' },
+          { label: 'Contact me', value: 'No' },
+        ],
         subject: 'Issue report',
         details: [],
         brand,
       }),
     )
 
-    // `previewText` used to slice the `message` prop, so a submission carrying
-    // no such key shipped an empty preview line. `<Preview>` renders nothing at
-    // all for an empty string, so the assertion has to name the preview element
-    // — a bare `toContain` passes on the answer row alone.
     expect(html).toContain('data-skip-in-text="true">The pin is in the sea.')
+    expect(html).not.toContain('data-skip-in-text="true">seeker@example.com')
   })
 })

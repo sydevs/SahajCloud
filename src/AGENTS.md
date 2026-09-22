@@ -114,7 +114,10 @@ No loose files at the root — every file lives in a named folder:
   its `copy.ts`), `registrations/` (the `EVENT_REGISTRATION_QUESTIONS`
   contract + `questions` validation, shared by Events, `user-submissions`,
   and the notification email, plus the `unsubscribeToken`/`unsubscribeUrl`
-  helpers)
+  helpers), `submissions/` (`CLIENT_CONTEXT_KEYS` — the `submissionData`
+  keys the client writes about itself, rather than answers a visitor typed.
+  `user-submissions` derives its URL-scan exemption from them and `Forms`
+  refuses a field named after one, so the list belongs to neither collection)
 
 **Barrels.** A folder gets an `index.ts` barrel only when it presents one
 cohesive public surface imported as a unit (`@/lib/locales`,

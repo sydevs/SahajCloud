@@ -1,11 +1,11 @@
 import type { DeliveryContext, DeliveryOutcome } from './types'
 
 import { readSubmissionValue } from '@/collections/UserSubmissions/submissionData'
+import type { UserMessageDetail } from '@/emails/UserMessageEmail'
 import { CONTACT_EMAIL } from '@/lib/contact'
 import { DEFAULT_LOCALE, isValidLocale, type LocaleCode } from '@/lib/locales'
 import { sendUserMessage } from '@/lib/notifications/sendUserMessage'
 import { relationId } from '@/lib/utilities/relationId'
-import type { Form } from '@/payload-types'
 
 import { buildFormAnswers } from './formAnswers'
 import { clientNameFor, contextFromSubmissionData } from './submissionContext'
@@ -17,17 +17,20 @@ import { clientNameFor, contextFromSubmissionData } from './submissionContext'
  * is what earns the task its retry and the row its `failed` status.
  */
 export async function deliverContact({ req, submission }: DeliveryContext): Promise<DeliveryOutcome> {
-  const { to, fields } = await formDelivery(
-    req,
-    submission.form,
-    submissionLocale(submission.submissionData),
-  )
+  // Two independent reads, overlapped. Their differing `req` treatment is what
+  // makes that safe: `clientNameFor` forwards `req` and so runs on the task's
+  // own isolated transaction, while `formDelivery` drops it and takes a pool
+  // connection. Two connections, two read-only queries, no shared state.
+  const [{ to, answers }, clientName] = await Promise.all([
+    formDelivery(req, submission),
+    clientNameFor(req, relationId(submission.client)),
+  ])
 
   try {
     await sendUserMessage({
       payload: req.payload,
-      clientName: await clientNameFor(req, relationId(submission.client)),
-      answers: answersFor(fields, submission.submissionData),
+      clientName,
+      answers,
       subject: submission.subject || 'Message',
       senderEmail: submission.senderEmail ?? undefined,
       context: contextFromSubmissionData(submission.submissionData),
@@ -58,21 +61,6 @@ export async function deliverContact({ req, submission }: DeliveryContext): Prom
 }
 
 /**
- * The email's body rows: the form's own questions and their answers.
- *
- * ⚠ **The one-row fallback covers a form deleted after the row was written**,
- * which `disableErrors` turns into `null` — nothing else. A `contact` row is
- * required to name a form (`UserSubmissions/fields.ts`, `needsForm`), and the
- * registration, subscribe and proposal paths never reach this file
- * (`deliverers.ts`). Synthesized here rather than branched on in the template,
- * so the email has one body shape.
- */
-function answersFor(fields: Form['fields'] | undefined, submissionData: unknown) {
-  if (fields !== undefined) return buildFormAnswers(fields, submissionData)
-  return [{ label: 'Message', value: readSubmissionValue(submissionData, 'message') ?? '' }]
-}
-
-/**
  * Which language the recipient reads the questions in.
  *
  * The forms plugin localizes a field's `label` and a select option's `label`
@@ -90,42 +78,56 @@ function submissionLocale(submissionData: unknown): LocaleCode {
 }
 
 /**
- * The two things the named form decides: who reads the message, and which
- * questions it asked.
+ * The two things the named form decides: who reads the message, and what it
+ * asked.
  *
  * One read, not two — the recipient and the field list come off the same
- * document. The read drops `req` — a form is committed state, and a nested read
+ * document. It drops `req`, because a form is committed state and a nested read
  * joining the caller's transaction takes the whole operation down with it when
- * it goes wrong (`src/collections/AGENTS.md`) — and degrades to the fallback
+ * it goes wrong (`src/collections/AGENTS.md`), and it degrades to the fallbacks
  * rather than throwing, because a manager who has since been deleted must not
  * strand the message.
  *
- * `fields` comes back `undefined` only where there is no form to read, which is
- * the one case {@link answersFor} falls back for.
+ * ⚠ **The one-row `Message` body covers a form deleted after the row was
+ * written**, which `disableErrors` turns into `null` — nothing else. A `contact`
+ * row is required to name a form (`UserSubmissions/fields.ts`, `needsForm`), and
+ * the other three types never reach this file (`deliverers.ts`). Built here
+ * rather than branched on in the template, so the email has one body shape.
  */
 async function formDelivery(
   req: DeliveryContext['req'],
-  form: unknown,
-  locale: LocaleCode,
-): Promise<{ to: string; fields: Form['fields'] | undefined }> {
-  const formId = relationId(form)
-  if (formId == null) return { to: CONTACT_EMAIL, fields: undefined }
+  submission: DeliveryContext['submission'],
+): Promise<{ to: string; answers: UserMessageDetail[] }> {
+  const messageOnly = [
+    { label: 'Message', value: readSubmissionValue(submission.submissionData, 'message') ?? '' },
+  ]
 
-  const doc = (await req.payload.findByID({
+  const formId = relationId(submission.form)
+  if (formId == null) return { to: CONTACT_EMAIL, answers: messageOnly }
+
+  const form = await req.payload.findByID({
     collection: 'forms',
     id: formId,
     depth: 1,
+    // `fields: true` is wider than the four keys used — it pulls all nine
+    // form-builder block tables and their `_locales` siblings. Narrowing it is
+    // not worth it: a blocks `select` is keyed per block *slug*, so the narrow
+    // form enumerates all nine, and a block type added upstream would be
+    // dropped silently — losing its answers, the failure this file exists to fix.
     select: { recipient: true, fields: true },
-    locale,
+    locale: submissionLocale(submission.submissionData),
     overrideAccess: true,
     disableErrors: true,
-  })) as { recipient?: { email?: unknown } | number | null; fields?: Form['fields'] } | null
+  })
 
-  const recipient = doc?.recipient
-  const email = typeof recipient === 'object' && recipient !== null ? recipient.email : null
+  if (form == null) return { to: CONTACT_EMAIL, answers: messageOnly }
+
+  const email = typeof form.recipient === 'object' && form.recipient !== null
+    ? form.recipient.email
+    : null
 
   return {
     to: typeof email === 'string' && email.trim() !== '' ? email : CONTACT_EMAIL,
-    fields: doc == null ? undefined : (doc.fields ?? []),
+    answers: buildFormAnswers(form.fields, submission.submissionData),
   }
 }

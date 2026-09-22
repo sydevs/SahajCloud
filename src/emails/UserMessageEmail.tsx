@@ -106,11 +106,7 @@ export function UserMessageEmail({
   brand,
 }: UserMessageEmailProps) {
   return (
-    <EmailLayout
-      brand={brand}
-      heading={subject}
-      previewText={(answers[0]?.value ?? '').slice(0, 120)}
-    >
+    <EmailLayout brand={brand} heading={subject} previewText={previewFrom(answers)}>
       <Text style={styles.paragraph}>
         {senderEmail ? (
           <>
@@ -167,6 +163,22 @@ export function UserMessageEmail({
   )
 }
 
+/**
+ * The inbox preview line: the longest answer, not the first.
+ *
+ * Position is the wrong question — a form's first block is usually its Email
+ * field, so `answers[0]` made every preview the sender's own address, which is
+ * already the `Reply-To` and already two lines into the body. Length is what
+ * separates the prose a manager wants to see from a select or a checkbox.
+ */
+function previewFrom(answers: UserMessageDetail[]): string {
+  const longest = answers.reduce<string>(
+    (best, answer) => (answer.value.length > best.length ? answer.value : best),
+    '',
+  )
+  return longest.slice(0, 120)
+}
+
 // The `EventRegistrationEmail` answer pair, so the two forwarded-answer emails
 // read as one shape.
 const answerQuestion: CSSProperties = {
@@ -176,7 +188,7 @@ const answerQuestion: CSSProperties = {
   margin: '0 0 2px',
 }
 const answerValue: CSSProperties = {
-  fontSize: '15px',
+  fontSize: '14px',
   color: '#1f2937',
   margin: '0 0 12px',
   whiteSpace: 'pre-wrap',

@@ -130,7 +130,7 @@ describe('Forms action types', () => {
               fields: [EMAIL_FIELD, { ...MESSAGE_FIELD, name }],
             }),
           ),
-        ).toMatch(new RegExp(`\`${name}\`.*writes for`))
+        ).toMatch(new RegExp(`cannot be named \`${name}\`.*would be overwritten`))
       })
     }
 
