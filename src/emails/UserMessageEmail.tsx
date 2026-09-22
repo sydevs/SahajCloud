@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react'
 
+import { Fragment } from 'react'
 import { Hr, Link, Section, Text } from 'react-email'
 
 import type { EmailBrand } from '@/plugins/email'
@@ -61,8 +62,14 @@ export function buildUserMessageDetails(args: {
 }
 
 interface UserMessageEmailProps {
-  /** The sender's message, verbatim. Rendered pre-wrapped, so line breaks survive. */
-  message: string
+  /**
+   * The sender's answers, in the order the form's author asked them — see
+   * `buildFormAnswers`. Every value is rendered pre-wrapped as an escaped
+   * child, never as an anchor: these are submitter-chosen strings, and four of
+   * the context keys beside them are exempt from the URL scan
+   * (`URL_EXEMPT_KEYS`).
+   */
+  answers: UserMessageDetail[]
   /** The sender's address, when they supplied one. Also the message's `Reply-To`. */
   senderEmail?: string | null
   /** The caller's label for this channel, e.g. `"Issue report"`. */
@@ -92,14 +99,18 @@ interface UserMessageEmailProps {
  * message's `Reply-To` is already the sender's address.
  */
 export function UserMessageEmail({
-  message,
+  answers,
   senderEmail,
   subject,
   details,
   brand,
 }: UserMessageEmailProps) {
   return (
-    <EmailLayout brand={brand} heading={subject} previewText={message.slice(0, 120)}>
+    <EmailLayout
+      brand={brand}
+      heading={subject}
+      previewText={(answers[0]?.value ?? '').slice(0, 120)}
+    >
       <Text style={styles.paragraph}>
         {senderEmail ? (
           <>
@@ -117,10 +128,17 @@ export function UserMessageEmail({
         )}
       </Text>
 
-      <Section>
-        <SectionHeading>Message</SectionHeading>
-        <Text style={messageBody}>{message}</Text>
-      </Section>
+      {answers.length > 0 ? (
+        <Section>
+          <SectionHeading>Answers</SectionHeading>
+          {answers.map((answer) => (
+            <Fragment key={answer.label}>
+              <Text style={answerQuestion}>{answer.label}</Text>
+              <Text style={answerValue}>{answer.value}</Text>
+            </Fragment>
+          ))}
+        </Section>
+      ) : null}
 
       {details.length > 0 ? (
         <Section>
@@ -149,7 +167,15 @@ export function UserMessageEmail({
   )
 }
 
-const messageBody: CSSProperties = {
+// The `EventRegistrationEmail` answer pair, so the two forwarded-answer emails
+// read as one shape.
+const answerQuestion: CSSProperties = {
+  fontSize: '14px',
+  fontWeight: 600,
+  color: '#374151',
+  margin: '0 0 2px',
+}
+const answerValue: CSSProperties = {
   fontSize: '15px',
   color: '#1f2937',
   margin: '0 0 12px',

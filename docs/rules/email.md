@@ -96,7 +96,7 @@ Transactional emails are [React Email](https://react.email) components under `sr
 | `RegistrationConfirmationEmail.tsx` | Registrant confirmation — client-branded, localized, ICS attached. Also exports `registrationConfirmationText`. |
 | `SessionReminderEmail.tsx` | Registrant reminder ~24h before a session (#589) — client-branded, no ICS, footer unsubscribe link. Sent by `SendSessionReminders`. |
 | `EventRegistrationEmail.tsx` | Manager notice of a new registration — Sahaj Atlas brand, `DetailRow`s, a Reply/View-event button row. Informational, no alert callout. |
-| `UserMessageEmail.tsx` | Admin-facing message sent on a viewer's behalf, once a contact submission passes screening (#632). Caller-agnostic: a `DetailRow` block from `buildUserMessageDetails`, each row omitted when its value is absent. |
+| `UserMessageEmail.tsx` | Admin-facing message sent on a viewer's behalf, once a contact submission passes screening (#632). Caller-agnostic: the named form's own answers from `buildFormAnswers` (#832), plus a `DetailRow` context block from `buildUserMessageDetails`, each row omitted when its value is absent. There is no `Message` section — every answer is a sibling row, whatever the field was named. |
 | `RegistrationDigestEmail.tsx` | Manager digest of new registrations (#589), grouped by event, one email per recipient per period. Sent by `SendRegistrationDigests`. |
 | `PostEventFollowUpEmail.tsx` | Registrant follow-up after an attended session (#626), built from composable `sections` so later kinds can be added. Today's only section is a feedback ask, sent only for a published, `unverified` event. Sent by `SendPostEventFollowUps`. |
 

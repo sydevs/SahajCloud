@@ -20,6 +20,7 @@ import {
   buildUserMessageDetails,
   UserMessageEmail,
   type UserMessageContext,
+  type UserMessageDetail,
 } from '@/emails/UserMessageEmail'
 import { CONTACT_EMAIL } from '@/lib/contact'
 import { headerDisplayName, stripNewlines } from '@/lib/utilities/emailSafeText'
@@ -29,8 +30,8 @@ export interface SendUserMessageArgs {
   payload: Payload
   /** Name of the API client service the message came through — the subject prefix. */
   clientName: string
-  /** The sender's message, verbatim. */
-  message: string
+  /** The sender's answers to the form's own questions, in authoring order. */
+  answers: UserMessageDetail[]
   /** The caller's label for this channel, e.g. `"Issue report"`. */
   subject: string
   /** The sender's address; becomes `Reply-To` when present. */
@@ -44,7 +45,7 @@ export interface SendUserMessageArgs {
 }
 
 export async function sendUserMessage(args: SendUserMessageArgs): Promise<void> {
-  const { payload, clientName, message, subject, senderEmail, context, receivedAt } = args
+  const { payload, clientName, answers, subject, senderEmail, context, receivedAt } = args
   const to = args.to?.trim() || CONTACT_EMAIL
 
   const brand = getEmailBrand()
@@ -64,7 +65,7 @@ export async function sendUserMessage(args: SendUserMessageArgs): Promise<void> 
     subject: stripNewlines(`[${clientName}] ${subject}`),
     html: await renderEmail(
       createElement(UserMessageEmail, {
-        message,
+        answers,
         senderEmail,
         subject,
         brand,
