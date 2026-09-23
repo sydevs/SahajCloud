@@ -189,6 +189,17 @@ describe('manager magic-link sign-in', () => {
       expect(await stampOf(manager.id)).toBe(first)
     })
 
+    it('finds a manager whose address was typed in a different case', async () => {
+      // Payload's own `email` base field lowercases on write, so the stored
+      // column never matches what a manager types in their address book's case.
+      const manager = await activeManager()
+      emailAdapter.clearCapturedEmails()
+
+      await requestLinkFor(manager.email.toUpperCase())
+
+      expect(emailAdapter.findEmailByTo(manager.email)).toBeDefined()
+    })
+
     it('rejects a body that is not an email address', async () => {
       const bad = await anon(REQUEST_PATH, { method: 'POST', json: { email: 'not-an-address' } })
       expect(bad.status).toBe(400)

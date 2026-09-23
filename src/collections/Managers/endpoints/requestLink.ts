@@ -17,7 +17,10 @@ import { CONSUME_LINK_PATH } from './consumeLink'
 export const REQUEST_LINK_PATH = '/request-link'
 
 const bodySchema = z.object({
-  email: z.string().email(),
+  // Normalised to match what is stored: Payload's own `email` base field
+  // lowercases and trims on every write, so a bare equality against the typed
+  // address misses `John.Smith@…` — and the uniform answer below hides the miss.
+  email: z.string().trim().email().toLowerCase(),
 })
 
 /** What every caller sees, whatever happened. See the handler's docblock. */
