@@ -55,7 +55,7 @@ const invalid = () =>
  * ⚠ **`Response.redirect()` returns immutable headers**, so `Set-Cookie`
  * cannot be appended to one. The 302 below is built by hand for that reason.
  */
-export function consumeSessionLink(config: LoginCollectionConfig): Endpoint {
+export function redeemMagicLink(config: LoginCollectionConfig): Endpoint {
   const { slug } = config
 
   return {

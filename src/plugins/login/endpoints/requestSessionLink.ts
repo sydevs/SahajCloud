@@ -8,7 +8,7 @@ import { getServerUrl } from '@/lib/utilities/serverUrl'
 
 import { emailFrom, generateEmailHTML, generateEmailSubject } from '../mail'
 import { signSigninToken, SIGNIN_TOKEN_TTL_MS } from '../token'
-import { CONSUME_LINK_PATH } from './consumeSessionLink'
+import { CONSUME_LINK_PATH } from './redeemMagicLink'
 
 export const REQUEST_LINK_PATH = '/request-link'
 

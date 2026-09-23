@@ -1,14 +1,14 @@
 import type { LoginCollectionConfig } from './types'
 import type { Field, Plugin } from 'payload'
 
-import { consumeSessionLink } from './endpoints/consumeSessionLink'
+import { redeemMagicLink } from './endpoints/redeemMagicLink'
 import { requestSessionLink } from './endpoints/requestSessionLink'
 
 /**
  * When the outstanding sign-in link was minted.
  *
  * Three jobs in one timestamp: it is `requestSessionLink`'s throttle window, it
- * is the claim `consumeSessionLink` matches exactly (so a link works once), and
+ * is the claim `redeemMagicLink` matches exactly (so a link works once), and
  * clearing it is what a fresh request does to the outstanding link.
  *
  * ⚠ **`update: () => false` is what keeps both endpoints its only writers.**
@@ -91,7 +91,7 @@ export function loginPlugin(options: LoginPluginOptions = {}): Plugin {
       return {
         ...collection,
         fields: [...collection.fields, magicLinkIssuedAt],
-        endpoints: [...(collection.endpoints || []), requestSessionLink(entry), consumeSessionLink(entry)],
+        endpoints: [...(collection.endpoints || []), requestSessionLink(entry), redeemMagicLink(entry)],
       }
     }),
   })
