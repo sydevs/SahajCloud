@@ -7,6 +7,7 @@ import { computeCommunityVerdict } from '@/lib/eventVerification/communityFeedba
 import { activeRegistrationWhere } from '@/lib/registrations/active'
 import { isRecord } from '@/lib/utilities/isRecord'
 import { relationId } from '@/lib/utilities/relationId'
+import type { Event } from '@/payload-types'
 import { asSystemReq, asTrustedReq } from '@/plugins/usage/hooks'
 
 /**
@@ -132,19 +133,22 @@ export const syncCommunityFeedback: CollectionAfterChangeHook = async ({
   // unguarded, so a throw killed the visitor's transaction: the vote was rolled
   // back behind "Could not record your answer" (#842). The denial branch still
   // unpublishes — that is the community verdict, not editor content.
+  const data: Partial<
+    Pick<Event, 'confidenceScore' | 'systemMeta' | 'verificationStage' | '_status'>
+  > = {
+    confidenceScore: verdict.score,
+    systemMeta: {
+      ...(isRecord(event.systemMeta) ? event.systemMeta : {}),
+      communityFeedback: { confirmations, denials, updatedAt: new Date().toISOString() },
+    },
+    ...(verdict.denied && event.verificationStage === 'unverified'
+      ? { verificationStage: 'denied', _status: 'draft' }
+      : {}),
+  }
   await updateEventBookkeeping({
     payload: req.payload,
     id: eventId,
-    data: {
-      confidenceScore: verdict.score,
-      systemMeta: {
-        ...(isRecord(event.systemMeta) ? event.systemMeta : {}),
-        communityFeedback: { confirmations, denials, updatedAt: new Date().toISOString() },
-      },
-      ...(verdict.denied && event.verificationStage === 'unverified'
-        ? { verificationStage: 'denied', _status: 'draft' }
-        : {}),
-    },
+    data,
     context: { skipWriteGuard: true },
     // A SYSTEM write in the caller's transaction — see `asSystemReq` for why
     // `overrideAccess` alone isn't enough (filterOptions still sees `req.user`).

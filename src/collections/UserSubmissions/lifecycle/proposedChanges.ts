@@ -5,6 +5,7 @@ import diff from 'microdiff'
 import { toWords } from 'payload/shared'
 
 import { lexicalPlainText } from '@/lib/eventQuality'
+import { staticLabelText } from '@/lib/utilities/staticLabel'
 
 /**
  * What a submission would change, field by field — the reviewer's whole job in
@@ -140,19 +141,9 @@ function formatInstant(value: string): string | null {
   }).format(date)} UTC`
 }
 
-/** A Payload `StaticLabel` is a string or a per-locale record; take either. */
-function labelText(label: unknown): string | null {
-  if (typeof label === 'string') return label
-  if (label && typeof label === 'object') {
-    const values = Object.values(label as Record<string, unknown>)
-    if (typeof values[0] === 'string') return values[0]
-  }
-  return null
-}
-
 function fieldLabel(field: FlattenedField | undefined, fallback: string): string {
   const label = field && 'label' in field ? field.label : undefined
-  return labelText(label) ?? toWords(fallback)
+  return staticLabelText(label) ?? toWords(fallback)
 }
 
 /**
@@ -169,7 +160,7 @@ function optionLabel(field: FlattenedField | undefined, value: unknown): string 
     typeof option === 'string' ? option === value : option.value === value,
   )
   if (match == null) return null
-  return typeof match === 'string' ? match : (labelText(match.label) ?? match.value)
+  return typeof match === 'string' ? match : (staticLabelText(match.label) ?? match.value)
 }
 
 /**

@@ -5,9 +5,12 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, onTestFinished, 
 
 import { ExpireEvents } from '@/jobs/ExpireEvents/ExpireEvents'
 import { asNotificationLog } from '@/lib/eventVerification/log'
-import { EVENT_IMAGE_LIMIT } from '@/lib/utilities/eventImages'
 
-import { storeInvalidEvent } from '../utils/storeInvalidEvent'
+import {
+  expectEventWriteRefused,
+  storeEventOverImageLimit,
+  storeInvalidEvent,
+} from '../utils/storeInvalidEvent'
 import { runTaskHandler } from '../utils/taskRunner'
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -470,17 +473,7 @@ describe('ExpireEvents job', () => {
       const event = await createDueEvent(payload, 'Invalid Phone')
       await storeInvalidEvent(payload, event.id, { contactPhone: null, contactEmail: null })
 
-      // Non-vacuity: the identical write through the public API is still
-      // refused, so the case below passes only because the job bypasses it.
-      await expect(
-        payload.update({
-          collection: 'events',
-          id: event.id,
-          data: { nextCheckAt: DUE },
-          context: { skipVerifyHook: true },
-          overrideAccess: true,
-        }),
-      ).rejects.toThrow(/Contact Phone Number/)
+      await expectEventWriteRefused(payload, event.id, { nextCheckAt: DUE }, /Contact Phone Number/)
 
       const result = await runTask(payload)
       expect(result.failed).toBe(0)
@@ -491,7 +484,6 @@ describe('ExpireEvents job', () => {
     })
 
     it('finishes one stored with more images than `maxRows` allows', async () => {
-      const image = await testData.createImage(payload)
       const event = await createDueEvent(payload, 'Invalid Images', {
         inactive: false,
         eventType: 'online',
@@ -502,13 +494,7 @@ describe('ExpireEvents job', () => {
           firstDate_tz: 'Europe/London',
         },
       })
-      // One image listed over the limit: `maxRows` counts rows, so extra
-      // uploads buy nothing. Derived from the limit, never a literal — raise
-      // `maxRows` against a literal and the seed becomes valid and the case
-      // vacuous.
-      await storeInvalidEvent(payload, event.id, {
-        images: Array.from({ length: EVENT_IMAGE_LIMIT + 1 }, () => image.id),
-      })
+      await storeEventOverImageLimit(payload, event.id)
 
       const result = await runTask(payload)
       expect(result.failed).toBe(0)

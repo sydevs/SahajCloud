@@ -11,7 +11,7 @@ import { buildReminderEntry, buildVerificationEntry } from '@/lib/eventVerificat
 import { signVerifyToken } from '@/lib/eventVerification/token'
 import type { Event, Manager } from '@/payload-types'
 
-import { storeInvalidEvent } from '../utils/storeInvalidEvent'
+import { expectEventWriteRefused, storeInvalidEvent } from '../utils/storeInvalidEvent'
 import { runTaskHandler } from '../utils/taskRunner'
 import { createData, testData, type FixtureOverrides } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -970,19 +970,6 @@ describe('Event verification lifecycle', () => {
       return event
     }
 
-    /** Non-vacuity: the write really is refused, whatever a surface answers. */
-    async function expectStillRefused(id: number): Promise<void> {
-      await expect(
-        payload.update({
-          collection: 'events',
-          id,
-          data: { verificationStage: 'verified' },
-          context: { skipVerifyHook: true },
-          overrideAccess: true,
-        }),
-      ).rejects.toThrow(/Contact Phone Number/)
-    }
-
     function endpointReq(event: Event, user: Manager) {
       return {
         payload,
@@ -995,7 +982,12 @@ describe('Event verification lifecycle', () => {
 
     it('the endpoint answers 422 with the field messages, leaving the event alone', async () => {
       const event = await createUnverifiableEvent()
-      await expectStillRefused(event.id)
+      await expectEventWriteRefused(
+        payload,
+        event.id,
+        { verificationStage: 'verified' },
+        /Contact Phone Number/,
+      )
       const before = await getEvent(payload, event.id)
 
       const res = await verifyEventAction.handler(endpointReq(event, adminUser))

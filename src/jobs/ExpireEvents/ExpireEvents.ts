@@ -4,7 +4,7 @@ import * as Sentry from '@sentry/nextjs'
 
 import { DEFAULT_LOG_LIMIT } from '@/fields'
 import { revalidateAtlasSidebar } from '@/lib/atlasSidebar/cache'
-import { updateEventBookkeeping, type EventBookkeeping } from '@/lib/events/systemWrite'
+import { updateEventBookkeeping } from '@/lib/events/systemWrite'
 import {
   asNotificationLog,
   buildReminderEntry,
@@ -54,7 +54,10 @@ async function updateBookkeeping(
   payload: Payload,
   req: PayloadRequest,
   id: number,
-  data: EventBookkeeping,
+  // This job's own allowance, narrower than the shared helper's ceiling. The
+  // type is what keeps a fifth field out of a write that skips validation, so
+  // it stays here rather than widening to every bookkeeping writer's fields.
+  data: Partial<Pick<Event, 'verificationStage' | 'nextCheckAt' | 'activityLog' | '_status'>>,
 ): Promise<void> {
   await updateEventBookkeeping({ payload, id, data, req })
 }

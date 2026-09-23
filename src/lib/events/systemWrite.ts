@@ -2,7 +2,12 @@ import type { Payload, PayloadRequest, RequestContext } from 'payload'
 
 import type { Event } from '@/payload-types'
 
-/** The derived fields a bookkeeping write is allowed to touch. */
+/**
+ * The ceiling on what a bookkeeping write may touch — the union across all
+ * three writers. It is not any one caller's allowance: each narrows `data` to
+ * the fields it owns, so a write skipping validation cannot reach a field its
+ * caller has no business touching.
+ */
 export type EventBookkeeping = Partial<
   Pick<
     Event,
@@ -58,12 +63,19 @@ export async function updateEventBookkeeping(args: {
     collection: 'events',
     id,
     data,
-    // Merge rather than replace: a caller spreads its own `req.context` in to
-    // keep the flags that request carries (the trusted-req skip) alive across
-    // this write.
-    context: { ...(context ?? {}), skipVerifyHook: true },
+    // Spread `req.context` here rather than at each call site. Payload merges
+    // it with this argument itself, so the spread is belt-and-braces — but
+    // stating it once means no caller has to know that, and a caller passing
+    // its own `context` cannot look like it is replacing the flags its request
+    // carries (the trusted-req skip).
+    context: { ...req?.context, ...context, skipVerifyHook: true },
     overrideAccess: true,
     unpublishAllLocales: true,
+    // No caller wants the updated doc, and the default depth is 2 — so the
+    // post-write afterRead would populate `region`, `manager`, `submitter` and
+    // up to seven `images` per write, then discard them. Two of the three
+    // callers run inside a visitor's transaction.
+    depth: 0,
     req,
   })
 }

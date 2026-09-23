@@ -6,9 +6,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { eventsGeoJson } from '@/collections/Events/endpoints/geojson'
 import type { EventFeature } from '@/collections/Events/endpoints/responseTypes'
-import { EVENT_IMAGE_LIMIT } from '@/lib/utilities/eventImages'
 
-import { storeInvalidEvent } from '../utils/storeInvalidEvent'
+import { expectEventWriteRefused, storeEventOverImageLimit } from '../utils/storeInvalidEvent'
 import { createData, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -207,26 +206,10 @@ describe('registrationsFull signal (#599)', () => {
   describe('an event whose stored data fails a field validator (#842)', () => {
     it('accepts the registration that takes the last seat, and flips the flag', async () => {
       const id = await createEvent({ registrationLimit: 1 })
-      const image = await testData.createImage(payload)
-      // One image over the limit: `maxRows` counts rows. Derived from the limit,
-      // never a literal — raise `maxRows` against a literal and the seed becomes
-      // valid and this case vacuous. It leaves the schedule and the contact
-      // fields alone, so the registration gate is unaffected.
-      await storeInvalidEvent(payload, id, {
-        images: Array.from({ length: EVENT_IMAGE_LIMIT + 1 }, () => image.id),
-      })
-
-      // Non-vacuity: the identical write through the public API is still
-      // refused, so the case passes only because the sync bypasses validation.
-      await expect(
-        payload.update({
-          collection: 'events',
-          id,
-          data: { registrationsFull: true },
-          context: { skipVerifyHook: true },
-          overrideAccess: true,
-        }),
-      ).rejects.toThrow(/Images/i)
+      // The seed leaves the schedule and the contact fields alone, so the
+      // registration gate is unaffected by it.
+      await storeEventOverImageLimit(payload, id)
+      await expectEventWriteRefused(payload, id, { registrationsFull: true }, /Images/i)
 
       // Before the fix this threw inside an unguarded afterChange hook, which
       // killed the visitor's transaction: the registration was rolled back and
