@@ -23,11 +23,10 @@ import { KeyframeData } from '@/types/frames'
 
 import { meditationLectures } from './endpoints/lectures'
 import { meditationSongs } from './endpoints/songs'
+import { cacheMeditationNodeWeights } from './hooks/cacheMeditationNodeWeights'
 import { extractAudioDuration } from './hooks/extractAudioDuration'
 import { fallbackTitleAfterRead } from './hooks/fallbackTitle'
 import { filterMeditationsByLocale } from './hooks/filterMeditationsByLocale'
-import { invalidateMeditationNodeWeights } from './hooks/invalidateMeditationNodeWeights'
-import { recomputeMeditationNodeWeights } from './hooks/recomputeMeditationNodeWeights'
 
 /**
  * What `virtualJoinField`'s hook returns: the user-choices rows pointing at
@@ -112,10 +111,11 @@ export const Meditations: CollectionConfig = {
     beforeOperation: [filterMeditationsByLocale],
     beforeChange: [
       restrictUploadToAdmin({ label: 'audio file on a meditation' }),
+      // After `extractAudioDuration`: the weights are computed against the
+      // duration this save is about to store.
       extractAudioDuration,
-      invalidateMeditationNodeWeights,
+      cacheMeditationNodeWeights,
     ],
-    afterChange: [recomputeMeditationNodeWeights],
   },
   defaultPopulate: {
     // Exclude the expensive per-row afterRead virtual fields when a meditation
@@ -268,8 +268,8 @@ export const Meditations: CollectionConfig = {
             jsonField({
               // Cached `{ slug → on-screen seconds }` map for the meditation's
               // frames. Drives the topical-overlap ranking in
-              // `/api/meditations/:id/related-lectures`. Recomputed by the
-              // `recomputeMeditationNodeWeights` afterChange hook on Meditations
+              // `/api/meditations/:id/related-lectures`. Written by the
+              // `cacheMeditationNodeWeights` beforeChange hook on Meditations,
               // and cascaded from Frames via `cascadeFrameNodeChange`.
               name: 'subtleSystemNodeWeights',
               schemaTitle: 'MeditationNodeWeights',
