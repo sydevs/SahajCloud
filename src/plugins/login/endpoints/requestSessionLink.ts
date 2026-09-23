@@ -6,11 +6,20 @@ import { z } from 'zod'
 import { parseBody } from '@/lib/endpoints'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 
-import { REQUEST_LINK_THROTTLE_MS } from '../fields'
 import { signSigninToken, SIGNIN_TOKEN_TTL_MS } from '../token'
 import { CONSUME_LINK_PATH } from './consumeSessionLink'
 
 export const REQUEST_LINK_PATH = '/request-link'
+
+/**
+ * How long an account must wait between sign-in link requests.
+ *
+ * ⚠ **This is the only in-app bound on per-account link volume.** `rateLimitHook`
+ * is a deliberate no-op for every collection — rate limiting is enforced at the
+ * Cloudflare edge instead (`src/plugins/usage/hooks.ts`), and the edge keys on
+ * IP, which cannot see the email in the request body.
+ */
+export const REQUEST_LINK_THROTTLE_MS = 60 * 1000
 
 const bodySchema = z.object({
   // Normalised to match what is stored: Payload's own `email` base field

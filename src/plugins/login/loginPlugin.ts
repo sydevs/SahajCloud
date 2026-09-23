@@ -1,9 +1,32 @@
 import type { LoginCollectionConfig } from './types'
-import type { Plugin } from 'payload'
+import type { Field, Plugin } from 'payload'
 
 import { consumeSessionLink } from './endpoints/consumeSessionLink'
 import { requestSessionLink } from './endpoints/requestSessionLink'
-import { magicLinkIssuedAt } from './fields'
+
+/**
+ * When the outstanding sign-in link was minted.
+ *
+ * Three jobs in one timestamp: it is `requestSessionLink`'s throttle window, it
+ * is the claim `consumeSessionLink` matches exactly (so a link works once), and
+ * clearing it is what a fresh request does to the outstanding link.
+ *
+ * ⚠ **`update: () => false` is what keeps both endpoints its only writers.**
+ * Self-access grants an account holder update on their own document, so without
+ * it they could burn their own outstanding link, or stamp it in the future and
+ * throttle their own sends forever. Both endpoints write it through
+ * `overrideAccess: true`, so neither is affected.
+ */
+export const magicLinkIssuedAt: Field = {
+  name: 'magicLinkIssuedAt',
+  type: 'date',
+  admin: {
+    hidden: true,
+  },
+  access: {
+    update: () => false,
+  },
+}
 
 export interface LoginPluginOptions {
   /**

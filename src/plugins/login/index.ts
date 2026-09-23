@@ -7,9 +7,9 @@
  *
  * - `loginPlugin` — the wiring, registered by `src/payload.config.ts` and the
  *   test harness alike. Its `collections` option names what it serves.
- * - `LoginCollectionConfig` — what one served collection supplies: its
- *   eligibility predicate and its mail. `src/collections/Managers/login.ts` is
- *   the one in use.
+ * - `LoginCollectionConfig` — what one served collection supplies. Every member
+ *   is optional beyond the slug; `src/collections/Managers/login.ts` is the one
+ *   in use.
  * - `createSession` — the one place a session is minted without a password, for
  *   any auth collection that can hold one.
  * - `token.ts` — the two link kinds, as separate JWT audiences.
@@ -19,13 +19,13 @@
  * the split this plugin exists to hold.
  */
 
-export { loginPlugin, type LoginPluginOptions } from './loginPlugin'
+export { REQUEST_LINK_THROTTLE_MS } from './endpoints/requestSessionLink'
 
-export { magicLinkIssuedAt, REQUEST_LINK_THROTTLE_MS } from './fields'
+export { loginPlugin, magicLinkIssuedAt, type LoginPluginOptions } from './loginPlugin'
 
 export { createSession } from './session'
 
-export type { LoginCollectionConfig, LoginDocument, LoginMail, LoginMailArgs } from './types'
+export type { LoginCollectionConfig, LoginDocument, LoginMailArgs } from './types'
 
 export {
   INVITE_TOKEN_TTL_MS,
