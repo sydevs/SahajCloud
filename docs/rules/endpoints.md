@@ -92,9 +92,19 @@ export const MyCollection: CollectionConfig = {
 }
 ```
 
+### Registration by a plugin
+
+A collection whose endpoints are wired by a plugin keeps its **definitions** here, beside the collection, and the plugin only registers them. `formsPlugin` does this because `user-submissions` is plugin-generated and has no `CollectionConfig` file; `loginPlugin` does it because the two magic-link endpoints are one feature with a field and a migration, and splitting the feature across two registration points would hide half of it.
+
+Three things that wiring must get right, each of which deletes behaviour silently when it does not:
+
+- **Append, never replace.** `Managers.ts` already declares `endpoints: [setProject]`, so `endpoints: [...(collection.endpoints || []), mine]` — the empty-array fallback matters, because a plugin runs **before `sanitizeConfig`** and `endpoints` may still be `undefined`. For the same reason `collection.auth` may still be the boolean `true`, so guard before reading it.
+- **The endpoint takes its slug as an argument** when the plugin's options name the collection. Exporting `myEndpoint: Endpoint` hard-codes one slug into a file the plugin claims is collection-agnostic.
+- **The barrel stops short of the endpoints.** The plugin imports them from the collection, so re-exporting them from the plugin's `index.ts` closes a cycle. `src/plugins/login/index.ts` states this.
+
 ## Key points
 
-- One handler per file. Import it relatively in the collection definition — there is no shared endpoints barrel.
+- One handler per file. Import it relatively in the collection definition, or register it from the plugin that owns the feature — there is no shared endpoints barrel.
 - Use `req.routeParams` for URL parameters and `req.query` for query strings. Use `req.payload` for the database, not a separate import.
 
 ## Requirements: auth, OpenAPI, select/populate

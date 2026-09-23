@@ -233,6 +233,8 @@ export async function createTestEnvironmentWithEmail(): Promise<{
   payload: Payload
   cleanup: () => Promise<void>
   emailAdapter: EmailTestAdapter
+  /** The suite's own config promise — see {@link createTestEnvironment}. */
+  config: ReturnType<typeof createBaseTestConfig>
 }> {
   // Creating a test environment with email support and its own Postgres schema
 
@@ -255,7 +257,7 @@ export async function createTestEnvironmentWithEmail(): Promise<{
   const payload = await getPayload({ config })
   const cleanup = () => cleanupTestEnvironment(payload, schemaName)
 
-  return { payload, cleanup, emailAdapter }
+  return { payload, cleanup, emailAdapter, config }
 }
 
 /** Creates an authenticated request for testing */
