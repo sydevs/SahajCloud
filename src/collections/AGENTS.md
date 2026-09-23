@@ -626,6 +626,30 @@ have to suit the wrong intake.
 Default email `contact@sydevelopers.com` (the fallback recipient for a contact
 form with none set).
 
+### Login (`src/plugins/login`)
+
+Passwordless sign-in for `Managers` (#837). It appends one hidden
+`magicLinkIssuedAt` column and two endpoints — `POST /api/managers/request-link`
+and `GET /api/managers/consume-link` — to whatever `Managers.ts` already
+declares. Passwords still work; this is a second way in.
+
+Three things worth knowing before you touch `Managers`:
+
+- ⚠ **`magicLinkIssuedAt` is written by those two endpoints and nothing else.**
+  It is simultaneously the 60-second send throttle, the nonce the consume route
+  matches exactly, and — cleared — what makes a link single-use. A hook that
+  writes it invalidates a manager's outstanding link.
+- ⚠ **Both routes are anonymous.** They have to be: a manager who cannot sign
+  in is who calls them. `request-link` therefore answers identically for every
+  outcome, because any difference is an account-enumeration oracle.
+- The plugin **appends** to `endpoints` and `fields`. Replacing either array
+  would delete `setProject` — the project switcher — silently.
+
+`createSession` (`@/plugins/login`) is the one place a session is minted
+without a password, for any auth collection that can hold one. It refuses a
+collection with no `sessions` field: `clients` sets `disableLocalStrategy`, so
+Payload gives it neither `sessions` nor `email`.
+
 ### Slug generation (`slugField` from `payload`)
 
 ```typescript
