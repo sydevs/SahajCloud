@@ -26,11 +26,13 @@ One self-contained folder per plugin/adapter, with a public API via an
 `sentry/`, `login/`. Consumers (including `payload.config.ts`) import from
 `@/plugins/<name>`.
 
-⚠ **`login/`'s barrel deliberately stops short of its endpoints.** They live
-beside their collection (`src/collections/Managers/endpoints/`) and the plugin
-imports them, so re-exporting them here would close a cycle. The endpoints
-import `createSession` from `@/plugins/login/session`, by path, for the same
-reason.
+⚠ **`login/` owns its endpoints** (`src/plugins/login/endpoints/`), unlike every
+other plugin here, which wires definitions kept beside their collection. They are
+factories, built once per collection the plugin's `collections` option names, so
+there is no one collection to park them beside. What stays with a collection is
+its `LoginCollectionConfig` — its eligibility predicate and its mail
+(`src/collections/Managers/login.ts`). The barrel deliberately stops short of the
+factories: `loginPlugin` is their only caller.
 
 ### `src/jobs/<JobName>/`
 

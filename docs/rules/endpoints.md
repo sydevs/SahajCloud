@@ -94,13 +94,15 @@ export const MyCollection: CollectionConfig = {
 
 ### Registration by a plugin
 
-A collection whose endpoints are wired by a plugin keeps its **definitions** here, beside the collection, and the plugin only registers them. `formsPlugin` does this because `user-submissions` is plugin-generated and has no `CollectionConfig` file; `loginPlugin` does it because the two magic-link endpoints are one feature with a field and a migration, and splitting the feature across two registration points would hide half of it.
+A collection whose endpoints are wired by a plugin keeps its **definitions** here, beside the collection, and the plugin only registers them. `formsPlugin` does this because `user-submissions` is plugin-generated and has no `CollectionConfig` file.
+
+`loginPlugin` is the deliberate exception: it **owns** its two endpoints (`src/plugins/login/endpoints/`) and builds one pair per collection its `collections` option names. They are one feature with a field and a migration, so a definition parked beside one collection would say the feature is that collection's when it is not.
 
 Three things that wiring must get right, each of which deletes behaviour silently when it does not:
 
 - **Append, never replace.** `Managers.ts` already declares `endpoints: [setProject]`, so `endpoints: [...(collection.endpoints || []), mine]` — the empty-array fallback matters, because a plugin runs **before `sanitizeConfig`** and `endpoints` may still be `undefined`. For the same reason `collection.auth` may still be the boolean `true` wherever a plugin reads it.
-- **Key on the literal slug, and say so.** Both plugins hard-code their target (`user-submissions`, `managers`) rather than taking it as an option, and both state that coupling in a comment. A slug parameter promises a collection-agnostic endpoint, and a handler branching on a collection-specific enum, sender or token audience cannot keep that promise. Generalise the one piece that really is shared — `createSession` takes a slug — not the routes around it.
-- **The barrel stops short of the endpoints.** The plugin imports them from the collection, so re-exporting them from the plugin's `index.ts` closes a cycle. `src/plugins/login/index.ts` points here.
+- **A slug option promises a collection-agnostic endpoint, so pay for the promise or do not make it.** A handler branching on one collection's enum, sender or template cannot keep it, and a bare list of slugs over such a handler is the worst shape: it accepts a second collection and mis-serves it. Either hard-code the target and say so in a comment (`formsPlugin`, `user-submissions`), or take the collection-specific pieces as configuration beside the slug — `LoginCollectionConfig` carries the eligibility predicate and the mail for exactly that reason, and `mail` is required so the option cannot be half-honoured.
+- **The barrel stops short of the endpoints.** `loginPlugin` is their only caller, and exporting the factories would invite a collection to wire its own pair — the split the plugin exists to hold. `src/plugins/login/index.ts` points here.
 
 ## Key points
 
