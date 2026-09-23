@@ -138,6 +138,7 @@ async function issueLink(
 
   const args: LoginMailArgs = {
     doc: account,
+    project: config.project?.(account) ?? undefined,
     signInUrl: `${getServerUrl()}/api/${slug}${CONSUME_LINK_PATH}?token=${encodeURIComponent(token)}`,
     // Derived, so changing the TTL cannot leave the email saying otherwise.
     validFor: `${SIGNIN_TOKEN_TTL_MS / 60_000} minutes`,
@@ -145,7 +146,7 @@ async function issueLink(
 
   await payload.sendEmail({
     to: account.email,
-    from: emailFrom(),
+    from: emailFrom(args),
     subject: (config.generateEmailSubject ?? generateEmailSubject)(args),
     // Inline, not queued, matching the verify and reset mail `Managers.auth`
     // already builds with `renderEmail`. The throttle above bounds the volume

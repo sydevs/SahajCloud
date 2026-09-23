@@ -10,15 +10,22 @@ import { getEmailBrand, MANAGER_EMAIL_FROM, renderEmail } from '@/plugins/email'
 /**
  * The sign-in mail every served collection gets, unless it overrides a half.
  *
- * Nothing here is `managers`-specific. A collection that needs different copy
- * overrides
+ * Nothing here is `managers`-specific: the template brands itself from
+ * `project`, which {@link LoginCollectionConfig.project} resolves per document.
+ * A collection that needs different copy overrides
  * `generateEmailHTML` / `generateEmailSubject`, which mirror the two generators
  * `auth.verify` and `auth.forgotPassword` already take.
  */
-export function generateEmailHTML({ doc, signInUrl, validFor }: LoginMailArgs): Promise<string> {
+export function generateEmailHTML({
+  doc,
+  project,
+  signInUrl,
+  validFor,
+}: LoginMailArgs): Promise<string> {
   return renderEmail(
     createElement(SignInLinkEmail, {
       name: doc.name || doc.email || '',
+      project,
       signInUrl,
       validFor,
     }),
@@ -26,8 +33,8 @@ export function generateEmailHTML({ doc, signInUrl, validFor }: LoginMailArgs): 
 }
 
 /** @see generateEmailHTML */
-export function generateEmailSubject(): string {
-  return stripNewlines(`Your sign-in link — ${getEmailBrand().productName}`)
+export function generateEmailSubject({ project }: LoginMailArgs): string {
+  return stripNewlines(`Your sign-in link — ${getEmailBrand(project).productName}`)
 }
 
 /**
@@ -39,6 +46,6 @@ export function generateEmailSubject(): string {
  * default instead; this project sets a sender per send, because Resend drops a
  * send from an unverified domain (#790).
  */
-export function emailFrom(): string {
-  return `${headerDisplayName(getEmailBrand().productName)} <${MANAGER_EMAIL_FROM}>`
+export function emailFrom({ project }: LoginMailArgs): string {
+  return `${headerDisplayName(getEmailBrand(project).productName)} <${MANAGER_EMAIL_FROM}>`
 }
