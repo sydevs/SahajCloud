@@ -3,17 +3,21 @@
  *
  * Shared by:
  *   - Meditations field hooks (validate / beforeChange / afterRead) — see
- *     `src/collections/content/Meditations.ts`
- *   - `invalidateMeditationNodeWeights` / `recomputeMeditationNodeWeights`
- *     in `src/hooks/meditationHooks.ts`
- *   - `cascadeFrameNodeChange` in `src/hooks/frameHooks.ts`
+ *     `src/collections/Meditations/Meditations.ts`
+ *   - `cacheMeditationNodeWeights` in
+ *     `src/collections/Meditations/hooks/`
+ *   - `cascadeFrameNodeChange` in `src/collections/Frames/hooks/`
  *
  * `normalizeMeditationFrames` is idempotent: it drops malformed entries,
  * coerces string IDs to numbers, and returns diagnostics suitable for
- * `req.payload.logger.warn` and Sentry breadcrumbs. The persistence helper
- * (`persistMeditationNodeWeightsCache`) writes the derived
- * `subtleSystemNodeWeights` cache best-effort; failures must not propagate
- * to the user-facing save (root cause of issue #390).
+ * `req.payload.logger.warn` and Sentry breadcrumbs.
+ *
+ * A meditation's own save carries the derived `subtleSystemNodeWeights` in its
+ * `beforeChange` data, so payload writes the cache itself. The persistence
+ * helper (`persistMeditationNodeWeightsCache`) exists for the one writer that
+ * has no save to ride — the Frames cascade, which touches other documents. It
+ * writes best-effort; failures must not propagate to the user-facing save
+ * (root cause of issue #390).
  */
 import type { Payload, PayloadRequest } from 'payload'
 
@@ -49,8 +53,8 @@ export const meditationFramesSchema = z.array(
 /**
  * `Meditations.subtleSystemNodeWeights`: the cached `{ slug → on-screen
  * seconds }` map built by `computeMeditationNodeWeights`. Written only by the
- * recompute hook and the cascade from Frames, so the schema can be closed on
- * the value type while staying open on the keys — the keys are subtle-system
+ * meditation's own save and the cascade from Frames, so the schema can be closed
+ * on the value type while staying open on the keys — the keys are subtle-system
  * node slugs, which live in the `subtle-system` collection rather than in code.
  *
  * `null` is a legal write — the cache is cleared by setting the column to null —
@@ -183,17 +187,6 @@ export function normalizeMeditationFramesForStorage(value: unknown): KeyframeDef
   return normalizeMeditationFrames(value).frames
 }
 
-export function meditationFramesChanged(previousFrames: unknown, nextFrames: unknown): boolean {
-  const previous = normalizeMeditationFrames(previousFrames).frames
-  const next = normalizeMeditationFrames(nextFrames).frames
-  if (previous.length !== next.length) return true
-  for (let i = 0; i < previous.length; i++) {
-    if (previous[i].id !== next[i].id) return true
-    if (previous[i].timestamp !== next[i].timestamp) return true
-  }
-  return false
-}
-
 export function hasFrameNormalizationIssues(diagnostics: FrameNormalizationDiagnostics): boolean {
   return diagnostics.droppedCount > 0 || Object.keys(diagnostics.invalidFrameReasons).length > 0
 }
@@ -244,14 +237,30 @@ export function reportMeditationNodeWeightsCacheError(args: {
 
 /**
  * Persist the derived `subtleSystemNodeWeights` cache directly via the DB
- * adapter. Intentionally bypasses `payload.update` for two reasons:
+ * adapter, for the one writer that has no save of its own to ride: the Frames
+ * cascade, which updates meditations other than the document being saved. A
+ * meditation's own save carries the cache in its `beforeChange` data instead, so
+ * payload writes it (`cacheMeditationNodeWeights`).
  *
- * 1. It avoids re-entering the Meditations `afterChange` hook (no need
- *    for a `skipRecomputeNodeWeights` context flag and no risk of an
- *    infinite recompute loop).
+ * Intentionally bypasses `payload.update` for two reasons:
+ *
+ * 1. `payload.update` stamps `updatedAt` on the main row before writing it, so
+ *    a derived-field write would make the document look edited — the Frames
+ *    cascade would bump every meditation using the frame. It also re-enters
+ *    this collection's hook chain, which the bypass sidesteps.
  * 2. The write is best-effort: on failure we report to logger + Sentry
  *    and return `false`, but never throw. This is the fix for issue #390
  *    — a cache-write error must never 500 the user-facing publish.
+ *
+ * `payload.update({ unpublishAllLocales: true })`, the route sydevs/SahajCloud#835
+ * took for Events, skips validation but keeps both costs above.
+ *
+ * ⚠ Writes the main row alone. Meditations is drafts-enabled, so the
+ * `latest: true` version row keeps the pre-cascade value, and the next
+ * `payload.update` starts from that row (`getLatestCollectionVersion`). #843 is
+ * closed on the other side instead: `cacheMeditationNodeWeights` recomputes on
+ * every published save, so the value this write skipped cannot survive a
+ * recombine. Do not add a version-row write here — recompute there.
  */
 export async function persistMeditationNodeWeightsCache(args: {
   diagnostics?: Record<string, unknown>

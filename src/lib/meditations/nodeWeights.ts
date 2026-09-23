@@ -61,7 +61,7 @@ export function computeMeditationNodeWeights(args: {
  */
 export async function recomputeWeightsForMeditation(
   payload: Payload,
-  meditation: Pick<Meditation, 'id' | 'frames' | 'duration'>,
+  meditation: Pick<Meditation, 'duration' | 'frames'>,
   req?: PayloadRequest,
 ): Promise<Record<string, number>> {
   const rawFrames = meditation.frames

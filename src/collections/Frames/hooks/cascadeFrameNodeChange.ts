@@ -23,8 +23,12 @@ import type { Meditation } from '@/payload-types'
  * codebase). Acceptable while the active scale stays small; revisit if the
  * meditations table grows past the order of a few thousand rows.
  *
- * Each Meditation update sets `context.skipRecomputeNodeWeights` so the
- * cascade doesn't re-trigger Meditation's own afterChange hook.
+ * This is the one node-weights writer with no save of its own to ride — it
+ * touches meditations other than the document being saved — so it goes through
+ * `persistMeditationNodeWeightsCache`, whose DB-adapter bypass keeps a derived
+ * write from restamping `updatedAt` on every meditation using the frame. That
+ * write reaches the main row alone; the meditation's own next published save is
+ * what brings its `latest: true` version row back in line (#843).
  */
 export const cascadeFrameNodeChange: CollectionAfterChangeHook = async ({
   doc,
