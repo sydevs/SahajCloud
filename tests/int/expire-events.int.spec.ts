@@ -7,6 +7,7 @@ import { ExpireEvents } from '@/jobs/ExpireEvents/ExpireEvents'
 import { asNotificationLog } from '@/lib/eventVerification/log'
 import { EVENT_IMAGE_LIMIT } from '@/lib/utilities/eventImages'
 
+import { storeInvalidEvent } from '../utils/storeInvalidEvent'
 import { runTaskHandler } from '../utils/taskRunner'
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -462,47 +463,12 @@ describe('ExpireEvents job', () => {
 
   // ──────────────────────────────────────────────────────────────────────────
   // Invalid stored data (#835) — a row that fails a validator added after it
-  // was written. See `updateBookkeeping` for why an update re-validates it.
+  // was written. See `updateEventBookkeeping` for why an update re-validates it.
   // ──────────────────────────────────────────────────────────────────────────
   describe('an event whose stored data fails a field validator', () => {
-    /**
-     * Put an event into a state its own validators refuse — the defect itself,
-     * so neither `payload.create` nor `payload.update` can seed it.
-     *
-     * The `latest: true` version row is written with the main row on purpose:
-     * `updateByID` loads the document it is about to change from that version,
-     * so seeding only the main row would leave the job working from the valid
-     * one and the case would pass for the wrong reason.
-     */
-    async function storeInvalid(payload: Payload, id: number, patch: Record<string, unknown>) {
-      await payload.db.updateOne({ collection: 'events', id, data: patch })
-      const { docs } = await payload.db.findVersions({
-        collection: 'events',
-        where: { parent: { equals: id } },
-        sort: '-updatedAt',
-        limit: 1,
-        pagination: false,
-      })
-      const latest = docs[0]
-      // Events is `versions: { drafts: true }`, so a row without one means the
-      // seed silently left the document valid and every case below is vacuous.
-      if (!latest) throw new Error(`event ${id} has no version row to seed`)
-      await payload.db.updateVersion({
-        collection: 'events',
-        id: latest.id,
-        versionData: {
-          createdAt: new Date(latest.createdAt).toISOString(),
-          latest: true,
-          parent: id,
-          updatedAt: new Date().toISOString(),
-          version: { ...latest.version, ...patch },
-        },
-      })
-    }
-
     it('advances one stored without the contact an inactive event must carry', async () => {
       const event = await createDueEvent(payload, 'Invalid Phone')
-      await storeInvalid(payload, event.id, { contactPhone: null, contactEmail: null })
+      await storeInvalidEvent(payload, event.id, { contactPhone: null, contactEmail: null })
 
       // Non-vacuity: the identical write through the public API is still
       // refused, so the case below passes only because the job bypasses it.
@@ -540,7 +506,7 @@ describe('ExpireEvents job', () => {
       // uploads buy nothing. Derived from the limit, never a literal — raise
       // `maxRows` against a literal and the seed becomes valid and the case
       // vacuous.
-      await storeInvalid(payload, event.id, {
+      await storeInvalidEvent(payload, event.id, {
         images: Array.from({ length: EVENT_IMAGE_LIMIT + 1 }, () => image.id),
       })
 
@@ -554,7 +520,7 @@ describe('ExpireEvents job', () => {
     it('logs the reminder it sent, so a second run does not send it again', async () => {
       const manager = await testData.createManager(payload)
       const event = await createDueEvent(payload, 'Invalid Reminder', { manager: manager.id })
-      await storeInvalid(payload, event.id, { contactPhone: null, contactEmail: null })
+      await storeInvalidEvent(payload, event.id, { contactPhone: null, contactEmail: null })
 
       const sendEmail = vi.spyOn(payload, 'sendEmail')
       onTestFinished(() => sendEmail.mockRestore())

@@ -13,10 +13,12 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 
 import { SendPostEventFollowUps } from '@/jobs/RegistrationNotifications/SendPostEventFollowUps'
 import { readCommunityFeedback } from '@/lib/eventVerification/communityFeedback'
+import { EVENT_IMAGE_LIMIT } from '@/lib/utilities/eventImages'
 import type { Event, Manager, UserSubmission } from '@/payload-types'
 import { hasPermission } from '@/plugins/access'
 import { USER_EMAIL_FROM } from '@/plugins/email'
 
+import { storeInvalidEvent } from '../utils/storeInvalidEvent'
 import { runTaskHandler } from '../utils/taskRunner'
 import { createData, testData, type FixtureOverrides } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -259,6 +261,67 @@ describe('Event feedback (registrant voting)', () => {
       expect(readCommunityFeedback(after.systemMeta)).toMatchObject({
         confirmations: 1,
         denials: 0,
+      })
+    })
+
+    describe('an event whose stored data fails a field validator (#842)', () => {
+      /**
+       * One image over the limit: `maxRows` counts rows. Derived from the limit,
+       * never a literal — raise `maxRows` against a literal and the seed becomes
+       * valid and these cases vacuous. It leaves `_status` and
+       * `verificationStage` alone, so the vote gate is unaffected.
+       */
+      async function storeOverImageLimit(eventId: number): Promise<void> {
+        const image = await testData.createImage(payload)
+        await storeInvalidEvent(payload, eventId, {
+          images: Array.from({ length: EVENT_IMAGE_LIMIT + 1 }, () => image.id),
+        })
+      }
+
+      /** The identical write through the public API is still refused. */
+      async function expectPlainUpdateRefused(eventId: number): Promise<void> {
+        await expect(
+          payload.update({
+            collection: 'events',
+            id: eventId,
+            data: { confidenceScore: 0.5 },
+            context: { skipVerifyHook: true },
+            overrideAccess: true,
+          }),
+        ).rejects.toThrow(/Images/i)
+      }
+
+      it('records the vote instead of rolling the visitor back', async () => {
+        const event = await createUnverifiedEvent()
+        const registration = await createRegistration(event.id)
+        await storeOverImageLimit(event.id)
+        await expectPlainUpdateRefused(event.id)
+
+        // Before the fix this threw inside an unguarded afterChange hook, which
+        // killed the visitor's transaction — the vote was lost behind "Could
+        // not record your answer".
+        await vote(registration, 'confirmed')
+
+        const after = await reloadEvent(event.id)
+        expect(readCommunityFeedback(after.systemMeta)).toMatchObject({
+          confirmations: 1,
+          denials: 0,
+        })
+      })
+
+      it('still flips to denied + draft on the fifth denial', async () => {
+        const event = await createUnverifiedEvent()
+        await storeOverImageLimit(event.id)
+        await expectPlainUpdateRefused(event.id)
+
+        for (let i = 0; i < 5; i++) {
+          const registration = await createRegistration(event.id)
+          await vote(registration, 'denied')
+        }
+
+        const after = await reloadEvent(event.id)
+        expect(after.verificationStage).toBe('denied')
+        expect(after._status).toBe('draft')
       })
     })
   })
