@@ -3,7 +3,7 @@ import type { Payload } from 'payload'
 
 import { handleEndpoints } from 'payload'
 
-import { mintManagerSessionToken } from '@/plugins/login/session'
+import { createSession } from '@/plugins/login'
 
 
 type TestConfig = Awaited<ReturnType<typeof createTestEnvironment>>['config']
@@ -58,7 +58,7 @@ export async function createRestClientAs(
     data: { _verified: true },
   })
 
-  const token = await mintManagerSessionToken(env.payload, manager.id)
+  const token = await createSession(env.payload, 'managers', manager.id)
 
   return async (path, init) => {
     const headers: Record<string, string> = { Authorization: `JWT ${token}` }

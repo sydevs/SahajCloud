@@ -257,7 +257,7 @@ error body is the real message plus a stack, or `Something went wrong.`
 `createTestEnvironment({ debug })` selects that flag (default `false`,
 i.e. production's value) and returns the suite's `config`, which the
 client needs. The helper marks the suite admin `_verified` and mints it a
-session with `mintManagerSessionToken` (`@/plugins/login/session`) — the
+session with `createSession` (`@/plugins/login`) — the
 JWT strategy's `_verified` gate yields no user otherwise, and access
 control answers **403 before any query runs**, so an anonymous request
 never reaches Postgres at all. Nothing under `tests/` calls `payload.login`

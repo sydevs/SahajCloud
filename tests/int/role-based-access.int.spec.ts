@@ -11,7 +11,7 @@ import { mintLivePreviewToken } from '@/lib/livePreview/token'
 import { PREVIEW_SECRET_HEADER, resolveLivePreviewHook } from '@/lib/utilities/previewSecret'
 import type { Event, Region } from '@/payload-types'
 import { bypassPermissions, hasAnyPermission, hasPermission } from '@/plugins/access'
-import { mintManagerSessionToken } from '@/plugins/login/session'
+import { createSession } from '@/plugins/login'
 
 import {
   createData,
@@ -862,7 +862,7 @@ describe('Role-Based Access Control', () => {
           roles: { fr: ['web-translator'], cs: ['meditations-editor', 'path-editor'] },
         })
 
-        const token = await mintManagerSessionToken(payload, manager.id)
+        const token = await createSession(payload, 'managers', manager.id)
 
         const headers = new Headers()
         headers.set('Authorization', `JWT ${token}`)
@@ -885,7 +885,7 @@ describe('Role-Based Access Control', () => {
           roles: { fr: ['web-translator'] },
         })
 
-        const token = await mintManagerSessionToken(payload, manager.id)
+        const token = await createSession(payload, 'managers', manager.id)
 
         const headers = new Headers()
         headers.set('Authorization', `JWT ${token}`)

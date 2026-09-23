@@ -20,6 +20,7 @@ import { buildPayloadLocales, DEFAULT_LOCALE } from '@/lib/locales'
 import { accessPlugin, bypassPermissions } from '@/plugins/access'
 import { databaseErrorPlugin } from '@/plugins/databaseErrors'
 import { formsPlugin } from '@/plugins/formBuilder'
+import { LOGIN_PLUGIN_OPTIONS, loginPlugin } from '@/plugins/login'
 import { usagePlugin } from '@/plugins/usage'
 import { writeGuardPlugin } from '@/plugins/writeGuard'
 
@@ -152,6 +153,9 @@ function createBaseTestConfig(emailConfig: any, schemaName: string, debug = fals
       // Nested docs: injects parent + breadcrumbs into Regions (mirrors the
       // real payload.config.ts so collection hooks relying on them are tested).
       nestedDocsPlugin(REGION_NESTED_DOCS_CONFIG),
+      // Passwordless sign-in: the magic-link field plus its two endpoints
+      // (mirrors the real payload.config.ts, from one shared options object).
+      loginPlugin(LOGIN_PLUGIN_OPTIONS),
       // Access Plugin must be LAST to process plugin-created collections
       accessPlugin({ enabled: true, bypassPermissions }),
     ],
