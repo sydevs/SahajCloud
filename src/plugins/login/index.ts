@@ -19,7 +19,7 @@
  * the split this plugin exists to hold.
  */
 
-export { REQUEST_LINK_THROTTLE_MS } from './endpoints/requestSessionLink'
+export { REQUEST_LINK_THROTTLE_MS } from './endpoints/requestMagicLink'
 
 export { loginPlugin, magicLinkIssuedAt, type LoginPluginOptions } from './loginPlugin'
 

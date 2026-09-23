@@ -81,7 +81,7 @@ export function redeemMagicLink(config: LoginCollectionConfig): Endpoint {
           collection: slug,
           id: claims.userId,
           depth: 0,
-          // See the same cast in `requestSessionLink`: `joins` collapses over the slug union.
+          // See the same cast in `requestMagicLink`: `joins` collapses over the slug union.
           joins: false as never,
           overrideAccess: true,
           select: { magicLinkIssuedAt: true, ...config.select },
@@ -96,7 +96,7 @@ export function redeemMagicLink(config: LoginCollectionConfig): Endpoint {
       if (config.isEligible && !config.isEligible(account)) return invalid()
 
       // Single use, and mutual exclusion between outstanding links, both come
-      // from this one equality: `requestSessionLink` stamps the field with the same
+      // from this one equality: `requestMagicLink` stamps the field with the same
       // instant it signs into the claim, so a consumed or superseded link no
       // longer matches. Compared as numbers — see `LoginTokenClaims.issuedAt`.
       const stamped = account.magicLinkIssuedAt

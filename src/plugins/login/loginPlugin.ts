@@ -2,12 +2,12 @@ import type { LoginCollectionConfig } from './types'
 import type { Field, Plugin } from 'payload'
 
 import { redeemMagicLink } from './endpoints/redeemMagicLink'
-import { requestSessionLink } from './endpoints/requestSessionLink'
+import { requestMagicLink } from './endpoints/requestMagicLink'
 
 /**
  * When the outstanding sign-in link was minted.
  *
- * Three jobs in one timestamp: it is `requestSessionLink`'s throttle window, it
+ * Three jobs in one timestamp: it is `requestMagicLink`'s throttle window, it
  * is the claim `redeemMagicLink` matches exactly (so a link works once), and
  * clearing it is what a fresh request does to the outstanding link.
  *
@@ -91,7 +91,7 @@ export function loginPlugin(options: LoginPluginOptions = {}): Plugin {
       return {
         ...collection,
         fields: [...collection.fields, magicLinkIssuedAt],
-        endpoints: [...(collection.endpoints || []), requestSessionLink(entry), redeemMagicLink(entry)],
+        endpoints: [...(collection.endpoints || []), requestMagicLink(entry), redeemMagicLink(entry)],
       }
     }),
   })
