@@ -234,7 +234,15 @@ const body: CSSProperties = {
 }
 const emblem: CSSProperties = { fontSize: 44, lineHeight: 1, marginBottom: 12 }
 const cardTitle: CSSProperties = { margin: '0 0 12px', fontSize: 20 }
-const cardMessage: CSSProperties = { margin: 0, color: '#555', lineHeight: 1.6, fontSize: 15 }
+// `pre-line` is load-bearing: the invalid-data outcome joins one line per
+// failing field, and HTML would otherwise collapse them into one paragraph.
+const cardMessage: CSSProperties = {
+  margin: 0,
+  color: '#555',
+  lineHeight: 1.6,
+  fontSize: 15,
+  whiteSpace: 'pre-line',
+}
 const actionRow: CSSProperties = { marginTop: 24 }
 
 const buttonBase: CSSProperties = {
