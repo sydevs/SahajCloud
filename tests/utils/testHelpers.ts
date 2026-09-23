@@ -15,6 +15,7 @@ import { buildConfig } from 'payload'
 
 // Project imports
 
+import { managersLogin } from '@/collections/Managers/login'
 import { REGION_NESTED_DOCS_CONFIG } from '@/lib/atlas/regionTree'
 import { buildPayloadLocales, DEFAULT_LOCALE } from '@/lib/locales'
 import { accessPlugin, bypassPermissions } from '@/plugins/access'
@@ -154,8 +155,8 @@ function createBaseTestConfig(emailConfig: any, schemaName: string, debug = fals
       // real payload.config.ts so collection hooks relying on them are tested).
       nestedDocsPlugin(REGION_NESTED_DOCS_CONFIG),
       // Passwordless sign-in: the magic-link field plus its two endpoints
-      // (mirrors the real payload.config.ts — the options live in the plugin).
-      loginPlugin(),
+      // (mirrors the real payload.config.ts, including which collections it serves).
+      loginPlugin({ collections: [managersLogin] }),
       // Access Plugin must be LAST to process plugin-created collections
       accessPlugin({ enabled: true, bypassPermissions }),
     ],
