@@ -17,13 +17,7 @@ import { describe, expect, it } from 'vitest'
 
 import { loginPlugin, type LoginCollectionConfig } from '@/plugins/login'
 
-const mail: LoginCollectionConfig['mail'] = () => ({
-  from: 'test@example.com',
-  html: '<p>link</p>',
-  subject: 'Your sign-in link',
-})
-
-const managers: LoginCollectionConfig = { slug: 'managers', mail }
+const managers: LoginCollectionConfig = { slug: 'managers' }
 
 const setProject: Endpoint = { path: '/set-project', method: 'post', handler: () => new Response() }
 
@@ -72,7 +66,7 @@ describe('loginPlugin', () => {
 
   it('wires every collection the option names', () => {
     const [a, b] = fold(
-      loginPlugin({ collections: [managers, { slug: 'staff' as never, mail }] }),
+      loginPlugin({ collections: [managers, { slug: 'staff' as never }] }),
       collection('managers'),
       collection('staff'),
     )
@@ -87,7 +81,7 @@ describe('loginPlugin', () => {
     // collection on purpose: an empty config never reaches the lookup, so the
     // same assertion over `fold(plugin)` alone would pass without testing it.
     const folded = fold(
-      loginPlugin({ collections: [managers, { slug: 'nope' as never, mail }] }),
+      loginPlugin({ collections: [managers, { slug: 'nope' as never }] }),
       collection('managers'),
     )
 

@@ -1,4 +1,4 @@
-import type { LoginCollectionConfig, LoginDocument } from '../types'
+import type { LoginCollectionConfig, LoginDocument, LoginMailArgs } from '../types'
 import type { Endpoint, PayloadRequest } from 'payload'
 
 import { z } from 'zod'
@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { parseBody } from '@/lib/endpoints'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 
+import { emailFrom, generateEmailHTML, generateEmailSubject } from '../mail'
 import { signSigninToken, SIGNIN_TOKEN_TTL_MS } from '../token'
 import { CONSUME_LINK_PATH } from './consumeSessionLink'
 
@@ -135,21 +136,21 @@ async function issueLink(
     now,
   )
 
-  const mail = await config.mail({
+  const args: LoginMailArgs = {
     doc: account,
     signInUrl: `${getServerUrl()}/api/${slug}${CONSUME_LINK_PATH}?token=${encodeURIComponent(token)}`,
     // Derived, so changing the TTL cannot leave the email saying otherwise.
     validFor: `${SIGNIN_TOKEN_TTL_MS / 60_000} minutes`,
-  })
+  }
 
   await payload.sendEmail({
     to: account.email,
-    from: mail.from,
-    subject: mail.subject,
+    from: emailFrom(),
+    subject: (config.generateEmailSubject ?? generateEmailSubject)(args),
     // Inline, not queued, matching the verify and reset mail `Managers.auth`
     // already builds with `renderEmail`. The throttle above bounds the volume
     // this can generate, and a queued send would let the caller's request
     // return before delivery could fail.
-    html: mail.html,
+    html: await (config.generateEmailHTML ?? generateEmailHTML)(args),
   })
 }

@@ -8,6 +8,10 @@ import type { CollectionSlug } from 'payload'
  * type would make every second collection a cast. `isEligible` reads its own
  * fields off the index signature, which is why {@link LoginCollectionConfig}
  * carries `select` beside it.
+ *
+ * Distinct from `session.ts`'s `SessionDocument`, which narrows a different
+ * read: this is what the endpoints select, that is what `createSession` needs
+ * off its own `findByID`. Neither is a subset of the other.
  */
 export interface LoginDocument {
   [field: string]: unknown
@@ -17,7 +21,7 @@ export interface LoginDocument {
   name?: null | string
 }
 
-/** What {@link LoginCollectionConfig.mail} is handed. */
+/** What the two mail generators are handed. */
 export interface LoginMailArgs {
   doc: LoginDocument
   /** The absolute URL that spends the link. */
@@ -26,30 +30,23 @@ export interface LoginMailArgs {
   validFor: string
 }
 
-/** What {@link LoginCollectionConfig.mail} returns, passed to `payload.sendEmail`. */
-export interface LoginMail {
-  from: string
-  html: string
-  subject: string
-}
-
 /**
  * One auth collection the login plugin serves.
  *
- * ⚠ **`mail` is required, and that is the point of this type.** A sign-in link
- * cannot be sent generically: the envelope sender, the subject and the template
- * are the collection's own branding, and a plugin-supplied default would mail
- * every future collection as if it were `managers`. Supplying it is what makes
- * a second slug honest rather than a knob the endpoints cannot honour.
+ * ⚠ **The slug is the only required member.** The plugin renders and sends the
+ * mail itself (`mail.ts`), so a collection supplies only what is genuinely its
+ * own — which of its documents may sign in.
  */
 export interface LoginCollectionConfig {
-  /**
-   * Build the sign-in mail. The endpoint sends whatever this returns and never
-   * inspects it.
-   */
-  mail: (args: LoginMailArgs) => LoginMail | Promise<LoginMail>
   /** The auth collection. It must be able to hold a session — see `createSession`. */
   slug: CollectionSlug
+  /**
+   * Override the sign-in mail body. Mirrors `auth.verify.generateEmailHTML`,
+   * which is how this project builds its other auth mail.
+   */
+  generateEmailHTML?: (args: LoginMailArgs) => Promise<string> | string
+  /** Override the subject. @see generateEmailHTML */
+  generateEmailSubject?: (args: LoginMailArgs) => string
   /**
    * Refuse a link for a document this rejects — a deactivated account, say.
    * Runs on both endpoints, so a document that stops qualifying cannot spend a
