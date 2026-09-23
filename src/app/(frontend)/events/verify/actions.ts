@@ -7,9 +7,9 @@ import { getPayload } from 'payload'
 import { verifyEventFromToken } from '@/collections/Events/lifecycle/verify'
 import { CONTACT_EMAIL } from '@/lib/contact'
 import { serverEnv } from '@/lib/env'
-import { describeValidationErrors, validationFieldErrors } from '@/lib/events/validationFailure'
 import { readVerifyToken } from '@/lib/eventVerification/token'
 import { adminDocUrl } from '@/lib/utilities/adminUrl'
+import { describeValidationErrors, validationFieldErrors } from '@/lib/utilities/validationFailure'
 
 import config from '@payload-config'
 

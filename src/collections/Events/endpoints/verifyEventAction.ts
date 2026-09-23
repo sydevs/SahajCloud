@@ -2,7 +2,7 @@ import type { Endpoint } from 'payload'
 
 import { APIError, Forbidden } from 'payload'
 
-import { validationFieldErrors } from '@/lib/events/validationFailure'
+import { validationFieldErrors } from '@/lib/utilities/validationFailure'
 
 import { actorFromUser, applyVerification } from '../lifecycle/verify'
 
