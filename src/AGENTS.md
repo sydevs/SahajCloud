@@ -30,8 +30,11 @@ One self-contained folder per plugin/adapter, with a public API via an
 other plugin here, which wires definitions kept beside their collection. They are
 factories, built once per collection the plugin's `collections` option names, so
 there is no one collection to park them beside. What stays with a collection is
-its `LoginCollectionConfig` — its eligibility predicate and its mail
-(`src/collections/Managers/login.ts`). The barrel deliberately stops short of the
+its `LoginCollectionConfig` — its eligibility predicate and the project its mail
+is branded for (`src/collections/Managers/login.ts`). The plugin renders and
+sends that mail itself, from `src/plugins/login/mail.ts`; a collection overrides
+either half through a `generateEmailHTML` / `generateEmailSubject` pair shaped
+like the one `Managers.auth.verify` takes. The barrel deliberately stops short of the
 factories: `loginPlugin` is their only caller.
 
 ### `src/jobs/<JobName>/`

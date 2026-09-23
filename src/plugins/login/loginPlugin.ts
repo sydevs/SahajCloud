@@ -46,16 +46,11 @@ export interface LoginPluginOptions {
  *
  * Both endpoint definitions live under `./endpoints/` and are built per
  * configured collection, so the plugin owns the whole feature rather than wiring
- * definitions kept beside one collection. What stays with a collection is its
- * own `LoginCollectionConfig` — the eligibility predicate and the mail — because
- * those are its branding and its schema, not this plugin's.
- * `src/collections/Managers/login.ts` is the one in use.
- *
- * ⚠ **`mail` is required per collection, and that is deliberate.** The routes
- * cannot mail generically: the sender, the subject and the template belong to
- * the collection. A plugin-supplied default would silently mail a second
- * collection as if it were `managers`, which is the footgun a bare slug list
- * would have shipped.
+ * definitions kept beside one collection. `./mail.ts` renders and addresses the
+ * message for every served collection, so a `LoginCollectionConfig` supplies
+ * only what reads a field this plugin cannot know the name of — the eligibility
+ * predicate and the branding project. `src/collections/Managers/login.ts` is the
+ * one in use.
  *
  * ⚠ Register it **before** `accessPlugin`, which must stay last. The reason is
  * `accessPlugin`'s own contract, **not** field survival: it re-maps
