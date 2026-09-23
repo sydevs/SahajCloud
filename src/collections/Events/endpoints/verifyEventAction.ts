@@ -9,7 +9,8 @@ import { actorFromUser, applyVerification } from '../lifecycle/verify'
 /**
  * POST /api/events/:id/verify
  *
- * The admin "Verify" button (in the verification notice banner). Requires an
+ * A manager-only API action. Nothing in this repo calls it: the verification
+ * notice banner tells a manager to republish instead (#842). Requires an
  * authenticated manager; the write runs with `overrideAccess: false` so the
  * access plugin enforces that this manager may update the event (its manager,
  * a region manager, or an admin). Runs the shared verify op (method
