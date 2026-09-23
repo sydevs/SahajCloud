@@ -9,7 +9,14 @@ import { randomUUID } from 'node:crypto'
 
 import { getFieldsToSign, jwtSign } from 'payload'
 
-/** The auth fields this helper needs, narrowed out of `findByID`'s union. */
+/**
+ * The auth fields this helper needs, narrowed out of `findByID`'s union.
+ *
+ * Not `types.ts`'s `LoginDocument`, and not overlapping systems: that one is
+ * what the endpoints `select`, this is what `getFieldsToSign` needs off the
+ * separate read below. `sessions` is deliberately absent from the endpoints'
+ * select, and `magicLinkIssuedAt` is meaningless here.
+ */
 interface SessionDocument {
   email?: null | string
   sessions?: { createdAt: string; expiresAt: string; id?: null | string }[] | null
