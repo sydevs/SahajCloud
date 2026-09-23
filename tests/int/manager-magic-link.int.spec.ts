@@ -327,6 +327,26 @@ describe('manager magic-link sign-in', () => {
       expect(response.headers.get('Set-Cookie')).toBeNull()
     })
 
+    it('signs in a manager who was never verified, and verifies them', async () => {
+      // `Managers.auth.verify` is configured, so the JWT strategy yields no user
+      // while `_verified` is false — the link would be spent on a cookie that
+      // authenticates nobody, and the throttle would refuse the obvious retry.
+      const manager = await testData.createManager(payload, { type: 'manager' })
+      const before = await payload.findByID({ collection: 'managers', id: manager.id })
+      expect(before._verified, 'the fixture is already verified — this proves nothing').toBeFalsy()
+
+      const response = await consume(await linkTokenFor(manager.email))
+      expect(response.status).toBe(302)
+
+      const cookie = response.headers.get('Set-Cookie')
+      const asManager = createRestClientWithAuth(env, { Cookie: cookie!.split(';')[0] })
+      const me = await asManager('/api/managers/me')
+      expect((me.body.user as { id: number | string } | null)?.id).toBe(manager.id)
+
+      const after = await payload.findByID({ collection: 'managers', id: manager.id })
+      expect(after._verified).toBe(true)
+    })
+
     it('refuses a request carrying no token at all', async () => {
       expect((await anon(CONSUME_PATH)).status).toBe(400)
     })

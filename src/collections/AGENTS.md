@@ -633,8 +633,13 @@ Passwordless sign-in for `Managers` (#837). It appends one hidden
 and `GET /api/managers/consume-link` — to whatever `Managers.ts` already
 declares. Passwords still work; this is a second way in.
 
-Three things worth knowing before you touch `Managers`:
+Four things worth knowing before you touch `Managers`:
 
+- ⚠ **Consuming a link sets `_verified`.** `Managers.auth.verify` is configured,
+  and the JWT strategy yields no user while that flag is false, so a session
+  minted for an unverified manager authenticates nobody. Following a link
+  delivered to the stored address is the same proof the verify mail asks for,
+  and an invited manager (#664) is unverified by definition.
 - ⚠ **`magicLinkIssuedAt` is written by those two endpoints and nothing else.**
   It is simultaneously the 60-second send throttle, the nonce the consume route
   matches exactly, and — cleared — what makes a link single-use. A hook that

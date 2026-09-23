@@ -89,10 +89,16 @@ export const consumeLink: Endpoint = {
     // ⚠ Deliberately its own operation, and deliberately not joined to `req`'s
     // transaction. Burning the link must survive a failure to mint below — a
     // shared transaction would roll the clear back and leave the link live.
+    //
+    // `_verified` rides along because `Managers.auth.verify` is configured, and
+    // the JWT strategy yields no user while the flag is false — the session
+    // minted below would then authenticate nobody, on a link already spent.
+    // Following a link delivered to the stored address is the same proof of
+    // ownership the verify mail asks for.
     await payload.update({
       collection: 'managers',
       id: manager.id,
-      data: { magicLinkIssuedAt: null },
+      data: { _verified: true, magicLinkIssuedAt: null },
       depth: 0,
       overrideAccess: true,
     })
