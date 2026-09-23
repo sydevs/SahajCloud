@@ -1,5 +1,7 @@
 import type { Endpoint } from 'payload'
 
+import { validationFieldErrors } from '@/lib/events/validationFailure'
+
 import { actorFromUser, applyVerification } from '../lifecycle/verify'
 
 /**
@@ -10,6 +12,9 @@ import { actorFromUser, applyVerification } from '../lifecycle/verify'
  * access plugin enforces that this manager may update the event (its manager,
  * a region manager, or an admin). Runs the shared verify op (method
  * `verify-action`).
+ *
+ * Answers 422 with the field errors when the event's stored data fails
+ * validation, and keeps 403 for an access failure — two different failures.
  */
 export const verifyEventAction: Endpoint = {
   path: '/:id/verify',
@@ -43,6 +48,17 @@ export const verifyEventAction: Endpoint = {
         userId: req.user.id,
         error: error instanceof Error ? error.message : String(error),
       })
+      // Invalid stored data is not a permission problem, and answering 403 sent
+      // a manager who may edit the event to ask for access they already have
+      // (#842). The write keeps validating on purpose: the data is fixed first,
+      // then the event is verified.
+      const fieldErrors = validationFieldErrors(error)
+      if (fieldErrors) {
+        return Response.json(
+          { errors: fieldErrors.map(({ path, message }) => ({ path, message })) },
+          { status: 422 },
+        )
+      }
       return Response.json(
         { errors: [{ message: 'You are not allowed to verify this event.' }] },
         { status: 403 },
