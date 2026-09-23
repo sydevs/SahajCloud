@@ -93,6 +93,42 @@ describe('manager magic-link sign-in', () => {
       expect(paths).toContain('/consume-link')
     })
 
+    it('refuses a sign-in link token presented as a session cookie', async () => {
+      // Both token families are signed with `payload.secret`, and
+      // `JWTAuthentication` pins neither an algorithm nor an audience — it
+      // accepts any HS256 token under that key. Two independent things refuse
+      // this one: the claim shape (`userId`, not `id`) and the missing `sid`
+      // that `useSessions` requires. Measured — adding an `id` claim alone
+      // does not flip this, the session check still holds. So this pins the
+      // property, not either mechanism. It is not vacuous: the cookie case
+      // above reaches `user.id` through this same client and read path.
+      const manager = await activeManager()
+      const token = await linkTokenFor(manager.email)
+
+      const asToken = createRestClientWithAuth(env, { Authorization: `JWT ${token}` })
+      const me = await asToken('/api/managers/me')
+      expect(me.body.user ?? null).toBeNull()
+    })
+
+    it('refuses a manager update that writes magicLinkIssuedAt by hand', async () => {
+      // Self-access grants update on one's own document, so the field's
+      // `update: () => false` is the only thing stopping a manager re-arming
+      // or burning their own link — or throttling themselves forever.
+      const manager = await activeManager()
+      await requestLinkFor(manager.email)
+      const before = await stampOf(manager.id)
+
+      await payload.update({
+        collection: 'managers',
+        id: manager.id,
+        data: { magicLinkIssuedAt: new Date(Date.now() + 86_400_000).toISOString() },
+        overrideAccess: false,
+        user: { ...manager, collection: 'managers' },
+      })
+
+      expect(await stampOf(manager.id)).toBe(before)
+    })
+
     it('refuses to mint a session for a collection carrying no sessions field', async () => {
       // `clients` sets `disableLocalStrategy`, so Payload adds neither
       // `sessions` nor `email` — a token minted for it would authenticate

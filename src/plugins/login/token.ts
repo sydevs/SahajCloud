@@ -13,6 +13,16 @@ import { signToken, verifyToken, type SignedTokenResult } from '@/lib/utilities/
  * `event-verify`, `submission-feedback` or `submission-unsubscribe`, or the
  * link types stop being distinguishable — `tests/unit/login-token.spec.ts`
  * pins the whole set.
+ *
+ * ⚠ **These tokens are signed with `payload.secret`, the same key that signs
+ * Payload's own session JWTs**, and `JWTAuthentication` pins neither an
+ * algorithm nor an audience — it accepts any HS256 token under that secret.
+ * A link token is refused as a session cookie only because it names the
+ * subject `userId` rather than `id`, and carries no `sid` for the session
+ * check `managers` inherits. Both are accidents of Payload's verifier, not
+ * guarantees this module makes, so neither claim may be renamed to `id` and
+ * no `sid` may be added here. `manager-magic-link.int.spec.ts` asserts the
+ * refusal rather than trusting it.
  */
 
 /** An emailed sign-in link. Short-lived: the holder asked for it seconds ago. */
