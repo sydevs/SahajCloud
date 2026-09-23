@@ -15,7 +15,7 @@ import type { Payload } from 'payload'
 import { createElement } from 'react'
 
 import { EventRegistrationEmail } from '@/emails/EventRegistrationEmail'
-import { eventAdminUrl } from '@/lib/events/adminUrl'
+import { adminDocUrl } from '@/lib/utilities/adminUrl'
 import { headerDisplayName, stripNewlines } from '@/lib/utilities/emailSafeText'
 import type { Event } from '@/payload-types'
 import { getEmailBrand, MANAGER_EMAIL_FROM, renderEmail } from '@/plugins/email'
@@ -66,7 +66,7 @@ export async function sendRegistrationNotification(args: {
         registrantEmail,
         startDate,
         answers,
-        eventAdminUrl: eventAdminUrl(event.id),
+        eventAdminUrl: adminDocUrl('events', event.id),
       }),
     ),
   })

@@ -7,9 +7,9 @@ import { getPayload } from 'payload'
 import { verifyEventFromToken } from '@/collections/Events/lifecycle/verify'
 import { CONTACT_EMAIL } from '@/lib/contact'
 import { serverEnv } from '@/lib/env'
-import { eventAdminUrl } from '@/lib/events/adminUrl'
 import { describeValidationErrors, validationFieldErrors } from '@/lib/events/validationFailure'
 import { readVerifyToken } from '@/lib/eventVerification/token'
+import { adminDocUrl } from '@/lib/utilities/adminUrl'
 
 import config from '@payload-config'
 
@@ -86,7 +86,7 @@ export async function verifyEventAction(
           ...describeValidationErrors(fieldErrors),
         ].join('\n'),
         actions: [
-          { label: 'Edit this event', href: eventAdminUrl(eventId), variant: 'primary' },
+          { label: 'Edit this event', href: adminDocUrl('events', eventId), variant: 'primary' },
           ...backSecondary,
         ],
       }

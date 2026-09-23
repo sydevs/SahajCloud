@@ -5,12 +5,12 @@ import * as Sentry from '@sentry/nextjs'
 import { readSubmissionValue } from '@/collections/UserSubmissions/submissionData'
 import type { DigestEventGroup, DigestPeriod } from '@/emails/RegistrationDigestEmail'
 import { answersFrom } from '@/jobs/DeliverSubmissions/deliverRegistration'
-import { eventAdminUrl } from '@/lib/events/adminUrl'
 import type { RegistrationRecipient } from '@/lib/notifications'
 import { formatShortDate, resolveRegistrationRecipient } from '@/lib/notifications'
 import { activeRegistrationWhere } from '@/lib/registrations/active'
 import type { RegistrationAnswer } from '@/lib/registrations/questions'
 import { buildRegistrationAnswers } from '@/lib/registrations/questions'
+import { adminDocUrl } from '@/lib/utilities/adminUrl'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Event, Manager } from '@/payload-types'
 
@@ -204,7 +204,7 @@ async function digestForManager(args: {
     if (!eventRows || eventRows.length === 0) continue
     groups.push({
       eventTitle: typeof event.title === 'string' ? event.title : `Event #${event.id}`,
-      eventAdminUrl: eventAdminUrl(event.id),
+      eventAdminUrl: adminDocUrl('events', event.id),
       registrations: eventRows.map((row) => ({
         registrantName: row.name?.trim() || row.email || 'A registrant',
         registrantEmail: row.email,
