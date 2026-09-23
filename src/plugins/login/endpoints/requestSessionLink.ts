@@ -8,7 +8,7 @@ import { getServerUrl } from '@/lib/utilities/serverUrl'
 
 import { REQUEST_LINK_THROTTLE_MS } from '../fields'
 import { signSigninToken, SIGNIN_TOKEN_TTL_MS } from '../token'
-import { CONSUME_LINK_PATH } from './consumeLink'
+import { CONSUME_LINK_PATH } from './consumeSessionLink'
 
 export const REQUEST_LINK_PATH = '/request-link'
 
@@ -43,7 +43,7 @@ const ACCEPTED = { ok: true } as const
  * body rather than in elapsed time; closing the timing channel would mean paying
  * for a send that is not happening.
  */
-export function requestLink(config: LoginCollectionConfig): Endpoint {
+export function requestSessionLink(config: LoginCollectionConfig): Endpoint {
   return {
     path: REQUEST_LINK_PATH,
     method: 'post',
@@ -57,7 +57,7 @@ export function requestLink(config: LoginCollectionConfig): Endpoint {
         // Never surfaced: a transport failure that reached the caller would be an
         // oracle too, since only a real address gets as far as a send.
         req.payload.logger.error({
-          msg: 'requestLink: could not issue a sign-in link',
+          msg: 'requestSessionLink: could not issue a sign-in link',
           collection: config.slug,
           error: error instanceof Error ? error.message : String(error),
         })

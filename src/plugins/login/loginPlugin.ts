@@ -1,8 +1,8 @@
 import type { LoginCollectionConfig } from './types'
 import type { Plugin } from 'payload'
 
-import { consumeLink } from './endpoints/consumeLink'
-import { requestLink } from './endpoints/requestLink'
+import { consumeSessionLink } from './endpoints/consumeSessionLink'
+import { requestSessionLink } from './endpoints/requestSessionLink'
 import { magicLinkIssuedAt } from './fields'
 
 export interface LoginPluginOptions {
@@ -73,7 +73,7 @@ export function loginPlugin(options: LoginPluginOptions = {}): Plugin {
       return {
         ...collection,
         fields: [...collection.fields, magicLinkIssuedAt],
-        endpoints: [...(collection.endpoints || []), requestLink(entry), consumeLink(entry)],
+        endpoints: [...(collection.endpoints || []), requestSessionLink(entry), consumeSessionLink(entry)],
       }
     }),
   })
