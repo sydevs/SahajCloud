@@ -98,9 +98,9 @@ A collection whose endpoints are wired by a plugin keeps its **definitions** her
 
 Three things that wiring must get right, each of which deletes behaviour silently when it does not:
 
-- **Append, never replace.** `Managers.ts` already declares `endpoints: [setProject]`, so `endpoints: [...(collection.endpoints || []), mine]` — the empty-array fallback matters, because a plugin runs **before `sanitizeConfig`** and `endpoints` may still be `undefined`. For the same reason `collection.auth` may still be the boolean `true`, so guard before reading it.
-- **The endpoint takes its slug as an argument** when the plugin's options name the collection. Exporting `myEndpoint: Endpoint` hard-codes one slug into a file the plugin claims is collection-agnostic.
-- **The barrel stops short of the endpoints.** The plugin imports them from the collection, so re-exporting them from the plugin's `index.ts` closes a cycle. `src/plugins/login/index.ts` states this.
+- **Append, never replace.** `Managers.ts` already declares `endpoints: [setProject]`, so `endpoints: [...(collection.endpoints || []), mine]` — the empty-array fallback matters, because a plugin runs **before `sanitizeConfig`** and `endpoints` may still be `undefined`. For the same reason `collection.auth` may still be the boolean `true` wherever a plugin reads it.
+- **Key on the literal slug, and say so.** Both plugins hard-code their target (`user-submissions`, `managers`) rather than taking it as an option, and both state that coupling in a comment. A slug parameter promises a collection-agnostic endpoint, and a handler branching on a collection-specific enum, sender or token audience cannot keep that promise. Generalise the one piece that really is shared — `createSession` takes a slug — not the routes around it.
+- **The barrel stops short of the endpoints.** The plugin imports them from the collection, so re-exporting them from the plugin's `index.ts` closes a cycle. `src/plugins/login/index.ts` points here.
 
 ## Key points
 

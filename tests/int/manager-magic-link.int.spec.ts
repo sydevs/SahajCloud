@@ -13,13 +13,19 @@
  */
 import type { Payload } from 'payload'
 
-import { handleEndpoints } from 'payload'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { escapeRegExp } from '@/lib/eventQuality/heuristics'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
-import { createSession, REQUEST_LINK_THROTTLE_MS, signInviteToken } from '@/plugins/login'
+import {
+  createSession,
+  REQUEST_LINK_THROTTLE_MS,
+  signInviteToken,
+  signSigninToken,
+} from '@/plugins/login'
 
 import { EmailTestAdapter } from '../utils/emailTestAdapter'
+import { createAnonRestClient, createRestClientWithAuth, type RestClient } from '../utils/restRequest'
 import { testData } from '../utils/testData'
 import { createTestEnvironmentWithEmail } from '../utils/testHelpers'
 
@@ -28,31 +34,20 @@ const CONSUME_PATH = '/api/managers/consume-link'
 
 /** The sign-in link as the recipient receives it, token captured. */
 const SIGN_IN_URL = new RegExp(
-  `${getServerUrl().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/api/managers/consume-link\\?token=([\\w.-]+)`,
+  `${escapeRegExp(`${getServerUrl()}/api/managers/consume-link?token=`)}([\\w.%-]+)`,
 )
 
 describe('manager magic-link sign-in', () => {
   let payload: Payload
-  let config: Awaited<ReturnType<typeof createTestEnvironmentWithEmail>>['config']
+  let env: Awaited<ReturnType<typeof createTestEnvironmentWithEmail>>
   let emailAdapter: EmailTestAdapter
+  let anon: RestClient
   let cleanup: () => Promise<void>
-
-  /** An unauthenticated REST caller — no Authorization header, by design. */
-  const anon = async (path: string, init?: { method?: string; json?: unknown }) => {
-    const response = await handleEndpoints({
-      config,
-      request: new Request(`http://localhost:3000${path}`, {
-        method: init?.method ?? 'GET',
-        headers: init?.json === undefined ? {} : { 'Content-Type': 'application/json' },
-        ...(init?.json === undefined ? {} : { body: JSON.stringify(init.json) }),
-        redirect: 'manual',
-      }),
-    })
-    return { status: response.status, headers: response.headers, raw: await response.text() }
-  }
 
   const requestLinkFor = (email: string) =>
     anon(REQUEST_PATH, { method: 'POST', json: { email } })
+
+  const consume = (token: string) => anon(`${CONSUME_PATH}?token=${encodeURIComponent(token)}`)
 
   /** Ask for a link and hand back the token from the email that arrives. */
   const linkTokenFor = async (email: string): Promise<string> => {
@@ -65,30 +60,18 @@ describe('manager magic-link sign-in', () => {
     return decodeURIComponent(match![1])
   }
 
-  /** Move the outstanding stamp out of the throttle window without waiting. */
-  const ageTheStamp = async (id: number | string) => {
-    const manager = await payload.findByID({ collection: 'managers', id, depth: 0 })
-    if (!manager.magicLinkIssuedAt) return
-    await payload.update({
-      collection: 'managers',
-      id,
-      data: {
-        magicLinkIssuedAt: new Date(
-          new Date(manager.magicLinkIssuedAt).getTime() - REQUEST_LINK_THROTTLE_MS - 1000,
-        ).toISOString(),
-      },
-    })
-  }
-
   const activeManager = (overrides: Record<string, unknown> = {}) =>
     testData.createManager(payload, { type: 'manager', _verified: true, ...overrides })
 
+  const stampOf = async (id: number | string) =>
+    (await payload.findByID({ collection: 'managers', id, depth: 0 })).magicLinkIssuedAt
+
   beforeAll(async () => {
-    const env = await createTestEnvironmentWithEmail()
+    env = await createTestEnvironmentWithEmail()
     payload = env.payload
-    config = env.config
     emailAdapter = env.emailAdapter
     cleanup = env.cleanup
+    anon = createAnonRestClient(env)
   })
 
   afterAll(async () => {
@@ -97,7 +80,7 @@ describe('manager magic-link sign-in', () => {
 
   describe('the plugin wiring', () => {
     it('injects the field and appends both endpoints, leaving setProject registered', async () => {
-      const managers = (await config).collections!.find((c) => c.slug === 'managers')!
+      const managers = (await env.config).collections!.find((c) => c.slug === 'managers')!
 
       expect(managers.fields.some((f) => 'name' in f && f.name === 'magicLinkIssuedAt')).toBe(true)
 
@@ -145,9 +128,7 @@ describe('manager magic-link sign-in', () => {
       const sent = emailAdapter.findEmailByTo(manager.email)
       expect(sent).toBeDefined()
       expect(sent!.subject).toContain('sign-in link')
-
-      const after = await payload.findByID({ collection: 'managers', id: manager.id, depth: 0 })
-      expect(after.magicLinkIssuedAt).toBeTruthy()
+      expect(await stampOf(manager.id)).toBeTruthy()
     })
 
     it('sends nothing to an inactive manager, and stamps nothing', async () => {
@@ -157,21 +138,19 @@ describe('manager magic-link sign-in', () => {
       await requestLinkFor(inactive.email)
 
       expect(emailAdapter.findEmailByTo(inactive.email)).toBeUndefined()
-      const after = await payload.findByID({ collection: 'managers', id: inactive.id, depth: 0 })
-      expect(after.magicLinkIssuedAt ?? null).toBeNull()
+      expect((await stampOf(inactive.id)) ?? null).toBeNull()
     })
 
     it('refuses a second send inside the throttle window, leaving the first link outstanding', async () => {
       const manager = await activeManager()
       await requestLinkFor(manager.email)
-      const first = await payload.findByID({ collection: 'managers', id: manager.id, depth: 0 })
+      const first = await stampOf(manager.id)
 
       emailAdapter.clearCapturedEmails()
       await requestLinkFor(manager.email)
 
       expect(emailAdapter.findEmailByTo(manager.email)).toBeUndefined()
-      const second = await payload.findByID({ collection: 'managers', id: manager.id, depth: 0 })
-      expect(second.magicLinkIssuedAt).toBe(first.magicLinkIssuedAt)
+      expect(await stampOf(manager.id)).toBe(first)
     })
 
     it('rejects a body that is not an email address', async () => {
@@ -183,9 +162,7 @@ describe('manager magic-link sign-in', () => {
   describe('consuming a link', () => {
     it('sets a session cookie, redirects to /admin, and the cookie authenticates', async () => {
       const manager = await activeManager()
-      const token = await linkTokenFor(manager.email)
-
-      const response = await anon(`${CONSUME_PATH}?token=${encodeURIComponent(token)}`)
+      const response = await consume(await linkTokenFor(manager.email))
 
       expect(response.status).toBe(302)
       expect(response.headers.get('Location')).toBe(`${getServerUrl()}/admin`)
@@ -195,53 +172,39 @@ describe('manager magic-link sign-in', () => {
       expect(cookie).toContain('HttpOnly')
 
       // The cookie is the whole point, so it is spent rather than inspected.
-      const me = await handleEndpoints({
-        config,
-        request: new Request('http://localhost:3000/api/managers/me', {
-          headers: { Cookie: cookie!.split(';')[0] },
-        }),
-      })
-      const body = (await me.json()) as { user?: { id: number | string; roles?: unknown } }
-      expect(body.user?.id).toBe(manager.id)
+      const asManager = createRestClientWithAuth(env, { Cookie: cookie!.split(';')[0] })
+      const me = await asManager('/api/managers/me')
+      expect((me.body.user as { id: number | string }).id).toBe(manager.id)
     })
 
     it('resolves per-locale roles after a magic-link sign-in', async () => {
       // The reason this route redirects instead of returning a user: the
       // localized-roles hooks reshape an auth RESPONSE, and `afterMe` is what
       // resolves the record. A hand-built body here would carry flat roles.
-      const manager = await testData.createManager(payload, {
-        type: 'manager',
-        _verified: true,
+      const manager = await activeManager({
         roles: { en: ['meditations-editor'], cs: ['web-translator'] },
       })
-      const token = await linkTokenFor(manager.email)
-      const response = await anon(`${CONSUME_PATH}?token=${encodeURIComponent(token)}`)
-      const cookie = response.headers.get('Set-Cookie')!.split(';')[0]
+      const response = await consume(await linkTokenFor(manager.email))
+      const asManager = createRestClientWithAuth(env, {
+        Cookie: response.headers.get('Set-Cookie')!.split(';')[0],
+      })
 
-      const read = async (locale: string) => {
-        const res = await handleEndpoints({
-          config,
-          request: new Request(`http://localhost:3000/api/managers/me?locale=${locale}`, {
-            headers: { Cookie: cookie },
-          }),
-        })
-        return (await res.json()) as { user?: { roles?: Record<string, string[]> } }
+      const rolesAt = async (locale: string) => {
+        const me = await asManager(`/api/managers/me?locale=${locale}`)
+        return (me.body.user as { roles?: Record<string, string[]> }).roles
       }
 
-      const en = await read('en')
-      const cs = await read('cs')
-      expect(en.user?.roles?.en).toEqual(['meditations-editor'])
-      expect(cs.user?.roles?.cs).toEqual(['web-translator'])
+      expect((await rolesAt('en'))?.en).toEqual(['meditations-editor'])
+      expect((await rolesAt('cs'))?.cs).toEqual(['web-translator'])
     })
 
     it('refuses the same link a second time', async () => {
       const manager = await activeManager()
       const token = await linkTokenFor(manager.email)
 
-      const first = await anon(`${CONSUME_PATH}?token=${encodeURIComponent(token)}`)
-      expect(first.status).toBe(302)
+      expect((await consume(token)).status).toBe(302)
 
-      const second = await anon(`${CONSUME_PATH}?token=${encodeURIComponent(token)}`)
+      const second = await consume(token)
       expect(second.status).toBe(400)
       expect(second.headers.get('Set-Cookie')).toBeNull()
     })
@@ -250,12 +213,23 @@ describe('manager magic-link sign-in', () => {
       const manager = await activeManager()
       const stale = await linkTokenFor(manager.email)
 
-      await ageTheStamp(manager.id)
+      // Move the stamp out of the throttle window, so a second send happens
+      // without a 60-second wait.
+      await payload.update({
+        collection: 'managers',
+        id: manager.id,
+        data: {
+          magicLinkIssuedAt: new Date(
+            new Date((await stampOf(manager.id))!).getTime() - REQUEST_LINK_THROTTLE_MS - 1000,
+          ).toISOString(),
+        },
+      })
+
       const fresh = await linkTokenFor(manager.email)
       expect(fresh).not.toBe(stale)
 
-      expect((await anon(`${CONSUME_PATH}?token=${encodeURIComponent(stale)}`)).status).toBe(400)
-      expect((await anon(`${CONSUME_PATH}?token=${encodeURIComponent(fresh)}`)).status).toBe(302)
+      expect((await consume(stale)).status).toBe(400)
+      expect((await consume(fresh)).status).toBe(302)
     })
 
     it('tells an expired link from a tampered one', async () => {
@@ -263,46 +237,41 @@ describe('manager magic-link sign-in', () => {
       const token = await linkTokenFor(manager.email)
       const [header, body, signature] = token.split('.')
 
-      const tampered = await anon(
-        `${CONSUME_PATH}?token=${encodeURIComponent(`${header}.${body}.${signature.slice(0, -2)}xx`)}`,
-      )
+      const tampered = await consume(`${header}.${body}.${signature.slice(0, -2)}xx`)
       expect(tampered.status).toBe(400)
 
-      // An authentic token whose clock ran out. Minted 16 minutes in the past,
-      // which is outside the 15-minute lifetime.
+      // An authentic token whose clock ran out — minted 16 minutes in the past,
+      // outside the 15-minute lifetime, and matching the stored stamp so that
+      // the expiry is the only thing left to refuse it.
       const stamp = new Date(Date.now() - 16 * 60 * 1000)
       await payload.update({
         collection: 'managers',
         id: manager.id,
         data: { magicLinkIssuedAt: stamp.toISOString() },
       })
-      const aged = await import('@/plugins/login').then(({ signSigninToken }) =>
-        signSigninToken(
-          { collection: 'managers', issuedAt: stamp.getTime(), userId: manager.id },
-          payload.secret,
-          stamp,
-        ),
+      const aged = await signSigninToken(
+        { collection: 'managers', issuedAt: stamp.getTime(), userId: manager.id },
+        payload.secret,
+        stamp,
       )
-      const expired = await anon(`${CONSUME_PATH}?token=${encodeURIComponent(aged)}`)
-      expect(expired.status).toBe(410)
+      expect((await consume(aged)).status).toBe(410)
     })
 
     it('refuses an invitation token at the sign-in route', async () => {
       const manager = await activeManager()
       await requestLinkFor(manager.email)
-      const stored = await payload.findByID({ collection: 'managers', id: manager.id, depth: 0 })
 
       // Same claims, same instant, valid signature — only the audience differs.
       const invite = await signInviteToken(
         {
           collection: 'managers',
-          issuedAt: new Date(stored.magicLinkIssuedAt!).getTime(),
+          issuedAt: new Date((await stampOf(manager.id))!).getTime(),
           userId: manager.id,
         },
         payload.secret,
       )
 
-      const response = await anon(`${CONSUME_PATH}?token=${encodeURIComponent(invite)}`)
+      const response = await consume(invite)
       expect(response.status).toBe(400)
       expect(response.headers.get('Set-Cookie')).toBeNull()
     })
@@ -317,7 +286,7 @@ describe('manager magic-link sign-in', () => {
         data: { type: 'inactive' },
       })
 
-      const response = await anon(`${CONSUME_PATH}?token=${encodeURIComponent(token)}`)
+      const response = await consume(token)
       expect(response.status).toBe(400)
       expect(response.headers.get('Set-Cookie')).toBeNull()
     })

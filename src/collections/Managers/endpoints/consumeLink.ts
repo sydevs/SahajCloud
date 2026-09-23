@@ -1,115 +1,118 @@
-import type { CollectionSlug, Endpoint } from 'payload'
+import type { Endpoint } from 'payload'
 
 import { generatePayloadCookie } from 'payload/shared'
 
 import { getServerUrl } from '@/lib/utilities/serverUrl'
+import type { Manager } from '@/payload-types'
 import { createSession } from '@/plugins/login/session'
 import { readSigninToken } from '@/plugins/login/token'
 
 export const CONSUME_LINK_PATH = '/consume-link'
 
-const refused = (status: number, message: string) =>
-  Response.json({ errors: [{ message }] }, { status })
-
 /** An authentic link whose clock ran out. The one refusal worth distinguishing. */
-const EXPIRED = () =>
-  refused(410, 'This sign-in link has expired. Request a new one.')
+const expired = () =>
+  Response.json(
+    { errors: [{ message: 'This sign-in link has expired. Request a new one.' }] },
+    { status: 410 },
+  )
 
 /**
  * Everything else: tampered, wrong audience, already used, or minted for a
  * manager who has since been deactivated. Collapsed into one answer on purpose
  * — separating them would describe our checks to whoever is probing them.
  */
-const INVALID = () => refused(400, 'This sign-in link is not valid.')
+const invalid = () =>
+  Response.json({ errors: [{ message: 'This sign-in link is not valid.' }] }, { status: 400 })
 
-interface Candidate {
-  id: number | string
-  magicLinkIssuedAt?: null | string
-  type?: null | string
-}
+type Candidate = Pick<Manager, 'id' | 'magicLinkIssuedAt' | 'type'>
 
 /**
- * `GET /api/<collection>/consume-link?token=…`
+ * `GET /api/managers/consume-link?token=…`
  *
  * Trades a valid sign-in link for a session cookie and sends the holder to the
  * admin panel.
  *
  * Auth: **intentionally anonymous**, like its `request-link` sibling — the
  * token is the credential. Absent from the OpenAPI client spec for the same
- * reason: `managers` is admin-only and in no project.
+ * reason `set-project` is: `managers` is admin-only and in no project, so it
+ * publishes no public paths.
  *
  * ⚠ **It redirects rather than returning the user.** The localized-roles hooks
  * reshape an auth *response* (`afterLogin` / `afterMe` / `afterRefresh`), so a
  * hand-built body here would carry flat, single-locale `roles` that nothing
  * else in the app hands out. The redirect sidesteps that; `afterMe` resolves
- * roles on the next `GET /api/<collection>/me`.
+ * roles on the next `GET /api/managers/me`.
  *
  * ⚠ **`Response.redirect()` returns immutable headers**, so `Set-Cookie`
  * cannot be appended to one. The 302 below is built by hand for that reason.
  */
-export function consumeLink(collection: CollectionSlug): Endpoint {
-  return {
-    path: CONSUME_LINK_PATH,
-    method: 'get',
-    handler: async (req) => {
-      const { payload } = req
-      const token = typeof req.query?.token === 'string' ? req.query.token : null
+export const consumeLink: Endpoint = {
+  path: CONSUME_LINK_PATH,
+  method: 'get',
+  handler: async (req) => {
+    const { payload } = req
+    const token = typeof req.query?.token === 'string' ? req.query.token : null
 
-      const result = await readSigninToken(token, payload.secret)
-      if (result.status === 'expired') return EXPIRED()
-      if (result.status !== 'valid') return INVALID()
+    const result = await readSigninToken(token, payload.secret)
+    if (result.status === 'expired') return expired()
+    if (result.status !== 'valid') return invalid()
 
-      const { claims } = result
-      if (claims.collection !== collection) return INVALID()
+    const { claims } = result
+    // The claim names its own collection, so a token minted for a future auth
+    // collection cannot sign anyone into `managers`.
+    if (claims.collection !== 'managers') return invalid()
 
-      let manager: Candidate | null = null
-      try {
-        manager = (await payload.findByID({
-          collection,
-          id: claims.userId,
-          depth: 0,
-          joins: false as never,
-          overrideAccess: true,
-        })) as Candidate
-      } catch {
-        // A deleted manager. `findByID` throws `NotFound` rather than returning null.
-        return INVALID()
-      }
-
-      if (manager.type === 'inactive') return INVALID()
-
-      // Single use, and mutual exclusion between outstanding links, both come
-      // from this one equality: `requestLink` stamps the field with the same
-      // instant it signs into the claim, so a consumed or superseded link no
-      // longer matches. Compared as numbers — see `LoginTokenClaims.issuedAt`.
-      const stamped = manager.magicLinkIssuedAt
-      if (!stamped || new Date(stamped).getTime() !== claims.issuedAt) return INVALID()
-
-      await payload.update({
-        collection,
-        id: manager.id,
-        data: { magicLinkIssuedAt: null } as never,
+    let manager: Candidate
+    try {
+      manager = await payload.findByID({
+        collection: 'managers',
+        id: claims.userId,
         depth: 0,
+        joins: false,
         overrideAccess: true,
+        select: { magicLinkIssuedAt: true, type: true },
       })
+    } catch {
+      // A deleted manager. `findByID` throws `NotFound` rather than returning null.
+      return invalid()
+    }
 
-      const sessionToken = await createSession(payload, collection, manager.id)
+    if (manager.type === 'inactive') return invalid()
 
-      // `generatePayloadCookie` derives the expiry from the collection's own
-      // `tokenExpiration`, so it needs no `getCookieExpiration` call here.
-      const cookie = generatePayloadCookie({
-        collectionAuthConfig: payload.collections[collection]!.config.auth,
-        cookiePrefix: payload.config.cookiePrefix,
-        token: sessionToken,
-      })
+    // Single use, and mutual exclusion between outstanding links, both come
+    // from this one equality: `requestLink` stamps the field with the same
+    // instant it signs into the claim, so a consumed or superseded link no
+    // longer matches. Compared as numbers — see `LoginTokenClaims.issuedAt`.
+    const stamped = manager.magicLinkIssuedAt
+    if (!stamped || new Date(stamped).getTime() !== claims.issuedAt) return invalid()
 
-      return new Response(null, {
-        status: 302,
-        headers: {
-          Location: `${getServerUrl()}/admin`,
-          'Set-Cookie': cookie,
-        },
-      })
-    },
-  }
+    // ⚠ Deliberately its own operation, and deliberately not joined to `req`'s
+    // transaction. Burning the link must survive a failure to mint below — a
+    // shared transaction would roll the clear back and leave the link live.
+    await payload.update({
+      collection: 'managers',
+      id: manager.id,
+      data: { magicLinkIssuedAt: null },
+      depth: 0,
+      overrideAccess: true,
+    })
+
+    const sessionToken = await createSession(payload, 'managers', manager.id)
+
+    // `generatePayloadCookie` derives the expiry from the collection's own
+    // `tokenExpiration`, so it needs no `getCookieExpiration` call here.
+    const cookie = generatePayloadCookie({
+      collectionAuthConfig: payload.collections.managers.config.auth,
+      cookiePrefix: payload.config.cookiePrefix,
+      token: sessionToken,
+    })
+
+    return new Response(null, {
+      status: 302,
+      headers: {
+        Location: `${getServerUrl()}/admin`,
+        'Set-Cookie': cookie,
+      },
+    })
+  },
 }

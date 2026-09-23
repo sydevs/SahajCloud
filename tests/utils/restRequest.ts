@@ -35,7 +35,27 @@ export type RestClient = (
   status: number
   body: Record<string, unknown>
   raw: string
+  /** The response's own headers — a redirect's `Location` and `Set-Cookie`. */
+  headers: Headers
 }>
+
+/** Build the Request `handleEndpoints` takes, with whatever auth header applies. */
+function buildRequest(path: string, init: RestRequestInit | undefined, auth: HeadersInit) {
+  const headers: Record<string, string> = { ...(auth as Record<string, string>) }
+  if (init?.json !== undefined) headers['Content-Type'] = 'application/json'
+
+  // No `path` override: it is documented as *"Override path from the request"*
+  // and defaults to `new URL(req.url).pathname` (`handleEndpoints.js:106`),
+  // which already excludes the query string. The query travels on the Request,
+  // exactly as `REST_GET` passes it — which is the whole point for a spec whose
+  // credential is a query parameter.
+  return new Request(`http://localhost:3000${path}`, {
+    method: init?.method ?? 'GET',
+    headers,
+    ...(init?.json === undefined ? {} : { body: JSON.stringify(init.json) }),
+    redirect: 'manual',
+  })
+}
 
 /**
  * Return a caller that issues authenticated REST requests against `config` as
@@ -60,25 +80,36 @@ export async function createRestClientAs(
 
   const token = await createSession(env.payload, 'managers', manager.id)
 
-  return async (path, init) => {
-    const headers: Record<string, string> = { Authorization: `JWT ${token}` }
-    if (init?.json !== undefined) headers['Content-Type'] = 'application/json'
+  return createRestClientWithAuth(env, { Authorization: `JWT ${token}` })
+}
 
+/**
+ * A caller with no credential at all.
+ *
+ * ⚠ Anonymous is a *property under test* here, not an oversight — the opposite
+ * of `createRestClientAs`'s warning. An endpoint reachable without signing in
+ * (`request-link`, `consume-link`) must be exercised the way the internet
+ * reaches it, and authenticating would hide exactly what the spec is asking.
+ */
+export function createAnonRestClient(env: { payload: Payload; config: TestConfig }): RestClient {
+  return createRestClientWithAuth(env, {})
+}
+
+/** Also takes a cookie credential, which is what a magic-link redirect hands back. */
+export function createRestClientWithAuth(
+  env: { payload: Payload; config: TestConfig },
+  auth: HeadersInit,
+): RestClient {
+  return async (path, init) => {
     const response = await handleEndpoints({
       config: env.config,
-      // No `path` override: it is documented as *"Override path from the
-      // request"* and defaults to `new URL(req.url).pathname`
-      // (`handleEndpoints.js:106`), which already excludes the query string.
-      // The query travels on the Request, exactly as `REST_GET` passes it.
-      request: new Request(`http://localhost:3000${path}`, {
-        method: init?.method ?? 'GET',
-        headers,
-        ...(init?.json === undefined ? {} : { body: JSON.stringify(init.json) }),
-      }),
+      request: buildRequest(path, init, auth),
     })
 
     const raw = await response.text()
-    return { status: response.status, body: JSON.parse(raw) as Record<string, unknown>, raw }
+    // A 302 carries no body, and a spec reading `Location` still wants the rest.
+    const body = raw ? (JSON.parse(raw) as Record<string, unknown>) : {}
+    return { status: response.status, body, raw, headers: response.headers }
   }
 }
 

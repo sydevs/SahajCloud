@@ -1,14 +1,16 @@
-import type { CollectionSlug, Endpoint, PayloadRequest } from 'payload'
+import type { Endpoint, PayloadRequest } from 'payload'
 
 import { createElement } from 'react'
 import { z } from 'zod'
 
 import { SignInLinkEmail } from '@/emails/SignInLinkEmail'
 import { parseBody } from '@/lib/endpoints'
+import { headerDisplayName, stripNewlines } from '@/lib/utilities/emailSafeText'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
+import type { Manager } from '@/payload-types'
 import { getEmailBrand, MANAGER_EMAIL_FROM, renderEmail } from '@/plugins/email'
 import { REQUEST_LINK_THROTTLE_MS } from '@/plugins/login/fields'
-import { signSigninToken } from '@/plugins/login/token'
+import { signSigninToken, SIGNIN_TOKEN_TTL_MS } from '@/plugins/login/token'
 
 import { CONSUME_LINK_PATH } from './consumeLink'
 
@@ -21,16 +23,10 @@ const bodySchema = z.object({
 /** What every caller sees, whatever happened. See the handler's docblock. */
 const ACCEPTED = { ok: true } as const
 
-interface Candidate {
-  id: number | string
-  email: string
-  magicLinkIssuedAt?: null | string
-  name?: null | string
-  type?: null | string
-}
+type Candidate = Pick<Manager, 'email' | 'id' | 'magicLinkIssuedAt' | 'name' | 'type'>
 
 /**
- * `POST /api/<collection>/request-link`
+ * `POST /api/managers/request-link`
  *
  * Trades an email address for an emailed sign-in link.
  *
@@ -48,49 +44,45 @@ interface Candidate {
  * rather than in elapsed time; closing the timing channel would mean paying for
  * a send that is not happening.
  */
-export function requestLink(collection: CollectionSlug): Endpoint {
-  return {
-    path: REQUEST_LINK_PATH,
-    method: 'post',
-    handler: async (req) => {
-      const parsed = await parseBody(req, bodySchema)
-      if (!parsed.ok) return parsed.response
+export const requestLink: Endpoint = {
+  path: REQUEST_LINK_PATH,
+  method: 'post',
+  handler: async (req) => {
+    const parsed = await parseBody(req, bodySchema)
+    if (!parsed.ok) return parsed.response
 
-      try {
-        await issueLink(req, collection, parsed.data.email)
-      } catch (error) {
-        // Never surfaced: a transport failure that reached the caller would be
-        // an oracle too, since only a real address gets as far as a send.
-        req.payload.logger.error({
-          msg: 'requestLink: could not issue a sign-in link',
-          collection,
-          error: error instanceof Error ? error.message : String(error),
-        })
-      }
+    try {
+      await issueLink(req, parsed.data.email)
+    } catch (error) {
+      // Never surfaced: a transport failure that reached the caller would be an
+      // oracle too, since only a real address gets as far as a send.
+      req.payload.logger.error({
+        msg: 'requestLink: could not issue a sign-in link',
+        error: error instanceof Error ? error.message : String(error),
+      })
+    }
 
-      return Response.json(ACCEPTED)
-    },
-  }
+    return Response.json(ACCEPTED)
+  },
 }
 
 /** Mint, stamp and send, or do nothing. Never reports which. */
-async function issueLink(
-  req: PayloadRequest,
-  collection: CollectionSlug,
-  email: string,
-): Promise<void> {
+async function issueLink(req: PayloadRequest, email: string): Promise<void> {
   const { payload } = req
 
+  // Bounded: this is the one unauthenticated read in the feature, and the
+  // fields below are everything it consumes.
   const { docs } = await payload.find({
-    collection,
+    collection: 'managers',
     where: { email: { equals: email } },
     limit: 1,
     depth: 0,
-    joins: false as never,
+    joins: false,
     overrideAccess: true,
+    select: { email: true, magicLinkIssuedAt: true, name: true, type: true },
   })
 
-  const manager = docs[0] as Candidate | undefined
+  const manager: Candidate | undefined = docs[0]
   if (!manager) return
 
   // Read off the fetched document, not `req.user` — this endpoint is anonymous,
@@ -103,20 +95,20 @@ async function issueLink(
     return
   }
 
-  // Stamped before the send: the token's claim must match what is stored, and
-  // a stamp written afterwards would leave a window where a delivered link
+  // Stamped before the send: the token's claim must match what is stored, and a
+  // stamp written afterwards would leave a window where a delivered link
   // matches nothing. A failed send therefore costs the manager one throttle
   // window, which is the safer way round.
   await payload.update({
-    collection,
+    collection: 'managers',
     id: manager.id,
-    data: { magicLinkIssuedAt: now.toISOString() } as never,
+    data: { magicLinkIssuedAt: now.toISOString() },
     depth: 0,
     overrideAccess: true,
   })
 
   const token = await signSigninToken(
-    { collection, issuedAt: now.getTime(), userId: manager.id },
+    { collection: 'managers', issuedAt: now.getTime(), userId: manager.id },
     payload.secret,
     now,
   )
@@ -124,8 +116,8 @@ async function issueLink(
   const brand = getEmailBrand()
   await payload.sendEmail({
     to: manager.email,
-    from: `${brand.productName} <${MANAGER_EMAIL_FROM}>`,
-    subject: `Your sign-in link — ${brand.productName}`,
+    from: `${headerDisplayName(brand.productName)} <${MANAGER_EMAIL_FROM}>`,
+    subject: stripNewlines(`Your sign-in link — ${brand.productName}`),
     // Inline, not queued, matching the verify and reset mail `Managers.auth`
     // already builds with `renderEmail`. The throttle above bounds the volume
     // this can generate, and a queued send would let the caller's request
@@ -133,8 +125,9 @@ async function issueLink(
     html: await renderEmail(
       createElement(SignInLinkEmail, {
         name: manager.name || manager.email,
-        signInUrl: `${getServerUrl()}/api/${collection}${CONSUME_LINK_PATH}?token=${encodeURIComponent(token)}`,
-        validFor: '15 minutes',
+        signInUrl: `${getServerUrl()}/api/managers${CONSUME_LINK_PATH}?token=${encodeURIComponent(token)}`,
+        // Derived, so changing the TTL cannot leave the email saying otherwise.
+        validFor: `${SIGNIN_TOKEN_TTL_MS / 60_000} minutes`,
       }),
     ),
   })

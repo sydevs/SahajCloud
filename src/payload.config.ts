@@ -21,7 +21,7 @@ import { cachePlugin } from '@/plugins/cache'
 import { databaseErrorPlugin } from '@/plugins/databaseErrors'
 import { buildSmtpTransportOptions, resendAdapter, warnEmailDisabled } from '@/plugins/email'
 import { formsPlugin } from '@/plugins/formBuilder'
-import { LOGIN_PLUGIN_OPTIONS, loginPlugin } from '@/plugins/login'
+import { loginPlugin } from '@/plugins/login'
 import { openapiEndpointAuth, scalarPlugin } from '@/plugins/openapi'
 import { seedPreviewAdmin } from '@/plugins/previewAdmin'
 import { sentryPlugin } from '@/plugins/sentry'
@@ -329,9 +329,9 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       // reads) + the `publicReadCacheHeaders` decorator (custom endpoints).
       cachePlugin,
       // Passwordless sign-in (#837): the magic-link field plus the request and
-      // consume endpoints. Configured in `src/plugins/login`, shared with the
-      // test harness. Before accessPlugin, which must stay last.
-      loginPlugin(LOGIN_PLUGIN_OPTIONS),
+      // consume endpoints. Configured in `src/plugins/login`, keyed on the
+      // literal slug. Before accessPlugin, which must stay last.
+      loginPlugin(),
       // Access Plugin: Unified RBAC and project visibility (must be LAST to process plugin-created collections)
       accessPlugin({
         enabled: true,
