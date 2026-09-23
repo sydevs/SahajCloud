@@ -45,6 +45,13 @@ type Candidate = Pick<Manager, 'id' | 'magicLinkIssuedAt' | 'type'>
  *
  * ⚠ **`Response.redirect()` returns immutable headers**, so `Set-Cookie`
  * cannot be appended to one. The 302 below is built by hand for that reason.
+ *
+ * ⚠ **A `GET` here spends the link.** Link-scanning mail security (Defender
+ * Safe Links, Proofpoint) fetches URLs in inbound mail, so a scanner can burn
+ * the link before the recipient clicks it, and `request-link`'s throttle then
+ * refuses the obvious retry for 60 seconds. When a manager reports that the
+ * link is not valid, check this first. The usual fix is an interstitial page
+ * that POSTs the token; it is not built, because nobody has hit this yet.
  */
 export const consumeLink: Endpoint = {
   path: CONSUME_LINK_PATH,
