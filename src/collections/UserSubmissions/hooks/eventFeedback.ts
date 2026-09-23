@@ -2,6 +2,7 @@ import type { CollectionAfterChangeHook, CollectionBeforeChangeHook } from 'payl
 
 import { APIError } from 'payload'
 
+import { updateEventBookkeeping } from '@/lib/events/systemWrite'
 import { computeCommunityVerdict } from '@/lib/eventVerification/communityFeedback'
 import { activeRegistrationWhere } from '@/lib/registrations/active'
 import { isRecord } from '@/lib/utilities/isRecord'
@@ -127,8 +128,12 @@ export const syncCommunityFeedback: CollectionAfterChangeHook = async ({
   const denials = denied.totalDocs
   const verdict = computeCommunityVerdict({ confirmations, denials })
 
-  await req.payload.update({
-    collection: 'events',
+  // Bookkeeping, so it must not re-validate the stored event. This hook is
+  // unguarded, so a throw killed the visitor's transaction: the vote was rolled
+  // back behind "Could not record your answer" (#842). The denial branch still
+  // unpublishes — that is the community verdict, not editor content.
+  await updateEventBookkeeping({
+    payload: req.payload,
     id: eventId,
     data: {
       confidenceScore: verdict.score,
@@ -140,8 +145,7 @@ export const syncCommunityFeedback: CollectionAfterChangeHook = async ({
         ? { verificationStage: 'denied', _status: 'draft' }
         : {}),
     },
-    overrideAccess: true,
-    context: { skipVerifyHook: true, skipWriteGuard: true },
+    context: { skipWriteGuard: true },
     // A SYSTEM write in the caller's transaction — see `asSystemReq` for why
     // `overrideAccess` alone isn't enough (filterOptions still sees `req.user`).
     req: asSystemReq(req),

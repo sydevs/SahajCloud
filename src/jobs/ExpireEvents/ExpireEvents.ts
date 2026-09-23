@@ -4,6 +4,7 @@ import * as Sentry from '@sentry/nextjs'
 
 import { DEFAULT_LOG_LIMIT } from '@/fields'
 import { revalidateAtlasSidebar } from '@/lib/atlasSidebar/cache'
+import { updateEventBookkeeping, type EventBookkeeping } from '@/lib/events/systemWrite'
 import {
   asNotificationLog,
   buildReminderEntry,
@@ -45,43 +46,17 @@ function capLog<T>(log: T[]): T[] {
 }
 
 /**
- * Write derived bookkeeping onto an event without re-validating the document.
- *
- * Payload's `beforeValidate` field walk fills every absent field from the
- * stored document, so `beforeChange` validates the merged whole — a partial
- * update is checked as if an editor had re-submitted the entire event. An event
- * whose *stored* data fails a validator added after the row was written could
- * therefore never be advanced, finished or logged (#835).
- *
- * `unpublishAllLocales` is the only argument that skips that validation while
- * still writing the main row. `draft: true` skips it too but writes a version
- * and no main row, so the event would keep its old stage and stay due forever.
- *
- * Two consequences to keep in view. It skips validation of *these* writes too,
- * not only of the stored fields — every value here comes from a pinned helper,
- * and the `data` type is what keeps a fifth field from arriving. And
- * `saveVersion({ unpublish })` overwrites the `latest: true` version instead of
- * appending one: the nightly writes stop growing the version table, at the cost
- * of the unpublishing advance leaving no published version to restore from.
- *
- * ⚠ Safe only while Events omits `versions.drafts.localizeStatus` — see the
- * warning on `versions` in `Events.ts`.
+ * The job's own name for the shared bookkeeping write. The rule it applies —
+ * a derived-bookkeeping write must not re-validate stored data — and the
+ * hazards it carries live on `updateEventBookkeeping` (#842).
  */
 async function updateBookkeeping(
   payload: Payload,
   req: PayloadRequest,
   id: number,
-  data: Partial<Pick<Event, 'verificationStage' | 'nextCheckAt' | 'activityLog' | '_status'>>,
+  data: EventBookkeeping,
 ): Promise<void> {
-  await payload.update({
-    collection: 'events',
-    id,
-    data,
-    context: { skipVerifyHook: true },
-    overrideAccess: true,
-    unpublishAllLocales: true,
-    req,
-  })
+  await updateEventBookkeeping({ payload, id, data, req })
 }
 
 interface ExpireResult {

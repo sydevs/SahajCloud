@@ -1,5 +1,6 @@
 import type { Payload, PayloadRequest, Where } from 'payload'
 
+import { updateEventBookkeeping } from '@/lib/events/systemWrite'
 import { asTrustedReq } from '@/plugins/usage/hooks'
 
 import { activeRegistrationWhere } from './active'
@@ -93,15 +94,15 @@ export async function syncEventRegistrationsFull(args: {
   const full = isEventFull(event, totalDocs)
   if (Boolean(event.registrationsFull) === full) return
 
-  await payload.update({
-    collection: 'events',
+  // Bookkeeping, so it must not re-validate the stored event: this runs in an
+  // unguarded afterChange hook, and a throw kills the visitor's transaction —
+  // the registration taking the last seat was refused outright (#842).
+  // `req.context` is spread in so the trusted-req flag survives the write.
+  await updateEventBookkeeping({
+    payload,
     id: eventId,
     data: { registrationsFull: full },
-    // skipVerifyHook (don't re-open verification) alongside the trusted-req skip
-    // flag — spread req.context so the trusted flag survives if the context arg
-    // replaces rather than merges.
-    context: { ...(req?.context ?? {}), skipVerifyHook: true },
-    overrideAccess: true,
+    context: req?.context,
     req,
   })
 }
