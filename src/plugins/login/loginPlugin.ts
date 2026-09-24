@@ -42,6 +42,40 @@ export interface LoginPluginOptions {
 }
 
 /**
+ * Put the "Email me a sign-in link" control under the admin login form.
+ *
+ * ⚠ **Every key of `admin` and of `admin.components` is spread, never
+ * replaced.** `src/payload.config.ts` declares `providers`, `beforeNavLinks`,
+ * `Nav`, `beforeDashboard`, `graphics` and `views` there — assigning a fresh
+ * object would delete the project selector, the custom nav and both custom
+ * views, and nothing would fail until someone opened the admin panel.
+ *
+ * Only the collection the admin panel authenticates gets one: `afterLogin` is a
+ * slot on that one form, so a second served collection has no form to add to.
+ */
+function adminWithSignInLink(
+  admin: Config['admin'],
+  byslug: Map<string, LoginCollectionConfig>,
+): Config['admin'] {
+  const entry = admin?.user ? byslug.get(admin.user) : undefined
+  if (!entry?.requestPagePath) return admin
+
+  return {
+    ...admin,
+    components: {
+      ...admin?.components,
+      afterLogin: [
+        ...(admin?.components?.afterLogin ?? []),
+        {
+          path: '@/components/admin/RequestSignInLink',
+          clientProps: { href: entry.requestPagePath },
+        },
+      ],
+    },
+  }
+}
+
+/**
  * Passwordless sign-in: one hidden timestamp field plus the three endpoints
  * that trade an emailed link for a session (#837).
  *
@@ -77,40 +111,6 @@ export interface LoginPluginOptions {
  * ]
  * ```
  */
-/**
- * Put the "Email me a sign-in link" control under the admin login form.
- *
- * ⚠ **Every key of `admin` and of `admin.components` is spread, never
- * replaced.** `src/payload.config.ts` declares `providers`, `beforeNavLinks`,
- * `Nav`, `beforeDashboard`, `graphics` and `views` there — assigning a fresh
- * object would delete the project selector, the custom nav and both custom
- * views, and nothing would fail until someone opened the admin panel.
- *
- * Only the collection the admin panel authenticates gets one: `afterLogin` is a
- * slot on that one form, so a second served collection has no form to add to.
- */
-function adminWithSignInLink(
-  admin: Config['admin'],
-  byslug: Map<string, LoginCollectionConfig>,
-): Config['admin'] {
-  const entry = admin?.user ? byslug.get(admin.user) : undefined
-  if (!entry?.requestPagePath) return admin
-
-  return {
-    ...admin,
-    components: {
-      ...admin?.components,
-      afterLogin: [
-        ...(admin?.components?.afterLogin ?? []),
-        {
-          path: '@/components/admin/RequestSignInLink',
-          clientProps: { href: entry.requestPagePath },
-        },
-      ],
-    },
-  }
-}
-
 export function loginPlugin(options: LoginPluginOptions = {}): Plugin {
   const { collections = [], enabled } = options
   if (enabled === false || collections.length === 0) return (config) => config
