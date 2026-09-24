@@ -629,9 +629,15 @@ form with none set).
 ### Login (`src/plugins/login`)
 
 Passwordless sign-in for `Managers` (#837). It appends one hidden
-`magicLinkIssuedAt` column and two endpoints — `POST /api/managers/request-magic-link`
-and `GET /api/managers/redeem-magic-link` — to whatever `Managers.ts` already
-declares. Passwords still work; this is a second way in.
+`magicLinkIssuedAt` column and three endpoints — `POST /api/managers/request-magic-link`,
+`GET /api/managers/redeem-magic-link` (the confirmation page) and
+`POST /api/managers/redeem-magic-link` (which spends the link) — to whatever
+`Managers.ts` already declares. Passwords still work; this is a second way in.
+
+`/managers/signin` is the human surface (#838): the form that asks for a link,
+where every refusal's "Request a new link" button goes, and what the control on
+the admin login form opens. `managersLogin.requestPagePath` is the single
+spelling of that route — the plugin reads it for both.
 
 Four things worth knowing before you touch `Managers`:
 
@@ -640,13 +646,17 @@ Four things worth knowing before you touch `Managers`:
   minted for an unverified manager authenticates nobody. Following a link
   delivered to the stored address is the same proof the verify mail asks for,
   and an invited manager (#664) is unverified by definition.
-- ⚠ **`magicLinkIssuedAt` is written by those two endpoints and nothing else.**
-  It is simultaneously the 60-second send throttle, the nonce the consume route
-  matches exactly, and — cleared — what makes a link single-use. A hook that
-  writes it invalidates a manager's outstanding link.
-- ⚠ **Both routes are anonymous.** They have to be: a manager who cannot sign
-  in is who calls them. `request-magic-link` therefore answers identically for every
-  outcome, because any difference is an account-enumeration oracle.
+- ⚠ **`magicLinkIssuedAt` is written by `issueMagicLink` and the redeem route,
+  and nothing else.** It is simultaneously the 60-second send throttle, the nonce
+  the redeem route matches exactly, and — cleared — what makes a link single-use.
+  A hook that writes it invalidates a manager's outstanding link. The sign-in
+  page's Server Action reaches it only through `issueMagicLink`, which is why
+  that function is exported rather than copied.
+- ⚠ **Every route here is anonymous**, and so is the sign-in page. They have to
+  be: a manager who cannot sign in is who reaches them. `request-magic-link` and
+  the page's Server Action therefore answer identically for every outcome —
+  sent, unknown address, inactive manager, throttled repeat — because any
+  difference is an account-enumeration oracle.
 - The plugin **appends** to `endpoints` and `fields`. Replacing either array
   would delete `setProject` — the project switcher — silently.
 
