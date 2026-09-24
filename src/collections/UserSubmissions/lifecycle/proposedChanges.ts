@@ -5,7 +5,6 @@ import diff from 'microdiff'
 import { toWords } from 'payload/shared'
 
 import { lexicalPlainText } from '@/lib/eventQuality'
-import { staticLabelText } from '@/lib/utilities/staticLabel'
 
 /**
  * What a submission would change, field by field — the reviewer's whole job in
@@ -141,9 +140,13 @@ function formatInstant(value: string): string | null {
   }).format(date)} UTC`
 }
 
+/**
+ * Only a string label is readable here. A label function needs an i18n context,
+ * and this module is pure — it takes the field list, never a `req`.
+ */
 function fieldLabel(field: FlattenedField | undefined, fallback: string): string {
   const label = field && 'label' in field ? field.label : undefined
-  return staticLabelText(label) ?? toWords(fallback)
+  return typeof label === 'string' ? label : toWords(fallback)
 }
 
 /**
@@ -160,7 +163,8 @@ function optionLabel(field: FlattenedField | undefined, value: unknown): string 
     typeof option === 'string' ? option === value : option.value === value,
   )
   if (match == null) return null
-  return typeof match === 'string' ? match : (staticLabelText(match.label) ?? match.value)
+  if (typeof match === 'string') return match
+  return typeof match.label === 'string' ? match.label : match.value
 }
 
 /**

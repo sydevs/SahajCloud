@@ -2,8 +2,6 @@ import type { ValidationFieldError } from 'payload'
 
 import { ValidationError } from 'payload'
 
-import { staticLabelText } from '@/lib/utilities/staticLabel'
-
 /**
  * The field errors behind a failed write, or `null` when the failure was not a
  * validation failure. The two verify surfaces answer those two cases
@@ -18,12 +16,13 @@ export function validationFieldErrors(error: unknown): ValidationFieldError[] | 
  * Manager-facing descriptions of what is wrong, one per failing field —
  * "Contact Phone Number: This field is required."
  *
- * `path` is an internal field name, so an unresolvable label falls back to the
- * validator's own message rather than to the path.
+ * `path` is an internal field name, so a label we cannot read falls back to the
+ * validator's own message rather than to the path. A label function is one such:
+ * resolving it needs an i18n context, and this caller has no `req` to take one from.
  */
 export function describeValidationErrors(errors: ValidationFieldError[]): string[] {
   return errors.map((error) => {
-    const name = staticLabelText(error.label)
+    const name = typeof error.label === 'string' ? error.label : null
     return name ? `${name}: ${error.message}` : error.message
   })
 }
