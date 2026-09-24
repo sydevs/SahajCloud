@@ -247,6 +247,13 @@ locale, and per-locale role gates deny anyone whose roles live elsewhere.
 That is #701, and `frames-by-narrator` / `user-submissions-review` cover it
 by authenticating a French-only manager and varying `?locale=`.
 
+`createAnonRestClient(env)` sends no credential, and `createRestClientWithAuth(env, headers)`
+sends whatever one you hand it — a `Cookie`, for what a magic-link redirect
+returns. ⚠ Anonymous is a **property under test** for the two `managers`
+magic-link routes, the opposite of the warning below: authenticating there
+would hide exactly what the spec asks. Every client returns the response's own
+`headers`, so a spec can read a 302's `Location` and `Set-Cookie`.
+
 Two things live only there, and both are why this exists (#684): **root
 `afterError` hooks** (`databaseErrorPlugin`) run inside
 `payload/dist/utilities/routeError.js`, which the local API throws
@@ -257,7 +264,7 @@ error body is the real message plus a stack, or `Something went wrong.`
 `createTestEnvironment({ debug })` selects that flag (default `false`,
 i.e. production's value) and returns the suite's `config`, which the
 client needs. The helper marks the suite admin `_verified` and mints it a
-session with `mintManagerSessionToken` (`@/plugins/login/session`) — the
+session with `createSession` (`@/plugins/login`) — the
 JWT strategy's `_verified` gate yields no user otherwise, and access
 control answers **403 before any query runs**, so an anonymous request
 never reaches Postgres at all. Nothing under `tests/` calls `payload.login`
