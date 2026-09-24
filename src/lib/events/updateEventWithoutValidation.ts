@@ -32,9 +32,14 @@ export type EventBookkeeping = Partial<
  * registration or feedback vote was rolled back by a manager's data problem
  * (#842).
  *
- * `unpublishAllLocales` is the only argument that skips that validation while
- * still writing the main row. `draft: true` skips it too but writes a version
- * and no main row, so the event would keep its old stage and stay due forever.
+ * `unpublishAllLocales` is Payload's flag, named for the operation it was built
+ * for rather than for what is wanted here. Payload skips validation under it
+ * because an unpublish "only change[s] _status, not document data"
+ * (`collections/operations/utilities/update.js`), and that is the only skip
+ * that still writes the main row. `draft: true` skips validation too but
+ * writes a version and no main row, so the event would keep its old stage and
+ * stay due forever. The unpublishing half never runs: Payload gates it on
+ * `versions.drafts.localizeStatus`, which Events omits.
  *
  * Two consequences to keep in view. It skips validation of *these* writes too,
  * not only of the stored fields — every value here comes from a pinned helper,
