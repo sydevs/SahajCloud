@@ -37,6 +37,16 @@ either half through a `generateEmailHTML` / `generateEmailSubject` pair shaped
 like the one `Managers.auth.verify` takes. The barrel deliberately stops short of the
 factories: `loginPlugin` is their only caller.
 
+⚠ **`issueMagicLink` is the one non-factory the barrel does export** — the
+request endpoint's body, not its wiring. The manager sign-in page's Server
+Action (`src/app/(frontend)/managers/signin/`) runs it directly, so the
+60-second throttle, the eligibility refusal and the uniform answer have a single
+implementation. That throttle is the only in-app bound on per-account link
+volume (`rateLimitHook` is a no-op and the Cloudflare edge cannot see the email
+in the body), so a second copy of it is the one worth refusing. `magicLinkEmailSchema`
+is exported with it: address normalisation living in one caller would let the
+other miss a match, and the uniform answer would hide the miss.
+
 ### `src/jobs/<JobName>/`
 
 One folder per scheduled job (`CleanupOrphanedMedia/`,
