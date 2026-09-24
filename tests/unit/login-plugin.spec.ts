@@ -27,8 +27,32 @@ function collection(slug: string, endpoints?: Endpoint[]): CollectionConfig {
 }
 
 function fold(plugin: Plugin, ...collections: CollectionConfig[]): CollectionConfig[] {
-  const folded = (plugin as (config: Config) => Config)({ collections } as Config)
-  return folded.collections as CollectionConfig[]
+  return foldConfig(plugin, { collections } as Config).collections as CollectionConfig[]
+}
+
+function foldConfig(plugin: Plugin, config: Config): Config {
+  return (plugin as (c: Config) => Config)(config)
+}
+
+/**
+ * The admin block as `src/payload.config.ts` declares it — every component slot
+ * it actually uses, so a spread that dropped one shows up here.
+ */
+function adminConfig(): Config {
+  return {
+    admin: {
+      user: 'managers',
+      components: {
+        providers: ['@/components/AdminProvider.tsx'],
+        beforeNavLinks: ['@/components/admin/ProjectSelector'],
+        Nav: '@/components/admin/AtlasNav/AtlasNav',
+        beforeDashboard: ['@/components/admin/Dashboard/ProjectSelectionPrompt'],
+        graphics: { Logo: '@/components/branding/Logo' },
+        views: { analytics: { Component: '@/components/admin/AnalyticsView', path: '/analytics' } },
+      },
+    },
+    collections: [collection('managers')],
+  } as unknown as Config
 }
 
 /**
@@ -115,5 +139,54 @@ describe('loginPlugin', () => {
       expect(fieldNames(wired)).not.toContain('magicLinkIssuedAt')
       expect(routes(wired)).toEqual([])
     }
+  })
+
+  describe('the admin login control', () => {
+    const withPage: LoginCollectionConfig = { slug: 'managers', requestPagePath: '/managers/signin' }
+
+    it('adds afterLogin pointing at the configured page', () => {
+      const folded = foldConfig(loginPlugin({ collections: [withPage] }), adminConfig())
+
+      expect(JSON.stringify(folded.admin?.components?.afterLogin)).toContain(
+        '@/components/admin/RequestSignInLink',
+      )
+      expect(JSON.stringify(folded.admin?.components?.afterLogin)).toContain('/managers/signin')
+    })
+
+    it('keeps every component slot the config already declared', () => {
+      // The regression: assigning `components` rather than spreading it deletes
+      // the project selector, the custom nav, the dashboard prompt and both
+      // custom views — and nothing fails until someone opens the admin panel.
+      const before = adminConfig()
+      const folded = foldConfig(loginPlugin({ collections: [withPage] }), before)
+      const components = folded.admin!.components!
+
+      expect(Object.keys(components).sort()).toEqual(
+        [...Object.keys(before.admin!.components!), 'afterLogin'].sort(),
+      )
+      expect(components.beforeNavLinks).toEqual(before.admin!.components!.beforeNavLinks)
+      expect(components.Nav).toBe(before.admin!.components!.Nav)
+      expect(components.views).toEqual(before.admin!.components!.views)
+      expect(components.graphics).toEqual(before.admin!.components!.graphics)
+      expect(components.beforeDashboard).toEqual(before.admin!.components!.beforeDashboard)
+    })
+
+    it('leaves admin alone when the served collection names no page', () => {
+      // `requestPagePath` is optional, and a control linking nowhere is worse
+      // than no control.
+      const before = adminConfig()
+      const folded = foldConfig(loginPlugin({ collections: [managers] }), before)
+
+      expect(folded.admin?.components?.afterLogin).toBeUndefined()
+    })
+
+    it('adds nothing for a collection the admin panel does not authenticate', () => {
+      // `afterLogin` is a slot on the one login form, so a second served
+      // collection has no form to add to.
+      const other: LoginCollectionConfig = { slug: 'clients', requestPagePath: '/clients/signin' }
+      const folded = foldConfig(loginPlugin({ collections: [other] }), adminConfig())
+
+      expect(folded.admin?.components?.afterLogin).toBeUndefined()
+    })
   })
 })
