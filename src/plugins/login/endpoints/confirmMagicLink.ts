@@ -30,7 +30,8 @@ import { REDEEM_MAGIC_LINK_PATH } from './redeemMagicLink'
  * nothing, which is what keeps a scanner's fetch free of consequence.
  */
 export function confirmMagicLink(config: LoginCollectionConfig): Endpoint {
-  const { slug } = config
+  const { requestPagePath, slug } = config
+  const retryHref = requestPagePath ? `${getServerUrl()}${requestPagePath}` : undefined
 
   return {
     path: REDEEM_MAGIC_LINK_PATH,
@@ -40,10 +41,10 @@ export function confirmMagicLink(config: LoginCollectionConfig): Endpoint {
 
       const result = await readSigninToken(token, req.payload.secret)
       if (result.status === 'expired') {
-        return noticePage(410, 'This link has expired', 'Request a new sign-in link.')
+        return noticePage(410, 'This link has expired', 'Request a new sign-in link.', retryHref)
       }
       if (result.status !== 'valid' || result.claims.collection !== slug) {
-        return noticePage(400, 'This link is not valid', 'Request a new sign-in link.')
+        return noticePage(400, 'This link is not valid', 'Request a new sign-in link.', retryHref)
       }
 
       // The credential rides the form's action rather than a hidden field,

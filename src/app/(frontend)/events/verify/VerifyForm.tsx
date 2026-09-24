@@ -7,15 +7,15 @@ import { useActionState } from 'react'
 import type { EventDetails } from '@/emails/EventVerificationEmail'
 import type { EmailBrand } from '@/plugins/email'
 
+
+import { verifyEventAction } from './actions'
+import { EventSummary, VerificationCard } from './VerificationCard'
 import {
   ActionButtons,
   CardShell,
   primaryButton,
   type PageAction,
 } from '../../_components/CardShell'
-
-import { verifyEventAction } from './actions'
-import { EventSummary, VerificationCard } from './VerificationCard'
 
 interface VerifyFormProps {
   brand: EmailBrand

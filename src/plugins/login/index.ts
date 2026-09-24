@@ -17,10 +17,16 @@
  *
  * ⚠ The endpoint *factories* are not re-exported here. `loginPlugin` is the only
  * caller, and exporting them would invite a collection to wire its own copy —
- * the split this plugin exists to hold.
+ * the split this plugin exists to hold. `issueMagicLink` is the deliberate
+ * exception: it is the request endpoint's body, not its wiring, and the manager
+ * sign-in page runs it directly so the throttle has one implementation (#838).
  */
 
-export { REQUEST_LINK_THROTTLE_MS } from './endpoints/requestMagicLink'
+export {
+  issueMagicLink,
+  magicLinkEmailSchema,
+  REQUEST_LINK_THROTTLE_MS,
+} from './endpoints/requestMagicLink'
 
 export { loginPlugin, magicLinkIssuedAt, type LoginPluginOptions } from './loginPlugin'
 

@@ -8,9 +8,8 @@ import { startTransition, useActionState, useEffect, useRef } from 'react'
 import type { EmailBrand } from '@/plugins/email'
 
 
-import { CardShell, primaryButton, TONES } from '../../_components/CardShell'
-
 import { submitFeedbackAction } from './actions'
+import { CardShell, primaryButton, TONES } from '../../_components/CardShell'
 import { VerificationCard } from '../../events/verify/VerificationCard'
 
 type Vote = 'confirmed' | 'denied'

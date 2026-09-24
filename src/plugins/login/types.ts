@@ -70,6 +70,15 @@ export interface LoginCollectionConfig {
    */
   redirectTo?: string
   /**
+   * The page that asks for a fresh link, as a site-absolute path.
+   *
+   * Every refusal this plugin can serve tells the reader to request a new
+   * link, so without this they are told to do something the page gives them no
+   * way to do. Supplying it also puts the control on the admin login form, for
+   * the collection the admin panel authenticates.
+   */
+  requestPagePath?: string
+  /**
    * Extra fields to select, for `isEligible` and `project` to read. Both
    * endpoints select a bounded field list, so a callback reading an unlisted
    * field sees `undefined` rather than the stored value.

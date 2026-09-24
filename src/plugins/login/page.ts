@@ -38,9 +38,10 @@ const STYLE = `
   main { max-width: 26rem; text-align: center; }
   h1 { font-size: 1.375rem; margin: 0 0 0.5rem; }
   p { margin: 0 0 1.5rem; opacity: 0.8; }
-  button {
+  button, .button {
     background: #0b6; border: 0; border-radius: 0.375rem; color: #fff; cursor: pointer;
-    font: inherit; font-weight: 600; padding: 0.75rem 1.75rem;
+    display: inline-block; font: inherit; font-weight: 600; padding: 0.75rem 1.75rem;
+    text-decoration: none;
   }
 `
 
@@ -55,12 +56,27 @@ function page(status: number, title: string, body: string): Response {
   )
 }
 
-/** A refusal a person can act on. */
-export function noticePage(status: number, heading: string, message: string): Response {
+/**
+ * A refusal a person can act on.
+ *
+ * ⚠ **`retryHref` is what makes "request a new sign-in link" actionable.** Every
+ * refusal here says it, and a dead end that says it without offering it is the
+ * failure the 404 on these routes was already rejected for (#838). It is
+ * omitted only while the served collection names no request page.
+ */
+export function noticePage(
+  status: number,
+  heading: string,
+  message: string,
+  retryHref?: string,
+): Response {
+  const retry = retryHref
+    ? `<p><a class="button" href="${escapeHtml(retryHref)}">Request a new link</a></p>`
+    : ''
   return page(
     status,
     heading,
-    `<h1>${escapeHtml(heading)}</h1><p>${escapeHtml(message)}</p>`,
+    `<h1>${escapeHtml(heading)}</h1><p>${escapeHtml(message)}</p>${retry}`,
   )
 }
 

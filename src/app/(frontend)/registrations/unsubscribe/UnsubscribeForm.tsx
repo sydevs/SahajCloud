@@ -6,10 +6,10 @@ import { useActionState } from 'react'
 
 import type { EmailBrand } from '@/plugins/email'
 
-import { CardShell, primaryButton } from '../../_components/CardShell'
 
 import { unsubscribeAction } from './actions'
 import { UnsubscribeCard } from './UnsubscribeCard'
+import { CardShell, primaryButton } from '../../_components/CardShell'
 
 interface UnsubscribeFormProps {
   brand: EmailBrand

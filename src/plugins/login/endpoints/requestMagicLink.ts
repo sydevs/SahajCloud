@@ -1,5 +1,5 @@
 import type { LoginCollectionConfig, LoginDocument, LoginMailArgs } from '../types'
-import type { Endpoint, PayloadRequest } from 'payload'
+import type { Endpoint, Payload } from 'payload'
 
 import { z } from 'zod'
 
@@ -22,7 +22,14 @@ export const REQUEST_MAGIC_LINK_PATH = '/request-magic-link'
  */
 export const REQUEST_LINK_THROTTLE_MS = 60 * 1000
 
-const bodySchema = z.object({
+/**
+ * The one spelling of a submitted address.
+ *
+ * ⚠ Exported because the endpoint is not the only caller — the manager sign-in
+ * page's Server Action parses with this too (#838). Normalisation that lived in
+ * one of them would let the other miss a match the uniform answer then hides.
+ */
+export const magicLinkEmailSchema = z.object({
   // Normalised to match what is stored: Payload's own `email` base field
   // lowercases and trims on every write, so a bare equality against the typed
   // address misses `John.Smith@…` — and the uniform answer below hides the miss.
@@ -58,11 +65,11 @@ export function requestMagicLink(config: LoginCollectionConfig): Endpoint {
     path: REQUEST_MAGIC_LINK_PATH,
     method: 'post',
     handler: async (req) => {
-      const parsed = await parseBody(req, bodySchema)
+      const parsed = await parseBody(req, magicLinkEmailSchema)
       if (!parsed.ok) return parsed.response
 
       try {
-        await issueLink(req, config, parsed.data.email)
+        await issueMagicLink({ payload: req.payload, config, email: parsed.data.email })
       } catch (error) {
         // Never surfaced: a transport failure that reached the caller would be an
         // oracle too, since only a real address gets as far as a send.
@@ -78,13 +85,27 @@ export function requestMagicLink(config: LoginCollectionConfig): Endpoint {
   }
 }
 
-/** Mint, stamp and send, or do nothing. Never reports which. */
-async function issueLink(
-  req: PayloadRequest,
-  config: LoginCollectionConfig,
-  email: string,
-): Promise<void> {
-  const { payload } = req
+/**
+ * Mint, stamp and send, or do nothing. Never reports which.
+ *
+ * ⚠ **Exported because this endpoint is not the only caller.** The manager
+ * sign-in page's Server Action (#838) runs the same body, so the throttle, the
+ * eligibility refusal and the `_verified` handling have one implementation.
+ * Two would drift, and the one that drifts is the only in-app bound on
+ * per-account link volume.
+ *
+ * It throws on a transport failure and reports nothing about the account, so
+ * every caller can answer uniformly — see the endpoint above.
+ */
+export async function issueMagicLink({
+  config,
+  email,
+  payload,
+}: {
+  config: LoginCollectionConfig
+  email: string
+  payload: Payload
+}): Promise<void> {
   const { slug } = config
 
   // Bounded: this is the one unauthenticated read in the feature, and the
