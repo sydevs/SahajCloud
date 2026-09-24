@@ -5,6 +5,7 @@ import { generatePayloadCookie } from 'payload/shared'
 
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 
+import { noticePage } from '../page'
 import { createSession } from '../session'
 import { readSigninToken } from '../token'
 
@@ -14,22 +15,17 @@ export const REDEEM_MAGIC_LINK_PATH = '/redeem-magic-link'
 const DEFAULT_REDIRECT = '/admin'
 
 /** An authentic link whose clock ran out. The one refusal worth distinguishing. */
-const expired = () =>
-  Response.json(
-    { errors: [{ message: 'This sign-in link has expired. Request a new one.' }] },
-    { status: 410 },
-  )
+const expired = () => noticePage(410, 'This link has expired', 'Request a new sign-in link.')
 
 /**
  * Everything else: tampered, wrong audience, already used, or minted for an
  * account that has since stopped qualifying. Collapsed into one answer on
  * purpose — separating them would describe our checks to whoever is probing them.
  */
-const invalid = () =>
-  Response.json({ errors: [{ message: 'This sign-in link is not valid.' }] }, { status: 400 })
+const invalid = () => noticePage(400, 'This link is not valid', 'Request a new sign-in link.')
 
 /**
- * `GET /api/<slug>/redeem-magic-link?token=…`
+ * `POST /api/<slug>/redeem-magic-link?token=…`
  *
  * Trades a valid sign-in link for a session cookie and redirects the holder.
  * `loginPlugin` builds one of these per entry in its `collections` option.
@@ -39,12 +35,16 @@ const invalid = () =>
  * reason `set-project` is: the collections this serves are admin-only and in no
  * project, so they publish no public paths.
  *
- * ⚠ **A `GET` here spends the link.** Link-scanning mail security (Defender
- * Safe Links, Proofpoint) fetches URLs in inbound mail, so a scanner can burn
- * the link before the recipient clicks it, and `request-magic-link`'s throttle then
- * refuses the obvious retry for 60 seconds. When someone reports that the link
- * is not valid, check this first. The usual fix is an interstitial page that
- * POSTs the token; it is not built, because nobody has hit this yet.
+ * ⚠ **`POST` is what keeps a mail scanner from spending the link**, and the
+ * method is the mechanism, not a convention. Nothing here may answer a `GET`:
+ * `confirmMagicLink` holds that method on this same path and burns nothing, so
+ * a Safe Links or Proofpoint fetch of the emailed URL costs the recipient
+ * their one use only if this handler ever accepts one.
+ *
+ * ⚠ **The token arrives in the query string, not the body.** The form on the
+ * confirmation page carries it in its action, because a custom Payload endpoint
+ * is handed no parsed form body — `parseBody` reads JSON, which a form submit
+ * does not send.
  *
  * ⚠ **It redirects rather than returning the user.** The localized-roles hooks
  * reshape an auth *response* (`afterLogin` / `afterMe` / `afterRefresh`), so a
@@ -60,7 +60,7 @@ export function redeemMagicLink(config: LoginCollectionConfig): Endpoint {
 
   return {
     path: REDEEM_MAGIC_LINK_PATH,
-    method: 'get',
+    method: 'post',
     handler: async (req) => {
       const { payload } = req
       const token = typeof req.query?.token === 'string' ? req.query.token : null

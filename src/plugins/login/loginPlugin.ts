@@ -1,6 +1,7 @@
 import type { LoginCollectionConfig } from './types'
 import type { Field, Plugin } from 'payload'
 
+import { confirmMagicLink } from './endpoints/confirmMagicLink'
 import { redeemMagicLink } from './endpoints/redeemMagicLink'
 import { requestMagicLink } from './endpoints/requestMagicLink'
 
@@ -41,10 +42,10 @@ export interface LoginPluginOptions {
 }
 
 /**
- * Passwordless sign-in: one hidden timestamp field plus the two endpoints that
- * trade an emailed link for a session (#837).
+ * Passwordless sign-in: one hidden timestamp field plus the three endpoints
+ * that trade an emailed link for a session (#837).
  *
- * Both endpoint definitions live under `./endpoints/` and are built per
+ * All three endpoint definitions live under `./endpoints/` and are built per
  * configured collection, so the plugin owns the whole feature rather than wiring
  * definitions kept beside one collection. `./mail.ts` renders and addresses the
  * message for every served collection, so a `LoginCollectionConfig` supplies
@@ -91,7 +92,15 @@ export function loginPlugin(options: LoginPluginOptions = {}): Plugin {
       return {
         ...collection,
         fields: [...collection.fields, magicLinkIssuedAt],
-        endpoints: [...(collection.endpoints || []), requestMagicLink(entry), redeemMagicLink(entry)],
+        endpoints: [
+          ...(collection.endpoints || []),
+          requestMagicLink(entry),
+          // Two handlers share `/redeem-magic-link`, and the split is the whole
+          // defence against a mail scanner spending the link: the `GET` only
+          // renders the confirmation page, and the `POST` behind its form burns.
+          confirmMagicLink(entry),
+          redeemMagicLink(entry),
+        ],
       }
     }),
   })

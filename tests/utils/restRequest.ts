@@ -108,7 +108,14 @@ export function createRestClientWithAuth(
 
     const raw = await response.text()
     // A 302 carries no body, and a spec reading `Location` still wants the rest.
-    const body = raw ? (JSON.parse(raw) as Record<string, unknown>) : {}
+    // A non-JSON body is `{}` rather than a throw: `redeem-magic-link` answers a
+    // browser with HTML, and `raw` is what a spec asserts against there.
+    let body: Record<string, unknown> = {}
+    try {
+      if (raw) body = JSON.parse(raw) as Record<string, unknown>
+    } catch {
+      body = {}
+    }
     return { status: response.status, body, raw, headers: response.headers }
   }
 }

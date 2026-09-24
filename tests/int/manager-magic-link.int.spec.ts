@@ -47,7 +47,12 @@ describe('manager magic-link sign-in', () => {
   const requestLinkFor = (email: string) =>
     anon(REQUEST_PATH, { method: 'POST', json: { email } })
 
-  const consume = (token: string) => anon(`${REDEEM_PATH}?token=${encodeURIComponent(token)}`)
+  /** Open the link the way a mail scanner does: a bare GET, no click. */
+  const visit = (token: string) => anon(`${REDEEM_PATH}?token=${encodeURIComponent(token)}`)
+
+  /** Submit the confirmation page's form — the only thing that spends a link. */
+  const consume = (token: string) =>
+    anon(`${REDEEM_PATH}?token=${encodeURIComponent(token)}`, { method: 'POST' })
 
   /** Ask for a link and hand back the token from the email that arrives. */
   const linkTokenFor = async (email: string): Promise<string> => {
@@ -359,7 +364,49 @@ describe('manager magic-link sign-in', () => {
     })
 
     it('refuses a request carrying no token at all', async () => {
-      expect((await anon(REDEEM_PATH)).status).toBe(400)
+      expect((await anon(REDEEM_PATH, { method: 'POST' })).status).toBe(400)
+    })
+
+    it('survives a mail scanner opening the link first', async () => {
+      // Defender Safe Links and Proofpoint GET every URL in an inbound message
+      // before the recipient sees it. A GET that burned the link would spend
+      // the manager's one use, and the 60-second throttle would then refuse the
+      // obvious retry — so the GET must only offer the form.
+      const manager = await activeManager()
+      const token = await linkTokenFor(manager.email)
+
+      const scanned = await visit(token)
+      expect(scanned.status).toBe(200)
+      expect(scanned.headers.get('Set-Cookie')).toBeNull()
+      expect(await stampOf(manager.id), 'the GET burned the link').toBeTruthy()
+
+      // Scanners do not submit forms. The recipient does, and it still works.
+      expect((await consume(token)).status).toBe(302)
+    })
+
+    it('offers a form that carries the token and needs a real submission', async () => {
+      // The page is the whole defence, so what it contains is the assertion: a
+      // POST form, the token in its action, and nothing that submits itself.
+      const manager = await activeManager()
+      const token = await linkTokenFor(manager.email)
+      const page = (await visit(token)).raw
+
+      expect(page).toContain('method="post"')
+      expect(page).toContain(`${getServerUrl()}/api/managers/redeem-magic-link?token=`)
+      expect(page, 'a script on this page would hand the link back to scanners').not.toContain(
+        '<script',
+      )
+      expect(page).not.toContain('http-equiv="refresh"')
+    })
+
+    it('tells a dead link from a live one without spending anything', async () => {
+      const [header, body, signature] = (await linkTokenFor((await activeManager()).email)).split(
+        '.',
+      )
+      const tampered = await visit(`${header}.${body}.${signature.slice(0, -2)}xx`)
+
+      expect(tampered.status).toBe(400)
+      expect(tampered.raw).not.toContain('method="post"')
     })
   })
 })

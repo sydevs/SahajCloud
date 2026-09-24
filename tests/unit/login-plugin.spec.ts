@@ -31,7 +31,20 @@ function fold(plugin: Plugin, ...collections: CollectionConfig[]): CollectionCon
   return folded.collections as CollectionConfig[]
 }
 
-const paths = (c: CollectionConfig) => (c.endpoints || []).map((e) => (e as Endpoint).path)
+/**
+ * `<method> <path>` per endpoint. The method is asserted, not just the path:
+ * two handlers share `/redeem-magic-link`, and which verb each one answers is
+ * what keeps a mail scanner's GET from spending the link.
+ */
+const routes = (c: CollectionConfig) =>
+  (c.endpoints || []).map((e) => `${(e as Endpoint).method} ${(e as Endpoint).path}`)
+
+/** What the plugin wires onto a served collection, in fold order. */
+const WIRED_ROUTES = [
+  'post /request-magic-link',
+  'get /redeem-magic-link',
+  'post /redeem-magic-link',
+]
 const fieldNames = (c: CollectionConfig) => c.fields.map((f) => ('name' in f ? f.name : null))
 
 describe('loginPlugin', () => {
@@ -39,7 +52,7 @@ describe('loginPlugin', () => {
     const [wired] = fold(loginPlugin({ collections: [managers] }), collection('managers'))
 
     expect(fieldNames(wired)).toContain('magicLinkIssuedAt')
-    expect(paths(wired)).toEqual(['/request-magic-link', '/redeem-magic-link'])
+    expect(routes(wired)).toEqual(WIRED_ROUTES)
   })
 
   it('appends to the endpoints a collection already declares', () => {
@@ -50,7 +63,7 @@ describe('loginPlugin', () => {
       collection('managers', [setProject]),
     )
 
-    expect(paths(wired)).toEqual(['/set-project', '/request-magic-link', '/redeem-magic-link'])
+    expect(routes(wired)).toEqual(['post /set-project', ...WIRED_ROUTES])
   })
 
   it('leaves a collection the option does not name untouched', () => {
@@ -61,7 +74,7 @@ describe('loginPlugin', () => {
     )
 
     expect(fieldNames(other)).not.toContain('magicLinkIssuedAt')
-    expect(paths(other)).toEqual([])
+    expect(routes(other)).toEqual([])
   })
 
   it('wires every collection the option names', () => {
@@ -71,8 +84,8 @@ describe('loginPlugin', () => {
       collection('staff'),
     )
 
-    expect(paths(a)).toEqual(['/request-magic-link', '/redeem-magic-link'])
-    expect(paths(b)).toEqual(['/request-magic-link', '/redeem-magic-link'])
+    expect(routes(a)).toEqual(WIRED_ROUTES)
+    expect(routes(b)).toEqual(WIRED_ROUTES)
   })
 
   it('ignores an option slug that names no collection', () => {
@@ -87,7 +100,7 @@ describe('loginPlugin', () => {
 
     expect(folded).toHaveLength(1)
     expect(folded[0]!.slug).toBe('managers')
-    expect(paths(folded[0]!)).toEqual(['/request-magic-link', '/redeem-magic-link'])
+    expect(routes(folded[0]!)).toEqual(WIRED_ROUTES)
   })
 
   it('wires nothing when no collection is named, or when disabled', () => {
@@ -100,7 +113,7 @@ describe('loginPlugin', () => {
 
     for (const [wired] of [bare, empty, off].map((c) => c)) {
       expect(fieldNames(wired)).not.toContain('magicLinkIssuedAt')
-      expect(paths(wired)).toEqual([])
+      expect(routes(wired)).toEqual([])
     }
   })
 })

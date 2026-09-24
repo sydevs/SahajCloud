@@ -2,8 +2,9 @@
  * Login plugin
  *
  * Passwordless sign-in for any auth collection it is pointed at: one hidden
- * `magicLinkIssuedAt` field, and the two endpoints that trade an emailed link
- * for a session.
+ * `magicLinkIssuedAt` field, and the three endpoints that trade an emailed link
+ * for a session — a request route, the confirmation page a delivered link
+ * opens, and the POST behind that page's form which actually spends it.
  *
  * - `loginPlugin` — the wiring, registered by `src/payload.config.ts` and the
  *   test harness alike. Its `collections` option names what it serves.
