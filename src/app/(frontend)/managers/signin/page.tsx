@@ -1,12 +1,14 @@
 import type { Metadata } from 'next'
 
-import { getProjectEmailIcon } from '@/plugins/access'
+import { getProjectEmailIcon, getProjectLabel } from '@/plugins/access'
 import { DEFAULT_EMAIL_PROJECT, getEmailBrand } from '@/plugins/email'
 
 import { SignInForm } from './SignInForm'
 
 export const metadata: Metadata = {
-  title: 'Sign in — Sahaj Cloud',
+  // The card header renders the same brand, so naming the tab anything else
+  // puts two product names on one screen.
+  title: `Sign in — ${getProjectLabel(DEFAULT_EMAIL_PROJECT)}`,
   // Not token-gated like its neighbours — this one is simply not a search
   // result.
   robots: { index: false, follow: false },
