@@ -28,6 +28,7 @@ describe('noticePage', () => {
   it.each([
     ['javascript:alert(1)', 'a script URL'],
     ['//evil.example.com/signin', 'a protocol-relative off-origin URL'],
+    ['/\\evil.example.com/signin', 'a backslash the browser reads as protocol-relative'],
     ['https://evil.example.com/signin', 'an absolute off-origin URL'],
     ['managers/signin', 'a relative path'],
   ])('refuses %s (%s) rather than putting it behind the button', async (path) => {

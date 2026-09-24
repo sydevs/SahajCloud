@@ -75,8 +75,11 @@ export function noticePage(
   message: string,
   retryPath?: string,
 ): Response {
+  // ⚠ A backslash in the authority position is a slash: browsers normalise
+  // `/\host` to `//host`, so testing for `//` alone lets an off-origin URL
+  // through the leading-`/` check.
   const retry =
-    retryPath?.startsWith('/') && !retryPath.startsWith('//')
+    retryPath?.startsWith('/') && !/^\/[/\\]/.test(retryPath)
       ? `<p><a class="button" href="${escapeHtml(retryPath)}">Request a new link</a></p>`
       : ''
   return page(
