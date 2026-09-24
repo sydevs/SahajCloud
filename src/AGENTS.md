@@ -16,7 +16,7 @@ split into `plugins/`, `jobs/`, and shared utilities).
 | `src/lib/`         | Cross-cutting shared code (not a plugin, not owned by one collection/job)   |
 | `src/fields/`      | Reusable field factories (`camelCase`)                                      |
 | `src/components/`  | Admin-panel React components (`PascalCase`)                                 |
-| `src/app/`         | Next.js routes (admin, REST API, frontend, webhooks)                        |
+| `src/app/`         | Next.js routes (admin, REST API, frontend, webhooks). Shared UI for one route group goes in a `_components/` folder there — `_`-prefixed, so Next does not route it |
 | `src/migrations/`  | Payload schema migrations (see `src/migrations/AGENTS.md`)                  |
 
 ### `src/plugins/`
@@ -37,15 +37,9 @@ either half through a `generateEmailHTML` / `generateEmailSubject` pair shaped
 like the one `Managers.auth.verify` takes. The barrel deliberately stops short of the
 factories: `loginPlugin` is their only caller.
 
-⚠ **`issueMagicLink` is the one non-factory the barrel does export** — the
-request endpoint's body, not its wiring. The manager sign-in page's Server
-Action (`src/app/(frontend)/managers/signin/`) runs it directly, so the
-60-second throttle, the eligibility refusal and the uniform answer have a single
-implementation. That throttle is the only in-app bound on per-account link
-volume (`rateLimitHook` is a no-op and the Cloudflare edge cannot see the email
-in the body), so a second copy of it is the one worth refusing. `magicLinkEmailSchema`
-is exported with it: address normalisation living in one caller would let the
-other miss a match, and the uniform answer would hide the miss.
+Work with two callers gets its own module beside them rather than living in one
+of their wiring files — `session.ts`, and `issueMagicLink.ts` for the throttle
+and send that the request endpoint and the manager sign-in page both run.
 
 ### `src/jobs/<JobName>/`
 

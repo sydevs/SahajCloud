@@ -6,8 +6,10 @@ const INACTIVE: Manager['type'] = 'inactive'
 /**
  * The logged-out page that asks for a sign-in link.
  *
- * ⚠ Exported because the route itself must agree with it — a literal in both
- * places would let the refusal pages and the admin control point at a 404.
+ * The one spelling of the path, read by the config below and by the tests.
+ * ⚠ Nothing checks it against the filesystem route at
+ * `src/app/(frontend)/managers/signin/` — no TypeScript constant can — so
+ * renaming that folder needs this changed by hand.
  */
 export const MANAGER_SIGNIN_PATH = '/managers/signin'
 

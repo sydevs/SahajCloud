@@ -59,20 +59,26 @@ function page(status: number, title: string, body: string): Response {
 /**
  * A refusal a person can act on.
  *
- * ⚠ **`retryHref` is what makes "request a new sign-in link" actionable.** Every
+ * ⚠ **`retryPath` is what makes "request a new sign-in link" actionable.** Every
  * refusal here says it, and a dead end that says it without offering it is the
  * failure the 404 on these routes was already rejected for (#838). It is
  * omitted only while the served collection names no request page.
+ *
+ * ⚠ **Site-absolute, and checked.** These pages are served from the origin the
+ * page lives on, so a leading `/` is all a working link needs — and refusing
+ * anything else keeps a future `LoginCollectionConfig` from putting a
+ * `javascript:` or off-origin URL behind a button on an unauthenticated page.
  */
 export function noticePage(
   status: number,
   heading: string,
   message: string,
-  retryHref?: string,
+  retryPath?: string,
 ): Response {
-  const retry = retryHref
-    ? `<p><a class="button" href="${escapeHtml(retryHref)}">Request a new link</a></p>`
-    : ''
+  const retry =
+    retryPath?.startsWith('/') && !retryPath.startsWith('//')
+      ? `<p><a class="button" href="${escapeHtml(retryPath)}">Request a new link</a></p>`
+      : ''
   return page(
     status,
     heading,

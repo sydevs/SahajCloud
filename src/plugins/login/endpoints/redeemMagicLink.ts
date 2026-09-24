@@ -14,18 +14,6 @@ export const REDEEM_MAGIC_LINK_PATH = '/redeem-magic-link'
 /** Where a consumed link lands the holder, unless the collection names another. */
 const DEFAULT_REDIRECT = '/admin'
 
-/** An authentic link whose clock ran out. The one refusal worth distinguishing. */
-const expired = (retryHref?: string) =>
-  noticePage(410, 'This link has expired', 'Request a new sign-in link.', retryHref)
-
-/**
- * Everything else: tampered, wrong audience, already used, or minted for an
- * account that has since stopped qualifying. Collapsed into one answer on
- * purpose — separating them would describe our checks to whoever is probing them.
- */
-const invalid = (retryHref?: string) =>
-  noticePage(400, 'This link is not valid', 'Request a new sign-in link.', retryHref)
-
 /**
  * `POST /api/<slug>/redeem-magic-link?token=…`
  *
@@ -59,7 +47,18 @@ const invalid = (retryHref?: string) =>
  */
 export function redeemMagicLink(config: LoginCollectionConfig): Endpoint {
   const { requestPagePath, slug } = config
-  const retryHref = requestPagePath ? `${getServerUrl()}${requestPagePath}` : undefined
+
+  /** An authentic link whose clock ran out. The one refusal worth distinguishing. */
+  const expired = () =>
+    noticePage(410, 'This link has expired', 'Request a new sign-in link.', requestPagePath)
+
+  // Everything else: tampered, wrong audience, already used, or minted for an
+  // account that has since stopped qualifying. Collapsed into one answer on
+  // purpose — separating them would describe our checks to whoever is probing
+  // them. Both close over `requestPagePath` rather than taking it, so no refusal
+  // below can drop the retry link by forgetting an argument.
+  const invalid = () =>
+    noticePage(400, 'This link is not valid', 'Request a new sign-in link.', requestPagePath)
 
   return {
     path: REDEEM_MAGIC_LINK_PATH,
@@ -69,14 +68,14 @@ export function redeemMagicLink(config: LoginCollectionConfig): Endpoint {
       const token = typeof req.query?.token === 'string' ? req.query.token : null
 
       const result = await readSigninToken(token, payload.secret)
-      if (result.status === 'expired') return expired(retryHref)
-      if (result.status !== 'valid') return invalid(retryHref)
+      if (result.status === 'expired') return expired()
+      if (result.status !== 'valid') return invalid()
 
       const { claims } = result
       // ⚠ The claim names its own collection, and this equality is what keeps the
       // audiences from having to. A token minted for one configured collection
       // cannot sign anyone into another.
-      if (claims.collection !== slug) return invalid(retryHref)
+      if (claims.collection !== slug) return invalid()
 
       let account: LoginDocument
       try {
@@ -91,19 +90,19 @@ export function redeemMagicLink(config: LoginCollectionConfig): Endpoint {
         })) as LoginDocument
       } catch {
         // A deleted account. `findByID` throws `NotFound` rather than returning null.
-        return invalid(retryHref)
+        return invalid()
       }
 
       // Re-checked here, not only at request time: an account deactivated while
       // a link was outstanding must not be able to spend it.
-      if (config.isEligible && !config.isEligible(account)) return invalid(retryHref)
+      if (config.isEligible && !config.isEligible(account)) return invalid()
 
       // Single use, and mutual exclusion between outstanding links, both come
       // from this one equality: `requestMagicLink` stamps the field with the same
       // instant it signs into the claim, so a consumed or superseded link no
       // longer matches. Compared as numbers — see `LoginTokenClaims.issuedAt`.
       const stamped = account.magicLinkIssuedAt
-      if (!stamped || new Date(stamped).getTime() !== claims.issuedAt) return invalid(retryHref)
+      if (!stamped || new Date(stamped).getTime() !== claims.issuedAt) return invalid()
 
       // ⚠ Deliberately its own operation, and deliberately not joined to `req`'s
       // transaction. Burning the link must survive a failure to mint below — a

@@ -3,12 +3,16 @@ import type { CSSProperties, ReactNode } from 'react'
 import type { EventDetails } from '@/emails/EventVerificationEmail'
 import type { EmailBrand } from '@/plugins/email'
 
-import { ActionButtons, CardShell, OutcomeBody, type PageAction } from '../../_components/CardShell'
+import {
+  ActionButtons,
+  CardShell,
+  OutcomeBody,
+  type CardTone,
+  type PageAction,
+} from '../../_components/CardShell'
 
-export type { PageAction }
-
-/** Every tone this page can conclude with. */
-export type VerifyTone = 'success' | 'warning' | 'error'
+/** Every tone this page can conclude with — all of them, unlike its neighbours. */
+export type VerifyTone = CardTone
 
 /**
  * The event's key facts, matching the reminder email's "Event details" table

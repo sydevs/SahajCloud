@@ -134,6 +134,22 @@ const body: CSSProperties = {
   padding: '36px 30px',
   textAlign: 'center',
 }
+/** The prompt a card leads with, before anything has happened. */
+export const cardHeading: CSSProperties = {
+  margin: '0 0 12px',
+  fontSize: 20,
+  color: '#1f2937',
+  textAlign: 'center',
+}
+/** @see cardHeading */
+export const cardLead: CSSProperties = {
+  margin: '0 0 20px',
+  color: '#555',
+  lineHeight: 1.6,
+  fontSize: 15,
+  textAlign: 'center',
+}
+
 const emblem: CSSProperties = { fontSize: 44, lineHeight: 1, marginBottom: 12 }
 const cardTitle: CSSProperties = { margin: '0 0 12px', fontSize: 20 }
 const cardMessage: CSSProperties = { margin: 0, color: '#555', lineHeight: 1.6, fontSize: 15 }

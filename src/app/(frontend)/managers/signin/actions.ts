@@ -3,16 +3,20 @@
 import { getPayload } from 'payload'
 
 import { managersLogin } from '@/collections/Managers/login'
-import { issueMagicLink, magicLinkEmailSchema, SIGNIN_TOKEN_TTL_MS } from '@/plugins/login'
+import { issueMagicLink, magicLinkEmailSchema, SIGNIN_VALID_FOR } from '@/plugins/login'
 
 import payloadConfig from '@payload-config'
 
-/** This page either accepts the address or rejects what was typed. */
-export interface SignInOutcome {
-  tone: 'success' | 'error'
-  title: string
-  message: string
-}
+/**
+ * This page either accepts the address or rejects what was typed.
+ *
+ * The two arms carry different fields because they are rendered differently:
+ * acceptance replaces the form with a card, refusal keeps the form and puts the
+ * message beneath it. A `title` on the refusal would never reach a screen.
+ */
+export type SignInOutcome =
+  | { tone: 'error'; message: string }
+  | { tone: 'success'; title: string; message: string }
 
 /**
  * ⚠ **The one answer a submitted address gets.** It must not vary with whether
@@ -26,7 +30,7 @@ const SENT: SignInOutcome = {
   title: 'Check your email',
   message:
     `If that address belongs to a manager account, a sign-in link is on its way. ` +
-    `The link is valid for ${SIGNIN_TOKEN_TTL_MS / 60_000} minutes.`,
+    `The link is valid for ${SIGNIN_VALID_FOR}.`,
 }
 
 /**
@@ -35,7 +39,6 @@ const SENT: SignInOutcome = {
  */
 const MALFORMED: SignInOutcome = {
   tone: 'error',
-  title: 'Check the address',
   message: 'That does not look like an email address. Please check it and try again.',
 }
 

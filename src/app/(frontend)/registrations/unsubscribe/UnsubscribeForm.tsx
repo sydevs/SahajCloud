@@ -1,7 +1,5 @@
 'use client'
 
-import type { CSSProperties } from 'react'
-
 import { useActionState } from 'react'
 
 import type { EmailBrand } from '@/plugins/email'
@@ -9,7 +7,7 @@ import type { EmailBrand } from '@/plugins/email'
 
 import { unsubscribeAction } from './actions'
 import { UnsubscribeCard } from './UnsubscribeCard'
-import { CardShell, primaryButton } from '../../_components/CardShell'
+import { cardHeading, cardLead, CardShell, primaryButton } from '../../_components/CardShell'
 
 interface UnsubscribeFormProps {
   brand: EmailBrand
@@ -46,8 +44,8 @@ export function UnsubscribeForm({
 
   return (
     <CardShell brand={brand} iconSrc={iconSrc}>
-      <h2 style={headingStyle}>{heading}</h2>
-      <p style={lead}>{intro}</p>
+      <h2 style={cardHeading}>{heading}</h2>
+      <p style={cardLead}>{intro}</p>
       <form action={formAction}>
         <input type="hidden" name="token" value={token} />
         <button type="submit" disabled={pending} style={primaryButton(brand)}>
@@ -56,18 +54,4 @@ export function UnsubscribeForm({
       </form>
     </CardShell>
   )
-}
-
-const headingStyle: CSSProperties = {
-  margin: '0 0 12px',
-  fontSize: 20,
-  color: '#1f2937',
-  textAlign: 'center',
-}
-const lead: CSSProperties = {
-  margin: '0 0 20px',
-  color: '#555',
-  lineHeight: 1.6,
-  fontSize: 15,
-  textAlign: 'center',
 }
