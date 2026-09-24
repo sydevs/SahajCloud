@@ -15,11 +15,13 @@ import { buildConfig } from 'payload'
 
 // Project imports
 
+import { managersLogin } from '@/collections/Managers/login'
 import { REGION_NESTED_DOCS_CONFIG } from '@/lib/atlas/regionTree'
 import { buildPayloadLocales, DEFAULT_LOCALE } from '@/lib/locales'
 import { accessPlugin, bypassPermissions } from '@/plugins/access'
 import { databaseErrorPlugin } from '@/plugins/databaseErrors'
 import { formsPlugin } from '@/plugins/formBuilder'
+import { loginPlugin } from '@/plugins/login'
 import { usagePlugin } from '@/plugins/usage'
 import { writeGuardPlugin } from '@/plugins/writeGuard'
 
@@ -152,6 +154,9 @@ function createBaseTestConfig(emailConfig: any, schemaName: string, debug = fals
       // Nested docs: injects parent + breadcrumbs into Regions (mirrors the
       // real payload.config.ts so collection hooks relying on them are tested).
       nestedDocsPlugin(REGION_NESTED_DOCS_CONFIG),
+      // Passwordless sign-in: the magic-link field plus its two endpoints
+      // (mirrors the real payload.config.ts, including which collections it serves).
+      loginPlugin({ collections: [managersLogin] }),
       // Access Plugin must be LAST to process plugin-created collections
       accessPlugin({ enabled: true, bypassPermissions }),
     ],
@@ -229,6 +234,8 @@ export async function createTestEnvironmentWithEmail(): Promise<{
   payload: Payload
   cleanup: () => Promise<void>
   emailAdapter: EmailTestAdapter
+  /** The suite's own config promise — see {@link createTestEnvironment}. */
+  config: ReturnType<typeof createBaseTestConfig>
 }> {
   // Creating a test environment with email support and its own Postgres schema
 
@@ -251,7 +258,7 @@ export async function createTestEnvironmentWithEmail(): Promise<{
   const payload = await getPayload({ config })
   const cleanup = () => cleanupTestEnvironment(payload, schemaName)
 
-  return { payload, cleanup, emailAdapter }
+  return { payload, cleanup, emailAdapter, config }
 }
 
 /** Creates an authenticated request for testing */

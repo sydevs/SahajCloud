@@ -9,6 +9,7 @@ import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import { buildConfig, Config } from 'payload'
 import { openapi } from 'payload-oapi'
 
+import { managersLogin } from '@/collections/Managers/login'
 import { REGION_NESTED_DOCS_CONFIG } from '@/lib/atlas/regionTree'
 import { serverEnv } from '@/lib/env'
 import { buildPayloadLocales, DEFAULT_LOCALE } from '@/lib/locales'
@@ -21,6 +22,7 @@ import { cachePlugin } from '@/plugins/cache'
 import { databaseErrorPlugin } from '@/plugins/databaseErrors'
 import { buildSmtpTransportOptions, resendAdapter, warnEmailDisabled } from '@/plugins/email'
 import { formsPlugin } from '@/plugins/formBuilder'
+import { loginPlugin } from '@/plugins/login'
 import { openapiEndpointAuth, scalarPlugin } from '@/plugins/openapi'
 import { seedPreviewAdmin } from '@/plugins/previewAdmin'
 import { sentryPlugin } from '@/plugins/sentry'
@@ -327,6 +329,10 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       // Rule). Read-header emission lives in `src/middleware.ts` (built-in REST
       // reads) + the `publicReadCacheHeaders` decorator (custom endpoints).
       cachePlugin,
+      // Passwordless sign-in (#837): the magic-link field plus the request and
+      // consume endpoints, for every collection the option names. Before
+      // accessPlugin, which must stay last.
+      loginPlugin({ collections: [managersLogin] }),
       // Access Plugin: Unified RBAC and project visibility (must be LAST to process plugin-created collections)
       accessPlugin({
         enabled: true,

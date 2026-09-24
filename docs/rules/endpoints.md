@@ -92,9 +92,21 @@ export const MyCollection: CollectionConfig = {
 }
 ```
 
+### Registration by a plugin
+
+A collection whose endpoints are wired by a plugin keeps its **definitions** here, beside the collection, and the plugin only registers them. `formsPlugin` does this because `user-submissions` is plugin-generated and has no `CollectionConfig` file.
+
+`loginPlugin` is the deliberate exception: it **owns** its two endpoints (`src/plugins/login/endpoints/`) and builds one pair per collection its `collections` option names. They are one feature with a field and a migration, so a definition parked beside one collection would say the feature is that collection's when it is not.
+
+Three things that wiring must get right, each of which deletes behaviour silently when it does not:
+
+- **Append, never replace.** `Managers.ts` already declares `endpoints: [setProject]`, so `endpoints: [...(collection.endpoints || []), mine]` — the empty-array fallback matters, because a plugin runs **before `sanitizeConfig`** and `endpoints` may still be `undefined`. For the same reason `collection.auth` may still be the boolean `true` wherever a plugin reads it.
+- **A slug option promises a collection-agnostic endpoint, so pay for the promise or do not make it.** A handler branching on one collection's enum, sender or template cannot keep it, and a bare list of slugs over such a handler is the worst shape: it accepts a second collection and mis-serves it. Either hard-code the target and say so in a comment (`formsPlugin`, `user-submissions`), or pay for it — generically where the plugin can (`src/plugins/login/mail.ts` renders the sign-in mail for every served collection), and as configuration beside the slug where it cannot. `LoginCollectionConfig` carries the eligibility predicate and the branding project for exactly that reason: both read a field only the collection knows the name of, which is also why it carries `select`.
+- **The barrel stops short of the endpoints.** `loginPlugin` is their only caller, and exporting the factories would invite a collection to wire its own pair — the split the plugin exists to hold. `src/plugins/login/index.ts` points here.
+
 ## Key points
 
-- One handler per file. Import it relatively in the collection definition — there is no shared endpoints barrel.
+- One handler per file. Import it relatively in the collection definition, or register it from the plugin that owns the feature — there is no shared endpoints barrel.
 - Use `req.routeParams` for URL parameters and `req.query` for query strings. Use `req.payload` for the database, not a separate import.
 
 ## Requirements: auth, OpenAPI, select/populate

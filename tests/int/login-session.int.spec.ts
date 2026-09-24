@@ -1,6 +1,6 @@
 /**
- * `mintManagerSessionToken` — the one place a manager session is minted
- * (sydevs/SahajCloud#836).
+ * `createSession` — the one place a session is minted for any auth collection
+ * (sydevs/SahajCloud#836, generalised past `managers` in sydevs/SahajCloud#837).
  *
  * Needs a database because the property under test is a stored one: the JWT
  * strategy rejects a token whose `sid` is absent from the manager's `sessions`
@@ -15,12 +15,12 @@ import { randomUUID } from 'node:crypto'
 import { decodeJwt } from 'jose'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { mintManagerSessionToken } from '@/plugins/login/session'
+import { createSession } from '@/plugins/login'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
-describe('mintManagerSessionToken', () => {
+describe('createSession', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
 
@@ -54,7 +54,7 @@ describe('mintManagerSessionToken', () => {
   it('authenticates as the manager, on a session row that expires with the token', async () => {
     const manager = await createVerifiedManager()
 
-    const token = await mintManagerSessionToken(payload, manager.id)
+    const token = await createSession(payload, 'managers', manager.id)
     const { exp, sid } = decodeJwt(token) as { exp: number; sid: string }
     const session = (await sessionsOf(manager.id)).find(({ id }) => id === sid)
 
@@ -82,7 +82,7 @@ describe('mintManagerSessionToken', () => {
       depth: 0,
     })
 
-    const token = await mintManagerSessionToken(payload, manager.id)
+    const token = await createSession(payload, 'managers', manager.id)
     const { sid } = decodeJwt(token) as { sid: string }
 
     // Minting is the only moment anything prunes `sessions`. The JWT strategy
@@ -94,8 +94,8 @@ describe('mintManagerSessionToken', () => {
   it('leaves an earlier token working when a second is minted', async () => {
     const manager = await createVerifiedManager()
 
-    const first = await mintManagerSessionToken(payload, manager.id)
-    await mintManagerSessionToken(payload, manager.id)
+    const first = await createSession(payload, 'managers', manager.id)
+    await createSession(payload, 'managers', manager.id)
 
     expect((await authAs(first)).user?.id).toBe(manager.id)
     expect(await sessionsOf(manager.id)).toHaveLength(2)

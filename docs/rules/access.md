@@ -53,6 +53,8 @@ This only works because the authenticated user loads **four times**, not once. `
 
 `src/plugins/access/localizedRolesAuth.ts` re-loads the manager at the auth strategy (every request), `afterLogin`, `afterMe` (the admin's own `/me` call on mount), and `afterRefresh` (a tab left open). Skip any one and that moment's read reverts to the flat, default-locale array.
 
+⚠ **All four are hooks on an auth *response*, so a sign-in that builds its own response gets none of them.** That is why `POST /api/managers/redeem-magic-link` (#837) **redirects** to `/admin` instead of returning a user: a hand-built body there would carry flat, single-locale `roles` that nothing else in the app hands out. The redirect leaves `afterMe` to resolve them on the admin's next `/me`. Any future route that mints a session itself owes the same choice — return nothing, or run the roles through `withLocalizedRoleAuth`'s shape.
+
 ⚠ **Nothing wires this up on the collection**. `accessPlugin` attaches all four hooks to any auth collection whose `roles` field is `localized`. A future such collection is covered automatically. `Clients.roles` is flat, so it is skipped.
 
 ⚠ **A manager loaded any other way still carries the flat array.** Fine for editing the document. Wrong for deciding access.
