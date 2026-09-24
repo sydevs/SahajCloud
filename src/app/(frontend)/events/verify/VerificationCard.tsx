@@ -11,9 +11,6 @@ import {
   type PageAction,
 } from '../../_components/CardShell'
 
-/** Every tone this page can conclude with — all of them, unlike its neighbours. */
-export type VerifyTone = CardTone
-
 /**
  * The event's key facts, matching the reminder email's "Event details" table
  * (same fields + order). `details` is the shared `EventDetails` built by
@@ -74,7 +71,7 @@ export function EventSummary({ brand, details }: { brand: EmailBrand; details: E
 
 /** Serializable result of a verify attempt — what the card renders. */
 export interface VerifyOutcome {
-  tone: VerifyTone
+  tone: CardTone
   title: string
   message: string
   actions: PageAction[]
