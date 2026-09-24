@@ -3,7 +3,7 @@ import type { Endpoint } from 'payload'
 
 import { parseBody } from '@/lib/endpoints'
 
-import { issueMagicLink, magicLinkEmailSchema } from '../issueMagicLink'
+import { issueMagicLink, magicLinkEmailSchema } from '../magicLinks'
 
 export const REQUEST_MAGIC_LINK_PATH = '/request-magic-link'
 

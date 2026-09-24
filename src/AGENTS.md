@@ -38,7 +38,7 @@ like the one `Managers.auth.verify` takes. The barrel deliberately stops short o
 factories: `loginPlugin` is their only caller.
 
 Work with two callers gets its own module beside them rather than living in one
-of their wiring files — `session.ts`, and `issueMagicLink.ts` for the throttle
+of their wiring files — `session.ts`, and `magicLinks.ts` for the throttle
 and send that the request endpoint and the manager sign-in page both run.
 
 ### `src/jobs/<JobName>/`

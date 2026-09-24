@@ -29,7 +29,7 @@ export {
   magicLinkEmailSchema,
   REQUEST_LINK_THROTTLE_MS,
   SIGNIN_VALID_FOR,
-} from './issueMagicLink'
+} from './magicLinks'
 
 export { loginPlugin, magicLinkIssuedAt, type LoginPluginOptions } from './loginPlugin'
 
