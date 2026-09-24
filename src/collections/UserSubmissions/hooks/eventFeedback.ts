@@ -2,7 +2,7 @@ import type { CollectionAfterChangeHook, CollectionBeforeChangeHook } from 'payl
 
 import { APIError } from 'payload'
 
-import { updateEventBookkeeping } from '@/lib/events/systemWrite'
+import { updateEventBookkeeping } from '@/lib/events/updateEventWithoutValidation'
 import { computeCommunityVerdict } from '@/lib/eventVerification/communityFeedback'
 import { activeRegistrationWhere } from '@/lib/registrations/active'
 import { isRecord } from '@/lib/utilities/isRecord'

@@ -1,6 +1,6 @@
 import type { Payload, PayloadRequest, Where } from 'payload'
 
-import { updateEventBookkeeping } from '@/lib/events/systemWrite'
+import { updateEventBookkeeping } from '@/lib/events/updateEventWithoutValidation'
 import type { Event } from '@/payload-types'
 import { asTrustedReq } from '@/plugins/usage/hooks'
 

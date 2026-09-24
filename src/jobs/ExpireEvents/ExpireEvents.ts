@@ -4,7 +4,7 @@ import * as Sentry from '@sentry/nextjs'
 
 import { DEFAULT_LOG_LIMIT } from '@/fields'
 import { revalidateAtlasSidebar } from '@/lib/atlasSidebar/cache'
-import { updateEventBookkeeping } from '@/lib/events/systemWrite'
+import { updateEventBookkeeping } from '@/lib/events/updateEventWithoutValidation'
 import {
   asNotificationLog,
   buildReminderEntry,
