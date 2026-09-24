@@ -629,8 +629,8 @@ form with none set).
 ### Login (`src/plugins/login`)
 
 Passwordless sign-in for `Managers` (#837). It appends one hidden
-`magicLinkIssuedAt` column and two endpoints — `POST /api/managers/request-link`
-and `GET /api/managers/consume-link` — to whatever `Managers.ts` already
+`magicLinkIssuedAt` column and two endpoints — `POST /api/managers/request-magic-link`
+and `GET /api/managers/redeem-magic-link` — to whatever `Managers.ts` already
 declares. Passwords still work; this is a second way in.
 
 Four things worth knowing before you touch `Managers`:
@@ -645,7 +645,7 @@ Four things worth knowing before you touch `Managers`:
   matches exactly, and — cleared — what makes a link single-use. A hook that
   writes it invalidates a manager's outstanding link.
 - ⚠ **Both routes are anonymous.** They have to be: a manager who cannot sign
-  in is who calls them. `request-link` therefore answers identically for every
+  in is who calls them. `request-magic-link` therefore answers identically for every
   outcome, because any difference is an account-enumeration oracle.
 - The plugin **appends** to `endpoints` and `fields`. Replacing either array
   would delete `setProject` — the project switcher — silently.

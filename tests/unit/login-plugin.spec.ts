@@ -39,7 +39,7 @@ describe('loginPlugin', () => {
     const [wired] = fold(loginPlugin({ collections: [managers] }), collection('managers'))
 
     expect(fieldNames(wired)).toContain('magicLinkIssuedAt')
-    expect(paths(wired)).toEqual(['/request-link', '/consume-link'])
+    expect(paths(wired)).toEqual(['/request-magic-link', '/redeem-magic-link'])
   })
 
   it('appends to the endpoints a collection already declares', () => {
@@ -50,7 +50,7 @@ describe('loginPlugin', () => {
       collection('managers', [setProject]),
     )
 
-    expect(paths(wired)).toEqual(['/set-project', '/request-link', '/consume-link'])
+    expect(paths(wired)).toEqual(['/set-project', '/request-magic-link', '/redeem-magic-link'])
   })
 
   it('leaves a collection the option does not name untouched', () => {
@@ -71,8 +71,8 @@ describe('loginPlugin', () => {
       collection('staff'),
     )
 
-    expect(paths(a)).toEqual(['/request-link', '/consume-link'])
-    expect(paths(b)).toEqual(['/request-link', '/consume-link'])
+    expect(paths(a)).toEqual(['/request-magic-link', '/redeem-magic-link'])
+    expect(paths(b)).toEqual(['/request-magic-link', '/redeem-magic-link'])
   })
 
   it('ignores an option slug that names no collection', () => {
@@ -87,7 +87,7 @@ describe('loginPlugin', () => {
 
     expect(folded).toHaveLength(1)
     expect(folded[0]!.slug).toBe('managers')
-    expect(paths(folded[0]!)).toEqual(['/request-link', '/consume-link'])
+    expect(paths(folded[0]!)).toEqual(['/request-magic-link', '/redeem-magic-link'])
   })
 
   it('wires nothing when no collection is named, or when disabled', () => {

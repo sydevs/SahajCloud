@@ -88,7 +88,7 @@ export async function createRestClientAs(
  *
  * ⚠ Anonymous is a *property under test* here, not an oversight — the opposite
  * of `createRestClientAs`'s warning. An endpoint reachable without signing in
- * (`request-link`, `consume-link`) must be exercised the way the internet
+ * (`request-magic-link`, `redeem-magic-link`) must be exercised the way the internet
  * reaches it, and authenticating would hide exactly what the spec is asking.
  */
 export function createAnonRestClient(env: { payload: Payload; config: TestConfig }): RestClient {

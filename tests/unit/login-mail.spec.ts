@@ -16,7 +16,7 @@ import type { LoginMailArgs } from '@/plugins/login/types'
 const args = (project: LoginMailArgs['project']): LoginMailArgs => ({
   doc: { email: 'a@example.test', id: 1, name: 'A' },
   project,
-  signInUrl: 'https://example.test/api/managers/consume-link?token=t',
+  signInUrl: 'https://example.test/api/managers/redeem-magic-link?token=t',
   validFor: '15 minutes',
 })
 

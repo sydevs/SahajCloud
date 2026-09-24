@@ -8,9 +8,9 @@ import { getServerUrl } from '@/lib/utilities/serverUrl'
 
 import { emailFrom, generateEmailHTML, generateEmailSubject } from '../mail'
 import { signSigninToken, SIGNIN_TOKEN_TTL_MS } from '../token'
-import { CONSUME_LINK_PATH } from './redeemMagicLink'
+import { REDEEM_MAGIC_LINK_PATH } from './redeemMagicLink'
 
-export const REQUEST_LINK_PATH = '/request-link'
+export const REQUEST_MAGIC_LINK_PATH = '/request-magic-link'
 
 /**
  * How long an account must wait between sign-in link requests.
@@ -33,7 +33,7 @@ const bodySchema = z.object({
 const ACCEPTED = { ok: true } as const
 
 /**
- * `POST /api/<slug>/request-link`
+ * `POST /api/<slug>/request-magic-link`
  *
  * Trades an email address for an emailed sign-in link, for one configured auth
  * collection. `loginPlugin` builds one of these per entry in its `collections`
@@ -55,7 +55,7 @@ const ACCEPTED = { ok: true } as const
  */
 export function requestMagicLink(config: LoginCollectionConfig): Endpoint {
   return {
-    path: REQUEST_LINK_PATH,
+    path: REQUEST_MAGIC_LINK_PATH,
     method: 'post',
     handler: async (req) => {
       const parsed = await parseBody(req, bodySchema)
@@ -139,7 +139,7 @@ async function issueLink(
   const args: LoginMailArgs = {
     doc: account,
     project: config.project?.(account) ?? undefined,
-    signInUrl: `${getServerUrl()}/api/${slug}${CONSUME_LINK_PATH}?token=${encodeURIComponent(token)}`,
+    signInUrl: `${getServerUrl()}/api/${slug}${REDEEM_MAGIC_LINK_PATH}?token=${encodeURIComponent(token)}`,
     // Derived, so changing the TTL cannot leave the email saying otherwise.
     validFor: `${SIGNIN_TOKEN_TTL_MS / 60_000} minutes`,
   }

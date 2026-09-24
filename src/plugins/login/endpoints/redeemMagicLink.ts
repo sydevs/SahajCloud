@@ -8,7 +8,7 @@ import { getServerUrl } from '@/lib/utilities/serverUrl'
 import { createSession } from '../session'
 import { readSigninToken } from '../token'
 
-export const CONSUME_LINK_PATH = '/consume-link'
+export const REDEEM_MAGIC_LINK_PATH = '/redeem-magic-link'
 
 /** Where a consumed link lands the holder, unless the collection names another. */
 const DEFAULT_REDIRECT = '/admin'
@@ -29,19 +29,19 @@ const invalid = () =>
   Response.json({ errors: [{ message: 'This sign-in link is not valid.' }] }, { status: 400 })
 
 /**
- * `GET /api/<slug>/consume-link?token=…`
+ * `GET /api/<slug>/redeem-magic-link?token=…`
  *
  * Trades a valid sign-in link for a session cookie and redirects the holder.
  * `loginPlugin` builds one of these per entry in its `collections` option.
  *
- * Auth: **intentionally anonymous**, like its `request-link` sibling — the
+ * Auth: **intentionally anonymous**, like its `request-magic-link` sibling — the
  * token is the credential. Absent from the OpenAPI client spec for the same
  * reason `set-project` is: the collections this serves are admin-only and in no
  * project, so they publish no public paths.
  *
  * ⚠ **A `GET` here spends the link.** Link-scanning mail security (Defender
  * Safe Links, Proofpoint) fetches URLs in inbound mail, so a scanner can burn
- * the link before the recipient clicks it, and `request-link`'s throttle then
+ * the link before the recipient clicks it, and `request-magic-link`'s throttle then
  * refuses the obvious retry for 60 seconds. When someone reports that the link
  * is not valid, check this first. The usual fix is an interstitial page that
  * POSTs the token; it is not built, because nobody has hit this yet.
@@ -59,7 +59,7 @@ export function redeemMagicLink(config: LoginCollectionConfig): Endpoint {
   const { slug } = config
 
   return {
-    path: CONSUME_LINK_PATH,
+    path: REDEEM_MAGIC_LINK_PATH,
     method: 'get',
     handler: async (req) => {
       const { payload } = req

@@ -29,12 +29,12 @@ import { createAnonRestClient, createRestClientWithAuth, type RestClient } from 
 import { testData } from '../utils/testData'
 import { createTestEnvironmentWithEmail } from '../utils/testHelpers'
 
-const REQUEST_PATH = '/api/managers/request-link'
-const CONSUME_PATH = '/api/managers/consume-link'
+const REQUEST_PATH = '/api/managers/request-magic-link'
+const REDEEM_PATH = '/api/managers/redeem-magic-link'
 
 /** The sign-in link as the recipient receives it, token captured. */
 const SIGN_IN_URL = new RegExp(
-  `${escapeRegExp(`${getServerUrl()}/api/managers/consume-link?token=`)}([\\w.%-]+)`,
+  `${escapeRegExp(`${getServerUrl()}/api/managers/redeem-magic-link?token=`)}([\\w.%-]+)`,
 )
 
 describe('manager magic-link sign-in', () => {
@@ -47,7 +47,7 @@ describe('manager magic-link sign-in', () => {
   const requestLinkFor = (email: string) =>
     anon(REQUEST_PATH, { method: 'POST', json: { email } })
 
-  const consume = (token: string) => anon(`${CONSUME_PATH}?token=${encodeURIComponent(token)}`)
+  const consume = (token: string) => anon(`${REDEEM_PATH}?token=${encodeURIComponent(token)}`)
 
   /** Ask for a link and hand back the token from the email that arrives. */
   const linkTokenFor = async (email: string): Promise<string> => {
@@ -89,8 +89,8 @@ describe('manager magic-link sign-in', () => {
       // `endpoints: [setProject]`, and a plugin that replaced rather than
       // appended would delete the project switcher silently.
       expect(paths).toContain('/set-project')
-      expect(paths).toContain('/request-link')
-      expect(paths).toContain('/consume-link')
+      expect(paths).toContain('/request-magic-link')
+      expect(paths).toContain('/redeem-magic-link')
     })
 
     it('refuses a sign-in link token presented as a session cookie', async () => {
@@ -359,7 +359,7 @@ describe('manager magic-link sign-in', () => {
     })
 
     it('refuses a request carrying no token at all', async () => {
-      expect((await anon(CONSUME_PATH)).status).toBe(400)
+      expect((await anon(REDEEM_PATH)).status).toBe(400)
     })
   })
 })
