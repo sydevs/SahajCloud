@@ -8,7 +8,6 @@ import { getServerUrl } from '@/lib/utilities/serverUrl'
 import {
   generateInviteEmailHTML,
   generateInviteEmailSubject,
-  INVITE_VALID_FOR,
   inviteUrl,
   signInviteFor,
 } from './invite'
@@ -155,7 +154,7 @@ export async function issueMagicLink({
 
     await payload.sendEmail({
       to: account.email,
-      from: emailFrom({ doc: account, project, signInUrl: url, validFor: INVITE_VALID_FOR }),
+      from: emailFrom(project),
       subject: generateInviteEmailSubject(project),
       // No `req`: this send has a request of its own with no open transaction,
       // so the grant summary takes its own connection. @see summarizeGrants
@@ -188,7 +187,7 @@ export async function issueMagicLink({
 
   await payload.sendEmail({
     to: account.email,
-    from: emailFrom(args),
+    from: emailFrom(args.project),
     subject: (config.generateEmailSubject ?? generateEmailSubject)(args),
     // Inline, not queued, matching the verify and reset mail `Managers.auth`
     // already builds with `renderEmail`. The throttle above bounds the volume
