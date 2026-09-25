@@ -113,23 +113,18 @@ export function toMailpitMessage(mail: NormalizedMail) {
  * Build the capture transport, and a way to turn a send result into a
  * link.
  *
- * Authenticates with `MAILPIT_SEND_AUTH`, a credential Mailpit accepts on
- * the send endpoint alone (`MP_SEND_API_AUTH`), falling back to
- * `MAILPIT_UI_AUTH`, which Mailpit accepts there only while no send
- * credential is configured.
- *
- * @throws If `MAILPIT_URL` or both credentials are unset. These scripts
+ * @throws If `MAILPIT_URL` or `MAILPIT_UI_AUTH` is unset. These scripts
  *   exist to produce reviewable links. A run that silently sends nowhere
  *   is worse than no run at all: it prints an empty report that looks
  *   like success.
  */
 export function createCaptureTransport() {
   const viewerBase = (process.env.MAILPIT_URL ?? '').replace(/\/$/, '')
-  const credentials = process.env.MAILPIT_SEND_AUTH || process.env.MAILPIT_UI_AUTH
+  const credentials = process.env.MAILPIT_UI_AUTH
 
   if (!viewerBase || !credentials) {
     throw new Error(
-      'MAILPIT_URL and MAILPIT_SEND_AUTH (or MAILPIT_UI_AUTH) must be set, so there is somewhere to capture preview mail.\n' +
+      'MAILPIT_URL and MAILPIT_UI_AUTH must be set, so there is somewhere to capture preview mail.\n' +
         'In a Claude routine they come from the cloud environment. Locally, load them first:  set -a; . ./.env.claude.local; set +a\n' +
         'See docs/rules/email.md for what they point at and why.',
     )

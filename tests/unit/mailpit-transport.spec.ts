@@ -67,7 +67,6 @@ describe('createCaptureTransport', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', fetchMock)
     vi.stubEnv('MAILPIT_URL', 'https://mailpit.example.com/')
-    vi.stubEnv('MAILPIT_SEND_AUTH', 'sender:send-pass')
     vi.stubEnv('MAILPIT_UI_AUTH', 'viewer:ui-pass')
     fetchMock.mockResolvedValue(new Response(JSON.stringify({ ID: 'abc123' }), { status: 200 }))
   })
@@ -107,13 +106,7 @@ describe('createCaptureTransport', () => {
     expect(messageUrl(info)).toBe('https://mailpit.example.com/view/abc123')
   })
 
-  it('prefers the send-only credential over the UI one', async () => {
-    await send()
-    expect(authHeader()).toBe(`Basic ${Buffer.from('sender:send-pass').toString('base64')}`)
-  })
-
-  it('falls back to the UI credential when no send credential is set', async () => {
-    vi.stubEnv('MAILPIT_SEND_AUTH', '')
+  it('authenticates with the Mailpit login', async () => {
     await send()
     expect(authHeader()).toBe(`Basic ${Buffer.from('viewer:ui-pass').toString('base64')}`)
   })
@@ -124,9 +117,8 @@ describe('createCaptureTransport', () => {
   })
 
   it('refuses to build without a Mailpit URL or credential', () => {
-    vi.stubEnv('MAILPIT_SEND_AUTH', '')
     vi.stubEnv('MAILPIT_UI_AUTH', '')
-    expect(() => createCaptureTransport()).toThrow(/MAILPIT_SEND_AUTH/)
+    expect(() => createCaptureTransport()).toThrow(/MAILPIT_UI_AUTH/)
 
     vi.stubEnv('MAILPIT_UI_AUTH', 'viewer:ui-pass')
     vi.stubEnv('MAILPIT_URL', '')
