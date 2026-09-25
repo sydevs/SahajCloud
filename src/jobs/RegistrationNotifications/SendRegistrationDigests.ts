@@ -10,8 +10,8 @@ import { formatShortDate, resolveRegistrationRecipient } from '@/lib/notificatio
 import { activeRegistrationWhere } from '@/lib/registrations/active'
 import type { RegistrationAnswer } from '@/lib/registrations/questions'
 import { buildRegistrationAnswers } from '@/lib/registrations/questions'
+import { adminDocUrl } from '@/lib/utilities/adminUrl'
 import { relationId } from '@/lib/utilities/relationId'
-import { getServerUrl } from '@/lib/utilities/serverUrl'
 import type { Event, Manager } from '@/payload-types'
 
 import { sendRegistrationDigest } from './sendRegistrationDigest'
@@ -204,7 +204,7 @@ async function digestForManager(args: {
     if (!eventRows || eventRows.length === 0) continue
     groups.push({
       eventTitle: typeof event.title === 'string' ? event.title : `Event #${event.id}`,
-      eventAdminUrl: `${getServerUrl()}/admin/collections/events/${event.id}`,
+      eventAdminUrl: adminDocUrl('events', event.id),
       registrations: eventRows.map((row) => ({
         registrantName: row.name?.trim() || row.email || 'A registrant',
         registrantEmail: row.email,

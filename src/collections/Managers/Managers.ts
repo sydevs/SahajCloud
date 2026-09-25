@@ -13,7 +13,7 @@ import { ResetPasswordEmail } from '@/emails/ResetPasswordEmail'
 import { hideUntilCreated, legacyMigrationFields } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
 import { getLanguageOptions } from '@/lib/locales'
-import { getServerUrl } from '@/lib/utilities/serverUrl'
+import { adminUrl } from '@/lib/utilities/adminUrl'
 import { adminOnlyFieldAccess, getRoleOptions, getProjectOptions } from '@/plugins/access'
 import { getEmailBrand, renderEmail } from '@/plugins/email'
 import { inviteVerification } from '@/plugins/login'
@@ -40,7 +40,7 @@ export const Managers: CollectionConfig = {
         renderEmail(
           createElement(ResetPasswordEmail, {
             name: args?.user?.name || args?.user?.email || '',
-            resetUrl: `${getServerUrl()}/admin/reset/${args?.token}`,
+            resetUrl: adminUrl(`/reset/${args?.token}`),
           }),
         ),
       generateEmailSubject: () => `Reset Your Password — ${getEmailBrand().productName}`,

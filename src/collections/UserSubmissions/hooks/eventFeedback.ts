@@ -2,10 +2,12 @@ import type { CollectionAfterChangeHook, CollectionBeforeChangeHook } from 'payl
 
 import { APIError } from 'payload'
 
+import { updateEventBookkeeping } from '@/lib/events/updateEventWithoutValidation'
 import { computeCommunityVerdict } from '@/lib/eventVerification/communityFeedback'
 import { activeRegistrationWhere } from '@/lib/registrations/active'
 import { isRecord } from '@/lib/utilities/isRecord'
 import { relationId } from '@/lib/utilities/relationId'
+import type { Event } from '@/payload-types'
 import { asSystemReq, asTrustedReq } from '@/plugins/usage/hooks'
 
 /**
@@ -127,21 +129,27 @@ export const syncCommunityFeedback: CollectionAfterChangeHook = async ({
   const denials = denied.totalDocs
   const verdict = computeCommunityVerdict({ confirmations, denials })
 
-  await req.payload.update({
-    collection: 'events',
-    id: eventId,
-    data: {
-      confidenceScore: verdict.score,
-      systemMeta: {
-        ...(isRecord(event.systemMeta) ? event.systemMeta : {}),
-        communityFeedback: { confirmations, denials, updatedAt: new Date().toISOString() },
-      },
-      ...(verdict.denied && event.verificationStage === 'unverified'
-        ? { verificationStage: 'denied', _status: 'draft' }
-        : {}),
+  // Bookkeeping, so it must not re-validate the stored event. This hook is
+  // unguarded, so a throw killed the visitor's transaction: the vote was rolled
+  // back behind "Could not record your answer" (#842). The denial branch still
+  // unpublishes — that is the community verdict, not editor content.
+  const data: Partial<
+    Pick<Event, 'confidenceScore' | 'systemMeta' | 'verificationStage' | '_status'>
+  > = {
+    confidenceScore: verdict.score,
+    systemMeta: {
+      ...(isRecord(event.systemMeta) ? event.systemMeta : {}),
+      communityFeedback: { confirmations, denials, updatedAt: new Date().toISOString() },
     },
-    overrideAccess: true,
-    context: { skipVerifyHook: true, skipWriteGuard: true },
+    ...(verdict.denied && event.verificationStage === 'unverified'
+      ? { verificationStage: 'denied', _status: 'draft' }
+      : {}),
+  }
+  await updateEventBookkeeping({
+    payload: req.payload,
+    id: eventId,
+    data,
+    context: { skipWriteGuard: true },
     // A SYSTEM write in the caller's transaction — see `asSystemReq` for why
     // `overrideAccess` alone isn't enough (filterOptions still sees `req.user`).
     req: asSystemReq(req),

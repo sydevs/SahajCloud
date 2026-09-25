@@ -9,6 +9,8 @@ import { verifyEventFromToken } from '@/collections/Events/lifecycle/verify'
 import { CONTACT_EMAIL } from '@/lib/contact'
 import { serverEnv } from '@/lib/env'
 import { readVerifyToken } from '@/lib/eventVerification/token'
+import { adminDocUrl } from '@/lib/utilities/adminUrl'
+import { describeValidationErrors, validationFieldErrors } from '@/lib/utilities/validationFailure'
 
 import config from '@payload-config'
 
@@ -70,6 +72,26 @@ export async function verifyEventAction(
       error: detail,
       occurredAt,
     })
+
+    // Invalid stored data is the one failure the manager can clear themselves,
+    // so it must not land on "contact the admin team" (#842). Verifying keeps
+    // refusing — the data is fixed first. The edit page is behind the admin
+    // login; minting a session from a 10-day verify token belongs to #664.
+    const fieldErrors = validationFieldErrors(error)
+    if (fieldErrors && typeof eventId === 'number') {
+      return {
+        tone: 'warning',
+        title: 'Fix these details first',
+        message: [
+          'This event cannot be verified until its details are complete:',
+          ...describeValidationErrors(fieldErrors),
+        ].join('\n'),
+        actions: [
+          { label: 'Edit this event', href: adminDocUrl('events', eventId), variant: 'primary' },
+          ...backSecondary,
+        ],
+      }
+    }
     // Pre-fill a support email with everything the admin team needs to triage.
     const subject = `Event verification failed — event #${eventId}`
     const body = [

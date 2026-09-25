@@ -7,6 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { eventsGeoJson } from '@/collections/Events/endpoints/geojson'
 import type { EventFeature } from '@/collections/Events/endpoints/responseTypes'
 
+import { expectEventWriteRefused, storeEventOverImageLimit } from '../utils/storeInvalidEvent'
 import { createData, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -199,6 +200,30 @@ describe('registrationsFull signal (#599)', () => {
 
       const feature = body.features.find((f) => f.id === id)
       expect(feature?.properties.registrationsFull).toBe(true)
+    })
+  })
+
+  describe('an event whose stored data fails a field validator (#842)', () => {
+    it('accepts the registration that takes the last seat, and flips the flag', async () => {
+      const id = await createEvent({ registrationLimit: 1 })
+      // The seed leaves the schedule and the contact fields alone, so the
+      // registration gate is unaffected by it.
+      await storeEventOverImageLimit(payload, id)
+      await expectEventWriteRefused(payload, id, { registrationsFull: true }, /Images/i)
+
+      // Before the fix this threw inside an unguarded afterChange hook, which
+      // killed the visitor's transaction: the registration was rolled back and
+      // the flag never flipped, so the widget kept showing the event as open.
+      const regId = await addRegistration(id)
+      expect(regId).toBeTruthy()
+
+      expect(await fullFlag(id)).toBe(true)
+      const stored = await payload.findByID({
+        collection: 'user-submissions',
+        id: regId,
+        overrideAccess: true,
+      })
+      expect(stored.id).toBe(regId)
     })
   })
 })
