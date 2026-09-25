@@ -1414,6 +1414,7 @@ export interface Manager {
     | number
     | boolean
     | null;
+  magicLinkIssuedAt?: string | null;
   updatedAt: string;
   createdAt: string;
   email: string;
@@ -4419,6 +4420,7 @@ export interface ManagersSelect<T extends boolean = true> {
   lastRegistrationDigestSentAt?: T;
   legacyId?: T;
   legacyData?: T;
+  magicLinkIssuedAt?: T;
   updatedAt?: T;
   createdAt?: T;
   email?: T;

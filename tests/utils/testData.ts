@@ -114,13 +114,19 @@ const __dirname = path.dirname(__filename)
 const SAMPLE_FILES_DIR = path.join(__dirname, '../files')
 
 /**
- * Counts the uploads this process has made, so every fixture file gets its own
- * name. Payload picks a free `-N` suffix by reading the rows that already
- * exist, so two concurrent uploads of one sample file both claim the same
- * suffix and the loser trips the unique index on `filename`. A counter is
- * enough because a Postgres test schema never leaves the process that made it.
+ * Names a fixture upload so nothing else in the run can want that name.
+ * Payload rewrites a requested name to the first free `-N` suffix, and it
+ * reads the upload directory to find one — a directory every suite shares,
+ * whatever Postgres schema it owns. A per-process counter does not survive
+ * that rewrite: two concurrent uploads read the directory before either
+ * writes, land on the same free suffix, and the loser trips the unique index
+ * on `filename`. A name nothing else can request is never rewritten.
  */
-let uploadCount = 0
+function uniqueUploadName(sampleFile: string): string {
+  const extension = path.extname(sampleFile)
+  const token = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`
+  return `${path.basename(sampleFile, extension)}-${token}${extension}`
+}
 
 /**
  * The shape Payload generates for a lexical `richText` field. Structurally
@@ -226,7 +232,7 @@ export const testData = {
     // Convert Buffer to Uint8Array for compatibility with file-type library
     const fileData = new Uint8Array(fileBuffer)
     const extension = path.extname(sampleFile)
-    const uploadName = `${path.basename(sampleFile, extension)}-${(uploadCount += 1)}${extension}`
+    const uploadName = uniqueUploadName(sampleFile)
 
     return (await payload.create({
       collection: 'images',
