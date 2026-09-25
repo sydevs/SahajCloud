@@ -10,7 +10,7 @@ The app switches email providers by environment:
 
 | Environment | Provider | Notes |
 |---|---|---|
-| Development & PR previews | Mailpit, via `SMTP_URL` | Captures outbound mail. Nothing is delivered. Messages keep a stable `/view/<id>` link for **7 days**, so a PR reviewer can open them. `SMTP_URL` / `MAILPIT_URL` / `MAILPIT_UI_AUTH` live in `.env.claude.local`. From `dev@wemeditate.com`. |
+| Development & PR previews | Mailpit, via `SMTP_URL` | Captures outbound mail. Nothing is delivered. Messages keep a stable `/view/<id>` link for **7 days**, so a PR reviewer can open them. From `dev@wemeditate.com`. Previews inherit `SMTP_URL` from production (see below). Locally it lives in `.env.claude.local`, beside the preview scripts' `MAILPIT_*` variables. |
 | Anywhere else, with no `SMTP_URL` | Disabled, with a warning | No silent fallback transport — see below. |
 | Production | Resend (transactional API) | Custom adapter at `src/plugins/email/resendAdapter.ts`. `From` splits by audience — see below. Free tier: 3,000 emails/month. |
 | Test | Disabled | Avoids Payload model conflicts under parallel test runs. Test email logic separately, without a full Payload boot. |
@@ -64,7 +64,11 @@ This file once said development used Ethereal, which was never actually configur
 
 So: canonical production uses Resend, `SMTP_URL` set uses Mailpit, and otherwise mail is disabled loudly.
 
-**Production is detected with `isProductionDeployment()`, not `NODE_ENV`** — the same helper storage relies on, reading Railway's environment name. This matters more than variable hygiene: a preview environment inherits `RESEND_API_KEY` from production and is recreated for every PR, so "remember to unset the key on preview" would fail on the next PR. Gating in code means a preview *cannot* reach Resend, whatever it inherits. Set `SMTP_URL` on preview environments so their mail is captured, not dropped.
+**Production is detected with `isProductionDeployment()`, not `NODE_ENV`** — the same helper storage relies on, reading Railway's environment name. This matters more than variable hygiene: a preview environment inherits `RESEND_API_KEY` from production and is recreated for every PR, so "remember to unset the key on preview" would fail on the next PR. Gating in code means a preview *cannot* reach Resend, whatever it inherits.
+
+**`SMTP_URL` is set on production's SahajCloud service for the same reason.** Railway copies production's variables into a PR environment when it creates one, so a per-preview setting would not survive the next PR. On production it is inert, since the Resend branch is taken first. It must be Mailpit's public TCP-proxy address, not `mailpit.railway.internal`: private networking does not cross environments. A preview created before the variable existed has no `SMTP_URL`, and drops its mail with a warning until it is set there by hand.
+
+⚠ **The preview scripts never read `SMTP_URL`.** They post to Mailpit's HTTP send API (`scripts/mailpit-transport.ts`), because a Claude routine reaches the network only through an HTTPS proxy, and SMTP times out there (#807). They need `MAILPIT_URL` and `MAILPIT_UI_AUTH`, which the Claude cloud environment carries. The login can read every captured message too, and that is acceptable: a preview's database holds no production rows, and production mail goes to Resend, so Mailpit holds only fixtures and preview traffic.
 
 ### Sanitize manager/client-authored text before it becomes a header or ICS line
 
