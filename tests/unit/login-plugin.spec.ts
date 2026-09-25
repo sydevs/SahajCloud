@@ -17,7 +17,10 @@ import { describe, expect, it } from 'vitest'
 
 import { loginPlugin, type LoginCollectionConfig } from '@/plugins/login'
 
-const managers: LoginCollectionConfig = { slug: 'managers' }
+const managers: LoginCollectionConfig = {
+  slug: 'managers',
+  requestPagePath: '/managers/signin',
+}
 
 const setProject: Endpoint = { path: '/set-project', method: 'post', handler: () => new Response() }
 
@@ -57,18 +60,15 @@ function adminConfig(): Config {
 
 /**
  * `<method> <path>` per endpoint. The method is asserted, not just the path:
- * two handlers share `/redeem-magic-link`, and which verb each one answers is
- * what keeps a mail scanner's GET from spending the link.
+ * `/redeem-magic-link` answering a GET at all is what would let a mail
+ * scanner spend the link, so the absent verb is as load-bearing as the present
+ * one.
  */
 const routes = (c: CollectionConfig) =>
   (c.endpoints || []).map((e) => `${(e as Endpoint).method} ${(e as Endpoint).path}`)
 
 /** What the plugin wires onto a served collection, in fold order. */
-const WIRED_ROUTES = [
-  'post /request-magic-link',
-  'get /redeem-magic-link',
-  'post /redeem-magic-link',
-]
+const WIRED_ROUTES = ['post /request-magic-link', 'post /redeem-magic-link']
 const fieldNames = (c: CollectionConfig) => c.fields.map((f) => ('name' in f ? f.name : null))
 
 describe('loginPlugin', () => {
@@ -103,7 +103,7 @@ describe('loginPlugin', () => {
 
   it('wires every collection the option names', () => {
     const [a, b] = fold(
-      loginPlugin({ collections: [managers, { slug: 'staff' as never }] }),
+      loginPlugin({ collections: [managers, { requestPagePath: '/staff/signin', slug: 'staff' as never }] }),
       collection('managers'),
       collection('staff'),
     )
@@ -118,7 +118,7 @@ describe('loginPlugin', () => {
     // collection on purpose: an empty config never reaches the lookup, so the
     // same assertion over `fold(plugin)` alone would pass without testing it.
     const folded = fold(
-      loginPlugin({ collections: [managers, { slug: 'nope' as never }] }),
+      loginPlugin({ collections: [managers, { requestPagePath: '/nope/signin', slug: 'nope' as never }] }),
       collection('managers'),
     )
 
@@ -142,7 +142,7 @@ describe('loginPlugin', () => {
   })
 
   describe('the admin login control', () => {
-    const withPage: LoginCollectionConfig = { slug: 'managers', requestPagePath: '/managers/signin' }
+    const withPage = managers
 
     it('adds afterLogin pointing at the configured page', () => {
       const folded = foldConfig(loginPlugin({ collections: [withPage] }), adminConfig())
@@ -171,19 +171,21 @@ describe('loginPlugin', () => {
       expect(components.beforeDashboard).toEqual(before.admin!.components!.beforeDashboard)
     })
 
-    it('leaves admin alone when the served collection names no page', () => {
-      // `requestPagePath` is optional, and a control linking nowhere is worse
-      // than no control.
-      const before = adminConfig()
-      const folded = foldConfig(loginPlugin({ collections: [managers] }), before)
+    it('serves no GET on the redeem path', () => {
+      // The scanner defence, stated as an absence: the emailed link addresses
+      // `requestPagePath`'s page instead, which writes nothing.
+      const [wired] = fold(loginPlugin({ collections: [managers] }), collection('managers'))
 
-      expect(folded.admin?.components?.afterLogin).toBeUndefined()
+      expect(routes(wired)).not.toContain('get /redeem-magic-link')
     })
 
     it('adds nothing for a collection the admin panel does not authenticate', () => {
       // `afterLogin` is a slot on the one login form, so a second served
       // collection has no form to add to.
-      const other: LoginCollectionConfig = { slug: 'clients', requestPagePath: '/clients/signin' }
+      const other: LoginCollectionConfig = {
+        requestPagePath: '/clients/signin',
+        slug: 'clients' as never,
+      }
       const folded = foldConfig(loginPlugin({ collections: [other] }), adminConfig())
 
       expect(folded.admin?.components?.afterLogin).toBeUndefined()

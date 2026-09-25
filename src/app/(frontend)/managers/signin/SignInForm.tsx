@@ -1,10 +1,12 @@
 'use client'
 
+import type { SignInNotice } from './actions'
 import type { CSSProperties } from 'react'
 
 import { useActionState } from 'react'
 
 import type { EmailBrand } from '@/plugins/email'
+
 
 import { requestSignInLinkAction } from './actions'
 import {
@@ -13,6 +15,7 @@ import {
   CardShell,
   OutcomeBody,
   primaryButton,
+  TONES,
 } from '../../_components/CardShell'
 
 
@@ -21,8 +24,20 @@ import {
  *
  * Submitting is the only thing that sends — opening the page does nothing, so
  * the page costs nothing to crawl or prefetch.
+ *
+ * @param notice A refused link, stated above the form that replaces it. Cleared
+ *   by the first submission: once the reader has asked for a fresh link, the old
+ *   one's fate stops being news.
  */
-export function SignInForm({ brand, iconSrc }: { brand: EmailBrand; iconSrc: string }) {
+export function SignInForm({
+  brand,
+  iconSrc,
+  notice = null,
+}: {
+  brand: EmailBrand
+  iconSrc: string
+  notice?: SignInNotice | null
+}) {
   const [outcome, formAction, pending] = useActionState(requestSignInLinkAction, null)
 
   if (outcome?.tone === 'success') {
@@ -35,6 +50,12 @@ export function SignInForm({ brand, iconSrc }: { brand: EmailBrand; iconSrc: str
 
   return (
     <CardShell brand={brand} iconSrc={iconSrc}>
+      {notice && !outcome ? (
+        <div role="alert" style={{ ...noticeBox, borderColor: TONES[notice.tone].accent }}>
+          <strong style={{ color: TONES[notice.tone].accent }}>{notice.title}</strong>
+          <span style={noticeMessage}>{notice.message}</span>
+        </div>
+      ) : null}
       <h2 style={cardHeading}>Sign in</h2>
       <p style={cardLead}>
         Enter your email address and we will send you a link that signs you in. No password needed.
@@ -76,6 +97,16 @@ const field: CSSProperties = {
   fontSize: 15,
 }
 const error: CSSProperties = { margin: '16px 0 0', color: '#b91c1c', fontSize: 14 }
+const noticeBox: CSSProperties = {
+  boxSizing: 'border-box',
+  margin: '0 0 20px',
+  padding: '12px 14px',
+  border: '1px solid',
+  borderRadius: 5,
+  fontSize: 14,
+  textAlign: 'left',
+}
+const noticeMessage: CSSProperties = { display: 'block', marginTop: 4, color: '#555' }
 // Visible to a screen reader, absent from the layout — the field's own
 // placeholder is not a label.
 const srOnly: CSSProperties = {

@@ -15,6 +15,7 @@ import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { MANAGER_SIGNIN_PATH } from '@/collections/Managers/login'
 import { escapeRegExp } from '@/lib/eventQuality/heuristics'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 import {
@@ -32,9 +33,14 @@ import { createTestEnvironmentWithEmail } from '../utils/testHelpers'
 const REQUEST_PATH = '/api/managers/request-magic-link'
 const REDEEM_PATH = '/api/managers/redeem-magic-link'
 
-/** The sign-in link as the recipient receives it, token captured. */
+/**
+ * The sign-in link as the recipient receives it, token captured.
+ *
+ * ⚠ **It addresses the page, not the endpoint.** That is what lets a mail
+ * scanner's GET be answered by something that writes nothing.
+ */
 const SIGN_IN_URL = new RegExp(
-  `${escapeRegExp(`${getServerUrl()}/api/managers/redeem-magic-link?token=`)}([\\w.%-]+)`,
+  `${escapeRegExp(`${getServerUrl()}${MANAGER_SIGNIN_PATH}?token=`)}([\\w.%-]+)`,
 )
 
 describe('manager magic-link sign-in', () => {
@@ -47,8 +53,8 @@ describe('manager magic-link sign-in', () => {
   const requestLinkFor = (email: string) =>
     anon(REQUEST_PATH, { method: 'POST', json: { email } })
 
-  /** Open the link the way a mail scanner does: a bare GET, no click. */
-  const visit = (token: string) => anon(`${REDEEM_PATH}?token=${encodeURIComponent(token)}`)
+  /** Open the redeem path the way a mail scanner does: a bare GET, no click. */
+  const scan = (token: string) => anon(`${REDEEM_PATH}?token=${encodeURIComponent(token)}`)
 
   /** Submit the confirmation page's form — the only thing that spends a link. */
   const consume = (token: string) =>
@@ -63,6 +69,27 @@ describe('manager magic-link sign-in', () => {
     const match = sent!.html?.match(SIGN_IN_URL)
     expect(match, `no sign-in link in the body:\n${sent!.html?.slice(0, 400)}`).not.toBeNull()
     return decodeURIComponent(match![1])
+  }
+
+  /**
+   * ⚠ **Success and refusal are both a 302 now**, so a bare status assertion
+   * tells them apart no longer. Every arm below asserts where it went.
+   */
+  const expectSignedIn = (answer: { headers: Headers; status: number }) => {
+    expect(answer.status).toBe(302)
+    expect(answer.headers.get('Location')).toBe(`${getServerUrl()}/admin`)
+    expect(answer.headers.get('Set-Cookie')).toBeTruthy()
+  }
+
+  const expectRefused = (
+    answer: { headers: Headers; status: number },
+    reason: 'expired' | 'invalid',
+  ) => {
+    expect(answer.status).toBe(302)
+    expect(answer.headers.get('Location')).toBe(
+      `${getServerUrl()}${MANAGER_SIGNIN_PATH}?error=${reason}`,
+    )
+    expect(answer.headers.get('Set-Cookie')).toBeNull()
   }
 
   const activeManager = (overrides: Record<string, unknown> = {}) =>
@@ -254,11 +281,9 @@ describe('manager magic-link sign-in', () => {
       const manager = await activeManager()
       const token = await linkTokenFor(manager.email)
 
-      expect((await consume(token)).status).toBe(302)
+      expectSignedIn(await consume(token))
 
-      const second = await consume(token)
-      expect(second.status).toBe(400)
-      expect(second.headers.get('Set-Cookie')).toBeNull()
+      expectRefused(await consume(token), 'invalid')
     })
 
     it('a fresh request invalidates the outstanding link', async () => {
@@ -280,8 +305,8 @@ describe('manager magic-link sign-in', () => {
       const fresh = await linkTokenFor(manager.email)
       expect(fresh).not.toBe(stale)
 
-      expect((await consume(stale)).status).toBe(400)
-      expect((await consume(fresh)).status).toBe(302)
+      expectRefused(await consume(stale), 'invalid')
+      expectSignedIn(await consume(fresh))
     })
 
     it('tells an expired link from a tampered one', async () => {
@@ -289,8 +314,7 @@ describe('manager magic-link sign-in', () => {
       const token = await linkTokenFor(manager.email)
       const [header, body, signature] = token.split('.')
 
-      const tampered = await consume(`${header}.${body}.${signature.slice(0, -2)}xx`)
-      expect(tampered.status).toBe(400)
+      expectRefused(await consume(`${header}.${body}.${signature.slice(0, -2)}xx`), 'invalid')
 
       // An authentic token whose clock ran out — minted 16 minutes in the past,
       // outside the 15-minute lifetime, and matching the stored stamp so that
@@ -306,7 +330,7 @@ describe('manager magic-link sign-in', () => {
         payload.secret,
         stamp,
       )
-      expect((await consume(aged)).status).toBe(410)
+      expectRefused(await consume(aged), 'expired')
     })
 
     it('refuses an invitation token at the sign-in route', async () => {
@@ -364,49 +388,40 @@ describe('manager magic-link sign-in', () => {
     })
 
     it('refuses a request carrying no token at all', async () => {
-      expect((await anon(REDEEM_PATH, { method: 'POST' })).status).toBe(400)
+      expectRefused(await anon(REDEEM_PATH, { method: 'POST' }), 'invalid')
     })
 
     it('survives a mail scanner opening the link first', async () => {
       // Defender Safe Links and Proofpoint GET every URL in an inbound message
-      // before the recipient sees it. A GET that burned the link would spend
-      // the manager's one use, and the 60-second throttle would then refuse the
-      // obvious retry — so the GET must only offer the form.
+      // before the recipient sees it. A GET that burned the link would spend the
+      // manager's one use, and the 60-second throttle would then refuse the
+      // obvious retry.
       const manager = await activeManager()
       const token = await linkTokenFor(manager.email)
 
-      const scanned = await visit(token)
-      expect(scanned.status).toBe(200)
+      // ⚠ Two halves, and both are the defence. The emailed URL is the page, so
+      // what a scanner fetches writes nothing; and this path answers no GET, so
+      // a scanner that reached it anyway still spends nothing.
+      const scanned = await scan(token)
+      expect(scanned.status).toBe(404)
       expect(scanned.headers.get('Set-Cookie')).toBeNull()
       expect(await stampOf(manager.id), 'the GET burned the link').toBeTruthy()
 
       // Scanners do not submit forms. The recipient does, and it still works.
-      expect((await consume(token)).status).toBe(302)
+      expectSignedIn(await consume(token))
     })
 
-    it('offers a form that carries the token and needs a real submission', async () => {
-      // The page is the whole defence, so what it contains is the assertion: a
-      // POST form, the token in its action, and nothing that submits itself.
+    it('addresses the delivered link at the page, never at this endpoint', async () => {
+      // The whole scanner defence rests on which URL is in the mail, and nothing
+      // but this asserts it: a link pointing back at the endpoint would restore
+      // the hazard while every assertion above still passed.
       const manager = await activeManager()
-      const token = await linkTokenFor(manager.email)
-      const page = (await visit(token)).raw
+      emailAdapter.clearCapturedEmails()
+      await requestLinkFor(manager.email)
+      const html = emailAdapter.findEmailByTo(manager.email)!.html!
 
-      expect(page).toContain('method="post"')
-      expect(page).toContain(`${getServerUrl()}/api/managers/redeem-magic-link?token=`)
-      expect(page, 'a script on this page would hand the link back to scanners').not.toContain(
-        '<script',
-      )
-      expect(page).not.toContain('http-equiv="refresh"')
-    })
-
-    it('tells a dead link from a live one without spending anything', async () => {
-      const [header, body, signature] = (await linkTokenFor((await activeManager()).email)).split(
-        '.',
-      )
-      const tampered = await visit(`${header}.${body}.${signature.slice(0, -2)}xx`)
-
-      expect(tampered.status).toBe(400)
-      expect(tampered.raw).not.toContain('method="post"')
+      expect(html).toContain(`${getServerUrl()}${MANAGER_SIGNIN_PATH}?token=`)
+      expect(html).not.toContain(REDEEM_PATH)
     })
   })
 })

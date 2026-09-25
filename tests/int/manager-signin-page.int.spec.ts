@@ -17,6 +17,7 @@ import type { Payload } from 'payload'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { MANAGER_SIGNIN_PATH } from '@/collections/Managers/login'
+import { getServerUrl } from '@/lib/utilities/serverUrl'
 
 import { createAnonRestClient, type RestClient } from '../utils/restRequest'
 import { testData } from '../utils/testData'
@@ -155,21 +156,27 @@ describe('manager sign-in page', () => {
   })
 
   describe('the retry path out of a refusal', () => {
-    // Every refusal tells the reader to request a new link. Before this page
-    // existed there was nowhere to send them, and a dead end that says
-    // "request a new sign-in link" is the failure the 404 was rejected for.
-    it('offers the sign-in page on an unreadable link, on both methods', async () => {
+    // Every refusal lands back on this page, which states what happened and
+    // already carries the form that fixes it. A dead end that says "request a
+    // new sign-in link" is the failure the 404 was rejected for.
+    const refusedTo = (reason: string) =>
+      `${getServerUrl()}${MANAGER_SIGNIN_PATH}?error=${reason}`
+
+    it('sends an unreadable link back to this page, and serves no GET at all', async () => {
       const visited = await anon(`${REDEEM_PATH}?token=rubbish`)
       const posted = await anon(`${REDEEM_PATH}?token=rubbish`, { method: 'POST' })
 
-      for (const answer of [visited, posted]) {
-        expect(answer.status).toBe(400)
-        expect(answer.raw).toContain(MANAGER_SIGNIN_PATH)
-        expect(answer.raw).toContain('Request a new link')
-      }
+      // ⚠ The absence is the assertion. The emailed link addresses this page, so
+      // the redeem path answers one method — and a mail scanner's GET reaches no
+      // handler here to spend anything.
+      expect(visited.status).toBe(404)
+
+      expect(posted.status).toBe(302)
+      expect(posted.headers.get('Location')).toBe(refusedTo('invalid'))
+      expect(posted.headers.get('Set-Cookie')).toBeNull()
     })
 
-    it('offers it on an expired link too, without losing the expiry distinction', async () => {
+    it('keeps the expiry distinction on the way back', async () => {
       const manager = await activeManager()
       const { signSigninToken } = await import('@/plugins/login')
       const stale = new Date(Date.now() - 60 * 60 * 1000)
@@ -179,11 +186,12 @@ describe('manager sign-in page', () => {
         stale,
       )
 
-      const answer = await anon(`${REDEEM_PATH}?token=${encodeURIComponent(token)}`)
+      const answer = await anon(`${REDEEM_PATH}?token=${encodeURIComponent(token)}`, {
+        method: 'POST',
+      })
 
-      expect(answer.status).toBe(410)
-      expect(answer.raw).toContain('expired')
-      expect(answer.raw).toContain(MANAGER_SIGNIN_PATH)
+      expect(answer.status).toBe(302)
+      expect(answer.headers.get('Location')).toBe(refusedTo('expired'))
     })
   })
 
