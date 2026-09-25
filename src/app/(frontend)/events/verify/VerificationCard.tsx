@@ -5,11 +5,11 @@ import type { EmailBrand } from '@/plugins/email'
 
 import {
   ActionButtons,
-  CardShell,
+  PublicPage,
   OutcomeBody,
-  type CardTone,
+  type PageTone,
   type PageAction,
-} from '../../_components/CardShell'
+} from '../../_components/PublicPage'
 
 /**
  * The event's key facts, matching the reminder email's "Event details" table
@@ -71,7 +71,7 @@ export function EventSummary({ brand, details }: { brand: EmailBrand; details: E
 
 /** Serializable result of a verify attempt — what the card renders. */
 export interface VerifyOutcome {
-  tone: CardTone
+  tone: PageTone
   title: string
   message: string
   actions: PageAction[]
@@ -96,10 +96,10 @@ export function VerificationCard({
   actions = [],
 }: VerificationCardProps) {
   return (
-    <CardShell brand={brand} iconSrc={iconSrc}>
+    <PublicPage iconSrc={iconSrc} title={brand.productName}>
       <OutcomeBody tone={tone} title={title} message={message} />
       <ActionButtons brand={brand} actions={actions} />
-    </CardShell>
+    </PublicPage>
   )
 }
 
@@ -108,7 +108,7 @@ const summaryHeading: CSSProperties = {
   margin: '0 0 8px',
   fontSize: 12,
   fontWeight: 700,
-  color: '#6b7280',
+  color: 'var(--text-muted)',
   textTransform: 'uppercase',
   letterSpacing: '0.04em',
 }
@@ -117,13 +117,13 @@ const summaryRow: CSSProperties = {
   display: 'flex',
   gap: 12,
   padding: '8px 0',
-  borderBottom: '1px solid #eef0f2',
+  borderBottom: '1px solid var(--border)',
 }
 const summaryLabel: CSSProperties = {
   margin: 0,
   width: '38%',
   flexShrink: 0,
-  color: '#6b7280',
+  color: 'var(--text-muted)',
   fontWeight: 600,
   fontSize: 14,
 }
@@ -135,6 +135,6 @@ const summaryValue: CSSProperties = {
   flex: 1,
   minWidth: 0,
   overflowWrap: 'anywhere',
-  color: '#1f2937',
+  color: 'var(--text)',
   fontSize: 14,
 }

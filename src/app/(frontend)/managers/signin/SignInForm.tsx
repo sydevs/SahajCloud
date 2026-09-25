@@ -10,13 +10,13 @@ import type { EmailBrand } from '@/plugins/email'
 
 import { requestSignInLinkAction } from './actions'
 import {
-  cardHeading,
-  cardLead,
-  CardShell,
+  pageHeading,
+  pageLead,
+  PublicPage,
   OutcomeBody,
   primaryButton,
   TONES,
-} from '../../_components/CardShell'
+} from '../../_components/PublicPage'
 
 
 /**
@@ -42,22 +42,22 @@ export function SignInForm({
 
   if (outcome?.tone === 'success') {
     return (
-      <CardShell brand={brand} iconSrc={iconSrc}>
+      <PublicPage iconSrc={iconSrc} title={brand.productName}>
         <OutcomeBody tone="success" title={outcome.title} message={outcome.message} />
-      </CardShell>
+      </PublicPage>
     )
   }
 
   return (
-    <CardShell brand={brand} iconSrc={iconSrc}>
+    <PublicPage iconSrc={iconSrc} title={brand.productName}>
       {notice && !outcome ? (
         <div role="alert" style={{ ...noticeBox, borderColor: TONES[notice.tone].accent }}>
           <strong style={{ color: TONES[notice.tone].accent }}>{notice.title}</strong>
           <span style={noticeMessage}>{notice.message}</span>
         </div>
       ) : null}
-      <h2 style={cardHeading}>Sign in</h2>
-      <p style={cardLead}>
+      <h2 style={pageHeading}>Sign in</h2>
+      <p style={pageLead}>
         Enter your email address and we will send you a link that signs you in. No password needed.
       </p>
       <form action={formAction}>
@@ -83,7 +83,7 @@ export function SignInForm({
           {outcome.message}
         </p>
       ) : null}
-    </CardShell>
+    </PublicPage>
   )
 }
 
@@ -93,10 +93,12 @@ const field: CSSProperties = {
   margin: '0 0 16px',
   padding: '12px 14px',
   borderRadius: 5,
-  border: '1px solid #d1d5db',
+  border: '1px solid var(--border)',
+  backgroundColor: 'var(--field)',
+  color: 'var(--text)',
   fontSize: 15,
 }
-const error: CSSProperties = { margin: '16px 0 0', color: '#b91c1c', fontSize: 14 }
+const error: CSSProperties = { margin: '16px 0 0', color: 'var(--tone-error)', fontSize: 14 }
 const noticeBox: CSSProperties = {
   boxSizing: 'border-box',
   margin: '0 0 20px',
@@ -106,7 +108,7 @@ const noticeBox: CSSProperties = {
   fontSize: 14,
   textAlign: 'left',
 }
-const noticeMessage: CSSProperties = { display: 'block', marginTop: 4, color: '#555' }
+const noticeMessage: CSSProperties = { display: 'block', marginTop: 4, color: 'var(--text-muted)' }
 // Visible to a screen reader, absent from the layout — the field's own
 // placeholder is not a label.
 const srOnly: CSSProperties = {

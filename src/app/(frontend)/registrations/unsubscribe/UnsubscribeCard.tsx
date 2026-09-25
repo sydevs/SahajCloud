@@ -1,6 +1,6 @@
 import type { EmailBrand } from '@/plugins/email'
 
-import { CardShell, OutcomeBody } from '../../_components/CardShell'
+import { PublicPage, OutcomeBody } from '../../_components/PublicPage'
 
 /** This page either finishes or fails — it has no waiting state to warn about. */
 export type UnsubscribeTone = 'success' | 'error'
@@ -21,8 +21,8 @@ export function UnsubscribeCard({
   message,
 }: UnsubscribeOutcome & { brand: EmailBrand; iconSrc: string }) {
   return (
-    <CardShell brand={brand} iconSrc={iconSrc}>
+    <PublicPage iconSrc={iconSrc} title={brand.productName}>
       <OutcomeBody tone={tone} title={title} message={message} />
-    </CardShell>
+    </PublicPage>
   )
 }

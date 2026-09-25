@@ -12,10 +12,10 @@ import { verifyEventAction } from './actions'
 import { EventSummary, VerificationCard } from './VerificationCard'
 import {
   ActionButtons,
-  CardShell,
+  PublicPage,
   primaryButton,
   type PageAction,
-} from '../../_components/CardShell'
+} from '../../_components/PublicPage'
 
 interface VerifyFormProps {
   brand: EmailBrand
@@ -59,7 +59,7 @@ export function VerifyForm({
   ]
 
   return (
-    <CardShell brand={brand} iconSrc={iconSrc}>
+    <PublicPage iconSrc={iconSrc} title={brand.productName}>
       <h2 style={heading}>Is this event still running?</h2>
       <p style={lead}>
         Please confirm the details below for <strong>{eventTitle}</strong> are correct, then verify
@@ -76,9 +76,9 @@ export function VerifyForm({
       </form>
 
       <ActionButtons brand={brand} actions={secondaryActions} />
-    </CardShell>
+    </PublicPage>
   )
 }
 
-const heading: CSSProperties = { margin: '0 0 12px', fontSize: 20, color: '#1f2937' }
-const lead: CSSProperties = { margin: '0 0 20px', color: '#555', lineHeight: 1.6, fontSize: 15 }
+const heading: CSSProperties = { margin: '0 0 12px', fontSize: 20, color: 'var(--text)' }
+const lead: CSSProperties = { margin: '0 0 20px', color: 'var(--text-muted)', lineHeight: 1.6, fontSize: 15 }

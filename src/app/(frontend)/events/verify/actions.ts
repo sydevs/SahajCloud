@@ -1,7 +1,7 @@
 'use server'
 
 import type { VerifyOutcome } from './VerificationCard'
-import type { PageAction } from '../../_components/CardShell'
+import type { PageAction } from '../../_components/PublicPage'
 
 import { getPayload } from 'payload'
 

@@ -1,6 +1,6 @@
 import type { EmailBrand } from '@/plugins/email'
 
-import { CardShell, cardHeading, cardLead, primaryButton } from '../../_components/CardShell'
+import { PublicPage, pageHeading, pageLead, primaryButton } from '../../_components/PublicPage'
 
 /**
  * The interstitial that stands between a delivered link and the session it buys.
@@ -25,14 +25,14 @@ export function ConfirmSignIn({
   iconSrc: string
 }) {
   return (
-    <CardShell brand={brand} iconSrc={iconSrc}>
-      <h2 style={cardHeading}>Sign in</h2>
-      <p style={cardLead}>Confirm it is you. This link works once.</p>
+    <PublicPage iconSrc={iconSrc} title={brand.productName}>
+      <h2 style={pageHeading}>Sign in</h2>
+      <p style={pageLead}>Confirm it is you. This link works once.</p>
       <form action={actionUrl} method="post">
         <button style={primaryButton(brand)} type="submit">
           Sign in
         </button>
       </form>
-    </CardShell>
+    </PublicPage>
   )
 }
