@@ -26,10 +26,12 @@ export const REDEEM_INVITE_PATH = '/redeem-invite'
 export function redeemInvite(config: LoginCollectionConfig): Endpoint {
   return redeemToken(config, {
     expiredReason: 'invite-expired',
-    // See the docblock — this is the single-use check.
+    // See the docblock — this is the single-use check. `redeemToken` selects
+    // `_verified` wherever it exists, and no invitation is ever minted for a
+    // collection where it does not.
     isUnspent: (account) => account._verified !== true,
     path: REDEEM_INVITE_PATH,
     read: readInviteToken,
-    select: { _verified: true },
+    select: {},
   })
 }

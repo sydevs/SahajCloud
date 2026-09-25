@@ -28,7 +28,10 @@ interface RedeemSpec {
   path: string
   /** The reader for this route's audience. Refusing the other's token is its job. */
   read: (token: null | string, secret: string) => Promise<LoginTokenResult>
-  /** The fields `isUnspent` reads, on top of the collection's own `select`. */
+  /**
+   * The fields `isUnspent` reads, on top of the collection's own `select`.
+   * `_verified` is not among them — the body adds it where it exists.
+   */
   select: SelectType
 }
 
@@ -103,6 +106,14 @@ export function redeemToken(config: LoginCollectionConfig, spec: RedeemSpec): En
       const { payload } = req
       const token = typeof req.query?.token === 'string' ? req.query.token : null
 
+      // ⚠ **`_verified` is not a column every auth collection has.** Payload
+      // adds it only for one configuring `auth.verify` (`getAuthFields.js`), so
+      // naming it below on a collection without one would select and write a
+      // field that does not exist.
+      const acceptedFlag = payload.collections[slug]?.config.auth?.verify
+        ? { _verified: true }
+        : {}
+
       const result = await spec.read(token, payload.secret)
       if (result.status === 'expired') return expired()
       if (result.status !== 'valid') return invalid()
@@ -122,7 +133,7 @@ export function redeemToken(config: LoginCollectionConfig, spec: RedeemSpec): En
           // See the same cast in `requestMagicLink`: `joins` collapses over the slug union.
           joins: false as never,
           overrideAccess: true,
-          select: { ...spec.select, ...config.select },
+          select: { ...acceptedFlag, ...spec.select, ...config.select },
           // Through `unknown`: a `SelectType` built at runtime tells `findByID`
           // nothing about which fields survive, so its return widens to the
           // whole slug union rather than the narrowed shape a literal gave.
@@ -142,17 +153,17 @@ export function redeemToken(config: LoginCollectionConfig, spec: RedeemSpec): En
       // transaction. Burning the token must survive a failure to mint below — a
       // shared transaction would roll the clear back and leave the token live.
       //
-      // `_verified` rides along because the JWT strategy yields no user while
-      // that flag is false — the session minted below would then authenticate
-      // nobody, on a token already spent. Following a link delivered to the
-      // stored address is the same proof of ownership the verify mail asks for.
-      // `magicLinkIssuedAt` is cleared because a resent invitation stamps it,
-      // and leaving it set would throttle the sign-in link this account holder
-      // may ask for next.
+      // `_verified` rides along, where the collection has it, because the JWT
+      // strategy yields no user while that flag is false — the session minted
+      // below would then authenticate nobody, on a token already spent.
+      // Following a link delivered to the stored address is the same proof of
+      // ownership the verify mail asks for. `magicLinkIssuedAt` is cleared
+      // because a resent invitation stamps it, and leaving it set would
+      // throttle the sign-in link this account holder may ask for next.
       await payload.update({
         collection: slug,
         id: account.id,
-        data: { _verified: true, magicLinkIssuedAt: null } as never,
+        data: { ...acceptedFlag, magicLinkIssuedAt: null } as never,
         depth: 0,
         overrideAccess: true,
       })
