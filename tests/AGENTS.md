@@ -268,7 +268,7 @@ session with `createSession` (`@/plugins/login`) — the
 JWT strategy's `_verified` gate yields no user otherwise, and access
 control answers **403 before any query runs**, so an anonymous request
 never reaches Postgres at all. Nothing under `tests/` calls `payload.login`
-any more except `manager-verification.int.spec.ts` and role-based-access's
+any more except `manager-invite.int.spec.ts` and role-based-access's
 `Login-lockout reset (unlock)` suite, where password login is the mechanism
 under test.
 

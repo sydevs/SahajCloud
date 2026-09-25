@@ -9,7 +9,8 @@
  *
  * The token is read out of the captured EMAIL, not rebuilt from the stored
  * timestamp. Rebuilding it would pass even if the template embedded no link at
- * all, which is the failure `manager-verification.int.spec.ts` already paid for.
+ * all, which is the failure the old `manager-verification.int.spec.ts` paid for
+ * and `manager-invite.int.spec.ts` now carries.
  *
  * ⚠ **Every fixture here is `_verified: true` on purpose.** An unaccepted
  * manager who asks for a link is sent their invitation instead, so a fixture

@@ -11,6 +11,11 @@
  * Payload can show is that `create` sends this and nothing else, that the
  * localized write still lands where the create asked, and that accepting flips
  * `_verified` and mints a session.
+ *
+ * It replaces `manager-verification.int.spec.ts`, whose loop no longer exists:
+ * no email carries `/admin/managers/verify/:token` any more. The one property
+ * that file held alone — login refused by NAME while unaccepted, and allowed
+ * after — is the last test below, now asserted against the real accept route.
  */
 import type { Payload } from 'payload'
 
@@ -27,6 +32,9 @@ import { testData } from '../utils/testData'
 import { createTestEnvironmentWithEmail } from '../utils/testHelpers'
 
 const ACCEPT_PATH = '/api/managers/redeem-invite'
+
+/** What `testData.createManager` writes. The login arm below needs to know it. */
+const FIXTURE_PASSWORD = 'password123'
 const REQUEST_PATH = '/api/managers/request-magic-link'
 
 /**
@@ -206,6 +214,23 @@ describe('manager invitation', () => {
 
       expectRefused(await accept(`${header}.${body}.${signature!.slice(0, -2)}xx`), 'invalid')
       expectRefused(await anon(ACCEPT_PATH, { method: 'POST' }), 'invalid')
+    })
+
+    it('refuses login until the invitation is accepted, then allows it', async () => {
+      const { manager, token } = await invite()
+      const credentials = { email: manager.email, password: FIXTURE_PASSWORD }
+
+      // ⚠ Asserting the error NAME is what makes the success below mean
+      // something: a wrong password would throw here too, and would make the
+      // final step look like a pass for free (#320).
+      await expect(
+        payload.login({ collection: 'managers', data: credentials }),
+      ).rejects.toMatchObject({ name: 'UnverifiedEmail' })
+
+      expectAccepted(await accept(token))
+
+      const result = await payload.login({ collection: 'managers', data: credentials })
+      expect(result.user?.email).toBe(manager.email)
     })
 
     it('refuses a manager deactivated after the invitation was sent', async () => {
