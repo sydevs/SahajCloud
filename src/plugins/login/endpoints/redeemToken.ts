@@ -1,5 +1,5 @@
-import type { LoginCollectionConfig, LoginDocument } from '../types'
 import type { LoginTokenClaims, LoginTokenResult } from '../token'
+import type { LoginCollectionConfig, LoginDocument } from '../types'
 import type { Endpoint, SelectType } from 'payload'
 
 import { generatePayloadCookie } from 'payload/shared'

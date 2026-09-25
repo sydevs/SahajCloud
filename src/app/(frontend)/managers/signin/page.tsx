@@ -104,7 +104,16 @@ export default async function ManagerSignInPage({
     // The audience is checked here as well as at the burn: a token minted for
     // another configured collection must not reach a managers confirmation.
     if (result.status === 'valid' && result.claims.collection === managersLogin.slug) {
-      return <ConfirmSignIn actionUrl={redeemUrl(token)} brand={brand} iconSrc={iconSrc} />
+      return (
+        <ConfirmSignIn
+          actionUrl={redeemUrl(token)}
+          brand={brand}
+          heading="Sign in"
+          iconSrc={iconSrc}
+          lead="Confirm it is you. This link works once."
+          submitLabel="Sign in"
+        />
+      )
     }
 
     return (
