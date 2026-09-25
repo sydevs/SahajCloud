@@ -5,7 +5,6 @@ import { z } from 'zod'
 
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 
-import { REDEEM_MAGIC_LINK_PATH } from './endpoints/redeemMagicLink'
 import { emailFrom, generateEmailHTML, generateEmailSubject } from './mail'
 import { signSigninToken, SIGNIN_TOKEN_TTL_MS } from './token'
 
@@ -127,7 +126,10 @@ export async function issueMagicLink({
   const args: LoginMailArgs = {
     doc: account,
     project: config.project?.(account) ?? undefined,
-    signInUrl: `${getServerUrl()}/api/${slug}${REDEEM_MAGIC_LINK_PATH}?token=${encodeURIComponent(token)}`,
+    // ⚠ The link addresses the sign-in page, not the endpoint. A `GET` is then
+    // answered by a real page that reads the token and writes nothing, and the
+    // burn stays behind that page's form — see `redeemMagicLink`.
+    signInUrl: `${getServerUrl()}${config.requestPagePath}?token=${encodeURIComponent(token)}`,
     validFor: SIGNIN_VALID_FOR,
   }
 

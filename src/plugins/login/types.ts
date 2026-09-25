@@ -70,14 +70,18 @@ export interface LoginCollectionConfig {
    */
   redirectTo?: string
   /**
-   * The page that asks for a fresh link, as a site-absolute path.
+   * The sign-in page this collection's links resolve against, as a
+   * site-absolute path.
    *
-   * Every refusal this plugin can serve tells the reader to request a new
-   * link, so without this they are told to do something the page gives them no
-   * way to do. Supplying it also puts the control on the admin login form, for
-   * the collection the admin panel authenticates.
+   * ⚠ **Required, because it is the address in the mail.** The delivered link is
+   * `<requestPagePath>?token=…`, and every refusal the redeem route can serve
+   * redirects to `<requestPagePath>?error=expired|invalid`. So one page asks for
+   * a link, confirms a delivered one, and explains a refused one — which is why
+   * this plugin no longer renders HTML of its own. Supplying it also puts the
+   * control on the admin login form, for the collection the admin panel
+   * authenticates.
    */
-  requestPagePath?: string
+  requestPagePath: string
   /**
    * Extra fields to select, for `isEligible` and `project` to read. Both
    * endpoints select a bounded field list, so a callback reading an unlisted
