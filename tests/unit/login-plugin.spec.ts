@@ -103,7 +103,9 @@ describe('loginPlugin', () => {
 
   it('wires every collection the option names', () => {
     const [a, b] = fold(
-      loginPlugin({ collections: [managers, { requestPagePath: '/staff/signin', slug: 'staff' as never }] }),
+      loginPlugin({
+        collections: [managers, { requestPagePath: '/staff/signin', slug: 'staff' as never }],
+      }),
       collection('managers'),
       collection('staff'),
     )
@@ -118,7 +120,9 @@ describe('loginPlugin', () => {
     // collection on purpose: an empty config never reaches the lookup, so the
     // same assertion over `fold(plugin)` alone would pass without testing it.
     const folded = fold(
-      loginPlugin({ collections: [managers, { requestPagePath: '/nope/signin', slug: 'nope' as never }] }),
+      loginPlugin({
+        collections: [managers, { requestPagePath: '/nope/signin', slug: 'nope' as never }],
+      }),
       collection('managers'),
     )
 
@@ -178,6 +182,21 @@ describe('loginPlugin', () => {
 
       expect(routes(wired)).not.toContain('get /redeem-magic-link')
     })
+
+    it.each(['/\\evil.example.com', '//evil.example.com', 'managers/signin'])(
+      'adds no control for %s, which is not site-absolute',
+      (requestPagePath) => {
+        // The value reaches the control's `to` unprefixed, so a browser would
+        // read the leading `/\\` or `//` as an origin and put an off-origin link
+        // on the login form.
+        const folded = foldConfig(
+          loginPlugin({ collections: [{ ...managers, requestPagePath }] }),
+          adminConfig(),
+        )
+
+        expect(folded.admin?.components?.afterLogin).toBeUndefined()
+      },
+    )
 
     it('adds nothing for a collection the admin panel does not authenticate', () => {
       // `afterLogin` is a slot on the one login form, so a second served

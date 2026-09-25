@@ -41,6 +41,15 @@ export interface LoginPluginOptions {
 }
 
 /**
+ * ⚠ **A second `/` or `\` makes it off-origin.** This value reaches
+ * `RequestSignInLink`'s `to` unprefixed, and a browser normalises `/\host` to
+ * the protocol-relative `//host` — so testing for `//` alone leaves a way onto
+ * the login form. The plugin's other two consumers compose it after an absolute
+ * origin, which is why this is the only place that has to ask.
+ */
+const isSiteAbsolute = (path: string) => path.startsWith('/') && !/^\/[/\\]/.test(path)
+
+/**
  * Put the "Email me a sign-in link" control under the admin login form.
  *
  * ⚠ **Every key of `admin` and of `admin.components` is spread, never
@@ -57,7 +66,7 @@ function adminWithSignInLink(
   byslug: Map<string, LoginCollectionConfig>,
 ): Config['admin'] {
   const entry = admin?.user ? byslug.get(admin.user) : undefined
-  if (!entry) return admin
+  if (!entry || !isSiteAbsolute(entry.requestPagePath)) return admin
 
   return {
     ...admin,
