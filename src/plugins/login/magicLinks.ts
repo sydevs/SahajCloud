@@ -96,16 +96,10 @@ export async function issueMagicLink({
     // it collapses to `undefined`. Same cast, same reason, as `createSession`.
     joins: false as never,
     overrideAccess: true,
-    // `_verified` decides which of the two links this send is — see below.
-    // `type` is read by the invitation's grant summary.
-    select: {
-      _verified: true,
-      email: true,
-      magicLinkIssuedAt: true,
-      name: true,
-      type: true,
-      ...config.select,
-    },
+    // `_verified` decides which of the two links this send is — see below. It
+    // exists on every auth collection, `verify` configured or not, which is why
+    // it can be selected here rather than through `config.select`.
+    select: { _verified: true, email: true, magicLinkIssuedAt: true, name: true, ...config.select },
   })
 
   const account = docs[0] as LoginDocument | undefined
