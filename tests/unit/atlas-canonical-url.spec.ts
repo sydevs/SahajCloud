@@ -3,10 +3,10 @@
  *
  * The table is not written here — it is read from
  * `src/lib/atlas/atlas-url-contract.json`, the fixture SahajCloud,
- * SahajAtlasWeb and WeMeditateWeb all assert against. Three repos composing
- * and parsing the same URL is exactly the kind of agreement that rots
- * silently, so the cases live in data one repo can copy from another rather
- * than in three hand-maintained test files.
+ * SahajAtlasWeb and SahajAtlasWordpress all assert against. Three repos
+ * building, parsing and routing the same URL is exactly the kind of agreement
+ * that rots silently, so the cases live in data one repo can copy from another
+ * rather than in three hand-maintained test files.
  */
 import { describe, expect, it } from 'vitest'
 

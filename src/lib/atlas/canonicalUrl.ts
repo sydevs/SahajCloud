@@ -14,8 +14,8 @@ import { isValidCanonicalDomain } from '@/lib/clients/canonical'
  * ```
  *
  * Pure and env-free so the contract can be pinned by `atlas-url-contract.json`,
- * the fixture SahajCloud, SahajAtlasWeb and WeMeditateWeb all assert against —
- * three repos composing the same URL from the same parts is exactly the kind of
+ * the fixture SahajCloud, SahajAtlasWeb and SahajAtlasWordpress all assert
+ * against — three repos reading and writing the same URL is exactly the kind of
  * agreement that rots silently.
  */
 
