@@ -5,6 +5,13 @@ import { z } from 'zod'
 
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 
+import {
+  generateInviteEmailHTML,
+  generateInviteEmailSubject,
+  INVITE_VALID_FOR,
+  inviteUrl,
+  signInviteFor,
+} from './invite'
 import { emailFrom, generateEmailHTML, generateEmailSubject } from './mail'
 import { signSigninToken, SIGNIN_TOKEN_TTL_MS } from './token'
 
@@ -57,6 +64,9 @@ export const magicLinkEmailSchema = z.object({
 /**
  * Mint, stamp and send, or do nothing. Never reports which.
  *
+ * Which mail it sends depends on `_verified`: an account that has never
+ * accepted gets its invitation again, everyone else gets a sign-in link.
+ *
  * ⚠ **It tells no caller what happened**, and that silence is the point: a
  * caller that could distinguish "sent" from "unknown address", "ineligible" or
  * "throttled" would be an account-enumeration oracle, and both callers are
@@ -86,7 +96,16 @@ export async function issueMagicLink({
     // it collapses to `undefined`. Same cast, same reason, as `createSession`.
     joins: false as never,
     overrideAccess: true,
-    select: { email: true, magicLinkIssuedAt: true, name: true, ...config.select },
+    // `_verified` decides which of the two links this send is — see below.
+    // `type` is read by the invitation's grant summary.
+    select: {
+      _verified: true,
+      email: true,
+      magicLinkIssuedAt: true,
+      name: true,
+      type: true,
+      ...config.select,
+    },
   })
 
   const account = docs[0] as LoginDocument | undefined
@@ -116,6 +135,27 @@ export async function issueMagicLink({
     depth: 0,
     overrideAccess: true,
   })
+
+  // ⚠ **An unaccepted account gets the invitation, not a sign-in link**, and
+  // that branch is what rescues a manager nothing ever mailed — an imported row,
+  // or one whose invitation was lost. `_verified` is the accepted flag, so an
+  // account that has never accepted asks for a link and receives the invitation
+  // again. A collection's own `generateEmailHTML` override governs the sign-in
+  // mail only; there is one invitation.
+  if (account._verified !== true) {
+    const url = inviteUrl(config, await signInviteFor(config, account, payload.secret, now))
+    const project = config.project?.(account) ?? undefined
+
+    await payload.sendEmail({
+      to: account.email,
+      from: emailFrom({ doc: account, project, signInUrl: url, validFor: INVITE_VALID_FOR }),
+      subject: generateInviteEmailSubject(project),
+      // No `req`: this send has a request of its own with no open transaction,
+      // so the grant summary takes its own connection. @see summarizeGrants
+      html: await generateInviteEmailHTML({ doc: account, inviteUrl: url, payload, project }),
+    })
+    return
+  }
 
   const token = await signSigninToken(
     { collection: slug, issuedAt: now.getTime(), userId: account.id },

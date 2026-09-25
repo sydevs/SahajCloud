@@ -10,15 +10,16 @@ import {
   validateNotificationPreferences,
 } from '@/components/admin/NotificationPreferences/config'
 import { ResetPasswordEmail } from '@/emails/ResetPasswordEmail'
-import { VerifyEmail } from '@/emails/VerifyEmail'
 import { hideUntilCreated, legacyMigrationFields } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
 import { getLanguageOptions } from '@/lib/locales'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 import { adminOnlyFieldAccess, getRoleOptions, getProjectOptions } from '@/plugins/access'
 import { getEmailBrand, renderEmail } from '@/plugins/email'
+import { inviteVerification } from '@/plugins/login'
 
 import { setProject } from './endpoints/setProject'
+import { managersLogin } from './login'
 
 export const Managers: CollectionConfig = {
   slug: 'managers',
@@ -29,19 +30,11 @@ export const Managers: CollectionConfig = {
     // Auth emails intentionally use the default brand (wemeditate-web) rather
     // than the recipient's currentProject — branding is an explicit per-send
     // choice, so the templates' `project` prop is left at its default here (#483).
-    verify: {
-      generateEmailHTML: ({ token, user }) =>
-        renderEmail(
-          createElement(VerifyEmail, {
-            name: user.name || user.email,
-            // The slug segment is required, and dropping it fails silently:
-            // `isPublicAdminRoute` waves any `/verify/` path past the auth gate,
-            // so `/admin/verify/:token` reaches the login form, not a 404 (#320).
-            verifyUrl: `${getServerUrl()}/admin/managers/verify/${token}`,
-          }),
-        ),
-      generateEmailSubject: () => `Verify Your Email — ${getEmailBrand().productName}`,
-    },
+    // Configured for the `_verified` column, not for Payload's own verify mail:
+    // the JWT strategy yields no user while that column is false, so it is the
+    // accepted/not-accepted flag the invitation flow turns on. Both generators
+    // are repointed at the invitation — see `inviteVerification` (#839).
+    verify: inviteVerification(managersLogin),
     forgotPassword: {
       generateEmailHTML: (args) =>
         renderEmail(
