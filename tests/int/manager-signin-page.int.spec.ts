@@ -168,8 +168,10 @@ describe('manager sign-in page', () => {
 
       // ⚠ The absence is the assertion. The emailed link addresses this page, so
       // the redeem path answers one method — and a mail scanner's GET reaches no
-      // handler here to spend anything.
-      expect(visited.status).toBe(404)
+      // handler here to spend anything. 403 rather than 404 because Payload then
+      // tries the collection's `findByID` route with `redeem-magic-link` as the
+      // id and refuses the anonymous read.
+      expect(visited.status).toBe(403)
 
       expect(posted.status).toBe(302)
       expect(posted.headers.get('Location')).toBe(refusedTo('invalid'))

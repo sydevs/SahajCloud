@@ -347,9 +347,7 @@ describe('manager magic-link sign-in', () => {
         payload.secret,
       )
 
-      const response = await consume(invite)
-      expect(response.status).toBe(400)
-      expect(response.headers.get('Set-Cookie')).toBeNull()
+      expectRefused(await consume(invite), 'invalid')
     })
 
     it('refuses a manager deactivated after the link was sent', async () => {
@@ -362,9 +360,7 @@ describe('manager magic-link sign-in', () => {
         data: { type: 'inactive' },
       })
 
-      const response = await consume(token)
-      expect(response.status).toBe(400)
-      expect(response.headers.get('Set-Cookie')).toBeNull()
+      expectRefused(await consume(token), 'invalid')
     })
 
     it('signs in a manager who was never verified, and verifies them', async () => {
@@ -402,8 +398,11 @@ describe('manager magic-link sign-in', () => {
       // ⚠ Two halves, and both are the defence. The emailed URL is the page, so
       // what a scanner fetches writes nothing; and this path answers no GET, so
       // a scanner that reached it anyway still spends nothing.
+      // 403, not 404: with no `get` handler here, Payload tries the collection's
+      // `findByID` route with `redeem-magic-link` as the id and refuses the
+      // anonymous read. Either status says the same thing — nothing answered.
       const scanned = await scan(token)
-      expect(scanned.status).toBe(404)
+      expect(scanned.status).toBe(403)
       expect(scanned.headers.get('Set-Cookie')).toBeNull()
       expect(await stampOf(manager.id), 'the GET burned the link').toBeTruthy()
 
