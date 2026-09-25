@@ -60,19 +60,23 @@ function adminConfig(): Config {
 
 /**
  * `<method> <path>` per endpoint. The method is asserted, not just the path:
- * `/redeem-magic-link` answering a GET at all is what would let a mail
- * scanner spend the link, so the absent verb is as load-bearing as the present
- * one.
+ * either redeem route answering a GET at all is what would let a mail scanner
+ * spend the link, so the absent verb is as load-bearing as the present one.
  */
 const routes = (c: CollectionConfig) =>
   (c.endpoints || []).map((e) => `${(e as Endpoint).method} ${(e as Endpoint).path}`)
 
 /** What the plugin wires onto a served collection, in fold order. */
-const WIRED_ROUTES = ['post /request-magic-link', 'post /redeem-magic-link']
+const WIRED_ROUTES = [
+  'post /request-magic-link',
+  'post /redeem-magic-link',
+  // The invitation's own audience, separate so neither token spends the other.
+  'post /redeem-invite',
+]
 const fieldNames = (c: CollectionConfig) => c.fields.map((f) => ('name' in f ? f.name : null))
 
 describe('loginPlugin', () => {
-  it('adds the field and both endpoints to a configured collection', () => {
+  it('adds the field and every endpoint to a configured collection', () => {
     const [wired] = fold(loginPlugin({ collections: [managers] }), collection('managers'))
 
     expect(fieldNames(wired)).toContain('magicLinkIssuedAt')

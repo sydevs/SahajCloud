@@ -9,7 +9,16 @@
  *
  * The token is read out of the captured EMAIL, not rebuilt from the stored
  * timestamp. Rebuilding it would pass even if the template embedded no link at
- * all, which is the failure `manager-verification.int.spec.ts` already paid for.
+ * all, which is the failure the old `manager-verification.int.spec.ts` paid for
+ * and `manager-invite.int.spec.ts` now carries.
+ *
+ * ⚠ **`activeManager()` is `_verified: true` on purpose, and every test that
+ * asks for a LINK uses it.** An unaccepted manager is sent their invitation
+ * instead (#839), so a request-link test built on a bare
+ * `testData.createManager` would exercise `manager-invite.int.spec.ts`'s flow
+ * while looking like this one. The bare fixtures below are the tests that never
+ * reach that branch — an ineligible manager is refused before it, and the last
+ * test mints its token directly.
  */
 import type { Payload } from 'payload'
 
@@ -123,6 +132,8 @@ describe('manager magic-link sign-in', () => {
       expect(paths).toContain('/set-project')
       expect(paths).toContain('/request-magic-link')
       expect(paths).toContain('/redeem-magic-link')
+      // The invitation's own route — a separate audience (#839).
+      expect(paths).toContain('/redeem-invite')
     })
 
     it('refuses a sign-in link token presented as a session cookie', async () => {
@@ -371,7 +382,23 @@ describe('manager magic-link sign-in', () => {
       const before = await payload.findByID({ collection: 'managers', id: manager.id })
       expect(before._verified, 'the fixture is already verified — this proves nothing').toBeFalsy()
 
-      const response = await consume(await linkTokenFor(manager.email))
+      // ⚠ Minted here rather than requested. An unaccepted manager who ASKS for
+      // a link is sent their invitation instead (#839), so a sign-in token for
+      // one is only reachable from a link issued before the flag was cleared —
+      // which this route must still honour.
+      const stamp = new Date()
+      await payload.update({
+        collection: 'managers',
+        id: manager.id,
+        data: { magicLinkIssuedAt: stamp.toISOString() },
+      })
+      const token = await signSigninToken(
+        { collection: 'managers', issuedAt: stamp.getTime(), userId: manager.id },
+        payload.secret,
+        stamp,
+      )
+
+      const response = await consume(token)
       expect(response.status).toBe(302)
 
       const cookie = response.headers.get('Set-Cookie')

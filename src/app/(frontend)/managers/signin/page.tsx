@@ -3,16 +3,16 @@ import type { Metadata } from 'next'
 import { getPayload } from 'payload'
 
 import { managersLogin } from '@/collections/Managers/login'
-import { getServerUrl } from '@/lib/utilities/serverUrl'
 import { getProjectEmailIcon, getProjectLabel } from '@/plugins/access'
 import { DEFAULT_EMAIL_PROJECT, getEmailBrand } from '@/plugins/email'
-import { readSigninToken } from '@/plugins/login'
+import { readInviteToken, readSigninToken } from '@/plugins/login'
 
 import payloadConfig from '@payload-config'
 
 import { ConfirmSignIn } from './ConfirmSignIn'
 import { LINK_NOTICES, linkNotice } from './notices'
 import { SignInForm } from './SignInForm'
+import { acceptUrl, redeemUrl } from './urls'
 
 
 export const metadata: Metadata = {
@@ -34,10 +34,6 @@ export const metadata: Metadata = {
  */
 export const dynamic = 'force-dynamic'
 
-/** Where the form behind the confirmation posts. The `POST` is what burns the link. */
-const redeemUrl = (token: string) =>
-  `${getServerUrl()}/api/${managersLogin.slug}/redeem-magic-link?token=${encodeURIComponent(token)}`
-
 /**
  * The one logged-out surface for manager sign-in (#838): it asks for a link,
  * confirms a delivered one, and explains a refused one.
@@ -52,6 +48,11 @@ const redeemUrl = (token: string) =>
  * what keeps a mail scanner's fetch free of consequence. The burn lives behind
  * {@link ConfirmSignIn}'s form.
  *
+ * ⚠ **`?invite=` is the invitation's own parameter, never `?token=`.** The two
+ * links are separate JWT audiences (`token.ts`), so reading an invitation with
+ * `readSigninToken` would refuse it as invalid — and the reader would be told
+ * their invitation was already used.
+ *
  * ⚠ **It never 404s, whatever it is given.** Its neighbours call `notFound()`
  * because a genuine token is the only way to reach them. This page is published
  * — the admin login form links to it — and hiding it would take away the retry
@@ -64,11 +65,37 @@ const redeemUrl = (token: string) =>
 export default async function ManagerSignInPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; token?: string }>
+  searchParams: Promise<{ error?: string; invite?: string; token?: string }>
 }) {
-  const { error, token } = await searchParams
+  const { error, invite, token } = await searchParams
   const brand = getEmailBrand()
   const iconSrc = getProjectEmailIcon(DEFAULT_EMAIL_PROJECT)
+
+  if (invite) {
+    const payload = await getPayload({ config: payloadConfig })
+    const result = await readInviteToken(invite, payload.secret)
+
+    if (result.status === 'valid' && result.claims.collection === managersLogin.slug) {
+      return (
+        <ConfirmSignIn
+          actionUrl={acceptUrl(invite)}
+          brand={brand}
+          heading="Accept your invitation"
+          iconSrc={iconSrc}
+          lead="Confirm it is you. Accepting activates your account and signs you in."
+          submitLabel="Accept invitation"
+        />
+      )
+    }
+
+    return (
+      <SignInForm
+        brand={brand}
+        iconSrc={iconSrc}
+        notice={LINK_NOTICES[result.status === 'expired' ? 'invite-expired' : 'invalid']}
+      />
+    )
+  }
 
   if (token) {
     const payload = await getPayload({ config: payloadConfig })
@@ -77,7 +104,16 @@ export default async function ManagerSignInPage({
     // The audience is checked here as well as at the burn: a token minted for
     // another configured collection must not reach a managers confirmation.
     if (result.status === 'valid' && result.claims.collection === managersLogin.slug) {
-      return <ConfirmSignIn actionUrl={redeemUrl(token)} brand={brand} iconSrc={iconSrc} />
+      return (
+        <ConfirmSignIn
+          actionUrl={redeemUrl(token)}
+          brand={brand}
+          heading="Sign in"
+          iconSrc={iconSrc}
+          lead="Confirm it is you. This link works once."
+          submitLabel="Sign in"
+        />
+      )
     }
 
     return (

@@ -10,30 +10,70 @@
  * right one, which is how #320 survived. Their shape is pinned in
  * `manager-auth-urls.spec.ts`, against the config that builds them. They are
  * written correctly here only so the fixtures do not teach the wrong URL.
+ *
+ * The same holds for `InviteEmail`'s grant rows: the LABELS are inputs here,
+ * and `manager-invite.spec.ts` is what proves the summary produces them.
  */
 import { createElement } from 'react'
 import { describe, expect, it } from 'vitest'
 
 import { buildReplyBody, EventRegistrationEmail } from '@/emails/EventRegistrationEmail'
+import { InviteEmail } from '@/emails/InviteEmail'
 import { ResetPasswordEmail } from '@/emails/ResetPasswordEmail'
 import { buildUserMessageDetails, UserMessageEmail } from '@/emails/UserMessageEmail'
-import { VerifyEmail } from '@/emails/VerifyEmail'
 import { getEmailBrand, renderEmail } from '@/plugins/email'
 
-describe('VerifyEmail', () => {
-  it('renders the recipient name, verify URL, and CTA', async () => {
-    const html = await renderEmail(
-      createElement(VerifyEmail, {
-        name: 'Jo',
-        verifyUrl: 'https://cloud.test/admin/managers/verify/TKN-123',
-      }),
-    )
+const INVITE_URL = 'https://cloud.test/managers/signin?invite=TKN-123'
+
+const inviteProps = {
+  name: 'Jo',
+  inviteUrl: INVITE_URL,
+  validFor: '7 days',
+  fullAccess: false,
+  grants: [
+    { locale: 'English', roles: ['Meditations Editor', 'Path Editor'] },
+    { locale: 'French', roles: ['Web Translator'] },
+  ],
+}
+
+describe('InviteEmail', () => {
+  it('renders the recipient name, invitation URL, CTA, and validity', async () => {
+    const html = await renderEmail(createElement(InviteEmail, inviteProps))
 
     expect(html).toBeTruthy()
     expect(html).toContain('Jo')
-    expect(html).toContain('https://cloud.test/admin/managers/verify/TKN-123')
-    expect(html).toContain('Verify Email Address')
+    expect(html).toContain(INVITE_URL)
+    expect(html).toContain('Accept invitation')
+    expect(html).toContain('7 days')
   })
+
+  it('names every locale and role label it is given', async () => {
+    const html = await renderEmail(createElement(InviteEmail, inviteProps))
+
+    expect(html).toContain('English')
+    expect(html).toContain('Meditations Editor, Path Editor')
+    expect(html).toContain('French')
+    expect(html).toContain('Web Translator')
+  })
+
+  it('names full access for an admin, suppressing any locale row', async () => {
+    // ⚠ `grants` stays populated. Emptying it too would make the two negatives
+    // below hold for every implementation, including one that ignores
+    // `fullAccess` entirely.
+    const html = await renderEmail(createElement(InviteEmail, { ...inviteProps, fullAccess: true }))
+
+    expect(html).toContain('Administrator')
+    expect(html).not.toContain('English')
+    expect(html).not.toContain('Meditations Editor')
+  })
+
+  it('says so outright when the account grants nothing yet', async () => {
+    const html = await renderEmail(createElement(InviteEmail, { ...inviteProps, grants: [] }))
+
+    expect(html).toContain('No roles yet')
+    expect(html).not.toContain('Administrator')
+  })
+
 })
 
 describe('ResetPasswordEmail', () => {
@@ -53,14 +93,14 @@ describe('ResetPasswordEmail', () => {
 })
 
 describe('brand configurability', () => {
-  const props = { name: 'Jo', verifyUrl: 'https://cloud.test/admin/managers/verify/T' }
+  const props = inviteProps
 
   it('renders a different product name + primary color per project', async () => {
     const web = await renderEmail(
-      createElement(VerifyEmail, { ...props, project: 'wemeditate-web' }),
+      createElement(InviteEmail, { ...props, project: 'wemeditate-web' }),
     )
     const atlas = await renderEmail(
-      createElement(VerifyEmail, { ...props, project: 'sahaj-atlas' }),
+      createElement(InviteEmail, { ...props, project: 'sahaj-atlas' }),
     )
 
     const webBrand = getEmailBrand('wemeditate-web')
@@ -79,7 +119,7 @@ describe('brand configurability', () => {
   })
 
   it('defaults to wemeditate-web when no project is passed', async () => {
-    const html = await renderEmail(createElement(VerifyEmail, props))
+    const html = await renderEmail(createElement(InviteEmail, props))
     expect(html).toContain(getEmailBrand('wemeditate-web').productName)
   })
 })

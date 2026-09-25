@@ -1,6 +1,7 @@
 import type { LoginCollectionConfig } from './types'
 import type { Config, Field, Plugin } from 'payload'
 
+import { redeemInvite } from './endpoints/redeemInvite'
 import { redeemMagicLink } from './endpoints/redeemMagicLink'
 import { requestMagicLink } from './endpoints/requestMagicLink'
 
@@ -142,6 +143,9 @@ export function loginPlugin(options: LoginPluginOptions = {}): Plugin {
           // spending the link. The `GET` a delivered link performs is answered by
           // `requestPagePath`'s own page, which writes nothing.
           redeemMagicLink(entry),
+          // The invitation's own audience, refused by the route above and
+          // refusing its token in turn — see `redeemInvite`.
+          redeemInvite(entry),
         ],
       }
     }),

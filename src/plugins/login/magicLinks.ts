@@ -1,10 +1,16 @@
 import type { LoginCollectionConfig, LoginDocument, LoginMailArgs } from './types'
-import type { Payload } from 'payload'
+import type { CollectionSlug, Payload } from 'payload'
 
 import { z } from 'zod'
 
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 
+import {
+  generateInviteEmailHTML,
+  generateInviteEmailSubject,
+  inviteUrl,
+  signInviteFor,
+} from './invite'
 import { emailFrom, generateEmailHTML, generateEmailSubject } from './mail'
 import { signSigninToken, SIGNIN_TOKEN_TTL_MS } from './token'
 
@@ -55,7 +61,21 @@ export const magicLinkEmailSchema = z.object({
 })
 
 /**
+ * Whether this collection has an accepted flag to branch on.
+ *
+ * Read off the sanitized config rather than configured per collection: it is
+ * Payload's own answer, and a `LoginCollectionConfig` restating it could
+ * disagree with the column that actually exists.
+ */
+function invitesAccounts(payload: Payload, slug: string): boolean {
+  return Boolean(payload.collections[slug as CollectionSlug]?.config.auth?.verify)
+}
+
+/**
  * Mint, stamp and send, or do nothing. Never reports which.
+ *
+ * Which mail it sends depends on `_verified`: an account that has never
+ * accepted gets its invitation again, everyone else gets a sign-in link.
  *
  * ⚠ **It tells no caller what happened**, and that silence is the point: a
  * caller that could distinguish "sent" from "unknown address", "ineligible" or
@@ -86,7 +106,8 @@ export async function issueMagicLink({
     // it collapses to `undefined`. Same cast, same reason, as `createSession`.
     joins: false as never,
     overrideAccess: true,
-    select: { email: true, magicLinkIssuedAt: true, name: true, ...config.select },
+    // `_verified` decides which of the two links this send is — see below.
+    select: { _verified: true, email: true, magicLinkIssuedAt: true, name: true, ...config.select },
   })
 
   const account = docs[0] as LoginDocument | undefined
@@ -117,6 +138,37 @@ export async function issueMagicLink({
     overrideAccess: true,
   })
 
+  // ⚠ **An unaccepted account gets the invitation, not a sign-in link**, and
+  // that branch is what rescues a manager nothing ever mailed — an imported row,
+  // or one whose invitation was lost. A collection's own `generateEmailHTML`
+  // override governs the sign-in mail only; there is one invitation.
+  //
+  // ⚠ **`auth.verify` is what decides there is an invitation at all.** Payload
+  // adds the `_verified` column only for a collection configuring it
+  // (`getAuthFields.js`), so without this gate a served collection that does not
+  // would read `undefined`, take this branch for every account forever, and
+  // never send a sign-in link.
+  if (invitesAccounts(payload, slug) && account._verified !== true) {
+    const url = inviteUrl(config, await signInviteFor(config, account, payload.secret, now))
+    const project = config.project?.(account) ?? undefined
+
+    await payload.sendEmail({
+      to: account.email,
+      from: emailFrom(project),
+      subject: generateInviteEmailSubject(project),
+      // No `req`: this send has a request of its own with no open transaction,
+      // so the grant summary takes its own connection. @see summarizeGrants
+      html: await generateInviteEmailHTML({
+        collection: slug,
+        doc: account,
+        inviteUrl: url,
+        payload,
+        project,
+      }),
+    })
+    return
+  }
+
   const token = await signSigninToken(
     { collection: slug, issuedAt: now.getTime(), userId: account.id },
     payload.secret,
@@ -135,7 +187,7 @@ export async function issueMagicLink({
 
   await payload.sendEmail({
     to: account.email,
-    from: emailFrom(args),
+    from: emailFrom(args.project),
     subject: (config.generateEmailSubject ?? generateEmailSubject)(args),
     // Inline, not queued, matching the verify and reset mail `Managers.auth`
     // already builds with `renderEmail`. The throttle above bounds the volume
