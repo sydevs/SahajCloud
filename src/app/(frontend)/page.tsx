@@ -2,50 +2,57 @@ import Image from 'next/image'
 import Link from 'next/link'
 import React from 'react'
 
+import { PublicPage } from './_components/PublicPage'
+
 import './styles.css'
 
 export default async function HomePage() {
   return (
-    <div className="landing-container">
-      <div className="landing-content">
-        {/* Logo and Title */}
-        <div className="logo-section">
-          <Image
-            src="/images/wemeditate-web.svg"
-            alt="We Meditate"
-            width={100}
-            height={100}
-            className="logo"
-            priority
+    <PublicPage iconSrc="/images/wemeditate-web.svg" title="We Meditate Admin">
+      {/* Admin Panel - Primary CTA */}
+      <Link href="/admin" className="admin-link">
+        <span>Admin Panel</span>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="icon">
+          <path
+            d="M5 12h14m0 0l-6-6m6 6l-6 6"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
           />
-          <h1 className="title">We Meditate Admin</h1>
-        </div>
+        </svg>
+      </Link>
 
-        {/* Admin Panel - Primary CTA */}
-        <Link href="/admin" className="admin-link">
-          <span>Admin Panel</span>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="icon">
+      {/* Service Links */}
+      <div className="services">
+        <h2 className="services-title">Public Services</h2>
+
+        <a
+          href="https://wemeditate.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="service-link"
+        >
+          <span>We Meditate Web</span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="icon">
             <path
-              d="M5 12h14m0 0l-6-6m6 6l-6 6"
+              d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6m4-3h6v6m-11 5L21 3"
               stroke="currentColor"
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
             />
           </svg>
-        </Link>
+        </a>
 
-        {/* Service Links */}
-        <div className="services">
-          <h2 className="services-title">Public Services</h2>
-
+        <div className="app-links">
           <a
-            href="https://wemeditate.com"
+            href="https://apps.apple.com/gb/app/we-meditate/id6465684494"
             target="_blank"
             rel="noopener noreferrer"
-            className="service-link"
+            className="service-link app-link"
           >
-            <span>We Meditate Web</span>
+            <span>WM iOS App</span>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="icon">
               <path
                 d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6m4-3h6v6m-11 5L21 3"
@@ -57,51 +64,13 @@ export default async function HomePage() {
             </svg>
           </a>
 
-          <div className="app-links">
-            <a
-              href="https://apps.apple.com/gb/app/we-meditate/id6465684494"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="service-link app-link"
-            >
-              <span>WM iOS App</span>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="icon">
-                <path
-                  d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6m4-3h6v6m-11 5L21 3"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </a>
-
-            <a
-              href="https://play.google.com/store/apps/details?id=co.wemeditate.sahajaapp"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="service-link app-link"
-            >
-              <span>WM Android App</span>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="icon">
-                <path
-                  d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6m4-3h6v6m-11 5L21 3"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </a>
-          </div>
-
           <a
-            href="https://wemeditate.com/map"
+            href="https://play.google.com/store/apps/details?id=co.wemeditate.sahajaapp"
             target="_blank"
             rel="noopener noreferrer"
-            className="service-link"
+            className="service-link app-link"
           >
-            <span>Sahaj Atlas</span>
+            <span>WM Android App</span>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="icon">
               <path
                 d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6m4-3h6v6m-11 5L21 3"
@@ -114,34 +83,52 @@ export default async function HomePage() {
           </a>
         </div>
 
-        {/* Footer */}
-        <div className="footer">
-          <a
-            href="https://www.sydevelopers.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="footer-link"
-          >
-            Volunteer & Donate →
-          </a>
-          <a
-            href="https://stats.uptimerobot.com/oJ9B8UX9lA"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="footer-link footer-link-secondary status-link"
-          >
-            <Image
-              src="https://img.shields.io/badge/status-operational-brightgreen"
-              alt="Status"
-              width={90}
-              height={20}
-              className="status-badge"
-              unoptimized
+        <a
+          href="https://wemeditate.com/map"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="service-link"
+        >
+          <span>Sahaj Atlas</span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="icon">
+            <path
+              d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6m4-3h6v6m-11 5L21 3"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
             />
-            <span>Status Page</span>
-          </a>
-        </div>
+          </svg>
+        </a>
       </div>
-    </div>
+
+      {/* Footer */}
+      <div className="footer">
+        <a
+          href="https://www.sydevelopers.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="footer-link"
+        >
+          Volunteer & Donate →
+        </a>
+        <a
+          href="https://stats.uptimerobot.com/oJ9B8UX9lA"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="footer-link footer-link-secondary status-link"
+        >
+          <Image
+            src="https://img.shields.io/badge/status-operational-brightgreen"
+            alt="Status"
+            width={90}
+            height={20}
+            className="status-badge"
+            unoptimized
+          />
+          <span>Status Page</span>
+        </a>
+      </div>
+    </PublicPage>
   )
 }

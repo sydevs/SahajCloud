@@ -5,7 +5,6 @@ import { generatePayloadCookie } from 'payload/shared'
 
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 
-import { noticePage } from '../page'
 import { createSession } from '../session'
 import { readSigninToken } from '../token'
 
@@ -13,16 +12,6 @@ export const REDEEM_MAGIC_LINK_PATH = '/redeem-magic-link'
 
 /** Where a consumed link lands the holder, unless the collection names another. */
 const DEFAULT_REDIRECT = '/admin'
-
-/** An authentic link whose clock ran out. The one refusal worth distinguishing. */
-const expired = () => noticePage(410, 'This link has expired', 'Request a new sign-in link.')
-
-/**
- * Everything else: tampered, wrong audience, already used, or minted for an
- * account that has since stopped qualifying. Collapsed into one answer on
- * purpose — separating them would describe our checks to whoever is probing them.
- */
-const invalid = () => noticePage(400, 'This link is not valid', 'Request a new sign-in link.')
 
 /**
  * `POST /api/<slug>/redeem-magic-link?token=…`
@@ -35,16 +24,19 @@ const invalid = () => noticePage(400, 'This link is not valid', 'Request a new s
  * reason `set-project` is: the collections this serves are admin-only and in no
  * project, so they publish no public paths.
  *
- * ⚠ **`POST` is what keeps a mail scanner from spending the link**, and the
- * method is the mechanism, not a convention. Nothing here may answer a `GET`:
- * `confirmMagicLink` holds that method on this same path and burns nothing, so
- * a Safe Links or Proofpoint fetch of the emailed URL costs the recipient
- * their one use only if this handler ever accepts one.
+ * ⚠ **`POST` is the whole defence against a mail scanner spending the link**,
+ * and the method is the mechanism, not a convention. Nothing here may answer a
+ * `GET`: Defender Safe Links and Proofpoint issue one on every link in an
+ * inbound message before its recipient sees it, so a `GET` that burned the link
+ * would hand the scanner the manager's one use — and the 60-second throttle
+ * would then refuse the obvious retry. The emailed link therefore addresses
+ * `requestPagePath`'s page, which reads the token and writes nothing, and this
+ * handler sits behind that page's form. Any automatic submission added to that
+ * page restores the hazard.
  *
- * ⚠ **The token arrives in the query string, not the body.** The form on the
- * confirmation page carries it in its action, because a custom Payload endpoint
- * is handed no parsed form body — `parseBody` reads JSON, which a form submit
- * does not send.
+ * ⚠ **The token arrives in the query string, not the body.** The form on that
+ * page carries it in its action, because a custom Payload endpoint is handed no
+ * parsed form body — `parseBody` reads JSON, which a form submit does not send.
  *
  * ⚠ **It redirects rather than returning the user.** The localized-roles hooks
  * reshape an auth *response* (`afterLogin` / `afterMe` / `afterRefresh`), so a
@@ -56,7 +48,37 @@ const invalid = () => noticePage(400, 'This link is not valid', 'Request a new s
  * cannot be appended to one. The 302 below is built by hand for that reason.
  */
 export function redeemMagicLink(config: LoginCollectionConfig): Endpoint {
-  const { slug } = config
+  const { requestPagePath, slug } = config
+
+  /**
+   * Every refusal goes back to the page the link came from, which explains it
+   * and offers the form that fixes it.
+   *
+   * ⚠ **A redirect, not a page.** This plugin renders no HTML of its own: one
+   * page asks for a link, confirms a delivered one, and explains a refused one,
+   * so a refusal cannot arrive in a second visual language. Safe here and
+   * nowhere else — a scanner never issues the `POST` that reaches this.
+   */
+  const refuse = (reason: 'expired' | 'invalid') =>
+    new Response(null, {
+      status: 302,
+      headers: {
+        // `no-store` is load-bearing: the URL this answers carries the
+        // credential in its query string.
+        'Cache-Control': 'no-store',
+        Location: `${getServerUrl()}${requestPagePath}?error=${reason}`,
+        'Referrer-Policy': 'no-referrer',
+      },
+    })
+
+  /** An authentic link whose clock ran out. The one refusal worth distinguishing. */
+  const expired = () => refuse('expired')
+
+  // Everything else: tampered, wrong audience, already used, or minted for an
+  // account that has since stopped qualifying. Collapsed into one answer on
+  // purpose — separating them would describe our checks to whoever is probing
+  // them.
+  const invalid = () => refuse('invalid')
 
   return {
     path: REDEEM_MAGIC_LINK_PATH,

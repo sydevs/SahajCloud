@@ -1,12 +1,43 @@
+/*
+ * Tokens for every public page in this route group.
+ *
+ * ⚠ A page states colour as `var(--token)`, never as a literal. The dark block
+ * below is the only place a second value for one is written, and an inline hex
+ * bypasses it silently — the page simply stays light on a dark screen.
+ */
 :root {
-  --coral: #F07855;
-  --coral-light: #FF9477;
-  --coral-dark: #D86545;
-  --coral-bg: #FFF5F2;
-  --coral-hover: #FFE8E1;
-  --text-dark: #2d2d2d;
-  --text-medium: #666666;
-  --border-light: #e8e8e8;
+  color-scheme: light dark;
+
+  --surface: #ffffff;
+  --field: #ffffff;
+  --text: #1c1e21;
+  --text-muted: #5b6672;
+  --border: #e4e7eb;
+
+  --tone-success: #16a34a;
+  --tone-warning: #b45309;
+  --tone-error: #dc2626;
+
+  --accent: #f07855;
+  --accent-hover: #d86545;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface: #17191d;
+    --field: #1f2227;
+    --text: #e8eaed;
+    --text-muted: #9aa4b0;
+    --border: #2d3138;
+
+    /* Lifted, not the light values: the light tones fail contrast on --surface. */
+    --tone-success: #4ade80;
+    --tone-warning: #fbbf24;
+    --tone-error: #f87171;
+
+    --accent: #ff9477;
+    --accent-hover: #ffb09b;
+  }
 }
 
 * {
@@ -18,136 +49,80 @@
 html,
 body {
   height: 100%;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
-    sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 body {
-  background: #ffffff;
-  color: var(--text-dark);
+  background: var(--surface);
+  color: var(--text);
 }
 
-/* Landing Container */
-.landing-container {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem 1rem;
-  background: linear-gradient(135deg, #ffffff 0%, var(--coral-bg) 100%);
-}
-
-.landing-content {
-  max-width: 480px;
-  width: 100%;
-  text-align: center;
-}
-
-/* Logo Section */
-.logo-section {
-  margin-bottom: 2.5rem;
-}
-
-.logo {
-  margin: 0 auto 1rem;
-  display: block;
-  border-radius: 16px;
-  box-shadow: 0 4px 20px rgba(240, 120, 85, 0.15);
-}
-
-.title {
-  font-size: 2.25rem;
-  font-weight: 700;
-  color: var(--text-dark);
-  margin: 0;
-  letter-spacing: -0.03em;
-}
-
-/* Admin Link - Primary CTA */
+/* Home page — the links under the shared masthead. */
 .admin-link {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
   padding: 1rem 2rem;
-  background: var(--coral);
-  color: white;
+  background: var(--accent);
+  color: #ffffff;
   text-decoration: none;
-  border-radius: 12px;
+  border-radius: 8px;
   font-size: 1.0625rem;
   font-weight: 600;
-  transition: all 0.2s ease;
-  margin-bottom: 3rem;
-  box-shadow: 0 4px 12px rgba(240, 120, 85, 0.25);
+  transition: background 0.2s ease;
+  margin-bottom: 2.5rem;
 }
 
 .admin-link:hover {
-  background: var(--coral-dark);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(240, 120, 85, 0.35);
+  background: var(--accent-hover);
 }
 
-.admin-link .icon {
-  transition: transform 0.2s ease;
-}
-
-.admin-link:hover .icon {
-  transform: translateX(3px);
-}
-
-/* Services Section */
 .services {
-  margin-bottom: 2.5rem;
+  margin-bottom: 2rem;
 }
 
 .services-title {
   font-size: 0.8125rem;
   font-weight: 700;
-  color: var(--coral);
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  margin-bottom: 1.25rem;
+  margin-bottom: 1rem;
 }
 
 .service-link {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1rem 1.25rem;
-  background: white;
-  border: 2px solid var(--border-light);
-  border-radius: 10px;
-  color: var(--text-dark);
+  padding: 0.875rem 1.125rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
   text-decoration: none;
   font-size: 0.9375rem;
   font-weight: 500;
-  transition: all 0.2s ease;
-  margin-bottom: 0.875rem;
+  transition: border-color 0.2s ease;
+  margin-bottom: 0.75rem;
 }
 
 .service-link:hover {
-  background: var(--coral-hover);
-  border-color: var(--coral-light);
-  transform: translateX(4px);
+  border-color: var(--accent);
 }
 
 .service-link .icon {
-  color: var(--coral);
-  transition: transform 0.2s ease;
+  color: var(--accent);
   flex-shrink: 0;
 }
 
-.service-link:hover .icon {
-  transform: translateX(2px);
-}
-
-/* App Links Row */
 .app-links {
   display: flex;
-  gap: 0.875rem;
-  margin-bottom: 0.875rem;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
 }
 
 .app-link {
@@ -155,11 +130,9 @@ body {
   margin-bottom: 0;
 }
 
-/* Footer */
 .footer {
-  padding-top: 2rem;
-  margin-top: 1rem;
-  border-top: 2px solid var(--border-light);
+  padding-top: 1.75rem;
+  border-top: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -170,26 +143,24 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-  color: var(--coral);
+  color: var(--accent);
   text-decoration: none;
   font-size: 0.9375rem;
   font-weight: 600;
-  transition: all 0.2s ease;
 }
 
 .footer-link:hover {
-  color: var(--coral-dark);
-  gap: 0.5rem;
+  color: var(--accent-hover);
 }
 
 .footer-link-secondary {
   font-size: 0.8125rem;
   font-weight: 500;
-  color: var(--text-medium);
+  color: var(--text-muted);
 }
 
 .footer-link-secondary:hover {
-  color: var(--coral);
+  color: var(--accent);
 }
 
 .status-link {
@@ -202,21 +173,7 @@ body {
   border-radius: 3px;
 }
 
-/* Mobile Responsive */
 @media (max-width: 640px) {
-  .landing-container {
-    padding: 1.5rem 1rem;
-  }
-
-  .title {
-    font-size: 2rem;
-  }
-
-  .logo {
-    width: 90px;
-    height: 90px;
-  }
-
   .admin-link {
     padding: 0.875rem 1.5rem;
     font-size: 1rem;
@@ -227,35 +184,12 @@ body {
     font-size: 0.875rem;
   }
 
-  .service-link:hover {
-    transform: translateX(2px);
-  }
-
   .app-links {
     flex-direction: column;
-    gap: 0.875rem;
+    gap: 0.75rem;
   }
 
   .app-link {
     margin-bottom: 0;
-  }
-}
-
-@media (max-width: 400px) {
-  .logo-section {
-    margin-bottom: 2rem;
-  }
-
-  .title {
-    font-size: 1.75rem;
-  }
-
-  .logo {
-    width: 80px;
-    height: 80px;
-  }
-
-  .admin-link {
-    padding: 0.75rem 1.25rem;
   }
 }

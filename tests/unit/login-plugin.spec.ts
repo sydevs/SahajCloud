@@ -17,7 +17,10 @@ import { describe, expect, it } from 'vitest'
 
 import { loginPlugin, type LoginCollectionConfig } from '@/plugins/login'
 
-const managers: LoginCollectionConfig = { slug: 'managers' }
+const managers: LoginCollectionConfig = {
+  slug: 'managers',
+  requestPagePath: '/managers/signin',
+}
 
 const setProject: Endpoint = { path: '/set-project', method: 'post', handler: () => new Response() }
 
@@ -27,24 +30,45 @@ function collection(slug: string, endpoints?: Endpoint[]): CollectionConfig {
 }
 
 function fold(plugin: Plugin, ...collections: CollectionConfig[]): CollectionConfig[] {
-  const folded = (plugin as (config: Config) => Config)({ collections } as Config)
-  return folded.collections as CollectionConfig[]
+  return foldConfig(plugin, { collections } as Config).collections as CollectionConfig[]
+}
+
+function foldConfig(plugin: Plugin, config: Config): Config {
+  return (plugin as (c: Config) => Config)(config)
+}
+
+/**
+ * The admin block as `src/payload.config.ts` declares it — every component slot
+ * it actually uses, so a spread that dropped one shows up here.
+ */
+function adminConfig(): Config {
+  return {
+    admin: {
+      user: 'managers',
+      components: {
+        providers: ['@/components/AdminProvider.tsx'],
+        beforeNavLinks: ['@/components/admin/ProjectSelector'],
+        Nav: '@/components/admin/AtlasNav/AtlasNav',
+        beforeDashboard: ['@/components/admin/Dashboard/ProjectSelectionPrompt'],
+        graphics: { Logo: '@/components/branding/Logo' },
+        views: { analytics: { Component: '@/components/admin/AnalyticsView', path: '/analytics' } },
+      },
+    },
+    collections: [collection('managers')],
+  } as unknown as Config
 }
 
 /**
  * `<method> <path>` per endpoint. The method is asserted, not just the path:
- * two handlers share `/redeem-magic-link`, and which verb each one answers is
- * what keeps a mail scanner's GET from spending the link.
+ * `/redeem-magic-link` answering a GET at all is what would let a mail
+ * scanner spend the link, so the absent verb is as load-bearing as the present
+ * one.
  */
 const routes = (c: CollectionConfig) =>
   (c.endpoints || []).map((e) => `${(e as Endpoint).method} ${(e as Endpoint).path}`)
 
 /** What the plugin wires onto a served collection, in fold order. */
-const WIRED_ROUTES = [
-  'post /request-magic-link',
-  'get /redeem-magic-link',
-  'post /redeem-magic-link',
-]
+const WIRED_ROUTES = ['post /request-magic-link', 'post /redeem-magic-link']
 const fieldNames = (c: CollectionConfig) => c.fields.map((f) => ('name' in f ? f.name : null))
 
 describe('loginPlugin', () => {
@@ -79,7 +103,9 @@ describe('loginPlugin', () => {
 
   it('wires every collection the option names', () => {
     const [a, b] = fold(
-      loginPlugin({ collections: [managers, { slug: 'staff' as never }] }),
+      loginPlugin({
+        collections: [managers, { requestPagePath: '/staff/signin', slug: 'staff' as never }],
+      }),
       collection('managers'),
       collection('staff'),
     )
@@ -94,7 +120,9 @@ describe('loginPlugin', () => {
     // collection on purpose: an empty config never reaches the lookup, so the
     // same assertion over `fold(plugin)` alone would pass without testing it.
     const folded = fold(
-      loginPlugin({ collections: [managers, { slug: 'nope' as never }] }),
+      loginPlugin({
+        collections: [managers, { requestPagePath: '/nope/signin', slug: 'nope' as never }],
+      }),
       collection('managers'),
     )
 
@@ -115,5 +143,71 @@ describe('loginPlugin', () => {
       expect(fieldNames(wired)).not.toContain('magicLinkIssuedAt')
       expect(routes(wired)).toEqual([])
     }
+  })
+
+  describe('the admin login control', () => {
+    const withPage = managers
+
+    it('adds afterLogin pointing at the configured page', () => {
+      const folded = foldConfig(loginPlugin({ collections: [withPage] }), adminConfig())
+
+      expect(JSON.stringify(folded.admin?.components?.afterLogin)).toContain(
+        '@/components/admin/RequestSignInLink',
+      )
+      expect(JSON.stringify(folded.admin?.components?.afterLogin)).toContain('/managers/signin')
+    })
+
+    it('keeps every component slot the config already declared', () => {
+      // The regression: assigning `components` rather than spreading it deletes
+      // the project selector, the custom nav, the dashboard prompt and both
+      // custom views — and nothing fails until someone opens the admin panel.
+      const before = adminConfig()
+      const folded = foldConfig(loginPlugin({ collections: [withPage] }), before)
+      const components = folded.admin!.components!
+
+      expect(Object.keys(components).sort()).toEqual(
+        [...Object.keys(before.admin!.components!), 'afterLogin'].sort(),
+      )
+      expect(components.beforeNavLinks).toEqual(before.admin!.components!.beforeNavLinks)
+      expect(components.Nav).toBe(before.admin!.components!.Nav)
+      expect(components.views).toEqual(before.admin!.components!.views)
+      expect(components.graphics).toEqual(before.admin!.components!.graphics)
+      expect(components.beforeDashboard).toEqual(before.admin!.components!.beforeDashboard)
+    })
+
+    it('serves no GET on the redeem path', () => {
+      // The scanner defence, stated as an absence: the emailed link addresses
+      // `requestPagePath`'s page instead, which writes nothing.
+      const [wired] = fold(loginPlugin({ collections: [managers] }), collection('managers'))
+
+      expect(routes(wired)).not.toContain('get /redeem-magic-link')
+    })
+
+    it.each(['/\\evil.example.com', '//evil.example.com', 'managers/signin'])(
+      'adds no control for %s, which is not site-absolute',
+      (requestPagePath) => {
+        // The value reaches the control's `to` unprefixed, so a browser would
+        // read the leading `/\\` or `//` as an origin and put an off-origin link
+        // on the login form.
+        const folded = foldConfig(
+          loginPlugin({ collections: [{ ...managers, requestPagePath }] }),
+          adminConfig(),
+        )
+
+        expect(folded.admin?.components?.afterLogin).toBeUndefined()
+      },
+    )
+
+    it('adds nothing for a collection the admin panel does not authenticate', () => {
+      // `afterLogin` is a slot on the one login form, so a second served
+      // collection has no form to add to.
+      const other: LoginCollectionConfig = {
+        requestPagePath: '/clients/signin',
+        slug: 'clients' as never,
+      }
+      const folded = foldConfig(loginPlugin({ collections: [other] }), adminConfig())
+
+      expect(folded.admin?.components?.afterLogin).toBeUndefined()
+    })
   })
 })

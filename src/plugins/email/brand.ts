@@ -23,12 +23,22 @@ export interface EmailBrand {
 }
 
 /**
+ * The brand a send falls back to when it names no project.
+ *
+ * ⚠ Exported so a caller needing the matching icon path can ask for the same
+ * project. `getEmailBrand` returns an absolute `iconUrl`, which next/image
+ * would need remote-pattern config for — a page wanting the local asset calls
+ * `getProjectEmailIcon` itself, and must not guess the slug.
+ */
+export const DEFAULT_EMAIL_PROJECT: ProjectSlug = 'wemeditate-web'
+
+/**
  * Resolve the branding for a transactional email.
  *
- * @param project - Project to brand the email for. Defaults to `wemeditate-web`;
- *   every send may override it to brand for another project.
+ * @param project - Project to brand the email for. Defaults to
+ *   {@link DEFAULT_EMAIL_PROJECT}; every send may override it.
  */
-export function getEmailBrand(project: ProjectSlug = 'wemeditate-web'): EmailBrand {
+export function getEmailBrand(project: ProjectSlug = DEFAULT_EMAIL_PROJECT): EmailBrand {
   return {
     productName: getProjectLabel(project),
     colors: getBrandColors(project),

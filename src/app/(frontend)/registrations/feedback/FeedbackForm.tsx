@@ -9,12 +9,8 @@ import type { EmailBrand } from '@/plugins/email'
 
 
 import { submitFeedbackAction } from './actions'
-import {
-  CardShell,
-  primaryButton,
-  TONES,
-  VerificationCard,
-} from '../../events/verify/VerificationCard'
+import { PublicPage, primaryButton, TONES } from '../../_components/PublicPage'
+import { VerificationCard } from '../../events/verify/VerificationCard'
 
 type Vote = 'confirmed' | 'denied'
 
@@ -101,7 +97,7 @@ export function FeedbackForm({
     const other = OPPOSITE[recorded]
     const { Icon, accent } = TONES.success
     return (
-      <CardShell brand={brand} iconSrc={iconSrc}>
+      <PublicPage iconSrc={iconSrc} title={brand.productName}>
         <div style={emblem}>
           <Icon size={44} color={accent} strokeWidth={1.75} aria-hidden />
         </div>
@@ -116,7 +112,7 @@ export function FeedbackForm({
             {pending ? 'Changing…' : `That’s not right — change to “${ANSWER_LABEL[other]}”`}
           </button>
         </form>
-      </CardShell>
+      </PublicPage>
     )
   }
 
@@ -124,7 +120,7 @@ export function FeedbackForm({
   // flash the question they just answered.
   if (initialVote) {
     return (
-      <CardShell brand={brand} iconSrc={iconSrc}>
+      <PublicPage iconSrc={iconSrc} title={brand.productName}>
         <h2 style={heading}>Recording your answer…</h2>
         <noscript>
           <p style={lead}>Your browser needs JavaScript to record it automatically.</p>
@@ -136,12 +132,12 @@ export function FeedbackForm({
             pending={false}
           />
         </noscript>
-      </CardShell>
+      </PublicPage>
     )
   }
 
   return (
-    <CardShell brand={brand} iconSrc={iconSrc}>
+    <PublicPage iconSrc={iconSrc} title={brand.productName}>
       <Question
         brand={brand}
         token={token}
@@ -149,7 +145,7 @@ export function FeedbackForm({
         formAction={formAction}
         pending={pending}
       />
-    </CardShell>
+    </PublicPage>
   )
 }
 
@@ -193,28 +189,28 @@ function Question({
   )
 }
 
-const heading: CSSProperties = { margin: '0 0 12px', fontSize: 20, color: '#1f2937' }
-const lead: CSSProperties = { margin: '0 0 20px', color: '#555', lineHeight: 1.6, fontSize: 15 }
+const heading: CSSProperties = { margin: '0 0 12px', fontSize: 20, color: 'var(--text)' }
+const lead: CSSProperties = { margin: '0 0 20px', color: 'var(--text-muted)', lineHeight: 1.6, fontSize: 15 }
 const buttonRow: CSSProperties = { display: 'flex', gap: 12, flexWrap: 'wrap' }
 const emblem: CSSProperties = { marginBottom: 12 }
 const cardTitle: CSSProperties = { margin: '0 0 10px', fontSize: 22 }
 const cardMessage: CSSProperties = {
   margin: '0 0 16px',
-  color: '#555',
+  color: 'var(--text-muted)',
   lineHeight: 1.6,
   fontSize: 15,
 }
 const changeRow: CSSProperties = { display: 'flex', justifyContent: 'center', margin: '4px 0 0' }
 const recordedLine: CSSProperties = {
   margin: '0 0 6px',
-  color: '#4b5563',
+  color: 'var(--text-muted)',
   fontSize: 14,
 }
 const linkButton: CSSProperties = {
   padding: 0,
   border: 'none',
   background: 'none',
-  color: '#6b7280',
+  color: 'var(--text-muted)',
   fontSize: 13,
   textDecoration: 'underline',
   cursor: 'pointer',
@@ -222,9 +218,9 @@ const linkButton: CSSProperties = {
 const secondaryButton: CSSProperties = {
   padding: '10px 18px',
   borderRadius: 8,
-  border: '1px solid #d1d5db',
-  background: '#fff',
-  color: '#374151',
+  border: '1px solid var(--border)',
+  background: 'var(--surface)',
+  color: 'var(--text)',
   fontSize: 15,
   cursor: 'pointer',
 }
