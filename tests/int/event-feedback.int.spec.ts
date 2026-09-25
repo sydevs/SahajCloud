@@ -17,6 +17,7 @@ import type { Event, Manager, UserSubmission } from '@/payload-types'
 import { hasPermission } from '@/plugins/access'
 import { USER_EMAIL_FROM } from '@/plugins/email'
 
+import { expectEventWriteRefused, storeEventOverImageLimit } from '../utils/storeInvalidEvent'
 import { runTaskHandler } from '../utils/taskRunner'
 import { createData, testData, type FixtureOverrides } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -259,6 +260,47 @@ describe('Event feedback (registrant voting)', () => {
       expect(readCommunityFeedback(after.systemMeta)).toMatchObject({
         confirmations: 1,
         denials: 0,
+      })
+    })
+
+    describe('an event whose stored data fails a field validator (#842)', () => {
+      /** The seed leaves `_status` and `verificationStage` alone, so the vote
+       * gate is unaffected by it. */
+      const seedInvalid = (eventId: number) => storeEventOverImageLimit(payload, eventId)
+      const expectRefused = (eventId: number) =>
+        expectEventWriteRefused(payload, eventId, { confidenceScore: 0.5 }, /Images/i)
+
+      it('records the vote instead of rolling the visitor back', async () => {
+        const event = await createUnverifiedEvent()
+        const registration = await createRegistration(event.id)
+        await seedInvalid(event.id)
+        await expectRefused(event.id)
+
+        // Before the fix this threw inside an unguarded afterChange hook, which
+        // killed the visitor's transaction — the vote was lost behind "Could
+        // not record your answer".
+        await vote(registration, 'confirmed')
+
+        const after = await reloadEvent(event.id)
+        expect(readCommunityFeedback(after.systemMeta)).toMatchObject({
+          confirmations: 1,
+          denials: 0,
+        })
+      })
+
+      it('still flips to denied + draft on the fifth denial', async () => {
+        const event = await createUnverifiedEvent()
+        await seedInvalid(event.id)
+        await expectRefused(event.id)
+
+        for (let i = 0; i < 5; i++) {
+          const registration = await createRegistration(event.id)
+          await vote(registration, 'denied')
+        }
+
+        const after = await reloadEvent(event.id)
+        expect(after.verificationStage).toBe('denied')
+        expect(after._status).toBe('draft')
       })
     })
   })

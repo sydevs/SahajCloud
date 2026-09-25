@@ -14,7 +14,7 @@ import { VerifyEmail } from '@/emails/VerifyEmail'
 import { hideUntilCreated, legacyMigrationFields } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
 import { getLanguageOptions } from '@/lib/locales'
-import { getServerUrl } from '@/lib/utilities/serverUrl'
+import { adminUrl } from '@/lib/utilities/adminUrl'
 import { adminOnlyFieldAccess, getRoleOptions, getProjectOptions } from '@/plugins/access'
 import { getEmailBrand, renderEmail } from '@/plugins/email'
 
@@ -37,7 +37,7 @@ export const Managers: CollectionConfig = {
             // The slug segment is required, and dropping it fails silently:
             // `isPublicAdminRoute` waves any `/verify/` path past the auth gate,
             // so `/admin/verify/:token` reaches the login form, not a 404 (#320).
-            verifyUrl: `${getServerUrl()}/admin/managers/verify/${token}`,
+            verifyUrl: adminUrl(`/managers/verify/${token}`),
           }),
         ),
       generateEmailSubject: () => `Verify Your Email — ${getEmailBrand().productName}`,
@@ -47,7 +47,7 @@ export const Managers: CollectionConfig = {
         renderEmail(
           createElement(ResetPasswordEmail, {
             name: args?.user?.name || args?.user?.email || '',
-            resetUrl: `${getServerUrl()}/admin/reset/${args?.token}`,
+            resetUrl: adminUrl(`/reset/${args?.token}`),
           }),
         ),
       generateEmailSubject: () => `Reset Your Password — ${getEmailBrand().productName}`,

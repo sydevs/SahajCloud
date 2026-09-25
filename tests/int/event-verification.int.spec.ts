@@ -1,6 +1,6 @@
 import type { Payload } from 'payload'
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { verifyEventAction } from '@/collections/Events/endpoints/verifyEventAction'
 import { verifyEventFromToken } from '@/collections/Events/lifecycle/verify'
@@ -11,9 +11,16 @@ import { buildReminderEntry, buildVerificationEntry } from '@/lib/eventVerificat
 import { signVerifyToken } from '@/lib/eventVerification/token'
 import type { Event, Manager } from '@/payload-types'
 
+import { expectEventWriteRefused, storeInvalidEvent } from '../utils/storeInvalidEvent'
 import { runTaskHandler } from '../utils/taskRunner'
 import { createData, testData, type FixtureOverrides } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
+
+// The verify page's Server Action reaches for the app config with
+// `getPayload({ config })`. Pointed at this suite's own sanitized config, it
+// runs against this file's isolated schema instead of booting the real one.
+const { configRef } = vi.hoisted(() => ({ configRef: { current: undefined as unknown } }))
+vi.mock('@payload-config', () => ({ default: configRef.current }))
 
 /** Canonical base for a region no client owns — the We Meditate Atlas mount. */
 const CANONICAL_FALLBACK = `${serverEnv.WEMEDITATE_WEB_URL}${serverEnv.WEMEDITATE_ATLAS_BASE_PATH}`
@@ -62,12 +69,18 @@ describe('Event verification lifecycle', () => {
   let adminUser: Manager
   let eventManager: Manager
   let defaultRegion: { id: number }
+  let verifyPageAction: (typeof import('@/app/(frontend)/events/verify/actions'))['verifyEventAction']
 
   beforeAll(async () => {
     const env = await createTestEnvironment()
     payload = env.payload
     cleanup = env.cleanup
     adminUser = env.adminUser
+
+    configRef.current = payload.config
+    ;({ verifyEventAction: verifyPageAction } = await import(
+      '@/app/(frontend)/events/verify/actions'
+    ))
     eventManager = await testData.createManager(payload, {
       name: 'Event Manager',
       email: 'event-manager@example.com',
@@ -937,6 +950,133 @@ describe('Event verification lifecycle', () => {
       })
 
       expect(saved.verificationStage).toBe('finished')
+    })
+  })
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Invalid stored data (#842) — verify must keep refusing, and each surface
+  // must say what is actually wrong. The bookkeeping writes bypass validation
+  // instead; those live in their own specs.
+  // ──────────────────────────────────────────────────────────────────────────
+  describe('verifying an event whose stored data fails a field validator', () => {
+    /** Inactive, published, and stored with neither contact — the #835 shape. */
+    async function createUnverifiableEvent(): Promise<Event> {
+      const event = await createEvent({
+        inactive: true,
+        schedule: null,
+        contactPhone: '+44 20 7946 0000',
+      })
+      await storeInvalidEvent(payload, event.id, { contactPhone: null, contactEmail: null })
+      return event
+    }
+
+    function endpointReq(event: Event, user: Manager) {
+      return {
+        payload,
+        user: { ...user, collection: 'managers' },
+        routeParams: { id: String(event.id) },
+        query: {},
+        headers: new Headers(),
+      } as unknown as Parameters<typeof verifyEventAction.handler>[0]
+    }
+
+    it('the endpoint answers 422 with the field messages, leaving the event alone', async () => {
+      const event = await createUnverifiableEvent()
+      await expectEventWriteRefused(
+        payload,
+        event.id,
+        { verificationStage: 'verified' },
+        /Contact Phone Number/,
+      )
+      const before = await getEvent(payload, event.id)
+
+      const res = await verifyEventAction.handler(endpointReq(event, adminUser))
+      expect(res.status).toBe(422)
+
+      const body = (await res.json()) as { errors: { path: string; message: string }[] }
+      expect(body.errors.some((e) => e.path === 'contactPhone')).toBe(true)
+      expect(body.errors.every((e) => typeof e.message === 'string' && e.message.length > 0)).toBe(
+        true,
+      )
+
+      const after = await getEvent(payload, event.id)
+      expect(after.verificationStage).toBe(before.verificationStage)
+      expect(after._status).toBe(before._status)
+    })
+
+    it('the endpoint still answers 403 for a manager without update access', async () => {
+      const event = await createUnverifiableEvent()
+      const stage = (await getEvent(payload, event.id)).verificationStage
+      // Listed on no region and on no event, so document-level manager access
+      // denies the update — a different failure from the one above.
+      const outsider = await testData.createManager(payload, {
+        name: 'Outside Manager',
+        email: `outsider-${event.id}@example.com`,
+      })
+
+      const res = await verifyEventAction.handler(endpointReq(event, outsider))
+      expect(res.status).toBe(403)
+
+      expect((await getEvent(payload, event.id)).verificationStage).toBe(stage)
+    })
+
+    it('the tokenized email link is refused, leaving the event alone', async () => {
+      const event = await createUnverifiableEvent()
+      const before = await getEvent(payload, event.id)
+
+      const token = await signVerifyToken(
+        { eventId: event.id, managerId: eventManager.id },
+        payload.secret,
+      )
+      await expect(verifyEventFromToken({ payload, token })).rejects.toThrow(/Contact Phone Number/)
+
+      const after = await getEvent(payload, event.id)
+      expect(after.verificationStage).toBe(before.verificationStage)
+      expect(after._status).toBe(before._status)
+    })
+
+    it('the verify page names the failing fields and links to the edit page', async () => {
+      const event = await createUnverifiableEvent()
+      const token = await signVerifyToken(
+        { eventId: event.id, managerId: eventManager.id },
+        payload.secret,
+      )
+
+      const form = new FormData()
+      form.set('token', token)
+      const outcome = await verifyPageAction(null, form)
+
+      expect(outcome.tone).toBe('warning')
+      expect(outcome.message).toMatch(/Contact Phone Number/)
+      // The validator's own wording too — naming the field alone would still
+      // leave the manager guessing what to put in it.
+      expect(outcome.message).toMatch(/inactive event has no schedule/)
+      const primary = outcome.actions?.find((a) => a.variant === 'primary')
+      expect(primary?.href.endsWith(`/admin/collections/events/${event.id}`)).toBe(true)
+      expect(outcome.actions?.some((a) => a.href.startsWith('mailto:'))).toBe(false)
+    })
+
+    it('the verify page still offers the support mailto for a non-validation failure', async () => {
+      const event = await createUnverifiableEvent()
+      const token = await signVerifyToken(
+        { eventId: event.id, managerId: eventManager.id },
+        payload.secret,
+      )
+      // A failure that is not a ValidationError, raised from inside the write
+      // the action performs, so it takes the same catch as the case above.
+      const boom = new Error('the database went away')
+      const spy = vi.spyOn(payload, 'update').mockRejectedValueOnce(boom)
+
+      const form = new FormData()
+      form.set('token', token)
+      const outcome = await verifyPageAction(null, form)
+      spy.mockRestore()
+
+      expect(outcome.tone).toBe('error')
+      expect(outcome.actions?.some((a) => a.href.startsWith('mailto:'))).toBe(true)
+      expect(outcome.actions?.some((a) => a.href.includes('/admin/collections/events/'))).toBe(
+        false,
+      )
     })
   })
 })
