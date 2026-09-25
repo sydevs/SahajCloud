@@ -1,6 +1,6 @@
 'use client'
 
-import type { SignInNotice } from './actions'
+import type { SignInNotice } from './notices'
 import type { CSSProperties } from 'react'
 
 import { useActionState } from 'react'

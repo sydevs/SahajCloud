@@ -10,8 +10,8 @@ import { readSigninToken } from '@/plugins/login'
 
 import payloadConfig from '@payload-config'
 
-import { LINK_NOTICES, linkNotice } from './actions'
 import { ConfirmSignIn } from './ConfirmSignIn'
+import { LINK_NOTICES, linkNotice } from './notices'
 import { SignInForm } from './SignInForm'
 
 
