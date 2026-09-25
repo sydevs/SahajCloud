@@ -90,7 +90,8 @@ Transactional emails are [React Email](https://react.email) components under `sr
 | File | Purpose |
 |---|---|
 | `EmailLayout.tsx` | Shared shell (header, card body, footer). Exports `BrandButton`, `BrandButtonRow`, `DetailRow` (manager fact table), `StackedDetailRow` (guest itinerary row), `SectionHeading`, `ProgressBar`, and shared `styles`. Reuse these for visual consistency. |
-| `VerifyEmail.tsx` | Manager email-verification message. |
+| `InviteEmail.tsx` | Manager invitation (#839), naming the access granted per locale and carrying a login link. Replaces `VerifyEmail.tsx` on `auth.verify`. It names no region and no page — both are join fields, so neither exists when a create renders it. |
+| `SignInLinkEmail.tsx` | The emailed sign-in link an ACCEPTED manager gets (#837). `issueMagicLink` picks between this and the invitation on `_verified`. |
 | `ResetPasswordEmail.tsx` | Manager password-reset message (replaces Payload's default). |
 | `EventVerificationEmail.tsx` | Manager/region verification reminder, with a listing-quality progress section (#611) shown to the **event manager only**. A complete listing drops the progress bar and keeps only the ticks. An absent `listingProgress` renders no section at all. |
 | `RegistrationConfirmationEmail.tsx` | Registrant confirmation — client-branded, localized, ICS attached. Also exports `registrationConfirmationText`. |
@@ -129,11 +130,11 @@ Email glue lives in the plugin (`@/plugins/email`). Only JSX templates live in `
 
   ```typescript
   import { createElement } from 'react'
-  import { VerifyEmail } from '@/emails/VerifyEmail'
+  import { ResetPasswordEmail } from '@/emails/ResetPasswordEmail'
   import { getEmailBrand, renderEmail } from '@/plugins/email'
 
   generateEmailHTML: ({ token, user }) =>
-    renderEmail(createElement(VerifyEmail, { name: user.name, verifyUrl })),
+    renderEmail(createElement(ResetPasswordEmail, { name: user.name, resetUrl })),
   ```
 
 - **Branding is per-project** by default: `getEmailBrand(project)` composes `{ productName, colors, iconUrl }`, defaulting to `wemeditate-web`. A template takes branding as a prop, never a hardcoded color: either `project?: ProjectSlug` (resolved inside the template) when it is the only consumer, or `brand: EmailBrand` (resolved once by the sender and passed down) when the sender also needs it — e.g. for the `From` name — so header and body can't resolve to different brands.
@@ -145,9 +146,12 @@ Email glue lives in the plugin (`@/plugins/email`). Only JSX templates live in `
   pnpm tsx scripts/preview-registration-emails.ts               # registrant confirmation, all states
   pnpm tsx scripts/preview-registration-notification-emails.ts  # manager registration notice, all states
   pnpm tsx scripts/preview-event-emails.ts                      # manager verification reminders
+  pnpm tsx scripts/preview-manager-emails.ts                    # manager invitation + sign-in link
   ```
 
-  Neither touches the database.
+  None touches the database. `preview-manager-emails.ts` drives
+  `inviteVerification` — the object `Managers.auth.verify` installs — so the subject, the URL
+  shape and the grant rows are the ones a create sends.
 
 - **A progress bar is two table cells, not a styled `<div>`.** Outlook's Word rendering engine drops CSS backgrounds on a `<div>`, and no client reliably supports `<progress>`. `ProgressBar` uses a real `<table>` with `backgroundColor` per cell, each holding an NBSP (`' '`, not a plain space, which collapses as insignificant whitespace). A zero-width cell is omitted, since some clients round `width: 0%` up to a visible sliver.
 - **Icons: emails are the exception to the no-emoji rule.** Gmail strips inline `<svg>` and Outlook can't render it, so templates keep **emoji** or a **hosted PNG** via `<Img>` — never `lucide-react` or `@payloadcms/ui` icons.
@@ -176,11 +180,23 @@ pluralize(strings, 'sessions_count', count, locale)
 
 ## Authentication features
 
-**Email verification** (`VerifyEmail`) and **password reset** (`ResetPasswordEmail`) are custom React Email templates wired on `Managers` (`auth.verify` / `auth.forgotPassword`) — no longer Payload's bare defaults. Subjects derive from the resolved brand name.
+**The invitation** (`InviteEmail`) and **password reset** (`ResetPasswordEmail`) are custom React Email templates wired on `Managers` (`auth.verify` / `auth.forgotPassword`) — no longer Payload's bare defaults. Subjects derive from the resolved brand name.
+
+### `auth.verify` sends an invitation, and `_verified` is the accepted flag (#839)
+
+`auth.verify` stays configured for the **column**, not for Payload's own verify mail: the JWT strategy yields no user while `_verified` is false, so that column is the accepted/not-accepted flag. `inviteVerification` (`src/plugins/login/invite.ts`) repoints both generators, and:
+
+- **The framework's `token` argument is ignored.** It addresses `/admin/<slug>/verify/:token`, a form that asks for a password this flow never sets. The invitation carries a `manager-invite` JWT instead — a separate audience from a sign-in link, so neither route spends the other's token.
+- **Nothing in the generators may throw.** `sendVerificationEmail` is awaited at `create.js:231`, before `commitTransaction` and outside any `try`, so a throw returns a 500 with no account created.
+- **The grant summary reads `locale: 'all'` inside that open transaction.** It passes `localeIsolatedReq(req)`, or `createLocalReq` repoints the caller's locale and the create's own localized write lands at `all` (#609).
+- **A create writes one locale**, so that is all an invitation can name. A resend — `issueMagicLink`'s invite branch, taken while `_verified` is false — names every locale, because by then they exist.
+- **The importer opts out** with `disableVerificationEmail: true` and marks nothing verified. An imported manager's way in is to ask for a link, which re-sends the invitation.
+- **A create that sets `_verified: true` itself must opt out too.** Payload gates the send on `result.email` alone, never on the flag, so an account seeded as already-accepted would be mailed an invitation that `redeem-invite` refuses on the first click. `seedPreviewAdmin` is the one such caller.
+- ⚠ **`_verified` is not a column every auth collection has.** `getAuthFields.js` adds the verification fields only where `auth.verify` is configured. Anything branching on the flag for a *served* collection — `issueMagicLink` picking between the two mails — asks the sanitized config first, or it reads `undefined` and invites every account forever.
 
 ### ⚠ The two token URLs have different shapes, and only one carries the slug
 
-They sit side by side in `Managers.ts` and look like they should match. They must not:
+⚠ **History now, for the verify row.** `auth.verify` no longer builds an admin URL at all — the invitation addresses the sign-in page (`/managers/signin?invite=…`) instead. The row stays because the trap is the routing rule, and the next auth link written against `formatAdminURL` meets it again.
 
 | Link | Correct URL | Why |
 |---|---|---|
@@ -189,4 +205,4 @@ They sit side by side in `Managers.ts` and look like they should match. They mus
 
 A verify URL written in the reset shape (`/admin/verify/:token`) matches nothing, and **fails silently instead of 404ing**: `isPublicAdminRoute` returns true for any route containing `/verify/`, so the auth gate never fires and a logged-out recipient lands on the login form. It looks exactly like the email never arrived, and it shipped that way from #483 to #320.
 
-You will not reproduce this locally — `admin.autoLogin` makes `req.user` truthy on every dev request, taking the `notFound()` branch and showing a 404 instead. Open the link in a **private window**, or trust `tests/unit/manager-auth-urls.spec.ts`, which pins both shapes against Payload's own `formatAdminURL`. A template render spec cannot catch this: it asserts a URL round-trips, and a wrong URL round-trips just as happily.
+You will not reproduce this locally — `admin.autoLogin` makes `req.user` truthy on every dev request, taking the `notFound()` branch and showing a 404 instead. Open the link in a **private window**, or trust `tests/unit/manager-auth-urls.spec.ts`, which pins the reset shape against Payload's own `formatAdminURL` — the verify half moved to `manager-invite.spec.ts`, which asserts the old shape no longer appears. A template render spec cannot catch this either way: it asserts a URL round-trips, and a wrong URL round-trips just as happily.
