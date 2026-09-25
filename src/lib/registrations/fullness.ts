@@ -1,5 +1,7 @@
 import type { Payload, PayloadRequest, Where } from 'payload'
 
+import { updateEventBookkeeping } from '@/lib/events/updateEventWithoutValidation'
+import type { Event } from '@/payload-types'
 import { asTrustedReq } from '@/plugins/usage/hooks'
 
 import { activeRegistrationWhere } from './active'
@@ -67,10 +69,10 @@ export async function syncEventRegistrationsFull(args: {
 }): Promise<void> {
   const { payload, eventId } = args
   // A registration arrives through the widget, so the caller's req carries a
-  // client user. Elevate it to a trusted req: the client query gate would
-  // otherwise reject the nested `regions` find the event update runs to
-  // re-validate `region` via filterOptions (a client find with no `select`).
-  // overrideAccess still covers permissions.
+  // client user. Elevate it to a trusted req, or the client query gate rejects
+  // the event read below — a client find with no `select`. `overrideAccess`
+  // still covers permissions. The write no longer needs the elevation: skipping
+  // validation skips the `regions` filterOptions find it used to run.
   const req = args.req ? asTrustedReq(args.req) : undefined
 
   // The event read and the registration count are independent (both keyed only
@@ -93,15 +95,9 @@ export async function syncEventRegistrationsFull(args: {
   const full = isEventFull(event, totalDocs)
   if (Boolean(event.registrationsFull) === full) return
 
-  await payload.update({
-    collection: 'events',
-    id: eventId,
-    data: { registrationsFull: full },
-    // skipVerifyHook (don't re-open verification) alongside the trusted-req skip
-    // flag — spread req.context so the trusted flag survives if the context arg
-    // replaces rather than merges.
-    context: { ...(req?.context ?? {}), skipVerifyHook: true },
-    overrideAccess: true,
-    req,
-  })
+  // Bookkeeping, so it must not re-validate the stored event: this runs in an
+  // unguarded afterChange hook, and a throw kills the visitor's transaction —
+  // the registration taking the last seat was refused outright (#842).
+  const data: Pick<Event, 'registrationsFull'> = { registrationsFull: full }
+  await updateEventBookkeeping({ payload, id: eventId, data, req })
 }

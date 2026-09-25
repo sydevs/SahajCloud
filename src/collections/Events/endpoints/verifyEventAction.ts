@@ -1,15 +1,23 @@
 import type { Endpoint } from 'payload'
 
+import { APIError, Forbidden } from 'payload'
+
+import { validationFieldErrors } from '@/lib/utilities/validationFailure'
+
 import { actorFromUser, applyVerification } from '../lifecycle/verify'
 
 /**
  * POST /api/events/:id/verify
  *
- * The admin "Verify" button (in the verification notice banner). Requires an
+ * A manager-only API action. Nothing in this repo calls it: the verification
+ * notice banner tells a manager to republish instead (#842). Requires an
  * authenticated manager; the write runs with `overrideAccess: false` so the
  * access plugin enforces that this manager may update the event (its manager,
  * a region manager, or an admin). Runs the shared verify op (method
  * `verify-action`).
+ *
+ * Answers 422 with the field errors when the event's stored data fails
+ * validation, and keeps 403 for an access failure — two different failures.
  */
 export const verifyEventAction: Endpoint = {
   path: '/:id/verify',
@@ -43,10 +51,32 @@ export const verifyEventAction: Endpoint = {
         userId: req.user.id,
         error: error instanceof Error ? error.message : String(error),
       })
-      return Response.json(
-        { errors: [{ message: 'You are not allowed to verify this event.' }] },
-        { status: 403 },
-      )
+      // Classify, never assume. This catch answered 403 for every failure, so
+      // invalid stored data told a manager who may edit the event to ask for
+      // access they already have (#842) — and so would a database outage. The
+      // write keeps validating on purpose: the data is fixed first, then the
+      // event is verified.
+      const fieldErrors = validationFieldErrors(error)
+      if (fieldErrors) {
+        return Response.json(
+          { errors: fieldErrors.map(({ path, message }) => ({ path, message })) },
+          { status: 422 },
+        )
+      }
+      if (error instanceof Forbidden) {
+        return Response.json(
+          { errors: [{ message: 'You are not allowed to verify this event.' }] },
+          { status: 403 },
+        )
+      }
+      // Anything else is ours, not the caller's. `isPublic` is Payload's own
+      // answer to whether a message may be shown, so nothing else is echoed.
+      const status = error instanceof APIError ? error.status : 500
+      const message =
+        error instanceof APIError && error.isPublic
+          ? error.message
+          : 'Could not verify this event. Please try again.'
+      return Response.json({ errors: [{ message }] }, { status })
     }
   },
 }

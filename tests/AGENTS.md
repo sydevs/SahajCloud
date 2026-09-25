@@ -230,6 +230,13 @@ returns its generated output type — don't hand-roll
 can pass. `select: {}` is **not** equivalent — the client gate rejects an
 empty select with a 400.
 
+A third, for one narrow job: `storeInvalidEvent(payload, id, patch)`
+(`tests/utils/storeInvalidEvent.ts`) puts an event into a state its own
+validators refuse, which no `payload.create` or `payload.update` can reach.
+It seeds the main row **and** the `latest: true` version row, because
+`updateByID` loads the document it is about to change from that version —
+seed only the main row and the case passes for the wrong reason.
+
 ### Driving the REST API from the integration lane
 
 `createRestClient(env)` (`tests/utils/restRequest.ts`) issues authenticated

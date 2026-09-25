@@ -140,19 +140,13 @@ function formatInstant(value: string): string | null {
   }).format(date)} UTC`
 }
 
-/** A Payload `StaticLabel` is a string or a per-locale record; take either. */
-function labelText(label: unknown): string | null {
-  if (typeof label === 'string') return label
-  if (label && typeof label === 'object') {
-    const values = Object.values(label as Record<string, unknown>)
-    if (typeof values[0] === 'string') return values[0]
-  }
-  return null
-}
-
+/**
+ * Only a string label is readable here. A label function needs an i18n context,
+ * and this module is pure — it takes the field list, never a `req`.
+ */
 function fieldLabel(field: FlattenedField | undefined, fallback: string): string {
   const label = field && 'label' in field ? field.label : undefined
-  return labelText(label) ?? toWords(fallback)
+  return typeof label === 'string' ? label : toWords(fallback)
 }
 
 /**
@@ -169,7 +163,8 @@ function optionLabel(field: FlattenedField | undefined, value: unknown): string 
     typeof option === 'string' ? option === value : option.value === value,
   )
   if (match == null) return null
-  return typeof match === 'string' ? match : (labelText(match.label) ?? match.value)
+  if (typeof match === 'string') return match
+  return typeof match.label === 'string' ? match.label : match.value
 }
 
 /**

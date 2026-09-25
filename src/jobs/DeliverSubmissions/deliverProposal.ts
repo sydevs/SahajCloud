@@ -6,8 +6,8 @@ import { readSubmissionValue } from '@/collections/UserSubmissions/submissionDat
 import { CONTACT_EMAIL } from '@/lib/contact'
 import { findManagerForRegion } from '@/lib/notifications/recipients'
 import { sendSubmissionReview } from '@/lib/notifications/sendSubmissionReview'
+import { adminDocUrl } from '@/lib/utilities/adminUrl'
 import { relationId } from '@/lib/utilities/relationId'
-import { getServerUrl } from '@/lib/utilities/serverUrl'
 
 
 /**
@@ -54,7 +54,7 @@ export async function deliverProposal({
       submitterName: readSubmissionValue(submission.submissionData, 'name') ?? 'A visitor',
       submitterNote: readSubmissionValue(submission.submissionData, 'note'),
       details: proposalDetails(submission.proposed),
-      reviewUrl: `${getServerUrl()}/admin/collections/user-submissions/${submission.id}`,
+      reviewUrl: adminDocUrl('user-submissions', submission.id),
     })
   } catch (error) {
     return {

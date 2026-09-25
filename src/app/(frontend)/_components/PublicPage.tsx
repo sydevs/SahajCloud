@@ -147,11 +147,14 @@ export const pageLead: CSSProperties = {
 
 const emblem: CSSProperties = { fontSize: 44, lineHeight: 1, marginBottom: 12 }
 const outcomeTitle: CSSProperties = { margin: '0 0 12px', fontSize: 20 }
+// `pre-line` is load-bearing: the invalid-data verify outcome joins one line per
+// failing field, and HTML would otherwise collapse them into one paragraph.
 const outcomeMessage: CSSProperties = {
   margin: 0,
   color: 'var(--text-muted)',
   lineHeight: 1.6,
   fontSize: 15,
+  whiteSpace: 'pre-line',
 }
 const actionRow: CSSProperties = { marginTop: 24 }
 
