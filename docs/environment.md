@@ -29,6 +29,8 @@ Separate from `.env`, gitignored, and never committed. It lets an agent operate 
 | --- | --- |
 | `CLOUDFLARE_CLAUDE_KEY` | Cloudflare API token — Cache Rules on the `sydevelopers.com` zone. |
 | `ADMIN_PASSWORD` | `contact@sydevelopers.com` on production, via `POST /api/managers/login`. |
+| `MAILPIT_URL`, `MAILPIT_UI_AUTH` | The Mailpit capture inbox, and its login — what the `preview-*-emails` scripts post with, and what opens their links (`docs/rules/email.md`). The Claude cloud environment carries both. |
+| `SMTP_URL` | Mailpit's SMTP ingress, for mail the app sends under `pnpm dev`. |
 
 ```bash
 set -a; . ./.env.claude.local; set +a
