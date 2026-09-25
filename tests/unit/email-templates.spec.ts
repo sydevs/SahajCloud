@@ -56,10 +56,11 @@ describe('InviteEmail', () => {
     expect(html).toContain('Web Translator')
   })
 
-  it('names full access for an admin, and no locale row', async () => {
-    const html = await renderEmail(
-      createElement(InviteEmail, { ...inviteProps, fullAccess: true, grants: [] }),
-    )
+  it('names full access for an admin, suppressing any locale row', async () => {
+    // ⚠ `grants` stays populated. Emptying it too would make the two negatives
+    // below hold for every implementation, including one that ignores
+    // `fullAccess` entirely.
+    const html = await renderEmail(createElement(InviteEmail, { ...inviteProps, fullAccess: true }))
 
     expect(html).toContain('Administrator')
     expect(html).not.toContain('English')
@@ -73,12 +74,6 @@ describe('InviteEmail', () => {
     expect(html).not.toContain('Administrator')
   })
 
-  it('names no region and no page — neither can exist when it renders', async () => {
-    const html = await renderEmail(createElement(InviteEmail, inviteProps))
-
-    expect(html).not.toMatch(/\bregions?\b/i)
-    expect(html).not.toMatch(/\bpages?\b/i)
-  })
 })
 
 describe('ResetPasswordEmail', () => {

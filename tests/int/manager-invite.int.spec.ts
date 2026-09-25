@@ -24,7 +24,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MANAGER_SIGNIN_PATH } from '@/collections/Managers/login'
 import { escapeRegExp } from '@/lib/eventQuality/heuristics'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
-import { signSigninToken } from '@/plugins/login'
+import { INVITE_TOKEN_TTL_MS, signInviteToken, signSigninToken } from '@/plugins/login'
 
 import { EmailTestAdapter } from '../utils/emailTestAdapter'
 import { createAnonRestClient, createRestClientWithAuth, type RestClient } from '../utils/restRequest'
@@ -150,8 +150,11 @@ describe('manager invitation', () => {
       const french = await payload.findByID({ collection: 'managers', id: manager.id, locale: 'fr' })
       expect(french.roles).toEqual(['web-translator'])
 
+      // The observed value, with no `?? []` softening it: Payload returns no
+      // `roles` key at all for a locale never written. A fallback would read the
+      // same for that and for a read that came back empty.
       const english = await payload.findByID({ collection: 'managers', id: manager.id, locale: 'en' })
-      expect(english.roles ?? []).toEqual([])
+      expect(english.roles).toBeUndefined()
     })
 
     it('sends nothing when the caller opts out — the importer’s path', async () => {
@@ -206,6 +209,25 @@ describe('manager invitation', () => {
 
       expectRefused(await accept(signin), 'invalid')
       expect(await verifiedFlag(manager.id)).toBeFalsy()
+    })
+
+    it('tells an expired invitation from a tampered one', async () => {
+      const { manager, token } = await invite()
+      const [header, body, signature] = token.split('.')
+
+      expectRefused(await accept(`${header}.${body}.${signature!.slice(0, -2)}xx`), 'invalid')
+
+      // An authentic invitation whose seven days ran out — minted a minute past
+      // the lifetime, so the expiry is the only thing left to refuse it. It is
+      // the one refusal worth distinguishing, because the copy the page shows
+      // states the invitation's own validity, not a sign-in link's.
+      const past = new Date(Date.now() - INVITE_TOKEN_TTL_MS - 60_000)
+      const aged = await signInviteToken(
+        { collection: 'managers', issuedAt: past.getTime(), userId: manager.id },
+        payload.secret,
+        past,
+      )
+      expectRefused(await accept(aged), 'invite-expired')
     })
 
     it('refuses a tampered invitation, and one carrying no token at all', async () => {

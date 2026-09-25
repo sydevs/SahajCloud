@@ -48,6 +48,11 @@ export { summarizeGrants, type GrantSummary, type LocaleGrant } from './grantSum
 
 export { createSession } from './session'
 
+// The two redeem PATHS, not their factories: the sign-in page addresses both
+// forms at them, and a literal there would survive a rename silently.
+export { REDEEM_INVITE_PATH } from './endpoints/redeemInvite'
+export { REDEEM_MAGIC_LINK_PATH } from './endpoints/redeemMagicLink'
+
 export type { LoginCollectionConfig, LoginDocument, LoginMailArgs } from './types'
 
 export {

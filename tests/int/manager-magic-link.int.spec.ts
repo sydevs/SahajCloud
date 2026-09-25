@@ -12,10 +12,13 @@
  * all, which is the failure the old `manager-verification.int.spec.ts` paid for
  * and `manager-invite.int.spec.ts` now carries.
  *
- * ⚠ **Every fixture here is `_verified: true` on purpose.** An unaccepted
- * manager who asks for a link is sent their invitation instead, so a fixture
- * left unverified would be captured by `manager-invite.int.spec.ts`'s flow, not
- * this one.
+ * ⚠ **`activeManager()` is `_verified: true` on purpose, and every test that
+ * asks for a LINK uses it.** An unaccepted manager is sent their invitation
+ * instead (#839), so a request-link test built on a bare
+ * `testData.createManager` would exercise `manager-invite.int.spec.ts`'s flow
+ * while looking like this one. The bare fixtures below are the tests that never
+ * reach that branch — an ineligible manager is refused before it, and the last
+ * test mints its token directly.
  */
 import type { Payload } from 'payload'
 

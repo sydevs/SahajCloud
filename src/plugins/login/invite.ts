@@ -16,10 +16,11 @@ import { INVITE_TOKEN_TTL_MS, signInviteToken } from './token'
  * The invitation a newly created account holder receives, and the swap that
  * puts it where Payload's own "verify your email" template was.
  *
- * ⚠ **`auth.verify` stays configured, and is not what sends this.** It is what
- * creates the `_verified` column, and the JWT strategy yields no user while
- * that column is false — so `_verified` is the accepted/not-accepted flag this
- * whole flow turns on. Only the two generators are repointed.
+ * ⚠ **`auth.verify` is kept for the COLUMN, not for Payload's verify mail.** It
+ * is what creates `_verified`, and the JWT strategy yields no user while that
+ * column is false — so `_verified` is the accepted/not-accepted flag this whole
+ * flow turns on. Only the two generators are repointed; the send stays where it
+ * was.
  *
  * ⚠ **The framework's `token` argument is ignored.** It addresses
  * `/admin/<slug>/verify/:token`, a form that asks for a password this flow
@@ -27,9 +28,13 @@ import { INVITE_TOKEN_TTL_MS, signInviteToken } from './token'
  * audience from a sign-in link (`token.ts`), so neither can be replayed as the
  * other.
  *
- * ⚠ **Nothing here may throw.** `sendVerificationEmail` is awaited inside
- * `create`, before `commitTransaction` and outside any `try`, so a throw
- * returns a 500 with no account created.
+ * ⚠ **A throw here costs the whole account.** `sendVerificationEmail` is awaited
+ * inside `create`, before `commitTransaction` and outside any `try`, so the
+ * create returns a 500 and rolls back. Keep every added step total: the role
+ * labels fall back to the slug rather than throwing on an unknown one, and the
+ * signing is pure. The one read cannot be made safe by catching it — it joins
+ * the create's transaction, which Postgres marks aborted on any failed query,
+ * so a swallowed error would only move the 500 to the commit.
  */
 
 /** How long an invitation lasts, as the recipient is told. Derived from the TTL. */
@@ -61,6 +66,8 @@ export function signInviteFor(
 }
 
 export interface InviteMailArgs {
+  /** The served collection `doc` belongs to. @see summarizeGrants */
+  collection: string
   /** The account being invited. `id` and `type` decide what the email may claim. */
   doc: LoginDocument
   inviteUrl: string
@@ -72,6 +79,7 @@ export interface InviteMailArgs {
 
 /** Render the invitation, naming the access granted. */
 export async function generateInviteEmailHTML({
+  collection,
   doc,
   inviteUrl,
   payload,
@@ -79,6 +87,7 @@ export async function generateInviteEmailHTML({
   req,
 }: InviteMailArgs): Promise<string> {
   const { fullAccess, grants } = await summarizeGrants({
+    collection,
     id: doc.id,
     payload,
     req,
@@ -120,6 +129,7 @@ export function inviteVerification(
       const { payload } = req
 
       return generateInviteEmailHTML({
+        collection: config.slug as string,
         doc,
         inviteUrl: inviteUrl(config, await signInviteFor(config, doc, payload.secret)),
         payload,

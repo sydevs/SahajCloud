@@ -49,6 +49,9 @@ const ROLE_LABELS = new Map(
   getRoleOptions(getRoleSlugs()).map(({ label, value }) => [value as string, label]),
 )
 
+/** The one collection whose grants this can describe. @see summarizeGrants */
+const ROLES_COLLECTION = 'managers'
+
 /**
  * Name the access a manager holds, per locale.
  *
@@ -64,16 +67,24 @@ const ROLE_LABELS = new Map(
  * its own request.
  */
 export async function summarizeGrants({
+  collection,
   id,
   payload,
   req,
   type,
 }: {
+  /** The served collection the id belongs to. @see ROLES_COLLECTION */
+  collection: string
   id: number | string
   payload: Payload
   req?: PayloadRequest
   type: unknown
 }): Promise<GrantSummary> {
+  // ⚠ **The guard, not a tidiness check.** `hydrateLocalizedRoles` reads
+  // `managers` by id, so for any other served collection this would name a
+  // stranger's roles — or throw `NotFound` inside the create's own open
+  // transaction, which costs the whole account (`invite.ts`).
+  if (collection !== ROLES_COLLECTION) return { fullAccess: false, grants: [] }
   if (type === 'admin') return { fullAccess: true, grants: [] }
 
   const roles = await hydrateLocalizedRoles(payload, id, req ? localeIsolatedReq(req) : undefined)

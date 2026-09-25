@@ -3,7 +3,6 @@ import type { Metadata } from 'next'
 import { getPayload } from 'payload'
 
 import { managersLogin } from '@/collections/Managers/login'
-import { getServerUrl } from '@/lib/utilities/serverUrl'
 import { getProjectEmailIcon, getProjectLabel } from '@/plugins/access'
 import { DEFAULT_EMAIL_PROJECT, getEmailBrand } from '@/plugins/email'
 import { readInviteToken, readSigninToken } from '@/plugins/login'
@@ -13,6 +12,7 @@ import payloadConfig from '@payload-config'
 import { ConfirmSignIn } from './ConfirmSignIn'
 import { LINK_NOTICES, linkNotice } from './notices'
 import { SignInForm } from './SignInForm'
+import { acceptUrl, redeemUrl } from './urls'
 
 
 export const metadata: Metadata = {
@@ -33,14 +33,6 @@ export const metadata: Metadata = {
  * the next reader.
  */
 export const dynamic = 'force-dynamic'
-
-/** Where the form behind the confirmation posts. The `POST` is what burns the link. */
-const redeemUrl = (token: string) =>
-  `${getServerUrl()}/api/${managersLogin.slug}/redeem-magic-link?token=${encodeURIComponent(token)}`
-
-/** The invitation's own route. Separate audiences, separate endpoints (#839). */
-const acceptUrl = (token: string) =>
-  `${getServerUrl()}/api/${managersLogin.slug}/redeem-invite?token=${encodeURIComponent(token)}`
 
 /**
  * The one logged-out surface for manager sign-in (#838): it asks for a link,

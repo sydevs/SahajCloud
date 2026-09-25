@@ -30,7 +30,10 @@ import {
 
 const SECRET = 'invite-spec-secret'
 
-type FindArgs = { locale?: string; req?: { locale?: string } }
+/** The one collection the summary can describe. Spread into every call below. */
+const managers = { collection: 'managers', id: 1 }
+
+type FindArgs = { locale?: string; req?: { locale?: string }; select?: Record<string, true> }
 
 /** A `payload` that answers the one `locale: 'all'` read the summary performs. */
 function fakePayload(roles: unknown) {
@@ -54,7 +57,7 @@ describe('summarizeGrants', () => {
   it('names full access for an admin, and reads no roles at all', async () => {
     const { payload, reads } = fakePayload({ en: ['meditations-editor'] })
 
-    const summary = await summarizeGrants({ id: 1, payload, type: 'admin' })
+    const summary = await summarizeGrants({ ...managers, payload, type: 'admin' })
 
     expect(summary).toEqual({ fullAccess: true, grants: [] })
     expect(reads).toHaveLength(0)
@@ -66,7 +69,7 @@ describe('summarizeGrants', () => {
       fr: ['web-translator', 'path-editor'],
     })
 
-    const summary = await summarizeGrants({ id: 1, payload, type: 'manager' })
+    const summary = await summarizeGrants({ ...managers, payload, type: 'manager' })
 
     expect(summary).toEqual({
       fullAccess: false,
@@ -77,10 +80,41 @@ describe('summarizeGrants', () => {
     })
   })
 
+  it('reads roles and nothing else — no region, no page, no event', async () => {
+    // ⚠ **This is where "the invitation names no region or page" is testable.**
+    // The template can only render what it is handed, so asserting the absence
+    // of those words in its output asserts the fixture. The property is that the
+    // summary never reads them: `managedPages`, `managedRegions` and
+    // `managedEvents` are joins, empty for a manager created one instant ago.
+    const { payload, reads } = fakePayload({ en: ['path-editor'] })
+
+    await summarizeGrants({ ...managers, payload, type: 'manager' })
+
+    expect(reads).toHaveLength(1)
+    expect(reads[0]?.select).toEqual({ roles: true })
+  })
+
+  it('describes nothing for a collection whose roles it cannot read', async () => {
+    // `hydrateLocalizedRoles` reads `managers` by id. For any other served
+    // collection that is a stranger's roles, or a `NotFound` thrown inside an
+    // open create — so it must not read at all.
+    const { payload, reads } = fakePayload({ en: ['path-editor'] })
+
+    const summary = await summarizeGrants({
+      collection: 'clients',
+      id: 1,
+      payload,
+      type: 'manager',
+    })
+
+    expect(summary).toEqual({ fullAccess: false, grants: [] })
+    expect(reads).toHaveLength(0)
+  })
+
   it('grants nothing when the manager holds no role anywhere', async () => {
     const { payload } = fakePayload({})
 
-    expect(await summarizeGrants({ id: 1, payload, type: 'manager' })).toEqual({
+    expect(await summarizeGrants({ ...managers, payload, type: 'manager' })).toEqual({
       fullAccess: false,
       grants: [],
     })
@@ -90,7 +124,7 @@ describe('summarizeGrants', () => {
     const { payload, reads } = fakePayload({ en: ['path-editor'] })
     const req = { locale: 'de' } as PayloadRequest
 
-    await summarizeGrants({ id: 1, payload, req, type: 'manager' })
+    await summarizeGrants({ ...managers, payload, req, type: 'manager' })
 
     // The read asked for every locale...
     expect(reads[0]?.locale).toBe('all')
@@ -102,7 +136,7 @@ describe('summarizeGrants', () => {
     const { payload, reads } = fakePayload({ en: ['path-editor'] })
     const req = { locale: 'de', transactionID: 'txn-1' } as unknown as PayloadRequest
 
-    await summarizeGrants({ id: 1, payload, req, type: 'manager' })
+    await summarizeGrants({ ...managers, payload, req, type: 'manager' })
 
     expect((reads[0]?.req as { transactionID?: string } | undefined)?.transactionID).toBe('txn-1')
   })

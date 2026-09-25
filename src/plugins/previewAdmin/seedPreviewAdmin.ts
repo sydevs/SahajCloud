@@ -84,6 +84,11 @@ export const seedPreviewAdmin = async (payload: Payload): Promise<void> => {
         type: 'admin',
         _verified: true,
       },
+      // ⚠ An account created already accepted must not be invited. Payload gates
+      // the send on `result.email` alone, never on `_verified`, so without this
+      // the seeder mails an invitation that `redeem-invite` refuses the instant
+      // it is clicked — it is already accepted (#839).
+      disableVerificationEmail: true,
       overrideAccess: true,
     })
 
