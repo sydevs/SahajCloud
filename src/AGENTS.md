@@ -16,7 +16,7 @@ split into `plugins/`, `jobs/`, and shared utilities).
 | `src/lib/`         | Cross-cutting shared code (not a plugin, not owned by one collection/job)   |
 | `src/fields/`      | Reusable field factories (`camelCase`)                                      |
 | `src/components/`  | Admin-panel React components (`PascalCase`)                                 |
-| `src/app/`         | Next.js routes (admin, REST API, frontend, webhooks)                        |
+| `src/app/`         | Next.js routes (admin, REST API, frontend, webhooks). Shared UI for one route group goes in a `_components/` folder there — `_`-prefixed, so Next does not route it |
 | `src/migrations/`  | Payload schema migrations (see `src/migrations/AGENTS.md`)                  |
 
 ### `src/plugins/`
@@ -36,6 +36,10 @@ sends that mail itself, from `src/plugins/login/mail.ts`; a collection overrides
 either half through a `generateEmailHTML` / `generateEmailSubject` pair shaped
 like the one `Managers.auth.verify` takes. The barrel deliberately stops short of the
 factories: `loginPlugin` is their only caller.
+
+Work with two callers gets its own module beside them rather than living in one
+of their wiring files — `session.ts`, and `magicLinks.ts` for the throttle
+and send that the request endpoint and the manager sign-in page both run.
 
 ### `src/jobs/<JobName>/`
 

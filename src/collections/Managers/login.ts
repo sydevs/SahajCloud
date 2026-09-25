@@ -4,6 +4,16 @@ import type { LoginCollectionConfig } from '@/plugins/login'
 const INACTIVE: Manager['type'] = 'inactive'
 
 /**
+ * The logged-out page that asks for a sign-in link.
+ *
+ * The one spelling of the path, read by the config below and by the tests.
+ * ⚠ Nothing checks it against the filesystem route at
+ * `src/app/(frontend)/managers/signin/` — no TypeScript constant can — so
+ * renaming that folder needs this changed by hand.
+ */
+export const MANAGER_SIGNIN_PATH = '/managers/signin'
+
+/**
  * What `loginPlugin` needs to serve sign-in links to `managers` (#837).
  *
  * Both values are this collection's own — the predicate reads a `managers`
@@ -25,4 +35,7 @@ export const managersLogin: LoginCollectionConfig = {
   // list, so without this they would see `undefined` — and an inactive manager
   // would be let in.
   select: { currentProject: true, type: true },
+  // Both refusal pages link here, and it is what puts the control on the admin
+  // login form — `admin.user` is this collection (#838).
+  requestPagePath: MANAGER_SIGNIN_PATH,
 }
