@@ -27,9 +27,9 @@ export const Managers: CollectionConfig = {
   // `setProject` is the lightweight self-only Current Project write path (#532).
   endpoints: [setProject],
   auth: {
-    // Auth emails intentionally use the default brand (wemeditate-web) rather
-    // than the recipient's currentProject — branding is an explicit per-send
-    // choice, so the templates' `project` prop is left at its default here (#483).
+    // The reset mail uses the default brand (wemeditate-web) whatever the
+    // recipient's currentProject (#483). The invitation is branded for what it
+    // lists instead — see `brandProject`.
     // Configured for the `_verified` column, not for Payload's own verify mail:
     // the JWT strategy yields no user while that column is false, so it is the
     // accepted/not-accepted flag the invitation flow turns on. Both generators

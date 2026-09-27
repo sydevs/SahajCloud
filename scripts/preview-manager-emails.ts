@@ -10,16 +10,19 @@
  * No database is touched. The four existing `preview-*-emails` scripts cover
  * registrant and event mail; none renders a manager auth email.
  *
- * ⚠ **It drives the real generators, not the templates.** `inviteVerification`
- * is the same object `Managers.auth.verify` installs, so the subject, the URL
- * shape and the grant rows are exactly what a create sends. The `payload` stub
- * covers the two calls that path makes — the `locale: 'all'` roles read, and
- * `secret` — so nothing here is reimplemented and the preview cannot drift.
+ * ⚠ **It drives the real generators, not the templates.** The create scenarios
+ * go through `inviteVerification`, the object `Managers.auth.verify` installs;
+ * the resend scenarios through `prepareInvite`, what `issueMagicLink` calls. So
+ * the subject, the brand, the URL shape and every row are exactly what a real
+ * send produces. The `payload` stub answers only the database reads — the
+ * `locale: 'all'` roles read and the `find` per managed collection — and its
+ * collection configs are the real ones, so the preview cannot drift.
  */
 
-import type { Payload, PayloadRequest } from 'payload'
+import type { CollectionConfig, Payload, PayloadRequest } from 'payload'
 
 import dotenv from 'dotenv'
+import { flattenAllFields } from 'payload'
 
 import { createCaptureTransport } from './mailpit-transport'
 
@@ -32,6 +35,9 @@ process.env.SAHAJCLOUD_URL ||= 'https://cloud.sydevelopers.com'
 
 const SECRET = 'preview-only-secret'
 
+/** Titles of the documents naming the manager, per collection, and how many exist. */
+type Managed = Partial<Record<'events' | 'pages' | 'regions', { titles: string[]; total?: number }>>
+
 interface Scenario {
   label: string
   note: string
@@ -39,9 +45,14 @@ interface Scenario {
   roles: Record<string, string[]>
   type: string
   name: string
+  /** The manager's own `currentProject`. `null` for anyone who never signed in. */
+  currentProject?: null | string
+  /** Resend scenarios only — a create has nothing naming the manager yet. */
+  managed?: Managed
 }
 
-const SCENARIOS: Scenario[] = [
+/** What a create sends: roles only, since nothing can point at the account yet. */
+const CREATE_SCENARIOS: Scenario[] = [
   {
     label: 'invite · one locale',
     note: 'the common case — a manager created with roles at the locale the admin was in',
@@ -50,11 +61,11 @@ const SCENARIOS: Scenario[] = [
     name: 'Jo Smith',
   },
   {
-    label: 'invite · several locales',
-    note: 'what a RESEND can name: locales ranked by role count, ties on locale order',
-    roles: { en: ['path-editor'], fr: ['web-translator', 'atlas-manager'], cs: ['web-translator'] },
+    label: 'invite · atlas manager',
+    note: 'a new Atlas manager — branded Sahaj Atlas by its role, with no current project',
+    roles: { en: ['atlas-manager'] },
     type: 'manager',
-    name: 'Amélie Rousseau',
+    name: 'Lena Fischer',
   },
   {
     label: 'invite · admin',
@@ -72,11 +83,84 @@ const SCENARIOS: Scenario[] = [
   },
 ]
 
+const EVENTS = [
+  'Tuesday Evening Meditation',
+  'Sunday Morning Introduction',
+  'Meditation in the Park',
+  'Lunchtime Stress Relief',
+  'Beginners Workshop',
+]
+
+/** What a resend sends: by then the regions, events and pages naming the manager exist. */
+const RESEND_SCENARIOS: Scenario[] = [
+  {
+    label: 'resend · atlas manager',
+    note: 'the typical imported Atlas manager: one region, the events in it',
+    roles: { en: ['atlas-manager'] },
+    type: 'manager',
+    name: 'Lena Fischer',
+    managed: { regions: { titles: ['Berlin'] }, events: { titles: EVENTS.slice(0, 2) } },
+  },
+  {
+    label: 'resend · atlas, many events',
+    note: 'several regions and 23 events — the first five are named, the rest counted',
+    roles: { de: ['atlas-manager'], fr: ['atlas-manager'] },
+    type: 'manager',
+    name: 'Amélie Rousseau',
+    managed: {
+      regions: { titles: ['Alsace', 'Bavaria', 'Hesse'] },
+      events: { titles: EVENTS, total: 23 },
+    },
+  },
+  {
+    label: 'resend · region, no role',
+    note: 'named on a region before any role was assigned',
+    roles: {},
+    type: 'manager',
+    name: 'Ravi Menon',
+    managed: { regions: { titles: ['Lyon'] } },
+  },
+  {
+    label: 'resend · page editor',
+    note: 'a We Meditate translator named on pages — branded WeMeditate Web',
+    roles: { fr: ['web-translator'] },
+    type: 'manager',
+    name: 'Claire Martin',
+    managed: { pages: { titles: ['About Sahaja Yoga', 'Meditation for Beginners'] } },
+  },
+  {
+    label: 'resend · unrelated current project',
+    note: 'current project WeMeditate Web, but everything listed is Atlas — branded Sahaj Atlas',
+    roles: { en: ['atlas-manager'] },
+    type: 'manager',
+    name: 'Tom Becker',
+    currentProject: 'wemeditate-web',
+    managed: { events: { titles: EVENTS.slice(2, 4) } },
+  },
+  {
+    label: 'resend · related current project',
+    note: 'current project WeMeditate Web, and a page is listed — so that brand is kept',
+    roles: { en: ['atlas-manager', 'web-translator'] },
+    type: 'manager',
+    name: 'Marco Bianchi',
+    currentProject: 'wemeditate-web',
+    managed: { events: { titles: EVENTS.slice(0, 1) }, pages: { titles: ['Guided Meditations'] } },
+  },
+]
+
 async function main() {
+  const { Events, Managers, Pages, Regions } = await import('@/collections')
   const { managersLogin } = await import('@/collections/Managers/login')
   const { generateEmailHTML, generateEmailSubject } = await import('@/plugins/login/mail')
-  const { inviteVerification } = await import('@/plugins/login')
-  const { SIGNIN_VALID_FOR } = await import('@/plugins/login')
+  const {
+    generateInviteEmailHTML,
+    generateInviteEmailSubject,
+    inviteUrl,
+    inviteVerification,
+    prepareInvite,
+    signInviteFor,
+    SIGNIN_VALID_FOR,
+  } = await import('@/plugins/login')
 
   const { transport, messageUrl } = createCaptureTransport()
   const previews: { label: string; note: string; url: false | string }[] = []
@@ -93,22 +177,79 @@ async function main() {
     previews.push({ label: scenario.label, note: scenario.note, url: messageUrl(info) })
   }
 
+  // The four collections the summary reads config from, as Payload sanitizes
+  // them: flattened fields, and a plural label filled in from the slug.
+  const collections = Object.fromEntries(
+    ([Managers, Regions, Events, Pages] as CollectionConfig[]).map((collection) => [
+      collection.slug,
+      {
+        config: {
+          ...collection,
+          flattenedFields: flattenAllFields({ fields: collection.fields }),
+          labels: {
+            plural:
+              typeof collection.labels?.plural === 'string'
+                ? collection.labels.plural
+                : collection.slug.charAt(0).toUpperCase() + collection.slug.slice(1),
+          },
+        },
+      },
+    ]),
+  )
+
+  // The two reads a summary makes: the roles, and a `find` per managed collection.
+  const payloadFor = (scenario: Scenario) =>
+    ({
+      secret: SECRET,
+      collections,
+      findByID: async () => ({ roles: scenario.roles }),
+      find: async ({ collection, limit }: { collection: keyof Managed; limit: number }) => {
+        const { titles = [], total = titles.length } = scenario.managed?.[collection] ?? {}
+        const titleField = collections[collection]!.config.admin?.useAsTitle ?? 'id'
+        return {
+          docs: titles.slice(0, limit).map((title) => ({ [titleField]: title })),
+          totalDocs: total,
+        }
+      },
+    }) as unknown as Payload
+
+  const userFor = (scenario: Scenario) => ({
+    id: 42,
+    email: 'manager-preview@example.com',
+    name: scenario.name,
+    type: scenario.type,
+    currentProject: scenario.currentProject ?? null,
+  })
+
   const verify = inviteVerification(managersLogin)
 
-  for (const scenario of SCENARIOS) {
-    // The two calls `generateEmailHTML` makes: the roles read, and `secret`.
-    const payload = {
-      secret: SECRET,
-      findByID: async () => ({ roles: scenario.roles }),
-    } as unknown as Payload
+  for (const scenario of CREATE_SCENARIOS) {
+    const payload = payloadFor(scenario)
+    const args = {
+      req: { payload } as unknown as PayloadRequest,
+      token: 'unused',
+      user: userFor(scenario),
+    }
 
-    const user = { id: 42, email: 'manager-preview@example.com', name: scenario.name, type: scenario.type }
-    const args = { req: { payload } as unknown as PayloadRequest, token: 'unused', user }
+    const html = await verify.generateEmailHTML!(args as never)
+    await send(scenario, await verify.generateEmailSubject!(args as never), html)
+  }
+
+  for (const scenario of RESEND_SCENARIOS) {
+    const payload = payloadFor(scenario)
+    const doc = userFor(scenario)
+    const { project, summary } = await prepareInvite({
+      config: managersLogin,
+      doc,
+      payload,
+      withResponsibilities: true,
+    })
+    const url = inviteUrl(managersLogin, await signInviteFor(managersLogin, doc, SECRET))
 
     await send(
       scenario,
-      await verify.generateEmailSubject!(args as never),
-      await verify.generateEmailHTML!(args as never),
+      generateInviteEmailSubject(project),
+      await generateInviteEmailHTML({ doc, inviteUrl: url, project, summary }),
     )
   }
 

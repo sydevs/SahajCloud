@@ -2,6 +2,7 @@ import { Hr, Link, Text } from 'react-email'
 
 import type { ProjectSlug } from '@/payload-types'
 import { getEmailBrand } from '@/plugins/email'
+import type { Responsibility } from '@/plugins/login/grantSummary'
 
 import { BrandButton, DetailRow, EmailLayout, SectionHeading, styles } from './EmailLayout'
 
@@ -16,6 +17,8 @@ interface InviteEmailProps {
   fullAccess: boolean
   /** Role labels per locale, most roles first. Empty for an admin. */
   grants: { locale: string; roles: string[] }[]
+  /** The regions, events and pages naming the recipient. Empty on a create. */
+  responsibilities: Responsibility[]
   /** Project to brand the email for. Defaults to `wemeditate-web`. */
   project?: ProjectSlug
 }
@@ -28,8 +31,9 @@ interface InviteEmailProps {
  * genuinely grants nothing yet — which the email says outright rather than
  * rendering a blank table an invitee would read as a fault.
  *
- * It names no region and no page: both are join fields, so nothing points at a
- * manager created one instant ago. A resend, sent later, could.
+ * ⚠ **Responsibilities appear only on a resend.** They are join fields, so
+ * nothing points at a manager created one instant ago, and the section is
+ * omitted rather than rendered empty.
  */
 export function InviteEmail({
   name,
@@ -37,6 +41,7 @@ export function InviteEmail({
   validFor,
   fullAccess,
   grants,
+  responsibilities,
   project = 'wemeditate-web',
 }: InviteEmailProps) {
   const brand = getEmailBrand(project)
@@ -72,6 +77,25 @@ export function InviteEmail({
         </Text>
       )}
 
+      {responsibilities.length > 0 && (
+        <>
+          <SectionHeading>Your responsibilities</SectionHeading>
+          {responsibilities.map((responsibility) => (
+            <DetailRow key={responsibility.label} label={responsibility.label}>
+              {listTitles(responsibility)}
+              {responsibility.nested && (
+                <>
+                  <br />
+                  <span style={{ fontSize: '13px', color: '#666666' }}>
+                    {nestedNote(responsibility)}
+                  </span>
+                </>
+              )}
+            </DetailRow>
+          ))}
+        </>
+      )}
+
       <BrandButton href={inviteUrl} brand={brand}>
         Accept invitation
       </BrandButton>
@@ -89,4 +113,14 @@ export function InviteEmail({
       </Text>
     </EmailLayout>
   )
+}
+
+/** "Berlin, Hamburg, and 3 more" — the listed titles, then a count of the rest. */
+function listTitles({ titles, more }: Responsibility): string {
+  return more > 0 ? `${titles.join(', ')}, and ${more} more` : titles.join(', ')
+}
+
+/** Managing a region manages the regions inside it, so the email says so. */
+function nestedNote({ label, titles, more }: Responsibility): string {
+  return `Including the ${label.toLowerCase()} within ${titles.length + more === 1 ? 'it' : 'them'}.`
 }

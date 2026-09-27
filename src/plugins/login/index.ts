@@ -17,7 +17,8 @@
  *   request endpoint and the sign-in page.
  * - `token.ts` — the two link kinds, as separate JWT audiences.
  * - `inviteVerification` — the `auth.verify` swap that replaces Payload's
- *   "verify your email" with an invitation naming the access granted (#839).
+ *   "verify your email" with an invitation naming the access granted (#839),
+ *   branded for what it names (`brandProject`).
  *
  * ⚠ The endpoint *factories* are not re-exported here. `loginPlugin` is the only
  * caller, and exporting them would invite a collection to wire its own copy —
@@ -41,10 +42,19 @@ export {
   INVITE_VALID_FOR,
   inviteUrl,
   inviteVerification,
+  prepareInvite,
   signInviteFor,
+  type PreparedInvite,
 } from './invite'
 
-export { summarizeGrants, type GrantSummary, type LocaleGrant } from './grantSummary'
+export {
+  brandProject,
+  LISTED_PER_KIND,
+  summarizeGrants,
+  type GrantSummary,
+  type LocaleGrant,
+  type Responsibility,
+} from './grantSummary'
 
 export { createSession } from './session'
 

@@ -302,6 +302,43 @@ describe('manager invitation', () => {
       expect(sent!.html).toContain('Web Translator')
     })
 
+    it('lists the regions and events naming the manager — which a create cannot', async () => {
+      // The Atlas manager's usual shape: named on regions and events after the
+      // account exists, so only a resend can say so.
+      const { manager, sent: atCreate } = await invite({ roles: { en: ['atlas-manager'] } })
+      const region = await testData.createRegion(payload, {
+        name: `Invite Region ${manager.id}`,
+        managers: [manager.id],
+      })
+      const event = await testData.createEvent(payload, {
+        title: `Invite Event ${manager.id}`,
+        manager: manager.id,
+        region: region.id,
+      })
+      expect(atCreate.html).not.toContain('Your responsibilities')
+
+      const sent = await request(manager.email)
+      expect(sent!.html).toContain('Your responsibilities')
+      expect(sent!.html).toContain(region.name!)
+      expect(sent!.html).toContain('Including the regions within it.')
+      expect(sent!.html).toContain(event.title)
+    })
+
+    it('brands the invitation for what it lists, not an unrelated current project', async () => {
+      // A We Meditate current project on an account whose only grants are Atlas.
+      const { manager } = await invite({ roles: { en: ['atlas-manager'] } })
+      await payload.update({
+        collection: 'managers',
+        id: manager.id,
+        data: { currentProject: 'wemeditate-web' },
+      })
+      await testData.createRegion(payload, { managers: [manager.id] })
+
+      const sent = await request(manager.email)
+      expect(sent!.subject).toBe("You've been invited to Sahaj Atlas")
+      expect(sent!.html).not.toContain('WeMeditate Web')
+    })
+
     it('sends a plain sign-in link once they have accepted', async () => {
       const { manager, token } = await invite()
       expectAccepted(await accept(token))

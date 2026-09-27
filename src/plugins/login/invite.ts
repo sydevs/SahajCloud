@@ -5,11 +5,12 @@ import { createElement } from 'react'
 
 import { InviteEmail } from '@/emails/InviteEmail'
 import { stripNewlines } from '@/lib/utilities/emailSafeText'
+import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 import type { ProjectSlug } from '@/payload-types'
 import { getEmailBrand, renderEmail } from '@/plugins/email'
 
-import { summarizeGrants } from './grantSummary'
+import { brandProject, type GrantSummary, summarizeGrants } from './grantSummary'
 import { INVITE_TOKEN_TTL_MS, signInviteToken } from './token'
 
 /**
@@ -35,6 +36,11 @@ import { INVITE_TOKEN_TTL_MS, signInviteToken } from './token'
  * signing is pure. The one read cannot be made safe by catching it — it joins
  * the create's transaction, which Postgres marks aborted on any failed query,
  * so a swallowed error would only move the 500 to the commit.
+ *
+ * ⚠ **The brand follows what the invitation lists**, not the account's
+ * `currentProject` alone — see `brandProject`. An account that has never
+ * signed in has no current project, so the old rule sent every Atlas manager a
+ * We Meditate invitation.
  */
 
 /** How long an invitation lasts, as the recipient is told. Derived from the TTL. */
@@ -65,42 +71,68 @@ export function signInviteFor(
   )
 }
 
-export interface InviteMailArgs {
-  /** The served collection `doc` belongs to. @see summarizeGrants */
-  collection: string
-  /** The account being invited. `id` and `type` decide what the email may claim. */
-  doc: LoginDocument
-  inviteUrl: string
-  payload: Payload
+/** What one invitation names, and the brand chosen to match it. */
+export interface PreparedInvite {
   project: ProjectSlug | undefined
-  /** The create's own request, where there is one. @see summarizeGrants */
-  req?: PayloadRequest
+  summary: GrantSummary
 }
 
-/** Render the invitation, naming the access granted. */
-export async function generateInviteEmailHTML({
-  collection,
+/**
+ * Summarize the access an invitation names, and choose its brand from that.
+ *
+ * The subject, the `From` and the body all take `project` from here, so they
+ * cannot disagree about which product is inviting.
+ */
+export async function prepareInvite({
+  config,
   doc,
-  inviteUrl,
   payload,
-  project,
   req,
-}: InviteMailArgs): Promise<string> {
-  const { fullAccess, grants } = await summarizeGrants({
-    collection,
+  withResponsibilities,
+}: {
+  config: LoginCollectionConfig
+  /** The account being invited. `id` and `type` decide what the email may claim. */
+  doc: LoginDocument
+  payload: Payload
+  /** The create's own request, where there is one. @see summarizeGrants */
+  req?: PayloadRequest
+  /** @see summarizeGrants */
+  withResponsibilities: boolean
+}): Promise<PreparedInvite> {
+  const summary = await summarizeGrants({
+    collection: config.slug as string,
     id: doc.id,
     payload,
     req,
     type: doc.type,
+    withResponsibilities,
   })
 
+  return { project: brandProject(config.project?.(doc) ?? undefined, summary), summary }
+}
+
+export interface InviteMailArgs {
+  doc: LoginDocument
+  inviteUrl: string
+  project: ProjectSlug | undefined
+  summary: GrantSummary
+}
+
+/** Render the invitation, naming the access granted. */
+export function generateInviteEmailHTML({
+  doc,
+  inviteUrl,
+  project,
+  summary,
+}: InviteMailArgs): Promise<string> {
   return renderEmail(
     createElement(InviteEmail, {
       name: doc.name || doc.email || '',
       inviteUrl,
       validFor: INVITE_VALID_FOR,
-      fullAccess,
-      grants,
+      fullAccess: summary.fullAccess,
+      grants: summary.grants,
+      responsibilities: summary.responsibilities,
       project,
     }),
   )
@@ -115,28 +147,38 @@ export function generateInviteEmailSubject(project: ProjectSlug | undefined): st
  * The `auth.verify` config one served collection installs, so its own file
  * carries the slug and nothing else.
  *
- * `generateEmailSubject` is typed sync by Payload, so the subject resolves from
- * `project` alone — which is why the branding lookup is not an async read.
+ * Payload asks for the body and the subject separately, on the same request.
+ * One summary serves both, so the pair costs one read inside the create's
+ * transaction rather than two.
  */
 export function inviteVerification(
   config: LoginCollectionConfig,
 ): NonNullable<Exclude<IncomingAuthType['verify'], boolean>> {
-  const projectOf = (user: unknown) => config.project?.(user as LoginDocument) ?? undefined
+  const prepare = (req: PayloadRequest, doc: LoginDocument) =>
+    memoizeOnRequest(req, `login:invite:${String(config.slug)}:${doc.id}`, () =>
+      prepareInvite({
+        config,
+        doc,
+        payload: req.payload,
+        req,
+        // Nothing points at an account created one instant ago.
+        withResponsibilities: false,
+      }),
+    )
 
   return {
     generateEmailHTML: async ({ req, user }) => {
       const doc = user as unknown as LoginDocument
-      const { payload } = req
+      const { project, summary } = await prepare(req, doc)
 
       return generateInviteEmailHTML({
-        collection: config.slug as string,
         doc,
-        inviteUrl: inviteUrl(config, await signInviteFor(config, doc, payload.secret)),
-        payload,
-        project: projectOf(doc),
-        req,
+        inviteUrl: inviteUrl(config, await signInviteFor(config, doc, req.payload.secret)),
+        project,
+        summary,
       })
     },
-    generateEmailSubject: ({ user }) => generateInviteEmailSubject(projectOf(user)),
+    generateEmailSubject: async ({ req, user }) =>
+      generateInviteEmailSubject((await prepare(req, user as unknown as LoginDocument)).project),
   }
 }

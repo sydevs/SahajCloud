@@ -34,6 +34,7 @@ const inviteProps = {
     { locale: 'English', roles: ['Meditations Editor', 'Path Editor'] },
     { locale: 'French', roles: ['Web Translator'] },
   ],
+  responsibilities: [],
 }
 
 describe('InviteEmail', () => {
@@ -74,6 +75,43 @@ describe('InviteEmail', () => {
     expect(html).not.toContain('Administrator')
   })
 
+
+  it('omits the responsibilities section when nothing names the recipient', async () => {
+    // Every create: the joins cannot point at an account made one instant ago.
+    const html = await renderEmail(createElement(InviteEmail, inviteProps))
+
+    expect(html).not.toContain('Your responsibilities')
+  })
+
+  it('lists each kind of managed document, counting what it does not name', async () => {
+    const html = await renderEmail(
+      createElement(InviteEmail, {
+        ...inviteProps,
+        responsibilities: [
+          { label: 'Regions', titles: ['Berlin', 'Hamburg'], more: 0, nested: true },
+          { label: 'Events', titles: ['Tuesday Evening Meditation'], more: 12, nested: false },
+        ],
+      }),
+    )
+
+    expect(html).toContain('Your responsibilities')
+    expect(html).toContain('Berlin, Hamburg')
+    expect(html).toContain('Including the regions within them.')
+    expect(html).toContain('Tuesday Evening Meditation, and 12 more')
+    // Events do not nest, so they carry no such note.
+    expect(html).not.toContain('Including the events')
+  })
+
+  it('says "it" for a single nested document', async () => {
+    const html = await renderEmail(
+      createElement(InviteEmail, {
+        ...inviteProps,
+        responsibilities: [{ label: 'Regions', titles: ['Berlin'], more: 0, nested: true }],
+      }),
+    )
+
+    expect(html).toContain('Including the regions within it.')
+  })
 })
 
 describe('ResetPasswordEmail', () => {

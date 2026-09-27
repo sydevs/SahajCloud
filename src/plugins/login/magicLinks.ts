@@ -9,6 +9,7 @@ import {
   generateInviteEmailHTML,
   generateInviteEmailSubject,
   inviteUrl,
+  prepareInvite,
   signInviteFor,
 } from './invite'
 import { emailFrom, generateEmailHTML, generateEmailSubject } from './mail'
@@ -150,21 +151,23 @@ export async function issueMagicLink({
   // never send a sign-in link.
   if (invitesAccounts(payload, slug) && account._verified !== true) {
     const url = inviteUrl(config, await signInviteFor(config, account, payload.secret, now))
-    const project = config.project?.(account) ?? undefined
+    const { project, summary } = await prepareInvite({
+      config,
+      doc: account,
+      payload,
+      // No `req`: this send has a request of its own with no open transaction,
+      // so the grant summary takes its own connection. @see summarizeGrants
+      //
+      // By now the regions, events and pages naming the account exist — an
+      // imported manager's always do — so this invitation can list them.
+      withResponsibilities: true,
+    })
 
     await payload.sendEmail({
       to: account.email,
       from: emailFrom(project),
       subject: generateInviteEmailSubject(project),
-      // No `req`: this send has a request of its own with no open transaction,
-      // so the grant summary takes its own connection. @see summarizeGrants
-      html: await generateInviteEmailHTML({
-        collection: slug,
-        doc: account,
-        inviteUrl: url,
-        payload,
-        project,
-      }),
+      html: await generateInviteEmailHTML({ doc: account, inviteUrl: url, project, summary }),
     })
     return
   }
