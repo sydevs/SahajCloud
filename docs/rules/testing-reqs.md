@@ -36,6 +36,7 @@ Tier-specific guidance:
 
 - **Tier 1 runs unattended.** It must stay fast: no Payload boot, no database, no network. Add new unit specs under `tests/unit/`.
 - **Tier 2 owns the local gate.** Add one targeted integration spec for the area you changed: `pnpm exec vitest run tests/int/<file>.int.spec.ts --config ./vitest.config.mts`. Do not run the full `pnpm test:int` locally — that is Tier 3's job.
+  ⚠ **Use that form, not `pnpm test:int -- <file>`.** pnpm inserts its own `--` before the path, and vitest then reads nothing after it as a filter: the run silently widens to all 84 int files and takes about six minutes. Measured with `vitest list` — 1 file without the `--`, 84 with it.
 - **Tier 3 owns cross-cutting checks.** CI runs the full Vitest suite (unit and integration) and the Playwright smoke specs. It runs them against the PR's Railway preview, which carries no content — a preview forks configuration and variables, not volume data, so each smoke spec builds its own fixtures (`tests/AGENTS.md`). Railway builds the Next.js app on that preview deploy. GitHub Actions does not build it. Do not reproduce Tier 3 locally on every PR. Run `check.sh --full` only to debug a red CI run.
 
 ## The integration lane needs a live PostgreSQL
@@ -65,7 +66,7 @@ Run the full `pnpm test:int` locally, or `check.sh --full` for CI parity, only t
 ```bash
 pnpm test:unit        # Tier 1 — unit lane only (fast, no Payload bootstrap)
 pnpm test             # Tier 3 first half — unit + integration (what CI runs locally)
-pnpm test:int         # Integration tests (Vitest) — targeted spec preferred
+pnpm test:int         # Integration tests (Vitest) — targeted spec preferred; see Tier 2 for how
 pnpm test:smoke       # Tier 3 second half — Playwright against CF PR preview (CI-only)
 pnpm typecheck        # tsc over src/ (root tsconfig — excludes tests)
 pnpm typecheck:tests  # tsc over the whole test suite (tsconfig.test.json)
