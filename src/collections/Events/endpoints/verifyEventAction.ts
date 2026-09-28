@@ -1,8 +1,6 @@
 import type { Endpoint } from 'payload'
 
-import { APIError, Forbidden } from 'payload'
-
-import { validationFieldErrors } from '@/lib/utilities/validationFailure'
+import { APIError, Forbidden, ValidationError } from 'payload'
 
 import { actorFromUser, applyVerification } from '../lifecycle/verify'
 
@@ -56,7 +54,7 @@ export const verifyEventAction: Endpoint = {
       // access they already have (#842) — and so would a database outage. The
       // write keeps validating on purpose: the data is fixed first, then the
       // event is verified.
-      const fieldErrors = validationFieldErrors(error)
+      const fieldErrors = error instanceof ValidationError ? error.data.errors : null
       if (fieldErrors) {
         return Response.json(
           { errors: fieldErrors.map(({ path, message }) => ({ path, message })) },

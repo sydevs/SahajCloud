@@ -10,8 +10,8 @@ import type { EmailBrand } from '@/plugins/email'
  *
  * ⚠ **A private folder, not a route.** Next excludes an `_`-prefixed segment
  * from routing, which is what lets shared UI sit beside the pages that use it.
- * A route folder is not a module home — importing this from `events/verify/`
- * was the cheaper option and the wrong one.
+ * A route folder is not a module home: shared UI imported from one goes when
+ * that route does.
  *
  * ⚠ **Colour comes from the tokens in `styles.css`, never from a literal.**
  * That file redefines every token under `prefers-color-scheme: dark`, so an

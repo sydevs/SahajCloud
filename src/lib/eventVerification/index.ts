@@ -24,5 +24,3 @@ export {
   VERIFICATION_STAGES,
 } from './stages'
 export type { VerificationStage } from './stages'
-export { readVerifyToken, signVerifyToken, VERIFY_TOKEN_TTL_MS, verifyVerifyToken } from './token'
-export type { VerifyTokenClaims, VerifyTokenResult } from './token'

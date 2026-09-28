@@ -60,7 +60,7 @@ function adminConfig(): Config {
 
 /**
  * `<method> <path>` per endpoint. The method is asserted, not just the path:
- * either redeem route answering a GET at all is what would let a mail scanner
+ * any redeem route answering a GET at all is what would let a mail scanner
  * spend the link, so the absent verb is as load-bearing as the present one.
  */
 const routes = (c: CollectionConfig) =>
@@ -72,6 +72,8 @@ const WIRED_ROUTES = [
   'post /redeem-magic-link',
   // The invitation's own audience, separate so neither token spends the other.
   'post /redeem-invite',
+  // A reminder's page link, the third audience.
+  'post /redeem-link',
 ]
 const fieldNames = (c: CollectionConfig) => c.fields.map((f) => ('name' in f ? f.name : null))
 

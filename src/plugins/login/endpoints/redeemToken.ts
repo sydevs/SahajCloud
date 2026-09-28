@@ -1,10 +1,12 @@
-import type { LoginTokenClaims, LoginTokenResult } from '../token'
+import type { LoginTokenClaims } from '../token'
 import type { LoginCollectionConfig, LoginDocument } from '../types'
 import type { Endpoint, SelectType } from 'payload'
+
 
 import { generatePayloadCookie } from 'payload/shared'
 
 import { getServerUrl } from '@/lib/utilities/serverUrl'
+import type { SignedTokenResult } from '@/lib/utilities/signedToken'
 
 import { createSession } from '../session'
 
@@ -16,18 +18,23 @@ const DEFAULT_REDIRECT = '/admin'
  * refusals, the eligibility re-check, the burn, the cookie and the 302 — is
  * identical, so it lives below rather than in two files.
  */
-interface RedeemSpec {
+interface RedeemSpec<C extends LoginTokenClaims = LoginTokenClaims> {
   /** The reason an authentic-but-elapsed token redirects with. */
   expiredReason: string
   /**
-   * Whether this token has not been spent yet. The one check the two routes do
-   * not share: a sign-in link matches the stamp it was minted against, an
-   * invitation has only the accepted flag.
+   * Whether this token has not been spent yet. The one check the routes do not
+   * share: a sign-in link matches the stamp it was minted against, an
+   * invitation has only the accepted flag, and a page link is never spent.
    */
-  isUnspent: (account: LoginDocument, claims: LoginTokenClaims) => boolean
+  isUnspent: (account: LoginDocument, claims: C) => boolean
   path: string
-  /** The reader for this route's audience. Refusing the other's token is its job. */
-  read: (token: null | string, secret: string) => Promise<LoginTokenResult>
+  /** The reader for this route's audience. Refusing the others' tokens is its job. */
+  read: (token: null | string, secret: string) => Promise<SignedTokenResult<C>>
+  /**
+   * Where the session lands, when the token itself names it. Read from the
+   * signed claims only — never from the request — so no caller can steer it.
+   */
+  redirectTo?: (claims: C) => string
   /**
    * The fields `isUnspent` reads, on top of the collection's own `select`.
    * `_verified` is not among them — the body adds it where it exists.
@@ -66,7 +73,10 @@ interface RedeemSpec {
  * reason `set-project` is: the collections this serves are admin-only and in no
  * project, so they publish no public paths.
  */
-export function redeemToken(config: LoginCollectionConfig, spec: RedeemSpec): Endpoint {
+export function redeemToken<C extends LoginTokenClaims>(
+  config: LoginCollectionConfig,
+  spec: RedeemSpec<C>,
+): Endpoint {
   const { requestPagePath, slug } = config
 
   /**
@@ -181,7 +191,7 @@ export function redeemToken(config: LoginCollectionConfig, spec: RedeemSpec): En
       return new Response(null, {
         status: 302,
         headers: {
-          Location: `${getServerUrl()}${config.redirectTo ?? DEFAULT_REDIRECT}`,
+          Location: `${getServerUrl()}${spec.redirectTo?.(claims) ?? config.redirectTo ?? DEFAULT_REDIRECT}`,
           'Set-Cookie': cookie,
         },
       })

@@ -15,7 +15,9 @@
  *   any auth collection that can hold one.
  * - `issueMagicLink` — minting, throttling and sending a link, shared by the
  *   request endpoint and the sign-in page.
- * - `token.ts` — the two link kinds, as separate JWT audiences.
+ * - `token.ts` — the three link kinds, as separate JWT audiences.
+ * - `pageLinkUrl` — a link that signs its holder in on the way to one admin
+ *   page, which is what an event-verification reminder carries.
  * - `inviteVerification` — the `auth.verify` swap that replaces Payload's
  *   "verify your email" with an invitation naming the access granted (#839),
  *   branded for what it names (`brandProject`).
@@ -58,20 +60,29 @@ export {
 
 export { createSession } from './session'
 
-// The two redeem PATHS, not their factories: the sign-in page addresses both
+// The redeem PATHS, not their factories: the sign-in page addresses its
 // forms at them, and a literal there would survive a rename silently.
 export { REDEEM_INVITE_PATH } from './endpoints/redeemInvite'
+export { REDEEM_LINK_PATH } from './endpoints/redeemLink'
 export { REDEEM_MAGIC_LINK_PATH } from './endpoints/redeemMagicLink'
 
 export type { LoginCollectionConfig, LoginDocument, LoginMailArgs } from './types'
 
+export { pageLinkUrl } from './pageLink'
+
 export {
   INVITE_TOKEN_TTL_MS,
+  isAdminPath,
+  LINK_TOKEN_TTL_MS,
   readInviteToken,
+  readLinkToken,
   readSigninToken,
   signInviteToken,
+  signLinkToken,
   signSigninToken,
   SIGNIN_TOKEN_TTL_MS,
+  type LinkTokenClaims,
+  type LinkTokenResult,
   type LoginTokenClaims,
   type LoginTokenResult,
 } from './token'

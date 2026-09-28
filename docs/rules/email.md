@@ -196,6 +196,14 @@ pluralize(strings, 'sessions_count', count, locale)
 - **A create that sets `_verified: true` itself must opt out too.** Payload gates the send on `result.email` alone, never on the flag, so an account seeded as already-accepted would be mailed an invitation that `redeem-invite` refuses on the first click. `seedPreviewAdmin` is the one such caller.
 - ⚠ **`_verified` is not a column every auth collection has.** `getAuthFields.js` adds the verification fields only where `auth.verify` is configured. Anything branching on the flag for a *served* collection — `issueMagicLink` picking between the two mails — asks the sanitized config first, or it reads `undefined` and invites every account forever.
 
+### A verification reminder's link signs its manager in
+
+The reminder's button is a **page link** (`pageLinkUrl`, the `manager-link` audience): it signs its recipient in and lands on the event's admin page, whose notice banner asks them to republish — the save that verifies it. There is no logged-out verify page.
+
+- **It accepts an unaccepted account**, as an invitation does. An imported Atlas manager was mailed nothing, so their first email is a reminder, and its link is what gets them in.
+- ⚠ **It is reusable for 10 days**, the longest reminder spacing — a reminder is re-read and clicked twice. It is refused once the account stops qualifying, and it can only land under `/admin/`: the path is signed, and `isAdminPath` re-checks it on read so a signing bug cannot become an open redirect.
+- **It addresses the sign-in page (`?link=`), never the redeem route**, like the other two links, so a mail scanner's `GET` mints nothing.
+
 ### ⚠ The two token URLs have different shapes, and only one carries the slug
 
 ⚠ **History now, for the verify row.** `auth.verify` no longer builds an admin URL at all — the invitation addresses the sign-in page (`/managers/signin?invite=…`) instead. The row stays because the trap is the routing rule, and the next auth link written against `formatAdminURL` meets it again.

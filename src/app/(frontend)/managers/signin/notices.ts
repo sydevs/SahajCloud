@@ -15,12 +15,12 @@ import { INVITE_VALID_FOR, SIGNIN_VALID_FOR } from '@/plugins/login'
  * redirects here with `?error=`, and this page already asks for a link — so the
  * reader is never told to request one on a page that cannot.
  *
- * Only the reasons the two redeem routes distinguish, and no more: a refusal
+ * Only the reasons the redeem routes distinguish, and no more: a refusal
  * that named which check failed would describe them to whoever is probing them.
  */
 export type SignInNotice = { tone: 'error' | 'warning'; title: string; message: string }
 
-export type NoticeReason = 'expired' | 'invalid' | 'invite-expired'
+export type NoticeReason = 'expired' | 'invalid' | 'invite-expired' | 'link-expired'
 
 export const LINK_NOTICES: Record<NoticeReason, SignInNotice> = {
   expired: {
@@ -40,6 +40,13 @@ export const LINK_NOTICES: Record<NoticeReason, SignInNotice> = {
     tone: 'warning',
     title: 'This invitation has expired',
     message: `An invitation is valid for ${INVITE_VALID_FOR}. Ask for a fresh one below.`,
+  },
+  // A reminder's link outlives a sign-in link by days, and the next reminder
+  // carries a fresh one — but a sign-in link from here reaches the same page.
+  'link-expired': {
+    tone: 'warning',
+    title: 'This link has expired',
+    message: 'Ask for a sign-in link below, then open the event from the admin.',
   },
 }
 

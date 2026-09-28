@@ -123,7 +123,10 @@ interface EventVerificationEmailProps {
   name: string
   /** The event's title. */
   eventTitle: string
-  /** Absolute, tokenized verify link (works logged-out). */
+  /**
+   * Absolute link that signs the recipient in — accepting an unaccepted account
+   * — and opens the event's admin page, where republishing verifies it.
+   */
   verifyUrl: string
   /** Public link to the event on the Sahaj Atlas map — omitted when unpublished. */
   eventUrl?: string | null
@@ -203,6 +206,8 @@ interface VariantCopy {
 const COPY: {
   greeting: (name: string) => ReactNode
   buttonHint: string
+  /** Where the verify button goes, since it is not a one-click verify. */
+  signInHint: string
   footer: (audience: ReminderAudience, brandName: string) => ReactNode
   /** The listing-quality progress section (#611). */
   listing: {
@@ -236,6 +241,8 @@ const COPY: {
   ),
 
   buttonHint: 'If the button doesn’t work, copy and paste this link into your browser:',
+  signInHint:
+    'The button signs you in and opens the event. Check its details, then publish it to verify.',
 
   footer: (audience, brandName) => (
     <>
@@ -606,6 +613,7 @@ export function EventVerificationEmail({
           View event
         </BrandButton>
       ) : null}
+      {ctaHref === verifyUrl ? <Text style={styles.hint}>{COPY.signInHint}</Text> : null}
       {audience === 'region' ? null : (
         <Text style={styles.hint}>
           {COPY.buttonHint}

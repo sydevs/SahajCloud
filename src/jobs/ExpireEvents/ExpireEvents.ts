@@ -2,6 +2,7 @@ import type { Payload, PayloadRequest, TaskConfig } from 'payload'
 
 import * as Sentry from '@sentry/nextjs'
 
+import { managersLogin } from '@/collections/Managers/login'
 import { DEFAULT_LOG_LIMIT } from '@/fields'
 import { revalidateAtlasSidebar } from '@/lib/atlasSidebar/cache'
 import { updateEventBookkeeping } from '@/lib/events/updateEventWithoutValidation'
@@ -16,7 +17,6 @@ import {
   transitionUnpublishes,
   unpublishDate,
 } from '@/lib/eventVerification/stages'
-import { signVerifyToken } from '@/lib/eventVerification/token'
 import { resolveNextCheckAt } from '@/lib/eventVerification/watermark'
 import {
   buildEventEmailDetails,
@@ -29,10 +29,11 @@ import {
   type ReminderPayload,
 } from '@/lib/notifications'
 import { shouldFinish } from '@/lib/schedule/scheduleStatus'
+import { adminDocPath } from '@/lib/utilities/adminUrl'
 import type { Event } from '@/payload-types'
+import { pageLinkUrl } from '@/plugins/login'
 
 import { isEventVerificationEnabled } from './featureFlag'
-import { buildVerifyEmailLink } from './verifyUrl'
 
 
 /**
@@ -234,16 +235,22 @@ async function processEvent(args: {
   for (const recipient of recipients) {
     if (hasReminderForStage(log, stage, recipient.manager.id)) continue
 
-    const token = await signVerifyToken(
-      { eventId: event.id, managerId: recipient.manager.id },
+    const eventTitle = typeof event.title === 'string' ? event.title : `Event #${event.id}`
+    // Signs the recipient in — accepting an imported manager's account on the
+    // way — and lands on the event, whose verification banner asks them to
+    // republish it. Per recipient, since the token names who it signs in.
+    const verifyUrl = await pageLinkUrl(
+      managersLogin,
+      recipient.manager,
+      { label: eventTitle, to: adminDocPath('events', event.id) },
       payload.secret,
       now,
     )
     const reminder: ReminderPayload = {
-      eventTitle: typeof event.title === 'string' ? event.title : `Event #${event.id}`,
+      eventTitle,
       level: action.level,
       audience: recipient.role,
-      verifyUrl: buildVerifyEmailLink(token),
+      verifyUrl,
       eventUrl,
       details,
       listingProgress,

@@ -1,6 +1,6 @@
 'use server'
 
-import type { VerifyOutcome } from '../../events/verify/VerificationCard'
+import type { VerifyOutcome } from '../../_components/VerificationCard'
 
 import { redirect } from 'next/navigation'
 import { APIError, getPayload, type Payload } from 'payload'

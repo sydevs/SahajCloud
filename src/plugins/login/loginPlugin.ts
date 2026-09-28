@@ -2,6 +2,7 @@ import type { LoginCollectionConfig } from './types'
 import type { Config, Field, Plugin } from 'payload'
 
 import { redeemInvite } from './endpoints/redeemInvite'
+import { redeemLink } from './endpoints/redeemLink'
 import { redeemMagicLink } from './endpoints/redeemMagicLink'
 import { requestMagicLink } from './endpoints/requestMagicLink'
 
@@ -85,10 +86,10 @@ function adminWithSignInLink(
 }
 
 /**
- * Passwordless sign-in: one hidden timestamp field plus the two endpoints that
+ * Passwordless sign-in: one hidden timestamp field plus the endpoints that
  * trade an emailed link for a session (#837).
  *
- * Both endpoint definitions live under `./endpoints/` and are built per
+ * The endpoint definitions live under `./endpoints/` and are built per
  * configured collection, so the plugin owns the whole feature rather than wiring
  * definitions kept beside one collection. `./mail.ts` renders and addresses the
  * message for every served collection, so a `LoginCollectionConfig` supplies
@@ -146,6 +147,8 @@ export function loginPlugin(options: LoginPluginOptions = {}): Plugin {
           // The invitation's own audience, refused by the route above and
           // refusing its token in turn — see `redeemInvite`.
           redeemInvite(entry),
+          // A reminder's link: signs in, then lands on the page it names.
+          redeemLink(entry),
         ],
       }
     }),

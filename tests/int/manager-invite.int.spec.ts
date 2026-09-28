@@ -24,7 +24,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MANAGER_SIGNIN_PATH } from '@/collections/Managers/login'
 import { escapeRegExp } from '@/lib/eventQuality/heuristics'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
-import { INVITE_TOKEN_TTL_MS, signInviteToken, signSigninToken } from '@/plugins/login'
+import { INVITE_TOKEN_TTL_MS, signInviteToken, signLinkToken, signSigninToken } from '@/plugins/login'
 
 import { EmailTestAdapter } from '../utils/emailTestAdapter'
 import { createAnonRestClient, createRestClientWithAuth, type RestClient } from '../utils/restRequest'
@@ -266,6 +266,67 @@ describe('manager invitation', () => {
 
       expectRefused(await accept(token), 'invalid')
       expect(await verifiedFlag(manager.id)).toBeFalsy()
+    })
+  })
+
+  describe('following a page link', () => {
+    const OPEN_PATH = '/api/managers/redeem-link'
+    const open = (token: string) =>
+      anon(`${OPEN_PATH}?token=${encodeURIComponent(token)}`, { method: 'POST' })
+
+    const linkFor = (userId: number | string, to = '/admin/collections/events/1') =>
+      signLinkToken(
+        { collection: 'managers', issuedAt: Date.now(), label: 'An event', to, userId },
+        payload.secret,
+      )
+
+    it('signs an unaccepted manager in, accepts them, and lands on the page it names', async () => {
+      // An imported manager's first email is a verification reminder, and its
+      // button is this link — so it must get them in without an invitation.
+      const created = await payload.create({
+        collection: 'managers',
+        data: {
+          name: 'Imported',
+          email: `link_${Date.now()}_${Math.random().toString(36).slice(2)}@example.com`,
+          password: FIXTURE_PASSWORD,
+          type: 'manager',
+        },
+        disableVerificationEmail: true,
+      })
+
+      const answer = await open(await linkFor(created.id, '/admin/collections/events/42'))
+      expect(answer.status).toBe(302)
+      expect(answer.headers.get('Location')).toBe(`${getServerUrl()}/admin/collections/events/42`)
+      expect(answer.headers.get('Set-Cookie')).toBeTruthy()
+      expect(await verifiedFlag(created.id)).toBe(true)
+    })
+
+    it('works more than once — a reminder is clicked twice', async () => {
+      const { manager } = await invite()
+      const token = await linkFor(manager.id)
+
+      expect((await open(token)).status).toBe(302)
+      const again = await open(token)
+      expect(again.headers.get('Location')).toBe(`${getServerUrl()}/admin/collections/events/1`)
+    })
+
+    it('refuses a manager deactivated since the link was sent', async () => {
+      const { manager } = await invite()
+      const token = await linkFor(manager.id)
+      await payload.update({ collection: 'managers', id: manager.id, data: { type: 'inactive' } })
+
+      expectRefused(await open(token), 'invalid')
+    })
+
+    it('refuses an invitation or a sign-in link at this route', async () => {
+      const { manager, token: invitation } = await invite()
+      const signin = await signSigninToken(
+        { collection: 'managers', issuedAt: Date.now(), userId: manager.id },
+        payload.secret,
+      )
+
+      expectRefused(await open(invitation), 'invalid')
+      expectRefused(await open(signin), 'invalid')
     })
   })
 

@@ -285,8 +285,9 @@ async function main() {
   const nodemailer = (await import('nodemailer')).default
   const { EventVerificationEmail } = await import('@/emails/EventVerificationEmail')
   const { renderEmail } = await import('@/plugins/email')
-  const { signVerifyToken } = await import('@/lib/eventVerification/token')
-  const { buildVerifyEmailLink } = await import('@/jobs/ExpireEvents/verifyUrl')
+  const { managersLogin } = await import('@/collections/Managers/login')
+  const { adminDocPath } = await import('@/lib/utilities/adminUrl')
+  const { pageLinkUrl } = await import('@/plugins/login')
   const { formatLongDate } = await import('@/lib/notifications')
   const { EVENT_QUALITY_CHECK_METADATA } = await import('@/lib/eventQuality')
 
@@ -375,12 +376,18 @@ async function main() {
 
   const previews: { label: string; url: string | false }[] = []
   for (const { level, audience } of combos) {
-    const token = await signVerifyToken({ eventId: sample.eventId, managerId: sample.managerId }, secret)
+    // The same link ExpireEvents mints: signs the manager in, lands on the event.
+    const verifyUrl = await pageLinkUrl(
+      managersLogin,
+      { id: sample.managerId },
+      { label: sample.eventTitle, to: adminDocPath('events', sample.eventId) },
+      secret,
+    )
     const html = await renderEmail(
       createElement(EventVerificationEmail, {
         name: audience === 'region' ? 'Rohan Patil' : sample.managerName,
         eventTitle: sample.eventTitle,
-        verifyUrl: buildVerifyEmailLink(token),
+        verifyUrl,
         // Published events link to the map. Expired, unpublished ones do not.
         eventUrl:
           level === 'expired' ? null : `https://wemeditate.com/map#/!/events/${sample.eventId}`,

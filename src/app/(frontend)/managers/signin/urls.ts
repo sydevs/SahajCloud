@@ -1,6 +1,6 @@
 import { managersLogin } from '@/collections/Managers/login'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
-import { REDEEM_INVITE_PATH, REDEEM_MAGIC_LINK_PATH } from '@/plugins/login'
+import { REDEEM_INVITE_PATH, REDEEM_LINK_PATH, REDEEM_MAGIC_LINK_PATH } from '@/plugins/login'
 
 /**
  * Where each confirmation form posts. The `POST` is what spends the link.
@@ -21,3 +21,6 @@ export const redeemUrl = (token: string) => redeemAt(REDEEM_MAGIC_LINK_PATH, tok
 
 /** A delivered invitation. A separate audience, so a separate route (#839). */
 export const acceptUrl = (token: string) => redeemAt(REDEEM_INVITE_PATH, token)
+
+/** A delivered page link — a reminder's, landing on the event it names. */
+export const openUrl = (token: string) => redeemAt(REDEEM_LINK_PATH, token)

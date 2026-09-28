@@ -5,14 +5,14 @@ import { getPayload } from 'payload'
 import { managersLogin } from '@/collections/Managers/login'
 import { getProjectEmailIcon, getProjectLabel } from '@/plugins/access'
 import { DEFAULT_EMAIL_PROJECT, getEmailBrand } from '@/plugins/email'
-import { readInviteToken, readSigninToken } from '@/plugins/login'
+import { readInviteToken, readLinkToken, readSigninToken } from '@/plugins/login'
 
 import payloadConfig from '@payload-config'
 
 import { ConfirmSignIn } from './ConfirmSignIn'
 import { LINK_NOTICES, linkNotice } from './notices'
 import { SignInForm } from './SignInForm'
-import { acceptUrl, redeemUrl } from './urls'
+import { acceptUrl, openUrl, redeemUrl } from './urls'
 
 
 export const metadata: Metadata = {
@@ -48,10 +48,10 @@ export const dynamic = 'force-dynamic'
  * what keeps a mail scanner's fetch free of consequence. The burn lives behind
  * {@link ConfirmSignIn}'s form.
  *
- * ⚠ **`?invite=` is the invitation's own parameter, never `?token=`.** The two
- * links are separate JWT audiences (`token.ts`), so reading an invitation with
- * `readSigninToken` would refuse it as invalid — and the reader would be told
- * their invitation was already used.
+ * ⚠ **`?invite=` and `?link=` are their links' own parameters, never
+ * `?token=`.** The three links are separate JWT audiences (`token.ts`), so
+ * reading an invitation with `readSigninToken` would refuse it as invalid — and
+ * the reader would be told their invitation was already used.
  *
  * ⚠ **It never 404s, whatever it is given.** Its neighbours call `notFound()`
  * because a genuine token is the only way to reach them. This page is published
@@ -65,9 +65,9 @@ export const dynamic = 'force-dynamic'
 export default async function ManagerSignInPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; invite?: string; token?: string }>
+  searchParams: Promise<{ error?: string; invite?: string; link?: string; token?: string }>
 }) {
-  const { error, invite, token } = await searchParams
+  const { error, invite, link, token } = await searchParams
   const brand = getEmailBrand()
   const iconSrc = getProjectEmailIcon(DEFAULT_EMAIL_PROJECT)
 
@@ -93,6 +93,32 @@ export default async function ManagerSignInPage({
         brand={brand}
         iconSrc={iconSrc}
         notice={LINK_NOTICES[result.status === 'expired' ? 'invite-expired' : 'invalid']}
+      />
+    )
+  }
+
+  if (link) {
+    const payload = await getPayload({ config: payloadConfig })
+    const result = await readLinkToken(link, payload.secret)
+
+    if (result.status === 'valid' && result.claims.collection === managersLogin.slug) {
+      return (
+        <ConfirmSignIn
+          actionUrl={openUrl(link)}
+          brand={brand}
+          heading="Sign in to continue"
+          iconSrc={iconSrc}
+          lead={`Confirm it is you to open “${result.claims.label}”.`}
+          submitLabel="Continue"
+        />
+      )
+    }
+
+    return (
+      <SignInForm
+        brand={brand}
+        iconSrc={iconSrc}
+        notice={LINK_NOTICES[result.status === 'expired' ? 'link-expired' : 'invalid']}
       />
     )
   }

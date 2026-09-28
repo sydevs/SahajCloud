@@ -140,14 +140,16 @@ describe('admin client components stay out of the server bundle', () => {
   // one way it could go vacuous again. Pinned in both directions: loosen it and
   // real subtrees stop being walked; drop it and a server action's body is
   // reported as if the browser downloaded it.
-  const verifyAction = 'app/(frontend)/events/verify/actions.ts'
+  const feedbackAction = 'app/(frontend)/registrations/feedback/actions.ts'
 
   it('does not follow a client entry into a server action', () => {
-    expect(findServerOnlyImport(join(SRC, 'app/(frontend)/events/verify/VerifyForm.tsx'))).toBeNull()
+    expect(
+      findServerOnlyImport(join(SRC, 'app/(frontend)/registrations/feedback/FeedbackForm.tsx')),
+    ).toBeNull()
   })
 
   it('still walks a server action reached as an entry in its own right', () => {
-    const found = findServerOnlyImport(join(SRC, verifyAction))
+    const found = findServerOnlyImport(join(SRC, feedbackAction))
     expect(found).not.toBeNull()
     expect(found?.chain.at(-1)).toBe('./server')
   })
