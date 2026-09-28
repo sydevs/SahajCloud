@@ -139,6 +139,12 @@ describe('page links', () => {
     await expect(readLinkToken(bad, SECRET, NOW)).resolves.toEqual({ status: 'invalid' })
   })
 
+  it('carries the tab to open the landing page on', async () => {
+    const token = await signLinkToken({ ...link, to: '/admin/account', tab: 'Contact' }, SECRET, NOW)
+    const result = await readLinkToken(token, SECRET, NOW)
+    expect(result.status === 'valid' && result.claims.tab).toBe('Contact')
+  })
+
   it('refuses any landing page outside the admin, even one it signed', async () => {
     // Signed by us, so only a signing bug could produce one — and then it must
     // not become an open redirect.

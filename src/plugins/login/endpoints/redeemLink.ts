@@ -1,6 +1,7 @@
 import type { LoginCollectionConfig } from '../types'
 import type { Endpoint } from 'payload'
 
+import { seedTabPreference } from '../tabPreference'
 import { readLinkToken } from '../token'
 import { redeemToken } from './redeemToken'
 
@@ -28,6 +29,17 @@ export function redeemLink(config: LoginCollectionConfig): Endpoint {
     // Checked at signing and at reading (`isAdminPath`), so this is always an
     // admin path this server chose.
     redirectTo: (claims) => claims.to,
+    // An invitation's "Configure notifications" lands on the account page's
+    // Contact tab, which Payload offers no URL for.
+    afterRedeem: async ({ account, claims, payload }) => {
+      if (!claims.tab) return
+      await seedTabPreference({
+        collection: config.slug,
+        payload,
+        tab: claims.tab,
+        userId: account.id,
+      })
+    },
     select: {},
   })
 }

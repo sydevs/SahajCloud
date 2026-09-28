@@ -29,6 +29,7 @@ const inviteProps = {
   name: 'Jo',
   accepted: false,
   actionUrl: INVITE_URL,
+  listsOnlyNew: false,
   validFor: '7 days',
   fullAccess: false,
   grants: [
@@ -56,7 +57,7 @@ describe('InviteEmail', () => {
 
     expect(html).toContain('Jo')
     expect(html).toContain(INVITE_URL)
-    expect(html).toContain('Accept invitation')
+    expect(html).toContain('Confirm your email')
     expect(html).toContain('7 days')
   })
 
@@ -130,7 +131,7 @@ describe('InviteEmail', () => {
     const html = await renderEmail(
       createElement(InviteEmail, {
         ...inviteProps,
-        accepted: true,
+        listsOnlyNew: true,
         grants: [{ locale: 'English', roles: ['Atlas Manager', 'Web Translator'] }],
         responsibilities: [regions('Berlin', 'Hamburg')],
       }),
@@ -167,20 +168,38 @@ describe('InviteEmail', () => {
     expect(web).not.toContain('worldwide map')
   })
 
-  it('points an accepted manager at the admin, with no invitation to accept', async () => {
+  it('offers an accepted manager their notification settings, and no confirmation', async () => {
+    const settings = 'https://cloud.test/managers/signin?link=SETTINGS'
     const html = await renderEmail(
-      createElement(InviteEmail, {
-        ...inviteProps,
-        accepted: true,
-        actionUrl: 'https://cloud.test/admin',
-      }),
+      createElement(InviteEmail, { ...inviteProps, accepted: true, actionUrl: settings }),
     )
 
-    expect(html).toContain('Open Sahaj Cloud')
-    expect(html).toContain('https://cloud.test/admin')
-    expect(html).not.toContain('Accept invitation')
+    expect(html).toContain('Configure notifications')
+    expect(html).toContain(settings)
+    expect(html).not.toContain('Confirm your email')
     expect(html).not.toContain('valid for')
-    expect(html).toContain('Notification Preferences')
+    expect(html).toContain('where you choose which emails you get')
+  })
+
+  it('asks for a confirmation that says what it does — and no set-up that is not there', async () => {
+    const one = await renderEmail(
+      createElement(InviteEmail, { ...inviteProps, responsibilities: [regions('Berlin')] }),
+    )
+    const none = await renderEmail(createElement(InviteEmail, inviteProps))
+
+    expect(one).toContain('Confirm your email below so you can sign in and keep it up to date')
+    expect(none).toContain('Confirm your email below so you can sign in —')
+    expect(one).not.toContain('set up your account')
+  })
+
+  it('introduces each project to a manager who has not confirmed, and to no one else', async () => {
+    const render = (project: 'sahaj-atlas' | 'wemeditate-app' | 'wemeditate-web', accepted = false) =>
+      renderEmail(createElement(InviteEmail, { ...inviteProps, accepted, project }))
+
+    expect(await render('wemeditate-web')).toContain('We Meditate is a free website')
+    expect(await render('wemeditate-app')).toContain('We Meditate is a free app')
+    expect(await render('sahaj-atlas')).toContain('worldwide map')
+    expect(await render('sahaj-atlas', true)).not.toContain('worldwide map')
   })
 })
 

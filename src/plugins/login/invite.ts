@@ -4,12 +4,14 @@ import type { Payload, PayloadRequest } from 'payload'
 import { createElement } from 'react'
 
 import { InviteEmail, inviteHeading } from '@/emails/InviteEmail'
+import { adminUrl } from '@/lib/utilities/adminUrl'
 import { stripNewlines } from '@/lib/utilities/emailSafeText'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 import { getEmailBrand, renderEmail } from '@/plugins/email'
 
 import { type GrantSummary, type PendingInvitation, summarizeGrants } from './grantSummary'
 import { emailFrom } from './mail'
+import { pageLinkUrl } from './pageLink'
 import { INVITE_TOKEN_TTL_MS, signInviteToken } from './token'
 
 /**
@@ -61,12 +63,14 @@ export function namesAnything({ fullAccess, grants, responsibilities }: GrantSum
 
 export interface InviteMailArgs {
   /**
-   * Whether the account has accepted before — then the button opens the admin
-   * rather than accepting anything.
+   * Whether the account has confirmed its email before — then the button opens
+   * its notification settings rather than confirming anything.
    */
   accepted: boolean
-  /** The invitation link, or the admin URL for an accepted account. */
+  /** The invitation link, or an accepted account's notification settings. */
   actionUrl: string
+  /** Whether it names only what is new, rather than everything held. */
+  listsOnlyNew: boolean
   /** Who assigned it, when a person did. */
   assignedBy?: string
   doc: LoginDocument
@@ -80,6 +84,7 @@ export function generateInviteEmailHTML({
   actionUrl,
   assignedBy,
   doc,
+  listsOnlyNew,
   summary,
 }: InviteMailArgs): Promise<string> {
   return renderEmail(
@@ -87,6 +92,7 @@ export function generateInviteEmailHTML({
       name: doc.name || doc.email || '',
       accepted,
       actionUrl,
+      listsOnlyNew,
       validFor: INVITE_VALID_FOR,
       assignedBy,
       fullAccess: summary.fullAccess,
@@ -107,9 +113,11 @@ export function generateInviteEmailSubject(summary: GrantSummary): string {
  * everything queued was undone or has finished.
  *
  * The one composition both senders run, and what the preview script drives. An
- * account that has accepted gets a button to the admin; any other gets an
- * invitation link in each email. The first one accepted activates the account,
- * and the rest then say so rather than "not valid" (`redeemInvite`).
+ * account that has never confirmed its email gets an invitation link in each
+ * email; the first one used activates the account, and the rest then say so
+ * rather than "not valid" (`redeemInvite`). An account that has gets
+ * "Configure notifications" instead — a page link that signs it in on the way
+ * to its own account page, opened on the collection's `notificationsTab`.
  */
 export async function composeInvitations({
   assignedBy,
@@ -138,6 +146,19 @@ export async function composeInvitations({
     type: doc.type,
   })
   const accepted = doc._verified === true
+  const actionUrl = accepted
+    ? await pageLinkUrl(
+        config,
+        doc,
+        {
+          label: 'your notification settings',
+          tab: config.notificationsTab,
+          to: new URL(adminUrl('/account')).pathname,
+        },
+        payload.secret,
+        now,
+      )
+    : null
 
   return Promise.all(
     summaries.filter(namesAnything).map(async (summary) => ({
@@ -145,11 +166,12 @@ export async function composeInvitations({
       subject: generateInviteEmailSubject(summary),
       html: await generateInviteEmailHTML({
         accepted,
-        actionUrl: accepted
-          ? `${getServerUrl()}${config.redirectTo ?? '/admin'}`
-          : inviteUrl(config, await signInviteFor(config, doc, payload.secret, now)),
+        actionUrl:
+          actionUrl ?? inviteUrl(config, await signInviteFor(config, doc, payload.secret, now)),
         assignedBy,
         doc,
+        // The queue names what was queued; a resend names everything held.
+        listsOnlyNew: only !== undefined,
         summary,
       }),
     })),

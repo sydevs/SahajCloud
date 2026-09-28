@@ -23,7 +23,7 @@ import { describe, expect, it } from 'vitest'
 
 import { managersLogin, MANAGER_SIGNIN_PATH } from '@/collections/Managers/login'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
-import { INVITE_VALID_FOR, readInviteToken, summarizeGrants } from '@/plugins/login'
+import { INVITE_VALID_FOR, readInviteToken, readLinkToken, summarizeGrants } from '@/plugins/login'
 import { composeInvitations } from '@/plugins/login/invite'
 
 const SECRET = 'invite-spec-secret'
@@ -307,11 +307,33 @@ describe('composeInvitations', () => {
     })
   })
 
-  it('points an accepted account at the admin, minting nothing', async () => {
+  it('gives an accepted account a sign-in link to its notification settings', async () => {
     const [invitation] = await compose({}, { regions: [BERLIN] }, { _verified: true })
 
-    expect(invitation?.html).toContain(`href="${getServerUrl()}/admin"`)
     expect(invitation?.html).not.toContain('?invite=')
+    const link = invitation?.html.match(/managers\/signin\?link=([\w.%-]+)/)?.[1]
+    expect(link, 'no settings link in the body').toBeDefined()
+    const result = await readLinkToken(decodeURIComponent(link!), SECRET)
+    // The account page, opened on the tab holding Notification Preferences.
+    expect(result.status === 'valid' && result.claims).toMatchObject({
+      to: '/admin/account',
+      tab: 'Contact',
+      userId: 7,
+    })
+  })
+
+  it('titles a queued send "new", and a resend of everything plainly', async () => {
+    const payload = fakePayload({}, { regions: [BERLIN] }).payload
+    const [queued] = await composeInvitations({
+      config: managersLogin,
+      doc: doc(),
+      only: { managed: { regions: [BERLIN.id] } },
+      payload,
+    })
+    const [resent] = await composeInvitations({ config: managersLogin, doc: doc(), payload })
+
+    expect(queued?.html).toContain('Your new responsibility<')
+    expect(resent?.html).toContain('Your responsibility<')
   })
 
   it('sends one email per project, each branded and addressed for its own', async () => {

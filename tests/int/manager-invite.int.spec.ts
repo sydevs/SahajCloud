@@ -306,7 +306,7 @@ describe('manager invitation', () => {
       expect((await queueOf(manager.id)).pending).toBeNull()
     })
 
-    it('tells an accepted manager what is new, with a button to the admin', async () => {
+    it('tells an accepted manager what is new, and opens their notification settings', async () => {
       const { manager, token } = await invite()
       expectAccepted(await accept(token))
       emailAdapter.clearCapturedEmails()
@@ -316,11 +316,30 @@ describe('manager invitation', () => {
       await runQueue()
       const [sent] = mailTo(manager.email)
       expect(sent!.subject).toBe(`You've been invited to look after ${region.name}`)
-      expect(sent!.html).toContain('Open Sahaj Cloud')
-      expect(sent!.html).toContain(`href="${getServerUrl()}/admin"`)
+      expect(sent!.html).toContain('Configure notifications')
       expect(tokenIn(sent!.html, INVITE_URL)).toBeNull()
       // Only what is new — not the role the first invitation already named.
       expect(sent!.html).not.toContain('Path Editor')
+
+      // The button signs them in on the way to their account page, and opens
+      // it on the tab holding Notification Preferences — a tab Payload offers
+      // no URL for, so the link writes the tab Payload remembers instead.
+      const link = sent!.html?.match(/managers\/signin\?link=([\w.%-]+)/)?.[1]
+      expect(link, 'no settings link in the body').toBeDefined()
+      const answer = await anon(
+        `/api/managers/redeem-link?token=${encodeURIComponent(decodeURIComponent(link!))}`,
+        { method: 'POST' },
+      )
+      expect(answer.headers.get('Location')).toBe(`${getServerUrl()}/admin/account`)
+
+      const { docs } = await payload.find({
+        collection: 'payload-preferences',
+        where: { key: { equals: `collection-managers-${manager.id}` } },
+        overrideAccess: true,
+      })
+      // The shape the admin itself writes when the Contact tab is clicked: the
+      // tabs field's position among the top-level fields, and the tab's index.
+      expect(docs[0]?.value).toEqual({ fields: { '_index-2': { tabIndex: 1 } } })
     })
   })
 

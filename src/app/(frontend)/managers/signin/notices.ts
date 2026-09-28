@@ -38,14 +38,14 @@ export const LINK_NOTICES: Record<NoticeReason, SignInNotice> = {
   // link, while the account is still unaccepted — see `issueMagicLink`.
   'invite-expired': {
     tone: 'warning',
-    title: 'This invitation has expired',
-    message: `An invitation is valid for ${INVITE_VALID_FOR}. Ask for a fresh one below.`,
+    title: 'This link has expired',
+    message: `A confirmation link is valid for ${INVITE_VALID_FOR}. Ask for a fresh one below.`,
   },
   // Each project sends its own invitation, so a second one arrives already
   // spent by the first. The account is active: a sign-in link gets them in.
   'invite-accepted': {
     tone: 'warning',
-    title: 'You have already accepted',
+    title: 'Your email is already confirmed',
     message: 'Your account is active. Ask for a sign-in link below.',
   },
   // A reminder's link outlives a sign-in link by days, and the next reminder

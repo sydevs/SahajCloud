@@ -13,16 +13,24 @@ import { signLinkToken } from './token'
  *
  * @param to - The admin path to land on. Refused unless under `/admin/`.
  * @param label - What the link opens, for the confirmation page.
+ * @param tab - A tab to open that page on, by label. @see seedTabPreference
  */
 export async function pageLinkUrl(
   config: LoginCollectionConfig,
   doc: Pick<LoginDocument, 'id'>,
-  { label, to }: { label: string; to: string },
+  { label, tab, to }: { label: string; tab?: string; to: string },
   secret: string,
   now: Date = new Date(),
 ): Promise<string> {
   const token = await signLinkToken(
-    { collection: config.slug as string, issuedAt: now.getTime(), label, to, userId: doc.id },
+    {
+      collection: config.slug as string,
+      issuedAt: now.getTime(),
+      label,
+      to,
+      userId: doc.id,
+      ...(tab && { tab }),
+    },
     secret,
     now,
   )

@@ -18,6 +18,7 @@ import { adminOnlyFieldAccess, getRoleOptions, getProjectOptions } from '@/plugi
 import { getEmailBrand, renderEmail } from '@/plugins/email'
 
 import { setProject } from './endpoints/setProject'
+import { MANAGER_NOTIFICATIONS_TAB } from './login'
 
 export const Managers: CollectionConfig = {
   slug: 'managers',
@@ -173,7 +174,8 @@ export const Managers: CollectionConfig = {
         },
         {
           // All Contact-tab fields are self-editable — no adminOnlyFieldAccess.
-          label: 'Contact',
+          // Its label is what an invitation's "Configure notifications" opens.
+          label: MANAGER_NOTIFICATIONS_TAB,
           fields: [
             {
               name: 'language',

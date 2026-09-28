@@ -77,6 +77,11 @@ export interface LinkTokenClaims extends LoginTokenClaims {
    * manager carries one.
    */
   verifies?: number
+  /**
+   * A tab to open the landing page on, by its label — the account page's
+   * "Contact" tab, where Notification Preferences live. @see seedTabPreference
+   */
+  tab?: string
 }
 
 export type LinkTokenResult = SignedTokenResult<LinkTokenClaims>
@@ -171,19 +176,28 @@ export async function readLinkToken(
 
   // As in `read`: the signature proves we minted it, so this only refuses an
   // older claim shape — and a `to` this server would never redirect to.
-  const { collection, issuedAt, label, to, userId, verifies } = result.claims
+  const { collection, issuedAt, label, tab, to, userId, verifies } = result.claims
   if (
     typeof collection !== 'string' ||
     typeof issuedAt !== 'number' ||
     userId === undefined ||
     typeof label !== 'string' ||
     !isAdminPath(to) ||
-    (verifies !== undefined && typeof verifies !== 'number')
+    (verifies !== undefined && typeof verifies !== 'number') ||
+    (tab !== undefined && typeof tab !== 'string')
   ) {
     return { status: 'invalid' }
   }
   return {
     status: 'valid',
-    claims: { collection, issuedAt, label, to, userId, ...(verifies !== undefined && { verifies }) },
+    claims: {
+      collection,
+      issuedAt,
+      label,
+      to,
+      userId,
+      ...(verifies !== undefined && { verifies }),
+      ...(tab !== undefined && { tab }),
+    },
   }
 }

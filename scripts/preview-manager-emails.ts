@@ -94,7 +94,7 @@ const SCENARIOS: Scenario[] = [
   },
   {
     label: 'atlas · accepted, new events',
-    note: 'a manager who already accepted — told what is new, with a button to the admin',
+    note: 'a manager who has confirmed — told what is new, with a button to their notification settings',
     name: 'Amélie Rousseau',
     type: 'manager',
     accepted: true,

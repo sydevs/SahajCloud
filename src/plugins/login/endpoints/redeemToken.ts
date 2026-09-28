@@ -1,6 +1,6 @@
 import type { LoginTokenClaims } from '../token'
 import type { LoginCollectionConfig, LoginDocument } from '../types'
-import type { Endpoint, SelectType } from 'payload'
+import type { Endpoint, Payload, SelectType } from 'payload'
 
 
 import { generatePayloadCookie } from 'payload/shared'
@@ -40,6 +40,12 @@ interface RedeemSpec<C extends LoginTokenClaims = LoginTokenClaims> {
    * signed claims only — never from the request — so no caller can steer it.
    */
   redirectTo?: (claims: C) => string
+  /**
+   * Work to do once the session exists, before the redirect — e.g. choosing
+   * the tab the landing page opens on. A failure here costs only that work:
+   * it is logged, and the holder is still signed in and redirected.
+   */
+  afterRedeem?: (args: { account: LoginDocument; claims: C; payload: Payload }) => Promise<void>
   /**
    * The fields `isUnspent` reads, on top of the collection's own `select`.
    * `_verified` is not among them — the body adds it where it exists.
@@ -197,6 +203,12 @@ export function redeemToken<C extends LoginTokenClaims>(
         cookiePrefix: payload.config.cookiePrefix,
         token: sessionToken,
       })
+
+      if (spec.afterRedeem) {
+        await spec.afterRedeem({ account, claims, payload }).catch((error: unknown) => {
+          payload.logger.warn({ msg: `${spec.path}: after-redeem step failed`, err: error })
+        })
+      }
 
       return new Response(null, {
         status: 302,

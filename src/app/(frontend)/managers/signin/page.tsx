@@ -80,10 +80,10 @@ export default async function ManagerSignInPage({
         <ConfirmSignIn
           actionUrl={acceptUrl(invite)}
           brand={brand}
-          heading="Accept your invitation"
+          heading="Confirm your email"
           iconSrc={iconSrc}
-          lead="Confirm it is you. Accepting activates your account and signs you in."
-          submitLabel="Accept invitation"
+          lead="Confirming activates your account and signs you in."
+          submitLabel="Confirm email"
         />
       )
     }
