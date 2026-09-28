@@ -105,6 +105,9 @@ const ADMIN_ONLY_GLOBAL: Partial<SanitizedGlobalConfig['access']> = {
   readVersions: adminOnly,
 }
 
+/** Every `payload-*` collection Payload ships today. The `??` fallback above is
+ * for the ones a future version adds, so the two admin-only entries here are
+ * the inventory rather than a rule the fallback would not already supply. */
 const SYSTEM_COLLECTIONS: Record<string, CollectionPolicy> = {
   'payload-jobs': ADMIN_ONLY_COLLECTION,
   'payload-migrations': ADMIN_ONLY_COLLECTION,
