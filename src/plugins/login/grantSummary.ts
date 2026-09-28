@@ -14,6 +14,7 @@ import {
   hydrateLocalizedRoles,
   rankLocalesByRoleCount,
 } from '@/plugins/access'
+import { DEFAULT_EMAIL_PROJECT } from '@/plugins/email'
 
 /**
  * What an invitation can honestly say about the access it grants.
@@ -51,18 +52,16 @@ export interface Responsibility {
   items: ResponsibilityItem[]
 }
 
+/** One project's part of what an account holds — the content of one invitation. */
 export interface GrantSummary {
+  /** The project this part belongs to, and so its brand. `undefined` takes the default. */
+  project: ProjectSlug | undefined
   /** An admin holds everything, so no role list applies. */
   fullAccess: boolean
-  /** Locales granting at least one role, most roles first. Empty for an admin. */
+  /** Locales granting at least one of this project's roles, most roles first. */
   grants: LocaleGrant[]
-  /** Each kind of managed document, in the collection's join order. */
+  /** Each kind of this project's managed documents, in the collection's join order. */
   responsibilities: Responsibility[]
-  /**
-   * The projects what is listed belongs to, most first. `null` where the
-   * summary cannot describe the account at all. @see brandProject
-   */
-  relatedProjects: ProjectSlug[] | null
 }
 
 /**
@@ -94,12 +93,6 @@ const ROLE_LABELS = new Map(
 /** The one collection whose grants this can describe. @see summarizeGrants */
 export const ROLES_COLLECTION = 'managers'
 
-const NOTHING: GrantSummary = {
-  fullAccess: false,
-  grants: [],
-  responsibilities: [],
-  relatedProjects: null,
-}
 
 /**
  * The manager joins declared among `fields`: which collection names a manager,
@@ -119,8 +112,17 @@ export function managerJoins(fields: Field[]): { collection: CollectionSlug; on:
 }
 
 /**
- * Name the access a manager holds: roles per locale, and the documents naming
- * them. Given `only`, just the part of that listed there.
+ * Name the access a manager holds — roles per locale, and the documents naming
+ * them — as one summary per project, in project order. Given `only`, just the
+ * part of that listed there.
+ *
+ * ⚠ **One summary per project, because one invitation per project.** A brand,
+ * an introduction and a heading can only speak for one product, so an Atlas
+ * event and a We Meditate page assigned together are two emails. A role goes
+ * with its own project. A document goes with its collection's project; a
+ * collection in several (pages, in both We Meditate projects) goes with one the
+ * account holds a role in, and otherwise the first. An account with nothing to
+ * name gets one empty summary, for its current project if it is an admin.
  *
  * ⚠ **`req` is passed through `localeIsolatedReq`, and both halves matter.**
  * The roles read asks for `locale: 'all'`, and `createLocalReq` assigns
@@ -129,6 +131,7 @@ export function managerJoins(fields: Field[]): { collection: CollectionSlug; on:
  */
 export async function summarizeGrants({
   collection,
+  current,
   id,
   only,
   payload,
@@ -137,53 +140,74 @@ export async function summarizeGrants({
 }: {
   /** The served collection the id belongs to. @see ROLES_COLLECTION */
   collection: string
+  /** The account's own current project, which an admin's empty summary keeps. */
+  current?: ProjectSlug
   id: number | string
   /** List only these — what was assigned since the last invitation. */
   only?: PendingInvitation
   payload: Payload
   req?: PayloadRequest
   type: unknown
-}): Promise<GrantSummary> {
+}): Promise<GrantSummary[]> {
+  const fullAccess = type === 'admin'
+  const empty: GrantSummary[] = [
+    { project: fullAccess ? current : undefined, fullAccess, grants: [], responsibilities: [] },
+  ]
   // ⚠ **The guard, not a tidiness check.** `hydrateLocalizedRoles` reads
   // `managers` by id, so for any other served collection this would name a
   // stranger's roles.
-  if (collection !== ROLES_COLLECTION) return NOTHING
+  if (collection !== ROLES_COLLECTION) return [{ ...empty[0]!, project: current }]
 
   const isolated = req ? localeIsolatedReq(req) : undefined
   const managed = await readManaged(payload, id, isolated, only)
   // An admin holds every role, so none is worth naming — but the regions and
   // events naming them are still theirs to look after.
-  const roles =
-    type === 'admin' ? {} : narrowRoles(await hydrateLocalizedRoles(payload, id, isolated), only)
+  const held = fullAccess ? {} : await hydrateLocalizedRoles(payload, id, isolated)
+  const roles = narrowRoles(held, only)
 
-  const weights = new Map<ProjectSlug, number>()
-  const weigh = (project: ProjectSlug, amount: number) =>
-    weights.set(project, (weights.get(project) ?? 0) + amount)
+  const roleProject = (role: string) =>
+    getRoleProject(role as Parameters<typeof getRoleProject>[0])
+  const heldProjects = new Set(Object.values(held).flat().map(roleProject))
 
-  for (const role of new Set(Object.values(roles).flat())) {
-    const project = getRoleProject(role as Parameters<typeof getRoleProject>[0])
-    if (project) weigh(project, 1)
+  const parts = new Map<ProjectSlug, { roles: Record<string, string[]>; responsibilities: Responsibility[] }>()
+  const part = (project: ProjectSlug) => {
+    if (!parts.has(project)) parts.set(project, { roles: {}, responsibilities: [] })
+    return parts.get(project)!
   }
-  for (const { collection: slug, responsibility } of managed) {
-    for (const project of getProjectSlugs()) {
-      if ((getProjectCollections(project) as string[]).includes(slug)) {
-        weigh(project, responsibility.items.length)
-      }
+
+  for (const [locale, slugs] of Object.entries(roles)) {
+    for (const slug of slugs) {
+      const project = roleProject(slug)
+      if (project) (part(project).roles[locale] ??= []).push(slug)
     }
   }
-
-  return {
-    fullAccess: type === 'admin',
-    grants: rankLocalesByRoleCount(roles).map((locale) => ({
-      locale: getLocaleLabel(locale),
-      roles: (roles[locale] ?? []).map((role) => ROLE_LABELS.get(role) ?? role),
-    })),
-    responsibilities: managed.map(({ responsibility }) => responsibility),
-    // `sort` is stable, so a tie keeps `getProjectSlugs()` order.
-    relatedProjects: getProjectSlugs()
-      .filter((project) => weights.has(project))
-      .sort((a, b) => weights.get(b)! - weights.get(a)!),
+  for (const { collection: slug, responsibility } of managed) {
+    const candidates = getProjectSlugs().filter((project) =>
+      (getProjectCollections(project) as string[]).includes(slug),
+    )
+    const project =
+      candidates.find((candidate) => heldProjects.has(candidate)) ??
+      candidates[0] ??
+      DEFAULT_EMAIL_PROJECT
+    part(project).responsibilities.push(responsibility)
   }
+
+  if (parts.size === 0) return empty
+  return getProjectSlugs().flatMap((project) => {
+    const found = parts.get(project)
+    if (!found) return []
+    return [
+      {
+        project,
+        fullAccess,
+        grants: rankLocalesByRoleCount(found.roles).map((locale) => ({
+          locale: getLocaleLabel(locale),
+          roles: (found.roles[locale] ?? []).map((role) => ROLE_LABELS.get(role) ?? role),
+        })),
+        responsibilities: found.responsibilities,
+      },
+    ]
+  })
 }
 
 /** The held roles, cut down to the pending ones when there is a pending set. */
@@ -268,25 +292,4 @@ async function readManaged(
   }
 
   return found
-}
-
-/**
- * The project an invitation is branded for.
- *
- * The account's own current project wins when it relates to something the
- * invitation lists. Otherwise the project most of the listing belongs to does,
- * so an Atlas manager never receives a We Meditate invitation — and the reverse.
- * An invitation that lists nothing takes the default brand.
- */
-export function brandProject(
-  current: ProjectSlug | undefined,
-  summary: GrantSummary,
-): ProjectSlug | undefined {
-  // An account this cannot describe has only its own choice to go on.
-  if (summary.relatedProjects === null) return current
-  if (current && summary.relatedProjects.includes(current)) return current
-  // An admin relates to every project, so their own choice stands when the
-  // listing names nothing.
-  if (summary.fullAccess && summary.relatedProjects.length === 0) return current
-  return summary.relatedProjects[0]
 }

@@ -20,7 +20,7 @@ import { INVITE_VALID_FOR, SIGNIN_VALID_FOR } from '@/plugins/login'
  */
 export type SignInNotice = { tone: 'error' | 'warning'; title: string; message: string }
 
-export type NoticeReason = 'expired' | 'invalid' | 'invite-expired' | 'link-expired'
+export type NoticeReason = 'expired' | 'invalid' | 'invite-accepted' | 'invite-expired' | 'link-expired'
 
 export const LINK_NOTICES: Record<NoticeReason, SignInNotice> = {
   expired: {
@@ -40,6 +40,13 @@ export const LINK_NOTICES: Record<NoticeReason, SignInNotice> = {
     tone: 'warning',
     title: 'This invitation has expired',
     message: `An invitation is valid for ${INVITE_VALID_FOR}. Ask for a fresh one below.`,
+  },
+  // Each project sends its own invitation, so a second one arrives already
+  // spent by the first. The account is active: a sign-in link gets them in.
+  'invite-accepted': {
+    tone: 'warning',
+    title: 'You have already accepted',
+    message: 'Your account is active. Ask for a sign-in link below.',
   },
   // A reminder's link outlives a sign-in link by days, and the next reminder
   // carries a fresh one — but a sign-in link from here reaches the same page.

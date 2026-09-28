@@ -27,6 +27,11 @@ interface RedeemSpec<C extends LoginTokenClaims = LoginTokenClaims> {
    * invitation has only the accepted flag, and a page link is never spent.
    */
   isUnspent: (account: LoginDocument, claims: C) => boolean
+  /**
+   * The reason a spent token redirects with, where saying so helps its holder.
+   * Omitted, a spent token is refused as `invalid` like any other.
+   */
+  spentReason?: string
   path: string
   /** The reader for this route's audience. Refusing the others' tokens is its job. */
   read: (token: null | string, secret: string) => Promise<SignedTokenResult<C>>
@@ -157,7 +162,12 @@ export function redeemToken<C extends LoginTokenClaims>(
       // a token was outstanding must not be able to spend it.
       if (config.isEligible && !config.isEligible(account)) return invalid()
 
-      if (!spec.isUnspent(account, claims)) return invalid()
+      // Reached only with an authentic, unexpired token for an existing,
+      // eligible account — so naming it spent tells nothing to anyone probing
+      // without one.
+      if (!spec.isUnspent(account, claims)) {
+        return spec.spentReason ? refuse(spec.spentReason) : invalid()
+      }
 
       // ⚠ Deliberately its own operation, and deliberately not joined to `req`'s
       // transaction. Burning the token must survive a failure to mint below — a

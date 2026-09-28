@@ -8,7 +8,7 @@ import { DEFAULT_LOCALE } from '@/lib/locales'
 import { relationId } from '@/lib/utilities/relationId'
 
 import { ROLES_COLLECTION } from './grantSummary'
-import { composeInvitation } from './invite'
+import { composeInvitations } from './invite'
 
 /**
  * The invitation queue: a manager is invited when they are **assigned
@@ -274,7 +274,7 @@ async function sendOne({
           })
           .catch(() => null)
 
-  const invitation = await composeInvitation({
+  const invitations = await composeInvitations({
     assignedBy: assigner?.name || undefined,
     config,
     doc,
@@ -283,8 +283,7 @@ async function sendOne({
     payload,
     req,
   })
-  if (!invitation) return false
-
-  await payload.sendEmail({ to: doc.email, ...invitation })
-  return true
+  // One per project — the queue may hold an Atlas event and a We Meditate page.
+  for (const invitation of invitations) await payload.sendEmail({ to: doc.email, ...invitation })
+  return invitations.length > 0
 }

@@ -20,7 +20,8 @@
  *   page, which is what an event-verification reminder carries.
  * - `invitations.ts` — the invitation queue: an account is invited when it is
  *   assigned a role, region, event or page, never on create (#839). The
- *   invitation names what was assigned, branded for it (`brandProject`).
+ *   invitation names what was assigned — one email per project, each branded
+ *   for its own.
  *
  * ⚠ The endpoint *factories* are not re-exported here. `loginPlugin` is the only
  * caller, and exporting them would invite a collection to wire its own copy —
@@ -43,14 +44,12 @@ export {
   generateInviteEmailSubject,
   INVITE_VALID_FOR,
   inviteUrl,
+  composeInvitations,
   namesAnything,
-  prepareInvite,
   signInviteFor,
-  type PreparedInvite,
 } from './invite'
 
 export {
-  brandProject,
   summarizeGrants,
   type GrantSummary,
   type LocaleGrant,

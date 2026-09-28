@@ -102,12 +102,43 @@ describe('InviteEmail', () => {
     expect(html).toContain('Your responsibilities')
     // The same label-and-value rows the roles use: "Regions" beside its list.
     expect(html).toMatch(/>Regions<\/td>/)
-    expect(html).toMatch(/>Events<\/td>/)
+    // One event, so its row is singular.
+    expect(html).toMatch(/>Event<\/td>/)
     expect(html).toMatch(
       /<a[^>]+href="https:\/\/atlas.test\/berlin"[^>]*>Berlin<\/a><br\/><a[^>]+href="https:\/\/atlas.test\/hamburg"/,
     )
     expect(html).toMatch(/<a[^>]+href="https:\/\/atlas.test\/tuesday"[^>]*>Tuesday Evening Meditation/)
     expect(html).not.toContain('Including the')
+  })
+
+  it('says "role" and "responsibility", and names the kind, when there is one of each', async () => {
+    const html = await renderEmail(
+      createElement(InviteEmail, {
+        ...inviteProps,
+        grants: [{ locale: 'English', roles: ['Atlas Manager'] }],
+        responsibilities: [regions('Berlin')],
+      }),
+    )
+
+    expect(html).toContain('Your role<')
+    expect(html).toContain('Your responsibility<')
+    expect(html).toMatch(/>Region<\/td>/)
+    expect(html).not.toMatch(/>Regions<\/td>/)
+  })
+
+  it('stays plural for two roles in one locale, or two documents of a kind', async () => {
+    const html = await renderEmail(
+      createElement(InviteEmail, {
+        ...inviteProps,
+        accepted: true,
+        grants: [{ locale: 'English', roles: ['Atlas Manager', 'Web Translator'] }],
+        responsibilities: [regions('Berlin', 'Hamburg')],
+      }),
+    )
+
+    expect(html).toContain('Your new roles<')
+    expect(html).toContain('Your new responsibilities<')
+    expect(html).toMatch(/>Regions<\/td>/)
   })
 
   it('marks a document with no public page, outside its title', async () => {

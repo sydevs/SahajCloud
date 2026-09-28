@@ -30,6 +30,9 @@ export function redeemInvite(config: LoginCollectionConfig): Endpoint {
     // `_verified` wherever it exists, and no invitation is ever minted for a
     // collection where it does not.
     isUnspent: (account) => account._verified !== true,
+    // A manager assigned to two projects gets two invitations, and whichever
+    // they accept second is spent. They are in already — say so.
+    spentReason: 'invite-accepted',
     path: REDEEM_INVITE_PATH,
     read: readInviteToken,
     select: {},

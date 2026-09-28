@@ -89,7 +89,9 @@ export function InviteEmail({
         </>
       ) : grants.length > 0 ? (
         <>
-          <SectionHeading>{accepted ? 'Your new roles' : 'Your roles'}</SectionHeading>
+          <SectionHeading>
+            {sectionHeading('role', countRoles(grants), accepted)}
+          </SectionHeading>
           {grants.map((grant) => (
             <DetailRow key={grant.locale} label={grant.locale}>
               {grant.roles.join(', ')}
@@ -101,10 +103,10 @@ export function InviteEmail({
       {responsibilities.length > 0 ? (
         <>
           <SectionHeading>
-            {accepted ? 'Your new responsibilities' : 'Your responsibilities'}
+            {sectionHeading('responsibility', countItems(responsibilities), accepted)}
           </SectionHeading>
-          {responsibilities.map(({ items, label }) => (
-            <DetailRow key={label} label={label}>
+          {responsibilities.map(({ items, label, singular }) => (
+            <DetailRow key={label} label={items.length === 1 ? singular : label}>
               {items.map((item, index) => (
                 <Fragment key={index}>
                   {index > 0 ? <br /> : null}
@@ -164,7 +166,7 @@ export function inviteHeading(
   const counts = responsibilities.map(({ items, label, singular }) =>
     items.length === 1 ? `1 ${singular.toLowerCase()}` : `${items.length} ${label.toLowerCase()}`,
   )
-  const total = responsibilities.reduce((sum, { items }) => sum + items.length, 0)
+  const total = countItems(responsibilities)
 
   if (total === 1)
     return `You've been invited to look after ${responsibilities[0]!.items[0]!.title}`
@@ -174,6 +176,18 @@ export function inviteHeading(
   return roles.size === 1
     ? `You've been invited to help as ${[...roles][0]}`
     : `You've been invited to help with ${productName}`
+}
+
+const countRoles = (grants: LocaleGrant[]) =>
+  grants.reduce((sum, { roles }) => sum + roles.length, 0)
+
+const countItems = (responsibilities: Responsibility[]) =>
+  responsibilities.reduce((sum, { items }) => sum + items.length, 0)
+
+/** "Your role", "Your new responsibilities" — singular for exactly one. */
+function sectionHeading(noun: 'responsibility' | 'role', count: number, accepted: boolean): string {
+  const plural = noun === 'role' ? 'roles' : 'responsibilities'
+  return `Your ${accepted ? 'new ' : ''}${count === 1 ? noun : plural}`
 }
 
 /** "a", "a and b", "a, b and c". */

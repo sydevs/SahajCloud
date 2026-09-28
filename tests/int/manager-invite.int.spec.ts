@@ -138,7 +138,7 @@ describe('manager invitation', () => {
 
   const expectRefused = (
     answer: { headers: Headers; status: number },
-    reason: 'invalid' | 'invite-expired',
+    reason: 'invalid' | 'invite-accepted' | 'invite-expired',
   ) => {
     expect(answer.status).toBe(302)
     expect(answer.headers.get('Location')).toBe(
@@ -220,6 +220,33 @@ describe('manager invitation', () => {
       const sent = mailTo(manager.email)
       expect(sent).toHaveLength(1)
       expect(sent[0]!.subject).toBe("You've been invited to look after 1 region and 1 event")
+    })
+
+    it('sends one invitation per project, and a second accepted one says so', async () => {
+      const manager = await bare()
+      emailAdapter.clearCapturedEmails()
+
+      const region = await testData.createRegion(payload, { managers: [manager.id] })
+      const page = await testData.createPage(payload, { managers: [manager.id] })
+
+      await runQueue()
+      const sent = mailTo(manager.email)
+      expect(sent.map((email) => email.subject).sort()).toEqual(
+        [
+          `You've been invited to look after ${region.name}`,
+          `You've been invited to look after ${page.title}`,
+        ].sort(),
+      )
+
+      // Each carries its own invitation; the first accepted activates the
+      // account, and the second then tells them so rather than "not valid".
+      const [first, second] = sent.map((email) => tokenIn(email.html, INVITE_URL)!)
+      expectAccepted(await accept(first!))
+      const again = await accept(second!)
+      expect(again.headers.get('Location')).toBe(
+        `${getServerUrl()}${MANAGER_SIGNIN_PATH}?error=invite-accepted`,
+      )
+      expect(again.headers.get('Set-Cookie')).toBeNull()
     })
 
     it('queues nothing for a change the manager made themselves', async () => {
@@ -318,8 +345,8 @@ describe('manager invitation', () => {
       expectAccepted(await accept(token))
 
       // `_verified` is the single-use check here: an invitation stamps no
-      // timestamp to compare against.
-      expectRefused(await accept(token), 'invalid')
+      // timestamp to compare against. Spent, it says so — the holder is in.
+      expectRefused(await accept(token), 'invite-accepted')
     })
 
     it('refuses a sign-in token at the invitation route', async () => {
@@ -484,13 +511,22 @@ describe('manager invitation', () => {
         region: region.id,
       })
 
-      const sent = await request(manager.email)
-      expect(sent!.html).toContain('English')
-      expect(sent!.html).toContain('Meditations Editor')
-      expect(sent!.html).toContain('French')
-      expect(sent!.html).toContain('Web Translator')
-      expect(sent!.html).toContain(region.name!)
-      expect(sent!.html).toContain(event.title)
+      await request(manager.email)
+      // One email per project: the App role, the Web role, and the Atlas pair.
+      const byProject = Object.fromEntries(
+        mailTo(manager.email).map((email) => [email.subject, email.html]),
+      )
+      expect(Object.keys(byProject).sort()).toEqual(
+        [
+          "You've been invited to help as Meditations Editor",
+          "You've been invited to help as Web Translator",
+          "You've been invited to look after 1 region and 1 event",
+        ].sort(),
+      )
+      const atlas = byProject["You've been invited to look after 1 region and 1 event"]!
+      expect(atlas).toContain(region.name!)
+      expect(atlas).toContain(event.title)
+      expect(byProject["You've been invited to help as Web Translator"]).toContain('French')
     })
 
     it('sends nothing to an unaccepted manager with nothing assigned', async () => {

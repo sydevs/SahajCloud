@@ -11,7 +11,7 @@
  * registrant and event mail; none renders a manager auth email.
  *
  * ⚠ **It drives the real composition, not the template.** Every invitation
- * goes through `composeInvitation`, the function both senders run — the queue
+ * goes through `composeInvitations`, the function both senders run — the queue
  * task and `issueMagicLink`'s resend — so the subject, the brand, the button
  * and every line are exactly what a real send produces. The `payload` stub
  * answers only the database reads (the `locale: 'all'` roles read, and a
@@ -148,6 +148,19 @@ const SCENARIOS: Scenario[] = [
     queued: true,
   },
   {
+    label: 'two projects',
+    note: 'an Atlas event and a We Meditate page assigned together — one email per project',
+    name: 'Priya Shah',
+    type: 'manager',
+    assignedBy: 'Anna Schmidt',
+    roles: { en: ['atlas-manager'], fr: ['web-translator'] },
+    managed: {
+      events: [event('Tuesday Evening Meditation')],
+      pages: [{ title: 'About Sahaja Yoga', url: 'https://wemeditate.com/about' }],
+    },
+    queued: true,
+  },
+  {
     label: 'resend · imported atlas manager',
     note: 'an unaccepted manager asks for a link — the invitation names everything they hold',
     name: 'Ravi Menon',
@@ -172,7 +185,7 @@ async function main() {
   const { Events, Managers, Pages, Regions } = await import('@/collections')
   const { managersLogin } = await import('@/collections/Managers/login')
   const { generateEmailHTML, generateEmailSubject } = await import('@/plugins/login/mail')
-  const { composeInvitation } = await import('@/plugins/login/invite')
+  const { composeInvitations } = await import('@/plugins/login/invite')
   const { SIGNIN_VALID_FOR } = await import('@/plugins/login')
 
   const { transport, messageUrl } = createCaptureTransport()
@@ -243,7 +256,7 @@ async function main() {
         }
       : undefined
 
-    const invitation = await composeInvitation({
+    const invitations = await composeInvitations({
       assignedBy: scenario.assignedBy,
       config: managersLogin,
       doc: {
@@ -257,9 +270,16 @@ async function main() {
       only,
       payload,
     })
-    if (!invitation) throw new Error(`${scenario.label}: the invitation named nothing`)
+    if (invitations.length === 0) throw new Error(`${scenario.label}: the invitation named nothing`)
 
-    await send(scenario, invitation.subject, invitation.html)
+    // One email per project: label each with its sender when there are several.
+    for (const invitation of invitations) {
+      const label =
+        invitations.length > 1
+          ? `${scenario.label} (${invitation.from.replace(/ <.*/, '')})`
+          : scenario.label
+      await send({ label, note: scenario.note }, invitation.subject, invitation.html)
+    }
   }
 
   // The sibling an accepted manager gets instead, so the two can be compared.

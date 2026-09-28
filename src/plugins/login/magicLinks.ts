@@ -5,7 +5,7 @@ import { z } from 'zod'
 
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 
-import { composeInvitation } from './invite'
+import { composeInvitations } from './invite'
 import { emailFrom, generateEmailHTML, generateEmailSubject } from './mail'
 import { signSigninToken, SIGNIN_TOKEN_TTL_MS } from './token'
 
@@ -146,10 +146,11 @@ export async function issueMagicLink({
   if (invitesAccounts(payload, slug) && account._verified !== true) {
     // Everything the account holds, not just what is new: it has never
     // accepted, so nothing announced so far has got it in.
-    const invitation = await composeInvitation({ config, doc: account, now, payload })
-    // Nothing to name means nothing to invite to — and a sign-in link would be
-    // refused, since the account has never accepted. Say nothing, as ever.
-    if (invitation) await payload.sendEmail({ to: account.email, ...invitation })
+    // One per project it holds something in. None when there is nothing to name
+    // — and then a sign-in link would be refused too, since the account has
+    // never accepted. Say nothing, as ever.
+    const invitations = await composeInvitations({ config, doc: account, now, payload })
+    for (const invitation of invitations) await payload.sendEmail({ to: account.email, ...invitation })
     return
   }
 
