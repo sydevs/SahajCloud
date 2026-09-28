@@ -24,6 +24,7 @@ not here.
 | `preview-registration-emails.ts` | Send the registrant confirmation in each state (online/offline, locale, branded/fallback, one-off, minimal) to the Mailpit capture inbox, with the `.ics` attached |
 | `preview-registration-notification-emails.ts` | Send the manager registration notice (#588) to the Mailpit capture inbox. Covers each state: named manager, override address, no session, long title |
 | `preview-reminder-digest-emails.ts` | Send the registrant session reminder + manager registration digest (#589) in each state (online/offline, locale, branded/fallback, daily/weekly) to the Mailpit capture inbox |
+| `mailpit-transport.ts` | The capture transport every `preview-*-emails` script sends through. Posts to Mailpit's HTTP send API, because a Claude routine cannot reach Mailpit over SMTP (#807). `tests/unit/mailpit-transport.spec.ts` covers it |
 | `cleanup-preview-assets.ts` | Reap preview-namespaced Cloudflare Images / Stream / R2 assets older than `--days` (#432). Dry run by default, `--apply` to delete. Runs nightly via `.github/workflows/cleanup-preview-assets.yml`. Needs `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_KEY`, `R2_BUCKET` — one token covers all three backends, see `docs/rules/storage.md` |
 | `repair-r2-meditation-filenames.ts` | Backfill or fix R2 filenames on existing meditations |
 | `create-sample-page.ts` | Generate a sample Pages document |
