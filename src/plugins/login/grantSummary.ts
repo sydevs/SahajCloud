@@ -6,7 +6,6 @@ import { DEFAULT_LOCALE, getLocaleLabel } from '@/lib/locales'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import type { ProjectSlug } from '@/payload-types'
 import {
-  getDocManagerFields,
   getProjectCollections,
   getProjectSlugs,
   getRoleOptions,
@@ -50,8 +49,6 @@ export interface Responsibility {
   singular: string
   /** Every one listed, alphabetically. */
   items: ResponsibilityItem[]
-  /** Whether managing one also manages everything nested under it. */
-  nested: boolean
 }
 
 export interface GrantSummary {
@@ -266,9 +263,6 @@ async function readManaged(
         label: typeof plural === 'string' ? plural : join.collection,
         singular: typeof singular === 'string' ? singular : join.collection,
         items,
-        // The same test document-level access uses to inherit a manager down
-        // the tree, so the note cannot claim more than access grants.
-        nested: Boolean(getDocManagerFields(payload, join.collection).parentField),
       },
     })
   }

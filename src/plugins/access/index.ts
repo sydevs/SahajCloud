@@ -43,7 +43,6 @@ export {
 } from './adminOnly'
 export { restrictUploadToAdmin } from './restrictUploadToAdmin'
 export { ownedRegionFilterOptions } from './regionSubtreeAccess'
-export { getDocManagerFields } from './documentManagers'
 
 // --- HELPER FUNCTIONS (public API - consolidated from projects.ts and data.ts) ---
 

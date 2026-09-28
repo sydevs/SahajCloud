@@ -207,7 +207,6 @@ describe('manager invitation', () => {
         'Anna Schmidt has invited you to look after the following on Sahaj Atlas.',
       )
       expect(sent!.html).toContain(`href="${webUrl}"`)
-      expect(sent!.html).toContain('Including the regions within it.')
     })
 
     it('collapses assignments made in quick succession into one invitation', async () => {

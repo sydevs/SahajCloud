@@ -42,14 +42,12 @@ const regions = (...titles: string[]) => ({
   label: 'Regions',
   singular: 'Region',
   items: titles.map((title) => ({ title, url: `https://atlas.test/${title.toLowerCase()}` })),
-  nested: true,
 })
 
 const events = (...items: { title: string; url: null | string }[]) => ({
   label: 'Events',
   singular: 'Event',
   items,
-  nested: false,
 })
 
 describe('InviteEmail', () => {
@@ -90,7 +88,7 @@ describe('InviteEmail', () => {
     expect(html).toContain('Anna Schmidt has invited you to look after the following on')
   })
 
-  it('lists each document on its own line, linked to its public page', async () => {
+  it('lists each kind as a row beside the roles, one document per line, linked', async () => {
     const html = await renderEmail(
       createElement(InviteEmail, {
         ...inviteProps,
@@ -101,14 +99,15 @@ describe('InviteEmail', () => {
       }),
     )
 
-    expect(html).toMatch(/<a[^>]+href="https:\/\/atlas.test\/berlin"[^>]*>Berlin<\/a>/)
-    expect(html).toMatch(/<a[^>]+href="https:\/\/atlas.test\/hamburg"[^>]*>Hamburg<\/a>/)
+    expect(html).toContain('Your responsibilities')
+    // The same label-and-value rows the roles use: "Regions" beside its list.
+    expect(html).toMatch(/>Regions<\/td>/)
+    expect(html).toMatch(/>Events<\/td>/)
     expect(html).toMatch(
-      /<a[^>]+href="https:\/\/atlas.test\/tuesday"[^>]*>Tuesday Evening Meditation/,
+      /<a[^>]+href="https:\/\/atlas.test\/berlin"[^>]*>Berlin<\/a><br\/><a[^>]+href="https:\/\/atlas.test\/hamburg"/,
     )
-    expect(html).toContain('Including the regions within them.')
-    // Events do not nest, so they carry no such note.
-    expect(html).not.toContain('Including the events')
+    expect(html).toMatch(/<a[^>]+href="https:\/\/atlas.test\/tuesday"[^>]*>Tuesday Evening Meditation/)
+    expect(html).not.toContain('Including the')
   })
 
   it('marks a document with no public page, outside its title', async () => {
@@ -122,14 +121,6 @@ describe('InviteEmail', () => {
     // A separate, differently styled span, so it cannot read as part of the name.
     expect(html).toMatch(/Sunday Workshop<span[^>]*> \(Not yet public\)<\/span>/)
     expect(html).not.toMatch(/<a[^>]*>Sunday Workshop/)
-  })
-
-  it('says "it" for a single nested document', async () => {
-    const html = await renderEmail(
-      createElement(InviteEmail, { ...inviteProps, responsibilities: [regions('Berlin')] }),
-    )
-
-    expect(html).toContain('Including the regions within it.')
   })
 
   it('introduces Sahaj Atlas to a manager meeting it for the first time', async () => {

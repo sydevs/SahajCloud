@@ -147,7 +147,6 @@ describe('summarizeGrants', () => {
         label: 'Regions',
         singular: 'Region',
         items: [{ title: 'Berlin', url: BERLIN.url }],
-        nested: true,
       },
       {
         label: 'Events',
@@ -156,7 +155,6 @@ describe('summarizeGrants', () => {
           { title: TUESDAY.title, url: TUESDAY.url },
           { title: DRAFT.title, url: null },
         ],
-        nested: false,
       },
     ])
     expect(summary.relatedProjects).toEqual(['sahaj-atlas'])

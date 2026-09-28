@@ -1,4 +1,5 @@
-import { Hr, Link, Section, Text } from 'react-email'
+import { Fragment } from 'react'
+import { Hr, Link, Text } from 'react-email'
 
 import type { ProjectSlug } from '@/payload-types'
 import { getEmailBrand } from '@/plugins/email'
@@ -97,28 +98,32 @@ export function InviteEmail({
         </>
       ) : null}
 
-      {responsibilities.map((responsibility) => (
-        <Section key={responsibility.label}>
-          <SectionHeading>{responsibility.label}</SectionHeading>
-          {responsibility.items.map((item, index) => (
-            <Text key={index} style={itemLine}>
-              {item.url ? (
-                <Link href={item.url} style={{ ...styles.link, color: brand.colors.primary }}>
-                  {item.title}
-                </Link>
-              ) : (
-                <>
-                  {item.title}
-                  <span style={notYetPublic}> (Not yet public)</span>
-                </>
-              )}
-            </Text>
+      {responsibilities.length > 0 ? (
+        <>
+          <SectionHeading>
+            {accepted ? 'Your new responsibilities' : 'Your responsibilities'}
+          </SectionHeading>
+          {responsibilities.map(({ items, label }) => (
+            <DetailRow key={label} label={label}>
+              {items.map((item, index) => (
+                <Fragment key={index}>
+                  {index > 0 ? <br /> : null}
+                  {item.url ? (
+                    <Link href={item.url} style={{ color: brand.colors.primary }}>
+                      {item.title}
+                    </Link>
+                  ) : (
+                    <>
+                      {item.title}
+                      <span style={notYetPublic}> (Not yet public)</span>
+                    </>
+                  )}
+                </Fragment>
+              ))}
+            </DetailRow>
           ))}
-          {responsibility.nested ? (
-            <Text style={nestedNote}>{nestedLine(responsibility)}</Text>
-          ) : null}
-        </Section>
-      ))}
+        </>
+      ) : null}
 
       <BrandButton href={actionUrl} brand={brand}>
         {accepted ? `Open ${ADMIN_NAME}` : 'Accept invitation'}
@@ -142,14 +147,7 @@ export function InviteEmail({
   )
 }
 
-const itemLine = { fontSize: '15px', margin: '0 0 6px' }
-const notYetPublic = { fontSize: '13px', color: '#888888', fontStyle: 'italic' as const }
-const nestedNote = { fontSize: '13px', color: '#666666', margin: '2px 0 12px' }
-
-/** Managing a region manages the regions inside it, so the email says so. */
-function nestedLine({ items, label }: Responsibility): string {
-  return `Including the ${label.toLowerCase()} within ${items.length === 1 ? 'it' : 'them'}.`
-}
+const notYetPublic = { fontSize: '12px', color: '#6b7280', fontStyle: 'italic' as const }
 
 /**
  * The invitation's heading, which is also its subject: what to look after.
