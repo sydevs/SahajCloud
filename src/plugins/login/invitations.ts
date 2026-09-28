@@ -196,7 +196,7 @@ export function sendInvitationsTask(config: LoginCollectionConfig): TaskConfig<'
       const output = { sent: 0, skipped: 0, failed: 0 }
 
       const { docs } = await payload.find({
-        collection: MANAGERS_COLLECTION,
+        collection: config.slug,
         where: { invitationDueAt: { less_than_equal: now.toISOString() } },
         limit: BATCH,
         sort: 'invitationDueAt',
@@ -212,7 +212,7 @@ export function sendInvitationsTask(config: LoginCollectionConfig): TaskConfig<'
         }
 
         await payload.db.updateOne({
-          collection: MANAGERS_COLLECTION,
+          collection: config.slug,
           id: doc.id,
           data: { pendingInvitation: null, invitationDueAt: null },
           req,
@@ -265,6 +265,7 @@ async function sendOne({
       ? null
       : await payload
           .findByID({
+            // `enqueue` records an id here only when the actor is a manager.
             collection: MANAGERS_COLLECTION,
             id: by,
             depth: 0,
