@@ -11,6 +11,7 @@ import { buildReminderEntry, buildVerificationEntry } from '@/lib/eventVerificat
 import type { Event, Manager } from '@/payload-types'
 import { readLinkToken, signLinkToken } from '@/plugins/login'
 
+import { createAnonRestClient, type RestClient } from '../utils/restRequest'
 import { expectEventWriteRefused, storeInvalidEvent } from '../utils/storeInvalidEvent'
 import { runTaskHandler } from '../utils/taskRunner'
 import { createData, testData, type FixtureOverrides } from '../utils/testData'
@@ -70,9 +71,11 @@ describe('Event verification lifecycle', () => {
   let eventManager: Manager
   let defaultRegion: { id: number }
   let verifyPageAction: (typeof import('@/app/(frontend)/events/verify/actions'))['verifyEventAction']
+  let anon: RestClient
 
   beforeAll(async () => {
     const env = await createTestEnvironment()
+    anon = createAnonRestClient(env)
     payload = env.payload
     cleanup = env.cleanup
     adminUser = env.adminUser
@@ -374,6 +377,99 @@ describe('Event verification lifecycle', () => {
     expect(second.advanced).toBe(0)
     expect(after.verificationStage).toBe(before.verificationStage)
     expect(reminders(after.activityLog)).toHaveLength(reminders(before.activityLog).length)
+  })
+
+  describe('one-click verification from the reminder, end to end', () => {
+    /**
+     * The whole path a manager takes, driven by the email itself: the real job
+     * sends the reminder, the link is read out of its button, the page is opened
+     * the way a mail scanner would open it, and the button's own Server Action
+     * verifies. Nothing below mints a link — a reminder that carried the wrong
+     * one, or none, fails here.
+     */
+    const sent: { to: string; html: string }[] = []
+    let restore: () => void
+
+    beforeAll(() => {
+      const original = payload.sendEmail.bind(payload)
+      payload.sendEmail = (async (message: Parameters<Payload['sendEmail']>[0]) => {
+        sent.push({ to: String(message.to ?? ''), html: String(message.html ?? '') })
+        return original(message)
+      }) as Payload['sendEmail']
+      restore = () => {
+        payload.sendEmail = original
+      }
+    })
+
+    afterAll(() => {
+      restore()
+    })
+
+    /** The reminder the job sends the event's manager, and the link on its button. */
+    async function remind(title: string): Promise<{ event: Event; link: string }> {
+      const event = await createEvent({ title })
+      sent.length = 0
+      await makeDue(payload, event.id)
+      await runJob(payload)
+
+      const email = sent.find((message) => message.html.includes(title))
+      expect(email, `no reminder was sent for ${title}`).toBeDefined()
+      // The primary button's own href — the one the manager clicks.
+      const href = email!.html.match(/<a href="([^"]+)"[^>]*>(?:<span>.*?<\/span>)*<span[^>]*>Verify this event</)?.[1]
+      expect(href, 'the Verify button carries no link').toBeDefined()
+      const link = new URL(href!.replaceAll('&amp;', '&')).searchParams.get('link')
+      expect(link, 'the Verify button is not a verify-page link').toBeTruthy()
+
+      return { event, link: link! }
+    }
+
+    it('verifies on the button, never on opening the link', async () => {
+      const { default: VerifyEventPage } = await import('@/app/(frontend)/events/verify/page')
+      const { event, link } = await remind('End-to-End Sitting')
+      const before = await getEvent(payload, event.id)
+      expect(before.verificationStage).toBe('reminded')
+
+      // A mail scanner fetches the page — some fetch it more than once. The GET
+      // renders the event and the form, and must change nothing.
+      for (let fetch = 0; fetch < 3; fetch++) {
+        const page = await VerifyEventPage({ searchParams: Promise.resolve({ link }) })
+        expect(page.props).toMatchObject({ eventTitle: 'End-to-End Sitting', link })
+      }
+      const afterScan = await getEvent(payload, event.id)
+      expect(afterScan.verificationStage).toBe('reminded')
+      expect(afterScan.updatedAt).toBe(before.updatedAt)
+
+      // The manager clicks "Verify this event": the form posts the same link.
+      const form = new FormData()
+      form.set('link', link)
+      const outcome = await verifyPageAction(null, form)
+
+      expect(outcome).toMatchObject({ tone: 'success', title: 'Event verified' })
+      const verified = await getEvent(payload, event.id)
+      expect(verified.verificationStage).toBe('verified')
+      expect(verified._status).toBe('published')
+      const log = verified.activityLog as NotificationLogEntry[]
+      expect(log[0]).toMatchObject({ kind: 'verification', method: 'email-link' })
+      expect((log[0] as Extract<NotificationLogEntry, { kind: 'verification' }>).by?.id).toBe(
+        eventManager.id,
+      )
+    })
+
+    it('signs the manager in on "Update the details", landing on the event', async () => {
+      const { event, link } = await remind('End-to-End Edit Sitting')
+
+      const answer = await anon(`/api/managers/redeem-link?token=${encodeURIComponent(link)}`, {
+        method: 'POST',
+      })
+
+      expect(answer.status).toBe(302)
+      expect(answer.headers.get('Location')).toMatch(
+        new RegExp(`/admin/collections/events/${event.id}$`),
+      )
+      expect(answer.headers.get('Set-Cookie')).toBeTruthy()
+      // Editing is not verifying: the event waits for the republish.
+      expect((await getEvent(payload, event.id)).verificationStage).toBe('reminded')
+    })
   })
 
   describe('listing progress in the reminder email (#611)', () => {
