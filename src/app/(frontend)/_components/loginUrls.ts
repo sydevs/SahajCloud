@@ -5,8 +5,11 @@ import { REDEEM_INVITE_PATH, REDEEM_LINK_PATH, REDEEM_MAGIC_LINK_PATH } from '@/
 /**
  * Where each confirmation form posts. The `POST` is what spends the link.
  *
- * ⚠ **Its own module so it can be pinned.** The page is an async server
- * component reaching for `getPayload`, so no spec renders it — and the two
+ * Shared by the sign-in page and the event verify page, whose "Update the
+ * details" button spends a page link too.
+ *
+ * ⚠ **Its own module so it can be pinned.** The pages are async server
+ * components reaching for `getPayload`, so no spec renders them — and the
  * routes differ by one word. Sending an invitation to the sign-in route (or the
  * reverse) is refused for a wrong audience, which reads to the holder as "this
  * link is not valid", with nothing failing anywhere. The paths come from the

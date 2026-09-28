@@ -71,6 +71,12 @@ export interface LinkTokenClaims extends LoginTokenClaims {
   to: string
   /** What the link opens, as the confirmation page names it. */
   label: string
+  /**
+   * An event the holder may verify without signing in, from the logged-out
+   * verify page. Only a verification reminder's link to the event's own
+   * manager carries one.
+   */
+  verifies?: number
 }
 
 export type LinkTokenResult = SignedTokenResult<LinkTokenClaims>
@@ -165,15 +171,19 @@ export async function readLinkToken(
 
   // As in `read`: the signature proves we minted it, so this only refuses an
   // older claim shape — and a `to` this server would never redirect to.
-  const { collection, issuedAt, label, to, userId } = result.claims
+  const { collection, issuedAt, label, to, userId, verifies } = result.claims
   if (
     typeof collection !== 'string' ||
     typeof issuedAt !== 'number' ||
     userId === undefined ||
     typeof label !== 'string' ||
-    !isAdminPath(to)
+    !isAdminPath(to) ||
+    (verifies !== undefined && typeof verifies !== 'number')
   ) {
     return { status: 'invalid' }
   }
-  return { status: 'valid', claims: { collection, issuedAt, label, to, userId } }
+  return {
+    status: 'valid',
+    claims: { collection, issuedAt, label, to, userId, ...(verifies !== undefined && { verifies }) },
+  }
 }

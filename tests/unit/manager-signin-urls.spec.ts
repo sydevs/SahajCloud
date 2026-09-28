@@ -6,11 +6,11 @@
  * differ by one word. An invitation posted to the sign-in route is refused for
  * a wrong audience, which reaches the holder as "this link is not valid" with
  * nothing failing anywhere: both lanes stay green while every invitation click
- * dies. `urls.ts` exists to be pinned here.
+ * dies. `loginUrls.ts` exists to be pinned here.
  */
 import { describe, expect, it } from 'vitest'
 
-import { acceptUrl, redeemUrl } from '@/app/(frontend)/managers/signin/urls'
+import { acceptUrl, redeemUrl } from '@/app/(frontend)/_components/loginUrls'
 import { managersLogin } from '@/collections/Managers/login'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 import { REDEEM_INVITE_PATH, REDEEM_MAGIC_LINK_PATH } from '@/plugins/login'

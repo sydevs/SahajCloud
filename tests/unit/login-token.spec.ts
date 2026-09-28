@@ -130,6 +130,15 @@ describe('page links', () => {
     ).resolves.toEqual({ status: 'invalid' })
   })
 
+  it('carries the event a reminder may verify, and refuses a malformed one', async () => {
+    const token = await signLinkToken({ ...link, verifies: 7 }, SECRET, NOW)
+    const result = await readLinkToken(token, SECRET, NOW)
+    expect(result.status === 'valid' && result.claims.verifies).toBe(7)
+
+    const bad = await signLinkToken({ ...link, verifies: '7' as unknown as number }, SECRET, NOW)
+    await expect(readLinkToken(bad, SECRET, NOW)).resolves.toEqual({ status: 'invalid' })
+  })
+
   it('refuses any landing page outside the admin, even one it signed', async () => {
     // Signed by us, so only a signing bug could produce one — and then it must
     // not become an open redirect.

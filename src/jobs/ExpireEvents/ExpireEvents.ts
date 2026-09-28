@@ -2,7 +2,6 @@ import type { Payload, PayloadRequest, TaskConfig } from 'payload'
 
 import * as Sentry from '@sentry/nextjs'
 
-import { managersLogin } from '@/collections/Managers/login'
 import { DEFAULT_LOG_LIMIT } from '@/fields'
 import { revalidateAtlasSidebar } from '@/lib/atlasSidebar/cache'
 import { updateEventBookkeeping } from '@/lib/events/updateEventWithoutValidation'
@@ -29,11 +28,10 @@ import {
   type ReminderPayload,
 } from '@/lib/notifications'
 import { shouldFinish } from '@/lib/schedule/scheduleStatus'
-import { adminDocPath } from '@/lib/utilities/adminUrl'
 import type { Event } from '@/payload-types'
-import { pageLinkUrl } from '@/plugins/login'
 
 import { isEventVerificationEnabled } from './featureFlag'
+import { reminderButtonUrl } from './verifyUrl'
 
 
 /**
@@ -236,16 +234,13 @@ async function processEvent(args: {
     if (hasReminderForStage(log, stage, recipient.manager.id)) continue
 
     const eventTitle = typeof event.title === 'string' ? event.title : `Event #${event.id}`
-    // Signs the recipient in — accepting an imported manager's account on the
-    // way — and lands on the event, whose verification banner asks them to
-    // republish it. Per recipient, since the token names who it signs in.
-    const verifyUrl = await pageLinkUrl(
-      managersLogin,
-      recipient.manager,
-      { label: eventTitle, to: adminDocPath('events', event.id) },
-      payload.secret,
+    const verifyUrl = await reminderButtonUrl({
+      event: { id: event.id, title: eventTitle },
+      managerId: recipient.manager.id,
       now,
-    )
+      role: recipient.role,
+      secret: payload.secret,
+    })
     const reminder: ReminderPayload = {
       eventTitle,
       level: action.level,

@@ -285,9 +285,7 @@ async function main() {
   const nodemailer = (await import('nodemailer')).default
   const { EventVerificationEmail } = await import('@/emails/EventVerificationEmail')
   const { renderEmail } = await import('@/plugins/email')
-  const { managersLogin } = await import('@/collections/Managers/login')
-  const { adminDocPath } = await import('@/lib/utilities/adminUrl')
-  const { pageLinkUrl } = await import('@/plugins/login')
+  const { reminderButtonUrl } = await import('@/jobs/ExpireEvents/verifyUrl')
   const { formatLongDate } = await import('@/lib/notifications')
   const { EVENT_QUALITY_CHECK_METADATA } = await import('@/lib/eventQuality')
 
@@ -376,13 +374,14 @@ async function main() {
 
   const previews: { label: string; url: string | false }[] = []
   for (const { level, audience } of combos) {
-    // The same link ExpireEvents mints: signs the manager in, lands on the event.
-    const verifyUrl = await pageLinkUrl(
-      managersLogin,
-      { id: sample.managerId },
-      { label: sample.eventTitle, to: adminDocPath('events', sample.eventId) },
+    // The same button ExpireEvents mints, per audience.
+    const verifyUrl = await reminderButtonUrl({
+      event: { id: sample.eventId, title: sample.eventTitle },
+      managerId: sample.managerId,
+      now: new Date(),
+      role: audience,
       secret,
-    )
+    })
     const html = await renderEmail(
       createElement(EventVerificationEmail, {
         name: audience === 'region' ? 'Rohan Patil' : sample.managerName,

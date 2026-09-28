@@ -201,13 +201,15 @@ The invitation is sent by a queue (`src/plugins/login/invitations.ts`):
 - ⚠ **The brand follows what the invitation lists** (`brandProject`). The account's `currentProject` wins only when it relates to a listed role or document; otherwise the project most of the listing belongs to does, and an empty listing takes the default. `currentProject` alone cannot decide it: only `set-project` writes it, and an account that has never accepted has never signed in to call it. Subject, `From` and body all come from one `composeInvitation` call, so they cannot disagree.
 - ⚠ **`_verified` is not a column every auth collection has.** `getAuthFields.js` adds the verification fields only where `auth.verify` is configured. Anything branching on the flag for a *served* collection — `issueMagicLink` picking between the two mails — asks the sanitized config first, or it reads `undefined` and invites every account forever.
 
-### A verification reminder's link signs its manager in
+### A verification reminder verifies in one click, and never on a `GET`
 
-The reminder's button is a **page link** (`pageLinkUrl`, the `manager-link` audience): it signs its recipient in and lands on the event's admin page, whose notice banner asks them to republish — the save that verifies it. There is no logged-out verify page.
+The reminder's button is a login-plugin **page link** (`manager-link`), built per recipient by `reminderButtonUrl`:
 
-- **It accepts an unaccepted account**, as an invitation does. An imported Atlas manager was mailed nothing, so their first email is a reminder, and its link is what gets them in.
-- ⚠ **It is reusable for 10 days**, the longest reminder spacing — a reminder is re-read and clicked twice. It is refused once the account stops qualifying, and it can only land under `/admin/`: the path is signed, and `isAdminPath` re-checks it on read so a signing bug cannot become an open redirect.
-- **It addresses the sign-in page (`?link=`), never the redeem route**, like the other two links, so a mail scanner's `GET` mints nothing.
+- **The event's manager** gets `/events/verify?link=…`, carrying a `verifies` claim. The page shows the event and two buttons: "Verify this event" (a Server Action) verifies it without signing in, and "Update the details" spends the same link at `redeem-link`, signing them in on the way to the event's admin page. An invalid stored field sends them there too, with the fields named.
+- **A region manager** does not verify (they may lack the details), so theirs goes through the sign-in page (`?link=`) straight to the event.
+- ⚠ **Nothing happens on a `GET`.** Mail scanners fetch every link in every email, and some render the page; none submits a form. So both pages only read the link, and every change — verifying, signing in — sits behind a button's `POST`. A `PageAction` that signs someone in is `method: 'post'` for the same reason. Never make either link act on open, however convenient.
+- **Spending the link accepts an unaccepted account**, as an invitation does, so an imported Atlas manager whose first email is a reminder gets in by it.
+- ⚠ **It is reusable for 10 days**, the longest reminder spacing — a reminder is re-read and clicked twice. It is refused once the account stops qualifying, and it can only land under `/admin/`: the path is signed, and `isAdminPath` re-checks it on read, so a signing bug cannot become an open redirect.
 
 ### ⚠ The two token URLs have different shapes, and only one carries the slug
 

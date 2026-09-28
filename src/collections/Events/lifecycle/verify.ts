@@ -5,6 +5,7 @@ import { buildVerificationEntry } from '@/lib/eventVerification/log'
 import { addDays, verificationPeriodDays } from '@/lib/eventVerification/periods'
 import { resolveNextCheckAt } from '@/lib/eventVerification/watermark'
 import type { Event, Manager } from '@/payload-types'
+import { readLinkToken } from '@/plugins/login'
 import type { EventSchedule } from '@/types/schedule'
 
 /**
@@ -123,5 +124,45 @@ export async function applyVerification(args: {
     context: { skipVerifyHook: true },
     overrideAccess,
     req,
+  })
+}
+
+/**
+ * Verify an event from a reminder's link, on the logged-out verify page.
+ *
+ * The link is a login-plugin page link carrying a `verifies` claim, and it is
+ * the whole authorization: the event it names, for the manager it was sent to.
+ * Returns the updated event (with its virtual `webUrl`), or `null` for a link
+ * that is expired, invalid, carries no event, or was sent to an account that no
+ * longer qualifies. `applyVerification` errors propagate to the caller.
+ *
+ * Only ever called from the page's form `POST` — opening the link verifies
+ * nothing, so a mail scanner fetching it cannot.
+ */
+export async function verifyEventFromLink(args: {
+  payload: Payload
+  link: string
+  now?: Date
+}): Promise<Event | null> {
+  const { payload, link, now = new Date() } = args
+
+  const result = await readLinkToken(link, payload.secret, now)
+  if (result.status !== 'valid' || result.claims.collection !== 'managers') return null
+  const { userId, verifies } = result.claims
+  if (verifies === undefined) return null
+
+  const manager = await payload
+    .findByID({ collection: 'managers', id: userId, depth: 0, overrideAccess: true })
+    .catch(() => null)
+  // Deactivated since the reminder went out: the link no longer speaks for them.
+  if (!manager || manager.type === 'inactive') return null
+
+  return applyVerification({
+    payload,
+    eventId: verifies,
+    method: 'email-link',
+    by: { id: manager.id, name: manager.name || manager.email || `#${manager.id}` },
+    now,
+    overrideAccess: true,
   })
 }

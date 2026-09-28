@@ -12,7 +12,7 @@ import payloadConfig from '@payload-config'
 import { ConfirmSignIn } from './ConfirmSignIn'
 import { LINK_NOTICES, linkNotice } from './notices'
 import { SignInForm } from './SignInForm'
-import { acceptUrl, openUrl, redeemUrl } from './urls'
+import { acceptUrl, openUrl, redeemUrl } from '../../_components/loginUrls'
 
 
 export const metadata: Metadata = {

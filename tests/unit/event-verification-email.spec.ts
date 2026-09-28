@@ -105,10 +105,10 @@ describe('EventVerificationEmail', () => {
     },
   )
 
-  it('says the button signs the manager in, since it no longer verifies in one click', async () => {
+  it('says the button opens a one-click verify page, which can also sign them in', async () => {
     const html = await render({ level: 'due' })
 
-    expect(html).toContain('The button signs you in and opens the event.')
+    expect(html).toContain('verify the event in one click, or sign in to update its details')
   })
 
   it.each(['due', 'escalated', 'urgent', 'expired'] as const)(
@@ -290,9 +290,10 @@ describe('EventVerificationEmail', () => {
       eventManager,
     }
 
-    it('drops the sign-in note when the button emails the event manager instead', async () => {
+    it('drops the note when the button emails the event manager instead', async () => {
       const html = await render({ ...regionProps, level: 'escalated' })
       expect(html).not.toContain('The button signs you in')
+      expect(html).not.toContain('in one click')
     })
 
     it('frames it as an event in their region and asks them to follow up', async () => {
