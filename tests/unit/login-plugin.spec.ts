@@ -217,3 +217,84 @@ describe('loginPlugin', () => {
     })
   })
 })
+
+describe('invitations', () => {
+  /**
+   * `managers` with two of the joins `Managers` declares, the collections they
+   * point at, one that names nobody, and the `jobs` block `payload.config.ts`
+   * declares.
+   */
+  function withJoins(): Config {
+    return {
+      collections: [
+        {
+          slug: 'managers',
+          fields: [
+            { name: 'email', type: 'email' },
+            { name: 'managedRegions', type: 'join', collection: 'regions', on: 'managers' },
+            { name: 'managedEvents', type: 'join', collection: 'events', on: 'manager' },
+          ],
+        },
+        collection('regions'),
+        collection('events'),
+        collection('media'),
+      ],
+      jobs: { tasks: [], autoRun: [{ cron: '0 * * * *', queue: 'nightly' }] },
+    } as unknown as Config
+  }
+
+  const bySlug = (config: Config, slug: string) =>
+    (config.collections ?? []).find((c) => c.slug === slug)!
+
+  const afterChange = (config: Config, slug: string) =>
+    bySlug(config, slug).hooks?.afterChange ?? []
+
+  it('keeps the queue on the manager', () => {
+    const folded = foldConfig(loginPlugin({ collections: [managers] }), withJoins())
+
+    expect(fieldNames(bySlug(folded, 'managers'))).toEqual(
+      expect.arrayContaining(['pendingInvitation', 'invitationDueAt']),
+    )
+  })
+
+  it('stops a create from sending Payload’s own verify mail', async () => {
+    const folded = foldConfig(loginPlugin({ collections: [managers] }), withJoins())
+    const [hook] = bySlug(folded, 'managers').hooks?.beforeOperation ?? []
+    const run = hook as (a: { args: object; operation: string }) => object
+
+    expect(await run({ args: {}, operation: 'create' })).toEqual({ disableVerificationEmail: true })
+    expect(await run({ args: { id: 1 }, operation: 'update' })).toEqual({ id: 1 })
+  })
+
+  it('queues on every collection that names a manager, and on the manager’s roles', () => {
+    const folded = foldConfig(loginPlugin({ collections: [managers] }), withJoins())
+
+    expect(afterChange(folded, 'regions')).toHaveLength(1)
+    expect(afterChange(folded, 'events')).toHaveLength(1)
+    expect(afterChange(folded, 'managers')).toHaveLength(1)
+    expect(afterChange(folded, 'media')).toHaveLength(0)
+  })
+
+  it('registers the task, and a queue that runs it, beside what is already there', () => {
+    const folded = foldConfig(loginPlugin({ collections: [managers] }), withJoins())
+
+    expect(folded.jobs?.tasks?.map((task) => task.slug)).toEqual(['sendInvitations'])
+    expect(folded.jobs?.autoRun).toEqual([
+      { cron: '0 * * * *', queue: 'nightly' },
+      { cron: '*/5 * * * *', queue: 'invitations' },
+    ])
+  })
+
+  it('queues nothing when switched off — the seed scripts — and keeps the schema', () => {
+    const folded = foldConfig(
+      loginPlugin({ collections: [managers], invitations: false }),
+      withJoins(),
+    )
+
+    expect(afterChange(folded, 'regions')).toHaveLength(0)
+    expect(afterChange(folded, 'managers')).toHaveLength(0)
+    // A seed run and a server must agree on the columns.
+    expect(fieldNames(bySlug(folded, 'managers'))).toContain('pendingInvitation')
+    expect(folded.jobs?.tasks?.map((task) => task.slug)).toEqual(['sendInvitations'])
+  })
+})

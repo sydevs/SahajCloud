@@ -18,7 +18,7 @@ import { createElement } from 'react'
 import { describe, expect, it } from 'vitest'
 
 import { buildReplyBody, EventRegistrationEmail } from '@/emails/EventRegistrationEmail'
-import { InviteEmail } from '@/emails/InviteEmail'
+import { InviteEmail, inviteHeading } from '@/emails/InviteEmail'
 import { ResetPasswordEmail } from '@/emails/ResetPasswordEmail'
 import { buildUserMessageDetails, UserMessageEmail } from '@/emails/UserMessageEmail'
 import { getEmailBrand, renderEmail } from '@/plugins/email'
@@ -27,7 +27,8 @@ const INVITE_URL = 'https://cloud.test/managers/signin?invite=TKN-123'
 
 const inviteProps = {
   name: 'Jo',
-  inviteUrl: INVITE_URL,
+  accepted: false,
+  actionUrl: INVITE_URL,
   validFor: '7 days',
   fullAccess: false,
   grants: [
@@ -37,18 +38,31 @@ const inviteProps = {
   responsibilities: [],
 }
 
+const regions = (...titles: string[]) => ({
+  label: 'Regions',
+  singular: 'Region',
+  items: titles.map((title) => ({ title, url: `https://atlas.test/${title.toLowerCase()}` })),
+  nested: true,
+})
+
+const events = (...items: { title: string; url: null | string }[]) => ({
+  label: 'Events',
+  singular: 'Event',
+  items,
+  nested: false,
+})
+
 describe('InviteEmail', () => {
   it('renders the recipient name, invitation URL, CTA, and validity', async () => {
     const html = await renderEmail(createElement(InviteEmail, inviteProps))
 
-    expect(html).toBeTruthy()
     expect(html).toContain('Jo')
     expect(html).toContain(INVITE_URL)
     expect(html).toContain('Accept invitation')
     expect(html).toContain('7 days')
   })
 
-  it('names every locale and role label it is given', async () => {
+  it('names the roles per locale', async () => {
     const html = await renderEmail(createElement(InviteEmail, inviteProps))
 
     expect(html).toContain('English')
@@ -57,60 +71,133 @@ describe('InviteEmail', () => {
     expect(html).toContain('Web Translator')
   })
 
-  it('names full access for an admin, suppressing any locale row', async () => {
-    // ⚠ `grants` stays populated. Emptying it too would make the two negatives
-    // below hold for every implementation, including one that ignores
-    // `fullAccess` entirely.
+  it('names full access for an admin instead of a role table', async () => {
     const html = await renderEmail(createElement(InviteEmail, { ...inviteProps, fullAccess: true }))
 
     expect(html).toContain('Administrator')
-    expect(html).not.toContain('English')
     expect(html).not.toContain('Meditations Editor')
   })
 
-  it('says so outright when the account grants nothing yet', async () => {
-    const html = await renderEmail(createElement(InviteEmail, { ...inviteProps, grants: [] }))
+  it('opens by naming who asked, when a person did', async () => {
+    const html = await renderEmail(
+      createElement(InviteEmail, {
+        ...inviteProps,
+        assignedBy: 'Anna Schmidt',
+        responsibilities: [regions('Berlin')],
+      }),
+    )
 
-    expect(html).toContain('No roles yet')
-    expect(html).not.toContain('Administrator')
+    expect(html).toContain('Anna Schmidt has invited you to look after the following on')
   })
 
-
-  it('omits the responsibilities section when nothing names the recipient', async () => {
-    // Every create: the joins cannot point at an account made one instant ago.
-    const html = await renderEmail(createElement(InviteEmail, inviteProps))
-
-    expect(html).not.toContain('Your responsibilities')
-  })
-
-  it('lists each kind of managed document, counting what it does not name', async () => {
+  it('lists each document on its own line, linked to its public page', async () => {
     const html = await renderEmail(
       createElement(InviteEmail, {
         ...inviteProps,
         responsibilities: [
-          { label: 'Regions', titles: ['Berlin', 'Hamburg'], more: 0, nested: true },
-          { label: 'Events', titles: ['Tuesday Evening Meditation'], more: 12, nested: false },
+          regions('Berlin', 'Hamburg'),
+          events({ title: 'Tuesday Evening Meditation', url: 'https://atlas.test/tuesday' }),
         ],
       }),
     )
 
-    expect(html).toContain('Your responsibilities')
-    expect(html).toContain('Berlin, Hamburg')
+    expect(html).toMatch(/<a[^>]+href="https:\/\/atlas.test\/berlin"[^>]*>Berlin<\/a>/)
+    expect(html).toMatch(/<a[^>]+href="https:\/\/atlas.test\/hamburg"[^>]*>Hamburg<\/a>/)
+    expect(html).toMatch(
+      /<a[^>]+href="https:\/\/atlas.test\/tuesday"[^>]*>Tuesday Evening Meditation/,
+    )
     expect(html).toContain('Including the regions within them.')
-    expect(html).toContain('Tuesday Evening Meditation, and 12 more')
     // Events do not nest, so they carry no such note.
     expect(html).not.toContain('Including the events')
   })
 
-  it('says "it" for a single nested document', async () => {
+  it('marks a document with no public page, outside its title', async () => {
     const html = await renderEmail(
       createElement(InviteEmail, {
         ...inviteProps,
-        responsibilities: [{ label: 'Regions', titles: ['Berlin'], more: 0, nested: true }],
+        responsibilities: [events({ title: 'Sunday Workshop', url: null })],
       }),
     )
 
+    // A separate, differently styled span, so it cannot read as part of the name.
+    expect(html).toMatch(/Sunday Workshop<span[^>]*> \(Not yet public\)<\/span>/)
+    expect(html).not.toMatch(/<a[^>]*>Sunday Workshop/)
+  })
+
+  it('says "it" for a single nested document', async () => {
+    const html = await renderEmail(
+      createElement(InviteEmail, { ...inviteProps, responsibilities: [regions('Berlin')] }),
+    )
+
     expect(html).toContain('Including the regions within it.')
+  })
+
+  it('introduces Sahaj Atlas to a manager meeting it for the first time', async () => {
+    const atlas = await renderEmail(
+      createElement(InviteEmail, { ...inviteProps, project: 'sahaj-atlas' }),
+    )
+    const web = await renderEmail(createElement(InviteEmail, inviteProps))
+
+    expect(atlas).toContain(
+      'Sahaj Atlas is a worldwide map of free Sahaja Yoga meditation classes.',
+    )
+    expect(atlas).toContain('local Sahaj websites')
+    expect(web).not.toContain('worldwide map')
+  })
+
+  it('points an accepted manager at the admin, with no invitation to accept', async () => {
+    const html = await renderEmail(
+      createElement(InviteEmail, {
+        ...inviteProps,
+        accepted: true,
+        actionUrl: 'https://cloud.test/admin',
+      }),
+    )
+
+    expect(html).toContain('Open Sahaj Cloud')
+    expect(html).toContain('https://cloud.test/admin')
+    expect(html).not.toContain('Accept invitation')
+    expect(html).not.toContain('valid for')
+    expect(html).toContain('Notification Preferences')
+  })
+})
+
+describe('inviteHeading', () => {
+  const heading = (props: Partial<Parameters<typeof inviteHeading>[0]>) =>
+    inviteHeading({ grants: [], responsibilities: [], ...props }, 'Sahaj Atlas')
+
+  it('names a single document outright', () => {
+    expect(heading({ responsibilities: [regions('Berlin')] })).toBe(
+      "You've been invited to look after Berlin",
+    )
+  })
+
+  it('counts one kind, and each of several', () => {
+    expect(heading({ responsibilities: [regions('Berlin', 'Hamburg')] })).toBe(
+      "You've been invited to look after 2 regions",
+    )
+    expect(
+      heading({
+        responsibilities: [
+          regions('Berlin'),
+          events({ title: 'A', url: null }, { title: 'B', url: null }),
+        ],
+      }),
+    ).toBe("You've been invited to look after 1 region and 2 events")
+  })
+
+  it('names the role when there is nothing to look after', () => {
+    expect(heading({ grants: [{ locale: 'French', roles: ['Web Translator'] }] })).toBe(
+      "You've been invited to help as Web Translator",
+    )
+    expect(
+      heading({
+        grants: [
+          { locale: 'French', roles: ['Web Translator'] },
+          { locale: 'English', roles: ['Atlas Manager'] },
+        ],
+      }),
+    ).toBe("You've been invited to help with Sahaj Atlas")
   })
 })
 

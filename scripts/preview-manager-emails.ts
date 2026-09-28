@@ -10,16 +10,16 @@
  * No database is touched. The four existing `preview-*-emails` scripts cover
  * registrant and event mail; none renders a manager auth email.
  *
- * ⚠ **It drives the real generators, not the templates.** The create scenarios
- * go through `inviteVerification`, the object `Managers.auth.verify` installs;
- * the resend scenarios through `prepareInvite`, what `issueMagicLink` calls. So
- * the subject, the brand, the URL shape and every row are exactly what a real
- * send produces. The `payload` stub answers only the database reads — the
- * `locale: 'all'` roles read and the `find` per managed collection — and its
- * collection configs are the real ones, so the preview cannot drift.
+ * ⚠ **It drives the real composition, not the template.** Every invitation
+ * goes through `composeInvitation`, the function both senders run — the queue
+ * task and `issueMagicLink`'s resend — so the subject, the brand, the button
+ * and every line are exactly what a real send produces. The `payload` stub
+ * answers only the database reads (the `locale: 'all'` roles read, and a
+ * `find` per managed collection), and its collection configs are the real
+ * ones, so the preview cannot drift.
  */
 
-import type { CollectionConfig, Payload, PayloadRequest } from 'payload'
+import type { CollectionConfig, Payload } from 'payload'
 
 import dotenv from 'dotenv'
 import { flattenAllFields } from 'payload'
@@ -34,117 +34,137 @@ dotenv.config({ path: ['.env.local', '.env'] })
 process.env.SAHAJCLOUD_URL ||= 'https://cloud.sydevelopers.com'
 
 const SECRET = 'preview-only-secret'
+const ATLAS = 'https://sahajatlas.com'
 
-/** Titles of the documents naming the manager, per collection, and how many exist. */
-type Managed = Partial<Record<'events' | 'pages' | 'regions', { titles: string[]; total?: number }>>
+/** A managed document as the stub returns it: a title, and its public page if it has one. */
+type Doc = { title: string; url?: string }
+
+type Managed = Partial<Record<'events' | 'pages' | 'regions', Doc[]>>
 
 interface Scenario {
   label: string
   note: string
-  /** What a `locale: 'all'` read of `roles` returns for this manager. */
-  roles: Record<string, string[]>
-  type: string
   name: string
+  type: 'admin' | 'manager'
+  /** Accepted before — then the email is a notice with a button to the admin. */
+  accepted?: boolean
   /** The manager's own `currentProject`. `null` for anyone who never signed in. */
   currentProject?: null | string
-  /** Resend scenarios only — a create has nothing naming the manager yet. */
-  managed?: Managed
+  /** Who assigned it, for a queued invitation. */
+  assignedBy?: string
+  /** What a `locale: 'all'` read of `roles` returns. */
+  roles: Record<string, string[]>
+  /** The documents naming the manager. */
+  managed: Managed
+  /**
+   * What was queued, for an invitation the queue sends. Absent for a resend,
+   * which names everything held.
+   */
+  queued?: boolean
 }
 
-/** What a create sends: roles only, since nothing can point at the account yet. */
-const CREATE_SCENARIOS: Scenario[] = [
-  {
-    label: 'invite · one locale',
-    note: 'the common case — a manager created with roles at the locale the admin was in',
-    roles: { en: ['meditations-editor', 'path-editor'] },
-    type: 'manager',
-    name: 'Jo Smith',
-  },
-  {
-    label: 'invite · atlas manager',
-    note: 'a new Atlas manager — branded Sahaj Atlas by its role, with no current project',
-    roles: { en: ['atlas-manager'] },
-    type: 'manager',
-    name: 'Lena Fischer',
-  },
-  {
-    label: 'invite · admin',
-    note: 'no role list applies — an admin holds everything, in every locale',
-    roles: {},
-    type: 'admin',
-    name: 'Sam Patel',
-  },
-  {
-    label: 'invite · no roles yet',
-    note: 'created with nothing assigned — says so outright rather than showing a blank table',
-    roles: {},
-    type: 'manager',
-    name: 'Ravi Menon',
-  },
-]
+const event = (title: string, published = true): Doc => ({
+  title,
+  ...(published && { url: `${ATLAS}/berlin/${title.toLowerCase().replaceAll(' ', '-')}` }),
+})
 
-const EVENTS = [
-  'Tuesday Evening Meditation',
-  'Sunday Morning Introduction',
-  'Meditation in the Park',
-  'Lunchtime Stress Relief',
-  'Beginners Workshop',
-]
-
-/** What a resend sends: by then the regions, events and pages naming the manager exist. */
-const RESEND_SCENARIOS: Scenario[] = [
+const SCENARIOS: Scenario[] = [
   {
-    label: 'resend · atlas manager',
-    note: 'the typical imported Atlas manager: one region, the events in it',
-    roles: { en: ['atlas-manager'] },
-    type: 'manager',
+    label: 'atlas · first assignment',
+    note: 'an admin names a new manager on a region and two events — one not yet published',
     name: 'Lena Fischer',
-    managed: { regions: { titles: ['Berlin'] }, events: { titles: EVENTS.slice(0, 2) } },
-  },
-  {
-    label: 'resend · atlas, many events',
-    note: 'several regions and 23 events — the first five are named, the rest counted',
-    roles: { de: ['atlas-manager'], fr: ['atlas-manager'] },
     type: 'manager',
-    name: 'Amélie Rousseau',
+    assignedBy: 'Anna Schmidt',
+    roles: { en: ['atlas-manager'] },
     managed: {
-      regions: { titles: ['Alsace', 'Bavaria', 'Hesse'] },
-      events: { titles: EVENTS, total: 23 },
+      regions: [{ title: 'Berlin', url: `${ATLAS}/germany/berlin` }],
+      events: [event('Tuesday Evening Meditation'), event('Sunday Morning Introduction', false)],
     },
+    queued: true,
   },
   {
-    label: 'resend · region, no role',
-    note: 'named on a region before any role was assigned',
-    roles: {},
-    type: 'manager',
-    name: 'Ravi Menon',
-    managed: { regions: { titles: ['Lyon'] } },
-  },
-  {
-    label: 'resend · page editor',
-    note: 'a We Meditate translator named on pages — branded WeMeditate Web',
-    roles: { fr: ['web-translator'] },
-    type: 'manager',
-    name: 'Claire Martin',
-    managed: { pages: { titles: ['About Sahaja Yoga', 'Meditation for Beginners'] } },
-  },
-  {
-    label: 'resend · unrelated current project',
-    note: 'current project WeMeditate Web, but everything listed is Atlas — branded Sahaj Atlas',
-    roles: { en: ['atlas-manager'] },
-    type: 'manager',
+    label: 'atlas · one event',
+    note: 'a single event — the heading names it',
     name: 'Tom Becker',
-    currentProject: 'wemeditate-web',
-    managed: { events: { titles: EVENTS.slice(2, 4) } },
+    type: 'manager',
+    assignedBy: 'Anna Schmidt',
+    roles: {},
+    managed: { events: [event('Meditation in the Park')] },
+    queued: true,
   },
   {
-    label: 'resend · related current project',
-    note: 'current project WeMeditate Web, and a page is listed — so that brand is kept',
-    roles: { en: ['atlas-manager', 'web-translator'] },
+    label: 'atlas · accepted, new events',
+    note: 'a manager who already accepted — told what is new, with a button to the admin',
+    name: 'Amélie Rousseau',
     type: 'manager',
+    accepted: true,
+    currentProject: 'sahaj-atlas',
+    assignedBy: 'Anna Schmidt',
+    roles: {},
+    managed: {
+      events: [
+        event('Lunchtime Stress Relief'),
+        event('Beginners Workshop'),
+        event('Evening Sitting', false),
+      ],
+    },
+    queued: true,
+  },
+  {
+    label: 'atlas · unrelated current project',
+    note: 'current project WeMeditate Web, but everything assigned is Atlas — branded Sahaj Atlas',
     name: 'Marco Bianchi',
+    type: 'manager',
+    accepted: true,
     currentProject: 'wemeditate-web',
-    managed: { events: { titles: EVENTS.slice(0, 1) }, pages: { titles: ['Guided Meditations'] } },
+    roles: {},
+    managed: { regions: [{ title: 'Milan', url: `${ATLAS}/italy/milan` }] },
+    queued: true,
+  },
+  {
+    label: 'we meditate · new role',
+    note: 'a role and nothing to look after — the heading names the role',
+    name: 'Claire Martin',
+    type: 'manager',
+    assignedBy: 'Anna Schmidt',
+    roles: { fr: ['web-translator'] },
+    managed: {},
+    queued: true,
+  },
+  {
+    label: 'we meditate · pages',
+    note: 'a translator named on two pages, one unpublished',
+    name: 'Claire Martin',
+    type: 'manager',
+    accepted: true,
+    currentProject: 'wemeditate-web',
+    roles: {},
+    managed: {
+      pages: [
+        { title: 'About Sahaja Yoga', url: 'https://wemeditate.com/about' },
+        { title: 'Meditation for Beginners' },
+      ],
+    },
+    queued: true,
+  },
+  {
+    label: 'resend · imported atlas manager',
+    note: 'an unaccepted manager asks for a link — the invitation names everything they hold',
+    name: 'Ravi Menon',
+    type: 'manager',
+    roles: { en: ['atlas-manager'] },
+    managed: {
+      regions: [
+        { title: 'Bavaria', url: `${ATLAS}/germany/bavaria` },
+        { title: 'Hesse', url: `${ATLAS}/germany/hesse` },
+      ],
+      events: [
+        event('Tuesday Evening Meditation'),
+        event('Sunday Morning Introduction'),
+        event('Meditation in the Park'),
+        event('Beginners Workshop', false),
+      ],
+    },
   },
 ]
 
@@ -152,15 +172,8 @@ async function main() {
   const { Events, Managers, Pages, Regions } = await import('@/collections')
   const { managersLogin } = await import('@/collections/Managers/login')
   const { generateEmailHTML, generateEmailSubject } = await import('@/plugins/login/mail')
-  const {
-    generateInviteEmailHTML,
-    generateInviteEmailSubject,
-    inviteUrl,
-    inviteVerification,
-    prepareInvite,
-    signInviteFor,
-    SIGNIN_VALID_FOR,
-  } = await import('@/plugins/login')
+  const { composeInvitation } = await import('@/plugins/login/invite')
+  const { SIGNIN_VALID_FOR } = await import('@/plugins/login')
 
   const { transport, messageUrl } = createCaptureTransport()
   const previews: { label: string; note: string; url: false | string }[] = []
@@ -178,79 +191,75 @@ async function main() {
   }
 
   // The four collections the summary reads config from, as Payload sanitizes
-  // them: flattened fields, and a plural label filled in from the slug.
+  // them: flattened fields, and labels filled in from the slug.
   const collections = Object.fromEntries(
-    ([Managers, Regions, Events, Pages] as CollectionConfig[]).map((collection) => [
-      collection.slug,
-      {
-        config: {
-          ...collection,
-          flattenedFields: flattenAllFields({ fields: collection.fields }),
-          labels: {
-            plural:
-              typeof collection.labels?.plural === 'string'
-                ? collection.labels.plural
-                : collection.slug.charAt(0).toUpperCase() + collection.slug.slice(1),
+    ([Managers, Regions, Events, Pages] as CollectionConfig[]).map((collection) => {
+      const words = collection.slug.charAt(0).toUpperCase() + collection.slug.slice(1)
+      const { plural, singular } = collection.labels ?? {}
+      return [
+        collection.slug,
+        {
+          config: {
+            ...collection,
+            flattenedFields: flattenAllFields({ fields: collection.fields }),
+            labels: {
+              plural: typeof plural === 'string' ? plural : words,
+              singular: typeof singular === 'string' ? singular : words.replace(/s$/, ''),
+            },
           },
         },
-      },
-    ]),
+      ]
+    }),
   )
 
-  // The two reads a summary makes: the roles, and a `find` per managed collection.
-  const payloadFor = (scenario: Scenario) =>
-    ({
+  for (const scenario of SCENARIOS) {
+    // The two reads a summary makes: the roles, and a `find` per managed collection.
+    const payload = {
       secret: SECRET,
       collections,
       findByID: async () => ({ roles: scenario.roles }),
-      find: async ({ collection, limit }: { collection: keyof Managed; limit: number }) => {
-        const { titles = [], total = titles.length } = scenario.managed?.[collection] ?? {}
+      find: async ({ collection }: { collection: keyof Managed }) => {
         const titleField = collections[collection]!.config.admin?.useAsTitle ?? 'id'
         return {
-          docs: titles.slice(0, limit).map((title) => ({ [titleField]: title })),
-          totalDocs: total,
+          docs: (scenario.managed[collection] ?? []).map((doc, index) => ({
+            id: index + 1,
+            [titleField]: doc.title,
+            webUrl: doc.url ?? null,
+          })),
         }
       },
-    }) as unknown as Payload
+    } as unknown as Payload
 
-  const userFor = (scenario: Scenario) => ({
-    id: 42,
-    email: 'manager-preview@example.com',
-    name: scenario.name,
-    type: scenario.type,
-    currentProject: scenario.currentProject ?? null,
-  })
+    // What the queue would hold: everything this scenario names, as new.
+    const only = scenario.queued
+      ? {
+          roles: scenario.roles,
+          managed: Object.fromEntries(
+            Object.entries(scenario.managed).map(([slug, docs]) => [
+              slug,
+              docs.map((_, index) => index + 1),
+            ]),
+          ),
+        }
+      : undefined
 
-  const verify = inviteVerification(managersLogin)
-
-  for (const scenario of CREATE_SCENARIOS) {
-    const payload = payloadFor(scenario)
-    const args = {
-      req: { payload } as unknown as PayloadRequest,
-      token: 'unused',
-      user: userFor(scenario),
-    }
-
-    const html = await verify.generateEmailHTML!(args as never)
-    await send(scenario, await verify.generateEmailSubject!(args as never), html)
-  }
-
-  for (const scenario of RESEND_SCENARIOS) {
-    const payload = payloadFor(scenario)
-    const doc = userFor(scenario)
-    const { project, summary } = await prepareInvite({
+    const invitation = await composeInvitation({
+      assignedBy: scenario.assignedBy,
       config: managersLogin,
-      doc,
+      doc: {
+        id: 42,
+        email: 'manager-preview@example.com',
+        name: scenario.name,
+        type: scenario.type,
+        currentProject: scenario.currentProject ?? null,
+        _verified: scenario.accepted === true,
+      },
+      only,
       payload,
-      withResponsibilities: true,
     })
-    const url = inviteUrl(managersLogin, await signInviteFor(managersLogin, doc, SECRET))
+    if (!invitation) throw new Error(`${scenario.label}: the invitation named nothing`)
 
-    await send(
-      scenario,
-      generateInviteEmailSubject(project),
-      await generateInviteEmailHTML({ doc, inviteUrl: url, project, summary }),
-    )
+    await send(scenario, invitation.subject, invitation.html)
   }
 
   // The sibling an accepted manager gets instead, so the two can be compared.

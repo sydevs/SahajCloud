@@ -327,15 +327,16 @@ all 327 records.)
   wechat) → `[{ platform: contactMethod, identifier: phone, verified:
   phoneVerified }]` (a `contactMethod` of `email` produces no entry).
   `notificationPreferences` ← the `notifications` bitmask + `contactMethod`,
-  with the type remap `new_managed_record`→`new_responsibility`,
+  with the type remap `new_managed_record`→`invitation`,
   `event_verification`→`event_verification`,
   `event_registrations`→`event_registration`, all `*_summary` bits →
   `regional_summary`. Per mapped type, `method = contactMethod or 'email'`.
-  Atlas has no frequency, so defaults apply: `new_responsibility` =
+  Atlas has no frequency, so defaults apply: `invitation` =
   Immediate (Never if the bit is off), `event_verification` = Monthly,
   `event_registration` = Immediate (Never if off), `regional_summary` =
-  Monthly (Never if no summary bits set). `emailVerified` → Payload auth's
-  built-in `_verified` (no new field).
+  Monthly (Never if no summary bits set). `emailVerified` stays under
+  `legacyData`: an imported manager arrives unaccepted (`_verified` false), and
+  the first reminder link they follow accepts them (#839).
 
 ### clients.json — existing Clients/Services collection
 

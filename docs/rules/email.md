@@ -90,7 +90,7 @@ Transactional emails are [React Email](https://react.email) components under `sr
 | File | Purpose |
 |---|---|
 | `EmailLayout.tsx` | Shared shell (header, card body, footer). Exports `BrandButton`, `BrandButtonRow`, `DetailRow` (manager fact table), `StackedDetailRow` (guest itinerary row), `SectionHeading`, `ProgressBar`, and shared `styles`. Reuse these for visual consistency. |
-| `InviteEmail.tsx` | Manager invitation (#839), naming the access granted per locale and carrying a login link. Replaces `VerifyEmail.tsx` on `auth.verify`. A resend also lists the regions, events and pages naming the manager — join fields, so a create has none to list. |
+| `InviteEmail.tsx` | Manager invitation (#839): what a manager was just assigned — roles, and each region, event and page naming them, one per line and linked to its public page — with an Atlas introduction and the assigner's name. An accepted manager gets the same email with a button to the admin instead of an invitation to accept. |
 | `SignInLinkEmail.tsx` | The emailed sign-in link an ACCEPTED manager gets (#837). `issueMagicLink` picks between this and the invitation on `_verified`. |
 | `ResetPasswordEmail.tsx` | Manager password-reset message (replaces Payload's default). |
 | `EventVerificationEmail.tsx` | Manager/region verification reminder, with a listing-quality progress section (#611) shown to the **event manager only**. A complete listing drops the progress bar and keeps only the ticks. An absent `listingProgress` renders no section at all. |
@@ -150,8 +150,8 @@ Email glue lives in the plugin (`@/plugins/email`). Only JSX templates live in `
   ```
 
   None touches the database. `preview-manager-emails.ts` drives
-  `inviteVerification` — the object `Managers.auth.verify` installs — so the subject, the URL
-  shape and the grant rows are the ones a create sends.
+  `composeInvitation` — what both invitation senders run — so the subject, the brand, the
+  button and every line are the ones a real send produces.
 
 - **A progress bar is two table cells, not a styled `<div>`.** Outlook's Word rendering engine drops CSS backgrounds on a `<div>`, and no client reliably supports `<progress>`. `ProgressBar` uses a real `<table>` with `backgroundColor` per cell, each holding an NBSP (`' '`, not a plain space, which collapses as insignificant whitespace). A zero-width cell is omitted, since some clients round `width: 0%` up to a visible sliver.
 - **Icons: emails are the exception to the no-emoji rule.** Gmail strips inline `<svg>` and Outlook can't render it, so templates keep **emoji** or a **hosted PNG** via `<Img>` — never `lucide-react` or `@payloadcms/ui` icons.
@@ -180,20 +180,21 @@ pluralize(strings, 'sessions_count', count, locale)
 
 ## Authentication features
 
-**The invitation** (`InviteEmail`) and **password reset** (`ResetPasswordEmail`) are custom React Email templates wired on `Managers` (`auth.verify` / `auth.forgotPassword`) — no longer Payload's bare defaults. Subjects derive from the resolved brand name.
+**Password reset** (`ResetPasswordEmail`) is a custom React Email template wired on `Managers.auth.forgotPassword`, and its subject derives from the resolved brand name. **The invitation** (`InviteEmail`) is sent by the login plugin, not by Payload — see below.
 
-### `auth.verify` sends an invitation, and `_verified` is the accepted flag (#839)
+### A manager is invited when assigned something, never on create (#839)
 
-`auth.verify` stays configured for the **column**, not for Payload's own verify mail: the JWT strategy yields no user while `_verified` is false, so that column is the accepted/not-accepted flag. `inviteVerification` (`src/plugins/login/invite.ts`) repoints both generators, and:
+`auth.verify` stays configured for the **column** alone: the JWT strategy yields no user while `_verified` is false, so that column is the accepted/not-accepted flag. Payload's own create would send its verify mail whenever `auth.verify` is set, so `loginPlugin` forces `disableVerificationEmail` in a `beforeOperation` hook — Payload reads it after those hooks run. A create sends nothing, whoever calls it.
 
-- **The framework's `token` argument is ignored.** It addresses `/admin/<slug>/verify/:token`, a form that asks for a password this flow never sets. The invitation carries a `manager-invite` JWT instead — a separate audience from a sign-in link, so neither route spends the other's token.
-- **Nothing in the generators may throw.** `sendVerificationEmail` is awaited at `create.js:231`, before `commitTransaction` and outside any `try`, so a throw returns a 500 with no account created.
-- **The grant summary reads `locale: 'all'` inside that open transaction.** It passes `localeIsolatedReq(req)`, or `createLocalReq` repoints the caller's locale and the create's own localized write lands at `all` (#609).
-- **A create writes one locale**, so that is all an invitation can name. A resend — `issueMagicLink`'s invite branch, taken while `_verified` is false — names every locale, because by then they exist.
-- **Only a resend lists responsibilities.** The regions, events and pages naming a manager are the `managedRegions`, `managedEvents` and `managedPages` joins, and nothing points at an account created one instant ago — so the create path does not query them inside its transaction (`withResponsibilities: false`). An imported Atlas manager's invitation is always a resend, so theirs lists them.
-- ⚠ **The brand follows what the invitation lists** (`brandProject`). The account's `currentProject` wins only when it relates to a listed role or managed document; otherwise the project most of the listing belongs to does, and an empty listing takes the default. `currentProject` alone cannot decide it: only `set-project` writes it, and an account that has never accepted has never signed in to call it. Subject, `From` and body all take the brand from one `prepareInvite` call, so they cannot disagree.
-- **The importer opts out** with `disableVerificationEmail: true` and marks nothing verified. An imported manager's way in is to ask for a link, which re-sends the invitation.
-- **A create that sets `_verified: true` itself must opt out too.** Payload gates the send on `result.email` alone, never on the flag, so an account seeded as already-accepted would be mailed an invitation that `redeem-invite` refuses on the first click. `seedPreviewAdmin` is the one such caller.
+The invitation is sent by a queue (`src/plugins/login/invitations.ts`):
+
+- **An assignment queues it.** A role added to a manager, or a region, event or page newly naming one (each collection a `managers` join points at), is recorded on the manager as `pendingInvitation`, and `invitationDueAt` moves to ten minutes on. `sendInvitations` runs every five minutes on the `invitations` queue and sends what is due — so a region and twelve events assigned together are one email. Removing an assignment queues nothing.
+- ⚠ **Queue writes go through `payload.db.updateOne`**, never `update`. They are bookkeeping on someone else's save: `update` would run the manager's hooks and validate the whole stored document, so an imported manager with legacy data failing a newer validator would roll back the region save that named them.
+- **A manager's own change queues nothing** — creating an event they manage is not news to them. Nor does anything under a seed script: `payload.config.ts` passes `invitations: !isSeedScript`, or an import would leave production hundreds of invitations to send.
+- **The send names only what was queued, and only what is still held.** Each queued id is re-read, so an assignment undone before the send is not announced, and a finished event is left out. A queue that names nothing sends nothing. The `invitation` notification preference set to Never turns it off.
+- **Accepted or not decides the button.** An unaccepted account gets the `manager-invite` link — accepting it signs them in. An accepted one gets a button to the admin, which signs them in the usual way. The queue is claimed (cleared) before each send, so an assignment saved mid-send starts a fresh queue rather than being wiped.
+- **A resend names everything held.** `issueMagicLink` re-sends an invitation to an unaccepted account that asks for a link, listing every role and document it holds — how an imported Atlas manager, named on regions before anything mailed them, gets in. One with nothing assigned is sent nothing: there is nothing to invite them to.
+- ⚠ **The brand follows what the invitation lists** (`brandProject`). The account's `currentProject` wins only when it relates to a listed role or document; otherwise the project most of the listing belongs to does, and an empty listing takes the default. `currentProject` alone cannot decide it: only `set-project` writes it, and an account that has never accepted has never signed in to call it. Subject, `From` and body all come from one `composeInvitation` call, so they cannot disagree.
 - ⚠ **`_verified` is not a column every auth collection has.** `getAuthFields.js` adds the verification fields only where `auth.verify` is configured. Anything branching on the flag for a *served* collection — `issueMagicLink` picking between the two mails — asks the sanitized config first, or it reads `undefined` and invites every account forever.
 
 ### A verification reminder's link signs its manager in

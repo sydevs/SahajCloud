@@ -16,10 +16,8 @@ import { getLanguageOptions } from '@/lib/locales'
 import { adminUrl } from '@/lib/utilities/adminUrl'
 import { adminOnlyFieldAccess, getRoleOptions, getProjectOptions } from '@/plugins/access'
 import { getEmailBrand, renderEmail } from '@/plugins/email'
-import { inviteVerification } from '@/plugins/login'
 
 import { setProject } from './endpoints/setProject'
-import { managersLogin } from './login'
 
 export const Managers: CollectionConfig = {
   slug: 'managers',
@@ -28,13 +26,13 @@ export const Managers: CollectionConfig = {
   endpoints: [setProject],
   auth: {
     // The reset mail uses the default brand (wemeditate-web) whatever the
-    // recipient's currentProject (#483). The invitation is branded for what it
-    // lists instead — see `brandProject`.
+    // recipient's currentProject (#483).
     // Configured for the `_verified` column, not for Payload's own verify mail:
     // the JWT strategy yields no user while that column is false, so it is the
-    // accepted/not-accepted flag the invitation flow turns on. Both generators
-    // are repointed at the invitation — see `inviteVerification` (#839).
-    verify: inviteVerification(managersLogin),
+    // accepted/not-accepted flag the invitation flow turns on. `loginPlugin`
+    // stops the create from sending that mail — an account is invited when it
+    // is assigned something instead (#839).
+    verify: true,
     forgotPassword: {
       generateEmailHTML: (args) =>
         renderEmail(

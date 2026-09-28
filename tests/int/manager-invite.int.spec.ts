@@ -8,26 +8,38 @@
  *
  * ⚠ **What is asserted is the SEND, not the template.** `manager-invite.spec.ts`
  * covers the copy and the grant summary without a bootstrap. What only a booted
- * Payload can show is that `create` sends this and nothing else, that the
- * localized write still lands where the create asked, and that accepting flips
- * `_verified` and mints a session.
+ * Payload can show is the queue: that a create sends nothing, that an
+ * assignment queues and the task sends it once the delay has passed, and that
+ * accepting flips `_verified` and mints a session.
  *
- * It replaces `manager-verification.int.spec.ts`, whose loop no longer exists:
- * no email carries `/admin/managers/verify/:token` any more. The one property
- * that file held alone — login refused by NAME while unaccepted, and allowed
- * after — is the last test below, now asserted against the real accept route.
+ * The one property `manager-verification.int.spec.ts` held alone — login
+ * refused by NAME while unaccepted, and allowed after — is asserted below
+ * against the real accept route.
  */
 import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { MANAGER_SIGNIN_PATH } from '@/collections/Managers/login'
+import { managersLogin, MANAGER_SIGNIN_PATH } from '@/collections/Managers/login'
 import { escapeRegExp } from '@/lib/eventQuality/heuristics'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
-import { INVITE_TOKEN_TTL_MS, signInviteToken, signLinkToken, signSigninToken } from '@/plugins/login'
+import type { Manager } from '@/payload-types'
+import {
+  INVITATION_DELAY_MS,
+  INVITE_TOKEN_TTL_MS,
+  signInviteToken,
+  signLinkToken,
+  signSigninToken,
+} from '@/plugins/login'
+import { sendInvitationsTask } from '@/plugins/login/invitations'
 
 import { EmailTestAdapter } from '../utils/emailTestAdapter'
-import { createAnonRestClient, createRestClientWithAuth, type RestClient } from '../utils/restRequest'
+import {
+  createAnonRestClient,
+  createRestClientWithAuth,
+  type RestClient,
+} from '../utils/restRequest'
+import { runTaskHandler } from '../utils/taskRunner'
 import { testData } from '../utils/testData'
 import { createTestEnvironmentWithEmail } from '../utils/testHelpers'
 
@@ -40,9 +52,9 @@ const REQUEST_PATH = '/api/managers/request-magic-link'
 /**
  * The invitation as the recipient receives it, token captured.
  *
- * ⚠ **`?invite=`, not `?token=`.** The two links are separate JWT audiences, so
- * an invitation arriving under the sign-in parameter would be read with the
- * wrong reader and refused as invalid.
+ * ⚠ **`?invite=`, not `?token=`.** The links are separate JWT audiences, so an
+ * invitation arriving under the sign-in parameter would be read with the wrong
+ * reader and refused as invalid.
  */
 const INVITE_URL = new RegExp(
   `${escapeRegExp(`${getServerUrl()}${MANAGER_SIGNIN_PATH}?invite=`)}([\\w.%-]+)`,
@@ -58,6 +70,8 @@ describe('manager invitation', () => {
   let emailAdapter: EmailTestAdapter
   let anon: RestClient
   let cleanup: () => Promise<void>
+  /** The admin whose saves assign things — named in the invitations they cause. */
+  let admin: Manager
 
   /** Accept an invitation the way the confirmation page's form does. */
   const accept = (token: string) =>
@@ -71,10 +85,38 @@ describe('manager invitation', () => {
     return match ? decodeURIComponent(match[1]!) : null
   }
 
-  /** Create a manager the way the admin form does, and hand back the invitation. */
+  /**
+   * Run the queue's task as though `after` had passed since now — by default,
+   * just past the delay, so everything queued so far is due.
+   */
+  const runQueue = (after = INVITATION_DELAY_MS + 60_000) =>
+    runTaskHandler(sendInvitationsTask(managersLogin), {
+      payload,
+      context: { now: new Date(Date.now() + after) },
+    })
+
+  const mailTo = (email: string) =>
+    emailAdapter.getCapturedEmails().filter((sent) => JSON.stringify(sent.to).includes(email))
+
+  const queueOf = async (id: number | string) => {
+    const manager = await payload.findByID({ collection: 'managers', id, depth: 0 })
+    return { due: manager.invitationDueAt, pending: manager.pendingInvitation }
+  }
+
+  /**
+   * A manager given a role, invited the way a real one is: the create queues
+   * the role, and the queue sends the invitation once the delay has passed.
+   */
   const invite = async (overrides: Record<string, unknown> = {}) => {
     emailAdapter.clearCapturedEmails()
-    const manager = await testData.createManager(payload, { type: 'manager', ...overrides })
+    const manager = await testData.createManager(payload, {
+      type: 'manager',
+      roles: { en: ['path-editor'] },
+      ...overrides,
+    })
+    expect(mailTo(manager.email), 'a create sent mail').toHaveLength(0)
+
+    await runQueue()
     const sent = emailAdapter.findEmailByTo(manager.email)
     expect(sent, `no invitation captured for ${manager.email}`).toBeDefined()
 
@@ -83,6 +125,10 @@ describe('manager invitation', () => {
 
     return { manager, sent: sent!, token: token! }
   }
+
+  /** A manager with nothing assigned, so nothing is queued for them. */
+  const bare = (overrides: Record<string, unknown> = {}) =>
+    testData.createManager(payload, { type: 'manager', roles: [], ...overrides })
 
   const expectAccepted = (answer: { headers: Headers; status: number }) => {
     expect(answer.status).toBe(302)
@@ -107,69 +153,148 @@ describe('manager invitation', () => {
     emailAdapter = env.emailAdapter
     cleanup = env.cleanup
     anon = createAnonRestClient(env)
+    admin = await testData.createManager(payload, { name: 'Anna Schmidt', type: 'admin' })
   })
 
   afterAll(async () => {
     await cleanup()
   })
 
-  describe('creating a manager', () => {
-    it('sends exactly one email, and it is the invitation', async () => {
-      const { manager, sent } = await invite()
-
-      const toThem = emailAdapter
-        .getCapturedEmails()
-        .filter((email) => JSON.stringify(email.to).includes(manager.email))
-      expect(toThem).toHaveLength(1)
-
-      expect(sent.subject).toContain('invited')
-      // The route the swap replaced. It asks for a password this flow never sets.
-      expect(sent.html).not.toContain('/admin/managers/verify/')
-    })
-
-    it('names the roles by label, at whichever locale the create wrote them', async () => {
-      // ⚠ **A create writes ONE locale**, so that is all the invitation can
-      // name — a second locale's roles are a later `update`, after this email
-      // has been rendered and sent. French here rather than English precisely
-      // because it proves the `locale: 'all'` read, and not a default-locale
-      // one, is what produced the row. The resend below is where a manager
-      // holding two locales gets both named.
-      const { sent } = await invite({ roles: { fr: ['web-translator'] } })
-
-      expect(sent.html).toContain('French')
-      expect(sent.html).toContain('Web Translator')
-      expect(sent.html).not.toContain('English')
-    })
-
-    it('leaves the localized write at the locale the create asked for', async () => {
-      // The summary reads `locale: 'all'` from inside the create's own
-      // transaction. Passing the caller's request straight through would
-      // repoint it, and the roles below would land at `all` or nowhere (#609).
-      const { manager } = await invite({ roles: { fr: ['web-translator'] } })
-
-      const french = await payload.findByID({ collection: 'managers', id: manager.id, locale: 'fr' })
-      expect(french.roles).toEqual(['web-translator'])
-
-      // The observed value, with no `?? []` softening it: Payload returns no
-      // `roles` key at all for a locale never written. A fallback would read the
-      // same for that and for a read that came back empty.
-      const english = await payload.findByID({ collection: 'managers', id: manager.id, locale: 'en' })
-      expect(english.roles).toBeUndefined()
-    })
-
-    it('sends nothing when the caller opts out — the importer’s path', async () => {
+  describe('the invitation queue', () => {
+    it('sends nothing on create, and invites once the last assignment has settled', async () => {
       emailAdapter.clearCapturedEmails()
-
-      const email = `import_${Date.now()}@example.com`
-      const created = await payload.create({
-        collection: 'managers',
-        data: { name: 'Imported', email, password: 'password123', type: 'manager' },
-        disableVerificationEmail: true,
+      const manager = await testData.createManager(payload, {
+        type: 'manager',
+        roles: { en: ['atlas-manager'] },
       })
 
-      expect(emailAdapter.findEmailByTo(email)).toBeUndefined()
-      // And nothing marked them accepted, so the magic link is their way in.
-      expect(created._verified).toBeFalsy()
+      // The create queued the role and sent nothing.
+      expect(mailTo(manager.email)).toHaveLength(0)
+      const { due, pending } = await queueOf(manager.id)
+      expect(pending).toMatchObject({ roles: { en: ['atlas-manager'] } })
+      expect(due).toBeTruthy()
+
+      // Not yet due: the window is still open for more.
+      await runQueue(0)
+      expect(mailTo(manager.email)).toHaveLength(0)
+
+      await runQueue()
+      const sent = mailTo(manager.email)
+      expect(sent).toHaveLength(1)
+      expect(sent[0]!.subject).toBe("You've been invited to help as Atlas Manager")
+      expect(tokenIn(sent[0]!.html, INVITE_URL)).not.toBeNull()
+      expect(await queueOf(manager.id)).toEqual({ due: null, pending: null })
+    })
+
+    it('names the region a manager was put on, linked, and who put them there', async () => {
+      const manager = await bare()
+      emailAdapter.clearCapturedEmails()
+
+      // Saved as the admin, so the invitation can say who asked.
+      const region = await testData.createRegion(payload)
+      await payload.update({
+        collection: 'regions',
+        id: region.id,
+        data: { managers: [manager.id] },
+        user: admin,
+      })
+      const { webUrl } = await payload.findByID({ collection: 'regions', id: region.id })
+
+      await runQueue()
+      const [sent] = mailTo(manager.email)
+      expect(sent!.subject).toBe(`You've been invited to look after ${region.name}`)
+      expect(sent!.html).toContain(
+        'Anna Schmidt has invited you to look after the following on Sahaj Atlas.',
+      )
+      expect(sent!.html).toContain(`href="${webUrl}"`)
+      expect(sent!.html).toContain('Including the regions within it.')
+    })
+
+    it('collapses assignments made in quick succession into one invitation', async () => {
+      const manager = await bare()
+      emailAdapter.clearCapturedEmails()
+
+      const region = await testData.createRegion(payload, { managers: [manager.id] })
+      await testData.createEvent(payload, { manager: manager.id, region: region.id })
+
+      await runQueue()
+      const sent = mailTo(manager.email)
+      expect(sent).toHaveLength(1)
+      expect(sent[0]!.subject).toBe("You've been invited to look after 1 region and 1 event")
+    })
+
+    it('queues nothing for a change the manager made themselves', async () => {
+      // A region of their own to file it under — a manager may only place an
+      // event in their subtree. Its assignment is someone else's, so clear it.
+      const manager = await bare()
+      const region = await testData.createRegion(payload, { managers: [manager.id] })
+      await payload.db.updateOne({
+        collection: 'managers',
+        id: manager.id,
+        data: { pendingInvitation: null, invitationDueAt: null },
+        returning: false,
+      })
+
+      // Creating an event they manage is not news to them.
+      await payload.create({
+        collection: 'events',
+        data: {
+          title: `Own Event ${manager.id}`,
+          languages: ['en'],
+          manager: manager.id,
+          region: region.id,
+          verificationStage: 'verified',
+          inactive: true,
+          contactPhone: '+1-555-0100',
+          contactName: 'Test Contact',
+        } as never,
+        user: manager,
+      })
+
+      expect((await queueOf(manager.id)).pending).toBeNull()
+    })
+
+    it('does not announce an assignment undone before the send', async () => {
+      const manager = await bare()
+      emailAdapter.clearCapturedEmails()
+
+      const region = await testData.createRegion(payload, { managers: [manager.id] })
+      await payload.update({ collection: 'regions', id: region.id, data: { managers: [] } })
+
+      await runQueue()
+      expect(mailTo(manager.email)).toHaveLength(0)
+      // Removing a manager queued nothing of its own, and the send cleared the rest.
+      expect(await queueOf(manager.id)).toEqual({ due: null, pending: null })
+    })
+
+    it('respects a manager who turned invitations off', async () => {
+      const manager = await bare({
+        notificationPreferences: { invitation: { frequency: 'Never', method: '' } },
+      })
+      emailAdapter.clearCapturedEmails()
+
+      await testData.createRegion(payload, { managers: [manager.id] })
+
+      await runQueue()
+      expect(mailTo(manager.email)).toHaveLength(0)
+      expect((await queueOf(manager.id)).pending).toBeNull()
+    })
+
+    it('tells an accepted manager what is new, with a button to the admin', async () => {
+      const { manager, token } = await invite()
+      expectAccepted(await accept(token))
+      emailAdapter.clearCapturedEmails()
+
+      const region = await testData.createRegion(payload, { managers: [manager.id] })
+
+      await runQueue()
+      const [sent] = mailTo(manager.email)
+      expect(sent!.subject).toBe(`You've been invited to look after ${region.name}`)
+      expect(sent!.html).toContain('Open Sahaj Cloud')
+      expect(sent!.html).toContain(`href="${getServerUrl()}/admin"`)
+      expect(tokenIn(sent!.html, INVITE_URL)).toBeNull()
+      // Only what is new — not the role the first invitation already named.
+      expect(sent!.html).not.toContain('Path Editor')
     })
   })
 
@@ -193,8 +318,8 @@ describe('manager invitation', () => {
       const { token } = await invite()
       expectAccepted(await accept(token))
 
-      // `_verified` is the single-use check here: an invitation minted during
-      // `create` stamps no timestamp to compare against.
+      // `_verified` is the single-use check here: an invitation stamps no
+      // timestamp to compare against.
       expectRefused(await accept(token), 'invalid')
     })
 
@@ -349,11 +474,15 @@ describe('manager invitation', () => {
       expect(tokenIn(sent!.html, SIGN_IN_URL)).toBeNull()
     })
 
-    it('names every locale once the roles exist — which a create cannot', async () => {
-      // The other half of the create-writes-one-locale finding above. By the
-      // time a manager asks for a link, both locales have been written.
+    it('names everything the manager holds, not just what is new', async () => {
       const { manager } = await invite({
         roles: { en: ['meditations-editor'], fr: ['web-translator'] },
+      })
+      const region = await testData.createRegion(payload, { managers: [manager.id] })
+      const event = await testData.createEvent(payload, {
+        title: `Resent Event ${manager.id}`,
+        manager: manager.id,
+        region: region.id,
       })
 
       const sent = await request(manager.email)
@@ -361,43 +490,16 @@ describe('manager invitation', () => {
       expect(sent!.html).toContain('Meditations Editor')
       expect(sent!.html).toContain('French')
       expect(sent!.html).toContain('Web Translator')
-    })
-
-    it('lists the regions and events naming the manager — which a create cannot', async () => {
-      // The Atlas manager's usual shape: named on regions and events after the
-      // account exists, so only a resend can say so.
-      const { manager, sent: atCreate } = await invite({ roles: { en: ['atlas-manager'] } })
-      const region = await testData.createRegion(payload, {
-        name: `Invite Region ${manager.id}`,
-        managers: [manager.id],
-      })
-      const event = await testData.createEvent(payload, {
-        title: `Invite Event ${manager.id}`,
-        manager: manager.id,
-        region: region.id,
-      })
-      expect(atCreate.html).not.toContain('Your responsibilities')
-
-      const sent = await request(manager.email)
-      expect(sent!.html).toContain('Your responsibilities')
       expect(sent!.html).toContain(region.name!)
-      expect(sent!.html).toContain('Including the regions within it.')
       expect(sent!.html).toContain(event.title)
     })
 
-    it('brands the invitation for what it lists, not an unrelated current project', async () => {
-      // A We Meditate current project on an account whose only grants are Atlas.
-      const { manager } = await invite({ roles: { en: ['atlas-manager'] } })
-      await payload.update({
-        collection: 'managers',
-        id: manager.id,
-        data: { currentProject: 'wemeditate-web' },
-      })
-      await testData.createRegion(payload, { managers: [manager.id] })
+    it('sends nothing to an unaccepted manager with nothing assigned', async () => {
+      // There is nothing to invite them to — and a sign-in link would be
+      // refused, since they have never accepted.
+      const manager = await bare()
 
-      const sent = await request(manager.email)
-      expect(sent!.subject).toBe("You've been invited to Sahaj Atlas")
-      expect(sent!.html).not.toContain('WeMeditate Web')
+      expect(await request(manager.email)).toBeUndefined()
     })
 
     it('sends a plain sign-in link once they have accepted', async () => {
@@ -411,19 +513,19 @@ describe('manager invitation', () => {
     })
 
     it('carries an imported manager all the way in', async () => {
-      // The importer's row, start to finish: nothing mailed it, `_verified` is
-      // false, and asking for a link is what delivers the invitation that
-      // accepts it.
-      emailAdapter.clearCapturedEmails()
-      const email = `import_${Date.now()}_${Math.random().toString(36).slice(2)}@example.com`
-      const created = await payload.create({
+      // The importer's row, start to finish: it queues nothing (the seed runs
+      // with invitations off), `_verified` is false, and asking for a link is
+      // what delivers the invitation that accepts it.
+      const created = await bare()
+      await testData.createRegion(payload, { managers: [created.id] })
+      await payload.db.updateOne({
         collection: 'managers',
-        data: { name: 'Imported', email, password: 'password123', type: 'manager' },
-        disableVerificationEmail: true,
+        id: created.id,
+        data: { pendingInvitation: null, invitationDueAt: null },
+        returning: false,
       })
-      expect(emailAdapter.findEmailByTo(email)).toBeUndefined()
 
-      const sent = await request(email)
+      const sent = await request(created.email)
       const token = tokenIn(sent?.html, INVITE_URL)
       expect(token, 'an imported manager was sent no invitation').not.toBeNull()
 

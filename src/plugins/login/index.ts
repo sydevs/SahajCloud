@@ -18,9 +18,9 @@
  * - `token.ts` — the three link kinds, as separate JWT audiences.
  * - `pageLinkUrl` — a link that signs its holder in on the way to one admin
  *   page, which is what an event-verification reminder carries.
- * - `inviteVerification` — the `auth.verify` swap that replaces Payload's
- *   "verify your email" with an invitation naming the access granted (#839),
- *   branded for what it names (`brandProject`).
+ * - `invitations.ts` — the invitation queue: an account is invited when it is
+ *   assigned a role, region, event or page, never on create (#839). The
+ *   invitation names what was assigned, branded for it (`brandProject`).
  *
  * ⚠ The endpoint *factories* are not re-exported here. `loginPlugin` is the only
  * caller, and exporting them would invite a collection to wire its own copy —
@@ -43,7 +43,7 @@ export {
   generateInviteEmailSubject,
   INVITE_VALID_FOR,
   inviteUrl,
-  inviteVerification,
+  namesAnything,
   prepareInvite,
   signInviteFor,
   type PreparedInvite,
@@ -51,12 +51,15 @@ export {
 
 export {
   brandProject,
-  LISTED_PER_KIND,
   summarizeGrants,
   type GrantSummary,
   type LocaleGrant,
+  type PendingInvitation,
   type Responsibility,
+  type ResponsibilityItem,
 } from './grantSummary'
+
+export { INVITATION_DELAY_MS, INVITATIONS_QUEUE } from './invitations'
 
 export { createSession } from './session'
 

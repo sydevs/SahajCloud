@@ -5,13 +5,7 @@ import { z } from 'zod'
 
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 
-import {
-  generateInviteEmailHTML,
-  generateInviteEmailSubject,
-  inviteUrl,
-  prepareInvite,
-  signInviteFor,
-} from './invite'
+import { composeInvitation } from './invite'
 import { emailFrom, generateEmailHTML, generateEmailSubject } from './mail'
 import { signSigninToken, SIGNIN_TOKEN_TTL_MS } from './token'
 
@@ -150,25 +144,12 @@ export async function issueMagicLink({
   // would read `undefined`, take this branch for every account forever, and
   // never send a sign-in link.
   if (invitesAccounts(payload, slug) && account._verified !== true) {
-    const url = inviteUrl(config, await signInviteFor(config, account, payload.secret, now))
-    const { project, summary } = await prepareInvite({
-      config,
-      doc: account,
-      payload,
-      // No `req`: this send has a request of its own with no open transaction,
-      // so the grant summary takes its own connection. @see summarizeGrants
-      //
-      // By now the regions, events and pages naming the account exist — an
-      // imported manager's always do — so this invitation can list them.
-      withResponsibilities: true,
-    })
-
-    await payload.sendEmail({
-      to: account.email,
-      from: emailFrom(project),
-      subject: generateInviteEmailSubject(project),
-      html: await generateInviteEmailHTML({ doc: account, inviteUrl: url, project, summary }),
-    })
+    // Everything the account holds, not just what is new: it has never
+    // accepted, so nothing announced so far has got it in.
+    const invitation = await composeInvitation({ config, doc: account, now, payload })
+    // Nothing to name means nothing to invite to — and a sign-in link would be
+    // refused, since the account has never accepted. Say nothing, as ever.
+    if (invitation) await payload.sendEmail({ to: account.email, ...invitation })
     return
   }
 

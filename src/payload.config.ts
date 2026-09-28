@@ -332,7 +332,9 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       // Passwordless sign-in (#837): the magic-link field plus the request and
       // consume endpoints, for every collection the option names. Before
       // accessPlugin, which must stay last.
-      loginPlugin({ collections: [managersLogin] }),
+      // Invitations queue on assignment — except under a seed script, whose bulk
+      // writes would otherwise leave production a queue to mail (see the option).
+      loginPlugin({ collections: [managersLogin], invitations: !isSeedScript }),
       // Access Plugin: Unified RBAC and project visibility (must be LAST to process plugin-created collections)
       accessPlugin({
         enabled: true,

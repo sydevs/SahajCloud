@@ -636,12 +636,11 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
             legacyId: manager.legacyId,
             legacyData: manager,
           },
-          // Bulk import: skip the per-manager invitation (mail rate limits). An
-          // imported manager therefore arrives unaccepted with nothing mailing
-          // them — a sign-in link is their way in, and requesting one re-sends
-          // the invitation while `_verified` is false (#839). `emailVerified`
-          // stays readable under `legacyData`.
-          { identifier: manager.email, current: i + 1, total, disableVerificationEmail: true },
+          // An imported manager arrives unaccepted, and nothing mails them: a
+          // create sends nothing, and a seed run queues no invitations. Their
+          // first email is a verification reminder, whose link accepts them
+          // (#839). `emailVerified` stays readable under `legacyData`.
+          { identifier: manager.email, current: i + 1, total },
         )
         this.idMaps.managers.set(manager.legacyId, result.doc.id)
       } catch (error) {

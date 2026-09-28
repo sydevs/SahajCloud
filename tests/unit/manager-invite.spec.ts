@@ -1,15 +1,15 @@
 /**
- * The manager invitation: what it may claim, and what it mints (#839).
+ * The manager invitation: what it may claim, how it is branded, and what it
+ * mints (#839).
  *
- * Three separable things, all reachable without a Payload bootstrap:
+ * Reachable without a Payload bootstrap:
  *
- * - `summarizeGrants` — the only access an invitation can honestly name, and
- *   the locale isolation that keeps composing it from corrupting the create it
- *   runs inside.
+ * - `summarizeGrants` — the roles and managed documents an invitation names,
+ *   narrowed to what was newly assigned when the queue sends it, and the locale
+ *   isolation that keeps its roles read from repointing a caller's request.
  * - `brandProject` — the brand follows what the invitation lists.
- * - `inviteVerification` — the `auth.verify` swap, asserted on the URL it
- *   builds and the AUDIENCE of the token in it, not on the template.
- * - `INVITE_VALID_FOR` — derived from the TTL, so the copy cannot outlive it.
+ * - `composeInvitation` — the whole email: the button's target and the
+ *   AUDIENCE of the token in it, asserted on the wire rather than the template.
  *
  * ⚠ The fake `payload` below emulates `createLocalReq`'s one load-bearing
  * behaviour: it assigns `locale` onto the request object it is handed. Without
@@ -17,80 +17,69 @@
  */
 import type { Payload, PayloadRequest } from 'payload'
 
+import { decodeJwt } from 'jose'
 import { describe, expect, it } from 'vitest'
 
-import { Managers } from '@/collections'
-import { MANAGER_SIGNIN_PATH } from '@/collections/Managers/login'
+import { managersLogin, MANAGER_SIGNIN_PATH } from '@/collections/Managers/login'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 import {
   brandProject,
   type GrantSummary,
   INVITE_VALID_FOR,
-  LISTED_PER_KIND,
   readInviteToken,
-  readSigninToken,
   summarizeGrants,
 } from '@/plugins/login'
+import { composeInvitation } from '@/plugins/login/invite'
 
 const SECRET = 'invite-spec-secret'
 
 /** The one collection the summary can describe. Spread into every call below. */
-const managers = { collection: 'managers', id: 1, withResponsibilities: false }
+const managers = { collection: 'managers', id: 1 }
 
+type Where = { and?: { id?: { in?: number[] } }[] }
 type FindArgs = {
   collection?: string
   locale?: string
-  req?: { locale?: string }
+  req?: { locale?: string; transactionID?: string }
   select?: Record<string, true>
-  where?: Record<string, unknown>
+  where?: Where
 }
 
-/** Documents naming the manager, per collection: titles, and how many exist. */
-type Managed = Partial<Record<'events' | 'pages' | 'regions', { titles: string[]; total?: number }>>
+/** A managed document: its id, title, public page, and (for events) its stage. */
+type Doc = { id: number; title: string; url?: string; verificationStage?: string }
+type Managed = Partial<Record<'events' | 'pages' | 'regions', Doc[]>>
 
 /**
- * The three joins `Managers` declares, as the sanitized config carries them,
- * and the target collections' own config the summary reads titles and labels
- * from. Regions nest, so they carry the self-referential `parent` field.
+ * The three joins `Managers` declares and the target collections' config, as
+ * far as the summary reads them. Regions nest, so they carry the
+ * self-referential `parent` field document-level access inherits through.
  */
+const collection = (plural: string, singular: string, titleField: string, nests = false) => ({
+  config: {
+    admin: { useAsTitle: titleField },
+    labels: { plural, singular },
+    fields: [],
+    flattenedFields: nests ? [{ name: 'parent', type: 'relationship', relationTo: 'regions' }] : [],
+  },
+})
+
 const COLLECTIONS = {
   managers: {
     config: {
-      flattenedFields: [
-        { name: 'roles', type: 'select' },
+      fields: [
+        { name: 'roles', type: 'select', options: [] },
         { name: 'managedPages', type: 'join', collection: 'pages', on: 'managers' },
         { name: 'managedRegions', type: 'join', collection: 'regions', on: 'managers' },
         { name: 'managedEvents', type: 'join', collection: 'events', on: 'manager' },
       ],
     },
   },
-  pages: {
-    config: {
-      admin: { useAsTitle: 'title' },
-      labels: { plural: 'Pages' },
-      flattenedFields: [{ name: 'managers', type: 'relationship', relationTo: 'managers', hasMany: true }],
-    },
-  },
-  regions: {
-    config: {
-      admin: { useAsTitle: 'name' },
-      labels: { plural: 'Regions' },
-      flattenedFields: [
-        { name: 'managers', type: 'relationship', relationTo: 'managers', hasMany: true },
-        { name: 'parent', type: 'relationship', relationTo: 'regions' },
-      ],
-    },
-  },
-  events: {
-    config: {
-      admin: { useAsTitle: 'title' },
-      labels: { plural: 'Events' },
-      flattenedFields: [{ name: 'manager', type: 'relationship', relationTo: 'managers' }],
-    },
-  },
+  pages: collection('Pages', 'Page', 'title'),
+  regions: collection('Regions', 'Region', 'name', true),
+  events: collection('Events', 'Event', 'title'),
 }
 
-/** A `payload` that answers the roles read, and a `find` per managed collection. */
+/** A `payload` answering the roles read, and a `find` per managed collection. */
 function fakePayload(roles: unknown, managed: Managed = {}) {
   const reads: FindArgs[] = []
 
@@ -104,38 +93,31 @@ function fakePayload(roles: unknown, managed: Managed = {}) {
       if (args.req && args.locale) args.req.locale = args.locale
       return { roles }
     },
-    find: async (args: FindArgs & { limit: number }) => {
+    find: async (args: FindArgs) => {
       reads.push(args)
-      const { titles = [], total = titles.length } = managed[args.collection as keyof Managed] ?? {}
-      const field = Object.keys(args.select ?? {})[0]!
-      return {
-        docs: titles.slice(0, args.limit).map((title) => ({ [field]: title })),
-        totalDocs: total,
-      }
+      const only = args.where?.and?.[1]?.id?.in
+      const titleField = args.collection === 'regions' ? 'name' : 'title'
+      const docs = (managed[args.collection as keyof Managed] ?? [])
+        .filter((doc) => !only || only.includes(doc.id))
+        .map((doc) => ({
+          id: doc.id,
+          [titleField]: doc.title,
+          webUrl: doc.url ?? null,
+          verificationStage: doc.verificationStage,
+        }))
+      return { docs }
     },
   } as unknown as Payload
 
   return { payload, reads }
 }
 
-/** A manager's summary with nothing listed. Spread and override per case. */
-const EMPTY: GrantSummary = {
-  fullAccess: false,
-  grants: [],
-  responsibilities: [],
-  relatedProjects: [],
-}
+const BERLIN: Doc = { id: 1, title: 'Berlin', url: 'https://atlas.test/berlin' }
+const TUESDAY: Doc = { id: 7, title: 'Tuesday Evening Meditation', url: 'https://atlas.test/7' }
+const DRAFT: Doc = { id: 8, title: 'Sunday Workshop' }
+const FINISHED: Doc = { id: 9, title: 'Summer Retreat', verificationStage: 'finished' }
 
 describe('summarizeGrants', () => {
-  it('names full access for an admin, and reads no roles at all', async () => {
-    const { payload, reads } = fakePayload({ en: ['meditations-editor'] })
-
-    const summary = await summarizeGrants({ ...managers, payload, type: 'admin' })
-
-    expect(summary).toEqual({ ...EMPTY, fullAccess: true, relatedProjects: null })
-    expect(reads).toHaveLength(0)
-  })
-
   it('renders role LABELS per locale, most roles first', async () => {
     const { payload } = fakePayload({
       en: ['meditations-editor'],
@@ -144,104 +126,102 @@ describe('summarizeGrants', () => {
 
     const summary = await summarizeGrants({ ...managers, payload, type: 'manager' })
 
-    expect(summary).toEqual({
-      ...EMPTY,
-      grants: [
-        { locale: 'French', roles: ['Web Translator', 'Path Editor'] },
-        { locale: 'English', roles: ['Meditations Editor'] },
-      ],
-      // Path Editor and Meditations Editor are both We Meditate App roles.
-      relatedProjects: ['wemeditate-app', 'wemeditate-web'],
-    })
+    expect(summary.grants).toEqual([
+      { locale: 'French', roles: ['Web Translator', 'Path Editor'] },
+      { locale: 'English', roles: ['Meditations Editor'] },
+    ])
+    // Path Editor and Meditations Editor are both We Meditate App roles.
+    expect(summary.relatedProjects).toEqual(['wemeditate-app', 'wemeditate-web'])
   })
 
-  it('reads only roles for a create, whose joins cannot point at it yet', async () => {
-    // `managedPages`, `managedRegions` and `managedEvents` are joins, empty for
-    // a manager created one instant ago — so the create path reads none of
-    // them inside its open transaction.
-    const { payload, reads } = fakePayload({ en: ['path-editor'] })
-
-    await summarizeGrants({ ...managers, payload, type: 'manager' })
-
-    expect(reads).toHaveLength(1)
-    expect(reads[0]?.select).toEqual({ roles: true })
-  })
-
-  it('lists the regions, events and pages naming the manager, on a resend', async () => {
+  it('lists every document naming the manager, linked where it is public', async () => {
     const { payload, reads } = fakePayload(
       { en: ['atlas-manager'] },
-      {
-        regions: { titles: ['Berlin'] },
-        events: { titles: ['Tuesday Evening Meditation', 'Sunday Workshop'] },
-      },
+      { regions: [BERLIN], events: [TUESDAY, DRAFT] },
     )
 
-    const summary = await summarizeGrants({
-      ...managers,
-      payload,
-      type: 'manager',
-      withResponsibilities: true,
-    })
+    const summary = await summarizeGrants({ ...managers, payload, type: 'manager' })
 
     expect(summary.responsibilities).toEqual([
-      { label: 'Regions', titles: ['Berlin'], more: 0, nested: true },
+      {
+        label: 'Regions',
+        singular: 'Region',
+        items: [{ title: 'Berlin', url: BERLIN.url }],
+        nested: true,
+      },
       {
         label: 'Events',
-        titles: ['Tuesday Evening Meditation', 'Sunday Workshop'],
-        more: 0,
+        singular: 'Event',
+        items: [
+          { title: TUESDAY.title, url: TUESDAY.url },
+          { title: DRAFT.title, url: null },
+        ],
         nested: false,
       },
     ])
     expect(summary.relatedProjects).toEqual(['sahaj-atlas'])
     // Each join asks its own collection for the documents naming this manager.
-    expect(reads.find((read) => read.collection === 'events')?.where).toEqual({
+    expect(reads.find((read) => read.collection === 'events')?.where?.and?.[0]).toEqual({
       manager: { in: [1] },
     })
-    expect(reads.find((read) => read.collection === 'regions')?.where).toEqual({
+    expect(reads.find((read) => read.collection === 'regions')?.where?.and?.[0]).toEqual({
       managers: { in: [1] },
     })
   })
 
-  it('lists the first few titles and counts the rest', async () => {
+  it('leaves out a finished event — there is nothing left to look after', async () => {
+    const { payload } = fakePayload({}, { events: [TUESDAY, FINISHED] })
+
+    const summary = await summarizeGrants({ ...managers, payload, type: 'manager' })
+
+    expect(summary.responsibilities[0]?.items.map((item) => item.title)).toEqual([TUESDAY.title])
+  })
+
+  it('names only what was queued, and only while it is still held', async () => {
     const { payload } = fakePayload(
-      {},
-      { events: { titles: ['A', 'B', 'C', 'D', 'E', 'F', 'G'], total: 40 } },
+      { en: ['atlas-manager', 'web-translator'] },
+      { regions: [BERLIN], events: [TUESDAY, DRAFT] },
     )
 
     const summary = await summarizeGrants({
       ...managers,
       payload,
       type: 'manager',
-      withResponsibilities: true,
+      only: {
+        // `path-editor` was queued, then taken away before the send.
+        roles: { en: ['atlas-manager', 'path-editor'] },
+        managed: { events: [TUESDAY.id] },
+      },
     })
 
-    expect(summary.responsibilities[0]).toMatchObject({
-      titles: ['A', 'B', 'C', 'D', 'E', 'F', 'G'].slice(0, LISTED_PER_KIND),
-      more: 40 - LISTED_PER_KIND,
-    })
+    expect(summary.grants).toEqual([{ locale: 'English', roles: ['Atlas Manager'] }])
+    expect(summary.responsibilities).toHaveLength(1)
+    expect(summary.responsibilities[0]?.items).toEqual([{ title: TUESDAY.title, url: TUESDAY.url }])
+  })
+
+  it('names full access for an admin and reads no roles — but still lists what they manage', async () => {
+    const { payload, reads } = fakePayload({ en: ['meditations-editor'] }, { regions: [BERLIN] })
+
+    const summary = await summarizeGrants({ ...managers, payload, type: 'admin' })
+
+    expect(summary.fullAccess).toBe(true)
+    expect(summary.grants).toEqual([])
+    expect(summary.responsibilities[0]?.items[0]?.title).toBe('Berlin')
+    expect(reads.some((read) => read.select?.roles)).toBe(false)
   })
 
   it('ranks projects by how much of the listing is theirs', async () => {
-    // One We Meditate Web role against three Atlas events: Atlas first.
-    const { payload } = fakePayload(
-      { fr: ['web-translator'] },
-      { events: { titles: ['A', 'B', 'C'] } },
-    )
+    // One We Meditate Web role against two Atlas events: Atlas first.
+    const { payload } = fakePayload({ fr: ['web-translator'] }, { events: [TUESDAY, DRAFT] })
 
-    const summary = await summarizeGrants({
-      ...managers,
-      payload,
-      type: 'manager',
-      withResponsibilities: true,
-    })
+    const summary = await summarizeGrants({ ...managers, payload, type: 'manager' })
 
     expect(summary.relatedProjects).toEqual(['sahaj-atlas', 'wemeditate-web'])
   })
 
   it('describes nothing for a collection whose roles it cannot read', async () => {
     // `hydrateLocalizedRoles` reads `managers` by id. For any other served
-    // collection that is a stranger's roles, or a `NotFound` thrown inside an
-    // open create — so it must not read at all.
+    // collection that would be a stranger's roles — so it must not read at all.
     const { payload, reads } = fakePayload({ en: ['path-editor'] })
 
     const summary = await summarizeGrants({
@@ -249,17 +229,15 @@ describe('summarizeGrants', () => {
       id: 1,
       payload,
       type: 'manager',
-      withResponsibilities: true,
     })
 
-    expect(summary).toEqual({ ...EMPTY, relatedProjects: null })
+    expect(summary).toEqual({
+      fullAccess: false,
+      grants: [],
+      responsibilities: [],
+      relatedProjects: null,
+    })
     expect(reads).toHaveLength(0)
-  })
-
-  it('grants nothing when the manager holds no role anywhere', async () => {
-    const { payload } = fakePayload({})
-
-    expect(await summarizeGrants({ ...managers, payload, type: 'manager' })).toEqual(EMPTY)
   })
 
   it('leaves the caller’s own locale alone', async () => {
@@ -269,27 +247,27 @@ describe('summarizeGrants', () => {
     await summarizeGrants({ ...managers, payload, req, type: 'manager' })
 
     // The read asked for every locale...
-    expect(reads[0]?.locale).toBe('all')
-    // ...on a COPY, so the create that called us still writes German (#609).
+    expect(reads.find((read) => read.select?.roles)?.locale).toBe('all')
+    // ...on a COPY, so the operation that called us keeps its own (#609).
     expect(req.locale).toBe('de')
-  })
-
-  it('joins the caller’s transaction by passing a request through', async () => {
-    const { payload, reads } = fakePayload({ en: ['path-editor'] })
-    const req = { locale: 'de', transactionID: 'txn-1' } as unknown as PayloadRequest
-
-    await summarizeGrants({ ...managers, payload, req, type: 'manager' })
-
-    expect((reads[0]?.req as { transactionID?: string } | undefined)?.transactionID).toBe('txn-1')
   })
 })
 
 describe('brandProject', () => {
+  const EMPTY: GrantSummary = {
+    fullAccess: false,
+    grants: [],
+    responsibilities: [],
+    relatedProjects: [],
+  }
   const atlas: GrantSummary = { ...EMPTY, relatedProjects: ['sahaj-atlas'] }
 
   it('keeps the current project when the invitation lists something of it', () => {
     expect(
-      brandProject('wemeditate-web', { ...EMPTY, relatedProjects: ['sahaj-atlas', 'wemeditate-web'] }),
+      brandProject('wemeditate-web', {
+        ...EMPTY,
+        relatedProjects: ['sahaj-atlas', 'wemeditate-web'],
+      }),
     ).toBe('wemeditate-web')
   })
 
@@ -307,109 +285,68 @@ describe('brandProject', () => {
     expect(brandProject('sahaj-atlas', EMPTY)).toBeUndefined()
   })
 
-  it('keeps the current project for an admin, who relates to every project', () => {
-    expect(brandProject('sahaj-atlas', { ...EMPTY, fullAccess: true, relatedProjects: null })).toBe(
-      'sahaj-atlas',
-    )
+  it('keeps an admin’s own project when the listing names none', () => {
+    expect(brandProject('sahaj-atlas', { ...EMPTY, fullAccess: true })).toBe('sahaj-atlas')
   })
 })
 
-describe('Managers.auth.verify', () => {
-  const verify = typeof Managers.auth === 'object' ? Managers.auth.verify : undefined
+describe('composeInvitation', () => {
+  const doc = (overrides: Record<string, unknown> = {}) => ({
+    id: 7,
+    email: 'jo@example.com',
+    name: 'Jo',
+    type: 'manager',
+    currentProject: null,
+    _verified: false,
+    ...overrides,
+  })
 
-  /** The invitation as the manager receives it, token captured. */
-  async function inviteToken(roles: unknown = { en: ['path-editor'] }) {
-    if (typeof verify === 'boolean' || !verify?.generateEmailHTML) {
-      throw new Error('Managers.auth.verify.generateEmailHTML is not configured')
-    }
+  const compose = (roles: unknown, managed: Managed, overrides?: Record<string, unknown>) =>
+    composeInvitation({
+      config: managersLogin,
+      doc: doc(overrides),
+      payload: fakePayload(roles, managed).payload,
+    })
 
-    const { payload } = fakePayload(roles)
-    const html = await verify.generateEmailHTML({
-      req: { payload } as unknown as PayloadRequest,
-      // Payload's own verify token. The invitation ignores it.
-      token: 'PAYLOAD-VERIFY-TOKEN',
-      user: { id: 7, email: 'jo@example.com', name: 'Jo', type: 'manager' },
-    } as never)
+  it('invites an unaccepted account through the sign-in page, never Payload’s verify route', async () => {
+    const invitation = await compose({ en: ['atlas-manager'] }, { regions: [BERLIN] })
 
-    const match = html.match(
+    const match = invitation?.html.match(
       new RegExp(`${getServerUrl()}${MANAGER_SIGNIN_PATH}\\?invite=([\\w.%-]+)`),
     )
-    expect(match, `no invitation link in the body:\n${html.slice(0, 400)}`).not.toBeNull()
+    expect(match, 'no invitation link in the body').not.toBeNull()
+    expect(invitation?.html).not.toContain('/admin/managers/verify/')
 
-    return { html, token: decodeURIComponent(match![1]!) }
-  }
-
-  it('addresses the sign-in page with `?invite=`, not Payload’s verify route', async () => {
-    const { html } = await inviteToken()
-
-    expect(html).toContain(`${getServerUrl()}${MANAGER_SIGNIN_PATH}?invite=`)
-    // The route this swap replaces. It asks for a password this flow never sets.
-    expect(html).not.toContain('/admin/managers/verify/')
-    // And it does not carry the framework's token under any shape.
-    expect(html).not.toContain('PAYLOAD-VERIFY-TOKEN')
-  })
-
-  it('mints an invitation token that the sign-in route refuses', async () => {
-    const { token } = await inviteToken()
-
-    expect((await readInviteToken(token, SECRET)).status).toBe('valid')
-    // The separation IS the security property: a 7-day invitation must not be
-    // spendable as a 15-minute sign-in link.
-    expect((await readSigninToken(token, SECRET)).status).toBe('invalid')
-  })
-
-  it('claims the manager the create just made', async () => {
-    const { token } = await inviteToken()
+    const token = decodeURIComponent(match![1]!)
+    expect(decodeJwt(token).aud).toBe('manager-invite')
     const result = await readInviteToken(token, SECRET)
-
     expect(result.status === 'valid' && result.claims).toMatchObject({
       collection: 'managers',
       userId: 7,
     })
   })
 
-  it('names the roles the manager holds, by label', async () => {
-    const { html } = await inviteToken({ fr: ['web-translator'] })
+  it('points an accepted account at the admin, minting nothing', async () => {
+    const invitation = await compose({}, { regions: [BERLIN] }, { _verified: true })
 
-    expect(html).toContain('French')
-    expect(html).toContain('Web Translator')
+    expect(invitation?.html).toContain(`href="${getServerUrl()}/admin"`)
+    expect(invitation?.html).not.toContain('?invite=')
   })
 
-  it('subjects the invitation, never “verify your email”', async () => {
-    if (typeof verify === 'boolean' || !verify?.generateEmailSubject) {
-      throw new Error('Managers.auth.verify.generateEmailSubject is not configured')
-    }
+  it('subjects it with what to look after, and brands subject and sender alike', async () => {
+    const invitation = await compose(
+      {},
+      { events: [TUESDAY] },
+      { currentProject: 'wemeditate-web' },
+    )
 
-    const { payload } = fakePayload({ en: ['path-editor'] })
-    const subject = await verify.generateEmailSubject({
-      req: { payload } as unknown as PayloadRequest,
-      user: { id: 7, type: 'manager' },
-    } as never)
-
-    expect(subject).toContain('invited')
-    expect(subject.toLowerCase()).not.toContain('verify')
+    expect(invitation?.subject).toBe(`You've been invited to look after ${TUESDAY.title}`)
+    expect(invitation?.from).toMatch(/^Sahaj Atlas </)
+    expect(invitation?.html).not.toContain('WeMeditate Web')
   })
 
-  it('brands the subject and the body alike, from one read', async () => {
-    if (typeof verify === 'boolean' || !verify?.generateEmailSubject || !verify.generateEmailHTML) {
-      throw new Error('Managers.auth.verify is not configured')
-    }
-
-    // An Atlas role, and a current project it does not belong to.
-    const { payload, reads } = fakePayload({ en: ['atlas-manager'] })
-    const args = {
-      req: { payload } as unknown as PayloadRequest,
-      token: 'unused',
-      user: { id: 7, email: 'jo@example.com', type: 'manager', currentProject: 'wemeditate-web' },
-    } as never
-
-    const html = await verify.generateEmailHTML(args)
-    const subject = await verify.generateEmailSubject(args)
-
-    expect(subject).toBe("You've been invited to Sahaj Atlas")
-    expect(html).toContain('Sahaj Atlas')
-    expect(html).not.toContain('WeMeditate Web')
-    expect(reads).toHaveLength(1)
+  it('composes nothing when there is nothing to name', async () => {
+    expect(await compose({}, { events: [FINISHED] })).toBeNull()
   })
 })
 

@@ -1,46 +1,36 @@
 import type { LoginCollectionConfig, LoginDocument } from './types'
-import type { IncomingAuthType, Payload, PayloadRequest } from 'payload'
+import type { Payload, PayloadRequest } from 'payload'
 
 import { createElement } from 'react'
 
-import { InviteEmail } from '@/emails/InviteEmail'
+import { InviteEmail, inviteHeading } from '@/emails/InviteEmail'
 import { stripNewlines } from '@/lib/utilities/emailSafeText'
-import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 import type { ProjectSlug } from '@/payload-types'
 import { getEmailBrand, renderEmail } from '@/plugins/email'
 
-import { brandProject, type GrantSummary, summarizeGrants } from './grantSummary'
+import {
+  brandProject,
+  type GrantSummary,
+  type PendingInvitation,
+  summarizeGrants,
+} from './grantSummary'
+import { emailFrom } from './mail'
 import { INVITE_TOKEN_TTL_MS, signInviteToken } from './token'
 
 /**
- * The invitation a newly created account holder receives, and the swap that
- * puts it where Payload's own "verify your email" template was.
+ * The invitation: what it names, how it is branded, and the link it carries.
  *
- * ⚠ **`auth.verify` is kept for the COLUMN, not for Payload's verify mail.** It
- * is what creates `_verified`, and the JWT strategy yields no user while that
- * column is false — so `_verified` is the accepted/not-accepted flag this whole
- * flow turns on. Only the two generators are repointed; the send stays where it
- * was.
- *
- * ⚠ **The framework's `token` argument is ignored.** It addresses
- * `/admin/<slug>/verify/:token`, a form that asks for a password this flow
- * never sets. The link below is a `manager-invite` token instead, a separate
- * audience from a sign-in link (`token.ts`), so neither can be replayed as the
- * other.
- *
- * ⚠ **A throw here costs the whole account.** `sendVerificationEmail` is awaited
- * inside `create`, before `commitTransaction` and outside any `try`, so the
- * create returns a 500 and rolls back. Keep every added step total: the role
- * labels fall back to the slug rather than throwing on an unknown one, and the
- * signing is pure. The one read cannot be made safe by catching it — it joins
- * the create's transaction, which Postgres marks aborted on any failed query,
- * so a swallowed error would only move the 500 to the commit.
+ * Two senders. The invitation queue (`invitations.ts`) sends one when a manager
+ * is assigned something, naming only what is new. `issueMagicLink` re-sends one
+ * to an account that has never accepted and asks for a link, naming everything
+ * it holds. A create sends nothing — see `suppressCreateMail` in
+ * `loginPlugin.ts`.
  *
  * ⚠ **The brand follows what the invitation lists**, not the account's
  * `currentProject` alone — see `brandProject`. An account that has never
- * signed in has no current project, so the old rule sent every Atlas manager a
- * We Meditate invitation.
+ * signed in has no current project, so that rule alone sent every Atlas manager
+ * a We Meditate invitation.
  */
 
 /** How long an invitation lasts, as the recipient is told. Derived from the TTL. */
@@ -60,7 +50,7 @@ export function inviteUrl(config: LoginCollectionConfig, token: string): string 
 /** Mint the link an invitation carries. */
 export function signInviteFor(
   config: LoginCollectionConfig,
-  doc: LoginDocument,
+  doc: Pick<LoginDocument, 'id'>,
   secret: string,
   now: Date = new Date(),
 ): Promise<string> {
@@ -86,50 +76,64 @@ export interface PreparedInvite {
 export async function prepareInvite({
   config,
   doc,
+  only,
   payload,
   req,
-  withResponsibilities,
 }: {
   config: LoginCollectionConfig
   /** The account being invited. `id` and `type` decide what the email may claim. */
   doc: LoginDocument
+  /** Name only these — what was assigned since the last invitation. */
+  only?: PendingInvitation
   payload: Payload
-  /** The create's own request, where there is one. @see summarizeGrants */
   req?: PayloadRequest
-  /** @see summarizeGrants */
-  withResponsibilities: boolean
 }): Promise<PreparedInvite> {
   const summary = await summarizeGrants({
     collection: config.slug as string,
     id: doc.id,
+    only,
     payload,
     req,
     type: doc.type,
-    withResponsibilities,
   })
 
   return { project: brandProject(config.project?.(doc) ?? undefined, summary), summary }
 }
 
-export interface InviteMailArgs {
-  doc: LoginDocument
-  inviteUrl: string
-  project: ProjectSlug | undefined
-  summary: GrantSummary
+/** Whether an invitation has anything to name. One with nothing is not sent. */
+export function namesAnything({ fullAccess, grants, responsibilities }: GrantSummary): boolean {
+  return fullAccess || grants.length > 0 || responsibilities.length > 0
 }
 
-/** Render the invitation, naming the access granted. */
+export interface InviteMailArgs extends PreparedInvite {
+  /**
+   * Whether the account has accepted before — then the button opens the admin
+   * rather than accepting anything.
+   */
+  accepted: boolean
+  /** The invitation link, or the admin URL for an accepted account. */
+  actionUrl: string
+  /** Who assigned it, when a person did. */
+  assignedBy?: string
+  doc: LoginDocument
+}
+
+/** Render the invitation. */
 export function generateInviteEmailHTML({
+  accepted,
+  actionUrl,
+  assignedBy,
   doc,
-  inviteUrl,
   project,
   summary,
 }: InviteMailArgs): Promise<string> {
   return renderEmail(
     createElement(InviteEmail, {
       name: doc.name || doc.email || '',
-      inviteUrl,
+      accepted,
+      actionUrl,
       validFor: INVITE_VALID_FOR,
+      assignedBy,
       fullAccess: summary.fullAccess,
       grants: summary.grants,
       responsibilities: summary.responsibilities,
@@ -138,47 +142,47 @@ export function generateInviteEmailHTML({
   )
 }
 
-/** @see generateInviteEmailHTML */
-export function generateInviteEmailSubject(project: ProjectSlug | undefined): string {
-  return stripNewlines(`You've been invited to ${getEmailBrand(project).productName}`)
+/** The heading, as a subject. @see inviteHeading */
+export function generateInviteEmailSubject({ project, summary }: PreparedInvite): string {
+  return stripNewlines(inviteHeading(summary, getEmailBrand(project).productName))
 }
 
 /**
- * The `auth.verify` config one served collection installs, so its own file
- * carries the slug and nothing else.
+ * The whole invitation for one account, or `null` when it would name nothing —
+ * everything queued was undone or has finished.
  *
- * Payload asks for the body and the subject separately, on the same request.
- * One summary serves both, so the pair costs one read inside the create's
- * transaction rather than two.
+ * The one composition both senders run, and what the preview script drives. An
+ * account that has accepted gets a button to the admin; any other gets the
+ * invitation link, whose acceptance is what lets it sign in.
  */
-export function inviteVerification(
-  config: LoginCollectionConfig,
-): NonNullable<Exclude<IncomingAuthType['verify'], boolean>> {
-  const prepare = (req: PayloadRequest, doc: LoginDocument) =>
-    memoizeOnRequest(req, `login:invite:${String(config.slug)}:${doc.id}`, () =>
-      prepareInvite({
-        config,
-        doc,
-        payload: req.payload,
-        req,
-        // Nothing points at an account created one instant ago.
-        withResponsibilities: false,
-      }),
-    )
+export async function composeInvitation({
+  assignedBy,
+  config,
+  doc,
+  now = new Date(),
+  only,
+  payload,
+  req,
+}: {
+  assignedBy?: string
+  config: LoginCollectionConfig
+  doc: LoginDocument
+  now?: Date
+  only?: PendingInvitation
+  payload: Payload
+  req?: PayloadRequest
+}): Promise<null | { from: string; html: string; subject: string }> {
+  const prepared = await prepareInvite({ config, doc, only, payload, req })
+  if (!namesAnything(prepared.summary)) return null
+
+  const accepted = doc._verified === true
+  const actionUrl = accepted
+    ? `${getServerUrl()}${config.redirectTo ?? '/admin'}`
+    : inviteUrl(config, await signInviteFor(config, doc, payload.secret, now))
 
   return {
-    generateEmailHTML: async ({ req, user }) => {
-      const doc = user as unknown as LoginDocument
-      const { project, summary } = await prepare(req, doc)
-
-      return generateInviteEmailHTML({
-        doc,
-        inviteUrl: inviteUrl(config, await signInviteFor(config, doc, req.payload.secret)),
-        project,
-        summary,
-      })
-    },
-    generateEmailSubject: async ({ req, user }) =>
-      generateInviteEmailSubject((await prepare(req, user as unknown as LoginDocument)).project),
+    from: emailFrom(prepared.project),
+    subject: generateInviteEmailSubject(prepared),
+    html: await generateInviteEmailHTML({ ...prepared, accepted, actionUrl, assignedBy, doc }),
   }
 }

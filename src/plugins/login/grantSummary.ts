@@ -1,4 +1,6 @@
-import type { CollectionSlug, Payload, PayloadRequest } from 'payload'
+import type { CollectionSlug, Field, Payload, PayloadRequest } from 'payload'
+
+import { flattenAllFields } from 'payload'
 
 import { DEFAULT_LOCALE, getLocaleLabel } from '@/lib/locales'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
@@ -21,12 +23,6 @@ import {
  * name it as a manager — the targets of the `managedPages`, `managedRegions`
  * and `managedEvents` joins.
  *
- * ⚠ **The joins are empty when a create sends the invitation.** Each is the
- * inverse of a relationship declared on the other collection, and nothing can
- * point at an account created one instant ago. So only a resend lists them —
- * which is how an imported Atlas manager, named on regions and events before
- * anything mailed them, receives theirs.
- *
  * ⚠ **Reads `managers` directly**, through `hydrateLocalizedRoles` and the
  * collection's join fields, so this is the one part of the login plugin that is
  * not generic over its served collection. No other collection it can serve has
@@ -39,14 +35,21 @@ export interface LocaleGrant {
   roles: string[]
 }
 
+/** One managed document, as the invitation lists it. */
+export interface ResponsibilityItem {
+  title: string
+  /** Its public page, or `null` while it has none — an unpublished event. */
+  url: null | string
+}
+
 /** One kind of document the account is named on as a manager. */
 export interface Responsibility {
   /** The collection's plural label, e.g. `"Regions"`. */
   label: string
-  /** The first {@link LISTED_PER_KIND} titles, alphabetically. */
-  titles: string[]
-  /** How many more there are beyond `titles`. */
-  more: number
+  /** The singular, e.g. `"Region"`, for a count of one. */
+  singular: string
+  /** Every one listed, alphabetically. */
+  items: ResponsibilityItem[]
   /** Whether managing one also manages everything nested under it. */
   nested: boolean
 }
@@ -66,25 +69,33 @@ export interface GrantSummary {
 }
 
 /**
- * How many titles an invitation lists per kind. An Atlas manager can own dozens
- * of events, and the email is a welcome, not an inventory.
+ * What was assigned since the last invitation, as the queue stores it on the
+ * manager (`pendingInvitation`). A summary given one lists only these — and only
+ * those still held when it is read, so an assignment undone in the meantime is
+ * not announced.
  */
-export const LISTED_PER_KIND = 5
+export interface PendingInvitation {
+  /** Role slugs added, per locale code. */
+  roles?: Record<string, string[]>
+  /** Document ids the manager was named on, per collection slug. */
+  managed?: Record<string, (number | string)[]>
+  /** The manager whose save assigned the most recent of them. */
+  by?: number | string | null
+}
 
 /**
  * Every role's label by slug, built once.
  *
- * `getRoleOptions` throws on a slug it does not know, and this runs inside a
- * create that must not roll back — so it is fed `getRoleSlugs()`, which is
- * exactly the set it accepts. A stored value outside that set falls back to the
- * slug rather than throwing.
+ * `getRoleOptions` throws on a slug it does not know, so it is fed
+ * `getRoleSlugs()`, which is exactly the set it accepts. A stored value outside
+ * that set falls back to the slug rather than throwing.
  */
 const ROLE_LABELS = new Map(
   getRoleOptions(getRoleSlugs()).map(({ label, value }) => [value as string, label]),
 )
 
 /** The one collection whose grants this can describe. @see summarizeGrants */
-const ROLES_COLLECTION = 'managers'
+export const ROLES_COLLECTION = 'managers'
 
 const NOTHING: GrantSummary = {
   fullAccess: false,
@@ -94,47 +105,59 @@ const NOTHING: GrantSummary = {
 }
 
 /**
- * Name the access a manager holds: roles per locale and, when asked, the
- * documents they manage.
+ * The manager joins declared among `fields`: which collection names a manager,
+ * and through which of its fields.
+ *
+ * Takes raw fields so the plugin can read them from the unsanitized config,
+ * before Payload flattens anything. A polymorphic join (`collection` as an
+ * array) is skipped — there is no one title field to list it by, and `managers`
+ * declares none.
+ */
+export function managerJoins(fields: Field[]): { collection: CollectionSlug; on: string }[] {
+  return flattenAllFields({ fields }).flatMap((field) =>
+    field.type === 'join' && typeof field.collection === 'string'
+      ? [{ collection: field.collection as CollectionSlug, on: field.on }]
+      : [],
+  )
+}
+
+/**
+ * Name the access a manager holds: roles per locale, and the documents naming
+ * them. Given `only`, just the part of that listed there.
  *
  * ⚠ **`req` is passed through `localeIsolatedReq`, and both halves matter.**
  * The roles read asks for `locale: 'all'`, and `createLocalReq` assigns
  * `req.locale` onto the object it is handed — so passing the caller's own
- * request would repoint the rest of their operation at `all` (#609). Passing
- * none instead would take a second pool connection while the caller's
- * transaction still holds the first. The copy shares `transactionID` by
- * reference and owns only its locale, which is both.
- *
- * Omit `req` only where there is no transaction to join — a resend, issued from
- * its own request.
+ * request would repoint the rest of their operation at `all` (#609).
  */
 export async function summarizeGrants({
   collection,
   id,
+  only,
   payload,
   req,
   type,
-  withResponsibilities,
 }: {
   /** The served collection the id belongs to. @see ROLES_COLLECTION */
   collection: string
   id: number | string
+  /** List only these — what was assigned since the last invitation. */
+  only?: PendingInvitation
   payload: Payload
   req?: PayloadRequest
   type: unknown
-  /** Read the managed documents too. Pointless inside a create — see above. */
-  withResponsibilities: boolean
 }): Promise<GrantSummary> {
   // ⚠ **The guard, not a tidiness check.** `hydrateLocalizedRoles` reads
   // `managers` by id, so for any other served collection this would name a
-  // stranger's roles — or throw `NotFound` inside the create's own open
-  // transaction, which costs the whole account (`invite.ts`).
+  // stranger's roles.
   if (collection !== ROLES_COLLECTION) return NOTHING
-  if (type === 'admin') return { ...NOTHING, fullAccess: true }
 
   const isolated = req ? localeIsolatedReq(req) : undefined
-  const roles = await hydrateLocalizedRoles(payload, id, isolated)
-  const managed = withResponsibilities ? await readManaged(payload, id, isolated) : []
+  const managed = await readManaged(payload, id, isolated, only)
+  // An admin holds every role, so none is worth naming — but the regions and
+  // events naming them are still theirs to look after.
+  const roles =
+    type === 'admin' ? {} : narrowRoles(await hydrateLocalizedRoles(payload, id, isolated), only)
 
   const weights = new Map<ProjectSlug, number>()
   const weigh = (project: ProjectSlug, amount: number) =>
@@ -144,14 +167,16 @@ export async function summarizeGrants({
     const project = getRoleProject(role as Parameters<typeof getRoleProject>[0])
     if (project) weigh(project, 1)
   }
-  for (const { collection: slug, count } of managed) {
+  for (const { collection: slug, responsibility } of managed) {
     for (const project of getProjectSlugs()) {
-      if ((getProjectCollections(project) as string[]).includes(slug)) weigh(project, count)
+      if ((getProjectCollections(project) as string[]).includes(slug)) {
+        weigh(project, responsibility.items.length)
+      }
     }
   }
 
   return {
-    fullAccess: false,
+    fullAccess: type === 'admin',
     grants: rankLocalesByRoleCount(roles).map((locale) => ({
       locale: getLocaleLabel(locale),
       roles: (roles[locale] ?? []).map((role) => ROLE_LABELS.get(role) ?? role),
@@ -164,8 +189,25 @@ export async function summarizeGrants({
   }
 }
 
+/** The held roles, cut down to the pending ones when there is a pending set. */
+function narrowRoles(
+  held: Record<string, string[]>,
+  only: PendingInvitation | undefined,
+): Record<string, string[]> {
+  if (!only) return held
+  return Object.fromEntries(
+    Object.entries(only.roles ?? {})
+      .map(([locale, added]) => [
+        locale,
+        (held[locale] ?? []).filter((role) => added.includes(role)),
+      ])
+      .filter(([, kept]) => kept.length > 0),
+  )
+}
+
 /**
- * The documents naming this manager, one entry per `managers` join field.
+ * The documents naming this manager, one entry per `managers` join field — or,
+ * given a pending set, the ones in it that still do.
  *
  * Driven by the joins rather than a list of slugs, so a collection that gains a
  * manager relationship — and so a join here — is listed without an edit.
@@ -174,47 +216,56 @@ async function readManaged(
   payload: Payload,
   id: number | string,
   req: PayloadRequest | undefined,
-): Promise<{ collection: CollectionSlug; count: number; responsibility: Responsibility }[]> {
-  // A polymorphic join (`collection` as an array) has no one title field to
-  // list by. `managers` declares none.
-  const joins = payload.collections[ROLES_COLLECTION].config.flattenedFields.flatMap((field) =>
-    field.type === 'join' && typeof field.collection === 'string'
-      ? [{ collection: field.collection as CollectionSlug, on: field.on }]
-      : [],
-  )
+  only: PendingInvitation | undefined,
+): Promise<{ collection: CollectionSlug; responsibility: Responsibility }[]> {
   const found = []
 
-  for (const join of joins) {
+  for (const join of managerJoins(payload.collections[ROLES_COLLECTION].config.fields)) {
+    const ids = only?.managed?.[join.collection]
+    if (only && !ids?.length) continue
+
     const config = payload.collections[join.collection].config
     const titleField = config.admin?.useAsTitle ?? 'id'
 
-    const { docs, totalDocs } = await payload.find({
+    const { docs } = await payload.find({
       collection: join.collection,
-      // `in` matches a hasMany `managers` and a single `manager` alike.
-      where: { [join.on]: { in: [id] } },
-      limit: LISTED_PER_KIND,
+      // `in` matches a hasMany `managers` and a single `manager` alike, and
+      // re-checking it is what drops an assignment undone since it was queued.
+      where: {
+        and: [{ [join.on]: { in: [id] } }, ...(ids ? [{ id: { in: ids } }] : [])],
+      },
+      pagination: false,
       sort: titleField,
       depth: 0,
       // The email's copy is English, so its titles are too, falling back where
       // a localized title was never written in English.
       locale: DEFAULT_LOCALE,
-      select: { [titleField]: true },
       overrideAccess: true,
       req,
     })
-    if (totalDocs === 0) continue
 
-    const plural = config.labels?.plural
+    const items = docs.flatMap((doc) => {
+      const record = doc as unknown as Record<string, unknown>
+      // A finished event keeps its page for late visitors, but it is over —
+      // nothing to look after.
+      if (record.verificationStage === 'finished') return []
+      const title = record[titleField]
+      return [
+        {
+          title: typeof title === 'string' && title.trim() ? title : 'Untitled',
+          url: typeof record.webUrl === 'string' ? record.webUrl : null,
+        },
+      ]
+    })
+    if (items.length === 0) continue
+
+    const { plural, singular } = config.labels ?? {}
     found.push({
       collection: join.collection,
-      count: totalDocs,
       responsibility: {
         label: typeof plural === 'string' ? plural : join.collection,
-        titles: docs.map((doc) => {
-          const title = (doc as unknown as Record<string, unknown>)[titleField]
-          return typeof title === 'string' && title.trim() ? title : 'Untitled'
-        }),
-        more: totalDocs - docs.length,
+        singular: typeof singular === 'string' ? singular : join.collection,
+        items,
         // The same test document-level access uses to inherit a manager down
         // the tree, so the note cannot claim more than access grants.
         nested: Boolean(getDocManagerFields(payload, join.collection).parentField),
@@ -237,9 +288,11 @@ export function brandProject(
   current: ProjectSlug | undefined,
   summary: GrantSummary,
 ): ProjectSlug | undefined {
-  // An admin relates to every project, and an account this cannot describe has
-  // only its own choice to go on.
-  if (summary.fullAccess || summary.relatedProjects === null) return current
+  // An account this cannot describe has only its own choice to go on.
+  if (summary.relatedProjects === null) return current
   if (current && summary.relatedProjects.includes(current)) return current
+  // An admin relates to every project, so their own choice stands when the
+  // listing names nothing.
+  if (summary.fullAccess && summary.relatedProjects.length === 0) return current
   return summary.relatedProjects[0]
 }
