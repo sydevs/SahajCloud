@@ -91,7 +91,7 @@ const ROLE_LABELS = new Map(
 )
 
 /** The one collection whose grants this can describe. @see summarizeGrants */
-export const ROLES_COLLECTION = 'managers'
+export const MANAGERS_COLLECTION = 'managers'
 
 
 /**
@@ -138,7 +138,7 @@ export async function summarizeGrants({
   req,
   type,
 }: {
-  /** The served collection the id belongs to. @see ROLES_COLLECTION */
+  /** The served collection the id belongs to. @see MANAGERS_COLLECTION */
   collection: string
   /** The account's own current project, which an admin's empty summary keeps. */
   current?: ProjectSlug
@@ -156,7 +156,7 @@ export async function summarizeGrants({
   // ⚠ **The guard, not a tidiness check.** `hydrateLocalizedRoles` reads
   // `managers` by id, so for any other served collection this would name a
   // stranger's roles.
-  if (collection !== ROLES_COLLECTION) return [{ ...empty[0]!, project: current }]
+  if (collection !== MANAGERS_COLLECTION) return [{ ...empty[0]!, project: current }]
 
   const isolated = req ? localeIsolatedReq(req) : undefined
   const managed = await readManaged(payload, id, isolated, only)
@@ -241,7 +241,7 @@ async function readManaged(
 ): Promise<{ collection: CollectionSlug; responsibility: Responsibility }[]> {
   const found = []
 
-  for (const join of managerJoins(payload.collections[ROLES_COLLECTION].config.fields)) {
+  for (const join of managerJoins(payload.collections[MANAGERS_COLLECTION].config.fields)) {
     const ids = only?.managed?.[join.collection]
     if (only && !ids?.length) continue
 

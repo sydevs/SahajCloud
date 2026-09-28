@@ -7,7 +7,7 @@ import * as Sentry from '@sentry/nextjs'
 import { DEFAULT_LOCALE } from '@/lib/locales'
 import { relationId } from '@/lib/utilities/relationId'
 
-import { ROLES_COLLECTION } from './grantSummary'
+import { MANAGERS_COLLECTION } from './grantSummary'
 import { composeInvitations } from './invite'
 
 /**
@@ -84,13 +84,13 @@ async function enqueue(
   // A manager's own change is not news to them — creating an event they
   // manage, or a sub-region they look after.
   const self =
-    req.user?.collection === ROLES_COLLECTION && String(req.user.id) === String(managerId)
+    req.user?.collection === MANAGERS_COLLECTION && String(req.user.id) === String(managerId)
   if (self) return
 
   const { payload } = req
   const manager = await payload
     .findByID({
-      collection: ROLES_COLLECTION,
+      collection: MANAGERS_COLLECTION,
       id: managerId,
       depth: 0,
       overrideAccess: true,
@@ -110,10 +110,10 @@ async function enqueue(
   for (const [locale, slugs] of Object.entries(added.roles ?? {})) {
     roles[locale] = union(roles[locale], slugs)
   }
-  const by = req.user?.collection === ROLES_COLLECTION ? req.user.id : null
+  const by = req.user?.collection === MANAGERS_COLLECTION ? req.user.id : null
 
   await payload.db.updateOne({
-    collection: ROLES_COLLECTION,
+    collection: MANAGERS_COLLECTION,
     id: managerId,
     data: {
       pendingInvitation: { managed, roles, by } satisfies PendingInvitation,
@@ -196,7 +196,7 @@ export function sendInvitationsTask(config: LoginCollectionConfig): TaskConfig<'
       const output = { sent: 0, skipped: 0, failed: 0 }
 
       const { docs } = await payload.find({
-        collection: ROLES_COLLECTION,
+        collection: MANAGERS_COLLECTION,
         where: { invitationDueAt: { less_than_equal: now.toISOString() } },
         limit: BATCH,
         sort: 'invitationDueAt',
@@ -212,7 +212,7 @@ export function sendInvitationsTask(config: LoginCollectionConfig): TaskConfig<'
         }
 
         await payload.db.updateOne({
-          collection: ROLES_COLLECTION,
+          collection: MANAGERS_COLLECTION,
           id: doc.id,
           data: { pendingInvitation: null, invitationDueAt: null },
           req,
@@ -265,7 +265,7 @@ async function sendOne({
       ? null
       : await payload
           .findByID({
-            collection: ROLES_COLLECTION,
+            collection: MANAGERS_COLLECTION,
             id: by,
             depth: 0,
             overrideAccess: true,

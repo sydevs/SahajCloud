@@ -5,7 +5,7 @@ import { redeemInvite } from './endpoints/redeemInvite'
 import { redeemLink } from './endpoints/redeemLink'
 import { redeemMagicLink } from './endpoints/redeemMagicLink'
 import { requestMagicLink } from './endpoints/requestMagicLink'
-import { managerJoins, ROLES_COLLECTION } from './grantSummary'
+import { managerJoins, MANAGERS_COLLECTION } from './grantSummary'
 import {
   INVITATIONS_CRON,
   INVITATIONS_QUEUE,
@@ -158,9 +158,9 @@ export function loginPlugin(options: LoginPluginOptions = {}): Plugin {
   return (config) => {
     // Invitations need per-locale roles and manager joins, which only
     // `managers` has — see `grantSummary.ts`.
-    const invitesFor = byslug.get(ROLES_COLLECTION)
+    const invitesFor = byslug.get(MANAGERS_COLLECTION)
     const joins = invitesFor
-      ? managerJoins(config.collections?.find((c) => c.slug === ROLES_COLLECTION)?.fields ?? [])
+      ? managerJoins(config.collections?.find((c) => c.slug === MANAGERS_COLLECTION)?.fields ?? [])
       : []
 
     return {
