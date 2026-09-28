@@ -109,7 +109,8 @@ function createLocalizedRolesStrategy(slug: string) {
       const result = await JWTAuthentication(args)
       const user = result.user
 
-      // This is another auth collection's user, or no user. Let `local-jwt` handle it.
+      // Another auth collection's user, or no user. Yielding null rather than
+      // hydrating against the wrong collection — see the docblock.
       if (!user || user.collection !== slug) return { user: null }
 
       try {

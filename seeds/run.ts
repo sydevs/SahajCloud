@@ -24,8 +24,7 @@
  *
  * Environment Variables:
  *   SAHAJCLOUD_URL  - Target URL (default: http://localhost:PORT)
- *   ADMIN_EMAIL     - Admin email for authentication (not needed locally)
- *   ADMIN_PASSWORD  - Admin password for authentication (not needed locally)
+ *   ADMIN_TOKEN     - A manager session token, for a remote target (not needed locally)
  *   PORT            - Local dev server port (default: 3000)
  *
  * Local dev enables Payload's `admin.autoLogin`, so no credentials are
@@ -190,8 +189,7 @@ Options:
 
 Environment Variables:
   SAHAJCLOUD_URL  Target URL (default: http://localhost:PORT)
-  ADMIN_EMAIL     Admin email for authentication (only for a remote target)
-  ADMIN_PASSWORD  Admin password for authentication (only for a remote target)
+  ADMIN_TOKEN     A manager session token (only for a remote target)
 
 Local dev enables auto-login, so seeding localhost needs no credentials.
 
@@ -268,37 +266,24 @@ async function authenticate(baseUrl: string): Promise<string | null> {
     return null
   }
 
-  const email = seedEnv.ADMIN_EMAIL
-  const password = seedEnv.ADMIN_PASSWORD
+  const token = seedEnv.ADMIN_TOKEN
 
-  if (!email || !password) {
+  if (!token) {
     throw new Error(
       'Missing authentication credentials.\n' +
-        'Set ADMIN_EMAIL and ADMIN_PASSWORD environment variables.\n' +
-        '(Local dev normally needs neither — auto-login covers it. Seeing this ' +
+        'Set ADMIN_TOKEN to a manager session token. Sign in to the target at ' +
+        '/admin with an emailed link, then copy the `payload-token` cookie.\n' +
+        'There is no ADMIN_PASSWORD to send instead: managers hold no password, ' +
+        'and POST /api/managers/login answers 403 everywhere (#840).\n' +
+        '(Local dev normally needs none — auto-login covers it. Seeing this ' +
         'against localhost means the server is running in production or E2E mode.)',
     )
   }
 
-  console.log(`🔐 Authenticating as ${email}...`)
-
-  const response = await fetch(`${baseUrl}/api/managers/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
-  })
-
-  if (!response.ok) {
-    const error = await response.text()
-    throw new Error(`Authentication failed: ${response.status} ${error}`)
-  }
-
-  const { token } = (await response.json()) as { token?: string }
-  if (!token) {
-    throw new Error('No token received from login')
-  }
-
-  console.log('✅ Authentication successful\n')
+  // Not verified here: the first seeded write reports a stale or wrong token as
+  // its own 403, and there is no cheap probe that would not be a second guess at
+  // what "authenticated" means.
+  console.log('🔐 Using the supplied ADMIN_TOKEN\n')
   return token
 }
 

@@ -103,6 +103,35 @@ describe('POST /api/managers/exchange-preview-secret', () => {
     expect((await exchange({})).status).toBe(400)
   })
 
+  it('refuses an unaccepted admin, rather than minting a token nobody can use', async () => {
+    await payload.update({
+      collection: 'managers',
+      id: previewAdminId,
+      data: { _verified: false },
+      overrideAccess: true,
+    })
+
+    expect(
+      (await exchange({ email: PREVIEW_ADMIN_EMAIL, password: PREVIEW_ADMIN_PASSWORD })).status,
+    ).toBe(403)
+
+    await payload.update({
+      collection: 'managers',
+      id: previewAdminId,
+      data: { _verified: true },
+      overrideAccess: true,
+    })
+  })
+
+  it('accepts the address whatever case the caller types', async () => {
+    const res = await exchange({
+      email: PREVIEW_ADMIN_EMAIL.toUpperCase(),
+      password: PREVIEW_ADMIN_PASSWORD,
+    })
+
+    expect(res.status).toBe(200)
+  })
+
   it('refuses the preview admin once they are deactivated', async () => {
     await payload.update({
       collection: 'managers',

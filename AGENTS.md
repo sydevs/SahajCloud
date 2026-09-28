@@ -40,6 +40,8 @@ Admin panel: `http://localhost:{PORT}/admin/login`, once the dev server runs.
 | Railway PR preview | A sign-in link, or — for the smoke lane — `POST /api/managers/exchange-preview-secret` with `PREVIEW_ADMIN_PASSWORD` (a Railway preview env var, also a CI secret). That route exists only where the same gate provisions the admin (`src/plugins/previewAdmin`). Environments forked before 2026-08-27 never got the variable, so they have neither the route nor a reconciled admin. |
 | Production | A sign-in link, delivered by email. There is no password and no break-glass credential — see `docs/environment.md`. |
 
+**A fresh database has no manager to invite the first one.** `pnpm tsx scripts/create-manager.ts <email>` writes one through the local API, which the closed routes do not gate. Payload's own `create-first-user` is `Forbidden` like every other password route.
+
 ## Essential Commands
 
 Use the `/workflow:dev-server` skill for a dev server shared across sessions. It prevents port conflicts. Default port 3000. Override with `PORT=4000`. `SAHAJCLOUD_URL` derives from `PORT`. Manual fallback: `pnpm dev`, `pnpm devsafe` (clean, removes `.next`), `pnpm build`, `pnpm start`.

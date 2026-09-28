@@ -11,7 +11,9 @@ import { createSession, sessionCookie } from '../session'
 export const EXCHANGE_PREVIEW_SECRET_PATH = '/exchange-preview-secret'
 
 const bodySchema = z.object({
-  email: z.email(),
+  // Normalised like `magicLinkEmailSchema`'s, for the same reason: Payload's
+  // `email` base field lowercases and trims on every write.
+  email: z.string().trim().email().toLowerCase(),
   password: z.string().min(1),
 })
 
@@ -54,7 +56,10 @@ export function exchangePreviewSecret(
   exchange: PreviewSecretExchange,
 ): Endpoint {
   const { isEligible, select, slug } = config
-  const expectedEmail = exchange.email.toLowerCase()
+  // ⚠ The stored spelling, used for BOTH the comparison and the lookup. Compare
+  // against one and query with another, and a `PREVIEW_ADMIN_EMAIL` carrying a
+  // capital refuses a correct secret forever.
+  const expectedEmail = exchange.email.trim().toLowerCase()
 
   return {
     path: EXCHANGE_PREVIEW_SECRET_PATH,
@@ -64,23 +69,32 @@ export function exchangePreviewSecret(
       if (!parsed.ok) return parsed.response
 
       const { payload } = req
-      if (parsed.data.email.toLowerCase() !== expectedEmail) return refused()
+      if (parsed.data.email !== expectedEmail) return refused()
       if (!constantTimeEqual(parsed.data.password, exchange.password)) return refused()
+
+      // ⚠ `_verified` is not a column every auth collection has — Payload adds
+      // it only for one configuring `auth.verify` (`getAuthFields.js`), so
+      // `redeemToken` asks the same question before naming it.
+      const verifies = Boolean(payload.collections[slug]?.config.auth?.verify)
 
       // Through `unknown` for the same reason `redeemToken` casts its own read:
       // a `SelectType` assembled at run time tells `find` nothing about which
       // fields survive, so its return widens to the whole slug union.
       const found = (await payload.find({
         collection: slug,
-        where: { email: { equals: exchange.email } },
+        where: { email: { equals: expectedEmail } },
         limit: 1,
         depth: 0,
         overrideAccess: true,
-        select: select as never,
+        select: { ...select, ...(verifies ? { _verified: true } : {}) } as never,
       })) as unknown as { docs: LoginDocument[] }
 
       const account = found.docs[0]
       if (!account) return refused()
+      // The JWT strategy refuses an unaccepted account, so minting without this
+      // would answer 200 with a token that authenticates nobody — and land the
+      // failure on the caller's next request rather than here.
+      if (verifies && account._verified !== true) return refused()
       if (isEligible && !isEligible(account)) return refused()
 
       const token = await createSession(payload, slug, account.id)
