@@ -1,8 +1,5 @@
-import type { LoginCollectionConfig } from './types'
+import type { LoginCollectionConfig, PreviewSecretExchange } from './types'
 import type { CollectionBeforeOperationHook, CollectionConfig, Config, Field, Plugin } from 'payload'
-
-import { serverEnv } from '@/lib/env'
-import { shouldSeedPreviewAdminHere } from '@/plugins/previewAdmin'
 
 import { exchangePreviewSecret } from './endpoints/exchangePreviewSecret'
 import { redeemInvite } from './endpoints/redeemInvite'
@@ -54,6 +51,17 @@ export interface LoginPluginOptions {
   collections?: LoginCollectionConfig[]
   enabled?: boolean
   /**
+   * Wire `exchange-preview-secret` on every served collection, trading this
+   * credential for a session.
+   *
+   * ⚠ **Absent means the route does not exist**, which is the whole gate — a
+   * route present everywhere and refusing everywhere would be one typo away
+   * from a password login on production. `previewSecretExchange()` in
+   * `@/plugins/previewAdmin` is what answers, and it answers `undefined`
+   * anywhere but a Railway preview holding the secret.
+   */
+  previewExchange?: PreviewSecretExchange
+  /**
    * Whether assignments queue invitations. Off for the seed scripts: an import
    * writes managers onto hundreds of regions and events, and the queue it left
    * behind would mail every one of them from production's next run. The fields
@@ -73,9 +81,6 @@ export interface LoginPluginOptions {
  */
 const suppressCreateMail: CollectionBeforeOperationHook = ({ args, operation }) =>
   operation === 'create' ? { ...args, disableVerificationEmail: true } : args
-
-/** Matches `seedPreviewAdmin`'s own default, which is the account this trades for. */
-const DEFAULT_PREVIEW_ADMIN_EMAIL = 'contact@sydevelopers.com'
 
 /**
  * Close every password route on a served collection (#840).
@@ -106,8 +111,10 @@ const DEFAULT_PREVIEW_ADMIN_EMAIL = 'contact@sydevelopers.com'
  * number being above zero. Leaving it unset would keep a lock nothing can set
  * and nothing can clear — `unlock` is `Forbidden` too.
  *
- * Applied here rather than in the collection so that removing `loginPlugin()`
- * returns it to passwords in one edit.
+ * Applied by the plugin rather than written into the collection so that
+ * removing `loginPlugin()` returns it to passwords in one edit — but only for
+ * an entry that asks (`LoginCollectionConfig.passwordless`), because which
+ * auth columns a collection carries is not a plugin-wide decision.
  */
 function withoutPasswords(auth: CollectionConfig['auth']): CollectionConfig['auth'] {
   const base = typeof auth === 'object' ? auth : {}
@@ -124,7 +131,12 @@ function withoutPasswords(auth: CollectionConfig['auth']): CollectionConfig['aut
 const isSiteAbsolute = (path: string) => path.startsWith('/') && !/^\/[/\\]/.test(path)
 
 /**
- * Put the "Email me a sign-in link" control under the admin login form.
+ * Put the "Email me a sign-in link" control on the admin login page.
+ *
+ * ⚠ **It is the only control there now.** `disableLocalStrategy` makes Payload
+ * skip `LoginForm` (`@payloadcms/next/dist/views/Login/index.js:75`), so the
+ * `afterLogin` slot is what a human logging in sees — drop this and the page
+ * offers nothing at all.
  *
  * ⚠ **Every key of `admin` and of `admin.components` is spread, never
  * replaced.** `src/payload.config.ts` declares `providers`, `beforeNavLinks`,
@@ -133,7 +145,7 @@ const isSiteAbsolute = (path: string) => path.startsWith('/') && !/^\/[/\\]/.tes
  * views, and nothing would fail until someone opened the admin panel.
  *
  * Only the collection the admin panel authenticates gets one: `afterLogin` is a
- * slot on that one form, so a second served collection has no form to add to.
+ * slot on that one view, so a second served collection has no page to add to.
  */
 function adminWithSignInLink(
   admin: Config['admin'],
@@ -194,20 +206,10 @@ function adminWithSignInLink(
  * ```
  */
 export function loginPlugin(options: LoginPluginOptions = {}): Plugin {
-  const { collections = [], enabled, invitations = true } = options
+  const { collections = [], enabled, invitations = true, previewExchange } = options
   if (enabled === false || collections.length === 0) return (config) => config
 
   const byslug = new Map(collections.map((entry) => [entry.slug as string, entry]))
-
-  // Resolved once, at fold time: the route exists on a preview and nowhere
-  // else, so production never registers a handler that reads a secret.
-  const previewExchange =
-    shouldSeedPreviewAdminHere() && serverEnv.PREVIEW_ADMIN_PASSWORD
-      ? {
-          email: serverEnv.PREVIEW_ADMIN_EMAIL ?? DEFAULT_PREVIEW_ADMIN_EMAIL,
-          password: serverEnv.PREVIEW_ADMIN_PASSWORD,
-        }
-      : undefined
 
   return (config) => {
     // Invitations need per-locale roles and manager joins, which only
@@ -242,7 +244,7 @@ export function loginPlugin(options: LoginPluginOptions = {}): Plugin {
         const invites = entry === invitesFor
         return {
           ...withQueue,
-          auth: withoutPasswords(withQueue.auth),
+          ...(entry.passwordless ? { auth: withoutPasswords(withQueue.auth) } : {}),
           fields: [...withQueue.fields, magicLinkIssuedAt, ...(invites ? invitationFields : [])],
           hooks: {
             ...withQueue.hooks,

@@ -8,6 +8,7 @@ import type {
 import { randomUUID } from 'node:crypto'
 
 import { getFieldsToSign, jwtSign } from 'payload'
+import { generatePayloadCookie } from 'payload/shared'
 
 /**
  * The auth fields this helper needs, narrowed out of `findByID`'s union.
@@ -47,7 +48,7 @@ function hasSessionsField(config: SanitizedCollectionConfig): boolean {
  * is `NOT NULL`, so omitting it fails the insert rather than minting a token
  * that outlives its row.
  *
- * Cookie writing belongs to the caller.
+ * Writing the cookie is {@link sessionCookie}.
  *
  * @throws if `collection` carries no `sessions` field.
  */
@@ -109,4 +110,21 @@ export async function createSession(
   const { token } = await jwtSign({ fieldsToSign, secret: payload.secret, tokenExpiration })
 
   return token
+}
+
+/**
+ * The `Set-Cookie` value that puts a minted session in a browser.
+ *
+ * Beside {@link createSession} because both callers — the redeem routes and the
+ * preview exchange — mint and then set, and this is where the
+ * `payload.collections[slug]!` reach and the expiry derivation belong. The
+ * expiry comes from the collection's own `tokenExpiration`, so no
+ * `getCookieExpiration` call is needed here.
+ */
+export function sessionCookie(payload: Payload, collection: CollectionSlug, token: string): string {
+  return generatePayloadCookie({
+    collectionAuthConfig: payload.collections[collection]!.config.auth,
+    cookiePrefix: payload.config.cookiePrefix,
+    token,
+  })
 }

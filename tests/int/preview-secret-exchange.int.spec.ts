@@ -7,9 +7,9 @@
  * refused with one answer.
  *
  * ⚠ **The environment is set in `vi.hoisted`, and it has to be.** `serverEnv`
- * parses at import, and `loginPlugin` resolves the exchange when it is
- * constructed — so an assignment in `beforeAll` would run after both, and the
- * route would silently not exist while every refusal below still passed.
+ * parses at import, and `previewSecretExchange()` runs when `testHelpers`
+ * constructs the plugin — so an assignment in `beforeAll` would run after both,
+ * the route would silently not exist, and every refusal below would still pass.
  */
 import type { Payload } from 'payload'
 
@@ -43,17 +43,11 @@ describe('POST /api/managers/exchange-preview-secret', () => {
 
   /** What `seedPreviewAdmin` leaves behind: present, admin, accepted, no password. */
   const seedPreviewAdmin = async () => {
-    const created = await payload.create({
-      collection: 'managers',
-      data: { name: 'Preview Admin', email: PREVIEW_ADMIN_EMAIL, type: 'admin' },
-      disableVerificationEmail: true,
-      overrideAccess: true,
-    })
-    await payload.update({
-      collection: 'managers',
-      id: created.id,
-      data: { _verified: true },
-      overrideAccess: true,
+    const created = await testData.createManager(payload, {
+      name: 'Preview Admin',
+      email: PREVIEW_ADMIN_EMAIL,
+      type: 'admin',
+      _verified: true,
     })
     return created.id
   }

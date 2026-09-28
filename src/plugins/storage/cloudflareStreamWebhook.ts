@@ -9,6 +9,8 @@
  */
 import { z } from 'zod'
 
+import { constantTimeEqual } from '@/lib/utilities/constantTimeEqual'
+
 import {
   CloudflareStreamDownloadsResponseSchema,
   CloudflareStreamWebhookPayloadSchema,
@@ -67,19 +69,6 @@ function bufferToHex(buf: ArrayBuffer): string {
     out += bytes[i].toString(16).padStart(2, '0')
   }
   return out
-}
-
-/**
- * Constant-time string comparison. Both strings MUST be equal length;
- * a length mismatch is never a valid signature anyway.
- */
-function constantTimeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false
-  let result = 0
-  for (let i = 0; i < a.length; i++) {
-    result |= a.charCodeAt(i) ^ b.charCodeAt(i)
-  }
-  return result === 0
 }
 
 /**

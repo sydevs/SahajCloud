@@ -8,6 +8,16 @@ import { shouldSeedPreviewAdminHere } from './shouldSeedPreviewAdmin'
 const DEFAULT_PREVIEW_ADMIN_EMAIL = 'contact@sydevelopers.com'
 
 /**
+ * The one address a preview's admin holds.
+ *
+ * ⚠ **The exchange route resolves it from here too.** Two copies would let the
+ * seeder provision one address while the route traded for another — a 403 on
+ * the preview, reported as "the deploy did not seed".
+ */
+export const previewAdminEmail = (): string =>
+  serverEnv.PREVIEW_ADMIN_EMAIL ?? DEFAULT_PREVIEW_ADMIN_EMAIL
+
+/**
  * Reconcile the Railway preview's admin account.
  *
  * Runs from `onInit`, so it happens on **every** deploy of a preview environment, after
@@ -19,13 +29,10 @@ const DEFAULT_PREVIEW_ADMIN_EMAIL = 'contact@sydevelopers.com'
  * lane could neither log in nor re-register, because Payload refuses `first-register`
  * as soon as the collection holds anything.
  *
- * **It writes no password, because a manager no longer has one.** `loginPlugin` sets
- * `disableLocalStrategy` (sydevs/SahajCloud#840), so `create` skips password registration
- * outright and no route would spend the hash anyway. What the smoke lane trades
- * `PREVIEW_ADMIN_PASSWORD` for is a session, at
- * `POST /api/managers/exchange-preview-secret` — a route wired by the same gate below.
- * This function's job is therefore narrower than it was: make sure the account exists,
- * is an admin, and is accepted.
+ * **It writes no password, because a manager no longer has one** (sydevs/SahajCloud#840).
+ * Its job is narrower than it was: make sure the account exists, is an admin, and is
+ * accepted. What the smoke lane signs in with is
+ * `src/plugins/login/endpoints/exchangePreviewSecret.ts`, wired by the gate below.
  *
  * **`_verified: true` is not optional.** The Managers collection configures
  * `auth.verify`, so the JWT strategy yields no user while that flag is false — the
@@ -38,7 +45,7 @@ const DEFAULT_PREVIEW_ADMIN_EMAIL = 'contact@sydevelopers.com'
 export const seedPreviewAdmin = async (payload: Payload): Promise<void> => {
   if (!shouldSeedPreviewAdminHere()) return
 
-  const email = serverEnv.PREVIEW_ADMIN_EMAIL ?? DEFAULT_PREVIEW_ADMIN_EMAIL
+  const email = previewAdminEmail()
 
   try {
     const existing = await payload.find({

@@ -48,14 +48,11 @@ const EXCHANGE_PATH = '/api/managers/exchange-preview-secret'
  * account already exists, accepted and admin.
  *
  * It used to `POST /api/managers/login`. Managers hold no password since
- * sydevs/SahajCloud#840, so that route is now `Forbidden` for everyone; the exchange
- * route authenticates the secret against the environment instead, and exists only where
- * the same gate provisions the account. **No new CI secret** — it is the
- * `PREVIEW_ADMIN_PASSWORD` the workflow already passes.
+ * sydevs/SahajCloud#840, so that route is `Forbidden` for everyone —
+ * `src/plugins/login/endpoints/exchangePreviewSecret.ts` carries what replaced it.
+ * **No new CI secret**: it is the `PREVIEW_ADMIN_PASSWORD` the workflow already passes.
  *
- * A failure here is therefore a real one — the deploy did not seed, the exchange route
- * is not wired because the preview holds no secret, or this run holds a different value
- * than the deploy did — so it is reported rather than worked around.
+ * A failure here is a real one, so it is reported rather than worked around.
  */
 export async function ensureAdmin(request: APIRequestContext): Promise<string> {
   const res = await request.post(EXCHANGE_PATH, { data: PREVIEW_ADMIN })

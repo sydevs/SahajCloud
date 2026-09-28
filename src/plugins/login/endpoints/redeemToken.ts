@@ -3,12 +3,10 @@ import type { LoginCollectionConfig, LoginDocument } from '../types'
 import type { Endpoint, Payload, SelectType } from 'payload'
 
 
-import { generatePayloadCookie } from 'payload/shared'
-
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 import type { SignedTokenResult } from '@/lib/utilities/signedToken'
 
-import { createSession } from '../session'
+import { createSession, sessionCookie } from '../session'
 
 /** Where a spent token lands the holder, unless the collection names another. */
 const DEFAULT_REDIRECT = '/admin'
@@ -194,15 +192,7 @@ export function redeemToken<C extends LoginTokenClaims>(
         overrideAccess: true,
       })
 
-      const sessionToken = await createSession(payload, slug, account.id)
-
-      // `generatePayloadCookie` derives the expiry from the collection's own
-      // `tokenExpiration`, so it needs no `getCookieExpiration` call here.
-      const cookie = generatePayloadCookie({
-        collectionAuthConfig: payload.collections[slug]!.config.auth,
-        cookiePrefix: payload.config.cookiePrefix,
-        token: sessionToken,
-      })
+      const cookie = sessionCookie(payload, slug, await createSession(payload, slug, account.id))
 
       if (spec.afterRedeem) {
         await spec.afterRedeem({ account, claims, payload }).catch((error: unknown) => {

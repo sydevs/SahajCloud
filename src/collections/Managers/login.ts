@@ -32,6 +32,10 @@ export const managersLogin: LoginCollectionConfig = {
   isEligible: (doc) => doc.type !== INACTIVE,
   // An invitation's "Configure notifications" opens the account on this tab.
   notificationsTab: MANAGER_NOTIFICATIONS_TAB,
+  // A manager signs in by link only (#840). The plugin turns this into
+  // `auth.disableLocalStrategy` plus `maxLoginAttempts: 0`; `clients` is served
+  // by nothing here and keeps its own bare `disableLocalStrategy: true`.
+  passwordless: true,
   // `null` is the admin "All Content" view, which has no brand of its own — the
   // plugin's default stands in. Note this diverges from #483, which brands the
   // verify and reset mail `wemeditate-web` regardless of the recipient.

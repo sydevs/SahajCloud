@@ -1,14 +1,12 @@
-import type { LoginCollectionConfig, LoginDocument } from '../types'
+import type { LoginCollectionConfig, LoginDocument, PreviewSecretExchange } from '../types'
 import type { Endpoint } from 'payload'
 
-import { timingSafeEqual } from 'node:crypto'
-
-import { generatePayloadCookie } from 'payload/shared'
 import { z } from 'zod'
 
 import { parseBody } from '@/lib/endpoints'
+import { constantTimeEqual } from '@/lib/utilities/constantTimeEqual'
 
-import { createSession } from '../session'
+import { createSession, sessionCookie } from '../session'
 
 export const EXCHANGE_PREVIEW_SECRET_PATH = '/exchange-preview-secret'
 
@@ -24,20 +22,6 @@ const bodySchema = z.object({
  * the first refusal and throws a 500 on every one after it.
  */
 const refused = () => Response.json({ errors: [{ message: 'Refused.' }] }, { status: 403 })
-
-/** Equal-length compare, so a mismatched length is not a shortcut. */
-function secretMatches(given: string, expected: string): boolean {
-  const a = Buffer.from(given, 'utf8')
-  const b = Buffer.from(expected, 'utf8')
-  return a.length === b.length && timingSafeEqual(a, b)
-}
-
-export interface PreviewSecretExchange {
-  /** The one address this trades for, already resolved by the caller. */
-  email: string
-  /** `PREVIEW_ADMIN_PASSWORD`. Non-null: `loginPlugin` wires this route only where it is set. */
-  password: string
-}
 
 /**
  * `POST /api/<slug>/exchange-preview-secret`
@@ -69,7 +53,8 @@ export function exchangePreviewSecret(
   config: LoginCollectionConfig,
   exchange: PreviewSecretExchange,
 ): Endpoint {
-  const { slug } = config
+  const { isEligible, select, slug } = config
+  const expectedEmail = exchange.email.toLowerCase()
 
   return {
     path: EXCHANGE_PREVIEW_SECRET_PATH,
@@ -79,8 +64,8 @@ export function exchangePreviewSecret(
       if (!parsed.ok) return parsed.response
 
       const { payload } = req
-      if (parsed.data.email.toLowerCase() !== exchange.email.toLowerCase()) return refused()
-      if (!secretMatches(parsed.data.password, exchange.password)) return refused()
+      if (parsed.data.email.toLowerCase() !== expectedEmail) return refused()
+      if (!constantTimeEqual(parsed.data.password, exchange.password)) return refused()
 
       // Through `unknown` for the same reason `redeemToken` casts its own read:
       // a `SelectType` assembled at run time tells `find` nothing about which
@@ -91,28 +76,20 @@ export function exchangePreviewSecret(
         limit: 1,
         depth: 0,
         overrideAccess: true,
-        select: { ...config.select } as never,
+        select: select as never,
       })) as unknown as { docs: LoginDocument[] }
 
       const account = found.docs[0]
       if (!account) return refused()
-      if (config.isEligible && !config.isEligible(account)) return refused()
+      if (isEligible && !isEligible(account)) return refused()
 
       const token = await createSession(payload, slug, account.id)
 
+      // The lane reads `token` off the body; the cookie is what a browser spec
+      // needs, and both come from the one session minted above.
       return Response.json(
         { token },
-        {
-          headers: {
-            // The lane reads `token` off the body; the cookie is what a browser
-            // spec needs, and both come from the one session minted above.
-            'Set-Cookie': generatePayloadCookie({
-              collectionAuthConfig: payload.collections[slug]!.config.auth,
-              cookiePrefix: payload.config.cookiePrefix,
-              token,
-            }),
-          },
-        },
+        { headers: { 'Set-Cookie': sessionCookie(payload, slug, token) } },
       )
     },
   }

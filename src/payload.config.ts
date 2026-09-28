@@ -24,7 +24,7 @@ import { buildSmtpTransportOptions, resendAdapter, warnEmailDisabled } from '@/p
 import { formsPlugin } from '@/plugins/formBuilder'
 import { loginPlugin } from '@/plugins/login'
 import { openapiEndpointAuth, scalarPlugin } from '@/plugins/openapi'
-import { seedPreviewAdmin } from '@/plugins/previewAdmin'
+import { previewSecretExchange, seedPreviewAdmin } from '@/plugins/previewAdmin'
 import { sentryPlugin } from '@/plugins/sentry'
 import { storagePlugin } from '@/plugins/storage'
 import { isProductionDeployment } from '@/plugins/storage/previewIsolation'
@@ -334,7 +334,13 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       // accessPlugin, which must stay last.
       // Invitations queue on assignment — except under a seed script, whose bulk
       // writes would otherwise leave production a queue to mail (see the option).
-      loginPlugin({ collections: [managersLogin], invitations: !isSeedScript }),
+      // This is the one place that knows both what a preview is and what the
+      // plugin serves, so it is where the preview exchange is resolved (#840).
+      loginPlugin({
+        collections: [managersLogin],
+        invitations: !isSeedScript,
+        previewExchange: previewSecretExchange(),
+      }),
       // Access Plugin: Unified RBAC and project visibility (must be LAST to process plugin-created collections)
       accessPlugin({
         enabled: true,

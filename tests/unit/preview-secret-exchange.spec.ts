@@ -1,98 +1,124 @@
 /**
- * The preview-only session exchange (#840).
+ * Who gets a preview session exchange, and who gets passwords taken away (#840).
  *
  * `disableLocalStrategy` closes `POST /api/managers/login`, and the smoke lane
- * used to be its only non-human caller. What replaces it trades
+ * was its only non-human caller. What replaces it trades
  * `PREVIEW_ADMIN_PASSWORD` for a session — the secret a Railway preview already
  * holds, so no new CI secret exists to leak.
  *
- * ⚠ **The gate is the WIRING, not a branch inside the handler.** A route that
- * existed everywhere and refused everywhere would be one env-var typo away from
- * a password login on production. So the property under test is that
- * `loginPlugin` builds no such endpoint unless this boot is a preview holding
- * the secret — which is why these cases re-import the plugin under a changed
- * environment rather than calling a predicate.
+ * ⚠ **Both properties are about WIRING, not about a branch inside a handler.**
+ * A route that existed everywhere and refused everywhere would be one env-var
+ * typo away from a password login on production, and a `passwordless` applied
+ * plugin-wide would rewrite the auth columns of the next slug added to
+ * `collections`. So both are asserted by folding the plugin and reading what
+ * came out.
+ *
+ * `previewSecretExchange()` — which reads the environment and decides whether
+ * there is a credential at all — sits one layer down, beside the gate
+ * `preview-admin-gate.spec.ts` covers.
  */
-import type { CollectionConfig, Config, Endpoint, Plugin } from 'payload'
+import type { CollectionConfig, Config, Endpoint } from 'payload'
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
-import type { LoginCollectionConfig } from '@/plugins/login'
+import {
+  loginPlugin,
+  type LoginCollectionConfig,
+  type PreviewSecretExchange,
+} from '@/plugins/login'
+// ⚠ The real constant, not a copy: most cases below assert the path is ABSENT,
+// and a stale literal would satisfy every one of them forever.
 import { EXCHANGE_PREVIEW_SECRET_PATH } from '@/plugins/login/endpoints/exchangePreviewSecret'
 
 const managers: LoginCollectionConfig = {
   slug: 'managers',
+  passwordless: true,
   requestPagePath: '/managers/signin',
 }
 
-/**
- * ⚠ **The real constant, not a copy.** Three of the five cases assert the path
- * is ABSENT, and a stale literal here would satisfy all three forever.
- */
-const EXCHANGE_PATH = EXCHANGE_PREVIEW_SECRET_PATH
-
-const originalEnv = process.env
-
-/** Fold the plugin freshly, so the module reads the environment set just above. */
-async function endpointPaths(): Promise<string[]> {
-  vi.resetModules()
-  const { loginPlugin } = (await import('@/plugins/login')) as {
-    loginPlugin: (options: { collections: LoginCollectionConfig[] }) => Plugin
-  }
-
-  const config = {
-    collections: [{ slug: 'managers', fields: [{ name: 'email', type: 'email' }] }],
-  } as unknown as Config
-
-  const folded = (loginPlugin({ collections: [managers] }) as (c: Config) => Config)(config)
-  const collection = (folded.collections as CollectionConfig[])[0]!
-  return (collection.endpoints as Endpoint[]).map((endpoint) => endpoint.path)
+/** A second served collection, to drive the per-collection half. */
+const clients: LoginCollectionConfig = {
+  slug: 'clients',
+  requestPagePath: '/clients/signin',
 }
 
-describe('the preview secret exchange is wired only on a preview', () => {
-  beforeEach(() => {
-    process.env = { ...originalEnv }
-    delete process.env.RAILWAY_ENVIRONMENT_NAME
-    delete process.env.RAILWAY_ENVIRONMENT
-    delete process.env.PREVIEW_ADMIN_PASSWORD
-  })
+const PREVIEW: PreviewSecretExchange = {
+  email: 'preview-admin@example.com',
+  password: 'a-preview-secret',
+}
 
-  afterEach(() => {
-    process.env = originalEnv
-    vi.resetModules()
-  })
+/** A collection as a plugin sees it: pre-`sanitizeConfig`, `endpoints` unset. */
+function collection(slug: string): CollectionConfig {
+  return { slug, fields: [{ name: 'email', type: 'email' }], auth: { maxLoginAttempts: 5 } }
+}
 
-  it('wires it on a Railway preview holding the secret', async () => {
-    process.env.RAILWAY_ENVIRONMENT_NAME = 'pr-840'
-    process.env.PREVIEW_ADMIN_PASSWORD = 'a-preview-secret'
+function fold(
+  options: Parameters<typeof loginPlugin>[0],
+  ...slugs: string[]
+): Record<string, CollectionConfig> {
+  const config = { collections: slugs.map(collection) } as unknown as Config
+  const folded = (loginPlugin(options) as (c: Config) => Config)(config)
+  return Object.fromEntries(
+    (folded.collections as CollectionConfig[]).map((entry) => [entry.slug, entry]),
+  )
+}
 
-    expect(await endpointPaths()).toContain(EXCHANGE_PATH)
-  })
+const paths = (entry: CollectionConfig) => (entry.endpoints as Endpoint[]).map((e) => e.path)
 
-  it('wires nothing on production, which holds a secret too', async () => {
-    process.env.RAILWAY_ENVIRONMENT_NAME = 'production'
-    process.env.PREVIEW_ADMIN_PASSWORD = 'a-production-secret'
-
-    expect(await endpointPaths()).not.toContain(EXCHANGE_PATH)
-  })
-
-  it('wires nothing off Railway — local dev, CI, and both test lanes', async () => {
-    // CI genuinely holds this secret, and the integration lane boots the real
-    // config, so the Railway check is what keeps the route out of it.
-    process.env.PREVIEW_ADMIN_PASSWORD = 'the-ci-secret'
-
-    expect(await endpointPaths()).not.toContain(EXCHANGE_PATH)
-  })
-
-  it('wires nothing on a preview forked before the secret existed', async () => {
-    process.env.RAILWAY_ENVIRONMENT_NAME = 'pr-123'
-
-    expect(await endpointPaths()).not.toContain(EXCHANGE_PATH)
-  })
-
-  it('leaves the sign-in routes alone in every case', async () => {
-    expect(await endpointPaths()).toEqual(
-      expect.arrayContaining(['/request-magic-link', '/redeem-magic-link', '/redeem-invite']),
+describe('the preview secret exchange', () => {
+  it('is wired on every served collection when a credential is supplied', () => {
+    const folded = fold(
+      { collections: [managers, clients], previewExchange: PREVIEW },
+      'managers',
+      'clients',
     )
+
+    expect(paths(folded.managers!)).toContain(EXCHANGE_PREVIEW_SECRET_PATH)
+    expect(paths(folded.clients!)).toContain(EXCHANGE_PREVIEW_SECRET_PATH)
+  })
+
+  it('is absent with no credential — production, CI, local dev, an old preview', () => {
+    const folded = fold({ collections: [managers] }, 'managers')
+
+    expect(paths(folded.managers!)).not.toContain(EXCHANGE_PREVIEW_SECRET_PATH)
+  })
+
+  it('leaves the sign-in routes alone either way', () => {
+    const withCredential = fold({ collections: [managers], previewExchange: PREVIEW }, 'managers')
+    const without = fold({ collections: [managers] }, 'managers')
+
+    for (const folded of [withCredential, without]) {
+      expect(paths(folded.managers!)).toEqual(
+        expect.arrayContaining(['/request-magic-link', '/redeem-magic-link', '/redeem-invite']),
+      )
+    }
+  })
+})
+
+describe('taking passwords away', () => {
+  it('uses the object form, so the columns the sign-in flow needs survive', () => {
+    const folded = fold({ collections: [managers] }, 'managers')
+
+    expect(folded.managers!.auth).toMatchObject({
+      disableLocalStrategy: { enableFields: true },
+      maxLoginAttempts: 0,
+    })
+  })
+
+  it('touches only the entries that ask', () => {
+    // ⚠ The failure this exists for: `clients` needs the bare
+    // `disableLocalStrategy: true`, so serving it here must not hand it the
+    // object form — that would add `email`, `_verified` and `sessions` columns
+    // from a one-line edit to a `collections:` array.
+    const folded = fold({ collections: [managers, clients] }, 'managers', 'clients')
+
+    expect(folded.clients!.auth).toEqual({ maxLoginAttempts: 5 })
+  })
+
+  it('leaves a collection the plugin does not serve completely alone', () => {
+    const folded = fold({ collections: [managers] }, 'managers', 'clients')
+
+    expect(folded.clients!.auth).toEqual({ maxLoginAttempts: 5 })
+    expect(folded.clients!.endpoints).toBeUndefined()
   })
 })

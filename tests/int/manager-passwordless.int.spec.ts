@@ -16,9 +16,7 @@ import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { createSession } from '@/plugins/login'
-
-import { createAnonRestClient, createRestClientWithAuth, type RestClient } from '../utils/restRequest'
+import { createAnonRestClient, createRestClientAs, type RestClient } from '../utils/restRequest'
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -30,9 +28,22 @@ describe('managers hold no password', () => {
   let anon: RestClient
   let cleanup: () => Promise<void>
 
-  const managerFields = () => payload.collections.managers!.config.fields
   const hasField = (name: string) =>
-    managerFields().some((field) => 'name' in field && field.name === name)
+    payload.collections.managers!.config.fields.some(
+      (field) => 'name' in field && field.name === name,
+    )
+
+  /**
+   * A manager holding a live session and nothing else — no password exists to
+   * hold. `createRestClientAs` is what sets `_verified` and mints the session,
+   * so these suites test the same shape of user every other suite does.
+   */
+  const signedIn = async () => {
+    const manager = await testData.createManager(payload, {
+      name: `Session ${Math.random().toString(36).slice(2)}`,
+    })
+    return { client: await createRestClientAs(env, manager), manager }
+  }
 
   beforeAll(async () => {
     env = await createTestEnvironment()
@@ -145,14 +156,9 @@ describe('managers hold no password', () => {
     })
 
     it('signs a manager in with a session and no credential of theirs', async () => {
-      const manager = await testData.createManager(payload, { name: 'Session Only' })
-      await payload.update({ collection: 'managers', id: manager.id, data: { _verified: true } })
+      const { client, manager } = await signedIn()
 
-      const asManager = createRestClientWithAuth(env, {
-        Authorization: `JWT ${await createSession(payload, 'managers', manager.id)}`,
-      })
-
-      const me = await asManager('/api/managers/me')
+      const me = await client('/api/managers/me')
       expect((me.body as { user?: { email?: string } }).user?.email).toBe(manager.email)
     })
   })
@@ -169,15 +175,6 @@ describe('managers hold no password', () => {
       return doc.sessions ?? []
     }
 
-    const signedIn = async () => {
-      const manager = await testData.createManager(payload, {
-        name: `Session ${Math.random().toString(36).slice(2)}`,
-      })
-      await payload.update({ collection: 'managers', id: manager.id, data: { _verified: true } })
-      const token = await createSession(payload, 'managers', manager.id)
-      return { client: createRestClientWithAuth(env, { Authorization: `JWT ${token}` }), manager }
-    }
-
     it('refreshes a session, and leaves the stored row alone', async () => {
       const { client, manager } = await signedIn()
       const before = await sessionsOf(manager.id)
@@ -186,10 +183,9 @@ describe('managers hold no password', () => {
       expect(refreshed.status).toBe(200)
       expect((refreshed.body as { refreshedToken?: string }).refreshedToken).toBeTruthy()
 
-      // The session branch is skipped under the object form, so `expiresAt` is
-      // NOT extended. Asserted rather than described: the row is what a later
-      // `createSession` prunes against, so a change here changes how long a
-      // signed-in manager survives their own next sign-in.
+      // The row is what a later `createSession` prunes against, so whether
+      // refresh extends it decides how long a signed-in manager survives their
+      // own next sign-in.
       expect(await sessionsOf(manager.id)).toEqual(before)
     })
 

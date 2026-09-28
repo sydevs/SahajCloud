@@ -23,6 +23,20 @@ export interface LoginDocument {
   name?: null | string
 }
 
+/**
+ * The preview-only credential `exchange-preview-secret` trades for a session.
+ *
+ * Supplied by the composition root, never read here: knowing what a Railway PR
+ * preview is belongs to `src/plugins/previewAdmin`, which owns the gate, the
+ * variables and the account. Absent, the route is not wired at all.
+ */
+export interface PreviewSecretExchange {
+  /** The one address this trades for. */
+  email: string
+  /** `PREVIEW_ADMIN_PASSWORD`. */
+  password: string
+}
+
 /** What the two mail generators are handed. */
 export interface LoginMailArgs {
   doc: LoginDocument
@@ -52,6 +66,17 @@ export interface LoginCollectionConfig {
   generateEmailHTML?: (args: LoginMailArgs) => Promise<string> | string
   /** Override the subject. @see generateEmailHTML */
   generateEmailSubject?: (args: LoginMailArgs) => string
+  /**
+   * Take passwords away from this collection: `auth.disableLocalStrategy` in
+   * the object form, and `maxLoginAttempts: 0` (#840).
+   *
+   * ⚠ **Per collection, because it is a schema change.** The plugin serves any
+   * auth collection, and setting this plugin-wide would silently rewrite the
+   * auth columns of the next slug added to `collections` — `clients` needs the
+   * bare `true` form and would gain `email`, `_verified` and `sessions` from a
+   * one-line edit to an array.
+   */
+  passwordless?: boolean
   /**
    * Refuse a link for a document this rejects — a deactivated account, say.
    * Runs on both endpoints, so a document that stops qualifying cannot spend a
