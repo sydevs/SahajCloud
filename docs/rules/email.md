@@ -96,7 +96,6 @@ Transactional emails are [React Email](https://react.email) components under `sr
 | `EmailLayout.tsx` | Shared shell (header, card body, footer). Exports `BrandButton`, `BrandButtonRow`, `DetailRow` (manager fact table), `StackedDetailRow` (guest itinerary row), `SectionHeading`, `ProgressBar`, and shared `styles`. Reuse these for visual consistency. |
 | `InviteEmail.tsx` | Manager invitation (#839): what a manager was just assigned — roles, and each region, event and page naming them, one per line and linked to its public page — with an Atlas introduction and the assigner's name. An accepted manager gets the same email with a button to the admin instead of an invitation to accept. |
 | `SignInLinkEmail.tsx` | The emailed sign-in link an ACCEPTED manager gets (#837). `issueMagicLink` picks between this and the invitation on `_verified`. |
-| `ResetPasswordEmail.tsx` | Manager password-reset message (replaces Payload's default). |
 | `EventVerificationEmail.tsx` | Manager/region verification reminder, with a listing-quality progress section (#611) shown to the **event manager only**. A complete listing drops the progress bar and keeps only the ticks. An absent `listingProgress` renders no section at all. |
 | `RegistrationConfirmationEmail.tsx` | Registrant confirmation — client-branded, localized, ICS attached. Also exports `registrationConfirmationText`. |
 | `SessionReminderEmail.tsx` | Registrant reminder ~24h before a session (#589) — client-branded, no ICS, footer unsubscribe link. Sent by `SendSessionReminders`. |
@@ -134,11 +133,11 @@ Email glue lives in the plugin (`@/plugins/email`). Only JSX templates live in `
 
   ```typescript
   import { createElement } from 'react'
-  import { ResetPasswordEmail } from '@/emails/ResetPasswordEmail'
-  import { getEmailBrand, renderEmail } from '@/plugins/email'
+  import { SignInLinkEmail } from '@/emails/SignInLinkEmail'
+  import { renderEmail } from '@/plugins/email'
 
-  generateEmailHTML: ({ token, user }) =>
-    renderEmail(createElement(ResetPasswordEmail, { name: user.name, resetUrl })),
+  generateEmailHTML: ({ doc, signInUrl, validFor }) =>
+    renderEmail(createElement(SignInLinkEmail, { name: doc.name, signInUrl, validFor })),
   ```
 
 - **Branding is per-project** by default: `getEmailBrand(project)` composes `{ productName, colors, iconUrl }`, defaulting to `wemeditate-web`. A template takes branding as a prop, never a hardcoded color: either `project?: ProjectSlug` (resolved inside the template) when it is the only consumer, or `brand: EmailBrand` (resolved once by the sender and passed down) when the sender also needs it — e.g. for the `From` name — so header and body can't resolve to different brands.
@@ -184,7 +183,7 @@ pluralize(strings, 'sessions_count', count, locale)
 
 ## Authentication features
 
-**Password reset** (`ResetPasswordEmail`) is a custom React Email template wired on `Managers.auth.forgotPassword`, and its subject derives from the resolved brand name. **The invitation** (`InviteEmail`) is sent by the login plugin, not by Payload — see below.
+**There is no password mail, because there is no password.** `loginPlugin` sets `auth.disableLocalStrategy` on `managers` (#840), so Payload's `forgotPassword` and `resetPassword` operations answer `Forbidden` and `ResetPasswordEmail` is gone. Every manager email that gets someone in — **the invitation** (`InviteEmail`), **the sign-in link** (`SignInLinkEmail`) and **a reminder's page link** — is sent by the login plugin, not by Payload. See below.
 
 ### A manager is invited when assigned something, never on create (#839)
 
@@ -215,7 +214,7 @@ The reminder's button is a login-plugin **page link** (`manager-link`), built pe
 
 ### ⚠ The two token URLs have different shapes, and only one carries the slug
 
-⚠ **History now, for the verify row.** `auth.verify` no longer builds an admin URL at all — the invitation addresses the sign-in page (`/managers/signin?invite=…`) instead. The row stays because the trap is the routing rule, and the next auth link written against `formatAdminURL` meets it again.
+⚠ **History now, for both rows.** `auth.verify` no longer builds an admin URL at all — the invitation addresses the sign-in page (`/managers/signin?invite=…`) instead — and the reset route is `Forbidden` since #840, so nothing addresses it either. The table stays because the trap is the routing rule, and the next auth link written against `formatAdminURL` meets it again.
 
 | Link | Correct URL | Why |
 |---|---|---|
@@ -224,4 +223,4 @@ The reminder's button is a login-plugin **page link** (`manager-link`), built pe
 
 A verify URL written in the reset shape (`/admin/verify/:token`) matches nothing, and **fails silently instead of 404ing**: `isPublicAdminRoute` returns true for any route containing `/verify/`, so the auth gate never fires and a logged-out recipient lands on the login form. It looks exactly like the email never arrived, and it shipped that way from #483 to #320.
 
-You will not reproduce this locally — `admin.autoLogin` makes `req.user` truthy on every dev request, taking the `notFound()` branch and showing a 404 instead. Open the link in a **private window**, or trust `tests/unit/manager-auth-urls.spec.ts`, which pins the reset shape against Payload's own `formatAdminURL` — the verify half moved to `manager-invite.spec.ts`, which asserts the old shape no longer appears. A template render spec cannot catch this either way: it asserts a URL round-trips, and a wrong URL round-trips just as happily.
+You will not reproduce this locally — `admin.autoLogin` makes `req.user` truthy on every dev request, taking the `notFound()` branch and showing a 404 instead. Open the link in a **private window**. `manager-invite.spec.ts` is what pins the shape now, by asserting the old `/admin/managers/verify/:token` no longer appears; `manager-auth-urls.spec.ts` went with the reset route it existed for. A template render spec cannot catch this either way: it asserts a URL round-trips, and a wrong URL round-trips just as happily.

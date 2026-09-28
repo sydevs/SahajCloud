@@ -274,10 +274,11 @@ client needs. The helper marks the suite admin `_verified` and mints it a
 session with `createSession` (`@/plugins/login`) — the
 JWT strategy's `_verified` gate yields no user otherwise, and access
 control answers **403 before any query runs**, so an anonymous request
-never reaches Postgres at all. Nothing under `tests/` calls `payload.login`
-any more except `manager-invite.int.spec.ts` and role-based-access's
-`Login-lockout reset (unlock)` suite, where password login is the mechanism
-under test.
+never reaches Postgres at all. **Nothing under `tests/` calls `payload.login`,
+and nothing can**: `loginPlugin` sets `disableLocalStrategy` on `managers`
+(#840), so that operation answers `Forbidden` to everyone.
+`manager-passwordless.int.spec.ts` is where that refusal is asserted; every
+other suite authenticates with `createSession`.
 
 ⚠ **One environment per file still holds, and here is what violating it
 looks like.** `getPayload` caches per config, so a second
@@ -438,7 +439,7 @@ which needs no Railway API token) and runs `pnpm test:smoke`. Locally it falls b
 | File                            | Purpose                                                                          |
 | ---------------------------------- | ------------------------------------------------------------------------------------ |
 | `tests/e2e/*.e2e.spec.ts`       | REST flows only a deployed environment can answer. Covers auth, content CRUD, CORS preflight, and what an error body discloses under the shipped `config.debug` (`error-disclosure`) |
-| `tests/e2e/_helpers/preview.ts` | `ensureAdmin` (a login — the deploy provisions the admin) + auth headers |
+| `tests/e2e/_helpers/preview.ts` | `ensureAdmin` (trades `PREVIEW_ADMIN_PASSWORD` for a session — the deploy provisions the admin) + auth headers |
 | `tests/e2e/_helpers/runId.ts`   | Per-run record prefix so two runs against one preview don't collide              |
 | `tests/e2e/_helpers/fixtures.ts` | The dependencies a spec creates for itself (image, album, narrator, frame) + the bin that deletes them |
 | `tests/e2e/_helpers/smokeTest.ts` | `test` extended with `headers` and `trash` — import it in any spec that creates records |

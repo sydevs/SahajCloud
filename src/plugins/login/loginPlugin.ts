@@ -1,6 +1,10 @@
 import type { LoginCollectionConfig } from './types'
-import type { CollectionBeforeOperationHook, Config, Field, Plugin } from 'payload'
+import type { CollectionBeforeOperationHook, CollectionConfig, Config, Field, Plugin } from 'payload'
 
+import { serverEnv } from '@/lib/env'
+import { shouldSeedPreviewAdminHere } from '@/plugins/previewAdmin'
+
+import { exchangePreviewSecret } from './endpoints/exchangePreviewSecret'
 import { redeemInvite } from './endpoints/redeemInvite'
 import { redeemLink } from './endpoints/redeemLink'
 import { redeemMagicLink } from './endpoints/redeemMagicLink'
@@ -69,6 +73,46 @@ export interface LoginPluginOptions {
  */
 const suppressCreateMail: CollectionBeforeOperationHook = ({ args, operation }) =>
   operation === 'create' ? { ...args, disableVerificationEmail: true } : args
+
+/** Matches `seedPreviewAdmin`'s own default, which is the account this trades for. */
+const DEFAULT_PREVIEW_ADMIN_EMAIL = 'contact@sydevelopers.com'
+
+/**
+ * Close every password route on a served collection (#840).
+ *
+ * `login`, `forgotPassword`, `resetPassword`, `verifyEmail`, `unlock` and
+ * `registerFirstUser` each throw `Forbidden` on their first lines once this is
+ * set, so the cut-over is enforced by the framework rather than by us. No
+ * stored hash can be spent, and the admin create form loses its password input
+ * with no custom view. Verified against `payload@3.87.1`.
+ *
+ * ⚠ **The object form, never the bare `true` `Clients` uses.**
+ * `getAuthFields.js` gates `email`, the verification columns, the account-lock
+ * columns and `sessions` on `!disableLocalStrategy || …enableFields`, so bare
+ * `true` drops all four from the collection. This collection needs every one:
+ * `email` addresses the link, `_verified` is the accepted flag, and `sessions`
+ * is what `createSession` mints into.
+ *
+ * ⚠ **Two operations read the option differently, and both change behaviour.**
+ * `refresh.js` tests `!disableLocalStrategy`, so an object skips its session
+ * branch — a refresh no longer extends the session row or prunes expired ones.
+ * `logout.js` tests `!== true`, so an object still clears the session, which is
+ * what keeps a logout final. `tests/int/manager-passwordless.int.spec.ts` pins
+ * both.
+ *
+ * ⚠ **`maxLoginAttempts: 0` is not redundant.** Payload defaults it to 5
+ * (`collections/config/defaults.js:140`) whether or not a collection names it,
+ * and `getAuthFields` keys the `loginAttempts` / `lockUntil` columns on that
+ * number being above zero. Leaving it unset would keep a lock nothing can set
+ * and nothing can clear — `unlock` is `Forbidden` too.
+ *
+ * Applied here rather than in the collection so that removing `loginPlugin()`
+ * returns it to passwords in one edit.
+ */
+function withoutPasswords(auth: CollectionConfig['auth']): CollectionConfig['auth'] {
+  const base = typeof auth === 'object' ? auth : {}
+  return { ...base, disableLocalStrategy: { enableFields: true }, maxLoginAttempts: 0 }
+}
 
 /**
  * ⚠ **A second `/` or `\` makes it off-origin.** This value reaches
@@ -155,6 +199,16 @@ export function loginPlugin(options: LoginPluginOptions = {}): Plugin {
 
   const byslug = new Map(collections.map((entry) => [entry.slug as string, entry]))
 
+  // Resolved once, at fold time: the route exists on a preview and nowhere
+  // else, so production never registers a handler that reads a secret.
+  const previewExchange =
+    shouldSeedPreviewAdminHere() && serverEnv.PREVIEW_ADMIN_PASSWORD
+      ? {
+          email: serverEnv.PREVIEW_ADMIN_EMAIL ?? DEFAULT_PREVIEW_ADMIN_EMAIL,
+          password: serverEnv.PREVIEW_ADMIN_PASSWORD,
+        }
+      : undefined
+
   return (config) => {
     // Invitations need per-locale roles and manager joins, which only
     // `managers` has — see `grantSummary.ts`.
@@ -188,6 +242,7 @@ export function loginPlugin(options: LoginPluginOptions = {}): Plugin {
         const invites = entry === invitesFor
         return {
           ...withQueue,
+          auth: withoutPasswords(withQueue.auth),
           fields: [...withQueue.fields, magicLinkIssuedAt, ...(invites ? invitationFields : [])],
           hooks: {
             ...withQueue.hooks,
@@ -209,6 +264,8 @@ export function loginPlugin(options: LoginPluginOptions = {}): Plugin {
             redeemInvite(entry),
             // A reminder's link: signs in, then lands on the page it names.
             redeemLink(entry),
+            // Preview only, and absent everywhere else — see its docblock.
+            ...(previewExchange ? [exchangePreviewSecret(entry, previewExchange)] : []),
           ],
         }
       }),

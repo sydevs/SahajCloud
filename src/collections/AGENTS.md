@@ -48,7 +48,8 @@ lockout both follow `update`, not `read`** — `withDerivedGrants` derives
 pass, so a read-only role reaches no drafts through
 `/api/{collection}/versions` (#719) and no API key can reset a locked
 account's failed-attempt counter through `/api/{collection}/unlock`
-(#748). See `docs/rules/access.md`.
+(#748) — a route both auth collections now refuse outright (#840), while the
+grant stays derived. See `docs/rules/access.md`.
 
 Full RBAC details: see `docs/rules/access.md` (loads when editing
 `src/plugins/access/`).

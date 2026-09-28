@@ -31,12 +31,14 @@ A Next.js 16 app on Payload CMS 3.0, a headless CMS. TypeScript, PostgreSQL, dep
 
 Admin panel: `http://localhost:{PORT}/admin/login`, once the dev server runs.
 
-**Local dev needs no password.** `src/payload.config.ts` auto-logs in as `contact@sydevelopers.com` outside production and E2E runs. If you still see the login form, re-seed the local admin instead of hunting for a password.
+**A manager has no password.** `loginPlugin` sets `auth.disableLocalStrategy` on `managers` (#840), so `POST /api/managers/login`, the reset, the verify and the unlock routes all answer 403 — Payload closes them, not us. A human signs in with an emailed link from the "Email me a sign-in link" control on the admin login form.
 
-| Environment | Credential |
+**Local dev needs no link either.** `src/payload.config.ts` auto-logs in as `contact@sydevelopers.com` outside production and E2E runs. `admin.autoLogin` lives inside the JWT strategy, so it never touches the login operation and survives the switch. If you still see the login form, re-seed the local admin instead of hunting for a password.
+
+| Environment | How you get in |
 | --- | --- |
-| Railway PR preview | `PREVIEW_ADMIN_PASSWORD` (a Railway preview env var, also a CI secret). Every preview deploy resets the admin to it (`src/plugins/previewAdmin`). Environments forked before 2026-08-27 never got the variable and keep an old seeded admin. |
-| Production | `ADMIN_PASSWORD` in `.env.claude.local` — see `docs/environment.md`. |
+| Railway PR preview | A sign-in link, or — for the smoke lane — `POST /api/managers/exchange-preview-secret` with `PREVIEW_ADMIN_PASSWORD` (a Railway preview env var, also a CI secret). That route exists only where the same gate provisions the admin (`src/plugins/previewAdmin`). Environments forked before 2026-08-27 never got the variable, so they have neither the route nor a reconciled admin. |
+| Production | A sign-in link, delivered by email. There is no password and no break-glass credential — see `docs/environment.md`. |
 
 ## Essential Commands
 

@@ -28,7 +28,7 @@ Separate from `.env`, gitignored, and never committed. It lets an agent operate 
 | Key | What it opens |
 | --- | --- |
 | `CLOUDFLARE_CLAUDE_KEY` | Cloudflare API token — Cache Rules on the `sydevelopers.com` zone. |
-| `ADMIN_PASSWORD` | `contact@sydevelopers.com` on production, via `POST /api/managers/login`. |
+| `ADMIN_PASSWORD` | **Spent.** `POST /api/managers/login` answers 403 on every environment since #840, so this value opens nothing. Production admin access is an emailed sign-in link. |
 | `MAILPIT_URL`, `MAILPIT_UI_AUTH` | The Mailpit capture inbox, and its login — what the `preview-*-emails` scripts post with, and what opens their links (`docs/rules/email.md`). The Claude cloud environment carries both. |
 | `SMTP_URL` | Mailpit's SMTP ingress, for mail the app sends under `pnpm dev`. |
 
@@ -84,7 +84,9 @@ A missing `PAYLOAD_SECRET` or `DATABASE_URL` stops the app from starting. A miss
 
 ### Preview environments provision their own admin
 
-`PREVIEW_ADMIN_PASSWORD` is set on Railway's preview environments, and passed to the smoke lane as a CI secret. On every boot, `onInit` reconciles the admin account to the current value (`src/plugins/previewAdmin`), so rotating the secret takes effect on the next deploy.
+`PREVIEW_ADMIN_PASSWORD` is set on Railway's preview environments, and passed to the smoke lane as a CI secret. On every boot, `onInit` reconciles the admin account (`src/plugins/previewAdmin`) — present, admin, and `_verified`.
+
+⚠ **It is no longer that account's password.** Managers hold none since #840. The same gate wires `POST /api/managers/exchange-preview-secret`, which compares this value against the environment and mints a session for the seeded address alone. Rotating the secret takes effect on the next deploy, as before, and the smoke lane needs no new CI secret.
 
 Production is detected by Railway's environment name, never `NODE_ENV`. Previews also run `NODE_ENV=production` — the same trap that once sent preview mail through Resend to real addresses. The gate also requires a Railway environment name at all. This keeps `onInit` inert in local dev, CI, and both test lanes. CI does hold the password as a secret, so a gate reading only that would write an admin into the integration lane's database.
 

@@ -1435,8 +1435,6 @@ export interface Manager {
   hash?: string | null;
   _verified?: boolean | null;
   _verificationToken?: string | null;
-  loginAttempts?: number | null;
-  lockUntil?: string | null;
   sessions?:
     | {
         id: string;
@@ -4445,8 +4443,6 @@ export interface ManagersSelect<T extends boolean = true> {
   hash?: T;
   _verified?: T;
   _verificationToken?: T;
-  loginAttempts?: T;
-  lockUntil?: T;
   sessions?:
     | T
     | {

@@ -12,9 +12,10 @@
  * assignment queues and the task sends it once the delay has passed, and that
  * accepting flips `_verified` and mints a session.
  *
- * The one property `manager-verification.int.spec.ts` held alone — login
- * refused by NAME while unaccepted, and allowed after — is asserted below
- * against the real accept route.
+ * The one property `manager-verification.int.spec.ts` held alone — an
+ * unaccepted manager refused, and admitted after — is asserted below against
+ * the real accept route. Managers hold no password since #840, so the refusal
+ * it reads is the JWT strategy's `_verified` gate rather than a login error.
  */
 import type { Payload } from 'payload'
 
@@ -25,6 +26,7 @@ import { escapeRegExp } from '@/lib/eventQuality/heuristics'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 import type { Manager } from '@/payload-types'
 import {
+  createSession,
   INVITATION_DELAY_MS,
   INVITE_TOKEN_TTL_MS,
   signInviteToken,
@@ -45,8 +47,6 @@ import { createTestEnvironmentWithEmail } from '../utils/testHelpers'
 
 const ACCEPT_PATH = '/api/managers/redeem-invite'
 
-/** What `testData.createManager` writes. The login arm below needs to know it. */
-const FIXTURE_PASSWORD = 'password123'
 const REQUEST_PATH = '/api/managers/request-magic-link'
 
 /**
@@ -408,21 +408,24 @@ describe('manager invitation', () => {
       expectRefused(await anon(ACCEPT_PATH, { method: 'POST' }), 'invalid')
     })
 
-    it('refuses login until the invitation is accepted, then allows it', async () => {
+    it('refuses a session until the invitation is accepted, then honours one', async () => {
       const { manager, token } = await invite()
-      const credentials = { email: manager.email, password: FIXTURE_PASSWORD }
 
-      // ⚠ Asserting the error NAME is what makes the success below mean
-      // something: a wrong password would throw here too, and would make the
-      // final step look like a pass for free (#320).
-      await expect(
-        payload.login({ collection: 'managers', data: credentials }),
-      ).rejects.toMatchObject({ name: 'UnverifiedEmail' })
+      // ⚠ **The same session token both times**, so the only thing that changed
+      // between the two reads is `_verified`. Minting a second one after the
+      // accept would pass even if the gate never existed (#840).
+      const asManager = createRestClientWithAuth(env, {
+        Authorization: `JWT ${await createSession(payload, 'managers', manager.id)}`,
+      })
+
+      const before = await asManager('/api/managers/me')
+      expect(before.status).toBe(200)
+      expect((before.body as { user: unknown }).user).toBeNull()
 
       expectAccepted(await accept(token))
 
-      const result = await payload.login({ collection: 'managers', data: credentials })
-      expect(result.user?.email).toBe(manager.email)
+      const after = await asManager('/api/managers/me')
+      expect((after.body as { user?: { email?: string } }).user?.email).toBe(manager.email)
     })
 
     it('refuses a manager deactivated after the invitation was sent', async () => {
@@ -458,7 +461,6 @@ describe('manager invitation', () => {
         data: {
           name: 'Imported',
           email: `link_${Date.now()}_${Math.random().toString(36).slice(2)}@example.com`,
-          password: FIXTURE_PASSWORD,
           type: 'manager',
         },
         disableVerificationEmail: true,

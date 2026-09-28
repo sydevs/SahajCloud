@@ -19,7 +19,6 @@ import { describe, expect, it } from 'vitest'
 
 import { buildReplyBody, EventRegistrationEmail } from '@/emails/EventRegistrationEmail'
 import { InviteEmail, inviteHeading } from '@/emails/InviteEmail'
-import { ResetPasswordEmail } from '@/emails/ResetPasswordEmail'
 import { buildUserMessageDetails, UserMessageEmail } from '@/emails/UserMessageEmail'
 import { getEmailBrand, renderEmail } from '@/plugins/email'
 
@@ -239,22 +238,6 @@ describe('inviteHeading', () => {
         ],
       }),
     ).toBe("You've been invited to help with Sahaj Atlas")
-  })
-})
-
-describe('ResetPasswordEmail', () => {
-  it('renders the recipient name, reset URL, and CTA', async () => {
-    const html = await renderEmail(
-      createElement(ResetPasswordEmail, {
-        name: 'Sam',
-        resetUrl: 'https://cloud.test/admin/reset/RST-456',
-      }),
-    )
-
-    expect(html).toBeTruthy()
-    expect(html).toContain('Sam')
-    expect(html).toContain('https://cloud.test/admin/reset/RST-456')
-    expect(html).toContain('Reset Password')
   })
 })
 

@@ -79,27 +79,28 @@ function withRoles<T extends AuthUser>(user: T, roles: LocalizedRoles): T {
  * fallbacks. Each of those three fails closed in a way nobody notices, until
  * someone cannot log in.
  *
- * Registration order keeps this safe: Payload collects custom strategies
- * from the collections first, and appends `local-jwt` LAST.
- * `executeAuthStrategies` returns on the first strategy that yields a user.
- * So this strategy runs in front of the default, instead of replacing it.
+ * ⚠ **There is no `local-jwt` behind it any more.** Payload registers that
+ * strategy only for a collection whose `disableLocalStrategy` is falsy
+ * (`payload/dist/index.js:434,441`), and `clients` and `managers` now both set
+ * it (#840) — so this is the app's only JWT path.
+ * `tests/int/manager-passwordless.int.spec.ts` asserts that.
  *
- * This handles two failure modes explicitly, because either one would
- * silently restore the bug:
+ * `executeAuthStrategies` still returns on the first strategy that yields a
+ * user, and two failure modes are still handled explicitly, because either one
+ * would silently restore the bug:
  *
  * 1. **Not this collection's user.** `authStrategies` is one flat global
  *    array, shared across every auth collection, so this strategy also sees
- *    other collections' JWTs. For those, it returns `{ user: null }`, which
- *    lets the loop fall through to `local-jwt`. That is the right answer,
- *    since a non-localized `roles` field needs no hydration.
+ *    other collections' JWTs. For those, it returns `{ user: null }` rather
+ *    than a user hydrated against the wrong collection. Nothing authenticates
+ *    them now, which is correct: `clients` authenticates by API key.
  *
  * 2. **Hydration failed.** `executeAuthStrategies` SWALLOWS a thrown error
- *    and moves on to the next strategy. Throwing here would hand the request
- *    to `local-jwt`, and quietly reinstate the flat, over-granting shape.
- *    Instead, this returns the user with an empty role record. They see the
- *    "No Projects Available" banner, which is visible and recoverable — far
- *    better than silently receiving their default-locale roles in all 19
- *    locales.
+ *    and moves on to the next strategy. Throwing here would leave the request
+ *    unauthenticated with no diagnosis. Instead, this returns the user with an
+ *    empty role record. They see the "No Projects Available" banner, which is
+ *    visible and recoverable — far better than silently receiving their
+ *    default-locale roles in all 19 locales.
  */
 function createLocalizedRolesStrategy(slug: string) {
   return {
