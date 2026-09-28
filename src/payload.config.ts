@@ -17,7 +17,12 @@ import { createWorkerSafeLogger } from '@/lib/logger/workerSafeLogger'
 import { SUPPORTED_TIMEZONES } from '@/lib/timezones'
 import { PREVIEW_SECRET_HEADER } from '@/lib/utilities/previewSecret'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
-import { accessPlugin, bypassPermissions, filterAvailableLocales } from '@/plugins/access'
+import {
+  accessPlugin,
+  bypassPermissions,
+  filterAvailableLocales,
+  restrictPayloadSystemEntities,
+} from '@/plugins/access'
 import { cachePlugin } from '@/plugins/cache'
 import { databaseErrorPlugin } from '@/plugins/databaseErrors'
 import { buildSmtpTransportOptions, resendAdapter, warnEmailDisabled } from '@/plugins/email'
@@ -352,7 +357,9 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     },
     // Allow overrides (especially important for test database URIs)
     ...overrides,
-  })
+    // Payload adds its own `payload-*` collections after accessPlugin has run,
+    // so their access is set on the sanitized config (systemEntities.ts).
+  }).then(restrictPayloadSystemEntities)
 }
 
 export { payloadConfig }
