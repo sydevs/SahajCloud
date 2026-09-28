@@ -24,10 +24,13 @@ import { isAdminManager } from './adminOnly'
  * create document locks, and PATCH another user's preference row into its own.
  * `jobs.access` (`run`/`queue`/`cancel`) had the same default.
  *
- * ⚠ **This runs on the sanitized config, so both `buildConfig` call sites must
- * apply it** — `src/payload.config.ts` and `tests/utils/testHelpers.ts`. Not in
- * `onInit`: Payload's dev hot reload swaps in a freshly sanitized config without
- * re-running `onInit`, so the patch would silently vanish on the first edit.
+ * ⚠ **This runs on the sanitized config, so every `buildConfig` call site must
+ * apply it** — `src/payload.config.ts`, `tests/utils/testHelpers.ts` and
+ * `seeds/tests/test-payload.config.ts`. Nothing enforces that but this line, so
+ * count the sites when you add one: `grep -rn 'buildConfig(' src tests seeds`.
+ * Not in `onInit`: Payload's dev hot reload swaps in a freshly sanitized config
+ * without re-running `onInit`, so the patch would silently vanish on the first
+ * edit.
  *
  * An unlisted `payload-*` entity gets admin-only access, so a Payload upgrade
  * or a newly enabled feature (folders, query presets) fails closed, not open.
@@ -79,10 +82,7 @@ const managersOnly: Access = ({ req: { user } }) => user?.collection === 'manage
 const ownManagerPreferences: Access = ({ req: { user } }): boolean | Where =>
   user?.collection === 'managers'
     ? {
-        and: [
-          { 'user.value': { equals: user.id } },
-          { 'user.relationTo': { equals: 'managers' } },
-        ],
+        and: [{ 'user.value': { equals: user.id } }, { 'user.relationTo': { equals: 'managers' } }],
       }
     : false
 
