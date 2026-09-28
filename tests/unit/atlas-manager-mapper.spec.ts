@@ -14,7 +14,7 @@ describe('mapNotificationPreferences', () => {
       'whatsapp',
     )
     expect(prefs).toEqual({
-      new_responsibility: { frequency: 'Immediate', method: 'whatsapp' },
+      invitation: { frequency: 'Immediate', method: 'whatsapp' },
       event_verification: { frequency: 'Monthly', method: 'whatsapp' },
       event_registration: { frequency: 'Immediate', method: 'whatsapp' },
       regional_summary: { frequency: 'Never', method: '' },
@@ -23,7 +23,7 @@ describe('mapNotificationPreferences', () => {
 
   it('defaults the method to email and turns off unset flags', () => {
     const prefs = mapNotificationPreferences([], 'email')
-    expect(prefs.new_responsibility).toEqual({ frequency: 'Never', method: '' })
+    expect(prefs.invitation).toEqual({ frequency: 'Never', method: '' })
     // Verification is always on (monthly re-verification by default).
     expect(prefs.event_verification).toEqual({ frequency: 'Monthly', method: 'email' })
     expect(prefs.event_registration).toEqual({ frequency: 'Never', method: '' })

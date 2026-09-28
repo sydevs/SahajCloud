@@ -15,7 +15,13 @@
  *   any auth collection that can hold one.
  * - `issueMagicLink` — minting, throttling and sending a link, shared by the
  *   request endpoint and the sign-in page.
- * - `token.ts` — the two link kinds, as separate JWT audiences.
+ * - `token.ts` — the three link kinds, as separate JWT audiences.
+ * - `pageLinkUrl` — a link that signs its holder in on the way to one admin
+ *   page, which is what an event-verification reminder carries.
+ * - `invitations.ts` — the invitation queue: an account is invited when it is
+ *   assigned a role, region, event or page, never on create (#839). The
+ *   invitation names what was assigned — one email per project, each branded
+ *   for its own.
  *
  * ⚠ The endpoint *factories* are not re-exported here. `loginPlugin` is the only
  * caller, and exporting them would invite a collection to wire its own copy —
@@ -33,17 +39,52 @@ export {
 
 export { loginPlugin, magicLinkIssuedAt, type LoginPluginOptions } from './loginPlugin'
 
+export {
+  generateInviteEmailHTML,
+  generateInviteEmailSubject,
+  INVITE_VALID_FOR,
+  inviteUrl,
+  composeInvitations,
+  namesAnything,
+  signInviteFor,
+} from './invite'
+
+export {
+  summarizeGrants,
+  type GrantSummary,
+  type LocaleGrant,
+  type PendingInvitation,
+  type Responsibility,
+  type ResponsibilityItem,
+} from './grantSummary'
+
+export { INVITATION_DELAY_MS, INVITATIONS_QUEUE } from './invitations'
+
 export { createSession } from './session'
+
+// The redeem PATHS, not their factories: the sign-in page addresses its
+// forms at them, and a literal there would survive a rename silently.
+export { REDEEM_INVITE_PATH } from './endpoints/redeemInvite'
+export { REDEEM_LINK_PATH } from './endpoints/redeemLink'
+export { REDEEM_MAGIC_LINK_PATH } from './endpoints/redeemMagicLink'
 
 export type { LoginCollectionConfig, LoginDocument, LoginMailArgs } from './types'
 
+export { pageLinkUrl } from './pageLink'
+
 export {
   INVITE_TOKEN_TTL_MS,
+  isAdminPath,
+  LINK_TOKEN_TTL_MS,
   readInviteToken,
+  readLinkToken,
   readSigninToken,
   signInviteToken,
+  signLinkToken,
   signSigninToken,
   SIGNIN_TOKEN_TTL_MS,
+  type LinkTokenClaims,
+  type LinkTokenResult,
   type LoginTokenClaims,
   type LoginTokenResult,
 } from './token'

@@ -633,12 +633,14 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
             // random password they will never use: they reset it, or
             // stay passwordless, on first login.
             password: randomPassword(),
-            _verified: !!manager.emailVerified,
             legacyId: manager.legacyId,
             legacyData: manager,
           },
-          // Bulk import: skip the per-manager verification email (mail rate limits).
-          { identifier: manager.email, current: i + 1, total, disableVerificationEmail: true },
+          // An imported manager arrives unaccepted, and nothing mails them: a
+          // create sends nothing, and a seed run queues no invitations. Their
+          // first email is a verification reminder, whose link accepts them
+          // (#839). `emailVerified` stays readable under `legacyData`.
+          { identifier: manager.email, current: i + 1, total },
         )
         this.idMaps.managers.set(manager.legacyId, result.doc.id)
       } catch (error) {

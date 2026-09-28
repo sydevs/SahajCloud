@@ -152,10 +152,9 @@ export const Events: CollectionConfig = {
       breakpoints: [{ label: 'Mobile', name: 'mobile', width: 390, height: 844 }],
     },
   },
-  // Re-verify on any manager save. The explicit POST endpoint backs the
-  // notice banner's Verify button. The tokenized email link opens the
-  // `/events/verify` frontend page, which calls the shared verify operation
-  // through a Server Action.
+  // Re-verify on any manager save. The explicit POST endpoint backs the notice
+  // banner's Verify button. A reminder's link opens the `/events/verify` page,
+  // which runs the shared verify operation from its button's Server Action.
   hooks: {
     // Keep `webPath`/`webUrl` resolvable when a read selects them without
     // their inputs (`region`, and `_status` for `webUrl`). See ensureWebPathDeps.

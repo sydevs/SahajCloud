@@ -172,7 +172,7 @@ describe('src/lib holds shared code only', () => {
     }
     // Move it beside its consumer. A barrel that re-exports it counts as a
     // consumer — if the barrel is the *only* one, the export is dangling and
-    // should go too (that was true of `buildVerifyEmailLink`).
+    // should go too.
     expect(offenders).toEqual([])
   })
 })

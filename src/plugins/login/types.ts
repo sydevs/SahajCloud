@@ -61,6 +61,12 @@ export interface LoginCollectionConfig {
    */
   isEligible?: (doc: LoginDocument) => boolean
   /**
+   * The tab of the account page that holds the collection's notification
+   * preferences, by label. An accepted account's invitation links there
+   * ("Configure notifications"); without one it lands on the default tab.
+   */
+  notificationsTab?: string
+  /**
    * Which project brands the mail. Defaults to `wemeditate-web` when this is
    * absent or returns nothing.
    */

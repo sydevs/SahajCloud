@@ -12,6 +12,11 @@
  * The expectations are built with Payload's own `formatAdminURL` rather than a
  * hand-copied string, so they cannot drift from the router in the same
  * direction the bug did.
+ *
+ * ⚠ **Only `forgotPassword` builds an admin-route URL now.** `auth.verify` was
+ * repointed at the invitation (#839), which addresses the sign-in page instead
+ * — `manager-invite.spec.ts` owns that shape, and asserts this file's old
+ * `/admin/managers/verify/:token` no longer appears.
  */
 import type { CollectionConfig, IncomingAuthType } from 'payload'
 
@@ -36,33 +41,6 @@ function authConfig(collection: CollectionConfig): IncomingAuthType {
 }
 
 describe('Managers auth token URLs', () => {
-  it('builds a verify URL that matches Payload’s /:collectionSlug/verify/:token route', async () => {
-    const generate = authConfig(Managers).verify
-    if (typeof generate === 'boolean' || !generate?.generateEmailHTML) {
-      throw new Error('Managers.auth.verify.generateEmailHTML is not configured')
-    }
-
-    const html = await generate.generateEmailHTML({
-      req: undefined,
-      token: TOKEN,
-      user: { email: 'jo@example.com', name: 'Jo' },
-    } as never)
-
-    // The slug segment is REQUIRED and there is no `collections/` prefix.
-    const expected =
-      getServerUrl() +
-      formatAdminURL({ adminRoute: ADMIN_ROUTE, path: `/${Managers.slug}/verify/${TOKEN}` })
-
-    expect(html).toContain(expected)
-
-    // The two shapes that look plausible and route nowhere. Asserted explicitly
-    // because `toContain(expected)` alone would still pass if the template
-    // rendered BOTH — and the four-segment form is the obvious "fix" for
-    // someone who notices the slug is missing but reaches for the list route.
-    expect(html).not.toContain(`${ADMIN_ROUTE}/verify/${TOKEN}`)
-    expect(html).not.toContain(`${ADMIN_ROUTE}/collections/${Managers.slug}/verify/${TOKEN}`)
-  })
-
   it('builds a reset URL that matches Payload’s /reset/:token route', async () => {
     const generate = authConfig(Managers).forgotPassword
     if (!generate?.generateEmailHTML) {

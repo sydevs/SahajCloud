@@ -123,7 +123,10 @@ interface EventVerificationEmailProps {
   name: string
   /** The event's title. */
   eventTitle: string
-  /** Absolute, tokenized verify link (works logged-out). */
+  /**
+   * Absolute link for the button. The event's manager: the logged-out verify
+   * page. A region manager: a link that signs them in to the event.
+   */
   verifyUrl: string
   /** Public link to the event on the Sahaj Atlas map — omitted when unpublished. */
   eventUrl?: string | null
@@ -203,6 +206,10 @@ interface VariantCopy {
 const COPY: {
   greeting: (name: string) => ReactNode
   buttonHint: string
+  /** What the manager's verify button opens. */
+  verifyHint: string
+  /** What a region manager's button opens, when it is a link rather than an email. */
+  signInHint: string
   footer: (audience: ReminderAudience, brandName: string) => ReactNode
   /** The listing-quality progress section (#611). */
   listing: {
@@ -236,6 +243,9 @@ const COPY: {
   ),
 
   buttonHint: 'If the button doesn’t work, copy and paste this link into your browser:',
+  verifyHint:
+    'The button opens a page where you can verify the event in one click, or sign in to update its details.',
+  signInHint: 'The button signs you in and opens the event.',
 
   footer: (audience, brandName) => (
     <>
@@ -605,6 +615,11 @@ export function EventVerificationEmail({
         <BrandButton href={eventUrl} brand={brand} variant="secondary" tight>
           View event
         </BrandButton>
+      ) : null}
+      {ctaHref === verifyUrl ? (
+        <Text style={styles.hint}>
+          {audience === 'manager' ? COPY.verifyHint : COPY.signInHint}
+        </Text>
       ) : null}
       {audience === 'region' ? null : (
         <Text style={styles.hint}>

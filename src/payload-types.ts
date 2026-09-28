@@ -931,6 +931,7 @@ export interface Config {
       syncLectureMetadata: TaskSyncLectureMetadata;
       verifyEmbeds: TaskVerifyEmbeds;
       resetUsage: TaskResetUsage;
+      sendInvitations: TaskSendInvitations;
       schedulePublish: TaskSchedulePublish;
       inline: {
         input: unknown;
@@ -1415,6 +1416,16 @@ export interface Manager {
     | boolean
     | null;
   magicLinkIssuedAt?: string | null;
+  pendingInvitation?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  invitationDueAt?: string | null;
   updatedAt: string;
   createdAt: string;
   email: string;
@@ -3785,6 +3796,7 @@ export interface PayloadJob {
           | 'syncLectureMetadata'
           | 'verifyEmbeds'
           | 'resetUsage'
+          | 'sendInvitations'
           | 'schedulePublish';
         taskID: string;
         input?:
@@ -3832,6 +3844,7 @@ export interface PayloadJob {
         | 'syncLectureMetadata'
         | 'verifyEmbeds'
         | 'resetUsage'
+        | 'sendInvitations'
         | 'schedulePublish'
       )
     | null;
@@ -4421,6 +4434,8 @@ export interface ManagersSelect<T extends boolean = true> {
   legacyId?: T;
   legacyData?: T;
   magicLinkIssuedAt?: T;
+  pendingInvitation?: T;
+  invitationDueAt?: T;
   updatedAt?: T;
   createdAt?: T;
   email?: T;
@@ -10238,6 +10253,18 @@ export interface TaskVerifyEmbeds {
 export interface TaskResetUsage {
   input?: unknown;
   output?: unknown;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskSendInvitations".
+ */
+export interface TaskSendInvitations {
+  input?: unknown;
+  output: {
+    sent: number;
+    skipped: number;
+    failed: number;
+  };
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

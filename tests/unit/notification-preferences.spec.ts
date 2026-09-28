@@ -21,7 +21,7 @@ describe('notification preferences config', () => {
     it('uses the email method for method-requiring types', () => {
       const defaults = buildDefaultNotificationPreferences()
       // None of the shipped types have "Never" as their first option.
-      expect(defaults.new_responsibility).toEqual({ frequency: 'Immediate', method: 'email' })
+      expect(defaults.invitation).toEqual({ frequency: 'Immediate', method: 'email' })
       expect(defaults.event_verification.method).toBe('email')
     })
 
@@ -54,19 +54,19 @@ describe('notification preferences config', () => {
     it('does not require a method when frequency is "Never"', () => {
       expect(
         validateNotificationPreferences({
-          new_responsibility: { frequency: 'Never', method: '' },
+          invitation: { frequency: 'Never', method: '' },
         }),
       ).toBe(true)
     })
 
     it('names the types missing a method', () => {
       const result = validateNotificationPreferences({
-        new_responsibility: { frequency: 'Immediate', method: '' },
+        invitation: { frequency: 'Immediate', method: '' },
         event_registration: { frequency: 'Daily Summary', method: '' },
         regional_summary: { frequency: 'Never', method: '' },
       })
 
-      expect(result).toContain('New Responsibility')
+      expect(result).toContain('Invitations')
       expect(result).toContain('Event Registration')
       expect(result).not.toContain('Regional Summary')
     })

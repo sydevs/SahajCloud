@@ -10,8 +10,8 @@ import type { EmailBrand } from '@/plugins/email'
  *
  * ⚠ **A private folder, not a route.** Next excludes an `_`-prefixed segment
  * from routing, which is what lets shared UI sit beside the pages that use it.
- * A route folder is not a module home — importing this from `events/verify/`
- * was the cheaper option and the wrong one.
+ * A route folder is not a module home: shared UI imported from one goes when
+ * that route does.
  *
  * ⚠ **Colour comes from the tokens in `styles.css`, never from a literal.**
  * That file redefines every token under `prefers-color-scheme: dark`, so an
@@ -38,6 +38,11 @@ export interface PageAction {
   label: string
   href: string
   variant?: 'primary' | 'secondary'
+  /**
+   * `post` renders a one-button form rather than a link — for an action that
+   * signs someone in, which must never run on a `GET` a mail scanner can make.
+   */
+  method?: 'post'
 }
 
 /**
@@ -70,21 +75,27 @@ export function PublicPage({
   )
 }
 
-/** Row of primary/secondary brand buttons (anchors). */
+/** Row of primary/secondary brand buttons — links, or one-button forms for a `post`. */
 export function ActionButtons({ brand, actions }: { brand: EmailBrand; actions: PageAction[] }) {
   if (actions.length === 0) return null
   const { primary } = brand.colors
   return (
     <div style={actionRow}>
-      {actions.map((action) => (
-        <a
-          key={action.label}
-          href={action.href}
-          style={action.variant === 'secondary' ? secondaryButton(primary) : primaryButton(brand)}
-        >
-          {action.label}
-        </a>
-      ))}
+      {actions.map((action) => {
+        const style =
+          action.variant === 'secondary' ? secondaryButton(primary) : primaryButton(brand)
+        return action.method === 'post' ? (
+          <form key={action.label} action={action.href} method="post" style={inlineForm}>
+            <button type="submit" style={style}>
+              {action.label}
+            </button>
+          </form>
+        ) : (
+          <a key={action.label} href={action.href} style={style}>
+            {action.label}
+          </a>
+        )
+      })}
     </div>
   )
 }
@@ -157,6 +168,7 @@ const outcomeMessage: CSSProperties = {
   whiteSpace: 'pre-line',
 }
 const actionRow: CSSProperties = { marginTop: 24 }
+const inlineForm: CSSProperties = { display: 'inline' }
 
 const buttonBase: CSSProperties = {
   display: 'inline-block',
@@ -168,6 +180,8 @@ const buttonBase: CSSProperties = {
   textDecoration: 'none',
   cursor: 'pointer',
   border: '1px solid transparent',
+  // A `post` action is a `<button>`, which does not inherit the page font.
+  fontFamily: 'inherit',
 }
 export function primaryButton(brand: EmailBrand): CSSProperties {
   return { ...buttonBase, color: '#ffffff', backgroundColor: brand.colors.primary }

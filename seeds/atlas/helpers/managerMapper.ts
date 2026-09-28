@@ -33,7 +33,7 @@ export function mapNotificationPreferences(
 
   const hasSummary = SUMMARY_FLAGS.some((flag) => flags.has(flag))
   return {
-    new_responsibility: pref(flags.has('new_managed_record') ? 'Immediate' : 'Never'),
+    invitation: pref(flags.has('new_managed_record') ? 'Immediate' : 'Never'),
     event_verification: pref('Monthly'),
     event_registration: pref(flags.has('event_registrations') ? 'Immediate' : 'Never'),
     regional_summary: pref(hasSummary ? 'Monthly' : 'Never'),

@@ -10,7 +10,7 @@ import type { EmailBrand } from '@/plugins/email'
 
 import { submitFeedbackAction } from './actions'
 import { PublicPage, primaryButton, TONES } from '../../_components/PublicPage'
-import { VerificationCard } from '../../events/verify/VerificationCard'
+import { VerificationCard } from '../../_components/VerificationCard'
 
 type Vote = 'confirmed' | 'denied'
 

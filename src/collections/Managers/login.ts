@@ -13,6 +13,9 @@ const INACTIVE: Manager['type'] = 'inactive'
  */
 export const MANAGER_SIGNIN_PATH = '/managers/signin'
 
+/** The account tab holding Notification Preferences — `Managers.ts` labels it with this. */
+export const MANAGER_NOTIFICATIONS_TAB = 'Contact'
+
 /**
  * What `loginPlugin` needs to serve sign-in links to `managers` (#837).
  *
@@ -27,6 +30,8 @@ export const managersLogin: LoginCollectionConfig = {
   // against the generated enum, so renaming that option upstream fails here
   // rather than quietly letting every manager through.
   isEligible: (doc) => doc.type !== INACTIVE,
+  // An invitation's "Configure notifications" opens the account on this tab.
+  notificationsTab: MANAGER_NOTIFICATIONS_TAB,
   // `null` is the admin "All Content" view, which has no brand of its own — the
   // plugin's default stands in. Note this diverges from #483, which brands the
   // verify and reset mail `wemeditate-web` regardless of the recipient.

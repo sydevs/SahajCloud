@@ -46,6 +46,6 @@ export function generateEmailSubject({ project }: LoginMailArgs): string {
  * default instead; this project sets a sender per send, because Resend drops a
  * send from an unverified domain (#790).
  */
-export function emailFrom({ project }: LoginMailArgs): string {
+export function emailFrom(project: LoginMailArgs['project']): string {
   return `${headerDisplayName(getEmailBrand(project).productName)} <${MANAGER_EMAIL_FROM}>`
 }

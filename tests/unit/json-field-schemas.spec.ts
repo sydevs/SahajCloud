@@ -201,7 +201,7 @@ describe('Managers.notificationPreferences', () => {
   it('accepts the seeded default', () => {
     expect(
       runFieldValidate(field, {
-        new_responsibility: { frequency: 'Immediate', method: 'email' },
+        invitation: { frequency: 'Immediate', method: 'email' },
         event_verification: { frequency: 'Monthly', method: 'email' },
         event_registration: { frequency: 'Immediate', method: 'email' },
         regional_summary: { frequency: 'Monthly', method: 'email' },

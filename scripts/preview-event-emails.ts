@@ -64,7 +64,7 @@ async function persistSampleEvent(): Promise<SampleData> {
       password: 'password123',
       type: 'manager',
       notificationPreferences: {
-        new_responsibility: { frequency: 'Immediate', method: 'email' },
+        invitation: { frequency: 'Immediate', method: 'email' },
         event_verification: { frequency: 'Monthly', method: 'email' },
         event_registration: { frequency: 'Immediate', method: 'email' },
         regional_summary: { frequency: 'Monthly', method: 'email' },
@@ -285,8 +285,7 @@ async function main() {
   const nodemailer = (await import('nodemailer')).default
   const { EventVerificationEmail } = await import('@/emails/EventVerificationEmail')
   const { renderEmail } = await import('@/plugins/email')
-  const { signVerifyToken } = await import('@/lib/eventVerification/token')
-  const { buildVerifyEmailLink } = await import('@/jobs/ExpireEvents/verifyUrl')
+  const { reminderButtonUrl } = await import('@/jobs/ExpireEvents/verifyUrl')
   const { formatLongDate } = await import('@/lib/notifications')
   const { EVENT_QUALITY_CHECK_METADATA } = await import('@/lib/eventQuality')
 
@@ -375,12 +374,19 @@ async function main() {
 
   const previews: { label: string; url: string | false }[] = []
   for (const { level, audience } of combos) {
-    const token = await signVerifyToken({ eventId: sample.eventId, managerId: sample.managerId }, secret)
+    // The same button ExpireEvents mints, per audience.
+    const verifyUrl = await reminderButtonUrl({
+      event: { id: sample.eventId, title: sample.eventTitle },
+      managerId: sample.managerId,
+      now: new Date(),
+      role: audience,
+      secret,
+    })
     const html = await renderEmail(
       createElement(EventVerificationEmail, {
         name: audience === 'region' ? 'Rohan Patil' : sample.managerName,
         eventTitle: sample.eventTitle,
-        verifyUrl: buildVerifyEmailLink(token),
+        verifyUrl,
         // Published events link to the map. Expired, unpublished ones do not.
         eventUrl:
           level === 'expired' ? null : `https://wemeditate.com/map#/!/events/${sample.eventId}`,

@@ -16,7 +16,6 @@ import {
   transitionUnpublishes,
   unpublishDate,
 } from '@/lib/eventVerification/stages'
-import { signVerifyToken } from '@/lib/eventVerification/token'
 import { resolveNextCheckAt } from '@/lib/eventVerification/watermark'
 import {
   buildEventEmailDetails,
@@ -32,7 +31,7 @@ import { shouldFinish } from '@/lib/schedule/scheduleStatus'
 import type { Event } from '@/payload-types'
 
 import { isEventVerificationEnabled } from './featureFlag'
-import { buildVerifyEmailLink } from './verifyUrl'
+import { reminderButtonUrl } from './verifyUrl'
 
 
 /**
@@ -234,16 +233,19 @@ async function processEvent(args: {
   for (const recipient of recipients) {
     if (hasReminderForStage(log, stage, recipient.manager.id)) continue
 
-    const token = await signVerifyToken(
-      { eventId: event.id, managerId: recipient.manager.id },
-      payload.secret,
+    const eventTitle = typeof event.title === 'string' ? event.title : `Event #${event.id}`
+    const verifyUrl = await reminderButtonUrl({
+      event: { id: event.id, title: eventTitle },
+      managerId: recipient.manager.id,
       now,
-    )
+      role: recipient.role,
+      secret: payload.secret,
+    })
     const reminder: ReminderPayload = {
-      eventTitle: typeof event.title === 'string' ? event.title : `Event #${event.id}`,
+      eventTitle,
       level: action.level,
       audience: recipient.role,
-      verifyUrl: buildVerifyEmailLink(token),
+      verifyUrl,
       eventUrl,
       details,
       listingProgress,

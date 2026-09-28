@@ -11,7 +11,7 @@ import { getEmailBrand } from '@/plugins/email'
 import config from '@payload-config'
 
 import { FeedbackForm } from './FeedbackForm'
-import { VerificationCard } from '../../events/verify/VerificationCard'
+import { VerificationCard } from '../../_components/VerificationCard'
 
 export const metadata: Metadata = {
   title: 'Event feedback — Sahaj Atlas',
@@ -22,7 +22,7 @@ export const metadata: Metadata = {
 const BRAND = 'sahaj-atlas' as const
 
 /**
- * Logged-out post-event feedback landing page (mirrors `/events/verify`): the
+ * Logged-out post-event feedback landing page: the
  * signed token in `?token=` is the sole access gate — missing/tampered 404s;
  * expired gets a friendly card; valid shows the confirm/deny question. The
  * vote is written only on the explicit button POST.

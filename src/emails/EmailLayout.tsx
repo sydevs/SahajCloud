@@ -37,7 +37,9 @@ export const brandGradient = (colors: BrandColors): string =>
 export const styles = {
   paragraph: { fontSize: '16px', margin: '0 0 16px' },
   hint: { fontSize: '14px', color: '#666666', margin: '0 0 16px' },
-  link: { wordBreak: 'break-all' },
+  // `word-wrap` too: AOL, GMX and Windows Mail ignore `word-break`, and an
+  // unbroken fallback URL then widens the whole email on a phone.
+  link: { wordBreak: 'break-all', wordWrap: 'break-word' },
   footer: { fontSize: '12px', color: '#999999', margin: 0 },
   hr: { borderColor: '#dddddd', margin: '30px 0' },
 } satisfies Record<string, CSSProperties>

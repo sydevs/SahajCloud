@@ -3,9 +3,9 @@ import type { Payload, PayloadRequest } from 'payload'
 import type { ActorRef, VerificationMethod } from '@/lib/eventVerification/log'
 import { buildVerificationEntry } from '@/lib/eventVerification/log'
 import { addDays, verificationPeriodDays } from '@/lib/eventVerification/periods'
-import { verifyVerifyToken } from '@/lib/eventVerification/token'
 import { resolveNextCheckAt } from '@/lib/eventVerification/watermark'
 import type { Event, Manager } from '@/payload-types'
+import { readLinkToken } from '@/plugins/login'
 import type { EventSchedule } from '@/types/schedule'
 
 /**
@@ -128,37 +128,40 @@ export async function applyVerification(args: {
 }
 
 /**
- * Verify an event from a tokenized email link (the logged-out path). Validates
- * the signed token, resolves the manager's display name for the log, and runs
- * the shared verify op with `overrideAccess: true` (the token is the
- * authorization). Returns the updated event (carries the virtual `webUrl`), or
- * `null` when the token is missing/expired/invalid. `applyVerification` errors
- * propagate to the caller.
+ * Verify an event from a reminder's link, on the logged-out verify page.
  *
- * Kept out of the route/action layer so it's testable with a plain `payload`
- * instance — the Server Action is a thin `getPayload` wrapper around this.
+ * The link is a login-plugin page link carrying a `verifies` claim, and it is
+ * the whole authorization: the event it names, for the manager it was sent to.
+ * Returns the updated event (with its virtual `webUrl`), or `null` for a link
+ * that is expired, invalid, carries no event, or was sent to an account that no
+ * longer qualifies. `applyVerification` errors propagate to the caller.
+ *
+ * Only ever called from the page's form `POST` — opening the link verifies
+ * nothing, so a mail scanner fetching it cannot.
  */
-export async function verifyEventFromToken(args: {
+export async function verifyEventFromLink(args: {
   payload: Payload
-  token: string
+  link: string
   now?: Date
 }): Promise<Event | null> {
-  const { payload, token, now = new Date() } = args
+  const { payload, link, now = new Date() } = args
 
-  const claims = await verifyVerifyToken(token, payload.secret, now)
-  if (!claims) return null
+  const result = await readLinkToken(link, payload.secret, now)
+  if (result.status !== 'valid' || result.claims.collection !== 'managers') return null
+  const { userId, verifies } = result.claims
+  if (verifies === undefined) return null
 
-  // Resolve the manager's display name for the log's `by` entry.
   const manager = await payload
-    .findByID({ collection: 'managers', id: claims.managerId, depth: 0, overrideAccess: true })
+    .findByID({ collection: 'managers', id: userId, depth: 0, overrideAccess: true })
     .catch(() => null)
-  const name = manager?.name || manager?.email || `#${claims.managerId}`
+  // Deactivated since the reminder went out: the link no longer speaks for them.
+  if (!manager || manager.type === 'inactive') return null
 
   return applyVerification({
     payload,
-    eventId: claims.eventId,
+    eventId: verifies,
     method: 'email-link',
-    by: { id: claims.managerId, name },
+    by: { id: manager.id, name: manager.name || manager.email || `#${manager.id}` },
     now,
     overrideAccess: true,
   })
