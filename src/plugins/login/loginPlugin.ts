@@ -1,8 +1,19 @@
 import type { LoginCollectionConfig } from './types'
-import type { Config, Field, Plugin } from 'payload'
+import type { CollectionBeforeOperationHook, Config, Field, Plugin } from 'payload'
 
+import { redeemInvite } from './endpoints/redeemInvite'
+import { redeemLink } from './endpoints/redeemLink'
 import { redeemMagicLink } from './endpoints/redeemMagicLink'
 import { requestMagicLink } from './endpoints/requestMagicLink'
+import { managerJoins, MANAGERS_COLLECTION } from './grantSummary'
+import {
+  INVITATIONS_CRON,
+  INVITATIONS_QUEUE,
+  invitationFields,
+  queueOnManagerField,
+  queueOnRoles,
+  sendInvitationsTask,
+} from './invitations'
 
 /**
  * When the outstanding sign-in link was minted.
@@ -38,7 +49,26 @@ export interface LoginPluginOptions {
    */
   collections?: LoginCollectionConfig[]
   enabled?: boolean
+  /**
+   * Whether assignments queue invitations. Off for the seed scripts: an import
+   * writes managers onto hundreds of regions and events, and the queue it left
+   * behind would mail every one of them from production's next run. The fields
+   * and the task are wired either way, so the schema never differs.
+   */
+  invitations?: boolean
 }
+
+/**
+ * Payload's create sends its own "verify your email" whenever `auth.verify` is
+ * configured, gated on nothing but an address. An account here is invited when
+ * it is assigned something (`invitations.ts`), so the create sends nothing —
+ * and `auth.verify` stays configured only for the `_verified` column it adds.
+ *
+ * `beforeOperation` because Payload reads `disableVerificationEmail` from the
+ * args after those hooks run (`collections/operations/create.js`).
+ */
+const suppressCreateMail: CollectionBeforeOperationHook = ({ args, operation }) =>
+  operation === 'create' ? { ...args, disableVerificationEmail: true } : args
 
 /**
  * ⚠ **A second `/` or `\` makes it off-origin.** This value reaches
@@ -84,10 +114,10 @@ function adminWithSignInLink(
 }
 
 /**
- * Passwordless sign-in: one hidden timestamp field plus the two endpoints that
+ * Passwordless sign-in: one hidden timestamp field plus the endpoints that
  * trade an emailed link for a session (#837).
  *
- * Both endpoint definitions live under `./endpoints/` and are built per
+ * The endpoint definitions live under `./endpoints/` and are built per
  * configured collection, so the plugin owns the whole feature rather than wiring
  * definitions kept beside one collection. `./mail.ts` renders and addresses the
  * message for every served collection, so a `LoginCollectionConfig` supplies
@@ -120,30 +150,78 @@ function adminWithSignInLink(
  * ```
  */
 export function loginPlugin(options: LoginPluginOptions = {}): Plugin {
-  const { collections = [], enabled } = options
+  const { collections = [], enabled, invitations = true } = options
   if (enabled === false || collections.length === 0) return (config) => config
 
   const byslug = new Map(collections.map((entry) => [entry.slug as string, entry]))
 
-  return (config) => ({
-    ...config,
-    admin: adminWithSignInLink(config.admin, byslug),
-    collections: config.collections?.map((collection) => {
-      const entry = byslug.get(collection.slug)
-      if (!entry) return collection
+  return (config) => {
+    // Invitations need per-locale roles and manager joins, which only
+    // `managers` has — see `grantSummary.ts`.
+    const invitesFor = byslug.get(MANAGERS_COLLECTION)
+    const joins = invitesFor
+      ? managerJoins(config.collections?.find((c) => c.slug === MANAGERS_COLLECTION)?.fields ?? [])
+      : []
 
-      return {
-        ...collection,
-        fields: [...collection.fields, magicLinkIssuedAt],
-        endpoints: [
-          ...(collection.endpoints || []),
-          requestMagicLink(entry),
-          // ⚠ `POST`-only, and that is the whole defence against a mail scanner
-          // spending the link. The `GET` a delivered link performs is answered by
-          // `requestPagePath`'s own page, which writes nothing.
-          redeemMagicLink(entry),
-        ],
-      }
-    }),
-  })
+    return {
+      ...config,
+      admin: adminWithSignInLink(config.admin, byslug),
+      collections: config.collections?.map((collection) => {
+        const entry = byslug.get(collection.slug)
+        const namesManagers = joins.filter((join) => join.collection === collection.slug)
+
+        const withQueue =
+          invitations && namesManagers.length > 0
+            ? {
+                ...collection,
+                hooks: {
+                  ...collection.hooks,
+                  afterChange: [
+                    ...(collection.hooks?.afterChange ?? []),
+                    ...namesManagers.map((join) => queueOnManagerField(join.collection, join.on)),
+                  ],
+                },
+              }
+            : collection
+        if (!entry) return withQueue
+
+        const invites = entry === invitesFor
+        return {
+          ...withQueue,
+          fields: [...withQueue.fields, magicLinkIssuedAt, ...(invites ? invitationFields : [])],
+          hooks: {
+            ...withQueue.hooks,
+            beforeOperation: [...(withQueue.hooks?.beforeOperation ?? []), suppressCreateMail],
+            afterChange: [
+              ...(withQueue.hooks?.afterChange ?? []),
+              ...(invites && invitations ? [queueOnRoles] : []),
+            ],
+          },
+          endpoints: [
+            ...(collection.endpoints || []),
+            requestMagicLink(entry),
+            // ⚠ `POST`-only, and that is the whole defence against a mail scanner
+            // spending the link. The `GET` a delivered link performs is answered by
+            // `requestPagePath`'s own page, which writes nothing.
+            redeemMagicLink(entry),
+            // The invitation's own audience, refused by the route above and
+            // refusing its token in turn — see `redeemInvite`.
+            redeemInvite(entry),
+            // A reminder's link: signs in, then lands on the page it names.
+            redeemLink(entry),
+          ],
+        }
+      }),
+      jobs: invitesFor
+        ? {
+            ...config.jobs,
+            tasks: [...(config.jobs?.tasks ?? []), sendInvitationsTask(invitesFor)],
+            // A schedule only enqueues; an `autoRun` entry is what runs the queue.
+            autoRun: Array.isArray(config.jobs?.autoRun)
+              ? [...config.jobs.autoRun, { cron: INVITATIONS_CRON, queue: INVITATIONS_QUEUE }]
+              : config.jobs?.autoRun,
+          }
+        : config.jobs,
+    }
+  }
 }

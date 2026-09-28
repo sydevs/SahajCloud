@@ -60,19 +60,25 @@ function adminConfig(): Config {
 
 /**
  * `<method> <path>` per endpoint. The method is asserted, not just the path:
- * `/redeem-magic-link` answering a GET at all is what would let a mail
- * scanner spend the link, so the absent verb is as load-bearing as the present
- * one.
+ * any redeem route answering a GET at all is what would let a mail scanner
+ * spend the link, so the absent verb is as load-bearing as the present one.
  */
 const routes = (c: CollectionConfig) =>
   (c.endpoints || []).map((e) => `${(e as Endpoint).method} ${(e as Endpoint).path}`)
 
 /** What the plugin wires onto a served collection, in fold order. */
-const WIRED_ROUTES = ['post /request-magic-link', 'post /redeem-magic-link']
+const WIRED_ROUTES = [
+  'post /request-magic-link',
+  'post /redeem-magic-link',
+  // The invitation's own audience, separate so neither token spends the other.
+  'post /redeem-invite',
+  // A reminder's page link, the third audience.
+  'post /redeem-link',
+]
 const fieldNames = (c: CollectionConfig) => c.fields.map((f) => ('name' in f ? f.name : null))
 
 describe('loginPlugin', () => {
-  it('adds the field and both endpoints to a configured collection', () => {
+  it('adds the field and every endpoint to a configured collection', () => {
     const [wired] = fold(loginPlugin({ collections: [managers] }), collection('managers'))
 
     expect(fieldNames(wired)).toContain('magicLinkIssuedAt')
@@ -209,5 +215,86 @@ describe('loginPlugin', () => {
 
       expect(folded.admin?.components?.afterLogin).toBeUndefined()
     })
+  })
+})
+
+describe('invitations', () => {
+  /**
+   * `managers` with two of the joins `Managers` declares, the collections they
+   * point at, one that names nobody, and the `jobs` block `payload.config.ts`
+   * declares.
+   */
+  function withJoins(): Config {
+    return {
+      collections: [
+        {
+          slug: 'managers',
+          fields: [
+            { name: 'email', type: 'email' },
+            { name: 'managedRegions', type: 'join', collection: 'regions', on: 'managers' },
+            { name: 'managedEvents', type: 'join', collection: 'events', on: 'manager' },
+          ],
+        },
+        collection('regions'),
+        collection('events'),
+        collection('media'),
+      ],
+      jobs: { tasks: [], autoRun: [{ cron: '0 * * * *', queue: 'nightly' }] },
+    } as unknown as Config
+  }
+
+  const bySlug = (config: Config, slug: string) =>
+    (config.collections ?? []).find((c) => c.slug === slug)!
+
+  const afterChange = (config: Config, slug: string) =>
+    bySlug(config, slug).hooks?.afterChange ?? []
+
+  it('keeps the queue on the manager', () => {
+    const folded = foldConfig(loginPlugin({ collections: [managers] }), withJoins())
+
+    expect(fieldNames(bySlug(folded, 'managers'))).toEqual(
+      expect.arrayContaining(['pendingInvitation', 'invitationDueAt']),
+    )
+  })
+
+  it('stops a create from sending Payload’s own verify mail', async () => {
+    const folded = foldConfig(loginPlugin({ collections: [managers] }), withJoins())
+    const [hook] = bySlug(folded, 'managers').hooks?.beforeOperation ?? []
+    const run = hook as (a: { args: object; operation: string }) => object
+
+    expect(await run({ args: {}, operation: 'create' })).toEqual({ disableVerificationEmail: true })
+    expect(await run({ args: { id: 1 }, operation: 'update' })).toEqual({ id: 1 })
+  })
+
+  it('queues on every collection that names a manager, and on the manager’s roles', () => {
+    const folded = foldConfig(loginPlugin({ collections: [managers] }), withJoins())
+
+    expect(afterChange(folded, 'regions')).toHaveLength(1)
+    expect(afterChange(folded, 'events')).toHaveLength(1)
+    expect(afterChange(folded, 'managers')).toHaveLength(1)
+    expect(afterChange(folded, 'media')).toHaveLength(0)
+  })
+
+  it('registers the task, and a queue that runs it, beside what is already there', () => {
+    const folded = foldConfig(loginPlugin({ collections: [managers] }), withJoins())
+
+    expect(folded.jobs?.tasks?.map((task) => task.slug)).toEqual(['sendInvitations'])
+    expect(folded.jobs?.autoRun).toEqual([
+      { cron: '0 * * * *', queue: 'nightly' },
+      { cron: '*/5 * * * *', queue: 'invitations' },
+    ])
+  })
+
+  it('queues nothing when switched off — the seed scripts — and keeps the schema', () => {
+    const folded = foldConfig(
+      loginPlugin({ collections: [managers], invitations: false }),
+      withJoins(),
+    )
+
+    expect(afterChange(folded, 'regions')).toHaveLength(0)
+    expect(afterChange(folded, 'managers')).toHaveLength(0)
+    // A seed run and a server must agree on the columns.
+    expect(fieldNames(bySlug(folded, 'managers'))).toContain('pendingInvitation')
+    expect(folded.jobs?.tasks?.map((task) => task.slug)).toEqual(['sendInvitations'])
   })
 })

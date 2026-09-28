@@ -9,7 +9,7 @@ import {
   OutcomeBody,
   type PageTone,
   type PageAction,
-} from '../../_components/PublicPage'
+} from './PublicPage'
 
 /**
  * The event's key facts, matching the reminder email's "Event details" table

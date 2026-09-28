@@ -79,7 +79,7 @@ const completeProgress: EventListingProgress = {
 const baseProps = {
   name: 'Jo Manager',
   eventTitle: 'Morning Meditation',
-  verifyUrl: 'https://cloud.test/events/verify?token=TKN123',
+  verifyUrl: 'https://cloud.test/managers/signin?link=TKN123',
   audience: 'manager' as const,
   details,
   deadline: 'Saturday, 19 July 2026',
@@ -104,6 +104,12 @@ describe('EventVerificationEmail', () => {
       expect(html).toContain(brand.colors.primary) // "#4a8cd4"
     },
   )
+
+  it('says the button opens a one-click verify page, which can also sign them in', async () => {
+    const html = await render({ level: 'due' })
+
+    expect(html).toContain('verify the event in one click, or sign in to update its details')
+  })
 
   it.each(['due', 'escalated', 'urgent', 'expired'] as const)(
     'states the unpublish date in the callout for the %s level',
@@ -283,6 +289,12 @@ describe('EventVerificationEmail', () => {
       regionName: 'Maharashtra',
       eventManager,
     }
+
+    it('drops the note when the button emails the event manager instead', async () => {
+      const html = await render({ ...regionProps, level: 'escalated' })
+      expect(html).not.toContain('The button signs you in')
+      expect(html).not.toContain('in one click')
+    })
 
     it('frames it as an event in their region and asks them to follow up', async () => {
       const html = await render({ ...regionProps, level: 'escalated' })

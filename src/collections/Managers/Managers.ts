@@ -10,7 +10,6 @@ import {
   validateNotificationPreferences,
 } from '@/components/admin/NotificationPreferences/config'
 import { ResetPasswordEmail } from '@/emails/ResetPasswordEmail'
-import { VerifyEmail } from '@/emails/VerifyEmail'
 import { hideUntilCreated, legacyMigrationFields } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
 import { getLanguageOptions } from '@/lib/locales'
@@ -19,6 +18,7 @@ import { adminOnlyFieldAccess, getRoleOptions, getProjectOptions } from '@/plugi
 import { getEmailBrand, renderEmail } from '@/plugins/email'
 
 import { setProject } from './endpoints/setProject'
+import { MANAGER_NOTIFICATIONS_TAB } from './login'
 
 export const Managers: CollectionConfig = {
   slug: 'managers',
@@ -26,22 +26,14 @@ export const Managers: CollectionConfig = {
   // `setProject` is the lightweight self-only Current Project write path (#532).
   endpoints: [setProject],
   auth: {
-    // Auth emails intentionally use the default brand (wemeditate-web) rather
-    // than the recipient's currentProject — branding is an explicit per-send
-    // choice, so the templates' `project` prop is left at its default here (#483).
-    verify: {
-      generateEmailHTML: ({ token, user }) =>
-        renderEmail(
-          createElement(VerifyEmail, {
-            name: user.name || user.email,
-            // The slug segment is required, and dropping it fails silently:
-            // `isPublicAdminRoute` waves any `/verify/` path past the auth gate,
-            // so `/admin/verify/:token` reaches the login form, not a 404 (#320).
-            verifyUrl: adminUrl(`/managers/verify/${token}`),
-          }),
-        ),
-      generateEmailSubject: () => `Verify Your Email — ${getEmailBrand().productName}`,
-    },
+    // The reset mail uses the default brand (wemeditate-web) whatever the
+    // recipient's currentProject (#483).
+    // Configured for the `_verified` column, not for Payload's own verify mail:
+    // the JWT strategy yields no user while that column is false, so it is the
+    // accepted/not-accepted flag the invitation flow turns on. `loginPlugin`
+    // stops the create from sending that mail — an account is invited when it
+    // is assigned something instead (#839).
+    verify: true,
     forgotPassword: {
       generateEmailHTML: (args) =>
         renderEmail(
@@ -182,7 +174,8 @@ export const Managers: CollectionConfig = {
         },
         {
           // All Contact-tab fields are self-editable — no adminOnlyFieldAccess.
-          label: 'Contact',
+          // Its label is what an invitation's "Configure notifications" opens.
+          label: MANAGER_NOTIFICATIONS_TAB,
           fields: [
             {
               name: 'language',

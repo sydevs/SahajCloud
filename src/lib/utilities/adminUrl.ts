@@ -28,3 +28,8 @@ export function adminUrl(path: `/${string}`): string {
 export function adminDocUrl(collection: CollectionSlug, id: number | string): string {
   return adminUrl(`/collections/${collection}/${id}`)
 }
+
+/** The same page as a path, for a signed link that must not carry a host. */
+export function adminDocPath(collection: CollectionSlug, id: number | string): string {
+  return new URL(adminDocUrl(collection, id)).pathname
+}

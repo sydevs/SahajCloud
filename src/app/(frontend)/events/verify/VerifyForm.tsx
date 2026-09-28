@@ -7,20 +7,22 @@ import { useActionState } from 'react'
 import type { EventDetails } from '@/emails/EventVerificationEmail'
 import type { EmailBrand } from '@/plugins/email'
 
-
 import { verifyEventAction } from './actions'
-import { EventSummary, VerificationCard } from './VerificationCard'
 import {
   ActionButtons,
   PublicPage,
   primaryButton,
   type PageAction,
 } from '../../_components/PublicPage'
+import { EventSummary, VerificationCard } from '../../_components/VerificationCard'
 
 interface VerifyFormProps {
   brand: EmailBrand
   iconSrc: string
-  token: string
+  /** The reminder's page link, which the verify `POST` re-checks. */
+  link: string
+  /** Where "Update the details" posts: the page link's redeem route. */
+  editUrl: string
   eventTitle: string
   details: EventDetails | null
   /** Public map link for the event, or null when unpublished. */
@@ -30,16 +32,15 @@ interface VerifyFormProps {
 }
 
 /**
- * Two-step verify UI. Initially shows the full event summary (the same details
- * as the reminder email) + a "Verify this event" button; submitting runs the
- * {@link verifyEventAction} Server Action (POST) and swaps in the result card.
- * Verification only happens on this explicit submit — never on page load — so
- * email link-scanners can't auto-verify.
+ * The event's summary (the same details as the reminder) and one button that
+ * verifies it. Submitting runs {@link verifyEventAction} (a `POST`) and swaps in
+ * the result — the only way this page changes anything.
  */
 export function VerifyForm({
   brand,
   iconSrc,
-  token,
+  link,
+  editUrl,
   eventTitle,
   details,
   eventUrl,
@@ -52,6 +53,8 @@ export function VerifyForm({
   }
 
   const secondaryActions: PageAction[] = [
+    // Signs them in, so it must be a `POST` — see `PageAction.method`.
+    { label: 'Update the details', href: editUrl, variant: 'secondary', method: 'post' },
     ...(eventUrl ? [{ label: 'View event', href: eventUrl, variant: 'secondary' as const }] : []),
     ...(atlasHome
       ? [{ label: 'Back to Sahaj Atlas', href: atlasHome, variant: 'secondary' as const }]
@@ -62,14 +65,14 @@ export function VerifyForm({
     <PublicPage iconSrc={iconSrc} title={brand.productName}>
       <h2 style={heading}>Is this event still running?</h2>
       <p style={lead}>
-        Please confirm the details below for <strong>{eventTitle}</strong> are correct, then verify
-        it to keep it listed on Sahaj Atlas.
+        If the details below for <strong>{eventTitle}</strong> are still right, verify it to keep it
+        listed on Sahaj Atlas. If something has changed, update the details instead.
       </p>
 
       {details && <EventSummary brand={brand} details={details} />}
 
       <form action={formAction}>
-        <input type="hidden" name="token" value={token} />
+        <input type="hidden" name="link" value={link} />
         <button type="submit" disabled={pending} style={primaryButton(brand)}>
           {pending ? 'Verifying…' : 'Verify this event'}
         </button>
@@ -81,4 +84,9 @@ export function VerifyForm({
 }
 
 const heading: CSSProperties = { margin: '0 0 12px', fontSize: 20, color: 'var(--text)' }
-const lead: CSSProperties = { margin: '0 0 20px', color: 'var(--text-muted)', lineHeight: 1.6, fontSize: 15 }
+const lead: CSSProperties = {
+  margin: '0 0 20px',
+  color: 'var(--text-muted)',
+  lineHeight: 1.6,
+  fontSize: 15,
+}
