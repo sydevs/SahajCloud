@@ -91,11 +91,11 @@ nothing, and this crash returns.
 
 ⚠ **The whole Payload family carries exact versions for that reason, not just
 those two.** `@payloadcms/next`, `richtext-lexical`, `ui`, the plugins and
-`typescript-plugin` all pin `3.87.1`. Payload does not support a mixed-version
-family, so leaving the rest on carets meant one `pnpm update` could put
-`@payloadcms/next@3.88.x` beside a pinned `payload@3.87.1` — a break with no
-patch involved. Bump them together, in one commit, and re-check the patch key
-against the drizzle-kit that release pins.
+`typescript-plugin` all carry the same exact version as `payload`. Payload does
+not support a mixed-version family, so leaving the rest on carets meant one
+`pnpm update` could put `@payloadcms/next` a minor ahead of a pinned `payload`
+— a break with no patch involved. Bump them together, in one commit, and
+re-check the patch key against the drizzle-kit that release pins.
 
 The patch does not remove the rename-vs-create **prompt**. That still needs an
 attended run, per the interactive-hang row above.
