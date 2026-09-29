@@ -20,6 +20,7 @@ not here.
 | File | Purpose |
 |---|---|
 | `create-manager.ts` | Create an admin manager straight through the local API. ⚠ **The only way to bootstrap an empty `managers` table** — Payload's `create-first-user` route is `Forbidden` under `disableLocalStrategy` (#840), and `admin.autoLogin` needs a row that already exists. Creates the account accepted, because nobody can invite the first one. Every manager after it belongs in the admin panel |
+| `signin-link.ts` | Print a sign-in link for an existing manager, sending no mail. ⚠ **Production's break-glass entry** when email delivery is down (#840) — a script, not a route, so it grants nothing without `DATABASE_URL` and `PAYLOAD_SECRET`. Refuses an inactive or never-accepted account, because a link for one authenticates nobody |
 | `setup-stream-webhook.ts` | Register, inspect, or delete the account-level Cloudflare Stream webhook |
 | `preview-event-emails.ts` | Send the manager event-verification reminders (all levels/audiences, with the listing-suggestions section populated) to the Mailpit capture inbox |
 | `preview-registration-emails.ts` | Send the registrant confirmation in each state (online/offline, locale, branded/fallback, one-off, minimal) to the Mailpit capture inbox, with the `.ics` attached |

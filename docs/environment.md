@@ -28,7 +28,7 @@ Separate from `.env`, gitignored, and never committed. It lets an agent operate 
 | Key | What it opens |
 | --- | --- |
 | `CLOUDFLARE_CLAUDE_KEY` | Cloudflare API token — Cache Rules on the `sydevelopers.com` zone. |
-| `ADMIN_PASSWORD` | **Spent.** `POST /api/managers/login` answers 403 on every environment since #840, so this value opens nothing. Production admin access is an emailed sign-in link, and a remote seed run carries that session's token as `ADMIN_TOKEN` (`seeds/AGENTS.md`). |
+| `ADMIN_PASSWORD` | **Spent.** `POST /api/managers/login` answers 403 on every environment since #840, so this value opens nothing. Production admin access is an emailed sign-in link, or `pnpm tsx scripts/signin-link.ts <email>` when mail is down, and a remote seed run carries that session's token as `ADMIN_TOKEN` (`seeds/AGENTS.md`). |
 | `MAILPIT_URL`, `MAILPIT_UI_AUTH` | The Mailpit capture inbox, and its login — what the `preview-*-emails` scripts post with, and what opens their links (`docs/rules/email.md`). The Claude cloud environment carries both. |
 | `SMTP_URL` | Mailpit's SMTP ingress, for mail the app sends under `pnpm dev`. |
 
