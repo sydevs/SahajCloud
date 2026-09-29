@@ -250,15 +250,19 @@ async function hasAutoLogin(baseUrl: string): Promise<boolean> {
 }
 
 /**
- * Authenticate with the API and return a JWT for the `Authorization` header, or
- * `null` when the target auto-logs-in and no credentials are needed.
+ * Return the session token for the `Authorization` header, or `null` when the
+ * target auto-logs-in and no credentials are needed.
  *
- * Uses the token from the login response *body*, not the `Set-Cookie` header.
- * Payload's CSRF protection ignores cookie-based JWTs unless the request
- * `Origin` matches the configured `csrf` allowlist — which a server-to-server
- * fetch cannot satisfy (it sends no `Origin`). The `Authorization: JWT <token>`
- * header is not subject to CSRF, so it is the correct mechanism here.
- * Do not switch this back to cookie forwarding.
+ * ⚠ **The token is sent as a header, never forwarded as a cookie**, even though
+ * `ADMIN_TOKEN` is copied out of one. Payload's CSRF protection ignores
+ * cookie-based JWTs unless the request `Origin` matches the configured `csrf`
+ * allowlist — which a server-to-server fetch cannot satisfy, since it sends no
+ * `Origin`. `Authorization: JWT <token>` is not subject to CSRF, so it is the
+ * correct mechanism here. Do not switch this to cookie forwarding.
+ *
+ * There is nothing to authenticate *against* any more: managers hold no
+ * password and `POST /api/managers/login` answers 403 everywhere (#840), so the
+ * operator supplies a token from a session they already hold.
  */
 async function authenticate(baseUrl: string): Promise<string | null> {
   if (await hasAutoLogin(baseUrl)) {
