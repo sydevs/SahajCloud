@@ -8,6 +8,7 @@ import { buildConfig, Config } from 'payload'
 import { collections, Managers } from '../../src/collections'
 import { globals } from '../../src/globals'
 import { LOCALES, DEFAULT_LOCALE } from '../../src/lib/locales'
+import { restrictPayloadSystemEntities } from '../../src/plugins/access/systemEntities'
 import { TEST_PG_POOL_OPTIONS } from '../../tests/utils/postgresTestPool'
 
 const filename = fileURLToPath(import.meta.url)
@@ -51,7 +52,9 @@ export const testPayloadConfig = (overrides?: Partial<Config>) => {
     plugins: [],
     // Allow overrides (for custom test scenarios)
     ...overrides,
-  })
+    // Payload appends its own `payload-*` entities after every plugin, so their
+    // access is set on the sanitized config (src/plugins/access/systemEntities.ts).
+  }).then(restrictPayloadSystemEntities)
 }
 
 export default testPayloadConfig()

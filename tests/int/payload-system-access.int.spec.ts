@@ -17,15 +17,22 @@ import type { RestClient } from '../utils/restRequest'
 import type { Payload, PayloadRequest } from 'payload'
 
 import { handleEndpoints } from 'payload'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import type { Client, Manager, Narrator, PayloadLockedDocument } from '@/payload-types'
+import type { Client, Form, Manager, Narrator, PayloadLockedDocument } from '@/payload-types'
 
 import { createRestClient, createRestClientAs } from '../utils/restRequest'
 import { testData } from '../utils/testData'
 import { createClientAuthenticatedRequest, createTestEnvironment } from '../utils/testHelpers'
 
+const { verifyMock } = vi.hoisted(() => ({ verifyMock: vi.fn() }))
+
+vi.mock('@/lib/turnstile/verifyTurnstile', () => ({
+  verifyTurnstileToken: verifyMock,
+}))
+
 const APP_API_KEY = 'app-client-key-for-payload-system-access-spec'
+const ATLAS_API_KEY = 'atlas-client-key-for-payload-system-access-spec'
 const SYSTEM_SLUG_PREFIX = 'payload-'
 /** A queue no autoRun cron or test ever fills, so a run that got through would touch only this spec's job. */
 const SPEC_QUEUE = 'payload-system-access-spec'
@@ -37,16 +44,25 @@ describe('Payload system entities access', () => {
   let adminManager: Manager
   let editor: Manager
   let appClient: Client
+  let contactForm: Form
   let narrator: Narrator
   let adminRest: RestClient
   let editorRest: RestClient
 
-  /** A real REST call, authenticated by a published app client's API key. */
+  /** A real REST call, authenticated by a published client's API key. */
   async function clientRest(
     path: string,
-    init: { method?: string; json?: unknown } = {},
+    init: {
+      method?: string
+      json?: unknown
+      apiKey?: string
+      headers?: Record<string, string>
+    } = {},
   ): Promise<{ status: number; body: unknown }> {
-    const headers: Record<string, string> = { Authorization: `clients API-Key ${APP_API_KEY}` }
+    const headers: Record<string, string> = {
+      Authorization: `clients API-Key ${init.apiKey ?? APP_API_KEY}`,
+      ...init.headers,
+    }
     if (init.json !== undefined) headers['Content-Type'] = 'application/json'
     const response = await handleEndpoints({
       config,
@@ -105,7 +121,30 @@ describe('Payload system entities access', () => {
       roles: ['wemeditate-app-client'],
       apiKey: APP_API_KEY,
     })
+    // `wemeditate-app-client` holds no `user-submissions` create grant, so the
+    // intake case below needs a client whose role actually reaches the collection.
+    await testData.createClient(payload, adminManager.id, {
+      name: 'Sahaj Atlas Widget',
+      roles: ['sahaj-atlas-client'],
+      apiKey: ATLAS_API_KEY,
+    })
     narrator = await testData.createNarrator(payload, { name: 'Lockable Narrator' })
+
+    verifyMock.mockResolvedValue({ success: true })
+    contactForm = (await payload.create({
+      collection: 'forms',
+      data: {
+        title: 'Report an issue',
+        actionType: 'contact',
+        recipient: adminManager.id,
+        confirmationType: 'redirect',
+        redirect: { url: '/thanks' },
+        fields: [
+          { blockType: 'email', name: 'email', label: 'Email' },
+          { blockType: 'textarea', name: 'message', label: 'Message' },
+        ],
+      } as never,
+    })) as Form
 
     adminRest = await createRestClient({ payload, config, adminUser: adminManager })
     editorRest = await createRestClientAs({ payload, config }, editor)
@@ -222,6 +261,45 @@ describe('Payload system entities access', () => {
           req: clientReq(),
         }),
       ).rejects.toThrow()
+    })
+
+    /**
+     * ⚠ The one production path that queues a job carries a **client** `req`:
+     * `enqueueSubmissionScreening` forwards it with no `overrideAccess`, and
+     * Payload defaults that to `true`, so admin-only `jobs.access.queue` is
+     * never consulted. That default is the whole reason the public intake
+     * still works, and it is a Payload internal — pin it here, or a version
+     * that flips it takes down every Atlas and app form submission.
+     */
+    it('still queues screening for a client submission over REST', async () => {
+      const before = await payload.count({ collection: 'payload-jobs' })
+
+      const res = await clientRest('/api/user-submissions', {
+        method: 'POST',
+        apiKey: ATLAS_API_KEY,
+        headers: { 'x-turnstile-token': 'tok-valid' },
+        json: {
+          type: 'contact',
+          form: contactForm.id,
+          senderEmail: 'reporter@example.com',
+          submissionData: [{ field: 'message', value: 'The venue closed last month.' }],
+        },
+      })
+
+      expect(res.status).toBe(201)
+      const submissionId = Number((res.body as { doc: { id: number | string } }).doc.id)
+      const queued = await payload.find({
+        collection: 'payload-jobs',
+        where: { taskSlug: { equals: 'screenSubmission' } },
+        depth: 0,
+        overrideAccess: true,
+      })
+      expect((await payload.count({ collection: 'payload-jobs' })).totalDocs).toBe(
+        before.totalDocs + 1,
+      )
+      expect(
+        queued.docs.map((job) => (job.input as { submissionId: number }).submissionId),
+      ).toContain(submissionId)
     })
 
     it('refuses a non-admin manager and still serves an admin', async () => {
