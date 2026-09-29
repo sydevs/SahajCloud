@@ -168,7 +168,7 @@ For a complex interactive component, separate a stateless, PayloadCMS-free **pur
 
 **Default-value alignment is the critical pitfall**: the wrapper must default the same way Payload's underlying field type does (e.g. `hasMany = false` for a relationship field), even when the standalone UI component defaults differently for its own convenience. A wrapper with no explicit default silently passes `undefined` where the UI component expected `true`.
 
-Examples of the pattern, each a folder holding `<Name>.tsx` beside `<Name>Field.tsx`: **TagSelector** (visual tag picker), **RangeSlider** (discrete slider, whose own `min`/`max` defaults differ from a number field's), **ToggleGroup** (segmented buttons, `hasMany` and `clearable`), **TableOfContents** (headings read out of the Lexical editor). Reach for this shape for a multi-select, drag-drop, or visual picker, for a component fetching its own data, or for one that might be reused outside Payload.
+Examples of the pattern, each a folder holding `<Name>.tsx` beside `<Name>Field.tsx` under whichever of the two names reads better: **`TagSelector/`** (visual tag picker), **`RangeSlider/`** (discrete slider on `react-range`), **`ToggleGroupField/`** (segmented buttons, `hasMany` and `clearable`), **`TableOfContentsField/`** (headings read out of the Lexical editor). Reach for this shape for a multi-select, drag-drop, or visual picker, for a component fetching its own data, or for one that might be reused outside Payload.
 
 ## Configurable components via `admin.custom`
 
