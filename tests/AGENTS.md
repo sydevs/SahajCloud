@@ -439,7 +439,7 @@ which needs no Railway API token) and runs `pnpm test:smoke`. Locally it falls b
 | File                            | Purpose                                                                          |
 | ---------------------------------- | ------------------------------------------------------------------------------------ |
 | `tests/e2e/*.e2e.spec.ts`       | REST flows only a deployed environment can answer. Covers auth, content CRUD, CORS preflight, and what an error body discloses under the shipped `config.debug` (`error-disclosure`) |
-| `tests/e2e/_helpers/preview.ts` | `ensureAdmin` (trades `PREVIEW_ADMIN_PASSWORD` for a session — the deploy provisions the admin) + auth headers |
+| `tests/e2e/_helpers/preview.ts` | `ensureAdmin` (asks for a link as `PREVIEW_ADMIN_EMAIL`, which a preview answers with a session — the deploy provisions the admin) + auth headers |
 | `tests/e2e/_helpers/runId.ts`   | Per-run record prefix so two runs against one preview don't collide              |
 | `tests/e2e/_helpers/fixtures.ts` | The dependencies a spec creates for itself (image, album, narrator, frame) + the bin that deletes them |
 | `tests/e2e/_helpers/smokeTest.ts` | `test` extended with `headers` and `trash` — import it in any spec that creates records |

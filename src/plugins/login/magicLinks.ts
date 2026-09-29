@@ -7,6 +7,7 @@ import { getServerUrl } from '@/lib/utilities/serverUrl'
 
 import { composeInvitations } from './invite'
 import { emailFrom, generateEmailHTML, generateEmailSubject } from './mail'
+import { createSession } from './session'
 import { signSigninToken, SIGNIN_TOKEN_TTL_MS } from './token'
 
 /**
@@ -77,6 +78,12 @@ function invitesAccounts(payload: Payload, slug: string): boolean {
  * "throttled" would be an account-enumeration oracle, and both callers are
  * anonymous by necessity. It throws only on a transport failure, which every
  * caller swallows for the same reason.
+ *
+ * ⚠ **One exception, and it is not an oracle anywhere it can be reached.** A
+ * `config.previewAutoSignIn` address is signed in here and the token returned,
+ * so a Railway preview needs no second credential and no route of its own. The
+ * option is unset in production, in CI and in local dev, so there the answer is
+ * uniform for every address — see {@link LoginCollectionConfig.previewAutoSignIn}.
  */
 export async function issueMagicLink({
   config,
@@ -86,7 +93,7 @@ export async function issueMagicLink({
   config: LoginCollectionConfig
   email: string
   payload: Payload
-}): Promise<void> {
+}): Promise<undefined | { token: string }> {
   const { slug } = config
 
   // Bounded: this is the one unauthenticated read in the feature, and the
@@ -114,6 +121,16 @@ export async function issueMagicLink({
   // Read off the fetched document, not `req.user` — every caller is anonymous,
   // so there is none.
   if (config.isEligible && !config.isEligible(account)) return
+
+  // Before the throttle on purpose: the smoke lane signs in many times in a
+  // run, and a minute's wait between them would fail it rather than bound
+  // anything — nothing is mailed and no link is minted on this path.
+  if (config.previewAutoSignIn && account.email === config.previewAutoSignIn) {
+    // The JWT strategy yields no user for an unaccepted account, so minting here
+    // would answer with a token that authenticates nobody, one request later.
+    if (invitesAccounts(payload, slug) && account._verified !== true) return
+    return { token: await createSession(payload, slug, account.id) }
+  }
 
   const now = new Date()
   const outstanding = account.magicLinkIssuedAt

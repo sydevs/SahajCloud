@@ -84,13 +84,13 @@ A missing `PAYLOAD_SECRET` or `DATABASE_URL` stops the app from starting. A miss
 
 ### Preview environments provision their own admin
 
-`PREVIEW_ADMIN_PASSWORD` is set on Railway's preview environments, and passed to the smoke lane as a CI secret. On every boot, `onInit` reconciles the admin account (`src/plugins/previewAdmin`) — present, admin, and `_verified`.
+`PREVIEW_ADMIN_EMAIL` is set on Railway's preview environments, and passed to the smoke lane as a CI secret. On every boot, `onInit` reconciles the admin account (`src/plugins/previewAdmin`) — present, admin, and `_verified`.
 
 ⚠ **It is no longer that account's password.** Managers hold none since #840. The same gate wires `POST /api/managers/exchange-preview-secret`, which compares this value against the environment and mints a session for the seeded address alone. Rotating the secret takes effect on the next deploy, as before, and the smoke lane needs no new CI secret.
 
 Production is detected by Railway's environment name, never `NODE_ENV`. Previews also run `NODE_ENV=production` — the same trap that once sent preview mail through Resend to real addresses. The gate also requires a Railway environment name at all. This keeps `onInit` inert in local dev, CI, and both test lanes. CI does hold the password as a secret, so a gate reading only that would write an admin into the integration lane's database.
 
-`PREVIEW_ADMIN_EMAIL` overrides the account address, defaulting to `contact@sydevelopers.com`. Environments forked before 2026-08-27 never got the variable, and keep whatever admin an early smoke run seeded.
+⚠ **On a preview that address is also the credential.** The sign-in page mints a session for it instead of mailing a link (#840), which is how the smoke lane gets in with no password anywhere — so treat it as a secret and keep the local part unguessable. There is no default: an environment without the variable provisions no admin and signs nobody in. Environments forked before 2026-08-27 keep whatever admin an early smoke run seeded.
 
 ### `NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT` — set by the build, never by hand
 

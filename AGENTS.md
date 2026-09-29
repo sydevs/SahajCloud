@@ -37,7 +37,7 @@ Admin panel: `http://localhost:{PORT}/admin/login`, once the dev server runs.
 
 | Environment | How you get in |
 | --- | --- |
-| Railway PR preview | A sign-in link, or — for the smoke lane — `POST /api/managers/exchange-preview-secret` with `PREVIEW_ADMIN_PASSWORD` (a Railway preview env var, also a CI secret). That route exists only where the same gate provisions the admin (`src/plugins/previewAdmin`). Environments forked before 2026-08-27 never got the variable, so they have neither the route nor a reconciled admin. |
+| Railway PR preview | Ask for a sign-in link as `PREVIEW_ADMIN_EMAIL` (a Railway preview env var, also a CI secret) and the preview signs you in instead of mailing one — the smoke lane's way in too. The address is the credential there, so keep its local part unguessable. Only where the same gate provisions the admin (`src/plugins/previewAdmin`): an environment without the variable has neither. |
 | Production | A sign-in link, delivered by email. `ADMIN_PASSWORD` no longer opens anything — `POST /api/managers/login` is closed here too. Whether production gets a break-glass path is open on #840; until it is answered, working email delivery is the only way in. |
 
 **A fresh database has no manager to invite the first one.** `pnpm tsx scripts/create-manager.ts <email>` writes one through the local API, which the closed routes do not gate. Payload's own `create-first-user` is `Forbidden` like every other password route.

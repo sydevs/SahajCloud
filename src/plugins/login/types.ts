@@ -23,20 +23,6 @@ export interface LoginDocument {
   name?: null | string
 }
 
-/**
- * The preview-only credential `exchange-preview-secret` trades for a session.
- *
- * Supplied by the composition root, never read here: knowing what a Railway PR
- * preview is belongs to `src/plugins/previewAdmin`, which owns the gate, the
- * variables and the account. Absent, the route is not wired at all.
- */
-export interface PreviewSecretExchange {
-  /** The one address this trades for. */
-  email: string
-  /** `PREVIEW_ADMIN_PASSWORD`. */
-  password: string
-}
-
 /** What the two mail generators are handed. */
 export interface LoginMailArgs {
   doc: LoginDocument
@@ -78,22 +64,22 @@ export interface LoginCollectionConfig {
    */
   passwordless?: boolean
   /**
-   * Wire `exchange-preview-secret` on this collection, trading this credential
-   * for a session on it.
+   * One address that signs in on request, with no mail and no token.
    *
-   * ⚠ **Absent means the route does not exist**, which is the whole gate — a
-   * route present everywhere and refusing everywhere would be one typo away
-   * from a password login on production. `previewSecretExchange()` in
-   * `@/plugins/previewAdmin` is what answers, and it answers `undefined`
-   * anywhere but a Railway preview holding the secret.
+   * ⚠ **The address IS the credential**, so it is only ever set where the same
+   * gate provisions the account — a Railway preview, never production, never CI,
+   * never local dev (`src/plugins/previewAdmin`). Absent, `issueMagicLink` has
+   * no branch to take and every address is mailed.
    *
-   * ⚠ **Per collection, for the same reason as `passwordless`.** The credential
-   * names one address on one collection, so wiring it plugin-wide would hand
-   * the next slug added to `collections` a route trading the *manager* secret
-   * for a session on it — and `clients`, the obvious candidate, carries no
-   * top-level `email` for the lookup to match.
+   * ⚠ **Per collection, for the same reason as `passwordless`.** It names one
+   * address on one collection, so setting it plugin-wide would sign a caller
+   * into the next slug added to `collections` with the *manager* address.
+   *
+   * ⚠ Stored lowercased and trimmed, matching what Payload writes and what
+   * `magicLinkEmailSchema` parses — a capital here would otherwise match nothing
+   * and mail the preview admin a link no lane can open.
    */
-  previewExchange?: PreviewSecretExchange
+  previewAutoSignIn?: string
   /**
    * Refuse a link for a document this rejects — a deactivated account, say.
    * Runs on both endpoints, so a document that stops qualifying cannot spend a

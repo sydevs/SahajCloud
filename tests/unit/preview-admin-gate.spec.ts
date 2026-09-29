@@ -7,21 +7,21 @@ import { shouldSeedPreviewAdmin } from '@/plugins/previewAdmin'
  *
  * `onInit` fires on every boot in every environment, so what keeps this from writing an
  * admin into production — or into the integration lane's database, where CI genuinely
- * does hold `PREVIEW_ADMIN_PASSWORD` — is entirely this predicate. Each case below is a
+ * does hold `PREVIEW_ADMIN_EMAIL` — is entirely this predicate. Each case below is a
  * place it must not run.
  */
 describe('shouldSeedPreviewAdmin', () => {
   const preview = {
+    email: 'preview-admin@sydevelopers.test',
     environmentName: 'pr-662',
     isProduction: false,
-    password: 'a-preview-password',
   }
 
-  it('seeds on a Railway preview holding a password', () => {
+  it('seeds on a Railway preview holding an address', () => {
     expect(shouldSeedPreviewAdmin(preview)).toBe(true)
   })
 
-  it('never seeds on production, even though production holds a password', () => {
+  it('never seeds on production, whatever else is set', () => {
     expect(
       shouldSeedPreviewAdmin({ ...preview, environmentName: 'production', isProduction: true }),
     ).toBe(false)
@@ -29,23 +29,24 @@ describe('shouldSeedPreviewAdmin', () => {
 
   it('never seeds off Railway, which is local dev, CI and both test lanes', () => {
     // The load-bearing case: `pnpm test:int` boots Payload with NODE_ENV=test and no
-    // Railway environment. If the gate read only the password, a CI run holding the
+    // Railway environment. If the gate read only the address, a CI run holding the
     // secret would provision an admin into the integration database.
     expect(shouldSeedPreviewAdmin({ ...preview, environmentName: undefined })).toBe(false)
   })
 
-  it('does not seed an environment forked before the password variable existed', () => {
-    // Explicitly out of scope on the ticket: pre-2026-08-27 previews never receive
-    // PREVIEW_ADMIN_PASSWORD and keep the admin they were already seeded with.
-    expect(shouldSeedPreviewAdmin({ ...preview, password: undefined })).toBe(false)
-    expect(shouldSeedPreviewAdmin({ ...preview, password: '' })).toBe(false)
+  it('does not seed an environment that names no address', () => {
+    // Two cases in one: a preview forked before the variable existed (out of scope on
+    // the ticket, keeping the admin it was already seeded with), and — since #840 — one
+    // whose admin would otherwise be openable by anyone who guessed a default address.
+    expect(shouldSeedPreviewAdmin({ ...preview, email: undefined })).toBe(false)
+    expect(shouldSeedPreviewAdmin({ ...preview, email: '' })).toBe(false)
   })
 
   it('does not seed an unnamed environment, whatever else is set', () => {
     // Fail-safe direction: an unknown or misnamed environment seeds nothing rather than
     // guessing it is a preview.
     expect(
-      shouldSeedPreviewAdmin({ environmentName: '', isProduction: false, password: 'p' }),
+      shouldSeedPreviewAdmin({ ...preview, environmentName: '' }),
     ).toBe(false)
   })
 })

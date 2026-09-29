@@ -22,7 +22,7 @@ import { accessPlugin, bypassPermissions, restrictPayloadSystemEntities } from '
 import { databaseErrorPlugin } from '@/plugins/databaseErrors'
 import { formsPlugin } from '@/plugins/formBuilder'
 import { loginPlugin } from '@/plugins/login'
-import { previewSecretExchange } from '@/plugins/previewAdmin'
+import { previewAutoSignInEmail } from '@/plugins/previewAdmin'
 import { usagePlugin } from '@/plugins/usage'
 import { writeGuardPlugin } from '@/plugins/writeGuard'
 
@@ -160,7 +160,7 @@ function createBaseTestConfig(emailConfig: any, schemaName: string, debug = fals
       // and how the preview exchange is resolved — `preview-secret-exchange.int.spec.ts`
       // sets the environment that turns it on).
       loginPlugin({
-        collections: [{ ...managersLogin, previewExchange: previewSecretExchange() }],
+        collections: [{ ...managersLogin, previewAutoSignIn: previewAutoSignInEmail() }],
       }),
       // Access Plugin must be LAST to process plugin-created collections
       accessPlugin({ enabled: true, bypassPermissions }),

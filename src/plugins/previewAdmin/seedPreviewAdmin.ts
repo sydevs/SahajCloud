@@ -4,18 +4,18 @@ import { serverEnv } from '@/lib/env'
 
 import { shouldSeedPreviewAdminHere } from './shouldSeedPreviewAdmin'
 
-/** Matches the default the smoke lane's `PREVIEW_ADMIN` uses. */
-const DEFAULT_PREVIEW_ADMIN_EMAIL = 'contact@sydevelopers.com'
-
 /**
- * The one address a preview's admin holds.
+ * The one address a preview's admin holds, or `undefined` where there is none.
  *
- * ⚠ **The exchange route resolves it from here too.** Two copies would let the
- * seeder provision one address while the route traded for another — a 403 on
- * the preview, reported as "the deploy did not seed".
+ * ⚠ **No default, because this address is now the credential.** The sign-in page
+ * signs it in without mailing anything (`previewAutoSignIn`), so a fallback
+ * anybody could guess would hand every preview's admin to whoever typed it.
+ *
+ * ⚠ **The auto sign-in resolves it from here too.** Two copies would let the
+ * seeder provision one address while the page signed in another — a mailed link
+ * nobody can open, reported as "the deploy did not seed".
  */
-export const previewAdminEmail = (): string =>
-  serverEnv.PREVIEW_ADMIN_EMAIL ?? DEFAULT_PREVIEW_ADMIN_EMAIL
+export const previewAdminEmail = (): string | undefined => serverEnv.PREVIEW_ADMIN_EMAIL
 
 /**
  * Reconcile the Railway preview's admin account.
@@ -31,21 +31,23 @@ export const previewAdminEmail = (): string =>
  *
  * **It writes no password, because a manager no longer has one** (sydevs/SahajCloud#840).
  * Its job is narrower than it was: make sure the account exists, is an admin, and is
- * accepted. What the smoke lane signs in with is
- * `src/plugins/login/endpoints/exchangePreviewSecret.ts`, wired by the gate below.
+ * accepted. How the smoke lane signs in is `src/plugins/previewAdmin/previewAutoSignIn.ts`
+ * — the same address, asked for on the sign-in page, gated by the same predicate.
  *
  * **`_verified: true` is not optional.** The Managers collection configures
  * `auth.verify`, so the JWT strategy yields no user while that flag is false — the
  * exchanged session would authenticate nobody.
  *
  * Never throws. A preview that cannot seed its admin should still boot and serve — the
- * smoke lane's exchange is what reports the problem, and failing the deploy would take
+ * smoke lane's sign-in is what reports the problem, and failing the deploy would take
  * the whole preview down over a test account.
  */
 export const seedPreviewAdmin = async (payload: Payload): Promise<void> => {
   if (!shouldSeedPreviewAdminHere()) return
 
-  const email = previewAdminEmail()
+  // Non-null: the gate above is `Boolean(PREVIEW_ADMIN_EMAIL)` and nothing else
+  // reaches here without it.
+  const email = previewAdminEmail()!
 
   try {
     const existing = await payload.find({

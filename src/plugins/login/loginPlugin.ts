@@ -1,7 +1,6 @@
 import type { LoginCollectionConfig } from './types'
 import type { CollectionBeforeOperationHook, CollectionConfig, Config, Field, Plugin } from 'payload'
 
-import { exchangePreviewSecret } from './endpoints/exchangePreviewSecret'
 import { redeemInvite } from './endpoints/redeemInvite'
 import { redeemLink } from './endpoints/redeemLink'
 import { redeemMagicLink } from './endpoints/redeemMagicLink'
@@ -255,10 +254,6 @@ export function loginPlugin(options: LoginPluginOptions = {}): Plugin {
             redeemInvite(entry),
             // A reminder's link: signs in, then lands on the page it names.
             redeemLink(entry),
-            // Preview only, and absent everywhere else — see its docblock.
-            ...(entry.previewExchange
-              ? [exchangePreviewSecret(entry, entry.previewExchange)]
-              : []),
           ],
         }
       }),

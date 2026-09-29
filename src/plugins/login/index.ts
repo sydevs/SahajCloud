@@ -60,7 +60,7 @@ export {
 
 export { INVITATION_DELAY_MS, INVITATIONS_QUEUE } from './invitations'
 
-export { createSession, sessionCookie } from './session'
+export { createSession, sessionCookie, sessionCookieParts } from './session'
 
 // The redeem PATHS, not their factories: the sign-in page addresses its
 // forms at them, and a literal there would survive a rename silently.
@@ -68,12 +68,7 @@ export { REDEEM_INVITE_PATH } from './endpoints/redeemInvite'
 export { REDEEM_LINK_PATH } from './endpoints/redeemLink'
 export { REDEEM_MAGIC_LINK_PATH } from './endpoints/redeemMagicLink'
 
-export type {
-  LoginCollectionConfig,
-  LoginDocument,
-  LoginMailArgs,
-  PreviewSecretExchange,
-} from './types'
+export type { LoginCollectionConfig, LoginDocument, LoginMailArgs } from './types'
 
 export { pageLinkUrl } from './pageLink'
 

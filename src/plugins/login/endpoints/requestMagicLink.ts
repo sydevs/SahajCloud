@@ -4,6 +4,7 @@ import type { Endpoint } from 'payload'
 import { parseBody } from '@/lib/endpoints'
 
 import { issueMagicLink, magicLinkEmailSchema } from '../magicLinks'
+import { sessionCookie } from '../session'
 
 export const REQUEST_MAGIC_LINK_PATH = '/request-magic-link'
 
@@ -22,7 +23,13 @@ const ACCEPTED = { ok: true } as const
  * OpenAPI client spec for the same reason `set-project` is: the collections this
  * serves are admin-only and in no project, so they publish no public paths.
  *
- * ⚠ **The response is identical for every outcome** — a link sent, an address
+ * ⚠ **One address answers with a session instead, on a Railway preview only.**
+ * `previewAutoSignIn` is how the smoke lane gets in now that `login` is closed,
+ * so there the body also carries `token` and a session cookie. The option is
+ * unset in production, in CI and in local dev, so the uniform answer below is
+ * the only answer anywhere it could be read as an oracle.
+ *
+ * ⚠ **The response is identical for every other outcome** — a link sent, an address
  * nobody holds, a document `isEligible` rejects, and a repeat inside the
  * throttle window. Any difference is an account-enumeration oracle on an
  * anonymous endpoint, and the throttle is the sharpest one: a 429 would tell the
@@ -40,7 +47,24 @@ export function requestMagicLink(config: LoginCollectionConfig): Endpoint {
       if (!parsed.ok) return parsed.response
 
       try {
-        await issueMagicLink({ payload: req.payload, config, email: parsed.data.email })
+        const signedIn = await issueMagicLink({
+          payload: req.payload,
+          config,
+          email: parsed.data.email,
+        })
+
+        if (signedIn) {
+          // Both, for the same reason the redeem routes send both: the smoke lane
+          // reads `token` off the body, and a browser spec needs the cookie.
+          return Response.json(
+            { ...ACCEPTED, token: signedIn.token },
+            {
+              headers: {
+                'Set-Cookie': sessionCookie(req.payload, config.slug, signedIn.token),
+              },
+            },
+          )
+        }
       } catch (error) {
         // Never surfaced: a transport failure that reached the caller would be an
         // oracle too, since only a real address gets as far as a send.

@@ -1,11 +1,27 @@
 'use server'
 
+import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
 import { getPayload } from 'payload'
 
 import { managersLogin } from '@/collections/Managers/login'
-import { issueMagicLink, magicLinkEmailSchema, SIGNIN_VALID_FOR } from '@/plugins/login'
+import {
+  issueMagicLink,
+  magicLinkEmailSchema,
+  sessionCookieParts,
+  SIGNIN_VALID_FOR,
+} from '@/plugins/login'
 
 import payloadConfig from '@payload-config'
+
+/**
+ * Next signals a redirect by throwing. The digest is the documented shape, and
+ * reading it beats importing the private `isRedirectError` this version keeps
+ * under `next/dist`.
+ */
+const isRedirectError = (error: unknown): boolean =>
+  typeof (error as { digest?: unknown } | null)?.digest === 'string' &&
+  (error as { digest: string }).digest.startsWith('NEXT_REDIRECT')
 
 /**
  * This page either accepts the address or rejects what was typed.
@@ -59,8 +75,28 @@ export async function requestSignInLinkAction(
   const payload = await getPayload({ config: payloadConfig })
 
   try {
-    await issueMagicLink({ payload, config: managersLogin, email: parsed.data.email })
+    const signedIn = await issueMagicLink({
+      payload,
+      config: managersLogin,
+      email: parsed.data.email,
+    })
+
+    // A Railway preview signs its own admin in rather than mailing a link, which
+    // is the whole of how anyone gets into a preview since #840 — see
+    // `previewAutoSignIn`. Nowhere else can reach this: the option is unset in
+    // production, in CI and in local dev.
+    if (signedIn) {
+      const { name, options, value } = sessionCookieParts(payload, managersLogin.slug, signedIn.token)
+      ;(await cookies()).set(name, value, options)
+      redirect('/admin')
+    }
   } catch (error) {
+    // ⚠ `redirect` throws, so it must not be swallowed with the transport
+    // failures below — Next signals a navigation by throwing a digest, and
+    // catching it would leave the caller on this page, signed in, looking at
+    // "check your email".
+    if (isRedirectError(error)) throw error
+
     // Swallowed for the same reason the endpoint swallows it: only a real
     // address gets as far as a send, so a surfaced transport failure would
     // report that the address is real.
