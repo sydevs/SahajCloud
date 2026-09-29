@@ -6,7 +6,6 @@ import configPromise from '@/payload.config'
 
 import { clientEntries, SRC } from '../utils/importGraph'
 
-
 const ICON = 'components/branding/Icon'
 
 /**
