@@ -10,7 +10,9 @@ import type { APIRequestContext } from '@playwright/test'
  * says what to set, instead of surfacing as an opaque 401.
  */
 export const PREVIEW_ADMIN = {
-  email: process.env.PREVIEW_ADMIN_EMAIL ?? 'contact@sydevelopers.com',
+  // `||`, not `??`: an unset repository secret reaches the step as '', which is not
+  // nullish, so `??` would send an empty address and turn a missing secret into a 401.
+  email: process.env.PREVIEW_ADMIN_EMAIL || 'contact@sydevelopers.com',
   get password(): string {
     const password = process.env.PREVIEW_ADMIN_PASSWORD
     if (!password) {
