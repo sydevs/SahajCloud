@@ -71,6 +71,24 @@ const suppressCreateMail: CollectionBeforeOperationHook = ({ args, operation }) 
   operation === 'create' ? { ...args, disableVerificationEmail: true } : args
 
 /**
+ * Drop a `password` sent on an update to a passwordless collection (#840).
+ *
+ * ⚠ **`create` ignores one under `disableLocalStrategy`; `update` does not.**
+ * `collections/operations/utilities/update.js` hashes and stores a `password`
+ * whenever `enableFields` is set — the object form `withoutPasswords` uses. No
+ * route could spend it, but it would put back the hash the
+ * `null_manager_password_hashes` migration removed, and self-access lets any
+ * manager send one for their own row.
+ *
+ * `beforeOperation` because the utility reads `data.password` after it runs.
+ */
+const dropPassword: CollectionBeforeOperationHook = ({ args, operation }) => {
+  if (operation !== 'update' || !args.data || !('password' in args.data)) return args
+  const { password: _dropped, ...data } = args.data as Record<string, unknown>
+  return { ...args, data }
+}
+
+/**
  * Close every password route on a served collection (#840).
  *
  * `login`, `forgotPassword`, `resetPassword`, `verifyEmail`, `unlock` and
@@ -235,7 +253,11 @@ export function loginPlugin(options: LoginPluginOptions = {}): Plugin {
           fields: [...withQueue.fields, magicLinkIssuedAt, ...(invites ? invitationFields : [])],
           hooks: {
             ...withQueue.hooks,
-            beforeOperation: [...(withQueue.hooks?.beforeOperation ?? []), suppressCreateMail],
+            beforeOperation: [
+              ...(withQueue.hooks?.beforeOperation ?? []),
+              suppressCreateMail,
+              ...(entry.passwordless ? [dropPassword] : []),
+            ],
             afterChange: [
               ...(withQueue.hooks?.afterChange ?? []),
               ...(invites && invitations ? [queueOnRoles] : []),

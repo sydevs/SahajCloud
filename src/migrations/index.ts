@@ -74,6 +74,7 @@ import * as migration_20260928_051738_add_manager_invitation_queue from './20260
 import * as migration_20260928_231710_disable_manager_passwords from './20260928_231710_disable_manager_passwords';
 import * as migration_20260929_041116_payload_3_90_auth_fields from './20260929_041116_payload_3_90_auth_fields';
 import * as migration_20260929_043344_storage_object_key from './20260929_043344_storage_object_key';
+import * as migration_20260929_173315_null_manager_password_hashes from './20260929_173315_null_manager_password_hashes';
 
 export const migrations = [
   {
@@ -444,7 +445,7 @@ export const migrations = [
   {
     up: migration_20260928_231710_disable_manager_passwords.up,
     down: migration_20260928_231710_disable_manager_passwords.down,
-    name: '20260928_231710_disable_manager_passwords'
+    name: '20260928_231710_disable_manager_passwords',
   },
   {
     up: migration_20260929_041116_payload_3_90_auth_fields.up,
@@ -454,6 +455,11 @@ export const migrations = [
   {
     up: migration_20260929_043344_storage_object_key.up,
     down: migration_20260929_043344_storage_object_key.down,
-    name: '20260929_043344_storage_object_key'
+    name: '20260929_043344_storage_object_key',
+  },
+  {
+    up: migration_20260929_173315_null_manager_password_hashes.up,
+    down: migration_20260929_173315_null_manager_password_hashes.down,
+    name: '20260929_173315_null_manager_password_hashes'
   },
 ];

@@ -135,6 +135,31 @@ describe('managers hold no password', () => {
       expect(stored.hash).toBeFalsy()
       expect(stored.salt).toBeFalsy()
     })
+
+    it('stores no password sent on an update, either', async () => {
+      // ⚠ Unlike `create`, Payload's update still hashes a `password` under
+      // the object form — `update.js` saves one whenever `enableFields` is set.
+      // Nothing could log in with it, but it would put back the hash the
+      // `null_manager_password_hashes` migration removed. `loginPlugin` drops
+      // the field before the operation reads it.
+      const created = await testData.createManager(payload, { name: 'Updated Passwordless' })
+
+      await payload.update({
+        collection: 'managers',
+        id: created.id,
+        data: { name: 'Still Passwordless', password: 'correct horse battery staple' } as never,
+      })
+      const stored = await payload.findByID({
+        collection: 'managers',
+        id: created.id,
+        depth: 0,
+        showHiddenFields: true,
+      })
+
+      expect(stored.name).toBe('Still Passwordless')
+      expect(stored.hash).toBeFalsy()
+      expect(stored.salt).toBeFalsy()
+    })
   })
 
   describe('the only JWT path left', () => {
