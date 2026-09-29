@@ -37,6 +37,8 @@ import type {
   AuthStrategyFunctionArgs,
   AuthStrategyResult,
   CollectionConfig,
+  CollectionSlug,
+  Payload,
   PayloadRequest,
 } from 'payload'
 
@@ -85,6 +87,14 @@ function withRoles<T extends AuthUser>(user: T, roles: LocalizedRoles): T {
  * it (#840) — so this is the app's only JWT path.
  * `tests/int/manager-passwordless.int.spec.ts` asserts that.
  *
+ * ⚠ **And Payload's verifier refuses this collection unless told otherwise.**
+ * Since 3.90, `JWTAuthentication` throws — and so yields no user — for any
+ * collection whose `disableLocalStrategy` is truthy (`auth/strategies/jwt.js`).
+ * That guard is about Payload's own password sessions, and this app mints its
+ * sessions without one (`createSession`). {@link withLocalStrategyView} lets
+ * this one call see the collection as local; every other reader, including
+ * the `login` operation's refusal, still sees the real config.
+ *
  * `executeAuthStrategies` still returns on the first strategy that yields a
  * user, and two failure modes are still handled explicitly, because either one
  * would silently restore the bug:
@@ -102,11 +112,45 @@ function withRoles<T extends AuthUser>(user: T, roles: LocalizedRoles): T {
  *    visible and recoverable — far better than silently receiving their
  *    default-locale roles in all 19 locales.
  */
+/**
+ * `payload`, as `JWTAuthentication` needs to see it: the same instance, except
+ * that `collections[slug].config.auth.disableLocalStrategy` reads `false`.
+ *
+ * Scoped to one call rather than written into the config, because `login`,
+ * `forgotPassword` and the rest read the same flag to refuse a password — a
+ * shared mutation would reopen them. Methods are bound to the real instance, so
+ * the `findByID` the verifier makes runs against the real config too; only the
+ * verifier's own `payload.collections` read sees the override.
+ */
+function withLocalStrategyView(payload: Payload, slug: string): Payload {
+  const entity = payload.collections[slug as CollectionSlug]
+  if (!entity) return payload
+
+  const collections = {
+    ...payload.collections,
+    [slug]: {
+      ...entity,
+      config: { ...entity.config, auth: { ...entity.config.auth, disableLocalStrategy: false } },
+    },
+  }
+
+  return new Proxy(payload, {
+    get(target, key) {
+      if (key === 'collections') return collections
+      const value = Reflect.get(target, key, target) as unknown
+      return typeof value === 'function' ? value.bind(target) : value
+    },
+  })
+}
+
 function createLocalizedRolesStrategy(slug: string) {
   return {
     name: LOCALIZED_ROLES_STRATEGY,
     authenticate: async (args: AuthStrategyFunctionArgs): Promise<AuthStrategyResult> => {
-      const result = await JWTAuthentication(args)
+      const result = await JWTAuthentication({
+        ...args,
+        payload: withLocalStrategyView(args.payload, slug),
+      })
       const user = result.user
 
       // Another auth collection's user, or no user. Yielding null rather than
