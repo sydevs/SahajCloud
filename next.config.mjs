@@ -68,7 +68,21 @@ const nextConfig = {
           },
         ],
       },
+      {
+        // The sign-in view (`src/components/admin/SignIn`) is where every
+        // emailed link lands, with its credential in the query string — so no
+        // onward request may carry that URL along as a `Referer`.
+        source: '/admin/login',
+        headers: [{ key: 'Referrer-Policy', value: 'no-referrer' }],
+      },
     ]
+  },
+  // Manager sign-in lived at `/managers/signin` until it moved into the admin
+  // login view (#840). Invitations (7 days) and reminders' page links (10 days)
+  // already mailed still address it, and Next carries the query — the
+  // credential — across the redirect.
+  async redirects() {
+    return [{ source: '/managers/signin', destination: '/admin/login', permanent: true }]
   },
   images: {
     remotePatterns: [

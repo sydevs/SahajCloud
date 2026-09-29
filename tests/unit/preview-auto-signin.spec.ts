@@ -27,7 +27,7 @@ const managers: LoginCollectionConfig = {
   slug: 'managers',
   passwordless: true,
   previewAutoSignIn: PREVIEW_EMAIL,
-  requestPagePath: '/managers/signin',
+  requestPagePath: '/admin/login',
 }
 
 /** A second served collection, to drive the per-collection half of both options. */

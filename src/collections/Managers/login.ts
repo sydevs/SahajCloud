@@ -4,14 +4,15 @@ import type { LoginCollectionConfig } from '@/plugins/login'
 const INACTIVE: Manager['type'] = 'inactive'
 
 /**
- * The logged-out page that asks for a sign-in link.
+ * The logged-out page that asks for a sign-in link: Payload's admin login
+ * route, whose view `loginPlugin` replaces (`@/components/admin/SignIn`).
  *
  * The one spelling of the path, read by the config below and by the tests.
- * ⚠ Nothing checks it against the filesystem route at
- * `src/app/(frontend)/managers/signin/` — no TypeScript constant can — so
- * renaming that folder needs this changed by hand.
+ * ⚠ It is `routes.admin` plus `admin.routes.login`, both Payload's defaults —
+ * `src/payload.config.ts` overrides neither. Overriding either needs this
+ * changed by hand, and the `/managers/signin` redirect in `next.config.mjs`.
  */
-export const MANAGER_SIGNIN_PATH = '/managers/signin'
+export const MANAGER_SIGNIN_PATH = '/admin/login'
 
 /** The account tab holding Notification Preferences — `Managers.ts` labels it with this. */
 export const MANAGER_NOTIFICATIONS_TAB = 'Contact'
@@ -44,7 +45,7 @@ export const managersLogin: LoginCollectionConfig = {
   // list, so without this they would see `undefined` — and an inactive manager
   // would be let in.
   select: { currentProject: true, type: true },
-  // Both refusal pages link here, and it is what puts the control on the admin
-  // login form — `admin.user` is this collection (#838).
+  // Every emailed link and every refusal lands here, and `passwordless` plus
+  // `admin.user` being this collection is what puts the sign-in view there.
   requestPagePath: MANAGER_SIGNIN_PATH,
 }

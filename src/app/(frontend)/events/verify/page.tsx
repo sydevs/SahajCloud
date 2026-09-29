@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { getPayload } from 'payload'
 
+import { MANAGER_SIGNIN_PATH } from '@/collections/Managers/login'
 import { serverEnv } from '@/lib/env'
 import { buildEventEmailDetails } from '@/lib/notifications'
 import { getProjectEmailIcon } from '@/plugins/access'
@@ -65,7 +66,7 @@ export default async function VerifyEventPage({
         title="This link has expired"
         message="Please use the link in your latest reminder email, or sign in to verify the event."
         actions={[
-          { label: 'Sign in', href: '/managers/signin' },
+          { label: 'Sign in', href: MANAGER_SIGNIN_PATH },
           ...(atlasHome
             ? [{ label: 'Back to Sahaj Atlas', href: atlasHome, variant: 'secondary' as const }]
             : []),

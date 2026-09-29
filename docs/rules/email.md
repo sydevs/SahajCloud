@@ -214,7 +214,7 @@ The reminder's button is a login-plugin **page link** (`manager-link`), built pe
 
 ### ⚠ The two token URLs have different shapes, and only one carries the slug
 
-⚠ **History now, for both rows.** `auth.verify` no longer builds an admin URL at all — the invitation addresses the sign-in page (`/managers/signin?invite=…`) instead — and the reset route is `Forbidden` since #840, so nothing addresses it either. The table stays because the trap is the routing rule, and the next auth link written against `formatAdminURL` meets it again.
+⚠ **History now, for both rows.** `auth.verify` no longer builds an admin URL at all — the invitation addresses the sign-in page (`/admin/login?invite=…`) instead — and the reset route is `Forbidden` since #840, so nothing addresses it either. The table stays because the trap is the routing rule, and the next auth link written against `formatAdminURL` meets it again.
 
 | Link | Correct URL | Why |
 |---|---|---|

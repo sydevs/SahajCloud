@@ -110,49 +110,48 @@ function withoutPasswords(auth: CollectionConfig['auth']): CollectionConfig['aut
 }
 
 /**
- * ⚠ **A second `/` or `\` makes it off-origin.** This value reaches
- * `RequestSignInLink`'s `to` unprefixed, and a browser normalises `/\host` to
- * the protocol-relative `//host` — so testing for `//` alone leaves a way onto
- * the login form. The plugin's other two consumers compose it after an absolute
- * origin, which is why this is the only place that has to ask.
+ * Where the admin panel's sign-in view lives. A barrel whose default export is
+ * the view, as Payload's import map requires.
  */
-const isSiteAbsolute = (path: string) => path.startsWith('/') && !/^\/[/\\]/.test(path)
+const SIGN_IN_VIEW = '@/components/admin/SignIn'
 
 /**
- * Put the "Email me a sign-in link" control on the admin login page.
+ * Replace Payload's admin login view with the sign-in view (#840).
  *
- * ⚠ **It is the only control there now.** `disableLocalStrategy` makes Payload
- * skip `LoginForm` (`@payloadcms/next/dist/views/Login/index.js:75`), so the
- * `afterLogin` slot is what a human logging in sees — drop this and the page
- * offers nothing at all.
+ * ⚠ **It is the only way in there now.** `disableLocalStrategy` makes Payload's
+ * own view skip `LoginForm` (`@payloadcms/next/dist/views/Login/index.js`),
+ * which leaves a logo and nothing else — drop this and `/admin/login` offers
+ * nobody a way to sign in.
  *
- * ⚠ **Every key of `admin` and of `admin.components` is spread, never
+ * `views.login` is the key Payload's route resolver looks up for its login
+ * route before falling back to the built-in view, and the route stays public
+ * whatever renders there (`views/Root/getRouteData.js`, `isPublicAdminRoute`).
+ *
+ * ⚠ **Every key of `admin`, `admin.components` and `views` is spread, never
  * replaced.** `src/payload.config.ts` declares `providers`, `beforeNavLinks`,
- * `Nav`, `beforeDashboard`, `graphics` and `views` there — assigning a fresh
- * object would delete the project selector, the custom nav and both custom
- * views, and nothing would fail until someone opened the admin panel.
+ * `Nav`, `beforeDashboard`, `graphics` and two custom `views` there — assigning
+ * a fresh object would delete the project selector, the custom nav and both
+ * custom views, and nothing would fail until someone opened the admin panel.
  *
- * Only the collection the admin panel authenticates gets one: `afterLogin` is a
- * slot on that one view, so a second served collection has no page to add to.
+ * Only for the collection the admin panel authenticates, and only when it is
+ * `passwordless`: the view has no password field, so on a collection that
+ * still has passwords it would hide the form that uses them.
  */
-function adminWithSignInLink(
+function adminWithSignInView(
   admin: Config['admin'],
   byslug: Map<string, LoginCollectionConfig>,
 ): Config['admin'] {
   const entry = admin?.user ? byslug.get(admin.user) : undefined
-  if (!entry || !isSiteAbsolute(entry.requestPagePath)) return admin
+  if (!entry?.passwordless) return admin
 
   return {
     ...admin,
     components: {
       ...admin?.components,
-      afterLogin: [
-        ...(admin?.components?.afterLogin ?? []),
-        {
-          path: '@/components/admin/RequestSignInLink',
-          clientProps: { href: entry.requestPagePath },
-        },
-      ],
+      views: {
+        ...admin?.components?.views,
+        login: { Component: SIGN_IN_VIEW },
+      },
     },
   }
 }
@@ -209,7 +208,7 @@ export function loginPlugin(options: LoginPluginOptions = {}): Plugin {
 
     return {
       ...config,
-      admin: adminWithSignInLink(config.admin, byslug),
+      admin: adminWithSignInView(config.admin, byslug),
       collections: config.collections?.map((collection) => {
         const entry = byslug.get(collection.slug)
         const namesManagers = joins.filter((join) => join.collection === collection.slug)

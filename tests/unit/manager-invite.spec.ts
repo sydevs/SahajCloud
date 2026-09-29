@@ -311,7 +311,7 @@ describe('composeInvitations', () => {
     const [invitation] = await compose({}, { regions: [BERLIN] }, { _verified: true })
 
     expect(invitation?.html).not.toContain('?invite=')
-    const link = invitation?.html.match(/managers\/signin\?link=([\w.%-]+)/)?.[1]
+    const link = invitation?.html.match(new RegExp(`${MANAGER_SIGNIN_PATH}\\?link=([\\w.%-]+)`))?.[1]
     expect(link, 'no settings link in the body').toBeDefined()
     const result = await readLinkToken(decodeURIComponent(link!), SECRET)
     // The account page, opened on the tab holding Notification Preferences.

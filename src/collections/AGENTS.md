@@ -632,12 +632,14 @@ form with none set).
 Passwordless sign-in for `Managers` (#837). It appends one hidden
 `magicLinkIssuedAt` column and two endpoints — `POST /api/managers/request-magic-link`
 and `POST /api/managers/redeem-magic-link` (which spends the link) — to whatever
-`Managers.ts` already declares. Passwords still work; this is a second way in.
+`Managers.ts` already declares. Since #840 it is the only way in: managers hold no password.
 
-`/managers/signin` is the human surface (#838): the form that asks for a link,
-where every refusal's "Request a new link" button goes, and what the control on
-the admin login form opens. `managersLogin.requestPagePath` is the single
-spelling of that route — the plugin reads it for both.
+`/admin/login` is the human surface (#838, #840): the plugin replaces Payload's
+login view with `src/components/admin/SignIn`, which asks for a link, confirms a
+delivered one, and explains a refused one. Every emailed link and every
+refusal's redirect lands there. `managersLogin.requestPagePath` is the single
+spelling of that route. The old `/managers/signin` redirects to it, with the
+query intact, from `next.config.mjs`, so links already mailed keep working.
 
 Four things worth knowing before you touch `Managers`:
 

@@ -111,9 +111,11 @@ export interface LoginCollectionConfig {
    * `<requestPagePath>?token=…`, and every refusal the redeem route can serve
    * redirects to `<requestPagePath>?error=expired|invalid`. So one page asks for
    * a link, confirms a delivered one, and explains a refused one — which is why
-   * this plugin no longer renders HTML of its own. Supplying it also puts the
-   * control on the admin login form, for the collection the admin panel
-   * authenticates.
+   * this plugin no longer renders HTML of its own.
+   *
+   * For the collection the admin panel authenticates, with `passwordless` set,
+   * that page is `/admin/login`: the plugin replaces Payload's login view with
+   * it (`adminWithSignInView`). Any other entry must name a page it serves.
    */
   requestPagePath: string
   /**

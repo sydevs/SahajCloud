@@ -38,7 +38,7 @@ describe('manager sign-in page', () => {
   let emailAdapter: EmailTestAdapter
   let anon: RestClient
   let cleanup: () => Promise<void>
-  let requestSignInLinkAction: (typeof import('@/app/(frontend)/managers/signin/actions'))['requestSignInLinkAction']
+  let requestSignInLinkAction: (typeof import('@/components/admin/SignIn/actions'))['requestSignInLinkAction']
 
   /** Submit the form, as `useActionState` does. */
   const submit = (email: unknown) => {
@@ -61,7 +61,7 @@ describe('manager sign-in page', () => {
     anon = createAnonRestClient(env)
 
     configRef.current = payload.config
-    ;({ requestSignInLinkAction } = await import('@/app/(frontend)/managers/signin/actions'))
+    ;({ requestSignInLinkAction } = await import('@/components/admin/SignIn/actions'))
   })
 
   afterAll(async () => {
@@ -197,16 +197,20 @@ describe('manager sign-in page', () => {
     })
   })
 
-  describe('the control on the admin login form', () => {
-    it('is registered, and points at this page', () => {
+  describe('the admin login view', () => {
+    it('is this page', () => {
       // Only that it is wired: the suite's config declares none of the other
       // component slots, so "every existing entry survives" cannot be seen
       // from here. `tests/unit/login-plugin.spec.ts` folds a config that has
       // them and asserts the spread against its real defect.
-      const components = payload.config.admin.components
-
-      expect(JSON.stringify(components.afterLogin)).toContain('RequestSignInLink')
-      expect(JSON.stringify(components.afterLogin)).toContain(MANAGER_SIGNIN_PATH)
+      // Every emailed link addresses `MANAGER_SIGNIN_PATH`, so it must be the
+      // route the view is served on — a config that moved either half would mail
+      // links to a page that ignores them.
+      const { admin, routes } = payload.config
+      expect(MANAGER_SIGNIN_PATH).toBe(`${routes.admin}${admin.routes.login}`)
+      expect(payload.config.admin.components.views?.login).toEqual({
+        Component: '@/components/admin/SignIn',
+      })
     })
   })
 })

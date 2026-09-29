@@ -324,7 +324,7 @@ describe('manager invitation', () => {
       // The button signs them in on the way to their account page, and opens
       // it on the tab holding Notification Preferences — a tab Payload offers
       // no URL for, so the link writes the tab Payload remembers instead.
-      const link = sent!.html?.match(/managers\/signin\?link=([\w.%-]+)/)?.[1]
+      const link = sent!.html?.match(new RegExp(`${MANAGER_SIGNIN_PATH}\\?link=([\\w.%-]+)`))?.[1]
       expect(link, 'no settings link in the body').toBeDefined()
       const answer = await anon(
         `/api/managers/redeem-link?token=${encodeURIComponent(decodeURIComponent(link!))}`,
