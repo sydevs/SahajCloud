@@ -119,6 +119,13 @@ const payloadConfig = (overrides?: Partial<Config>) => {
         baseDir: path.resolve(dirname),
       },
       meta: {
+        // @payloadcms/next auto-registers a `get /og` endpoint that renders
+        // `components.graphics.Icon` as a server component. Ours is a client
+        // component reading useProject(), so the render threw inside an
+        // already-streaming ImageResponse and the edge answered 502 (#868).
+        // Revertable only once that slot is server-safe — and the admin chrome
+        // shares it. Nothing wants an OG card for an authenticated page.
+        defaultOGImageType: 'off',
         titleSuffix: '- Sahaj Cloud',
         description: 'Content for We Meditate & Sahaj Atlas',
         icons: [
