@@ -142,13 +142,7 @@ export async function issueMagicLink({
   // stamp written afterwards would leave a window where a delivered link
   // matches nothing. A failed send therefore costs the account one throttle
   // window, which is the safer way round.
-  await payload.update({
-    collection: slug,
-    id: account.id,
-    data: { magicLinkIssuedAt: now.toISOString() } as never,
-    depth: 0,
-    overrideAccess: true,
-  })
+  await stampIssuedAt(payload, slug, account.id, now)
 
   // ⚠ **An unaccepted account gets the invitation, not a sign-in link**, and
   // that branch is what rescues a manager nothing ever mailed — an imported row,
@@ -171,19 +165,10 @@ export async function issueMagicLink({
     return
   }
 
-  const token = await signSigninToken(
-    { collection: slug, issuedAt: now.getTime(), userId: account.id },
-    payload.secret,
-    now,
-  )
-
   const args: LoginMailArgs = {
     doc: account,
     project: config.project?.(account) ?? undefined,
-    // ⚠ The link addresses the sign-in page, not the endpoint. A `GET` is then
-    // answered by a real page that reads the token and writes nothing, and the
-    // burn stays behind that page's form — see `redeemMagicLink`.
-    signInUrl: `${getServerUrl()}${config.requestPagePath}?token=${encodeURIComponent(token)}`,
+    signInUrl: await signInUrl(config, account.id, payload.secret, now),
     validFor: SIGNIN_VALID_FOR,
   }
 
@@ -197,4 +182,66 @@ export async function issueMagicLink({
     // return before delivery could fail.
     html: await (config.generateEmailHTML ?? generateEmailHTML)(args),
   })
+}
+
+/**
+ * A sign-in link for one account, minted exactly as a delivered one is, with no
+ * mail — the operator's break-glass (`scripts/signin-link.ts`).
+ *
+ * ⚠ **It stamps `magicLinkIssuedAt`, and must.** `redeemMagicLink` spends a
+ * link only while its `issuedAt` equals the stored stamp, so a token signed
+ * without one is refused as invalid on the only click that matters. Stamping
+ * replaces any outstanding link and restarts the throttle window, exactly as a
+ * fresh request does.
+ *
+ * No eligibility or acceptance check: {@link issueMagicLink} answers anonymous
+ * callers and must not say why it sent nothing, while the script's caller is an
+ * operator who needs to be told — so the script checks, and says.
+ */
+export async function mintSignInLink({
+  config,
+  id,
+  now = new Date(),
+  payload,
+}: {
+  config: LoginCollectionConfig
+  id: number | string
+  now?: Date
+  payload: Payload
+}): Promise<string> {
+  await stampIssuedAt(payload, config.slug, id, now)
+  return signInUrl(config, id, payload.secret, now)
+}
+
+/**
+ * Record the instant a link is minted. The stamp is the link's nonce, its
+ * throttle window, and what a fresh request overwrites — see `magicLinkIssuedAt`.
+ */
+async function stampIssuedAt(payload: Payload, slug: CollectionSlug, id: number | string, now: Date) {
+  await payload.update({
+    collection: slug,
+    id,
+    data: { magicLinkIssuedAt: now.toISOString() } as never,
+    depth: 0,
+    overrideAccess: true,
+  })
+}
+
+/**
+ * ⚠ The link addresses the sign-in page, not the endpoint. A `GET` is then
+ * answered by a real page that reads the token and writes nothing, and the burn
+ * stays behind that page's form — see `redeemMagicLink`.
+ */
+async function signInUrl(
+  config: LoginCollectionConfig,
+  id: number | string,
+  secret: string,
+  now: Date,
+): Promise<string> {
+  const token = await signSigninToken(
+    { collection: config.slug, issuedAt: now.getTime(), userId: id },
+    secret,
+    now,
+  )
+  return `${getServerUrl()}${config.requestPagePath}?token=${encodeURIComponent(token)}`
 }

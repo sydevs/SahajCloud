@@ -33,6 +33,7 @@
 export {
   issueMagicLink,
   magicLinkEmailSchema,
+  mintSignInLink,
   REQUEST_LINK_THROTTLE_MS,
   SIGNIN_VALID_FOR,
 } from './magicLinks'

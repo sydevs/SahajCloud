@@ -24,11 +24,12 @@ import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { MANAGER_SIGNIN_PATH } from '@/collections/Managers/login'
+import { MANAGER_SIGNIN_PATH, managersLogin } from '@/collections/Managers/login'
 import { escapeRegExp } from '@/lib/eventQuality/heuristics'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 import {
   createSession,
+  mintSignInLink,
   REQUEST_LINK_THROTTLE_MS,
   signInviteToken,
   signSigninToken,
@@ -295,6 +296,36 @@ describe('manager magic-link sign-in', () => {
       expectSignedIn(await consume(token))
 
       expectRefused(await consume(token), 'invalid')
+    })
+
+    it('signs in with the break-glass link, which mails nothing', async () => {
+      // `scripts/signin-link.ts` prints this. The first version signed a token
+      // without stamping `magicLinkIssuedAt`, and this route refused it — a
+      // break-glass that failed on the one click that mattered.
+      const manager = await activeManager()
+      emailAdapter.clearCapturedEmails()
+
+      const link = await mintSignInLink({ config: managersLogin, id: manager.id, payload })
+      const token = decodeURIComponent(link.match(SIGN_IN_URL)![1])
+
+      expect(emailAdapter.findEmailByTo(manager.email)).toBeUndefined()
+      expectSignedIn(await consume(token))
+    })
+
+    it('invalidates a mailed link when the break-glass one is minted', async () => {
+      const manager = await activeManager()
+      const mailed = await linkTokenFor(manager.email)
+
+      const link = await mintSignInLink({
+        config: managersLogin,
+        id: manager.id,
+        // A later instant than the mailed one, as it always is in practice.
+        now: new Date(Date.now() + 1000),
+        payload,
+      })
+
+      expectRefused(await consume(mailed), 'invalid')
+      expectSignedIn(await consume(decodeURIComponent(link.match(SIGN_IN_URL)![1])))
     })
 
     it('a fresh request invalidates the outstanding link', async () => {

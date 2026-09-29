@@ -15,10 +15,10 @@
  * on production.
  *
  * The link is valid for `SIGNIN_TOKEN_TTL_MS` (15 minutes) and burns on use,
- * like every other one. `magicLinkIssuedAt` is deliberately not stamped: the
- * throttle bounds what an anonymous request can generate, and stamping here
- * would lock the operator out of the mailed path for a minute after a run that
- * may have gone to the wrong address.
+ * like every other one. ⚠ It is minted by `mintSignInLink`, which stamps
+ * `magicLinkIssuedAt` — the redeem route spends a link only while its issue
+ * time matches that stamp, so an unstamped token would be refused on the one
+ * click that matters. Running it replaces any link already mailed.
  *
  * Usage:
  *   pnpm tsx scripts/signin-link.ts <email>
@@ -30,7 +30,6 @@ import dotenv from 'dotenv'
 import { getPayload } from 'payload'
 
 import { managersLogin } from '../src/collections/Managers/login'
-import { signSigninToken } from '../src/plugins/login/token'
 
 async function main(): Promise<void> {
   const [email] = process.argv.slice(2)
@@ -42,7 +41,9 @@ async function main(): Promise<void> {
   dotenv.config({ path: ['.env.local', '.env'] })
   const { default: configPromise } = await import('../src/payload.config')
   const payload = await getPayload({ config: await configPromise })
-  const { getServerUrl } = await import('../src/lib/utilities/serverUrl')
+  // After `dotenv`, like the config: it reaches `serverEnv`, which reads the
+  // environment once, on import.
+  const { mintSignInLink } = await import('../src/plugins/login/magicLinks')
 
   const { docs } = await payload.find({
     collection: 'managers',
@@ -72,14 +73,7 @@ async function main(): Promise<void> {
     process.exit(1)
   }
 
-  const token = await signSigninToken(
-    { collection: 'managers', issuedAt: Date.now(), userId: account.id },
-    payload.secret,
-  )
-
-  console.log(
-    `${getServerUrl()}${managersLogin.requestPagePath}?token=${encodeURIComponent(token)}`,
-  )
+  console.log(await mintSignInLink({ config: managersLogin, id: account.id, payload }))
   process.exit(0)
 }
 
