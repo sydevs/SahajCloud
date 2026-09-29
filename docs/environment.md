@@ -88,7 +88,7 @@ A missing `PAYLOAD_SECRET` or `DATABASE_URL` stops the app from starting. A miss
 
 Production is detected by Railway's environment name, never `NODE_ENV`. Previews also run `NODE_ENV=production` — the same trap that once sent preview mail through Resend to real addresses. The gate also requires a Railway environment name at all. This keeps `onInit` inert in local dev, CI, and both test lanes. CI does hold the password as a secret, so a gate reading only that would write an admin into the integration lane's database.
 
-`PREVIEW_ADMIN_EMAIL` overrides the account address, defaulting to `contact@sydevelopers.com`. Environments forked before 2026-08-27 never got the variable, and keep whatever admin an early smoke run seeded.
+`PREVIEW_ADMIN_EMAIL` overrides the account address, defaulting to `contact@sydevelopers.com`. Set it on **both** sides or not at all: Railway provisions that address on every preview boot, and `ci.yml` passes the same value to the smoke lane as a CI secret. Set one alone and every new preview 401s — the lane signs in as one address while `previewAdmin` reconciled the other, and a wrong address returns the same generic 401 as a wrong password. Environments forked before 2026-08-27 never got the variable, and keep whatever admin an early smoke run seeded.
 
 ### `NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT` — set by the build, never by hand
 
