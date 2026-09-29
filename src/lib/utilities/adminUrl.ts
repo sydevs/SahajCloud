@@ -10,7 +10,8 @@ import { getServerUrl } from '@/lib/utilities/serverUrl'
  * `formatAdminURL` is Payload's own joiner, so a `NEXT_BASE_PATH` deploy keeps
  * working and the segment rules stay Payload's to change. `adminRoute` mirrors
  * the default this config never overrides — `routes.admin` is unset in
- * `payload.config.ts`, and Payload's own default is `/admin`.
+ * `payload.config.ts`, and Payload's own default is `/admin`, pinned by
+ * `tests/int/admin-route-config.int.spec.ts` (#851).
  *
  * Only a URL that leaves the app — an email, a redirect target — needs this.
  * An in-panel `href` stays relative: Next prepends `basePath` itself, which is
