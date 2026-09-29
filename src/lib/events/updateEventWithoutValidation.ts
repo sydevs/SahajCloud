@@ -33,20 +33,20 @@ export type EventBookkeeping = Partial<
  * (#842).
  *
  * `unpublishAllLocales` is Payload's flag, named for the operation it was built
- * for rather than for what is wanted here. Payload skips validation under it
- * because an unpublish "only change[s] _status, not document data"
- * (`collections/operations/utilities/update.js`), and that is the only skip
- * that still writes the main row. `draft: true` skips validation too but
- * writes a version and no main row, so the event would keep its old stage and
- * stay due forever. The unpublishing half never runs: Payload gates it on
- * `versions.drafts.localizeStatus`, which Events omits.
+ * for rather than for what is wanted here. Under it Payload validates only the
+ * top-level fields the write submits (`shouldLimitValidationToSubmittedFields`
+ * in `collections/operations/utilities/update.js`, since 3.90) and skips the
+ * stored rest — the only such scoping that still writes the main row. No
+ * supported argument does this (payloadcms/payload#18375 asks for one).
+ * `draft: true` skips validation too but writes a version and no main row, so
+ * the event would keep its old stage and stay due forever. The unpublishing
+ * half never runs: Payload gates it on `versions.drafts.localizeStatus`, which
+ * Events omits.
  *
- * Two consequences to keep in view. It skips validation of *these* writes too,
- * not only of the stored fields — every value here comes from a pinned helper,
- * and `EventBookkeeping` is what keeps an unrelated field from arriving. And
- * `saveVersion({ unpublish })` overwrites the `latest: true` version instead of
- * appending one, so a bookkeeping write lands on top of a manager's unsaved
- * draft version. Both ways of skipping validation behave this way (#841).
+ * So a bad value in *these* fields is still refused. `EventBookkeeping` is what
+ * keeps an unrelated field from arriving. And `saveVersion({ unpublish })`
+ * overwrites the `latest: true` version instead of appending one, so a
+ * bookkeeping write lands on top of a manager's unsaved draft version (#841).
  *
  * A write that applies editor-supplied content must not come through here — it
  * has to validate. Verifying an event is such a write: broken stored data must

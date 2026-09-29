@@ -168,8 +168,22 @@ describe('Lessons Collection — custom behavior', () => {
       const lesson = await testData.createLesson(payload, {
         title: 'Lesson with stale article relationship',
         meditation: testMeditation.id,
-        article: staleArticle,
       })
+      // Planted past the hooks: Payload 3.90+ refuses a relationship to a
+      // collection the editor doesn't enable at write time, so a stale node can
+      // only be a row written before its collection was removed.
+      await payload.db.updateOne({
+        collection: 'lessons',
+        id: lesson.id,
+        data: { article: { en: staleArticle } },
+      })
+      const stored = await payload.db.findOne<{ id: number; article?: { en?: Lesson['article'] } }>(
+        {
+          collection: 'lessons',
+          where: { id: { equals: lesson.id } },
+        },
+      )
+      expect((stored?.article?.en?.root as { children: unknown[] }).children).toHaveLength(1)
 
       const fetched = await payload.findByID({
         collection: 'lessons',
