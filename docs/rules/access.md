@@ -53,7 +53,7 @@ This only works because the authenticated user loads **four times**, not once. `
 
 `src/plugins/access/localizedRolesAuth.ts` re-loads the manager at the auth strategy (every request), `afterLogin`, `afterMe` (the admin's own `/me` call on mount), and `afterRefresh` (a tab left open). Skip any one and that moment's read reverts to the flat, default-locale array.
 
-⚠ **All four are hooks on an auth *response*, so a sign-in that builds its own response gets none of them.** That is why `POST /api/managers/redeem-magic-link` (#837) and its `redeem-invite` and `redeem-link` siblings (#839) **redirect** into the admin instead of returning a user: a hand-built body there would carry flat, single-locale `roles` that nothing else in the app hands out. The redirect leaves `afterMe` to resolve them on the admin's next `/me`. Any future route that mints a session itself owes the same choice — return nothing, or run the roles through `withLocalizedRoleAuth`'s shape.
+⚠ **All four are hooks on an auth *response*, so a sign-in that builds its own response gets none of them.** That is why `POST /api/managers/redeem-magic-link` (#837) **redirects** to `/admin` instead of returning a user: a hand-built body there would carry flat, single-locale `roles` that nothing else in the app hands out. The redirect leaves `afterMe` to resolve them on the admin's next `/me`. Any future route that mints a session itself owes the same choice — return nothing, or run the roles through `withLocalizedRoleAuth`'s shape.
 
 ⚠ **Nothing wires this up on the collection**. `accessPlugin` attaches all four hooks to any auth collection whose `roles` field is `localized`. A future such collection is covered automatically. `Clients.roles` is flat, so it is skipped.
 
@@ -231,7 +231,7 @@ This cuts the opposite way from implicit read, above, and the obvious reading is
 
 ⚠ **`accessPlugin` never sees them.** `sanitizeConfig` appends `payload-jobs`, `payload-jobs-stats`, `payload-locked-documents`, `payload-preferences`, `payload-migrations` and `payload-kv` after every plugin has run, mostly with `Boolean(user)` access — which a published client key satisfies. Any client key could queue or rewrite jobs, call `/api/payload-jobs/run`, overwrite the job-stats global, create locks, and PATCH another user's preference row into its own.
 
-`restrictPayloadSystemEntities` (`systemEntities.ts`) sets their access on the **sanitized** config, so both `buildConfig` call sites apply it — `src/payload.config.ts` and `tests/utils/testHelpers.ts`. Not `onInit`: dev hot reload swaps in a freshly sanitized config without re-running it.
+`restrictPayloadSystemEntities` (`systemEntities.ts`) sets their access on the **sanitized** config, so every `buildConfig` call site applies it — `src/payload.config.ts`, `tests/utils/testHelpers.ts` and `seeds/tests/test-payload.config.ts`. ⚠ Nothing enforces that coupling but prose, so count the call sites when you add one. Not `onInit`: dev hot reload swaps in a freshly sanitized config without re-running it.
 
 | Entity | Access |
 | --- | --- |
@@ -249,7 +249,7 @@ In-app job callers (autoRun, the screening kick) leave `overrideAccess` at its d
 
 It is deliberately **wider** than `adminOnlyFieldAccess`, which is the wrong tool for this: a client's own managers must be able to configure their service, and document-level manager access already decides which clients each manager sees. Five fields carry it:
 
-- ⚠ `Clients.apiKey` — the base auth field Payload decrypts on `afterRead`, so without the lock `GET /api/clients/me` hands a browser-shipped key its own plaintext credential, and restricting the collection cannot stop it (#822). Declare it at the **top level** of `Clients.fields`: `mergeBaseFields` matches by name only at the level it is handed, so a copy nested in a tab sanitizes to two `apiKey` fields instead of one.
+- ⚠ `Clients.apiKey` — the base auth field. Until Payload 3.90 it was decrypted on every read, so without the lock `GET /api/clients/me` handed a browser-shipped key its own plaintext credential (#822). Payload now strips a stored key from **every** read itself (`omitAPIKey`, exposing only a `hasAPIKey` boolean), and the one way to read a key back is `POST /api/clients/:id/api-key/reveal`, enabled by `useAPIKey: { reveal: true }`. That endpoint requires admin access, `update` on the row, and then this field's own `update` lock — so the lock is still load-bearing: it is the last gate on reveal, and the whole gate on a client choosing its own key. Declare it at the **top level** of `Clients.fields`: `mergeBaseFields` matches by name only at the level it is handed, so a copy nested in a tab sanitizes to two `apiKey` fields instead of one.
 - `Clients.mailingList` — the same self-read would otherwise hand a service's own key its provider secret (`docs/rules/api-clients.md`).
 - `Forms.client` — `forms` keeps the form-builder plugin's `read: () => true`, which outranks the generated access config, and populating a `clients` document hands over a plaintext `apiKey` (#822). Belt and braces now that `clients` is restricted, and it stays: it is the half that survives if the collection is ever unrestricted.
 - `Forms.recipient` — the same collection, and now defence in depth behind restricted `managers` (#821).

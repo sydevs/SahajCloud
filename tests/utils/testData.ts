@@ -280,9 +280,9 @@ export const testData = {
    */
   async createFile(payload: Payload, overrides = {}, sampleFile = 'audio-42s.mp3'): Promise<File> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
-    const fileBuffer = fs.readFileSync(filePath)
-    // Convert Buffer to Uint8Array for compatibility with file-type library
-    const fileData = new Uint8Array(fileBuffer)
+    // A real Buffer: this can be a video, which Payload 3.90+ sniffs with
+    // Buffer-only methods (see `createVideo`).
+    const fileData = fs.readFileSync(filePath)
 
     // Determine MIME type based on extension
     const extension = path.extname(sampleFile).slice(1).toLowerCase()
@@ -317,7 +317,7 @@ export const testData = {
         ...overrides,
       },
       file: {
-        data: fileData as unknown as Buffer,
+        data: fileData,
         mimetype,
         name: sampleFile,
         size: fileData.length,
@@ -489,9 +489,10 @@ export const testData = {
     sampleFile = 'video-30s.mp4',
   ): Promise<Video> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
-    const fileBuffer = fs.readFileSync(filePath)
-    // Convert Buffer to Uint8Array for compatibility with file-type library
-    const fileData = new Uint8Array(fileBuffer)
+    // A real Buffer, not the Uint8Array view the image and audio helpers use:
+    // Payload 3.90+ sniffs a video's container with Buffer-only methods
+    // (`readUInt32BE` in `uploads/validateISOBaseMediaFile.ts`).
+    const fileData = fs.readFileSync(filePath)
 
     // Determine MIME type based on extension
     const extension = path.extname(sampleFile).slice(1).toLowerCase()
@@ -518,7 +519,7 @@ export const testData = {
         ...overrides,
       }),
       file: {
-        data: fileData as unknown as Buffer,
+        data: fileData,
         mimetype,
         name: sampleFile,
         size: fileData.length,
@@ -648,9 +649,9 @@ export const testData = {
     sampleFile = 'image-1050x700.jpg',
   ): Promise<Frame> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
-    const fileBuffer = fs.readFileSync(filePath)
-    // Convert Buffer to Uint8Array for compatibility with file-type library
-    const fileData = new Uint8Array(fileBuffer)
+    // A real Buffer: this can be a video, which Payload 3.90+ sniffs with
+    // Buffer-only methods (see `createVideo`).
+    const fileData = fs.readFileSync(filePath)
 
     // Get correct mimetype based on file extension
     const extension = path.extname(sampleFile).slice(1).toLowerCase()
@@ -681,7 +682,7 @@ export const testData = {
         ...overrides,
       },
       file: {
-        data: fileData as unknown as Buffer,
+        data: fileData,
         mimetype: mimetype,
         name: sampleFile,
         size: fileData.length,

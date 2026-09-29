@@ -1064,6 +1064,7 @@ export interface Image {
       )[]
     | null;
   fileMetadata?: FileMetadata;
+  _objectKey?: string | null;
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
@@ -1144,6 +1145,7 @@ export interface Video {
   subtitles?: Subtitles;
   tags: 'testimonial' | 'workshop' | 'event' | 'technique';
   fileMetadata?: FileMetadata;
+  _objectKey?: string | null;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -1433,6 +1435,7 @@ export interface Manager {
   resetPasswordExpiration?: string | null;
   salt?: string | null;
   hash?: string | null;
+  resetPasswordRequestedAt?: string | null;
   _verified?: boolean | null;
   _verificationToken?: string | null;
   loginAttempts?: number | null;
@@ -2494,6 +2497,7 @@ export interface Client {
   enableAPIKey?: boolean | null;
   apiKey?: string | null;
   apiKeyIndex?: string | null;
+  hasAPIKey?: boolean | null;
   collection: 'clients';
 }
 export interface ClientCanonicalVerification {
@@ -2689,6 +2693,7 @@ export interface Meditation {
     asNightMeditation?: TagAssignments;
   };
   frames?: MeditationFrames;
+  _objectKey?: string | null;
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
@@ -2737,6 +2742,7 @@ export interface SongTag {
     hasNextPage?: boolean;
     totalDocs?: number;
   };
+  _objectKey?: string | null;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -2766,6 +2772,7 @@ export interface Song {
    */
   includeForMeditations?: boolean | null;
   fileMetadata?: FileMetadata;
+  _objectKey?: string | null;
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
@@ -2886,6 +2893,7 @@ export interface File {
   hlsUrl?: string | null;
   mp4Url?: string | null;
   previewUrl?: string | null;
+  _objectKey?: string | null;
   updatedAt: string;
   deletedAt?: string | null;
   url?: string | null;
@@ -3600,6 +3608,7 @@ export interface UserChoice {
     hasNextPage?: boolean;
     totalDocs?: number;
   };
+  _objectKey?: string | null;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -3702,6 +3711,7 @@ export interface Frame {
     | null;
   duration?: number | null;
   fileMetadata?: FileMetadata;
+  _objectKey?: string | null;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -4074,6 +4084,7 @@ export interface MeditationsSelect<T extends boolean = true> {
         asNightMeditation?: T;
       };
   frames?: T;
+  _objectKey?: T;
   updatedAt?: T;
   createdAt?: T;
   deletedAt?: T;
@@ -4098,6 +4109,7 @@ export interface SongsSelect<T extends boolean = true> {
   tags?: T;
   includeForMeditations?: T;
   fileMetadata?: T;
+  _objectKey?: T;
   updatedAt?: T;
   createdAt?: T;
   deletedAt?: T;
@@ -4138,6 +4150,7 @@ export interface VideosSelect<T extends boolean = true> {
   subtitles?: T;
   tags?: T;
   fileMetadata?: T;
+  _objectKey?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;
@@ -4219,6 +4232,7 @@ export interface FramesSelect<T extends boolean = true> {
   tags?: T;
   duration?: T;
   fileMetadata?: T;
+  _objectKey?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;
@@ -4267,6 +4281,7 @@ export interface ImagesSelect<T extends boolean = true> {
   credit?: T;
   tags?: T;
   fileMetadata?: T;
+  _objectKey?: T;
   updatedAt?: T;
   createdAt?: T;
   deletedAt?: T;
@@ -4289,6 +4304,7 @@ export interface FilesSelect<T extends boolean = true> {
   hlsUrl?: T;
   mp4Url?: T;
   previewUrl?: T;
+  _objectKey?: T;
   updatedAt?: T;
   deletedAt?: T;
   url?: T;
@@ -4363,6 +4379,7 @@ export interface UserChoicesSelect<T extends boolean = true> {
   isParent?: T;
   children?: T;
   lectures?: T;
+  _objectKey?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;
@@ -4396,6 +4413,7 @@ export interface SongTagsSelect<T extends boolean = true> {
   slug?: T;
   title?: T;
   songs?: T;
+  _objectKey?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;
@@ -4443,6 +4461,7 @@ export interface ManagersSelect<T extends boolean = true> {
   resetPasswordExpiration?: T;
   salt?: T;
   hash?: T;
+  resetPasswordRequestedAt?: T;
   _verified?: T;
   _verificationToken?: T;
   loginAttempts?: T;
@@ -4515,6 +4534,7 @@ export interface ClientsSelect<T extends boolean = true> {
   enableAPIKey?: T;
   apiKey?: T;
   apiKeyIndex?: T;
+  hasAPIKey?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -10284,7 +10304,15 @@ export interface TaskSchedulePublish {
           value: number | Meditation;
         } | null);
     global?: string | null;
-    user?: (number | null) | Manager;
+    user?:
+      | ({
+          relationTo: 'managers';
+          value: number | Manager;
+        } | null)
+      | ({
+          relationTo: 'clients';
+          value: number | Client;
+        } | null);
   };
   output?: unknown;
 }

@@ -30,8 +30,16 @@ const MESSAGE =
  * the collection hooks all run before that: field beforeValidate → collection
  * beforeValidate → collection beforeChange → field beforeChange. A collection
  * hook therefore sees an empty slug on every auto-generating create and rejects
- * writes that are perfectly fine. Field `validate` runs after the generator, so
- * it is the only place that sees the value that will actually be stored.
+ * writes that are perfectly fine.
+ *
+ * ⚠ **On create, this cannot assume the generator has already run.** The
+ * generator is the *sibling* checkbox's `beforeChange` hook, and Payload fans a
+ * row's fields out through one `Promise.all`
+ * (`payload/dist/fields/hooks/beforeChange/traverseFields.js`), so which runs
+ * first is a microtask race. The generator won it through 3.87.1 and loses it
+ * on 3.90.2, where `value` arrives `undefined` on every auto-slugging create. So
+ * a blank create is judged by `siblingData[useAsSlug]` — the raw input the
+ * generator slugifies, which no hook derives and no race can delay.
  *
  * ## Why it grandfathers rather than rejects outright
  *
@@ -57,14 +65,21 @@ const MESSAGE =
  */
 type SlugValidator = (
   value: string | null | undefined,
-  options: { operation?: string; previousValue?: unknown },
+  options: { operation?: string; previousValue?: unknown; siblingData?: Record<string, unknown> },
 ) => string | true | Promise<string | true>
 
-export function withNonEmptySlug(inner: TextField['validate']): TextField['validate'] {
+/** @param useAsSlug The field the slug is generated from — `slugField`'s own `useAsSlug`. */
+export function withNonEmptySlug(
+  inner: TextField['validate'],
+  useAsSlug: string,
+): TextField['validate'] {
   const validate: SlugValidator = (value, options) => {
     if (isBlank(value)) {
-      // Nothing existed before, so this write is what makes it blank.
-      if (options.operation === 'create') return MESSAGE
+      // Nothing existed before, so this write is what makes it blank — unless
+      // the generator has a source to slugify and simply hasn't run yet.
+      if (options.operation === 'create') {
+        return isBlank(options.siblingData?.[useAsSlug]) ? MESSAGE : true
+      }
       // It had a real slug and this write is clearing it.
       if (!isBlank(options.previousValue)) return MESSAGE
       // Already blank before this write — a pre-existing row being re-saved,

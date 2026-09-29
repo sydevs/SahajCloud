@@ -741,6 +741,7 @@ describe('Storage Adapter handleUpload', () => {
         req: req as never,
         clientUploadContext: undefined,
         collection: { slug: 'images' } as never,
+        storageFilePath: file.filename,
       })
 
       expect(fetchMock).toHaveBeenCalledOnce()
@@ -788,6 +789,7 @@ describe('Storage Adapter handleUpload', () => {
           req: makeReq() as never,
           clientUploadContext: undefined,
           collection: { slug: 'images' } as never,
+          storageFilePath: 'lecture-thumbnail-167289004.jpg',
         }),
       ).rejects.toThrow(/Duplicate ID/)
     })
@@ -826,6 +828,7 @@ describe('Storage Adapter handleUpload', () => {
         req: makeReq() as never,
         clientUploadContext: undefined,
         collection: { slug: 'frames' } as never,
+        storageFilePath: file.filename,
       })
 
       // Stream API does not accept custom IDs — make sure we did not send one
@@ -866,6 +869,7 @@ describe('Storage Adapter handleUpload', () => {
         req: makeReq() as never,
         clientUploadContext: undefined,
         collection: { slug: 'meditations' } as never,
+        storageFilePath: `meditations/${file.filename}`,
       })
 
       expect(result).toMatchObject({
@@ -903,6 +907,7 @@ describe('Storage Adapter handleUpload', () => {
         req: req as never,
         clientUploadContext: undefined,
         collection: { slug: 'meditations' } as never,
+        storageFilePath: `meditations/${file.filename}`,
       })
 
       // Returns undefined to skip the cloud-storage plugin's follow-up payload.update()
@@ -951,6 +956,7 @@ describe('Storage Adapter handleUpload', () => {
         req: makeReq() as never,
         clientUploadContext: undefined,
         collection: { slug: 'files' } as never,
+        storageFilePath: 'lecture-thumbnail-167289004.jpg',
       }
 
       const result = await adapter.handleUpload(args)
@@ -1097,6 +1103,7 @@ describe('storagePlugin R2 filename hook wiring', () => {
       } as never,
       clientUploadContext: undefined,
       collection: { slug: 'meditations' } as never,
+      storageFilePath: `meditations/${preassignedFilename}`,
     })
 
     // Adapter returns undefined — filename is already in the DB from beforeChange,
