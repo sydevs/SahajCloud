@@ -1064,6 +1064,7 @@ export interface Image {
       )[]
     | null;
   fileMetadata?: FileMetadata;
+  _objectKey?: string | null;
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
@@ -1144,6 +1145,7 @@ export interface Video {
   subtitles?: Subtitles;
   tags: 'testimonial' | 'workshop' | 'event' | 'technique';
   fileMetadata?: FileMetadata;
+  _objectKey?: string | null;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -2691,6 +2693,7 @@ export interface Meditation {
     asNightMeditation?: TagAssignments;
   };
   frames?: MeditationFrames;
+  _objectKey?: string | null;
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
@@ -2739,6 +2742,7 @@ export interface SongTag {
     hasNextPage?: boolean;
     totalDocs?: number;
   };
+  _objectKey?: string | null;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -2768,6 +2772,7 @@ export interface Song {
    */
   includeForMeditations?: boolean | null;
   fileMetadata?: FileMetadata;
+  _objectKey?: string | null;
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
@@ -2888,6 +2893,7 @@ export interface File {
   hlsUrl?: string | null;
   mp4Url?: string | null;
   previewUrl?: string | null;
+  _objectKey?: string | null;
   updatedAt: string;
   deletedAt?: string | null;
   url?: string | null;
@@ -3602,6 +3608,7 @@ export interface UserChoice {
     hasNextPage?: boolean;
     totalDocs?: number;
   };
+  _objectKey?: string | null;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -3704,6 +3711,7 @@ export interface Frame {
     | null;
   duration?: number | null;
   fileMetadata?: FileMetadata;
+  _objectKey?: string | null;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -4076,6 +4084,7 @@ export interface MeditationsSelect<T extends boolean = true> {
         asNightMeditation?: T;
       };
   frames?: T;
+  _objectKey?: T;
   updatedAt?: T;
   createdAt?: T;
   deletedAt?: T;
@@ -4100,6 +4109,7 @@ export interface SongsSelect<T extends boolean = true> {
   tags?: T;
   includeForMeditations?: T;
   fileMetadata?: T;
+  _objectKey?: T;
   updatedAt?: T;
   createdAt?: T;
   deletedAt?: T;
@@ -4140,6 +4150,7 @@ export interface VideosSelect<T extends boolean = true> {
   subtitles?: T;
   tags?: T;
   fileMetadata?: T;
+  _objectKey?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;
@@ -4221,6 +4232,7 @@ export interface FramesSelect<T extends boolean = true> {
   tags?: T;
   duration?: T;
   fileMetadata?: T;
+  _objectKey?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;
@@ -4269,6 +4281,7 @@ export interface ImagesSelect<T extends boolean = true> {
   credit?: T;
   tags?: T;
   fileMetadata?: T;
+  _objectKey?: T;
   updatedAt?: T;
   createdAt?: T;
   deletedAt?: T;
@@ -4291,6 +4304,7 @@ export interface FilesSelect<T extends boolean = true> {
   hlsUrl?: T;
   mp4Url?: T;
   previewUrl?: T;
+  _objectKey?: T;
   updatedAt?: T;
   deletedAt?: T;
   url?: T;
@@ -4365,6 +4379,7 @@ export interface UserChoicesSelect<T extends boolean = true> {
   isParent?: T;
   children?: T;
   lectures?: T;
+  _objectKey?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;
@@ -4398,6 +4413,7 @@ export interface SongTagsSelect<T extends boolean = true> {
   slug?: T;
   title?: T;
   songs?: T;
+  _objectKey?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;
