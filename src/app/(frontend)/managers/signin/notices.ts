@@ -6,7 +6,7 @@
  * the unit lane sees it — only `pnpm build` does.
  */
 
-import { SIGNIN_VALID_FOR } from '@/plugins/login'
+import { INVITE_VALID_FOR, SIGNIN_VALID_FOR } from '@/plugins/login'
 
 /**
  * A refused link, stated above the form that fixes it.
@@ -15,12 +15,14 @@ import { SIGNIN_VALID_FOR } from '@/plugins/login'
  * redirects here with `?error=`, and this page already asks for a link — so the
  * reader is never told to request one on a page that cannot.
  *
- * Both reasons the redeem route distinguishes, and no more: a refusal that
- * named which check failed would describe them to whoever is probing them.
+ * Only the reasons the redeem routes distinguish, and no more: a refusal
+ * that named which check failed would describe them to whoever is probing them.
  */
 export type SignInNotice = { tone: 'error' | 'warning'; title: string; message: string }
 
-export const LINK_NOTICES: Record<'expired' | 'invalid', SignInNotice> = {
+export type NoticeReason = 'expired' | 'invalid' | 'invite-accepted' | 'invite-expired' | 'link-expired'
+
+export const LINK_NOTICES: Record<NoticeReason, SignInNotice> = {
   expired: {
     tone: 'warning',
     title: 'This link has expired',
@@ -31,9 +33,38 @@ export const LINK_NOTICES: Record<'expired' | 'invalid', SignInNotice> = {
     title: 'This link is not valid',
     message: 'It may already have been used. Ask for a fresh one below.',
   },
+  // An invitation lasts days rather than minutes, so the sign-in copy would
+  // misstate it. Asking below re-sends the invitation itself, not a sign-in
+  // link, while the account is still unaccepted — see `issueMagicLink`.
+  'invite-expired': {
+    tone: 'warning',
+    title: 'This link has expired',
+    message: `A confirmation link is valid for ${INVITE_VALID_FOR}. Ask for a fresh one below.`,
+  },
+  // Each project sends its own invitation, so a second one arrives already
+  // spent by the first. The account is active: a sign-in link gets them in.
+  'invite-accepted': {
+    tone: 'warning',
+    title: 'Your email is already confirmed',
+    message: 'Your account is active. Ask for a sign-in link below.',
+  },
+  // A reminder's link outlives a sign-in link by days, and the next reminder
+  // carries a fresh one — but a sign-in link from here reaches the same page.
+  'link-expired': {
+    tone: 'warning',
+    title: 'This link has expired',
+    message: 'Ask for a sign-in link below, then open the event from the admin.',
+  },
 }
 
-/** Narrows a `?error=` value to a notice, so an unknown one shows nothing. */
+/**
+ * Narrows a `?error=` value to a notice, so an unknown one shows nothing.
+ *
+ * ⚠ `Object.hasOwn`, never `in`: the value is request-supplied, and `in` walks
+ * the prototype chain — `?error=constructor` would hand the page a function.
+ */
 export function linkNotice(reason: string | undefined): SignInNotice | null {
-  return reason === 'expired' || reason === 'invalid' ? LINK_NOTICES[reason] : null
+  return reason && Object.hasOwn(LINK_NOTICES, reason)
+    ? LINK_NOTICES[reason as NoticeReason]
+    : null
 }

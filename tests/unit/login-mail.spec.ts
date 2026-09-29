@@ -23,7 +23,7 @@ const args = (project: LoginMailArgs['project']): LoginMailArgs => ({
 describe('the plugin default sign-in mail', () => {
   it('brands the subject and the sender from the project it is given', () => {
     expect(generateEmailSubject(args('sahaj-atlas'))).toContain('Sahaj Atlas')
-    expect(emailFrom(args('sahaj-atlas'))).toContain('Sahaj Atlas')
+    expect(emailFrom('sahaj-atlas')).toContain('Sahaj Atlas')
   })
 
   it('falls back to the default brand when no project is resolved', () => {
@@ -33,7 +33,7 @@ describe('the plugin default sign-in mail', () => {
   })
 
   it('sends the envelope From at the manager address, not the public one', () => {
-    expect(emailFrom(args(undefined))).toContain('contact@sydevelopers.com')
+    expect(emailFrom(undefined)).toContain('contact@sydevelopers.com')
   })
 })
 

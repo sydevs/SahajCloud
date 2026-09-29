@@ -1,34 +1,35 @@
 'use server'
 
-import type { VerifyOutcome } from './VerificationCard'
 import type { PageAction } from '../../_components/PublicPage'
+import type { VerifyOutcome } from '../../_components/VerificationCard'
 
 import { getPayload } from 'payload'
 
-import { verifyEventFromToken } from '@/collections/Events/lifecycle/verify'
+import { verifyEventFromLink } from '@/collections/Events/lifecycle/verify'
 import { CONTACT_EMAIL } from '@/lib/contact'
 import { serverEnv } from '@/lib/env'
-import { readVerifyToken } from '@/lib/eventVerification/token'
-import { adminDocUrl } from '@/lib/utilities/adminUrl'
 import { describeValidationErrors, validationFieldErrors } from '@/lib/utilities/validationFailure'
+import { readLinkToken } from '@/plugins/login'
 
 import config from '@payload-config'
+
+import { openUrl } from '../../_components/loginUrls'
 
 function atlasHome(): string | null {
   return serverEnv.WEMEDITATE_WEB_URL ? `${serverEnv.WEMEDITATE_WEB_URL}/map` : null
 }
 
 /**
- * Server Action backing the "Verify this event" button. Re-validates the token
- * (never trust the client), runs the shared verify op, and returns a
- * serializable outcome. The mutation lives only here (POST) — opening the page
- * (GET) never verifies, so email link-scanners can't auto-verify.
+ * Server Action behind "Verify this event". Re-checks the link (never trust the
+ * client), runs the shared verify op, and returns a serializable outcome. The
+ * mutation lives only here, on the form's `POST` — opening the page never
+ * verifies, so a mail scanner cannot.
  */
 export async function verifyEventAction(
   _prev: VerifyOutcome | null,
   formData: FormData,
 ): Promise<VerifyOutcome> {
-  const token = typeof formData.get('token') === 'string' ? (formData.get('token') as string) : ''
+  const link = typeof formData.get('link') === 'string' ? (formData.get('link') as string) : ''
   const payload = await getPayload({ config })
   const home = atlasHome()
   const backSecondary: PageAction[] = home
@@ -39,13 +40,13 @@ export async function verifyEventAction(
     : []
 
   try {
-    const event = await verifyEventFromToken({ payload, token })
+    const event = await verifyEventFromLink({ payload, link })
     if (!event) {
       return {
         tone: 'warning',
         title: 'Link no longer valid',
         message:
-          'This verification link has expired or is no longer valid. Please wait for the next reminder email.',
+          'This verification link has expired or is no longer valid. Please use the link in your latest reminder email.',
         actions: backPrimary,
       }
     }
@@ -62,9 +63,9 @@ export async function verifyEventAction(
   } catch (error) {
     const occurredAt = new Date().toISOString()
     const detail = error instanceof Error ? error.message : String(error)
-    const claims = await readVerifyToken(token, payload.secret)
-    const eventId = claims.status === 'valid' ? claims.claims.eventId : 'unknown'
-    const managerId = claims.status === 'valid' ? claims.claims.managerId : 'unknown'
+    const read = await readLinkToken(link, payload.secret)
+    const eventId = read.status === 'valid' ? (read.claims.verifies ?? 'unknown') : 'unknown'
+    const managerId = read.status === 'valid' ? read.claims.userId : 'unknown'
     payload.logger.warn({
       msg: 'verify page: verification failed',
       eventId,
@@ -75,10 +76,10 @@ export async function verifyEventAction(
 
     // Invalid stored data is the one failure the manager can clear themselves,
     // so it must not land on "contact the admin team" (#842). Verifying keeps
-    // refusing — the data is fixed first. The edit page is behind the admin
-    // login; minting a session from a 10-day verify token belongs to #664.
+    // refusing — the data is fixed first. The edit button spends the same page
+    // link, which signs them in on the way to the event.
     const fieldErrors = validationFieldErrors(error)
-    if (fieldErrors && typeof eventId === 'number') {
+    if (fieldErrors) {
       return {
         tone: 'warning',
         title: 'Fix these details first',
@@ -87,7 +88,7 @@ export async function verifyEventAction(
           ...describeValidationErrors(fieldErrors),
         ].join('\n'),
         actions: [
-          { label: 'Edit this event', href: adminDocUrl('events', eventId), variant: 'primary' },
+          { label: 'Edit this event', href: openUrl(link), variant: 'primary', method: 'post' },
           ...backSecondary,
         ],
       }

@@ -102,6 +102,11 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     // the header rides a cross-origin request and must clear preflight. See #575.
     cors: { origins: '*', headers: [PREVIEW_SECRET_HEADER] },
     csrf: [serverUrl, serverEnv.WEMEDITATE_WEB_URL, serverEnv.SAHAJATLAS_URL],
+    // `routes.admin` stays unset, and so do `admin.routes.account` and
+    // `.reset`: the panel's hrefs and `isAdminPath` spell `/admin`, and two
+    // `adminUrl()` callers spell the other two (`invite.ts`, `Managers.ts`).
+    // Setting any of them fails
+    // `tests/int/admin-route-config.int.spec.ts` (#851).
     admin: {
       user: Managers.slug,
       // Widen the timezone picker (and every `timezone: true` companion's enum)
@@ -337,7 +342,9 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       // Passwordless sign-in (#837): the magic-link field plus the request and
       // consume endpoints, for every collection the option names. Before
       // accessPlugin, which must stay last.
-      loginPlugin({ collections: [managersLogin] }),
+      // Invitations queue on assignment — except under a seed script, whose bulk
+      // writes would otherwise leave production a queue to mail (see the option).
+      loginPlugin({ collections: [managersLogin], invitations: !isSeedScript }),
       // Access Plugin: Unified RBAC and project visibility (must be LAST to process plugin-created collections)
       accessPlugin({
         enabled: true,

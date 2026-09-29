@@ -28,9 +28,9 @@ export interface NotificationType {
 
 export const NOTIFICATION_TYPES: NotificationType[] = [
   {
-    key: 'new_responsibility',
-    title: 'New Responsibility',
-    description: "Sent when you're given access to a new region or event to manage",
+    key: 'invitation',
+    title: 'Invitations',
+    description: "Sent when you're invited to look after a new role, region, event or page",
     frequencyOptions: ['Immediate', NEVER_FREQUENCY],
   },
   {

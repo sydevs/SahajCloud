@@ -10,29 +10,235 @@
  * right one, which is how #320 survived. Their shape is pinned in
  * `manager-auth-urls.spec.ts`, against the config that builds them. They are
  * written correctly here only so the fixtures do not teach the wrong URL.
+ *
+ * The same holds for `InviteEmail`'s grant rows: the LABELS are inputs here,
+ * and `manager-invite.spec.ts` is what proves the summary produces them.
  */
 import { createElement } from 'react'
 import { describe, expect, it } from 'vitest'
 
 import { buildReplyBody, EventRegistrationEmail } from '@/emails/EventRegistrationEmail'
+import { InviteEmail, inviteHeading } from '@/emails/InviteEmail'
 import { ResetPasswordEmail } from '@/emails/ResetPasswordEmail'
 import { buildUserMessageDetails, UserMessageEmail } from '@/emails/UserMessageEmail'
-import { VerifyEmail } from '@/emails/VerifyEmail'
 import { getEmailBrand, renderEmail } from '@/plugins/email'
 
-describe('VerifyEmail', () => {
-  it('renders the recipient name, verify URL, and CTA', async () => {
+const INVITE_URL = 'https://cloud.test/managers/signin?invite=TKN-123'
+
+const inviteProps = {
+  name: 'Jo',
+  accepted: false,
+  actionUrl: INVITE_URL,
+  listsOnlyNew: false,
+  validFor: '7 days',
+  fullAccess: false,
+  grants: [
+    { locale: 'English', roles: ['Meditations Editor', 'Path Editor'] },
+    { locale: 'French', roles: ['Web Translator'] },
+  ],
+  responsibilities: [],
+}
+
+const regions = (...titles: string[]) => ({
+  label: 'Regions',
+  singular: 'Region',
+  items: titles.map((title) => ({ title, url: `https://atlas.test/${title.toLowerCase()}` })),
+})
+
+const events = (...items: { title: string; url: null | string }[]) => ({
+  label: 'Events',
+  singular: 'Event',
+  items,
+})
+
+describe('InviteEmail', () => {
+  it('renders the recipient name, invitation URL, CTA, and validity', async () => {
+    const html = await renderEmail(createElement(InviteEmail, inviteProps))
+
+    expect(html).toContain('Jo')
+    expect(html).toContain(INVITE_URL)
+    expect(html).toContain('Confirm your email')
+    expect(html).toContain('7 days')
+  })
+
+  it('names the roles per locale', async () => {
+    const html = await renderEmail(createElement(InviteEmail, inviteProps))
+
+    expect(html).toContain('English')
+    expect(html).toContain('Meditations Editor, Path Editor')
+    expect(html).toContain('French')
+    expect(html).toContain('Web Translator')
+  })
+
+  it('names full access for an admin instead of a role table', async () => {
+    const html = await renderEmail(createElement(InviteEmail, { ...inviteProps, fullAccess: true }))
+
+    expect(html).toContain('Administrator')
+    expect(html).not.toContain('Meditations Editor')
+  })
+
+  it('opens by naming who asked, when a person did', async () => {
     const html = await renderEmail(
-      createElement(VerifyEmail, {
-        name: 'Jo',
-        verifyUrl: 'https://cloud.test/admin/managers/verify/TKN-123',
+      createElement(InviteEmail, {
+        ...inviteProps,
+        assignedBy: 'Anna Schmidt',
+        responsibilities: [regions('Berlin')],
       }),
     )
 
-    expect(html).toBeTruthy()
-    expect(html).toContain('Jo')
-    expect(html).toContain('https://cloud.test/admin/managers/verify/TKN-123')
-    expect(html).toContain('Verify Email Address')
+    expect(html).toContain('Anna Schmidt has invited you to look after the following on')
+  })
+
+  it('lists each kind as a row beside the roles, one document per line, linked', async () => {
+    const html = await renderEmail(
+      createElement(InviteEmail, {
+        ...inviteProps,
+        responsibilities: [
+          regions('Berlin', 'Hamburg'),
+          events({ title: 'Tuesday Evening Meditation', url: 'https://atlas.test/tuesday' }),
+        ],
+      }),
+    )
+
+    expect(html).toContain('Your responsibilities')
+    // The same label-and-value rows the roles use: "Regions" beside its list.
+    expect(html).toMatch(/>Regions<\/td>/)
+    // One event, so its row is singular.
+    expect(html).toMatch(/>Event<\/td>/)
+    expect(html).toMatch(
+      /<a[^>]+href="https:\/\/atlas.test\/berlin"[^>]*>Berlin<\/a><br\/><a[^>]+href="https:\/\/atlas.test\/hamburg"/,
+    )
+    expect(html).toMatch(/<a[^>]+href="https:\/\/atlas.test\/tuesday"[^>]*>Tuesday Evening Meditation/)
+    expect(html).not.toContain('Including the')
+  })
+
+  it('says "role" and "responsibility", and names the kind, when there is one of each', async () => {
+    const html = await renderEmail(
+      createElement(InviteEmail, {
+        ...inviteProps,
+        grants: [{ locale: 'English', roles: ['Atlas Manager'] }],
+        responsibilities: [regions('Berlin')],
+      }),
+    )
+
+    expect(html).toContain('Your role<')
+    expect(html).toContain('Your responsibility<')
+    expect(html).toMatch(/>Region<\/td>/)
+    expect(html).not.toMatch(/>Regions<\/td>/)
+  })
+
+  it('stays plural for two roles in one locale, or two documents of a kind', async () => {
+    const html = await renderEmail(
+      createElement(InviteEmail, {
+        ...inviteProps,
+        listsOnlyNew: true,
+        grants: [{ locale: 'English', roles: ['Atlas Manager', 'Web Translator'] }],
+        responsibilities: [regions('Berlin', 'Hamburg')],
+      }),
+    )
+
+    expect(html).toContain('Your new roles<')
+    expect(html).toContain('Your new responsibilities<')
+    expect(html).toMatch(/>Regions<\/td>/)
+  })
+
+  it('marks a document with no public page, outside its title', async () => {
+    const html = await renderEmail(
+      createElement(InviteEmail, {
+        ...inviteProps,
+        responsibilities: [events({ title: 'Sunday Workshop', url: null })],
+      }),
+    )
+
+    // A separate, differently styled span, so it cannot read as part of the name.
+    expect(html).toMatch(/Sunday Workshop<span[^>]*> \(Not yet public\)<\/span>/)
+    expect(html).not.toMatch(/<a[^>]*>Sunday Workshop/)
+  })
+
+  it('introduces Sahaj Atlas to a manager meeting it for the first time', async () => {
+    const atlas = await renderEmail(
+      createElement(InviteEmail, { ...inviteProps, project: 'sahaj-atlas' }),
+    )
+    const web = await renderEmail(createElement(InviteEmail, inviteProps))
+
+    expect(atlas).toContain(
+      'Sahaj Atlas is a worldwide map of free Sahaja Yoga meditation classes.',
+    )
+    expect(atlas).toContain('local Sahaj websites')
+    expect(web).not.toContain('worldwide map')
+  })
+
+  it('offers an accepted manager their notification settings, and no confirmation', async () => {
+    const settings = 'https://cloud.test/managers/signin?link=SETTINGS'
+    const html = await renderEmail(
+      createElement(InviteEmail, { ...inviteProps, accepted: true, actionUrl: settings }),
+    )
+
+    expect(html).toContain('Configure notifications')
+    expect(html).toContain(settings)
+    expect(html).not.toContain('Confirm your email')
+    expect(html).not.toContain('valid for')
+    expect(html).toContain('where you choose which emails you get')
+  })
+
+  it('asks for a confirmation that says what it does — and no set-up that is not there', async () => {
+    const one = await renderEmail(
+      createElement(InviteEmail, { ...inviteProps, responsibilities: [regions('Berlin')] }),
+    )
+    const none = await renderEmail(createElement(InviteEmail, inviteProps))
+
+    expect(one).toContain('Confirm your email below so you can sign in and keep it up to date')
+    expect(none).toContain('Confirm your email below so you can sign in —')
+    expect(one).not.toContain('set up your account')
+  })
+
+  it('introduces each project to a manager who has not confirmed, and to no one else', async () => {
+    const render = (project: 'sahaj-atlas' | 'wemeditate-app' | 'wemeditate-web', accepted = false) =>
+      renderEmail(createElement(InviteEmail, { ...inviteProps, accepted, project }))
+
+    expect(await render('wemeditate-web')).toContain('We Meditate is a free website')
+    expect(await render('wemeditate-app')).toContain('We Meditate is a free app')
+    expect(await render('sahaj-atlas')).toContain('worldwide map')
+    expect(await render('sahaj-atlas', true)).not.toContain('worldwide map')
+  })
+})
+
+describe('inviteHeading', () => {
+  const heading = (props: Partial<Parameters<typeof inviteHeading>[0]>) =>
+    inviteHeading({ grants: [], responsibilities: [], ...props }, 'Sahaj Atlas')
+
+  it('names a single document outright', () => {
+    expect(heading({ responsibilities: [regions('Berlin')] })).toBe(
+      "You've been invited to look after Berlin",
+    )
+  })
+
+  it('counts one kind, and each of several', () => {
+    expect(heading({ responsibilities: [regions('Berlin', 'Hamburg')] })).toBe(
+      "You've been invited to look after 2 regions",
+    )
+    expect(
+      heading({
+        responsibilities: [
+          regions('Berlin'),
+          events({ title: 'A', url: null }, { title: 'B', url: null }),
+        ],
+      }),
+    ).toBe("You've been invited to look after 1 region and 2 events")
+  })
+
+  it('names the role when there is nothing to look after', () => {
+    expect(heading({ grants: [{ locale: 'French', roles: ['Web Translator'] }] })).toBe(
+      "You've been invited to help as Web Translator",
+    )
+    expect(
+      heading({
+        grants: [
+          { locale: 'French', roles: ['Web Translator'] },
+          { locale: 'English', roles: ['Atlas Manager'] },
+        ],
+      }),
+    ).toBe("You've been invited to help with Sahaj Atlas")
   })
 })
 
@@ -53,14 +259,14 @@ describe('ResetPasswordEmail', () => {
 })
 
 describe('brand configurability', () => {
-  const props = { name: 'Jo', verifyUrl: 'https://cloud.test/admin/managers/verify/T' }
+  const props = inviteProps
 
   it('renders a different product name + primary color per project', async () => {
     const web = await renderEmail(
-      createElement(VerifyEmail, { ...props, project: 'wemeditate-web' }),
+      createElement(InviteEmail, { ...props, project: 'wemeditate-web' }),
     )
     const atlas = await renderEmail(
-      createElement(VerifyEmail, { ...props, project: 'sahaj-atlas' }),
+      createElement(InviteEmail, { ...props, project: 'sahaj-atlas' }),
     )
 
     const webBrand = getEmailBrand('wemeditate-web')
@@ -79,7 +285,7 @@ describe('brand configurability', () => {
   })
 
   it('defaults to wemeditate-web when no project is passed', async () => {
-    const html = await renderEmail(createElement(VerifyEmail, props))
+    const html = await renderEmail(createElement(InviteEmail, props))
     expect(html).toContain(getEmailBrand('wemeditate-web').productName)
   })
 })
