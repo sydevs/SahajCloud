@@ -10,15 +10,16 @@ import { createSession, sessionCookie } from '../session'
 
 export const EXCHANGE_PREVIEW_SECRET_PATH = '/exchange-preview-secret'
 
+// The address is not asked for: the route already holds the one it trades, and
+// the caller echoing it back proved nothing while adding a way to refuse a
+// correct secret. Unknown keys are stripped, so a caller still sending one — the
+// smoke lane posts `PREVIEW_ADMIN` whole — is unaffected.
 const bodySchema = z.object({
-  // Normalised like `magicLinkEmailSchema`'s, for the same reason: Payload's
-  // `email` base field lowercases and trims on every write.
-  email: z.string().trim().email().toLowerCase(),
   password: z.string().min(1),
 })
 
 /**
- * Neither the address nor the secret is named back, so nothing here is an oracle.
+ * The secret is never named back, so nothing here is an oracle.
  *
  * ⚠ **Built per call.** A `Response` is single-use, so a shared instance answers
  * the first refusal and throws a 500 on every one after it.
@@ -56,9 +57,10 @@ export function exchangePreviewSecret(
   exchange: PreviewSecretExchange,
 ): Endpoint {
   const { isEligible, select, slug } = config
-  // ⚠ The stored spelling, used for BOTH the comparison and the lookup. Compare
-  // against one and query with another, and a `PREVIEW_ADMIN_EMAIL` carrying a
-  // capital refuses a correct secret forever.
+  // ⚠ Normalised to the STORED spelling, because this is what the lookup
+  // queries. Payload's `email` base field lowercases and trims on every write,
+  // so a `PREVIEW_ADMIN_EMAIL` carrying a capital would otherwise match no row
+  // and refuse a correct secret forever.
   const expectedEmail = exchange.email.trim().toLowerCase()
 
   return {
@@ -69,7 +71,6 @@ export function exchangePreviewSecret(
       if (!parsed.ok) return parsed.response
 
       const { payload } = req
-      if (parsed.data.email !== expectedEmail) return refused()
       if (!constantTimeEqual(parsed.data.password, exchange.password)) return refused()
 
       // ⚠ `_verified` is not a column every auth collection has — Payload adds

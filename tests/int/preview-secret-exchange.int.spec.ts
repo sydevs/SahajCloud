@@ -3,7 +3,8 @@
  *
  * `tests/unit/preview-secret-exchange.spec.ts` covers WHERE the route exists.
  * This covers what it does once it does: the secret is compared against the
- * environment rather than against anything stored, and everything else is
+ * environment rather than against anything stored, the account is the one the
+ * environment names rather than one the caller picks, and everything else is
  * refused with one answer.
  *
  * ⚠ **The environment is set in `vi.hoisted`, and it has to be.** `serverEnv`
@@ -67,7 +68,7 @@ describe('POST /api/managers/exchange-preview-secret', () => {
   })
 
   it('trades the secret for a session that authenticates', async () => {
-    const res = await exchange({ email: PREVIEW_ADMIN_EMAIL, password: PREVIEW_ADMIN_PASSWORD })
+    const res = await exchange({ password: PREVIEW_ADMIN_PASSWORD })
 
     expect(res.status).toBe(200)
     const { token } = res.body as { token?: string }
@@ -80,26 +81,33 @@ describe('POST /api/managers/exchange-preview-secret', () => {
     expect((me.body as { user?: { email?: string } }).user?.email).toBe(PREVIEW_ADMIN_EMAIL)
   })
 
-  it('refuses a wrong secret, and a right secret for another address', async () => {
-    const other = await testData.createManager(payload, { name: 'Not The Preview Admin' })
-
-    expect((await exchange({ email: PREVIEW_ADMIN_EMAIL, password: 'wrong' })).status).toBe(403)
-    expect((await exchange({ email: other.email, password: PREVIEW_ADMIN_PASSWORD })).status).toBe(
-      403,
-    )
+  it('refuses a wrong secret', async () => {
+    expect((await exchange({ password: 'wrong' })).status).toBe(403)
   })
 
   it('refuses a prefix of the secret, which a length-blind compare would take', async () => {
-    const res = await exchange({
-      email: PREVIEW_ADMIN_EMAIL,
-      password: PREVIEW_ADMIN_PASSWORD.slice(0, -1),
-    })
+    const res = await exchange({ password: PREVIEW_ADMIN_PASSWORD.slice(0, -1) })
 
     expect(res.status).toBe(403)
   })
 
+  it('signs in the address the environment names, never one the caller does', async () => {
+    // ⚠ The route asks for no address, so an `email` in the body is stripped
+    // rather than honoured. A second manager on the preview is unreachable with
+    // this secret — the blast radius stays the account the deploy provisions.
+    const other = await testData.createManager(payload, { name: 'Not The Preview Admin' })
+
+    const res = await exchange({ email: other.email, password: PREVIEW_ADMIN_PASSWORD })
+
+    expect(res.status).toBe(200)
+    const { token } = res.body as { token?: string }
+    const asWhoever = createRestClientWithAuth(env, { Authorization: `JWT ${token}` })
+    const me = await asWhoever('/api/managers/me')
+    expect((me.body as { user?: { email?: string } }).user?.email).toBe(PREVIEW_ADMIN_EMAIL)
+  })
+
   it('refuses a malformed body rather than throwing', async () => {
-    expect((await exchange({ email: 'not-an-address', password: 'x' })).status).toBe(400)
+    expect((await exchange({ password: '' })).status).toBe(400)
     expect((await exchange({})).status).toBe(400)
   })
 
@@ -111,9 +119,7 @@ describe('POST /api/managers/exchange-preview-secret', () => {
       overrideAccess: true,
     })
 
-    expect(
-      (await exchange({ email: PREVIEW_ADMIN_EMAIL, password: PREVIEW_ADMIN_PASSWORD })).status,
-    ).toBe(403)
+    expect((await exchange({ password: PREVIEW_ADMIN_PASSWORD })).status).toBe(403)
 
     await payload.update({
       collection: 'managers',
@@ -121,15 +127,6 @@ describe('POST /api/managers/exchange-preview-secret', () => {
       data: { _verified: true },
       overrideAccess: true,
     })
-  })
-
-  it('accepts the address whatever case the caller types', async () => {
-    const res = await exchange({
-      email: PREVIEW_ADMIN_EMAIL.toUpperCase(),
-      password: PREVIEW_ADMIN_PASSWORD,
-    })
-
-    expect(res.status).toBe(200)
   })
 
   it('refuses the preview admin once they are deactivated', async () => {
@@ -140,8 +137,6 @@ describe('POST /api/managers/exchange-preview-secret', () => {
       overrideAccess: true,
     })
 
-    expect(
-      (await exchange({ email: PREVIEW_ADMIN_EMAIL, password: PREVIEW_ADMIN_PASSWORD })).status,
-    ).toBe(403)
+    expect((await exchange({ password: PREVIEW_ADMIN_PASSWORD })).status).toBe(403)
   })
 })
