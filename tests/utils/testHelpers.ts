@@ -159,7 +159,9 @@ function createBaseTestConfig(emailConfig: any, schemaName: string, debug = fals
       // (mirrors the real payload.config.ts, including which collections it serves
       // and how the preview exchange is resolved — `preview-secret-exchange.int.spec.ts`
       // sets the environment that turns it on).
-      loginPlugin({ collections: [managersLogin], previewExchange: previewSecretExchange() }),
+      loginPlugin({
+        collections: [{ ...managersLogin, previewExchange: previewSecretExchange() }],
+      }),
       // Access Plugin must be LAST to process plugin-created collections
       accessPlugin({ enabled: true, bypassPermissions }),
     ],

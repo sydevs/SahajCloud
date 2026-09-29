@@ -1,4 +1,4 @@
-import type { LoginCollectionConfig, PreviewSecretExchange } from './types'
+import type { LoginCollectionConfig } from './types'
 import type { CollectionBeforeOperationHook, CollectionConfig, Config, Field, Plugin } from 'payload'
 
 import { exchangePreviewSecret } from './endpoints/exchangePreviewSecret'
@@ -50,17 +50,6 @@ export interface LoginPluginOptions {
    */
   collections?: LoginCollectionConfig[]
   enabled?: boolean
-  /**
-   * Wire `exchange-preview-secret` on every served collection, trading this
-   * credential for a session.
-   *
-   * ⚠ **Absent means the route does not exist**, which is the whole gate — a
-   * route present everywhere and refusing everywhere would be one typo away
-   * from a password login on production. `previewSecretExchange()` in
-   * `@/plugins/previewAdmin` is what answers, and it answers `undefined`
-   * anywhere but a Railway preview holding the secret.
-   */
-  previewExchange?: PreviewSecretExchange
   /**
    * Whether assignments queue invitations. Off for the seed scripts: an import
    * writes managers onto hundreds of regions and events, and the queue it left
@@ -206,7 +195,7 @@ function adminWithSignInLink(
  * ```
  */
 export function loginPlugin(options: LoginPluginOptions = {}): Plugin {
-  const { collections = [], enabled, invitations = true, previewExchange } = options
+  const { collections = [], enabled, invitations = true } = options
   if (enabled === false || collections.length === 0) return (config) => config
 
   const byslug = new Map(collections.map((entry) => [entry.slug as string, entry]))
@@ -267,7 +256,9 @@ export function loginPlugin(options: LoginPluginOptions = {}): Plugin {
             // A reminder's link: signs in, then lands on the page it names.
             redeemLink(entry),
             // Preview only, and absent everywhere else — see its docblock.
-            ...(previewExchange ? [exchangePreviewSecret(entry, previewExchange)] : []),
+            ...(entry.previewExchange
+              ? [exchangePreviewSecret(entry, entry.previewExchange)]
+              : []),
           ],
         }
       }),

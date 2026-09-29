@@ -78,6 +78,23 @@ export interface LoginCollectionConfig {
    */
   passwordless?: boolean
   /**
+   * Wire `exchange-preview-secret` on this collection, trading this credential
+   * for a session on it.
+   *
+   * ⚠ **Absent means the route does not exist**, which is the whole gate — a
+   * route present everywhere and refusing everywhere would be one typo away
+   * from a password login on production. `previewSecretExchange()` in
+   * `@/plugins/previewAdmin` is what answers, and it answers `undefined`
+   * anywhere but a Railway preview holding the secret.
+   *
+   * ⚠ **Per collection, for the same reason as `passwordless`.** The credential
+   * names one address on one collection, so wiring it plugin-wide would hand
+   * the next slug added to `collections` a route trading the *manager* secret
+   * for a session on it — and `clients`, the obvious candidate, carries no
+   * top-level `email` for the lookup to match.
+   */
+  previewExchange?: PreviewSecretExchange
+  /**
    * Refuse a link for a document this rejects — a deactivated account, say.
    * Runs on both endpoints, so a document that stops qualifying cannot spend a
    * link already delivered. Defaults to accepting every document.

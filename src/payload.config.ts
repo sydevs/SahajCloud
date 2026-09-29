@@ -337,9 +337,8 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       // This is the one place that knows both what a preview is and what the
       // plugin serves, so it is where the preview exchange is resolved (#840).
       loginPlugin({
-        collections: [managersLogin],
+        collections: [{ ...managersLogin, previewExchange: previewSecretExchange() }],
         invitations: !isSeedScript,
-        previewExchange: previewSecretExchange(),
       }),
       // Access Plugin: Unified RBAC and project visibility (must be LAST to process plugin-created collections)
       accessPlugin({

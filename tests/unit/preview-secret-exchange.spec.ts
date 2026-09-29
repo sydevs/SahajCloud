@@ -8,10 +8,11 @@
  *
  * ⚠ **Both properties are about WIRING, not about a branch inside a handler.**
  * A route that existed everywhere and refused everywhere would be one env-var
- * typo away from a password login on production, and a `passwordless` applied
- * plugin-wide would rewrite the auth columns of the next slug added to
- * `collections`. So both are asserted by folding the plugin and reading what
- * came out.
+ * typo away from a password login on production, and either option applied
+ * plugin-wide would reach the next slug added to `collections` — `passwordless`
+ * rewriting its auth columns, the exchange handing it a route that trades the
+ * *manager* secret for a session on it. So both are asserted by folding the
+ * plugin and reading what came out.
  *
  * `previewSecretExchange()` — which reads the environment and decides whether
  * there is a credential at all — sits one layer down, beside the gate
@@ -30,22 +31,26 @@ import {
 // and a stale literal would satisfy every one of them forever.
 import { EXCHANGE_PREVIEW_SECRET_PATH } from '@/plugins/login/endpoints/exchangePreviewSecret'
 
+const PREVIEW: PreviewSecretExchange = {
+  email: 'preview-admin@example.com',
+  password: 'a-preview-secret',
+}
+
 const managers: LoginCollectionConfig = {
   slug: 'managers',
   passwordless: true,
+  previewExchange: PREVIEW,
   requestPagePath: '/managers/signin',
 }
 
-/** A second served collection, to drive the per-collection half. */
+/** A second served collection, to drive the per-collection half of both options. */
 const clients: LoginCollectionConfig = {
   slug: 'clients',
   requestPagePath: '/clients/signin',
 }
 
-const PREVIEW: PreviewSecretExchange = {
-  email: 'preview-admin@example.com',
-  password: 'a-preview-secret',
-}
+/** `managers` as an old preview, production, CI or local dev supplies it. */
+const withoutCredential: LoginCollectionConfig = { ...managers, previewExchange: undefined }
 
 /** A collection as a plugin sees it: pre-`sanitizeConfig`, `endpoints` unset. */
 function collection(slug: string): CollectionConfig {
@@ -66,26 +71,33 @@ function fold(
 const paths = (entry: CollectionConfig) => (entry.endpoints as Endpoint[]).map((e) => e.path)
 
 describe('the preview secret exchange', () => {
-  it('is wired on every served collection when a credential is supplied', () => {
-    const folded = fold(
-      { collections: [managers, clients], previewExchange: PREVIEW },
-      'managers',
-      'clients',
-    )
+  it('is wired on the collection whose entry carries the credential', () => {
+    const folded = fold({ collections: [managers] }, 'managers')
 
     expect(paths(folded.managers!)).toContain(EXCHANGE_PREVIEW_SECRET_PATH)
-    expect(paths(folded.clients!)).toContain(EXCHANGE_PREVIEW_SECRET_PATH)
   })
 
   it('is absent with no credential — production, CI, local dev, an old preview', () => {
-    const folded = fold({ collections: [managers] }, 'managers')
+    const folded = fold({ collections: [withoutCredential] }, 'managers')
 
     expect(paths(folded.managers!)).not.toContain(EXCHANGE_PREVIEW_SECRET_PATH)
   })
 
+  it('is absent on a served sibling whose entry does not carry it', () => {
+    // ⚠ The failure this exists for: the credential names ONE address on ONE
+    // collection, so serving a second slug must not hand it a route trading the
+    // manager secret for a session on it. `clients` carries no top-level
+    // `email` — it uses the bare `disableLocalStrategy: true` — so the lookup
+    // would throw rather than refuse.
+    const folded = fold({ collections: [managers, clients] }, 'managers', 'clients')
+
+    expect(paths(folded.managers!)).toContain(EXCHANGE_PREVIEW_SECRET_PATH)
+    expect(paths(folded.clients!)).not.toContain(EXCHANGE_PREVIEW_SECRET_PATH)
+  })
+
   it('leaves the sign-in routes alone either way', () => {
-    const withCredential = fold({ collections: [managers], previewExchange: PREVIEW }, 'managers')
-    const without = fold({ collections: [managers] }, 'managers')
+    const withCredential = fold({ collections: [managers] }, 'managers')
+    const without = fold({ collections: [withoutCredential] }, 'managers')
 
     for (const folded of [withCredential, without]) {
       expect(paths(folded.managers!)).toEqual(
