@@ -14,11 +14,17 @@ import { Button } from '@payloadcms/ui'
  * (`@payloadcms/next/dist/views/Login/index.js:75`), and `loginPlugin` sets it
  * (#840) — so this sits in the `afterLogin` slot of a page with no form above
  * it, which is why it is the primary action.
+ *
+ * ⚠ **The wrapper is what centres it.** Payload's login view lays the slot out
+ * for a full-width `LoginForm`, and `Button` renders an inline-flex anchor that
+ * is left-aligned once that form is gone.
  */
 export default function RequestSignInLink({ href }: { href: string }) {
   return (
-    <Button buttonStyle="primary" el="link" size="large" to={href}>
-      Email me a sign-in link
-    </Button>
+    <div style={{ display: 'flex', justifyContent: 'center' }}>
+      <Button buttonStyle="primary" el="link" size="large" to={href}>
+        Email me a sign-in link
+      </Button>
+    </div>
   )
 }
