@@ -227,14 +227,14 @@ Dashboard concerns sit in dedicated Payload slots:
 ```typescript
 admin: {
   components: {
-    beforeNavLinks: ['@/components/admin/ProjectSelector', '@/components/admin/AnalyticsNavLink'],
-    beforeDashboard: ['@/components/admin/Dashboard/InactiveAccountAlert', '@/components/admin/Dashboard/ProjectSelectionPrompt'],
+    beforeNavLinks: ['@/components/admin/ProjectSelector', '@/components/admin/AdminNavLinks'],
+    beforeDashboard: ['@/components/admin/Dashboard/ProjectSelectionPrompt'],
     views: { analytics: { Component: '@/components/admin/AnalyticsView', path: '/analytics' } },
   },
 }
 ```
 
-`AnalyticsView` is a server component at `/admin/analytics`, wrapped in `DefaultTemplate`, routing by `currentProject`: `wemeditate-web` and `sahaj-atlas` each get a `FathomDashboard` with their own site id, and any other project sees "No analytics available". `InactiveAccountAlert` and `ProjectSelectionPrompt` are client components that self-guard via `useAuth()` and render `null` unless their condition holds. CSP headers in `next.config.mjs` allow `https://app.usefathom.com` for the Fathom iframe.
+`AnalyticsView` is a server component at `/admin/analytics`, wrapped in `DefaultTemplate`, routing by `currentProject`: `wemeditate-web` and `sahaj-atlas` each get a `FathomDashboard` with their own site id, and any other project sees "No analytics available". `ProjectSelectionPrompt` is a client component that self-guards via `useAuth()` and renders `null` unless its condition holds. CSP headers in `next.config.mjs` allow `https://app.usefathom.com` for the Fathom iframe.
 
 ## Project-based branding
 
