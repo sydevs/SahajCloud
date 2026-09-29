@@ -1,9 +1,13 @@
-import fs from 'fs'
-import path from 'path'
+import { join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
 import configPromise from '@/payload.config'
+
+import { clientEntries, SRC } from '../utils/importGraph'
+
+
+const ICON = 'components/branding/Icon'
 
 /**
  * #868 — `@payloadcms/next` pushes its own `get /og` endpoint into
@@ -15,22 +19,22 @@ import configPromise from '@/payload.config'
  * is why the edge answered 502 rather than a 500. `defaultOGImageType: 'off'`
  * makes the handler return a 400 before it renders anything.
  *
- * The two assertions are one coupling, not two facts. The switch may be
- * reverted only once the Icon slot is server-safe, and that slot feeds the
- * admin chrome too — which needs the client component. So the second
- * assertion is what tells a future reader the first one is still load-bearing.
+ * The three assertions are one coupling, not three facts. The switch may be
+ * reverted only once the slot renders on a server, so the spec pins which
+ * component fills the slot and that it is still a client entry. Repointing the
+ * slot fails here, which is where the revert gets decided — the admin chrome
+ * shares that slot and needs the client component.
+ *
+ * `clientEntries()` owns what counts as a `'use client'` file, cross-checked
+ * against a TypeScript parse in `client-bundle-safety.spec.ts`. A second
+ * definition here would drift out of that oracle.
  */
 describe('admin Open Graph images', () => {
   it('are disabled, because the Icon slot cannot render on the server', async () => {
     const config = await configPromise
 
     expect(config.admin.meta.defaultOGImageType).toBe('off')
-
-    const icon = fs.readFileSync(
-      path.resolve(process.cwd(), 'src/components/branding/Icon.tsx'),
-      'utf8',
-    )
-
-    expect(icon.startsWith("'use client'")).toBe(true)
+    expect(config.admin.components.graphics?.Icon).toBe(`@/${ICON}`)
+    expect(clientEntries()).toContain(join(SRC, `${ICON}.tsx`))
   })
 })
