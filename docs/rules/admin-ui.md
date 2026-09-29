@@ -288,4 +288,4 @@ Page, video, and image tags are inline enum selects, not separate collections.
 
 Frames filter by narrator gender automatically, with category pills for the visible library. Collection-level validation on Meditations: timestamps are non-negative integers (rounded on save) with no duplicates, at least one frame is required when audio exists (on update), and frames are required to set `publishAt`. A `beforeChange` hook sorts frames by timestamp. `afterRead` enriches each with its Frame collection details. Shared helpers in `utils.ts`: `formatTime`, `parseTime`, `validateTimestamp`, `getCategoryLabel`.
 
-Tests: `tests/int/meditationFrames.int.spec.ts` (validation, sorting, enrichment, publish rules), `tests/int/frameFiltering.int.spec.ts` (filtering by gender, category, pagination).
+Tests: `tests/int/meditationFrames.int.spec.ts` (validation, sorting, enrichment, publish rules), `tests/int/frames-by-narrator.int.spec.ts` (the `framesByNarrator` auth gate, gender-matched results, sort order).
