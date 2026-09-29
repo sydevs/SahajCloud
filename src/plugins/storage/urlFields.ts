@@ -138,8 +138,8 @@ export const previewUrlField = (options: PreviewUrlFieldOptions): Field => {
     if (!data?.filename) return undefined
 
     if (data.mimeType?.startsWith('video/')) {
-      // Undefined when Cloudflare Stream is unconfigured. FrameThumbnail then falls back
-      // to a <video> element; PreviewUrlThumbnailCell renders Payload's placeholder instead.
+      // Undefined when Cloudflare Stream is unconfigured. FrameThumbnail then falls back to
+      // <video>; the PreviewUrlThumbnailCell wired below does not.
       return getCloudflareStreamThumbnailUrl(data.filename, height) ?? undefined
     }
 
