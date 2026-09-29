@@ -11,7 +11,7 @@
  * Automatically falls back to local file storage in development when the
  * storage credentials are not configured.
  */
-import type { Plugin } from 'payload'
+import type { Config, Field, Plugin } from 'payload'
 
 import { S3Client } from '@aws-sdk/client-s3'
 import { cloudStoragePlugin } from '@payloadcms/plugin-cloud-storage'
@@ -47,6 +47,47 @@ const r2FilenameHookModes: Record<string, keyof typeof r2FilenameHooks> = {
 }
 
 /**
+ * Every collection `cloudStoragePlugin` manages, and which backend stores it.
+ * `mixed` routes by MIME type: Images for images, Stream for video, R2 for the
+ * rest. SVG tag icons go to R2 because Cloudflare Images can't serve SVG.
+ */
+const STORAGE_BACKENDS = {
+  images: 'images',
+  frames: 'mixed',
+  videos: 'stream',
+  'user-choices': 'r2',
+  'song-tags': 'r2',
+  meditations: 'r2',
+  songs: 'r2',
+  files: 'mixed',
+} as const
+
+/**
+ * ⚠ The plugin stores an `_objectKey` column on every collection it manages
+ * (3.90+) — but only when enabled, and it is disabled wherever the Cloudflare
+ * credentials are absent: local dev, the test suite, and `migrate:create`. So
+ * the schema those see lacked a column production's queries select, and every
+ * upload on a Railway deploy failed with `column images._objectkey does not
+ * exist`. Declaring it here keeps one schema whatever the credentials; an
+ * enabled plugin swaps in its own identical definition.
+ */
+const withObjectKeyColumn = (config: Config): Config => ({
+  ...config,
+  collections: config.collections?.map((collection) => {
+    if (!(collection.slug in STORAGE_BACKENDS)) return collection
+    if (collection.fields.some((field) => 'name' in field && field.name === '_objectKey')) {
+      return collection
+    }
+    const objectKey: Field = {
+      name: '_objectKey',
+      type: 'text',
+      admin: { hidden: true, readOnly: true },
+    }
+    return { ...collection, fields: [...collection.fields, objectKey] }
+  }),
+})
+
+/**
  * Create the storage configuration (Cloudflare Images/Stream + R2 over S3)
  *
  * @param options - Plugin options
@@ -55,7 +96,9 @@ const r2FilenameHookModes: Record<string, keyof typeof r2FilenameHooks> = {
 export const storagePlugin = (options: StoragePluginOptions = {}): Plugin => {
   const { enabled = true } = options
 
-  return (config) => {
+  return (incomingConfig) => {
+    const config = withObjectKeyColumn(incomingConfig)
+
     // Early return if plugin is disabled - use cloudStoragePlugin for consistent behavior
     if (!enabled) {
       return cloudStoragePlugin({
@@ -146,80 +189,37 @@ export const storagePlugin = (options: StoragePluginOptions = {}): Plugin => {
 
     // Return a single cloudStoragePlugin with all adapters configured.
     //
-    // ⚠️ When adding/removing an R2-backed collection here, also update
-    // `r2FilenameHookModes` above. The two registries must stay in sync:
+    // ⚠️ When adding/removing an R2-backed collection in `STORAGE_BACKENDS`, also
+    // update `r2FilenameHookModes` above. The two registries must stay in sync:
     // a collection that uses the R2 adapter (directly or via mixedMediaAdapter
     // for non-image/video files) without an entry in `r2FilenameHookModes`
     // will skip the preassignment hook and reintroduce the DB↔R2 filename
     // drift that this module exists to prevent.
+    const adapters = {
+      images: imagesAdapter,
+      stream: streamAdapter,
+      r2: r2Adapter,
+      mixed: mixedMediaAdapter({
+        routes: {
+          'image/': imagesAdapter,
+          'video/': streamAdapter,
+        },
+        r2Adapter: r2Adapter,
+      }),
+    }
+
     return cloudStoragePlugin({
       enabled: true,
-      collections: {
-        // Images collection - Cloudflare Images
-        images: {
-          adapter: imagesAdapter,
-          disableLocalStorage: true,
-          disablePayloadAccessControl: true,
-        },
-
-        // Frames collection - Mixed media adapter (Images for images, Stream for videos, R2 for others)
-        frames: {
-          adapter: mixedMediaAdapter({
-            routes: {
-              'image/': imagesAdapter,
-              'video/': streamAdapter,
-            },
-            r2Adapter: r2Adapter,
-          }),
-          disableLocalStorage: true,
-          disablePayloadAccessControl: true,
-        },
-
-        // Videos collection - Cloudflare Stream only (video-only collection)
-        videos: {
-          adapter: streamAdapter,
-          disableLocalStorage: true,
-          disablePayloadAccessControl: true,
-        },
-
-        // Tag collections with SVG icons - R2 storage (Cloudflare Images doesn't support SVG)
-        'user-choices': {
-          adapter: r2Adapter,
-          disableLocalStorage: true,
-          disablePayloadAccessControl: true,
-        },
-        'song-tags': {
-          adapter: r2Adapter,
-          disableLocalStorage: true,
-          disablePayloadAccessControl: true,
-        },
-
-        // Audio collections - R2 storage
-        // Filenames automatically sanitized: "My Audio (1).mp3" -> "my-audio-1-xk2j9s.mp3"
-        meditations: {
-          adapter: r2Adapter,
-          disableLocalStorage: true,
-          disablePayloadAccessControl: true,
-        },
-        songs: {
-          adapter: r2Adapter,
-          disableLocalStorage: true,
-          disablePayloadAccessControl: true,
-        },
-
-        // Files collection - Mixed media adapter (Images for images, Stream for videos, R2 for others)
-        files: {
-          adapter: mixedMediaAdapter({
-            routes: {
-              'image/': imagesAdapter,
-              'video/': streamAdapter,
-            },
-            r2Adapter: r2Adapter,
-          }),
-          disableLocalStorage: true,
-          disablePayloadAccessControl: true,
-        },
-      },
+      collections: Object.fromEntries(
+        Object.entries(STORAGE_BACKENDS).map(([slug, backend]) => [
+          slug,
+          {
+            adapter: adapters[backend],
+            disableLocalStorage: true,
+            disablePayloadAccessControl: true,
+          },
+        ]),
+      ),
     })(configWithR2FilenameHooks)
   }
 }
