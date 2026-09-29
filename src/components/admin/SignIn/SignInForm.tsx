@@ -42,9 +42,10 @@ export function SignInForm({ notice = null }: { notice?: SignInNotice | null }) 
           </Banner>
         </div>
       ) : null}
-      <h2 style={heading}>Sign in</h2>
       <p style={lead}>
-        Enter your email address and we will send you a link that signs you in. No password needed.
+        Enter your email address and we will send you a link that signs you in.
+        <br />
+        No password needed.
       </p>
       <TextInput
         htmlAttributes={{ autoComplete: 'email' }}
