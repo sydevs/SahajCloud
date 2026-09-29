@@ -431,7 +431,7 @@ export const Regions: CollectionConfig = {
         // replaces, the uniqueness validator the factory just installed. See
         // withNonEmptySlug for why this is a validator, not a collection hook.
         if (field.fields[1].type === 'text') {
-          field.fields[1].validate = withNonEmptySlug(field.fields[1].validate)
+          field.fields[1].validate = withNonEmptySlug(field.fields[1].validate, 'name')
         }
         return field
       },

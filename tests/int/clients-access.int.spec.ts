@@ -5,9 +5,10 @@
  *
  * - `clients` is in `RESTRICTED_COLLECTIONS`, so implicit shared read no longer
  *   hands every published key every other service's document;
- * - `Clients.apiKey` carries `managersOnlyFieldAccess`, which is the only thing
- *   covering the one read restriction deliberately does not reach — a client's
- *   own row, answered by the self-access bypass at `GET /api/clients/me`;
+ * - `Clients.apiKey` carries `managersOnlyFieldAccess`. Payload 3.90+ strips a
+ *   stored key from every read itself, so the lock now matters for its write
+ *   half, and as the last gate on `POST /:id/api-key/reveal` — the one way left to
+ *   read a key back;
  * - the self-access bypass grants a client `read` alone, so the same own-row
  *   answer that boots the widget no longer lets it rewrite its own operator
  *   configuration (#827).
@@ -34,6 +35,7 @@ import type { CanonicalVerification } from '@/lib/clients/verification'
 import { EMPTY_VERIFICATION } from '@/lib/clients/verification'
 import type { Client, Manager } from '@/payload-types'
 
+import { createRestClientAs, type RestClient } from '../utils/restRequest'
 import { testData } from '../utils/testData'
 import { createClientAuthenticatedRequest, createTestEnvironment } from '../utils/testHelpers'
 
@@ -107,12 +109,25 @@ describe('Clients access', () => {
 
   const restGet = (path: string) => rest(path)
 
+  /** The admin's session, for reading a stored key back through `reveal`. */
+  let adminRest: RestClient
+
+  /** What the row actually stores — the only read-back left since 3.90. */
+  async function storedKey(id: number): Promise<unknown> {
+    const { status, body } = await adminRest(`/api/clients/${id}/api-key/reveal`, {
+      method: 'POST',
+    })
+    expect(status).toBe(200)
+    return body.apiKey
+  }
+
   beforeAll(async () => {
     const env = await createTestEnvironment()
     payload = env.payload
     cleanup = env.cleanup
     config = env.config
     adminManager = env.adminUser
+    adminRest = await createRestClientAs({ payload, config }, adminManager)
 
     listedManager = await testData.createManager(payload, {
       name: 'Listed Manager',
@@ -221,6 +236,8 @@ describe('Clients access', () => {
         apiKey: 'ROTATING-SERVICE-KEY-BEFORE',
       })
 
+      // A plain read never carries the key, even for a manager — only whether
+      // one exists. Reading it back is `reveal`'s job.
       const read = (await payload.findByID({
         collection: 'clients',
         id: rotating.id,
@@ -228,16 +245,54 @@ describe('Clients access', () => {
         overrideAccess: false,
         req: managerReq(adminManager),
       })) as Client
-      expect(read.apiKey).toBe('ROTATING-SERVICE-KEY-BEFORE')
+      expect(read.apiKey).toBeUndefined()
+      expect(read.hasAPIKey).toBe(true)
+      expect(await storedKey(rotating.id)).toBe('ROTATING-SERVICE-KEY-BEFORE')
 
-      const regenerated = (await payload.update({
+      await payload.update({
         collection: 'clients',
         id: rotating.id,
         data: { apiKey: 'ROTATING-SERVICE-KEY-AFTER' },
         overrideAccess: false,
         req: managerReq(adminManager),
-      })) as Client
-      expect(regenerated.apiKey).toBe('ROTATING-SERVICE-KEY-AFTER')
+      })
+      expect(await storedKey(rotating.id)).toBe('ROTATING-SERVICE-KEY-AFTER')
+    })
+
+    describe('the reveal endpoint', () => {
+      it('reveals a key to a manager listed on the service', async () => {
+        const listedRest = await createRestClientAs({ payload, config }, listedManager)
+        const { status, body, headers } = await listedRest(
+          `/api/clients/${otherClient.id}/api-key/reveal`,
+          {
+            method: 'POST',
+          },
+        )
+        expect(status).toBe(200)
+        expect(body.apiKey).toBe(OTHER_API_KEY)
+        expect(headers.get('cache-control')).toBe('no-store')
+      })
+
+      it('refuses a manager who does not manage the service', async () => {
+        const outsideRest = await createRestClientAs({ payload, config }, outsideManager)
+        const { status, raw } = await outsideRest(`/api/clients/${otherClient.id}/api-key/reveal`, {
+          method: 'POST',
+        })
+        expect(status).not.toBe(200)
+        expect(raw).not.toContain(OTHER_API_KEY)
+      })
+
+      it('refuses a client key, its own row included', async () => {
+        // The browser-shipped key is the one caller this must never answer.
+        for (const id of [atlasClient.id, otherClient.id]) {
+          const { status, body } = await rest(`/api/clients/${id}/api-key/reveal`, {
+            method: 'POST',
+          })
+          expect(status).toBe(403)
+          expect(JSON.stringify(body)).not.toContain(ATLAS_API_KEY)
+          expect(JSON.stringify(body)).not.toContain(OTHER_API_KEY)
+        }
+      })
     })
 
     it('hands back no key from POST /api/clients/refresh-token', async () => {
@@ -265,13 +320,7 @@ describe('Clients access', () => {
         json: { apiKey: 'ATTACKER-CHOSEN-KEY' },
       })
 
-      const after = (await payload.findByID({
-        collection: 'clients',
-        id: atlasClient.id,
-        depth: 0,
-        overrideAccess: true,
-      })) as Client
-      expect(after.apiKey).toBe(ATLAS_API_KEY)
+      expect(await storedKey(atlasClient.id)).toBe(ATLAS_API_KEY)
     })
 
     it('sanitizes clients to exactly one apiKey field', () => {

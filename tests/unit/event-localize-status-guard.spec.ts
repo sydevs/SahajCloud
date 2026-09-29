@@ -18,7 +18,7 @@ import { Events } from '@/collections/Events/Events'
  * The `⚠` comment on `versions` in `Events.ts` says this. Only this asserts it.
  */
 describe('Events bookkeeping writes cannot unpublish', () => {
-  it('leaves localizeStatus off, so unpublishAllLocales only skips validation', () => {
+  it('leaves localizeStatus off, so unpublishAllLocales only scopes validation', () => {
     expect(hasLocalizeStatusEnabled(Events)).toBe(false)
   })
 })

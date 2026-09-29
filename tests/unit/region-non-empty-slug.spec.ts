@@ -11,7 +11,11 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { withNonEmptySlug } from '@/collections/Regions/nonEmptySlug'
 
-type Options = { operation?: string; previousValue?: unknown }
+type Options = {
+  operation?: string
+  previousValue?: unknown
+  siblingData?: Record<string, unknown>
+}
 
 /** Invoke the wrapper the way Payload's field validation does. */
 const run = (
@@ -19,7 +23,10 @@ const run = (
   options: Options,
   inner?: TextField['validate'],
 ): string | true | Promise<string | true> =>
-  (withNonEmptySlug(inner) as unknown as (v: unknown, o: Options) => string | true)(value, options)
+  (withNonEmptySlug(inner, 'name') as unknown as (v: unknown, o: Options) => string | true)(
+    value,
+    options,
+  )
 
 describe('withNonEmptySlug', () => {
   describe('refuses a newly blank slug', () => {
@@ -28,12 +35,30 @@ describe('withNonEmptySlug', () => {
       ['whitespace only', '   '],
       ['null', null],
       ['undefined', undefined],
-    ])('on create — %s', (_name, value) => {
-      expect(run(value, { operation: 'create' })).toContain('needs a slug')
+    ])('on create, with no name to generate one from — %s', (_name, value) => {
+      expect(run(value, { operation: 'create', siblingData: {} })).toContain('needs a slug')
     })
 
     it('on an update that clears a slug which had a value', () => {
       expect(run('', { operation: 'update', previousValue: 'amsterdam' })).toContain('needs a slug')
+    })
+  })
+
+  describe('on create, trusts the generator when there is a name to slugify', () => {
+    // The generator is the sibling checkbox's hook, racing this validator
+    // through Payload's Promise.all field fan-out. A present name means it will
+    // produce a slug whichever of the two finishes first.
+    it.each([
+      ['empty string', ''],
+      ['undefined', undefined],
+    ])('blank slug value — %s', (_label, value) => {
+      expect(run(value, { operation: 'create', siblingData: { name: 'Amsterdam' } })).toBe(true)
+    })
+
+    it('still refuses when the name is blank too', () => {
+      expect(run('', { operation: 'create', siblingData: { name: '  ' } })).toContain(
+        'needs a slug',
+      )
     })
   })
 
