@@ -48,11 +48,7 @@ const param = (params: SearchParams, key: string): string | undefined => {
  * act on.** Payload's own view redirects every signed-in visitor, which would
  * send a manager following a reminder's "verify this event" link to the
  * dashboard instead of the event. A delivered link is confirmed whoever is
- * signed in, exactly as before the page moved here.
- *
- * `/managers/signin`, where this page used to live, redirects here with its
- * query intact (`next.config.mjs`), because links already mailed still point
- * there.
+ * signed in.
  */
 export default async function SignInView({ initPageResult, searchParams = {} }: AdminViewServerProps) {
   const { payload, user } = initPageResult.req

@@ -31,7 +31,7 @@ A Next.js 16 app on Payload CMS 3.0, a headless CMS. TypeScript, PostgreSQL, dep
 
 Admin panel: `http://localhost:{PORT}/admin/login`, once the dev server runs.
 
-**A manager has no password.** `loginPlugin` sets `auth.disableLocalStrategy` on `managers` (#840), so `POST /api/managers/login`, the reset, the verify and the unlock routes all answer 403 — Payload closes them, not us. A human signs in with an emailed link, requested at `/admin/login` — the plugin replaces Payload's login view with `src/components/admin/SignIn`, which also confirms every delivered link. The old `/managers/signin` redirects there.
+**A manager has no password.** `loginPlugin` sets `auth.disableLocalStrategy` on `managers` (#840), so `POST /api/managers/login`, the reset, the verify and the unlock routes all answer 403 — Payload closes them, not us. A human signs in with an emailed link, requested at `/admin/login` — the plugin replaces Payload's login view with `src/components/admin/SignIn`, which also confirms every delivered link.
 
 **Local dev needs no link either.** `src/payload.config.ts` auto-logs in as `contact@sydevelopers.com` outside production and E2E runs. `admin.autoLogin` lives inside the JWT strategy, so it never touches the login operation and survives the switch. If you still see the login form, re-seed the local admin instead of hunting for a password.
 
