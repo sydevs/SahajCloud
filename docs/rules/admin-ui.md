@@ -137,7 +137,7 @@ Group a component family (main plus sub-components) in a folder with a barrel. K
 ```
 src/components/
 ├── admin/
-│   ├── ProjectSelector.tsx          # standalone
+│   ├── SelectDescription.tsx        # standalone
 │   ├── Dashboard/                   # family → folder + barrel
 │   └── ThumbnailCell/
 ├── branding/                        # branding components, barrel
@@ -160,7 +160,7 @@ After registering a component in `payload.config.ts` (`admin.components`), run `
 
 Prefer **`DefaultServerCellComponentProps`** — it gets `payload`, can read collection labels, can use Next.js `<Link>`, and ships no client JS. Use **`DefaultCellComponentProps`** only when the cell needs a hook, an event handler, or a browser API.
 
-A **join field**'s `cellData` is a structured object, not a scalar: `{ docs: Array<{ id, ... }>, totalDocs?, limit? }` — read `cellData.docs?.length` for a count. A label can be `string | LabelFunction | Record<string, string>`. Extract it with a small helper that checks each shape and lowercases the result. Reference: `src/components/admin/RelationshipCountCell.tsx`.
+A **join field**'s `cellData` is a structured object, not a scalar: `{ docs: Array<{ id, ... }>, totalDocs?, limit? }` — read `cellData.docs?.length` for a count. A label can be `string | LabelFunction | Record<string, string>`. Extract it with a small helper that checks each shape and lowercases the result. Reference: `src/components/admin/RelationshipCountCell/RelationshipCountCell.tsx`.
 
 ## Component wrapper pattern (pure UI + field wrapper)
 
@@ -168,7 +168,7 @@ For a complex interactive component, separate a stateless, PayloadCMS-free **pur
 
 **Default-value alignment is the critical pitfall**: the wrapper must default the same way Payload's underlying field type does (e.g. `hasMany = false` for a relationship field), even when the standalone UI component defaults differently for its own convenience. A wrapper with no explicit default silently passes `undefined` where the UI component expected `true`.
 
-Examples of the pattern: **TagSelector** (visual tag picker), **RulesEditor** (targeting-rules editor for JSON fields, reading `ruleDefinitions` from `field.admin?.custom`), **ToggleGroup** (segmented buttons, `hasMany` and `clearable`), **SelectDescription** (per-value select descriptions). Reach for this shape for a multi-select, drag-drop, or visual picker, for a component fetching its own data, or for one that might be reused outside Payload.
+Examples of the pattern, each a folder holding `<Name>.tsx` beside `<Name>Field.tsx`: **TagSelector** (visual tag picker), **RangeSlider** (discrete slider, whose own `min`/`max` defaults differ from a number field's), **ToggleGroup** (segmented buttons, `hasMany` and `clearable`), **TableOfContents** (headings read out of the Lexical editor). Reach for this shape for a multi-select, drag-drop, or visual picker, for a component fetching its own data, or for one that might be reused outside Payload.
 
 ## Configurable components via `admin.custom`
 
@@ -185,7 +185,7 @@ Examples of the pattern: **TagSelector** (visual tag picker), **RulesEditor** (t
 }
 ```
 
-The component then reads `field.admin?.custom?.descriptions` by the current value. Common keys: `descriptions` (per-value help text), `ruleDefinitions` (RulesEditor), `filterQuery` (TagSelector API filtering), `size: 'small' | 'large'`.
+The component then reads `field.admin?.custom?.descriptions` by the current value. Common keys: `descriptions` (per-value help text), `columns` (LogTable), `filterQuery` (TagSelector API filtering), `size: 'default' | 'large'` (TagSelector).
 
 ## Custom array field components
 
@@ -201,7 +201,7 @@ Reference implementation: `src/components/admin/FlatArrayField/FlatArrayField.ts
 
 ## Label generation with `toWords`
 
-`payload/shared`'s `toWords` converts camelCase/PascalCase to "Title Case With Spaces" (`toWords('pathProgress')` → `"Path Progress"`). Use it instead of a custom label derivation — `RulesEditor` uses it to auto-derive rule labels from `RuleDefinition.name`.
+`payload/shared`'s `toWords` converts camelCase/PascalCase to "Title Case With Spaces" (`toWords('pathProgress')` → `"Path Progress"`). Use it instead of a custom label derivation — `src/components/admin/LogTable/LogTable.tsx` writes `column.label ?? toWords(column.key)`. Not unconditional: `toWords('a11y')` is `"A11y"`, so a slug that is shorthand rather than words needs its own label (`src/fields/translationsField.ts`).
 
 ## `usePayloadAPI` and race conditions
 
