@@ -166,7 +166,19 @@ Adapter: `<purpose>Adapter` (`mixedMediaAdapter`). URL field factory: `<purpose>
 
 ## Video thumbnails
 
-Frame thumbnails generate at upload time, at 0.1s into the video, using `ffmpeg-static` and Sharp (320×320 WebP), added to `req.payloadUploadSizes.small`. Payload's storage adapter uploads the thumbnail and generates its URL automatically. It is deleted alongside the parent Frame. `ThumbnailCell` and `FrameItem` display it from `sizes.small.url`, falling back to a video element if generation fails. Implementation: `src/lib/videoThumbnailUtils.ts`.
+Thumbnails are composed URLs, never generated files. `previewUrlField` (`src/plugins/storage/urlFields.ts`) adds a virtual `previewUrl` text field whose only hook is `afterRead`, so the URL is composed on every read from the document's `filename` and `mimeType`. `frames`, `videos` and `files` all mount it with the defaults, so a change here moves three list views.
+
+- **Video** — `getCloudflareStreamThumbnailUrl(filename, height)` (`src/plugins/storage/cloudflareStreamAdapter.ts`) composes `${CLOUDFLARE_STREAM_DELIVERY_URL}/<uid>/thumbnails/thumbnail.jpg?height=320`, where `filename` is the Stream uid. Cloudflare renders the still. **The URL carries no readiness guarantee** — nothing consults `readyToStream`, so it resolves before transcoding finishes. With `CLOUDFLARE_STREAM_DELIVERY_URL` unset (local dev) the hook returns `undefined`, and unlike the image branch there is no local fallback.
+- **Image** — a Cloudflare Images flexible variant, `format=auto,width=320,height=320,fit=cover`, falling back to a local file URL.
+- **Anything else** — the local file URL, which serves the whole file rather than a thumbnail.
+- **Deletion** — there is no separate thumbnail object to delete. `handleDelete` routes on the document's MIME type (`src/plugins/storage/mixedMediaAdapter.ts`), so removing the Stream video removes its thumbnail with it.
+
+Two surfaces read `previewUrl`, and they diverge exactly where it is `undefined`:
+
+| Surface | Component | With no `previewUrl` |
+| --- | --- | --- |
+| Frames list column | `PreviewUrlThumbnailCell` (`src/components/admin/ThumbnailCell/PreviewUrlThumbnailCell.tsx`) → `BaseThumbnailCell` (`src/components/admin/ThumbnailCell/BaseThumbnailCell.tsx`) | Payload's `<Thumbnail>` placeholder. **No video fallback.** |
+| FrameEditor grid | `FrameThumbnail` (`src/components/admin/FrameEditor/FrameThumbnail.tsx`) | `<video preload="metadata">` from `hlsUrl` or `mp4Url` — and an empty box when the document has neither. |
 
 ## Cloudflare Stream webhook
 
