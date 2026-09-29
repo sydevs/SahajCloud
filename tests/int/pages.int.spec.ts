@@ -2,6 +2,8 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import { describe, it, beforeAll, afterAll, afterEach, expect, vi } from 'vitest'
 
+import type { Page } from '@/payload-types'
+
 import {
   createLexicalWithQuoteBlock,
   createLexicalWithRelationshipNode,
@@ -212,8 +214,20 @@ describe('Pages Collection', () => {
 
       const page = await testData.createPage(payload, {
         title: 'Page with stale content relationship',
-        content: staleContent,
       })
+      // Planted past the hooks: Payload 3.90+ refuses a relationship to a
+      // collection the editor doesn't enable at write time, so a stale node can
+      // only be a row written before its collection was removed.
+      await payload.db.updateOne({
+        collection: 'pages',
+        id: page.id,
+        data: { content: { en: staleContent } },
+      })
+      const stored = await payload.db.findOne<{ id: number; content?: { en?: Page['content'] } }>({
+        collection: 'pages',
+        where: { id: { equals: page.id } },
+      })
+      expect((stored?.content?.en?.root as { children: unknown[] }).children).toHaveLength(1)
 
       const fetched = await payload.findByID({
         collection: 'pages',

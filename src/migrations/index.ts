@@ -71,6 +71,7 @@ import * as migration_20260916_144804_drop_legacy_intake_collections from './202
 import * as migration_20260918_172634_atlas_config_report_issue_form from './20260918_172634_atlas_config_report_issue_form';
 import * as migration_20260923_161630_add_manager_magic_link from './20260923_161630_add_manager_magic_link';
 import * as migration_20260928_051738_add_manager_invitation_queue from './20260928_051738_add_manager_invitation_queue';
+import * as migration_20260929_041116_payload_3_90_auth_fields from './20260929_041116_payload_3_90_auth_fields';
 
 export const migrations = [
   {
@@ -436,6 +437,11 @@ export const migrations = [
   {
     up: migration_20260928_051738_add_manager_invitation_queue.up,
     down: migration_20260928_051738_add_manager_invitation_queue.down,
-    name: '20260928_051738_add_manager_invitation_queue'
+    name: '20260928_051738_add_manager_invitation_queue',
+  },
+  {
+    up: migration_20260929_041116_payload_3_90_auth_fields.up,
+    down: migration_20260929_041116_payload_3_90_auth_fields.down,
+    name: '20260929_041116_payload_3_90_auth_fields'
   },
 ];

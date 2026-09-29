@@ -1433,6 +1433,7 @@ export interface Manager {
   resetPasswordExpiration?: string | null;
   salt?: string | null;
   hash?: string | null;
+  resetPasswordRequestedAt?: string | null;
   _verified?: boolean | null;
   _verificationToken?: string | null;
   loginAttempts?: number | null;
@@ -2494,6 +2495,7 @@ export interface Client {
   enableAPIKey?: boolean | null;
   apiKey?: string | null;
   apiKeyIndex?: string | null;
+  hasAPIKey?: boolean | null;
   collection: 'clients';
 }
 export interface ClientCanonicalVerification {
@@ -4443,6 +4445,7 @@ export interface ManagersSelect<T extends boolean = true> {
   resetPasswordExpiration?: T;
   salt?: T;
   hash?: T;
+  resetPasswordRequestedAt?: T;
   _verified?: T;
   _verificationToken?: T;
   loginAttempts?: T;
@@ -4515,6 +4518,7 @@ export interface ClientsSelect<T extends boolean = true> {
   enableAPIKey?: T;
   apiKey?: T;
   apiKeyIndex?: T;
+  hasAPIKey?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -10284,7 +10288,15 @@ export interface TaskSchedulePublish {
           value: number | Meditation;
         } | null);
     global?: string | null;
-    user?: (number | null) | Manager;
+    user?:
+      | ({
+          relationTo: 'managers';
+          value: number | Manager;
+        } | null)
+      | ({
+          relationTo: 'clients';
+          value: number | Client;
+        } | null);
   };
   output?: unknown;
 }
