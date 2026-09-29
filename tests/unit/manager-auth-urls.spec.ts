@@ -28,7 +28,10 @@ import { getServerUrl } from '@/lib/utilities/serverUrl'
 
 const TOKEN = 'TKN-123'
 
-/** `config.routes.admin` is not overridden in `src/payload.config.ts`, so Payload's default applies. */
+/**
+ * A literal because this lane boots no config to read the route from.
+ * `tests/int/admin-route-config.int.spec.ts` pins it against the resolved one.
+ */
 const ADMIN_ROUTE = '/admin'
 
 /** Narrow `CollectionConfig['auth']`, which is `boolean | IncomingAuthType | undefined`. */
