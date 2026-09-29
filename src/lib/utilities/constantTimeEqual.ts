@@ -1,19 +1,20 @@
+import { timingSafeEqual } from 'node:crypto'
+
 /**
  * Compare two strings without leaking where they first differ.
  *
  * ⚠ **A length mismatch returns early, and that is deliberate.** The length of
- * a secret is not itself a secret, and `node:crypto.timingSafeEqual` throws on
- * unequal buffers rather than answering.
+ * a secret is not itself a secret, and `timingSafeEqual` throws on unequal
+ * buffers rather than answering. The check is on BYTE length, not
+ * `String.length` — two strings of equal length can encode to different byte
+ * counts, and that difference would throw instead of returning false.
  *
- * Char codes rather than buffers, so it runs identically in Workers, Node and
- * Vitest — `cloudflareStreamWebhook` verifies a signature inside a Worker
- * runtime with no `node:crypto`.
+ * ⚠ **Node only.** `src/middleware.ts` runs on Next.js's edge runtime, where
+ * `node:crypto` is unavailable. Do not import this there.
  */
 export function constantTimeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false
-  let result = 0
-  for (let i = 0; i < a.length; i++) {
-    result |= a.charCodeAt(i) ^ b.charCodeAt(i)
-  }
-  return result === 0
+  const left = Buffer.from(a, 'utf8')
+  const right = Buffer.from(b, 'utf8')
+  if (left.length !== right.length) return false
+  return timingSafeEqual(left, right)
 }
