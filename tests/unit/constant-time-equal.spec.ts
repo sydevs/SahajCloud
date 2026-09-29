@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { constantTimeEqual } from '@/lib/utilities/constantTimeEqual'
+import { constantTimeEqual } from '@/plugins/storage/cloudflareStreamWebhook'
 
 describe('constantTimeEqual', () => {
   it('accepts an exact match', () => {
