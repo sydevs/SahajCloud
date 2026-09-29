@@ -638,7 +638,8 @@ and `POST /api/managers/redeem-magic-link` (which spends the link) — to whatev
 login view with `src/components/admin/SignIn`, which asks for a link, confirms a
 delivered one, and explains a refused one. Every emailed link and every
 refusal's redirect lands there. `managersLogin.requestPagePath` is the single
-spelling of that route.
+spelling of that route. The old `/managers/signin` redirects to it, with the
+query intact, from `next.config.mjs`, so links already mailed keep working.
 
 Four things worth knowing before you touch `Managers`:
 
