@@ -119,11 +119,9 @@ const payloadConfig = (overrides?: Partial<Config>) => {
         baseDir: path.resolve(dirname),
       },
       meta: {
-        // `@payloadcms/next` auto-registers a `get /og` that renders
-        // `components.graphics.Icon` as a server component — ours is a client
-        // component, so it 502s mid-stream (#868). `off` also stops admin
-        // pages advertising a card nothing unfurls. Setting anything else
-        // fails `tests/int/admin-og-image.int.spec.ts`.
+        // Payload's auto-registered `get /og` renders the `graphics.Icon` slot on
+        // the server; ours is a client component, so it 502s (#868). See
+        // tests/int/admin-og-image.int.spec.ts.
         defaultOGImageType: 'off',
         titleSuffix: '- Sahaj Cloud',
         description: 'Content for We Meditate & Sahaj Atlas',
