@@ -18,7 +18,7 @@ import { buildConfig } from 'payload'
 import { managersLogin } from '@/collections/Managers/login'
 import { REGION_NESTED_DOCS_CONFIG } from '@/lib/atlas/regionTree'
 import { buildPayloadLocales, DEFAULT_LOCALE } from '@/lib/locales'
-import { accessPlugin, bypassPermissions } from '@/plugins/access'
+import { accessPlugin, bypassPermissions, restrictPayloadSystemEntities } from '@/plugins/access'
 import { databaseErrorPlugin } from '@/plugins/databaseErrors'
 import { formsPlugin } from '@/plugins/formBuilder'
 import { loginPlugin } from '@/plugins/login'
@@ -177,7 +177,9 @@ function createBaseTestConfig(emailConfig: any, schemaName: string, debug = fals
           newline: 'unix',
         } as any,
       }),
-  })
+    // Mirrors payload.config.ts: Payload's own `payload-*` entities are added
+    // after every plugin, so their access is set on the sanitized config.
+  }).then(restrictPayloadSystemEntities)
 
   return baseConfig
 }

@@ -229,6 +229,22 @@ This cuts the opposite way from implicit read, above, and the obvious reading is
 
 ⚠ **A collection's own `access` block outranks all of this**, because `accessPlugin` composes `{ ...createAccessConfig(slug, …), ...collection.access }` so a deliberate override is never clobbered. A plugin-created collection can therefore arrive with an `access` nobody here chose: the form-builder's submissions collection ships `read: ({ req: { user } }) => !!user`, which grants read to every authenticated user, API clients included. `src/plugins/formBuilder` clears it for `user-submissions` for exactly that reason. **Adding a collection to this list proves nothing on its own** — assert it by reading rows back through `overrideAccess: false`, as `tests/int/user-submissions-access.int.spec.ts` does. Asserting `hasPermission` alone would have passed while the hole was open.
 
+### Payload's own `payload-*` entities
+
+⚠ **`accessPlugin` never sees them.** `sanitizeConfig` appends `payload-jobs`, `payload-jobs-stats`, `payload-locked-documents`, `payload-preferences`, `payload-migrations` and `payload-kv` after every plugin has run, mostly with `Boolean(user)` access — which a published client key satisfies. Any client key could queue or rewrite jobs, call `/api/payload-jobs/run`, overwrite the job-stats global, create locks, and PATCH another user's preference row into its own.
+
+`restrictPayloadSystemEntities` (`systemEntities.ts`) sets their access on the **sanitized** config, so both `buildConfig` call sites apply it — `src/payload.config.ts` and `tests/utils/testHelpers.ts`. Not `onInit`: dev hot reload swaps in a freshly sanitized config without re-running it.
+
+| Entity | Access |
+| --- | --- |
+| `payload-jobs`, `payload-migrations`, `payload-jobs-stats`, `jobs.access` (`run`/`queue`/`cancel`) | Admins only |
+| `payload-locked-documents` | Active managers — the edit view locks, takes over and releases over REST |
+| `payload-preferences` | Managers, own rows only; every endpoint refuses a non-manager, since the `/:key` handlers skip access |
+| `payload-kv` | Nobody |
+| Any other `payload-*` | Admins only, so a new one fails closed |
+
+In-app job callers (autoRun, the screening kick) leave `overrideAccess` at its default `true`, so none reaches `jobs.access`. `tests/int/payload-system-access.int.spec.ts` sweeps every `payload-*` entity's access for a client key.
+
 ### A field lock, for a collection a client reaches
 
 `RESTRICTED_COLLECTIONS` is collection-wide, and sometimes only one field must be hidden from a client — on a collection the client legitimately reads, or on the one row restriction never covers, its own. `managersOnlyFieldAccess` (`@/plugins/access`) is that lock, read and write alike. ⚠ **It is spelled as an allowlist** — `req.user?.collection === 'managers'` — so it denies an anonymous caller and any future auth collection, not only `clients`.

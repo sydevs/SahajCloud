@@ -42,6 +42,7 @@ export {
   managersOnlyFieldAccess,
 } from './adminOnly'
 export { restrictUploadToAdmin } from './restrictUploadToAdmin'
+export { restrictPayloadSystemEntities } from './systemEntities'
 export { ownedRegionFilterOptions } from './regionSubtreeAccess'
 
 // --- HELPER FUNCTIONS (public API - consolidated from projects.ts and data.ts) ---

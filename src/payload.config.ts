@@ -17,7 +17,12 @@ import { createWorkerSafeLogger } from '@/lib/logger/workerSafeLogger'
 import { SUPPORTED_TIMEZONES } from '@/lib/timezones'
 import { PREVIEW_SECRET_HEADER } from '@/lib/utilities/previewSecret'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
-import { accessPlugin, bypassPermissions, filterAvailableLocales } from '@/plugins/access'
+import {
+  accessPlugin,
+  bypassPermissions,
+  filterAvailableLocales,
+  restrictPayloadSystemEntities,
+} from '@/plugins/access'
 import { cachePlugin } from '@/plugins/cache'
 import { databaseErrorPlugin } from '@/plugins/databaseErrors'
 import { buildSmtpTransportOptions, resendAdapter, warnEmailDisabled } from '@/plugins/email'
@@ -97,6 +102,11 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     // the header rides a cross-origin request and must clear preflight. See #575.
     cors: { origins: '*', headers: [PREVIEW_SECRET_HEADER] },
     csrf: [serverUrl, serverEnv.WEMEDITATE_WEB_URL, serverEnv.SAHAJATLAS_URL],
+    // `routes.admin` stays unset, and so do `admin.routes.account` and
+    // `.reset`: the panel's hrefs and `isAdminPath` spell `/admin`, and two
+    // `adminUrl()` callers spell the other two (`invite.ts`, `Managers.ts`).
+    // Setting any of them fails
+    // `tests/int/admin-route-config.int.spec.ts` (#851).
     admin: {
       user: Managers.slug,
       // Widen the timezone picker (and every `timezone: true` companion's enum)
@@ -359,7 +369,9 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     },
     // Allow overrides (especially important for test database URIs)
     ...overrides,
-  })
+    // Payload adds its own `payload-*` collections after accessPlugin has run,
+    // so their access is set on the sanitized config (systemEntities.ts).
+  }).then(restrictPayloadSystemEntities)
 }
 
 export { payloadConfig }
