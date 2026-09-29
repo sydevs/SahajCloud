@@ -249,7 +249,10 @@ const mailingListGroup: Field = {
 export const Clients: CollectionConfig = {
   slug: 'clients',
   auth: {
-    useAPIKey: true,
+    // Payload strips a stored key from every read (3.90+), so without `reveal`
+    // the admin shows a key once, at generation. Reveal is Payload's own gated
+    // endpoint: admin access, then `update` on the row, then the field lock below.
+    useAPIKey: { reveal: true },
     disableLocalStrategy: true, // Only API key authentication
   },
   // No explicit `_status` index needed — Payload auto-indexes it for

@@ -4,6 +4,10 @@ import * as Sentry from '@sentry/nextjs'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 
 import { ExpireEvents } from '@/jobs/ExpireEvents/ExpireEvents'
+import {
+  type EventBookkeeping,
+  updateEventBookkeeping,
+} from '@/lib/events/updateEventWithoutValidation'
 import { asNotificationLog } from '@/lib/eventVerification/log'
 
 import {
@@ -526,6 +530,25 @@ describe('ExpireEvents job', () => {
       expect(asNotificationLog(after.activityLog).some((entry) => entry.kind === 'reminder')).toBe(
         true,
       )
+    })
+
+    // What Payload 3.90's `fieldsToValidate` buys the bookkeeping helper: the
+    // stored contact still passes unchecked, but a field the write submits is
+    // validated. Before 3.90 both were skipped.
+    it('still refuses a bad value in a field the bookkeeping write submits', async () => {
+      const event = await createDueEvent(payload, 'Invalid Bookkeeping Value')
+      await storeInvalidEvent(payload, event.id, { contactPhone: null, contactEmail: null })
+
+      const write = (verificationStage: string) =>
+        updateEventBookkeeping({
+          payload,
+          id: event.id,
+          data: { verificationStage } as EventBookkeeping,
+        })
+
+      await expect(write('not-a-stage')).rejects.toThrow(/Verification Process/)
+      await expect(write('reminded')).resolves.toBeUndefined()
+      expect((await reload(payload, event.id)).verificationStage).toBe('reminded')
     })
 
     // Valid stored data on purpose: the second half is an ordinary editor save,
