@@ -7,7 +7,7 @@ import { Banner, Button, TextInput } from '@payloadcms/ui'
 import { useActionState, useState } from 'react'
 
 import { requestSignInLinkAction } from './actions'
-import { fullWidth, heading, lead, stack } from './styles'
+import styles from './SignIn.module.css'
 
 /**
  * The request form, and the message that replaces it once an address is
@@ -26,28 +26,27 @@ export function SignInForm({ notice = null }: { notice?: SignInNotice | null }) 
 
   if (outcome?.tone === 'success') {
     return (
-      <div style={stack}>
-        <h2 style={heading}>{outcome.title}</h2>
-        <p style={lead}>{outcome.message}</p>
+      <div className={styles.stack}>
+        <h2 className={styles.heading}>{outcome.title}</h2>
+        <p className={styles.lead}>{outcome.message}</p>
       </div>
     )
   }
 
   return (
-    <form action={formAction} style={stack}>
+    <form action={formAction} className={styles.stack}>
       {notice && !outcome ? (
-        <div style={fullWidth}>
-          <Banner type={notice.tone}>
-            <strong>{notice.title}</strong> {notice.message}
-          </Banner>
-        </div>
+        <Banner type={notice.tone}>
+          <strong>{notice.title}</strong> {notice.message}
+        </Banner>
       ) : null}
-      <p style={lead}>
+      <p className={styles.lead}>
         Enter your email address and we will send you a link that signs you in.
         <br />
         No password needed.
       </p>
       <TextInput
+        className={styles.field}
         htmlAttributes={{ autoComplete: 'email' }}
         label="Email"
         onChange={(event: ChangeEvent<HTMLInputElement>) => setEmail(event.target.value)}
@@ -55,15 +54,17 @@ export function SignInForm({ notice = null }: { notice?: SignInNotice | null }) 
         placeholder="you@example.org"
         required
         showError={outcome?.tone === 'error'}
-        style={{ ...fullWidth, marginBottom: 0, textAlign: 'left' }}
         value={email}
       />
-      {outcome ? (
-        <div style={fullWidth}>
-          <Banner type="error">{outcome.message}</Banner>
-        </div>
-      ) : null}
-      <Button buttonStyle="primary" disabled={pending} size="large" type="submit">
+      {outcome ? <Banner type="error">{outcome.message}</Banner> : null}
+      <Button
+        buttonStyle="primary"
+        className={styles.action}
+        disabled={pending}
+        margin={false}
+        size="large"
+        type="submit"
+      >
         {pending ? 'Sending…' : 'Email me a sign-in link'}
       </Button>
     </form>

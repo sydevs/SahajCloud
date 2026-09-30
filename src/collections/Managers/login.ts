@@ -11,6 +11,12 @@ const INACTIVE: Manager['type'] = 'inactive'
  * ⚠ It is `routes.admin` plus `admin.routes.login`, both Payload's defaults —
  * `src/payload.config.ts` overrides neither. Overriding either needs this
  * changed by hand.
+ *
+ * ⚠ **`/managers/signin`, the page before this one, is deliberately not
+ * forwarded.** It shipped in #849, but production mailed no link to it before
+ * #840 moved sign-in here, so nothing addresses it — the maintainer confirmed
+ * that on #861 and asked for no redirect. Do not restore one on the premise
+ * that links are outstanding.
  */
 export const MANAGER_SIGNIN_PATH = '/admin/login'
 

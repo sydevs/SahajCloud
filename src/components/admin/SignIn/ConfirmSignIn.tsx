@@ -1,6 +1,6 @@
 import { Button } from '@payloadcms/ui'
 
-import { heading as headingStyle, lead as leadStyle, stack } from './styles'
+import styles from './SignIn.module.css'
 
 /**
  * The interstitial that stands between a delivered link and the session it buys.
@@ -31,10 +31,16 @@ export function ConfirmSignIn({
   submitLabel: string
 }) {
   return (
-    <form action={actionUrl} method="post" style={stack}>
-      <h2 style={headingStyle}>{heading}</h2>
-      <p style={leadStyle}>{lead}</p>
-      <Button buttonStyle="primary" size="large" type="submit">
+    <form action={actionUrl} className={styles.stack} method="post">
+      <h2 className={styles.heading}>{heading}</h2>
+      <p className={styles.lead}>{lead}</p>
+      <Button
+        buttonStyle="primary"
+        className={styles.action}
+        margin={false}
+        size="large"
+        type="submit"
+      >
         {submitLabel}
       </Button>
     </form>
