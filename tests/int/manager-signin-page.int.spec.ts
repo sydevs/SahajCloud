@@ -30,7 +30,7 @@ const { configRef } = vi.hoisted(() => ({ configRef: { current: undefined as unk
 vi.mock('@payload-config', () => ({ default: configRef.current }))
 
 const REQUEST_PATH = '/api/managers/request-magic-link'
-const REDEEM_PATH = '/api/managers/redeem-magic-link'
+const REDEEM_PATH = '/api/managers/redeem'
 
 describe('manager sign-in page', () => {
   let payload: Payload
@@ -169,7 +169,7 @@ describe('manager sign-in page', () => {
       // ⚠ The absence is the assertion. The emailed link addresses this page, so
       // the redeem path answers one method — and a mail scanner's GET reaches no
       // handler here to spend anything. 403 rather than 404 because Payload then
-      // tries the collection's `findByID` route with `redeem-magic-link` as the
+      // tries the collection's `findByID` route with `redeem` as the
       // id and refuses the anonymous read.
       expect(visited.status).toBe(403)
 

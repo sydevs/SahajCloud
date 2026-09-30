@@ -199,7 +199,7 @@ The invitation is sent by a queue (`src/plugins/login/invitations.ts`):
 - **"Your new…" when it lists only what is new.** A queued send names what was queued; a resend names everything held, and says "Your responsibilities". Singular for exactly one: "Your role", a row labelled "Event".
 - **A resend names everything held.** `issueMagicLink` re-sends an invitation to an unaccepted account that asks for a link, listing every role and document it holds — how an imported Atlas manager, named on regions before anything mailed them, gets in. One with nothing assigned is sent nothing: there is nothing to invite them to.
 - ⚠ **One email per project.** `summarizeGrants` splits what it names by project, and each part is its own email, branded for that project and introducing it: a brand, an introduction and a heading can speak for only one product. A role goes with its own project, a region or event with Sahaj Atlas, and a page — in both We Meditate projects — with one the manager holds a role in, else We Meditate Web. `currentProject` cannot decide it: only `set-project` writes it, and an account that has never accepted has never signed in to call it. Subject, `From` and body all come from one `composeInvitations` call.
-- **Every email to an unconfirmed account carries an invitation link.** The first used activates the account; the others are then spent, and `redeem-invite` answers them with `invite-accepted` — "Your email is already confirmed" — rather than `invalid`. That refusal is reached only with an authentic, unexpired token, so naming it tells nothing to anyone probing without one.
+- **Every email to an unconfirmed account carries an invitation link.** The first used activates the account; the others are then spent, and the redeem route answers them with `invite-accepted` — "Your email is already confirmed" — rather than `invalid`. That refusal is reached only with an authentic, unexpired token, so naming it tells nothing to anyone probing without one.
 - ⚠ **`_verified` is not a column every auth collection has.** `getAuthFields.js` adds the verification fields only where `auth.verify` is configured. Anything branching on the flag for a *served* collection — `issueMagicLink` picking between the two mails — asks the sanitized config first, or it reads `undefined` and invites every account forever.
 
 ### A verification reminder verifies in one click, and never on a `GET`
@@ -207,14 +207,14 @@ The invitation is sent by a queue (`src/plugins/login/invitations.ts`):
 The reminder's button is a login-plugin **page link** (`manager-link`), built per recipient by `reminderButtonUrl`:
 
 - **The event's manager** gets `/events/verify?link=…`, carrying a `verifies` claim. The page shows the event and two buttons: "Verify this event" (a Server Action) verifies it without signing in, and "Update the details" spends the same link at `redeem-link`, signing them in on the way to the event's admin page. An invalid stored field sends them there too, with the fields named.
-- **A region manager** does not verify (they may lack the details), so theirs goes through the sign-in page (`?link=`) straight to the event.
+- **A region manager** does not verify (they may lack the details), so theirs goes through the sign-in page (`/admin/login?token=…`) straight to the event.
 - ⚠ **Nothing happens on a `GET`.** Mail scanners fetch every link in every email, and some render the page; none submits a form. So both pages only read the link, and every change — verifying, signing in — sits behind a button's `POST`. A `PageAction` that signs someone in is `method: 'post'` for the same reason. Never make either link act on open, however convenient.
 - **Spending the link accepts an unaccepted account**, as an invitation does, so an imported Atlas manager whose first email is a reminder gets in by it.
 - ⚠ **It is reusable for 10 days**, the longest reminder spacing — a reminder is re-read and clicked twice. It is refused once the account stops qualifying, and it can only land under `/admin/`: the path is signed, and `isAdminPath` re-checks it on read, so a signing bug cannot become an open redirect.
 
 ### ⚠ The two token URLs have different shapes, and only one carries the slug
 
-⚠ **History now, for both rows.** `auth.verify` no longer builds an admin URL at all — the invitation addresses the sign-in page (`/admin/login?invite=…`) instead — and the reset route is `Forbidden` since #840, so nothing addresses it either. The table stays because the trap is the routing rule, and the next auth link written against `formatAdminURL` meets it again.
+⚠ **History now, for both rows.** `auth.verify` no longer builds an admin URL at all — the invitation addresses the sign-in page (`/admin/login?token=…`) instead — and the reset route is `Forbidden` since #840, so nothing addresses it either. The table stays because the trap is the routing rule, and the next auth link written against `formatAdminURL` meets it again.
 
 | Link | Correct URL | Why |
 |---|---|---|

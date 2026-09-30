@@ -631,7 +631,7 @@ form with none set).
 
 Passwordless sign-in for `Managers` (#837). It appends one hidden
 `magicLinkIssuedAt` column and two endpoints — `POST /api/managers/request-magic-link`
-and `POST /api/managers/redeem-magic-link` (which spends the link) — to whatever
+and `POST /api/managers/redeem` (which spends any link) — to whatever
 `Managers.ts` already declares. Since #840 it is the only way in: managers hold no password.
 
 `/admin/login` is the human surface (#838, #840): the plugin replaces Payload's

@@ -3,7 +3,7 @@
  *
  * - `loginPlugin.ts` — the wiring: fields, hooks, the admin login view, and
  *   the invitation job. `src/collections/Managers/login.ts` is the one entry.
- * - `endpoints.ts` — the request route and the three redeem routes.
+ * - `endpoints/` — the request route, and the one route that spends any link.
  * - `magicLinks.ts` — issuing a sign-in link, shared by the request route and
  *   the sign-in page.
  * - `token.ts` / `links.ts` — the three link kinds as separate JWT audiences,
@@ -16,7 +16,7 @@
  * caller, and exporting them would invite a collection to wire its own copy.
  */
 
-export { REDEEM_INVITE_PATH, REDEEM_LINK_PATH, REDEEM_MAGIC_LINK_PATH } from './endpoints'
+export { EXPIRED_REASON, REDEEM_PATH } from './endpoints/redeem'
 export { INVITE_VALID_FOR, composeInvitations } from './invite'
 export { INVITATION_DELAY_MS } from './invitations'
 export { pageLinkUrl } from './links'
@@ -34,6 +34,7 @@ export {
   INVITE_TOKEN_TTL_MS,
   isAdminPath,
   LINK_TOKEN_TTL_MS,
+  readAnyLoginToken,
   readInviteToken,
   readLinkToken,
   readSigninToken,

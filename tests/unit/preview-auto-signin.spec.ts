@@ -68,7 +68,7 @@ describe('the preview auto sign-in', () => {
 
     expect(withAddress).toEqual(without)
     expect(withAddress).toEqual(
-      expect.arrayContaining(['/request-magic-link', '/redeem-magic-link', '/redeem-invite']),
+      expect.arrayContaining(['/request-magic-link', '/redeem']),
     )
   })
 })

@@ -5,14 +5,13 @@ import { Button } from '@payloadcms/ui'
 import { redirect } from 'next/navigation'
 import { getSafeRedirect } from 'payload/shared'
 
-import { acceptUrl, openUrl, redeemUrl } from '@/app/(frontend)/_components/loginUrls'
+import { redeemUrl } from '@/app/(frontend)/_components/loginUrls'
 import { managersLogin } from '@/collections/Managers/login'
 import Logo from '@/components/branding/Logo'
 import {
+  EXPIRED_REASON,
   INVITE_VALID_FOR,
-  readInviteToken,
-  readLinkToken,
-  readSigninToken,
+  readAnyLoginToken,
   SIGNIN_VALID_FOR,
 } from '@/plugins/login'
 
@@ -47,11 +46,9 @@ export default async function SignInView({ initPageResult, searchParams = {} }: 
     return Array.isArray(value) ? value[0] : value
   }
   const error = query('error')
-  const invite = query('invite')
-  const link = query('link')
   const token = query('token')
 
-  if (user && !error && !invite && !link && !token) {
+  if (user && !error && !token) {
     redirect(
       getSafeRedirect({
         fallbackTo: payload.config.routes.admin,
@@ -60,7 +57,7 @@ export default async function SignInView({ initPageResult, searchParams = {} }: 
     )
   }
 
-  const shown = await deliveredLink({ invite, link, token }, payload.secret)
+  const shown = token ? await deliveredLink(token, payload.secret) : null
 
   return (
     <>
@@ -92,63 +89,48 @@ export default async function SignInView({ initPageResult, searchParams = {} }: 
 type Confirmation = { actionUrl: string; heading: string; lead: string; submitLabel: string }
 
 /**
- * What a delivered link in the URL earns: its confirmation, or the notice that
- * says why not. `null` when the URL carries none.
+ * What a delivered link earns: its confirmation, or the notice that says why
+ * not. Any of the three kinds arrives as `?token=`; its own audience says which
+ * it is (`readAnyLoginToken`).
  *
  * ⚠ **The `GET` a delivered link performs writes nothing.** The token is read to
  * tell a dead link from a live one, and reading it touches no document, which is
  * what keeps a mail scanner's fetch free of consequence. The burn lives behind
  * the confirmation's form.
- *
- * ⚠ **`?invite=` and `?link=` are their links' own parameters, never
- * `?token=`.** The three links are separate JWT audiences (`token.ts`), so
- * reading an invitation with `readSigninToken` would refuse it as invalid — and
- * the reader would be told their invitation was already used.
  */
-async function deliveredLink(
-  { invite, link, token }: { invite?: string; link?: string; token?: string },
-  secret: string,
-): Promise<Confirmation | SignInNotice | null> {
-  if (invite) {
-    return confirmOrRefuse(await readInviteToken(invite, secret), 'invite-expired', () => ({
-      actionUrl: acceptUrl(invite),
-      heading: 'Confirm your email',
-      lead: 'Confirming activates your account and signs you in.',
-      submitLabel: 'Confirm email',
-    }))
+async function deliveredLink(token: string, secret: string): Promise<Confirmation | SignInNotice> {
+  const read = await readAnyLoginToken(token, secret)
+  if (read.status === 'expired') return NOTICES[EXPIRED_REASON[read.kind]]
+  // The audience is checked here as well as at the burn: a token minted for
+  // another configured collection must not reach a managers confirmation.
+  if (read.status !== 'valid' || read.token.claims.collection !== managersLogin.slug) {
+    return NOTICES.invalid
   }
-  if (link) {
-    return confirmOrRefuse(await readLinkToken(link, secret), 'link-expired', ({ label }) => ({
-      actionUrl: openUrl(link),
-      heading: 'Sign in to continue',
-      lead: `Confirm it is you to open “${label}”.`,
-      submitLabel: 'Continue',
-    }))
-  }
-  if (token) {
-    return confirmOrRefuse(await readSigninToken(token, secret), 'expired', () => ({
-      actionUrl: redeemUrl(token),
-      heading: 'Sign in',
-      lead: 'Confirm it is you. This link works once.',
-      submitLabel: 'Sign in',
-    }))
-  }
-  return null
-}
 
-/**
- * The audience is checked here as well as at the burn: a token minted for
- * another configured collection must not reach a managers confirmation.
- */
-function confirmOrRefuse<C extends { collection: string }>(
-  result: { status: 'valid'; claims: C } | { status: 'expired' | 'invalid' },
-  expired: NoticeReason,
-  confirm: (claims: C) => Confirmation,
-): Confirmation | SignInNotice {
-  if (result.status === 'valid' && result.claims.collection === managersLogin.slug) {
-    return confirm(result.claims)
+  const actionUrl = redeemUrl(token)
+  switch (read.token.kind) {
+    case 'invite':
+      return {
+        actionUrl,
+        heading: 'Confirm your email',
+        lead: 'Confirming activates your account and signs you in.',
+        submitLabel: 'Confirm email',
+      }
+    case 'link':
+      return {
+        actionUrl,
+        heading: 'Sign in to continue',
+        lead: `Confirm it is you to open “${read.token.claims.label}”.`,
+        submitLabel: 'Continue',
+      }
+    case 'signin':
+      return {
+        actionUrl,
+        heading: 'Sign in',
+        lead: 'Confirm it is you. This link works once.',
+        submitLabel: 'Sign in',
+      }
   }
-  return NOTICES[result.status === 'expired' ? expired : 'invalid']
 }
 
 /**

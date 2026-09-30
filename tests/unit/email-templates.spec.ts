@@ -22,7 +22,7 @@ import { InviteEmail, inviteHeading } from '@/emails/InviteEmail'
 import { buildUserMessageDetails, UserMessageEmail } from '@/emails/UserMessageEmail'
 import { getEmailBrand, renderEmail } from '@/plugins/email'
 
-const INVITE_URL = 'https://cloud.test/admin/login?invite=TKN-123'
+const INVITE_URL = 'https://cloud.test/admin/login?token=TKN-123'
 
 const inviteProps = {
   name: 'Jo',
@@ -168,7 +168,7 @@ describe('InviteEmail', () => {
   })
 
   it('offers an accepted manager their notification settings, and no confirmation', async () => {
-    const settings = 'https://cloud.test/admin/login?link=SETTINGS'
+    const settings = 'https://cloud.test/admin/login?token=SETTINGS'
     const html = await renderEmail(
       createElement(InviteEmail, { ...inviteProps, accepted: true, actionUrl: settings }),
     )

@@ -1,3 +1,5 @@
+import { decodeJwt } from 'jose'
+
 import { signToken, verifyToken, type SignedTokenResult } from '@/lib/utilities/signedToken'
 
 /**
@@ -179,4 +181,59 @@ export async function readLinkToken(
       ...(tab !== undefined && { tab }),
     },
   }
+}
+
+/** The three kinds, as the rest of the plugin names them. */
+export type LoginTokenKind = 'invite' | 'link' | 'signin'
+
+/** A verified token of any kind, with the claims that kind carries. */
+export type LoginToken =
+  | { claims: LinkTokenClaims; kind: 'link' }
+  | { claims: LoginTokenClaims; kind: 'invite' | 'signin' }
+
+export type AnyLoginTokenResult =
+  | { status: 'expired'; kind: LoginTokenKind }
+  | { status: 'invalid' }
+  | { status: 'valid'; token: LoginToken }
+
+const KIND_BY_AUDIENCE: Record<string, LoginTokenKind> = {
+  [INVITE_TOKEN_KIND]: 'invite',
+  [LINK_TOKEN_KIND]: 'link',
+  [SIGNIN_TOKEN_KIND]: 'signin',
+}
+
+/**
+ * Read a delivered token of whichever kind it is — what the sign-in page and
+ * the redeem route both do, so neither needs a route or a parameter per kind.
+ *
+ * ⚠ **The kind is read off the token's audience before it is verified**, and
+ * that is safe because the kind only chooses the reader: that kind's own reader
+ * then checks the signature *and the same audience*. A forged audience fails
+ * the signature; one naming no login kind — `submission-feedback`, say — picks
+ * no reader. So the audiences stay exactly as separate as before: a 7-day
+ * invitation still cannot be spent as a 15-minute sign-in link.
+ */
+export async function readAnyLoginToken(
+  token: null | string | undefined,
+  secret: string,
+  now: Date = new Date(),
+): Promise<AnyLoginTokenResult> {
+  let kind: LoginTokenKind | undefined
+  try {
+    const { aud } = decodeJwt(token ?? '')
+    kind = typeof aud === 'string' && Object.hasOwn(KIND_BY_AUDIENCE, aud) ? KIND_BY_AUDIENCE[aud] : undefined
+  } catch {
+    // Not a JWT at all.
+  }
+  if (!kind) return { status: 'invalid' }
+
+  if (kind === 'link') {
+    const result = await readLinkToken(token, secret, now)
+    if (result.status === 'valid') return { status: 'valid', token: { kind, claims: result.claims } }
+    return result.status === 'expired' ? { status: 'expired', kind } : result
+  }
+
+  const result = await (kind === 'invite' ? readInviteToken : readSigninToken)(token, secret, now)
+  if (result.status === 'valid') return { status: 'valid', token: { kind, claims: result.claims } }
+  return result.status === 'expired' ? { status: 'expired', kind } : result
 }

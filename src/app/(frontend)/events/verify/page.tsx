@@ -13,7 +13,7 @@ import { readLinkToken } from '@/plugins/login'
 import config from '@payload-config'
 
 import { VerifyForm } from './VerifyForm'
-import { openUrl } from '../../_components/loginUrls'
+import { redeemUrl } from '../../_components/loginUrls'
 import { VerificationCard } from '../../_components/VerificationCard'
 
 export const metadata: Metadata = {
@@ -99,7 +99,7 @@ export default async function VerifyEventPage({
       brand={brand}
       iconSrc={iconSrc}
       link={link}
-      editUrl={openUrl(link)}
+      editUrl={redeemUrl(link)}
       eventTitle={eventTitle}
       details={details}
       eventUrl={eventUrl}

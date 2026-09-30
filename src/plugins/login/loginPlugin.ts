@@ -1,7 +1,8 @@
 import type { LoginCollectionConfig } from './types'
 import type { CollectionBeforeOperationHook, CollectionConfig, Config, Field, Plugin } from 'payload'
 
-import { loginEndpoints } from './endpoints'
+import { redeem } from './endpoints/redeem'
+import { requestMagicLink } from './endpoints/requestMagicLink'
 import { managerJoins, MANAGERS_COLLECTION } from './grantSummary'
 import {
   INVITATIONS_CRON,
@@ -175,7 +176,7 @@ function adminWithSignInView(
  * Passwordless sign-in: one hidden timestamp field plus the endpoints that
  * trade an emailed link for a session (#837).
  *
- * The endpoint definitions live in `./endpoints.ts` and are built per
+ * The endpoint definitions live in `./endpoints/` and are built per
  * configured collection, so the plugin owns the whole feature rather than wiring
  * definitions kept beside one collection. `./mail.ts` renders and addresses the
  * message for every served collection, so a `LoginCollectionConfig` supplies
@@ -260,7 +261,7 @@ export function loginPlugin(options: LoginPluginOptions = {}): Plugin {
               ...(invites && invitations ? [queueOnRoles] : []),
             ],
           },
-          endpoints: [...(collection.endpoints || []), ...loginEndpoints(entry)],
+          endpoints: [...(collection.endpoints || []), requestMagicLink(entry), redeem(entry)],
         }
       }),
       jobs: invitesFor

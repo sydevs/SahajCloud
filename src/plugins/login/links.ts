@@ -7,14 +7,13 @@ import { signInviteToken, signLinkToken, signSigninToken } from './token'
 /**
  * The URLs the three emailed links carry, one per token kind.
  *
- * ⚠ **Each addresses the sign-in page, never a redeem route**, under its own
- * kind's parameter. The page reads the token and writes nothing, so a mail
- * scanner's `GET` spends nothing; the session is minted only behind that page's
- * form. The parameters differ because the kinds are separate audiences
- * (`token.ts`): the page must know which reader to use.
+ * ⚠ **Each addresses the sign-in page, never the redeem route.** The page reads
+ * the token and writes nothing, so a mail scanner's `GET` spends nothing; the
+ * session is minted only behind that page's form. All three use `?token=`: the
+ * page tells the kinds apart by the token's own audience (`readAnyLoginToken`).
  */
-function pageUrl(config: LoginCollectionConfig, param: 'invite' | 'link' | 'token', token: string) {
-  return `${getServerUrl()}${config.requestPagePath}?${param}=${encodeURIComponent(token)}`
+function pageUrl(config: LoginCollectionConfig, token: string) {
+  return `${getServerUrl()}${config.requestPagePath}?token=${encodeURIComponent(token)}`
 }
 
 /** Who a link signs in, and the instant it was minted. */
@@ -34,17 +33,17 @@ export async function signInLinkUrl(
   secret: string,
   now: Date,
 ): Promise<string> {
-  return pageUrl(config, 'token', await signSigninToken(claimsFor(config, userId, now), secret, now))
+  return pageUrl(config, await signSigninToken(claimsFor(config, userId, now), secret, now))
 }
 
-/** An invitation. Single-use by `_verified`, not by a stamp — see `redeem-invite`. */
+/** An invitation. Single-use by `_verified`, not by a stamp — see `endpoints/redeem.ts`. */
 export async function inviteLinkUrl(
   config: LoginCollectionConfig,
   userId: number | string,
   secret: string,
   now: Date = new Date(),
 ): Promise<string> {
-  return pageUrl(config, 'invite', await signInviteToken(claimsFor(config, userId, now), secret, now))
+  return pageUrl(config, await signInviteToken(claimsFor(config, userId, now), secret, now))
 }
 
 /**
@@ -66,5 +65,5 @@ export async function pageLinkUrl(
     secret,
     now,
   )
-  return pageUrl(config, 'link', token)
+  return pageUrl(config, token)
 }

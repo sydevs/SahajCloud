@@ -69,11 +69,8 @@ const routes = (c: CollectionConfig) =>
 /** What the plugin wires onto a served collection, in fold order. */
 const WIRED_ROUTES = [
   'post /request-magic-link',
-  'post /redeem-magic-link',
-  // The invitation's own audience, separate so neither token spends the other.
-  'post /redeem-invite',
-  // A reminder's page link, the third audience.
-  'post /redeem-link',
+  // Every kind of link — the token's own audience picks the rules.
+  'post /redeem',
 ]
 const fieldNames = (c: CollectionConfig) => c.fields.map((f) => ('name' in f ? f.name : null))
 
@@ -203,7 +200,7 @@ describe('loginPlugin', () => {
       // `requestPagePath`'s page instead, which writes nothing.
       const [wired] = fold(loginPlugin({ collections: [managers] }), collection('managers'))
 
-      expect(routes(wired)).not.toContain('get /redeem-magic-link')
+      expect(routes(wired)).not.toContain('get /redeem')
     })
   })
 })

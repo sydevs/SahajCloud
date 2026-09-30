@@ -41,7 +41,7 @@ const namesAnything = ({ fullAccess, grants, responsibilities }: GrantSummary): 
  * The one composition both senders run, and what the preview script drives. An
  * account that has never confirmed its email gets an invitation link in each
  * email; the first one used activates the account, and the rest then say so
- * rather than "not valid" (`redeem-invite`). An account that has gets
+ * rather than "not valid" (`endpoints/redeem.ts`). An account that has gets
  * "Configure notifications" instead — a page link that signs it in on the way
  * to its own account page, opened on the collection's `notificationsTab`.
  */
