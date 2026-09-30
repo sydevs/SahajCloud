@@ -10,7 +10,7 @@ const INACTIVE: Manager['type'] = 'inactive'
  * The one spelling of the path, read by the config below and by the tests.
  * ⚠ It is `routes.admin` plus `admin.routes.login`, both Payload's defaults —
  * `src/payload.config.ts` overrides neither. Overriding either needs this
- * changed by hand, and the `/managers/signin` redirect in `next.config.mjs`.
+ * changed by hand.
  */
 export const MANAGER_SIGNIN_PATH = '/admin/login'
 

@@ -77,16 +77,6 @@ const nextConfig = {
       },
     ]
   },
-  // Manager sign-in lived at `/managers/signin` until it moved into the admin
-  // login view (#840). Invitations (7 days) and reminders' page links (10 days)
-  // already mailed still address it, and Next carries the query — the
-  // credential — across the redirect.
-  // ⚠ That path **shipped**, in #849. Deleting this because "the old path never
-  // shipped" 404s every outstanding invitation; it has been deleted once on that
-  // premise already. Keep it until 10 days after #840 deploys.
-  async redirects() {
-    return [{ source: '/managers/signin', destination: '/admin/login', permanent: true }]
-  },
   images: {
     remotePatterns: [
       ...(process.env.CLOUDFLARE_R2_DELIVERY_URL
