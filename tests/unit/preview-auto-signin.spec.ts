@@ -101,7 +101,7 @@ describe('taking passwords away', () => {
   })
 })
 
-describe('previewAutoSignInEmail', () => {
+describe('previewAdminEmail', () => {
   const setEnv = (values: Record<string, string | undefined>) => {
     for (const [key, value] of Object.entries(values)) {
       if (value === undefined) delete process.env[key]
@@ -119,8 +119,8 @@ describe('previewAutoSignInEmail', () => {
 
   /** Re-imported per case: `serverEnv` reads `process.env` when the module parses. */
   const resolve = async () => {
-    const mod = await import('@/plugins/previewAdmin/previewAutoSignIn')
-    return mod.previewAutoSignInEmail()
+    const mod = await import('@/plugins/previewAdmin')
+    return mod.previewAdminEmail()
   }
 
   it('names the address on a Railway preview', async () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { shouldSeedPreviewAdmin } from '@/plugins/previewAdmin'
+import { resolvePreviewAdminEmail } from '@/plugins/previewAdmin'
 
 /**
  * The gate on the preview-admin seeder (sydevs/SahajCloud#662).
@@ -10,7 +10,7 @@ import { shouldSeedPreviewAdmin } from '@/plugins/previewAdmin'
  * does hold `PREVIEW_ADMIN_EMAIL` — is entirely this predicate. Each case below is a
  * place it must not run.
  */
-describe('shouldSeedPreviewAdmin', () => {
+describe('resolvePreviewAdminEmail', () => {
   const preview = {
     email: 'preview-admin@sydevelopers.test',
     environmentName: 'pr-662',
@@ -18,35 +18,36 @@ describe('shouldSeedPreviewAdmin', () => {
   }
 
   it('seeds on a Railway preview holding an address', () => {
-    expect(shouldSeedPreviewAdmin(preview)).toBe(true)
+    expect(resolvePreviewAdminEmail(preview)).toBe(preview.email)
   })
 
   it('never seeds on production, whatever else is set', () => {
     expect(
-      shouldSeedPreviewAdmin({ ...preview, environmentName: 'production', isProduction: true }),
-    ).toBe(false)
+      resolvePreviewAdminEmail({ ...preview, environmentName: 'production', isProduction: true }),
+    ).toBeUndefined()
   })
 
   it('never seeds off Railway, which is local dev, CI and both test lanes', () => {
     // The load-bearing case: `pnpm test:int` boots Payload with NODE_ENV=test and no
     // Railway environment. If the gate read only the address, a CI run holding the
     // secret would provision an admin into the integration database.
-    expect(shouldSeedPreviewAdmin({ ...preview, environmentName: undefined })).toBe(false)
+    expect(resolvePreviewAdminEmail({ ...preview, environmentName: undefined })).toBeUndefined()
   })
 
   it('does not seed an environment that names no address', () => {
     // Two cases in one: a preview forked before the variable existed (out of scope on
     // the ticket, keeping the admin it was already seeded with), and — since #840 — one
     // whose admin would otherwise be openable by anyone who guessed a default address.
-    expect(shouldSeedPreviewAdmin({ ...preview, email: undefined })).toBe(false)
-    expect(shouldSeedPreviewAdmin({ ...preview, email: '' })).toBe(false)
+    expect(resolvePreviewAdminEmail({ ...preview, email: undefined })).toBeUndefined()
+    expect(resolvePreviewAdminEmail({ ...preview, email: '' })).toBeUndefined()
+    expect(resolvePreviewAdminEmail({ ...preview, email: '   ' })).toBeUndefined()
   })
 
   it('does not seed an unnamed environment, whatever else is set', () => {
     // Fail-safe direction: an unknown or misnamed environment seeds nothing rather than
     // guessing it is a preview.
     expect(
-      shouldSeedPreviewAdmin({ ...preview, environmentName: '' }),
-    ).toBe(false)
+      resolvePreviewAdminEmail({ ...preview, environmentName: '' }),
+    ).toBeUndefined()
   })
 })

@@ -29,7 +29,7 @@ import { buildSmtpTransportOptions, resendAdapter, warnEmailDisabled } from '@/p
 import { formsPlugin } from '@/plugins/formBuilder'
 import { loginPlugin } from '@/plugins/login'
 import { openapiEndpointAuth, scalarPlugin } from '@/plugins/openapi'
-import { previewAutoSignInEmail, seedPreviewAdmin } from '@/plugins/previewAdmin'
+import { previewAdminEmail, seedPreviewAdmin } from '@/plugins/previewAdmin'
 import { sentryPlugin } from '@/plugins/sentry'
 import { storagePlugin } from '@/plugins/storage'
 import { isProductionDeployment } from '@/plugins/storage/previewIsolation'
@@ -347,7 +347,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       // This is the one place that knows both what a preview is and what the
       // plugin serves, so it is where the preview exchange is resolved (#840).
       loginPlugin({
-        collections: [{ ...managersLogin, previewAutoSignIn: previewAutoSignInEmail() }],
+        collections: [{ ...managersLogin, previewAutoSignIn: previewAdminEmail() }],
         invitations: !isSeedScript,
       }),
       // Access Plugin: Unified RBAC and project visibility (must be LAST to process plugin-created collections)

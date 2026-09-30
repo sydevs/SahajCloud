@@ -8,7 +8,7 @@
  * token nobody can spend.
  *
  * ⚠ **The environment is set in `vi.hoisted`, and it has to be.** `serverEnv`
- * parses at import, and `previewAutoSignInEmail()` runs when `testHelpers`
+ * parses at import, and `previewAdminEmail()` runs when `testHelpers`
  * constructs the plugin — so an assignment in `beforeAll` would run after both,
  * the option would silently be unset, and every "no token" case below would still
  * pass.
