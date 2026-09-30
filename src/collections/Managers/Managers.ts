@@ -1,7 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
 import { json as jsonFieldValidation } from 'payload/shared'
-import { createElement } from 'react'
 import { z } from 'zod'
 
 import {
@@ -9,13 +8,10 @@ import {
   NOTIFICATION_TYPES,
   validateNotificationPreferences,
 } from '@/components/admin/NotificationPreferences/config'
-import { ResetPasswordEmail } from '@/emails/ResetPasswordEmail'
 import { hideUntilCreated, legacyMigrationFields } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
 import { getLanguageOptions } from '@/lib/locales'
-import { adminUrl } from '@/lib/utilities/adminUrl'
 import { adminOnlyFieldAccess, getRoleOptions, getProjectOptions } from '@/plugins/access'
-import { getEmailBrand, renderEmail } from '@/plugins/email'
 
 import { setProject } from './endpoints/setProject'
 import { MANAGER_NOTIFICATIONS_TAB } from './login'
@@ -26,32 +22,21 @@ export const Managers: CollectionConfig = {
   // `setProject` is the lightweight self-only Current Project write path (#532).
   endpoints: [setProject],
   auth: {
-    // The reset mail uses the default brand (wemeditate-web) whatever the
-    // recipient's currentProject (#483).
     // Configured for the `_verified` column, not for Payload's own verify mail:
     // the JWT strategy yields no user while that column is false, so it is the
     // accepted/not-accepted flag the invitation flow turns on. `loginPlugin`
     // stops the create from sending that mail — an account is invited when it
     // is assigned something instead (#839).
     verify: true,
-    forgotPassword: {
-      generateEmailHTML: (args) =>
-        renderEmail(
-          createElement(ResetPasswordEmail, {
-            name: args?.user?.name || args?.user?.email || '',
-            resetUrl: adminUrl(`/reset/${args?.token}`),
-          }),
-        ),
-      generateEmailSubject: () => `Reset Your Password — ${getEmailBrand().productName}`,
-    },
     cookies: {
       // Live preview is authenticated via the x-sahajcloud-preview-secret header,
       // not this cookie. Use Lax to avoid unnecessary cross-site exposure.
       secure: true, // HTTPS only
       sameSite: 'Lax', // Same-site cookies (Payload default)
     },
-    maxLoginAttempts: 5,
-    lockTime: 600 * 1000, // 10 minutes
+    // No `forgotPassword`, `maxLoginAttempts` or `lockTime`: `loginPlugin` sets
+    // `disableLocalStrategy`, so a password reaches no route to be spent, reset
+    // or counted against a lock (#840).
   },
   admin: {
     group: 'System',

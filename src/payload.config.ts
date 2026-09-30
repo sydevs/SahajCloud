@@ -29,7 +29,7 @@ import { buildSmtpTransportOptions, resendAdapter, warnEmailDisabled } from '@/p
 import { formsPlugin } from '@/plugins/formBuilder'
 import { loginPlugin } from '@/plugins/login'
 import { openapiEndpointAuth, scalarPlugin } from '@/plugins/openapi'
-import { seedPreviewAdmin } from '@/plugins/previewAdmin'
+import { previewAdminEmail, seedPreviewAdmin } from '@/plugins/previewAdmin'
 import { sentryPlugin } from '@/plugins/sentry'
 import { storagePlugin } from '@/plugins/storage'
 import { isProductionDeployment } from '@/plugins/storage/previewIsolation'
@@ -119,6 +119,10 @@ const payloadConfig = (overrides?: Partial<Config>) => {
         baseDir: path.resolve(dirname),
       },
       meta: {
+        // Payload's auto-registered `get /og` renders the `graphics.Icon` slot on
+        // the server; ours is a client component, so it 502s (#868). See
+        // tests/int/admin-og-image.int.spec.ts.
+        defaultOGImageType: 'off',
         titleSuffix: '- Sahaj Cloud',
         description: 'Content for We Meditate & Sahaj Atlas',
         icons: [
@@ -204,7 +208,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       // NODE_ENV=production). Dev/test use Drizzle `push` above instead.
       prodMigrations: migrations,
     }),
-    // Reconcile the Railway preview's admin from PREVIEW_ADMIN_PASSWORD, after the
+    // Reconcile the Railway preview's admin from PREVIEW_ADMIN_EMAIL, after the
     // migrations above have run. A no-op everywhere else — see the gate's docblock in
     // `@/plugins/previewAdmin` for why each of its three conditions is there, and why
     // production is detected by Railway's environment name rather than NODE_ENV.
@@ -344,7 +348,12 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       // accessPlugin, which must stay last.
       // Invitations queue on assignment — except under a seed script, whose bulk
       // writes would otherwise leave production a queue to mail (see the option).
-      loginPlugin({ collections: [managersLogin], invitations: !isSeedScript }),
+      // This is the one place that knows both what a preview is and what the
+      // plugin serves, so it is where the preview exchange is resolved (#840).
+      loginPlugin({
+        collections: [{ ...managersLogin, previewAutoSignIn: previewAdminEmail() }],
+        invitations: !isSeedScript,
+      }),
       // Access Plugin: Unified RBAC and project visibility (must be LAST to process plugin-created collections)
       accessPlugin({
         enabled: true,

@@ -8,13 +8,9 @@ import { getEmailBrand, MANAGER_EMAIL_FROM, renderEmail } from '@/plugins/email'
 
 
 /**
- * The sign-in mail every served collection gets, unless it overrides a half.
- *
- * Nothing here is `managers`-specific: the template brands itself from
- * `project`, which {@link LoginCollectionConfig.project} resolves per document.
- * A collection that needs different copy overrides
- * `generateEmailHTML` / `generateEmailSubject`, which mirror the two generators
- * `auth.verify` and `auth.forgotPassword` already take.
+ * The sign-in mail. Nothing here is `managers`-specific: the template brands
+ * itself from `project`, which `LoginCollectionConfig.project` resolves per
+ * document.
  */
 export function generateEmailHTML({
   doc,
