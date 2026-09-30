@@ -735,7 +735,8 @@ export const testData = {
       data: createData<'managers'>({
         name: 'Test Manager',
         email: `${testEmail}@example.com`,
-        password: 'password123',
+        // No password: `loginPlugin` sets `disableLocalStrategy`, so `create`
+        // skips password registration and Payload stores nothing (#840).
         type: 'manager', // Default to 'manager' type
         ...fields,
         roles: rolesByLocale[createLocale] ?? [],

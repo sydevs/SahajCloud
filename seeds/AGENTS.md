@@ -20,18 +20,21 @@ SAHAJCLOUD_URL=https://cloud.sydevelopers.com pnpm seed <script>  # Seed product
 **Environment variables:**
 
 - `SAHAJCLOUD_URL` — target URL (default: `http://localhost:PORT`)
-- `ADMIN_EMAIL` / `ADMIN_PASSWORD` — **only needed for a remote target**.
-  `seeds/env.ts` resolves them the way Next.js does: a shell-exported (or
-  command-prefixed) value wins, then `.env.local`, then `.env` — so the
-  blank `ADMIN_PASSWORD=` local dev keeps in `.env.local` never clobbers a
-  credential passed for a production run.
+- `ADMIN_TOKEN` — **only needed for a remote target**. A manager session token:
+  sign in to that target's `/admin` with an emailed link, then copy the
+  `payload-token` cookie. ⚠ **There is no password to send instead** —
+  `POST /api/managers/login` answers 403 everywhere since #840.
+  `seeds/env.ts` resolves it the way Next.js does: a shell-exported (or
+  command-prefixed) value wins, then `.env.local`, then `.env` — so the blank
+  `ADMIN_TOKEN=` local dev keeps in `.env.local` never clobbers a credential
+  passed for a production run.
 
 **Seeding localhost needs no credentials.** Local dev enables Payload's
 `admin.autoLogin` (`src/payload.config.ts`), applied in its JWT auth
 strategy — a request with no token authenticates as that admin. The CLI
 probes `/api/managers/me`. When the target auto-logs-in, it skips the
-login step and sends requests with no `Authorization` header. Leave
-`ADMIN_PASSWORD` blank or unset locally — production and E2E disable
+token step and sends requests with no `Authorization` header. Leave
+`ADMIN_TOKEN` blank or unset locally — production and E2E disable
 auto-login and fall through to the credential path on their own.
 
 ### API route
@@ -223,9 +226,8 @@ For local development, add to `.env.local` (gitignored):
 
 ```bash
 # CLI Authentication — only for seeding a REMOTE target; auto-login covers
-# localhost, so these can be left blank for local development.
-ADMIN_EMAIL=
-ADMIN_PASSWORD=
+# localhost, so this can be left blank for local development.
+ADMIN_TOKEN=
 PAYLOAD_SECRET=your-secret-key
 
 # Storyblok
@@ -235,10 +237,10 @@ STORYBLOK_ACCESS_TOKEN=your-token
 STORAGE_BASE_URL=https://storage.googleapis.com/your-bucket
 ```
 
-For production, pass credentials via the shell and target production:
+For production, pass the token via the shell and target production:
 
 ```bash
-ADMIN_EMAIL=admin@example.com ADMIN_PASSWORD=prod-password SAHAJCLOUD_URL=https://cloud.sydevelopers.com pnpm seed <script>
+ADMIN_TOKEN=<payload-token cookie> SAHAJCLOUD_URL=https://cloud.sydevelopers.com pnpm seed <script>
 ```
 
 ## Design principles

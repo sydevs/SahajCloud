@@ -68,6 +68,13 @@ const nextConfig = {
           },
         ],
       },
+      {
+        // The sign-in view (`src/components/admin/SignIn`) is where every
+        // emailed link lands, with its credential in the query string — so no
+        // onward request may carry that URL along as a `Referer`.
+        source: '/admin/login',
+        headers: [{ key: 'Referrer-Policy', value: 'no-referrer' }],
+      },
     ]
   },
   images: {

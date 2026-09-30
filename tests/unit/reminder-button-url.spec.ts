@@ -2,7 +2,7 @@
  * Where a verification reminder's button lands its recipient (#839).
  *
  * ⚠ **The gap this closes.** Both recipients' buttons are page links whose
- * landing is a signed `to` claim, and `redeemToken` falls back to `/admin` —
+ * landing is a signed `to` claim, and the redeem route falls back to `/admin` —
  * the dashboard — whenever that claim is absent. A `to` lost at signing is
  * therefore not an error anywhere: the manager is signed in and dropped on the
  * dashboard, with the event they were asked about nowhere in sight. Only the
@@ -12,18 +12,20 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { openUrl } from '@/app/(frontend)/_components/loginUrls'
+import { redeemUrl } from '@/app/(frontend)/_components/loginUrls'
 import { managersLogin } from '@/collections/Managers/login'
 import { reminderButtonUrl } from '@/jobs/ExpireEvents/verifyUrl'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
-import { readLinkToken, REDEEM_LINK_PATH } from '@/plugins/login'
+import { readLinkToken, REDEEM_PATH } from '@/plugins/login'
 
 const SECRET = 'test-secret-for-reminder-buttons'
 const NOW = new Date('2026-09-28T12:00:00.000Z')
 const EVENT = { id: 12, title: 'Thursday Sitting' }
 
 const claimsOf = async (url: string) => {
-  const link = new URL(url).searchParams.get('link')
+  // The verify page's own `?link=`, or the sign-in page's `?token=`.
+  const { searchParams } = new URL(url)
+  const link = searchParams.get('link') ?? searchParams.get('token')
   const result = await readLinkToken(link, SECRET, NOW)
   if (result.status !== 'valid') throw new Error(`link refused: ${result.status}`)
   return result.claims
@@ -53,11 +55,11 @@ describe('a reminder button’s landing page', () => {
     // verification; a region manager's has nothing to verify.
     expect(await buttonFor('manager')).toContain(`${getServerUrl()}/events/verify?link=`)
     expect(await buttonFor('region')).toContain(
-      `${getServerUrl()}${managersLogin.requestPagePath}?link=`,
+      `${getServerUrl()}${managersLogin.requestPagePath}?token=`,
     )
   })
 
-  it('posts “Update the details” to the link route, which honours that claim', () => {
-    expect(openUrl('T')).toBe(`${getServerUrl()}/api/${managersLogin.slug}${REDEEM_LINK_PATH}?token=T`)
+  it('posts “Update the details” to the redeem route, which honours that claim', () => {
+    expect(redeemUrl('T')).toBe(`${getServerUrl()}/api/${managersLogin.slug}${REDEEM_PATH}?token=T`)
   })
 })

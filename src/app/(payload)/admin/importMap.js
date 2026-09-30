@@ -76,13 +76,13 @@ import { default as default_8dcebb2ea41c850ff8532af16196e52b } from '@/component
 import { default as default_fec9a646cfc358f70245d2d0e360935e } from '@/components/admin/AtlasNav/AtlasNav'
 import { default as default_7b4ba381140135af5cae014b3533be0b } from '@/components/branding/Icon'
 import { default as default_742835b254059f88bfb2f781ea75df90 } from '@/components/branding/Logo'
-import { default as default_284af9033ccc7cc655be524a0c1f4163 } from '@/components/admin/RequestSignInLink'
 import { default as default_1035e04fd02d13e92bb29364184fcf83 } from '@/components/admin/Dashboard/ProjectSelectionPrompt'
 import { default as default_b4b93444e002b46abfd0c5006e1279a0 } from '@/components/admin/ProjectSelector'
 import { default as default_f5da5fa50c48fc2ef14afcb84f969fcf } from '@/components/admin/AdminNavLinks'
 import { default as default_70d6a18357c47b1a9d8a541fcd53f95f } from '@/components/AdminProvider.tsx'
 import { default as default_db43129b90862b042c8e58805b1c34d3 } from '@/components/admin/AnalyticsView'
 import { default as default_932971b9c30c48ddbfc16a3a6aa23dda } from '@/components/admin/AtlasMapView'
+import { default as default_c0c1f60db6522e831c3edb4dc0680df2 } from '@/components/admin/SignIn'
 import { CollectionCards as CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1 } from '@payloadcms/next/rsc'
 
 /** @type import('payload').ImportMap */
@@ -165,12 +165,12 @@ export const importMap = {
   "@/components/admin/AtlasNav/AtlasNav#default": default_fec9a646cfc358f70245d2d0e360935e,
   "@/components/branding/Icon#default": default_7b4ba381140135af5cae014b3533be0b,
   "@/components/branding/Logo#default": default_742835b254059f88bfb2f781ea75df90,
-  "@/components/admin/RequestSignInLink#default": default_284af9033ccc7cc655be524a0c1f4163,
   "@/components/admin/Dashboard/ProjectSelectionPrompt#default": default_1035e04fd02d13e92bb29364184fcf83,
   "@/components/admin/ProjectSelector#default": default_b4b93444e002b46abfd0c5006e1279a0,
   "@/components/admin/AdminNavLinks#default": default_f5da5fa50c48fc2ef14afcb84f969fcf,
   "@/components/AdminProvider.tsx#default": default_70d6a18357c47b1a9d8a541fcd53f95f,
   "@/components/admin/AnalyticsView#default": default_db43129b90862b042c8e58805b1c34d3,
   "@/components/admin/AtlasMapView#default": default_932971b9c30c48ddbfc16a3a6aa23dda,
+  "@/components/admin/SignIn#default": default_c0c1f60db6522e831c3edb4dc0680df2,
   "@payloadcms/next/rsc#CollectionCards": CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1
 }

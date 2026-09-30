@@ -96,7 +96,7 @@ export const MyCollection: CollectionConfig = {
 
 A collection whose endpoints are wired by a plugin keeps its **definitions** here, beside the collection, and the plugin only registers them. `formsPlugin` does this because `user-submissions` is plugin-generated and has no `CollectionConfig` file.
 
-`loginPlugin` is the deliberate exception: it **owns** its three endpoints (`src/plugins/login/endpoints/`) and builds one set per collection its `collections` option names. They are one feature with a field and a migration, so a definition parked beside one collection would say the feature is that collection's when it is not.
+`loginPlugin` is the deliberate exception: it **owns** its two endpoints (`src/plugins/login/endpoints/`) and builds one set per collection its `collections` option names. They are one feature with a field and a migration, so a definition parked beside one collection would say the feature is that collection's when it is not.
 
 Three things that wiring must get right, each of which deletes behaviour silently when it does not:
 
