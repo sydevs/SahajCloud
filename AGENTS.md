@@ -31,12 +31,16 @@ A Next.js 16 app on Payload CMS 3.0, a headless CMS. TypeScript, PostgreSQL, dep
 
 Admin panel: `http://localhost:{PORT}/admin/login`, once the dev server runs.
 
-**Local dev needs no password.** `src/payload.config.ts` auto-logs in as `contact@sydevelopers.com` outside production and E2E runs. If you still see the login form, re-seed the local admin instead of hunting for a password.
+**A manager has no password.** `loginPlugin` sets `auth.disableLocalStrategy` on `managers` (#840), so `POST /api/managers/login`, the reset, the verify and the unlock routes all answer 403 — Payload closes them, not us. A human signs in with an emailed link, requested at `/admin/login` — the plugin replaces Payload's login view with `src/components/admin/SignIn`, which also confirms every delivered link.
 
-| Environment | Credential |
+**Local dev needs no link either.** `src/payload.config.ts` auto-logs in as `contact@sydevelopers.com` outside production and E2E runs. `admin.autoLogin` lives inside the JWT strategy, so it never touches the login operation and survives the switch. If you still see the login form, re-seed the local admin instead of hunting for a password.
+
+| Environment | How you get in |
 | --- | --- |
-| Railway PR preview | `PREVIEW_ADMIN_PASSWORD` (a Railway preview env var, also a CI secret). Every preview deploy resets the admin to it (`src/plugins/previewAdmin`). Environments forked before 2026-08-27 never got the variable and keep an old seeded admin. |
-| Production | `ADMIN_PASSWORD` in `.env.claude.local` — see `docs/environment.md`. |
+| Railway PR preview | Ask for a sign-in link as `PREVIEW_ADMIN_EMAIL` (a Railway preview env var, also a CI secret) and the preview signs you in instead of mailing one — the smoke lane's way in too. The address is the credential there, so keep its local part unguessable. Only where the same gate provisions the admin (`src/plugins/previewAdmin`): an environment without the variable has neither. |
+| Production | A sign-in link, delivered by email. `ADMIN_PASSWORD` no longer opens anything — `POST /api/managers/login` is closed here too. **When mail delivery is down, `pnpm tsx scripts/signin-link.ts <email>` prints the same link.** That is the whole break-glass path, and it is deliberately a script rather than a route: it grants nothing to anyone not already holding `DATABASE_URL` and `PAYLOAD_SECRET`. |
+
+**A fresh database has no manager to invite the first one.** `pnpm tsx scripts/create-manager.ts <email>` writes one through the local API, which the closed routes do not gate. Payload's own `create-first-user` is `Forbidden` like every other password route.
 
 ## Essential Commands
 
@@ -117,3 +121,13 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for the full documentation.
 ## Project Structure
 
 Standard Next.js + Payload layout under `src/` (plugins, collections, components, globals, jobs, lib, types, fields, app routes, migrations). See **`src/AGENTS.md`** for that layout and where new code belongs (`plugins/` vs `jobs/` vs `lib/` vs an owner's folder). Tests live under `tests/` — see **`tests/AGENTS.md`** for the lanes and where a new spec belongs.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

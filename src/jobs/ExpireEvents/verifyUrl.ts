@@ -31,7 +31,7 @@ export async function reminderButtonUrl({
   secret: string
 }): Promise<string> {
   const page = { label: event.title, to: adminDocPath('events', event.id) }
-  if (role === 'region') return pageLinkUrl(managersLogin, { id: managerId }, page, secret, now)
+  if (role === 'region') return pageLinkUrl(managersLogin, managerId, page, secret, now)
 
   const link = await signLinkToken(
     {

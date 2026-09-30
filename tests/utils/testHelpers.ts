@@ -22,6 +22,7 @@ import { accessPlugin, bypassPermissions, restrictPayloadSystemEntities } from '
 import { databaseErrorPlugin } from '@/plugins/databaseErrors'
 import { formsPlugin } from '@/plugins/formBuilder'
 import { loginPlugin } from '@/plugins/login'
+import { previewAdminEmail } from '@/plugins/previewAdmin'
 import { usagePlugin } from '@/plugins/usage'
 import { writeGuardPlugin } from '@/plugins/writeGuard'
 
@@ -154,9 +155,13 @@ function createBaseTestConfig(emailConfig: any, schemaName: string, debug = fals
       // Nested docs: injects parent + breadcrumbs into Regions (mirrors the
       // real payload.config.ts so collection hooks relying on them are tested).
       nestedDocsPlugin(REGION_NESTED_DOCS_CONFIG),
-      // Passwordless sign-in: the magic-link field plus its two endpoints
-      // (mirrors the real payload.config.ts, including which collections it serves).
-      loginPlugin({ collections: [managersLogin] }),
+      // Passwordless sign-in: the magic-link field plus its endpoints
+      // (mirrors the real payload.config.ts, including which collections it serves
+      // and how the preview exchange is resolved — `preview-secret-exchange.int.spec.ts`
+      // sets the environment that turns it on).
+      loginPlugin({
+        collections: [{ ...managersLogin, previewAutoSignIn: previewAdminEmail() }],
+      }),
       // Access Plugin must be LAST to process plugin-created collections
       accessPlugin({ enabled: true, bypassPermissions }),
     ],

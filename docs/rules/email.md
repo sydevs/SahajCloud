@@ -96,7 +96,6 @@ Transactional emails are [React Email](https://react.email) components under `sr
 | `EmailLayout.tsx` | Shared shell (header, card body, footer). Exports `BrandButton`, `BrandButtonRow`, `DetailRow` (manager fact table), `StackedDetailRow` (guest itinerary row), `SectionHeading`, `ProgressBar`, and shared `styles`. Reuse these for visual consistency. |
 | `InviteEmail.tsx` | Manager invitation (#839): what a manager was just assigned — roles, and each region, event and page naming them, one per line and linked to its public page — with an Atlas introduction and the assigner's name. An accepted manager gets the same email with a button to the admin instead of an invitation to accept. |
 | `SignInLinkEmail.tsx` | The emailed sign-in link an ACCEPTED manager gets (#837). `issueMagicLink` picks between this and the invitation on `_verified`. |
-| `ResetPasswordEmail.tsx` | Manager password-reset message (replaces Payload's default). |
 | `EventVerificationEmail.tsx` | Manager/region verification reminder, with a listing-quality progress section (#611) shown to the **event manager only**. A complete listing drops the progress bar and keeps only the ticks. An absent `listingProgress` renders no section at all. |
 | `RegistrationConfirmationEmail.tsx` | Registrant confirmation — client-branded, localized, ICS attached. Also exports `registrationConfirmationText`. |
 | `SessionReminderEmail.tsx` | Registrant reminder ~24h before a session (#589) — client-branded, no ICS, footer unsubscribe link. Sent by `SendSessionReminders`. |
@@ -134,11 +133,11 @@ Email glue lives in the plugin (`@/plugins/email`). Only JSX templates live in `
 
   ```typescript
   import { createElement } from 'react'
-  import { ResetPasswordEmail } from '@/emails/ResetPasswordEmail'
-  import { getEmailBrand, renderEmail } from '@/plugins/email'
+  import { SignInLinkEmail } from '@/emails/SignInLinkEmail'
+  import { renderEmail } from '@/plugins/email'
 
-  generateEmailHTML: ({ token, user }) =>
-    renderEmail(createElement(ResetPasswordEmail, { name: user.name, resetUrl })),
+  generateEmailHTML: ({ doc, signInUrl, validFor }) =>
+    renderEmail(createElement(SignInLinkEmail, { name: doc.name, signInUrl, validFor })),
   ```
 
 - **Branding is per-project** by default: `getEmailBrand(project)` composes `{ productName, colors, iconUrl }`, defaulting to `wemeditate-web`. A template takes branding as a prop, never a hardcoded color: either `project?: ProjectSlug` (resolved inside the template) when it is the only consumer, or `brand: EmailBrand` (resolved once by the sender and passed down) when the sender also needs it — e.g. for the `From` name — so header and body can't resolve to different brands.
@@ -184,7 +183,7 @@ pluralize(strings, 'sessions_count', count, locale)
 
 ## Authentication features
 
-**Password reset** (`ResetPasswordEmail`) is a custom React Email template wired on `Managers.auth.forgotPassword`, and its subject derives from the resolved brand name. **The invitation** (`InviteEmail`) is sent by the login plugin, not by Payload — see below.
+**There is no password mail, because there is no password.** `loginPlugin` sets `auth.disableLocalStrategy` on `managers` (#840), so Payload's `forgotPassword` and `resetPassword` operations answer `Forbidden` and `ResetPasswordEmail` is gone. Every manager email that gets someone in — **the invitation** (`InviteEmail`), **the sign-in link** (`SignInLinkEmail`) and **a reminder's page link** — is sent by the login plugin, not by Payload. See below.
 
 ### A manager is invited when assigned something, never on create (#839)
 
@@ -200,7 +199,7 @@ The invitation is sent by a queue (`src/plugins/login/invitations.ts`):
 - **"Your new…" when it lists only what is new.** A queued send names what was queued; a resend names everything held, and says "Your responsibilities". Singular for exactly one: "Your role", a row labelled "Event".
 - **A resend names everything held.** `issueMagicLink` re-sends an invitation to an unaccepted account that asks for a link, listing every role and document it holds — how an imported Atlas manager, named on regions before anything mailed them, gets in. One with nothing assigned is sent nothing: there is nothing to invite them to.
 - ⚠ **One email per project.** `summarizeGrants` splits what it names by project, and each part is its own email, branded for that project and introducing it: a brand, an introduction and a heading can speak for only one product. A role goes with its own project, a region or event with Sahaj Atlas, and a page — in both We Meditate projects — with one the manager holds a role in, else We Meditate Web. `currentProject` cannot decide it: only `set-project` writes it, and an account that has never accepted has never signed in to call it. Subject, `From` and body all come from one `composeInvitations` call.
-- **Every email to an unconfirmed account carries an invitation link.** The first used activates the account; the others are then spent, and `redeem-invite` answers them with `invite-accepted` — "Your email is already confirmed" — rather than `invalid`. That refusal is reached only with an authentic, unexpired token, so naming it tells nothing to anyone probing without one.
+- **Every email to an unconfirmed account carries an invitation link.** The first used activates the account; the others are then spent, and the redeem route answers them with `invite-accepted` — "Your email is already confirmed" — rather than `invalid`. That refusal is reached only with an authentic, unexpired token, so naming it tells nothing to anyone probing without one.
 - ⚠ **`_verified` is not a column every auth collection has.** `getAuthFields.js` adds the verification fields only where `auth.verify` is configured. Anything branching on the flag for a *served* collection — `issueMagicLink` picking between the two mails — asks the sanitized config first, or it reads `undefined` and invites every account forever.
 
 ### A verification reminder verifies in one click, and never on a `GET`
@@ -208,14 +207,14 @@ The invitation is sent by a queue (`src/plugins/login/invitations.ts`):
 The reminder's button is a login-plugin **page link** (`manager-link`), built per recipient by `reminderButtonUrl`:
 
 - **The event's manager** gets `/events/verify?link=…`, carrying a `verifies` claim. The page shows the event and two buttons: "Verify this event" (a Server Action) verifies it without signing in, and "Update the details" spends the same link at `redeem-link`, signing them in on the way to the event's admin page. An invalid stored field sends them there too, with the fields named.
-- **A region manager** does not verify (they may lack the details), so theirs goes through the sign-in page (`?link=`) straight to the event.
+- **A region manager** does not verify (they may lack the details), so theirs goes through the sign-in page (`/admin/login?token=…`) straight to the event.
 - ⚠ **Nothing happens on a `GET`.** Mail scanners fetch every link in every email, and some render the page; none submits a form. So both pages only read the link, and every change — verifying, signing in — sits behind a button's `POST`. A `PageAction` that signs someone in is `method: 'post'` for the same reason. Never make either link act on open, however convenient.
 - **Spending the link accepts an unaccepted account**, as an invitation does, so an imported Atlas manager whose first email is a reminder gets in by it.
 - ⚠ **It is reusable for 10 days**, the longest reminder spacing — a reminder is re-read and clicked twice. It is refused once the account stops qualifying, and it can only land under `/admin/`: the path is signed, and `isAdminPath` re-checks it on read, so a signing bug cannot become an open redirect.
 
 ### ⚠ The two token URLs have different shapes, and only one carries the slug
 
-⚠ **History now, for the verify row.** `auth.verify` no longer builds an admin URL at all — the invitation addresses the sign-in page (`/managers/signin?invite=…`) instead. The row stays because the trap is the routing rule, and the next auth link written against `formatAdminURL` meets it again.
+⚠ **History now, for both rows.** `auth.verify` no longer builds an admin URL at all — the invitation addresses the sign-in page (`/admin/login?token=…`) instead — and the reset route is `Forbidden` since #840, so nothing addresses it either. The table stays because the trap is the routing rule, and the next auth link written against `formatAdminURL` meets it again.
 
 | Link | Correct URL | Why |
 |---|---|---|
@@ -224,4 +223,4 @@ The reminder's button is a login-plugin **page link** (`manager-link`), built pe
 
 A verify URL written in the reset shape (`/admin/verify/:token`) matches nothing, and **fails silently instead of 404ing**: `isPublicAdminRoute` returns true for any route containing `/verify/`, so the auth gate never fires and a logged-out recipient lands on the login form. It looks exactly like the email never arrived, and it shipped that way from #483 to #320.
 
-You will not reproduce this locally — `admin.autoLogin` makes `req.user` truthy on every dev request, taking the `notFound()` branch and showing a 404 instead. Open the link in a **private window**, or trust `tests/unit/manager-auth-urls.spec.ts`, which pins the reset shape against Payload's own `formatAdminURL` — the verify half moved to `manager-invite.spec.ts`, which asserts the old shape no longer appears. A template render spec cannot catch this either way: it asserts a URL round-trips, and a wrong URL round-trips just as happily.
+You will not reproduce this locally — `admin.autoLogin` makes `req.user` truthy on every dev request, taking the `notFound()` branch and showing a 404 instead. Open the link in a **private window**. `manager-invite.spec.ts` is what pins the shape now, by asserting the old `/admin/managers/verify/:token` no longer appears; `manager-auth-urls.spec.ts` went with the reset route it existed for. A template render spec cannot catch this either way: it asserts a URL round-trips, and a wrong URL round-trips just as happily.

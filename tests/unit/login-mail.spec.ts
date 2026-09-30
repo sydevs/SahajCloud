@@ -2,10 +2,9 @@
  * The sign-in mail the login plugin generates for every collection it serves
  * (#847).
  *
- * The property under test is **that the plugin's own default is what sends**,
- * and that it brands itself from the document rather than from a constant. Both
- * failures are silent: an unbranded send still arrives, and a collection whose
- * override is ignored still gets a plausible email.
+ * The property under test is that it brands itself from the document rather
+ * than from a constant — a silent failure, since an unbranded send still
+ * arrives.
  */
 import { describe, expect, it } from 'vitest'
 
@@ -16,11 +15,11 @@ import type { LoginMailArgs } from '@/plugins/login/types'
 const args = (project: LoginMailArgs['project']): LoginMailArgs => ({
   doc: { email: 'a@example.test', id: 1, name: 'A' },
   project,
-  signInUrl: 'https://example.test/api/managers/redeem-magic-link?token=t',
+  signInUrl: 'https://example.test/admin/login?token=t',
   validFor: '15 minutes',
 })
 
-describe('the plugin default sign-in mail', () => {
+describe('the sign-in mail', () => {
   it('brands the subject and the sender from the project it is given', () => {
     expect(generateEmailSubject(args('sahaj-atlas'))).toContain('Sahaj Atlas')
     expect(emailFrom('sahaj-atlas')).toContain('Sahaj Atlas')
@@ -38,11 +37,6 @@ describe('the plugin default sign-in mail', () => {
 })
 
 describe('managersLogin', () => {
-  it('supplies neither generator, so the plugin default is what sends', () => {
-    expect(managersLogin.generateEmailHTML).toBeUndefined()
-    expect(managersLogin.generateEmailSubject).toBeUndefined()
-  })
-
   it('resolves the project off the document, and selects the field it reads', () => {
     expect(managersLogin.project?.({ id: 1, currentProject: 'sahaj-atlas' })).toBe('sahaj-atlas')
     expect(managersLogin.select).toMatchObject({ currentProject: true })

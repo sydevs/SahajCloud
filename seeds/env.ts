@@ -31,16 +31,14 @@ function emptyAsUndefined<T extends z.ZodTypeAny>(schema: T) {
 /** Seed scripts environment variables schema */
 const SeedEnvSchema = z.object({
   /**
-   * Admin email for seed scripts authentication
-   * Required when running seed scripts that create admin users
+   * A manager's session token, for a seed run against a REMOTE target.
+   *
+   * ⚠ **There is no password to send instead** (#840). `POST /api/managers/login`
+   * answers 403 everywhere, so a remote run carries a token its operator already
+   * holds — the `payload-token` cookie of their own signed-in admin session.
+   * Local runs need none: auto-login covers them.
    */
-  ADMIN_EMAIL: emptyAsUndefined(z.email()),
-
-  /**
-   * Admin password for seed scripts authentication
-   * Minimum 8 characters
-   */
-  ADMIN_PASSWORD: emptyAsUndefined(z.string().min(8)),
+  ADMIN_TOKEN: emptyAsUndefined(z.string().min(1)),
 
   /**
    * Storyblok CMS access token

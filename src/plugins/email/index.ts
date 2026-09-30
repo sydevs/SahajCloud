@@ -18,8 +18,8 @@
  * import { getEmailBrand, renderEmail, resendAdapter } from '@/plugins/email'
  *
  * email: resendAdapter(),
- * generateEmailHTML: ({ user }) =>
- *   renderEmail(createElement(ResetPasswordEmail, { name: user.name, resetUrl })),
+ * generateEmailHTML: ({ doc, signInUrl }) =>
+ *   renderEmail(createElement(SignInLinkEmail, { name: doc.name, signInUrl })),
  * ```
  */
 

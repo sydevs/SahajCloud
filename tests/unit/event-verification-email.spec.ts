@@ -79,7 +79,7 @@ const completeProgress: EventListingProgress = {
 const baseProps = {
   name: 'Jo Manager',
   eventTitle: 'Morning Meditation',
-  verifyUrl: 'https://cloud.test/managers/signin?link=TKN123',
+  verifyUrl: 'https://cloud.test/admin/login?token=TKN123',
   audience: 'manager' as const,
   details,
   deadline: 'Saturday, 19 July 2026',

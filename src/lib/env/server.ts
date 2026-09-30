@@ -298,22 +298,19 @@ const ServerEnvSchema = ClientEnvSchema.extend({
   DOCS_PASSWORD: z.string().min(8, 'DOCS_PASSWORD must be at least 8 characters').optional(),
 
   /**
-   * Admin password for a Railway PR preview.
+   * The address of a Railway PR preview's admin account — and, there only, the
+   * credential that opens it.
    *
-   * Railway supplies this to preview environments, and CI supplies it to the
-   * smoke lane. On boot, a preview reconciles its admin account against this
-   * value (`@/plugins/previewAdmin`). Rotating the value takes effect on the
-   * next deploy, so an environment never gets orphaned with a stale password.
+   * Railway supplies it to preview environments, and CI supplies it to the smoke
+   * lane. On boot a preview reconciles that account (`@/plugins/previewAdmin`),
+   * and the sign-in page signs this one address in instead of mailing it a link,
+   * which is how the lane gets in with no password anywhere (#840).
    *
-   * Optional, and absent by design on production, local dev, and the test
-   * lanes. The seeding gate also reads Railway's environment name, so this
-   * value's absence is not what stops seeding from running there.
-   */
-  PREVIEW_ADMIN_PASSWORD: z.string().min(1).optional(),
-
-  /**
-   * Email address for the provisioned preview admin.
-   * Optional. Defaults to `contact@sydevelopers.com`, to match the smoke lane.
+   * ⚠ **Treat it as a secret, and keep the local part unguessable.** Anyone who
+   * opens a preview and types it becomes its admin. There is deliberately no
+   * default: without the variable a preview provisions no admin and signs nobody
+   * in. The gate also reads Railway's environment name, so setting it outside a
+   * preview grants nothing.
    */
   PREVIEW_ADMIN_EMAIL: z.email().optional(),
 

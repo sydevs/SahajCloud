@@ -206,10 +206,7 @@ export function sendInvitationsTask(config: LoginCollectionConfig): TaskConfig<'
       })
 
       for (const manager of docs) {
-        const doc = manager as unknown as LoginDocument & {
-          notificationPreferences?: Record<string, { frequency?: string }> | null
-          pendingInvitation?: PendingInvitation | null
-        }
+        const doc = manager as unknown as QueuedAccount
 
         await payload.db.updateOne({
           collection: config.slug,
@@ -239,6 +236,12 @@ export function sendInvitationsTask(config: LoginCollectionConfig): TaskConfig<'
   }
 }
 
+/** A manager as the send reads it: the queue, and whether they want it. */
+type QueuedAccount = LoginDocument & {
+  notificationPreferences?: Record<string, { frequency?: string }> | null
+  pendingInvitation?: PendingInvitation | null
+}
+
 /** Send one manager's due invitation. Returns whether anything was sent. */
 async function sendOne({
   config,
@@ -247,10 +250,7 @@ async function sendOne({
   req,
 }: {
   config: LoginCollectionConfig
-  doc: LoginDocument & {
-    notificationPreferences?: Record<string, { frequency?: string }> | null
-    pendingInvitation?: PendingInvitation | null
-  }
+  doc: QueuedAccount
   now: Date
   req: PayloadRequest
 }): Promise<boolean> {

@@ -12,12 +12,14 @@
  * assignment queues and the task sends it once the delay has passed, and that
  * accepting flips `_verified` and mints a session.
  *
- * The one property `manager-verification.int.spec.ts` held alone — login
- * refused by NAME while unaccepted, and allowed after — is asserted below
- * against the real accept route.
+ * The one property `manager-verification.int.spec.ts` held alone — an
+ * unaccepted manager refused, and admitted after — is asserted below against
+ * the real accept route. Managers hold no password since #840, so the refusal
+ * it reads is the JWT strategy's `_verified` gate rather than a login error.
  */
 import type { Payload } from 'payload'
 
+import { decodeJwt } from 'jose'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { managersLogin, MANAGER_SIGNIN_PATH } from '@/collections/Managers/login'
@@ -25,6 +27,7 @@ import { escapeRegExp } from '@/lib/eventQuality/heuristics'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 import type { Manager } from '@/payload-types'
 import {
+  createSession,
   INVITATION_DELAY_MS,
   INVITE_TOKEN_TTL_MS,
   signInviteToken,
@@ -43,26 +46,21 @@ import { runTaskHandler } from '../utils/taskRunner'
 import { testData } from '../utils/testData'
 import { createTestEnvironmentWithEmail } from '../utils/testHelpers'
 
-const ACCEPT_PATH = '/api/managers/redeem-invite'
+const REDEEM_PATH = '/api/managers/redeem'
 
-/** What `testData.createManager` writes. The login arm below needs to know it. */
-const FIXTURE_PASSWORD = 'password123'
 const REQUEST_PATH = '/api/managers/request-magic-link'
 
 /**
- * The invitation as the recipient receives it, token captured.
- *
- * ⚠ **`?invite=`, not `?token=`.** The links are separate JWT audiences, so an
- * invitation arriving under the sign-in parameter would be read with the wrong
- * reader and refused as invalid.
+ * Every link an email carries to the sign-in page. All three kinds arrive as
+ * `?token=`, so a test tells them apart the way the page does: by audience.
  */
-const INVITE_URL = new RegExp(
-  `${escapeRegExp(`${getServerUrl()}${MANAGER_SIGNIN_PATH}?invite=`)}([\\w.%-]+)`,
-)
-
-const SIGN_IN_URL = new RegExp(
+const PAGE_LINK = new RegExp(
   `${escapeRegExp(`${getServerUrl()}${MANAGER_SIGNIN_PATH}?token=`)}([\\w.%-]+)`,
+  'g',
 )
+const INVITE_URL = 'manager-invite'
+const SIGN_IN_URL = 'manager-signin'
+const PAGE_LINK_URL = 'manager-link'
 
 describe('manager invitation', () => {
   let payload: Payload
@@ -75,15 +73,16 @@ describe('manager invitation', () => {
 
   /** Accept an invitation the way the confirmation page's form does. */
   const accept = (token: string) =>
-    anon(`${ACCEPT_PATH}?token=${encodeURIComponent(token)}`, { method: 'POST' })
+    anon(`${REDEEM_PATH}?token=${encodeURIComponent(token)}`, { method: 'POST' })
 
   const verifiedFlag = async (id: number | string) =>
     (await payload.findByID({ collection: 'managers', id, depth: 0 }))._verified
 
-  const tokenIn = (html: string | undefined, pattern: RegExp): null | string => {
-    const match = html?.match(pattern)
-    return match ? decodeURIComponent(match[1]!) : null
-  }
+  /** The first link of this audience in the email, or `null`. */
+  const tokenIn = (html: string | undefined, audience: string): null | string =>
+    [...(html ?? '').matchAll(PAGE_LINK)]
+      .map((match) => decodeURIComponent(match[1]!))
+      .find((token) => decodeJwt(token).aud === audience) ?? null
 
   /**
    * Run the queue's task as though `after` had passed since now — by default,
@@ -324,12 +323,11 @@ describe('manager invitation', () => {
       // The button signs them in on the way to their account page, and opens
       // it on the tab holding Notification Preferences — a tab Payload offers
       // no URL for, so the link writes the tab Payload remembers instead.
-      const link = sent!.html?.match(/managers\/signin\?link=([\w.%-]+)/)?.[1]
-      expect(link, 'no settings link in the body').toBeDefined()
-      const answer = await anon(
-        `/api/managers/redeem-link?token=${encodeURIComponent(decodeURIComponent(link!))}`,
-        { method: 'POST' },
-      )
+      const link = tokenIn(sent!.html, PAGE_LINK_URL)
+      expect(link, 'no settings link in the body').not.toBeNull()
+      const answer = await anon(`${REDEEM_PATH}?token=${encodeURIComponent(link!)}`, {
+        method: 'POST',
+      })
       expect(answer.headers.get('Location')).toBe(`${getServerUrl()}/admin/account`)
 
       const { docs } = await payload.find({
@@ -368,10 +366,11 @@ describe('manager invitation', () => {
       expectRefused(await accept(token), 'invite-accepted')
     })
 
-    it('refuses a sign-in token at the invitation route', async () => {
+    it('spends a sign-in token by the sign-in rules, never as an invitation', async () => {
       const { manager } = await invite()
 
-      // Same claims, valid signature — only the audience differs.
+      // Same claims, valid signature — only the audience differs. The audience
+      // picks the rules, and a sign-in link needs a stamp this account never got.
       const signin = await signSigninToken(
         { collection: 'managers', issuedAt: Date.now(), userId: manager.id },
         payload.secret,
@@ -405,24 +404,27 @@ describe('manager invitation', () => {
       const [header, body, signature] = token.split('.')
 
       expectRefused(await accept(`${header}.${body}.${signature!.slice(0, -2)}xx`), 'invalid')
-      expectRefused(await anon(ACCEPT_PATH, { method: 'POST' }), 'invalid')
+      expectRefused(await anon(REDEEM_PATH, { method: 'POST' }), 'invalid')
     })
 
-    it('refuses login until the invitation is accepted, then allows it', async () => {
+    it('refuses a session until the invitation is accepted, then honours one', async () => {
       const { manager, token } = await invite()
-      const credentials = { email: manager.email, password: FIXTURE_PASSWORD }
 
-      // ⚠ Asserting the error NAME is what makes the success below mean
-      // something: a wrong password would throw here too, and would make the
-      // final step look like a pass for free (#320).
-      await expect(
-        payload.login({ collection: 'managers', data: credentials }),
-      ).rejects.toMatchObject({ name: 'UnverifiedEmail' })
+      // ⚠ **The same session token both times**, so the only thing that changed
+      // between the two reads is `_verified`. Minting a second one after the
+      // accept would pass even if the gate never existed (#840).
+      const asManager = createRestClientWithAuth(env, {
+        Authorization: `JWT ${await createSession(payload, 'managers', manager.id)}`,
+      })
+
+      const before = await asManager('/api/managers/me')
+      expect(before.status).toBe(200)
+      expect((before.body as { user: unknown }).user).toBeNull()
 
       expectAccepted(await accept(token))
 
-      const result = await payload.login({ collection: 'managers', data: credentials })
-      expect(result.user?.email).toBe(manager.email)
+      const after = await asManager('/api/managers/me')
+      expect((after.body as { user?: { email?: string } }).user?.email).toBe(manager.email)
     })
 
     it('refuses a manager deactivated after the invitation was sent', async () => {
@@ -440,9 +442,8 @@ describe('manager invitation', () => {
   })
 
   describe('following a page link', () => {
-    const OPEN_PATH = '/api/managers/redeem-link'
     const open = (token: string) =>
-      anon(`${OPEN_PATH}?token=${encodeURIComponent(token)}`, { method: 'POST' })
+      anon(`${REDEEM_PATH}?token=${encodeURIComponent(token)}`, { method: 'POST' })
 
     const linkFor = (userId: number | string, to = '/admin/collections/events/1') =>
       signLinkToken(
@@ -458,7 +459,6 @@ describe('manager invitation', () => {
         data: {
           name: 'Imported',
           email: `link_${Date.now()}_${Math.random().toString(36).slice(2)}@example.com`,
-          password: FIXTURE_PASSWORD,
           type: 'manager',
         },
         disableVerificationEmail: true,
@@ -488,16 +488,6 @@ describe('manager invitation', () => {
       expectRefused(await open(token), 'invalid')
     })
 
-    it('refuses an invitation or a sign-in link at this route', async () => {
-      const { manager, token: invitation } = await invite()
-      const signin = await signSigninToken(
-        { collection: 'managers', issuedAt: Date.now(), userId: manager.id },
-        payload.secret,
-      )
-
-      expectRefused(await open(invitation), 'invalid')
-      expectRefused(await open(signin), 'invalid')
-    })
   })
 
   describe('asking for a link', () => {

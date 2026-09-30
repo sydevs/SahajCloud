@@ -130,7 +130,7 @@ They cover REST API, auth, and deployment as one cohesive flow.
 
 | Spec                            | REST paths exercised                                                          |
 | ---------------------------------- | ---------------------------------------------------------------------------------- |
-| `auth.e2e.spec.ts`              | `POST /api/managers/login`, `GET /api/managers/me`                                |
+| `auth.e2e.spec.ts`              | `POST /api/managers/request-magic-link` as `PREVIEW_ADMIN_EMAIL` answers with a session, `GET /api/managers/me`, and `POST /api/managers/login` asserted refused (#840) |
 | `meditations.e2e.spec.ts`       | `POST/PATCH/DELETE /api/meditations`, plus `GET` of resources                     |
 | `songs.e2e.spec.ts`             | `POST/PATCH/DELETE /api/songs`                                                    |
 | `lectures.e2e.spec.ts`          | `POST/PATCH/DELETE /api/lectures` (clip variant)                                  |

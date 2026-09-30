@@ -1,9 +1,7 @@
 import type { LoginCollectionConfig } from './types'
-import type { CollectionBeforeOperationHook, Config, Field, Plugin } from 'payload'
+import type { CollectionBeforeOperationHook, CollectionConfig, Config, Field, Plugin } from 'payload'
 
-import { redeemInvite } from './endpoints/redeemInvite'
-import { redeemLink } from './endpoints/redeemLink'
-import { redeemMagicLink } from './endpoints/redeemMagicLink'
+import { redeem } from './endpoints/redeem'
 import { requestMagicLink } from './endpoints/requestMagicLink'
 import { managerJoins, MANAGERS_COLLECTION } from './grantSummary'
 import {
@@ -18,9 +16,9 @@ import {
 /**
  * When the outstanding sign-in link was minted.
  *
- * Three jobs in one timestamp: it is `requestMagicLink`'s throttle window, it
- * is the claim `redeemMagicLink` matches exactly (so a link works once), and
- * clearing it is what a fresh request does to the outstanding link.
+ * Three jobs in one timestamp: it is `issueMagicLink`'s throttle window, it
+ * is the claim the sign-in redeem route matches exactly (so a link works
+ * once), and clearing it is what a fresh request does to the outstanding link.
  *
  * ⚠ **`update: () => false` is what keeps both endpoints its only writers.**
  * Self-access grants an account holder update on their own document, so without
@@ -71,44 +69,105 @@ const suppressCreateMail: CollectionBeforeOperationHook = ({ args, operation }) 
   operation === 'create' ? { ...args, disableVerificationEmail: true } : args
 
 /**
- * ⚠ **A second `/` or `\` makes it off-origin.** This value reaches
- * `RequestSignInLink`'s `to` unprefixed, and a browser normalises `/\host` to
- * the protocol-relative `//host` — so testing for `//` alone leaves a way onto
- * the login form. The plugin's other two consumers compose it after an absolute
- * origin, which is why this is the only place that has to ask.
+ * Drop a `password` sent on an update to a passwordless collection (#840).
+ *
+ * ⚠ **`create` ignores one under `disableLocalStrategy`; `update` does not.**
+ * `collections/operations/utilities/update.js` hashes and stores a `password`
+ * whenever `enableFields` is set — the object form `withoutPasswords` uses. No
+ * route could spend it, but it would put back the hash the
+ * `null_manager_password_hashes` migration removed, and self-access lets any
+ * manager send one for their own row.
+ *
+ * `beforeOperation` because the utility reads `data.password` after it runs.
  */
-const isSiteAbsolute = (path: string) => path.startsWith('/') && !/^\/[/\\]/.test(path)
+const dropPassword: CollectionBeforeOperationHook = ({ args, operation }) => {
+  if (operation !== 'update' || !args.data || !('password' in args.data)) return args
+  const { password: _dropped, ...data } = args.data as Record<string, unknown>
+  return { ...args, data }
+}
 
 /**
- * Put the "Email me a sign-in link" control under the admin login form.
+ * Close every password route on a served collection (#840).
  *
- * ⚠ **Every key of `admin` and of `admin.components` is spread, never
- * replaced.** `src/payload.config.ts` declares `providers`, `beforeNavLinks`,
- * `Nav`, `beforeDashboard`, `graphics` and `views` there — assigning a fresh
- * object would delete the project selector, the custom nav and both custom
- * views, and nothing would fail until someone opened the admin panel.
+ * `login`, `forgotPassword`, `resetPassword`, `verifyEmail`, `unlock` and
+ * `registerFirstUser` each throw `Forbidden` on their first lines once this is
+ * set, so the cut-over is enforced by the framework rather than by us. No
+ * stored hash can be spent, and the admin create form loses its password input
+ * with no custom view. Verified against `payload@3.87.1`.
  *
- * Only the collection the admin panel authenticates gets one: `afterLogin` is a
- * slot on that one form, so a second served collection has no form to add to.
+ * ⚠ **The object form, never the bare `true` `Clients` uses.**
+ * `getAuthFields.js` gates `email`, the verification columns, the account-lock
+ * columns and `sessions` on `!disableLocalStrategy || …enableFields`, so bare
+ * `true` drops all four from the collection. This collection needs every one:
+ * `email` addresses the link, `_verified` is the accepted flag, and `sessions`
+ * is what `createSession` mints into.
+ *
+ * ⚠ **Two operations read the option differently, and both change behaviour.**
+ * `refresh.js` tests `!disableLocalStrategy`, so an object skips its session
+ * branch — a refresh no longer extends the session row or prunes expired ones.
+ * `logout.js` tests `!== true`, so an object still clears the session, which is
+ * what keeps a logout final. `tests/int/manager-passwordless.int.spec.ts` pins
+ * both.
+ *
+ * ⚠ **`maxLoginAttempts: 0` is not redundant.** Payload defaults it to 5
+ * (`collections/config/defaults.js:140`) whether or not a collection names it,
+ * and `getAuthFields` keys the `loginAttempts` / `lockUntil` columns on that
+ * number being above zero. Leaving it unset would keep a lock nothing can set
+ * and nothing can clear — `unlock` is `Forbidden` too.
+ *
+ * Applied by the plugin rather than written into the collection so that
+ * removing `loginPlugin()` returns it to passwords in one edit — but only for
+ * an entry that asks (`LoginCollectionConfig.passwordless`), because which
+ * auth columns a collection carries is not a plugin-wide decision.
  */
-function adminWithSignInLink(
+function withoutPasswords(auth: CollectionConfig['auth']): CollectionConfig['auth'] {
+  const base = typeof auth === 'object' ? auth : {}
+  return { ...base, disableLocalStrategy: { enableFields: true }, maxLoginAttempts: 0 }
+}
+
+/**
+ * Where the admin panel's sign-in view lives. A barrel whose default export is
+ * the view, as Payload's import map requires.
+ */
+const SIGN_IN_VIEW = '@/components/admin/SignIn'
+
+/**
+ * Replace Payload's admin login view with the sign-in view (#840).
+ *
+ * ⚠ **It is the only way in there now.** `disableLocalStrategy` makes Payload's
+ * own view skip `LoginForm` (`@payloadcms/next/dist/views/Login/index.js`),
+ * which leaves a logo and nothing else — drop this and `/admin/login` offers
+ * nobody a way to sign in.
+ *
+ * `views.login` is the key Payload's route resolver looks up for its login
+ * route before falling back to the built-in view, and the route stays public
+ * whatever renders there (`views/Root/getRouteData.js`, `isPublicAdminRoute`).
+ *
+ * ⚠ **Every key of `admin`, `admin.components` and `views` is spread, never
+ * replaced.** `src/payload.config.ts` declares `providers`, `beforeNavLinks`,
+ * `Nav`, `beforeDashboard`, `graphics` and two custom `views` there — assigning
+ * a fresh object would delete the project selector, the custom nav and both
+ * custom views, and nothing would fail until someone opened the admin panel.
+ *
+ * Only for the collection the admin panel authenticates, and only when it is
+ * `passwordless`: the view has no password field, so on a collection that
+ * still has passwords it would hide the form that uses them.
+ */
+function adminWithSignInView(
   admin: Config['admin'],
   byslug: Map<string, LoginCollectionConfig>,
 ): Config['admin'] {
   const entry = admin?.user ? byslug.get(admin.user) : undefined
-  if (!entry || !isSiteAbsolute(entry.requestPagePath)) return admin
+  if (!entry?.passwordless) return admin
 
   return {
     ...admin,
     components: {
       ...admin?.components,
-      afterLogin: [
-        ...(admin?.components?.afterLogin ?? []),
-        {
-          path: '@/components/admin/RequestSignInLink',
-          clientProps: { href: entry.requestPagePath },
-        },
-      ],
+      views: {
+        ...admin?.components?.views,
+        login: { Component: SIGN_IN_VIEW },
+      },
     },
   }
 }
@@ -117,7 +176,7 @@ function adminWithSignInLink(
  * Passwordless sign-in: one hidden timestamp field plus the endpoints that
  * trade an emailed link for a session (#837).
  *
- * The endpoint definitions live under `./endpoints/` and are built per
+ * The endpoint definitions live in `./endpoints/` and are built per
  * configured collection, so the plugin owns the whole feature rather than wiring
  * definitions kept beside one collection. `./mail.ts` renders and addresses the
  * message for every served collection, so a `LoginCollectionConfig` supplies
@@ -165,7 +224,7 @@ export function loginPlugin(options: LoginPluginOptions = {}): Plugin {
 
     return {
       ...config,
-      admin: adminWithSignInLink(config.admin, byslug),
+      admin: adminWithSignInView(config.admin, byslug),
       collections: config.collections?.map((collection) => {
         const entry = byslug.get(collection.slug)
         const namesManagers = joins.filter((join) => join.collection === collection.slug)
@@ -188,28 +247,21 @@ export function loginPlugin(options: LoginPluginOptions = {}): Plugin {
         const invites = entry === invitesFor
         return {
           ...withQueue,
+          ...(entry.passwordless ? { auth: withoutPasswords(withQueue.auth) } : {}),
           fields: [...withQueue.fields, magicLinkIssuedAt, ...(invites ? invitationFields : [])],
           hooks: {
             ...withQueue.hooks,
-            beforeOperation: [...(withQueue.hooks?.beforeOperation ?? []), suppressCreateMail],
+            beforeOperation: [
+              ...(withQueue.hooks?.beforeOperation ?? []),
+              suppressCreateMail,
+              ...(entry.passwordless ? [dropPassword] : []),
+            ],
             afterChange: [
               ...(withQueue.hooks?.afterChange ?? []),
               ...(invites && invitations ? [queueOnRoles] : []),
             ],
           },
-          endpoints: [
-            ...(collection.endpoints || []),
-            requestMagicLink(entry),
-            // ⚠ `POST`-only, and that is the whole defence against a mail scanner
-            // spending the link. The `GET` a delivered link performs is answered by
-            // `requestPagePath`'s own page, which writes nothing.
-            redeemMagicLink(entry),
-            // The invitation's own audience, refused by the route above and
-            // refusing its token in turn — see `redeemInvite`.
-            redeemInvite(entry),
-            // A reminder's link: signs in, then lands on the page it names.
-            redeemLink(entry),
-          ],
+          endpoints: [...(collection.endpoints || []), requestMagicLink(entry), redeem(entry)],
         }
       }),
       jobs: invitesFor

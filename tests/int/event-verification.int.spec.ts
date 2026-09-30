@@ -458,7 +458,7 @@ describe('Event verification lifecycle', () => {
     it('signs the manager in on "Update the details", landing on the event', async () => {
       const { event, link } = await remind('End-to-End Edit Sitting')
 
-      const answer = await anon(`/api/managers/redeem-link?token=${encodeURIComponent(link)}`, {
+      const answer = await anon(`/api/managers/redeem?token=${encodeURIComponent(link)}`, {
         method: 'POST',
       })
 
@@ -1177,7 +1177,7 @@ describe('Event verification lifecycle', () => {
       // way to the event, where the form shows the same errors.
       const edit = outcome.actions.find((action) => action.variant === 'primary')
       expect(edit).toMatchObject({ method: 'post' })
-      expect(edit?.href).toMatch(/\/api\/managers\/redeem-link\?token=/)
+      expect(edit?.href).toMatch(/\/api\/managers\/redeem\?token=/)
       expect(outcome.actions.some((action) => action.href.startsWith('mailto:'))).toBe(false)
     })
 

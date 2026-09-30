@@ -13,7 +13,7 @@ import { readLinkToken } from '@/plugins/login'
 
 import config from '@payload-config'
 
-import { openUrl } from '../../_components/loginUrls'
+import { redeemUrl } from '../../_components/loginUrls'
 
 function atlasHome(): string | null {
   return serverEnv.WEMEDITATE_WEB_URL ? `${serverEnv.WEMEDITATE_WEB_URL}/map` : null
@@ -88,7 +88,7 @@ export async function verifyEventAction(
           ...describeValidationErrors(fieldErrors),
         ].join('\n'),
         actions: [
-          { label: 'Edit this event', href: openUrl(link), variant: 'primary', method: 'post' },
+          { label: 'Edit this event', href: redeemUrl(link), variant: 'primary', method: 'post' },
           ...backSecondary,
         ],
       }

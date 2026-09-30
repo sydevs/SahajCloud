@@ -24,7 +24,6 @@
 import type { AtlasLifecycleTimestamps } from './helpers/verification'
 import type { Payload } from 'payload'
 
-import { randomUUID } from 'node:crypto'
 import * as path from 'path'
 
 import { resolveRegionLocation, geocodeRegion, MANUAL_LOCATION } from '@/lib/mapbox/geocoder'
@@ -629,10 +628,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
               manager.phoneVerified,
             ),
             notificationPreferences: prefs,
-            // Atlas managers authenticate passwordlessly. Give them a
-            // random password they will never use: they reset it, or
-            // stay passwordless, on first login.
-            password: randomPassword(),
+            // No password: managers hold none since #840.
             legacyId: manager.legacyId,
             legacyData: manager,
           },
@@ -1645,11 +1641,6 @@ export function registrationSubmissionData(
     if (value) pairs.push({ field: question.name, value })
   }
   return pairs
-}
-
-/** A throwaway strong password for an imported (passwordless) manager. */
-function randomPassword(): string {
-  return `Atlas-${randomUUID()}`
 }
 
 /** Whether a value is a #RGB / #RRGGBB hex color (what `colorField` accepts). */

@@ -1,0 +1,41 @@
+/*
+ * The one layout every state of the sign-in view shares: a centred column with a
+ * single gap between children, and no margins of their own.
+ *
+ * Payload's `Banner`, `.field-type` and `.btn` each bring a margin sized for a
+ * full admin form. Stacked on the gap, those doubled some spaces and not
+ * others, which is what made the page feel disjointed once a notice appeared.
+ * `:global` because those classes are Payload's — and two classes deep, so the
+ * reset outranks theirs whichever stylesheet loads last.
+ */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--base);
+  text-align: center;
+}
+
+.stack > h2,
+.stack > p,
+.stack > :global(.banner),
+.stack > :global(.field-type) {
+  margin: 0;
+}
+
+.stack > p {
+  color: var(--theme-elevation-650);
+}
+
+/* The label and input read left to right, like every other admin field. */
+.stack > :global(.field-type) {
+  text-align: left;
+}
+
+/*
+ * `.btn` is inline-block, and the login view lays its slot out for a full-width
+ * `LoginForm` — so a lone button sits left unless centred here.
+ */
+.stack > :global(.btn) {
+  align-self: center;
+  margin-block: 0;
+}

@@ -4,14 +4,21 @@ import type { LoginCollectionConfig } from '@/plugins/login'
 const INACTIVE: Manager['type'] = 'inactive'
 
 /**
- * The logged-out page that asks for a sign-in link.
+ * The logged-out page that asks for a sign-in link: Payload's admin login
+ * route, whose view `loginPlugin` replaces (`@/components/admin/SignIn`).
  *
  * The one spelling of the path, read by the config below and by the tests.
- * ⚠ Nothing checks it against the filesystem route at
- * `src/app/(frontend)/managers/signin/` — no TypeScript constant can — so
- * renaming that folder needs this changed by hand.
+ * ⚠ It is `routes.admin` plus `admin.routes.login`, both Payload's defaults —
+ * `src/payload.config.ts` overrides neither. Overriding either needs this
+ * changed by hand.
+ *
+ * ⚠ **`/managers/signin`, the page before this one, is deliberately not
+ * forwarded.** It shipped in #849, but production mailed no link to it before
+ * #840 moved sign-in here, so nothing addresses it — the maintainer confirmed
+ * that on #861 and asked for no redirect. Do not restore one on the premise
+ * that links are outstanding.
  */
-export const MANAGER_SIGNIN_PATH = '/managers/signin'
+export const MANAGER_SIGNIN_PATH = '/admin/login'
 
 /** The account tab holding Notification Preferences — `Managers.ts` labels it with this. */
 export const MANAGER_NOTIFICATIONS_TAB = 'Contact'
@@ -32,6 +39,10 @@ export const managersLogin: LoginCollectionConfig = {
   isEligible: (doc) => doc.type !== INACTIVE,
   // An invitation's "Configure notifications" opens the account on this tab.
   notificationsTab: MANAGER_NOTIFICATIONS_TAB,
+  // A manager signs in by link only (#840). The plugin turns this into
+  // `auth.disableLocalStrategy` plus `maxLoginAttempts: 0`; `clients` is served
+  // by nothing here and keeps its own bare `disableLocalStrategy: true`.
+  passwordless: true,
   // `null` is the admin "All Content" view, which has no brand of its own — the
   // plugin's default stands in. Note this diverges from #483, which brands the
   // verify and reset mail `wemeditate-web` regardless of the recipient.
@@ -40,7 +51,7 @@ export const managersLogin: LoginCollectionConfig = {
   // list, so without this they would see `undefined` — and an inactive manager
   // would be let in.
   select: { currentProject: true, type: true },
-  // Both refusal pages link here, and it is what puts the control on the admin
-  // login form — `admin.user` is this collection (#838).
+  // Every emailed link and every refusal lands here, and `passwordless` plus
+  // `admin.user` being this collection is what puts the sign-in view there.
   requestPagePath: MANAGER_SIGNIN_PATH,
 }

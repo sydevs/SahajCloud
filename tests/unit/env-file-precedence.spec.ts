@@ -10,12 +10,12 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
  *
  * Seeding a remote target takes its admin credentials from the shell:
  *
- *   ADMIN_EMAIL=… ADMIN_PASSWORD=… pnpm seed:prod atlas
+ *   ADMIN_TOKEN=… pnpm seed:prod atlas
  *
  * That only works while the loaders leave an already-set variable alone. The
  * original pair — `dotenv.config({ path: '.env' })` followed by
  * `dotenv.config({ path: '.env.local', override: true })` — did not: the blank
- * `ADMIN_PASSWORD=` that local dev keeps in `.env.local` overwrote the value
+ * `ADMIN_TOKEN=` that local dev keeps in `.env.local` overwrote the value
  * passed on the command line, and `seeds/env.ts` then rejected it as missing.
  *
  * Two assertions below, because either one alone can pass vacuously: the first
@@ -35,7 +35,7 @@ describe('env-file precedence', () => {
     envPath = path.join(fixtureDir, '.env')
     envLocalPath = path.join(fixtureDir, '.env.local')
 
-    // `BLANK_IN_LOCAL` reproduces the ADMIN_PASSWORD shape exactly: a real value
+    // `BLANK_IN_LOCAL` reproduces the ADMIN_TOKEN shape exactly: a real value
     // in the shell, an empty assignment in .env.local.
     writeFileSync(envPath, 'SHARED=from_env\nONLY_IN_ENV=env_value\n')
     writeFileSync(
