@@ -2,7 +2,7 @@
  * Where a verification reminder's button lands its recipient (#839).
  *
  * ⚠ **The gap this closes.** Both recipients' buttons are page links whose
- * landing is a signed `to` claim, and `redeemToken` falls back to `/admin` —
+ * landing is a signed `to` claim, and the redeem route falls back to `/admin` —
  * the dashboard — whenever that claim is absent. A `to` lost at signing is
  * therefore not an error anywhere: the manager is signed in and dropped on the
  * dashboard, with the event they were asked about nowhere in sight. Only the

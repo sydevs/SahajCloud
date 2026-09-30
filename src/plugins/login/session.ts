@@ -10,14 +10,7 @@ import { randomUUID } from 'node:crypto'
 import { getFieldsToSign, jwtSign } from 'payload'
 import { generatePayloadCookie } from 'payload/shared'
 
-/**
- * The auth fields this helper needs, narrowed out of `findByID`'s union.
- *
- * Not `types.ts`'s `LoginDocument`, and not overlapping systems: that one is
- * what the endpoints `select`, this is what `getFieldsToSign` needs off the
- * separate read below. `sessions` is deliberately absent from the endpoints'
- * select, and `magicLinkIssuedAt` is meaningless here.
- */
+/** The auth fields `createSession` reads, narrowed out of `findByID`'s union. */
 interface SessionDocument {
   email?: null | string
   sessions?: { createdAt: string; expiresAt: string; id?: null | string }[] | null
@@ -113,13 +106,9 @@ export async function createSession(
 }
 
 /**
- * The `Set-Cookie` value that puts a minted session in a browser.
- *
- * Beside {@link createSession} because both callers — the redeem routes and the
- * preview exchange — mint and then set, and this is where the
- * `payload.collections[slug]!` reach and the expiry derivation belong. The
- * expiry comes from the collection's own `tokenExpiration`, so no
- * `getCookieExpiration` call is needed here.
+ * The `Set-Cookie` value that puts a minted session in a browser — what the
+ * redeem routes and the preview admin's request answer send. The expiry comes
+ * from the collection's own `tokenExpiration`.
  */
 export function sessionCookie(payload: Payload, collection: CollectionSlug, token: string): string {
   return generatePayloadCookie({
@@ -129,17 +118,7 @@ export function sessionCookie(payload: Payload, collection: CollectionSlug, toke
   })
 }
 
-/**
- * The same session cookie, split into the three arguments a Server Action's
- * `cookies().set` takes.
- *
- * ⚠ **Parsed from {@link sessionCookie}, never rebuilt.** Payload derives the
- * name, the expiry and the `secure` / `sameSite` / `domain` attributes from the
- * collection and the config; a second derivation here would drift from the one
- * the redeem routes send, and a session cookie that differs by one attribute
- * fails in a way only a browser shows. `sessionCookieParts.spec.ts` pins the two
- * against each other.
- */
+/** `Set-Cookie` attribute → `cookies().set` option, for every one Payload sends. */
 const FLAG_KEYS = new Set(['httpOnly', 'partitioned', 'secure'])
 
 const COOKIE_OPTION_KEYS: Record<string, string> = {

@@ -11,11 +11,9 @@ import configPromise from '@/payload.config'
  * Setting it now would move the panel and strand every literal, with nothing to
  * say so until someone clicked.
  *
- * Two of those literals break without any href being wrong, so a grep for
- * hrefs misses them: `isAdminPath` (`plugins/login/token.ts`) refuses a sign-in
- * link's landing path unless it starts `/admin/`, and `redeemToken.ts` falls
- * back to `DEFAULT_REDIRECT`. `tests/unit/manager-auth-urls.spec.ts` keeps the
- * same literal as `ADMIN_ROUTE`.
+ * One of those literals breaks without any href being wrong, so a grep for
+ * hrefs misses it: `isAdminPath` (`plugins/login/token.ts`) refuses a sign-in
+ * link's landing path unless it starts `/admin/`.
  *
  * `admin.routes` is a second namespace, defaulted separately, and two
  * `adminUrl()` callers spell one of its segments — the reset mail's

@@ -3,26 +3,19 @@ import type { CollectionSlug, Payload } from 'payload'
 
 import { z } from 'zod'
 
-import { getServerUrl } from '@/lib/utilities/serverUrl'
-
 import { composeInvitations } from './invite'
+import { signInLinkUrl } from './links'
 import { emailFrom, generateEmailHTML, generateEmailSubject } from './mail'
 import { createSession } from './session'
-import { signSigninToken, SIGNIN_TOKEN_TTL_MS } from './token'
+import { SIGNIN_TOKEN_TTL_MS } from './token'
 
 /**
- * Issuing a sign-in link: the work, with no wiring around it.
- *
- * ⚠ **Its own module because it has two callers**, the same reason
- * `session.ts` is one. `POST /api/<slug>/request-magic-link` is one; the
- * manager sign-in page's Server Action is the other (#838). The endpoint that
- * used to hold this body is now only wiring, so the rule that the barrel
- * exports no endpoint factory stands unqualified.
- *
- * Everything that bounds abuse lives here rather than in either caller: the
- * throttle, the eligibility refusal, and the discipline of reporting nothing.
- * A second implementation would drift, and the one that drifts is the only
- * in-app bound on per-account link volume.
+ * Issuing a sign-in link: the work, with no wiring around it. Two callers —
+ * `POST /api/<slug>/request-magic-link` and the sign-in page's Server Action —
+ * so everything that bounds abuse lives here rather than in either: the
+ * throttle, the eligibility refusal, and the discipline of reporting nothing. A
+ * second implementation would drift, and the one that drifts is the only in-app
+ * bound on per-account link volume.
  */
 
 /**
@@ -57,13 +50,17 @@ export const magicLinkEmailSchema = z.object({
 })
 
 /**
- * Whether this collection has an accepted flag to branch on.
+ * Whether this collection has the `_verified` accepted flag — and so an
+ * invitation to send, and a flag for a redeemed link to set.
  *
- * Read off the sanitized config rather than configured per collection: it is
- * Payload's own answer, and a `LoginCollectionConfig` restating it could
- * disagree with the column that actually exists.
+ * ⚠ **Not every auth collection has the column.** Payload adds it only for one
+ * configuring `auth.verify` (`getAuthFields.js`), so a collection without it
+ * would read `undefined`, look unaccepted forever, and never get a sign-in link
+ * — and a redeem that wrote it would write a field that does not exist. Read
+ * off the sanitized config rather than configured, because that is Payload's
+ * own answer.
  */
-function invitesAccounts(payload: Payload, slug: string): boolean {
+export function hasAcceptedFlag(payload: Payload, slug: string): boolean {
   return Boolean(payload.collections[slug as CollectionSlug]?.config.auth?.verify)
 }
 
@@ -128,7 +125,7 @@ export async function issueMagicLink({
   if (config.previewAutoSignIn && account.email === config.previewAutoSignIn) {
     // The JWT strategy yields no user for an unaccepted account, so minting here
     // would answer with a token that authenticates nobody, one request later.
-    if (invitesAccounts(payload, slug) && account._verified !== true) return
+    if (hasAcceptedFlag(payload, slug) && account._verified !== true) return
     return { token: await createSession(payload, slug, account.id) }
   }
 
@@ -146,20 +143,11 @@ export async function issueMagicLink({
 
   // ⚠ **An unaccepted account gets the invitation, not a sign-in link**, and
   // that branch is what rescues a manager nothing ever mailed — an imported row,
-  // or one whose invitation was lost. A collection's own `generateEmailHTML`
-  // override governs the sign-in mail only; there is one invitation.
-  //
-  // ⚠ **`auth.verify` is what decides there is an invitation at all.** Payload
-  // adds the `_verified` column only for a collection configuring it
-  // (`getAuthFields.js`), so without this gate a served collection that does not
-  // would read `undefined`, take this branch for every account forever, and
-  // never send a sign-in link.
-  if (invitesAccounts(payload, slug) && account._verified !== true) {
-    // Everything the account holds, not just what is new: it has never
-    // accepted, so nothing announced so far has got it in.
-    // One per project it holds something in. None when there is nothing to name
-    // — and then a sign-in link would be refused too, since the account has
-    // never accepted. Say nothing, as ever.
+  // or one whose invitation was lost. Everything it holds is named, not just
+  // what is new: nothing announced so far has got it in. None when there is
+  // nothing to name — and then a sign-in link would be refused too. Say
+  // nothing, as ever.
+  if (hasAcceptedFlag(payload, slug) && account._verified !== true) {
     const invitations = await composeInvitations({ config, doc: account, now, payload })
     for (const invitation of invitations) await payload.sendEmail({ to: account.email, ...invitation })
     return
@@ -168,19 +156,18 @@ export async function issueMagicLink({
   const args: LoginMailArgs = {
     doc: account,
     project: config.project?.(account) ?? undefined,
-    signInUrl: await signInUrl(config, account.id, payload.secret, now),
+    signInUrl: await signInLinkUrl(config, account.id, payload.secret, now),
     validFor: SIGNIN_VALID_FOR,
   }
 
+  // Inline, not queued: the throttle above bounds the volume this can
+  // generate, and a queued send would let the caller's request return before
+  // delivery could fail.
   await payload.sendEmail({
     to: account.email,
     from: emailFrom(args.project),
-    subject: (config.generateEmailSubject ?? generateEmailSubject)(args),
-    // Inline, not queued, matching the verify and reset mail `Managers.auth`
-    // already builds with `renderEmail`. The throttle above bounds the volume
-    // this can generate, and a queued send would let the caller's request
-    // return before delivery could fail.
-    html: await (config.generateEmailHTML ?? generateEmailHTML)(args),
+    subject: generateEmailSubject(args),
+    html: await generateEmailHTML(args),
   })
 }
 
@@ -188,7 +175,7 @@ export async function issueMagicLink({
  * A sign-in link for one account, minted exactly as a delivered one is, with no
  * mail — the operator's break-glass (`scripts/signin-link.ts`).
  *
- * ⚠ **It stamps `magicLinkIssuedAt`, and must.** `redeemMagicLink` spends a
+ * ⚠ **It stamps `magicLinkIssuedAt`, and must.** the redeem route spends a
  * link only while its `issuedAt` equals the stored stamp, so a token signed
  * without one is refused as invalid on the only click that matters. Stamping
  * replaces any outstanding link and restarts the throttle window, exactly as a
@@ -210,7 +197,7 @@ export async function mintSignInLink({
   payload: Payload
 }): Promise<string> {
   await stampIssuedAt(payload, config.slug, id, now)
-  return signInUrl(config, id, payload.secret, now)
+  return signInLinkUrl(config, id, payload.secret, now)
 }
 
 /**
@@ -225,23 +212,4 @@ async function stampIssuedAt(payload: Payload, slug: CollectionSlug, id: number 
     depth: 0,
     overrideAccess: true,
   })
-}
-
-/**
- * ⚠ The link addresses the sign-in page, not the endpoint. A `GET` is then
- * answered by a real page that reads the token and writes nothing, and the burn
- * stays behind that page's form — see `redeemMagicLink`.
- */
-async function signInUrl(
-  config: LoginCollectionConfig,
-  id: number | string,
-  secret: string,
-  now: Date,
-): Promise<string> {
-  const token = await signSigninToken(
-    { collection: config.slug, issuedAt: now.getTime(), userId: id },
-    secret,
-    now,
-  )
-  return `${getServerUrl()}${config.requestPagePath}?token=${encodeURIComponent(token)}`
 }

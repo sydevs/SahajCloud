@@ -37,21 +37,13 @@ export interface LoginMailArgs {
 /**
  * One auth collection the login plugin serves.
  *
- * ⚠ **The slug is the only required member.** The plugin renders and sends the
- * mail itself (`mail.ts`), so a collection supplies only what is genuinely its
- * own — which of its documents may sign in, and which project brands the
- * message.
+ * The plugin renders and sends the mail itself (`mail.ts`), so a collection
+ * supplies only what is genuinely its own — which of its documents may sign
+ * in, which project brands the message, and the page its links open.
  */
 export interface LoginCollectionConfig {
   /** The auth collection. It must be able to hold a session — see `createSession`. */
   slug: CollectionSlug
-  /**
-   * Override the sign-in mail body. Mirrors `auth.verify.generateEmailHTML`,
-   * which is how this project builds its other auth mail.
-   */
-  generateEmailHTML?: (args: LoginMailArgs) => Promise<string> | string
-  /** Override the subject. @see generateEmailHTML */
-  generateEmailSubject?: (args: LoginMailArgs) => string
   /**
    * Take passwords away from this collection: `auth.disableLocalStrategy` in
    * the object form, and `maxLoginAttempts: 0` (#840).
@@ -99,10 +91,6 @@ export interface LoginCollectionConfig {
    * absent or returns nothing.
    */
   project?: (doc: LoginDocument) => null | ProjectSlug | undefined
-  /**
-   * Where a consumed link sends the holder. Defaults to `/admin`.
-   */
-  redirectTo?: string
   /**
    * The sign-in page this collection's links resolve against, as a
    * site-absolute path.

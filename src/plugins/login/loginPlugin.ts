@@ -1,10 +1,7 @@
 import type { LoginCollectionConfig } from './types'
 import type { CollectionBeforeOperationHook, CollectionConfig, Config, Field, Plugin } from 'payload'
 
-import { redeemInvite } from './endpoints/redeemInvite'
-import { redeemLink } from './endpoints/redeemLink'
-import { redeemMagicLink } from './endpoints/redeemMagicLink'
-import { requestMagicLink } from './endpoints/requestMagicLink'
+import { loginEndpoints } from './endpoints'
 import { managerJoins, MANAGERS_COLLECTION } from './grantSummary'
 import {
   INVITATIONS_CRON,
@@ -18,9 +15,9 @@ import {
 /**
  * When the outstanding sign-in link was minted.
  *
- * Three jobs in one timestamp: it is `requestMagicLink`'s throttle window, it
- * is the claim `redeemMagicLink` matches exactly (so a link works once), and
- * clearing it is what a fresh request does to the outstanding link.
+ * Three jobs in one timestamp: it is `issueMagicLink`'s throttle window, it
+ * is the claim the sign-in redeem route matches exactly (so a link works
+ * once), and clearing it is what a fresh request does to the outstanding link.
  *
  * ⚠ **`update: () => false` is what keeps both endpoints its only writers.**
  * Self-access grants an account holder update on their own document, so without
@@ -178,7 +175,7 @@ function adminWithSignInView(
  * Passwordless sign-in: one hidden timestamp field plus the endpoints that
  * trade an emailed link for a session (#837).
  *
- * The endpoint definitions live under `./endpoints/` and are built per
+ * The endpoint definitions live in `./endpoints.ts` and are built per
  * configured collection, so the plugin owns the whole feature rather than wiring
  * definitions kept beside one collection. `./mail.ts` renders and addresses the
  * message for every served collection, so a `LoginCollectionConfig` supplies
@@ -263,19 +260,7 @@ export function loginPlugin(options: LoginPluginOptions = {}): Plugin {
               ...(invites && invitations ? [queueOnRoles] : []),
             ],
           },
-          endpoints: [
-            ...(collection.endpoints || []),
-            requestMagicLink(entry),
-            // ⚠ `POST`-only, and that is the whole defence against a mail scanner
-            // spending the link. The `GET` a delivered link performs is answered by
-            // `requestPagePath`'s own page, which writes nothing.
-            redeemMagicLink(entry),
-            // The invitation's own audience, refused by the route above and
-            // refusing its token in turn — see `redeemInvite`.
-            redeemInvite(entry),
-            // A reminder's link: signs in, then lands on the page it names.
-            redeemLink(entry),
-          ],
+          endpoints: [...(collection.endpoints || []), ...loginEndpoints(entry)],
         }
       }),
       jobs: invitesFor

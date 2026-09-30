@@ -26,7 +26,7 @@ One self-contained folder per plugin/adapter, with a public API via an
 `sentry/`, `login/`. Consumers (including `payload.config.ts`) import from
 `@/plugins/<name>`.
 
-⚠ **`login/` owns its endpoints** (`src/plugins/login/endpoints/`), unlike every
+⚠ **`login/` owns its endpoints** (`src/plugins/login/endpoints.ts`), unlike every
 other plugin here, which wires definitions kept beside their collection. They are
 factories, built once per collection the plugin's `collections` option names, so
 there is no one collection to park them beside. What stays with a collection is
