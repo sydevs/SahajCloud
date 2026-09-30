@@ -119,6 +119,10 @@ const payloadConfig = (overrides?: Partial<Config>) => {
         baseDir: path.resolve(dirname),
       },
       meta: {
+        // Payload's auto-registered `get /og` renders the `graphics.Icon` slot on
+        // the server; ours is a client component, so it 502s (#868). See
+        // tests/int/admin-og-image.int.spec.ts.
+        defaultOGImageType: 'off',
         titleSuffix: '- Sahaj Cloud',
         description: 'Content for We Meditate & Sahaj Atlas',
         icons: [
