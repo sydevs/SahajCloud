@@ -51,9 +51,27 @@ describe('detectOrientationHook', () => {
   })
 
   it('skips SVG, which Payload measures off width/height or viewBox', async () => {
-    const result = await runHook({ width: 1050, height: 700 }, { mimetype: 'image/svg+xml' })
+    const result = await runHook(
+      { width: 1050, height: 700, mimeType: 'image/svg+xml' },
+      { mimetype: 'image/svg+xml' },
+    )
 
     expect(result.tags).toBeUndefined()
+  })
+
+  it('skips an SVG posted as image/png, because the sniffed type decides', async () => {
+    const result = await runHook({ width: 1050, height: 700, mimeType: 'image/svg+xml' })
+
+    expect(result.tags).toBeUndefined()
+  })
+
+  it('tags a png posted as image/svg+xml, for the same reason', async () => {
+    const result = await runHook(
+      { width: 1050, height: 700, mimeType: 'image/png' },
+      { mimetype: 'image/svg+xml' },
+    )
+
+    expect(result.tags).toEqual(['landscape'])
   })
 
   it('preserves existing tags and never duplicates the orientation', async () => {

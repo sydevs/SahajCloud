@@ -25,8 +25,9 @@ function getOrientationFromDimensions(
  * hang on crafted bytes where a throw would have been caught (#780).
  *
  * SVG is skipped explicitly — Payload does measure it, off `width`/`height` or
- * `viewBox`, so declining the format is this hook's job now. The type checked is
- * the one the client declared, so the skip is a default, not a guarantee.
+ * `viewBox`, so declining the format is this hook's job now. The type comes from
+ * `data.mimeType`, which Payload sniffed off the bytes. `req.file.mimetype` is
+ * the client's own claim, and would let an SVG posted as `image/png` through.
  */
 export const detectOrientationHook: CollectionBeforeChangeHook = async ({
   data,
@@ -37,7 +38,7 @@ export const detectOrientationHook: CollectionBeforeChangeHook = async ({
     return data
   }
 
-  if (req.file.mimetype === 'image/svg+xml') {
+  if (data.mimeType === 'image/svg+xml') {
     return data
   }
 
