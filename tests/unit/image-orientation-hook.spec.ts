@@ -7,9 +7,9 @@ import { detectOrientationHook } from '@/collections/Images/hooks/detectOrientat
 type HookArgs = Parameters<CollectionBeforeChangeHook>[0]
 
 /**
- * ICNS header: the `icns` magic plus one `ic07` chunk. `image-size` routed this
- * to the parser GHSA-w3rx-r6r6-pgpr reports an infinite loop in, which is the
- * shape #780 exists to keep off the upload path.
+ * An ICNS header — the `icns` magic plus one `ic07` chunk — declared as a PNG.
+ * Every case runs against it, so a tag can only have come from `data`: no
+ * dimension parser reads these bytes and returns 1050x700 (#780).
  */
 function icnsBuffer(): Buffer {
   const buffer = Buffer.alloc(64)
@@ -21,15 +21,12 @@ function icnsBuffer(): Buffer {
 
 function runHook(
   data: Record<string, unknown>,
-  file: { data: Buffer; mimetype: string } | null = { data: icnsBuffer(), mimetype: 'image/png' },
-  operation: 'create' | 'update' = 'create',
+  { mimetype = 'image/png', operation = 'create' }: { mimetype?: string; operation?: string } = {},
 ) {
   return detectOrientationHook({
-    collection: { slug: 'images' },
-    context: {},
     data,
     operation,
-    req: { file, payload: { logger: { warn: () => {} } } },
+    req: { file: { data: icnsBuffer(), mimetype } },
   } as unknown as HookArgs) as Promise<Record<string, unknown>>
 }
 
@@ -40,16 +37,7 @@ describe('detectOrientationHook', () => {
     expect(result.tags).toEqual(['landscape'])
   })
 
-  it('returns an ICNS payload declared as image/png untouched, and promptly', async () => {
-    const started = Date.now()
-    const result = await runHook({ alt: 'crafted' })
-
-    expect(result).toEqual({ alt: 'crafted' })
-    expect(Date.now() - started).toBeLessThan(1000)
-  })
-
   it.each([
-    [1050, 700, 'landscape'],
     [700, 1050, 'portrait'],
     [1000, 1000, 'square'],
     [1050, 1000, 'square'],
@@ -62,11 +50,8 @@ describe('detectOrientationHook', () => {
     expect(result.tags).toEqual([expected])
   })
 
-  it('skips SVG uploads, which Payload measures off width/height or viewBox', async () => {
-    const result = await runHook(
-      { width: 1050, height: 700 },
-      { data: Buffer.from('<svg width="1050" height="700"/>'), mimetype: 'image/svg+xml' },
-    )
+  it('skips SVG, which Payload measures off width/height or viewBox', async () => {
+    const result = await runHook({ width: 1050, height: 700 }, { mimetype: 'image/svg+xml' })
 
     expect(result.tags).toBeUndefined()
   })
@@ -77,14 +62,18 @@ describe('detectOrientationHook', () => {
     expect(result.tags).toEqual(['thumbnail', 'landscape'])
   })
 
-  it('leaves an unmeasured upload untagged', async () => {
-    const result = await runHook({ width: 1050, height: 0 })
+  it.each([
+    ['Payload declined to measure it', { alt: 'crafted' }],
+    ['a dimension came back zero', { width: 1050, height: 0 }],
+    ['a dimension is not a number', { width: 1050, height: '700' }],
+  ])('leaves the upload untagged when %s', async (_case, data) => {
+    const result = await runHook(data)
 
-    expect(result.tags).toBeUndefined()
+    expect(result).toEqual(data)
   })
 
   it('only runs on create', async () => {
-    const result = await runHook({ width: 1050, height: 700 }, undefined, 'update')
+    const result = await runHook({ width: 1050, height: 700 }, { operation: 'update' })
 
     expect(result.tags).toBeUndefined()
   })

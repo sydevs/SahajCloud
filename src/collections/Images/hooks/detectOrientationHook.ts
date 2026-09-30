@@ -17,31 +17,23 @@ function getOrientationFromDimensions(
 }
 
 /**
- * Hook that detects image orientation and automatically adds the corresponding tag.
+ * Tags an uploaded image with its orientation, on create from the admin UI, the
+ * API and imports alike.
  *
- * Runs on all image uploads (admin UI, API, imports).
- * Orientation tags: landscape, portrait, square
+ * Dimensions come from `data`: Payload's `generateFileData` measures the buffer
+ * before any `beforeChange` hook, and a magic-byte parser fed the raw upload can
+ * hang on crafted bytes where a throw would have been caught (#780).
  *
- * - landscape: width > height (ratio > 1.1)
- * - portrait: height > width (ratio < 0.9)
- * - square: width ≈ height (ratio 0.9-1.1, 10% tolerance)
- *
- * Dimensions come from `data`, never from `req.file.data`. Payload's
- * `generateFileData` measures the buffer before any `beforeChange` hook runs, so
- * parsing it a second time here only widens the attack surface: a magic-byte
- * parser picks its format from attacker-controlled bytes, and a hang in one of
- * them pins the event loop where a throw would have been caught (#780).
- *
- * SVG images are skipped as they don't have meaningful pixel dimensions. Payload
- * does measure them, off the `width`/`height` or `viewBox` attributes, so the
- * skip has to be explicit here.
+ * SVG is skipped explicitly — Payload does measure it, off `width`/`height` or
+ * `viewBox`, so declining the format is this hook's job now. The type checked is
+ * the one the client declared, so the skip is a default, not a guarantee.
  */
 export const detectOrientationHook: CollectionBeforeChangeHook = async ({
   data,
   req,
   operation,
 }) => {
-  if (operation !== 'create' || !req.file?.data) {
+  if (operation !== 'create' || !req.file) {
     return data
   }
 
