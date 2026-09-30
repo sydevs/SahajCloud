@@ -15,15 +15,6 @@ import {
 import payloadConfig from '@payload-config'
 
 /**
- * Next signals a redirect by throwing. The digest is the documented shape, and
- * reading it beats importing the private `isRedirectError` this version keeps
- * under `next/dist`.
- */
-const isRedirectError = (error: unknown): boolean =>
-  typeof (error as { digest?: unknown } | null)?.digest === 'string' &&
-  (error as { digest: string }).digest.startsWith('NEXT_REDIRECT')
-
-/**
  * This page either accepts the address or rejects what was typed.
  *
  * The two arms carry different fields because they are rendered differently:
@@ -74,29 +65,10 @@ export async function requestSignInLinkAction(
 
   const payload = await getPayload({ config: payloadConfig })
 
+  let signedIn: Awaited<ReturnType<typeof issueMagicLink>>
   try {
-    const signedIn = await issueMagicLink({
-      payload,
-      config: managersLogin,
-      email: parsed.data.email,
-    })
-
-    // A Railway preview signs its own admin in rather than mailing a link, which
-    // is the whole of how anyone gets into a preview since #840 — see
-    // `previewAutoSignIn`. Nowhere else can reach this: the option is unset in
-    // production, in CI and in local dev.
-    if (signedIn) {
-      const { name, options, value } = sessionCookieParts(payload, managersLogin.slug, signedIn.token)
-      ;(await cookies()).set(name, value, options)
-      redirect('/admin')
-    }
+    signedIn = await issueMagicLink({ payload, config: managersLogin, email: parsed.data.email })
   } catch (error) {
-    // ⚠ `redirect` throws, so it must not be swallowed with the transport
-    // failures below — Next signals a navigation by throwing a digest, and
-    // catching it would leave the caller on this page, signed in, looking at
-    // "check your email".
-    if (isRedirectError(error)) throw error
-
     // Swallowed for the same reason the endpoint swallows it: only a real
     // address gets as far as a send, so a surfaced transport failure would
     // report that the address is real.
@@ -104,6 +76,21 @@ export async function requestSignInLinkAction(
       msg: 'managers sign-in page: could not issue a sign-in link',
       error: error instanceof Error ? error.message : String(error),
     })
+    return SENT
+  }
+
+  // A Railway preview signs its own admin in rather than mailing a link, which
+  // is the whole of how anyone gets into a preview since #840 — see
+  // `previewAutoSignIn`. Nowhere else can reach this: the option is unset in
+  // production, in CI and in local dev.
+  //
+  // ⚠ Outside the `try` on purpose: Next signals a navigation by throwing, and
+  // a `catch` around `redirect` would swallow it — leaving the caller on this
+  // page, signed in, reading "check your email".
+  if (signedIn) {
+    const { name, options, value } = sessionCookieParts(payload, managersLogin.slug, signedIn.token)
+    ;(await cookies()).set(name, value, options)
+    redirect(payload.config.routes.admin)
   }
 
   return SENT
