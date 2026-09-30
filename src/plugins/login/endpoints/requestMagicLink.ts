@@ -4,23 +4,21 @@ import type { Endpoint } from 'payload'
 import { parseBody } from '@/lib/endpoints'
 
 import { issueMagicLink, magicLinkEmailSchema } from '../magicLinks'
+import { sessionCookie } from '../session'
 
 export const REQUEST_MAGIC_LINK_PATH = '/request-magic-link'
 
-/** What every caller sees, whatever happened. See the handler's docblock. */
+/** What every caller sees, whatever happened. */
 const ACCEPTED = { ok: true } as const
 
 /**
- * `POST /api/<slug>/request-magic-link`
- *
- * Trades an email address for an emailed sign-in link, for one configured auth
- * collection. `loginPlugin` builds one of these per entry in its `collections`
- * option. The work is `issueMagicLink`, shared with the sign-in page.
+ * `POST /api/<slug>/request-magic-link` — trade an address for an emailed
+ * sign-in link. The work is `issueMagicLink`, shared with the sign-in page.
  *
  * Auth: **intentionally anonymous** — an account that cannot sign in is exactly
- * who asks for a link, so no guard is possible here. It is absent from the
- * OpenAPI client spec for the same reason `set-project` is: the collections this
- * serves are admin-only and in no project, so they publish no public paths.
+ * who asks for a link. Absent from the OpenAPI client spec for the same reason
+ * `set-project` is: the collections this serves are admin-only and in no
+ * project, so they publish no public paths.
  *
  * ⚠ **The response is identical for every outcome** — a link sent, an address
  * nobody holds, a document `isEligible` rejects, and a repeat inside the
@@ -28,8 +26,12 @@ const ACCEPTED = { ok: true } as const
  * anonymous endpoint, and the throttle is the sharpest one: a 429 would tell the
  * caller the address is real *and* recently used. The work still differs (an
  * unknown address neither writes nor sends), so this is uniform in status and
- * body rather than in elapsed time; closing the timing channel would mean paying
- * for a send that is not happening.
+ * body rather than in elapsed time.
+ *
+ * ⚠ **One exception, on a Railway preview only.** `previewAutoSignIn` answers
+ * its one address with a session — `token` in the body for the smoke lane, and
+ * the cookie for a browser. The option is unset everywhere the uniform answer
+ * could be read as an oracle.
  */
 export function requestMagicLink(config: LoginCollectionConfig): Endpoint {
   return {
@@ -40,7 +42,13 @@ export function requestMagicLink(config: LoginCollectionConfig): Endpoint {
       if (!parsed.ok) return parsed.response
 
       try {
-        await issueMagicLink({ payload: req.payload, config, email: parsed.data.email })
+        const signedIn = await issueMagicLink({ payload: req.payload, config, email: parsed.data.email })
+        if (signedIn) {
+          return Response.json(
+            { ...ACCEPTED, token: signedIn.token },
+            { headers: { 'Set-Cookie': sessionCookie(req.payload, config.slug, signedIn.token) } },
+          )
+        }
       } catch (error) {
         // Never surfaced: a transport failure that reached the caller would be an
         // oracle too, since only a real address gets as far as a send.

@@ -53,7 +53,7 @@ This only works because the authenticated user loads **four times**, not once. `
 
 `src/plugins/access/localizedRolesAuth.ts` re-loads the manager at the auth strategy (every request), `afterLogin`, `afterMe` (the admin's own `/me` call on mount), and `afterRefresh` (a tab left open). Skip any one and that moment's read reverts to the flat, default-locale array.
 
-⚠ **All four are hooks on an auth *response*, so a sign-in that builds its own response gets none of them.** That is why `POST /api/managers/redeem-magic-link` (#837) **redirects** to `/admin` instead of returning a user: a hand-built body there would carry flat, single-locale `roles` that nothing else in the app hands out. The redirect leaves `afterMe` to resolve them on the admin's next `/me`. Any future route that mints a session itself owes the same choice — return nothing, or run the roles through `withLocalizedRoleAuth`'s shape.
+⚠ **All four are hooks on an auth *response*, so a sign-in that builds its own response gets none of them.** That is why `POST /api/managers/redeem` (#837) **redirects** to `/admin` instead of returning a user: a hand-built body there would carry flat, single-locale `roles` that nothing else in the app hands out. The redirect leaves `afterMe` to resolve them on the admin's next `/me`. Any future route that mints a session itself owes the same choice — return nothing, or run the roles through `withLocalizedRoleAuth`'s shape.
 
 ⚠ **Nothing wires this up on the collection**. `accessPlugin` attaches all four hooks to any auth collection whose `roles` field is `localized`. A future such collection is covered automatically. `Clients.roles` is flat, so it is skipped.
 
@@ -151,6 +151,8 @@ Wired into `createAccessConfig` on an explicit slug allowlist (`{ regions, event
 ### Derived grants: one pass, one table (#719, #748)
 
 Two access keys are **derived from `update`** rather than computed from the role tables, because both are edit authority wearing another name: `readVersions` (version history, #719) and `unlock` (clearing a login lockout, #748). `withDerivedGrants(access, keys)` writes them in one pass, and `DERIVED_GRANTS` in `accessConfigs.ts` is the table of what differs between them — today, only whether the `Where` needs translating.
+
+⚠ **`unlock` is now unreachable on both auth collections, and the grant still has to be right.** `managers` sets `disableLocalStrategy` (#840) and `clients` always did, so Payload's `unlock` operation answers `Forbidden` before access control runs, and `maxLoginAttempts: 0` leaves no counter to clear. The derivation is asserted by `tests/unit/access-derived-grants.spec.ts` rather than against a locked account, and it is kept because the failure it guards — Payload refilling an unwritten key with `Boolean(user)` — is a property of every derived key, not of lockouts.
 
 They are one function because they share one failure, one guard, and one hazard. Both shipped by going **unwritten**, both must drop `args.id` before delegating, and both fail closed when there is no `update`. Two copies of that drift: a fix to one is a fix somebody must remember to port.
 

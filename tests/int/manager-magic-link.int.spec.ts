@@ -24,11 +24,12 @@ import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { MANAGER_SIGNIN_PATH } from '@/collections/Managers/login'
+import { MANAGER_SIGNIN_PATH, managersLogin } from '@/collections/Managers/login'
 import { escapeRegExp } from '@/lib/eventQuality/heuristics'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 import {
   createSession,
+  mintSignInLink,
   REQUEST_LINK_THROTTLE_MS,
   signInviteToken,
   signSigninToken,
@@ -40,7 +41,7 @@ import { testData } from '../utils/testData'
 import { createTestEnvironmentWithEmail } from '../utils/testHelpers'
 
 const REQUEST_PATH = '/api/managers/request-magic-link'
-const REDEEM_PATH = '/api/managers/redeem-magic-link'
+const REDEEM_PATH = '/api/managers/redeem'
 
 /**
  * The sign-in link as the recipient receives it, token captured.
@@ -92,7 +93,7 @@ describe('manager magic-link sign-in', () => {
 
   const expectRefused = (
     answer: { headers: Headers; status: number },
-    reason: 'expired' | 'invalid',
+    reason: 'expired' | 'invalid' | 'invite-accepted',
   ) => {
     expect(answer.status).toBe(302)
     expect(answer.headers.get('Location')).toBe(
@@ -131,9 +132,8 @@ describe('manager magic-link sign-in', () => {
       // appended would delete the project switcher silently.
       expect(paths).toContain('/set-project')
       expect(paths).toContain('/request-magic-link')
-      expect(paths).toContain('/redeem-magic-link')
-      // The invitation's own route — a separate audience (#839).
-      expect(paths).toContain('/redeem-invite')
+      // One route spends every kind of link; the token's audience picks the rules.
+      expect(paths).toContain('/redeem')
     })
 
     it('refuses a sign-in link token presented as a session cookie', async () => {
@@ -297,6 +297,36 @@ describe('manager magic-link sign-in', () => {
       expectRefused(await consume(token), 'invalid')
     })
 
+    it('signs in with the break-glass link, which mails nothing', async () => {
+      // `scripts/signin-link.ts` prints this. The first version signed a token
+      // without stamping `magicLinkIssuedAt`, and this route refused it — a
+      // break-glass that failed on the one click that mattered.
+      const manager = await activeManager()
+      emailAdapter.clearCapturedEmails()
+
+      const link = await mintSignInLink({ config: managersLogin, id: manager.id, payload })
+      const token = decodeURIComponent(link.match(SIGN_IN_URL)![1])
+
+      expect(emailAdapter.findEmailByTo(manager.email)).toBeUndefined()
+      expectSignedIn(await consume(token))
+    })
+
+    it('invalidates a mailed link when the break-glass one is minted', async () => {
+      const manager = await activeManager()
+      const mailed = await linkTokenFor(manager.email)
+
+      const link = await mintSignInLink({
+        config: managersLogin,
+        id: manager.id,
+        // A later instant than the mailed one, as it always is in practice.
+        now: new Date(Date.now() + 1000),
+        payload,
+      })
+
+      expectRefused(await consume(mailed), 'invalid')
+      expectSignedIn(await consume(decodeURIComponent(link.match(SIGN_IN_URL)![1])))
+    })
+
     it('a fresh request invalidates the outstanding link', async () => {
       const manager = await activeManager()
       const stale = await linkTokenFor(manager.email)
@@ -344,11 +374,13 @@ describe('manager magic-link sign-in', () => {
       expectRefused(await consume(aged), 'expired')
     })
 
-    it('refuses an invitation token at the sign-in route', async () => {
+    it('spends an invitation by the invitation rules, never as the sign-in link', async () => {
       const manager = await activeManager()
-      await requestLinkFor(manager.email)
+      const link = await linkTokenFor(manager.email)
 
       // Same claims, same instant, valid signature — only the audience differs.
+      // The audience picks the rules: an accepted account's invitation is spent,
+      // and the sign-in link it mimics is left outstanding.
       const invite = await signInviteToken(
         {
           collection: 'managers',
@@ -358,7 +390,8 @@ describe('manager magic-link sign-in', () => {
         payload.secret,
       )
 
-      expectRefused(await consume(invite), 'invalid')
+      expectRefused(await consume(invite), 'invite-accepted')
+      expectSignedIn(await consume(link))
     })
 
     it('refuses a manager deactivated after the link was sent', async () => {
@@ -426,7 +459,7 @@ describe('manager magic-link sign-in', () => {
       // what a scanner fetches writes nothing; and this path answers no GET, so
       // a scanner that reached it anyway still spends nothing.
       // 403, not 404: with no `get` handler here, Payload tries the collection's
-      // `findByID` route with `redeem-magic-link` as the id and refuses the
+      // `findByID` route with `redeem` as the id and refuses the
       // anonymous read. Either status says the same thing — nothing answered.
       const scanned = await scan(token)
       expect(scanned.status).toBe(403)

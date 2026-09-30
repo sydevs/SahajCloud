@@ -1,3 +1,5 @@
+import { decodeJwt } from 'jose'
+
 import { signToken, verifyToken, type SignedTokenResult } from '@/lib/utilities/signedToken'
 
 /**
@@ -91,66 +93,45 @@ export function isAdminPath(to: unknown): to is string {
   return typeof to === 'string' && to.startsWith('/admin/') && !to.includes('//')
 }
 
-function sign(claims: LoginTokenClaims, kind: string, ttlMs: number, secret: string, now: Date) {
-  return signToken({ ...claims }, { kind, ttlMs }, secret, now)
-}
-
-async function read(
-  token: null | string | undefined,
-  kind: string,
-  secret: string,
-  now: Date,
-): Promise<LoginTokenResult> {
-  const result = await verifyToken<LoginTokenClaims>(token, kind, secret, now)
-  if (result.status !== 'valid') return result
-
-  // The signature already proves we minted it; this only catches a token from
-  // an older shape of these claims, which is malformed rather than expired.
-  const { collection, issuedAt, userId } = result.claims
-  if (typeof collection !== 'string' || typeof issuedAt !== 'number' || userId === undefined) {
-    return { status: 'invalid' }
-  }
-  return { status: 'valid', claims: { collection, issuedAt, userId } }
-}
-
-/** Sign a sign-in link token. `now` is injectable for deterministic tests. */
-export function signSigninToken(
-  claims: LoginTokenClaims,
-  secret: string,
-  now: Date = new Date(),
-): Promise<string> {
-  return sign(claims, SIGNIN_TOKEN_KIND, SIGNIN_TOKEN_TTL_MS, secret, now)
-}
-
 /**
- * Inspect a sign-in link token, distinguishing an authentic-but-expired token
- * from a missing, tampered or wrong-audience one.
+ * The sign/read pair for one of the two kinds that carry only the base claims.
+ * `now` is injectable for deterministic tests.
  */
-export function readSigninToken(
-  token: null | string | undefined,
-  secret: string,
-  now: Date = new Date(),
-): Promise<LoginTokenResult> {
-  return read(token, SIGNIN_TOKEN_KIND, secret, now)
+function baseKind(kind: string, ttlMs: number) {
+  return {
+    sign: (claims: LoginTokenClaims, secret: string, now: Date = new Date()): Promise<string> =>
+      signToken({ ...claims }, { kind, ttlMs }, secret, now),
+    /**
+     * Inspect a token, distinguishing an authentic-but-expired one from a
+     * missing, tampered or wrong-audience one.
+     */
+    read: async (
+      token: null | string | undefined,
+      secret: string,
+      now: Date = new Date(),
+    ): Promise<LoginTokenResult> => {
+      const result = await verifyToken<LoginTokenClaims>(token, kind, secret, now)
+      if (result.status !== 'valid') return result
+
+      // The signature already proves we minted it; this only catches a token
+      // from an older shape of these claims, which is malformed rather than expired.
+      const { collection, issuedAt, userId } = result.claims
+      if (typeof collection !== 'string' || typeof issuedAt !== 'number' || userId === undefined) {
+        return { status: 'invalid' }
+      }
+      return { status: 'valid', claims: { collection, issuedAt, userId } }
+    },
+  }
 }
 
-/** Sign an invitation token. `now` is injectable for deterministic tests. */
-export function signInviteToken(
-  claims: LoginTokenClaims,
-  secret: string,
-  now: Date = new Date(),
-): Promise<string> {
-  return sign(claims, INVITE_TOKEN_KIND, INVITE_TOKEN_TTL_MS, secret, now)
-}
-
-/** Inspect an invitation token. See {@link readSigninToken}. */
-export function readInviteToken(
-  token: null | string | undefined,
-  secret: string,
-  now: Date = new Date(),
-): Promise<LoginTokenResult> {
-  return read(token, INVITE_TOKEN_KIND, secret, now)
-}
+export const { read: readSigninToken, sign: signSigninToken } = baseKind(
+  SIGNIN_TOKEN_KIND,
+  SIGNIN_TOKEN_TTL_MS,
+)
+export const { read: readInviteToken, sign: signInviteToken } = baseKind(
+  INVITE_TOKEN_KIND,
+  INVITE_TOKEN_TTL_MS,
+)
 
 /**
  * Sign a link token. Unlike the other two it is **not single-use**: a reminder
@@ -165,7 +146,7 @@ export function signLinkToken(
   return signToken({ ...claims }, { kind: LINK_TOKEN_KIND, ttlMs: LINK_TOKEN_TTL_MS }, secret, now)
 }
 
-/** Inspect a link token. See {@link readSigninToken}. */
+/** Inspect a link token. See `baseKind`'s `read`. */
 export async function readLinkToken(
   token: null | string | undefined,
   secret: string,
@@ -174,7 +155,7 @@ export async function readLinkToken(
   const result = await verifyToken<LinkTokenClaims>(token, LINK_TOKEN_KIND, secret, now)
   if (result.status !== 'valid') return result
 
-  // As in `read`: the signature proves we minted it, so this only refuses an
+  // As in `baseKind`: the signature proves we minted it, so this only refuses an
   // older claim shape — and a `to` this server would never redirect to.
   const { collection, issuedAt, label, tab, to, userId, verifies } = result.claims
   if (
@@ -200,4 +181,59 @@ export async function readLinkToken(
       ...(tab !== undefined && { tab }),
     },
   }
+}
+
+/** The three kinds, as the rest of the plugin names them. */
+export type LoginTokenKind = 'invite' | 'link' | 'signin'
+
+/** A verified token of any kind, with the claims that kind carries. */
+export type LoginToken =
+  | { claims: LinkTokenClaims; kind: 'link' }
+  | { claims: LoginTokenClaims; kind: 'invite' | 'signin' }
+
+export type AnyLoginTokenResult =
+  | { status: 'expired'; kind: LoginTokenKind }
+  | { status: 'invalid' }
+  | { status: 'valid'; token: LoginToken }
+
+const KIND_BY_AUDIENCE: Record<string, LoginTokenKind> = {
+  [INVITE_TOKEN_KIND]: 'invite',
+  [LINK_TOKEN_KIND]: 'link',
+  [SIGNIN_TOKEN_KIND]: 'signin',
+}
+
+/**
+ * Read a delivered token of whichever kind it is — what the sign-in page and
+ * the redeem route both do, so neither needs a route or a parameter per kind.
+ *
+ * ⚠ **The kind is read off the token's audience before it is verified**, and
+ * that is safe because the kind only chooses the reader: that kind's own reader
+ * then checks the signature *and the same audience*. A forged audience fails
+ * the signature; one naming no login kind — `submission-feedback`, say — picks
+ * no reader. So the audiences stay exactly as separate as before: a 7-day
+ * invitation still cannot be spent as a 15-minute sign-in link.
+ */
+export async function readAnyLoginToken(
+  token: null | string | undefined,
+  secret: string,
+  now: Date = new Date(),
+): Promise<AnyLoginTokenResult> {
+  let kind: LoginTokenKind | undefined
+  try {
+    const { aud } = decodeJwt(token ?? '')
+    kind = typeof aud === 'string' && Object.hasOwn(KIND_BY_AUDIENCE, aud) ? KIND_BY_AUDIENCE[aud] : undefined
+  } catch {
+    // Not a JWT at all.
+  }
+  if (!kind) return { status: 'invalid' }
+
+  if (kind === 'link') {
+    const result = await readLinkToken(token, secret, now)
+    if (result.status === 'valid') return { status: 'valid', token: { kind, claims: result.claims } }
+    return result.status === 'expired' ? { status: 'expired', kind } : result
+  }
+
+  const result = await (kind === 'invite' ? readInviteToken : readSigninToken)(token, secret, now)
+  if (result.status === 'valid') return { status: 'valid', token: { kind, claims: result.claims } }
+  return result.status === 'expired' ? { status: 'expired', kind } : result
 }

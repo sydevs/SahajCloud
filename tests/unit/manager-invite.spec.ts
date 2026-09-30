@@ -293,7 +293,7 @@ describe('composeInvitations', () => {
     const [invitation] = await compose({ en: ['atlas-manager'] }, { regions: [BERLIN] })
 
     const match = invitation?.html.match(
-      new RegExp(`${getServerUrl()}${MANAGER_SIGNIN_PATH}\\?invite=([\\w.%-]+)`),
+      new RegExp(`${getServerUrl()}${MANAGER_SIGNIN_PATH}\\?token=([\\w.%-]+)`),
     )
     expect(match, 'no invitation link in the body').not.toBeNull()
     expect(invitation?.html).not.toContain('/admin/managers/verify/')
@@ -310,9 +310,10 @@ describe('composeInvitations', () => {
   it('gives an accepted account a sign-in link to its notification settings', async () => {
     const [invitation] = await compose({}, { regions: [BERLIN] }, { _verified: true })
 
-    expect(invitation?.html).not.toContain('?invite=')
-    const link = invitation?.html.match(/managers\/signin\?link=([\w.%-]+)/)?.[1]
+    const link = invitation?.html.match(new RegExp(`${MANAGER_SIGNIN_PATH}\\?token=([\\w.%-]+)`))?.[1]
     expect(link, 'no settings link in the body').toBeDefined()
+    // A page link, and no invitation: the account has accepted already.
+    expect(decodeJwt(decodeURIComponent(link!)).aud).toBe('manager-link')
     const result = await readLinkToken(decodeURIComponent(link!), SECRET)
     // The account page, opened on the tab holding Notification Preferences.
     expect(result.status === 'valid' && result.claims).toMatchObject({

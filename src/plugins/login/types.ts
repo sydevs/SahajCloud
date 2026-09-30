@@ -37,21 +37,41 @@ export interface LoginMailArgs {
 /**
  * One auth collection the login plugin serves.
  *
- * ⚠ **The slug is the only required member.** The plugin renders and sends the
- * mail itself (`mail.ts`), so a collection supplies only what is genuinely its
- * own — which of its documents may sign in, and which project brands the
- * message.
+ * The plugin renders and sends the mail itself (`mail.ts`), so a collection
+ * supplies only what is genuinely its own — which of its documents may sign
+ * in, which project brands the message, and the page its links open.
  */
 export interface LoginCollectionConfig {
   /** The auth collection. It must be able to hold a session — see `createSession`. */
   slug: CollectionSlug
   /**
-   * Override the sign-in mail body. Mirrors `auth.verify.generateEmailHTML`,
-   * which is how this project builds its other auth mail.
+   * Take passwords away from this collection: `auth.disableLocalStrategy` in
+   * the object form, and `maxLoginAttempts: 0` (#840).
+   *
+   * ⚠ **Per collection, because it is a schema change.** The plugin serves any
+   * auth collection, and setting this plugin-wide would silently rewrite the
+   * auth columns of the next slug added to `collections` — `clients` needs the
+   * bare `true` form and would gain `email`, `_verified` and `sessions` from a
+   * one-line edit to an array.
    */
-  generateEmailHTML?: (args: LoginMailArgs) => Promise<string> | string
-  /** Override the subject. @see generateEmailHTML */
-  generateEmailSubject?: (args: LoginMailArgs) => string
+  passwordless?: boolean
+  /**
+   * One address that signs in on request, with no mail and no token.
+   *
+   * ⚠ **The address IS the credential**, so it is only ever set where the same
+   * gate provisions the account — a Railway preview, never production, never CI,
+   * never local dev (`src/plugins/previewAdmin`). Absent, `issueMagicLink` has
+   * no branch to take and every address is mailed.
+   *
+   * ⚠ **Per collection, for the same reason as `passwordless`.** It names one
+   * address on one collection, so setting it plugin-wide would sign a caller
+   * into the next slug added to `collections` with the *manager* address.
+   *
+   * ⚠ Stored lowercased and trimmed, matching what Payload writes and what
+   * `magicLinkEmailSchema` parses — a capital here would otherwise match nothing
+   * and mail the preview admin a link no lane can open.
+   */
+  previewAutoSignIn?: string
   /**
    * Refuse a link for a document this rejects — a deactivated account, say.
    * Runs on both endpoints, so a document that stops qualifying cannot spend a
@@ -72,10 +92,6 @@ export interface LoginCollectionConfig {
    */
   project?: (doc: LoginDocument) => null | ProjectSlug | undefined
   /**
-   * Where a consumed link sends the holder. Defaults to `/admin`.
-   */
-  redirectTo?: string
-  /**
    * The sign-in page this collection's links resolve against, as a
    * site-absolute path.
    *
@@ -83,9 +99,11 @@ export interface LoginCollectionConfig {
    * `<requestPagePath>?token=…`, and every refusal the redeem route can serve
    * redirects to `<requestPagePath>?error=expired|invalid`. So one page asks for
    * a link, confirms a delivered one, and explains a refused one — which is why
-   * this plugin no longer renders HTML of its own. Supplying it also puts the
-   * control on the admin login form, for the collection the admin panel
-   * authenticates.
+   * this plugin no longer renders HTML of its own.
+   *
+   * For the collection the admin panel authenticates, with `passwordless` set,
+   * that page is `/admin/login`: the plugin replaces Payload's login view with
+   * it (`adminWithSignInView`). Any other entry must name a page it serves.
    */
   requestPagePath: string
   /**

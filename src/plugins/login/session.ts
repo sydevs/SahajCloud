@@ -8,15 +8,9 @@ import type {
 import { randomUUID } from 'node:crypto'
 
 import { getFieldsToSign, jwtSign } from 'payload'
+import { generatePayloadCookie } from 'payload/shared'
 
-/**
- * The auth fields this helper needs, narrowed out of `findByID`'s union.
- *
- * Not `types.ts`'s `LoginDocument`, and not overlapping systems: that one is
- * what the endpoints `select`, this is what `getFieldsToSign` needs off the
- * separate read below. `sessions` is deliberately absent from the endpoints'
- * select, and `magicLinkIssuedAt` is meaningless here.
- */
+/** The auth fields `createSession` reads, narrowed out of `findByID`'s union. */
 interface SessionDocument {
   email?: null | string
   sessions?: { createdAt: string; expiresAt: string; id?: null | string }[] | null
@@ -47,7 +41,7 @@ function hasSessionsField(config: SanitizedCollectionConfig): boolean {
  * is `NOT NULL`, so omitting it fails the insert rather than minting a token
  * that outlives its row.
  *
- * Cookie writing belongs to the caller.
+ * Writing the cookie is {@link sessionCookie}.
  *
  * @throws if `collection` carries no `sessions` field.
  */
@@ -109,4 +103,73 @@ export async function createSession(
   const { token } = await jwtSign({ fieldsToSign, secret: payload.secret, tokenExpiration })
 
   return token
+}
+
+/**
+ * The `Set-Cookie` value that puts a minted session in a browser — what the
+ * redeem routes and the preview admin's request answer send. The expiry comes
+ * from the collection's own `tokenExpiration`.
+ */
+export function sessionCookie(payload: Payload, collection: CollectionSlug, token: string): string {
+  return generatePayloadCookie({
+    collectionAuthConfig: payload.collections[collection]!.config.auth,
+    cookiePrefix: payload.config.cookiePrefix,
+    token,
+  })
+}
+
+/** `Set-Cookie` attribute → `cookies().set` option, for every one Payload sends. */
+const FLAG_KEYS = new Set(['httpOnly', 'partitioned', 'secure'])
+
+const COOKIE_OPTION_KEYS: Record<string, string> = {
+  domain: 'domain',
+  expires: 'expires',
+  httponly: 'httpOnly',
+  'max-age': 'maxAge',
+  partitioned: 'partitioned',
+  path: 'path',
+  priority: 'priority',
+  samesite: 'sameSite',
+  secure: 'secure',
+}
+
+/**
+ * The same session cookie, split into the three arguments a Server Action's
+ * `cookies().set` takes.
+ *
+ * ⚠ **Parsed from {@link sessionCookie}, never rebuilt.** Payload derives the
+ * name, the expiry and the `secure` / `sameSite` / `domain` attributes from the
+ * collection and the config; a second derivation here would drift from the one
+ * the redeem routes send, and a session cookie that differs by one attribute
+ * fails in a way only a browser shows. `session-cookie-parts.spec.ts` pins the two
+ * against each other.
+ */
+export function sessionCookieParts(
+  payload: Payload,
+  collection: CollectionSlug,
+  token: string,
+): { name: string; options: Record<string, boolean | Date | number | string>; value: string } {
+  const [pair, ...attributes] = sessionCookie(payload, collection, token).split('; ')
+  const separator = pair!.indexOf('=')
+  const options: Record<string, boolean | Date | number | string> = {}
+
+  for (const attribute of attributes) {
+    const at = attribute.indexOf('=')
+    const raw = at === -1 ? undefined : attribute.slice(at + 1).trim()
+    const key = COOKIE_OPTION_KEYS[(at === -1 ? attribute : attribute.slice(0, at)).trim().toLowerCase()]
+    // An attribute Payload starts sending that Next has no option for is dropped
+    // rather than guessed at — every one it sends today is in the map above, and
+    // the spec fails the day that stops being true.
+    if (!key) continue
+    // ⚠ `HttpOnly=true` and `Secure=true`, not the bare flags — Payload spells
+    // them with a value, and Next reads the string `'false'` as truthy. So the
+    // flags are coerced rather than copied.
+    if (raw === undefined) options[key] = true
+    else if (FLAG_KEYS.has(key)) options[key] = raw !== 'false'
+    else if (key === 'expires') options[key] = new Date(raw)
+    else if (key === 'maxAge') options[key] = Number(raw)
+    else options[key] = raw
+  }
+
+  return { name: pair!.slice(0, separator), options, value: pair!.slice(separator + 1) }
 }

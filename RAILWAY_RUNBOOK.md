@@ -39,8 +39,10 @@ it, or when something breaks badly enough to need disaster recovery.
   brew install postgresql@18   # macOS
   sudo apt-get install postgresql-client   # Ubuntu/Debian
   ```
-- **Production credentials in a password manager**: the Payload admin password, all Cloudflare
-  API keys, and the other third-party keys (Resend, Sentry).
+- **Production credentials in a password manager**: all Cloudflare API keys and the other
+  third-party keys (Resend, Sentry). ⚠ **There is no Payload admin password to keep** — a
+  manager signs in with an emailed link (#840), so mail delivery is what admin access depends
+  on. A fresh database is bootstrapped with `scripts/create-manager.ts`.
 
 ---
 

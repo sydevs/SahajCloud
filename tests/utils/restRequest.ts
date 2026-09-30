@@ -88,7 +88,7 @@ export async function createRestClientAs(
  *
  * ⚠ Anonymous is a *property under test* here, not an oversight — the opposite
  * of `createRestClientAs`'s warning. An endpoint reachable without signing in
- * (`request-magic-link`, `redeem-magic-link`) must be exercised the way the internet
+ * (`request-magic-link`, `redeem`) must be exercised the way the internet
  * reaches it, and authenticating would hide exactly what the spec is asking.
  */
 export function createAnonRestClient(env: { payload: Payload; config: TestConfig }): RestClient {
@@ -108,7 +108,7 @@ export function createRestClientWithAuth(
 
     const raw = await response.text()
     // A 302 carries no body, and a spec reading `Location` still wants the rest.
-    // A non-JSON body is `{}` rather than a throw: `redeem-magic-link` answers a
+    // A non-JSON body is `{}` rather than a throw: `redeem` answers a
     // browser with HTML, and `raw` is what a spec asserts against there.
     let body: Record<string, unknown> = {}
     try {

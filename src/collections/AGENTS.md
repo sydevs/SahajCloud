@@ -48,7 +48,8 @@ lockout both follow `update`, not `read`** — `withDerivedGrants` derives
 pass, so a read-only role reaches no drafts through
 `/api/{collection}/versions` (#719) and no API key can reset a locked
 account's failed-attempt counter through `/api/{collection}/unlock`
-(#748). See `docs/rules/access.md`.
+(#748) — a route both auth collections now refuse outright (#840), while the
+grant stays derived. See `docs/rules/access.md`.
 
 Full RBAC details: see `docs/rules/access.md` (loads when editing
 `src/plugins/access/`).
@@ -630,13 +631,14 @@ form with none set).
 
 Passwordless sign-in for `Managers` (#837). It appends one hidden
 `magicLinkIssuedAt` column and two endpoints — `POST /api/managers/request-magic-link`
-and `POST /api/managers/redeem-magic-link` (which spends the link) — to whatever
-`Managers.ts` already declares. Passwords still work; this is a second way in.
+and `POST /api/managers/redeem` (which spends any link) — to whatever
+`Managers.ts` already declares. Since #840 it is the only way in: managers hold no password.
 
-`/managers/signin` is the human surface (#838): the form that asks for a link,
-where every refusal's "Request a new link" button goes, and what the control on
-the admin login form opens. `managersLogin.requestPagePath` is the single
-spelling of that route — the plugin reads it for both.
+`/admin/login` is the human surface (#838, #840): the plugin replaces Payload's
+login view with `src/components/admin/SignIn`, which asks for a link, confirms a
+delivered one, and explains a refused one. Every emailed link and every
+refusal's redirect lands there. `managersLogin.requestPagePath` is the single
+spelling of that route.
 
 Four things worth knowing before you touch `Managers`:
 

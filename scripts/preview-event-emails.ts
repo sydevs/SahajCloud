@@ -61,7 +61,6 @@ async function persistSampleEvent(): Promise<SampleData> {
     data: {
       name: 'Priya Deshmukh',
       email: `priya.sample.${stamp}@example.com`,
-      password: 'password123',
       type: 'manager',
       notificationPreferences: {
         invitation: { frequency: 'Immediate', method: 'email' },
@@ -77,7 +76,6 @@ async function persistSampleEvent(): Promise<SampleData> {
     data: {
       name: 'Rohan Patil',
       email: `rohan.sample.${stamp}@example.com`,
-      password: 'password123',
       type: 'manager',
     },
   })

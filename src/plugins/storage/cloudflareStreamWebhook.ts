@@ -7,7 +7,10 @@
  *
  * @see https://developers.cloudflare.com/stream/manage-video-library/using-webhooks/
  */
+import { timingSafeEqual } from 'node:crypto'
+
 import { z } from 'zod'
+
 
 import {
   CloudflareStreamDownloadsResponseSchema,
@@ -15,6 +18,25 @@ import {
 } from './cloudflareSchemas'
 
 const FIVE_MINUTES_SECONDS = 300
+
+/**
+ * Compare two strings without leaking where they first differ.
+ *
+ * ⚠ **A length mismatch returns early, and that is deliberate.** The length of a
+ * secret is not itself a secret, and `timingSafeEqual` throws on unequal buffers
+ * rather than answering. The check is on BYTE length, not `String.length` — two
+ * strings of equal length can encode to different byte counts, and that
+ * difference would throw instead of returning false.
+ *
+ * Local because this is the only caller. It lived in `@/lib/utilities` while the
+ * preview-secret exchange shared it; that route is gone (#840).
+ */
+export function constantTimeEqual(a: string, b: string): boolean {
+  const left = Buffer.from(a, 'utf8')
+  const right = Buffer.from(b, 'utf8')
+  if (left.length !== right.length) return false
+  return timingSafeEqual(left, right)
+}
 
 export type VerifyFailure = {
   ok: false
@@ -67,19 +89,6 @@ function bufferToHex(buf: ArrayBuffer): string {
     out += bytes[i].toString(16).padStart(2, '0')
   }
   return out
-}
-
-/**
- * Constant-time string comparison. Both strings MUST be equal length;
- * a length mismatch is never a valid signature anyway.
- */
-function constantTimeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false
-  let result = 0
-  for (let i = 0; i < a.length; i++) {
-    result |= a.charCodeAt(i) ^ b.charCodeAt(i)
-  }
-  return result === 0
 }
 
 /**

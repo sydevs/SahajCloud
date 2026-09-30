@@ -28,7 +28,7 @@ Separate from `.env`, gitignored, and never committed. It lets an agent operate 
 | Key | What it opens |
 | --- | --- |
 | `CLOUDFLARE_CLAUDE_KEY` | Cloudflare API token — Cache Rules on the `sydevelopers.com` zone. |
-| `ADMIN_PASSWORD` | `contact@sydevelopers.com` on production, via `POST /api/managers/login`. |
+| `ADMIN_PASSWORD` | **Spent.** `POST /api/managers/login` answers 403 on every environment since #840, so this value opens nothing. Production admin access is an emailed sign-in link, or `pnpm tsx scripts/signin-link.ts <email>` when mail is down, and a remote seed run carries that session's token as `ADMIN_TOKEN` (`seeds/AGENTS.md`). |
 | `MAILPIT_URL`, `MAILPIT_UI_AUTH` | The Mailpit capture inbox, and its login — what the `preview-*-emails` scripts post with, and what opens their links (`docs/rules/email.md`). The Claude cloud environment carries both. |
 | `SMTP_URL` | Mailpit's SMTP ingress, for mail the app sends under `pnpm dev`. |
 
@@ -40,7 +40,7 @@ Never echo these values, redact anything derived from them, and delete any scrat
 
 **Check here before you report a credential unavailable.** The `CLOUDFLARE_*` variables in `.env` are runtime config only and cannot edit a Cache Rule. That, plus an unauthenticated Railway CLI, does not mean no usable token exists.
 
-The "Admin Access" credentials in `AGENTS.md` are the local dev admin, unrelated to the production password above.
+The "Admin Access" section in `AGENTS.md` covers each environment's way in; none of them is `ADMIN_PASSWORD`.
 
 ### Live Preview URLs
 
@@ -84,11 +84,13 @@ A missing `PAYLOAD_SECRET` or `DATABASE_URL` stops the app from starting. A miss
 
 ### Preview environments provision their own admin
 
-`PREVIEW_ADMIN_PASSWORD` is set on Railway's preview environments, and passed to the smoke lane as a CI secret. On every boot, `onInit` reconciles the admin account to the current value (`src/plugins/previewAdmin`), so rotating the secret takes effect on the next deploy.
+`PREVIEW_ADMIN_EMAIL` is set on Railway's preview environments, and passed to the smoke lane as a CI secret. On every boot, `onInit` reconciles the admin account (`src/plugins/previewAdmin`) — present, admin, and `_verified`.
 
-Production is detected by Railway's environment name, never `NODE_ENV`. Previews also run `NODE_ENV=production` — the same trap that once sent preview mail through Resend to real addresses. The gate also requires a Railway environment name at all. This keeps `onInit` inert in local dev, CI, and both test lanes. CI does hold the password as a secret, so a gate reading only that would write an admin into the integration lane's database.
+Rotating it takes effect on the next deploy, and the CI secret must change with it: the smoke lane asks for a link as the CI value, and a preview answers any other address with mail rather than a session.
 
-`PREVIEW_ADMIN_EMAIL` overrides the account address, defaulting to `contact@sydevelopers.com`. Environments forked before 2026-08-27 never got the variable, and keep whatever admin an early smoke run seeded.
+Production is detected by Railway's environment name, never `NODE_ENV`. Previews also run `NODE_ENV=production` — the same trap that once sent preview mail through Resend to real addresses. The gate also requires a Railway environment name at all. This keeps `onInit` inert in local dev, CI, and both test lanes. CI does hold the address as a secret, so a gate reading only that would write an admin into the integration lane's database.
+
+⚠ **On a preview that address is also the credential.** The sign-in page mints a session for it instead of mailing a link (#840), which is how the smoke lane gets in with no password anywhere — so treat it as a secret and keep the local part unguessable. There is no default: an environment without the variable provisions no admin and signs nobody in. Environments forked before 2026-08-27 keep whatever admin an early smoke run seeded.
 
 ### `NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT` — set by the build, never by hand
 
