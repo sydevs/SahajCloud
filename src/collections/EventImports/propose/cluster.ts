@@ -61,6 +61,8 @@ export interface MergedPlace {
   key: string
   name: string
   lines: number[]
+  /** Its own subdivision, which the surviving node's may no longer name. */
+  subdivisionCode: string | null
 }
 
 /**
@@ -88,7 +90,7 @@ export function clusterCities(rows: readonly ClusterableRow[]): CityCluster[] {
   }
 
   const clustered = [...groups].map(([key, members]) => clusterOf(key, members))
-  return mergeMetros(clustered).map(({ points: _points, ...cluster }) => cluster)
+  return mergeMetros(clustered).map(({ points: _p, subdivisions: _s, ...cluster }) => cluster)
 }
 
 /**
@@ -100,20 +102,47 @@ export function clusterCities(rows: readonly ClusterableRow[]): CityCluster[] {
  */
 interface WorkingCluster extends CityCluster {
   points: Point[]
+  /**
+   * Every member row's subdivision, the absorbed places' rows included.
+   *
+   * ⚠ **`subdivisionCode` has to be re-read after a merge, not carried over.**
+   * The state layer is built from it, so a Maharashtra city that absorbs a
+   * Gujarat suburb must answer for all of its classes — the surviving place's
+   * own rows are no longer all of them.
+   */
+  subdivisions: (string | null)[]
 }
 
 function clusterOf(key: string, members: readonly ClusterableRow[]): WorkingCluster {
   const points = members.map((row) => row.point)
+  const subdivisions = members.map((row) => row.subdivisionCode)
   return {
     key,
-    name: commonest(members.map((row) => row.placeName)) ?? members[0]!.cityKey,
+    // The commonest city key, not the first row's: it is the same question
+    // `commonest` answers for the place name, and a fallback reading row one
+    // would name the node differently for a reordered file.
+    name:
+      commonest(members.map((row) => row.placeName)) ??
+      commonest(members.map((row) => row.cityKey))!,
     placeId: commonest(members.map((row) => row.placeId)),
-    subdivisionCode: commonest(members.map((row) => row.subdivisionCode)),
+    subdivisionCode: commonest(subdivisions),
     centroid: centroidOf(points),
-    lines: members.map((row) => row.line),
+    lines: sortedLines(members.map((row) => row.line)),
     merged: [],
     points,
+    subdivisions,
   }
+}
+
+/**
+ * Member lines, ascending.
+ *
+ * Sorted on the way in rather than only after a merge: "in file order" has to
+ * mean the same thing for every cluster in one result, or a caller comparing two
+ * runs over one file reads a difference that is only arrival order.
+ */
+function sortedLines(lines: readonly number[]): number[] {
+  return [...lines].sort((a, b) => a - b)
 }
 
 /**
@@ -127,8 +156,8 @@ function clusterOf(key: string, members: readonly ClusterableRow[]): WorkingClus
  * ⚠ **Only into a place with strictly more rows, and never into one that is
  * itself merging away.** Equal counts would merge both ways round, and a chain
  * would move a suburb's classes under a city two hops from them — so a target
- * that has already been absorbed is not a target, and the pass runs smallest
- * first so the largest place in a metro is the one that survives.
+ * that has already been absorbed is not a target, and the pass runs **largest
+ * first**, which is what makes that guard hold — see the loop.
  */
 function mergeMetros(clusters: readonly WorkingCluster[]): WorkingCluster[] {
   // Largest first, ties broken by key. Both halves are load-bearing: the order
@@ -147,17 +176,34 @@ function mergeMetros(clusters: readonly WorkingCluster[]): WorkingCluster[] {
   // place that is going to be absorbed already is by the time anything smaller
   // asks to join it.
   for (const cluster of ranked) {
-    const into = ranked.find(
-      (other) =>
-        !absorbed.has(other.key) &&
-        other.key !== cluster.key &&
-        other.lines.length > cluster.lines.length &&
-        withinMetro(cluster, other),
-    )
+    // ⚠ **The nearest eligible place, not the largest.** A village 1 km from a
+    // town and 24 km from a bigger city belongs to the town, and taking the
+    // first match in rank order files it under the city instead — which reads to
+    // a reviewer as the import losing track of where the class is.
+    const into = ranked
+      .filter(
+        (other) =>
+          !absorbed.has(other.key) &&
+          other.key !== cluster.key &&
+          other.lines.length > cluster.lines.length &&
+          withinMetro(cluster, other),
+      )
+      .sort(
+        (a, b) =>
+          metersBetween(cluster.centroid, a.centroid) -
+            metersBetween(cluster.centroid, b.centroid) || a.key.localeCompare(b.key),
+      )[0]
     if (!into) continue
     absorbed.add(cluster.key)
-    into.lines = [...into.lines, ...cluster.lines].sort((a, b) => a - b)
-    into.merged.push({ key: cluster.key, name: cluster.name, lines: cluster.lines })
+    into.lines = sortedLines([...into.lines, ...cluster.lines])
+    into.subdivisions = [...into.subdivisions, ...cluster.subdivisions]
+    into.subdivisionCode = commonest(into.subdivisions)
+    into.merged.push({
+      key: cluster.key,
+      name: cluster.name,
+      lines: cluster.lines,
+      subdivisionCode: cluster.subdivisionCode,
+    })
   }
 
   // ⚠ The survivor's `centroid` and `points` are deliberately left as they were.
@@ -175,9 +221,11 @@ function withinMetro(cluster: WorkingCluster, other: WorkingCluster): boolean {
 export interface VenueRow {
   line: number
   point: Point
-  /** The matched address feature's own Mapbox id, where the row got one. */
+  /** `cityKey` — part of the key, so one street name cannot span two towns. */
+  cityKey: string
+  /** The matched address feature's own Mapbox id, for an existing venue region. */
   mapboxId: string | null
-  /** The row's `address` column, which identifies the hall when no id did. */
+  /** The row's `address` column, which is what identifies the hall. */
   address: string | null
   /** The row's `venueName` column, the name a volunteer gave the hall. */
   venueName: string | null
@@ -195,13 +243,20 @@ export interface VenueCluster {
 /**
  * Group a city target's rows into the halls worth their own node.
  *
- * ⚠ **A hall is identified by its address, not by proximity.** Two rows 20 m
- * apart are a duplicate where they share a weekday, and two different halls
- * where they do not — so a radius here would merge the hall next door, while the
- * address is what the volunteer actually asserted is one place. Two spellings of
- * one hall that share neither an id nor an address text therefore propose two
- * nodes; the review's "map to an existing region" is where that is corrected,
- * because it is a node a human can see and not a misplaced class.
+ * ⚠ **A hall is identified by its address text, not by proximity and not by its
+ * Mapbox id.** Two rows 20 m apart are a duplicate where they share a weekday
+ * and two different halls where they do not, so a radius here would merge the
+ * hall next door. The id is the tempting key and the wrong one: Mapbox answers
+ * one query with the address and another with the POI inside it, so two rows a
+ * volunteer typed identically can come back with different ids — and keying on
+ * them splits the venue into two single-use groups, which the threshold then
+ * drops, so the node is lost rather than merely duplicated. The id is still
+ * reported, for matching an existing venue region.
+ *
+ * ⚠ **The city is part of the key**, because the address is a street line and
+ * nothing else: "1 High Street" names a different hall in each town, and a city
+ * target is confined no more tightly than its state (`targetScope.ts`), so two
+ * towns in one batch is a shape that reaches here.
  *
  * Rows below the threshold are absent from the result, which is what keeps a
  * single-use address inline on the event rather than a node nobody navigates to.
@@ -220,21 +275,28 @@ export function clusterVenues(rows: readonly VenueRow[]): VenueCluster[] {
     .filter(([, members]) => members.length >= SHARED_VENUE_MIN_ROWS)
     .map(([key, members]) => ({
       key,
+      // Normalised for display as well as for the key: an address copied out of
+      // a spreadsheet arrives with its own spacing, and the key's spelling is
+      // not a name to put in front of a volunteer either.
       name:
-        commonest(members.map((row) => row.venueName)) ??
-        commonest(members.map((row) => row.address)) ??
-        key,
+        commonest(members.map((row) => normalizeText(row.venueName))) ??
+        commonest(members.map((row) => normalizeText(row.address)))!,
       mapboxId: commonest(members.map((row) => row.mapboxId)),
       centroid: centroidOf(members.map((row) => row.point)),
-      lines: members.map((row) => row.line),
+      lines: sortedLines(members.map((row) => row.line)),
     }))
 }
 
-/** A row with neither an id nor an address names no hall, so it joins no venue. */
+/** A row naming no address names no hall, so it joins no venue. */
 function venueKeyOf(row: VenueRow): string | null {
-  if (row.mapboxId) return `id:${row.mapboxId}`
-  const address = row.address?.trim().toLowerCase().replace(/\s+/g, ' ')
-  return address ? `address:${address}` : null
+  const address = normalizeText(row.address)?.toLowerCase()
+  return address ? `${row.cityKey}|${address}` : null
+}
+
+/** Trimmed, with runs of whitespace collapsed. Null for a blank. */
+function normalizeText(value: string | null | undefined): string | null {
+  const text = value?.trim().replace(/\s+/g, ' ')
+  return text || null
 }
 
 /**
