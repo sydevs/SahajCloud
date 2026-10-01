@@ -23,6 +23,17 @@
  * is the city match itself, which belongs to the step that matches a proposed
  * node to an existing region. Until that lands, a city-level batch can place a
  * row anywhere in its state.
+ *
+ * ⚠ **The subdivision narrowing is best-effort, and that is measured rather than
+ * conceded.** 19 of the Atlas tree's 101 `region` nodes match no ISO 3166-2
+ * subdivision — every UK one among them, because `country-region-data` lists
+ * GB's 217 councils and no England, Scotland, Wales or Northern Ireland. So a
+ * refusal here would make the whole UK, and parts of France and Italy,
+ * unimportable. It degrades to the country instead and says so, because nothing
+ * structural rests on it: the proposal step creates every node **under** the
+ * target, so a row cannot leave the subtree either way. What the narrowing buys
+ * is catching a row for the wrong end of a country early, and that is worth
+ * having where it works and reporting where it does not.
  */
 
 import { countryCodeForName, getRegionOptions, isCountryCode } from '@/lib/geography'
@@ -46,7 +57,12 @@ export interface TargetScope {
 }
 
 export type ResolveTargetScopeResult =
-  | { ok: true; scope: TargetScope }
+  | {
+      ok: true
+      scope: TargetScope
+      /** The narrowing this target does not get, for the review to show once. */
+      warning?: string
+    }
   /** Shown once for the batch, not per row. */
   | { ok: false; error: string }
 
@@ -79,8 +95,9 @@ export function resolveTargetScope(chain: readonly TargetChainNode[]): ResolveTa
   const subdivisionCode = subdivisionCodeOf(state, countryCode)
   if (!subdivisionCode) {
     return {
-      ok: false,
-      error: `The region "${state.name ?? state.slug ?? '?'}" matches no ISO 3166-2 subdivision of ${countryCode}, so rows cannot be confined to it. Rename it to the subdivision's English name, or import into the country instead.`,
+      ok: true,
+      scope: { countryCode, subdivisionCode: null },
+      warning: `"${state.name ?? state.slug ?? '?'}" matches no ISO 3166-2 subdivision of ${countryCode}, so rows are confined to ${countryCode} but not to it. Check the proposed tree before committing.`,
     }
   }
   return { ok: true, scope: { countryCode, subdivisionCode } }

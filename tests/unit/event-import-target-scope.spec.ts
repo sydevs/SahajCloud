@@ -42,6 +42,13 @@ function scopeOf(chain: TargetChainNode[]) {
   return result.scope
 }
 
+/** The narrowing a target does not get, or null. */
+function warningOf(chain: TargetChainNode[]): string | null {
+  const result = resolveTargetScope(chain)
+  if (!result.ok) throw new Error(`expected a scope, got: ${result.error}`)
+  return result.warning ?? null
+}
+
 function refusalOf(chain: TargetChainNode[]): string {
   const result = resolveTargetScope(chain)
   if (result.ok) throw new Error('expected a refusal, got a scope')
@@ -96,18 +103,34 @@ describe('resolveTargetScope — the subdivision', () => {
     ).toBe('BY')
   })
 
-  it('refuses an unresolvable state rather than confining rows to the country', () => {
-    const error = refusalOf([country(), state({ name: 'Oberbayern', slug: 'oberbayern' })])
-    expect(error).toContain('Oberbayern')
-    expect(error).toContain('DE')
+  it('degrades to the country for a state with no ISO code, and says so', () => {
+    // ⚠ Measured, not conceded: 19 of the Atlas tree's 101 `region` nodes match
+    // no ISO 3166-2 subdivision, every UK one among them. A refusal here made
+    // the whole UK unimportable.
+    const chain = [country({ name: 'United Kingdom', slug: 'gb' }), state({ name: 'South East' })]
+
+    expect(scopeOf(chain)).toEqual({ countryCode: 'GB', subdivisionCode: null })
+    expect(warningOf(chain)).toContain('South East')
+    expect(warningOf(chain)).toContain('GB')
+  })
+
+  it('names no warning for a state it could confine rows to', () => {
+    expect(warningOf([country(), state()])).toBeNull()
+  })
+
+  it('degrades a sub-region the dataset does not list, rather than refusing', () => {
+    expect(scopeOf([country(), state({ name: 'Oberbayern', slug: 'oberbayern' })])).toEqual({
+      countryCode: 'DE',
+      subdivisionCode: null,
+    })
   })
 
   it('resolves a state against its own country, not another', () => {
     // `CA` is California in the US and nothing in Germany, so a chain naming
     // the German country must not take it.
-    expect(refusalOf([country(), state({ name: 'California', slug: 'ca' })])).toContain(
-      'no ISO 3166-2 subdivision of DE',
-    )
+    expect(
+      scopeOf([country(), state({ name: 'California', slug: 'ca' })]).subdivisionCode,
+    ).toBeNull()
     expect(
       scopeOf([country({ name: 'United States', slug: 'us' }), state({ name: 'California' })])
         .subdivisionCode,

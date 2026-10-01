@@ -79,6 +79,13 @@ describe('resolve endpoint', () => {
       user,
       locale: 'en',
       context: {},
+      // ⚠ **What a real bodiless POST does.** `Request.json()` on an empty body
+      // rejects, and Payload never populates `req.data` for a custom endpoint —
+      // so a handler that reads a body answers 400 to its own review UI. A bare
+      // object with no `json` at all hides that, which is how it shipped once.
+      json: async () => {
+        throw new SyntaxError('Unexpected end of JSON input')
+      },
     }) as unknown as PayloadRequest
 
   async function call(
@@ -166,6 +173,14 @@ describe('resolve endpoint', () => {
       level: 'country',
       managers: [uploader.id],
     })
+    // ⚠ The outsider has to manage *something*, or `ownedRegionFilterOptions`
+    // answers `false` and the 403 comes from "you manage no region" — which
+    // passes a subtree test without the subtree check ever running.
+    await testData.createRegion(payload, {
+      name: 'Austria',
+      level: 'country',
+      managers: [outsider.id],
+    })
   })
 
   afterAll(async () => {
@@ -247,6 +262,20 @@ describe('resolve endpoint', () => {
       expect(only?.resolved).toBeUndefined()
     })
 
+    it('still reaches `resolved` when every row failed the parse', async () => {
+      // Nothing is pending from the first call, so the early return is the only
+      // path — and it has to write the status, or the commit step refuses a
+      // batch the UI already calls done.
+      const batch = await createBatch({
+        rows: [{ ...row(2), errors: ['eventType is required'] }],
+      })
+
+      const { body } = await call(uploader, batch.id)
+
+      expect(body).toMatchObject({ pending: 0, done: true })
+      expect(await statusOf(batch.id)).toBe('resolved')
+    })
+
     it('keeps the parse step’s errors beside its own', async () => {
       const batch = await createBatch({
         rows: [{ ...row(2), errors: ['address is required'] }],
@@ -304,7 +333,12 @@ describe('resolve endpoint', () => {
     it('flags a row that repeats an earlier line in the same file', async () => {
       // Far from the existing class, so only the two rows can match each other.
       geocodeLocation.mockResolvedValue(
-        found({ latitude: 48.1371, longitude: 11.5754, placeName: 'München', placeId: 'mbx-munich' }),
+        found({
+          latitude: 48.1371,
+          longitude: 11.5754,
+          placeName: 'München',
+          placeId: 'mbx-munich',
+        }),
       )
       const batch = await createBatch({ rows: [row(2), row(3)] })
 
@@ -329,6 +363,90 @@ describe('resolve endpoint', () => {
 
       const written = await readRows(batch.id)
       expect(written[RESOLVE_CHUNK_ROWS]?.duplicate).toMatchObject({ line: 2 })
+    })
+
+    it('does not merge two online classes that share their city centroid', async () => {
+      // ⚠ Every online row in one city geocodes to the same place centroid, and
+      // `nearby-address` is checked before the time rule — so a point on an
+      // online row merged an 18:00 and a 20:00 class into one.
+      geocodeLocation.mockResolvedValue(
+        found({ latitude: 48.1371, longitude: 11.5754, placeName: 'München', placeId: 'mbx-mun' }),
+      )
+      const online = (line: number, startTime: string) =>
+        row(line, {
+          eventType: 'online',
+          city: 'München',
+          address: '',
+          onlineUrl: 'https://example.org/z',
+          startTime,
+        })
+      const batch = await createBatch({ rows: [online(2, '18:00'), online(3, '20:00')] })
+
+      const { body } = await call(uploader, batch.id)
+
+      expect(body).toMatchObject({ resolved: 2, duplicates: 0 })
+    })
+
+    it('still merges two online classes at the same city and time', async () => {
+      geocodeLocation.mockResolvedValue(
+        found({ latitude: 50.9375, longitude: 6.9603, placeName: 'Köln', placeId: 'mbx-cgn' }),
+      )
+      const online = (line: number) =>
+        row(line, {
+          eventType: 'online',
+          city: 'Köln',
+          address: '',
+          onlineUrl: 'https://example.org/z',
+        })
+      const batch = await createBatch({ rows: [online(2), online(3)] })
+
+      await call(uploader, batch.id)
+
+      expect((await readRows(batch.id))[1]?.duplicate).toEqual({
+        reason: 'city-and-time',
+        line: 2,
+      })
+    })
+
+    it('does not compare a row against a finished class', async () => {
+      // ⚠ `excludeFinishedEvents` only fires for an API client, so a manager's
+      // read sees last year's expired series — and it sits at the same hall as
+      // the row re-importing this year's timetable.
+      const hamburg = await testData.createRegion(payload, {
+        name: 'Hamburg',
+        level: 'city',
+        parent: germany.id,
+      })
+      await testData.createEvent(payload, {
+        title: 'Last Year’s Tuesday Class',
+        region: hamburg.id,
+        inactive: false,
+        address: {
+          mapboxId: 'mbx-finished',
+          street: 'Reeperbahn 1',
+          city: 'Hamburg',
+          country: 'DE',
+          latitude: 53.5503,
+          longitude: 9.9937,
+        },
+        schedule: {
+          firstDate: '2024-10-01T16:30:00.000Z',
+          firstDate_tz: 'Europe/Berlin',
+          recurrenceType: 'WEEKLY',
+          weekdays: ['TU'],
+          interval: 1,
+          endingType: 'until',
+          untilDate: '2024-12-31',
+        },
+      })
+      geocodeLocation.mockResolvedValue(
+        found({ latitude: 53.5503, longitude: 9.9937, placeName: 'Hamburg', placeId: 'mbx-hh' }),
+      )
+
+      const batch = await createBatch({ rows: [row(2, { city: 'Hamburg' })] })
+      const { body } = await call(uploader, batch.id)
+
+      expect(body).toMatchObject({ resolved: 1, duplicates: 0 })
     })
 
     it('does not compare a row against a class outside the target subtree', async () => {
@@ -384,7 +502,10 @@ describe('resolve endpoint', () => {
       const { status, body } = await call(outsider, theirs.id)
 
       expect(status).toBe(403)
-      expect(JSON.stringify(body)).toContain('do not manage')
+      // The specific message, not just "do not manage": the other 403 is "you do
+      // not manage any region", which a substring match would also accept — and
+      // that one fires without the subtree check this case is named for.
+      expect(JSON.stringify(body)).toContain('do not manage that region')
     })
 
     it('refuses an inactive manager and a published API client', async () => {
@@ -401,9 +522,52 @@ describe('resolve endpoint', () => {
       expect(geocodeLocation).not.toHaveBeenCalled()
     })
 
-    it('lets an admin resolve any batch', async () => {
-      const batch = await createBatch({ rows: [row(2)] })
-      expect((await call(admin, batch.id)).status).toBe(200)
+    it('lets an admin resolve a batch in a region they do not manage', async () => {
+      const batch = await createBatch({ rows: [row(2, { city: 'Hamburg' })] })
+      geocodeLocation.mockResolvedValue(
+        found({ latitude: 53.5503, longitude: 9.9937, placeName: 'Hamburg', placeId: 'mbx-hh' }),
+      )
+
+      const { status, body } = await call(admin, batch.id)
+
+      // Not just a 200: the chunk has to have actually drained.
+      expect(status).toBe(200)
+      expect(body).toMatchObject({ resolved: 1, pending: 0, done: true })
+    })
+
+    it('resolves a batch under a state with no ISO code, and reports the narrowing it lost', async () => {
+      // The UK shape: `country-region-data` lists GB's 217 councils and no
+      // South East, so a refusal here made every UK region unimportable.
+      const uk = await testData.createRegion(payload, {
+        name: 'United Kingdom',
+        level: 'country',
+        managers: [uploader.id],
+      })
+      const southEast = await testData.createRegion(payload, {
+        name: 'South East',
+        level: 'region',
+        parent: uk.id,
+      })
+      geocodeLocation.mockResolvedValue(
+        found({
+          latitude: 51.5072,
+          longitude: -0.1276,
+          countryCode: 'GB',
+          subdivisionCode: 'LND',
+          placeName: 'London',
+          placeId: 'mbx-london',
+        }),
+      )
+      const batch = await createBatch({
+        targetRegion: southEast.id,
+        rows: [row(2, { country: 'GB', city: 'London', address: '10 Downing Street' })],
+      })
+
+      const { status, body } = await call(uploader, batch.id)
+
+      expect(status).toBe(200)
+      expect(body).toMatchObject({ resolved: 1, errors: 0 })
+      expect(String(body.warning)).toContain('South East')
     })
 
     it('refuses a batch whose target resolves to no ISO country, naming it', async () => {
