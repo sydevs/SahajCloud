@@ -50,3 +50,22 @@ export const DUPLICATE_ADDRESS_METERS = 150
  * review UI calls the endpoint until it reports nothing pending.
  */
 export const RESOLVE_CHUNK_ROWS = 25
+
+/**
+ * How far a smaller place may sit from a larger one and still be its metro area.
+ *
+ * A city's classes are spread across its suburbs, and Mapbox names each suburb
+ * its own `place` — so without a merge an Indian metro arrives as a dozen
+ * sibling cities a seeker has to guess between. Wide enough to take in a
+ * commuter belt, narrow enough that two towns an hour apart stay two cities.
+ */
+export const METRO_MERGE_METERS = 25_000
+
+/**
+ * How many rows must share an address before it becomes a `venue` node.
+ *
+ * The same rule the Atlas tree was seeded under (`multiUseVenueIds`,
+ * `seeds/atlas/helpers/venueRouter.ts`): a hall two classes meet at is worth
+ * naming once, and a hall one class meets at is that event's own address.
+ */
+export const SHARED_VENUE_MIN_ROWS = 2
