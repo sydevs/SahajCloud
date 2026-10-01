@@ -688,6 +688,9 @@ export type MeditationFrames = {
   timestamp: number;
   [k: string]: unknown;
 }[];
+/**
+ * @maxItems 500
+ */
 export type EventImportRows = {
   /**
    * The row's line in the uploaded file, 1-based and counting the header, so an error names the line the volunteer's spreadsheet shows.

@@ -16,7 +16,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { RESOLVE_CHUNK_ROWS } from '@/collections/EventImports/constants'
 import { resolveEventImport } from '@/collections/EventImports/endpoints/resolve'
 import type { GeocodedLocation } from '@/lib/mapbox/geocoder'
-import type { Event, EventImport, EventImportRows, Manager, Region } from '@/payload-types'
+import type { Client, Event, EventImport, EventImportRows, Manager, Region } from '@/payload-types'
 
 import { createData, testData, type FixtureOverrides } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -65,6 +65,8 @@ describe('resolve endpoint', () => {
   let admin: Manager
   let uploader: Manager
   let outsider: Manager
+  let inactiveManager: Manager
+  let client: Client
   let germany: Region
   let berlinCity: Region
   let unnamedCountry: Region
@@ -135,6 +137,16 @@ describe('resolve endpoint', () => {
       email: 'resolve-outsider@example.com',
       roles: ['atlas-manager'],
     })
+    inactiveManager = await testData.createManager(payload, {
+      name: 'Resolve Retired',
+      email: 'resolve-retired@example.com',
+      type: 'inactive' as const,
+      roles: ['atlas-manager'],
+    })
+    client = await testData.createClient(payload, admin.id, {
+      name: 'Resolve Atlas Widget',
+      roles: ['sahaj-atlas-client'],
+    })
 
     // ⚠ The name is the fixture, not decoration: the target's country code is
     // read off the chain, so a region called "Test Country" resolves to no ISO
@@ -160,9 +172,15 @@ describe('resolve endpoint', () => {
     await cleanup()
   })
 
+  /** The geocoder answers with an outcome, so a miss and an outage stay distinct. */
+  const found = (overrides: Partial<GeocodedLocation> = {}) => ({
+    status: 'found' as const,
+    location: { ...BERLIN, ...overrides },
+  })
+
   beforeEach(() => {
     geocodeLocation.mockReset()
-    geocodeLocation.mockResolvedValue(BERLIN)
+    geocodeLocation.mockResolvedValue(found())
   })
 
   describe('writing the answers back', () => {
@@ -285,13 +303,9 @@ describe('resolve endpoint', () => {
 
     it('flags a row that repeats an earlier line in the same file', async () => {
       // Far from the existing class, so only the two rows can match each other.
-      geocodeLocation.mockResolvedValue({
-        ...BERLIN,
-        latitude: 48.1371,
-        longitude: 11.5754,
-        placeName: 'München',
-        placeId: 'mbx-munich',
-      })
+      geocodeLocation.mockResolvedValue(
+        found({ latitude: 48.1371, longitude: 11.5754, placeName: 'München', placeId: 'mbx-munich' }),
+      )
       const batch = await createBatch({ rows: [row(2), row(3)] })
 
       await call(uploader, batch.id)
@@ -304,13 +318,9 @@ describe('resolve endpoint', () => {
     it('finds a match across the chunk boundary', async () => {
       // A row the previous call resolved is still a candidate, or two chunks
       // would each publish the same class.
-      geocodeLocation.mockResolvedValue({
-        ...BERLIN,
-        latitude: 50.9375,
-        longitude: 6.9603,
-        placeName: 'Köln',
-        placeId: 'mbx-cologne',
-      })
+      geocodeLocation.mockResolvedValue(
+        found({ latitude: 50.9375, longitude: 6.9603, placeName: 'Köln', placeId: 'mbx-cologne' }),
+      )
       const rows = Array.from({ length: RESOLVE_CHUNK_ROWS + 1 }, (_, index) => row(index + 2))
       const batch = await createBatch({ rows })
 
@@ -352,13 +362,9 @@ describe('resolve endpoint', () => {
           interval: 1,
         },
       })
-      geocodeLocation.mockResolvedValue({
-        ...BERLIN,
-        latitude: 45.764,
-        longitude: 4.8357,
-        placeName: 'Lyon',
-        placeId: 'mbx-lyon',
-      })
+      geocodeLocation.mockResolvedValue(
+        found({ latitude: 45.764, longitude: 4.8357, placeName: 'Lyon', placeId: 'mbx-lyon' }),
+      )
 
       const batch = await createBatch({ rows: [row(2)] })
       const { body } = await call(uploader, batch.id)
@@ -381,6 +387,20 @@ describe('resolve endpoint', () => {
       expect(JSON.stringify(body)).toContain('do not manage')
     })
 
+    it('refuses an inactive manager and a published API client', async () => {
+      // ⚠ **This pins a coupling three files away.** `refuseUnownedTarget` reads
+      // `ownedRegionFilterOptions`' `true` as "admin", and that holds only
+      // because `requireActiveManager` has already turned away every caller
+      // whose `type` is not `manager` or `admin`. Reorder the two guards and
+      // `true` starts meaning "inactive", "a client", or "nobody" — a full
+      // subtree bypass that nothing else here would catch.
+      const batch = await createBatch({ rows: [row(2)] })
+
+      expect((await call(inactiveManager, batch.id)).status).toBe(403)
+      expect((await call(client as unknown as Manager, batch.id)).status).toBe(403)
+      expect(geocodeLocation).not.toHaveBeenCalled()
+    })
+
     it('lets an admin resolve any batch', async () => {
       const batch = await createBatch({ rows: [row(2)] })
       expect((await call(admin, batch.id)).status).toBe(200)
@@ -396,6 +416,43 @@ describe('resolve endpoint', () => {
       // Refused before any row is touched, so no geocode is spent either.
       expect(geocodeLocation).not.toHaveBeenCalled()
       expect((await readRows(batch.id))[0]?.resolved).toBeUndefined()
+    })
+
+    it('leaves a row pending when the geocoder is unavailable, and keeps the rows before it', async () => {
+      // ⚠ An outage says nothing about the row. Writing "could not find this
+      // location" on it would turn minutes of Mapbox trouble into addresses a
+      // volunteer can only fix by re-uploading the file — and the rows that did
+      // resolve have to survive, or the next call restarts instead of resuming.
+      // Hamburg, so the row does not collide with the class the duplicate
+      // suite left in Berlin.
+      geocodeLocation
+        .mockResolvedValueOnce(
+          found({ latitude: 53.5503, longitude: 9.9937, placeName: 'Hamburg', placeId: 'mbx-hh' }),
+        )
+        .mockResolvedValue({ status: 'unavailable' as const })
+      const batch = await createBatch({ rows: [row(2), row(3), row(4)] })
+
+      const { status, body } = await call(uploader, batch.id)
+
+      expect(status).toBe(503)
+      expect(body).toMatchObject({ resolved: 1, pending: 2 })
+      const rows = await readRows(batch.id)
+      expect(rows[0]?.resolved).toBeDefined()
+      expect(rows[1]?.errors).toBeUndefined()
+      expect(rows[1]?.resolved).toBeUndefined()
+      // The status must not move while rows are still waiting for an answer.
+      expect(await statusOf(batch.id)).toBe('uploaded')
+    })
+
+    it('reports a miss as the row’s own error, unlike an outage', async () => {
+      geocodeLocation.mockResolvedValue({ status: 'missed' as const })
+      const batch = await createBatch({ rows: [row(2)] })
+
+      const { status, body } = await call(uploader, batch.id)
+
+      expect(status).toBe(200)
+      expect(body).toMatchObject({ errors: 1, pending: 0, done: true })
+      expect((await readRows(batch.id))[0]?.errors?.[0]).toContain('could not find this location')
     })
 
     it('refuses a batch that is already committing', async () => {

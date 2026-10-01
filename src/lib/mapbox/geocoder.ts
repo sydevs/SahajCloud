@@ -98,8 +98,19 @@ interface ForwardFeature {
 
 const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 
+/**
+ * Mapbox answered, or it did not.
+ *
+ * ⚠ **The two are a different fact about the world, and only the caller knows
+ * whether that matters.** "No such place" is final; "we could not ask" is not,
+ * and a caller that writes a permanent refusal on the second one turns one
+ * outage into rows nobody can re-place. `geocodeRegion` collapses both to null
+ * because its caller is a seed run a maintainer re-runs anyway.
+ */
+type ForwardAnswer = { answered: true; feature: ForwardFeature | null } | { answered: false }
+
 /** GET the first `/forward` feature, retrying on 429 with exponential backoff. */
-async function fetchForwardFeature(params: URLSearchParams): Promise<ForwardFeature | null> {
+async function fetchForwardFeature(params: URLSearchParams): Promise<ForwardAnswer> {
   for (let attempt = 0; ; attempt++) {
     let res: Response
     try {
@@ -112,15 +123,15 @@ async function fetchForwardFeature(params: URLSearchParams): Promise<ForwardFeat
         await delay(BASE_BACKOFF_MS * 2 ** attempt)
         continue
       }
-      return null
+      return { answered: false }
     }
     if (res.status === 429 && attempt < MAX_RETRIES) {
       await delay(BASE_BACKOFF_MS * 2 ** attempt)
       continue
     }
-    if (!res.ok) return null
+    if (!res.ok) return { answered: false }
     const data = (await res.json().catch(() => null)) as { features?: ForwardFeature[] } | null
-    return data?.features?.[0] ?? null
+    return { answered: true, feature: data?.features?.[0] ?? null }
   }
 }
 
@@ -161,7 +172,9 @@ async function forwardFeature(args: GeocodeRegionArgs): Promise<ForwardFeature |
     latitude: args.latitude,
     longitude: args.longitude,
   })
-  return params ? fetchForwardFeature(params) : null
+  if (!params) return null
+  const answer = await fetchForwardFeature(params)
+  return answer.answered ? answer.feature : null
 }
 
 /** Forward-geocode a region node to a Search Box `mapbox_id`, or null on a miss. */
@@ -294,39 +307,51 @@ export interface GeocodeLocationArgs {
 }
 
 /**
- * Forward-geocode one query to a point and its context, or null on a miss.
- *
- * ⚠ **A null is "no answer", never "no match".** A missing token, an exhausted
- * retry and an empty result set all arrive here identically, so a caller that
- * must distinguish them cannot — it can only report that the row could not be
- * placed. That is deliberate: every one of the three leaves the row unplaceable,
- * and a caller inventing a distinction would be guessing at which.
+ * ⚠ **`missed` and `unavailable` must not be collapsed by the caller.** A miss
+ * is a fact about the query — the row names a place Mapbox does not hold, and
+ * saying so is final. `unavailable` is a fact about us: no token, or the retries
+ * ran out. A caller that writes a row error on the second one turns a few
+ * minutes of Mapbox trouble into rows a volunteer can only fix by re-uploading
+ * the file.
  */
-export async function geocodeLocation(args: GeocodeLocationArgs): Promise<GeocodedLocation | null> {
+export type GeocodeOutcome =
+  | { status: 'found'; location: GeocodedLocation }
+  | { status: 'missed' }
+  | { status: 'unavailable' }
+
+/** Forward-geocode one query to a point and its context. */
+export async function geocodeLocation(args: GeocodeLocationArgs): Promise<GeocodeOutcome> {
   const params = forwardParams({
     q: args.query,
     types: args.types,
     countryCode: args.countryCode,
   })
-  if (!params) return null
+  if (!params) return { status: 'unavailable' }
 
-  const feature = await fetchForwardFeature(params)
-  const coordinates = feature?.geometry?.coordinates
-  if (!coordinates) return null
+  const answer = await fetchForwardFeature(params)
+  if (!answer.answered) return { status: 'unavailable' }
 
-  const context = feature?.properties?.context
+  const coordinates = answer.feature?.geometry?.coordinates
+  // A feature without a point is a miss rather than an answer: the zone and
+  // every duplicate rule read the point, so there is nothing to place.
+  if (!coordinates) return { status: 'missed' }
+
+  const context = answer.feature?.properties?.context
   const countryCode = context?.country?.country_code ?? null
   // `locality` carries the town where a country files one below `place`, so it
   // is read as the city wherever `place` is absent rather than left blank.
   const place = context?.place ?? context?.locality
 
   return {
-    mapboxId: feature?.properties?.mapbox_id ?? null,
-    longitude: coordinates[0],
-    latitude: coordinates[1],
-    countryCode,
-    subdivisionCode: resolveSubdivisionCode(context?.region, countryCode),
-    placeName: place?.name ?? null,
-    placeId: geocodedPlaceId(place),
+    status: 'found',
+    location: {
+      mapboxId: answer.feature?.properties?.mapbox_id ?? null,
+      longitude: coordinates[0],
+      latitude: coordinates[1],
+      countryCode,
+      subdivisionCode: resolveSubdivisionCode(context?.region, countryCode),
+      placeName: place?.name ?? null,
+      placeId: geocodedPlaceId(place),
+    },
   }
 }

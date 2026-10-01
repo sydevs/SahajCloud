@@ -201,9 +201,40 @@ describe('Event imports', () => {
       )
     })
 
-    it('lets the uploader update their own batch', async () => {
-      const updated = await updateAs(uploader, own.id, { status: 'resolved' })
-      expect(updated.status).toBe('resolved')
+    it('refuses the uploader their own discard, because a trash attempt runs the `delete` check too', async () => {
+      // ⚠ **This pins a gap, not a rule.** `access.ts` says the discard rides on
+      // `update`, and it does not: `updateByID` detects `deletedAt` in the patch
+      // and runs `access.delete` **as well** as `access.update`
+      // (`payload/dist/collections/operations/updateByID.js:110-118`). `delete`
+      // here is the generated config — admins only — so nobody but an admin can
+      // discard a batch, and the seven-day retention window has no volunteer-
+      // reachable way in. Closing it means overriding `delete` to allow the
+      // uploader when `data.deletedAt` is set (Payload passes `data` to the
+      // access function for exactly that), which belongs with the review UI that
+      // offers the button. Until then this case is the record that it does not
+      // work; delete it in the same change that makes it work.
+      const mine = await createBatch()
+
+      await expect(
+        updateAs(uploader, mine.id, { deletedAt: new Date().toISOString() }),
+      ).rejects.toThrow(/not allowed/i)
+    })
+
+    it('strips an uploader’s write to `status` and `rows`, which the endpoints own', async () => {
+      // ⚠ Both are what the next step trusts, and `rows` is `readOnly` only in
+      // the admin — a UI affordance, not access control. Writable here, an
+      // uploader could hand-write a `resolved` block at any coordinates and flip
+      // `status`, and the resolve endpoint would treat the row as finished:
+      // its country and subdivision checks never re-run on an answered row.
+      const mine = await createBatch()
+
+      const updated = await updateAs(uploader, mine.id, {
+        status: 'resolved',
+        rows: [{ line: 2, values: { title: 'Injected' } }],
+      })
+
+      expect(updated.status).toBe('uploaded')
+      expect(updated.rows).toBeFalsy()
     })
 
     it('strips an uploader’s attempt to re-point the batch out of their subtree', async () => {

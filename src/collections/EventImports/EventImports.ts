@@ -7,6 +7,7 @@ import { baseLanguage, getLanguageOptions } from '@/lib/locales'
 import { adminOnlyFieldAccess } from '@/plugins/access'
 
 import { batchUploaderAccess } from './access'
+import { MAX_IMPORT_ROWS } from './constants'
 import { resolveEventImport } from './endpoints/resolve'
 
 /**
@@ -65,11 +66,22 @@ export const EventImports: CollectionConfig = {
       maxDepth: 1,
       access: { update: adminOnlyFieldAccess },
     },
+    // ⚠ **`status` and `rows` are locked against the uploader for the same
+    // reason `targetRegion` is: they are what the next step trusts.** The
+    // uploader holds `update` on the whole document (`access.ts`), and `rows` is
+    // `readOnly` only in the admin — a UI affordance, not access control. So
+    // without these locks a `PATCH /api/event-imports/:id` could write a
+    // `resolved` block of its own, at any coordinates, and set `status` to
+    // `resolved`: the resolve endpoint treats a row that already has an answer
+    // as finished, so the country and subdivision checks would never run on it.
+    // The endpoints still write both, because they pass `overrideAccess: true`.
+    // What the uploader keeps is `deletedAt` — the discard.
     {
       name: 'status',
       type: 'select',
       required: true,
       defaultValue: 'uploaded',
+      access: { update: adminOnlyFieldAccess },
       options: [
         { label: 'Uploaded', value: 'uploaded' },
         { label: 'Resolved', value: 'resolved' },
@@ -101,6 +113,10 @@ export const EventImports: CollectionConfig = {
       // this shape as each lands; a key declared ahead of its writer generates a
       // type a consumer can read as available, and an Ajv rule nothing
       // exercises.
+      access: { update: adminOnlyFieldAccess },
+      // The cap the parse step enforces, restated where the column is declared:
+      // `parseImportCsv` is not the only writer once an endpoint elevates past
+      // field access, and `MAX_IMPORT_ROWS` is what bounds the geocoder spend.
       schema: z.array(
         z.strictObject({
           line: z
@@ -173,7 +189,7 @@ export const EventImports: CollectionConfig = {
               'A matched row is reported and skipped; nothing about the match is modified.',
             ),
         }),
-      ),
+      ).max(MAX_IMPORT_ROWS),
       admin: { readOnly: true },
     }),
   ],
