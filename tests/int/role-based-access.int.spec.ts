@@ -2375,6 +2375,7 @@ describe('Role-Based Access Control', () => {
       const reader = await testData.createManager(payload, {
         name: 'Atlas Reader',
         roles: ['atlas-manager'],
+        contactDetails: [{ platform: 'telegram', identifier: '@reader' }],
       })
       const other = await testData.createManager(payload, {
         name: 'Other Manager',
@@ -2400,13 +2401,21 @@ describe('Role-Based Access Control', () => {
       // The picker's one field, and the id it submits. `collection` is the
       // discriminator Payload adds to an auth document, not a stored field.
       expect(doc.name).toBe('Other Manager')
+
+      // ⚠ **A denied ARRAY field comes back as `[]`, not absent** — the rows
+      // are gone, which is the value, but the key survives. `sessions` is in the
+      // set because Payload's own lock on it answers the same way; this diff's
+      // lock is the one on `contactDetails`.
       expect(Object.keys(doc).sort()).toEqual([
         'collection',
+        'contactDetails',
         'createdAt',
         'id',
         'name',
+        'sessions',
         'updatedAt',
       ])
+      expect(doc.contactDetails).toEqual([])
     })
 
     it('hands the same row whole to an admin, and to its own holder', async () => {
@@ -2456,8 +2465,12 @@ describe('Role-Based Access Control', () => {
       const byId = new Map(list.docs.map((doc) => [doc.id, doc]))
       expect(byId.get(reader.id)?.email).toBe(reader.email)
       expect(byId.get(other.id)?.email).toBeUndefined()
-      expect(byId.get(other.id)?.contactDetails).toBeUndefined()
+      expect(byId.get(other.id)?.contactDetails).toEqual([])
       expect(byId.get(other.id)?.name).toBe('Other Manager')
+      // The caller's own rows survive in the same answer — an array field's lock
+      // empties it per row, so this is the half that proves it emptied the right
+      // one.
+      expect(byId.get(reader.id)?.contactDetails).toHaveLength(1)
     })
 
     /**
@@ -2518,6 +2531,38 @@ describe('Role-Based Access Control', () => {
       const row = await stored(created.id)
       expect(row.type).toBe('manager')
       expect(row.roles ?? []).toEqual([])
+    })
+
+    it('refuses the machine fields a create could otherwise seed', async () => {
+      const { reader } = await pair()
+      const future = new Date(Date.now() + 86_400_000).toISOString()
+
+      const created = await payload.create({
+        collection: 'managers',
+        data: createData<'managers'>({
+          name: 'Seeded Machine State',
+          email: `machine_${Date.now()}@example.com`,
+          _verified: true,
+          invitationDueAt: future,
+          magicLinkIssuedAt: future,
+          pendingInvitation: { regions: [1] },
+        }),
+        depth: 0,
+        locale: 'en',
+        overrideAccess: false,
+        user: reader,
+      })
+
+      const row = await stored(created.id)
+      // `_verified` is the accepted/not-accepted flag the whole invitation flow
+      // turns on, and Payload ships it `create: Boolean(user)`.
+      expect(row._verified).toBeFalsy()
+      // A stamp in the future makes the throttle subtract to a negative delta,
+      // so the account is refused a sign-in link until somebody edits the
+      // database — the field is hidden and unwritable.
+      expect(row.magicLinkIssuedAt ?? null).toBeNull()
+      expect(row.pendingInvitation ?? null).toBeNull()
+      expect(row.invitationDueAt ?? null).toBeNull()
     })
 
     it('leaves a server-side create alone, so a seed can still build an admin', async () => {

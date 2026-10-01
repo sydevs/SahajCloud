@@ -30,49 +30,47 @@ function lockedFields(collection: SanitizedCollectionConfig): LockedField[] {
 }
 
 /**
- * Re-apply every field `read` lock when a caller reads its own auth collection.
+ * Re-apply a field `read` lock the caller's own row would otherwise escape.
  *
- * ⚠ **A field lock only covers a read that checks access, and a self-read may
- * not.** Payload's `refreshOperation` re-reads the document with `findByID` and
- * no `overrideAccess: false`, so it defaults to `true` and every field lock is
- * skipped — `meOperation` passes the flag, `refresh` does not.
- * `POST /api/clients/refresh-token` therefore returned the caller's own
+ * ⚠ **A field lock only covers a read that checks access, and an auth operation
+ * may not.** `POST /api/clients/refresh-token` returned the caller's own
  * decrypted `apiKey` and its `mailingList` provider secret to a key that ships
- * in the browser (#822). `disableLocalStrategy` does not close it: `refresh` is
- * the one auth operation that does not refuse on that flag.
+ * in the browser, because `refreshOperation` re-read the row with no
+ * `overrideAccess: false` (#822). Payload passes the flag there as of 3.90.2, so
+ * this is the net for whichever operation forgets it next rather than the fix
+ * for that one.
  *
- * A hook runs on every read path, so this holds whichever operation forgets the
- * flag next. `accessPlugin` attaches it to every auth collection, because the
- * hole is Payload's auth operations rather than anything about `clients`: the
- * next `read` lock added to `managers` would leak the same way with nothing
- * else to catch it.
+ * The locks are evaluated rather than assumed, so it denies exactly what field
+ * access would have. Only the flattened top level is walked — that is where a
+ * locked field's value sits on the document, `mailingList`'s group included.
  *
- * The locks are evaluated rather than assumed, so the hook denies exactly what
- * field access would have denied. Only the flattened top level is walked —
- * that is where a locked field's value sits on the document, `mailingList`'s
- * group included.
+ * Three things it deliberately does not touch, each because the answer is
+ * already settled elsewhere:
  *
- * Reads by anyone else are untouched, and so are server-side reads, which run
- * with no user. So is authentication: `APIKeyAuthentication` resolves before
- * `req.user` exists, and matches the `apiKeyIndex` hash rather than the field.
+ * - **A read that checked access** (`overrideAccess === false`), where the locks
+ *   have already run.
+ * - **A read by anyone else**, and a server-side read, which carries no user.
+ *   Authentication too: `APIKeyAuthentication` resolves before `req.user`
+ *   exists, and matches the `apiKeyIndex` hash rather than the field.
+ * - ⚠ **A row that is not the caller's own.** Every operation in the class above
+ *   reads the authenticated row, so nothing is lost — and a sibling row reaching
+ *   here is an internal read the app has to be able to trust.
+ *   `syncVerificationOnSave` is the live one: it reads the event manager's
+ *   `notificationPreferences` with the acting manager's `req`, and a stripped
+ *   cadence moved `nextCheckAt` from 30 days to the 90-day default silently
+ *   (#828).
  *
- * ⚠ **The caller's OWN row, and no other row of the collection.** Every
- * operation in the class this closes — `refresh`, `me`, `login`, `unlock`,
- * `verifyEmail` — reads the authenticated row and nothing else, so the narrower
- * guard covers the same hole. Firing on a *sibling* row instead breaks a read
- * the app has to be able to trust: an `afterRead` hook sees no `overrideAccess`
- * flag, so once `managers` locked most of its own fields (#828) an internal
- * read of another manager came back hollowed out. `syncVerificationOnSave` is
- * the live one — it reads the event manager's `notificationPreferences` with
- * the acting manager's `req`, and a stripped cadence silently rewrites
- * `nextCheckAt`. A sibling row read through `overrideAccess: false` is covered
- * by field access itself, which is where that check belongs.
+ * So what it catches is a field a collection locks **against the row's own
+ * holder**. `Clients.apiKey` is that; every lock on `managers` is self-or-admin,
+ * so there the hook is a no-op by design, not by oversight.
  */
 export const stripLockedFieldsOnSelfRead: CollectionAfterReadHook = async ({
   collection,
   doc,
+  overrideAccess,
   req,
 }) => {
+  if (overrideAccess === false) return doc
   if (req.user?.collection !== collection.slug) return doc
   const id = (doc as { id?: number | string })?.id
   if (id === undefined || String(req.user.id) !== String(id)) return doc

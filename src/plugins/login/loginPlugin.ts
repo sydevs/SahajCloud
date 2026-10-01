@@ -1,13 +1,12 @@
 import type { LoginCollectionConfig } from './types'
 import type { CollectionBeforeOperationHook, CollectionConfig, Config, Field, Plugin } from 'payload'
 
-import { selfOrAdminFieldAccess } from '@/plugins/access'
-
 import { redeem } from './endpoints/redeem'
 import { requestMagicLink } from './endpoints/requestMagicLink'
 import { managerJoins, MANAGERS_COLLECTION } from './grantSummary'
 import {
   INVITATIONS_CRON,
+  machineFieldAccess,
   INVITATIONS_QUEUE,
   invitationFields,
   queueOnManagerField,
@@ -30,7 +29,7 @@ import {
  *
  * `admin.hidden` keeps it out of the edit view and nothing else: the API returns
  * it, so the `read` lock is what stops one account holder watching another's
- * sign-in traffic. Both endpoints read it with `overrideAccess: true`.
+ * sign-in traffic. Both endpoints read and write it with `overrideAccess: true`.
  */
 export const magicLinkIssuedAt: Field = {
   name: 'magicLinkIssuedAt',
@@ -38,10 +37,7 @@ export const magicLinkIssuedAt: Field = {
   admin: {
     hidden: true,
   },
-  access: {
-    read: selfOrAdminFieldAccess,
-    update: () => false,
-  },
+  access: machineFieldAccess,
 }
 
 export interface LoginPluginOptions {
