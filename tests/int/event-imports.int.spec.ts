@@ -10,9 +10,8 @@
  * (`docs/rules/access.md`, "Adding a collection to this list proves nothing on
  * its own").
  *
- * Rows are not aged by editing `deletedAt` past the window; the purge job takes
- * an injected `now` instead, so a seven-day boundary is asserted without waiting
- * for one.
+ * The window is crossed by injecting the job's `now`, not by backdating
+ * `deletedAt` past it.
  */
 import type { Payload, PayloadRequest } from 'payload'
 
@@ -22,12 +21,19 @@ import { IMPORT_TRASH_RETENTION_DAYS } from '@/collections/EventImports/constant
 import { parseImportCsv } from '@/collections/EventImports/csv/parse'
 import { buildImportTemplate } from '@/collections/EventImports/csv/template'
 import { PurgeEventImports } from '@/jobs/PurgeEventImports/PurgeEventImports'
-import type { Client, EventImport, EventImportRows, Manager, Region } from '@/payload-types'
+import type {
+  Client,
+  EventImport,
+  EventImportRows,
+  EventImportsSelect,
+  Manager,
+  Region,
+} from '@/payload-types'
 import { hasPermission } from '@/plugins/access'
 
 import { runTaskHandler } from '../utils/taskRunner'
-import { testData } from '../utils/testData'
-import { createTestEnvironment } from '../utils/testHelpers'
+import { createData, testData, type FixtureOverrides } from '../utils/testData'
+import { createTestEnvironment, idOnlySelect } from '../utils/testHelpers'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -50,29 +56,34 @@ describe('Event imports', () => {
       context: {},
     }) as unknown as PayloadRequest
 
-  const createBatch = async (overrides: Partial<EventImport> = {}): Promise<EventImport> =>
-    (await payload.create({
+  const createBatch = (overrides: FixtureOverrides<EventImport> = {}) =>
+    payload.create({
       collection: 'event-imports',
-      data: {
+      data: createData<'event-imports'>({
         targetRegion: region.id,
         uploader: uploader.id,
         defaultLanguages: ['de'],
         ...overrides,
-      } as never,
+      }),
       overrideAccess: true,
-    })) as EventImport
+    })
 
-  /**
-   * `select` is passed for every caller, not only the client one: an API client
-   * that names none is refused by the usage plugin's own guard, which would
-   * stand in front of the access decision each client case is about.
-   */
   const readAs = (user: Manager | Client) =>
     payload.find({
       collection: 'event-imports',
       depth: 0,
       pagination: false,
-      select: { status: true },
+      select: idOnlySelect<EventImportsSelect>(),
+      overrideAccess: false,
+      req: reqAs(user),
+    })
+
+  const updateAs = (user: Manager, id: number, data: FixtureOverrides<EventImport>) =>
+    payload.update({
+      collection: 'event-imports',
+      id,
+      data,
+      depth: 0,
       overrideAccess: false,
       req: reqAs(user),
     })
@@ -82,15 +93,18 @@ describe('Event imports', () => {
     payload.update({
       collection: 'event-imports',
       id,
-      data: { deletedAt: deletedAt.toISOString() } as never,
+      data: { deletedAt: deletedAt.toISOString() },
       overrideAccess: true,
     })
 
-  /** Run the sweep as if `days` had passed since `anchor`. */
-  const sweep = (anchor: number, days: number, dryRun = false) =>
+  /** Run the sweep one full retention window after `anchor`. */
+  const sweep = (anchor: number, dryRun = false) =>
     runTaskHandler(PurgeEventImports, {
       payload,
-      input: { now: new Date(anchor + days * DAY_MS).toISOString(), dryRun },
+      input: {
+        now: new Date(anchor + IMPORT_TRASH_RETENTION_DAYS * DAY_MS).toISOString(),
+        dryRun,
+      },
     })
 
   const exists = async (id: number) => {
@@ -182,41 +196,49 @@ describe('Event imports', () => {
     })
 
     it('refuses another manager an update on a batch that is not theirs', async () => {
-      await expect(
-        payload.update({
-          collection: 'event-imports',
-          id: own.id,
-          data: { status: 'resolved' } as never,
-          overrideAccess: false,
-          req: reqAs(otherManager),
-        }),
-      ).rejects.toThrow()
+      await expect(updateAs(otherManager, own.id, { status: 'resolved' })).rejects.toThrow(
+        /not allowed/i,
+      )
     })
 
     it('lets the uploader update their own batch', async () => {
-      const updated = (await payload.update({
-        collection: 'event-imports',
-        id: own.id,
-        data: { status: 'resolved' } as never,
-        overrideAccess: false,
-        req: reqAs(uploader),
-      })) as EventImport
+      const updated = await updateAs(uploader, own.id, { status: 'resolved' })
       expect(updated.status).toBe('resolved')
+    })
+
+    it('strips an uploader’s attempt to re-point the batch out of their subtree', async () => {
+      const mine = await createBatch()
+      const elsewhere = await testData.createRegion(payload, {
+        name: 'Somebody Else’s Country',
+        level: 'country',
+      })
+
+      // ⚠ A denied field update is **stripped, not refused**, so the write
+      // succeeds and the value has to be read back. Both fields are what the
+      // subtree check and the access rule are computed from, so a successful
+      // re-point would move the batch, not just edit it.
+      const updated = await updateAs(uploader, mine.id, {
+        targetRegion: elsewhere.id,
+        uploader: otherManager.id,
+      })
+
+      expect(updated.targetRegion).toBe(region.id)
+      expect(updated.uploader).toBe(uploader.id)
     })
 
     it('refuses create to an atlas-manager — the endpoints are the only writer', async () => {
       await expect(
         payload.create({
           collection: 'event-imports',
-          data: {
+          data: createData<'event-imports'>({
             targetRegion: region.id,
             uploader: uploader.id,
             defaultLanguages: ['de'],
-          } as never,
+          }),
           overrideAccess: false,
           req: reqAs(uploader),
         }),
-      ).rejects.toThrow()
+      ).rejects.toThrow(/not allowed/i)
     })
   })
 
@@ -277,7 +299,7 @@ describe('Event imports', () => {
       await trash(due.id, new Date(anchor))
       await trash(young.id, new Date(anchor + DAY_MS))
 
-      const { deletedBatches } = await sweep(anchor, IMPORT_TRASH_RETENTION_DAYS)
+      const { deletedBatches } = await sweep(anchor)
 
       expect(deletedBatches).toBe(1)
       expect(await exists(due.id)).toBe(false)
@@ -290,34 +312,29 @@ describe('Event imports', () => {
       const anchor = Date.now()
       await trash(due.id, new Date(anchor))
 
-      const { deletedBatches } = await sweep(anchor, IMPORT_TRASH_RETENTION_DAYS, true)
+      const { deletedBatches } = await sweep(anchor, true)
 
       expect(deletedBatches).toBe(1)
       expect(await exists(due.id)).toBe(true)
     })
 
-    it('needs `trash: true` to see a trashed batch at all', async () => {
-      const due = await createBatch()
-      const anchor = Date.now()
-      await trash(due.id, new Date(anchor))
-      // Scoped to this batch: earlier cases in this file leave trashed rows
-      // behind on purpose, and a bare date window would count those too.
-      const where = { id: { equals: due.id } }
+    it('refuses the uploader a hard delete, so the window is theirs to wait out', async () => {
+      // Discard is an `update` to `deletedAt`, which the uploader may do. Emptying
+      // their own trash early is what the retention promise cannot survive, so
+      // `delete` is left to the generated config — admins and the sweep only.
+      const mine = await createBatch()
+      await trash(mine.id, new Date())
 
-      // ⚠ Without the flag Payload appends `deletedAt exists: false`, so this
-      // query matches nothing and the sweep would silently never fire. The job
-      // passes it on both its read and its delete; this is what makes removing
-      // either one fail (`src/collections/AGENTS.md`).
-      const blind = await payload.count({ collection: 'event-imports', where, overrideAccess: true })
-      expect(blind.totalDocs).toBe(0)
-
-      const seeing = await payload.count({
-        collection: 'event-imports',
-        where,
-        trash: true,
-        overrideAccess: true,
-      })
-      expect(seeing.totalDocs).toBe(1)
+      await expect(
+        payload.delete({
+          collection: 'event-imports',
+          id: mine.id,
+          trash: true,
+          overrideAccess: false,
+          req: reqAs(uploader),
+        }),
+      ).rejects.toThrow(/not allowed/i)
+      expect(await exists(mine.id)).toBe(true)
     })
   })
 })

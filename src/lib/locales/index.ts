@@ -50,6 +50,26 @@ export function isValidLocale(code: string): code is LocaleCode {
 }
 
 /**
+ * The ISO 639-1 language a locale is written in.
+ *
+ * ⚠ **An admin locale is not a language.** `pt-BR` and `en-AU` are two of the
+ * nineteen and neither is an ISO 639-1 code, so anything feeding a value into a
+ * `getLanguageOptions()` field — `Events.languages`, and the batch default an
+ * import falls back to — needs the base subtag rather than the locale.
+ *
+ * ⚠ **`req.locale` is request-supplied and need not be a locale at all.**
+ * `?locale=all` reaches here as `'all'`, whose base subtag is `'all'` — not a
+ * language, and not a value those fields accept. An unrecognised code answers
+ * with the default locale's language instead.
+ */
+export function baseLanguage(code: string | undefined): string {
+  if (!code || !isValidLocale(code)) return baseSubtag(DEFAULT_LOCALE)
+  return baseSubtag(code)
+}
+
+const baseSubtag = (code: string): string => code.split('-')[0]
+
+/**
  * Select options for the app's configured locales.
  *
  * Distinct from `getLanguageOptions()`, which offers every ISO 639-1 language.
@@ -79,8 +99,7 @@ export function buildPayloadLocales(): Locale[] {
   return LOCALES.map(({ code }) => {
     // Get label from override or ISO 639-1
     // For compound codes like 'pt-BR', try the full code first, then the base
-    const baseCode = code.split('-')[0]
-    const isoLabel = ISO6391.getName(baseCode)
+    const isoLabel = ISO6391.getName(baseLanguage(code))
     const label = LOCALE_LABEL_OVERRIDES[code] || isoLabel || code
 
     const locale: Locale = {

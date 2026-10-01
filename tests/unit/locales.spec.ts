@@ -7,7 +7,7 @@
 
 import { describe, it, expect } from 'vitest'
 
-import { buildPayloadLocales } from '../../src/lib/locales'
+import { baseLanguage, buildPayloadLocales, getLanguageOptions } from '../../src/lib/locales'
 
 // Build locales once for all tests
 const allLocales = buildPayloadLocales()
@@ -80,5 +80,33 @@ describe('Locale Configuration (buildPayloadLocales)', () => {
 
     const dutchLocale = allLocales.find((l) => l.code === 'nl')
     expect(dutchLocale?.label).toBe('Dutch')
+  })
+})
+
+describe('baseLanguage', () => {
+  const languages = new Set(getLanguageOptions().map((option) => option.value))
+
+  it('answers with the ISO 639-1 language, not the locale code', () => {
+    expect(baseLanguage('pt-BR')).toBe('pt')
+    expect(baseLanguage('en-AU')).toBe('en')
+    expect(baseLanguage('cs')).toBe('cs')
+  })
+
+  it('answers every configured locale with a language the pickers accept', () => {
+    // The point of the helper: `pt-BR` and `en-AU` are locales ISO 639-1 has no
+    // code for, so a caller passing the locale straight into one of these fields
+    // would be refused at write.
+    for (const { code } of buildPayloadLocales()) {
+      expect(languages.has(baseLanguage(code)), `${code} -> ${baseLanguage(code)}`).toBe(true)
+    }
+  })
+
+  it('falls back to the default locale for anything that is not a locale', () => {
+    // ⚠ `req.locale` is request-supplied. `?locale=all` arrives as 'all', whose
+    // base subtag is 'all' — not a language, and not a value these fields take.
+    for (const code of ['all', 'union', 'zz-ZZ', '', undefined]) {
+      expect(languages.has(baseLanguage(code)), `${String(code)}`).toBe(true)
+    }
+    expect(baseLanguage('all')).toBe('en')
   })
 })
