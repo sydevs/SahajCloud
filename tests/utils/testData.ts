@@ -114,8 +114,13 @@ const __dirname = path.dirname(__filename)
 const SAMPLE_FILES_DIR = path.join(__dirname, '../files')
 
 /**
- * What a browser would send for each image extension the fixtures ship.
+ * What a browser would send for each extension `createMediaImage` accepts.
  * `image/${ext}` derives `image/svg` and `image/jpg`, which nothing emits.
+ *
+ * Scoped to `images`. `createFrame` and `createFile` keep their own tables
+ * because the `frames` and `files` allowlists carry video, audio and PDF and
+ * neither accepts SVG, so one shared table would have to be keyed by
+ * collection.
  */
 export const IMAGE_MIMETYPES: Record<string, string> = {
   '.jpg': 'image/jpeg',
