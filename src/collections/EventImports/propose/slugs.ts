@@ -21,13 +21,14 @@
 
 import { slugifyValue } from '@/lib/utilities/slugify'
 
+import { comparableKey } from '../resolve/duplicates'
+
 export interface SluggableNode {
   key: string
   name: string
   /**
-   * The level, used only when the name slugifies to nothing — a node named
-   * entirely in punctuation still needs a slug, and its level is the one word
-   * about it that is always true.
+   * Used only when the name slugifies to nothing — a node named entirely in
+   * punctuation still needs a slug.
    */
   level: string
   /** The parent's name, which is the first disambiguator. Null under a country. */
@@ -47,7 +48,9 @@ export function assignSlugs(
 ): Map<string, string> {
   const used = new Set<string>()
   for (const slug of taken) {
-    const key = slug?.trim().toLowerCase()
+    // `comparableKey`, not a second trim-and-lowercase: it is the one
+    // normalisation this import compares text with (`duplicates.ts`).
+    const key = comparableKey(slug)
     if (key) used.add(key)
   }
 

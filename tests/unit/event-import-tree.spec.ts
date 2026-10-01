@@ -216,7 +216,7 @@ describe('buildProposedTree', () => {
       kind: 'manual',
       latitude: 18.5,
       longitude: 73.85,
-      radius: MANUAL_RADIUS_MIN_METERS,
+      radius: MANUAL_RADIUS_MIN_METERS.city,
     })
   })
 

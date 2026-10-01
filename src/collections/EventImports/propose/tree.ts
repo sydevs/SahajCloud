@@ -83,8 +83,20 @@ export interface ProposedTree {
   stateLayer: StateLayerDecision
 }
 
+/**
+ * The levels a batch can target.
+ *
+ * ⚠ **`venue` is excluded deliberately.** A venue is the bottom of the tree, so
+ * there is nothing to propose beneath it — and `ALLOWED_PARENT_LEVELS`
+ * (`Regions.ts`) refuses a city under one, so proposing the city layer for it
+ * would build a tree the commit cannot write. `targetRegion` carries no
+ * `filterOptions`, so the endpoint that creates a batch owes this refusal; the
+ * narrow type is what obliges it to.
+ */
+export type ProposableTargetLevel = Extract<Region['level'], 'country' | 'region' | 'city'>
+
 export interface ProposeTreeArgs {
-  target: { id: number; level: Region['level']; name: string }
+  target: { id: number; level: ProposableTargetLevel; name: string }
   /** The target country's ISO alpha-2, for naming subdivisions. */
   countryCode: string
   /** Resolved rows worth a node: the errored and the duplicated are left out. */
@@ -104,16 +116,16 @@ export function buildProposedTree({
 }: ProposeTreeArgs): ProposedTree {
   const { nodes, stateLayer } =
     target.level === 'city'
-      ? { nodes: venueNodes(rows, target.id, existing), stateLayer: cityTargetLayer(target.level) }
+      ? {
+          nodes: venueNodes(rows, target.id, existing),
+          // `decideStateLayer` is the one place that says why a city target
+          // gains no layer.
+          stateLayer: decideStateLayer({ targetLevel: 'city', countryCode: '', cities: [] }),
+        }
       : cityNodes({ target, countryCode, rows, existing })
 
-  assignSlugsTo(nodes, takenSlugs)
+  assignSlugsTo(nodes, target.name, takenSlugs)
   return { nodes, rowErrors: rowErrorsFor(nodes), stateLayer }
-}
-
-/** A city target gains no layer, and `decideStateLayer` is the one place that says why. */
-function cityTargetLayer(level: Region['level']): StateLayerDecision {
-  return decideStateLayer({ targetLevel: level, countryCode: '', cities: [] })
 }
 
 interface CityNodesArgs {
@@ -154,8 +166,6 @@ function cityNodes({ target, countryCode, rows, existing }: CityNodesArgs): {
       // stands for the places under it, and a city with 90 classes would
       // otherwise drag the state's centre onto itself.
       const seats = members.map((city) => city.centroid)
-      // A state has no geocoded feature of its own — it comes from ISO — so it
-      // is matched on its name under the target and located from its classes.
       const match = matchNode(
         { level: 'region', name: state.name, mapboxId: null, parentId: target.id },
         existing,
@@ -169,16 +179,16 @@ function cityNodes({ target, countryCode, rows, existing }: CityNodesArgs): {
         slug: null,
         location: locationFor({
           mapboxId: null,
-          // Non-empty: a proposed state exists because cities were grouped
-          // under it, and every one of its keys came from `cities`.
+          level: 'region',
+          // Non-empty: a state is proposed only for the cities that grouped
+          // under it.
           centre: centroidOf(seats),
           extent: seats,
           match,
         }),
         lines: [...lines].sort((a, b) => a - b),
       })
-      // A city under a state that does not exist yet has no parent to be matched
-      // under; `matchNode` takes null for exactly that.
+      // Null when the state is itself proposed — see `MatchableNode.parentId`.
       const id = match.kind === 'existing' ? match.regionId : null
       for (const cityKey of state.cityKeys) parentOf.set(cityKey, { key, id })
     }
@@ -194,11 +204,17 @@ function cityNodes({ target, countryCode, rows, existing }: CityNodesArgs): {
       key: `city:${city.key}`,
       level: 'city' as const,
       name: city.name,
-      parentKey: parent.key,
+      // ⚠ **A city the Atlas already holds keeps the parent it has.** Moving a
+      // node is out of scope, so naming a proposed state as its parent would
+      // promise a re-parenting the commit does not perform — and a Pune that
+      // hangs straight off India, the mixed tree the Atlas really has, would
+      // read in the review as about to move under a brand-new Maharashtra.
+      parentKey: match.kind === 'existing' ? null : parent.key,
       match,
       slug: null,
       location: locationFor({
         mapboxId: city.placeId,
+        level: 'city',
         centre: city.centroid,
         extent: pointsOf(city.lines),
         match,
@@ -208,7 +224,25 @@ function cityNodes({ target, countryCode, rows, existing }: CityNodesArgs): {
     }
   })
 
-  return { nodes: [...states, ...cityNodeList], stateLayer }
+  return { nodes: [...keepPeopledStates(states, cityNodeList), ...cityNodeList], stateLayer }
+}
+
+/**
+ * Drop a proposed state that no new city hangs under.
+ *
+ * ⚠ **A state whose every city already exists would be created with no
+ * children.** Those cities keep their own parents (above), so the layer has
+ * nothing to group — and its name, slug, centre and radius were all computed
+ * from cities that stay where they are. An empty region in the tree is worse
+ * than no layer, which is the shape `decideStateLayer` already calls acceptable.
+ */
+function keepPeopledStates(
+  states: readonly ProposedNode[],
+  cities: readonly ProposedNode[],
+): ProposedNode[] {
+  return states.filter((state) =>
+    cities.some((city) => city.parentKey === state.key && city.match.kind === 'create'),
+  )
 }
 
 /** The halls a city target proposes, each hanging straight off it. */
@@ -231,6 +265,7 @@ function venueNodes(
       slug: null,
       location: locationFor({
         mapboxId: venue.mapboxId,
+        level: 'venue',
         centre: venue.centroid,
         extent: [venue.centroid],
         match,
@@ -244,15 +279,17 @@ function venueNodes(
  * What the commit would write as the node's location, or null when it writes
  * nothing.
  *
- * `points` both centres the node and sizes it: a city's own classes, a state's
- * cities, a venue's one address.
- *
- * ⚠ **The radius covers those points, not the place Mapbox knows.** A
- * hand-located node has no feature to take an extent from, so the only honest
- * answer is how far its own members reach — floored, because one address reaches
- * nowhere.
+ * ⚠ **The radius covers `extent`, not the place Mapbox knows.** A hand-located
+ * node has no feature to take an extent from, so the only honest answer is how
+ * far its own members reach — floored, because one address reaches nowhere.
  */
-function locationFor({ mapboxId, centre, extent, match }: LocationArgs): ProposedLocation | null {
+function locationFor({
+  mapboxId,
+  level,
+  centre,
+  extent,
+  match,
+}: LocationArgs): ProposedLocation | null {
   if (match.kind !== 'create') return null
   if (mapboxId) return { kind: 'mapbox', mapboxId }
 
@@ -261,12 +298,14 @@ function locationFor({ mapboxId, centre, extent, match }: LocationArgs): Propose
     kind: 'manual',
     latitude: centre.latitude,
     longitude: centre.longitude,
-    radius: Math.round(Math.max(reach, MANUAL_RADIUS_MIN_METERS)),
+    radius: Math.round(Math.max(reach, MANUAL_RADIUS_MIN_METERS[level])),
   }
 }
 
 interface LocationArgs {
   mapboxId: string | null
+  /** Which floor applies — a state is not town-sized (`constants.ts`). */
+  level: ProposedNode['level']
   /**
    * ⚠ **The node's own seat, never the mean of `extent`.** A merged city's
    * centroid is the centroid of the rows that were its own, deliberately
@@ -286,26 +325,32 @@ interface LocationArgs {
  * city under a state the Atlas already holds still disambiguates on that
  * state's name, and looking only at the created nodes would lose the one
  * disambiguator it has.
+ *
+ * ⚠ **A node with no proposed parent disambiguates on the target.** It is the
+ * parent the commit will give it, so without this the `name-parent` rule never
+ * fires for a top-level node and `slugs.ts`'s own worked example — Georgia the
+ * state becoming `georgia-united-states` — is unreachable.
  */
-function assignSlugsTo(nodes: readonly ProposedNode[], takenSlugs: Iterable<string>): void {
+function assignSlugsTo(
+  nodes: readonly ProposedNode[],
+  targetName: string,
+  takenSlugs: Iterable<string>,
+): void {
   const created = nodes.filter((node) => node.match.kind === 'create')
   const sluggable: SluggableNode[] = created.map((node) => ({
     key: node.key,
     name: node.name,
     level: node.level,
-    parentName: nodes.find((other) => other.key === node.parentKey)?.name ?? null,
+    parentName: nodes.find((other) => other.key === node.parentKey)?.name ?? targetName,
   }))
   const slugs = assignSlugs(sluggable, takenSlugs)
-  for (const node of created) node.slug = slugs.get(node.key) ?? null
+  for (const node of created) node.slug = slugs.get(node.key)!
 }
 
 /**
- * The rows a node refuses to hold.
- *
- * ⚠ **The message names the city and not the region that holds it.** Whoever
- * else manages that feature is outside this uploader's subtree, which is the
- * reason the import stops — and also the reason their tree is not theirs to be
- * told about.
+ * ⚠ **The message names the city, not the region that holds it.** That region is
+ * outside this uploader's subtree, which is both why the import stops and why
+ * their tree is not theirs to be told about.
  */
 function rowErrorsFor(nodes: readonly ProposedNode[]): ProposedRowError[] {
   return nodes
