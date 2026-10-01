@@ -1164,6 +1164,17 @@ for reactive access to schedule sub-fields.
   and registration)
 - `src/lib/schedule/backfillLastDate.ts` — recompute `lastDate` on
   existing rows
+- `src/lib/schedule/weekdays.ts` — the RFC 5545 weekday table and the
+  ordinal-week vocabulary, plus their membership tests. ⚠ The array's
+  **order** is the `enum_events_schedule_weekdays` enum and two callers read
+  a code back out of it by position, so a reorder moves events to the wrong
+  day with no type error. One home for that reason
+- `src/lib/schedule/time.ts` — `isHHMM` / `normalizeHHMM` (the one HH:MM
+  rule, shared with `scheduleFields`' endTime validator) and
+  `localWallTimeToInstant`. Its `onGap: 'reject'` is how a caller with
+  somebody to report to refuses a wall time the clocks skip; note that
+  Temporal's own `disambiguation: 'reject'` is **not** that check, because it
+  also refuses an ambiguous fall-back time that genuinely exists
 - `src/types/schedule.ts` — `EventSchedule` (the stored group, derived
   from `Event['schedule']`) and `ExclusionRange`. Anything reading a
   schedule off a document or merging a patch takes `Partial<EventSchedule>`,
