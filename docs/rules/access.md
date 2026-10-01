@@ -43,7 +43,7 @@ The Manager `type` field controls top-level access: `inactive` (denied), `manage
 | `meditations-editor` | Create and edit meditations, upload media |
 | `path-editor` | Edit lessons, lectures, and lecture clips. Upload media |
 | `web-translator` | Edit localized fields on pages, songs, albums (read-only otherwise) |
-| `atlas-manager` | Sahaj Atlas: read project-wide. Create, update, and trash events and regions — writes scoped to the manager's owned-region subtree, below |
+| `atlas-manager` | Sahaj Atlas: read project-wide. Create, update, and trash events and regions — writes scoped to the manager's owned-region subtree, below. Plus `managers`: read every row's name, and create an unprivileged account (#828) |
 
 Manager roles are **per-locale**: a manager can hold `meditations-editor` in English and `web-translator` in Czech, and gets the matching access in each admin locale.
 
@@ -219,6 +219,8 @@ This cuts the opposite way from implicit read, above, and the obvious reading is
 
 ⚠ **`managers` is there because "no project" was reading as shared** (#821): every published API key, the Atlas widget's browser key included, read every manager's name and email. **No client role gets a grant back.** `atlas-manager` holds the only one, because it picks on `Events.manager` and `Regions.managers`; `web-translator` gets nothing and renders a raw id in the Page Editors sidebar, which is the accepted cost.
 
+⚠ **That grant is collection-wide, and narrowed to `name` field by field** — a picker has to list other managers, so a self-scoped `Where` would empty it. `src/collections/Managers/access.ts` locks `read` on everything its one-entry allowlist does not name, so a field added to the collection, or injected into it by `loginPlugin`, is closed rather than exposed. `tests/unit/manager-field-locks.spec.ts` refuses the omission, and `role-based-access.int.spec.ts` reads a row back to prove the lock denies rather than merely exists. **`atlas-manager` also holds `managers: create`** (#828, the bulk import), which is only safe because `type` and `roles` are admin-only on **create** as well as update — they were update-only, so the grant without that half would have let a region volunteer mint an admin.
+
 ⚠ **`clients` is there because the same default exposed every service's credentials** (#822): a published key read every other service's decrypted `apiKey`, origin allowlist and usage counters. A service's own listed managers still reach it, through the document-manager path in `accessConfigs.ts`.
 
 ⚠ **Restricting a collection reaches a relationship to it. It does not reach a copy of it.** Every `relationTo: 'managers'` field is covered and needs no lock of its own, because populate falls back to the bare id once the related read is refused. A field storing a manager's name or address *as a value* is not covered, and needs a field lock instead — which is the next section, and why two fields on `events` have one.
@@ -257,11 +259,19 @@ It is deliberately **wider** than `adminOnlyFieldAccess`, which is the wrong too
 - `Forms.recipient` — the same collection, and now defence in depth behind restricted `managers` (#821).
 - `Events.registrationNotificationEmail` — a manager's address *copied* onto a collection the `sahaj-atlas` project reads (#821).
 
+**`selfOrAdminFieldAccess` is the other field lock, and it answers a different question**: not "may a client see this" but "is this the account holder's own business". It is what narrows `managers` to a name for everybody else, applied to the whole collection by `lockManagerFieldReads` rather than field by field. ⚠ **On `create` there is no document, so it is admin-only** — a field a non-admin must set on create needs its own `create` entry instead.
+
 ⚠ **Reach for a field lock, not `RESTRICTED_COLLECTIONS`, whenever personal data is denormalized rather than related.** `Events.activityLog` is the same shape one step further out — a JSON column whose reminder entries record the address each one went to — so the lock lives in the `logField` factory (`src/fields/logField.ts`) and every consumer inherits it. The sibling `Events.contactEmail` deliberately has no lock: that one is the address a seeker is meant to write to.
 
 ⚠ **A locked field still appears in `payload-types.ts`.** The lock strips the value at runtime, not the shape from the generated type.
 
-⚠ **A field lock only covers a read that checks access, and not every self-read does.** Payload's `refreshOperation` re-reads the document with `findByID` and no `overrideAccess: false`, so it defaults to `true` and every field lock is skipped — `meOperation` passes the flag, `refresh` does not. `POST /api/clients/refresh-token` handed a browser-shipped key its own decrypted `apiKey` and its `mailingList` provider secret, with both locks in place (#822). `disableLocalStrategy` does not close it: `refresh` is the one auth operation that does not refuse on that flag. `stripLockedFieldsOnSelfRead`, the `afterRead` hook `accessPlugin` attaches to every auth collection, is what does — a hook runs on every read path, so it holds whichever operation forgets the flag next. It re-evaluates every field's own `read` lock whenever `req.user.collection` is the collection being read, so a sixth locked field needs no edit there, and the next `read` lock on `managers` is covered before anyone notices it leaks. **When you lock a field on an auth collection, lock it and then check what else re-reads the row.**
+⚠ **A denied `array` field comes back as `[]`, not absent.** Its rows are gone — the whole value — but the key survives the `delete`, so an assertion written as `toBeUndefined()` passes for a scalar and fails for an array. `Managers.contactDetails` and Payload's own `sessions` are both this shape. Assert the emptiness, not the absence.
+
+⚠ **A field lock only covers a read that checks access, and not every self-read did.** `POST /api/clients/refresh-token` handed a browser-shipped key its own decrypted `apiKey` and its `mailingList` provider secret, with both locks in place (#822): `refreshOperation` re-read the document with no `overrideAccess: false`, so it defaulted to `true` and every lock was skipped. `disableLocalStrategy` does not close that — `refresh` is the one auth operation that does not refuse on the flag — and Payload now passes it there (3.90.2), so `stripLockedFieldsOnSelfRead` is the net for whichever operation forgets it next rather than the fix for that one. It is the `afterRead` hook `accessPlugin` attaches to every auth collection, and it re-evaluates every field's own `read` lock, so a sixth locked field needs no edit there. **When you lock a field on an auth collection, lock it and then check what else re-reads the row.**
+
+⚠ **It stands down on three reads, and two of those were added in #828.** It skips a read that already checked access (`overrideAccess === false`, which an `afterRead` hook does receive), a read by anyone else, and — this is the one that bit — **any row that is not the caller's own**. It fired on every row of the caller's collection until then. Every operation in the class it closes reads the authenticated row, so nothing is lost, and the wider version broke a read the app has to trust: `syncVerificationOnSave` reads the event manager's `notificationPreferences` with the acting manager's `req`, and a stripped cadence moved `nextCheckAt` from 30 days to the 90-day default silently.
+
+So what it catches is a field a collection locks **against the row's own holder**. `Clients.apiKey` is that. Every lock on `managers` is self-or-admin, so there it is a no-op by design — the net is for the next `clients`-shaped lock, not for this one.
 
 | Want | Do |
 | --- | --- |
