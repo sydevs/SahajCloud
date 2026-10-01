@@ -121,7 +121,7 @@ const SAMPLE_FILES_DIR = path.join(__dirname, '../files')
  * keeps the derived form, so an unsupported format is still refused on its own
  * merits rather than silently renamed.
  */
-const IMAGE_MIMETYPES: Record<string, string> = {
+export const IMAGE_MIMETYPES: Record<string, string> = {
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
   '.png': 'image/png',
