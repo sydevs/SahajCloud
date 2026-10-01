@@ -1,10 +1,7 @@
 import { Temporal } from '@js-temporal/polyfill'
 import { describe, expect, it } from 'vitest'
 
-import {
-  mapCsvSchedule,
-  type MapScheduleArgs,
-} from '../../src/collections/EventImports/csv/schedule'
+import { mapCsvSchedule, type MapScheduleArgs } from '@/collections/EventImports/csv/schedule'
 
 /**
  * A Thursday, so "the next TU" and "the next TH" land in different weeks and a

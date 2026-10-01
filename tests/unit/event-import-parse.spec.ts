@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { MAX_IMPORT_ROWS } from '../../src/collections/EventImports/constants'
-import { IMPORT_COLUMN_NAMES } from '../../src/collections/EventImports/csv/columns'
-import { parseImportCsv } from '../../src/collections/EventImports/csv/parse'
+import { MAX_IMPORT_ROWS } from '@/collections/EventImports/constants'
+import { IMPORT_COLUMNS } from '@/collections/EventImports/csv/columns'
+import { parseImportCsv } from '@/collections/EventImports/csv/parse'
 import {
   IMPORT_TEMPLATE_FILENAME,
   buildImportTemplate,
-} from '../../src/collections/EventImports/csv/template'
+} from '@/collections/EventImports/csv/template'
 
 /** A minimal valid file: only the columns every row owes, plus the offline pair. */
 const HEADER = 'title,eventType,country,city,address,scheduleType'
@@ -160,7 +160,9 @@ describe('buildImportTemplate', () => {
   })
 
   it('writes every column, in spec order', () => {
-    expect(buildImportTemplate().split('\n')[0]).toBe(IMPORT_COLUMN_NAMES.join(','))
+    expect(buildImportTemplate().split('\n')[0]).toBe(
+      IMPORT_COLUMNS.map(({ name }) => name).join(','),
+    )
   })
 
   it('comments the help row so the parser skips it', () => {
