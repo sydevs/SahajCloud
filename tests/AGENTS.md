@@ -322,6 +322,26 @@ const escapedName = format.name.replace('.', '(-\\d+)?\\.')
 expect(song.filename).toMatch(new RegExp(`^${escapedName}$`))
 ```
 
+### Upload fixtures pass a raw `Buffer`, never a `Uint8Array` view
+
+`payload.create`'s `file.data` reaches parsers that call `Buffer`-only methods.
+`probeImageSize` measures SVG, BMP, ICO, TIFF and JXL with `readUInt32BE` and
+`toString(encoding, start, end)`, and `validateISOBaseMediaFile` sniffs an
+`audio/mp4` or `audio/x-m4a` container the same way. A view throws
+`TypeError: data.readUInt32BE is not a function`, surfaced as Payload's generic
+`FileUploadError`, so it reads as a broken fixture file rather than a wrong type.
+
+PNG, JPEG, GIF and WebP survive a view because Payload hands those to
+`image-dimensions`, which accepts one. That is why `createMediaImage` passed a
+view for years without anyone noticing (#871).
+
+Declare the content type a browser would send, too — `image/${extension}` gives
+`image/svg` and `image/jpg`. Payload replaces the declared value with one it
+sniffs, so no upload assertion can catch the difference; `IMAGE_MIMETYPES` in
+`tests/utils/testData.ts` holds the image spellings, and
+`tests/unit/image-fixture-mimetypes.spec.ts` pins them to the collection's
+allowlist.
+
 ### Mock user objects for visibility tests
 
 The bypass function checks `user.collection === 'managers'` before
