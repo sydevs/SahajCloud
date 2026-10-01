@@ -17,6 +17,8 @@
 
 import { Temporal } from '@js-temporal/polyfill'
 
+import { localWallTimeToInstant } from '@/lib/schedule/time'
+import { isWeekNumber, weekdayCodeFor } from '@/lib/schedule/weekdays'
 import { SUPPORTED_TIMEZONES } from '@/lib/timezones'
 import type { SupportedTimezones } from '@/payload-types'
 import type { EventSchedule } from '@/types/schedule'
@@ -82,12 +84,7 @@ const WEEKDAY_CODES: Record<string, WeekdayCode> = {
   sunday: 'SU',
 }
 
-const WEEK_NUMBERS = ['1', '2', '3', '4', '-1'] as const satisfies readonly WeekNumber[]
 const DEFAULT_TIME = '00:00'
-
-function isWeekNumber(value: string): value is WeekNumber {
-  return (WEEK_NUMBERS as readonly string[]).includes(value)
-}
 
 /**
  * The zones the `firstDate_tz` column accepts, as a lookup.
@@ -123,8 +120,6 @@ export function supportedTimezone(timeZone: string | null | undefined): Supporte
   return candidate && TIMEZONE_VALUES.has(candidate) ? (candidate as SupportedTimezones) : 'UTC'
 }
 
-/** RFC 5545 weekday codes indexed by Temporal `dayOfWeek` (1 = Monday … 7 = Sunday). */
-const WEEKDAY_BY_INDEX: readonly WeekdayCode[] = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU']
 
 /** Map an Atlas weekday name (case-insensitive) to its two-letter code. */
 function weekdayCode(weekday: string | null | undefined): WeekdayCode | undefined {
@@ -136,7 +131,7 @@ function weekdayCode(weekday: string | null | undefined): WeekdayCode | undefine
 function weekdayFromDate(startDate: string | null | undefined): WeekdayCode | undefined {
   if (!startDate) return undefined
   try {
-    return WEEKDAY_BY_INDEX[Temporal.PlainDate.from(startDate).dayOfWeek - 1]
+    return weekdayCodeFor(Temporal.PlainDate.from(startDate).dayOfWeek)
   } catch {
     return undefined
   }
@@ -154,8 +149,7 @@ function toFirstDateUtc(
 ): string | null {
   const time = startTime?.trim() || DEFAULT_TIME
   try {
-    const zoned = Temporal.ZonedDateTime.from(`${startDate}T${time}:00[${timeZone}]`)
-    return new Date(zoned.toInstant().epochMilliseconds).toISOString()
+    return localWallTimeToInstant(startDate, time, timeZone)
   } catch {
     return null
   }
