@@ -364,8 +364,11 @@ describe('clusterVenues', () => {
     const clusters = clusterVenues([
       venueRow({ point: PUNE, cityKey: 'pune', address: '1 High Street' }),
       venueRow({ point: PUNE, cityKey: 'pune', address: '1 High Street' }),
-      venueRow({ point: MUMBAI, cityKey: 'mumbai', address: '1 High Street' }),
-      venueRow({ point: MUMBAI, cityKey: 'mumbai', address: '1 High Street' }),
+      // Its own feature id, because one Mapbox id names one feature anywhere in
+      // the world — two halls sharing one is the fixture's shorthand, not a
+      // shape a geocode produces, and halls that DO share an id are one hall.
+      venueRow({ point: MUMBAI, cityKey: 'mumbai', address: '1 High Street', mapboxId: 'address.other' }),
+      venueRow({ point: MUMBAI, cityKey: 'mumbai', address: '1 High Street', mapboxId: 'address.other' }),
     ])
 
     expect(clusters.map((cluster) => cluster.key)).toEqual([

@@ -110,7 +110,16 @@ function asCityCluster(place: Place): CityCluster {
     name:
       commonest(place.own.map((row) => row.placeName)) ??
       commonest(place.own.map((row) => row.cityKey))!,
-    placeId: commonest(place.own.map((row) => row.placeId)),
+    // ⚠ **Falls back to the absorbed rows' ids, which is what keeps the match
+    // layer from going blind.** The merge below deliberately lets a name-keyed
+    // group absorb an id-keyed one when it has more rows — that is how a missing
+    // place id costs a merge rather than a duplicate city. But the survivor's
+    // OWN rows then carry no id, and a node with no id is matched on its name
+    // alone: the refusal for a feature managed elsewhere never fires, and an
+    // existing region under another spelling is missed.
+    placeId:
+      commonest(place.own.map((row) => row.placeId)) ??
+      commonest(rows.map((row) => row.placeId)),
     subdivisionCode: commonest(rows.map((row) => row.subdivisionCode)),
     centroid: centroidOf(place.own.map((row) => row.point)),
     lines: sortedLines(rows.map((row) => row.line)),
@@ -228,9 +237,10 @@ export interface VenueCluster {
  * towns in one batch is a shape that reaches here.
  */
 export function clusterVenues(rows: readonly VenueRow[]): VenueCluster[] {
-  return [...groupRows(rows, venueKeyOf)]
-    .filter(([, members]) => members.length >= SHARED_VENUE_MIN_ROWS)
-    .map(([key, members]) => ({
+  const halls = [...groupRows(rows, venueKeyOf)].filter(
+    ([, members]) => members.length >= SHARED_VENUE_MIN_ROWS,
+  )
+  return mergeSharedFeatures(halls).map(([key, members]) => ({
       key,
       // Normalised for display too: an address copied out of a spreadsheet
       // arrives with its own spacing, and the key is lower-cased, so neither is
@@ -242,6 +252,40 @@ export function clusterVenues(rows: readonly VenueRow[]): VenueCluster[] {
       centroid: centroidOf(members.map((row) => row.point)),
       lines: sortedLines(members.map((row) => row.line)),
     }))
+}
+
+/**
+ * Fold halls that geocoded to one feature into one.
+ *
+ * ⚠ **This runs after the threshold, never instead of it.** Keying a hall on
+ * its Mapbox id is the hazard the address key exists to avoid — one query
+ * answers with the building and another with the POI inside it, so two
+ * identically-typed rows split into single-use groups the threshold then drops.
+ * Grouping by address first and merging the survivors adds no such split.
+ *
+ * ⚠ **`Regions.mapboxId` is unique collection-wide**, so two created nodes
+ * carrying one id is not a duplicate a reviewer can tidy up later — the second
+ * write fails a constraint the volunteer cannot read.
+ *
+ * First spelling seen keeps the node key; the displayed name is the commonest
+ * across every row either way.
+ */
+function mergeSharedFeatures(
+  halls: readonly [string, VenueRow[]][],
+): [string, VenueRow[]][] {
+  const byFeature = new Map<string, VenueRow[]>()
+  const kept: [string, VenueRow[]][] = []
+  for (const [key, members] of halls) {
+    const feature = commonest(members.map((row) => row.mapboxId))
+    const seen = feature ? byFeature.get(feature) : undefined
+    if (seen) {
+      seen.push(...members)
+      continue
+    }
+    if (feature) byFeature.set(feature, members)
+    kept.push([key, members])
+  }
+  return kept
 }
 
 /** A row naming no address names no hall, so it joins no venue. */
