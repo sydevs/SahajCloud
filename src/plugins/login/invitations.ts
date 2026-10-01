@@ -6,6 +6,7 @@ import * as Sentry from '@sentry/nextjs'
 
 import { DEFAULT_LOCALE } from '@/lib/locales'
 import { relationId } from '@/lib/utilities/relationId'
+import { selfOrAdminFieldAccess } from '@/plugins/access'
 
 import { MANAGERS_COLLECTION } from './grantSummary'
 import { composeInvitations } from './invite'
@@ -44,20 +45,24 @@ const BATCH = 50
  * The queue's two fields. Hidden, and `update: () => false` for the same reason
  * as `magicLinkIssuedAt`: self-access would otherwise let a manager rewrite
  * their own queue. The queue's own writes bypass access entirely.
+ *
+ * `read` is locked for the same reason too, and `pendingInvitation` is the one
+ * that earns it on its own: it names the regions, events and pages an account
+ * was just given, which is a grant summary nobody else is owed.
  */
 export const invitationFields: Field[] = [
   {
     name: 'pendingInvitation',
     type: 'json',
     admin: { hidden: true },
-    access: { update: () => false },
+    access: { read: selfOrAdminFieldAccess, update: () => false },
   },
   {
     name: 'invitationDueAt',
     type: 'date',
     index: true,
     admin: { hidden: true },
-    access: { update: () => false },
+    access: { read: selfOrAdminFieldAccess, update: () => false },
   },
 ]
 
