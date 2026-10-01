@@ -1197,4 +1197,61 @@ describe('Event verification lifecycle', () => {
     })
 
   })
+
+  /**
+   * The cadence comes off the event's **manager**, whoever saved the event.
+   *
+   * ⚠ `syncVerificationOnSave` reads that manager with the saver's own `req`.
+   * `managers` locks most of its fields to the account holder and admins
+   * (#828), and an `afterRead` hook sees no `overrideAccess` flag to defer to —
+   * so a guard that fired on any row of the caller's own collection stripped
+   * `notificationPreferences` here and silently moved `nextCheckAt` from the
+   * manager's 30 days to the 90-day default. The narrowing in
+   * `stripLockedFieldsOnSelfRead` is what keeps this read whole.
+   */
+  describe('a cadence read across two managers', () => {
+    it('honours the event manager’s cadence when another manager saves', async () => {
+      const cadenceManager = await testData.createManager(payload, {
+        name: 'Monthly Cadence Manager',
+        notificationPreferences: { event_verification: { frequency: 'Monthly', method: 'email' } },
+      })
+      const savingManager = await testData.createManager(payload, {
+        name: 'Subtree Atlas Manager',
+        roles: ['atlas-manager'],
+      })
+      const ownedRegion = await payload.create({
+        collection: 'regions',
+        overrideAccess: true,
+        data: createData<'regions'>({
+          name: 'Cadence City',
+          level: 'city',
+          mapboxId: `cadence-city-${Date.now()}`,
+          managers: [savingManager.id],
+        }),
+      })
+
+      const event = await createEvent({
+        manager: cadenceManager.id,
+        region: ownedRegion.id,
+        title: 'Cadence Event',
+      })
+
+      // A real manager save: `overrideAccess: false`, so the write goes through
+      // the region-subtree grant rather than around it.
+      const saved = await payload.update({
+        collection: 'events',
+        id: event.id,
+        data: { title: 'Cadence Event, renamed' },
+        locale: 'en',
+        overrideAccess: false,
+        user: savingManager,
+      })
+
+      // 30 days for `Monthly`, against the 90-day default a missing cadence
+      // falls back to — far enough apart that the window cannot straddle both.
+      const days = (new Date(saved.nextCheckAt as string).getTime() - Date.now()) / 86_400_000
+      expect(days).toBeGreaterThan(29)
+      expect(days).toBeLessThan(31)
+    })
+  })
 })
