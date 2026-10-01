@@ -688,6 +688,22 @@ export type MeditationFrames = {
   timestamp: number;
   [k: string]: unknown;
 }[];
+export type EventImportRows = {
+  /**
+   * The row's line in the uploaded file, 1-based and counting the header, so an error names the line the volunteer's spreadsheet shows.
+   */
+  line: number;
+  /**
+   * The row as the CSV held it, keyed by column name and trimmed.
+   */
+  values: {
+    [k: string]: string;
+  };
+  /**
+   * Structural problems. A row with any of these is skipped, never committed.
+   */
+  errors?: string[];
+}[];
 export type TableOfContentsHeadings = {
   slug: string;
   text: string;
@@ -740,6 +756,7 @@ export interface Config {
     'app-cards': AppCard;
     regions: Region;
     events: Event;
+    'event-imports': EventImport;
     users: User;
     forms: Form;
     'user-submissions': UserSubmission;
@@ -816,6 +833,7 @@ export interface Config {
     'app-cards': AppCardsSelect<false> | AppCardsSelect<true>;
     regions: RegionsSelect<false> | RegionsSelect<true>;
     events: EventsSelect<false> | EventsSelect<true>;
+    'event-imports': EventImportsSelect<false> | EventImportsSelect<true>;
     users: UsersSelect<false> | UsersSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
     'user-submissions': UserSubmissionsSelect<false> | UserSubmissionsSelect<true>;
@@ -923,6 +941,7 @@ export interface Config {
       cleanupOrphanedMedia: TaskCleanupOrphanedMedia;
       deliverSubmission: TaskDeliverSubmission;
       expireEvents: TaskExpireEvents;
+      purgeEventImports: TaskPurgeEventImports;
       purgeSubmissions: TaskPurgeSubmissions;
       screenSubmission: TaskScreenSubmission;
       sendPostEventFollowUps: TaskSendPostEventFollowUps;
@@ -3724,6 +3743,211 @@ export interface Frame {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "event-imports".
+ */
+export interface EventImport {
+  id: number;
+  targetRegion: number | Region;
+  uploader: number | Manager;
+  /**
+   * Written by the import endpoints. `committing` means a commit was interrupted part-way; its rows carry the ids of whatever was already created.
+   */
+  status: 'uploaded' | 'resolved' | 'committing';
+  /**
+   * Language(s) to use for rows whose own `languages` column is empty.
+   */
+  defaultLanguages: (
+    | 'ab'
+    | 'aa'
+    | 'af'
+    | 'ak'
+    | 'sq'
+    | 'am'
+    | 'ar'
+    | 'an'
+    | 'hy'
+    | 'as'
+    | 'av'
+    | 'ae'
+    | 'ay'
+    | 'az'
+    | 'bm'
+    | 'ba'
+    | 'eu'
+    | 'be'
+    | 'bn'
+    | 'bi'
+    | 'bs'
+    | 'br'
+    | 'bg'
+    | 'my'
+    | 'ca'
+    | 'ch'
+    | 'ce'
+    | 'ny'
+    | 'zh'
+    | 'cv'
+    | 'kw'
+    | 'co'
+    | 'cr'
+    | 'hr'
+    | 'cs'
+    | 'da'
+    | 'dv'
+    | 'nl'
+    | 'dz'
+    | 'en'
+    | 'eo'
+    | 'et'
+    | 'ee'
+    | 'fo'
+    | 'fj'
+    | 'fi'
+    | 'fr'
+    | 'ff'
+    | 'gl'
+    | 'lg'
+    | 'ka'
+    | 'de'
+    | 'el'
+    | 'gn'
+    | 'gu'
+    | 'ht'
+    | 'ha'
+    | 'he'
+    | 'hz'
+    | 'hi'
+    | 'ho'
+    | 'hu'
+    | 'is'
+    | 'io'
+    | 'ig'
+    | 'id'
+    | 'ia'
+    | 'ie'
+    | 'iu'
+    | 'ik'
+    | 'ga'
+    | 'it'
+    | 'ja'
+    | 'jv'
+    | 'kl'
+    | 'kn'
+    | 'kr'
+    | 'ks'
+    | 'kk'
+    | 'km'
+    | 'ki'
+    | 'rw'
+    | 'rn'
+    | 'kv'
+    | 'kg'
+    | 'ko'
+    | 'ku'
+    | 'kj'
+    | 'ky'
+    | 'lo'
+    | 'la'
+    | 'lv'
+    | 'li'
+    | 'ln'
+    | 'lt'
+    | 'lu'
+    | 'lb'
+    | 'mk'
+    | 'mg'
+    | 'ms'
+    | 'ml'
+    | 'mt'
+    | 'gv'
+    | 'mi'
+    | 'mr'
+    | 'mh'
+    | 'mn'
+    | 'na'
+    | 'nv'
+    | 'ng'
+    | 'ne'
+    | 'nd'
+    | 'se'
+    | 'no'
+    | 'nb'
+    | 'nn'
+    | 'ii'
+    | 'oc'
+    | 'oj'
+    | 'cu'
+    | 'or'
+    | 'om'
+    | 'os'
+    | 'pi'
+    | 'pa'
+    | 'ps'
+    | 'fa'
+    | 'pl'
+    | 'pt'
+    | 'qu'
+    | 'ro'
+    | 'rm'
+    | 'ru'
+    | 'sm'
+    | 'sg'
+    | 'sa'
+    | 'sc'
+    | 'gd'
+    | 'sr'
+    | 'sn'
+    | 'sd'
+    | 'si'
+    | 'sk'
+    | 'sl'
+    | 'so'
+    | 'nr'
+    | 'st'
+    | 'es'
+    | 'su'
+    | 'sw'
+    | 'ss'
+    | 'sv'
+    | 'tl'
+    | 'ty'
+    | 'tg'
+    | 'ta'
+    | 'tt'
+    | 'te'
+    | 'th'
+    | 'bo'
+    | 'ti'
+    | 'to'
+    | 'ts'
+    | 'tn'
+    | 'tr'
+    | 'tk'
+    | 'tw'
+    | 'uk'
+    | 'ur'
+    | 'ug'
+    | 'uz'
+    | 've'
+    | 'vi'
+    | 'vo'
+    | 'wa'
+    | 'cy'
+    | 'fy'
+    | 'wo'
+    | 'xh'
+    | 'yi'
+    | 'yo'
+    | 'za'
+    | 'zu'
+  )[];
+  rows?: EventImportRows;
+  updatedAt: string;
+  createdAt: string;
+  deletedAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
 export interface PayloadKv {
@@ -3796,6 +4020,7 @@ export interface PayloadJob {
           | 'cleanupOrphanedMedia'
           | 'deliverSubmission'
           | 'expireEvents'
+          | 'purgeEventImports'
           | 'purgeSubmissions'
           | 'screenSubmission'
           | 'sendPostEventFollowUps'
@@ -3844,6 +4069,7 @@ export interface PayloadJob {
         | 'cleanupOrphanedMedia'
         | 'deliverSubmission'
         | 'expireEvents'
+        | 'purgeEventImports'
         | 'purgeSubmissions'
         | 'screenSubmission'
         | 'sendPostEventFollowUps'
@@ -3965,6 +4191,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'events';
         value: number | Event;
+      } | null)
+    | ({
+        relationTo: 'event-imports';
+        value: number | EventImport;
       } | null)
     | ({
         relationTo: 'users';
@@ -4760,6 +4990,20 @@ export interface EventsSelect<T extends boolean = true> {
   createdAt?: T;
   deletedAt?: T;
   _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "event-imports_select".
+ */
+export interface EventImportsSelect<T extends boolean = true> {
+  targetRegion?: T;
+  uploader?: T;
+  status?: T;
+  defaultLanguages?: T;
+  rows?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  deletedAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -10164,6 +10408,19 @@ export interface TaskExpireEvents {
     trashed: number;
     remindersSent: number;
     failed: number;
+  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskPurgeEventImports".
+ */
+export interface TaskPurgeEventImports {
+  input: {
+    now?: string | null;
+    dryRun?: boolean | null;
+  };
+  output: {
+    deletedBatches: number;
   };
 }
 /**

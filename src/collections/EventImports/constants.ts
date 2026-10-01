@@ -13,3 +13,12 @@
  * of which are per-row. A region with more classes than this uploads twice.
  */
 export const MAX_IMPORT_ROWS = 500
+
+/**
+ * How long a trashed batch survives before `PurgeEventImports` hard-deletes it.
+ *
+ * Long enough that a volunteer who discarded the wrong batch can ask for it
+ * back, short enough that an uploaded CSV of contact details is not kept
+ * indefinitely for no one's benefit.
+ */
+export const IMPORT_TRASH_RETENTION_DAYS = 7
