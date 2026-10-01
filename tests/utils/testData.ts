@@ -548,9 +548,9 @@ export const testData = {
     sampleFile = 'audio-42s.mp3',
   ): Promise<Meditation> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
-    const fileBuffer = fs.readFileSync(filePath)
-    // Convert Buffer to Uint8Array for compatibility with file-type library
-    const fileData = new Uint8Array(fileBuffer)
+    // A real Buffer: Payload sniffs an `audio/mp4` or `audio/x-m4a` container
+    // with `validateISOBaseMediaFile`, which uses Buffer-only methods.
+    const fileData = fs.readFileSync(filePath)
 
     // Create dependencies if not provided
     let thumbnail = deps?.thumbnail
@@ -593,7 +593,7 @@ export const testData = {
         ...overrides,
       }),
       file: {
-        data: fileData as unknown as Buffer,
+        data: fileData,
         mimetype:
           path.extname(sampleFile).slice(1) === 'mp3'
             ? 'audio/mpeg'
@@ -616,9 +616,9 @@ export const testData = {
     sampleFile = 'audio-42s.mp3',
   ): Promise<Song> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
-    const fileBuffer = fs.readFileSync(filePath)
-    // Convert Buffer to Uint8Array for compatibility with file-type library
-    const fileData = new Uint8Array(fileBuffer)
+    // A real Buffer: Payload sniffs an `audio/mp4` or `audio/x-m4a` container
+    // with `validateISOBaseMediaFile`, which uses Buffer-only methods.
+    const fileData = fs.readFileSync(filePath)
 
     // Extract album from overrides or create a default one
     let albumId: number
@@ -644,7 +644,7 @@ export const testData = {
         ...restOverrides,
       }),
       file: {
-        data: fileData as unknown as Buffer,
+        data: fileData,
         mimetype:
           path.extname(sampleFile).slice(1) === 'mp3'
             ? 'audio/mpeg'
