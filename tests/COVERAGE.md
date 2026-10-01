@@ -97,6 +97,7 @@ content collection.
 | R2 filename sanitization (`generateR2Key`, `generateCloudflareImageId`). R2 preassign hook                     | `storage-utils`             |
 | Cloudflare Stream webhook signature verification + MP4-download handler                                        | `cloudflare-stream-webhook` |
 | Schema introspection (`discoverReferencesForCollection`, `extractIdsFromLexicalContent`)                       | `schema-utils`              |
+| Bulk-import sub-region proposal — which rows become one city (the metro merge: every row inside the radius, nearest eligible place, no chain through an absorbed one), which share a hall, and whether a state layer is proposed at all. Row order changes no answer | unit: `event-import-cluster.spec.ts`, `event-import-states.spec.ts` |
 | Seed importer existence cache is trash-aware                                                                   | `seed-importer-preload`     |
 | Finished-event definition — `shouldFinish` (in-memory) pinned to agree with `notFinishedWhere` (SQL)           | unit: `schedule-status.spec.ts` |
 | Content-Index block API endpoint generation (`computeApiEndpoint` virtual)                                     | `content-index-block`       |

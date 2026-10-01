@@ -15,20 +15,18 @@
  */
 
 import { METRO_MERGE_METERS, SHARED_VENUE_MIN_ROWS } from '../constants'
-import { metersBetween, type Point } from '../resolve/distance'
+import { centroidOf, metersBetween, type Point } from '../resolve/distance'
+import { comparableKey } from '../resolve/duplicates'
 
 /** What either grouping reads off one resolved row. */
 export interface ClusterableRow {
-  /** The row's line in the uploaded file — what a group reports back. */
   line: number
   point: Point
-  /** `cityKey`, the one city spelling every resolved row carries. */
   cityKey: string
-  /** Mapbox's `place` id, when the answer carried one. */
   placeId: string | null
   /** Mapbox's own name for the place, which is what a proposed city is named. */
   placeName: string | null
-  /** ISO 3166-2 of the row's subdivision, for the state layer above the cities. */
+  /** ISO 3166-2, for the state layer the proposal may add above the cities. */
   subdivisionCode: string | null
 }
 
@@ -39,15 +37,12 @@ export interface CityCluster {
    * depend on which rows happened to land in this call.
    */
   key: string
-  /** Mapbox's name, falling back to the normalised key no row improved on. */
+  /** Mapbox's name, falling back to the city key no row improved on. */
   name: string
-  /** The `place` id a node is matched to an existing region on, where there is one. */
   placeId: string | null
-  /** ISO 3166-2 the majority of the cluster's rows sit in, or null. */
+  /** ISO 3166-2 the majority of the node's classes sit in, absorbed ones included. */
   subdivisionCode: string | null
-  /** Mean of the member rows' points — what the metro rule measures against. */
   centroid: Point
-  /** Member lines, in file order. */
   lines: number[]
   /**
    * The places folded into this one by the metro rule, in the order they were
@@ -81,160 +76,136 @@ export interface MergedPlace {
  * — which is why a missing place id costs a merge rather than a duplicate city.
  */
 export function clusterCities(rows: readonly ClusterableRow[]): CityCluster[] {
-  const groups = new Map<string, ClusterableRow[]>()
-  for (const row of rows) {
-    const key = row.placeId ? `id:${row.placeId}` : `name:${row.cityKey}`
-    const group = groups.get(key)
-    if (group) group.push(row)
-    else groups.set(key, [row])
-  }
-
-  const clustered = [...groups].map(([key, members]) => clusterOf(key, members))
-  return mergeMetros(clustered).map(({ points: _p, subdivisions: _s, ...cluster }) => cluster)
+  const groups = groupRows(rows, (row) => (row.placeId ? `id:${row.placeId}` : `name:${row.cityKey}`))
+  const places = [...groups].map(([key, own]) => ({ key, own, absorbed: [] as Place[] }))
+  return mergeMetros(places).map(asCityCluster)
 }
 
 /**
- * A cluster plus the member points the merge reads.
+ * One place mid-pass: the rows that are its own, and the places it has taken in.
  *
- * They are working state, not part of the answer: the metro rule asks where
- * every row of a place sits, and a `CityCluster` carries only the one point that
- * stands for the place.
+ * ⚠ **The split is the point.** A node's classes are its own rows plus every
+ * absorbed place's, while its *location* is only ever its own — recentering a
+ * city on the suburbs it absorbed would drift it away from the city, and a later
+ * merge would then be measured from somewhere no class is. Keeping the two sets
+ * apart is what makes that structural instead of a rule to remember.
  */
-interface WorkingCluster extends CityCluster {
-  points: Point[]
-  /**
-   * Every member row's subdivision, the absorbed places' rows included.
-   *
-   * ⚠ **`subdivisionCode` has to be re-read after a merge, not carried over.**
-   * The state layer is built from it, so a Maharashtra city that absorbs a
-   * Gujarat suburb must answer for all of its classes — the surviving place's
-   * own rows are no longer all of them.
-   */
-  subdivisions: (string | null)[]
+interface Place {
+  key: string
+  own: ClusterableRow[]
+  absorbed: Place[]
 }
 
-function clusterOf(key: string, members: readonly ClusterableRow[]): WorkingCluster {
-  const points = members.map((row) => row.point)
-  const subdivisions = members.map((row) => row.subdivisionCode)
+/** Every row under a place, the absorbed places' rows included. */
+function allRows(place: Place): ClusterableRow[] {
+  return [...place.own, ...place.absorbed.flatMap(allRows)]
+}
+
+function asCityCluster(place: Place): CityCluster {
+  const rows = allRows(place)
   return {
-    key,
-    // The commonest city key, not the first row's: it is the same question
-    // `commonest` answers for the place name, and a fallback reading row one
-    // would name the node differently for a reordered file.
+    key: place.key,
+    // Named from its own rows, not the absorbed ones: the node stands for this
+    // place, and what it took in is reported in `merged`.
     name:
-      commonest(members.map((row) => row.placeName)) ??
-      commonest(members.map((row) => row.cityKey))!,
-    placeId: commonest(members.map((row) => row.placeId)),
-    subdivisionCode: commonest(subdivisions),
-    centroid: centroidOf(points),
-    lines: sortedLines(members.map((row) => row.line)),
-    merged: [],
-    points,
-    subdivisions,
+      commonest(place.own.map((row) => row.placeName)) ??
+      commonest(place.own.map((row) => row.cityKey))!,
+    placeId: commonest(place.own.map((row) => row.placeId)),
+    subdivisionCode: commonest(rows.map((row) => row.subdivisionCode)),
+    centroid: centroidOf(place.own.map((row) => row.point)),
+    lines: sortedLines(rows.map((row) => row.line)),
+    merged: place.absorbed.map(asMergedPlace),
   }
 }
 
-/**
- * Member lines, ascending.
- *
- * Sorted on the way in rather than only after a merge: "in file order" has to
- * mean the same thing for every cluster in one result, or a caller comparing two
- * runs over one file reads a difference that is only arrival order.
- */
-function sortedLines(lines: readonly number[]): number[] {
-  return [...lines].sort((a, b) => a - b)
+function asMergedPlace(place: Place): MergedPlace {
+  const { key, name, lines, subdivisionCode } = asCityCluster(place)
+  return { key, name, lines, subdivisionCode }
 }
 
 /**
  * Fold each place into the larger one it is a suburb of.
  *
  * ⚠ **Every member row must be inside the radius, not just the centroid.** A
- * cluster's centroid sits between its rows, so a ring of outlying villages
- * averages to a point near the city they ring and would merge on a centroid
- * test while no class in it is anywhere near town.
+ * place's centroid sits between its rows, so a ring of outlying villages
+ * averages to a point near the city they ring and would merge on a centroid test
+ * while no class in it is anywhere near town.
  *
  * ⚠ **Only into a place with strictly more rows, and never into one that is
- * itself merging away.** Equal counts would merge both ways round, and a chain
- * would move a suburb's classes under a city two hops from them — so a target
- * that has already been absorbed is not a target, and the pass runs **largest
- * first**, which is what makes that guard hold — see the loop.
+ * itself merging away.** Equal counts would merge both ways round.
  */
-function mergeMetros(clusters: readonly WorkingCluster[]): WorkingCluster[] {
-  // Largest first, ties broken by key. Both halves are load-bearing: the order
-  // is what makes the chain guard below hold, and the tie-break is what settles
-  // which of two equal-sized places absorbs the village between them — a file's
-  // row order must not.
-  const ranked = [...clusters].sort(
-    (a, b) => b.lines.length - a.lines.length || a.key.localeCompare(b.key),
+function mergeMetros(places: readonly Place[]): Place[] {
+  // Ties by key, so a file's row order cannot decide which of two equal-sized
+  // places absorbs the village between them.
+  const ranked = [...places].sort(
+    (a, b) => b.own.length - a.own.length || a.key.localeCompare(b.key),
   )
   const absorbed = new Set<string>()
+  // Once per place rather than once per candidate pair: the pass is quadratic in
+  // places already, and a centroid is a pass over that place's every row.
+  const centroids = new Map(ranked.map((place) => [place.key, centroidOf(place.own.map((row) => row.point))]))
 
   // ⚠ **Largest first, which is what makes the chain guard hold.** Running
   // smallest first offers a village to its nearest town before that town has
   // merged into the city, so the guard sees an unabsorbed target and the
-  // village's classes ride into a city 30 km from them. Descending order means a
-  // place that is going to be absorbed already is by the time anything smaller
-  // asks to join it.
-  for (const cluster of ranked) {
-    // ⚠ **The nearest eligible place, not the largest.** A village 1 km from a
-    // town and 24 km from a bigger city belongs to the town, and taking the
-    // first match in rank order files it under the city instead — which reads to
-    // a reviewer as the import losing track of where the class is.
-    const into = ranked
-      .filter(
-        (other) =>
-          !absorbed.has(other.key) &&
-          other.key !== cluster.key &&
-          other.lines.length > cluster.lines.length &&
-          withinMetro(cluster, other),
-      )
-      .sort(
-        (a, b) =>
-          metersBetween(cluster.centroid, a.centroid) -
-            metersBetween(cluster.centroid, b.centroid) || a.key.localeCompare(b.key),
-      )[0]
+  // village's classes ride into a city 30 km from them.
+  for (const place of ranked) {
+    const into = nearestMetro(place, ranked, absorbed, centroids)
     if (!into) continue
-    absorbed.add(cluster.key)
-    into.lines = sortedLines([...into.lines, ...cluster.lines])
-    into.subdivisions = [...into.subdivisions, ...cluster.subdivisions]
-    into.subdivisionCode = commonest(into.subdivisions)
-    into.merged.push({
-      key: cluster.key,
-      name: cluster.name,
-      lines: cluster.lines,
-      subdivisionCode: cluster.subdivisionCode,
-    })
+    absorbed.add(place.key)
+    into.absorbed.push(place)
   }
 
-  // ⚠ The survivor's `centroid` and `points` are deliberately left as they were.
-  // The node stands for that city, and a reviewer reads its point as where the
-  // city is — recentering it on the suburbs it took in would drift it, and a
-  // later merge would then be measured from somewhere no class is.
-  return ranked.filter((cluster) => !absorbed.has(cluster.key))
+  return ranked.filter((place) => !absorbed.has(place.key))
 }
 
-/** Whether every one of a place's rows sits inside another place's metro radius. */
-function withinMetro(cluster: WorkingCluster, other: WorkingCluster): boolean {
-  return cluster.points.every((point) => metersBetween(point, other.centroid) <= METRO_MERGE_METERS)
+/**
+ * The nearest place this one is a suburb of, or none.
+ *
+ * ⚠ **Nearest, not largest.** A village 1 km from a town and 24 km from a bigger
+ * city belongs to the town, and taking the first match in rank order files it
+ * under the city instead — which reads to a reviewer as the import losing track
+ * of where the class is.
+ */
+function nearestMetro(
+  place: Place,
+  ranked: readonly Place[],
+  absorbed: ReadonlySet<string>,
+  centroids: ReadonlyMap<string, Point>,
+): Place | undefined {
+  let best: Place | undefined
+  let bestMeters = Infinity
+  const from = centroids.get(place.key)!
+
+  for (const other of ranked) {
+    if (other.key === place.key || absorbed.has(other.key)) continue
+    if (other.own.length <= place.own.length) continue
+    const to = centroids.get(other.key)!
+    if (!place.own.every((row) => metersBetween(row.point, to) <= METRO_MERGE_METERS)) continue
+
+    const meters = metersBetween(from, to)
+    if (meters < bestMeters || (meters === bestMeters && other.key.localeCompare(best!.key) < 0)) {
+      best = other
+      bestMeters = meters
+    }
+  }
+  return best
 }
 
 export interface VenueRow {
   line: number
   point: Point
-  /** `cityKey` — part of the key, so one street name cannot span two towns. */
+  /** Part of the key, so one street name cannot span two towns. */
   cityKey: string
-  /** The matched address feature's own Mapbox id, for an existing venue region. */
+  /** The matched address feature's id, for matching an existing venue region. */
   mapboxId: string | null
-  /** The row's `address` column, which is what identifies the hall. */
   address: string | null
-  /** The row's `venueName` column, the name a volunteer gave the hall. */
   venueName: string | null
 }
 
 export interface VenueCluster {
   key: string
   name: string
-  /** The address feature's id, for matching an existing venue region. */
   mapboxId: string | null
   centroid: Point
   lines: number[]
@@ -244,43 +215,29 @@ export interface VenueCluster {
  * Group a city target's rows into the halls worth their own node.
  *
  * ⚠ **A hall is identified by its address text, not by proximity and not by its
- * Mapbox id.** Two rows 20 m apart are a duplicate where they share a weekday
- * and two different halls where they do not, so a radius here would merge the
- * hall next door. The id is the tempting key and the wrong one: Mapbox answers
- * one query with the address and another with the POI inside it, so two rows a
- * volunteer typed identically can come back with different ids — and keying on
- * them splits the venue into two single-use groups, which the threshold then
- * drops, so the node is lost rather than merely duplicated. The id is still
- * reported, for matching an existing venue region.
+ * Mapbox id.** A radius would merge the hall next door, and the id is the
+ * tempting key and the wrong one: Mapbox answers one query with the address and
+ * another with the POI inside it, so two rows a volunteer typed identically can
+ * come back with different ids — and keying on them splits the venue into two
+ * single-use groups, which the threshold then drops, so the node is lost rather
+ * than merely duplicated.
  *
  * ⚠ **The city is part of the key**, because the address is a street line and
  * nothing else: "1 High Street" names a different hall in each town, and a city
  * target is confined no more tightly than its state (`targetScope.ts`), so two
  * towns in one batch is a shape that reaches here.
- *
- * Rows below the threshold are absent from the result, which is what keeps a
- * single-use address inline on the event rather than a node nobody navigates to.
  */
 export function clusterVenues(rows: readonly VenueRow[]): VenueCluster[] {
-  const groups = new Map<string, VenueRow[]>()
-  for (const row of rows) {
-    const key = venueKeyOf(row)
-    if (!key) continue
-    const group = groups.get(key)
-    if (group) group.push(row)
-    else groups.set(key, [row])
-  }
-
-  return [...groups]
+  return [...groupRows(rows, venueKeyOf)]
     .filter(([, members]) => members.length >= SHARED_VENUE_MIN_ROWS)
     .map(([key, members]) => ({
       key,
-      // Normalised for display as well as for the key: an address copied out of
-      // a spreadsheet arrives with its own spacing, and the key's spelling is
-      // not a name to put in front of a volunteer either.
+      // Normalised for display too: an address copied out of a spreadsheet
+      // arrives with its own spacing, and the key is lower-cased, so neither is
+      // a name to put in front of a volunteer.
       name:
-        commonest(members.map((row) => normalizeText(row.venueName))) ??
-        commonest(members.map((row) => normalizeText(row.address)))!,
+        commonest(members.map((row) => tidy(row.venueName))) ??
+        commonest(members.map((row) => tidy(row.address)))!,
       mapboxId: commonest(members.map((row) => row.mapboxId)),
       centroid: centroidOf(members.map((row) => row.point)),
       lines: sortedLines(members.map((row) => row.line)),
@@ -289,14 +246,26 @@ export function clusterVenues(rows: readonly VenueRow[]): VenueCluster[] {
 
 /** A row naming no address names no hall, so it joins no venue. */
 function venueKeyOf(row: VenueRow): string | null {
-  const address = normalizeText(row.address)?.toLowerCase()
+  // `comparableKey`, not a second trim-and-lowercase: `row.cityKey` is built with
+  // it, and the two halves of this key have to stay one rule (`duplicates.ts`).
+  const address = comparableKey(row.address)
   return address ? `${row.cityKey}|${address}` : null
 }
 
-/** Trimmed, with runs of whitespace collapsed. Null for a blank. */
-function normalizeText(value: string | null | undefined): string | null {
-  const text = value?.trim().replace(/\s+/g, ' ')
-  return text || null
+/** Rows by key, in first-seen order. A row the key function refuses is left out. */
+function groupRows<T>(
+  rows: readonly T[],
+  keyOf: (row: T) => string | null,
+): Map<string, T[]> {
+  const groups = new Map<string, T[]>()
+  for (const row of rows) {
+    const key = keyOf(row)
+    if (!key) continue
+    const group = groups.get(key)
+    if (group) group.push(row)
+    else groups.set(key, [row])
+  }
+  return groups
 }
 
 /**
@@ -324,17 +293,13 @@ function commonest<T>(values: readonly (T | null | undefined)[]): T | null {
   return best
 }
 
-/** Mean of the points, which is what the metro radius is measured from. */
-function centroidOf(points: readonly Point[]): Point {
-  const total = points.reduce(
-    (sum, point) => ({
-      latitude: sum.latitude + point.latitude,
-      longitude: sum.longitude + point.longitude,
-    }),
-    { latitude: 0, longitude: 0 },
-  )
-  return {
-    latitude: total.latitude / points.length,
-    longitude: total.longitude / points.length,
-  }
+/** Sorted for every cluster, so "file order" means the same for one that absorbed nothing. */
+function sortedLines(lines: readonly number[]): number[] {
+  return [...lines].sort((a, b) => a - b)
+}
+
+/** Trimmed, with runs of whitespace collapsed. Null for a blank. */
+function tidy(value: string | null | undefined): string | null {
+  const text = value?.trim().replace(/\s+/g, ' ')
+  return text || null
 }
