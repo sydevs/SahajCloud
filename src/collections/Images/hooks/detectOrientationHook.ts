@@ -1,7 +1,5 @@
 import type { CollectionBeforeChangeHook } from 'payload'
 
-import imageSize from 'image-size'
-
 type OrientationName = 'landscape' | 'portrait' | 'square'
 
 /**
@@ -19,59 +17,38 @@ function getOrientationFromDimensions(
 }
 
 /**
- * Hook that detects image orientation and automatically adds the corresponding tag.
+ * Tags an uploaded image with its orientation, on create from the admin UI, the
+ * API and imports alike.
  *
- * Runs on all image uploads (admin UI, API, imports).
- * Orientation tags: landscape, portrait, square
+ * Dimensions come from `data`: Payload's `generateFileData` measures the buffer
+ * before any `beforeChange` hook, and a magic-byte parser fed the raw upload can
+ * hang on crafted bytes where a throw would have been caught (#780).
  *
- * - landscape: width > height (ratio > 1.1)
- * - portrait: height > width (ratio < 0.9)
- * - square: width ≈ height (ratio 0.9-1.1, 10% tolerance)
- *
- * SVG images are skipped as they don't have meaningful pixel dimensions.
+ * SVG is skipped explicitly — Payload does measure it, off `width`/`height` or
+ * `viewBox`, so declining the format is this hook's job now. The type comes from
+ * `data.mimeType`, which Payload sniffed off the bytes. `req.file.mimetype` is
+ * the client's own claim, and would let an SVG posted as `image/png` through.
  */
 export const detectOrientationHook: CollectionBeforeChangeHook = async ({
   data,
   req,
   operation,
 }) => {
-  // Only run on create operations with file uploads
-  if (operation !== 'create' || !req.file?.data) {
+  if (operation !== 'create' || !req.file) {
     return data
   }
 
-  // Skip SVGs (no meaningful pixel dimensions)
-  if (req.file.mimetype === 'image/svg+xml') {
+  if (data.mimeType === 'image/svg+xml') {
     return data
   }
 
-  try {
-    // Detect dimensions from buffer
-    const dimensions = imageSize(req.file.data)
-    if (!dimensions.width || !dimensions.height) {
-      return data
-    }
-
-    // Determine orientation
-    const orientationName = getOrientationFromDimensions(
-      dimensions.width,
-      dimensions.height,
-    )
-
-    // Merge orientation tag with existing tags (if any)
-    const existingTags = Array.isArray(data.tags) ? (data.tags as string[]) : []
-
-    // Use Set to ensure no duplicates
-    const mergedTags = Array.from(new Set([...existingTags, orientationName]))
-
-    return { ...data, tags: mergedTags }
-  } catch (error) {
-    // Log error but don't fail the upload
-    req.payload.logger.warn({
-      msg: 'Failed to detect image orientation',
-      filename: req.file.name,
-      error: error instanceof Error ? error.message : String(error),
-    })
+  const { width, height } = data
+  if (typeof width !== 'number' || typeof height !== 'number' || !width || !height) {
     return data
   }
+
+  const orientationName = getOrientationFromDimensions(width, height)
+  const existingTags = Array.isArray(data.tags) ? (data.tags as string[]) : []
+
+  return { ...data, tags: Array.from(new Set([...existingTags, orientationName])) }
 }
