@@ -114,6 +114,23 @@ const __dirname = path.dirname(__filename)
 const SAMPLE_FILES_DIR = path.join(__dirname, '../files')
 
 /**
+ * What a browser would send for each extension `createMediaImage` accepts.
+ * `image/${ext}` derives `image/svg` and `image/jpg`, which nothing emits.
+ *
+ * Scoped to `images`. `createFrame` and `createFile` keep their own tables
+ * because the `frames` and `files` allowlists carry video, audio and PDF and
+ * neither accepts SVG, so one shared table would have to be keyed by
+ * collection.
+ */
+export const IMAGE_MIMETYPES: Record<string, string> = {
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.webp': 'image/webp',
+  '.svg': 'image/svg+xml',
+}
+
+/**
  * Names a fixture upload so nothing else in the run can want that name.
  * Payload rewrites a requested name to the first free `-N` suffix, and it
  * reads the upload directory to find one — a directory every suite shares,
@@ -228,10 +245,18 @@ export const testData = {
     sampleFile = 'image-1050x700.jpg',
   ): Promise<Image> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
-    const fileBuffer = fs.readFileSync(filePath)
-    // Convert Buffer to Uint8Array for compatibility with file-type library
-    const fileData = new Uint8Array(fileBuffer)
-    const extension = path.extname(sampleFile)
+    // A real Buffer, not a Uint8Array view: `canResizeImage` excludes
+    // `image/svg+xml`, so `generateFileData` hands an SVG no `sharp` whatever
+    // `buildConfig` holds, and the `probeImageSize` fallback that measures it
+    // uses `Buffer`-only methods.
+    const fileData = fs.readFileSync(filePath)
+    const extension = path.extname(sampleFile).toLowerCase()
+    const mimetype = IMAGE_MIMETYPES[extension]
+    if (!mimetype) {
+      throw new Error(
+        `No IMAGE_MIMETYPES entry for ${extension} — ${sampleFile} is not an images fixture.`,
+      )
+    }
     const uploadName = uniqueUploadName(sampleFile)
 
     return (await payload.create({
@@ -241,8 +266,8 @@ export const testData = {
         ...overrides,
       },
       file: {
-        data: fileData as unknown as Buffer,
-        mimetype: `image/${extension.slice(1)}`,
+        data: fileData,
+        mimetype,
         name: uploadName,
         size: fileData.length,
       },
@@ -489,9 +514,8 @@ export const testData = {
     sampleFile = 'video-30s.mp4',
   ): Promise<Video> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
-    // A real Buffer, not the Uint8Array view the image and audio helpers use:
-    // Payload 3.90+ sniffs a video's container with Buffer-only methods
-    // (`readUInt32BE` in `uploads/validateISOBaseMediaFile.ts`).
+    // A real Buffer: Payload 3.90+ sniffs a video's container with Buffer-only
+    // methods (`readUInt32BE` in `uploads/validateISOBaseMediaFile.ts`).
     const fileData = fs.readFileSync(filePath)
 
     // Determine MIME type based on extension
@@ -535,9 +559,9 @@ export const testData = {
     sampleFile = 'audio-42s.mp3',
   ): Promise<Meditation> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
-    const fileBuffer = fs.readFileSync(filePath)
-    // Convert Buffer to Uint8Array for compatibility with file-type library
-    const fileData = new Uint8Array(fileBuffer)
+    // A real Buffer: Payload sniffs an `audio/mp4` or `audio/x-m4a` container
+    // with `validateISOBaseMediaFile`, which uses Buffer-only methods.
+    const fileData = fs.readFileSync(filePath)
 
     // Create dependencies if not provided
     let thumbnail = deps?.thumbnail
@@ -580,7 +604,7 @@ export const testData = {
         ...overrides,
       }),
       file: {
-        data: fileData as unknown as Buffer,
+        data: fileData,
         mimetype:
           path.extname(sampleFile).slice(1) === 'mp3'
             ? 'audio/mpeg'
@@ -603,9 +627,9 @@ export const testData = {
     sampleFile = 'audio-42s.mp3',
   ): Promise<Song> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
-    const fileBuffer = fs.readFileSync(filePath)
-    // Convert Buffer to Uint8Array for compatibility with file-type library
-    const fileData = new Uint8Array(fileBuffer)
+    // A real Buffer: Payload sniffs an `audio/mp4` or `audio/x-m4a` container
+    // with `validateISOBaseMediaFile`, which uses Buffer-only methods.
+    const fileData = fs.readFileSync(filePath)
 
     // Extract album from overrides or create a default one
     let albumId: number
@@ -631,7 +655,7 @@ export const testData = {
         ...restOverrides,
       }),
       file: {
-        data: fileData as unknown as Buffer,
+        data: fileData,
         mimetype:
           path.extname(sampleFile).slice(1) === 'mp3'
             ? 'audio/mpeg'
