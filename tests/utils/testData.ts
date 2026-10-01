@@ -114,12 +114,8 @@ const __dirname = path.dirname(__filename)
 const SAMPLE_FILES_DIR = path.join(__dirname, '../files')
 
 /**
- * The content type a fixture claims for each image extension it ships.
- *
- * Derived spellings do not survive: `image/${ext}` gives `image/svg` and
- * `image/jpg`, and neither is what a browser sends. An extension with no entry
- * keeps the derived form, so an unsupported format is still refused on its own
- * merits rather than silently renamed.
+ * What a browser would send for each image extension the fixtures ship.
+ * `image/${ext}` derives `image/svg` and `image/jpg`, which nothing emits.
  */
 export const IMAGE_MIMETYPES: Record<string, string> = {
   '.jpg': 'image/jpeg',
@@ -244,9 +240,9 @@ export const testData = {
     sampleFile = 'image-1050x700.jpg',
   ): Promise<Image> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
-    // A real Buffer: Payload has no `sharp` in `buildConfig`, so dimensions come
-    // from its own `probeImageSize`, which reads SVG, BMP, ICO, TIFF and JXL with
-    // `Buffer`-only methods (`readUInt32BE`, `toString(encoding, start, end)`).
+    // A real Buffer, not a Uint8Array view: with no `sharp` in `buildConfig`,
+    // Payload measures an SVG through its own `probeImageSize`, which uses
+    // `Buffer`-only methods.
     const fileData = fs.readFileSync(filePath)
     const extension = path.extname(sampleFile).toLowerCase()
     const uploadName = uniqueUploadName(sampleFile)

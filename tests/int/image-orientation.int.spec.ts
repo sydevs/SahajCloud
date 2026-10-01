@@ -66,9 +66,7 @@ describe('Image Orientation Detection', () => {
     const image = await testData.createMediaImage(payload, {}, 'icon-test.svg')
 
     expect(image.mimeType).toBe('image/svg+xml')
-    // `icon-test.svg` is 24x24, so the hook would tag it `square` if the
-    // mimetype skip were the thing that stopped it. Asserting the dimensions
-    // arrived keeps the empty-tags assertion from passing vacuously.
+    // Without the mimetype skip the hook would tag this 24x24 `square`.
     expect(image.width).toBe(24)
     expect(image.height).toBe(24)
     expect(image.tags ?? []).toEqual([])
