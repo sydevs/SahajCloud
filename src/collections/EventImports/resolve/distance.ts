@@ -38,3 +38,25 @@ export function metersBetween(a: Point, b: Point): number {
   // detecting duplicates rather than fail.
   return 2 * EARTH_RADIUS_METERS * Math.asin(Math.min(1, Math.sqrt(h)))
 }
+
+/**
+ * Mean of the points, which is the one point that stands for a group of them.
+ *
+ * ⚠ **A mean of degrees, not of a sphere.** It is wrong across the antimeridian
+ * and at the poles, and right everywhere the import compares distances: its
+ * callers average a city's own classes, which span kilometres. A sphere-correct
+ * centroid would be the fix if a group ever straddles ±180°.
+ */
+export function centroidOf(points: readonly Point[]): Point {
+  const total = points.reduce(
+    (sum, point) => ({
+      latitude: sum.latitude + point.latitude,
+      longitude: sum.longitude + point.longitude,
+    }),
+    { latitude: 0, longitude: 0 },
+  )
+  return {
+    latitude: total.latitude / points.length,
+    longitude: total.longitude / points.length,
+  }
+}

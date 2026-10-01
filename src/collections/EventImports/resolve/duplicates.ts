@@ -64,7 +64,21 @@ export function prepareCandidate(candidate: DuplicateCandidate): PreparedCandida
  * nothing on the other.
  */
 export function cityKeyFor(name: string | null | undefined): string | null {
-  const key = name?.trim().toLowerCase().replace(/\s+/g, ' ')
+  return comparableKey(name)
+}
+
+/**
+ * The one normalisation every comparable key in this import is built with.
+ *
+ * ⚠ **Both halves of a key have to agree about what "the same text" means.** The
+ * proposal's venue key is a city key and an address line joined, and the two were
+ * normalised by separate copies of this rule — so the day it gains a step, such
+ * as folding diacritics or dropping punctuation, one half would change and the
+ * other would not. Nothing fails; a hall whose rows spell the street with and
+ * without a comma just stops being one hall, and loses its node.
+ */
+export function comparableKey(value: string | null | undefined): string | null {
+  const key = value?.trim().toLowerCase().replace(/\s+/g, ' ')
   return key || null
 }
 

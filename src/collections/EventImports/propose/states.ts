@@ -8,9 +8,7 @@
  * when it groups something (two or more subdivisions) into a list worth
  * shortening (`STATE_LAYER_MIN_CITIES` or more cities).
  *
- * ⚠ **Only a country target can gain one.** A state target already *is* the
- * layer, and a city target has no room for one beneath it — so for both of those
- * the answer is always no, and `reason` says which, because the review shows it.
+ * A state target already *is* the layer, so only a country target can gain one.
  */
 
 import { getRegionOptions } from '@/lib/geography'
@@ -71,12 +69,19 @@ export function decideStateLayer({
     }
   }
 
+  if (cities.length < STATE_LAYER_MIN_CITIES) {
+    return {
+      proposed: false,
+      reason: `${cities.length} ${cities.length === 1 ? 'city' : 'cities'} is a short enough list to read under the country, so no state layer is proposed (the threshold is ${STATE_LAYER_MIN_CITIES}).`,
+    }
+  }
+
   const options = getRegionOptions(countryCode)
   const named = new Map(options.map((option) => [option.value.toUpperCase(), option.label]))
 
-  // ⚠ Grouped before either threshold is read, because both count what the
-  // grouping produced: a city ISO cannot place is not a state, and a batch
-  // spanning one subdivision plus a dozen unplaceable cities is not two.
+  // Grouped before the subdivision threshold, which counts what the grouping
+  // produced: a city ISO cannot place is not a state, so a batch spanning one
+  // subdivision plus a dozen unplaceable cities is not two.
   const grouped = new Map<string, ProposedState>()
   const unplacedCityKeys: string[] = []
   for (const city of cities) {
@@ -91,19 +96,13 @@ export function decideStateLayer({
     else grouped.set(code, { code, name, cityKeys: [city.key] })
   }
 
-  if (cities.length < STATE_LAYER_MIN_CITIES) {
-    return {
-      proposed: false,
-      reason: `${cities.length} ${cities.length === 1 ? 'city' : 'cities'} is a short enough list to read under the country, so no state layer is proposed (the threshold is ${STATE_LAYER_MIN_CITIES}).`,
-    }
-  }
   if (grouped.size < STATE_LAYER_MIN_SUBDIVISIONS) {
     return {
       proposed: false,
       reason:
         grouped.size === 0
           ? 'No city resolved to a subdivision this country lists, so no state layer is proposed.'
-          : `Every placeable city is in ${[...grouped.values()][0]!.name}, so a state layer would add a level without grouping anything.`,
+          : `Every placeable city is in ${grouped.values().next().value!.name}, so a state layer would add a level without grouping anything.`,
     }
   }
 
