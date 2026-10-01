@@ -1,7 +1,20 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { deriveImportTimezone } from '@/collections/EventImports/resolve/timezone'
 import { SUPPORTED_TIMEZONES } from '@/lib/timezones'
+
+// Partially mocked: every case below wants the real boundary data, and only the
+// last block substitutes an answer — no coordinates can produce a zone the enum
+// lacks, so that branch is unreachable without this.
+vi.mock('tz-lookup', async (importOriginal) => {
+  const actual = await importOriginal<{ default: (lat: number, lon: number) => string }>()
+  return { default: vi.fn(actual.default) }
+})
+const tzlookup = vi.mocked((await import('tz-lookup')).default)
+
+afterEach(() => {
+  tzlookup.mockClear()
+})
 
 function zone(latitude: number, longitude: number, override?: string): string {
   const result = deriveImportTimezone({ latitude, longitude, override })
@@ -82,22 +95,20 @@ describe('deriveImportTimezone, when the lookup outruns the column', () => {
     // A `@vvo/tzdb` the boundary data has outgrown. The zone is what tells a
     // maintainer to bump the package and migrate the enum, so the message
     // carries it rather than blaming the row.
-    const result = deriveImportTimezone({
-      latitude: 52.52,
-      longitude: 13.405,
-      lookup: () => 'Europe/Atlantis',
-    })
-    expect(result.ok).toBe(false)
-    if (result.ok) return
-    expect(result.error).toContain('Europe/Atlantis')
+    tzlookup.mockReturnValue('Europe/Atlantis')
+    expect(refusal({ latitude: 52.52, longitude: 13.405 })).toContain('Europe/Atlantis')
   })
 
   it('accepts a looked-up zone the enum has', () => {
-    const result = deriveImportTimezone({
-      latitude: 52.52,
-      longitude: 13.405,
-      lookup: () => 'Europe/Prague',
+    tzlookup.mockReturnValue('Europe/Prague')
+    expect(deriveImportTimezone({ latitude: 52.52, longitude: 13.405 })).toEqual({
+      ok: true,
+      timezone: 'Europe/Prague',
     })
-    expect(result).toEqual({ ok: true, timezone: 'Europe/Prague' })
+  })
+
+  it('does not call the lookup at all when the row overrides it', () => {
+    expect(zone(52.52, 13.405, 'Europe/Prague')).toBe('Europe/Prague')
+    expect(tzlookup).not.toHaveBeenCalled()
   })
 })

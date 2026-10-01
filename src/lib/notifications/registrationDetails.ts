@@ -13,6 +13,7 @@
 import { convertLexicalToPlaintext } from '@payloadcms/richtext-lexical/plaintext'
 
 import { getLocalTimeHHMM } from '@/lib/schedule/scheduleHooks'
+import { minutesOfDay } from '@/lib/schedule/time'
 import type { Event } from '@/payload-types'
 
 import { addressOneLine, recurrencePhrase } from './eventDetails'
@@ -41,15 +42,6 @@ function formatTime(date: Date, timezone: string, withZone = false): string {
       ...(withZone && { timeZoneName: 'short' }),
     }).format(date),
   )
-}
-
-/** Minutes since local midnight for an `HH:MM` string, or `null` if malformed. */
-function minutesOfDay(hhmm: string | null | undefined): number | null {
-  const match = hhmm?.match(/^(\d{1,2}):(\d{2})$/)
-  if (!match) return null
-  const [, hour, minute] = match.map(Number)
-  if (hour > 23 || minute > 59) return null
-  return hour * 60 + minute
 }
 
 /** Render minutes-since-midnight in 12-hour form, e.g. `8:30 PM`. */

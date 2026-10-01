@@ -8,13 +8,17 @@ import { metersBetween } from '@/collections/EventImports/resolve/distance'
 import {
   duplicateReason,
   findDuplicate,
+  prepareCandidate,
   type DuplicateCandidate,
+  type PreparedCandidate,
 } from '@/collections/EventImports/resolve/duplicates'
 import {
   occurrenceWeekdays,
+  scheduleKey,
   wallStartTime,
   type ComparableSchedule,
 } from '@/collections/EventImports/resolve/schedule'
+import { localWallTimeToInstant } from '@/lib/schedule/time'
 
 const BERLIN = { latitude: 52.52, longitude: 13.405 }
 
@@ -31,30 +35,29 @@ function weekly(
   weekdays: NonNullable<ComparableSchedule['weekdays']> = ['MO'],
   timezone: ComparableSchedule['firstDate_tz'] = 'Europe/Berlin',
 ): ComparableSchedule {
-  // 2026-10-05 is a Monday. The instant is composed from the wall time in the
-  // named zone, the way `mapCsvSchedule` composes `firstDate`.
-  const offsets: Record<string, string> = {
-    'Europe/Berlin': '+02:00',
-    'America/New_York': '-04:00',
-    'Asia/Kolkata': '+05:30',
-  }
-  const offset = offsets[timezone]
-  if (!offset) throw new Error(`add an offset for ${timezone}`)
+  // 2026-10-05 is a Monday. `localWallTimeToInstant` is what `mapCsvSchedule`
+  // itself composes `firstDate` with, so the fixture cannot disagree with the
+  // writer about which instant a wall time in a zone means.
   return {
-    firstDate: new Date(`2026-10-05T${startTime}:00${offset}`).toISOString(),
+    firstDate: localWallTimeToInstant('2026-10-05', startTime, timezone),
     firstDate_tz: timezone,
     recurrenceType: 'WEEKLY',
     weekdays,
   }
 }
 
-function candidate(overrides: Partial<DuplicateCandidate> = {}): DuplicateCandidate {
-  return {
+function candidate(overrides: Partial<DuplicateCandidate> = {}): PreparedCandidate {
+  return prepareCandidate({
     cityKey: 'place.berlin',
     point: BERLIN,
     schedule: weekly('18:00'),
     ...overrides,
-  }
+  })
+}
+
+/** A candidate with no point, so the address rule cannot answer first. */
+function cityOnly(overrides: Partial<DuplicateCandidate> = {}): PreparedCandidate {
+  return candidate({ point: null, ...overrides })
 }
 
 describe('occurrenceWeekdays', () => {
@@ -124,43 +127,43 @@ describe('wallStartTime', () => {
 
 describe('duplicateReason', () => {
   it('matches one city at the same time', () => {
-    expect(duplicateReason(candidate(), candidate({ point: null }))).toBe('city-and-time')
+    expect(duplicateReason(candidate(), cityOnly())).toBe('city-and-time')
   })
 
   it('matches inside the start window and not outside it', () => {
-    const inside = candidate({ point: null, schedule: weekly('18:20') })
-    const outside = candidate({ point: null, schedule: weekly('18:31') })
+    const inside = cityOnly({ schedule: weekly('18:20') })
+    const outside = cityOnly({ schedule: weekly('18:31') })
     expect(DUPLICATE_START_WINDOW_MINUTES).toBe(30)
-    expect(duplicateReason(candidate({ point: null }), inside)).toBe('city-and-time')
-    expect(duplicateReason(candidate({ point: null }), outside)).toBeNull()
+    expect(duplicateReason(cityOnly(), inside)).toBe('city-and-time')
+    expect(duplicateReason(cityOnly(), outside)).toBeNull()
   })
 
   it('does not wrap the start window around midnight', () => {
     // 23:50 and 00:10 are 20 minutes apart on a clock face and almost a day
     // apart as classes.
-    const lateEvening = candidate({ point: null, schedule: weekly('23:50') })
-    const earlyMorning = candidate({ point: null, schedule: weekly('00:10') })
+    const lateEvening = cityOnly({ schedule: weekly('23:50') })
+    const earlyMorning = cityOnly({ schedule: weekly('00:10') })
     expect(duplicateReason(lateEvening, earlyMorning)).toBeNull()
   })
 
   it('needs a shared weekday', () => {
-    const tuesday = candidate({ point: null, schedule: weekly('18:00', ['TU']) })
-    expect(duplicateReason(candidate({ point: null }), tuesday)).toBeNull()
-    const alsoMonday = candidate({ point: null, schedule: weekly('18:00', ['TU', 'MO']) })
-    expect(duplicateReason(candidate({ point: null }), alsoMonday)).toBe('city-and-time')
+    const tuesday = cityOnly({ schedule: weekly('18:00', ['TU']) })
+    expect(duplicateReason(cityOnly(), tuesday)).toBeNull()
+    const alsoMonday = cityOnly({ schedule: weekly('18:00', ['TU', 'MO']) })
+    expect(duplicateReason(cityOnly(), alsoMonday)).toBe('city-and-time')
   })
 
   it('needs the same city', () => {
-    const elsewhere = candidate({ point: null, cityKey: 'place.hamburg' })
-    expect(duplicateReason(candidate({ point: null }), elsewhere)).toBeNull()
+    const elsewhere = cityOnly({ cityKey: 'place.hamburg' })
+    expect(duplicateReason(cityOnly(), elsewhere)).toBeNull()
   })
 
   it('treats a missing city as no agreement, on either side', () => {
     // Two rows that both failed to resolve a city are not therefore in the same
     // one.
-    const noCity = candidate({ point: null, cityKey: null })
-    expect(duplicateReason(noCity, candidate({ point: null, cityKey: null }))).toBeNull()
-    expect(duplicateReason(noCity, candidate({ point: null }))).toBeNull()
+    const noCity = cityOnly({ cityKey: null })
+    expect(duplicateReason(noCity, cityOnly({ cityKey: null }))).toBeNull()
+    expect(duplicateReason(noCity, cityOnly())).toBeNull()
   })
 
   it('matches two addresses inside the threshold, whatever the time', () => {
@@ -207,24 +210,50 @@ describe('duplicateReason', () => {
 })
 
 describe('findDuplicate', () => {
-  const rows = [
-    { id: 1, key: candidate({ cityKey: 'place.hamburg', point: null }) },
-    { id: 2, key: candidate({ point: null, schedule: weekly('18:15') }) },
-    { id: 3, key: candidate({ point: null }) },
+  // Prepared once, the way the caller holds them: the existing events in the
+  // subtree, plus the rows already accepted from this file.
+  const existing = [
+    cityOnly({ cityKey: 'place.hamburg' }),
+    cityOnly({ schedule: weekly('18:15') }),
+    cityOnly(),
   ]
 
   it('returns the first match with its reason', () => {
-    const hit = findDuplicate(candidate({ point: null }), rows, (row) => row.key)
-    expect(hit?.entry.id).toBe(2)
-    expect(hit?.reason).toBe('city-and-time')
+    expect(findDuplicate(cityOnly(), existing)).toEqual({ index: 1, reason: 'city-and-time' })
   })
 
   it('returns null when nothing matches', () => {
-    const friday = candidate({ point: null, schedule: weekly('18:00', ['FR']) })
-    expect(findDuplicate(friday, rows, (row) => row.key)).toBeNull()
+    expect(findDuplicate(cityOnly({ schedule: weekly('18:00', ['FR']) }), existing)).toBeNull()
   })
 
   it('finds nothing in an empty list', () => {
-    expect(findDuplicate(candidate(), [], (row: never) => row)).toBeNull()
+    expect(findDuplicate(candidate(), [])).toBeNull()
+  })
+})
+
+describe('prepareCandidate', () => {
+  it('reduces a schedule to a weekday mask and a start minute', () => {
+    const prepared = prepareCandidate({
+      cityKey: 'place.berlin',
+      point: BERLIN,
+      schedule: weekly('18:30', ['MO', 'WE']),
+    })
+    // Monday is the low bit, Wednesday the third.
+    expect(prepared.weekdayMask).toBe(0b0000101)
+    expect(prepared.startMinutes).toBe(18 * 60 + 30)
+  })
+
+  it('leaves a class with no schedule overlapping nothing', () => {
+    const prepared = prepareCandidate({ cityKey: 'place.berlin', point: BERLIN, schedule: null })
+    expect(prepared).toMatchObject({ weekdayMask: 0, startMinutes: null })
+  })
+
+  it('agrees with the readers it is derived from', () => {
+    // The mask is the only form the comparison reads, so it has to carry the
+    // same answer the readable derivation gives.
+    const schedule = weekly('07:05', ['TU', 'SA'])
+    expect(scheduleKey(schedule).startMinutes).toBe(7 * 60 + 5)
+    expect(occurrenceWeekdays(schedule)).toEqual(['TU', 'SA'])
+    expect(wallStartTime(schedule)).toBe('07:05')
   })
 })
