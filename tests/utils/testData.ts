@@ -514,9 +514,8 @@ export const testData = {
     sampleFile = 'video-30s.mp4',
   ): Promise<Video> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
-    // A real Buffer, not the Uint8Array view the audio helpers use: Payload 3.90+
-    // sniffs a video's container with Buffer-only methods (`readUInt32BE` in
-    // `uploads/validateISOBaseMediaFile.ts`).
+    // A real Buffer: Payload 3.90+ sniffs a video's container with Buffer-only
+    // methods (`readUInt32BE` in `uploads/validateISOBaseMediaFile.ts`).
     const fileData = fs.readFileSync(filePath)
 
     // Determine MIME type based on extension
