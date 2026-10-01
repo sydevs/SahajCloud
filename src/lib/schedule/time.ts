@@ -30,6 +30,19 @@ export function normalizeHHMM(value: string | null | undefined): string | null {
 }
 
 /**
+ * Minutes since local midnight for an `HH:MM` string, or null when it is not one.
+ *
+ * Tested with `HHMM_PATTERN` above rather than a second regex, so the grammar
+ * and the range it admits have one statement. Two callers compare a start
+ * against an end this way, and both reached it through their own copy.
+ */
+export function minutesOfDay(value: string | null | undefined): number | null {
+  const match = value?.trim().match(HHMM_PATTERN)
+  if (!match) return null
+  return Number(match[1]) * 60 + Number(match[2])
+}
+
+/**
  * What to do with a wall time that does not exist, because the clocks moved
  * forward over it.
  *

@@ -4,6 +4,7 @@ import { metersBetween } from '@/collections/EventImports/resolve/distance'
 
 /** Berlin Mitte — an arbitrary mid-latitude anchor. */
 const BERLIN = { latitude: 52.52, longitude: 13.405 }
+const PARIS = { latitude: 48.8566, longitude: 2.3522 }
 
 describe('metersBetween', () => {
   it('is zero for one point', () => {
@@ -22,14 +23,12 @@ describe('metersBetween', () => {
 
   it('agrees with the published London–Paris great circle', () => {
     const london = { latitude: 51.5074, longitude: -0.1278 }
-    const paris = { latitude: 48.8566, longitude: 2.3522 }
     // ~343.5 km. A third-party figure, so the tolerance is a kilometre.
-    expect(metersBetween(london, paris)).toBeCloseTo(343_557, -3)
+    expect(metersBetween(london, PARIS)).toBeCloseTo(343_557, -3)
   })
 
   it('is symmetric', () => {
-    const paris = { latitude: 48.8566, longitude: 2.3522 }
-    expect(metersBetween(BERLIN, paris)).toBeCloseTo(metersBetween(paris, BERLIN), 6)
+    expect(metersBetween(BERLIN, PARIS)).toBeCloseTo(metersBetween(PARIS, BERLIN), 6)
   })
 
   it('shrinks a degree of longitude with latitude', () => {
@@ -47,11 +46,11 @@ describe('metersBetween', () => {
     // ⚠ This does NOT cover the clamp, and no test can: `h` never floats far
     // enough above 1 for `sqrt` to exceed it, so deleting the clamp leaves
     // every pair green. It covers the formula at its far edge instead.
-    for (const pair of [
+    for (const [from, to] of [
       [{ latitude: 0, longitude: 0 }, { latitude: 0, longitude: 180 }],
       [{ latitude: -88.4, longitude: 0 }, { latitude: 88.4, longitude: 180 }],
-    ] as const) {
-      const across = metersBetween(pair[0], pair[1])
+    ]) {
+      const across = metersBetween(from!, to!)
       expect(Number.isFinite(across)).toBe(true)
       expect(across).toBeCloseTo(20_015_114, -2)
     }

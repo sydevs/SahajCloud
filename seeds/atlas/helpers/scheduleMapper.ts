@@ -19,7 +19,7 @@ import { Temporal } from '@js-temporal/polyfill'
 
 import { localWallTimeToInstant } from '@/lib/schedule/time'
 import { isWeekNumber, weekdayCodeFor } from '@/lib/schedule/weekdays'
-import { SUPPORTED_TIMEZONES } from '@/lib/timezones'
+import { isSupportedTimezone } from '@/lib/timezones'
 import type { SupportedTimezones } from '@/payload-types'
 import type { EventSchedule } from '@/types/schedule'
 
@@ -87,15 +87,6 @@ const WEEKDAY_CODES: Record<string, WeekdayCode> = {
 const DEFAULT_TIME = '00:00'
 
 /**
- * The zones the `firstDate_tz` column accepts, as a lookup.
- *
- * Built from the same `SUPPORTED_TIMEZONES` the Payload config installs, which
- * is what `SupportedTimezones` in `payload-types.ts` is generated from — so this
- * membership test and that type cannot disagree.
- */
-const TIMEZONE_VALUES = new Set<string>(SUPPORTED_TIMEZONES.map(({ value }) => value))
-
-/**
  * Narrow a timezone off the Atlas dump to one the column accepts.
  *
  * Falls back to `UTC` — as the caller already did for a missing zone — rather
@@ -117,7 +108,7 @@ const TIMEZONE_VALUES = new Set<string>(SUPPORTED_TIMEZONES.map(({ value }) => v
  */
 export function supportedTimezone(timeZone: string | null | undefined): SupportedTimezones {
   const candidate = timeZone?.trim()
-  return candidate && TIMEZONE_VALUES.has(candidate) ? (candidate as SupportedTimezones) : 'UTC'
+  return candidate && isSupportedTimezone(candidate) ? candidate : 'UTC'
 }
 
 
