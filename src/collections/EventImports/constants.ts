@@ -41,3 +41,12 @@ export const DUPLICATE_START_WINDOW_MINUTES = 30
  * shared street.
  */
 export const DUPLICATE_ADDRESS_METERS = 150
+
+/**
+ * How many rows one resolve request geocodes.
+ *
+ * Each row is a forward geocode with its own retry budget, so the chunk is
+ * sized to finish inside a request rather than to minimise round trips. The
+ * review UI calls the endpoint until it reports nothing pending.
+ */
+export const RESOLVE_CHUNK_ROWS = 25

@@ -1,0 +1,308 @@
+/**
+ * Everything one row's resolve step decides, with the network call lifted out.
+ *
+ * Two pure functions bracket the one thing that is not: `geocodeRequestFor`
+ * says what to ask Mapbox about a row (and refuses the rows not worth asking
+ * about), and `resolveRow` turns the answer into either the row's errors or the
+ * facts the commit step needs. The endpoint owns the `await` between them.
+ *
+ * ⚠ **This step validates only what the location gates.** The country, the
+ * point, the zone, the schedule and the languages are checked here because each
+ * one either needs the geocode or decides it, and a volunteer must see all of
+ * them before committing. Everything else a row can get wrong — a malformed
+ * `onlineUrl`, a `registrationLimit` that is not a number — is left to the
+ * commit's own per-row write, which already reports per row. Moving those here
+ * would mean a second copy of validators the Events collection already owns.
+ */
+
+import type { TargetScope } from './targetScope'
+import type { RawImportRow } from '../csv/columns'
+import type { Temporal } from '@js-temporal/polyfill'
+
+import { getLanguageOptions } from '@/lib/locales'
+import type { GeocodedLocation } from '@/lib/mapbox/geocoder'
+import type { SupportedTimezones } from '@/payload-types'
+
+import { cityKeyFor } from './duplicates'
+import { scheduleKey, type ScheduleKey } from './schedule'
+import { deriveImportTimezone } from './timezone'
+import { mapCsvSchedule } from '../csv/schedule'
+
+/** Mapbox `types` for a street address — the same pair the admin address field searches. */
+const ADDRESS_TYPES = 'address,poi'
+/** Mapbox `types` for placing a class by its town alone. */
+const PLACE_TYPES = 'place,locality'
+
+export type GeocodeRequest =
+  | { kind: 'query'; query: string; types: string; countryCode: string }
+  /** The row is already wrong in a way no geocode can fix, so none is spent on it. */
+  | { kind: 'error'; errors: string[] }
+
+/**
+ * What to ask Mapbox about this row, or why it is not worth asking.
+ *
+ * The country is checked against the target **before** the call: a file holding
+ * another country's classes would otherwise spend one geocode per row to learn
+ * what its own `country` column already said.
+ */
+export function geocodeRequestFor(values: RawImportRow, scope: TargetScope): GeocodeRequest {
+  const declared = values.country?.trim().toUpperCase() ?? ''
+  if (declared !== scope.countryCode) {
+    return {
+      kind: 'error',
+      errors: [`country "${values.country ?? ''}" is outside the target (${scope.countryCode})`],
+    }
+  }
+
+  const city = values.city?.trim()
+  const state = values.state?.trim()
+
+  if (values.eventType === 'online') {
+    // An online class still lands in a region and still needs a zone to write
+    // its recurrences against, and its town is the only thing in the row that
+    // answers either. `columns.ts` asks for `city` on offline rows alone
+    // because the parse step validates structure, not placement.
+    if (!city) {
+      return {
+        kind: 'error',
+        errors: ['city is required to place an online class — it sets the region and the timezone'],
+      }
+    }
+    return {
+      kind: 'query',
+      query: [city, state].filter(Boolean).join(', '),
+      types: PLACE_TYPES,
+      countryCode: declared,
+    }
+  }
+
+  // The parse step already refused an offline row missing either, so a blank
+  // here cannot occur — the filter is what keeps the query well-formed rather
+  // than a check.
+  return {
+    kind: 'query',
+    query: [values.address?.trim(), city, state, values.postcode?.trim()]
+      .filter(Boolean)
+      .join(', '),
+    types: ADDRESS_TYPES,
+    countryCode: declared,
+  }
+}
+
+/**
+ * The facts a resolved row carries forward, and what each later phase reads.
+ *
+ * ⚠ **The schedule itself is deliberately absent.** The commit re-derives it
+ * from `anchorDate` and `timezone`, which is why both are stored: `mapCsvSchedule`
+ * is pure, so the same two inputs give the same recurrence, and a second
+ * declaration of its shape here would be a hand-written copy of `firstDate_tz`,
+ * `weekdays` and `weekNumber` — the exact drift that imported events the CMS
+ * then rejected at write (#671).
+ *
+ * What is stored instead is the schedule's comparison key, because that is the
+ * one thing re-derivation cannot give back cheaply: the duplicate check runs
+ * across chunks, so a row resolved an hour ago has to stay comparable without
+ * re-running the mapper over the whole batch.
+ */
+export interface ResolvedRow extends ScheduleKey {
+  latitude: number
+  longitude: number
+  timezone: SupportedTimezones
+  /** The city both the proposal step and the duplicate check group on. */
+  cityKey: string
+  /** Mapbox's own name for that city, which is what a proposed region is named after. */
+  placeName: string | null
+  /** The `place` layer's Mapbox id, for matching an existing region in phase 5. */
+  placeId: string | null
+  /** The matched feature's id, which an offline row stores as its `address.mapboxId`. */
+  mapboxId: string | null
+  /** ISO 3166-2 subdivision, for the state layer the proposal may add. */
+  subdivisionCode: string | null
+  /** Resolved languages, the row's own column or the batch default. */
+  languages: string[]
+  /** True for a dormant class, which carries no schedule at all. */
+  inactive: boolean
+  /**
+   * Today in the row's own zone, as the schedule mapper saw it.
+   *
+   * Stored because "the next matching day" is relative to it, so a commit run
+   * after midnight would otherwise build a different first date than the one
+   * the reviewer approved.
+   */
+  anchorDate: string
+}
+
+export type ResolveRowResult = { ok: true; resolved: ResolvedRow } | { ok: false; errors: string[] }
+
+export interface ResolveRowArgs {
+  values: RawImportRow
+  scope: TargetScope
+  /** Mapbox's answer, or null for a miss, an exhausted retry or a missing token. */
+  location: GeocodedLocation | null
+  /** Languages for a row whose own column is blank. */
+  defaultLanguages: string[]
+  /** Today in the resolved zone — injected so a spec can name the day it picked. */
+  todayIn: (timezone: SupportedTimezones) => Temporal.PlainDate
+}
+
+export function resolveRow({
+  values,
+  scope,
+  location,
+  defaultLanguages,
+  todayIn,
+}: ResolveRowArgs): ResolveRowResult {
+  if (!location) {
+    return {
+      ok: false,
+      errors: ['could not find this location — check the address, city and country'],
+    }
+  }
+
+  const errors: string[] = []
+
+  // ⚠ Checked even though the query was restricted to the row's own country:
+  // Mapbox honours `country` as a filter, not a guarantee, and this is the last
+  // place a result from somewhere else can be stopped before a region is created
+  // for it.
+  if (location.countryCode && location.countryCode.toUpperCase() !== scope.countryCode) {
+    errors.push(
+      `this address geocoded to ${location.countryCode.toUpperCase()}, outside the target (${scope.countryCode})`,
+    )
+  }
+  if (scope.subdivisionCode) {
+    // A null subdivision fails rather than passes: the target is one state, and
+    // "Mapbox did not say which" is not evidence the row is inside it.
+    if (location.subdivisionCode !== scope.subdivisionCode) {
+      errors.push(
+        `this address is in ${location.subdivisionCode ?? 'an unknown subdivision'}, outside the target (${scope.subdivisionCode})`,
+      )
+    }
+  }
+
+  const point = explicitPoint(values) ?? location
+  const coordinateError = explicitPointError(values)
+  if (coordinateError) errors.push(coordinateError)
+
+  const cityKey = cityKeyFor(location.placeName) ?? cityKeyFor(values.city)
+  if (!cityKey) {
+    errors.push('could not determine a city for this row — add a city column value')
+  }
+
+  const timezone = deriveImportTimezone({
+    latitude: point.latitude,
+    longitude: point.longitude,
+    override: values.timezone,
+  })
+  if (!timezone.ok) errors.push(timezone.error)
+
+  const languages = resolveLanguages(values.languages, defaultLanguages)
+  if (!languages.ok) errors.push(languages.error)
+
+  // The schedule is mapped only once the zone is known: every recurrence is
+  // written against it, and mapping on a guessed zone is what puts a class
+  // hours out with nothing on the row to say so.
+  if (!timezone.ok) return { ok: false, errors }
+
+  const anchorDate = todayIn(timezone.timezone)
+  const schedule = mapCsvSchedule({
+    scheduleType: values.scheduleType,
+    date: values.date,
+    startTime: values.startTime,
+    endTime: values.endTime,
+    weekdays: values.weekdays,
+    interval: values.interval,
+    monthWeek: values.monthWeek,
+    untilDate: values.untilDate,
+    timezone: timezone.timezone,
+    today: anchorDate,
+  })
+  if (!schedule.ok) errors.push(...schedule.errors)
+
+  if (errors.length || !schedule.ok || !languages.ok || !cityKey) return { ok: false, errors }
+
+  // An inactive class names no weekday, so its mask is empty and it matches
+  // nothing — the same answer `DuplicateCandidate.schedule` gives a dormant
+  // listing the CMS already holds.
+  const key: ScheduleKey = schedule.inactive
+    ? { weekdayMask: 0, startMinutes: null }
+    : scheduleKey(schedule.schedule)
+
+  return {
+    ok: true,
+    resolved: {
+      ...key,
+      latitude: point.latitude,
+      longitude: point.longitude,
+      timezone: timezone.timezone,
+      cityKey,
+      placeName: location.placeName,
+      placeId: location.placeId,
+      mapboxId: location.mapboxId,
+      subdivisionCode: location.subdivisionCode,
+      languages: languages.languages,
+      inactive: schedule.inactive,
+      anchorDate: anchorDate.toString(),
+    },
+  }
+}
+
+/**
+ * The row's own coordinates, when it gave a usable pair.
+ *
+ * ⚠ **They override the geocode as the point, but never replace it.** The
+ * result is still what says which country, subdivision and city the row is in,
+ * so a row with coordinates is geocoded all the same.
+ */
+function explicitPoint(values: RawImportRow): { latitude: number; longitude: number } | null {
+  const latitude = finiteNumber(values.latitude)
+  const longitude = finiteNumber(values.longitude)
+  if (latitude === null || longitude === null) return null
+  if (Math.abs(latitude) > 90 || Math.abs(longitude) > 180) return null
+  return { latitude, longitude }
+}
+
+/**
+ * Why the row's coordinates were ignored, when it meant to give some.
+ *
+ * Reported rather than dropped: a volunteer who typed a longitude of 520 gave
+ * the wrong point, and silently geocoding instead publishes a class somewhere
+ * they did not choose.
+ */
+function explicitPointError(values: RawImportRow): string | null {
+  const latitude = values.latitude?.trim()
+  const longitude = values.longitude?.trim()
+  if (!latitude && !longitude) return null
+  if (!latitude || !longitude) return 'latitude and longitude must be given together'
+  return explicitPoint(values) ? null : 'latitude and longitude must be decimal degrees in range'
+}
+
+function finiteNumber(value: string | undefined): number | null {
+  const trimmed = value?.trim()
+  if (!trimmed) return null
+  const parsed = Number(trimmed)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+type ResolveLanguagesResult =
+  | { ok: true; languages: string[] }
+  | { ok: false; error: string; languages?: undefined }
+
+/** The row's languages, or the one bad code that stopped them. */
+function resolveLanguages(column: string | undefined, defaults: string[]): ResolveLanguagesResult {
+  const codes = (column ?? '')
+    .split(',')
+    .map((part) => part.trim().toLowerCase())
+    .filter(Boolean)
+  if (!codes.length) return { ok: true, languages: [...defaults] }
+
+  const known = new Set(getLanguageOptions().map((option) => option.value))
+  const unknown = codes.filter((code) => !known.has(code))
+  if (unknown.length) {
+    return {
+      ok: false,
+      error: `languages must be two-letter codes like "de,en" (unknown: ${unknown.join(', ')})`,
+    }
+  }
+  return { ok: true, languages: [...new Set(codes)] }
+}
