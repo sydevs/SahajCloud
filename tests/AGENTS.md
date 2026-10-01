@@ -336,11 +336,11 @@ PNG, JPEG, GIF and WebP survive a view because Payload hands those to
 view for years without anyone noticing (#871).
 
 Declare the content type a browser would send, too — `image/${extension}` gives
-`image/svg` and `image/jpg`. Payload replaces the declared value with one it
-sniffs, so no upload assertion can catch the difference; `IMAGE_MIMETYPES` in
-`tests/utils/testData.ts` holds the image spellings, and
-`tests/unit/image-fixture-mimetypes.spec.ts` pins them to the collection's
-allowlist.
+`image/svg` and `image/jpg`. `IMAGE_MIMETYPES` in `tests/utils/testData.ts`
+holds the `images` spellings, pinned to that collection's allowlist by
+`tests/unit/image-fixture-mimetypes.spec.ts`. Payload overwrites the declared
+value with the type it sniffs, so a wrong entry is invisible to every upload
+assertion — pin a fixture's claims in the unit lane or not at all.
 
 ### Mock user objects for visibility tests
 
