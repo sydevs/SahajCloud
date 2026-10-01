@@ -35,6 +35,7 @@ function cityRow(overrides: Partial<ClusterableRow> & { point: ClusterableRow['p
 function venueRow(overrides: Partial<VenueRow> & { point: VenueRow['point'] }) {
   return {
     line: nextLine++,
+    cityKey: 'pune',
     mapboxId: 'address.hall',
     address: '12 Hall Road',
     venueName: 'Community Hall',
@@ -87,6 +88,21 @@ describe('clusterCities', () => {
     expect(clusters[0]).toMatchObject({ key: 'name:pimpri', name: 'pimpri', placeId: null })
   })
 
+  it('names an unnamed place by the commonest city spelling, not by row order', () => {
+    // Mapbox placed all three rows in one place and named none of them, so the
+    // fallback decides — and the rows spell the city two ways, which is where
+    // reading row one would name the node differently for a reordered file.
+    const rows = [
+      cityRow({ point: PUNE, placeId: 'place.delhi', placeName: null, cityKey: 'nizamuddin' }),
+      cityRow({ point: PUNE, placeId: 'place.delhi', placeName: null, cityKey: 'new delhi' }),
+      cityRow({ point: PUNE, placeId: 'place.delhi', placeName: null, cityKey: 'new delhi' }),
+    ]
+
+    for (const order of [rows, [...rows].reverse()]) {
+      expect(clusterCities(order)[0]!.name).toBe('new delhi')
+    }
+  })
+
   it('reports the subdivision the majority of a cluster geocoded into', () => {
     const clusters = clusterCities([
       cityRow({ point: PUNE, subdivisionCode: null }),
@@ -119,7 +135,7 @@ describe('clusterCities', () => {
       expect(clusters[0]!.key).toBe('id:place.pune')
       expect(clusters[0]!.lines).toEqual([2, 3, 4])
       expect(clusters[0]!.merged).toEqual([
-        { key: 'id:place.suburb-24000', name: 'Suburb 24000', lines: [4] },
+        { key: 'id:place.suburb-24000', name: 'Suburb 24000', lines: [4], subdivisionCode: 'MH' },
       ])
     })
 
@@ -205,6 +221,59 @@ describe('clusterCities', () => {
       expect(clusters[0]!.centroid).toEqual(PUNE)
     })
 
+    it('re-reads the subdivision after a merge, and names what it absorbed', () => {
+      // The state layer is built from `subdivisionCode`, so a node has to answer
+      // for every class it holds. The survivor's own three rows are in MH, and the
+      // two suburbs it takes in put four of its seven classes in GJ — so the
+      // majority only flips once the absorbed rows are counted, which is the one
+      // shape that tells a recompute apart from carrying the old value over.
+      const suburb = (id: string, line: number) =>
+        cityRow({
+          point: northOf(PUNE, 1_000),
+          placeId: id,
+          cityKey: id,
+          subdivisionCode: 'GJ',
+          line,
+        })
+      const clusters = clusterCities([
+        ...[2, 3, 4].map((line) => cityRow({ point: PUNE, subdivisionCode: 'MH', line })),
+        suburb('place.east', 5),
+        suburb('place.east', 6),
+        suburb('place.west', 7),
+        suburb('place.west', 8),
+      ])
+
+      expect(clusters).toHaveLength(1)
+      expect(clusters[0]!.lines).toEqual([2, 3, 4, 5, 6, 7, 8])
+      expect(clusters[0]!.subdivisionCode).toBe('GJ')
+      expect(clusters[0]!.merged.map((place) => place.subdivisionCode)).toEqual(['GJ', 'GJ'])
+    })
+
+    it('folds a village into the nearest eligible place, not the largest', () => {
+      // Two places survive the pass, because they are 40 km apart and so neither
+      // can absorb the other. The village sits 22 km from the bigger one and 18 km
+      // from the smaller, and belongs to the one it is nearer.
+      const town = northOf(PUNE, 40_000)
+      const village = northOf(PUNE, 22_000)
+      const townRow = (line: number) =>
+        cityRow({ point: town, placeId: 'place.town', cityKey: 'town', line })
+      const clusters = clusterCities([
+        ...[2, 3, 4, 5, 6].map((line) => cityRow({ point: PUNE, line })),
+        townRow(7),
+        townRow(8),
+        townRow(9),
+        cityRow({ point: village, placeId: 'place.village', cityKey: 'village', line: 10 }),
+      ])
+
+      // Both candidates have to be genuinely eligible, or the case proves nothing.
+      expect(metersBetween(village, PUNE)).toBeLessThan(METRO_MERGE_METERS)
+      expect(metersBetween(village, town)).toBeLessThan(METRO_MERGE_METERS)
+      expect(metersBetween(PUNE, town)).toBeGreaterThan(METRO_MERGE_METERS)
+
+      const holder = clusters.find((cluster) => cluster.lines.includes(10))
+      expect(holder!.key).toBe('id:place.town')
+    })
+
     it('settles a tie between two equal neighbours by key, not by row order', () => {
       // Both cities can take the village, and they are the same size, so only the
       // tie-break decides. The answer must not move when the file is reordered.
@@ -226,11 +295,16 @@ describe('clusterCities', () => {
     })
 
     it('gives the same answer whichever order the rows arrive in', () => {
+      // The far city is what makes this non-vacuous: it absorbs nothing, so its
+      // `lines` are whatever order they arrived in unless the grouping sorts them
+      // — and every other cluster here has its lines sorted by a merge.
       const rows = [
         cityRow({ point: PUNE, line: 2 }),
         cityRow({ point: PUNE, line: 3 }),
         suburb(5_000, 4, 'place.east'),
         suburb(6_000, 5, 'place.west'),
+        cityRow({ point: MUMBAI, placeId: 'place.mumbai', cityKey: 'mumbai', line: 6 }),
+        cityRow({ point: MUMBAI, placeId: 'place.mumbai', cityKey: 'mumbai', line: 7 }),
       ]
       const forward = clusterCities(rows)
       const reversed = clusterCities([...rows].reverse())
@@ -251,7 +325,7 @@ describe('clusterVenues', () => {
 
     expect(clusters).toHaveLength(1)
     expect(clusters[0]).toMatchObject({
-      key: 'id:address.hall',
+      key: 'pune|12 hall road',
       name: 'Community Hall',
       mapboxId: 'address.hall',
     })
@@ -263,41 +337,57 @@ describe('clusterVenues', () => {
     expect(SHARED_VENUE_MIN_ROWS).toBe(2)
   })
 
-  it('keys on the address text when the rows carried no id', () => {
+  it('groups one address written with different spacing', () => {
     const clusters = clusterVenues([
-      venueRow({ point: PUNE, mapboxId: null, address: '12 Hall Road ', venueName: null }),
-      venueRow({ point: PUNE, mapboxId: null, address: '12  hall road', venueName: null }),
+      venueRow({ point: PUNE, address: '12 Hall Road ', venueName: null }),
+      venueRow({ point: PUNE, address: '12  hall  road', venueName: null }),
     ])
 
     expect(clusters).toHaveLength(1)
-    expect(clusters[0]).toMatchObject({ key: 'address:12 hall road', mapboxId: null })
+    expect(clusters[0]!.key).toBe('pune|12 hall road')
   })
 
-  it('names a venue after the address when no row named the hall', () => {
+  it('still groups one address when Mapbox answered the two rows differently', () => {
+    // One row matched the building, the other a POI inside it. Keying on the id
+    // would split the venue into two single-use groups, which the threshold then
+    // drops — so the node would be lost, not merely duplicated.
     const clusters = clusterVenues([
-      venueRow({ point: PUNE, venueName: null }),
-      venueRow({ point: PUNE, venueName: null }),
+      venueRow({ point: PUNE, mapboxId: 'address.hall', line: 2 }),
+      venueRow({ point: PUNE, mapboxId: 'poi.hall-cafe', line: 3 }),
+    ])
+
+    expect(clusters).toHaveLength(1)
+    expect(clusters[0]!.lines).toEqual([2, 3])
+  })
+
+  it('keeps one street name in two towns apart', () => {
+    const clusters = clusterVenues([
+      venueRow({ point: PUNE, cityKey: 'pune', address: '1 High Street' }),
+      venueRow({ point: PUNE, cityKey: 'pune', address: '1 High Street' }),
+      venueRow({ point: MUMBAI, cityKey: 'mumbai', address: '1 High Street' }),
+      venueRow({ point: MUMBAI, cityKey: 'mumbai', address: '1 High Street' }),
+    ])
+
+    expect(clusters.map((cluster) => cluster.key)).toEqual([
+      'pune|1 high street',
+      'mumbai|1 high street',
+    ])
+  })
+
+  it('names a venue after the address, tidied, when no row named the hall', () => {
+    const clusters = clusterVenues([
+      venueRow({ point: PUNE, address: '  12  Hall   Road ', venueName: null }),
+      venueRow({ point: PUNE, address: '12 Hall Road', venueName: null }),
     ])
 
     expect(clusters[0]!.name).toBe('12 Hall Road')
   })
 
-  it('keeps two halls at the same spot apart, because the address is the identity', () => {
-    const clusters = clusterVenues([
-      venueRow({ point: PUNE, mapboxId: 'address.one' }),
-      venueRow({ point: PUNE, mapboxId: 'address.one' }),
-      venueRow({ point: northOf(PUNE, 20), mapboxId: 'address.two' }),
-      venueRow({ point: northOf(PUNE, 20), mapboxId: 'address.two' }),
-    ])
-
-    expect(clusters.map((cluster) => cluster.key)).toEqual(['id:address.one', 'id:address.two'])
-  })
-
-  it('ignores a row that names neither an id nor an address', () => {
+  it('ignores a row that names no address', () => {
     expect(
       clusterVenues([
-        venueRow({ point: PUNE, mapboxId: null, address: null }),
-        venueRow({ point: PUNE, mapboxId: null, address: '   ' }),
+        venueRow({ point: PUNE, address: null }),
+        venueRow({ point: PUNE, address: '   ' }),
       ]),
     ).toEqual([])
   })
