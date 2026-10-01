@@ -173,7 +173,9 @@ export function resolveRow({
   if (scope.subdivisionCode) {
     // A null subdivision fails rather than passes: the target is one state, and
     // "Mapbox did not say which" is not evidence the row is inside it.
-    if (location.subdivisionCode !== scope.subdivisionCode) {
+    // Uppercased on both sides, like the country above: `region_code` arrives
+    // from Mapbox verbatim and nothing normalises it on the way in.
+    if (location.subdivisionCode?.toUpperCase() !== scope.subdivisionCode.toUpperCase()) {
       errors.push(
         `this address is in ${location.subdivisionCode ?? 'an unknown subdivision'}, outside the target (${scope.subdivisionCode})`,
       )

@@ -1,11 +1,13 @@
+import type { RawImportRow } from '../csv/columns'
 import type { PreparedCandidate } from '../resolve/duplicates'
 import type { Endpoint, PayloadRequest, Where } from 'payload'
 
 import { Temporal } from '@js-temporal/polyfill'
-import { z } from 'zod'
 
-import { parseBody, requireActiveManager } from '@/lib/endpoints'
+import { notFinishedWhere } from '@/collections/Events/lifecycle/finished'
+import { requireActiveManager } from '@/lib/endpoints'
 import { geocodeLocation } from '@/lib/mapbox/geocoder'
+import { relationId } from '@/lib/utilities/relationId'
 import type { EventImport, EventImportRows, Region, SupportedTimezones } from '@/payload-types'
 import { ownedRegionFilterOptions } from '@/plugins/access'
 
@@ -23,9 +25,6 @@ interface Candidate extends PreparedCandidate {
   /** An earlier line in this same file. */
   line?: number
 }
-
-/** The body carries nothing. It is still parsed, so a client sending something is told. */
-const bodySchema = z.strictObject({}).optional()
 
 /**
  * POST /api/event-imports/:id/resolve
@@ -71,9 +70,6 @@ export const resolveEventImport: Endpoint = {
       return failure('A numeric batch id is required.', 400)
     }
 
-    const parsed = await parseBody(req, bodySchema)
-    if (!parsed.ok) return parsed.response
-
     const batch = (await req.payload.findByID({
       collection: 'event-imports',
       id,
@@ -96,9 +92,26 @@ export const resolveEventImport: Endpoint = {
     const scope = await loadTargetScope(req, targetId)
     if (!scope.ok) return failure(scope.error, 422)
 
+    const warn = scope.warning ? { warning: scope.warning } : {}
     const rows = (batch.rows ?? []) as ImportRow[]
     const chunk = rows.filter(isPending).slice(0, RESOLVE_CHUNK_ROWS)
-    if (!chunk.length) return Response.json({ ...tally(rows), pending: 0, done: true })
+    if (!chunk.length) {
+      // ⚠ The status is written here too, not only on the path that resolved
+      // something. A file whose every row failed the parse has nothing pending
+      // from the first call, and would otherwise report `done` forever while
+      // staying `uploaded` — which the commit step refuses.
+      if (batch.status !== 'resolved') {
+        await req.payload.update({
+          collection: 'event-imports',
+          id,
+          data: { status: 'resolved' },
+          overrideAccess: true,
+          depth: 0,
+          req,
+        })
+      }
+      return Response.json({ ...tally(rows), ...warn, pending: 0, done: true })
+    }
 
     // Rows an earlier chunk resolved are candidates too: a volunteer's file
     // repeats a class as readily as the CMS already holds one, and the match has
@@ -141,7 +154,7 @@ export const resolveEventImport: Endpoint = {
       req,
     })
 
-    const body = { ...tally(rows), pending, done: pending === 0 }
+    const body = { ...tally(rows), ...warn, pending, done: pending === 0 }
     return unavailable
       ? Response.json(
           { ...body, errors: [{ message: 'Geocoding is unavailable; try again shortly.' }] },
@@ -197,7 +210,7 @@ async function resolveOne({
   }
 
   row.resolved = result.resolved
-  const match = findDuplicate(preparedFrom(result.resolved), candidates)
+  const match = findDuplicate(preparedFrom(result.resolved, values), candidates)
   if (!match) return true
 
   const matched = candidates[match.index]!
@@ -243,10 +256,20 @@ function todayIn(timezone: SupportedTimezones): Temporal.PlainDate {
  * rebuilds no schedule — which is the point of storing them: a row from an
  * earlier chunk stays comparable without re-running the mapper over the batch.
  */
-function preparedFrom(resolved: ResolvedRow): PreparedCandidate {
+function preparedFrom(resolved: ResolvedRow, values: RawImportRow): PreparedCandidate {
   return {
     cityKey: resolved.cityKey,
-    point: { latitude: resolved.latitude, longitude: resolved.longitude },
+    // ⚠ **An online row has no address, so it must carry no point.** Its
+    // coordinates are the city's centroid, shared by every online row in that
+    // city — and `nearby-address` is checked before the time rule, so a point
+    // here would merge a 18:00 and a 20:00 online class into one. Without it
+    // they fall through to city-and-time, which is the right question for a
+    // class with no hall. A stored online event has no address either, so the
+    // two sides stay symmetric.
+    point:
+      values.eventType === 'online'
+        ? null
+        : { latitude: resolved.latitude, longitude: resolved.longitude },
     weekdayMask: resolved.weekdayMask,
     startMinutes: resolved.startMinutes,
   }
@@ -254,7 +277,7 @@ function preparedFrom(resolved: ResolvedRow): PreparedCandidate {
 
 /** The same, carrying the line a reported match links back to. */
 function asCandidate(row: ImportRow): Candidate {
-  return { ...preparedFrom(row.resolved as ResolvedRow), line: row.line }
+  return { ...preparedFrom(row.resolved as ResolvedRow, row.values ?? {}), line: row.line }
 }
 
 /**
@@ -283,7 +306,9 @@ async function refuseUnownedTarget(
   return totalDocs ? null : failure('You do not manage that region.', 403)
 }
 
-type LoadScopeResult = { ok: true; scope: TargetScope } | { ok: false; error: string }
+type LoadScopeResult =
+  | { ok: true; scope: TargetScope; warning?: string }
+  | { ok: false; error: string }
 
 /**
  * The target's country and subdivision codes.
@@ -330,7 +355,10 @@ async function loadTargetScope(req: PayloadRequest, targetId: number): Promise<L
     slug,
   }))
   const scope = resolveTargetScope(chain)
-  return scope.ok ? { ok: true, scope: scope.scope } : { ok: false, error: scope.error }
+  if (!scope.ok) return { ok: false, error: scope.error }
+  return scope.warning
+    ? { ok: true, scope: scope.scope, warning: scope.warning }
+    : { ok: true, scope: scope.scope }
 }
 
 /**
@@ -362,7 +390,10 @@ async function loadExistingCandidates(req: PayloadRequest, targetId: number): Pr
 
   const events = await req.payload.find({
     collection: 'events',
-    where: { region: { in: regionIds } },
+    // ⚠ `excludeFinishedEvents` only fires for an API client, so a manager's
+    // read sees every expired series — and a dead Tuesday class at the same hall
+    // would swallow the row re-importing this year's timetable.
+    where: { and: [{ region: { in: regionIds } }, notFinishedWhere(new Date())] },
     depth: 0,
     pagination: false,
     overrideAccess: true,
@@ -385,13 +416,6 @@ function pointOf(
 ): { latitude: number; longitude: number } | null {
   const { latitude, longitude } = address ?? {}
   return latitude != null && longitude != null ? { latitude, longitude } : null
-}
-
-/** A relationship's id, whether it arrived bare or hydrated. */
-function relationId(value: unknown): number | null {
-  if (typeof value === 'number') return value
-  if (value && typeof value === 'object' && 'id' in value) return Number(value.id)
-  return null
 }
 
 function failure(message: string, status: number): Response {
