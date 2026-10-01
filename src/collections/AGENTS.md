@@ -1200,12 +1200,15 @@ for reactive access to schedule sub-fields.
   **order** is the `enum_events_schedule_weekdays` enum and two callers read
   a code back out of it by position, so a reorder moves events to the wrong
   day with no type error. One home for that reason
-- `src/lib/schedule/time.ts` — `isHHMM` / `normalizeHHMM` (the one HH:MM
-  rule, shared with `scheduleFields`' endTime validator) and
-  `localWallTimeToInstant`. Its `onGap: 'reject'` is how a caller with
-  somebody to report to refuses a wall time the clocks skip; note that
+- `src/lib/schedule/time.ts` — `isHHMM` / `normalizeHHMM` / `minutesOfDay`
+  (the one HH:MM rule, shared with `scheduleFields`' endTime validator) and
+  `localWallTimeToInstant`. That last one's `onGap: 'reject'` is how a caller
+  with somebody to report to refuses a wall time the clocks skip; note that
   Temporal's own `disambiguation: 'reject'` is **not** that check, because it
-  also refuses an ambiguous fall-back time that genuinely exists
+  also refuses an ambiguous fall-back time that genuinely exists.
+  `minutesOfDay` is what a caller compares a start against an end with — it was
+  written privately twice before it lived here, and the two copies disagreed
+  about a malformed value
 - `src/types/schedule.ts` — `EventSchedule` (the stored group, derived
   from `Event['schedule']`) and `ExclusionRange`. Anything reading a
   schedule off a document or merging a patch takes `Partial<EventSchedule>`,
