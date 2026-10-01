@@ -240,9 +240,10 @@ export const testData = {
     sampleFile = 'image-1050x700.jpg',
   ): Promise<Image> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
-    // A real Buffer, not a Uint8Array view: with no `sharp` in `buildConfig`,
-    // Payload measures an SVG through its own `probeImageSize`, which uses
-    // `Buffer`-only methods.
+    // A real Buffer, not a Uint8Array view: `canResizeImage` excludes
+    // `image/svg+xml`, so `generateFileData` hands an SVG no `sharp` whatever
+    // `buildConfig` holds, and the `probeImageSize` fallback that measures it
+    // uses `Buffer`-only methods.
     const fileData = fs.readFileSync(filePath)
     const extension = path.extname(sampleFile).toLowerCase()
     const uploadName = uniqueUploadName(sampleFile)
