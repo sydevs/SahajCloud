@@ -14,6 +14,15 @@
  * admitting every row in the world into somebody's country. That is why the
  * subdivision is `null` only when the chain holds no state node at all, and an
  * unresolvable one is an error instead.
+ *
+ * ⚠ **A city target is confined no more tightly than its state, or than its
+ * country where the tree has no state layer.** Only `country` and `region` nodes
+ * are read, because they are the two levels an ISO code exists for — a city has
+ * none, and matching its name against Mapbox's would refuse München to anyone
+ * whose admin locale spells it Munich. So the row-level answer for a city target
+ * is the city match itself, which belongs to the step that matches a proposed
+ * node to an existing region. Until that lands, a city-level batch can place a
+ * row anywhere in its state.
  */
 
 import { countryCodeForName, getRegionOptions, isCountryCode } from '@/lib/geography'

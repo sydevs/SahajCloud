@@ -149,11 +149,16 @@ describe('geocodeLocation', () => {
     place: { mapbox_id: 'mbx-berlin', name: 'Berlin' },
   }
 
+  /** The found location, or a thrown assertion naming the status instead. */
+  async function located(args: { query: string; types: string; countryCode?: string }) {
+    const outcome = await geocodeLocation(args)
+    if (outcome.status !== 'found') throw new Error(`expected a location, got ${outcome.status}`)
+    return outcome.location
+  }
+
   it('returns the point and the administrative context around it', async () => {
     stubFetch(() => ({ body: placed(berlinContext) }))
-    expect(
-      await geocodeLocation({ query: 'Oranienstraße 25, Berlin', types: 'address,poi' }),
-    ).toEqual({
+    expect(await located({ query: 'Oranienstraße 25, Berlin', types: 'address,poi' })).toEqual({
       mapboxId: 'mbx-address',
       latitude: 52.5026,
       longitude: 13.4186,
@@ -181,8 +186,7 @@ describe('geocodeLocation', () => {
     stubFetch(() => ({
       body: placed({ ...berlinContext, place: { id: 'mbx-berlin', name: 'Berlin' } }),
     }))
-    const result = await geocodeLocation({ query: 'Berlin', types: 'place' })
-    expect(result?.placeId).toBe('mbx-berlin')
+    expect((await located({ query: 'Berlin', types: 'place' })).placeId).toBe('mbx-berlin')
   })
 
   it('reads the city off `locality` where a country files one below `place`', async () => {
@@ -192,8 +196,10 @@ describe('geocodeLocation', () => {
         locality: { mapbox_id: 'mbx-loc', name: 'Harlem' },
       }),
     }))
-    const result = await geocodeLocation({ query: 'Harlem', types: 'place,locality' })
-    expect(result).toMatchObject({ placeName: 'Harlem', placeId: 'mbx-loc' })
+    expect(await located({ query: 'Harlem', types: 'place,locality' })).toMatchObject({
+      placeName: 'Harlem',
+      placeId: 'mbx-loc',
+    })
   })
 
   it('resolves a subdivision Mapbox spelled only country-prefixed', async () => {
@@ -203,45 +209,72 @@ describe('geocodeLocation', () => {
         region: { name: 'Bayern', region_code_full: 'DE-BY' },
       }),
     }))
-    expect((await geocodeLocation({ query: 'München', types: 'place' }))?.subdivisionCode).toBe(
-      'BY',
-    )
+    expect((await located({ query: 'München', types: 'place' })).subdivisionCode).toBe('BY')
   })
 
   it('resolves a subdivision Mapbox named but did not code', async () => {
     stubFetch(() => ({
       body: placed({ country: berlinContext.country, region: { name: 'Bayern' } }),
     }))
-    expect((await geocodeLocation({ query: 'München', types: 'place' }))?.subdivisionCode).toBe(
-      'BY',
-    )
-  })
-
-  it('returns null for a feature with no coordinates', async () => {
-    // A result the import cannot place is no answer at all, since the zone and
-    // every duplicate rule read the point.
-    stubFetch(() => ({ body: { features: [{ properties: { context: berlinContext } }] } }))
-    expect(await geocodeLocation({ query: 'Berlin', types: 'place' })).toBeNull()
-  })
-
-  it('returns null on a miss, and with no token never calls fetch', async () => {
-    stubFetch(() => ({ body: { features: [] } }))
-    expect(await geocodeLocation({ query: 'Nowhere', types: 'place' })).toBeNull()
-
-    vi.stubEnv('NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN', '')
-    const fetchSpy = vi.fn()
-    vi.stubGlobal('fetch', fetchSpy)
-    expect(await geocodeLocation({ query: 'Berlin', types: 'place' })).toBeNull()
-    expect(fetchSpy).not.toHaveBeenCalled()
+    expect((await located({ query: 'München', types: 'place' })).subdivisionCode).toBe('BY')
   })
 
   it('leaves the context codes null when Mapbox sent none', async () => {
     stubFetch(() => ({ body: placed({}) }))
-    expect(await geocodeLocation({ query: 'Somewhere', types: 'place' })).toMatchObject({
+    expect(await located({ query: 'Somewhere', types: 'place' })).toMatchObject({
       countryCode: null,
       subdivisionCode: null,
       placeName: null,
       placeId: null,
+    })
+  })
+
+  describe('a miss and an outage are different answers', () => {
+    // ⚠ The whole point of the three-way outcome: a caller writing a permanent
+    // row error on an outage turns minutes of Mapbox trouble into addresses a
+    // volunteer can only fix by re-uploading the file.
+
+    it('reports an empty result set as a miss', async () => {
+      stubFetch(() => ({ body: { features: [] } }))
+      expect(await geocodeLocation({ query: 'Nowhere', types: 'place' })).toEqual({
+        status: 'missed',
+      })
+    })
+
+    it('reports a feature with no coordinates as a miss', async () => {
+      stubFetch(() => ({ body: { features: [{ properties: { context: berlinContext } }] } }))
+      expect(await geocodeLocation({ query: 'Berlin', types: 'place' })).toEqual({
+        status: 'missed',
+      })
+    })
+
+    it('reports an HTTP failure as unavailable', async () => {
+      stubFetch(() => ({ ok: false, body: {} }))
+      expect(await geocodeLocation({ query: 'Berlin', types: 'place' })).toEqual({
+        status: 'unavailable',
+      })
+    })
+
+    it('reports a network failure that outlasts the retries as unavailable', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => {
+          throw new Error('ECONNRESET')
+        }),
+      )
+      expect(await geocodeLocation({ query: 'Berlin', types: 'place' })).toEqual({
+        status: 'unavailable',
+      })
+    })
+
+    it('reports a missing token as unavailable, without calling fetch', async () => {
+      vi.stubEnv('NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN', '')
+      const fetchSpy = vi.fn()
+      vi.stubGlobal('fetch', fetchSpy)
+      expect(await geocodeLocation({ query: 'Berlin', types: 'place' })).toEqual({
+        status: 'unavailable',
+      })
+      expect(fetchSpy).not.toHaveBeenCalled()
     })
   })
 })

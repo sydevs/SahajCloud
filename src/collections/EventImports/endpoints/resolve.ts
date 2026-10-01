@@ -40,6 +40,14 @@ const bodySchema = z.strictObject({}).optional()
  * response costs one chunk and a re-call resumes — there is no cursor for a
  * client to get wrong, and calling it twice over costs nothing.
  *
+ * ⚠ **The gate is document ownership, not role.** A caller reaches this with
+ * (active manager) AND (the batch is theirs) AND (the target is in their region
+ * subtree); it never asks whether they hold the `events: create` authority the
+ * import ends up exercising, because `resolveManagedDocIds` answers ownership
+ * and not role. Nothing can exploit that today — `create` on `event-imports` is
+ * admins-only, so a non-atlas manager only ever holds a batch an admin made for
+ * them — but the upload endpoint is where the role check has to land.
+ *
  * Auth: intentionally NOT `requireActiveClient`. That guard serves published API
  * `clients`; this is an admin-panel action by an authenticated `manager` on a
  * batch they uploaded, reached only from a region's Import tab. `managers` sits
@@ -57,7 +65,11 @@ export const resolveEventImport: Endpoint = {
     if (denied) return denied
 
     const id = Number(req.routeParams?.id)
-    if (!Number.isInteger(id)) return failure('A numeric batch id is required.', 400)
+    // `isSafeInteger`, not `isInteger`: `1e30` is an integer and would reach
+    // Postgres as an out-of-range `integer`, which escapes as a 500.
+    if (!Number.isSafeInteger(id) || id < 1) {
+      return failure('A numeric batch id is required.', 400)
+    }
 
     const parsed = await parseBody(req, bodySchema)
     if (!parsed.ok) return parsed.response
@@ -97,8 +109,18 @@ export const resolveEventImport: Endpoint = {
     ]
 
     const defaultLanguages = (batch.defaultLanguages ?? []) as string[]
+    let unavailable = false
     for (const row of chunk) {
-      await resolveOne({ row, scope: scope.scope, candidates, defaultLanguages })
+      const placed = await resolveOne({ row, scope: scope.scope, candidates, defaultLanguages })
+      if (!placed) {
+        // ⚠ **Stop, and leave the rest of the chunk pending.** Mapbox not
+        // answering says nothing about the row, so writing "could not find this
+        // location" on it would turn a few minutes of trouble into addresses a
+        // volunteer can only fix by re-uploading the file. What already resolved
+        // is still written, so the next call resumes rather than restarts.
+        unavailable = true
+        break
+      }
       if (row.resolved) candidates.push(asCandidate(row))
     }
 
@@ -119,7 +141,13 @@ export const resolveEventImport: Endpoint = {
       req,
     })
 
-    return Response.json({ ...tally(rows), pending, done: pending === 0 })
+    const body = { ...tally(rows), pending, done: pending === 0 }
+    return unavailable
+      ? Response.json(
+          { ...body, errors: [{ message: 'Geocoding is unavailable; try again shortly.' }] },
+          { status: 503 },
+        )
+      : Response.json(body)
   },
 }
 
@@ -130,35 +158,47 @@ interface ResolveOneArgs {
   defaultLanguages: string[]
 }
 
-/** Resolve one row in place, writing either its answers or its errors. */
+/**
+ * Resolve one row in place, writing either its answers or its errors.
+ *
+ * Returns false when the geocoder could not be reached — the one outcome that is
+ * about us rather than the row, so the row is left untouched and pending.
+ */
 async function resolveOne({
   row,
   scope,
   candidates,
   defaultLanguages,
-}: ResolveOneArgs): Promise<void> {
+}: ResolveOneArgs): Promise<boolean> {
   const values = row.values ?? {}
   const request = geocodeRequestFor(values, scope)
   if (request.kind === 'error') {
     row.errors = [...(row.errors ?? []), ...request.errors]
-    return
+    return true
   }
 
-  const location = await geocodeLocation({
+  const outcome = await geocodeLocation({
     query: request.query,
     types: request.types,
     countryCode: request.countryCode,
   })
+  if (outcome.status === 'unavailable') return false
 
-  const result = resolveRow({ values, scope, location, defaultLanguages, todayIn })
+  const result = resolveRow({
+    values,
+    scope,
+    location: outcome.status === 'found' ? outcome.location : null,
+    defaultLanguages,
+    todayIn,
+  })
   if (!result.ok) {
     row.errors = [...(row.errors ?? []), ...result.errors]
-    return
+    return true
   }
 
   row.resolved = result.resolved
   const match = findDuplicate(preparedFrom(result.resolved), candidates)
-  if (!match) return
+  if (!match) return true
 
   const matched = candidates[match.index]!
   row.duplicate = {
@@ -166,6 +206,7 @@ async function resolveOne({
     ...(matched.eventId === undefined ? {} : { eventId: matched.eventId }),
     ...(matched.line === undefined ? {} : { line: matched.line }),
   }
+  return true
 }
 
 /** A row is pending while it has neither an answer nor a reason it cannot have one. */
