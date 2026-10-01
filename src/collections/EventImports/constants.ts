@@ -69,3 +69,22 @@ export const METRO_MERGE_METERS = 25_000
  * naming once, and a hall one class meets at is that event's own address.
  */
 export const SHARED_VENUE_MIN_ROWS = 2
+
+/**
+ * How many subdivisions a batch must span before a state layer is proposed.
+ *
+ * One state is not a layer: every city would hang off the single node, which
+ * adds a click to every path through the tree and tells a seeker nothing. Two is
+ * the first count where the grouping carries information.
+ */
+export const STATE_LAYER_MIN_SUBDIVISIONS = 2
+
+/**
+ * How many cities a batch must yield before a state layer is proposed.
+ *
+ * Below this a flat list of cities under the country is the shorter path, and
+ * the Atlas tree is already mixed that way on purpose — France has no state
+ * layer. The threshold is about what a visitor has to scan, so it counts cities
+ * and not rows: one city with 90 classes is still one line to read.
+ */
+export const STATE_LAYER_MIN_CITIES = 8
