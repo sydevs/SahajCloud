@@ -246,6 +246,12 @@ export const testData = {
     // uses `Buffer`-only methods.
     const fileData = fs.readFileSync(filePath)
     const extension = path.extname(sampleFile).toLowerCase()
+    const mimetype = IMAGE_MIMETYPES[extension]
+    if (!mimetype) {
+      throw new Error(
+        `No IMAGE_MIMETYPES entry for ${extension} — ${sampleFile} is not an images fixture.`,
+      )
+    }
     const uploadName = uniqueUploadName(sampleFile)
 
     return (await payload.create({
@@ -256,7 +262,7 @@ export const testData = {
       },
       file: {
         data: fileData,
-        mimetype: IMAGE_MIMETYPES[extension] ?? `image/${extension.slice(1)}`,
+        mimetype,
         name: uploadName,
         size: fileData.length,
       },
