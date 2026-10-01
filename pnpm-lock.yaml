@@ -96,9 +96,6 @@ importers:
       ical-generator:
         specifier: ^11.0.0
         version: 11.0.0(@touch4it/ical-timezones@1.9.0)(@types/node@22.19.3)
-      image-size:
-        specifier: ^2.0.4
-        version: 2.0.4
       iso-639-1:
         specifier: ^3.1.5
         version: 3.1.5
@@ -3913,11 +3910,6 @@ packages:
 
   image-dimensions@2.5.1:
     resolution: {integrity: sha512-It7CkTNp7IYA8jhvGgz8K18OAbHF3/Juk8RNEyTyMFfolJOIU1Y2wGDnzDQPbGCjyxVF/++pwIZE0BKJUEOb1g==}
-    engines: {node: '>=18'}
-    hasBin: true
-
-  image-size@2.0.4:
-    resolution: {integrity: sha512-QRUkFFsRV/6fuESxb9Vkq+a0LkSrgKXuc2NEqfikiXxxN/G3tjWt5EVUlMaImRBZRZK/jRBEbYvpPYZL8t08Zw==}
     engines: {node: '>=18'}
     hasBin: true
 
@@ -10042,8 +10034,6 @@ snapshots:
   ignore@7.0.5: {}
 
   image-dimensions@2.5.1: {}
-
-  image-size@2.0.4: {}
 
   immutable@4.3.9: {}
 
