@@ -71,14 +71,26 @@ export const METRO_MERGE_METERS = 25_000
 export const SHARED_VENUE_MIN_ROWS = 2
 
 /**
- * The smallest radius a hand-located region is given.
+ * The smallest radius a hand-located node is given, per level.
  *
  * A proposed node with no Mapbox feature behind it is written as a manual
- * location, and `Regions.radius` is required for one. Measured from the node's
- * own classes it would be 0 for a node holding one address, which reads as a
- * point rather than a place. This is roughly a walkable town centre.
+ * location, and `Regions.radius` is required for one. Measured from what the
+ * node holds, the reach is 0 for a hall at one address and for a state the
+ * batch reached through a single city — a point rather than a place.
+ *
+ * ⚠ **The floor is per level because the measurement cannot be trusted to
+ * imply one.** A state is not town-sized just because this batch found one
+ * class in it, and the two siblings of a split layer would otherwise differ by
+ * three orders of magnitude. The venue and region values are the Atlas seed's
+ * own defaults for a hand-located node (`DEFAULT_VENUE_RADIUS_METERS`,
+ * `src/lib/mapbox/geocoder.ts`), so the two writers of this column agree; the
+ * city value is ours, since the seed gives a city the same 50 km as a state.
  */
-export const MANUAL_RADIUS_MIN_METERS = 1_000
+export const MANUAL_RADIUS_MIN_METERS: Record<'region' | 'city' | 'venue', number> = {
+  region: 50_000,
+  city: 1_000,
+  venue: 500,
+}
 
 /**
  * How many subdivisions a batch must span before a state layer is proposed.

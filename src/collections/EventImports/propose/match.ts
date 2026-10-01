@@ -70,9 +70,8 @@ export type NodeMatch =
 /**
  * The existing region a proposed node is, or what to do instead.
  *
- * `existing` is scanned once per node. The sets this runs over are a region
- * subtree and a batch's cities — tens of each — so an index would cost more
- * reading than it saves.
+ * `existing` is scanned per node: both sides are tens of entries, so an index
+ * would cost more reading than it saves.
  */
 export function matchNode(node: MatchableNode, existing: readonly ExistingRegion[]): NodeMatch {
   const byId = node.mapboxId
