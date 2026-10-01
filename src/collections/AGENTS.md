@@ -8,6 +8,14 @@ to this codebase. This guide also covers `src/fields/`.
 `accessPlugin` applies access control, `admin.hidden`, and field-level
 access automatically. Collections **do not** need a manual `access` config.
 
+⚠ **One collection overrides it, and the exception is narrow.** `event-imports`
+sets `read` and `update` (`src/collections/EventImports/access.ts`), because a
+batch belongs to the manager who uploaded it and no role table can say so. The
+cost is that an overridden key replaces the generated one *including the bypass
+behind it*, so it has to restate admin-allow and `inactive`-deny itself. Override
+a key only where the role tables get it wrong, and leave every other key alone —
+`create` and `delete` there are the generated config's, unchanged.
+
 ```typescript
 // src/payload.config.ts (already wired up)
 import { accessPlugin, bypassPermissions } from '@/plugins/access'
@@ -923,14 +931,23 @@ ownership system.
 
 ## Trash (soft delete)
 
-Collections with `trash: true`: Files, Images, **Events**, **Event Imports**.
+Collections with `trash: true`, all nine: Files, Images, **Events**, **Event
+Imports**, Lessons, Pages, Meditations, Songs, Albums.
 
 ⚠ **A trash-enabled collection needs a purge job, or nothing ever empties its
-trash.** Payload ships none. `CleanupOrphanedMedia`'s phase A is that sweep for
-Files and Images; `PurgeEventImports` is the one for import batches, which is
-what makes "discard" mean the uploaded CSV goes away rather than merely leaves
-the list. Events are the deliberate exception — a trashed listing is a
-manager's own record.
+trash.** Payload ships none: `trash: true` buys the `deletedAt` column and the
+admin's trash view, and nothing else. Two of the nine are swept —
+`CleanupOrphanedMedia` phase A for Files and Images, `PurgeEventImports` for
+import batches, which is what makes "discard" mean the uploaded CSV goes away
+rather than merely leaves the list. Events are a deliberate exception: a trashed
+listing is a manager's own record.
+
+⚠ **The other five — Lessons, Pages, Meditations, Songs, Albums — are swept by
+nothing, and that is a gap rather than a decision.** Nobody has written down
+whether their trash should expire. Retention matters most where a row holds
+personal data, which is why the two that do are covered; say which of the five
+you mean when you reach for this, rather than reading the list above as
+discharged.
 
 **`payload.delete` is always a _hard_ delete, even on a trash-enabled
 collection.** Its `trash` argument only widens _which_ documents are

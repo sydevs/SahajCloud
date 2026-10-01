@@ -7,16 +7,11 @@ import { IMPORT_TRASH_RETENTION_DAYS } from '@/collections/EventImports/constant
  *
  * ⚠ **Payload has no built-in trash purge**, on any collection: `trash: true`
  * buys the `deletedAt` column and the admin's trash view, and nothing ever
- * empties it. `CleanupOrphanedMedia`'s phase A is the same sweep for files and
- * images; this is the one for import batches, which is the half that makes
- * "discard" mean the CSV goes away rather than merely leaves the list.
+ * empties it. `CleanupOrphanedMedia` phase A is the same sweep for media; this
+ * is what makes "discard" mean the CSV goes away rather than leaves the list.
  *
  * A successful commit deletes its own batch outright, so what reaches this job
  * is a discarded batch and an abandoned one a manager trashed by hand.
- *
- * Runs on the existing `nightly` queue at 05:00 UTC, after the 02:00 event
- * expiry, the 03:00 notification sweeps and the 04:00 submissions purge, so no
- * two retention jobs contend.
  */
 export const PurgeEventImports: TaskConfig<'purgeEventImports'> = {
   slug: 'purgeEventImports',
@@ -39,7 +34,7 @@ export const PurgeEventImports: TaskConfig<'purgeEventImports'> = {
   outputSchema: [{ name: 'deletedBatches', type: 'number', required: true }],
   schedule: [
     {
-      cron: '0 5 * * *', // daily at 05:00 UTC (after the 02:00–04:00 sweeps)
+      cron: '0 5 * * *', // after the 02:00–04:00 sweeps, so no two contend
       queue: 'nightly',
     },
   ],
@@ -51,36 +46,39 @@ export const PurgeEventImports: TaskConfig<'purgeEventImports'> = {
     ).toISOString()
     const where = { deletedAt: { less_than_equal: cutoff } }
 
-    // ⚠ `trash: true` on both calls, for two different reasons. The read needs
-    // it because Payload appends `deletedAt exists: false` to every query on a
-    // trash-enabled collection, so without it this sweep sees none of the rows
-    // it exists to find. The delete needs it because a trashed row is otherwise
-    // not a legal target — `Not Found`, on an id this very query returned
-    // (`src/collections/AGENTS.md`, "Trashed docs are invisible to a default
-    // query"). `payload.delete` is the hard delete either way.
-    const { totalDocs: due } = await req.payload.count({
-      collection: 'event-imports',
-      where,
-      trash: true,
-      overrideAccess: true,
-      req,
-    })
-
-    if (dryRun || due === 0) {
-      if (due > 0) {
+    // ⚠ `trash: true` on every call here: without it Payload appends
+    // `deletedAt exists: false` and the sweep sees none of the rows it exists to
+    // find, and a trashed row is `Not Found` as a delete target
+    // (`src/collections/AGENTS.md`). `payload.delete` is the hard delete either
+    // way.
+    if (dryRun) {
+      const { totalDocs } = await req.payload.count({
+        collection: 'event-imports',
+        where,
+        trash: true,
+        overrideAccess: true,
+        req,
+      })
+      if (totalDocs > 0) {
         req.payload.logger.info({
           msg: 'PurgeEventImports: dry run — nothing was deleted',
-          deletedBatches: due,
+          deletedBatches: totalDocs,
           cutoff,
         })
       }
-      return { output: { deletedBatches: due } }
+      return { output: { deletedBatches: totalDocs } }
     }
 
     const { docs, errors } = await req.payload.delete({
       collection: 'event-imports',
       where,
       trash: true,
+      // The handler wants the count, not the batches. Without a `select` the
+      // delete hydrates every `rows` column it is about to destroy — up to 500
+      // rows of CSV per batch — and walks each through the afterRead field
+      // hooks, to produce one integer. `id` is not a selectable key; Payload
+      // returns it either way.
+      select: { status: true },
       overrideAccess: true,
       req,
     })

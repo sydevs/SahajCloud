@@ -1,9 +1,8 @@
 /**
  * Thresholds the bulk event import turns on.
  *
- * The resolve, proposal and duplicate steps bring their own as they land: a
- * number arrives with the code that reads it, so a reviewer can check it
- * against behaviour and a wrong value fails something.
+ * A later step's own numbers arrive with the code that reads them, so a reviewer
+ * can check each against behaviour and a wrong value fails something.
  */
 
 /**
