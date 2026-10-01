@@ -75,8 +75,17 @@ const ROLES = {
       events: ['create', 'update', 'delete'] as PermissionLevel[],
       users: ['read'] as PermissionLevel[],
       // Collection-wide on purpose (#821): a picker exists to list *other*
-      // managers, so a self-scoped `Where` would empty it.
-      managers: ['read'] as PermissionLevel[],
+      // managers, so a self-scoped `Where` would empty it. `read` is narrowed
+      // to `name` field by field instead (`src/collections/Managers/access.ts`).
+      //
+      // `create` is the bulk import's manager-creation step (#828), and is
+      // deliberately NOT subtree-scoped: a new account holds no region, and
+      // region access stays a separate, manual write to `Regions.managers`.
+      // What bounds it is the account it can make — `type` and `roles` are
+      // admin-only on create, so this grants an unprivileged account and
+      // nothing more. There is no `update` or `delete`: another manager's
+      // record is not an atlas-manager's to edit.
+      managers: ['create', 'read'] as PermissionLevel[],
       // `user-submissions` is restricted too, so this grant is what reaches it
       // at all — and it is narrowed per row in `accessConfigs.ts`: a manager
       // reads the contact rows addressed to them, plus proposals. It does NOT

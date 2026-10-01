@@ -1,6 +1,8 @@
 import type { LoginCollectionConfig } from './types'
 import type { CollectionBeforeOperationHook, CollectionConfig, Config, Field, Plugin } from 'payload'
 
+import { selfOrAdminFieldAccess } from '@/plugins/access'
+
 import { redeem } from './endpoints/redeem'
 import { requestMagicLink } from './endpoints/requestMagicLink'
 import { managerJoins, MANAGERS_COLLECTION } from './grantSummary'
@@ -25,6 +27,10 @@ import {
  * it they could burn their own outstanding link, or stamp it in the future and
  * throttle their own sends forever. Both endpoints write it through
  * `overrideAccess: true`, so neither is affected.
+ *
+ * `admin.hidden` keeps it out of the edit view and nothing else: the API returns
+ * it, so the `read` lock is what stops one account holder watching another's
+ * sign-in traffic. Both endpoints read it with `overrideAccess: true`.
  */
 export const magicLinkIssuedAt: Field = {
   name: 'magicLinkIssuedAt',
@@ -33,6 +39,7 @@ export const magicLinkIssuedAt: Field = {
     hidden: true,
   },
   access: {
+    read: selfOrAdminFieldAccess,
     update: () => false,
   },
 }

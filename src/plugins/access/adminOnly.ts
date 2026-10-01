@@ -51,3 +51,25 @@ export const managersOnlyFieldAccess: FieldAccess = ({ req }) =>
  */
 export const adminOnlyCondition: Condition = (_data, _siblingData, { user }) =>
   isAdminManager(user)
+
+/**
+ * Field-level access: the account holder, or an admin manager.
+ *
+ * For a field on an auth collection that is the person's own business but
+ * nobody else's — their address, their contact handles, what they were granted.
+ * `adminOnlyFieldAccess` is the wrong tool there: it would hide a manager's own
+ * profile from them.
+ *
+ * ⚠ **On `create` there is no document, so this is admin-only.** `id` is the
+ * row's own id wherever a field lock is evaluated — `afterRead` passes
+ * `doc.id`, so a list read answers per row — and `undefined` on a create. A
+ * field that a non-admin must set on create therefore needs its own `create`
+ * entry rather than this one.
+ */
+export const selfOrAdminFieldAccess: FieldAccess = ({ id, req: { user } }) => {
+  if (isAdminManager(user)) return true
+  // Inactive is denied at the collection level already; restated because a
+  // field lock is the last gate and cheap to make unconditional.
+  if (user?.collection !== 'managers' || user.type === 'inactive') return false
+  return id !== undefined && String(user.id) === String(id)
+}
