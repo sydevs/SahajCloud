@@ -50,3 +50,48 @@ export function getRegionOptions(countryCode: string | null | undefined): Geogra
   if (!country) return []
   return country.regions.map(({ name, shortCode }) => ({ label: name, value: shortCode }))
 }
+
+/** Whether `value` is an ISO alpha-2 code this project's country set lists. */
+export function isCountryCode(value: string | null | undefined): boolean {
+  if (!value) return false
+  return countries.some((entry) => entry.countryShortCode === value)
+}
+
+/** The ISO alpha-2 code for an English country name, or null. */
+export function countryCodeForName(name: string | null | undefined): string | null {
+  const needle = name?.trim().toLowerCase()
+  if (!needle) return null
+  return (
+    countries.find((entry) => entry.countryName.toLowerCase() === needle)?.countryShortCode ?? null
+  )
+}
+
+/**
+ * The ISO 3166-2 subdivision code behind a Mapbox `context.region` entry, or null.
+ *
+ * ⚠ **Mapbox spells the answer three ways and only sometimes the first.**
+ * `region_code` is usually the bare code (`CA`), but some results carry only the
+ * country-prefixed `region_code_full` (`US-CA`), and some only a name. So each
+ * fallback below covers a result shape the one above it misses, and dropping one
+ * leaves the subdivision empty for whole countries rather than for odd rows.
+ *
+ * The name match needs `countryCode` because a subdivision name is unique only
+ * within its country.
+ */
+export function resolveSubdivisionCode(
+  region: { region_code?: string; region_code_full?: string; name?: string } | undefined | null,
+  countryCode: string | null | undefined,
+): string | null {
+  if (!region) return null
+  if (region.region_code) return region.region_code
+  if (region.region_code_full?.includes('-'))
+    return region.region_code_full.split('-').pop() ?? null
+  if (region.name && countryCode) {
+    const name = region.name.toLowerCase()
+    const match = getRegionOptions(countryCode).find(
+      (option) => option.label.toLowerCase() === name,
+    )
+    if (match) return match.value
+  }
+  return null
+}
