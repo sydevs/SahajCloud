@@ -88,6 +88,21 @@ export type MapScheduleResult =
 const MIN_INTERVAL = 1
 const MAX_INTERVAL = 99
 
+/**
+ * Schedule columns each type does not read.
+ *
+ * A value in one of these is a misunderstanding, not a spare field, so it is
+ * reported rather than dropped.
+ */
+/** The schedule columns that arrive as raw CSV text. */
+type ScheduleColumn = 'date' | 'startTime' | 'endTime' | 'weekdays' | 'interval' | 'monthWeek' | 'untilDate'
+
+const IGNORED_COLUMNS: Record<Exclude<ScheduleType, 'inactive'>, readonly ScheduleColumn[]> = {
+  'one-off': ['weekdays', 'interval', 'monthWeek', 'untilDate'],
+  weekly: ['monthWeek'],
+  monthly: [],
+}
+
 function isScheduleType(value: string): value is ScheduleType {
   return (SCHEDULE_TYPES as readonly string[]).includes(value)
 }
@@ -205,11 +220,6 @@ export function mapCsvSchedule(args: MapScheduleArgs): MapScheduleResult {
   if (rawUntilDate && !untilDate) {
     errors.push(`untilDate must be YYYY-MM-DD (got "${rawUntilDate}")`)
   }
-  // Accumulated with the rest rather than returned on its own, so a row with a
-  // backwards range and a bad weekday reports both.
-  if (untilDate && explicitDate && Temporal.PlainDate.compare(untilDate, explicitDate) < 0) {
-    errors.push('untilDate must be on or after date')
-  }
 
   const rawInterval = args.interval?.trim()
   let interval = 1
@@ -229,15 +239,48 @@ export function mapCsvSchedule(args: MapScheduleArgs): MapScheduleResult {
     errors.push(`weekdays must be two-letter codes like MO,TH (got "${invalid.join(', ')}")`)
   }
 
+  const ignored = IGNORED_COLUMNS[rawType].filter((name) => args[name]?.trim())
+  if (ignored.length) {
+    // Dropping them silently is how `scheduleType=weekly, monthWeek=2` used to
+    // publish a weekly class instead of a monthly one. `buildMonthly` already
+    // refused the mirror-image mistake, so the asymmetry was the tell.
+    errors.push(`${ignored.join(' and ')} ${ignored.length > 1 ? 'do' : 'does'} not apply to a ${rawType} class`)
+  }
+
   const built = buildFor(rawType, { explicitDate, weekdays, monthWeek: args.monthWeek, today })
   if (typeof built === 'string') errors.push(built)
+
+  // The ending is compared against the resolved first date, not against the
+  // `date` column: a weekly row leaving `date` blank still has a first date,
+  // and an earlier `untilDate` there imported an event with zero occurrences —
+  // already expired, with nothing on the row to say so.
+  if (untilDate && typeof built !== 'string') {
+    if (Temporal.PlainDate.compare(untilDate, built.firstDate) < 0) {
+      errors.push(`untilDate must be on or after the first date (${built.firstDate.toString()})`)
+    }
+  }
 
   // `startTime` is re-tested only to narrow it for TypeScript — a missing one
   // has already pushed an error, so this cannot be the branch that decides.
   if (errors.length || typeof built === 'string' || !startTime) return { ok: false, errors }
 
+  let firstDate: string
+  try {
+    firstDate = localWallTimeToInstant(built.firstDate.toString(), startTime, timezone, 'reject')
+  } catch {
+    // The clocks moved forward over this wall time, so it never happens on
+    // that date. Shifting it silently is what made the import accept a
+    // start/end pair that `scheduleFields` then refused.
+    return {
+      ok: false,
+      errors: [
+        `${startTime} does not exist on ${built.firstDate.toString()} in ${timezone} — the clocks move forward. Pick another time or date.`,
+      ],
+    }
+  }
+
   const schedule: ImportSchedule = {
-    firstDate: localWallTimeToInstant(built.firstDate.toString(), startTime, timezone),
+    firstDate,
     firstDate_tz: timezone,
     interval,
     ...built.recurrence,
@@ -298,6 +341,17 @@ function buildWeekly({ explicitDate, weekdays, today }: BuildArgs): Built | stri
       ? [weekdayCodeFor(explicitDate.dayOfWeek)]
       : []
   if (!codes.length) return 'weekly needs weekdays, or a date to take the weekday from'
+
+  // ⚠ The first date must be a day the class actually runs. `date` is stored
+  // as `firstDate` while `weekdays` becomes the RRULE's BYDAY, so a date on
+  // another weekday publishes a first occurrence that never happens.
+  if (explicitDate) {
+    const dateCode = weekdayCodeFor(explicitDate.dayOfWeek)
+    if (!codes.includes(dateCode)) {
+      return `date ${explicitDate.toString()} is a ${dateCode}, which is not in weekdays (${codes.join(',')})`
+    }
+  }
+
   return {
     firstDate: explicitDate ?? nextMatchingDate(today, codes),
     recurrence: { recurrenceType: 'WEEKLY', weekdays: codes },
@@ -334,6 +388,17 @@ function buildMonthly({ explicitDate, weekdays, monthWeek: raw, today }: BuildAr
   }
 
   const weekday = weekdays[0]!
+
+  // Same hazard as the weekly arm: `date` becomes `firstDate` while the
+  // ordinal pair becomes the rule, so a date that is not that ordinal weekday
+  // publishes a first occurrence the class never holds.
+  if (explicitDate) {
+    const expected = ordinalWeekdayInMonth(explicitDate.with({ day: 1 }), monthWeek, weekday)
+    if (!expected.equals(explicitDate)) {
+      return `date ${explicitDate.toString()} is not the ${monthWeek === '-1' ? 'last' : `#${monthWeek}`} ${weekday} of its month (that is ${expected.toString()})`
+    }
+  }
+
   return {
     firstDate: explicitDate ?? nextOrdinalWeekdayDate(today, monthWeek, weekday),
     recurrence: {

@@ -144,6 +144,27 @@ describe('parseImportCsv — per-row requirements', () => {
     expect(parsed[0]!.values.eventType).toBe('offline')
   })
 
+  it('refuses a row with more values than the header has columns', () => {
+    // An unquoted comma in the address shifts every later value one column
+    // left and drops the last. `relaxColumnCount` keeps the parse alive, so
+    // without this the row reads as a bad `scheduleType` and the volunteer is
+    // pointed at the wrong column.
+    const parsed = rows(`${HEADER}\nT Class,offline,DE,Berlin,Main St, 25,weekly`)
+    expect(parsed[0]!.errors).toContain(
+      'this row has 7 values but the header has 6 columns — check for an unquoted comma',
+    )
+  })
+
+  it('accepts the same row once the comma is quoted', () => {
+    const parsed = rows(`${HEADER}\nT Class,offline,DE,Berlin,"Main St, 25",weekly`)
+    expect(parsed[0]!.errors).toEqual([])
+    expect(parsed[0]!.values.address).toBe('Main St, 25')
+  })
+
+  it('does not count trailing empty cells as extra values', () => {
+    expect(rows(`${HEADER}\n${OFFLINE},,`)[0]!.errors).toEqual([])
+  })
+
   it('treats a whitespace-only cell as missing', () => {
     const parsed = rows(`${HEADER}\n   ,offline,DE,Berlin,Street 1,weekly`)
     expect(parsed[0]!.errors).toEqual(['title is required'])
