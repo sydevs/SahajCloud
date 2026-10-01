@@ -71,6 +71,16 @@ export const METRO_MERGE_METERS = 25_000
 export const SHARED_VENUE_MIN_ROWS = 2
 
 /**
+ * The smallest radius a hand-located region is given.
+ *
+ * A proposed node with no Mapbox feature behind it is written as a manual
+ * location, and `Regions.radius` is required for one. Measured from the node's
+ * own classes it would be 0 for a node holding one address, which reads as a
+ * point rather than a place. This is roughly a walkable town centre.
+ */
+export const MANUAL_RADIUS_MIN_METERS = 1_000
+
+/**
  * How many subdivisions a batch must span before a state layer is proposed.
  *
  * One state is not a layer: every city would hang off the single node, which
