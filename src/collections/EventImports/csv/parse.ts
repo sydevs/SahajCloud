@@ -12,11 +12,19 @@
 
 import { parse } from 'csv-parse/sync'
 
-import { MAX_IMPORT_ROWS } from '../constants'
-import { IMPORT_COLUMN_NAMES, findColumn, requiredColumnsFor, type RawImportRow } from './columns'
+import type { Event } from '@/payload-types'
 
-/** The `eventType` values a row may declare. */
-const EVENT_TYPES = ['offline', 'online'] as const
+import { MAX_IMPORT_ROWS } from '../constants'
+import { isImportColumn, requiredColumnsFor, type RawImportRow } from './columns'
+
+/**
+ * The `eventType` values a row may declare.
+ *
+ * `satisfies` against the generated union is what stops this drifting wider
+ * than the column: adding a value the CMS does not enumerate is a compile
+ * error here, rather than a row that type-checks and is refused at write.
+ */
+const EVENT_TYPES = ['offline', 'online'] as const satisfies readonly Event['eventType'][]
 
 export interface ParsedRow {
   /**
@@ -47,6 +55,10 @@ function isBlankRow(record: string[]): boolean {
   return record.every((value) => !value?.trim())
 }
 
+function plural(count: number, word: string): string {
+  return count > 1 ? `${word}s` : word
+}
+
 export function parseImportCsv(input: string): ParseCsvResult {
   let records: string[][]
   try {
@@ -74,25 +86,24 @@ export function parseImportCsv(input: string): ParseCsvResult {
   const headerCheck = checkHeader(header)
   if (!headerCheck.ok) return headerCheck
 
-  const dataRecords = records.filter((record) => !isHelpRow(record) && !isBlankRow(record))
-  if (!dataRecords.length) {
-    return { ok: false, error: 'The file has a header but no data rows.' }
-  }
-  if (dataRecords.length > MAX_IMPORT_ROWS) {
-    return {
-      ok: false,
-      error: `The file has ${dataRecords.length} data rows; the limit is ${MAX_IMPORT_ROWS}. Split it into smaller files.`,
-    }
-  }
-
-  // Lines are counted over the ORIGINAL records, so a skipped help row still
-  // advances the number a volunteer sees in their spreadsheet.
+  // One pass: the line counter has to walk every record to stay aligned with
+  // the volunteer's spreadsheet, and `rows.length` is the data-row count the
+  // refusals below need, so a separate filtering pass would only re-test the
+  // same two predicates.
   let line = 1
   const rows: ParsedRow[] = []
   for (const record of records) {
     line += 1
     if (isHelpRow(record) || isBlankRow(record)) continue
     rows.push(buildRow(record, headerCheck.columns, line))
+  }
+
+  if (!rows.length) return { ok: false, error: 'The file has a header but no data rows.' }
+  if (rows.length > MAX_IMPORT_ROWS) {
+    return {
+      ok: false,
+      error: `The file has ${rows.length} data rows; the limit is ${MAX_IMPORT_ROWS}. Split it into smaller files.`,
+    }
   }
 
   return { ok: true, rows }
@@ -112,7 +123,7 @@ function checkHeader(header: string[]): HeaderCheck {
   const columns: (string | null)[] = []
   const unknown: string[] = []
   const seen = new Set<string>()
-  const duplicated: string[] = []
+  const duplicated = new Set<string>()
 
   for (const cell of header) {
     const name = cell?.trim() ?? ''
@@ -122,12 +133,12 @@ function checkHeader(header: string[]): HeaderCheck {
       columns.push(null)
       continue
     }
-    if (!findColumn(name)) {
+    if (!isImportColumn(name)) {
       unknown.push(name)
       columns.push(null)
       continue
     }
-    if (seen.has(name)) duplicated.push(name)
+    if (seen.has(name)) duplicated.add(name)
     seen.add(name)
     columns.push(name)
   }
@@ -135,18 +146,24 @@ function checkHeader(header: string[]): HeaderCheck {
   if (unknown.length) {
     return {
       ok: false,
-      error: `Unrecognised column${unknown.length > 1 ? 's' : ''}: ${unknown.join(', ')}. Download the template and use its header row.`,
+      error: `Unrecognised ${plural(unknown.length, 'column')}: ${unknown.join(', ')}. Download the template and use its header row.`,
     }
   }
-  if (duplicated.length) {
-    return { ok: false, error: `Duplicated column${duplicated.length > 1 ? 's' : ''}: ${[...new Set(duplicated)].join(', ')}.` }
+  if (duplicated.size) {
+    return {
+      ok: false,
+      error: `Duplicated ${plural(duplicated.size, 'column')}: ${[...duplicated].join(', ')}.`,
+    }
   }
 
-  const missing = IMPORT_COLUMN_NAMES.filter(
-    (name) => !seen.has(name) && findColumn(name)?.requirement === 'always',
-  )
+  // `requiredColumnsFor(undefined)` is the always-required set — the same
+  // answer the row check below starts from, rather than a second derivation.
+  const missing = requiredColumnsFor(undefined).filter((name) => !seen.has(name))
   if (missing.length) {
-    return { ok: false, error: `Missing required column${missing.length > 1 ? 's' : ''}: ${missing.join(', ')}.` }
+    return {
+      ok: false,
+      error: `Missing required ${plural(missing.length, 'column')}: ${missing.join(', ')}.`,
+    }
   }
 
   return { ok: true, columns }
@@ -166,7 +183,7 @@ function buildRow(record: string[], columns: (string | null)[], line: number): P
   if (!eventType) {
     errors.push('eventType is required')
   } else if (!(EVENT_TYPES as readonly string[]).includes(eventType)) {
-    errors.push(`eventType must be offline or online (got "${eventType}")`)
+    errors.push(`eventType must be ${EVENT_TYPES.join(' or ')} (got "${eventType}")`)
   }
 
   for (const name of requiredColumnsFor(eventType)) {

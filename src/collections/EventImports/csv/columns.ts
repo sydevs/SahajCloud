@@ -195,7 +195,7 @@ export const IMPORT_COLUMNS: readonly ColumnSpec[] = [
   {
     name: 'weekdays',
     requirement: 'optional',
-    help: 'Comma-separated two-letter codes for weekly classes, e.g. "MO,TH".',
+    help: 'Comma-separated two-letter codes for weekly classes, e.g. "MO,TH". List all seven for a daily class.',
     example: 'TU',
   },
   {
@@ -218,16 +218,14 @@ export const IMPORT_COLUMNS: readonly ColumnSpec[] = [
   },
 ] as const
 
-/** Header names in template order. */
-export const IMPORT_COLUMN_NAMES: readonly string[] = IMPORT_COLUMNS.map(({ name }) => name)
-
 /** A parsed row, before any value has been interpreted. */
 export type RawImportRow = Record<string, string>
 
-const BY_NAME = new Map(IMPORT_COLUMNS.map((column) => [column.name, column]))
+const COLUMN_NAMES = new Set(IMPORT_COLUMNS.map(({ name }) => name))
 
-export function findColumn(name: string): ColumnSpec | undefined {
-  return BY_NAME.get(name)
+/** Whether the header cell names a column the import knows. */
+export function isImportColumn(name: string): boolean {
+  return COLUMN_NAMES.has(name)
 }
 
 /**

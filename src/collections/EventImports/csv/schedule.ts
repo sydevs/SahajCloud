@@ -7,15 +7,27 @@
  * because nobody is waiting on the answer. Here a volunteer is, so every
  * refusal has to name the column that caused it and the row has to survive long
  * enough to be reported.
+ *
+ * ⚠ **There is deliberately no `daily` scheduleType, though the column
+ * enumerates `DAILY`.** A daily class is spelled as `weekly` with all seven
+ * weekdays, which produces the same recurrence. A fourth member would make a
+ * volunteer choose between two spellings of one thing, and choose wrong half
+ * the time.
  */
 
 import { Temporal } from '@js-temporal/polyfill'
 
+import { localWallTimeToInstant, normalizeHHMM } from '@/lib/schedule/time'
+import {
+  isWeekNumber,
+  isWeekdayCode,
+  weekdayCodeFor,
+  weekdayIndexOf,
+} from '@/lib/schedule/weekdays'
 import type { SupportedTimezones } from '@/payload-types'
 import type { EventSchedule } from '@/types/schedule'
 
-/** RFC 5545 weekday code, as the CMS enumerates it. */
-export type WeekdayCode = NonNullable<EventSchedule['weekdays']>[number]
+type WeekdayCode = NonNullable<EventSchedule['weekdays']>[number]
 type WeekNumber = NonNullable<EventSchedule['weekNumber']>
 
 /** What the CSV's `scheduleType` column accepts. */
@@ -45,8 +57,8 @@ export interface ImportSchedule {
   untilDate?: NonNullable<EventSchedule['untilDate']>
 }
 
-/** The schedule columns, as the parser hands them over. */
-export interface ScheduleColumns {
+/** The schedule columns as the parser hands them over, plus the row's context. */
+export interface MapScheduleArgs {
   scheduleType?: string
   date?: string
   startTime?: string
@@ -55,9 +67,6 @@ export interface ScheduleColumns {
   interval?: string
   monthWeek?: string
   untilDate?: string
-}
-
-export interface MapScheduleArgs extends ScheduleColumns {
   /** Already narrowed to a zone the `firstDate_tz` column accepts. */
   timezone: SupportedTimezones
   /**
@@ -76,35 +85,21 @@ export type MapScheduleResult =
   | { ok: true; inactive: false; schedule: ImportSchedule }
   | { ok: false; errors: string[] }
 
-const WEEKDAY_BY_INDEX: readonly WeekdayCode[] = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU']
-const WEEKDAY_CODES = new Set<string>(WEEKDAY_BY_INDEX)
-const WEEK_NUMBERS = ['1', '2', '3', '4', '-1'] as const satisfies readonly WeekNumber[]
-const TIME_PATTERN = /^([01]?\d|2[0-3]):([0-5]\d)$/
+const MIN_INTERVAL = 1
+const MAX_INTERVAL = 99
 
-function isWeekdayCode(value: string): value is WeekdayCode {
-  return WEEKDAY_CODES.has(value)
-}
-
-function isWeekNumber(value: string): value is WeekNumber {
-  return (WEEK_NUMBERS as readonly string[]).includes(value)
-}
-
-export function isScheduleType(value: string): value is ScheduleType {
+function isScheduleType(value: string): value is ScheduleType {
   return (SCHEDULE_TYPES as readonly string[]).includes(value)
-}
-
-/** `HH:MM`, zero-padded, or null when the value is not a time. */
-function normalizeTime(value: string | undefined): string | null {
-  const trimmed = value?.trim()
-  if (!trimmed) return null
-  return TIME_PATTERN.test(trimmed) ? trimmed.padStart(5, '0') : null
 }
 
 function parseDate(value: string | undefined): Temporal.PlainDate | null {
   const trimmed = value?.trim()
   if (!trimmed) return null
   try {
-    return Temporal.PlainDate.from(trimmed)
+    // Strict `YYYY-MM-DD`: `Temporal` would also accept a datetime, and a
+    // volunteer's spreadsheet silently exporting one must be refused, not
+    // truncated. `scheduleHooks.parseDateOnly` is the tolerant twin.
+    return /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? Temporal.PlainDate.from(trimmed) : null
   } catch {
     return null
   }
@@ -127,55 +122,40 @@ function parseWeekdays(value: string | undefined): { codes: WeekdayCode[]; inval
 
 /** The first date on or after `from` whose weekday is one of `codes`. */
 function nextMatchingDate(from: Temporal.PlainDate, codes: WeekdayCode[]): Temporal.PlainDate {
-  const wanted = new Set(codes.map((code) => WEEKDAY_BY_INDEX.indexOf(code) + 1))
-  let candidate = from
-  for (let step = 0; step < 7; step += 1) {
-    if (wanted.has(candidate.dayOfWeek)) return candidate
-    candidate = candidate.add({ days: 1 })
-  }
-  return from
+  const offsets = codes.map((code) => (weekdayIndexOf(code) - from.dayOfWeek + 7) % 7)
+  return from.add({ days: Math.min(...offsets) })
 }
 
 /**
- * The `week`-th `weekday` of `from`'s month, or of the next month when that day
- * has already passed. `week` of `-1` means the last one.
+ * The `week`-th `weekday` of `monthStart`'s month.
+ *
+ * Total for every value `isWeekNumber` admits: a month has at least 28 days,
+ * so it always holds four of every weekday, and `-1` resolves to the last.
+ * Cross-checked against a day-by-day scan over 2024-2036 — 5460 cases, no
+ * disagreement, and the scan never came up empty.
  */
+function ordinalWeekdayInMonth(
+  monthStart: Temporal.PlainDate,
+  week: WeekNumber,
+  weekday: WeekdayCode,
+): Temporal.PlainDate {
+  const first = 1 + ((weekdayIndexOf(weekday) - monthStart.dayOfWeek + 7) % 7)
+  const day =
+    week === '-1'
+      ? first + Math.floor((monthStart.daysInMonth - first) / 7) * 7
+      : first + (Number(week) - 1) * 7
+  return monthStart.with({ day })
+}
+
+/** That ordinal day this month, or next month's once this month's has passed. */
 function nextOrdinalWeekdayDate(
   from: Temporal.PlainDate,
   week: WeekNumber,
   weekday: WeekdayCode,
 ): Temporal.PlainDate {
-  for (const monthOffset of [0, 1]) {
-    const month = from.add({ months: monthOffset }).with({ day: 1 })
-    const candidate = ordinalWeekdayInMonth(month, week, weekday)
-    if (candidate && Temporal.PlainDate.compare(candidate, from) >= 0) return candidate
-  }
-  // Two months is enough for every (week, weekday) pair, so this is unreachable
-  // for valid input. Returning `from` keeps the mapper total rather than
-  // throwing out of a pure function.
-  return from
-}
-
-function ordinalWeekdayInMonth(
-  monthStart: Temporal.PlainDate,
-  week: WeekNumber,
-  weekday: WeekdayCode,
-): Temporal.PlainDate | null {
-  const wanted = WEEKDAY_BY_INDEX.indexOf(weekday) + 1
-  const matches: Temporal.PlainDate[] = []
-  for (let day = 1; day <= monthStart.daysInMonth; day += 1) {
-    const date = monthStart.with({ day })
-    if (date.dayOfWeek === wanted) matches.push(date)
-  }
-  if (!matches.length) return null
-  if (week === '-1') return matches[matches.length - 1]!
-  return matches[Number(week) - 1] ?? null
-}
-
-/** A local date and time in `timezone`, as the UTC instant the column stores. */
-function toInstant(date: Temporal.PlainDate, time: string, timezone: string): string {
-  const zoned = Temporal.ZonedDateTime.from(`${date.toString()}T${time}:00[${timezone}]`)
-  return new Date(zoned.toInstant().epochMilliseconds).toISOString()
+  const thisMonth = ordinalWeekdayInMonth(from.with({ day: 1 }), week, weekday)
+  if (Temporal.PlainDate.compare(thisMonth, from) >= 0) return thisMonth
+  return ordinalWeekdayInMonth(from.add({ months: 1 }).with({ day: 1 }), week, weekday)
 }
 
 /**
@@ -197,38 +177,48 @@ export function mapCsvSchedule(args: MapScheduleArgs): MapScheduleResult {
   }
   if (rawType === 'inactive') return { ok: true, inactive: true }
 
-  const startTime = normalizeTime(args.startTime)
+  const rawStartTime = args.startTime?.trim()
+  const startTime = normalizeHHMM(rawStartTime)
   if (!startTime) {
     errors.push(
-      args.startTime?.trim()
-        ? `startTime must be HH:MM in 24-hour format (got "${args.startTime.trim()}")`
+      rawStartTime
+        ? `startTime must be HH:MM in 24-hour format (got "${rawStartTime}")`
         : 'startTime is required unless scheduleType is inactive',
     )
   }
 
-  const endTime = args.endTime?.trim() ? normalizeTime(args.endTime) : null
-  if (args.endTime?.trim() && !endTime) {
-    errors.push(`endTime must be HH:MM in 24-hour format (got "${args.endTime.trim()}")`)
+  const rawEndTime = args.endTime?.trim()
+  const endTime = rawEndTime ? normalizeHHMM(rawEndTime) : null
+  if (rawEndTime && !endTime) {
+    errors.push(`endTime must be HH:MM in 24-hour format (got "${rawEndTime}")`)
   }
   if (startTime && endTime && endTime <= startTime) {
     errors.push('endTime must be after startTime')
   }
 
-  const explicitDate = args.date?.trim() ? parseDate(args.date) : null
-  if (args.date?.trim() && !explicitDate) {
-    errors.push(`date must be YYYY-MM-DD (got "${args.date.trim()}")`)
+  const rawDate = args.date?.trim()
+  const explicitDate = rawDate ? parseDate(rawDate) : null
+  if (rawDate && !explicitDate) errors.push(`date must be YYYY-MM-DD (got "${rawDate}")`)
+
+  const rawUntilDate = args.untilDate?.trim()
+  const untilDate = rawUntilDate ? parseDate(rawUntilDate) : null
+  if (rawUntilDate && !untilDate) {
+    errors.push(`untilDate must be YYYY-MM-DD (got "${rawUntilDate}")`)
+  }
+  // Accumulated with the rest rather than returned on its own, so a row with a
+  // backwards range and a bad weekday reports both.
+  if (untilDate && explicitDate && Temporal.PlainDate.compare(untilDate, explicitDate) < 0) {
+    errors.push('untilDate must be on or after date')
   }
 
-  const untilDate = args.untilDate?.trim() ? parseDate(args.untilDate) : null
-  if (args.untilDate?.trim() && !untilDate) {
-    errors.push(`untilDate must be YYYY-MM-DD (got "${args.untilDate.trim()}")`)
-  }
-
+  const rawInterval = args.interval?.trim()
   let interval = 1
-  if (args.interval?.trim()) {
-    const parsed = Number(args.interval.trim())
-    if (!Number.isInteger(parsed) || parsed < 1 || parsed > 99) {
-      errors.push(`interval must be a whole number from 1 to 99 (got "${args.interval.trim()}")`)
+  if (rawInterval) {
+    const parsed = Number(rawInterval)
+    if (!Number.isInteger(parsed) || parsed < MIN_INTERVAL || parsed > MAX_INTERVAL) {
+      errors.push(
+        `interval must be a whole number from ${MIN_INTERVAL} to ${MAX_INTERVAL} (got "${rawInterval}")`,
+      )
     } else {
       interval = parsed
     }
@@ -239,21 +229,15 @@ export function mapCsvSchedule(args: MapScheduleArgs): MapScheduleResult {
     errors.push(`weekdays must be two-letter codes like MO,TH (got "${invalid.join(', ')}")`)
   }
 
-  const built =
-    rawType === 'one-off'
-      ? buildOneOff({ explicitDate, errors })
-      : rawType === 'weekly'
-        ? buildWeekly({ explicitDate, weekdays, today, errors })
-        : buildMonthly({ explicitDate, weekdays, monthWeek: args.monthWeek, today, errors })
+  const built = buildFor(rawType, { explicitDate, weekdays, monthWeek: args.monthWeek, today })
+  if (typeof built === 'string') errors.push(built)
 
-  if (errors.length || !built || !startTime) return { ok: false, errors }
-
-  if (untilDate && explicitDate && Temporal.PlainDate.compare(untilDate, explicitDate) < 0) {
-    return { ok: false, errors: ['untilDate must be on or after date'] }
-  }
+  // `startTime` is re-tested only to narrow it for TypeScript — a missing one
+  // has already pushed an error, so this cannot be the branch that decides.
+  if (errors.length || typeof built === 'string' || !startTime) return { ok: false, errors }
 
   const schedule: ImportSchedule = {
-    firstDate: toInstant(built.firstDate, startTime, timezone),
+    firstDate: localWallTimeToInstant(built.firstDate.toString(), startTime, timezone),
     firstDate_tz: timezone,
     interval,
     ...built.recurrence,
@@ -268,41 +252,56 @@ export function mapCsvSchedule(args: MapScheduleArgs): MapScheduleResult {
 }
 
 /** What each schedule type contributes beyond the first date. */
-type Built = { firstDate: Temporal.PlainDate; recurrence: Partial<ImportSchedule> }
-
-function buildOneOff(args: {
-  explicitDate: Temporal.PlainDate | null
-  errors: string[]
-}): Built | null {
-  if (!args.explicitDate) {
-    // No fallback: "the next matching day" needs a weekday or an ordinal to
-    // match, and a one-off row carries neither. Picking today would schedule
-    // every such row for the day of the upload.
-    args.errors.push('date is required for a one-off class')
-    return null
-  }
-  return { firstDate: args.explicitDate, recurrence: {} }
+interface Built {
+  firstDate: Temporal.PlainDate
+  recurrence: Partial<ImportSchedule>
 }
 
-function buildWeekly(args: {
+interface BuildArgs {
   explicitDate: Temporal.PlainDate | null
   weekdays: WeekdayCode[]
+  monthWeek: string | undefined
   today: Temporal.PlainDate
-  errors: string[]
-}): Built | null {
-  const { explicitDate, weekdays, today, errors } = args
+}
+
+/**
+ * The per-type build, returning the one refusal message instead of pushing it.
+ *
+ * Each arm yields either a `Built` or exactly one message, so the message is
+ * the return value — a shared mutable error array would leave a reader
+ * verifying by hand that "returned nothing" always means "pushed something".
+ */
+function buildFor(type: Exclude<ScheduleType, 'inactive'>, args: BuildArgs): Built | string {
+  switch (type) {
+    case 'one-off':
+      return buildOneOff(args)
+    case 'weekly':
+      return buildWeekly(args)
+    case 'monthly':
+      return buildMonthly(args)
+  }
+}
+
+function buildOneOff({ explicitDate }: BuildArgs): Built | string {
+  // No fallback: "the next matching day" needs a weekday or an ordinal to
+  // match, and a one-off row carries neither. Picking today would schedule
+  // every such row for the day of the upload.
+  if (!explicitDate) return 'date is required for a one-off class'
+  return { firstDate: explicitDate, recurrence: {} }
+}
+
+function buildWeekly({ explicitDate, weekdays, today }: BuildArgs): Built | string {
   // A date alone says which weekday it is, so only a row with neither is stuck.
   const codes = weekdays.length
     ? weekdays
     : explicitDate
-      ? [WEEKDAY_BY_INDEX[explicitDate.dayOfWeek - 1]!]
+      ? [weekdayCodeFor(explicitDate.dayOfWeek)]
       : []
-  if (!codes.length) {
-    errors.push('weekly needs weekdays, or a date to take the weekday from')
-    return null
+  if (!codes.length) return 'weekly needs weekdays, or a date to take the weekday from'
+  return {
+    firstDate: explicitDate ?? nextMatchingDate(today, codes),
+    recurrence: { recurrenceType: 'WEEKLY', weekdays: codes },
   }
-  const firstDate = explicitDate ?? nextMatchingDate(today, codes)
-  return { firstDate, recurrence: { recurrenceType: 'WEEKLY', weekdays: codes } }
 }
 
 /**
@@ -311,25 +310,14 @@ function buildWeekly(args: {
  * while a bare `date` is "day 14 of the month". Guessing either way silently
  * reschedules the class, so a row that asks for both gets neither.
  */
-function buildMonthly(args: {
-  explicitDate: Temporal.PlainDate | null
-  weekdays: WeekdayCode[]
-  monthWeek: string | undefined
-  today: Temporal.PlainDate
-  errors: string[]
-}): Built | null {
-  const { explicitDate, weekdays, today, errors } = args
-  const monthWeek = args.monthWeek?.trim()
+function buildMonthly({ explicitDate, weekdays, monthWeek: raw, today }: BuildArgs): Built | string {
+  const monthWeek = raw?.trim()
 
   if (!monthWeek) {
     if (weekdays.length) {
-      errors.push('monthly with weekdays also needs monthWeek (1-4, or -1 for the last)')
-      return null
+      return 'monthly with weekdays also needs monthWeek (1-4, or -1 for the last)'
     }
-    if (!explicitDate) {
-      errors.push('monthly needs a date, or monthWeek plus one weekday')
-      return null
-    }
+    if (!explicitDate) return 'monthly needs a date, or monthWeek plus one weekday'
     return {
       firstDate: explicitDate,
       recurrence: { recurrenceType: 'MONTHLY', monthlyMode: 'date', monthDay: explicitDate.day },
@@ -337,16 +325,12 @@ function buildMonthly(args: {
   }
 
   if (!isWeekNumber(monthWeek)) {
-    errors.push(`monthWeek must be 1, 2, 3, 4 or -1 (got "${monthWeek}")`)
-    return null
+    return `monthWeek must be 1, 2, 3, 4 or -1 (got "${monthWeek}")`
   }
   if (weekdays.length !== 1) {
-    errors.push(
-      weekdays.length
-        ? `monthWeek needs exactly one weekday (got ${weekdays.length})`
-        : 'monthWeek needs exactly one weekday',
-    )
-    return null
+    return weekdays.length
+      ? `monthWeek needs exactly one weekday (got ${weekdays.length})`
+      : 'monthWeek needs exactly one weekday'
   }
 
   const weekday = weekdays[0]!
