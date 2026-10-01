@@ -13,13 +13,13 @@
  * `tests/int/role-based-access.int.spec.ts`'s read-back: a lock present in the
  * config still has to deny the right caller, which only a real read answers.
  */
-import type { CollectionConfig, Config, Field, Plugin } from 'payload'
+import type { CollectionConfig, Config, Field } from 'payload'
 
 import { describe, expect, it } from 'vitest'
 
-import { Managers } from '@/collections/Managers/Managers'
 import { MANAGER_PUBLIC_FIELDS } from '@/collections/Managers/access'
 import { managersLogin } from '@/collections/Managers/login'
+import { Managers } from '@/collections/Managers/Managers'
 import { loginPlugin } from '@/plugins/login'
 
 /**

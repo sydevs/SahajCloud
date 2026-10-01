@@ -24,14 +24,20 @@ const collection = (slug: string, locked: string[]) =>
     ],
   }) as unknown as SanitizedCollectionConfig
 
+/**
+ * `callerId` defaults to the document's own id, because the guard only fires on
+ * the caller's own row. Pass a different one for a sibling-row read.
+ */
 const read = async (
-  args: { slug?: string; locked?: string[]; caller?: string | null },
+  args: { slug?: string; locked?: string[]; caller?: string | null; callerId?: number },
   doc: Record<string, unknown>,
 ) =>
   (await (stripLockedFieldsOnSelfRead as CollectionAfterReadHook)({
     collection: collection(args.slug ?? 'clients', args.locked ?? ['apiKey', 'mailingList']),
-    doc,
-    req: { user: args.caller ? { collection: args.caller } : null },
+    doc: { id: 7, ...doc },
+    req: {
+      user: args.caller ? { collection: args.caller, id: args.callerId ?? 7 } : null,
+    },
   } as unknown as Parameters<CollectionAfterReadHook>[0])) as Record<string, unknown>
 
 describe('stripLockedFieldsOnSelfRead', () => {
@@ -52,7 +58,18 @@ describe('stripLockedFieldsOnSelfRead', () => {
       { caller: 'clients', locked: ['apiKey', 'mailingList', 'sixthSecret'] },
       { apiKey: 'A', mailingList: { provider: 'mailchimp' }, sixthSecret: 'S' },
     )
-    expect(doc).toEqual({})
+    expect(doc).toEqual({ id: 7 })
+  })
+
+  it('leaves a SIBLING row of the same collection alone', async () => {
+    // The whole class this guard closes — `refresh`, `me`, `login`, `unlock`,
+    // `verifyEmail` — reads the authenticated row. A sibling row reaches this
+    // hook from an internal read that carries `req` and `overrideAccess: true`,
+    // where there is no flag to read and nothing to protect against: an
+    // untrusted read of a sibling runs field access itself. Firing here instead
+    // hollowed out `syncVerificationOnSave`'s read of the event manager (#828).
+    const doc = await read({ caller: 'clients', callerId: 9 }, { apiKey: 'PLAINTEXT' })
+    expect(doc.apiKey).toBe('PLAINTEXT')
   })
 
   it('leaves a read by another collection alone', async () => {
