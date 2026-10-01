@@ -248,9 +248,19 @@ describe('mapCsvSchedule — times, interval and ending', () => {
     expect(result.untilDate).toBeUndefined()
   })
 
-  it('refuses an untilDate before the first date', () => {
+  it('refuses an untilDate before an explicit first date', () => {
     expect(errors(map({ weekdays: 'TU', date: '2026-10-06', untilDate: '2026-10-01' }))).toContain(
-      'untilDate must be on or after date',
+      'untilDate must be on or after the first date (2026-10-06)',
+    )
+  })
+
+  it('refuses an untilDate before a DERIVED first date', () => {
+    // TODAY is Thu 2026-10-01, so the next Monday is the 5th. An untilDate of
+    // the 4th leaves zero occurrences: the event imports already expired, and
+    // nothing on the row says so. The check must compare against the resolved
+    // first date, not against the blank `date` column.
+    expect(errors(map({ weekdays: 'MO', untilDate: '2026-10-04' }))).toContain(
+      'untilDate must be on or after the first date (2026-10-05)',
     )
   })
 
@@ -258,6 +268,84 @@ describe('mapCsvSchedule — times, interval and ending', () => {
     expect(errors(map({ weekdays: 'TU', date: '06/10/2026' }))).toContain(
       'date must be YYYY-MM-DD (got "06/10/2026")',
     )
+  })
+})
+
+describe('mapCsvSchedule — the first date must be a day the class runs', () => {
+  it('refuses a weekly date whose weekday is not in weekdays', () => {
+    // 2026-10-06 is a Tuesday. Stored as firstDate beside BYDAY=MO, the first
+    // occurrence would be a day the class never runs.
+    expect(errors(map({ date: '2026-10-06', weekdays: 'MO' }))).toContain(
+      'date 2026-10-06 is a TU, which is not in weekdays (MO)',
+    )
+  })
+
+  it('accepts a weekly date that is one of several weekdays', () => {
+    expect(schedule(map({ date: '2026-10-06', weekdays: 'MO,TU' })).firstDate).toBe(
+      '2026-10-06T16:30:00.000Z',
+    )
+  })
+
+  it('refuses a monthly date that is not the named ordinal weekday', () => {
+    // The 2nd Tuesday of October 2026 is the 13th, not the 20th.
+    expect(
+      errors(map({ scheduleType: 'monthly', monthWeek: '2', weekdays: 'TU', date: '2026-10-20' })),
+    ).toContain('date 2026-10-20 is not the #2 TU of its month (that is 2026-10-13)')
+  })
+
+  it('accepts a monthly date that is the named ordinal weekday', () => {
+    const result = schedule(
+      map({ scheduleType: 'monthly', monthWeek: '2', weekdays: 'TU', date: '2026-10-13' }),
+    )
+    expect(result.firstDate).toBe('2026-10-13T16:30:00.000Z')
+  })
+})
+
+describe('mapCsvSchedule — columns that do not apply', () => {
+  it('refuses monthWeek on a weekly row instead of dropping it', () => {
+    // This used to publish a weekly class where the volunteer asked for a 2nd
+    // Tuesday, with no error. buildMonthly refused the mirror-image mistake.
+    expect(errors(map({ weekdays: 'TU', monthWeek: '2' }))).toContain(
+      'monthWeek does not apply to a weekly class',
+    )
+  })
+
+  it('refuses recurrence columns on a one-off row', () => {
+    const result = errors(
+      map({ scheduleType: 'one-off', date: '2026-10-06', weekdays: 'TU', interval: '2' }),
+    )
+    expect(result).toContain('weekdays and interval do not apply to a one-off class')
+  })
+
+  it('leaves monthly alone, which reads every schedule column', () => {
+    expect(map({ scheduleType: 'monthly', monthWeek: '2', weekdays: 'TU' }).ok).toBe(true)
+  })
+})
+
+describe('mapCsvSchedule — a wall time the clocks skip', () => {
+  it('refuses a start time inside the spring-forward gap', () => {
+    // Berlin jumps 02:00 → 03:00 on 2027-03-28, so 02:30 never happens.
+    // Temporal would silently shift it to 03:30, which then reads back as an
+    // hour later than the volunteer typed — and an endTime of 03:00 becomes
+    // "before" the start, which scheduleFields refuses at write.
+    const result = errors(
+      map({ scheduleType: 'one-off', date: '2027-03-28', startTime: '02:30' }),
+    )
+    expect(result).toEqual([
+      '02:30 does not exist on 2027-03-28 in Europe/Berlin — the clocks move forward. Pick another time or date.',
+    ])
+  })
+
+  it('accepts the hour after the gap', () => {
+    const result = schedule(map({ scheduleType: 'one-off', date: '2027-03-28', startTime: '03:30' }))
+    expect(result.firstDate).toBe('2027-03-28T01:30:00.000Z')
+  })
+
+  it('accepts a fall-back ambiguous time, taking the first of the two', () => {
+    // Berlin repeats 02:00-03:00 on 2027-10-31. Ambiguity is not a gap: the
+    // time does exist, so the row is fine and Temporal picks the earlier.
+    const result = schedule(map({ scheduleType: 'one-off', date: '2027-10-31', startTime: '02:30' }))
+    expect(result.firstDate).toBe('2027-10-31T00:30:00.000Z')
   })
 })
 

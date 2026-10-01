@@ -85,6 +85,7 @@ export function parseImportCsv(input: string): ParseCsvResult {
 
   const headerCheck = checkHeader(header)
   if (!headerCheck.ok) return headerCheck
+  const width = headerCheck.columns.length
 
   // One pass: the line counter has to walk every record to stay aligned with
   // the volunteer's spreadsheet, and `rows.length` is the data-row count the
@@ -95,7 +96,7 @@ export function parseImportCsv(input: string): ParseCsvResult {
   for (const record of records) {
     line += 1
     if (isHelpRow(record) || isBlankRow(record)) continue
-    rows.push(buildRow(record, headerCheck.columns, line))
+    rows.push(buildRow(record, headerCheck.columns, line, width))
   }
 
   if (!rows.length) return { ok: false, error: 'The file has a header but no data rows.' }
@@ -169,7 +170,12 @@ function checkHeader(header: string[]): HeaderCheck {
   return { ok: true, columns }
 }
 
-function buildRow(record: string[], columns: (string | null)[], line: number): ParsedRow {
+function buildRow(
+  record: string[],
+  columns: (string | null)[],
+  line: number,
+  width: number,
+): ParsedRow {
   const values: RawImportRow = {}
   columns.forEach((name, index) => {
     if (!name) return
@@ -177,6 +183,19 @@ function buildRow(record: string[], columns: (string | null)[], line: number): P
   })
 
   const errors: string[] = []
+
+  // ⚠ **An over-wide row is a refusal, not a truncation.** `relaxColumnCount`
+  // keeps the parse from throwing, but the positional read above then stops at
+  // the header width — so an unescaped comma inside an address shifts every
+  // later value one column left and drops the last. Reported here, the
+  // volunteer is pointed at the row rather than at whichever column the shift
+  // happened to make invalid.
+  const filled = record.reduce((last, value, index) => (value?.trim() ? index + 1 : last), 0)
+  if (filled > width) {
+    errors.push(
+      `this row has ${filled} values but the header has ${width} columns — check for an unquoted comma`,
+    )
+  }
   const eventType = values.eventType?.toLowerCase()
   if (eventType) values.eventType = eventType
 
