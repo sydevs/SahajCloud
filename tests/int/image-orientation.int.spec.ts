@@ -62,6 +62,26 @@ describe('Image Orientation Detection', () => {
     expect(landscapeCount2).toBe(1)
   })
 
+  it('leaves an SVG untagged even though Payload measured it', async () => {
+    const image = await testData.createMediaImage(payload, {}, 'icon-test.svg')
+
+    expect(image.mimeType).toBe('image/svg+xml')
+    // Without the mimetype skip the hook would tag this 24x24 `square`.
+    expect(image.width).toBe(24)
+    expect(image.height).toBe(24)
+    expect(image.tags ?? []).toEqual([])
+  })
+
+  it.each([
+    ['image-1050x700.png', 'image/png'],
+    ['image-1050x700.webp', 'image/webp'],
+  ])('tags %s from the dimensions Payload measured', async (sampleFile, mimeType) => {
+    const image = await testData.createMediaImage(payload, {}, sampleFile)
+
+    expect(image.mimeType).toBe(mimeType)
+    expect(image.tags).toContain('landscape')
+  })
+
   it('only runs on create operations (not update)', async () => {
     const image = await testData.createMediaImage(payload, {}, 'image-1050x700.jpg')
 
