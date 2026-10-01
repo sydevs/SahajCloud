@@ -114,6 +114,22 @@ const __dirname = path.dirname(__filename)
 const SAMPLE_FILES_DIR = path.join(__dirname, '../files')
 
 /**
+ * The content type a fixture claims for each image extension it ships.
+ *
+ * Derived spellings do not survive: `image/${ext}` gives `image/svg` and
+ * `image/jpg`, and neither is what a browser sends. An extension with no entry
+ * keeps the derived form, so an unsupported format is still refused on its own
+ * merits rather than silently renamed.
+ */
+const IMAGE_MIMETYPES: Record<string, string> = {
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.webp': 'image/webp',
+  '.svg': 'image/svg+xml',
+}
+
+/**
  * Names a fixture upload so nothing else in the run can want that name.
  * Payload rewrites a requested name to the first free `-N` suffix, and it
  * reads the upload directory to find one — a directory every suite shares,
@@ -228,10 +244,11 @@ export const testData = {
     sampleFile = 'image-1050x700.jpg',
   ): Promise<Image> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
-    const fileBuffer = fs.readFileSync(filePath)
-    // Convert Buffer to Uint8Array for compatibility with file-type library
-    const fileData = new Uint8Array(fileBuffer)
-    const extension = path.extname(sampleFile)
+    // A real Buffer: Payload has no `sharp` in `buildConfig`, so dimensions come
+    // from its own `probeImageSize`, which reads SVG, BMP, ICO, TIFF and JXL with
+    // `Buffer`-only methods (`readUInt32BE`, `toString(encoding, start, end)`).
+    const fileData = fs.readFileSync(filePath)
+    const extension = path.extname(sampleFile).toLowerCase()
     const uploadName = uniqueUploadName(sampleFile)
 
     return (await payload.create({
@@ -241,8 +258,8 @@ export const testData = {
         ...overrides,
       },
       file: {
-        data: fileData as unknown as Buffer,
-        mimetype: `image/${extension.slice(1)}`,
+        data: fileData,
+        mimetype: IMAGE_MIMETYPES[extension] ?? `image/${extension.slice(1)}`,
         name: uploadName,
         size: fileData.length,
       },
@@ -489,9 +506,9 @@ export const testData = {
     sampleFile = 'video-30s.mp4',
   ): Promise<Video> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
-    // A real Buffer, not the Uint8Array view the image and audio helpers use:
-    // Payload 3.90+ sniffs a video's container with Buffer-only methods
-    // (`readUInt32BE` in `uploads/validateISOBaseMediaFile.ts`).
+    // A real Buffer, not the Uint8Array view the audio helpers use: Payload 3.90+
+    // sniffs a video's container with Buffer-only methods (`readUInt32BE` in
+    // `uploads/validateISOBaseMediaFile.ts`).
     const fileData = fs.readFileSync(filePath)
 
     // Determine MIME type based on extension
