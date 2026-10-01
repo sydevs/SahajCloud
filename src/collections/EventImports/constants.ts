@@ -21,3 +21,23 @@ export const MAX_IMPORT_ROWS = 500
  * indefinitely for no one's benefit.
  */
 export const IMPORT_TRASH_RETENTION_DAYS = 7
+
+/**
+ * How far apart two start times may be and still be the same class.
+ *
+ * A volunteer's CSV and the CMS rarely agree to the minute on when a class
+ * begins — one says the doors open, the other when the meditation starts. Wide
+ * enough to catch that, narrow enough that a morning and an evening class in
+ * one city stay two classes.
+ */
+export const DUPLICATE_START_WINDOW_MINUTES = 30
+
+/**
+ * How close two addresses may be and still be one venue.
+ *
+ * Geocoding the same hall from two differently-spelled addresses lands within a
+ * building's width, not on the same point. Above this it starts merging
+ * neighbours on one street, so a shared address is matched rather than a
+ * shared street.
+ */
+export const DUPLICATE_ADDRESS_METERS = 150

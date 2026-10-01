@@ -177,6 +177,9 @@ importers:
       tmp:
         specifier: ^0.2.7
         version: 0.2.7
+      tz-lookup:
+        specifier: ^6.1.25
+        version: 6.1.25
       zod:
         specifier: ^4.3.5
         version: 4.3.5
@@ -5679,6 +5682,9 @@ packages:
     resolution: {integrity: sha512-84MVSjMEHP+FQRPy3pX9sTVV/INIex71s9TL2Gm5FG/WG1SqXeKyZ0k7/blY/4FdOzI12CBy1vGc4og/eus0fw==}
     engines: {node: '>=14.17'}
     hasBin: true
+
+  tz-lookup@6.1.25:
+    resolution: {integrity: sha512-fFewT9o1uDzsW1QnUU1ValqaihFnwiUiiHr1S79/fxOzKXYYvX+EHeRnpvQJ9B3Qg67wPXT6QF2Esc4pFOrvLg==}
 
   uint8array-extras@1.5.0:
     resolution: {integrity: sha512-rvKSBiC5zqCCiDZ9kAOszZcDvdAHwwIKJG33Ykj43OKcWsnmcBRL09YTU4nOeHZ8Y2a7l1MgTd08SBe9A8Qj6A==}
@@ -12137,6 +12143,8 @@ snapshots:
       - supports-color
 
   typescript@5.7.3: {}
+
+  tz-lookup@6.1.25: {}
 
   uint8array-extras@1.5.0: {}
 
