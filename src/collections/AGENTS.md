@@ -16,6 +16,13 @@ behind it*, so it has to restate admin-allow and `inactive`-deny itself. Overrid
 a key only where the role tables get it wrong, and leave every other key alone —
 `create` and `delete` there are the generated config's, unchanged.
 
+⚠ **Narrowing *what* a grant returns is a field lock, not an `access` override.**
+`managers` grants `atlas-manager` a collection-wide read because the pickers need
+one, then locks `read` on every field but `name`
+(`src/collections/Managers/access.ts`). A `Where` would have emptied the pickers;
+an overridden key would have cost the bypass. Both locks and the hook that backs
+them are in `docs/rules/access.md`.
+
 ```typescript
 // src/payload.config.ts (already wired up)
 import { accessPlugin, bypassPermissions } from '@/plugins/access'

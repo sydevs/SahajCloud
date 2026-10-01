@@ -2,19 +2,14 @@
  * What a manager who is neither an admin nor the account holder may see and set
  * on somebody else's `managers` row (#828).
  *
- * `atlas-manager` holds a collection-wide `read` grant, because the
- * `Events.manager` and `Regions.managers` pickers list other managers (#821).
- * A picker needs one field. Everything else on the row — the address, the
- * contact handles, what the person was granted, the raw imported record — is
- * personal data a region volunteer has no business reading, so the grant is
- * narrowed field by field rather than withdrawn.
+ * The `read` grant is collection-wide because the `Events.manager` and
+ * `Regions.managers` pickers list other managers (#821), so it is narrowed here
+ * rather than withdrawn. Why that way round is in `docs/rules/access.md`.
  *
- * ⚠ **Spelled as a one-entry allowlist, swept by
- * `tests/unit/manager-field-locks.spec.ts`.** A field added to this collection,
- * or injected into it by `loginPlugin`, is locked unless somebody names it
- * public — the opposite polarity to `RESTRICTED_COLLECTIONS`, which
- * `docs/rules/access.md` calls a holding pattern for failing open on the next
- * entry.
+ * ⚠ **A one-entry allowlist, swept by `tests/unit/manager-field-locks.spec.ts`**
+ * — a field added here, or injected by `loginPlugin`, is locked unless somebody
+ * names it public. The opposite polarity to `RESTRICTED_COLLECTIONS`, which that
+ * rule calls a holding pattern for failing open on the next entry.
  */
 
 import type { CollectionBeforeChangeHook, Field } from 'payload'
@@ -30,9 +25,6 @@ import { isAdminManager, selfOrAdminFieldAccess } from '@/plugins/access'
  * the sweep names them separately.
  */
 export const MANAGER_PUBLIC_FIELDS: ReadonlySet<string> = new Set(['name'])
-
-/** The type a non-admin creator gets, whatever they asked for. */
-const MANAGED: Manager['type'] = 'manager'
 
 /**
  * Lock `read` on every field this collection declares outside
@@ -81,15 +73,21 @@ export function lockManagerFieldReads(fields: Field[]): Field[] {
  * write that skips access.** The bulk import commits events and managers with
  * `overrideAccess: true` while acting as the uploader (#828), and
  * `beforeValidate` evaluates no field lock under that flag — so this hook is
- * what stops a crafted CSV row from minting an admin. It runs on every path,
- * which is the point.
+ * what stops a crafted CSV row from minting an admin.
  *
- * Only a non-admin manager is rewritten. A server-side create with no user —
- * a seed, a job, a migration — is left alone, or the seeds could not build an
- * admin at all.
+ * ⚠ **What it covers is `type` and `roles`, on a create by a non-admin user.**
+ * Two edges follow, and the commit step owes both. A create with **no** user is
+ * left alone, because that is a seed, a migration or a queued job, and the seeds
+ * could not build an admin otherwise — so moving the commit onto the queue
+ * leaves `req.user` behind and this guard with it. And the machine columns
+ * (`_verified`, the invitation queue, `sessions`) are held by their own
+ * `create` locks, which `overrideAccess: true` skips: a commit step must write
+ * the columns it means to rather than pass a CSV row through.
  */
 export const forceManagedTypeAndRoles: CollectionBeforeChangeHook = ({ data, operation, req }) => {
   if (operation !== 'create') return data
-  if (!req.user || req.user.collection !== 'managers' || isAdminManager(req.user)) return data
-  return { ...data, roles: null, type: MANAGED }
+  if (!req.user || isAdminManager(req.user)) return data
+  // Spelled against the admin rather than for `managers`, so a grant to a
+  // second auth collection arrives rewritten rather than exempt.
+  return { ...data, roles: null, type: 'manager' satisfies Manager['type'] }
 }

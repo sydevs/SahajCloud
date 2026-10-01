@@ -13,8 +13,9 @@
  * `tests/int/role-based-access.int.spec.ts`'s read-back: a lock present in the
  * config still has to deny the right caller, which only a real read answers.
  */
-import type { CollectionConfig, Config, Field } from 'payload'
+import type { CollectionConfig, Config } from 'payload'
 
+import { flattenAllFields } from 'payload'
 import { describe, expect, it } from 'vitest'
 
 import { MANAGER_PUBLIC_FIELDS } from '@/collections/Managers/access'
@@ -34,18 +35,25 @@ function wiredManagers(): CollectionConfig {
   return (folded.collections as CollectionConfig[])[0]!
 }
 
-/** Every named field, with the containers that flatten away walked through. */
-function namedFields(fields: Field[]): { name: string; read: unknown }[] {
-  return fields.flatMap((field) => {
-    if (field.type === 'tabs') return namedFields(field.tabs.flatMap((tab) => tab.fields))
-    if (field.type === 'row' || field.type === 'collapsible') return namedFields(field.fields)
-    if (field.type === 'ui' || !('name' in field)) return []
-    return [{ name: field.name, read: (field as { access?: { read?: unknown } }).access?.read }]
-  })
+/**
+ * Every field a read answers for, enumerated by **Payload**, not by a copy of
+ * the locker's own walk.
+ *
+ * ⚠ That is the point: a sweep that re-implements the traversal passes whenever
+ * the two agree, including when both are wrong. `flattenAllFields` is what
+ * `stripLockedFieldsOnSelfRead` and `afterRead` resolve against — a named tab,
+ * for one, is an entry of its own there and a container to the locker — so
+ * checking against it is what makes a green run mean something.
+ */
+function namedFields(collection: CollectionConfig): { name: string; read: unknown }[] {
+  return flattenAllFields({ fields: collection.fields }).map((field) => ({
+    name: field.name,
+    read: (field as { access?: { read?: unknown } }).access?.read,
+  }))
 }
 
 describe('managers field read locks', () => {
-  const fields = namedFields(wiredManagers().fields)
+  const fields = namedFields(wiredManagers())
   const names = fields.map((field) => field.name)
 
   it('sweeps the real collection, so a passing run means something', () => {

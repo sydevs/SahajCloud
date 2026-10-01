@@ -64,14 +64,20 @@ export const Managers: CollectionConfig = {
     },
     // ⚠ Top level, beside `tabs`, never inside it — `mergeBaseFields` matches an
     // auth base field by name only at the level it is handed, so a nested copy
-    // sanitizes to two fields instead of one (docs/rules/access.md). Both are
-    // declared bare: they exist so the lock above has something to merge onto.
-    //
-    // `_verified` ships `read: defaultAccess` of its own — `Boolean(user)` — so
-    // without this every manager read whether every other account had accepted
-    // its invitation.
+    // sanitizes to two fields instead of one (docs/rules/access.md). `email` is
+    // declared bare: it exists so the read lock has something to merge onto.
     { name: 'email', type: 'email' },
-    { name: '_verified', type: 'checkbox' },
+    {
+      // ⚠ **Payload ships all three keys here as `defaultAccess`** —
+      // `Boolean(user)` — so anyone who may create a manager could mark one
+      // accepted with no address ever proven, and every manager could read
+      // whether every other had. The merge keeps a key this does not name, so
+      // `create` is stated and `read` is left to the wrapper. `update` stays
+      // Payload's: an admin re-opening an account is its one legitimate edit.
+      name: '_verified',
+      type: 'checkbox',
+      access: { create: adminOnlyFieldAccess },
+    },
     {
       // `null` is the admin "All Content" view, and it has no option of its own.
       // The field is `admin.hidden`, so Payload never renders this select, and

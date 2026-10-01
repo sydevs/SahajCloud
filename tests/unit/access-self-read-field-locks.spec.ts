@@ -6,11 +6,12 @@ import { accessPlugin } from '@/plugins/access/accessPlugin'
 import { stripLockedFieldsOnSelfRead } from '@/plugins/access/stripLockedFieldsOnSelfRead'
 
 /**
- * `POST /api/clients/refresh-token` re-reads the row at `overrideAccess: true`,
- * so field access never runs and a browser-shipped key got its own plaintext
+ * `POST /api/clients/refresh-token` re-read the row at `overrideAccess: true`,
+ * so field access never ran and a browser-shipped key got its own plaintext
  * `apiKey` back (#822). The hole is Payload's auth operations, not `clients`,
  * so the guard is attached to every auth collection — these cases pin that it
- * denies exactly what the field locks deny, and that it is attached at all.
+ * denies exactly what the field locks deny, that it is attached at all, and the
+ * three reads it stands down on.
  */
 
 const managersOnly: FieldAccess = ({ req }) => req.user?.collection === 'managers'
@@ -29,12 +30,19 @@ const collection = (slug: string, locked: string[]) =>
  * the caller's own row. Pass a different one for a sibling-row read.
  */
 const read = async (
-  args: { slug?: string; locked?: string[]; caller?: string | null; callerId?: number },
+  args: {
+    slug?: string
+    locked?: string[]
+    caller?: string | null
+    callerId?: number
+    overrideAccess?: boolean
+  },
   doc: Record<string, unknown>,
 ) =>
   (await (stripLockedFieldsOnSelfRead as CollectionAfterReadHook)({
     collection: collection(args.slug ?? 'clients', args.locked ?? ['apiKey', 'mailingList']),
     doc: { id: 7, ...doc },
+    overrideAccess: args.overrideAccess,
     req: {
       user: args.caller ? { collection: args.caller, id: args.callerId ?? 7 } : null,
     },
@@ -62,13 +70,18 @@ describe('stripLockedFieldsOnSelfRead', () => {
   })
 
   it('leaves a SIBLING row of the same collection alone', async () => {
-    // The whole class this guard closes — `refresh`, `me`, `login`, `unlock`,
-    // `verifyEmail` — reads the authenticated row. A sibling row reaches this
-    // hook from an internal read that carries `req` and `overrideAccess: true`,
-    // where there is no flag to read and nothing to protect against: an
-    // untrusted read of a sibling runs field access itself. Firing here instead
-    // hollowed out `syncVerificationOnSave`'s read of the event manager (#828).
+    // A sibling row reaches this hook only from an internal read, which the app
+    // has to be able to trust — firing here hollowed out
+    // `syncVerificationOnSave`'s read of the event manager (#828).
     const doc = await read({ caller: 'clients', callerId: 9 }, { apiKey: 'PLAINTEXT' })
+    expect(doc.apiKey).toBe('PLAINTEXT')
+  })
+
+  it('leaves a read that already checked access alone', async () => {
+    // `overrideAccess: false` means the locks ran in `afterRead` itself, so
+    // anything still here was allowed. Re-deciding it would be the hook's own
+    // answer to a question already answered, on every ordinary read.
+    const doc = await read({ caller: 'clients', overrideAccess: false }, { apiKey: 'PLAINTEXT' })
     expect(doc.apiKey).toBe('PLAINTEXT')
   })
 
