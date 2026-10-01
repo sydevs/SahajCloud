@@ -7,6 +7,7 @@ import { baseLanguage, getLanguageOptions } from '@/lib/locales'
 import { adminOnlyFieldAccess } from '@/plugins/access'
 
 import { batchUploaderAccess } from './access'
+import { resolveEventImport } from './endpoints/resolve'
 
 /**
  * Staging for one bulk event import, from upload to commit.
@@ -31,6 +32,7 @@ export const EventImports: CollectionConfig = {
   slug: 'event-imports',
   labels: { singular: 'Event Import', plural: 'Event Imports' },
   trash: true,
+  endpoints: [resolveEventImport],
   // `create` and `delete` are left to the generated config on purpose — it
   // already answers both with "admins only" (`access.ts`).
   access: {
@@ -112,7 +114,64 @@ export const EventImports: CollectionConfig = {
           errors: z
             .array(z.string())
             .optional()
-            .describe('Structural problems. A row with any of these is skipped, never committed.'),
+            .describe(
+              'Everything wrong with the row, from the parse and the resolve alike. A row with any of these is skipped, never committed.',
+            ),
+          resolved: z
+            .strictObject({
+              latitude: z.number(),
+              longitude: z.number(),
+              timezone: z
+                .string()
+                .describe(
+                  'IANA zone. Stored as a plain string and re-narrowed with `isSupportedTimezone` at commit, rather than repeating the 581-member enum here.',
+                ),
+              cityKey: z
+                .string()
+                .describe(
+                  'The normalised city name the proposal and the duplicate check group on.',
+                ),
+              placeName: z.string().nullable(),
+              placeId: z
+                .string()
+                .nullable()
+                .describe('The Mapbox `place` id, which phase 5 matches an existing region on.'),
+              mapboxId: z.string().nullable(),
+              subdivisionCode: z.string().nullable(),
+              weekdayMask: z
+                .int()
+                .describe(
+                  'The occurrence weekdays as a 7-bit mask, Monday the low bit. Derived once so a row stays comparable across chunks.',
+                ),
+              startMinutes: z
+                .int()
+                .nullable()
+                .describe("Minutes since midnight on the class's own clock."),
+              languages: z.array(z.string()),
+              inactive: z.boolean(),
+              anchorDate: z
+                .string()
+                .describe(
+                  "Today in the row's own zone when it resolved. The commit re-derives the schedule against it, so a run after midnight builds the first date the reviewer approved.",
+                ),
+            })
+            .optional()
+            .describe(
+              'Set once the row geocoded cleanly. Its absence is what makes a row pending.',
+            ),
+          duplicate: z
+            .strictObject({
+              reason: z.enum(['nearby-address', 'city-and-time']),
+              eventId: z.int().optional().describe('The existing class this row repeats.'),
+              line: z
+                .int()
+                .optional()
+                .describe('The earlier line in this same file the row repeats.'),
+            })
+            .optional()
+            .describe(
+              'A matched row is reported and skipped; nothing about the match is modified.',
+            ),
         }),
       ),
       admin: { readOnly: true },

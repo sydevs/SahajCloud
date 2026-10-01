@@ -700,9 +700,59 @@ export type EventImportRows = {
     [k: string]: string;
   };
   /**
-   * Structural problems. A row with any of these is skipped, never committed.
+   * Everything wrong with the row, from the parse and the resolve alike. A row with any of these is skipped, never committed.
    */
   errors?: string[];
+  /**
+   * Set once the row geocoded cleanly. Its absence is what makes a row pending.
+   */
+  resolved?: {
+    latitude: number;
+    longitude: number;
+    /**
+     * IANA zone. Stored as a plain string and re-narrowed with `isSupportedTimezone` at commit, rather than repeating the 581-member enum here.
+     */
+    timezone: string;
+    /**
+     * The normalised city name the proposal and the duplicate check group on.
+     */
+    cityKey: string;
+    placeName: string | null;
+    /**
+     * The Mapbox `place` id, which phase 5 matches an existing region on.
+     */
+    placeId: string | null;
+    mapboxId: string | null;
+    subdivisionCode: string | null;
+    /**
+     * The occurrence weekdays as a 7-bit mask, Monday the low bit. Derived once so a row stays comparable across chunks.
+     */
+    weekdayMask: number;
+    /**
+     * Minutes since midnight on the class's own clock.
+     */
+    startMinutes: number | null;
+    languages: string[];
+    inactive: boolean;
+    /**
+     * Today in the row's own zone when it resolved. The commit re-derives the schedule against it, so a run after midnight builds the first date the reviewer approved.
+     */
+    anchorDate: string;
+  };
+  /**
+   * A matched row is reported and skipped; nothing about the match is modified.
+   */
+  duplicate?: {
+    reason: 'nearby-address' | 'city-and-time';
+    /**
+     * The existing class this row repeats.
+     */
+    eventId?: number;
+    /**
+     * The earlier line in this same file the row repeats.
+     */
+    line?: number;
+  };
 }[];
 export type TableOfContentsHeadings = {
   slug: string;

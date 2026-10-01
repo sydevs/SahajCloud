@@ -53,6 +53,21 @@ export function prepareCandidate(candidate: DuplicateCandidate): PreparedCandida
   }
 }
 
+/**
+ * The one spelling of a city both sides of a comparison use.
+ *
+ * ⚠ **A resolved row and a stored event reach this from different places**, and
+ * neither is an id: the row has Mapbox's `place` name, the event has whatever
+ * `address.city` holds. They agree in practice because the admin address field
+ * fills `city` from that same `context.place.name` — so the normalisation here
+ * is what covers the hand-typed ones, and a Mapbox id on one side would match
+ * nothing on the other.
+ */
+export function cityKeyFor(name: string | null | undefined): string | null {
+  const key = name?.trim().toLowerCase().replace(/\s+/g, ' ')
+  return key || null
+}
+
 export type DuplicateReason = 'nearby-address' | 'city-and-time'
 
 /**

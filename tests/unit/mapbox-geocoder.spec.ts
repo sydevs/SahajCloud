@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { geocodeRegion, MANUAL_LOCATION, resolveRegionLocation } from '@/lib/mapbox/geocoder'
+import {
+  geocodeLocation,
+  geocodeRegion,
+  MANUAL_LOCATION,
+  resolveRegionLocation,
+} from '@/lib/mapbox/geocoder'
 
 /** The Search Box `/forward` types used by the coordless-fallback step. */
 const FALLBACK_TYPES = 'country,region,district,place,locality'
@@ -124,5 +129,119 @@ describe('resolveRegionLocation', () => {
       radius: null,
     })
     expect(warning).toContain('manual cleanup')
+  })
+})
+
+describe('geocodeLocation', () => {
+  /** A Search Box `/forward` body with the context layers the import reads. */
+  const placed = (context: Record<string, unknown>) => ({
+    features: [
+      {
+        properties: { mapbox_id: 'mbx-address', context },
+        geometry: { coordinates: [13.4186, 52.5026] },
+      },
+    ],
+  })
+
+  const berlinContext = {
+    country: { mapbox_id: 'mbx-de', name: 'Germany', country_code: 'DE' },
+    region: { mapbox_id: 'mbx-be', name: 'Berlin', region_code: 'BE', region_code_full: 'DE-BE' },
+    place: { mapbox_id: 'mbx-berlin', name: 'Berlin' },
+  }
+
+  it('returns the point and the administrative context around it', async () => {
+    stubFetch(() => ({ body: placed(berlinContext) }))
+    expect(
+      await geocodeLocation({ query: 'Oranienstraße 25, Berlin', types: 'address,poi' }),
+    ).toEqual({
+      mapboxId: 'mbx-address',
+      latitude: 52.5026,
+      longitude: 13.4186,
+      countryCode: 'DE',
+      subdivisionCode: 'BE',
+      placeName: 'Berlin',
+      placeId: 'mbx-berlin',
+    })
+  })
+
+  it("restricts the search to the caller's country and asks for its own types", async () => {
+    let seenUrl = ''
+    stubFetch((url) => {
+      seenUrl = url
+      return { body: placed(berlinContext) }
+    })
+    await geocodeLocation({ query: 'Berlin', types: 'place,locality', countryCode: 'DE' })
+    expect(seenUrl).toContain('country=de')
+    expect(seenUrl).toContain('types=place%2Clocality')
+  })
+
+  it("reads a context layer's id under either key Mapbox spells it with", async () => {
+    // `@mapbox/search-js-core` types it as `id`; the API reference calls it
+    // `mapbox_id`. Both have to resolve, or phase 5 matches no existing region.
+    stubFetch(() => ({
+      body: placed({ ...berlinContext, place: { id: 'mbx-berlin', name: 'Berlin' } }),
+    }))
+    const result = await geocodeLocation({ query: 'Berlin', types: 'place' })
+    expect(result?.placeId).toBe('mbx-berlin')
+  })
+
+  it('reads the city off `locality` where a country files one below `place`', async () => {
+    stubFetch(() => ({
+      body: placed({
+        country: berlinContext.country,
+        locality: { mapbox_id: 'mbx-loc', name: 'Harlem' },
+      }),
+    }))
+    const result = await geocodeLocation({ query: 'Harlem', types: 'place,locality' })
+    expect(result).toMatchObject({ placeName: 'Harlem', placeId: 'mbx-loc' })
+  })
+
+  it('resolves a subdivision Mapbox spelled only country-prefixed', async () => {
+    stubFetch(() => ({
+      body: placed({
+        country: berlinContext.country,
+        region: { name: 'Bayern', region_code_full: 'DE-BY' },
+      }),
+    }))
+    expect((await geocodeLocation({ query: 'München', types: 'place' }))?.subdivisionCode).toBe(
+      'BY',
+    )
+  })
+
+  it('resolves a subdivision Mapbox named but did not code', async () => {
+    stubFetch(() => ({
+      body: placed({ country: berlinContext.country, region: { name: 'Bayern' } }),
+    }))
+    expect((await geocodeLocation({ query: 'München', types: 'place' }))?.subdivisionCode).toBe(
+      'BY',
+    )
+  })
+
+  it('returns null for a feature with no coordinates', async () => {
+    // A result the import cannot place is no answer at all, since the zone and
+    // every duplicate rule read the point.
+    stubFetch(() => ({ body: { features: [{ properties: { context: berlinContext } }] } }))
+    expect(await geocodeLocation({ query: 'Berlin', types: 'place' })).toBeNull()
+  })
+
+  it('returns null on a miss, and with no token never calls fetch', async () => {
+    stubFetch(() => ({ body: { features: [] } }))
+    expect(await geocodeLocation({ query: 'Nowhere', types: 'place' })).toBeNull()
+
+    vi.stubEnv('NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN', '')
+    const fetchSpy = vi.fn()
+    vi.stubGlobal('fetch', fetchSpy)
+    expect(await geocodeLocation({ query: 'Berlin', types: 'place' })).toBeNull()
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
+  it('leaves the context codes null when Mapbox sent none', async () => {
+    stubFetch(() => ({ body: placed({}) }))
+    expect(await geocodeLocation({ query: 'Somewhere', types: 'place' })).toMatchObject({
+      countryCode: null,
+      subdivisionCode: null,
+      placeName: null,
+      placeId: null,
+    })
   })
 })
