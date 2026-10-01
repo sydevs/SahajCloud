@@ -1,6 +1,7 @@
 import { CleanupOrphanedMedia } from './CleanupOrphanedMedia/CleanupOrphanedMedia'
 import { DeliverSubmissions } from './DeliverSubmissions/DeliverSubmissions'
 import { ExpireEvents } from './ExpireEvents/ExpireEvents'
+import { PurgeEventImports } from './PurgeEventImports/PurgeEventImports'
 import { PurgeSubmissions } from './PurgeSubmissions/PurgeSubmissions'
 import { SendPostEventFollowUps } from './RegistrationNotifications/SendPostEventFollowUps'
 import { SendRegistrationDigests } from './RegistrationNotifications/SendRegistrationDigests'
@@ -15,6 +16,7 @@ export const tasks = [
   CleanupOrphanedMedia,
   DeliverSubmissions,
   ExpireEvents,
+  PurgeEventImports,
   PurgeSubmissions,
   ScreenSubmissions,
   SendPostEventFollowUps,

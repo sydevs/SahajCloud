@@ -923,7 +923,14 @@ ownership system.
 
 ## Trash (soft delete)
 
-Collections with `trash: true`: Files, Images, **Events**.
+Collections with `trash: true`: Files, Images, **Events**, **Event Imports**.
+
+⚠ **A trash-enabled collection needs a purge job, or nothing ever empties its
+trash.** Payload ships none. `CleanupOrphanedMedia`'s phase A is that sweep for
+Files and Images; `PurgeEventImports` is the one for import batches, which is
+what makes "discard" mean the uploaded CSV goes away rather than merely leaves
+the list. Events are the deliberate exception — a trashed listing is a
+manager's own record.
 
 **`payload.delete` is always a _hard_ delete, even on a trash-enabled
 collection.** Its `trash` argument only widens _which_ documents are
