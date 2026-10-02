@@ -22,16 +22,6 @@ import { z } from 'zod'
 import { ClientEnvSchema } from './client'
 
 /**
- * Server-side environment variables schema.
- *
- * The client never sees these variables. They include:
- * - Secrets and API keys
- * - Database connection strings
- * - Internal service URLs
- *
- * The server schema also includes every client environment variable.
- */
-/**
  * An operational pause: on unless told otherwise, because an existing
  * deployment sets nothing. Only `false` or `0` stops it, any case, padded.
  * `DB_QUERY_LOGGING` parses stricter on purpose — a typo there costs a
@@ -45,6 +35,16 @@ const pauseFlag = z
     return flag !== 'false' && flag !== '0'
   })
 
+/**
+ * Server-side environment variables schema.
+ *
+ * The client never sees these variables. They include:
+ * - Secrets and API keys
+ * - Database connection strings
+ * - Internal service URLs
+ *
+ * The server schema also includes every client environment variable.
+ */
 const ServerEnvSchema = ClientEnvSchema.extend({
   // --- REQUIRED - Core Application ---
 
