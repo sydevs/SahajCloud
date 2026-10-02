@@ -9,7 +9,10 @@
  * ⚠ **`create` and `delete` are deliberately NOT overridden.** No role names
  * this slug, implicit read is off (`RESTRICTED_COLLECTIONS`), and the
  * document-manager fallback covers read and update only — so the generated
- * config already answers both with "admins only", which is the rule.
+ * config already answers both with "admins only", which is the rule. A manager
+ * stages a batch through `endpoints/upload.ts`, which elevates past this after
+ * checking the `events: create` grant and the target's subtree — a stricter
+ * admission than a role grant on this slug would be.
  */
 
 import type { Access } from 'payload'

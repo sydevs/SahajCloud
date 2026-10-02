@@ -11,6 +11,8 @@ import { MAX_IMPORT_ROWS } from './constants'
 import { commitEventImport } from './endpoints/commit'
 import { proposeEventImport } from './endpoints/propose'
 import { resolveEventImport } from './endpoints/resolve'
+import { eventImportTemplate } from './endpoints/template'
+import { uploadEventImport } from './endpoints/upload'
 
 /**
  * Staging for one bulk event import, from upload to commit.
@@ -35,7 +37,13 @@ export const EventImports: CollectionConfig = {
   slug: 'event-imports',
   labels: { singular: 'Event Import', plural: 'Event Imports' },
   trash: true,
-  endpoints: [resolveEventImport, proposeEventImport, commitEventImport],
+  endpoints: [
+    eventImportTemplate,
+    uploadEventImport,
+    resolveEventImport,
+    proposeEventImport,
+    commitEventImport,
+  ],
   // `create` and `delete` are left to the generated config on purpose — it
   // already answers both with "admins only" (`access.ts`).
   access: {

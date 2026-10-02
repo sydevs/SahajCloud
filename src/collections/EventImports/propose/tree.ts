@@ -95,6 +95,13 @@ export interface ProposedTree {
  */
 export type ProposableTargetLevel = Extract<Region['level'], 'country' | 'region' | 'city'>
 
+/** Whether a region may be a batch's target, narrowing to the type above. */
+export function isProposableTargetLevel(
+  level: Region['level'],
+): level is ProposableTargetLevel {
+  return level === 'country' || level === 'region' || level === 'city'
+}
+
 export interface ProposeTreeArgs {
   target: { id: number; level: ProposableTargetLevel; name: string }
   /** The target country's ISO alpha-2, for naming subdivisions. */
