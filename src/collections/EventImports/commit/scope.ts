@@ -1,36 +1,26 @@
 /**
- * The request every commit write goes through: a subtree answer that predates
- * nothing this commit wrote, and cache invalidation deferred to the finish.
+ * The request every commit write goes through: a subtree answer that postdates
+ * what this commit just created, and cache invalidation deferred to the finish.
  *
- * ⚠ **The one defect a commit could not recover from, and #828 names it ahead of
- * time.** `Events.region` and `Regions.parent` both validate the chosen region
- * against `ownedRegionFilterOptions`, and Payload runs a relationship's own
- * `filterOptions` on every write — `overrideAccess: true` skips access control,
- * never that. The answer comes from `resolveManagedDocIds`, memoised on
- * `req.context` for the life of the request
- * (`src/plugins/access/documentManagers.ts`), and the memo is already populated
- * before the commit writes anything, because `refuseUnownedTarget` asks the same
- * question first. So every region this commit creates is missing from the set
- * every later write is checked against: a city under a brand-new state, and a
- * class in a brand-new city, are both refused as an "invalid selection" naming a
- * row number.
+ * ⚠ **A warm memo refuses the regions this commit creates**, which #828 names
+ * ahead of time. `Events.region` and `Regions.parent` both validate through
+ * `ownedRegionFilterOptions`, and Payload runs a relationship's `filterOptions`
+ * on every write — `overrideAccess: true` skips access control, never that.
+ * `refuseUnownedTarget` has already asked, so `resolveManagedDocIds`'
+ * per-request memo (`src/plugins/access/documentManagers.ts`) is populated
+ * before the first write, and a city under a brand-new state is then refused as
+ * an "invalid selection" naming a row number.
  *
  * ⚠ **A fresh `context`, not a finer memo key.** That memo's own JSDoc refuses
- * to be keyed on more, and widening it there would change every access decision
- * in the app to serve this one write. `context` is where it lives, so a copy
- * carrying its own is the narrowest thing that re-asks the question. `payload`,
- * `user`, `transactionID` and `locale` all travel by reference, so the write is
- * the caller's in every other respect.
+ * a wider key, and widening it would change every access decision in the app to
+ * serve this one write. Everything else travels by reference.
  *
- * ⚠ **Ask for one per step, not per write.** Each copy pays the subtree
- * resolution again. A region create needs its own, because its parent is the
- * level created just before it; the whole row chunk shares one, because every
- * region it files into exists by the time the first row is written.
+ * ⚠ **One per step, not per write.** Each copy re-resolves the subtree. A
+ * region create needs its own, since its parent was created just before it; a
+ * whole row chunk shares one, since every region it files into exists by then.
  *
- * ⚠ **The deferral belongs to the same copy, not to a second one.** Both facts
- * are about a commit write, and a caller holding one request that purges per
- * write and another that does not would be the bug this prevents
- * (`finishCommit` is what pays the deferral back).
+ * ⚠ **The deferral rides this same copy.** One request purging per write beside
+ * one that does not is the bug this prevents, and `finishCommit` pays it back.
  */
 
 import type { PayloadRequest } from 'payload'
