@@ -1,0 +1,147 @@
+/**
+ * What every import endpoint has to settle before it does its own work: which
+ * batch, whether the caller owns its target, and what the target is.
+ *
+ * ⚠ **Shared because two endpoints deciding ownership differently is a hole, not
+ * a style difference.** `refuseUnownedTarget` is the only place an import asks
+ * whether a manager may write inside a region, and it asks the same
+ * `ownedRegionFilterOptions` the admin's own region pickers do — a second
+ * reading of "my subtree" would be a second answer to it.
+ *
+ * ⚠ **Every read here elevates past access deliberately.** The caller's right to
+ * the batch comes from the collection's `access` (`access.ts`), and their right
+ * to the target from `refuseUnownedTarget`. Once both hold, the region reads are
+ * `overrideAccess: true` because a manager holds no `read` on a region outside
+ * their subtree — and an ancestor country usually is outside it.
+ */
+
+import type { PayloadRequest } from 'payload'
+
+import { relationId } from '@/lib/utilities/relationId'
+import type { Region } from '@/payload-types'
+import { ownedRegionFilterOptions } from '@/plugins/access'
+
+import { resolveTargetScope, type TargetChainNode, type TargetScope } from './resolve/targetScope'
+
+export function failure(message: string, status: number): Response {
+  return Response.json({ errors: [{ message }] }, { status })
+}
+
+/**
+ * The batch id in the route, or null when it is not one Postgres can hold.
+ *
+ * `isSafeInteger`, not `isInteger`: `1e30` is an integer and would reach
+ * Postgres as an out-of-range `integer`, which escapes as a 500.
+ */
+export function batchIdOf(req: PayloadRequest): number | null {
+  const id = Number(req.routeParams?.id)
+  return Number.isSafeInteger(id) && id >= 1 ? id : null
+}
+
+/**
+ * 403 unless the caller may write inside the target's subtree.
+ *
+ * ⚠ **Asked of the database, not of a list in memory.** `ownedRegionFilterOptions`
+ * is the same scoping `events.region` and `regions.parent` offer in the admin, so
+ * an endpoint deciding it differently would be a second definition of who owns
+ * what. `true` is the admin's answer — `requireActiveManager` has already turned
+ * away everyone who is not an active manager.
+ */
+export async function refuseUnownedTarget(
+  req: PayloadRequest,
+  targetId: number,
+): Promise<Response | null> {
+  const scoped = await ownedRegionFilterOptions({ req })
+  if (scoped === true) return null
+  if (scoped === false) return failure('You do not manage any region.', 403)
+
+  const { totalDocs } = await req.payload.count({
+    collection: 'regions',
+    where: { and: [{ id: { equals: targetId } }, scoped] },
+    overrideAccess: true,
+    req,
+  })
+  return totalDocs ? null : failure('You do not manage that region.', 403)
+}
+
+/** The target region itself, reduced to what a proposal names it by. */
+export interface TargetRegion {
+  id: number
+  level: Region['level']
+  /**
+   * ⚠ **Falls back to the slug, which `Regions` requires.** `name` is optional on
+   * the collection, and the slug disambiguator reads this — an empty string there
+   * would spell `pune-` for a city that collides.
+   */
+  name: string
+}
+
+export type LoadTargetResult =
+  | {
+      ok: true
+      target: TargetRegion
+      scope: TargetScope
+      /** The narrowing this target does not get, for the review to show once. */
+      warning?: string
+    }
+  | { ok: false; error: string }
+
+/**
+ * The target region and the two codes its rows are confined to.
+ *
+ * The chain is read as its own query rather than through `depth: 1`: a
+ * breadcrumb's `doc` would hydrate each whole region, and all this reads is
+ * three fields off each ancestor.
+ */
+export async function loadTarget(
+  req: PayloadRequest,
+  targetId: number,
+): Promise<LoadTargetResult> {
+  const target = (await req.payload.findByID({
+    collection: 'regions',
+    id: targetId,
+    depth: 0,
+    overrideAccess: true,
+    disableErrors: true,
+    select: { level: true, name: true, slug: true, breadcrumbs: true },
+    req,
+  })) as Region | null
+  if (!target) return { ok: false, error: 'The target region no longer exists.' }
+
+  // A region's own breadcrumbs include itself, so the target is filtered out of
+  // the ancestor read and appended once below — it is already in hand.
+  const ancestorIds = (target.breadcrumbs ?? [])
+    .map((crumb) => relationId(crumb.doc))
+    .filter((id): id is number => id !== null && id !== targetId)
+
+  const ancestors = ancestorIds.length
+    ? (
+        await req.payload.find({
+          collection: 'regions',
+          where: { id: { in: ancestorIds } },
+          depth: 0,
+          pagination: false,
+          overrideAccess: true,
+          select: { level: true, name: true, slug: true },
+          req,
+        })
+      ).docs
+    : []
+
+  const chain: TargetChainNode[] = [...ancestors, target].map(({ level, name, slug }) => ({
+    level,
+    name,
+    slug,
+  }))
+  const resolved = resolveTargetScope(chain)
+  if (!resolved.ok) return { ok: false, error: resolved.error }
+
+  const named: TargetRegion = {
+    id: targetId,
+    level: target.level,
+    name: target.name?.trim() || target.slug,
+  }
+  return resolved.warning
+    ? { ok: true, target: named, scope: resolved.scope, warning: resolved.warning }
+    : { ok: true, target: named, scope: resolved.scope }
+}
