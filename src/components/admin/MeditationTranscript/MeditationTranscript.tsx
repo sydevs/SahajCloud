@@ -26,6 +26,18 @@ import { useSmoothPlaybackTime } from './useSmoothPlaybackTime'
 
 const POLL_INTERVAL_MS = 3000
 
+/**
+ * Poll only while a transcription is on its way.
+ *
+ * ⚠ **Declared once, at module scope.** SWR lists `refreshInterval` in its
+ * polling effect's dependencies, so a new arrow each render re-runs that
+ * effect and re-arms the timer from zero. The playhead re-renders this
+ * component ten times a second, which means an inline arrow's 3 s timer never
+ * elapses at all: the poll stops while the editor plays the recording.
+ */
+const pollInterval = (latest?: TranscriptView): number =>
+  latest && transcriptPhase(latest) === 'pending' ? POLL_INTERVAL_MS : 0
+
 async function readTranscript(url: string, init?: RequestInit): Promise<TranscriptView> {
   const response = await fetch(url, { credentials: 'include', ...init })
   const body: unknown = await response.json().catch(() => null)
@@ -49,8 +61,7 @@ export const MeditationTranscript: UIFieldClientComponent = () => {
   const url = transcriptUrl(id, code)
 
   const { data, error, mutate } = useSWR(url, readTranscript, {
-    refreshInterval: (latest) =>
-      latest && transcriptPhase(latest) === 'pending' ? POLL_INTERVAL_MS : 0,
+    refreshInterval: pollInterval,
     revalidateOnFocus: false,
   })
   const [requesting, setRequesting] = useState(false)
