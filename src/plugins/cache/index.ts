@@ -5,6 +5,7 @@ import type {
   GlobalAfterChangeHook,
 } from 'payload'
 
+import { defersCacheInvalidation } from './defer'
 import { CACHEABLE_GLOBALS, CACHEABLE_SLUGS } from './policy'
 import { purgeCloudflareCache } from './purge'
 
@@ -38,11 +39,15 @@ export function cachePlugin(config: Config): Config {
       if (!CACHEABLE_SLUGS.has(collection.slug)) return collection
 
       const tag = collection.slug
-      const afterChange: CollectionAfterChangeHook = ({ doc, req }) => {
+      // A bulk writer purges the tag once when it finishes, instead of once per
+      // write — see `./defer` for what that window costs and who may ask for it.
+      const afterChange: CollectionAfterChangeHook = ({ context, doc, req }) => {
+        if (defersCacheInvalidation(context)) return doc
         void purgeCloudflareCache({ tags: [tag] }, { logger: req.payload.logger })
         return doc
       }
-      const afterDelete: CollectionAfterDeleteHook = ({ doc, req }) => {
+      const afterDelete: CollectionAfterDeleteHook = ({ context, doc, req }) => {
+        if (defersCacheInvalidation(context)) return doc
         void purgeCloudflareCache({ tags: [tag] }, { logger: req.payload.logger })
         return doc
       }

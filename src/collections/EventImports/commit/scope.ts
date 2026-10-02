@@ -1,5 +1,6 @@
 /**
- * A request copy whose cached subtree answer predates nothing this commit wrote.
+ * The request every commit write goes through: a subtree answer that predates
+ * nothing this commit wrote, and cache invalidation deferred to the finish.
  *
  * ⚠ **The one defect a commit could not recover from, and #828 names it ahead of
  * time.** `Events.region` and `Regions.parent` both validate the chosen region
@@ -25,10 +26,17 @@
  * resolution again. A region create needs its own, because its parent is the
  * level created just before it; the whole row chunk shares one, because every
  * region it files into exists by the time the first row is written.
+ *
+ * ⚠ **The deferral belongs to the same copy, not to a second one.** Both facts
+ * are about a commit write, and a caller holding one request that purges per
+ * write and another that does not would be the bug this prevents
+ * (`finishCommit` is what pays the deferral back).
  */
 
 import type { PayloadRequest } from 'payload'
 
-export function freshScopeReq(req: PayloadRequest): PayloadRequest {
-  return { ...req, context: {} } as PayloadRequest
+import { DEFER_CACHE_INVALIDATION } from '@/plugins/cache/defer'
+
+export function commitWriteReq(req: PayloadRequest): PayloadRequest {
+  return { ...req, context: { [DEFER_CACHE_INVALIDATION]: true } } as PayloadRequest
 }
