@@ -6,7 +6,8 @@ import type { Option } from '@payloadcms/ui/elements/ReactSelect'
 import { Banner, Button, Dropzone, SelectInput, useLocale } from '@payloadcms/ui'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { importStepUrl, refusalMessage } from './importUrls'
+import { ImportReview } from './ImportReview'
+import { importStepUrl, NO_LOCALE_REFUSAL, refusalMessage } from './importUrls'
 import { resolveProgress, resolveSummary, resolveVerdict, STALLED_REFUSAL } from './runPlan'
 
 export interface ImportRunnerProps {
@@ -26,9 +27,6 @@ interface ProposeReport {
   existing: number
   rowErrors: number
 }
-
-const NO_LOCALE_REFUSAL =
-  'This page could not tell which language you are editing in. Reload it and try again.'
 
 /**
  * Stages a CSV against this region and runs it up to a reviewable batch.
@@ -175,8 +173,11 @@ export const ImportRunner = ({
       {busy ? <RunProgress phase={phase} resolved={resolved} /> : null}
       {refusal ? <Banner type="error">{refusal}</Banner> : null}
 
-      {phase === 'reviewing' && resolved && proposed ? (
-        <Banner type="success">{`${resolveSummary(resolved)} ${proposalSummary(proposed)}`}</Banner>
+      {phase === 'reviewing' && batchId !== null && resolved && proposed ? (
+        <>
+          <Banner type="success">{`${resolveSummary(resolved)} ${proposalSummary(proposed)}`}</Banner>
+          <ImportReview apiRoute={apiRoute} batchId={batchId} />
+        </>
       ) : (
         <Button
           disabled={busy || (batchId === null && (!file || languages.length === 0))}

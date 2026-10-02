@@ -82,6 +82,28 @@ beforeEach(() => {
   })
 })
 
+/**
+ * What `GET /:id/review` answers, for the read the review surface makes the
+ * moment a finished run mounts it. Its own decisions are pinned in
+ * `event-import-review-surface.spec.ts`; here it is one more request the tab
+ * sends, which is this file's subject.
+ */
+const reviewAnswer = {
+  coordinators: { created: 0, existing: 0 },
+  creating: 1,
+  existing: 0,
+  mappable: [],
+  proposedRegions: {
+    nodes: [],
+    rowErrors: [],
+    stateLayer: { proposed: false, reason: 'the batch spans one subdivision' },
+  },
+  rowErrors: 0,
+  rows: [],
+  status: 'resolved',
+  target: { id: 11, level: 'country', name: 'Germany' },
+}
+
 const resolveReport = (over: Record<string, unknown>) => ({
   done: false,
   duplicates: 0,
@@ -137,6 +159,7 @@ describe('ImportRunner', () => {
       { body: resolveReport({ pending: 1, resolved: 1, total: 2 }), ok: true },
       { body: resolveReport({ done: true, pending: 0, resolved: 2, total: 2 }), ok: true },
       { body: { creating: 3, existing: 1, rowErrors: 0 }, ok: true },
+      { body: reviewAnswer, ok: true },
     ]
     const { container } = await mount()
     await drop()
@@ -147,6 +170,7 @@ describe('ImportRunner', () => {
       '/api/event-imports/5/resolve?locale=de',
       '/api/event-imports/5/resolve?locale=de',
       '/api/event-imports/5/propose?locale=de',
+      '/api/event-imports/5/review?locale=de',
     ])
     // The uploader is never named in the body — the endpoint reads it off the
     // caller — so what the run owes is the target, the file and the languages.
@@ -193,6 +217,7 @@ describe('ImportRunner', () => {
     answers = [
       { body: resolveReport({ done: true, pending: 0, resolved: 2, total: 2 }), ok: true },
       { body: { creating: 1, existing: 0, rowErrors: 0 }, ok: true },
+      { body: reviewAnswer, ok: true },
     ]
     await click(container)
 
@@ -201,6 +226,7 @@ describe('ImportRunner', () => {
       '/api/event-imports/5/resolve?locale=de',
       '/api/event-imports/5/resolve?locale=de',
       '/api/event-imports/5/propose?locale=de',
+      '/api/event-imports/5/review?locale=de',
     ])
   })
 
