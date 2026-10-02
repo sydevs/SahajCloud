@@ -1,5 +1,6 @@
 import type { PayloadRequest, TaskConfig } from 'payload'
 
+import { findTranscriptRow } from '@/collections/MeditationTranscripts/view'
 import { serverEnv } from '@/lib/env'
 import type { TranscriptProvider } from '@/lib/meditations/transcript'
 import type { MeditationTranscript } from '@/payload-types'
@@ -84,7 +85,11 @@ export const TranscribeMeditation: TaskConfig<'transcribeMeditation'> = {
       return { output: { status: 'completed' } }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      if (await findCurrentRow(req, meditationId, audioFilename)) {
+      // Never report over a finished transcript: a second run for this same
+      // recording (a stalled row accepts a fresh request) may have completed
+      // while this one was failing, and its text outranks this error.
+      const current = await findCurrentRow(req, meditationId, audioFilename)
+      if (current && current.status !== 'completed') {
         await updateRow(req, row.id, { status: 'failed', error: message })
       }
       throw error
@@ -119,25 +124,19 @@ async function transcribe({
   }
 }
 
-/** The meditation's transcript row, while it still names `audioFilename`. */
+/**
+ * The meditation's transcript row, while it still names `audioFilename`.
+ *
+ * `meditation` is unique, so there is at most one row per meditation and the
+ * recording is a field comparison rather than a second query.
+ */
 async function findCurrentRow(
   req: PayloadRequest,
   meditationId: number,
   audioFilename: string,
 ): Promise<MeditationTranscript | undefined> {
-  const { docs } = await req.payload.find({
-    collection: 'meditation-transcripts',
-    where: {
-      meditation: { equals: meditationId },
-      audioFilename: { equals: audioFilename },
-    },
-    depth: 0,
-    limit: 1,
-    pagination: false,
-    overrideAccess: true,
-    req,
-  })
-  return docs[0]
+  const row = await findTranscriptRow(req, meditationId)
+  return row?.audioFilename === audioFilename ? row : undefined
 }
 
 async function updateRow(
