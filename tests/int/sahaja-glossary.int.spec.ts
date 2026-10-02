@@ -73,7 +73,7 @@ describe('sahaja-glossary', () => {
   const runSeed = () =>
     new SahajaGlossaryImporter({ dryRun: false, clearCache: false, payload }).run()
 
-  const read = (locale: 'en' | 'ru' | 'fr' | 'it') =>
+  const read = (locale: 'en' | 'ru' | 'fr' | 'it' | 'cs') =>
     payload.findGlobal({
       slug: 'sahaja-glossary',
       locale,
@@ -217,6 +217,41 @@ describe('sahaja-glossary', () => {
       expect(ru.terms).toHaveLength(EXPECTED_TERMS)
       expect(termFor(ru, 'Self-realization')).toBe('Самореализация')
       expect(termFor(await read('fr'), 'Spirit')).toBeFalsy()
+    })
+
+    it('leaves a locale the file does not carry untouched', async () => {
+      // ⚠ The one case the count cannot see. Payload deletes every stored row
+      // the incoming array does not claim by `id`, and the terms' localized
+      // values table is ON DELETE cascade — so an English write sent without
+      // the stored ids rebuilds all 56 rows and takes `cs` with it, while
+      // leaving 56 rows behind and every locale the file DOES carry correct.
+      // That is what this seed looked like until the ids were read before the
+      // first write instead of after it, and it was measured: `cs` went to
+      // `undefined` and every row id changed.
+      const rows = (await read('en')).terms ?? []
+      await payload.updateGlobal({
+        slug: 'sahaja-glossary',
+        locale: 'cs',
+        data: {
+          terms: rows.map((row) => ({
+            id: row.id,
+            key: row.key,
+            category: row.category,
+            keepAsIs: row.keepAsIs,
+            term: row.key === 'Meditation' ? 'Meditace' : null,
+          })),
+        } as never,
+      })
+
+      const idsBefore = rows.map((row) => row.id)
+      await runSeed()
+
+      const cs = await read('cs')
+      expect(termFor(cs, 'Meditation')).toBe('Meditace')
+      // The ids are the mechanism, so they are asserted directly: a rebuild
+      // that happened to restore the same spellings would still have renumbered
+      // them, and would still have destroyed whatever the file does not carry.
+      expect((await read('en')).terms?.map((row) => row.id)).toEqual(idsBefore)
     })
   })
 

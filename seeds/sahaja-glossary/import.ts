@@ -5,12 +5,24 @@
  * file is the source of truth for its contents: a change goes into the file and
  * a re-seed carries it. Nothing in the CMS can edit it.
  *
- * ⚠ **English is written first, and the row ids come back from that write.**
+ * ⚠ **EVERY write carries the id of the row it means to change — the English
+ * one included.** Payload matches an incoming array row to a stored one by
+ * `id` alone, and DELETES every stored row the incoming array does not claim
+ * (`getExistingRowDoc`, then drizzle's `deleteExistingArrayRows`).
+ * `sahaja_glossary_terms_locales` is `ON DELETE cascade`, so a row dropped that
+ * way takes every locale's spelling with it.
+ *
+ * So the stored ids are read BEFORE the first write, not after it. An English
+ * write without them rebuilds all 56 rows, and any locale this file does not
+ * carry — `cs`, `pl`, `uk` — is silently emptied on every re-seed, while its
+ * `translatorNotes` survives in the parent row. Measured: the `cs` spelling
+ * went to `undefined` and every row id changed. A later locale's write cannot
+ * repair it, because the English write has already destroyed the cell.
+ *
  * `key`, `category` and `keepAsIs` are not localized, so they live on the row
- * itself rather than in a per-locale cell — and Payload matches an incoming
- * array row to a stored one by `id` alone. Omit the ids and a second locale
- * does not translate the English rows, it REPLACES them: 56 new rows carrying
- * only that locale's spellings, and English gone.
+ * itself rather than in a per-locale cell, and ride along on every locale's
+ * write — Payload validates the row it is handed, and both of the first two are
+ * `required`.
  *
  * ⚠ **A locale with no value for a term is written `null`, never English.**
  * Consumers read a `keepAsIs` term's English spelling knowing it is English;
@@ -49,7 +61,11 @@ interface GlossarySeedFile {
   translatorNotes?: Record<string, string[]>
 }
 
-/** One `terms` row as `updateGlobal` takes it. `id` is absent on the first write. */
+/** `key` → row id, for whichever rows the given document carries. */
+const idsOf = (doc: SahajaGlossary): Map<string, string> =>
+  new Map((doc.terms ?? []).flatMap((row) => (row.id ? [[row.key, row.id] as const] : [])))
+
+/** One `terms` row as `updateGlobal` takes it. `id` is absent only for a NEW term. */
 interface TermRow {
   id?: string
   key: string
@@ -88,16 +104,21 @@ export class SahajaGlossaryImporter extends BaseImporter<BaseImportOptions> {
       return
     }
 
-    // English carries every row's non-localized columns, so it goes first, and
-    // the ids it comes back with are what every other locale writes against.
+    // Claim the rows that already exist before touching anything. A key with no
+    // stored row is a new term and correctly goes id-less; a stored key absent
+    // from the file is deleted, which is what "the file is the source of truth"
+    // means.
+    const stored = await this.readStoredIds()
+    if (!stored) return
+
+    // English carries every row's non-localized columns, so it goes first. The
+    // ids it comes back with cover the rows it just created as well.
     const written = await this.writeLocale(
       seed,
       DEFAULT_LOCALE,
-      this.buildRows(seed, DEFAULT_LOCALE),
+      this.claimRows(this.buildRows(seed, DEFAULT_LOCALE), stored),
     )
-    const idsByKey = new Map(
-      (written.terms ?? []).flatMap((row) => (row.id ? [[row.key, row.id] as const] : [])),
-    )
+    const idsByKey = idsOf(written)
 
     for (const locale of locales.filter((code) => code !== DEFAULT_LOCALE)) {
       const rows = this.buildRows(seed, locale).map((row) => ({
@@ -160,6 +181,36 @@ export class SahajaGlossaryImporter extends BaseImporter<BaseImportOptions> {
       keepAsIs: term.keepAsIs ?? false,
       term: term.values[locale] ?? null,
     }))
+  }
+
+  /**
+   * `key` → stored row id, or an empty map for a global nobody has written yet.
+   *
+   * A read that FAILED is not a read that came back empty: filling nothing in
+   * would make the next write delete every stored row. So a failure aborts the
+   * seed instead, the same call this importer's sibling makes for the two
+   * groups it must never overwrite.
+   */
+  private async readStoredIds(): Promise<Map<string, string> | null> {
+    try {
+      return idsOf(
+        await this.payload.findGlobal({ slug: GLOSSARY_SLUG, locale: DEFAULT_LOCALE, depth: 0 }),
+      )
+    } catch (error) {
+      this.addError(
+        `Reading ${GLOSSARY_SLUG} row ids`,
+        error instanceof Error ? error : String(error),
+      )
+      return null
+    }
+  }
+
+  /** Attach each row's stored id, leaving a term that has none to be created. */
+  private claimRows(rows: TermRow[], idsByKey: Map<string, string>): TermRow[] {
+    return rows.map((row) => {
+      const id = idsByKey.get(row.key)
+      return id ? { ...row, id } : row
+    })
   }
 
   /** How many terms this locale has a spelling for. */
