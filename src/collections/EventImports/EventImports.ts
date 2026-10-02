@@ -6,7 +6,7 @@ import { jsonField } from '@/fields/jsonField'
 import { baseLanguage, getLanguageOptions } from '@/lib/locales'
 import { adminOnlyFieldAccess } from '@/plugins/access'
 
-import { batchUploaderAccess } from './access'
+import { batchDiscardAccess, batchUploaderAccess } from './access'
 import { MAX_IMPORT_ROWS } from './constants'
 import { commitEventImport } from './endpoints/commit'
 import { proposeEventImport } from './endpoints/propose'
@@ -48,11 +48,13 @@ export const EventImports: CollectionConfig = {
     editEventImportTree,
     commitEventImport,
   ],
-  // `create` and `delete` are left to the generated config on purpose — it
-  // already answers both with "admins only" (`access.ts`).
+  // `create` is left to the generated config on purpose — it already answers
+  // "admins only" (`access.ts`). `delete` is overridden because a discard is a
+  // trash attempt, which runs that check too.
   access: {
     read: batchUploaderAccess,
     update: batchUploaderAccess,
+    delete: batchDiscardAccess,
   },
   admin: {
     group: 'Classes',

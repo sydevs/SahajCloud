@@ -201,22 +201,33 @@ describe('Event imports', () => {
       )
     })
 
-    it('refuses the uploader their own discard, because a trash attempt runs the `delete` check too', async () => {
-      // ⚠ **This pins a gap, not a rule.** `access.ts` says the discard rides on
-      // `update`, and it does not: `updateByID` detects `deletedAt` in the patch
-      // and runs `access.delete` **as well** as `access.update`
-      // (`payload/dist/collections/operations/updateByID.js:110-118`). `delete`
-      // here is the generated config — admins only — so nobody but an admin can
-      // discard a batch, and the seven-day retention window has no volunteer-
-      // reachable way in. Closing it means overriding `delete` to allow the
-      // uploader when `data.deletedAt` is set (Payload passes `data` to the
-      // access function for exactly that), which belongs with the review UI that
-      // offers the button. Until then this case is the record that it does not
-      // work; delete it in the same change that makes it work.
+    it('lets the uploader discard their own batch', async () => {
+      // ⚠ **A trash attempt runs the `delete` check as well as `update`**
+      // (`payload/dist/collections/operations/updateByID.js:110-118`), so the
+      // `update` grant alone discarded nothing: this case asserted the refusal
+      // until `batchDiscardAccess` closed it, which is the grant the review UI's
+      // Discard button needs.
       const mine = await createBatch()
 
+      const discarded = await updateAs(uploader, mine.id, {
+        deletedAt: new Date().toISOString(),
+      })
+
+      expect(discarded.deletedAt).toBeTruthy()
+      // Trashed, not erased — the retention window is what the uploader can still
+      // change their mind inside of.
+      expect(await exists(mine.id)).toBe(true)
+
+      // Erased here, because the sweep cases below count every trashed batch in
+      // the suite's database and this one would otherwise be due alongside theirs.
+      await payload.delete({ collection: 'event-imports', id: mine.id, trash: true })
+    })
+
+    it('refuses another manager the discard of a batch that is not theirs', async () => {
+      // The grant is scoped by `batchUploaderAccess`, so a `deletedAt` in the
+      // patch opens the door for the uploader alone.
       await expect(
-        updateAs(uploader, mine.id, { deletedAt: new Date().toISOString() }),
+        updateAs(otherManager, own.id, { deletedAt: new Date().toISOString() }),
       ).rejects.toThrow(/not allowed/i)
     })
 

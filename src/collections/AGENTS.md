@@ -9,12 +9,21 @@ to this codebase. This guide also covers `src/fields/`.
 access automatically. Collections **do not** need a manual `access` config.
 
 ⚠ **One collection overrides it, and the exception is narrow.** `event-imports`
-sets `read` and `update` (`src/collections/EventImports/access.ts`), because a
-batch belongs to the manager who uploaded it and no role table can say so. The
-cost is that an overridden key replaces the generated one *including the bypass
-behind it*, so it has to restate admin-allow and `inactive`-deny itself. Override
-a key only where the role tables get it wrong, and leave every other key alone —
-`create` and `delete` there are the generated config's, unchanged.
+sets `read`, `update` and `delete` (`src/collections/EventImports/access.ts`),
+because a batch belongs to the manager who uploaded it and no role table can say
+so. The cost is that an overridden key replaces the generated one *including the
+bypass behind it*, so it has to restate admin-allow and `inactive`-deny itself.
+Override a key only where the role tables get it wrong, and leave every other key
+alone — `create` there is the generated config's, unchanged.
+
+⚠ **`delete` is overridden for a reason worth knowing before you copy it.**
+Trashing a document is an `update` writing `deletedAt`, and `updateByID` runs
+`access.delete` **as well** for exactly that patch
+(`payload/dist/collections/operations/updateByID.js:110-118`), passing `data` so
+the check can tell a trash attempt from an erasure. So an `update` grant alone
+trashes nothing. Any collection whose owner should be able to trash their own row
+owes the same pair, and the `delete` half gates on `data.deletedAt` so the hard
+delete stays where it was.
 
 ⚠ **Narrowing *what* a grant returns is a field lock, not an `access` override.**
 `managers` grants `atlas-manager` a collection-wide read because the pickers need
