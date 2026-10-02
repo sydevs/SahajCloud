@@ -9,7 +9,9 @@ import {
   activeSegmentIndex,
   activeWordIndex,
   alignWords,
+  estimatePlaybackTime,
   groupTranscript,
+  nextPlaybackReport,
   transcriptPhase,
   transcriptUrl,
 } from '@/components/admin/MeditationTranscript/transcriptModel'
@@ -99,6 +101,10 @@ describe('activeSegmentIndex', () => {
     expect(activeSegmentIndex(segments, 10)).toBe(1)
   })
 
+  it('lights a phrase from the whole second it starts in, where a click seeks to', () => {
+    expect(activeSegmentIndex([segment(91.12, 95)], 91)).toBe(0)
+  })
+
   it('keeps a phrase lit for half a second after it ends', () => {
     expect(activeSegmentIndex(segments, 4.4)).toBe(0)
   })
@@ -153,5 +159,28 @@ describe('activeWordIndex', () => {
 
   it('marks no word before the first starts', () => {
     expect(activeWordIndex(words, 0.5)).toBe(-1)
+  })
+})
+
+describe('playback smoothing', () => {
+  const report = (time: number, at: number, playing = false) => ({ time, at, playing })
+
+  it('reads one-second ticks arriving on time as playback', () => {
+    expect(nextPlaybackReport(report(10, 1000), 11, 2000).playing).toBe(true)
+  })
+
+  it('reads a jump, a repeat or a late tick as no playback', () => {
+    expect(nextPlaybackReport(report(10, 1000), 40, 1100).playing).toBe(false)
+    expect(nextPlaybackReport(report(10, 1000), 10, 2000).playing).toBe(false)
+    expect(nextPlaybackReport(report(10, 1000), 11, 4000).playing).toBe(false)
+  })
+
+  it('carries a playing second forward by the clock, never past the next one', () => {
+    expect(estimatePlaybackTime(report(11, 2000, true), 2400)).toBeCloseTo(11.4)
+    expect(estimatePlaybackTime(report(11, 2000, true), 5000)).toBe(12)
+  })
+
+  it('shows a paused or seeked second as it is', () => {
+    expect(estimatePlaybackTime(report(40, 1100), 1900)).toBe(40)
   })
 })

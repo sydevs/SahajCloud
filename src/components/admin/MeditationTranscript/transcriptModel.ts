@@ -108,11 +108,47 @@ export function activeWordIndex(words: TranscriptWord[], time: number): number {
   return -1
 }
 
-/** The phrase being spoken at `time`, or `-1` in a pause. */
+/** The last whole second the preview reported, and when it arrived. */
+export type PlaybackReport = {
+  time: number
+  /** `performance.now()` when the report arrived. */
+  at: number
+  /** The report followed the previous second on time, so the audio is playing. */
+  playing: boolean
+}
+
+/** How late a one-second tick may arrive and still count as steady playback. */
+const PLAYING_TICK_TOLERANCE_MS = 1500
+
+/** Fold a newly reported second into the last report. */
+export function nextPlaybackReport(
+  previous: PlaybackReport,
+  time: number,
+  at: number,
+): PlaybackReport {
+  const playing = time === previous.time + 1 && at - previous.at < PLAYING_TICK_TOLERANCE_MS
+  return { time, at, playing }
+}
+
+/**
+ * Where the audio is now. The preview reports whole seconds only, so while it
+ * plays the time is carried forward by the clock, never past the next second
+ * it will report. A seek or a pause shows the reported second as it is.
+ */
+export function estimatePlaybackTime(report: PlaybackReport, now: number): number {
+  if (!report.playing) return report.time
+  return Math.min(report.time + (now - report.at) / 1000, report.time + 1)
+}
+
+/**
+ * The phrase being spoken at `time`, or `-1` in a pause. A phrase counts from
+ * the whole second it starts in: clicking it seeks there, and the preview
+ * reports only whole seconds, so it must light up at once.
+ */
 export function activeSegmentIndex(segments: TranscriptSegment[], time: number): number {
   for (let index = segments.length - 1; index >= 0; index -= 1) {
     const segment = segments[index]
-    if (segment.start <= time) {
+    if (Math.floor(segment.start) <= time) {
       return time < segment.end + HIGHLIGHT_GRACE_SECONDS ? index : -1
     }
   }

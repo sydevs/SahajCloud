@@ -21,14 +21,16 @@ import {
   transcriptUrl,
 } from './transcriptModel'
 import { useFollowPlayhead } from './useFollowPlayhead'
+import { useSmoothPlaybackTime } from './useSmoothPlaybackTime'
 
 const POLL_INTERVAL_MS = 3000
 
 async function readTranscript(url: string, init?: RequestInit): Promise<TranscriptView> {
   const response = await fetch(url, { credentials: 'include', ...init })
-  const body = await response.json().catch(() => null)
+  const body: unknown = await response.json().catch(() => null)
   if (!response.ok) {
-    throw new Error(body?.errors?.[0]?.message ?? `The server answered ${response.status}.`)
+    const message = (body as { errors?: { message?: string }[] } | null)?.errors?.[0]?.message
+    throw new Error(message ?? `The server answered ${response.status}.`)
   }
   return body as TranscriptView
 }
@@ -53,7 +55,7 @@ export const MeditationTranscript: UIFieldClientComponent = () => {
   const [requesting, setRequesting] = useState(false)
   const [requestError, setRequestError] = useState<string | null>(null)
 
-  const playbackTime = usePlaybackTime()
+  const playbackTime = useSmoothPlaybackTime(usePlaybackTime())
   const seekTo = useSeekToTime()
   const segments = useMemo(() => data?.segments ?? [], [data])
   const paragraphs = useMemo(() => groupTranscript(segments), [segments])
@@ -81,7 +83,9 @@ export const MeditationTranscript: UIFieldClientComponent = () => {
     setRequesting(true)
     setRequestError(null)
     try {
-      await mutate(await readTranscript(url, { method: 'POST' }), { revalidate: false })
+      // Revalidating, not just caching, is what restarts polling: SWR re-arms
+      // `refreshInterval` only after a fetch, and the last one saw no request.
+      await mutate(await readTranscript(url, { method: 'POST' }))
     } catch (cause) {
       setRequestError(cause instanceof Error ? cause.message : String(cause))
     } finally {
