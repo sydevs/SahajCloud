@@ -57,6 +57,7 @@ content collection.
 | `sahaj-atlas/*`               | Translation pattern (covered transitively)                  | `translations-globals`                       |
 | `sy-atlas-translations` schema | One tab per widget view: the 11 tabs and the ordered 33-name JSON field set, the three groups that mirror code (`registration.questions` ≡ `EVENT_REGISTRATION_QUESTIONS` in order, `event.title` ≡ `EVENT_TITLE_SLOTS`, `emails` ≡ `EMAIL_STRING_DEFAULTS`), every `strict` key carrying a `maxLength`, and a strict key over budget refused on write | `translations-globals` + unit: `atlas-translations-schema.spec.ts` |
 | `sy-atlas-translations` seeds | The ten locale files against the declared keys, English covering every widget-facing key, no invented `%{x}` placeholder, and neither live-data group present | unit: `atlas-translations-schema.spec.ts` |
+| `sahaja-glossary` | Who may read a global in no project: 403 to an API client and to a *role-holding* manager, 200 to an admin (a roleless manager is denied at step 3 and would pin nothing). `admin.hidden: true` surviving `accessPlugin` on the real config. The seed run twice — 56 rows not 112, each locale's own spelling, a term with no value for a locale reading empty rather than English, a `keepAsIs` term in English alone, and the `terms` validator refusing a duplicate `key` | `sahaja-glossary` + unit: `access-hidden-resolution.spec.ts`, `openapi-custom-endpoints.spec.ts` |
 
 ## Custom endpoints
 
@@ -98,6 +99,7 @@ content collection.
 | Finished-event definition — `shouldFinish` (in-memory) pinned to agree with `notFinishedWhere` (SQL)           | unit: `schedule-status.spec.ts` |
 | Content-Index block API endpoint generation (`computeApiEndpoint` virtual)                                     | `content-index-block`       |
 | Project-based admin visibility (`createHidden` from accessPlugin)                                              | `project-visibility`        |
+| `resolveHidden` — an explicit `admin.hidden: true` survives accessPlugin on a collection AND a global, a declared function is ORed with the project rule, a declared `false` is no opinion | unit: `access-hidden-resolution.spec.ts` |
 | Canonical Atlas URL shapes, pinned to the cross-repo `atlas-url-contract.json` fixture                         | unit: `atlas-canonical-url.spec.ts` |
 | Live-preview targets — URL composition keeps the origin and `secret` and refuses another origin. The restore across a tab switch. Every declared path is origin-free | unit: `compose-target-url.spec.ts`, `preview-target-component.spec.ts`, `preview-targets.spec.ts`, `translations-globals` |
 | Frame-editor playhead — `PLAYBACK_TIME_UPDATE` is accepted from the preview iframe's origin alone | unit: `playbackTimeStore.spec.ts` |
