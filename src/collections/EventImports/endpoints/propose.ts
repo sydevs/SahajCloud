@@ -1,14 +1,16 @@
 import type { ExistingRegion } from '../propose/match'
-import type { Endpoint, PayloadRequest, Where } from 'payload'
+import type { Endpoint, PayloadRequest } from 'payload'
 
 import { requireActiveManager } from '@/lib/endpoints'
 import { relationId } from '@/lib/utilities/relationId'
-import type { EventImport, EventImportRows, Region } from '@/payload-types'
+import type { EventImport, EventImportRows } from '@/payload-types'
 
 import {
   batchIdOf,
   failure,
   loadTarget,
+  readExistingRegions,
+  readTakenSlugs,
   refuseUnownedTarget,
   targetSubtreeWhere,
   type TargetRegion,
@@ -18,6 +20,7 @@ import {
   isProposableTargetLevel,
   unproposableTargetMessage,
   type ProposableRow,
+  tallyTree,
   type ProposedRowError,
   type ProposedTree,
 } from '../propose/tree'
@@ -137,7 +140,7 @@ export const proposeEventImport: Endpoint = {
     })
 
     const warn = loaded.warning ? { warning: loaded.warning } : {}
-    return Response.json({ ...warn, ...tally(tree), proposedRegions: tree })
+    return Response.json({ ...warn, ...tallyTree(tree), proposedRegions: tree })
   },
 }
 
@@ -196,21 +199,11 @@ async function loadTreeContext(
   ]
 
   const [inside, holders, slugs] = await Promise.all([
-    readRegions(req, subtree),
-    features.length ? readRegions(req, { mapboxId: { in: features } }) : Promise.resolve([]),
-    // The slug namespace is collection-wide (`slugs.ts`), so this cannot be
-    // scoped to the subtree. `slug` is a plain column, and the include-mode
-    // select is what stops every region's virtual URL fields running per row.
-    req.payload
-      .find({
-        collection: 'regions',
-        depth: 0,
-        pagination: false,
-        overrideAccess: true,
-        select: { slug: true },
-        req,
-      })
-      .then(({ docs }) => docs.map((region) => region.slug)),
+    readExistingRegions(req, subtree, true),
+    features.length
+      ? readExistingRegions(req, { mapboxId: { in: features } }, false)
+      : Promise.resolve([]),
+    readTakenSlugs(req),
   ])
 
   // ⚠ **The subtree read decides `inTarget`, not a second query.** Postgres has
@@ -219,39 +212,8 @@ async function loadTreeContext(
   // read is unscoped and the ids already in hand remove its overlap.
   const insideIds = new Set(inside.map((region) => region.id))
   return {
-    existing: [
-      ...inside.map((region) => asExisting(region, true)),
-      ...holders
-        .filter((region) => !insideIds.has(region.id))
-        .map((region) => asExisting(region, false)),
-    ],
+    existing: [...inside, ...holders.filter((region) => !insideIds.has(region.id))],
     takenSlugs: slugs,
-  }
-}
-
-function readRegions(req: PayloadRequest, where: Where): Promise<Region[]> {
-  return req.payload
-    .find({
-      collection: 'regions',
-      where,
-      depth: 0,
-      pagination: false,
-      overrideAccess: true,
-      select: { level: true, name: true, slug: true, mapboxId: true, parent: true },
-      req,
-    })
-    .then(({ docs }) => docs as Region[])
-}
-
-function asExisting(region: Region, inTarget: boolean): ExistingRegion {
-  return {
-    id: region.id,
-    level: region.level,
-    name: region.name,
-    slug: region.slug,
-    mapboxId: region.mapboxId,
-    parentId: relationId(region.parent),
-    inTarget,
   }
 }
 
@@ -290,22 +252,4 @@ function confineToTarget(
     else errors.push({ line: row.line, message: `This address is not in ${target.name}.` })
   }
   return { rows: kept, errors }
-}
-
-interface Tally {
-  /** Regions the commit would create. */
-  creating: number
-  /** Proposed nodes the Atlas already holds, which the commit leaves alone. */
-  existing: number
-  /** Rows the proposal itself refuses, on top of whatever the resolve step did. */
-  rowErrors: number
-}
-
-/** What the review banner counts, recomputed from the tree rather than tracked. */
-function tally(tree: ProposedTree): Tally {
-  return {
-    creating: tree.nodes.filter((node) => node.match.kind === 'create').length,
-    existing: tree.nodes.filter((node) => node.match.kind === 'existing').length,
-    rowErrors: tree.rowErrors.length,
-  }
 }

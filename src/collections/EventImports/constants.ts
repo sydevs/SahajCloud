@@ -120,3 +120,13 @@ export const STATE_LAYER_MIN_CITIES = 8
  * so a dropped response costs a short re-run rather than a long one.
  */
 export const COMMIT_CHUNK_ROWS = 20
+
+/**
+ * How many node edits one review request may carry.
+ *
+ * A reviewer edits nodes, not rows, and the tree is at most a few dozen of them
+ * — a city per place plus a state layer. The cap is generous against that and
+ * still bounds the work a single request can ask for, since each edit re-reads
+ * nothing but costs a pass over the tree.
+ */
+export const MAX_TREE_EDITS = 200
