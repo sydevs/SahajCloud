@@ -177,7 +177,15 @@ describe('playback smoothing', () => {
 
   it('carries a playing second forward by the clock, never past the next one', () => {
     expect(estimatePlaybackTime(report(11, 2000, true), 2400)).toBeCloseTo(11.4)
-    expect(estimatePlaybackTime(report(11, 2000, true), 5000)).toBe(12)
+    expect(estimatePlaybackTime(report(11, 2000, true), 3200)).toBe(12)
+  })
+
+  it('holds the reported second once the next report is overdue', () => {
+    // The preview reports every second while it plays, so a report this late
+    // means it stopped. `playing` is only recomputed when a NEW second
+    // arrives, and a pause sends none — so carrying on would leave the
+    // highlight a second ahead of the audio for as long as the tab is open.
+    expect(estimatePlaybackTime(report(11, 2000, true), 5000)).toBe(11)
   })
 
   it('shows a paused or seeked second as it is', () => {
