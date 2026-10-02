@@ -136,10 +136,8 @@ export function accessPlugin(options: AccessPluginOptions = {}): (config: Config
           ),
           admin: {
             ...global.admin,
-            // Same rule collections get: a declared `hidden` is respected, and
-            // an explicit `true` hides the global from admins too. Until #883
-            // this line replaced the declaration outright, so a global had no
-            // way to hide itself at all.
+            // Same rule collections get: an explicit `true` hides the global
+            // from admins too (#883).
             hidden: resolveHidden(global.admin?.hidden, slug, bypassPermissions),
           },
         }
