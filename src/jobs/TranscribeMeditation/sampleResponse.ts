@@ -29,12 +29,18 @@ const DEFAULT_DURATION_SECONDS = 600
 export function sampleLemonfoxResponse(durationSeconds?: number | null) {
   const duration =
     durationSeconds && durationSeconds > 0 ? durationSeconds : DEFAULT_DURATION_SECONDS
+  const startOf = (at: number) => Math.round(at * duration * 10) / 10
   const segments = SAMPLE_LINES.map(({ at, text }, id) => {
-    const start = Math.round(at * duration * 10) / 10
-    const words = text.split(' ').map((word, index) => ({
+    const start = startOf(at)
+    const next = SAMPLE_LINES[id + 1]
+    const room = (next ? startOf(next.at) : duration) - start
+    const tokens = text.split(' ')
+    // A short recording squeezes each line into the time before the next one.
+    const perWord = Math.min(SECONDS_PER_WORD, room / tokens.length)
+    const words = tokens.map((word, index) => ({
       word,
-      start: start + index * SECONDS_PER_WORD,
-      end: start + (index + 1) * SECONDS_PER_WORD,
+      start: start + index * perWord,
+      end: start + (index + 1) * perWord,
     }))
     return { id, text: ` ${text}`, start, end: words[words.length - 1].end, words }
   })
