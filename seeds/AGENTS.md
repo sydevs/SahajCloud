@@ -105,6 +105,7 @@ automatically — printing per-batch progress as it goes.
 | tags        | `pnpm seed tags`        | None                                       | user-choices, music-tags              |
 | atlas       | `pnpm seed atlas`       | The 8 JSON dumps in `seeds/atlas/data/`    | managers, regions, users, events, user-submissions, clients |
 | translations | `pnpm seed translations` | None                                      | the three translations globals (see below) |
+| sahaja-glossary | `pnpm seed sahaja-glossary` | None                                  | the `sahaja-glossary` global (see below) |
 
 ### `translations` — real copy everywhere, and the locales it publishes
 
@@ -181,6 +182,32 @@ unchanged rows re-port mechanically. See [atlas/AGENTS.md](atlas/AGENTS.md)
 for the procedure. For the Atlas backend surface and importer decisions,
 see [atlas/AGENTS.md](atlas/AGENTS.md) and
 [atlas/MIGRATION_PLAN.md](atlas/MIGRATION_PLAN.md).
+
+### `sahaja-glossary` — row ids are what make the per-locale writes land
+
+One global, 56 terms, and every locale `data.json` carries (`en de es fr it
+pt-BR ru` today). While the global is hidden from the admin, that file is its
+source of truth: nothing in the CMS can edit it.
+
+⚠ **English is written first, and the row ids come back from that write.**
+`key`, `category` and `keepAsIs` are not localized, so they live on the row
+rather than in a per-locale cell — and Payload matches an incoming array row to
+a stored one by `id` alone. Omit the ids and a second locale does not translate
+the English rows, it **replaces** them: 56 new rows carrying only that locale's
+spellings, with English gone. The importer refuses to write a locale whose rows
+it cannot match, rather than appending duplicates.
+
+⚠ **A locale with no value for a term is written `null`, never English.**
+Writing `null` rather than omitting the field is what makes a re-run idempotent:
+an omitted localized field keeps whatever is stored, so a value deleted from the
+file would survive forever. A `keepAsIs` term is seeded in English alone, and
+consumers use that spelling in every language.
+
+A re-run leaves 56 rows, not 112. `tests/int/sahaja-glossary.int.spec.ts` runs
+the importer twice and asserts both the count and each locale's values, because
+the failure mode here is duplicate rows rather than an error.
+
+`--dry-run` reports the term count and the translator-note count per locale.
 
 ## Common flags
 
