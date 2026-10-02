@@ -37,17 +37,18 @@ done
 # value enforced cannot differ. The two-token test mirrors the transform in
 # src/lib/env/server.ts, which this script cannot import: it is TypeScript, and
 # reading it would validate every other required variable as a side effect.
-{ read -r TARGET_HOST; read -r TARGET_DB; read -r ADMIN_URL; read -r STAGING_URL
-  read -r AUTORUN_STATE; } < <(node -e '
+{ read -r TARGET_HOST; read -r TARGET_DB; read -r ADMIN_URL
+  read -r STAGING_DB; read -r STAGING_URL; read -r AUTORUN_STATE; } < <(node -e '
   require("dotenv").config({ path: [".env.local", ".env"], quiet: true })
   const raw = process.env.DATABASE_URL
   if (!raw) process.exit(1)
   const url = new URL(raw)
   const db = decodeURIComponent(url.pathname.slice(1))
   const at = (name) => Object.assign(new URL(raw), { pathname: "/" + name }).toString()
+  const staging = db + "_incoming"
   const flag = process.env.JOBS_AUTORUN_ENABLED?.trim().toLowerCase()
   const autoRun = flag === "false" || flag === "0" ? "off" : "on"
-  console.log([url.hostname, db, at("postgres"), at(db + "_incoming"), autoRun].join("\n"))
+  console.log([url.hostname, db, at("postgres"), staging, at(staging), autoRun].join("\n"))
 ') || die "DATABASE_URL is not set in the shell, .env.local or .env"
 
 case "$TARGET_HOST" in
@@ -57,7 +58,6 @@ esac
 case "$TARGET_DB" in
   ""|postgres|template0|template1) die "refusing to replace '$TARGET_DB'" ;;
 esac
-STAGING_DB="${TARGET_DB}_incoming"
 
 # Checked before production is read, let alone written: the flag is what stops
 # the copy's jobs mailing real people, and it is on unless somebody turned it
@@ -102,7 +102,12 @@ echo "dumping production (read-only)…"
 # Restore beside the target and swap at the end, so a failed dump or restore
 # leaves the current database untouched.
 echo "restoring into ${STAGING_DB}…"
-dropdb --maintenance-db="$ADMIN_URL" --if-exists "$STAGING_DB" 2>/dev/null || true
+# `--if-exists` makes a missing staging database a success on its own, so this
+# needs no `|| true`: anything dropdb still reports here is a real failure, and
+# swallowing it only moves the complaint to createdb. Notices are quietened
+# rather than redirected, so an error keeps its message.
+PGOPTIONS='-c client_min_messages=warning' \
+  dropdb --maintenance-db="$ADMIN_URL" --if-exists "$STAGING_DB"
 createdb --maintenance-db="$ADMIN_URL" "$STAGING_DB"
 pg_restore --dbname="$STAGING_URL" --no-owner --no-acl --exit-on-error --single-transaction \
   "$WORK_DIR/prod.dump"

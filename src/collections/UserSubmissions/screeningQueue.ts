@@ -28,9 +28,8 @@ const QUEUE_RUN_DELAY_MS = 2000
  * tasks deterministically — a background run two seconds later would race their
  * assertions.
  *
- * Suppressed too when `jobsMayAutoRun()` is false, the same predicate the cron
- * ticks obey. With it off there is no safety net either: the rows wait until the
- * flag comes back on.
+ * `jobsMayAutoRun()` suppresses it too — and then the autoRun net above is off
+ * as well, so the rows wait for the flag rather than fifteen minutes.
  *
  * Both callers live in this intake's own pipeline: the create hook that queues
  * screening, and the `screenSubmission` task that queues delivery from inside

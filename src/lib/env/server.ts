@@ -31,6 +31,20 @@ import { ClientEnvSchema } from './client'
  *
  * The server schema also includes every client environment variable.
  */
+/**
+ * An operational pause: on unless told otherwise, because an existing
+ * deployment sets nothing. Only `false` or `0` stops it, any case, padded.
+ * `DB_QUERY_LOGGING` parses stricter on purpose — a typo there costs a
+ * log line, and one here sends the mail the operator meant to stop.
+ */
+const pauseFlag = z
+  .string()
+  .optional()
+  .transform((value) => {
+    const flag = value?.trim().toLowerCase()
+    return flag !== 'false' && flag !== '0'
+  })
+
 const ServerEnvSchema = ClientEnvSchema.extend({
   // --- REQUIRED - Core Application ---
 
@@ -75,36 +89,19 @@ const ServerEnvSchema = ClientEnvSchema.extend({
 
   /**
    * Run the nightly `ExpireEvents` sweep, or pause it (`src/jobs/ExpireEvents`).
-   * Defaults to on, so an existing deployment, which sets nothing, keeps
-   * today's behaviour. Case-insensitive, unlike `DB_QUERY_LOGGING` above: this
-   * one is an emergency pause, and `FALSE` reading as "run" would send the mail
-   * the operator meant to stop.
    * @default true
    */
-  EVENT_VERIFICATION_ENABLED: z
-    .string()
-    .optional()
-    .transform((value) => {
-      const flag = value?.trim().toLowerCase()
-      return flag !== 'false' && flag !== '0'
-    }),
+  EVENT_VERIFICATION_ENABLED: pauseFlag,
 
   /**
-   * Run the job queues, or skip every tick and every immediate kick. Read
+   * Run the job queues, or skip every tick and every immediate kick. Read it
    * through `jobsMayAutoRun()` (`@/lib/jobs/autoRun`), never directly, so the
    * cron and the kick cannot be gated separately. Turn it off locally when the
-   * database is a copy of production: the jobs send mail and call external APIs
-   * about real people. Parsed like `EVENT_VERIFICATION_ENABLED`, and on by
-   * default for the same reason.
+   * database is a copy of production: the jobs mail real people and call real
+   * mailing-list APIs, with the keys copied from production.
    * @default true
    */
-  JOBS_AUTORUN_ENABLED: z
-    .string()
-    .optional()
-    .transform((value) => {
-      const flag = value?.trim().toLowerCase()
-      return flag !== 'false' && flag !== '0'
-    }),
+  JOBS_AUTORUN_ENABLED: pauseFlag,
 
   /**
    * Nirmala Vidya API key. Fetches lecture metadata from Vimeo.

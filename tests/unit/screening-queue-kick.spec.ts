@@ -39,18 +39,15 @@ describe('runScreeningQueueAfterCommit', () => {
 
   afterEach(() => {
     vi.useRealTimers()
-    vi.resetModules()
     process.env = originalEnv
   })
 
-  // A copy of production is served with the flag off. The cron gate alone does
-  // not stop this run, which delivers a submission to a real mailing list
-  // within seconds of its create (#876).
+  // The cron gate alone left this run delivering a submission to a real mailing
+  // list within seconds of its create, on a copy of production (#876). Two
+  // outcomes only: the flag's vocabulary is the schema's, pinned in
+  // server-env.spec.ts.
   it.each([
     ['false', false],
-    ['0', false],
-    [' FALSE ', false],
-    ['true', true],
     [undefined, true],
   ])('JOBS_AUTORUN_ENABLED=%s runs the queue: %s', async (flag, expected) => {
     const runScreeningQueueAfterCommit = await load(flag)
