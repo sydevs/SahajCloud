@@ -7,7 +7,12 @@ import { Banner, Button, Dropzone, SelectInput, useLocale } from '@payloadcms/ui
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { ImportReview } from './ImportReview'
-import { importStepUrl, NO_LOCALE_REFUSAL, refusalMessage } from './importUrls'
+import {
+  importStepUrl,
+  NO_LOCALE_REFUSAL,
+  refusalMessage,
+  sendImportRequest,
+} from './importUrls'
 import { resolveProgress, resolveSummary, resolveVerdict, STALLED_REFUSAL } from './runPlan'
 
 export interface ImportRunnerProps {
@@ -20,13 +25,6 @@ export interface ImportRunnerProps {
 }
 
 type Phase = 'idle' | 'uploading' | 'resolving' | 'proposing' | 'reviewing' | 'failed'
-
-/** The counts `POST /:id/propose` answers with, beside the tree itself. */
-interface ProposeReport {
-  creating: number
-  existing: number
-  rowErrors: number
-}
 
 /**
  * Stages a CSV against this region and runs it up to a reviewable batch.
@@ -55,7 +53,6 @@ export const ImportRunner = ({
   const [phase, setPhase] = useState<Phase>('idle')
   const [batchId, setBatchId] = useState<null | number>(null)
   const [resolved, setResolved] = useState<null | ResolveReport>(null)
-  const [proposed, setProposed] = useState<null | ProposeReport>(null)
   const [refusal, setRefusal] = useState<null | string>(null)
 
   // ⚠ **A ref, because `busy` cannot bound this.** `busy` is derived from
@@ -93,7 +90,7 @@ export const ImportRunner = ({
         if (!url) return fail(NO_LOCALE_REFUSAL)
 
         setPhase('uploading')
-        const staged = await post(url, {
+        const staged = await sendImportRequest(url, 'POST', {
           csv: await file.text(),
           defaultLanguages: languages,
           targetRegion: regionId,
@@ -111,7 +108,7 @@ export const ImportRunner = ({
       setPhase('resolving')
       let previousPending: null | number = null
       for (;;) {
-        const chunk = await post(resolveUrl)
+        const chunk = await sendImportRequest(resolveUrl, 'POST')
         if (!mounted.current) return
         // A refusal here is the geocoder far more often than the batch, and
         // whatever the chunk managed is already stored — which is what makes
@@ -130,11 +127,10 @@ export const ImportRunner = ({
       if (!proposeUrl) return fail(NO_LOCALE_REFUSAL)
 
       setPhase('proposing')
-      const tree = await post(proposeUrl)
+      const tree = await sendImportRequest(proposeUrl, 'POST')
       if (!mounted.current) return
       if (!tree.ok) return fail(refusalMessage(tree.body, 'The regions could not be proposed.'))
 
-      setProposed(tree.body as ProposeReport)
       setPhase('reviewing')
     } catch {
       // `fetch` rejects on a dropped connection rather than answering, and the
@@ -173,9 +169,12 @@ export const ImportRunner = ({
       {busy ? <RunProgress phase={phase} resolved={resolved} /> : null}
       {refusal ? <Banner type="error">{refusal}</Banner> : null}
 
-      {phase === 'reviewing' && batchId !== null && resolved && proposed ? (
+      {phase === 'reviewing' && batchId !== null && resolved ? (
         <>
-          <Banner type="success">{`${resolveSummary(resolved)} ${proposalSummary(proposed)}`}</Banner>
+          {/* The rows only. The regions this batch needs are the review's own
+              first line (`treeNote`), and a second spelling of them stacked
+              directly above it is two numbers a reader has to reconcile. */}
+          <Banner type="success">{resolveSummary(resolved)}</Banner>
           <ImportReview apiRoute={apiRoute} batchId={batchId} />
         </>
       ) : (
@@ -202,16 +201,6 @@ const RunProgress = ({ phase, resolved }: { phase: Phase; resolved: null | Resol
   )
 }
 
-async function post(url: string, body?: unknown): Promise<{ body: unknown; ok: boolean }> {
-  const response = await fetch(url, {
-    method: 'POST',
-    credentials: 'include',
-    ...(body === undefined
-      ? {}
-      : { body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } }),
-  })
-  return { body: await response.json().catch(() => null), ok: response.ok }
-}
 
 /** The codes behind react-select's answer, which is one option or many. */
 function selectedValues(selected: Option | Option[]): string[] {
@@ -220,10 +209,3 @@ function selectedValues(selected: Option | Option[]): string[] {
     .filter((value): value is string => typeof value === 'string')
 }
 
-/** What the proposal came to — the half the review step is about. */
-function proposalSummary({ creating, existing, rowErrors }: ProposeReport): string {
-  const parts = [`${creating} new region${creating === 1 ? '' : 's'}`]
-  if (existing) parts.push(`${existing} already in the Atlas`)
-  if (rowErrors) parts.push(`${rowErrors} more rows skipped`)
-  return `${parts.join(', ')}.`
-}

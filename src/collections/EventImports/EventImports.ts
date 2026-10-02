@@ -8,6 +8,7 @@ import { adminOnlyFieldAccess } from '@/plugins/access'
 
 import { batchDiscardAccess, batchUploaderAccess } from './access'
 import { MAX_IMPORT_ROWS } from './constants'
+import { stampDiscardTime } from './discard'
 import { commitEventImport } from './endpoints/commit'
 import { proposeEventImport } from './endpoints/propose'
 import { resolveEventImport } from './endpoints/resolve'
@@ -55,6 +56,11 @@ export const EventImports: CollectionConfig = {
     read: batchUploaderAccess,
     update: batchUploaderAccess,
     delete: batchDiscardAccess,
+  },
+  hooks: {
+    // The discard's timestamp decides when the retention window runs out, so it
+    // is not the caller's to choose (`discard.ts`).
+    beforeChange: [stampDiscardTime],
   },
   admin: {
     group: 'Classes',

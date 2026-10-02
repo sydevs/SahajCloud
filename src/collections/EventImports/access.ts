@@ -39,17 +39,14 @@ export const batchUploaderAccess: Access = ({ req: { user } }) => {
  *
  * ⚠ **Trashing runs the `delete` check as well as `update`.** `updateByID`
  * detects a non-null `deletedAt` in the patch and calls `access.delete` with the
- * patch as `data` (`payload/dist/collections/operations/updateByID.js:110-118`),
- * combining the result into the update's own `where`. So an `update` grant alone
- * discards nothing: without this, the generated admins-only `delete` refused
- * every uploader their own discard, and the seven-day window had no
- * volunteer-reachable way in.
+ * patch as `data` (`payload`'s `updateByID` and bulk
+ * `update`), combining the result into the row filter. So an `update` grant alone
+ * discards nothing.
  *
- * ⚠ **Hard delete stays with the admins and the purge job.** The real `delete`
- * operation calls this with no `data`, so the `deletedAt` test refuses it — which
- * is the whole reason the test is on `data` rather than on the operation. A
- * volunteer who could empty their own trash is a volunteer who cannot undo a
- * discard, which is what the retention window exists for.
+ * ⚠ **Hard delete stays with the admins and the purge job.** `deleteByID` and the
+ * bulk `delete` call this with no `data` at all, so the `deletedAt` test refuses
+ * them — which is the whole reason the test is on the patch rather than on the
+ * operation. The retention window's story is in `src/collections/AGENTS.md`.
  */
 export const batchDiscardAccess: Access = (args) => {
   if (isAdminManager(args.req.user)) return true

@@ -34,7 +34,11 @@ export function resolveVerdict(
   latest: ResolveReport,
 ): ResolveVerdict {
   if (latest.done) return 'propose'
-  if (previousPending !== null && latest.pending >= previousPending) return 'stalled'
+  // A chunk reporting no count is a stall: a 200 carrying no `pending` leaves
+  // every comparison `undefined >= undefined`, false forever, so the loop would
+  // never end.
+  if (typeof latest.pending !== 'number') return 'stalled'
+  if (typeof previousPending === 'number' && latest.pending >= previousPending) return 'stalled'
   return 'resolve'
 }
 

@@ -2,16 +2,20 @@
 
 import type { MappableRegion, ReviewAnswer } from './reviewModel'
 
-import { Banner, Button, Table, useLocale } from '@payloadcms/ui'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { Banner, Button, Table, TextInput, useLocale } from '@payloadcms/ui'
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react'
 
-import type { FinishOutcome } from '@/collections/EventImports/commit/finish'
-import type { CommitTally } from '@/collections/EventImports/commit/summary'
 import type { TreeEdit } from '@/collections/EventImports/propose/edit'
 import type { ProposedNode } from '@/collections/EventImports/propose/tree'
 
 import { tableColumn } from '../tableColumn'
-import { batchDocumentUrl, importStepUrl, NO_LOCALE_REFUSAL, refusalMessage } from './importUrls'
+import {
+  batchDocumentUrl,
+  importStepUrl,
+  NO_LOCALE_REFUSAL,
+  refusalMessage,
+  sendImportRequest,
+} from './importUrls'
 import {
   childrenByParent,
   commitDoneNote,
@@ -30,6 +34,7 @@ import {
   stateLayerNote,
   treeNote,
   type CommitChunk,
+  type FinishedChunk,
 } from './reviewModel'
 
 export interface ImportReviewProps {
@@ -39,12 +44,6 @@ export interface ImportReviewProps {
 }
 
 type Phase = 'committed' | 'committing' | 'discarded' | 'editing' | 'failed' | 'loading' | 'ready'
-
-/** What a finished commit leaves on screen, after the batch itself is gone. */
-interface Outcome {
-  finished: FinishOutcome
-  rows: CommitTally
-}
 
 /**
  * The batch a reviewer approves, or discards, before any class is created.
@@ -65,8 +64,9 @@ export const ImportReview = ({ apiRoute, batchId }: ImportReviewProps) => {
   const [phase, setPhase] = useState<Phase>('loading')
   const [answer, setAnswer] = useState<null | ReviewAnswer>(null)
   const [progress, setProgress] = useState<null | CommitChunk>(null)
-  const [outcome, setOutcome] = useState<null | Outcome>(null)
+  const [outcome, setOutcome] = useState<null | FinishedChunk>(null)
   const [refusal, setRefusal] = useState<null | string>(null)
+  const [pruned, setPruned] = useState<string[]>([])
 
   // ⚠ **A ref, because a derived `busy` cannot bound this.** The state behind it
   // has not been applied when a second click lands in the same tick, and a
@@ -90,7 +90,7 @@ export const ImportReview = ({ apiRoute, batchId }: ImportReviewProps) => {
     const url = importStepUrl({ apiRoute, batchId, locale, step: 'review' })
     if (!url) return fail(NO_LOCALE_REFUSAL)
 
-    const read = await send(url, 'GET')
+    const read = await sendImportRequest(url, 'GET')
     if (!mounted.current) return
     if (!read.ok) return fail(refusalMessage(read.body, 'This batch could not be read.'))
 
@@ -99,9 +99,15 @@ export const ImportReview = ({ apiRoute, batchId }: ImportReviewProps) => {
     setPhase('ready')
   }, [apiRoute, batchId, fail, locale])
 
+  // ⚠ **Terminal phases are never reloaded.** `load`'s identity changes with the
+  // admin locale, so without this gate switching language after a commit re-reads
+  // a batch the finish already deleted — a 404 that replaces the committed and
+  // skipped lines with a refusal, and they exist nowhere else.
+  const terminal = phase === 'committed' || phase === 'discarded'
   useEffect(() => {
+    if (terminal) return
     void load().catch(() => fail(UNREACHABLE_REFUSAL))
-  }, [fail, load])
+  }, [fail, load, terminal])
 
   const applyEdit = useCallback(
     async (edit: TreeEdit) => {
@@ -113,7 +119,7 @@ export const ImportReview = ({ apiRoute, batchId }: ImportReviewProps) => {
         if (!url) return fail(NO_LOCALE_REFUSAL)
 
         setPhase('editing')
-        const edited = await send(url, 'POST', { edits: [edit] })
+        const edited = await sendImportRequest(url, 'POST', { edits: [edit] })
         if (!mounted.current) return
         if (!edited.ok) {
           // The stored tree is untouched by a refused edit (all or nothing), so
@@ -122,6 +128,11 @@ export const ImportReview = ({ apiRoute, batchId }: ImportReviewProps) => {
           setPhase('ready')
           return
         }
+        // ⚠ **Read before the reload throws it away.** A mapping that empties a
+        // state drops that node, and the reloaded tree simply no longer has it —
+        // so this is the only moment the surface can say which ones went.
+        const dropped = (edited.body as { pruned?: unknown }).pruned
+        setPruned(Array.isArray(dropped) ? dropped.filter((key) => typeof key === 'string') : [])
         await load()
       } catch {
         fail(UNREACHABLE_REFUSAL)
@@ -143,7 +154,7 @@ export const ImportReview = ({ apiRoute, batchId }: ImportReviewProps) => {
       setPhase('committing')
       let previousPending: null | number = null
       for (;;) {
-        const chunk = await send(url, 'POST')
+        const chunk = await sendImportRequest(url, 'POST')
         if (!mounted.current) return
         // Whatever the chunk created is already recorded on the batch, so a
         // refusal here leaves somewhere to resume from rather than a half-import
@@ -159,7 +170,7 @@ export const ImportReview = ({ apiRoute, batchId }: ImportReviewProps) => {
           // is deleted by it — so a response without one is a bug we must not
           // render as a success.
           if (!report.finished) return fail(MISSING_REPORT_REFUSAL)
-          setOutcome({ finished: report.finished, rows: report.rows })
+          setOutcome(report as FinishedChunk)
           setPhase('committed')
           return
         }
@@ -181,7 +192,7 @@ export const ImportReview = ({ apiRoute, batchId }: ImportReviewProps) => {
       const url = batchDocumentUrl({ apiRoute, batchId, locale })
       if (!url) return fail(NO_LOCALE_REFUSAL)
 
-      const trashed = await send(url, 'PATCH', { deletedAt: new Date().toISOString() })
+      const trashed = await sendImportRequest(url, 'PATCH', { deletedAt: new Date().toISOString() })
       if (!mounted.current) return
       if (!trashed.ok) {
         return fail(refusalMessage(trashed.body, 'This batch could not be discarded.'))
@@ -211,14 +222,24 @@ export const ImportReview = ({ apiRoute, batchId }: ImportReviewProps) => {
     return <OutcomeReport outcome={outcome} />
   }
 
-  const busy = phase === 'committing' || phase === 'editing'
+  // ⚠ **A half-written commit is a frozen tree.** `POST /:id/tree` 409s for a
+  // `committing` batch, so offering a rename on one reads as the control being
+  // broken rather than as the batch having moved on.
+  const busy = phase === 'committing' || phase === 'editing' || answer?.status === 'committing'
+  const stateLayer = answer ? stateLayerNote(answer.proposedRegions) : null
 
   return (
     <div className="region-import__review">
       {refusal ? <Banner type="error">{refusal}</Banner> : null}
       {answer?.warning ? <Banner type="info">{answer.warning}</Banner> : null}
+      {pruned.length ? (
+        <Banner type="info">
+          {`${pruned.length} proposed region${pruned.length === 1 ? '' : 's'} held nothing after that change, so ${pruned.length === 1 ? 'it is' : 'they are'} no longer in the tree.`}
+        </Banner>
+      ) : null}
 
       {phase === 'loading' ? <p>Reading the batch…</p> : null}
+      {progress?.warning ? <Banner type="info">{progress.warning}</Banner> : null}
       {phase === 'committing' ? (
         <p>{progress ? commitProgressNote(progress) : 'Creating the regions…'}</p>
       ) : null}
@@ -227,9 +248,7 @@ export const ImportReview = ({ apiRoute, batchId }: ImportReviewProps) => {
         <>
           <p>{treeNote(answer)}</p>
           <p>{coordinatorNote(answer.coordinators)}</p>
-          {stateLayerNote(answer.proposedRegions) ? (
-            <p>{stateLayerNote(answer.proposedRegions)}</p>
-          ) : null}
+          {stateLayer ? <p>{stateLayer}</p> : null}
 
           <h3>Regions</h3>
           <TreeLevel
@@ -245,7 +264,9 @@ export const ImportReview = ({ apiRoute, batchId }: ImportReviewProps) => {
 
           <div className="region-import__review-actions">
             <Button disabled={busy} onClick={() => void commit()}>
-              {answer.status === 'committing' ? 'Resume creating the classes' : 'Create the classes'}
+              {answer.status === 'committing' || progress
+                ? 'Resume creating the classes'
+                : 'Create the classes'}
             </Button>
             <Button buttonStyle="secondary" disabled={busy} onClick={() => void discard()}>
               Discard this batch
@@ -298,10 +319,12 @@ interface TreeNodeProps {
 /**
  * One proposed region, with the two edits it accepts where it accepts them.
  *
- * ⚠ **Native controls, not `SelectInput`.** This is one control per node in a
- * tree rather than a form field, and the react-select wrapper renders nothing
- * without a form path — which also leaves the mapping control untestable in the
- * node lane, where every other decision in this phase is pinned.
+ * ⚠ **The mapping control is a native `<select>`, not `SelectInput`.** That
+ * wrapper is a react-select widget, and this is one control per node inside a
+ * nested list rather than a field in a form — so it would need a `path` that
+ * addresses nothing, and a spec asserting what a reviewer picked would have to
+ * reproduce react-select's own `Option`-shaped `onChange` to do it. The rename box
+ * is Payload's `TextInput`, which has neither problem.
  */
 const TreeNode = ({ busy, mappable, node, onEdit }: TreeNodeProps) => {
   const [draft, setDraft] = useState(node.name)
@@ -319,15 +342,13 @@ const TreeNode = ({ busy, mappable, node, onEdit }: TreeNodeProps) => {
 
       {editable ? (
         <div className="region-import__node-edit">
-          <label>
-            {`Rename ${node.name}`}
-            <input
-              disabled={busy}
-              onChange={(event) => setDraft(event.target.value)}
-              type="text"
-              value={draft}
-            />
-          </label>
+          <TextInput
+            label={`Rename ${node.name}`}
+            onChange={(event: ChangeEvent<HTMLInputElement>) => setDraft(event.target.value)}
+            path={`rename-${node.key}`}
+            readOnly={busy}
+            value={draft}
+          />
           <Button
             buttonStyle="secondary"
             disabled={busy || !draft.trim() || draft.trim() === node.name}
@@ -400,11 +421,22 @@ const RowTable = ({ rows }: { readonly rows: ReviewAnswer['rows'] }) => {
  * answered, so every line and reason below is unrecoverable once it leaves the
  * screen (`commit/summary.ts`).
  */
-const OutcomeReport = ({ outcome: { finished, rows } }: { readonly outcome: Outcome }) => (
+const OutcomeReport = ({ outcome }: { readonly outcome: FinishedChunk }) => {
+  const { finished } = outcome
+  return (
   <div className="region-import__outcome">
-    <Banner type="success">{commitDoneNote(finished, rows)}</Banner>
+    <Banner type="success">{commitDoneNote(outcome)}</Banner>
     {finished.summaryEmailed ? null : (
       <Banner type="info">The summary email did not go out. The classes were still created.</Banner>
+    )}
+    {/* ⚠ The batch should be gone by now. One that survives keeps the uploaded
+        CSV — contact names, phone numbers, addresses — and `PurgeEventImports`
+        will not take it, because nothing trashed it. */}
+    {finished.deleted ? null : (
+      <Banner type="error">
+        The classes were created, but this batch was not deleted afterwards. Ask an admin to remove
+        it — it still holds the uploaded file.
+      </Banner>
     )}
     {finished.skipped.length ? (
       <>
@@ -417,7 +449,8 @@ const OutcomeReport = ({ outcome: { finished, rows } }: { readonly outcome: Outc
       </>
     ) : null}
   </div>
-)
+  )
+}
 
 const UNREACHABLE_REFUSAL =
   'The import could not be reached. Check your connection, then reload this tab.'
@@ -425,17 +458,3 @@ const UNREACHABLE_REFUSAL =
 const MISSING_REPORT_REFUSAL =
   'The commit finished but reported nothing. Check the classes on the region before running it again.'
 
-async function send(
-  url: string,
-  method: 'GET' | 'PATCH' | 'POST',
-  body?: unknown,
-): Promise<{ body: unknown; ok: boolean }> {
-  const response = await fetch(url, {
-    method,
-    credentials: 'include',
-    ...(body === undefined
-      ? {}
-      : { body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } }),
-  })
-  return { body: await response.json().catch(() => null), ok: response.ok }
-}
