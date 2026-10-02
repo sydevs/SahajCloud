@@ -15,7 +15,7 @@
  * their subtree — and an ancestor country usually is outside it.
  */
 
-import type { PayloadRequest } from 'payload'
+import type { PayloadRequest, Where } from 'payload'
 
 import { relationId } from '@/lib/utilities/relationId'
 import type { Region } from '@/payload-types'
@@ -64,10 +64,27 @@ export async function refuseUnownedTarget(
   return totalDocs ? null : failure('You do not manage that region.', 403)
 }
 
+/**
+ * Every region at or beneath the target.
+ *
+ * ⚠ **One spelling, because two steps have to agree.** The resolve step reads the
+ * classes already inside the target with it and the propose step reads the
+ * regions; a node matched `existing` by one and `create` by the other is not an
+ * error anyone sees, it is two cities.
+ */
+export function targetSubtreeWhere(targetId: number): Where {
+  return { or: [{ id: { equals: targetId } }, { 'breadcrumbs.doc': { equals: targetId } }] }
+}
+
 /** The target region itself, reduced to what a proposal names it by. */
 export interface TargetRegion {
   id: number
   level: Region['level']
+  /**
+   * The geocoded feature the region stands for, or a `manual-` id where it was
+   * placed by hand (`src/lib/mapbox/manualLocation.ts`).
+   */
+  mapboxId: string
   /**
    * ⚠ **Falls back to the slug, which `Regions` requires.** `name` is optional on
    * the collection, and the slug disambiguator reads this — an empty string there
@@ -103,7 +120,7 @@ export async function loadTarget(
     depth: 0,
     overrideAccess: true,
     disableErrors: true,
-    select: { level: true, name: true, slug: true, breadcrumbs: true },
+    select: { level: true, name: true, slug: true, mapboxId: true, breadcrumbs: true },
     req,
   })) as Region | null
   if (!target) return { ok: false, error: 'The target region no longer exists.' }
@@ -139,6 +156,7 @@ export async function loadTarget(
   const named: TargetRegion = {
     id: targetId,
     level: target.level,
+    mapboxId: target.mapboxId,
     name: target.name?.trim() || target.slug,
   }
   return resolved.warning

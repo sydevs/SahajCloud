@@ -5,6 +5,8 @@ import { describe, expect, it } from 'vitest'
 
 import { AppCards } from '@/collections/AppCards/AppCards'
 import { Clients } from '@/collections/Clients/Clients'
+import { EventImports } from '@/collections/EventImports/EventImports'
+import { buildProposedTree, type ProposedTree } from '@/collections/EventImports/propose/tree'
 import { Events } from '@/collections/Events/Events'
 import { Lectures } from '@/collections/Lectures/Lectures'
 import { Managers } from '@/collections/Managers/Managers'
@@ -12,7 +14,11 @@ import { Meditations } from '@/collections/Meditations/Meditations'
 import { Videos } from '@/collections/Videos/Videos'
 import { WeMeditateAppStatus } from '@/globals/WeMeditateAppStatus/WeMeditateAppStatus'
 import { TableOfContentsBlock } from '@/lib/richEditor/blocks/TableOfContentsBlock'
-import type { ClientAbuseScore, ReadinessReport } from '@/payload-types'
+import type {
+  ClientAbuseScore,
+  EventImportProposedRegions,
+  ReadinessReport,
+} from '@/payload-types'
 
 /**
  * #659: every JSON column that can state its shape now declares a `jsonSchema`,
@@ -363,5 +369,139 @@ describe('TableOfContentsBlock.headings', () => {
   it('accepts what the field component stores, and refuses a heading with no slug', () => {
     expect(runSchema(field, [{ slug: 'intro', text: 'Introduction', level: 2 }])).toBe(true)
     expect(runSchema(field, [{ text: 'Introduction', level: 2 }])).not.toBe(true)
+  })
+})
+
+/**
+ * ⚠ **The one column whose shape is declared twice** — here as Zod, and in
+ * `src/collections/EventImports/propose/tree.ts` as `ProposedTree`, composed from
+ * `NodeMatch`, `MergedPlace` and `StateLayerDecision` in three sibling modules.
+ * The duplication is deliberate: those modules are pure and importing
+ * `payload-types` would couple the proposal's maths to the schema. What is not
+ * acceptable is drift, and assignability catches only half of it — a key ADDED on
+ * the builder's side type-checks and then fails Ajv on the save, which surfaces as
+ * a 500 naming a JSON pointer nobody linked to the field.
+ *
+ * So the real builder's own output is validated here, both ways round.
+ */
+describe('EventImports.proposedRegions', () => {
+  const field = jsonField(EventImports.fields, 'proposedRegions')
+
+  /** Compile-time half: `pnpm typecheck:tests` fails if either side drops a key. */
+  const builderFitsColumn: EventImportProposedRegions = {} as ProposedTree
+  const columnFitsBuilder: ProposedTree = {} as EventImportProposedRegions
+
+  it('is wired onto the column', () => {
+    expect(field.jsonSchema?.schema.title).toBe('EventImportProposedRegions')
+    expect(builderFitsColumn).toBeDefined()
+    expect(columnFitsBuilder).toBeDefined()
+  })
+
+  it('accepts every arm a real buildProposedTree call emits', () => {
+    // A country target reaches the state layer, the metro merge, an existing
+    // match, an `elsewhere` refusal, a Mapbox location and a hand-located one.
+    const cities = (
+      [
+        // Two rows at Pune and one at Pimpri 9 km away: inside
+        // `METRO_MERGE_METERS`, so the smaller place is absorbed and the survivor
+        // carries `merged`. Same `placeId` would have made them one group instead.
+        ['Pune', 2, 18.52, 'place.pune'],
+        ['Pune', 3, 18.52, 'place.pune'],
+        ['Pimpri', 4, 18.6, 'place.pimpri'],
+        ['Nashik', 5, 20, 'place.nashik'],
+        ['Nagpur', 6, 22, 'place.nagpur'],
+        // No place id, so it is located by hand rather than by feature.
+        ['Thane', 7, 24, null],
+        ['Surat', 8, 26, 'place.surat'],
+        ['Rajkot', 9, 28, 'place.rajkot'],
+        ['Vadodara', 10, 30, 'place.vadodara'],
+        ['Bhavnagar', 11, 32, 'place.bhavnagar'],
+        ['Mumbai', 12, 34, 'place.mumbai'],
+      ] as const
+    ).map(([placeName, line, latitude, placeId]) => ({
+      line,
+      point: { latitude, longitude: 73.85 },
+      cityKey: placeName.toLowerCase(),
+      placeId,
+      placeName,
+      subdivisionCode: line > 7 ? 'GJ' : 'MH',
+      mapboxId: null,
+      address: null,
+      venueName: null,
+    }))
+
+    const tree = buildProposedTree({
+      target: { id: 1, level: 'country', name: 'India' },
+      countryCode: 'IN',
+      rows: cities,
+      existing: [
+        { id: 2, level: 'city', name: 'Nashik', slug: 'nashik', mapboxId: 'place.nashik', parentId: 1, inTarget: true },
+        { id: 3, level: 'city', name: 'Mumbai', slug: 'mumbai', mapboxId: 'place.mumbai', parentId: 99, inTarget: false },
+      ],
+      takenSlugs: ['pune'],
+    })
+
+    expect(tree.stateLayer).toMatchObject({ proposed: true })
+    expect(tree.nodes.some((node) => node.match.kind === 'existing')).toBe(true)
+    expect(tree.nodes.some((node) => node.match.kind === 'elsewhere')).toBe(true)
+    expect(tree.nodes.some((node) => node.merged?.length)).toBe(true)
+    expect(tree.nodes.some((node) => node.location?.kind === 'manual')).toBe(true)
+    expect(runSchema(field, tree)).toBe(true)
+
+    // A city target reaches the venue arm and the `proposed: false` state layer.
+    const halls = [12, 13].map((line) => ({
+      line,
+      point: { latitude: 18.52, longitude: 73.85 },
+      cityKey: 'pune',
+      placeId: 'place.pune',
+      placeName: 'Pune',
+      subdivisionCode: 'MH',
+      mapboxId: 'address.hall',
+      address: 'Yogahaus 1',
+      venueName: 'Yogahaus',
+    }))
+    const venues = buildProposedTree({
+      target: { id: 4, level: 'city', name: 'Pune' },
+      countryCode: 'IN',
+      rows: halls,
+      existing: [],
+      takenSlugs: [],
+    })
+
+    expect(venues.nodes).toHaveLength(1)
+    expect(venues.stateLayer).toMatchObject({ proposed: false })
+    expect(runSchema(field, venues)).toBe(true)
+  })
+
+  it('refuses a key the builder never writes, and a node missing one it always does', () => {
+    const tree = buildProposedTree({
+      target: { id: 1, level: 'country', name: 'India' },
+      countryCode: 'IN',
+      rows: [
+        {
+          line: 2,
+          point: { latitude: 18.52, longitude: 73.85 },
+          cityKey: 'pune',
+          placeId: 'place.pune',
+          placeName: 'Pune',
+          subdivisionCode: 'MH',
+          mapboxId: null,
+          address: null,
+          venueName: null,
+        },
+      ],
+      existing: [],
+      takenSlugs: [],
+    })
+
+    expect(runSchema(field, tree)).toBe(true)
+    expect(
+      runSchema(field, { ...tree, nodes: [{ ...tree.nodes[0], reparentTo: 7 }] }),
+    ).not.toBe(true)
+    const { slug: _slug, ...noSlug } = tree.nodes[0]!
+    expect(runSchema(field, { ...tree, nodes: [noSlug] })).not.toBe(true)
+    // `stateLayer` carries its reason, so neither arm may be dropped.
+    const { stateLayer: _stateLayer, ...noLayer } = tree
+    expect(runSchema(field, noLayer)).not.toBe(true)
   })
 })

@@ -350,21 +350,27 @@ describe('propose endpoint', () => {
 
     it('proposes halls for a city target, and nothing for a single-use address', async () => {
       const row = rowIn('halls')
+      // The fixture's default `mapboxId` is a `manual-` one, which is the
+      // hand-located case: no feature to compare a row against, so the target
+      // confines nothing and the Nuremberg row below would be accepted.
       const berlinCity = await testData.createRegion(payload, {
         name: cityName('halls', 'berlin'),
         level: 'city',
         parent: germany.id,
       })
+      expect(berlinCity.mapboxId.startsWith('manual-')).toBe(true)
 
       const { tree } = await propose(
         [
           row(2, { address: 'Yogahaus 1', venueName: 'Yogahaus', addressId: 'mbx-halls-hall' }),
           row(3, { address: 'Yogahaus 1', venueName: 'Yogahaus', addressId: 'mbx-halls-hall' }),
           row(4, { address: 'A Private Flat 9' }),
+          row(5, { place: 'munich', address: 'Elsewhere 5' }),
         ],
         { targetRegion: berlinCity.id },
       )
 
+      expect(tree.rowErrors).toEqual([])
       expect(tree.nodes).toHaveLength(1)
       expect(tree.nodes[0]).toMatchObject({
         level: 'venue',
@@ -374,6 +380,37 @@ describe('propose endpoint', () => {
       })
       // A city target groups nothing above its halls.
       expect(tree.stateLayer).toMatchObject({ proposed: false })
+    })
+
+    it('refuses a row that geocoded outside a city target, and keeps the rest', async () => {
+      const row = rowIn('stray')
+      // ⚠ A real Mapbox feature, not the fixture's `manual-` default: the
+      // confinement is a feature comparison, so a hand-located target skips it.
+      const pune = await testData.createRegion(payload, {
+        name: cityName('stray', 'berlin'),
+        level: 'city',
+        parent: germany.id,
+        mapboxId: placeId('stray', 'berlin'),
+      })
+
+      const { tree, body } = await propose(
+        [
+          row(2, { address: 'Yogahaus 1', addressId: 'mbx-stray-hall' }),
+          row(3, { address: 'Yogahaus 1', addressId: 'mbx-stray-hall' }),
+          // Nuremberg: the state confines it, the city does not, and nothing
+          // below this endpoint ever asks.
+          row(4, { place: 'munich', address: 'Fernab 4' }),
+          row(5, { place: 'munich', address: 'Fernab 4' }),
+        ],
+        { targetRegion: pune.id },
+      )
+
+      expect(body).toMatchObject({ rowErrors: 2 })
+      expect(tree.rowErrors.map((error) => error.line)).toEqual([4, 5])
+      expect(tree.rowErrors[0]?.message).toContain(cityName('stray', 'berlin'))
+      // The stray rows are out of the sizing too, so they cannot earn a hall.
+      expect(tree.nodes).toHaveLength(1)
+      expect(tree.nodes[0]).toMatchObject({ level: 'venue', lines: [2, 3] })
     })
 
     it('recomputes from scratch when called again', async () => {
@@ -411,7 +448,14 @@ describe('propose endpoint', () => {
     it('refuses a batch mid-commit', async () => {
       const batch = await createBatch({ rows: [rowIn('mid')(2)], status: 'committing' })
 
-      expect((await call(uploader, batch.id)).status).toBe(409)
+      const { status, body } = await call(uploader, batch.id)
+
+      expect(status).toBe(409)
+      // Its own wording, not the "resolve first" 409: a committing batch is not
+      // waiting for anything the reviewer can do.
+      expect(body).toMatchObject({
+        errors: [{ message: expect.stringContaining('being committed') }],
+      })
     })
 
     it('refuses a venue target, which no city may hang under', async () => {
