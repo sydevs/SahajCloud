@@ -229,6 +229,12 @@ const payloadConfig = (overrides?: Partial<Config>) => {
           cron: '*/15 * * * *',
           queue: 'screening',
         },
+        {
+          // Safety net for the transcription start in
+          // `POST /api/meditations/:id/transcript`, the same way.
+          cron: '*/15 * * * *',
+          queue: 'transcription',
+        },
       ],
     },
     // Email configuration
