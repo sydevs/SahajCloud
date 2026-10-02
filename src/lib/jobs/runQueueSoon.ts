@@ -11,20 +11,22 @@ import type { Payload } from 'payload'
  *
  * Suppressed under `NODE_ENV=test`, where specs create rows freely and invoke
  * tasks deterministically — a background run would race their assertions.
- *
- * `delayMs` is how long to wait first. A caller whose job row is queued with
- * `req` has put that row inside its own transaction, and the job cannot run
- * until the transaction commits, so it must wait a beat; one queueing outside a
- * transaction passes `0` and the row is already visible.
  */
-export function runQueueAfterCommit(args: {
+export function runQueueSoon(args: {
   payload: Payload
   queue: string
   /** Names the caller in the warning, so a failed run says which one. */
   label: string
   /** Whatever identifies the row, merged into the warning. */
   context?: Record<string, unknown>
-  /** How long to wait before running. `0` runs on the next tick. */
+  /**
+   * How long to wait before running. `0` runs on the next tick.
+   *
+   * A caller that queued its job row with `req` put that row inside its own
+   * transaction, and the job cannot run until the transaction commits — so it
+   * must wait a beat. One queueing outside a transaction leaves the row already
+   * visible and passes `0`.
+   */
   delayMs?: number
 }): void {
   if (process.env.NODE_ENV === 'test') return
