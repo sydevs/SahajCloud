@@ -76,6 +76,7 @@ import * as migration_20260929_041116_payload_3_90_auth_fields from './20260929_
 import * as migration_20260929_043344_storage_object_key from './20260929_043344_storage_object_key';
 import * as migration_20260929_173315_null_manager_password_hashes from './20260929_173315_null_manager_password_hashes';
 import * as migration_20261001_180722_event_imports from './20261001_180722_event_imports';
+import * as migration_20261001_234947_event_import_proposed_regions from './20261001_234947_event_import_proposed_regions';
 
 export const migrations = [
   {
@@ -466,6 +467,11 @@ export const migrations = [
   {
     up: migration_20261001_180722_event_imports.up,
     down: migration_20261001_180722_event_imports.down,
-    name: '20261001_180722_event_imports'
+    name: '20261001_180722_event_imports',
+  },
+  {
+    up: migration_20261001_234947_event_import_proposed_regions.up,
+    down: migration_20261001_234947_event_import_proposed_regions.down,
+    name: '20261001_234947_event_import_proposed_regions'
   },
 ];

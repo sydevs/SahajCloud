@@ -8,6 +8,7 @@ import { adminOnlyFieldAccess } from '@/plugins/access'
 
 import { batchUploaderAccess } from './access'
 import { MAX_IMPORT_ROWS } from './constants'
+import { proposeEventImport } from './endpoints/propose'
 import { resolveEventImport } from './endpoints/resolve'
 
 /**
@@ -33,7 +34,7 @@ export const EventImports: CollectionConfig = {
   slug: 'event-imports',
   labels: { singular: 'Event Import', plural: 'Event Imports' },
   trash: true,
-  endpoints: [resolveEventImport],
+  endpoints: [resolveEventImport, proposeEventImport],
   // `create` and `delete` are left to the generated config on purpose — it
   // already answers both with "admins only" (`access.ts`).
   access: {
@@ -190,6 +191,96 @@ export const EventImports: CollectionConfig = {
             ),
         }),
       ).max(MAX_IMPORT_ROWS),
+      admin: { readOnly: true },
+    }),
+    jsonField({
+      name: 'proposedRegions',
+      schemaTitle: 'EventImportProposedRegions',
+      // The region tree the batch would create, as `buildProposedTree` returns
+      // it (`propose/tree.ts`). Absent until the propose endpoint has run, which
+      // is what the commit step refuses on.
+      access: { update: adminOnlyFieldAccess },
+      // ⚠ **Closed, unlike the guidance's default for a JSON column.** The
+      // propose endpoint is the column's only writer and rewrites it whole, so
+      // no row can be stranded by a shape change — and a review that renames a
+      // node has to fail loudly rather than save a tree the commit then walks
+      // past.
+      schema: z.strictObject({
+        nodes: z.array(
+          z.strictObject({
+            key: z
+              .string()
+              .describe('Stable across calls, so a review can address a node it renamed.'),
+            level: z.enum(['region', 'city', 'venue']),
+            name: z.string(),
+            parentKey: z
+              .string()
+              .nullable()
+              .describe('The proposed node above it, or null when it hangs off the target.'),
+            match: z.union([
+              z.strictObject({
+                kind: z.literal('existing'),
+                regionId: z.int(),
+                name: z.string(),
+                slug: z.string().nullable(),
+              }),
+              z.strictObject({ kind: z.literal('create') }),
+              z.strictObject({
+                kind: z.literal('elsewhere'),
+                regionId: z.int(),
+                name: z.string(),
+              }),
+            ]),
+            slug: z
+              .string()
+              .nullable()
+              .describe('Null for every node the commit does not create.'),
+            location: z
+              .union([
+                z.strictObject({ kind: z.literal('mapbox'), mapboxId: z.string() }),
+                z.strictObject({
+                  kind: z.literal('manual'),
+                  latitude: z.number(),
+                  longitude: z.number(),
+                  radius: z.number(),
+                }),
+              ])
+              .nullable()
+              .describe('Null for every node the commit does not create.'),
+            lines: z
+              .array(z.int())
+              .describe("The CSV lines this node's classes come from, the absorbed places' included."),
+            merged: z
+              .array(
+                z.strictObject({
+                  key: z.string(),
+                  name: z.string(),
+                  lines: z.array(z.int()),
+                  subdivisionCode: z.string().nullable(),
+                }),
+              )
+              .optional()
+              .describe('What the metro rule folded into this city, so the review can say so.'),
+          }),
+        ).describe('Parent-first, so the commit can create them in order.'),
+        rowErrors: z.array(z.strictObject({ line: z.int(), message: z.string() })),
+        stateLayer: z
+          .union([
+            z.strictObject({
+              proposed: z.literal(true),
+              states: z.array(
+                z.strictObject({
+                  code: z.string(),
+                  name: z.string(),
+                  cityKeys: z.array(z.string()),
+                }),
+              ),
+              unplacedCityKeys: z.array(z.string()),
+            }),
+            z.strictObject({ proposed: z.literal(false), reason: z.string() }),
+          ])
+          .describe('Kept with its reason, because the review has to explain a missing layer.'),
+      }),
       admin: { readOnly: true },
     }),
   ],
