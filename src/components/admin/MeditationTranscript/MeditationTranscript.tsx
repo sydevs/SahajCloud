@@ -3,6 +3,7 @@
 import type { UIFieldClientComponent } from 'payload'
 
 import { Banner, Button, Spinner, useDocumentInfo, useLocale } from '@payloadcms/ui'
+import { AudioLines } from 'lucide-react'
 import React, { memo, useMemo, useRef, useState } from 'react'
 import useSWR from 'swr'
 
@@ -216,7 +217,11 @@ const Paragraph = memo(function Paragraph({
           </React.Fragment>
         ))}
       </p>
-      {paragraph.silenceAfter && <p className={styles.silence}>A moment of silence</p>}
+      {paragraph.silenceAfter && (
+        <p className={styles.silence}>
+          <AudioLines aria-hidden="true" size={16} strokeWidth={1.5} />A moment of silence
+        </p>
+      )}
     </section>
   )
 })
