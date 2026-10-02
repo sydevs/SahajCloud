@@ -1,4 +1,8 @@
-import type { TranscriptSegment, TranscriptView } from '@/lib/meditations/transcript'
+import type {
+  TranscriptSegment,
+  TranscriptView,
+  TranscriptWord,
+} from '@/lib/meditations/transcript'
 
 /** A pause this long between phrases starts a new paragraph. */
 export const PARAGRAPH_GAP_SECONDS = 3
@@ -60,6 +64,48 @@ export function groupTranscript(segments: TranscriptSegment[]): TranscriptParagr
     paragraphs.push({ start: segment.start, segmentIndexes: [index], silenceAfter: false })
   })
   return paragraphs
+}
+
+export type TranscriptToken = {
+  text: string
+  /** The timed word this token is, or `null` for one Whisper gave no times. */
+  wordIndex: number | null
+}
+
+/** How far ahead a token looks for its word, so one untimed word strands no others. */
+const ALIGN_LOOKAHEAD = 3
+
+const comparable = (text: string): string => text.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '')
+
+/**
+ * Split a phrase's text into the tokens it reads as, each tied to its timed
+ * word. The text, not the word list, is what renders: the normalizer drops a
+ * word Whisper could not time, and the phrase must still read in full.
+ */
+export function alignWords(text: string, words: TranscriptWord[]): TranscriptToken[] {
+  let next = 0
+  return text
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((token) => {
+      const key = comparable(token)
+      const end = Math.min(words.length, next + ALIGN_LOOKAHEAD)
+      for (let index = next; key && index < end; index += 1) {
+        if (comparable(words[index].text) === key) {
+          next = index + 1
+          return { text: token, wordIndex: index }
+        }
+      }
+      return { text: token, wordIndex: null }
+    })
+}
+
+/** The word being spoken at `time`, or `-1` before the first. */
+export function activeWordIndex(words: TranscriptWord[], time: number): number {
+  for (let index = words.length - 1; index >= 0; index -= 1) {
+    if (words[index].start <= time) return index
+  }
+  return -1
 }
 
 /** The phrase being spoken at `time`, or `-1` in a pause. */

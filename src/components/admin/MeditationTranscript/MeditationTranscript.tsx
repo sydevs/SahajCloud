@@ -3,7 +3,7 @@
 import type { UIFieldClientComponent } from 'payload'
 
 import { Banner, Button, Spinner, useDocumentInfo, useLocale } from '@payloadcms/ui'
-import React, { memo, useMemo, useState } from 'react'
+import React, { memo, useMemo, useRef, useState } from 'react'
 import useSWR from 'swr'
 
 import { usePlaybackTime, useSeekToTime } from '@/components/admin/FrameEditor/hooks'
@@ -13,11 +13,14 @@ import type { TranscriptSegment, TranscriptView } from '@/lib/meditations/transc
 import styles from './MeditationTranscript.module.css'
 import {
   activeSegmentIndex,
+  activeWordIndex,
+  alignWords,
   groupTranscript,
   type TranscriptParagraph,
   transcriptPhase,
   transcriptUrl,
 } from './transcriptModel'
+import { useFollowPlayhead } from './useFollowPlayhead'
 
 const POLL_INTERVAL_MS = 3000
 
@@ -55,6 +58,9 @@ export const MeditationTranscript: UIFieldClientComponent = () => {
   const segments = useMemo(() => data?.segments ?? [], [data])
   const paragraphs = useMemo(() => groupTranscript(segments), [segments])
   const active = activeSegmentIndex(segments, playbackTime)
+  const activeWord = active >= 0 ? activeWordIndex(segments[active].words, playbackTime) : -1
+  const container = useRef<HTMLDivElement>(null)
+  useFollowPlayhead(container, active)
 
   if (!url) {
     return <Banner type="error">The transcript cannot load without an admin locale.</Banner>
@@ -143,16 +149,20 @@ export const MeditationTranscript: UIFieldClientComponent = () => {
         </Banner>
       )}
       {data.status === 'completed' && (
-        <div className={styles.paragraphs}>
-          {paragraphs.map((paragraph) => (
-            <Paragraph
-              activeIndex={paragraph.segmentIndexes.includes(active) ? active : -1}
-              key={paragraph.segmentIndexes[0]}
-              onSeek={seekTo}
-              paragraph={paragraph}
-              segments={segments}
-            />
-          ))}
+        <div className={styles.paragraphs} ref={container}>
+          {paragraphs.map((paragraph) => {
+            const holdsActive = paragraph.segmentIndexes.includes(active)
+            return (
+              <Paragraph
+                activeIndex={holdsActive ? active : -1}
+                activeWord={holdsActive ? activeWord : -1}
+                key={paragraph.segmentIndexes[0]}
+                onSeek={seekTo}
+                paragraph={paragraph}
+                segments={segments}
+              />
+            )
+          })}
         </div>
       )}
     </div>
@@ -164,11 +174,13 @@ const Paragraph = memo(function Paragraph({
   paragraph,
   segments,
   activeIndex,
+  activeWord,
   onSeek,
 }: {
   paragraph: TranscriptParagraph
   segments: TranscriptSegment[]
   activeIndex: number
+  activeWord: number
   onSeek: (seconds: number) => void
 }) {
   const start = seekSecond(paragraph.start)
@@ -191,7 +203,11 @@ const Paragraph = memo(function Paragraph({
               onClick={() => onSeek(seekSecond(segments[index].start))}
               type="button"
             >
-              {segments[index].text}
+              {index === activeIndex ? (
+                <SpokenPhrase segment={segments[index]} activeWord={activeWord} />
+              ) : (
+                segments[index].text
+              )}
             </button>{' '}
           </React.Fragment>
         ))}
@@ -200,5 +216,18 @@ const Paragraph = memo(function Paragraph({
     </section>
   )
 })
+
+/** The playing phrase, word by word, with the word being spoken marked. */
+function SpokenPhrase({ segment, activeWord }: { segment: TranscriptSegment; activeWord: number }) {
+  const tokens = useMemo(() => alignWords(segment.text, segment.words), [segment])
+  return tokens.map((token, index) => (
+    <React.Fragment key={index}>
+      {index > 0 && ' '}
+      <span className={token.wordIndex === activeWord ? styles.spokenWord : undefined}>
+        {token.text}
+      </span>
+    </React.Fragment>
+  ))
+}
 
 export default MeditationTranscript
