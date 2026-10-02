@@ -17,7 +17,11 @@
 import { formatAdminURL } from 'payload/shared'
 
 /** The steps a run walks, in order. */
-export type ImportStep = 'upload' | 'resolve' | 'propose'
+export type ImportStep = 'upload' | 'resolve' | 'propose' | 'review' | 'tree' | 'commit'
+
+/** What a step that could not be addressed reports, in both components that send one. */
+export const NO_LOCALE_REFUSAL =
+  'This page could not tell which language you are editing in. Reload it and try again.'
 
 export interface ImportStepUrlArgs {
   /** `config.routes.api`, which is configurable and so never typed in. */
@@ -40,6 +44,29 @@ export function importStepUrl({
 
   const path: `/${string}` =
     step === 'upload' ? '/event-imports/upload' : `/event-imports/${batchId}/${step}`
+  return `${formatAdminURL({ apiRoute, path })}?locale=${encodeURIComponent(locale)}`
+}
+
+/**
+ * The batch document itself, which the discard writes `deletedAt` to.
+ *
+ * ⚠ **A discard is an update, not a delete.** `event-imports` is a `trash`
+ * collection and `payload.delete` is the hard delete there, kept to the admins
+ * and the purge job so a volunteer cannot empty the seven-day window they might
+ * need (`EventImports/access.ts`). `deletedAt` is the one column the uploader
+ * holds, so `PATCH` is the discard.
+ */
+export function batchDocumentUrl({
+  apiRoute,
+  batchId,
+  locale,
+}: {
+  readonly apiRoute: string
+  readonly batchId: number
+  readonly locale: string | undefined
+}): null | string {
+  if (!locale) return null
+  const path: `/${string}` = `/event-imports/${batchId}`
   return `${formatAdminURL({ apiRoute, path })}?locale=${encodeURIComponent(locale)}`
 }
 
