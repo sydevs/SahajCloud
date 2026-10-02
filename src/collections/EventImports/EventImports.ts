@@ -12,6 +12,7 @@ import { commitEventImport } from './endpoints/commit'
 import { proposeEventImport } from './endpoints/propose'
 import { resolveEventImport } from './endpoints/resolve'
 import { eventImportTemplate } from './endpoints/template'
+import { editEventImportTree } from './endpoints/tree'
 import { uploadEventImport } from './endpoints/upload'
 
 /**
@@ -42,6 +43,7 @@ export const EventImports: CollectionConfig = {
     uploadEventImport,
     resolveEventImport,
     proposeEventImport,
+    editEventImportTree,
     commitEventImport,
   ],
   // `create` and `delete` are left to the generated config on purpose — it
@@ -217,11 +219,11 @@ export const EventImports: CollectionConfig = {
       // it (`propose/tree.ts`). Absent until the propose endpoint has run, which
       // is what the commit step refuses on.
       access: { update: adminOnlyFieldAccess },
-      // ⚠ **Closed, unlike the guidance's default for a JSON column.** The
-      // propose endpoint is the column's only writer and rewrites it whole, so
-      // no row can be stranded by a shape change — and a review that renames a
-      // node has to fail loudly rather than save a tree the commit then walks
-      // past.
+      // ⚠ **Closed, unlike the guidance's default for a JSON column.** Two
+      // endpoints write it and both rewrite it whole — `propose` from the rows,
+      // `tree` from a reviewer's edits — so no row can be stranded by a shape
+      // change, and a review that renames a node has to fail loudly rather than
+      // save a tree the commit then walks past.
       schema: z.strictObject({
         nodes: z.array(
           z.strictObject({

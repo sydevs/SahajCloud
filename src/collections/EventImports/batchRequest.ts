@@ -15,6 +15,7 @@
  * their subtree — and an ancestor country usually is outside it.
  */
 
+import type { ExistingRegion } from './propose/match'
 import type { PayloadRequest, Where } from 'payload'
 
 import { relationId } from '@/lib/utilities/relationId'
@@ -183,4 +184,60 @@ export async function loadTarget(
   return resolved.warning
     ? { ok: true, target: named, scope: resolved.scope, warning: resolved.warning }
     : { ok: true, target: named, scope: resolved.scope }
+}
+
+/**
+ * Existing regions as the proposal and the review both read them.
+ *
+ * ⚠ **One spelling, because the two steps have to agree about what exists.** The
+ * propose step asks this twice — the target's subtree, then whoever holds a
+ * feature the batch geocoded — and the review step asks it once, for the
+ * regions a reviewer may map a node onto. A second `select` here is a second
+ * answer to "which region is this", and `match.ts` decides on exactly these
+ * five columns.
+ */
+export async function readExistingRegions(
+  req: PayloadRequest,
+  where: Where,
+  inTarget: boolean,
+): Promise<ExistingRegion[]> {
+  const { docs } = await req.payload.find({
+    collection: 'regions',
+    where,
+    depth: 0,
+    pagination: false,
+    overrideAccess: true,
+    select: { level: true, name: true, slug: true, mapboxId: true, parent: true },
+    req,
+  })
+
+  return (docs as Region[]).map((region) => ({
+    id: region.id,
+    level: region.level,
+    name: region.name,
+    slug: region.slug,
+    mapboxId: region.mapboxId,
+    parentId: relationId(region.parent),
+    inTarget,
+  }))
+}
+
+/**
+ * Every slug `regions` holds, which is the namespace a created node must miss.
+ *
+ * ⚠ **Collection-wide, never scoped to the subtree.** `Regions.slug` is unique
+ * across the collection (`slugs.ts`), so a batch proposing a city named like one
+ * on the other side of the world still has to disambiguate. The include-mode
+ * `select` is what stops every region's virtual URL fields running per row.
+ */
+export async function readTakenSlugs(req: PayloadRequest): Promise<string[]> {
+  const { docs } = await req.payload.find({
+    collection: 'regions',
+    depth: 0,
+    pagination: false,
+    overrideAccess: true,
+    select: { slug: true },
+    req,
+  })
+  return docs.map((region) => region.slug)
 }

@@ -4,6 +4,7 @@ import { MANUAL_RADIUS_MIN_METERS } from '@/collections/EventImports/constants'
 import type { ExistingRegion } from '@/collections/EventImports/propose/match'
 import {
   buildProposedTree,
+  prunedOfEmptyStates,
   type ProposableRow,
   type ProposedNode,
 } from '@/collections/EventImports/propose/tree'
@@ -379,5 +380,53 @@ describe('buildProposedTree', () => {
 
     expect(nodes).toEqual([])
     expect(rowErrors).toEqual([])
+  })
+
+  /**
+   * Asserted on the prune directly, because the two ways a state empties reach
+   * it from opposite directions: the proposal matches its cities, and a review
+   * maps them away (`edit.ts`). One function, so one place to pin it.
+   */
+  describe('prunedOfEmptyStates', () => {
+    const state: ProposedNode = {
+      key: 'state:MH',
+      level: 'region',
+      name: 'Maharashtra',
+      parentKey: null,
+      match: { kind: 'create' },
+      slug: 'maharashtra',
+      location: { kind: 'manual', latitude: 19, longitude: 74, radius: 50_000 },
+      lines: [2],
+    }
+    const cityUnder = (match: ProposedNode['match']): ProposedNode => ({
+      key: 'city:pune',
+      level: 'city',
+      name: 'Pune',
+      parentKey: 'state:MH',
+      match,
+      slug: 'pune',
+      location: { kind: 'mapbox', mapboxId: 'place.pune' },
+      lines: [2],
+    })
+
+    it('keeps a state with a city to create under it', () => {
+      expect(prunedOfEmptyStates([state, cityUnder({ kind: 'create' })])).toHaveLength(2)
+    })
+
+    // ⚠ **An `elsewhere` city keeps its `parentKey`** (`tree.ts`), unlike a
+    // matched one — so without the `create` test this state is kept and then
+    // written as a region holding nothing, which is the shape the layer
+    // decision already calls worse than no layer.
+    it('drops a state whose only city is held outside the target', () => {
+      const nodes = [state, cityUnder({ kind: 'elsewhere', regionId: 60, name: 'Pune' })]
+
+      expect(prunedOfEmptyStates(nodes).map((node) => node.key)).toEqual(['city:pune'])
+    })
+
+    it('never drops a city or a venue, whatever hangs off it', () => {
+      const venue: ProposedNode = { ...cityUnder({ kind: 'create' }), key: 'venue:hall', level: 'venue', parentKey: null }
+
+      expect(prunedOfEmptyStates([venue])).toEqual([venue])
+    })
   })
 })

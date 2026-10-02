@@ -142,7 +142,7 @@ export function buildProposedTree({
         }
       : cityNodes({ target, countryCode, rows, existing })
 
-  assignSlugsTo(nodes, target.name, takenSlugs)
+  assignNodeSlugs(nodes, target.name, takenSlugs)
   return { nodes, rowErrors: rowErrorsFor(nodes), stateLayer }
 }
 
@@ -242,7 +242,7 @@ function cityNodes({ target, countryCode, rows, existing }: CityNodesArgs): {
     }
   })
 
-  return { nodes: [...keepPeopledStates(states, cityNodeList), ...cityNodeList], stateLayer }
+  return { nodes: prunedOfEmptyStates([...states, ...cityNodeList]), stateLayer }
 }
 
 /**
@@ -253,13 +253,19 @@ function cityNodes({ target, countryCode, rows, existing }: CityNodesArgs): {
  * nothing to group — and its name, slug, centre and radius were all computed
  * from cities that stay where they are. An empty region in the tree is worse
  * than no layer, which is the shape `decideStateLayer` already calls acceptable.
+ *
+ * ⚠ **Run again after a review edit**, because mapping the last new city under
+ * a state reaches the same shape by another route (`edit.ts`). One definition,
+ * so a layer the proposal would have dropped cannot survive an edit.
+ *
+ * Order is preserved, which is what keeps the tree parent-first (`placement.ts`).
  */
-function keepPeopledStates(
-  states: readonly ProposedNode[],
-  cities: readonly ProposedNode[],
-): ProposedNode[] {
-  return states.filter((state) =>
-    cities.some((city) => city.parentKey === state.key && city.match.kind === 'create'),
+export function prunedOfEmptyStates(nodes: readonly ProposedNode[]): ProposedNode[] {
+  return nodes.filter(
+    (node) =>
+      node.level !== 'region' ||
+      node.match.kind !== 'create' ||
+      nodes.some((other) => other.parentKey === node.key && other.match.kind === 'create'),
   )
 }
 
@@ -349,7 +355,7 @@ interface LocationArgs {
  * fires for a top-level node and `slugs.ts`'s own worked example — Georgia the
  * state becoming `georgia-united-states` — is unreachable.
  */
-function assignSlugsTo(
+export function assignNodeSlugs(
   nodes: readonly ProposedNode[],
   targetName: string,
   takenSlugs: Iterable<string>,
@@ -384,4 +390,28 @@ function rowErrorsFor(nodes: readonly ProposedNode[]): ProposedRowError[] {
       })),
     )
     .sort((a, b) => a.line - b.line)
+}
+
+export interface TreeTally {
+  /** Regions the commit would create. */
+  creating: number
+  /** Proposed nodes the Atlas already holds, which the commit leaves alone. */
+  existing: number
+  /** Rows the proposal itself refuses, on top of whatever the resolve step did. */
+  rowErrors: number
+}
+
+/**
+ * What the review banner counts, recomputed from the tree rather than tracked.
+ *
+ * ⚠ **One definition, because the proposal and the review both report it.** A
+ * reviewer who maps a node watches `creating` fall by one, so the two endpoints
+ * counting differently would read as an edit that did nothing.
+ */
+export function tallyTree(tree: ProposedTree): TreeTally {
+  return {
+    creating: tree.nodes.filter((node) => node.match.kind === 'create').length,
+    existing: tree.nodes.filter((node) => node.match.kind === 'existing').length,
+    rowErrors: tree.rowErrors.length,
+  }
 }
