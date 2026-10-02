@@ -105,6 +105,14 @@ export function isProposableTargetLevel(level: Region['level']): level is Propos
   return (PROPOSABLE_TARGET_LEVELS as readonly string[]).includes(level)
 }
 
+/**
+ * What a caller targeting a level no batch can hold is told, in the three places
+ * that refuse it: the upload, the proposal, and the Import tab's view.
+ */
+export function unproposableTargetMessage(level: Region['level']): string {
+  return `A ${level} cannot hold imported classes' regions. Target a country, state or city.`
+}
+
 export interface ProposeTreeArgs {
   target: { id: number; level: ProposableTargetLevel; name: string }
   /** The target country's ISO alpha-2, for naming subdivisions. */

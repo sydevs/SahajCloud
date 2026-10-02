@@ -157,7 +157,7 @@ describe('importTabTarget', () => {
     expect(importTabTarget({ ...base, level: 'venue' })).toBeNull()
   })
 
-  it('hides while there is no level to read', () => {
+  it('hides where there is no level to read, which the level list itself answers', () => {
     expect(importTabTarget({ ...base, level: null })).toBeNull()
   })
 

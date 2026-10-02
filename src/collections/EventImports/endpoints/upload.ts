@@ -7,9 +7,9 @@ import { getLanguageOptions } from '@/lib/locales'
 import type { EventImport } from '@/payload-types'
 
 import { failure, loadTarget, refuseUnownedTarget } from '../batchRequest'
-import { mayStageImport } from '../capability'
+import { mayStageImport, STAGE_IMPORT_REFUSAL } from '../capability'
 import { parseImportCsv } from '../csv/parse'
-import { isProposableTargetLevel } from '../propose/tree'
+import { isProposableTargetLevel, unproposableTargetMessage } from '../propose/tree'
 
 /**
  * Bounds what the CSV parser is handed.
@@ -74,7 +74,7 @@ export const uploadEventImport: Endpoint = {
     const { targetRegion: targetId, csv, defaultLanguages } = parsed.data
 
     if (!mayStageImport({ user: req.user, locale: req.locale })) {
-      return failure('You are not allowed to create classes in this language.', 403)
+      return failure(STAGE_IMPORT_REFUSAL, 403)
     }
 
     // `every` with a narrowing predicate is what makes the codes the column's
@@ -94,10 +94,7 @@ export const uploadEventImport: Endpoint = {
       // The same refusal the propose step makes, made here so a volunteer reads
       // it before uploading rather than after reviewing. Neither is redundant:
       // a batch outlives this request, and a region's level can change under it.
-      return failure(
-        `A ${loaded.target.level} cannot hold imported classes' regions. Target a country, state or city.`,
-        422,
-      )
+      return failure(unproposableTargetMessage(loaded.target.level), 422)
     }
 
     const file = parseImportCsv(csv)

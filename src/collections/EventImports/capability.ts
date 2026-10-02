@@ -20,6 +20,13 @@ import type { TypedUser } from 'payload'
 
 import { bypassPermissions, hasPermission, roleScopeFromLocale } from '@/plugins/access'
 
+/**
+ * What a caller refused by {@link mayStageImport} is told, in both surfaces that
+ * ask it. Names the language rather than the role, because that is the half a
+ * volunteer can act on — switching the admin locale is what fixes it.
+ */
+export const STAGE_IMPORT_REFUSAL = 'You are not allowed to create classes in this language.'
+
 export function mayStageImport({
   user,
   locale,
