@@ -1,13 +1,13 @@
 import type { Payload } from 'payload'
 
-import { runQueueAfterCommit } from '@/lib/jobs/runQueueAfterCommit'
+import { runQueueSoon } from '@/lib/jobs/runQueueSoon'
 
 /**
  * How long to wait before running the queue.
  *
  * Long enough for the caller's transaction to have committed, short enough that
  * nobody waits on it. The queue's own autoRun is what makes the exact number
- * uncritical — see `runQueueAfterCommit`.
+ * uncritical — see `runQueueSoon`.
  */
 const QUEUE_RUN_DELAY_MS = 2000
 
@@ -32,5 +32,5 @@ export function runScreeningQueueAfterCommit(args: {
   /** Whatever identifies the row, merged into the warning. */
   context?: Record<string, unknown>
 }): void {
-  runQueueAfterCommit({ ...args, queue: 'screening', delayMs: QUEUE_RUN_DELAY_MS })
+  runQueueSoon({ ...args, queue: 'screening', delayMs: QUEUE_RUN_DELAY_MS })
 }

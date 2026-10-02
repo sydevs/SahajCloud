@@ -6,7 +6,7 @@ import {
   isTranscriptionActive,
   toTranscriptView,
 } from '@/collections/MeditationTranscripts/view'
-import { runQueueAfterCommit } from '@/lib/jobs/runQueueAfterCommit'
+import { runQueueSoon } from '@/lib/jobs/runQueueSoon'
 import type { MeditationTranscript } from '@/payload-types'
 
 import { requireTranscriptAccess } from './transcriptAccess'
@@ -99,7 +99,7 @@ export const requestMeditationTranscript: Endpoint = {
 
     // No transaction wraps this handler, so the row and the job are already
     // committed and the run needs no delay.
-    runQueueAfterCommit({
+    runQueueSoon({
       payload: req.payload,
       queue: 'transcription',
       label: 'requestMeditationTranscript',
