@@ -48,8 +48,9 @@ POST /api/seed/<script>?collection=X&offset=0&limit=25  # Paginated import
 ```
 
 Requires an admin session (a Manager with `admin: true`). The response is
-Server-Sent Events (SSE) with progress updates. Scripts: `tags`,
-`wemeditate`, `meditations`, `storyblok`, `atlas`.
+Server-Sent Events (SSE) with progress updates. The accepted names are
+`VALID_SCRIPTS` in that route — `tags`, `wemeditate`, `meditations`,
+`storyblok`, `wm-app-translations`, `translations`, `sahaja-glossary`, `atlas`.
 
 ## Pagination support
 
