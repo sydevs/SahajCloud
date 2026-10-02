@@ -25,6 +25,8 @@ export const transcriptSegmentsSchema = z.array(transcriptSegmentSchema)
 
 export type TranscriptSegment = z.infer<typeof transcriptSegmentSchema>
 
+export type TranscriptWord = z.infer<typeof transcriptWordSchema>
+
 export const TRANSCRIPT_STATUSES = ['queued', 'processing', 'completed', 'failed'] as const
 
 export type TranscriptStatus = (typeof TRANSCRIPT_STATUSES)[number]

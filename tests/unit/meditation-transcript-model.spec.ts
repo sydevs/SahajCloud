@@ -1,12 +1,14 @@
 /**
  * The Transcript tab's pure logic: which state it shows, how phrases fall into
- * paragraphs and silences, which phrase the playhead is in, and the URL it
- * reads.
+ * paragraphs and silences, which phrase and word the playhead is in, and the
+ * URL it reads.
  */
 import { describe, expect, it } from 'vitest'
 
 import {
   activeSegmentIndex,
+  activeWordIndex,
+  alignWords,
   groupTranscript,
   transcriptPhase,
   transcriptUrl,
@@ -105,5 +107,51 @@ describe('activeSegmentIndex', () => {
     expect(activeSegmentIndex(segments, 1)).toBe(-1)
     expect(activeSegmentIndex(segments, 6)).toBe(-1)
     expect(activeSegmentIndex(segments, 20)).toBe(-1)
+  })
+})
+
+describe('alignWords', () => {
+  const word = (text: string, start: number) => ({ text, start, end: start + 0.3 })
+
+  it('ties each written token to its timed word, punctuation and case aside', () => {
+    expect(
+      alignWords('Close your eyes.', [word('close', 0), word('your', 1), word('eyes', 2)]),
+    ).toEqual([
+      { text: 'Close', wordIndex: 0 },
+      { text: 'your', wordIndex: 1 },
+      { text: 'eyes.', wordIndex: 2 },
+    ])
+  })
+
+  it('keeps a word Whisper could not time, untied, and aligns the rest', () => {
+    expect(
+      alignWords('Count to 108 slowly.', [word('Count', 0), word('to', 1), word('slowly.', 3)]),
+    ).toEqual([
+      { text: 'Count', wordIndex: 0 },
+      { text: 'to', wordIndex: 1 },
+      { text: '108', wordIndex: null },
+      { text: 'slowly.', wordIndex: 2 },
+    ])
+  })
+
+  it('reads in full when no word is timed', () => {
+    expect(alignWords('  Sit   up. ', []).map((token) => token.text)).toEqual(['Sit', 'up.'])
+  })
+})
+
+describe('activeWordIndex', () => {
+  const words = [
+    { text: 'Sit', start: 1, end: 1.4 },
+    { text: 'up.', start: 1.5, end: 2 },
+  ]
+
+  it('finds the word being spoken, holding it through the gap to the next', () => {
+    expect(activeWordIndex(words, 1.2)).toBe(0)
+    expect(activeWordIndex(words, 1.45)).toBe(0)
+    expect(activeWordIndex(words, 1.9)).toBe(1)
+  })
+
+  it('marks no word before the first starts', () => {
+    expect(activeWordIndex(words, 0.5)).toBe(-1)
   })
 })
