@@ -1,5 +1,6 @@
 import type { RawImportRow } from '../csv/columns'
 import type { PreparedCandidate } from '../resolve/duplicates'
+import type { TargetScope } from '../resolve/targetScope'
 import type { Endpoint, PayloadRequest, Where } from 'payload'
 
 import { Temporal } from '@js-temporal/polyfill'
@@ -8,13 +9,12 @@ import { notFinishedWhere } from '@/collections/Events/lifecycle/finished'
 import { requireActiveManager } from '@/lib/endpoints'
 import { geocodeLocation } from '@/lib/mapbox/geocoder'
 import { relationId } from '@/lib/utilities/relationId'
-import type { EventImport, EventImportRows, Region, SupportedTimezones } from '@/payload-types'
-import { ownedRegionFilterOptions } from '@/plugins/access'
+import type { EventImport, EventImportRows, SupportedTimezones } from '@/payload-types'
 
+import { batchIdOf, failure, loadTarget, refuseUnownedTarget } from '../batchRequest'
 import { RESOLVE_CHUNK_ROWS } from '../constants'
 import { cityKeyFor, findDuplicate, prepareCandidate } from '../resolve/duplicates'
 import { geocodeRequestFor, resolveRow, type ResolvedRow } from '../resolve/resolveRow'
-import { resolveTargetScope, type TargetChainNode, type TargetScope } from '../resolve/targetScope'
 
 type ImportRow = EventImportRows[number]
 
@@ -63,12 +63,8 @@ export const resolveEventImport: Endpoint = {
     const denied = requireActiveManager(req)
     if (denied) return denied
 
-    const id = Number(req.routeParams?.id)
-    // `isSafeInteger`, not `isInteger`: `1e30` is an integer and would reach
-    // Postgres as an out-of-range `integer`, which escapes as a 500.
-    if (!Number.isSafeInteger(id) || id < 1) {
-      return failure('A numeric batch id is required.', 400)
-    }
+    const id = batchIdOf(req)
+    if (id === null) return failure('A numeric batch id is required.', 400)
 
     const batch = (await req.payload.findByID({
       collection: 'event-imports',
@@ -89,7 +85,7 @@ export const resolveEventImport: Endpoint = {
     const unowned = await refuseUnownedTarget(req, targetId)
     if (unowned) return unowned
 
-    const scope = await loadTargetScope(req, targetId)
+    const scope = await loadTarget(req, targetId)
     if (!scope.ok) return failure(scope.error, 422)
 
     const warn = scope.warning ? { warning: scope.warning } : {}
@@ -281,87 +277,6 @@ function asCandidate(row: ImportRow): Candidate {
 }
 
 /**
- * 403 unless the caller may write inside the target's subtree.
- *
- * ⚠ **Asked of the database, not of a list in memory.** `ownedRegionFilterOptions`
- * is the same scoping `events.region` and `regions.parent` offer in the admin, so
- * an endpoint deciding it differently would be a second definition of who owns
- * what. `true` is the admin's answer — `requireActiveManager` has already turned
- * away everyone who is not an active manager.
- */
-async function refuseUnownedTarget(
-  req: PayloadRequest,
-  targetId: number,
-): Promise<Response | null> {
-  const scoped = await ownedRegionFilterOptions({ req })
-  if (scoped === true) return null
-  if (scoped === false) return failure('You do not manage any region.', 403)
-
-  const { totalDocs } = await req.payload.count({
-    collection: 'regions',
-    where: { and: [{ id: { equals: targetId } }, scoped] },
-    overrideAccess: true,
-    req,
-  })
-  return totalDocs ? null : failure('You do not manage that region.', 403)
-}
-
-type LoadScopeResult =
-  | { ok: true; scope: TargetScope; warning?: string }
-  | { ok: false; error: string }
-
-/**
- * The target's country and subdivision codes.
- *
- * The chain is read as its own query rather than through `depth: 1`: a
- * breadcrumb's `doc` would hydrate each whole region, and all this reads is
- * three fields off each ancestor.
- */
-async function loadTargetScope(req: PayloadRequest, targetId: number): Promise<LoadScopeResult> {
-  const target = (await req.payload.findByID({
-    collection: 'regions',
-    id: targetId,
-    depth: 0,
-    overrideAccess: true,
-    disableErrors: true,
-    select: { level: true, name: true, slug: true, breadcrumbs: true },
-    req,
-  })) as Region | null
-  if (!target) return { ok: false, error: 'The target region no longer exists.' }
-
-  // A region's own breadcrumbs include itself, so the target is filtered out of
-  // the ancestor read and appended once below — it is already in hand.
-  const ancestorIds = (target.breadcrumbs ?? [])
-    .map((crumb) => relationId(crumb.doc))
-    .filter((id): id is number => id !== null && id !== targetId)
-
-  const ancestors = ancestorIds.length
-    ? (
-        await req.payload.find({
-          collection: 'regions',
-          where: { id: { in: ancestorIds } },
-          depth: 0,
-          pagination: false,
-          overrideAccess: true,
-          select: { level: true, name: true, slug: true },
-          req,
-        })
-      ).docs
-    : []
-
-  const chain: TargetChainNode[] = [...ancestors, target].map(({ level, name, slug }) => ({
-    level,
-    name,
-    slug,
-  }))
-  const scope = resolveTargetScope(chain)
-  if (!scope.ok) return { ok: false, error: scope.error }
-  return scope.warning
-    ? { ok: true, scope: scope.scope, warning: scope.warning }
-    : { ok: true, scope: scope.scope }
-}
-
-/**
  * Every non-trashed class already in the target's subtree, reduced once.
  *
  * ⚠ **The `select` is what keeps this one query.** A `depth: 0` read still runs
@@ -416,8 +331,4 @@ function pointOf(
 ): { latitude: number; longitude: number } | null {
   const { latitude, longitude } = address ?? {}
   return latitude != null && longitude != null ? { latitude, longitude } : null
-}
-
-function failure(message: string, status: number): Response {
-  return Response.json({ errors: [{ message }] }, { status })
 }
