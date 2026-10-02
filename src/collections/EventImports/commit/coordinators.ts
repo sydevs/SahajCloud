@@ -88,8 +88,14 @@ export async function ensureCoordinators(
  * (`src/collections/Managers/access.ts`), so this read elevates past field
  * access to get the column it matches on — the gate is the caller's ownership
  * of the batch and its target, settled before the commit starts.
+ *
+ * ⚠ **One spelling, because the review asks the same question.** It shows a
+ * volunteer how many accounts a commit would open before they ask for one
+ * (`endpoints/review.ts`), and a second read answering differently would be a
+ * banner the commit then contradicts. The review keeps only the keys — the ids
+ * are for the writes that follow this one.
  */
-async function managersByEmail(
+export async function managersByEmail(
   req: PayloadRequest,
   emails: readonly string[],
 ): Promise<Map<string, number>> {

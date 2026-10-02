@@ -19,6 +19,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { CommitRow } from '@/collections/EventImports/commit/rows'
+import type { ProposedRowError as TreeRowError } from '@/collections/EventImports/propose/tree'
 import { reviewEmails, reviewRows } from '@/collections/EventImports/review/rows'
 
 const ANCHOR = '2026-10-06'
@@ -42,16 +43,11 @@ const resolved = (over: Partial<NonNullable<CommitRow['resolved']>> = {}) => ({
 })
 
 function row(line: number, over: Partial<CommitRow> = {}): CommitRow {
-  return {
-    line,
-    values: { title: `Class ${line}`, city: 'Berlin', ...over.values },
-    resolved: resolved(),
-    ...over,
-  } as CommitRow
+  return { line, values: { title: `Class ${line}`, city: 'Berlin' }, resolved: resolved(), ...over }
 }
 
-const review = (rows: CommitRow[], known: string[] = []) =>
-  reviewRows({ rows, knownEmails: new Set(known) })
+const review = (rows: CommitRow[], known: string[] = [], treeRowErrors: TreeRowError[] = []) =>
+  reviewRows({ rows, knownEmails: new Set(known), treeRowErrors })
 
 describe('reviewRows', () => {
   it('reads a clean row as ready, with nobody vouching for it', () => {
@@ -171,15 +167,61 @@ describe('reviewRows', () => {
       ])
     })
 
-    // A pending row is not a skip the review can explain, and `isCommittable`
-    // already refuses it — so it must not read as ready either.
-    it('reports a row that never resolved as an error', () => {
-      const { rows } = review([
-        row(2, { resolved: undefined, errors: ['could not find this location'] }),
-      ])
+    // ⚠ **No `errors` on the fixture, deliberately.** With one, this would pass
+    // through the error branch and prove nothing about `resolved` — which is how
+    // the first version of this case could not fail for the reason it named.
+    // Unreachable today (a batch cannot be proposed until every row has an
+    // answer), and still not `ready`.
+    it('reports a row with no answer and no reason as pending', () => {
+      const { rows } = review([row(2, { resolved: undefined })])
 
-      expect(rows[0]!.status).toBe('error')
+      expect(rows[0]!.status).toBe('pending')
     })
+
+    // ⚠ The commit writes 20 rows per request and the review stays readable while
+    // it runs, so a resumed batch is full of these. `ready` would send a
+    // volunteer looking for what went wrong with a class that already exists.
+    it('reports an already-created row as committed, not ready', () => {
+      const { rows } = review([row(2, { committed: { eventId: 931 } })])
+
+      expect(rows[0]!.status).toBe('committed')
+      expect(rows[0]!.reasons).toEqual([])
+    })
+  })
+})
+
+// ⚠ **The highest-value agreement in this file.** `adoptTreeErrors`
+// (`endpoints/commit.ts`) folds the proposal's refusals onto the rows *before* the
+// commit rosters anything, so a review that did not fold them would call a refused
+// line ready, give no reason, and count an account the commit never opens — the
+// one number the volunteer is being asked to approve.
+describe('a line the proposal refused', () => {
+  const refusal = [{ line: 2, message: '"Pune" already exists outside this region of the Atlas' }]
+
+  it('is skipped with the proposal’s own reason, not reported ready', () => {
+    const { rows } = review([row(2), row(3)], [], refusal)
+
+    expect(rows[0]).toMatchObject({ line: 2, status: 'error', reasons: refusal[0]!.message ? [refusal[0]!.message] : [] })
+    expect(rows[1]).toMatchObject({ line: 3, status: 'ready', reasons: [] })
+  })
+
+  it('opens no account, however new its coordinator', () => {
+    const { coordinators, rows } = review(
+      [row(2, { values: { managerEmail: 'fresh@example.org' } })],
+      [],
+      refusal,
+    )
+
+    expect(coordinators).toEqual({ existing: 0, created: 0 })
+    // The row still names who it would have brought, because that is a fact
+    // about the line the volunteer is about to fix.
+    expect(rows[0]!.coordinator).toBe('new')
+  })
+
+  it('reports its own error and the proposal’s, in that order', () => {
+    const { rows } = review([row(2, { errors: ['no city'] })], [], refusal)
+
+    expect(rows[0]!.reasons).toEqual(['no city', refusal[0]!.message])
   })
 })
 
@@ -195,9 +237,9 @@ describe('reviewEmails', () => {
     expect(emails).toEqual(['anna@example.org', 'bo@example.org'])
   })
 
-  // The endpoint's read is `where email in [...]`, so a skipped row's address
-  // here would ask `managers` about somebody the batch is not going to touch.
-  it('asks nothing about an address only a skipped row names', () => {
+  // ⚠ Wider than the banner on purpose: every row reports its own coordinator,
+  // so an address left unasked is one the table then mislabels.
+  it('asks about an address only a skipped row names', () => {
     const emails = reviewEmails([
       row(2, { values: { managerEmail: 'errored@example.org' }, errors: ['no city'] }),
       row(3, {
@@ -206,6 +248,6 @@ describe('reviewEmails', () => {
       }),
     ])
 
-    expect(emails).toEqual([])
+    expect(emails).toEqual(['errored@example.org', 'repeated@example.org'])
   })
 })

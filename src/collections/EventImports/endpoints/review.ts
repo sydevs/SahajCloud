@@ -1,10 +1,11 @@
 import type { CommitRow } from '../commit/rows'
+import type { ExistingRegion } from '../propose/match'
 import type { ProposedTree } from '../propose/tree'
-import type { Endpoint, PayloadRequest } from 'payload'
+import type { Endpoint } from 'payload'
 
 import { requireActiveManager } from '@/lib/endpoints'
 import { relationId } from '@/lib/utilities/relationId'
-import type { EventImport, Manager } from '@/payload-types'
+import type { EventImport } from '@/payload-types'
 
 import {
   batchIdOf,
@@ -14,8 +15,9 @@ import {
   refuseUnownedTarget,
   targetSubtreeWhere,
 } from '../batchRequest'
+import { managersByEmail } from '../commit/coordinators'
 import { tallyTree } from '../propose/tree'
-import { reviewEmails, reviewRows } from '../review/rows'
+import { mappableRegions, reviewEmails, reviewRows } from '../review/rows'
 
 /**
  * GET /api/event-imports/:id/review
@@ -33,10 +35,12 @@ import { reviewEmails, reviewRows } from '../review/rows'
  * assembling this itself would need both, and the second as a filter on a column
  * it cannot read.
  *
- * ⚠ **It answers a count, never the accounts.** The banner says how many
- * coordinators are new; it names no existing one, and discloses no name, role or
- * region for them (#828). The lookup happens here so the browser never holds the
- * answer per address.
+ * ⚠ **It answers a verdict, never an account.** No name, role, region or id of a
+ * matched account reaches the body (#828), and the batch's own addresses do not
+ * travel either — a row carries `existing` or `new` and nothing to pair it with.
+ * That bit is about an address the caller supplied themselves, so it is not a
+ * disclosure, but it is the line to hold: a field naming the account would
+ * cross it, and no count-based assertion above would notice.
  *
  * ⚠ **Read-only, and that is what makes it safe to call on every edit.** The
  * review re-renders from this after each `POST /:id/tree`, so a write here would
@@ -92,13 +96,20 @@ export const reviewEventImport: Endpoint = {
     // region the review offers cannot be one `POST /:id/tree` then refuses —
     // which would read as the mapping control being broken rather than as the
     // candidate having moved.
-    const [mappable, knownEmails] = await Promise.all([
+    const tree = stored as ProposedTree
+    const [subtree, accounts] = await Promise.all([
       readExistingRegions(req, targetSubtreeWhere(targetId), true),
-      managersHolding(req, reviewEmails(rows)),
+      managersByEmail(req, reviewEmails(rows)),
     ])
 
-    const tree = stored as ProposedTree
-    const { rows: reviewed, coordinators } = reviewRows({ rows, knownEmails })
+    // ⚠ **Only the keys.** `managersByEmail` answers with ids because the commit
+    // is about to write classes against them; the review must learn that an
+    // address is taken and nothing else about who holds it.
+    const { rows: reviewed, coordinators } = reviewRows({
+      rows,
+      knownEmails: new Set(accounts.keys()),
+      treeRowErrors: tree.rowErrors,
+    })
 
     return Response.json({
       ...(loaded.warning ? { warning: loaded.warning } : {}),
@@ -106,14 +117,7 @@ export const reviewEventImport: Endpoint = {
       target: { id: targetId, level: loaded.target.level, name: loaded.target.name },
       ...tallyTree(tree),
       proposedRegions: tree,
-      // Only what a mapping control offers: the id it sends, and enough to pick
-      // one. `readExistingRegions` reads five columns because `match.ts` decides
-      // on them; the browser needs three of them.
-      mappable: mappable.map(({ id: regionId, level, name, slug }) => ({
-        id: regionId,
-        level,
-        name: name?.trim() || slug,
-      })),
+      mappable: mappableRegions(subtree, creatableLevels(tree)),
       rows: reviewed,
       coordinators,
     })
@@ -121,35 +125,15 @@ export const reviewEventImport: Endpoint = {
 }
 
 /**
- * Which of these addresses already hold an account.
+ * The levels a mapping may actually name, which are the levels of the nodes it
+ * can be applied to.
  *
- * ⚠ **The same read the commit makes, and deliberately not a shared one.**
- * `managersByEmail` (`commit/coordinators.ts`) answers with ids because it is
- * about to write classes against them; this answers with a set because the
- * review must not learn which account is whose. Sharing the id-bearing version
- * would put the ids one HTTP response away from a browser that has no use for
- * them.
- *
- * `email` is locked to the holder and admins, so this elevates past field access
- * to get the column it matches on — the gate is the caller's ownership of the
- * batch and its target, settled above.
+ * `applyTreeEdits` edits a `create` node and requires a candidate at its level
+ * (`propose/edit.ts`), so a batch proposing only cities must not offer the
+ * country above them.
  */
-async function managersHolding(
-  req: PayloadRequest,
-  emails: readonly string[],
-): Promise<Set<string>> {
-  if (!emails.length) return new Set()
-
-  const { docs } = await req.payload.find({
-    collection: 'managers',
-    where: { email: { in: [...emails] } },
-    depth: 0,
-    pagination: false,
-    overrideAccess: true,
-    select: { email: true },
-    req,
-  })
+function creatableLevels(tree: ProposedTree): Set<ExistingRegion['level']> {
   return new Set(
-    (docs as Manager[]).flatMap((manager) => (manager.email ? [manager.email.toLowerCase()] : [])),
+    tree.nodes.filter((node) => node.match.kind === 'create').map((node) => node.level),
   )
 }

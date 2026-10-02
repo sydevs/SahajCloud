@@ -107,7 +107,25 @@ function asExisting(region: ExistingRegion): NodeMatch {
   return {
     kind: 'existing',
     regionId: region.id,
-    name: region.name ?? String(region.id),
+    name: existingRegionLabel(region),
     slug: region.slug ?? null,
   }
+}
+
+/**
+ * What to call a region the Atlas already holds, wherever one is shown.
+ *
+ * ⚠ **One definition, because the review offers a region by one label and then
+ * shows the node carrying another.** The mapping control lists candidates and
+ * `applyTreeEdits` writes the chosen one's name onto the node (`edit.ts`), so two
+ * spellings put two names for one region on the same screen.
+ *
+ * ⚠ **The slug before the id, and `||` rather than `??`.** `Regions.name` is
+ * optional and some hand-seeded regions have none, so a label is needed either
+ * way — but the slug is one a volunteer can read and `Regions` requires it.
+ * `??` was the old spelling and it passes an empty or blank name straight
+ * through, which is the blank label this exists to prevent.
+ */
+export function existingRegionLabel(region: ExistingRegion): string {
+  return region.name?.trim() || region.slug || String(region.id)
 }

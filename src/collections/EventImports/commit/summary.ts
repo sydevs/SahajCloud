@@ -62,25 +62,39 @@ export function commitReport(rows: readonly CommitRow[]): CommitReport {
       committed.push({ line: row.line, eventId: row.committed.eventId })
       continue
     }
-    const reasons = [...(row.errors ?? []), ...duplicateReason(row)]
-    skipped.push({ line: row.line, reasons })
+    skipped.push({ line: row.line, reasons: skipReasons(row) })
   }
 
   return { committed, skipped }
 }
 
 /**
- * Why a matched row was left alone, in the words the review showed.
+ * Every reason a row created nothing, in the words the volunteer will read.
+ *
+ * ⚠ **Exported because the review has to show exactly these words.** The review
+ * table and this report are read minutes apart by the same person, and the batch
+ * is deleted in between — so a second spelling there would read as the commit
+ * having found a different fault from the one they approved skipping.
+ *
+ * `extra` is for a refusal that is not on the row yet: the proposal's own
+ * `rowErrors`, which the commit folds on with `adoptTreeErrors` before it reads
+ * any of this, and which the review has to fold on itself.
+ */
+export function skipReasons(row: CommitRow, extra: readonly string[] = []): string[] {
+  return [...(row.errors ?? []), ...extra, ...duplicateReason(row)]
+}
+
+/**
+ * Why a matched row was left alone.
  *
  * A duplicate carries no `errors` — it is not a fault, and nothing about the
  * class it repeats is modified (`resolve/duplicates.ts`).
  *
- * ⚠ **Exported because the review really does have to show these words.** The
- * review table and this report are read minutes apart by the same volunteer, and
- * the batch is deleted in between — so a second spelling here would read as the
- * commit having found a different duplicate from the one they approved skipping.
+ * ⚠ **Private, unlike `skipReasons` above.** `resolve/duplicates.ts` exports a
+ * `duplicateReason` of its own that answers the reason *enum*, so a second
+ * exported one answering prose makes a grep for either return both.
  */
-export function duplicateReason(row: CommitRow): string[] {
+function duplicateReason(row: CommitRow): string[] {
   if (!row.duplicate) return []
   const { line, eventId } = row.duplicate
   if (line !== undefined) return [`a repeat of line ${line}`]
