@@ -90,11 +90,12 @@ const ServerEnvSchema = ClientEnvSchema.extend({
     }),
 
   /**
-   * Run the scheduled job queues (`jobs.autoRun` in `src/payload.config.ts`),
-   * or skip every tick. Turn it off locally when the database is a copy of
-   * production: the jobs send mail and call external APIs about real people.
-   * Parsed like `EVENT_VERIFICATION_ENABLED`, and on by default for the same
-   * reason.
+   * Run the job queues, or skip every tick and every immediate kick. Read
+   * through `jobsMayAutoRun()` (`@/lib/jobs/autoRun`), never directly, so the
+   * cron and the kick cannot be gated separately. Turn it off locally when the
+   * database is a copy of production: the jobs send mail and call external APIs
+   * about real people. Parsed like `EVENT_VERIFICATION_ENABLED`, and on by
+   * default for the same reason.
    * @default true
    */
   JOBS_AUTORUN_ENABLED: z

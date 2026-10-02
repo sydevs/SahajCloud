@@ -83,13 +83,32 @@ Before running the app on it:
 - Point `DATABASE_URL` at your own database in `.env.local`, not the tracked `.env`. With the
   `/workflow:dev-server` skill, use the per-worktree name it prints (`sahajcloud_dev_<slug>`), so
   the server and the CLI share one database.
-- Set `JOBS_AUTORUN_ENABLED=false` in `.env.local`. The scheduled jobs mail and call external APIs
-  about real people.
+- Set `JOBS_AUTORUN_ENABLED=false` in `.env.local`. The scheduled queues and the screening kick
+  that follows a new submission both mail real people and call real mailing-list APIs, with the
+  keys copied from production. `--force` refuses to run until this is off.
 - Install Postgres client tools at least as new as production's server (macOS: `brew install
   libpq`, then put `/opt/homebrew/opt/libpq/bin` on `PATH`) and log in with `railway login`.
 
-A copy the dev server has already pushed is fine for exploring, but it is not evidence that a
-migration works: rehearse a migration on a fresh restore with `pnpm db:migrate`, never `pnpm dev`.
+Three more things reach production from your machine, and no code stops any of them:
+
+- **`SMTP_URL`** — unset, or pointed at a Mailpit you run yourself. The shared Railway Mailpit
+  keeps mail for 7 days behind a login several people hold, and real addresses would land there.
+  Unset, mail is disabled with a warning.
+- **`CLOUDFLARE_ZONE_ID` and `CLOUDFLARE_CACHE_PURGE_TOKEN`** — `purgeCloudflareCache` fires
+  whenever both are present (`src/plugins/cache/purge.ts`). There is no environment check, so a
+  local save would purge the production edge cache.
+- **`railway run`** — never start the app with it on a prod copy. It injects production's
+  environment name, which turns off the storage isolation that keeps a local delete away from
+  production assets, and `RESEND_API_KEY`, which sends real mail.
+
+Two more things to know:
+
+- **Jobs queued while the flag was off still run when you turn it back on.** Payload schedules the
+  cron rows before it checks `shouldAutoRun`, so they accumulate. Refresh again before re-enabling
+  it, or the backlog delivers.
+- A copy the dev server has already pushed is fine for exploring, but it is not evidence that a
+  migration works: rehearse a migration on a fresh restore with `pnpm db:migrate`, never
+  `pnpm dev`.
 
 ## Project Structure
 
