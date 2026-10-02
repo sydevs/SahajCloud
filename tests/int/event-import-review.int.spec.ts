@@ -252,8 +252,11 @@ describe('review endpoint', () => {
 
       const ids = (body.mappable as { id: number }[]).map((region) => region.id)
       expect(ids).toContain(leipzig.id)
-      expect(ids).toContain(germany.id)
       expect(ids).not.toContain(vienna.id)
+      // ⚠ **Nor the country above it.** The tree holds only `create` cities, and
+      // `applyTreeEdits` refuses a city mapped onto a country — so offering the
+      // target would hand the reviewer a candidate that answers 422.
+      expect(ids).not.toContain(germany.id)
       expect(body.mappable).toContainEqual({ id: leipzig.id, level: 'city', name: 'Leipzig' })
     })
 
@@ -264,23 +267,45 @@ describe('review endpoint', () => {
         rows: [
           row(2, { managerEmail: 'review-held@example.com' }),
           row(3, { managerEmail: 'review-fresh@example.com' }),
-          row(4, { managerEmail: 'Review-Fresh@example.com' }),
         ],
-        proposedRegions: tree([cityNode('coordinators', [2, 3, 4])]),
+        proposedRegions: tree([cityNode('coordinators', [2, 3])]),
       })
 
       const { body } = await call(uploader, batch.id)
 
       expect(body.coordinators).toEqual({ existing: 1, created: 1 })
-      expect((body.rows as { coordinator: string }[]).map((reviewed) => reviewed.coordinator)).toEqual(
-        ['existing', 'new', 'new'],
-      )
+      expect(
+        (body.rows as { coordinator: string }[]).map((reviewed) => reviewed.coordinator),
+      ).toEqual(['existing', 'new'])
     })
 
-    // ⚠ The assertion is on the serialised body, not on the count: a shape that
-    // carried the matched account alongside the tally would satisfy every
-    // count-based assertion above it.
-    it('discloses nothing about the account it matched', async () => {
+    // ⚠ **The #132 shape.** `reviewEmails` is pinned pure, and nothing proves the
+    // endpoint asks with the wide list except a skipped row whose coordinator the
+    // Atlas really does hold: narrow the lookup to the committable rows and this
+    // row reads `new` while every count above stays green.
+    it('tells a skipped row the truth about its own coordinator', async () => {
+      const batch = await createBatch({
+        rows: [
+          { ...row(2, { managerEmail: 'review-held@example.com' }), errors: ['no city'] },
+          { ...row(3, { managerEmail: 'review-unknown@example.com' }), errors: ['no city'] },
+        ],
+        proposedRegions: tree([cityNode('skipped', [2, 3])]),
+      })
+
+      const { body } = await call(uploader, batch.id)
+
+      const rows = body.rows as { line: number; coordinator: string }[]
+      expect(rows.map((reviewed) => reviewed.coordinator)).toEqual(['existing', 'new'])
+      // The banner still counts only what the commit would open.
+      expect(body.coordinators).toEqual({ existing: 0, created: 0 })
+    })
+
+    // ⚠ **A shape guard, and on the serialised body rather than the counts.** A
+    // response carrying the matched account beside the tally would satisfy every
+    // count-based assertion above this one. What it does NOT claim is that the
+    // body hides whether an address is taken — `rows[].coordinator` says exactly
+    // that, about an address the caller supplied themselves.
+    it('carries no attribute of the account it matched', async () => {
       const batch = await createBatch({
         rows: [row(2, { managerEmail: 'review-held@example.com' })],
         proposedRegions: tree([cityNode('private')]),
@@ -289,28 +314,30 @@ describe('review endpoint', () => {
       const { raw } = await call(uploader, batch.id)
 
       expect(raw).not.toContain(heldAccount.name)
-      // Not even the address, which the uploader typed themselves: the row
-      // carries a verdict and no values, so there is nothing here to pair an
-      // address with "the Atlas already knows this person".
-      expect(raw).not.toContain('review-held@example.com')
       expect(raw).not.toContain('atlas-manager')
+      // The values never travel either, so the table shows a verdict per line and
+      // the browser pairs it with the CSV the volunteer already holds.
+      expect(raw).not.toContain('review-held@example.com')
     })
 
-    it('carries the proposal’s own row errors through to the table', async () => {
+    // ⚠ The tree's refusals are not on the rows — `adoptTreeErrors` folds them on
+    // at commit — so the endpoint owes the review the same fold. Without it line 2
+    // reads `ready` with no reason, and the commit then skips it.
+    it('skips a line the proposal refused, with the reason the commit will give', async () => {
+      const refusal = 'managed elsewhere'
       const batch = await createBatch({
-        rows: [row(2, { city: '' }), { ...row(3), errors: ['could not find this location'] }],
-        proposedRegions: tree([cityNode('errors')], [{ line: 2, message: 'managed elsewhere' }]),
+        rows: [row(2), { ...row(3), errors: ['could not find this location'] }],
+        proposedRegions: tree([cityNode('errors')], [{ line: 2, message: refusal }]),
       })
 
       const { body } = await call(uploader, batch.id)
 
       expect(body).toMatchObject({ rowErrors: 1 })
       const rows = body.rows as { line: number; status: string; reasons: string[] }[]
-      // ⚠ The tree's own refusal is NOT on the row yet — `adoptTreeErrors` copies
-      // it over at commit, so the review reads it from `rowErrors` and line 2
-      // still looks ready here. Pinned so the asymmetry is a decision rather
-      // than a surprise for whoever renders the table.
-      expect(rows.find((reviewed) => reviewed.line === 2)?.status).toBe('ready')
+      expect(rows.find((reviewed) => reviewed.line === 2)).toMatchObject({
+        status: 'error',
+        reasons: [refusal],
+      })
       expect(rows.find((reviewed) => reviewed.line === 3)?.status).toBe('error')
     })
   })
@@ -361,6 +388,10 @@ describe('review endpoint', () => {
 
     it('refuses an id Postgres could not hold', async () => {
       expect((await call(uploader, '1e30')).status).toBe(400)
+    })
+
+    it('refuses a batch that does not exist', async () => {
+      expect((await call(uploader, 9_999_999)).status).toBe(404)
     })
   })
 })

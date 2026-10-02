@@ -15,7 +15,7 @@
  * silently dropped reads in the review as one that was applied.
  */
 
-import { type ExistingRegion } from './match'
+import { existingRegionLabel, type ExistingRegion } from './match'
 import { assignNodeSlugs, prunedOfEmptyStates, type ProposedNode, type ProposedTree } from './tree'
 
 /** One change, addressed to a node by the key the proposal gave it. */
@@ -146,11 +146,10 @@ function map(
   node.match = {
     kind: 'existing',
     regionId,
-    // The id, never an empty string: `Regions.name` is optional and some
-    // hand-seeded regions have none, so this is `asExisting`'s own fallback
-    // (`match.ts`). A blank label would leave the review unable to say which
-    // region the node was mapped onto.
-    name: region.name ?? String(region.id),
+    // `match.ts` owns this label, because the control that offered this region
+    // reads the same one — a blank or a second spelling would leave the review
+    // unable to say which region the node was mapped onto.
+    name: existingRegionLabel(region),
     slug: region.slug ?? null,
   }
   node.parentKey = null
