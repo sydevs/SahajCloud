@@ -52,6 +52,7 @@ type ScriptName =
   | 'tags'
   | 'wm-app-translations'
   | 'translations'
+  | 'sahaja-glossary'
   | 'atlas'
 
 const VALID_SCRIPTS: ScriptName[] = [
@@ -61,6 +62,7 @@ const VALID_SCRIPTS: ScriptName[] = [
   'tags',
   'wm-app-translations',
   'translations',
+  'sahaja-glossary',
   'atlas',
 ]
 
@@ -73,6 +75,9 @@ const SCRIPT_RUN_ORDER: ScriptName[] = [
   'meditations',
   'storyblok',
   'wm-app-translations',
+  // Reference data for the transcription and translation tooling. Independent of
+  // every collection above — it writes one global.
+  'sahaja-glossary',
   // Atlas is independent of the WeMeditate content above (distinct collections).
   'atlas',
 ]
@@ -84,6 +89,7 @@ const SCRIPT_DESCRIPTIONS: Record<ScriptName, string> = {
   tags: 'Seed UserChoices and MusicTags from Cloudinary',
   'wm-app-translations': 'Seed English copy for the wm-app-translations global',
   translations: 'Seed English copy for all three translation globals',
+  'sahaja-glossary': 'Seed the hidden Sahaja Yoga glossary global, in every locale its data file carries',
   atlas: 'Seed Sahaj Atlas events, regions, managers, registrations + clients',
 }
 
@@ -100,6 +106,7 @@ const SCRIPT_DATA_FILES: Partial<Record<ScriptName, string[]>> = {
     'seeds/wm-app-translations/data.en.json',
     'seeds/wm-web-translations/data.en.json',
   ],
+  'sahaja-glossary': ['seeds/sahaja-glossary/data.json'],
   // Atlas reads all 8 dumps via loadJsonData (keyed by these exact paths).
   // The standalone build excludes seeds/, so the CLI uploads them for remote seeding.
   atlas: [
