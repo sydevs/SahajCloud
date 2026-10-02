@@ -77,7 +77,9 @@ filterSpec(rawSpec, {
 })
 ```
 
-**Always-hidden collections** (system collections, never visible): the access collections `managers` and `clients`, the system collections `images` and `files`, and every Payload internal collection (`payload-kv`, `payload-jobs`, `payload-locked-documents`, `payload-preferences`, `payload-migrations`, `payload-job-stats`).
+**Always-hidden collections** (system collections, never visible): the access collections `managers` and `clients`, the system collections `images` and `files`, the hidden `sahaja-glossary` global, and every Payload internal collection (`payload-kv`, `payload-jobs`, `payload-locked-documents`, `payload-preferences`, `payload-migrations`, `payload-job-stats`).
+
+**The list reaches a global**, because `getCollectionFromPath` reads a slug off `/api/globals/{slug}` as readily as off `/api/{collection}`. `sahaja-glossary`'s entry holds only if that global ever joins a project — tier 2 covers it until then, the same shape as the `user-submissions` POST below. `tests/unit/openapi-custom-endpoints.spec.ts` says which tier it pins.
 
 **Excluded operations**: `DELETE` and `PATCH` are always hidden.
 
