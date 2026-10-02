@@ -22,7 +22,9 @@ import { virtualUrlField } from '@/plugins/storage/urlFields'
 import { KeyframeData } from '@/types/frames'
 
 import { meditationLectures } from './endpoints/lectures'
+import { requestMeditationTranscript } from './endpoints/requestTranscript'
 import { meditationSongs } from './endpoints/songs'
+import { meditationTranscript } from './endpoints/transcript'
 import { cacheMeditationNodeWeights } from './hooks/cacheMeditationNodeWeights'
 import { extractAudioDuration } from './hooks/extractAudioDuration'
 import { fallbackTitleAfterRead } from './hooks/fallbackTitle'
@@ -106,7 +108,12 @@ const virtualJoinField = ({ name, on }: { name: string; on: string }): JSONField
 export const Meditations: CollectionConfig = {
   slug: 'meditations',
   trash: true,
-  endpoints: [meditationLectures, meditationSongs],
+  endpoints: [
+    meditationLectures,
+    meditationSongs,
+    meditationTranscript,
+    requestMeditationTranscript,
+  ],
   hooks: {
     beforeOperation: [filterMeditationsByLocale],
     beforeChange: [
@@ -393,6 +400,22 @@ export const Meditations: CollectionConfig = {
             {
               type: 'tabs',
               tabs: [
+                {
+                  label: 'Transcript',
+                  description: 'Read the recording, and jump to any phrase',
+                  fields: [
+                    previewTargetField({ autoOpen: true }, 'transcript__preview_target'),
+                    {
+                      name: 'transcript',
+                      type: 'ui',
+                      admin: {
+                        components: {
+                          Field: '@/components/admin/MeditationTranscript',
+                        },
+                      },
+                    },
+                  ],
+                },
                 {
                   label: 'Frames',
                   description: 'Remove or re-order frames',
