@@ -26,7 +26,7 @@ import type { SupportedTimezones } from '@/payload-types'
 import { cityKeyFor } from './duplicates'
 import { scheduleKey, type ScheduleKey } from './schedule'
 import { deriveImportTimezone } from './timezone'
-import { mapCsvSchedule } from '../csv/schedule'
+import { mapCsvSchedule, scheduleArgsFor } from '../csv/schedule'
 
 /** Mapbox `types` for a street address — the same pair the admin address field searches. */
 const ADDRESS_TYPES = 'address,poi'
@@ -207,18 +207,7 @@ export function resolveRow({
   if (!timezone.ok) return { ok: false, errors }
 
   const anchorDate = todayIn(timezone.timezone)
-  const schedule = mapCsvSchedule({
-    scheduleType: values.scheduleType,
-    date: values.date,
-    startTime: values.startTime,
-    endTime: values.endTime,
-    weekdays: values.weekdays,
-    interval: values.interval,
-    monthWeek: values.monthWeek,
-    untilDate: values.untilDate,
-    timezone: timezone.timezone,
-    today: anchorDate,
-  })
+  const schedule = mapCsvSchedule(scheduleArgsFor(values, timezone.timezone, anchorDate))
   if (!schedule.ok) errors.push(...schedule.errors)
 
   if (errors.length || !schedule.ok || !languages.ok || !cityKey) return { ok: false, errors }

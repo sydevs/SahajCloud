@@ -12,13 +12,12 @@ import type { ProposedNode } from '../propose/tree'
 import { makeManualMapboxId } from '@/lib/mapbox/manualLocation'
 import type { Region } from '@/payload-types'
 
-
 export interface RegionCreateData {
   level: Region['level']
   name: string
   slug: string
   mapboxId: string
-  /** Null only for a country, which the import never creates. */
+  /** Always set: the import creates no country, the one level with no parent. */
   parent: number
   latitude?: number
   longitude?: number
@@ -35,6 +34,12 @@ export interface RegionCreateData {
  * them. The seed is the batch id and the node's own key, both stable across
  * attempts, so the retry collides on the constraint instead and the commit reads
  * the region already there.
+ *
+ * ⚠ **The batch id is in the seed on purpose: two batches proposing one hall get
+ * two ids, not one.** Review is per batch, so a node another batch created is a
+ * region this one matches through `propose/match.ts` — never one it adopts by
+ * guessing the same seed. A commit recovering from its own collision must do so
+ * inside a savepoint, or the unique violation aborts the surrounding transaction.
  */
 export function regionCreateData(
   node: ProposedNode,

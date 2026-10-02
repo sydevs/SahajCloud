@@ -51,7 +51,13 @@ function values(overrides: Partial<RawImportRow> = {}): RawImportRow {
   }
 }
 
-function build(overrides: { values?: Partial<RawImportRow>; resolved?: Partial<ResolvedRow>; managerId?: number | null } = {}) {
+function build(
+  overrides: {
+    values?: Partial<RawImportRow>
+    resolved?: Partial<ResolvedRow>
+    managerId?: number | null
+  } = {},
+) {
   return eventCreateData({
     values: values(overrides.values),
     resolved: resolved(overrides.resolved),
@@ -82,11 +88,6 @@ describe('eventCreateData — the verification recipe', () => {
     expect(result.ok && result.context).toEqual({ skipVerifyHook: true })
   })
 
-  /**
-   * ⚠ **The stage is left unset with a coordinator, not set to `verified`.**
-   * Stamping it here with the hook skipped is what leaves a class `verified` with
-   * no `nextCheckAt`, so it never comes up for re-verification again.
-   */
   it('leaves an adopted class’s stage to the verification hook', () => {
     const result = build({ managerId: 77 })
     const data = dataOf(result)
@@ -113,21 +114,25 @@ describe('eventCreateData — the schedule', () => {
 
   it('writes no schedule for a dormant class, and marks it inactive', () => {
     const data = dataOf(
-      build({
-        values: { scheduleType: 'inactive', contactPhone: '+49 30 123456' },
-        resolved: { inactive: true },
-      }),
+      build({ values: { scheduleType: 'inactive', contactPhone: '+49 30 123456' } }),
     )
 
     expect(data).not.toHaveProperty('schedule')
     expect(data.inactive).toBe(true)
   })
 
-  it('reports a schedule the CSV changed under the batch, rather than throwing', () => {
+  it('reports an unmappable schedule rather than throwing', () => {
     const result = build({ values: { startTime: 'half past six' } })
 
     expect(result.ok).toBe(false)
     expect(!result.ok && result.errors.join(' ')).toMatch(/startTime/)
+  })
+
+  it('reports an unreadable stored anchor rather than throwing', () => {
+    const result = build({ resolved: { anchorDate: 'not-a-date' } })
+
+    expect(result.ok).toBe(false)
+    expect(!result.ok && result.errors.join(' ')).toMatch(/resolve it again/)
   })
 })
 
@@ -155,27 +160,34 @@ describe('eventCreateData — the address', () => {
     expect((dataOf(build()).address as { city: string }).city).toBe('Giesing')
   })
 
-  it('falls back to Mapbox’s place name when the row gave no city', () => {
-    expect((dataOf(build({ values: { city: '' } })).address as { city: string }).city).toBe('Munich')
-  })
-
-  /**
-   * ⚠ **The column holds an ISO 3166-2 shortCode**
-   * (`src/fields/addressFields.ts`), and the CSV's `state` is a free-text name —
-   * so publishing "Bavaria" where the column wants `BY` is what this prefers the
-   * geocode's answer to avoid.
-   */
   it('prefers the geocoded subdivision code over the CSV’s state name', () => {
-    const address = dataOf(build({ values: { state: 'Bavaria' } })) .address as { region: string }
+    const address = dataOf(build({ values: { state: 'Bavaria' } })).address as { region: string }
     expect(address.region).toBe('BY')
   })
 
-  it('falls back to the CSV’s state only where the geocode named no subdivision', () => {
-    const address = dataOf(
-      build({ values: { state: 'Bavaria' }, resolved: { subdivisionCode: null } }),
-    ).address as { region: string }
-    expect(address.region).toBe('Bavaria')
+  it.each([
+    ['the name ISO lists', 'Bayern'],
+    ['the code itself', 'BY'],
+    ['either, in any case', 'bayern'],
+  ])('converts a state given as %s, where the geocode named no subdivision', (_label, state) => {
+    const address = dataOf(build({ values: { state }, resolved: { subdivisionCode: null } }))
+      .address as { region: string }
+    expect(address.region).toBe('BY')
   })
+
+  /**
+   * ⚠ **ISO lists the endonym**, so the obvious English spelling is exactly what
+   * does not match — which is why the geocode's own answer is preferred rather
+   * than merely tried first.
+   */
+  it.each(['Bavaria', 'Nowhereland', 'ZZ', '   '])(
+    'writes no subdivision for a state of "%s", rather than publishing it',
+    (state) => {
+      const address = dataOf(build({ values: { state }, resolved: { subdivisionCode: null } }))
+        .address as { region: string | null }
+      expect(address.region).toBeNull()
+    },
+  )
 
   it('uppercases the country, which the column holds as alpha-2', () => {
     expect((dataOf(build()).address as { country: string }).country).toBe('DE')
@@ -199,11 +211,6 @@ describe('eventCreateData — the address', () => {
 })
 
 describe('eventCreateData — the rest of the row', () => {
-  /**
-   * ⚠ **`''`, never null.** `eventTitleBeforeChange` keeps an existing title for a
-   * nullish value and falls through to the auto-fill for `''` — which also
-   * translates itself, unlike a hand-written name.
-   */
   it('hands a blank title to the auto-fill rather than clearing it', () => {
     expect(dataOf(build({ values: { title: '   ' } })).title).toBe('')
   })
@@ -212,11 +219,6 @@ describe('eventCreateData — the rest of the row', () => {
     expect(dataOf(build({ resolved: { languages: ['de', 'en'] } })).languages).toEqual(['de', 'en'])
   })
 
-  /**
-   * Unverified rows included: a registrant's confirm or deny is what feeds
-   * `confidenceScore`, so routing an unadopted class elsewhere removes the one
-   * signal that it is real.
-   */
   it('always registers through the Atlas', () => {
     expect(dataOf(build({ managerId: null })).registrationMode).toBe('sahaj-atlas')
     expect(dataOf(build({ managerId: 77 })).registrationMode).toBe('sahaj-atlas')
@@ -227,11 +229,6 @@ describe('eventCreateData — the rest of the row', () => {
     expect(dataOf(build({ values: { registrationLimit: '' } })).registrationLimit).toBeNull()
   })
 
-  /**
-   * ⚠ **`parseInt('12 people')` is 12.** The loose reader turns a column the
-   * volunteer got wrong into a cap they never set, and a class that silently stops
-   * taking registrations at 12 is not a defect anyone reports.
-   */
   it.each(['12 people', '-1', '2.5', 'lots'])(
     'refuses a registration cap of "%s" rather than guessing',
     (limit) => {
@@ -242,7 +239,9 @@ describe('eventCreateData — the rest of the row', () => {
   )
 
   it('turns a plain-text description into rich text, and keeps a blank one null', () => {
-    expect(dataOf(build({ values: { description: 'A free weekly class.' } })).description).toMatchObject({
+    expect(
+      dataOf(build({ values: { description: 'A free weekly class.' } })).description,
+    ).toMatchObject({
       root: { type: 'root' },
     })
     expect(dataOf(build()).description).toBeNull()

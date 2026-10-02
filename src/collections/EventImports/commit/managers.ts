@@ -46,7 +46,7 @@ export interface RosterRow {
 export function managerRoster(rows: readonly RosterRow[]): ManagerRequest[] {
   const byEmail = new Map<string, ManagerRequest>()
   for (const { line, values } of rows) {
-    const email = values.managerEmail?.trim().toLowerCase()
+    const email = managerKeyOf(values)
     if (!email) continue
     const existing = byEmail.get(email)
     if (existing) {

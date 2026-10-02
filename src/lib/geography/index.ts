@@ -95,3 +95,48 @@ export function resolveSubdivisionCode(
   }
   return null
 }
+
+/**
+ * The ISO 3166-2 subdivision code a piece of text names, or null.
+ *
+ * The subdivision twin of `countryCodeForName`, and deliberately more forgiving
+ * than `resolveSubdivisionCode` above: that one reads a Mapbox answer, where the
+ * code arrives under its own key. This one reads text a person typed or a slug
+ * carries, so it accepts either spelling of an option — the code (`BY`) or the
+ * name — and matches without regard to case.
+ *
+ * ⚠ **ISO lists the endonym, so an English exonym does not match.** `DE` holds
+ * `Bayern`, never `Bavaria`. A caller with a geocoded answer should prefer it
+ * over this.
+ *
+ * ⚠ **Indexed per country, because a caller may ask per row.** `getRegionOptions`
+ * re-scans 249 countries and allocates an object per subdivision on each call —
+ * 217 of them for `GB`. The index is built once per country and bounded by the
+ * 249 the table holds.
+ */
+export function subdivisionCodeFor(
+  countryCode: string | null | undefined,
+  text: string | null | undefined,
+): string | null {
+  const needle = text?.trim().toLowerCase()
+  const country = countryCode?.trim().toUpperCase()
+  if (!needle || !country) return null
+  return subdivisionIndexFor(country).get(needle) ?? null
+}
+
+const subdivisionIndexes = new Map<string, Map<string, string>>()
+
+function subdivisionIndexFor(country: string): Map<string, string> {
+  const cached = subdivisionIndexes.get(country)
+  if (cached) return cached
+
+  const index = new Map<string, string>()
+  for (const { label, value } of getRegionOptions(country)) {
+    // The code is set last, so it wins where it collides with some other
+    // subdivision's name.
+    index.set(label.toLowerCase(), value)
+    index.set(value.toLowerCase(), value)
+  }
+  subdivisionIndexes.set(country, index)
+  return index
+}

@@ -3,7 +3,10 @@ import { describe, expect, it } from 'vitest'
 import { managerKeyOf, managerRoster } from '@/collections/EventImports/commit/managers'
 
 function row(line: number, managerEmail?: string, managerName?: string) {
-  return { line, values: { ...(managerEmail && { managerEmail }), ...(managerName && { managerName }) } }
+  return {
+    line,
+    values: { ...(managerEmail && { managerEmail }), ...(managerName && { managerName }) },
+  }
 }
 
 describe('managerRoster', () => {
@@ -41,15 +44,18 @@ describe('managerRoster', () => {
   })
 
   it('keeps the first name given and does not refuse a later spelling', () => {
-    const roster = managerRoster([row(2, 'anna@example.org', 'Anna'), row(3, 'anna@example.org', 'Ana')])
+    const roster = managerRoster([
+      row(2, 'anna@example.org', 'Anna'),
+      row(3, 'anna@example.org', 'Ana'),
+    ])
 
     expect(roster).toEqual([{ email: 'anna@example.org', name: 'Anna', lines: [2, 3] }])
   })
 
   it('keeps the local-part fallback even where a later row names them', () => {
-    expect(managerRoster([row(2, 'anna@example.org'), row(3, 'anna@example.org', 'Anna')])).toEqual([
-      { email: 'anna@example.org', name: 'anna', lines: [2, 3] },
-    ])
+    expect(managerRoster([row(2, 'anna@example.org'), row(3, 'anna@example.org', 'Anna')])).toEqual(
+      [{ email: 'anna@example.org', name: 'anna', lines: [2, 3] }],
+    )
   })
 
   it('leaves out a row that names no coordinator', () => {

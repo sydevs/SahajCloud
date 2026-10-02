@@ -13,21 +13,18 @@
  * differently the first time either changes.
  *
  * `registrationLimit` is the one exception, because it is the one column this
- * module has to convert. A number column cannot carry "12 people", so the
- * conversion has to happen here — and a conversion that can fail owes the
- * volunteer the failure rather than a silent "unlimited".
+ * module converts rather than copies — see `registrationLimitOf`.
  */
 
 import type { RawImportRow } from '../csv/columns'
 import type { ResolvedRow } from '../resolve/resolveRow'
 
-import { Temporal } from '@js-temporal/polyfill'
-
+import { newListingAdoption } from '@/lib/eventVerification'
+import { subdivisionCodeFor } from '@/lib/geography'
 import { plainTextToLexical } from '@/lib/richEditor/plainTextToLexical'
 import type { Event } from '@/payload-types'
 
-import { mapCsvSchedule } from '../csv/schedule'
-
+import { mapCsvSchedule, parseIsoDate, scheduleArgsFor } from '../csv/schedule'
 
 export interface EventDataArgs {
   values: RawImportRow
@@ -46,17 +43,11 @@ export interface EventDataArgs {
 
 export interface EventCreateData {
   data: Record<string, unknown>
-  /**
-   * ⚠ **`skipVerifyHook` is true only for an unadopted class.** It means "open
-   * no verification cycle", which is right with no coordinator and wrong with
-   * one: an adopted class must take the same path as assigning a manager in the
-   * admin, or it is stamped `verified` with no `nextCheckAt` and never comes up
-   * for re-verification again (`UserSubmissions/lifecycle/review.ts`).
-   */
+  /** `newListingAdoption`'s, verbatim — the two halves are one decision. */
   context: { skipVerifyHook: boolean }
 }
 
-export type EventDataResult = { ok: true } & EventCreateData | { ok: false; errors: string[] }
+export type EventDataResult = ({ ok: true } & EventCreateData) | { ok: false; errors: string[] }
 
 export function eventCreateData({
   values,
@@ -64,26 +55,28 @@ export function eventCreateData({
   regionId,
   managerId,
 }: EventDataArgs): EventDataResult {
-  const schedule = mapCsvSchedule({
-    scheduleType: values.scheduleType,
-    date: values.date,
-    startTime: values.startTime,
-    endTime: values.endTime,
-    weekdays: values.weekdays,
-    interval: values.interval,
-    monthWeek: values.monthWeek,
-    untilDate: values.untilDate,
-    timezone: resolved.timezone,
-    today: Temporal.PlainDate.from(resolved.anchorDate),
-  })
-  // The resolve step already mapped this row's schedule and refused it on
-  // failure, so reaching here means the CSV changed under the batch — which is
-  // a row error, not a reason to drop the rest of the chunk.
+  // ⚠ **Read with the CSV's own strict reader, not a looser one.** `anchorDate`
+  // is a bare `z.string()` in the column (`EventImports.ts`), and reading it
+  // more loosely than the `date` column it was derived from would accept a shape
+  // no row could have carried.
+  const anchor = parseIsoDate(resolved.anchorDate)
+  if (!anchor) {
+    return { ok: false, errors: ["this row's resolved date is unreadable — resolve it again"] }
+  }
+
+  const schedule = mapCsvSchedule(scheduleArgsFor(values, resolved.timezone, anchor))
+  // The resolve step refused this row's schedule already, so nothing reaching
+  // here should fail — but a `MapScheduleResult` is a result either way, and
+  // asserting otherwise would drop the rest of the chunk over one row.
   if (!schedule.ok) return { ok: false, errors: schedule.errors }
 
   const limit = registrationLimitOf(values.registrationLimit)
   if (!limit.ok) return { ok: false, errors: [limit.error] }
 
+  // The stage and the context flag together, because they are one decision
+  // (`@/lib/eventVerification/adoption`) — and the import is not the only writer
+  // that creates a listing from somebody else's data.
+  const adoption = newListingAdoption(managerId)
   const eventType: Event['eventType'] = values.eventType === 'online' ? 'online' : 'offline'
   const data: Record<string, unknown> = {
     // An empty string, never null: `eventTitleBeforeChange` keeps the existing
@@ -101,7 +94,11 @@ export function eventCreateData({
     eventType,
     onlineUrl: eventType === 'online' ? values.onlineUrl?.trim() || null : null,
     ...(eventType === 'offline' ? { address: addressFor(values, resolved) } : {}),
-    inactive: resolved.inactive,
+    // Both read off the mapper just run, never off `resolved.inactive` as well:
+    // one fact with two sources is one that can disagree, and this pairing is
+    // what `Events` validates against — a dormant class carries no schedule and
+    // owes a contact route instead.
+    inactive: schedule.inactive,
     ...(schedule.inactive ? {} : { schedule: schedule.schedule }),
     // Always `sahaj-atlas`, unverified rows included: a registrant's confirm or
     // deny is what feeds `confidenceScore`, so routing an unadopted class
@@ -109,13 +106,10 @@ export function eventCreateData({
     registrationMode: 'sahaj-atlas',
     registrationLimit: limit.value,
     manager: managerId,
-    // With a coordinator the stage is left to `syncVerificationOnSave`, which
-    // adopts the class on their own cadence. Without one it is stated, because
-    // the hook is skipped and nothing else would set it.
-    ...(managerId === null ? { verificationStage: 'unverified' } : {}),
+    ...adoption.data,
     _status: 'published',
   }
-  return { ok: true, data, context: { skipVerifyHook: managerId === null } }
+  return { ok: true, data, context: adoption.context }
 }
 
 /**
@@ -135,27 +129,37 @@ function addressFor(values: RawImportRow, resolved: ResolvedRow): Record<string,
     room: values.room?.trim() || null,
     postCode: values.postcode?.trim() || null,
     country: values.country?.trim().toUpperCase() || null,
-    // ⚠ **The geocode's subdivision wins over the CSV's `state`.** The column
-    // holds an ISO 3166-2 shortCode (`src/fields/addressFields.ts`), and the
-    // volunteer's column is a free-text name — "Bavaria" where the column wants
-    // `BY`. The CSV value is kept only where the geocode named no subdivision,
-    // and `Events` refuses it there rather than publishing a name as a code.
-    region: resolved.subdivisionCode ?? values.state?.trim() ?? null,
-    city: cityFor(values, resolved),
+    // ⚠ **The geocode's subdivision wins, and the CSV's is converted, never
+    // copied.** The column holds an ISO 3166-2 shortCode
+    // (`src/fields/addressFields.ts`) and nothing validates it — a plain `text`
+    // field with no `validate` — so a free-text "Bavaria" written here publishes
+    // where `BY` is expected and no save refuses it.
+    region: resolved.subdivisionCode || subdivisionCodeOf(values) || null,
+    // Required of every offline row, which is the only kind that gets an
+    // address (`csv/columns.ts`), so the parser has already refused a blank.
+    city: values.city?.trim() || null,
     latitude: resolved.latitude,
     longitude: resolved.longitude,
   }
 }
 
 /**
- * ⚠ **The volunteer's city wins over Mapbox's.** The address is what a seeker
- * reads, and `placeName` is the metro Mapbox filed the row under — so a class in
- * a suburb would be addressed to the city centre it merged into
- * (`propose/cluster.ts`). The place name is the fallback for a row that gave no
- * city, which only an online row can be.
+ * The CSV's `state` as the column's own vocabulary, or null.
+ *
+ * ⚠ **Matched against `getRegionOptions`, which is the column's own source** —
+ * the same table `StringSelectField` fills the address dropdown from. Both sides
+ * of an option are tried, because the volunteer may type either: the code
+ * (`BY`), or the name exactly as ISO lists it.
+ *
+ * ⚠ **ISO lists the endonym, so an English exonym does not match.** `DE` holds
+ * `Bayern`, never `Bavaria`, and this is why the geocode's own
+ * `subdivisionCode` is preferred rather than merely checked first. Unplaceable
+ * becomes null, not the name: the column's documented job is to sharpen the
+ * geocode where a city name repeats (`csv/columns.ts`), and the geocode is what
+ * fills the address.
  */
-function cityFor(values: RawImportRow, resolved: ResolvedRow): string | null {
-  return values.city?.trim() || resolved.placeName || null
+function subdivisionCodeOf(values: RawImportRow): string | null {
+  return subdivisionCodeFor(values.country, values.state)
 }
 
 /**

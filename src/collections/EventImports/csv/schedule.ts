@@ -15,7 +15,10 @@
  * the time.
  */
 
+import type { RawImportRow } from './columns'
+
 import { Temporal } from '@js-temporal/polyfill'
+
 
 import { localWallTimeToInstant, normalizeHHMM } from '@/lib/schedule/time'
 import {
@@ -57,6 +60,36 @@ export interface ImportSchedule {
   untilDate?: NonNullable<EventSchedule['untilDate']>
 }
 
+/**
+ * The schedule columns off one CSV row, paired with the context both readers
+ * supply themselves.
+ *
+ * ⚠ **One projection, because two would diverge silently.** The resolve step and
+ * the commit both map the same row's schedule, `RawImportRow` is a
+ * `Record<string, string>`, and `MapScheduleArgs` has every key optional — so a
+ * schedule column added to one spelling and not the other builds a different
+ * recurrence from the one the reviewer approved, with no type error and no
+ * refused write.
+ */
+export function scheduleArgsFor(
+  values: RawImportRow,
+  timezone: SupportedTimezones,
+  today: Temporal.PlainDate,
+): MapScheduleArgs {
+  return {
+    scheduleType: values.scheduleType,
+    date: values.date,
+    startTime: values.startTime,
+    endTime: values.endTime,
+    weekdays: values.weekdays,
+    interval: values.interval,
+    monthWeek: values.monthWeek,
+    untilDate: values.untilDate,
+    timezone,
+    today,
+  }
+}
+
 /** The schedule columns as the parser hands them over, plus the row's context. */
 export interface MapScheduleArgs {
   scheduleType?: string
@@ -95,7 +128,14 @@ const MAX_INTERVAL = 99
  * reported rather than dropped.
  */
 /** The schedule columns that arrive as raw CSV text. */
-type ScheduleColumn = 'date' | 'startTime' | 'endTime' | 'weekdays' | 'interval' | 'monthWeek' | 'untilDate'
+type ScheduleColumn =
+  | 'date'
+  | 'startTime'
+  | 'endTime'
+  | 'weekdays'
+  | 'interval'
+  | 'monthWeek'
+  | 'untilDate'
 
 const IGNORED_COLUMNS: Record<Exclude<ScheduleType, 'inactive'>, readonly ScheduleColumn[]> = {
   'one-off': ['weekdays', 'interval', 'monthWeek', 'untilDate'],
@@ -107,13 +147,19 @@ function isScheduleType(value: string): value is ScheduleType {
   return (SCHEDULE_TYPES as readonly string[]).includes(value)
 }
 
-function parseDate(value: string | undefined): Temporal.PlainDate | null {
+/**
+ * A strict `YYYY-MM-DD` date, or null.
+ *
+ * ⚠ **Strict because `Temporal` would also accept a datetime**, and a
+ * volunteer's spreadsheet silently exporting one must be refused rather than
+ * truncated. `scheduleHooks.parseDateOnly` is the tolerant twin, and these two
+ * are the only leniency policies the import has — the commit reads the stored
+ * `anchorDate` with this one rather than adding a third.
+ */
+export function parseIsoDate(value: string | undefined): Temporal.PlainDate | null {
   const trimmed = value?.trim()
   if (!trimmed) return null
   try {
-    // Strict `YYYY-MM-DD`: `Temporal` would also accept a datetime, and a
-    // volunteer's spreadsheet silently exporting one must be refused, not
-    // truncated. `scheduleHooks.parseDateOnly` is the tolerant twin.
     return /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? Temporal.PlainDate.from(trimmed) : null
   } catch {
     return null
@@ -212,11 +258,11 @@ export function mapCsvSchedule(args: MapScheduleArgs): MapScheduleResult {
   }
 
   const rawDate = args.date?.trim()
-  const explicitDate = rawDate ? parseDate(rawDate) : null
+  const explicitDate = rawDate ? parseIsoDate(rawDate) : null
   if (rawDate && !explicitDate) errors.push(`date must be YYYY-MM-DD (got "${rawDate}")`)
 
   const rawUntilDate = args.untilDate?.trim()
-  const untilDate = rawUntilDate ? parseDate(rawUntilDate) : null
+  const untilDate = rawUntilDate ? parseIsoDate(rawUntilDate) : null
   if (rawUntilDate && !untilDate) {
     errors.push(`untilDate must be YYYY-MM-DD (got "${rawUntilDate}")`)
   }
@@ -244,7 +290,9 @@ export function mapCsvSchedule(args: MapScheduleArgs): MapScheduleResult {
     // Dropping them silently is how `scheduleType=weekly, monthWeek=2` used to
     // publish a weekly class instead of a monthly one. `buildMonthly` already
     // refused the mirror-image mistake, so the asymmetry was the tell.
-    errors.push(`${ignored.join(' and ')} ${ignored.length > 1 ? 'do' : 'does'} not apply to a ${rawType} class`)
+    errors.push(
+      `${ignored.join(' and ')} ${ignored.length > 1 ? 'do' : 'does'} not apply to a ${rawType} class`,
+    )
   }
 
   const built = buildFor(rawType, { explicitDate, weekdays, monthWeek: args.monthWeek, today })
@@ -364,7 +412,12 @@ function buildWeekly({ explicitDate, weekdays, today }: BuildArgs): Built | stri
  * while a bare `date` is "day 14 of the month". Guessing either way silently
  * reschedules the class, so a row that asks for both gets neither.
  */
-function buildMonthly({ explicitDate, weekdays, monthWeek: raw, today }: BuildArgs): Built | string {
+function buildMonthly({
+  explicitDate,
+  weekdays,
+  monthWeek: raw,
+  today,
+}: BuildArgs): Built | string {
   const monthWeek = raw?.trim()
 
   if (!monthWeek) {
