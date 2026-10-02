@@ -14,6 +14,7 @@ import {
   requestLemonfoxTranscript,
 } from '@/jobs/TranscribeMeditation/lemonfox'
 import { sampleLemonfoxResponse } from '@/jobs/TranscribeMeditation/sampleResponse'
+import { LOCALES } from '@/lib/locales'
 
 describe('normalizeLemonfoxResponse', () => {
   it('keeps word timings given inside each segment', () => {
@@ -159,6 +160,15 @@ describe('lemonfoxLanguage', () => {
   ])('names %s as %s', (locale, name) => {
     expect(lemonfoxLanguage(locale)).toBe(name)
   })
+
+  it('names a language Lemonfox accepts for every locale the app has', () => {
+    for (const { code } of LOCALES) expect(lemonfoxLanguage(code), code).toBeDefined()
+  })
+
+  it('names nothing Lemonfox does not list, so it detects the language instead', () => {
+    expect(lemonfoxLanguage('zu')).toBeUndefined()
+    expect(lemonfoxLanguage('not a locale')).toBeUndefined()
+  })
 })
 
 describe('requestLemonfoxTranscript', () => {
@@ -182,6 +192,15 @@ describe('requestLemonfoxTranscript', () => {
       response_format: 'verbose_json',
       'timestamp_granularities[]': 'word',
     })
+  })
+
+  it('leaves the language out when there is none to name', async () => {
+    const fetchFn = vi.fn(async () => Response.json({ segments: [] }))
+
+    await requestLemonfoxTranscript({ apiKey: 'k', audioUrl: 'https://x/a.mp3', fetchFn })
+
+    const [, init] = fetchFn.mock.calls[0] as unknown as [string, RequestInit]
+    expect((init.body as FormData).has('language')).toBe(false)
   })
 
   it("surfaces Lemonfox's own error message", async () => {

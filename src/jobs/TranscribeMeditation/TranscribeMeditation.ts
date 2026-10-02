@@ -77,7 +77,7 @@ export const TranscribeMeditation: TaskConfig<'transcribeMeditation'> = {
       await updateRow(req, row.id, {
         status: 'completed',
         provider,
-        language,
+        language: language ?? null,
         segments,
         error: null,
       })
@@ -98,7 +98,7 @@ async function transcribe({
   duration,
 }: {
   audioFilename: string
-  language: string
+  language?: string
   duration?: number | null
 }): Promise<{ provider: TranscriptProvider; response: unknown }> {
   const apiKey = serverEnv.LEMONFOX_API_KEY
