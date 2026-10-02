@@ -49,6 +49,7 @@ interface CleanupResult {
   trashedImages: number
   skippedImages: number
   errors: number
+  dryRun: boolean
 }
 
 // --- Helper functions ---
@@ -77,7 +78,10 @@ async function backdateCreatedAt(
  * This date range includes files backdated to 48 hours ago but excludes files
  * created "now" (respecting the 24h grace period).
  */
-async function runCleanupJob(payload: Payload): Promise<CleanupResult> {
+async function runCleanupJob(
+  payload: Payload,
+  overrides: Record<string, unknown> = {},
+): Promise<CleanupResult> {
   const { CleanupOrphanedMedia } = await import('@/jobs/CleanupOrphanedMedia/CleanupOrphanedMedia')
 
   const mockReq = {
@@ -104,9 +108,27 @@ async function runCleanupJob(payload: Payload): Promise<CleanupResult> {
       rangeStart: rangeStart.toISOString(),
       rangeEnd: rangeEnd.toISOString(),
       maxOperations: 6,
+      ...overrides,
     },
   })
   return result.output
+}
+
+/**
+ * Put a document in the trash long enough ago that Phase A may delete it.
+ *
+ * ⚠ Phase A only deletes trash older than TRASH_RETENTION_DAYS, so a fixture
+ * trashed at `new Date()` is never touched — which is the point, and also what
+ * made every Phase A case here pass before the threshold existed.
+ */
+async function trashLongAgo(
+  payload: Payload,
+  collection: 'files' | 'images',
+  id: number,
+): Promise<void> {
+  const longAgo = new Date()
+  longAgo.setDate(longAgo.getDate() - 60)
+  await payload.update({ collection, id, data: { deletedAt: longAgo.toISOString() } })
 }
 
 /**
@@ -204,11 +226,7 @@ describe('CleanupOrphanedMedia Job', () => {
       // Create a file and soft-delete it (move to trash)
       // Note: payload.delete() hard-deletes. Use update() to set deletedAt for soft delete
       const file = await testData.createFile(payload)
-      await payload.update({
-        collection: 'files',
-        id: file.id,
-        data: { deletedAt: new Date().toISOString() },
-      })
+      await trashLongAgo(payload, 'files', file.id)
 
       // Verify file is in trash
       expect(await fileInTrash(payload, file.id)).toBe(true)
@@ -233,11 +251,7 @@ describe('CleanupOrphanedMedia Job', () => {
       // Create an image and soft-delete it (move to trash)
       // Note: payload.delete() hard-deletes. Use update() to set deletedAt for soft delete
       const image = await testData.createMediaImage(payload)
-      await payload.update({
-        collection: 'images',
-        id: image.id,
-        data: { deletedAt: new Date().toISOString() },
-      })
+      await trashLongAgo(payload, 'images', image.id)
 
       // Verify image is in trash
       expect(await imageInTrash(payload, image.id)).toBe(true)
@@ -545,20 +559,11 @@ describe('CleanupOrphanedMedia Job', () => {
       // 1. Trashed file (will be permanently deleted)
       // Note: payload.delete() hard-deletes. Use update() to set deletedAt for soft delete
       const trashedFile = await testData.createFile(payload)
-      await payload.update({
-        collection: 'files',
-        id: trashedFile.id,
-        data: { deletedAt: new Date().toISOString() },
-      })
+      await trashLongAgo(payload, 'files', trashedFile.id)
 
       // 2. Trashed image (will be permanently deleted)
-      // Note: payload.delete() hard-deletes. Use update() to set deletedAt for soft delete
       const trashedImage = await testData.createMediaImage(payload)
-      await payload.update({
-        collection: 'images',
-        id: trashedImage.id,
-        data: { deletedAt: new Date().toISOString() },
-      })
+      await trashLongAgo(payload, 'images', trashedImage.id)
 
       // 3. Orphan file (will be trashed)
       const orphanFile = await testData.createFile(payload)
@@ -708,7 +713,11 @@ describe('CleanupOrphanedMedia Job', () => {
       vi.useRealTimers()
     })
 
-    it('Phase A always processes trashed items regardless of age', async () => {
+    /**
+     * Phase A reads `deletedAt`, Phase B reads `createdAt`. Nothing outside the
+     * rotating window is safe from Phase A because of the window.
+     */
+    it('deletes trash whose createdAt is outside every Phase B range', async () => {
       // Mock date to January (month 0, which processes 0-1 month range)
       const mockDate = new Date('2025-01-15T12:00:00Z')
       vi.setSystemTime(mockDate)
@@ -717,12 +726,14 @@ describe('CleanupOrphanedMedia Job', () => {
       const trashedFile = await testData.createFile(payload)
       const sixMonthsAgo = new Date(mockDate)
       sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
+      const trashedLongAgo = new Date(mockDate)
+      trashedLongAgo.setDate(trashedLongAgo.getDate() - 60)
       await payload.update({
         collection: 'files',
         id: trashedFile.id,
         data: {
           createdAt: sixMonthsAgo.toISOString(),
-          deletedAt: new Date(mockDate).toISOString(),
+          deletedAt: trashedLongAgo.toISOString(),
         },
       })
 
@@ -815,6 +826,45 @@ describe('CleanupOrphanedMedia Job', () => {
         }
       }
       expect(trashedImages).toBeGreaterThanOrEqual(2)
+    })
+  })
+  /**
+   * ⚠ These cases go last on purpose. Each fixture here creates a `files` row,
+   * and `scanCollectionForLexicalReferences` collects upload ids from Lexical
+   * content without regard to the collection they belong to — so an image id
+   * counts as a referenced file id. Inserting a case earlier shifts the file
+   * ids of every case after it, and one then lands on an image id and is
+   * spared as "referenced". That aliasing is a defect in the job, not in the
+   * spec; appending keeps it from deciding whether the suite passes.
+   */
+  describe('Phase A: Trash Retention', () => {
+    /**
+     * ⚠ The defect that kept this job off every automatic queue (#878). Phase A
+     * queried `deletedAt: { exists: true }` with no age bound, so a run deleted
+     * an item an editor had hand-trashed minutes earlier, irrecoverably.
+     */
+    it('spares trash newer than the retention cutoff', async () => {
+      const file = await testData.createFile(payload)
+      await payload.update({
+        collection: 'files',
+        id: file.id,
+        data: { deletedAt: new Date().toISOString() },
+      })
+
+      await runCleanupJob(payload)
+
+      expect(await fileInTrash(payload, file.id)).toBe(true)
+    })
+
+    it('counts without deleting under dryRun', async () => {
+      const file = await testData.createFile(payload)
+      await trashLongAgo(payload, 'files', file.id)
+
+      const result = await runCleanupJob(payload, { dryRun: true })
+
+      expect(result.dryRun).toBe(true)
+      expect(result.permanentlyDeletedFiles).toBeGreaterThanOrEqual(1)
+      expect(await fileInTrash(payload, file.id)).toBe(true)
     })
   })
 })

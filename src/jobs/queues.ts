@@ -14,15 +14,6 @@ import type { JobsConfig } from 'payload'
 type AutoRunEntry = Extract<NonNullable<JobsConfig['autoRun']>, unknown[]>[number]
 
 /**
- * Queue for a task that is scheduled but must never start by itself.
- *
- * ⚠ Nothing ticks it, so nothing ever enqueues onto it either — and
- * `payload jobs:run --queue manual` only drains rows that already exist, so it
- * prints nothing and exits 0. Queue the task first, from the admin Jobs UI.
- */
-export const MANUAL_QUEUE = 'manual'
-
-/**
  * `jobs.autoRun` — one entry per queue that runs unattended.
  *
  * ⚠ A cron here has to tick far more often than the schedules on its queue,
@@ -50,9 +41,9 @@ export const JOB_AUTO_RUN: AutoRunEntry[] = [
     queue: 'screening',
   },
   {
-    // Hourly, not daily, for a schedule that fires on the 1st at 03:00: a tick
-    // missed to a deploy then costs an hour rather than a day. :07 is the
-    // stagger: `screening` fires on every 15th minute and `invitations` on
+    // Hourly, not daily, for schedules that fire on the 1st of the month: a
+    // tick missed to a deploy then costs an hour rather than a day. :07 is the
+    // stagger — `screening` fires on every 15th minute and `invitations` on
     // every 5th, so any multiple of 5 collides with one of them hourly.
     cron: '7 * * * *',
     queue: 'monthly',
@@ -63,9 +54,8 @@ export const JOB_AUTO_RUN: AutoRunEntry[] = [
  * Queues a schedule may name with no `autoRun` entry, each with the reason
  * nothing may start it. An unlisted one is a dead schedule, not a decision.
  *
- * This is the one home for that reason. A schedule site carries a pointer here.
+ * Empty today. It is the exemption the dead-schedule guard reads, so the next
+ * queue deliberately left undriven is one entry here rather than an edit to
+ * `tests/unit/job-schedules.spec.ts`.
  */
-export const UNSCHEDULED_QUEUES: Record<typeof MANUAL_QUEUE, string> = {
-  [MANUAL_QUEUE]:
-    "CleanupOrphanedMedia: Phase A permanently deletes everything already in the media trash with no age check, an editor's own hand-trashed items included, and a first run after ten dead months would also trash up to 500 newly detected orphans. It needs an age threshold on `deletedAt` and a dry run reviewed against production before it may run unattended (#878).",
-}
+export const UNSCHEDULED_QUEUES: Record<string, string> = {}

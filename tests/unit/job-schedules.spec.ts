@@ -1,10 +1,12 @@
+import type { Field } from 'payload'
 
 import { join, relative } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
 import { tasks } from '@/jobs'
-import { JOB_AUTO_RUN, MANUAL_QUEUE, UNSCHEDULED_QUEUES } from '@/jobs/queues'
+import { trashDeletionCutoff } from '@/jobs/CleanupOrphanedMedia/CleanupOrphanedMedia'
+import { JOB_AUTO_RUN, UNSCHEDULED_QUEUES } from '@/jobs/queues'
 import {
   INVITATIONS_CRON,
   INVITATIONS_QUEUE,
@@ -154,9 +156,36 @@ describe('Job schedules', () => {
     expect(collisions).toEqual([])
   })
 
-  it('keeps CleanupOrphanedMedia off every queue that ticks', () => {
+  /**
+   * ⚠ This job permanently deletes. It ran on no queue at all for ten months,
+   * and what makes it safe to run unattended is Phase A's age threshold, not
+   * the queue — so both halves are pinned here. Moving it off a driven queue
+   * again, or dropping the threshold, has to be a deliberate edit.
+   */
+  describe('CleanupOrphanedMedia', () => {
     const cleanup = tasks.find((task) => task.slug === 'cleanupOrphanedMedia')
-    expect(cleanup?.schedule?.map((entry) => entry.queue)).toEqual([MANUAL_QUEUE])
+
+    it('runs unattended on a queue something ticks', () => {
+      const queues = cleanup?.schedule?.map((entry) => entry.queue ?? 'default') ?? []
+
+      expect(queues).toEqual(['monthly'])
+      for (const queue of queues) expect([...autoRunQueues()]).toContain(queue)
+    })
+
+    it('spares the trash for a whole cleanup cycle', () => {
+      const now = new Date('2026-03-15T00:00:00.000Z')
+      const days = (now.getTime() - trashDeletionCutoff(now).getTime()) / 86_400_000
+
+      expect(days).toBeGreaterThanOrEqual(30)
+    })
+
+    it('offers a dry run, so a window can be reviewed before it deletes', () => {
+      const names = (fields: Field[] | undefined) =>
+        (fields ?? []).map((field) => ('name' in field ? field.name : undefined))
+
+      expect(names(cleanup?.inputSchema)).toContain('dryRun')
+      expect(names(cleanup?.outputSchema)).toContain('dryRun')
+    })
   })
 
   /**
