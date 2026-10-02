@@ -33,14 +33,21 @@ for bin in pg_dump pg_restore psql createdb dropdb railway node; do
 done
 
 # One parse, the app's own precedence (dotenv never overrides a set key).
-{ read -r TARGET_HOST; read -r TARGET_DB; read -r ADMIN_URL; read -r STAGING_URL; } < <(node -e '
+# JOBS_AUTORUN_ENABLED comes out of the same parse so the value reported and the
+# value enforced cannot differ. The two-token test mirrors the transform in
+# src/lib/env/server.ts, which this script cannot import: it is TypeScript, and
+# reading it would validate every other required variable as a side effect.
+{ read -r TARGET_HOST; read -r TARGET_DB; read -r ADMIN_URL; read -r STAGING_URL
+  read -r AUTORUN_STATE; } < <(node -e '
   require("dotenv").config({ path: [".env.local", ".env"], quiet: true })
   const raw = process.env.DATABASE_URL
   if (!raw) process.exit(1)
   const url = new URL(raw)
   const db = decodeURIComponent(url.pathname.slice(1))
   const at = (name) => Object.assign(new URL(raw), { pathname: "/" + name }).toString()
-  console.log([url.hostname, db, at("postgres"), at(db + "_incoming")].join("\n"))
+  const flag = process.env.JOBS_AUTORUN_ENABLED?.trim().toLowerCase()
+  const autoRun = flag === "false" || flag === "0" ? "off" : "on"
+  console.log([url.hostname, db, at("postgres"), at(db + "_incoming"), autoRun].join("\n"))
 ') || die "DATABASE_URL is not set in the shell, .env.local or .env"
 
 case "$TARGET_HOST" in
@@ -51,6 +58,14 @@ case "$TARGET_DB" in
   ""|postgres|template0|template1) die "refusing to replace '$TARGET_DB'" ;;
 esac
 STAGING_DB="${TARGET_DB}_incoming"
+
+# Checked before production is read, let alone written: the flag is what stops
+# the copy's jobs mailing real people, and it is on unless somebody turned it
+# off. Refusing here, rather than warning, is why the dry run is worth running
+# first.
+if [ "$FORCE" -eq 1 ] && [ "$AUTORUN_STATE" != "off" ]; then
+  die "JOBS_AUTORUN_ENABLED resolves to on — set it to false in .env.local before copying production (see README → \"Working on a copy of production data\")"
+fi
 
 PROD_URL="$(railway variables --project "$RAILWAY_PROJECT_ID" --service Postgres \
   --environment production --json | node -e '
@@ -64,6 +79,7 @@ PROD_URL="$(railway variables --project "$RAILWAY_PROJECT_ID" --service Postgres
 
 echo "source: production ($(node -e 'console.log(new URL(process.argv[1]).host)' "$PROD_URL"))"
 echo "target: $TARGET_DB on $TARGET_HOST"
+echo "jobs:   JOBS_AUTORUN_ENABLED resolves to $AUTORUN_STATE"
 
 if [ "$FORCE" -ne 1 ]; then
   echo "dry run — re-run with --force to replace '$TARGET_DB' with a copy of production."
