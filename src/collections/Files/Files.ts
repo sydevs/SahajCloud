@@ -23,7 +23,7 @@ export const Files: CollectionConfig = {
     group: 'Media',
     useAsTitle: 'filename',
     description:
-      'Media files (images, audio, video) and PDFs used by other collections. Orphaned files are automatically moved to trash and permanently deleted during monthly cleanup.',
+      'Media files (images, audio, video) and PDFs used by other collections. Nothing here is trashed or deleted automatically — the cleanup job is run by hand (#878).',
     defaultColumns: ['previewUrl', 'mimeType', 'createdAt'],
   },
   upload: {

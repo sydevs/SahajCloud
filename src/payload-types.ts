@@ -2880,7 +2880,7 @@ export interface Lesson {
   deletedAt?: string | null;
 }
 /**
- * Media files (images, audio, video) and PDFs used by other collections. Orphaned files are automatically moved to trash and permanently deleted during monthly cleanup.
+ * Media files (images, audio, video) and PDFs used by other collections. Nothing here is trashed or deleted automatically — the cleanup job is run by hand (#878).
  *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "files".

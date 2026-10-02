@@ -41,6 +41,7 @@ import { atlasSeo } from './endpoints/atlas/seo'
 import { atlasSitemap } from './endpoints/atlas/sitemap'
 import { globals } from './globals'
 import { tasks } from './jobs'
+import { JOB_AUTO_RUN } from './jobs/queues'
 import { migrations } from './migrations'
 
 const filename = fileURLToPath(import.meta.url)
@@ -217,19 +218,9 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       tasks,
       deleteJobOnComplete: true,
       enableConcurrencyControl: true,
-      autoRun: [
-        {
-          cron: '0 * * * *', // Runs every hour
-          queue: 'nightly',
-        },
-        {
-          // Safety net for the per-submission screening kick (see
-          // UserSubmissions/hooks/enqueueSubmissionScreening): a submission whose
-          // immediate run was lost to a crash waits at most 15 minutes.
-          cron: '*/15 * * * *',
-          queue: 'screening',
-        },
-      ],
+      // One entry per queue that runs unattended, and the reason a queue has
+      // none, both in `./jobs/queues`.
+      autoRun: JOB_AUTO_RUN,
     },
     // Email configuration
     // - Test/Import/E2E: disabled, to avoid model conflicts and external services.

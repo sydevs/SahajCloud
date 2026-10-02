@@ -2,6 +2,7 @@ import type { CollectionSlug, TaskConfig, Payload, PayloadRequest } from 'payloa
 
 import type { ImageTag } from '@/types/tags'
 
+import { MANUAL_QUEUE } from '../queues'
 import {
   discoverReferencesForCollection,
   extractIdsFromDocument,
@@ -98,7 +99,14 @@ export const CleanupOrphanedMedia: TaskConfig<'cleanupOrphanedMedia'> = {
   schedule: [
     {
       cron: '0 0 1 * *', // First day of every month at midnight
-      queue: 'monthly',
+      // ⚠ MANUAL_QUEUE has no `autoRun` entry, so this schedule never fires by
+      // itself — deliberately. Phase A permanently deletes everything already in
+      // the media trash with no age check, an editor's own hand-trashed items
+      // included, and the first run after ten dead months would also trash up to
+      // 500 newly detected orphans. It needs an age threshold on `deletedAt` and
+      // a dry run reviewed against production first (#878). Do not move it onto a
+      // queue that ticks.
+      queue: MANUAL_QUEUE,
     },
   ],
   handler: async ({ req, input }) => {
