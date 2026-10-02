@@ -15,6 +15,7 @@
  * - storyblok: Lessons, Lectures
  * - wm-app-translations: WeMeditate App Translations global (English seed)
  * - translations: All three translation globals (English seed)
+ * - sahaja-glossary: The hidden Sahaja Yoga glossary global, every locale in its data file
  *
  * Authentication: Needs an admin session.
  *
@@ -54,6 +55,7 @@ const VALID_SCRIPTS: ScriptName[] = [
   'storyblok',
   'wm-app-translations',
   'translations',
+  'sahaja-glossary',
   'atlas',
 ]
 
@@ -420,6 +422,11 @@ async function getImporter(
       const { TranslationsImporter } = await import('../../../../../../seeds/translations/import')
       return new TranslationsImporter(options)
     }
+    case 'sahaja-glossary': {
+      const { SahajaGlossaryImporter } =
+        await import('../../../../../../seeds/sahaja-glossary/import')
+      return new SahajaGlossaryImporter(options)
+    }
     case 'atlas': {
       const { AtlasImporter } = await import('../../../../../../seeds/atlas/import')
       return new AtlasImporter(options)
@@ -474,7 +481,8 @@ async function getDatabaseCounts(
         break
       }
       case 'wm-app-translations':
-      case 'translations': {
+      case 'translations':
+      case 'sahaja-glossary': {
         // These scripts target PayloadCMS globals, not collections.
         // Verification sees an empty EXPECTED_COUNTS entry and passes by default.
         break
