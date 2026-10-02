@@ -1,4 +1,4 @@
-import type { Config } from 'payload'
+import type { JobsConfig } from 'payload'
 
 /**
  * Queue names and the `autoRun` entries that drive them.
@@ -11,11 +11,14 @@ import type { Config } from 'payload'
  * fails on the next one.
  */
 
-type AutoRunEntry = Extract<NonNullable<NonNullable<Config['jobs']>['autoRun']>, unknown[]>[number]
+type AutoRunEntry = Extract<NonNullable<JobsConfig['autoRun']>, unknown[]>[number]
 
 /**
- * Queue for a task that is scheduled but must never start by itself. Nothing
- * ticks it, so it runs only via `pnpm payload jobs:run --queue manual`.
+ * Queue for a task that is scheduled but must never start by itself.
+ *
+ * ⚠ Nothing ticks it, so nothing ever enqueues onto it either — and
+ * `payload jobs:run --queue manual` only drains rows that already exist, so it
+ * prints nothing and exits 0. Queue the task first, from the admin Jobs UI.
  */
 export const MANUAL_QUEUE = 'manual'
 
@@ -26,6 +29,10 @@ export const MANUAL_QUEUE = 'manual'
  * because the tick is both halves of the cycle: it enqueues a due schedule with
  * `waitUntil` at the next occurrence, and a *later* tick is what runs that row.
  * The tick interval, not the schedule, is the worst-case lateness.
+ *
+ * ⚠ Stagger the minute. Every tick rewrites the whole `payload-jobs-stats`
+ * global from the snapshot it read, so two queues ticking together lose one
+ * queue's `lastScheduledRun` to the other's write.
  *
  * `loginPlugin` appends the `invitations` entry, so this is not the whole set at
  * runtime (`src/plugins/login/invitations.ts`).
@@ -43,10 +50,10 @@ export const JOB_AUTO_RUN: AutoRunEntry[] = [
     queue: 'screening',
   },
   {
-    // Hourly, for a schedule that fires on the 1st at 03:00 — see the lateness
-    // note above. Only SyncLectureMetadata runs here; it reads the Nirmala Vidya
-    // API and writes `lectures.metadata`.
-    cron: '0 * * * *',
+    // Hourly, not daily, for a schedule that fires on the 1st at 03:00: a tick
+    // missed to a deploy then costs an hour rather than a day. :30 keeps it off
+    // the minute the other three tickers share.
+    cron: '30 * * * *',
     queue: 'monthly',
   },
 ]
@@ -54,8 +61,10 @@ export const JOB_AUTO_RUN: AutoRunEntry[] = [
 /**
  * Queues a schedule may name with no `autoRun` entry, each with the reason
  * nothing may start it. An unlisted one is a dead schedule, not a decision.
+ *
+ * This is the one home for that reason. A schedule site carries a pointer here.
  */
-export const UNSCHEDULED_QUEUES: Record<string, string> = {
+export const UNSCHEDULED_QUEUES: Record<typeof MANUAL_QUEUE, string> = {
   [MANUAL_QUEUE]:
-    'CleanupOrphanedMedia: Phase A permanently deletes everything already in the media trash with no age check, including what an editor trashed by hand. It needs an age threshold and a dry run reviewed against production before it may run unattended (#878).',
+    "CleanupOrphanedMedia: Phase A permanently deletes everything already in the media trash with no age check, an editor's own hand-trashed items included, and a first run after ten dead months would also trash up to 500 newly detected orphans. It needs an age threshold on `deletedAt` and a dry run reviewed against production before it may run unattended (#878).",
 }

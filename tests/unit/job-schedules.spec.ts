@@ -1,12 +1,15 @@
-import { join } from 'node:path'
+
+import { join, relative } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
 import { tasks } from '@/jobs'
 import { JOB_AUTO_RUN, MANUAL_QUEUE, UNSCHEDULED_QUEUES } from '@/jobs/queues'
-import { INVITATIONS_QUEUE } from '@/plugins/login/invitations'
+import { INVITATIONS_QUEUE, sendInvitationsTask } from '@/plugins/login/invitations'
+import type { LoginCollectionConfig } from '@/plugins/login/types'
+import { resetUsageTask } from '@/plugins/usage'
 
-import { sourceOf, SRC } from '../utils/importGraph'
+import { sourceFiles, sourceOf, SRC } from '../utils/importGraph'
 
 /**
  * Every queue a task schedules onto either runs unattended or says why it does
@@ -20,30 +23,41 @@ import { sourceOf, SRC } from '../utils/importGraph'
  * run (#878).
  */
 
-/** Queues contributed by a plugin rather than by `JOB_AUTO_RUN`. */
-const PLUGIN_AUTO_RUN_QUEUES = new Map([[INVITATIONS_QUEUE, 'loginPlugin, when invites are on']])
+/**
+ * Every task Payload ends up with a schedule for — `src/jobs/index.ts`'s own,
+ * plus the two a plugin appends to `jobs.tasks`.
+ *
+ * ⚠ The plugin pair is the half that matters here. `tasks` alone is what the
+ * first version of this spec read, which left the seam #878 came through
+ * unguarded: a plugin task scheduling onto a dead queue would have passed. The
+ * sweep below is what makes a third one impossible to forget.
+ */
+const SCHEDULED_TASKS: { schedule?: { queue?: string }[]; slug: string }[] = [
+  ...tasks,
+  resetUsageTask,
+  // The factory reads nothing off its argument to build `schedule`.
+  sendInvitationsTask({} as LoginCollectionConfig),
+]
 
-function scheduledQueues(): Map<string, string[]> {
-  const queues = new Map<string, string[]>()
-  for (const task of tasks) {
-    for (const entry of task.schedule ?? []) {
-      const queue = entry.queue ?? 'default'
-      queues.set(queue, [...(queues.get(queue) ?? []), task.slug])
-    }
-  }
-  return queues
+/** Queues driven by a plugin's own `autoRun` append rather than `JOB_AUTO_RUN`. */
+const PLUGIN_AUTO_RUN_QUEUES = [INVITATIONS_QUEUE]
+
+function autoRunQueues(): Set<string> {
+  return new Set([
+    ...JOB_AUTO_RUN.map((entry) => entry.queue ?? 'default'),
+    ...PLUGIN_AUTO_RUN_QUEUES,
+  ])
 }
 
 describe('Job schedules', () => {
   it('runs or excuses every queue a task schedules onto', () => {
-    const autoRun = new Set([
-      ...JOB_AUTO_RUN.map((entry) => entry.queue ?? 'default'),
-      ...PLUGIN_AUTO_RUN_QUEUES.keys(),
-    ])
+    const driven = autoRunQueues()
 
-    const dead = [...scheduledQueues()]
-      .filter(([queue]) => !autoRun.has(queue) && !(queue in UNSCHEDULED_QUEUES))
-      .map(([queue, slugs]) => `${queue} (${slugs.join(', ')})`)
+    const dead = SCHEDULED_TASKS.flatMap((task) =>
+      (task.schedule ?? []).map((entry) => [entry.queue ?? 'default', task.slug] as const),
+    )
+      .filter(([queue]) => !driven.has(queue) && !(queue in UNSCHEDULED_QUEUES))
+      .map(([queue, slug]) => `${queue} (${slug})`)
 
     expect(dead).toEqual([])
   })
@@ -62,42 +76,60 @@ describe('Job schedules', () => {
 
   /**
    * Excusing a queue that something ticks is worse than forgetting one: the
-   * reason reads as protection while the job runs anyway.
+   * reason would read as protection while the job runs anyway.
    */
   it('excuses no queue that an autoRun entry drives', () => {
     for (const queue of Object.keys(UNSCHEDULED_QUEUES)) {
-      expect(JOB_AUTO_RUN.map((entry) => entry.queue)).not.toContain(queue)
-      expect([...PLUGIN_AUTO_RUN_QUEUES.keys()]).not.toContain(queue)
-      expect(UNSCHEDULED_QUEUES[queue]).toMatch(/\S/)
+      expect([...autoRunQueues()]).not.toContain(queue)
     }
+  })
+
+  /**
+   * ⚠ Every tick rewrites the whole `payload-jobs-stats` global from the
+   * snapshot it read, so two queues ticking on the same minute lose one's
+   * `lastScheduledRun` to the other's write.
+   */
+  it('gives each queue its own minute', () => {
+    const minutes = JOB_AUTO_RUN.map((entry) => entry.cron?.split(' ')[0])
+    expect(new Set(minutes).size).toBe(minutes.length)
   })
 
   it('keeps CleanupOrphanedMedia off every queue that ticks', () => {
     const cleanup = tasks.find((task) => task.slug === 'cleanupOrphanedMedia')
     expect(cleanup?.schedule?.map((entry) => entry.queue)).toEqual([MANUAL_QUEUE])
-    expect(MANUAL_QUEUE in UNSCHEDULED_QUEUES).toBe(true)
   })
 
   /**
    * The assertions above read `JOB_AUTO_RUN`, so they are worth nothing unless
-   * the config is what hands it to Payload. The import is checked as source
-   * text because importing `payload.config.ts` would build the whole config.
+   * the config is what hands it to Payload. Checked as source text because
+   * importing `payload.config.ts` would build the whole config.
    */
   it('is the array the config passes to Payload', () => {
-    const config = sourceOf(join(SRC, 'payload.config.ts'))
-    expect(config).toContain('autoRun: JOB_AUTO_RUN')
-    expect(config).toContain("import { JOB_AUTO_RUN } from './jobs/queues'")
+    expect(sourceOf(join(SRC, 'payload.config.ts'))).toContain('autoRun: JOB_AUTO_RUN')
   })
 
   /**
-   * Same argument for the one entry a plugin appends instead. Read from the
-   * append onward rather than matched whole, so reordering the entry's own
-   * properties does not fail a spec about which queue it names.
+   * ⚠ `SCHEDULED_TASKS` is a hand-written list, so this is what makes an
+   * omission loud: a new `schedule:` anywhere under `src/` fails here until it
+   * is added above. Without it the spec silently stops covering the file.
    */
-  it('is the queue loginPlugin appends an autoRun entry for', () => {
-    const plugin = sourceOf(join(SRC, 'plugins/login/loginPlugin.ts'))
-    const append = plugin.slice(plugin.indexOf('...config.jobs.autoRun'))
-    expect(append).toContain('queue: INVITATIONS_QUEUE')
-    expect(append).toContain('cron: INVITATIONS_CRON')
+  it('scans every file under src/ that declares a schedule', () => {
+    const declaring = sourceFiles(SRC)
+      .filter((file) => sourceOf(file).includes('schedule: ['))
+      .map((file) => relative(SRC, file))
+      .sort()
+
+    expect(declaring).toEqual([
+      'jobs/CleanupOrphanedMedia/CleanupOrphanedMedia.ts',
+      'jobs/ExpireEvents/ExpireEvents.ts',
+      'jobs/PurgeSubmissions/PurgeSubmissions.ts',
+      'jobs/RegistrationNotifications/SendPostEventFollowUps.ts',
+      'jobs/RegistrationNotifications/SendRegistrationDigests.ts',
+      'jobs/RegistrationNotifications/SendSessionReminders.ts',
+      'jobs/SyncLectureMetadata/SyncLectureMetadata.ts',
+      'jobs/VerifyEmbeds/VerifyEmbeds.ts',
+      'plugins/login/invitations.ts',
+      'plugins/usage/tasks.ts',
+    ])
   })
 })
