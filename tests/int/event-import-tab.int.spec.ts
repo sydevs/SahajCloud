@@ -38,6 +38,7 @@ describe('the Import view gate', () => {
   let outsider: Manager
   let regionless: Manager
   let inactive: Manager
+  let grantless: Manager
   let client: Client
   let germany: Region
   let berlin: Region
@@ -73,6 +74,13 @@ describe('the Import view gate', () => {
       name: 'Tab Newcomer',
       email: 'tab-newcomer@example.com',
       roles: ['atlas-manager'],
+    })
+    // ⚠ Holds no grant AND no region, which is the only caller the order of the
+    // two checks is observable from.
+    grantless = await testData.createManager(payload, {
+      name: 'Tab Volunteer',
+      email: 'tab-volunteer@example.com',
+      roles: [],
     })
     inactive = await testData.createManager(payload, {
       name: 'Tab Retired',
@@ -135,16 +143,27 @@ describe('the Import view gate', () => {
   })
 
   /**
-   * Both of these would be refused by the ownership check too, so the message is
-   * what says which gate answered — and the capability gate has to answer first,
-   * or an inactive manager's refusal would name somebody else's region.
+   * ⚠ **Each of these is refused by more than one gate, so the message is the only
+   * thing that says which one answered.** A bare "refused" assertion would pass
+   * with the capability check deleted outright — `ownedRegionFilterOptions`
+   * answers `true` for both an inactive manager and a client, so they would be
+   * turned away by the level check or not at all.
    */
-  it('refuses an inactive manager on the capability, before any region is read', async () => {
+  it('refuses an inactive manager on the capability', async () => {
     expect(await refusalFor(inactive, germany)).toBe(STAGE_IMPORT_REFUSAL)
   })
 
   it('refuses an API client the same way', async () => {
     expect(await refusalFor(client, germany)).toBe(STAGE_IMPORT_REFUSAL)
+  })
+
+  /**
+   * ⚠ **The order is a behaviour, and this is the caller it shows on.** Someone
+   * holding no grant and no region is refused by both checks; asking ownership
+   * first would tell them to get a region when the language is what is wrong.
+   */
+  it('names the language, not the missing region, when both are missing', async () => {
+    expect(await refusalFor(grantless, germany)).toBe(STAGE_IMPORT_REFUSAL)
   })
 
   it('refuses a region that has not been saved yet', async () => {
