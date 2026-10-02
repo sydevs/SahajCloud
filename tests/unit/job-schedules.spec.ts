@@ -5,7 +5,11 @@ import { describe, expect, it } from 'vitest'
 
 import { tasks } from '@/jobs'
 import { JOB_AUTO_RUN, MANUAL_QUEUE, UNSCHEDULED_QUEUES } from '@/jobs/queues'
-import { INVITATIONS_QUEUE, sendInvitationsTask } from '@/plugins/login/invitations'
+import {
+  INVITATIONS_CRON,
+  INVITATIONS_QUEUE,
+  sendInvitationsTask,
+} from '@/plugins/login/invitations'
 import type { LoginCollectionConfig } from '@/plugins/login/types'
 import { resetUsageTask } from '@/plugins/usage'
 
@@ -41,6 +45,49 @@ const SCHEDULED_TASKS: { schedule?: { queue?: string }[]; slug: string }[] = [
 
 /** Queues driven by a plugin's own `autoRun` append rather than `JOB_AUTO_RUN`. */
 const PLUGIN_AUTO_RUN_QUEUES = [INVITATIONS_QUEUE]
+
+/** Every tick the loop runs, `JOB_AUTO_RUN`'s and the plugin's alike. */
+const ALL_CRONS = [
+  ...JOB_AUTO_RUN.map((entry) => [entry.queue ?? 'default', entry.cron] as const),
+  [INVITATIONS_QUEUE, INVITATIONS_CRON] as const,
+]
+
+/**
+ * Tick pairs that already shared a minute before `monthly` was armed, each
+ * losing one `lastScheduledRun` per overlap. A backlog, not an approval — it
+ * should only shrink. #878 staggered the entry it added and left these.
+ */
+const KNOWN_COLLISIONS = new Set([
+  'invitations + nightly',
+  'invitations + screening',
+  'nightly + screening',
+])
+
+/**
+ * The minutes a cron minute field fires on.
+ *
+ * ⚠ Comparing the field as text is what this replaces. A step field reads as
+ * one string while firing on twelve minutes, so `0`, `30` and the every-15th
+ * form compare as three distinct values though two of them collide at :30.
+ */
+function minutesOf(cron: string): Set<number> {
+  const minutes = new Set<number>()
+
+  for (const part of cron.split(' ')[0]!.split(',')) {
+    const [range, step] = part.split('/')
+    const every = step ? Number(step) : 1
+    const [lo, hi] =
+      range === '*'
+        ? [0, 59]
+        : range!.includes('-')
+          ? (range!.split('-').map(Number) as [number, number])
+          : [Number(range), Number(range)]
+
+    for (let minute = lo; minute <= hi; minute += every) minutes.add(minute)
+  }
+
+  return minutes
+}
 
 function autoRunQueues(): Set<string> {
   return new Set([
@@ -90,8 +137,21 @@ describe('Job schedules', () => {
    * `lastScheduledRun` to the other's write.
    */
   it('gives each queue its own minute', () => {
-    const minutes = JOB_AUTO_RUN.map((entry) => entry.cron?.split(' ')[0])
-    expect(new Set(minutes).size).toBe(minutes.length)
+    const collisions: string[] = []
+
+    for (const [queue, cron] of ALL_CRONS) {
+      for (const [otherQueue, otherCron] of ALL_CRONS) {
+        if (queue >= otherQueue) continue
+
+        const pair = `${queue} + ${otherQueue}`
+        if (KNOWN_COLLISIONS.has(pair)) continue
+
+        const shared = [...minutesOf(cron!)].filter((minute) => minutesOf(otherCron!).has(minute))
+        if (shared.length > 0) collisions.push(`${pair} at :${shared.join(', :')}`)
+      }
+    }
+
+    expect(collisions).toEqual([])
   })
 
   it('keeps CleanupOrphanedMedia off every queue that ticks', () => {
