@@ -25,7 +25,7 @@ import type { Region } from '@/payload-types'
 
 import { creatableNodes, matchedRegionIds, parentRegionId } from './placement'
 import { plannedMapboxId, regionCreateData } from './regionData'
-import { freshScopeReq } from './scope'
+import { commitWriteReq } from './scope'
 
 export interface EnsuredRegions {
   /** Every node's region, the ones the Atlas already held included. */
@@ -96,8 +96,8 @@ export async function ensureProposedRegions(
         overrideAccess: true,
         depth: 0,
         // Its own, because its parent may be the node written just before it —
-        // see `freshScopeReq`.
-        req: freshScopeReq(req),
+        // see `commitWriteReq`.
+        req: commitWriteReq(req),
       })
       known.set(node.key, region.id)
       created += 1

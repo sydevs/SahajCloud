@@ -22,10 +22,12 @@
  */
 import type { Payload, PayloadRequest } from 'payload'
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { COMMIT_CHUNK_ROWS } from '@/collections/EventImports/constants'
 import { commitEventImport } from '@/collections/EventImports/endpoints/commit'
 import { asLog } from '@/fields'
+import { CONTACT_EMAIL } from '@/lib/contact'
 import type {
   Event,
   EventImport,
@@ -40,6 +42,13 @@ import { createTestEnvironment } from '../utils/testHelpers'
 
 type Node = EventImportProposedRegions['nodes'][number]
 type Row = EventImportRows[number]
+
+interface Finished {
+  committed: { line: number; eventId: number }[]
+  skipped: { line: number; reasons: string[] }[]
+  summaryEmailed: boolean
+  deleted: boolean
+}
 
 const ANCHOR = '2026-01-05'
 
@@ -115,6 +124,14 @@ function cityNode(tag: string, options: { place?: PlaceName; lines: number[]; pa
   }
 }
 
+/**
+ * One line more than a chunk holds, so a commit over them cannot finish in one
+ * call — which is the only way a second call reaches a batch that still exists.
+ */
+function chunkCrossingLines(): number[] {
+  return Array.from({ length: COMMIT_CHUNK_ROWS + 1 }, (_, index) => index + 2)
+}
+
 function tree(nodes: Node[], rowErrors: { line: number; message: string }[] = []): EventImportProposedRegions {
   return { nodes, rowErrors, stateLayer: { proposed: false, reason: 'one subdivision' } }
 }
@@ -183,15 +200,36 @@ describe('commit endpoint', () => {
       })
     ).docs[0] as Region | undefined
 
-  const eventOf = (row: Row | undefined): Promise<Event> => {
-    if (!row?.committed) throw new Error(`line ${row?.line} committed nothing`)
-    return payload.findByID({
+  const eventById = (id: number): Promise<Event> =>
+    payload.findByID({
       collection: 'events',
-      id: row.committed.eventId,
+      id,
       depth: 0,
       overrideAccess: true,
     }) as Promise<Event>
+
+  /**
+   * The report a finished commit returns in place of the batch it deleted.
+   *
+   * ⚠ **This is where a completed batch is read, not `storedRows`.** The finish
+   * hard-deletes the row, so the only account of what each line did is the one
+   * that travelled back in the response (`commit/summary.ts`). `storedRows` is
+   * for a call that refused, or one that stopped part-way through the chunks.
+   */
+  const finishedOf = (body: Record<string, unknown>): Finished => {
+    const finished = body.finished as Finished | undefined
+    if (!finished) throw new Error('this call did not finish the batch')
+    return finished
   }
+
+  const eventAtLine = (body: Record<string, unknown>, line: number): Promise<Event> => {
+    const entry = finishedOf(body).committed.find((row) => row.line === line)
+    if (!entry) throw new Error(`line ${line} committed nothing`)
+    return eventById(entry.eventId)
+  }
+
+  const reasonsAtLine = (body: Record<string, unknown>, line: number): string[] =>
+    finishedOf(body).skipped.find((row) => row.line === line)?.reasons ?? []
 
   beforeAll(async () => {
     const env = await createTestEnvironment()
@@ -246,9 +284,8 @@ describe('commit endpoint', () => {
       const berlin = await regionBySlug('berlin-mk')
       expect(berlin).toMatchObject({ level: 'city', name: 'Berlin mk' })
       expect(berlin?.parent).toBe(germany.id)
-      const rows = await storedRows(batch.id)
-      expect((await eventOf(rows[0])).region).toBe(berlin?.id)
-      expect((await eventOf(rows[1])).region).toBe(berlin?.id)
+      expect((await eventAtLine(body, 2)).region).toBe(berlin?.id)
+      expect((await eventAtLine(body, 3)).region).toBe(berlin?.id)
     })
 
     it('creates nothing for a node the Atlas already holds', async () => {
@@ -269,35 +306,44 @@ describe('commit endpoint', () => {
       const { body } = await call(uploader, batch.id)
 
       expect(body).toMatchObject({ regions: { created: 0, adopted: 0, failed: 0 } })
-      expect((await eventOf((await storedRows(batch.id))[0])).region).toBe(held.id)
+      expect((await eventAtLine(body, 2)).region).toBe(held.id)
     })
 
     /**
      * ⚠ **The assertion the whole resume design rests on.** Nothing records the
-     * regions a commit created, so a re-fired commit has to find them by the id
-     * `plannedMapboxId` recomputes — otherwise it writes a second Berlin under a
-     * fresh slug and splits the batch's classes between the two.
+     * regions a commit created, so the call that picks the batch up again has to
+     * find them by the id `plannedMapboxId` recomputes — otherwise it writes a
+     * second Berlin under a fresh slug and splits the batch's classes between
+     * the two.
+     *
+     * A batch one row past `COMMIT_CHUNK_ROWS` is what makes the second call
+     * reachable: the first leaves the batch `committing`, and only the last call
+     * runs the finish that deletes it.
      */
-    it('adopts the region its own earlier call created, rather than a second one', async () => {
-      const nodes = [cityNode('rf', { lines: [2] })]
-      const batch = await createBatch({ rows: [row(2)], proposedRegions: tree(nodes) })
-
-      const first = await call(uploader, batch.id)
-      // Clear the row's id so the second call re-offers it, which is what an
-      // interrupted write leaves behind: the region landed, the row did not.
-      const rows = await storedRows(batch.id)
-      const eventId = rows[0]!.committed!.eventId
-      await payload.update({
-        collection: 'event-imports',
-        id: batch.id,
-        data: { rows: [row(2)] },
-        overrideAccess: true,
+    it('adopts the region its first chunk created, and writes each row once', async () => {
+      const lines = chunkCrossingLines()
+      const batch = await createBatch({
+        rows: lines.map((line) => row(line)),
+        proposedRegions: tree([cityNode('rf', { lines })]),
       })
 
+      const first = await call(uploader, batch.id)
       const second = await call(uploader, batch.id)
 
-      expect(first.body).toMatchObject({ regions: { created: 1, adopted: 0 } })
-      expect(second.body).toMatchObject({ regions: { created: 0, adopted: 1 } })
+      expect(first.body).toMatchObject({
+        regions: { created: 1, adopted: 0 },
+        committedNow: COMMIT_CHUNK_ROWS,
+        pending: 1,
+        done: false,
+      })
+      expect(first.body.finished).toBeUndefined()
+      expect(second.body).toMatchObject({
+        regions: { created: 0, adopted: 1 },
+        committedNow: 1,
+        pending: 0,
+        done: true,
+      })
+
       const berlins = await payload.find({
         collection: 'regions',
         where: { slug: { like: 'berlin-rf' } },
@@ -305,10 +351,17 @@ describe('commit endpoint', () => {
         overrideAccess: true,
       })
       expect(berlins.totalDocs).toBe(1)
-      expect((await eventOf((await storedRows(batch.id))[0])).region).toBe(berlins.docs[0]!.id)
-      // The first call's class is still there — the second created another,
-      // which is exactly what `committed` exists to prevent.
-      expect(await eventOf(row(2, { committed: eventId }))).toBeTruthy()
+      // One class per line and no more: the ids the first chunk wrote are what
+      // stopped the second call offering those rows again.
+      const committed = finishedOf(second.body).committed
+      expect(committed.map((entry) => entry.line)).toEqual(lines)
+      expect(new Set(committed.map((entry) => entry.eventId)).size).toBe(lines.length)
+      const classes = await payload.count({
+        collection: 'events',
+        where: { region: { equals: berlins.docs[0]!.id } },
+        overrideAccess: true,
+      })
+      expect(classes.totalDocs).toBe(lines.length)
     })
 
     /**
@@ -329,12 +382,12 @@ describe('commit endpoint', () => {
       const city = cityNode('dp', { lines: [2], parentKey: 'state:BE' })
       const batch = await createBatch({ rows: [row(2)], proposedRegions: tree([state, city]) })
 
-      await call(uploader, batch.id)
+      const { body } = await call(uploader, batch.id)
 
       const stateRegion = await regionBySlug('berlin-state-dp')
       const cityRegion = await regionBySlug('berlin-dp')
       expect(cityRegion?.parent).toBe(stateRegion?.id)
-      expect((await eventOf((await storedRows(batch.id))[0])).region).toBe(cityRegion?.id)
+      expect((await eventAtLine(body, 2)).region).toBe(cityRegion?.id)
     })
 
     it('reports the rows of a node it could not create, and creates no class for them', async () => {
@@ -349,12 +402,11 @@ describe('commit endpoint', () => {
       const { body } = await call(uploader, batch.id)
 
       expect(body).toMatchObject({ regions: { created: 0, failed: 1 }, done: true })
-      const stored = (await storedRows(batch.id))[0]!
-      expect(stored.committed).toBeUndefined()
+      expect(finishedOf(body).committed).toEqual([])
       // The node's own name, and the reason as `Regions` gave it — a volunteer
       // has to be told which proposed city, not which row id.
-      expect(stored.errors?.[0]).toContain('Berlin sq could not be created')
-      expect(stored.errors?.[0]).toContain('slug is already in use')
+      expect(reasonsAtLine(body, 2)[0]).toContain('Berlin sq could not be created')
+      expect(reasonsAtLine(body, 2)[0]).toContain('slug is already in use')
     })
   })
 
@@ -365,9 +417,9 @@ describe('commit endpoint', () => {
         proposedRegions: tree([cityNode('uv', { lines: [2] })]),
       })
 
-      await call(uploader, batch.id)
+      const { body } = await call(uploader, batch.id)
 
-      const event = await eventOf((await storedRows(batch.id))[0])
+      const event = await eventAtLine(body, 2)
       expect(event).toMatchObject({
         _status: 'published',
         verificationStage: 'unverified',
@@ -397,7 +449,7 @@ describe('commit endpoint', () => {
       const { body } = await call(uploader, batch.id)
 
       expect(body).toMatchObject({ coordinators: { matched: 1, created: 0, refused: 0 } })
-      const event = await eventOf((await storedRows(batch.id))[0])
+      const event = await eventAtLine(body, 2)
       expect(event.manager).toBe(coordinator.id)
       expect(event.verificationStage).toBe('verified')
       expect(event.nextCheckAt).toBeTruthy()
@@ -425,7 +477,7 @@ describe('commit endpoint', () => {
       // An invited account is unverified by definition (#664), and nothing here
       // marks it otherwise.
       expect(created?._verified ?? false).toBe(false)
-      expect((await eventOf((await storedRows(batch.id))[0])).manager).toBe(created?.id)
+      expect((await eventAtLine(body, 2)).manager).toBe(created?.id)
     })
 
     it('gives two rows naming one address a single account', async () => {
@@ -440,8 +492,9 @@ describe('commit endpoint', () => {
       const { body } = await call(uploader, batch.id)
 
       expect(body).toMatchObject({ coordinators: { created: 1 } })
-      const rows = await storedRows(batch.id)
-      const managers = await Promise.all(rows.map(async (r) => (await eventOf(r)).manager))
+      const managers = await Promise.all(
+        [2, 3].map(async (line) => (await eventAtLine(body, line)).manager),
+      )
       expect(managers[0]).toBe(managers[1])
     })
 
@@ -454,9 +507,8 @@ describe('commit endpoint', () => {
       const { body } = await call(uploader, batch.id)
 
       expect(body).toMatchObject({ coordinators: { refused: 1 } })
-      const stored = (await storedRows(batch.id))[0]!
-      expect(stored.committed).toBeUndefined()
-      expect(stored.errors?.length).toBeGreaterThan(0)
+      expect(finishedOf(body).committed).toEqual([])
+      expect(reasonsAtLine(body, 2).length).toBeGreaterThan(0)
     })
   })
 
@@ -481,33 +533,42 @@ describe('commit endpoint', () => {
         rows: { total: 4, committed: 1, duplicates: 1, errors: 2 },
         done: true,
       })
-      const rows = await storedRows(batch.id)
-      expect(rows.filter((r) => r.committed)).toHaveLength(1)
-      // The proposal's reason is now on the row, which is what the next chunk reads.
-      expect(rows[3]?.errors).toEqual(['This address is not in Berlin sk.'])
+      expect(finishedOf(body).committed.map((entry) => entry.line)).toEqual([2])
+      // Every skip reaches the line it belongs to — the proposal's own refusal
+      // included, which nothing else records.
+      expect(reasonsAtLine(body, 3)).toEqual(['could not find this location'])
+      expect(reasonsAtLine(body, 4)).toEqual(['a repeat of line 2'])
+      expect(reasonsAtLine(body, 5)).toEqual(['This address is not in Berlin sk.'])
     })
 
     /**
-     * ⚠ **Resumption, end to end.** A row that already carries an id must not be
-     * written again, and the response has to stop reporting work left.
+     * ⚠ **`done` is the last thing a caller ever hears about the batch.** The
+     * finish deletes it, so a caller that loses the response has no second
+     * chance at the report — and asking again must not read as a fresh commit
+     * that created nothing.
      */
-    it('creates nothing on a second call, and reports done', async () => {
+    it('leaves no batch behind, and answers a repeat call with a 404', async () => {
       const batch = await createBatch({
         rows: [row(2), row(3)],
         proposedRegions: tree([cityNode('rs', { lines: [2, 3] })]),
       })
 
       const first = await call(uploader, batch.id)
-      const ids = (await storedRows(batch.id)).map((r) => r.committed?.eventId)
       const second = await call(uploader, batch.id)
 
       expect(first.body).toMatchObject({ committedNow: 2, pending: 0, done: true })
-      expect(second.body).toMatchObject({ committedNow: 0, pending: 0, done: true })
-      expect((await storedRows(batch.id)).map((r) => r.committed?.eventId)).toEqual(ids)
-      const berlinEvents = await payload.find({
+      expect(finishedOf(first.body).deleted).toBe(true)
+      expect(second.status).toBe(404)
+      const remaining = await payload.count({
+        collection: 'event-imports',
+        where: { id: { equals: batch.id } },
+        trash: true,
+        overrideAccess: true,
+      })
+      expect(remaining.totalDocs).toBe(0)
+      const berlinEvents = await payload.count({
         collection: 'events',
         where: { region: { equals: (await regionBySlug('berlin-rs'))!.id } },
-        depth: 0,
         overrideAccess: true,
       })
       expect(berlinEvents.totalDocs).toBe(2)
@@ -529,7 +590,7 @@ describe('commit endpoint', () => {
       const { body } = await call(uploader, batch.id)
 
       expect(body).toMatchObject({ rows: { committed: 0, errors: 1 } })
-      expect((await storedRows(batch.id))[0]?.errors?.[0]).toContain('timezone')
+      expect(reasonsAtLine(body, 2)[0]).toContain('timezone')
     })
 
     /**
@@ -546,7 +607,7 @@ describe('commit endpoint', () => {
       const { body } = await call(uploader, batch.id)
 
       expect(body).toMatchObject({ rows: { committed: 1, errors: 1 } })
-      expect((await storedRows(batch.id))[0]?.errors?.[0]).toContain('no proposed city')
+      expect(reasonsAtLine(body, 2)[0]).toContain('no proposed city')
     })
 
     it('writes the class the CSV described, with the batch’s languages and the reviewed first date', async () => {
@@ -555,9 +616,9 @@ describe('commit endpoint', () => {
         proposedRegions: tree([cityNode('dt', { lines: [2] })]),
       })
 
-      await call(uploader, batch.id)
+      const { body } = await call(uploader, batch.id)
 
-      const event = await eventOf((await storedRows(batch.id))[0])
+      const event = await eventAtLine(body, 2)
       expect(event).toMatchObject({
         title: 'Class 2',
         eventType: 'offline',
@@ -594,29 +655,148 @@ describe('commit endpoint', () => {
         proposedRegions: tree([cityNode('pv', { lines: [2, 3] })]),
       })
 
-      await call(uploader, batch.id)
+      const { body } = await call(uploader, batch.id)
 
-      const rows = await storedRows(batch.id)
-      for (const stored of rows) {
-        const log = asLog((await eventOf(stored)).activityLog)
+      for (const line of [2, 3]) {
+        const log = asLog((await eventAtLine(body, line)).activityLog)
         expect(log.find((entry) => entry.type === 'event-import')).toMatchObject({
-          key: `${batch.id}:${stored.line}`,
-          cells: { who: 'Commit Uploader', delivery: `Bulk import, CSV line ${stored.line}` },
+          key: `${batch.id}:${line}`,
+          cells: { who: 'Commit Uploader', delivery: `Bulk import, CSV line ${line}` },
         })
       }
       // The adopted class keeps its verification entry beside the import one.
-      expect(
-        asLog((await eventOf(rows[1])).activityLog).map((entry) => entry.type),
-      ).toContain('verification')
+      expect(asLog((await eventAtLine(body, 3)).activityLog).map((entry) => entry.type)).toContain(
+        'verification',
+      )
     })
 
   })
 
-  describe('what it refuses', () => {
-    it('moves a resolved batch to committing before it writes anything', async () => {
+  /**
+   * The finish (#828, phase 6c): what the last call does besides writing the
+   * last class.
+   *
+   * ⚠ **The caches are not asserted here, and cannot be.** Both invalidations
+   * are fire-and-forget side effects of a deployment this lane does not have —
+   * the Cloudflare purge is inert without credentials, and `revalidateTag`
+   * throws outside a Next request scope and is swallowed. What *is* assertable
+   * is the gate that defers them, and `tests/unit/cache-defer.spec.ts` holds it.
+   */
+  describe('the finish', () => {
+    let sendEmail: ReturnType<typeof vi.spyOn>
+
+    beforeEach(() => {
+      sendEmail = vi.spyOn(payload, 'sendEmail').mockResolvedValue(undefined as never)
+    })
+
+    afterEach(() => {
+      sendEmail.mockRestore()
+    })
+
+    const lastMessage = (): { to: string[]; subject: string; html: string } =>
+      sendEmail.mock.calls.at(-1)?.[0] as never
+
+    it('sends admins exactly one summary of what the batch did', async () => {
+      const batch = await createBatch({
+        rows: [
+          row(2),
+          row(3, { managerEmail: 'commit-summary@example.com' }),
+          // Names a coordinator the commit never looks up: a duplicate row is
+          // not one it writes.
+          row(4, { duplicate: true, managerEmail: 'commit-dupe@example.com' }),
+        ],
+        proposedRegions: tree([cityNode('sm', { lines: [2, 3, 4] })]),
+      })
+
+      const { body } = await call(uploader, batch.id)
+
+      expect(sendEmail).toHaveBeenCalledTimes(1)
+      expect(finishedOf(body).summaryEmailed).toBe(true)
+      const message = lastMessage()
+      expect(message.to).toEqual([admin.email])
+      expect(message.subject).toBe('2 classes imported into Germany')
+      expect(message.html).toContain('Commit Uploader')
+      // One coordinator, counted off the rows the commit actually ensured
+      // accounts for — so the duplicate's address is not among them, and the
+      // created count beside it covers the same set.
+      expect(message.html.replace(/<!-- -->/g, '')).toContain('1 (1 new account)')
+    })
+
+    it('reports an undelivered summary instead of keeping the batch', async () => {
+      sendEmail.mockRejectedValue(new Error('no transport'))
       const batch = await createBatch({
         rows: [row(2)],
-        proposedRegions: tree([cityNode('st', { lines: [2] })]),
+        proposedRegions: tree([cityNode('ue', { lines: [2] })]),
+      })
+
+      const { body } = await call(uploader, batch.id)
+
+      // Nothing retries a commit, so refusing to delete would keep an uploaded
+      // CSV of contact details waiting for a button that no longer exists.
+      expect(finishedOf(body)).toMatchObject({ summaryEmailed: false, deleted: true })
+      expect((await eventAtLine(body, 2)).title).toBe('Class 2')
+    })
+
+    it('finishes a batch that could commit nothing at all', async () => {
+      const batch = await createBatch({
+        rows: [row(2, { errors: ['could not find this location'] })],
+        // No node to create either, which is what leaves the whole commit with
+        // nothing to invalidate — a tree is written whatever its rows do.
+        proposedRegions: tree([]),
+      })
+
+      const { body } = await call(uploader, batch.id)
+
+      expect(body).toMatchObject({
+        rows: { committed: 0, errors: 1 },
+        regions: { created: 0, adopted: 0 },
+        done: true,
+      })
+      expect(finishedOf(body).deleted).toBe(true)
+      expect(lastMessage().subject).toBe('0 classes imported into Germany')
+      expect(reasonsAtLine(body, 2)).toEqual(['could not find this location'])
+    })
+
+    /**
+     * ⚠ **An install with no admin must not send the one report nowhere.** The
+     * batch is deleted a moment later, so the alternative to the system contact
+     * is a log line.
+     */
+    it('falls back to the system contact when no admin is reachable', async () => {
+      await payload.update({
+        collection: 'managers',
+        id: admin.id,
+        data: { type: 'manager' },
+        overrideAccess: true,
+      })
+      try {
+        const batch = await createBatch({
+          rows: [row(2)],
+          proposedRegions: tree([cityNode('fb', { lines: [2] })]),
+        })
+
+        await call(uploader, batch.id)
+
+        expect(lastMessage().to).toEqual([CONTACT_EMAIL])
+      } finally {
+        await payload.update({
+          collection: 'managers',
+          id: admin.id,
+          data: { type: 'admin' },
+          overrideAccess: true,
+        })
+      }
+    })
+  })
+
+  describe('what it refuses', () => {
+    it('moves a resolved batch to committing before it writes anything', async () => {
+      // A batch the first call cannot finish, or the status would be
+      // unobservable: the finish deletes the row it is written on.
+      const lines = chunkCrossingLines()
+      const batch = await createBatch({
+        rows: lines.map((line) => row(line)),
+        proposedRegions: tree([cityNode('st', { lines })]),
       })
 
       await call(uploader, batch.id)
@@ -708,10 +888,10 @@ describe('commit endpoint', () => {
         proposedRegions: tree([cityNode('aw', { lines: [2] })]),
       })
 
-      const { status } = await call(admin, batch.id)
+      const { status, body } = await call(admin, batch.id)
 
       expect(status).toBe(200)
-      const log = asLog((await eventOf((await storedRows(batch.id))[0])).activityLog)
+      const log = asLog((await eventAtLine(body, 2)).activityLog)
       expect(log.find((entry) => entry.type === 'event-import')?.cells.who).toBe('Commit Uploader')
     })
   })

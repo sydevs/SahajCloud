@@ -12,6 +12,7 @@ import type { EventImport, EventImportProposedRegions, Region } from '@/payload-
 import { batchIdOf, failure, loadTarget, refuseUnownedTarget } from '../batchRequest'
 import { ensureCoordinators } from '../commit/coordinators'
 import { eventCreateData } from '../commit/eventData'
+import { finishCommit } from '../commit/finish'
 import { managerKeyOf, managerRoster } from '../commit/managers'
 import { creatableNodes, placeLine } from '../commit/placement'
 import { ensureProposedRegions } from '../commit/regions'
@@ -22,7 +23,8 @@ import {
   rowsAwaitingCommit,
   type CommitRow,
 } from '../commit/rows'
-import { freshScopeReq } from '../commit/scope'
+import { commitWriteReq } from '../commit/scope'
+import { tallyRows } from '../commit/summary'
 import { COMMIT_CHUNK_ROWS } from '../constants'
 
 /**
@@ -50,9 +52,11 @@ import { COMMIT_CHUNK_ROWS } from '../constants'
  * region has since been created elsewhere is caught by the `mapboxId` read, and
  * the rows of a node that cannot be written become row errors.
  *
- * `done` does not finish the batch. The single Cloudflare purge, the admin
- * summary and the hard delete are the next step's, and the batch stays
- * `committing` until it runs.
+ * ⚠ **`done` means the batch is gone.** The call that finds nothing pending runs
+ * the finish (`commit/finish.ts`) — one cache invalidation, the admin summary,
+ * then the hard delete — so its response is the only report of what the whole
+ * batch did. A caller that loses it and asks again gets a 404, not a second
+ * `done`.
  *
  * Auth: intentionally NOT `requireActiveClient`. That guard serves published API
  * `clients`; this is an admin-panel action by an authenticated `manager` on a
@@ -138,8 +142,10 @@ export const commitEventImport: Endpoint = {
     const chunk = rowsAwaitingCommit(rows).slice(0, COMMIT_CHUNK_ROWS)
     // One copy for the whole chunk: every region a row files into exists by now,
     // and the caller's own request still carries the pre-commit answer.
-    const writeReq = chunk.length ? freshScopeReq(req) : req
-    const uploaderName = chunk.length ? await nameOfUploader(req, relationId(batch.uploader)) : ''
+    const writeReq = chunk.length ? commitWriteReq(req) : req
+    // Needed either way: by this chunk's provenance entries, or — when there is
+    // no chunk left, which is the only way `chunk` is empty — by the summary.
+    const uploaderName = await nameOfUploader(req, relationId(batch.uploader))
     let committed = 0
 
     for (const row of chunk) {
@@ -170,6 +176,21 @@ export const commitEventImport: Endpoint = {
       req,
     })
 
+    // After the rows are stored, never before: a finish that throws part-way
+    // must not also lose the record of what this chunk committed.
+    const finished =
+      pending === 0
+        ? await finishCommit(req, {
+            batchId: id,
+            batchCreatedAt: batch.createdAt,
+            targetId,
+            targetName: loaded.target.name,
+            uploaderName,
+            rows,
+            regionsAdded: regions.created + regions.adopted,
+          })
+        : null
+
     return Response.json({
       ...(loaded.warning ? { warning: loaded.warning } : {}),
       regions: {
@@ -182,7 +203,8 @@ export const commitEventImport: Endpoint = {
         created: coordinators.created,
         refused: coordinators.refusals.size,
       },
-      rows: tally(rows),
+      rows: tallyRows(rows),
+      ...(finished ? { finished } : {}),
       committedNow: committed,
       pending,
       done: pending === 0,
@@ -384,22 +406,5 @@ function adoptTreeErrors(rows: CommitRow[], tree: EventImportProposedRegions): v
   for (const { line, message } of tree.rowErrors) {
     const row = byLine.get(line)
     if (row && !row.errors?.includes(message)) refuseRow(row, message)
-  }
-}
-
-interface Tally {
-  total: number
-  committed: number
-  duplicates: number
-  errors: number
-}
-
-/** What the commit banner counts, recomputed from the rows rather than tracked. */
-function tally(rows: readonly CommitRow[]): Tally {
-  return {
-    total: rows.length,
-    committed: rows.filter((row) => row.committed).length,
-    duplicates: rows.filter((row) => row.duplicate).length,
-    errors: rows.filter((row) => row.errors?.length).length,
   }
 }

@@ -17,6 +17,7 @@
 import { createElement } from 'react'
 import { describe, expect, it } from 'vitest'
 
+import { EventImportSummaryEmail } from '@/emails/EventImportSummaryEmail'
 import { buildReplyBody, EventRegistrationEmail } from '@/emails/EventRegistrationEmail'
 import { InviteEmail, inviteHeading } from '@/emails/InviteEmail'
 import { buildUserMessageDetails, UserMessageEmail } from '@/emails/UserMessageEmail'
@@ -328,6 +329,65 @@ describe('EventRegistrationEmail', () => {
     )
     expect(html).not.toContain('Start date')
     expect(html).not.toContain('Registration answers')
+  })
+})
+
+describe('EventImportSummaryEmail', () => {
+  const props = {
+    brand: getEmailBrand('sahaj-atlas'),
+    uploaderName: 'Anna Volunteer',
+    targetName: 'Germany',
+    counts: {
+      verified: 12,
+      unverified: 40,
+      duplicates: 3,
+      errors: 2,
+      regionsAdded: 7,
+      coordinators: 5,
+      coordinatorsCreated: 4,
+    },
+    targetUrl: 'https://cloud.test/admin/collections/regions/9',
+    unverifiedUrl: 'https://cloud.test/admin/collections/events?where[x]=y',
+  }
+
+  it('reports who imported what, and every count an admin reads it for', async () => {
+    const html = await renderEmail(createElement(EventImportSummaryEmail, props))
+
+    expect(html.replace(/<!-- -->/g, '')).toContain('imported 52 classes into')
+    expect(html).toContain('Anna Volunteer')
+    expect(html).toContain('Germany')
+    expect(html).toContain('With a coordinator')
+    expect(html).toContain('Unverified')
+    expect(html).toContain('Duplicates')
+    expect(html).toContain('With errors')
+    expect(html.replace(/<!-- -->/g, '')).toContain('5 (4 new accounts)')
+    expect(html).toContain(props.targetUrl)
+    expect(html).toContain(props.unverifiedUrl)
+  })
+
+  /** Nothing to fix reads as nothing to say — the section is not a row of zeroes. */
+  it('omits the skipped section when every row landed', async () => {
+    const html = await renderEmail(
+      createElement(EventImportSummaryEmail, {
+        ...props,
+        counts: { ...props.counts, duplicates: 0, errors: 0 },
+      }),
+    )
+
+    expect(html).not.toContain('Rows skipped')
+    expect(html).toContain('Classes created')
+  })
+
+  it('counts one class and one new account in the singular', async () => {
+    const html = await renderEmail(
+      createElement(EventImportSummaryEmail, {
+        ...props,
+        counts: { ...props.counts, verified: 1, unverified: 0, coordinatorsCreated: 1 },
+      }),
+    )
+
+    expect(html.replace(/<!-- -->/g, '')).toContain('imported 1 class into')
+    expect(html.replace(/<!-- -->/g, '')).toContain('(1 new account)')
   })
 })
 
