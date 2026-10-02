@@ -51,9 +51,10 @@ export const JOB_AUTO_RUN: AutoRunEntry[] = [
   },
   {
     // Hourly, not daily, for a schedule that fires on the 1st at 03:00: a tick
-    // missed to a deploy then costs an hour rather than a day. :30 keeps it off
-    // the minute the other three tickers share.
-    cron: '30 * * * *',
+    // missed to a deploy then costs an hour rather than a day. :07 is the
+    // stagger: `screening` fires on every 15th minute and `invitations` on
+    // every 5th, so any multiple of 5 collides with one of them hourly.
+    cron: '7 * * * *',
     queue: 'monthly',
   },
 ]
