@@ -1,8 +1,5 @@
 import type { GlobalConfig } from 'payload'
 
-/** A row as the array validator sees it: unknown until proven otherwise. */
-type TermRow = { key?: unknown }
-
 /**
  * `key` is the identifier consumers look a term up by, so two rows sharing one
  * makes the lookup ambiguous rather than merely untidy. Payload has no unique
@@ -15,7 +12,7 @@ const validateUniqueKeys = (rows: unknown): string | true => {
   const seen = new Set<string>()
   const duplicates = new Set<string>()
 
-  for (const row of rows as TermRow[]) {
+  for (const row of rows) {
     const key = typeof row?.key === 'string' ? row.key.trim() : ''
     if (!key) continue
     if (seen.has(key)) duplicates.add(key)

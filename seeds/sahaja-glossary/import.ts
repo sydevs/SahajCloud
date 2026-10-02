@@ -28,15 +28,15 @@
  */
 
 import type { LocaleCode } from '../../src/lib/locales'
+import type { SahajaGlossary } from '../../src/payload-types'
 
 import * as path from 'path'
 
-import { isValidLocale, LOCALES } from '../../src/lib/locales'
+import { DEFAULT_LOCALE, isValidLocale, LOCALES } from '../../src/lib/locales'
 import { BaseImporter, type BaseImportOptions } from '../lib'
 
 const SEED_LOCAL_PATH = 'seeds/sahaja-glossary/data.json'
 const GLOSSARY_SLUG = 'sahaja-glossary'
-const DEFAULT_LOCALE: LocaleCode = 'en'
 
 /** The shape of `data.json`. `values` and `translatorNotes` are keyed by locale. */
 interface GlossarySeedFile {
@@ -63,6 +63,10 @@ export class SahajaGlossaryImporter extends BaseImporter<BaseImportOptions> {
   protected readonly cacheDir = path.resolve(process.cwd(), 'seeds/cache/sahaja-glossary')
 
   protected async import(): Promise<void> {
+    if (!this.payload) {
+      throw new Error('Payload instance not initialised (BaseImporter contract violation)')
+    }
+
     const { loadJsonData } = await import('../lib/dataLoader')
 
     let seed: GlossarySeedFile
@@ -84,15 +88,22 @@ export class SahajaGlossaryImporter extends BaseImporter<BaseImportOptions> {
       return
     }
 
-    // English carries every row's non-localized columns, so it goes first and
-    // its row ids are what every other locale writes against.
-    await this.writeLocale(seed, DEFAULT_LOCALE, this.buildRows(seed, DEFAULT_LOCALE))
-
-    const idsByKey = await this.readRowIds()
-    if (!idsByKey) return
+    // English carries every row's non-localized columns, so it goes first, and
+    // the ids it comes back with are what every other locale writes against.
+    const written = await this.writeLocale(
+      seed,
+      DEFAULT_LOCALE,
+      this.buildRows(seed, DEFAULT_LOCALE),
+    )
+    const idsByKey = new Map(
+      (written.terms ?? []).flatMap((row) => (row.id ? [[row.key, row.id] as const] : [])),
+    )
 
     for (const locale of locales.filter((code) => code !== DEFAULT_LOCALE)) {
-      const rows = this.buildRows(seed, locale).map((row) => ({ ...row, id: idsByKey.get(row.key) }))
+      const rows = this.buildRows(seed, locale).map((row) => ({
+        ...row,
+        id: idsByKey.get(row.key),
+      }))
 
       const unmatched = rows.filter((row) => !row.id).map((row) => row.key)
       if (unmatched.length > 0) {
@@ -151,46 +162,21 @@ export class SahajaGlossaryImporter extends BaseImporter<BaseImportOptions> {
     }))
   }
 
-  /** `key` → stored row id, read back after the English write. */
-  private async readRowIds(): Promise<Map<string, string> | null> {
-    if (!this.payload) {
-      throw new Error('Payload instance not initialised (BaseImporter contract violation)')
-    }
-
-    try {
-      const stored = await this.payload.findGlobal({
-        slug: GLOSSARY_SLUG,
-        locale: DEFAULT_LOCALE,
-        depth: 0,
-      })
-
-      const idsByKey = new Map<string, string>()
-      for (const row of stored.terms ?? []) {
-        if (row.id) idsByKey.set(row.key, row.id)
-      }
-      return idsByKey
-    } catch (error) {
-      this.addError(
-        `Reading back ${GLOSSARY_SLUG} row ids`,
-        error instanceof Error ? error : String(error),
-      )
-      return null
-    }
+  /** How many terms this locale has a spelling for. */
+  private spellingCount(seed: GlossarySeedFile, locale: LocaleCode): number {
+    return seed.terms.filter((term) => term.values[locale] != null).length
   }
 
   private async writeLocale(
     seed: GlossarySeedFile,
     locale: LocaleCode,
     terms: TermRow[],
-  ): Promise<void> {
-    if (!this.payload) {
-      throw new Error('Payload instance not initialised (BaseImporter contract violation)')
-    }
-
+  ): Promise<SahajaGlossary> {
     const notes = seed.translatorNotes?.[locale]
 
+    let written: SahajaGlossary
     try {
-      await this.payload.updateGlobal({
+      written = await this.payload.updateGlobal({
         slug: GLOSSARY_SLUG,
         locale,
         data: {
@@ -212,6 +198,8 @@ export class SahajaGlossaryImporter extends BaseImporter<BaseImportOptions> {
     )
     this.report.incrementUpdated()
     await this.reportDocument(GLOSSARY_SLUG, locale, 'updated')
+
+    return written
   }
 
   /** `--dry-run` reports the term count per locale and writes nothing. */
@@ -221,7 +209,7 @@ export class SahajaGlossaryImporter extends BaseImporter<BaseImportOptions> {
     )
 
     for (const locale of locales) {
-      const translated = this.buildRows(seed, locale).filter((row) => row.term !== null).length
+      const translated = this.spellingCount(seed, locale)
       const notes = seed.translatorNotes?.[locale]?.length ?? 0
       await this.logger.info(
         `[dry-run]   ${locale}: ${translated} spelling(s), ${notes} translator note(s)`,
