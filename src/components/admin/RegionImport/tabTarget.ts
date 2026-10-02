@@ -25,10 +25,10 @@ export interface ImportTabTargetArgs {
 /**
  * The tab's href, or `null` for a region no batch can target.
  *
- * ⚠ **A level it cannot read hides the tab.** `useDocumentInfo()` has no document
- * data before the edit view has one — and on a region whose level is somehow
- * absent, offering an import would be a guess. The view refuses the same case
- * from the database.
+ * A level the caller could not read hides the tab too, and the list answers that
+ * on its own — `includes(null)` is false. The `null` arm below is there for the
+ * type-checker, not as a second check, so deleting it is a compile error rather
+ * than a silent widening.
  */
 export function importTabTarget({
   adminRoute,
@@ -39,7 +39,7 @@ export function importTabTarget({
   locale,
   path,
 }: ImportTabTargetArgs): { href: string; hrefWithLocale: string } | null {
-  if (!id || !collectionSlug || !level || !levels.includes(level)) return null
+  if (!id || !collectionSlug || level === null || !levels.includes(level)) return null
 
   const href = formatAdminURL({
     adminRoute,

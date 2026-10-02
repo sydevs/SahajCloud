@@ -16,6 +16,7 @@ import {
 import {
   buildProposedTree,
   isProposableTargetLevel,
+  unproposableTargetMessage,
   type ProposableRow,
   type ProposedRowError,
   type ProposedTree,
@@ -98,10 +99,7 @@ export const proposeEventImport: Endpoint = {
       // ⚠ **`targetRegion` carries no `filterOptions`, so this is the only
       // refusal.** `ALLOWED_PARENT_LEVELS` (`Regions.ts`) forbids a city under a
       // venue, so proposing one would build a tree the commit cannot write.
-      return failure(
-        `A ${target.level} cannot hold imported classes' regions. Target a country, state or city.`,
-        422,
-      )
+      return failure(unproposableTargetMessage(target.level), 422)
     }
 
     const rows = (batch.rows ?? []) as ImportRow[]

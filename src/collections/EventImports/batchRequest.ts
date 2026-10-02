@@ -70,19 +70,19 @@ export async function targetOwnership(
   return totalDocs ? 'owned' : 'not-yours'
 }
 
+/** What each refused answer is told, shared with the Import tab's view. */
+export const OWNERSHIP_REFUSAL: Record<Exclude<TargetOwnership, 'owned'>, string> = {
+  'no-regions': 'You do not manage any region.',
+  'not-yours': 'You do not manage that region.',
+}
+
 /** 403 unless the caller may write inside the target's subtree. */
 export async function refuseUnownedTarget(
   req: PayloadRequest,
   targetId: number,
 ): Promise<Response | null> {
-  switch (await targetOwnership(req, targetId)) {
-    case 'owned':
-      return null
-    case 'no-regions':
-      return failure('You do not manage any region.', 403)
-    case 'not-yours':
-      return failure('You do not manage that region.', 403)
-  }
+  const ownership = await targetOwnership(req, targetId)
+  return ownership === 'owned' ? null : failure(OWNERSHIP_REFUSAL[ownership], 403)
 }
 
 /**

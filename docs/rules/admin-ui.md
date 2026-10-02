@@ -53,6 +53,40 @@ There is no width prop: `Drawer` sets `width: calc(100% - (drawerDepth * var(--g
 
 That combination is often what you want — reachable where it's explained, absent from the sidebar. An event's registrations are read this way, through the join on its Registrations tab rather than the collection's own list. A 404 on the route is not evidence a field needs surfacing elsewhere — try the surfaces that already embed the document first.
 
+### A document-view tab is handed no document
+
+`admin.components.views.edit.<key>` adds a route under a document
+(`{ Component, path: '/import', tab: { … } }`). Its `tab.condition` receives
+`{ collectionConfig, config, globalConfig, permissions, req }` and must return a
+**boolean**, so it can decide nothing about the document being edited — not a
+field value, and nothing that needs a query. `req` is there for the user.
+
+So a tab whose visibility depends on the document splits in three, and only the
+last is a gate:
+
+| Where | Can see | Use it for |
+|---|---|---|
+| `tab.condition` | the user, synchronously | the capability question |
+| `tab.Component` | the same, plus whatever a client child reads from `useDocumentInfo()` | hiding on a document that cannot be the subject |
+| the view's `Component` | `doc`, `initPageResult.req` — and may be `async` | every refusal, against the database |
+
+Two mechanics behind that middle row. `tab.Component` **cannot** be a client
+component: Payload hands it `payload` and `req` as server props, so `'use client'`
+throws `Functions cannot be passed directly to Client Components` — put a server
+shell around a client child and pass serializable values down. And Payload's own
+`DefaultDocumentTab` is internal to `@payloadcms/next`, so a custom tab
+reproduces its markup: a `Button` with `buttonStyle="tab"` carrying the `doc-tab`
+and `doc-tab--active` classes Payload's stylesheet already defines.
+
+**Never treat the tab as the gate.** The route answers a typed URL with no tab
+rendered, and a client-side hide is advice to the browser. `RegionImport`
+(`src/components/admin/RegionImport/`) is the worked example: the condition asks
+`mayStageImport`, the link hides on a region level the import refuses, and
+`ImportView` re-asks all three questions before it offers anything.
+
+`DocumentTabs` already wraps every tab in `ShouldRenderTabs`, so a tab never
+renders on a create form — but the view still can, and answers for it.
+
 **Building a custom field component?** Compose Payload's primitives instead of bespoke markup: `FieldLabel`, `FieldError`, `FieldDescription`, plus input fields (`TextField`, `SelectField`, `RelationshipField`, `UploadField`, `ArrayField`, `GroupField`, `BlocksField`, and more) and `RenderFields` (a whole field set). Hooks: `useField`, `useForm`, `useFormFields`, `useDocumentInfo`, `useConfig`, `useAuth`, `useTranslation`.
 
 For non-admin (public) React, use `lucide-react` instead (see `docs/code-style.md`). Emails use neither — see `docs/rules/email.md`.
