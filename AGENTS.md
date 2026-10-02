@@ -53,6 +53,7 @@ Use the `/workflow:dev-server` skill for a dev server shared across sessions. It
 - `pnpm test:unit` — the fast unit lane, no Payload bootstrap.
 - `pnpm test` / `pnpm test:int` — unit plus integration / integration only. Neither runs the smoke lane.
 - `pnpm test:smoke` — Playwright smoke specs against a Railway preview.
+- `pnpm db:refresh-from-prod [--force]` — replace the local dev DB with a read-only copy of prod. Set `DATABASE_URL` and `JOBS_AUTORUN_ENABLED=false` in `.env.local` first. See README → "Working on a copy of production data".
 
 Locally, run lint, `pnpm test:unit`, and the integration spec for the area you changed. Let CI run the full suite. See `docs/rules/testing-reqs.md` for the tier policy and the CPU rules (never run test commands, or a test and a build, in parallel).
 

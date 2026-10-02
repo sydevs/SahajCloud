@@ -27,7 +27,8 @@
     "generate:preview-keypair": "tsx scripts/generate-live-preview-keypair.ts",
     "payload": "payload",
     "db:migrate": "payload migrate",
-    "db:migrations:create": "payload migrate:create"
+    "db:migrations:create": "payload migrate:create",
+    "db:refresh-from-prod": "scripts/refresh-dev-db-from-prod.sh"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1055.0",
