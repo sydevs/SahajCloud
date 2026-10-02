@@ -11,6 +11,7 @@ import { MAX_IMPORT_ROWS } from './constants'
 import { commitEventImport } from './endpoints/commit'
 import { proposeEventImport } from './endpoints/propose'
 import { resolveEventImport } from './endpoints/resolve'
+import { reviewEventImport } from './endpoints/review'
 import { eventImportTemplate } from './endpoints/template'
 import { editEventImportTree } from './endpoints/tree'
 import { uploadEventImport } from './endpoints/upload'
@@ -43,6 +44,7 @@ export const EventImports: CollectionConfig = {
     uploadEventImport,
     resolveEventImport,
     proposeEventImport,
+    reviewEventImport,
     editEventImportTree,
     commitEventImport,
   ],

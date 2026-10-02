@@ -74,8 +74,13 @@ export function commitReport(rows: readonly CommitRow[]): CommitReport {
  *
  * A duplicate carries no `errors` — it is not a fault, and nothing about the
  * class it repeats is modified (`resolve/duplicates.ts`).
+ *
+ * ⚠ **Exported because the review really does have to show these words.** The
+ * review table and this report are read minutes apart by the same volunteer, and
+ * the batch is deleted in between — so a second spelling here would read as the
+ * commit having found a different duplicate from the one they approved skipping.
  */
-function duplicateReason(row: CommitRow): string[] {
+export function duplicateReason(row: CommitRow): string[] {
   if (!row.duplicate) return []
   const { line, eventId } = row.duplicate
   if (line !== undefined) return [`a repeat of line ${line}`]
