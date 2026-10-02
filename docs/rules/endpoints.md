@@ -140,7 +140,7 @@ handler: async (req) => {
 - Add the path and schema to the guard in `tests/unit/openapi-custom-endpoints.spec.ts`.
 - Add a row to the custom-endpoint table in `docs/rules/openapi.md`.
 
-⚠ **A manager-only endpoint is deliberately absent from the shim, and its absence is not an oversight.** Registering one publishes an admin-panel action in the client spec, which is the opposite of what the opt-in is for — `managers` sits in no project and publishes no paths. Three are absent on purpose: `POST /api/managers/set-project`, `POST /api/user-submissions/:id/review`, and `POST /api/event-imports/:id/resolve`. Each says so in its own handler comment, beside the reason it skips `requireActiveClient`.
+⚠ **A manager-only endpoint is deliberately absent from the shim, and its absence is not an oversight.** Registering one publishes an admin-panel action in the client spec, which is the opposite of what the opt-in is for — `managers` sits in no project and publishes no paths. Four are absent on purpose: `POST /api/managers/set-project`, `POST /api/user-submissions/:id/review`, `POST /api/event-imports/:id/resolve`, and `POST /api/event-imports/:id/propose`. Each says so in its own handler comment, beside the reason it skips `requireActiveClient`.
 
 See `docs/rules/openapi.md` for the full shim contract.
 

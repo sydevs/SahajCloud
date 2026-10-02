@@ -3995,9 +3995,97 @@ export interface EventImport {
     | 'zu'
   )[];
   rows?: EventImportRows;
+  proposedRegions?: EventImportProposedRegions;
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
+}
+export interface EventImportProposedRegions {
+  /**
+   * Parent-first, so the commit can create them in order.
+   */
+  nodes: {
+    /**
+     * Stable across calls, so a review can address a node it renamed.
+     */
+    key: string;
+    level: 'region' | 'city' | 'venue';
+    name: string;
+    /**
+     * The proposed node above it, or null when it hangs off the target.
+     */
+    parentKey: string | null;
+    match:
+      | {
+          kind: 'existing';
+          regionId: number;
+          name: string;
+          slug: string | null;
+        }
+      | {
+          kind: 'create';
+        }
+      | {
+          kind: 'elsewhere';
+          regionId: number;
+          name: string;
+        };
+    /**
+     * Null for every node the commit does not create.
+     */
+    slug: string | null;
+    /**
+     * Null for every node the commit does not create.
+     */
+    location:
+      | (
+          | {
+              kind: 'mapbox';
+              mapboxId: string;
+            }
+          | {
+              kind: 'manual';
+              latitude: number;
+              longitude: number;
+              radius: number;
+            }
+        )
+      | null;
+    /**
+     * The CSV lines this node's classes come from, the absorbed places' included.
+     */
+    lines: number[];
+    /**
+     * What the metro rule folded into this city, so the review can say so.
+     */
+    merged?: {
+      key: string;
+      name: string;
+      lines: number[];
+      subdivisionCode: string | null;
+    }[];
+  }[];
+  rowErrors: {
+    line: number;
+    message: string;
+  }[];
+  /**
+   * Kept with its reason, because the review has to explain a missing layer.
+   */
+  stateLayer:
+    | {
+        proposed: true;
+        states: {
+          code: string;
+          name: string;
+          cityKeys: string[];
+        }[];
+        unplacedCityKeys: string[];
+      }
+    | {
+        proposed: false;
+        reason: string;
+      };
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -5054,6 +5142,7 @@ export interface EventImportsSelect<T extends boolean = true> {
   status?: T;
   defaultLanguages?: T;
   rows?: T;
+  proposedRegions?: T;
   updatedAt?: T;
   createdAt?: T;
   deletedAt?: T;
