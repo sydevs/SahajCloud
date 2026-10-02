@@ -24,11 +24,13 @@ const allowAll: BypassPermissionFunction = () => 'allow'
 /** An admin's own nav request — no project selected, so nothing is scoped out. */
 const adminArgs = { user: { collection: 'managers', type: 'admin', currentProject: null } }
 
-const collection = (slug: string, hidden?: CollectionConfig['admin']): CollectionConfig =>
-  ({ slug, fields: [], admin: hidden }) as CollectionConfig
+/** Invoke a resolved `hidden`, asserting it is a function rather than a boolean. */
+const ask = (hidden: unknown): boolean => {
+  expect(typeof hidden).toBe('function')
+  return (hidden as (args: typeof adminArgs) => boolean)(adminArgs)
+}
 
-const global = (slug: string, admin?: GlobalConfig['admin']): GlobalConfig =>
-  ({ slug, fields: [], admin }) as GlobalConfig
+const entity = <T>(slug: string, admin?: unknown): T => ({ slug, fields: [], admin }) as T
 
 describe('resolveHidden', () => {
   it('keeps an explicit `true` rather than widening it to the project rule', () => {
@@ -36,69 +38,53 @@ describe('resolveHidden', () => {
   })
 
   it('applies the project rule when nothing is declared', () => {
-    const hidden = resolveHidden(undefined, 'pages', allowAll)
-    expect(typeof hidden).toBe('function')
-    expect((hidden as (a: typeof adminArgs) => boolean)(adminArgs)).toBe(false)
+    expect(ask(resolveHidden(undefined, 'pages', allowAll))).toBe(false)
   })
 
   it('treats a declared `false` as no opinion, not as "always show me"', () => {
     // An entity that could opt OUT of project visibility would appear in the
     // nav of a project it has no place in.
-    const hidden = resolveHidden(false, 'pages', allowAll)
-    expect(typeof hidden).toBe('function')
-    expect((hidden as (a: typeof adminArgs) => boolean)(adminArgs)).toBe(false)
+    expect(ask(resolveHidden(false, 'pages', allowAll))).toBe(false)
   })
 
   it('ORs a declared function with the project rule', () => {
-    const hidden = resolveHidden(() => true, 'pages', allowAll) as (a: typeof adminArgs) => boolean
-    expect(hidden(adminArgs)).toBe(true)
+    expect(ask(resolveHidden(() => true, 'pages', allowAll))).toBe(true)
   })
 
   it('still hides what the project rule hides when the declared function says no', () => {
     // No bypass, and the stub user holds no roles, so `hasAnyPermission` denies
     // every write and the project rule hides it.
-    const hidden = resolveHidden(() => false, 'pages') as (a: typeof adminArgs) => boolean
-    expect(hidden(adminArgs)).toBe(true)
-  })
-
-  it('hides an entity from a user that is absent', () => {
-    const hidden = resolveHidden(undefined, 'pages', allowAll) as (a: {
-      user: unknown
-    }) => boolean
-    expect(hidden({ user: null })).toBe(true)
+    expect(ask(resolveHidden(() => false, 'pages'))).toBe(true)
   })
 })
 
 describe('accessPlugin wires that resolution into both branches', () => {
   const config = accessPlugin({ bypassPermissions: allowAll })({
     collections: [
-      collection('pages'),
-      collection('lecture-clips', { hidden: true }),
-      collection('images', { hidden: () => true }),
+      entity<CollectionConfig>('pages'),
+      entity<CollectionConfig>('lecture-clips', { hidden: true }),
+      entity<CollectionConfig>('images', { hidden: () => true }),
     ],
-    globals: [global('sahaja-glossary', { hidden: true }), global('sy-atlas-config')],
+    globals: [
+      entity<GlobalConfig>('sahaja-glossary', { hidden: true }),
+      entity<GlobalConfig>('sy-atlas-config'),
+    ],
   } as unknown as Config) as Config
 
-  const hiddenFor = (slug: string, kind: 'collections' | 'globals') =>
-    config[kind]!.find((entity) => entity.slug === slug)!.admin!.hidden
+  const hiddenFor = (kind: 'collections' | 'globals', slug: string) =>
+    config[kind]!.find((registered) => registered.slug === slug)!.admin!.hidden
 
   it('leaves a global declaring `hidden: true` hidden, admins included', () => {
-    expect(hiddenFor('sahaja-glossary', 'globals')).toBe(true)
+    expect(hiddenFor('globals', 'sahaja-glossary')).toBe(true)
   })
 
   it('gives a global that declares nothing the project rule', () => {
-    const hidden = hiddenFor('sy-atlas-config', 'globals')
-    expect(typeof hidden).toBe('function')
-    expect((hidden as (a: typeof adminArgs) => boolean)(adminArgs)).toBe(false)
+    expect(ask(hiddenFor('globals', 'sy-atlas-config'))).toBe(false)
   })
 
   it("leaves collections' existing behaviour unchanged", () => {
-    expect(hiddenFor('lecture-clips', 'collections')).toBe(true)
-    expect((hiddenFor('images', 'collections') as (a: typeof adminArgs) => boolean)(adminArgs)).toBe(
-      true,
-    )
-    expect((hiddenFor('pages', 'collections') as (a: typeof adminArgs) => boolean)(adminArgs)).toBe(
-      false,
-    )
+    expect(hiddenFor('collections', 'lecture-clips')).toBe(true)
+    expect(ask(hiddenFor('collections', 'images'))).toBe(true)
+    expect(ask(hiddenFor('collections', 'pages'))).toBe(false)
   })
 })

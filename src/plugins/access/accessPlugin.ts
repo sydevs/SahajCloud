@@ -103,7 +103,6 @@ export function accessPlugin(options: AccessPluginOptions = {}): (config: Config
           ),
           admin: {
             ...collection.admin,
-            // Respect existing hidden config, otherwise apply project-based visibility
             hidden: resolveHidden(collection.admin?.hidden, slug, bypassPermissions),
           },
           // Only apply field-level access if collection has translate permissions

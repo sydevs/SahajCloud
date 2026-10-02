@@ -82,7 +82,7 @@ describe('sahaja-glossary', () => {
       fallbackLocale: false,
       depth: 0,
       overrideAccess: true,
-    }) as unknown as Promise<SahajaGlossary>
+    })
 
   const termFor = (doc: SahajaGlossary, key: string) =>
     doc.terms?.find((row) => row.key === key)?.term
