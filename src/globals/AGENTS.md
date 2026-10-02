@@ -449,6 +449,12 @@ English. What they cannot do is tell an untranslated term from a deliberately
 English one, so nothing guesses on their behalf — see `seeds/AGENTS.md` for why
 the seed writes `null` rather than omitting the field.
 
+⚠ **That holds in storage, not in a read.** Every non-English locale declares
+`fallbackLocale: 'en'`, so a consumer has to pass `fallbackLocale: false` or
+Payload substitutes the English spelling per field and the distinction above is
+gone before the caller sees it. The int spec passes it; the first consumer —
+the Lemonfox prompt — has to as well.
+
 ## Project visibility
 
 Globals are assigned to projects in `src/plugins/access/config/projects.ts`

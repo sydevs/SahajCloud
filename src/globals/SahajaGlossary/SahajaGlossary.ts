@@ -36,6 +36,12 @@ const validateUniqueKeys = (rows: unknown): string | true => {
  * every role. So the slug is in `RESTRICTED_COLLECTIONS` as well, and only the
  * admin bypass or a server-side `overrideAccess` read reaches it.
  *
+ * ⚠ **Read it with `fallbackLocale: false`.** Every non-English locale declares
+ * `fallbackLocale: 'en'` (`src/lib/locales`), so a plain read hands back the
+ * English spelling wherever a locale has none — and the caller then cannot tell
+ * an untranslated term from a `keepAsIs` one, which is the only thing an empty
+ * `term` carries.
+ *
  * While it stays hidden, `seeds/sahaja-glossary/data.json` is the source of
  * truth: a change goes into the file and a re-seed carries it. Letting
  * translators edit their own language here means dropping `admin.hidden` and
