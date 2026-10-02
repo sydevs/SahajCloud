@@ -115,6 +115,8 @@ describe('tree endpoint', () => {
   let uploader: Manager
   let outsider: Manager
   let inactiveManager: Manager
+  /** Manages the target too, but uploaded nothing — the batch is not theirs. */
+  let coManager: Manager
   let client: Client
   let germany: Region
   let austria: Region
@@ -183,6 +185,11 @@ describe('tree endpoint', () => {
       type: 'inactive' as const,
       roles: ['atlas-manager'],
     })
+    coManager = await testData.createManager(payload, {
+      name: 'Tree Co-manager',
+      email: 'tree-comanager@example.com',
+      roles: ['atlas-manager'],
+    })
     client = await testData.createClient(payload, admin.id, {
       name: 'Tree Atlas Widget',
       roles: ['sahaj-atlas-client'],
@@ -194,7 +201,7 @@ describe('tree endpoint', () => {
     germany = await testData.createRegion(payload, {
       name: 'Germany',
       level: 'country',
-      managers: [uploader.id],
+      managers: [uploader.id, coManager.id],
     })
     // ⚠ The outsider has to manage *something*, or `ownedRegionFilterOptions`
     // answers `false` and the 403 comes from "you manage no region" — which
@@ -410,6 +417,25 @@ describe('tree endpoint', () => {
       })
 
       expect(status).toBe(403)
+    })
+
+    // ⚠ **Not the same case as the one above.** That manager fails the subtree
+    // check; this one passes it and must still be refused, because the batch
+    // holds the uploaded CSV verbatim — contact names, phone numbers and emails
+    // (`access.ts`). Asserted by reading it back through the endpoint rather
+    // than by trusting the collection's `access` block (`docs/rules/access.md`).
+    it('refuses a co-manager of the target who did not upload the batch', async () => {
+      const node = cityNode('comanager')
+      const batch = await createBatch({
+        rows: [row(2, 'Berlin')],
+        proposedRegions: tree([node]),
+      })
+
+      const { status } = await call(coManager, batch.id, {
+        edits: [{ kind: 'rename', key: node.key, name: 'Not Theirs' }],
+      })
+
+      expect(status).toBe(404)
     })
 
     it('refuses an inactive manager and an API client', async () => {

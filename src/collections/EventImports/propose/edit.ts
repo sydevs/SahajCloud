@@ -126,7 +126,14 @@ function map(
   mappable: readonly ExistingRegion[],
 ): null | string {
   const region = mappable.find((candidate) => candidate.id === regionId)
-  if (!region) {
+  // ⚠ **`inTarget` is checked here, not left to the caller's `Where`.** The
+  // propose step builds an `existing` list that deliberately carries regions
+  // outside the target, for the refusal `match.ts` makes on them — so a second
+  // caller handing that list to this function would otherwise permit exactly
+  // the mapping the subtree read exists to prevent. The flag is load-bearing in
+  // `matchNode` for the same reason; this makes the pure core self-defending
+  // rather than sound by one call site.
+  if (!region?.inTarget) {
     return `"${node.name}" can only be mapped to a region inside the one you are importing into.`
   }
   if (region.level !== node.level) {
