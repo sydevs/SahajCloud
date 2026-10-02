@@ -258,13 +258,18 @@ function cityNodes({ target, countryCode, rows, existing }: CityNodesArgs): {
  * a state reaches the same shape by another route (`edit.ts`). One definition,
  * so a layer the proposal would have dropped cannot survive an edit.
  *
+ * ⚠ **A state's own match is deliberately not consulted.** Reading it looks
+ * harmless — a state the Atlas already holds is not created, so it cannot be
+ * created empty — but a matched state whose every city is also matched is a
+ * layer the review would then show with nothing under it and nothing about to
+ * go under it. Only the children decide, which is the rule this replaced.
+ *
  * Order is preserved, which is what keeps the tree parent-first (`placement.ts`).
  */
 export function prunedOfEmptyStates(nodes: readonly ProposedNode[]): ProposedNode[] {
   return nodes.filter(
     (node) =>
       node.level !== 'region' ||
-      node.match.kind !== 'create' ||
       nodes.some((other) => other.parentKey === node.key && other.match.kind === 'create'),
   )
 }

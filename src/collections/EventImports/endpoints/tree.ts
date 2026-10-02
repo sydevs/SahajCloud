@@ -80,6 +80,15 @@ const bodySchema = z.strictObject({
  * longer asked for it on their own batch, never a write outside the target —
  * every id an edit can name is read from the target's subtree.
  *
+ * ⚠ **An edit list is a delta, never the set a reviewer has accumulated.** A
+ * node this endpoint already mapped is no longer `create`, so re-sending its
+ * edit is refused — and the all-or-nothing rule then drops the rest of that
+ * request with it. A caller resends nothing it has had a 200 for.
+ *
+ * ⚠ **Nothing serialises two of these against each other either.** Two callers
+ * editing one batch is a lost update, bounded the same way: each writes a whole
+ * tree, and every id either can name comes from the target's subtree.
+ *
  * ⚠ **Every edit, or none.** A half-applied batch would be stored and then
  * rendered back as the reviewer's own tree (`propose/edit.ts`), so the refusal
  * names the node instead and the stored tree is untouched.

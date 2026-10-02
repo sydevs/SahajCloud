@@ -171,6 +171,22 @@ describe('applyTreeEdits', () => {
       expect(edited.nodes[0].location).toBeNull()
     })
 
+    // ⚠ `Regions.name` is optional and some hand-seeded regions have none, so
+    // an empty label would leave the review unable to say which region the node
+    // was mapped onto. `asExisting` (`match.ts`) falls back to the id; so does
+    // this, or the two writers of `match.name` disagree.
+    it('falls back to the id when the region it maps onto has no name', () => {
+      const { tree: edited } = unwrap(
+        apply(
+          tree([node({ key: 'city:pune', name: 'Poona' })]),
+          [{ kind: 'map', key: 'city:pune', regionId: 50 }],
+          { mappable: [existing({ id: 50, name: null, slug: null })] },
+        ),
+      )
+
+      expect(edited.nodes[0].match).toMatchObject({ name: '50', slug: null })
+    })
+
     // The existing region keeps the parent it has — moving one is out of scope
     // — so a proposed state must not read as its new parent.
     it('detaches the node from its proposed parent', () => {
@@ -298,7 +314,10 @@ describe('applyTreeEdits', () => {
       })
     })
 
-    it('refuses to rename a node the Atlas already holds', () => {
+    // The wording says the node POINTS AT a region, not that the Atlas held it
+    // first: a node this endpoint mapped a moment ago reaches the same refusal,
+    // and "already a region in the Atlas" would be false of that one.
+    it('refuses to rename a node that already points at a region', () => {
       const result = apply(
         tree([
           node({
@@ -311,7 +330,7 @@ describe('applyTreeEdits', () => {
       )
 
       expect(result.ok).toBe(false)
-      expect(result.ok ? '' : result.error).toContain('already a region in the Atlas')
+      expect(result.ok ? '' : result.error).toContain('already points at a region in the Atlas')
     })
 
     it('refuses to edit a node held outside the target', () => {

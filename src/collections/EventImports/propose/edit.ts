@@ -90,15 +90,18 @@ export function applyTreeEdits({
 /** Why a node the reviewer addressed is not theirs to change. */
 function uneditable(node: ProposedNode): string {
   return node.match.kind === 'existing'
-    ? `"${node.name}" is already a region in the Atlas, so there is nothing to change here.`
+    ? `"${node.name}" already points at a region in the Atlas, so there is nothing to change here.`
     : `"${node.name}" exists outside this region of the Atlas, so it cannot be edited from here.`
 }
 
 /**
- * ⚠ **The name is trimmed and then has to still say something.** `slugifyValue`
- * falls back to the level for a name that slugifies to nothing (`slugs.ts`), so
- * a node renamed to a space would be created as "region" with no sign anything
- * went wrong.
+ * ⚠ **The blank check is `trim`, and that is all it is.** A name that
+ * slugifies to nothing is *not* refused: `slugifyValue` strips every CJK
+ * script, so 東京 reaches `assignSlugs` and takes the level as its slug
+ * (`slugs.ts`). Refusing it here would refuse a real place name while the
+ * proposal accepts the same name off Mapbox, so the fallback is the thing worth
+ * fixing and it belongs with the slug rule both writers share. TODO: give
+ * `assignSlugs` a fallback that is not the level.
  */
 function rename(node: ProposedNode, name: string): null | string {
   const trimmed = name.trim()
@@ -143,7 +146,11 @@ function map(
   node.match = {
     kind: 'existing',
     regionId,
-    name: region.name ?? '',
+    // The id, never an empty string: `Regions.name` is optional and some
+    // hand-seeded regions have none, so this is `asExisting`'s own fallback
+    // (`match.ts`). A blank label would leave the review unable to say which
+    // region the node was mapped onto.
+    name: region.name ?? String(region.id),
     slug: region.slug ?? null,
   }
   node.parentKey = null

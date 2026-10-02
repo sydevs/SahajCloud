@@ -423,6 +423,30 @@ describe('buildProposedTree', () => {
       expect(prunedOfEmptyStates(nodes).map((node) => node.key)).toEqual(['city:pune'])
     })
 
+    // ⚠ **The state's own match is not consulted, and this is the case that
+    // says so.** A matched state is never created, so "it would be created
+    // empty" does not apply to it — but a layer the review shows with nothing
+    // under it and nothing about to go under it is the same noise, so only the
+    // children decide. Reading the state's own match here is what silently
+    // added a childless node to the tree and one to the `existing` tally.
+    it('drops a state the Atlas already holds when every city under it is matched too', () => {
+      const matched: ProposedNode['match'] = {
+        kind: 'existing',
+        regionId: 9,
+        name: 'Maharashtra',
+        slug: 'maharashtra',
+      }
+      const nodes = [
+        { ...state, match: matched, slug: null, location: null },
+        // A matched city takes `parentKey: null` (`tree.ts`), so nothing names
+        // the state — which is exactly the shape the proposal reaches when a
+        // batch lands in a state the Atlas already has every city of.
+        { ...cityUnder({ kind: 'existing', regionId: 10, name: 'Pune', slug: 'pune' }), parentKey: null },
+      ]
+
+      expect(prunedOfEmptyStates(nodes).map((node) => node.key)).toEqual(['city:pune'])
+    })
+
     it('never drops a city or a venue, whatever hangs off it', () => {
       const venue: ProposedNode = { ...cityUnder({ kind: 'create' }), key: 'venue:hall', level: 'venue', parentKey: null }
 
