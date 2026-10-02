@@ -6,6 +6,7 @@ import {
   isTranscriptionActive,
   toTranscriptView,
 } from '@/collections/MeditationTranscripts/view'
+import { runQueueAfterCommit } from '@/lib/jobs/runQueueAfterCommit'
 import type { MeditationTranscript } from '@/payload-types'
 
 import { requireTranscriptAccess } from './transcriptAccess'
@@ -96,18 +97,14 @@ export const requestMeditationTranscript: Endpoint = {
       req,
     })
 
-    // No transaction wraps this handler, so the row and the job are committed
-    // and the run can start now. The queue's autoRun picks up a lost start.
-    // Not under NODE_ENV=test, where a background run would race the specs.
-    if (process.env.NODE_ENV !== 'test') {
-      req.payload.jobs.run({ queue: 'transcription' }).catch((error: unknown) => {
-        req.payload.logger.warn({
-          msg: 'requestMeditationTranscript: immediate queue run failed — autoRun will retry',
-          meditationId: id,
-          error: error instanceof Error ? error.message : String(error),
-        })
-      })
-    }
+    // No transaction wraps this handler, so the row and the job are already
+    // committed and the run needs no delay.
+    runQueueAfterCommit({
+      payload: req.payload,
+      queue: 'transcription',
+      label: 'requestMeditationTranscript',
+      context: { meditationId: id },
+    })
 
     return Response.json(toTranscriptView(row, audioFilename), { status: 202 })
   },
