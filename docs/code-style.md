@@ -61,7 +61,7 @@ Change only what actually breaks, or what the spec requires. Don't add defensive
 Light defaults, not hard rules. Choose intentionally rather than defaulting to the first shape that comes to mind.
 
 - **Name an extracted helper's parameters for their role**, not the first caller's domain. This lets other callers reuse it with no renaming (`resolveThumbnailUrl({ primaryOverride, fallback })`, not `{ clipOverride, parentMetadataUrl }`).
-- **Prefer a discriminated union over shared `| null` fields** when a type spans variants with different shapes, so callers get exhaustive narrowing. Example: `ViewerItem` in `src/endpoints/lecturesForViewer.ts`.
+- **Prefer a discriminated union over shared `| null` fields** when a type spans variants with different shapes, so callers get exhaustive narrowing. Example: `AtlasRouteTarget` in `src/endpoints/atlas/seo/atlasRoute.ts`.
 
 ## Debugging library-integration bugs
 
