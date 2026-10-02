@@ -183,10 +183,14 @@ const ALL_PROJECT_COLLECTIONS: ContentSlug[] = (() => {
  *   `GET /api/clients/me` is the deliberate exception — self-access answers it
  *   before this check, and `Clients.apiKey`'s field lock is what makes that
  *   safe.
+ * - `meditation-transcripts` — internal working data, not personal data.
+ *   Editors read it through `GET /api/meditations/:id/transcript`, which checks
+ *   their meditation permission. Shared read would hand every API client the
+ *   transcript of every recording.
  *
  * ⚠ **This list is a holding pattern, not the permanent mechanism.** Exactly
- * four registered collections sit in no project, and all four are named here
- * — so the set is complete today and fails open the day a fifth is added. A
+ * five registered collections sit in no project, and all five are named here
+ * — so the set is complete today and fails open the day a sixth is added. A
  * complete opt-out list is an inverted default in disguise: the fix is for
  * step 4a to test project membership directly, so a new collection fails
  * closed instead. Deferred, not blocked — #821 settled the question that held
@@ -197,6 +201,7 @@ const RESTRICTED_COLLECTIONS: ReadonlySet<string> = new Set([
   'user-submissions',
   'managers',
   'clients',
+  'meditation-transcripts',
 ])
 
 /** Whether implicit (project/shared) read must never apply to this collection. */
