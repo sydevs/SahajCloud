@@ -35,22 +35,24 @@ describe('serverEnv', () => {
   })
 
   // The default has to be "run": an existing deployment sets nothing. `FALSE`
-  // and a padded value are covered because this flag is an emergency pause,
-  // where a typo reading as "run" sends the mail the operator meant to stop.
-  it.each([
-    [undefined, true],
-    ['true', true],
-    ['false', false],
-    ['0', false],
-    ['FALSE', false],
-    [' false ', false],
-    ['', true],
-  ])('parses EVENT_VERIFICATION_ENABLED=%s as %s', async (raw, expected) => {
-    process.env = { ...baseEnv, ...requiredEnv }
-    if (raw !== undefined) process.env.EVENT_VERIFICATION_ENABLED = raw
-    const { serverEnv } = await import('../../src/lib/env/server')
+  // and a padded value are covered because these flags are pauses, where a
+  // typo reading as "run" sends the mail the operator meant to stop.
+  describe.each(['EVENT_VERIFICATION_ENABLED', 'JOBS_AUTORUN_ENABLED'] as const)('%s', (flag) => {
+    it.each([
+      [undefined, true],
+      ['true', true],
+      ['false', false],
+      ['0', false],
+      ['FALSE', false],
+      [' false ', false],
+      ['', true],
+    ])('parses %s as %s', async (raw, expected) => {
+      process.env = { ...baseEnv, ...requiredEnv }
+      if (raw !== undefined) process.env[flag] = raw
+      const { serverEnv } = await import('../../src/lib/env/server')
 
-    expect(serverEnv.EVENT_VERIFICATION_ENABLED).toBe(expected)
+      expect(serverEnv[flag]).toBe(expected)
+    })
   })
 
   it('throws a client-specific error if server variables are accessed in a browser bundle', async () => {

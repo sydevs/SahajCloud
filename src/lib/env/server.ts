@@ -90,6 +90,22 @@ const ServerEnvSchema = ClientEnvSchema.extend({
     }),
 
   /**
+   * Run the scheduled job queues (`jobs.autoRun` in `src/payload.config.ts`),
+   * or skip every tick. Turn it off locally when the database is a copy of
+   * production: the jobs send mail and call external APIs about real people.
+   * Parsed like `EVENT_VERIFICATION_ENABLED`, and on by default for the same
+   * reason.
+   * @default true
+   */
+  JOBS_AUTORUN_ENABLED: z
+    .string()
+    .optional()
+    .transform((value) => {
+      const flag = value?.trim().toLowerCase()
+      return flag !== 'false' && flag !== '0'
+    }),
+
+  /**
    * Nirmala Vidya API key. Fetches lecture metadata from Vimeo.
    * Optional at startup. The app validates it at the point of use, when it
    * creates or refreshes lectures.

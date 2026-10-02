@@ -62,12 +62,34 @@ A headless content management system built with **Next.js 16** and **PayloadCMS 
 | `pnpm generate:types` | Generate TypeScript types from the Payload schema |
 | `pnpm db:migrate` | Apply pending database migrations |
 | `pnpm seed` | Seed local data |
+| `pnpm db:refresh-from-prod` | Replace the local dev database with a copy of production (dry run without `--force`) |
 
 ## Environment Configuration
 
 Local development needs only `PAYLOAD_SECRET` and `DATABASE_URL`. Everything else defaults to
 local Postgres (schema auto-synced by Drizzle `push`), local file storage, and Mailpit for
 outbound email. See `.env.example` for the full list of variables and validation rules.
+
+### Working on a copy of production data
+
+`pnpm db:refresh-from-prod --force` replaces the database `DATABASE_URL` resolves to (shell, then
+`.env.local`, then `.env`) with a read-only `pg_dump` of production. It refuses a non-local target,
+restores beside the old database and swaps only on success, clears the jobs production had queued,
+and deletes the dump. Run it when you want fresh data, then restart the dev server — the schema
+push on boot brings the copy up to your branch.
+
+Before running the app on it:
+
+- Point `DATABASE_URL` at your own database in `.env.local`, not the tracked `.env`. With the
+  `/workflow:dev-server` skill, use the per-worktree name it prints (`sahajcloud_dev_<slug>`), so
+  the server and the CLI share one database.
+- Set `JOBS_AUTORUN_ENABLED=false` in `.env.local`. The scheduled jobs mail and call external APIs
+  about real people.
+- Install Postgres client tools at least as new as production's server (macOS: `brew install
+  libpq`, then put `/opt/homebrew/opt/libpq/bin` on `PATH`) and log in with `railway login`.
+
+A copy the dev server has already pushed is fine for exploring, but it is not evidence that a
+migration works: rehearse a migration on a fresh restore with `pnpm db:migrate`, never `pnpm dev`.
 
 ## Project Structure
 
