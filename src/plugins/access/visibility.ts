@@ -6,6 +6,7 @@
  *
  * Functions:
  * - createHidden: Create hidden function for collections/globals
+ * - resolveHidden: Compose a declared `admin.hidden` with the project rule
  */
 
 import type { BypassPermissionFunction, ContentSlug, TypedAuthUser } from './types'
@@ -52,4 +53,35 @@ export function createHidden(slug: ContentSlug, bypassFn?: BypassPermissionFunct
     // Check project visibility using unified logic
     return !isCollectionVisibleInProject(slug, user.currentProject ?? null)
   }
+}
+
+/** A `hidden` declaration as Payload accepts it, for either a collection or a global. */
+type HiddenOption<TArgs> = boolean | ((args: TArgs) => boolean)
+
+/**
+ * Composes whatever an entity declared as `admin.hidden` with the project rule.
+ *
+ * `true` wins outright — it is the one way an entity hides itself from every
+ * manager, admins included, and the plugin must not widen it back to the
+ * project rule. A function is ORed with the project rule, so hiding is additive
+ * in both directions. Anything else (`false`, absent) leaves the project rule
+ * alone, because `false` here means "I have no opinion", not "always show me":
+ * an entity that could opt out of project visibility would appear in the nav of
+ * a project it has no place in.
+ *
+ * Collections and globals get the same answer from one function on purpose.
+ * They carried two inline copies of it, and only the collections' copy honoured
+ * a declaration at all — a global's was replaced outright (#883).
+ */
+export function resolveHidden<TArgs extends { user: unknown }>(
+  declared: HiddenOption<TArgs> | undefined,
+  slug: ContentSlug,
+  bypassFn?: BypassPermissionFunction,
+): HiddenOption<TArgs> {
+  if (declared === true) return true
+
+  const byProject = createHidden(slug, bypassFn)
+  if (typeof declared !== 'function') return byProject
+
+  return (args: TArgs) => declared(args) || byProject(args)
 }
