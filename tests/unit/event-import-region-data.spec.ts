@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { manualMapboxIdFor, regionCreateData } from '@/collections/EventImports/commit/regionData'
+import {
+  manualMapboxIdFor,
+  plannedMapboxId,
+  regionCreateData,
+} from '@/collections/EventImports/commit/regionData'
 import type { ProposedNode } from '@/collections/EventImports/propose/tree'
 import { isManualMapboxId } from '@/lib/mapbox/manualLocation'
 
@@ -86,5 +90,38 @@ describe('regionCreateData', () => {
     ['carrying no location', { location: null }],
   ])('creates nothing for a node %s', (_label, overrides) => {
     expect(regionCreateData(node(overrides as Partial<ProposedNode>), 7, 12)).toBeNull()
+  })
+})
+
+/**
+ * The id the commit looks a node up by before it writes one, so a re-fired
+ * commit adopts what its predecessor created (`commit/regions.ts`).
+ *
+ * ⚠ **`regionCreateData` reads this function, so the two cannot drift.** What is
+ * worth pinning is therefore the value itself, not their agreement — an
+ * assertion that they match passes however wrong both are.
+ */
+describe('plannedMapboxId', () => {
+  it('answers a geocoded node\u2019s own feature id', () => {
+    expect(plannedMapboxId(node(), 12)).toBe('place.pune')
+  })
+
+  it('answers a hand-located node the seed its create writes', () => {
+    const manual = node({
+      location: { kind: 'manual', latitude: 1, longitude: 2, radius: 500 },
+    })
+
+    expect(plannedMapboxId(manual, 12)).toBe(manualMapboxIdFor(12, 'city:pune'))
+    expect(isManualMapboxId(plannedMapboxId(manual, 12))).toBe(true)
+  })
+
+  it('answers nothing for a node the commit does not create', () => {
+    expect(plannedMapboxId(node({ slug: null }), 12)).toBeNull()
+    expect(
+      plannedMapboxId(
+        node({ match: { kind: 'existing', regionId: 5, name: 'Pune', slug: 'pune' } }),
+        12,
+      ),
+    ).toBeNull()
   })
 })

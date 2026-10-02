@@ -138,6 +138,8 @@ A `managers` (hasMany) or `manager` relationship to `managers` on any collection
 
 **It collapses the list-level resolutions only.** `createAccessConfig`'s single-document `update` branch (`id` present) routes to `userManagesDocument` instead, which is still unmemoized — so a document edit view, where `getDocumentPermissions` repeats the whole operation set four times for a drafts+trash collection, still pays that path per evaluation. The `resolveManagedDocIds` JSDoc owns the two hazards a per-request memo opens: the staleness window it pins, and why it must not be lifted to the access function. Read it before you widen the key.
 
+⚠ **That staleness window is no longer only theoretical, and the answer is not a wider key.** A request that creates regions and then writes inside them hits it through a relationship's own `filterOptions`, which Payload runs on every write — `overrideAccess: true` skips access control, never that. So the bulk import's commit hands each such write a request copy carrying its own `context`, where the memo lives (`src/collections/EventImports/commit/scope.ts`, #828). The copy re-asks the question for that step alone; widening the key here would change every access decision in the app to serve one write.
+
 ### Region-subtree write scoping (Atlas managers)
 
 `atlas-manager` is the one role granting **create, update, and delete** on `events` and `regions`. `regionSubtreeAccess.ts` narrows every such grant to the manager's **owned-region subtree**: the regions listing them in `managers`, plus every descendant via `breadcrumbs`.

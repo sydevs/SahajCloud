@@ -8,6 +8,7 @@ import { adminOnlyFieldAccess } from '@/plugins/access'
 
 import { batchUploaderAccess } from './access'
 import { MAX_IMPORT_ROWS } from './constants'
+import { commitEventImport } from './endpoints/commit'
 import { proposeEventImport } from './endpoints/propose'
 import { resolveEventImport } from './endpoints/resolve'
 
@@ -34,7 +35,7 @@ export const EventImports: CollectionConfig = {
   slug: 'event-imports',
   labels: { singular: 'Event Import', plural: 'Event Imports' },
   trash: true,
-  endpoints: [resolveEventImport, proposeEventImport],
+  endpoints: [resolveEventImport, proposeEventImport, commitEventImport],
   // `create` and `delete` are left to the generated config on purpose — it
   // already answers both with "admins only" (`access.ts`).
   access: {
@@ -132,7 +133,7 @@ export const EventImports: CollectionConfig = {
             .array(z.string())
             .optional()
             .describe(
-              'Everything wrong with the row, from the parse and the resolve alike. A row with any of these is skipped, never committed.',
+              'Everything wrong with the row, from the parse, the resolve, the proposal and the commit alike. A row with any of these is skipped, never committed.',
             ),
           resolved: z
             .strictObject({
@@ -188,6 +189,14 @@ export const EventImports: CollectionConfig = {
             .optional()
             .describe(
               'A matched row is reported and skipped; nothing about the match is modified.',
+            ),
+          committed: z
+            .strictObject({
+              eventId: z.int().describe('The class this row created.'),
+            })
+            .optional()
+            .describe(
+              'Written as each row lands, so an interrupted commit resumes at the first row without one rather than creating a second class for every row before it.',
             ),
         }),
       ).max(MAX_IMPORT_ROWS),

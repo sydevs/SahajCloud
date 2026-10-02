@@ -703,7 +703,7 @@ export type EventImportRows = {
     [k: string]: string;
   };
   /**
-   * Everything wrong with the row, from the parse and the resolve alike. A row with any of these is skipped, never committed.
+   * Everything wrong with the row, from the parse, the resolve, the proposal and the commit alike. A row with any of these is skipped, never committed.
    */
   errors?: string[];
   /**
@@ -755,6 +755,15 @@ export type EventImportRows = {
      * The earlier line in this same file the row repeats.
      */
     line?: number;
+  };
+  /**
+   * Written as each row lands, so an interrupted commit resumes at the first row without one rather than creating a second class for every row before it.
+   */
+  committed?: {
+    /**
+     * The class this row created.
+     */
+    eventId: number;
   };
 }[];
 export type TableOfContentsHeadings = {
