@@ -62,6 +62,12 @@ describe('Atlas events custom endpoints (OpenAPI)', () => {
             get: { operationId: 'userSubmissionsList' },
             post: { operationId: 'userSubmissionsCreate' },
           },
+          '/api/globals/sahaja-glossary': {
+            get: { operationId: 'sahajaGlossaryGet' },
+          },
+          '/api/globals/sy-atlas-config': {
+            get: { operationId: 'syAtlasConfigGet' },
+          },
           ...CUSTOM_ENDPOINT_PATHS,
         },
         components: { schemas: { ...CUSTOM_ENDPOINT_SCHEMAS } },
@@ -105,6 +111,22 @@ describe('Atlas events custom endpoints (OpenAPI)', () => {
       // wants this POST documented needs to change project membership, not this
       // list — which would also open reads.
       expect(op('/api/user-submissions', 'post')['x-internal']).toBe(true)
+    })
+
+    it('hides the glossary global while a project global of the same shape stays visible', () => {
+      // `getCollectionFromPath` reads a global's slug off `/api/globals/{slug}`,
+      // so the filter reaches a global at all — the one thing #883 had to
+      // confirm rather than assume. The sibling read is what makes that
+      // non-vacuous: a blanket rule over `/api/globals/` would hide both.
+      //
+      // ⚠ This does NOT pin the `ALWAYS_HIDDEN_COLLECTIONS` entry. Tier 2 hides
+      // every path whose collection is in no project, and this global is in
+      // none, so the case stays green with that entry deleted (checked). The
+      // entry is there to say the global is hidden by intent rather than by
+      // that side effect — nothing but prose holds that, as with the
+      // `user-submissions` POST above.
+      expect(op('/api/globals/sahaja-glossary', 'get')['x-internal']).toBe(true)
+      expect(op('/api/globals/sy-atlas-config', 'get')['x-internal']).toBeFalsy()
     })
   })
 })
