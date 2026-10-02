@@ -1,0 +1,267 @@
+import { describe, expect, it } from 'vitest'
+
+import { eventCreateData } from '@/collections/EventImports/commit/eventData'
+import type { RawImportRow } from '@/collections/EventImports/csv/columns'
+import type { ResolvedRow } from '@/collections/EventImports/resolve/resolveRow'
+
+/**
+ * A Monday, and deliberately in the past.
+ *
+ * ⚠ **A near-future anchor makes the whole schedule assertion vacuous.** The
+ * mapper resolves "the next Tuesday" against whatever date it is handed, so an
+ * anchor inside this week agrees with the wall clock — the first draft here used
+ * one, and swapping the stored anchor for `Temporal.Now` left all 23 cases green.
+ * A past anchor can never agree again.
+ */
+const ANCHOR = '2026-01-05'
+
+function resolved(overrides: Partial<ResolvedRow> = {}): ResolvedRow {
+  return {
+    latitude: 48.137,
+    longitude: 11.575,
+    timezone: 'Europe/Berlin',
+    cityKey: 'munich',
+    placeName: 'Munich',
+    placeId: 'place.munich',
+    mapboxId: 'address.123',
+    subdivisionCode: 'BY',
+    languages: ['de'],
+    inactive: false,
+    anchorDate: ANCHOR,
+    weekdayMask: 0b10,
+    startMinutes: 1110,
+    ...overrides,
+  }
+}
+
+function values(overrides: Partial<RawImportRow> = {}): RawImportRow {
+  return {
+    title: 'Tuesday Evening Meditation',
+    eventType: 'offline',
+    country: 'de',
+    city: 'Giesing',
+    address: 'Oranienstraße 25',
+    postcode: '81541',
+    venueName: 'Community Hall',
+    room: 'Room 2',
+    scheduleType: 'weekly',
+    startTime: '18:30',
+    weekdays: 'TU',
+    ...overrides,
+  }
+}
+
+function build(overrides: { values?: Partial<RawImportRow>; resolved?: Partial<ResolvedRow>; managerId?: number | null } = {}) {
+  return eventCreateData({
+    values: values(overrides.values),
+    resolved: resolved(overrides.resolved),
+    regionId: 42,
+    managerId: overrides.managerId ?? null,
+  })
+}
+
+function dataOf(result: ReturnType<typeof build>): Record<string, unknown> {
+  if (!result.ok) throw new Error(`expected ok, got: ${result.errors.join('; ')}`)
+  return result.data
+}
+
+describe('eventCreateData — the verification recipe', () => {
+  /**
+   * ⚠ **The acceptance criterion the whole import turns on.** A row with no
+   * coordinator is published unverified and unadopted, and `skipVerifyHook` is
+   * what stops `syncVerificationOnSave` adopting it on nobody's cadence.
+   */
+  it('publishes an unadopted class unverified, with the verify hook skipped', () => {
+    const result = build({ managerId: null })
+
+    expect(dataOf(result)).toMatchObject({
+      _status: 'published',
+      verificationStage: 'unverified',
+      manager: null,
+    })
+    expect(result.ok && result.context).toEqual({ skipVerifyHook: true })
+  })
+
+  /**
+   * ⚠ **The stage is left unset with a coordinator, not set to `verified`.**
+   * Stamping it here with the hook skipped is what leaves a class `verified` with
+   * no `nextCheckAt`, so it never comes up for re-verification again.
+   */
+  it('leaves an adopted class’s stage to the verification hook', () => {
+    const result = build({ managerId: 77 })
+    const data = dataOf(result)
+
+    expect(data).toMatchObject({ _status: 'published', manager: 77 })
+    expect(data).not.toHaveProperty('verificationStage')
+    expect(result.ok && result.context).toEqual({ skipVerifyHook: false })
+  })
+})
+
+describe('eventCreateData — the schedule', () => {
+  /**
+   * ⚠ **Against the stored anchor, never today.** "The next Tuesday" is what the
+   * reviewer approved, so a commit run a week later must still build the date the
+   * review showed.
+   */
+  it('re-derives the first date from the row’s stored anchor', () => {
+    const schedule = dataOf(build()).schedule as { firstDate: string; firstDate_tz: string }
+
+    // 18:30 on Tuesday 2026-01-06 in Europe/Berlin (CET, UTC+1) is 17:30Z.
+    expect(schedule.firstDate).toBe('2026-01-06T17:30:00.000Z')
+    expect(schedule.firstDate_tz).toBe('Europe/Berlin')
+  })
+
+  it('writes no schedule for a dormant class, and marks it inactive', () => {
+    const data = dataOf(
+      build({
+        values: { scheduleType: 'inactive', contactPhone: '+49 30 123456' },
+        resolved: { inactive: true },
+      }),
+    )
+
+    expect(data).not.toHaveProperty('schedule')
+    expect(data.inactive).toBe(true)
+  })
+
+  it('reports a schedule the CSV changed under the batch, rather than throwing', () => {
+    const result = build({ values: { startTime: 'half past six' } })
+
+    expect(result.ok).toBe(false)
+    expect(!result.ok && result.errors.join(' ')).toMatch(/startTime/)
+  })
+})
+
+describe('eventCreateData — the address', () => {
+  it('takes the point from the resolve step and the street from the CSV', () => {
+    const address = dataOf(build()).address as Record<string, unknown>
+
+    expect(address).toMatchObject({
+      mapboxId: 'address.123',
+      street: 'Oranienstraße 25',
+      room: 'Room 2',
+      venueName: 'Community Hall',
+      postCode: '81541',
+      latitude: 48.137,
+      longitude: 11.575,
+    })
+  })
+
+  /**
+   * ⚠ **The suburb the volunteer wrote, not the metro Mapbox filed it under.**
+   * The metro merge is a grouping decision about the region tree; writing its
+   * answer into the address would address a Giesing class to Munich.
+   */
+  it('addresses the class to the city the volunteer wrote', () => {
+    expect((dataOf(build()).address as { city: string }).city).toBe('Giesing')
+  })
+
+  it('falls back to Mapbox’s place name when the row gave no city', () => {
+    expect((dataOf(build({ values: { city: '' } })).address as { city: string }).city).toBe('Munich')
+  })
+
+  /**
+   * ⚠ **The column holds an ISO 3166-2 shortCode**
+   * (`src/fields/addressFields.ts`), and the CSV's `state` is a free-text name —
+   * so publishing "Bavaria" where the column wants `BY` is what this prefers the
+   * geocode's answer to avoid.
+   */
+  it('prefers the geocoded subdivision code over the CSV’s state name', () => {
+    const address = dataOf(build({ values: { state: 'Bavaria' } })) .address as { region: string }
+    expect(address.region).toBe('BY')
+  })
+
+  it('falls back to the CSV’s state only where the geocode named no subdivision', () => {
+    const address = dataOf(
+      build({ values: { state: 'Bavaria' }, resolved: { subdivisionCode: null } }),
+    ).address as { region: string }
+    expect(address.region).toBe('Bavaria')
+  })
+
+  it('uppercases the country, which the column holds as alpha-2', () => {
+    expect((dataOf(build()).address as { country: string }).country).toBe('DE')
+  })
+
+  it('writes no address for an online class, and keeps its join link', () => {
+    const data = dataOf(
+      build({
+        values: {
+          eventType: 'online',
+          onlineUrl: 'https://meet.example.org/abc',
+          address: '',
+          city: 'Berlin',
+        },
+      }),
+    )
+
+    expect(data).not.toHaveProperty('address')
+    expect(data).toMatchObject({ eventType: 'online', onlineUrl: 'https://meet.example.org/abc' })
+  })
+})
+
+describe('eventCreateData — the rest of the row', () => {
+  /**
+   * ⚠ **`''`, never null.** `eventTitleBeforeChange` keeps an existing title for a
+   * nullish value and falls through to the auto-fill for `''` — which also
+   * translates itself, unlike a hand-written name.
+   */
+  it('hands a blank title to the auto-fill rather than clearing it', () => {
+    expect(dataOf(build({ values: { title: '   ' } })).title).toBe('')
+  })
+
+  it('takes the languages the resolve step settled', () => {
+    expect(dataOf(build({ resolved: { languages: ['de', 'en'] } })).languages).toEqual(['de', 'en'])
+  })
+
+  /**
+   * Unverified rows included: a registrant's confirm or deny is what feeds
+   * `confidenceScore`, so routing an unadopted class elsewhere removes the one
+   * signal that it is real.
+   */
+  it('always registers through the Atlas', () => {
+    expect(dataOf(build({ managerId: null })).registrationMode).toBe('sahaj-atlas')
+    expect(dataOf(build({ managerId: 77 })).registrationMode).toBe('sahaj-atlas')
+  })
+
+  it('reads a registration cap, and calls an empty column unlimited', () => {
+    expect(dataOf(build({ values: { registrationLimit: '25' } })).registrationLimit).toBe(25)
+    expect(dataOf(build({ values: { registrationLimit: '' } })).registrationLimit).toBeNull()
+  })
+
+  /**
+   * ⚠ **`parseInt('12 people')` is 12.** The loose reader turns a column the
+   * volunteer got wrong into a cap they never set, and a class that silently stops
+   * taking registrations at 12 is not a defect anyone reports.
+   */
+  it.each(['12 people', '-1', '2.5', 'lots'])(
+    'refuses a registration cap of "%s" rather than guessing',
+    (limit) => {
+      const result = build({ values: { registrationLimit: limit } })
+      expect(result.ok).toBe(false)
+      expect(!result.ok && result.errors.join(' ')).toMatch(/registrationLimit/)
+    },
+  )
+
+  it('turns a plain-text description into rich text, and keeps a blank one null', () => {
+    expect(dataOf(build({ values: { description: 'A free weekly class.' } })).description).toMatchObject({
+      root: { type: 'root' },
+    })
+    expect(dataOf(build()).description).toBeNull()
+  })
+
+  it('publishes the contact details the row carries, and nulls the rest', () => {
+    const data = dataOf(
+      build({ values: { contactName: ' Anna ', contactEmail: 'anna@example.org' } }),
+    )
+
+    expect(data).toMatchObject({
+      contactName: 'Anna',
+      contactEmail: 'anna@example.org',
+      contactPhone: null,
+      website: null,
+    })
+  })
+
+  it('files the class under the region the placement step chose', () => {
+    expect(dataOf(build()).region).toBe(42)
+  })
+})
