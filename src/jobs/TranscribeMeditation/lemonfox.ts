@@ -83,7 +83,8 @@ const rawResponseSchema = z.object({
 
 type RawWord = z.infer<typeof rawWordSchema>
 
-const toMillis = (seconds: number): number => Math.round(Math.max(0, seconds) * 1000) / 1000
+const roundToMillisecond = (seconds: number): number =>
+  Math.round(Math.max(0, seconds) * 1000) / 1000
 
 /**
  * Reduce a Lemonfox `verbose_json` body to the stored segment shape.
@@ -113,16 +114,16 @@ export function normalizeLemonfoxResponse(raw: unknown): TranscriptSegment[] {
     : rawSegments.map<RawWord[]>(() => [])
 
   return rawSegments.map((segment, index) => {
-    const start = toMillis(segment.start)
+    const start = roundToMillisecond(segment.start)
     return {
       text: segment.text.trim(),
       start,
-      end: Math.max(start, toMillis(segment.end)),
+      end: Math.max(start, roundToMillisecond(segment.end)),
       words: (segment.words ?? topLevelWords[index]).flatMap((word) => {
         const text = (word.word ?? word.text ?? '').trim()
         if (!text || word.start === undefined || word.end === undefined) return []
-        const wordStart = toMillis(word.start)
-        return [{ text, start: wordStart, end: Math.max(wordStart, toMillis(word.end)) }]
+        const wordStart = roundToMillisecond(word.start)
+        return [{ text, start: wordStart, end: Math.max(wordStart, roundToMillisecond(word.end)) }]
       }),
     }
   })
