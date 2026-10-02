@@ -179,8 +179,10 @@ describe('ImportRunner', () => {
       defaultLanguages: ['de'],
       targetRegion: 11,
     })
+    // The rows are the run's own report. The regions this batch needs belong to
+    // the review that mounts below it, from one spelling of that tally.
     expect(container.textContent).toContain('2 rows — 2 ready.')
-    expect(container.textContent).toContain('3 new regions')
+    expect(container.textContent).toContain('1 new region.')
   })
 
   // The #132 shape. `resolveVerdict` answers `stalled`, and nothing proves the

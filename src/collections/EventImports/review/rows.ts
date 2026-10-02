@@ -176,10 +176,16 @@ export function reviewEmails(rows: readonly CommitRow[]): string[] {
  * The label is `match.ts`'s, so a region reads the same here as it does on the
  * node once it is chosen.
  */
+export interface MappableRegion {
+  id: number
+  level: ExistingRegion['level']
+  name: string
+}
+
 export function mappableRegions(
   regions: readonly ExistingRegion[],
   levels: ReadonlySet<ExistingRegion['level']>,
-): { id: number; level: ExistingRegion['level']; name: string }[] {
+): MappableRegion[] {
   return regions
     .filter((region) => levels.has(region.level))
     .map((region) => ({

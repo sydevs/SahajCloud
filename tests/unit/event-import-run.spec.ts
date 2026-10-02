@@ -116,6 +116,15 @@ describe('resolveVerdict', () => {
   it('proposes a finished batch even where the count did not move', () => {
     expect(resolveVerdict(0, report({ done: true, pending: 0, total: 0 }))).toBe('propose')
   })
+
+  // ⚠ Comparing a count that is not there is `undefined >= undefined` — false on
+  // every chunk, so a bound that only compares would spend the batch's whole
+  // geocoder budget in a tight loop.
+  it('stops on a chunk that reports no pending count at all', () => {
+    const blank = { done: false } as unknown as ResolveReport
+    expect(resolveVerdict(null, blank)).toBe('stalled')
+    expect(resolveVerdict(50, blank)).toBe('stalled')
+  })
 })
 
 describe('resolveProgress', () => {

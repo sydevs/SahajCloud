@@ -1,6 +1,6 @@
 /**
- * Where each step of an import run posts, and the one condition under which the
- * run refuses to build a URL at all.
+ * How the import components reach their endpoints: where each step posts, the one
+ * condition under which they refuse to build a URL at all, and the request itself.
  *
  * ⚠ **No locale, no request.** Only the upload is locale-gated —
  * `mayStageImport` reads the grant for `req.locale`, so a manager who
@@ -87,4 +87,30 @@ export function refusalMessage(body: unknown, fallback: string): string {
     .map((error) => (error as { message?: unknown } | null)?.message)
     .filter((message): message is string => typeof message === 'string' && message.length > 0)
   return messages.length ? messages.join(' ') : fallback
+}
+
+/**
+ * One request to an import endpoint, and its body whether or not it parsed.
+ *
+ * ⚠ **`credentials: 'include'`, because every one of these is manager-only.** The
+ * endpoints authenticate the admin panel's own cookie, so a request without it is
+ * refused as anonymous rather than as unauthorised.
+ *
+ * The body is read through a `catch`: every import endpoint answers
+ * `{ errors: [{ message }] }`, but a 502 from in front of the app answers HTML,
+ * and that is exactly when a caller most needs something to show.
+ */
+export async function sendImportRequest(
+  url: string,
+  method: 'GET' | 'PATCH' | 'POST',
+  body?: unknown,
+): Promise<{ body: unknown; ok: boolean }> {
+  const response = await fetch(url, {
+    method,
+    credentials: 'include',
+    ...(body === undefined
+      ? {}
+      : { body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } }),
+  })
+  return { body: await response.json().catch(() => null), ok: response.ok }
 }

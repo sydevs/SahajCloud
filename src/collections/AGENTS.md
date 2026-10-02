@@ -19,8 +19,8 @@ alone — `create` there is the generated config's, unchanged.
 ⚠ **`delete` is overridden for a reason worth knowing before you copy it.**
 Trashing a document is an `update` writing `deletedAt`, and `updateByID` runs
 `access.delete` **as well** for exactly that patch
-(`payload/dist/collections/operations/updateByID.js:110-118`), passing `data` so
-the check can tell a trash attempt from an erasure. So an `update` grant alone
+(both `updateByID` and the bulk `update`), passing `data` so the check can tell a
+trash attempt from an erasure — while `deleteByID` and the bulk `delete` pass none. So an `update` grant alone
 trashes nothing. Any collection whose owner should be able to trash their own row
 owes the same pair, and the `delete` half gates on `data.deletedAt` so the hard
 delete stays where it was.

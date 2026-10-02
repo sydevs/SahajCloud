@@ -56,6 +56,20 @@ vi.mock('@payloadcms/ui', () => ({
         ),
       ),
     ),
+  // The rename box: an input carrying the label, which is how a spec tells one
+  // node's control from another's.
+  TextInput: ({
+    label,
+    onChange,
+    readOnly,
+    value,
+  }: {
+    label: string
+    onChange: (event: { target: { value: string } }) => void
+    readOnly?: boolean
+    value: string
+  }) =>
+    createElement('label', null, label, createElement('input', { disabled: readOnly, onChange, value })),
   useLocale: () => ({ code: ui.locale }),
 }))
 
@@ -415,6 +429,83 @@ describe('ImportReview', () => {
     const { container } = await mount()
 
     expect(buttonFor(container, 'Resume creating the classes')).toBeTruthy()
+  })
+
+  // ⚠ The server wrote `committing` before the first class, but this surface does
+  // not re-read on a failure — so the label is the only hint that classes already
+  // exist, and reading it off the stale answer would deny there are any.
+  it('offers a resume after a chunk failed, not a fresh start', async () => {
+    answers = [
+      { body: review(), ok: true },
+      { body: commitChunk({ pending: 2 }), ok: true },
+      { body: { errors: [{ message: 'The database went away.' }] }, ok: false },
+    ]
+    const { container } = await mount()
+    await click(container, 'Create the classes')
+
+    expect(container.textContent).toContain('The database went away.')
+    expect(buttonFor(container, 'Resume creating the classes')).toBeTruthy()
+  })
+
+  // ⚠ `POST /:id/tree` 409s a committing batch outright, so a control offered on
+  // one is a refusal the surface invited.
+  it('lets no tree edit be made on a batch whose commit is half-written', async () => {
+    answers = [{ body: review({ status: 'committing' }), ok: true }]
+    const { container } = await mount()
+
+    const controls = [...container.querySelectorAll('select, input')]
+    expect(controls.length).toBeGreaterThan(0)
+    expect(controls.every((control) => (control as HTMLSelectElement).disabled)).toBe(true)
+    expect(buttonFor(container, 'Rename').disabled).toBe(true)
+  })
+
+  // ⚠ The reloaded tree simply no longer holds a pruned node, so the edit's own
+  // answer is the only moment the surface can name what went.
+  it('says which proposed regions an edit emptied out of the tree', async () => {
+    answers = [
+      { body: review(), ok: true },
+      { body: { creating: 1, pruned: ['state:DE-BE'] }, ok: true },
+      { body: review({ creating: 1 }), ok: true },
+    ]
+    const { container } = await mount()
+    await setValue(selectOffering(container, '7'), '7')
+
+    expect(container.textContent).toContain('1 proposed region held nothing after that change')
+  })
+
+  // ⚠ The batch is deleted by the call that answered, so a reload 404s and the
+  // committed and skipped lines exist nowhere else.
+  it('never re-reads the batch once the commit has finished', async () => {
+    answers = [
+      { body: review(), ok: true },
+      { body: finishedChunk, ok: true },
+    ]
+    const { container, root } = await mount()
+    await click(container, 'Create the classes')
+    expect(container.textContent).toContain('2 classes created')
+
+    // What an admin locale switch does: `load`'s identity changes and the mount
+    // effect would fire again.
+    ui.locale = 'en'
+    await act(async () => {
+      root.render(createElement(ImportReview, { apiRoute: '/api', batchId: 5 }))
+    })
+
+    expect(urls()).toHaveLength(2)
+    expect(container.textContent).toContain('2 classes created')
+  })
+
+  // ⚠ A batch that survives its own commit keeps the uploaded CSV, and the nightly
+  // sweep will not take it, because nothing trashed it.
+  it('says so when the commit could not delete the batch afterwards', async () => {
+    answers = [
+      { body: review(), ok: true },
+      { body: { ...finishedChunk, finished: { ...finishedChunk.finished, deleted: false } }, ok: true },
+    ]
+    const { container } = await mount()
+    await click(container, 'Create the classes')
+
+    expect(container.textContent).toContain('was not deleted afterwards')
   })
 
   it('asks before discarding, and sends nothing when the answer is no', async () => {

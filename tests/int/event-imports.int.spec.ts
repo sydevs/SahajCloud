@@ -203,7 +203,7 @@ describe('Event imports', () => {
 
     it('lets the uploader discard their own batch', async () => {
       // ⚠ **A trash attempt runs the `delete` check as well as `update`**
-      // (`payload/dist/collections/operations/updateByID.js:110-118`), so the
+      // (both `updateByID` and the bulk `update`), so the
       // `update` grant alone discarded nothing: this case asserted the refusal
       // until `batchDiscardAccess` closed it, which is the grant the review UI's
       // Discard button needs.
@@ -221,6 +221,36 @@ describe('Event imports', () => {
       // Erased here, because the sweep cases below count every trashed batch in
       // the suite's database and this one would otherwise be due alongside theirs.
       await payload.delete({ collection: 'event-imports', id: mine.id, trash: true })
+    })
+
+    it('stamps the uploader’s discard with now, whatever date they send', async () => {
+      // ⚠ **The retention window is what this protects.** `deletedAt` is Payload's
+      // own auto-added column — no validator, no field access — and the sweep
+      // selects on `deletedAt <= now - 7 days`. So a backdated discard would be
+      // due on the next nightly run, handing a volunteer the hard delete the
+      // `delete` grant withholds.
+      const mine = await createBatch()
+      const backdated = new Date(Date.now() - 30 * DAY_MS).toISOString()
+
+      const discarded = await updateAs(uploader, mine.id, { deletedAt: backdated })
+
+      expect(discarded.deletedAt).not.toBe(backdated)
+      expect(new Date(discarded.deletedAt!).getTime()).toBeGreaterThan(Date.now() - 60_000)
+
+      await payload.delete({ collection: 'event-imports', id: mine.id, trash: true })
+    })
+
+    it('leaves an admin’s own backdated discard alone, which is what the sweep seeds', async () => {
+      // The fixtures below place a batch inside or outside the window by writing
+      // the date directly; stamping every write would make that impossible.
+      const theirs = await createBatch()
+      const backdated = new Date(Date.now() - 30 * DAY_MS).toISOString()
+
+      const discarded = await updateAs(admin, theirs.id, { deletedAt: backdated })
+
+      expect(discarded.deletedAt).toBe(backdated)
+
+      await payload.delete({ collection: 'event-imports', id: theirs.id, trash: true })
     })
 
     it('refuses another manager the discard of a batch that is not theirs', async () => {
