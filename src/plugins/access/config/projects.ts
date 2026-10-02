@@ -188,15 +188,14 @@ const ALL_PROJECT_COLLECTIONS: ContentSlug[] = (() => {
  *   The collection's own `access` block narrows it again to the uploader
  *   (#828).
  *
- * ⚠ **This list is a holding pattern, not the permanent mechanism.** Every
- * registered collection that sits in no project is named here, so the set is
- * complete today and fails open the day the next one is added. That day has
- * already come once: `event-imports` was the fifth, and nothing but this
- * comment asked for it. A complete opt-out list is an inverted default in
- * disguise: the fix is for step 4a to test project membership directly, so a
- * new collection fails closed instead. Deferred, not blocked — #821 settled
- * the question that held it up, by giving `atlas-manager` the explicit grant
- * its pickers need.
+ * ⚠ **This list is a holding pattern, not the permanent mechanism.**
+ * `tests/unit/restricted-collections.spec.ts` is the gate that keeps it
+ * complete: it fails on any registered collection that sits in no project and
+ * is not named here, so an omission cannot ship silently. A complete opt-out
+ * list is still an inverted default in disguise — the permanent fix is for step
+ * 4a to test project membership directly, so a new collection fails closed.
+ * Deferred, not blocked: #821 settled the question that held it up, by giving
+ * `atlas-manager` the explicit grant its pickers need.
  */
 const RESTRICTED_COLLECTIONS: ReadonlySet<string> = new Set([
   'users',
