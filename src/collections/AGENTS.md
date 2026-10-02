@@ -8,6 +8,30 @@ to this codebase. This guide also covers `src/fields/`.
 `accessPlugin` applies access control, `admin.hidden`, and field-level
 access automatically. Collections **do not** need a manual `access` config.
 
+⚠ **One collection overrides it, and the exception is narrow.** `event-imports`
+sets `read`, `update` and `delete` (`src/collections/EventImports/access.ts`),
+because a batch belongs to the manager who uploaded it and no role table can say
+so. The cost is that an overridden key replaces the generated one *including the
+bypass behind it*, so it has to restate admin-allow and `inactive`-deny itself.
+Override a key only where the role tables get it wrong, and leave every other key
+alone — `create` there is the generated config's, unchanged.
+
+⚠ **`delete` is overridden for a reason worth knowing before you copy it.**
+Trashing a document is an `update` writing `deletedAt`, and `updateByID` runs
+`access.delete` **as well** for exactly that patch
+(both `updateByID` and the bulk `update`), passing `data` so the check can tell a
+trash attempt from an erasure — while `deleteByID` and the bulk `delete` pass none. So an `update` grant alone
+trashes nothing. Any collection whose owner should be able to trash their own row
+owes the same pair, and the `delete` half gates on `data.deletedAt` so the hard
+delete stays where it was.
+
+⚠ **Narrowing *what* a grant returns is a field lock, not an `access` override.**
+`managers` grants `atlas-manager` a collection-wide read because the pickers need
+one, then locks `read` on every field but `name`
+(`src/collections/Managers/access.ts`). A `Where` would have emptied the pickers;
+an overridden key would have cost the bypass. Both locks and the hook that backs
+them are in `docs/rules/access.md`.
+
 ```typescript
 // src/payload.config.ts (already wired up)
 import { accessPlugin, bypassPermissions } from '@/plugins/access'
@@ -923,7 +947,23 @@ ownership system.
 
 ## Trash (soft delete)
 
-Collections with `trash: true`: Files, Images, **Events**.
+Collections with `trash: true`, all nine: Files, Images, **Events**, **Event
+Imports**, Lessons, Pages, Meditations, Songs, Albums.
+
+⚠ **A trash-enabled collection needs a purge job, or nothing ever empties its
+trash.** Payload ships none: `trash: true` buys the `deletedAt` column and the
+admin's trash view, and nothing else. Two of the nine are swept —
+`CleanupOrphanedMedia` phase A for Files and Images, `PurgeEventImports` for
+import batches, which is what makes "discard" mean the uploaded CSV goes away
+rather than merely leaves the list. Events are a deliberate exception: a trashed
+listing is a manager's own record.
+
+⚠ **The other five — Lessons, Pages, Meditations, Songs, Albums — are swept by
+nothing, and that is a gap rather than a decision.** Nobody has written down
+whether their trash should expire. Retention matters most where a row holds
+personal data, which is why the two that do are covered; say which of the five
+you mean when you reach for this, rather than reading the list above as
+discharged.
 
 **`payload.delete` is always a _hard_ delete, even on a trash-enabled
 collection.** Its `trash` argument only widens _which_ documents are
@@ -1164,6 +1204,20 @@ for reactive access to schedule sub-fields.
   and registration)
 - `src/lib/schedule/backfillLastDate.ts` — recompute `lastDate` on
   existing rows
+- `src/lib/schedule/weekdays.ts` — the RFC 5545 weekday table and the
+  ordinal-week vocabulary, plus their membership tests. ⚠ The array's
+  **order** is the `enum_events_schedule_weekdays` enum and two callers read
+  a code back out of it by position, so a reorder moves events to the wrong
+  day with no type error. One home for that reason
+- `src/lib/schedule/time.ts` — `isHHMM` / `normalizeHHMM` / `minutesOfDay`
+  (the one HH:MM rule, shared with `scheduleFields`' endTime validator) and
+  `localWallTimeToInstant`. That last one's `onGap: 'reject'` is how a caller
+  with somebody to report to refuses a wall time the clocks skip; note that
+  Temporal's own `disambiguation: 'reject'` is **not** that check, because it
+  also refuses an ambiguous fall-back time that genuinely exists.
+  `minutesOfDay` is what a caller compares a start against an end with — it was
+  written privately twice before it lived here, and the two copies disagreed
+  about a malformed value
 - `src/types/schedule.ts` — `EventSchedule` (the stored group, derived
   from `Event['schedule']`) and `ExclusionRange`. Anything reading a
   schedule off a document or merging a patch takes `Partial<EventSchedule>`,

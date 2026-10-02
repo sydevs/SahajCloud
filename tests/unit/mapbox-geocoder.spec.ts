@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { geocodeRegion, MANUAL_LOCATION, resolveRegionLocation } from '@/lib/mapbox/geocoder'
+import {
+  geocodeLocation,
+  geocodeRegion,
+  MANUAL_LOCATION,
+  resolveRegionLocation,
+} from '@/lib/mapbox/geocoder'
 
 /** The Search Box `/forward` types used by the coordless-fallback step. */
 const FALLBACK_TYPES = 'country,region,district,place,locality'
@@ -124,5 +129,152 @@ describe('resolveRegionLocation', () => {
       radius: null,
     })
     expect(warning).toContain('manual cleanup')
+  })
+})
+
+describe('geocodeLocation', () => {
+  /** A Search Box `/forward` body with the context layers the import reads. */
+  const placed = (context: Record<string, unknown>) => ({
+    features: [
+      {
+        properties: { mapbox_id: 'mbx-address', context },
+        geometry: { coordinates: [13.4186, 52.5026] },
+      },
+    ],
+  })
+
+  const berlinContext = {
+    country: { mapbox_id: 'mbx-de', name: 'Germany', country_code: 'DE' },
+    region: { mapbox_id: 'mbx-be', name: 'Berlin', region_code: 'BE', region_code_full: 'DE-BE' },
+    place: { mapbox_id: 'mbx-berlin', name: 'Berlin' },
+  }
+
+  /** The found location, or a thrown assertion naming the status instead. */
+  async function located(args: { query: string; types: string; countryCode?: string }) {
+    const outcome = await geocodeLocation(args)
+    if (outcome.status !== 'found') throw new Error(`expected a location, got ${outcome.status}`)
+    return outcome.location
+  }
+
+  it('returns the point and the administrative context around it', async () => {
+    stubFetch(() => ({ body: placed(berlinContext) }))
+    expect(await located({ query: 'Oranienstraße 25, Berlin', types: 'address,poi' })).toEqual({
+      mapboxId: 'mbx-address',
+      latitude: 52.5026,
+      longitude: 13.4186,
+      countryCode: 'DE',
+      subdivisionCode: 'BE',
+      placeName: 'Berlin',
+      placeId: 'mbx-berlin',
+    })
+  })
+
+  it("restricts the search to the caller's country and asks for its own types", async () => {
+    let seenUrl = ''
+    stubFetch((url) => {
+      seenUrl = url
+      return { body: placed(berlinContext) }
+    })
+    await geocodeLocation({ query: 'Berlin', types: 'place,locality', countryCode: 'DE' })
+    expect(seenUrl).toContain('country=de')
+    expect(seenUrl).toContain('types=place%2Clocality')
+  })
+
+  it("reads a context layer's id under either key Mapbox spells it with", async () => {
+    // `@mapbox/search-js-core` types it as `id`; the API reference calls it
+    // `mapbox_id`. Both have to resolve, or phase 5 matches no existing region.
+    stubFetch(() => ({
+      body: placed({ ...berlinContext, place: { id: 'mbx-berlin', name: 'Berlin' } }),
+    }))
+    expect((await located({ query: 'Berlin', types: 'place' })).placeId).toBe('mbx-berlin')
+  })
+
+  it('reads the city off `locality` where a country files one below `place`', async () => {
+    stubFetch(() => ({
+      body: placed({
+        country: berlinContext.country,
+        locality: { mapbox_id: 'mbx-loc', name: 'Harlem' },
+      }),
+    }))
+    expect(await located({ query: 'Harlem', types: 'place,locality' })).toMatchObject({
+      placeName: 'Harlem',
+      placeId: 'mbx-loc',
+    })
+  })
+
+  it('resolves a subdivision Mapbox spelled only country-prefixed', async () => {
+    stubFetch(() => ({
+      body: placed({
+        country: berlinContext.country,
+        region: { name: 'Bayern', region_code_full: 'DE-BY' },
+      }),
+    }))
+    expect((await located({ query: 'München', types: 'place' })).subdivisionCode).toBe('BY')
+  })
+
+  it('resolves a subdivision Mapbox named but did not code', async () => {
+    stubFetch(() => ({
+      body: placed({ country: berlinContext.country, region: { name: 'Bayern' } }),
+    }))
+    expect((await located({ query: 'München', types: 'place' })).subdivisionCode).toBe('BY')
+  })
+
+  it('leaves the context codes null when Mapbox sent none', async () => {
+    stubFetch(() => ({ body: placed({}) }))
+    expect(await located({ query: 'Somewhere', types: 'place' })).toMatchObject({
+      countryCode: null,
+      subdivisionCode: null,
+      placeName: null,
+      placeId: null,
+    })
+  })
+
+  describe('a miss and an outage are different answers', () => {
+    // ⚠ The whole point of the three-way outcome: a caller writing a permanent
+    // row error on an outage turns minutes of Mapbox trouble into addresses a
+    // volunteer can only fix by re-uploading the file.
+
+    it('reports an empty result set as a miss', async () => {
+      stubFetch(() => ({ body: { features: [] } }))
+      expect(await geocodeLocation({ query: 'Nowhere', types: 'place' })).toEqual({
+        status: 'missed',
+      })
+    })
+
+    it('reports a feature with no coordinates as a miss', async () => {
+      stubFetch(() => ({ body: { features: [{ properties: { context: berlinContext } }] } }))
+      expect(await geocodeLocation({ query: 'Berlin', types: 'place' })).toEqual({
+        status: 'missed',
+      })
+    })
+
+    it('reports an HTTP failure as unavailable', async () => {
+      stubFetch(() => ({ ok: false, body: {} }))
+      expect(await geocodeLocation({ query: 'Berlin', types: 'place' })).toEqual({
+        status: 'unavailable',
+      })
+    })
+
+    it('reports a network failure that outlasts the retries as unavailable', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => {
+          throw new Error('ECONNRESET')
+        }),
+      )
+      expect(await geocodeLocation({ query: 'Berlin', types: 'place' })).toEqual({
+        status: 'unavailable',
+      })
+    })
+
+    it('reports a missing token as unavailable, without calling fetch', async () => {
+      vi.stubEnv('NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN', '')
+      const fetchSpy = vi.fn()
+      vi.stubGlobal('fetch', fetchSpy)
+      expect(await geocodeLocation({ query: 'Berlin', types: 'place' })).toEqual({
+        status: 'unavailable',
+      })
+      expect(fetchSpy).not.toHaveBeenCalled()
+    })
   })
 })

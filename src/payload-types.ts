@@ -688,6 +688,84 @@ export type MeditationFrames = {
   timestamp: number;
   [k: string]: unknown;
 }[];
+/**
+ * @maxItems 500
+ */
+export type EventImportRows = {
+  /**
+   * The row's line in the uploaded file, 1-based and counting the header, so an error names the line the volunteer's spreadsheet shows.
+   */
+  line: number;
+  /**
+   * The row as the CSV held it, keyed by column name and trimmed.
+   */
+  values: {
+    [k: string]: string;
+  };
+  /**
+   * Everything wrong with the row, from the parse, the resolve, the proposal and the commit alike. A row with any of these is skipped, never committed.
+   */
+  errors?: string[];
+  /**
+   * Set once the row geocoded cleanly. Its absence is what makes a row pending.
+   */
+  resolved?: {
+    latitude: number;
+    longitude: number;
+    /**
+     * IANA zone. Stored as a plain string and re-narrowed with `isSupportedTimezone` at commit, rather than repeating the 581-member enum here.
+     */
+    timezone: string;
+    /**
+     * The normalised city name the proposal and the duplicate check group on.
+     */
+    cityKey: string;
+    placeName: string | null;
+    /**
+     * The Mapbox `place` id, which phase 5 matches an existing region on.
+     */
+    placeId: string | null;
+    mapboxId: string | null;
+    subdivisionCode: string | null;
+    /**
+     * The occurrence weekdays as a 7-bit mask, Monday the low bit. Derived once so a row stays comparable across chunks.
+     */
+    weekdayMask: number;
+    /**
+     * Minutes since midnight on the class's own clock.
+     */
+    startMinutes: number | null;
+    languages: string[];
+    inactive: boolean;
+    /**
+     * Today in the row's own zone when it resolved. The commit re-derives the schedule against it, so a run after midnight builds the first date the reviewer approved.
+     */
+    anchorDate: string;
+  };
+  /**
+   * A matched row is reported and skipped; nothing about the match is modified.
+   */
+  duplicate?: {
+    reason: 'nearby-address' | 'city-and-time';
+    /**
+     * The existing class this row repeats.
+     */
+    eventId?: number;
+    /**
+     * The earlier line in this same file the row repeats.
+     */
+    line?: number;
+  };
+  /**
+   * Written as each row lands, so an interrupted commit resumes at the first row without one rather than creating a second class for every row before it.
+   */
+  committed?: {
+    /**
+     * The class this row created.
+     */
+    eventId: number;
+  };
+}[];
 export type TableOfContentsHeadings = {
   slug: string;
   text: string;
@@ -740,6 +818,7 @@ export interface Config {
     'app-cards': AppCard;
     regions: Region;
     events: Event;
+    'event-imports': EventImport;
     users: User;
     forms: Form;
     'user-submissions': UserSubmission;
@@ -816,6 +895,7 @@ export interface Config {
     'app-cards': AppCardsSelect<false> | AppCardsSelect<true>;
     regions: RegionsSelect<false> | RegionsSelect<true>;
     events: EventsSelect<false> | EventsSelect<true>;
+    'event-imports': EventImportsSelect<false> | EventImportsSelect<true>;
     users: UsersSelect<false> | UsersSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
     'user-submissions': UserSubmissionsSelect<false> | UserSubmissionsSelect<true>;
@@ -923,6 +1003,7 @@ export interface Config {
       cleanupOrphanedMedia: TaskCleanupOrphanedMedia;
       deliverSubmission: TaskDeliverSubmission;
       expireEvents: TaskExpireEvents;
+      purgeEventImports: TaskPurgeEventImports;
       purgeSubmissions: TaskPurgeSubmissions;
       screenSubmission: TaskScreenSubmission;
       sendPostEventFollowUps: TaskSendPostEventFollowUps;
@@ -3724,6 +3805,299 @@ export interface Frame {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "event-imports".
+ */
+export interface EventImport {
+  id: number;
+  targetRegion: number | Region;
+  uploader: number | Manager;
+  /**
+   * Written by the import endpoints. `committing` means a commit was interrupted part-way; its rows carry the ids of whatever was already created.
+   */
+  status: 'uploaded' | 'resolved' | 'committing';
+  /**
+   * Language(s) to use for rows whose own `languages` column is empty.
+   */
+  defaultLanguages: (
+    | 'ab'
+    | 'aa'
+    | 'af'
+    | 'ak'
+    | 'sq'
+    | 'am'
+    | 'ar'
+    | 'an'
+    | 'hy'
+    | 'as'
+    | 'av'
+    | 'ae'
+    | 'ay'
+    | 'az'
+    | 'bm'
+    | 'ba'
+    | 'eu'
+    | 'be'
+    | 'bn'
+    | 'bi'
+    | 'bs'
+    | 'br'
+    | 'bg'
+    | 'my'
+    | 'ca'
+    | 'ch'
+    | 'ce'
+    | 'ny'
+    | 'zh'
+    | 'cv'
+    | 'kw'
+    | 'co'
+    | 'cr'
+    | 'hr'
+    | 'cs'
+    | 'da'
+    | 'dv'
+    | 'nl'
+    | 'dz'
+    | 'en'
+    | 'eo'
+    | 'et'
+    | 'ee'
+    | 'fo'
+    | 'fj'
+    | 'fi'
+    | 'fr'
+    | 'ff'
+    | 'gl'
+    | 'lg'
+    | 'ka'
+    | 'de'
+    | 'el'
+    | 'gn'
+    | 'gu'
+    | 'ht'
+    | 'ha'
+    | 'he'
+    | 'hz'
+    | 'hi'
+    | 'ho'
+    | 'hu'
+    | 'is'
+    | 'io'
+    | 'ig'
+    | 'id'
+    | 'ia'
+    | 'ie'
+    | 'iu'
+    | 'ik'
+    | 'ga'
+    | 'it'
+    | 'ja'
+    | 'jv'
+    | 'kl'
+    | 'kn'
+    | 'kr'
+    | 'ks'
+    | 'kk'
+    | 'km'
+    | 'ki'
+    | 'rw'
+    | 'rn'
+    | 'kv'
+    | 'kg'
+    | 'ko'
+    | 'ku'
+    | 'kj'
+    | 'ky'
+    | 'lo'
+    | 'la'
+    | 'lv'
+    | 'li'
+    | 'ln'
+    | 'lt'
+    | 'lu'
+    | 'lb'
+    | 'mk'
+    | 'mg'
+    | 'ms'
+    | 'ml'
+    | 'mt'
+    | 'gv'
+    | 'mi'
+    | 'mr'
+    | 'mh'
+    | 'mn'
+    | 'na'
+    | 'nv'
+    | 'ng'
+    | 'ne'
+    | 'nd'
+    | 'se'
+    | 'no'
+    | 'nb'
+    | 'nn'
+    | 'ii'
+    | 'oc'
+    | 'oj'
+    | 'cu'
+    | 'or'
+    | 'om'
+    | 'os'
+    | 'pi'
+    | 'pa'
+    | 'ps'
+    | 'fa'
+    | 'pl'
+    | 'pt'
+    | 'qu'
+    | 'ro'
+    | 'rm'
+    | 'ru'
+    | 'sm'
+    | 'sg'
+    | 'sa'
+    | 'sc'
+    | 'gd'
+    | 'sr'
+    | 'sn'
+    | 'sd'
+    | 'si'
+    | 'sk'
+    | 'sl'
+    | 'so'
+    | 'nr'
+    | 'st'
+    | 'es'
+    | 'su'
+    | 'sw'
+    | 'ss'
+    | 'sv'
+    | 'tl'
+    | 'ty'
+    | 'tg'
+    | 'ta'
+    | 'tt'
+    | 'te'
+    | 'th'
+    | 'bo'
+    | 'ti'
+    | 'to'
+    | 'ts'
+    | 'tn'
+    | 'tr'
+    | 'tk'
+    | 'tw'
+    | 'uk'
+    | 'ur'
+    | 'ug'
+    | 'uz'
+    | 've'
+    | 'vi'
+    | 'vo'
+    | 'wa'
+    | 'cy'
+    | 'fy'
+    | 'wo'
+    | 'xh'
+    | 'yi'
+    | 'yo'
+    | 'za'
+    | 'zu'
+  )[];
+  rows?: EventImportRows;
+  proposedRegions?: EventImportProposedRegions;
+  updatedAt: string;
+  createdAt: string;
+  deletedAt?: string | null;
+}
+export interface EventImportProposedRegions {
+  /**
+   * Parent-first, so the commit can create them in order.
+   */
+  nodes: {
+    /**
+     * Stable across calls, so a review can address a node it renamed.
+     */
+    key: string;
+    level: 'region' | 'city' | 'venue';
+    name: string;
+    /**
+     * The proposed node above it, or null when it hangs off the target.
+     */
+    parentKey: string | null;
+    match:
+      | {
+          kind: 'existing';
+          regionId: number;
+          name: string;
+          slug: string | null;
+        }
+      | {
+          kind: 'create';
+        }
+      | {
+          kind: 'elsewhere';
+          regionId: number;
+          name: string;
+        };
+    /**
+     * Null for every node the commit does not create.
+     */
+    slug: string | null;
+    /**
+     * Null for every node the commit does not create.
+     */
+    location:
+      | (
+          | {
+              kind: 'mapbox';
+              mapboxId: string;
+            }
+          | {
+              kind: 'manual';
+              latitude: number;
+              longitude: number;
+              radius: number;
+            }
+        )
+      | null;
+    /**
+     * The CSV lines this node's classes come from, the absorbed places' included.
+     */
+    lines: number[];
+    /**
+     * What the metro rule folded into this city, so the review can say so.
+     */
+    merged?: {
+      key: string;
+      name: string;
+      lines: number[];
+      subdivisionCode: string | null;
+    }[];
+  }[];
+  rowErrors: {
+    line: number;
+    message: string;
+  }[];
+  /**
+   * Kept with its reason, because the review has to explain a missing layer.
+   */
+  stateLayer:
+    | {
+        proposed: true;
+        states: {
+          code: string;
+          name: string;
+          cityKeys: string[];
+        }[];
+        unplacedCityKeys: string[];
+      }
+    | {
+        proposed: false;
+        reason: string;
+      };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
 export interface PayloadKv {
@@ -3796,6 +4170,7 @@ export interface PayloadJob {
           | 'cleanupOrphanedMedia'
           | 'deliverSubmission'
           | 'expireEvents'
+          | 'purgeEventImports'
           | 'purgeSubmissions'
           | 'screenSubmission'
           | 'sendPostEventFollowUps'
@@ -3844,6 +4219,7 @@ export interface PayloadJob {
         | 'cleanupOrphanedMedia'
         | 'deliverSubmission'
         | 'expireEvents'
+        | 'purgeEventImports'
         | 'purgeSubmissions'
         | 'screenSubmission'
         | 'sendPostEventFollowUps'
@@ -3965,6 +4341,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'events';
         value: number | Event;
+      } | null)
+    | ({
+        relationTo: 'event-imports';
+        value: number | EventImport;
       } | null)
     | ({
         relationTo: 'users';
@@ -4760,6 +5140,21 @@ export interface EventsSelect<T extends boolean = true> {
   createdAt?: T;
   deletedAt?: T;
   _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "event-imports_select".
+ */
+export interface EventImportsSelect<T extends boolean = true> {
+  targetRegion?: T;
+  uploader?: T;
+  status?: T;
+  defaultLanguages?: T;
+  rows?: T;
+  proposedRegions?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  deletedAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -10164,6 +10559,19 @@ export interface TaskExpireEvents {
     trashed: number;
     remindersSent: number;
     failed: number;
+  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskPurgeEventImports".
+ */
+export interface TaskPurgeEventImports {
+  input: {
+    now?: string | null;
+    dryRun?: boolean | null;
+  };
+  output: {
+    deletedBatches: number;
   };
 }
 /**

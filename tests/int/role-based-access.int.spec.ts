@@ -2359,6 +2359,261 @@ describe('Role-Based Access Control', () => {
     })
   })
 
+
+  /**
+   * The `managers` grant an `atlas-manager` holds (#821, #828): read every
+   * row's name, create an unprivileged account, and nothing else.
+   *
+   * ⚠ **Every read here goes through `overrideAccess: false`.** Asserting
+   * `hasPermission` would pass while a field still came back — `docs/rules/access.md`
+   * is explicit that membership of a list proves nothing on its own, and the
+   * field locks are the whole narrowing.
+   */
+  describe('Managers collection access for an atlas-manager', () => {
+    /** A fresh pair each case: these specs create managers, and ids collide. */
+    async function pair() {
+      const reader = await testData.createManager(payload, {
+        name: 'Atlas Reader',
+        roles: ['atlas-manager'],
+        contactDetails: [{ platform: 'telegram', identifier: '@reader' }],
+      })
+      const other = await testData.createManager(payload, {
+        name: 'Other Manager',
+        roles: ['atlas-manager'],
+        language: 'de',
+        contactDetails: [{ platform: 'whatsapp', identifier: '+49 30 111111' }],
+      })
+      return { other, reader }
+    }
+
+    it('returns another manager’s name and nothing else', async () => {
+      const { other, reader } = await pair()
+
+      const doc = await payload.findByID({
+        collection: 'managers',
+        id: other.id,
+        depth: 0,
+        locale: 'en',
+        overrideAccess: false,
+        user: reader,
+      })
+
+      // The picker's one field, and the id it submits. `collection` is the
+      // discriminator Payload adds to an auth document, not a stored field.
+      expect(doc.name).toBe('Other Manager')
+
+      // ⚠ **A denied ARRAY field comes back as `[]`, not absent** — the rows
+      // are gone, which is the value, but the key survives. `sessions` is in the
+      // set because Payload's own lock on it answers the same way; this diff's
+      // lock is the one on `contactDetails`.
+      expect(Object.keys(doc).sort()).toEqual([
+        'collection',
+        'contactDetails',
+        'createdAt',
+        'id',
+        'name',
+        'sessions',
+        'updatedAt',
+      ])
+      expect(doc.contactDetails).toEqual([])
+    })
+
+    it('hands the same row whole to an admin, and to its own holder', async () => {
+      const { other, reader } = await pair()
+      const admin = await testData.createManager(payload, { name: 'Admin', type: 'admin' })
+
+      // Proves the case above is about the reader, not a row that was empty.
+      const asAdmin = await payload.findByID({
+        collection: 'managers',
+        id: other.id,
+        depth: 0,
+        locale: 'en',
+        overrideAccess: false,
+        user: admin,
+      })
+      expect(asAdmin.email).toBe(other.email)
+      expect(asAdmin.type).toBe('manager')
+      expect(asAdmin.roles).toEqual(['atlas-manager'])
+
+      // A manager row is the person's own profile — `selfOrAdminFieldAccess`.
+      const asSelf = await payload.findByID({
+        collection: 'managers',
+        id: reader.id,
+        depth: 0,
+        locale: 'en',
+        overrideAccess: false,
+        user: reader,
+      })
+      expect(asSelf.email).toBe(reader.email)
+      expect(asSelf.roles).toEqual(['atlas-manager'])
+    })
+
+    it('narrows a list read row by row', async () => {
+      const { other, reader } = await pair()
+
+      const list = await payload.find({
+        collection: 'managers',
+        where: { id: { in: [reader.id, other.id] } },
+        depth: 0,
+        locale: 'en',
+        overrideAccess: false,
+        user: reader,
+      })
+
+      // `afterRead` evaluates a field lock per document, so one query answers
+      // differently for the caller's own row than for the other one.
+      const byId = new Map(list.docs.map((doc) => [doc.id, doc]))
+      expect(byId.get(reader.id)?.email).toBe(reader.email)
+      expect(byId.get(other.id)?.email).toBeUndefined()
+      expect(byId.get(other.id)?.contactDetails).toEqual([])
+      expect(byId.get(other.id)?.name).toBe('Other Manager')
+      // The caller's own rows survive in the same answer — an array field's lock
+      // empties it per row, so this is the half that proves it emptied the right
+      // one.
+      expect(byId.get(reader.id)?.contactDetails).toHaveLength(1)
+    })
+
+    /**
+     * What was stored, not what the writer was handed back.
+     *
+     * ⚠ **A create answers through the writer's own field locks.** `type` and
+     * `roles` are both stripped from the response of a create by a non-admin,
+     * so asserting on it would read `undefined` whichever value landed in the
+     * row — the escalation and the refusal look identical from there.
+     */
+    const stored = (id: number) =>
+      payload.findByID({ collection: 'managers', depth: 0, id, locale: 'en', overrideAccess: true })
+
+    it('creates an unprivileged account, whatever the request asked for', async () => {
+      const { reader } = await pair()
+
+      const created = await payload.create({
+        collection: 'managers',
+        data: createData<'managers'>({
+          name: 'Imported Coordinator',
+          email: `imported_${Date.now()}@example.com`,
+          roles: ['atlas-manager'],
+          type: 'admin',
+        }),
+        depth: 0,
+        locale: 'en',
+        overrideAccess: false,
+        user: reader,
+      })
+
+      // `type` is stripped by its own `create` lock and falls back to the
+      // field's `defaultValue`; `roles` has none, so it stays empty.
+      const row = await stored(created.id)
+      expect(row.type).toBe('manager')
+      expect(row.roles ?? []).toEqual([])
+    })
+
+    it('still forces type and roles when the write skips access entirely', async () => {
+      const { reader } = await pair()
+
+      // The commit step writes with `overrideAccess: true` while acting as the
+      // uploader, which evaluates no field lock — `forceManagedTypeAndRoles` is
+      // the only thing standing between a crafted CSV row and an admin account.
+      const created = await payload.create({
+        collection: 'managers',
+        data: createData<'managers'>({
+          name: 'Escalation Attempt',
+          email: `escalate_${Date.now()}@example.com`,
+          roles: ['atlas-manager'],
+          type: 'admin',
+        }),
+        depth: 0,
+        locale: 'en',
+        overrideAccess: true,
+        req: { user: reader } as unknown as PayloadRequest,
+      })
+
+      const row = await stored(created.id)
+      expect(row.type).toBe('manager')
+      expect(row.roles ?? []).toEqual([])
+    })
+
+    it('refuses the machine fields a create could otherwise seed', async () => {
+      const { reader } = await pair()
+      const future = new Date(Date.now() + 86_400_000).toISOString()
+
+      const created = await payload.create({
+        collection: 'managers',
+        data: createData<'managers'>({
+          name: 'Seeded Machine State',
+          email: `machine_${Date.now()}@example.com`,
+          _verified: true,
+          invitationDueAt: future,
+          magicLinkIssuedAt: future,
+          pendingInvitation: { regions: [1] },
+        }),
+        depth: 0,
+        locale: 'en',
+        overrideAccess: false,
+        user: reader,
+      })
+
+      const row = await stored(created.id)
+      // `_verified` is the accepted/not-accepted flag the whole invitation flow
+      // turns on, and Payload ships it `create: Boolean(user)`.
+      expect(row._verified).toBeFalsy()
+      // A stamp in the future makes the throttle subtract to a negative delta,
+      // so the account is refused a sign-in link until somebody edits the
+      // database — the field is hidden and unwritable.
+      expect(row.magicLinkIssuedAt ?? null).toBeNull()
+      expect(row.pendingInvitation ?? null).toBeNull()
+      expect(row.invitationDueAt ?? null).toBeNull()
+    })
+
+    it('leaves a server-side create alone, so a seed can still build an admin', async () => {
+      const created = await payload.create({
+        collection: 'managers',
+        data: createData<'managers'>({
+          name: 'Seeded Admin',
+          email: `seeded_${Date.now()}@example.com`,
+          type: 'admin',
+        }),
+        depth: 0,
+        locale: 'en',
+        overrideAccess: true,
+      })
+
+      expect(created.type).toBe('admin')
+    })
+
+    it('cannot update or delete another manager', async () => {
+      const { other, reader } = await pair()
+
+      await expect(
+        payload.update({
+          collection: 'managers',
+          id: other.id,
+          data: { name: 'Renamed By Someone Else' },
+          locale: 'en',
+          overrideAccess: false,
+          user: reader,
+        }),
+      ).rejects.toThrow()
+
+      await expect(
+        payload.delete({
+          collection: 'managers',
+          id: other.id,
+          overrideAccess: false,
+          user: reader,
+        }),
+      ).rejects.toThrow()
+
+      const unchanged = await payload.findByID({
+        collection: 'managers',
+        id: other.id,
+        depth: 0,
+        overrideAccess: true,
+      })
+      expect(unchanged.name).toBe('Other Manager')
+    })
+  })
+
   /**
    * ⚠ **The `unlock` suite is gone, and its grant is still enforced.** #840
    * removed `maxLoginAttempts`, so `managers` carries no `loginAttempts` or

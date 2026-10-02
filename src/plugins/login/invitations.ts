@@ -6,6 +6,7 @@ import * as Sentry from '@sentry/nextjs'
 
 import { DEFAULT_LOCALE } from '@/lib/locales'
 import { relationId } from '@/lib/utilities/relationId'
+import { selfOrAdminFieldAccess } from '@/plugins/access'
 
 import { MANAGERS_COLLECTION } from './grantSummary'
 import { composeInvitations } from './invite'
@@ -41,23 +42,43 @@ const PREFERENCE_KEY = 'invitation'
 const BATCH = 50
 
 /**
- * The queue's two fields. Hidden, and `update: () => false` for the same reason
- * as `magicLinkIssuedAt`: self-access would otherwise let a manager rewrite
- * their own queue. The queue's own writes bypass access entirely.
+ * Machine state on an auth collection: written only by the code that owns it,
+ * which bypasses access, and read only by the account holder and admins.
+ *
+ * ⚠ **All three keys, because self-access grants the holder update on their own
+ * row and a collection may grant a non-admin `create`** (`managers`, #828). Left
+ * writable, a holder could burn their own outstanding sign-in link or stamp it
+ * in the future and throttle their own sends forever, and whoever may make an
+ * account could seed its invitation queue. A `read` lock earns its place on
+ * `pendingInvitation` alone: it names the regions, events and pages an account
+ * was just given, which is a grant summary nobody else is owed.
+ *
+ * ⚠ **`selfOrAdminFieldAccess` is manager-shaped**, and these fields go onto
+ * every collection the plugin serves. A second one's holder would be denied
+ * their own value rather than shown somebody else's — the fail-closed polarity
+ * `managersOnlyFieldAccess` is spelled with, and the point at which that
+ * collection declares a lock of its own.
  */
+export const machineFieldAccess = {
+  create: () => false,
+  read: selfOrAdminFieldAccess,
+  update: () => false,
+}
+
+/** The invitation queue's two fields. Hidden, and machine-owned end to end. */
 export const invitationFields: Field[] = [
   {
     name: 'pendingInvitation',
     type: 'json',
     admin: { hidden: true },
-    access: { update: () => false },
+    access: machineFieldAccess,
   },
   {
     name: 'invitationDueAt',
     type: 'date',
     index: true,
     admin: { hidden: true },
-    access: { update: () => false },
+    access: machineFieldAccess,
   },
 ]
 

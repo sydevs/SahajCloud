@@ -2,6 +2,7 @@ import type { CollectionConfig } from 'payload'
 
 import { createBreadcrumbsField } from '@payloadcms/plugin-nested-docs'
 
+import { mayStageImport } from '@/collections/EventImports/capability'
 import { hideUntilCreated, legacyMigrationFields, publicUrlFields, slugField } from '@/fields'
 import { getCanonicalUrlBase } from '@/lib/atlas/regionOwners'
 import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
@@ -122,6 +123,32 @@ export const Regions: CollectionConfig = {
           params: { locale: locale.code },
         }),
       breakpoints: [{ label: 'Mobile', name: 'mobile', width: 390, height: 844 }],
+    },
+    components: {
+      views: {
+        edit: {
+          // The bulk class importer, at `<region>/import`.
+          //
+          // ⚠ **`condition` is handed no document, and must answer
+          // synchronously.** Payload calls it with
+          // `{ collectionConfig, config, globalConfig, permissions, req }`, so
+          // neither this region's `level` nor its place in the caller's subtree
+          // is knowable here. It answers the capability half only, with the same
+          // `mayStageImport` the upload endpoint asks. `ImportTab` hides the tab
+          // on a level the import refuses, and `ImportView` re-checks everything
+          // against the database — a typed URL arrives with no tab.
+          import: {
+            Component: '@/components/admin/RegionImport/ImportView',
+            path: '/import',
+            tab: {
+              Component: '@/components/admin/RegionImport/ImportTab',
+              condition: ({ req }) => mayStageImport({ user: req.user, locale: req.locale }),
+              // Between Edit (100) and Versions (300).
+              order: 200,
+            },
+          },
+        },
+      },
     },
   },
   // The child joins below are recursive, over all descendants via

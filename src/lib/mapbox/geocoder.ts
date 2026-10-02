@@ -22,6 +22,7 @@
  * Every non-clean resolution carries a `warning` for the caller to log.
  */
 
+import { resolveSubdivisionCode } from '@/lib/geography'
 import type { Region } from '@/payload-types'
 
 const FORWARD_URL = 'https://api.mapbox.com/search/searchbox/v1/forward'
@@ -66,15 +67,50 @@ export interface GeocodeRegionArgs {
   types?: string
 }
 
+/**
+ * ⚠ **A context layer's id arrives under one of two keys.**
+ * `@mapbox/search-js-core`'s own types call it `id`
+ * (`dist/searchbox/types.d.ts`, `ContextEntry`) while the Search Box API
+ * reference calls it `mapbox_id`. Reading both is the only way to be right
+ * either way, and `geocodedPlaceId` is where that choice lives.
+ */
+interface ForwardContextEntry {
+  id?: string
+  mapbox_id?: string
+  name?: string
+}
+
 interface ForwardFeature {
-  properties?: { mapbox_id?: string }
+  properties?: {
+    mapbox_id?: string
+    name?: string
+    address?: string
+    context?: {
+      country?: ForwardContextEntry & { country_code?: string }
+      region?: ForwardContextEntry & { region_code?: string; region_code_full?: string }
+      place?: ForwardContextEntry
+      locality?: ForwardContextEntry
+      address?: ForwardContextEntry
+    }
+  }
   geometry?: { coordinates?: [number, number] }
 }
 
 const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 
+/**
+ * Mapbox answered, or it did not.
+ *
+ * ⚠ **The two are a different fact about the world, and only the caller knows
+ * whether that matters.** "No such place" is final; "we could not ask" is not,
+ * and a caller that writes a permanent refusal on the second one turns one
+ * outage into rows nobody can re-place. `geocodeRegion` collapses both to null
+ * because its caller is a seed run a maintainer re-runs anyway.
+ */
+type ForwardAnswer = { answered: true; feature: ForwardFeature | null } | { answered: false }
+
 /** GET the first `/forward` feature, retrying on 429 with exponential backoff. */
-async function fetchForwardFeature(params: URLSearchParams): Promise<ForwardFeature | null> {
+async function fetchForwardFeature(params: URLSearchParams): Promise<ForwardAnswer> {
   for (let attempt = 0; ; attempt++) {
     let res: Response
     try {
@@ -87,38 +123,58 @@ async function fetchForwardFeature(params: URLSearchParams): Promise<ForwardFeat
         await delay(BASE_BACKOFF_MS * 2 ** attempt)
         continue
       }
-      return null
+      return { answered: false }
     }
     if (res.status === 429 && attempt < MAX_RETRIES) {
       await delay(BASE_BACKOFF_MS * 2 ** attempt)
       continue
     }
-    if (!res.ok) return null
+    if (!res.ok) return { answered: false }
     const data = (await res.json().catch(() => null)) as { features?: ForwardFeature[] } | null
-    return data?.features?.[0] ?? null
+    return { answered: true, feature: data?.features?.[0] ?? null }
   }
 }
 
-/** Run a `/forward` query for one region node; null when no token / name / match. */
-async function forwardFeature(args: GeocodeRegionArgs): Promise<ForwardFeature | null> {
+interface ForwardQuery {
+  q: string
+  types: string
+  countryCode?: string | null
+  latitude?: number | null
+  longitude?: number | null
+}
+
+/** The `/forward` query string, or null when there is no token or nothing to search for. */
+function forwardParams(query: ForwardQuery): URLSearchParams | null {
   const token = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN
-  if (!token || !args.name?.trim()) return null
+  if (!token || !query.q.trim()) return null
   const params = new URLSearchParams({
-    q: args.name,
-    types: args.types ?? TYPES_BY_LEVEL[args.level],
+    q: query.q,
+    types: query.types,
     limit: '1',
     language: 'en',
     access_token: token,
   })
-  // Bias toward the legacy coordinates when we have them.
-  if (args.latitude != null && args.longitude != null) {
-    params.set('proximity', `${args.longitude},${args.latitude}`)
+  // Bias toward the coordinates when the caller has them.
+  if (query.latitude != null && query.longitude != null) {
+    params.set('proximity', `${query.longitude},${query.latitude}`)
   }
-  // Restrict to the region's country so same-named places elsewhere don't win.
-  if (args.countryCode) {
-    params.set('country', args.countryCode.toLowerCase())
-  }
-  return fetchForwardFeature(params)
+  // Restrict to the country so same-named places elsewhere don't win.
+  if (query.countryCode) params.set('country', query.countryCode.toLowerCase())
+  return params
+}
+
+/** Run a `/forward` query for one region node; null when no token / name / match. */
+async function forwardFeature(args: GeocodeRegionArgs): Promise<ForwardFeature | null> {
+  const params = forwardParams({
+    q: args.name ?? '',
+    types: args.types ?? TYPES_BY_LEVEL[args.level],
+    countryCode: args.countryCode,
+    latitude: args.latitude,
+    longitude: args.longitude,
+  })
+  if (!params) return null
+  const answer = await fetchForwardFeature(params)
+  return answer.answered ? answer.feature : null
 }
 
 /** Forward-geocode a region node to a Search Box `mapbox_id`, or null on a miss. */
@@ -210,5 +266,92 @@ export async function resolveRegionLocation(
       radius: null,
     },
     warning: `Could not resolve a location for ${args.level} "${args.name}" — left for manual cleanup.`,
+  }
+}
+
+/**
+ * One geocoded address or city, with the administrative context around it.
+ *
+ * The region importer wants only an id (`geocodeRegion`); the bulk event import
+ * wants the point *and* its country, subdivision and city, because it has to
+ * decide whether the row landed inside the batch's target region and which city
+ * the row groups under. Same endpoint, same retry, different answer.
+ */
+export interface GeocodedLocation {
+  /** The matched feature's own id, for a later `retrieve` or a region's `mapboxId`. */
+  mapboxId: string | null
+  latitude: number
+  longitude: number
+  /** ISO alpha-2 of the country the result sits in. */
+  countryCode: string | null
+  /** ISO 3166-2 subdivision code, resolved from whichever spelling Mapbox sent. */
+  subdivisionCode: string | null
+  /** The `place` layer — the town or city, as Mapbox names it. */
+  placeName: string | null
+  /** The `place` layer's own id, which a region node can be matched on. */
+  placeId: string | null
+}
+
+/** Whichever key this Mapbox response spelled a context layer's id with. */
+function geocodedPlaceId(entry: ForwardContextEntry | undefined): string | null {
+  return entry?.mapbox_id ?? entry?.id ?? null
+}
+
+export interface GeocodeLocationArgs {
+  /** The whole query on one line — `"Oranienstraße 25, Berlin, DE"`. */
+  query: string
+  /** Mapbox `types` filter. An address lookup and a city lookup want different ones. */
+  types: string
+  /** ISO alpha-2 to restrict the search to. */
+  countryCode?: string | null
+}
+
+/**
+ * ⚠ **`missed` and `unavailable` must not be collapsed by the caller.** A miss
+ * is a fact about the query — the row names a place Mapbox does not hold, and
+ * saying so is final. `unavailable` is a fact about us: no token, or the retries
+ * ran out. A caller that writes a row error on the second one turns a few
+ * minutes of Mapbox trouble into rows a volunteer can only fix by re-uploading
+ * the file.
+ */
+export type GeocodeOutcome =
+  | { status: 'found'; location: GeocodedLocation }
+  | { status: 'missed' }
+  | { status: 'unavailable' }
+
+/** Forward-geocode one query to a point and its context. */
+export async function geocodeLocation(args: GeocodeLocationArgs): Promise<GeocodeOutcome> {
+  const params = forwardParams({
+    q: args.query,
+    types: args.types,
+    countryCode: args.countryCode,
+  })
+  if (!params) return { status: 'unavailable' }
+
+  const answer = await fetchForwardFeature(params)
+  if (!answer.answered) return { status: 'unavailable' }
+
+  const coordinates = answer.feature?.geometry?.coordinates
+  // A feature without a point is a miss rather than an answer: the zone and
+  // every duplicate rule read the point, so there is nothing to place.
+  if (!coordinates) return { status: 'missed' }
+
+  const context = answer.feature?.properties?.context
+  const countryCode = context?.country?.country_code ?? null
+  // `locality` carries the town where a country files one below `place`, so it
+  // is read as the city wherever `place` is absent rather than left blank.
+  const place = context?.place ?? context?.locality
+
+  return {
+    status: 'found',
+    location: {
+      mapboxId: answer.feature?.properties?.mapbox_id ?? null,
+      longitude: coordinates[0],
+      latitude: coordinates[1],
+      countryCode,
+      subdivisionCode: resolveSubdivisionCode(context?.region, countryCode),
+      placeName: place?.name ?? null,
+      placeId: geocodedPlaceId(place),
+    },
   }
 }

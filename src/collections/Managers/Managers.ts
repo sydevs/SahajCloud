@@ -13,6 +13,7 @@ import { jsonField } from '@/fields/jsonField'
 import { getLanguageOptions } from '@/lib/locales'
 import { adminOnlyFieldAccess, getRoleOptions, getProjectOptions } from '@/plugins/access'
 
+import { forceManagedTypeAndRoles, lockManagerFieldReads } from './access'
 import { setProject } from './endpoints/setProject'
 import { MANAGER_NOTIFICATIONS_TAB } from './login'
 
@@ -21,6 +22,11 @@ export const Managers: CollectionConfig = {
   // Access control is applied by accessPlugin with self-access pattern
   // `setProject` is the lightweight self-only Current Project write path (#532).
   endpoints: [setProject],
+  hooks: {
+    // The field locks on `type` and `roles` are the boundary. This is what holds
+    // when a write skips field access altogether — see `./access`.
+    beforeChange: [forceManagedTypeAndRoles],
+  },
   auth: {
     // Configured for the `_verified` column, not for Payload's own verify mail:
     // the JWT strategy yields no user while that column is false, so it is the
@@ -47,11 +53,30 @@ export const Managers: CollectionConfig = {
   // accessPlugin detects that pair and attaches the auth strategy and the three
   // auth-response hooks that keep a manager's roles resolved at every locale —
   // see `src/plugins/access/localizedRolesAuth.ts` (#665). Nothing to wire here.
-  fields: [
+  // Every field but `name` is readable by the account holder and admins alone,
+  // applied by `lockManagerFieldReads` at the end of this array. `name` is what
+  // the `Events.manager` and `Regions.managers` pickers render.
+  fields: lockManagerFieldReads([
     {
       name: 'name',
       type: 'text',
       required: true,
+    },
+    // ⚠ Top level, beside `tabs`, never inside it — `mergeBaseFields` matches an
+    // auth base field by name only at the level it is handed, so a nested copy
+    // sanitizes to two fields instead of one (docs/rules/access.md). `email` is
+    // declared bare: it exists so the read lock has something to merge onto.
+    { name: 'email', type: 'email' },
+    {
+      // ⚠ **Payload ships all three keys here as `defaultAccess`** —
+      // `Boolean(user)` — so anyone who may create a manager could mark one
+      // accepted with no address ever proven, and every manager could read
+      // whether every other had. The merge keeps a key this does not name, so
+      // `create` is stated and `read` is left to the wrapper. `update` stays
+      // Payload's: an admin re-opening an account is its one legitimate edit.
+      name: '_verified',
+      type: 'checkbox',
+      access: { create: adminOnlyFieldAccess },
     },
     {
       // `null` is the admin "All Content" view, and it has no option of its own.
@@ -90,7 +115,12 @@ export const Managers: CollectionConfig = {
                 },
               },
               access: {
-                // Only admins can update the type field
+                // Only admins can set the type field, on create as well as on
+                // update: `atlas-manager` holds `managers: create` (#828), and
+                // without the create half it could mint an admin. The stripped
+                // value falls back to `defaultValue` above, so a create by
+                // anyone else lands on `manager`.
+                create: adminOnlyFieldAccess,
                 update: adminOnlyFieldAccess,
               },
             },
@@ -116,7 +146,10 @@ export const Managers: CollectionConfig = {
                 },
               },
               access: {
-                // Only admins can update roles
+                // Only admins can assign roles, on create as well as on update
+                // — the create half for the same reason as `type` above. There
+                // is no `defaultValue`, so a stripped value stays empty.
+                create: adminOnlyFieldAccess,
                 update: adminOnlyFieldAccess,
               },
             },
@@ -256,5 +289,5 @@ export const Managers: CollectionConfig = {
       ],
     },
     ...legacyMigrationFields(),
-  ],
+  ]),
 }

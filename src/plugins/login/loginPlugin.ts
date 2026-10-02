@@ -6,6 +6,7 @@ import { requestMagicLink } from './endpoints/requestMagicLink'
 import { managerJoins, MANAGERS_COLLECTION } from './grantSummary'
 import {
   INVITATIONS_CRON,
+  machineFieldAccess,
   INVITATIONS_QUEUE,
   invitationFields,
   queueOnManagerField,
@@ -25,6 +26,10 @@ import {
  * it they could burn their own outstanding link, or stamp it in the future and
  * throttle their own sends forever. Both endpoints write it through
  * `overrideAccess: true`, so neither is affected.
+ *
+ * `admin.hidden` keeps it out of the edit view and nothing else: the API returns
+ * it, so the `read` lock is what stops one account holder watching another's
+ * sign-in traffic. Both endpoints read and write it with `overrideAccess: true`.
  */
 export const magicLinkIssuedAt: Field = {
   name: 'magicLinkIssuedAt',
@@ -32,9 +37,7 @@ export const magicLinkIssuedAt: Field = {
   admin: {
     hidden: true,
   },
-  access: {
-    update: () => false,
-  },
+  access: machineFieldAccess,
 }
 
 export interface LoginPluginOptions {
