@@ -882,6 +882,7 @@ export interface Config {
     'wm-app-status': WmAppStatus;
     'sy-atlas-config': SyAtlasConfig;
     'sy-atlas-translations': SyAtlasTranslation;
+    'sahaja-glossary': SahajaGlossary;
     'payload-jobs-stats': PayloadJobsStat;
   };
   globalsSelect: {
@@ -892,6 +893,7 @@ export interface Config {
     'wm-app-status': WmAppStatusSelect<false> | WmAppStatusSelect<true>;
     'sy-atlas-config': SyAtlasConfigSelect<false> | SyAtlasConfigSelect<true>;
     'sy-atlas-translations': SyAtlasTranslationsSelect<false> | SyAtlasTranslationsSelect<true>;
+    'sahaja-glossary': SahajaGlossarySelect<false> | SahajaGlossarySelect<true>;
     'payload-jobs-stats': PayloadJobsStatsSelect<false> | PayloadJobsStatsSelect<true>;
   };
   locale:
@@ -9763,6 +9765,37 @@ export interface SyAtlasTranslationsEmailsStrings {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "sahaja-glossary".
+ */
+export interface SahajaGlossary {
+  id: number;
+  terms?:
+    | {
+        /**
+         * The English canonical term, and the identifier consumers look a row up by. Not localized.
+         */
+        key: string;
+        category: 'subtle-system' | 'practice' | 'phrase' | 'app';
+        /**
+         * The term is never translated. Consumers use its English spelling in every language.
+         */
+        keepAsIs?: boolean | null;
+        /**
+         * How the term is written in this language. Empty where the language has no agreed spelling — never filled from English.
+         */
+        term?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  /**
+   * This language's tone rules — formal or informal address, and so on.
+   */
+  translatorNotes?: string | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-jobs-stats".
  */
 export interface PayloadJobsStat {
@@ -10096,6 +10129,25 @@ export interface SyAtlasTranslationsSelect<T extends boolean = true> {
   seo?: T;
   emails?: T;
   _status?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "sahaja-glossary_select".
+ */
+export interface SahajaGlossarySelect<T extends boolean = true> {
+  terms?:
+    | T
+    | {
+        key?: T;
+        category?: T;
+        keepAsIs?: T;
+        term?: T;
+        id?: T;
+      };
+  translatorNotes?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;

@@ -1,3 +1,4 @@
+import { SahajaGlossary } from './SahajaGlossary/SahajaGlossary'
 import { SahajAtlasConfig } from './SahajAtlasConfig/SahajAtlasConfig'
 import { SahajAtlasTranslations } from './SahajAtlasTranslations/SahajAtlasTranslations'
 import { WeMeditateAppConfig } from './WeMeditateAppConfig/WeMeditateAppConfig'
@@ -14,11 +15,13 @@ export const globals = [
   WeMeditateAppStatus,
   SahajAtlasConfig,
   SahajAtlasTranslations,
+  SahajaGlossary,
 ]
 
 export {
   SahajAtlasConfig,
   SahajAtlasTranslations,
+  SahajaGlossary,
   WeMeditateAppConfig,
   WeMeditateAppStatus,
   WeMeditateAppTranslations,

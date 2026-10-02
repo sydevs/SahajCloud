@@ -38,6 +38,11 @@ export const ALWAYS_HIDDEN_COLLECTIONS: ContentSlug[] = [
   'images',
   'files',
 
+  // Hidden reference data, read server-side only. Tier 2 would also mark it,
+  // since a global in no project is in no `allowedCollections` — this entry
+  // says it is hidden by intent rather than by that side effect (#883).
+  'sahaja-glossary',
+
   // Payload internal collections
   'payload-kv',
   'payload-jobs',
