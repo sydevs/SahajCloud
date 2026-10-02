@@ -46,20 +46,31 @@ export function regionCreateData(
   parentId: number,
   batchId: number,
 ): RegionCreateData | null {
-  if (node.match.kind !== 'create' || !node.slug || !node.location) return null
+  const mapboxId = plannedMapboxId(node, batchId)
+  if (!mapboxId || !node.slug || !node.location) return null
 
-  const base = { level: node.level, name: node.name, slug: node.slug, parent: parentId }
-  if (node.location.kind === 'mapbox') {
-    return { ...base, mapboxId: node.location.mapboxId }
-  }
+  const base = { level: node.level, name: node.name, slug: node.slug, mapboxId, parent: parentId }
+  if (node.location.kind === 'mapbox') return base
+
   const { latitude, longitude, radius } = node.location
-  return {
-    ...base,
-    mapboxId: manualMapboxIdFor(batchId, node.key),
-    latitude,
-    longitude,
-    radius,
-  }
+  return { ...base, latitude, longitude, radius }
+}
+
+/**
+ * The `mapboxId` a node would be written under, or null when it is not one to
+ * create.
+ *
+ * ⚠ **Separate from the payload because the commit asks this question first.**
+ * It reads the regions already holding these ids before it writes any, so a
+ * re-fired commit adopts what the last one created rather than discovering the
+ * collision — and the id has to be computable without a parent, which the
+ * payload needs and this does not.
+ */
+export function plannedMapboxId(node: ProposedNode, batchId: number): string | null {
+  if (node.match.kind !== 'create' || !node.slug || !node.location) return null
+  return node.location.kind === 'mapbox'
+    ? node.location.mapboxId
+    : manualMapboxIdFor(batchId, node.key)
 }
 
 /** The one spelling of a hand-located node's id, so a retry recomputes it. */

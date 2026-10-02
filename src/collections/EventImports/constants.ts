@@ -110,3 +110,13 @@ export const STATE_LAYER_MIN_SUBDIVISIONS = 2
  * and not rows: one city with 90 classes is still one line to read.
  */
 export const STATE_LAYER_MIN_CITIES = 8
+
+/**
+ * How many rows one commit request creates.
+ *
+ * Smaller than the resolve chunk, and for the opposite reason: no row here waits
+ * on a network call, but each one writes a class and then its provenance entry,
+ * and a failed write has to leave the rows before it committed. A chunk is sized
+ * so a dropped response costs a short re-run rather than a long one.
+ */
+export const COMMIT_CHUNK_ROWS = 20
