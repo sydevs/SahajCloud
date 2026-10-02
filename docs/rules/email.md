@@ -70,7 +70,7 @@ So: canonical production uses Resend, `SMTP_URL` set uses Mailpit, and otherwise
 
 ⚠ **The preview scripts never read `SMTP_URL`.** They post to Mailpit's HTTP send API (`scripts/mailpit-transport.ts`), because a Claude routine reaches the network only through an HTTPS proxy, and SMTP times out there (#807). They need `MAILPIT_URL` and `MAILPIT_UI_AUTH`, which the Claude cloud environment carries. The login can read every captured message too. That is acceptable for the two senders this inbox was built for: a preview's database holds no production rows (`docs/rules/storage.md`), and production mail goes to Resend.
 
-⚠ **A third sender can now reach it, and nothing in code stops it.** `pnpm db:refresh-from-prod` (#876) puts real people in a local database, and a local `SMTP_URL` pointing at the shared Railway Mailpit would hold their mail for 7 days behind a login several people have. The guard is configuration, not code: on a copy of production leave `SMTP_URL` unset — mail is then disabled loudly — or point it at a Mailpit running on your own machine. README → "Working on a copy of production data" is the checklist.
+⚠ **A third sender can now reach it, and the guard is configuration rather than code.** `pnpm db:refresh-from-prod` (#876) puts real people in a local database, and a local `SMTP_URL` pointing at the shared Railway Mailpit would hold their mail for 7 days behind a login several people have. So on a copy of production leave `SMTP_URL` unset — mail is then disabled loudly — or point it at a Mailpit running on your own machine.
 
 ### Sanitize manager/client-authored text before it becomes a header or ICS line
 

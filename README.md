@@ -89,17 +89,23 @@ Before running the app on it:
 - Install Postgres client tools at least as new as production's server (macOS: `brew install
   libpq`, then put `/opt/homebrew/opt/libpq/bin` on `PATH`) and log in with `railway login`.
 
-Three more things reach production from your machine, and no code stops any of them:
+The flag is not the whole guard. These reach production from your machine with it off, and no
+code stops any of them:
 
-- **`SMTP_URL`** — unset, or pointed at a Mailpit you run yourself. The shared Railway Mailpit
-  keeps mail for 7 days behind a login several people hold, and real addresses would land there.
-  Unset, mail is disabled with a warning.
+- **`SMTP_URL`** — leave it unset, or point it at a Mailpit you run yourself, never the shared
+  Railway one (`docs/rules/email.md`). Unset, mail is disabled with a warning, which is what keeps
+  a sign-in link or a manager invitation from reaching the real person in the copy.
 - **`CLOUDFLARE_ZONE_ID` and `CLOUDFLARE_CACHE_PURGE_TOKEN`** — `purgeCloudflareCache` fires
   whenever both are present (`src/plugins/cache/purge.ts`). There is no environment check, so a
   local save would purge the production edge cache.
 - **`railway run`** — never start the app with it on a prod copy. It injects production's
   environment name, which turns off the storage isolation that keeps a local delete away from
   production assets, and `RESEND_API_KEY`, which sends real mail.
+- **A run you ask for ignores the flag**, by design: `pnpm payload jobs:run --queue nightly` and
+  the admin's run-jobs endpoint. Four job docblocks suggest that exact command.
+- **Saving a `clients` document** validates its mailing-list key against the real provider, with
+  the key copied from production (`src/collections/Clients/hooks/validateMailingList.ts`). Read-only,
+  so it spends somebody else's rate limit rather than their data.
 
 Two more things to know:
 
