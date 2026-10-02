@@ -6,17 +6,16 @@ import {
   isTranscriptionActive,
   toTranscriptView,
 } from '@/collections/MeditationTranscripts/view'
-import { requireActiveManager } from '@/lib/endpoints'
-import { bypassPermissions, hasPermission, roleScopeFromLocale } from '@/plugins/access'
+import type { MeditationTranscript } from '@/payload-types'
+
+import { requireTranscriptAccess } from './transcriptAccess'
 
 /**
  * POST /api/meditations/:id/transcript — the Transcript tab's **Transcribe**
  * and **Try again**: queue a transcription of the meditation's current
  * recording, and start it.
  *
- * Manager-only, gated on `meditations: update` in the request locale. NOT a
- * client endpoint, so it skips `requireActiveClient` and is not published in
- * the OpenAPI spec.
+ * Manager-only, gated on `meditations: update` in the request locale.
  *
  * A request already on its way for the current recording is returned as it
  * stands, so a double click queues one job. Responds `202` with the
@@ -26,30 +25,12 @@ export const requestMeditationTranscript: Endpoint = {
   path: '/:id/transcript',
   method: 'post',
   handler: async (req) => {
-    const denied = requireActiveManager(req)
-    if (denied) return denied
-
-    if (
-      !hasPermission(
-        {
-          user: req.user,
-          collection: 'meditations',
-          operation: 'update',
-          locale: roleScopeFromLocale(req.locale),
-        },
-        bypassPermissions,
-      )
-    ) {
-      return Response.json(
-        { errors: [{ message: 'You do not have permission to transcribe this meditation.' }] },
-        { status: 403 },
-      )
-    }
-
-    const id = Number(req.routeParams?.id)
-    if (!Number.isInteger(id) || id <= 0) {
-      return Response.json({ errors: [{ message: 'Invalid meditation id.' }] }, { status: 400 })
-    }
+    const id = requireTranscriptAccess(
+      req,
+      'update',
+      'You do not have permission to transcribe this meditation.',
+    )
+    if (id instanceof Response) return id
 
     const recording = await findMeditationRecording(req, id)
     if (!recording) {
@@ -77,30 +58,35 @@ export const requestMeditationTranscript: Endpoint = {
       language: null,
       error: null,
     }
-    let row
-    try {
-      row = existing
-        ? await req.payload.update({
-            collection: 'meditation-transcripts',
-            id: existing.id,
-            data,
-            depth: 0,
-            overrideAccess: true,
-            req,
-          })
-        : await req.payload.create({
-            collection: 'meditation-transcripts',
-            data: { ...data, meditation: id },
-            depth: 0,
-            overrideAccess: true,
-            req,
-          })
-    } catch (error) {
-      // Two first requests racing: the unique `meditation` column refuses the
-      // second create, and the first one's request is the answer.
-      const raced = await findTranscriptRow(req, id)
-      if (!raced) throw error
-      return Response.json(toTranscriptView(raced, audioFilename), { status: 202 })
+    let row: MeditationTranscript
+    if (existing) {
+      row = await req.payload.update({
+        collection: 'meditation-transcripts',
+        id: existing.id,
+        data,
+        depth: 0,
+        overrideAccess: true,
+        req,
+      })
+    } else {
+      try {
+        row = await req.payload.create({
+          collection: 'meditation-transcripts',
+          data: { ...data, meditation: id },
+          depth: 0,
+          overrideAccess: true,
+          req,
+        })
+      } catch (error) {
+        // Two first requests racing: the unique `meditation` column refuses the
+        // second create, and the first one's request is the answer. Only a
+        // create can lose that race, so an update's failure is reported: a
+        // recovery here would answer 202 with the row unchanged and queue no
+        // job, making Try again a silent no-op.
+        const raced = await findTranscriptRow(req, id)
+        if (!raced) throw error
+        return Response.json(toTranscriptView(raced, audioFilename), { status: 202 })
+      }
     }
 
     await req.payload.jobs.queue({
