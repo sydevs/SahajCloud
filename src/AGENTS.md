@@ -134,7 +134,16 @@ No loose files at the root — every file lives in a named folder:
   helpers), `submissions/` (`CLIENT_CONTEXT_KEYS` — the `submissionData`
   keys the client writes about itself, rather than answers a visitor typed.
   `user-submissions` derives its URL-scan exemption from them and `Forms`
-  refuses a field named after one, so the list belongs to neither collection)
+  refuses a field named after one, so the list belongs to neither collection),
+  `eventVerification/` (the verification lifecycle's one configuration: the
+  stage table, the reminder periods, the activity-log entries, and
+  `adoption.ts` — the write-side `verificationStage`/`skipVerifyHook` pair,
+  read by both writers that create a listing on somebody's behalf, because a
+  listing stamped `verified` with no `nextCheckAt` behaves correctly for a
+  year), `geography/` (the country and ISO 3166-2 tables: `getRegionOptions`
+  and the two name-to-code readers — `resolveSubdivisionCode` for a Mapbox
+  answer, `subdivisionCodeFor` for text a person typed, which is memoised per
+  country because a caller may ask per row)
 
 **Barrels.** A folder gets an `index.ts` barrel only when it presents one
 cohesive public surface imported as a unit (`@/lib/locales`,
