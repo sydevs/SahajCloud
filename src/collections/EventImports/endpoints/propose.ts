@@ -15,8 +15,8 @@ import {
 } from '../batchRequest'
 import {
   buildProposedTree,
+  isProposableTargetLevel,
   type ProposableRow,
-  type ProposableTargetLevel,
   type ProposedRowError,
   type ProposedTree,
 } from '../propose/tree'
@@ -94,7 +94,7 @@ export const proposeEventImport: Endpoint = {
     if (!loaded.ok) return failure(loaded.error, 422)
 
     const { target } = loaded
-    if (!isProposableLevel(target.level)) {
+    if (!isProposableTargetLevel(target.level)) {
       // ⚠ **`targetRegion` carries no `filterOptions`, so this is the only
       // refusal.** `ALLOWED_PARENT_LEVELS` (`Regions.ts`) forbids a city under a
       // venue, so proposing one would build a tree the commit cannot write.
@@ -143,9 +143,6 @@ export const proposeEventImport: Endpoint = {
   },
 }
 
-function isProposableLevel(level: Region['level']): level is ProposableTargetLevel {
-  return level === 'country' || level === 'region' || level === 'city'
-}
 
 /**
  * The rows a node may be proposed for.

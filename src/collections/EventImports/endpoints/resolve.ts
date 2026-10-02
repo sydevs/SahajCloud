@@ -49,9 +49,9 @@ interface Candidate extends PreparedCandidate {
  * (active manager) AND (the batch is theirs) AND (the target is in their region
  * subtree); it never asks whether they hold the `events: create` authority the
  * import ends up exercising, because `resolveManagedDocIds` answers ownership
- * and not role. Nothing can exploit that today — `create` on `event-imports` is
- * admins-only, so a non-atlas manager only ever holds a batch an admin made for
- * them — but the upload endpoint is where the role check has to land.
+ * and not role. That is sound because the batch could not exist without the
+ * grant: `create` on `event-imports` is admins-only, and the one path a manager
+ * reaches the collection by is the upload endpoint, which checks it there.
  *
  * Auth: intentionally NOT `requireActiveClient`. That guard serves published API
  * `clients`; this is an admin-panel action by an authenticated `manager` on a
