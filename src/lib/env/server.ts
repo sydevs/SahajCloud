@@ -115,6 +115,17 @@ const ServerEnvSchema = ClientEnvSchema.extend({
    */
   TURNSTILE_SECRET_KEY: z.string().min(1).optional(),
 
+  /**
+   * Lemonfox speech-to-text API key, for meditation transcripts
+   * (`src/jobs/TranscribeMeditation`). Optional, and an empty value counts as
+   * unset. Without it, a deployment other than production produces a sample
+   * transcript, and production fails the transcription with a clear error.
+   */
+  LEMONFOX_API_KEY: z
+    .string()
+    .optional()
+    .transform((value) => value?.trim() || undefined),
+
   // --- OPTIONAL: Cloudflare media services (Images, Stream), and R2 over S3 ---
   //
   // Images and Stream stay on Cloudflare, over plain HTTPS APIs. The app now
