@@ -189,13 +189,26 @@ One global, 56 terms, and every locale `data.json` carries (`en de es fr it
 pt-BR ru` today). While the global is hidden from the admin, that file is its
 source of truth: nothing in the CMS can edit it.
 
-⚠ **English is written first, and the row ids come back from that write.**
+⚠ **Every write carries the id of the row it means to change, the English one
+included, and the stored ids are read BEFORE the first write.** Payload matches
+an incoming array row to a stored one by `id` alone and **deletes** every stored
+row the incoming array does not claim, and the terms' localized-values table is
+`ON DELETE cascade` — so a row dropped that way takes every locale's spelling
+with it.
+
+That is why reading the ids back after the English write is not enough, though
+it looks it: an English write sent without them rebuilds all 56 rows, and any
+locale this file does not carry — `cs`, `pl`, `uk` — is silently emptied on
+every re-seed, while its `translatorNotes` survives in the parent row. The row
+count stays 56 and every locale the file *does* carry comes out correct, so
+nothing about the symptom points at the cause. Measured during #883: the `cs`
+spelling went to `undefined` and every row id changed.
+
 `key`, `category` and `keepAsIs` are not localized, so they live on the row
-rather than in a per-locale cell — and Payload matches an incoming array row to
-a stored one by `id` alone. Omit the ids and a second locale does not translate
-the English rows, it **replaces** them: 56 new rows carrying only that locale's
-spellings, with English gone. The importer refuses to write a locale whose rows
-it cannot match, rather than appending duplicates.
+rather than in a per-locale cell, and ride along on every locale's write —
+Payload validates the row it is handed, and the first two are `required`. The
+importer refuses to write a non-English locale whose rows it cannot match,
+rather than appending duplicates.
 
 ⚠ **A locale with no value for a term is written `null`, never English.**
 Writing `null` rather than omitting the field is what makes a re-run idempotent:
@@ -203,9 +216,11 @@ an omitted localized field keeps whatever is stored, so a value deleted from the
 file would survive forever. A `keepAsIs` term is seeded in English alone, and
 consumers use that spelling in every language.
 
-A re-run leaves 56 rows, not 112. `tests/int/sahaja-glossary.int.spec.ts` runs
-the importer twice and asserts both the count and each locale's values, because
-the failure mode here is duplicate rows rather than an error.
+A re-run leaves 56 rows, not 112, with the same ids.
+`tests/int/sahaja-glossary.int.spec.ts` runs the importer twice and asserts the
+count, each locale's values, **the row ids themselves**, and a `cs` spelling the
+file does not carry — the failure modes here are duplicate rows and silent
+deletion, neither of which raises an error.
 
 `--dry-run` reports the term count and the translator-note count per locale.
 
