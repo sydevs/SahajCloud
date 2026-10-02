@@ -4,9 +4,11 @@ import type { ReactNode } from 'react'
 import { Banner, Gutter } from '@payloadcms/ui'
 import { formatAdminURL } from 'payload/shared'
 
+import { baseLanguage, getLanguageOptions } from '@/lib/locales'
 import type { Region } from '@/payload-types'
 
 import { importGate } from './importGate'
+import { ImportRunner } from './ImportRunner'
 
 /**
  * `/admin/collections/regions/<id>/import` — the bulk class importer.
@@ -44,6 +46,15 @@ export default async function ImportView({ doc, initPageResult }: DocumentViewSe
           Download the CSV template
         </a>
       </p>
+      {/* The same default the collection's `defaultValue` computes, passed down
+          because the runner stages the batch before any document exists to read
+          it from. */}
+      <ImportRunner
+        apiRoute={req.payload.config.routes.api}
+        defaultLanguages={[baseLanguage(req.locale)]}
+        languageOptions={getLanguageOptions()}
+        regionId={region.id}
+      />
     </Gutter>
   )
 }
