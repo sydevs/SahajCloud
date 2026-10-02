@@ -23,7 +23,7 @@ export const Files: CollectionConfig = {
     group: 'Media',
     useAsTitle: 'filename',
     description:
-      'Media files (images, audio, video) and PDFs used by other collections. Nothing here is trashed or deleted automatically — the cleanup job is run by hand (#878).',
+      'Media files (images, audio, video) and PDFs used by other collections. Nothing here is trashed or deleted automatically.',
     defaultColumns: ['previewUrl', 'mimeType', 'createdAt'],
   },
   upload: {

@@ -2880,7 +2880,7 @@ export interface Lesson {
   deletedAt?: string | null;
 }
 /**
- * Media files (images, audio, video) and PDFs used by other collections. Nothing here is trashed or deleted automatically — the cleanup job is run by hand (#878).
+ * Media files (images, audio, video) and PDFs used by other collections. Nothing here is trashed or deleted automatically.
  *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "files".
