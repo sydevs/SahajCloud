@@ -348,9 +348,13 @@ function assignSlugsTo(
 }
 
 /**
- * ⚠ **The message names the city, not the region that holds it.** That region is
- * outside this uploader's subtree, which is both why the import stops and why
- * their tree is not theirs to be told about.
+ * ⚠ **The message says the city exists outside the target, never who holds it.**
+ * "Outside the target" is all `inTarget` answers, and the two cases it covers
+ * read very differently to a volunteer: a city another organisation manages, and
+ * one of their own hanging off the country while they import into a state — the
+ * mixed tree the Atlas really has. Saying "somebody else manages this" would be
+ * false for the second, and naming the region would be wrong for the first, so
+ * the message states only what is true of both and what they can act on.
  */
 function rowErrorsFor(nodes: readonly ProposedNode[]): ProposedRowError[] {
   return nodes
@@ -358,7 +362,7 @@ function rowErrorsFor(nodes: readonly ProposedNode[]): ProposedRowError[] {
     .flatMap((node) =>
       node.lines.map((line) => ({
         line,
-        message: `"${node.name}" is already managed outside this region, so its classes cannot be imported here.`,
+        message: `"${node.name}" already exists outside this region of the Atlas, so its classes cannot be imported here. Import them from the region that holds it.`,
       })),
     )
     .sort((a, b) => a.line - b.line)

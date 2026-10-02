@@ -5,16 +5,23 @@ import { requireActiveManager } from '@/lib/endpoints'
 import { relationId } from '@/lib/utilities/relationId'
 import type { EventImport, EventImportRows, Region } from '@/payload-types'
 
-import { batchIdOf, failure, loadTarget, refuseUnownedTarget } from '../batchRequest'
+import {
+  batchIdOf,
+  failure,
+  loadTarget,
+  refuseUnownedTarget,
+  targetSubtreeWhere,
+  type TargetRegion,
+} from '../batchRequest'
 import {
   buildProposedTree,
   type ProposableRow,
   type ProposableTargetLevel,
+  type ProposedRowError,
   type ProposedTree,
 } from '../propose/tree'
 
 type ImportRow = EventImportRows[number]
-type ResolvedRow = NonNullable<ImportRow['resolved']>
 
 /**
  * POST /api/event-imports/:id/propose
@@ -58,6 +65,10 @@ export const proposeEventImport: Endpoint = {
       depth: 0,
       overrideAccess: false,
       disableErrors: true,
+      // Three fields, and `proposedRegions` deliberately not among them: this
+      // endpoint is its only writer and rewrites it whole, so reading the copy it
+      // is about to replace would re-serialise the previous tree for nothing.
+      select: { status: true, targetRegion: true, rows: true },
       req,
     })) as EventImport | null
     if (!batch) return failure('No such import batch.', 404)
@@ -94,16 +105,20 @@ export const proposeEventImport: Endpoint = {
     }
 
     const rows = (batch.rows ?? []) as ImportRow[]
-    const proposable = proposableRows(rows)
+    const { rows: proposable, errors: strayErrors } = confineToTarget(proposableRows(rows), target)
     const { existing, takenSlugs } = await loadTreeContext(req, targetId, proposable)
 
-    const tree = buildProposedTree({
+    const built = buildProposedTree({
       target: { id: targetId, level: target.level, name: target.name },
       countryCode: loaded.scope.countryCode,
       rows: proposable,
       existing,
       takenSlugs,
     })
+    const tree: ProposedTree = {
+      ...built,
+      rowErrors: [...strayErrors, ...built.rowErrors].sort((a, b) => a.line - b.line),
+    }
 
     await req.payload.update({
       collection: 'event-imports',
@@ -114,6 +129,12 @@ export const proposeEventImport: Endpoint = {
       data: { proposedRegions: tree },
       overrideAccess: true,
       depth: 0,
+      // The answer is already in hand, and the document carries up to
+      // `MAX_IMPORT_ROWS` rows plus the tree just written — all of which an
+      // unbounded update would re-read and re-serialise to be discarded. `id` is
+      // not a selectable key — it always comes back — so this asks for the
+      // cheapest column there is.
+      select: { status: true },
       req,
     })
 
@@ -137,8 +158,7 @@ function isProposableLevel(level: Region['level']): level is ProposableTargetLev
 function proposableRows(rows: readonly ImportRow[]): ProposableRow[] {
   return rows.flatMap((row) => {
     if (!row.resolved || row.errors?.length || row.duplicate) return []
-    const resolved = row.resolved as ResolvedRow
-    const values = row.values ?? {}
+    const { resolved, values } = row
     return [
       {
         line: row.line,
@@ -158,11 +178,6 @@ function proposableRows(rows: readonly ImportRow[]): ProposableRow[] {
   })
 }
 
-interface TreeContext {
-  existing: ExistingRegion[]
-  takenSlugs: string[]
-}
-
 /**
  * The two tree reads `buildProposedTree` refuses to do itself.
  *
@@ -177,10 +192,8 @@ async function loadTreeContext(
   req: PayloadRequest,
   targetId: number,
   rows: readonly ProposableRow[],
-): Promise<TreeContext> {
-  const subtree: Where = {
-    or: [{ id: { equals: targetId } }, { 'breadcrumbs.doc': { equals: targetId } }],
-  }
+): Promise<{ existing: ExistingRegion[]; takenSlugs: string[] }> {
+  const subtree = targetSubtreeWhere(targetId)
   const features = [
     ...new Set(
       rows.flatMap((row) => [row.placeId, row.mapboxId].filter((id): id is string => !!id)),
@@ -245,6 +258,43 @@ function asExisting(region: Region, inTarget: boolean): ExistingRegion {
     parentId: relationId(region.parent),
     inTarget,
   }
+}
+
+/**
+ * Rows a city target cannot hold, and the rest.
+ *
+ * ⚠ **A city target is the one level nothing else confines.** `targetScope.ts`
+ * reduces the chain to an ISO country and subdivision, which is as tight as a
+ * `region` target gets and names a city not at all — so without this a hall in
+ * Nuremberg becomes a `venue` node under a Munich target, created inside it and
+ * reported as nothing. A country or state target needs none of this: every node
+ * it proposes is built beneath it.
+ *
+ * ⚠ **Compared on the Mapbox feature, and skipped where the target has none.** A
+ * region seeded by hand carries a `manual-` id no geocode returns
+ * (`src/lib/mapbox/manualLocation.ts`), and a name comparison is what would
+ * refuse München to an admin whose locale spells it Munich — the refusal
+ * `targetScope.ts` declines for the same reason. So a hand-located city target
+ * stays unconfined, and says so in the warning rather than refusing every row.
+ */
+function confineToTarget(
+  rows: readonly ProposableRow[],
+  target: TargetRegion,
+): { rows: ProposableRow[]; errors: ProposedRowError[] } {
+  if (target.level !== 'city' || target.mapboxId.startsWith('manual-')) {
+    return { rows: [...rows], errors: [] }
+  }
+
+  const kept: ProposableRow[] = []
+  const errors: ProposedRowError[] = []
+  for (const row of rows) {
+    // A row with no place id geocoded to an address inside some city Mapbox did
+    // not name; refusing it would turn a thin answer into a dead row, and the
+    // hall it proposes still hangs off this target either way.
+    if (!row.placeId || row.placeId === target.mapboxId) kept.push(row)
+    else errors.push({ line: row.line, message: `This address is not in ${target.name}.` })
+  }
+  return { rows: kept, errors }
 }
 
 interface Tally {

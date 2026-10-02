@@ -15,9 +15,14 @@
  *
  * ⚠ **A feature already used outside the target's subtree is refused, not
  * matched.** `Regions.mapboxId` is unique collection-wide, so the city exists
- * exactly once and somebody else manages it; creating a second node for it would
- * fail the constraint, and quietly importing into theirs would put classes in a
- * tree the uploader cannot see. Its rows become row errors instead.
+ * exactly once and it is not under this target; creating a second node for it
+ * would fail the constraint, and matching it would put classes outside the
+ * region the batch was aimed at. Its rows become row errors instead.
+ *
+ * ⚠ **That is not the same as "somebody else manages it".** The region may well
+ * be the uploader's own — a Pune hanging off India while they import into
+ * Maharashtra is the mixed tree the Atlas has — so nothing downstream may tell
+ * them whose it is. `rowErrorsFor` (`tree.ts`) owns the wording this obliges.
  */
 
 import type { Region } from '@/payload-types'

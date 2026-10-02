@@ -1,7 +1,7 @@
 import type { RawImportRow } from '../csv/columns'
 import type { PreparedCandidate } from '../resolve/duplicates'
 import type { TargetScope } from '../resolve/targetScope'
-import type { Endpoint, PayloadRequest, Where } from 'payload'
+import type { Endpoint, PayloadRequest } from 'payload'
 
 import { Temporal } from '@js-temporal/polyfill'
 
@@ -11,7 +11,13 @@ import { geocodeLocation } from '@/lib/mapbox/geocoder'
 import { relationId } from '@/lib/utilities/relationId'
 import type { EventImport, EventImportRows, SupportedTimezones } from '@/payload-types'
 
-import { batchIdOf, failure, loadTarget, refuseUnownedTarget } from '../batchRequest'
+import {
+  batchIdOf,
+  failure,
+  loadTarget,
+  refuseUnownedTarget,
+  targetSubtreeWhere,
+} from '../batchRequest'
 import { RESOLVE_CHUNK_ROWS } from '../constants'
 import { cityKeyFor, findDuplicate, prepareCandidate } from '../resolve/duplicates'
 import { geocodeRequestFor, resolveRow, type ResolvedRow } from '../resolve/resolveRow'
@@ -286,12 +292,9 @@ function asCandidate(row: ImportRow): Candidate {
  * rule here: a discarded listing is not a class a row repeats.
  */
 async function loadExistingCandidates(req: PayloadRequest, targetId: number): Promise<Candidate[]> {
-  const subtree: Where = {
-    or: [{ id: { equals: targetId } }, { 'breadcrumbs.doc': { equals: targetId } }],
-  }
   const regions = await req.payload.find({
     collection: 'regions',
-    where: subtree,
+    where: targetSubtreeWhere(targetId),
     depth: 0,
     pagination: false,
     overrideAccess: true,
