@@ -151,6 +151,7 @@ Email glue lives in the plugin (`@/plugins/email`). Only JSX templates live in `
   pnpm tsx scripts/preview-registration-notification-emails.ts  # manager registration notice, all states
   pnpm tsx scripts/preview-event-emails.ts                      # manager verification reminders
   pnpm tsx scripts/preview-manager-emails.ts                    # manager invitation + sign-in link
+  pnpm tsx scripts/preview-event-import-emails.ts               # bulk-import summary to admins
   ```
 
   None touches the database. `preview-manager-emails.ts` drives
