@@ -93,13 +93,16 @@ export interface ProposedTree {
  * `filterOptions`, so the endpoint that creates a batch owes this refusal; the
  * narrow type is what obliges it to.
  */
-export type ProposableTargetLevel = Extract<Region['level'], 'country' | 'region' | 'city'>
+export const PROPOSABLE_TARGET_LEVELS = ['country', 'region', 'city'] as const
+
+export type ProposableTargetLevel = Extract<
+  Region['level'],
+  (typeof PROPOSABLE_TARGET_LEVELS)[number]
+>
 
 /** Whether a region may be a batch's target, narrowing to the type above. */
-export function isProposableTargetLevel(
-  level: Region['level'],
-): level is ProposableTargetLevel {
-  return level === 'country' || level === 'region' || level === 'city'
+export function isProposableTargetLevel(level: Region['level']): level is ProposableTargetLevel {
+  return (PROPOSABLE_TARGET_LEVELS as readonly string[]).includes(level)
 }
 
 export interface ProposeTreeArgs {

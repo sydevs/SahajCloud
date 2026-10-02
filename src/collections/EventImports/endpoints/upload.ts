@@ -5,9 +5,9 @@ import { z } from 'zod'
 import { parseBody, requireActiveManager } from '@/lib/endpoints'
 import { getLanguageOptions } from '@/lib/locales'
 import type { EventImport } from '@/payload-types'
-import { bypassPermissions, hasPermission, roleScopeFromLocale } from '@/plugins/access'
 
 import { failure, loadTarget, refuseUnownedTarget } from '../batchRequest'
+import { mayStageImport } from '../capability'
 import { parseImportCsv } from '../csv/parse'
 import { isProposableTargetLevel } from '../propose/tree'
 
@@ -48,7 +48,8 @@ const bodySchema = z.object({
  * ⚠ **The grant is read for the request's own locale.** `roles` is localized, so
  * a manager who coordinates in German holds nothing in English — asking without
  * a locale would answer about the default locale and deny them (#701). The tab
- * that calls this sends the admin locale it is rendered in.
+ * that calls this sends the admin locale it is rendered in, and decides its own
+ * visibility with the same `mayStageImport`.
  *
  * The CSV arrives as a JSON string rather than multipart: Payload wraps no
  * custom endpoint with its body parser (`docs/rules/endpoints.md`), so a
@@ -72,16 +73,7 @@ export const uploadEventImport: Endpoint = {
     if (!parsed.ok) return parsed.response
     const { targetRegion: targetId, csv, defaultLanguages } = parsed.data
 
-    const mayCreateEvents = hasPermission(
-      {
-        user: req.user,
-        collection: 'events',
-        operation: 'create',
-        locale: roleScopeFromLocale(req.locale),
-      },
-      bypassPermissions,
-    )
-    if (!mayCreateEvents) {
+    if (!mayStageImport({ user: req.user, locale: req.locale })) {
       return failure('You are not allowed to create classes in this language.', 403)
     }
 

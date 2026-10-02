@@ -38,22 +38,28 @@ export function batchIdOf(req: PayloadRequest): number | null {
   return Number.isSafeInteger(id) && id >= 1 ? id : null
 }
 
+/** Why a caller may or may not write inside a region's subtree. */
+export type TargetOwnership = 'no-regions' | 'not-yours' | 'owned'
+
 /**
- * 403 unless the caller may write inside the target's subtree.
+ * Whether the caller may write inside the target's subtree.
  *
  * ⚠ **Asked of the database, not of a list in memory.** `ownedRegionFilterOptions`
  * is the same scoping `events.region` and `regions.parent` offer in the admin, so
  * an endpoint deciding it differently would be a second definition of who owns
  * what. `true` is the admin's answer — `requireActiveManager` has already turned
  * away everyone who is not an active manager.
+ *
+ * Split from the refusal below because the Import tab's view has no `Response` to
+ * return and has to ask the same question.
  */
-export async function refuseUnownedTarget(
+export async function targetOwnership(
   req: PayloadRequest,
   targetId: number,
-): Promise<Response | null> {
+): Promise<TargetOwnership> {
   const scoped = await ownedRegionFilterOptions({ req })
-  if (scoped === true) return null
-  if (scoped === false) return failure('You do not manage any region.', 403)
+  if (scoped === true) return 'owned'
+  if (scoped === false) return 'no-regions'
 
   const { totalDocs } = await req.payload.count({
     collection: 'regions',
@@ -61,7 +67,22 @@ export async function refuseUnownedTarget(
     overrideAccess: true,
     req,
   })
-  return totalDocs ? null : failure('You do not manage that region.', 403)
+  return totalDocs ? 'owned' : 'not-yours'
+}
+
+/** 403 unless the caller may write inside the target's subtree. */
+export async function refuseUnownedTarget(
+  req: PayloadRequest,
+  targetId: number,
+): Promise<Response | null> {
+  switch (await targetOwnership(req, targetId)) {
+    case 'owned':
+      return null
+    case 'no-regions':
+      return failure('You do not manage any region.', 403)
+    case 'not-yours':
+      return failure('You do not manage that region.', 403)
+  }
 }
 
 /**
