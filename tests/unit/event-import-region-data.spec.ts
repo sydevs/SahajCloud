@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import {
-  manualMapboxIdFor,
-  regionCreateData,
-} from '@/collections/EventImports/commit/regionData'
+import { manualMapboxIdFor, regionCreateData } from '@/collections/EventImports/commit/regionData'
 import type { ProposedNode } from '@/collections/EventImports/propose/tree'
 import { isManualMapboxId } from '@/lib/mapbox/manualLocation'
 
@@ -77,8 +74,14 @@ describe('regionCreateData', () => {
   })
 
   it.each([
-    ['matched to an existing region', { match: { kind: 'existing' as const, regionId: 5, name: 'Pune', slug: 'pune' } }],
-    ['held outside the target', { match: { kind: 'elsewhere' as const, regionId: 6, name: 'Pune' } }],
+    [
+      'matched to an existing region',
+      { match: { kind: 'existing' as const, regionId: 5, name: 'Pune', slug: 'pune' } },
+    ],
+    [
+      'held outside the target',
+      { match: { kind: 'elsewhere' as const, regionId: 6, name: 'Pune' } },
+    ],
     ['carrying no slug', { slug: null }],
     ['carrying no location', { location: null }],
   ])('creates nothing for a node %s', (_label, overrides) => {

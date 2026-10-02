@@ -59,6 +59,11 @@ export function newEventDefaults(
     // is the same thing that happens when one is assigned to an unverified
     // event in the admin — so it is created verified. Without one it goes on
     // the map as unverified until somebody takes it on.
+    //
+    // ⚠ **Stated here because this value is also DISPLAYED**, in the reviewer's
+    // preview and diff. The write states no stage for the managed case and lets
+    // the hook set it — `newListingAdoption` owns that half, and the two differ
+    // on purpose.
     verificationStage: managerId != null ? 'verified' : 'unverified',
     manager: managerId == null ? null : manager,
     inactive: (proposed ?? {}).schedule == null,
@@ -106,9 +111,7 @@ export function mergeProposal(args: {
  * keeps it off the block path. A proposed description replaces, whole.
  */
 function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return (
-    typeof value === 'object' && value !== null && !Array.isArray(value) && !('root' in value)
-  )
+  return typeof value === 'object' && value !== null && !Array.isArray(value) && !('root' in value)
 }
 
 function mergeInto(base: ProposedPatch, patch: ProposedPatch): ProposedPatch {

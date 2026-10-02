@@ -36,7 +36,7 @@
  * having where it works and reporting where it does not.
  */
 
-import { countryCodeForName, getRegionOptions, isCountryCode } from '@/lib/geography'
+import { countryCodeForName, isCountryCode, subdivisionCodeFor } from '@/lib/geography'
 import type { Region } from '@/payload-types'
 
 /** The fields this reads off each region in the chain. */
@@ -117,13 +117,13 @@ function countryCodeOf(node: TargetChainNode): string | null {
   return countryCodeForName(node.name)
 }
 
-/** The same two readings for a state, against its own country's subdivisions. */
+/**
+ * The same two readings for a state, against its own country's subdivisions.
+ *
+ * ⚠ **Both readings are `subdivisionCodeFor`'s**, so the slug is tried before the
+ * name here only to keep the node's own precedence — a region whose slug names one
+ * subdivision and whose name names another resolves to the slug, as it always has.
+ */
 function subdivisionCodeOf(node: TargetChainNode, countryCode: string): string | null {
-  const options = getRegionOptions(countryCode)
-  const fromSlug = node.slug?.trim().toUpperCase()
-  if (fromSlug && options.some((option) => option.value === fromSlug)) return fromSlug
-
-  const name = node.name?.trim().toLowerCase()
-  if (!name) return null
-  return options.find((option) => option.label.toLowerCase() === name)?.value ?? null
+  return subdivisionCodeFor(countryCode, node.slug) ?? subdivisionCodeFor(countryCode, node.name)
 }

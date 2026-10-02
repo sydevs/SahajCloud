@@ -8,14 +8,24 @@
  * directly under Bavaria. The deepest node holding the line is the answer, and
  * `LEVEL_DEPTH` is what orders them.
  *
- * ⚠ **Pure, like the proposal it reads.** The commit resolves each created
- * node's real id as it goes and hands the growing map back in, so what a class
- * is filed under depends only on the tree and the ids already written.
+ * ⚠ **Pure, like the proposal it reads.** One map carries every region a node
+ * stands for: `matchedRegionIds` seeds it with the regions the Atlas already
+ * holds, and the commit adds each one it creates. So what a class is filed under
+ * depends only on the tree and on what has been written so far — and there is one
+ * place a node's region comes from rather than three.
  */
 
 import type { ProposedNode } from '../propose/tree'
 
-/** Deeper wins when two nodes both claim a line. */
+/**
+ * Deeper wins when two nodes both claim a line.
+ *
+ * Typed against the level union rather than derived from `REGION_LEVEL_OPTIONS`,
+ * which would pull the whole `Regions` config into a module the unit lane loads —
+ * the constraint `lib/atlasSidebar/sidebarModel.ts` documents for its own level
+ * table. Inserting a level is a compile error here either way. TODO: one home for
+ * the hierarchy, read by `Regions`, the sidebar and this.
+ */
 const LEVEL_DEPTH: Record<ProposedNode['level'], number> = { region: 1, city: 2, venue: 3 }
 
 /** A proposed node's key mapped to the region it stands for, once that is known. */
@@ -32,15 +42,13 @@ export type NodeRegionIds = ReadonlyMap<string, number>
  */
 export function creatableNodes(nodes: readonly ProposedNode[]): ProposedNode[] {
   const created = nodes.filter((node) => node.match.kind === 'create')
+  const createdKeys = new Set(created.map((node) => node.key))
   const seen = new Set<string>()
   for (const node of created) {
-    if (node.parentKey !== null && !seen.has(node.parentKey)) {
-      const parent = nodes.find((other) => other.key === node.parentKey)
-      // A parent matched to an existing region is already there, so only a
-      // *created* parent has to come first.
-      if (parent?.match.kind === 'create') {
-        throw new Error(`Proposed tree is not parent-first: ${node.key} precedes ${node.parentKey}`)
-      }
+    // Only a parent this commit also creates has to come first; one the Atlas
+    // already holds is there whatever the order.
+    if (node.parentKey && createdKeys.has(node.parentKey) && !seen.has(node.parentKey)) {
+      throw new Error(`Proposed tree is not parent-first: ${node.key} precedes ${node.parentKey}`)
     }
     seen.add(node.key)
   }
@@ -48,11 +56,10 @@ export function creatableNodes(nodes: readonly ProposedNode[]): ProposedNode[] {
 }
 
 /**
- * The region ids the tree already knows, before anything is created.
+ * The seed for the commit's region map: every node the Atlas already holds.
  *
- * An `existing` match names the region it matched; a `create` one has no id yet
- * and an `elsewhere` one never gets one — its lines are already row errors
- * (`propose/tree.ts`).
+ * A `create` node has no id until the commit writes it, and an `elsewhere` one
+ * never gets one — its lines are already row errors (`propose/tree.ts`).
  */
 export function matchedRegionIds(nodes: readonly ProposedNode[]): Map<string, number> {
   const ids = new Map<string, number>()
@@ -63,43 +70,57 @@ export function matchedRegionIds(nodes: readonly ProposedNode[]): Map<string, nu
 }
 
 /**
- * The region a created node's parent is, or null when the commit cannot know yet.
+ * The region a created node's parent is, or null when it is not written yet.
  *
  * A node with no proposed parent hangs off the target, which is the one id that
  * is always in hand.
  */
 export function parentRegionId(
   node: ProposedNode,
-  nodes: readonly ProposedNode[],
   known: NodeRegionIds,
   targetId: number,
 ): number | null {
   if (node.parentKey === null) return targetId
-  const parent = nodes.find((other) => other.key === node.parentKey)
-  if (!parent) return null
-  return parent.match.kind === 'existing' ? parent.match.regionId : (known.get(parent.key) ?? null)
+  return known.get(node.parentKey) ?? null
 }
 
 /**
- * The region one row's class is filed under, or null when nothing holds it.
+ * Where one row's class goes.
  *
- * Null is not an error on its own: a city target files a class with no shared
- * hall under the target itself, which is what the caller falls back to. A line
- * whose deepest node is `elsewhere` is already a row error and never reaches
- * here.
+ * ⚠ **Three answers, because two of them are not a region id.** `target` is
+ * ordinary — a city target files a class with no shared hall under the target
+ * itself. `pending` is not: the node that holds the line exists in the tree and
+ * has no region, which means its create failed or it is held elsewhere.
+ * Collapsing that into "use the ancestor" is the defect the deepest-node rule
+ * exists to prevent, arrived at by another route — a Munich class filed under
+ * Bavaria, indistinguishable from a correct placement once it is an `id`.
  */
-export function regionForLine(
+export type Placement =
+  | { kind: 'region'; regionId: number }
+  | { kind: 'target' }
+  | { kind: 'pending'; node: ProposedNode }
+
+export function placeLine(
   line: number,
   nodes: readonly ProposedNode[],
   known: NodeRegionIds,
-): number | null {
-  let best: { depth: number; id: number } | null = null
+): Placement {
+  const node = deepestNodeFor(line, nodes)
+  if (!node) return { kind: 'target' }
+  const regionId = known.get(node.key)
+  return regionId === undefined ? { kind: 'pending', node } : { kind: 'region', regionId }
+}
+
+/**
+ * ⚠ **Decided before any id is consulted, so an uncreated node cannot be
+ * skipped past.** Reading the map first and taking the deepest node that happens
+ * to have one is how the ancestor becomes the answer.
+ */
+function deepestNodeFor(line: number, nodes: readonly ProposedNode[]): ProposedNode | null {
+  let best: ProposedNode | null = null
   for (const node of nodes) {
     if (!node.lines.includes(line)) continue
-    const id = node.match.kind === 'existing' ? node.match.regionId : known.get(node.key)
-    if (id === undefined) continue
-    const depth = LEVEL_DEPTH[node.level]
-    if (!best || depth > best.depth) best = { depth, id }
+    if (!best || LEVEL_DEPTH[node.level] > LEVEL_DEPTH[best.level]) best = node
   }
-  return best?.id ?? null
+  return best
 }
