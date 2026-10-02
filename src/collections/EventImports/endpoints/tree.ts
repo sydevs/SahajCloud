@@ -29,18 +29,28 @@ import { tallyTree } from '../propose/tree'
  */
 const MAX_NODE_NAME = 200
 
+/**
+ * Bounds the node key an edit addresses.
+ *
+ * A key is the proposal's own (`city:id:<feature>`), so nothing legitimate comes
+ * near this. It is bounded because the refusal reflects the key back, and an
+ * unbounded string echoed into a message is a question better not left open for
+ * whatever renders it.
+ */
+const MAX_NODE_KEY = 200
+
 const bodySchema = z.strictObject({
   edits: z
     .array(
       z.discriminatedUnion('kind', [
         z.strictObject({
           kind: z.literal('rename'),
-          key: z.string().min(1),
+          key: z.string().min(1).max(MAX_NODE_KEY),
           name: z.string().min(1).max(MAX_NODE_NAME),
         }),
         z.strictObject({
           kind: z.literal('map'),
-          key: z.string().min(1),
+          key: z.string().min(1).max(MAX_NODE_KEY),
           regionId: z.int().positive(),
         }),
       ]),
@@ -62,6 +72,13 @@ const bodySchema = z.strictObject({
  * behaviour (`endpoints/propose.ts`) and why the review asks for a proposal once
  * and then edits. Nothing serialises the two: a reviewer who proposes again
  * reviews again.
+ *
+ * ⚠ **The `committing` check is a guard, not a lock.** Nothing serialises this
+ * against a commit either: a commit that starts between the read below and the
+ * write can build its regions from the pre-edit tree and read the edited one on
+ * its next chunk. The consequence is a region placed where the reviewer no
+ * longer asked for it on their own batch, never a write outside the target —
+ * every id an edit can name is read from the target's subtree.
  *
  * ⚠ **Every edit, or none.** A half-applied batch would be stored and then
  * rendered back as the reviewer's own tree (`propose/edit.ts`), so the refusal

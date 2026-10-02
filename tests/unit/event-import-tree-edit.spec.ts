@@ -206,6 +206,21 @@ describe('applyTreeEdits', () => {
       expect(edited.nodes[1].slug).toBe('pune')
     })
 
+    // ⚠ The propose step builds an `existing` list that deliberately carries
+    // out-of-subtree regions, for the refusal `match.ts` makes on them. Handing
+    // that list here must not permit the mapping the subtree read prevents, so
+    // the flag is checked rather than assumed from how the caller queried.
+    it('refuses a region the caller marked as outside the target', () => {
+      const result = apply(
+        tree([node({ key: 'city:pune', name: 'Poona' })]),
+        [{ kind: 'map', key: 'city:pune', regionId: 42 }],
+        { mappable: [existing({ id: 42, inTarget: false })] },
+      )
+
+      expect(result.ok).toBe(false)
+      expect(result.ok ? '' : result.error).toContain('inside the one you are importing into')
+    })
+
     it('refuses a region outside the subtree the batch targets', () => {
       const result = apply(
         tree([node({ key: 'city:pune', name: 'Poona' })]),
