@@ -134,10 +134,17 @@ export function nextPlaybackReport(
  * Where the audio is now. The preview reports whole seconds only, so while it
  * plays the time is carried forward by the clock, never past the next second
  * it will report. A seek or a pause shows the reported second as it is.
+ *
+ * ⚠ **An overdue report counts as stopped.** `playing` is recomputed only when
+ * a *new* second arrives, and a pause sends none — the preview either stops
+ * posting or repeats the second it stopped on. Without this bound the carry
+ * would run to the clamp and hold the highlight a second ahead of the audio
+ * until the tab is closed.
  */
 export function estimatePlaybackTime(report: PlaybackReport, now: number): number {
-  if (!report.playing) return report.time
-  return Math.min(report.time + (now - report.at) / 1000, report.time + 1)
+  const elapsed = now - report.at
+  if (!report.playing || elapsed > PLAYING_TICK_TOLERANCE_MS) return report.time
+  return Math.min(report.time + elapsed / 1000, report.time + 1)
 }
 
 /**
