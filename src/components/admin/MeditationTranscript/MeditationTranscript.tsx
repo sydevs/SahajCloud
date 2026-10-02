@@ -7,8 +7,7 @@ import { AudioLines } from 'lucide-react'
 import React, { memo, useMemo, useRef, useState } from 'react'
 import useSWR from 'swr'
 
-import { usePlaybackTime, useSeekToTime } from '@/components/admin/FrameEditor/hooks'
-import { formatTime } from '@/components/admin/FrameEditor/utils'
+import { formatTime, usePlaybackTime, useSeekToTime } from '@/components/admin/FrameEditor'
 import type { TranscriptSegment, TranscriptView } from '@/lib/meditations/transcript'
 
 import styles from './MeditationTranscript.module.css'

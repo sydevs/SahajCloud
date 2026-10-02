@@ -106,7 +106,11 @@ export function normalizeLemonfoxResponse(raw: unknown): TranscriptSegment[] {
     throw new Error('Lemonfox returned no timestamped speech for this recording.')
   }
 
-  const topLevelWords = assignWordsToSegments(rawSegments, parsed.data.words ?? [])
+  // Lemonfox's WhisperX shape carries `words` on each segment, and then every
+  // bucket below is discarded — so only pay for the pass when one is missing.
+  const topLevelWords = rawSegments.some((segment) => !segment.words)
+    ? assignWordsToSegments(rawSegments, parsed.data.words ?? [])
+    : rawSegments.map<RawWord[]>(() => [])
 
   return rawSegments.map((segment, index) => {
     const start = toMillis(segment.start)

@@ -5,10 +5,10 @@ import type {
 } from '@/lib/meditations/transcript'
 
 /** A pause this long between phrases starts a new paragraph. */
-export const PARAGRAPH_GAP_SECONDS = 3
+const PARAGRAPH_GAP_SECONDS = 3
 
 /** A pause this long is shown as "A moment of silence". */
-export const SILENCE_GAP_SECONDS = 10
+const SILENCE_GAP_SECONDS = 10
 
 /** The playhead keeps a phrase highlighted this long after it ends. */
 const HIGHLIGHT_GRACE_SECONDS = 0.5
