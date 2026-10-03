@@ -132,8 +132,8 @@ async function trashLongAgo(
 }
 
 /**
- * Run cleanup job with default date range calculation (month-based rotation).
- * Used for tests that verify the date range rotation logic works correctly.
+ * Run cleanup job with the default scan window (`orphanScanWindow()`).
+ * Used for tests that verify the window the scheduled run scans.
  */
 async function runCleanupJobWithDefaultRange(payload: Payload): Promise<CleanupResult> {
   const { CleanupOrphanedMedia } = await import('@/jobs/CleanupOrphanedMedia/CleanupOrphanedMedia')
@@ -597,128 +597,77 @@ describe('CleanupOrphanedMedia Job', () => {
     })
   })
 
-  // --- Date range rotation ---
+  // --- Default scan window ---
 
-  describe('Date Range Rotation', () => {
-    it('processes 0-1 month range when month % 3 === 0', async () => {
-      // Mock date to January (month 0)
-      const mockDate = new Date('2025-01-15T12:00:00Z')
-      vi.setSystemTime(mockDate)
-
-      // Create files at different ages
-      // 2 weeks old (should be in 0-1 month range)
-      const file2weeksOld = await testData.createFile(payload)
-      const twoWeeksAgo = new Date(mockDate)
-      twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14)
-      await payload.update({
-        collection: 'files',
-        id: file2weeksOld.id,
-        data: { createdAt: twoWeeksAgo.toISOString() },
-      })
-
-      // 2 months old (should NOT be in 0-1 month range)
-      const file2moOld = await testData.createFile(payload)
-      const twoMonthsAgo = new Date(mockDate)
-      twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2)
-      await payload.update({
-        collection: 'files',
-        id: file2moOld.id,
-        data: { createdAt: twoMonthsAgo.toISOString() },
-      })
-
-      // Run cleanup job with default (month-based) date range
-      await runCleanupJobWithDefaultRange(payload)
-
-      // Verify: Only 0-1 month old file processed
-      expect(await fileInTrash(payload, file2weeksOld.id)).toBe(true)
-      expect(await fileInTrash(payload, file2moOld.id)).toBe(false)
-
-      // Restore real time
-      vi.useRealTimers()
-    })
-
-    it('processes 1-2 month range when month % 3 === 1', async () => {
-      // Mock date to February (month 1)
+  describe('Default Scan Window', () => {
+    /**
+     * ⚠ This was three cases, one per `month % 3` band, each a single run. They
+     * passed while every run of a quarter scanned the same calendar month and
+     * eight months of uploads in twelve were never scanned — one run cannot show
+     * that, so coverage across runs is pinned in `tests/unit/job-schedules.spec.ts`.
+     * This case pins the span of one run.
+     *
+     * It creates six files in the old cases' order, scanned and spared
+     * alternately, so no file id changes outcome (see "Phase A: Trash
+     * Retention" for why that matters here).
+     */
+    it('scans uploads from 24 hours to 3 months old', async () => {
       const mockDate = new Date('2025-02-15T12:00:00Z')
       vi.setSystemTime(mockDate)
 
-      // Create files at different ages
-      // 1.5 months old (should be in 1-2 month range)
-      const file1p5moOld = await testData.createFile(payload)
-      const onePointFiveMonthsAgo = new Date(mockDate)
-      onePointFiveMonthsAgo.setMonth(onePointFiveMonthsAgo.getMonth() - 1)
-      onePointFiveMonthsAgo.setDate(onePointFiveMonthsAgo.getDate() - 15)
-      await payload.update({
-        collection: 'files',
-        id: file1p5moOld.id,
-        data: { createdAt: onePointFiveMonthsAgo.toISOString() },
-      })
+      const createAged = async (age: (date: Date) => void): Promise<number> => {
+        const file = await testData.createFile(payload)
+        const createdAt = new Date(mockDate)
+        age(createdAt)
+        await payload.update({
+          collection: 'files',
+          id: file.id,
+          data: { createdAt: createdAt.toISOString() },
+        })
+        return file.id
+      }
 
-      // 2 weeks old (should NOT be in 1-2 month range)
-      const file2weeksOld = await testData.createFile(payload)
-      const twoWeeksAgo = new Date(mockDate)
-      twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14)
-      await payload.update({
-        collection: 'files',
-        id: file2weeksOld.id,
-        data: { createdAt: twoWeeksAgo.toISOString() },
-      })
+      const twoWeeksOld = await createAged((d) => d.setDate(d.getDate() - 14))
+      const twelveHoursOld = await createAged((d) => d.setHours(d.getHours() - 12))
+      const sixWeeksOld = await createAged((d) => d.setDate(d.getDate() - 45))
+      const hundredDaysOld = await createAged((d) => d.setDate(d.getDate() - 100))
+      const elevenWeeksOld = await createAged((d) => d.setDate(d.getDate() - 80))
+      const sixMonthsOld = await createAged((d) => d.setMonth(d.getMonth() - 6))
 
-      // Run cleanup job with default (month-based) date range
       await runCleanupJobWithDefaultRange(payload)
 
-      // Verify: Only 1-2 month old file processed
-      expect(await fileInTrash(payload, file1p5moOld.id)).toBe(true)
-      expect(await fileInTrash(payload, file2weeksOld.id)).toBe(false)
+      // Every age inside the span, where each band used to see only its own
+      expect(await fileInTrash(payload, twoWeeksOld)).toBe(true)
+      expect(await fileInTrash(payload, sixWeeksOld)).toBe(true)
+      expect(await fileInTrash(payload, elevenWeeksOld)).toBe(true)
+      // Inside the grace period, and past the span
+      expect(await fileInTrash(payload, twelveHoursOld)).toBe(false)
+      expect(await fileInTrash(payload, hundredDaysOld)).toBe(false)
+      expect(await fileInTrash(payload, sixMonthsOld)).toBe(false)
 
-      // Restore real time
       vi.useRealTimers()
-    })
 
-    it('processes 2-3 month range when month % 3 === 2', async () => {
-      // Mock date to March (month 2)
-      const mockDate = new Date('2025-03-15T12:00:00Z')
-      vi.setSystemTime(mockDate)
-
-      // Create files at different ages
-      // 2.5 months old (should be in 2-3 month range)
-      const file2p5moOld = await testData.createFile(payload)
-      const twoPointFiveMonthsAgo = new Date(mockDate)
-      twoPointFiveMonthsAgo.setMonth(twoPointFiveMonthsAgo.getMonth() - 2)
-      twoPointFiveMonthsAgo.setDate(twoPointFiveMonthsAgo.getDate() - 15)
-      await payload.update({
-        collection: 'files',
-        id: file2p5moOld.id,
-        data: { createdAt: twoPointFiveMonthsAgo.toISOString() },
-      })
-
-      // 1 month old (should NOT be in 2-3 month range)
-      const file1moOld = await testData.createFile(payload)
-      const oneMonthAgo = new Date(mockDate)
-      oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1)
-      await payload.update({
-        collection: 'files',
-        id: file1moOld.id,
-        data: { createdAt: oneMonthAgo.toISOString() },
-      })
-
-      // Run cleanup job with default (month-based) date range
-      await runCleanupJobWithDefaultRange(payload)
-
-      // Verify: Only 2-3 month old file processed
-      expect(await fileInTrash(payload, file2p5moOld.id)).toBe(true)
-      expect(await fileInTrash(payload, file1moOld.id)).toBe(false)
-
-      // Restore real time
-      vi.useRealTimers()
+      // ⚠ Remove them. Trashed at the mocked date, the three read as long-expired
+      // trash to every later Phase A, and the 100-day file falls inside the next
+      // case's window — each spends a later run's shared operation budget, and
+      // the throughput case then has too few left to trash its own orphans.
+      const fixtures = [
+        twoWeeksOld,
+        twelveHoursOld,
+        sixWeeksOld,
+        hundredDaysOld,
+        elevenWeeksOld,
+        sixMonthsOld,
+      ]
+      for (const id of fixtures) await payload.delete({ collection: 'files', id, trash: true })
     })
 
     /**
      * Phase A reads `deletedAt`, Phase B reads `createdAt`. Nothing outside the
-     * rotating window is safe from Phase A because of the window.
+     * scan window is safe from Phase A because of the window.
      */
     it('deletes trash whose createdAt is outside every Phase B range', async () => {
-      // Mock date to January (month 0, which processes 0-1 month range)
+      // Mock date to January
       const mockDate = new Date('2025-01-15T12:00:00Z')
       vi.setSystemTime(mockDate)
 

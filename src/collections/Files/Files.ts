@@ -23,7 +23,7 @@ export const Files: CollectionConfig = {
     group: 'Media',
     useAsTitle: 'filename',
     description:
-      'Media files (images, audio, video) and PDFs used by other collections. A file nothing links to is moved to the trash automatically, and deleted for good after 30 days there.',
+      'Media files (images, audio, video) and PDFs used by other collections. A file nothing links to is moved to the trash automatically, and deleted for good after 45 days there.',
     defaultColumns: ['previewUrl', 'mimeType', 'createdAt'],
   },
   upload: {

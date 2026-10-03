@@ -5,7 +5,10 @@ import { join, relative } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import { tasks } from '@/jobs'
-import { trashDeletionCutoff } from '@/jobs/CleanupOrphanedMedia/CleanupOrphanedMedia'
+import {
+  orphanScanWindow,
+  trashDeletionCutoff,
+} from '@/jobs/CleanupOrphanedMedia/CleanupOrphanedMedia'
 import { JOB_AUTO_RUN, UNSCHEDULED_QUEUES } from '@/jobs/queues'
 import {
   INVITATIONS_CRON,
@@ -172,11 +175,56 @@ describe('Job schedules', () => {
       for (const queue of queues) expect([...autoRunQueues()]).toContain(queue)
     })
 
-    it('spares the trash for a whole cleanup cycle', () => {
-      const now = new Date('2026-03-15T00:00:00.000Z')
-      const days = (now.getTime() - trashDeletionCutoff(now).getTime()) / 86_400_000
+    /**
+     * Every run for two years, so a leap February and every month length are
+     * in it: the 1st at 00:07 UTC, when the `monthly` tick at :07 runs the row
+     * the schedule queued for 00:00.
+     */
+    const runs = Array.from({ length: 25 }, (_, month) => new Date(Date.UTC(2027, month, 1, 0, 7)))
+    const day = (date: Date) => date.toISOString().slice(0, 10)
 
-      expect(days).toBeGreaterThanOrEqual(30)
+    it('runs on the 1st of the month, which the cycle cases below assume', () => {
+      expect(cleanup?.schedule?.map((entry) => entry.cron)).toEqual(['0 0 1 * *'])
+    })
+
+    /**
+     * ⚠ A retention equal to the cadence passed a single-run check: 30 days is
+     * "at least 30 days". But runs fall 28 to 31 days apart, so after every
+     * 31-day month the previous run's trash was already past the cutoff.
+     */
+    it('keeps what a run trashes through the next run, and deletes it at the one after', () => {
+      const deletedEarly: string[] = []
+      const keptLate: string[] = []
+      for (const [i, trashedAt] of runs.slice(0, -2).entries()) {
+        // Phase A deletes a `deletedAt` strictly before the cutoff.
+        if (trashedAt < trashDeletionCutoff(runs[i + 1])) deletedEarly.push(day(runs[i + 1]))
+        if (trashedAt >= trashDeletionCutoff(runs[i + 2])) keptLate.push(day(runs[i + 2]))
+      }
+
+      expect(deletedEarly).toEqual([])
+      expect(keptLate).toEqual([])
+    })
+
+    /**
+     * ⚠ A single run cannot show this one either. The `month % 3` bands each
+     * scanned a plausible month, but all three runs of a quarter scanned the
+     * same one, and eight months of uploads in twelve were never scanned.
+     */
+    it('scans every day of uploads on some run', () => {
+      const windows = runs.map((run) => orphanScanWindow(run))
+      const unscanned: string[] = []
+      for (
+        let upload = new Date(Date.UTC(2027, 0, 1, 12));
+        upload < windows.at(-1)!.rangeEnd;
+        upload = new Date(upload.getTime() + 86_400_000)
+      ) {
+        const scanned = windows.some(
+          ({ rangeStart, rangeEnd }) => rangeStart <= upload && upload < rangeEnd,
+        )
+        if (!scanned) unscanned.push(day(upload))
+      }
+
+      expect(unscanned).toEqual([])
     })
 
     it('offers a dry run, so a window can be reviewed before it deletes', () => {

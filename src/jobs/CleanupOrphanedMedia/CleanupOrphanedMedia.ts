@@ -25,17 +25,47 @@ const ORIENTATION_TAG_TITLES = ['landscape', 'portrait', 'square']
  *
  * ⚠ Phase A had no age check at all, which is why this job sat off every
  * automatic queue (#878): a run could permanently delete an item an editor had
- * hand-trashed minutes earlier. 30 days is the monthly cadence, so an item
- * always survives at least one whole cleanup cycle — Phase B trashes in one
- * month and the earliest possible deletion is two runs later.
+ * hand-trashed minutes earlier.
+ *
+ * ⚠ It must outlast the longest month, not match the cadence. Runs fall 28 to
+ * 31 days apart, so at 30 days a run after any 31-day month found the previous
+ * run's trash already past the cutoff and deleted it one run later — 7 runs in
+ * 12. At 45, what one run trashes survives the next with two weeks to spare and
+ * goes at the run after, 59 or more days on.
  */
-const TRASH_RETENTION_DAYS = 30
+const TRASH_RETENTION_DAYS = 45
 
 /** The newest `deletedAt` Phase A may permanently delete. */
 export function trashDeletionCutoff(now: Date = new Date()): Date {
   const cutoff = new Date(now)
   cutoff.setDate(cutoff.getDate() - TRASH_RETENTION_DAYS)
   return cutoff
+}
+
+/** Uploads younger than this are never judged orphans: they may not be linked yet. */
+const GRACE_PERIOD_HOURS = 24
+
+/**
+ * How far back Phase B looks for orphans by `createdAt`.
+ *
+ * ⚠ Every run scans the whole span. It used to scan one of three one-month
+ * bands — 0-1, 1-2 or 2-3 months old — picked by `month % 3`. The band and the
+ * clock both advance a month per run, so they cancelled out: all three runs of a
+ * quarter scanned the same calendar month (December, March, June, September),
+ * and uploads from the other eight months were never scanned at all. The whole
+ * span gives every upload the three checks the bands meant to, at 0-1, 1-2 and
+ * 2-3 months old, and a missed run loses nothing because the next one overlaps
+ * it.
+ */
+const SCAN_WINDOW_MONTHS = 3
+
+/** The `createdAt` span Phase B scans when the caller gives none. */
+export function orphanScanWindow(now: Date = new Date()): { rangeStart: Date; rangeEnd: Date } {
+  const rangeStart = new Date(now)
+  rangeStart.setMonth(rangeStart.getMonth() - SCAN_WINDOW_MONTHS)
+  const rangeEnd = new Date(now)
+  rangeEnd.setHours(rangeEnd.getHours() - GRACE_PERIOD_HOURS)
+  return { rangeStart, rangeEnd }
 }
 
 type CleanupResult = {
@@ -72,10 +102,10 @@ export const CleanupOrphanedMedia: TaskConfig<'cleanupOrphanedMedia'> = {
   label: 'Cleanup Orphaned Media',
   slug: 'cleanupOrphanedMedia',
   inputSchema: [
-    // The cleanup span, normally derived from the month (see the handler).
-    // Both together override it; either alone is ignored. Only the integration
-    // spec passes them — a run with a hand-picked span is a run that skips the
-    // rotation, so there is no reason to offer one half of it in the admin.
+    // The cleanup span, normally `orphanScanWindow()`. Both together override
+    // it; either alone is ignored. Only the integration spec passes them — a
+    // run with a hand-picked span is a run that skips the uploads outside it,
+    // so there is no reason to offer one half of it in the admin.
     // `inputSchema` types the input and nothing validates it at runtime, which
     // is why the handler tests both before it trusts either.
     { name: 'rangeStart', type: 'date', required: false },
@@ -130,49 +160,25 @@ export const CleanupOrphanedMedia: TaskConfig<'cleanupOrphanedMedia'> = {
   ],
   handler: async ({ req, input }) => {
     const maxOperations = typeof input?.maxOperations === 'number' ? input.maxOperations : 500
-    const gracePeriodHours = 24
     const dryRun = input?.dryRun === true
     const trashCutoff = trashDeletionCutoff()
 
-    let rangeStart: Date
-    let rangeEnd: Date
-    let rangeLabel: string
-
-    // A caller-supplied span overrides the rotation. Both halves are required
-    // together: one alone would silently pair a chosen bound with a rotated
-    // one, which is a third range nobody asked for.
-    if (input?.rangeStart && input?.rangeEnd) {
-      rangeStart = new Date(input.rangeStart)
-      rangeEnd = new Date(input.rangeEnd)
-      rangeLabel = 'explicit-range'
-    } else {
-      // Determine date range based on current month (rotates through 3 ranges)
-      const currentMonth = new Date().getMonth() // 0-11
-      const rangeIndex = currentMonth % 3 // 0, 1, or 2
-      const rangeEndMonthsAgo = rangeIndex
-      const rangeStartMonthsAgo = rangeIndex + 1
-
-      // Calculate range end (with grace period)
-      rangeEnd = new Date()
-      rangeEnd.setMonth(rangeEnd.getMonth() - rangeEndMonthsAgo)
-      rangeEnd.setHours(rangeEnd.getHours() - gracePeriodHours)
-
-      // Calculate range start
-      rangeStart = new Date()
-      rangeStart.setMonth(rangeStart.getMonth() - rangeStartMonthsAgo)
-
-      // Human-readable labels for logging
-      const rangeLabels = ['0-1mo', '1-2mo', '2-3mo']
-      rangeLabel = rangeLabels[rangeIndex]
-    }
+    // A caller-supplied span overrides the default window. Both halves are
+    // required together: one alone would silently pair a chosen bound with a
+    // derived one, which is a third range nobody asked for.
+    const explicitRange =
+      input?.rangeStart && input?.rangeEnd
+        ? { rangeStart: new Date(input.rangeStart), rangeEnd: new Date(input.rangeEnd) }
+        : undefined
+    const { rangeStart, rangeEnd } = explicitRange ?? orphanScanWindow()
 
     req.payload.logger.info({
       msg: 'Starting orphaned media cleanup',
-      rangeLabel,
+      rangeLabel: explicitRange ? 'explicit-range' : `0-${SCAN_WINDOW_MONTHS}mo`,
       rangeStart: rangeStart.toISOString(),
       rangeEnd: rangeEnd.toISOString(),
       maxOperations,
-      gracePeriodHours,
+      gracePeriodHours: GRACE_PERIOD_HOURS,
       trashCutoff: trashCutoff.toISOString(),
       dryRun,
     })
