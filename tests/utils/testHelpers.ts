@@ -15,14 +15,13 @@ import { buildConfig } from 'payload'
 
 // Project imports
 
-import { managersLogin } from '@/collections/Managers/login'
 import { REGION_NESTED_DOCS_CONFIG } from '@/lib/atlas/regionTree'
 import { buildPayloadLocales, DEFAULT_LOCALE } from '@/lib/locales'
 import { accessPlugin, bypassPermissions, restrictPayloadSystemEntities } from '@/plugins/access'
 import { databaseErrorPlugin } from '@/plugins/databaseErrors'
 import { formsPlugin } from '@/plugins/formBuilder'
 import { loginPlugin } from '@/plugins/login'
-import { previewAdminEmail } from '@/plugins/previewAdmin'
+import { managersLoginHere } from '@/plugins/previewAdmin'
 import { usagePlugin } from '@/plugins/usage'
 import { writeGuardPlugin } from '@/plugins/writeGuard'
 
@@ -160,7 +159,7 @@ function createBaseTestConfig(emailConfig: any, schemaName: string, debug = fals
       // and how the preview exchange is resolved — `preview-secret-exchange.int.spec.ts`
       // sets the environment that turns it on).
       loginPlugin({
-        collections: [{ ...managersLogin, previewAutoSignIn: previewAdminEmail() }],
+        collections: [managersLoginHere()],
       }),
       // Access Plugin must be LAST to process plugin-created collections
       accessPlugin({ enabled: true, bypassPermissions }),
