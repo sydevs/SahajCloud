@@ -34,13 +34,18 @@ function formatSeconds(totalSeconds: number): string {
  * its own Upload component, so overriding this one would cost the player and
  * the drift banner below.
  *
+ * `initialState` is forwarded for the reason spelled out in `UploadWithNotice`:
+ * without it the Bulk Upload drawer, which stages each file into its own form,
+ * renders an empty box instead of the file. Songs reaches that drawer —
+ * Meditations sets `bulkUpload: false`.
+ *
  * Meditations-only extras, inert for collections without these fields:
  * - a drift Banner when frame timestamps fall beyond the audio length (needs
  *   `frames` + `duration`), and
  * - auto-hiding while live preview is open, to free space for frame editing.
  */
 export default function AudioUpload() {
-  const { data, collectionSlug } = useDocumentInfo()
+  const { data, collectionSlug, initialState } = useDocumentInfo()
   const { isLivePreviewing } = useLivePreviewContext()
   const {
     config: { serverURL },
@@ -72,7 +77,11 @@ export default function AudioUpload() {
 
   return (
     <>
-      <Upload collectionSlug={collectionSlug} uploadConfig={uploadConfig} />
+      <Upload
+        collectionSlug={collectionSlug}
+        initialState={initialState}
+        uploadConfig={uploadConfig}
+      />
       <UploadNotice />
       {audioUrl && (
         <audio
