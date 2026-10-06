@@ -21,10 +21,13 @@ import {
   commitProgressNote,
   commitVerdict,
   coordinatorNote,
+  invitableCount,
   isEditableNode,
+  isUnmappableNode,
   mappableFor,
   mergedNote,
   nodeCountNote,
+  needsAttention,
   nodeMatchNote,
   stateLayerNote,
   treeNote,
@@ -69,6 +72,7 @@ function tally(overrides: Partial<CommitTally> = {}): CommitTally {
   return {
     total: 50,
     committed: 20,
+    overwritten: 0,
     verified: 12,
     unverified: 8,
     duplicates: 0,
@@ -144,6 +148,17 @@ describe('childrenByParent', () => {
   })
 })
 
+describe('isUnmappableNode', () => {
+  it('offers to undo a mapping only the reviewer made', () => {
+    const match = { kind: 'existing' as const, regionId: 7, name: 'Berlin', slug: 'berlin' }
+    const before = { name: 'Berlin', parentKey: null, location: null }
+    expect(isUnmappableNode(node({ match, before }))).toBe(true)
+    // The proposal's own match has nothing to go back to.
+    expect(isUnmappableNode(node({ match }))).toBe(false)
+    expect(isUnmappableNode(node())).toBe(false)
+  })
+})
+
 describe('isEditableNode', () => {
   it('offers the edits on a node the commit would create', () => {
     expect(isEditableNode(node())).toBe(true)
@@ -170,7 +185,7 @@ describe('nodeMatchNote', () => {
 
   it('says a node managed elsewhere is, rather than that it is new', () => {
     const match = { kind: 'elsewhere' as const, regionId: 9, name: 'Berlin' }
-    expect(nodeMatchNote(node({ match }))).toBe('managed elsewhere — Berlin')
+    expect(nodeMatchNote(node({ match }))).toBe('already used elsewhere in the Atlas — Berlin')
   })
 
   it('says a created node is new', () => {
@@ -251,23 +266,62 @@ describe('stateLayerNote', () => {
 })
 
 describe('coordinatorNote', () => {
-  // The endpoint answers two numbers and no identity, so the wording may not
+  // The endpoint answers three numbers and no identity, so the wording may not
   // acquire one: nothing here names, counts by region, or describes an account
   // the Atlas already holds.
-  it('counts the accounts the commit opens, and says only that the rest exist', () => {
-    expect(coordinatorNote({ created: 2, existing: 3 })).toBe(
-      '2 new coordinators will be created; 3 addresses already has an account.',
+  it('counts the accounts the commit opens and the coordinators it links', () => {
+    expect(coordinatorNote({ created: 2, existing: 3, unlinked: 0 })).toBe(
+      '2 new coordinator accounts will be opened; 3 coordinators already in this region will be linked.',
     )
   })
 
   it('leaves the existing clause out where every address is new', () => {
-    expect(coordinatorNote({ created: 1, existing: 0 })).toBe(
-      '1 new coordinator will be created.',
+    expect(coordinatorNote({ created: 1, existing: 0, unlinked: 0 })).toBe(
+      '1 new coordinator account will be opened.',
+    )
+  })
+
+  it('says an address the import may not link goes without a coordinator', () => {
+    expect(coordinatorNote({ created: 0, existing: 0, unlinked: 1 })).toBe(
+      '1 address cannot be linked by an import, so its classes go without a coordinator.',
     )
   })
 
   it('says so where no row names a coordinator at all', () => {
-    expect(coordinatorNote({ created: 0, existing: 0 })).toBe('No row names a coordinator.')
+    expect(coordinatorNote({ created: 0, existing: 0, unlinked: 0 })).toBe(
+      'No row names a coordinator.',
+    )
+  })
+})
+
+describe('invitableCount', () => {
+  it('counts the coordinators an opt-in invitation would reach, never the unlinked', () => {
+    expect(invitableCount({ created: 2, existing: 3, unlinked: 4 })).toBe(5)
+  })
+})
+
+describe('needsAttention', () => {
+  const base = {
+    line: 2,
+    title: 'T',
+    place: 'Berlin',
+    reasons: [],
+    warnings: [],
+    coordinator: 'none' as const,
+    duplicate: null,
+  }
+  it('flags a skipped line, a duplicate, a warning or an unlinked coordinator', () => {
+    expect(needsAttention({ ...base, status: 'ready' })).toBe(false)
+    expect(needsAttention({ ...base, status: 'error' })).toBe(true)
+    expect(needsAttention({ ...base, status: 'ready', warnings: ['only the town'] })).toBe(true)
+    expect(needsAttention({ ...base, status: 'ready', coordinator: 'unlinked' })).toBe(true)
+    expect(
+      needsAttention({
+        ...base,
+        status: 'ready',
+        duplicate: { strength: 'weak', eventId: 1, action: 'import', overwritable: true },
+      }),
+    ).toBe(true)
   })
 })
 
@@ -288,12 +342,12 @@ describe('commitProgressNote', () => {
   // fraction of the file would read as classes on a batch full of duplicates.
   it('counts the classes created, never a fraction of the file', () => {
     const latest = chunk({ pending: 30, rows: tally({ committed: 20, total: 100 }) })
-    expect(commitProgressNote(latest)).toBe('20 classes created, 30 lines to go.')
+    expect(commitProgressNote(latest)).toBe('20 classes written, 30 lines to go.')
   })
 
   it('drops the remainder once there is none', () => {
     const latest = chunk({ pending: 0, rows: tally({ committed: 1 }) })
-    expect(commitProgressNote(latest)).toBe('1 class created.')
+    expect(commitProgressNote(latest)).toBe('1 class written.')
   })
 })
 
@@ -305,12 +359,12 @@ describe('commitDoneNote', () => {
     ...chunk({ done: true, pending: 0, rows: tally(rows) }),
     finished: {
       committed: [
-        { line: 2, eventId: 11 },
-        { line: 3, eventId: 12 },
+        { line: 2, eventId: 11, action: 'created' },
+        { line: 3, eventId: 12, action: 'created' },
       ],
-      skipped: [{ line: 4, reasons: ['this address is already in the Atlas'] }],
+      skipped: [{ line: 4, reasons: ['this address is already in the Atlas'], values: {} }],
       summaryEmailed: true,
-      deleted: true,
+      reportEmailed: true,
       ...finished,
     },
   })

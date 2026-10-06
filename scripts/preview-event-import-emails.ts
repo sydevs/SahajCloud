@@ -35,6 +35,8 @@ interface Scenario {
   counts: EventImportSummaryCounts
   /** Empty for the install with no admin, which falls back to the system contact. */
   admins?: string[]
+  /** Set for the uploader's own copy, which lists the skipped lines and attaches them. */
+  skipped?: { line: number; reasons: string[]; values: Record<string, string> }[]
 }
 
 const SCENARIOS: Scenario[] = [
@@ -44,6 +46,7 @@ const SCENARIOS: Scenario[] = [
     uploaderName: 'Priya Deshmukh',
     targetName: 'India',
     counts: {
+      overwritten: 0,
       verified: 37,
       unverified: 182,
       duplicates: 14,
@@ -59,6 +62,7 @@ const SCENARIOS: Scenario[] = [
     uploaderName: 'Lukas Bauer',
     targetName: 'Bayern',
     counts: {
+      overwritten: 0,
       verified: 9,
       unverified: 0,
       duplicates: 0,
@@ -74,6 +78,7 @@ const SCENARIOS: Scenario[] = [
     uploaderName: 'Ana Silva',
     targetName: 'Lisboa',
     counts: {
+      overwritten: 0,
       verified: 0,
       unverified: 1,
       duplicates: 0,
@@ -85,10 +90,11 @@ const SCENARIOS: Scenario[] = [
   },
   {
     label: 'import · nothing committed',
-    note: 'a batch whose every row was refused — still reported, and still deleted',
+    note: 'a batch whose every row was refused — the finish mails this to the uploader alone, never to the admins',
     uploaderName: 'Sam Okafor',
     targetName: 'Greater London',
     counts: {
+      overwritten: 0,
       verified: 0,
       unverified: 0,
       duplicates: 3,
@@ -105,6 +111,7 @@ const SCENARIOS: Scenario[] = [
     targetName: 'India',
     admins: [],
     counts: {
+      overwritten: 0,
       verified: 2,
       unverified: 5,
       duplicates: 0,
@@ -112,6 +119,34 @@ const SCENARIOS: Scenario[] = [
       regionsAdded: 2,
       coordinators: 2,
       coordinatorsCreated: 2,
+    },
+  },
+  {
+    label: 'import · the uploader’s report',
+    note: 'the volunteer’s copy: skipped lines listed, the CSV of them attached, one class overwritten',
+    uploaderName: 'Priya Deshmukh',
+    targetName: 'India',
+    skipped: [
+      {
+        line: 7,
+        reasons: ['website: Please enter a valid URL (got "www.example.org")'],
+        values: { title: 'Thursday Meditation', city: 'Pune', website: 'www.example.org' },
+      },
+      {
+        line: 12,
+        reasons: ['a repeat of class #4182'],
+        values: { title: 'Sunday Satsang', city: 'Mumbai' },
+      },
+    ],
+    counts: {
+      overwritten: 1,
+      verified: 3,
+      unverified: 8,
+      duplicates: 1,
+      errors: 1,
+      regionsAdded: 2,
+      coordinators: 3,
+      coordinatorsCreated: 1,
     },
   },
 ]
@@ -122,6 +157,7 @@ type Preview = { label: string; note: string; to: string; url: string | false }
 
 async function main() {
   const { sendImportSummary } = await import('@/collections/EventImports/commit/summaryEmail')
+  const { skippedRowsCsv } = await import('@/collections/EventImports/commit/skippedCsv')
   const { transport, messageUrl } = createCaptureTransport()
 
   const previews: Preview[] = []
@@ -152,6 +188,17 @@ async function main() {
       targetId: 42,
       targetName: scenario.targetName,
       counts: scenario.counts,
+      to: scenario.skipped
+        ? { audience: 'uploader', address: 'priya.deshmukh@example.com' }
+        : { audience: 'admin' },
+      ...(scenario.skipped
+        ? {
+            skipped: {
+              lines: scenario.skipped.map(({ line, reasons }) => ({ line, reasons })),
+              csv: skippedRowsCsv(scenario.skipped),
+            },
+          }
+        : {}),
     })
   }
 

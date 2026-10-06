@@ -1,17 +1,29 @@
-import type { TaskConfig } from 'payload'
+import type { TaskConfig, Where } from 'payload'
 
-import { IMPORT_TRASH_RETENTION_DAYS } from '@/collections/EventImports/constants'
+import {
+  ABANDONED_BATCH_DAYS,
+  IMPORT_TRASH_RETENTION_DAYS,
+} from '@/collections/EventImports/constants'
+import { revalidateAtlasSidebar } from '@/lib/atlasSidebar/cache'
+import { purgeCloudflareCache } from '@/plugins/cache/purge'
+
+const DAY_MS = 24 * 60 * 60 * 1000
 
 /**
- * Hard-deletes `event-imports` batches that have sat in the trash long enough.
+ * Hard-deletes `event-imports` batches that have sat in the trash long enough,
+ * and batches nobody has touched in `ABANDONED_BATCH_DAYS`.
  *
  * ⚠ **Payload has no built-in trash purge**, on any collection: `trash: true`
  * buys the `deletedAt` column and the admin's trash view, and nothing ever
  * empties it. `CleanupOrphanedMedia` phase A is the same sweep for media; this
  * is what makes "discard" mean the CSV goes away rather than leaves the list.
  *
- * A successful commit deletes its own batch outright, so what reaches this job
- * is a discarded batch and an abandoned one a manager trashed by hand.
+ * What reaches the trash half is a discarded batch, and a finished one — the
+ * finish trashes a committed batch as its report (`commit/finish.ts`).
+ *
+ * ⚠ **An abandoned batch part-way through its commit is paid back first.** Its
+ * classes went in with cache invalidation deferred to a finish that never ran,
+ * so the edge and the sidebar are purged before the batch goes.
  */
 export const PurgeEventImports: TaskConfig<'purgeEventImports'> = {
   slug: 'purgeEventImports',
@@ -41,10 +53,12 @@ export const PurgeEventImports: TaskConfig<'purgeEventImports'> = {
   handler: async ({ input, req }) => {
     const now = typeof input?.now === 'string' ? new Date(input.now) : new Date()
     const dryRun = input?.dryRun === true
-    const cutoff = new Date(
-      now.getTime() - IMPORT_TRASH_RETENTION_DAYS * 24 * 60 * 60 * 1000,
-    ).toISOString()
-    const where = { deletedAt: { less_than_equal: cutoff } }
+    const cutoff = new Date(now.getTime() - IMPORT_TRASH_RETENTION_DAYS * DAY_MS).toISOString()
+    const abandonedCutoff = new Date(now.getTime() - ABANDONED_BATCH_DAYS * DAY_MS).toISOString()
+    const abandoned: Where = {
+      and: [{ deletedAt: { exists: false } }, { updatedAt: { less_than_equal: abandonedCutoff } }],
+    }
+    const where: Where = { or: [{ deletedAt: { less_than_equal: cutoff } }, abandoned] }
 
     // ⚠ `trash: true` on every call here: without it Payload appends
     // `deletedAt exists: false` and the sweep sees none of the rows it exists to
@@ -67,6 +81,17 @@ export const PurgeEventImports: TaskConfig<'purgeEventImports'> = {
         })
       }
       return { output: { deletedBatches: totalDocs } }
+    }
+
+    const { totalDocs: halfCommitted } = await req.payload.count({
+      collection: 'event-imports',
+      where: { and: [abandoned, { status: { equals: 'committing' } }] },
+      overrideAccess: true,
+      req,
+    })
+    if (halfCommitted > 0) {
+      await purgeCloudflareCache({ tags: ['events', 'regions'] }, { logger: req.payload.logger })
+      revalidateAtlasSidebar()
     }
 
     const { docs, errors } = await req.payload.delete({

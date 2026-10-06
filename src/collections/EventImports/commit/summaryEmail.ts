@@ -1,22 +1,26 @@
 /**
- * The one notice a committed batch sends: what it added, to every admin.
+ * The two notices a committed batch sends: what it added, to every admin, and
+ * the volunteer's own report — every skipped line, with the file to fix them in.
  *
  * ⚠ **Written where its only consumer is.** The finish step is the sole caller,
  * so this is single-owner code and belongs beside it rather than in
  * `src/lib/notifications/` (`src/AGENTS.md`, "One consumer ⇒ it isn't shared").
  * The template stays in `src/emails/` with every other one.
  *
- * ⚠ **One send, not one per admin.** The batch is hard-deleted immediately
- * after, so a partial fan-out would leave no way to tell which admins were
- * reached. Admins already see each other in `/admin/collections/managers`, so
- * sharing the envelope discloses nothing new.
+ * ⚠ **One send to the admins, not one per admin.** A partial fan-out would
+ * leave no way to tell which admins were reached. Admins already see each other
+ * in `/admin/collections/managers`, so sharing the envelope discloses nothing
+ * new.
  */
 
 import type { PayloadRequest } from 'payload'
 
 import { createElement } from 'react'
 
-import type { EventImportSummaryCounts } from '@/emails/EventImportSummaryEmail'
+import type {
+  EventImportSkippedLine,
+  EventImportSummaryCounts,
+} from '@/emails/EventImportSummaryEmail'
 import { EventImportSummaryEmail } from '@/emails/EventImportSummaryEmail'
 import { CONTACT_EMAIL } from '@/lib/contact'
 import { adminUrl, adminDocUrl } from '@/lib/utilities/adminUrl'
@@ -30,6 +34,10 @@ export interface ImportSummaryArgs {
   /** The target region's own name, which a manager authored. */
   targetName: string
   counts: EventImportSummaryCounts
+  /** Who it goes to: every admin, or the uploader's own address. */
+  to: { audience: 'admin' } | { audience: 'uploader'; address: string }
+  /** The uploader's copy only: the skipped lines and the CSV holding them. */
+  skipped?: { lines: readonly EventImportSkippedLine[]; csv: string }
 }
 
 /**
@@ -40,13 +48,14 @@ export interface ImportSummaryArgs {
  */
 export async function sendImportSummary(
   req: PayloadRequest,
-  { uploaderName, targetId, targetName, counts }: ImportSummaryArgs,
+  { uploaderName, targetId, targetName, counts, to: recipient, skipped }: ImportSummaryArgs,
 ): Promise<boolean> {
-  const to = await adminAddresses(req)
   const brand = getEmailBrand('sahaj-atlas')
   const created = counts.verified + counts.unverified
+  let to: string[] = []
 
   try {
+    to = recipient.audience === 'admin' ? await adminAddresses(req) : [recipient.address]
     await req.payload.sendEmail({
       to,
       from: `${headerDisplayName(brand.productName)} <${MANAGER_EMAIL_FROM}>`,
@@ -57,7 +66,9 @@ export async function sendImportSummary(
       ),
       html: await renderEmail(
         createElement(EventImportSummaryEmail, {
+          audience: recipient.audience,
           brand,
+          skipped: skipped?.lines,
           uploaderName,
           targetName,
           counts,
@@ -67,6 +78,17 @@ export async function sendImportSummary(
           ),
         }),
       ),
+      ...(skipped?.lines.length
+        ? {
+            attachments: [
+              {
+                filename: 'skipped-lines.csv',
+                content: skipped.csv,
+                contentType: 'text/csv; charset=utf-8',
+              },
+            ],
+          }
+        : {}),
     })
     return true
   } catch (error) {
@@ -82,9 +104,8 @@ export async function sendImportSummary(
  * Every admin's address, or the system contact when there is none.
  *
  * ⚠ **The fallback is the point, not politeness.** An install with no reachable
- * admin would otherwise send this nowhere, and the batch it reports is deleted a
- * moment later — so the one record of a few hundred new classes would be a log
- * line. `CONTACT_EMAIL` is the repo's answer to "nobody in particular"
+ * admin would otherwise send this nowhere, so the one record of a few hundred
+ * new classes would be a log line. `CONTACT_EMAIL` is the repo's answer to "nobody in particular"
  * (`deliverProposal` uses the same one).
  */
 async function adminAddresses(req: PayloadRequest): Promise<string[]> {

@@ -12,32 +12,39 @@
 
 import type { CommitRow } from './rows'
 
+import { UNLINKED_NOTE } from './coordinators'
 import { managerKeyOf } from './managers'
 
 export interface CommitTally {
   total: number
+  /** Rows that reached the Atlas, created and overwritten alike. */
   committed: number
+  /** Of those, existing classes the reviewer chose to overwrite. */
+  overwritten: number
   /**
-   * Classes whose row named a coordinator. `syncVerificationOnSave` adopts one
-   * on its create, so it lands `verified` on that coordinator's cadence.
+   * Classes created with a linked coordinator. `syncVerificationOnSave` adopts
+   * one on its create, so it lands `verified` on that coordinator's cadence.
    */
   verified: number
-  /** Classes committed with nobody vouching for them: published, and `unverified`. */
+  /** Classes created with nobody vouching for them: published, and `unverified`. */
   unverified: number
   duplicates: number
   errors: number
 }
 
-/** One class the batch created, named by the CSV line it came from. */
+/** One class the batch created or overwrote, named by the CSV line it came from. */
 export interface CommittedLine {
   line: number
   eventId: number
+  action: 'created' | 'overwrote'
 }
 
-/** One line the batch created nothing for, and every reason it did not. */
+/** One line the batch created nothing for, every reason it did not, and the row itself. */
 export interface SkippedLine {
   line: number
   reasons: string[]
+  /** As uploaded, so the volunteer can download the skipped lines, fix and re-upload them. */
+  values: Record<string, string>
 }
 
 export interface CommitReport {
@@ -48,10 +55,10 @@ export interface CommitReport {
 /**
  * The batch's last word, for the response that outlives it.
  *
- * ⚠ **This is the only account of the import a caller ever gets.** The finish
- * hard-deletes the batch, so a volunteer reading "4 rows skipped" has no row
- * left to open — the line and its reason have to travel in the response or they
- * are gone. Every other chunk's caller reads them off the batch.
+ * ⚠ **This is the account of the import a volunteer keeps.** The finish strips
+ * the batch down to it (`commit/finish.ts`), so a volunteer reading "4 rows
+ * skipped" has no row left to open — the line, its reason and its values have to
+ * travel in the report, which is also emailed to them.
  */
 export function commitReport(rows: readonly CommitRow[]): CommitReport {
   const committed: CommittedLine[] = []
@@ -59,10 +66,14 @@ export function commitReport(rows: readonly CommitRow[]): CommitReport {
 
   for (const row of rows) {
     if (row.committed) {
-      committed.push({ line: row.line, eventId: row.committed.eventId })
+      committed.push({
+        line: row.line,
+        eventId: row.committed.eventId,
+        action: row.committed.action ?? 'created',
+      })
       continue
     }
-    skipped.push({ line: row.line, reasons: skipReasons(row) })
+    skipped.push({ line: row.line, reasons: skipReasons(row), values: row.values ?? {} })
   }
 
   return { committed, skipped }
@@ -95,22 +106,32 @@ export function skipReasons(row: CommitRow, extra: readonly string[] = []): stri
  * exported one answering prose makes a grep for either return both.
  */
 function duplicateReason(row: CommitRow): string[] {
-  if (!row.duplicate) return []
-  const { line, eventId } = row.duplicate
+  if (!row.duplicate || row.committed || (row.duplicate.action ?? 'skip') !== 'skip') return []
+  const { atCommit, line, eventId, strength } = row.duplicate
   if (line !== undefined) return [`a repeat of line ${line}`]
-  return [eventId !== undefined ? `a repeat of class #${eventId}` : 'a repeat of an existing class']
+  const what = eventId !== undefined ? `class #${eventId}` : 'an existing class'
+  if (atCommit) return [`a repeat of ${what}, added after you reviewed this batch`]
+  return [strength === 'weak' ? `possibly a repeat of ${what}` : `a repeat of ${what}`]
 }
 
 export function tallyRows(rows: readonly CommitRow[]): CommitTally {
   const committed = rows.filter((row) => row.committed)
-  const verified = committed.filter((row) => managerKeyOf(row.values ?? {}) !== null).length
+  const created = committed.filter((row) => row.committed?.action !== 'overwrote')
+  // A row whose coordinator could not be linked was imported without one, so it
+  // is unverified whatever its CSV named.
+  const verified = created.filter(
+    (row) =>
+      managerKeyOf(row.values ?? {}) !== null &&
+      !row.warnings?.some((warning) => warning.startsWith(UNLINKED_NOTE)),
+  ).length
 
   return {
     total: rows.length,
     committed: committed.length,
+    overwritten: committed.length - created.length,
     verified,
-    unverified: committed.length - verified,
-    duplicates: rows.filter((row) => row.duplicate).length,
+    unverified: created.length - verified,
+    duplicates: rows.filter((row) => row.duplicate && !row.committed).length,
     errors: rows.filter((row) => row.errors?.length).length,
   }
 }

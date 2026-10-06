@@ -10,14 +10,15 @@
  * locale: the #701 403, reproduced silently. So this answers `null` and the
  * caller reports it, the same rule `SubmissionReview/urls.ts` follows.
  *
- * The later steps gate on ownership alone (`ownedRegionFilterOptions` reads no
- * locale) and carry the locale anyway, so the run has one shape and one guard.
+ * The later steps re-check the grant in the locale the batch was uploaded in,
+ * which the batch stores, and carry the request locale anyway, so the run has
+ * one shape and one guard.
  */
 
 import { formatAdminURL } from 'payload/shared'
 
 /** The steps a run walks, in order. */
-export type ImportStep = 'upload' | 'resolve' | 'propose' | 'review' | 'tree' | 'commit'
+export type ImportStep = 'upload' | 'resolve' | 'propose' | 'review' | 'tree' | 'choices' | 'commit'
 
 /** What a step that could not be addressed reports, in both components that send one. */
 export const NO_LOCALE_REFUSAL =
@@ -71,22 +72,44 @@ export function batchDocumentUrl({
 }
 
 /**
+ * What a gateway answers when the app behind it took too long. The request may
+ * still be running, so the advice is to wait, not to retry at once.
+ */
+const GATEWAY_STATUSES = new Set([502, 503, 504, 520, 522, 524])
+
+export const GATEWAY_REFUSAL =
+  'The server took too long to answer. It may still be working — wait a minute, then resume.'
+
+/**
  * The message an endpoint refused with, read out of a body that may not be one.
  *
  * Every import endpoint answers `{ errors: [{ message }] }` (`failure`), and so
- * does Payload's own error handler — but a 502 from in front of the app answers
- * HTML, and `response.json()` having thrown is exactly when a caller most needs
- * something to show.
+ * does Payload's own error handler — but a gateway timeout from in front of the
+ * app answers HTML, and `response.json()` having thrown is exactly when a caller
+ * most needs something to show. With no readable body, a gateway status says
+ * the work may still be running, which is the opposite advice from a refusal.
  */
-export function refusalMessage(body: unknown, fallback: string): string {
-  if (typeof body !== 'object' || body === null) return fallback
+export function refusalMessage(body: unknown, fallback: string, status?: number): string {
+  const fromBody = bodyMessage(body)
+  if (fromBody) return fromBody
+  return status !== undefined && GATEWAY_STATUSES.has(status) ? GATEWAY_REFUSAL : fallback
+}
+
+function bodyMessage(body: unknown): null | string {
+  if (typeof body !== 'object' || body === null) return null
   const { errors } = body as { errors?: unknown }
-  if (!Array.isArray(errors)) return fallback
+  if (!Array.isArray(errors)) return null
 
   const messages = errors
     .map((error) => (error as { message?: unknown } | null)?.message)
     .filter((message): message is string => typeof message === 'string' && message.length > 0)
-  return messages.length ? messages.join(' ') : fallback
+  return messages.length ? messages.join(' ') : null
+}
+
+export interface ImportResponse {
+  body: unknown
+  ok: boolean
+  status: number
 }
 
 /**
@@ -96,21 +119,37 @@ export function refusalMessage(body: unknown, fallback: string): string {
  * endpoints authenticate the admin panel's own cookie, so a request without it is
  * refused as anonymous rather than as unauthorised.
  *
- * The body is read through a `catch`: every import endpoint answers
- * `{ errors: [{ message }] }`, but a 502 from in front of the app answers HTML,
- * and that is exactly when a caller most needs something to show.
+ * ⚠ **A batch another request holds is waited for, not reported.** Every
+ * writing endpoint answers 409 `busy` while the batch's lease is held
+ * (`EventImports/lease.ts`) — typically the request a dropped connection left
+ * running — and it carries on by itself; the lease expires within two minutes
+ * however that request ended. So this waits and asks again for longer than
+ * that, instead of telling the volunteer something failed.
  */
 export async function sendImportRequest(
   url: string,
   method: 'GET' | 'PATCH' | 'POST',
   body?: unknown,
-): Promise<{ body: unknown; ok: boolean }> {
-  const response = await fetch(url, {
-    method,
-    credentials: 'include',
-    ...(body === undefined
-      ? {}
-      : { body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } }),
-  })
-  return { body: await response.json().catch(() => null), ok: response.ok }
+  { busyRetries = BUSY_RETRIES }: { busyRetries?: number } = {},
+): Promise<ImportResponse> {
+  for (let attempt = 0; ; attempt++) {
+    const response = await fetch(url, {
+      method,
+      credentials: 'include',
+      ...(body === undefined
+        ? {}
+        : { body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } }),
+    })
+    const parsed: unknown = await response.json().catch(() => null)
+    const busy = response.status === 409 && (parsed as { busy?: unknown } | null)?.busy === true
+    if (busy && attempt < busyRetries) {
+      await new Promise((resolve) => setTimeout(resolve, BUSY_WAIT_MS))
+      continue
+    }
+    return { body: parsed, ok: response.ok, status: response.status }
+  }
 }
+
+const BUSY_WAIT_MS = 3_000
+/** Three minutes of waiting, which outlasts the two-minute lease. */
+const BUSY_RETRIES = 60

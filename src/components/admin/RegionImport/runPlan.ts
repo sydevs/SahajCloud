@@ -6,6 +6,30 @@
  * and that a geocoder outage leaves it somewhere it can resume from.
  */
 
+/**
+ * An earlier batch of the caller's into this region that never finished, as the
+ * Import tab offers it back.
+ *
+ * ⚠ **This is the only way back to a batch.** Nothing else lists them for a
+ * volunteer — the collection is hidden from the nav — and without it a closed
+ * tab or a dropped connection strands a batch; one stranded part-way through
+ * its commit leaves classes in the Atlas with nothing to finish them.
+ */
+export interface OpenBatch {
+  id: number
+  status: 'committing' | 'resolved' | 'uploaded'
+  /** Whether a tree exists, so resuming goes to the review rather than proposing again. */
+  proposed: boolean
+  updatedAt: string
+}
+
+/** Where resuming a batch picks up. */
+export function resumeStep(batch: OpenBatch): 'review' | 'run' {
+  return batch.status === 'committing' || (batch.status === 'resolved' && batch.proposed)
+    ? 'review'
+    : 'run'
+}
+
 /** The counts `POST /:id/resolve` answers with. */
 export interface ResolveReport {
   total: number
@@ -64,4 +88,4 @@ export function resolveSummary(latest: ResolveReport): string {
 }
 
 export const STALLED_REFUSAL =
-  'The resolve step stopped making progress. Re-upload the file, or ask an admin to look at the batch.'
+  'The resolve step stopped making progress. Resume to try again, or discard the batch and upload the file again.'
