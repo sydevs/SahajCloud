@@ -26,6 +26,11 @@ export interface ClusterableRow {
   placeId: string | null
   /** Mapbox's own name for the place, which is what a proposed city is named. */
   placeName: string | null
+  /**
+   * The `city` column as the volunteer typed it. Names a place Mapbox left
+   * unnamed, and says which of two neighbouring places a metro is named for.
+   */
+  cityName?: string | null
   /** ISO 3166-2, for the state layer the proposal may add above the cities. */
   subdivisionCode: string | null
 }
@@ -37,10 +42,15 @@ export interface CityCluster {
    * depend on which rows happened to land in this call.
    */
   key: string
-  /** Mapbox's name, falling back to the city key no row improved on. */
+  /** Mapbox's name, else the volunteers' spelling, else the city key. */
   name: string
   placeId: string | null
-  /** ISO 3166-2 the majority of the node's classes sit in, absorbed ones included. */
+  /**
+   * ISO 3166-2 the majority of the place's own classes sit in.
+   *
+   * ⚠ **Its own, not the absorbed suburbs'.** Kansas City's suburbs are mostly
+   * in Kansas, and counting them files the Missouri city under the wrong state.
+   */
   subdivisionCode: string | null
   centroid: Point
   lines: number[]
@@ -72,13 +82,75 @@ export interface MergedPlace {
  *
  * ⚠ **That fallback is also what the metro merge repairs.** One town whose rows
  * split between an id-keyed group and a name-keyed one is two clusters at the
- * same centroid, so the smaller merges into the larger on the first rule below
- * — which is why a missing place id costs a merge rather than a duplicate city.
+ * same centroid, so one merges into the other below — which is why a missing
+ * place id costs a merge rather than a duplicate city.
+ *
+ * ⚠ **A name-keyed group is split by distance before anything else.** With no
+ * id to tell them apart, Springfield IL and Springfield MO share a key, and one
+ * group would make one city 400 km wide.
  */
 export function clusterCities(rows: readonly ClusterableRow[]): CityCluster[] {
-  const groups = groupRows(rows, (row) => (row.placeId ? `id:${row.placeId}` : `name:${row.cityKey}`))
-  const places = [...groups].map(([key, own]) => ({ key, own, absorbed: [] as Place[] }))
-  return mergeMetros(places).map(asCityCluster)
+  const groups = [
+    ...groupRows(rows, (row) => (row.placeId ? `id:${row.placeId}` : `name:${row.cityKey}`)),
+  ].flatMap(([key, own]) => (key.startsWith('name:') ? splitByDistance(key, own) : [{ key, own }]))
+  const places = groups.map(({ key, own }) => ({ key, own, name: placeNameOf(own), absorbed: [] }))
+  return mergeMetros(places, cityVotes(rows)).map(asCityCluster)
+}
+
+/**
+ * One name-keyed group as the places it really is: each row joins the nearest
+ * part whose first row is within `METRO_MERGE_METERS`, or starts its own.
+ *
+ * Walked in a fixed order (south to north, then by line) so a reordered file
+ * splits the same way. Only a group that does split gets a suffixed key, so the
+ * common case keeps the `name:<city>` it always had.
+ */
+function splitByDistance(key: string, rows: readonly ClusterableRow[]) {
+  const parts: { seed: Point; own: ClusterableRow[] }[] = []
+  const ordered = [...rows].sort(
+    (a, b) =>
+      a.point.latitude - b.point.latitude ||
+      a.point.longitude - b.point.longitude ||
+      a.line - b.line,
+  )
+  for (const row of ordered) {
+    let nearest: (typeof parts)[number] | undefined
+    let nearestMeters = Infinity
+    for (const part of parts) {
+      const meters = metersBetween(row.point, part.seed)
+      if (meters <= METRO_MERGE_METERS && meters < nearestMeters) {
+        nearest = part
+        nearestMeters = meters
+      }
+    }
+    if (nearest) nearest.own.push(row)
+    else parts.push({ seed: row.point, own: [row] })
+  }
+  if (parts.length === 1) return [{ key, own: parts[0]!.own }]
+  // Seeds are a merge radius apart, so two decimals (about 1 km) never collide.
+  return parts.map(({ seed, own }) => ({
+    key: `${key}@${seed.latitude.toFixed(2)},${seed.longitude.toFixed(2)}`,
+    own,
+  }))
+}
+
+/** What a place is called, read off its own rows. */
+function placeNameOf(own: readonly ClusterableRow[]): string {
+  return (
+    commonest(own.map((row) => row.placeName)) ??
+    commonest(own.map((row) => tidy(row.cityName))) ??
+    commonest(own.map((row) => row.cityKey))!
+  )
+}
+
+/** How many rows' `city` column names each spelling, compared as `comparableKey`. */
+function cityVotes(rows: readonly ClusterableRow[]): Map<string, number> {
+  const votes = new Map<string, number>()
+  for (const row of rows) {
+    const city = comparableKey(row.cityName)
+    if (city) votes.set(city, (votes.get(city) ?? 0) + 1)
+  }
+  return votes
 }
 
 /**
@@ -93,6 +165,8 @@ export function clusterCities(rows: readonly ClusterableRow[]): CityCluster[] {
 interface Place {
   key: string
   own: ClusterableRow[]
+  /** From its own rows, so a merge never renames the place that survives it. */
+  name: string
   absorbed: Place[]
 }
 
@@ -105,22 +179,13 @@ function asCityCluster(place: Place): CityCluster {
   const rows = allRows(place)
   return {
     key: place.key,
-    // Named from its own rows, not the absorbed ones: the node stands for this
-    // place, and what it took in is reported in `merged`.
-    name:
-      commonest(place.own.map((row) => row.placeName)) ??
-      commonest(place.own.map((row) => row.cityKey))!,
-    // ⚠ **Falls back to the absorbed rows' ids, which is what keeps the match
-    // layer from going blind.** The merge below deliberately lets a name-keyed
-    // group absorb an id-keyed one when it has more rows — that is how a missing
-    // place id costs a merge rather than a duplicate city. But the survivor's
-    // OWN rows then carry no id, and a node with no id is matched on its name
-    // alone: the refusal for a feature managed elsewhere never fires, and an
-    // existing region under another spelling is missed.
-    placeId:
-      commonest(place.own.map((row) => row.placeId)) ??
-      commonest(rows.map((row) => row.placeId)),
-    subdivisionCode: commonest(rows.map((row) => row.subdivisionCode)),
+    name: place.name,
+    // ⚠ **Never an absorbed place's id.** Paris taking Puteaux's would create
+    // the city on Puteaux's feature, so a survivor with none is hand-located.
+    placeId: commonest(place.own.map((row) => row.placeId)),
+    subdivisionCode:
+      commonest(place.own.map((row) => row.subdivisionCode)) ??
+      commonest(rows.map((row) => row.subdivisionCode)),
     centroid: centroidOf(place.own.map((row) => row.point)),
     lines: sortedLines(rows.map((row) => row.line)),
     merged: place.absorbed.map(asMergedPlace),
@@ -133,33 +198,55 @@ function asMergedPlace(place: Place): MergedPlace {
 }
 
 /**
- * Fold each place into the larger one it is a suburb of.
+ * Which of two neighbouring places absorbs the other: positive when `a` does.
+ *
+ * ⚠ **The name volunteers wrote comes first, not the row count.** Mapbox files
+ * an address in La Défense under Puteaux, so five Puteaux rows and three Paris
+ * rows are eight classes the volunteers all called Paris — and the place with
+ * more rows would swallow the city they meant.
+ *
+ * ⚠ **Then an id'd place over an id-less one, which keeps a split town on its
+ * id.** A town whose rows came back partly without a place id is two places of
+ * one name, so one vote count — and a survivor whose own rows carry no id is
+ * matched on its name alone, so the refusal for a feature managed elsewhere
+ * never fires.
+ *
+ * Zero for a full tie, which merges neither way.
+ */
+function outranks(a: Place, b: Place, votes: ReadonlyMap<string, number>): number {
+  const votesFor = (place: Place) => votes.get(comparableKey(place.name)!) ?? 0
+  const hasId = (place: Place) => (place.key.startsWith('id:') ? 1 : 0)
+  return (
+    votesFor(a) - votesFor(b) || hasId(a) - hasId(b) || a.own.length - b.own.length
+  )
+}
+
+/**
+ * Fold each place into the higher-ranked one it is a suburb of.
  *
  * ⚠ **Every member row must be inside the radius, not just the centroid.** A
  * place's centroid sits between its rows, so a ring of outlying villages
  * averages to a point near the city they ring and would merge on a centroid test
  * while no class in it is anywhere near town.
  *
- * ⚠ **Only into a place with strictly more rows, and never into one that is
- * itself merging away.** Equal counts would merge both ways round.
+ * ⚠ **Only into a place that strictly outranks it, and never into one that is
+ * itself merging away.** Two equal places would merge both ways round.
  */
-function mergeMetros(places: readonly Place[]): Place[] {
+function mergeMetros(places: readonly Place[], votes: ReadonlyMap<string, number>): Place[] {
   // Ties by key, so a file's row order cannot decide which of two equal-sized
   // places absorbs the village between them.
-  const ranked = [...places].sort(
-    (a, b) => b.own.length - a.own.length || a.key.localeCompare(b.key),
-  )
+  const ranked = [...places].sort((a, b) => outranks(b, a, votes) || a.key.localeCompare(b.key))
   const absorbed = new Set<string>()
   // Once per place rather than once per candidate pair: the pass is quadratic in
   // places already, and a centroid is a pass over that place's every row.
   const centroids = new Map(ranked.map((place) => [place.key, centroidOf(place.own.map((row) => row.point))]))
 
-  // ⚠ **Largest first, which is what makes the chain guard hold.** Running
-  // smallest first offers a village to its nearest town before that town has
+  // ⚠ **Highest-ranked first, which is what makes the chain guard hold.** Running
+  // lowest first offers a village to its nearest town before that town has
   // merged into the city, so the guard sees an unabsorbed target and the
   // village's classes ride into a city 30 km from them.
   for (const place of ranked) {
-    const into = nearestMetro(place, ranked, absorbed, centroids)
+    const into = nearestMetro(place, ranked, absorbed, centroids, votes)
     if (!into) continue
     absorbed.add(place.key)
     into.absorbed.push(place)
@@ -181,6 +268,7 @@ function nearestMetro(
   ranked: readonly Place[],
   absorbed: ReadonlySet<string>,
   centroids: ReadonlyMap<string, Point>,
+  votes: ReadonlyMap<string, number>,
 ): Place | undefined {
   let best: Place | undefined
   let bestMeters = Infinity
@@ -188,7 +276,7 @@ function nearestMetro(
 
   for (const other of ranked) {
     if (other.key === place.key || absorbed.has(other.key)) continue
-    if (other.own.length <= place.own.length) continue
+    if (outranks(other, place, votes) <= 0) continue
     const to = centroids.get(other.key)!
     if (!place.own.every((row) => metersBetween(row.point, to) <= METRO_MERGE_METERS)) continue
 
@@ -237,10 +325,10 @@ export interface VenueCluster {
  * towns in one batch is a shape that reaches here.
  */
 export function clusterVenues(rows: readonly VenueRow[]): VenueCluster[] {
-  const halls = [...groupRows(rows, venueKeyOf)].filter(
+  const halls = mergeSharedFeatures([...groupRows(rows, venueKeyOf)]).filter(
     ([, members]) => members.length >= SHARED_VENUE_MIN_ROWS,
   )
-  return mergeSharedFeatures(halls).map(([key, members]) => ({
+  return halls.map(([key, members]) => ({
       key,
       // Normalised for display too: an address copied out of a spreadsheet
       // arrives with its own spacing, and the key is lower-cased, so neither is
@@ -257,11 +345,15 @@ export function clusterVenues(rows: readonly VenueRow[]): VenueCluster[] {
 /**
  * Fold halls that geocoded to one feature into one.
  *
- * ⚠ **This runs after the threshold, never instead of it.** Keying a hall on
- * its Mapbox id is the hazard the address key exists to avoid — one query
- * answers with the building and another with the POI inside it, so two
- * identically-typed rows split into single-use groups the threshold then drops.
- * Grouping by address first and merging the survivors adds no such split.
+ * ⚠ **After the address grouping, never instead of it.** Keying a hall on its
+ * Mapbox id is the hazard the address key exists to avoid — one query answers
+ * with the building and another with the POI inside it, so two identically-typed
+ * rows would split. Grouping by address first and merging those groups adds no
+ * such split.
+ *
+ * ⚠ **Before the threshold, so it counts the hall rather than one spelling of
+ * it.** "1 High Street", "1 High St" and "1 High St." are one row each and one
+ * feature between them; thresholding each spelling first drops all three.
  *
  * ⚠ **`Regions.mapboxId` is unique collection-wide**, so two created nodes
  * carrying one id is not a duplicate a reviewer can tidy up later — the second
@@ -282,8 +374,9 @@ function mergeSharedFeatures(
       seen.push(...members)
       continue
     }
-    if (feature) byFeature.set(feature, members)
-    kept.push([key, members])
+    const group = [...members]
+    if (feature) byFeature.set(feature, group)
+    kept.push([key, group])
   }
   return kept
 }
@@ -313,14 +406,15 @@ function groupRows<T>(
 }
 
 /**
- * The most frequent non-null value, first seen winning a tie.
+ * The most frequent non-null value, the lowest in sort order winning a tie.
  *
  * ⚠ **Not the first value.** Mapbox answers the same town with a different
  * `place` name often enough — a district on one row, the city on the next — that
  * taking row one's spelling would name a node after whichever class the
- * volunteer happened to type first.
+ * volunteer happened to type first. A tie is broken the same way for the same
+ * reason: a reordered file must not move a city to another state.
  */
-function commonest<T>(values: readonly (T | null | undefined)[]): T | null {
+function commonest<T extends string>(values: readonly (T | null | undefined)[]): T | null {
   const counts = new Map<T, number>()
   for (const value of values) {
     if (value === null || value === undefined) continue
@@ -329,7 +423,7 @@ function commonest<T>(values: readonly (T | null | undefined)[]): T | null {
   let best: T | null = null
   let bestCount = 0
   for (const [value, count] of counts) {
-    if (count > bestCount) {
+    if (count > bestCount || (count === bestCount && best !== null && value < best)) {
       best = value
       bestCount = count
     }

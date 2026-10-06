@@ -55,6 +55,8 @@ interface RowOptions {
   nth?: number
   errors?: string[]
   duplicate?: boolean
+  /** The Mapbox `region` feature, which a proposed state matches on. */
+  regionId?: string
 }
 
 /**
@@ -87,6 +89,7 @@ function rowIn(tag: string) {
         placeId: placeId(tag, options.place ?? 'berlin', options.nth),
         mapboxId: options.addressId ?? `mbx-${tag}-addr-${line}`,
         subdivisionCode: place.state,
+        ...(options.regionId ? { regionMapboxId: options.regionId } : {}),
         weekdayMask: 0b10,
         startMinutes: 1110,
         languages: ['de'],
@@ -346,6 +349,62 @@ describe('propose endpoint', () => {
       const cities = tree.nodes.filter((node) => node.level === 'city')
       expect(cities).toHaveLength(8)
       expect(cities.every((city) => city.parentKey?.startsWith('state:'))).toBe(true)
+    })
+
+    // ⚠ **ISO lists the endonym**, so a state matched by name alone was a
+    // second Bavaria beside the Atlas's own, holding a second copy of every
+    // city. The region feature on the rows is what names it.
+    it('matches a state the target holds under another name on its region feature', async () => {
+      const row = rowIn('exonym')
+      const bavaria = await testData.createRegion(payload, {
+        name: 'Bavaria exonym',
+        level: 'region',
+        parent: germany.id,
+        mapboxId: 'mbx-exonym-region-by',
+      })
+      const spread = Array.from({ length: 8 }, (_, index) =>
+        row(index + 2, {
+          place: index < 4 ? 'munich' : 'berlin',
+          nth: index,
+          address: `Hauptstraße ${index}`,
+          regionId: index < 4 ? 'mbx-exonym-region-by' : 'mbx-exonym-region-be',
+        }),
+      )
+
+      const { tree } = await propose(spread)
+
+      const states = tree.nodes.filter((node) => node.level === 'region')
+      expect(states.find((state) => state.key === 'state:BY')?.match).toMatchObject({
+        kind: 'existing',
+        regionId: bavaria.id,
+      })
+      expect(states.find((state) => state.key === 'state:BE')?.match).toEqual({ kind: 'create' })
+    })
+
+    // ⚠ **The name rule reads the whole subtree.** A hand-seeded city carries a
+    // `manual-` id no geocode returns, and searching only under the country
+    // proposed a second one beside it.
+    it('matches a hand-seeded city under a state when the batch proposes it under the country', async () => {
+      const row = rowIn('seeded')
+      const bavaria = await testData.createRegion(payload, {
+        name: 'Bayern seeded',
+        level: 'region',
+        parent: germany.id,
+      })
+      const munich = await testData.createRegion(payload, {
+        name: cityName('seeded', 'munich'),
+        level: 'city',
+        parent: bavaria.id,
+      })
+      expect(munich.mapboxId.startsWith('manual-')).toBe(true)
+
+      const { tree, body } = await propose([row(2, { place: 'munich' }), row(3)])
+
+      expect(body).toMatchObject({ creating: 1, existing: 1 })
+      expect(nodeFor(tree, 'seeded', 'munich')?.match).toMatchObject({
+        kind: 'existing',
+        regionId: munich.id,
+      })
     })
 
     it('proposes halls for a city target, and nothing for a single-use address', async () => {

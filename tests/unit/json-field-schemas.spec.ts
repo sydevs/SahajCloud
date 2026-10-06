@@ -417,6 +417,9 @@ describe('EventImports.proposedRegions', () => {
         ['Vadodara', 10, 30, 'place.vadodara'],
         ['Bhavnagar', 11, 32, 'place.bhavnagar'],
         ['Mumbai', 12, 34, 'place.mumbai'],
+        // The state-layer threshold counts placeable new cities only, so the
+        // matched Nashik and the refused Mumbai do not count towards it.
+        ['Ahmedabad', 13, 36, 'place.ahmedabad'],
       ] as const
     ).map(([placeName, line, latitude, placeId]) => ({
       line,

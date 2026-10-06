@@ -154,22 +154,27 @@ describe('buildProposedTree', () => {
   })
 
   it('does not adopt a same-named city from another state when the state is new', () => {
-    // Pune already hangs straight off the country — the mixed tree the Atlas
-    // really has (FR). This batch proposes a state layer, so its Pune would sit
-    // under Maharashtra, and that state does not exist yet.
-    //
-    // ⚠ **The existing city's parent is the target**, which is what makes this
-    // sharp: a proposal that fell back to the target as the parent would adopt
-    // this node and silently re-parent it. Naming any other parent would pass
-    // without the rule under test.
+    // A Pune already sits under Gujarat. This batch's Pune is in Maharashtra,
+    // which it proposes as a new state — and the name rule searches the whole
+    // subtree (`match.ts`), so only the state each side sits in keeps the two
+    // apart.
     const existing: ExistingRegion[] = [
+      {
+        id: 71,
+        level: 'region',
+        name: 'Gujarat',
+        slug: 'gujarat',
+        mapboxId: null,
+        parentId: TARGET.id,
+        inTarget: true,
+      },
       {
         id: 70,
         level: 'city',
         name: 'Pune',
         slug: 'pune',
         mapboxId: null,
-        parentId: TARGET.id,
+        parentId: 71,
         inTarget: true,
       },
     ]
@@ -190,6 +195,127 @@ describe('buildProposedTree', () => {
     expect(pune.match).toEqual({ kind: 'create' })
     // And its slug avoids the one that city already holds.
     expect(pune.slug).toBe('pune-maharashtra')
+  })
+
+  // ⚠ **A hand-seeded city is matched wherever it hangs in the target.** Its
+  // `manual-` id matches no geocode, and a search under the proposed parent
+  // alone missed the Pune under Maharashtra and proposed a second one under
+  // India.
+  it('matches a hand-seeded city under an existing state when no layer is proposed', () => {
+    const existing: ExistingRegion[] = [
+      { id: 3, level: 'region', name: 'Maharashtra', slug: 'maharashtra', mapboxId: 'manual-mh', parentId: TARGET.id, inTarget: true },
+      { id: 7, level: 'city', name: 'Pune', slug: 'pune', mapboxId: 'manual-pune', parentId: 3, inTarget: true },
+    ]
+
+    const { nodes, stateLayer } = buildProposedTree({
+      target: TARGET,
+      countryCode: 'IN',
+      rows: [...place('Pune', [2, 3], { latitude: 18.5 }), ...place('Surat', [4], { latitude: 21.2, subdivisionCode: 'GJ' })],
+      existing,
+      takenSlugs: ['pune', 'maharashtra'],
+    })
+
+    expect(stateLayer.proposed).toBe(false)
+    expect(nodeNamed(nodes, 'Pune').match).toMatchObject({ kind: 'existing', regionId: 7 })
+    expect(nodes.filter((node) => node.match.kind === 'create').map((node) => node.name)).toEqual([
+      'Surat',
+    ])
+  })
+
+  // ⚠ **The Atlas seed put some city-states on the city's own feature.** A
+  // city matched onto the state Berlin would file every class under a state,
+  // which the commit refuses row by row; creating one fails `mapboxId`'s
+  // unique constraint. So the rows are refused, and say why.
+  it('refuses a city whose feature a region of another level holds', () => {
+    const berlin: ExistingRegion = {
+      id: 5,
+      level: 'region',
+      name: 'Berlin',
+      slug: 'berlin',
+      mapboxId: 'place.Berlin',
+      parentId: 1,
+      inTarget: true,
+    }
+
+    const { nodes, rowErrors } = buildProposedTree({
+      target: { id: 5, level: 'region', name: 'Berlin' },
+      countryCode: 'DE',
+      rows: place('Berlin', [2, 3], { latitude: 52.5, subdivisionCode: 'BE' }),
+      existing: [berlin],
+      takenSlugs: ['berlin'],
+    })
+
+    expect(nodes[0]!.match).toEqual({ kind: 'elsewhere', regionId: 5, name: 'Berlin' })
+    expect(rowErrors.map((error) => error.line)).toEqual([2, 3])
+    expect(rowErrors[0]!.message).toContain('"Berlin" is a city')
+    expect(rowErrors[0]!.message).not.toContain('outside')
+  })
+
+  describe('a state the Atlas already holds under another name', () => {
+    const GERMANY = { id: 1, level: 'country' as const, name: 'Germany' }
+    /** Four cities in each of two states, the rows carrying Mapbox's region feature. */
+    function germanRows(): ProposableRow[] {
+      const at = (name: string, line: number, latitude: number, code: string, feature: string) =>
+        row(line, name, {
+          point: { latitude, longitude: 11 },
+          subdivisionCode: code,
+          regionMapboxId: feature,
+        })
+      return [
+        at('München', 2, 40, 'BY', 'region.bavaria'),
+        at('Nürnberg', 3, 42, 'BY', 'region.bavaria'),
+        at('Augsburg', 4, 44, 'BY', 'region.bavaria'),
+        at('Regensburg', 5, 46, 'BY', 'region.bavaria'),
+        at('Köln', 6, 48, 'NW', 'region.nrw'),
+        at('Düsseldorf', 7, 50, 'NW', 'region.nrw'),
+        at('Dortmund', 8, 52, 'NW', 'region.nrw'),
+        at('Essen', 9, 54, 'NW', 'region.nrw'),
+      ]
+    }
+    const bavaria = (mapboxId: string): ExistingRegion => ({
+      id: 40,
+      level: 'region',
+      name: 'Bavaria',
+      slug: 'bavaria',
+      mapboxId,
+      parentId: GERMANY.id,
+      inTarget: true,
+    })
+
+    // ⚠ **ISO lists the endonym**, so a name match proposed a second Bavaria
+    // beside the Atlas's own, and a second copy of every city under it.
+    it('matches it on the Mapbox region feature its rows geocoded into', () => {
+      const { nodes } = buildProposedTree({
+        target: GERMANY,
+        countryCode: 'DE',
+        rows: germanRows(),
+        existing: [bavaria('region.bavaria')],
+        takenSlugs: ['munchen'],
+      })
+
+      expect(nodes.find((node) => node.key === 'state:BY')?.match).toMatchObject({
+        kind: 'existing',
+        regionId: 40,
+      })
+      expect(nodes.filter((node) => node.level === 'region' && node.match.kind === 'create')).toHaveLength(1)
+      // Its cities still hang under it, and disambiguate on the Atlas's name for
+      // it rather than ISO's.
+      const munich = nodeNamed(nodes, 'München')
+      expect(munich.parentKey).toBe('state:BY')
+      expect(munich.slug).toBe('munchen-bavaria')
+    })
+
+    it('matches a hand-seeded one on the code its slug spells', () => {
+      const { nodes } = buildProposedTree({
+        target: GERMANY,
+        countryCode: 'DE',
+        rows: germanRows(),
+        existing: [{ ...bavaria('manual-by'), slug: 'by' }],
+        takenSlugs: [],
+      })
+
+      expect(nodes.find((node) => node.key === 'state:BY')?.match).toMatchObject({ regionId: 40 })
+    })
   })
 
   it('locates a created city on its Mapbox feature when it has one', () => {
@@ -325,7 +451,13 @@ describe('buildProposedTree', () => {
     const { nodes, stateLayer } = buildProposedTree({
       target: { id: 2, level: 'city', name: 'Pune' },
       countryCode: 'IN',
-      rows: [hall(2, '1 High Street'), hall(3, ' 1  high street '), hall(4, '9 Other Road')],
+      rows: [
+        hall(2, '1 High Street'),
+        hall(3, ' 1  high street '),
+        // Its own feature: one Mapbox id is one place, and halls sharing one
+        // are one hall (`cluster.ts`).
+        { ...hall(4, '9 Other Road'), mapboxId: 'address.9' },
+      ],
       existing: [],
       takenSlugs: [],
     })
@@ -367,6 +499,30 @@ describe('buildProposedTree', () => {
     })
 
     expect(nodes[0]!.match).toMatchObject({ kind: 'existing', regionId: 90 })
+  })
+
+  it('sizes a hand-located venue to reach every row it holds', () => {
+    // One address, typed for rows 20 km apart. A radius taken from the centre
+    // alone was always the 500 m floor, leaving one of them off the map.
+    const at = (line: number, latitude: number): ProposableRow =>
+      row(line, 'Pune', {
+        address: '12 Main Road',
+        mapboxId: null,
+        venueName: 'Hall',
+        point: { latitude, longitude: 73.85 },
+      })
+
+    const { nodes } = buildProposedTree({
+      target: { id: 2, level: 'city', name: 'Pune' },
+      countryCode: 'IN',
+      rows: [at(2, 18.5), at(3, 18.68)],
+      existing: [],
+      takenSlugs: [],
+    })
+
+    expect(nodes[0]!.location?.kind).toBe('manual')
+    if (nodes[0]!.location?.kind !== 'manual') return
+    expect(nodes[0]!.location.radius).toBeGreaterThan(9_000)
   })
 
   it('proposes nothing for a batch with no rows left to place', () => {

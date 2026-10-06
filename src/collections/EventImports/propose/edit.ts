@@ -1,27 +1,39 @@
 /**
- * The two changes a reviewer may make to a proposed tree before committing it:
- * rename a node the commit would create, or say it is a region the Atlas
- * already holds.
+ * The changes a reviewer may make to a proposed tree before committing it:
+ * rename a node the commit would create, say it is a region the Atlas already
+ * holds, or take that back.
  *
  * ⚠ **Pure, and the whole tree comes back.** `proposedRegions` is a closed
  * schema the commit walks (`EventImports.ts`), so an edit is a new tree rather
  * than a patch — which is what lets the re-slug and the prune below run over the
  * finished shape instead of guessing at the consequences of one change.
  *
- * ⚠ **Only a `create` node is editable.** An `existing` node is the Atlas's own
- * region, so its name is not ours to change and it is already mapped; an
- * `elsewhere` node's rows are errors the reviewer cannot clear from here
- * (`match.ts`). Both are refused by name rather than ignored, because an edit
- * silently dropped reads in the review as one that was applied.
+ * ⚠ **Only a `create` node is renamed or mapped.** An `existing` node is the
+ * Atlas's own region, so its name is not ours to change and it is already
+ * mapped; an `elsewhere` node's rows are errors the reviewer cannot clear from
+ * here (`match.ts`). Both are refused by name rather than ignored, because an
+ * edit silently dropped reads in the review as one that was applied. The one
+ * exception is `unmap`, and only for a node a `map` edit made `existing`.
  */
 
 import { existingRegionLabel, type ExistingRegion } from './match'
 import { assignNodeSlugs, prunedOfEmptyStates, type ProposedNode, type ProposedTree } from './tree'
+import { comparableKey } from '../resolve/duplicates'
 
 /** One change, addressed to a node by the key the proposal gave it. */
 export type TreeEdit =
   | { kind: 'map'; key: string; regionId: number }
   | { kind: 'rename'; key: string; name: string }
+  | { kind: 'unmap'; key: string }
+
+/**
+ * The longest name a rename may give, in characters once tidied.
+ *
+ * Longer than any place name a volunteer types, and short enough that the slug
+ * and the review's tree row stay readable. The endpoint's own bound is on the
+ * raw body and wider, because it counts what this strips.
+ */
+export const MAX_RENAMED_LENGTH = 100
 
 export interface ApplyTreeEditsArgs {
   tree: ProposedTree
@@ -67,11 +79,15 @@ export function applyTreeEdits({
   for (const edit of edits) {
     const node = byKey.get(edit.key)
     if (!node) return { ok: false, error: `This batch proposes no node called "${edit.key}".` }
-    if (node.match.kind !== 'create') {
-      return { ok: false, error: uneditable(node) }
-    }
 
-    const failure = edit.kind === 'rename' ? rename(node, edit.name) : map(node, edit, mappable)
+    const failure =
+      edit.kind === 'unmap'
+        ? unmap(node, nodes)
+        : node.match.kind !== 'create'
+          ? uneditable(node)
+          : edit.kind === 'rename'
+            ? rename(node, edit.name, mappable)
+            : map(node, edit, nodes, mappable)
     if (failure) return { ok: false, error: failure }
   }
 
@@ -95,19 +111,45 @@ function uneditable(node: ProposedNode): string {
 }
 
 /**
- * ⚠ **The blank check is `trim`, and that is all it is.** A name that
- * slugifies to nothing is *not* refused: `slugifyValue` strips every CJK
- * script, so 東京 reaches `assignSlugs` and takes the level as its slug
- * (`slugs.ts`). Refusing it here would refuse a real place name while the
- * proposal accepts the same name off Mapbox, so the fallback is the thing worth
- * fixing and it belongs with the slug rule both writers share. TODO: give
- * `assignSlugs` a fallback that is not the level.
+ * ⚠ **Invisible characters go before the blank check.** A zero-width space or a
+ * bidi control survives `trim`, so a "name" of nothing but them reaches the
+ * slug rule as a real one and the Atlas as a blank label. Joiners are kept
+ * between letters, where Devanagari and Persian spell with them.
+ *
+ * ⚠ **A name the target already holds at this level is refused.** Renaming a
+ * new Pune to "Pune" beside an existing one commits a duplicate with a
+ * disambiguated slug, which is the mistake `map` exists to prevent.
  */
-function rename(node: ProposedNode, name: string): null | string {
-  const trimmed = name.trim()
-  if (!trimmed) return `"${node.name}" needs a name.`
-  node.name = trimmed
+function rename(
+  node: ProposedNode,
+  name: string,
+  mappable: readonly ExistingRegion[],
+): null | string {
+  const tidied = tidyName(name)
+  if (!tidied) return `"${node.name}" needs a name.`
+  if ([...tidied].length > MAX_RENAMED_LENGTH) {
+    return `"${node.name}" can be renamed to at most ${MAX_RENAMED_LENGTH} characters.`
+  }
+  const key = comparableKey(tidied)
+  const twin = mappable.find(
+    (region) =>
+      region.inTarget && region.level === node.level && comparableKey(region.name) === key,
+  )
+  if (twin) {
+    return `"${existingRegionLabel(twin)}" is already a ${node.level} in this region of the Atlas. Map "${node.name}" onto it instead of renaming it.`
+  }
+  node.name = tidied
   return null
+}
+
+/** NFC, format characters dropped (joiners kept inside a word), whitespace collapsed. */
+function tidyName(name: string): string {
+  return name
+    .normalize('NFC')
+    .replace(/(?![\u200C\u200D])\p{Cf}/gu, '')
+    .replace(/[\s\p{Z}]+/gu, ' ')
+    .trim()
+    .replace(/^[\u200C\u200D ]+|[\u200C\u200D ]+$/gu, '')
 }
 
 /**
@@ -121,11 +163,18 @@ function rename(node: ProposedNode, name: string): null | string {
  *
  * ⚠ **`slug` and `location` go with it.** The commit writes neither for a node
  * it does not create, and a slug left behind would hold a name out of a
- * collection-wide namespace that nothing is going to claim.
+ * collection-wide namespace that nothing is going to claim. What they were is
+ * kept in `before`, which is all an `unmap` restores from.
+ *
+ * ⚠ **Mapping a state re-matches the new cities under it.** The proposal
+ * matched them while their state was new, when there were no children to find
+ * them among — so a Munich under a Bayern the reviewer maps onto the Atlas's
+ * Bavaria would be created beside Bavaria's own Munich.
  */
 function map(
   node: ProposedNode,
   { regionId }: { regionId: number },
+  nodes: readonly ProposedNode[],
   mappable: readonly ExistingRegion[],
 ): null | string {
   const region = mappable.find((candidate) => candidate.id === regionId)
@@ -143,9 +192,29 @@ function map(
     return `"${node.name}" is a ${node.level}, so it cannot be mapped to a ${region.level}.`
   }
 
+  mapOnto(node, region)
+  if (node.level !== 'region') return null
+
+  for (const child of nodes) {
+    if (child.parentKey !== node.key || child.match.kind !== 'create') continue
+    const name = comparableKey(child.name)
+    const twin = mappable.find(
+      (candidate) =>
+        candidate.inTarget &&
+        candidate.parentId === regionId &&
+        candidate.level === child.level &&
+        comparableKey(candidate.name) === name,
+    )
+    if (twin) mapOnto(child, twin)
+  }
+  return null
+}
+
+function mapOnto(node: ProposedNode, region: ExistingRegion): void {
+  node.before = { name: node.name, parentKey: node.parentKey, location: node.location }
   node.match = {
     kind: 'existing',
-    regionId,
+    regionId: region.id,
     // `match.ts` owns this label, because the control that offered this region
     // reads the same one — a blank or a second spelling would leave the review
     // unable to say which region the node was mapped onto.
@@ -155,6 +224,31 @@ function map(
   node.parentKey = null
   node.slug = null
   node.location = null
+}
+
+/**
+ * Put a node a `map` edit made back to the proposal's `create`.
+ *
+ * ⚠ **Only a node carrying `before`.** One the proposal matched itself has no
+ * proposal to go back to — its feature or name is the Atlas's, and creating it
+ * would duplicate the region or fail `mapboxId`'s unique constraint.
+ *
+ * ⚠ **A parent the prune has since dropped is not restored with it.** The
+ * state went because nothing under it was new, and only its own `unmap` could
+ * say what it was; the node hangs off the target instead, which is where a city
+ * the layer could not place goes anyway. The cities a state's mapping matched
+ * stay matched — each is a region the Atlas holds — and unmap one at a time.
+ */
+function unmap(node: ProposedNode, nodes: readonly ProposedNode[]): null | string {
+  const { before } = node
+  if (node.match.kind !== 'existing' || !before) {
+    return `"${node.name}" was not mapped in this review, so there is nothing to undo.`
+  }
+  node.match = { kind: 'create' }
+  node.name = before.name
+  node.parentKey = nodes.some((other) => other.key === before.parentKey) ? before.parentKey : null
+  node.location = before.location
+  delete node.before
   return null
 }
 

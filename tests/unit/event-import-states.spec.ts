@@ -10,11 +10,17 @@ import {
 } from '@/collections/EventImports/propose/states'
 import { getRegionOptions } from '@/lib/geography'
 
-/** `n` cities in one subdivision, keyed apart so the grouping can count them. */
-function cities(subdivisionCode: string | null, n: number, prefix = 'c'): StateLayerCity[] {
+/** `n` new cities in one subdivision, keyed apart so the grouping can count them. */
+function cities(
+  subdivisionCode: string | null,
+  n: number,
+  prefix = 'c',
+  isNew = true,
+): StateLayerCity[] {
   return Array.from({ length: n }, (_, index) => ({
     key: `${prefix}-${subdivisionCode ?? 'none'}-${index}`,
     subdivisionCode,
+    isNew,
   }))
 }
 
@@ -62,13 +68,58 @@ describe('decideStateLayer', () => {
   it('hangs a city with no subdivision off the country rather than failing it', () => {
     const decision = decideStateLayer({
       ...IN,
-      cities: [...cities('MH', 4), ...cities('GJ', 3), ...cities(null, 2, 'unknown')],
+      cities: [...cities('MH', 5), ...cities('GJ', 3), ...cities(null, 2, 'unknown')],
     })
 
     expect(decision.proposed).toBe(true)
     if (!decision.proposed) return
     expect(decision.unplacedCityKeys).toEqual(['unknown-none-0', 'unknown-none-1'])
-    expect(decision.states.flatMap((state) => state.cityKeys)).toHaveLength(7)
+    expect(decision.states.flatMap((state) => state.cityKeys)).toHaveLength(8)
+  })
+
+  // ⚠ **The city threshold counts what a layer would group, not what the batch
+  // names.** Counting all of them, seven placeable cities and two nobody can
+  // place clear the eight-city bar, and a layer is proposed to shorten a list of
+  // seven.
+  it('counts only placeable cities towards the city threshold', () => {
+    const decision = decideStateLayer({
+      ...IN,
+      cities: [...cities('MH', 4), ...cities('GJ', 3), ...cities(null, 2, 'unknown')],
+    })
+
+    expect(decision.proposed).toBe(false)
+    if (decision.proposed) return
+    expect(decision.reason).toContain('7 new cities')
+  })
+
+  // A matched city keeps the parent it has and one held elsewhere is a row
+  // error, so neither would ever sit under a proposed state.
+  it('counts only the cities the commit creates', () => {
+    const decision = decideStateLayer({
+      ...IN,
+      cities: [
+        ...cities('MH', 1),
+        ...cities('GJ', 1),
+        ...cities('MH', 4, 'held', false),
+        ...cities('GJ', 4, 'held', false),
+      ],
+    })
+
+    expect(decision.proposed).toBe(false)
+  })
+
+  it('places only the new cities when it does propose a layer', () => {
+    const decision = decideStateLayer({
+      ...IN,
+      cities: [...cities('MH', 5), ...cities('GJ', 3), ...cities('MH', 2, 'held', false)],
+    })
+
+    expect(decision.proposed).toBe(true)
+    if (!decision.proposed) return
+    const placed = decision.states.flatMap((state) => state.cityKeys)
+    expect(placed).toHaveLength(8)
+    expect(placed.some((key) => key.startsWith('held'))).toBe(false)
+    expect(decision.unplacedCityKeys).toEqual([])
   })
 
   it('treats a subdivision this country does not list as unplaceable, not as a state', () => {
