@@ -34,6 +34,12 @@
  * target, so a row cannot leave the subtree either way. What the narrowing buys
  * is catching a row for the wrong end of a country early, and that is worth
  * having where it works and reporting where it does not.
+ *
+ * ⚠ **A dependent territory is scoped as the country Mapbox files it as.**
+ * `country-region-data` lists Martinique as `FR-MQ`, but Mapbox answers with
+ * country `MQ` and no French subdivision, so a scope of `{ FR, MQ }` refused
+ * every row there. Such a target is scoped `MQ` instead, and remembers `FR`
+ * only so a row's own `country` column may say either.
  */
 
 import { countryCodeForName, isCountryCode, subdivisionCodeFor } from '@/lib/geography'
@@ -54,6 +60,11 @@ export interface TargetScope {
    * country — the mixed tree the Atlas already has (FR has no state layer).
    */
   subdivisionCode: string | null
+  /**
+   * Set only for a dependent territory: the country the region tree files it
+   * under (`FR`), where `countryCode` is the one Mapbox does (`MQ`).
+   */
+  parentCountryCode?: string
 }
 
 export type ResolveTargetScopeResult =
@@ -92,6 +103,14 @@ export function resolveTargetScope(chain: readonly TargetChainNode[]): ResolveTa
   const state = chain.find((node) => node.level === 'region')
   if (!state) return { ok: true, scope: { countryCode, subdivisionCode: null } }
 
+  const territory = territoryCodeOf(state, countryCode)
+  if (territory) {
+    return {
+      ok: true,
+      scope: { countryCode: territory, subdivisionCode: null, parentCountryCode: countryCode },
+    }
+  }
+
   const subdivisionCode = subdivisionCodeOf(state, countryCode)
   if (!subdivisionCode) {
     return {
@@ -126,4 +145,57 @@ function countryCodeOf(node: TargetChainNode): string | null {
  */
 function subdivisionCodeOf(node: TargetChainNode, countryCode: string): string | null {
   return subdivisionCodeFor(countryCode, node.slug) ?? subdivisionCodeFor(countryCode, node.name)
+}
+
+/**
+ * Territories a geocoder files as countries of their own, by the code the
+ * region tree reaches them through — a subdivision code where
+ * `country-region-data` lists one under the parent (`FR-MQ`, `NO-21`), or else
+ * the territory's own country code, which a state node's name or slug gives.
+ *
+ * `FM`, `MH` and `PW` are sovereign rather than dependent, and are here because
+ * the dataset lists them under `US` all the same.
+ */
+const TERRITORIES: Partial<Record<string, Record<string, string>>> = {
+  FR: {
+    GP: 'GP',
+    MQ: 'MQ',
+    GF: 'GF',
+    RE: 'RE',
+    YT: 'YT',
+    PM: 'PM',
+    BL: 'BL',
+    MF: 'MF',
+    WF: 'WF',
+    PF: 'PF',
+    NC: 'NC',
+    TF: 'TF',
+  },
+  US: {
+    PR: 'PR',
+    GU: 'GU',
+    VI: 'VI',
+    AS: 'AS',
+    MP: 'MP',
+    UM: 'UM',
+    FM: 'FM',
+    MH: 'MH',
+    PW: 'PW',
+  },
+  NL: { AW: 'AW', CW: 'CW', SX: 'SX', BQ: 'BQ' },
+  DK: { GL: 'GL', FO: 'FO' },
+  NO: { '21': 'SJ', '22': 'SJ' },
+  CN: { HK: 'HK', MO: 'MO' },
+  AU: { CX: 'CX', CC: 'CC', NF: 'NF' },
+  FI: { 'FI-01': 'AX' },
+}
+
+/** The ISO 3166-1 code of the territory a state node names, or null for an ordinary state. */
+function territoryCodeOf(node: TargetChainNode, countryCode: string): string | null {
+  const territories = TERRITORIES[countryCode]
+  if (!territories) return null
+  const subdivision = subdivisionCodeOf(node, countryCode)
+  if (subdivision && territories[subdivision]) return territories[subdivision]
+  const named = countryCodeOf(node)
+  return named && Object.values(territories).includes(named) ? named : null
 }

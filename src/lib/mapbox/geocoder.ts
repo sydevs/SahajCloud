@@ -23,6 +23,7 @@
  */
 
 import { resolveSubdivisionCode } from '@/lib/geography'
+import { isRecord } from '@/lib/utilities/isRecord'
 import type { Region } from '@/payload-types'
 
 const FORWARD_URL = 'https://api.mapbox.com/search/searchbox/v1/forward'
@@ -34,7 +35,13 @@ export const MANUAL_LOCATION = 'manual'
 const DEFAULT_VENUE_RADIUS_METERS = 500
 const DEFAULT_REGION_RADIUS_METERS = 50_000
 
-const MAX_RETRIES = 3
+/**
+ * ⚠ **Three attempts of 8 s bound one row at about 25 s.** The bulk import
+ * geocodes rows one after another inside one request, so every second a row
+ * may take is a second that request holds open.
+ */
+const MAX_ATTEMPTS = 3
+const ATTEMPT_TIMEOUT_MS = 8_000
 const BASE_BACKOFF_MS = 500
 
 /** Local shorthand — this file names the level four times. */
@@ -72,7 +79,7 @@ export interface GeocodeRegionArgs {
  * `@mapbox/search-js-core`'s own types call it `id`
  * (`dist/searchbox/types.d.ts`, `ContextEntry`) while the Search Box API
  * reference calls it `mapbox_id`. Reading both is the only way to be right
- * either way, and `geocodedPlaceId` is where that choice lives.
+ * either way, and `contextLayerId` is where that choice lives.
  */
 interface ForwardContextEntry {
   id?: string
@@ -85,6 +92,7 @@ interface ForwardFeature {
     mapbox_id?: string
     name?: string
     address?: string
+    feature_type?: string
     context?: {
       country?: ForwardContextEntry & { country_code?: string }
       region?: ForwardContextEntry & { region_code?: string; region_code_full?: string }
@@ -99,40 +107,57 @@ interface ForwardFeature {
 const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 
 /**
- * Mapbox answered, or it did not.
+ * What one `/forward` lookup came to, after its retries.
  *
- * ⚠ **The two are a different fact about the world, and only the caller knows
- * whether that matters.** "No such place" is final; "we could not ask" is not,
- * and a caller that writes a permanent refusal on the second one turns one
- * outage into rows nobody can re-place. `geocodeRegion` collapses both to null
- * because its caller is a seed run a maintainer re-runs anyway.
+ * ⚠ **"Mapbox answered" and "we could not ask" are a different fact about the
+ * world, and only the caller knows whether that matters.** "No such place" is
+ * final; "we could not ask" is not, and a caller that writes a permanent
+ * refusal on the second one turns one outage into rows nobody can re-place.
+ * `refused` sits with the first: a 4xx other than 429 is Mapbox rejecting this
+ * query, and the same query is rejected however often it is retried — so a
+ * caller that waits on it waits forever. `unauthorized` is neither: it is the
+ * token, and says nothing about any row. `geocodeRegion` collapses all but an
+ * answer to null because its caller is a seed run a maintainer re-runs anyway.
  */
-type ForwardAnswer = { answered: true; feature: ForwardFeature | null } | { answered: false }
+type ForwardAnswer =
+  | { kind: 'answered'; feature: ForwardFeature | null }
+  | { kind: 'refused'; httpStatus: number }
+  | { kind: 'unauthorized'; httpStatus: number }
+  | { kind: 'unavailable' }
 
-/** GET the first `/forward` feature, retrying on 429 with exponential backoff. */
+/** GET the first `/forward` feature, retrying what may answer differently next time. */
 async function fetchForwardFeature(params: URLSearchParams): Promise<ForwardAnswer> {
-  for (let attempt = 0; ; attempt++) {
-    let res: Response
-    try {
-      // Fresh timeout per attempt so each retry gets its own 15s budget.
-      res = await fetch(`${FORWARD_URL}?${params.toString()}`, {
-        signal: AbortSignal.timeout(15_000),
-      })
-    } catch {
-      if (attempt < MAX_RETRIES) {
-        await delay(BASE_BACKOFF_MS * 2 ** attempt)
-        continue
-      }
-      return { answered: false }
-    }
-    if (res.status === 429 && attempt < MAX_RETRIES) {
-      await delay(BASE_BACKOFF_MS * 2 ** attempt)
-      continue
-    }
-    if (!res.ok) return { answered: false }
-    const data = (await res.json().catch(() => null)) as { features?: ForwardFeature[] } | null
-    return { answered: true, feature: data?.features?.[0] ?? null }
+  for (let attempt = 1; ; attempt++) {
+    const answer = await attemptForward(params)
+    if (answer) return answer
+    if (attempt >= MAX_ATTEMPTS) return { kind: 'unavailable' }
+    await delay(BASE_BACKOFF_MS * 2 ** (attempt - 1))
   }
+}
+
+/** One request, or null when it is worth asking again. */
+async function attemptForward(params: URLSearchParams): Promise<ForwardAnswer | null> {
+  let res: Response
+  try {
+    res = await fetch(`${FORWARD_URL}?${params.toString()}`, {
+      signal: AbortSignal.timeout(ATTEMPT_TIMEOUT_MS),
+    })
+  } catch {
+    return null
+  }
+  if (res.status === 401 || res.status === 403) {
+    return { kind: 'unauthorized', httpStatus: res.status }
+  }
+  if (res.status === 408 || res.status === 429 || res.status >= 500) return null
+  if (!res.ok) return { kind: 'refused', httpStatus: res.status }
+
+  // ⚠ A body that did not arrive whole is not an empty result. The timeout
+  // still runs while it streams, so an abort lands here as easily as at the
+  // fetch — and reading it as "no features" is a permanent miss for a row
+  // Mapbox never got to answer.
+  const data: unknown = await res.json().catch(() => null)
+  if (!isRecord(data) || !Array.isArray(data.features)) return null
+  return { kind: 'answered', feature: (data.features[0] as ForwardFeature | undefined) ?? null }
 }
 
 interface ForwardQuery {
@@ -143,10 +168,12 @@ interface ForwardQuery {
   longitude?: number | null
 }
 
-/** The `/forward` query string, or null when there is no token or nothing to search for. */
-function forwardParams(query: ForwardQuery): URLSearchParams | null {
-  const token = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN
-  if (!token || !query.q.trim()) return null
+function accessToken(): string | null {
+  return process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || null
+}
+
+/** The `/forward` query string for a non-blank query. */
+function forwardParams(query: ForwardQuery, token: string): URLSearchParams {
   const params = new URLSearchParams({
     q: query.q,
     types: query.types,
@@ -165,16 +192,20 @@ function forwardParams(query: ForwardQuery): URLSearchParams | null {
 
 /** Run a `/forward` query for one region node; null when no token / name / match. */
 async function forwardFeature(args: GeocodeRegionArgs): Promise<ForwardFeature | null> {
-  const params = forwardParams({
-    q: args.name ?? '',
-    types: args.types ?? TYPES_BY_LEVEL[args.level],
-    countryCode: args.countryCode,
-    latitude: args.latitude,
-    longitude: args.longitude,
-  })
-  if (!params) return null
+  const token = accessToken()
+  if (!token || !args.name?.trim()) return null
+  const params = forwardParams(
+    {
+      q: args.name,
+      types: args.types ?? TYPES_BY_LEVEL[args.level],
+      countryCode: args.countryCode,
+      latitude: args.latitude,
+      longitude: args.longitude,
+    },
+    token,
+  )
   const answer = await fetchForwardFeature(params)
-  return answer.answered ? answer.feature : null
+  return answer.kind === 'answered' ? answer.feature : null
 }
 
 /** Forward-geocode a region node to a Search Box `mapbox_id`, or null on a miss. */
@@ -280,12 +311,20 @@ export async function resolveRegionLocation(
 export interface GeocodedLocation {
   /** The matched feature's own id, for a later `retrieve` or a region's `mapboxId`. */
   mapboxId: string | null
+  /**
+   * Mapbox's `feature_type` for the match. Only `address` and `poi` are a door;
+   * a `street`, `postcode` or `place` is the area around one, and its point is
+   * that area's centre.
+   */
+  featureType: string | null
   latitude: number
   longitude: number
   /** ISO alpha-2 of the country the result sits in. */
   countryCode: string | null
   /** ISO 3166-2 subdivision code, resolved from whichever spelling Mapbox sent. */
   subdivisionCode: string | null
+  /** The `region` layer's own id, which a proposed state can be matched on. */
+  regionMapboxId: string | null
   /** The `place` layer — the town or city, as Mapbox names it. */
   placeName: string | null
   /** The `place` layer's own id, which a region node can be matched on. */
@@ -293,9 +332,12 @@ export interface GeocodedLocation {
 }
 
 /** Whichever key this Mapbox response spelled a context layer's id with. */
-function geocodedPlaceId(entry: ForwardContextEntry | undefined): string | null {
+function contextLayerId(entry: ForwardContextEntry | undefined): string | null {
   return entry?.mapbox_id ?? entry?.id ?? null
 }
+
+/** The `feature_type`s that are a town, which a place lookup is answered with. */
+const TOWN_FEATURE_TYPES = new Set(['place', 'locality'])
 
 export interface GeocodeLocationArgs {
   /** The whole query on one line — `"Oranienstraße 25, Berlin, DE"`. */
@@ -307,51 +349,68 @@ export interface GeocodeLocationArgs {
 }
 
 /**
- * ⚠ **`missed` and `unavailable` must not be collapsed by the caller.** A miss
- * is a fact about the query — the row names a place Mapbox does not hold, and
- * saying so is final. `unavailable` is a fact about us: no token, or the retries
- * ran out. A caller that writes a row error on the second one turns a few
- * minutes of Mapbox trouble into rows a volunteer can only fix by re-uploading
- * the file.
+ * ⚠ **Only `missed` and `refused` are about the row, and the caller must not
+ * collapse the rest into them.** A miss is a fact about the query — the row
+ * names a place Mapbox does not hold — and a refusal is Mapbox rejecting the
+ * query itself (`httpStatus` says how), which asking again cannot change; both
+ * are final. `unavailable` is a fact about us — the retries ran out — and
+ * `unconfigured` about this deployment: no token (`httpStatus` null), or one
+ * Mapbox rejects (401/403). A caller that writes a row error on either turns a
+ * few minutes of trouble, or one missing variable, into rows a volunteer can
+ * only fix by re-uploading the file.
  */
 export type GeocodeOutcome =
   | { status: 'found'; location: GeocodedLocation }
   | { status: 'missed' }
+  | { status: 'refused'; httpStatus: number }
   | { status: 'unavailable' }
+  | { status: 'unconfigured'; httpStatus: number | null }
 
 /** Forward-geocode one query to a point and its context. */
 export async function geocodeLocation(args: GeocodeLocationArgs): Promise<GeocodeOutcome> {
-  const params = forwardParams({
-    q: args.query,
-    types: args.types,
-    countryCode: args.countryCode,
-  })
-  if (!params) return { status: 'unavailable' }
+  const token = accessToken()
+  if (!token) return { status: 'unconfigured', httpStatus: null }
+  if (!args.query.trim()) return { status: 'missed' }
 
-  const answer = await fetchForwardFeature(params)
-  if (!answer.answered) return { status: 'unavailable' }
+  const answer = await fetchForwardFeature(
+    forwardParams({ q: args.query, types: args.types, countryCode: args.countryCode }, token),
+  )
+  if (answer.kind === 'unavailable') return { status: 'unavailable' }
+  if (answer.kind === 'unauthorized') return { status: 'unconfigured', httpStatus: answer.httpStatus }
+  if (answer.kind === 'refused') return { status: 'refused', httpStatus: answer.httpStatus }
 
   const coordinates = answer.feature?.geometry?.coordinates
   // A feature without a point is a miss rather than an answer: the zone and
   // every duplicate rule read the point, so there is nothing to place.
   if (!coordinates) return { status: 'missed' }
 
-  const context = answer.feature?.properties?.context
+  const properties = answer.feature?.properties
+  const context = properties?.context
+  const featureType = properties?.feature_type ?? null
   const countryCode = context?.country?.country_code ?? null
   // `locality` carries the town where a country files one below `place`, so it
-  // is read as the city wherever `place` is absent rather than left blank.
-  const place = context?.place ?? context?.locality
+  // is read as the city wherever `place` is absent rather than left blank. A
+  // town that is itself the match has no layer above it naming it, so it
+  // stands for its own city.
+  const place =
+    context?.place ??
+    (featureType && TOWN_FEATURE_TYPES.has(featureType)
+      ? { mapbox_id: properties?.mapbox_id, name: properties?.name }
+      : undefined) ??
+    context?.locality
 
   return {
     status: 'found',
     location: {
-      mapboxId: answer.feature?.properties?.mapbox_id ?? null,
+      mapboxId: properties?.mapbox_id ?? null,
+      featureType,
       longitude: coordinates[0],
       latitude: coordinates[1],
       countryCode,
       subdivisionCode: resolveSubdivisionCode(context?.region, countryCode),
+      regionMapboxId: contextLayerId(context?.region),
       placeName: place?.name ?? null,
-      placeId: geocodedPlaceId(place),
+      placeId: contextLayerId(place),
     },
   }
 }

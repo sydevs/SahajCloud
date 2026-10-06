@@ -39,6 +39,8 @@ const BERLIN: GeocodedLocation = {
   subdivisionCode: 'BE',
   placeName: 'Berlin',
   placeId: 'mbx-berlin',
+  featureType: 'address',
+  regionMapboxId: null,
 }
 
 /** One CSV row as the parse step leaves it. */
@@ -324,7 +326,11 @@ describe('resolve endpoint', () => {
 
       expect(body).toMatchObject({ duplicates: 1, resolved: 0 })
       const [only] = await readRows(batch.id)
-      expect(only?.duplicate).toEqual({ reason: 'nearby-address', eventId: existing.id })
+      expect(only?.duplicate).toEqual({
+        reason: 'nearby-address',
+        strength: 'strong',
+        eventId: existing.id,
+      })
       // The match is reported, never written: nothing about the existing class
       // changes, and the row keeps its own answers for the review to show.
       expect(only?.resolved?.cityKey).toBe('berlin')
@@ -346,7 +352,7 @@ describe('resolve endpoint', () => {
 
       const rows = await readRows(batch.id)
       expect(rows[0]?.duplicate).toBeUndefined()
-      expect(rows[1]?.duplicate).toEqual({ reason: 'nearby-address', line: 2 })
+      expect(rows[1]?.duplicate).toEqual({ reason: 'nearby-address', strength: 'strong', line: 2 })
     })
 
     it('finds a match across the chunk boundary', async () => {
@@ -404,6 +410,7 @@ describe('resolve endpoint', () => {
 
       expect((await readRows(batch.id))[1]?.duplicate).toEqual({
         reason: 'city-and-time',
+        strength: 'weak',
         line: 2,
       })
     })
@@ -617,6 +624,84 @@ describe('resolve endpoint', () => {
       expect(status).toBe(200)
       expect(body).toMatchObject({ errors: 1, pending: 0, done: true })
       expect((await readRows(batch.id))[0]?.errors?.[0]).toContain('could not find this location')
+    })
+
+    /**
+     * ⚠ **A deterministic refusal is the row's, not an outage.** Treated as
+     * "unavailable", the same row came first in every chunk, and a Resume could
+     * never get past it to the rows after.
+     */
+    it('reports an address Mapbox refused as the row’s own error, and moves on', async () => {
+      geocodeLocation
+        .mockResolvedValueOnce({ status: 'refused' as const, httpStatus: 400 })
+        .mockResolvedValue(
+          found({ latitude: 48.1, longitude: 11.5, placeName: 'Munich', placeId: 'mbx-mu' }),
+        )
+      const batch = await createBatch({ rows: [row(2), row(3)] })
+
+      const { status, body } = await call(uploader, batch.id)
+
+      expect(status).toBe(200)
+      expect(body).toMatchObject({ errors: 1, pending: 0, done: true })
+      expect((await readRows(batch.id))[0]?.errors?.[0]).toContain('HTTP 400')
+    })
+
+    it('names a missing geocoder configuration rather than an outage', async () => {
+      geocodeLocation.mockResolvedValue({ status: 'unconfigured' as const, httpStatus: null })
+      const batch = await createBatch({ rows: [row(2)] })
+
+      const { status, body } = await call(uploader, batch.id)
+
+      expect(status).toBe(503)
+      expect(JSON.stringify(body.errors)).toContain('not configured')
+      expect((await readRows(batch.id))[0]?.errors).toBeUndefined()
+    })
+
+    /**
+     * ⚠ **One request at a time.** Two concurrent resolves each geocoded the same
+     * chunk, and whichever wrote last could put rows back to pending under a
+     * batch already marked `resolved`.
+     */
+    it('lets one of two concurrent calls work the batch, and tells the other to wait', async () => {
+      let release: () => void = () => undefined
+      const gate = new Promise<void>((resolve) => {
+        release = resolve
+      })
+      geocodeLocation.mockImplementation(async () => {
+        await gate
+        return found({ latitude: 50.1, longitude: 8.7, placeName: 'Frankfurt', placeId: 'mbx-ff' })
+      })
+      const batch = await createBatch({ rows: [row(2)] })
+
+      const first = call(uploader, batch.id)
+      // Let the first claim the lease before the second asks.
+      await new Promise((resolve) => setTimeout(resolve, 200))
+      const second = await call(uploader, batch.id)
+      release()
+
+      expect(second.status).toBe(409)
+      expect(second.body).toMatchObject({ busy: true })
+      expect((await first).status).toBe(200)
+      expect(geocodeLocation).toHaveBeenCalledTimes(1)
+    })
+
+    /** Ownership of the region outlives a revoked role; the import must not. */
+    it('refuses a manager whose role was revoked after the upload', async () => {
+      const revoked = await testData.createManager(payload, {
+        name: 'Resolve Revoked',
+        email: 'resolve-revoked@example.com',
+        roles: [],
+      })
+      await payload.update({
+        collection: 'regions',
+        id: germany.id,
+        data: { managers: [uploader.id, revoked.id] },
+        overrideAccess: true,
+      })
+      const batch = await createBatch({ uploader: revoked.id, rows: [row(2)] })
+
+      expect((await call(revoked, batch.id)).status).toBe(403)
+      expect(geocodeLocation).not.toHaveBeenCalled()
     })
 
     it('refuses a batch that is already committing', async () => {

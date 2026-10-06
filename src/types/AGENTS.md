@@ -227,12 +227,13 @@ type declaration the Next.js build does not recognize.
 
 A package with no bundled types and no `@types/*` gets one `declare module`
 block in a `.d.ts` under `src/types/`, named after the package
-(`tz-lookup.d.ts`). It takes **no** `export {}` — a file whose body is
+(`<package>.d.ts`). It takes **no** `export {}` — a file whose body is
 `declare module` is already ambient, and adding one makes the declaration a
 local type nothing outside the file can see. That is the opposite of the rule
 above, where `export {}` is what makes `declare global` take effect.
 
 State the runtime contract the package's README carries and its types cannot.
 Whether a function throws or returns null is what the caller has to branch on,
-and it is the first thing lost when nobody writes it down — `tz-lookup` throws
-a `RangeError` for a point outside range, which is why its one caller wraps it.
+and it is the first thing lost when nobody writes it down — a lookup that
+throws a `RangeError` for an input outside its range is one its every caller
+has to wrap.

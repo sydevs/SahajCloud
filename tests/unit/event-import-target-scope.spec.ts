@@ -154,3 +154,70 @@ describe('resolveTargetScope — reading order', () => {
     ).toEqual({ countryCode: 'DE', subdivisionCode: 'BY' })
   })
 })
+
+describe('resolveTargetScope — dependent territories', () => {
+  // ⚠ The real Atlas files Martinique, Guadeloupe, Réunion and Mayotte under
+  // France, but Mapbox answers with each as its own country. A scope of
+  // `{ FR, MQ }` refused every row there.
+  const france = country({ name: 'France', slug: 'fr' })
+
+  it.each([
+    ['Martinique', 'MQ'],
+    ['Guadeloupe', 'GP'],
+    ['La Réunion', 'RE'],
+    ['Mayotte', 'YT'],
+  ])('scopes %s as the country Mapbox files it as', (name, code) => {
+    expect(scopeOf([france, state({ name, slug: name.toLowerCase() }), city()])).toEqual({
+      countryCode: code,
+      subdivisionCode: null,
+      parentCountryCode: 'FR',
+    })
+  })
+
+  it('reads a territory the dataset lists under a numeric code', () => {
+    expect(
+      scopeOf([
+        country({ name: 'Norway', slug: 'no' }),
+        state({ name: 'Svalbard', slug: 'svalbard' }),
+      ]).countryCode,
+    ).toBe('SJ')
+  })
+
+  it('reads a territory the dataset does not list under its parent, by its country name', () => {
+    expect(
+      scopeOf([
+        country({ name: 'Netherlands', slug: 'nl' }),
+        state({ name: 'Aruba', slug: 'aruba' }),
+      ]),
+    ).toEqual({ countryCode: 'AW', subdivisionCode: null, parentCountryCode: 'NL' })
+    expect(
+      scopeOf([country({ name: 'Denmark', slug: 'dk' }), state({ name: 'Greenland' })]).countryCode,
+    ).toBe('GL')
+  })
+
+  it('reads Puerto Rico as its own country under the US', () => {
+    expect(
+      scopeOf([country({ name: 'United States', slug: 'us' }), state({ name: 'Puerto Rico' })]),
+    ).toEqual({ countryCode: 'PR', subdivisionCode: null, parentCountryCode: 'US' })
+  })
+
+  it('leaves an ordinary state a state, even one named like a country', () => {
+    // Georgia the state is `US-GA`; Georgia the country is `GE`, and no
+    // territory of the US.
+    expect(
+      scopeOf([country({ name: 'United States', slug: 'us' }), state({ name: 'Georgia' })]),
+    ).toEqual({ countryCode: 'US', subdivisionCode: 'GA' })
+    expect(scopeOf([france, state({ name: 'Île-de-France', slug: 'ile-de-france' })])).toEqual({
+      countryCode: 'FR',
+      subdivisionCode: 'IDF',
+    })
+  })
+
+  it('degrades a state in a country whose subdivisions carry no code, rather than throwing', () => {
+    // Building Puerto Rico's subdivision index threw on its codeless entries,
+    // which failed every endpoint for a target there.
+    expect(
+      scopeOf([country({ name: 'Puerto Rico', slug: 'pr' }), state({ name: 'San Juan' })]),
+    ).toEqual({ countryCode: 'PR', subdivisionCode: null })
+  })
+})

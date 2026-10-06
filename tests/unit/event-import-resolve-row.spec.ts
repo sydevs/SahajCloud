@@ -38,16 +38,18 @@ const offlineRow = (overrides: RawImportRow = {}): RawImportRow => ({
 
 const berlin = (overrides: Partial<GeocodedLocation> = {}): GeocodedLocation => ({
   mapboxId: 'dXJuOm1ieGFkcjox',
+  featureType: 'address',
   latitude: 52.5026,
   longitude: 13.4186,
   countryCode: 'DE',
   subdivisionCode: 'BE',
+  regionMapboxId: 'dXJuOm1ieHJlZzpCRQ',
   placeName: 'Berlin',
   placeId: 'dXJuOm1ieHBsYzpBQ1k',
   ...overrides,
 })
 
-function resolved(args: {
+function success(args: {
   values?: RawImportRow
   scope?: TargetScope
   location?: GeocodedLocation | null
@@ -61,8 +63,11 @@ function resolved(args: {
     todayIn,
   })
   if (!result.ok) throw new Error(`expected a resolved row, got: ${result.errors.join(' / ')}`)
-  return result.resolved
+  return result
 }
+
+const resolved = (args: Parameters<typeof success>[0]) => success(args).resolved
+const warningsOf = (args: Parameters<typeof success>[0]) => success(args).warnings
 
 function errorsOf(args: Parameters<typeof resolved>[0]): string[] {
   const result = resolveRow({
@@ -82,7 +87,8 @@ describe('geocodeRequestFor', () => {
     expect(request).toEqual({
       kind: 'query',
       query: 'Oranienstraße 25, Berlin, Berlin, 10999',
-      types: 'address,poi',
+      // An address first, then the coarser layers a row can still be placed by.
+      types: 'address,poi,street,postcode,place,locality',
       countryCode: 'DE',
     })
   })
@@ -224,15 +230,28 @@ describe('resolveRow — the timezone', () => {
   })
 
   it("derives it from the row's own coordinates when it gave some", () => {
-    // Honolulu, nowhere near the geocoded point — so a zone read from the
-    // geocode instead would say Europe/Berlin.
+    // Zgorzelec, across the Neisse from a Görlitz geocode — so a zone read from
+    // the geocode instead would say Europe/Berlin.
+    const görlitz = berlin({ latitude: 51.1526, longitude: 14.9872 })
     expect(
-      resolved({ values: offlineRow({ latitude: '21.3', longitude: '-157.8' }) }).timezone,
-    ).toBe('Pacific/Honolulu')
+      resolved({
+        values: offlineRow({ latitude: '51.15', longitude: '15.008' }),
+        location: görlitz,
+      }).timezone,
+    ).toBe('Europe/Warsaw')
   })
 
-  it("lets the row's timezone column override the lookup", () => {
-    expect(resolved({ values: offlineRow({ timezone: 'UTC' }) }).timezone).toBe('UTC')
+  it("lets the row's timezone column rename the zone at the point", () => {
+    expect(resolved({ values: offlineRow({ timezone: 'Europe/Prague' }) }).timezone).toBe(
+      'Europe/Prague',
+    )
+  })
+
+  it("refuses a timezone column that moves the point's clock", () => {
+    // Accepted before, and published a Berlin class six hours out.
+    const errors = errorsOf({ values: offlineRow({ timezone: 'America/New_York' }) })
+    expect(errors[0]).toContain('America/New_York')
+    expect(errors[0]).toContain('Europe/Berlin')
   })
 
   it('reports a zone this CMS cannot store', () => {
@@ -263,7 +282,9 @@ describe('resolveRow — the schedule key', () => {
   })
 
   it('leaves an inactive row matching nothing', () => {
-    const row = resolved({ values: offlineRow({ scheduleType: 'inactive' }) })
+    const row = resolved({
+      values: offlineRow({ scheduleType: 'inactive', weekdays: '', startTime: '' }),
+    })
     expect(row).toMatchObject({ inactive: true, weekdayMask: 0, startMinutes: null })
   })
 
@@ -310,5 +331,211 @@ describe('resolveRow — reporting', () => {
     expect(errors.join(' ')).toContain('outside the target (BY)')
     expect(errors.join(' ')).toContain('given together')
     expect(errors.join(' ')).toContain('klingon')
+  })
+})
+
+describe('resolveRow — warnings', () => {
+  it('names none for a clean address match', () => {
+    expect(warningsOf({})).toEqual([])
+    expect(resolved({})).toMatchObject({ approximate: false, regionMapboxId: 'dXJuOm1ieHJlZzpCRQ' })
+  })
+
+  it.each([
+    ['street', 'street'],
+    ['postcode', 'postcode'],
+    ['place', 'town'],
+    ['locality', 'town'],
+  ])('marks a %s match approximate, and says so', (featureType, area) => {
+    const location = berlin({ featureType })
+    expect(resolved({ location }).approximate).toBe(true)
+    expect(warningsOf({ location })).toEqual([
+      `Mapbox only found the ${area}, not the address — check it, or add latitude and longitude`,
+    ])
+  })
+
+  it('does not mark an online row approximate for matching the town it asked for', () => {
+    const values: RawImportRow = { ...offlineRow(), eventType: 'online', address: '' }
+    const location = berlin({ featureType: 'place' })
+    expect(resolved({ values, location }).approximate).toBe(false)
+    expect(warningsOf({ values, location })).toEqual([])
+  })
+
+  it('does not mark a row approximate when its own coordinates are the point', () => {
+    const values = offlineRow({ latitude: '52.51', longitude: '13.42' })
+    const location = berlin({ featureType: 'place' })
+    expect(resolved({ values, location }).approximate).toBe(false)
+    expect(warningsOf({ values, location })).toEqual([])
+  })
+})
+
+describe("resolveRow — the row's own coordinates, checked against the geocode", () => {
+  it('refuses 0, 0, which is what an empty cell exports as', () => {
+    // It passed the range check, overrode the geocode, and set Etc/GMT.
+    expect(errorsOf({ values: offlineRow({ latitude: '0', longitude: '0' }) })).toEqual([
+      'latitude and longitude of 0, 0 is not a real location — leave both blank to place the class by its address',
+    ])
+  })
+
+  it('refuses a swapped pair, and says it looks swapped', () => {
+    // Berlin's swapped is a point in Yemen, whose zone is Asia/Aden.
+    const errors = errorsOf({ values: offlineRow({ latitude: '13.4186', longitude: '52.5026' }) })
+    expect(errors).toHaveLength(1)
+    expect(errors[0]).toContain('km from where the address geocoded')
+    expect(errors[0]).toContain('look swapped')
+  })
+
+  it('refuses a sign-flipped pair, and says a sign looks flipped', () => {
+    const errors = errorsOf({ values: offlineRow({ latitude: '52.5026', longitude: '-13.4186' }) })
+    expect(errors[0]).toContain('a sign looks flipped')
+  })
+
+  it('refuses a pair far from the geocode for no reason it can name', () => {
+    const errors = errorsOf({ values: offlineRow({ latitude: '48.137', longitude: '11.575' }) })
+    expect(errors[0]).toMatch(/^latitude and longitude are \d+ km from where the address geocoded/)
+    expect(errors[0]).toContain('leave both blank')
+  })
+
+  it('allows a wider bound when the geocode only reached the town', () => {
+    // A town's centre can be tens of kilometres from a hall in its metro area.
+    const values = offlineRow({ latitude: '52.4', longitude: '13.9' })
+    expect(errorsOf({ values })[0]).toContain('km from where the address geocoded')
+    expect(resolved({ values, location: berlin({ featureType: 'place' }) })).toMatchObject({
+      latitude: 52.4,
+      longitude: 13.9,
+    })
+  })
+})
+
+describe('resolveRow — subdivision schemes', () => {
+  const ES_MADRID: TargetScope = { countryCode: 'ES', subdivisionCode: 'M' }
+  const madrid = (overrides: Partial<GeocodedLocation> = {}) =>
+    berlin({
+      latitude: 40.4168,
+      longitude: -3.7038,
+      countryCode: 'ES',
+      subdivisionCode: 'MD',
+      placeName: 'Madrid',
+      ...overrides,
+    })
+  const madridRow = offlineRow({ country: 'ES', city: 'Madrid', address: 'Calle Mayor 1' })
+
+  it("accepts Mapbox's community code for the province the target names", () => {
+    // Every row of a Madrid batch failed: Mapbox says `MD`, the dataset `M`.
+    expect(
+      resolved({ scope: ES_MADRID, values: madridRow, location: madrid() }).subdivisionCode,
+    ).toBe('M')
+  })
+
+  it("accepts India's renamed codes against the dataset's old ones", () => {
+    const scope: TargetScope = { countryCode: 'IN', subdivisionCode: 'UT' }
+    const dehradun = berlin({
+      latitude: 30.3165,
+      longitude: 78.0322,
+      countryCode: 'IN',
+      subdivisionCode: 'UK',
+      placeName: 'Dehradun',
+    })
+    const values = offlineRow({ country: 'IN', city: 'Dehradun', address: 'Rajpur Road 1' })
+    expect(resolved({ scope, values, location: dehradun }).subdivisionCode).toBe('UT')
+  })
+
+  it('still refuses a community that is not the target', () => {
+    const barcelona = madrid({ latitude: 41.3874, longitude: 2.1686, subdivisionCode: 'CT' })
+    expect(errorsOf({ scope: ES_MADRID, values: madridRow, location: barcelona })[0]).toContain(
+      'outside the target (M)',
+    )
+  })
+})
+
+describe("resolveRow — the row's state, for a whole-country target", () => {
+  const US: TargetScope = { countryCode: 'US', subdivisionCode: null }
+  const springfield = (subdivisionCode: string | null) =>
+    berlin({
+      latitude: 39.7817,
+      longitude: -89.6501,
+      countryCode: 'US',
+      subdivisionCode,
+      placeName: 'Springfield',
+    })
+  const row = (state: string) =>
+    offlineRow({ country: 'US', city: 'Springfield', address: '1 Main St', state })
+
+  it('refuses a geocode in another state than the row names — the wrong Springfield', () => {
+    expect(errorsOf({ scope: US, values: row('IL'), location: springfield('MO') })[0]).toBe(
+      "this address geocoded to MO, but the row's state says IL — check the address and the state",
+    )
+    expect(
+      errorsOf({ scope: US, values: row('Illinois'), location: springfield('MO') })[0],
+    ).toContain("row's state says IL")
+  })
+
+  it('accepts a geocode in the state the row names, by code or by name', () => {
+    expect(resolved({ scope: US, values: row('IL'), location: springfield('IL') }).cityKey).toBe(
+      'springfield',
+    )
+    expect(
+      resolved({ scope: US, values: row('illinois'), location: springfield('IL') }).cityKey,
+    ).toBe('springfield')
+  })
+
+  it('does not judge a state either side cannot name in the dataset', () => {
+    // GB lists councils, Mapbox answers England — neither is evidence of a
+    // wrong match.
+    const GB: TargetScope = { countryCode: 'GB', subdivisionCode: null }
+    const canterbury = berlin({
+      latitude: 51.28,
+      longitude: 1.08,
+      countryCode: 'GB',
+      subdivisionCode: 'ENG',
+      placeName: 'Canterbury',
+    })
+    const values = offlineRow({
+      country: 'GB',
+      city: 'Canterbury',
+      address: '1 High St',
+      state: 'Kent',
+    })
+    expect(resolved({ scope: GB, values, location: canterbury }).cityKey).toBe('canterbury')
+    expect(resolved({ scope: US, values: row(''), location: springfield('MO') }).cityKey).toBe(
+      'springfield',
+    )
+    expect(resolved({ scope: US, values: row('IL'), location: springfield(null) }).cityKey).toBe(
+      'springfield',
+    )
+  })
+})
+
+describe('a dependent-territory target', () => {
+  const MARTINIQUE: TargetScope = {
+    countryCode: 'MQ',
+    subdivisionCode: null,
+    parentCountryCode: 'FR',
+  }
+  const row = (country: string) =>
+    offlineRow({ country, city: 'Fort-de-France', address: 'Rue Victor Hugo 1' })
+
+  it.each(['MQ', 'FR', 'fr'])('accepts a row declaring %s, and searches under MQ', (country) => {
+    expect(geocodeRequestFor(row(country), MARTINIQUE)).toMatchObject({
+      kind: 'query',
+      countryCode: 'MQ',
+    })
+  })
+
+  it('refuses another country, naming both it would take', () => {
+    const request = geocodeRequestFor(row('DE'), MARTINIQUE)
+    expect(request.kind === 'error' && request.errors[0]).toContain('outside the target (MQ or FR)')
+  })
+
+  it('places a row Mapbox filed under the territory', () => {
+    const fortDeFrance = berlin({
+      latitude: 14.6161,
+      longitude: -61.0588,
+      countryCode: 'MQ',
+      subdivisionCode: null,
+      placeName: 'Fort-de-France',
+    })
+    expect(
+      resolved({ scope: MARTINIQUE, values: row('FR'), location: fortDeFrance }).timezone,
+    ).toBe('America/Martinique')
   })
 })
