@@ -31,12 +31,17 @@ vi.mock('@payloadcms/ui', () => ({
   useFormFields: (selector: (args: [Record<string, { value: unknown }>]) => unknown) =>
     selector([form.fields]),
   useFormProcessing: () => form.processing,
+  useTranslation: () => ({
+    t: (key: string) => (key === 'general:uploading' ? 'Nahrávání' : key),
+  }),
 }))
 
 // `vi.mock` is hoisted above this import, so the component sees the stand-in.
 import { UploadNotice } from '@/components/admin/UploadNotice/UploadNotice'
 
-const MESSAGE = 'Uploading, please keep this page open'
+/** What the stubbed `t` answers for `general:uploading`, so a hardcoded
+ * English label fails the assertion instead of passing it. */
+const MESSAGE = 'Nahrávání'
 const audio = () => new File(['x'], 'talk.mp3', { type: 'audio/mpeg' })
 
 describe('UploadNotice', () => {
