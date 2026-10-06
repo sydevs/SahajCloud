@@ -1,3 +1,4 @@
+import type { OpenBatch } from './runPlan'
 import type { DocumentViewServerProps } from 'payload'
 import type { ReactNode } from 'react'
 
@@ -6,6 +7,7 @@ import { formatAdminURL } from 'payload/shared'
 
 import { baseLanguage, getLanguageOptions } from '@/lib/locales'
 import type { Region } from '@/payload-types'
+
 
 import { importGate } from './importGate'
 import { ImportRunner } from './ImportRunner'
@@ -25,6 +27,32 @@ export default async function ImportView({ doc, initPageResult }: DocumentViewSe
   const gate = await importGate({ region: doc as Region | null, req })
   if (!gate.ok) return <Refusal>{gate.refusal}</Refusal>
   const { region } = gate
+
+  // ⚠ **Read as the caller, so the collection's own access decides.** A batch
+  // is its uploader's (`EventImports/access.ts`), and these are the ones a
+  // volunteer can resume or discard from here.
+  const open = await req.payload.find({
+    collection: 'event-imports',
+    where: {
+      and: [
+        { targetRegion: { equals: region.id } },
+        { uploader: { equals: req.user?.id } },
+        { status: { not_equals: 'finished' } },
+      ],
+    },
+    depth: 0,
+    limit: 10,
+    sort: '-updatedAt',
+    overrideAccess: false,
+    select: { status: true, updatedAt: true, proposedRegions: true },
+    req,
+  })
+  const openBatches: OpenBatch[] = open.docs.map((batch) => ({
+    id: batch.id,
+    status: batch.status as OpenBatch['status'],
+    proposed: !!batch.proposedRegions,
+    updatedAt: batch.updatedAt,
+  }))
 
   // Built from the configured API route rather than typed, because `routes.api`
   // is configurable and a dead download link would look like a server fault.
@@ -53,6 +81,7 @@ export default async function ImportView({ doc, initPageResult }: DocumentViewSe
         apiRoute={req.payload.config.routes.api}
         defaultLanguages={[baseLanguage(req.locale)]}
         languageOptions={getLanguageOptions()}
+        openBatches={openBatches}
         regionId={region.id}
       />
     </Gutter>

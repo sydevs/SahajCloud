@@ -69,7 +69,13 @@ vi.mock('@payloadcms/ui', () => ({
     readOnly?: boolean
     value: string
   }) =>
-    createElement('label', null, label, createElement('input', { disabled: readOnly, onChange, value })),
+    createElement(
+      'label',
+      null,
+      label,
+      createElement('input', { disabled: readOnly, onChange, value }),
+    ),
+  useConfig: () => ({ config: { routes: { admin: '/admin' } } }),
   useLocale: () => ({ code: ui.locale }),
 }))
 
@@ -83,7 +89,7 @@ interface Call {
   url: string
 }
 
-let answers: { body: unknown; ok: boolean }[]
+let answers: { body: unknown; ok: boolean; status?: number }[]
 let calls: Call[]
 let confirms: string[]
 let confirmed: boolean
@@ -106,7 +112,11 @@ beforeEach(() => {
     })
     const answer = answers.shift()
     if (!answer) throw new Error(`Unscripted request: ${url}`)
-    return Promise.resolve({ json: () => Promise.resolve(answer.body), ok: answer.ok })
+    return Promise.resolve({
+      json: () => Promise.resolve(answer.body),
+      ok: answer.ok,
+      status: answer.status ?? (answer.ok ? 200 : 422),
+    })
   })
 })
 
@@ -133,7 +143,8 @@ const city = {
 }
 
 const review = (over: Record<string, unknown> = {}) => ({
-  coordinators: { created: 2, existing: 1 },
+  coordinators: { created: 2, existing: 1, unlinked: 0 },
+  inviteCoordinators: false,
   creating: 2,
   existing: 0,
   mappable: [
@@ -149,19 +160,23 @@ const review = (over: Record<string, unknown> = {}) => ({
   rows: [
     {
       coordinator: 'new',
+      duplicate: null,
       line: 2,
       place: 'Berlin',
       reasons: [],
       status: 'ready',
       title: 'Morning class',
+      warnings: [],
     },
     {
       coordinator: 'existing',
+      duplicate: { action: 'skip', eventId: 77, overwritable: true, strength: 'strong' },
       line: 3,
       place: 'Potsdam',
-      reasons: ['this address is already in the Atlas'],
+      reasons: ['a repeat of class #77'],
       status: 'duplicate',
       title: 'Evening class',
+      warnings: [],
     },
   ],
   status: 'resolved',
@@ -183,11 +198,11 @@ const finishedChunk = {
   ...commitChunk({ committedNow: 1, done: true, pending: 0 }),
   finished: {
     committed: [
-      { eventId: 21, line: 2 },
-      { eventId: 22, line: 4 },
+      { action: 'created', eventId: 21, line: 2 },
+      { action: 'created', eventId: 22, line: 4 },
     ],
-    deleted: true,
-    skipped: [{ line: 3, reasons: ['this address is already in the Atlas'] }],
+    reportEmailed: true,
+    skipped: [{ line: 3, reasons: ['a repeat of class #77'], values: { title: 'Evening class' } }],
     summaryEmailed: true,
   },
 }
@@ -223,6 +238,29 @@ function selectOffering(container: HTMLElement, regionId: string): HTMLSelectEle
   )
   if (!select) throw new Error(`No mapping control offers region ${regionId}`)
   return select as HTMLSelectElement
+}
+
+/**
+ * Map a node onto a region the way a reviewer does: pick it, then press the
+ * button beside that control. Picking alone sends nothing.
+ */
+async function mapOnto(container: HTMLElement, regionId: string) {
+  const select = selectOffering(container, regionId)
+  await setValue(select, regionId)
+  const button = select.parentElement?.querySelector('button')
+  await act(async () => {
+    button?.click()
+  })
+}
+
+/** The rename box of the node carrying this name. */
+function renameInput(container: HTMLElement, name: string): HTMLInputElement {
+  const label = [...container.querySelectorAll('label')].find((candidate) =>
+    candidate.textContent?.startsWith(`Rename ${name}`),
+  )
+  const input = label?.querySelector('input')
+  if (!input) throw new Error(`No rename box for ${name}`)
+  return input
 }
 
 async function click(container: HTMLElement, label: string) {
@@ -262,12 +300,17 @@ describe('ImportReview', () => {
     expect(urls()).toEqual(['/api/event-imports/5/review?locale=de'])
     expect(calls[0]!.method).toBe('GET')
     expect(container.textContent).toContain('2 new regions.')
-    expect(container.textContent).toContain('2 new coordinators will be created')
-    // Both nodes, and the rows as the table shows them.
+    expect(container.textContent).toContain('2 new coordinator accounts will be opened')
+    // Both nodes, and the line that needs a decision.
     expect(container.textContent).toContain('Berlin')
     expect(container.textContent).toContain('Mitte')
-    expect(container.textContent).toContain('Morning class')
     expect(container.textContent).toContain('Duplicate — skipped')
+    expect(container.textContent).toContain('Duplicate of class #77')
+    // ⚠ A ready line waits behind "show all", so the twelve that need a look in
+    // a 500-line batch are not buried among the rest.
+    expect(container.textContent).not.toContain('Morning class')
+    await click(container, 'Show all 2')
+    expect(container.textContent).toContain('Morning class')
   })
 
   // #701: a request naming no locale resolves to the default one server-side, so
@@ -299,12 +342,18 @@ describe('ImportReview', () => {
   it('sends one edit as a delta, then re-reads the review', async () => {
     answers = [
       { body: review(), ok: true },
-      { body: { creating: 1, existing: 1, proposedRegions: {}, pruned: [], rowErrors: 0 }, ok: true },
+      {
+        body: { creating: 1, existing: 1, proposedRegions: {}, pruned: [], rowErrors: 0 },
+        ok: true,
+      },
       { body: review({ creating: 1, existing: 1 }), ok: true },
     ]
     const { container } = await mount()
 
+    // Choosing fills the control and sends nothing; the button sends it.
     await setValue(selectOffering(container, '7'), '7')
+    expect(urls()).toHaveLength(1)
+    await mapOnto(container, '7')
 
     expect(urls()).toEqual([
       '/api/event-imports/5/review?locale=de',
@@ -320,12 +369,15 @@ describe('ImportReview', () => {
   it('renames a node with the name trimmed, and nothing else', async () => {
     answers = [
       { body: review(), ok: true },
-      { body: { creating: 2, existing: 0, proposedRegions: {}, pruned: [], rowErrors: 0 }, ok: true },
+      {
+        body: { creating: 2, existing: 0, proposedRegions: {}, pruned: [], rowErrors: 0 },
+        ok: true,
+      },
       { body: review(), ok: true },
     ]
     const { container } = await mount()
 
-    await setValue(container.querySelector('input')!, '  Berlin Mitte  ')
+    await setValue(renameInput(container, 'Berlin'), '  Berlin Mitte  ')
     await click(container, 'Rename')
 
     expect(calls[1]!.body).toEqual({
@@ -342,7 +394,7 @@ describe('ImportReview', () => {
     ]
     const { container } = await mount()
 
-    await setValue(selectOffering(container, '7'), '7')
+    await mapOnto(container, '7')
 
     expect(urls()).toEqual([
       '/api/event-imports/5/review?locale=de',
@@ -369,9 +421,11 @@ describe('ImportReview', () => {
       '/api/event-imports/5/commit?locale=de',
     ])
     expect(container.textContent).toContain('2 classes created')
-    // ⚠ The batch is deleted by the call that answered, so these lines are the
-    // only account of the import anyone gets.
-    expect(container.textContent).toContain('Line 3 — this address is already in the Atlas')
+    // The report is what the volunteer keeps: emailed to them, and the skipped
+    // lines downloadable to fix and upload again.
+    expect(container.textContent).toContain('Line 3 — a repeat of class #77')
+    expect(container.textContent).toContain('emailed to you')
+    expect(buttonFor(container, 'Download the skipped lines')).toBeTruthy()
   })
 
   // ⚠ A doubled commit is two chunk loops writing the same rows. `disabled` is
@@ -402,11 +456,13 @@ describe('ImportReview', () => {
       { body: review(), ok: true },
       { body: commitChunk({ pending: 2 }), ok: true },
       { body: commitChunk({ pending: 2 }), ok: true },
+      { body: review({ status: 'committing' }), ok: true },
     ]
     const { container } = await mount()
     await click(container, 'Create the classes')
 
-    expect(urls()).toHaveLength(3)
+    // The two chunks, then one read of the batch, never a third chunk.
+    expect(urls().filter((url) => url.includes('/commit'))).toHaveLength(2)
     expect(container.textContent).toContain(COMMIT_STALLED_REFUSAL)
   })
 
@@ -424,27 +480,47 @@ describe('ImportReview', () => {
     expect(container.textContent).not.toContain('classes created')
   })
 
+  /**
+   * ⚠ **Resume stays enabled on a committing batch, and Discard is gone.** A
+   * batch reopened from the Import tab part-way through its commit can only go
+   * forward — the server refuses to discard it — and a disabled Resume left it
+   * with no way to finish at all.
+   */
   it('resumes an interrupted commit rather than offering to start one', async () => {
     answers = [{ body: review({ status: 'committing' }), ok: true }]
     const { container } = await mount()
 
-    expect(buttonFor(container, 'Resume creating the classes')).toBeTruthy()
+    expect(buttonFor(container, 'Resume creating the classes').disabled).toBe(false)
+    expect(container.textContent).not.toContain('Discard this batch')
   })
 
-  // ⚠ The server wrote `committing` before the first class, but this surface does
-  // not re-read on a failure — so the label is the only hint that classes already
-  // exist, and reading it off the stale answer would deny there are any.
-  it('offers a resume after a chunk failed, not a fresh start', async () => {
+  // The batch is read back after a failed chunk, so the surface shows it as the
+  // server holds it: committing, frozen, and not discardable.
+  it('offers a resume after a chunk failed, and no discard', async () => {
     answers = [
       { body: review(), ok: true },
       { body: commitChunk({ pending: 2 }), ok: true },
-      { body: { errors: [{ message: 'The database went away.' }] }, ok: false },
+      { body: { errors: [{ message: 'The database went away.' }] }, ok: false, status: 503 },
+      { body: review({ status: 'committing' }), ok: true },
     ]
     const { container } = await mount()
     await click(container, 'Create the classes')
 
     expect(container.textContent).toContain('The database went away.')
-    expect(buttonFor(container, 'Resume creating the classes')).toBeTruthy()
+    expect(buttonFor(container, 'Resume creating the classes').disabled).toBe(false)
+    expect(container.textContent).not.toContain('Discard this batch')
+  })
+
+  it('advises waiting, not retrying, when a gateway timed the request out', async () => {
+    answers = [
+      { body: review(), ok: true },
+      { body: null, ok: false, status: 504 },
+      { body: review({ status: 'committing' }), ok: true },
+    ]
+    const { container } = await mount()
+    await click(container, 'Create the classes')
+
+    expect(container.textContent).toContain('It may still be working')
   })
 
   // ⚠ `POST /:id/tree` 409s a committing batch outright, so a control offered on
@@ -468,13 +544,13 @@ describe('ImportReview', () => {
       { body: review({ creating: 1 }), ok: true },
     ]
     const { container } = await mount()
-    await setValue(selectOffering(container, '7'), '7')
+    await mapOnto(container, '7')
 
     expect(container.textContent).toContain('1 proposed region held nothing after that change')
   })
 
-  // ⚠ The batch is deleted by the call that answered, so a reload 404s and the
-  // committed and skipped lines exist nowhere else.
+  // ⚠ The report is on screen, and a re-read would replace it with whatever the
+  // finished batch answers next.
   it('never re-reads the batch once the commit has finished', async () => {
     answers = [
       { body: review(), ok: true },
@@ -495,17 +571,81 @@ describe('ImportReview', () => {
     expect(container.textContent).toContain('2 classes created')
   })
 
-  // ⚠ A batch that survives its own commit keeps the uploaded CSV, and the nightly
-  // sweep will not take it, because nothing trashed it.
-  it('says so when the commit could not delete the batch afterwards', async () => {
+  it('says so when the report could not be emailed', async () => {
     answers = [
       { body: review(), ok: true },
-      { body: { ...finishedChunk, finished: { ...finishedChunk.finished, deleted: false } }, ok: true },
+      {
+        body: { ...finishedChunk, finished: { ...finishedChunk.finished, reportEmailed: false } },
+        ok: true,
+      },
     ]
     const { container } = await mount()
     await click(container, 'Create the classes')
 
-    expect(container.textContent).toContain('was not deleted afterwards')
+    expect(container.textContent).toContain('could not be emailed to you')
+  })
+
+  /** Skip is the default; the reviewer's choice is sent, then the batch read back. */
+  it('sends a duplicate decision, then re-reads the review', async () => {
+    answers = [
+      { body: review(), ok: true },
+      { body: { ok: true }, ok: true },
+      { body: review(), ok: true },
+    ]
+    const { container } = await mount()
+    const choice = container.querySelector('select[aria-label="What to do with this duplicate"]')
+    expect([...choice!.querySelectorAll('option')].map((option) => option.value)).toEqual([
+      'skip',
+      'import',
+      'overwrite',
+    ])
+    await setValue(choice as HTMLSelectElement, 'overwrite')
+
+    expect(urls()[1]).toBe('/api/event-imports/5/choices?locale=de')
+    expect(calls[1]!.body).toEqual({ duplicates: [{ action: 'overwrite', line: 3 }] })
+    expect(urls()).toHaveLength(3)
+  })
+
+  /** An import emails nobody unless the reviewer opts in, per batch. */
+  it('sends the invitation opt-in, off until ticked', async () => {
+    answers = [
+      { body: review(), ok: true },
+      { body: { ok: true }, ok: true },
+      { body: review({ inviteCoordinators: true }), ok: true },
+    ]
+    const { container } = await mount()
+    const optIn = container.querySelector('input[type="checkbox"]') as HTMLInputElement
+    expect(optIn.checked).toBe(false)
+    expect(container.textContent).toContain('Email these 3 coordinators an invitation')
+    await act(async () => {
+      optIn.click()
+    })
+
+    expect(calls[1]!.body).toEqual({ inviteCoordinators: true })
+  })
+
+  it('offers to take back a mapping the reviewer made, and only that', async () => {
+    const mapped = {
+      ...city,
+      before: { location: null, name: 'Mitte', parentKey: 'state:DE-BE' },
+      match: { kind: 'existing', name: 'Berlin-Mitte', regionId: 7, slug: 'berlin-mitte' },
+      parentKey: null,
+      slug: null,
+    }
+    answers = [
+      {
+        body: review({
+          proposedRegions: { ...review().proposedRegions, nodes: [state, mapped] },
+        }),
+        ok: true,
+      },
+      { body: { pruned: [] }, ok: true },
+      { body: review(), ok: true },
+    ]
+    const { container } = await mount()
+    await click(container, 'Create it instead')
+
+    expect(calls[1]!.body).toEqual({ edits: [{ key: 'city:id:place.mitte', kind: 'unmap' }] })
   })
 
   it('asks before discarding, and sends nothing when the answer is no', async () => {
@@ -532,7 +672,7 @@ describe('ImportReview', () => {
     expect(calls[1]!.method).toBe('PATCH')
     expect(calls[1]!.url).toBe('/api/event-imports/5?locale=de')
     expect(Object.keys(calls[1]!.body as object)).toEqual(['deletedAt'])
-    expect(container.textContent).toContain('nothing already in the Atlas changed')
+    expect(container.textContent).toContain('nothing in the Atlas changed')
   })
 
   it('ends a dropped connection somewhere the reviewer can act on', async () => {

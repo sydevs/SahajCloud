@@ -13,8 +13,8 @@
  *
  * The `@payloadcms/ui` stand-in reproduces only what the component reads: a
  * `Dropzone` that hands over a `FileList`, a `Button` that clicks, a `Banner`
- * that renders its children, a `SelectInput` that renders nothing, and
- * `useLocale`. The real module pulls stylesheets no node runner can load, which
+ * that renders its children, a `SelectInput` that renders nothing, `useLocale`,
+ * and the `useConfig` the review surface below it reads its admin route from. The real module pulls stylesheets no node runner can load, which
  * is why `importGate` was extracted from `ImportView` for the same reason.
  */
 
@@ -24,7 +24,7 @@ import { act, createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { STALLED_REFUSAL } from '@/components/admin/RegionImport/runPlan'
+import { STALLED_REFUSAL, type OpenBatch } from '@/components/admin/RegionImport/runPlan'
 
 /** What the stand-in last handed the component, and what it took back. */
 const ui = vi.hoisted(() => ({
@@ -55,6 +55,7 @@ vi.mock('@payloadcms/ui', () => ({
     return createElement('div', null, children)
   },
   SelectInput: () => null,
+  useConfig: () => ({ config: { routes: { admin: '/admin' } } }),
   useLocale: () => ({ code: ui.locale }),
 }))
 
@@ -66,7 +67,7 @@ interface Call {
 }
 
 /** Scripted answers, one per request, in the order the run makes them. */
-let answers: { body: unknown; ok: boolean }[]
+let answers: { body: unknown; ok: boolean; status?: number }[]
 let calls: Call[]
 
 beforeEach(() => {
@@ -78,8 +79,13 @@ beforeEach(() => {
     calls.push({ body: init.body ? JSON.parse(init.body) : undefined, url })
     const answer = answers.shift()
     if (!answer) throw new Error(`Unscripted request: ${url}`)
-    return Promise.resolve({ json: () => Promise.resolve(answer.body), ok: answer.ok })
+    return Promise.resolve({
+      json: () => Promise.resolve(answer.body),
+      ok: answer.ok,
+      status: answer.status ?? (answer.ok ? 200 : 422),
+    })
   })
+  window.history.replaceState(null, '', '/admin/collections/regions/11/import')
 })
 
 /**
@@ -89,7 +95,8 @@ beforeEach(() => {
  * sends, which is this file's subject.
  */
 const reviewAnswer = {
-  coordinators: { created: 0, existing: 0 },
+  coordinators: { created: 0, existing: 0, unlinked: 0 },
+  inviteCoordinators: false,
   creating: 1,
   existing: 0,
   mappable: [],
@@ -114,7 +121,9 @@ const resolveReport = (over: Record<string, unknown>) => ({
   ...over,
 })
 
-async function mount(): Promise<{ container: HTMLElement; root: Root }> {
+async function mount(
+  openBatches: OpenBatch[] = [],
+): Promise<{ container: HTMLElement; root: Root }> {
   const container = document.createElement('div')
   document.body.append(container)
   const root = createRoot(container)
@@ -124,6 +133,7 @@ async function mount(): Promise<{ container: HTMLElement; root: Root }> {
         apiRoute: '/api',
         defaultLanguages: ['de'],
         languageOptions: [{ label: 'German', value: 'de' }],
+        openBatches,
         regionId: 11,
       }),
     )
@@ -134,19 +144,35 @@ async function mount(): Promise<{ container: HTMLElement; root: Root }> {
 /**
  * Hand the component a file, the way the dropzone would.
  *
- * ⚠ A stand-in rather than a real `File`: jsdom 26 implements no
- * `Blob.prototype.text`, so `new File([...])` here would fail on the one method
- * the component actually calls. What it reads is `name` and `text()`.
+ * ⚠ A stand-in rather than a real `File`: jsdom 26 implements neither
+ * `Blob.prototype.text` nor `arrayBuffer`, so `new File([...])` here would fail
+ * on the method the component calls. What it reads is `name`, `size` and
+ * `arrayBuffer()` — the bytes, so the strict UTF-8 decode is the real one.
  */
-async function drop(name = 'classes.csv', text = 'title,eventType\nYoga,offline\n') {
-  const file = { name, text: () => Promise.resolve(text) } as unknown as File
+async function drop(
+  name = 'classes.csv',
+  content: string | Uint8Array = 'title,eventType\nYoga,offline\n',
+) {
+  const bytes = typeof content === 'string' ? new TextEncoder().encode(content) : content
+  const file = {
+    name,
+    size: bytes.byteLength,
+    arrayBuffer: () => Promise.resolve(bytes.buffer.slice(0)),
+  } as unknown as File
   await act(async () => {
     ui.dropped?.({ item: () => file } as unknown as FileList)
   })
 }
 
+/** The run's own button, whichever way it is labelled. */
+function runButton(container: HTMLElement): HTMLButtonElement | undefined {
+  return [...container.querySelectorAll('button')].find((button) =>
+    /^(Check this file|Resume)$/.test(button.textContent ?? ''),
+  )
+}
+
 async function click(container: HTMLElement) {
-  const button = container.querySelector('button')
+  const button = runButton(container)
   await act(async () => {
     button?.click()
   })
@@ -254,7 +280,7 @@ describe('ImportRunner', () => {
     ]
     const { container } = await mount()
     await drop()
-    const button = container.querySelector('button')
+    const button = runButton(container)
     await act(async () => {
       button?.click()
       button?.click()
@@ -272,13 +298,102 @@ describe('ImportRunner', () => {
     await click(container)
 
     expect(container.textContent).toContain('Check your connection')
-    expect(container.querySelector('button')?.disabled).toBe(false)
+    expect(runButton(container)?.disabled).toBe(false)
   })
 
   it('offers no run until a file is chosen', async () => {
     const { container } = await mount()
-    expect(container.querySelector('button')?.disabled).toBe(true)
+    expect(runButton(container)?.disabled).toBe(true)
     await drop()
-    expect(container.querySelector('button')?.disabled).toBe(false)
+    expect(runButton(container)?.disabled).toBe(false)
+  })
+
+  /**
+   * ⚠ Payload's `Dropzone` takes a drop or a paste, nothing else — so without a
+   * real file input a keyboard, screen-reader or tablet user could not upload.
+   */
+  it('offers a file input beside the drop zone', async () => {
+    const { container } = await mount()
+    expect(container.querySelector('input[type="file"]')).not.toBeNull()
+    expect(container.textContent).toContain('Choose a file')
+  })
+
+  // A Windows Excel "CSV" is Windows-1252, and decoding it as UTF-8 published
+  // every accented letter as U+FFFD.
+  it('refuses a file that is not UTF-8 before sending anything', async () => {
+    const { container } = await mount()
+    // "München" in Windows-1252: ü is the lone byte 0xFC.
+    await drop('classes.csv', new Uint8Array([0x4d, 0xfc, 0x6e, 0x63, 0x68, 0x65, 0x6e]))
+    await click(container)
+
+    expect(calls).toEqual([])
+    expect(container.textContent).toContain('not saved as UTF-8')
+  })
+
+  it('refuses a spreadsheet saved in its own format', async () => {
+    const { container } = await mount()
+    await drop('classes.xlsx', new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0x00]))
+    await click(container)
+
+    expect(calls).toEqual([])
+    expect(container.textContent).toContain('spreadsheet file, not a CSV')
+  })
+
+  /**
+   * ⚠ **The only way back to a batch.** Without it a closed tab or a dropped
+   * connection strands the batch — and one part-way through its commit, with
+   * classes already in the Atlas.
+   */
+  it('offers an unfinished batch back, and resumes it without re-uploading', async () => {
+    answers = [
+      { body: resolveReport({ done: true, pending: 0, resolved: 2, total: 2 }), ok: true },
+      { body: { creating: 1, existing: 0, rowErrors: 0 }, ok: true },
+      { body: reviewAnswer, ok: true },
+    ]
+    const { container } = await mount([
+      { id: 8, status: 'uploaded', proposed: false, updatedAt: '2026-10-01T10:00:00.000Z' },
+    ])
+    expect(container.textContent).toContain('Unfinished imports')
+
+    const resume = [...container.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Resume' && !button.disabled,
+    )
+    await act(async () => {
+      resume?.click()
+    })
+
+    expect(calls.map((call) => call.url)).toEqual([
+      '/api/event-imports/8/resolve?locale=de',
+      '/api/event-imports/8/propose?locale=de',
+      '/api/event-imports/8/review?locale=de',
+    ])
+    expect(window.location.search).toBe('?batch=8')
+  })
+
+  it('takes a batch part-way through its commit straight to its review', async () => {
+    answers = [{ body: { ...reviewAnswer, status: 'committing' }, ok: true }]
+    const { container } = await mount([
+      { id: 9, status: 'committing', proposed: true, updatedAt: '2026-10-01T10:00:00.000Z' },
+    ])
+    const finish = [...container.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Finish it',
+    )
+    await act(async () => {
+      finish?.click()
+    })
+
+    expect(calls.map((call) => call.url)).toEqual(['/api/event-imports/9/review?locale=de'])
+    expect(container.textContent).toContain('Resume creating the classes')
+    expect(container.textContent).not.toContain('Discard this batch')
+  })
+
+  it('lands back on the batch its URL names after a reload', async () => {
+    window.history.replaceState(null, '', '/admin/collections/regions/11/import?batch=9')
+    answers = [{ body: reviewAnswer, ok: true }]
+    await mount([
+      { id: 9, status: 'resolved', proposed: true, updatedAt: '2026-10-01T10:00:00.000Z' },
+    ])
+
+    expect(calls.map((call) => call.url)).toEqual(['/api/event-imports/9/review?locale=de'])
   })
 })

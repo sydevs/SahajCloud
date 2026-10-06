@@ -108,7 +108,9 @@ describe('InviteEmail', () => {
     expect(html).toMatch(
       /<a[^>]+href="https:\/\/atlas.test\/berlin"[^>]*>Berlin<\/a><br\/><a[^>]+href="https:\/\/atlas.test\/hamburg"/,
     )
-    expect(html).toMatch(/<a[^>]+href="https:\/\/atlas.test\/tuesday"[^>]*>Tuesday Evening Meditation/)
+    expect(html).toMatch(
+      /<a[^>]+href="https:\/\/atlas.test\/tuesday"[^>]*>Tuesday Evening Meditation/,
+    )
     expect(html).not.toContain('Including the')
   })
 
@@ -193,8 +195,10 @@ describe('InviteEmail', () => {
   })
 
   it('introduces each project to a manager who has not confirmed, and to no one else', async () => {
-    const render = (project: 'sahaj-atlas' | 'wemeditate-app' | 'wemeditate-web', accepted = false) =>
-      renderEmail(createElement(InviteEmail, { ...inviteProps, accepted, project }))
+    const render = (
+      project: 'sahaj-atlas' | 'wemeditate-app' | 'wemeditate-web',
+      accepted = false,
+    ) => renderEmail(createElement(InviteEmail, { ...inviteProps, accepted, project }))
 
     expect(await render('wemeditate-web')).toContain('We Meditate is a free website')
     expect(await render('wemeditate-app')).toContain('We Meditate is a free app')
@@ -334,10 +338,12 @@ describe('EventRegistrationEmail', () => {
 
 describe('EventImportSummaryEmail', () => {
   const props = {
+    audience: 'admin' as const,
     brand: getEmailBrand('sahaj-atlas'),
     uploaderName: 'Anna Volunteer',
     targetName: 'Germany',
     counts: {
+      overwritten: 0,
       verified: 12,
       unverified: 40,
       duplicates: 3,
@@ -388,6 +394,42 @@ describe('EventImportSummaryEmail', () => {
 
     expect(html.replace(/<!-- -->/g, '')).toContain('imported 1 class into')
     expect(html.replace(/<!-- -->/g, '')).toContain('(1 new account)')
+  })
+
+  it('counts the classes a reviewer chose to overwrite apart from the ones created', async () => {
+    const html = await renderEmail(
+      createElement(EventImportSummaryEmail, {
+        ...props,
+        counts: { ...props.counts, overwritten: 3 },
+      }),
+    )
+    const text = html.replace(/<!-- -->/g, '')
+    expect(text).toContain('imported 52 classes into')
+    expect(text).toContain('updated 3 existing classes')
+  })
+
+  /**
+   * ⚠ **The uploader's copy lists every skipped line.** The batch is reduced to
+   * a report once the commit finishes, so this email is the copy of it the
+   * volunteer keeps.
+   */
+  it('lists the skipped lines for the uploader, and speaks to them', async () => {
+    const html = await renderEmail(
+      createElement(EventImportSummaryEmail, {
+        ...props,
+        audience: 'uploader',
+        skipped: [
+          { line: 7, reasons: ['website: Please enter a valid URL'] },
+          { line: 9, reasons: ['a repeat of class #4'] },
+        ],
+      }),
+    )
+    const text = html.replace(/<!-- -->/g, '')
+    expect(text).toContain('Your import is finished')
+    expect(text).toContain('You imported 52 classes')
+    expect(text).toContain('Line 7')
+    expect(text).toContain('website: Please enter a valid URL')
+    expect(text).toContain('because you imported classes')
   })
 })
 
