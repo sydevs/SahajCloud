@@ -18,6 +18,7 @@ import type { Event } from '@/payload-types'
 import { MAX_IMPORT_ROWS } from '../constants'
 import { isImportColumn, requiredColumnsFor, type RawImportRow } from './columns'
 import { checkRowFields, echo } from './fieldChecks'
+import { SCHEDULE_TYPES } from './schedule'
 import { isTemplateExampleRow, isTemplateHelpRow } from './template'
 
 /**
@@ -63,6 +64,29 @@ export type ParseCsvResult =
   /** The file is unusable, so no row was examined. */
   | { ok: false; error: string }
   | { ok: true; rows: ParsedRow[] }
+
+/**
+ * Whether a record is a volunteer's own note: it starts with `#`, and neither
+ * its `eventType` nor its `scheduleType` holds a value a class could have.
+ *
+ * ⚠ **The second half is what keeps a real class.** `#1 Beginners Class` and
+ * `#204-1234 Main St` start with `#` too, and dropping them silently is the
+ * failure the help-row match exists to avoid — but a class names a real
+ * `eventType` or `scheduleType`, and a note does not. Not "both columns blank":
+ * a note with a comma in it spills its second half into the next column.
+ */
+function isCommentRow(record: readonly string[], columns: readonly (null | string)[]): boolean {
+  const first = record.find((cell) => cell?.trim())
+  if (!first?.trim().startsWith('#')) return false
+  const valueOf = (name: string) => {
+    const index = columns.indexOf(name)
+    return index === -1 ? '' : (record[index]?.trim().toLowerCase() ?? '')
+  }
+  return (
+    !(EVENT_TYPES as readonly string[]).includes(valueOf('eventType')) &&
+    !(SCHEDULE_TYPES as readonly string[]).includes(valueOf('scheduleType'))
+  )
+}
 
 function isBlankRow(record: string[]): boolean {
   return record.every((value) => !value?.trim())
@@ -144,6 +168,7 @@ export function parseImportCsv(input: string): ParseCsvResult {
   for (const record of records) {
     line += 1
     if (isBlankRow(record) || isTemplateHelpRow(record)) continue
+    if (isCommentRow(record, headerCheck.columns)) continue
     const unnamed = valueUnderUnnamedColumn(record, headerCheck.unnamed)
     if (unnamed) {
       return {

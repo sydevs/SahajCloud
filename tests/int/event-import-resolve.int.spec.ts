@@ -41,6 +41,10 @@ const BERLIN: GeocodedLocation = {
   placeId: 'mbx-berlin',
   featureType: 'address',
   regionMapboxId: null,
+  confidence: 'exact',
+  streetMatched: true,
+  placeMatched: true,
+  matchedAddress: null,
 }
 
 /** One CSV row as the parse step leaves it. */

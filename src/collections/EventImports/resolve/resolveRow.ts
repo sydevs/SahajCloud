@@ -10,9 +10,8 @@
  * point, the zone, the schedule and the languages are checked here because each
  * one either needs the geocode or decides it, and a volunteer must see all of
  * them before committing. Everything else a row can get wrong — a malformed
- * `onlineUrl`, a `registrationLimit` that is not a number — is left to the
- * commit's own per-row write, which already reports per row. Moving those here
- * would mean a second copy of validators the Events collection already owns.
+ * `onlineUrl`, a `registrationLimit` that is not a number — is refused at
+ * upload, by the Events collection's own validators (`csv/fieldChecks.ts`).
  */
 
 import type { TargetScope } from './targetScope'
@@ -21,7 +20,7 @@ import type { Temporal } from '@js-temporal/polyfill'
 
 import { subdivisionCodeFor } from '@/lib/geography'
 import { getLanguageOptions } from '@/lib/locales'
-import type { GeocodedLocation } from '@/lib/mapbox/geocoder'
+import type { GeocodedLocation, GeocodeLocationArgs } from '@/lib/mapbox/geocoder'
 import type { SupportedTimezones } from '@/payload-types'
 
 import { metersBetween, type Point } from './distance'
@@ -30,18 +29,11 @@ import { scheduleKey, type ScheduleKey } from './schedule'
 import { deriveImportTimezone } from './timezone'
 import { mapCsvSchedule, scheduleArgsFor } from '../csv/schedule'
 
-/**
- * Mapbox `types` for a street address: the pair the admin address field
- * searches, then the coarser layers a row still places by when its address is
- * not one Mapbox holds. A coarser answer resolves with a warning instead of
- * failing the row, and `approximate` keeps its point out of the address rules.
- */
-const ADDRESS_TYPES = 'address,poi,street,postcode,place,locality'
-/** Mapbox `types` for placing a class by its town alone. */
-const PLACE_TYPES = 'place,locality'
-
 /** The `feature_type`s that are a door rather than the area around one. */
 const PRECISE_FEATURE_TYPES = new Set(['address', 'poi'])
+
+/** The grades at which a matched address is the one the row named. */
+const SURE_CONFIDENCES = new Set(['exact', 'high'])
 
 /**
  * How far a row's own coordinates may sit from its geocode.
@@ -54,7 +46,7 @@ const EXPLICIT_POINT_BOUND_METERS = 25_000
 const EXPLICIT_POINT_TOWN_BOUND_METERS = 100_000
 
 export type GeocodeRequest =
-  | { kind: 'query'; query: string; types: string; countryCode: string }
+  | { kind: 'query'; query: GeocodeLocationArgs }
   /** The row is already wrong in a way no geocode can fix, so none is spent on it. */
   | { kind: 'error'; errors: string[] }
 
@@ -94,22 +86,27 @@ export function geocodeRequestFor(values: RawImportRow, scope: TargetScope): Geo
     }
     return {
       kind: 'query',
-      query: [city, state].filter(Boolean).join(', '),
-      types: PLACE_TYPES,
-      countryCode: scope.countryCode,
+      query: { kind: 'place', city, region: state, countryCode: scope.countryCode },
     }
   }
 
   // The parse step already refused an offline row missing either, so a blank
   // here cannot occur — the filter is what keeps the query well-formed rather
   // than a check.
+  //
+  // ⚠ **Field by field, never one line.** Joined into one string, the state and
+  // the postcode trailing the town were enough for Mapbox to pick the same street
+  // in another town — Köln's Hansaring was placed in Kiel.
   return {
     kind: 'query',
-    query: [values.address?.trim(), city, state, values.postcode?.trim()]
-      .filter(Boolean)
-      .join(', '),
-    types: ADDRESS_TYPES,
-    countryCode: scope.countryCode,
+    query: {
+      kind: 'address',
+      address: values.address?.trim(),
+      postcode: values.postcode?.trim(),
+      city: city ?? '',
+      region: state,
+      countryCode: scope.countryCode,
+    },
   }
 }
 
@@ -169,8 +166,7 @@ export interface ResolvedRow extends ScheduleKey {
 
 export type ResolveRowResult =
   /** `warnings` are for the reviewer and do not stop the row. */
-  | { ok: true; resolved: ResolvedRow; warnings: string[] }
-  | { ok: false; errors: string[] }
+  { ok: true; resolved: ResolvedRow; warnings: string[] } | { ok: false; errors: string[] }
 
 export interface ResolveRowArgs {
   values: RawImportRow
@@ -237,7 +233,26 @@ export function resolveRow({
     }
   }
 
-  const precise = !location.featureType || PRECISE_FEATURE_TYPES.has(location.featureType)
+  // ⚠ **A low-graded match is a different address, not this one placed
+  // roughly** — and so is a medium one in another town. For `99999 Nowhere
+  // Lane, Xyzzyville` Mapbox offers a street in Los Angeles, and for
+  // `2 Fremont Street, Visalia` one in Monterey; placing either class there
+  // publishes it somewhere the volunteer never named. Any other medium match,
+  // or one whose street did not match, is kept but approximate — the town is
+  // right and the door is not certain. A town alone unmatched is not enough:
+  // Köln comes back as Cologne, graded high.
+  if (
+    location.confidence === 'low' ||
+    (location.confidence === 'medium' && location.placeMatched === false)
+  ) {
+    errors.push(
+      `could not find this address — the closest Mapbox has is "${location.matchedAddress ?? 'another address'}". Check the address, city and postcode`,
+    )
+  }
+  const sure =
+    (location.confidence === null || SURE_CONFIDENCES.has(location.confidence)) &&
+    location.streetMatched !== false
+  const precise = sure && (!location.featureType || PRECISE_FEATURE_TYPES.has(location.featureType))
   const explicit = explicitPoint(values)
   const coordinateError =
     explicitPointError(values) ??
@@ -257,11 +272,13 @@ export function resolveRow({
   const approximate = values.eventType !== 'online' && !precise && point === location
   if (approximate) {
     const area =
-      location.featureType === 'street' || location.featureType === 'postcode'
-        ? location.featureType
-        : 'town'
+      location.featureType === 'address'
+        ? `a nearby address ("${location.matchedAddress ?? 'unnamed'}")`
+        : location.featureType === 'street' || location.featureType === 'postcode'
+          ? `the ${location.featureType}`
+          : 'the town'
     warnings.push(
-      `Mapbox only found the ${area}, not the address — check it, or add latitude and longitude`,
+      `Mapbox only found ${area}, not this address — check it, or add latitude and longitude`,
     )
   }
 
