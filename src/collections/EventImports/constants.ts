@@ -23,6 +23,16 @@ export const MAX_IMPORT_ROWS = 500
 export const IMPORT_TRASH_RETENTION_DAYS = 7
 
 /**
+ * How long a batch nobody committed or discarded is kept before the sweep
+ * deletes it anyway.
+ *
+ * ⚠ **Without this an abandoned batch kept its CSV of contact details
+ * forever** — a closed tab, a volunteer who never came back. Long enough to
+ * resume after a holiday; the Import tab lists open batches for exactly that.
+ */
+export const ABANDONED_BATCH_DAYS = 30
+
+/**
  * How far apart two start times may be and still be the same class.
  *
  * A volunteer's CSV and the CMS rarely agree to the minute on when a class
@@ -43,6 +53,17 @@ export const DUPLICATE_START_WINDOW_MINUTES = 30
 export const DUPLICATE_ADDRESS_METERS = 150
 
 /**
+ * How far apart two points in one town may be and still be a *possible*
+ * duplicate at the same time.
+ *
+ * Wide enough for a hall whose two listings geocoded to opposite ends of its
+ * block, narrow enough that two halls across a city — Camden and Brixton, 9 km
+ * apart, both Tuesday 19:00 — stay two classes. A match in this band is `weak`:
+ * the review badges it and the reviewer decides.
+ */
+export const WEAK_DUPLICATE_METERS = 1_000
+
+/**
  * How many rows one resolve request geocodes.
  *
  * Each row is a forward geocode with its own retry budget, so the chunk is
@@ -50,6 +71,18 @@ export const DUPLICATE_ADDRESS_METERS = 150
  * review UI calls the endpoint until it reports nothing pending.
  */
 export const RESOLVE_CHUNK_ROWS = 25
+
+/**
+ * The wall-clock budget one resolve request spends geocoding.
+ *
+ * ⚠ **A row count alone does not bound a request.** A geocode retries, and 25
+ * slow answers ran past the proxy's timeout — the browser saw a failure, the
+ * volunteer pressed Resume, and the request still running then wrote a stale
+ * copy of the rows over the new one. So a chunk stops when this runs out, writes
+ * what it has, and the client calls again. It sits far inside the batch lease
+ * (`lease.ts`), so a request never outlives its claim.
+ */
+export const RESOLVE_TIME_BUDGET_MS = 20_000
 
 /**
  * How far a smaller place may sit from a larger one and still be its metro area.

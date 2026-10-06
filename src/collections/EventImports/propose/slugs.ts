@@ -19,6 +19,8 @@
  * a counter rather than to something a reader would mistake for an id.
  */
 
+import anyAscii from 'any-ascii'
+
 import { slugifyValue } from '@/lib/utilities/slugify'
 
 import { comparableKey } from '../resolve/duplicates'
@@ -56,7 +58,7 @@ export function assignSlugs(
 
   const slugs = new Map<string, string>()
   for (const node of nodes) {
-    const base = slugifyValue(node.name) || slugifyValue(node.level) || 'region'
+    const base = slugBase(node.name) || fallbackSlug(node)
     const slug = firstFree(base, node.parentName, used)
     used.add(slug)
     slugs.set(node.key, slug)
@@ -64,10 +66,37 @@ export function assignSlugs(
   return slugs
 }
 
+/**
+ * ⚠ **Transliterated first, because `slugifyValue`'s charmap covers only some
+ * scripts.** It reads Cyrillic but drops CJK, Hebrew, Devanagari and Thai
+ * outright, and maps Greek letter by letter into digits (`Αθήνα` → `a8hna`) —
+ * so a Tokyo or a Jerusalem slugged to nothing and became `city`, `city-2`.
+ */
+function slugBase(name: string): string {
+  return slugifyValue(anyAscii(name))
+}
+
+/**
+ * The level and a hash of the name, for a name nothing transliterates.
+ *
+ * ⚠ **Not the bare level.** Every such node in a batch would otherwise be
+ * `venue`, `venue-2`, `venue-3` — slugs that say nothing about which is which,
+ * and that change hands when a sibling is renamed.
+ */
+function fallbackSlug(node: SluggableNode): string {
+  // FNV-1a: a few stable characters, not a security property.
+  let hash = 0x811c9dc5
+  for (const unit of node.name) {
+    hash ^= unit.codePointAt(0)!
+    hash = Math.imul(hash, 0x01000193) >>> 0
+  }
+  return `${slugifyValue(node.level) || 'region'}-${hash.toString(36)}`
+}
+
 function firstFree(base: string, parentName: string | null, used: ReadonlySet<string>): string {
   if (!used.has(base)) return base
 
-  const parent = parentName ? slugifyValue(parentName) : ''
+  const parent = parentName ? slugBase(parentName) : ''
   // `parent !== base` because a city named after its state would otherwise
   // propose `berlin-berlin`, which disambiguates nothing a reader can use.
   if (parent && parent !== base && !used.has(`${base}-${parent}`)) return `${base}-${parent}`

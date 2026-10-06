@@ -257,17 +257,64 @@ describe('tree endpoint', () => {
     // The namespace is collection-wide, so a rename onto a name the Atlas
     // already holds has to disambiguate rather than fail the commit's unique
     // constraint on a column no volunteer can read.
+    // ⚠ **Vienna, not Leipzig.** Leipzig is a city in the target, and a rename
+    // onto it is refused in favour of a mapping — so only a name held outside
+    // the subtree reaches the slug rule.
     it('disambiguates a rename against a slug the Atlas already holds', async () => {
       const node = cityNode('taken')
       const batch = await createBatch({ rows: [row(2, 'Berlin')], proposedRegions: tree([node]) })
 
       const { body } = await call(uploader, batch.id, {
-        edits: [{ kind: 'rename', key: node.key, name: 'Leipzig' }],
+        edits: [{ kind: 'rename', key: node.key, name: 'Vienna' }],
       })
 
       expect((body.proposedRegions as EventImportProposedRegions).nodes[0].slug).toBe(
-        'leipzig-germany',
+        'vienna-germany',
       )
+    })
+
+    it('refuses a rename onto a city the target already holds, and says to map it', async () => {
+      const node = cityNode('twin')
+      const batch = await createBatch({ rows: [row(2, 'Berlin')], proposedRegions: tree([node]) })
+
+      const { status, body } = await call(uploader, batch.id, {
+        edits: [{ kind: 'rename', key: node.key, name: 'leipzig' }],
+      })
+
+      expect(status).toBe(422)
+      expect(JSON.stringify(body)).toContain('Map \\"Berlin twin\\" onto it')
+      expect((await storedTree(batch.id))?.nodes[0].name).toBe('Berlin twin')
+    })
+
+    // ⚠ **The column is a closed schema**, so `before` is only storable because
+    // `EventImports.ts` declares it — a pure test cannot see Ajv refuse it.
+    it('stores what a mapping replaced, and an unmap puts it back', async () => {
+      const node = cityNode('undo')
+      const batch = await createBatch({ rows: [row(2, 'Berlin')], proposedRegions: tree([node]) })
+
+      const mapped = await call(uploader, batch.id, {
+        edits: [{ kind: 'map', key: node.key, regionId: leipzig.id }],
+      })
+      expect(mapped.status).toBe(200)
+      expect((await storedTree(batch.id))?.nodes[0].before).toEqual({
+        name: node.name,
+        parentKey: null,
+        location: node.location,
+      })
+
+      const { status, body } = await call(uploader, batch.id, {
+        edits: [{ kind: 'unmap', key: node.key }],
+      })
+
+      expect(status).toBe(200)
+      expect(body).toMatchObject({ creating: 1, existing: 0 })
+      const restored = (await storedTree(batch.id))?.nodes[0]
+      expect(restored).toMatchObject({
+        match: { kind: 'create' },
+        location: node.location,
+        slug: node.slug,
+      })
+      expect(restored?.before).toBeUndefined()
     })
 
     it('drops a state layer whose last new city was mapped away', async () => {
@@ -351,7 +398,16 @@ describe('tree endpoint', () => {
 
     it('creates no region for a mapped node and files its class in the mapped one', async () => {
       const node = cityNode('mapped')
-      const batch = await createBatch({ rows: [row(2, 'Berlin')], proposedRegions: tree([node]) })
+      // Elsewhere and at another hour: the commit re-asks the duplicate question
+      // against classes added since the review, and the test above just added
+      // one at `row`'s default hall and time.
+      const base = row(2, 'Berlin')
+      const apart: Row = {
+        ...base,
+        values: { ...base.values, startTime: '07:15' },
+        resolved: { ...base.resolved!, latitude: 51.34, longitude: 12.37, startMinutes: 435 },
+      }
+      const batch = await createBatch({ rows: [apart], proposedRegions: tree([node]) })
 
       await call(uploader, batch.id, {
         edits: [{ kind: 'map', key: node.key, regionId: leipzig.id }],

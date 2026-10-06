@@ -1,15 +1,21 @@
 /**
- * Whether two classes are the same class.
+ * Whether two classes are the same class, and how sure that is.
  *
  * The import runs this against every existing non-trashed event in the target
  * subtree **and** against the rows above it in the same file, because a
  * volunteer's spreadsheet repeats a class as often as the CMS already holds one.
  *
- * ⚠ **A match is always a skip, never an overwrite.** Nothing here decides what
- * to change about an existing event, because the import changes nothing about
- * one — so a false positive costs a row somebody re-uploads, while a false
- * negative publishes a duplicate listing a seeker has to choose between. The
- * thresholds lean accordingly.
+ * ⚠ **A match is a question for the reviewer, never a silent decision.** Each
+ * one defaults to a skip, and the review offers skip, import anyway, or (against
+ * an existing class) overwrite (`endpoints/choices.ts`). So the two strengths
+ * are about what the review says, not what happens: `strong` is the same hall at
+ * the same time, `weak` the same town at the same time with no hall to compare,
+ * and the review badges the second as a possible duplicate.
+ *
+ * ⚠ **Every rule needs the schedules to meet and the start times to agree.** A
+ * morning and an evening class at one hall, a one-off in November and one in
+ * December, the first and the third Tuesday — a shared address or a shared
+ * weekday alone would call each pair one class.
  *
  * ⚠ **Every comparison below is integer arithmetic**, because the caller
  * compares a 500-row batch against every event in a region subtree. Each class
@@ -18,9 +24,18 @@
  * what that cost was.)
  */
 
-import { DUPLICATE_ADDRESS_METERS, DUPLICATE_START_WINDOW_MINUTES } from '../constants'
+import {
+  DUPLICATE_ADDRESS_METERS,
+  DUPLICATE_START_WINDOW_MINUTES,
+  WEAK_DUPLICATE_METERS,
+} from '../constants'
 import { metersBetween, type Point } from './distance'
-import { scheduleKey, type ComparableSchedule, type ScheduleKey } from './schedule'
+import {
+  scheduleKey,
+  schedulesOverlap,
+  type ComparableSchedule,
+  type ScheduleKey,
+} from './schedule'
 
 export interface DuplicateCandidate {
   /**
@@ -32,23 +47,30 @@ export interface DuplicateCandidate {
    * including another null — "neither has a city" is not agreement.
    */
   cityKey: string | null
-  /** Null for a row with no point, which then matches on city and time alone. */
-  point: Point | null
   /**
-   * ⚠ **Null for an inactive class, which is then never a duplicate.** Both
-   * rules below read a weekday and a dormant listing has none, so matching one
-   * on its hall alone would skip a real class.
+   * The hall, or null for a class with none: an online class, or one whose
+   * geocode reached only the street or the town — a point, but not a hall's.
+   */
+  point: Point | null
+  /** An online class meets nobody in person, so it never repeats a hall's class. */
+  online: boolean
+  /**
+   * Null for an inactive class. A dormant listing has no schedule to compare,
+   * so it can only repeat another dormant listing — by its hall, or as the same
+   * town's online listing.
    */
   schedule: ComparableSchedule | null
 }
 
-export type PreparedCandidate = Omit<DuplicateCandidate, 'schedule'> & ScheduleKey
+export type PreparedCandidate = Omit<DuplicateCandidate, 'schedule'> &
+  ScheduleKey & { inactive: boolean }
 
 /** Reduce one class to what a comparison reads. Call once per class. */
 export function prepareCandidate(candidate: DuplicateCandidate): PreparedCandidate {
   const { schedule, ...rest } = candidate
   return {
     ...rest,
+    inactive: !schedule,
     ...(schedule ? scheduleKey(schedule) : { weekdayMask: 0, startMinutes: null }),
   }
 }
@@ -83,52 +105,48 @@ export function comparableKey(value: string | null | undefined): string | null {
 }
 
 export type DuplicateReason = 'nearby-address' | 'city-and-time'
+export type DuplicateStrength = 'strong' | 'weak'
 
-/**
- * Why these two are the same class, or null.
- *
- * Both rules need a shared weekday, because a Tuesday class and a Thursday
- * class at one address are two classes — the case a bare address match gets
- * wrong, and the reason the address rule is not simply "same place".
- */
-export function duplicateReason(
-  a: PreparedCandidate,
-  b: PreparedCandidate,
-): DuplicateReason | null {
-  if ((a.weekdayMask & b.weekdayMask) === 0) return null
+export interface DuplicateMatch {
+  reason: DuplicateReason
+  strength: DuplicateStrength
+}
 
-  // Checked before the city rule because it is the stronger claim: two points
-  // this close are one venue whatever either side called the city, and a
-  // reviewer reading "nearby-address" learns more than "city-and-time" about a
-  // pair that satisfies both.
-  if (a.point && b.point && metersBetween(a.point, b.point) <= DUPLICATE_ADDRESS_METERS) {
-    return 'nearby-address'
+/** Why these two are the same class, and how sure that is — or null. */
+export function duplicateMatch(a: PreparedCandidate, b: PreparedCandidate): DuplicateMatch | null {
+  if (a.inactive !== b.inactive) return null
+  if (a.online !== b.online) return null
+  if (!a.inactive && !(schedulesOverlap(a, b) && withinStartWindow(a, b))) return null
+
+  const sameCity = !!a.cityKey && a.cityKey === b.cityKey
+  if (a.point && b.point) {
+    const meters = metersBetween(a.point, b.point)
+    if (meters <= DUPLICATE_ADDRESS_METERS) return { reason: 'nearby-address', strength: 'strong' }
+    // Two points a town apart are two halls, whatever the clock says.
+    return sameCity && meters <= WEAK_DUPLICATE_METERS
+      ? { reason: 'city-and-time', strength: 'weak' }
+      : null
   }
-
-  if (a.cityKey && a.cityKey === b.cityKey && withinStartWindow(a, b)) {
-    return 'city-and-time'
-  }
-
-  return null
+  return sameCity ? { reason: 'city-and-time', strength: 'weak' } : null
 }
 
 /**
- * The index of the first entry `candidate` duplicates, with the reason.
+ * The entry `candidate` most surely duplicates, with the match.
  *
- * The first rather than the closest: the answer is a skip and a link to one
- * existing class for the reviewer, and any true match serves that. The caller
- * holds its own rows, so an index is what it can map back — and taking prepared
- * entries is what keeps the reduction out of this loop.
+ * A strong match anywhere wins over an earlier weak one, because the reviewer
+ * is shown one class and the one at the same hall is the one to compare against.
  */
 export function findDuplicate(
   candidate: PreparedCandidate,
   existing: readonly PreparedCandidate[],
-): { index: number; reason: DuplicateReason } | null {
+): ({ index: number } & DuplicateMatch) | null {
+  let weak: ({ index: number } & DuplicateMatch) | null = null
   for (const [index, entry] of existing.entries()) {
-    const reason = duplicateReason(candidate, entry)
-    if (reason) return { index, reason }
+    const match = duplicateMatch(candidate, entry)
+    if (match?.strength === 'strong') return { index, ...match }
+    if (match && !weak) weak = { index, ...match }
   }
-  return null
+  return weak
 }
 
 /**

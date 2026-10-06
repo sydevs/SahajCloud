@@ -72,7 +72,7 @@ function nodeKeyed(nodes: readonly ProposedNode[], key: string): ProposedNode | 
   return nodes.find((node) => node.key === key)
 }
 
-describe('a merged city keeps the Mapbox id its absorbed rows carried', () => {
+describe('a town split by a missing place id keeps its Mapbox id', () => {
   it('still refuses a feature managed elsewhere when the id came from a minority of rows', () => {
     const elsewhere = [city({ id: 60, parentId: 999, inTarget: false })]
 
@@ -216,27 +216,62 @@ describe('a state is proposed only when something will hang under it', () => {
     expect(nodes.every((node) => node.match.kind === 'existing')).toBe(true)
   })
 
-  it('still proposes a state once one city under it is new', () => {
-    const existing = allCitiesExist().filter((region) => region.name !== 'Nagpur')
+  /**
+   * Eight new cities plus a ninth, Kolhapur, that the Atlas already holds
+   * straight under India.
+   *
+   * ⚠ **Eight new, because the layer counts only what it would group.** A
+   * matched city keeps the parent it has (`decideStateLayer`), so a batch whose
+   * Maharashtra cities mostly exist earns no layer at all.
+   */
+  function eightNewAndOneHeld(): { rows: ProposableRow[]; existing: ExistingRegion[] } {
+    const kolhapur = row(10, 'Kolhapur', { point: { latitude: 34, longitude: 73.85 } })
+    return {
+      rows: [...eightCities(), kolhapur],
+      existing: [city({ id: 120, name: 'Kolhapur', slug: 'kolhapur', mapboxId: 'place.Kolhapur' })],
+    }
+  }
+
+  it('still proposes the layer, from the cities it would create', () => {
+    const { rows, existing } = eightNewAndOneHeld()
 
     const { nodes } = buildProposedTree({
       target: INDIA,
       countryCode: 'IN',
-      rows: eightCities(),
+      rows,
       existing,
       takenSlugs: [],
     })
 
     expect(nodeKeyed(nodes, 'state:MH')?.match).toEqual({ kind: 'create' })
     expect(nodeKeyed(nodes, 'city:id:place.Nagpur')?.parentKey).toBe('state:MH')
-    // Gujarat's cities all exist, so it earns no node.
-    expect(nodeKeyed(nodes, 'state:GJ')).toBeUndefined()
+    // The state's lines are its new cities' alone: Kolhapur's classes file
+    // into Kolhapur, wherever the Atlas has it.
+    expect(nodeKeyed(nodes, 'state:MH')?.lines).toEqual([2, 3, 4, 5])
   })
 
   it('does not re-parent a city it matched', () => {
-    const existing = allCitiesExist().filter((region) => region.name !== 'Nagpur')
+    const { rows, existing } = eightNewAndOneHeld()
 
     const { nodes } = buildProposedTree({
+      target: INDIA,
+      countryCode: 'IN',
+      rows,
+      existing,
+      takenSlugs: [],
+    })
+
+    // Kolhapur already hangs off India. Moving a node is out of scope, so the
+    // proposal leaves it where it is rather than listing it under a new state.
+    const kolhapur = nodeKeyed(nodes, 'city:id:place.Kolhapur')
+    expect(kolhapur?.match).toMatchObject({ kind: 'existing', regionId: 120 })
+    expect(kolhapur?.parentKey).toBeNull()
+  })
+
+  it('proposes no layer when most of a state’s cities already exist', () => {
+    const existing = allCitiesExist().filter((region) => region.name !== 'Nagpur')
+
+    const { nodes, stateLayer } = buildProposedTree({
       target: INDIA,
       countryCode: 'IN',
       rows: eightCities(),
@@ -244,11 +279,9 @@ describe('a state is proposed only when something will hang under it', () => {
       takenSlugs: [],
     })
 
-    // Pune already hangs off India. Moving a node is out of scope, so the
-    // proposal leaves it where it is rather than listing it under a new state.
-    const pune = nodeKeyed(nodes, 'city:id:place.Pune')
-    expect(pune?.match).toMatchObject({ kind: 'existing' })
-    expect(pune?.parentKey).toBeNull()
+    // One new city is a list of one, which no layer shortens.
+    expect(stateLayer.proposed).toBe(false)
+    expect(nodeKeyed(nodes, 'city:id:place.Nagpur')?.parentKey).toBeNull()
   })
 })
 

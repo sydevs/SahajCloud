@@ -26,13 +26,23 @@ import {
   type MergedPlace,
   type VenueRow,
 } from './cluster'
-import { matchNode, type ExistingRegion, type NodeMatch } from './match'
+import {
+  existingRegionLabel,
+  matchNode,
+  matchState,
+  stateCodeResolver,
+  type ExistingRegion,
+  type NodeMatch,
+} from './match'
 import { assignSlugs, type SluggableNode } from './slugs'
 import { decideStateLayer, type StateLayerDecision } from './states'
 import { centroidOf, metersBetween, type Point } from '../resolve/distance'
 
 /** One resolved row, carrying what both groupings read. */
-export interface ProposableRow extends ClusterableRow, VenueRow {}
+export interface ProposableRow extends ClusterableRow, VenueRow {
+  /** The Mapbox `region` (state) feature the row sits in, which a proposed state matches on. */
+  regionMapboxId?: string | null
+}
 
 /** Where a node the commit creates sits on the map. */
 export type ProposedLocation =
@@ -67,6 +77,11 @@ export interface ProposedNode {
   lines: number[]
   /** What the metro rule folded in, so the review can say so. Cities only. */
   merged?: MergedPlace[]
+  /**
+   * The proposal a reviewer's `map` replaced, which only a node mapped in review
+   * carries — and so only such a node can be unmapped (`edit.ts`).
+   */
+  before?: { name: string; parentKey: string | null; location: ProposedLocation | null }
 }
 
 /** A row the proposal cannot place, reported rather than committed. */
@@ -135,7 +150,7 @@ export function buildProposedTree({
   const { nodes, stateLayer } =
     target.level === 'city'
       ? {
-          nodes: venueNodes(rows, target.id, existing),
+          nodes: venueNodes(rows, existing),
           // `decideStateLayer` is the one place that says why a city target
           // gains no layer.
           stateLayer: decideStateLayer({ targetLevel: 'city', countryCode: '', cities: [] }),
@@ -143,7 +158,7 @@ export function buildProposedTree({
       : cityNodes({ target, countryCode, rows, existing })
 
   assignNodeSlugs(nodes, target.name, takenSlugs)
-  return { nodes, rowErrors: rowErrorsFor(nodes), stateLayer }
+  return { nodes, rowErrors: rowErrorsFor(nodes, existing), stateLayer }
 }
 
 interface CityNodesArgs {
@@ -159,21 +174,55 @@ function cityNodes({ target, countryCode, rows, existing }: CityNodesArgs): {
   stateLayer: StateLayerDecision
 } {
   const cities = clusterCities(rows)
-  const stateLayer = decideStateLayer({
-    targetLevel: target.level,
-    countryCode,
-    cities: cities.map(({ key, subdivisionCode }) => ({ key, subdivisionCode })),
-  })
-
   const byLine = new Map(rows.map((row) => [row.line, row]))
   /** A node's own classes, which is what its radius has to cover. */
   const pointsOf = (lines: readonly number[]): Point[] =>
     lines.map((line) => byLine.get(line)?.point).filter((point): point is Point => !!point)
+  const regionFeaturesOf = (lines: readonly number[]): string[] => [
+    ...new Set(
+      lines.map((line) => byLine.get(line)?.regionMapboxId).filter((id): id is string => !!id),
+    ),
+  ]
   const cityOf = (key: string) => cities.find((city) => city.key === key)
 
+  const { codeOf, subdivisionOf } = stateCodeResolver({
+    existing,
+    countryCode,
+    featureCodes: featureCodesOf(rows),
+  })
+
+  // ⚠ **Matched before the layer is decided, because the layer counts only the
+  // cities it would create.** The name rule reads the subtree as a whole rather
+  // than one parent (`match.ts`), so nothing here depends on which state a city
+  // would hang under.
+  const matches = new Map(
+    cities.map((city) => [
+      city.key,
+      matchNode(
+        {
+          level: 'city',
+          name: city.name,
+          mapboxId: city.placeId,
+          subdivisionCode: city.subdivisionCode,
+        },
+        existing,
+        { subdivisionOf },
+      ),
+    ]),
+  )
+  const stateLayer = decideStateLayer({
+    targetLevel: target.level,
+    countryCode,
+    cities: cities.map(({ key, subdivisionCode }) => ({
+      key,
+      subdivisionCode,
+      isNew: matches.get(key)!.kind === 'create',
+    })),
+  })
+
   const states: ProposedNode[] = []
-  /** Which state node a city hangs under, and the existing region id that is. */
-  const parentOf = new Map<string, { key: string | null; id: number | null }>()
+  /** Which state node a new city hangs under. */
+  const parentOf = new Map<string, string>()
 
   if (stateLayer.proposed) {
     for (const state of stateLayer.states) {
@@ -184,9 +233,10 @@ function cityNodes({ target, countryCode, rows, existing }: CityNodesArgs): {
       // stands for the places under it, and a city with 90 classes would
       // otherwise drag the state's centre onto itself.
       const seats = members.map((city) => city.centroid)
-      const match = matchNode(
-        { level: 'region', name: state.name, mapboxId: null, parentId: target.id },
+      const match = matchState(
+        { code: state.code, name: state.name, mapboxIds: regionFeaturesOf(lines) },
         existing,
+        codeOf,
       )
       states.push({
         key,
@@ -206,18 +256,12 @@ function cityNodes({ target, countryCode, rows, existing }: CityNodesArgs): {
         }),
         lines: [...lines].sort((a, b) => a - b),
       })
-      // Null when the state is itself proposed — see `MatchableNode.parentId`.
-      const id = match.kind === 'existing' ? match.regionId : null
-      for (const cityKey of state.cityKeys) parentOf.set(cityKey, { key, id })
+      for (const cityKey of state.cityKeys) parentOf.set(cityKey, key)
     }
   }
 
   const cityNodeList = cities.map((city) => {
-    const parent = parentOf.get(city.key) ?? { key: null, id: target.id }
-    const match = matchNode(
-      { level: 'city', name: city.name, mapboxId: city.placeId, parentId: parent.id },
-      existing,
-    )
+    const match = matches.get(city.key)!
     return {
       key: `city:${city.key}`,
       level: 'city' as const,
@@ -226,8 +270,9 @@ function cityNodes({ target, countryCode, rows, existing }: CityNodesArgs): {
       // node is out of scope, so naming a proposed state as its parent would
       // promise a re-parenting the commit does not perform — and a Pune that
       // hangs straight off India, the mixed tree the Atlas really has, would
-      // read in the review as about to move under a brand-new Maharashtra.
-      parentKey: match.kind === 'existing' ? null : parent.key,
+      // read in the review as about to move under a brand-new Maharashtra. Only
+      // a new city is ever placed under a state (`decideStateLayer`).
+      parentKey: parentOf.get(city.key) ?? null,
       match,
       slug: null,
       location: locationFor({
@@ -243,6 +288,17 @@ function cityNodes({ target, countryCode, rows, existing }: CityNodesArgs): {
   })
 
   return { nodes: prunedOfEmptyStates([...states, ...cityNodeList]), stateLayer }
+}
+
+/** Which subdivision each Mapbox `region` feature is, by the rows that geocoded into it. */
+function featureCodesOf(rows: readonly ProposableRow[]): Map<string, string> {
+  const codes = new Map<string, string>()
+  for (const row of rows) {
+    if (row.regionMapboxId && row.subdivisionCode && !codes.has(row.regionMapboxId)) {
+      codes.set(row.regionMapboxId, row.subdivisionCode.trim().toUpperCase())
+    }
+  }
+  return codes
 }
 
 /**
@@ -277,12 +333,12 @@ export function prunedOfEmptyStates(nodes: readonly ProposedNode[]): ProposedNod
 /** The halls a city target proposes, each hanging straight off it. */
 function venueNodes(
   rows: readonly ProposableRow[],
-  targetId: number,
   existing: readonly ExistingRegion[],
 ): ProposedNode[] {
+  const byLine = new Map(rows.map((row) => [row.line, row.point]))
   return clusterVenues(rows).map((venue) => {
     const match = matchNode(
-      { level: 'venue', name: venue.name, mapboxId: venue.mapboxId, parentId: targetId },
+      { level: 'venue', name: venue.name, mapboxId: venue.mapboxId },
       existing,
     )
     return {
@@ -296,7 +352,9 @@ function venueNodes(
         mapboxId: venue.mapboxId,
         level: 'venue',
         centre: venue.centroid,
-        extent: [venue.centroid],
+        // Its rows, not its centre: one address typed for halls 25 km apart is
+        // a node that has to reach both, and `[centre]` reaches nowhere.
+        extent: venue.lines.map((line) => byLine.get(line)!),
         match,
       }),
       lines: venue.lines,
@@ -353,7 +411,8 @@ interface LocationArgs {
  * ⚠ **The parent's name is read across every node, matched ones included.** A
  * city under a state the Atlas already holds still disambiguates on that
  * state's name, and looking only at the created nodes would lose the one
- * disambiguator it has.
+ * disambiguator it has. It is the name the Atlas gives that region, not the
+ * one proposed for it: Bayern matched onto Bavaria makes `pune-bavaria`.
  *
  * ⚠ **A node with no proposed parent disambiguates on the target.** It is the
  * parent the commit will give it, so without this the `name-parent` rule never
@@ -366,12 +425,19 @@ export function assignNodeSlugs(
   takenSlugs: Iterable<string>,
 ): void {
   const created = nodes.filter((node) => node.match.kind === 'create')
-  const sluggable: SluggableNode[] = created.map((node) => ({
-    key: node.key,
-    name: node.name,
-    level: node.level,
-    parentName: nodes.find((other) => other.key === node.parentKey)?.name ?? targetName,
-  }))
+  const sluggable: SluggableNode[] = created.map((node) => {
+    const parent = nodes.find((other) => other.key === node.parentKey)
+    return {
+      key: node.key,
+      name: node.name,
+      level: node.level,
+      parentName: !parent
+        ? targetName
+        : parent.match.kind === 'existing'
+          ? parent.match.name
+          : parent.name,
+    }
+  })
   const slugs = assignSlugs(sluggable, takenSlugs)
   for (const node of created) node.slug = slugs.get(node.key)!
 }
@@ -384,16 +450,26 @@ export function assignNodeSlugs(
  * mixed tree the Atlas really has. Saying "somebody else manages this" would be
  * false for the second, and naming the region would be wrong for the first, so
  * the message states only what is true of both and what they can act on.
+ *
+ * ⚠ **An `elsewhere` match inside the target is the other conflict `matchNode`
+ * makes** — the node's feature held at another level — and is told apart here
+ * rather than stored, so the closed `proposedRegions` schema needs no reason
+ * field. "Outside this region" would be false of it.
  */
-function rowErrorsFor(nodes: readonly ProposedNode[]): ProposedRowError[] {
+function rowErrorsFor(
+  nodes: readonly ProposedNode[],
+  existing: readonly ExistingRegion[],
+): ProposedRowError[] {
   return nodes
-    .filter((node) => node.match.kind === 'elsewhere')
-    .flatMap((node) =>
-      node.lines.map((line) => ({
-        line,
-        message: `"${node.name}" already exists outside this region of the Atlas, so its classes cannot be imported here. Import them from the region that holds it.`,
-      })),
-    )
+    .flatMap((node) => {
+      const { match } = node
+      if (match.kind !== 'elsewhere') return []
+      const holder = existing.find((region) => region.id === match.regionId)
+      const message = holder?.inTarget
+        ? `"${node.name}" is a ${node.level}, but its place on the map is already used by ${existingRegionLabel(holder)}, a ${holder.level} in this region of the Atlas, so its classes cannot be imported. Ask an admin to give one of them a different location.`
+        : `"${node.name}" already exists outside this region of the Atlas, so its classes cannot be imported here. Import them from the region that holds it.`
+      return node.lines.map((line) => ({ line, message }))
+    })
     .sort((a, b) => a.line - b.line)
 }
 

@@ -1,6 +1,6 @@
 /**
- * The two edits a reviewer makes to a proposed tree (#828): a rename, and a
- * mapping onto a region the Atlas already holds.
+ * The edits a reviewer makes to a proposed tree (#828): a rename, a mapping
+ * onto a region the Atlas already holds, and undoing that mapping.
  *
  * `buildProposedTree` is pinned by its own spec, so the trees here are written
  * by hand rather than proposed — an edit's whole contract is "this tree in, that
@@ -15,7 +15,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { applyTreeEdits } from '@/collections/EventImports/propose/edit'
+import { applyTreeEdits, MAX_RENAMED_LENGTH } from '@/collections/EventImports/propose/edit'
 import type { ExistingRegion } from '@/collections/EventImports/propose/match'
 import type { ProposedNode, ProposedTree } from '@/collections/EventImports/propose/tree'
 
@@ -149,6 +149,77 @@ describe('applyTreeEdits', () => {
     })
   })
 
+  describe('what a rename refuses or tidies', () => {
+    // ⚠ A zero-width space survives `trim`, so it reached the slug rule as a
+    // real name and the Atlas as a blank label.
+    it('refuses a name made only of invisible characters', () => {
+      const result = apply(tree([node({ key: 'city:pune', name: 'Pune' })]), [
+        { kind: 'rename', key: 'city:pune', name: '\u200B\u2060\uFEFF \u00A0' },
+      ])
+
+      expect(result).toEqual({ ok: false, error: '"Pune" needs a name.' })
+    })
+
+    it('strips invisible characters and collapses odd spaces from a real name', () => {
+      const { tree: edited } = unwrap(
+        apply(tree([node({ key: 'city:pune', name: 'Pune' })]), [
+          { kind: 'rename', key: 'city:pune', name: '\u202EPim\u200Bpri\u00A0\u00A0Chinchwad\u200B' },
+        ]),
+      )
+
+      expect(edited.nodes[0].name).toBe('Pimpri Chinchwad')
+    })
+
+    // A joiner is how Persian and Devanagari spell some words, so only the
+    // ones at the edges are dropped.
+    it('keeps a joiner inside a word', () => {
+      const { tree: edited } = unwrap(
+        apply(tree([node({ key: 'city:pune', name: 'Pune' })]), [
+          { kind: 'rename', key: 'city:pune', name: '\u200Cمی\u200Cخانه\u200C' },
+        ]),
+      )
+
+      expect(edited.nodes[0].name).toBe('می\u200Cخانه')
+    })
+
+    it('refuses a name longer than a place name', () => {
+      const result = apply(tree([node({ key: 'city:pune', name: 'Pune' })]), [
+        { kind: 'rename', key: 'city:pune', name: 'a'.repeat(MAX_RENAMED_LENGTH + 1) },
+      ])
+
+      expect(result.ok).toBe(false)
+      expect(result.ok ? '' : result.error).toContain(`at most ${MAX_RENAMED_LENGTH}`)
+    })
+
+    // ⚠ Renaming a new node onto a region the target already holds commits a
+    // duplicate under a disambiguated slug — the mistake `map` exists for.
+    it('refuses a name a region at its level in the target already has, and says to map', () => {
+      const result = apply(
+        tree([node({ key: 'city:poona', name: 'Poona' })]),
+        [{ kind: 'rename', key: 'city:poona', name: ' pune ' }],
+        { mappable: [existing({ id: 42, name: 'Pune', parentId: 7 })] },
+      )
+
+      expect(result).toEqual({
+        ok: false,
+        error:
+          '"Pune" is already a city in this region of the Atlas. Map "Poona" onto it instead of renaming it.',
+      })
+    })
+
+    it('allows a name a region at another level has', () => {
+      const { tree: edited } = unwrap(
+        apply(
+          tree([node({ key: 'city:poona', name: 'Poona' })]),
+          [{ kind: 'rename', key: 'city:poona', name: 'Maharashtra' }],
+          { mappable: [existing({ id: 3, level: 'region', name: 'Maharashtra' })] },
+        ),
+      )
+
+      expect(edited.nodes[0].name).toBe('Maharashtra')
+    })
+  })
+
   describe('mapping a node onto an existing region', () => {
     const PUNE = existing({ id: 42, name: 'Pune', slug: 'pune-existing' })
 
@@ -261,6 +332,136 @@ describe('applyTreeEdits', () => {
         ok: false,
         error: '"Poona" is a city, so it cannot be mapped to a region.',
       })
+    })
+  })
+
+  describe('mapping a state onto an existing region', () => {
+    const BAVARIA = existing({ id: 40, level: 'region', name: 'Bavaria', slug: 'bavaria', parentId: 1 })
+    const MUNICH = existing({ id: 41, name: 'Munich', slug: 'munich', mapboxId: 'manual-m', parentId: 40 })
+    const bayern = () =>
+      tree([
+        node({ key: 'state:BY', name: 'Bayern', level: 'region', lines: [2, 3] }),
+        node({ key: 'city:munich', name: 'munich', parentKey: 'state:BY', lines: [2] }),
+        node({ key: 'city:passau', name: 'Passau', parentKey: 'state:BY', lines: [3] }),
+      ])
+
+    // ⚠ The proposal matched these cities while their state was new, when there
+    // were no children to find them among.
+    it('matches the new cities under it against that region’s own', () => {
+      const { tree: edited } = unwrap(
+        apply(bayern(), [{ kind: 'map', key: 'state:BY', regionId: 40 }], {
+          mappable: [BAVARIA, MUNICH],
+        }),
+      )
+
+      expect(nodeNamed(edited.nodes, 'munich').match).toMatchObject({ kind: 'existing', regionId: 41 })
+      expect(nodeNamed(edited.nodes, 'munich').parentKey).toBeNull()
+      expect(nodeNamed(edited.nodes, 'Passau').match).toEqual({ kind: 'create' })
+    })
+
+    it('slugs the cities left under it on the region’s name, not the proposal’s', () => {
+      const { tree: edited } = unwrap(
+        apply(bayern(), [{ kind: 'map', key: 'state:BY', regionId: 40 }], {
+          mappable: [BAVARIA, MUNICH],
+          takenSlugs: ['passau'],
+        }),
+      )
+
+      expect(nodeNamed(edited.nodes, 'Passau').slug).toBe('passau-bavaria')
+    })
+
+    it('lets a city it matched be unmapped back under the state', () => {
+      const mapped = unwrap(
+        apply(bayern(), [{ kind: 'map', key: 'state:BY', regionId: 40 }], {
+          mappable: [BAVARIA, MUNICH],
+        }),
+      ).tree
+      const { tree: edited } = unwrap(apply(mapped, [{ kind: 'unmap', key: 'city:munich' }]))
+
+      expect(nodeNamed(edited.nodes, 'munich')).toMatchObject({
+        match: { kind: 'create' },
+        parentKey: 'state:BY',
+        location: { kind: 'mapbox', mapboxId: 'mbx.city:munich' },
+      })
+    })
+  })
+
+  describe('unmapping a node', () => {
+    const PUNE = existing({ id: 42, name: 'Pune', slug: 'pune-existing' })
+
+    it('restores the proposal a mapping replaced', () => {
+      const input = tree([
+        node({ key: 'state:MH', name: 'Maharashtra', level: 'region', lines: [2, 3] }),
+        node({ key: 'city:pune', name: 'Poona', parentKey: 'state:MH' }),
+        node({ key: 'city:nashik', name: 'Nashik', parentKey: 'state:MH', lines: [3] }),
+      ])
+      const mapped = unwrap(
+        apply(input, [{ kind: 'map', key: 'city:pune', regionId: 42 }], { mappable: [PUNE] }),
+      ).tree
+      expect(nodeNamed(mapped.nodes, 'Poona').before).toEqual({
+        name: 'Poona',
+        parentKey: 'state:MH',
+        location: { kind: 'mapbox', mapboxId: 'mbx.city:pune' },
+      })
+
+      const { tree: edited } = unwrap(apply(mapped, [{ kind: 'unmap', key: 'city:pune' }]))
+      const pune = nodeNamed(edited.nodes, 'Poona')
+
+      expect(pune.match).toEqual({ kind: 'create' })
+      expect(pune.parentKey).toBe('state:MH')
+      expect(pune.location).toEqual({ kind: 'mapbox', mapboxId: 'mbx.city:pune' })
+      expect(pune.slug).toBe('poona')
+      expect(pune.before).toBeUndefined()
+    })
+
+    // Its state went because nothing under it was new; only that state's own
+    // unmap could say what it was, so the city hangs off the target.
+    it('hangs a node off the target when the prune took its parent', () => {
+      const mapped = unwrap(
+        apply(
+          tree([
+            node({ key: 'state:MH', name: 'Maharashtra', level: 'region', lines: [2] }),
+            node({ key: 'city:pune', name: 'Poona', parentKey: 'state:MH' }),
+          ]),
+          [{ kind: 'map', key: 'city:pune', regionId: 42 }],
+          { mappable: [PUNE] },
+        ),
+      ).tree
+      expect(mapped.nodes.map((n) => n.key)).toEqual(['city:pune'])
+
+      const { tree: edited } = unwrap(apply(mapped, [{ kind: 'unmap', key: 'city:pune' }]))
+
+      expect(edited.nodes[0]).toMatchObject({ match: { kind: 'create' }, parentKey: null })
+    })
+
+    // ⚠ A node the proposal matched has no proposal to go back to: creating
+    // it would duplicate the region or fail `mapboxId`'s unique constraint.
+    it('refuses a node the proposal matched itself', () => {
+      const result = apply(
+        tree([
+          node({
+            key: 'city:pune',
+            name: 'Pune',
+            match: { kind: 'existing', regionId: 7, name: 'Pune', slug: 'pune' },
+            slug: null,
+            location: null,
+          }),
+        ]),
+        [{ kind: 'unmap', key: 'city:pune' }],
+      )
+
+      expect(result).toEqual({
+        ok: false,
+        error: '"Pune" was not mapped in this review, so there is nothing to undo.',
+      })
+    })
+
+    it('refuses a node that is still to be created', () => {
+      const result = apply(tree([node({ key: 'city:pune', name: 'Pune' })]), [
+        { kind: 'unmap', key: 'city:pune' },
+      ])
+
+      expect(result.ok).toBe(false)
     })
   })
 

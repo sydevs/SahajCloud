@@ -74,10 +74,40 @@ describe('assignSlugs', () => {
     expect(assignSlugs([node('Москва')], []).get('Москва')).toBe('moskva')
   })
 
-  it('falls back to the level for a name that slugifies to nothing', () => {
-    const slugs = assignSlugs([{ key: 'k', name: '…', level: 'venue', parentName: null }], [])
+  // ⚠ **`slugifyValue`'s charmap reads Cyrillic and little else.** CJK,
+  // Hebrew, Devanagari and Thai slugged to nothing and took the level as their
+  // slug, and Greek came out letter by letter with digits in it.
+  it.each([
+    ['東京', 'dongjing'],
+    ['Αθήνα', 'athina'],
+    ['תל אביב', 'tl-vyv'],
+    ['पुणे', 'pune'],
+    ['กรุงเทพ', 'krungethph'],
+    ['München', 'munchen'],
+  ])('transliterates %s to %s', (name, slug) => {
+    expect(assignSlugs([node(name)], []).get(name)).toBe(slug)
+  })
 
-    expect(slugs.get('k')).toBe('venue')
+  it('qualifies a transliterated name on its transliterated parent', () => {
+    expect(assignSlugs([node('府中', '東京')], ['fuzhong']).get('府中')).toBe('fuzhong-dongjing')
+  })
+
+  it('falls back to something distinctive for a name nothing transliterates', () => {
+    const slugs = assignSlugs(
+      [
+        { key: 'a', name: '…', level: 'venue', parentName: null },
+        { key: 'b', name: '·', level: 'venue', parentName: null },
+      ],
+      [],
+    )
+
+    expect(slugs.get('a')).toMatch(/^venue-[a-z0-9]+$/)
+    expect(slugs.get('b')).toMatch(/^venue-[a-z0-9]+$/)
+    expect(slugs.get('a')).not.toBe(slugs.get('b'))
+    // Stable, so a re-slug after an edit does not move it.
+    expect(assignSlugs([{ key: 'a', name: '…', level: 'venue', parentName: null }], []).get('a')).toBe(
+      slugs.get('a'),
+    )
   })
 
   it('ignores blank entries in the taken set', () => {
