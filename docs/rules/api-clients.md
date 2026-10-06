@@ -238,7 +238,9 @@ An API client read must declare its data needs: `select` is required on every re
 
 ### `limit` and `page` bounds (#887)
 
-The same gate bounds the two numbers that reach SQL. A client may send `limit` up to **2000** and `page` up to **10000**; either outside `0 … its ceiling`, or not a whole number, is refused **400** naming the bound. A global read carries neither, so nothing changes there.
+The same gate bounds the two numbers that reach SQL. A client may send `limit` up to **2000** and `page` up to **10000** (`MAX_CLIENT_LIMIT` / `MAX_CLIENT_PAGE` in `src/plugins/usage/constants.ts`, which the OpenAPI parameter docs also read); either outside `0 … its ceiling`, or not a whole number, is refused **400** naming the bound. A global read carries neither, so nothing changes there.
+
+**Clients only, deliberately** — a manager, the admin UI and an internal read are trusted with their own numbers, and `hooks.ts` returns early for all three. The bound runs *ahead* of the `asTrustedReq` and live-preview bypasses, though, unlike the `select` gate: those relax a shape policy, and this one keeps a number out of the driver.
 
 ```
 ❌ GET /api/meditations?select[label]=true&limit=99999999999999999999   → 400

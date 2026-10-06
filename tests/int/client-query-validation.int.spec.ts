@@ -10,6 +10,7 @@ import { serverEnv } from '@/lib/env'
 import { mintLivePreviewToken } from '@/lib/livePreview/token'
 import { resolveLivePreviewHook } from '@/lib/utilities/previewSecret'
 import type { Client, Image, Narrator, Page } from '@/payload-types'
+import { MAX_CLIENT_LIMIT, MAX_CLIENT_PAGE } from '@/plugins/usage/constants'
 
 import { testData } from 'tests/utils/testData'
 
@@ -187,177 +188,93 @@ describe('Client query parameter validation', () => {
   })
 
   // Unbounded, `limit` and `page` each reach Postgres on their own and return
-  // 500 rather than 400 (#887). The overflow for `page` is the
+  // 500 rather than 400 (#887). `page` overflows through the
   // `(page - 1) * limit` offset, which is why bounding `limit` alone is not
-  // enough.
+  // enough, and `page: -1` reaches the same 500 as `OFFSET -20`.
   describe('limit and page bounds', () => {
     const OVERFLOW = 99999999999999999999
 
-    it('rejects a limit above the cap', async () => {
-      await expect(
-        payload.find({
-          collection: 'narrators',
-          select: { name: true },
-          depth: 1,
-          limit: OVERFLOW,
-          req: clientReq(),
-          overrideAccess: true,
-        }),
-      ).rejects.toThrow(/"limit".*2000/)
-    })
-
-    it('rejects a page above the bound', async () => {
-      await expect(
-        payload.find({
-          collection: 'narrators',
-          select: { name: true },
-          depth: 1,
-          page: OVERFLOW,
-          req: clientReq(),
-          overrideAccess: true,
-        }),
-      ).rejects.toThrow(/"page".*10000/)
-    })
-
-    // `page: -1` is the shortest route to the same 500: the offset reaches
-    // Postgres as `OFFSET -20`. A negative `limit` is swallowed by the
-    // adapter instead, and is refused by the same rule rather than splitting
-    // it in two.
-    it('rejects a negative page', async () => {
-      await expect(
-        payload.find({
-          collection: 'narrators',
-          select: { name: true },
-          depth: 1,
-          page: -1,
-          req: clientReq(),
-          overrideAccess: true,
-        }),
-      ).rejects.toThrow(/"page"/)
-    })
-
-    it('rejects a negative limit', async () => {
-      await expect(
-        payload.find({
-          collection: 'narrators',
-          select: { name: true },
-          depth: 1,
-          limit: -1,
-          req: clientReq(),
-          overrideAccess: true,
-        }),
-      ).rejects.toThrow(/"limit"/)
-    })
-
-    it('rejects a limit above the cap sent in REST format', async () => {
-      const args = parseRestQuery('?select[name]=true&depth=1&limit=2001')
-      expect(args.limit).toBe(2001)
-      await expect(
-        payload.find({
-          collection: 'narrators',
-          ...args,
-          req: clientReq(),
-          overrideAccess: true,
-        } as Parameters<typeof payload.find>[0]),
-      ).rejects.toThrow(/"limit".*2000/)
-    })
-
-    it('allows a limit at the cap', async () => {
-      const result = await payload.find({
+    const findAsClient = (extra: Record<string, unknown>) =>
+      payload.find({
         collection: 'narrators',
         select: { name: true },
         depth: 1,
-        limit: 2000,
+        ...extra,
         req: clientReq(),
         overrideAccess: true,
       })
+
+    it.each([
+      ['a limit above the cap', { limit: OVERFLOW }, new RegExp(`"limit".*${MAX_CLIENT_LIMIT}`)],
+      ['a page above the bound', { page: OVERFLOW }, new RegExp(`"page".*${MAX_CLIENT_PAGE}`)],
+      ['a negative page', { page: -1 }, /"page"/],
+      ['a negative limit', { limit: -1 }, /"limit"/],
+      ['a fractional limit', { limit: 1.5 }, /"limit"/],
+    ])('rejects %s', async (_name, args, message) => {
+      await expect(findAsClient(args)).rejects.toThrow(message)
+    })
+
+    // `limit: 0` and `pagination: false` are payload's two spellings of an
+    // unbounded read. Both stay allowed — the Atlas widget sends the second on
+    // three live feeds, so refusing them is a policy decision with a
+    // downstream migration behind it, not part of closing the 500.
+    it.each([
+      ['a limit at the cap', { limit: MAX_CLIENT_LIMIT }],
+      ['an absent limit and page', {}],
+      ['limit=0', { limit: 0 }],
+      ['pagination=false', { pagination: false }],
+    ])('allows %s', async (_name, args) => {
+      const result = await findAsClient(args)
       expect(result.docs).toHaveLength(1)
     })
 
     it('allows a page at the bound', async () => {
-      const result = await payload.find({
-        collection: 'narrators',
-        select: { name: true },
-        depth: 1,
-        page: 10000,
-        req: clientReq(),
-        overrideAccess: true,
-      })
-      expect(result.page).toBe(10000)
+      const result = await findAsClient({ page: MAX_CLIENT_PAGE })
+      expect(result.page).toBe(MAX_CLIENT_PAGE)
     })
 
-    it('allows an absent limit and page', async () => {
-      const result = await payload.find({
-        collection: 'narrators',
-        select: { name: true },
-        depth: 1,
-        req: clientReq(),
-        overrideAccess: true,
-      })
-      expect(result.docs).toHaveLength(1)
-    })
+    // The bound runs ahead of the two bypasses the select gate honours, so a
+    // trusted internal read that one day forwards a client's own `limit`
+    // cannot reopen the 500.
+    it('rejects a limit above the cap on a trusted internal read', async () => {
+      const trustedReq = {
+        ...clientReq(),
+        context: { skipClientQueryValidation: true },
+      } as unknown as PayloadRequest
 
-    // `limit: 0` and `pagination: false` are payload's two spellings of an
-    // unbounded read. Both stay allowed here — the Atlas widget sends the
-    // second on three live feeds, so refusing them is a policy decision with a
-    // downstream migration behind it, not part of closing the 500.
-    it('allows limit=0', async () => {
-      const result = await payload.find({
-        collection: 'narrators',
-        select: { name: true },
-        depth: 1,
-        limit: 0,
-        req: clientReq(),
-        overrideAccess: true,
-      })
-      expect(result.docs).toHaveLength(1)
-    })
-
-    it('allows pagination=false', async () => {
-      const result = await payload.find({
-        collection: 'narrators',
-        select: { name: true },
-        depth: 1,
-        pagination: false,
-        req: clientReq(),
-        overrideAccess: true,
-      })
-      expect(result.docs).toHaveLength(1)
+      await expect(
+        payload.find({
+          collection: 'narrators',
+          limit: OVERFLOW,
+          req: trustedReq,
+          overrideAccess: true,
+        }),
+      ).rejects.toThrow(/"limit"/)
     })
   })
 
   describe('scope — who is affected', () => {
-    it('does not affect manager requests without select or populate', async () => {
-      const manager = await payload.findByID({
-        collection: 'managers',
-        id: adminUserId,
-      })
-      const managerReq = {
-        user: manager,
+    const managerReq = async (): Promise<PayloadRequest> =>
+      ({
+        user: await payload.findByID({ collection: 'managers', id: adminUserId }),
         headers: new Headers(),
-      } as unknown as PayloadRequest
+      }) as unknown as PayloadRequest
 
+    it('does not affect manager requests without select or populate', async () => {
       const result = await payload.find({
         collection: 'narrators',
-        req: managerReq,
+        req: await managerReq(),
       })
       expect(result.docs).toHaveLength(1)
     })
 
-    it('does not affect a manager request carrying a huge limit', async () => {
-      const manager = await payload.findByID({
-        collection: 'managers',
-        id: adminUserId,
-      })
-      const managerReq = {
-        user: manager,
-        headers: new Headers(),
-      } as unknown as PayloadRequest
-
+    // Above the client cap, below what the driver refuses: the gate's scope is
+    // the decision under test, not whether a manager can still overflow.
+    it('does not bound a manager request above the client cap', async () => {
       const result = await payload.find({
         collection: 'narrators',
-        limit: 99999999,
-        req: managerReq,
+        limit: MAX_CLIENT_LIMIT + 1,
+        req: await managerReq(),
       })
       expect(result.docs).toHaveLength(1)
     })
@@ -493,6 +410,15 @@ describe('Client query parameter validation', () => {
       it('rejects findByID when select is a comma-separated string', async () => {
         await expect(restFindByID('/api/narrators/1?select=name,gender')).rejects.toThrow(/select/)
       })
+    })
+
+    it('rejects a limit above the cap', async () => {
+      // The coercion, asserted on its own: a case reading `limit` as the
+      // string '2001' would pass without ever exceeding the cap.
+      expect(parseRestQuery('?limit=2001').limit).toBe(2001)
+      await expect(
+        restFind('/api/narrators?select[name]=true&depth=1&limit=2001'),
+      ).rejects.toThrow(/"limit"/)
     })
 
     describe('accepts the correct bracket notation', () => {

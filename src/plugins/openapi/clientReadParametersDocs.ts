@@ -15,6 +15,8 @@
  */
 
 import { LOCALES } from '@/lib/locales'
+// Deep import, not the `@/plugins/usage` barrel, which pulls the pg-pool seam.
+import { MAX_CLIENT_LIMIT, MAX_CLIENT_PAGE } from '@/plugins/usage/constants'
 
 const PARAMETER_BASE = {
   in: 'query' as const,
@@ -120,30 +122,30 @@ export const depthParameter = {
 Pass \`depth=1\` or \`depth=0\` when you do not need nested relationship traversal. Keep \`depth\` as low as the client needs; deeper depths multiply query work.`,
 }
 
-/** `limit` parameter. Default 10; cap at 100 for list endpoints. */
+/** `limit` parameter. Default 10, capped by `validateClientQueryParamsHook` (#887). */
 export const limitParameter = {
   ...PARAMETER_BASE,
   name: 'limit',
   schema: {
     type: 'integer',
     minimum: 1,
-    maximum: 100,
+    maximum: MAX_CLIENT_LIMIT,
     default: 10,
   },
-  description:
-    'Maximum number of docs to return in the `docs` array. Defaults to 10. List endpoints typically cap at 100.',
+  description: `Maximum number of docs to return in the \`docs\` array. Defaults to 10. Above ${MAX_CLIENT_LIMIT} the request is rejected with a 400 — paginate instead. An individual endpoint may cap it lower.`,
 }
 
-/** `page` parameter. 1-based. */
+/** `page` parameter. 1-based, bounded by `validateClientQueryParamsHook` (#887). */
 export const pageParameter = {
   ...PARAMETER_BASE,
   name: 'page',
   schema: {
     type: 'integer',
     minimum: 1,
+    maximum: MAX_CLIENT_PAGE,
     default: 1,
   },
-  description: '1-based page number for paginated results. Combine with `limit` to slice the feed.',
+  description: `1-based page number for paginated results. Combine with \`limit\` to slice the feed. Above ${MAX_CLIENT_PAGE} the request is rejected with a 400.`,
 }
 
 /**

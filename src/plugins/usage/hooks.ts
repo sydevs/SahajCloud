@@ -10,6 +10,7 @@ import { APIError } from 'payload'
 import { isLivePreviewRequest } from '@/lib/utilities/previewSecret'
 import type { Client } from '@/payload-types'
 
+import { MAX_CLIENT_LIMIT, MAX_CLIENT_PAGE } from './constants'
 import { getPgPool, quotedDbSchema } from './db'
 import { extractRequestHost, isHostAllowed, parseAllowedDomains } from './originEnforcement'
 
@@ -117,23 +118,18 @@ export interface ClientReadGateArgs {
 /** A gate that runs before a client read, on either surface. */
 export type ClientReadGate = (args: ClientReadGateArgs) => void | Promise<void>
 
-/** The operation arguments these gates inspect, safe against an absent `args`. */
-function readOperationArgs(args: unknown): {
+interface ReadOperationArgs {
   currentDepth?: unknown
   depth?: unknown
   limit?: unknown
   page?: unknown
   populate?: unknown
   select?: unknown
-} {
-  return (args ?? {}) as {
-    currentDepth?: unknown
-    depth?: unknown
-    limit?: unknown
-    page?: unknown
-    populate?: unknown
-    select?: unknown
-  }
+}
+
+/** The operation arguments these gates inspect, safe against an absent `args`. */
+function readOperationArgs(args: unknown): ReadOperationArgs {
+  return (args ?? {}) as ReadOperationArgs
 }
 
 /**
@@ -186,23 +182,6 @@ export const rateLimitHook: ClientReadGate = () => {
 // --- Query parameter validation hook ---
 
 /**
- * The largest `limit` an API client may ask for in one read (#887).
- *
- * Our own largest paginated read is 1000 (`tasks.ts`), and the largest any
- * consumer sends is 100, so this is headroom rather than a constraint.
- */
-export const MAX_CLIENT_LIMIT = 2000
-
-/**
- * The largest `page` an API client may ask for (#887).
- *
- * `limit` alone does not bound what reaches SQL: the adapter offsets by
- * `(page - 1) * limit`, so an unbounded `page` overflows the driver on its
- * own. At both ceilings the offset stays under 2 × 10⁷.
- */
-export const MAX_CLIENT_PAGE = 10_000
-
-/**
  * A beforeOperation hook that forces API clients to declare their data needs explicitly.
  *
  * - `select` is required on every client read, so a client cannot pull whole documents.
@@ -242,6 +221,18 @@ export const validateClientQueryParamsHook: ClientReadGate = ({ args, operation,
     return
   }
 
+  const findArgs = readOperationArgs(args)
+
+  // Ahead of both bypasses below, because a range bound is a security gate
+  // rather than a shape-declaration policy: a trusted endpoint that one day
+  // forwards a client's own `limit` would otherwise reopen the 500. Payload's
+  // internal population reads are exempt — their numbers are payload's, not
+  // the caller's.
+  if (typeof findArgs.currentDepth !== 'number') {
+    assertWithinBound('limit', findArgs.limit, MAX_CLIENT_LIMIT, req)
+    assertWithinBound('page', findArgs.page, MAX_CLIENT_PAGE, req)
+  }
+
   // A trusted internal endpoint that forwards the client req to
   // payload.find(...) can opt out by setting this context flag. It shapes
   // its own response, and should not have to enumerate every field through
@@ -254,8 +245,6 @@ export const validateClientQueryParamsHook: ClientReadGate = ({ args, operation,
   if (isLivePreviewRequest(req)) {
     return
   }
-
-  const findArgs = readOperationArgs(args)
 
   if (typeof findArgs.currentDepth === 'number') {
     return
@@ -301,25 +290,19 @@ export const validateClientQueryParamsHook: ClientReadGate = ({ args, operation,
       400,
     )
   }
-
-  assertWithinBound('limit', findArgs.limit, MAX_CLIENT_LIMIT, req)
-  assertWithinBound('page', findArgs.page, MAX_CLIENT_PAGE, req)
 }
 
 /**
  * Refuse a `limit` or `page` that would reach Postgres out of range (#887).
  *
- * Unbounded, either one alone returns 500 rather than 400: the driver
- * overflows on a 20-digit `limit`, and on the `(page - 1) * limit` offset a
- * 20-digit `page` produces. A negative `page` reaches the same 500 by a
- * shorter route, as `OFFSET -20`. A negative `limit` does not — the adapter
- * swallows it — and is refused anyway rather than splitting the rule in two.
+ * Bounding `limit` alone is not enough: `page` overflows through the
+ * `(page - 1) * limit` offset on its own, and a negative one reaches the same
+ * 500 as `OFFSET -20`. A negative `limit` is harmless — the adapter swallows
+ * it — and is refused anyway rather than splitting the rule in two.
  *
- * Three shapes are deliberately left alone. `limit=0` is Payload's "no limit"
- * sentinel and `page=0` is read as page 1, so bounding them is a policy
- * decision rather than this fix, and refusing them here would break the Atlas
- * widget's three `pagination: false` feeds. A non-numeric value stays a string
- * through payload's `parseParams` and never reproduced a failure.
+ * `0` passes for both: it is payload's "no limit" sentinel on `limit` and
+ * reads as page 1 on `page`. Whether a client may read unbounded at all is
+ * `docs/rules/api-clients.md`'s question, not this gate's.
  */
 function assertWithinBound(
   name: 'limit' | 'page',

@@ -19,6 +19,8 @@ export { usagePlugin } from './usagePlugin'
 // Constant exports
 export {
   HIGH_USAGE_THRESHOLD,
+  MAX_CLIENT_LIMIT,
+  MAX_CLIENT_PAGE,
   RATE_LIMIT_MAX_REQUESTS,
   RATE_LIMIT_PERIOD_SECONDS,
   SYSTEM_EXCLUSIONS,
