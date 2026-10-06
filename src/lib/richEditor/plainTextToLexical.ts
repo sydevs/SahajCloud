@@ -61,7 +61,8 @@ export function plainTextToLexical(text: string | null | undefined): LexicalValu
   const trimmed = text?.trim()
   if (!trimmed) return undefined
   const paragraphs = trimmed
-    .split(/\n+/)
+    // A bare `\r` is a line break too — Excel's "CSV (Macintosh)" writes them.
+    .split(/\r\n|\r|\n/)
     .map((line) => line.trim())
     .filter(Boolean)
   return {

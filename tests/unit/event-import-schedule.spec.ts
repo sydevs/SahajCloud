@@ -237,6 +237,12 @@ describe('mapCsvSchedule — times, interval and ending', () => {
     )
   })
 
+  it.each(['1e1', '0x10', '+2', '2.0'])('refuses interval %s, which Number would read', (raw) => {
+    expect(errors(map({ weekdays: 'TU', interval: raw }))).toContain(
+      `interval must be a whole number from 1 to 99 (got "${raw}")`,
+    )
+  })
+
   it('maps untilDate to an until ending', () => {
     const result = schedule(map({ weekdays: 'TU', untilDate: '2026-12-31' }))
     expect(result).toMatchObject({ endingType: 'until', untilDate: '2026-12-31' })
@@ -306,7 +312,7 @@ describe('mapCsvSchedule — columns that do not apply', () => {
     // This used to publish a weekly class where the volunteer asked for a 2nd
     // Tuesday, with no error. buildMonthly refused the mirror-image mistake.
     expect(errors(map({ weekdays: 'TU', monthWeek: '2' }))).toContain(
-      'monthWeek does not apply to a weekly class',
+      'monthWeek does not apply to a weekly class (got monthWeek "2")',
     )
   })
 
@@ -314,11 +320,58 @@ describe('mapCsvSchedule — columns that do not apply', () => {
     const result = errors(
       map({ scheduleType: 'one-off', date: '2026-10-06', weekdays: 'TU', interval: '2' }),
     )
-    expect(result).toContain('weekdays and interval do not apply to a one-off class')
+    expect(result).toContain(
+      'weekdays and interval do not apply to a one-off class (got weekdays "TU", interval "2")',
+    )
   })
 
   it('leaves monthly alone, which reads every schedule column', () => {
     expect(map({ scheduleType: 'monthly', monthWeek: '2', weekdays: 'TU' }).ok).toBe(true)
+  })
+
+  it('refuses schedule columns on an inactive row rather than publishing it dormant', () => {
+    // `map` fills startTime, so this is the "weekly class marked wrong" case.
+    expect(errors(map({ scheduleType: 'inactive', weekdays: 'TU' }))).toEqual([
+      'startTime and weekdays do not apply to an inactive class (got startTime "18:30", weekdays "TU")',
+    ])
+  })
+})
+
+describe('mapCsvSchedule — dates against the anchor', () => {
+  it('refuses a one-off date before the anchor', () => {
+    expect(errors(map({ scheduleType: 'one-off', date: '2026-09-30' }))).toEqual([
+      'date 2026-09-30 has already passed (today is 2026-10-01)',
+    ])
+  })
+
+  it('accepts a one-off on the anchor day itself', () => {
+    expect(schedule(map({ scheduleType: 'one-off', date: '2026-10-01' })).firstDate).toBe(
+      '2026-10-01T16:30:00.000Z',
+    )
+  })
+
+  it('refuses an untilDate before the anchor, once, even where it also precedes the first date', () => {
+    // A weekly row with an explicit first date in the past is a class that has
+    // run for years — legitimate — but an ending in the past is not.
+    expect(errors(map({ weekdays: 'TU', date: '2025-01-07', untilDate: '2026-09-30' }))).toEqual([
+      'untilDate 2026-09-30 has already passed (today is 2026-10-01 in Europe/Berlin) — a class that has ended needs no import',
+    ])
+    expect(errors(map({ weekdays: 'MO', untilDate: '2026-09-01' }))).toHaveLength(1)
+  })
+})
+
+describe('mapCsvSchedule — monthly day of month', () => {
+  it.each(['2026-10-29', '2026-10-30', '2026-10-31'])(
+    'refuses %s, a day some months lack, and points at monthWeek -1',
+    (date) => {
+      const [message] = errors(map({ scheduleType: 'monthly', date }))
+      expect(message).toContain(`(got date "${date}")`)
+      expect(message).toContain('monthWeek -1')
+    },
+  )
+
+  it('accepts the 28th, which every month has', () => {
+    expect(schedule(map({ scheduleType: 'monthly', date: '2026-10-28' })).monthDay).toBe(28)
   })
 })
 
