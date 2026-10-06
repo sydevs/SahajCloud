@@ -9,9 +9,11 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  importKeyFor,
   importLogEntry,
   isCommittable,
   refuseRow,
+  reviveOrphanedRepeats,
   rowsAwaitingCommit,
   type CommitRow,
 } from '@/collections/EventImports/commit/rows'
@@ -51,6 +53,51 @@ describe('isCommittable', () => {
   })
 })
 
+describe('isCommittable — a duplicate', () => {
+  it('skips one nobody decided on, and writes one the reviewer chose to import or overwrite', () => {
+    const duplicate = { reason: 'nearby-address' as const, eventId: 5 }
+    expect(isCommittable(row(2, { duplicate }))).toBe(false)
+    expect(isCommittable(row(2, { duplicate: { ...duplicate, action: 'skip' } }))).toBe(false)
+    expect(isCommittable(row(2, { duplicate: { ...duplicate, action: 'import' } }))).toBe(true)
+    expect(isCommittable(row(2, { duplicate: { ...duplicate, action: 'overwrite' } }))).toBe(true)
+  })
+})
+
+describe('reviveOrphanedRepeats', () => {
+  /**
+   * A file's second copy of a class is skipped for its first. If the first then
+   * fails at commit, skipping the second too would import neither.
+   */
+  it('gives a skipped repeat back its chance when the line it repeats failed', () => {
+    const rows = [
+      row(2, { errors: ['website: bad'] }),
+      row(3, { duplicate: { reason: 'nearby-address', line: 2 } }),
+      row(4, { duplicate: { reason: 'nearby-address', line: 2, action: 'import' } }),
+    ]
+    reviveOrphanedRepeats(rows)
+    expect(rows[1]?.duplicate).toBeUndefined()
+    expect(isCommittable(rows[1]!)).toBe(true)
+    // A choice the reviewer made is theirs, and is left alone.
+    expect(rows[2]?.duplicate?.action).toBe('import')
+  })
+
+  it('leaves a repeat of a line that was imported', () => {
+    const rows = [
+      row(2, { committed: { eventId: 1 } }),
+      row(3, { duplicate: { reason: 'nearby-address', line: 2 } }),
+    ]
+    reviveOrphanedRepeats(rows)
+    expect(rows[1]?.duplicate).toBeDefined()
+  })
+})
+
+describe('importKeyFor', () => {
+  it('is the batch and the line, so two batches never share one', () => {
+    expect(importKeyFor(12, 4)).toBe('12:4')
+    expect(importKeyFor(12, 4)).not.toBe(importKeyFor(124, 4))
+  })
+})
+
 describe('rowsAwaitingCommit', () => {
   it('offers every committable row the first time', () => {
     expect(rowsAwaitingCommit([row(2), row(3), row(4)]).map(({ line }) => line)).toEqual([2, 3, 4])
@@ -87,7 +134,7 @@ describe('importLogEntry', () => {
     const entry = importLogEntry({
       batchId: 12,
       line: 4,
-      uploaderName: 'Anna Volunteer',
+      uploader: { id: 7, name: 'Anna Volunteer' },
       at: '2026-09-28T09:00:00.000Z',
     })
 
@@ -95,8 +142,29 @@ describe('importLogEntry', () => {
       at: '2026-09-28T09:00:00.000Z',
       type: 'event-import',
       key: '12:4',
-      cells: { activity: 'Imported', who: 'Anna Volunteer', delivery: 'Bulk import, CSV line 4' },
+      uploaderId: 7,
+      cells: {
+        activity: 'Imported',
+        who: 'Anna Volunteer (#7)',
+        delivery: 'Bulk import, CSV line 4',
+      },
     })
+  })
+
+  /**
+   * A manager's name is theirs to edit, so a name alone could credit anybody —
+   * the id travels beside it, in the cell and as machine data.
+   */
+  it('says an overwrite is one, and keeps the uploader id even under a borrowed name', () => {
+    const entry = importLogEntry({
+      batchId: 12,
+      line: 4,
+      uploader: { id: 7, name: 'Jane Admin' },
+      at: '2026-09-28T09:00:00.000Z',
+      overwrote: true,
+    })
+    expect(entry.cells).toMatchObject({ activity: 'Overwritten by import', who: 'Jane Admin (#7)' })
+    expect(entry.uploaderId).toBe(7)
   })
 
   /**
@@ -105,8 +173,8 @@ describe('importLogEntry', () => {
    */
   it('keys two batches apart on the same line', () => {
     const at = '2026-09-28T09:00:00.000Z'
-    const first = importLogEntry({ batchId: 12, line: 4, uploaderName: 'A', at })
-    const second = importLogEntry({ batchId: 13, line: 4, uploaderName: 'A', at })
+    const first = importLogEntry({ batchId: 12, line: 4, uploader: { id: 1, name: 'A' }, at })
+    const second = importLogEntry({ batchId: 13, line: 4, uploader: { id: 1, name: 'A' }, at })
 
     expect(first.key).not.toBe(second.key)
   })

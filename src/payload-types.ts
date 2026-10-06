@@ -697,7 +697,7 @@ export type EventImportRows = {
    */
   line: number;
   /**
-   * The row as the CSV held it, keyed by column name and trimmed.
+   * The row as the CSV held it, keyed by column name and trimmed — save a bare-host `website` or `onlineUrl`, stored with `https://` added (`csv/fieldChecks.ts`).
    */
   values: {
     [k: string]: string;
@@ -706,6 +706,10 @@ export type EventImportRows = {
    * Everything wrong with the row, from the parse, the resolve, the proposal and the commit alike. A row with any of these is skipped, never committed.
    */
   errors?: string[];
+  /**
+   * Things a reviewer should know that do not stop the row: a geocode that only reached the town, a coordinator the import will not link.
+   */
+  warnings?: string[];
   /**
    * Set once the row geocoded cleanly. Its absence is what makes a row pending.
    */
@@ -728,6 +732,14 @@ export type EventImportRows = {
     mapboxId: string | null;
     subdivisionCode: string | null;
     /**
+     * The Mapbox `region` (state) feature the address sits in, which a proposed state matches an existing region on.
+     */
+    regionMapboxId?: string | null;
+    /**
+     * The geocode reached only the street or the town, not the address — so the point is not a hall, and the nearby-address duplicate rule ignores it.
+     */
+    approximate?: boolean;
+    /**
      * The occurrence weekdays as a 7-bit mask, Monday the low bit. Derived once so a row stays comparable across chunks.
      */
     weekdayMask: number;
@@ -735,6 +747,22 @@ export type EventImportRows = {
      * Minutes since midnight on the class's own clock.
      */
     startMinutes: number | null;
+    /**
+     * The first occurrence as a local day number, for the duplicate check.
+     */
+    firstDay?: number;
+    /**
+     * The last occurrence as a local day number, or null for an open series.
+     */
+    lastDay?: number | null;
+    /**
+     * A monthly-by-weekday class's week numbers as a mask, 0 otherwise.
+     */
+    monthWeeks?: number;
+    /**
+     * A monthly-by-date class's day of the month, null otherwise.
+     */
+    monthDay?: number | null;
     languages: string[];
     inactive: boolean;
     /**
@@ -743,10 +771,14 @@ export type EventImportRows = {
     anchorDate: string;
   };
   /**
-   * A matched row is reported and skipped; nothing about the match is modified.
+   * A matched row, and what the reviewer chose to do about it.
    */
   duplicate?: {
     reason: 'nearby-address' | 'city-and-time';
+    /**
+     * `strong` is the same hall at the same time; `weak` is the same town and time, which the review badges "possible duplicate".
+     */
+    strength?: 'strong' | 'weak';
     /**
      * The existing class this row repeats.
      */
@@ -755,15 +787,31 @@ export type EventImportRows = {
      * The earlier line in this same file the row repeats.
      */
     line?: number;
+    /**
+     * The reviewer's choice, `skip` when absent. `overwrite` replaces the matched class's values with the row's filled columns, and is only offered against an existing class.
+     */
+    action?: 'skip' | 'import' | 'overwrite';
+    /**
+     * Found by the commit, against a class added after the review — skipped, because nobody chose otherwise.
+     */
+    atCommit?: boolean;
   };
+  /**
+   * Commit attempts this row failed for a reason that was not its own, so one that keeps failing is eventually reported instead of stalling the commit.
+   */
+  failedAttempts?: number;
   /**
    * Written as each row lands, so an interrupted commit resumes at the first row without one rather than creating a second class for every row before it.
    */
   committed?: {
     /**
-     * The class this row created.
+     * The class this row created or overwrote.
      */
     eventId: number;
+    /**
+     * `created` when absent.
+     */
+    action?: 'created' | 'overwrote';
   };
 }[];
 export type TableOfContentsHeadings = {
@@ -1626,6 +1674,7 @@ export interface Region {
  */
 export interface Event {
   id: number;
+  importKey?: string | null;
   /**
    * Up to 100 characters. Leave blank to fill in from the venue — "Evening Meditation at Broadstairs Friends Meeting House" — which also translates itself into every language.
    */
@@ -3812,9 +3861,13 @@ export interface EventImport {
   targetRegion: number | Region;
   uploader: number | Manager;
   /**
-   * Written by the import endpoints. `committing` means a commit was interrupted part-way; its rows carry the ids of whatever was already created.
+   * Written by the import endpoints. `committing` means a commit was interrupted part-way; its rows carry the ids of whatever was already created. `finished` is the trashed report a finished commit leaves behind.
    */
-  status: 'uploaded' | 'resolved' | 'committing';
+  status: 'uploaded' | 'resolved' | 'committing' | 'finished';
+  uploadLocale?: string | null;
+  inviteCoordinators?: boolean | null;
+  leaseToken?: string | null;
+  leaseUntil?: string | null;
   /**
    * Language(s) to use for rows whose own `languages` column is empty.
    */
@@ -4005,6 +4058,7 @@ export interface EventImport {
   )[];
   rows?: EventImportRows;
   proposedRegions?: EventImportProposedRegions;
+  report?: EventImportReport;
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
@@ -4073,6 +4127,27 @@ export interface EventImportProposedRegions {
       lines: number[];
       subdivisionCode: string | null;
     }[];
+    /**
+     * What a `map` edit replaced, so an `unmap` can put the proposal back exactly.
+     */
+    before?: {
+      name: string;
+      parentKey: string | null;
+      location:
+        | (
+            | {
+                kind: 'mapbox';
+                mapboxId: string;
+              }
+            | {
+                kind: 'manual';
+                latitude: number;
+                longitude: number;
+                radius: number;
+              }
+          )
+        | null;
+    };
   }[];
   rowErrors: {
     line: number;
@@ -4095,6 +4170,28 @@ export interface EventImportProposedRegions {
         proposed: false;
         reason: string;
       };
+}
+export interface EventImportReport {
+  committed: {
+    line: number;
+    eventId: number;
+    action: 'created' | 'overwrote';
+  }[];
+  skipped: {
+    line: number;
+    reasons: string[];
+    /**
+     * The row as uploaded, so the volunteer can download, fix and re-upload it.
+     */
+    values: {
+      [k: string]: string;
+    };
+  }[];
+  /**
+   * Whether the uploader was emailed this report, with the skipped lines attached.
+   */
+  reportEmailed: boolean;
+  finishedAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -5052,6 +5149,7 @@ export interface RegionsSelect<T extends boolean = true> {
  * via the `definition` "events_select".
  */
 export interface EventsSelect<T extends boolean = true> {
+  importKey?: T;
   title?: T;
   languages?: T;
   contactPhone?: T;
@@ -5149,9 +5247,14 @@ export interface EventImportsSelect<T extends boolean = true> {
   targetRegion?: T;
   uploader?: T;
   status?: T;
+  uploadLocale?: T;
+  inviteCoordinators?: T;
+  leaseToken?: T;
+  leaseUntil?: T;
   defaultLanguages?: T;
   rows?: T;
   proposedRegions?: T;
+  report?: T;
   updatedAt?: T;
   createdAt?: T;
   deletedAt?: T;

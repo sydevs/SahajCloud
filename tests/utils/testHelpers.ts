@@ -17,6 +17,7 @@ import { buildConfig } from 'payload'
 
 import { REGION_NESTED_DOCS_CONFIG } from '@/lib/atlas/regionTree'
 import { buildPayloadLocales, DEFAULT_LOCALE } from '@/lib/locales'
+import { SUPPORTED_TIMEZONES } from '@/lib/timezones'
 import { accessPlugin, bypassPermissions, restrictPayloadSystemEntities } from '@/plugins/access'
 import { databaseErrorPlugin } from '@/plugins/databaseErrors'
 import { formsPlugin } from '@/plugins/formBuilder'
@@ -93,6 +94,11 @@ function createBaseTestConfig(emailConfig: any, schemaName: string, debug = fals
     admin: {
       user: Managers.slug,
       disable: true, // Disable admin UI in tests
+      // ⚠ The same zone list as `payload.config.ts`. Every `timezone: true`
+      // column's enum is built from it, so with Payload's curated default here a
+      // class in `Europe/Oslo` passes `isSupportedTimezone` and is then refused
+      // by Postgres — a failure no production write can have.
+      timezones: { supportedTimezones: SUPPORTED_TIMEZONES },
     },
     // Mirrors `payload.config.ts`'s `debug: !isProduction`. The default is
     // FALSE — that is, production's value — because this flag decides whether an

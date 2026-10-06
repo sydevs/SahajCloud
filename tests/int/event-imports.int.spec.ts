@@ -17,7 +17,10 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { IMPORT_TRASH_RETENTION_DAYS } from '@/collections/EventImports/constants'
+import {
+  IMPORT_TRASH_RETENTION_DAYS,
+  ABANDONED_BATCH_DAYS,
+} from '@/collections/EventImports/constants'
 import { parseImportCsv } from '@/collections/EventImports/csv/parse'
 import { buildImportTemplate } from '@/collections/EventImports/csv/template'
 import { PurgeEventImports } from '@/jobs/PurgeEventImports/PurgeEventImports'
@@ -278,6 +281,40 @@ describe('Event imports', () => {
       expect(updated.rows).toBeFalsy()
     })
 
+    /**
+     * ⚠ **A batch part-way through its commit can only go forward.** Its classes
+     * are live and its finish has not run, so trashing it would strand both with
+     * no record of which classes came from it.
+     */
+    it('refuses the uploader the discard of a batch part-way through its commit', async () => {
+      const mine = await createBatch({ status: 'committing' })
+
+      await expect(
+        updateAs(uploader, mine.id, { deletedAt: new Date().toISOString() }),
+      ).rejects.toThrow(/part-way through its commit/)
+      expect(
+        (await payload.findByID({ collection: 'event-imports', id: mine.id, overrideAccess: true }))
+          .deletedAt,
+      ).toBeFalsy()
+    })
+
+    /**
+     * The finish counts the accounts a batch opened against `createdAt`, and the
+     * resolve step writes `defaultLanguages` onto rows — neither is the
+     * uploader's to change after the upload.
+     */
+    it('strips an uploader’s write to `createdAt` and `defaultLanguages`', async () => {
+      const mine = await createBatch()
+
+      const updated = await updateAs(uploader, mine.id, {
+        createdAt: '2100-01-01T00:00:00.000Z',
+        defaultLanguages: ['ru'],
+      })
+
+      expect(updated.createdAt).toBe(mine.createdAt)
+      expect(updated.defaultLanguages).toEqual(['de'])
+    })
+
     it('strips an uploader’s attempt to re-point the batch out of their subtree', async () => {
       const mine = await createBatch()
       const elsewhere = await testData.createRegion(payload, {
@@ -388,6 +425,28 @@ describe('Event imports', () => {
 
       expect(deletedBatches).toBe(1)
       expect(await exists(due.id)).toBe(true)
+    })
+
+    /**
+     * ⚠ **A batch nobody finishes or discards is not kept forever.** It holds an
+     * uploaded CSV of contact details, and a closed tab leaves one behind.
+     */
+    it('deletes a batch nobody has touched in the abandonment window, trashed or not', async () => {
+      const abandoned = await createBatch()
+      const halfCommitted = await createBatch({ status: 'committing' })
+
+      await runTaskHandler(PurgeEventImports, {
+        payload,
+        input: { now: new Date(Date.now() + (ABANDONED_BATCH_DAYS - 1) * DAY_MS).toISOString() },
+      })
+      expect(await exists(abandoned.id)).toBe(true)
+
+      await runTaskHandler(PurgeEventImports, {
+        payload,
+        input: { now: new Date(Date.now() + (ABANDONED_BATCH_DAYS + 1) * DAY_MS).toISOString() },
+      })
+      expect(await exists(abandoned.id)).toBe(false)
+      expect(await exists(halfCommitted.id)).toBe(false)
     })
 
     it('refuses the uploader a hard delete, so the window is theirs to wait out', async () => {

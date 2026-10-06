@@ -17,15 +17,59 @@ export type CommitRow = EventImportRows[number]
 /** The log `type` every imported class carries, so a sweep can find them. */
 export const IMPORT_LOG_TYPE = 'event-import'
 
+/** What the reviewer chose for a duplicate row, `skip` until they chose. */
+export function duplicateAction(row: CommitRow): 'import' | 'overwrite' | 'skip' {
+  return row.duplicate?.action ?? 'skip'
+}
+
 /**
  * Whether the row is one the commit may write at all.
  *
- * The same three questions the propose step asks (`endpoints/propose.ts`), in
- * the same order, because a row counted towards the tree and then skipped here
- * would leave a region holding nothing.
+ * ⚠ **A duplicate is committable once the reviewer chose to import it or to
+ * overwrite the class it repeats** (`endpoints/choices.ts`). Skipping is the
+ * default, so nobody's existing class is touched, and no second listing is
+ * published, because nobody looked.
  */
 export function isCommittable(row: CommitRow): boolean {
-  return !!row.resolved && !row.errors?.length && !row.duplicate
+  return !!row.resolved && !row.errors?.length && (!row.duplicate || duplicateAction(row) !== 'skip')
+}
+
+/**
+ * The class's exactly-once key: the batch and the line.
+ *
+ * ⚠ **Stored on the class, unique, and checked before every create.**
+ * `committed` reaches the batch only when its chunk is written back, so a
+ * request that dies after creating a class — or whose final write fails — leaves
+ * a row that looks unwritten. Without this the next call created it again.
+ */
+export function importKeyFor(batchId: number, line: number): string {
+  return `${batchId}:${line}`
+}
+
+/**
+ * After a commit transient failure fails a row this many times, it is reported
+ * rather than retried — a fault that is not the row's, but keeps recurring, must
+ * not stall the batch forever.
+ */
+export const MAX_ROW_ATTEMPTS = 3
+
+/**
+ * Give a skipped repeat back its chance when the line it repeats was never
+ * imported.
+ *
+ * A file's second copy of a class is skipped in favour of its first. If the
+ * first then fails at commit, skipping the second as well would import neither.
+ */
+export function reviveOrphanedRepeats(rows: CommitRow[]): void {
+  const failed = new Set(
+    rows.filter((row) => row.errors?.length && !row.committed).map((row) => row.line),
+  )
+  for (const row of rows) {
+    const repeated = row.duplicate?.line
+    if (repeated !== undefined && failed.has(repeated) && duplicateAction(row) === 'skip') {
+      delete row.duplicate
+    }
+  }
 }
 
 /** Rows still owed a class. */
@@ -54,18 +98,29 @@ export function refuseRow(row: CommitRow, ...errors: string[]): void {
 export function importLogEntry(args: {
   batchId: number
   line: number
-  uploaderName: string
+  uploader: Uploader
   at: string
+  overwrote?: boolean
 }): LogEntry {
-  const { batchId, line, uploaderName, at } = args
+  const { batchId, line, uploader, at, overwrote } = args
   return {
     at,
     type: IMPORT_LOG_TYPE,
-    key: `${batchId}:${line}`,
+    key: importKeyFor(batchId, line),
+    // ⚠ **The id travels beside the name.** `name` is the account holder's to
+    // edit, and the batch that named the uploader is gone once the commit
+    // finishes — so a name alone could credit anybody.
+    uploaderId: uploader.id,
     cells: {
-      activity: 'Imported',
-      who: uploaderName,
+      activity: overwrote ? 'Overwritten by import' : 'Imported',
+      who: uploader.id === null ? uploader.name : `${uploader.name} (#${uploader.id})`,
       delivery: `Bulk import, CSV line ${line}`,
     },
   }
+}
+
+/** Who uploaded a batch, which is not always who fires its commit. */
+export interface Uploader {
+  id: null | number
+  name: string
 }

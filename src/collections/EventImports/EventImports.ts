@@ -4,11 +4,13 @@ import { z } from 'zod'
 
 import { jsonField } from '@/fields/jsonField'
 import { baseLanguage, getLanguageOptions } from '@/lib/locales'
-import { adminOnlyFieldAccess } from '@/plugins/access'
+import type { Manager } from '@/payload-types'
+import { adminOnlyFieldAccess, isAdminManager } from '@/plugins/access'
 
 import { batchDiscardAccess, batchUploaderAccess } from './access'
 import { MAX_IMPORT_ROWS } from './constants'
-import { stampDiscardTime } from './discard'
+import { guardBatchUpdate } from './discard'
+import { recordEventImportChoices } from './endpoints/choices'
 import { commitEventImport } from './endpoints/commit'
 import { proposeEventImport } from './endpoints/propose'
 import { resolveEventImport } from './endpoints/resolve'
@@ -17,24 +19,43 @@ import { eventImportTemplate } from './endpoints/template'
 import { editEventImportTree } from './endpoints/tree'
 import { uploadEventImport } from './endpoints/upload'
 
+/** Where a proposed node is created, shared by the node and its pre-`map` copy. */
+const nodeLocation = z
+  .union([
+    z.strictObject({ kind: z.literal('mapbox'), mapboxId: z.string() }),
+    z.strictObject({
+      kind: z.literal('manual'),
+      latitude: z.number(),
+      longitude: z.number(),
+      radius: z.number(),
+    }),
+  ])
+  .nullable()
+
 /**
  * Staging for one bulk event import, from upload to commit.
  *
- * A batch is working state, not a record: it is **hard-deleted the moment the
- * commit succeeds**. What survives is on the events themselves — each one's
- * `activityLog` names the manager who imported it — so a provenance question is
- * answered from the event rather than from a row somebody has to keep.
+ * A batch is working state, not a record: **the commit's finish reduces it to its
+ * report and trashes it** (`commit/finish.ts`), and the trash window erases it.
+ * What survives is on the events themselves — each one's `activityLog` names the
+ * manager who imported it, and its `importKey` the batch and line — so a
+ * provenance question is answered from the event rather than from a row somebody
+ * has to keep. A batch nobody finishes or discards is swept after
+ * `ABANDONED_BATCH_DAYS` (`PurgeEventImports`).
  *
- * Reached only through the Import tab on a region. It is hidden from the nav for
- * that reason, and no project lists it, so it is named in
- * `RESTRICTED_COLLECTIONS` (`src/plugins/access/config/projects.ts`) — "no
- * project" otherwise reads as *shared*, and every published API key, the Atlas
- * widget's browser key included, would read every uploaded CSV.
+ * Reached only through the Import tab on a region, which also lists a
+ * volunteer's unfinished batches; hidden from the nav for everyone but admins.
+ * No project lists it, so it is named in `RESTRICTED_COLLECTIONS`
+ * (`src/plugins/access/config/projects.ts`) — "no project" otherwise reads as
+ * *shared*, and every published API key, the Atlas widget's browser key
+ * included, would read every uploaded CSV.
  *
- * ⚠ **Several batches may be open on one region at once, deliberately.** There
- * is no lock: two volunteers uploading the same region's classes is a
- * duplicate-detection problem, and the commit re-runs the duplicate and slug
- * checks rather than trusting what the review step saw.
+ * ⚠ **One request at a time per batch, several batches per region.** Each
+ * writing endpoint holds the batch's lease (`lease.ts`). Two volunteers
+ * uploading the same region's classes is a duplicate-detection problem, so the
+ * commit re-runs the duplicate check against the classes added since the review
+ * and re-checks every slug and region the tree names, rather than trusting what
+ * the review step saw.
  */
 export const EventImports: CollectionConfig = {
   slug: 'event-imports',
@@ -47,6 +68,7 @@ export const EventImports: CollectionConfig = {
     proposeEventImport,
     reviewEventImport,
     editEventImportTree,
+    recordEventImportChoices,
     commitEventImport,
   ],
   // `create` is left to the generated config on purpose — it already answers
@@ -60,12 +82,15 @@ export const EventImports: CollectionConfig = {
   hooks: {
     // The discard's timestamp decides when the retention window runs out, so it
     // is not the caller's to choose (`discard.ts`).
-    beforeChange: [stampDiscardTime],
+    beforeChange: [guardBatchUpdate],
   },
   admin: {
     group: 'Classes',
-    defaultColumns: ['id', 'targetRegion', 'uploader', 'status', 'createdAt'],
-    hidden: true,
+    defaultColumns: ['id', 'targetRegion', 'uploader', 'status', 'updatedAt'],
+    // Admins only: a volunteer reaches their batches from the region's Import
+    // tab, and an admin needs this list to restore a discarded batch or look at
+    // a stalled one.
+    hidden: ({ user }) => !isAdminManager(user as Manager | null),
   },
   fields: [
     // ⚠ **Neither may be re-pointed after the create.** The endpoints' subtree
@@ -108,11 +133,46 @@ export const EventImports: CollectionConfig = {
         { label: 'Uploaded', value: 'uploaded' },
         { label: 'Resolved', value: 'resolved' },
         { label: 'Committing', value: 'committing' },
+        { label: 'Finished', value: 'finished' },
       ],
       admin: {
         description:
-          'Written by the import endpoints. `committing` means a commit was interrupted part-way; its rows carry the ids of whatever was already created.',
+          'Written by the import endpoints. `committing` means a commit was interrupted part-way; its rows carry the ids of whatever was already created. `finished` is the trashed report a finished commit leaves behind.',
       },
+    },
+    {
+      // ⚠ **The locale the role was granted in, kept so every later step can
+      // ask again.** `roles` is localized (#701), and the role is re-checked on
+      // every call — a manager whose `atlas-manager` grant was revoked after the
+      // upload must not go on to commit (`capability.ts`).
+      name: 'uploadLocale',
+      type: 'text',
+      access: { update: adminOnlyFieldAccess },
+      admin: { readOnly: true },
+    },
+    {
+      // Written by `POST /:id/choices`, the reviewer's opt-in. Off by default:
+      // an import emails nobody unless the reviewer asked for it.
+      name: 'inviteCoordinators',
+      type: 'checkbox',
+      defaultValue: false,
+      access: { update: adminOnlyFieldAccess },
+      admin: { readOnly: true },
+    },
+    {
+      // ⚠ **The one-request-at-a-time lease (`lease.ts`).** Claimed with a
+      // conditional UPDATE, so two resolve or commit calls on one batch cannot
+      // both work it — the race that created every class twice.
+      name: 'leaseToken',
+      type: 'text',
+      access: { read: adminOnlyFieldAccess, update: adminOnlyFieldAccess },
+      admin: { hidden: true },
+    },
+    {
+      name: 'leaseUntil',
+      type: 'date',
+      access: { read: adminOnlyFieldAccess, update: adminOnlyFieldAccess },
+      admin: { hidden: true },
     },
     {
       name: 'defaultLanguages',
@@ -123,6 +183,9 @@ export const EventImports: CollectionConfig = {
       // values end up for every row whose own `languages` column is blank.
       options: getLanguageOptions(),
       defaultValue: ({ req }) => [baseLanguage(req.locale)],
+      // Taken at upload only: every later step trusts it, and the resolve step
+      // writes it onto rows as their languages.
+      access: { update: adminOnlyFieldAccess },
       admin: {
         description: 'Language(s) to use for rows whose own `languages` column is empty.',
       },
@@ -148,12 +211,20 @@ export const EventImports: CollectionConfig = {
             ),
           values: z
             .record(z.string(), z.string())
-            .describe('The row as the CSV held it, keyed by column name and trimmed.'),
+            .describe(
+              'The row as the CSV held it, keyed by column name and trimmed — save a bare-host `website` or `onlineUrl`, stored with `https://` added (`csv/fieldChecks.ts`).',
+            ),
           errors: z
             .array(z.string())
             .optional()
             .describe(
               'Everything wrong with the row, from the parse, the resolve, the proposal and the commit alike. A row with any of these is skipped, never committed.',
+            ),
+          warnings: z
+            .array(z.string())
+            .optional()
+            .describe(
+              'Things a reviewer should know that do not stop the row: a geocode that only reached the town, a coordinator the import will not link.',
             ),
           resolved: z
             .strictObject({
@@ -176,6 +247,19 @@ export const EventImports: CollectionConfig = {
                 .describe('The Mapbox `place` id, which phase 5 matches an existing region on.'),
               mapboxId: z.string().nullable(),
               subdivisionCode: z.string().nullable(),
+              regionMapboxId: z
+                .string()
+                .nullable()
+                .optional()
+                .describe(
+                  "The Mapbox `region` (state) feature the address sits in, which a proposed state matches an existing region on.",
+                ),
+              approximate: z
+                .boolean()
+                .optional()
+                .describe(
+                  'The geocode reached only the street or the town, not the address — so the point is not a hall, and the nearby-address duplicate rule ignores it.',
+                ),
               weekdayMask: z
                 .int()
                 .describe(
@@ -185,6 +269,24 @@ export const EventImports: CollectionConfig = {
                 .int()
                 .nullable()
                 .describe("Minutes since midnight on the class's own clock."),
+              firstDay: z
+                .int()
+                .optional()
+                .describe('The first occurrence as a local day number, for the duplicate check.'),
+              lastDay: z
+                .int()
+                .nullable()
+                .optional()
+                .describe('The last occurrence as a local day number, or null for an open series.'),
+              monthWeeks: z
+                .int()
+                .optional()
+                .describe("A monthly-by-weekday class's week numbers as a mask, 0 otherwise."),
+              monthDay: z
+                .int()
+                .nullable()
+                .optional()
+                .describe("A monthly-by-date class's day of the month, null otherwise."),
               languages: z.array(z.string()),
               inactive: z.boolean(),
               anchorDate: z
@@ -200,19 +302,45 @@ export const EventImports: CollectionConfig = {
           duplicate: z
             .strictObject({
               reason: z.enum(['nearby-address', 'city-and-time']),
+              strength: z
+                .enum(['strong', 'weak'])
+                .optional()
+                .describe(
+                  '`strong` is the same hall at the same time; `weak` is the same town and time, which the review badges "possible duplicate".',
+                ),
               eventId: z.int().optional().describe('The existing class this row repeats.'),
               line: z
                 .int()
                 .optional()
                 .describe('The earlier line in this same file the row repeats.'),
+              action: z
+                .enum(['skip', 'import', 'overwrite'])
+                .optional()
+                .describe(
+                  "The reviewer's choice, `skip` when absent. `overwrite` replaces the matched class's values with the row's filled columns, and is only offered against an existing class.",
+                ),
+              atCommit: z
+                .boolean()
+                .optional()
+                .describe(
+                  'Found by the commit, against a class added after the review — skipped, because nobody chose otherwise.',
+                ),
             })
             .optional()
+            .describe('A matched row, and what the reviewer chose to do about it.'),
+          failedAttempts: z
+            .int()
+            .optional()
             .describe(
-              'A matched row is reported and skipped; nothing about the match is modified.',
+              'Commit attempts this row failed for a reason that was not its own, so one that keeps failing is eventually reported instead of stalling the commit.',
             ),
           committed: z
             .strictObject({
-              eventId: z.int().describe('The class this row created.'),
+              eventId: z.int().describe('The class this row created or overwrote.'),
+              action: z
+                .enum(['created', 'overwrote'])
+                .optional()
+                .describe('`created` when absent.'),
             })
             .optional()
             .describe(
@@ -264,18 +392,7 @@ export const EventImports: CollectionConfig = {
               .string()
               .nullable()
               .describe('Null for every node the commit does not create.'),
-            location: z
-              .union([
-                z.strictObject({ kind: z.literal('mapbox'), mapboxId: z.string() }),
-                z.strictObject({
-                  kind: z.literal('manual'),
-                  latitude: z.number(),
-                  longitude: z.number(),
-                  radius: z.number(),
-                }),
-              ])
-              .nullable()
-              .describe('Null for every node the commit does not create.'),
+            location: nodeLocation.describe('Null for every node the commit does not create.'),
             lines: z
               .array(z.int())
               .describe("The CSV lines this node's classes come from, the absorbed places' included."),
@@ -290,6 +407,16 @@ export const EventImports: CollectionConfig = {
               )
               .optional()
               .describe('What the metro rule folded into this city, so the review can say so.'),
+            before: z
+              .strictObject({
+                name: z.string(),
+                parentKey: z.string().nullable(),
+                location: nodeLocation,
+              })
+              .optional()
+              .describe(
+                'What a `map` edit replaced, so an `unmap` can put the proposal back exactly.',
+              ),
           }),
         ).describe('Parent-first, so the commit can create them in order.'),
         rowErrors: z.array(z.strictObject({ line: z.int(), message: z.string() })),
@@ -309,6 +436,39 @@ export const EventImports: CollectionConfig = {
             z.strictObject({ proposed: z.literal(false), reason: z.string() }),
           ])
           .describe('Kept with its reason, because the review has to explain a missing layer.'),
+      }),
+      admin: { readOnly: true },
+    }),
+    jsonField({
+      name: 'report',
+      schemaTitle: 'EventImportReport',
+      // ⚠ **What a finished commit leaves behind, and the reason a lost final
+      // response is not a lost report.** The finish trashes the batch with its
+      // CSV values stripped from every row it committed, so the trash window
+      // (`PurgeEventImports`) bounds how long the rest is kept — and a commit
+      // call that finds `finished` answers with this instead of a 404.
+      access: { update: adminOnlyFieldAccess },
+      schema: z.strictObject({
+        committed: z.array(
+          z.strictObject({
+            line: z.int(),
+            eventId: z.int(),
+            action: z.enum(['created', 'overwrote']),
+          }),
+        ),
+        skipped: z.array(
+          z.strictObject({
+            line: z.int(),
+            reasons: z.array(z.string()),
+            values: z
+              .record(z.string(), z.string())
+              .describe('The row as uploaded, so the volunteer can download, fix and re-upload it.'),
+          }),
+        ),
+        reportEmailed: z
+          .boolean()
+          .describe('Whether the uploader was emailed this report, with the skipped lines attached.'),
+        finishedAt: z.string(),
       }),
       admin: { readOnly: true },
     }),
