@@ -228,11 +228,7 @@ async function resolveOne({
     return 'done'
   }
 
-  const outcome = await geocodeLocation({
-    query: request.query,
-    types: request.types,
-    countryCode: request.countryCode,
-  })
+  const outcome = await geocodeLocation(request.query)
   if (outcome.status === 'unavailable') return 'unavailable'
   if (outcome.status === 'unconfigured') return 'unconfigured'
   if (outcome.status === 'refused') {

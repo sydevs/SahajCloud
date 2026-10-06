@@ -360,6 +360,26 @@ describe('parseImportCsv — the help row', () => {
     expect(parsed).toHaveLength(1)
   })
 
+  /**
+   * A volunteer's own note, commas and all. It names no `eventType` and no
+   * `scheduleType`, which every class must, so it is a note and not a broken
+   * class.
+   */
+  it('skips a #-comment row that fills no column a class must', () => {
+    const parsed = rows(
+      `${HEADER}
+# Rows starting with # are notes, and so are blank lines.
+${OFFLINE}`,
+    )
+    expect(parsed).toHaveLength(1)
+    expect(parsed[0]!.line).toBe(3)
+  })
+
+  it('refuses a file whose only rows are notes as having no data', () => {
+    expect(refusal(`${HEADER}
+# only a note`)).toBe('The file has a header but no data rows.')
+  })
+
   it('skips the template help row even with its columns reordered', () => {
     const [cells] = parse(HELP_ROW) as string[][]
     const quoted = cells!.map((cell) => `"${cell.replaceAll('"', '""')}"`)

@@ -28,6 +28,20 @@ import type { Region } from '@/payload-types'
 
 const FORWARD_URL = 'https://api.mapbox.com/search/searchbox/v1/forward'
 
+/**
+ * Geocoding v6, which the bulk import places addresses with.
+ *
+ * ⚠ **Not Search Box, because Search Box is a type-ahead.** Handed one line —
+ * `Hansaring 22, Köln, NRW, 50670` — it put Köln in Kiel, Hannover in Berne and
+ * Offenbach in Bad Vilbel: the right street name in the wrong town. v6 takes the
+ * street, postcode, town and state as separate fields and grades each match, so
+ * a row whose address Mapbox does not hold is caught rather than placed on a
+ * namesake street. Its `place` and `region` ids are the same ones Search Box
+ * returns, so a region the import matches or creates stays in the id-space
+ * `AddressSearchField` uses.
+ */
+const GEOCODE_URL = 'https://api.mapbox.com/search/geocode/v6/forward'
+
 /** Sentinel `mapboxId` for a hand-entered location — matches `AddressSearchField`. */
 export const MANUAL_LOCATION = 'manual'
 
@@ -93,6 +107,10 @@ interface ForwardFeature {
     name?: string
     address?: string
     feature_type?: string
+    /** v6 only: the whole address as Mapbox matched it. */
+    full_address?: string
+    /** v6 only: how each part of a structured query matched. */
+    match_code?: { confidence?: string; street?: string; address_number?: string; place?: string }
     context?: {
       country?: ForwardContextEntry & { country_code?: string }
       region?: ForwardContextEntry & { region_code?: string; region_code_full?: string }
@@ -125,10 +143,10 @@ type ForwardAnswer =
   | { kind: 'unauthorized'; httpStatus: number }
   | { kind: 'unavailable' }
 
-/** GET the first `/forward` feature, retrying what may answer differently next time. */
-async function fetchForwardFeature(params: URLSearchParams): Promise<ForwardAnswer> {
+/** GET the first feature, retrying what may answer differently next time. */
+async function fetchForwardFeature(url: string): Promise<ForwardAnswer> {
   for (let attempt = 1; ; attempt++) {
-    const answer = await attemptForward(params)
+    const answer = await attemptForward(url)
     if (answer) return answer
     if (attempt >= MAX_ATTEMPTS) return { kind: 'unavailable' }
     await delay(BASE_BACKOFF_MS * 2 ** (attempt - 1))
@@ -136,10 +154,10 @@ async function fetchForwardFeature(params: URLSearchParams): Promise<ForwardAnsw
 }
 
 /** One request, or null when it is worth asking again. */
-async function attemptForward(params: URLSearchParams): Promise<ForwardAnswer | null> {
+async function attemptForward(url: string): Promise<ForwardAnswer | null> {
   let res: Response
   try {
-    res = await fetch(`${FORWARD_URL}?${params.toString()}`, {
+    res = await fetch(url, {
       signal: AbortSignal.timeout(ATTEMPT_TIMEOUT_MS),
     })
   } catch {
@@ -204,7 +222,7 @@ async function forwardFeature(args: GeocodeRegionArgs): Promise<ForwardFeature |
     },
     token,
   )
-  const answer = await fetchForwardFeature(params)
+  const answer = await fetchForwardFeature(`${FORWARD_URL}?${params.toString()}`)
   return answer.kind === 'answered' ? answer.feature : null
 }
 
@@ -329,6 +347,32 @@ export interface GeocodedLocation {
   placeName: string | null
   /** The `place` layer's own id, which a region node can be matched on. */
   placeId: string | null
+  /**
+   * How sure Mapbox is that this is the address asked for — `exact`, `high`,
+   * `medium` or `low` — or null where it does not grade the answer (a town).
+   */
+  confidence: MatchConfidence | null
+  /** Whether the street itself matched, or null where nothing was asked of one. */
+  streetMatched: boolean | null
+  /**
+   * Whether the town matched as written, or null where it was not graded. A
+   * town's other-language name (Köln, Cologne) reads as unmatched too, so this
+   * is a hint beside `confidence`, never a verdict on its own.
+   */
+  placeMatched: boolean | null
+  /** The address Mapbox matched, as it spells it, for a reviewer to compare. */
+  matchedAddress: string | null
+}
+
+export type MatchConfidence = 'exact' | 'high' | 'low' | 'medium'
+
+const CONFIDENCES: ReadonlySet<string> = new Set(['exact', 'high', 'medium', 'low'])
+
+/** A `match_code` entry as a yes, a no, or "not graded". */
+function matched(code: string | undefined): boolean | null {
+  if (code === 'matched') return true
+  if (code === 'unmatched') return false
+  return null
 }
 
 /** Whichever key this Mapbox response spelled a context layer's id with. */
@@ -339,13 +383,53 @@ function contextLayerId(entry: ForwardContextEntry | undefined): string | null {
 /** The `feature_type`s that are a town, which a place lookup is answered with. */
 const TOWN_FEATURE_TYPES = new Set(['place', 'locality'])
 
+/**
+ * One lookup, field by field: an address placed by its street, postcode and
+ * town, or a town alone (an online class has no hall).
+ */
 export interface GeocodeLocationArgs {
-  /** The whole query on one line — `"Oranienstraße 25, Berlin, DE"`. */
-  query: string
-  /** Mapbox `types` filter. An address lookup and a city lookup want different ones. */
-  types: string
+  kind: 'address' | 'place'
+  /** The street and number, for an address lookup. */
+  address?: string | null
+  postcode?: string | null
+  city: string
+  /** The state or province as the row wrote it — a name or a code. */
+  region?: string | null
   /** ISO alpha-2 to restrict the search to. */
-  countryCode?: string | null
+  countryCode: string
+}
+
+/**
+ * The layers each lookup may answer with. An address lookup still reaches a
+ * street or a town when the door is unknown, which the caller reads as an
+ * approximate answer rather than a miss.
+ */
+const LOOKUP_TYPES: Record<GeocodeLocationArgs['kind'], string> = {
+  address: 'address,street,postcode,place,locality',
+  place: 'place,locality',
+}
+
+/** The v6 structured query for one lookup. */
+function lookupUrl(args: GeocodeLocationArgs, token: string): string {
+  const params = new URLSearchParams({
+    types: LOOKUP_TYPES[args.kind],
+    country: args.countryCode.toLowerCase(),
+    limit: '1',
+    language: 'en',
+    // ⚠ **The import stores what this answers** — a class's point and its
+    // address id, a region's feature id — and Mapbox's terms allow storing a
+    // geocode only when it was asked for as permanent.
+    permanent: 'true',
+    access_token: token,
+  })
+  const fields: [string, null | string | undefined][] = [
+    ['address_line1', args.kind === 'address' ? args.address : null],
+    ['postcode', args.kind === 'address' ? args.postcode : null],
+    ['place', args.city],
+    ['region', args.region],
+  ]
+  for (const [key, value] of fields) if (value?.trim()) params.set(key, value.trim())
+  return `${GEOCODE_URL}?${params.toString()}`
 }
 
 /**
@@ -370,13 +454,12 @@ export type GeocodeOutcome =
 export async function geocodeLocation(args: GeocodeLocationArgs): Promise<GeocodeOutcome> {
   const token = accessToken()
   if (!token) return { status: 'unconfigured', httpStatus: null }
-  if (!args.query.trim()) return { status: 'missed' }
+  if (!args.city.trim() && !args.address?.trim()) return { status: 'missed' }
 
-  const answer = await fetchForwardFeature(
-    forwardParams({ q: args.query, types: args.types, countryCode: args.countryCode }, token),
-  )
+  const answer = await fetchForwardFeature(lookupUrl(args, token))
   if (answer.kind === 'unavailable') return { status: 'unavailable' }
-  if (answer.kind === 'unauthorized') return { status: 'unconfigured', httpStatus: answer.httpStatus }
+  if (answer.kind === 'unauthorized')
+    return { status: 'unconfigured', httpStatus: answer.httpStatus }
   if (answer.kind === 'refused') return { status: 'refused', httpStatus: answer.httpStatus }
 
   const coordinates = answer.feature?.geometry?.coordinates
@@ -411,6 +494,12 @@ export async function geocodeLocation(args: GeocodeLocationArgs): Promise<Geocod
       regionMapboxId: contextLayerId(context?.region),
       placeName: place?.name ?? null,
       placeId: contextLayerId(place),
+      confidence: CONFIDENCES.has(properties?.match_code?.confidence ?? '')
+        ? (properties!.match_code!.confidence as MatchConfidence)
+        : null,
+      streetMatched: matched(properties?.match_code?.street),
+      placeMatched: matched(properties?.match_code?.place),
+      matchedAddress: properties?.full_address ?? null,
     },
   }
 }

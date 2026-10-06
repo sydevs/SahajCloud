@@ -5,6 +5,7 @@ import {
   geocodeRegion,
   MANUAL_LOCATION,
   resolveRegionLocation,
+  type GeocodeLocationArgs,
 } from '@/lib/mapbox/geocoder'
 
 /** The Search Box `/forward` types used by the coordless-fallback step. */
@@ -149,7 +150,7 @@ describe('resolveRegionLocation', () => {
 })
 
 describe('geocodeLocation', () => {
-  /** A Search Box `/forward` body with the context layers the import reads. */
+  /** A Geocoding v6 body with the context layers the import reads. */
   const placed = (context: Record<string, unknown>, properties: Record<string, unknown> = {}) => ({
     features: [
       {
@@ -166,7 +167,7 @@ describe('geocodeLocation', () => {
   }
 
   /** The found location, or a thrown assertion naming the status instead. */
-  async function located(args: { query: string; types: string; countryCode?: string }) {
+  async function located(args: GeocodeLocationArgs) {
     const outcome = await geocodeLocation(args)
     if (outcome.status !== 'found') throw new Error(`expected a location, got ${outcome.status}`)
     return outcome.location
@@ -174,7 +175,14 @@ describe('geocodeLocation', () => {
 
   it('returns the point and the administrative context around it', async () => {
     stubFetch(() => ({ body: placed(berlinContext) }))
-    expect(await located({ query: 'Oranienstraße 25, Berlin', types: 'address,poi' })).toEqual({
+    expect(
+      await located({
+        kind: 'address',
+        address: 'Oranienstraße 25, Berlin',
+        city: 'Berlin',
+        countryCode: 'DE',
+      }),
+    ).toEqual({
       mapboxId: 'mbx-address',
       featureType: 'address',
       latitude: 52.5026,
@@ -184,14 +192,97 @@ describe('geocodeLocation', () => {
       regionMapboxId: 'mbx-be',
       placeName: 'Berlin',
       placeId: 'mbx-berlin',
+      confidence: null,
+      streetMatched: null,
+      placeMatched: null,
+      matchedAddress: null,
     })
+  })
+
+  it('reports how sure Mapbox is, and which address it matched', async () => {
+    stubFetch(() => ({
+      body: placed(berlinContext, {
+        full_address: 'Oranienstraße 25, 10999 Berlin, Germany',
+        match_code: {
+          confidence: 'medium',
+          street: 'unmatched',
+          address_number: 'matched',
+          place: 'matched',
+        },
+      }),
+    }))
+    expect(
+      await located({
+        kind: 'address',
+        address: 'Oranienstr 25',
+        city: 'Berlin',
+        countryCode: 'DE',
+      }),
+    ).toMatchObject({
+      confidence: 'medium',
+      streetMatched: false,
+      placeMatched: true,
+      matchedAddress: 'Oranienstraße 25, 10999 Berlin, Germany',
+    })
+  })
+
+  /**
+   * ⚠ **Field by field, and permanent.** One line — street, town, state and
+   * postcode joined — let Mapbox put Köln's Hansaring in Kiel; the import also
+   * stores what comes back, which Mapbox's terms allow only for a permanent
+   * geocode.
+   */
+  it('sends the address as structured fields, to Geocoding v6, as permanent', async () => {
+    let seenUrl = ''
+    stubFetch((url) => {
+      seenUrl = url
+      return { body: placed(berlinContext) }
+    })
+    await geocodeLocation({
+      kind: 'address',
+      address: 'Hansaring 22',
+      postcode: '50670',
+      city: 'Köln',
+      region: 'NRW',
+      countryCode: 'DE',
+    })
+    const url = new URL(seenUrl)
+    expect(url.pathname).toBe('/search/geocode/v6/forward')
+    expect(Object.fromEntries(url.searchParams)).toMatchObject({
+      address_line1: 'Hansaring 22',
+      postcode: '50670',
+      place: 'Köln',
+      region: 'NRW',
+      country: 'de',
+      permanent: 'true',
+    })
+    expect(url.searchParams.has('q')).toBe(false)
+  })
+
+  it('asks a town lookup for a town, and sends no address', async () => {
+    let seenUrl = ''
+    stubFetch((url) => {
+      seenUrl = url
+      return { body: placed(berlinContext) }
+    })
+    await geocodeLocation({ kind: 'place', city: 'Leipzig', countryCode: 'DE', address: 'ignored' })
+    const url = new URL(seenUrl)
+    expect(url.searchParams.get('types')).toBe('place,locality')
+    expect(url.searchParams.has('address_line1')).toBe(false)
   })
 
   it('reports a match coarser than an address by its own feature type', async () => {
     stubFetch(() => ({
       body: placed(berlinContext, { mapbox_id: 'mbx-street', feature_type: 'street' }),
     }))
-    expect(await located({ query: 'Oranienstraße 999, Berlin', types: 'address' })).toMatchObject({
+    expect(
+      await located({
+        kind: 'address',
+        address: 'Oranienstraße 999, Berlin',
+        city: 'Berlin',
+        countryCode: 'DE',
+      }),
+    ).toMatchObject({
       mapboxId: 'mbx-street',
       featureType: 'street',
       placeId: 'mbx-berlin',
@@ -207,7 +298,7 @@ describe('geocodeLocation', () => {
         { mapbox_id: 'mbx-berlin', name: 'Berlin', feature_type: 'place' },
       ),
     }))
-    expect(await located({ query: 'Berlin', types: 'place,locality' })).toMatchObject({
+    expect(await located({ kind: 'place', city: 'Berlin', countryCode: 'DE' })).toMatchObject({
       placeName: 'Berlin',
       placeId: 'mbx-berlin',
     })
@@ -217,7 +308,7 @@ describe('geocodeLocation', () => {
     stubFetch(() => ({
       body: placed(berlinContext, { mapbox_id: 'mbx-kreuzberg', feature_type: 'locality' }),
     }))
-    expect((await located({ query: 'Kreuzberg', types: 'place,locality' })).placeId).toBe(
+    expect((await located({ kind: 'place', city: 'Kreuzberg', countryCode: 'DE' })).placeId).toBe(
       'mbx-berlin',
     )
   })
@@ -229,7 +320,7 @@ describe('geocodeLocation', () => {
         region: { mapbox_id: 'mbx-md', name: 'Community of Madrid', region_code: 'MD' },
       }),
     }))
-    expect(await located({ query: 'Madrid', types: 'place' })).toMatchObject({
+    expect(await located({ kind: 'place', city: 'Madrid', countryCode: 'DE' })).toMatchObject({
       subdivisionCode: 'M',
       regionMapboxId: 'mbx-md',
     })
@@ -241,7 +332,7 @@ describe('geocodeLocation', () => {
       seenUrl = url
       return { body: placed(berlinContext) }
     })
-    await geocodeLocation({ query: 'Berlin', types: 'place,locality', countryCode: 'DE' })
+    await geocodeLocation({ kind: 'place', city: 'Berlin', countryCode: 'DE' })
     expect(seenUrl).toContain('country=de')
     expect(seenUrl).toContain('types=place%2Clocality')
   })
@@ -252,7 +343,9 @@ describe('geocodeLocation', () => {
     stubFetch(() => ({
       body: placed({ ...berlinContext, place: { id: 'mbx-berlin', name: 'Berlin' } }),
     }))
-    expect((await located({ query: 'Berlin', types: 'place' })).placeId).toBe('mbx-berlin')
+    expect((await located({ kind: 'place', city: 'Berlin', countryCode: 'DE' })).placeId).toBe(
+      'mbx-berlin',
+    )
   })
 
   it('reads the city off `locality` where a country files one below `place`', async () => {
@@ -262,7 +355,7 @@ describe('geocodeLocation', () => {
         locality: { mapbox_id: 'mbx-loc', name: 'Harlem' },
       }),
     }))
-    expect(await located({ query: 'Harlem', types: 'place,locality' })).toMatchObject({
+    expect(await located({ kind: 'place', city: 'Harlem', countryCode: 'DE' })).toMatchObject({
       placeName: 'Harlem',
       placeId: 'mbx-loc',
     })
@@ -275,19 +368,25 @@ describe('geocodeLocation', () => {
         region: { name: 'Bayern', region_code_full: 'DE-BY' },
       }),
     }))
-    expect((await located({ query: 'München', types: 'place' })).subdivisionCode).toBe('BY')
+    expect(
+      (await located({ kind: 'place', city: 'München', countryCode: 'DE' })).subdivisionCode,
+    ).toBe('BY')
   })
 
   it('resolves a subdivision Mapbox named but did not code', async () => {
     stubFetch(() => ({
       body: placed({ country: berlinContext.country, region: { name: 'Bayern' } }),
     }))
-    expect((await located({ query: 'München', types: 'place' })).subdivisionCode).toBe('BY')
+    expect(
+      (await located({ kind: 'place', city: 'München', countryCode: 'DE' })).subdivisionCode,
+    ).toBe('BY')
   })
 
   it('leaves the context codes null when Mapbox sent none', async () => {
     stubFetch(() => ({ body: placed({}) }))
-    expect(await located({ query: 'Somewhere', types: 'address' })).toMatchObject({
+    expect(
+      await located({ kind: 'address', address: 'Somewhere', city: 'Berlin', countryCode: 'DE' }),
+    ).toMatchObject({
       countryCode: null,
       subdivisionCode: null,
       regionMapboxId: null,
@@ -303,21 +402,23 @@ describe('geocodeLocation', () => {
 
     it('reports an empty result set as a miss', async () => {
       stubFetch(() => ({ body: { features: [] } }))
-      expect(await geocodeLocation({ query: 'Nowhere', types: 'place' })).toEqual({
+      expect(await geocodeLocation({ kind: 'place', city: 'Nowhere', countryCode: 'DE' })).toEqual({
         status: 'missed',
       })
     })
 
     it('reports a feature with no coordinates as a miss', async () => {
       stubFetch(() => ({ body: { features: [{ properties: { context: berlinContext } }] } }))
-      expect(await geocodeLocation({ query: 'Berlin', types: 'place' })).toEqual({
+      expect(await geocodeLocation({ kind: 'place', city: 'Berlin', countryCode: 'DE' })).toEqual({
         status: 'missed',
       })
     })
 
     it('reports a server error that outlasts the retries as unavailable', async () => {
       const fetchSpy = stubFetch(() => ({ status: 503, body: {} }))
-      expect(await settled(geocodeLocation({ query: 'Berlin', types: 'place' }))).toEqual({
+      expect(
+        await settled(geocodeLocation({ kind: 'place', city: 'Berlin', countryCode: 'DE' })),
+      ).toEqual({
         status: 'unavailable',
       })
       expect(fetchSpy).toHaveBeenCalledTimes(3)
@@ -328,7 +429,9 @@ describe('geocodeLocation', () => {
         throw new Error('ECONNRESET')
       })
       vi.stubGlobal('fetch', fetchSpy)
-      expect(await settled(geocodeLocation({ query: 'Berlin', types: 'place' }))).toEqual({
+      expect(
+        await settled(geocodeLocation({ kind: 'place', city: 'Berlin', countryCode: 'DE' })),
+      ).toEqual({
         status: 'unavailable',
       })
       expect(fetchSpy).toHaveBeenCalledTimes(3)
@@ -338,7 +441,9 @@ describe('geocodeLocation', () => {
       'retries a %i and takes the answer after it',
       async (status) => {
         const fetchSpy = stubStatuses(status)
-        const outcome = await settled(geocodeLocation({ query: 'Berlin', types: 'place' }))
+        const outcome = await settled(
+          geocodeLocation({ kind: 'place', city: 'Berlin', countryCode: 'DE' }),
+        )
         expect(outcome.status).toBe('found')
         expect(fetchSpy).toHaveBeenCalledTimes(2)
       },
@@ -347,7 +452,7 @@ describe('geocodeLocation', () => {
     it('gives each attempt its own bounded timeout', async () => {
       const timeout = vi.spyOn(AbortSignal, 'timeout')
       stubFetch(() => ({ status: 503, body: {} }))
-      await settled(geocodeLocation({ query: 'Berlin', types: 'place' }))
+      await settled(geocodeLocation({ kind: 'place', city: 'Berlin', countryCode: 'DE' }))
       expect(timeout).toHaveBeenCalledTimes(3)
       for (const [ms] of timeout.mock.calls) expect(ms).toBeLessThanOrEqual(8_000)
       timeout.mockRestore()
@@ -370,12 +475,16 @@ describe('geocodeLocation', () => {
             }) as unknown as Response,
         ),
       )
-      expect(await settled(geocodeLocation({ query: 'Berlin', types: 'place' }))).toEqual({
+      expect(
+        await settled(geocodeLocation({ kind: 'place', city: 'Berlin', countryCode: 'DE' })),
+      ).toEqual({
         status: 'unavailable',
       })
 
       stubFetch(() => ({ body: '<html>gateway</html>' }))
-      expect(await settled(geocodeLocation({ query: 'Berlin', types: 'place' }))).toEqual({
+      expect(
+        await settled(geocodeLocation({ kind: 'place', city: 'Berlin', countryCode: 'DE' })),
+      ).toEqual({
         status: 'unavailable',
       })
     })
@@ -384,7 +493,7 @@ describe('geocodeLocation', () => {
       vi.stubEnv('NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN', '')
       const fetchSpy = vi.fn()
       vi.stubGlobal('fetch', fetchSpy)
-      expect(await geocodeLocation({ query: 'Berlin', types: 'place' })).toEqual({
+      expect(await geocodeLocation({ kind: 'place', city: 'Berlin', countryCode: 'DE' })).toEqual({
         status: 'unconfigured',
         httpStatus: null,
       })
@@ -394,7 +503,9 @@ describe('geocodeLocation', () => {
     it.each([401, 403])('reports a %i as unconfigured, without retrying', async (status) => {
       // The token is wrong for every row alike, so no row may carry it as an error.
       const fetchSpy = stubFetch(() => ({ status, body: {} }))
-      expect(await settled(geocodeLocation({ query: 'Berlin', types: 'place' }))).toEqual({
+      expect(
+        await settled(geocodeLocation({ kind: 'place', city: 'Berlin', countryCode: 'DE' })),
+      ).toEqual({
         status: 'unconfigured',
         httpStatus: status,
       })
@@ -407,7 +518,16 @@ describe('geocodeLocation', () => {
       // ⚠ Retrying it, or reporting it as an outage, stalls the batch on this
       // row for good: every resume asks the same query and gets the same 4xx.
       const fetchSpy = stubFetch(() => ({ status, body: { message: 'Query too long' } }))
-      expect(await settled(geocodeLocation({ query: 'x'.repeat(300), types: 'address' }))).toEqual({
+      expect(
+        await settled(
+          geocodeLocation({
+            kind: 'address',
+            address: 'x'.repeat(300),
+            city: 'Berlin',
+            countryCode: 'DE',
+          }),
+        ),
+      ).toEqual({
         status: 'refused',
         httpStatus: status,
       })
@@ -417,7 +537,9 @@ describe('geocodeLocation', () => {
     it('reports a blank query as a miss, without calling fetch', async () => {
       const fetchSpy = vi.fn()
       vi.stubGlobal('fetch', fetchSpy)
-      expect(await geocodeLocation({ query: '  ', types: 'place' })).toEqual({ status: 'missed' })
+      expect(await geocodeLocation({ kind: 'place', city: '  ', countryCode: 'DE' })).toEqual({
+        status: 'missed',
+      })
       expect(fetchSpy).not.toHaveBeenCalled()
     })
   })

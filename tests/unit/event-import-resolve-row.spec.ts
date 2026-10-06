@@ -46,6 +46,10 @@ const berlin = (overrides: Partial<GeocodedLocation> = {}): GeocodedLocation => 
   regionMapboxId: 'dXJuOm1ieHJlZzpCRQ',
   placeName: 'Berlin',
   placeId: 'dXJuOm1ieHBsYzpBQ1k',
+  confidence: 'exact',
+  streetMatched: true,
+  placeMatched: true,
+  matchedAddress: 'Oranienstraße 25, 10999 Berlin, Germany',
   ...overrides,
 })
 
@@ -82,20 +86,23 @@ function errorsOf(args: Parameters<typeof resolved>[0]): string[] {
 }
 
 describe('geocodeRequestFor', () => {
-  it('composes an offline query from the address, city, state and postcode', () => {
+  /**
+   * ⚠ **Field by field, never joined.** One line with the state and postcode
+   * trailing the town let Mapbox pick the same street in another town — Köln's
+   * Hansaring was placed in Kiel.
+   */
+  it('asks for an offline row’s address field by field', () => {
     const request = geocodeRequestFor(offlineRow({ state: 'Berlin', postcode: '10999' }), DE)
     expect(request).toEqual({
       kind: 'query',
-      query: 'Oranienstraße 25, Berlin, Berlin, 10999',
-      // An address first, then the coarser layers a row can still be placed by.
-      types: 'address,poi,street,postcode,place,locality',
-      countryCode: 'DE',
-    })
-  })
-
-  it('leaves out the parts a row did not fill, rather than their separators', () => {
-    expect(geocodeRequestFor(offlineRow(), DE)).toMatchObject({
-      query: 'Oranienstraße 25, Berlin',
+      query: {
+        kind: 'address',
+        address: 'Oranienstraße 25',
+        postcode: '10999',
+        city: 'Berlin',
+        region: 'Berlin',
+        countryCode: 'DE',
+      },
     })
   })
 
@@ -103,9 +110,7 @@ describe('geocodeRequestFor', () => {
     const request = geocodeRequestFor({ eventType: 'online', country: 'DE', city: 'Berlin' }, DE)
     expect(request).toEqual({
       kind: 'query',
-      query: 'Berlin',
-      types: 'place,locality',
-      countryCode: 'DE',
+      query: { kind: 'place', city: 'Berlin', region: undefined, countryCode: 'DE' },
     })
   })
 
@@ -346,11 +351,54 @@ describe('resolveRow — warnings', () => {
     ['place', 'town'],
     ['locality', 'town'],
   ])('marks a %s match approximate, and says so', (featureType, area) => {
-    const location = berlin({ featureType })
+    const location = berlin({ featureType, confidence: null, streetMatched: null })
     expect(resolved({ location }).approximate).toBe(true)
     expect(warningsOf({ location })).toEqual([
-      `Mapbox only found the ${area}, not the address — check it, or add latitude and longitude`,
+      `Mapbox only found the ${area}, not this address — check it, or add latitude and longitude`,
     ])
+  })
+
+  /**
+   * An address Mapbox matched with a different street, or only at medium
+   * confidence, is in the right town and maybe not the right door: kept, but
+   * kept out of the address rules, and shown to the reviewer.
+   */
+  it.each([
+    ['a medium-confidence match', { confidence: 'medium' as const }],
+    ['a match on another street', { streetMatched: false }],
+  ])('marks %s approximate, naming the address it found', (_, overrides) => {
+    const location = berlin({ ...overrides, matchedAddress: '25 Other Street, Berlin' })
+    expect(resolved({ location }).approximate).toBe(true)
+    expect(warningsOf({ location })).toEqual([
+      'Mapbox only found a nearby address ("25 Other Street, Berlin"), not this address — check it, or add latitude and longitude',
+    ])
+  })
+
+  /**
+   * ⚠ **A low-confidence match is another address, not this one placed
+   * roughly.** `99999 Nowhere Lane, Xyzzyville` comes back as a street in Los
+   * Angeles, and placing the class there publishes it where nobody named.
+   */
+  it('refuses a medium match in another town, but not a high one under another name', () => {
+    const monterey = berlin({
+      confidence: 'medium',
+      placeMatched: false,
+      matchedAddress: '2 Fremont Street, Monterey',
+    })
+    expect(errorsOf({ location: monterey })[0]).toContain('"2 Fremont Street, Monterey"')
+    // Köln comes back as Cologne: the town reads unmatched, the address is sure.
+    expect(warningsOf({ location: berlin({ placeMatched: false }) })).toEqual([])
+  })
+
+  it('refuses a low-confidence match, naming the closest address', () => {
+    const location = berlin({
+      confidence: 'low',
+      streetMatched: false,
+      matchedAddress: '00000 Alpine Street, Los Angeles',
+    })
+    expect(errorsOf({ location })[0]).toContain(
+      'could not find this address — the closest Mapbox has is "00000 Alpine Street, Los Angeles"',
+    )
   })
 
   it('does not mark an online row approximate for matching the town it asked for', () => {
@@ -517,7 +565,7 @@ describe('a dependent-territory target', () => {
   it.each(['MQ', 'FR', 'fr'])('accepts a row declaring %s, and searches under MQ', (country) => {
     expect(geocodeRequestFor(row(country), MARTINIQUE)).toMatchObject({
       kind: 'query',
-      countryCode: 'MQ',
+      query: { countryCode: 'MQ' },
     })
   })
 
