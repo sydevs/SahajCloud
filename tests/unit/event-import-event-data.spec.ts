@@ -114,7 +114,14 @@ describe('eventCreateData — the schedule', () => {
 
   it('writes no schedule for a dormant class, and marks it inactive', () => {
     const data = dataOf(
-      build({ values: { scheduleType: 'inactive', contactPhone: '+49 30 123456' } }),
+      build({
+        values: {
+          scheduleType: 'inactive',
+          contactPhone: '+49 30 123456',
+          startTime: '',
+          weekdays: '',
+        },
+      }),
     )
 
     expect(data).not.toHaveProperty('schedule')

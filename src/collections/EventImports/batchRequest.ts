@@ -19,9 +19,10 @@ import type { ExistingRegion } from './propose/match'
 import type { PayloadRequest, Where } from 'payload'
 
 import { relationId } from '@/lib/utilities/relationId'
-import type { Region } from '@/payload-types'
+import type { EventImport, Region } from '@/payload-types'
 import { ownedRegionFilterOptions } from '@/plugins/access'
 
+import { mayStageImport, STAGE_IMPORT_REFUSAL } from './capability'
 import { resolveTargetScope, type TargetChainNode, type TargetScope } from './resolve/targetScope'
 
 export function failure(message: string, status: number): Response {
@@ -37,6 +38,35 @@ export function failure(message: string, status: number): Response {
 export function batchIdOf(req: PayloadRequest): number | null {
   const id = Number(req.routeParams?.id)
   return Number.isSafeInteger(id) && id >= 1 ? id : null
+}
+
+/**
+ * 403 unless the caller still holds the grant the batch was staged under.
+ *
+ * ⚠ **Asked on every step, not only at the upload.** Ownership of the target is
+ * document-manager access and does not depend on the role, so a manager whose
+ * `atlas-manager` grant was revoked after uploading still owns the region — and
+ * every write the commit makes elevates past access. Asked in the locale the
+ * batch was uploaded in, because `roles` is localized (#701): the grant that
+ * admitted the upload is the one that must still hold.
+ */
+export function refuseRevokedRole(
+  req: PayloadRequest,
+  batch: Pick<EventImport, 'uploadLocale'>,
+): Response | null {
+  const locale = batch.uploadLocale || req.locale
+  return mayStageImport({ user: req.user, locale }) ? null : failure(STAGE_IMPORT_REFUSAL, 403)
+}
+
+/**
+ * Whether any row is still waiting for the resolve step.
+ *
+ * ⚠ **Checked from the rows, not trusted from `status`.** A tree or a commit
+ * built over a row with no answer silently leaves it out, and the batch is then
+ * finished with that line never imported or reported.
+ */
+export function hasPendingRows(rows: readonly { resolved?: unknown; errors?: unknown[] | null }[]) {
+  return rows.some((row) => !row.resolved && !row.errors?.length)
 }
 
 /** Why a caller may or may not write inside a region's subtree. */
@@ -96,6 +126,42 @@ export async function refuseUnownedTarget(
  */
 export function targetSubtreeWhere(targetId: number): Where {
   return { or: [{ id: { equals: targetId } }, { 'breadcrumbs.doc': { equals: targetId } }] }
+}
+
+/** One region at or beneath the target, as the commit checks placements against it. */
+export interface SubtreeRegion {
+  id: number
+  level: Region['level']
+  parentId: number | null
+}
+
+/**
+ * Every region at or beneath the target, by id.
+ *
+ * ⚠ **Read fresh on every commit call.** A region the review matched can be
+ * moved out of the target before the commit — and an admin's commit, whose
+ * writes no `filterOptions` scoping refuses, would then file classes outside the
+ * region the batch was aimed at.
+ */
+export async function readSubtree(
+  req: PayloadRequest,
+  targetId: number,
+): Promise<Map<number, SubtreeRegion>> {
+  const { docs } = await req.payload.find({
+    collection: 'regions',
+    where: targetSubtreeWhere(targetId),
+    depth: 0,
+    pagination: false,
+    overrideAccess: true,
+    select: { level: true, parent: true },
+    req,
+  })
+  return new Map(
+    (docs as Region[]).map((region) => [
+      region.id,
+      { id: region.id, level: region.level, parentId: relationId(region.parent) },
+    ]),
+  )
 }
 
 /** The target region itself, reduced to what a proposal names it by. */

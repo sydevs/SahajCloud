@@ -77,6 +77,7 @@ import * as migration_20260929_043344_storage_object_key from './20260929_043344
 import * as migration_20260929_173315_null_manager_password_hashes from './20260929_173315_null_manager_password_hashes';
 import * as migration_20261001_180722_event_imports from './20261001_180722_event_imports';
 import * as migration_20261001_234947_event_import_proposed_regions from './20261001_234947_event_import_proposed_regions';
+import * as migration_20261006_190923_event_import_hardening from './20261006_190923_event_import_hardening';
 
 export const migrations = [
   {
@@ -472,6 +473,11 @@ export const migrations = [
   {
     up: migration_20261001_234947_event_import_proposed_regions.up,
     down: migration_20261001_234947_event_import_proposed_regions.down,
-    name: '20261001_234947_event_import_proposed_regions'
+    name: '20261001_234947_event_import_proposed_regions',
+  },
+  {
+    up: migration_20261006_190923_event_import_hardening.up,
+    down: migration_20261006_190923_event_import_hardening.down,
+    name: '20261006_190923_event_import_hardening'
   },
 ];

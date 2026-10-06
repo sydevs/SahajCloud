@@ -44,10 +44,10 @@ type Node = EventImportProposedRegions['nodes'][number]
 type Row = EventImportRows[number]
 
 interface Finished {
-  committed: { line: number; eventId: number }[]
-  skipped: { line: number; reasons: string[] }[]
+  committed: { line: number; eventId: number; action: 'created' | 'overwrote' }[]
+  skipped: { line: number; reasons: string[]; values: Record<string, string> }[]
   summaryEmailed: boolean
-  deleted: boolean
+  reportEmailed: boolean
 }
 
 const ANCHOR = '2026-01-05'
@@ -69,9 +69,20 @@ interface RowOptions {
   values?: Record<string, string>
 }
 
+/**
+ * Every row a hall of its own, kilometres from any other.
+ *
+ * ⚠ **The commit re-asks the duplicate question of every row it writes**,
+ * against every class already in the target — and one database serves the
+ * whole file, so two tests' Tuesday 18:30 classes at one point would read as one
+ * class, and the second test would skip its own row.
+ */
+let hallSerial = 0
+
 /** One row as the resolve step leaves it: an answer, and no reason it cannot have one. */
 function row(line: number, options: RowOptions = {}): Row {
   const place = PLACES[options.place ?? 'berlin']
+  const hall = (hallSerial += 1)
   return {
     line,
     values: {
@@ -91,7 +102,7 @@ function row(line: number, options: RowOptions = {}): Row {
     ...(options.duplicate ? { duplicate: { reason: 'city-and-time' as const, line: 2 } } : {}),
     ...(options.committed ? { committed: { eventId: options.committed } } : {}),
     resolved: {
-      latitude: place.latitude,
+      latitude: place.latitude + hall * 0.02,
       longitude: place.longitude,
       timezone: 'Europe/Berlin',
       cityKey: place.city.toLowerCase(),
@@ -109,7 +120,10 @@ function row(line: number, options: RowOptions = {}): Row {
 }
 
 /** A `create` city node, tagged so two tests never propose the same feature. */
-function cityNode(tag: string, options: { place?: PlaceName; lines: number[]; parentKey?: string }): Node {
+function cityNode(
+  tag: string,
+  options: { place?: PlaceName; lines: number[]; parentKey?: string },
+): Node {
   const place = PLACES[options.place ?? 'berlin']
   const slug = `${place.city.toLowerCase()}-${tag}`
   return {
@@ -132,7 +146,10 @@ function chunkCrossingLines(): number[] {
   return Array.from({ length: COMMIT_CHUNK_ROWS + 1 }, (_, index) => index + 2)
 }
 
-function tree(nodes: Node[], rowErrors: { line: number; message: string }[] = []): EventImportProposedRegions {
+function tree(
+  nodes: Node[],
+  rowErrors: { line: number; message: string }[] = [],
+): EventImportProposedRegions {
   return { nodes, rowErrors, stateLayer: { proposed: false, reason: 'one subdivision' } }
 }
 
@@ -183,12 +200,25 @@ describe('commit endpoint', () => {
 
   const storedRows = async (id: number): Promise<Row[]> =>
     ((
-      await payload.findByID({ collection: 'event-imports', id, depth: 0, overrideAccess: true })
+      await payload.findByID({
+        collection: 'event-imports',
+        id,
+        depth: 0,
+        overrideAccess: true,
+        trash: true,
+      })
     ).rows ?? []) as Row[]
 
   const storedStatus = async (id: number): Promise<string> =>
-    (await payload.findByID({ collection: 'event-imports', id, depth: 0, overrideAccess: true }))
-      .status
+    (
+      await payload.findByID({
+        collection: 'event-imports',
+        id,
+        depth: 0,
+        overrideAccess: true,
+        trash: true,
+      })
+    ).status
 
   const regionBySlug = async (slug: string): Promise<Region | undefined> =>
     (
@@ -209,11 +239,11 @@ describe('commit endpoint', () => {
     }) as Promise<Event>
 
   /**
-   * The report a finished commit returns in place of the batch it deleted.
+   * The report a finished commit returns.
    *
    * ⚠ **This is where a completed batch is read, not `storedRows`.** The finish
-   * hard-deletes the row, so the only account of what each line did is the one
-   * that travelled back in the response (`commit/summary.ts`). `storedRows` is
+   * strips the CSV values from every committed row, so the report that travelled
+   * back in the response is the account of what each line did. `storedRows` is
    * for a call that refused, or one that stopped part-way through the chunks.
    */
   const finishedOf = (body: Record<string, unknown>): Finished => {
@@ -390,9 +420,12 @@ describe('commit endpoint', () => {
       expect((await eventAtLine(body, 2)).region).toBe(cityRegion?.id)
     })
 
-    it('reports the rows of a node it could not create, and creates no class for them', async () => {
-      // The slug is spent between the review and the commit, which is the
-      // failure this path exists for.
+    /**
+     * ⚠ **A slug spent between the review and the commit is recovered.** Failing
+     * the node failed every row in it, on a batch that can no longer be
+     * proposed again.
+     */
+    it('re-slugs a node whose slug was taken since the review', async () => {
       await testData.createRegion(payload, { name: 'Squatter', slug: 'berlin-sq' })
       const batch = await createBatch({
         rows: [row(2)],
@@ -401,12 +434,63 @@ describe('commit endpoint', () => {
 
       const { body } = await call(uploader, batch.id)
 
+      expect(body).toMatchObject({ regions: { created: 1, failed: 0 }, done: true })
+      const created = await regionBySlug('berlin-sq-2')
+      expect(created).toMatchObject({ name: 'Berlin sq', parent: germany.id })
+      expect((await eventAtLine(body, 2)).region).toBe(created?.id)
+    })
+
+    /**
+     * ⚠ **A region holding the planned feature outside the target is not
+     * adopted.** Created since the review — by an admin, or another region's
+     * batch — it would file this batch's classes outside the region it was
+     * aimed at.
+     */
+    it('reports the rows of a node a region elsewhere now stands for, and files nothing', async () => {
+      await testData.createRegion(payload, {
+        name: 'Elsewhere',
+        level: 'city',
+        parent: austria.id,
+        mapboxId: 'mbx-ex-berlin',
+      })
+      const batch = await createBatch({
+        rows: [row(2)],
+        proposedRegions: tree([cityNode('ex', { lines: [2] })]),
+      })
+
+      const { body } = await call(uploader, batch.id)
+
       expect(body).toMatchObject({ regions: { created: 0, failed: 1 }, done: true })
       expect(finishedOf(body).committed).toEqual([])
-      // The node's own name, and the reason as `Regions` gave it — a volunteer
-      // has to be told which proposed city, not which row id.
-      expect(reasonsAtLine(body, 2)[0]).toContain('Berlin sq could not be created')
-      expect(reasonsAtLine(body, 2)[0]).toContain('slug is already in use')
+      // The node's own name, and why — a volunteer has to be told which
+      // proposed city, not which row id.
+      expect(reasonsAtLine(body, 2)[0]).toContain('Berlin ex could not be created')
+      expect(reasonsAtLine(body, 2)[0]).toContain('elsewhere in the Atlas')
+    })
+
+    /**
+     * ⚠ **A region the review matched, moved out of the target since, is not
+     * followed.** An admin's commit meets no subtree scoping on its writes.
+     */
+    it('refuses a matched region that has left the target, even for an admin', async () => {
+      const moved = await testData.createRegion(payload, {
+        name: 'Berlin mv',
+        level: 'city',
+        parent: austria.id,
+        mapboxId: 'mbx-mv-berlin',
+      })
+      const node: Node = {
+        ...cityNode('mv', { lines: [2] }),
+        match: { kind: 'existing', regionId: moved.id, name: 'Berlin mv', slug: moved.slug },
+        slug: null,
+        location: null,
+      }
+      const batch = await createBatch({ rows: [row(2)], proposedRegions: tree([node]) })
+
+      const { body } = await call(admin, batch.id)
+
+      expect(finishedOf(body).committed).toEqual([])
+      expect(reasonsAtLine(body, 2)[0]).toContain('no longer inside the region')
     })
   })
 
@@ -434,10 +518,18 @@ describe('commit endpoint', () => {
       expect(event.nextCheckAt).toBeNull()
     })
 
-    it('adopts a row naming an existing coordinator, and verifies the class', async () => {
+    it('adopts a row naming a coordinator already in the target, and verifies the class', async () => {
       const coordinator = await testData.createManager(payload, {
         name: 'Existing Coordinator',
         email: 'commit-existing@example.com',
+      })
+      // What makes the account one an import may link: it already looks after
+      // something inside the target.
+      await testData.createRegion(payload, {
+        name: 'Berlin co',
+        level: 'city',
+        parent: germany.id,
+        managers: [coordinator.id],
       })
       const batch = await createBatch({
         // Mixed case on purpose: Payload lowercases a stored address, so a
@@ -448,11 +540,44 @@ describe('commit endpoint', () => {
 
       const { body } = await call(uploader, batch.id)
 
-      expect(body).toMatchObject({ coordinators: { matched: 1, created: 0, refused: 0 } })
+      expect(body).toMatchObject({ coordinators: { matched: 1, created: 0, unlinked: 0 } })
       const event = await eventAtLine(body, 2)
       expect(event.manager).toBe(coordinator.id)
       expect(event.verificationStage).toBe('verified')
       expect(event.nextCheckAt).toBeTruthy()
+    })
+
+    /**
+     * ⚠ **A CSV must not make an admin, or anybody outside the target, the
+     * vouching coordinator of a class.** Their class is imported without one,
+     * and the row says why.
+     */
+    it('links no account from outside the target, an admin’s included', async () => {
+      const elsewhere = await testData.createManager(payload, {
+        name: 'Elsewhere Coordinator',
+        email: 'commit-elsewhere@example.com',
+      })
+      await testData.createRegion(payload, {
+        name: 'Graz el',
+        level: 'city',
+        parent: austria.id,
+        managers: [elsewhere.id],
+      })
+      const batch = await createBatch({
+        rows: [
+          row(2, { managerEmail: 'commit-elsewhere@example.com' }),
+          row(3, { managerEmail: admin.email! }),
+        ],
+        proposedRegions: tree([cityNode('el', { lines: [2, 3] })]),
+      })
+
+      const { body } = await call(uploader, batch.id)
+
+      expect(body).toMatchObject({ coordinators: { matched: 0, created: 0, unlinked: 2 } })
+      for (const line of [2, 3]) {
+        const event = await eventAtLine(body, line)
+        expect(event).toMatchObject({ manager: null, verificationStage: 'unverified' })
+      }
     })
 
     it('creates an account for an unknown coordinator, with no roles and no admin type', async () => {
@@ -463,7 +588,7 @@ describe('commit endpoint', () => {
 
       const { body } = await call(uploader, batch.id)
 
-      expect(body).toMatchObject({ coordinators: { matched: 0, created: 1, refused: 0 } })
+      expect(body).toMatchObject({ coordinators: { matched: 0, created: 1, unlinked: 0 } })
       const created = (
         await payload.find({
           collection: 'managers',
@@ -498,7 +623,11 @@ describe('commit endpoint', () => {
       expect(managers[0]).toBe(managers[1])
     })
 
-    it('reports a row whose coordinator address cannot hold an account', async () => {
+    /**
+     * The upload refuses a malformed address before review (`csv/fieldChecks.ts`);
+     * one that still reaches the commit costs the coordinator, not the class.
+     */
+    it('imports a class whose coordinator address cannot hold an account, without one', async () => {
       const batch = await createBatch({
         rows: [row(2, { managerEmail: 'not-an-address' })],
         proposedRegions: tree([cityNode('bad', { lines: [2] })]),
@@ -506,9 +635,15 @@ describe('commit endpoint', () => {
 
       const { body } = await call(uploader, batch.id)
 
-      expect(body).toMatchObject({ coordinators: { refused: 1 } })
-      expect(finishedOf(body).committed).toEqual([])
-      expect(reasonsAtLine(body, 2).length).toBeGreaterThan(0)
+      expect(body).toMatchObject({ coordinators: { unlinked: 1 } })
+      expect((await eventAtLine(body, 2)).manager).toBeNull()
+      const stored = await payload.findByID({
+        collection: 'event-imports',
+        id: batch.id,
+        trash: true,
+        overrideAccess: true,
+      })
+      expect((stored.rows ?? [])[0]?.warnings?.[0]).toContain('imported without a coordinator')
     })
   })
 
@@ -542,12 +677,12 @@ describe('commit endpoint', () => {
     })
 
     /**
-     * ⚠ **`done` is the last thing a caller ever hears about the batch.** The
-     * finish deletes it, so a caller that loses the response has no second
-     * chance at the report — and asking again must not read as a fresh commit
-     * that created nothing.
+     * ⚠ **A lost final response is not a lost report.** The finish trashes the
+     * batch as its report, so a caller that asks again hears the same answer —
+     * not a 404, and not a fresh commit that created nothing — and the CSV
+     * values of every committed line are gone from it.
      */
-    it('leaves no batch behind, and answers a repeat call with a 404', async () => {
+    it('answers a repeat call with the same report, and keeps no committed line’s values', async () => {
       const batch = await createBatch({
         rows: [row(2), row(3)],
         proposedRegions: tree([cityNode('rs', { lines: [2, 3] })]),
@@ -557,15 +692,11 @@ describe('commit endpoint', () => {
       const second = await call(uploader, batch.id)
 
       expect(first.body).toMatchObject({ committedNow: 2, pending: 0, done: true })
-      expect(finishedOf(first.body).deleted).toBe(true)
-      expect(second.status).toBe(404)
-      const remaining = await payload.count({
-        collection: 'event-imports',
-        where: { id: { equals: batch.id } },
-        trash: true,
-        overrideAccess: true,
-      })
-      expect(remaining.totalDocs).toBe(0)
+      expect(second.status).toBe(200)
+      expect(second.body).toMatchObject({ done: true, replayed: true })
+      expect(finishedOf(second.body).committed).toEqual(finishedOf(first.body).committed)
+      expect(await storedStatus(batch.id)).toBe('finished')
+      expect((await storedRows(batch.id)).map((stored) => stored.values)).toEqual([{}, {}])
       const berlinEvents = await payload.count({
         collection: 'events',
         where: { region: { equals: (await regionBySlug('berlin-rs'))!.id } },
@@ -642,7 +773,7 @@ describe('commit endpoint', () => {
 
   describe('provenance', () => {
     /**
-     * The batch is hard-deleted the moment the commit finishes, so this entry is
+     * The batch loses its CSV values the moment the commit finishes, so this entry is
      * the whole record of who imported the class (`EventImports.ts`).
      *
      * ⚠ **Both arms, because they reach the log differently.** An adopted class
@@ -661,7 +792,11 @@ describe('commit endpoint', () => {
         const log = asLog((await eventAtLine(body, line)).activityLog)
         expect(log.find((entry) => entry.type === 'event-import')).toMatchObject({
           key: `${batch.id}:${line}`,
-          cells: { who: 'Commit Uploader', delivery: `Bulk import, CSV line ${line}` },
+          cells: {
+            who: `Commit Uploader (#${uploader.id})`,
+            delivery: `Bulk import, CSV line ${line}`,
+          },
+          uploaderId: uploader.id,
         })
       }
       // The adopted class keeps its verification entry beside the import one.
@@ -669,7 +804,6 @@ describe('commit endpoint', () => {
         'verification',
       )
     })
-
   })
 
   /**
@@ -696,6 +830,12 @@ describe('commit endpoint', () => {
     const lastMessage = (): { to: string[]; subject: string; html: string } =>
       sendEmail.mock.calls.at(-1)?.[0] as never
 
+    /** Every message sent to these addresses, in order. */
+    const messagesTo = (address: string): { to: string[]; subject: string; html: string }[] =>
+      (sendEmail.mock.calls as unknown[][])
+        .map((call) => call[0] as { to: string[]; subject: string; html: string })
+        .filter((message) => message.to.includes(address))
+
     it('sends admins exactly one summary of what the batch did', async () => {
       const batch = await createBatch({
         rows: [
@@ -710,9 +850,11 @@ describe('commit endpoint', () => {
 
       const { body } = await call(uploader, batch.id)
 
-      expect(sendEmail).toHaveBeenCalledTimes(1)
+      // One to the admins, and the uploader's own report.
+      expect(sendEmail).toHaveBeenCalledTimes(2)
       expect(finishedOf(body).summaryEmailed).toBe(true)
-      const message = lastMessage()
+      expect(messagesTo(admin.email!)).toHaveLength(1)
+      const message = messagesTo(admin.email!)[0]!
       expect(message.to).toEqual([admin.email])
       expect(message.subject).toBe('2 classes imported into Germany')
       expect(message.html).toContain('Commit Uploader')
@@ -731,9 +873,10 @@ describe('commit endpoint', () => {
 
       const { body } = await call(uploader, batch.id)
 
-      // Nothing retries a commit, so refusing to delete would keep an uploaded
+      // Nothing retries a commit, so refusing to finish would keep an uploaded
       // CSV of contact details waiting for a button that no longer exists.
-      expect(finishedOf(body)).toMatchObject({ summaryEmailed: false, deleted: true })
+      expect(finishedOf(body)).toMatchObject({ summaryEmailed: false, reportEmailed: false })
+      expect(await storedStatus(batch.id)).toBe('finished')
       expect((await eventAtLine(body, 2)).title).toBe('Class 2')
     })
 
@@ -752,15 +895,18 @@ describe('commit endpoint', () => {
         regions: { created: 0, adopted: 0 },
         done: true,
       })
-      expect(finishedOf(body).deleted).toBe(true)
+      // An import that changed nothing is the uploader's business alone: four
+      // requests must not be enough to mail every admin.
+      expect(messagesTo(admin.email!)).toEqual([])
+      expect(finishedOf(body).reportEmailed).toBe(true)
+      expect(lastMessage().to).toEqual([uploader.email])
       expect(lastMessage().subject).toBe('0 classes imported into Germany')
       expect(reasonsAtLine(body, 2)).toEqual(['could not find this location'])
     })
 
     /**
-     * ⚠ **An install with no admin must not send the one report nowhere.** The
-     * batch is deleted a moment later, so the alternative to the system contact
-     * is a log line.
+     * ⚠ **An install with no admin must not send the admin notice nowhere.** The
+     * alternative to the system contact is a log line.
      */
     it('falls back to the system contact when no admin is reachable', async () => {
       await payload.update({
@@ -777,7 +923,7 @@ describe('commit endpoint', () => {
 
         await call(uploader, batch.id)
 
-        expect(lastMessage().to).toEqual([CONTACT_EMAIL])
+        expect(messagesTo(CONTACT_EMAIL)).toHaveLength(1)
       } finally {
         await payload.update({
           collection: 'managers',
@@ -892,7 +1038,9 @@ describe('commit endpoint', () => {
 
       expect(status).toBe(200)
       const log = asLog((await eventAtLine(body, 2)).activityLog)
-      expect(log.find((entry) => entry.type === 'event-import')?.cells.who).toBe('Commit Uploader')
+      expect(log.find((entry) => entry.type === 'event-import')?.cells.who).toBe(
+        `Commit Uploader (#${uploader.id})`,
+      )
     })
   })
 })

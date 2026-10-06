@@ -1,11 +1,9 @@
 import type { RawImportRow } from '../csv/columns'
-import type { PreparedCandidate } from '../resolve/duplicates'
 import type { TargetScope } from '../resolve/targetScope'
-import type { Endpoint, PayloadRequest } from 'payload'
+import type { Endpoint } from 'payload'
 
 import { Temporal } from '@js-temporal/polyfill'
 
-import { notFinishedWhere } from '@/collections/Events/lifecycle/finished'
 import { requireActiveManager } from '@/lib/endpoints'
 import { geocodeLocation } from '@/lib/mapbox/geocoder'
 import { relationId } from '@/lib/utilities/relationId'
@@ -15,22 +13,21 @@ import {
   batchIdOf,
   failure,
   loadTarget,
+  refuseRevokedRole,
   refuseUnownedTarget,
-  targetSubtreeWhere,
 } from '../batchRequest'
-import { RESOLVE_CHUNK_ROWS } from '../constants'
-import { cityKeyFor, findDuplicate, prepareCandidate } from '../resolve/duplicates'
-import { geocodeRequestFor, resolveRow, type ResolvedRow } from '../resolve/resolveRow'
+import { RESOLVE_CHUNK_ROWS, RESOLVE_TIME_BUDGET_MS } from '../constants'
+import { busy, renewLease, withLease } from '../lease'
+import {
+  asCandidate,
+  loadExistingCandidates,
+  preparedFrom,
+  type Candidate,
+} from '../resolve/candidates'
+import { findDuplicate } from '../resolve/duplicates'
+import { geocodeRequestFor, resolveRow } from '../resolve/resolveRow'
 
 type ImportRow = EventImportRows[number]
-
-/** A prepared class, plus how the review links back to it. */
-interface Candidate extends PreparedCandidate {
-  /** A class the CMS already holds. */
-  eventId?: number
-  /** An earlier line in this same file. */
-  line?: number
-}
 
 /**
  * POST /api/event-imports/:id/resolve
@@ -45,13 +42,16 @@ interface Candidate extends PreparedCandidate {
  * response costs one chunk and a re-call resumes — there is no cursor for a
  * client to get wrong, and calling it twice over costs nothing.
  *
- * ⚠ **The gate is document ownership, not role.** A caller reaches this with
- * (active manager) AND (the batch is theirs) AND (the target is in their region
- * subtree); it never asks whether they hold the `events: create` authority the
- * import ends up exercising, because `resolveManagedDocIds` answers ownership
- * and not role. That is sound because the batch could not exist without the
- * grant: `create` on `event-imports` is admins-only, and the one path a manager
- * reaches the collection by is the upload endpoint, which checks it there.
+ * ⚠ **One request at a time, and each one bounded in time.** A chunk holds the
+ * batch's lease (`lease.ts`) and stops geocoding when `RESOLVE_TIME_BUDGET_MS`
+ * runs out. Without both, a slow chunk the proxy cut kept running, a Resume
+ * started a second, and whichever wrote last put back a copy of the rows from
+ * before the other — rows reverted to pending under a batch already marked
+ * `resolved`, which the commit then silently left out.
+ *
+ * ⚠ **The role is asked again, not inferred from the batch existing.** Ownership
+ * of the target is document-manager access and outlives a revoked role
+ * (`refuseRevokedRole`).
  *
  * Auth: intentionally NOT `requireActiveClient`. That guard serves published API
  * `clients`; this is an admin-panel action by an authenticated `manager` on a
@@ -72,20 +72,21 @@ export const resolveEventImport: Endpoint = {
     const id = batchIdOf(req)
     if (id === null) return failure('A numeric batch id is required.', 400)
 
-    const batch = (await req.payload.findByID({
+    const probe = (await req.payload.findByID({
       collection: 'event-imports',
       id,
       depth: 0,
       overrideAccess: false,
       disableErrors: true,
+      select: { targetRegion: true, uploadLocale: true },
       req,
     })) as EventImport | null
-    if (!batch) return failure('No such import batch.', 404)
-    if (batch.status === 'committing') {
-      return failure('This batch is being committed, so its rows can no longer change.', 409)
-    }
+    if (!probe) return failure('No such import batch.', 404)
 
-    const targetId = relationId(batch.targetRegion)
+    const revoked = refuseRevokedRole(req, probe)
+    if (revoked) return revoked
+
+    const targetId = relationId(probe.targetRegion)
     if (targetId === null) return failure('This batch names no target region.', 409)
 
     const unowned = await refuseUnownedTarget(req, targetId)
@@ -93,76 +94,108 @@ export const resolveEventImport: Endpoint = {
 
     const scope = await loadTarget(req, targetId)
     if (!scope.ok) return failure(scope.error, 422)
-
     const warn = scope.warning ? { warning: scope.warning } : {}
-    const rows = (batch.rows ?? []) as ImportRow[]
-    const chunk = rows.filter(isPending).slice(0, RESOLVE_CHUNK_ROWS)
-    if (!chunk.length) {
-      // ⚠ The status is written here too, not only on the path that resolved
-      // something. A file whose every row failed the parse has nothing pending
-      // from the first call, and would otherwise report `done` forever while
-      // staying `uploaded` — which the commit step refuses.
-      if (batch.status !== 'resolved') {
-        await req.payload.update({
-          collection: 'event-imports',
-          id,
-          data: { status: 'resolved' },
-          overrideAccess: true,
-          depth: 0,
-          req,
-        })
+
+    return withLease(req, id, async (token) => {
+      const batch = (await req.payload.findByID({
+        collection: 'event-imports',
+        id,
+        depth: 0,
+        overrideAccess: true,
+        select: { status: true, rows: true, defaultLanguages: true },
+        req,
+      })) as EventImport
+      if (batch.status === 'committing' || batch.status === 'finished') {
+        return failure('This batch is being committed, so its rows can no longer change.', 409)
       }
-      return Response.json({ ...tally(rows), ...warn, pending: 0, done: true })
-    }
 
-    // Rows an earlier chunk resolved are candidates too: a volunteer's file
-    // repeats a class as readily as the CMS already holds one, and the match has
-    // to be found whichever chunks the two landed in.
-    const candidates: Candidate[] = [
-      ...(await loadExistingCandidates(req, targetId)),
-      ...rows.filter((row) => row.resolved).map(asCandidate),
-    ]
-
-    const defaultLanguages = (batch.defaultLanguages ?? []) as string[]
-    let unavailable = false
-    for (const row of chunk) {
-      const placed = await resolveOne({ row, scope: scope.scope, candidates, defaultLanguages })
-      if (!placed) {
-        // ⚠ **Stop, and leave the rest of the chunk pending.** Mapbox not
-        // answering says nothing about the row, so writing "could not find this
-        // location" on it would turn a few minutes of trouble into addresses a
-        // volunteer can only fix by re-uploading the file. What already resolved
-        // is still written, so the next call resumes rather than restarts.
-        unavailable = true
-        break
+      const rows = (batch.rows ?? []) as ImportRow[]
+      const chunk = rows.filter(isPending).slice(0, RESOLVE_CHUNK_ROWS)
+      if (!chunk.length) {
+        // ⚠ The status is written here too, not only on the path that resolved
+        // something. A file whose every row failed the parse has nothing pending
+        // from the first call, and would otherwise report `done` forever while
+        // staying `uploaded` — which the commit step refuses.
+        if (batch.status !== 'resolved') {
+          await req.payload.update({
+            collection: 'event-imports',
+            id,
+            data: { status: 'resolved' },
+            overrideAccess: true,
+            depth: 0,
+            select: { status: true },
+            req,
+          })
+        }
+        return Response.json({ ...tally(rows), ...warn, pending: 0, done: true })
       }
-      if (row.resolved) candidates.push(asCandidate(row))
-    }
 
-    const pending = rows.filter(isPending).length
-    await req.payload.update({
-      collection: 'event-imports',
-      id,
-      data: {
-        rows,
-        // The commit step requires `resolved`, so the status moves only once no
-        // row is still waiting for an answer.
-        ...(pending ? {} : { status: 'resolved' as const }),
-      },
-      // The caller's ownership was settled above, and `rows` is `readOnly` in
-      // the admin — so this write elevates past field access deliberately.
-      overrideAccess: true,
-      depth: 0,
-      req,
+      // Rows an earlier chunk resolved are candidates too: a volunteer's file
+      // repeats a class as readily as the CMS already holds one, and the match
+      // has to be found whichever chunks the two landed in.
+      const candidates: Candidate[] = [
+        ...(await loadExistingCandidates(req, targetId)),
+        ...rows.filter((row) => row.resolved).map(asCandidate),
+      ]
+
+      const defaultLanguages = (batch.defaultLanguages ?? []) as string[]
+      const deadline = Date.now() + RESOLVE_TIME_BUDGET_MS
+      let stopped: null | string = null
+      for (const row of chunk) {
+        // At least one row per call, so a budget spent on one slow geocode
+        // still moves the batch forward.
+        if (row !== chunk[0] && Date.now() > deadline) break
+        let outcome: ResolveOutcome
+        try {
+          outcome = await resolveOne({ row, scope: scope.scope, candidates, defaultLanguages })
+        } catch (error) {
+          // Nothing here is the row's fault, so the row stays pending and what
+          // already resolved is still written below.
+          req.payload.logger.error(
+            { err: error, batch: id, line: row.line },
+            'Import row not resolved',
+          )
+          stopped = 'A row could not be resolved; try again shortly.'
+          break
+        }
+        if (outcome !== 'done') {
+          // ⚠ **Stop, and leave the rest of the chunk pending.** Mapbox not
+          // answering says nothing about the row, so writing "could not find
+          // this location" on it would turn a few minutes of trouble into
+          // addresses a volunteer can only fix by re-uploading the file.
+          stopped =
+            outcome === 'unconfigured'
+              ? 'Geocoding is not configured on this server. Ask an admin.'
+              : 'Geocoding is unavailable; try again shortly.'
+          break
+        }
+        if (row.resolved) candidates.push(asCandidate(row))
+      }
+
+      const pending = rows.filter(isPending).length
+      if (!(await renewLease(req, id, token))) return busy()
+      await req.payload.update({
+        collection: 'event-imports',
+        id,
+        data: {
+          rows,
+          // The commit step requires `resolved`, so the status moves only once
+          // no row is still waiting for an answer.
+          ...(pending ? {} : { status: 'resolved' as const }),
+        },
+        // The caller's ownership was settled above, and `rows` is `readOnly` in
+        // the admin — so this write elevates past field access deliberately.
+        overrideAccess: true,
+        depth: 0,
+        select: { status: true },
+        req,
+      })
+
+      const body = { ...tally(rows), ...warn, pending, done: pending === 0 }
+      return stopped
+        ? Response.json({ ...body, errors: [{ message: stopped }] }, { status: 503 })
+        : Response.json(body)
     })
-
-    const body = { ...tally(rows), ...warn, pending, done: pending === 0 }
-    return unavailable
-      ? Response.json(
-          { ...body, errors: [{ message: 'Geocoding is unavailable; try again shortly.' }] },
-          { status: 503 },
-        )
-      : Response.json(body)
   },
 }
 
@@ -173,23 +206,26 @@ interface ResolveOneArgs {
   defaultLanguages: string[]
 }
 
+/** `done` once the row holds an answer or its reasons; otherwise why the chunk must stop. */
+type ResolveOutcome = 'done' | 'unavailable' | 'unconfigured'
+
 /**
  * Resolve one row in place, writing either its answers or its errors.
  *
- * Returns false when the geocoder could not be reached — the one outcome that is
- * about us rather than the row, so the row is left untouched and pending.
+ * Anything but `done` is about us rather than the row — the geocoder could not
+ * be reached, or is not configured — so the row is left untouched and pending.
  */
 async function resolveOne({
   row,
   scope,
   candidates,
   defaultLanguages,
-}: ResolveOneArgs): Promise<boolean> {
-  const values = row.values ?? {}
+}: ResolveOneArgs): Promise<ResolveOutcome> {
+  const values = (row.values ?? {}) as RawImportRow
   const request = geocodeRequestFor(values, scope)
   if (request.kind === 'error') {
     row.errors = [...(row.errors ?? []), ...request.errors]
-    return true
+    return 'done'
   }
 
   const outcome = await geocodeLocation({
@@ -197,7 +233,15 @@ async function resolveOne({
     types: request.types,
     countryCode: request.countryCode,
   })
-  if (outcome.status === 'unavailable') return false
+  if (outcome.status === 'unavailable') return 'unavailable'
+  if (outcome.status === 'unconfigured') return 'unconfigured'
+  if (outcome.status === 'refused') {
+    row.errors = [
+      ...(row.errors ?? []),
+      `Mapbox could not look up this location (HTTP ${outcome.httpStatus}) — shorten or simplify the address and city`,
+    ]
+    return 'done'
+  }
 
   const result = resolveRow({
     values,
@@ -208,20 +252,22 @@ async function resolveOne({
   })
   if (!result.ok) {
     row.errors = [...(row.errors ?? []), ...result.errors]
-    return true
+    return 'done'
   }
 
   row.resolved = result.resolved
+  if (result.warnings.length) row.warnings = [...(row.warnings ?? []), ...result.warnings]
   const match = findDuplicate(preparedFrom(result.resolved, values), candidates)
-  if (!match) return true
+  if (!match) return 'done'
 
   const matched = candidates[match.index]!
   row.duplicate = {
     reason: match.reason,
+    strength: match.strength,
     ...(matched.eventId === undefined ? {} : { eventId: matched.eventId }),
     ...(matched.line === undefined ? {} : { line: matched.line }),
   }
-  return true
+  return 'done'
 }
 
 /** A row is pending while it has neither an answer nor a reason it cannot have one. */
@@ -249,89 +295,4 @@ function tally(rows: readonly ImportRow[]): Tally {
 /** Today in the class's own zone — what "the next matching day" counts from. */
 function todayIn(timezone: SupportedTimezones): Temporal.PlainDate {
   return Temporal.Now.plainDateISO(timezone)
-}
-
-/**
- * A resolved row as a comparison reads it.
- *
- * The weekday mask and start minute were derived when the row resolved, so this
- * rebuilds no schedule — which is the point of storing them: a row from an
- * earlier chunk stays comparable without re-running the mapper over the batch.
- */
-function preparedFrom(resolved: ResolvedRow, values: RawImportRow): PreparedCandidate {
-  return {
-    cityKey: resolved.cityKey,
-    // ⚠ **An online row has no address, so it must carry no point.** Its
-    // coordinates are the city's centroid, shared by every online row in that
-    // city — and `nearby-address` is checked before the time rule, so a point
-    // here would merge a 18:00 and a 20:00 online class into one. Without it
-    // they fall through to city-and-time, which is the right question for a
-    // class with no hall. A stored online event has no address either, so the
-    // two sides stay symmetric.
-    point:
-      values.eventType === 'online'
-        ? null
-        : { latitude: resolved.latitude, longitude: resolved.longitude },
-    weekdayMask: resolved.weekdayMask,
-    startMinutes: resolved.startMinutes,
-  }
-}
-
-/** The same, carrying the line a reported match links back to. */
-function asCandidate(row: ImportRow): Candidate {
-  return { ...preparedFrom(row.resolved as ResolvedRow, row.values ?? {}), line: row.line }
-}
-
-/**
- * Every non-trashed class already in the target's subtree, reduced once.
- *
- * ⚠ **The `select` is what keeps this one query.** A `depth: 0` read still runs
- * every field's `afterRead` per row, and `events` carries a virtual quality
- * report and a join — `docs/rules/endpoints.md` names this the virtual-field
- * N+1. Trashed rows are left out by Payload's own default filter, which is the
- * rule here: a discarded listing is not a class a row repeats.
- */
-async function loadExistingCandidates(req: PayloadRequest, targetId: number): Promise<Candidate[]> {
-  const regions = await req.payload.find({
-    collection: 'regions',
-    where: targetSubtreeWhere(targetId),
-    depth: 0,
-    pagination: false,
-    overrideAccess: true,
-    // `id` always comes back; `level` is the cheapest column to ask for, and an
-    // include-mode select is what stops every region's own `afterRead` running.
-    select: { level: true },
-    req,
-  })
-  const regionIds = regions.docs.map((region) => region.id)
-  if (!regionIds.length) return []
-
-  const events = await req.payload.find({
-    collection: 'events',
-    // ⚠ `excludeFinishedEvents` only fires for an API client, so a manager's
-    // read sees every expired series — and a dead Tuesday class at the same hall
-    // would swallow the row re-importing this year's timetable.
-    where: { and: [{ region: { in: regionIds } }, notFinishedWhere(new Date())] },
-    depth: 0,
-    pagination: false,
-    overrideAccess: true,
-    select: { address: true, schedule: true, inactive: true },
-    req,
-  })
-
-  return events.docs.map((event) => ({
-    ...prepareCandidate({
-      cityKey: cityKeyFor(event.address?.city),
-      point: pointOf(event.address),
-      schedule: event.inactive || !event.schedule ? null : event.schedule,
-    }),
-    eventId: event.id,
-  }))
-}
-
-function pointOf(
-  address: { latitude?: number | null; longitude?: number | null } | null | undefined,
-): { latitude: number; longitude: number } | null {
-  const { latitude, longitude } = address ?? {}
-  return latitude != null && longitude != null ? { latitude, longitude } : null
 }

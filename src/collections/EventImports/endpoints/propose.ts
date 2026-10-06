@@ -8,13 +8,16 @@ import type { EventImport, EventImportRows } from '@/payload-types'
 import {
   batchIdOf,
   failure,
+  hasPendingRows,
   loadTarget,
   readExistingRegions,
   readTakenSlugs,
+  refuseRevokedRole,
   refuseUnownedTarget,
   targetSubtreeWhere,
   type TargetRegion,
 } from '../batchRequest'
+import { busy, renewLease, withLease } from '../lease'
 import {
   buildProposedTree,
   isProposableTargetLevel,
@@ -40,10 +43,11 @@ type ImportRow = EventImportRows[number]
  * recomputes from scratch and overwrites, which is what makes a renamed node
  * (phase 7) something the review re-sends rather than patches.
  *
- * ⚠ **The tree is recomputed here and again at commit.** Between a review and a
- * commit somebody else can create the very city this batch proposes, and the
- * stored tree would then create a second one. So this answer is what a human
- * approves, never what the commit trusts.
+ * ⚠ **The commit walks the stored tree, but re-checks what it names.** Between a
+ * review and a commit somebody else can create the very city this batch
+ * proposes, or take its slug; the commit adopts the one, re-slugs around the
+ * other, and refuses a region that has since left the target
+ * (`commit/regions.ts`).
  *
  * Auth: intentionally NOT `requireActiveClient`. That guard serves published API
  * `clients`; this is an admin-panel action by an authenticated `manager` on a
@@ -63,32 +67,21 @@ export const proposeEventImport: Endpoint = {
     const id = batchIdOf(req)
     if (id === null) return failure('A numeric batch id is required.', 400)
 
-    const batch = (await req.payload.findByID({
+    const probe = (await req.payload.findByID({
       collection: 'event-imports',
       id,
       depth: 0,
       overrideAccess: false,
       disableErrors: true,
-      // Three fields, and `proposedRegions` deliberately not among them: this
-      // endpoint is its only writer and rewrites it whole, so reading the copy it
-      // is about to replace would re-serialise the previous tree for nothing.
-      select: { status: true, targetRegion: true, rows: true },
+      select: { targetRegion: true, uploadLocale: true },
       req,
     })) as EventImport | null
-    if (!batch) return failure('No such import batch.', 404)
-    if (batch.status === 'committing') {
-      return failure('This batch is being committed, so its tree can no longer change.', 409)
-    }
-    // ⚠ **Not "enough rows have answers" but "no row is still waiting".** A tree
-    // built from a half-resolved batch would propose a city layer missing the
-    // places the remaining rows name, and the merge and state-layer thresholds
-    // both count places — so a reviewer would approve a shape the finished batch
-    // does not have.
-    if (batch.status !== 'resolved') {
-      return failure('Resolve the batch before proposing its regions.', 409)
-    }
+    if (!probe) return failure('No such import batch.', 404)
 
-    const targetId = relationId(batch.targetRegion)
+    const revoked = refuseRevokedRole(req, probe)
+    if (revoked) return revoked
+
+    const targetId = relationId(probe.targetRegion)
     if (targetId === null) return failure('This batch names no target region.', 409)
 
     const unowned = await refuseUnownedTarget(req, targetId)
@@ -104,43 +97,74 @@ export const proposeEventImport: Endpoint = {
       // venue, so proposing one would build a tree the commit cannot write.
       return failure(unproposableTargetMessage(target.level), 422)
     }
+    const targetLevel = target.level
 
-    const rows = (batch.rows ?? []) as ImportRow[]
-    const { rows: proposable, errors: strayErrors } = confineToTarget(proposableRows(rows), target)
-    const { existing, takenSlugs } = await loadTreeContext(req, targetId, proposable)
+    return withLease(req, id, async (token) => {
+      // Read under the lease, so a commit or a resolve cannot move the rows
+      // between this read and the write below. `proposedRegions` is
+      // deliberately not read: this endpoint rewrites it whole.
+      const batch = (await req.payload.findByID({
+        collection: 'event-imports',
+        id,
+        depth: 0,
+        overrideAccess: true,
+        select: { status: true, rows: true },
+        req,
+      })) as EventImport
+      if (batch.status === 'committing' || batch.status === 'finished') {
+        return failure('This batch is being committed, so its tree can no longer change.', 409)
+      }
+      const rows = (batch.rows ?? []) as ImportRow[]
+      // ⚠ **Not "enough rows have answers" but "no row is still waiting".** A
+      // tree built from a half-resolved batch would propose a city layer missing
+      // the places the remaining rows name, and the merge and state-layer
+      // thresholds both count places — so a reviewer would approve a shape the
+      // finished batch does not have. Asked of the rows as well as the status,
+      // because a row with no answer is what silently drops out of the tree.
+      if (batch.status !== 'resolved' || hasPendingRows(rows)) {
+        return failure('Resolve the batch before proposing its regions.', 409)
+      }
 
-    const built = buildProposedTree({
-      target: { id: targetId, level: target.level, name: target.name },
-      countryCode: loaded.scope.countryCode,
-      rows: proposable,
-      existing,
-      takenSlugs,
+      const { rows: proposable, errors: strayErrors } = confineToTarget(
+        proposableRows(rows),
+        target,
+      )
+      const { existing, takenSlugs } = await loadTreeContext(req, targetId, proposable)
+
+      const built = buildProposedTree({
+        target: { id: targetId, level: targetLevel, name: target.name },
+        countryCode: loaded.scope.countryCode,
+        rows: proposable,
+        existing,
+        takenSlugs,
+      })
+      const tree: ProposedTree = {
+        ...built,
+        rowErrors: [...strayErrors, ...built.rowErrors].sort((a, b) => a.line - b.line),
+      }
+
+      if (!(await renewLease(req, id, token))) return busy()
+      await req.payload.update({
+        collection: 'event-imports',
+        id,
+        // The caller's ownership was settled above, and `proposedRegions` is
+        // `readOnly` in the admin — so this write elevates past field access
+        // deliberately.
+        data: { proposedRegions: tree },
+        overrideAccess: true,
+        depth: 0,
+        // The answer is already in hand, and the document carries up to
+        // `MAX_IMPORT_ROWS` rows plus the tree just written — all of which an
+        // unbounded update would re-read and re-serialise to be discarded. `id`
+        // is not a selectable key — it always comes back — so this asks for the
+        // cheapest column there is.
+        select: { status: true },
+        req,
+      })
+
+      const warn = loaded.warning ? { warning: loaded.warning } : {}
+      return Response.json({ ...warn, ...tallyTree(tree), proposedRegions: tree })
     })
-    const tree: ProposedTree = {
-      ...built,
-      rowErrors: [...strayErrors, ...built.rowErrors].sort((a, b) => a.line - b.line),
-    }
-
-    await req.payload.update({
-      collection: 'event-imports',
-      id,
-      // The caller's ownership was settled above, and `proposedRegions` is
-      // `readOnly` in the admin — so this write elevates past field access
-      // deliberately.
-      data: { proposedRegions: tree },
-      overrideAccess: true,
-      depth: 0,
-      // The answer is already in hand, and the document carries up to
-      // `MAX_IMPORT_ROWS` rows plus the tree just written — all of which an
-      // unbounded update would re-read and re-serialise to be discarded. `id` is
-      // not a selectable key — it always comes back — so this asks for the
-      // cheapest column there is.
-      select: { status: true },
-      req,
-    })
-
-    const warn = loaded.warning ? { warning: loaded.warning } : {}
-    return Response.json({ ...warn, ...tallyTree(tree), proposedRegions: tree })
   },
 }
 
@@ -162,10 +186,15 @@ function proposableRows(rows: readonly ImportRow[]): ProposableRow[] {
         line: row.line,
         point: { latitude: resolved.latitude, longitude: resolved.longitude },
         cityKey: resolved.cityKey,
+        cityName: values.city ?? null,
         placeId: resolved.placeId,
         placeName: resolved.placeName,
         subdivisionCode: resolved.subdivisionCode,
-        mapboxId: resolved.mapboxId,
+        regionMapboxId: resolved.regionMapboxId ?? null,
+        // ⚠ **None for an approximate geocode.** Its feature is the street or
+        // the town, and venues sharing a feature merge (`cluster.ts`) — so two
+        // halls on one street would become one.
+        mapboxId: resolved.approximate ? null : resolved.mapboxId,
         // ⚠ **Read off the CSV, not off `resolved`.** The address is what keys a
         // hall (`cluster.ts`), and an online row has none — which is how its
         // classes stay off a city target's venue layer.

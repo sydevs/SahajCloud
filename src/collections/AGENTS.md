@@ -955,7 +955,9 @@ trash.** Payload ships none: `trash: true` buys the `deletedAt` column and the
 admin's trash view, and nothing else. Two of the nine are swept —
 `CleanupOrphanedMedia` phase A for Files and Images, `PurgeEventImports` for
 import batches, which is what makes "discard" mean the uploaded CSV goes away
-rather than merely leaves the list. Events are a deliberate exception: a trashed
+rather than merely leaves the list. It also takes an import batch nobody has
+touched in `ABANDONED_BATCH_DAYS`, trashed or not, because a closed tab leaves
+one holding contact details. Events are a deliberate exception: a trashed
 listing is a manager's own record.
 
 ⚠ **The other five — Lessons, Pages, Meditations, Songs, Albums — are swept by

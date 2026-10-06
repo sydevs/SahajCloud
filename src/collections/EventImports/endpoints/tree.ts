@@ -13,10 +13,12 @@ import {
   loadTarget,
   readExistingRegions,
   readTakenSlugs,
+  refuseRevokedRole,
   refuseUnownedTarget,
   targetSubtreeWhere,
 } from '../batchRequest'
 import { MAX_TREE_EDITS } from '../constants'
+import { busy, renewLease, withLease } from '../lease'
 import { applyTreeEdits, type TreeEdit } from '../propose/edit'
 import { tallyTree } from '../propose/tree'
 
@@ -53,6 +55,10 @@ const bodySchema = z.strictObject({
           key: z.string().min(1).max(MAX_NODE_KEY),
           regionId: z.int().positive(),
         }),
+        z.strictObject({
+          kind: z.literal('unmap'),
+          key: z.string().min(1).max(MAX_NODE_KEY),
+        }),
       ]),
     )
     .min(1)
@@ -73,21 +79,15 @@ const bodySchema = z.strictObject({
  * and then edits. Nothing serialises the two: a reviewer who proposes again
  * reviews again.
  *
- * ⚠ **The `committing` check is a guard, not a lock.** Nothing serialises this
- * against a commit either: a commit that starts between the read below and the
- * write can build its regions from the pre-edit tree and read the edited one on
- * its next chunk. The consequence is a region placed where the reviewer no
- * longer asked for it on their own batch, never a write outside the target —
- * every id an edit can name is read from the target's subtree.
+ * ⚠ **The batch's lease serialises this against a commit and against another
+ * edit** (`lease.ts`). Without it, a commit starting between the read and the
+ * write built its regions from the pre-edit tree, and two edits were a lost
+ * update.
  *
  * ⚠ **An edit list is a delta, never the set a reviewer has accumulated.** A
  * node this endpoint already mapped is no longer `create`, so re-sending its
  * edit is refused — and the all-or-nothing rule then drops the rest of that
  * request with it. A caller resends nothing it has had a 200 for.
- *
- * ⚠ **Nothing serialises two of these against each other either.** Two callers
- * editing one batch is a lost update, bounded the same way: each writes a whole
- * tree, and every id either can name comes from the target's subtree.
  *
  * ⚠ **Every edit, or none.** A half-applied batch would be stored and then
  * rendered back as the reviewer's own tree (`propose/edit.ts`), so the refusal
@@ -119,24 +119,21 @@ export const editEventImportTree: Endpoint = {
     const parsed = await parseBody(req, bodySchema)
     if (!parsed.ok) return parsed.response
 
-    const batch = (await req.payload.findByID({
+    const probe = (await req.payload.findByID({
       collection: 'event-imports',
       id,
       depth: 0,
       overrideAccess: false,
       disableErrors: true,
-      select: { status: true, targetRegion: true, proposedRegions: true },
+      select: { targetRegion: true, uploadLocale: true },
       req,
     })) as EventImport | null
-    if (!batch) return failure('No such import batch.', 404)
-    if (batch.status === 'committing') {
-      return failure('This batch is being committed, so its tree can no longer change.', 409)
-    }
+    if (!probe) return failure('No such import batch.', 404)
 
-    const stored = batch.proposedRegions
-    if (!stored) return failure('Propose the batch regions before editing them.', 409)
+    const revoked = refuseRevokedRole(req, probe)
+    if (revoked) return revoked
 
-    const targetId = relationId(batch.targetRegion)
+    const targetId = relationId(probe.targetRegion)
     if (targetId === null) return failure('This batch names no target region.', 409)
 
     const unowned = await refuseUnownedTarget(req, targetId)
@@ -145,45 +142,65 @@ export const editEventImportTree: Endpoint = {
     const loaded = await loadTarget(req, targetId)
     if (!loaded.ok) return failure(loaded.error, 422)
 
-    // ⚠ **The subtree is the whole candidate list, and it is read here rather
-    // than trusted from the body.** `refuseUnownedTarget` says the caller may
-    // write inside the target; it says nothing about the region a `map` edit
-    // names, which arrives as a bare id. A region outside the subtree would file
-    // this batch's classes outside the region it was aimed at.
-    const [mappable, takenSlugs] = await Promise.all([
-      readExistingRegions(req, targetSubtreeWhere(targetId), true),
-      readTakenSlugs(req),
-    ])
+    return withLease(req, id, async (token) => {
+      // Read under the lease: a commit that starts between a read and the write
+      // would otherwise build its regions from the tree this replaces.
+      const batch = (await req.payload.findByID({
+        collection: 'event-imports',
+        id,
+        depth: 0,
+        overrideAccess: true,
+        select: { status: true, proposedRegions: true },
+        req,
+      })) as EventImport
+      if (batch.status === 'committing' || batch.status === 'finished') {
+        return failure('This batch is being committed, so its tree can no longer change.', 409)
+      }
 
-    const applied = applyTreeEdits({
-      tree: stored as ProposedTree,
-      edits: parsed.data.edits as TreeEdit[],
-      mappable,
-      targetName: loaded.target.name,
-      takenSlugs,
-    })
-    if (!applied.ok) return failure(applied.error, 422)
+      const stored = batch.proposedRegions
+      if (!stored) return failure('Propose the batch regions before editing them.', 409)
 
-    await req.payload.update({
-      collection: 'event-imports',
-      id,
-      // The caller's ownership was settled above, and `proposedRegions` is
-      // `readOnly` in the admin — so this write elevates past field access
-      // deliberately.
-      data: { proposedRegions: applied.tree },
-      overrideAccess: true,
-      depth: 0,
-      // The answer is already in hand, and an unbounded update would re-read and
-      // re-serialise every row on the batch to discard it.
-      select: { status: true },
-      req,
-    })
+      // ⚠ **The subtree is the whole candidate list, and it is read here rather
+      // than trusted from the body.** `refuseUnownedTarget` says the caller may
+      // write inside the target; it says nothing about the region a `map` edit
+      // names, which arrives as a bare id. A region outside the subtree would file
+      // this batch's classes outside the region it was aimed at.
+      const [mappable, takenSlugs] = await Promise.all([
+        readExistingRegions(req, targetSubtreeWhere(targetId), true),
+        readTakenSlugs(req),
+      ])
 
-    return Response.json({
-      ...(loaded.warning ? { warning: loaded.warning } : {}),
-      ...tallyTree(applied.tree),
-      pruned: applied.pruned,
-      proposedRegions: applied.tree,
+      const applied = applyTreeEdits({
+        tree: stored as ProposedTree,
+        edits: parsed.data.edits as TreeEdit[],
+        mappable,
+        targetName: loaded.target.name,
+        takenSlugs,
+      })
+      if (!applied.ok) return failure(applied.error, 422)
+
+      if (!(await renewLease(req, id, token))) return busy()
+      await req.payload.update({
+        collection: 'event-imports',
+        id,
+        // The caller's ownership was settled above, and `proposedRegions` is
+        // `readOnly` in the admin — so this write elevates past field access
+        // deliberately.
+        data: { proposedRegions: applied.tree },
+        overrideAccess: true,
+        depth: 0,
+        // The answer is already in hand, and an unbounded update would re-read and
+        // re-serialise every row on the batch to discard it.
+        select: { status: true },
+        req,
+      })
+
+      return Response.json({
+        ...(loaded.warning ? { warning: loaded.warning } : {}),
+        ...tallyTree(applied.tree),
+        pruned: applied.pruned,
+        proposedRegions: applied.tree,
+      })
     })
   },
 }

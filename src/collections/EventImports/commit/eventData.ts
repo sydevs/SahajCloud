@@ -7,10 +7,10 @@
  * which is what makes "the next Tuesday" the one the reviewer approved rather
  * than the one the commit happens to run on.
  *
- * ⚠ **Nothing here validates what `Events` already validates.** A malformed
- * `onlineUrl`, a title over 100 characters: each is reported by the per-row
- * write, against that row's line. A second copy of those rules here would answer
- * differently the first time either changes.
+ * ⚠ **Nothing here validates what `Events` already validates.** The upload runs
+ * each column through the collection's own validators (`csv/fieldChecks.ts`), so
+ * a malformed `onlineUrl` or an overlong title is refused before the review; the
+ * per-row write is the backstop, against that row's line.
  *
  * `registrationLimit` is the one exception, because it is the one column this
  * module converts rather than copies — see `registrationLimitOf`.
@@ -39,6 +39,8 @@ export interface EventDataArgs {
    * a coordinator per row.
    */
   managerId: number | null
+  /** The exactly-once key the class is created under (`commit/rows.ts`). */
+  importKey?: string
 }
 
 export interface EventCreateData {
@@ -54,6 +56,7 @@ export function eventCreateData({
   resolved,
   regionId,
   managerId,
+  importKey,
 }: EventDataArgs): EventDataResult {
   // ⚠ **Read with the CSV's own strict reader, not a looser one.** `anchorDate`
   // is a bare `z.string()` in the column (`EventImports.ts`), and reading it
@@ -107,9 +110,71 @@ export function eventCreateData({
     registrationLimit: limit.value,
     manager: managerId,
     ...adoption.data,
+    ...(importKey ? { importKey } : {}),
     _status: 'published',
   }
   return { ok: true, data, context: adoption.context }
+}
+
+/**
+ * What a reviewer's "overwrite" writes onto the class a row repeats.
+ *
+ * ⚠ **Only what the row fills.** A blank cell keeps the class's own value — the
+ * volunteer re-importing a timetable did not mean to erase the room, the website
+ * or the coordinator somebody added by hand. The schedule, the place and the
+ * region are always written, because the columns that decide them are required
+ * of every row.
+ *
+ * ⚠ **Nothing about the class's history is touched.** Registrations, the
+ * verification stage and the log are the class's own; the stage is recomputed
+ * by `syncVerificationOnSave` as for any edit, so no adoption flag rides along.
+ */
+export function eventOverwriteData(args: Omit<EventDataArgs, 'importKey'>): EventDataResult {
+  const built = eventCreateData(args)
+  if (!built.ok) return built
+
+  const { values, managerId } = args
+  const filled = (column: keyof RawImportRow) => !!values[column]?.trim()
+  const full = built.data
+  const data: Record<string, unknown> = {
+    region: full.region,
+    eventType: full.eventType,
+    inactive: full.inactive,
+    ...(full.schedule ? { schedule: full.schedule } : {}),
+    ...(full.address ? { address: filledAddress(full.address as Record<string, unknown>, values) } : {}),
+  }
+  const columns: [keyof RawImportRow, string][] = [
+    ['title', 'title'],
+    ['description', 'description'],
+    ['website', 'website'],
+    ['contactName', 'contactName'],
+    ['contactPhone', 'contactPhone'],
+    ['contactEmail', 'contactEmail'],
+    ['onlineUrl', 'onlineUrl'],
+    ['registrationLimit', 'registrationLimit'],
+    ['languages', 'languages'],
+  ]
+  for (const [column, key] of columns) if (filled(column)) data[key] = full[key]
+  if (managerId !== null) data.manager = managerId
+  return { ok: true, data, context: { skipVerifyHook: false } }
+}
+
+/**
+ * The address subfields an overwrite writes: the geocode's always, the CSV's
+ * optional ones only when filled.
+ */
+function filledAddress(
+  address: Record<string, unknown>,
+  values: RawImportRow,
+): Record<string, unknown> {
+  const optional: [keyof RawImportRow, string][] = [
+    ['venueName', 'venueName'],
+    ['room', 'room'],
+    ['postcode', 'postCode'],
+  ]
+  const kept = { ...address }
+  for (const [column, key] of optional) if (!values[column]?.trim()) delete kept[key]
+  return kept
 }
 
 /**
@@ -123,7 +188,8 @@ export function eventCreateData({
  */
 function addressFor(values: RawImportRow, resolved: ResolvedRow): Record<string, unknown> {
   return {
-    mapboxId: resolved.mapboxId,
+    // An approximate geocode's feature is a street's or a town's, not this hall's.
+    mapboxId: resolved.approximate ? null : resolved.mapboxId,
     venueName: values.venueName?.trim() || null,
     street: values.address?.trim() || null,
     room: values.room?.trim() || null,

@@ -43,6 +43,7 @@ import { getLanguageOptions } from '@/lib/locales'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
 import {
   adminOnlyCondition,
+  adminOnlyFieldAccess,
   managersOnlyFieldAccess,
   ownedRegionFilterOptions,
 } from '@/plugins/access'
@@ -175,6 +176,19 @@ export const Events: CollectionConfig = {
   },
   endpoints: [verifyEventAction, eventsGeoJson],
   fields: [
+    {
+      // ⚠ **The bulk import's exactly-once key: `<batch id>:<CSV line>`.**
+      // Unique, so a commit retried after a crash or a lost response finds the
+      // class it already created rather than creating it twice
+      // (`src/collections/EventImports/commit/rows.ts`). Written only by that
+      // commit, which elevates past field access; nobody else may set it.
+      name: 'importKey',
+      type: 'text',
+      unique: true,
+      index: true,
+      access: { create: () => false, update: () => false, read: adminOnlyFieldAccess },
+      admin: { hidden: true },
+    },
     {
       // A contextual banner above the tabs. It warns when the event is due
       // for verification, or past due, and offers a Verify button (the
