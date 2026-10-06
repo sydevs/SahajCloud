@@ -128,11 +128,13 @@ export const limitParameter = {
   name: 'limit',
   schema: {
     type: 'integer',
-    minimum: 1,
+    minimum: 0,
     maximum: MAX_CLIENT_LIMIT,
     default: 10,
   },
-  description: `Maximum number of docs to return in the \`docs\` array. Defaults to 10. Above ${MAX_CLIENT_LIMIT} the request is rejected with a 400 — paginate instead. An individual endpoint may cap it lower.`,
+  description: `Maximum number of docs to return in the \`docs\` array. Defaults to 10. Above ${MAX_CLIENT_LIMIT} the request is rejected with a 400 — paginate instead. An individual endpoint may cap it lower.
+
+\`0\` is Payload's spelling of "no limit" and returns the whole collection, as \`pagination=false\` does.`,
 }
 
 /** `page` parameter. 1-based, bounded by `validateClientQueryParamsHook` (#887). */
