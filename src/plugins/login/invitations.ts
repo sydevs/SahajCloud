@@ -146,12 +146,22 @@ async function enqueue(
 }
 
 /**
+ * The `req.context` key a writer sets to assign managers without inviting them.
+ *
+ * The bulk import is the one writer today: it names coordinators from a
+ * volunteer's CSV, and mails them only when the reviewer opted in
+ * (`src/collections/EventImports/commit/scope.ts`).
+ */
+export const SKIP_INVITATIONS = 'skipInvitations'
+
+/**
  * `afterChange` for a collection whose `on` field names managers: queue an
  * invitation for each manager the save newly names. Removing one queues
  * nothing.
  */
 export function queueOnManagerField(collection: string, on: string): CollectionAfterChangeHook {
-  return async ({ doc, previousDoc, req }) => {
+  return async ({ context, doc, previousDoc, req }) => {
+    if (context?.[SKIP_INVITATIONS] === true) return doc
     const before = new Set(idsOf(previousDoc?.[on]).map(String))
     for (const managerId of idsOf(doc[on])) {
       if (before.has(String(managerId))) continue

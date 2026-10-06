@@ -26,7 +26,21 @@
 import type { PayloadRequest } from 'payload'
 
 import { DEFER_CACHE_INVALIDATION } from '@/plugins/cache/defer'
+import { SKIP_INVITATIONS } from '@/plugins/login'
 
-export function commitWriteReq(req: PayloadRequest): PayloadRequest {
-  return { ...req, context: { [DEFER_CACHE_INVALIDATION]: true } } as PayloadRequest
+/**
+ * ⚠ **`inviteCoordinators: false` keeps the import from mailing anyone.** Naming
+ * a class's `manager` queues that manager an invitation
+ * (`queueOnManagerField`), so without the flag every address in a volunteer's
+ * CSV was emailed a sign-in link ten minutes after the commit — strangers and
+ * typos included. The reviewer opts in per batch (`endpoints/choices.ts`).
+ */
+export function commitWriteReq(
+  req: PayloadRequest,
+  { inviteCoordinators = false }: { inviteCoordinators?: boolean } = {},
+): PayloadRequest {
+  return {
+    ...req,
+    context: { [DEFER_CACHE_INVALIDATION]: true, [SKIP_INVITATIONS]: !inviteCoordinators },
+  } as PayloadRequest
 }

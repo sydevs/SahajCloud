@@ -87,7 +87,34 @@ export function lockManagerFieldReads(fields: Field[]): Field[] {
 export const forceManagedTypeAndRoles: CollectionBeforeChangeHook = ({ data, operation, req }) => {
   if (operation !== 'create') return data
   if (!req.user || isAdminManager(req.user)) return data
+  // ⚠ **The account holder's own settings are theirs to set, not their
+  // creator's.** `managers: create` lets a coordinator open an account for
+  // somebody else, and a preset `notificationPreferences` (invitations: never)
+  // or a contact handle marked `verified` let the creator impersonate the person
+  // or squat their address — the invitation silenced, their notifications routed
+  // to a channel nobody delivers. So a non-admin's create keeps the name, the
+  // address, the language and unverified contact handles, and nothing else of
+  // the account holder's.
+  const {
+    notificationPreferences: _preferences,
+    currentProject: _project,
+    lastRegistrationDigestSentAt: _digest,
+    legacyId: _legacyId,
+    legacyData: _legacyData,
+    ...kept
+  } = data ?? {}
+  const contactDetails = Array.isArray(kept.contactDetails)
+    ? (kept.contactDetails as Record<string, unknown>[]).map((detail) => ({
+        ...detail,
+        verified: false,
+      }))
+    : kept.contactDetails
   // Spelled against the admin rather than for `managers`, so a grant to a
   // second auth collection arrives rewritten rather than exempt.
-  return { ...data, roles: null, type: 'manager' satisfies Manager['type'] }
+  return {
+    ...kept,
+    ...(contactDetails === undefined ? {} : { contactDetails }),
+    roles: null,
+    type: 'manager' satisfies Manager['type'],
+  }
 }

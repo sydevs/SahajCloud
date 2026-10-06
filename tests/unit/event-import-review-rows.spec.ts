@@ -20,7 +20,11 @@ import { describe, expect, it } from 'vitest'
 
 import type { CommitRow } from '@/collections/EventImports/commit/rows'
 import type { ProposedRowError as TreeRowError } from '@/collections/EventImports/propose/tree'
-import { reviewEmails, reviewRows } from '@/collections/EventImports/review/rows'
+import {
+  reviewEmails,
+  reviewRows,
+  type AccountVerdict,
+} from '@/collections/EventImports/review/rows'
 
 const ANCHOR = '2026-10-06'
 
@@ -46,17 +50,29 @@ function row(line: number, over: Partial<CommitRow> = {}): CommitRow {
   return { line, values: { title: `Class ${line}`, city: 'Berlin' }, resolved: resolved(), ...over }
 }
 
-const review = (rows: CommitRow[], known: string[] = [], treeRowErrors: TreeRowError[] = []) =>
-  reviewRows({ rows, knownEmails: new Set(known), treeRowErrors })
+const review = (
+  rows: CommitRow[],
+  known: Record<string, AccountVerdict> = {},
+  treeRowErrors: TreeRowError[] = [],
+) => reviewRows({ rows, accounts: new Map(Object.entries(known)), treeRowErrors })
 
 describe('reviewRows', () => {
   it('reads a clean row as ready, with nobody vouching for it', () => {
     const { rows, coordinators } = review([row(2)])
 
     expect(rows).toEqual([
-      { line: 2, status: 'ready', title: 'Class 2', place: 'Berlin', reasons: [], coordinator: 'none' },
+      {
+        line: 2,
+        status: 'ready',
+        title: 'Class 2',
+        place: 'Berlin',
+        reasons: [],
+        warnings: [],
+        coordinator: 'none',
+        duplicate: null,
+      },
     ])
-    expect(coordinators).toEqual({ existing: 0, created: 0 })
+    expect(coordinators).toEqual({ existing: 0, created: 0, unlinked: 0 })
   })
 
   it('names the geocoded place, not the city the CSV typed', () => {
@@ -92,21 +108,36 @@ describe('reviewRows', () => {
         row(4, { values: { managerEmail: 'anna@example.org' } }),
       ])
 
-      expect(coordinators).toEqual({ existing: 0, created: 1 })
+      expect(coordinators).toEqual({ existing: 0, created: 1, unlinked: 0 })
       expect(rows.map((reviewed) => reviewed.coordinator)).toEqual(['new', 'new', 'new'])
     })
 
-    it('counts an address that already holds an account as existing', () => {
+    it('counts an address whose account the commit links as existing', () => {
       const { rows, coordinators } = review(
         [
           row(2, { values: { managerEmail: 'held@example.org' } }),
           row(3, { values: { managerEmail: 'fresh@example.org' } }),
         ],
-        ['held@example.org'],
+        { 'held@example.org': 'linkable' },
       )
 
-      expect(coordinators).toEqual({ existing: 1, created: 1 })
+      expect(coordinators).toEqual({ existing: 1, created: 1, unlinked: 0 })
       expect(rows.map((reviewed) => reviewed.coordinator)).toEqual(['existing', 'new'])
+    })
+
+    /**
+     * An admin's address, a deactivated account, a coordinator elsewhere: the
+     * commit imports their classes with no coordinator, so the review must say
+     * so rather than promise a link.
+     */
+    it('calls an account the commit may not link unlinked, and opens nothing for it', () => {
+      const { rows, coordinators } = review(
+        [row(2, { values: { managerEmail: 'admin@example.org' } })],
+        { 'admin@example.org': 'unlinkable' },
+      )
+
+      expect(coordinators).toEqual({ existing: 0, created: 0, unlinked: 1 })
+      expect(rows[0]!.coordinator).toBe('unlinked')
     })
 
     // ⚠ The commit rosters only the committable rows, so counting a skipped
@@ -120,7 +151,7 @@ describe('reviewRows', () => {
         }),
       ])
 
-      expect(coordinators).toEqual({ existing: 0, created: 0 })
+      expect(coordinators).toEqual({ existing: 0, created: 0, unlinked: 0 })
     })
 
     // The row still says who it named: a volunteer fixing line 2 needs to know
@@ -161,10 +192,7 @@ describe('reviewRows', () => {
       ])
 
       expect(rows[0]!.status).toBe('error')
-      expect(rows[0]!.reasons).toEqual([
-        'timezone is not one we support',
-        'a repeat of class #77',
-      ])
+      expect(rows[0]!.reasons).toEqual(['timezone is not one we support', 'a repeat of class #77'])
     })
 
     // ⚠ **No `errors` on the fixture, deliberately.** With one, this would pass
@@ -181,6 +209,33 @@ describe('reviewRows', () => {
     // ⚠ The commit writes 20 rows per request and the review stays readable while
     // it runs, so a resumed batch is full of these. `ready` would send a
     // volunteer looking for what went wrong with a class that already exists.
+    it('offers a decision on each duplicate, overwrite only against an existing class', () => {
+      const { rows } = review([
+        row(2, { duplicate: { reason: 'city-and-time', strength: 'weak', eventId: 77 } }),
+        row(3, { duplicate: { reason: 'nearby-address', line: 2 } }),
+      ])
+
+      expect(rows.map((reviewed) => reviewed.duplicate)).toEqual([
+        { strength: 'weak', eventId: 77, action: 'skip', overwritable: true },
+        { strength: 'strong', line: 2, action: 'skip', overwritable: false },
+      ])
+    })
+
+    it('reads a duplicate the reviewer chose to import as ready, with nothing skipped', () => {
+      const { rows } = review([
+        row(2, { duplicate: { reason: 'nearby-address', eventId: 77, action: 'import' } }),
+      ])
+
+      expect(rows[0]).toMatchObject({ status: 'ready', reasons: [] })
+      expect(rows[0]!.duplicate?.action).toBe('import')
+    })
+
+    it('carries a row’s warnings beside its reasons', () => {
+      const { rows } = review([row(2, { warnings: ['only found the town'] })])
+
+      expect(rows[0]).toMatchObject({ status: 'ready', warnings: ['only found the town'] })
+    })
+
     it('reports an already-created row as committed, not ready', () => {
       const { rows } = review([row(2, { committed: { eventId: 931 } })])
 
@@ -199,27 +254,31 @@ describe('a line the proposal refused', () => {
   const refusal = [{ line: 2, message: '"Pune" already exists outside this region of the Atlas' }]
 
   it('is skipped with the proposal’s own reason, not reported ready', () => {
-    const { rows } = review([row(2), row(3)], [], refusal)
+    const { rows } = review([row(2), row(3)], {}, refusal)
 
-    expect(rows[0]).toMatchObject({ line: 2, status: 'error', reasons: refusal[0]!.message ? [refusal[0]!.message] : [] })
+    expect(rows[0]).toMatchObject({
+      line: 2,
+      status: 'error',
+      reasons: refusal[0]!.message ? [refusal[0]!.message] : [],
+    })
     expect(rows[1]).toMatchObject({ line: 3, status: 'ready', reasons: [] })
   })
 
   it('opens no account, however new its coordinator', () => {
     const { coordinators, rows } = review(
       [row(2, { values: { managerEmail: 'fresh@example.org' } })],
-      [],
+      {},
       refusal,
     )
 
-    expect(coordinators).toEqual({ existing: 0, created: 0 })
+    expect(coordinators).toEqual({ existing: 0, created: 0, unlinked: 0 })
     // The row still names who it would have brought, because that is a fact
     // about the line the volunteer is about to fix.
     expect(rows[0]!.coordinator).toBe('new')
   })
 
   it('reports its own error and the proposal’s, in that order', () => {
-    const { rows } = review([row(2, { errors: ['no city'] })], [], refusal)
+    const { rows } = review([row(2, { errors: ['no city'] })], {}, refusal)
 
     expect(rows[0]!.reasons).toEqual(['no city', refusal[0]!.message])
   })
@@ -237,17 +296,22 @@ describe('reviewEmails', () => {
     expect(emails).toEqual(['anna@example.org', 'bo@example.org'])
   })
 
-  // ⚠ Wider than the banner on purpose: every row reports its own coordinator,
-  // so an address left unasked is one the table then mislabels.
-  it('asks about an address only a skipped row names', () => {
+  /**
+   * ⚠ **An errored row's address is never asked about.** Asked of every row, a
+   * batch of rows that each fail the parse tests 500 addresses for whether they
+   * hold an account, for four requests and no geocoding. A duplicate the
+   * reviewer may still import resolved, so its address is asked.
+   */
+  it('asks about a resolved duplicate’s address, never an errored row’s', () => {
     const emails = reviewEmails([
       row(2, { values: { managerEmail: 'errored@example.org' }, errors: ['no city'] }),
       row(3, {
         values: { managerEmail: 'repeated@example.org' },
         duplicate: { reason: 'nearby-address', line: 2 },
       }),
+      row(4, { values: { managerEmail: 'unresolved@example.org' }, resolved: undefined }),
     ])
 
-    expect(emails).toEqual(['errored@example.org', 'repeated@example.org'])
+    expect(emails).toEqual(['repeated@example.org'])
   })
 })

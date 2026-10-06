@@ -18,7 +18,7 @@ import type { CollectionConfig, Config } from 'payload'
 import { flattenAllFields } from 'payload'
 import { describe, expect, it } from 'vitest'
 
-import { MANAGER_PUBLIC_FIELDS } from '@/collections/Managers/access'
+import { forceManagedTypeAndRoles, MANAGER_PUBLIC_FIELDS } from '@/collections/Managers/access'
 import { managersLogin } from '@/collections/Managers/login'
 import { Managers } from '@/collections/Managers/Managers'
 import { loginPlugin } from '@/plugins/login'
@@ -81,5 +81,52 @@ describe('managers field read locks', () => {
     const name = fields.find((field) => field.name === 'name')
     expect(name?.read).toBeUndefined()
     expect([...MANAGER_PUBLIC_FIELDS]).toEqual(['name'])
+  })
+})
+
+/**
+ * ⚠ **A non-admin's create opens an account; it does not configure one.** With
+ * `managers: create`, a coordinator could preset somebody else's notification
+ * preferences (invitations: never) or a contact handle marked verified — enough
+ * to silence their invitation or impersonate them.
+ */
+describe('forceManagedTypeAndRoles', () => {
+  const run = (user: unknown, data: Record<string, unknown>) =>
+    forceManagedTypeAndRoles({
+      data,
+      operation: 'create',
+      req: { user } as never,
+    } as never) as Record<string, unknown>
+
+  const coordinator = { collection: 'managers', id: 4, type: 'manager' }
+  const preset = {
+    name: 'Anna',
+    email: 'anna@example.org',
+    type: 'admin',
+    roles: { en: ['atlas-manager'] },
+    language: 'de',
+    currentProject: 'sahaj-atlas',
+    notificationPreferences: { invitation: { frequency: 'Never' } },
+    lastRegistrationDigestSentAt: '2026-01-01T00:00:00.000Z',
+    legacyId: 9,
+    legacyData: { x: 1 },
+    contactDetails: [{ platform: 'whatsapp', identifier: '+49 1', verified: true }],
+  }
+
+  it('keeps the name, the address, the language and unverified handles, and nothing else', () => {
+    expect(run(coordinator, preset)).toEqual({
+      name: 'Anna',
+      email: 'anna@example.org',
+      language: 'de',
+      contactDetails: [{ platform: 'whatsapp', identifier: '+49 1', verified: false }],
+      roles: null,
+      type: 'manager',
+    })
+  })
+
+  it('leaves an admin’s create, and one with no user, as written', () => {
+    const admin = { collection: 'managers', id: 1, type: 'admin' }
+    expect(run(admin, preset)).toEqual(preset)
+    expect(run(null, preset)).toEqual(preset)
   })
 })
