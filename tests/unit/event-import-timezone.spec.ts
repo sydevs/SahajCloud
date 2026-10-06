@@ -6,14 +6,16 @@ import { SUPPORTED_TIMEZONES } from '@/lib/timezones'
 // Partially mocked: every case below wants the real boundary data, and only the
 // last block substitutes an answer — no coordinates can produce a zone the enum
 // lacks, so that branch is unreachable without this.
-vi.mock('tz-lookup', async (importOriginal) => {
+vi.mock('@photostructure/tz-lookup', async (importOriginal) => {
   const actual = await importOriginal<{ default: (lat: number, lon: number) => string }>()
   return { default: vi.fn(actual.default) }
 })
-const tzlookup = vi.mocked((await import('tz-lookup')).default)
+const tzlookup = vi.mocked((await import('@photostructure/tz-lookup')).default)
+const actualLookup = tzlookup.getMockImplementation()!
 
 afterEach(() => {
-  tzlookup.mockClear()
+  tzlookup.mockReset()
+  tzlookup.mockImplementation(actualLookup)
 })
 
 function zone(latitude: number, longitude: number, override?: string): string {
@@ -61,10 +63,31 @@ describe('deriveImportTimezone', () => {
     }
   })
 
+  it('reads current boundaries, not the ones a stale dataset froze', () => {
+    // `tz-lookup` put Ciudad Juárez in America/Ojinaga, an hour out for half
+    // the year; tzdb split it off in 2022.
+    expect(zone(31.738, -106.487)).toBe('America/Ciudad_Juarez')
+  })
+
   it('takes the row override over the lookup', () => {
     // A border case a volunteer corrects by hand.
     expect(zone(52.52, 13.405, 'Europe/Prague')).toBe('Europe/Prague')
     expect(zone(52.52, 13.405, '  Europe/Prague  ')).toBe('Europe/Prague')
+  })
+
+  it('refuses an override that moves the clock at the point, naming both zones', () => {
+    // A copied row's zone on a Berlin class publishes it six hours out.
+    const error = refusal({ latitude: 52.52, longitude: 13.405, override: 'America/New_York' })
+    expect(error).toContain('America/New_York')
+    expect(error).toContain('Europe/Berlin')
+  })
+
+  it('refuses an override that agrees for only half the year', () => {
+    // Phoenix keeps no daylight saving, so it is Denver's clock all winter and
+    // an hour off it all summer.
+    expect(
+      refusal({ latitude: 39.7392, longitude: -104.9903, override: 'America/Phoenix' }),
+    ).toContain('America/Denver')
   })
 
   it('ignores a blank override rather than refusing it', () => {
@@ -83,7 +106,7 @@ describe('deriveImportTimezone', () => {
   })
 
   it('refuses coordinates no zone covers instead of throwing', () => {
-    // `tz-lookup` throws a RangeError; an uncaught one would lose every row
+    // The lookup throws for these; an uncaught throw would lose every row
     // after it in the chunk.
     expect(refusal({ latitude: 100, longitude: 0 })).toContain('no timezone covers')
     expect(refusal({ latitude: Number.NaN, longitude: 0 })).toContain('no timezone covers')
@@ -107,8 +130,17 @@ describe('deriveImportTimezone, when the lookup outruns the column', () => {
     })
   })
 
-  it('does not call the lookup at all when the row overrides it', () => {
+  it('checks an override against the lookup rather than trusting it', () => {
+    tzlookup.mockReturnValue('Asia/Tokyo')
+    expect(refusal({ latitude: 52.52, longitude: 13.405, override: 'Europe/Prague' })).toContain(
+      'Asia/Tokyo',
+    )
+  })
+
+  it('takes an override where no zone covers the point to check it against', () => {
+    tzlookup.mockImplementation(() => {
+      throw new Error('invalid coordinates')
+    })
     expect(zone(52.52, 13.405, 'Europe/Prague')).toBe('Europe/Prague')
-    expect(tzlookup).not.toHaveBeenCalled()
   })
 })

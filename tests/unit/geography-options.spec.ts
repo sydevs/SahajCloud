@@ -36,6 +36,16 @@ describe('getRegionOptions', () => {
     expect(usRegions.length).toBeGreaterThan(50)
   })
 
+  it('leaves out the subdivisions the dataset lists without a code', () => {
+    // Every one of Puerto Rico's 73 has none, and an option with no value threw
+    // in every caller that uppercased it — the proposal step among them.
+    expect(getRegionOptions('PR')).toEqual([])
+    expect(getRegionOptions('KZ').map((option) => option.label)).not.toContain('Bayqongyr')
+    for (const { value } of getCountryOptions()) {
+      for (const option of getRegionOptions(value)) expect(option.value).not.toBe('')
+    }
+  })
+
   it('returns an empty array for unknown / empty country codes', () => {
     expect(getRegionOptions('ZZ')).toEqual([])
     expect(getRegionOptions('')).toEqual([])

@@ -11,14 +11,28 @@ import {
 const FALLBACK_TYPES = 'country,region,district,place,locality'
 
 /** Stub global fetch with a per-URL handler returning a Search Box-shaped body. */
-function stubFetch(handler: (url: string) => { ok?: boolean; body: unknown }): void {
-  vi.stubGlobal(
-    'fetch',
-    vi.fn(async (input: unknown) => {
-      const { ok = true, body } = handler(String(input))
-      return { ok, status: ok ? 200 : 500, json: async () => body } as Response
-    }),
-  )
+function stubFetch(handler: (url: string) => { status?: number; body: unknown }) {
+  const fetchSpy = vi.fn(async (input: unknown) => {
+    const { status = 200, body } = handler(String(input))
+    return { ok: status < 300, status, json: async () => body } as Response
+  })
+  vi.stubGlobal('fetch', fetchSpy)
+  return fetchSpy
+}
+
+/** Answer each call with the next status in turn, then a hit for every call after. */
+function stubStatuses(...statuses: number[]) {
+  let call = 0
+  return stubFetch(() => {
+    const status = statuses[call++]
+    return status === undefined ? { body: feature('mbx-late', [13.4, 52.5]) } : { status, body: {} }
+  })
+}
+
+/** Run a lookup to its end with the retry backoff skipped. */
+async function settled<T>(promise: Promise<T>): Promise<T> {
+  await vi.runAllTimersAsync()
+  return promise
 }
 
 const feature = (mapboxId?: string, coordinates?: [number, number]) => ({
@@ -27,9 +41,11 @@ const feature = (mapboxId?: string, coordinates?: [number, number]) => ({
 
 beforeEach(() => {
   vi.stubEnv('NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN', 'test-token')
+  vi.useFakeTimers()
 })
 
 afterEach(() => {
+  vi.useRealTimers()
   vi.unstubAllGlobals()
   vi.unstubAllEnvs()
 })
@@ -134,10 +150,10 @@ describe('resolveRegionLocation', () => {
 
 describe('geocodeLocation', () => {
   /** A Search Box `/forward` body with the context layers the import reads. */
-  const placed = (context: Record<string, unknown>) => ({
+  const placed = (context: Record<string, unknown>, properties: Record<string, unknown> = {}) => ({
     features: [
       {
-        properties: { mapbox_id: 'mbx-address', context },
+        properties: { mapbox_id: 'mbx-address', feature_type: 'address', context, ...properties },
         geometry: { coordinates: [13.4186, 52.5026] },
       },
     ],
@@ -160,12 +176,62 @@ describe('geocodeLocation', () => {
     stubFetch(() => ({ body: placed(berlinContext) }))
     expect(await located({ query: 'Oranienstraße 25, Berlin', types: 'address,poi' })).toEqual({
       mapboxId: 'mbx-address',
+      featureType: 'address',
       latitude: 52.5026,
       longitude: 13.4186,
       countryCode: 'DE',
       subdivisionCode: 'BE',
+      regionMapboxId: 'mbx-be',
       placeName: 'Berlin',
       placeId: 'mbx-berlin',
+    })
+  })
+
+  it('reports a match coarser than an address by its own feature type', async () => {
+    stubFetch(() => ({
+      body: placed(berlinContext, { mapbox_id: 'mbx-street', feature_type: 'street' }),
+    }))
+    expect(await located({ query: 'Oranienstraße 999, Berlin', types: 'address' })).toMatchObject({
+      mapboxId: 'mbx-street',
+      featureType: 'street',
+      placeId: 'mbx-berlin',
+    })
+  })
+
+  it('takes a town that is itself the match as its own place', async () => {
+    // A `place` feature has no `place` layer above it, so a city lookup used to
+    // come back with no place id at all, and phase 5 had nothing to match on.
+    stubFetch(() => ({
+      body: placed(
+        { country: berlinContext.country, region: berlinContext.region },
+        { mapbox_id: 'mbx-berlin', name: 'Berlin', feature_type: 'place' },
+      ),
+    }))
+    expect(await located({ query: 'Berlin', types: 'place,locality' })).toMatchObject({
+      placeName: 'Berlin',
+      placeId: 'mbx-berlin',
+    })
+  })
+
+  it('prefers the place above a locality to the locality itself', async () => {
+    stubFetch(() => ({
+      body: placed(berlinContext, { mapbox_id: 'mbx-kreuzberg', feature_type: 'locality' }),
+    }))
+    expect((await located({ query: 'Kreuzberg', types: 'place,locality' })).placeId).toBe(
+      'mbx-berlin',
+    )
+  })
+
+  it("maps Mapbox's subdivision code onto the one the dataset lists", async () => {
+    stubFetch(() => ({
+      body: placed({
+        country: { name: 'Spain', country_code: 'ES' },
+        region: { mapbox_id: 'mbx-md', name: 'Community of Madrid', region_code: 'MD' },
+      }),
+    }))
+    expect(await located({ query: 'Madrid', types: 'place' })).toMatchObject({
+      subdivisionCode: 'M',
+      regionMapboxId: 'mbx-md',
     })
   })
 
@@ -221,9 +287,10 @@ describe('geocodeLocation', () => {
 
   it('leaves the context codes null when Mapbox sent none', async () => {
     stubFetch(() => ({ body: placed({}) }))
-    expect(await located({ query: 'Somewhere', types: 'place' })).toMatchObject({
+    expect(await located({ query: 'Somewhere', types: 'address' })).toMatchObject({
       countryCode: null,
       subdivisionCode: null,
+      regionMapboxId: null,
       placeName: null,
       placeId: null,
     })
@@ -248,32 +315,109 @@ describe('geocodeLocation', () => {
       })
     })
 
-    it('reports an HTTP failure as unavailable', async () => {
-      stubFetch(() => ({ ok: false, body: {} }))
-      expect(await geocodeLocation({ query: 'Berlin', types: 'place' })).toEqual({
+    it('reports a server error that outlasts the retries as unavailable', async () => {
+      const fetchSpy = stubFetch(() => ({ status: 503, body: {} }))
+      expect(await settled(geocodeLocation({ query: 'Berlin', types: 'place' }))).toEqual({
         status: 'unavailable',
       })
+      expect(fetchSpy).toHaveBeenCalledTimes(3)
     })
 
     it('reports a network failure that outlasts the retries as unavailable', async () => {
+      const fetchSpy = vi.fn(async () => {
+        throw new Error('ECONNRESET')
+      })
+      vi.stubGlobal('fetch', fetchSpy)
+      expect(await settled(geocodeLocation({ query: 'Berlin', types: 'place' }))).toEqual({
+        status: 'unavailable',
+      })
+      expect(fetchSpy).toHaveBeenCalledTimes(3)
+    })
+
+    it.each([500, 502, 503, 504, 429, 408])(
+      'retries a %i and takes the answer after it',
+      async (status) => {
+        const fetchSpy = stubStatuses(status)
+        const outcome = await settled(geocodeLocation({ query: 'Berlin', types: 'place' }))
+        expect(outcome.status).toBe('found')
+        expect(fetchSpy).toHaveBeenCalledTimes(2)
+      },
+    )
+
+    it('gives each attempt its own bounded timeout', async () => {
+      const timeout = vi.spyOn(AbortSignal, 'timeout')
+      stubFetch(() => ({ status: 503, body: {} }))
+      await settled(geocodeLocation({ query: 'Berlin', types: 'place' }))
+      expect(timeout).toHaveBeenCalledTimes(3)
+      for (const [ms] of timeout.mock.calls) expect(ms).toBeLessThanOrEqual(8_000)
+      timeout.mockRestore()
+    })
+
+    it('reports a 200 whose body is not a result as unavailable, not as a miss', async () => {
+      // Read as "no features", an aborted or truncated body would become a
+      // permanent "could not find this location" for a row Mapbox never
+      // answered.
       vi.stubGlobal(
         'fetch',
-        vi.fn(async () => {
-          throw new Error('ECONNRESET')
-        }),
+        vi.fn(
+          async () =>
+            ({
+              ok: true,
+              status: 200,
+              json: async () => {
+                throw new DOMException('The operation was aborted.', 'AbortError')
+              },
+            }) as unknown as Response,
+        ),
       )
-      expect(await geocodeLocation({ query: 'Berlin', types: 'place' })).toEqual({
+      expect(await settled(geocodeLocation({ query: 'Berlin', types: 'place' }))).toEqual({
+        status: 'unavailable',
+      })
+
+      stubFetch(() => ({ body: '<html>gateway</html>' }))
+      expect(await settled(geocodeLocation({ query: 'Berlin', types: 'place' }))).toEqual({
         status: 'unavailable',
       })
     })
 
-    it('reports a missing token as unavailable, without calling fetch', async () => {
+    it('reports a missing token as unconfigured, without calling fetch', async () => {
       vi.stubEnv('NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN', '')
       const fetchSpy = vi.fn()
       vi.stubGlobal('fetch', fetchSpy)
       expect(await geocodeLocation({ query: 'Berlin', types: 'place' })).toEqual({
-        status: 'unavailable',
+        status: 'unconfigured',
+        httpStatus: null,
       })
+      expect(fetchSpy).not.toHaveBeenCalled()
+    })
+
+    it.each([401, 403])('reports a %i as unconfigured, without retrying', async (status) => {
+      // The token is wrong for every row alike, so no row may carry it as an error.
+      const fetchSpy = stubFetch(() => ({ status, body: {} }))
+      expect(await settled(geocodeLocation({ query: 'Berlin', types: 'place' }))).toEqual({
+        status: 'unconfigured',
+        httpStatus: status,
+      })
+      expect(fetchSpy).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  describe('a refusal is an answer about the query', () => {
+    it.each([400, 404, 422])('reports a %i as refused, once, with its status', async (status) => {
+      // ⚠ Retrying it, or reporting it as an outage, stalls the batch on this
+      // row for good: every resume asks the same query and gets the same 4xx.
+      const fetchSpy = stubFetch(() => ({ status, body: { message: 'Query too long' } }))
+      expect(await settled(geocodeLocation({ query: 'x'.repeat(300), types: 'address' }))).toEqual({
+        status: 'refused',
+        httpStatus: status,
+      })
+      expect(fetchSpy).toHaveBeenCalledTimes(1)
+    })
+
+    it('reports a blank query as a miss, without calling fetch', async () => {
+      const fetchSpy = vi.fn()
+      vi.stubGlobal('fetch', fetchSpy)
+      expect(await geocodeLocation({ query: '  ', types: 'place' })).toEqual({ status: 'missed' })
       expect(fetchSpy).not.toHaveBeenCalled()
     })
   })

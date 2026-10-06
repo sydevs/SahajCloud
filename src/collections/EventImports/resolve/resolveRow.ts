@@ -19,19 +19,39 @@ import type { TargetScope } from './targetScope'
 import type { RawImportRow } from '../csv/columns'
 import type { Temporal } from '@js-temporal/polyfill'
 
+import { subdivisionCodeFor } from '@/lib/geography'
 import { getLanguageOptions } from '@/lib/locales'
 import type { GeocodedLocation } from '@/lib/mapbox/geocoder'
 import type { SupportedTimezones } from '@/payload-types'
 
+import { metersBetween, type Point } from './distance'
 import { cityKeyFor } from './duplicates'
 import { scheduleKey, type ScheduleKey } from './schedule'
 import { deriveImportTimezone } from './timezone'
 import { mapCsvSchedule, scheduleArgsFor } from '../csv/schedule'
 
-/** Mapbox `types` for a street address — the same pair the admin address field searches. */
-const ADDRESS_TYPES = 'address,poi'
+/**
+ * Mapbox `types` for a street address: the pair the admin address field
+ * searches, then the coarser layers a row still places by when its address is
+ * not one Mapbox holds. A coarser answer resolves with a warning instead of
+ * failing the row, and `approximate` keeps its point out of the address rules.
+ */
+const ADDRESS_TYPES = 'address,poi,street,postcode,place,locality'
 /** Mapbox `types` for placing a class by its town alone. */
 const PLACE_TYPES = 'place,locality'
+
+/** The `feature_type`s that are a door rather than the area around one. */
+const PRECISE_FEATURE_TYPES = new Set(['address', 'poi'])
+
+/**
+ * How far a row's own coordinates may sit from its geocode.
+ *
+ * Generous on purpose: what these catch is a pair swapped or sign-flipped,
+ * which lands hundreds of kilometres out, not a pin dropped down the road. A
+ * town-level geocode is the town's centre, so the bound widens to a metro area.
+ */
+const EXPLICIT_POINT_BOUND_METERS = 25_000
+const EXPLICIT_POINT_TOWN_BOUND_METERS = 100_000
 
 export type GeocodeRequest =
   | { kind: 'query'; query: string; types: string; countryCode: string }
@@ -43,14 +63,18 @@ export type GeocodeRequest =
  *
  * The country is checked against the target **before** the call: a file holding
  * another country's classes would otherwise spend one geocode per row to learn
- * what its own `country` column already said.
+ * what its own `country` column already said. A territory's row may declare
+ * either code (`MQ` or `FR`), and is searched for under the territory's.
  */
 export function geocodeRequestFor(values: RawImportRow, scope: TargetScope): GeocodeRequest {
   const declared = values.country?.trim().toUpperCase() ?? ''
-  if (declared !== scope.countryCode) {
+  if (declared !== scope.countryCode && declared !== scope.parentCountryCode) {
+    const target = scope.parentCountryCode
+      ? `${scope.countryCode} or ${scope.parentCountryCode}`
+      : scope.countryCode
     return {
       kind: 'error',
-      errors: [`country "${values.country ?? ''}" is outside the target (${scope.countryCode})`],
+      errors: [`country "${values.country ?? ''}" is outside the target (${target})`],
     }
   }
 
@@ -72,7 +96,7 @@ export function geocodeRequestFor(values: RawImportRow, scope: TargetScope): Geo
       kind: 'query',
       query: [city, state].filter(Boolean).join(', '),
       types: PLACE_TYPES,
-      countryCode: declared,
+      countryCode: scope.countryCode,
     }
   }
 
@@ -85,7 +109,7 @@ export function geocodeRequestFor(values: RawImportRow, scope: TargetScope): Geo
       .filter(Boolean)
       .join(', '),
     types: ADDRESS_TYPES,
-    countryCode: declared,
+    countryCode: scope.countryCode,
   }
 }
 
@@ -116,8 +140,19 @@ export interface ResolvedRow extends ScheduleKey {
   placeId: string | null
   /** The matched feature's id, which an offline row stores as its `address.mapboxId`. */
   mapboxId: string | null
-  /** ISO 3166-2 subdivision, for the state layer the proposal may add. */
+  /**
+   * ISO 3166-2 subdivision, for the state layer the proposal may add — the
+   * code `getRegionOptions` lists wherever Mapbox's answer maps to one.
+   */
   subdivisionCode: string | null
+  /**
+   * The `region` layer's Mapbox id, for matching a proposed state to an
+   * existing region. Optional, like `approximate`, because the stored rows
+   * this type reads back may predate both.
+   */
+  regionMapboxId?: string | null
+  /** The geocode reached only the street or the town, so the point is not a hall. */
+  approximate?: boolean
   /** Resolved languages, the row's own column or the batch default. */
   languages: string[]
   /** True for a dormant class, which carries no schedule at all. */
@@ -132,12 +167,15 @@ export interface ResolvedRow extends ScheduleKey {
   anchorDate: string
 }
 
-export type ResolveRowResult = { ok: true; resolved: ResolvedRow } | { ok: false; errors: string[] }
+export type ResolveRowResult =
+  /** `warnings` are for the reviewer and do not stop the row. */
+  | { ok: true; resolved: ResolvedRow; warnings: string[] }
+  | { ok: false; errors: string[] }
 
 export interface ResolveRowArgs {
   values: RawImportRow
   scope: TargetScope
-  /** Mapbox's answer, or null for a miss, an exhausted retry or a missing token. */
+  /** Mapbox's answer, or null for a miss. */
   location: GeocodedLocation | null
   /** Languages for a row whose own column is blank. */
   defaultLanguages: string[]
@@ -160,6 +198,7 @@ export function resolveRow({
   }
 
   const errors: string[] = []
+  const warnings: string[] = []
 
   // ⚠ Checked even though the query was restricted to the row's own country:
   // Mapbox honours `country` as a filter, not a guarantee, and this is the last
@@ -170,21 +209,61 @@ export function resolveRow({
       `this address geocoded to ${location.countryCode.toUpperCase()}, outside the target (${scope.countryCode})`,
     )
   }
+
+  // Read back through the dataset's own codes, which is where the target's
+  // code came from — Mapbox's can follow another scheme (Spain's communities,
+  // where the dataset lists provinces). One the dataset lacks stays as sent.
+  const listed = subdivisionCodeFor(scope.countryCode, location.subdivisionCode)
+  const landed = listed ?? location.subdivisionCode?.toUpperCase() ?? null
   if (scope.subdivisionCode) {
     // A null subdivision fails rather than passes: the target is one state, and
     // "Mapbox did not say which" is not evidence the row is inside it.
-    // Uppercased on both sides, like the country above: `region_code` arrives
-    // from Mapbox verbatim and nothing normalises it on the way in.
-    if (location.subdivisionCode?.toUpperCase() !== scope.subdivisionCode.toUpperCase()) {
+    if (landed !== scope.subdivisionCode.toUpperCase()) {
       errors.push(
-        `this address is in ${location.subdivisionCode ?? 'an unknown subdivision'}, outside the target (${scope.subdivisionCode})`,
+        `this address is in ${landed ?? 'an unknown subdivision'}, outside the target (${scope.subdivisionCode})`,
+      )
+    }
+  } else {
+    // A whole-country target has no state to confine to, so the row's own
+    // `state` column is the only check on which Springfield Mapbox picked. It
+    // is applied only where both sides are codes the dataset lists: GB's
+    // councils never equal Mapbox's England, and that is no evidence of a
+    // wrong match.
+    const declared = subdivisionCodeFor(scope.countryCode, values.state)
+    if (declared && listed && declared !== listed) {
+      errors.push(
+        `this address geocoded to ${listed}, but the row's state says ${declared} — check the address and the state`,
       )
     }
   }
 
-  const point = explicitPoint(values) ?? location
-  const coordinateError = explicitPointError(values)
+  const precise = !location.featureType || PRECISE_FEATURE_TYPES.has(location.featureType)
+  const explicit = explicitPoint(values)
+  const coordinateError =
+    explicitPointError(values) ??
+    (explicit &&
+      explicitPointConflict(
+        explicit,
+        location,
+        precise ? EXPLICIT_POINT_BOUND_METERS : EXPLICIT_POINT_TOWN_BOUND_METERS,
+      ))
   if (coordinateError) errors.push(coordinateError)
+  // A refused pair is not used even to read the zone, so the row's other
+  // errors are judged against the geocode rather than against a point at sea.
+  const point = explicit && !coordinateError ? explicit : location
+
+  // An online row asked for a town, so a town is its exact answer; and a row
+  // that gave its own coordinates has its point from them, not the geocode.
+  const approximate = values.eventType !== 'online' && !precise && point === location
+  if (approximate) {
+    const area =
+      location.featureType === 'street' || location.featureType === 'postcode'
+        ? location.featureType
+        : 'town'
+    warnings.push(
+      `Mapbox only found the ${area}, not the address — check it, or add latitude and longitude`,
+    )
+  }
 
   const cityKey = cityKeyFor(location.placeName) ?? cityKeyFor(values.city)
   if (!cityKey) {
@@ -230,11 +309,14 @@ export function resolveRow({
       placeName: location.placeName,
       placeId: location.placeId,
       mapboxId: location.mapboxId,
-      subdivisionCode: location.subdivisionCode,
+      subdivisionCode: landed,
+      regionMapboxId: location.regionMapboxId,
+      approximate,
       languages: languages.languages,
       inactive: schedule.inactive,
       anchorDate: anchorDate.toString(),
     },
+    warnings,
   }
 }
 
@@ -266,6 +348,40 @@ function explicitPointError(values: RawImportRow): string | null {
   if (!latitude && !longitude) return null
   if (!latitude || !longitude) return 'latitude and longitude must be given together'
   return explicitPoint(values) ? null : 'latitude and longitude must be decimal degrees in range'
+}
+
+/**
+ * Why a well-formed pair still cannot be the row's point, when it cannot.
+ *
+ * ⚠ **A pair in range is not a pair that was meant.** Berlin's swapped is a
+ * point in Yemen, and `0, 0` is what an empty spreadsheet cell exports as —
+ * both pass the range check, and either would override the geocode and set the
+ * zone, publishing the class in `Asia/Aden` or `Etc/GMT` with nothing on the
+ * row to say so.
+ */
+function explicitPointConflict(point: Point, geocoded: Point, boundMeters: number): string | null {
+  if (point.latitude === 0 && point.longitude === 0) {
+    return 'latitude and longitude of 0, 0 is not a real location — leave both blank to place the class by its address'
+  }
+  const meters = metersBetween(point, geocoded)
+  if (meters <= boundMeters) return null
+  return `latitude and longitude are ${Math.round(meters / 1000)} km from where the address geocoded — ${misreadingOf(point, geocoded, boundMeters)}`
+}
+
+/** The likely slip behind a far-off pair, named when one of them fits. */
+function misreadingOf(point: Point, geocoded: Point, boundMeters: number): string {
+  const fits = (candidate: Point) => metersBetween(candidate, geocoded) <= boundMeters
+  const { latitude, longitude } = point
+  if (Math.abs(longitude) <= 90 && fits({ latitude: longitude, longitude: latitude })) {
+    return 'they look swapped; latitude comes first'
+  }
+  const flipped: Point[] = [
+    { latitude: -latitude, longitude },
+    { latitude, longitude: -longitude },
+    { latitude: -latitude, longitude: -longitude },
+  ]
+  if (flipped.some(fits)) return 'a sign looks flipped (south and west are negative)'
+  return 'check whether they are swapped or a sign is flipped, or leave both blank to use the address'
 }
 
 function finiteNumber(value: string | undefined): number | null {

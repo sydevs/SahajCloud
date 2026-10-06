@@ -8,7 +8,7 @@ export interface GeographyOption {
 interface CountryRegionEntry {
   countryName: string
   countryShortCode: string
-  regions: { name: string; shortCode: string }[]
+  regions: { name: string; shortCode?: string }[]
 }
 
 /**
@@ -42,13 +42,20 @@ export function getCountryOptions(): GeographyOption[] {
  * Returns `[]` for an unknown/empty country code (e.g. before a country is
  * picked, or for countries with no listed subdivisions).
  *
+ * ⚠ **A subdivision the dataset lists without a code is left out.** All of
+ * `PR`'s and `FO`'s, one of `KZ`'s and `MK`'s, and most small territories' have
+ * none, and an option with no value is one no select can store and every
+ * caller's `.toUpperCase()` throws on.
+ *
  * Backs the cascading address `region` dropdown.
  */
 export function getRegionOptions(countryCode: string | null | undefined): GeographyOption[] {
   if (!countryCode) return []
   const country = countries.find((entry) => entry.countryShortCode === countryCode)
   if (!country) return []
-  return country.regions.map(({ name, shortCode }) => ({ label: name, value: shortCode }))
+  return country.regions.flatMap(({ name, shortCode }) =>
+    shortCode ? [{ label: name, value: shortCode }] : [],
+  )
 }
 
 /** Whether `value` is an ISO alpha-2 code this project's country set lists. */
@@ -75,6 +82,12 @@ export function countryCodeForName(name: string | null | undefined): string | nu
  * fallback below covers a result shape the one above it misses, and dropping one
  * leaves the subdivision empty for whole countries rather than for odd rows.
  *
+ * ⚠ **The answer is the code `getRegionOptions` lists wherever one matches**,
+ * because that list is what an address `region` select stores and a target is
+ * confined by. Mapbox's own code is returned only when nothing in the list
+ * answers to its code or its name — `ENG` for England, which `GB`'s councils
+ * do not include. See `SUBDIVISION_CODE_ALIASES` for where the two disagree.
+ *
  * The name match needs `countryCode` because a subdivision name is unique only
  * within its country.
  */
@@ -83,17 +96,16 @@ export function resolveSubdivisionCode(
   countryCode: string | null | undefined,
 ): string | null {
   if (!region) return null
-  if (region.region_code) return region.region_code
-  if (region.region_code_full?.includes('-'))
-    return region.region_code_full.split('-').pop() ?? null
-  if (region.name && countryCode) {
-    const name = region.name.toLowerCase()
-    const match = getRegionOptions(countryCode).find(
-      (option) => option.label.toLowerCase() === name,
-    )
-    if (match) return match.value
-  }
-  return null
+  const code =
+    region.region_code ||
+    (region.region_code_full?.includes('-') ? region.region_code_full.split('-').pop() : null) ||
+    null
+  const index = indexFor(countryCode)
+  const listed =
+    (code && index?.codes.get(code.toLowerCase())) ||
+    (region.name && index && byName(index, region.name)) ||
+    null
+  return listed ?? code
 }
 
 /**
@@ -103,7 +115,8 @@ export function resolveSubdivisionCode(
  * than `resolveSubdivisionCode` above: that one reads a Mapbox answer, where the
  * code arrives under its own key. This one reads text a person typed or a slug
  * carries, so it accepts either spelling of an option — the code (`BY`) or the
- * name — and matches without regard to case.
+ * name — and matches without regard to case, accents, or the words one spelling
+ * of a name carries and another drops ("Comunidad de Madrid" is `Madrid`).
  *
  * ⚠ **ISO lists the endonym, so an English exonym does not match.** `DE` holds
  * `Bayern`, never `Bavaria`. A caller with a geocoded answer should prefer it
@@ -112,31 +125,114 @@ export function resolveSubdivisionCode(
  * ⚠ **Indexed per country, because a caller may ask per row.** `getRegionOptions`
  * re-scans 249 countries and allocates an object per subdivision on each call —
  * 217 of them for `GB`. The index is built once per country and bounded by the
- * 249 the table holds.
+ * 249 the table holds, which is why an unknown country is never cached.
  */
 export function subdivisionCodeFor(
   countryCode: string | null | undefined,
   text: string | null | undefined,
 ): string | null {
   const needle = text?.trim().toLowerCase()
-  const country = countryCode?.trim().toUpperCase()
-  if (!needle || !country) return null
-  return subdivisionIndexFor(country).get(needle) ?? null
+  const index = indexFor(countryCode)
+  if (!needle || !index) return null
+  // Codes first, so a code wins where it collides with some other
+  // subdivision's name.
+  return index.codes.get(needle) ?? byName(index, needle)
 }
 
-const subdivisionIndexes = new Map<string, Map<string, string>>()
+/**
+ * Codes Mapbox answers with for a subdivision the dataset lists under another,
+ * per country.
+ *
+ * ⚠ **Each is a scheme mismatch, so a state target there refused every row.**
+ * Mapbox returns Spain's autonomous communities where `country-region-data`
+ * lists provinces, so only the communities that are one province have a code
+ * to map to — Catalonia is four, and stays unmatched. India's are ISO renames
+ * the dataset predates, and the two territories ISO merged into `DH`.
+ */
+const SUBDIVISION_CODE_ALIASES: Partial<Record<string, Record<string, string>>> = {
+  ES: { MD: 'M', AS: 'O', CB: 'S', RI: 'LO', IB: 'PM', MC: 'MU', NC: 'NA' },
+  IN: { CG: 'CT', UK: 'UT', OD: 'OR', TS: 'TG', DN: 'DH', DD: 'DH' },
+}
 
-function subdivisionIndexFor(country: string): Map<string, string> {
+/** The words one spelling of a subdivision's name carries and another drops. */
+const GENERIC_NAME_WORDS = new Set([
+  'autonomous',
+  'community',
+  'comunidad',
+  'comunitat',
+  'de',
+  'del',
+  'el',
+  'foral',
+  'la',
+  'of',
+  'principado',
+  'principality',
+  'province',
+  'provincia',
+  'region',
+  'state',
+  'the',
+])
+
+/** A name reduced to the words that tell one subdivision from another. */
+function nameKey(name: string): string {
+  return name
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .toLowerCase()
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter((word) => word && !GENERIC_NAME_WORDS.has(word))
+    .join(' ')
+}
+
+interface SubdivisionIndex {
+  codes: Map<string, string>
+  names: Map<string, string>
+}
+
+function byName(index: SubdivisionIndex, name: string): string | null {
+  const exact = name.trim().toLowerCase()
+  return index.names.get(exact) ?? index.names.get(nameKey(exact)) ?? null
+}
+
+/** The country's index, or null for a code the table does not hold — which is never cached. */
+function indexFor(countryCode: string | null | undefined): SubdivisionIndex | null {
+  const country = countryCode?.trim().toUpperCase()
+  return country && isCountryCode(country) ? subdivisionIndexFor(country) : null
+}
+
+const subdivisionIndexes = new Map<string, SubdivisionIndex>()
+
+function subdivisionIndexFor(country: string): SubdivisionIndex {
   const cached = subdivisionIndexes.get(country)
   if (cached) return cached
 
-  const index = new Map<string, string>()
-  for (const { label, value } of getRegionOptions(country)) {
-    // The code is set last, so it wins where it collides with some other
-    // subdivision's name.
-    index.set(label.toLowerCase(), value)
-    index.set(value.toLowerCase(), value)
+  const options = getRegionOptions(country)
+  const codes = new Map<string, string>()
+  const names = new Map<string, string>()
+  const prefix = `${country.toLowerCase()}-`
+  for (const { label, value } of options) {
+    const code = value.toLowerCase()
+    codes.set(code, value)
+    // `DK` and `FI` list `DK-84` where Mapbox and a person both write `84`.
+    if (code.startsWith(prefix)) codes.set(code.slice(prefix.length), value)
+    // A label like `Navarra/Nafarroa` lists both languages' names.
+    for (const spelling of label.split('/')) names.set(spelling.trim().toLowerCase(), value)
   }
+  for (const [alias, value] of Object.entries(SUBDIVISION_CODE_ALIASES[country] ?? {})) {
+    if (!codes.has(alias.toLowerCase())) codes.set(alias.toLowerCase(), value)
+  }
+  // Reduced names go in last and never displace an exact one: two names can
+  // reduce to the same words, and the exact spelling is the stronger match.
+  for (const { label, value } of options) {
+    for (const spelling of label.split('/')) {
+      const key = nameKey(spelling)
+      if (key && !names.has(key)) names.set(key, value)
+    }
+  }
+
+  const index = { codes, names }
   subdivisionIndexes.set(country, index)
   return index
 }
