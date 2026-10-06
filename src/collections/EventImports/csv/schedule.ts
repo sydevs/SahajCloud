@@ -19,7 +19,6 @@ import type { RawImportRow } from './columns'
 
 import { Temporal } from '@js-temporal/polyfill'
 
-
 import { localWallTimeToInstant, normalizeHHMM } from '@/lib/schedule/time'
 import {
   isWeekNumber,
@@ -122,11 +121,11 @@ const MIN_INTERVAL = 1
 const MAX_INTERVAL = 99
 
 /**
- * Schedule columns each type does not read.
- *
- * A value in one of these is a misunderstanding, not a spare field, so it is
- * reported rather than dropped.
+ * The last day of the month every month has. A monthly `date` past it lands on
+ * a day some months lack, and the recurrence skips those months outright.
  */
+const MAX_SAFE_MONTH_DAY = 28
+
 /** The schedule columns that arrive as raw CSV text. */
 type ScheduleColumn =
   | 'date'
@@ -137,10 +136,25 @@ type ScheduleColumn =
   | 'monthWeek'
   | 'untilDate'
 
-const IGNORED_COLUMNS: Record<Exclude<ScheduleType, 'inactive'>, readonly ScheduleColumn[]> = {
+/**
+ * Schedule columns each type does not read.
+ *
+ * A value in one of these is a misunderstanding, not a spare field, so it is
+ * reported rather than dropped.
+ */
+const IGNORED_COLUMNS: Record<ScheduleType, readonly ScheduleColumn[]> = {
   'one-off': ['weekdays', 'interval', 'monthWeek', 'untilDate'],
   weekly: ['monthWeek'],
   monthly: [],
+  inactive: ['date', 'startTime', 'endTime', 'weekdays', 'interval', 'monthWeek', 'untilDate'],
+}
+
+function ignoredColumnsError(type: ScheduleType, args: MapScheduleArgs): string | null {
+  const ignored = IGNORED_COLUMNS[type].filter((name) => args[name]?.trim())
+  if (!ignored.length) return null
+  const got = ignored.map((name) => `${name} "${args[name]!.trim()}"`).join(', ')
+  const article = type === 'inactive' ? 'an' : 'a'
+  return `${ignored.join(' and ')} ${ignored.length > 1 ? 'do' : 'does'} not apply to ${article} ${type} class (got ${got})`
 }
 
 function isScheduleType(value: string): value is ScheduleType {
@@ -236,7 +250,12 @@ export function mapCsvSchedule(args: MapScheduleArgs): MapScheduleResult {
       errors: [`scheduleType must be one of ${SCHEDULE_TYPES.join(', ')} (got "${rawType}")`],
     }
   }
-  if (rawType === 'inactive') return { ok: true, inactive: true }
+  if (rawType === 'inactive') {
+    // A dormant class with a time filled in is usually a weekly one marked
+    // wrong, and publishing it dormant would hide the time the volunteer gave.
+    const ignored = ignoredColumnsError(rawType, args)
+    return ignored ? { ok: false, errors: [ignored] } : { ok: true, inactive: true }
+  }
 
   const rawStartTime = args.startTime?.trim()
   const startTime = normalizeHHMM(rawStartTime)
@@ -270,7 +289,9 @@ export function mapCsvSchedule(args: MapScheduleArgs): MapScheduleResult {
   const rawInterval = args.interval?.trim()
   let interval = 1
   if (rawInterval) {
-    const parsed = Number(rawInterval)
+    // Digits only: `Number` also reads `1e1` and `0x10`, which a volunteer did
+    // not mean as 10 and 16.
+    const parsed = /^\d+$/.test(rawInterval) ? Number(rawInterval) : NaN
     if (!Number.isInteger(parsed) || parsed < MIN_INTERVAL || parsed > MAX_INTERVAL) {
       errors.push(
         `interval must be a whole number from ${MIN_INTERVAL} to ${MAX_INTERVAL} (got "${rawInterval}")`,
@@ -285,24 +306,30 @@ export function mapCsvSchedule(args: MapScheduleArgs): MapScheduleResult {
     errors.push(`weekdays must be two-letter codes like MO,TH (got "${invalid.join(', ')}")`)
   }
 
-  const ignored = IGNORED_COLUMNS[rawType].filter((name) => args[name]?.trim())
-  if (ignored.length) {
-    // Dropping them silently is how `scheduleType=weekly, monthWeek=2` used to
-    // publish a weekly class instead of a monthly one. `buildMonthly` already
-    // refused the mirror-image mistake, so the asymmetry was the tell.
-    errors.push(
-      `${ignored.join(' and ')} ${ignored.length > 1 ? 'do' : 'does'} not apply to a ${rawType} class`,
-    )
-  }
+  // Dropping them silently is how `scheduleType=weekly, monthWeek=2` used to
+  // publish a weekly class instead of a monthly one. `buildMonthly` already
+  // refused the mirror-image mistake, so the asymmetry was the tell.
+  const ignored = ignoredColumnsError(rawType, args)
+  if (ignored) errors.push(ignored)
 
   const built = buildFor(rawType, { explicitDate, weekdays, monthWeek: args.monthWeek, today })
   if (typeof built === 'string') errors.push(built)
+
+  // ⚠ **Against `today`, which is the stored anchor at commit.** Both steps
+  // compare against the same date, so a row the reviewer approved cannot be
+  // refused by a commit run the next morning.
+  const pastUntil = untilDate && Temporal.PlainDate.compare(untilDate, today) < 0
+  if (pastUntil) {
+    errors.push(
+      `untilDate ${untilDate.toString()} has already passed (today is ${today.toString()} in ${timezone}) — a class that has ended needs no import`,
+    )
+  }
 
   // The ending is compared against the resolved first date, not against the
   // `date` column: a weekly row leaving `date` blank still has a first date,
   // and an earlier `untilDate` there imported an event with zero occurrences —
   // already expired, with nothing on the row to say so.
-  if (untilDate && typeof built !== 'string') {
+  if (untilDate && !pastUntil && typeof built !== 'string') {
     if (Temporal.PlainDate.compare(untilDate, built.firstDate) < 0) {
       errors.push(`untilDate must be on or after the first date (${built.firstDate.toString()})`)
     }
@@ -373,11 +400,16 @@ function buildFor(type: Exclude<ScheduleType, 'inactive'>, args: BuildArgs): Bui
   }
 }
 
-function buildOneOff({ explicitDate }: BuildArgs): Built | string {
+function buildOneOff({ explicitDate, today }: BuildArgs): Built | string {
   // No fallback: "the next matching day" needs a weekday or an ordinal to
   // match, and a one-off row carries neither. Picking today would schedule
   // every such row for the day of the upload.
   if (!explicitDate) return 'date is required for a one-off class'
+  // A one-off in the past publishes a class that has already finished, which
+  // the expiry sweep would then retire on its first run.
+  if (Temporal.PlainDate.compare(explicitDate, today) < 0) {
+    return `date ${explicitDate.toString()} has already passed (today is ${today.toString()})`
+  }
   return { firstDate: explicitDate, recurrence: {} }
 }
 
@@ -425,6 +457,9 @@ function buildMonthly({
       return 'monthly with weekdays also needs monthWeek (1-4, or -1 for the last)'
     }
     if (!explicitDate) return 'monthly needs a date, or monthWeek plus one weekday'
+    if (explicitDate.day > MAX_SAFE_MONTH_DAY) {
+      return `a monthly class on day ${explicitDate.day} skips every month without one (got date "${explicitDate.toString()}") — for the last week of the month, use monthWeek -1 with one weekday`
+    }
     return {
       firstDate: explicitDate,
       recurrence: { recurrenceType: 'MONTHLY', monthlyMode: 'date', monthDay: explicitDate.day },

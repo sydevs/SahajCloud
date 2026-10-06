@@ -15,16 +15,24 @@ import { isProposableTargetLevel, unproposableTargetMessage } from '../propose/t
  * Bounds what the CSV parser is handed.
  *
  * `MAX_IMPORT_ROWS` rows with every column filled is about 150 KB, so this
- * leaves more than ten times the headroom a real file needs. It is not a bound
- * on the request — the body is already in memory by the time a schema sees it —
- * but on the parse, which would otherwise build millions of records before the
- * row cap refused them.
+ * leaves three times the headroom a real file needs. It is not a bound on the
+ * request — the body is already in memory by the time a schema sees it — but
+ * on the parse, whose own record bounds (`csv/parse.ts`) are what keep a file of
+ * empty lines cheap.
  */
-const MAX_CSV_CHARACTERS = 2_000_000
+const MAX_CSV_CHARACTERS = 500_000
 
 const bodySchema = z.object({
   targetRegion: z.int().positive(),
-  csv: z.string().min(1).max(MAX_CSV_CHARACTERS),
+  // The messages are the volunteer's: the Import tab shows a 400's issues as
+  // they stand, and zod's own "Too big: expected string to have <=500000
+  // characters" names neither the file nor the fix.
+  csv: z
+    .string()
+    .min(1, { error: 'The file is empty.' })
+    .max(MAX_CSV_CHARACTERS, {
+      error: `The file is larger than ${MAX_CSV_CHARACTERS.toLocaleString('en')} characters — split it into smaller files.`,
+    }),
   // The row-level default for every row whose own `languages` column is blank.
   // Validated against the same option set `Events.languages` offers, so a code
   // the collection would refuse cannot reach a row.
@@ -110,6 +118,7 @@ export const uploadEventImport: Endpoint = {
         // lock themselves out of the batch they just made.
         uploader: req.user!.id,
         status: 'uploaded',
+        uploadLocale: req.locale,
         defaultLanguages,
         rows: file.rows,
       },

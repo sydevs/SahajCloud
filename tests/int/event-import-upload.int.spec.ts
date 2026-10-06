@@ -261,8 +261,13 @@ describe('upload endpoint', () => {
         json: validBody(),
       })
 
-    it('admits the locale the manager holds the role in', async () => {
-      expect((await post('?locale=de')).status).toBe(200)
+    it('admits the locale the manager holds the role in, and records it on the batch', async () => {
+      const { status, body } = await post('?locale=de')
+      expect(status).toBe(200)
+
+      // ⚠ Every later step re-checks the role against this column, so a batch
+      // without it would be re-checked in the default locale and refused.
+      expect((await readBatch(body.id as number)).uploadLocale).toBe('de')
     })
 
     it('refuses a locale they hold no role in', async () => {
@@ -317,6 +322,28 @@ describe('upload endpoint', () => {
       expect(body.errors).toMatchObject([{ message: 'Not a language code: zz.' }])
     })
 
+    it('refuses an empty file in a sentence, not a schema message', async () => {
+      const { status, body } = await upload(uploader, validBody({ csv: '' }))
+
+      expect(status).toBe(400)
+      expect(body.errors).toMatchObject([{ message: 'The file is empty.' }])
+    })
+
+    it('refuses an oversized file before parsing it, and says to split it', async () => {
+      const { status, body } = await upload(
+        uploader,
+        validBody({ csv: `${HEADER}\n${'x'.repeat(500_001)}` }),
+      )
+
+      expect(status).toBe(400)
+      expect(body.errors).toMatchObject([
+        {
+          message:
+            'The file is larger than 500,000 characters — split it into smaller files.',
+        },
+      ])
+    })
+
     it('refuses an empty default language list', async () => {
       const { status } = await upload(uploader, validBody({ defaultLanguages: [] }))
       expect(status).toBe(400)
@@ -352,6 +379,10 @@ describe('upload endpoint', () => {
       )
 
       // The header the parser demands, served from the same column spec.
+      const bytes = new Uint8Array(await response.clone().arrayBuffer())
+      // ⚠ The UTF-8 byte-order mark, read as bytes: `text()` strips it, and
+      // without it Excel opens the file in its legacy code page.
+      expect([...bytes.slice(0, 3)]).toEqual([0xef, 0xbb, 0xbf])
       const body = await response.text()
       expect(body.split('\n')[0]).toContain('title,eventType,country')
     })
