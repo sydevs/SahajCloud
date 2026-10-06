@@ -354,9 +354,8 @@ const payloadConfig = (overrides?: Partial<Config>) => {
         collections: [managersLoginHere()],
         invitations: !isSeedScript,
       }),
-      // Uploading notice (#888): gives every collection with `upload` the
-      // feedback a multipart save otherwise withholds. Late in the list so it
-      // also covers a collection a plugin above added.
+      // Uploading notice (#888). Late in the list so it also covers a
+      // collection a plugin above added.
       uploadNoticePlugin,
       // Access Plugin: Unified RBAC and project visibility (must be LAST to process plugin-created collections)
       accessPlugin({

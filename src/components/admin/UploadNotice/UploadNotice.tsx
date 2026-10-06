@@ -12,9 +12,6 @@ import { Spinner, useFormFields, useFormProcessing } from '@payloadcms/ui'
  * initializes. The staged `File` sits at form state's `file` path, where
  * Payload's own `<Upload>` writes it through `useField({ path: 'file' })`, so
  * the two together mean bytes are in flight.
- *
- * Mounted for every upload collection by `uploadNoticePlugin`. A collection
- * with its own Upload component composes it instead — see `AudioUpload`.
  */
 export function UploadNotice() {
   const processing = useFormProcessing()

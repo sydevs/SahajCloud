@@ -1,21 +1,23 @@
 import type { Config } from 'payload'
 
 /**
- * The component the plugin wires. A string path, not an import: Payload
- * resolves `admin.components` through the generated import map, and importing
- * a client component here would pull it into the server config graph.
+ * A string path, not an import: Payload resolves `admin.components` through the
+ * generated import map, and importing a client component here would pull it
+ * into the server config graph.
  */
-export const UPLOAD_WITH_NOTICE = '@/components/admin/UploadNotice'
+export const UPLOAD_NOTICE = '@/components/admin/UploadNotice'
 
 /**
  * Gives every upload collection the uploading notice, so a new one cannot ship
  * without feedback during a multipart save (#888).
  *
- * Coverage is the point: wiring `edit.Upload` per collection is a step someone
- * forgets, which is how the admin who reported #888 waited on a frozen page.
- * A collection that already names its own Upload component is left alone and
- * composes `<UploadNotice />` itself — overriding it would drop the audio
- * player and the frame-drift banner.
+ * `beforeDocumentControls` is an **additive** array slot, rendered
+ * unconditionally beside the Save button and inside the `<Form>` the notice
+ * reads. That is what makes the coverage total: the `edit.Upload` slot
+ * *replaces* Payload's upload box, so mounting there would mean skipping any
+ * collection with its own Upload component — `AudioUpload` today, and silently
+ * every future one — and re-implementing Payload's own call site, props
+ * included.
  *
  * Register before `accessPlugin`, which must stay last.
  */
@@ -24,7 +26,8 @@ export function uploadNoticePlugin(config: Config): Config {
     ...config,
     collections: config.collections?.map((collection) => {
       if (!collection.upload) return collection
-      if (collection.admin?.components?.edit?.Upload) return collection
+
+      const edit = collection.admin?.components?.edit
 
       return {
         ...collection,
@@ -33,8 +36,11 @@ export function uploadNoticePlugin(config: Config): Config {
           components: {
             ...collection.admin?.components,
             edit: {
-              ...collection.admin?.components?.edit,
-              Upload: UPLOAD_WITH_NOTICE,
+              ...edit,
+              beforeDocumentControls: [
+                ...(edit?.beforeDocumentControls ?? []),
+                UPLOAD_NOTICE,
+              ],
             },
           },
         },

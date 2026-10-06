@@ -9,7 +9,6 @@ import {
   useLivePreviewContext,
 } from '@payloadcms/ui'
 
-import { UploadNotice } from '@/components/admin/UploadNotice/UploadNotice'
 import { countFramesBeyondDuration } from '@/lib/meditations/framesBeyondDuration'
 
 /** Format a whole-second count as M:SS for the drift banner. */
@@ -29,14 +28,14 @@ function formatSeconds(totalSeconds: number): string {
  * and non-admin replacement are blocked server-side by the restrictUploadToAdmin
  * beforeChange hook.
  *
- * On top of native <Upload> it adds an <audio> player for the saved file, and
- * composes <UploadNotice /> — uploadNoticePlugin skips a collection that names
- * its own Upload component, so overriding this one would cost the player and
- * the drift banner below.
+ * On top of native <Upload> it adds an <audio> player for the saved file.
  *
- * `initialState` is forwarded for the reason spelled out in `UploadWithNotice`:
- * without it the Bulk Upload drawer, which stages each file into its own form,
- * renders an empty box instead of the file. Songs reaches that drawer —
+ * ⚠ `initialState` must be forwarded, and nothing marks its absence. A
+ * replacement Upload component receives no props, so everything Payload passes
+ * at its own call sites has to be re-sourced here. `<Upload>` sets `fileSrc`
+ * from it on mount and gates the staged-file block on `value && fileSrc`, so
+ * without it the Bulk Upload drawer — which stages each file into its own form
+ * rather than clicking — renders an empty box. Songs reaches that drawer;
  * Meditations sets `bulkUpload: false`.
  *
  * Meditations-only extras, inert for collections without these fields:
@@ -82,7 +81,6 @@ export default function AudioUpload() {
         initialState={initialState}
         uploadConfig={uploadConfig}
       />
-      <UploadNotice />
       {audioUrl && (
         <audio
           key={audioUrl}
