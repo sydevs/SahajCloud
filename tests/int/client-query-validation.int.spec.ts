@@ -1,6 +1,7 @@
 import type { Payload, PayloadRequest } from 'payload'
 
 import { sanitizePopulateParam, sanitizeSelectParam } from 'payload'
+import { isNumber } from 'payload/shared'
 import * as qs from 'qs-esm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -36,7 +37,12 @@ function parseRestQuery(url: string): Record<string, unknown> {
   if ('populate' in args) {
     args.populate = sanitizePopulateParam(args.populate as never)
   }
-  if (typeof args.depth === 'string') args.depth = Number(args.depth)
+  // `parseParams` coerces these three only when payload's own `isNumber`
+  // passes. A REST case added without this passes vacuously — the string
+  // '2001' is not > 2000.
+  for (const key of ['depth', 'limit', 'page']) {
+    if (key in args && isNumber(args[key])) args[key] = Number(args[key])
+  }
   return args
 }
 
@@ -180,6 +186,146 @@ describe('Client query parameter validation', () => {
     })
   })
 
+  // Unbounded, `limit` and `page` each reach Postgres on their own and return
+  // 500 rather than 400 (#887). The overflow for `page` is the
+  // `(page - 1) * limit` offset, which is why bounding `limit` alone is not
+  // enough.
+  describe('limit and page bounds', () => {
+    const OVERFLOW = 99999999999999999999
+
+    it('rejects a limit above the cap', async () => {
+      await expect(
+        payload.find({
+          collection: 'narrators',
+          select: { name: true },
+          depth: 1,
+          limit: OVERFLOW,
+          req: clientReq(),
+          overrideAccess: true,
+        }),
+      ).rejects.toThrow(/"limit".*2000/)
+    })
+
+    it('rejects a page above the bound', async () => {
+      await expect(
+        payload.find({
+          collection: 'narrators',
+          select: { name: true },
+          depth: 1,
+          page: OVERFLOW,
+          req: clientReq(),
+          overrideAccess: true,
+        }),
+      ).rejects.toThrow(/"page".*10000/)
+    })
+
+    // `page: -1` is the shortest route to the same 500: the offset reaches
+    // Postgres as `OFFSET -20`. A negative `limit` is swallowed by the
+    // adapter instead, and is refused by the same rule rather than splitting
+    // it in two.
+    it('rejects a negative page', async () => {
+      await expect(
+        payload.find({
+          collection: 'narrators',
+          select: { name: true },
+          depth: 1,
+          page: -1,
+          req: clientReq(),
+          overrideAccess: true,
+        }),
+      ).rejects.toThrow(/"page"/)
+    })
+
+    it('rejects a negative limit', async () => {
+      await expect(
+        payload.find({
+          collection: 'narrators',
+          select: { name: true },
+          depth: 1,
+          limit: -1,
+          req: clientReq(),
+          overrideAccess: true,
+        }),
+      ).rejects.toThrow(/"limit"/)
+    })
+
+    it('rejects a limit above the cap sent in REST format', async () => {
+      const args = parseRestQuery('?select[name]=true&depth=1&limit=2001')
+      expect(args.limit).toBe(2001)
+      await expect(
+        payload.find({
+          collection: 'narrators',
+          ...args,
+          req: clientReq(),
+          overrideAccess: true,
+        } as Parameters<typeof payload.find>[0]),
+      ).rejects.toThrow(/"limit".*2000/)
+    })
+
+    it('allows a limit at the cap', async () => {
+      const result = await payload.find({
+        collection: 'narrators',
+        select: { name: true },
+        depth: 1,
+        limit: 2000,
+        req: clientReq(),
+        overrideAccess: true,
+      })
+      expect(result.docs).toHaveLength(1)
+    })
+
+    it('allows a page at the bound', async () => {
+      const result = await payload.find({
+        collection: 'narrators',
+        select: { name: true },
+        depth: 1,
+        page: 10000,
+        req: clientReq(),
+        overrideAccess: true,
+      })
+      expect(result.page).toBe(10000)
+    })
+
+    it('allows an absent limit and page', async () => {
+      const result = await payload.find({
+        collection: 'narrators',
+        select: { name: true },
+        depth: 1,
+        req: clientReq(),
+        overrideAccess: true,
+      })
+      expect(result.docs).toHaveLength(1)
+    })
+
+    // `limit: 0` and `pagination: false` are payload's two spellings of an
+    // unbounded read. Both stay allowed here — the Atlas widget sends the
+    // second on three live feeds, so refusing them is a policy decision with a
+    // downstream migration behind it, not part of closing the 500.
+    it('allows limit=0', async () => {
+      const result = await payload.find({
+        collection: 'narrators',
+        select: { name: true },
+        depth: 1,
+        limit: 0,
+        req: clientReq(),
+        overrideAccess: true,
+      })
+      expect(result.docs).toHaveLength(1)
+    })
+
+    it('allows pagination=false', async () => {
+      const result = await payload.find({
+        collection: 'narrators',
+        select: { name: true },
+        depth: 1,
+        pagination: false,
+        req: clientReq(),
+        overrideAccess: true,
+      })
+      expect(result.docs).toHaveLength(1)
+    })
+  })
+
   describe('scope — who is affected', () => {
     it('does not affect manager requests without select or populate', async () => {
       const manager = await payload.findByID({
@@ -193,6 +339,24 @@ describe('Client query parameter validation', () => {
 
       const result = await payload.find({
         collection: 'narrators',
+        req: managerReq,
+      })
+      expect(result.docs).toHaveLength(1)
+    })
+
+    it('does not affect a manager request carrying a huge limit', async () => {
+      const manager = await payload.findByID({
+        collection: 'managers',
+        id: adminUserId,
+      })
+      const managerReq = {
+        user: manager,
+        headers: new Headers(),
+      } as unknown as PayloadRequest
+
+      const result = await payload.find({
+        collection: 'narrators',
+        limit: 99999999,
         req: managerReq,
       })
       expect(result.docs).toHaveLength(1)

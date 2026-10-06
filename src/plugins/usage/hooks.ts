@@ -121,12 +121,16 @@ export type ClientReadGate = (args: ClientReadGateArgs) => void | Promise<void>
 function readOperationArgs(args: unknown): {
   currentDepth?: unknown
   depth?: unknown
+  limit?: unknown
+  page?: unknown
   populate?: unknown
   select?: unknown
 } {
   return (args ?? {}) as {
     currentDepth?: unknown
     depth?: unknown
+    limit?: unknown
+    page?: unknown
     populate?: unknown
     select?: unknown
   }
@@ -182,11 +186,29 @@ export const rateLimitHook: ClientReadGate = () => {
 // --- Query parameter validation hook ---
 
 /**
+ * The largest `limit` an API client may ask for in one read (#887).
+ *
+ * Our own largest paginated read is 1000 (`tasks.ts`), and the largest any
+ * consumer sends is 100, so this is headroom rather than a constraint.
+ */
+export const MAX_CLIENT_LIMIT = 2000
+
+/**
+ * The largest `page` an API client may ask for (#887).
+ *
+ * `limit` alone does not bound what reaches SQL: the adapter offsets by
+ * `(page - 1) * limit`, so an unbounded `page` overflows the driver on its
+ * own. At both ceilings the offset stays under 2 × 10⁷.
+ */
+export const MAX_CLIENT_PAGE = 10_000
+
+/**
  * A beforeOperation hook that forces API clients to declare their data needs explicitly.
  *
  * - `select` is required on every client read, so a client cannot pull whole documents.
  * - `populate` is required when the effective `depth > 1`, so a client
  *   cannot auto-populate every relationship.
+ * - `limit` and `page` are bounded, so neither reaches Postgres out of range.
  *
  * Validation is argument-based, not URL-based. Payload's REST handler
  * parses URL query params (for example `?select[title]=true`) into
@@ -279,6 +301,45 @@ export const validateClientQueryParamsHook: ClientReadGate = ({ args, operation,
       400,
     )
   }
+
+  assertWithinBound('limit', findArgs.limit, MAX_CLIENT_LIMIT, req)
+  assertWithinBound('page', findArgs.page, MAX_CLIENT_PAGE, req)
+}
+
+/**
+ * Refuse a `limit` or `page` that would reach Postgres out of range (#887).
+ *
+ * Unbounded, either one alone returns 500 rather than 400: the driver
+ * overflows on a 20-digit `limit`, and on the `(page - 1) * limit` offset a
+ * 20-digit `page` produces. A negative `page` reaches the same 500 by a
+ * shorter route, as `OFFSET -20`. A negative `limit` does not — the adapter
+ * swallows it — and is refused anyway rather than splitting the rule in two.
+ *
+ * Three shapes are deliberately left alone. `limit=0` is Payload's "no limit"
+ * sentinel and `page=0` is read as page 1, so bounding them is a policy
+ * decision rather than this fix, and refusing them here would break the Atlas
+ * widget's three `pagination: false` feeds. A non-numeric value stays a string
+ * through payload's `parseParams` and never reproduced a failure.
+ */
+function assertWithinBound(
+  name: 'limit' | 'page',
+  value: unknown,
+  max: number,
+  req: PayloadRequest,
+): void {
+  if (typeof value !== 'number') return
+  if (Number.isInteger(value) && value >= 0 && value <= max) return
+
+  req.payload.logger.warn({
+    msg: `Client query validation rejected: ${name} out of bounds`,
+    clientId: req.user?.id,
+    max,
+    value,
+  })
+  throw new APIError(
+    `The "${name}" query parameter must be a whole number between 0 and ${max} for API clients.`,
+    400,
+  )
 }
 
 /** Returns top-level keys of an object, or null for non-objects. Diagnostic-only. */
