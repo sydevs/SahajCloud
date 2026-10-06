@@ -223,15 +223,17 @@ export const validateClientQueryParamsHook: ClientReadGate = ({ args, operation,
 
   const findArgs = readOperationArgs(args)
 
+  // Payload's own population reads are exempt from every check below — their
+  // numbers are payload's, not the caller's.
+  if (typeof findArgs.currentDepth === 'number') {
+    return
+  }
+
   // Ahead of both bypasses below, because a range bound is a security gate
   // rather than a shape-declaration policy: a trusted endpoint that one day
-  // forwards a client's own `limit` would otherwise reopen the 500. Payload's
-  // internal population reads are exempt — their numbers are payload's, not
-  // the caller's.
-  if (typeof findArgs.currentDepth !== 'number') {
-    assertWithinBound('limit', findArgs.limit, MAX_CLIENT_LIMIT, req)
-    assertWithinBound('page', findArgs.page, MAX_CLIENT_PAGE, req)
-  }
+  // forwards a client's own `limit` would otherwise reopen the 500.
+  assertWithinBound('limit', findArgs.limit, MAX_CLIENT_LIMIT, req)
+  assertWithinBound('page', findArgs.page, MAX_CLIENT_PAGE, req)
 
   // A trusted internal endpoint that forwards the client req to
   // payload.find(...) can opt out by setting this context flag. It shapes
@@ -243,10 +245,6 @@ export const validateClientQueryParamsHook: ClientReadGate = ({ args, operation,
 
   // The same trust signal that unlocks drafts in `createAccessConfig`.
   if (isLivePreviewRequest(req)) {
-    return
-  }
-
-  if (typeof findArgs.currentDepth === 'number') {
     return
   }
 
