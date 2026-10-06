@@ -32,6 +32,7 @@ import { managersLoginHere, seedPreviewAdmin } from '@/plugins/previewAdmin'
 import { sentryPlugin } from '@/plugins/sentry'
 import { storagePlugin } from '@/plugins/storage'
 import { isProductionDeployment } from '@/plugins/storage/previewIsolation'
+import { uploadNoticePlugin } from '@/plugins/uploadNotice'
 import { usagePlugin } from '@/plugins/usage'
 import { writeGuardPlugin } from '@/plugins/writeGuard'
 
@@ -353,6 +354,10 @@ const payloadConfig = (overrides?: Partial<Config>) => {
         collections: [managersLoginHere()],
         invitations: !isSeedScript,
       }),
+      // Uploading notice (#888): gives every collection with `upload` the
+      // feedback a multipart save otherwise withholds. Late in the list so it
+      // also covers a collection a plugin above added.
+      uploadNoticePlugin,
       // Access Plugin: Unified RBAC and project visibility (must be LAST to process plugin-created collections)
       accessPlugin({
         enabled: true,

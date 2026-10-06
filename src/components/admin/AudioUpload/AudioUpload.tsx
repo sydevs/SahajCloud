@@ -9,6 +9,7 @@ import {
   useLivePreviewContext,
 } from '@payloadcms/ui'
 
+import { UploadNotice } from '@/components/admin/UploadNotice/UploadNotice'
 import { countFramesBeyondDuration } from '@/lib/meditations/framesBeyondDuration'
 
 /** Format a whole-second count as M:SS for the drift banner. */
@@ -28,7 +29,10 @@ function formatSeconds(totalSeconds: number): string {
  * and non-admin replacement are blocked server-side by the restrictUploadToAdmin
  * beforeChange hook.
  *
- * On top of native <Upload> it adds an <audio> player for the saved file.
+ * On top of native <Upload> it adds an <audio> player for the saved file, and
+ * composes <UploadNotice /> — uploadNoticePlugin skips a collection that names
+ * its own Upload component, so overriding this one would cost the player and
+ * the drift banner below.
  *
  * Meditations-only extras, inert for collections without these fields:
  * - a drift Banner when frame timestamps fall beyond the audio length (needs
@@ -69,6 +73,7 @@ export default function AudioUpload() {
   return (
     <>
       <Upload collectionSlug={collectionSlug} uploadConfig={uploadConfig} />
+      <UploadNotice />
       {audioUrl && (
         <audio
           key={audioUrl}
