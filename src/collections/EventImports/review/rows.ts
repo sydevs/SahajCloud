@@ -21,15 +21,34 @@
 import type { ExistingRegion } from '../propose/match'
 
 import { managerKeyOf, managerRoster } from '../commit/managers'
-import { isCommittable, type CommitRow } from '../commit/rows'
+import { duplicateAction, isCommittable, type CommitRow } from '../commit/rows'
 import { skipReasons } from '../commit/summary'
 import { existingRegionLabel } from '../propose/match'
 
 /** Why a row is or is not going to become a class. */
 export type ReviewRowStatus = 'committed' | 'duplicate' | 'error' | 'pending' | 'ready'
 
-/** Whether a committed class arrives with somebody vouching for it. */
-export type ReviewRowCoordinator = 'existing' | 'new' | 'none'
+/**
+ * Whether a committed class arrives with somebody vouching for it: an account
+ * the import links (`existing`), one it opens (`new`), one it holds but may not
+ * link (`unlinked` — `commit/coordinators.ts`), or nobody named.
+ */
+export type ReviewRowCoordinator = 'existing' | 'new' | 'none' | 'unlinked'
+
+/** A duplicate as the reviewer decides on it. */
+export interface ReviewDuplicate {
+  strength: 'strong' | 'weak'
+  /** The existing class it repeats, for the reviewer to open. */
+  eventId?: number
+  /** The earlier line of this file it repeats. */
+  line?: number
+  action: 'import' | 'overwrite' | 'skip'
+  /** Only a repeat of an existing class can overwrite it. */
+  overwritable: boolean
+}
+
+/** What the review learnt about an address the batch names. */
+export type AccountVerdict = 'linkable' | 'unlinkable'
 
 export interface ReviewRow {
   line: number
@@ -44,14 +63,19 @@ export interface ReviewRow {
   place: string | null
   /** Every reason the row is skipped, in the words the commit will report. */
   reasons: string[]
+  /** What the reviewer should know that does not stop the row. */
+  warnings: string[]
   coordinator: ReviewRowCoordinator
+  duplicate: ReviewDuplicate | null
 }
 
 export interface CoordinatorTally {
-  /** Addresses already holding an account, which the commit matches. */
+  /** Addresses already holding an account the commit links. */
   existing: number
   /** Addresses the commit opens an account for. */
   created: number
+  /** Addresses holding an account the commit may not link, whose classes go without one. */
+  unlinked: number
 }
 
 export interface ReviewRowsResult {
@@ -63,9 +87,10 @@ export interface ReviewRowsArgs {
   rows: readonly CommitRow[]
   /**
    * The lowercased addresses `managers` already holds, of those this batch
-   * names. The endpoint reads them; this decides nothing about who they are.
+   * names, and whether the commit may link each. The endpoint reads them; this
+   * decides nothing about who they are.
    */
-  knownEmails: ReadonlySet<string>
+  accounts: ReadonlyMap<string, AccountVerdict>
   /**
    * The stored tree's own refusals, which are not on the rows yet.
    *
@@ -86,20 +111,25 @@ export interface ReviewRowsArgs {
  * coordinator is one account, and a per-row count would tell a volunteer they
  * were about to open twelve.
  */
-export function reviewRows({ knownEmails, rows, treeRowErrors }: ReviewRowsArgs): ReviewRowsResult {
+export function reviewRows({ accounts, rows, treeRowErrors }: ReviewRowsArgs): ReviewRowsResult {
   const refusedByTree = new Map<number, string[]>()
   for (const { line, message } of treeRowErrors) {
     refusedByTree.set(line, [...(refusedByTree.get(line) ?? []), message])
   }
 
-  const newEmails = new Set<string>()
-  const existingEmails = new Set<string>()
+  const tallies: Record<Exclude<ReviewRowCoordinator, 'none'>, Set<string>> = {
+    existing: new Set(),
+    new: new Set(),
+    unlinked: new Set(),
+  }
 
   const reviewed = rows.map((row): ReviewRow => {
     const fromTree = refusedByTree.get(row.line) ?? []
     const email = managerKeyOf(row.values ?? {})
-    const rostered = email && isCommittable(row) && !fromTree.length ? email : null
-    if (rostered) (knownEmails.has(rostered) ? existingEmails : newEmails).add(rostered)
+    const coordinator = coordinatorOf(email, accounts)
+    if (email && coordinator !== 'none' && isCommittable(row) && !fromTree.length) {
+      tallies[coordinator].add(email)
+    }
 
     return {
       line: row.line,
@@ -107,13 +137,41 @@ export function reviewRows({ knownEmails, rows, treeRowErrors }: ReviewRowsArgs)
       title: row.values?.title?.trim() || null,
       place: placeOf(row),
       reasons: skipReasons(row, fromTree),
-      coordinator: !email ? 'none' : knownEmails.has(email) ? 'existing' : 'new',
+      warnings: row.warnings ?? [],
+      coordinator,
+      duplicate: duplicateOf(row),
     }
   })
 
   return {
     rows: reviewed,
-    coordinators: { existing: existingEmails.size, created: newEmails.size },
+    coordinators: {
+      existing: tallies.existing.size,
+      created: tallies.new.size,
+      unlinked: tallies.unlinked.size,
+    },
+  }
+}
+
+function coordinatorOf(
+  email: null | string,
+  accounts: ReadonlyMap<string, AccountVerdict>,
+): ReviewRowCoordinator {
+  if (!email) return 'none'
+  const verdict = accounts.get(email)
+  if (!verdict) return 'new'
+  return verdict === 'linkable' ? 'existing' : 'unlinked'
+}
+
+function duplicateOf(row: CommitRow): ReviewDuplicate | null {
+  const duplicate = row.duplicate
+  if (!duplicate) return null
+  return {
+    strength: duplicate.strength ?? 'strong',
+    ...(duplicate.eventId === undefined ? {} : { eventId: duplicate.eventId }),
+    ...(duplicate.line === undefined ? {} : { line: duplicate.line }),
+    action: duplicateAction(row),
+    overwritable: duplicate.eventId !== undefined,
   }
 }
 
@@ -136,7 +194,7 @@ export function reviewRows({ knownEmails, rows, treeRowErrors }: ReviewRowsArgs)
 function statusOf(row: CommitRow, fromTree: readonly string[]): ReviewRowStatus {
   if (row.committed) return 'committed'
   if (row.errors?.length || fromTree.length) return 'error'
-  if (row.duplicate) return 'duplicate'
+  if (row.duplicate && duplicateAction(row) === 'skip') return 'duplicate'
   if (!row.resolved) return 'pending'
   return 'ready'
 }
@@ -152,16 +210,21 @@ function placeOf(row: CommitRow): string | null {
 }
 
 /**
- * Every address the batch names, for the endpoint to look up.
+ * The addresses the endpoint looks up: those on rows that geocoded cleanly.
  *
- * ⚠ **Wider than the banner counts, and it has to be.** Each row reports its own
- * coordinator, skipped rows included, so an address this leaves out is never in
- * `knownEmails` and the row carrying it reads `new` — telling a volunteer that
- * line 7's coordinator is a stranger when the Atlas has held their account for
- * years. The banner stays narrow by filtering what it counts, not what is asked.
+ * ⚠ **Not every row's.** Whether an address holds an account is not the
+ * caller's to learn wholesale: asked of every row, a batch of 500 rows each
+ * failing the parse would answer 500 addresses for four requests and no
+ * geocoding cost. A row has to resolve — one geocode each, inside a 500-row
+ * batch — before its address is asked about, and a duplicate the reviewer may
+ * still import is included.
  */
 export function reviewEmails(rows: readonly CommitRow[]): string[] {
-  return managerRoster(rows).map(({ email }) => email)
+  return managerRoster(
+    rows
+      .filter((row) => row.resolved && !row.errors?.length)
+      .map(({ line, values }) => ({ line, values: values ?? {} })),
+  ).map(({ email }) => email)
 }
 
 /**

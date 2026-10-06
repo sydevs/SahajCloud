@@ -206,10 +206,13 @@ describe('review endpoint', () => {
       level: 'country',
       managers: [outsider.id],
     })
+    // The held account coordinates Leipzig, which is what makes it one an
+    // import may link (`commit/coordinators.ts`).
     leipzig = await testData.createRegion(payload, {
       name: 'Leipzig',
       level: 'city',
       parent: germany.id,
+      managers: [heldAccount.id],
     })
     vienna = await testData.createRegion(payload, {
       name: 'Vienna',
@@ -273,17 +276,35 @@ describe('review endpoint', () => {
 
       const { body } = await call(uploader, batch.id)
 
-      expect(body.coordinators).toEqual({ existing: 1, created: 1 })
+      expect(body.coordinators).toEqual({ existing: 1, created: 1, unlinked: 0 })
       expect(
         (body.rows as { coordinator: string }[]).map((reviewed) => reviewed.coordinator),
       ).toEqual(['existing', 'new'])
     })
 
-    // ⚠ **The #132 shape.** `reviewEmails` is pinned pure, and nothing proves the
-    // endpoint asks with the wide list except a skipped row whose coordinator the
-    // Atlas really does hold: narrow the lookup to the committable rows and this
-    // row reads `new` while every count above stays green.
-    it('tells a skipped row the truth about its own coordinator', async () => {
+    /**
+     * ⚠ **An account outside the target is not linked, and the review says so.**
+     * An admin's address in a volunteer's CSV would otherwise make them the
+     * vouching coordinator of a class they never agreed to run.
+     */
+    it('calls an admin’s address unlinked, never existing', async () => {
+      const batch = await createBatch({
+        rows: [row(2, { managerEmail: admin.email! })],
+        proposedRegions: tree([cityNode('admin-address', [2])]),
+      })
+
+      const { body } = await call(uploader, batch.id)
+
+      expect(body.coordinators).toEqual({ existing: 0, created: 0, unlinked: 1 })
+      expect((body.rows as { coordinator: string }[])[0]!.coordinator).toBe('unlinked')
+    })
+
+    // ⚠ **The #132 shape, the other way round.** `reviewEmails` is pinned pure,
+    // and nothing proves the endpoint asks with the narrow list except a row that
+    // failed whose address the Atlas really holds: widen the lookup and this row
+    // reads `existing`. Asked of every row, a batch of rows that each fail the
+    // parse tests 500 addresses for an account for no geocoding cost.
+    it('asks nothing about the address of a row that failed', async () => {
       const batch = await createBatch({
         rows: [
           { ...row(2, { managerEmail: 'review-held@example.com' }), errors: ['no city'] },
@@ -295,9 +316,8 @@ describe('review endpoint', () => {
       const { body } = await call(uploader, batch.id)
 
       const rows = body.rows as { line: number; coordinator: string }[]
-      expect(rows.map((reviewed) => reviewed.coordinator)).toEqual(['existing', 'new'])
-      // The banner still counts only what the commit would open.
-      expect(body.coordinators).toEqual({ existing: 0, created: 0 })
+      expect(rows.map((reviewed) => reviewed.coordinator)).toEqual(['new', 'new'])
+      expect(body.coordinators).toEqual({ existing: 0, created: 0, unlinked: 0 })
     })
 
     // ⚠ **A shape guard, and on the serialised body rather than the counts.** A

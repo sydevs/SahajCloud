@@ -27,6 +27,7 @@ import { commitWriteReq } from '@/collections/EventImports/commit/scope'
 import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
 import { cachePlugin } from '@/plugins/cache'
 import { DEFER_CACHE_INVALIDATION, defersCacheInvalidation } from '@/plugins/cache/defer'
+import { SKIP_INVITATIONS } from '@/plugins/login'
 
 const deferred = { [DEFER_CACHE_INVALIDATION]: true }
 
@@ -64,8 +65,20 @@ describe('the commit’s write request', () => {
     const write = commitWriteReq(req as never)
 
     expect(defersCacheInvalidation(write.context)).toBe(true)
-    expect(write.context).toEqual(deferred)
+    expect(write.context).toEqual({ ...deferred, [SKIP_INVITATIONS]: true })
     expect(write.user).toBe(req.user)
+  })
+
+  /**
+   * Naming a class's coordinator queues them an invitation, so the import's own
+   * writes mail nobody unless the reviewer opted in for the batch.
+   */
+  it('suppresses coordinator invitations unless the reviewer opted in', () => {
+    const req = { context: {}, user: { id: 7 } }
+    expect(commitWriteReq(req as never).context[SKIP_INVITATIONS]).toBe(true)
+    expect(
+      commitWriteReq(req as never, { inviteCoordinators: true }).context[SKIP_INVITATIONS],
+    ).toBe(false)
   })
 })
 

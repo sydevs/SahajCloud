@@ -1,55 +1,77 @@
 /**
- * The commit's second step: an account for every coordinator the batch names.
+ * The commit's second step: an account for every coordinator a chunk names.
  *
- * ⚠ **Before any class is written, not per row.** Two rows naming one
- * coordinator must adopt one account, and matching the address only when its
- * first row comes up would race the create against itself inside a chunk.
- * `managerRoster` reduces the batch to one request per address
- * (`commit/managers.ts`); this answers each one once.
+ * ⚠ **Per chunk, for the rows about to be written — not for the whole batch up
+ * front.** Opening every coordinator's account on the first call left accounts
+ * holding CSV names and addresses behind for rows that then failed. Two rows
+ * naming one coordinator inside a chunk still share one request
+ * (`managerRoster`), and a later chunk finds the account an earlier one opened.
  *
- * ⚠ **Idempotent through the address, like the regions are through
- * `mapboxId`.** `Managers.email` is unique and lowercased on write, so a
- * re-fired commit matches the account its predecessor created.
+ * ⚠ **An existing account is linked only when it is an active coordinator who
+ * already looks after something inside the target.** A volunteer's CSV could
+ * otherwise name any address the Atlas holds — an admin's, a deactivated
+ * account's, a coordinator's on another continent — and make them the vouching
+ * coordinator of a class they never agreed to run, stamped `verified` and
+ * reaching their inbox. Such a class is imported without a coordinator, and the
+ * row says why (`unlinked`).
  *
- * ⚠ **Creating an account sends nothing.** A manager is invited when they are
- * assigned something, never on create (`src/plugins/login/invitations.ts`,
- * #839) — so an imported coordinator holds an unverified account until a region
- * or a role reaches them, which stays a manual step (#828).
+ * ⚠ **Idempotent through the address.** `Managers.email` is unique and
+ * lowercased on write, so a re-fired commit matches the account its predecessor
+ * created — which, holding this batch's classes, is inside the target by then.
+ *
+ * ⚠ **Creating an account sends nothing, and neither does the class.** The
+ * invitation an assignment would queue (`src/plugins/login/invitations.ts`) is
+ * suppressed unless the reviewer opted in (`commitWriteReq`).
  */
 
 import type { ManagerRequest } from './managers'
 import type { PayloadRequest } from 'payload'
 
 import { describeValidationErrors, validationFieldErrors } from '@/lib/utilities/validationFailure'
-import type { Manager } from '@/payload-types'
+import type { Manager, Region } from '@/payload-types'
 
 export interface Coordinators {
   /** Lowercased address mapped to the account vouching for its classes. */
   ids: Map<string, number>
-  /** Lowercased address mapped to why it has no account. */
-  refusals: Map<string, string>
+  /** Lowercased address mapped to why its classes go without a coordinator. */
+  unlinked: Map<string, string>
   matched: number
   created: number
 }
 
+/**
+ * How every unlinked-coordinator note on a row begins, so the tally can tell a
+ * class imported without its coordinator from one imported with it.
+ */
+export const UNLINKED_NOTE = 'imported without a coordinator'
+
+/** What a row is told when its coordinator's existing account is not linked. */
+export const UNLINKED_COORDINATOR = `${UNLINKED_NOTE}: this address already has an account an import cannot link — an admin can assign it`
+
 export async function ensureCoordinators(
   req: PayloadRequest,
   roster: readonly ManagerRequest[],
+  subtreeIds: readonly number[],
 ): Promise<Coordinators> {
   const ids = new Map<string, number>()
-  const refusals = new Map<string, string>()
-  if (!roster.length) return { ids, refusals, matched: 0, created: 0 }
+  const unlinked = new Map<string, string>()
+  if (!roster.length) return { ids, unlinked, matched: 0, created: 0 }
 
   const existing = await managersByEmail(
     req,
     roster.map((request) => request.email),
   )
+  const linkable = await linkableAccounts(req, [...existing.values()], subtreeIds)
   let created = 0
+  let matched = 0
 
   for (const request of roster) {
     const match = existing.get(request.email)
     if (match !== undefined) {
-      ids.set(request.email, match)
+      if (linkable.has(match.id)) {
+        ids.set(request.email, match.id)
+        matched += 1
+      } else unlinked.set(request.email, UNLINKED_COORDINATOR)
       continue
     }
 
@@ -69,16 +91,84 @@ export async function ensureCoordinators(
         } as never,
         overrideAccess: true,
         depth: 0,
+        select: { email: true },
         req,
       })
       ids.set(request.email, manager.id)
       created += 1
     } catch (error) {
-      refusals.set(request.email, refusalOf(error))
+      // Anything but the database refusing this address is not the row's
+      // fault, and is thrown so the chunk is retried rather than imported
+      // without the coordinator it named.
+      const fields = validationFieldErrors(error)
+      if (!fields) throw error
+      unlinked.set(
+        request.email,
+        `${UNLINKED_NOTE}: no account could be opened for this address (${describeValidationErrors(fields).join('; ')})`,
+      )
     }
   }
 
-  return { ids, refusals, matched: ids.size - created, created }
+  return { ids, unlinked, matched, created }
+}
+
+/** An account the Atlas holds for an address, and whether it may coordinate at all. */
+export interface ExistingAccount {
+  id: number
+  type: Manager['type']
+}
+
+/**
+ * Which of these accounts an import may name as a class's coordinator: an
+ * active, non-admin manager who already manages a region or a class inside the
+ * target.
+ *
+ * Shared with the review, so the banner promises exactly the links the commit
+ * makes.
+ */
+export async function linkableAccounts(
+  req: PayloadRequest,
+  accounts: readonly ExistingAccount[],
+  subtreeIds: readonly number[],
+): Promise<Set<number>> {
+  const candidates = accounts.filter((account) => account.type === 'manager').map(({ id }) => id)
+  if (!candidates.length || !subtreeIds.length) return new Set()
+
+  const [regions, events] = await Promise.all([
+    req.payload.find({
+      collection: 'regions',
+      where: { and: [{ id: { in: [...subtreeIds] } }, { managers: { in: candidates } }] },
+      depth: 0,
+      pagination: false,
+      overrideAccess: true,
+      select: { managers: true },
+      req,
+    }),
+    req.payload.find({
+      collection: 'events',
+      where: { and: [{ region: { in: [...subtreeIds] } }, { manager: { in: candidates } }] },
+      depth: 0,
+      pagination: false,
+      overrideAccess: true,
+      trash: true,
+      select: { manager: true },
+      req,
+    }),
+  ])
+
+  const wanted = new Set(candidates)
+  const linked = new Set<number>()
+  for (const region of regions.docs as Region[]) {
+    for (const manager of region.managers ?? []) {
+      const id = typeof manager === 'object' ? manager.id : manager
+      if (wanted.has(id)) linked.add(id)
+    }
+  }
+  for (const event of events.docs) {
+    const id = typeof event.manager === 'object' ? event.manager?.id : event.manager
+    if (typeof id === 'number' && wanted.has(id)) linked.add(id)
+  }
+  return linked
 }
 
 /**
@@ -90,34 +180,30 @@ export async function ensureCoordinators(
  * of the batch and its target, settled before the commit starts.
  *
  * ⚠ **One spelling, because the review asks the same question.** It shows a
- * volunteer how many accounts a commit would open before they ask for one
- * (`endpoints/review.ts`), and a second read answering differently would be a
- * banner the commit then contradicts. The review keeps only the keys — the ids
- * are for the writes that follow this one.
+ * volunteer how many accounts a commit would open or link before they ask for
+ * one (`endpoints/review.ts`), and a second read answering differently would be
+ * a banner the commit then contradicts. The review keeps only verdicts — the
+ * ids are for the writes that follow this one.
  */
 export async function managersByEmail(
   req: PayloadRequest,
   emails: readonly string[],
-): Promise<Map<string, number>> {
+): Promise<Map<string, ExistingAccount>> {
+  if (!emails.length) return new Map()
   const { docs } = await req.payload.find({
     collection: 'managers',
     where: { email: { in: [...emails] } },
     depth: 0,
     pagination: false,
     overrideAccess: true,
-    select: { email: true },
+    select: { email: true, type: true },
     req,
   })
   return new Map(
     (docs as Manager[]).flatMap((manager) =>
-      manager.email ? [[manager.email.toLowerCase(), manager.id] as const] : [],
+      manager.email
+        ? [[manager.email.toLowerCase(), { id: manager.id, type: manager.type }] as const]
+        : [],
     ),
   )
-}
-
-/** Why an account could not be created, in words the review can show. */
-function refusalOf(error: unknown): string {
-  const fields = validationFieldErrors(error)
-  if (fields?.length) return describeValidationErrors(fields).join('; ')
-  return 'this coordinator could not be given an account'
 }

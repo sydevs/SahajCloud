@@ -12,12 +12,13 @@ import {
   failure,
   loadTarget,
   readExistingRegions,
+  refuseRevokedRole,
   refuseUnownedTarget,
   targetSubtreeWhere,
 } from '../batchRequest'
-import { managersByEmail } from '../commit/coordinators'
+import { linkableAccounts, managersByEmail } from '../commit/coordinators'
 import { tallyTree } from '../propose/tree'
-import { mappableRegions, reviewEmails, reviewRows } from '../review/rows'
+import { mappableRegions, reviewEmails, reviewRows, type AccountVerdict } from '../review/rows'
 
 /**
  * GET /api/event-imports/:id/review
@@ -37,7 +38,8 @@ import { mappableRegions, reviewEmails, reviewRows } from '../review/rows'
  *
  * ⚠ **It answers a verdict, never an account.** No name, role, region or id of a
  * matched account reaches the body (#828), and the batch's own addresses do not
- * travel either — a row carries `existing` or `new` and nothing to pair it with.
+ * travel either — a row carries `existing`, `unlinked` or `new` and nothing to
+ * pair it with. Only rows that resolved are looked up (`reviewEmails`).
  * That bit is about an address the caller supplied themselves, so it is not a
  * disclosure, but it is the line to hold: a field naming the account would
  * cross it, and no count-based assertion above would notice.
@@ -74,10 +76,20 @@ export const reviewEventImport: Endpoint = {
       depth: 0,
       overrideAccess: false,
       disableErrors: true,
-      select: { status: true, targetRegion: true, rows: true, proposedRegions: true },
+      select: {
+        status: true,
+        targetRegion: true,
+        rows: true,
+        proposedRegions: true,
+        uploadLocale: true,
+        inviteCoordinators: true,
+      },
       req,
     })) as EventImport | null
     if (!batch) return failure('No such import batch.', 404)
+
+    const revoked = refuseRevokedRole(req, batch)
+    if (revoked) return revoked
 
     const stored = batch.proposedRegions
     if (!stored) return failure('Propose the batch regions before reviewing them.', 409)
@@ -101,13 +113,24 @@ export const reviewEventImport: Endpoint = {
       readExistingRegions(req, targetSubtreeWhere(targetId), true),
       managersByEmail(req, reviewEmails(rows)),
     ])
+    const linkable = await linkableAccounts(
+      req,
+      [...accounts.values()],
+      subtree.map((region) => region.id),
+    )
+    const verdicts = new Map<string, AccountVerdict>(
+      [...accounts].map(([email, account]) => [
+        email,
+        linkable.has(account.id) ? 'linkable' : 'unlinkable',
+      ]),
+    )
 
     // ⚠ **Only the keys.** `managersByEmail` answers with ids because the commit
     // is about to write classes against them; the review must learn that an
     // address is taken and nothing else about who holds it.
     const { rows: reviewed, coordinators } = reviewRows({
       rows,
-      knownEmails: new Set(accounts.keys()),
+      accounts: verdicts,
       treeRowErrors: tree.rowErrors,
     })
 
@@ -120,6 +143,7 @@ export const reviewEventImport: Endpoint = {
       mappable: mappableRegions(subtree, creatableLevels(tree)),
       rows: reviewed,
       coordinators,
+      inviteCoordinators: batch.inviteCoordinators === true,
     })
   },
 }
