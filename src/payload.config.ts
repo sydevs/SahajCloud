@@ -9,14 +9,13 @@ import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import { buildConfig, Config } from 'payload'
 import { openapi } from 'payload-oapi'
 
-import { managersLogin } from '@/collections/Managers/login'
 import { REGION_NESTED_DOCS_CONFIG } from '@/lib/atlas/regionTree'
 import { serverEnv } from '@/lib/env'
 import { buildPayloadLocales, DEFAULT_LOCALE } from '@/lib/locales'
 import { createWorkerSafeLogger } from '@/lib/logger/workerSafeLogger'
 import { SUPPORTED_TIMEZONES } from '@/lib/timezones'
 import { PREVIEW_SECRET_HEADER } from '@/lib/utilities/previewSecret'
-import { getServerUrl } from '@/lib/utilities/serverUrl'
+import { getServerUrl, ownOrigins } from '@/lib/utilities/serverUrl'
 import {
   accessPlugin,
   bypassPermissions,
@@ -29,7 +28,7 @@ import { buildSmtpTransportOptions, resendAdapter, warnEmailDisabled } from '@/p
 import { formsPlugin } from '@/plugins/formBuilder'
 import { loginPlugin } from '@/plugins/login'
 import { openapiEndpointAuth, scalarPlugin } from '@/plugins/openapi'
-import { previewAdminEmail, seedPreviewAdmin } from '@/plugins/previewAdmin'
+import { managersLoginHere, seedPreviewAdmin } from '@/plugins/previewAdmin'
 import { sentryPlugin } from '@/plugins/sentry'
 import { storagePlugin } from '@/plugins/storage'
 import { isProductionDeployment } from '@/plugins/storage/previewIsolation'
@@ -101,7 +100,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     // (Authorization etc. stay): the Atlas widget fetches drafts client-side, so
     // the header rides a cross-origin request and must clear preflight. See #575.
     cors: { origins: '*', headers: [PREVIEW_SECRET_HEADER] },
-    csrf: [serverUrl, serverEnv.WEMEDITATE_WEB_URL, serverEnv.SAHAJATLAS_URL],
+    csrf: [...ownOrigins(), serverEnv.WEMEDITATE_WEB_URL, serverEnv.SAHAJATLAS_URL],
     // `routes.admin` stays unset, and so do `admin.routes.account` and
     // `.reset`: the panel's hrefs and `isAdminPath` spell `/admin`, and two
     // `adminUrl()` callers spell the other two (`invite.ts`, `Managers.ts`).
@@ -348,10 +347,10 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       // accessPlugin, which must stay last.
       // Invitations queue on assignment — except under a seed script, whose bulk
       // writes would otherwise leave production a queue to mail (see the option).
-      // This is the one place that knows both what a preview is and what the
-      // plugin serves, so it is where the preview exchange is resolved (#840).
+      // `managersLoginHere` resolves the preview exchange (#840); the sign-in
+      // page's Server Action reads the same entry.
       loginPlugin({
-        collections: [{ ...managersLogin, previewAutoSignIn: previewAdminEmail() }],
+        collections: [managersLoginHere()],
         invitations: !isSeedScript,
       }),
       // Access Plugin: Unified RBAC and project visibility (must be LAST to process plugin-created collections)
