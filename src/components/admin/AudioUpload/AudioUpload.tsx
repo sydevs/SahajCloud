@@ -30,13 +30,8 @@ function formatSeconds(totalSeconds: number): string {
  *
  * On top of native <Upload> it adds an <audio> player for the saved file.
  *
- * ⚠ `initialState` must be forwarded, and nothing marks its absence. A
- * replacement Upload component receives no props, so everything Payload passes
- * at its own call sites has to be re-sourced here. `<Upload>` sets `fileSrc`
- * from it on mount and gates the staged-file block on `value && fileSrc`, so
- * without it the Bulk Upload drawer — which stages each file into its own form
- * rather than clicking — renders an empty box. Songs reaches that drawer;
- * Meditations sets `bulkUpload: false`.
+ * ⚠ `initialState` must be forwarded, or the Bulk Upload drawer renders an
+ * empty box. Nothing marks its absence — see `docs/rules/admin-ui.md`.
  *
  * Meditations-only extras, inert for collections without these fields:
  * - a drift Banner when frame timestamps fall beyond the audio length (needs
