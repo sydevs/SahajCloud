@@ -1,7 +1,9 @@
 import type { Payload } from 'payload'
 
+import { managersLogin } from '@/collections/Managers/login'
 import { serverEnv } from '@/lib/env'
 import { railwayEnvironmentName } from '@/lib/env/deploymentEnvironment'
+import type { LoginCollectionConfig } from '@/plugins/login'
 import { isProductionDeployment } from '@/plugins/storage/previewIsolation'
 
 /**
@@ -11,7 +13,8 @@ import { isProductionDeployment } from '@/plugins/storage/previewIsolation'
  * ⚠ **The address is the credential**, so both halves resolve it from
  * {@link previewAdminEmail} and nowhere else. Two copies would let the seeder
  * provision one address while the sign-in page signed in another — a mailed
- * link nobody can open, reported as "the deploy did not seed".
+ * link nobody can open, reported as "the deploy did not seed". The sign-in half
+ * reads it through {@link managersLoginHere}.
  */
 
 /**
@@ -61,9 +64,9 @@ export function resolvePreviewAdminEmail({
 }
 
 /**
- * The same answer, for the live environment. Read once, by the composition root
- * (`src/payload.config.ts` and the test harness), when it builds `loginPlugin` —
- * which itself knows nothing about Railway.
+ * The same answer, for the live environment. Read through
+ * {@link managersLoginHere}, never spread by hand — `loginPlugin` itself knows
+ * nothing about Railway.
  */
 export const previewAdminEmail = (): string | undefined =>
   resolvePreviewAdminEmail({
@@ -71,6 +74,21 @@ export const previewAdminEmail = (): string | undefined =>
     environmentName: railwayEnvironmentName(),
     isProduction: isProductionDeployment(),
   })
+
+/**
+ * `managersLogin` as this environment serves it: with `previewAutoSignIn` on a
+ * Railway preview, without it everywhere else.
+ *
+ * ⚠ **Every caller of `issueMagicLink` for managers takes its config from here**
+ * — the plugin (`src/payload.config.ts`, the test harness) and the sign-in page's
+ * Server Action. The page once passed the bare `managersLogin`, so the request
+ * endpoint signed the preview admin in while the form an actual person uses
+ * mailed them a link instead.
+ */
+export const managersLoginHere = (): LoginCollectionConfig => ({
+  ...managersLogin,
+  previewAutoSignIn: previewAdminEmail(),
+})
 
 /**
  * Reconcile the preview's admin account: present, an admin, and accepted.

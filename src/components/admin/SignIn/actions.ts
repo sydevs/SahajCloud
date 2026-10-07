@@ -4,13 +4,13 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { getPayload } from 'payload'
 
-import { managersLogin } from '@/collections/Managers/login'
 import {
   issueMagicLink,
   magicLinkEmailSchema,
   sessionCookieParts,
   SIGNIN_VALID_FOR,
 } from '@/plugins/login'
+import { managersLoginHere } from '@/plugins/previewAdmin'
 
 import payloadConfig from '@payload-config'
 
@@ -64,10 +64,13 @@ export async function requestSignInLinkAction(
   if (!parsed.success) return MALFORMED
 
   const payload = await getPayload({ config: payloadConfig })
+  // Not the bare `managersLogin`: that has no `previewAutoSignIn`, so a preview's
+  // own form would mail its admin rather than sign them in.
+  const config = managersLoginHere()
 
   let signedIn: Awaited<ReturnType<typeof issueMagicLink>>
   try {
-    signedIn = await issueMagicLink({ payload, config: managersLogin, email: parsed.data.email })
+    signedIn = await issueMagicLink({ payload, config, email: parsed.data.email })
   } catch (error) {
     // Swallowed for the same reason the endpoint swallows it: only a real
     // address gets as far as a send, so a surfaced transport failure would
@@ -88,7 +91,7 @@ export async function requestSignInLinkAction(
   // a `catch` around `redirect` would swallow it — leaving the caller on this
   // page, signed in, reading "check your email".
   if (signedIn) {
-    const { name, options, value } = sessionCookieParts(payload, managersLogin.slug, signedIn.token)
+    const { name, options, value } = sessionCookieParts(payload, config.slug, signedIn.token)
     ;(await cookies()).set(name, value, options)
     redirect(payload.config.routes.admin)
   }
