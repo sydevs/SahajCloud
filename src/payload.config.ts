@@ -15,7 +15,7 @@ import { buildPayloadLocales, DEFAULT_LOCALE } from '@/lib/locales'
 import { createWorkerSafeLogger } from '@/lib/logger/workerSafeLogger'
 import { SUPPORTED_TIMEZONES } from '@/lib/timezones'
 import { PREVIEW_SECRET_HEADER } from '@/lib/utilities/previewSecret'
-import { getServerUrl } from '@/lib/utilities/serverUrl'
+import { getServerUrl, ownOrigins } from '@/lib/utilities/serverUrl'
 import {
   accessPlugin,
   bypassPermissions,
@@ -100,7 +100,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     // (Authorization etc. stay): the Atlas widget fetches drafts client-side, so
     // the header rides a cross-origin request and must clear preflight. See #575.
     cors: { origins: '*', headers: [PREVIEW_SECRET_HEADER] },
-    csrf: [serverUrl, serverEnv.WEMEDITATE_WEB_URL, serverEnv.SAHAJATLAS_URL],
+    csrf: [...ownOrigins(), serverEnv.WEMEDITATE_WEB_URL, serverEnv.SAHAJATLAS_URL],
     // `routes.admin` stays unset, and so do `admin.routes.account` and
     // `.reset`: the panel's hrefs and `isAdminPath` spell `/admin`, and two
     // `adminUrl()` callers spell the other two (`invite.ts`, `Managers.ts`).
