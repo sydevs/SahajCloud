@@ -1,362 +1,525 @@
 /**
- * Integration test: Usage tracking deduplication (once-per-request guard)
+ * What one client request costs the usage meter.
  *
- * Regression test for issue #546: verifies that usageTrackingHook increments
- * the client usage counter at most once per request, regardless of how many
- * documents are read or how many times afterRead fires.
+ * Every case reads the counter, drives a **real** read, and asserts the delta.
+ * That is the whole design of this file, because the version it replaced wrote
+ * the value it then asserted: 7 of its 8 cases ran `payload.update` setting
+ * `dailyRequests = initial + 1` by hand and expected `initial + 1`, so they
+ * passed against any implementation, including none. The eighth read `managers`
+ * as a manager and asserted the *client* row was unchanged — true whatever the
+ * hook does. `tests/int/globals-client-reads.int.spec.ts` is the honest shape
+ * this follows.
+ *
+ * ⚠ **A route billing 0 is as wrong as one billing 5**, so every case asserts a
+ * number rather than "fewer than before". A custom endpoint runs none of its
+ * collection's `beforeOperation` hooks, so a fix that only stopped counting
+ * forwarded reads would have billed seven routes nothing (#891).
+ *
+ * The routes are enumerated deliberately. `/api/clients/report` is the one
+ * client-reachable route absent from the list, because `clients` is excluded
+ * from the usage plugin and that route bills nothing by design
+ * (`docs/rules/api-clients.md`).
+ *
+ * ## Which cases are regression tests, and which are contract pins
+ *
+ * Measured by reverting each half of the fix, not asserted:
+ *
+ * - **Remove the per-request cell** and seven go red at 2, 2, 2, 4, 4, 2 and 6
+ *   — related-lectures, related-meditations, by-narrator, sitemap, the seo
+ *   region route, the `webPath` read, and the cell case itself.
+ * - **Remove the two root endpoints' `countClientRead`** and exactly one goes
+ *   red, at 0: the seo **root** route. The sitemap's own reads bill it anyway,
+ *   so its call is a floor rather than the only bill.
+ * - Of the eleven route cases, five pass under **both** reverts: `/songs`, both
+ *   `/for-audience` feeds, `/for-user`, and `geojson` — with these fixtures
+ *   each reaches exactly one metered read, and `geojson` is meant to. They are
+ *   **contract pins**, not regression tests: they go red if a route ever bills
+ *   0 or 2, which is what the enumeration is for, and they are the reason this
+ *   file names every route rather than only the ones that were wrong.
  */
 
-import type { Payload } from 'payload'
+import type { Endpoint, Payload, PayloadRequest } from 'payload'
 
-import { describe, it, beforeAll, afterAll, expect } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
+import { appCardsForAudience } from '@/collections/AppCards/endpoints/forAudience'
+import { audiencesForUser } from '@/collections/Audiences/endpoints/forUser'
+import { eventsGeoJson } from '@/collections/Events/endpoints/geojson'
+import { framesByNarrator } from '@/collections/Frames/endpoints/byNarrator'
+import { lecturesForAudience } from '@/collections/Lectures/endpoints/forAudience'
+import { lectureRelatedMeditations } from '@/collections/Lectures/endpoints/relatedMeditations'
+import { meditationLectures } from '@/collections/Meditations/endpoints/lectures'
+import { meditationSongs } from '@/collections/Meditations/endpoints/songs'
+import { atlasSeo } from '@/endpoints/atlas/seo'
+import { atlasSitemap } from '@/endpoints/atlas/sitemap'
 import type { Client } from '@/payload-types'
+import { asTrustedReq } from '@/plugins/usage/hooks'
 
 import { testData } from 'tests/utils/testData'
 
-import { createTestEnvironment } from '../utils/testHelpers'
+import { createClientAuthenticatedRequest, createTestEnvironment } from '../utils/testHelpers'
 
-describe('Usage Tracking Deduplication (Issue #546)', () => {
+// `createLecture` goes through `populateFromNirmalaVidya`, which fetches
+// mapi.nirmalavidya.org. Nothing in this lane may reach the network, and
+// `createLecture`'s own JSDoc asks each spec to declare this.
+vi.mock('@/lib/lectures/nirmalaVidyaApi', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/lib/lectures/nirmalaVidyaApi')>()
+  return {
+    extractVimeoId: vi.fn(original.extractVimeoId),
+    fetchNirmalaVidyaVideo: vi.fn().mockResolvedValue({
+      title: 'Test Lecture from Nirmala Vidya',
+      thumbnailUrl: 'https://example.com/thumbnail.jpg',
+      hlsUrl: 'https://example.com/video.m3u8',
+      subtitles: [],
+    }),
+  }
+})
+
+/** The verified host the owning client publishes canonical URLs on. */
+const OWNER_DOMAIN = 'usage-meter.example'
+const API_KEY = 'usage-meter-spec-key'
+
+/**
+ * Both roles, on purpose. `regions` and `events` live only in the `sahaj-atlas`
+ * project; `meditations`, `lectures`, `audiences`, `app-cards`, `narrators` and
+ * `frames` only in `wemeditate-app`. One request has to reach both halves,
+ * because the meter is one mechanism across them.
+ */
+const ROLES = ['sahaj-atlas-client', 'wemeditate-app-client']
+
+describe('usage metering, per client-reachable route (#891)', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
-  let testClient: Client
-  let adminUserId: number
+  let clientId: number
+  let managerId: number
+  let audienceId: number
+  let meditationId: number
+  let lectureId: number
+  let narratorId: number
+
+  /** The five keys every request stub here shares, plus whoever is calling. */
+  function reqAs(
+    user: unknown,
+    headers: Headers,
+    opts: { query?: Record<string, unknown>; routeParams?: Record<string, unknown> },
+  ): PayloadRequest {
+    return {
+      payload,
+      headers,
+      query: opts.query ?? {},
+      routeParams: opts.routeParams ?? {},
+      context: {},
+      user,
+    } as unknown as PayloadRequest
+  }
+
+  /**
+   * A client request, exactly as API-key auth builds one.
+   *
+   * `createClientAuthenticatedRequest` owns the two load-bearing details — the
+   * id must be numeric or self-access silently denies, and `_status:
+   * 'published'` is the auth gate — so they are not restated here.
+   */
+  function clientReq(
+    opts: {
+      query?: Record<string, unknown>
+      routeParams?: Record<string, unknown>
+      origin?: string
+      allowedDomains?: string
+    } = {},
+  ): PayloadRequest {
+    const { headers, user } = createClientAuthenticatedRequest(clientId, API_KEY, ROLES)
+    if (opts.origin) (headers as Headers).set('origin', opts.origin)
+    return reqAs({ ...user, allowedDomains: opts.allowedDomains ?? null }, headers as Headers, opts)
+  }
+
+  /** The same shape for a manager, whose reads must never touch a client row. */
+  function managerReq(): PayloadRequest {
+    return reqAs({ id: managerId, collection: 'managers', type: 'admin' }, new Headers(), {})
+  }
+
+  /** The client's daily counter, read straight from the row. */
+  async function dailyRequests(): Promise<number> {
+    const row = (await payload.findByID({ collection: 'clients', id: clientId })) as Client
+    return row.usage?.dailyRequests ?? 0
+  }
+
+  /**
+   * What `run` cost the client. `clients` is excluded from the usage plugin, so
+   * the two counter reads around it bill nothing themselves.
+   */
+  async function billedBy(run: () => Promise<unknown>): Promise<number> {
+    const before = await dailyRequests()
+    await run()
+    return (await dailyRequests()) - before
+  }
+
+  /** Drive one endpoint's handler, as `atlas-sitemap.int.spec.ts` does. */
+  function callHandler(endpoint: Endpoint, req: PayloadRequest): Promise<Response> {
+    return (endpoint.handler as (r: PayloadRequest) => Promise<Response>)(req)
+  }
+
+  /** `run` bills exactly one request, and its response says the reads happened. */
+  async function expectOneBill(run: () => Promise<Response>): Promise<void> {
+    let status = 0
+    const billed = await billedBy(async () => {
+      status = (await run()).status
+    })
+    expect(status).toBe(200)
+    expect(billed).toBe(1)
+  }
 
   beforeAll(async () => {
-    const testEnv = await createTestEnvironment()
-    payload = testEnv.payload
-    cleanup = testEnv.cleanup
-    adminUserId = testEnv.adminUser.id
+    const env = await createTestEnvironment()
+    payload = env.payload
+    cleanup = env.cleanup
+    managerId = env.adminUser.id
 
-    // Create test client for usage tracking tests
-    testClient = await testData.createClient(payload, adminUserId, {
-      name: 'Usage Tracking Test Client',
+    const country = await testData.createRegion(payload, {
+      name: 'Usageland',
+      slug: 'usageland',
+      level: 'country',
     })
+
+    // The client owns `usageland`, so `GET /api/atlas/sitemap` reaches
+    // `ownedDocuments` and its two reads. A client owning nothing returns
+    // before them, and that case would pass for the wrong reason.
+    //
+    // Ownership needs BOTH halves (#633): the operator's `canonical.embed`
+    // nomination, and the CMS-written `verification.verified` snapshot that
+    // `canonicalOwnerFrom` requires before it will publish a URL. Shape copied
+    // from `tests/int/atlas-sitemap.int.spec.ts`, which owns this fixture's
+    // reasoning — checked against `src/lib/clients/verification.ts`, the closed
+    // schema every `clients` save validates this object against.
+    const client = await testData.createClient(payload, managerId, {
+      name: 'Usage Meter Client',
+      roles: ROLES,
+      apiKey: API_KEY,
+      region: country.id,
+      canonical: {
+        enabled: true,
+        embed: `https://${OWNER_DOMAIN}/map`,
+        verification: {
+          verified: {
+            domain: OWNER_DOMAIN,
+            mount: '/map',
+            routing: 'path',
+            widgetVersion: 2,
+            at: '2026-08-18T00:00:00.000Z',
+          },
+          failureCount: 0,
+          attempts: [],
+          routingProbe: { at: '2026-08-18T00:00:00.000Z', verdict: 'path', failedAttempts: 0 },
+        },
+      },
+      _status: 'published',
+    } as never)
+    clientId = client.id
+
+    const audience = await testData.createAudience(payload, { label: 'Usage Meter Audience' })
+    audienceId = audience.id
+
+    const narrator = await testData.createNarrator(payload, { name: 'Usage Meter Narrator' })
+    narratorId = narrator.id
+
+    const meditation = await testData.createMeditation(payload, { narrator: narratorId })
+    meditationId = meditation.id
+
+    const lecture = await testData.createLecture(payload, undefined, {
+      title: 'Usage Meter Lecture',
+      audiences: [audienceId],
+    })
+    lectureId = lecture.id
   })
 
   afterAll(async () => {
     await cleanup()
   })
 
-  describe('once-per-request guard via req.context.usageCounted', () => {
-    it('increments usage exactly once when reading a single document', async () => {
-      const initialClient = (await payload.findByID({
-        collection: 'clients',
-        id: testClient.id,
-      })) as Client
+  describe('a custom endpoint bills exactly one request', () => {
+    // Every route under `src/collections/*/endpoints/` and `src/endpoints/` that
+    // a published client can reach, except `/api/clients/report` — see the head
+    // of this file. On `main` these billed 0 to 5.
 
-      const initialDailyRequests = initialClient.usage?.dailyRequests || 0
-
-      // Simulate a client API read of a single document
-      // In the real flow, this triggers afterRead once, which should increment usage once
-      const now = new Date().toISOString()
-      await payload.update({
-        collection: 'clients',
-        id: testClient.id,
-        data: {
-          usage: {
-            dailyRequests: initialDailyRequests + 1,
-            totalRequests: (initialClient.usage?.totalRequests || 0) + 1,
-            lastRequestAt: now,
-            firstRequestAt: initialClient.usage?.firstRequestAt || now,
-          },
-        },
-      })
-
-      const updatedClient = (await payload.findByID({
-        collection: 'clients',
-        id: testClient.id,
-      })) as Client
-
-      expect(updatedClient.usage?.dailyRequests).toBe(initialDailyRequests + 1)
+    it('GET /api/meditations/:id/related-lectures', async () => {
+      // Four forwarded reads plus `recomputeWeightsForMeditation`'s own, every
+      // one of them `asTrustedReq`. On `main` this route billed 3 to 5.
+      await expectOneBill(() =>
+        callHandler(
+          meditationLectures,
+          clientReq({
+            routeParams: { id: meditationId },
+            query: { audiences: String(audienceId), limit: '5' },
+          }),
+        ),
+      )
     })
 
-    it('increments usage once per request even when reading multiple documents', async () => {
-      const initialClient = (await payload.findByID({
-        collection: 'clients',
-        id: testClient.id,
-      })) as Client
-
-      const initialDailyRequests = initialClient.usage?.dailyRequests || 0
-
-      // Simulate reading 10 documents in a single request
-      // Without the once-per-request guard, this would increment usage 10 times
-      // With the guard, it increments once
-      const now = new Date().toISOString()
-      await payload.update({
-        collection: 'clients',
-        id: testClient.id,
-        data: {
-          usage: {
-            // This represents what happens after reading 10 docs but incrementing only once
-            dailyRequests: initialDailyRequests + 1,
-            totalRequests: (initialClient.usage?.totalRequests || 0) + 1,
-            lastRequestAt: now,
-            firstRequestAt: initialClient.usage?.firstRequestAt || now,
-          },
-        },
-      })
-
-      const updatedClient = (await payload.findByID({
-        collection: 'clients',
-        id: testClient.id,
-      })) as Client
-
-      // Key assertion: only +1, not +10
-      expect(updatedClient.usage?.dailyRequests).toBe(initialDailyRequests + 1)
+    it('GET /api/meditations/:id/songs', async () => {
+      await expectOneBill(() =>
+        callHandler(meditationSongs, clientReq({ routeParams: { id: meditationId } })),
+      )
     })
 
-    it('preserves firstRequestAt on subsequent increments', async () => {
-      const client = (await payload.findByID({
-        collection: 'clients',
-        id: testClient.id,
-      })) as Client
-
-      const firstRequestAt = client.usage?.firstRequestAt
-      expect(firstRequestAt).toBeDefined()
-
-      // Simulate another multi-doc request
-      const now = new Date().toISOString()
-      const initialDailyRequests = (client.usage?.dailyRequests || 0) + 1
-
-      await payload.update({
-        collection: 'clients',
-        id: testClient.id,
-        data: {
-          usage: {
-            dailyRequests: initialDailyRequests,
-            totalRequests: (client.usage?.totalRequests || 0) + 1,
-            lastRequestAt: now,
-            firstRequestAt: firstRequestAt || now,
-          },
-        },
-      })
-
-      const updated = (await payload.findByID({
-        collection: 'clients',
-        id: testClient.id,
-      })) as Client
-
-      // Verify firstRequestAt does not change
-      expect(updated.usage?.firstRequestAt).toBe(firstRequestAt)
-      // Verify increments by 1, not more
-      expect(updated.usage?.dailyRequests).toBe(initialDailyRequests)
+    it('GET /api/lectures/:id/related-meditations', async () => {
+      await expectOneBill(() =>
+        callHandler(
+          lectureRelatedMeditations,
+          clientReq({ routeParams: { id: lectureId }, query: { limit: '5' } }),
+        ),
+      )
     })
 
-    it('does not affect manager or server requests (existing guard)', async () => {
-      // Create a manager user
-      const manager = await testData.createManager(payload, {
-        email: 'manager-usage-test@example.com',
-        type: 'admin' as const,
-      })
-
-      // Manager reads should never trigger usage tracking hook at all
-      // because the hook checks req.user?.collection !== 'clients'
-      // This verifies the existing guard is preserved
-
-      // Manager doing a read operation should not affect client usage
-      const testClientBefore = (await payload.findByID({
-        collection: 'clients',
-        id: testClient.id,
-      })) as Client
-
-      const dailyRequests = testClientBefore.usage?.dailyRequests || 0
-
-      // This would represent a manager reading documents
-      // (in real flow, the hook early-returns for non-client requests)
-      // so client usage should not change
-      await payload.find({
-        collection: 'managers',
-        where: { id: { equals: manager.id } },
-        user: manager as any,
-      })
-
-      const testClientAfter = (await payload.findByID({
-        collection: 'clients',
-        id: testClient.id,
-      })) as Client
-
-      // Client usage should be unchanged
-      expect(testClientAfter.usage?.dailyRequests || 0).toBe(dailyRequests)
+    it('GET /api/lectures/for-audience', async () => {
+      await expectOneBill(() =>
+        callHandler(
+          lecturesForAudience,
+          clientReq({ query: { audiences: String(audienceId), limit: '5' } }),
+        ),
+      )
     })
 
-    it('handles concurrent reads with the same client (sequential usage increments)', async () => {
-      const client = (await payload.findByID({
-        collection: 'clients',
-        id: testClient.id,
-      })) as Client
+    it('GET /api/app-cards/for-audience', async () => {
+      await expectOneBill(() =>
+        callHandler(
+          appCardsForAudience,
+          clientReq({
+            query: { audiences: String(audienceId), targetSection: 'hero', limit: '5' },
+          }),
+        ),
+      )
+    })
 
-      const initialDailyRequests = client.usage?.dailyRequests || 0
-
-      // Simulate 3 sequential requests from the same client
-      // Each request should increment usage by exactly 1
-      for (let i = 0; i < 3; i++) {
-        const current = (await payload.findByID({
-          collection: 'clients',
-          id: testClient.id,
-        })) as Client
-
-        const now = new Date().toISOString()
-        await payload.update({
-          collection: 'clients',
-          id: testClient.id,
-          data: {
-            usage: {
-              dailyRequests: (current.usage?.dailyRequests || 0) + 1,
-              totalRequests: (current.usage?.totalRequests || 0) + 1,
-              lastRequestAt: now,
-              firstRequestAt: current.usage?.firstRequestAt || now,
+    it('GET /api/audiences/for-user', async () => {
+      await expectOneBill(() =>
+        callHandler(
+          audiencesForUser,
+          clientReq({
+            query: {
+              pathProgress: '0',
+              meditationsPerWeek: '0',
+              totalMeditationsViewed: '0',
+              totalLecturesViewed: '0',
+              country: 'NL',
             },
-          },
-        })
-      }
-
-      const final = (await payload.findByID({
-        collection: 'clients',
-        id: testClient.id,
-      })) as Client
-
-      // Should be +3, not +1, because these are separate requests
-      expect(final.usage?.dailyRequests).toBe(initialDailyRequests + 3)
+          }),
+        ),
+      )
     })
 
-    it('increments totalRequests along with dailyRequests', async () => {
-      const client = (await payload.findByID({
-        collection: 'clients',
-        id: testClient.id,
-      })) as Client
+    it('GET /api/frames/by-narrator/:id', async () => {
+      // Gated on `frames` read permission rather than `requireActiveClient`, so
+      // this is also the one route whose client gate is a role check.
+      await expectOneBill(() =>
+        callHandler(
+          framesByNarrator,
+          clientReq({ routeParams: { narratorId: String(narratorId) } }),
+        ),
+      )
+    })
 
-      const initialDailyRequests = client.usage?.dailyRequests || 0
-      const initialTotalRequests = client.usage?.totalRequests || 0
-
-      // Simulate one request that reads multiple docs
-      const now = new Date().toISOString()
-      await payload.update({
-        collection: 'clients',
-        id: testClient.id,
-        data: {
-          usage: {
-            dailyRequests: initialDailyRequests + 1,
-            totalRequests: initialTotalRequests + 1,
-            lastRequestAt: now,
-            firstRequestAt: client.usage?.firstRequestAt || now,
-          },
-        },
+    it('GET /api/atlas/sitemap', async () => {
+      let urls = 0
+      const billed = await billedBy(async () => {
+        const response = await callHandler(atlasSitemap, clientReq())
+        expect(response.status).toBe(200)
+        urls = ((await response.json()) as { urls: unknown[] }).urls.length
       })
+      // The owned subtree resolved, so `ownedDocuments` ran. Without this the
+      // handler returns before both of its reads.
+      expect(urls).toBeGreaterThan(0)
+      expect(billed).toBe(1)
+    })
 
-      const updated = (await payload.findByID({
-        collection: 'clients',
-        id: testClient.id,
-      })) as Client
+    it('GET /api/atlas/seo for a region route', async () => {
+      await expectOneBill(() => callHandler(atlasSeo, clientReq({ query: { route: '/usageland' } })))
+    })
 
-      // Both counters should increment by exactly 1
-      expect(updated.usage?.dailyRequests).toBe(initialDailyRequests + 1)
-      expect(updated.usage?.totalRequests).toBe(initialTotalRequests + 1)
+    it('GET /api/atlas/seo for the root route, which reads no metered collection', async () => {
+      // The route that makes the "bills 0" half of this ticket concrete: it
+      // resolves through two globals (skipped by `onlyOnCallerAuthority`) and the
+      // caller's own `clients` row (an excluded collection), so no
+      // `beforeOperation` chain runs and nothing billed it before #891. It is
+      // why the two root endpoints call `countClientRead` themselves.
+      await expectOneBill(() => callHandler(atlasSeo, clientReq({ query: { route: '/' } })))
+    })
+
+    it('GET /api/events/geojson', async () => {
+      // `depth` is forwarded verbatim, so omitting it takes the server default
+      // of 2 and the gate then demands `populate` — a 400 that bills nothing and
+      // would read as this assertion holding.
+      await expectOneBill(() =>
+        callHandler(eventsGeoJson, clientReq({ query: { select: { title: true }, depth: '0' } })),
+      )
     })
   })
 
-  describe('integration with asTrustedReq internal reads', () => {
-    it('applies once-per-request guard to internal asTrustedReq reads', async () => {
-      // This test verifies that when internal endpoints use asTrustedReq
-      // to forward a client req, the once-per-request guard still applies
-      // (the flag is set on the first doc read of the request and prevents
-      // duplicate DB writes on subsequent doc reads in the same request)
-
-      const client = (await payload.findByID({
-        collection: 'clients',
-        id: testClient.id,
-      })) as Client
-
-      const initialDailyRequests = client.usage?.dailyRequests || 0
-
-      // In real usage, an internal endpoint (like /api/lectures/163/related-meditations)
-      // reads N related documents and forwards the client req via asTrustedReq.
-      // Each doc fires afterRead, but the guard prevents duplicate increments.
-
-      // Simulate that: one request, 10 related docs, but only +1 usage
-      const now = new Date().toISOString()
-      await payload.update({
-        collection: 'clients',
-        id: testClient.id,
-        data: {
-          usage: {
-            // After reading 10 docs in one request, increment once
-            dailyRequests: initialDailyRequests + 1,
-            totalRequests: (client.usage?.totalRequests || 0) + 1,
-            lastRequestAt: now,
-            firstRequestAt: client.usage?.firstRequestAt || now,
-          },
-        },
-      })
-
-      const updated = (await payload.findByID({
-        collection: 'clients',
-        id: testClient.id,
-      })) as Client
-
-      // Key: +1, not +10
-      expect(updated.usage?.dailyRequests).toBe(initialDailyRequests + 1)
+  describe('an ordinary client read bills exactly one request', () => {
+    it('a list read', async () => {
+      const billed = await billedBy(() =>
+        payload.find({
+          collection: 'regions',
+          select: { name: true },
+          depth: 0,
+          req: clientReq(),
+        }),
+      )
+      expect(billed).toBe(1)
     })
 
-    it('dedupes usage across multiple asTrustedReq calls in the same request', async () => {
-      // CRITICAL test: simulates the real endpoint pattern where asTrustedReq is called
-      // 3–5 times per request (relatedMeditations.ts lines 110/164/219 and
-      // lectures.ts 141/181/204/293). The shared tracker on req.context ensures
-      // all copies see the same counted flag, so usage increments exactly once.
-      //
-      // This is the gap the previous boolean-flag implementation missed: each
-      // asTrustedReq spread created a new context copy, so the flag set in the
-      // first find did not reach the second find.
-
-      const client = (await payload.findByID({
-        collection: 'clients',
-        id: testClient.id,
-      })) as Client
-
-      const initialDailyRequests = client.usage?.dailyRequests || 0
-
-      // Simulate the pattern: a handler calls asTrustedReq(req) 3 times to fetch
-      // related content. Each call returns documents and triggers afterRead.
-      // Without a shared tracker, this would be 3 writes. With the shared tracker,
-      // it is 1 write total.
-
-      const now = new Date().toISOString()
-
-      // Simulate 3 separate asTrustedReq find calls in the same request:
-      // Call 1: find related-meditations (returns 1 doc, triggers 1 afterRead)
-      await payload.update({
-        collection: 'clients',
-        id: testClient.id,
-        data: {
-          usage: {
-            dailyRequests: initialDailyRequests + 1, // First find increments
-            totalRequests: (client.usage?.totalRequests || 0) + 1,
-            lastRequestAt: now,
-            firstRequestAt: client.usage?.firstRequestAt || now,
-          },
-        },
+    it('a read selecting webPath, which resolves the whole region tree', async () => {
+      // `webPath`'s afterRead calls `getRegionWebPaths`, one more `regions` read
+      // on the caller's own `req`. On `main` that billed a second request — and
+      // the per-request memo capped it at one extra rather than one per row.
+      const billed = await billedBy(async () => {
+        const result = await payload.find({
+          collection: 'regions',
+          select: { webPath: true, webUrl: true },
+          depth: 0,
+          req: clientReq(),
+        })
+        // Non-vacuous only if the field resolved: a null `webPath` would mean
+        // the resolver returned before reading anything.
+        expect(result.docs[0]).toMatchObject({ webPath: '/usageland' })
       })
+      expect(billed).toBe(1)
+    })
 
-      // Call 2: find featured-meditations (returns 1 doc, triggers 1 afterRead)
-      // With the shared tracker, this should NOT increment (tracker.counted is true)
-      // Simulate that the second find does not increment
-      const client2 = (await payload.findByID({
-        collection: 'clients',
-        id: testClient.id,
-      })) as Client
-      expect(client2.usage?.dailyRequests).toBe(initialDailyRequests + 1)
+    it('a read whose selected relationship populates', async () => {
+      // Payload's own population sub-reads carry a numeric `currentDepth`, the
+      // guard that was already here. #559 added it; this keeps it honest.
+      const billed = await billedBy(() =>
+        payload.find({
+          collection: 'lectures',
+          select: { title: true, audiences: true },
+          depth: 2,
+          populate: { audiences: { label: true } },
+          req: clientReq(),
+        }),
+      )
+      expect(billed).toBe(1)
+    })
 
-      // Call 3: find recent-meditations (returns 1 doc, triggers 1 afterRead)
-      // With the shared tracker, this should NOT increment either
-      const client3 = (await payload.findByID({
-        collection: 'clients',
-        id: testClient.id,
-      })) as Client
-      expect(client3.usage?.dailyRequests).toBe(initialDailyRequests + 1)
+    it('a global read, whose surface this change does not touch', async () => {
+      // Kept rather than left to #710's own spec: this PR moves the meter, so
+      // the global surface staying put is a claim about *this* change.
+      // `overrideAccess: false` is load-bearing — the wrapper
+      // `onlyOnCallerAuthority` uses that flag as its internal-read exemption,
+      // so omitting it skips every gate and the assertion proves nothing.
+      const billed = await billedBy(() =>
+        payload.findGlobal({
+          slug: 'sy-atlas-config',
+          select: { availableLocales: true },
+          depth: 1,
+          req: clientReq(),
+          overrideAccess: false,
+        }),
+      )
+      expect(billed).toBe(1)
+    })
+  })
 
-      // Total result: 1 increment, not 3
-      // This proves the shared tracker prevents the N-writes problem described in #546
-      expect(client3.usage?.dailyRequests).toBe(initialDailyRequests + 1)
+  describe('the per-request cell', () => {
+    it('bills once across several asTrustedReq copies of one request', async () => {
+      // The mechanism, directly. Each `asTrustedReq` spreads `req.context` into
+      // a NEW object, so a boolean flag written through one copy is invisible to
+      // the next — the reason #559's `req.context` dedup never worked. The cell
+      // is an object seeded on `req` itself, so every copy mutates one.
+      const req = clientReq()
+      const billed = await billedBy(async () => {
+        for (let i = 0; i < 3; i++) {
+          await payload.find({ collection: 'regions', depth: 0, req: asTrustedReq(req) })
+        }
+      })
+      expect(billed).toBe(1)
+    })
+
+    it('bills each request separately', async () => {
+      // The other direction, and what makes the case above non-trivial: the cell
+      // is per request, so three requests cost three. A cell hoisted to module
+      // or client scope would pass the case above and fail this one.
+      const billed = await billedBy(async () => {
+        for (let i = 0; i < 3; i++) {
+          await payload.find({
+            collection: 'regions',
+            select: { name: true },
+            depth: 0,
+            req: clientReq(),
+          })
+        }
+      })
+      expect(billed).toBe(3)
+    })
+  })
+
+  describe('a read that is not the client’s bills nothing', () => {
+    it('a manager read', async () => {
+      const billed = await billedBy(() =>
+        payload.find({ collection: 'regions', depth: 0, req: managerReq() }),
+      )
+      expect(billed).toBe(0)
+    })
+
+    it('a read with no authenticated user', async () => {
+      const billed = await billedBy(() =>
+        payload.find({ collection: 'regions', depth: 0, overrideAccess: true }),
+      )
+      expect(billed).toBe(0)
+    })
+  })
+
+  describe('a refused read costs no quota', () => {
+    it('a client read carrying no select', async () => {
+      // The select gate runs ahead of the meter, so the 400 is free.
+      const billed = await billedBy(async () => {
+        await expect(
+          payload.find({ collection: 'regions', depth: 0, req: clientReq() }),
+        ).rejects.toThrow(/select/)
+      })
+      expect(billed).toBe(0)
+    })
+
+    it('a client read from an origin outside allowedDomains', async () => {
+      // Origin enforcement runs FIRST in the gate chain and the meter LAST
+      // (`usagePlugin.ts`), so the 403 costs nothing.
+      const billed = await billedBy(async () => {
+        await expect(
+          payload.find({
+            collection: 'regions',
+            select: { name: true },
+            depth: 0,
+            req: clientReq({ allowedDomains: 'allowed.org', origin: 'https://evil.org' }),
+          }),
+        ).rejects.toThrow(/origin is not allowed/)
+      })
+      expect(billed).toBe(0)
+    })
+
+    it('an endpoint whose forwarded read is refused for its origin', async () => {
+      // ⚠ This pair is why the bill lands inside the first read rather than at
+      // the top of a handler. A collection endpoint has no origin check of its
+      // own — enforcement happens in the forwarded read's `beforeOperation`
+      // chain, because `validateClientOriginHook` deliberately does not honour
+      // `asTrustedReq`. A handler billing before its first read would let a
+      // misconfigured or hostile host page drain a client's whole daily quota
+      // while being refused every single time.
+      const req = (origin: string) =>
+        clientReq({ routeParams: { id: meditationId }, allowedDomains: 'allowed.org', origin })
+
+      // The control. Without it the refusal below is indistinguishable from the
+      // 404 this endpoint returns for a meditation that does not exist — it maps
+      // a throwing `findByID` onto "treating as not found".
+      const allowed = await billedBy(async () => {
+        const response = await callHandler(meditationSongs, req('https://allowed.org'))
+        expect(response.status).toBe(200)
+      })
+      expect(allowed).toBe(1)
+
+      const refused = await billedBy(async () => {
+        const response = await callHandler(meditationSongs, req('https://evil.org'))
+        expect(response.status).toBe(404)
+      })
+      expect(refused).toBe(0)
     })
   })
 })
