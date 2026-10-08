@@ -15,10 +15,12 @@
  * collection's `beforeOperation` hooks, so a fix that only stopped counting
  * forwarded reads would have billed seven routes nothing (#891).
  *
- * The routes are enumerated deliberately. `/api/clients/report` is the one
- * client-reachable route absent from the list, because `clients` is excluded
- * from the usage plugin and that route bills nothing by design
- * (`docs/rules/api-clients.md`).
+ * The routes are enumerated deliberately. Two client-reachable routes are
+ * absent, for opposite reasons. `POST /api/clients/report` bills nothing by
+ * design, because `clients` is excluded from the usage plugin. A client's
+ * registration `POST /api/user-submissions` bills 1, through the gate's own
+ * events lookup. That is a write path this change does not move, so the reads
+ * below are the whole subject (`docs/rules/api-clients.md`).
  *
  * ## Which cases are regression tests, and which are contract pins
  *
