@@ -268,7 +268,7 @@ A shaped endpoint issues 2 to 5 forwarded reads, and each one is a `read` the me
 
 So **a collection endpoint needs nothing**: its own reads bill it, exactly once. **A root endpoint calls `countClientRead(req)` itself**, because it runs no collection `beforeOperation` hook and may read no metered collection at all — `GET /api/atlas/seo`'s root route resolves through two globals and the caller's own `clients` row, and so billed nothing.
 
-**Writes are not metered**, here or anywhere: the hook returns unless `operation === 'read'`. A write's own forwarded read still bills, as it always has.
+**A write is not billed for itself** — the hook returns unless `operation === 'read'` — **but its own forwarded read still bills**: a client's registration `POST /api/user-submissions` costs 1, through the gate's events lookup.
 
 `tests/int/usage-tracking-dedup.int.spec.ts` pins the count for every client-reachable route, and asserts a number rather than "fewer than before" — a route billing 0 is as wrong as one billing 5. Its header records which cases are regression tests and which are contract pins.
 
