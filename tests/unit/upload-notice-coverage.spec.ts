@@ -3,13 +3,14 @@ import type { CollectionConfig, Config } from 'payload'
 import { describe, expect, it } from 'vitest'
 
 import { collections } from '@/collections'
-import { UPLOAD_NOTICE, uploadNoticePlugin } from '@/plugins/uploadNotice'
+import { UPLOAD_NOTICE, withUploadNotice } from '@/plugins/storage/uploadNotice'
 
 import { sourceOf, SRC } from '../utils/importGraph'
 
 /**
  * Every upload collection gets the uploading notice, with no per-collection
- * wiring (#888).
+ * wiring (#888). That `storagePlugin` applies this on all three of its paths
+ * is `upload-notice-storage.spec.ts`.
  *
  * It runs over the **real** collection array, not a fixture: a fixture would
  * assume the very thing under test — which collections declare `upload`. The
@@ -18,21 +19,19 @@ import { sourceOf, SRC } from '../utils/importGraph'
  * still earns its place for the cases the real array cannot show: a brand-new
  * upload collection, and one already using the slot.
  *
- * `payload.config.ts` is read as text because the alternative is `buildConfig`,
- * which boots Payload and belongs to no unit lane. What that read cannot see —
- * whether Payload resolves the string path — the generated
- * `src/app/(payload)/admin/importMap.js` can, so it is asserted too: the entry
- * exists only because `pnpm generate:importmap` found the component on the
- * sanitized config.
+ * The generated `src/app/(payload)/admin/importMap.js` is asserted because
+ * nothing else here proves Payload resolves the string path: that entry exists
+ * only because `pnpm generate:importmap` found the component on the sanitized
+ * config.
  */
 
 const apply = (input: CollectionConfig[]): CollectionConfig[] =>
-  uploadNoticePlugin({ collections: input } as Config).collections ?? []
+  withUploadNotice({ collections: input } as Config).collections ?? []
 
 const noticesOf = (collection: CollectionConfig) =>
   collection.admin?.components?.edit?.beforeDocumentControls ?? []
 
-describe('uploadNoticePlugin', () => {
+describe('withUploadNotice', () => {
   it('leaves every upload collection in the repo carrying the notice', () => {
     const uploads = apply(collections as CollectionConfig[]).filter((c) => c.upload)
 
@@ -86,24 +85,6 @@ describe('uploadNoticePlugin', () => {
 
     expect(kept!.admin?.components?.edit?.Upload).toBe(audio)
     expect(noticesOf(kept!)).toEqual([UPLOAD_NOTICE])
-  })
-})
-
-describe('uploadNoticePlugin registration', () => {
-  /**
-   * Sliced from `plugins: [` so the import above cannot stand in for the
-   * registration, and `>= 0` so a `-1` miss cannot pass as an ordering.
-   */
-  const config = sourceOf(`${SRC}/payload.config.ts`)
-  const pluginsBlock = config.slice(config.indexOf('plugins: ['))
-  const registration = pluginsBlock.indexOf('uploadNoticePlugin')
-
-  it('runs before accessPlugin, which processes plugin-created collections last', () => {
-    const accessPlugin = pluginsBlock.indexOf('accessPlugin({')
-
-    expect(accessPlugin).toBeGreaterThanOrEqual(0)
-    expect(registration).toBeGreaterThanOrEqual(0)
-    expect(registration).toBeLessThan(accessPlugin)
   })
 
   it('has its component in the generated import map', () => {

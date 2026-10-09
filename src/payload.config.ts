@@ -32,7 +32,6 @@ import { managersLoginHere, seedPreviewAdmin } from '@/plugins/previewAdmin'
 import { sentryPlugin } from '@/plugins/sentry'
 import { storagePlugin } from '@/plugins/storage'
 import { isProductionDeployment } from '@/plugins/storage/previewIsolation'
-import { uploadNoticePlugin } from '@/plugins/uploadNotice'
 import { usagePlugin } from '@/plugins/usage'
 import { writeGuardPlugin } from '@/plugins/writeGuard'
 
@@ -302,7 +301,8 @@ const payloadConfig = (overrides?: Partial<Config>) => {
         }),
         enabled: !isE2ETest, // Skip in E2E tests
       }),
-      // File storage: Cloudflare Images/Stream + R2 over S3 (disabled in E2E tests)
+      // File storage: Cloudflare Images/Stream + R2 over S3 (disabled in E2E tests).
+      // Also carries the uploading notice (#888), above its own disabled path.
       storagePlugin({
         enabled: !isE2ETest, // Skip in E2E tests
       }),
@@ -354,9 +354,6 @@ const payloadConfig = (overrides?: Partial<Config>) => {
         collections: [managersLoginHere()],
         invitations: !isSeedScript,
       }),
-      // Uploading notice (#888). Late in the list so it also covers a
-      // collection a plugin above added.
-      uploadNoticePlugin,
       // Access Plugin: Unified RBAC and project visibility (must be LAST to process plugin-created collections)
       accessPlugin({
         enabled: true,
