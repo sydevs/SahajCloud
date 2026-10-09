@@ -24,7 +24,7 @@ Import directly from `@payloadcms/ui` (e.g. `import { Banner, Button, Pill } fro
 | Cards / layout | `Card`, `Gutter`, `Collapsible`, `AnimateHeight` |
 | Tooltip / popover | `Tooltip`, `Popup`, `PopupList` |
 | Modals / drawers | `Drawer` + `useModal`/`useDrawerSlug`, `ConfirmationModal`, `FullscreenModal` |
-| Loading | `LoadingOverlay`, `ProgressBar`, `ShimmerEffect` |
+| Loading | `Spinner` (icon + `loadingText`), `LoadingOverlay`, `ProgressBar`, `ShimmerEffect` |
 | Pagination / list | `Pagination`, `PerPage`, `ListControls` |
 | Drag & drop | `DraggableSortable`, `DraggableSortableItem` |
 | Uploads | `Dropzone`, `Upload`, `FileDetails` |
@@ -32,6 +32,18 @@ Import directly from `@payloadcms/ui` (e.g. `import { Banner, Button, Pill } fro
 | Icons | `WarningIcon`/`ErrorIcon`/`InfoIcon`/`SuccessIcon` plus `CalendarIcon`, `CheckIcon`, `ChevronIcon`, `CopyIcon`, `EditIcon`, `ExternalLinkIcon`, `GearIcon`, `PlusIcon`, `SearchIcon`, `XIcon`, … |
 
 `Table` is list-view-shaped: pass `data` (rows with an `id`) and `columns: Column[]`, each column carrying pre-rendered `renderedCells` (one node per row), `accessor`, and `active: true`. `Column` also requires a `field` the component never reads — stub it (`field: {} as never`). See `src/components/admin/LogTable/` for the working pattern, and note what it hand-rolls: `Table` exposes nothing per row, so opening a row's detail needs a delegated `closest('tr[data-id]')` listener (Payload writes the row's `id` there), and `cursor` must be a stylesheet rule because it targets Payload's own `<tr>`.
+
+### A multipart save renders its own feedback
+
+Payload publishes the state and renders nothing for it. `Form` holds `processing` and exposes it through `useFormProcessing()`; `<Upload>` reads that hook only to reset its remove-file state, and no `upload` option covers progress. So between submit and the response a document with a file attached shows a faded button and nothing else, which on a large file reads as a frozen page (#888).
+
+`UploadNotice` (`src/components/admin/UploadNotice/`) is that feedback, a `Spinner` shown while `useFormProcessing()` is true **and** form state's `file` path holds a `File`. Neither half alone is the signal: processing is equally true of a save posting no file, and `data-form-ready` is also false while the form initializes.
+
+`storagePlugin` appends it to `admin.components.edit.beforeDocumentControls` for every collection with `upload` set (`src/plugins/storage/uploadNotice.ts`), so a new upload collection needs no wiring. ⚠ It is applied **above** that plugin's two early returns, because a save still posts a file with the plugin disabled and with the Cloudflare credentials absent — local dev, the test suite, `migrate:create`.
+
+⚠ **A replacement `edit.Upload` component receives no props at all.** Payload reads the node off `useDocumentInfo().Upload` and renders it bare, so everything its own call sites pass must be re-sourced. `initialState` is the one that bites: it is optional, so omitting it compiles and looks right on the edit view, but `<Upload>` sets `fileSrc` from it on mount and gates the whole staged-file block — thumbnail, filename, remove, crop — on `value && fileSrc`. The Bulk Upload drawer stages each file into its own form rather than clicking, so without it that drawer shows an empty box. `AudioUpload` takes it from `useDocumentInfo()` for exactly this reason. `UploadControls` and `customActions` arrive as **props** and sit on no context, so they cannot be re-sourced at all.
+
+⚠ **`<Upload>`'s `UploadControls` slot cannot carry a notice about a save.** It renders inside the dropzone, and the dropzone gives way to the staged-file preview the moment a file is chosen — so the slot is empty exactly when the notice is needed.
 
 ### `Drawer` must mount unconditionally, or it won't animate
 

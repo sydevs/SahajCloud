@@ -8,7 +8,7 @@ import { getCanonicalFallbackOwner, getRegionOwners } from '@/lib/atlas/regionOw
 import { getRegionTree } from '@/lib/atlas/regionTree'
 import { requireActiveClient } from '@/lib/endpoints'
 import { publicReadCacheHeaders } from '@/plugins/cache'
-import { assertClientOriginAllowed } from '@/plugins/usage'
+import { assertClientOriginAllowed, countClientRead } from '@/plugins/usage'
 
 import { fallbackRegionIds, ownedRegionIds, sitemapUrls } from './sitemapUrls'
 
@@ -131,8 +131,9 @@ async function ownedDocuments(
  * spans regions *and* events, so no collection owns it — which means the usage
  * plugin's `beforeOperation` gates don't fire for the handler itself and
  * `assertClientOriginAllowed` is called directly (see `docs/rules/endpoints.md`).
- * The collection reads it forwards *do* run them, so published-only access,
- * project visibility and usage tracking all apply as usual.
+ * The collection reads it forwards *do* run them, so published-only access and
+ * project visibility apply as usual, and the meter is idempotent per request, so
+ * they add nothing to the one count (#891).
  *
  * Returns `AtlasSitemapResponse` (see ./responseTypes).
  */
@@ -168,6 +169,13 @@ export const atlasSitemap: Endpoint = {
       })
       return errorResponse('Failed to build the sitemap for this client.', 500)
     }
+
+    // A root endpoint runs no collection `beforeOperation` hook, so it counts
+    // itself (#891). The reads below happen to count it too — the region tree is
+    // read on every call — so this is the floor rather than the only count, and
+    // it is what keeps the route at 1 if that ever stops being true. Idempotent,
+    // so the pair never costs two.
+    await countClientRead(req)
 
     try {
       // Two memoized reads; the fallback lookup is the one `sy-atlas-config`

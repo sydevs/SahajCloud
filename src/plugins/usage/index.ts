@@ -27,6 +27,7 @@ export {
 // Hook exports (for testing)
 export {
   assertClientOriginAllowed,
+  countClientRead,
   rateLimitHook,
   usageTrackingBeforeOperationHook,
   validateClientOriginHook,

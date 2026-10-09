@@ -117,6 +117,7 @@ content collection.
 | The three auth outcomes a captured error can carry, and the rules that keep an API key out of Sentry and the log (#734) | unit: `sentry-auth-attempt.spec.ts` |
 | `sentryPlugin`'s own `afterError` wiring — level, fingerprint and the WARN mirror actually reached, and a `context` callback shaped like the real config's not dropping the fingerprint | unit: `sentry-credential-rejected.spec.ts` |
 | `requireActiveClient` reporting the rejected credential its returned 403 hides from every error hook, staying silent for an anonymous or authenticated denial, reporting every repeat rather than collapsing it, and never costing the caller its 403 or its event (#743) | unit: `endpoint-guard-credential-rejected.spec.ts` |
+| What one client request costs the meter, for every client-reachable route plus an ordinary list read, a `webPath` read, a populating read and a global read — all exactly 1, and 0 for a manager, an anonymous caller and an origin-denied one (#891) | `usage-tracking-dedup` |
 | `pnpm seed translations` on the Atlas global: ten locales published individually, the two live-data groups preserved across a re-run, an untranslated key omitted rather than blanked, and a locale's own plural family stored | `seeds/tests/atlas-translations-import.test.ts` |
 
 ## Gaps
