@@ -2880,7 +2880,7 @@ export interface Lesson {
   deletedAt?: string | null;
 }
 /**
- * Media files (images, audio, video) and PDFs used by other collections. Orphaned files are automatically moved to trash and permanently deleted during monthly cleanup.
+ * Media files (images, audio, video) and PDFs used by other collections. A file nothing links to is moved to the trash automatically, and deleted for good after 45 days there.
  *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "files".
@@ -10129,6 +10129,7 @@ export interface TaskCleanupOrphanedMedia {
     rangeStart?: string | null;
     rangeEnd?: string | null;
     maxOperations?: number | null;
+    dryRun?: boolean | null;
   };
   output: {
     permanentlyDeletedFiles: number;
@@ -10137,6 +10138,7 @@ export interface TaskCleanupOrphanedMedia {
     trashedImages: number;
     skippedImages: number;
     errors: number;
+    dryRun: boolean;
   };
 }
 /**
