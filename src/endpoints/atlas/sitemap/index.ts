@@ -133,7 +133,7 @@ async function ownedDocuments(
  * `assertClientOriginAllowed` is called directly (see `docs/rules/endpoints.md`).
  * The collection reads it forwards *do* run them, so published-only access and
  * project visibility apply as usual, and the meter is idempotent per request, so
- * they add nothing to the one bill (#891).
+ * they add nothing to the one count (#891).
  *
  * Returns `AtlasSitemapResponse` (see ./responseTypes).
  */
@@ -170,9 +170,9 @@ export const atlasSitemap: Endpoint = {
       return errorResponse('Failed to build the sitemap for this client.', 500)
     }
 
-    // A root endpoint runs no collection `beforeOperation` hook, so it bills
-    // itself (#891). The reads below happen to bill it too — the region tree is
-    // read on every call — so this is the floor rather than the only bill, and
+    // A root endpoint runs no collection `beforeOperation` hook, so it counts
+    // itself (#891). The reads below happen to count it too — the region tree is
+    // read on every call — so this is the floor rather than the only count, and
     // it is what keeps the route at 1 if that ever stops being true. Idempotent,
     // so the pair never costs two.
     await countClientRead(req)

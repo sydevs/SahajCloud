@@ -75,7 +75,7 @@ Those supporting modules are single-owner code and belong here, not in `src/lib/
 **A root endpoint loses the usage plugin's `beforeOperation` hooks**, since those only run on collection operations:
 
 - **Origin enforcement.** Call `assertClientOriginAllowed(req)` from `@/plugins/usage` directly, right after `requireActiveClient`, and map the thrown `APIError` to a response. Don't rely on an incidental collection read to trigger it — `clients` itself is excluded from the plugin, so reading the caller's own record wouldn't fire it either.
-- **Usage tracking.** Nothing here bills the route, so call `countClientRead(req)` from `@/plugins/usage` once, after the gates. It is idempotent per request, so a forwarded collection read adds nothing — and a route that reads no metered collection at all (`GET /api/atlas/seo`'s root) would otherwise bill nothing (#891). A **collection** endpoint needs no such call: its own reads bill it. See "One request, one bill" in `docs/rules/api-clients.md`.
+- **Usage tracking.** Nothing here counts the route, so call `countClientRead(req)` from `@/plugins/usage` once, after the gates. It is idempotent per request, so a forwarded collection read adds nothing — and a route that reads no metered collection at all (`GET /api/atlas/seo`'s root) would otherwise count nothing (#891). A **collection** endpoint needs no such call: its own reads count it. See "One request, one count" in `docs/rules/api-clients.md`.
 
 Everything else still applies: `requireActiveClient` as the first statement, and an OpenAPI entry — see the root-path note in `docs/rules/openapi.md`, since project visibility cannot be derived from a path segment naming no collection.
 

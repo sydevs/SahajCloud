@@ -395,7 +395,7 @@ async function eventSeo(
  * `assertClientOriginAllowed` and `countClientRead` are called directly (see
  * `docs/rules/endpoints.md`). The collection reads it forwards *do* run them, so
  * published-only access and project visibility apply as usual, and the meter is
- * idempotent per request, so they add nothing to the one bill (#891).
+ * idempotent per request, so they add nothing to the one count (#891).
  *
  * Returns `AtlasSeoResponse` (see ./responseTypes).
  */
@@ -422,10 +422,10 @@ export const atlasSeo: Endpoint = {
     const target = parseAtlasRoute(parsed.data.route)
     if (!target) return errorResponse('That is not a valid atlas route.', 404)
 
-    // A root endpoint runs no collection `beforeOperation` hook, so it bills
+    // A root endpoint runs no collection `beforeOperation` hook, so it counts
     // itself. Idempotent, so the `regions` read a region or event route makes
     // adds nothing — and the **root** route reads no metered collection at all,
-    // which is why it billed nothing before #891.
+    // which is why it counted nothing before #891.
     await countClientRead(req)
 
     try {

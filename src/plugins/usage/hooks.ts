@@ -14,15 +14,15 @@ import { getPgPool, quotedDbSchema } from './db'
 import { extractRequestHost, isHostAllowed, parseAllowedDomains } from './originEnforcement'
 
 const SKIP_VALIDATION = 'skipClientQueryValidation'
-const BILL_CELL = 'usageBilled'
+const COUNT_CELL = 'usageCounted'
 
-/** Whether this request has already been billed. Shared, mutable, per request. */
-interface BillCell {
-  billed: boolean
+/** Whether this request has already been counted. Shared, mutable, per request. */
+interface CountCell {
+  counted: boolean
 }
 
 /**
- * This request's one "already billed" cell, created on first ask.
+ * This request's one "already counted" cell, created on first ask.
  *
  * ⚠ **It is an object, and that is the whole mechanism.** {@link asTrustedReq}
  * spreads `req.context` into a **new** object, so a boolean written through one
@@ -35,11 +35,11 @@ interface BillCell {
  * which is what `asTrustedReq` does before it spreads. Mutating `req.context`
  * for per-request state is what `memoizeOnRequest` does too (#891).
  */
-function billCell(req: PayloadRequest): BillCell {
+function countCell(req: PayloadRequest): CountCell {
   const ctx = (req.context ?? {}) as Record<string, unknown>
   req.context = ctx
-  ctx[BILL_CELL] ??= { billed: false } satisfies BillCell
-  return ctx[BILL_CELL] as BillCell
+  ctx[COUNT_CELL] ??= { counted: false } satisfies CountCell
+  return ctx[COUNT_CELL] as CountCell
 }
 
 /**
@@ -49,12 +49,12 @@ function billCell(req: PayloadRequest): BillCell {
  * (for example in the related-* endpoints) does not have to enumerate every
  * field through `select`.
  *
- * ⚠ **It also seeds {@link billCell} on `req`, so every copy shares one.** An
+ * ⚠ **It also seeds {@link countCell} on `req`, so every copy shares one.** An
  * endpoint issues 2 to 5 of these per request and each is a `read` the meter
  * sees, so the shared cell is what makes the request cost 1 rather than 5.
  */
 export function asTrustedReq(req: PayloadRequest): PayloadRequest {
-  billCell(req)
+  countCell(req)
   return { ...req, context: { ...req.context, [SKIP_VALIDATION]: true } }
 }
 
@@ -429,12 +429,14 @@ const usageIncrementSql = (quotedSchema: string) => `
 `
 
 /**
- * Bill this request to the calling client, at most once, if the caller is one.
+ * Count this request against the calling client, at most once, if the caller is
+ * one. The counters are an abuse signal, not an invoice — nothing charges for a
+ * client read, and `HIGH_USAGE_THRESHOLD` is what reads them.
  *
- * Idempotent per request, through {@link billCell} — the first read of a request
- * pays and every later read of the same request is free, however it arrived.
- * That is what makes an endpoint's own forwarded reads cost nothing extra:
- * before #891 each one was billed separately, and
+ * Idempotent per request, through {@link countCell} — the first read of a request
+ * increments and every later read of the same request does not, however it
+ * arrived. That is what makes an endpoint's own forwarded reads add nothing:
+ * before #891 each one was counted separately, and
  * `/api/meditations/:id/related-lectures` cost 3 to 5 requests instead of 1.
  *
  * One atomic Postgres UPDATE, on the pool rather than inside the request
@@ -443,18 +445,18 @@ const usageIncrementSql = (quotedSchema: string) => `
  *
  * Call it directly only from a **root** endpoint, which runs no collection
  * `beforeOperation` hook of its own and may read no metered collection at all.
- * A collection endpoint needs nothing — its own reads bill it, exactly once.
+ * A collection endpoint needs nothing — its own reads count it, exactly once.
  */
 export async function countClientRead(req: PayloadRequest): Promise<void> {
   if (req.user?.collection !== 'clients' || !req.user?.id) {
     return
   }
 
-  const cell = billCell(req)
-  if (cell.billed) {
+  const cell = countCell(req)
+  if (cell.counted) {
     return
   }
-  cell.billed = true
+  cell.counted = true
 
   try {
     const now = new Date().toISOString()
@@ -479,7 +481,7 @@ export async function countClientRead(req: PayloadRequest): Promise<void> {
 /**
  * A beforeOperation hook for usage tracking.
  *
- * This bills one request per client request, not one per document, one per
+ * This counts one request per client request, not one per document, one per
  * internal relationship-population read, or one per read an endpoint issues to
  * serve it. Two things get it there, and both are needed:
  *
@@ -487,9 +489,9 @@ export async function countClientRead(req: PayloadRequest): Promise<void> {
  *   relationship, skipped here so a depth-1 read is not N+1 UPDATEs (#559);
  * - {@link countClientRead}'s per-request cell, which covers a read an endpoint
  *   forwards on the caller's `req`. Payload attaches no signal to those, so
- *   before #891 each was billed as a separate request.
+ *   before #891 each was counted as a separate request.
  *
- * ⚠ **The bill lands inside the first read, after that read's own gates.** This
+ * ⚠ **The count lands inside the first read, after that read's own gates.** This
  * gate runs last in the chain (`usagePlugin.ts`), so an origin-denied or
  * malformed read costs no quota — which is why this is the seam rather than a
  * call at the top of each handler.

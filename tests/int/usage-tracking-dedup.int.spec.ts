@@ -10,15 +10,15 @@
  * hook does. `tests/int/globals-client-reads.int.spec.ts` is the honest shape
  * this follows.
  *
- * ⚠ **A route billing 0 is as wrong as one billing 5**, so every case asserts a
+ * ⚠ **A route counting 0 is as wrong as one counting 5**, so every case asserts a
  * number rather than "fewer than before". A custom endpoint runs none of its
  * collection's `beforeOperation` hooks, so a fix that only stopped counting
- * forwarded reads would have billed seven routes nothing (#891).
+ * forwarded reads would have left seven routes counting nothing (#891).
  *
  * The routes are enumerated deliberately. Two client-reachable routes are
- * absent, for opposite reasons. `POST /api/clients/report` bills nothing by
+ * absent, for opposite reasons. `POST /api/clients/report` counts nothing by
  * design, because `clients` is excluded from the usage plugin. A client's
- * registration `POST /api/user-submissions` bills 1, through the gate's own
+ * registration `POST /api/user-submissions` counts 1, through the gate's own
  * events lookup. That is a write path this change does not move, so the reads
  * below are the whole subject (`docs/rules/api-clients.md`).
  *
@@ -30,12 +30,12 @@
  *   — related-lectures, related-meditations, by-narrator, sitemap, the seo
  *   region route, the `webPath` read, and the cell case itself.
  * - **Remove the two root endpoints' `countClientRead`** and exactly one goes
- *   red, at 0: the seo **root** route. The sitemap's own reads bill it anyway,
- *   so its call is a floor rather than the only bill.
+ *   red, at 0: the seo **root** route. The sitemap's own reads count it anyway,
+ *   so its call is a floor rather than the only count.
  * - Of the eleven route cases, five pass under **both** reverts: `/songs`, both
  *   `/for-audience` feeds, `/for-user`, and `geojson` — with these fixtures
  *   each reaches exactly one metered read, and `geojson` is meant to. They are
- *   **contract pins**, not regression tests: they go red if a route ever bills
+ *   **contract pins**, not regression tests: they go red if a route ever counts
  *   0 or 2, which is what the enumeration is for, and they are the reason this
  *   file names every route rather than only the ones that were wrong.
  */
@@ -148,9 +148,9 @@ describe('usage metering, per client-reachable route (#891)', () => {
 
   /**
    * What `run` cost the client. `clients` is excluded from the usage plugin, so
-   * the two counter reads around it bill nothing themselves.
+   * the two counter reads around it count nothing themselves.
    */
-  async function billedBy(run: () => Promise<unknown>): Promise<number> {
+  async function countedBy(run: () => Promise<unknown>): Promise<number> {
     const before = await dailyRequests()
     await run()
     return (await dailyRequests()) - before
@@ -161,14 +161,14 @@ describe('usage metering, per client-reachable route (#891)', () => {
     return (endpoint.handler as (r: PayloadRequest) => Promise<Response>)(req)
   }
 
-  /** `run` bills exactly one request, and its response says the reads happened. */
-  async function expectOneBill(run: () => Promise<Response>): Promise<void> {
+  /** `run` counts exactly one request, and its response says the reads happened. */
+  async function expectOneCount(run: () => Promise<Response>): Promise<void> {
     let status = 0
-    const billed = await billedBy(async () => {
+    const counted = await countedBy(async () => {
       status = (await run()).status
     })
     expect(status).toBe(200)
-    expect(billed).toBe(1)
+    expect(counted).toBe(1)
   }
 
   beforeAll(async () => {
@@ -238,15 +238,15 @@ describe('usage metering, per client-reachable route (#891)', () => {
     await cleanup()
   })
 
-  describe('a custom endpoint bills exactly one request', () => {
+  describe('a custom endpoint counts exactly one request', () => {
     // Every route under `src/collections/*/endpoints/` and `src/endpoints/` that
     // a published client can reach, except `/api/clients/report` — see the head
-    // of this file. On `main` these billed 0 to 5.
+    // of this file. On `main` these counted 0 to 5.
 
     it('GET /api/meditations/:id/related-lectures', async () => {
       // Four forwarded reads plus `recomputeWeightsForMeditation`'s own, every
-      // one of them `asTrustedReq`. On `main` this route billed 3 to 5.
-      await expectOneBill(() =>
+      // one of them `asTrustedReq`. On `main` this route counted 3 to 5.
+      await expectOneCount(() =>
         callHandler(
           meditationLectures,
           clientReq({
@@ -258,13 +258,13 @@ describe('usage metering, per client-reachable route (#891)', () => {
     })
 
     it('GET /api/meditations/:id/songs', async () => {
-      await expectOneBill(() =>
+      await expectOneCount(() =>
         callHandler(meditationSongs, clientReq({ routeParams: { id: meditationId } })),
       )
     })
 
     it('GET /api/lectures/:id/related-meditations', async () => {
-      await expectOneBill(() =>
+      await expectOneCount(() =>
         callHandler(
           lectureRelatedMeditations,
           clientReq({ routeParams: { id: lectureId }, query: { limit: '5' } }),
@@ -273,7 +273,7 @@ describe('usage metering, per client-reachable route (#891)', () => {
     })
 
     it('GET /api/lectures/for-audience', async () => {
-      await expectOneBill(() =>
+      await expectOneCount(() =>
         callHandler(
           lecturesForAudience,
           clientReq({ query: { audiences: String(audienceId), limit: '5' } }),
@@ -282,7 +282,7 @@ describe('usage metering, per client-reachable route (#891)', () => {
     })
 
     it('GET /api/app-cards/for-audience', async () => {
-      await expectOneBill(() =>
+      await expectOneCount(() =>
         callHandler(
           appCardsForAudience,
           clientReq({
@@ -293,7 +293,7 @@ describe('usage metering, per client-reachable route (#891)', () => {
     })
 
     it('GET /api/audiences/for-user', async () => {
-      await expectOneBill(() =>
+      await expectOneCount(() =>
         callHandler(
           audiencesForUser,
           clientReq({
@@ -312,7 +312,7 @@ describe('usage metering, per client-reachable route (#891)', () => {
     it('GET /api/frames/by-narrator/:id', async () => {
       // Gated on `frames` read permission rather than `requireActiveClient`, so
       // this is also the one route whose client gate is a role check.
-      await expectOneBill(() =>
+      await expectOneCount(() =>
         callHandler(
           framesByNarrator,
           clientReq({ routeParams: { narratorId: String(narratorId) } }),
@@ -322,7 +322,7 @@ describe('usage metering, per client-reachable route (#891)', () => {
 
     it('GET /api/atlas/sitemap', async () => {
       let urls = 0
-      const billed = await billedBy(async () => {
+      const counted = await countedBy(async () => {
         const response = await callHandler(atlasSitemap, clientReq())
         expect(response.status).toBe(200)
         urls = ((await response.json()) as { urls: unknown[] }).urls.length
@@ -330,35 +330,37 @@ describe('usage metering, per client-reachable route (#891)', () => {
       // The owned subtree resolved, so `ownedDocuments` ran. Without this the
       // handler returns before both of its reads.
       expect(urls).toBeGreaterThan(0)
-      expect(billed).toBe(1)
+      expect(counted).toBe(1)
     })
 
     it('GET /api/atlas/seo for a region route', async () => {
-      await expectOneBill(() => callHandler(atlasSeo, clientReq({ query: { route: '/usageland' } })))
+      await expectOneCount(() =>
+        callHandler(atlasSeo, clientReq({ query: { route: '/usageland' } })),
+      )
     })
 
     it('GET /api/atlas/seo for the root route, which reads no metered collection', async () => {
-      // The route that makes the "bills 0" half of this ticket concrete: it
+      // The route that makes the "counts 0" half of this ticket concrete: it
       // resolves through two globals (skipped by `onlyOnCallerAuthority`) and the
       // caller's own `clients` row (an excluded collection), so no
-      // `beforeOperation` chain runs and nothing billed it before #891. It is
+      // `beforeOperation` chain runs and nothing counted it before #891. It is
       // why the two root endpoints call `countClientRead` themselves.
-      await expectOneBill(() => callHandler(atlasSeo, clientReq({ query: { route: '/' } })))
+      await expectOneCount(() => callHandler(atlasSeo, clientReq({ query: { route: '/' } })))
     })
 
     it('GET /api/events/geojson', async () => {
       // `depth` is forwarded verbatim, so omitting it takes the server default
-      // of 2 and the gate then demands `populate` — a 400 that bills nothing and
+      // of 2 and the gate then demands `populate` — a 400 that counts nothing and
       // would read as this assertion holding.
-      await expectOneBill(() =>
+      await expectOneCount(() =>
         callHandler(eventsGeoJson, clientReq({ query: { select: { title: true }, depth: '0' } })),
       )
     })
   })
 
-  describe('an ordinary client read bills exactly one request', () => {
+  describe('an ordinary client read counts exactly one request', () => {
     it('a list read', async () => {
-      const billed = await billedBy(() =>
+      const counted = await countedBy(() =>
         payload.find({
           collection: 'regions',
           select: { name: true },
@@ -366,14 +368,14 @@ describe('usage metering, per client-reachable route (#891)', () => {
           req: clientReq(),
         }),
       )
-      expect(billed).toBe(1)
+      expect(counted).toBe(1)
     })
 
     it('a read selecting webPath, which resolves the whole region tree', async () => {
       // `webPath`'s afterRead calls `getRegionWebPaths`, one more `regions` read
-      // on the caller's own `req`. On `main` that billed a second request — and
+      // on the caller's own `req`. On `main` that counted a second request — and
       // the per-request memo capped it at one extra rather than one per row.
-      const billed = await billedBy(async () => {
+      const counted = await countedBy(async () => {
         const result = await payload.find({
           collection: 'regions',
           select: { webPath: true, webUrl: true },
@@ -384,13 +386,13 @@ describe('usage metering, per client-reachable route (#891)', () => {
         // the resolver returned before reading anything.
         expect(result.docs[0]).toMatchObject({ webPath: '/usageland' })
       })
-      expect(billed).toBe(1)
+      expect(counted).toBe(1)
     })
 
     it('a read whose selected relationship populates', async () => {
       // Payload's own population sub-reads carry a numeric `currentDepth`, the
       // guard that was already here. #559 added it; this keeps it honest.
-      const billed = await billedBy(() =>
+      const counted = await countedBy(() =>
         payload.find({
           collection: 'lectures',
           select: { title: true, audiences: true },
@@ -399,7 +401,7 @@ describe('usage metering, per client-reachable route (#891)', () => {
           req: clientReq(),
         }),
       )
-      expect(billed).toBe(1)
+      expect(counted).toBe(1)
     })
 
     it('a global read, whose surface this change does not touch', async () => {
@@ -408,7 +410,7 @@ describe('usage metering, per client-reachable route (#891)', () => {
       // `overrideAccess: false` is load-bearing — the wrapper
       // `onlyOnCallerAuthority` uses that flag as its internal-read exemption,
       // so omitting it skips every gate and the assertion proves nothing.
-      const billed = await billedBy(() =>
+      const counted = await countedBy(() =>
         payload.findGlobal({
           slug: 'sy-atlas-config',
           select: { availableLocales: true },
@@ -417,30 +419,30 @@ describe('usage metering, per client-reachable route (#891)', () => {
           overrideAccess: false,
         }),
       )
-      expect(billed).toBe(1)
+      expect(counted).toBe(1)
     })
   })
 
   describe('the per-request cell', () => {
-    it('bills once across several asTrustedReq copies of one request', async () => {
+    it('counts once across several asTrustedReq copies of one request', async () => {
       // The mechanism, directly. Each `asTrustedReq` spreads `req.context` into
       // a NEW object, so a boolean flag written through one copy is invisible to
       // the next — the reason #559's `req.context` dedup never worked. The cell
       // is an object seeded on `req` itself, so every copy mutates one.
       const req = clientReq()
-      const billed = await billedBy(async () => {
+      const counted = await countedBy(async () => {
         for (let i = 0; i < 3; i++) {
           await payload.find({ collection: 'regions', depth: 0, req: asTrustedReq(req) })
         }
       })
-      expect(billed).toBe(1)
+      expect(counted).toBe(1)
     })
 
-    it('bills each request separately', async () => {
+    it('counts each request separately', async () => {
       // The other direction, and what makes the case above non-trivial: the cell
       // is per request, so three requests cost three. A cell hoisted to module
       // or client scope would pass the case above and fail this one.
-      const billed = await billedBy(async () => {
+      const counted = await countedBy(async () => {
         for (let i = 0; i < 3; i++) {
           await payload.find({
             collection: 'regions',
@@ -450,41 +452,41 @@ describe('usage metering, per client-reachable route (#891)', () => {
           })
         }
       })
-      expect(billed).toBe(3)
+      expect(counted).toBe(3)
     })
   })
 
-  describe('a read that is not the client’s bills nothing', () => {
+  describe('a read that is not the client’s counts nothing', () => {
     it('a manager read', async () => {
-      const billed = await billedBy(() =>
+      const counted = await countedBy(() =>
         payload.find({ collection: 'regions', depth: 0, req: managerReq() }),
       )
-      expect(billed).toBe(0)
+      expect(counted).toBe(0)
     })
 
     it('a read with no authenticated user', async () => {
-      const billed = await billedBy(() =>
+      const counted = await countedBy(() =>
         payload.find({ collection: 'regions', depth: 0, overrideAccess: true }),
       )
-      expect(billed).toBe(0)
+      expect(counted).toBe(0)
     })
   })
 
   describe('a refused read costs no quota', () => {
     it('a client read carrying no select', async () => {
-      // The select gate runs ahead of the meter, so the 400 is free.
-      const billed = await billedBy(async () => {
+      // The select gate runs ahead of the meter, so the 400 counts nothing.
+      const counted = await countedBy(async () => {
         await expect(
           payload.find({ collection: 'regions', depth: 0, req: clientReq() }),
         ).rejects.toThrow(/select/)
       })
-      expect(billed).toBe(0)
+      expect(counted).toBe(0)
     })
 
     it('a client read from an origin outside allowedDomains', async () => {
       // Origin enforcement runs FIRST in the gate chain and the meter LAST
       // (`usagePlugin.ts`), so the 403 costs nothing.
-      const billed = await billedBy(async () => {
+      const counted = await countedBy(async () => {
         await expect(
           payload.find({
             collection: 'regions',
@@ -494,15 +496,15 @@ describe('usage metering, per client-reachable route (#891)', () => {
           }),
         ).rejects.toThrow(/origin is not allowed/)
       })
-      expect(billed).toBe(0)
+      expect(counted).toBe(0)
     })
 
     it('an endpoint whose forwarded read is refused for its origin', async () => {
-      // ⚠ This pair is why the bill lands inside the first read rather than at
+      // ⚠ This pair is why the count lands inside the first read rather than at
       // the top of a handler. A collection endpoint has no origin check of its
       // own — enforcement happens in the forwarded read's `beforeOperation`
       // chain, because `validateClientOriginHook` deliberately does not honour
-      // `asTrustedReq`. A handler billing before its first read would let a
+      // `asTrustedReq`. A handler counting before its first read would let a
       // misconfigured or hostile host page drain a client's whole daily quota
       // while being refused every single time.
       const req = (origin: string) =>
@@ -511,13 +513,13 @@ describe('usage metering, per client-reachable route (#891)', () => {
       // The control. Without it the refusal below is indistinguishable from the
       // 404 this endpoint returns for a meditation that does not exist — it maps
       // a throwing `findByID` onto "treating as not found".
-      const allowed = await billedBy(async () => {
+      const allowed = await countedBy(async () => {
         const response = await callHandler(meditationSongs, req('https://allowed.org'))
         expect(response.status).toBe(200)
       })
       expect(allowed).toBe(1)
 
-      const refused = await billedBy(async () => {
+      const refused = await countedBy(async () => {
         const response = await callHandler(meditationSongs, req('https://evil.org'))
         expect(response.status).toBe(404)
       })

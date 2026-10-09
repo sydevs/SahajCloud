@@ -131,7 +131,7 @@ query:  https://{domain}{mount}{?|&}atlas={webPath}
 2. Payload authenticates via the encrypted API key.
 3. Cloudflare's edge rate-limiting rules check the request — no app-level limiter is needed.
 4. Access middleware enforces read-only RBAC.
-5. `usageTrackingBeforeOperationHook` bills one request per client request, skipping internal relationship-population sub-reads (`depth >= 1`, #559) and, through a per-request cell, every later read of the same request (#891) — see "One request, one bill" below.
+5. `usageTrackingBeforeOperationHook` counts one request per client request, skipping internal relationship-population sub-reads (`depth >= 1`, #559) and, through a per-request cell, every later read of the same request (#891) — see "One request, one count" below.
 6. The increment is a single atomic Postgres UPDATE.
 
 ### A key that authenticates nothing is reported as its own signal (#734)
@@ -254,23 +254,25 @@ On rejection the hook logs the offending shape at WARN (type, top-level keys, a 
 
 ### Internal-endpoint bypass
 
-A trusted internal handler forwarding a client `req` to `payload.find`/`findByID` should wrap it via `asTrustedReq()` (sets `req.context.skipClientQueryValidation`), so it need not enumerate `select` while rate limiting and usage tracking still see the authenticated client — billing it once for the whole request, not once per wrapped read (below). The companion `isTrustedReq(req)` reads that flag back. Honour it in a hook shaping the **client-facing result** (`excludeFinishedEvents` exempts a trusted req so registration can answer 409 instead of 404), but never in a security gate — `validateClientOriginHook` does not honour it.
+A trusted internal handler forwarding a client `req` to `payload.find`/`findByID` should wrap it via `asTrustedReq()` (sets `req.context.skipClientQueryValidation`), so it need not enumerate `select` while rate limiting and usage tracking still see the authenticated client — counting it once for the whole request, not once per wrapped read (below). The companion `isTrustedReq(req)` reads that flag back. Honour it in a hook shaping the **client-facing result** (`excludeFinishedEvents` exempts a trusted req so registration can answer 409 instead of 404), but never in a security gate — `validateClientOriginHook` does not honour it.
 
-### One request, one bill (#891)
+### One request, one count (#891)
 
-A shaped endpoint issues 2 to 5 forwarded reads, and each one is a `read` the meter sees. Payload attaches nothing to them — its only internal-read signal, a numeric `currentDepth`, is set for relationship population and nothing else — so `/api/meditations/:id/related-lectures` was billed 3 to 5 requests, and any client read selecting `webPath` was billed 2 through the region-tree resolver. `usage_daily_requests` feeds `HIGH_USAGE_THRESHOLD`, so an inflated route fired the high-usage alert early.
+**The counters are an abuse signal, not an invoice.** Nothing charges a client for a read — `usage_daily_requests` exists so an unusual volume surfaces as `highUsageAlert`, which is why a route counting 5 for one request is a defect and not a rounding error.
+
+A shaped endpoint issues 2 to 5 forwarded reads, and each one is a `read` the meter sees. Payload attaches nothing to them — its only internal-read signal, a numeric `currentDepth`, is set for relationship population and nothing else — so `/api/meditations/:id/related-lectures` was counted 3 to 5 requests, and any client read selecting `webPath` was counted 2 through the region-tree resolver. `usage_daily_requests` feeds `HIGH_USAGE_THRESHOLD`, so an inflated route fired the high-usage alert early.
 
 `countClientRead(req)` is now idempotent per request, through a **mutable object** on `req.context`:
 
 - ⚠ **An object, not a boolean.** `asTrustedReq` spreads `req.context` into a new object, so a boolean written through one copy is invisible to the next. That is the mechanism #559's commit message describes and never had. A nested object is copied by reference, so every copy mutates one cell.
 - ⚠ **Seeded before the spread.** `asTrustedReq` creates the cell on the `req` it is copying *from*, which is what makes the copies share one. A wrapper that spread first would give each read its own cell.
-- ⚠ **The bill lands inside the first read, after that read's own gates.** The meter runs last in the chain, so an origin-denied or malformed read costs no quota. A handler billing before its first read would let a misconfigured host page drain a client's daily quota while being refused 403 every time — a collection endpoint has no origin check of its own, because enforcement happens in the forwarded read.
+- ⚠ **The count lands inside the first read, after that read's own gates.** The meter runs last in the chain, so an origin-denied or malformed read costs no quota. A handler counting before its first read would let a misconfigured host page drain a client's daily quota while being refused 403 every time — a collection endpoint has no origin check of its own, because enforcement happens in the forwarded read.
 
-So **a collection endpoint needs nothing**: its own reads bill it, exactly once. **A root endpoint calls `countClientRead(req)` itself**, because it runs no collection `beforeOperation` hook and may read no metered collection at all — `GET /api/atlas/seo`'s root route resolves through two globals and the caller's own `clients` row, and so billed nothing.
+So **a collection endpoint needs nothing**: its own reads count it, exactly once. **A root endpoint calls `countClientRead(req)` itself**, because it runs no collection `beforeOperation` hook and may read no metered collection at all — `GET /api/atlas/seo`'s root route resolves through two globals and the caller's own `clients` row, and so counted nothing.
 
-**A write is not billed for itself** — the hook returns unless `operation === 'read'` — **but its own forwarded read still bills**: a client's registration `POST /api/user-submissions` costs 1, through the gate's events lookup.
+**A write is not counted for itself** — the hook returns unless `operation === 'read'` — **but its own forwarded read still counts**: a client's registration `POST /api/user-submissions` costs 1, through the gate's events lookup.
 
-`tests/int/usage-tracking-dedup.int.spec.ts` pins the count for every client-reachable route, and asserts a number rather than "fewer than before" — a route billing 0 is as wrong as one billing 5. Its header records which cases are regression tests and which are contract pins.
+`tests/int/usage-tracking-dedup.int.spec.ts` pins the count for every client-reachable route, and asserts a number rather than "fewer than before" — a route counting 0 is as wrong as one counting 5. Its header records which cases are regression tests and which are contract pins.
 
 ### System writes: `asSystemReq`, and why `overrideAccess` isn't enough
 
