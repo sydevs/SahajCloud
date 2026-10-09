@@ -55,7 +55,7 @@ pnpm seed wemeditate --clear-cache # Fresh start
 |--------|--------|-------|
 | `*_translations.name` | `pages.title` | Localized |
 | `*_translations.slug` | `pages.slug` | Auto-generated on conflict |
-| `*_translations.published_at` | `pages.publishAt` | Date |
+| `*_translations.published_at` | `pages._status` | Presence publishes that locale; the date is not stored |
 | `*_translations.content` | `pages.content` | EditorJS → Lexical |
 | `articles.author_id` | `pages.author` | Relationship |
 | `articles.category_id` | `pages.tags` | PageTag relationship |
