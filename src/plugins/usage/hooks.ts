@@ -16,11 +16,6 @@ import { extractRequestHost, isHostAllowed, parseAllowedDomains } from './origin
 const SKIP_VALIDATION = 'skipClientQueryValidation'
 const COUNT_CELL = 'usageCounted'
 
-/** Whether this request has already been counted. Shared, mutable, per request. */
-interface CountCell {
-  counted: boolean
-}
-
 /**
  * This request's one "already counted" cell, created on first ask.
  *
@@ -35,11 +30,11 @@ interface CountCell {
  * which is what `asTrustedReq` does before it spreads. Mutating `req.context`
  * for per-request state is what `memoizeOnRequest` does too (#891).
  */
-function countCell(req: PayloadRequest): CountCell {
+function countCell(req: PayloadRequest): { counted: boolean } {
   const ctx = (req.context ?? {}) as Record<string, unknown>
   req.context = ctx
-  ctx[COUNT_CELL] ??= { counted: false } satisfies CountCell
-  return ctx[COUNT_CELL] as CountCell
+  ctx[COUNT_CELL] ??= { counted: false }
+  return ctx[COUNT_CELL] as { counted: boolean }
 }
 
 /**
