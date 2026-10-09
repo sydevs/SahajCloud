@@ -70,6 +70,7 @@ A preview holds no unmarked row for this recipe to find, so make one (#704):
 | File | Purpose |
 | --- | --- |
 | `storagePlugin.ts` | Plugin orchestration, adapter routing, R2 hook injection |
+| `uploadNotice.ts` | The uploading notice, mounted on every `upload` collection above the plugin's early returns (`docs/rules/admin-ui.md`) |
 | `cloudflareImagesAdapter.ts` | Image uploads to Cloudflare Images |
 | `cloudflareStreamAdapter.ts` | Video uploads to Cloudflare Stream (does not enable downloads — the webhook does) |
 | `cloudflareStreamWebhook.ts` | Pure helpers for the webhook handler (signature verify + downloads call) |

@@ -87,7 +87,7 @@ macOS ignores filename case, but TypeScript and Webpack builds do not — check 
 
 Batch CI runs: do not push, and so retrigger CI, on every small change.
 
-1. **Implement** — `/workflow:implement-issue <n>` implements and tests a ticket, then runs the finalize pipeline to open the PR.
+1. **Implement** — `/workflow:implement-ticket <n>` implements and tests a ticket, then runs the finalize pipeline to open the PR.
 2. **Adjust** — on an open PR, commit each follow-up change locally as you go, but do not push. This is the one exception to "commit only when asked": commit without asking, but never push without asking.
 3. **Finalize** — `/workflow:finalize-pr` ships the batch and opens or refreshes the PR. See the finalize-pr skill in the `workflow` plugin for the exact pipeline.
 
