@@ -301,7 +301,8 @@ const payloadConfig = (overrides?: Partial<Config>) => {
         }),
         enabled: !isE2ETest, // Skip in E2E tests
       }),
-      // File storage: Cloudflare Images/Stream + R2 over S3 (disabled in E2E tests)
+      // File storage: Cloudflare Images/Stream + R2 over S3 (disabled in E2E tests).
+      // Also carries the uploading notice (#888), above its own disabled path.
       storagePlugin({
         enabled: !isE2ETest, // Skip in E2E tests
       }),
