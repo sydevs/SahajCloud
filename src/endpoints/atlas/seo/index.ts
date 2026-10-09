@@ -19,7 +19,7 @@ import { EVENT_IMAGE_LIMIT, readEventImages } from '@/lib/utilities/eventImages'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Event, Region } from '@/payload-types'
 import { publicReadCacheHeaders } from '@/plugins/cache'
-import { assertClientOriginAllowed } from '@/plugins/usage'
+import { assertClientOriginAllowed, countClientRead } from '@/plugins/usage'
 
 import { getAtlasLocales } from './atlasLocales'
 import { MAX_ATLAS_ROUTE_LENGTH, parseAtlasRoute } from './atlasRoute'
@@ -391,10 +391,11 @@ async function eventSeo(
  *
  * Registered at the config root rather than on a collection because the route
  * may name a region *or* an event, so no collection owns it — which means the
- * usage plugin's `beforeOperation` gates don't fire for the handler itself and
- * `assertClientOriginAllowed` is called directly (see `docs/rules/endpoints.md`).
- * The collection reads it forwards *do* run them, so published-only access,
- * project visibility and usage tracking all apply as usual.
+ * usage plugin's `beforeOperation` gates don't fire for the handler itself, so
+ * `assertClientOriginAllowed` and `countClientRead` are called directly (see
+ * `docs/rules/endpoints.md`). The collection reads it forwards *do* run them, so
+ * published-only access and project visibility apply as usual, and the meter is
+ * idempotent per request, so they add nothing to the one count (#891).
  *
  * Returns `AtlasSeoResponse` (see ./responseTypes).
  */
@@ -420,6 +421,12 @@ export const atlasSeo: Endpoint = {
 
     const target = parseAtlasRoute(parsed.data.route)
     if (!target) return errorResponse('That is not a valid atlas route.', 404)
+
+    // A root endpoint runs no collection `beforeOperation` hook, so it counts
+    // itself. Idempotent, so the `regions` read a region or event route makes
+    // adds nothing — and the **root** route reads no metered collection at all,
+    // which is why it counted nothing before #891.
+    await countClientRead(req)
 
     try {
       // The root always resolves, so it returns before the not-found check —
