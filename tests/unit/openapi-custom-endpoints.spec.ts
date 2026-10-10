@@ -4,7 +4,11 @@ import { ROUTING_MODES } from '../../src/lib/clients/canonical'
 import { EMBED_MODES, MAX_MOUNT_KEY_LENGTH } from '../../src/lib/clients/embedMetadata'
 import { LOCALES } from '../../src/lib/locales'
 import { getProjectSlugs } from '../../src/plugins/access/config/projects'
-import { depthParameter } from '../../src/plugins/openapi/clientReadParametersDocs'
+import {
+  depthParameter,
+  limitParameter,
+  pageParameter,
+} from '../../src/plugins/openapi/clientReadParametersDocs'
 import {
   CUSTOM_ENDPOINT_PATHS,
   CUSTOM_ENDPOINT_SCHEMAS,
@@ -14,6 +18,7 @@ import {
   rootEndpointPathsFrom,
   type OpenAPISpec,
 } from '../../src/plugins/openapi/specFilter'
+import { MAX_CLIENT_LIMIT, MAX_CLIENT_PAGE } from '../../src/plugins/usage/constants'
 
 describe('Atlas events custom endpoints (OpenAPI)', () => {
   it('registers the geojson GET path and its schemas', () => {
@@ -185,6 +190,25 @@ describe('depth parameter (OpenAPI)', () => {
     expect(depthParameter.schema.maximum).toBe(3)
     expect(depthParameter.schema.default).toBe(2)
     expect(depthParameter.schema.minimum).toBe(0)
+  })
+})
+
+describe('limit and page parameters (OpenAPI)', () => {
+  // The published range is the only statement of the gate's bound an
+  // integrator reads, and nothing but this spec ties the two together. A
+  // `minimum` above what `assertWithinBound` accepts makes a generated
+  // client refuse, ahead of the server, a request the server answers 200.
+  it('publishes the bounds the gate enforces', () => {
+    expect(limitParameter.schema.maximum).toBe(MAX_CLIENT_LIMIT)
+    expect(pageParameter.schema.maximum).toBe(MAX_CLIENT_PAGE)
+  })
+
+  // `limit=0` is payload's "no limit" spelling, which the Atlas widget sends
+  // on three feeds (docs/rules/api-clients.md). `page` is 1-based, so 0 is
+  // not a page: the gate admits it only because one rule covers both.
+  it('publishes limit=0 and keeps page 1-based', () => {
+    expect(limitParameter.schema.minimum).toBe(0)
+    expect(pageParameter.schema.minimum).toBe(1)
   })
 })
 
