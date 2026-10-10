@@ -28,6 +28,7 @@ content collection.
 | `events`              | `website` non-localization + URL validator wiring. Verification lifecycle, registration flow (incl. the Turnstile gate), GeoJSON endpoint, expiry state machine. `excludeFinishedEvents` beforeOperation (including declining a versions read, #745), finished events off the geojson feed, `schedule.lastDate` backfill. `verifyOnSave` reviving a finished event when its schedule extends. Listing-quality report + stored `qualityOpenCount`, and the reminder email carrying that progress. Both answers to invalid **stored** data (#842): verify still refused by endpoint and email link, reported as 422 and as named fields plus an edit link; registration fullness and feedback tallies written anyway | `events`, `event-verification`, `event-registration`, `events-geojson`, `expire-events`, `event-quality`, `schedule-last-date-backfill`, `registrations-fullness`, `event-feedback` |
 | `lessons`             | Lexical relationship cleanup, locale-specific meditation assignments, subtitle JSON                                                       | `lessons`                                                      |
 | `meditations`         | `filterMeditationsByLocale` beforeOperation (including declining a versions read, #745), `extractAudioDuration` beforeChange, `durationMinutes` virtual, weight invalidation          | `meditations`, `meditation-duration`, `meditation-lectures`    |
+| `meditation-transcripts` | Admin-only reach: restricted from implicit read and hidden from `/api/docs`, so the row is read only through the Meditations endpoints. One row per meditation, and a transcription writes no meditation version | `meditation-transcript` |
 | `pages`               | `webUrl` virtual, Lexical block relationship depth, stale-content stripping                                                               | `pages`                                                        |
 | `songs`               | `autoSetIncludeForMeditationsOnCreate` beforeChange                                                                                       | `meditations` (via `includeForMeditations` behavior)           |
 | `videos`              | `previewUrl` virtual, `subtitles` + `fileMetadata` JSON-Schema validation                                                                 | `videos`, unit: `json-field-schemas`                           |
@@ -72,6 +73,7 @@ content collection.
 | Registration eligibility gate | `gateRegistration` on the unified create: the four refusal codes, 404 vs 409, a create with no event, a spam-flagged row freeing its seat, and both escapes (a non-client write, `skipRegistrationGate`) | `user-submissions-registration-gate` |
 | `/api/lectures/for-audience`          | Priority sampling, audience filter, subtitle/thumbnail fallback, clip metadata inheritance, `userChoices` membership and its per-request localized title (#526) | `lectures-for-audience`  |
 | `/api/meditations/lectures`           | Weight-based ranking, audience validation, frame cascade, auth gate, audience-feed fallback                        | `meditation-lectures`    |
+| `GET`/`POST /api/meditations/:id/transcript` | The 403 matrix (anonymous, API client, a manager without the role, and a `meditations-editor` holding the role in another locale), `status: 'none'` with no row, a duplicate POST queuing no second job, and `outdated: true` once the recording's filename changes | `meditation-transcript` |
 
 ## Scheduled jobs
 
@@ -85,6 +87,7 @@ content collection.
 | `deliverSubmission`              | Per-type dispatch and the retry boundary are exercised through the adapters and the outcome union; the registry is pinned total over `SUBMISSION_TYPES`, covering the window before `generate:types` where a missing deliverer is not yet a compile error; the mailing-list mapping (including that an opted-out address is never re-added, and that Klaviyo's request skips no suppression) is the unit file | unit: `submission-deliverers.spec.ts`, `mailing-list.spec.ts` |
 | `resetUsage` (cron)              | Usage-counter reset, `peakDailyRequests` preservation                     | `api`                                                                   |
 | `cacheMeditationNodeWeights` | Weight recomputation on meditation change                                     | `meditation-lectures` + unit: `compute-meditation-node-weights.spec.ts` |
+| `transcribeMeditation`           | The sample provider's run ending `completed` with segments, and the stale-audio guard: a run started for a replaced recording never overwrites the newer request's row | `meditation-transcript` + unit: `lemonfox-response.spec.ts` |
 
 ## Cross-cutting subjects (helpers / utilities / RBAC)
 

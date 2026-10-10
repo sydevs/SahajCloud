@@ -41,6 +41,13 @@ export const JOB_AUTO_RUN: AutoRunEntry[] = [
     queue: 'screening',
   },
   {
+    // Safety net for the transcription start in
+    // `POST /api/meditations/:id/transcript`, the same way. :03 and every 15th
+    // minute after it clears `screening`, `invitations` and `monthly`.
+    cron: '3-59/15 * * * *',
+    queue: 'transcription',
+  },
+  {
     // Hourly, not daily, for schedules that fire on the 1st of the month: a
     // tick missed to a deploy then costs an hour rather than a day. :07 is the
     // stagger — `screening` fires on every 15th minute and `invitations` on

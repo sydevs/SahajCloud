@@ -688,6 +688,18 @@ export type MeditationFrames = {
   timestamp: number;
   [k: string]: unknown;
 }[];
+export type TranscriptSegments =
+  | {
+      text: string;
+      start: number;
+      end: number;
+      words: {
+        text: string;
+        start: number;
+        end: number;
+      }[];
+    }[]
+  | null;
 export type TableOfContentsHeadings = {
   slug: string;
   text: string;
@@ -721,6 +733,7 @@ export interface Config {
   collections: {
     pages: Page;
     meditations: Meditation;
+    'meditation-transcripts': MeditationTranscript;
     songs: Song;
     albums: Album;
     videos: Video;
@@ -797,6 +810,7 @@ export interface Config {
   collectionsSelect: {
     pages: PagesSelect<false> | PagesSelect<true>;
     meditations: MeditationsSelect<false> | MeditationsSelect<true>;
+    'meditation-transcripts': MeditationTranscriptsSelect<false> | MeditationTranscriptsSelect<true>;
     songs: SongsSelect<false> | SongsSelect<true>;
     albums: AlbumsSelect<false> | AlbumsSelect<true>;
     videos: VideosSelect<false> | VideosSelect<true>;
@@ -929,6 +943,7 @@ export interface Config {
       sendRegistrationDigests: TaskSendRegistrationDigests;
       sendSessionReminders: TaskSendSessionReminders;
       syncLectureMetadata: TaskSyncLectureMetadata;
+      transcribeMeditation: TaskTranscribeMeditation;
       verifyEmbeds: TaskVerifyEmbeds;
       resetUsage: TaskResetUsage;
       sendInvitations: TaskSendInvitations;
@@ -2811,6 +2826,22 @@ export interface Album {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "meditation-transcripts".
+ */
+export interface MeditationTranscript {
+  id: number;
+  meditation?: (number | null) | Meditation;
+  status: 'queued' | 'processing' | 'completed' | 'failed';
+  audioFilename?: string | null;
+  provider?: ('lemonfox' | 'sample') | null;
+  language?: string | null;
+  segments?: TranscriptSegments;
+  error?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "lessons".
  */
 export interface Lesson {
@@ -3802,6 +3833,7 @@ export interface PayloadJob {
           | 'sendRegistrationDigests'
           | 'sendSessionReminders'
           | 'syncLectureMetadata'
+          | 'transcribeMeditation'
           | 'verifyEmbeds'
           | 'resetUsage'
           | 'sendInvitations'
@@ -3850,6 +3882,7 @@ export interface PayloadJob {
         | 'sendRegistrationDigests'
         | 'sendSessionReminders'
         | 'syncLectureMetadata'
+        | 'transcribeMeditation'
         | 'verifyEmbeds'
         | 'resetUsage'
         | 'sendInvitations'
@@ -3889,6 +3922,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'meditations';
         value: number | Meditation;
+      } | null)
+    | ({
+        relationTo: 'meditation-transcripts';
+        value: number | MeditationTranscript;
       } | null)
     | ({
         relationTo: 'songs';
@@ -4096,6 +4133,21 @@ export interface MeditationsSelect<T extends boolean = true> {
   height?: T;
   focalX?: T;
   focalY?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "meditation-transcripts_select".
+ */
+export interface MeditationTranscriptsSelect<T extends boolean = true> {
+  meditation?: T;
+  status?: T;
+  audioFilename?: T;
+  provider?: T;
+  language?: T;
+  segments?: T;
+  error?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -10246,6 +10298,19 @@ export interface TaskSyncLectureMetadata {
     synced: number;
     failed: number;
     skippedNoVimeoId: number;
+  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskTranscribeMeditation".
+ */
+export interface TaskTranscribeMeditation {
+  input: {
+    meditationId: number;
+    audioFilename: string;
+  };
+  output: {
+    status: string;
   };
 }
 /**

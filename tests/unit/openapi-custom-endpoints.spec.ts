@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { ROUTING_MODES } from '../../src/lib/clients/canonical'
 import { EMBED_MODES, MAX_MOUNT_KEY_LENGTH } from '../../src/lib/clients/embedMetadata'
 import { LOCALES } from '../../src/lib/locales'
+import { getProjectSlugs } from '../../src/plugins/access/config/projects'
 import {
   depthParameter,
   limitParameter,
@@ -469,5 +470,47 @@ describe('rootEndpointPathsFrom', () => {
   it('treats absent or disabled endpoints as none', () => {
     expect(rootEndpointPathsFrom(undefined)).toEqual([])
     expect(rootEndpointPathsFrom(false)).toEqual([])
+  })
+})
+
+describe('meditation-transcripts (OpenAPI)', () => {
+  // The collection is admin-only working data, read through
+  // `GET /api/meditations/:id/transcript`. It is in ALWAYS_HIDDEN_COLLECTIONS
+  // and belongs to no project, so both halves have to hold for the base CRUD
+  // paths to stay out of `/api/docs` — and nothing but this pins the second.
+  const baseSpec = () =>
+    ({
+      openapi: '3.1.0',
+      info: { title: 't', version: '1' },
+      paths: {
+        '/api/meditation-transcripts': { get: {}, post: {} },
+        '/api/meditation-transcripts/{id}': { get: {} },
+      },
+      components: { schemas: {} },
+    }) as unknown as OpenAPISpec
+
+  const expectHidden = (filtered: OpenAPISpec, tier: string) => {
+    for (const path of ['/api/meditation-transcripts', '/api/meditation-transcripts/{id}']) {
+      const operations = filtered.paths?.[path] as Record<string, Record<string, unknown>>
+      expect(operations, `${path} is missing for ${tier}`).toBeDefined()
+      for (const [method, operation] of Object.entries(operations)) {
+        expect(
+          operation['x-internal'],
+          `${method.toUpperCase()} ${path} is published for ${tier}`,
+        ).toBe(true)
+      }
+    }
+  }
+
+  // Read from the config rather than listed here, so a fourth project cannot
+  // publish these paths without this failing.
+  it('hides every base path from every project tier', () => {
+    for (const project of getProjectSlugs()) {
+      expectHidden(filterSpec(baseSpec(), { project }), project)
+    }
+  })
+
+  it('hides them with no project named, where the role union applies instead', () => {
+    expectHidden(filterSpec(baseSpec(), {}), 'no project')
   })
 })

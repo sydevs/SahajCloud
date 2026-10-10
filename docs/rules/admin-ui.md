@@ -104,7 +104,7 @@ Five rules, each of which cost something to learn:
 
 The component renders `null` rather than taking `admin.hidden: true`: a hidden field renders Payload's own `HiddenField`, and this one exists to run an effect, not to carry a value into form state.
 
-Declared today in `translationsSchema.json` (a `preview` key beside `screenshot`, read on top-level groups only) and on the Meditations frame tabs, which declare `autoOpen` with no path.
+Declared today in `translationsSchema.json` (a `preview` key beside `screenshot`, read on top-level groups only) and on the three Meditations Video tabs, which declare `autoOpen` with no path.
 
 ## Styling — PayloadCMS CSS variables
 
@@ -296,8 +296,16 @@ Page, video, and image tags are inline enum selects, not separate collections.
 
 ## Frame editor
 
-`src/components/admin/FrameEditor/` manages audio-synced frames on the Meditations collection, integrated with Live Preview. `FrameListManager` (edit/reorder/remove) and `FrameInserter` (browse/insert at the current playback time) sit under a Video tab's Manage/Insert sub-tabs. Both tabs declare `autoOpen` through `previewTargetField`, which replaced a `useLivePreviewAuto` mount effect. A `PLAYBACK_TIME_UPDATE` postMessage from the iframe drives the active-frame highlight — **accepted from the preview iframe's origin only**, because that playhead is the timestamp a newly inserted frame is written at. Each subscription names the origin it will hear from (`usePlaybackTime`, reading `iframeRef`), so the permission belongs to a mounted component instead of to a flag someone has to clear; with no iframe there is no subscription. The same `iframeRef` carries `SEEK_TO_TIME` back. Inserting at an occupied timestamp replaces rather than throws.
+`src/components/admin/FrameEditor/` manages audio-synced frames on the Meditations collection, integrated with Live Preview. `FrameListManager` (edit/reorder/remove) and `FrameInserter` (browse/insert at the current playback time) sit under a Video tab's Frames/Add New sub-tabs. Both tabs declare `autoOpen` through `previewTargetField`, which replaced a `useLivePreviewAuto` mount effect. A `PLAYBACK_TIME_UPDATE` postMessage from the iframe drives the active-frame highlight — **accepted from the preview iframe's origin only**, because that playhead is the timestamp a newly inserted frame is written at. Each subscription names the origin it will hear from (`usePlaybackTime`, reading `iframeRef`), so the permission belongs to a mounted component instead of to a flag someone has to clear; with no iframe there is no subscription. The same `iframeRef` carries `SEEK_TO_TIME` back. Inserting at an occupied timestamp replaces rather than throws.
 
 Frames filter by narrator gender automatically, with category pills for the visible library. Two layers gate frames, and only one of them errors. On Meditations the `frames` validator returns `'At least one frame is required'`, on update only and never on create — which is what refuses a publish with no frames. Its `beforeChange` hook silently drops any entry with no id or a negative or non-finite timestamp, then sorts the rest; `afterRead` rounds each timestamp and enriches it with its Frame collection details. Duplicate timestamps are allowed here, as is one frame at several times — whole numbers, no duplicates and the one-hour cap are `validateTimestamp`'s rules in the editor alone. Shared helpers in `utils.ts`: `formatTime`, `parseTime`, `validateTimestamp`, `getFrameDisplayLabel`.
 
 Tests: `tests/int/meditationFrames.int.spec.ts` (validation, sorting, enrichment, publish rules), `tests/int/frames-by-narrator.int.spec.ts` (the `framesByNarrator` auth gate, gender-matched results, sort order).
+
+### Transcript tab
+
+`src/components/admin/MeditationTranscript/` is the first Video sub-tab, before Frames and Add New. It reads `GET /api/meditations/:id/transcript` and offers **Transcribe recording** through the `POST`, which queues the `transcribeMeditation` job (`src/jobs/TranscribeMeditation/`). It polls while a request is queued or processing. The transcript lives in the restricted `meditation-transcripts` collection, never on the meditation, so a transcription writes no meditation version.
+
+It reuses the frame editor's preview bridge: `usePlaybackTime` highlights the phrase under the playhead and, inside it, the word being spoken. A click sends `SEEK_TO_TIME` to the phrase's whole second, the only resolution frame seeks have ever sent. `useFollowPlayhead` scrolls an off-screen playing phrase into view, and stops for 5 s after the editor scrolls by wheel, touch or key. A pause of 3 s starts a paragraph, and one of 10 s shows "A moment of silence" (`transcriptModel.ts`). Without `LEMONFOX_API_KEY`, any deployment but production writes a labelled sample transcript instead.
+
+Tests: `tests/unit/meditation-transcript-model.spec.ts` (grouping, phrase and word highlight, phases), `tests/unit/lemonfox-response.spec.ts` (the response normalizer), `tests/int/meditation-transcript.int.spec.ts` (the endpoints' gates, the job, outdated audio).

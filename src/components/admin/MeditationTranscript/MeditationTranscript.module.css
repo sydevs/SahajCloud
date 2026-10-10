@@ -1,0 +1,106 @@
+.transcript {
+  display: flex;
+  flex-direction: column;
+  gap: var(--base);
+}
+
+.status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: calc(var(--base) / 2);
+}
+
+.status:empty {
+  display: none;
+}
+
+.progress {
+  display: flex;
+  align-items: flex-start;
+  gap: calc(var(--base) / 2);
+}
+
+.progress p,
+.muted {
+  margin: 0;
+  color: var(--theme-elevation-500);
+}
+
+.paragraphs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--base);
+}
+
+.paragraph {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--base) / 4);
+}
+
+.timestamp {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--theme-elevation-500);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.text {
+  margin: 0;
+  line-height: 1.7;
+}
+
+/* A phrase reads as running text, and becomes a target on hover and focus. */
+.phrase {
+  display: inline;
+  padding: 0 0.1em;
+  border: 0;
+  border-radius: var(--style-radius-s);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+  cursor: pointer;
+}
+
+.phrase:hover,
+.timestamp:hover {
+  background-color: var(--theme-elevation-100);
+}
+
+.phrase:focus-visible,
+.timestamp:focus-visible {
+  outline: 2px solid var(--theme-success-500);
+  outline-offset: 1px;
+}
+
+.phrase[aria-current='true'] {
+  background-color: var(--theme-warning-100);
+  box-shadow: 0 0 0 1px var(--theme-warning-300);
+}
+
+.silence {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--base) / 2);
+  margin: calc(var(--base) / 2) 0 0;
+  color: var(--theme-elevation-500);
+  font-size: 0.8125rem;
+}
+
+.silence::after {
+  content: '';
+  flex: 1;
+  border-top: 1px dashed var(--theme-elevation-200);
+}
+
+.spokenWord {
+  border-radius: 2px;
+  background-color: var(--theme-warning-250);
+}
