@@ -162,7 +162,7 @@ Two Payload behaviors to know before writing such a hook:
 
 **Any internal `depth ≥ 1` read that fetches a pool of rows to shape must carry a bounded `select`.** A read without one runs every field's `afterRead` on every row, and an expensive one — a virtual/computed field, a native `join` — fires a per-row sub-query. One shaped endpoint then becomes an N+1 that scales with the pool size. This was #541: `related-meditations`, `related-lectures`, and `for-audience` each paid roughly 16 extra queries per candidate until their internal reads carried a `select`.
 
-The client REST surface is already protected: `validateClientQueryParamsHook` rejects any API-client read with no `select` (see `docs/rules/api-clients.md`). The gap is **server-side reads that forward `asTrustedReq(req)`**, which bypass that gate — bound those by hand.
+The client REST surface is already protected: `validateClientQueryParamsHook` rejects any API-client read with no `select` (see `docs/rules/api-clients.md`). The gap is **server-side reads that forward `asTrustedReq(req)`**, which bypass that gate — bound those by hand. Only the shape half is bypassed: the same hook's `limit` and `page` ceilings run ahead of the opt-out and apply to a forwarded read too (#887).
 
 - **Co-locate the select with the shape helper.** Export a `FOO_CARD_SELECT` next to the function reading those fields, so the two stay in sync. The endpoint spreads it and adds any extra field its own sort or rank needs.
 - **Co-select a virtual field's dependency.** An include-mode `select` strips unselected siblings before `afterRead` runs, so a computed field reads `null` unless its own dependency is also selected — miss one and the card silently drops, rather than just slowing down.
