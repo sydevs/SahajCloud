@@ -1,6 +1,7 @@
 import type { Payload, PayloadRequest } from 'payload'
 
 import { sanitizePopulateParam, sanitizeSelectParam } from 'payload'
+import { isNumber } from 'payload/shared'
 import * as qs from 'qs-esm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -9,6 +10,7 @@ import { serverEnv } from '@/lib/env'
 import { mintLivePreviewToken } from '@/lib/livePreview/token'
 import { resolveLivePreviewHook } from '@/lib/utilities/previewSecret'
 import type { Client, Image, Narrator, Page } from '@/payload-types'
+import { MAX_CLIENT_LIMIT, MAX_CLIENT_PAGE } from '@/plugins/usage/constants'
 
 import { testData } from 'tests/utils/testData'
 
@@ -36,7 +38,12 @@ function parseRestQuery(url: string): Record<string, unknown> {
   if ('populate' in args) {
     args.populate = sanitizePopulateParam(args.populate as never)
   }
-  if (typeof args.depth === 'string') args.depth = Number(args.depth)
+  // `parseParams` coerces these three only when payload's own `isNumber`
+  // passes. A REST case added without this passes vacuously — the string
+  // '2001' is not > 2000.
+  for (const key of ['depth', 'limit', 'page']) {
+    if (key in args && isNumber(args[key])) args[key] = Number(args[key])
+  }
   return args
 }
 
@@ -180,20 +187,94 @@ describe('Client query parameter validation', () => {
     })
   })
 
-  describe('scope — who is affected', () => {
-    it('does not affect manager requests without select or populate', async () => {
-      const manager = await payload.findByID({
-        collection: 'managers',
-        id: adminUserId,
+  // Unbounded, `limit` and `page` each reach Postgres on their own and return
+  // 500 rather than 400 (#887). `page` overflows through the
+  // `(page - 1) * limit` offset, which is why bounding `limit` alone is not
+  // enough, and `page: -1` reaches the same 500 as `OFFSET -20`.
+  describe('limit and page bounds', () => {
+    const OVERFLOW = 99999999999999999999
+
+    const findAsClient = (extra: Record<string, unknown>) =>
+      payload.find({
+        collection: 'narrators',
+        select: { name: true },
+        depth: 1,
+        ...extra,
+        req: clientReq(),
+        overrideAccess: true,
       })
-      const managerReq = {
-        user: manager,
-        headers: new Headers(),
+
+    it.each([
+      ['a limit above the cap', { limit: OVERFLOW }, new RegExp(`"limit".*${MAX_CLIENT_LIMIT}`)],
+      ['a page above the bound', { page: OVERFLOW }, new RegExp(`"page".*${MAX_CLIENT_PAGE}`)],
+      ['a negative page', { page: -1 }, /"page"/],
+      ['a negative limit', { limit: -1 }, /"limit"/],
+      ['a fractional limit', { limit: 1.5 }, /"limit"/],
+    ])('rejects %s', async (_name, args, message) => {
+      await expect(findAsClient(args)).rejects.toThrow(message)
+    })
+
+    // `limit: 0` and `pagination: false` are payload's two spellings of an
+    // unbounded read. Both stay allowed — the Atlas widget sends the second on
+    // three live feeds, so refusing them is a policy decision with a
+    // downstream migration behind it, not part of closing the 500.
+    it.each([
+      ['a limit at the cap', { limit: MAX_CLIENT_LIMIT }],
+      ['an absent limit and page', {}],
+      ['limit=0', { limit: 0 }],
+      ['pagination=false', { pagination: false }],
+    ])('allows %s', async (_name, args) => {
+      const result = await findAsClient(args)
+      expect(result.docs).toHaveLength(1)
+    })
+
+    it('allows a page at the bound', async () => {
+      const result = await findAsClient({ page: MAX_CLIENT_PAGE })
+      expect(result.page).toBe(MAX_CLIENT_PAGE)
+    })
+
+    // The bound runs ahead of the two bypasses the select gate honours, so a
+    // trusted internal read that one day forwards a client's own `limit`
+    // cannot reopen the 500.
+    it('rejects a limit above the cap on a trusted internal read', async () => {
+      const trustedReq = {
+        ...clientReq(),
+        context: { skipClientQueryValidation: true },
       } as unknown as PayloadRequest
 
+      await expect(
+        payload.find({
+          collection: 'narrators',
+          limit: OVERFLOW,
+          req: trustedReq,
+          overrideAccess: true,
+        }),
+      ).rejects.toThrow(/"limit"/)
+    })
+  })
+
+  describe('scope — who is affected', () => {
+    const managerReq = async (): Promise<PayloadRequest> =>
+      ({
+        user: await payload.findByID({ collection: 'managers', id: adminUserId }),
+        headers: new Headers(),
+      }) as unknown as PayloadRequest
+
+    it('does not affect manager requests without select or populate', async () => {
       const result = await payload.find({
         collection: 'narrators',
-        req: managerReq,
+        req: await managerReq(),
+      })
+      expect(result.docs).toHaveLength(1)
+    })
+
+    // Above the client cap, below what the driver refuses: the gate's scope is
+    // the decision under test, not whether a manager can still overflow.
+    it('does not bound a manager request above the client cap', async () => {
+      const result = await payload.find({
+        collection: 'narrators',
+        limit: MAX_CLIENT_LIMIT + 1,
+        req: await managerReq(),
       })
       expect(result.docs).toHaveLength(1)
     })
@@ -329,6 +410,15 @@ describe('Client query parameter validation', () => {
       it('rejects findByID when select is a comma-separated string', async () => {
         await expect(restFindByID('/api/narrators/1?select=name,gender')).rejects.toThrow(/select/)
       })
+    })
+
+    it('rejects a limit above the cap', async () => {
+      // The coercion, asserted on its own: a case reading `limit` as the
+      // string '2001' would pass without ever exceeding the cap.
+      expect(parseRestQuery('?limit=2001').limit).toBe(2001)
+      await expect(
+        restFind('/api/narrators?select[name]=true&depth=1&limit=2001'),
+      ).rejects.toThrow(/"limit"/)
     })
 
     describe('accepts the correct bracket notation', () => {
