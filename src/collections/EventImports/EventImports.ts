@@ -2,6 +2,11 @@ import type { CollectionConfig } from 'payload'
 
 import { z } from 'zod'
 
+import type {
+  WorkflowAction,
+  WorkflowActionsProps,
+} from '@/components/admin/buttons/WorkflowActions/stages'
+import { CREATE_STAGE, WORKFLOW_ACTIONS } from '@/components/admin/buttons/WorkflowActions/stages'
 import { jsonField } from '@/fields/jsonField'
 import { baseLanguage, getLanguageOptions } from '@/lib/locales'
 import type { Manager } from '@/payload-types'
@@ -26,6 +31,24 @@ const nodeLocation = z
     }),
   ])
   .nullable()
+
+const DISCARD: WorkflowAction = {
+  label: 'Discard',
+  overrides: { status: 'discarded' },
+  buttonStyle: 'secondary',
+  confirm: 'Discard this import?',
+}
+
+/**
+ * Discard, offered while a job holds the batch. Payload never releases a job row
+ * it claimed, so without this a worker killed mid-run leaves a batch no
+ * transition can move — and each job re-reads the status before its terminal
+ * write, so a discard that lands mid-run wins.
+ */
+const DISCARD_RUNNING: WorkflowAction = {
+  ...DISCARD,
+  confirm: 'This import is still running. Discard it anyway?',
+}
 
 /**
  * One bulk event import, from the uploaded CSV to the classes it created.
@@ -82,6 +105,40 @@ export const EventImports: CollectionConfig = {
     // Admins only: a volunteer reaches their batches from the region's Import
     // tab, and an admin needs this list to look at a stalled one.
     hidden: ({ user }) => !isAdminManager(user as Manager | null),
+    components: {
+      // ⚠ **The buttons are the only way to reach a transition, so this map and
+      // `hooks/transitionStatus.ts`'s table have to agree.** A stage the table
+      // allows and this map omits is a move nobody can make from the form —
+      // which is how a batch a dead worker left `resolving` became unreachable
+      // in the first place.
+      edit: {
+        SaveButton: {
+          path: WORKFLOW_ACTIONS,
+          clientProps: {
+            statusField: 'status',
+            // `finished` and `discarded` are records, and the create form's own
+            // save is the one button `__create__` names — so a stage with no
+            // entry renders nothing rather than an ordinary Save.
+            fallback: null,
+            stages: {
+              [CREATE_STAGE]: [{ label: 'Upload & resolve addresses', overrides: {} }],
+              resolving: [DISCARD_RUNNING],
+              committing: [DISCARD_RUNNING],
+              review: [
+                { label: 'Save changes', overrides: {}, buttonStyle: 'secondary' },
+                {
+                  label: 'Commit',
+                  overrides: { status: 'committing' },
+                  confirm: 'Create these classes in the Atlas?',
+                },
+                DISCARD,
+              ],
+              failed: [{ label: 'Retry', overrides: { status: 'committing' } }, DISCARD],
+            },
+          } satisfies WorkflowActionsProps,
+        },
+      },
+    },
   },
   fields: [
     {

@@ -29,8 +29,7 @@ import { default as default_85b3a6f55f7eb542fec6b94fa2de1494 } from '@/component
 import { default as default_75e666f79b1160c03532515ca11818f3 } from '@/components/admin/FrameEditor/FrameListManager'
 import { default as default_e201aca8b8f7be4559f38e80e7a23040 } from '@/components/admin/FrameEditor/FrameInserter'
 import { default as default_f6674fb37b8a49317525e4fb8838a78c } from '@/components/admin/UploadNotice'
-import { default as default_b6e352da4aa0be71471f8ee68e4b93ce } from '@/components/admin/buttons/UpdateOnlyPublishButton'
-import { default as default_5540237f7045343fb48f4dc881ba5b8a } from '@/components/admin/buttons/NextStepButton'
+import { default as default_a47c7de14b912229e60aad1cf729db28 } from '@/components/admin/buttons/WorkflowActions'
 import { default as default_277d6fd41e8d1febac87b7e86938523f } from '@/components/admin/AudioUpload'
 import { default as default_0d7144728a6a15ce62edc7c88eaf2e1a } from '@/components/admin/RelationshipCountCell'
 import { default as default_f90b1f00bd5c69345510453a62d36e0a } from '@/components/admin/ThumbnailCell/PreviewUrlThumbnailCell'
@@ -119,8 +118,7 @@ export const importMap = {
   "@/components/admin/FrameEditor/FrameListManager#default": default_75e666f79b1160c03532515ca11818f3,
   "@/components/admin/FrameEditor/FrameInserter#default": default_e201aca8b8f7be4559f38e80e7a23040,
   "@/components/admin/UploadNotice#default": default_f6674fb37b8a49317525e4fb8838a78c,
-  "@/components/admin/buttons/UpdateOnlyPublishButton#default": default_b6e352da4aa0be71471f8ee68e4b93ce,
-  "@/components/admin/buttons/NextStepButton#default": default_5540237f7045343fb48f4dc881ba5b8a,
+  "@/components/admin/buttons/WorkflowActions#default": default_a47c7de14b912229e60aad1cf729db28,
   "@/components/admin/AudioUpload#default": default_277d6fd41e8d1febac87b7e86938523f,
   "@/components/admin/RelationshipCountCell#default": default_0d7144728a6a15ce62edc7c88eaf2e1a,
   "@/components/admin/ThumbnailCell/PreviewUrlThumbnailCell#default": default_f90b1f00bd5c69345510453a62d36e0a,
