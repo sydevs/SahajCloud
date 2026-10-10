@@ -19,7 +19,12 @@ import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+
 import { buildImportTemplate } from '@/collections/EventImports/csv/template'
+import { EventImports } from '@/collections/EventImports/EventImports'
+import { ALLOWED } from '@/collections/EventImports/hooks/transitionStatus'
+import type { WorkflowActionsProps } from '@/components/admin/buttons/WorkflowActions/stages'
+import { CREATE_STAGE } from '@/components/admin/buttons/WorkflowActions/stages'
 import { getDocManagerFields } from '@/plugins/access/documentManagers'
 
 import { createAnonRestClient, createRestClientAs } from '../utils/restRequest'
@@ -373,6 +378,114 @@ describe('event-imports', () => {
       expect((await anon(path)).status).toBe(403)
       expect((await asOutsider(path)).status).toBe(403)
       expect((await asHolder(path)).status).toBe(200)
+    })
+  })
+
+  /**
+   * ⚠ **The buttons are the only way a caller reaches a transition, so the
+   * declaration and the table have to agree** — and nothing but this block
+   * makes that true. A target the table allows and no button offers is a move
+   * nobody can make from the only screen an admin looks at, which is how a
+   * batch a dead worker left `resolving` became unreachable. A button offering
+   * a target the table refuses is a save that fails under the reviewer's hands.
+   */
+  describe('the buttons and the transition table', () => {
+    const stages = (
+      EventImports.admin?.components?.edit?.SaveButton as {
+        clientProps: WorkflowActionsProps
+      }
+    ).clientProps.stages
+
+    /** Re-resolving needs a corrected file, which no button can carry. */
+    const FILE_ONLY = 'resolving'
+
+    const targetsOf = (stage: string) =>
+      (stages[stage] ?? [])
+        .map((action) => action.overrides.status)
+        .filter((status): status is string => typeof status === 'string')
+
+    it('offers no button for a transition the table refuses', () => {
+      for (const stage of Object.keys(stages).filter((key) => key !== CREATE_STAGE)) {
+        for (const target of targetsOf(stage)) {
+          expect(ALLOWED[stage as keyof typeof ALLOWED] ?? [], `${stage} → ${target}`).toContain(
+            target,
+          )
+        }
+      }
+    })
+
+    it('offers a button for every transition the table allows', () => {
+      for (const [stage, targets] of Object.entries(ALLOWED)) {
+        for (const target of targets) {
+          if (target === FILE_ONLY) continue
+          expect(targetsOf(stage), `${stage} → ${target}`).toContain(target)
+        }
+      }
+    })
+  })
+
+  describe('leaving a stage a job holds', () => {
+    /**
+     * ⚠ **The admin form posts the whole document, so Discard carries whatever
+     * `rows` the browser loaded.** A batch is discarded from `resolving`
+     * precisely when a worker died mid-run — and by then the resolve job has
+     * written answers the open page never saw. Checking those rows as a
+     * reviewer's edits refuses the save, which strands the one batch this
+     * transition exists to rescue. Retry out of `failed` shares the mechanism.
+     */
+    it('accepts a discard carrying rows a job has since replaced', async () => {
+      const batch = await createBatch({}, csvWith([classLine('Stale In The Browser')]))
+      const asLoadedByTheBrowser = batch.rows
+
+      await payload.update({
+        collection: 'event-imports',
+        id: batch.id,
+        data: {
+          rows: (batch.rows ?? []).map((row) => ({
+            ...row,
+            errors: ['Address lookup is not configured on this server.'],
+          })),
+        },
+        overrideAccess: true,
+        context: { eventImportJob: true },
+      })
+
+      const discarded = await payload.update({
+        collection: 'event-imports',
+        id: batch.id,
+        data: { status: 'discarded', rows: asLoadedByTheBrowser },
+        user: admin,
+        overrideAccess: false,
+      })
+
+      expect(discarded.status).toBe('discarded')
+      // The job's answers stand: the stale copy is dropped, not written back.
+      expect(discarded.rows?.[0]?.errors).toEqual([
+        'Address lookup is not configured on this server.',
+      ])
+    })
+
+    /**
+     * The refusal the case above must not have widened. A `PATCH` that moves
+     * nothing is an edit, and a batch no longer in review does not take one.
+     */
+    it('still refuses an edit to a batch that is not moving', async () => {
+      const batch = await createBatch({}, csvWith([classLine('Not Moving')]))
+
+      expect(
+        await fieldErrorMessage(
+          payload.update({
+            collection: 'event-imports',
+            id: batch.id,
+            data: {
+              rows: (batch.rows ?? []).map((row) => ({ ...row, errors: ['invented'] })),
+            },
+            user: admin,
+            overrideAccess: false,
+          }),
+          'rows',
+        ),
+      ).toMatch(/can no longer be edited/)
     })
   })
 })

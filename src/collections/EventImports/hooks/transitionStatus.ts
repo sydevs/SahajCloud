@@ -51,7 +51,7 @@ type ImportStatus = NonNullable<EventImport['status']>
  * re-upload. The job's own terminal write re-reads the status first
  * (`jobContext.ts`), so a discard that lands mid-run wins.
  */
-const ALLOWED: Partial<Record<ImportStatus, readonly ImportStatus[]>> = {
+export const ALLOWED: Partial<Record<ImportStatus, readonly ImportStatus[]>> = {
   resolving: ['discarded'],
   committing: ['discarded'],
   review: ['committing', 'resolving', 'discarded'],
@@ -116,6 +116,21 @@ export const transitionStatus: CollectionBeforeChangeHook = async ({
   // holds the batch its own writes come through `context`, and a finished or
   // discarded batch is a record.
   const closed = from !== 'review'
+
+  // ⚠ **A move out of a stage that offers no review keeps the stored rows and
+  // tree, whatever the form posted.** The admin form submits the whole
+  // document, so Discard and Retry carry the copy the browser loaded — which a
+  // job writing in the background has already made stale. That is the one
+  // moment either button is needed: a worker killed mid-run is what `discarded`
+  // from `resolving` exists to rescue, and refusing the save over rows the
+  // caller never touched would strand exactly that batch.
+  //
+  // A `PATCH` that moves nothing still has its edits checked below, which is
+  // what refuses an edit to a finished batch.
+  if (closed && to !== from) {
+    return { ...data, rows: batch.rows, proposedRegions: batch.proposedRegions }
+  }
+
   const storedRows = (batch.rows ?? []) as EventImportRows
 
   if (!isUnchanged(storedRows, data.rows)) {

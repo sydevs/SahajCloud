@@ -107,10 +107,11 @@ export const EventImports: CollectionConfig = {
     hidden: ({ user }) => !isAdminManager(user as Manager | null),
     components: {
       // ⚠ **The buttons are the only way to reach a transition, so this map and
-      // `hooks/transitionStatus.ts`'s table have to agree.** A stage the table
-      // allows and this map omits is a move nobody can make from the form —
-      // which is how a batch a dead worker left `resolving` became unreachable
-      // in the first place.
+      // `hooks/transitionStatus.ts`'s `ALLOWED` table have to agree.** A target
+      // the table allows and this map omits is a move nobody can make from the
+      // form — which is how a batch a dead worker left `resolving` became
+      // unreachable in the first place. `tests/int/event-imports.int.spec.ts`
+      // checks both directions, because prose could not.
       edit: {
         SaveButton: {
           path: WORKFLOW_ACTIONS,

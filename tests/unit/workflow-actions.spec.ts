@@ -27,7 +27,8 @@ const form: {
   fields: Record<string, { value: unknown }>
   id: number | undefined
   modified: boolean
-} = { fields: {}, id: undefined, modified: false }
+  uploadStatus: 'failed' | 'idle' | 'uploading'
+} = { fields: {}, id: undefined, modified: false, uploadStatus: 'idle' }
 
 const submit = vi.fn()
 
@@ -44,7 +45,7 @@ vi.mock('@payloadcms/ui', () => ({
   PublishButton: () => createElement('button', { type: 'button' }, 'Payload publish'),
   SaveButton: () => createElement('button', { type: 'button' }, 'Payload save'),
   SaveDraftButton: () => createElement('button', { type: 'button' }, 'Payload save draft'),
-  useDocumentInfo: () => ({ id: form.id }),
+  useDocumentInfo: () => ({ id: form.id, uploadStatus: form.uploadStatus }),
   useForm: () => ({ submit }),
   useFormFields: (selector: (args: [Record<string, { value: unknown }>]) => unknown) =>
     selector([form.fields]),
@@ -116,6 +117,7 @@ describe('WorkflowActions', () => {
     form.fields = {}
     form.id = undefined
     form.modified = false
+    form.uploadStatus = 'idle'
     submit.mockReset()
     vi.restoreAllMocks()
 
@@ -166,17 +168,24 @@ describe('WorkflowActions', () => {
   })
 
   /**
-   * The distinction the `stages` map rests on. `event-imports` declares
-   * `resolving: []` — a running batch with no action — and rendering Payload's
-   * own Save there would offer a transition `transitionStatus` refuses.
+   * The distinction the `stages` map rests on. Meditations declares an empty
+   * create stage for its Publish slot — a stage with no action — and falling
+   * through to the fallback there would put Publish back on the create screen,
+   * which is the behaviour the slot exists to remove.
+   *
+   * ⚠ **The markup, not just the buttons.** An empty actions array used to
+   * render the flex wrapper with no children, which is a stray gap in
+   * `.doc-controls__controls` rather than the nothing `UpdateOnlyPublishButton`
+   * returned — invisible to a count of buttons.
    */
-  it('renders nothing for a stage declared with no actions', () => {
+  it('renders nothing at all for a stage declared with no actions', () => {
     form.id = 7
     form.fields = { status: { value: 'committing' } }
 
     render({ ...imports, fallback: 'save', stages: { ...imports.stages, committing: [] } })
 
     expect(labels()).toEqual([])
+    expect(container.innerHTML).toBe('')
   })
 
   it('renders nothing for an unnamed stage when the fallback is null', () => {
@@ -258,5 +267,21 @@ describe('WorkflowActions', () => {
     render(imports)
 
     expect(buttons().map((b) => b.disabled)).toEqual([false])
+  })
+
+  /**
+   * The rule every Payload document-control button applies, and the one that
+   * matters most here: `event-imports`' document IS its file, so a save posted
+   * mid-upload posts the batch without the CSV.
+   */
+  it('disables every action while a file is still uploading', () => {
+    form.id = 7
+    form.modified = true
+    form.uploadStatus = 'uploading'
+    form.fields = { status: { value: 'review' } }
+
+    render(imports)
+
+    expect(buttons().map((b) => b.disabled)).toEqual([true, true])
   })
 })

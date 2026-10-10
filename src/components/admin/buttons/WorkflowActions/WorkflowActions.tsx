@@ -41,7 +41,7 @@ const FALLBACKS = {
  * `event-imports` the third.
  */
 const WorkflowActions: React.FC<WorkflowActionsProps> = ({ fallback, stages, statusField }) => {
-  const { id } = useDocumentInfo()
+  const { id, uploadStatus } = useDocumentInfo()
   const { submit } = useForm()
   const modified = useFormModified()
   const status = useFormFields(([fields]) =>
@@ -65,16 +65,26 @@ const WorkflowActions: React.FC<WorkflowActionsProps> = ({ fallback, stages, sta
     return <Fallback />
   }
 
+  // A stage with no actions renders nothing at all, not an empty row: the
+  // wrapper below is a flex container, and an empty one still takes its gap in
+  // `.doc-controls__controls`.
+  if (actions.length === 0) return null
+
   return (
     <div style={{ display: 'flex', gap: 'calc(var(--base) * 0.4)' }}>
       {actions.map((action) => (
         <FormSubmit
           buttonStyle={action.buttonStyle ?? 'primary'}
-          // An action carrying no overrides submits only what the form itself
-          // holds, so an unmodified document gives it nothing to post — the rule
-          // Payload's own `SaveButton` applies. One carrying overrides stays
-          // enabled, or Commit would be unreachable on a batch nobody edited.
-          disabled={Boolean(id) && !modified && Object.keys(action.overrides).length === 0}
+          // Two rules, both Payload's own `SaveButton`'s. An action carrying no
+          // overrides submits only what the form itself holds, so an unmodified
+          // document gives it nothing to post — while one carrying overrides
+          // stays enabled, or Commit would be unreachable on a batch nobody
+          // edited. And nothing submits mid-upload, or the save posts without
+          // the file the collection exists to carry.
+          disabled={
+            uploadStatus === 'uploading' ||
+            (Boolean(id) && !modified && Object.keys(action.overrides).length === 0)
+          }
           key={action.label}
           onClick={() => run(action)}
           type="button"
