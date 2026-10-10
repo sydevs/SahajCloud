@@ -175,6 +175,8 @@ Two refusals are specific to it, each with a message naming what to fix:
 | `submission_data_invalid` | 400 | An unrecognised `type`, or a `submissionData` pair carrying a key this type does not accept, a duplicate key, a non-string value, or an over-long one. The message names the key |
 | `submission_type_mismatch` | 400 | The `type` disagrees with the form's `actionType`. The form is the authority on what a submission against it is |
 
+Every per-field refusal names the input that tripped it: `errors[0].data` is `{ code, field }`, where `field` is the body path (`senderEmail`, `proposed.contactEmail`) or the `submissionData` pair name. The write guard and the intake hook raise the same codes with the same shape, so a client never has to tell which of the two refused it. `captcha_failed` and `captcha_unavailable` carry no `field` — they judge the request, not an input.
+
 `urls_not_allowed` also reaches `submissionData`, with two deliberate exemptions. `path`, `hostUrl`, `error`, `userAgent` and `locale` are never URL-scanned, because an issue report names the page it happened on. Neither is an answer to one of the form's **email** questions: it is validated as an address instead, so a link typed into one is `invalid_email` rather than `urls_not_allowed` (#899). The exemption keys on the authored block type, so it follows whatever the operator named the field.
 
 Clients hold **create only**, with no update of any kind and no read at any depth or scope.
