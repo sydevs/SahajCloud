@@ -23,6 +23,7 @@ import { cloudflareStreamAdapter } from './cloudflareStreamAdapter'
 import { mixedMediaAdapter } from './mixedMediaAdapter'
 import { createR2FilenameBeforeOperationHook } from './r2FilenameHook'
 import { r2NativeAdapter } from './r2NativeAdapter'
+import { withUploadNotice } from './uploadNotice'
 
 interface StoragePluginOptions {
   /**
@@ -97,7 +98,9 @@ export const storagePlugin = (options: StoragePluginOptions = {}): Plugin => {
   const { enabled = true } = options
 
   return (incomingConfig) => {
-    const config = withObjectKeyColumn(incomingConfig)
+    // Both transforms run above every return below, so the schema and the
+    // uploading notice do not depend on the credentials or on `enabled`.
+    const config = withUploadNotice(withObjectKeyColumn(incomingConfig))
 
     // Early return if plugin is disabled - use cloudStoragePlugin for consistent behavior
     if (!enabled) {
