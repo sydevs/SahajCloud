@@ -30,7 +30,7 @@ export const SKIPPED_REASON_COLUMN = '#error'
  * page, so every accent in a volunteer's own data comes back mangled — and is
  * saved back that way. The same reason `template.ts` writes one.
  */
-const UTF8_BOM = '﻿'
+const UTF8_BOM = '\uFEFF'
 
 export function skippedRowsCsv(rows: readonly SkippedRowForCsv[]): string {
   const columns = IMPORT_COLUMNS.map((column) => column.name)

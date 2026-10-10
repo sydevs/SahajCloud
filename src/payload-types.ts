@@ -664,30 +664,6 @@ export type EventQualityReport =
        */
       openCount: number;
     };
-export type MeditationNodeWeights = {
-  [k: string]: number;
-} | null;
-export type TagAssignments = {
-  /**
-   * The UserChoice document id.
-   */
-  id: number;
-  /**
-   * The tag title, in the read locale.
-   */
-  title: string;
-}[];
-export type MeditationFrames = {
-  /**
-   * The Frame document id.
-   */
-  id: number | string;
-  /**
-   * Seconds into the meditation.
-   */
-  timestamp: number;
-  [k: string]: unknown;
-}[];
 /**
  * @maxItems 500
  */
@@ -806,6 +782,30 @@ export type EventImportRows = {
     eventId: number;
   };
 }[];
+export type MeditationNodeWeights = {
+  [k: string]: number;
+} | null;
+export type TagAssignments = {
+  /**
+   * The UserChoice document id.
+   */
+  id: number;
+  /**
+   * The tag title, in the read locale.
+   */
+  title: string;
+}[];
+export type MeditationFrames = {
+  /**
+   * The Frame document id.
+   */
+  id: number | string;
+  /**
+   * Seconds into the meditation.
+   */
+  timestamp: number;
+  [k: string]: unknown;
+}[];
 export type TableOfContentsHeadings = {
   slug: string;
   text: string;
@@ -901,6 +901,7 @@ export interface Config {
     };
     regions: {
       events: 'events';
+      imports: 'event-imports';
       childrenRegions: 'regions';
       childrenCities: 'regions';
       childrenVenues: 'regions';
@@ -1603,6 +1604,14 @@ export interface Region {
   radius?: number | null;
   events?: {
     docs?: (number | Event)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  /**
+   * Import classes into this region from a CSV. Start from the template at /event-import-template.csv.
+   */
+  imports?: {
+    docs?: (number | EventImport)[];
     hasNextPage?: boolean;
     totalDocs?: number;
   };
@@ -2754,6 +2763,356 @@ export interface EventSystemMeta {
     updatedAt?: string;
   };
 }
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "event-imports".
+ */
+export interface EventImport {
+  id: number;
+  /**
+   * The region these classes are imported into.
+   */
+  targetRegion: number | Region;
+  manager: number | Manager;
+  /**
+   * Language(s) to use for rows whose own `languages` column is empty.
+   */
+  defaultLanguages: (
+    | 'ab'
+    | 'aa'
+    | 'af'
+    | 'ak'
+    | 'sq'
+    | 'am'
+    | 'ar'
+    | 'an'
+    | 'hy'
+    | 'as'
+    | 'av'
+    | 'ae'
+    | 'ay'
+    | 'az'
+    | 'bm'
+    | 'ba'
+    | 'eu'
+    | 'be'
+    | 'bn'
+    | 'bi'
+    | 'bs'
+    | 'br'
+    | 'bg'
+    | 'my'
+    | 'ca'
+    | 'ch'
+    | 'ce'
+    | 'ny'
+    | 'zh'
+    | 'cv'
+    | 'kw'
+    | 'co'
+    | 'cr'
+    | 'hr'
+    | 'cs'
+    | 'da'
+    | 'dv'
+    | 'nl'
+    | 'dz'
+    | 'en'
+    | 'eo'
+    | 'et'
+    | 'ee'
+    | 'fo'
+    | 'fj'
+    | 'fi'
+    | 'fr'
+    | 'ff'
+    | 'gl'
+    | 'lg'
+    | 'ka'
+    | 'de'
+    | 'el'
+    | 'gn'
+    | 'gu'
+    | 'ht'
+    | 'ha'
+    | 'he'
+    | 'hz'
+    | 'hi'
+    | 'ho'
+    | 'hu'
+    | 'is'
+    | 'io'
+    | 'ig'
+    | 'id'
+    | 'ia'
+    | 'ie'
+    | 'iu'
+    | 'ik'
+    | 'ga'
+    | 'it'
+    | 'ja'
+    | 'jv'
+    | 'kl'
+    | 'kn'
+    | 'kr'
+    | 'ks'
+    | 'kk'
+    | 'km'
+    | 'ki'
+    | 'rw'
+    | 'rn'
+    | 'kv'
+    | 'kg'
+    | 'ko'
+    | 'ku'
+    | 'kj'
+    | 'ky'
+    | 'lo'
+    | 'la'
+    | 'lv'
+    | 'li'
+    | 'ln'
+    | 'lt'
+    | 'lu'
+    | 'lb'
+    | 'mk'
+    | 'mg'
+    | 'ms'
+    | 'ml'
+    | 'mt'
+    | 'gv'
+    | 'mi'
+    | 'mr'
+    | 'mh'
+    | 'mn'
+    | 'na'
+    | 'nv'
+    | 'ng'
+    | 'ne'
+    | 'nd'
+    | 'se'
+    | 'no'
+    | 'nb'
+    | 'nn'
+    | 'ii'
+    | 'oc'
+    | 'oj'
+    | 'cu'
+    | 'or'
+    | 'om'
+    | 'os'
+    | 'pi'
+    | 'pa'
+    | 'ps'
+    | 'fa'
+    | 'pl'
+    | 'pt'
+    | 'qu'
+    | 'ro'
+    | 'rm'
+    | 'ru'
+    | 'sm'
+    | 'sg'
+    | 'sa'
+    | 'sc'
+    | 'gd'
+    | 'sr'
+    | 'sn'
+    | 'sd'
+    | 'si'
+    | 'sk'
+    | 'sl'
+    | 'so'
+    | 'nr'
+    | 'st'
+    | 'es'
+    | 'su'
+    | 'sw'
+    | 'ss'
+    | 'sv'
+    | 'tl'
+    | 'ty'
+    | 'tg'
+    | 'ta'
+    | 'tt'
+    | 'te'
+    | 'th'
+    | 'bo'
+    | 'ti'
+    | 'to'
+    | 'ts'
+    | 'tn'
+    | 'tr'
+    | 'tk'
+    | 'tw'
+    | 'uk'
+    | 'ur'
+    | 'ug'
+    | 'uz'
+    | 've'
+    | 'vi'
+    | 'vo'
+    | 'wa'
+    | 'cy'
+    | 'fy'
+    | 'wo'
+    | 'xh'
+    | 'yi'
+    | 'yo'
+    | 'za'
+    | 'zu'
+  )[];
+  status: 'resolving' | 'review' | 'committing' | 'finished' | 'failed' | 'discarded';
+  progress?: {
+    done?: number | null;
+    total?: number | null;
+    note?: string | null;
+  };
+  rows?: EventImportRows;
+  proposedRegions?: EventImportProposedRegions;
+  report?: EventImportReport;
+  /**
+   * Why the last job gave up, for a batch that reads Failed.
+   */
+  error?: string | null;
+  _objectKey?: string | null;
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
+}
+export interface EventImportProposedRegions {
+  /**
+   * Parent-first, so the commit can create them in order.
+   */
+  nodes: {
+    /**
+     * Stable across runs, so a review can address a node it renamed.
+     */
+    key: string;
+    level: 'region' | 'city' | 'venue';
+    name: string;
+    /**
+     * The proposed node above it, or null when it hangs off the target.
+     */
+    parentKey: string | null;
+    match:
+      | {
+          kind: 'existing';
+          regionId: number;
+          name: string;
+          slug: string | null;
+        }
+      | {
+          kind: 'create';
+        }
+      | {
+          kind: 'elsewhere';
+          regionId: number;
+          name: string;
+        };
+    /**
+     * Null for every node the commit does not create.
+     */
+    slug: string | null;
+    /**
+     * Null for every node the commit does not create.
+     */
+    location:
+      | (
+          | {
+              kind: 'mapbox';
+              mapboxId: string;
+            }
+          | {
+              kind: 'manual';
+              latitude: number;
+              longitude: number;
+              radius: number;
+            }
+        )
+      | null;
+    /**
+     * The CSV lines this node's classes come from, the absorbed places' included.
+     */
+    lines: number[];
+    /**
+     * What the metro rule folded into this city, so the review can say so.
+     */
+    merged?: {
+      key: string;
+      name: string;
+      lines: number[];
+      subdivisionCode: string | null;
+    }[];
+    /**
+     * What a `map` edit replaced, so an `unmap` can put the proposal back exactly.
+     */
+    before?: {
+      name: string;
+      parentKey: string | null;
+      location:
+        | (
+            | {
+                kind: 'mapbox';
+                mapboxId: string;
+              }
+            | {
+                kind: 'manual';
+                latitude: number;
+                longitude: number;
+                radius: number;
+              }
+          )
+        | null;
+    };
+  }[];
+  rowErrors: {
+    line: number;
+    message: string;
+  }[];
+  /**
+   * Kept with its reason, because the review has to explain a missing layer.
+   */
+  stateLayer:
+    | {
+        proposed: true;
+        states: {
+          code: string;
+          name: string;
+          cityKeys: string[];
+        }[];
+        unplacedCityKeys: string[];
+      }
+    | {
+        proposed: false;
+        reason: string;
+      };
+}
+export interface EventImportReport {
+  committed: {
+    line: number;
+    eventId: number;
+  }[];
+  skipped: {
+    line: number;
+    reasons: string[];
+    /**
+     * The row as uploaded, so the volunteer can download, fix and re-upload it.
+     */
+    values: {
+      [k: string]: string;
+    };
+  }[];
+  finishedAt: string;
+}
 export interface NotificationPreferences {
   [k: string]: {
     frequency?: string;
@@ -3848,356 +4207,6 @@ export interface Frame {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "event-imports".
- */
-export interface EventImport {
-  id: number;
-  /**
-   * The region these classes are imported into.
-   */
-  targetRegion: number | Region;
-  manager: number | Manager;
-  /**
-   * Language(s) to use for rows whose own `languages` column is empty.
-   */
-  defaultLanguages: (
-    | 'ab'
-    | 'aa'
-    | 'af'
-    | 'ak'
-    | 'sq'
-    | 'am'
-    | 'ar'
-    | 'an'
-    | 'hy'
-    | 'as'
-    | 'av'
-    | 'ae'
-    | 'ay'
-    | 'az'
-    | 'bm'
-    | 'ba'
-    | 'eu'
-    | 'be'
-    | 'bn'
-    | 'bi'
-    | 'bs'
-    | 'br'
-    | 'bg'
-    | 'my'
-    | 'ca'
-    | 'ch'
-    | 'ce'
-    | 'ny'
-    | 'zh'
-    | 'cv'
-    | 'kw'
-    | 'co'
-    | 'cr'
-    | 'hr'
-    | 'cs'
-    | 'da'
-    | 'dv'
-    | 'nl'
-    | 'dz'
-    | 'en'
-    | 'eo'
-    | 'et'
-    | 'ee'
-    | 'fo'
-    | 'fj'
-    | 'fi'
-    | 'fr'
-    | 'ff'
-    | 'gl'
-    | 'lg'
-    | 'ka'
-    | 'de'
-    | 'el'
-    | 'gn'
-    | 'gu'
-    | 'ht'
-    | 'ha'
-    | 'he'
-    | 'hz'
-    | 'hi'
-    | 'ho'
-    | 'hu'
-    | 'is'
-    | 'io'
-    | 'ig'
-    | 'id'
-    | 'ia'
-    | 'ie'
-    | 'iu'
-    | 'ik'
-    | 'ga'
-    | 'it'
-    | 'ja'
-    | 'jv'
-    | 'kl'
-    | 'kn'
-    | 'kr'
-    | 'ks'
-    | 'kk'
-    | 'km'
-    | 'ki'
-    | 'rw'
-    | 'rn'
-    | 'kv'
-    | 'kg'
-    | 'ko'
-    | 'ku'
-    | 'kj'
-    | 'ky'
-    | 'lo'
-    | 'la'
-    | 'lv'
-    | 'li'
-    | 'ln'
-    | 'lt'
-    | 'lu'
-    | 'lb'
-    | 'mk'
-    | 'mg'
-    | 'ms'
-    | 'ml'
-    | 'mt'
-    | 'gv'
-    | 'mi'
-    | 'mr'
-    | 'mh'
-    | 'mn'
-    | 'na'
-    | 'nv'
-    | 'ng'
-    | 'ne'
-    | 'nd'
-    | 'se'
-    | 'no'
-    | 'nb'
-    | 'nn'
-    | 'ii'
-    | 'oc'
-    | 'oj'
-    | 'cu'
-    | 'or'
-    | 'om'
-    | 'os'
-    | 'pi'
-    | 'pa'
-    | 'ps'
-    | 'fa'
-    | 'pl'
-    | 'pt'
-    | 'qu'
-    | 'ro'
-    | 'rm'
-    | 'ru'
-    | 'sm'
-    | 'sg'
-    | 'sa'
-    | 'sc'
-    | 'gd'
-    | 'sr'
-    | 'sn'
-    | 'sd'
-    | 'si'
-    | 'sk'
-    | 'sl'
-    | 'so'
-    | 'nr'
-    | 'st'
-    | 'es'
-    | 'su'
-    | 'sw'
-    | 'ss'
-    | 'sv'
-    | 'tl'
-    | 'ty'
-    | 'tg'
-    | 'ta'
-    | 'tt'
-    | 'te'
-    | 'th'
-    | 'bo'
-    | 'ti'
-    | 'to'
-    | 'ts'
-    | 'tn'
-    | 'tr'
-    | 'tk'
-    | 'tw'
-    | 'uk'
-    | 'ur'
-    | 'ug'
-    | 'uz'
-    | 've'
-    | 'vi'
-    | 'vo'
-    | 'wa'
-    | 'cy'
-    | 'fy'
-    | 'wo'
-    | 'xh'
-    | 'yi'
-    | 'yo'
-    | 'za'
-    | 'zu'
-  )[];
-  status: 'resolving' | 'review' | 'committing' | 'finished' | 'failed' | 'discarded';
-  progress?: {
-    done?: number | null;
-    total?: number | null;
-    note?: string | null;
-  };
-  rows?: EventImportRows;
-  proposedRegions?: EventImportProposedRegions;
-  report?: EventImportReport;
-  /**
-   * Why the last job gave up, for a batch that reads Failed.
-   */
-  error?: string | null;
-  _objectKey?: string | null;
-  updatedAt: string;
-  createdAt: string;
-  url?: string | null;
-  thumbnailURL?: string | null;
-  filename?: string | null;
-  mimeType?: string | null;
-  filesize?: number | null;
-  width?: number | null;
-  height?: number | null;
-  focalX?: number | null;
-  focalY?: number | null;
-}
-export interface EventImportProposedRegions {
-  /**
-   * Parent-first, so the commit can create them in order.
-   */
-  nodes: {
-    /**
-     * Stable across runs, so a review can address a node it renamed.
-     */
-    key: string;
-    level: 'region' | 'city' | 'venue';
-    name: string;
-    /**
-     * The proposed node above it, or null when it hangs off the target.
-     */
-    parentKey: string | null;
-    match:
-      | {
-          kind: 'existing';
-          regionId: number;
-          name: string;
-          slug: string | null;
-        }
-      | {
-          kind: 'create';
-        }
-      | {
-          kind: 'elsewhere';
-          regionId: number;
-          name: string;
-        };
-    /**
-     * Null for every node the commit does not create.
-     */
-    slug: string | null;
-    /**
-     * Null for every node the commit does not create.
-     */
-    location:
-      | (
-          | {
-              kind: 'mapbox';
-              mapboxId: string;
-            }
-          | {
-              kind: 'manual';
-              latitude: number;
-              longitude: number;
-              radius: number;
-            }
-        )
-      | null;
-    /**
-     * The CSV lines this node's classes come from, the absorbed places' included.
-     */
-    lines: number[];
-    /**
-     * What the metro rule folded into this city, so the review can say so.
-     */
-    merged?: {
-      key: string;
-      name: string;
-      lines: number[];
-      subdivisionCode: string | null;
-    }[];
-    /**
-     * What a `map` edit replaced, so an `unmap` can put the proposal back exactly.
-     */
-    before?: {
-      name: string;
-      parentKey: string | null;
-      location:
-        | (
-            | {
-                kind: 'mapbox';
-                mapboxId: string;
-              }
-            | {
-                kind: 'manual';
-                latitude: number;
-                longitude: number;
-                radius: number;
-              }
-          )
-        | null;
-    };
-  }[];
-  rowErrors: {
-    line: number;
-    message: string;
-  }[];
-  /**
-   * Kept with its reason, because the review has to explain a missing layer.
-   */
-  stateLayer:
-    | {
-        proposed: true;
-        states: {
-          code: string;
-          name: string;
-          cityKeys: string[];
-        }[];
-        unplacedCityKeys: string[];
-      }
-    | {
-        proposed: false;
-        reason: string;
-      };
-}
-export interface EventImportReport {
-  committed: {
-    line: number;
-    eventId: number;
-  }[];
-  skipped: {
-    line: number;
-    reasons: string[];
-    /**
-     * The row as uploaded, so the volunteer can download, fix and re-upload it.
-     */
-    values: {
-      [k: string]: string;
-    };
-  }[];
-  finishedAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
 export interface PayloadKv {
@@ -5130,6 +5139,7 @@ export interface RegionsSelect<T extends boolean = true> {
   longitude?: T;
   radius?: T;
   events?: T;
+  imports?: T;
   childrenRegions?: T;
   childrenCities?: T;
   childrenVenues?: T;

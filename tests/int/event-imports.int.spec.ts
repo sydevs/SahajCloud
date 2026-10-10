@@ -23,6 +23,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { buildImportTemplate } from '@/collections/EventImports/csv/template'
 import { EventImports } from '@/collections/EventImports/EventImports'
 import { ALLOWED } from '@/collections/EventImports/hooks/transitionStatus'
+import { PROPOSABLE_TARGET_LEVELS } from '@/collections/EventImports/propose/tree'
+import { REGION_IMPORT_TAB } from '@/collections/EventImports/regionImportTab'
 import type { WorkflowActionsProps } from '@/components/admin/buttons/WorkflowActions/stages'
 import { CREATE_STAGE } from '@/components/admin/buttons/WorkflowActions/stages'
 import { getDocManagerFields } from '@/plugins/access/documentManagers'
@@ -503,6 +505,60 @@ describe('event-imports', () => {
           'rows',
         ),
       ).toMatch(/can no longer be edited/)
+    })
+  })
+
+  /**
+   * The Import tab on Regions, which is the only way a volunteer reaches a
+   * batch at all: `event-imports` is `admin.hidden` for them, so its list and
+   * its routes both 404 (`docs/rules/admin-ui.md`).
+   */
+  describe('the Regions Import tab', () => {
+    it('is offered at every level a batch may target, and at no other', () => {
+      const condition = REGION_IMPORT_TAB.admin?.condition
+      if (!condition) throw new Error('the Import tab declares no condition')
+      // Payload hands a condition four arguments; this one reads only `data`,
+      // and the rest are stubbed rather than invented.
+      const args = { blockData: {}, operation: 'update' as const, path: [], user: admin }
+      const show = (data: Record<string, unknown>) => condition(data, {}, args)
+
+      for (const level of PROPOSABLE_TARGET_LEVELS) {
+        expect(show({ id: country, level })).toBe(true)
+      }
+      // A venue is a leaf: `buildProposedTree` has nothing left to propose
+      // beneath one, so `targetRegion`'s own validator refuses it.
+      expect(show({ id: country, level: 'venue' })).toBe(false)
+      // Before the region exists there is nothing for the join to read, and no
+      // id for the create form to prefill.
+      expect(show({ level: 'country' })).toBe(false)
+    })
+
+    /**
+     * ⚠ **Read through the join, not by querying `event-imports`.** The join is
+     * what the tab renders, and `on: 'targetRegion'` is the half that decides
+     * whose batches a region shows — a direct query would pass with the join
+     * pointed at any field at all.
+     */
+    it('lists this region’s batches and not another region’s', async () => {
+      const austria = await testData.createRegion(payload, { name: 'Austria', level: 'country' })
+      const mine = await createBatch({}, csvWith([classLine('Tab Listing')]))
+      const theirs = await createBatch(
+        { targetRegion: austria.id },
+        csvWith([classLine('Not Mine', 'Vienna')]),
+      )
+
+      const region = await payload.findByID({
+        collection: 'regions',
+        id: country,
+        depth: 0,
+        user: admin,
+      })
+      const listed = (region.imports?.docs ?? []).map((doc) =>
+        typeof doc === 'number' ? doc : doc.id,
+      )
+
+      expect(listed).toContain(mine.id)
+      expect(listed).not.toContain(theirs.id)
     })
   })
 })
