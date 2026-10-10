@@ -465,6 +465,31 @@ import, or a third-party payload. Say so in a one-line comment naming
 where the type already lives, rather than restating that type as a second
 definition.
 
+### A JSON column a person edits needs a hook, not field access
+
+A `jsonField` whose editing surface is a custom Field component — `event-imports`
+holds two, its rows table and its region tree — cannot be protected by
+`access.update`. The whole point is that the reviewer writes it, so the field has
+to be open, and the Ajv schema only says the value is *shaped* right. Within one
+schema a caller can still rewrite every row.
+
+So the refusal is a collection `beforeChange` hook comparing the submitted value
+against the stored one, and it has to be, because:
+
+- **Payload back-fills an omitted column by the time the hook runs.** `data`
+  carries every field of the stored document whether or not the patch named it,
+  so presence says nothing — "did this caller touch the column" is only
+  answerable by comparing.
+- **Match by identity, never by index.** `event-imports` matches nodes by `key`
+  and rows by `line`, because an edit that re-prunes the array makes an
+  index-wise diff report every element after the gap as changed.
+- **Matching the count is not matching the set.** Submitting one line twice
+  against two stored lines passes every per-row check while the other line
+  leaves the document.
+
+`src/collections/EventImports/hooks/reviewerEdits.ts` is the worked example, and
+`admin.readOnly` on such a field is a form nicety with no authority at all.
+
 ### A virtual column takes a schema too, and it can be closed
 
 `virtual: true` changes what the schema is _for_, not whether to write one.
