@@ -36,3 +36,16 @@ export const SYSTEM_EXCLUSIONS: CollectionSlug[] = [
   'payload-locked-documents' as CollectionSlug,
   'payload-kv' as CollectionSlug,
 ]
+
+/**
+ * Largest `limit` an API client may ask for in one read (#887). Headroom, not
+ * a budget — see `docs/rules/api-clients.md`.
+ */
+export const MAX_CLIENT_LIMIT = 2000
+
+/**
+ * Largest `page` an API client may ask for (#887). Bounding `limit` alone does
+ * not bound what reaches SQL: the adapter offsets by `(page - 1) * limit`. At
+ * both ceilings that offset stays under 2 × 10⁷.
+ */
+export const MAX_CLIENT_PAGE = 10_000

@@ -236,6 +236,22 @@ Caching and purge for the same reads are in `DEPLOYMENT.md`; the cacheable set i
 
 An API client read must declare its data needs: `select` is required on every read, and `populate` is required whenever effective `depth > 1` (explicit or the server default). `validateClientQueryParamsHook` enforces this before rate limiting, so a malformed read costs no rate-limit slot. Managers, admin UI requests, and writes are unaffected. It applies to a global read too (#710, above).
 
+### `limit` and `page` bounds (#887)
+
+The same gate bounds the two numbers that reach SQL. A client may send `limit` up to **2000** and `page` up to **10000** (`MAX_CLIENT_LIMIT` / `MAX_CLIENT_PAGE` in `src/plugins/usage/constants.ts`, which the OpenAPI parameter docs also read); either outside `0 … its ceiling`, or not a whole number, is refused **400** naming the bound. A global read carries neither, so nothing changes there.
+
+**Clients only, deliberately** — a manager, the admin UI and an internal read are trusted with their own numbers, and `hooks.ts` returns early for all three. The bound runs *ahead* of the `asTrustedReq` and live-preview bypasses, though, unlike the `select` gate: those relax a shape policy, and this one keeps a number out of the driver.
+
+```
+❌ GET /api/meditations?select[label]=true&limit=99999999999999999999   → 400
+❌ GET /api/meditations?select[label]=true&page=99999999999999999999    → 400
+✅ GET /api/meditations?select[label]=true&limit=2000                   → 200
+```
+
+Both ceilings are headroom, not a budget: our own largest paginated read asks for 1000 (`src/plugins/usage/tasks.ts`), and the largest any consumer sends is 100. They exist because unbounded, **each one alone returns 500** — the driver overflows on a 20-digit `limit`, and on the `(page - 1) * limit` offset a 20-digit `page` produces. Bounding `limit` alone leaves the second door open, and a negative `page` reaches the same 500 as `OFFSET -20`.
+
+⚠ **An unbounded read is still allowed.** `limit=0` and `pagination=false` are payload's two spellings of "the whole table", and both remain open to clients — the Atlas widget reads its region tree, its map feed and its title map that way. Whether that should stay open is #887's phase 2, and it costs a coordinated SahajAtlasWeb change before any cap can land.
+
 ### Expected REST format (bracket notation)
 
 Payload's REST layer parses query strings into **nested objects** via `qs-esm`, not comma-separated strings. The hook checks `typeof args.select === 'object'`, so only bracket notation passes — the format the [official docs](https://payloadcms.com/docs/queries/select) describe.
