@@ -357,10 +357,9 @@ describe('User submissions intake (POST /api/user-submissions)', () => {
       expect(doc.id).toBeTruthy()
     })
 
-    it("accepts an authored email answer on a provider the URL pattern matches", async () => {
-      // `URL_PATTERN`'s bare-domain arm matches `gmail.com`, so the link scan
-      // refused 8 of 12 common providers — and the atlas's email field is
-      // required, so the visitor could not clear the value (#899).
+    it('accepts an authored email answer on a provider the URL pattern matches', async () => {
+      // `URL_PATTERN`'s bare-domain arm matches `gmail.com`, and the atlas's
+      // email field is required, so the visitor could not clear it (#899).
       const doc = await send({
         type: 'contact',
         form: contactForm.id,
@@ -372,7 +371,7 @@ describe('User submissions intake (POST /api/user-submissions)', () => {
       })
 
       // Stored, not dropped: the answer is the operator's view of the question
-      // they asked, which is why the fix is here and not in the caller.
+      // they asked.
       expect(doc.submissionData).toEqual(
         expect.arrayContaining([expect.objectContaining({ field: 'email', value: 'visitor@gmail.com' })]),
       )

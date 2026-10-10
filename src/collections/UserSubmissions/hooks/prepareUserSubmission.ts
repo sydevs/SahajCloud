@@ -5,7 +5,9 @@ import { randomUUID } from 'node:crypto'
 import { APIError } from 'payload'
 
 
+import type { AntiSpamFailure } from '@/lib/antiSpam/antiSpamGuard'
 import { checkEmailAllowed, checkNoUrls } from '@/lib/antiSpam/antiSpamGuard'
+import { EMAIL_FIELD_BLOCKS } from '@/lib/submissions/formBlocks'
 import { upsertUserByEmail } from '@/lib/users/upsertUserByEmail'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Form, UserSubmission } from '@/payload-types'
@@ -131,23 +133,20 @@ export const prepareUserSubmission: CollectionBeforeValidateHook = async ({
   // sees one contract whichever field tripped it. Client writes only: a manager
   // pasting a link into a triage note is not spam.
   if (fromClient) {
-    // An authored email answer is judged as an address, never as free text.
+    // An authored email answer is judged as an address, never as free text:
     // `URL_PATTERN`'s bare-domain arm matches `gmail.com`, so the link scan
-    // refused 8 of 12 common providers — and the atlas's required email field
-    // gave the visitor no way to clear the value (#899). Format plus the
-    // disposable-domain list is the stricter question for an address anyway.
+    // refused most real addresses, and the atlas's required email field left
+    // the visitor no way to clear the value (#899). Trimmed first, so a blank
+    // answer to an optional question stays optional.
     const emailFields = emailFieldNames(form)
     for (const field of emailFields) {
-      const address = checkEmailAllowed(readSubmissionValue(data.submissionData, field), field)
-      if (!address.ok) {
-        throw new APIError(address.message, address.status, { code: address.code }, true)
-      }
+      const answer = readSubmissionValue(data.submissionData, field)?.trim()
+      const address = checkEmailAllowed(answer, field)
+      if (!address.ok) refuse(address)
     }
 
     const urls = checkNoUrls(urlScannablePairs(data.submissionData, emailFields))
-    if (!urls.ok) {
-      throw new APIError(urls.message, urls.status, { code: urls.code }, true)
-    }
+    if (!urls.ok) refuse(urls)
   }
 
   const senderEmail = typeof data.senderEmail === 'string' ? data.senderEmail.trim() : ''
@@ -227,18 +226,24 @@ function authoredFieldNames(form: Form | null): string[] {
 /**
  * The names of the form's authored email questions.
  *
- * Keyed on the **block type**, because the operator chooses every field name —
- * a form asking for an address under `contactAddress` must be treated the same
- * way as one that spells it `email`, and renaming the field in the admin must
- * not change how a submission against it is judged.
+ * Keyed on the block type, not the name: the operator names every field, and
+ * renaming one must not change how its answer is judged.
  */
 function emailFieldNames(form: Form | null): string[] {
-  if (!form || !Array.isArray(form.fields)) return []
+  return (form?.fields ?? []).flatMap((block) =>
+    EMAIL_FIELD_BLOCKS.includes(block.blockType) && 'name' in block && block.name
+      ? [block.name]
+      : [],
+  )
+}
 
-  return form.fields
-    .filter((block) => (block as { blockType?: unknown }).blockType === 'email')
-    .map((block) => (block as { name?: unknown }).name)
-    .filter((name): name is string => typeof name === 'string' && name.length > 0)
+/**
+ * Raise an anti-spam verdict as the 400 a client reads, carrying the offending
+ * field — `checkEmailAllowed`'s message names no key, and a form may ask for
+ * more than one address.
+ */
+function refuse(result: AntiSpamFailure): never {
+  throw new APIError(result.message, result.status, { code: result.code, field: result.field }, true)
 }
 
 /**

@@ -214,23 +214,20 @@ export const URL_EXEMPT_KEYS: ReadonlySet<string> = new Set(CLIENT_CONTEXT_KEYS)
  * `checkNoUrls` takes, so the failure it raises names the offending key.
  *
  * `alsoExempt` carries the keys only the caller can know. An authored `email`
- * answer is one: the operator names that field, so no list here can anticipate
- * it, and the URL pattern's bare-domain arm matches every ordinary address
- * (#899). `prepareUserSubmission` holds the form, so it supplies those names
- * and checks the address by format instead.
+ * answer is one: the operator names that field, and the URL pattern's
+ * bare-domain arm matches every ordinary address (#899).
  */
 export function urlScannablePairs(
   entries: unknown,
-  alsoExempt: Iterable<string> = [],
+  alsoExempt: readonly string[] = [],
 ): Record<string, string> {
   if (!Array.isArray(entries)) return {}
-  const exempt = new Set<string>([...URL_EXEMPT_KEYS, ...alsoExempt])
   const pairs: Record<string, string> = {}
   for (const entry of entries as SubmissionDataEntry[]) {
     const key = entry?.field
     const value = entry?.value
     if (typeof key !== 'string' || typeof value !== 'string') continue
-    if (exempt.has(key)) continue
+    if (URL_EXEMPT_KEYS.has(key) || alsoExempt.includes(key)) continue
     pairs[key] = value
   }
   return pairs

@@ -182,10 +182,9 @@ describe('urlScannablePairs', () => {
     expect(pairs.message).toContain('spam.example')
   })
 
-  it("exempts the keys the caller names, and keeps the answers it does not", () => {
-    // `gmail.com` satisfies `URL_PATTERN`'s bare-domain arm, so scanning an
-    // address refused 8 of 12 common providers (#899). Only the caller holding
-    // the form knows which field asked for one, so it passes the name in.
+  it('exempts the keys the caller names, and keeps the answers it does not', () => {
+    // `gmail.com` satisfies `URL_PATTERN`'s bare-domain arm (#899). Only the
+    // caller holding the form knows which field asked for an address.
     const pairs = urlScannablePairs(
       [
         { field: 'email', value: 'visitor@gmail.com' },

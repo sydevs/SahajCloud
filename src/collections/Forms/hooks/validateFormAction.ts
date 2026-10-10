@@ -3,10 +3,8 @@ import type { CollectionBeforeValidateHook } from 'payload'
 import { ValidationError } from 'payload'
 
 import { CLIENT_CONTEXT_KEYS } from '@/lib/submissions/clientContext'
+import { EMAIL_FIELD_BLOCKS } from '@/lib/submissions/formBlocks'
 import type { Form } from '@/payload-types'
-
-/** The plugin's field blocks that can hold an email address a person types. */
-const EMAIL_BLOCKS = ['email'] as const
 
 /** The plugin's field blocks that can hold a message body a person types. */
 const MESSAGE_BLOCKS = ['textarea', 'text'] as const
@@ -74,7 +72,7 @@ export const validateFormAction: CollectionBeforeValidateHook<Form> = ({
   const present = new Set<string>(Array.isArray(fields) ? fields.map((block) => block.blockType) : [])
   const errors: { message: string; path: string }[] = []
 
-  const hasEmail = EMAIL_BLOCKS.some((type) => present.has(type))
+  const hasEmail = EMAIL_FIELD_BLOCKS.some((type) => present.has(type))
   const hasMessage = MESSAGE_BLOCKS.some((type) => present.has(type))
 
   const missing: string[] = []

@@ -65,7 +65,8 @@ export const DEFAULT_WRITE_GUARD_POLICIES: Partial<Record<CollectionSlug, WriteG
       // report legitimately names the page it happened on. A path cannot say
       // "every pair except those three"; a hook that already knows each pair's
       // key can, and it uses the same `checkNoUrls` and raises the same
-      // `urls_not_allowed` failure.
+      // `urls_not_allowed` failure. That hook also exempts the form's own email
+      // answers, which it checks with `checkEmailAllowed` instead (#899).
       // ⚠ `subject` is deliberately absent, though the collection this
       // replaced scanned it. There it was a client-writable column; here it carries
       // `systemFieldAccess`, and Payload deletes an access-denied field in the
