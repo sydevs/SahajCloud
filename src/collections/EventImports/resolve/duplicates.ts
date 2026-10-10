@@ -6,11 +6,11 @@
  * volunteer's spreadsheet repeats a class as often as the CMS already holds one.
  *
  * ⚠ **A match is a question for the reviewer, never a silent decision.** Each
- * one defaults to a skip, and the review offers skip, import anyway, or (against
- * an existing class) overwrite (`endpoints/choices.ts`). So the two strengths
- * are about what the review says, not what happens: `strong` is the same hall at
- * the same time, `weak` the same town at the same time with no hall to compare,
- * and the review badges the second as a possible duplicate.
+ * one defaults to a skip, and the review offers skip or import anyway — never
+ * an overwrite, because an import does not modify an existing class. So the two
+ * strengths are about what the review says, not what happens: `strong` is the
+ * same hall at the same time, `weak` the same town at the same time with no
+ * hall to compare, and the review badges the second as a possible duplicate.
  *
  * ⚠ **Every rule needs the schedules to meet and the start times to agree.** A
  * morning and an evening class at one hall, a one-off in November and one in

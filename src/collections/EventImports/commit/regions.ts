@@ -30,13 +30,13 @@
  */
 
 import type { ProposedNode } from '../propose/tree'
-import type { SubtreeRegion } from '../subtree'
+import type { SubtreeRegion } from '../regionReads'
 import type { PayloadRequest } from 'payload'
 
 import { describeValidationErrors, validationFieldErrors } from '@/lib/utilities/validationFailure'
 import type { Region } from '@/payload-types'
 
-import { readTakenSlugs } from '../subtree'
+import { readTakenSlugs } from '../regionReads'
 import { creatableNodes, matchedRegionIds, parentRegionId } from './placement'
 import { plannedMapboxId, regionCreateData } from './regionData'
 import { commitWriteReq } from './scope'

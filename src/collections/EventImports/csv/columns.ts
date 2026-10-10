@@ -178,7 +178,10 @@ export const IMPORT_COLUMNS: readonly ColumnSpec[] = [
     name: 'date',
     requirement: 'optional',
     help: 'YYYY-MM-DD. Required unless the class is inactive: the date for one-off, the first occurrence for weekly and monthly.',
-    example: '',
+    // ⚠ **A Tuesday, because the example row's `weekdays` is `TU`.** A weekly
+    // row whose date falls on another weekday is refused, so an inconsistent
+    // pair here would ship a template the parser rejects.
+    example: '2026-01-06',
   },
   {
     name: 'startTime',

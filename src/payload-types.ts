@@ -756,7 +756,7 @@ export type EventImportRows = {
      */
     lastDay?: number | null;
     /**
-     * A monthly-by-weekday class's week numbers as a mask, 0 otherwise.
+     * A monthly-by-weekday class's week numbers as a mask. An import always writes 0 — there is no column for the ordinal shape (`csv/schedule.ts`) — and the key stays because the OTHER side of the duplicate comparison is an existing CMS class, which can hold one.
      */
     monthWeeks?: number;
     /**

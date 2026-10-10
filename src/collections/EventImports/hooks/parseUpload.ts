@@ -62,7 +62,11 @@ export const parseUpload: CollectionBeforeChangeHook = ({ data, req }) => {
     rows: parsed.rows,
     proposedRegions: null,
     report: null,
-    progress: null,
+    // ⚠ **`{}`, never `null`.** Payload's `beforeChange` field pass descends
+    // into a group's subfields with the group as `siblingData`, so a null there
+    // throws `Cannot read properties of null` and the create fails with
+    // nothing naming the field.
+    progress: {},
     error: null,
     status: 'resolving',
   }

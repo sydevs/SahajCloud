@@ -31,7 +31,7 @@ export function duplicateAction(row: CommitRow): 'import' | 'skip' {
  * import never modifies an existing class.
  */
 export function isCommittable(row: CommitRow): boolean {
-  return !!row.resolved && !row.errors?.length && (!row.duplicate || duplicateAction(row) !== 'skip')
+  return !!row.resolved && !row.errors?.length && (!row.duplicate || duplicateAction(row) === 'import')
 }
 
 /**

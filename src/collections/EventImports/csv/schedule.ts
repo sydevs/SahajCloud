@@ -283,10 +283,13 @@ export function mapCsvSchedule(args: MapScheduleArgs): MapScheduleResult {
   // `date` column: a weekly row leaving `date` blank still has a first date,
   // and an earlier `untilDate` there imported an event with zero occurrences —
   // already expired, with nothing on the row to say so.
-  if (untilDate && !pastUntil && typeof built !== 'string') {
-    if (Temporal.PlainDate.compare(untilDate, built.firstDate) < 0) {
-      errors.push(`untilDate must be on or after the first date (${built.firstDate.toString()})`)
-    }
+  if (
+    untilDate &&
+    !pastUntil &&
+    typeof built !== 'string' &&
+    Temporal.PlainDate.compare(untilDate, built.firstDate) < 0
+  ) {
+    errors.push(`untilDate must be on or after the first date (${built.firstDate.toString()})`)
   }
 
   // `startTime` is re-tested only to narrow it for TypeScript — a missing one
@@ -330,9 +333,17 @@ interface Built {
 }
 
 interface BuildArgs {
-  explicitDate: Temporal.PlainDate | null
+  /** Non-null in every arm: `buildFor` refuses a blank `date` before it dispatches. */
+  explicitDate: Temporal.PlainDate
   weekdays: WeekdayCode[]
   today: Temporal.PlainDate
+}
+
+/** How each type's refusal names the `date` column. */
+const DATE_REQUIRED: Record<Exclude<ScheduleType, 'inactive'>, string> = {
+  'one-off': 'date is required for a one-off class',
+  weekly: 'date is required for a weekly class — its first occurrence',
+  monthly: 'date is required for a monthly class — its first occurrence',
 }
 
 /**
@@ -341,20 +352,28 @@ interface BuildArgs {
  * Each arm yields either a `Built` or exactly one message, so the message is
  * the return value — a shared mutable error array would leave a reader
  * verifying by hand that "returned nothing" always means "pushed something".
+ *
+ * The `date` requirement is answered here rather than three times below, which
+ * is what lets every arm take a non-null date.
  */
-function buildFor(type: Exclude<ScheduleType, 'inactive'>, args: BuildArgs): Built | string {
+function buildFor(
+  type: Exclude<ScheduleType, 'inactive'>,
+  args: Omit<BuildArgs, 'explicitDate'> & { explicitDate: Temporal.PlainDate | null },
+): Built | string {
+  const { explicitDate } = args
+  if (!explicitDate) return DATE_REQUIRED[type]
+  const withDate: BuildArgs = { ...args, explicitDate }
   switch (type) {
     case 'one-off':
-      return buildOneOff(args)
+      return buildOneOff(withDate)
     case 'weekly':
-      return buildWeekly(args)
+      return buildWeekly(withDate)
     case 'monthly':
-      return buildMonthly(args)
+      return buildMonthly(withDate)
   }
 }
 
 function buildOneOff({ explicitDate, today }: BuildArgs): Built | string {
-  if (!explicitDate) return 'date is required for a one-off class'
   // A one-off in the past publishes a class that has already finished, which
   // the expiry sweep would then retire on its first run.
   if (Temporal.PlainDate.compare(explicitDate, today) < 0) {
@@ -364,8 +383,6 @@ function buildOneOff({ explicitDate, today }: BuildArgs): Built | string {
 }
 
 function buildWeekly({ explicitDate, weekdays }: BuildArgs): Built | string {
-  if (!explicitDate) return 'date is required for a weekly class — its first occurrence'
-
   // A date alone says which weekday it is, so `weekdays` is for a class that
   // meets on more than one.
   const dateCode = weekdayCodeFor(explicitDate.dayOfWeek)
@@ -394,7 +411,6 @@ function buildWeekly({ explicitDate, weekdays }: BuildArgs): Built | string {
  * manager who needs one edits the class after the import.
  */
 function buildMonthly({ explicitDate }: BuildArgs): Built | string {
-  if (!explicitDate) return 'date is required for a monthly class — its first occurrence'
   if (explicitDate.day > MAX_SAFE_MONTH_DAY) {
     return `a monthly class on day ${explicitDate.day} skips every month without one (got date "${explicitDate.toString()}") — pick a date on or before day ${MAX_SAFE_MONTH_DAY}`
   }

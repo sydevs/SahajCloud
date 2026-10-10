@@ -62,8 +62,7 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   ALTER TABLE "event_imports" DISABLE ROW LEVEL SECURITY;
   DROP TABLE "event_imports_default_languages" CASCADE;
   DROP TABLE "event_imports" CASCADE;
-  ALTER TABLE "payload_locked_documents_rels" DROP CONSTRAINT "payload_locked_documents_rels_event_imports_fk";
-  
+
   DROP INDEX "events_import_key_idx";
   DROP INDEX "_events_v_version_version_import_key_idx";
   DROP INDEX "payload_locked_documents_rels_event_imports_id_idx";

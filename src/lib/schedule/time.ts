@@ -10,8 +10,13 @@
 
 import { Temporal } from '@js-temporal/polyfill'
 
-/** `HH:MM`, 24-hour, with an optional single-digit hour. */
-export const HHMM_PATTERN = /^([01]?\d|2[0-3]):([0-5]\d)$/
+/**
+ * `HH:MM`, 24-hour, with an optional single-digit hour.
+ *
+ * ⚠ **Not exported.** Publishing the grammar invites the fourth copy of it,
+ * which is the thing this module exists to delete. Ask `isHHMM`.
+ */
+const HHMM_PATTERN = /^([01]?\d|2[0-3]):([0-5]\d)$/
 
 export function isHHMM(value: string): boolean {
   return HHMM_PATTERN.test(value)
@@ -52,7 +57,7 @@ export function minutesOfDay(value: string | null | undefined): number | null {
  * come back inverted, which `scheduleFields`' own validator then refuses. A
  * caller with somebody to report to wants `reject`.
  */
-export type GapPolicy = 'shift' | 'reject'
+type GapPolicy = 'shift' | 'reject'
 
 /**
  * A local date and wall time in `timeZone`, as the UTC instant the

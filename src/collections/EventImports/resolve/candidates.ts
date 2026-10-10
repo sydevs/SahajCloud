@@ -18,7 +18,7 @@ import { notFinishedWhere } from '@/collections/Events/lifecycle/finished'
 import { relationId } from '@/lib/utilities/relationId'
 import type { EventImportRows, Region } from '@/payload-types'
 
-import { targetSubtreeWhere } from '../subtree'
+import { targetSubtreeWhere } from '../regionReads'
 import { cityKeyFor, prepareCandidate } from './duplicates'
 
 /** A prepared class, plus how the review links back to it. */

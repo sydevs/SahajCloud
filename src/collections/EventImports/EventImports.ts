@@ -10,8 +10,7 @@ import { isAdminManager } from '@/plugins/access'
 import { MAX_IMPORT_ROWS } from './constants'
 import { parseUpload } from './hooks/parseUpload'
 import { stampManager } from './hooks/stampManager'
-import { validateTargetRegion } from './hooks/validateTargetRegion'
-import { PROPOSABLE_TARGET_LEVELS } from './propose/tree'
+import { targetRegionFilterOptions, validateTargetRegion } from './hooks/targetRegion'
 
 /** Where a proposed node is created, shared by the node and its pre-`map` copy. */
 const nodeLocation = z
@@ -61,6 +60,12 @@ export const EventImports: CollectionConfig = {
     mimeTypes: ['text/csv', 'application/vnd.ms-excel', 'text/plain'],
     staticDir: 'media/event-imports',
   },
+  // ⚠ **The one upload collection that does NOT take `restrictUploadToAdmin`,
+  // and the deviation is the feature.** That hook locks an existing document's
+  // file against everyone but an admin; here replacing the file is how a
+  // volunteer re-uploads a corrected CSV, which `parseUpload` is built around.
+  // What bounds it instead is `transitionStatus`: a re-upload is accepted only
+  // while the batch is in review or failed.
   hooks: {
     beforeChange: [stampManager, parseUpload],
   },
@@ -84,7 +89,9 @@ export const EventImports: CollectionConfig = {
       required: true,
       maxDepth: 1,
       access: { update: () => false },
-      filterOptions: { level: { in: [...PROPOSABLE_TARGET_LEVELS] } },
+      // Both from `hooks/targetRegion.ts`, which states why they travel
+      // together and why the validator composes Payload's own.
+      filterOptions: targetRegionFilterOptions,
       validate: validateTargetRegion,
       admin: { description: 'The region these classes are imported into.' },
     },
@@ -238,7 +245,9 @@ export const EventImports: CollectionConfig = {
                 monthWeeks: z
                   .int()
                   .optional()
-                  .describe("A monthly-by-weekday class's week numbers as a mask, 0 otherwise."),
+                  .describe(
+                    "A monthly-by-weekday class's week numbers as a mask. An import always writes 0 — there is no column for the ordinal shape (`csv/schedule.ts`) — and the key stays because the OTHER side of the duplicate comparison is an existing CMS class, which can hold one.",
+                  ),
                 monthDay: z
                   .int()
                   .nullable()

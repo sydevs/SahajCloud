@@ -13,6 +13,7 @@ import type { CommitRow } from './rows'
 
 import { UNLINKED_NOTE } from './coordinators'
 import { managerKeyOf } from './managers'
+import { duplicateAction } from './rows'
 
 export interface CommitTally {
   total: number
@@ -98,7 +99,7 @@ export function skipReasons(row: CommitRow, extra: readonly string[] = []): stri
  * exported one answering prose makes a grep for either return both.
  */
 function duplicateReason(row: CommitRow): string[] {
-  if (!row.duplicate || row.committed || (row.duplicate.action ?? 'skip') !== 'skip') return []
+  if (!row.duplicate || row.committed || duplicateAction(row) !== 'skip') return []
   const { atCommit, line, eventId, strength } = row.duplicate
   if (line !== undefined) return [`a repeat of line ${line}`]
   const what = eventId !== undefined ? `class #${eventId}` : 'an existing class'

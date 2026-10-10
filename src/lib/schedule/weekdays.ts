@@ -36,10 +36,6 @@ export function isWeekdayCode(
   return WEEKDAY_CODES.has(value)
 }
 
-export function isWeekNumber(value: string): value is NonNullable<EventSchedule['weekNumber']> {
-  return (WEEK_NUMBERS as readonly string[]).includes(value)
-}
-
 /** The code for a Temporal `dayOfWeek` (1-7). */
 export function weekdayCodeFor(
   dayOfWeek: number,

@@ -2,10 +2,15 @@
  * The region reads every import step shares: the target, its subtree, the
  * regions a node may match, and the slug namespace a created node must miss.
  *
+ * ⚠ **Not everything here is subtree-scoped, which is why the file is not named
+ * for one.** `loadTarget` walks *up* the ancestor chain, `readExistingRegions`
+ * takes whatever `Where` its caller has, and `readTakenSlugs` is deliberately
+ * collection-wide.
+ *
  * ⚠ **Every read here elevates past access deliberately.** The uploader's right
- * to the target was settled by `targetRegion`'s own `validate` at create, and
- * the jobs run with no `req.user` at all. A manager holds no `read` on a region
- * outside their subtree — and an ancestor country usually is outside it.
+ * to the target was settled by `hooks/targetRegion.ts` at create, and the jobs
+ * run with no `req.user` at all. A manager holds no `read` on a region outside
+ * their subtree — and an ancestor country usually is outside it.
  */
 
 import type { ExistingRegion } from './propose/match'
@@ -147,9 +152,12 @@ export async function loadTarget(
     mapboxId: target.mapboxId,
     name: target.name?.trim() || target.slug,
   }
-  return resolved.warning
-    ? { ok: true, target: named, scope: resolved.scope, warning: resolved.warning }
-    : { ok: true, target: named, scope: resolved.scope }
+  return {
+    ok: true,
+    target: named,
+    scope: resolved.scope,
+    ...(resolved.warning ? { warning: resolved.warning } : {}),
+  }
 }
 
 /**
