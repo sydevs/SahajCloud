@@ -11,6 +11,7 @@ import { openapi } from 'payload-oapi'
 
 import { REGION_NESTED_DOCS_CONFIG } from '@/lib/atlas/regionTree'
 import { serverEnv } from '@/lib/env'
+import { jobsMayAutoRun } from '@/lib/jobs/autoRun'
 import { buildPayloadLocales, DEFAULT_LOCALE } from '@/lib/locales'
 import { createWorkerSafeLogger } from '@/lib/logger/workerSafeLogger'
 import { SUPPORTED_TIMEZONES } from '@/lib/timezones'
@@ -217,6 +218,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       tasks,
       deleteJobOnComplete: true,
       enableConcurrencyControl: true,
+      shouldAutoRun: jobsMayAutoRun,
       // One entry per queue that runs unattended, and the reason a queue has
       // none, both in `./jobs/queues`.
       autoRun: JOB_AUTO_RUN,

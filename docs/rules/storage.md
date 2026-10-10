@@ -24,6 +24,8 @@ Cloudflare Images and Stream are account-scoped, and R2 is one shared bucket, so
 
 ⚠ **A preview database holds no production rows, and this paragraph is the one statement of that fact** (#704). Railway forks service configuration and variables, never volume data: a PR environment boots with migrations applied and no content rows at all. The guard still matters — a preview reaches a production asset ID by any route other than its own database (a key typed, pasted, restored from a dump, or a future seed), and the guard makes that harmless rather than merely unlikely. Cite this paragraph rather than restating it, so the claim lives in one place.
 
+⚠ **A local database does hold production rows**, since `pnpm db:refresh-from-prod` (#876), so every asset ID in such a copy is a live production one. The delete guard below is what makes deleting from it harmless — read it as more than a preview-only measure.
+
 `previewIsolation.ts` fixes this by namespacing within the single account, and is a **no-op in production**:
 
 | Backend | Non-prod upload marker | Delete guard (non-prod) |

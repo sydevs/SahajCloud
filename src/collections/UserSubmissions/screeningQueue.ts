@@ -1,5 +1,7 @@
 import type { Payload } from 'payload'
 
+import { jobsMayAutoRun } from '@/lib/jobs/autoRun'
+
 /**
  * How long to wait before running the queue.
  *
@@ -26,6 +28,9 @@ const QUEUE_RUN_DELAY_MS = 2000
  * tasks deterministically — a background run two seconds later would race their
  * assertions.
  *
+ * `jobsMayAutoRun()` suppresses it too — and then the autoRun net above is off
+ * as well, so the rows wait for the flag rather than fifteen minutes.
+ *
  * Both callers live in this intake's own pipeline: the create hook that queues
  * screening, and the `screenSubmission` task that queues delivery from inside
  * its own transaction. The legacy intakes state the same mechanism inline and
@@ -39,6 +44,7 @@ export function runScreeningQueueAfterCommit(args: {
   context?: Record<string, unknown>
 }): void {
   if (process.env.NODE_ENV === 'test') return
+  if (!jobsMayAutoRun()) return
 
   const { payload, label, context } = args
   setTimeout(() => {

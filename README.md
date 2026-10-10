@@ -62,12 +62,59 @@ A headless content management system built with **Next.js 16** and **PayloadCMS 
 | `pnpm generate:types` | Generate TypeScript types from the Payload schema |
 | `pnpm db:migrate` | Apply pending database migrations |
 | `pnpm seed` | Seed local data |
+| `pnpm db:refresh-from-prod` | Replace the local dev database with a copy of production (dry run without `--force`) |
 
 ## Environment Configuration
 
 Local development needs only `PAYLOAD_SECRET` and `DATABASE_URL`. Everything else defaults to
 local Postgres (schema auto-synced by Drizzle `push`), local file storage, and Mailpit for
 outbound email. See `.env.example` for the full list of variables and validation rules.
+
+### Working on a copy of production data
+
+`pnpm db:refresh-from-prod --force` replaces the database `DATABASE_URL` resolves to (shell, then
+`.env.local`, then `.env`) with a read-only `pg_dump` of production. It refuses a non-local target,
+restores beside the old database and swaps only on success, clears the jobs production had queued,
+and deletes the dump. Run it when you want fresh data, then restart the dev server — the schema
+push on boot brings the copy up to your branch.
+
+Before running the app on it:
+
+- Point `DATABASE_URL` at your own database in `.env.local`, not the tracked `.env`. With the
+  `/workflow:dev-server` skill, use the per-worktree name it prints (`sahajcloud_dev_<slug>`), so
+  the server and the CLI share one database.
+- Set `JOBS_AUTORUN_ENABLED=false` in `.env.local`. The scheduled queues and the screening kick
+  that follows a new submission both mail real people and call real mailing-list APIs, with the
+  keys copied from production. `--force` refuses to run until this is off.
+- Install Postgres client tools at least as new as production's server (macOS: `brew install
+  libpq`, then put `/opt/homebrew/opt/libpq/bin` on `PATH`) and log in with `railway login`.
+
+The flag is not the whole guard. These reach production from your machine with it off, and no
+code stops any of them:
+
+- **`SMTP_URL`** — leave it unset, or point it at a Mailpit you run yourself, never the shared
+  Railway one (`docs/rules/email.md`). Unset, mail is disabled with a warning, which is what keeps
+  a sign-in link or a manager invitation from reaching the real person in the copy.
+- **`CLOUDFLARE_ZONE_ID` and `CLOUDFLARE_CACHE_PURGE_TOKEN`** — `purgeCloudflareCache` fires
+  whenever both are present (`src/plugins/cache/purge.ts`). There is no environment check, so a
+  local save would purge the production edge cache.
+- **`railway run`** — never start the app with it on a prod copy. It injects production's
+  environment name, which turns off the storage isolation that keeps a local delete away from
+  production assets, and `RESEND_API_KEY`, which sends real mail.
+- **A run you ask for ignores the flag**, by design: `pnpm payload jobs:run --queue nightly` and
+  the admin's run-jobs endpoint. Four job docblocks suggest that exact command.
+- **Saving a `clients` document** validates its mailing-list key against the real provider, with
+  the key copied from production (`src/collections/Clients/hooks/validateMailingList.ts`). Read-only,
+  so it spends somebody else's rate limit rather than their data.
+
+Two more things to know:
+
+- **Jobs queued while the flag was off still run when you turn it back on.** Payload schedules the
+  cron rows before it checks `shouldAutoRun`, so they accumulate. Refresh again before re-enabling
+  it, or the backlog delivers.
+- A copy the dev server has already pushed is fine for exploring, but it is not evidence that a
+  migration works: rehearse a migration on a fresh restore with `pnpm db:migrate`, never
+  `pnpm dev`.
 
 ## Project Structure
 
