@@ -9,7 +9,7 @@ import type {
 import { CREATE_STAGE, WORKFLOW_ACTIONS } from '@/components/admin/buttons/WorkflowActions/stages'
 import { jsonField } from '@/fields/jsonField'
 import { baseLanguage, getLanguageOptions } from '@/lib/locales'
-import type { Manager } from '@/payload-types'
+import type { EventImport, Manager } from '@/payload-types'
 import { isAdminManager } from '@/plugins/access'
 
 import { MAX_IMPORT_ROWS } from './constants'
@@ -31,6 +31,9 @@ const nodeLocation = z
     }),
   ])
   .nullable()
+
+/** Every stage the buttons may be declared for: a status, or the unsaved form. */
+type ImportStage = NonNullable<EventImport['status']> | typeof CREATE_STAGE
 
 const DISCARD: WorkflowAction = {
   label: 'Discard',
@@ -136,7 +139,9 @@ export const EventImports: CollectionConfig = {
               ],
               failed: [{ label: 'Retry', overrides: { status: 'committing' } }, DISCARD],
             },
-          } satisfies WorkflowActionsProps,
+            // The stage vocabulary is this collection's own, so a misspelled key
+            // is a type error rather than a stage that renders no buttons.
+          } satisfies WorkflowActionsProps<ImportStage>,
         },
       },
     },

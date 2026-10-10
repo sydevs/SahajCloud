@@ -10,18 +10,11 @@
  * operation share.
  */
 
-/**
- * Where the component is declared from, spelled once. Payload reads this value
- * when it builds the import map, so a constant resolves exactly as the literal
- * did — and a move cannot leave one of the three declarations behind.
- */
+/** Where the component is declared from, so a move cannot orphan a declaration. */
 export const WORKFLOW_ACTIONS = '@/components/admin/buttons/WorkflowActions'
 
 /** The stage an unsaved document is at, whatever `statusField` already holds. */
 export const CREATE_STAGE = '__create__'
-
-/** The stage a saved document is at when no `statusField` names a finer one. */
-export const UPDATE_STAGE = '__update__'
 
 export interface WorkflowAction {
   /** What the button reads. */
@@ -34,17 +27,22 @@ export interface WorkflowAction {
   skipValidation?: boolean
 }
 
-export interface WorkflowActionsProps {
-  /** Form field whose value picks the stage; omit to key on create/update only. */
+/**
+ * `TStage` is the collection's own stage vocabulary, so a declaration names it
+ * and a typo is a type error rather than a stage that silently renders the
+ * fallback — `satisfies WorkflowActionsProps<ImportStatus | typeof CREATE_STAGE>`.
+ */
+export interface WorkflowActionsProps<TStage extends string = string> {
+  /** Form field whose value picks the stage; omit to key on the create alone. */
   statusField?: string
   /** Buttons per stage. An empty array is a stage with no action, not a missing one. */
-  stages: Record<string, WorkflowAction[]>
+  stages: Partial<Record<TStage, WorkflowAction[]>>
   /** What a stage with no entry renders: Payload's own button, or nothing. */
   fallback: 'publish' | 'save' | 'saveDraft' | null
 }
 
 /**
- * Which stage a document is at, from its id and the status field's value.
+ * Which stage a document is at, from the operation and the status field's value.
  *
  * ⚠ **An unsaved document is `CREATE_STAGE` whatever the status field holds.**
  * `event-imports` defaults `status` to `resolving`, which is the stage the
@@ -53,18 +51,19 @@ export interface WorkflowActionsProps {
  *
  * `undefined` means no stage could be named, which is not the same as a stage
  * with no buttons: the caller renders its fallback for the first and nothing for
- * the second.
+ * the second. A saved document with no `statusField` lands there, which is how
+ * Meditations reaches Payload's own buttons on every screen but the create.
  */
 export function resolveStage({
-  id,
+  operation,
   status,
   statusField,
 }: {
-  id: number | string | undefined
+  operation: 'create' | 'update' | undefined
   status: unknown
   statusField: string | undefined
 }): string | undefined {
-  if (!id) return CREATE_STAGE
-  if (!statusField) return UPDATE_STAGE
+  if (operation !== 'update') return CREATE_STAGE
+  if (!statusField) return undefined
   return typeof status === 'string' ? status : undefined
 }

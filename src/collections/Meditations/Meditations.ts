@@ -189,7 +189,7 @@ export const Meditations: CollectionConfig = {
           clientProps: {
             fallback: 'publish',
             stages: { [CREATE_STAGE]: [] },
-          } satisfies WorkflowActionsProps,
+          } satisfies WorkflowActionsProps<typeof CREATE_STAGE>,
         },
         SaveDraftButton: {
           path: WORKFLOW_ACTIONS,
@@ -202,7 +202,7 @@ export const Meditations: CollectionConfig = {
                 { label: 'Next step', overrides: { _status: 'draft' }, skipValidation: true },
               ],
             },
-          } satisfies WorkflowActionsProps,
+          } satisfies WorkflowActionsProps<typeof CREATE_STAGE>,
         },
         Upload: '@/components/admin/AudioUpload',
       },

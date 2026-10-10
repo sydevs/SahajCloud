@@ -11,12 +11,18 @@ import {
   useForm,
   useFormFields,
   useFormModified,
+  useOperation,
 } from '@payloadcms/ui'
 import React, { useCallback } from 'react'
 
-
 import { resolveStage } from './stages'
 
+/**
+ * ⚠ **The key must match the slot the declaration sits in.** Nothing can check
+ * it: `renderDocumentSlots` tells a component nothing about which slot rendered
+ * it, so `fallback: 'saveDraft'` in the `PublishButton` slot would quietly
+ * render the draft button where Publish belongs.
+ */
 const FALLBACKS = {
   publish: PublishButton,
   save: SaveButton,
@@ -41,7 +47,8 @@ const FALLBACKS = {
  * `event-imports` the third.
  */
 const WorkflowActions: React.FC<WorkflowActionsProps> = ({ fallback, stages, statusField }) => {
-  const { id, uploadStatus } = useDocumentInfo()
+  const { uploadStatus } = useDocumentInfo()
+  const operation = useOperation()
   const { submit } = useForm()
   const modified = useFormModified()
   const status = useFormFields(([fields]) =>
@@ -56,7 +63,7 @@ const WorkflowActions: React.FC<WorkflowActionsProps> = ({ fallback, stages, sta
     [submit],
   )
 
-  const stage = resolveStage({ id, status, statusField })
+  const stage = resolveStage({ operation, status, statusField })
   const actions = stage === undefined ? undefined : stages[stage]
 
   if (!actions) {
@@ -75,15 +82,16 @@ const WorkflowActions: React.FC<WorkflowActionsProps> = ({ fallback, stages, sta
       {actions.map((action) => (
         <FormSubmit
           buttonStyle={action.buttonStyle ?? 'primary'}
-          // Two rules, both Payload's own `SaveButton`'s. An action carrying no
-          // overrides submits only what the form itself holds, so an unmodified
-          // document gives it nothing to post — while one carrying overrides
-          // stays enabled, or Commit would be unreachable on a batch nobody
-          // edited. And nothing submits mid-upload, or the save posts without
-          // the file the collection exists to carry.
+          // Both rules are Payload's own `SaveButton`'s, spelled as it spells
+          // them. An action carrying no overrides submits only what the form
+          // itself holds, so an unmodified document gives it nothing to post —
+          // while one carrying overrides stays enabled, or Commit would be
+          // unreachable on a batch nobody edited. And nothing submits
+          // mid-upload, or the save posts without the file this collection
+          // exists to carry.
           disabled={
             uploadStatus === 'uploading' ||
-            (Boolean(id) && !modified && Object.keys(action.overrides).length === 0)
+            (operation === 'update' && !modified && Object.keys(action.overrides).length === 0)
           }
           key={action.label}
           onClick={() => run(action)}

@@ -25,10 +25,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 /** What the stubbed providers answer for the render under test. */
 const form: {
   fields: Record<string, { value: unknown }>
-  id: number | undefined
   modified: boolean
+  operation: 'create' | 'update'
   uploadStatus: 'failed' | 'idle' | 'uploading'
-} = { fields: {}, id: undefined, modified: false, uploadStatus: 'idle' }
+} = { fields: {}, modified: false, operation: 'create', uploadStatus: 'idle' }
 
 const submit = vi.fn()
 
@@ -45,18 +45,18 @@ vi.mock('@payloadcms/ui', () => ({
   PublishButton: () => createElement('button', { type: 'button' }, 'Payload publish'),
   SaveButton: () => createElement('button', { type: 'button' }, 'Payload save'),
   SaveDraftButton: () => createElement('button', { type: 'button' }, 'Payload save draft'),
-  useDocumentInfo: () => ({ id: form.id, uploadStatus: form.uploadStatus }),
+  useDocumentInfo: () => ({ uploadStatus: form.uploadStatus }),
   useForm: () => ({ submit }),
   useFormFields: (selector: (args: [Record<string, { value: unknown }>]) => unknown) =>
     selector([form.fields]),
   useFormModified: () => form.modified,
+  useOperation: () => form.operation,
 }))
 
 // `vi.mock` is hoisted above these imports, so the component sees the stand-in.
 import {
   CREATE_STAGE,
   resolveStage,
-  UPDATE_STAGE,
   type WorkflowActionsProps,
 } from '@/components/admin/buttons/WorkflowActions/stages'
 import WorkflowActions from '@/components/admin/buttons/WorkflowActions/WorkflowActions'
@@ -89,23 +89,36 @@ const meditations: WorkflowActionsProps = {
 
 describe('resolveStage', () => {
   it('names the create stage for an unsaved document whatever the status holds', () => {
-    expect(resolveStage({ id: undefined, status: 'resolving', statusField: 'status' })).toBe(
+    expect(resolveStage({ operation: 'create', status: 'resolving', statusField: 'status' })).toBe(
       CREATE_STAGE,
     )
   })
 
   it('reads the status field on a saved document', () => {
-    expect(resolveStage({ id: 7, status: 'review', statusField: 'status' })).toBe('review')
+    expect(resolveStage({ operation: 'update', status: 'review', statusField: 'status' })).toBe(
+      'review',
+    )
   })
 
-  it('names the update stage when no status field is declared', () => {
-    expect(resolveStage({ id: 7, status: 'review', statusField: undefined })).toBe(UPDATE_STAGE)
+  /**
+   * Each of these names no stage, which is not a stage with no buttons: the
+   * caller renders its fallback for the first and nothing for the second. A
+   * saved document with no `statusField` is how Meditations reaches Payload's
+   * own buttons on every screen but the create.
+   */
+  it('names no stage when no status field is declared, or it holds no string', () => {
+    expect(resolveStage({ operation: 'update', status: 'review', statusField: undefined }))
+      .toBeUndefined()
+    expect(resolveStage({ operation: 'update', status: undefined, statusField: 'status' }))
+      .toBeUndefined()
+    expect(resolveStage({ operation: 'update', status: 3, statusField: 'status' })).toBeUndefined()
   })
 
-  /** Distinct from a stage with no buttons — the caller renders its fallback. */
-  it('names no stage when the declared status field holds no string', () => {
-    expect(resolveStage({ id: 7, status: undefined, statusField: 'status' })).toBeUndefined()
-    expect(resolveStage({ id: 7, status: 3, statusField: 'status' })).toBeUndefined()
+  /** An absent provider must not read as a saved document's stage. */
+  it('names the create stage when the operation is unknown', () => {
+    expect(resolveStage({ operation: undefined, status: 'review', statusField: 'status' })).toBe(
+      CREATE_STAGE,
+    )
   })
 })
 
@@ -115,8 +128,8 @@ describe('WorkflowActions', () => {
 
   beforeEach(() => {
     form.fields = {}
-    form.id = undefined
     form.modified = false
+    form.operation = 'create'
     form.uploadStatus = 'idle'
     submit.mockReset()
     vi.restoreAllMocks()
@@ -151,7 +164,7 @@ describe('WorkflowActions', () => {
   })
 
   it('offers the stage the status field names on a saved document', () => {
-    form.id = 7
+    form.operation = 'update'
     form.fields = { status: { value: 'review' } }
 
     render(imports)
@@ -160,7 +173,7 @@ describe('WorkflowActions', () => {
   })
 
   it('renders the fallback for a stage the declaration does not name', () => {
-    form.id = 7
+    form.operation = 'update'
 
     render(meditations)
 
@@ -175,11 +188,11 @@ describe('WorkflowActions', () => {
    *
    * ⚠ **The markup, not just the buttons.** An empty actions array used to
    * render the flex wrapper with no children, which is a stray gap in
-   * `.doc-controls__controls` rather than the nothing `UpdateOnlyPublishButton`
-   * returned — invisible to a count of buttons.
+   * `.doc-controls__controls` rather than the nothing the old create-screen
+   * Publish slot rendered — invisible to a count of buttons.
    */
   it('renders nothing at all for a stage declared with no actions', () => {
-    form.id = 7
+    form.operation = 'update'
     form.fields = { status: { value: 'committing' } }
 
     render({ ...imports, fallback: 'save', stages: { ...imports.stages, committing: [] } })
@@ -189,7 +202,7 @@ describe('WorkflowActions', () => {
   })
 
   it('renders nothing for an unnamed stage when the fallback is null', () => {
-    form.id = 7
+    form.operation = 'update'
     form.fields = { status: { value: 'finished' } }
 
     render(imports)
@@ -210,7 +223,7 @@ describe('WorkflowActions', () => {
 
   it('asks before an action carrying a confirmation, and submits once accepted', () => {
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
-    form.id = 7
+    form.operation = 'update'
     form.fields = { status: { value: 'review' } }
 
     render(imports)
@@ -225,7 +238,7 @@ describe('WorkflowActions', () => {
 
   it('submits nothing when the confirmation is dismissed', () => {
     vi.spyOn(window, 'confirm').mockReturnValue(false)
-    form.id = 7
+    form.operation = 'update'
     form.fields = { status: { value: 'review' } }
 
     render(imports)
@@ -239,7 +252,7 @@ describe('WorkflowActions', () => {
    * action with no overrides is that button — it posts only what the form holds.
    */
   it('disables an action with no overrides while a saved document is unmodified', () => {
-    form.id = 7
+    form.operation = 'update'
     form.fields = { status: { value: 'review' } }
 
     render(imports)
@@ -251,7 +264,7 @@ describe('WorkflowActions', () => {
   })
 
   it('enables an action with no overrides once the form is modified', () => {
-    form.id = 7
+    form.operation = 'update'
     form.modified = true
     form.fields = { status: { value: 'review' } }
 
@@ -275,7 +288,7 @@ describe('WorkflowActions', () => {
    * mid-upload posts the batch without the CSV.
    */
   it('disables every action while a file is still uploading', () => {
-    form.id = 7
+    form.operation = 'update'
     form.modified = true
     form.uploadStatus = 'uploading'
     form.fields = { status: { value: 'review' } }

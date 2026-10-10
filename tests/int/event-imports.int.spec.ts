@@ -414,6 +414,23 @@ describe('event-imports', () => {
       }
     })
 
+    /**
+     * ⚠ **What `transitionStatus`' stale-copy carve-out rests on.** It keeps the
+     * stored rows for a move out of a stage with no review, and refuses an edit
+     * to such a stage otherwise — so a zero-override button there would post the
+     * browser's rows as an edit and be refused, which is the stranded-batch bug
+     * again in the one path that rescues it. Every button outside `review` must
+     * be a move.
+     */
+    it('offers only moves on a stage that takes no edits', () => {
+      for (const [stage, actions] of Object.entries(stages)) {
+        if (stage === CREATE_STAGE || stage === 'review') continue
+        for (const action of actions ?? []) {
+          expect(Object.keys(action.overrides), `${stage} — ${action.label}`).toContain('status')
+        }
+      }
+    })
+
     it('offers a button for every transition the table allows', () => {
       for (const [stage, targets] of Object.entries(ALLOWED)) {
         for (const target of targets) {
