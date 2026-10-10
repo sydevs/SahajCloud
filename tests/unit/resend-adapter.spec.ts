@@ -114,11 +114,24 @@ describe('resendAdapter message mapping', () => {
     expect(sendMock.mock.calls[0][0].replyTo).toEqual(['support@client.org'])
   })
 
-  it('omits replyTo and attachments entirely when unset', async () => {
+  it('forwards cc, flattening nodemailer Address objects', async () => {
+    await buildAdapter().sendEmail({
+      ...baseMessage,
+      cc: ['one@admin.test', { address: 'two@admin.test', name: 'Second Admin' }],
+    })
+
+    expect(sendMock.mock.calls[0][0].cc).toEqual([
+      'one@admin.test',
+      'Second Admin <two@admin.test>',
+    ])
+  })
+
+  it('omits replyTo, cc and attachments entirely when unset', async () => {
     await buildAdapter().sendEmail({ ...baseMessage, html: '<p>hi</p>' })
 
     const payload = sendMock.mock.calls[0][0]
     expect(payload).not.toHaveProperty('replyTo')
+    expect(payload).not.toHaveProperty('cc')
     expect(payload).not.toHaveProperty('attachments')
   })
 

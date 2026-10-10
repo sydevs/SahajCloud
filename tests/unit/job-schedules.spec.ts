@@ -263,6 +263,7 @@ describe('Job schedules', () => {
       'jobs/RegistrationNotifications/SendPostEventFollowUps.ts',
       'jobs/RegistrationNotifications/SendRegistrationDigests.ts',
       'jobs/RegistrationNotifications/SendSessionReminders.ts',
+      'jobs/SweepEventImports/SweepEventImports.ts',
       'jobs/SyncLectureMetadata/SyncLectureMetadata.ts',
       'jobs/VerifyEmbeds/VerifyEmbeds.ts',
       'plugins/login/invitations.ts',

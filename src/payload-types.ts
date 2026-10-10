@@ -1041,13 +1041,16 @@ export interface Config {
   jobs: {
     tasks: {
       cleanupOrphanedMedia: TaskCleanupOrphanedMedia;
+      commitEventImport: TaskCommitEventImport;
       deliverSubmission: TaskDeliverSubmission;
       expireEvents: TaskExpireEvents;
       purgeSubmissions: TaskPurgeSubmissions;
+      resolveEventImport: TaskResolveEventImport;
       screenSubmission: TaskScreenSubmission;
       sendPostEventFollowUps: TaskSendPostEventFollowUps;
       sendRegistrationDigests: TaskSendRegistrationDigests;
       sendSessionReminders: TaskSendSessionReminders;
+      sweepEventImports: TaskSweepEventImports;
       syncLectureMetadata: TaskSyncLectureMetadata;
       verifyEmbeds: TaskVerifyEmbeds;
       resetUsage: TaskResetUsage;
@@ -4265,13 +4268,16 @@ export interface PayloadJob {
         taskSlug:
           | 'inline'
           | 'cleanupOrphanedMedia'
+          | 'commitEventImport'
           | 'deliverSubmission'
           | 'expireEvents'
           | 'purgeSubmissions'
+          | 'resolveEventImport'
           | 'screenSubmission'
           | 'sendPostEventFollowUps'
           | 'sendRegistrationDigests'
           | 'sendSessionReminders'
+          | 'sweepEventImports'
           | 'syncLectureMetadata'
           | 'verifyEmbeds'
           | 'resetUsage'
@@ -4313,13 +4319,16 @@ export interface PayloadJob {
     | (
         | 'inline'
         | 'cleanupOrphanedMedia'
+        | 'commitEventImport'
         | 'deliverSubmission'
         | 'expireEvents'
         | 'purgeSubmissions'
+        | 'resolveEventImport'
         | 'screenSubmission'
         | 'sendPostEventFollowUps'
         | 'sendRegistrationDigests'
         | 'sendSessionReminders'
+        | 'sweepEventImports'
         | 'syncLectureMetadata'
         | 'verifyEmbeds'
         | 'resetUsage'
@@ -10652,6 +10661,20 @@ export interface TaskCleanupOrphanedMedia {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskCommitEventImport".
+ */
+export interface TaskCommitEventImport {
+  input: {
+    batchId: number;
+  };
+  output: {
+    status: string;
+    committed: number;
+    skipped: number;
+  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "TaskDeliverSubmission".
  */
 export interface TaskDeliverSubmission {
@@ -10689,6 +10712,20 @@ export interface TaskPurgeSubmissions {
   output: {
     deletedSubmissions: number;
     deletedUsers: number;
+  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskResolveEventImport".
+ */
+export interface TaskResolveEventImport {
+  input: {
+    batchId: number;
+  };
+  output: {
+    status: string;
+    resolved: number;
+    pending: number;
   };
 }
 /**
@@ -10740,6 +10777,18 @@ export interface TaskSendSessionReminders {
     remindersSent: number;
     skipped: number;
     failed: number;
+  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskSweepEventImports".
+ */
+export interface TaskSweepEventImports {
+  input: {
+    now?: string | null;
+  };
+  output: {
+    deleted: number;
   };
 }
 /**

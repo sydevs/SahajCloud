@@ -14,6 +14,48 @@
 export const MAX_IMPORT_ROWS = 500
 
 /**
+ * The queue both import jobs run on.
+ *
+ * Its own queue, not `nightly` or `screening`: a 500-row resolve holds a worker
+ * for minutes, and sharing a queue with the submission screening would delay
+ * every public write behind one volunteer's upload. `JOB_AUTO_RUN`
+ * (`src/jobs/queues.ts`) is what drives it, and is the safety net for a run lost
+ * to a restart.
+ */
+export const IMPORT_QUEUE = 'imports'
+
+/**
+ * How many rows the resolve job geocodes at once.
+ *
+ * Mapbox's own rate limit for a temporary-geocoding token is 600 requests a
+ * minute, which four in flight never approaches; the bound is there so a 500-row
+ * batch does not open 500 sockets. Higher buys little — a geocode is about
+ * 200 ms, so four already outruns the write-back.
+ */
+export const RESOLVE_CONCURRENCY = 4
+
+/**
+ * How many rows the resolve job gets through between `progress` writes.
+ *
+ * Each write is a full document save, and the document carries up to
+ * `MAX_IMPORT_ROWS` rows plus its tree — so one per row would re-serialise the
+ * batch 500 times for a bar nobody watches that closely. Ten is about two
+ * seconds of work at `RESOLVE_CONCURRENCY`.
+ */
+export const PROGRESS_EVERY_ROWS = 10
+
+/**
+ * How long a batch is kept after its last change, whatever its status.
+ *
+ * One number for every status, because what sets the window is the CSV: it
+ * holds the contact names, addresses and phone numbers a volunteer collected,
+ * and a finished batch keeps them no more legitimately than a discarded one.
+ * Long enough for a volunteer to come back and download their skipped rows, and
+ * for an admin to look at a batch that failed.
+ */
+export const IMPORT_RETENTION_DAYS = 30
+
+/**
  * How far apart two start times may be and still be the same class.
  *
  * A volunteer's CSV and the CMS rarely agree to the minute on when a class

@@ -8,9 +8,11 @@ import type { Manager } from '@/payload-types'
 import { isAdminManager } from '@/plugins/access'
 
 import { MAX_IMPORT_ROWS } from './constants'
+import { enqueueImportJobs } from './hooks/enqueueImportJobs'
 import { parseUpload } from './hooks/parseUpload'
 import { stampManager } from './hooks/stampManager'
 import { targetRegionFilterOptions, validateTargetRegion } from './hooks/targetRegion'
+import { transitionStatus } from './hooks/transitionStatus'
 
 /** Where a proposed node is created, shared by the node and its pre-`map` copy. */
 const nodeLocation = z
@@ -66,8 +68,12 @@ export const EventImports: CollectionConfig = {
   // volunteer re-uploads a corrected CSV, which `parseUpload` is built around.
   // What bounds it instead is `transitionStatus`: a re-upload is accepted only
   // while the batch is in review or failed.
+  // ⚠ **Order is the contract.** `parseUpload` is what replaces `rows` and asks
+  // for `resolving`, so `transitionStatus` has to run after it to judge the move
+  // the re-upload is making rather than the one the caller sent.
   hooks: {
-    beforeChange: [stampManager, parseUpload],
+    beforeChange: [stampManager, parseUpload, transitionStatus],
+    afterChange: [enqueueImportJobs],
   },
   admin: {
     group: 'Classes',
@@ -142,8 +148,13 @@ export const EventImports: CollectionConfig = {
       admin: { readOnly: true },
     },
     {
+      // ⚠ **Written by the jobs alone, which is why field access refuses every
+      // caller.** `overrideAccess: true` skips field access, so the jobs are
+      // unaffected; a volunteer holding document-level `update` would otherwise
+      // be able to `PATCH` a finished-looking bar over a running import.
       name: 'progress',
       type: 'group',
+      access: { update: () => false },
       admin: { readOnly: true },
       fields: [
         { name: 'done', type: 'number' },

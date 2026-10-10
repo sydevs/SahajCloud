@@ -10,8 +10,9 @@
  * recognises, so the only honest test is a read by somebody who is not the
  * uploader.
  *
- * The jobs, the status transitions and the commit arrive in later phases and
- * are covered with them.
+ * The jobs, the status transitions and the commit live in
+ * `event-import-jobs.int.spec.ts`, which mocks the geocoder — the one thing this
+ * file must not, since its subject is the upload.
  */
 
 import type { Payload } from 'payload'
@@ -305,10 +306,10 @@ describe('event-imports', () => {
 
     /**
      * ⚠ **`status` is deliberately NOT in this list.** The buttons submit it as
-     * a field value, so field access cannot deny it without denying them too —
-     * `hooks/transitionStatus.ts` is the gate, and it arrives in phase 2 with
-     * the jobs it releases. Until then a batch's `status` is writable and moves
-     * nothing, because nothing reads it yet.
+     * a field value, so field access cannot deny it without denying them too.
+     * `hooks/transitionStatus.ts` is its gate instead, and the transitions it
+     * refuses are covered in `event-import-jobs.int.spec.ts` beside the jobs
+     * they release.
      */
     it('leaves the uploader unable to re-point `manager` or `targetRegion`', async () => {
       const owner = await testData.createManager(payload, {
