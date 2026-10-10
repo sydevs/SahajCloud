@@ -264,7 +264,13 @@ admin: {
 
 ## Project visibility (collection sidebar filtering)
 
-`accessPlugin` auto-generates `admin.hidden` for every collection and global. **Never hand-write `admin.hidden` — let the plugin do it.**
+`accessPlugin` auto-generates `admin.hidden` for every collection and global. **Do not hand-write `admin.hidden` to express project visibility — let the plugin do it.**
+
+⚠ **There is one thing it is for: hiding an entity from admins too.** `resolveHidden` (`visibility.ts`) composes a declaration with the project rule, and an explicit `hidden: true` wins outright — no manager sees the entity, admins included. A declared *function* is ORed with the project rule; a declared `false` means "no opinion" and leaves the project rule alone, because an entity that could opt out of project visibility would appear in the nav of a project it has no place in. `sahaja-glossary` is the only entity taking this today (#883).
+
+⚠ **Hiding is not access control, and never substitutes for it.** `admin.hidden` governs the nav and the admin routes. Nothing about it stops `GET /api/globals/<slug>`, and for a global "in no project" reads as *shared* — implicitly readable by every role. A hidden global that should not be read needs `RESTRICTED_COLLECTIONS` as well (`docs/rules/access.md`).
+
+⚠ **Until #883 a global's declaration was discarded.** The globals branch replaced `hidden` with the project rule outright, so no global could hide itself at all — collections could, which is what kept the gap invisible.
 
 ```typescript
 hidden: ({ user }) => {

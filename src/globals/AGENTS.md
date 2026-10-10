@@ -19,6 +19,7 @@ src/globals/
 ├── SahajAtlasConfig/                  (slug: sy-atlas-config)
 ├── SahajAtlasTranslations/            (slug: sy-atlas-translations)
 │   └── translationsSchema.json
+├── SahajaGlossary/                    (slug: sahaja-glossary, hidden)
 └── index.ts                           (master barrel)
 ```
 
@@ -406,9 +407,69 @@ Two consequences when you add a global:
 
 Rules for the client contract: `docs/rules/api-clients.md`.
 
+## The glossary global (`sahaja-glossary`)
+
+One row per Sahaja Yoga term, carrying that term's spelling in each locale
+(#883). Speech-to-text misspells these words and translators render them
+inconsistently, so the transcription prompt and the translation checks read one
+list instead of each carrying a copy. Its first consumer is the Lemonfox prompt.
+
+No drafts and no versions: it is reference data, not copy anyone edits.
+
+| Field | Shape |
+| --- | --- |
+| `terms[].key` | text, required, **not** localized. The English canonical term, and the identifier consumers look a row up by |
+| `terms[].category` | select, required: `subtle-system` / `practice` / `phrase` / `app` |
+| `terms[].keepAsIs` | checkbox. The term is never translated, so consumers use its English spelling everywhere |
+| `terms[].term` | text, **localized**. How the term is written in that language |
+| `translatorNotes` | textarea, **localized**. That language's tone rules |
+
+Three properties to preserve:
+
+- **It is hidden from every admin menu, admins included**, by an explicit
+  `admin.hidden: true`. See "Project visibility" below for what makes that
+  survive `accessPlugin`, and for why hiding is not the same as restricting.
+- **`sahaja-glossary` is in `RESTRICTED_COLLECTIONS`** and in no project. Those
+  are two separate statements and both are needed: being in no project is what
+  would otherwise make it implicitly readable by every client key, and the entry
+  is what stops that. It is deliberately NOT in `CACHE_TTLS.globals` — nothing
+  reads it over the API.
+- **`seeds/sahaja-glossary/data.json` is the source of truth while it is
+  hidden.** Nothing in the CMS can edit it, so a change goes into the file and a
+  re-seed carries it. Letting translators edit their own language here means
+  dropping `admin.hidden` and granting `translate`.
+
+⚠ **`key` has no database uniqueness**, because Payload has no unique constraint
+inside an array. The array's own `validate` is the whole enforcement, and it is
+load-bearing: two rows sharing a key make every consumer's lookup ambiguous.
+
+⚠ **A locale with no spelling for a term stays empty, and is never filled from
+English.** Consumers read a `keepAsIs` term's English spelling knowing it is
+English. What they cannot do is tell an untranslated term from a deliberately
+English one, so nothing guesses on their behalf — see `seeds/AGENTS.md` for why
+the seed writes `null` rather than omitting the field.
+
+⚠ **That holds in storage, not in a read.** Every non-English locale declares
+`fallbackLocale: 'en'`, so a consumer has to pass `fallbackLocale: false` or
+Payload substitutes the English spelling per field and the distinction above is
+gone before the caller sees it. The int spec passes it; the first consumer —
+the Lemonfox prompt — has to as well.
+
 ## Project visibility
 
 Globals are assigned to projects in `src/plugins/access/config/projects.ts`
 and shown or hidden automatically by `accessPlugin`, based on the manager's
-`currentProject`. Do not set `admin.hidden` by hand on a global — let the
-plugin do it.
+`currentProject`. Do not set `admin.hidden` by hand to express project
+visibility — let the plugin do it.
+
+**One exception, and it is the only reason to write the key:** an explicit
+`admin.hidden: true` hides the global from every manager, admins included, and
+`resolveHidden` is what lets it survive the plugin's pass (#883). Before that
+the globals branch replaced the declaration outright, so no global could hide
+itself. `sahaja-glossary` is the only global taking it.
+
+⚠ **Hiding it from the menu does not restrict reading it.** A global in no
+project is *shared*, which implicit read treats as readable by every role, so a
+hidden global also needs its slug in `RESTRICTED_COLLECTIONS`
+(`src/plugins/access/config/projects.ts`). The two layers are independent and
+neither does the other's job.

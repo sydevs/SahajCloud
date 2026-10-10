@@ -8,7 +8,7 @@
  * - permissions.ts: hasPermission, hasAnyPermission
  * - accessConfigs.ts: createAccessConfig
  * - fieldAccess.ts: applyFieldAccessForTranslatableCollections
- * - visibility.ts: createHidden
+ * - visibility.ts: createHidden, resolveHidden
  */
 
 import type { BypassPermissionFunction, ContentSlug } from './types'
@@ -19,7 +19,7 @@ import { getProjectSlugs, getRoleSlugs, isTranslatableCollection } from './confi
 import { applyFieldAccessForTranslatableCollections } from './fieldAccess'
 import { withLocalizedRoleAuth } from './localizedRolesAuth'
 import { stripLockedFieldsOnSelfRead } from './stripLockedFieldsOnSelfRead'
-import { createHidden } from './visibility'
+import { resolveHidden } from './visibility'
 
 // Re-export permission functions for public API
 export { hasPermission, hasAnyPermission } from './permissions'
@@ -103,23 +103,7 @@ export function accessPlugin(options: AccessPluginOptions = {}): (config: Config
           ),
           admin: {
             ...collection.admin,
-            // Respect existing hidden config, otherwise apply project-based visibility
-            hidden:
-              collection.admin?.hidden === true
-                ? true
-                : typeof collection.admin?.hidden === 'function'
-                  ? (args) => {
-                      // If original hidden returns true, respect it
-                      if (
-                        typeof collection.admin?.hidden === 'function' &&
-                        collection.admin!.hidden!(args)
-                      )
-                        return true
-
-                      // Otherwise, apply project-based visibility
-                      return createHidden(slug, bypassPermissions)(args)
-                    }
-                  : createHidden(slug, bypassPermissions),
+            hidden: resolveHidden(collection.admin?.hidden, slug, bypassPermissions),
           },
           // Only apply field-level access if collection has translate permissions
           fields: isTranslatableCollection(slug)
@@ -152,8 +136,9 @@ export function accessPlugin(options: AccessPluginOptions = {}): (config: Config
           ),
           admin: {
             ...global.admin,
-            // Apply project-based visibility
-            hidden: createHidden(slug, bypassPermissions),
+            // Same rule collections get: an explicit `true` hides the global
+            // from admins too (#883).
+            hidden: resolveHidden(global.admin?.hidden, slug, bypassPermissions),
           },
         }
       }),

@@ -48,8 +48,9 @@ POST /api/seed/<script>?collection=X&offset=0&limit=25  # Paginated import
 ```
 
 Requires an admin session (a Manager with `admin: true`). The response is
-Server-Sent Events (SSE) with progress updates. Scripts: `tags`,
-`wemeditate`, `meditations`, `storyblok`, `atlas`.
+Server-Sent Events (SSE) with progress updates. The accepted names are
+`VALID_SCRIPTS` in that route — `tags`, `wemeditate`, `meditations`,
+`storyblok`, `wm-app-translations`, `translations`, `sahaja-glossary`, `atlas`.
 
 ## Pagination support
 
@@ -105,6 +106,7 @@ automatically — printing per-batch progress as it goes.
 | tags        | `pnpm seed tags`        | None                                       | user-choices, music-tags              |
 | atlas       | `pnpm seed atlas`       | The 8 JSON dumps in `seeds/atlas/data/`    | managers, regions, users, events, user-submissions, clients |
 | translations | `pnpm seed translations` | None                                      | the three translations globals (see below) |
+| sahaja-glossary | `pnpm seed sahaja-glossary` | None                                  | the `sahaja-glossary` global (see below) |
 
 ### `translations` — real copy everywhere, and the locales it publishes
 
@@ -181,6 +183,47 @@ unchanged rows re-port mechanically. See [atlas/AGENTS.md](atlas/AGENTS.md)
 for the procedure. For the Atlas backend surface and importer decisions,
 see [atlas/AGENTS.md](atlas/AGENTS.md) and
 [atlas/MIGRATION_PLAN.md](atlas/MIGRATION_PLAN.md).
+
+### `sahaja-glossary` — row ids are what make the per-locale writes land
+
+One global, 56 terms, and every locale `data.json` carries (`en de es fr it
+pt-BR ru` today). While the global is hidden from the admin, that file is its
+source of truth: nothing in the CMS can edit it.
+
+⚠ **Every write carries the id of the row it means to change, the English one
+included, and the stored ids are read BEFORE the first write.** Payload matches
+an incoming array row to a stored one by `id` alone and **deletes** every stored
+row the incoming array does not claim, and the terms' localized-values table is
+`ON DELETE cascade` — so a row dropped that way takes every locale's spelling
+with it.
+
+That is why reading the ids back after the English write is not enough, though
+it looks it: an English write sent without them rebuilds all 56 rows, and any
+locale this file does not carry — `cs`, `pl`, `uk` — is silently emptied on
+every re-seed, while its `translatorNotes` survives in the parent row. The row
+count stays 56 and every locale the file *does* carry comes out correct, so
+nothing about the symptom points at the cause. Measured during #883: the `cs`
+spelling went to `undefined` and every row id changed.
+
+`key`, `category` and `keepAsIs` are not localized, so they live on the row
+rather than in a per-locale cell, and ride along on every locale's write —
+Payload validates the row it is handed, and the first two are `required`. The
+importer refuses to write a non-English locale whose rows it cannot match,
+rather than appending duplicates.
+
+⚠ **A locale with no value for a term is written `null`, never English.**
+Writing `null` rather than omitting the field is what makes a re-run idempotent:
+an omitted localized field keeps whatever is stored, so a value deleted from the
+file would survive forever. A `keepAsIs` term is seeded in English alone, and
+consumers use that spelling in every language.
+
+A re-run leaves 56 rows, not 112, with the same ids.
+`tests/int/sahaja-glossary.int.spec.ts` runs the importer twice and asserts the
+count, each locale's values, **the row ids themselves**, and a `cs` spelling the
+file does not carry — the failure modes here are duplicate rows and silent
+deletion, neither of which raises an error.
+
+`--dry-run` reports the term count and the translator-note count per locale.
 
 ## Common flags
 

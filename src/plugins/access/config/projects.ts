@@ -183,20 +183,26 @@ const ALL_PROJECT_COLLECTIONS: ContentSlug[] = (() => {
  *   `GET /api/clients/me` is the deliberate exception — self-access answers it
  *   before this check, and `Clients.apiKey`'s field lock is what makes that
  *   safe.
+ * - `sahaja-glossary` — a **global**, and the first entry here that is not a
+ *   collection (#883). It carries no personal data: it is restricted because it
+ *   is hidden reference data with no API consumer, and "in no project" would
+ *   otherwise publish it to every client key. Nothing but a server-side
+ *   `overrideAccess` read and the admin bypass reaches it.
  *
- * ⚠ **This list is a holding pattern, not the permanent mechanism.** Exactly
- * four registered collections sit in no project, and all four are named here
- * — so the set is complete today and fails open the day a fifth is added. A
+ * ⚠ **This list is a holding pattern, not the permanent mechanism.** Every
+ * registered collection and global that sits in no project is named here — so
+ * the set is complete today and fails open the day another is added. A
  * complete opt-out list is an inverted default in disguise: the fix is for
- * step 4a to test project membership directly, so a new collection fails
- * closed instead. Deferred, not blocked — #821 settled the question that held
- * it up, by giving `atlas-manager` the explicit grant its pickers need.
+ * step 4a to test project membership directly, so a new entity fails closed
+ * instead. Deferred, not blocked — #821 settled the question that held it up,
+ * by giving `atlas-manager` the explicit grant its pickers need.
  */
 const RESTRICTED_COLLECTIONS: ReadonlySet<string> = new Set([
   'users',
   'user-submissions',
   'managers',
   'clients',
+  'sahaja-glossary',
 ])
 
 /** Whether implicit (project/shared) read must never apply to this collection. */

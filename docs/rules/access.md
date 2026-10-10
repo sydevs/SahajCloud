@@ -25,7 +25,7 @@ The `accessPlugin` gives every collection access control automatically. A collec
 | `permissions.ts` | `hasPermission`, `hasAnyPermission` |
 | `accessConfigs.ts` | Access configuration factories, plus `withDerivedGrants` (the derived keys, below) |
 | `fieldAccess.ts` | Field-level access for translatable collections |
-| `visibility.ts` | Admin UI visibility (`createHidden`) |
+| `visibility.ts` | Admin UI visibility (`createHidden`, and `resolveHidden` — the one rule both the collections and globals branches apply) |
 | `filterAvailableLocales.ts` | Admin locale-selector filtering |
 
 ```typescript
@@ -215,7 +215,9 @@ Withdrawing the bypass is the whole close: no client role names `clients` at all
 
 This cuts the opposite way from implicit read, above, and the obvious reading is wrong. Payload's system collections sit in no project. They are reachable only by explicit permission or the admin bypass — because no role grants write on them, not because "no project" is restrictive. For read, "no project" means the opposite: shared, and readable by every role.
 
-**`RESTRICTED_COLLECTIONS`** (`config/projects.ts`) is the only way to stop that. A collection named there is skipped by implicit read, so only an explicit `read` grant, or the admin bypass, reaches it. It holds `users`, `user-submissions`, `managers` and `clients` — personal data and credentials.
+**`RESTRICTED_COLLECTIONS`** (`config/projects.ts`) is the only way to stop that. A collection named there is skipped by implicit read, so only an explicit `read` grant, or the admin bypass, reaches it. It holds `users`, `user-submissions`, `managers` and `clients` — personal data and credentials — plus `sahaja-glossary`.
+
+⚠ **It reaches a global, and `sahaja-glossary` is the first entry that is one** (#883). Nothing about the mechanism is collection-specific — step 4a asks `isRestrictedCollection` about a `ContentSlug`, which spans both. That entry is not there for personal data: the global is hidden reference data with no API consumer, and "in no project" would otherwise hand it to every published client key. **`admin.hidden` does not do this job.** Hiding governs the nav and the admin routes; `GET /api/globals/<slug>` is untouched by it, so a hidden global that should not be read needs both.
 
 ⚠ **`managers` is there because "no project" was reading as shared** (#821): every published API key, the Atlas widget's browser key included, read every manager's name and email. **No client role gets a grant back.** `atlas-manager` holds the only one, because it picks on `Events.manager` and `Regions.managers`; `web-translator` gets nothing and renders a raw id in the Page Editors sidebar, which is the accepted cost.
 
@@ -225,7 +227,7 @@ This cuts the opposite way from implicit read, above, and the obvious reading is
 
 ⚠ **It does not cover the caller's own row.** Self-access read answers at step 2, before the check, so a published client still reads its whole `clients` document over `GET /api/clients/me` — deliberately, because the atlas widget suspends on that read at every boot. Restricting `clients` is what stops a key reading *other* services (#822); the field lock below is what keeps `apiKey` out of its own answer. Neither layer does the other's job.
 
-⚠ **Treat the list as a holding pattern.** All four collections that sit in no project are named in it now, so it is complete today and fails open the day a fifth is added. The real fix is for step 4a to test project membership directly, so a new collection fails closed. Its docblock says so.
+⚠ **Treat the list as a holding pattern.** Every collection and global that sits in no project is named in it now, so it is complete today and fails open the day another is added. The real fix is for step 4a to test project membership directly, so a new collection fails closed. Its docblock says so.
 
 ⚠ **A collection's own `access` block outranks all of this**, because `accessPlugin` composes `{ ...createAccessConfig(slug, …), ...collection.access }` so a deliberate override is never clobbered. A plugin-created collection can therefore arrive with an `access` nobody here chose: the form-builder's submissions collection ships `read: ({ req: { user } }) => !!user`, which grants read to every authenticated user, API clients included. `src/plugins/formBuilder` clears it for `user-submissions` for exactly that reason. **Adding a collection to this list proves nothing on its own** — assert it by reading rows back through `overrideAccess: false`, as `tests/int/user-submissions-access.int.spec.ts` does. Asserting `hasPermission` alone would have passed while the hole was open.
 

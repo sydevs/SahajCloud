@@ -19,6 +19,7 @@ export type ScriptName =
   | 'storyblok'
   | 'wm-app-translations'
   | 'translations'
+  | 'sahaja-glossary'
   | 'atlas'
 
 export interface ExpectedCounts {
@@ -65,6 +66,8 @@ export const EXPECTED_COUNTS: Record<ScriptName, ExpectedCounts> = {
   'wm-app-translations': {},
   // translations updates three PayloadCMS globals, not collections.
   translations: {},
+  // sahaja-glossary updates one PayloadCMS global, not collections.
+  'sahaja-glossary': {},
   // Counts follow the 2026-08 Atlas dump (activity through Aug 2026. The
   // previous dump's data ended Oct 2024). Counted, not estimated —
   // verification is `actual >= expected`, so an understated value passes even
@@ -265,6 +268,8 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
   'wm-app-translations': [],
   // translations targets three PayloadCMS globals, not collections.
   translations: [],
+  // sahaja-glossary targets one PayloadCMS global, not a collection.
+  'sahaja-glossary': [],
   // Atlas migration. Order is the import order (the runner iterates this
   // array): managers and regions before events and clients, events and
   // users before registrations, events before pictures. Managers, regions,

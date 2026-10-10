@@ -38,6 +38,10 @@ export const ALWAYS_HIDDEN_COLLECTIONS: ContentSlug[] = [
   'images',
   'files',
 
+  // Hidden reference data. Tier 2 covers it only while it is in no project, so
+  // this entry is what holds if it ever joins one (#883).
+  'sahaja-glossary',
+
   // Payload internal collections
   'payload-kv',
   'payload-jobs',
