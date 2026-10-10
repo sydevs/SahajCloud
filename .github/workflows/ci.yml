@@ -83,3 +83,16 @@ jobs:
           PREVIEW_ADMIN_EMAIL: ${{ secrets.PREVIEW_ADMIN_EMAIL }}
           SMOKE_RUN_ID: pr-${{ github.event.pull_request.number }}-${{ github.run_id }}
         run: pnpm test:smoke
+
+  # Dependency-vulnerability gate. Fails only when this PR ADDS a dependency
+  # with a high or critical advisory that reaches production code. An
+  # advisory against a dependency already on main fails nothing here: the
+  # sydevs loop's daily Dependabot check fixes those, so an unrelated PR is
+  # never blocked by something it did not cause. Shared by the sydevs repos;
+  # the rules live in
+  # sydevs/claude-workflow/.github/workflows/dependency-review.yml.
+  dependencies:
+    name: Dependency Review
+    uses: sydevs/claude-workflow/.github/workflows/dependency-review.yml@main
+    permissions:
+      contents: read
