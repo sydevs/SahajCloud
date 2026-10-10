@@ -48,8 +48,15 @@ function toResendAttachments(
   return mapped.length > 0 ? mapped : undefined
 }
 
-/** Flatten nodemailer's `Address | string` forms to the plain strings Resend takes. */
-function toAddressList(value: SendEmailOptions['replyTo']): string[] | undefined {
+/**
+ * Flatten nodemailer's `Address | string` forms to the plain strings Resend
+ * takes.
+ *
+ * Shared by `replyTo` and `cc`, which nodemailer types identically — and an
+ * unmapped field is dropped in silence (`docs/rules/email.md`), so one helper is
+ * what keeps the second one from being forgotten.
+ */
+function toAddressList(value: SendEmailOptions['cc'] | SendEmailOptions['replyTo']): string[] | undefined {
   const entries = (Array.isArray(value) ? value : [value]).flatMap((entry) => {
     if (typeof entry === 'string') return [entry]
     if (entry && typeof entry === 'object' && 'address' in entry) {
@@ -109,6 +116,7 @@ export const resendAdapter = (): EmailAdapter => {
             }),
           )
           const replyTo = toAddressList(message.replyTo)
+          const cc = toAddressList(message.cc)
 
           // Convert Payload's SendEmailOptions to Resend's format
           const { data, error } = await resend.emails.send({
@@ -118,6 +126,7 @@ export const resendAdapter = (): EmailAdapter => {
             html: message.html as string,
             text: message.text as string,
             ...(replyTo && { replyTo }),
+            ...(cc && { cc }),
             ...(attachments && { attachments }),
           })
 

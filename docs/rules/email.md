@@ -48,10 +48,11 @@ So the adapter's three non-throwing paths — no client, a Resend API error, a c
 
 Payload's `SendEmailOptions` is nodemailer-shaped, but the adapter translates it field by field into Resend's REST payload. An unmapped field never errors — it just never arrives. That is how `attachments` and `replyTo` went missing until #582. **When a template needs a new message field, add it to the mapping and pin it in `tests/unit/resend-adapter.spec.ts`.**
 
-Currently mapped: `from`, `to`, `subject`, `html`, `text`, `replyTo`, `attachments`.
+Currently mapped: `from`, `to`, `cc`, `subject`, `html`, `text`, `replyTo`, `attachments`.
 
 - `attachments` narrows to a string/Buffer `content` or a hosted `path`. nodemailer also allows a `Readable`, which Resend's REST API cannot accept — a stream is dropped with a warning rather than sent as a payload that would 422.
-- `replyTo` flattens nodemailer's `Address` objects to plain strings.
+- `replyTo` and `cc` both flatten nodemailer's `Address` objects to plain strings, through one
+  shared helper — two copies is how the second one gets forgotten.
 
 The nodemailer/Mailpit adapter needs no such mapping — it spreads `...message` straight into `transport.sendMail()`, so every field passes through.
 
@@ -102,6 +103,7 @@ Transactional emails are [React Email](https://react.email) components under `sr
 | `EventRegistrationEmail.tsx` | Manager notice of a new registration — Sahaj Atlas brand, `DetailRow`s, a Reply/View-event button row. Informational, no alert callout. |
 | `UserMessageEmail.tsx` | Admin-facing message sent on a viewer's behalf, once a contact submission passes screening (#632). Caller-agnostic: the named form's own answers from `buildFormAnswers` (#832), plus a `DetailRow` context block from `buildUserMessageDetails`, each row omitted when its value is absent. There is no `Message` section — every answer is a sibling row, whatever the field was named. |
 | `RegistrationDigestEmail.tsx` | Manager digest of new registrations (#589), grouped by event, one email per recipient per period. Sent by `SendRegistrationDigests`. |
+| `EventImportSummaryEmail.tsx` | What a committed CSV class import added, to the uploader with every admin on `cc` (#907). Informational, no attachment — the skipped lines live on the batch, which outlives the commit until the retention sweep. Sent by `CommitEventImport`. |
 | `PostEventFollowUpEmail.tsx` | Registrant follow-up after an attended session (#626), built from composable `sections` so later kinds can be added. Today's only section is a feedback ask, sent only for a published, `unverified` event. Sent by `SendPostEventFollowUps`. |
 
 ### Registrant mail: the six things, every time

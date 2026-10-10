@@ -43,7 +43,7 @@ The Manager `type` field controls top-level access: `inactive` (denied), `manage
 | `meditations-editor` | Create and edit meditations, upload media |
 | `path-editor` | Edit lessons, lectures, and lecture clips. Upload media |
 | `web-translator` | Edit localized fields on pages, songs, albums (read-only otherwise) |
-| `atlas-manager` | Sahaj Atlas: read project-wide. Create, update, and trash events and regions — writes scoped to the manager's owned-region subtree, below |
+| `atlas-manager` | Sahaj Atlas: read project-wide. Create, update, and trash events and regions — writes scoped to the manager's owned-region subtree, below. Start a bulk `event-imports` batch (`create` only; read and update come per document) |
 
 Manager roles are **per-locale**: a manager can hold `meditations-editor` in English and `web-translator` in Czech, and gets the matching access in each admin locale.
 
@@ -132,7 +132,7 @@ Managers and API clients both read their role's project plus every shared collec
 
 ### Document-level manager access
 
-A `managers` (hasMany) or `manager` relationship to `managers` on any collection grants those managers **read and update** on its documents, with no role needed. A self-referential `parent` field lets a document inherit managers from its ancestors, via the nested-docs `breadcrumbs` trail. Fields are found by introspecting `flattenedFields` (`documentManagers.ts`) — no slug is hardcoded. Any collection that adds such a field is covered (today: Pages via "Page Editors", Regions, Clients). Read and update only, never create or delete — and only after the query-free check has failed.
+A `managers` (hasMany) or `manager` relationship to `managers` on any collection grants those managers **read and update** on its documents, with no role needed. A self-referential `parent` field lets a document inherit managers from its ancestors, via the nested-docs `breadcrumbs` trail. Fields are found by introspecting `flattenedFields` (`documentManagers.ts`) — no slug is hardcoded. Any collection that adds such a field is covered (today: Pages via "Page Editors", Regions, Clients, `event-imports`). Read and update only, never create or delete — and only after the query-free check has failed.
 
 `resolveManagedDocIds` — the managed-set resolution both this fallback and the region-subtree scoping below run — is memoized per request, keyed on `(collection, userId)` (#749). Payload evaluates each access operation independently and dedups nothing between them: `getEntityPermissions` fires every operation of a collection in one `Promise.all` with byte-identical args, and its `whereQueryCache` cannot help because that only runs with `fetchData: true`, which `/api/access` does not pass. Measured, one `/api/access` call as an `atlas-manager` went from 12 `regions` queries to 2.
 
@@ -215,11 +215,13 @@ Withdrawing the bypass is the whole close: no client role names `clients` at all
 
 This cuts the opposite way from implicit read, above, and the obvious reading is wrong. Payload's system collections sit in no project. They are reachable only by explicit permission or the admin bypass — because no role grants write on them, not because "no project" is restrictive. For read, "no project" means the opposite: shared, and readable by every role.
 
-**`RESTRICTED_COLLECTIONS`** (`config/projects.ts`) is the only way to stop that. A collection named there is skipped by implicit read, so only an explicit `read` grant, or the admin bypass, reaches it. It holds `users`, `user-submissions`, `managers` and `clients` — personal data and credentials.
+**`RESTRICTED_COLLECTIONS`** (`config/projects.ts`) is the only way to stop that. A collection named there is skipped by implicit read, so only an explicit `read` grant, or the admin bypass, reaches it. It holds `users`, `user-submissions`, `managers`, `clients` and `event-imports` — personal data and credentials.
 
 ⚠ **`managers` is there because "no project" was reading as shared** (#821): every published API key, the Atlas widget's browser key included, read every manager's name and email. **No client role gets a grant back.** `atlas-manager` holds the only one, because it picks on `Events.manager` and `Regions.managers`; `web-translator` gets nothing and renders a raw id in the Page Editors sidebar, which is the accepted cost.
 
 ⚠ **`clients` is there because the same default exposed every service's credentials** (#822): a published key read every other service's decrypted `apiKey`, origin allowlist and usage counters. A service's own listed managers still reach it, through the document-manager path in `accessConfigs.ts`.
+
+⚠ **`event-imports` is there because an uploaded CSV is held verbatim until the batch commits** (#907): contact names, phone numbers and email addresses for every class in it. `atlas-manager` holds `create` and nothing else — read and update arrive **per document**, through the batch's own `manager` field. That is the document-manager path again, and here it is the collection's *whole* access story: the collection declares no `access` block at all, because `getDocManagerFields` recognises a field named `manager` and a collection-wide `read` grant would show every volunteer every other region's CSV. ⚠ The coupling is to the field's **name** — renaming it to `uploader` would silently delete every uploader's access, which is why `tests/int/event-imports.int.spec.ts` asserts `getDocManagerFields(payload, 'event-imports').managerField`.
 
 ⚠ **Restricting a collection reaches a relationship to it. It does not reach a copy of it.** Every `relationTo: 'managers'` field is covered and needs no lock of its own, because populate falls back to the bare id once the related read is refused. A field storing a manager's name or address *as a value* is not covered, and needs a field lock instead — which is the next section, and why two fields on `events` have one.
 

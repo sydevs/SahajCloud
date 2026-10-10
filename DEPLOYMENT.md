@@ -177,6 +177,12 @@ globals are covered by `starts_with "/api/"` like everything else, and were veri
 Cloudflare keys on the full query string, so `?locale=fr` and each client's own `select` shape
 are separate cache entries, and one tag purge covers all of them.
 
+**A bulk writer purges once when it finishes, not once per write.** It sets
+`deferCacheInvalidation` on the write's `req.context`, which both `cachePlugin`'s hooks and the
+Atlas sidebar's tag honour (`src/plugins/cache/defer.ts`); the bulk event import (#907) is the one
+caller today. Until that writer's own purge lands, the edge keeps serving what it had, and the
+`s-maxage` TTL is the backstop if the writer dies first.
+
 **The Cloudflare edge is the only cache this app invalidates**, deliberately. WeMeditateWeb still
 keeps a read-through Cloudflare KV layer at 24h for `web-config:*` and `web-translations:*`, which
 no tag purge can reach, so a `wm-web-*` edit can take up to a day to reach that site. The fix

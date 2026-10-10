@@ -134,6 +134,40 @@ and never pretends to be the enforcement.
 Don't reach for `event: 'submit'` to tell browser from server — Payload's
 server path also passes `event: 'submit'`, so it discriminates nothing.
 
+### A custom `validate` on a relationship silently disarms `filterOptions`
+
+The `maxLength` trap above has a sharper twin, because here the thing dropped
+is a write refusal rather than a length check. **`filterOptions` narrows the
+admin picker; what applies it at save time is `validateFilterOptions`, and that
+lives inside Payload's own `relationship` validator** — installed only when the
+field supplies no `validate` of its own (`fields/config/sanitize.js`). So a
+relationship that declares both gets the picker narrowing and **nothing
+enforcing it**: an API `PATCH` naming any id the collection holds is accepted.
+
+Compose, exactly as a custom `text` validator composes `text`:
+
+```typescript
+import { relationship } from 'payload/shared'
+
+validate: async (value, options) => {
+  const standard = await relationship(value, {
+    ...options,
+    relationTo: 'regions',
+    filterOptions: myFilterOptions, // the same function the field declares
+    required: true,
+  } as never)
+  if (standard !== true) return betterMessage(value, options) ?? standard
+  return true
+}
+```
+
+`EventImports.targetRegion` is the worked example
+(`src/collections/EventImports/hooks/targetRegion.ts`): the composition is what
+refuses a region outside the caller's subtree, and the custom half exists only
+to say *which* of `filterOptions`' clauses refused — Payload's own answer is
+"invalid selection", naming a row number. Pass `filterOptions` from one shared
+constant, so the picker and the validator cannot narrow differently.
+
 ## `defaultPopulate`
 
 `defaultPopulate` controls what's included **only when a doc is loaded
@@ -430,6 +464,31 @@ composing.
 import, or a third-party payload. Say so in a one-line comment naming
 where the type already lives, rather than restating that type as a second
 definition.
+
+### A JSON column a person edits needs a hook, not field access
+
+A `jsonField` whose editing surface is a custom Field component — `event-imports`
+holds two, its rows table and its region tree — cannot be protected by
+`access.update`. The whole point is that the reviewer writes it, so the field has
+to be open, and the Ajv schema only says the value is *shaped* right. Within one
+schema a caller can still rewrite every row.
+
+So the refusal is a collection `beforeChange` hook comparing the submitted value
+against the stored one, and it has to be, because:
+
+- **Payload back-fills an omitted column by the time the hook runs.** `data`
+  carries every field of the stored document whether or not the patch named it,
+  so presence says nothing — "did this caller touch the column" is only
+  answerable by comparing.
+- **Match by identity, never by index.** `event-imports` matches nodes by `key`
+  and rows by `line`, because an edit that re-prunes the array makes an
+  index-wise diff report every element after the gap as changed.
+- **Matching the count is not matching the set.** Submitting one line twice
+  against two stored lines passes every per-row check while the other line
+  leaves the document.
+
+`src/collections/EventImports/hooks/reviewerEdits.ts` is the worked example, and
+`admin.readOnly` on such a field is a form nicety with no authority at all.
 
 ### A virtual column takes a schema too, and it can be closed
 
