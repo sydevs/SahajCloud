@@ -91,6 +91,11 @@ No loose files at the root — every file lives in a named folder:
   zod-free, so `clientLogger` takes the `NEXT_PUBLIC_LOG_LEVEL` vocabulary
   without pulling the schema module into every browser chunk that carries it
 - `logger/` — `clientLogger`, `workerSafeLogger`
+- `jobs/` — `runQueueAfterCommit`, which runs a queue a beat after the
+  caller's transaction commits. The only part of the jobs system that is not
+  one job's own: a row queued with `req` cannot run until that transaction
+  commits, and every queue with an `autoRun` entry wants the same
+  best-effort kick rather than a wait for the next sweep
 - `utilities/` — purposeful cross-boundary helpers (`serverUrl`,
   `previewSecret`, `gender`, `subtitles`, `weightedSample`, `isRecord`,
   `requestMemo` — collapses a per-request load to one in-flight promise,
