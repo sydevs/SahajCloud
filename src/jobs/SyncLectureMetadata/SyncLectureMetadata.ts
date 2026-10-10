@@ -27,7 +27,9 @@ const FETCH_RETRIES = 2
  * - Per-lecture API failures are logged and counted; the batch continues.
  * - DB / config errors propagate, triggering the task-level retry.
  *
- * Manual trigger: `pnpm payload jobs:run --queue monthly`
+ * To run one now, queue it from the admin Jobs UI. `jobs:run --queue monthly`
+ * only drains a row already past its `waitUntil`, so it usually prints nothing
+ * and exits 0.
  */
 export const SyncLectureMetadata: TaskConfig<'syncLectureMetadata'> = {
   slug: 'syncLectureMetadata',
