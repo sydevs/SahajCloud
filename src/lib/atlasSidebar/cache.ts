@@ -12,6 +12,8 @@
 
 import { revalidateTag } from 'next/cache'
 
+import { defersCacheInvalidation } from '@/plugins/cache/defer'
+
 /** Cache tag covering every manager's Atlas sidebar data. */
 export const ATLAS_SIDEBAR_TAG = 'atlas-sidebar'
 
@@ -41,10 +43,14 @@ export function revalidateAtlasSidebar(): void {
 
 /**
  * Collection `afterChange` / `afterDelete` hook that busts the sidebar cache.
- * Ignores its args (the trigger doc is irrelevant — any write to events or
+ * Reads only `context` (the trigger doc is irrelevant — any write to events or
  * regions can shift another manager's counts). Returns nothing, so it never
  * mutates the doc Payload is persisting.
+ *
+ * A bulk writer busts the tag once when it finishes instead: see
+ * `src/plugins/cache/defer.ts`.
  */
-export const revalidateAtlasSidebarHook = (): void => {
+export const revalidateAtlasSidebarHook = (args?: { context?: unknown }): void => {
+  if (defersCacheInvalidation(args?.context)) return
   revalidateAtlasSidebar()
 }

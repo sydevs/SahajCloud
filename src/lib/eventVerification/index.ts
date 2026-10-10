@@ -1,3 +1,5 @@
+export { newListingAdoption } from './adoption'
+export type { ListingAdoption } from './adoption'
 export {
   asNotificationLog,
   buildReminderEntry,
