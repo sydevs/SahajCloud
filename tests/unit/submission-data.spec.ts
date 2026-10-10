@@ -173,10 +173,43 @@ describe('urlScannablePairs', () => {
       { field: 'userAgent', value: 'Mozilla/5.0' },
       { field: 'locale', value: 'en' },
       { field: 'message', value: 'Visit https://spam.example' },
+      // An authored answer, exempt only when the caller says so — this
+      // function cannot know which of the form's fields asked for an address.
+      { field: 'email', value: 'visitor@gmail.com' },
     ])
 
-    expect(Object.keys(pairs)).toEqual(['message'])
+    expect(Object.keys(pairs)).toEqual(['message', 'email'])
     expect(pairs.message).toContain('spam.example')
+  })
+
+  it("exempts the keys the caller names, and keeps the answers it does not", () => {
+    // `gmail.com` satisfies `URL_PATTERN`'s bare-domain arm, so scanning an
+    // address refused 8 of 12 common providers (#899). Only the caller holding
+    // the form knows which field asked for one, so it passes the name in.
+    const pairs = urlScannablePairs(
+      [
+        { field: 'email', value: 'visitor@gmail.com' },
+        { field: 'message', value: 'Visit https://spam.example' },
+      ],
+      ['email'],
+    )
+
+    expect(Object.keys(pairs)).toEqual(['message'])
+  })
+
+  it('keeps the default exemptions when the caller names more', () => {
+    expect(
+      Object.keys(
+        urlScannablePairs(
+          [
+            { field: 'hostUrl', value: 'https://example.com' },
+            { field: 'contactAddress', value: 'visitor@gmail.com' },
+            { field: 'message', value: 'The map does not load.' },
+          ],
+          ['contactAddress'],
+        ),
+      ),
+    ).toEqual(['message'])
   })
 
   it('skips non-string values rather than coercing them', () => {

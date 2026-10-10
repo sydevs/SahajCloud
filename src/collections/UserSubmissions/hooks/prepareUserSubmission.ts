@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto'
 import { APIError } from 'payload'
 
 
-import { checkNoUrls } from '@/lib/antiSpam/antiSpamGuard'
+import { checkEmailAllowed, checkNoUrls } from '@/lib/antiSpam/antiSpamGuard'
 import { upsertUserByEmail } from '@/lib/users/upsertUserByEmail'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Form, UserSubmission } from '@/payload-types'
@@ -131,7 +131,20 @@ export const prepareUserSubmission: CollectionBeforeValidateHook = async ({
   // sees one contract whichever field tripped it. Client writes only: a manager
   // pasting a link into a triage note is not spam.
   if (fromClient) {
-    const urls = checkNoUrls(urlScannablePairs(data.submissionData))
+    // An authored email answer is judged as an address, never as free text.
+    // `URL_PATTERN`'s bare-domain arm matches `gmail.com`, so the link scan
+    // refused 8 of 12 common providers — and the atlas's required email field
+    // gave the visitor no way to clear the value (#899). Format plus the
+    // disposable-domain list is the stricter question for an address anyway.
+    const emailFields = emailFieldNames(form)
+    for (const field of emailFields) {
+      const address = checkEmailAllowed(readSubmissionValue(data.submissionData, field), field)
+      if (!address.ok) {
+        throw new APIError(address.message, address.status, { code: address.code }, true)
+      }
+    }
+
+    const urls = checkNoUrls(urlScannablePairs(data.submissionData, emailFields))
     if (!urls.ok) {
       throw new APIError(urls.message, urls.status, { code: urls.code }, true)
     }
@@ -207,6 +220,23 @@ function authoredFieldNames(form: Form | null): string[] {
   if (!form || !Array.isArray(form.fields)) return []
 
   return form.fields
+    .map((block) => (block as { name?: unknown }).name)
+    .filter((name): name is string => typeof name === 'string' && name.length > 0)
+}
+
+/**
+ * The names of the form's authored email questions.
+ *
+ * Keyed on the **block type**, because the operator chooses every field name —
+ * a form asking for an address under `contactAddress` must be treated the same
+ * way as one that spells it `email`, and renaming the field in the admin must
+ * not change how a submission against it is judged.
+ */
+function emailFieldNames(form: Form | null): string[] {
+  if (!form || !Array.isArray(form.fields)) return []
+
+  return form.fields
+    .filter((block) => (block as { blockType?: unknown }).blockType === 'email')
     .map((block) => (block as { name?: unknown }).name)
     .filter((name): name is string => typeof name === 'string' && name.length > 0)
 }

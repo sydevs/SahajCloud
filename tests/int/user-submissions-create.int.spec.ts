@@ -356,6 +356,87 @@ describe('User submissions intake (POST /api/user-submissions)', () => {
       })
       expect(doc.id).toBeTruthy()
     })
+
+    it("accepts an authored email answer on a provider the URL pattern matches", async () => {
+      // `URL_PATTERN`'s bare-domain arm matches `gmail.com`, so the link scan
+      // refused 8 of 12 common providers — and the atlas's email field is
+      // required, so the visitor could not clear the value (#899).
+      const doc = await send({
+        type: 'contact',
+        form: contactForm.id,
+        senderEmail: 'visitor@gmail.com',
+        submissionData: [
+          { field: 'email', value: 'visitor@gmail.com' },
+          { field: 'message', value: 'The venue listing is out of date.' },
+        ],
+      })
+
+      // Stored, not dropped: the answer is the operator's view of the question
+      // they asked, which is why the fix is here and not in the caller.
+      expect(doc.submissionData).toEqual(
+        expect.arrayContaining([expect.objectContaining({ field: 'email', value: 'visitor@gmail.com' })]),
+      )
+    })
+
+    it('still refuses a URL typed into the email answer, as a bad address', async () => {
+      // The exemption is not a hole: an address is judged by format and the
+      // disposable-domain list, which a link fails.
+      await expect(
+        send({
+          type: 'contact',
+          form: contactForm.id,
+          senderEmail: 'reporter3@example.com',
+          submissionData: [
+            { field: 'email', value: 'see https://spam.example' },
+            { field: 'message', value: 'The map does not load.' },
+          ],
+        }),
+      ).rejects.toThrow(/valid email address/i)
+    })
+
+    it('exempts by authored block type, not by the field name', async () => {
+      // An operator names every field, so renaming the question in the admin
+      // must not change how a submission against it is judged.
+      const renamed = (await payload.create({
+        collection: 'forms',
+        data: {
+          title: 'Report an issue (renamed field)',
+          actionType: 'contact',
+          recipient: manager.id,
+          confirmationType: 'redirect',
+          redirect: { url: '/thanks' },
+          fields: [
+            { blockType: 'email', name: 'contactAddress', label: 'Your address' },
+            { blockType: 'textarea', name: 'message', label: 'Message' },
+          ],
+        } as never,
+        overrideAccess: true,
+      })) as Form
+
+      const doc = await send({
+        type: 'contact',
+        form: renamed.id,
+        senderEmail: 'visitor2@gmail.com',
+        submissionData: [
+          { field: 'contactAddress', value: 'visitor2@gmail.com' },
+          { field: 'message', value: 'The class time is wrong.' },
+        ],
+      })
+      expect(doc.id).toBeTruthy()
+
+      // And the free-text answer beside it is still scanned.
+      await expect(
+        send({
+          type: 'contact',
+          form: renamed.id,
+          senderEmail: 'visitor3@gmail.com',
+          submissionData: [
+            { field: 'contactAddress', value: 'visitor3@gmail.com' },
+            { field: 'message', value: 'Buy now at https://spam.example' },
+          ],
+        }),
+      ).rejects.toThrow(/Links are not allowed/)
+    })
   })
 
   /**
