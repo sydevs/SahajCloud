@@ -175,7 +175,7 @@ Two refusals are specific to it, each with a message naming what to fix:
 | `submission_data_invalid` | 400 | An unrecognised `type`, or a `submissionData` pair carrying a key this type does not accept, a duplicate key, a non-string value, or an over-long one. The message names the key |
 | `submission_type_mismatch` | 400 | The `type` disagrees with the form's `actionType`. The form is the authority on what a submission against it is |
 
-`urls_not_allowed` also reaches `submissionData`, with two deliberate exemptions. `path`, `hostUrl`, `error`, `userAgent` and `locale` are never URL-scanned, because an issue report names the page it happened on. Neither is an answer to one of the form's **email** questions — `URL_PATTERN`'s bare-domain arm matches `gmail.com`, so scanning an address refused most real ones (#899). Such an answer is checked as an address instead, and a link typed into one is `invalid_email`. The exemption keys on the authored block type, so it follows whatever the operator named the field.
+`urls_not_allowed` also reaches `submissionData`, with two deliberate exemptions. `path`, `hostUrl`, `error`, `userAgent` and `locale` are never URL-scanned, because an issue report names the page it happened on. Neither is an answer to one of the form's **email** questions: it is validated as an address instead, so a link typed into one is `invalid_email` rather than `urls_not_allowed` (#899). The exemption keys on the authored block type, so it follows whatever the operator named the field.
 
 Clients hold **create only**, with no update of any kind and no read at any depth or scope.
 
