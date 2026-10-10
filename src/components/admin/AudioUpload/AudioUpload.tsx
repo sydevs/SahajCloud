@@ -30,13 +30,16 @@ function formatSeconds(totalSeconds: number): string {
  *
  * On top of native <Upload> it adds an <audio> player for the saved file.
  *
+ * ⚠ `initialState` must be forwarded, or the Bulk Upload drawer renders an
+ * empty box. Nothing marks its absence — see `docs/rules/admin-ui.md`.
+ *
  * Meditations-only extras, inert for collections without these fields:
  * - a drift Banner when frame timestamps fall beyond the audio length (needs
  *   `frames` + `duration`), and
  * - auto-hiding while live preview is open, to free space for frame editing.
  */
 export default function AudioUpload() {
-  const { data, collectionSlug } = useDocumentInfo()
+  const { data, collectionSlug, initialState } = useDocumentInfo()
   const { isLivePreviewing } = useLivePreviewContext()
   const {
     config: { serverURL },
@@ -68,7 +71,11 @@ export default function AudioUpload() {
 
   return (
     <>
-      <Upload collectionSlug={collectionSlug} uploadConfig={uploadConfig} />
+      <Upload
+        collectionSlug={collectionSlug}
+        initialState={initialState}
+        uploadConfig={uploadConfig}
+      />
       {audioUrl && (
         <audio
           key={audioUrl}

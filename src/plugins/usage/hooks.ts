@@ -15,18 +15,42 @@ import { getPgPool, quotedDbSchema } from './db'
 import { extractRequestHost, isHostAllowed, parseAllowedDomains } from './originEnforcement'
 
 const SKIP_VALIDATION = 'skipClientQueryValidation'
+const COUNT_CELL = 'usageCounted'
+
+/**
+ * This request's one "already counted" cell, created on first ask.
+ *
+ * ⚠ **It is an object, and that is the whole mechanism.** {@link asTrustedReq}
+ * spreads `req.context` into a **new** object, so a boolean written through one
+ * copy is invisible to the next — which is why #559's `req.context` dedup flag
+ * never worked, and why its commit message describes a mechanism that was not
+ * in the tree. A nested object is copied by reference, so every copy mutates
+ * one cell.
+ *
+ * It therefore has to be seeded on the request the copies are made **from**,
+ * which is what `asTrustedReq` does before it spreads. Mutating `req.context`
+ * for per-request state is what `memoizeOnRequest` does too (#891).
+ */
+function countCell(req: PayloadRequest): { counted: boolean } {
+  const ctx = (req.context ?? {}) as Record<string, unknown>
+  req.context = ctx
+  ctx[COUNT_CELL] ??= { counted: false }
+  return ctx[COUNT_CELL] as { counted: boolean }
+}
 
 /**
  * Wrap a client request to bypass query-param validation, in trusted internal endpoints.
  *
  * This sets the `skipClientQueryValidation` flag, so a forwarded client read
  * (for example in the related-* endpoints) does not have to enumerate every
- * field through `select`. `usageTrackingBeforeOperationHook` counts usage
- * once per top-level operation, keyed off the absence of a numeric
- * `currentDepth`, so no per-request dedup state needs threading through
- * here. See #559.
+ * field through `select`.
+ *
+ * ⚠ **It also seeds {@link countCell} on `req`, so every copy shares one.** An
+ * endpoint issues 2 to 5 of these per request and each is a `read` the meter
+ * sees, so the shared cell is what makes the request cost 1 rather than 5.
  */
 export function asTrustedReq(req: PayloadRequest): PayloadRequest {
+  countCell(req)
   return { ...req, context: { ...req.context, [SKIP_VALIDATION]: true } }
 }
 
@@ -442,38 +466,34 @@ const usageIncrementSql = (quotedSchema: string) => `
 `
 
 /**
- * A beforeOperation hook for usage tracking.
+ * Count this request against the calling client, at most once, if the caller is
+ * one. The counters are an abuse signal, not an invoice — nothing charges for a
+ * client read, and `HIGH_USAGE_THRESHOLD` is what reads them.
  *
- * This counts usage exactly once per top-level client operation, not per
- * document or internal relationship-population read. That prevents N+1
- * UPDATEs on reads at depth 1 or more that populate relationships.
+ * Idempotent per request, through {@link countCell} — the first read of a request
+ * increments and every later read of the same request does not, however it
+ * arrived. That is what makes an endpoint's own forwarded reads add nothing:
+ * before #891 each one was counted separately, and
+ * `/api/meditations/:id/related-lectures` cost 3 to 5 requests instead of 1.
  *
- * Strategy: increment at the beforeOperation seam, before any read fans out
- * into internal population sub-reads. Skip an internal population read
- * through the numeric `currentDepth` signal that Payload attaches to
- * internal Local API reads. These are implementation details of an
- * already-validated top-level request, and should not trigger separate
- * usage tracking.
+ * One atomic Postgres UPDATE, on the pool rather than inside the request
+ * transaction, for race-free increments (#559). Fails open: a tracking outage
+ * must never refuse a read.
  *
- * This uses a single atomic Postgres UPDATE, for race-free increments. See #559.
+ * Call it directly only from a **root** endpoint, which runs no collection
+ * `beforeOperation` hook of its own and may read no metered collection at all.
+ * A collection endpoint needs nothing — its own reads count it, exactly once.
  */
-export const usageTrackingBeforeOperationHook: ClientReadGate = async ({
-  args,
-  operation,
-  req,
-}) => {
-  // Only track for client read operations
-  if (req.user?.collection !== 'clients' || !req.user?.id || operation !== 'read') {
+export async function countClientRead(req: PayloadRequest): Promise<void> {
+  if (req.user?.collection !== 'clients' || !req.user?.id) {
     return
   }
 
-  // Skip internal relationship-population reads, identified by a numeric
-  // currentDepth. These are implementation details of the top-level
-  // request, and should not generate separate usage tracking. Only a
-  // top-level read, with no currentDepth, should increment usage.
-  if (typeof readOperationArgs(args).currentDepth === 'number') {
+  const cell = countCell(req)
+  if (cell.counted) {
     return
   }
+  cell.counted = true
 
   try {
     const now = new Date().toISOString()
@@ -493,4 +513,38 @@ export const usageTrackingBeforeOperationHook: ClientReadGate = async ({
       error: error instanceof Error ? error.message : String(error),
     })
   }
+}
+
+/**
+ * A beforeOperation hook for usage tracking.
+ *
+ * This counts one request per client request, not one per document, one per
+ * internal relationship-population read, or one per read an endpoint issues to
+ * serve it. Two things get it there, and both are needed:
+ *
+ * - the numeric `currentDepth` Payload attaches while populating a selected
+ *   relationship, skipped here so a depth-1 read is not N+1 UPDATEs (#559);
+ * - {@link countClientRead}'s per-request cell, which covers a read an endpoint
+ *   forwards on the caller's `req`. Payload attaches no signal to those, so
+ *   before #891 each was counted as a separate request.
+ *
+ * ⚠ **The count lands inside the first read, after that read's own gates.** This
+ * gate runs last in the chain (`usagePlugin.ts`), so an origin-denied or
+ * malformed read costs no quota — which is why this is the seam rather than a
+ * call at the top of each handler.
+ */
+export const usageTrackingBeforeOperationHook: ClientReadGate = async ({
+  args,
+  operation,
+  req,
+}) => {
+  if (operation !== 'read') {
+    return
+  }
+
+  if (typeof readOperationArgs(args).currentDepth === 'number') {
+    return
+  }
+
+  await countClientRead(req)
 }
