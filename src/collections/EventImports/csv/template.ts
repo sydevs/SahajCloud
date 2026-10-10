@@ -1,14 +1,24 @@
 /**
  * The downloadable CSV template, generated from `IMPORT_COLUMNS`.
  *
- * Generated rather than committed so a renamed or added column cannot ship a
+ * Derived from `IMPORT_COLUMNS` so a renamed or added column cannot ship a
  * template the parser refuses — the whole reason the column spec is one
  * constant (`columns.ts`).
+ *
+ * ⚠ **What a volunteer downloads is `public/event-import-template.csv`**, a
+ * checked-in copy the Import tab links; this function is what it must equal.
+ * `tests/unit/event-import-template.spec.ts` holds the two together and prints
+ * the content to paste when they part.
  */
 
 import { stringify } from 'csv-stringify/sync'
 
-import { IMPORT_COLUMNS, type ColumnRequirement, type RawImportRow } from './columns'
+import {
+  IMPORT_COLUMNS,
+  UTF8_BOM,
+  type ColumnRequirement,
+  type RawImportRow,
+} from './columns'
 
 /** What the help row prints before each column's own help text. */
 const REQUIREMENT_PREFIX: Record<ColumnRequirement, string> = {
@@ -17,12 +27,6 @@ const REQUIREMENT_PREFIX: Record<ColumnRequirement, string> = {
   online: 'Required for online. ',
   optional: '',
 }
-
-/**
- * ⚠ Excel opens a CSV without a byte-order mark in the system's legacy code
- * page, so every `ß` in the template reads as `ÃŸ` — and is saved back that way.
- */
-const UTF8_BOM = '\uFEFF'
 
 const HELP_TEXTS = IMPORT_COLUMNS.map(
   ({ requirement, help }) => `${REQUIREMENT_PREFIX[requirement]}${help}`,

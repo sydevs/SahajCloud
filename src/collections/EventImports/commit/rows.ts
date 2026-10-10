@@ -23,6 +23,60 @@ export function duplicateAction(row: CommitRow): 'import' | 'skip' {
 }
 
 /**
+ * Every reason a row created nothing, in the words the volunteer will read.
+ *
+ * ⚠ **One spelling, because the review table and the report are read minutes
+ * apart by the same person.** The review's Notes column, the skipped-lines CSV
+ * and the summary email all come through here, so a second spelling anywhere
+ * would read as the commit having found a different fault from the one they
+ * approved skipping.
+ *
+ * `extra` is for a refusal that is not on the row yet: the proposal's own
+ * `rowErrors`, which the commit folds on with `adoptTreeErrors` before it reads
+ * any of this, and which the review has to fold on itself.
+ *
+ * ⚠ **Here rather than in `commit/summary.ts`, which is where it was written.**
+ * `RowsTable` is a `'use client'` component, and `summary.ts` reaches
+ * `@/lib/utilities/validationFailure`, which value-imports `ValidationError`
+ * from `payload` — pulling the server package into an admin chunk is the
+ * deploy-only failure `src/AGENTS.md` records. This module imports types only.
+ */
+export function skipReasons(row: CommitRow, extra: readonly string[] = []): string[] {
+  return [...(row.errors ?? []), ...extra, ...duplicateReason(row)]
+}
+
+/**
+ * What this row repeats, in the words both the review and the report use.
+ *
+ * ⚠ **Not named `duplicateReason`, which `resolve/duplicates.ts` already
+ * exports for the reason *enum*** — a second exported one under that name makes
+ * a grep for either return both. And unlike the refusal below it answers
+ * whatever the reviewer chose: the review table has to say what matched while
+ * they are still deciding, and after they choose `import` it is no longer a
+ * reason the row is skipped.
+ */
+export function duplicateMatchNote(row: CommitRow): null | string {
+  if (!row.duplicate) return null
+  const { atCommit, line, eventId, strength } = row.duplicate
+  if (line !== undefined) return `a repeat of line ${line}`
+  const what = eventId !== undefined ? `class #${eventId}` : 'an existing class'
+  if (atCommit) return `a repeat of ${what}, added after you reviewed this batch`
+  return strength === 'weak' ? `possibly a repeat of ${what}` : `a repeat of ${what}`
+}
+
+/**
+ * Why a matched row was left alone.
+ *
+ * A duplicate carries no `errors` — it is not a fault, and nothing about the
+ * class it repeats is modified (`resolve/duplicates.ts`).
+ */
+function duplicateReason(row: CommitRow): string[] {
+  if (row.committed || duplicateAction(row) !== 'skip') return []
+  const note = duplicateMatchNote(row)
+  return note ? [note] : []
+}
+
+/**
  * Whether the row is one the commit may write at all.
  *
  * ⚠ **A duplicate is committable only once the reviewer chose to import it

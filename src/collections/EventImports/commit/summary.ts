@@ -13,7 +13,7 @@ import type { CommitRow } from './rows'
 
 import { UNLINKED_NOTE } from './coordinators'
 import { managerKeyOf } from './managers'
-import { duplicateAction } from './rows'
+import { skipReasons } from './rows'
 
 export interface CommitTally {
   total: number
@@ -70,41 +70,6 @@ export function commitReport(rows: readonly CommitRow[]): CommitReport {
   }
 
   return { committed, skipped }
-}
-
-/**
- * Every reason a row created nothing, in the words the volunteer will read.
- *
- * ⚠ **Exported because the review has to show exactly these words.** The review
- * table and this report are read minutes apart by the same person, and the batch
- * is deleted in between — so a second spelling there would read as the commit
- * having found a different fault from the one they approved skipping.
- *
- * `extra` is for a refusal that is not on the row yet: the proposal's own
- * `rowErrors`, which the commit folds on with `adoptTreeErrors` before it reads
- * any of this, and which the review has to fold on itself.
- */
-export function skipReasons(row: CommitRow, extra: readonly string[] = []): string[] {
-  return [...(row.errors ?? []), ...extra, ...duplicateReason(row)]
-}
-
-/**
- * Why a matched row was left alone.
- *
- * A duplicate carries no `errors` — it is not a fault, and nothing about the
- * class it repeats is modified (`resolve/duplicates.ts`).
- *
- * ⚠ **Private, unlike `skipReasons` above.** `resolve/duplicates.ts` exports a
- * `duplicateReason` of its own that answers the reason *enum*, so a second
- * exported one answering prose makes a grep for either return both.
- */
-function duplicateReason(row: CommitRow): string[] {
-  if (!row.duplicate || row.committed || duplicateAction(row) !== 'skip') return []
-  const { atCommit, line, eventId, strength } = row.duplicate
-  if (line !== undefined) return [`a repeat of line ${line}`]
-  const what = eventId !== undefined ? `class #${eventId}` : 'an existing class'
-  if (atCommit) return [`a repeat of ${what}, added after you reviewed this batch`]
-  return [strength === 'weak' ? `possibly a repeat of ${what}` : `a repeat of ${what}`]
 }
 
 export function tallyRows(rows: readonly CommitRow[]): CommitTally {

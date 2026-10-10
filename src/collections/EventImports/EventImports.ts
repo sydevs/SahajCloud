@@ -218,21 +218,22 @@ export const EventImports: CollectionConfig = {
       name: 'progress',
       type: 'group',
       access: { update: () => false },
-      admin: { readOnly: true, hidden: true },
+      admin: {
+        readOnly: true,
+        // ⚠ **The component replaces the group's three inputs, rather than a
+        // `ui` field beside a hidden group.** `admin.hidden` does not keep a
+        // value out of the save — Payload renders a `HiddenField` and the value
+        // still posts; `access.update` above is what refuses the write. So a
+        // hidden group plus a sibling `ui` field bought nothing but a second
+        // name for one concept. The component polls rather than reading the
+        // value it is declared on, which is the honest reason it exists.
+        components: { Field: '@/components/admin/EventImport/ImportProgress' },
+      },
       fields: [
         { name: 'done', type: 'number' },
         { name: 'total', type: 'number' },
         { name: 'note', type: 'text' },
       ],
-    },
-    {
-      // ⚠ **A `ui` field, so it has no value and never reaches the save.** It
-      // polls the batch while a job holds it and refreshes the form when the
-      // status settles — the group above carries the numbers and is hidden,
-      // because three read-only inputs are not a progress bar.
-      name: 'importProgress',
-      type: 'ui',
-      admin: { components: { Field: '@/components/admin/EventImport/ImportProgress' } },
     },
     jsonField({
       name: 'rows',

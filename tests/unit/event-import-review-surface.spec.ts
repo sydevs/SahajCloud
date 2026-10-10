@@ -12,6 +12,11 @@
 import { parse } from 'csv-parse/sync'
 import { describe, expect, it } from 'vitest'
 
+import {
+  duplicateMatchNote,
+  skipReasons,
+  type CommitRow,
+} from '@/collections/EventImports/commit/rows'
 import { IMPORT_COLUMNS } from '@/collections/EventImports/csv/columns'
 import { parseImportCsv } from '@/collections/EventImports/csv/parse'
 import {
@@ -31,24 +36,23 @@ import {
   rowStatus,
   rowTitle,
   withDuplicateAction,
-  type ImportRow,
 } from '@/components/admin/EventImport/rowModel'
 import {
   childrenByParent,
   isEditableNode,
   isUnmappableNode,
-  mappableFor,
+  mappableByLevel,
   takenSlugsFor,
 } from '@/components/admin/EventImport/treeModel'
 
-const row = (overrides: Partial<ImportRow> = {}): ImportRow => ({
+const row = (overrides: Partial<CommitRow> = {}): CommitRow => ({
   line: 2,
   values: { title: 'Tuesday Meditation', city: 'Berlin' },
   ...overrides,
 })
 
 /** The one shape `rowStatus` treats as geocoded. Only its presence is read. */
-const RESOLVED = { latitude: 52.5, longitude: 13.4 } as NonNullable<ImportRow['resolved']>
+const RESOLVED = { latitude: 52.5, longitude: 13.4 } as NonNullable<CommitRow['resolved']>
 
 const node = (overrides: Partial<ProposedNode> = {}): ProposedNode =>
   ({
@@ -118,6 +122,28 @@ describe('what the rows table says about one line', () => {
     expect(rowNotes(row())).toBe('—')
   })
 
+  /**
+   * ⚠ **The reason the table prints is the commit's own.** `skipReasons`
+   * (`commit/rows.ts`) is what writes the skipped-lines CSV and the summary
+   * email, and its own ⚠ says why a second spelling here would read as the
+   * commit having found a different fault from the one the reviewer approved
+   * skipping. This case is what holds the table to it.
+   */
+  it('takes a skipped duplicate’s wording from the commit, and drops it once imported', () => {
+    const matched = row({
+      resolved: RESOLVED,
+      duplicate: { reason: 'nearby-address', eventId: 412, strength: 'weak' },
+    })
+
+    expect(rowNotes(matched)).toBe(skipReasons(matched).join('; '))
+    expect(rowNotes(matched)).toContain('possibly a repeat of class #412')
+    // Chosen to import, so the match is no longer a reason the row is skipped —
+    // but the Duplicate column still has to say what it matched.
+    const imported = { ...matched, duplicate: { ...matched.duplicate!, action: 'import' as const } }
+    expect(rowNotes(imported)).toBe('—')
+    expect(duplicateMatchNote(imported)).toBe('possibly a repeat of class #412')
+  })
+
   it('falls back to an em dash for a blank title rather than printing nothing', () => {
     expect(rowTitle(row({ values: { title: '   ' } }))).toBe('—')
     expect(rowTitle(row())).toBe('Tuesday Meditation')
@@ -125,7 +151,7 @@ describe('what the rows table says about one line', () => {
 })
 
 describe('choosing what to do with a duplicate', () => {
-  const rows: ImportRow[] = [
+  const rows: CommitRow[] = [
     row({ line: 2, resolved: RESOLVED, duplicate: { reason: 'nearby-address' } }),
     row({ line: 3, resolved: RESOLVED, duplicate: { reason: 'city-and-time' } }),
   ]
@@ -207,10 +233,21 @@ describe('what the region tree offers per node', () => {
     expect(isUnmappableNode(matchedByTheProposal)).toBe(false)
   })
 
-  /** A city mapped onto a state is a refusal the reviewer was invited to make. */
-  it('offers only regions at the node\'s own level', () => {
-    const mappable = [region({ id: 7 }), region({ id: 8, level: 'region', slug: 'bavaria' })]
-    expect(mappableFor(mappable, node()).map((each) => each.id)).toEqual([7])
+  /**
+   * A city mapped onto a state is a refusal the reviewer was invited to make,
+   * so the level is the index — and grouping once is what stops every node
+   * re-scanning a country's whole subtree on every render.
+   */
+  it('indexes the mappable regions by the level a node must match', () => {
+    const byLevel = mappableByLevel([
+      region({ id: 7 }),
+      region({ id: 8, level: 'region', slug: 'bavaria' }),
+      region({ id: 9, slug: 'munich' }),
+    ])
+
+    expect(byLevel.get('city')?.map((each) => each.id)).toEqual([7, 9])
+    expect(byLevel.get('region')?.map((each) => each.id)).toEqual([8])
+    expect(byLevel.get('venue')).toBeUndefined()
   })
 
   /**

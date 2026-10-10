@@ -24,7 +24,7 @@ import { buildImportTemplate } from '@/collections/EventImports/csv/template'
 import { EventImports } from '@/collections/EventImports/EventImports'
 import { ALLOWED } from '@/collections/EventImports/hooks/transitionStatus'
 import { PROPOSABLE_TARGET_LEVELS } from '@/collections/EventImports/propose/tree'
-import { REGION_IMPORT_TAB } from '@/collections/EventImports/regionImportTab'
+import { IMPORT_TAB } from '@/collections/Regions/importTab'
 import type { WorkflowActionsProps } from '@/components/admin/buttons/WorkflowActions/stages'
 import { CREATE_STAGE } from '@/components/admin/buttons/WorkflowActions/stages'
 import { getDocManagerFields } from '@/plugins/access/documentManagers'
@@ -515,7 +515,7 @@ describe('event-imports', () => {
    */
   describe('the Regions Import tab', () => {
     it('is offered at every level a batch may target, and at no other', () => {
-      const condition = REGION_IMPORT_TAB.admin?.condition
+      const condition = IMPORT_TAB.admin?.condition
       if (!condition) throw new Error('the Import tab declares no condition')
       // Payload hands a condition four arguments; this one reads only `data`,
       // and the rest are stubbed rather than invented.

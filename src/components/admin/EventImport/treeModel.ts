@@ -74,18 +74,26 @@ export function mergedNote(node: ProposedNode): null | string {
   return names.length ? `includes ${names.join(', ')}` : null
 }
 
+/** The regions a node may be mapped onto, indexed by the level it must match. */
+export type MappableByLevel = Map<ExistingRegion['level'], ExistingRegion[]>
+
 /**
- * The regions this node may be mapped onto.
+ * The mappable regions grouped by level.
  *
- * The wrapper already filtered the list to the target's subtree; this narrows it
- * to the node's own level, because a city mapped onto a state is a refusal the
- * reviewer was invited to make.
+ * ⚠ **Grouped once, not filtered per node.** The wrapper already narrowed the
+ * list to the target's subtree, but a country's subtree is every city under it —
+ * so a per-node `filter` re-scans the whole list for every row of the tree, on
+ * every render. The level is the index because a city mapped onto a state is a
+ * refusal the reviewer was invited to make.
  */
-export function mappableFor(
-  mappable: readonly ExistingRegion[],
-  node: ProposedNode,
-): ExistingRegion[] {
-  return mappable.filter((region) => region.level === node.level)
+export function mappableByLevel(mappable: readonly ExistingRegion[]): MappableByLevel {
+  const grouped: MappableByLevel = new Map()
+  for (const region of mappable) {
+    const level = grouped.get(region.level)
+    if (level) level.push(region)
+    else grouped.set(region.level, [region])
+  }
+  return grouped
 }
 
 /**

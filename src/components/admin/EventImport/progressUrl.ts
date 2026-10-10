@@ -6,9 +6,9 @@
  * have to agree on.
  */
 
-import type { EventImport } from '@/payload-types'
+import { stringify } from 'qs-esm'
 
-export type ImportStatus = NonNullable<EventImport['status']>
+import type { EventImport } from '@/payload-types'
 
 /**
  * The statuses a job is working through.
@@ -17,7 +17,10 @@ export type ImportStatus = NonNullable<EventImport['status']>
  * collection would otherwise read as running by default and poll a batch nobody
  * is touching, every three seconds, for as long as the page stays open.
  */
-const RUNNING: ReadonlySet<string> = new Set<ImportStatus>(['resolving', 'committing'])
+const RUNNING: ReadonlySet<string> = new Set<NonNullable<EventImport['status']>>([
+  'resolving',
+  'committing',
+])
 
 /** Whether a job still owns this batch, so the bar keeps asking. */
 export function isRunningStatus(status: string | null | undefined): boolean {
@@ -33,14 +36,14 @@ export function isRunningStatus(status: string | null | undefined): boolean {
  * `docs/rules/access.md`).
  *
  * Two columns, because the document carries up to 500 rows plus its proposed
- * tree and this is asked every three seconds.
+ * tree and this is asked every three seconds. `qs-esm` spells the `select[…]`
+ * brackets, as `ThumbnailCell/relationshipDocLoader.ts` does — Payload parses
+ * the query with the same library.
  */
 export function progressUrl(apiRoute: string, id: number | string, locale: string): string {
-  const params = new URLSearchParams({
-    depth: '0',
-    'select[status]': 'true',
-    'select[progress]': 'true',
-    locale,
-  })
-  return `${apiRoute}/event-imports/${id}?${params.toString()}`
+  const query = stringify(
+    { depth: 0, locale, select: { progress: true, status: true } },
+    { addQueryPrefix: true },
+  )
+  return `${apiRoute}/event-imports/${id}${query}`
 }

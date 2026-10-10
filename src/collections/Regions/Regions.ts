@@ -10,8 +10,8 @@ import { livePreviewUrl } from '@/lib/livePreview/url'
 import { isManualMapboxId } from '@/lib/mapbox/manualLocation'
 import { ownedRegionFilterOptions } from '@/plugins/access'
 
-import { REGION_IMPORT_TAB } from '../EventImports/regionImportTab'
 import { requireOwnedParentOnCreate } from './hooks/requireOwnedParentOnCreate'
+import { IMPORT_TAB } from './importTab'
 import { withNonEmptySlug } from './nonEmptySlug'
 import { buildRegionWebPath } from './webPath'
 
@@ -329,8 +329,9 @@ export const Regions: CollectionConfig = {
             },
           ],
         },
-        // Bulk import, declared by the feature that owns it.
-        REGION_IMPORT_TAB,
+        // Bulk class import, in `importTab.ts` because it is the one tab with a
+        // cross-collection join and a level condition to explain.
+        IMPORT_TAB,
         // Reverse side of the tree, one tab per child level (see
         // CHILD_LEVEL_TABS). Valid parents per level live in
         // ALLOWED_PARENT_LEVELS, so each tab shows only once the document

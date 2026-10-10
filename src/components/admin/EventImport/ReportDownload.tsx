@@ -1,13 +1,12 @@
 'use client'
 
-import type { FieldClientComponent, JSONFieldClient } from 'payload'
+import type { JSONFieldClientComponent } from 'payload'
 
-import { Banner, Button, FieldLabel, useField } from '@payloadcms/ui'
+import { Banner, Button, useField } from '@payloadcms/ui'
 
-import { SKIPPED_CSV_FILENAME, skippedRowsCsv } from '@/collections/EventImports/csv/skippedCsv'
 import type { EventImportReport } from '@/payload-types'
 
-import './styles.css'
+import { FieldShell } from './FieldShell'
 
 /**
  * What the import came to, and the lines it did not take.
@@ -21,8 +20,8 @@ import './styles.css'
  * Renders nothing until the commit writes a report, which is what keeps it off
  * the create form and the review screen.
  */
-export const ReportDownload: FieldClientComponent = ({ field }) => {
-  const { label, name } = field as JSONFieldClient
+export const ReportDownload: JSONFieldClientComponent = ({ field }) => {
+  const { admin, label, name } = field
   const { value } = useField<EventImportReport>()
 
   if (!value?.finishedAt) return null
@@ -30,7 +29,13 @@ export const ReportDownload: FieldClientComponent = ({ field }) => {
   const committed = value.committed?.length ?? 0
   const skipped = value.skipped ?? []
 
-  const download = () => {
+  const download = async () => {
+    // ⚠ **Imported on the click, not at the top.** `csv-stringify`'s browser
+    // build is about 18 KiB gzipped, and a finished batch is usually read
+    // without anybody downloading anything.
+    const { SKIPPED_CSV_FILENAME, skippedRowsCsv } = await import(
+      '@/collections/EventImports/csv/skippedCsv'
+    )
     const blob = new Blob([skippedRowsCsv(skipped)], { type: 'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
@@ -41,26 +46,23 @@ export const ReportDownload: FieldClientComponent = ({ field }) => {
   }
 
   return (
-    <div className="field-type json read-only">
-      <FieldLabel label={label} path={name} />
-      <div className="field-type__wrap event-import__report">
-        <Banner type="success">
-          {`${committed} ${committed === 1 ? 'class' : 'classes'} created.`}
-        </Banner>
-        {skipped.length ? (
-          <>
-            <Banner type="info">
-              {`${skipped.length} ${skipped.length === 1 ? 'line was' : 'lines were'} skipped.`}
-            </Banner>
-            <Button buttonStyle="secondary" onClick={download}>
-              Download the skipped lines to fix and upload again
-            </Button>
-          </>
-        ) : (
-          <p className="event-import__note">Every line in the file was imported.</p>
-        )}
-      </div>
-    </div>
+    <FieldShell description={admin?.description} label={label} path={name} readOnly>
+      <Banner type="success">
+        {`${committed} ${committed === 1 ? 'class' : 'classes'} created.`}
+      </Banner>
+      {skipped.length ? (
+        <>
+          <Banner type="info">
+            {`${skipped.length} ${skipped.length === 1 ? 'line was' : 'lines were'} skipped.`}
+          </Banner>
+          <Button buttonStyle="secondary" onClick={() => void download()}>
+            Download the skipped lines to fix and upload again
+          </Button>
+        </>
+      ) : (
+        <p className="event-import__note">Every line in the file was imported.</p>
+      )}
+    </FieldShell>
   )
 }
 

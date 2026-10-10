@@ -1,14 +1,17 @@
 'use client'
 
-import type { FieldClientComponent, JSONFieldClient } from 'payload'
+import type { JSONFieldClientComponent } from 'payload'
 
-import { Button, FieldLabel, Pill, SelectInput, Table, useField, useFormFields } from '@payloadcms/ui'
-import { useState } from 'react'
+import { Button, Pill, SelectInput, Table, useField } from '@payloadcms/ui'
+import { useMemo, useState } from 'react'
+
+import { duplicateMatchNote, type CommitRow } from '@/collections/EventImports/commit/rows'
 
 import { tableColumn } from '../tableColumn'
+import { FieldShell, useBatchReadOnly } from './FieldShell'
 import {
   DUPLICATE_ACTION_OPTIONS,
-  duplicateNote,
+  duplicateActionLabel,
   needsAttention,
   ROW_STATUS_LABEL,
   rowNotes,
@@ -17,14 +20,11 @@ import {
   rowTitle,
   withDuplicateAction,
   type DuplicateAction,
-  type ImportRow,
   type RowStatus,
 } from './rowModel'
 
-import './styles.css'
-
 /** Payload's own pill colours, mapped onto what each status means to a reviewer. */
-const STATUS_PILL: Record<RowStatus, 'dark' | 'error' | 'light' | 'success' | 'warning'> = {
+const STATUS_PILL: Record<RowStatus, React.ComponentProps<typeof Pill>['pillStyle']> = {
   committed: 'success',
   duplicate: 'warning',
   error: 'error',
@@ -40,76 +40,97 @@ const STATUS_PILL: Record<RowStatus, 'dark' | 'error' | 'light' | 'success' | 'w
  * anything else would be a control that fails the save. A line that is wrong is
  * fixed in the file and re-uploaded.
  *
- * ⚠ **Editable only while the batch reads `review`.** The status comes from form
- * state rather than from a second read: the jobs own every other stage, and the
- * select has to go read-only the moment `ImportProgress`'s refresh brings a new
- * status in.
+ * ⚠ **Every refusal reads in the commit's own words** (`commit/rows.ts`), not
+ * this component's: the same person downloads the skipped lines minutes later.
  *
  * Payload's own `Table` rather than markup of ours, so this reads as a list view
  * (`docs/rules/admin-ui.md`).
  */
-export const RowsTable: FieldClientComponent = ({ field }) => {
-  const { label, name } = field as JSONFieldClient
-  const { setValue, value } = useField<ImportRow[]>()
-  const status = useFormFields(([fields]) => fields.status?.value)
+export const RowsTable: JSONFieldClientComponent = ({ field }) => {
+  const { admin, label, name } = field
+  const { setValue, value } = useField<CommitRow[]>()
+  const readOnly = useBatchReadOnly()
   const [showAll, setShowAll] = useState(false)
 
+  // One pass rather than three: `needsAttention` reads the status too, and the
+  // whole table re-renders on every duplicate choice. Keyed on `value` and not
+  // on a `value ?? []` binding, which is a new array identity every render.
+  const decorated = useMemo(
+    () => (value ?? []).map((row) => ({ row, status: rowStatus(row), flagged: needsAttention(row) })),
+    [value],
+  )
   const rows = value ?? []
-  const readOnly = status !== 'review'
-  const flagged = rows.filter(needsAttention)
-  const shown = showAll || !flagged.length ? rows : flagged
+  const flagged = decorated.filter((entry) => entry.flagged)
+  const shown = showAll || !flagged.length ? decorated : flagged
 
   const choose = (line: number, action: DuplicateAction) =>
     setValue(withDuplicateAction(rows, line, action))
 
   return (
-    <div className={`field-type json${readOnly ? ' read-only' : ''}`}>
-      <FieldLabel label={label} path={name} />
-      <div className="field-type__wrap event-import__rows">
-        {rows.length === 0 ? (
-          <p className="event-import__note">This file holds no lines.</p>
-        ) : (
-          <>
-            <p className="event-import__note">
-              {flagged.length
-                ? `${flagged.length} of ${rows.length} lines need a look.`
-                : `All ${rows.length} lines are ready.`}{' '}
-              {flagged.length && flagged.length < rows.length ? (
-                <Button buttonStyle="secondary" onClick={() => setShowAll(!showAll)} size="small">
-                  {showAll ? 'Show only those' : `Show all ${rows.length}`}
-                </Button>
-              ) : null}
-            </p>
-            <Table
-              appearance="condensed"
-              columns={[
-                tableColumn(
-                  'line',
-                  'Line',
-                  shown.map((row) => row.line),
-                ),
-                tableColumn('title', 'Title', shown.map(rowTitle)),
-                tableColumn('place', 'Place', shown.map(rowPlace)),
-                tableColumn(
-                  'status',
-                  'Status',
-                  shown.map((row) => (
-                    <Pill key={row.line} pillStyle={STATUS_PILL[rowStatus(row)]}>
-                      {ROW_STATUS_LABEL[rowStatus(row)]}
-                    </Pill>
-                  )),
-                ),
-                tableColumn(
-                  'duplicate',
-                  'Duplicate',
-                  shown.map((row) =>
-                    row.duplicate ? (
-                      <div className="event-import__duplicate" key={row.line}>
-                        <span>{duplicateNote(row)}</span>
+    <FieldShell
+      description={admin?.description}
+      label={label}
+      path={name}
+      readOnly={readOnly}
+    >
+      {rows.length === 0 ? (
+        <p className="event-import__note">This file holds no lines.</p>
+      ) : (
+        <>
+          <p className="event-import__note">
+            {flagged.length
+              ? `${flagged.length} of ${rows.length} lines need a look.`
+              : `All ${rows.length} lines are ready.`}{' '}
+            {flagged.length && flagged.length < rows.length ? (
+              <Button buttonStyle="secondary" onClick={() => setShowAll(!showAll)} size="small">
+                {showAll ? 'Show only those' : `Show all ${rows.length}`}
+              </Button>
+            ) : null}
+          </p>
+          <Table
+            appearance="condensed"
+            columns={[
+              tableColumn(
+                'line',
+                'Line',
+                shown.map(({ row }) => row.line),
+              ),
+              tableColumn(
+                'title',
+                'Title',
+                shown.map(({ row }) => rowTitle(row)),
+              ),
+              tableColumn(
+                'place',
+                'Place',
+                shown.map(({ row }) => rowPlace(row)),
+              ),
+              tableColumn(
+                'status',
+                'Status',
+                shown.map(({ row, status }) => (
+                  <Pill key={row.line} pillStyle={STATUS_PILL[status]}>
+                    {ROW_STATUS_LABEL[status]}
+                  </Pill>
+                )),
+              ),
+              tableColumn(
+                'duplicate',
+                'Duplicate',
+                shown.map(({ row }) =>
+                  row.duplicate ? (
+                    <div className="event-import__duplicate" key={row.line}>
+                      <span>{duplicateMatchNote(row)}</span>
+                      {/* A choice nobody can change renders as the word it
+                          settled on: mounting react-select read-only costs an
+                          instance per matched row to print one label. */}
+                      {readOnly || row.committed ? (
+                        <span>{duplicateActionLabel(row)}</span>
+                      ) : (
                         <SelectInput
-                          // Payload keys form state by `path`, and these live
-                          // inside one field's own value — so the name is the
-                          // control's identity here, never a path to write to.
+                          // These live inside one field's own value, so the name
+                          // identifies the control rather than naming a path
+                          // Payload keeps form state at.
                           name={`duplicate-${row.line}`}
                           onChange={(option) => {
                             const chosen = Array.isArray(option) ? option[0] : option
@@ -117,23 +138,26 @@ export const RowsTable: FieldClientComponent = ({ field }) => {
                           }}
                           options={[...DUPLICATE_ACTION_OPTIONS]}
                           path={`duplicate-${row.line}`}
-                          readOnly={readOnly || !!row.committed}
                           value={row.duplicate.action ?? 'skip'}
                         />
-                      </div>
-                    ) : (
-                      '—'
-                    ),
+                      )}
+                    </div>
+                  ) : (
+                    '—'
                   ),
                 ),
-                tableColumn('notes', 'Notes', shown.map(rowNotes)),
-              ]}
-              data={shown.map((row) => ({ id: row.line }))}
-            />
-          </>
-        )}
-      </div>
-    </div>
+              ),
+              tableColumn(
+                'notes',
+                'Notes',
+                shown.map(({ row }) => rowNotes(row)),
+              ),
+            ]}
+            data={shown.map(({ row }) => ({ id: row.line }))}
+          />
+        </>
+      )}
+    </FieldShell>
   )
 }
 

@@ -74,8 +74,8 @@ That combination is often what you want — reachable where it's explained, abse
 Three things decide whether the native button is right:
 
 - **`allowCreate: true` only when `on` is a field the create form wants prefilled.** `Regions`' own child-level tabs join on `breadcrumbs.doc`, which "Add new" would seed and the create form has no use for — which is why they set `allowCreate: false` and `AddChildRegionButton` exists beside them. `targetRegion` is exactly the field, so the native button needs no replacement.
-- **The tab's `condition` has to agree with the target field's own validator.** A tab offering a create form that the validator then refuses reads as broken rather than as scoped, so `REGION_IMPORT_TAB` shares `isProposableTargetLevel` with `EventImports.targetRegion` rather than restating the levels.
-- **Declare the tab in the feature that owns it, and spread it into the host.** `src/collections/EventImports/regionImportTab.ts` holds the levels, the join and the sentence a volunteer reads; `Regions.ts` imports one object. Stating them inside `Regions` would put half of `event-imports` in a file that knows nothing else about it.
+- **The tab's `condition` has to agree with the target field's own validator.** A tab offering a create form that the validator then refuses reads as broken rather than as scoped, so `IMPORT_TAB` shares `isProposableTargetLevel` with `EventImports.targetRegion` rather than restating the levels.
+- **The tab belongs to the host collection, not to the feature it opens.** `src/collections/Regions/importTab.ts` holds it, beside the Events tab it is shaped like, and the only thing crossing the boundary is that one pure predicate. A field of `Regions.tabs` has exactly one consumer, so by `src/AGENTS.md`'s organization rules it is Regions' own code — declaring it under `EventImports/` made the repo's only collection-to-collection import, which is the edge rule 4 names.
 
 ### `WorkflowActions` — stage-dependent document buttons as data
 

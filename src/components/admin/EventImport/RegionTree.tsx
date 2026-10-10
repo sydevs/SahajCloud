@@ -1,32 +1,33 @@
 'use client'
 
-import type { ClientFieldWithOptionalType, StaticLabel } from 'payload'
+import type { StaticDescription, StaticLabel } from 'payload'
 
-import { Banner, Button, FieldLabel, TextInput, useField, useFormFields } from '@payloadcms/ui'
-import { useState, type ChangeEvent } from 'react'
+import { Banner, Button, SelectInput, TextInput, useField } from '@payloadcms/ui'
+import { useMemo, useState, type ChangeEvent } from 'react'
 
-import { applyTreeEdits, type TreeEdit } from '@/collections/EventImports/propose/edit'
+import type { TreeEdit } from '@/collections/EventImports/propose/edit'
 import type { ExistingRegion } from '@/collections/EventImports/propose/match'
-import type { ProposedNode, ProposedTree } from '@/collections/EventImports/propose/tree'
+import { tallyTree, type ProposedNode, type ProposedTree } from '@/collections/EventImports/propose/tree'
 
+import { FieldShell, useBatchReadOnly } from './FieldShell'
 import {
   childrenByParent,
   isEditableNode,
   isUnmappableNode,
-  mappableFor,
+  mappableByLevel,
   mergedNote,
   nodeCountNote,
   nodeMatchNote,
   takenSlugsFor,
+  type MappableByLevel,
 } from './treeModel'
 
-import './styles.css'
-
 export interface RegionTreeProps {
-  /** The field's own label, so the wrapper needs no `FieldLabel` of its own. */
+  /** The field's own label and description, so the wrapper renders neither. */
   readonly label: StaticLabel | undefined
+  readonly description?: StaticDescription
   readonly path: string
-  /** Regions in the target's subtree a node may be mapped onto. */
+  /** Regions in the target's subtree a node may be mapped onto, by level. */
   readonly mappable: readonly ExistingRegion[]
   /** The target's name, the last disambiguator a top-level slug has. */
   readonly targetName: string
@@ -43,25 +44,30 @@ export interface RegionTreeProps {
  * makes the submitted value one `hooks/reviewerEdits.ts` accepts rather than a
  * guess at what it will accept.
  *
- * ⚠ **Picking a region and mapping onto it are two steps.** Arrow keys on a
- * focused `<select>` fire `change` in Chrome on Windows and Linux, so a select
- * that sent the edit itself mapped a city onto the first candidate as a reviewer
- * tabbed through the tree.
+ * ⚠ **…and imports it on the click, never at the top.** `applyTreeEdits` reaches
+ * `propose/slugs.ts`, the only importer of `any-ascii` — about 214 KiB gzipped
+ * of transliteration tables, which would otherwise sit in this edit view's eager
+ * chunk for the sake of a button pressed two or three times per batch.
  *
- * ⚠ **Editable only while the batch reads `review`.** The stage comes from form
- * state, so the controls go read-only the moment `ImportProgress`'s refresh
- * brings a running or finished status in.
+ * ⚠ **Picking a region and mapping onto it are two steps.** Arrow keys on a
+ * focused select fire `change` in Chrome on Windows and Linux, so a control that
+ * sent the edit itself mapped a city onto the first candidate as a reviewer
+ * tabbed through the tree.
  */
-export const RegionTree = ({ label, mappable, path, targetName }: RegionTreeProps) => {
+export const RegionTree = ({ description, label, mappable, path, targetName }: RegionTreeProps) => {
   const { setValue, value } = useField<ProposedTree>({ path })
-  const status = useFormFields(([fields]) => fields.status?.value)
+  const readOnly = useBatchReadOnly()
   const [refusal, setRefusal] = useState<null | string>(null)
 
-  const readOnly = status !== 'review'
+  // Keyed on `value`, not on a `value?.nodes ?? []` binding — that is a new
+  // array identity on every render, so the memo would never hold.
+  const byParent = useMemo(() => childrenByParent(value?.nodes ?? []), [value])
+  const byLevel = useMemo(() => mappableByLevel(mappable), [mappable])
   const nodes = value?.nodes ?? []
 
-  const applyEdit = (edit: TreeEdit) => {
+  const applyEdit = async (edit: TreeEdit) => {
     if (!value) return
+    const { applyTreeEdits } = await import('@/collections/EventImports/propose/edit')
     const result = applyTreeEdits({
       tree: value,
       edits: [edit],
@@ -77,57 +83,64 @@ export const RegionTree = ({ label, mappable, path, targetName }: RegionTreeProp
     setValue(result.tree)
   }
 
-  const rowErrors = value?.rowErrors ?? []
+  const tally = value ? tallyTree(value) : null
   const stateLayer = value?.stateLayer
 
   return (
-    <div className={`field-type json${readOnly ? ' read-only' : ''}`}>
-      <FieldLabel label={label} path={path} />
-      <div className="field-type__wrap event-import__tree-wrap">
-        {refusal ? <Banner type="error">{refusal}</Banner> : null}
-        {stateLayer && !stateLayer.proposed ? (
-          <p className="event-import__note">{`No state layer: ${stateLayer.reason}`}</p>
-        ) : null}
-        {nodes.length === 0 ? (
-          <p className="event-import__note">
-            The proposal is not ready yet. It appears once the addresses have been looked up.
-          </p>
-        ) : (
+    <FieldShell description={description} label={label} path={path} readOnly={readOnly}>
+      {refusal ? <Banner type="error">{refusal}</Banner> : null}
+      {stateLayer && !stateLayer.proposed ? (
+        <p className="event-import__note">{`No state layer: ${stateLayer.reason}`}</p>
+      ) : null}
+      {nodes.length === 0 ? (
+        <p className="event-import__note">
+          The proposal is not ready yet. It appears once the addresses have been looked up.
+        </p>
+      ) : (
+        <>
+          {/* `tallyTree` rather than a count of our own: a reviewer who maps a
+              node watches `creating` fall by one, so the review and the commit
+              report counting differently would read as an edit that did nothing. */}
+          {tally ? (
+            <p className="event-import__note">
+              {`${tally.creating} to create, ${tally.existing} already in the Atlas.`}
+            </p>
+          ) : null}
           <TreeLevel
-            mappable={mappable}
-            nodes={childrenByParent(nodes)}
+            byLevel={byLevel}
+            nodes={byParent}
             onEdit={applyEdit}
             parentKey={null}
             readOnly={readOnly}
           />
-        )}
-        {rowErrors.length ? (
-          <>
-            <p className="event-import__note">
-              {`${rowErrors.length} ${rowErrors.length === 1 ? 'line' : 'lines'} cannot be filed anywhere in this region:`}
-            </p>
-            <ul className="event-import__row-errors">
-              {rowErrors.map(({ line, message }) => (
-                <li key={line}>{`Line ${line} — ${message}`}</li>
-              ))}
-            </ul>
-          </>
-        ) : null}
-      </div>
-    </div>
+        </>
+      )}
+      {tally?.rowErrors ? (
+        <>
+          <p className="event-import__note">
+            {`${tally.rowErrors} ${tally.rowErrors === 1 ? 'line' : 'lines'} cannot be filed anywhere in this region:`}
+          </p>
+          <ul className="event-import__row-errors">
+            {(value?.rowErrors ?? []).map(({ line, message }) => (
+              <li key={line}>{`Line ${line} — ${message}`}</li>
+            ))}
+          </ul>
+        </>
+      ) : null}
+    </FieldShell>
   )
 }
 
 interface TreeLevelProps {
   readonly nodes: Map<null | string, ProposedNode[]>
   readonly parentKey: null | string
-  readonly mappable: readonly ExistingRegion[]
+  readonly byLevel: MappableByLevel
   readonly readOnly: boolean
   readonly onEdit: (edit: TreeEdit) => void
 }
 
 /** One level of the proposed tree, nested so the hierarchy reads without styling. */
-const TreeLevel = ({ mappable, nodes, onEdit, parentKey, readOnly }: TreeLevelProps) => {
+const TreeLevel = ({ byLevel, nodes, onEdit, parentKey, readOnly }: TreeLevelProps) => {
   const level = nodes.get(parentKey) ?? []
   if (!level.length) return null
 
@@ -135,9 +148,9 @@ const TreeLevel = ({ mappable, nodes, onEdit, parentKey, readOnly }: TreeLevelPr
     <ul className="event-import__tree">
       {level.map((node) => (
         <li key={node.key}>
-          <TreeNode mappable={mappable} node={node} onEdit={onEdit} readOnly={readOnly} />
+          <TreeNode byLevel={byLevel} node={node} onEdit={onEdit} readOnly={readOnly} />
           <TreeLevel
-            mappable={mappable}
+            byLevel={byLevel}
             nodes={nodes}
             onEdit={onEdit}
             parentKey={node.key}
@@ -151,17 +164,20 @@ const TreeLevel = ({ mappable, nodes, onEdit, parentKey, readOnly }: TreeLevelPr
 
 interface TreeNodeProps {
   readonly node: ProposedNode
-  readonly mappable: readonly ExistingRegion[]
+  readonly byLevel: MappableByLevel
   readonly readOnly: boolean
   readonly onEdit: (edit: TreeEdit) => void
 }
 
 /** One proposed region, with the edits it accepts where it accepts them. */
-const TreeNode = ({ mappable, node, onEdit, readOnly }: TreeNodeProps) => {
+const TreeNode = ({ byLevel, node, onEdit, readOnly }: TreeNodeProps) => {
   const [draft, setDraft] = useState(node.name)
   const [target, setTarget] = useState('')
-  const candidates = mappableFor(mappable, node)
   const merged = mergedNote(node)
+  const editable = isEditableNode(node) && !readOnly
+  // Only the node's own level: a city mapped onto a state is a refusal the
+  // reviewer was invited to make.
+  const candidates = editable ? (byLevel.get(node.level) ?? []) : []
 
   return (
     <div className="event-import__node">
@@ -182,7 +198,7 @@ const TreeNode = ({ mappable, node, onEdit, readOnly }: TreeNodeProps) => {
         </Button>
       ) : null}
 
-      {isEditableNode(node) && !readOnly ? (
+      {editable ? (
         <div className="event-import__node-edit">
           <TextInput
             label={`Rename ${node.name}`}
@@ -202,16 +218,23 @@ const TreeNode = ({ mappable, node, onEdit, readOnly }: TreeNodeProps) => {
           </Button>
 
           {candidates.length ? (
-            <label className="event-import__map">
-              {`Or use a region already in the Atlas for ${node.name}`}
-              <select onChange={(event) => setTarget(event.target.value)} value={target}>
-                <option value="">Choose a region…</option>
-                {candidates.map((region) => (
-                  <option key={region.id} value={region.id}>
-                    {region.name ?? region.slug}
-                  </option>
-                ))}
-              </select>
+            <div className="event-import__map">
+              <SelectInput
+                label={`Or use a region already in the Atlas for ${node.name}`}
+                name={`map-${node.key}`}
+                onChange={(option) => {
+                  const chosen = Array.isArray(option) ? option[0] : option
+                  setTarget(chosen?.value ? String(chosen.value) : '')
+                }}
+                options={candidates.map((region) => ({
+                  // `Regions.name` is optional and `slug` is required, so the
+                  // slug is what names a region nobody titled.
+                  label: region.name ?? region.slug ?? String(region.id),
+                  value: String(region.id),
+                }))}
+                path={`map-${node.key}`}
+                value={target}
+              />
               <Button
                 buttonStyle="secondary"
                 disabled={!target}
@@ -223,13 +246,10 @@ const TreeNode = ({ mappable, node, onEdit, readOnly }: TreeNodeProps) => {
               >
                 Use it
               </Button>
-            </label>
+            </div>
           ) : null}
         </div>
       ) : null}
     </div>
   )
 }
-
-/** What the server wrapper reads off the field it renders this for. */
-export type RegionTreeClientField = ClientFieldWithOptionalType & { label?: StaticLabel }

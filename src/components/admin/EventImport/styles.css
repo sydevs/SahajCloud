@@ -16,9 +16,7 @@
   margin: calc(var(--base) * 0.25) 0 0;
 }
 
-.event-import__report,
-.event-import__rows,
-.event-import__tree-wrap {
+.event-import__stack {
   display: flex;
   flex-direction: column;
   gap: calc(var(--base) * 0.5);

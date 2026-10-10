@@ -215,6 +215,18 @@ export const IMPORT_COLUMNS: readonly ColumnSpec[] = [
   },
 ] as const
 
+/**
+ * ⚠ Excel opens a CSV without a byte-order mark in the system's legacy code
+ * page, so every accent reads as mojibake — and is saved back that way. Both
+ * files this feature writes lead with it: the template a volunteer downloads,
+ * and the skipped lines they download to fix.
+ *
+ * Here rather than beside either writer: `csv/template.ts` imports
+ * `csv-stringify/sync` (node) and `csv/skippedCsv.ts` the browser build, so
+ * neither may import the other.
+ */
+export const UTF8_BOM = '﻿'
+
 /** A parsed row, before any value has been interpreted. */
 export type RawImportRow = Record<string, string>
 

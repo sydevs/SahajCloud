@@ -13,7 +13,7 @@
 
 import { stringify } from 'csv-stringify/browser/esm/sync'
 
-import { IMPORT_COLUMNS } from './columns'
+import { IMPORT_COLUMNS, UTF8_BOM } from './columns'
 
 /** What one skipped line carries in a commit report. */
 export interface SkippedRowForCsv {
@@ -24,13 +24,6 @@ export interface SkippedRowForCsv {
 
 /** The column the reasons travel in, prefixed so a re-upload ignores it. */
 export const SKIPPED_REASON_COLUMN = '#error'
-
-/**
- * ⚠ Excel opens a CSV without a byte-order mark in the system's legacy code
- * page, so every accent in a volunteer's own data comes back mangled — and is
- * saved back that way. The same reason `template.ts` writes one.
- */
-const UTF8_BOM = '\uFEFF'
 
 export function skippedRowsCsv(rows: readonly SkippedRowForCsv[]): string {
   const columns = IMPORT_COLUMNS.map((column) => column.name)
