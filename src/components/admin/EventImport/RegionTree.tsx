@@ -184,7 +184,8 @@ const TreeNode = ({ byLevel, node, onEdit, readOnly }: TreeNodeProps) => {
       <span>
         <strong>{node.name}</strong>
         {` — ${node.level}, ${nodeCountNote(node)}, ${nodeMatchNote(node)}`}
-        {node.slug ? ` (${node.slug})` : ''}
+        {/* No slug here: the one this browser derived is a guess the commit may
+            re-slug, and the reviewer cannot control it — see `takenSlugsFor`. */}
       </span>
       {merged ? <span className="event-import__merged">{merged}</span> : null}
 
