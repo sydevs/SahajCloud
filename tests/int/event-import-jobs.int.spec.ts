@@ -379,6 +379,71 @@ describe('event import jobs', () => {
       expect(updated.status).toBe('resolving')
     })
 
+    /**
+     * ⚠ **`parseUpload` asks for `resolving`, so a file uploaded onto a batch
+     * already resolving is no transition at all.** The table would wave it
+     * through, `enqueueImportJobs` would queue nothing (it keys on entering a
+     * status), and the job already running would write its own stale rows over
+     * the corrected ones — the file silently discarded.
+     */
+    it('refuses a new file while a job holds the batch', async () => {
+      const batch = await createBatch([classLine({ title: 'Mid-flight' })])
+
+      expect(
+        await refusal(
+          payload.update({
+            collection: 'event-imports',
+            id: batch.id,
+            data: {},
+            file: file(csvWith([classLine({ title: 'Too soon' })]), 'too-soon.csv'),
+            user: admin,
+            overrideAccess: false,
+          }),
+          'file',
+        ),
+      ).toMatch(/cannot take a new file/)
+    })
+
+    /**
+     * ⚠ **The only way out of a batch whose worker was killed.** Payload claims a
+     * job row with `processing: true` and never resets it, so a deploy mid-run
+     * leaves the batch `resolving` with no job to finish it — and without this
+     * there would be no discard, no retry and no re-upload either.
+     */
+    it('lets a stuck batch be discarded, and the job then stands down', async () => {
+      const batch = await createBatch([classLine({ title: 'Abandoned' })])
+
+      await payload.update({
+        collection: 'event-imports',
+        id: batch.id,
+        data: { status: 'discarded' },
+        user: admin,
+        overrideAccess: false,
+      })
+      expect((await read(batch.id)).status).toBe('discarded')
+
+      // The job that was still in flight must not un-discard it.
+      expect(await resolve(batch.id)).toMatchObject({ status: 'discarded' })
+      expect((await read(batch.id)).status).toBe('discarded')
+    })
+
+    it('refuses clearing the proposed tree rather than crashing on it', async () => {
+      const id = await reviewed([classLine({ title: 'Tree holder' })])
+
+      expect(
+        await refusal(
+          payload.update({
+            collection: 'event-imports',
+            id,
+            data: { proposedRegions: null } as never,
+            user: admin,
+            overrideAccess: false,
+          }),
+          'proposedRegions',
+        ),
+      ).toMatch(/cannot be cleared/)
+    })
+
     it('refuses a commit while a row is still pending', async () => {
       // A batch nobody resolved has every row pending, which is the state the
       // Commit button must not be able to pass.
@@ -585,7 +650,11 @@ describe('event import jobs', () => {
 
       const live = await createBatch([classLine({ title: 'Live' })], 'live.csv')
 
-      expect(await runTaskHandler(SweepEventImports, { payload })).toMatchObject({ deleted: 1 })
+      // Counted as "at least", not "exactly": earlier cases in this file leave
+      // discarded batches of their own, and pinning the total would make this
+      // case fail whenever one of them is added.
+      const { deleted } = await runTaskHandler(SweepEventImports, { payload })
+      expect(deleted).toBeGreaterThanOrEqual(1)
 
       await expect(read(discarded.id)).rejects.toThrow()
       expect((await read(live.id)).id).toBe(live.id)

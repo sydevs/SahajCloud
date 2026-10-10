@@ -90,10 +90,17 @@ export function refuseRowEdits(
     return 'The rows of an import cannot be added to or removed — upload a corrected file instead.'
   }
 
+  // ⚠ **Matching the count is not matching the set.** Submitting line 2 twice
+  // against stored lines 2 and 3 passes every per-row check below while line 3
+  // leaves the document — a class dropped from the import, absent from the
+  // report and from the email, with nothing saying it was ever there.
   const byLine = new Map(stored.map((row) => [row.line, row]))
+  const seen = new Set<number>()
   for (const row of submitted) {
     const before = byLine.get(row.line)
     if (!before) return `This import has no line ${row.line}.`
+    if (seen.has(row.line)) return `Line ${row.line} appears twice.`
+    seen.add(row.line)
     for (const change of diff(before, row)) {
       if (!isRowDecision(change.path)) {
         return `Line ${row.line}: only the skip-or-import choice on a duplicate can be changed here.`

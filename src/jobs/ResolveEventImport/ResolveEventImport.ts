@@ -7,6 +7,7 @@ import {
   failBatchWhenSpent,
   jobWriteReq,
   recordBatchFailure,
+  stillHolding,
 } from '@/collections/EventImports/jobContext'
 import type { ProposableTargetLevel } from '@/collections/EventImports/propose/tree'
 import {
@@ -98,6 +99,7 @@ export const ResolveEventImport: TaskConfig<'resolveEventImport'> = {
     const { target, level } = loaded
 
     const rows = (batch.rows ?? []) as ImportRow[]
+    let tree: Awaited<ReturnType<typeof proposeTree>>
     try {
       await geocodePendingRows({
         req,
@@ -109,19 +111,38 @@ export const ResolveEventImport: TaskConfig<'resolveEventImport'> = {
         progressEvery: PROGRESS_EVERY_ROWS,
         todayIn,
       })
+      await markDuplicates({ req, targetId: target.target.id, rows })
+      tree = await proposeTree({ req, rows, target, level })
     } catch (error) {
-      if (!(error instanceof GeocoderDown)) throw error
-      // Written before the throw so the message survives the retry, and the
-      // rows that did resolve are not geocoded a second time.
-      await writeRows(req, batchId, rows, { note: 'Waiting for the address lookup service' })
-      await recordBatchFailure({ req, batchId, error: error.message, final: false })
+      // ⚠ **Every fault stores a message, not only the geocoder's.** `onFail`
+      // moves the batch to `failed` once the attempts are spent and carries no
+      // error of its own, so anything that skips this leaves a volunteer a
+      // failed batch with nothing saying why — the one state `jobContext.ts`
+      // exists to prevent.
+      const down = error instanceof GeocoderDown
+      // The rows go back first, so the ones that did resolve are not geocoded
+      // again on the retry.
+      await writeRows(req, batchId, rows, {
+        note: down ? 'Waiting for the address lookup service' : 'Interrupted — trying again',
+      })
+      await recordBatchFailure({
+        req,
+        batchId,
+        error: down
+          ? error.message
+          : 'This import stopped while working out its addresses. It will try again.',
+        final: false,
+      })
       throw error
     }
 
-    await markDuplicates({ req, targetId: target.target.id, rows })
-
-    const tree = await proposeTree({ req, rows, target, level })
     const pending = rows.filter((row) => !row.resolved && !row.errors?.length).length
+
+    // A discard that landed while this ran wins: the geocoding is spent either
+    // way, and the batch is its owner's to give up on.
+    if (!(await stillHolding(req, batchId, 'resolving'))) {
+      return { output: { status: 'discarded', resolved: 0, pending } }
+    }
 
     await req.payload.update({
       collection: 'event-imports',

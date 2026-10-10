@@ -137,6 +137,16 @@ describe('refuseRowEdits', () => {
     expect(refuseRowEdits([row()], [row({ line: 99 })])).toMatch(/no line 99/)
   })
 
+  it('refuses one line sent twice, which drops another without saying so', () => {
+    // ⚠ The count matches and every submitted line exists, so each per-row
+    // check below passes while line 3 leaves the document — a class dropped
+    // from the import, absent from the report and from the email.
+    const stored = [row(), row({ line: 3 })]
+    expect(refuseRowEdits(stored, [copy(stored[0]!), copy(stored[0]!)])).toMatch(
+      /Line 2 appears twice/,
+    )
+  })
+
   it('matches rows by line, not by position', () => {
     const stored = [row(), row({ line: 3 })]
     const submitted = [copy(stored[1]!), copy(stored[0]!)]

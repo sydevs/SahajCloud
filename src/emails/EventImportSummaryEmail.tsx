@@ -73,7 +73,10 @@ export function EventImportSummaryEmail({
   unverifiedUrl,
 }: EventImportSummaryEmailProps) {
   const created = counts.verified + counts.unverified
-  const skipped = counts.duplicates + counts.errors
+  // ⚠ **Never summed.** A row can carry both a duplicate match and an error, so
+  // `duplicates + errors` over-counts the lines — the two counts are shown side
+  // by side, and `skipped.length` is what says how many lines there were.
+  const anySkipped = counts.duplicates > 0 || counts.errors > 0
   const shown = skippedLines.slice(0, MAX_LISTED_LINES)
 
   return (
@@ -93,7 +96,7 @@ export function EventImportSummaryEmail({
         <DetailRow label="Unverified">{counts.unverified}</DetailRow>
       </Section>
 
-      {skipped > 0 ? (
+      {anySkipped ? (
         <Section>
           <SectionHeading>Rows skipped</SectionHeading>
           {counts.duplicates > 0 ? (

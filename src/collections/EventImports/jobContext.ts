@@ -33,6 +33,32 @@ export function jobWriteReq(req: PayloadRequest): PayloadRequest {
 }
 
 /**
+ * Whether the batch is still in the status that queued this job.
+ *
+ * ⚠ **Asked again before the terminal write, not only at the job's start.**
+ * `discarded` is reachable from `resolving` and `committing`
+ * (`hooks/transitionStatus.ts`) — it is the only way out of a batch whose worker
+ * was killed — so a job that wrote `review` or `finished` without re-asking
+ * would silently un-discard a batch its owner had given up on.
+ */
+export async function stillHolding(
+  req: PayloadRequest,
+  batchId: number,
+  status: NonNullable<EventImport['status']>,
+): Promise<boolean> {
+  const batch = (await req.payload.findByID({
+    collection: 'event-imports',
+    id: batchId,
+    depth: 0,
+    overrideAccess: true,
+    disableErrors: true,
+    select: { status: true },
+    req,
+  })) as EventImport | null
+  return batch?.status === status
+}
+
+/**
  * Write a batch's `error`, and its `status` only when the job is giving up.
  *
  * ⚠ **The message is stored on every attempt; the status moves once.** Payload's

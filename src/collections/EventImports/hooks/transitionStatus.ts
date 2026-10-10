@@ -41,15 +41,25 @@ type ImportStatus = NonNullable<EventImport['status']>
 /**
  * Which statuses a caller may move a batch to, from each status.
  *
- * `resolving` and `committing` are absent as sources: a batch a job is working
- * is nobody's to move, and the job's own writes come through `context` instead.
- * `finished` and `discarded` are absent for the opposite reason — they are
- * terminal, and the sweep is what removes them.
+ * `finished` is absent as a source: it is the record of what happened, and the
+ * sweep is what removes it. So is `discarded`, for the same reason.
+ *
+ * ⚠ **`discarded` is reachable from a status a job holds, and that is the only
+ * way out of a stuck batch.** A worker killed mid-run — a deploy, an OOM —
+ * leaves its job row claimed, so nothing re-runs it and the batch would
+ * otherwise read `resolving` forever with no discard, no retry and no
+ * re-upload. The job's own terminal write re-reads the status first
+ * (`jobContext.ts`), so a discard that lands mid-run wins.
  */
 const ALLOWED: Partial<Record<ImportStatus, readonly ImportStatus[]>> = {
+  resolving: ['discarded'],
+  committing: ['discarded'],
   review: ['committing', 'resolving', 'discarded'],
   failed: ['committing', 'resolving', 'discarded'],
 }
+
+/** Where a corrected file may be uploaded: a batch no job is working. */
+const REUPLOADABLE: readonly ImportStatus[] = ['review', 'failed']
 
 export const transitionStatus: CollectionBeforeChangeHook = async ({
   data,
@@ -72,6 +82,15 @@ export const transitionStatus: CollectionBeforeChangeHook = async ({
   const batch = originalDoc as EventImport
   const from = batch.status
   const to = (data.status ?? from) as ImportStatus
+
+  // ⚠ **Checked against `from`, never against the move.** `parseUpload` asks for
+  // `resolving`, so a file uploaded onto a batch already resolving is no
+  // transition at all — the table below would wave it through, no job would be
+  // queued (`enqueueImportJobs` keys on entering a status), and the job already
+  // running would write its own stale rows over the corrected ones.
+  if (req.file && !REUPLOADABLE.includes(from)) {
+    throw refusal('file', `An import that is ${describe(from)} cannot take a new file.`)
+  }
 
   if (to !== from) {
     if (!(ALLOWED[from] ?? []).includes(to)) {
@@ -111,7 +130,13 @@ export const transitionStatus: CollectionBeforeChangeHook = async ({
     }
     const stored = batch.proposedRegions
     if (!stored) throw refusal('proposedRegions', 'This import has proposed no regions yet.')
-    const refused = refuseTreeEdits(stored, data.proposedRegions as EventImportProposedRegions)
+    // Clearing the tree is not an edit the review offers, and the comparison
+    // below would dereference the absent side rather than refuse it.
+    const submitted = data.proposedRegions as EventImportProposedRegions | null | undefined
+    if (!submitted?.nodes) {
+      throw refusal('proposedRegions', 'An import’s proposed regions cannot be cleared here.')
+    }
+    const refused = refuseTreeEdits(stored, submitted)
     if (refused) throw refusal('proposedRegions', refused)
   }
 

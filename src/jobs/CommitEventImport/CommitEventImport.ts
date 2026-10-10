@@ -17,6 +17,7 @@ import {
   failBatchWhenSpent,
   jobWriteReq,
   recordBatchFailure,
+  stillHolding,
 } from '@/collections/EventImports/jobContext'
 import { loadTarget, readSubtree } from '@/collections/EventImports/regionReads'
 import { revalidateAtlasSidebar } from '@/lib/atlasSidebar/cache'
@@ -166,6 +167,17 @@ export const CommitEventImport: TaskConfig<'commitEventImport'> = {
     if (tally.committed > 0) {
       await purgeCloudflareCache({ tags: ['events', 'regions'] }, { logger: req.payload.logger })
       revalidateAtlasSidebar()
+    }
+
+    // A discard that landed while this ran wins. The classes it created stand —
+    // they carry their `importKey` and their provenance entry — but the batch is
+    // its owner's to give up on, and reporting it as finished would hand them
+    // back a record they had already dismissed.
+    if (!(await stillHolding(req, batchId, 'committing'))) {
+      await writeRows(req, batchId, rows)
+      return {
+        output: { status: 'discarded', committed: tally.committed, skipped: report.skipped.length },
+      }
     }
 
     await req.payload.update({
