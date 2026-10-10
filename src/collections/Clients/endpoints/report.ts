@@ -23,11 +23,12 @@ import {
 /**
  * Merge one mount into `embed_metadata` as a single atomic statement.
  *
- * **Not `payload.update`.** The usage plugin increments `usage_daily_requests` on this very row, on
- * its own connection, for this very request — while `payload.update` would hold the row inside the
- * request's transaction. The two block on each other and the request never returns; both sides were
- * observed waiting on `Lock: transactionid` in `pg_stat_activity`. A single autocommit statement has
- * no transaction to overlap with.
+ * **Not `payload.update`.** Concurrent requests under the same client key increment
+ * `usage_daily_requests` on this very row from the pool, outside any transaction — a widget boot's
+ * metered reads are in flight on the same page load as this report. `payload.update` would hold the
+ * row inside this request's transaction while they are, so the two block on each other and the
+ * request never returns; both sides were observed waiting on `Lock: transactionid` in
+ * `pg_stat_activity`. A single autocommit statement has no transaction to overlap with.
  *
  * `||` also merges server-side, which closes the read-modify-write window: two mounts of one site
  * reporting at the same instant both land instead of one overwriting the other.

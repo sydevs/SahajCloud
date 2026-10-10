@@ -77,7 +77,7 @@ Admin-readonly JSON, keyed by **origin + pathname**, one record per mount (`mode
 
 **The body is `origin` + `pathname`, two fields.** A query string or fragment is refused, since the endpoint can only enforce "path alone" that way — except a WordPress permalink (`?p=<digits>`), where discarding it would collapse the whole site onto one mount with no way to name the operator's intended page.
 
-**The write is raw SQL, and has to be.** `payload.update` deadlocks here: the usage plugin increments `usage_daily_requests` on the caller's own row on its own connection, for the very request being served, while `payload.update` holds that row inside the request transaction — both then wait on `Lock: transactionid` forever. An autocommit `jsonb ||` merge has no transaction to overlap with.
+**The write is raw SQL, and has to be.** `payload.update` deadlocks here: a concurrent metered read under the same client key increments `usage_daily_requests` on that row from the pool, outside any transaction — a widget boot issues several on the same page load as this report — while `payload.update` holds the row inside the request transaction, and both then wait on `Lock: transactionid` forever. An autocommit `jsonb ||` merge has no transaction to overlap with. The other party is always another request: this one is unmetered, since `clients` is excluded from the plugin (below).
 
 ### `POST /api/clients/report`
 
