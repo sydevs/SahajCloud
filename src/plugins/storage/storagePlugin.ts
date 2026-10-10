@@ -66,6 +66,25 @@ const STORAGE_BACKENDS = {
 } as const
 
 /**
+ * Collections whose file is served through Payload's own gated route instead of
+ * the backend's public delivery URL.
+ *
+ * ⚠ **`disablePayloadAccessControl: true` is right for media and wrong for a
+ * document.** It is what lets a browser fetch an image straight from
+ * `assets.sydevelopers.com`, cached a year — but it also means the only thing
+ * in front of the object is the 6 random characters in its filename. An
+ * `event-imports` CSV holds contact names, phone numbers and email addresses
+ * for every class in it, so publishing it that way would hand out exactly what
+ * naming the collection in `RESTRICTED_COLLECTIONS` exists to withhold.
+ *
+ * Listed here, the plugin points `url` at `/api/<slug>/file/<filename>` and
+ * Payload's `checkFileAccess` runs the collection's own `read` — including the
+ * `Where` the document-manager grant returns, applied as a document constraint.
+ * The object still lives in R2; only its delivery changes.
+ */
+const PAYLOAD_SERVED_COLLECTIONS: ReadonlySet<string> = new Set(['event-imports'])
+
+/**
  * ⚠ The plugin stores an `_objectKey` column on every collection it manages
  * (3.90+) — but only when enabled, and it is disabled wherever the Cloudflare
  * credentials are absent: local dev, the test suite, and `migrate:create`. So
@@ -221,7 +240,7 @@ export const storagePlugin = (options: StoragePluginOptions = {}): Plugin => {
           {
             adapter: adapters[backend],
             disableLocalStorage: true,
-            disablePayloadAccessControl: true,
+            disablePayloadAccessControl: !PAYLOAD_SERVED_COLLECTIONS.has(slug),
           },
         ]),
       ),

@@ -21,8 +21,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { buildImportTemplate } from '@/collections/EventImports/csv/template'
 import { getDocManagerFields } from '@/plugins/access/documentManagers'
 
+import { createAnonRestClient, createRestClientAs } from '../utils/restRequest'
 import { createData, testData } from '../utils/testData'
-import { createTestEnvironment } from '../utils/testHelpers'
+import { createTestEnvironment, idOnlySelect } from '../utils/testHelpers'
 
 /** A CSV with one usable class per line, keyed off the real template's header. */
 function csvWith(lines: readonly string[]): Buffer {
@@ -66,6 +67,7 @@ const file = (data: Buffer, name = 'classes.csv') => ({
 
 describe('event-imports', () => {
   let payload: Payload
+  let config: Awaited<ReturnType<typeof createTestEnvironment>>['config']
   let cleanup: () => Promise<void>
   let country: number
   /**
@@ -78,6 +80,7 @@ describe('event-imports', () => {
   beforeAll(async () => {
     const env = await createTestEnvironment()
     payload = env.payload
+    config = env.config
     cleanup = env.cleanup
 
     admin = await testData.createManager(payload, { name: 'Import Admin', type: 'admin' })
@@ -208,6 +211,46 @@ describe('event-imports', () => {
       expect(getDocManagerFields(payload, 'event-imports').managerField).toBe('manager')
     })
 
+    /**
+     * ⚠ **Read back through `overrideAccess: false`, never asserted from
+     * `hasPermission`.** `docs/rules/access.md` records two leaks of exactly
+     * this shape (#821, #822) and says a `hasPermission` assertion would have
+     * passed while both holes were open. The widget's browser key is a
+     * published `sahaj-atlas-client`, so this is the caller that matters.
+     */
+    it('refuses a published API client, which is what RESTRICTED_COLLECTIONS is for', async () => {
+      const owner = await testData.createManager(payload, {
+        name: 'Client Test Owner',
+        roles: ['atlas-manager'],
+      })
+      await payload.update({ collection: 'regions', id: country, data: { managers: [owner.id] } })
+      await createBatch({}, csvWith([classLine('Not for a key')]), owner)
+
+      const clientDoc = await testData.createClient(payload, owner.id, {
+        name: 'Atlas Widget Key',
+        roles: ['sahaj-atlas-client'],
+      })
+      const asClient = {
+        id: clientDoc.id,
+        collection: 'clients',
+        _status: 'published',
+        roles: ['sahaj-atlas-client'],
+      }
+
+      await expect(
+        payload.find({
+          collection: 'event-imports',
+          user: asClient as never,
+          overrideAccess: false,
+          depth: 0,
+          // The client query gate refuses a read with no `select` before access
+          // control runs, so without this the case would pass for the wrong
+          // reason and say nothing about who may read the collection.
+          select: idOnlySelect(),
+        }),
+      ).rejects.toThrow(/not allowed/)
+    })
+
     it('lists the uploader’s own batch', async () => {
       const mine = await testData.createManager(payload, {
         name: 'Mine',
@@ -290,6 +333,45 @@ describe('event-imports', () => {
       // this reads the row back instead of expecting a rejection.
       expect(updated.manager).toBe(owner.id)
       expect(updated.targetRegion).toBe(country)
+    })
+  })
+
+  /**
+   * What Payload's own file route does with this collection's `read`.
+   *
+   * ⚠ **This does NOT cover `disablePayloadAccessControl`, and cannot.**
+   * `storagePlugin` returns before `cloudStoragePlugin` whenever a Cloudflare
+   * credential is missing — every local run and every CI run — so the flag is
+   * never applied here and Payload serves the file either way. Emptying
+   * `PAYLOAD_SERVED_COLLECTIONS` leaves this green; it is
+   * `tests/unit/storage-payload-served.spec.ts` that goes red, which is why
+   * that spec reads the module's own table.
+   *
+   * What this buys is the other half, and no pure test can state it:
+   * `checkFileAccess` applies the `Where` the document-manager grant returns as
+   * a constraint on the document behind the filename — so the batch's own
+   * `manager` decides who may fetch the CSV, not merely who may read the row.
+   *
+   * Asserted over REST, because the gate lives in the route and the local API
+   * never reaches it.
+   */
+  describe('the uploaded file', () => {
+    it('is refused to an anonymous caller and to a manager who does not hold the batch', async () => {
+      const [holder, outsider] = await Promise.all([
+        testData.createManager(payload, { name: 'File Holder', roles: ['atlas-manager'] }),
+        testData.createManager(payload, { name: 'File Outsider', roles: ['atlas-manager'] }),
+      ])
+      await payload.update({ collection: 'regions', id: country, data: { managers: [holder.id] } })
+      const batch = await createBatch({}, csvWith([classLine('Private contacts')]), holder)
+      const path = `/api/event-imports/file/${batch.filename}`
+
+      const anon = createAnonRestClient({ payload, config })
+      const asOutsider = await createRestClientAs({ payload, config }, outsider)
+      const asHolder = await createRestClientAs({ payload, config }, holder)
+
+      expect((await anon(path)).status).toBe(403)
+      expect((await asOutsider(path)).status).toBe(403)
+      expect((await asHolder(path)).status).toBe(200)
     })
   })
 })
