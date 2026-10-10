@@ -19,6 +19,55 @@ const PAGINATION_LIMIT = 1000
  */
 const ORIENTATION_TAG_TITLES = ['landscape', 'portrait', 'square']
 
+/**
+ * How long an item stays recoverable in the media trash before Phase A may
+ * delete it for good.
+ *
+ * ⚠ Phase A had no age check at all, which is why this job sat off every
+ * automatic queue (#878): a run could permanently delete an item an editor had
+ * hand-trashed minutes earlier.
+ *
+ * ⚠ It must outlast the longest month, not match the cadence. Runs fall 28 to
+ * 31 days apart, so at 30 days a run after any 31-day month found the previous
+ * run's trash already past the cutoff and deleted it one run later — 7 runs in
+ * 12. At 45, what one run trashes survives the next with two weeks to spare and
+ * goes at the run after, 59 or more days on.
+ */
+const TRASH_RETENTION_DAYS = 45
+
+/** The newest `deletedAt` Phase A may permanently delete. */
+export function trashDeletionCutoff(now: Date = new Date()): Date {
+  const cutoff = new Date(now)
+  cutoff.setDate(cutoff.getDate() - TRASH_RETENTION_DAYS)
+  return cutoff
+}
+
+/** Uploads younger than this are never judged orphans: they may not be linked yet. */
+const GRACE_PERIOD_HOURS = 24
+
+/**
+ * How far back Phase B looks for orphans by `createdAt`.
+ *
+ * ⚠ Every run scans the whole span. It used to scan one of three one-month
+ * bands — 0-1, 1-2 or 2-3 months old — picked by `month % 3`. The band and the
+ * clock both advance a month per run, so they cancelled out: all three runs of a
+ * quarter scanned the same calendar month (December, March, June, September),
+ * and uploads from the other eight months were never scanned at all. The whole
+ * span gives every upload the three checks the bands meant to, at 0-1, 1-2 and
+ * 2-3 months old, and a missed run loses nothing because the next one overlaps
+ * it.
+ */
+const SCAN_WINDOW_MONTHS = 3
+
+/** The `createdAt` span Phase B scans when the caller gives none. */
+export function orphanScanWindow(now: Date = new Date()): { rangeStart: Date; rangeEnd: Date } {
+  const rangeStart = new Date(now)
+  rangeStart.setMonth(rangeStart.getMonth() - SCAN_WINDOW_MONTHS)
+  const rangeEnd = new Date(now)
+  rangeEnd.setHours(rangeEnd.getHours() - GRACE_PERIOD_HOURS)
+  return { rangeStart, rangeEnd }
+}
+
 type CleanupResult = {
   permanentlyDeletedFiles: number
   permanentlyDeletedImages: number
@@ -32,8 +81,12 @@ type CleanupResult = {
  * Cleanup job for orphaned media files.
  *
  * Two-phase cleanup:
- * - Phase A: Permanently delete items already in trash (deletedAt exists)
+ * - Phase A: Permanently delete items trashed longer ago than
+ *   TRASH_RETENTION_DAYS
  * - Phase B: Move newly detected orphans to trash (soft delete)
+ *
+ * `dryRun` counts both phases without writing anything. It is how a run is
+ * reviewed against real data before the next scheduled one acts on it.
  *
  * Orphan detection:
  * - Files: Any file not referenced by any document in any collection
@@ -49,10 +102,10 @@ export const CleanupOrphanedMedia: TaskConfig<'cleanupOrphanedMedia'> = {
   label: 'Cleanup Orphaned Media',
   slug: 'cleanupOrphanedMedia',
   inputSchema: [
-    // The cleanup span, normally derived from the month (see the handler).
-    // Both together override it; either alone is ignored. Only the integration
-    // spec passes them — a run with a hand-picked span is a run that skips the
-    // rotation, so there is no reason to offer one half of it in the admin.
+    // The cleanup span, normally `orphanScanWindow()`. Both together override
+    // it; either alone is ignored. Only the integration spec passes them — a
+    // run with a hand-picked span is a run that skips the uploads outside it,
+    // so there is no reason to offer one half of it in the admin.
     // `inputSchema` types the input and nothing validates it at runtime, which
     // is why the handler tests both before it trusts either.
     { name: 'rangeStart', type: 'date', required: false },
@@ -62,6 +115,7 @@ export const CleanupOrphanedMedia: TaskConfig<'cleanupOrphanedMedia'> = {
       type: 'number',
       required: false,
     },
+    { name: 'dryRun', type: 'checkbox', required: false },
   ],
   outputSchema: [
     {
@@ -94,56 +148,39 @@ export const CleanupOrphanedMedia: TaskConfig<'cleanupOrphanedMedia'> = {
       type: 'number',
       required: true,
     },
+    // Without this a reader of a job row cannot tell whether the counts above
+    // were performed or only counted.
+    { name: 'dryRun', type: 'checkbox', required: true },
   ],
   schedule: [
     {
-      cron: '0 0 1 * *', // First day of every month at midnight
+      cron: '0 0 1 * *', // 1st of month at 00:00 UTC
       queue: 'monthly',
     },
   ],
   handler: async ({ req, input }) => {
     const maxOperations = typeof input?.maxOperations === 'number' ? input.maxOperations : 500
-    const gracePeriodHours = 24
+    const dryRun = input?.dryRun === true
+    const trashCutoff = trashDeletionCutoff()
 
-    let rangeStart: Date
-    let rangeEnd: Date
-    let rangeLabel: string
-
-    // A caller-supplied span overrides the rotation. Both halves are required
-    // together: one alone would silently pair a chosen bound with a rotated
-    // one, which is a third range nobody asked for.
-    if (input?.rangeStart && input?.rangeEnd) {
-      rangeStart = new Date(input.rangeStart)
-      rangeEnd = new Date(input.rangeEnd)
-      rangeLabel = 'explicit-range'
-    } else {
-      // Determine date range based on current month (rotates through 3 ranges)
-      const currentMonth = new Date().getMonth() // 0-11
-      const rangeIndex = currentMonth % 3 // 0, 1, or 2
-      const rangeEndMonthsAgo = rangeIndex
-      const rangeStartMonthsAgo = rangeIndex + 1
-
-      // Calculate range end (with grace period)
-      rangeEnd = new Date()
-      rangeEnd.setMonth(rangeEnd.getMonth() - rangeEndMonthsAgo)
-      rangeEnd.setHours(rangeEnd.getHours() - gracePeriodHours)
-
-      // Calculate range start
-      rangeStart = new Date()
-      rangeStart.setMonth(rangeStart.getMonth() - rangeStartMonthsAgo)
-
-      // Human-readable labels for logging
-      const rangeLabels = ['0-1mo', '1-2mo', '2-3mo']
-      rangeLabel = rangeLabels[rangeIndex]
-    }
+    // A caller-supplied span overrides the default window. Both halves are
+    // required together: one alone would silently pair a chosen bound with a
+    // derived one, which is a third range nobody asked for.
+    const explicitRange =
+      input?.rangeStart && input?.rangeEnd
+        ? { rangeStart: new Date(input.rangeStart), rangeEnd: new Date(input.rangeEnd) }
+        : undefined
+    const { rangeStart, rangeEnd } = explicitRange ?? orphanScanWindow()
 
     req.payload.logger.info({
       msg: 'Starting orphaned media cleanup',
-      rangeLabel,
+      rangeLabel: explicitRange ? 'explicit-range' : `0-${SCAN_WINDOW_MONTHS}mo`,
       rangeStart: rangeStart.toISOString(),
       rangeEnd: rangeEnd.toISOString(),
       maxOperations,
-      gracePeriodHours,
+      gracePeriodHours: GRACE_PERIOD_HOURS,
+      trashCutoff: trashCutoff.toISOString(),
+      dryRun,
     })
 
     const result: CleanupResult = {
@@ -156,23 +193,24 @@ export const CleanupOrphanedMedia: TaskConfig<'cleanupOrphanedMedia'> = {
     }
 
     try {
-      // Phase A: Permanently delete items already in trash
-      await permanentlyDeleteTrashedItems(req, result, maxOperations)
+      // Phase A: Permanently delete items trashed before the retention cutoff
+      await permanentlyDeleteTrashedItems(req, result, maxOperations, trashCutoff, dryRun)
 
       // Phase B: Move newly detected orphans to trash
       const remainingOps = maxOperations - getTotalOperations(result)
       if (remainingOps > 0) {
-        await trashOrphanedMedia(req, result, remainingOps, rangeStart, rangeEnd)
+        await trashOrphanedMedia(req, result, remainingOps, rangeStart, rangeEnd, dryRun)
       }
 
       req.payload.logger.info({
         msg: 'Orphaned media cleanup completed',
         ...result,
         totalOperations: getTotalOperations(result),
+        dryRun,
       })
 
       return {
-        output: result,
+        output: { ...result, dryRun },
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error)
@@ -180,6 +218,7 @@ export const CleanupOrphanedMedia: TaskConfig<'cleanupOrphanedMedia'> = {
         msg: 'Error during orphaned media cleanup',
         error: errorMessage,
         ...result,
+        dryRun,
       })
       throw error
     }
@@ -205,6 +244,7 @@ function getTotalOperations(result: CleanupResult): number {
  * @param config.result - CleanupResult object to update counters
  * @param config.resultKey - Which counter to increment on success
  * @param config.maxItemsToProcess - Maximum number of items to process (for early exit optimization)
+ * @param config.dryRun - Count and log the operation without performing it
  */
 interface ProcessItemsConfig<
   T extends { id: number; filename?: string | null; createdAt?: string },
@@ -216,12 +256,13 @@ interface ProcessItemsConfig<
   result: CleanupResult
   resultKey: keyof CleanupResult
   maxItemsToProcess?: number
+  dryRun?: boolean
 }
 
 async function processItems<T extends { id: number; filename?: string | null; createdAt?: string }>(
   config: ProcessItemsConfig<T>,
 ): Promise<void> {
-  const { req, collection, docs, operation, result, resultKey, maxItemsToProcess } = config
+  const { req, collection, docs, operation, result, resultKey, maxItemsToProcess, dryRun } = config
   const itemType = collection === 'files' ? 'file' : 'image'
   const idKey = collection === 'files' ? 'fileId' : 'imageId'
 
@@ -235,35 +276,45 @@ async function processItems<T extends { id: number; filename?: string | null; cr
 
     try {
       if (operation === 'delete') {
-        // Permanent deletion: trash: true required so delete() can find trashed documents
-        await req.payload.delete({
-          collection,
-          id: doc.id,
-          trash: true,
-        })
+        if (!dryRun) {
+          // Permanent deletion: trash: true required so delete() can find trashed documents
+          await req.payload.delete({
+            collection,
+            id: doc.id,
+            trash: true,
+          })
+        }
         ;(result[resultKey] as number)++
         processedCount++
         req.payload.logger.info({
-          msg: `Permanently deleted trashed ${itemType}`,
+          msg: dryRun
+            ? `Would permanently delete trashed ${itemType}`
+            : `Permanently deleted trashed ${itemType}`,
           [idKey]: doc.id,
           filename: doc.filename,
+          dryRun: dryRun === true,
         })
       } else {
-        // Soft delete: set deletedAt to move to trash
-        await req.payload.update({
-          collection,
-          id: doc.id,
-          data: {
-            deletedAt: new Date().toISOString(),
-          },
-        })
+        if (!dryRun) {
+          // Soft delete: set deletedAt to move to trash
+          await req.payload.update({
+            collection,
+            id: doc.id,
+            data: {
+              deletedAt: new Date().toISOString(),
+            },
+          })
+        }
         ;(result[resultKey] as number)++
         processedCount++
         req.payload.logger.info({
-          msg: `Moved orphaned ${itemType} to trash`,
+          msg: dryRun
+            ? `Would move orphaned ${itemType} to trash`
+            : `Moved orphaned ${itemType} to trash`,
           [idKey]: doc.id,
           filename: doc.filename,
           createdAt: doc.createdAt,
+          dryRun: dryRun === true,
         })
       }
     } catch (error) {
@@ -279,21 +330,34 @@ async function processItems<T extends { id: number; filename?: string | null; cr
   }
 }
 
-/** Phase A: Permanently delete items that are already in trash (have deletedAt set) */
+/**
+ * Phase A: Permanently delete items trashed before the retention cutoff.
+ *
+ * ⚠ `exists: true` stays beside `less_than`. A null `deletedAt` compares false
+ * either way in SQL, but losing the existence term would make the age the only
+ * thing standing between a live document and a permanent delete.
+ */
 async function permanentlyDeleteTrashedItems(
   req: PayloadRequest,
   result: CleanupResult,
   maxOperations: number,
+  trashCutoff: Date,
+  dryRun: boolean,
 ): Promise<void> {
-  req.payload.logger.info({ msg: 'Phase A: Permanently deleting trashed items' })
+  req.payload.logger.info({
+    msg: 'Phase A: Permanently deleting trashed items',
+    trashCutoff: trashCutoff.toISOString(),
+  })
+
+  const expiredTrash = {
+    and: [{ deletedAt: { exists: true } }, { deletedAt: { less_than: trashCutoff.toISOString() } }],
+  }
 
   // Find trashed files for permanent deletion
   // Note: trash: true is required to include soft-deleted documents in query results
   const trashedFiles = await req.payload.find({
     collection: 'files',
-    where: {
-      deletedAt: { exists: true },
-    },
+    where: expiredTrash,
     limit: Math.floor(maxOperations / 2),
     depth: 0,
     trash: true,
@@ -306,6 +370,7 @@ async function permanentlyDeleteTrashedItems(
     operation: 'delete',
     result,
     resultKey: 'permanentlyDeletedFiles',
+    dryRun,
   })
 
   // Find trashed images for permanent deletion
@@ -313,9 +378,7 @@ async function permanentlyDeleteTrashedItems(
   const remainingOps = maxOperations - result.permanentlyDeletedFiles
   const trashedImages = await req.payload.find({
     collection: 'images',
-    where: {
-      deletedAt: { exists: true },
-    },
+    where: expiredTrash,
     limit: remainingOps,
     depth: 0,
     trash: true,
@@ -328,6 +391,7 @@ async function permanentlyDeleteTrashedItems(
     operation: 'delete',
     result,
     resultKey: 'permanentlyDeletedImages',
+    dryRun,
   })
 
   req.payload.logger.info({
@@ -353,6 +417,7 @@ async function trashOrphanedMedia(
   maxOperations: number,
   rangeStart: Date,
   rangeEnd: Date,
+  dryRun: boolean,
 ): Promise<void> {
   req.payload.logger.info({ msg: 'Phase B: Trashing orphaned media' })
 
@@ -403,6 +468,7 @@ async function trashOrphanedMedia(
     result,
     resultKey: 'trashedFiles',
     maxItemsToProcess: maxFilesToProcess,
+    dryRun,
   })
 
   // Paginate through images until we collect remaining orphans
@@ -467,6 +533,7 @@ async function trashOrphanedMedia(
     result,
     resultKey: 'trashedImages',
     maxItemsToProcess: maxImagesToProcess,
+    dryRun,
   })
 
   req.payload.logger.info({

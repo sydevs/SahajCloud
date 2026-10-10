@@ -1,0 +1,272 @@
+import type { Field } from 'payload'
+
+import { join, relative } from 'node:path'
+
+import { describe, expect, it } from 'vitest'
+
+import { tasks } from '@/jobs'
+import {
+  orphanScanWindow,
+  trashDeletionCutoff,
+} from '@/jobs/CleanupOrphanedMedia/CleanupOrphanedMedia'
+import { JOB_AUTO_RUN, UNSCHEDULED_QUEUES } from '@/jobs/queues'
+import {
+  INVITATIONS_CRON,
+  INVITATIONS_QUEUE,
+  sendInvitationsTask,
+} from '@/plugins/login/invitations'
+import type { LoginCollectionConfig } from '@/plugins/login/types'
+import { resetUsageTask } from '@/plugins/usage'
+
+import { sourceFiles, sourceOf, SRC } from '../utils/importGraph'
+
+/**
+ * Every queue a task schedules onto either runs unattended or says why it does
+ * not.
+ *
+ * ⚠ The failure this pins leaves no trace at all. A `schedule` enqueues nothing
+ * by itself: Payload calls `handleSchedules({ queue })` only from an `autoRun`
+ * cron for that same queue. So a schedule on a queue with no entry is simply
+ * never consulted — no error, no log line, no job row. `monthly` was in that
+ * state for about ten months, and #715 fixed a crash on a path that had never
+ * run (#878).
+ */
+
+/**
+ * Every task Payload ends up with a schedule for — `src/jobs/index.ts`'s own,
+ * plus the two a plugin appends to `jobs.tasks`.
+ *
+ * ⚠ The plugin pair is the half that matters here. `tasks` alone is what the
+ * first version of this spec read, which left the seam #878 came through
+ * unguarded: a plugin task scheduling onto a dead queue would have passed. The
+ * sweep below is what makes a third one impossible to forget.
+ */
+const SCHEDULED_TASKS: { schedule?: { queue?: string }[]; slug: string }[] = [
+  ...tasks,
+  resetUsageTask,
+  // The factory reads nothing off its argument to build `schedule`.
+  sendInvitationsTask({} as LoginCollectionConfig),
+]
+
+/** Queues driven by a plugin's own `autoRun` append rather than `JOB_AUTO_RUN`. */
+const PLUGIN_AUTO_RUN_QUEUES = [INVITATIONS_QUEUE]
+
+/** Every tick the loop runs, `JOB_AUTO_RUN`'s and the plugin's alike. */
+const ALL_CRONS = [
+  ...JOB_AUTO_RUN.map((entry) => [entry.queue ?? 'default', entry.cron] as const),
+  [INVITATIONS_QUEUE, INVITATIONS_CRON] as const,
+]
+
+/**
+ * Tick pairs that already shared a minute before `monthly` was armed, each
+ * losing one `lastScheduledRun` per overlap. A backlog, not an approval — it
+ * should only shrink. #878 staggered the entry it added and left these.
+ */
+const KNOWN_COLLISIONS = new Set([
+  'invitations + nightly',
+  'invitations + screening',
+  'nightly + screening',
+])
+
+/**
+ * The minutes a cron minute field fires on.
+ *
+ * ⚠ Comparing the field as text is what this replaces. A step field reads as
+ * one string while firing on twelve minutes, so `0`, `30` and the every-15th
+ * form compare as three distinct values though two of them collide at :30.
+ */
+function minutesOf(cron: string): Set<number> {
+  const minutes = new Set<number>()
+
+  for (const part of cron.split(' ')[0]!.split(',')) {
+    const [range, step] = part.split('/')
+    const every = step ? Number(step) : 1
+    const [lo, hi] =
+      range === '*'
+        ? [0, 59]
+        : range!.includes('-')
+          ? (range!.split('-').map(Number) as [number, number])
+          : [Number(range), Number(range)]
+
+    for (let minute = lo; minute <= hi; minute += every) minutes.add(minute)
+  }
+
+  return minutes
+}
+
+function autoRunQueues(): Set<string> {
+  return new Set([
+    ...JOB_AUTO_RUN.map((entry) => entry.queue ?? 'default'),
+    ...PLUGIN_AUTO_RUN_QUEUES,
+  ])
+}
+
+describe('Job schedules', () => {
+  it('runs or excuses every queue a task schedules onto', () => {
+    const driven = autoRunQueues()
+
+    const dead = SCHEDULED_TASKS.flatMap((task) =>
+      (task.schedule ?? []).map((entry) => [entry.queue ?? 'default', task.slug] as const),
+    )
+      .filter(([queue]) => !driven.has(queue) && !(queue in UNSCHEDULED_QUEUES))
+      .map(([queue, slug]) => `${queue} (${slug})`)
+
+    expect(dead).toEqual([])
+  })
+
+  /**
+   * An `allQueues` entry runs everything, which would make the assertion above
+   * pass for any queue at all. Payload also ignores `queue` when it is set, so
+   * the entry would be a silent override rather than an addition.
+   */
+  it('names a queue on every autoRun entry', () => {
+    for (const entry of JOB_AUTO_RUN) {
+      expect(entry.allQueues ?? false).toBe(false)
+      expect(entry.queue).toBeTruthy()
+    }
+  })
+
+  /**
+   * Excusing a queue that something ticks is worse than forgetting one: the
+   * reason would read as protection while the job runs anyway.
+   */
+  it('excuses no queue that an autoRun entry drives', () => {
+    for (const queue of Object.keys(UNSCHEDULED_QUEUES)) {
+      expect([...autoRunQueues()]).not.toContain(queue)
+    }
+  })
+
+  /**
+   * ⚠ Every tick rewrites the whole `payload-jobs-stats` global from the
+   * snapshot it read, so two queues ticking on the same minute lose one's
+   * `lastScheduledRun` to the other's write.
+   */
+  it('gives each queue its own minute', () => {
+    const collisions: string[] = []
+
+    for (const [queue, cron] of ALL_CRONS) {
+      for (const [otherQueue, otherCron] of ALL_CRONS) {
+        if (queue >= otherQueue) continue
+
+        const pair = `${queue} + ${otherQueue}`
+        if (KNOWN_COLLISIONS.has(pair)) continue
+
+        const shared = [...minutesOf(cron!)].filter((minute) => minutesOf(otherCron!).has(minute))
+        if (shared.length > 0) collisions.push(`${pair} at :${shared.join(', :')}`)
+      }
+    }
+
+    expect(collisions).toEqual([])
+  })
+
+  /**
+   * ⚠ This job permanently deletes. It ran on no queue at all for ten months,
+   * and what makes it safe to run unattended is Phase A's age threshold, not
+   * the queue — so both halves are pinned here. Moving it off a driven queue
+   * again, or dropping the threshold, has to be a deliberate edit.
+   */
+  describe('CleanupOrphanedMedia', () => {
+    const cleanup = tasks.find((task) => task.slug === 'cleanupOrphanedMedia')
+
+    it('runs unattended on a queue something ticks', () => {
+      const queues = cleanup?.schedule?.map((entry) => entry.queue ?? 'default') ?? []
+
+      expect(queues).toEqual(['monthly'])
+      for (const queue of queues) expect([...autoRunQueues()]).toContain(queue)
+    })
+
+    /**
+     * Every run for two years, so a leap February and every month length are
+     * in it: the 1st at 00:07 UTC, when the `monthly` tick at :07 runs the row
+     * the schedule queued for 00:00.
+     */
+    const runs = Array.from({ length: 25 }, (_, month) => new Date(Date.UTC(2027, month, 1, 0, 7)))
+    const day = (date: Date) => date.toISOString().slice(0, 10)
+
+    it('runs on the 1st of the month, which the cycle cases below assume', () => {
+      expect(cleanup?.schedule?.map((entry) => entry.cron)).toEqual(['0 0 1 * *'])
+    })
+
+    /**
+     * ⚠ A retention equal to the cadence passed a single-run check: 30 days is
+     * "at least 30 days". But runs fall 28 to 31 days apart, so after every
+     * 31-day month the previous run's trash was already past the cutoff.
+     */
+    it('keeps what a run trashes through the next run, and deletes it at the one after', () => {
+      const deletedEarly: string[] = []
+      const keptLate: string[] = []
+      for (const [i, trashedAt] of runs.slice(0, -2).entries()) {
+        // Phase A deletes a `deletedAt` strictly before the cutoff.
+        if (trashedAt < trashDeletionCutoff(runs[i + 1])) deletedEarly.push(day(runs[i + 1]))
+        if (trashedAt >= trashDeletionCutoff(runs[i + 2])) keptLate.push(day(runs[i + 2]))
+      }
+
+      expect(deletedEarly).toEqual([])
+      expect(keptLate).toEqual([])
+    })
+
+    /**
+     * ⚠ A single run cannot show this one either. The `month % 3` bands each
+     * scanned a plausible month, but all three runs of a quarter scanned the
+     * same one, and eight months of uploads in twelve were never scanned.
+     */
+    it('scans every day of uploads on some run', () => {
+      const windows = runs.map((run) => orphanScanWindow(run))
+      const unscanned: string[] = []
+      for (
+        let upload = new Date(Date.UTC(2027, 0, 1, 12));
+        upload < windows.at(-1)!.rangeEnd;
+        upload = new Date(upload.getTime() + 86_400_000)
+      ) {
+        const scanned = windows.some(
+          ({ rangeStart, rangeEnd }) => rangeStart <= upload && upload < rangeEnd,
+        )
+        if (!scanned) unscanned.push(day(upload))
+      }
+
+      expect(unscanned).toEqual([])
+    })
+
+    it('offers a dry run, so a window can be reviewed before it deletes', () => {
+      const names = (fields: Field[] | undefined) =>
+        (fields ?? []).map((field) => ('name' in field ? field.name : undefined))
+
+      expect(names(cleanup?.inputSchema)).toContain('dryRun')
+      expect(names(cleanup?.outputSchema)).toContain('dryRun')
+    })
+  })
+
+  /**
+   * The assertions above read `JOB_AUTO_RUN`, so they are worth nothing unless
+   * the config is what hands it to Payload. Checked as source text because
+   * importing `payload.config.ts` would build the whole config.
+   */
+  it('is the array the config passes to Payload', () => {
+    expect(sourceOf(join(SRC, 'payload.config.ts'))).toContain('autoRun: JOB_AUTO_RUN')
+  })
+
+  /**
+   * ⚠ `SCHEDULED_TASKS` is a hand-written list, so this is what makes an
+   * omission loud: a new `schedule:` anywhere under `src/` fails here until it
+   * is added above. Without it the spec silently stops covering the file.
+   */
+  it('scans every file under src/ that declares a schedule', () => {
+    const declaring = sourceFiles(SRC)
+      .filter((file) => sourceOf(file).includes('schedule: ['))
+      .map((file) => relative(SRC, file))
+      .sort()
+
+    expect(declaring).toEqual([
+      'jobs/CleanupOrphanedMedia/CleanupOrphanedMedia.ts',
+      'jobs/ExpireEvents/ExpireEvents.ts',
+      'jobs/PurgeSubmissions/PurgeSubmissions.ts',
+      'jobs/RegistrationNotifications/SendPostEventFollowUps.ts',
+      'jobs/RegistrationNotifications/SendRegistrationDigests.ts',
+      'jobs/RegistrationNotifications/SendSessionReminders.ts',
+      'jobs/SyncLectureMetadata/SyncLectureMetadata.ts',
+      'jobs/VerifyEmbeds/VerifyEmbeds.ts',
+      'plugins/login/invitations.ts',
+      'plugins/usage/tasks.ts',
+    ])
+  })
+})

@@ -49,6 +49,7 @@ interface CleanupResult {
   trashedImages: number
   skippedImages: number
   errors: number
+  dryRun: boolean
 }
 
 // --- Helper functions ---
@@ -77,7 +78,10 @@ async function backdateCreatedAt(
  * This date range includes files backdated to 48 hours ago but excludes files
  * created "now" (respecting the 24h grace period).
  */
-async function runCleanupJob(payload: Payload): Promise<CleanupResult> {
+async function runCleanupJob(
+  payload: Payload,
+  overrides: Record<string, unknown> = {},
+): Promise<CleanupResult> {
   const { CleanupOrphanedMedia } = await import('@/jobs/CleanupOrphanedMedia/CleanupOrphanedMedia')
 
   const mockReq = {
@@ -104,14 +108,32 @@ async function runCleanupJob(payload: Payload): Promise<CleanupResult> {
       rangeStart: rangeStart.toISOString(),
       rangeEnd: rangeEnd.toISOString(),
       maxOperations: 6,
+      ...overrides,
     },
   })
   return result.output
 }
 
 /**
- * Run cleanup job with default date range calculation (month-based rotation).
- * Used for tests that verify the date range rotation logic works correctly.
+ * Put a document in the trash long enough ago that Phase A may delete it.
+ *
+ * ⚠ Phase A only deletes trash older than TRASH_RETENTION_DAYS, so a fixture
+ * trashed at `new Date()` is never touched — which is the point, and also what
+ * made every Phase A case here pass before the threshold existed.
+ */
+async function trashLongAgo(
+  payload: Payload,
+  collection: 'files' | 'images',
+  id: number,
+): Promise<void> {
+  const longAgo = new Date()
+  longAgo.setDate(longAgo.getDate() - 60)
+  await payload.update({ collection, id, data: { deletedAt: longAgo.toISOString() } })
+}
+
+/**
+ * Run cleanup job with the default scan window (`orphanScanWindow()`).
+ * Used for tests that verify the window the scheduled run scans.
  */
 async function runCleanupJobWithDefaultRange(payload: Payload): Promise<CleanupResult> {
   const { CleanupOrphanedMedia } = await import('@/jobs/CleanupOrphanedMedia/CleanupOrphanedMedia')
@@ -204,11 +226,7 @@ describe('CleanupOrphanedMedia Job', () => {
       // Create a file and soft-delete it (move to trash)
       // Note: payload.delete() hard-deletes. Use update() to set deletedAt for soft delete
       const file = await testData.createFile(payload)
-      await payload.update({
-        collection: 'files',
-        id: file.id,
-        data: { deletedAt: new Date().toISOString() },
-      })
+      await trashLongAgo(payload, 'files', file.id)
 
       // Verify file is in trash
       expect(await fileInTrash(payload, file.id)).toBe(true)
@@ -233,11 +251,7 @@ describe('CleanupOrphanedMedia Job', () => {
       // Create an image and soft-delete it (move to trash)
       // Note: payload.delete() hard-deletes. Use update() to set deletedAt for soft delete
       const image = await testData.createMediaImage(payload)
-      await payload.update({
-        collection: 'images',
-        id: image.id,
-        data: { deletedAt: new Date().toISOString() },
-      })
+      await trashLongAgo(payload, 'images', image.id)
 
       // Verify image is in trash
       expect(await imageInTrash(payload, image.id)).toBe(true)
@@ -545,20 +559,11 @@ describe('CleanupOrphanedMedia Job', () => {
       // 1. Trashed file (will be permanently deleted)
       // Note: payload.delete() hard-deletes. Use update() to set deletedAt for soft delete
       const trashedFile = await testData.createFile(payload)
-      await payload.update({
-        collection: 'files',
-        id: trashedFile.id,
-        data: { deletedAt: new Date().toISOString() },
-      })
+      await trashLongAgo(payload, 'files', trashedFile.id)
 
       // 2. Trashed image (will be permanently deleted)
-      // Note: payload.delete() hard-deletes. Use update() to set deletedAt for soft delete
       const trashedImage = await testData.createMediaImage(payload)
-      await payload.update({
-        collection: 'images',
-        id: trashedImage.id,
-        data: { deletedAt: new Date().toISOString() },
-      })
+      await trashLongAgo(payload, 'images', trashedImage.id)
 
       // 3. Orphan file (will be trashed)
       const orphanFile = await testData.createFile(payload)
@@ -592,124 +597,77 @@ describe('CleanupOrphanedMedia Job', () => {
     })
   })
 
-  // --- Date range rotation ---
+  // --- Default scan window ---
 
-  describe('Date Range Rotation', () => {
-    it('processes 0-1 month range when month % 3 === 0', async () => {
-      // Mock date to January (month 0)
-      const mockDate = new Date('2025-01-15T12:00:00Z')
-      vi.setSystemTime(mockDate)
-
-      // Create files at different ages
-      // 2 weeks old (should be in 0-1 month range)
-      const file2weeksOld = await testData.createFile(payload)
-      const twoWeeksAgo = new Date(mockDate)
-      twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14)
-      await payload.update({
-        collection: 'files',
-        id: file2weeksOld.id,
-        data: { createdAt: twoWeeksAgo.toISOString() },
-      })
-
-      // 2 months old (should NOT be in 0-1 month range)
-      const file2moOld = await testData.createFile(payload)
-      const twoMonthsAgo = new Date(mockDate)
-      twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2)
-      await payload.update({
-        collection: 'files',
-        id: file2moOld.id,
-        data: { createdAt: twoMonthsAgo.toISOString() },
-      })
-
-      // Run cleanup job with default (month-based) date range
-      await runCleanupJobWithDefaultRange(payload)
-
-      // Verify: Only 0-1 month old file processed
-      expect(await fileInTrash(payload, file2weeksOld.id)).toBe(true)
-      expect(await fileInTrash(payload, file2moOld.id)).toBe(false)
-
-      // Restore real time
-      vi.useRealTimers()
-    })
-
-    it('processes 1-2 month range when month % 3 === 1', async () => {
-      // Mock date to February (month 1)
+  describe('Default Scan Window', () => {
+    /**
+     * ⚠ This was three cases, one per `month % 3` band, each a single run. They
+     * passed while every run of a quarter scanned the same calendar month and
+     * eight months of uploads in twelve were never scanned — one run cannot show
+     * that, so coverage across runs is pinned in `tests/unit/job-schedules.spec.ts`.
+     * This case pins the span of one run.
+     *
+     * It creates six files in the old cases' order, scanned and spared
+     * alternately, so no file id changes outcome (see "Phase A: Trash
+     * Retention" for why that matters here).
+     */
+    it('scans uploads from 24 hours to 3 months old', async () => {
       const mockDate = new Date('2025-02-15T12:00:00Z')
       vi.setSystemTime(mockDate)
 
-      // Create files at different ages
-      // 1.5 months old (should be in 1-2 month range)
-      const file1p5moOld = await testData.createFile(payload)
-      const onePointFiveMonthsAgo = new Date(mockDate)
-      onePointFiveMonthsAgo.setMonth(onePointFiveMonthsAgo.getMonth() - 1)
-      onePointFiveMonthsAgo.setDate(onePointFiveMonthsAgo.getDate() - 15)
-      await payload.update({
-        collection: 'files',
-        id: file1p5moOld.id,
-        data: { createdAt: onePointFiveMonthsAgo.toISOString() },
-      })
+      const createAged = async (age: (date: Date) => void): Promise<number> => {
+        const file = await testData.createFile(payload)
+        const createdAt = new Date(mockDate)
+        age(createdAt)
+        await payload.update({
+          collection: 'files',
+          id: file.id,
+          data: { createdAt: createdAt.toISOString() },
+        })
+        return file.id
+      }
 
-      // 2 weeks old (should NOT be in 1-2 month range)
-      const file2weeksOld = await testData.createFile(payload)
-      const twoWeeksAgo = new Date(mockDate)
-      twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14)
-      await payload.update({
-        collection: 'files',
-        id: file2weeksOld.id,
-        data: { createdAt: twoWeeksAgo.toISOString() },
-      })
+      const twoWeeksOld = await createAged((d) => d.setDate(d.getDate() - 14))
+      const twelveHoursOld = await createAged((d) => d.setHours(d.getHours() - 12))
+      const sixWeeksOld = await createAged((d) => d.setDate(d.getDate() - 45))
+      const hundredDaysOld = await createAged((d) => d.setDate(d.getDate() - 100))
+      const elevenWeeksOld = await createAged((d) => d.setDate(d.getDate() - 80))
+      const sixMonthsOld = await createAged((d) => d.setMonth(d.getMonth() - 6))
 
-      // Run cleanup job with default (month-based) date range
       await runCleanupJobWithDefaultRange(payload)
 
-      // Verify: Only 1-2 month old file processed
-      expect(await fileInTrash(payload, file1p5moOld.id)).toBe(true)
-      expect(await fileInTrash(payload, file2weeksOld.id)).toBe(false)
+      // Every age inside the span, where each band used to see only its own
+      expect(await fileInTrash(payload, twoWeeksOld)).toBe(true)
+      expect(await fileInTrash(payload, sixWeeksOld)).toBe(true)
+      expect(await fileInTrash(payload, elevenWeeksOld)).toBe(true)
+      // Inside the grace period, and past the span
+      expect(await fileInTrash(payload, twelveHoursOld)).toBe(false)
+      expect(await fileInTrash(payload, hundredDaysOld)).toBe(false)
+      expect(await fileInTrash(payload, sixMonthsOld)).toBe(false)
 
-      // Restore real time
       vi.useRealTimers()
+
+      // ⚠ Remove them. Trashed at the mocked date, the three read as long-expired
+      // trash to every later Phase A, and the 100-day file falls inside the next
+      // case's window — each spends a later run's shared operation budget, and
+      // the throughput case then has too few left to trash its own orphans.
+      const fixtures = [
+        twoWeeksOld,
+        twelveHoursOld,
+        sixWeeksOld,
+        hundredDaysOld,
+        elevenWeeksOld,
+        sixMonthsOld,
+      ]
+      for (const id of fixtures) await payload.delete({ collection: 'files', id, trash: true })
     })
 
-    it('processes 2-3 month range when month % 3 === 2', async () => {
-      // Mock date to March (month 2)
-      const mockDate = new Date('2025-03-15T12:00:00Z')
-      vi.setSystemTime(mockDate)
-
-      // Create files at different ages
-      // 2.5 months old (should be in 2-3 month range)
-      const file2p5moOld = await testData.createFile(payload)
-      const twoPointFiveMonthsAgo = new Date(mockDate)
-      twoPointFiveMonthsAgo.setMonth(twoPointFiveMonthsAgo.getMonth() - 2)
-      twoPointFiveMonthsAgo.setDate(twoPointFiveMonthsAgo.getDate() - 15)
-      await payload.update({
-        collection: 'files',
-        id: file2p5moOld.id,
-        data: { createdAt: twoPointFiveMonthsAgo.toISOString() },
-      })
-
-      // 1 month old (should NOT be in 2-3 month range)
-      const file1moOld = await testData.createFile(payload)
-      const oneMonthAgo = new Date(mockDate)
-      oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1)
-      await payload.update({
-        collection: 'files',
-        id: file1moOld.id,
-        data: { createdAt: oneMonthAgo.toISOString() },
-      })
-
-      // Run cleanup job with default (month-based) date range
-      await runCleanupJobWithDefaultRange(payload)
-
-      // Verify: Only 2-3 month old file processed
-      expect(await fileInTrash(payload, file2p5moOld.id)).toBe(true)
-      expect(await fileInTrash(payload, file1moOld.id)).toBe(false)
-
-      // Restore real time
-      vi.useRealTimers()
-    })
-
-    it('Phase A always processes trashed items regardless of age', async () => {
-      // Mock date to January (month 0, which processes 0-1 month range)
+    /**
+     * Phase A reads `deletedAt`, Phase B reads `createdAt`. Nothing outside the
+     * scan window is safe from Phase A because of the window.
+     */
+    it('deletes trash whose createdAt is outside every Phase B range', async () => {
+      // Mock date to January
       const mockDate = new Date('2025-01-15T12:00:00Z')
       vi.setSystemTime(mockDate)
 
@@ -717,12 +675,14 @@ describe('CleanupOrphanedMedia Job', () => {
       const trashedFile = await testData.createFile(payload)
       const sixMonthsAgo = new Date(mockDate)
       sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
+      const trashedLongAgo = new Date(mockDate)
+      trashedLongAgo.setDate(trashedLongAgo.getDate() - 60)
       await payload.update({
         collection: 'files',
         id: trashedFile.id,
         data: {
           createdAt: sixMonthsAgo.toISOString(),
-          deletedAt: new Date(mockDate).toISOString(),
+          deletedAt: trashedLongAgo.toISOString(),
         },
       })
 
@@ -815,6 +775,45 @@ describe('CleanupOrphanedMedia Job', () => {
         }
       }
       expect(trashedImages).toBeGreaterThanOrEqual(2)
+    })
+  })
+  /**
+   * ⚠ These cases go last on purpose. Each fixture here creates a `files` row,
+   * and `scanCollectionForLexicalReferences` collects upload ids from Lexical
+   * content without regard to the collection they belong to — so an image id
+   * counts as a referenced file id. Inserting a case earlier shifts the file
+   * ids of every case after it, and one then lands on an image id and is
+   * spared as "referenced". That aliasing is a defect in the job, not in the
+   * spec; appending keeps it from deciding whether the suite passes.
+   */
+  describe('Phase A: Trash Retention', () => {
+    /**
+     * ⚠ The defect that kept this job off every automatic queue (#878). Phase A
+     * queried `deletedAt: { exists: true }` with no age bound, so a run deleted
+     * an item an editor had hand-trashed minutes earlier, irrecoverably.
+     */
+    it('spares trash newer than the retention cutoff', async () => {
+      const file = await testData.createFile(payload)
+      await payload.update({
+        collection: 'files',
+        id: file.id,
+        data: { deletedAt: new Date().toISOString() },
+      })
+
+      await runCleanupJob(payload)
+
+      expect(await fileInTrash(payload, file.id)).toBe(true)
+    })
+
+    it('counts without deleting under dryRun', async () => {
+      const file = await testData.createFile(payload)
+      await trashLongAgo(payload, 'files', file.id)
+
+      const result = await runCleanupJob(payload, { dryRun: true })
+
+      expect(result.dryRun).toBe(true)
+      expect(result.permanentlyDeletedFiles).toBeGreaterThanOrEqual(1)
+      expect(await fileInTrash(payload, file.id)).toBe(true)
     })
   })
 })
