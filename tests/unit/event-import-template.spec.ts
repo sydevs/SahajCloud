@@ -6,12 +6,17 @@
  * refused.
  */
 
+import { readFileSync } from 'node:fs'
+
 import { Temporal } from '@js-temporal/polyfill'
 import { describe, expect, it } from 'vitest'
 
 import { parseImportCsv } from '@/collections/EventImports/csv/parse'
 import { mapCsvSchedule, scheduleArgsFor } from '@/collections/EventImports/csv/schedule'
 import { buildImportTemplate } from '@/collections/EventImports/csv/template'
+
+/** Where the admin panel's own link points. */
+const CHECKED_IN = 'public/event-import-template.csv'
 
 const parsed = () => {
   const result = parseImportCsv(buildImportTemplate())
@@ -53,5 +58,30 @@ describe('the import template parses as its own parser demands', () => {
       recurrenceType: 'WEEKLY',
       weekdays: ['TU'],
     })
+  })
+})
+
+/**
+ * The volunteer downloads a static file, not a generated one: the Import tab's
+ * description links `/event-import-template.csv`, which Next serves straight out
+ * of `public/`. So nothing but this case stands between a renamed column and a
+ * template the parser refuses — which is exactly the failure `columns.ts` was
+ * made one constant to prevent.
+ *
+ * ⚠ **No endpoint and no build step, deliberately.** An endpoint would have to
+ * be reachable anonymously (a volunteer downloads before anything is saved), and
+ * a generated file in `public/` is one nobody can see go stale. A checked-in file
+ * plus this case is the whole mechanism, and the failure message carries what to
+ * paste.
+ */
+describe('the checked-in template matches the generated one', () => {
+  it('has not drifted from IMPORT_COLUMNS', () => {
+    const expected = buildImportTemplate()
+    const actual = readFileSync(CHECKED_IN, 'utf-8')
+    if (actual !== expected) {
+      throw new Error(
+        `${CHECKED_IN} is out of date. Replace its contents with exactly this:\n\n${expected}`,
+      )
+    }
   })
 })

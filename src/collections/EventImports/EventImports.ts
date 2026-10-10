@@ -218,15 +218,29 @@ export const EventImports: CollectionConfig = {
       name: 'progress',
       type: 'group',
       access: { update: () => false },
-      admin: { readOnly: true },
+      admin: { readOnly: true, hidden: true },
       fields: [
         { name: 'done', type: 'number' },
         { name: 'total', type: 'number' },
         { name: 'note', type: 'text' },
       ],
     },
+    {
+      // ⚠ **A `ui` field, so it has no value and never reaches the save.** It
+      // polls the batch while a job holds it and refreshes the form when the
+      // status settles — the group above carries the numbers and is hidden,
+      // because three read-only inputs are not a progress bar.
+      name: 'importProgress',
+      type: 'ui',
+      admin: { components: { Field: '@/components/admin/EventImport/ImportProgress' } },
+    },
     jsonField({
       name: 'rows',
+      label: 'Lines',
+      // ⚠ **`RowsTable` edits the field value, so it is a `Field` component and
+      // not a `Description`.** The one edit it offers is a duplicate's
+      // skip-or-import, which is the one delta `hooks/reviewerEdits.ts` accepts.
+      admin: { components: { Field: '@/components/admin/EventImport/RowsTable' } },
       schemaTitle: 'EventImportRows',
       // One row per CSV data row, in file order, carrying `parseImportCsv`'s
       // output (`csv/parse.ts`) verbatim. The resolve and commit steps widen
@@ -382,6 +396,12 @@ export const EventImports: CollectionConfig = {
     }),
     jsonField({
       name: 'proposedRegions',
+      label: 'Regions',
+      // ⚠ **A SERVER component, because the mappable regions are a tree read.**
+      // It resolves the target's subtree and hands the client the levels the
+      // proposal holds — #874 asked the same question from an endpoint the
+      // browser called on every edit (`docs/rules/admin-ui.md`).
+      admin: { components: { Field: '@/components/admin/EventImport/RegionTreeField' } },
       schemaTitle: 'EventImportProposedRegions',
       // The region tree the batch would create, as `buildProposedTree` returns
       // it (`propose/tree.ts`). Absent until the resolve job has run, which is
@@ -478,6 +498,7 @@ export const EventImports: CollectionConfig = {
       // What a finished commit leaves behind. The summary email says the same
       // thing; this is what survives it, and what the skipped-rows download
       // reads.
+      label: 'Result',
       access: { update: () => false },
       schema: z.strictObject({
         committed: z.array(z.strictObject({ line: z.int(), eventId: z.int() })),
@@ -494,7 +515,12 @@ export const EventImports: CollectionConfig = {
         ),
         finishedAt: z.string(),
       }),
-      admin: { readOnly: true },
+      admin: {
+        readOnly: true,
+        // The counts, and the skipped lines as a CSV built in the browser from
+        // this very value — which is what replaced #874's email attachment.
+        components: { Field: '@/components/admin/EventImport/ReportDownload' },
+      },
     }),
     {
       name: 'error',

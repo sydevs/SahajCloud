@@ -341,7 +341,7 @@ type HeaderCheck =
  *
  * ⚠ **A header starting with `#` is the one deliberate exception.** It marks a
  * column we wrote for the volunteer to read — the skipped-rows file's `#error`
- * (`commit/skippedCsv.ts`) — which is meant to come back with the fixed rows.
+ * (`csv/skippedCsv.ts`) — which is meant to come back with the fixed rows.
  */
 function checkHeader(header: string[], delimiter: Delimiter): HeaderCheck {
   const columns: (string | null)[] = []

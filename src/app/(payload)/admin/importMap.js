@@ -56,6 +56,10 @@ import { default as default_d749fd4cc4f11cb94ed2d6b537f6015d } from '@/component
 import { default as default_d73215fe105de40829b40e0975052656 } from '@/components/admin/VerificationStageField'
 import { default as default_3db810cf95b8f600a49837ee6d29b565 } from '@/components/admin/LogTable'
 import { default as default_42fbdbfc3b16bbe7c43aa9f07c715c1c } from '@/components/admin/EventQualityPanel'
+import { default as default_6a37e569bc94038b0ee962758034bb95 } from '@/components/admin/EventImport/ImportProgress'
+import { default as default_b7bae1547c199fad337eb8e6c08e1c39 } from '@/components/admin/EventImport/RowsTable'
+import { default as default_42faca056d8e88f43c91fcc2ac105922 } from '@/components/admin/EventImport/RegionTreeField'
+import { default as default_c5b26f688bf1a63c2cfe9fbc3d112d11 } from '@/components/admin/EventImport/ReportDownload'
 import { HorizontalRuleFeatureClient as HorizontalRuleFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { ChecklistFeatureClient as ChecklistFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { IndentFeatureClient as IndentFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
@@ -145,6 +149,10 @@ export const importMap = {
   "@/components/admin/VerificationStageField#default": default_d73215fe105de40829b40e0975052656,
   "@/components/admin/LogTable#default": default_3db810cf95b8f600a49837ee6d29b565,
   "@/components/admin/EventQualityPanel#default": default_42fbdbfc3b16bbe7c43aa9f07c715c1c,
+  "@/components/admin/EventImport/ImportProgress#default": default_6a37e569bc94038b0ee962758034bb95,
+  "@/components/admin/EventImport/RowsTable#default": default_b7bae1547c199fad337eb8e6c08e1c39,
+  "@/components/admin/EventImport/RegionTreeField#default": default_42faca056d8e88f43c91fcc2ac105922,
+  "@/components/admin/EventImport/ReportDownload#default": default_c5b26f688bf1a63c2cfe9fbc3d112d11,
   "@payloadcms/richtext-lexical/client#HorizontalRuleFeatureClient": HorizontalRuleFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#ChecklistFeatureClient": ChecklistFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#IndentFeatureClient": IndentFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,

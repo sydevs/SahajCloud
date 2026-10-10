@@ -1,0 +1,65 @@
+/* The import review surface. Every length and colour is a Payload variable, so
+   the fields sit on the elevation scale the rest of the edit view uses. */
+
+.event-import__note {
+  color: var(--theme-elevation-600);
+  margin: 0 0 calc(var(--base) * 0.5);
+}
+
+.event-import__progress progress {
+  width: 100%;
+  height: calc(var(--base) * 0.4);
+}
+
+.event-import__progress-note {
+  color: var(--theme-elevation-600);
+  margin: calc(var(--base) * 0.25) 0 0;
+}
+
+.event-import__report,
+.event-import__rows,
+.event-import__tree-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--base) * 0.5);
+}
+
+.event-import__duplicate {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--base) * 0.25);
+  min-width: calc(var(--base) * 10);
+}
+
+.event-import__tree,
+.event-import__tree ul {
+  list-style: none;
+  margin: 0;
+  padding-left: var(--base);
+}
+
+.event-import__tree {
+  padding-left: 0;
+}
+
+.event-import__node {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--base) * 0.5);
+  padding: calc(var(--base) * 0.25) 0;
+  border-bottom: 1px solid var(--theme-elevation-100);
+}
+
+.event-import__merged,
+.event-import__row-errors {
+  color: var(--theme-elevation-600);
+}
+
+.event-import__node-edit,
+.event-import__map {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--base) * 0.5);
+}
