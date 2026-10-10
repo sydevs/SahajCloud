@@ -23,12 +23,14 @@ import {
 /**
  * Merge one mount into `embed_metadata` as a single atomic statement.
  *
- * **Not `payload.update`.** Concurrent requests under the same client key increment
- * `usage_daily_requests` on this very row from the pool, outside any transaction — a widget boot's
- * metered reads are in flight on the same page load as this report. `payload.update` would hold the
- * row inside this request's transaction while they are, so the two block on each other and the
- * request never returns; both sides were observed waiting on `Lock: transactionid` in
- * `pg_stat_activity`. A single autocommit statement has no transaction to overlap with.
+ * **Not `payload.update`.** The other party is another request, never this one — `clients` is
+ * excluded from the usage plugin, so nothing meters this route. Every *metered* read under the same
+ * client key increments `usage_daily_requests` on this very row in autocommit, from the same pool
+ * Payload runs request transactions on (`getPgPool`), and a widget boot issues several on the same
+ * page load as this report. `payload.update` would hold the row for the life of this request's
+ * transaction, so each of those blocks on `Lock: transactionid` — the wait to look for in
+ * `pg_stat_activity` — while holding a connection that transaction may itself need. A single
+ * autocommit statement has no transaction to hold the row in.
  *
  * `||` also merges server-side, which closes the read-modify-write window: two mounts of one site
  * reporting at the same instant both land instead of one overwriting the other.

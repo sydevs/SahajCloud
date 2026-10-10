@@ -77,7 +77,7 @@ Admin-readonly JSON, keyed by **origin + pathname**, one record per mount (`mode
 
 **The body is `origin` + `pathname`, two fields.** A query string or fragment is refused, since the endpoint can only enforce "path alone" that way — except a WordPress permalink (`?p=<digits>`), where discarding it would collapse the whole site onto one mount with no way to name the operator's intended page.
 
-**The write is raw SQL, and has to be.** `payload.update` deadlocks here: a concurrent metered read under the same client key increments `usage_daily_requests` on that row from the pool, outside any transaction — a widget boot issues several on the same page load as this report — while `payload.update` holds the row inside the request transaction, and both then wait on `Lock: transactionid` forever. An autocommit `jsonb ||` merge has no transaction to overlap with. The other party is always another request: this one is unmetered, since `clients` is excluded from the plugin (below).
+**The write is raw SQL, and has to be.** The other party is always another request — this route is unmetered, since `clients` is excluded from the plugin (below). Every *metered* read under the same client key increments `usage_daily_requests` on that row in autocommit, from the same pool Payload runs request transactions on, and a widget boot issues several on the same page load as the report. `payload.update` would hold the row for the life of the request transaction, so each of those blocks on `Lock: transactionid` while holding a connection that transaction may itself need. An autocommit `jsonb ||` merge has no transaction to hold the row in.
 
 ### `POST /api/clients/report`
 
@@ -122,8 +122,9 @@ query:  https://{domain}{mount}{?|&}atlas={webPath}
 | --- | --- |
 | `usagePlugin.ts` | Plugin orchestration |
 | `hooks.ts` | `usageTrackingBeforeOperationHook`, `rateLimitHook` (no-op on Railway) |
-| `tasks.ts` | `trackUsageTask`, `resetUsageTask` (atomic Postgres ops) |
-| `types.ts` | Type definitions and constants |
+| `tasks.ts` | `resetUsageTask` (the daily atomic Postgres reset) |
+| `constants.ts` | Thresholds and client read bounds |
+| `db.ts` | `getPgPool`, `quotedDbSchema` — the adapter's own pool, for the raw increments |
 
 ## Authentication flow
 
@@ -359,7 +360,7 @@ Tests: `tests/unit/origin-enforcement.spec.ts` (normalization and matching), `te
 
 ## Usage monitoring
 
-Tracking is async, via the Payload job queue (no in-request DB write). An alert logs when the daily count passes 1,000 requests. `peakDailyRequests` records the historical max. `resetUsageTask` runs daily at midnight UTC. The increment is one atomic Postgres UPDATE via the Drizzle pool — a single transaction, no race.
+Tracking is **in-request**, not queued: `countClientRead` issues one atomic `UPDATE` on the adapter's pool, outside the request transaction, at most once per request (#891). It fails open, so a tracking outage never refuses a read. An alert logs when the daily count passes 1,000 requests. `peakDailyRequests` records the historical max. `resetUsageTask` runs daily at midnight UTC, and is the only part on the queue.
 
 ## Rate limiting (Cloudflare edge)
 
