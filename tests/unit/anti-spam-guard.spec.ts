@@ -43,8 +43,9 @@ describe('checkNoUrls', () => {
     expect(checkNoUrls({ description: text }).ok).toBe(true)
   })
 
-  // The atlas report form's email field is required, so a refusal here is a
-  // dead end (#921).
+  // An address is not a link. Refusing one leaves the sender deleting their
+  // own address to get through, whether or not the form marks it required
+  // (#921).
   it.each([
     'visitor@gmail.com',
     'visitor@yahoo.com',
