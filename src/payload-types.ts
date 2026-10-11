@@ -5280,7 +5280,7 @@ export interface WmWebTranslationsDiscoverGeneralStrings {
    */
   subtitle?: string;
   /**
-   * First of three choices: recorded meditations to play straight away. The three titles sit side by side in equal columns.
+   * First of three choices: recorded meditations to play straight away. The three cards sit on one centred row, each sized to its own text — a long title widens its card and can wrap the row.
    */
   meditate_now?: string;
   /**
@@ -5288,7 +5288,7 @@ export interface WmWebTranslationsDiscoverGeneralStrings {
    */
   meditate_now_subtitle?: string;
   /**
-   * Second of three choices: meditations a person leads live online. The three titles sit side by side in equal columns.
+   * Second of three choices: meditations a person leads live online. The three cards sit on one centred row, each sized to its own text — a long title widens its card and can wrap the row.
    */
   live_guidance?: string;
   /**
@@ -5296,7 +5296,7 @@ export interface WmWebTranslationsDiscoverGeneralStrings {
    */
   live_guidance_subtitle?: string;
   /**
-   * Third of three choices: free classes to attend in person nearby. The three titles sit side by side in equal columns.
+   * Third of three choices: free classes to attend in person nearby. The three cards sit on one centred row, each sized to its own text — a long title widens its card and can wrap the row.
    */
   classes_near_me?: string;
   /**

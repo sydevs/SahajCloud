@@ -198,7 +198,7 @@
             "meditate_now": {
               "type": "string",
               "maxLength": 24,
-              "description": "First of three choices: recorded meditations to play straight away. The three titles sit side by side in equal columns."
+              "description": "First of three choices: recorded meditations to play straight away. The three cards sit on one centred row, each sized to its own text — a long title widens its card and can wrap the row."
             },
             "meditate_now_subtitle": {
               "type": "string",
@@ -207,7 +207,7 @@
             "live_guidance": {
               "type": "string",
               "maxLength": 24,
-              "description": "Second of three choices: meditations a person leads live online. The three titles sit side by side in equal columns."
+              "description": "Second of three choices: meditations a person leads live online. The three cards sit on one centred row, each sized to its own text — a long title widens its card and can wrap the row."
             },
             "live_guidance_subtitle": {
               "type": "string",
@@ -216,7 +216,7 @@
             "classes_near_me": {
               "type": "string",
               "maxLength": 24,
-              "description": "Third of three choices: free classes to attend in person nearby. The three titles sit side by side in equal columns."
+              "description": "Third of three choices: free classes to attend in person nearby. The three cards sit on one centred row, each sized to its own text — a long title widens its card and can wrap the row."
             },
             "classes_near_me_subtitle": {
               "type": "string",
