@@ -21,6 +21,10 @@ describe('checkNoUrls', () => {
     // An `@` in the value exempts neither arm from the rest of it.
     'https://user@evil.com',
     'a@b.com buy at cheap.shop',
+    // `.` is in the arm's own left-boundary class, so a run behind a dot
+    // would have no legal match start.
+    'join us at .cheap.shop',
+    'see ..cheap.shop',
   ])('rejects %s', (text) => {
     const result = checkNoUrls({ description: text })
     expect(result.ok).toBe(false)
