@@ -178,6 +178,8 @@ Two refusals are specific to it, each with a message naming what to fix:
 
 `urls_not_allowed` also reaches `submissionData`, with one deliberate exemption: `path`, `hostUrl`, `error`, `userAgent` and `locale` are never URL-scanned, because an issue report names the page it happened on.
 
+An address's domain half is not a link, in any scanned field: `visitor@gmail.com` passes (#921). A value carrying both still fails — `a@b.com buy at cheap.shop`, and `https://user@evil.com`.
+
 Clients hold **create only**, with no update of any kind and no read at any depth or scope.
 
 ### What happens after the 201
