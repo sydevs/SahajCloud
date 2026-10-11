@@ -292,9 +292,9 @@ function truncate(value: string): string {
  *
  * **Dots and underscores become spaces**, which is both nicer to read
  * (`john.doe` → `john doe`) and load-bearing: the write-guard's `users` policy
- * URL-scans `name`, and its bare-domain pattern matches any `word.tld` — so a
- * literal local part would reject every submission from `foo.com@example.org`
- * with "Links are not allowed in name".
+ * URL-scans `name`, and its bare-domain pattern matches a `word.tld` in a local
+ * part — so a literal local part would reject every submission from
+ * `foo.com@example.org` with "Links are not allowed in name".
  */
 function displayNameFor(email: string): string {
   const localPart = email.split('@')[0] ?? ''

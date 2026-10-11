@@ -7,12 +7,20 @@ import { signToken, verifyToken } from '@/lib/utilities/signedToken'
 const NOW = new Date('2026-08-11T12:00:00.000Z')
 
 describe('checkNoUrls', () => {
+  // `.example` is on no listed TLD, so each of the first three dies with its
+  // own arm — otherwise removing an arm leaves the suite green.
   it.each([
     'visit https://spam.example now',
     'visit http://spam.example now',
-    'go to www.spam-site.org',
+    'go to www.spam-site.example',
     'find us at classes.com today',
     'shady.xyz has details',
+    // A left boundary that only looked one character back would exempt this
+    // too, since `example.com` sits behind a dot.
+    'see buy-now.example.com',
+    // An `@` in the value exempts neither arm from the rest of it.
+    'https://user@evil.com',
+    'a@b.com buy at cheap.shop',
   ])('rejects %s', (text) => {
     const result = checkNoUrls({ description: text })
     expect(result.ok).toBe(false)
@@ -28,6 +36,23 @@ describe('checkNoUrls', () => {
     'the class is free',
     'St. Mary’s hall',
   ])('passes ordinary prose: %s', (text) => {
+    expect(checkNoUrls({ description: text }).ok).toBe(true)
+  })
+
+  // The atlas report form's email field is required, so a refusal here is a
+  // dead end (#921).
+  it.each([
+    'visitor@gmail.com',
+    'visitor@yahoo.com',
+    'visitor@hotmail.com',
+    'visitor@outlook.com',
+    'visitor@icloud.com',
+    'visitor@protonmail.com',
+    'visitor@gmx.net',
+    // A domain is exempt however many labels it carries, and however long.
+    'visitor@mail.corp.example.com',
+    'visitor@eu-west-1.internal-mail-relay.engineering-platform.corp-shared.example.com',
+  ])('passes an address: %s', (text) => {
     expect(checkNoUrls({ description: text }).ok).toBe(true)
   })
 
