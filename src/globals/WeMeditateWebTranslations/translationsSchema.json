@@ -179,6 +179,55 @@
       },
       "additionalProperties": false
     },
+    "discover": {
+      "type": "object",
+      "description": "The call to action closing the home page, offering three ways to start meditating",
+      "properties": {
+        "general": {
+          "type": "object",
+          "description": "Visible on screen",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "Heading of the call to action that closes the home page. Invites the visitor to try meditation instead of taking the site's word for it."
+            },
+            "subtitle": {
+              "type": "string",
+              "description": "The sentence under that heading, encouraging the visitor to meditate and judge by how it feels."
+            },
+            "meditate_now": {
+              "type": "string",
+              "maxLength": 24,
+              "description": "First of three choices: recorded meditations to play straight away. Keep it short — the three titles sit side by side in equal columns."
+            },
+            "meditate_now_subtitle": {
+              "type": "string",
+              "description": "The line under the first choice, naming what it leads to. It gets one line on screen."
+            },
+            "live_guidance": {
+              "type": "string",
+              "maxLength": 24,
+              "description": "Second of three choices: meditations a person leads live online. Keep it short — the three titles sit side by side in equal columns."
+            },
+            "live_guidance_subtitle": {
+              "type": "string",
+              "description": "The line under the second choice, naming what it leads to. It gets one line on screen."
+            },
+            "classes_near_me": {
+              "type": "string",
+              "maxLength": 24,
+              "description": "Third of three choices: free classes to attend in person nearby. Keep it short — the three titles sit side by side in equal columns."
+            },
+            "classes_near_me_subtitle": {
+              "type": "string",
+              "description": "The line under the third choice, naming what it leads to. It gets one line on screen."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
     "article": {
       "type": "object",
       "description": "Article pages, their author box, and the article index filters",
@@ -296,6 +345,18 @@
             "related_lectures": {
               "type": "string",
               "description": "Heading above the talks suggested at the end of a meditation."
+            },
+            "upsell_web": {
+              "type": "string",
+              "description": "Line under an embedded player, sending the visitor to the full site for more meditations. `%{link}` = a link whose text is the domain wemeditate.com, which stays as it is."
+            },
+            "upsell_app": {
+              "type": "string",
+              "description": "The same line where the embedded player points at the mobile app instead. `%{link}` = a link whose text is `upsell_app_link`."
+            },
+            "upsell_app_link": {
+              "type": "string",
+              "description": "The link text inside `upsell_app`. Names the mobile app and that it costs nothing."
             }
           },
           "additionalProperties": false
