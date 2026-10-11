@@ -133,9 +133,18 @@ export function checkEmailAllowed(
  * a full bare-domain matcher — `7pm.Meet` and `e.g.` must not trip it; a spam
  * link on an exotic TLD still needs `http://` or `www.` to be clickable
  * anywhere, so the conservative pattern loses little.
+ *
+ * The bare-domain arm matches the whole dotted run from a position no `@` or
+ * domain character precedes, or it reads an address's domain half as a link —
+ * `visitor@gmail.com` (#921). A variable-length lookbehind over that run is
+ * the same rule and re-runs at every scan position: ~250x on attacker-sized
+ * input. The loosening is real — `ab@c.d.spam.com` now passes.
+ *
+ * `\.*` is load-bearing: `.` is itself in the boundary class, so without it a
+ * run behind a dot has no legal start and `join us at .cheap.shop` passes.
  */
 const URL_PATTERN =
-  /https?:\/\/|www\.[a-z0-9-]|[a-z0-9-]+\.(?:com|net|org|info|biz|xyz|site|online|top|club|shop|link|click)\b/i
+  /https?:\/\/|www\.[a-z0-9-]|(?<![@a-z0-9.-])\.*[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|net|org|info|biz|xyz|site|online|top|club|shop|link|click)\b/i
 
 /**
  * Scan named free-text fields for URLs. Returns the failure naming the first
