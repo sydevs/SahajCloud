@@ -63,17 +63,18 @@ export const DEFAULT_WRITE_GUARD_POLICIES: Partial<Record<CollectionSlug, WriteG
       // that array now carries the crash-report context (`error`, `path`,
       // `hostUrl`) that a contact message exempts on purpose, because a bug
       // report legitimately names the page it happened on. A path cannot say
-      // "every pair except those three"; a hook that already knows each pair's
-      // key can, and it uses the same `checkNoUrls` and raises the same
-      // `urls_not_allowed` failure. That hook also exempts the form's own email
-      // answers, which it checks with `checkEmailAllowed` instead (#899).
+      // "every pair except those three"; a schema built from the form, which
+      // knows every pair's key, can — and each key's own check calls the same
+      // `checkNoUrls` or `checkEmailAllowed` and raises the same failure. An
+      // `email` block's answer is judged as an address for that reason (#899),
+      // and no policy path could name it: the operator chooses the key.
       // ⚠ `subject` is deliberately absent, though the collection this
       // replaced scanned it. There it was a client-writable column; here it carries
       // `systemFieldAccess`, and Payload deletes an access-denied field in the
       // *field* beforeValidate pass — which runs before this collection hook —
       // so for the only callers this guard inspects the value is always gone.
       // The subject a sender actually writes travels in `submissionData`, and
-      // `urlScannablePairs` covers it there.
+      // `submissionDataSchema` covers it there.
       urlScanFields: [
         'proposed.description',
         'proposed.contactName',

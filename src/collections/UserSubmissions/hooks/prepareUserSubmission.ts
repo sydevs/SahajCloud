@@ -1,3 +1,4 @@
+import type { SubmissionProblem } from '../submissionData'
 import type { CollectionBeforeValidateHook } from 'payload'
 
 import { randomUUID } from 'node:crypto'
@@ -5,19 +6,12 @@ import { randomUUID } from 'node:crypto'
 import { APIError } from 'payload'
 
 
-import type { AntiSpamFailure } from '@/lib/antiSpam/antiSpamGuard'
-import { checkEmailAllowed, checkNoUrls } from '@/lib/antiSpam/antiSpamGuard'
 import { upsertUserByEmail } from '@/lib/users/upsertUserByEmail'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Form, UserSubmission } from '@/payload-types'
 
 import { FORM_BACKED_TYPES, SUBMISSION_TYPES, TYPE_LABELS } from '../fields'
-import {
-  allowedSubmissionKeys,
-  checkSubmissionData,
-  readSubmissionValue,
-  urlScannablePairs,
-} from '../submissionData'
+import { authoredBlocks, checkSubmissionData, readSubmissionValue } from '../submissionData'
 
 
 /** Said when an address has no usable local part (`"..."@example.org`). */
@@ -112,41 +106,17 @@ export const prepareUserSubmission: CollectionBeforeValidateHook = async ({
     )
   }
 
-  const formFieldNames = authoredFieldNames(form)
-
-  const problems = checkSubmissionData(
-    data.submissionData,
-    allowedSubmissionKeys(type, formFieldNames),
-  )
-  if (problems.length > 0) {
-    // `APIError`, not `ValidationError`: Payload composes a ValidationError's
-    // top-level message from the field paths ("The following field is invalid:
-    // submissionData") and buries the per-error text, so the offending key —
-    // the one thing an integrator can act on — never reaches the response body
-    // they read. Same envelope the write-guard raises, for the same reason.
-    throw new APIError(problems.join(' '), 400, { code: 'submission_data_invalid' }, true)
-  }
-
-  // The write-guard cannot scan these pairs selectively — see `URL_EXEMPT_KEYS`
-  // and the note in `policies.ts`. Same check, same failure shape, so a client
-  // sees one contract whichever field tripped it. Client writes only: a manager
-  // pasting a link into a triage note is not spam.
-  if (fromClient) {
-    // An authored email answer is judged as an address, never as free text:
-    // `URL_PATTERN`'s bare-domain arm matches `gmail.com`, so the link scan
-    // refused most real addresses, and the atlas's required email field left
-    // the visitor no way to clear the value (#899). Trimmed first, so a blank
-    // answer to an optional question stays optional.
-    const emailFields = emailFieldNames(form)
-    for (const field of emailFields) {
-      const answer = readSubmissionValue(data.submissionData, field)?.trim()
-      const address = checkEmailAllowed(answer, field)
-      if (!address.ok) refuse(address)
-    }
-
-    const urls = checkNoUrls(urlScannablePairs(data.submissionData, emailFields))
-    if (!urls.ok) refuse(urls)
-  }
+  // One schema, from the form and the type: the key allow-list, the length
+  // caps and the per-block content checks in one pass. The content half is
+  // client-only — a manager pasting a link into a triage note is not spam — and
+  // the write guard cannot do it, because no policy path spells "the pair whose
+  // key the operator chose" (`policies.ts`).
+  const problems = checkSubmissionData(data.submissionData, {
+    type,
+    formFields: authoredBlocks(form),
+    checkContent: fromClient,
+  })
+  if (problems.length > 0) refuse(problems)
 
   const senderEmail = typeof data.senderEmail === 'string' ? data.senderEmail.trim() : ''
 
@@ -210,39 +180,38 @@ async function loadForm(
 }
 
 /**
- * The field names the form's author declared, so `submissionData` accepts what
- * that form actually asks rather than a list restated here — an author adds a
- * field whenever they like.
- */
-function authoredFieldNames(form: Form | null): string[] {
-  if (!form || !Array.isArray(form.fields)) return []
-
-  return form.fields
-    .map((block) => (block as { name?: unknown }).name)
-    .filter((name): name is string => typeof name === 'string' && name.length > 0)
-}
-
-/**
- * The names of the form's authored email questions.
+ * Raise the schema's verdict as the 400 a client reads.
  *
- * Keyed on the block type, not the name: the operator names every field, and
- * renaming one must not change how its answer is judged. `Forms` names the
- * same block type to require one (`validateFormAction`); both comparisons are
- * against the generated union, so a plugin rename fails `tsc` at each.
+ * **A malformed blob outranks its content.** Every shape problem is reported
+ * at once, because the caller can fix the keys in one round and because a
+ * refused key's value was never meant to be judged. A content refusal is one
+ * field's answer instead, and its code and field are what a client's error
+ * copy keys on.
+ *
+ * `APIError`, not `ValidationError`: Payload composes a ValidationError's
+ * top-level message from the field paths ("The following field is invalid:
+ * submissionData") and buries the per-error text, so the offending key — the
+ * one thing an integrator can act on — never reaches the response body they
+ * read. Same envelope the write guard raises, for the same reason.
  */
-function emailFieldNames(form: Form | null): string[] {
-  return (form?.fields ?? []).flatMap((block) =>
-    block.blockType === 'email' && block.name ? [block.name] : [],
-  )
-}
+function refuse(problems: SubmissionProblem[]): never {
+  const shape = problems.filter((problem) => problem.code === 'submission_data_invalid')
+  if (shape.length > 0) {
+    throw new APIError(
+      shape.map((problem) => problem.message).join(' '),
+      400,
+      { code: 'submission_data_invalid' },
+      true,
+    )
+  }
 
-/**
- * Raise an anti-spam verdict as the 400 a client reads, carrying the offending
- * field — `checkEmailAllowed`'s message names no key, and a form may ask for
- * more than one address.
- */
-function refuse(result: AntiSpamFailure): never {
-  throw new APIError(result.message, result.status, { code: result.code, field: result.field }, true)
+  const [content] = problems
+  throw new APIError(
+    content!.message,
+    content!.status,
+    { code: content!.code, field: content!.field },
+    true,
+  )
 }
 
 /**
