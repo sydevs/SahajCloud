@@ -120,8 +120,8 @@ All translations globals share a tab-based structure, built by
 `buildTranslationTabs()` from a `translationsSchema.json` co-located with
 the global. Versions: max 3.
 
-- WeMeditate Web tabs: Common, Navigation, Footer, Errors, Article,
-  Meditation, Lecture, Map, Forms, Media, Video, Location, Blocks
+- WeMeditate Web tabs: Common, Navigation, Footer, Errors, Discover,
+  Article, Meditation, Lecture, Map, Forms, Media, Video, Location, Blocks
 - WeMeditate App tabs: Daily, Path, Explore, Profile, Meditation
 - Sahaj Atlas tabs: Common, Countries, Search, Filters, Online, Event,
   Calendar, Registration, Share, Compact, Seo, Emails
