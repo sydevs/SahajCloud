@@ -5280,7 +5280,7 @@ export interface WmWebTranslationsDiscoverGeneralStrings {
    */
   subtitle?: string;
   /**
-   * First of three choices: recorded meditations to play straight away. Keep it short — the three titles sit side by side in equal columns.
+   * First of three choices: recorded meditations to play straight away. The three titles sit side by side in equal columns.
    */
   meditate_now?: string;
   /**
@@ -5288,7 +5288,7 @@ export interface WmWebTranslationsDiscoverGeneralStrings {
    */
   meditate_now_subtitle?: string;
   /**
-   * Second of three choices: meditations a person leads live online. Keep it short — the three titles sit side by side in equal columns.
+   * Second of three choices: meditations a person leads live online. The three titles sit side by side in equal columns.
    */
   live_guidance?: string;
   /**
@@ -5296,7 +5296,7 @@ export interface WmWebTranslationsDiscoverGeneralStrings {
    */
   live_guidance_subtitle?: string;
   /**
-   * Third of three choices: free classes to attend in person nearby. Keep it short — the three titles sit side by side in equal columns.
+   * Third of three choices: free classes to attend in person nearby. The three titles sit side by side in equal columns.
    */
   classes_near_me?: string;
   /**
@@ -5426,7 +5426,7 @@ export interface WmWebTranslationsMeditationGeneralStrings {
    */
   upsell_app?: string;
   /**
-   * The link text inside `upsell_app`. Names the mobile app and that it costs nothing.
+   * The clickable words inside `upsell_app`, naming the mobile app and that it costs nothing. Translate as a noun phrase, not a sentence. `upsell_app` ends in a possessive, so inflect this phrase to follow it.
    */
   upsell_app_link?: string;
 }

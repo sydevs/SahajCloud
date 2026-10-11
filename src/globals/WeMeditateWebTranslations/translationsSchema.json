@@ -198,7 +198,7 @@
             "meditate_now": {
               "type": "string",
               "maxLength": 24,
-              "description": "First of three choices: recorded meditations to play straight away. Keep it short — the three titles sit side by side in equal columns."
+              "description": "First of three choices: recorded meditations to play straight away. The three titles sit side by side in equal columns."
             },
             "meditate_now_subtitle": {
               "type": "string",
@@ -207,7 +207,7 @@
             "live_guidance": {
               "type": "string",
               "maxLength": 24,
-              "description": "Second of three choices: meditations a person leads live online. Keep it short — the three titles sit side by side in equal columns."
+              "description": "Second of three choices: meditations a person leads live online. The three titles sit side by side in equal columns."
             },
             "live_guidance_subtitle": {
               "type": "string",
@@ -216,7 +216,7 @@
             "classes_near_me": {
               "type": "string",
               "maxLength": 24,
-              "description": "Third of three choices: free classes to attend in person nearby. Keep it short — the three titles sit side by side in equal columns."
+              "description": "Third of three choices: free classes to attend in person nearby. The three titles sit side by side in equal columns."
             },
             "classes_near_me_subtitle": {
               "type": "string",
@@ -356,7 +356,7 @@
             },
             "upsell_app_link": {
               "type": "string",
-              "description": "The link text inside `upsell_app`. Names the mobile app and that it costs nothing."
+              "description": "The clickable words inside `upsell_app`, naming the mobile app and that it costs nothing. Translate as a noun phrase, not a sentence. `upsell_app` ends in a possessive, so inflect this phrase to follow it."
             }
           },
           "additionalProperties": false
