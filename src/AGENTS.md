@@ -134,10 +134,7 @@ No loose files at the root — every file lives in a named folder:
   helpers), `submissions/` (`CLIENT_CONTEXT_KEYS` — the `submissionData`
   keys the client writes about itself, rather than answers a visitor typed.
   `user-submissions` derives its URL-scan exemption from them and `Forms`
-  refuses a field named after one, so the list belongs to neither collection.
-  `EMAIL_FIELD_BLOCKS` is the second such list, for the same two owners:
-  `Forms` requires one of those blocks, and `user-submissions` exempts their
-  answers from the URL scan and checks them as addresses)
+  refuses a field named after one, so the list belongs to neither collection)
 
 **Barrels.** A folder gets an `index.ts` barrel only when it presents one
 cohesive public surface imported as a unit (`@/lib/locales`,

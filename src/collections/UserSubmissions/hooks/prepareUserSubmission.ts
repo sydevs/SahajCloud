@@ -7,7 +7,6 @@ import { APIError } from 'payload'
 
 import type { AntiSpamFailure } from '@/lib/antiSpam/antiSpamGuard'
 import { checkEmailAllowed, checkNoUrls } from '@/lib/antiSpam/antiSpamGuard'
-import { EMAIL_FIELD_BLOCKS } from '@/lib/submissions/formBlocks'
 import { upsertUserByEmail } from '@/lib/users/upsertUserByEmail'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Form, UserSubmission } from '@/payload-types'
@@ -227,13 +226,13 @@ function authoredFieldNames(form: Form | null): string[] {
  * The names of the form's authored email questions.
  *
  * Keyed on the block type, not the name: the operator names every field, and
- * renaming one must not change how its answer is judged.
+ * renaming one must not change how its answer is judged. `Forms` names the
+ * same block type to require one (`validateFormAction`); both comparisons are
+ * against the generated union, so a plugin rename fails `tsc` at each.
  */
 function emailFieldNames(form: Form | null): string[] {
   return (form?.fields ?? []).flatMap((block) =>
-    EMAIL_FIELD_BLOCKS.includes(block.blockType) && 'name' in block && block.name
-      ? [block.name]
-      : [],
+    block.blockType === 'email' && block.name ? [block.name] : [],
   )
 }
 
