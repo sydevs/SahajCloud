@@ -133,7 +133,7 @@ describe('checkSubmissionData', () => {
   it('refuses a non-string value', () => {
     const problems = checkSubmissionData([{ field: 'message', value: { nested: true } }], contact)
     expect(problems).toHaveLength(1)
-    expect(problems[0]!.message).toContain('message')
+    expect(problems[0]!.message).toBe('`message` must be text.')
   })
 
   it('refuses an over-long key', () => {
@@ -175,12 +175,16 @@ describe('checkSubmissionData', () => {
         contact,
       ),
     ).toEqual([])
-    expect(
-      checkSubmissionData(
-        [{ field: 'message', value: 'x'.repeat(VALUE_MAX_LENGTHS.message! + 1) }],
-        contact,
-      ),
-    ).toHaveLength(1)
+    // The wording is pinned because one `error` option on the string schema
+    // would answer "must be text" for a length failure too.
+    const long = checkSubmissionData(
+      [{ field: 'message', value: 'x'.repeat(VALUE_MAX_LENGTHS.message! + 1) }],
+      contact,
+    )
+    expect(long).toHaveLength(1)
+    expect(long[0]!.message).toBe(
+      `\`message\` is longer than the ${VALUE_MAX_LENGTHS.message} characters allowed.`,
+    )
 
     expect(
       checkSubmissionData(

@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 import { checkEmailAllowed, checkNoUrls } from '@/lib/antiSpam/antiSpamGuard'
-import type { AntiSpamCode } from '@/lib/antiSpam/antiSpamGuard'
+import type { AntiSpamCode, AntiSpamResult } from '@/lib/antiSpam/antiSpamGuard'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
 import { CLIENT_CONTEXT_KEYS } from '@/lib/submissions/clientContext'
 import type { Form, UserSubmission } from '@/payload-types'
@@ -221,7 +221,7 @@ function valueSchemaFor(
 }
 
 /** Carry an anti-spam verdict into the parse, code and field intact. */
-function addAntiSpamIssue(ctx: z.RefinementCtx, result: ReturnType<typeof checkNoUrls>): void {
+function addAntiSpamIssue(ctx: z.RefinementCtx, result: AntiSpamResult): void {
   if (result.ok) return
   ctx.addIssue({
     code: 'custom',
