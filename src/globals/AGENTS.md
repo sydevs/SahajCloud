@@ -146,6 +146,12 @@ copy declares explicit `general` + `a11y` sub-groups (#707), so the visible
 strings stay together and the invisible ones start collapsed. `navigation`
 and `footer` have none, so they stay flat.
 
+A third shape exists: `discover` declares `general` alone (#917). A tab with
+no screen-reader copy may take either form, and nesting buys the later
+`a11y` group for free — promoting a flat `discover` to `discover_general`
+would be a column rename. Prefer the lone `general` where a tab is likely to
+grow one.
+
 Two conventions hold across that schema, and adding a key means honouring
 both:
 
