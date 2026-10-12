@@ -4,7 +4,7 @@ import { fileMetadataField, mediaField } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
 import { subtitlesSchema } from '@/lib/utilities/subtitles'
 import { restrictUploadToAdmin } from '@/plugins/access'
-import { getCloudflareStreamThumbnailUrl } from '@/plugins/storage/cloudflareStreamAdapter'
+import { videoAdminThumbnail } from '@/plugins/storage/adminThumbnail'
 import {
   hlsUrlField,
   mixedMediaUrlField,
@@ -24,14 +24,7 @@ export const Videos: CollectionConfig = {
   upload: {
     staticDir: 'media/videos',
     mimeTypes: ['video/mp4', 'video/webm', 'video/quicktime'],
-    // Point the admin preview thumbnail at the Cloudflare Stream poster.
-    // Without this, `thumbnailURL` is null and the admin edit view falls back
-    // to the `url` field's Payload file route (`/api/videos/file/<id>`), which
-    // 500s in production — the Stream adapter serves no bytes from Workers.
-    adminThumbnail: ({ doc }) =>
-      typeof doc.filename === 'string'
-        ? (getCloudflareStreamThumbnailUrl(doc.filename, 320) ?? null)
-        : null,
+    adminThumbnail: videoAdminThumbnail,
   },
   admin: {
     group: 'Media',
