@@ -277,7 +277,7 @@ describe('checkSubmissionData content checks', () => {
     expect(checkSubmissionData([{ field: 'contactAddress', value: '  ' }], withEmail)).toEqual([])
   })
 
-  it('still URL-scans an address question authored as a text block', () => {
+  it('still URL-scans an answer authored as a text block', () => {
     // Deliberate: `text`/`textarea` is where the message body lives, so
     // exempting it would disable the scan. The same input the `email` block
     // judges as `invalid_email` above, so the pair is one contrast keyed on
