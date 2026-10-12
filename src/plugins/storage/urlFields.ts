@@ -14,8 +14,9 @@ const getLocalFallbackUrl = (collection: CollectionSlug, filename: string): stri
   `/api/${collection}/file/${filename}`
 
 /**
- * The admin's one thumbnail size, shared so the list column's Images variant and
- * the edit header's Stream still resolve to the same render rather than two.
+ * `previewUrlField`'s default width and height, and the size the edit header's
+ * Stream still always asks for. Shared so a video resolves to one Cloudflare
+ * render across both, which a collection overriding `height` opts out of.
  */
 export const ADMIN_THUMBNAIL_SIZE = 320
 
