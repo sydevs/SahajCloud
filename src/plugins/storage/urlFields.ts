@@ -13,13 +13,6 @@ import { getR2Url } from './r2NativeAdapter'
 const getLocalFallbackUrl = (collection: CollectionSlug, filename: string): string =>
   `/api/${collection}/file/${filename}`
 
-/**
- * `previewUrlField`'s default width and height, and the size the edit header's
- * Stream still always asks for. Shared so a video resolves to one Cloudflare
- * render across both, which a collection overriding `height` opts out of.
- */
-export const ADMIN_THUMBNAIL_SIZE = 320
-
 // --- Types ---
 
 /** Storage adapter type for URL generation */
@@ -139,12 +132,7 @@ export const virtualUrlField = (options: VirtualUrlFieldOptions): Field => {
  * ```
  */
 export const previewUrlField = (options: PreviewUrlFieldOptions): Field => {
-  const {
-    collection,
-    width = ADMIN_THUMBNAIL_SIZE,
-    height = ADMIN_THUMBNAIL_SIZE,
-    fileUrlField = 'url',
-  } = options
+  const { collection, width = 320, height = 320, fileUrlField = 'url' } = options
 
   const afterReadHook: FieldHook = ({ data }) => {
     if (!data?.filename) return undefined

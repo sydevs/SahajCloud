@@ -2,7 +2,9 @@ import type { GetAdminThumbnail } from 'payload'
 
 import { getCloudflareStreamThumbnailUrl } from './cloudflareStreamAdapter'
 import { getMimeCategory } from './mimeUtils'
-import { ADMIN_THUMBNAIL_SIZE } from './urlFields'
+
+/** The height the edit header's Stream still asks Cloudflare to render. */
+const THUMBNAIL_HEIGHT = 320
 
 /**
  * `upload.adminThumbnail` for any collection that accepts video.
@@ -22,5 +24,5 @@ export const videoAdminThumbnail: GetAdminThumbnail = ({ doc }) => {
   if (typeof filename !== 'string' || typeof mimeType !== 'string') return null
   if (getMimeCategory(mimeType) !== 'video') return null
 
-  return getCloudflareStreamThumbnailUrl(filename, ADMIN_THUMBNAIL_SIZE) ?? null
+  return getCloudflareStreamThumbnailUrl(filename, THUMBNAIL_HEIGHT) ?? null
 }
