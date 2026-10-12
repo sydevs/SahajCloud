@@ -2,27 +2,25 @@ import type { GetAdminThumbnail } from 'payload'
 
 import { getCloudflareStreamThumbnailUrl } from './cloudflareStreamAdapter'
 import { getMimeCategory } from './mimeUtils'
-
-/** Matches `previewUrlField`'s default, so both surfaces request one Stream render. */
-const THUMBNAIL_HEIGHT = 320
+import { ADMIN_THUMBNAIL_SIZE } from './urlFields'
 
 /**
  * `upload.adminThumbnail` for any collection that accepts video.
  *
- * Mount it on every one of them: Payload's own components (the edit header,
- * upload-field cards, the bulk-upload sidebar, the default file cell) draw
- * `thumbnailURL || url`, and for a video `url` is the HLS manifest, which an
- * image tag cannot render.
+ * Mount it on every one of them. Payload's own upload components draw
+ * `thumbnailURL || url`, and a video's `url` is the HLS manifest, which no image
+ * tag can render — so a collection declaring none shows a generic file icon, and
+ * no amount of `previewUrl` wiring reaches that surface.
  *
- * Returns null for anything but a video, so an image falls back to `url` as
- * before. Never returns the Payload file route (`/api/<slug>/file/<filename>`):
+ * Never returns the Payload file route (`/api/<slug>/file/<filename>`):
  * Cloudflare serves these bytes, not the Worker, so that URL 500s in production.
+ * Null is the safe answer, and it hands a non-video document back to `url`.
  */
 export const videoAdminThumbnail: GetAdminThumbnail = ({ doc }) => {
   const { filename, mimeType } = doc
 
-  if (typeof filename !== 'string') return null
-  if (getMimeCategory(typeof mimeType === 'string' ? mimeType : undefined) !== 'video') return null
+  if (typeof filename !== 'string' || typeof mimeType !== 'string') return null
+  if (getMimeCategory(mimeType) !== 'video') return null
 
-  return getCloudflareStreamThumbnailUrl(filename, THUMBNAIL_HEIGHT) ?? null
+  return getCloudflareStreamThumbnailUrl(filename, ADMIN_THUMBNAIL_SIZE) ?? null
 }

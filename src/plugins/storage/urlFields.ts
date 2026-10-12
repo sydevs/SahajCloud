@@ -13,6 +13,12 @@ import { getR2Url } from './r2NativeAdapter'
 const getLocalFallbackUrl = (collection: CollectionSlug, filename: string): string =>
   `/api/${collection}/file/${filename}`
 
+/**
+ * The admin's one thumbnail size, shared so the list column's Images variant and
+ * the edit header's Stream still resolve to the same render rather than two.
+ */
+export const ADMIN_THUMBNAIL_SIZE = 320
+
 // --- Types ---
 
 /** Storage adapter type for URL generation */
@@ -132,7 +138,12 @@ export const virtualUrlField = (options: VirtualUrlFieldOptions): Field => {
  * ```
  */
 export const previewUrlField = (options: PreviewUrlFieldOptions): Field => {
-  const { collection, width = 320, height = 320, fileUrlField = 'url' } = options
+  const {
+    collection,
+    width = ADMIN_THUMBNAIL_SIZE,
+    height = ADMIN_THUMBNAIL_SIZE,
+    fileUrlField = 'url',
+  } = options
 
   const afterReadHook: FieldHook = ({ data }) => {
     if (!data?.filename) return undefined

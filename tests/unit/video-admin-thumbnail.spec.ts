@@ -1,18 +1,11 @@
 /**
- * A video needs `upload.adminThumbnail`, on every collection that accepts one.
+ * Every collection that can hold a video declares `upload.adminThumbnail`.
  *
- * Payload's own edit header draws `thumbnailURL || url`, and for a video `url`
- * is the HLS manifest — unrenderable in an image tag, so the panel falls back
- * to a generic file icon (#927). `thumbnailURL` comes from `adminThumbnail`
- * alone, so a collection that declares none shows the icon however well its
- * `previewUrl` field is wired.
- *
- * The guard runs over the **real** `collections` array rather than a fixture:
- * which collections admit `video/*` is the very thing under test, so a fixture
- * would assume it. It is also why the check is not applied automatically to
- * every upload collection the way `withUploadNotice` is (#892) — one visible
- * line per collection keeps the behaviour readable in the collection's own
- * file, and this spec supplies the "cannot be missed".
+ * This guard is what the per-collection mount is traded against (#927): the
+ * behaviour stays one readable line in each collection's own file, instead of a
+ * transform applied to all of them the way `withUploadNotice` is (#892), and
+ * nothing silently loses it. So it walks the real `collections` array — which
+ * collections admit video is the thing under test, and a fixture would assume it.
  */
 import type { CollectionConfig } from 'payload'
 
@@ -27,30 +20,36 @@ import { videoAdminThumbnail } from '@/plugins/storage/adminThumbnail'
 const env = serverEnv as unknown as Record<string, string | undefined>
 const DELIVERY_URL = 'https://customer-test.cloudflarestream.com'
 
-const uploadOf = (collection: CollectionConfig) =>
-  typeof collection.upload === 'object' ? collection.upload : undefined
+/** An absent `mimeTypes` accepts every type, `video/*` among them — so it counts. */
+const acceptsVideo = (collection: CollectionConfig): boolean => {
+  const { upload } = collection
+  if (!upload) return false
+  if (typeof upload !== 'object') return true
+  return upload.mimeTypes?.some((mimeType) => mimeType.startsWith('video/')) ?? true
+}
 
-const videoCollections = (collections as CollectionConfig[]).filter((collection) =>
-  (uploadOf(collection)?.mimeTypes ?? []).some((mimeType) => mimeType.startsWith('video/')),
-)
+const adminThumbnailOf = (collection: CollectionConfig) =>
+  typeof collection.upload === 'object' ? collection.upload.adminThumbnail : undefined
+
+const videoCollections = collections.filter(acceptsVideo)
 
 afterEach(() => {
   delete env.CLOUDFLARE_STREAM_DELIVERY_URL
 })
 
 describe('adminThumbnail coverage', () => {
-  it('finds the collections that accept video', () => {
-    expect(videoCollections.map((collection) => collection.slug).sort()).toEqual([
-      'files',
-      'frames',
-      'videos',
-    ])
-  })
+  it('mounts the shared helper on every video-capable collection', () => {
+    // arrayContaining, not toEqual: a new video collection that wired itself
+    // correctly must not redden this, but dropping one of these three must.
+    expect(videoCollections.map((collection) => collection.slug)).toEqual(
+      expect.arrayContaining(['files', 'frames', 'videos']),
+    )
 
-  it('declares an adminThumbnail function on each of them', () => {
+    // Identity, not `typeof === 'function'`: a hand-rolled closure is the drift
+    // one shared helper exists to prevent.
     expect(
       videoCollections
-        .filter((collection) => typeof uploadOf(collection)?.adminThumbnail !== 'function')
+        .filter((collection) => adminThumbnailOf(collection) !== videoAdminThumbnail)
         .map((collection) => collection.slug),
     ).toEqual([])
   })
@@ -65,11 +64,8 @@ describe('videoAdminThumbnail', () => {
     )
   })
 
-  /**
-   * Null hands the surface back to `url`, which is correct for an image and the
-   * only safe answer for a video with nowhere to point: the Payload file route
-   * 500s in production, since Cloudflare serves these bytes and not the Worker.
-   */
+  // Each case configures the delivery URL, so a null is proved to come from the
+  // document rather than from an unconfigured environment — the case below.
   it.each([
     ['an image', { filename: 'photo.jpg', mimeType: 'image/jpeg' }],
     ['a pdf', { filename: 'doc.pdf', mimeType: 'application/pdf' }],
@@ -83,7 +79,7 @@ describe('videoAdminThumbnail', () => {
     expect(videoAdminThumbnail({ doc })).toBeNull()
   })
 
-  it('returns null for a video when no delivery URL is configured', () => {
+  it('returns null for a video when Stream has no delivery URL', () => {
     expect(videoAdminThumbnail({ doc: { filename: 'abc123', mimeType: 'video/mp4' } })).toBeNull()
   })
 })

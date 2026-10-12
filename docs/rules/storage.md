@@ -175,16 +175,17 @@ Thumbnails are composed URLs, never generated files. `previewUrlField` (`src/plu
 - **Anything else** — the local file URL, which serves the whole file rather than a thumbnail.
 - **Deletion** — there is no separate thumbnail object to delete. `handleDelete` routes on the document's MIME type (`src/plugins/storage/mixedMediaAdapter.ts`), so removing the Stream video removes its thumbnail with it.
 
-Two of our own surfaces read `previewUrl`, and they diverge exactly where it is `undefined`:
+Three surfaces draw a thumbnail, and they diverge exactly where it is absent. The third reads `thumbnailURL`, not `previewUrl`, so no `previewUrl` wiring reaches it:
 
-| Surface | Component | With no `previewUrl` |
+| Surface | Component | With no thumbnail |
 | --- | --- | --- |
 | Frames list column | `PreviewUrlThumbnailCell` (`src/components/admin/ThumbnailCell/PreviewUrlThumbnailCell.tsx`) → `BaseThumbnailCell` (`src/components/admin/ThumbnailCell/BaseThumbnailCell.tsx`) | Payload's `<Thumbnail>` placeholder. **No video fallback.** |
 | FrameEditor grid | `FrameThumbnail` (`src/components/admin/FrameEditor/FrameThumbnail.tsx`) | `<video preload="metadata">` from `hlsUrl` or `mp4Url` — and an empty box when the document has neither. |
+| Payload's own upload components — edit header (`StaticFileDetails`), upload-field cards, bulk-upload sidebar, default file cell | Payload's, not ours. They draw `thumbnailURL || url`, and `thumbnailURL` comes from `upload.adminThumbnail` alone | the generic file icon, since a video's `url` is the HLS manifest and no image tag can render it (#927) |
 
-A third surface reads a **different field**, and `previewUrl` cannot reach it. Payload's own components — the edit header (`StaticFileDetails`), upload-field cards, the bulk-upload sidebar, the default file cell — draw `thumbnailURL || url`, and `thumbnailURL` is filled from `upload.adminThumbnail` alone. For a video `url` is the HLS manifest, which an image tag cannot render, so a collection declaring no `adminThumbnail` showed the generic file icon however well its `previewUrl` was wired (#927).
+`videoAdminThumbnail` (`src/plugins/storage/adminThumbnail.ts`) is mounted per collection rather than applied to every upload collection the way `withUploadNotice` is (#892): `adminThumbnail` is a replacing scalar, so one visible line keeps the behaviour readable in the collection's own file, and `tests/unit/video-admin-thumbnail.spec.ts` fails naming any video-capable collection that declares none.
 
-`videoAdminThumbnail` (`src/plugins/storage/adminThumbnail.ts`) is that one declaration, mounted by `videos`, `frames` and `files`. It is deliberately per-collection rather than applied to every upload collection the way `withUploadNotice` is (#892): one visible line keeps the behaviour readable in the collection's own file, and `tests/unit/video-admin-thumbnail.spec.ts` fails naming any collection that admits `video/*` without it. ⚠ It must never return the Payload file route (`/api/<slug>/file/<filename>`) — Cloudflare serves these bytes, not the Worker, so that URL 500s in production. Null is the safe answer, and what every non-video document gets.
+⚠ **It must never return the Payload file route** (`/api/<slug>/file/<filename>`) — Cloudflare serves these bytes, not the Worker, so that URL 500s in production. Null is the safe answer, and what every non-video document gets.
 
 ## Cloudflare Stream webhook
 
