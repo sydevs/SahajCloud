@@ -4,7 +4,6 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import {
-  allowedSubmissionKeys,
   checkSubmissionData,
   SUBSCRIBE_OPT_IN,
 } from '@/collections/UserSubmissions/submissionData'
@@ -40,15 +39,16 @@ const registrations: AtlasRegistrationRow[] = JSON.parse(
 const users: AtlasUserRow[] = JSON.parse(
   readFileSync(path.resolve(process.cwd(), 'seeds/atlas/data/users.json'), 'utf-8'),
 )
-const allowed = allowedSubmissionKeys('registration')
 
 describe('atlas registrations → user-submissions', () => {
   it('maps every row within the submissionData bounds', () => {
     const rejected: string[] = []
     for (const reg of registrations) {
       const pairs = registrationSubmissionData(reg, { name: 'Registrant' })
-      const problems = checkSubmissionData(pairs, allowed)
-      if (problems.length > 0) rejected.push(`${reg.uuid}: ${problems.join(' ')}`)
+      const problems = checkSubmissionData(pairs, { type: 'registration' })
+      if (problems.length > 0) {
+        rejected.push(`${reg.uuid}: ${problems.map((problem) => problem.message).join(' ')}`)
+      }
     }
     expect(rejected).toEqual([])
   })

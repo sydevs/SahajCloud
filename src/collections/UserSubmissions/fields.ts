@@ -92,8 +92,9 @@ const reviewProjectionAccess: { read: FieldAccess } = {
  * client-writable as one blob**, so field-level access cannot protect anything
  * inside it, and Payload cannot pair `field`/`value` conditions on one array
  * element. Nothing queryable, unique, relational or system-gated may live
- * there. What is left for it is the flat free-form remainder, bounded by
- * `checkSubmissionData` instead of by a schema (see `submissionData.ts`).
+ * there. What is left for it is the flat free-form remainder, bounded by the
+ * schema its form and type compose (`submissionData.ts`) rather than by a
+ * `jsonSchema`, which an array field cannot carry.
  */
 export function userSubmissionFields({ defaultFields }: { defaultFields: Field[] }): Field[] {
   return [
@@ -149,7 +150,7 @@ const typeField: Field = {
  * the form's title joined with the sender's own `subject` pair
  * (`composeSubject`, `hooks/prepareUserSubmission.ts`), so unreviewed text does
  * reach an admin's list view. That is bounded rather than trusted: the pair is
- * URL-scanned by `urlScannablePairs`, capped by the `submissionData` bound, and
+ * URL-scanned by `submissionDataSchema`, capped by the `submissionData` bound, and
  * the column truncates to 300. Treat the value as untrusted when you render it
  * anywhere new.
  */

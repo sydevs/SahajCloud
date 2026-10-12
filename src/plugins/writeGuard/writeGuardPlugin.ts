@@ -36,9 +36,16 @@ import { DEFAULT_WRITE_GUARD_POLICIES } from './policies'
  * forwards a client `req` but writes system-authored data (e.g. a sync hook
  * updating a counter on another collection). Same pattern as `skipVerifyHook`.
  *
- * Failures throw `APIError(message, status, { code }, isPublic: true)`, so the
- * built-in REST endpoints and custom handlers alike surface the message and
- * machine code (`captcha_failed`, `urls_not_allowed`, `disposable_email`, …).
+ * Failures throw `APIError(message, status, { code, field }, isPublic: true)`,
+ * so the built-in REST endpoints and custom handlers alike surface the message
+ * and machine code (`captcha_failed`, `urls_not_allowed`, `disposable_email`,
+ * …). `field` names the input that tripped a per-field check, and is absent
+ * from the captcha's verdict, which is about the request.
+ *
+ * ⚠ **`prepareUserSubmission` raises these same codes** for the pairs no path
+ * here can scan selectively, and carries the same `field`. One endpoint, one
+ * error shape — a client reading `errors[0].data` must not have to know which
+ * of the two refused it.
  */
 
 /** Read a (possibly dotted) path off the incoming data. */
@@ -61,7 +68,12 @@ function stringLeaves(value: unknown, into: string[] = []): string[] {
 }
 
 function throwFailure(failure: AntiSpamFailure): never {
-  throw new APIError(failure.message, failure.status, { code: failure.code }, true)
+  throw new APIError(
+    failure.message,
+    failure.status,
+    { code: failure.code, field: failure.field },
+    true,
+  )
 }
 
 async function runPolicy(
