@@ -7,6 +7,9 @@ import nextConfig from '../../next.config.mjs'
 
 /**
  * Both levers are pinned because each reads as a plausible tidy-up alone.
+ * They are coupled, not independent: the flag is what stops the panic, and
+ * the `rm` only clears the copy Railpack restored. Re-enable the flag and the
+ * `rm` goes with it, or every build deletes the store it just re-enabled.
  * Narrative: `DEPLOYMENT.md` and issue #932.
  */
 
