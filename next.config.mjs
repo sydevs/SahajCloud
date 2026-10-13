@@ -119,13 +119,8 @@ const nextConfig = {
   // External packages for server-side rendering
   serverExternalPackages: ['payload', 'jose'],
   experimental: {
-    // Turbopack's build store lives in `.next/cache/turbopack`, the one
-    // directory Railpack restores between builds, so a corrupt one panics
-    // `turbo-persistence` on every later build of a branch. False stops this
-    // build reading or writing a store; `package.json`'s build script is what
-    // deletes the copy Railpack already restored. Leave
-    // `turbopackFileSystemCacheForDev` alone — a dev store never reaches a
-    // builder. See issue #932.
+    // Railpack restores `.next/cache`, so a store corrupted there panics
+    // every later build. Dev's store is elsewhere. #932
     turbopackFileSystemCacheForBuild: false,
   },
 }
