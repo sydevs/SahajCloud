@@ -1,3 +1,4 @@
+import type { SubmissionProblem } from '../submissionData'
 import type { CollectionBeforeValidateHook } from 'payload'
 
 import { randomUUID } from 'node:crypto'
@@ -5,18 +6,12 @@ import { randomUUID } from 'node:crypto'
 import { APIError } from 'payload'
 
 
-import { checkNoUrls } from '@/lib/antiSpam/antiSpamGuard'
 import { upsertUserByEmail } from '@/lib/users/upsertUserByEmail'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Form, UserSubmission } from '@/payload-types'
 
 import { FORM_BACKED_TYPES, SUBMISSION_TYPES, TYPE_LABELS } from '../fields'
-import {
-  allowedSubmissionKeys,
-  checkSubmissionData,
-  readSubmissionValue,
-  urlScannablePairs,
-} from '../submissionData'
+import { authoredBlocks, checkSubmissionData, readSubmissionValue } from '../submissionData'
 
 
 /** Said when an address has no usable local part (`"..."@example.org`). */
@@ -111,31 +106,17 @@ export const prepareUserSubmission: CollectionBeforeValidateHook = async ({
     )
   }
 
-  const formFieldNames = authoredFieldNames(form)
-
-  const problems = checkSubmissionData(
-    data.submissionData,
-    allowedSubmissionKeys(type, formFieldNames),
-  )
-  if (problems.length > 0) {
-    // `APIError`, not `ValidationError`: Payload composes a ValidationError's
-    // top-level message from the field paths ("The following field is invalid:
-    // submissionData") and buries the per-error text, so the offending key —
-    // the one thing an integrator can act on — never reaches the response body
-    // they read. Same envelope the write-guard raises, for the same reason.
-    throw new APIError(problems.join(' '), 400, { code: 'submission_data_invalid' }, true)
-  }
-
-  // The write-guard cannot scan these pairs selectively — see `URL_EXEMPT_KEYS`
-  // and the note in `policies.ts`. Same check, same failure shape, so a client
-  // sees one contract whichever field tripped it. Client writes only: a manager
-  // pasting a link into a triage note is not spam.
-  if (fromClient) {
-    const urls = checkNoUrls(urlScannablePairs(data.submissionData))
-    if (!urls.ok) {
-      throw new APIError(urls.message, urls.status, { code: urls.code }, true)
-    }
-  }
+  // One schema, from the form and the type: the key allow-list, the length
+  // caps and the per-block content checks in one pass. The content half is
+  // client-only — a manager pasting a link into a triage note is not spam — and
+  // the write guard cannot do it, because no policy path spells "the pair whose
+  // key the operator chose" (`policies.ts`).
+  const problems = checkSubmissionData(data.submissionData, {
+    type,
+    formFields: authoredBlocks(form),
+    checkContent: fromClient,
+  })
+  if (problems.length > 0) refuse(problems)
 
   const senderEmail = typeof data.senderEmail === 'string' ? data.senderEmail.trim() : ''
 
@@ -199,16 +180,38 @@ async function loadForm(
 }
 
 /**
- * The field names the form's author declared, so `submissionData` accepts what
- * that form actually asks rather than a list restated here — an author adds a
- * field whenever they like.
+ * Raise the schema's verdict as the 400 a client reads.
+ *
+ * **A malformed blob outranks its content.** Every shape problem is reported
+ * at once, because the caller can fix the keys in one round and because a
+ * refused key's value was never meant to be judged. A content refusal is one
+ * field's answer instead, and its code and field are what a client's error
+ * copy keys on.
+ *
+ * `APIError`, not `ValidationError`: Payload composes a ValidationError's
+ * top-level message from the field paths ("The following field is invalid:
+ * submissionData") and buries the per-error text, so the offending key — the
+ * one thing an integrator can act on — never reaches the response body they
+ * read. Same envelope the write guard raises, for the same reason.
  */
-function authoredFieldNames(form: Form | null): string[] {
-  if (!form || !Array.isArray(form.fields)) return []
+function refuse(problems: SubmissionProblem[]): never {
+  const shape = problems.filter((problem) => problem.code === 'submission_data_invalid')
+  if (shape.length > 0) {
+    throw new APIError(
+      shape.map((problem) => problem.message).join(' '),
+      400,
+      { code: 'submission_data_invalid' },
+      true,
+    )
+  }
 
-  return form.fields
-    .map((block) => (block as { name?: unknown }).name)
-    .filter((name): name is string => typeof name === 'string' && name.length > 0)
+  const [content] = problems
+  throw new APIError(
+    content!.message,
+    content!.status,
+    { code: content!.code, field: content!.field },
+    true,
+  )
 }
 
 /**
@@ -292,9 +295,9 @@ function truncate(value: string): string {
  *
  * **Dots and underscores become spaces**, which is both nicer to read
  * (`john.doe` → `john doe`) and load-bearing: the write-guard's `users` policy
- * URL-scans `name`, and its bare-domain pattern matches any `word.tld` — so a
- * literal local part would reject every submission from `foo.com@example.org`
- * with "Links are not allowed in name".
+ * URL-scans `name`, and its bare-domain pattern matches a `word.tld` in a local
+ * part — so a literal local part would reject every submission from
+ * `foo.com@example.org` with "Links are not allowed in name".
  */
 function displayNameFor(email: string): string {
   const localPart = email.split('@')[0] ?? ''

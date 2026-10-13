@@ -77,7 +77,7 @@ Admin-readonly JSON, keyed by **origin + pathname**, one record per mount (`mode
 
 **The body is `origin` + `pathname`, two fields.** A query string or fragment is refused, since the endpoint can only enforce "path alone" that way — except a WordPress permalink (`?p=<digits>`), where discarding it would collapse the whole site onto one mount with no way to name the operator's intended page.
 
-**The write is raw SQL, and has to be.** `payload.update` deadlocks here: the usage plugin increments `usage_daily_requests` on the caller's own row on its own connection, for the very request being served, while `payload.update` holds that row inside the request transaction — both then wait on `Lock: transactionid` forever. An autocommit `jsonb ||` merge has no transaction to overlap with.
+**The write is raw SQL, and has to be.** The other party is always another request — this route is unmetered, since `clients` is excluded from the plugin (below). Every *metered* read under the same client key increments `usage_daily_requests` on that row in autocommit, from the same pool Payload runs request transactions on, and a widget boot issues several on the same page load as the report. `payload.update` would hold the row for the life of the request transaction, so each of those blocks on `Lock: transactionid` while holding a connection that transaction may itself need. An autocommit `jsonb ||` merge has no transaction to hold the row in.
 
 ### `POST /api/clients/report`
 
@@ -122,8 +122,9 @@ query:  https://{domain}{mount}{?|&}atlas={webPath}
 | --- | --- |
 | `usagePlugin.ts` | Plugin orchestration |
 | `hooks.ts` | `usageTrackingBeforeOperationHook`, `rateLimitHook` (no-op on Railway) |
-| `tasks.ts` | `trackUsageTask`, `resetUsageTask` (atomic Postgres ops) |
-| `types.ts` | Type definitions and constants |
+| `tasks.ts` | `resetUsageTask` (the daily atomic Postgres reset) |
+| `constants.ts` | Thresholds and client read bounds |
+| `db.ts` | `getPgPool`, `quotedDbSchema` — the adapter's own pool, for the raw increments |
 
 ## Authentication flow
 
@@ -175,7 +176,11 @@ Two refusals are specific to it, each with a message naming what to fix:
 | `submission_data_invalid` | 400 | An unrecognised `type`, or a `submissionData` pair carrying a key this type does not accept, a duplicate key, a non-string value, or an over-long one. The message names the key |
 | `submission_type_mismatch` | 400 | The `type` disagrees with the form's `actionType`. The form is the authority on what a submission against it is |
 
-`urls_not_allowed` also reaches `submissionData`, with one deliberate exemption: `path`, `hostUrl`, `error`, `userAgent` and `locale` are never URL-scanned, because an issue report names the page it happened on.
+Every per-field refusal names the input that tripped it: `errors[0].data` is `{ code, field }`, where `field` is the body path (`senderEmail`, `proposed.contactEmail`) or the `submissionData` pair name. The write guard and the intake hook raise the same codes with the same shape, so a client never has to tell which of the two refused it. `captcha_failed` and `captcha_unavailable` carry no `field` — they judge the request, not an input.
+
+`urls_not_allowed` also reaches `submissionData`, with two deliberate exemptions. `path`, `hostUrl`, `error`, `userAgent` and `locale` are never URL-scanned, because an issue report names the page it happened on. Neither is an answer to one of the form's **email** questions: it is validated as an address instead, so such an answer is refused as `invalid_email` — what a link typed into one gets — or `disposable_email`, never `urls_not_allowed` (#899). `disposable_email` is the newly reachable half: an answer the caller does not also send as `senderEmail` had no disposable-domain check before. The exemption keys on the authored block type, so it follows whatever the operator named the field.
+
+An address's domain half is not a link, in any scanned field: `visitor@gmail.com` passes (#921). A value carrying both still fails — `a@b.com buy at cheap.shop`, and `https://user@evil.com`.
 
 Clients hold **create only**, with no update of any kind and no read at any depth or scope.
 
@@ -235,6 +240,22 @@ Caching and purge for the same reads are in `DEPLOYMENT.md`; the cacheable set i
 ## Query parameter validation
 
 An API client read must declare its data needs: `select` is required on every read, and `populate` is required whenever effective `depth > 1` (explicit or the server default). `validateClientQueryParamsHook` enforces this before rate limiting, so a malformed read costs no rate-limit slot. Managers, admin UI requests, and writes are unaffected. It applies to a global read too (#710, above).
+
+### `limit` and `page` bounds (#887)
+
+The same gate bounds the two numbers that reach SQL. A client may send `limit` up to **2000** and `page` up to **10000** (`MAX_CLIENT_LIMIT` / `MAX_CLIENT_PAGE` in `src/plugins/usage/constants.ts`, which the OpenAPI parameter docs also read); either outside `0 … its ceiling`, or not a whole number, is refused **400** naming the bound. A global read carries neither, so nothing changes there.
+
+**Clients only, deliberately** — a manager, the admin UI and an internal read are trusted with their own numbers, and `hooks.ts` returns early for all three. The bound runs *ahead* of the `asTrustedReq` and live-preview bypasses, though, unlike the `select` gate: those relax a shape policy, and this one keeps a number out of the driver.
+
+```
+❌ GET /api/meditations?select[label]=true&limit=99999999999999999999   → 400
+❌ GET /api/meditations?select[label]=true&page=99999999999999999999    → 400
+✅ GET /api/meditations?select[label]=true&limit=2000                   → 200
+```
+
+Both ceilings are headroom, not a budget: our own largest paginated read asks for 1000 (`src/plugins/usage/tasks.ts`), and the largest any consumer sends is 100. They exist because unbounded, **each one alone returns 500** — the driver overflows on a 20-digit `limit`, and on the `(page - 1) * limit` offset a 20-digit `page` produces. Bounding `limit` alone leaves the second door open, and a negative `page` reaches the same 500 as `OFFSET -20`.
+
+⚠ **An unbounded read is still allowed.** `limit=0` and `pagination=false` are payload's two spellings of "the whole table", and both remain open to clients — the Atlas widget reads its region tree, its map feed and its title map that way. Whether that should stay open is #887's phase 2, and it costs a coordinated SahajAtlasWeb change before any cap can land.
 
 ### Expected REST format (bracket notation)
 
@@ -343,7 +364,7 @@ Tests: `tests/unit/origin-enforcement.spec.ts` (normalization and matching), `te
 
 ## Usage monitoring
 
-Tracking is async, via the Payload job queue (no in-request DB write). An alert logs when the daily count passes 1,000 requests. `peakDailyRequests` records the historical max. `resetUsageTask` runs daily at midnight UTC. The increment is one atomic Postgres UPDATE via the Drizzle pool — a single transaction, no race.
+Tracking is **in-request**, not queued: `countClientRead` issues one atomic `UPDATE` on the adapter's pool, outside the request transaction, at most once per request (#891). It fails open, so a tracking outage never refuses a read. An alert logs when the daily count passes 1,000 requests. `peakDailyRequests` records the historical max. `resetUsageTask` runs daily at midnight UTC, and is the only part on the queue.
 
 ## Rate limiting (Cloudflare edge)
 

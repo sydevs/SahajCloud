@@ -77,6 +77,7 @@ import * as migration_20260929_043344_storage_object_key from './20260929_043344
 import * as migration_20260929_173315_null_manager_password_hashes from './20260929_173315_null_manager_password_hashes';
 import * as migration_20261010_013059_event_imports from './20261010_013059_event_imports';
 import * as migration_20261010_025807_event_import_jobs from './20261010_025807_event_import_jobs';
+import * as migration_20261011_194449_wm_web_discover_translations from './20261011_194449_wm_web_discover_translations';
 
 export const migrations = [
   {
@@ -472,6 +473,11 @@ export const migrations = [
   {
     up: migration_20261010_025807_event_import_jobs.up,
     down: migration_20261010_025807_event_import_jobs.down,
-    name: '20261010_025807_event_import_jobs'
+    name: '20261010_025807_event_import_jobs',
+  },
+  {
+    up: migration_20261011_194449_wm_web_discover_translations.up,
+    down: migration_20261011_194449_wm_web_discover_translations.down,
+    name: '20261011_194449_wm_web_discover_translations'
   },
 ];

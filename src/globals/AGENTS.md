@@ -120,8 +120,8 @@ All translations globals share a tab-based structure, built by
 `buildTranslationTabs()` from a `translationsSchema.json` co-located with
 the global. Versions: max 3.
 
-- WeMeditate Web tabs: Common, Navigation, Footer, Errors, Article,
-  Meditation, Lecture, Map, Forms, Media, Video, Location, Blocks
+- WeMeditate Web tabs: Common, Navigation, Footer, Errors, Discover,
+  Article, Meditation, Lecture, Map, Forms, Media, Video, Location, Blocks
 - WeMeditate App tabs: Daily, Path, Explore, Profile, Meditation
 - Sahaj Atlas tabs: Common, Countries, Search, Filters, Online, Event,
   Calendar, Registration, Share, Compact, Seo, Emails
@@ -145,6 +145,11 @@ a translator works down a page. Every tab that carries screen-reader-only
 copy declares explicit `general` + `a11y` sub-groups (#707), so the visible
 strings stay together and the invisible ones start collapsed. `navigation`
 and `footer` have none, so they stay flat.
+
+A third shape exists: `discover` declares `general` alone (#917). A tab with
+no screen-reader copy may take either form, and nesting buys the later
+`a11y` group for free — promoting a flat `discover` to `discover_general`
+would be a column rename.
 
 Two conventions hold across that schema, and adding a key means honouring
 both:

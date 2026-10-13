@@ -10,6 +10,7 @@ import { APIError } from 'payload'
 import { isLivePreviewRequest } from '@/lib/utilities/previewSecret'
 import type { Client } from '@/payload-types'
 
+import { MAX_CLIENT_LIMIT, MAX_CLIENT_PAGE } from './constants'
 import { getPgPool, quotedDbSchema } from './db'
 import { extractRequestHost, isHostAllowed, parseAllowedDomains } from './originEnforcement'
 
@@ -141,19 +142,18 @@ export interface ClientReadGateArgs {
 /** A gate that runs before a client read, on either surface. */
 export type ClientReadGate = (args: ClientReadGateArgs) => void | Promise<void>
 
-/** The operation arguments these gates inspect, safe against an absent `args`. */
-function readOperationArgs(args: unknown): {
+interface ReadOperationArgs {
   currentDepth?: unknown
   depth?: unknown
+  limit?: unknown
+  page?: unknown
   populate?: unknown
   select?: unknown
-} {
-  return (args ?? {}) as {
-    currentDepth?: unknown
-    depth?: unknown
-    populate?: unknown
-    select?: unknown
-  }
+}
+
+/** The operation arguments these gates inspect, safe against an absent `args`. */
+function readOperationArgs(args: unknown): ReadOperationArgs {
+  return (args ?? {}) as ReadOperationArgs
 }
 
 /**
@@ -211,6 +211,7 @@ export const rateLimitHook: ClientReadGate = () => {
  * - `select` is required on every client read, so a client cannot pull whole documents.
  * - `populate` is required when the effective `depth > 1`, so a client
  *   cannot auto-populate every relationship.
+ * - `limit` and `page` are bounded, so neither reaches Postgres out of range.
  *
  * Validation is argument-based, not URL-based. Payload's REST handler
  * parses URL query params (for example `?select[title]=true`) into
@@ -244,6 +245,20 @@ export const validateClientQueryParamsHook: ClientReadGate = ({ args, operation,
     return
   }
 
+  const findArgs = readOperationArgs(args)
+
+  // Payload's own population reads are exempt from every check below — their
+  // numbers are payload's, not the caller's.
+  if (typeof findArgs.currentDepth === 'number') {
+    return
+  }
+
+  // Ahead of both bypasses below, because a range bound is a security gate
+  // rather than a shape-declaration policy: a trusted endpoint that one day
+  // forwards a client's own `limit` would otherwise reopen the 500.
+  assertWithinBound('limit', findArgs.limit, MAX_CLIENT_LIMIT, req)
+  assertWithinBound('page', findArgs.page, MAX_CLIENT_PAGE, req)
+
   // A trusted internal endpoint that forwards the client req to
   // payload.find(...) can opt out by setting this context flag. It shapes
   // its own response, and should not have to enumerate every field through
@@ -254,12 +269,6 @@ export const validateClientQueryParamsHook: ClientReadGate = ({ args, operation,
 
   // The same trust signal that unlocks drafts in `createAccessConfig`.
   if (isLivePreviewRequest(req)) {
-    return
-  }
-
-  const findArgs = readOperationArgs(args)
-
-  if (typeof findArgs.currentDepth === 'number') {
     return
   }
 
@@ -303,6 +312,39 @@ export const validateClientQueryParamsHook: ClientReadGate = ({ args, operation,
       400,
     )
   }
+}
+
+/**
+ * Refuse a `limit` or `page` that would reach Postgres out of range (#887).
+ *
+ * Bounding `limit` alone is not enough: `page` overflows through the
+ * `(page - 1) * limit` offset on its own, and a negative one reaches the same
+ * 500 as `OFFSET -20`. A negative `limit` is harmless — the adapter swallows
+ * it — and is refused anyway rather than splitting the rule in two.
+ *
+ * `0` passes for both: it is payload's "no limit" sentinel on `limit` and
+ * reads as page 1 on `page`. Whether a client may read unbounded at all is
+ * `docs/rules/api-clients.md`'s question, not this gate's.
+ */
+function assertWithinBound(
+  name: 'limit' | 'page',
+  value: unknown,
+  max: number,
+  req: PayloadRequest,
+): void {
+  if (typeof value !== 'number') return
+  if (Number.isInteger(value) && value >= 0 && value <= max) return
+
+  req.payload.logger.warn({
+    msg: `Client query validation rejected: ${name} out of bounds`,
+    clientId: req.user?.id,
+    max,
+    value,
+  })
+  throw new APIError(
+    `The "${name}" query parameter must be a whole number between 0 and ${max} for API clients.`,
+    400,
+  )
 }
 
 /** Returns top-level keys of an object, or null for non-objects. Diagnostic-only. */
