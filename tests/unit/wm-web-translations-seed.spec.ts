@@ -119,6 +119,37 @@ describe('seeds/wm-web-translations/data.en.json', () => {
     expect(keys.length).toBeGreaterThan(100)
   })
 
+  // `_meta.schema_version` quotes three counts, and a reader takes them on
+  // trust. Every one was hand-written, so adding a key without touching that
+  // line leaves a confidently wrong number behind. Deriving them here is what
+  // makes the line answerable.
+  it('quotes its own shape correctly in _meta.schema_version', () => {
+    const version = (seed._meta as { schema_version?: string } | undefined)?.schema_version ?? ''
+    const quoted = version.match(/(\d+) tabs, (\d+) leaf groups, (\d+) declared keys/)
+    expect(quoted, `unparseable schema_version: ${version}`).not.toBeNull()
+
+    const isNode = (node: LeafProp | SchemaNode): node is SchemaNode => node.type === 'object'
+    const leafGroups = (node: SchemaNode): number => {
+      const children = Object.values(node.properties ?? {})
+      return children.some(isNode)
+        ? children.filter(isNode).reduce((total, child) => total + leafGroups(child), 0)
+        : 1
+    }
+
+    expect({
+      tabs: Number(quoted?.[1]),
+      leafGroups: Number(quoted?.[2]),
+      keys: Number(quoted?.[3]),
+    }).toEqual({
+      tabs: Object.keys(schema.properties).length,
+      leafGroups: Object.values(schema.properties).reduce(
+        (total, tab) => total + leafGroups(tab),
+        0,
+      ),
+      keys: keys.length,
+    })
+  })
+
   // Collected rather than one case per key: a single failure then names every
   // missing path at once, instead of the first of 140.
   it('covers every key the schema declares', () => {

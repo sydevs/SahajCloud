@@ -137,7 +137,7 @@ describe('Translations Globals Configuration', () => {
   describe('Tab structure', () => {
     // The order is the reading order of the site, not an accident of the
     // schema file — a translator works down the page, not down a data model.
-    it('wm-web-translations has the #707 tabs plus Video, in order', () => {
+    it('wm-web-translations has the #707 tabs plus Video and Discover, in order', () => {
       const tabsField = findGlobal('wm-web-translations').fields[0] as TabsField
       const labels = tabsField.tabs.map((t) => t.label)
       expect(labels).toEqual([
@@ -145,6 +145,7 @@ describe('Translations Globals Configuration', () => {
         'Navigation',
         'Footer',
         'Errors',
+        'Discover',
         'Article',
         'Meditation',
         'Lecture',
@@ -186,6 +187,8 @@ describe('Translations Globals Configuration', () => {
     // `general` and `a11y` repeat across eleven tabs, so a bare name proves
     // nothing. The pair is what maps to the `<tab>_<sub>` column, and asserting
     // the exact set is what catches a sub-group dropped from the schema.
+    // `discover` carries a lone `general` because it owns no screen-reader
+    // copy — the one entry here that is not half of a pair.
     it('wm-web-translations emits one JSON field per leaf group, namespaced by tab', () => {
       expect(jsonFieldPaths('wm-web-translations')).toEqual([
         'common.general',
@@ -194,6 +197,7 @@ describe('Translations Globals Configuration', () => {
         'footer',
         'errors.general',
         'errors.a11y',
+        'discover.general',
         'article.general',
         'article.a11y',
         'meditation.general',
