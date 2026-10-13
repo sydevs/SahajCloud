@@ -359,6 +359,8 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       // purely Payload's default. See plans/...luminous-dusk.md (Track A).
       uploadTimeout: 300000,
       limits: {
+        // ⚠ `experimental.proxyClientMaxBodySize` in `next.config.mjs` must stay
+        // at or above this, or the middleware truncates the body first (#938).
         fileSize: 104857600, // 100MB global limit, written in bytes (collections will have their own limits)
       },
     },

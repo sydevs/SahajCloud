@@ -12,6 +12,15 @@ const nextConfig = {
   // imports, so they trace into the bundle and still run at boot. See
   // issue #471.
   output: 'standalone',
+  // `src/middleware.ts` matches `/api/:path*`, so Next buffers a copy of every
+  // API request body and silently truncates it at this cap. Payload then reads a
+  // cut-off upload and throws "Unexpected end of form" (#938).
+  //
+  // ⚠ Keep this at or above `upload.limits.fileSize` in `src/payload.config.ts`,
+  // which `tests/unit/next-config-body-limit.spec.ts` pins as the floor.
+  experimental: {
+    proxyClientMaxBodySize: 104857600,
+  },
   // Keep dev and test files out of the standalone trace. Otherwise Next
   // copies these large directories into `.next/standalone`, and a local
   // `pnpm build` grows to many GB from `media/` and `seeds/`. Production
