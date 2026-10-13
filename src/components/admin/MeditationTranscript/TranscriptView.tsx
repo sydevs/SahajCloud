@@ -8,6 +8,13 @@ import { usePlaybackTime, useSeekToTime } from '@/components/admin/FrameEditor/h
 import { formatTime } from '@/components/admin/FrameEditor/utils'
 
 import styles from './MeditationTranscript.module.css'
+import {
+  frameTitle,
+  isApprovedAs,
+  type Suggestion,
+  suggestionTimestamp,
+  useFrameSuggestions,
+} from './useFrameSuggestions'
 
 type Segment = { text: string; start: number; end: number }
 
@@ -37,28 +44,71 @@ function toParagraphs(segments: Segment[]): Paragraph[] {
   return paragraphs
 }
 
-/**
- * The phrase playing at `time`, or -1 in a pause. The preview reports whole
- * seconds, so a phrase counts from the second it starts in.
- */
-function activePhrase(segments: Segment[], time: number): number {
+/** The last phrase started by `time`. The preview reports whole seconds, so a phrase counts from the second it starts in. */
+function lastStarted(segments: Segment[], time: number): number {
   for (let index = segments.length - 1; index >= 0; index -= 1) {
-    if (Math.floor(segments[index].start) <= time) {
-      return time < segments[index].end + 0.5 ? index : -1
-    }
+    if (Math.floor(segments[index].start) <= time) return index
   }
   return -1
+}
+
+/** The phrase playing at `time`, or -1 in a pause. */
+function activePhrase(segments: Segment[], time: number): number {
+  const index = lastStarted(segments, time)
+  return index >= 0 && time < segments[index].end + 0.5 ? index : -1
+}
+
+/** A picture change shown in the transcript: a frame of the meditation, or a suggestion still waiting. */
+type Mark = {
+  key: string
+  timestamp: number
+  title: string
+  kind: 'frame' | 'approved' | 'suggested'
+  note?: string
+}
+
+/** Each mark after the phrase playing when it starts, or after the last phrase before it in a pause. -1 is before the first phrase. */
+function marksByPhrase(segments: Segment[], marks: Mark[]) {
+  const byPhrase = new Map<number, Mark[]>()
+  for (const mark of [...marks].sort((a, b) => a.timestamp - b.timestamp)) {
+    const index = lastStarted(segments, mark.timestamp)
+    byPhrase.set(index, [...(byPhrase.get(index) ?? []), mark])
+  }
+  return byPhrase
 }
 
 export function TranscriptView({
   transcript,
   outdated,
+  suggestions,
 }: {
   transcript: TranscriptFile | null
   outdated: boolean
+  suggestions: Suggestion[]
 }) {
   const segments = useMemo(() => transcript?.segments ?? [], [transcript])
   const paragraphs = useMemo(() => toParagraphs(segments), [segments])
+  const { frames, approved } = useFrameSuggestions(suggestions)
+  const byPhrase = useMemo(() => {
+    const marks: Mark[] = [
+      ...frames.map((frame, index) => ({
+        key: `frame-${index}`,
+        timestamp: frame.timestamp,
+        title: frameTitle(frame),
+        kind: suggestions.some((s) => isApprovedAs(s, frame)) ? ('approved' as const) : ('frame' as const),
+      })),
+      ...suggestions
+        .filter((s) => !approved.has(s.id))
+        .map((s) => ({
+          key: s.id,
+          timestamp: suggestionTimestamp(s),
+          title: frameTitle(s.frame),
+          kind: 'suggested' as const,
+          note: `${s.text} — Jev's confidence ${s.confidence.toFixed(2)}`,
+        })),
+    ]
+    return marksByPhrase(segments, marks)
+  }, [approved, frames, segments, suggestions])
   const active = activePhrase(segments, usePlaybackTime())
   const seekTo = useSeekToTime()
   const container = useRef<HTMLDivElement>(null)
@@ -83,6 +133,13 @@ export function TranscriptView({
           hear.
         </Banner>
       )}
+      {suggestions.length > 0 && (
+        <Banner type="success">
+          {suggestions.length - approved.size} of {suggestions.length} suggested picture changes are
+          waiting for review. Dashed marks are suggestions, solid ones are already in the meditation,
+          and ✓ marks an approved suggestion. Play the preview and approve each one under the player.
+        </Banner>
+      )}
       {paragraphs.map((paragraph) => (
         <section className={styles.paragraph} key={paragraph.indexes[0]}>
           <button className={styles.timestamp} onClick={() => play(paragraph.start)} type="button">
@@ -91,17 +148,26 @@ export function TranscriptView({
           {/* A button cannot wrap mid-line like running text, so phrases are
               spans; the timestamp button is the keyboard route to each paragraph. */}
           <p className={styles.text}>
-            {paragraph.indexes.map((index) => (
-              <React.Fragment key={index}>
-                <span
-                  aria-current={index === active ? 'true' : undefined}
-                  className={styles.phrase}
-                  onClick={() => play(segments[index].start)}
-                >
-                  {segments[index].text}
-                </span>{' '}
-              </React.Fragment>
-            ))}
+            {paragraph.indexes[0] === 0 && <Marks marks={byPhrase.get(-1)} seekTo={seekTo} />}
+            {paragraph.indexes.map((index) => {
+              const inside = (byPhrase.get(index) ?? []).filter(
+                (mark) => mark.timestamp < segments[index].end + 0.5,
+              )
+              return (
+                <React.Fragment key={index}>
+                  <span
+                    aria-current={index === active ? 'true' : undefined}
+                    className={`${styles.phrase} ${styles[strongest(inside)] ?? ''}`}
+                    onClick={() =>
+                      inside.length ? seekTo(inside[0].timestamp) : play(segments[index].start)
+                    }
+                  >
+                    {segments[index].text}
+                  </span>
+                  <Marks marks={byPhrase.get(index)} seekTo={seekTo} />{' '}
+                </React.Fragment>
+              )
+            })}
           </p>
           {paragraph.silenceAfter && (
             <p className={styles.silence}>
@@ -113,4 +179,24 @@ export function TranscriptView({
       ))}
     </div>
   )
+}
+
+/** The phrase shows the mark that most needs attention: a waiting suggestion first. */
+function strongest(marks: Mark[]): string {
+  return (['suggested', 'approved', 'frame'] as const).find((kind) => marks.some((m) => m.kind === kind)) ?? ''
+}
+
+function Marks({ marks = [], seekTo }: { marks?: Mark[]; seekTo: (seconds: number) => void }) {
+  // A Pill is a block, which cannot sit inside running text.
+  return marks.map((mark) => (
+    <span
+      className={`${styles.chip} ${styles[`${mark.kind}Chip`]}`}
+      key={mark.key}
+      onClick={() => seekTo(mark.timestamp)}
+      title={mark.note}
+    >
+      {mark.kind === 'approved' ? '✓ ' : ''}
+      {formatTime(mark.timestamp)} {mark.title}
+    </span>
+  ))
 }

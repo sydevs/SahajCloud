@@ -36,6 +36,21 @@
   background-color: var(--theme-elevation-100);
 }
 
+.frame {
+  border-bottom: 2px solid var(--theme-elevation-400);
+}
+
+.approved {
+  background-color: var(--theme-success-100);
+  border-bottom: 2px solid var(--theme-success-500);
+}
+
+.suggested {
+  background-color: var(--theme-success-50);
+  border-bottom: 2px dashed var(--theme-success-500);
+}
+
+/* After the suggestion rules, so the playing highlight wins where they meet. */
 .phrase[aria-current='true'] {
   background-color: var(--theme-warning-100);
 }
@@ -53,4 +68,31 @@
   content: '';
   flex: 1;
   border-top: 1px dashed var(--theme-elevation-200);
+}
+
+.chip {
+  margin-left: 4px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.frameChip {
+  background-color: var(--theme-elevation-100);
+  color: var(--theme-elevation-800);
+}
+
+.approvedChip {
+  background-color: var(--theme-success-500);
+  color: var(--theme-elevation-0);
+}
+
+.suggestedChip {
+  border-color: var(--theme-success-500);
+  border-style: dashed;
+  background-color: var(--theme-success-50);
+  color: var(--theme-success-800);
 }
