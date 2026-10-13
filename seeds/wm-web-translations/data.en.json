@@ -2,8 +2,8 @@
   "_meta": {
     "global": "wm-web-translations",
     "locale": "en",
-    "source": "Extracted from sydevs/WeMeditateWeb@main — the literal each key replaces is listed in Appendix A of sydevs/SahajCloud#707. Screen-reader-only strings come from the inventory in sydevs/WeMeditateWeb#56.",
-    "schema_version": "post-#707 (13 tabs, 24 leaf groups, 181 declared keys)",
+    "source": "Extracted from sydevs/WeMeditateWeb@main — the literal each key replaces is listed in Appendix A of sydevs/SahajCloud#707. Screen-reader-only strings come from the inventory in sydevs/WeMeditateWeb#56. The `discover` group and `meditation.general.upsell_*` come from sydevs/SahajCloud#917, which lists the file and line each literal sits on.",
+    "schema_version": "post-#917 (14 tabs, 25 leaf groups, 192 declared keys)",
     "shape": "Mirrors the global's API response: <tab>.<sub-group>.<key> for a nested tab, <tab>.<key> for a flat one (navigation, footer). A `plural: true` key is stored expanded — English populates `_one` and `_other` only, since English has no `few`/`many` form.",
     "placeholders": "`%{name}` interpolation, resolved by the consuming site. `%{count}` is reserved for the number that selects the plural form."
   },
@@ -59,6 +59,19 @@
     }
   },
 
+  "discover": {
+    "general": {
+      "title": "Discover it for yourself!",
+      "subtitle": "Don't just take our word for it. Try meditating and see how you feel!",
+      "meditate_now": "Meditate Now",
+      "meditate_now_subtitle": "Watch guided meditations",
+      "live_guidance": "Live Guidance",
+      "live_guidance_subtitle": "Free online meditations",
+      "classes_near_me": "Classes Near Me",
+      "classes_near_me_subtitle": "Free in-person classes"
+    }
+  },
+
   "article": {
     "general": {
       "written_by": "Written by %{name}",
@@ -90,7 +103,10 @@
       "change_music": "Change background music track",
       "untitled": "Untitled Meditation",
       "missing_audio": "This meditation is missing a required audio URL.",
-      "related_lectures": "Related lectures"
+      "related_lectures": "Related lectures",
+      "upsell_web": "Find more meditations on %{link}",
+      "upsell_app": "Find interactive meditations with meditation music in our %{link}",
+      "upsell_app_link": "free app"
     },
     "a11y": {
       "mute_voice": "Mute voice",
