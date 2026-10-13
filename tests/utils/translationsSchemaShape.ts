@@ -24,7 +24,7 @@ import {
 
 export type SchemaRoot = { properties?: Record<string, LeafProp | SchemaNode> }
 
-export interface SchemaShape {
+interface SchemaShape {
   tabs: number
   leafGroups: number
   /** Declared string keys, plural families collapsed to the one declared name. */
@@ -57,9 +57,15 @@ function declaredKeys(tabSlug: string, tabNode: SchemaNode): number {
   return collectLeafLookups(tabSlug, tabNode).filter((lookup) => lookup.innerKey !== null).length
 }
 
+/**
+ * The empty-slug clause is not defensive: `buildTranslationTabs` and
+ * `schemaLookups` both skip such a tab, so counting it here would make the
+ * derived number disagree with the field tree that actually ships.
+ */
 export function schemaShape(schema: SchemaRoot): SchemaShape {
   const tabs = Object.entries(schema.properties ?? {}).filter(
-    (entry): entry is [string, SchemaNode] => isObjectNode(entry[1]),
+    (entry): entry is [string, SchemaNode] =>
+      entry[0].trim().length > 0 && isObjectNode(entry[1]),
   )
   // A walker that found nothing would let a seed quoting zeroes pass.
   if (tabs.length === 0) throw new Error('schemaShape walked a schema with no tabs')
@@ -82,17 +88,18 @@ function parseQuotedShape(schemaVersion: unknown): QuotedShape | null {
   }
 }
 
-export interface SeedShapeClaim {
+interface SeedShapeClaim {
   /** Seed path, so a failure names which file is wrong. */
   seed: string
   schemaVersion: unknown
   schema: SchemaRoot
   /**
-   * Whether this seed's wording carries a declared-key count. Stated rather
-   * than inferred: a lost `declared keys` clause is then a failure, not a
-   * comparison that quietly drops a term.
+   * Set where this seed's wording carries a declared-key count — only wm-web's
+   * does. It makes the clause REQUIRED, so losing it fails rather than dropping
+   * a term quietly. It is deliberately not the inverse: a seed that quotes no
+   * count may gain a correct one without this becoming a lie.
    */
-  quotesKeyCount: boolean
+  quotesKeyCount?: boolean
 }
 
 export function expectQuotedShape({
@@ -105,10 +112,17 @@ export function expectQuotedShape({
   if (quoted === null) {
     throw new Error(`${seed}: _meta.schema_version quotes no shape: ${String(schemaVersion)}`)
   }
+  if (quotesKeyCount === true && quoted.keys === null) {
+    throw new Error(`${seed}: _meta.schema_version dropped its declared-key count`)
+  }
   const derived = schemaShape(schema)
-  expect(quoted, seed).toEqual({
+  expect({ tabs: quoted.tabs, leafGroups: quoted.leafGroups }, seed).toEqual({
     tabs: derived.tabs,
     leafGroups: derived.leafGroups,
-    keys: quotesKeyCount ? derived.keys : null,
   })
+  // Checked whenever it is present, required only above. A seed that starts
+  // quoting a correct count must not need this spec edited to stay green.
+  if (quoted.keys !== null) {
+    expect(quoted.keys, `${seed}: declared keys`).toBe(derived.keys)
+  }
 }

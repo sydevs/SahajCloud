@@ -13,6 +13,9 @@
  * rather than re-deriving the data path here. A second copy of the nesting
  * rules is a second thing to get wrong.
  *
+ * `_meta.schema_version` is pinned in `translations-seed-meta.spec.ts`, from
+ * that same walker, alongside the other two translations seeds.
+ *
  * Unit lane: pure JSON in, no Payload bootstrap.
  */
 
@@ -118,10 +121,6 @@ describe('seeds/wm-web-translations/data.en.json', () => {
     // below pass over an empty list.
     expect(keys.length).toBeGreaterThan(100)
   })
-
-  // This file's `_meta.schema_version` is pinned alongside the other two
-  // translations seeds, in `translations-seed-meta.spec.ts`. The count it
-  // quotes is derived there through the same walker `keys` comes from.
 
   // Collected rather than one case per key: a single failure then names every
   // missing path at once, instead of the first of 140.
