@@ -277,14 +277,19 @@ describe('checkSubmissionData content checks', () => {
     expect(checkSubmissionData([{ field: 'contactAddress', value: '  ' }], withEmail)).toEqual([])
   })
 
-  it('still URL-scans an address question authored as a text block', () => {
+  it('still URL-scans an answer authored as a text block', () => {
     // Deliberate: `text`/`textarea` is where the message body lives, so
-    // exempting it would disable the scan.
+    // exempting it would disable the scan. The same input the `email` block
+    // judges as `invalid_email` above, so the pair is one contrast keyed on
+    // block type — an address can no longer carry it, since #922 stopped the
+    // URL pattern reading the domain half of one as a link anywhere.
     const problems = checkSubmissionData(
-      [{ field: 'howDidYouHear', value: 'visitor@gmail.com' }],
+      [{ field: 'howDidYouHear', value: 'see example.com' }],
       withEmail,
     )
+    expect(problems).toHaveLength(1)
     expect(problems[0]!.code).toBe('urls_not_allowed')
+    expect(problems[0]!.field).toBe('howDidYouHear')
   })
 
   it('runs no content check for a manager write', () => {
