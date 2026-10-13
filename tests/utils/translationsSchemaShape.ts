@@ -94,25 +94,23 @@ interface SeedShapeClaim {
   schemaVersion: unknown
   schema: SchemaRoot
   /**
-   * Set where this seed's wording carries a declared-key count — only wm-web's
-   * does. It makes the clause REQUIRED, so losing it fails rather than dropping
-   * a term quietly. It is deliberately not the inverse: a seed that quotes no
-   * count may gain a correct one without this becoming a lie.
+   * Only wm-web's wording carries one. Deliberately not the inverse: a seed
+   * quoting no count may gain a correct one without this becoming a lie.
    */
-  quotesKeyCount?: boolean
+  requiresKeyCount?: boolean
 }
 
 export function expectQuotedShape({
   seed,
   schemaVersion,
   schema,
-  quotesKeyCount,
+  requiresKeyCount,
 }: SeedShapeClaim): void {
   const quoted = parseQuotedShape(schemaVersion)
   if (quoted === null) {
     throw new Error(`${seed}: _meta.schema_version quotes no shape: ${String(schemaVersion)}`)
   }
-  if (quotesKeyCount === true && quoted.keys === null) {
+  if (requiresKeyCount === true && quoted.keys === null) {
     throw new Error(`${seed}: _meta.schema_version dropped its declared-key count`)
   }
   const derived = schemaShape(schema)

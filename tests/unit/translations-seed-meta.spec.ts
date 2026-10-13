@@ -29,8 +29,12 @@ function readSchemaVersion(seed: string): unknown {
   return parsed._meta?.schema_version
 }
 
-const SEEDS: Array<{ seed: string; schema: SchemaRoot; quotesKeyCount?: boolean }> = [
-  { seed: 'seeds/wm-web-translations/data.en.json', schema: asRoot(webSchema), quotesKeyCount: true },
+const SEEDS: Array<{ seed: string; schema: SchemaRoot; requiresKeyCount?: boolean }> = [
+  {
+    seed: 'seeds/wm-web-translations/data.en.json',
+    schema: asRoot(webSchema),
+    requiresKeyCount: true,
+  },
   { seed: 'seeds/wm-app-translations/data.en.json', schema: asRoot(appSchema) },
   ...ATLAS_LOCALES.map((locale) => ({
     seed: `seeds/sy-atlas-translations/data.${locale}.json`,
@@ -46,12 +50,12 @@ describe('translations seeds · _meta.schema_version', () => {
     expect(() => schemaShape({ properties: {} })).toThrow(/no tabs/)
   })
 
-  it.each(SEEDS)('$seed quotes its own schema shape', ({ seed, schema, quotesKeyCount }) => {
+  it.each(SEEDS)('$seed quotes its own schema shape', ({ seed, schema, requiresKeyCount }) => {
     expectQuotedShape({
       seed,
       schemaVersion: readSchemaVersion(seed),
       schema,
-      quotesKeyCount,
+      requiresKeyCount,
     })
   })
 })
