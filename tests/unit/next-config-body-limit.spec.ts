@@ -1,27 +1,35 @@
+import { join } from 'node:path'
+
 import { describe, expect, it } from 'vitest'
 
 import nextConfig from '../../next.config.mjs'
+import { SRC, sourceOf } from '../utils/importGraph'
 
 /**
- * `src/middleware.ts` matches `/api/:path*`, so Next buffers a copy of every
- * API request body and truncates it past `experimental.proxyClientMaxBodySize`
- * — without an error, and without failing the request. Payload then reads a
- * cut-off multipart upload and throws "Unexpected end of form" (#938).
+ * Lowering or removing `experimental.proxyClientMaxBodySize` is invisible: every
+ * upload under Next's 10 MB default keeps working, and a larger one fails inside
+ * Payload instead (#938). `next.config.mjs` carries the mechanism.
  *
- * So the cap must stay at or above what Payload itself accepts
- * (`upload.limits.fileSize`, `src/payload.config.ts`). Lowering or removing it
- * is invisible: every upload under 10 MB keeps working.
+ * Payload's half is read as source text, because importing `payload.config.ts`
+ * builds the whole config — and a literal copied to here would pin only Next's
+ * side, leaving a raised `fileSize` green.
  */
 
-const PAYLOAD_FILE_SIZE_LIMIT = 104857600
+function payloadFileSizeLimit(): number {
+  const match = /fileSize:\s*(\d+)/.exec(sourceOf(join(SRC, 'payload.config.ts')))
+
+  // Without a match the comparison below would pass against nothing.
+  expect(match, 'upload.limits.fileSize not found in src/payload.config.ts').not.toBeNull()
+
+  return Number(match![1])
+}
 
 describe('the Next request-body cap', () => {
   it('admits a body as large as Payload itself accepts', () => {
     const limit = nextConfig.experimental?.proxyClientMaxBodySize
 
-    // The option is typed `number | string` ('100mb' is equally valid), and
-    // only the number form is comparable without parsing a unit.
+    // Typed `number | string`; only the number form compares without a unit parse.
     expect(typeof limit).toBe('number')
-    expect(limit).toBeGreaterThanOrEqual(PAYLOAD_FILE_SIZE_LIMIT)
+    expect(limit).toBeGreaterThanOrEqual(payloadFileSizeLimit())
   })
 })
