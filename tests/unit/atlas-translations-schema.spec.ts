@@ -25,6 +25,8 @@ import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
 import { EMAIL_STRING_DEFAULTS } from '@/lib/translations/emailStrings'
 import { PLURAL_CATEGORIES } from '@/lib/translations/pluralCategories'
 
+import { schemaShape } from '../utils/translationsSchemaShape'
+
 
 const SEED_LOCALES = ['cs', 'de', 'en', 'es', 'fr', 'hu', 'nl', 'pt-BR', 'ru', 'uk'] as const
 
@@ -193,14 +195,7 @@ describe('atlas translations schema', () => {
   // Every other assertion here filters a list. This one states its size, so
   // none of them can pass by walking an empty schema.
   it('declares 195 widget-facing keys across 34 leaf groups', () => {
-    const leafGroups = (node: Node): number =>
-      Object.values(node.properties ?? {}).some(isNode)
-        ? Object.values(node.properties ?? {})
-            .filter(isNode)
-            .reduce((n, child) => n + leafGroups(child), 0)
-        : 1
-
-    expect(leafGroups(schema)).toBe(34)
+    expect(schemaShape(schema).leafGroups).toBe(34)
     expect(
       declaredKeys().filter(
         (key) =>
