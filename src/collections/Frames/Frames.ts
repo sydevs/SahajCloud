@@ -3,6 +3,7 @@ import type { CollectionConfig } from 'payload'
 import { fileMetadataField } from '@/fields'
 import { GENDER_OPTIONS } from '@/lib/utilities/gender'
 import { restrictUploadToAdmin } from '@/plugins/access'
+import { videoAdminThumbnail } from '@/plugins/storage/adminThumbnail'
 import {
   hlsUrlField,
   mixedMediaUrlField,
@@ -42,6 +43,7 @@ export const Frames: CollectionConfig = {
       'video/webm',
     ],
     // imageSizes removed - using Cloudflare Images flexible variants and Stream thumbnails
+    adminThumbnail: videoAdminThumbnail,
   },
   admin: {
     group: 'Media',

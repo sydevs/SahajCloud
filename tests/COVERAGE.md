@@ -91,6 +91,7 @@ content collection.
 | Subject                                                                                                        | Covered by                  |
 | ------------------------------------------------------------------------------------------------------------------ | ------------------------------ |
 | URL field factories (`virtualUrlField`, `previewUrlField`, `mixedMediaUrlField`, `hlsUrlField`, `mp4UrlField`) | `storage-utils`             |
+| `upload.adminThumbnail` on every video-capable collection, and `videoAdminThumbnail`'s Stream-still / null branches (#927) | unit: `video-admin-thumbnail.spec.ts` |
 | R2 filename sanitization (`generateR2Key`, `generateCloudflareImageId`). R2 preassign hook                     | `storage-utils`             |
 | Cloudflare Stream webhook signature verification + MP4-download handler                                        | `cloudflare-stream-webhook` |
 | Schema introspection (`discoverReferencesForCollection`, `extractIdsFromLexicalContent`)                       | `schema-utils`              |

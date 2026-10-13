@@ -1,6 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { restrictUploadToAdmin } from '@/plugins/access'
+import { videoAdminThumbnail } from '@/plugins/storage/adminThumbnail'
 import {
   hlsUrlField,
   mixedMediaUrlField,
@@ -38,6 +39,7 @@ export const Files: CollectionConfig = {
       'video/mp4',
       'video/mpeg',
     ],
+    adminThumbnail: videoAdminThumbnail,
   },
   fields: [
     {
