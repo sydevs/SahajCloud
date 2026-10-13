@@ -16,8 +16,9 @@ const nextConfig = {
   // API request body and silently truncates it at this cap. Payload then reads a
   // cut-off upload and throws "Unexpected end of form" (#938).
   //
-  // ⚠ Keep this at or above `upload.limits.fileSize` in `src/payload.config.ts`,
-  // which `tests/unit/next-config-body-limit.spec.ts` pins as the floor.
+  // ⚠ Keep this at or above `upload.requestSizeLimit` in `src/payload.config.ts`
+  // — the size Payload enforces on a whole request, and so the floor
+  // `tests/unit/next-config-body-limit.spec.ts` pins.
   experimental: {
     proxyClientMaxBodySize: 104857600,
   },

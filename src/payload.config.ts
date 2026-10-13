@@ -358,9 +358,15 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       // generous slack. The Railway/Cloudflare hops don't impose this; it's
       // purely Payload's default. See plans/...luminous-dusk.md (Track A).
       uploadTimeout: 300000,
+      // Payload's own default, written down rather than inherited: this is the
+      // real ceiling on an upload, and left implicit nothing could pin it.
+      // Raising it is #939's decision, not this line's.
+      //
+      // ⚠ `experimental.proxyClientMaxBodySize` in `next.config.mjs` must stay
+      // at or above both numbers here, or the middleware truncates the body
+      // first (#938). `tests/unit/next-config-body-limit.spec.ts` pins that.
+      requestSizeLimit: 52428800, // 50MB whole-request limit, written in bytes
       limits: {
-        // ⚠ `experimental.proxyClientMaxBodySize` in `next.config.mjs` must stay
-        // at or above this, or the middleware truncates the body first (#938).
         fileSize: 104857600, // 100MB global limit, written in bytes (collections will have their own limits)
       },
     },

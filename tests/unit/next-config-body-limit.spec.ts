@@ -12,24 +12,40 @@ import { SRC, sourceOf } from '../utils/importGraph'
  *
  * Payload's half is read as source text, because importing `payload.config.ts`
  * builds the whole config — and a literal copied to here would pin only Next's
- * side, leaving a raised `fileSize` green.
+ * side, leaving a raised Payload limit green.
  */
 
-function payloadFileSizeLimit(): number {
-  const match = /fileSize:\s*(\d+)/.exec(sourceOf(join(SRC, 'payload.config.ts')))
+/** Every upload byte-limit `src/payload.config.ts` declares, keyed by option. */
+function payloadUploadLimits(): Record<string, number> {
+  const source = sourceOf(join(SRC, 'payload.config.ts'))
+  const limits: Record<string, number> = {}
 
-  // Without a match the comparison below would pass against nothing.
-  expect(match, 'upload.limits.fileSize not found in src/payload.config.ts').not.toBeNull()
+  for (const option of ['requestSizeLimit', 'fileSize']) {
+    const match = new RegExp(`${option}:\\s*(\\d+)`).exec(source)
 
-  return Number(match![1])
+    // Without a match the comparison below would pass against nothing.
+    expect(match, `upload.${option} not found in src/payload.config.ts`).not.toBeNull()
+    limits[option] = Number(match![1])
+  }
+
+  return limits
 }
 
 describe('the Next request-body cap', () => {
-  it('admits a body as large as Payload itself accepts', () => {
-    const limit = nextConfig.experimental?.proxyClientMaxBodySize
+  const limit = nextConfig.experimental?.proxyClientMaxBodySize
 
-    // Typed `number | string`; only the number form compares without a unit parse.
+  it('is a number, so it compares without a unit parse', () => {
+    // The option is typed `number | string`.
     expect(typeof limit).toBe('number')
-    expect(limit).toBeGreaterThanOrEqual(payloadFileSizeLimit())
   })
+
+  // `requestSizeLimit` is the one Next must clear: it is what Payload enforces
+  // on a whole request, so anything Payload would accept has to pass Next
+  // whole. `fileSize` only bounds one file inside that request.
+  it.each(Object.entries(payloadUploadLimits()))(
+    'admits a body as large as Payload’s %s',
+    (_option, payloadLimit) => {
+      expect(limit).toBeGreaterThanOrEqual(payloadLimit)
+    },
+  )
 })
