@@ -13,8 +13,8 @@
     "rationale": "src/migrations/AGENTS.md"
   },
   "securityReview": {
-    "triggerPattern": "src/plugins/access/|src/collections/(Clients|Managers)/|src/collections/[^/]+/endpoints/|src/app/.*/api/|src/plugins/storage/|webhook|src/payload.config.ts",
-    "rationale": "Paths that own auth, client and manager records, endpoints, storage, and the Payload config."
+    "triggerPattern": "src/plugins/access/|src/collections/(Clients|Managers)/|src/collections/[^/]+/(endpoints|hooks)/|src/app/.*/api/|src/plugins/storage/|webhook|src/payload.config.ts",
+    "rationale": "Paths that own auth, client and manager records, endpoints, collection hooks (where write gates live), storage, and the Payload config."
   },
   "worktreeSetup": [
     "CI=true pnpm install",
