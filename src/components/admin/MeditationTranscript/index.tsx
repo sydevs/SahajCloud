@@ -37,8 +37,19 @@ export const MeditationTranscript: UIFieldServerComponent = async ({ id, data, p
     return frame ? [{ ...s, frame }] : []
   })
 
+  // Change offers only frames from the narrator's set: a frame's figure must match the voice.
+  const narrator = typeof data?.narrator === 'object' ? data.narrator?.id : data?.narrator
+  const imageSet = narrator
+    ? (
+        await payload
+          .findByID({ collection: 'narrators', id: narrator, depth: 0, req })
+          .catch(() => null)
+      )?.gender
+    : null
+
   return (
     <TranscriptView
+      imageSet={imageSet}
       outdated={Boolean(transcript && data?.filename !== transcript.audioFilename)}
       suggestions={suggestions}
       transcript={transcript}
