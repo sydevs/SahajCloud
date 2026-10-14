@@ -6,9 +6,17 @@
  * Payload. The job's own behaviour — what it writes, and what it queues next —
  * is `tests/int/screen-submissions.int.spec.ts`.
  */
+import type { FlattenedField } from 'payload'
+
 import { describe, expect, it } from 'vitest'
 
-import { screenProposalContent } from '@/jobs/ScreenSubmissions/contentScreening'
+// The factory itself, not the `@/fields` barrel: the barrel pulls the schedule
+// and translations fields into a lane that boots nothing.
+import { urlField } from '@/fields/urlField'
+import {
+  screenProposalContent,
+  urlExemptProposalPaths,
+} from '@/jobs/ScreenSubmissions/contentScreening'
 import { hashSubmissionBody } from '@/jobs/ScreenSubmissions/senderHistory'
 import { isMachineSpam, isScreeningResult } from '@/jobs/ScreenSubmissions/verdicts'
 
@@ -102,13 +110,77 @@ describe('hashSubmissionBody', () => {
   })
 })
 
+/**
+ * A stand-in for the Events config the job hands the scan.
+ *
+ * Pre-mortem: it assumes Events declares `contactEmail` as `type: 'email'`,
+ * builds `website` and `onlineUrl` through `urlField`, keeps `description` as
+ * richText, and nests the street line under an `address` group. Checked against
+ * `src/collections/Events/Events.ts` (`:268`, `:317`, `:384`, `:313`, `:395`).
+ * `urlField` is called rather than its marker restated, so the fixture cannot
+ * claim a marker the factory stopped writing — and the int spec runs the same
+ * assertions over the live config.
+ */
+const EVENT_FIELDS = [
+  { name: 'title', type: 'text' },
+  { name: 'contactEmail', type: 'email' },
+  urlField({ name: 'website' }),
+  urlField({ name: 'onlineUrl' }),
+  { name: 'description', type: 'richText' },
+  {
+    name: 'address',
+    type: 'group',
+    flattenedFields: [{ name: 'street', type: 'text' }],
+  },
+] as unknown as FlattenedField[]
+
+describe('urlExemptProposalPaths', () => {
+  /**
+   * ⚠ The derivation this file exists for (#920). A hardcoded list here would
+   * read correctly and go stale the day Events gains a URL column — and a
+   * proposal naming that column is binned `spam` terminally, with the submitter
+   * told nothing.
+   */
+  it('exempts every email and URL column Events declares, and nothing else', () => {
+    const exempt = urlExemptProposalPaths(EVENT_FIELDS)
+    expect([...exempt].sort()).toEqual(['contactEmail', 'onlineUrl', 'website'])
+  })
+
+  it('names a nested column by its dotted path', () => {
+    const fields = [
+      {
+        name: 'schedule',
+        type: 'group',
+        flattenedFields: [urlField({ name: 'joinUrl' }), { name: 'notes', type: 'text' }],
+      },
+    ] as unknown as FlattenedField[]
+    expect([...urlExemptProposalPaths(fields)]).toEqual(['schedule.joinUrl'])
+  })
+})
+
 describe('screenProposalContent', () => {
+  const screen = (proposed: unknown) => screenProposalContent(proposed, EVENT_FIELDS)
+
   it('accepts an ordinary proposal', () => {
-    expect(
-      screenProposalContent({ title: 'Thursday class', address: { city: 'Amsterdam' } }),
-    ).toBeNull()
-    expect(screenProposalContent(null)).toBeNull()
-    expect(screenProposalContent({})).toBeNull()
+    expect(screen({ title: 'Thursday class', address: { city: 'Amsterdam' } })).toBeNull()
+    expect(screen(null)).toBeNull()
+    expect(screen({})).toBeNull()
+  })
+
+  /**
+   * ⚠ The fields this scan used to bin a legitimate proposal over. All three
+   * exist to hold exactly what the URL pattern matches, and a refusal here is
+   * terminal: `status: 'spam'`, no delivery, no re-screening, and a manager told
+   * only that "the submitted content was refused by the content checks".
+   */
+  it('accepts a contact address and a real link in the columns that hold them', () => {
+    expect(screen({ contactEmail: 'venue@gmail.com' })).toBeNull()
+    expect(screen({ website: 'https://example.org/classes' })).toBeNull()
+    expect(screen({ onlineUrl: 'https://zoom.example.com/j/123' })).toBeNull()
+    // The `www.` arm reads a dotted local part as a host, which #922's fix to
+    // the bare-domain arm does not cover — so this address is what goes red
+    // when `contactEmail` loses its exemption.
+    expect(screen({ contactEmail: 'www.venue@gmail.com' })).toBeNull()
   })
 
   /**
@@ -118,12 +190,21 @@ describe('screenProposalContent', () => {
    * is the text a manager reads in the review email.
    */
   it('refuses a link anywhere in the proposed patch, and names where', () => {
-    const refusal = screenProposalContent({
+    const refusal = screen({
       title: 'Free class',
       description: 'Visit https://spam.example.test for details',
     })
     expect(refusal).not.toBeNull()
     expect(refusal).toContain('description')
+  })
+
+  /** An exempt column buys its own path no cover for its neighbours. */
+  it('still refuses a link in a free-text field beside an exempt one', () => {
+    const refusal = screen({
+      website: 'https://example.org',
+      title: 'Free class, see https://spam.example.test',
+    })
+    expect(refusal).toContain('title')
   })
 
   /**
@@ -135,7 +216,7 @@ describe('screenProposalContent', () => {
   it('finds a link nested inside a group, and names the nested path', () => {
     // A bare domain on one of the TLDs the scan recognises — `.test` is
     // deliberately not one of them, so a spec using it would pass vacuously.
-    const refusal = screenProposalContent({ address: { street: 'see buy-now.example.com' } })
+    const refusal = screen({ address: { street: 'see buy-now.example.com' } })
     expect(refusal).not.toBeNull()
     expect(refusal).toContain('address.street')
   })
@@ -148,6 +229,6 @@ describe('screenProposalContent', () => {
   it('survives a pathologically nested patch', () => {
     let deep: Record<string, unknown> = { title: 'bottom' }
     for (let i = 0; i < 400; i += 1) deep = { nested: deep }
-    expect(() => screenProposalContent(deep)).not.toThrow()
+    expect(() => screen(deep)).not.toThrow()
   })
 })

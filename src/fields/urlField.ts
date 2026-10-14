@@ -14,6 +14,12 @@ export function urlField(options: UrlFieldOptions): TextField {
 
   return {
     ...options,
+    // A built URL field is `type: 'text'`, so nothing downstream can tell one
+    // apart from free text — and the proposal content scan has to, or it reads
+    // a legitimate link as spam (#920). Top-level `custom` and not
+    // `admin.custom`: Payload strips this from the client field config, and the
+    // only reader is server-side.
+    custom: { ...options.custom, holdsUrl: true },
     hasMany: false,
     type: 'text',
     validate: ((value) => {
