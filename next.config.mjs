@@ -40,15 +40,6 @@ const nextConfig = {
       'coverage/**/*',
     ],
   },
-  webpack: (webpackConfig) => {
-    webpackConfig.resolve.extensionAlias = {
-      '.cjs': ['.cts', '.cjs'],
-      '.js': ['.ts', '.tsx', '.js', '.jsx'],
-      '.mjs': ['.mts', '.mjs'],
-    }
-
-    return webpackConfig
-  },
   // Configure CSP headers for Fathom Analytics and Live Preview iframes
   async headers() {
     // Build `frame-src` from environment variables, with fallback values.
@@ -129,6 +120,11 @@ const nextConfig = {
   },
   // External packages for server-side rendering
   serverExternalPackages: ['payload', 'jose'],
+  experimental: {
+    // Railpack restores `.next/cache`, so a store corrupted there panics
+    // every later build. Dev's store is elsewhere. #932
+    turbopackFileSystemCacheForBuild: false,
+  },
 }
 
 const configWithPayload = withPayload(nextConfig, { devBundleServerPackages: false })

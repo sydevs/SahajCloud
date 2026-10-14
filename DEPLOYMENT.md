@@ -35,7 +35,7 @@ project from scratch, or for disaster recovery, see [RAILWAY_RUNBOOK.md](RAILWAY
 **Build & Start**:
 
 - **Railpack** (Railway's native builder) detects the Node.js project and builds it — no Dockerfile.
-- `pnpm build` runs `next build` (emits a self-contained `.next/standalone`, `output: 'standalone'`), then `scripts/standalone-postbuild.mjs` copies `.next/static` and `public/` next to `server.js` — Next does not copy these on its own.
+- `pnpm build` deletes `.next/cache/turbopack`, runs `next build` (emits a self-contained `.next/standalone`, `output: 'standalone'`), then `scripts/standalone-postbuild.mjs` copies `.next/static` and `public/` next to `server.js` — Next does not copy these on its own.
 - `pnpm start` runs `node .next/standalone/server.js` (`HOSTNAME=0.0.0.0`). It ships only the traced production dependencies, not the full `node_modules`.
 - Migrations apply **in-process on server boot**, via Payload's `prodMigrations` hook (see [Database Migrations](#database-migrations)). The migration files import statically, so they trace into the bundle and still run at boot.
 - `@sentry/nextjs` wraps `next.config.mjs` via `withSentryConfig`.
@@ -59,6 +59,13 @@ restartPolicyMaxRetries = 3
 Railway builds with Railpack and exposes port 3000 through its own `PORT` variable.
 `next.config.mjs`'s `outputFileTracingExcludes` keeps dev-only `media/`, `seeds/`, and tests out
 of the trace — without it, a local `pnpm build` balloons `.next/standalone` to many GB.
+
+**No Turbopack cache store rides between builds** (#932). Railpack restores `.next/cache`, and a
+store corrupted by a build killed mid-write panicked `turbo-persistence` on two preview builds
+before anyone could clear it — nothing in this repo can reach a Railway builder.
+`experimental.turbopackFileSystemCacheForBuild: false` stops a store being opened, and the build
+script deletes the copy Railpack restored. Every build therefore compiles cold, deliberately. The
+rest of `.next/cache` still rides, `.tsbuildinfo` included.
 
 ---
 
