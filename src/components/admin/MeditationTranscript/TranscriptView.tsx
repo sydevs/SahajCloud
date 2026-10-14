@@ -23,17 +23,16 @@ import {
 } from './rows'
 import { frameDetails, frameName, useFrameSuggestions } from './useFrameSuggestions'
 
-const DISMISS_MODAL = 'dismiss-frame-suggestion'
+const DISMISS_MODAL = 'reject-frame-suggestion'
 
-/** What setting `suggestion` aside means, in the confirmation. */
-function dismissBody(suggestion: Suggestion, frames: KeyframeData[]) {
-  const suggested = `${frameName(suggestion.frame)} at ${clock(suggestionTimestamp(suggestion))}`
+/** What rejecting `suggestion` leaves in place, in the confirmation. */
+function rejectBody(suggestion: Suggestion, frames: KeyframeData[]) {
   const kept = suggestion.replaces
     ? frames.find((f) => f.timestamp === suggestion.replaces?.timestamp)
     : undefined
   return kept
-    ? `${frameName(kept)} stays at ${clock(kept.timestamp)}, and the suggestion of ${suggested} goes away.`
-    : `The suggestion of ${suggested} goes away, and no frame is added there.`
+    ? `${frameName(kept)} stays at ${clock(kept.timestamp)}.`
+    : `No frame will be added at ${clock(suggestionTimestamp(suggestion))}.`
 }
 
 /** The shape of a file in `seeds/meditation-transcripts/`. */
@@ -59,7 +58,7 @@ export function TranscriptView({
   const container = useRef<HTMLDivElement>(null)
 
   const { openModal } = useModal()
-  // Setting a suggestion aside hides it for good, so Payload's own confirmation guards it.
+  // Rejecting hides a suggestion for good, so Payload's own confirmation guards it.
   const [dismissing, setDismissing] = useState<Suggestion | null>(null)
   const askToDismiss = (suggestion: Suggestion) => {
     setDismissing(suggestion)
@@ -251,9 +250,9 @@ export function TranscriptView({
         </div>
       )}
       <ConfirmationModal
-        body={dismissing && dismissBody(dismissing, frames)}
-        confirmLabel={dismissing?.replaces ? 'Keep current' : 'Not needed'}
-        heading={dismissing?.replaces ? 'Keep the current frame?' : 'Set this suggestion aside?'}
+        body={dismissing && rejectBody(dismissing, frames)}
+        confirmLabel="Reject"
+        heading="Reject this suggestion?"
         modalSlug={DISMISS_MODAL}
         onCancel={() => setDismissing(null)}
         onConfirm={() => {
