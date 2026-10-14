@@ -4,95 +4,164 @@
   gap: var(--base);
 }
 
-.paragraph {
+.viewBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--base) / 2);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.viewNote {
+  color: var(--theme-elevation-500);
+  font-size: 0.8125rem;
+}
+
+.rows {
   display: flex;
   flex-direction: column;
-  gap: calc(var(--base) / 4);
+  border-top: 1px solid var(--theme-elevation-100);
 }
 
-.timestamp,
-.phrase {
-  border-radius: var(--style-radius-s);
-  cursor: pointer;
+/* One grid for every row, so times, text and frames line up down the page. */
+.line,
+.frameRow {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(0, 1fr) auto;
+  gap: calc(var(--base) * 0.75);
+  align-items: start;
+  padding: calc(var(--base) / 3) calc(var(--base) / 3);
+  border-bottom: 1px solid var(--theme-elevation-100);
 }
 
-.timestamp {
-  align-self: flex-start;
-  padding: 0;
+.time {
+  padding: 2px 0 0;
   border: 0;
   background: none;
   font: inherit;
-  color: var(--theme-elevation-500);
+  font-size: 0.8125rem;
   font-variant-numeric: tabular-nums;
+  text-align: left;
+  color: var(--theme-elevation-500);
+  cursor: pointer;
 }
 
-.text {
+.time:hover {
+  color: var(--theme-elevation-1000);
+}
+
+.say {
+  grid-column: 2 / -1;
   margin: 0;
-  line-height: 1.7;
+  font-style: italic;
+  line-height: 1.6;
+  cursor: pointer;
 }
 
-.phrase:hover,
-.timestamp:hover {
-  background-color: var(--theme-elevation-100);
+.line:hover {
+  background-color: var(--theme-elevation-50);
+}
+
+/* The phrase playing in the preview. */
+.line[aria-current='true'] {
+  background-color: var(--theme-warning-100);
+}
+
+.cue {
+  background: none;
+  color: var(--theme-success-750);
+  font-weight: 600;
+}
+
+.frameRow {
+  align-items: center;
+  margin: calc(var(--base) / 4) 0;
+  border: 1px solid transparent;
+  border-radius: var(--style-radius-m);
+}
+
+.frameRow .time {
+  font-weight: 600;
+  color: var(--theme-elevation-1000);
+  align-self: start;
 }
 
 .frame {
-  border-bottom: 2px solid var(--theme-elevation-400);
+  background-color: var(--theme-elevation-50);
 }
 
-.approved {
-  background-color: var(--theme-success-100);
-  border-bottom: 2px solid var(--theme-success-500);
+.approved,
+.changed {
+  background-color: var(--theme-success-50);
+  border-color: var(--theme-success-250);
 }
 
 .suggested {
-  background-color: var(--theme-success-50);
-  border-bottom: 2px dashed var(--theme-success-500);
+  background-color: var(--theme-warning-50);
+  border: 1px dashed var(--theme-warning-500);
 }
 
-/* After the suggestion rules, so the playing highlight wins where they meet. */
-.phrase[aria-current='true'] {
-  background-color: var(--theme-warning-100);
+.frameBody {
+  display: flex;
+  gap: calc(var(--base) * 0.75);
+  align-items: center;
+  min-width: 0;
+}
+
+.frameText {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+
+.frameTitle {
+  font-weight: 600;
+}
+
+.reason {
+  color: var(--theme-elevation-600);
+  font-size: 0.8125rem;
+}
+
+/* Stacked, so the buttons stay beside the frame without squeezing its text in a narrow pane. */
+.actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: calc(var(--base) / 4);
+  min-width: 7.5rem;
+}
+
+.thumb {
+  flex: none;
+}
+
+.gap {
+  padding: calc(var(--base) / 3) 0 calc(var(--base) / 3) 5.25rem;
+  border: 0;
+  border-bottom: 1px solid var(--theme-elevation-100);
+  background: none;
+  font: inherit;
+  font-size: 0.8125rem;
+  text-align: left;
+  color: var(--theme-elevation-500);
+  cursor: pointer;
+}
+
+.gap:hover {
+  background-color: var(--theme-elevation-50);
+  color: var(--theme-elevation-1000);
 }
 
 .silence {
   display: flex;
   align-items: center;
   gap: calc(var(--base) / 2);
-  margin: calc(var(--base) / 2) 0 0;
+  margin: 0;
+  padding: calc(var(--base) / 3) 0 calc(var(--base) / 3) 5.25rem;
   color: var(--theme-elevation-500);
   font-size: 0.8125rem;
-}
-
-.silence::after {
-  content: '';
-  flex: 1;
-  border-top: 1px dashed var(--theme-elevation-200);
-}
-
-.chip {
-  margin-left: 4px;
-  padding: 0 6px;
-  border: 1px solid transparent;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.frameChip {
-  background-color: var(--theme-elevation-100);
-  color: var(--theme-elevation-800);
-}
-
-.approvedChip {
-  background-color: var(--theme-success-500);
-  color: var(--theme-elevation-0);
-}
-
-.suggestedChip {
-  border-color: var(--theme-success-500);
-  border-style: dashed;
-  background-color: var(--theme-success-50);
-  color: var(--theme-success-800);
+  border-bottom: 1px solid var(--theme-elevation-100);
 }
