@@ -1,5 +1,7 @@
 import type { FlattenedField } from 'payload'
 
+import { getFieldByPath } from 'payload'
+
 import { checkNoUrls } from '@/lib/antiSpam/antiSpamGuard'
 
 /**
@@ -19,55 +21,44 @@ import { checkNoUrls } from '@/lib/antiSpam/antiSpamGuard'
  * the fact records the attempt with the offending value intact, which is what
  * makes a sender's history worth counting.
  *
- * `eventFields` is Events' own `flattenedFields`, which is what decides the
- * exemption below. Returns `null` when the content is acceptable, or the reason
- * it was not.
+ * Returns `null` when the content is acceptable, or the reason it was not.
  */
 export function screenProposalContent(
   proposed: unknown,
   eventFields: FlattenedField[],
 ): string | null {
-  const urls = checkNoUrls(stringLeaves(proposed, urlExemptProposalPaths(eventFields)))
+  // No Events config to read the exemption off — a bare test harness. Pass, the
+  // way `validateProposal` does, rather than refusing every submission: without
+  // the config the only verdict this scan can reach is the destructive one.
+  if (eventFields.length === 0) return null
+
+  const urls = checkNoUrls(stringLeaves(proposed, eventFields))
   return urls.ok ? null : urls.message
 }
 
 /**
- * The dotted paths inside `proposed` whose Events column exists to hold an
- * address or a link, so a URL in one is the field working rather than spam.
+ * Whether the Events column a leaf sits in exists to hold an address or a link,
+ * so a URL there is the field working rather than spam.
  *
- * ⚠ **Derived from the live Events config, never restated** (#920). `type:
- * 'email'` is Payload's own declaration and `urlField` marks what it builds
- * `custom.holdsUrl`, so an Events URL column added tomorrow is exempt tomorrow.
- * A list here would instead bin every proposal that named the new field, and
- * bin it terminally: the row becomes `status: 'spam'`, nothing re-screens it,
- * and the submitter is told nothing. The write guard states this same exemption
- * by omitting `contactEmail`, `website` and `onlineUrl` from `urlScanFields`,
- * and this walk contradicted the policy it mirrors.
+ * ⚠ **Read off the live Events config, never listed here** (#920). `type:
+ * 'email'` is Payload's own declaration, and `urlField` marks what it builds
+ * `custom.holdsUrl` because a built URL column is indistinguishable from free
+ * text. So a URL column added to Events is exempt the day it is added, where a
+ * list would bin every proposal naming the new one — and bin it terminally: the
+ * row becomes `status: 'spam'`, nothing re-screens it, and neither the submitter
+ * nor the manager learns which field refused. The write guard states the same
+ * exemption by omitting the dedicated email and URL columns from its
+ * `urlScanFields` (`@/plugins/writeGuard/policies`).
  */
-export function urlExemptProposalPaths(fields: FlattenedField[], prefix = ''): Set<string> {
-  const paths = new Set<string>()
-
-  for (const field of fields) {
-    if (!('name' in field) || typeof field.name !== 'string') continue
-    const path = prefix ? `${prefix}.${field.name}` : field.name
-
-    if (field.type === 'email' || field.custom?.holdsUrl === true) {
-      paths.add(path)
-      continue
-    }
-
-    if ('flattenedFields' in field) {
-      for (const nested of urlExemptProposalPaths(field.flattenedFields, path)) paths.add(nested)
-    }
-  }
-
-  return paths
+function holdsAddressOrLink(fields: FlattenedField[], leafPath: string): boolean {
+  // A schema path carries no row index, which is what this resolver takes.
+  const field = getFieldByPath({ fields, path: leafPath.replace(/\[\d+\]/g, '') })?.field
+  return field?.type === 'email' || field?.custom?.holdsUrl === true
 }
 
 /**
  * Flatten a proposal into `{ 'address.street': 'see buy-now.example.com' }` —
- * the flat, dotted-path map `checkNoUrls` takes — leaving out the `exempt`
- * paths entirely.
+ * the flat, dotted-path map `checkNoUrls` takes — skipping the columns above.
  *
  * ⚠ **This is what makes the scan reach a nested field at all, and it is the
  * whole point of the function.** `checkNoUrls` tests `typeof value === 'string'`
@@ -84,7 +75,7 @@ export function urlExemptProposalPaths(fields: FlattenedField[], prefix = ''): S
  */
 function stringLeaves(
   value: unknown,
-  exempt: Set<string>,
+  eventFields: FlattenedField[],
   prefix = '',
   depth = 0,
 ): Record<string, string> {
@@ -101,7 +92,7 @@ function stringLeaves(
 
   if (Array.isArray(value)) {
     value.forEach((item, index) => {
-      Object.assign(leaves, stringLeaves(item, exempt, `${prefix}[${index}]`, depth + 1))
+      Object.assign(leaves, stringLeaves(item, eventFields, `${prefix}[${index}]`, depth + 1))
     })
     return leaves
   }
@@ -110,10 +101,8 @@ function stringLeaves(
     for (const [key, item] of Object.entries(value)) {
       if (Object.keys(leaves).length >= MAX_LEAVES) break
       const path = prefix ? `${prefix}.${key}` : key
-      // An exempt path names a column, so an array leaf's row index comes off
-      // first: `exclusions[0].start` is the `exclusions.start` column.
-      if (exempt.has(path.replace(/\[\d+\]/g, ''))) continue
-      Object.assign(leaves, stringLeaves(item, exempt, path, depth + 1))
+      if (holdsAddressOrLink(eventFields, path)) continue
+      Object.assign(leaves, stringLeaves(item, eventFields, path, depth + 1))
     }
   }
 

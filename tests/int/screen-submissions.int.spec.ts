@@ -11,10 +11,11 @@
  * latter because a subscribe row reaching a provider is one of the things these
  * specs must be able to prove did **not** happen.
  */
-import type { Payload, PayloadRequest } from 'payload'
+import type { FlattenedField, Payload, PayloadRequest } from 'payload'
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { proposableEventFields } from '@/collections/UserSubmissions/hooks/validateProposal'
 import { screenProposalContent } from '@/jobs/ScreenSubmissions/contentScreening'
 import { activeRegistrationWhere } from '@/lib/registrations/active'
 import type { Event, Form, Manager, UserSubmission } from '@/payload-types'
@@ -29,6 +30,18 @@ vi.mock('@/lib/antiSpam/mxRecords', () => ({ hasMxRecords: mxMock }))
 
 // Imported after the mock so the job picks up the stub.
 const { ScreenSubmissions } = await import('@/jobs/ScreenSubmissions/ScreenSubmissions')
+
+/**
+ * Every Events column declared to hold an address or a link, by dotted path.
+ * Walked here, not read from the code under test, so the two can disagree.
+ */
+const addressOrLinkColumns = (fields: FlattenedField[], prefix = ''): string[] =>
+  fields.flatMap((field) => {
+    if (!('name' in field)) return []
+    const path = prefix ? `${prefix}.${field.name}` : field.name
+    if (field.type === 'email' || field.custom?.holdsUrl === true) return [path]
+    return 'flattenedFields' in field ? addressOrLinkColumns(field.flattenedFields, path) : []
+  })
 
 describe('Submission screening', () => {
   let payload: Payload
@@ -414,12 +427,7 @@ describe('Submission screening', () => {
       await expect(screen(submission.id)).resolves.toEqual({ verdict: 'ok', status: 'pending' })
     })
 
-    /**
-     * ⚠ The three columns a proposal was binned over (#920). The scan walked
-     * every string leaf of `proposed`, so the fields that exist to hold an
-     * address or a link were read as spam — and `spam` is terminal: no
-     * delivery, no re-screening, and the submitter hears nothing.
-     */
+    /** ⚠ The three columns a proposal was binned over (#920). */
     it('delivers a proposal naming a contact address, a website and a meeting link', async () => {
       const submission = await seedProposal({
         title: 'Thursday evening class',
@@ -434,25 +442,39 @@ describe('Submission screening', () => {
 
     /**
      * ⚠ What a unit fixture cannot prove: the exemption is read off the config
-     * this app boots with. So a hardcoded list replacing the derivation fails
-     * here, on the Events column it forgot, rather than at a submitter.
+     * this app boots with. The paths are walked here rather than taken from
+     * production, so a hardcoded list replacing the derivation fails on the
+     * column it forgot rather than at a submitter.
      */
     it('exempts every Events column declared to hold an address or a link', () => {
       const eventFields = payload.collections.events.config.flattenedFields
-      const columns = eventFields.flatMap((field) =>
-        'name' in field && (field.type === 'email' || field.custom?.holdsUrl === true)
-          ? [{ name: field.name, isEmail: field.type === 'email' }]
-          : [],
-      )
-      // Matching nothing would make the loop below assert nothing.
-      expect(columns.length).toBeGreaterThan(2)
+      const paths = addressOrLinkColumns(eventFields)
+      // Named so the walk cannot go quietly empty and assert nothing.
+      expect(paths).toEqual(expect.arrayContaining(['contactEmail', 'website', 'onlineUrl']))
 
-      for (const column of columns) {
-        // A dotted local part, because the `www.` arm reads one as a host —
-        // an ordinary address stopped tripping the scan in #922.
-        const value = column.isEmail ? 'www.venue@gmail.com' : 'https://example.org/classes'
-        expect(screenProposalContent({ [column.name]: value }, eventFields)).toBeNull()
+      for (const path of paths) {
+        const proposed = path
+          .split('.')
+          .reduceRight<unknown>((value, key) => ({ [key]: value }), 'https://example.org/classes')
+        expect(screenProposalContent(proposed, eventFields)).toBeNull()
       }
+    })
+
+    /**
+     * ⚠ The marker is opt-in, so a URL column written by hand carries none and
+     * reproduces #920. Only a column a submitter can propose matters: `webUrl`
+     * and `appUrl` are read-only, and `externalRegistrationUrl` privileged.
+     */
+    it('leaves no proposable URL column for a submitter to discover unmarked', () => {
+      const eventFields = payload.collections.events.config.flattenedFields
+      const proposable = proposableEventFields(eventFields)
+      const unmarked = eventFields
+        .filter((field) => 'name' in field && proposable.has(field.name))
+        .filter((field) => 'name' in field && /(url|link|website)$/i.test(field.name))
+        .filter((field) => field.custom?.holdsUrl !== true)
+        .map((field) => ('name' in field ? field.name : ''))
+
+      expect(unmarked).toEqual([])
     })
   })
 

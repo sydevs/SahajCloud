@@ -13,10 +13,7 @@ import { describe, expect, it } from 'vitest'
 // The factory itself, not the `@/fields` barrel: the barrel pulls the schedule
 // and translations fields into a lane that boots nothing.
 import { urlField } from '@/fields/urlField'
-import {
-  screenProposalContent,
-  urlExemptProposalPaths,
-} from '@/jobs/ScreenSubmissions/contentScreening'
+import { screenProposalContent } from '@/jobs/ScreenSubmissions/contentScreening'
 import { hashSubmissionBody } from '@/jobs/ScreenSubmissions/senderHistory'
 import { isMachineSpam, isScreeningResult } from '@/jobs/ScreenSubmissions/verdicts'
 
@@ -111,15 +108,10 @@ describe('hashSubmissionBody', () => {
 })
 
 /**
- * A stand-in for the Events config the job hands the scan.
- *
- * Pre-mortem: it assumes Events declares `contactEmail` as `type: 'email'`,
- * builds `website` and `onlineUrl` through `urlField`, keeps `description` as
- * richText, and nests the street line under an `address` group. Checked against
- * `src/collections/Events/Events.ts` (`:268`, `:317`, `:384`, `:313`, `:395`).
- * `urlField` is called rather than its marker restated, so the fixture cannot
- * claim a marker the factory stopped writing — and the int spec runs the same
- * assertions over the live config.
+ * A stand-in for the Events config the job hands the scan. `urlField` is called
+ * rather than its marker restated, so the fixture cannot claim a marker the
+ * factory stopped writing; the int spec runs these assertions over the live
+ * config, where the shape this one assumes is checked.
  */
 const EVENT_FIELDS = [
   { name: 'title', type: 'text' },
@@ -130,33 +122,9 @@ const EVENT_FIELDS = [
   {
     name: 'address',
     type: 'group',
-    flattenedFields: [{ name: 'street', type: 'text' }],
+    flattenedFields: [{ name: 'street', type: 'text' }, urlField({ name: 'directionsUrl' })],
   },
 ] as unknown as FlattenedField[]
-
-describe('urlExemptProposalPaths', () => {
-  /**
-   * ⚠ The derivation this file exists for (#920). A hardcoded list here would
-   * read correctly and go stale the day Events gains a URL column — and a
-   * proposal naming that column is binned `spam` terminally, with the submitter
-   * told nothing.
-   */
-  it('exempts every email and URL column Events declares, and nothing else', () => {
-    const exempt = urlExemptProposalPaths(EVENT_FIELDS)
-    expect([...exempt].sort()).toEqual(['contactEmail', 'onlineUrl', 'website'])
-  })
-
-  it('names a nested column by its dotted path', () => {
-    const fields = [
-      {
-        name: 'schedule',
-        type: 'group',
-        flattenedFields: [urlField({ name: 'joinUrl' }), { name: 'notes', type: 'text' }],
-      },
-    ] as unknown as FlattenedField[]
-    expect([...urlExemptProposalPaths(fields)]).toEqual(['schedule.joinUrl'])
-  })
-})
 
 describe('screenProposalContent', () => {
   const screen = (proposed: unknown) => screenProposalContent(proposed, EVENT_FIELDS)
@@ -168,19 +136,21 @@ describe('screenProposalContent', () => {
   })
 
   /**
-   * ⚠ The fields this scan used to bin a legitimate proposal over. All three
-   * exist to hold exactly what the URL pattern matches, and a refusal here is
-   * terminal: `status: 'spam'`, no delivery, no re-screening, and a manager told
-   * only that "the submitted content was refused by the content checks".
+   * ⚠ The columns this scan used to bin a legitimate proposal over (#920). Each
+   * exists to hold exactly what the URL pattern matches.
    */
   it('accepts a contact address and a real link in the columns that hold them', () => {
-    expect(screen({ contactEmail: 'venue@gmail.com' })).toBeNull()
     expect(screen({ website: 'https://example.org/classes' })).toBeNull()
     expect(screen({ onlineUrl: 'https://zoom.example.com/j/123' })).toBeNull()
-    // The `www.` arm reads a dotted local part as a host, which #922's fix to
-    // the bare-domain arm does not cover — so this address is what goes red
-    // when `contactEmail` loses its exemption.
+    expect(screen({ address: { directionsUrl: 'https://maps.example.org/x' } })).toBeNull()
+    // A dotted local part: #922 stopped an ordinary address tripping the scan,
+    // so this is the only `contactEmail` form the exemption still shows up in.
     expect(screen({ contactEmail: 'www.venue@gmail.com' })).toBeNull()
+  })
+
+  /** An absent config can only reach the destructive verdict, so it reaches none. */
+  it('scans nothing when there is no Events config to read the exemption off', () => {
+    expect(screenProposalContent({ title: 'See https://spam.example.test' }, [])).toBeNull()
   })
 
   /**
