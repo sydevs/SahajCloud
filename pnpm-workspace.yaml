@@ -21,9 +21,14 @@ minimumReleaseAge: 0
 
 # Transitive-security overrides (Dependabot alerts, #563). Only leaves still
 # flagged after an in-range parent refresh (`pnpm update`) are pinned here; every
-# bump stays within the package's existing major (patch/minor, API-stable).
+# bump stays within the package's existing major (patch/minor, API-stable), with
+# one deliberate exception, marked ⚠ below.
 # picomatch/minimatch are scoped to the vulnerable major so the other major line
 # (already patched) is left untouched.
+#
+# `braces` (GHSA-vfj7-8cjw-p6xm) gets no entry and can get none: `pnpm audit`
+# names `>=3.0.4`, and 3.0.3 is the newest version ever published (checked
+# 2026-10-14). Both parents are build-time. Do not re-derive this.
 overrides:
   # Build tooling: hold vite at 7.x (satisfies @vitejs/plugin-react@4.5.2's peer,
   # which caps at ^7; vite 7.3.6 also widens esbuild to ^0.27 || ^0.28) and
@@ -50,6 +55,14 @@ overrides:
   # degenerate private-cache directive) is reachable: undici is the HTTP client every
   # server-side fetch uses. Same major, patch-only.
   undici: '^7.29.1'
+  # ⚠ The one override past a declared major. GHSA-v53p-9fqp-m79j and
+  # GHSA-prgh-xp8r-p3m5 are fixed in 10.0.6, and the only range still capping at
+  # 9.x is @payloadcms/email-nodemailer@3.90.2's `^9.1.1`. Taken deliberately
+  # (#931): the adapter calls `createTransport`, `sendMail` and `verify`, which
+  # 10.x keeps, and the only paths that reach nodemailer are a developer's
+  # Mailpit transport and the preview scripts — production mail goes through
+  # `resendAdapter()`. Drop this line once the adapter declares `^10`.
+  nodemailer: '^10.1.1'
 
 patchedDependencies:
   # `payload migrate:create` crashes with "Cannot read properties of undefined

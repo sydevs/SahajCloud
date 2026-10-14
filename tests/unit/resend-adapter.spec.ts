@@ -108,6 +108,20 @@ describe('resendAdapter message mapping', () => {
     expect(sendMock.mock.calls[0][0].replyTo).toEqual(['Client Support <support@client.org>'])
   })
 
+  it('drops a replyTo object carrying no address', async () => {
+    await buildAdapter().sendEmail({
+      ...baseMessage,
+      // `address` is spelled out as undefined, not omitted: the key must be
+      // present for the `'address' in entry` branch to take it.
+      replyTo: { address: undefined, name: 'Client Support' },
+    })
+
+    expect(sendMock.mock.calls[0][0]).not.toHaveProperty('replyTo')
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'Client Support' }),
+    )
+  })
+
   it('forwards a plain-string replyTo', async () => {
     await buildAdapter().sendEmail({ ...baseMessage, replyTo: 'support@client.org' })
 

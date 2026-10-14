@@ -6,6 +6,7 @@ import * as Sentry from '@sentry/nextjs'
 import { Resend } from 'resend'
 
 import { serverEnv } from '@/lib/env'
+import { headerDisplayName } from '@/lib/utilities/emailSafeText'
 
 import { getEmailBrand } from './brand'
 import { MANAGER_EMAIL_FROM } from './senders'
@@ -48,12 +49,27 @@ function toResendAttachments(
   return mapped.length > 0 ? mapped : undefined
 }
 
-/** Flatten nodemailer's `Address | string` forms to the plain strings Resend takes. */
-function toAddressList(value: SendEmailOptions['replyTo']): string[] | undefined {
+/**
+ * Flatten nodemailer's `Address | string` forms to the plain strings Resend takes.
+ *
+ * nodemailer 10 made `Address.address` optional, so an object carrying only a
+ * `name` or a `group` now type-checks. Such an entry is dropped with a warning:
+ * nothing it carries can become a header string, and the Resend 422 that used to
+ * surface the shape is gone.
+ */
+function toAddressList(
+  value: SendEmailOptions['replyTo'],
+  onUnsupported: (name: string) => void,
+): string[] | undefined {
   const entries = (Array.isArray(value) ? value : [value]).flatMap((entry) => {
     if (typeof entry === 'string') return [entry]
     if (entry && typeof entry === 'object' && 'address' in entry) {
-      return [entry.name ? `${entry.name} <${entry.address}>` : entry.address]
+      const { address, name } = entry
+      if (!address) {
+        onUnsupported(name ?? 'unnamed')
+        return []
+      }
+      return [name ? `${headerDisplayName(name)} <${address}>` : address]
     }
     return []
   })
@@ -108,7 +124,12 @@ export const resendAdapter = (): EmailAdapter => {
               filename,
             }),
           )
-          const replyTo = toAddressList(message.replyTo)
+          const replyTo = toAddressList(message.replyTo, (name) =>
+            payload.logger.warn({
+              msg: 'Resend adapter: dropping replyTo entry with no address',
+              name,
+            }),
+          )
 
           // Convert Payload's SendEmailOptions to Resend's format
           const { data, error } = await resend.emails.send({
