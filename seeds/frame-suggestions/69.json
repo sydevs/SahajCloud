@@ -1,0 +1,18 @@
+{
+  "meditationId": 69,
+  "source": "Claude Sonnet 5.5, one call per meditation with the whole transcript (temp_scripts/ai-frames-pilot/llm/claude-frames.ts, run 69-sonnet). Suggestions the editors already made are left out.",
+  "suggestions": [
+    {
+      "id": "s2",
+      "start": 90.02,
+      "text": "Now we can bring our left hand on our lap",
+      "frameId": 4,
+      "kind": "return",
+      "reason": "Left hand goes back on the lap; the hands are open on the lap.",
+      "replaces": {
+        "timestamp": 92,
+        "frameId": 2
+      }
+    }
+  ]
+}

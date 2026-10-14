@@ -1,0 +1,38 @@
+{
+  "meditationId": 4,
+  "source": "Claude Sonnet 5.5, one call per meditation with the whole transcript (temp_scripts/ai-frames-pilot/llm/claude-frames.ts, run 4-proposal). Suggestions the editors already made are left out.",
+  "suggestions": [
+    {
+      "id": "s1",
+      "start": 155.06,
+      "text": "Put your awareness on your heart and",
+      "frameId": 29,
+      "kind": "position",
+      "reason": "Attention moved to the heart (left Anahat) shows that chakra's picture"
+    },
+    {
+      "id": "s2",
+      "start": 256.66,
+      "text": "and then putting your attention at the top of your head.",
+      "frameId": 4,
+      "kind": "return",
+      "reason": "Attention at top of head with no hand instruction: Sahasrara picture is not shown, so ready"
+    },
+    {
+      "id": "s3",
+      "start": 424.62,
+      "text": "Putting our awareness on our heart, let us feel The awareness from our heart",
+      "frameId": 29,
+      "kind": "position",
+      "reason": "Attention on the heart again shows left Anahat"
+    },
+    {
+      "id": "s4",
+      "start": 488.04,
+      "text": "We can take a breath in, maybe even open your eyes, knowing that you can always come back to this state of pure awareness, which is your authentic self.",
+      "frameId": 4,
+      "kind": "return",
+      "reason": "Meditation ends, hands back to ready for the closing"
+    }
+  ]
+}
