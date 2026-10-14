@@ -18,9 +18,10 @@ const nextConfig = {
   //
   // ⚠ Keep this at or above `upload.requestSizeLimit` in `src/payload.config.ts`
   // — the size Payload enforces on a whole request, and so the floor
-  // `tests/unit/next-config-body-limit.spec.ts` pins.
+  // `tests/unit/next-config-body-limit.spec.ts` pins. Matching it exactly bounds
+  // the copy an anonymous POST holds before auth at what Payload would accept.
   experimental: {
-    proxyClientMaxBodySize: 104857600,
+    proxyClientMaxBodySize: 52428800, // 50MB, in bytes — equal to upload.requestSizeLimit
   },
   // Keep dev and test files out of the standalone trace. Otherwise Next
   // copies these large directories into `.next/standalone`, and a local
