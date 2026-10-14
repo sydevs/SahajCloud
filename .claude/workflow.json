@@ -56,7 +56,6 @@
     "package.json",
     "pnpm-lock.yaml",
     "**/*.md",
-    ".claude/**",
     "src/payload-types.ts"
   ]
 }
