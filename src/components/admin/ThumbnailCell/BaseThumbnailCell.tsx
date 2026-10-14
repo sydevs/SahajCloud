@@ -23,7 +23,7 @@ export type BaseThumbnailCellProps = Partial<DefaultCellComponentProps> & {
  * Interaction priority (matching Payload's DefaultCell):
  * 1. A list drawer's select, in the linked column - wraps in button, calls onSelect
  * 2. onClick - wraps in button, calls onClick with { cellData, collectionSlug, rowData }
- * 3. link && linkURL - wraps in Link for navigation
+ * 3. linkURL - wraps in Link for navigation
  * 4. No interaction - plain display
  */
 export const BaseThumbnailCell: React.FC<BaseThumbnailCellProps> = ({
@@ -39,20 +39,17 @@ export const BaseThumbnailCell: React.FC<BaseThumbnailCellProps> = ({
   onClick,
   openInNewTab,
 }) => {
-  // Payload hands a list drawer's select handler to its own default cell only, so
-  // a custom Cell in the linked column has to call it itself (#942). Outside a
-  // drawer this context is empty.
+  // Payload hands a drawer's select handler to its own default cell only, so a
+  // custom Cell in the linked column has to call it itself (#942).
   const { drawerSlug, onSelect } = useListDrawerContext()
 
-  const doc = rowData
-
   const selectInDrawer =
-    link && drawerSlug && doc && typeof onSelect === 'function'
+    link && drawerSlug && rowData && typeof onSelect === 'function'
       ? () => {
           onSelect({
             collectionSlug: collectionSlug as CollectionSlug,
-            doc,
-            docID: String(doc.id),
+            doc: rowData,
+            docID: String(rowData.id),
           })
         }
       : undefined
@@ -95,25 +92,8 @@ export const BaseThumbnailCell: React.FC<BaseThumbnailCellProps> = ({
     )
   }
 
-  // link + linkURL for navigation
-  if (link && linkURL) {
-    // Use native anchor for new tab links, Payload Link for internal navigation
-    if (openInNewTab) {
-      return (
-        <a href={linkURL} target="_blank" rel="noopener noreferrer" className={className}>
-          {content}
-        </a>
-      )
-    }
-    return (
-      <Link href={linkURL} prefetch={false} className={className}>
-        {content}
-      </Link>
-    )
-  }
-
-  // Fallback: still support linkURL without link prop for backwards compatibility
   if (linkURL) {
+    // Use native anchor for new tab links, Payload Link for internal navigation
     if (openInNewTab) {
       return (
         <a href={linkURL} target="_blank" rel="noopener noreferrer" className={className}>
