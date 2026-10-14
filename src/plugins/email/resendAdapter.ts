@@ -52,29 +52,42 @@ function toResendAttachments(
 /**
  * Flatten nodemailer's `Address | string` forms to the plain strings Resend takes.
  *
- * nodemailer 10 made `Address.address` optional, so an object carrying only a
- * `name` or a `group` now type-checks. Such an entry is dropped with a warning:
- * nothing it carries can become a header string, and the Resend 422 that used to
- * surface the shape is gone.
+ * nodemailer 10 made every `Address` field optional and admits nested arrays, so
+ * an object carrying only a `name` or a `group` now type-checks. Such an entry is
+ * dropped with a warning: nothing it carries can become a header string, and the
+ * Resend 422 that used to surface the shape is gone.
+ *
+ * ⚠ Narrow on the object, never on `'address' in entry` — the shape the optional
+ * field made expressible omits the key, so a key check drops it silently instead.
  */
 function toAddressList(
   value: SendEmailOptions['replyTo'],
   onUnsupported: (name: string) => void,
 ): string[] | undefined {
-  const entries = (Array.isArray(value) ? value : [value]).flatMap((entry) => {
-    if (typeof entry === 'string') return [entry]
-    if (entry && typeof entry === 'object' && 'address' in entry) {
-      const { address, name } = entry
-      if (!address) {
-        onUnsupported(name ?? 'unnamed')
-        return []
-      }
-      return [name ? `${headerDisplayName(name)} <${address}>` : address]
-    }
-    return []
-  })
+  const addresses: string[] = []
 
-  return entries.length > 0 ? entries : undefined
+  const take = (entry: SendEmailOptions['replyTo']): void => {
+    if (Array.isArray(entry)) {
+      entry.forEach(take)
+      return
+    }
+    if (typeof entry === 'string') {
+      addresses.push(entry)
+      return
+    }
+    if (!entry) return
+
+    const { address, name } = entry
+    if (!address) {
+      onUnsupported(name ?? 'unnamed')
+      return
+    }
+    addresses.push(name ? `${headerDisplayName(name)} <${address}>` : address)
+  }
+
+  take(value)
+
+  return addresses.length > 0 ? addresses : undefined
 }
 
 export const resendAdapter = (): EmailAdapter => {
