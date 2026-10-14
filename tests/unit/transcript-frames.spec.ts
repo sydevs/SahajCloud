@@ -5,6 +5,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  approveAllFrames,
   approveFrames,
   isApprovedAs,
   isHandledBy,
@@ -129,5 +130,26 @@ describe('approveFrames', () => {
 describe('removeFrame', () => {
   it('removes only the frame at that second', () => {
     expect(removeFrame([at(1, 0), at(2, 20), at(3, 40)], 20).map((f) => f.id)).toEqual([1, 3])
+  })
+})
+
+describe('approveAllFrames', () => {
+  it('adds every suggestion at its second and drops the frames they replace', () => {
+    const frames = [at(1, 5), at(2, 30), at(3, 50)]
+    const pending = [
+      suggestion('a', 10.2, 4),
+      suggestion('b', 29.8, 6, { timestamp: 31, frameId: 2 }),
+    ]
+    expect(approveAllFrames([...frames.slice(0, 1), at(2, 31), frames[2]], pending)).toEqual([
+      at(1, 5),
+      { ...frame(4), timestamp: 10 },
+      { ...frame(6), timestamp: 30 },
+      at(3, 50),
+    ])
+  })
+
+  it('leaves the frames alone with nothing waiting', () => {
+    const frames = [at(1, 5)]
+    expect(approveAllFrames(frames, [])).toBe(frames)
   })
 })

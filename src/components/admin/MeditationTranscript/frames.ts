@@ -63,5 +63,9 @@ export const approveFrames = (
   frame: Frame = suggestion.frame,
 ) => placeFrame(frames, frame, suggestionTimestamp(suggestion), suggestion.replaces?.timestamp)
 
+/** Every waiting suggestion approved as suggested, in one change. */
+export const approveAllFrames = (frames: KeyframeData[], pending: Suggestion[]) =>
+  pending.reduce((next, suggestion) => approveFrames(next, suggestion), frames)
+
 export const removeFrame = (frames: KeyframeData[], timestamp: number) =>
   frames.filter((f) => f.timestamp !== timestamp)

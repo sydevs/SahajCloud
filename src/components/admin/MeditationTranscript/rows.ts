@@ -182,6 +182,68 @@ export function foldFarParagraphs(
   return out
 }
 
+/** Characters `start` to `end` of one phrase's text. */
+export type TextRange = { start: number; end: number }
+
+/** A quote is looked for this many phrases on from where its suggestion starts. */
+const QUOTE_REACH = 3
+
+/**
+ * The words each suggestion quotes, as ranges per phrase index, so the transcript can show what
+ * prompted it. A quote may start mid-phrase or run into the next one. One not found near its
+ * start (an edited transcript) marks the whole phrase playing there instead.
+ */
+export function quotedRanges(
+  segments: Segment[],
+  suggestions: Pick<Suggestion, 'start' | 'text'>[],
+): Map<number, TextRange[]> {
+  const offsets: number[] = []
+  let haystack = ''
+  for (const segment of segments) {
+    offsets.push(haystack.length)
+    haystack += `${segment.text.toLowerCase()} `
+  }
+  const ranges = new Map<number, TextRange[]>()
+  const add = (index: number, range: TextRange) =>
+    ranges.set(index, [...(ranges.get(index) ?? []), range])
+
+  for (const suggestion of suggestions) {
+    const first = Math.max(0, lastStarted(segments, suggestion.start))
+    if (!segments[first]) continue
+    const needle = suggestion.text.trim().toLowerCase()
+    const from = needle ? haystack.indexOf(needle, offsets[first]) : -1
+    const limit = offsets[first + QUOTE_REACH] ?? haystack.length
+    if (from < 0 || from >= limit) {
+      add(first, { start: 0, end: segments[first].text.length })
+      continue
+    }
+    const to = from + needle.length
+    segments.forEach((segment, index) => {
+      const start = Math.max(from, offsets[index]) - offsets[index]
+      const end = Math.min(to, offsets[index] + segment.text.length) - offsets[index]
+      if (end > start) add(index, { start, end })
+    })
+  }
+  return ranges
+}
+
+/** `text` cut into runs, each marked or not, by `ranges` (which may overlap). */
+export function markRuns(
+  text: string,
+  ranges: TextRange[] = [],
+): { text: string; marked: boolean }[] {
+  if (!ranges.length) return [{ text, marked: false }]
+  const marked = new Array<boolean>(text.length).fill(false)
+  for (const range of ranges) marked.fill(true, range.start, range.end)
+  const runs: { text: string; marked: boolean }[] = []
+  for (let index = 0; index < text.length; index += 1) {
+    const last = runs[runs.length - 1]
+    if (last && last.marked === marked[index]) last.text += text[index]
+    else runs.push({ text: text[index], marked: marked[index] })
+  }
+  return runs
+}
+
 /** m:ss */
 export function clock(seconds: number): string {
   const whole = Math.floor(seconds)
