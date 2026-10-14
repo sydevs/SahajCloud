@@ -41,12 +41,7 @@ export function screenProposalContent(
  * ⚠ **Read off the live Events config, never listed here** (#920). `type:
  * 'email'` is Payload's own declaration, and `urlField` marks what it builds
  * `custom.holdsUrl` because a built URL column is indistinguishable from free
- * text. So a URL column added to Events is exempt the day it is added, where a
- * list would bin every proposal naming the new one — and bin it terminally: the
- * row becomes `status: 'spam'`, nothing re-screens it, and neither the submitter
- * nor the manager learns which field refused. The write guard states the same
- * exemption by omitting the dedicated email and URL columns from its
- * `urlScanFields` (`@/plugins/writeGuard/policies`).
+ * text. So a URL column added to Events is exempt the day it is added.
  */
 function holdsAddressOrLink(field: FlattenedField | undefined): boolean {
   return field?.type === 'email' || field?.custom?.holdsUrl === true
