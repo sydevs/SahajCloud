@@ -118,6 +118,11 @@ const nextConfig = {
   },
   // External packages for server-side rendering
   serverExternalPackages: ['payload', 'jose'],
+  experimental: {
+    // Railpack restores `.next/cache`, so a store corrupted there panics
+    // every later build. Dev's store is elsewhere. #932
+    turbopackFileSystemCacheForBuild: false,
+  },
 }
 
 const configWithPayload = withPayload(nextConfig, { devBundleServerPackages: false })
