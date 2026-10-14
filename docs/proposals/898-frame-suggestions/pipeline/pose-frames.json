@@ -1,0 +1,556 @@
+{
+  "_about": "Pose name the model answers with → the frame id shown, per narrator gender. sameImageAs lists other frame ids with the same picture (an editor frame with one of them counts as the same picture). showsInstead: no usable picture of its own in this set, so this pose is shown.",
+  "male": {
+    "ready": {
+      "frameId": 3,
+      "kind": "still",
+      "sameImageAs": [
+        11
+      ]
+    },
+    "ida-right-hand-to-ground": {
+      "frameId": 1,
+      "kind": "still",
+      "sameImageAs": [
+        9
+      ]
+    },
+    "namaste": {
+      "frameId": 5,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "pingala-left-hand-raised": {
+      "frameId": 7,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "centre-swadhistan-right-hand-on": {
+      "frameId": 13,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "left-swadhistan-right-hand-on": {
+      "frameId": 15,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "right-swadhistan-left-hand-on": {
+      "frameId": 17,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "centre-nabhi-right-hand-on": {
+      "frameId": 19,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "right-nabhi-left-hand-on": {
+      "frameId": 22,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "centre-anahat-both-hands-crossed": {
+      "frameId": 24,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "centre-anahat-right-hand-on": {
+      "frameId": 26,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "left-anahat-right-hand-on": {
+      "frameId": 28,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "right-anahat-left-hand-on": {
+      "frameId": 30,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "centre-vishuddhi-right-hand-on": {
+      "frameId": 34,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "left-vishuddhi-right-hand-on": {
+      "frameId": 36,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "right-vishuddhi-left-hand-on": {
+      "frameId": 38,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "back-agnya-right-hand-on": {
+      "frameId": 40,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "centre-agnya-right-hand-on": {
+      "frameId": 41,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "left-agnya-right-hand-on": {
+      "frameId": 43,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "right-agnya-left-hand-on": {
+      "frameId": 45,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "sahasrara-right-hand-on": {
+      "frameId": 47,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "sahasrara-right-hand-above": {
+      "frameId": 49,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "hands-on-ground-palms-down": {
+      "frameId": 51,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "right-mooladhara-left-hand-to-ground": {
+      "frameId": 53,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "centre-agnya-bandhan-right-hand": {
+      "frameId": 56,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "agnya-both-hands-sides-of-head": {
+      "frameId": 58,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "left-agnya-bandhan-right-hand": {
+      "frameId": 60,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "right-agnya-bandhan-right-hand": {
+      "frameId": 62,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "hamsa-touch-nose-right-hand": {
+      "frameId": 64,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "left-anahat-bandhan-right-hand": {
+      "frameId": 66,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "right-anahat-bandhan-right-hand": {
+      "frameId": 68,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "anahat-tapping-right-hand": {
+      "frameId": 70,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "centre-anahat-bandhan-right-hand": {
+      "frameId": 72,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "kundalini-raise-right-hand": {
+      "frameId": 74,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "kundalini-raise-and-bandhan": {
+      "frameId": 76,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "sahasrara-massage-right-hand": {
+      "frameId": 47,
+      "kind": "video",
+      "showsInstead": "sahasrara-right-hand-on",
+      "sameImageAs": []
+    },
+    "sahasrara-bandhan-right-hand": {
+      "frameId": 80,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "left-nabhi-bandhan-right-hand": {
+      "frameId": 84,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "centre-nabhi-bandhan-right-hand": {
+      "frameId": 86,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "right-nabhi-bandhan-right-hand": {
+      "frameId": 88,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "left-swadhistan-bandhan-right-hand": {
+      "frameId": 90,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "centre-swadhistan-bandhan-right-hand": {
+      "frameId": 92,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "right-swadhistan-bandhan-right-hand": {
+      "frameId": 96,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "left-vishuddhi-right-hand-neck-sweep": {
+      "frameId": 98,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "right-vishuddhi-bandhan-right-hand": {
+      "frameId": 100,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "centre-vishuddhi-bandhan-right-hand": {
+      "frameId": 104,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "void-bandhan-right-hand": {
+      "frameId": 106,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "pingala-sweep-right-hand": {
+      "frameId": 114,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "kundalini-both-hands-alternate-raise": {
+      "frameId": 118,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "hamsa-right-hand-on": {
+      "frameId": 121,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "left-nabhi-right-hand-on": {
+      "frameId": 122,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "mooladhara-bandhan-right-hand": {
+      "frameId": 125,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "giving-bandhan-right-hand": {
+      "frameId": 126,
+      "kind": "video",
+      "sameImageAs": []
+    }
+  },
+  "female": {
+    "ready": {
+      "frameId": 4,
+      "kind": "still",
+      "sameImageAs": [
+        12
+      ]
+    },
+    "ida-right-hand-to-ground": {
+      "frameId": 2,
+      "kind": "still",
+      "sameImageAs": [
+        10
+      ]
+    },
+    "namaste": {
+      "frameId": 6,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "pingala-left-hand-raised": {
+      "frameId": 8,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "centre-swadhistan-right-hand-on": {
+      "frameId": 14,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "left-swadhistan-right-hand-on": {
+      "frameId": 16,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "right-swadhistan-left-hand-on": {
+      "frameId": 18,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "centre-nabhi-right-hand-on": {
+      "frameId": 20,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "left-nabhi-right-hand-on": {
+      "frameId": 21,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "right-nabhi-left-hand-on": {
+      "frameId": 23,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "centre-anahat-both-hands-crossed": {
+      "frameId": 25,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "centre-anahat-right-hand-on": {
+      "frameId": 27,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "left-anahat-right-hand-on": {
+      "frameId": 29,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "right-anahat-left-hand-on": {
+      "frameId": 31,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "hamsa-right-hand-on": {
+      "frameId": 33,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "centre-vishuddhi-right-hand-on": {
+      "frameId": 35,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "left-vishuddhi-right-hand-on": {
+      "frameId": 37,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "right-vishuddhi-left-hand-on": {
+      "frameId": 39,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "centre-agnya-right-hand-on": {
+      "frameId": 42,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "left-agnya-right-hand-on": {
+      "frameId": 44,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "right-agnya-left-hand-on": {
+      "frameId": 46,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "sahasrara-right-hand-on": {
+      "frameId": 48,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "sahasrara-right-hand-above": {
+      "frameId": 50,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "hands-on-ground-palms-down": {
+      "frameId": 52,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "kundalini-both-hands-alternate-raise": {
+      "frameId": 55,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "centre-agnya-bandhan-right-hand": {
+      "frameId": 57,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "agnya-both-hands-sides-of-head": {
+      "frameId": 59,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "left-agnya-bandhan-right-hand": {
+      "frameId": 61,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "right-agnya-bandhan-right-hand": {
+      "frameId": 63,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "hamsa-touch-nose-right-hand": {
+      "frameId": 65,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "left-anahat-bandhan-right-hand": {
+      "frameId": 67,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "right-anahat-bandhan-right-hand": {
+      "frameId": 69,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "anahat-tapping-right-hand": {
+      "frameId": 71,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "centre-anahat-bandhan-right-hand": {
+      "frameId": 73,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "kundalini-raise-right-hand": {
+      "frameId": 75,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "sahasrara-massage-right-hand": {
+      "frameId": 79,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "sahasrara-bandhan-right-hand": {
+      "frameId": 81,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "left-nabhi-bandhan-right-hand": {
+      "frameId": 85,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "centre-nabhi-bandhan-right-hand": {
+      "frameId": 87,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "right-nabhi-bandhan-right-hand": {
+      "frameId": 89,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "left-swadhistan-bandhan-right-hand": {
+      "frameId": 91,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "centre-swadhistan-bandhan-right-hand": {
+      "frameId": 93,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "right-swadhistan-bandhan-right-hand": {
+      "frameId": 95,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "left-vishuddhi-right-hand-neck-sweep": {
+      "frameId": 99,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "right-vishuddhi-bandhan-right-hand": {
+      "frameId": 101,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "centre-vishuddhi-bandhan-right-hand": {
+      "frameId": 105,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "void-bandhan-right-hand": {
+      "frameId": 107,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "ida-sweep-left-hand": {
+      "frameId": 109,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "back-agnya-bandhan-right-hand": {
+      "frameId": 111,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "mooladhara-bandhan-right-hand": {
+      "frameId": 113,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "pingala-sweep-right-hand": {
+      "frameId": 115,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "back-agnya-right-hand-on": {
+      "frameId": 119,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "right-mooladhara-left-hand-to-ground": {
+      "frameId": 120,
+      "kind": "still",
+      "sameImageAs": []
+    },
+    "kundalini-raise-and-bandhan": {
+      "frameId": 124,
+      "kind": "video",
+      "sameImageAs": []
+    },
+    "giving-bandhan-right-hand": {
+      "frameId": 127,
+      "kind": "video",
+      "sameImageAs": []
+    }
+  }
+}
