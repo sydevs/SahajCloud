@@ -367,7 +367,10 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       // first (#938). `tests/unit/next-config-body-limit.spec.ts` pins that.
       requestSizeLimit: 52428800, // 50MB whole-request limit, written in bytes
       limits: {
-        fileSize: 104857600, // 100MB global limit, written in bytes (collections will have their own limits)
+        // Under `requestSizeLimit` with room for the multipart boundary, part
+        // headers and `_payload`, so a file this size still fits one request.
+        // A collection may set its own, lower limit.
+        fileSize: 50331648, // 48MB per-file limit, written in bytes
       },
     },
     // Allow overrides (especially important for test database URIs)
