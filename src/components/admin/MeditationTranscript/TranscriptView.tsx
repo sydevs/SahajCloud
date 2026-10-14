@@ -1,6 +1,6 @@
 'use client'
 
-import { Banner, Button, Pill, useListDrawer } from '@payloadcms/ui'
+import { Banner, Button, useListDrawer } from '@payloadcms/ui'
 import { AudioLines } from 'lucide-react'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 
@@ -14,9 +14,9 @@ import {
   activePhrase,
   buildBlocks,
   clock,
-  foldFarParagraphs,
   frameBlocks,
   markRuns,
+  nextBelow,
   quotedRanges,
   type Segment,
 } from './rows'
@@ -43,8 +43,6 @@ export function TranscriptView({
   const active = activePhrase(segments, usePlaybackTime())
   const seekTo = useSeekToTime()
   const container = useRef<HTMLDivElement>(null)
-  const [nearOnly, setNearOnly] = useState(false)
-  const [opened, setOpened] = useState<ReadonlySet<string>>(new Set())
 
   const [target, setTarget] = useState<{ timestamp: number; suggestion?: Suggestion } | null>(null)
   // A new filter object on every render makes the drawer re-fetch its list in a loop.
@@ -65,10 +63,23 @@ export function TranscriptView({
     () => buildBlocks(segments, frameBlocks(frames, pending, suggestions)),
     [frames, pending, segments, suggestions],
   )
-  const quoted = useMemo(() => quotedRanges(segments, pending), [pending, segments])
-  const shown = useMemo(
-    () => (nearOnly ? foldFarParagraphs(blocks, segments, opened) : blocks),
-    [blocks, nearOnly, opened, segments],
+  // Every suggestion behind a frame or still waiting; one set aside put nothing in, so shows nothing.
+  const quoted = useMemo(
+    () =>
+      quotedRanges(
+        segments,
+        blocks.flatMap((block) =>
+          block.type === 'frame' && block.suggestion
+            ? [
+                {
+                  ...block.suggestion,
+                  kind: block.status === 'suggested' ? ('waiting' as const) : ('added' as const),
+                },
+              ]
+            : [],
+        ),
+      ),
+    [blocks, segments],
   )
 
   useEffect(() => {
@@ -77,13 +88,31 @@ export function TranscriptView({
       ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
   }, [active])
 
+  const suggestionCards = () => [
+    ...(container.current?.querySelectorAll<HTMLElement>('[data-status="suggested"]') ?? []),
+  ]
+
+  // How many waiting suggestions are on screen: with none, the review button floats in.
+  const [onScreen, setOnScreen] = useState(0)
+  useEffect(() => {
+    const visible = new Set<Element>()
+    setOnScreen(0)
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) visible.add(entry.target)
+        else visible.delete(entry.target)
+      }
+      setOnScreen(visible.size)
+    })
+    suggestionCards().forEach((card) => observer.observe(card))
+    return () => observer.disconnect()
+  }, [blocks])
+
   /** Scrolls to the next waiting suggestion below the top of the view, wrapping to the first. */
-  const nextSuggestion = () => {
-    const cards = [
-      ...(container.current?.querySelectorAll<HTMLElement>('[data-status="suggested"]') ?? []),
-    ]
-    const next = cards.find((card) => card.getBoundingClientRect().top > 120) ?? cards[0]
-    next?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  const reviewNext = () => {
+    const cards = suggestionCards()
+    const tops = cards.map((card) => card.getBoundingClientRect().top)
+    cards[nextBelow(tops, 120)]?.scrollIntoView({ block: 'center', behavior: 'smooth' })
   }
 
   if (!transcript) return <Banner type="info">This meditation has no transcript yet.</Banner>
@@ -98,32 +127,18 @@ export function TranscriptView({
           hear.
         </Banner>
       )}
-      <div className={styles.toolbar}>
-        {pending.length > 0 && (
-          <>
-            <Pill pillStyle="warning" size="small">
-              {pending.length} suggested {pending.length === 1 ? 'frame' : 'frames'}
-            </Pill>
-            <Button buttonStyle="subtle" margin={false} onClick={nextSuggestion} size="small">
-              Next suggestion
-            </Button>
-            <Button buttonStyle="primary" margin={false} onClick={approveAll} size="small">
-              Approve all
-            </Button>
-          </>
-        )}
-        <Button
-          buttonStyle="subtle"
-          className={styles.toolbarEnd}
-          margin={false}
-          onClick={() => setNearOnly(!nearOnly)}
-          size="small"
-        >
-          {nearOnly ? 'Show the whole transcript' : 'Only text near frames'}
-        </Button>
-      </div>
+      {pending.length > 0 && (
+        <div className={styles.summary}>
+          <span>
+            {pending.length} suggested {pending.length === 1 ? 'frame' : 'frames'} to review
+          </span>
+          <Button buttonStyle="secondary" margin={false} onClick={approveAll} size="small">
+            Approve all
+          </Button>
+        </div>
+      )}
 
-      {shown.map((block) => {
+      {blocks.map((block) => {
         if (block.type === 'paragraph') {
           return (
             <section className={styles.paragraph} key={block.key}>
@@ -141,8 +156,8 @@ export function TranscriptView({
                       onClick={() => play(segments[index].start)}
                     >
                       {markRuns(segments[index].text, quoted.get(index)).map((run, i) =>
-                        run.marked ? (
-                          <mark className={styles.quoted} key={i}>
+                        run.kind ? (
+                          <mark className={styles.quoted} data-kind={run.kind} key={i}>
                             {run.text}
                           </mark>
                         ) : (
@@ -162,19 +177,6 @@ export function TranscriptView({
               {/* lucide, because Payload's icon set has no sound wave */}
               <AudioLines aria-hidden="true" size={16} strokeWidth={1.5} />A moment of silence
             </p>
-          )
-        }
-        if (block.type === 'gap') {
-          return (
-            <button
-              className={styles.gap}
-              key={block.key}
-              onClick={() => setOpened(new Set(opened).add(block.key))}
-              type="button"
-            >
-              {block.count} {block.count === 1 ? 'paragraph' : 'paragraphs'} · {clock(block.start)}–
-              {clock(block.end)}
-            </button>
           )
         }
         const replaced =
@@ -214,6 +216,13 @@ export function TranscriptView({
           />
         )
       })}
+      {pending.length > 0 && onScreen === 0 && (
+        <div className={styles.reviewNext}>
+          <Button buttonStyle="primary" margin={false} onClick={reviewNext} size="small">
+            Review next frame · {pending.length} left
+          </Button>
+        </div>
+      )}
       <FramesDrawer
         onSelect={({ doc }) => {
           if (target?.suggestion) approve(target.suggestion, doc as Frame)

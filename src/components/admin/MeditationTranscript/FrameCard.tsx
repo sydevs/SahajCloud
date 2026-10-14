@@ -89,21 +89,17 @@ function SuggestionCard({
         </div>
       )}
       <footer className={styles.suggestionActions}>
-        <Button
-          buttonStyle="transparent"
-          className={styles.suggestionDismiss}
-          margin={false}
-          onClick={onSetAside}
-          size="small"
-        >
-          {replaces ? 'Keep the current frame' : 'Not needed'}
+        <Button buttonStyle="transparent" margin={false} onClick={onSetAside} size="small">
+          {replaces ? 'Keep current' : 'Not needed'}
         </Button>
-        <Button buttonStyle="secondary" margin={false} onClick={onChange} size="small">
-          Pick another frame
-        </Button>
-        <Button buttonStyle="primary" margin={false} onClick={onApprove} size="small">
-          Approve
-        </Button>
+        <span className={styles.suggestionDecide}>
+          <Button buttonStyle="secondary" margin={false} onClick={onChange} size="small">
+            Pick another
+          </Button>
+          <Button buttonStyle="primary" margin={false} onClick={onApprove} size="small">
+            Approve
+          </Button>
+        </span>
       </footer>
     </article>
   )

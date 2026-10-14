@@ -10,14 +10,6 @@ export const PARAGRAPH_GAP_SECONDS = 3
 /** A pause this long is shown as a moment of silence. */
 export const SILENCE_GAP_SECONDS = 10
 
-/** In the shortened view, paragraphs this close to a frame stay: the lead-up to it, and just after. */
-export const NEAR_BEFORE_SECONDS = 12
-export const NEAR_AFTER_SECONDS = 4
-
-/** Words that usually start a hand instruction: a paragraph with one stays in the shortened view. */
-export const HAND_CUE =
-  /\b(place|put|bring|raise|lift|lower|press|massage|rotate|rub|give|hold|rest|touch|keep|move|take|tap|sweep)\b/i
-
 /** in the meditation · an approved suggestion · a suggestion changed by the editor · waiting */
 export type FrameStatus = 'frame' | 'approved' | 'changed' | 'suggested'
 
@@ -30,11 +22,7 @@ export type FrameBlock = {
   suggestion?: Suggestion
 }
 export type ParagraphBlock = { type: 'paragraph'; key: string; start: number; indexes: number[] }
-export type Block =
-  | ParagraphBlock
-  | FrameBlock
-  | { type: 'silence'; key: string; seconds: number }
-  | { type: 'gap'; key: string; start: number; end: number; count: number }
+export type Block = ParagraphBlock | FrameBlock | { type: 'silence'; key: string; seconds: number }
 
 /** The last phrase started by `time`, or -1 before the first. The preview reports whole seconds. */
 export function lastStarted(segments: Segment[], time: number): number {
@@ -122,68 +110,11 @@ export function buildBlocks(segments: Segment[], frames: FrameBlock[]): Block[] 
   return blocks
 }
 
-/** Whether a paragraph belongs in the shortened view: a hand cue, or a phrase close to a frame. */
-export function isNearFrame(segments: Segment[], indexes: number[], frameTimes: number[]): boolean {
-  return indexes.some((index) => {
-    const { start, end, text } = segments[index]
-    return (
-      HAND_CUE.test(text) ||
-      frameTimes.some(
-        (t) =>
-          (start >= t - NEAR_BEFORE_SECONDS && start <= t + NEAR_AFTER_SECONDS) ||
-          (start <= t && end >= t),
-      )
-    )
-  })
-}
+/** Whether a quote's suggestion still waits, or already put a frame in the meditation. */
+export type QuoteKind = 'waiting' | 'added'
 
-/**
- * The shortened view: each run of paragraphs far from any frame folds into one row saying how many
- * and which stretch. Runs listed in `opened` stay unfolded. Silences inside a run fold with it.
- */
-export function foldFarParagraphs(
-  blocks: Block[],
-  segments: Segment[],
-  opened: ReadonlySet<string>,
-): Block[] {
-  const frameTimes = blocks.flatMap((block) => (block.type === 'frame' ? [block.time] : []))
-  const out: Block[] = []
-  let run: Block[] = []
-  const flush = () => {
-    const paragraphs = run.filter((b): b is ParagraphBlock => b.type === 'paragraph')
-    if (paragraphs.length) {
-      const key = `gap-${paragraphs[0].key}`
-      if (opened.has(key)) out.push(...run)
-      else {
-        const last = paragraphs[paragraphs.length - 1].indexes
-        out.push({
-          type: 'gap',
-          key,
-          start: paragraphs[0].start,
-          end: segments[last[last.length - 1]].end,
-          count: paragraphs.length,
-        })
-      }
-    } else out.push(...run)
-    run = []
-  }
-  for (const block of blocks) {
-    const far =
-      (block.type === 'paragraph' && !isNearFrame(segments, block.indexes, frameTimes)) ||
-      (block.type === 'silence' && run.length > 0)
-    if (far) {
-      run.push(block)
-      continue
-    }
-    flush()
-    out.push(block)
-  }
-  flush()
-  return out
-}
-
-/** Characters `start` to `end` of one phrase's text. */
-export type TextRange = { start: number; end: number }
+/** Characters `start` to `end` of one phrase's text, quoted by a suggestion. */
+export type TextRange = { start: number; end: number; kind: QuoteKind }
 
 /** A quote is looked for this many phrases on from where its suggestion starts. */
 const QUOTE_REACH = 3
@@ -195,7 +126,7 @@ const QUOTE_REACH = 3
  */
 export function quotedRanges(
   segments: Segment[],
-  suggestions: Pick<Suggestion, 'start' | 'text'>[],
+  suggestions: (Pick<Suggestion, 'start' | 'text'> & { kind: QuoteKind })[],
 ): Map<number, TextRange[]> {
   const offsets: number[] = []
   let haystack = ''
@@ -214,35 +145,46 @@ export function quotedRanges(
     const from = needle ? haystack.indexOf(needle, offsets[first]) : -1
     const limit = offsets[first + QUOTE_REACH] ?? haystack.length
     if (from < 0 || from >= limit) {
-      add(first, { start: 0, end: segments[first].text.length })
+      add(first, { start: 0, end: segments[first].text.length, kind: suggestion.kind })
       continue
     }
     const to = from + needle.length
     segments.forEach((segment, index) => {
       const start = Math.max(from, offsets[index]) - offsets[index]
       const end = Math.min(to, offsets[index] + segment.text.length) - offsets[index]
-      if (end > start) add(index, { start, end })
+      if (end > start) add(index, { start, end, kind: suggestion.kind })
     })
   }
   return ranges
 }
 
-/** `text` cut into runs, each marked or not, by `ranges` (which may overlap). */
+/** `text` cut into runs by `ranges`, each with the kind of quote over it; where two overlap, a waiting one shows. */
 export function markRuns(
   text: string,
   ranges: TextRange[] = [],
-): { text: string; marked: boolean }[] {
-  if (!ranges.length) return [{ text, marked: false }]
-  const marked = new Array<boolean>(text.length).fill(false)
-  for (const range of ranges) marked.fill(true, range.start, range.end)
-  const runs: { text: string; marked: boolean }[] = []
+): { text: string; kind?: QuoteKind }[] {
+  if (!ranges.length) return [{ text }]
+  const kinds = new Array<QuoteKind | undefined>(text.length)
+  const ordered = [
+    ...ranges.filter((range) => range.kind === 'added'),
+    ...ranges.filter((range) => range.kind === 'waiting'),
+  ]
+  for (const range of ordered) kinds.fill(range.kind, range.start, range.end)
+  const runs: { text: string; kind?: QuoteKind }[] = []
   for (let index = 0; index < text.length; index += 1) {
     const last = runs[runs.length - 1]
-    if (last && last.marked === marked[index]) last.text += text[index]
-    else runs.push({ text: text[index], marked: marked[index] })
+    if (last && last.kind === kinds[index]) last.text += text[index]
+    else runs.push({ text: text[index], kind: kinds[index] })
   }
   return runs
 }
+
+/** Which of the cards at these tops (in page order) to review next: the first below `edge`, else the first. */
+export const nextBelow = (tops: number[], edge: number) =>
+  Math.max(
+    0,
+    tops.findIndex((top) => top > edge),
+  )
 
 /** m:ss */
 export function clock(seconds: number): string {
