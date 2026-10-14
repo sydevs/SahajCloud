@@ -137,7 +137,15 @@ export const Lessons: CollectionConfig = {
               schema: subtitlesSchema,
               admin: {
                 description:
-                  'Subtitles for intro audio: [{ startTimeMs, endTimeMs, durationMs?, content }].',
+                  'Made from the intro audio when you attach it. Fix any wrong words in the text, then save.',
+                components: {
+                  beforeInput: [
+                    {
+                      path: '@/components/admin/SubtitlesFromAudio',
+                      clientProps: { sourceField: 'introAudio' },
+                    },
+                  ],
+                },
               },
             }),
           ],
