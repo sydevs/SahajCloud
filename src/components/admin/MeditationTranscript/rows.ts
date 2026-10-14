@@ -121,8 +121,9 @@ const QUOTE_REACH = 3
 
 /**
  * The words each suggestion quotes, as ranges per phrase index, so the transcript can show what
- * prompted it. A quote may start mid-phrase or run into the next one. One not found near its
- * start (an edited transcript) marks the whole phrase playing there instead.
+ * prompted it. A quote may start mid-phrase. It is cut at its frame's card: words past the card
+ * would read as belonging to the next frame. One not found near its start (an edited
+ * transcript) marks the whole phrase playing there instead.
  */
 export function quotedRanges(
   segments: Segment[],
@@ -141,19 +142,21 @@ export function quotedRanges(
   for (const suggestion of suggestions) {
     const first = Math.max(0, lastStarted(segments, suggestion.start))
     if (!segments[first]) continue
+    // The card follows the phrase playing at the frame's whole second (see buildBlocks).
+    const card = Math.max(first, lastStarted(segments, suggestionTimestamp(suggestion)))
     const needle = suggestion.text.trim().toLowerCase()
     const from = needle ? haystack.indexOf(needle, offsets[first]) : -1
     const limit = offsets[first + QUOTE_REACH] ?? haystack.length
-    if (from < 0 || from >= limit) {
+    const to = Math.min(from + needle.length, offsets[card] + segments[card].text.length)
+    if (from < 0 || from >= limit || to <= from) {
       add(first, { start: 0, end: segments[first].text.length, kind: suggestion.kind })
       continue
     }
-    const to = from + needle.length
-    segments.forEach((segment, index) => {
+    for (let index = first; index <= card; index += 1) {
       const start = Math.max(from, offsets[index]) - offsets[index]
-      const end = Math.min(to, offsets[index] + segment.text.length) - offsets[index]
+      const end = Math.min(to, offsets[index] + segments[index].text.length) - offsets[index]
       if (end > start) add(index, { start, end, kind: suggestion.kind })
-    })
+    }
   }
   return ranges
 }

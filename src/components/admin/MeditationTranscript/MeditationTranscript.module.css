@@ -60,7 +60,7 @@
 }
 
 /* The words a suggestion quotes: a soft highlighter stroke, rounded on every line it wraps
-   onto. Warm while it waits, the approved cards' tint once its frame is in. */
+   onto. Warm while it waits, the theme's quiet tint once its frame is in. */
 .quoted {
   padding: 0.1em 0.2em;
   margin: 0 -0.1em;
@@ -72,7 +72,7 @@
 }
 
 .quoted[data-kind='added'] {
-  background-color: var(--theme-success-100);
+  background-color: var(--theme-elevation-100);
 }
 
 .silence {
@@ -90,44 +90,71 @@
   border-top: 1px dashed var(--theme-elevation-200);
 }
 
-/* The frame card: picture, name with status, time and tags, why, and its actions. */
+/* The frame card, the same bands in every state: a header saying what it is and when, then the
+   picture with its name. Only the header's tint and wording change with the state. */
 .card {
-  display: grid;
-  grid-template-columns: 56px minmax(0, 1fr) auto;
-  gap: 12px;
-  align-items: center;
-  padding: 10px 10px 10px 10px;
-  background-color: var(--theme-elevation-50);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: var(--theme-elevation-0);
   border: 1px solid var(--theme-elevation-150);
   border-radius: var(--style-radius-m);
 }
 
-/* A suggestion stacks in bands instead of the grid: see SuggestionCard. */
-.card[data-status='suggested'] {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  align-items: stretch;
-  padding: 0;
-  overflow: hidden;
-  background-color: var(--theme-elevation-0);
-  border-color: var(--theme-warning-250);
-}
-
-.suggestionHeader {
+.cardHeader {
   display: flex;
   gap: 8px;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
-  padding: 6px 12px;
-  background-color: var(--theme-warning-50);
-  border-bottom: 1px solid var(--theme-warning-150);
+  min-height: 34px;
+  padding: 4px 8px 4px 12px;
+  background-color: var(--theme-elevation-50);
+  border-bottom: 1px solid var(--theme-elevation-100);
   font-size: 0.75rem;
   font-weight: 600;
-  color: var(--theme-warning-800);
+  color: var(--theme-elevation-700);
 }
 
-.suggestionMain {
+.cardLabel,
+.cardHeaderEnd {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.cardHeaderEnd {
+  gap: 2px;
+}
+
+.cardTime {
+  padding: 2px 4px;
+  border: 0;
+  border-radius: var(--style-radius-s);
+  background: none;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  color: inherit;
+  cursor: pointer;
+}
+
+.cardTime:hover {
+  background-color: var(--theme-elevation-100);
+}
+
+.cardMore {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--style-radius-s);
+}
+
+.cardMore:hover {
+  background-color: var(--theme-elevation-100);
+}
+
+.cardMain {
   display: grid;
   grid-template-columns: 64px minmax(0, 1fr);
   gap: 12px;
@@ -135,22 +162,53 @@
   padding: 12px;
 }
 
-.suggestionMain .cardImage {
+.cardImage {
+  display: block;
   width: 64px;
   height: 64px;
+  overflow: hidden;
+  border-radius: var(--style-radius-s);
   background-color: var(--theme-elevation-50);
 }
 
-.suggestionName {
+.cardBody {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cardName {
   font-weight: 600;
   line-height: 1.3;
 }
 
-.suggestionReason {
+.cardMeta {
+  font-size: 0.75rem;
+  color: var(--theme-elevation-500);
+}
+
+.cardNote,
+.replacedNote {
   margin: 4px 0 0;
   font-size: 0.8125rem;
   line-height: 1.45;
   color: var(--theme-elevation-700);
+}
+
+/* A suggestion is not in the meditation yet: the warm tint of its quote in the transcript. */
+.card[data-status='suggested'] {
+  border-color: var(--theme-warning-250);
+}
+
+.card[data-status='suggested'] .cardHeader {
+  background-color: var(--theme-warning-50);
+  border-bottom-color: var(--theme-warning-150);
+  color: var(--theme-warning-800);
+}
+
+.card[data-status='suggested'] .cardTime:hover {
+  background-color: var(--theme-warning-100);
 }
 
 .suggestionReplaces {
@@ -205,6 +263,11 @@
 /* An editor frame a waiting suggestion would replace: faded and struck through until decided. */
 .card[data-replaced='true'] {
   border-style: dashed;
+  border-color: var(--theme-elevation-300);
+}
+
+.card[data-replaced='true'] .cardHeader {
+  color: var(--theme-warning-800);
 }
 
 .card[data-replaced='true'] .cardImage {
@@ -212,90 +275,12 @@
 }
 
 .card[data-replaced='true'] .cardName {
-  text-decoration: line-through;
   color: var(--theme-elevation-600);
+  text-decoration: line-through;
 }
 
 .replacedNote {
-  margin: 2px 0 0;
-  font-size: 0.75rem;
-  line-height: 1.45;
   color: var(--theme-warning-800);
-}
-
-.cardImage {
-  display: block;
-  width: 56px;
-  height: 56px;
-  overflow: hidden;
-  border-radius: var(--style-radius-s);
-  background-color: var(--theme-elevation-0);
-}
-
-.cardBody {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.cardTitle {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  min-width: 0;
-}
-
-.cardName {
-  overflow: hidden;
-  font-weight: 600;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.cardMeta {
-  font-size: 0.75rem;
-  color: var(--theme-elevation-500);
-}
-
-.cardTime {
-  padding: 0;
-  border: 0;
-  background: none;
-  font: inherit;
-  font-variant-numeric: tabular-nums;
-  color: var(--theme-elevation-800);
-  cursor: pointer;
-}
-
-.cardTime:hover {
-  text-decoration: underline;
-}
-
-.cardNote {
-  margin: 0;
-  font-size: 0.75rem;
-  line-height: 1.45;
-  color: var(--theme-elevation-600);
-}
-
-.cardActions {
-  display: flex;
-  gap: 4px;
-  align-items: center;
-}
-
-.cardMore {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: var(--style-radius-s);
-}
-
-.cardMore:hover {
-  background-color: var(--theme-elevation-100);
 }
 
 /* Floats at the bottom of the screen while no waiting suggestion is in view. */

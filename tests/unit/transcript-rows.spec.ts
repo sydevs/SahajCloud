@@ -146,10 +146,16 @@ describe('quotedRanges', () => {
     expect(quote(10.4, 'rotate.')).toEqual([[2, [{ start: 15, end: 22, kind: 'waiting' }]]])
   })
 
-  it('carries a quote across into the next phrase', () => {
+  it('stops a quote at its card, leaving the words past it unmarked', () => {
     expect(quote(10, 'and rotate. Slowly,')).toEqual([
       [2, [{ start: 11, end: 22, kind: 'waiting' }]],
-      [3, [{ start: 0, end: 7, kind: 'waiting' }]],
+    ])
+  })
+
+  it('carries a quote into the next phrase when the card comes after it', () => {
+    expect(quote(4.6, 'in. Put your')).toEqual([
+      [0, [{ start: 8, end: 11, kind: 'waiting' }]],
+      [1, [{ start: 0, end: 8, kind: 'waiting' }]],
     ])
   })
 
