@@ -1,7 +1,5 @@
 import type { FlattenedField } from 'payload'
 
-import { getFieldByPath } from 'payload'
-
 import { checkNoUrls } from '@/lib/antiSpam/antiSpamGuard'
 
 /**
@@ -50,9 +48,7 @@ export function screenProposalContent(
  * exemption by omitting the dedicated email and URL columns from its
  * `urlScanFields` (`@/plugins/writeGuard/policies`).
  */
-function holdsAddressOrLink(fields: FlattenedField[], leafPath: string): boolean {
-  // A schema path carries no row index, which is what this resolver takes.
-  const field = getFieldByPath({ fields, path: leafPath.replace(/\[\d+\]/g, '') })?.field
+function holdsAddressOrLink(field: FlattenedField | undefined): boolean {
   return field?.type === 'email' || field?.custom?.holdsUrl === true
 }
 
@@ -68,6 +64,15 @@ function holdsAddressOrLink(fields: FlattenedField[], leafPath: string): boolean
  * proposal is an Events field patch, and Events nests. The dotted key is also
  * what names the offending field in the reason the manager reads.
  *
+ * ⚠ **`fields` descends with the data, and only a string leaf is ever exempt.**
+ * `proposed` is submitter-controlled, so both halves are load-bearing. Resolving
+ * a dotted path instead reaches a column the patch never nested under — payload's
+ * `getFieldByPath` keeps the parent's field list past a segment that holds no
+ * subfields, so `{ title: { website: 'visit cheap.shop' } }` resolved to the
+ * exempt top-level `website`. Exempting a key rather than its string value hid
+ * every leaf beneath it the same way. An unrecognised key therefore descends
+ * into nothing, which exempts nothing.
+ *
  * Bounded by depth and by count: `proposed` is public input, and a walker with
  * neither bound is a stack overflow and an unbounded allocation waiting for
  * somebody to post a deeply nested object. Both limits sit far above what a
@@ -75,7 +80,7 @@ function holdsAddressOrLink(fields: FlattenedField[], leafPath: string): boolean
  */
 function stringLeaves(
   value: unknown,
-  eventFields: FlattenedField[],
+  fields: FlattenedField[],
   prefix = '',
   depth = 0,
 ): Record<string, string> {
@@ -91,8 +96,10 @@ function stringLeaves(
   }
 
   if (Array.isArray(value)) {
+    // An array field's own `flattenedFields` describe its rows, so the level
+    // does not change here.
     value.forEach((item, index) => {
-      Object.assign(leaves, stringLeaves(item, eventFields, `${prefix}[${index}]`, depth + 1))
+      Object.assign(leaves, stringLeaves(item, fields, `${prefix}[${index}]`, depth + 1))
     })
     return leaves
   }
@@ -100,9 +107,11 @@ function stringLeaves(
   if (typeof value === 'object') {
     for (const [key, item] of Object.entries(value)) {
       if (Object.keys(leaves).length >= MAX_LEAVES) break
+      const field = fields.find((candidate) => candidate.name === key)
+      if (typeof item === 'string' && holdsAddressOrLink(field)) continue
       const path = prefix ? `${prefix}.${key}` : key
-      if (holdsAddressOrLink(eventFields, path)) continue
-      Object.assign(leaves, stringLeaves(item, eventFields, path, depth + 1))
+      const nested = field && 'flattenedFields' in field ? field.flattenedFields : []
+      Object.assign(leaves, stringLeaves(item, nested, path, depth + 1))
     }
   }
 

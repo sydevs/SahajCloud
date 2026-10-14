@@ -168,6 +168,25 @@ describe('screenProposalContent', () => {
     expect(refusal).toContain('description')
   })
 
+  /**
+   * ⚠ A key is only exempt where the config says a leaf sits, so a submitter
+   * cannot borrow an exempt column's name one level down. The scan read the
+   * dotted path before, and payload's resolver carries the parent's field list
+   * past a column that holds no subfields.
+   */
+  it('refuses a link under a key named after an exempt column', () => {
+    const refusal = screen({ title: { website: 'visit cheap.shop' } })
+    expect(refusal).not.toBeNull()
+    expect(refusal).toContain('title.website')
+  })
+
+  /** An object is not a URL, so an exempt column covers no subtree. */
+  it('refuses a link nested inside an exempt column', () => {
+    const refusal = screen({ website: { note: 'visit cheap.shop' } })
+    expect(refusal).not.toBeNull()
+    expect(refusal).toContain('website.note')
+  })
+
   /** An exempt column buys its own path no cover for its neighbours. */
   it('still refuses a link in a free-text field beside an exempt one', () => {
     const refusal = screen({
