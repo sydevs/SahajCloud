@@ -110,7 +110,7 @@ export function FrameCard(props: FrameCardProps) {
       {suggested && (
         <footer className={styles.suggestionActions}>
           <Button buttonStyle="transparent" margin={false} onClick={props.onSetAside} size="small">
-            {replaces ? 'Keep current' : 'Not needed'}
+            Reject
           </Button>
           <span className={styles.suggestionDecide}>
             <Button buttonStyle="secondary" margin={false} onClick={props.onChange} size="small">
