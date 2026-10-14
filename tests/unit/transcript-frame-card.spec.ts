@@ -74,7 +74,7 @@ const handlers = () => ({
 function mount(props: Partial<FrameCardProps> & Pick<FrameCardProps, 'status'>) {
   const all = {
     time: 90,
-    title: 'Sitting in silence',
+    name: 'Sitting in silence',
     frame: { id: 4, timestamp: 90 },
     ...handlers(),
     ...props,
@@ -123,7 +123,7 @@ describe('a suggestion', () => {
   })
 
   it('says it keeps the current frame when it would replace one, and names that frame', () => {
-    const props = mount({ status: 'suggested', replaces: { title: 'Left Channel', time: 92 } })
+    const props = mount({ status: 'suggested', replaces: { name: 'Left Channel', time: 92 } })
     expect(container.textContent).toContain('Replaces Left Channel at 1:32')
     openMenu()
     clickItem('Keep the current frame')
@@ -166,6 +166,14 @@ describe('an approved or changed suggestion', () => {
   ] as const)('%s shows a success pill reading %s', (status, label) => {
     mount({ status })
     expect(container.querySelector('[data-pill="success"]')?.textContent).toBe(label)
+  })
+})
+
+describe('name and details', () => {
+  it('shows the name, and the time with the tags beside it', () => {
+    mount({ status: 'frame', time: 36, name: 'Both hands on the ground', details: 'earth, hands' })
+    expect(container.textContent).toContain('Both hands on the ground')
+    expect(container.textContent).toContain('0:36 · earth, hands')
   })
 })
 

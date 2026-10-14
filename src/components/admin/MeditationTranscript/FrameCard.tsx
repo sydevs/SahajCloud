@@ -1,6 +1,6 @@
 'use client'
 
-import { Button, MoreIcon, Pill, Popup, PopupList, SwapIcon } from '@payloadcms/ui'
+import { Button, MoreIcon, Pill, Popup, PopupList } from '@payloadcms/ui'
 import React from 'react'
 
 import { FrameThumbnail } from '@/components/admin/FrameEditor/FrameThumbnail'
@@ -19,12 +19,15 @@ const PILL = {
 export type FrameCardProps = {
   status: FrameStatus
   time: number
-  title: string
+  /** What editors call the frame: its label, or its subtle-system node. */
+  name: string
+  /** Its tags, shown small beside the time. */
+  details?: string
   frame: Frame | KeyframeData
   /** The suggestion's one-sentence reason. */
   reason?: string
   /** The editor frame a suggestion would replace. */
-  replaces?: { title: string; time: number }
+  replaces?: { name: string; time: number }
   onSeek: () => void
   onApprove: () => void
   onChange: () => void
@@ -33,13 +36,14 @@ export type FrameCardProps = {
 }
 
 /**
- * One picture change in the transcript, laid out like a Payload array row: the picture, its time
- * and title, a status pill, the one main action, and the rest in the row's "…" menu.
+ * A picture change, set into the transcript where it starts: the picture, its name, when and why,
+ * a status pill, the one main action, and the rest in a Payload row menu.
  */
 export function FrameCard({
   status,
   time,
-  title,
+  name,
+  details,
   frame,
   reason,
   replaces,
@@ -62,29 +66,29 @@ export function FrameCard({
       ]
 
   return (
-    <article className={`${styles.card} ${styles[status]}`} data-status={status}>
-      <span className={styles.thumb}>
-        <FrameThumbnail
-          frame={frame}
-          style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 4 }}
-        />
+    <article className={styles.card} data-status={status}>
+      <span className={styles.cardImage}>
+        <FrameThumbnail frame={frame} style={{ width: 56, height: 56, objectFit: 'cover' }} />
       </span>
-      <div className={styles.cardMain}>
-        <div className={styles.cardHead}>
-          <button className={styles.cardTime} onClick={onSeek} title="Play from here" type="button">
-            {clock(time)}
-          </button>
-          <span className={styles.cardTitle}>{title}</span>
+      <div className={styles.cardBody}>
+        <div className={styles.cardTitle}>
+          <span className={styles.cardName}>{name}</span>
           {pill && (
             <Pill pillStyle={pill.style} size="small">
               {pill.label}
             </Pill>
           )}
         </div>
-        {reason && <p className={styles.reason}>{reason}</p>}
+        <div className={styles.cardMeta}>
+          <button className={styles.cardTime} onClick={onSeek} title="Play from here" type="button">
+            {clock(time)}
+          </button>
+          {details && <span> · {details}</span>}
+        </div>
+        {reason && <p className={styles.cardNote}>{reason}</p>}
         {replaces && (
-          <p className={styles.reason}>
-            <SwapIcon /> Replaces {replaces.title} at {clock(replaces.time)}
+          <p className={styles.cardNote}>
+            Replaces {replaces.name} at {clock(replaces.time)}
           </p>
         )}
       </div>
@@ -96,7 +100,7 @@ export function FrameCard({
         )}
         <Popup
           button={
-            <span aria-label="More actions" className={styles.more}>
+            <span aria-label="More actions" className={styles.cardMore}>
               <MoreIcon />
             </span>
           }

@@ -4,21 +4,24 @@ import { isApprovedAs, isHandledBy, type Suggestion, suggestionTimestamp } from 
 
 export type Segment = { text: string; start: number; end: number }
 
-/** A pause this long between phrases is shown as a moment of silence. */
+/** A pause this long between phrases starts a new paragraph. */
+export const PARAGRAPH_GAP_SECONDS = 3
+
+/** A pause this long is shown as a moment of silence. */
 export const SILENCE_GAP_SECONDS = 10
 
-/** In the shortened view, lines this close to a frame stay: the lead-up to it, and just after. */
+/** In the shortened view, paragraphs this close to a frame stay: the lead-up to it, and just after. */
 export const NEAR_BEFORE_SECONDS = 12
 export const NEAR_AFTER_SECONDS = 4
 
-/** Words that usually start a hand instruction, set in bold so the eye finds them. */
+/** Words that usually start a hand instruction: a paragraph with one stays in the shortened view. */
 export const HAND_CUE =
   /\b(place|put|bring|raise|lift|lower|press|massage|rotate|rub|give|hold|rest|touch|keep|move|take|tap|sweep)\b/i
 
 /** in the meditation · an approved suggestion · a suggestion changed by the editor · waiting */
 export type FrameStatus = 'frame' | 'approved' | 'changed' | 'suggested'
 
-export type FrameRowData = {
+export type FrameBlock = {
   type: 'frame'
   key: string
   time: number
@@ -26,49 +29,46 @@ export type FrameRowData = {
   frame: KeyframeData | Suggestion['frame']
   suggestion?: Suggestion
 }
-export type LineRow = { type: 'line'; key: string; time: number; index: number }
-export type Row =
-  | LineRow
-  | { type: 'silence'; key: string; time: number; seconds: number }
-  | { type: 'gap'; key: string; time: number; to: number; count: number }
-  | FrameRowData
+export type ParagraphBlock = { type: 'paragraph'; key: string; start: number; indexes: number[] }
+export type Block =
+  | ParagraphBlock
+  | FrameBlock
+  | { type: 'silence'; key: string; seconds: number }
+  | { type: 'gap'; key: string; start: number; end: number; count: number }
 
-/** Narration, silences, the meditation's frames and the waiting suggestions, in order of time. */
-export function buildRows(
-  segments: Segment[],
+/** The last phrase started by `time`, or -1 before the first. The preview reports whole seconds. */
+export function lastStarted(segments: Segment[], time: number): number {
+  for (let index = segments.length - 1; index >= 0; index -= 1) {
+    if (Math.floor(segments[index].start) <= time) return index
+  }
+  return -1
+}
+
+/** The phrase playing at `time`, or -1 in a pause. */
+export function activePhrase(segments: Segment[], time: number): number {
+  const index = lastStarted(segments, time)
+  return index >= 0 && time < segments[index].end + 0.5 ? index : -1
+}
+
+/** The meditation's frames and the waiting suggestions, each with its status, in time order. */
+export function frameBlocks(
   frames: KeyframeData[],
   pending: Suggestion[],
   suggestions: Suggestion[],
-): Row[] {
-  const rows: Row[] = segments.map((segment, index) => ({
-    type: 'line',
-    key: `line-${index}`,
-    time: segment.start,
-    index,
-  }))
-  segments.forEach((segment, index) => {
-    const gap = index > 0 ? segment.start - segments[index - 1].end : 0
-    if (gap >= SILENCE_GAP_SECONDS)
-      rows.push({
-        type: 'silence',
-        key: `silence-${index}`,
-        time: segments[index - 1].end,
-        seconds: Math.round(gap),
-      })
-  })
-  for (const frame of frames) {
+): FrameBlock[] {
+  const blocks: FrameBlock[] = frames.map((frame) => {
     const suggestion = suggestions.find((s) => isHandledBy(s, frame))
-    rows.push({
+    return {
       type: 'frame',
       key: `frame-${frame.timestamp}`,
       time: frame.timestamp,
       status: !suggestion ? 'frame' : isApprovedAs(suggestion, frame) ? 'approved' : 'changed',
       frame,
       suggestion,
-    })
-  }
+    }
+  })
   for (const suggestion of pending)
-    rows.push({
+    blocks.push({
       type: 'frame',
       key: suggestion.id,
       time: suggestionTimestamp(suggestion),
@@ -76,77 +76,114 @@ export function buildRows(
       frame: suggestion.frame,
       suggestion,
     })
-  // Stable: a frame at the very second a line starts stays after that line.
-  return rows.sort((a, b) => a.time - b.time)
-}
-
-/** Whether a line belongs in the shortened view: a hand cue, or close to a frame. */
-export function isNearFrame(segment: Segment, frameTimes: number[]): boolean {
-  if (HAND_CUE.test(segment.text)) return true
-  return frameTimes.some(
-    (t) =>
-      (segment.start >= t - NEAR_BEFORE_SECONDS && segment.start <= t + NEAR_AFTER_SECONDS) ||
-      (segment.start <= t && segment.end >= t),
-  )
+  return blocks.sort((a, b) => a.time - b.time)
 }
 
 /**
- * The shortened view: lines far from any frame fold into one row per run, which shows how many
- * lines and which stretch it hides. Runs listed in `opened` stay unfolded. Silences go, since the
- * folded rows already say where time passes.
+ * The transcript as paragraphs (speech between pauses of PARAGRAPH_GAP_SECONDS), with each frame
+ * after the phrase playing when it starts. A frame inside a paragraph splits it there, so the
+ * card sits exactly where the picture changes and the text after it carries its own time.
  */
-export function foldFarLines(rows: Row[], segments: Segment[], opened: ReadonlySet<string>): Row[] {
-  const frameTimes = rows.flatMap((row) => (row.type === 'frame' ? [row.time] : []))
-  const out: Row[] = []
-  let run: LineRow[] = []
+export function buildBlocks(segments: Segment[], frames: FrameBlock[]): Block[] {
+  const anchored = new Map<number, FrameBlock[]>()
+  for (const frame of frames) {
+    const index = lastStarted(segments, frame.time)
+    anchored.set(index, [...(anchored.get(index) ?? []), frame])
+  }
+
+  const blocks: Block[] = [...(anchored.get(-1) ?? [])]
+  let piece: number[] = []
+  const closePiece = () => {
+    if (!piece.length) return
+    blocks.push({
+      type: 'paragraph',
+      key: `p-${piece[0]}`,
+      start: segments[piece[0]].start,
+      indexes: piece,
+    })
+    piece = []
+  }
+
+  segments.forEach((segment, index) => {
+    const gap = index > 0 ? segment.start - segments[index - 1].end : 0
+    if (index > 0 && gap >= PARAGRAPH_GAP_SECONDS) {
+      closePiece()
+      if (gap >= SILENCE_GAP_SECONDS)
+        blocks.push({ type: 'silence', key: `silence-${index}`, seconds: Math.round(gap) })
+    }
+    piece.push(index)
+    const here = anchored.get(index)
+    if (here) {
+      closePiece()
+      blocks.push(...here)
+    }
+  })
+  closePiece()
+  return blocks
+}
+
+/** Whether a paragraph belongs in the shortened view: a hand cue, or a phrase close to a frame. */
+export function isNearFrame(segments: Segment[], indexes: number[], frameTimes: number[]): boolean {
+  return indexes.some((index) => {
+    const { start, end, text } = segments[index]
+    return (
+      HAND_CUE.test(text) ||
+      frameTimes.some(
+        (t) =>
+          (start >= t - NEAR_BEFORE_SECONDS && start <= t + NEAR_AFTER_SECONDS) ||
+          (start <= t && end >= t),
+      )
+    )
+  })
+}
+
+/**
+ * The shortened view: each run of paragraphs far from any frame folds into one row saying how many
+ * and which stretch. Runs listed in `opened` stay unfolded. Silences inside a run fold with it.
+ */
+export function foldFarParagraphs(
+  blocks: Block[],
+  segments: Segment[],
+  opened: ReadonlySet<string>,
+): Block[] {
+  const frameTimes = blocks.flatMap((block) => (block.type === 'frame' ? [block.time] : []))
+  const out: Block[] = []
+  let run: Block[] = []
   const flush = () => {
-    if (!run.length) return
-    const key = `gap-${run[0].index}`
-    if (opened.has(key)) out.push(...run)
-    else
-      out.push({
-        type: 'gap',
-        key,
-        time: run[0].time,
-        to: segments[run[run.length - 1].index].end,
-        count: run.length,
-      })
+    const paragraphs = run.filter((b): b is ParagraphBlock => b.type === 'paragraph')
+    if (paragraphs.length) {
+      const key = `gap-${paragraphs[0].key}`
+      if (opened.has(key)) out.push(...run)
+      else {
+        const last = paragraphs[paragraphs.length - 1].indexes
+        out.push({
+          type: 'gap',
+          key,
+          start: paragraphs[0].start,
+          end: segments[last[last.length - 1]].end,
+          count: paragraphs.length,
+        })
+      }
+    } else out.push(...run)
     run = []
   }
-  for (const row of rows) {
-    if (row.type === 'silence') continue
-    if (row.type === 'line' && !isNearFrame(segments[row.index], frameTimes)) {
-      run.push(row)
+  for (const block of blocks) {
+    const far =
+      (block.type === 'paragraph' && !isNearFrame(segments, block.indexes, frameTimes)) ||
+      (block.type === 'silence' && run.length > 0)
+    if (far) {
+      run.push(block)
       continue
     }
     flush()
-    out.push(row)
+    out.push(block)
   }
   flush()
   return out
 }
 
-/** A line split into plain text and hand-cue words. */
-export function cueParts(text: string): { text: string; cue: boolean }[] {
-  const pattern = new RegExp(HAND_CUE.source, 'gi')
-  return text
-    .split(pattern)
-    .map((part, index) => ({ text: part, cue: index % 2 === 1 }))
-    .filter((part) => part.text)
-}
-
-/** The phrase playing at `time`, or -1 in a pause. The preview reports whole seconds. */
-export function activePhrase(segments: Segment[], time: number): number {
-  for (let index = segments.length - 1; index >= 0; index -= 1) {
-    if (Math.floor(segments[index].start) <= time)
-      return time < segments[index].end + 0.5 ? index : -1
-  }
-  return -1
-}
-
-/** m:ss, and m:ss.t for line starts: tenths show which of two close lines a frame follows. */
-export function clock(seconds: number, tenths = false): string {
+/** m:ss */
+export function clock(seconds: number): string {
   const whole = Math.floor(seconds)
-  const base = `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`
-  return tenths ? `${base}.${Math.floor((seconds - whole) * 10)}` : base
+  return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`
 }

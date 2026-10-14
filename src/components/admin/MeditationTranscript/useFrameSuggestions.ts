@@ -23,12 +23,21 @@ import {
 
 export type { Suggestion } from './frames'
 
-/** What an editor recognises a frame by, as the frame inserter shows it: its chakra and its tags. */
-export function frameTitle(frame: Frame | KeyframeData): string {
-  const node = getSubtleSystemNodeLabel(getFrameSubtleSystemNodeSlug(frame))
-  const parts = [frame.label || node, frame.tags?.join(', ')].filter(Boolean)
-  return parts.length ? parts.join(' · ') : getFrameDisplayLabel(frame)
+/** What editors call a frame: its label, or else its subtle-system node, as the frame inserter shows it. */
+export function frameName(frame: Frame | KeyframeData): string {
+  return (
+    frame.label ||
+    getSubtleSystemNodeLabel(getFrameSubtleSystemNodeSlug(frame)) ||
+    getFrameDisplayLabel(frame)
+  )
 }
+
+/** A frame's tags, which tell apart frames sharing a name (left or right, still or bandhan). */
+export const frameDetails = (frame: Frame | KeyframeData) => frame.tags?.join(', ') || undefined
+
+/** Name and tags in one line, for toasts. */
+export const frameTitle = (frame: Frame | KeyframeData) =>
+  [frameName(frame), frameDetails(frame)].filter(Boolean).join(' · ')
 
 /**
  * The meditation's frames and the suggestions still waiting, with the edits the Transcript tab
