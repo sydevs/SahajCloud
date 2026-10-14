@@ -25,7 +25,6 @@ vi.mock('@payloadcms/ui', async () => {
     Pill: ({ children, pillStyle }: { children: ReactNode; pillStyle: string }) =>
       h('span', { 'data-pill': pillStyle }, children),
     MoreIcon: () => h('span', null, '…'),
-    SwapIcon: () => h('span', null, '⇄'),
     Popup: function Popup({
       button,
       render,
@@ -109,32 +108,57 @@ afterEach(() => {
 })
 
 describe('a suggestion', () => {
-  it('offers Approve, with picking another frame and setting it aside in the menu', () => {
+  it('shows every action as a button, with no menu', () => {
     mount({ status: 'suggested' })
-    expect(labels('button')).toEqual(['Approve'])
-    openMenu()
-    expect(labels('menu-item')).toEqual(['Pick another frame', 'Not needed'])
+    expect(labels('button')).toEqual(['Not needed', 'Pick another frame', 'Approve'])
+    expect(buttons('menu')).toEqual([])
   })
 
-  it('calls approve', () => {
+  it('calls each handler from its button', () => {
     const props = mount({ status: 'suggested' })
-    act(() => buttons('button')[0].click())
+    const [aside, change, approve] = buttons('button')
+    act(() => aside.click())
+    act(() => change.click())
+    act(() => approve.click())
+    expect(props.onSetAside).toHaveBeenCalledOnce()
+    expect(props.onChange).toHaveBeenCalledOnce()
     expect(props.onApprove).toHaveBeenCalledOnce()
   })
 
-  it('says it keeps the current frame when it would replace one, and names that frame', () => {
-    const props = mount({ status: 'suggested', replaces: { name: 'Left Channel', time: 92 } })
-    expect(container.textContent).toContain('Replaces Left Channel at 1:32')
-    openMenu()
-    clickItem('Keep the current frame')
+  it('names the frame it would replace, and offers to keep that one instead', () => {
+    const props = mount({
+      status: 'suggested',
+      replaces: { name: 'Left Channel', time: 92, frame: { id: 7, timestamp: 92 } },
+    })
+    expect(container.textContent).toContain('Left Channel at 1:32')
+    expect(labels('button')[0]).toBe('Keep the current frame')
+    act(() => buttons('button')[0].click())
     expect(props.onSetAside).toHaveBeenCalledOnce()
-    expect(popup.closed).toBe(1)
   })
 
-  it('shows the reason and the Suggested pill', () => {
+  it('shows the reason and says it is a suggestion, without a pill', () => {
     mount({ status: 'suggested', reason: 'Both hands placed on the earth.' })
     expect(container.textContent).toContain('Both hands placed on the earth.')
-    expect(container.querySelector('[data-pill="warning"]')?.textContent).toBe('Suggested')
+    expect(container.textContent).toContain('Suggested frame')
+    expect(container.querySelector('[data-pill]')).toBeNull()
+  })
+})
+
+describe('a frame a suggestion would replace', () => {
+  it('is marked, and says which suggestion replaces it with what', () => {
+    mount({
+      status: 'frame',
+      replacedBy: { name: 'Sitting in silence', time: 90, frame: { id: 4, timestamp: 90 } },
+    })
+    expect(container.querySelector('article')?.dataset.replaced).toBe('true')
+    expect(container.textContent).toContain(
+      'The suggestion at 1:30 replaces this with Sitting in silence',
+    )
+  })
+
+  it('is not marked otherwise', () => {
+    mount({ status: 'frame' })
+    expect(container.querySelector('article')?.dataset.replaced).toBeUndefined()
   })
 })
 
