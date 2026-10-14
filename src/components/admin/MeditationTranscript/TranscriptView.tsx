@@ -1,11 +1,12 @@
 'use client'
 
-import { Banner, Button, useListDrawer } from '@payloadcms/ui'
+import { Banner, Button, ConfirmationModal, useListDrawer, useModal } from '@payloadcms/ui'
 import { AudioLines } from 'lucide-react'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 
 import { usePlaybackTime, useSeekToTime } from '@/components/admin/FrameEditor/hooks'
 import type { Frame } from '@/payload-types'
+import type { KeyframeData } from '@/types/frames'
 
 import { FrameCard } from './FrameCard'
 import { type Suggestion, suggestionTimestamp } from './frames'
@@ -21,6 +22,19 @@ import {
   type Segment,
 } from './rows'
 import { frameDetails, frameName, useFrameSuggestions } from './useFrameSuggestions'
+
+const DISMISS_MODAL = 'dismiss-frame-suggestion'
+
+/** What setting `suggestion` aside means, in the confirmation. */
+function dismissBody(suggestion: Suggestion, frames: KeyframeData[]) {
+  const suggested = `${frameName(suggestion.frame)} at ${clock(suggestionTimestamp(suggestion))}`
+  const kept = suggestion.replaces
+    ? frames.find((f) => f.timestamp === suggestion.replaces?.timestamp)
+    : undefined
+  return kept
+    ? `${frameName(kept)} stays at ${clock(kept.timestamp)}, and the suggestion of ${suggested} goes away.`
+    : `The suggestion of ${suggested} goes away, and no frame is added there.`
+}
 
 /** The shape of a file in `seeds/meditation-transcripts/`. */
 export type TranscriptFile = { audioFilename: string; segments: Segment[] }
@@ -43,6 +57,14 @@ export function TranscriptView({
   const active = activePhrase(segments, usePlaybackTime())
   const seekTo = useSeekToTime()
   const container = useRef<HTMLDivElement>(null)
+
+  const { openModal } = useModal()
+  // Setting a suggestion aside hides it for good, so Payload's own confirmation guards it.
+  const [dismissing, setDismissing] = useState<Suggestion | null>(null)
+  const askToDismiss = (suggestion: Suggestion) => {
+    setDismissing(suggestion)
+    openModal(DISMISS_MODAL)
+  }
 
   const [target, setTarget] = useState<{ timestamp: number; suggestion?: Suggestion } | null>(null)
   // A new filter object on every render makes the drawer re-fetch its list in a loop.
@@ -199,7 +221,7 @@ export function TranscriptView({
             }
             onRemove={() => remove(block.time)}
             onSeek={() => seekTo(block.time)}
-            onSetAside={() => block.suggestion && setSuggestionAside(block.suggestion)}
+            onSetAside={() => block.suggestion && askToDismiss(block.suggestion)}
             reason={block.suggestion?.reason}
             suggestedName={
               block.status === 'changed' && block.suggestion
@@ -228,6 +250,17 @@ export function TranscriptView({
           </Button>
         </div>
       )}
+      <ConfirmationModal
+        body={dismissing && dismissBody(dismissing, frames)}
+        confirmLabel={dismissing?.replaces ? 'Keep current' : 'Not needed'}
+        heading={dismissing?.replaces ? 'Keep the current frame?' : 'Set this suggestion aside?'}
+        modalSlug={DISMISS_MODAL}
+        onCancel={() => setDismissing(null)}
+        onConfirm={() => {
+          if (dismissing) setSuggestionAside(dismissing)
+          setDismissing(null)
+        }}
+      />
       <FramesDrawer
         onSelect={({ doc }) => {
           if (target?.suggestion) approve(target.suggestion, doc as Frame)
