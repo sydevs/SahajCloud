@@ -4,7 +4,7 @@ Global code style guidelines for this codebase.
 
 ## File Naming Conventions
 
-**IMPORTANT**: macOS ignores filename case, but TypeScript and Webpack builds do not. Always check exact casing when you import.
+**IMPORTANT**: macOS ignores filename case, but TypeScript and the Linux builds in CI and on Railway do not. Always check exact casing when you import.
 
 | Directory | Convention | Examples |
 |-----------|------------|----------|

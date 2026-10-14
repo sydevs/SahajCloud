@@ -62,7 +62,7 @@ Wrap a slow command in `timeout` only when needed. Other values trigger a permis
 
 After a change: lint, and fix every TypeScript error. Run `pnpm generate:types` after a schema change.
 
-macOS ignores filename case, but TypeScript and Webpack builds do not — check exact casing when you import. See `docs/code-style.md` for the naming table, and `src/types/AGENTS.md` for type organization.
+macOS ignores filename case, but TypeScript and the Linux builds in CI and on Railway do not — check exact casing when you import. See `docs/code-style.md` for the naming table, and `src/types/AGENTS.md` for type organization.
 
 ## Quick Reference
 
