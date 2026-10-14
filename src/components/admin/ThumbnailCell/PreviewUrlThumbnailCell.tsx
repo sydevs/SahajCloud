@@ -21,15 +21,9 @@ interface PreviewUrlThumbnailCellProps extends DefaultCellComponentProps {
  * Thumbnail cell for virtual URL fields (e.g., previewUrl)
  * cellData contains the URL directly from the virtual field's afterRead hook
  *
- * Link behavior:
- * - First column (link=true): Links to document edit page (Payload's default)
- * - Non-first column: Links to original file URL for viewing/download (opens in new tab)
- *
- * Interaction priority (following Payload's DefaultCell pattern):
- * 1. onClick - calls onClick with { cellData, collectionSlug, rowData }
- * 2. link && linkURL - custom navigation link
- * 3. link (no linkURL) - document edit page link
- * 4. Fallback - external file link (opens in new tab)
+ * Resolves which URL to link; BaseThumbnailCell owns the interaction priority.
+ * A non-linked column has no document to open, so it points at the original
+ * file and opens in a new tab.
  */
 export const PreviewUrlThumbnailCell: React.FC<PreviewUrlThumbnailCellProps> = ({
   cellData,
