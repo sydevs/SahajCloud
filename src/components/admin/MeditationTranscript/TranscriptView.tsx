@@ -201,6 +201,11 @@ export function TranscriptView({
             onSeek={() => seekTo(block.time)}
             onSetAside={() => block.suggestion && setSuggestionAside(block.suggestion)}
             reason={block.suggestion?.reason}
+            suggestedName={
+              block.status === 'changed' && block.suggestion
+                ? frameName(block.suggestion.frame)
+                : undefined
+            }
             replacedBy={
               replacer && {
                 name: frameName(replacer.frame),

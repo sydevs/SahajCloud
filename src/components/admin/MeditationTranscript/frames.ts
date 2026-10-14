@@ -18,7 +18,8 @@ export type Suggestion = {
 }
 
 /** Frames sit on whole seconds. */
-export const suggestionTimestamp = (suggestion: Suggestion) => Math.round(suggestion.start)
+export const suggestionTimestamp = (suggestion: Pick<Suggestion, 'start'>) =>
+  Math.round(suggestion.start)
 
 /**
  * A suggestion is handled once the meditation has a frame at its time: its own frame (approved)

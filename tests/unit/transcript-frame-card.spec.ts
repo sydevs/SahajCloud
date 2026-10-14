@@ -22,8 +22,6 @@ vi.mock('@payloadcms/ui', async () => {
   return {
     Button: ({ children, onClick }: { children: ReactNode; onClick: () => void }) =>
       h('button', { 'data-role': 'button', onClick, type: 'button' }, children),
-    Pill: ({ children, pillStyle }: { children: ReactNode; pillStyle: string }) =>
-      h('span', { 'data-pill': pillStyle }, children),
     MoreIcon: () => h('span', null, '…'),
     Popup: function Popup({
       button,
@@ -136,11 +134,10 @@ describe('a suggestion', () => {
     expect(props.onSetAside).toHaveBeenCalledOnce()
   })
 
-  it('shows the reason and says it is a suggestion, without a pill', () => {
+  it('shows the reason and says it is a suggestion, with no menu', () => {
     mount({ status: 'suggested', reason: 'Both hands placed on the earth.' })
     expect(container.textContent).toContain('Both hands placed on the earth.')
-    expect(container.textContent).toContain('Suggested frame')
-    expect(container.querySelector('[data-pill]')).toBeNull()
+    expect(container.querySelector('header')?.textContent).toContain('Suggested frame')
   })
 })
 
@@ -151,6 +148,7 @@ describe('a frame a suggestion would replace', () => {
       replacedBy: { name: 'Sitting in silence', time: 90, frame: { id: 4, timestamp: 90 } },
     })
     expect(container.querySelector('article')?.dataset.replaced).toBe('true')
+    expect(container.querySelector('header')?.textContent).toContain('To be replaced')
     expect(container.textContent).toContain(
       'The suggestion at 1:30 replaces this with Sitting in silence',
     )
@@ -163,10 +161,10 @@ describe('a frame a suggestion would replace', () => {
 })
 
 describe('a frame in the meditation', () => {
-  it('has no main button and no pill, only Change and Remove in the menu', () => {
+  it('says it is a frame, with no main button, only Change and Remove in the menu', () => {
     mount({ status: 'frame' })
+    expect(container.querySelector('header')?.textContent).toContain('Frame')
     expect(labels('button')).toEqual([])
-    expect(container.querySelector('[data-pill]')).toBeNull()
     openMenu()
     expect(labels('menu-item')).toEqual(['Change frame', 'Remove frame'])
   })
@@ -185,19 +183,26 @@ describe('a frame in the meditation', () => {
 
 describe('an approved or changed suggestion', () => {
   it.each([
-    ['approved', 'Approved'],
-    ['changed', 'Changed'],
-  ] as const)('%s shows a success pill reading %s', (status, label) => {
+    ['approved', 'Suggestion approved'],
+    ['changed', 'Changed from the suggestion'],
+  ] as const)('%s says so in its header', (status, label) => {
     mount({ status })
-    expect(container.querySelector('[data-pill="success"]')?.textContent).toBe(label)
+    expect(container.querySelector('header')?.textContent).toContain(label)
+  })
+
+  it('names what was suggested once changed, in place of the reason', () => {
+    mount({ status: 'changed', reason: 'Heart, so Anahat.', suggestedName: 'Anahat' })
+    expect(container.textContent).toContain('Suggested: Anahat')
+    expect(container.textContent).not.toContain('Heart, so Anahat.')
   })
 })
 
 describe('name and details', () => {
-  it('shows the name, and the time with the tags beside it', () => {
+  it('shows the time in the header, and the name with its tags', () => {
     mount({ status: 'frame', time: 36, name: 'Both hands on the ground', details: 'earth, hands' })
+    expect(container.querySelector('header')?.textContent).toContain('0:36')
     expect(container.textContent).toContain('Both hands on the ground')
-    expect(container.textContent).toContain('0:36 · earth, hands')
+    expect(container.textContent).toContain('earth, hands')
   })
 })
 
