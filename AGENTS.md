@@ -18,7 +18,7 @@ Subsystem guidance loads two ways, by whether its scope is one directory:
 
 ## Overall Instructions
 
-- Ask before you edit or close a GitHub PR or issue, and before you create or edit an issue. A new PR needs no prior approval.
+- Ask before you edit or close a GitHub PR or issue, and before you create or edit an issue. A new PR needs no prior approval. An unattended loop run has nobody to ask, so it routes what it finds by the `workflow` plugin's `start-run` rules instead, and those win there.
 - After a previous session: state what was already decided, check the context, then proceed only once the intent is clear.
 - Use a specialized MCP tool for research: `mcp__cloudflare-docs__*`, `mcp__sentry__*`, `mcp__github__*`. Use WebFetch only where no MCP tool covers the site.
 - **Payload docs**: check the `payload` skill first. Otherwise call `mcp__payloadcms-docs__list_doc_sources`, then `mcp__payloadcms-docs__fetch_docs`. Never fetch `payloadcms.com` directly. For research over 3+ pages, dispatch an `Explore` subagent so the main thread fetches only the synthesized answer.
