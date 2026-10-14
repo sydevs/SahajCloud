@@ -1,0 +1,14 @@
+{
+  "meditationId": 45,
+  "source": "Claude Sonnet 5.5, one call per meditation with the whole transcript (temp_scripts/ai-frames-pilot/llm/claude-frames.ts, run 45-proposal). Suggestions the editors already made are left out.",
+  "suggestions": [
+    {
+      "id": "s9",
+      "start": 690.26,
+      "text": "Massaging slightly in a clockwise direction, we can ask our mother Kundalini, Mother, Please establish my Self-realization.",
+      "frameId": 79,
+      "kind": "movement",
+      "reason": "Narrator starts massaging the crown clockwise."
+    }
+  ]
+}
