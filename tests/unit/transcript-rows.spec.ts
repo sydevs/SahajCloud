@@ -1,6 +1,6 @@
 /**
  * The Transcript tab's blocks (#898 proposal): the #897 paragraphs with frames set in where the
- * picture changes, the shortened "only text near frames" view, and the phrase playing.
+ * picture changes, the words each suggestion quotes, and the phrase playing.
  */
 import { describe, expect, it } from 'vitest'
 
@@ -10,13 +10,10 @@ import {
   type Block,
   buildBlocks,
   clock,
-  foldFarParagraphs,
   frameBlocks,
-  isNearFrame,
   lastStarted,
   markRuns,
-  NEAR_AFTER_SECONDS,
-  NEAR_BEFORE_SECONDS,
+  nextBelow,
   quotedRanges,
   type Segment,
 } from '@/components/admin/MeditationTranscript/rows'
@@ -128,50 +125,6 @@ describe('lastStarted / activePhrase', () => {
   })
 })
 
-describe('isNearFrame', () => {
-  it('keeps a paragraph with a hand cue anywhere', () => {
-    expect(isNearFrame([seg(500, 504, 'Now place your right hand on the heart.')], [0], [])).toBe(
-      true,
-    )
-  })
-
-  it('keeps the lead-up to a frame and just after it, and nothing further', () => {
-    expect(isNearFrame([seg(100 - NEAR_BEFORE_SECONDS, 90)], [0], [100])).toBe(true)
-    expect(isNearFrame([seg(100 + NEAR_AFTER_SECONDS, 106)], [0], [100])).toBe(true)
-    expect(isNearFrame([seg(100 - NEAR_BEFORE_SECONDS - 1, 88)], [0], [100])).toBe(false)
-    expect(isNearFrame([seg(100 + NEAR_AFTER_SECONDS + 1, 108)], [0], [100])).toBe(false)
-  })
-
-  it('does not count a cue inside another word', () => {
-    expect(isNearFrame([seg(0, 2, 'a peaceful replacement')], [0], [])).toBe(false)
-  })
-})
-
-describe('foldFarParagraphs', () => {
-  const segments = [seg(0, 2), seg(20, 22), seg(40, 42), seg(95, 97)]
-  const blocks = buildBlocks(segments, framesAt(100))
-
-  it('folds each run of far paragraphs, with its silences, into one row', () => {
-    const folded = foldFarParagraphs(blocks, segments, new Set())
-    expect(shape(folded)).toEqual(['gap', 'p[3]', 'frame@100'])
-    expect(folded[0]).toMatchObject({ count: 3, start: 0, end: 42 })
-  })
-
-  it('leaves an opened run unfolded, silences included', () => {
-    const key = (foldFarParagraphs(blocks, segments, new Set())[0] as { key: string }).key
-    expect(shape(foldFarParagraphs(blocks, segments, new Set([key])))).toEqual([
-      'p[0]',
-      'silence',
-      'p[1]',
-      'silence',
-      'p[2]',
-      'silence',
-      'p[3]',
-      'frame@100',
-    ])
-  })
-})
-
 describe('quotedRanges', () => {
   const segments = [
     seg(0, 4, 'Breathe in.'),
@@ -179,46 +132,56 @@ describe('quotedRanges', () => {
     seg(10, 12, 'Press down and rotate.'),
     seg(12.5, 14, 'Slowly, clockwise.'),
   ]
-  const quote = (start: number, text: string) => [...quotedRanges(segments, [{ start, text }])]
+  const quote = (start: number, text: string) => [
+    ...quotedRanges(segments, [{ start, text, kind: 'waiting' }]),
+  ]
 
   it('marks the quoted words, not the rest of the phrase, ignoring case', () => {
     expect(quote(5.06, 'put your awareness on your heart and')).toEqual([
-      [1, [{ start: 0, end: 36 }]],
+      [1, [{ start: 0, end: 36, kind: 'waiting' }]],
     ])
   })
 
   it('finds a quote that starts mid-phrase', () => {
-    expect(quote(10.4, 'rotate.')).toEqual([[2, [{ start: 15, end: 22 }]]])
+    expect(quote(10.4, 'rotate.')).toEqual([[2, [{ start: 15, end: 22, kind: 'waiting' }]]])
   })
 
   it('carries a quote across into the next phrase', () => {
     expect(quote(10, 'and rotate. Slowly,')).toEqual([
-      [2, [{ start: 11, end: 22 }]],
-      [3, [{ start: 0, end: 7 }]],
+      [2, [{ start: 11, end: 22, kind: 'waiting' }]],
+      [3, [{ start: 0, end: 7, kind: 'waiting' }]],
     ])
   })
 
   it('marks the whole phrase when the quote is not near its start', () => {
-    expect(quote(10, 'Breathe in.')).toEqual([[2, [{ start: 0, end: 22 }]]])
+    expect(quote(10, 'Breathe in.')).toEqual([[2, [{ start: 0, end: 22, kind: 'waiting' }]]])
   })
 })
 
 describe('markRuns', () => {
-  it('cuts text into marked and unmarked runs, merging overlaps', () => {
+  it('cuts text into runs by the quote over each, a waiting one showing where two overlap', () => {
     expect(
       markRuns('Press down and rotate.', [
-        { start: 6, end: 10 },
-        { start: 8, end: 14 },
+        { start: 6, end: 10, kind: 'waiting' },
+        { start: 8, end: 14, kind: 'added' },
       ]),
     ).toEqual([
-      { text: 'Press ', marked: false },
-      { text: 'down and', marked: true },
-      { text: ' rotate.', marked: false },
+      { text: 'Press ' },
+      { text: 'down', kind: 'waiting' },
+      { text: ' and', kind: 'added' },
+      { text: ' rotate.' },
     ])
   })
 
   it('leaves text without ranges whole', () => {
-    expect(markRuns('Breathe in.')).toEqual([{ text: 'Breathe in.', marked: false }])
+    expect(markRuns('Breathe in.')).toEqual([{ text: 'Breathe in.' }])
+  })
+})
+
+describe('nextBelow', () => {
+  it('picks the first card below the edge, wrapping to the first when all are above', () => {
+    expect(nextBelow([-900, -200, 400, 1600], 120)).toBe(2)
+    expect(nextBelow([-900, -200], 120)).toBe(0)
   })
 })
 

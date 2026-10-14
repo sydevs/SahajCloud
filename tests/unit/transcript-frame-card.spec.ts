@@ -110,7 +110,7 @@ afterEach(() => {
 describe('a suggestion', () => {
   it('shows every action as a button, with no menu', () => {
     mount({ status: 'suggested' })
-    expect(labels('button')).toEqual(['Not needed', 'Pick another frame', 'Approve'])
+    expect(labels('button')).toEqual(['Not needed', 'Pick another', 'Approve'])
     expect(buttons('menu')).toEqual([])
   })
 
@@ -125,13 +125,13 @@ describe('a suggestion', () => {
     expect(props.onApprove).toHaveBeenCalledOnce()
   })
 
-  it('names the frame it would replace, and offers to keep that one instead', () => {
+  it('names the frame it would replace, and offers to keep the current one instead', () => {
     const props = mount({
       status: 'suggested',
       replaces: { name: 'Left Channel', time: 92, frame: { id: 7, timestamp: 92 } },
     })
     expect(container.textContent).toContain('Left Channel at 1:32')
-    expect(labels('button')[0]).toBe('Keep the current frame')
+    expect(labels('button')[0]).toBe('Keep current')
     act(() => buttons('button')[0].click())
     expect(props.onSetAside).toHaveBeenCalledOnce()
   })

@@ -7,15 +7,20 @@
   gap: var(--base);
 }
 
-.toolbar {
+/* How many suggestions wait, in the card headers' tint so it reads as a notice, not a control. */
+.summary {
   display: flex;
   flex-wrap: wrap;
-  gap: calc(var(--base) / 2);
+  gap: 8px;
   align-items: center;
-}
-
-.toolbarEnd {
-  margin-left: auto;
+  justify-content: space-between;
+  padding: 8px 8px 8px 12px;
+  background-color: var(--theme-warning-50);
+  border: 1px solid var(--theme-warning-150);
+  border-radius: var(--style-radius-m);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--theme-warning-800);
 }
 
 .paragraph {
@@ -54,12 +59,20 @@
   background-color: var(--theme-warning-100);
 }
 
-/* The words a waiting suggestion quotes: a marker underline, so it still reads under the
-   playing phrase's fill. */
+/* The words a suggestion quotes: a soft highlighter stroke, rounded on every line it wraps
+   onto. Warm while it waits, the approved cards' tint once its frame is in. */
 .quoted {
-  background: none;
+  padding: 0.1em 0.2em;
+  margin: 0 -0.1em;
+  border-radius: 0.35em;
+  background-color: var(--theme-warning-100);
   color: inherit;
-  box-shadow: inset 0 -0.45em var(--theme-warning-150);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.quoted[data-kind='added'] {
+  background-color: var(--theme-success-100);
 }
 
 .silence {
@@ -75,23 +88,6 @@
   content: '';
   flex: 1;
   border-top: 1px dashed var(--theme-elevation-200);
-}
-
-.gap {
-  align-self: flex-start;
-  padding: 2px 8px;
-  border: 1px dashed var(--theme-elevation-200);
-  border-radius: var(--style-radius-s);
-  background: none;
-  font: inherit;
-  font-size: 0.8125rem;
-  color: var(--theme-elevation-500);
-  cursor: pointer;
-}
-
-.gap:hover {
-  border-color: var(--theme-elevation-400);
-  color: var(--theme-elevation-1000);
 }
 
 /* The frame card: picture, name with status, time and tags, why, and its actions. */
@@ -188,17 +184,22 @@
   text-decoration: line-through;
 }
 
+/* Pick another and Approve stay together on the right; on a very narrow column the
+   dismiss button wraps above them rather than splitting the pair. */
 .suggestionActions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
   padding: 8px 12px;
   border-top: 1px solid var(--theme-elevation-100);
 }
 
-.suggestionDismiss {
-  margin-right: auto;
+.suggestionDecide {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
 }
 
 /* An editor frame a waiting suggestion would replace: faded and struck through until decided. */
@@ -295,4 +296,33 @@
 
 .cardMore:hover {
   background-color: var(--theme-elevation-100);
+}
+
+/* Floats at the bottom of the screen while no waiting suggestion is in view. */
+.reviewNext {
+  position: sticky;
+  bottom: calc(var(--base) * 1.5);
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  animation: rise 200ms ease-out;
+}
+
+.reviewNext > * {
+  pointer-events: auto;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 18%);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reviewNext {
+    animation: none;
+  }
 }
