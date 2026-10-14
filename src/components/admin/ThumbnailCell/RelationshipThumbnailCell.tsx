@@ -45,7 +45,8 @@ function useRelationshipDoc(
  * url/mimeType/filename are resolved via the batched loader (one request per
  * list page instead of one per row).
  *
- * Opens the related document in a drawer overlay when clicked.
+ * Opens the related document in a drawer overlay when clicked — unless it is a
+ * list drawer's linked column, where `BaseThumbnailCell` selects the row instead.
  */
 export const RelationshipThumbnailCell: React.FC<DefaultCellComponentProps> = ({
   cellData,
@@ -53,6 +54,7 @@ export const RelationshipThumbnailCell: React.FC<DefaultCellComponentProps> = ({
   rowData,
   className,
   field,
+  link,
 }) => {
   // Get the target collection from the field config
   const uploadField = field as UploadFieldClient
@@ -95,6 +97,7 @@ export const RelationshipThumbnailCell: React.FC<DefaultCellComponentProps> = ({
         collectionSlug={collectionSlug}
         rowData={rowData}
         className={className}
+        link={link}
         onClick={relatedId ? handleClick : undefined}
       />
       <DocumentDrawer />

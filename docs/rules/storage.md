@@ -14,7 +14,7 @@ Production uses Cloudflare-native storage. Development falls back to local files
 | --- | --- | --- |
 | **Cloudflare Images** | `images` (uploads), also referenced from albums, app-cards, meditations, lectures, authors, lessons, page blocks | `https://imagedelivery.net/<hash>/<imageId>/public` |
 | **Cloudflare Stream** | `videos`, `frames` (video MIME types) | thumbnails: `.../thumbnails/thumbnail.jpg`. HLS: `.../manifest/video.m3u8` (`hlsUrl`, also the generic `url`). MP4: `.../downloads/default.mp4` (`mp4Url`) |
-| **R2 (S3 API)** | `meditations`, `songs`, `lessons`, `files`, `user-choices`, `song-tags`, `event-imports`, plus mixed-media fallthrough on `frames`/`files` | `<CLOUDFLARE_R2_DELIVERY_URL>/<collection>/<filename>` |
+| **R2 (S3 API)** | `meditations`, `songs`, `lessons`, `files`, `user-choices`, `song-tags`, `event-imports`, plus mixed-media fallthrough on `frames`/`files` | `<CLOUDFLARE_R2_DELIVERY_URL>/<filename>` — the key is a bare filename, `preview-`-prefixed outside production |
 
 ⚠ **One collection is not served from the URL above, and the difference is access control.** `cloudStoragePlugin` takes `disablePayloadAccessControl`, and `storagePlugin` passes it `true` — the publishing value — for every collection **except** those in `PAYLOAD_SERVED_COLLECTIONS`, today `event-imports` alone. `true` is what mounts no handler on Payload's own file route, leaving R2 as the only way to the bytes and the random suffix in the filename as the only thing in front of them. That is right for an image and wrong for a document: an import CSV holds contact names, phone numbers and email addresses for every class in it, which is exactly what naming the collection in `RESTRICTED_COLLECTIONS` exists to withhold. Listed, the flag is `false`, so `url` points at `/api/<slug>/file/<filename>` and Payload's `checkFileAccess` runs the collection's own `read` — the `Where` a document-manager grant returns included, applied as a constraint on the document behind the filename.
 
@@ -88,6 +88,7 @@ A preview holds no unmarked row for this recipe to find, so make one (#704):
 | `mixedMediaAdapter.ts` | Routes by MIME type to Images/Stream/R2 |
 | `mimeUtils.ts` | Shared `getMimeCategory()` |
 | `urlFields.ts` | Virtual URL field factories |
+| `adminThumbnail.ts` | `videoAdminThumbnail`, the `upload.adminThumbnail` every video-capable collection mounts |
 
 ## URL field factories (`urlFields.ts`)
 
@@ -182,12 +183,19 @@ Thumbnails are composed URLs, never generated files. `previewUrlField` (`src/plu
 - **Anything else** — the local file URL, which serves the whole file rather than a thumbnail.
 - **Deletion** — there is no separate thumbnail object to delete. `handleDelete` routes on the document's MIME type (`src/plugins/storage/mixedMediaAdapter.ts`), so removing the Stream video removes its thumbnail with it.
 
-Two surfaces read `previewUrl`, and they diverge exactly where it is `undefined`:
+Three surfaces draw a thumbnail, and they diverge exactly where it is absent. The third reads `thumbnailURL`, not `previewUrl`, so no `previewUrl` wiring reaches it:
 
-| Surface | Component | With no `previewUrl` |
+| Surface | Component | With no thumbnail |
 | --- | --- | --- |
 | Frames list column | `PreviewUrlThumbnailCell` (`src/components/admin/ThumbnailCell/PreviewUrlThumbnailCell.tsx`) → `BaseThumbnailCell` (`src/components/admin/ThumbnailCell/BaseThumbnailCell.tsx`) | Payload's `<Thumbnail>` placeholder. **No video fallback.** |
 | FrameEditor grid | `FrameThumbnail` (`src/components/admin/FrameEditor/FrameThumbnail.tsx`) | `<video preload="metadata">` from `hlsUrl` or `mp4Url` — and an empty box when the document has neither. |
+| Payload's own upload components — edit header (`StaticFileDetails`), upload-field cards, bulk-upload sidebar, default file cell | Payload's, not ours. They draw `thumbnailURL || url`, and `thumbnailURL` comes from `upload.adminThumbnail` alone | the generic file icon, since a video's `url` is the HLS manifest and no image tag can render it (#927) |
+
+`videoAdminThumbnail` (`src/plugins/storage/adminThumbnail.ts`) is mounted per collection rather than applied to every upload collection the way `withUploadNotice` is (#892), and `tests/unit/video-admin-thumbnail.spec.ts` fails naming any video-capable collection that declares none.
+
+⚠ **A `storagePlugin` transform is the obvious alternative, and it costs the integration lane.** It works — `buildConfig` runs plugins before `sanitizeConfig`, and `withObjectKeyColumn` already shows the skip-if-declared shape that keeps a transform from overriding a collection's own value. But `tests/utils/testHelpers.ts` registers no `storagePlugin`, so a plugin-stage mount is absent from every `payload.collections[…].config` the lane can read: measured, it reddens `videos.int.spec.ts`'s `adminThumbnail` case, and leaves fixtures as the only thing any spec could assert against. Registering the plugin under test would put `_objectKey` and the R2 filename hooks into all 84 int schemas. Weigh that before moving the mount; "a replacing scalar" is **not** the reason, and was the wrong reason given once already.
+
+⚠ **It must never return the Payload file route** (`/api/<slug>/file/<filename>`) — Cloudflare serves these bytes, not the Worker, so that URL 500s in production. Null is the safe answer, and what every non-video document gets.
 
 ## Cloudflare Stream webhook
 
