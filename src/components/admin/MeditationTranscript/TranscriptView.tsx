@@ -16,6 +16,8 @@ import {
   clock,
   foldFarParagraphs,
   frameBlocks,
+  markRuns,
+  quotedRanges,
   type Segment,
 } from './rows'
 import { frameDetails, frameName, useFrameSuggestions } from './useFrameSuggestions'
@@ -36,7 +38,7 @@ export function TranscriptView({
   imageSet?: string | null
 }) {
   const segments = useMemo(() => transcript?.segments ?? [], [transcript])
-  const { frames, pending, approve, setSuggestionAside, change, remove } =
+  const { frames, pending, approve, approveAll, setSuggestionAside, change, remove } =
     useFrameSuggestions(suggestions)
   const active = activePhrase(segments, usePlaybackTime())
   const seekTo = useSeekToTime()
@@ -63,6 +65,7 @@ export function TranscriptView({
     () => buildBlocks(segments, frameBlocks(frames, pending, suggestions)),
     [frames, pending, segments, suggestions],
   )
+  const quoted = useMemo(() => quotedRanges(segments, pending), [pending, segments])
   const shown = useMemo(
     () => (nearOnly ? foldFarParagraphs(blocks, segments, opened) : blocks),
     [blocks, nearOnly, opened, segments],
@@ -104,6 +107,9 @@ export function TranscriptView({
             <Button buttonStyle="subtle" margin={false} onClick={nextSuggestion} size="small">
               Next suggestion
             </Button>
+            <Button buttonStyle="primary" margin={false} onClick={approveAll} size="small">
+              Approve all
+            </Button>
           </>
         )}
         <Button
@@ -134,7 +140,15 @@ export function TranscriptView({
                       className={styles.phrase}
                       onClick={() => play(segments[index].start)}
                     >
-                      {segments[index].text}
+                      {markRuns(segments[index].text, quoted.get(index)).map((run, i) =>
+                        run.marked ? (
+                          <mark className={styles.quoted} key={i}>
+                            {run.text}
+                          </mark>
+                        ) : (
+                          run.text
+                        ),
+                      )}
                     </span>{' '}
                   </React.Fragment>
                 ))}

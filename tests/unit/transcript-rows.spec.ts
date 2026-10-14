@@ -14,8 +14,10 @@ import {
   frameBlocks,
   isNearFrame,
   lastStarted,
+  markRuns,
   NEAR_AFTER_SECONDS,
   NEAR_BEFORE_SECONDS,
+  quotedRanges,
   type Segment,
 } from '@/components/admin/MeditationTranscript/rows'
 import type { Frame } from '@/payload-types'
@@ -167,6 +169,56 @@ describe('foldFarParagraphs', () => {
       'p[3]',
       'frame@100',
     ])
+  })
+})
+
+describe('quotedRanges', () => {
+  const segments = [
+    seg(0, 4, 'Breathe in.'),
+    seg(5, 9, 'Put your awareness on your heart and just breathe.'),
+    seg(10, 12, 'Press down and rotate.'),
+    seg(12.5, 14, 'Slowly, clockwise.'),
+  ]
+  const quote = (start: number, text: string) => [...quotedRanges(segments, [{ start, text }])]
+
+  it('marks the quoted words, not the rest of the phrase, ignoring case', () => {
+    expect(quote(5.06, 'put your awareness on your heart and')).toEqual([
+      [1, [{ start: 0, end: 36 }]],
+    ])
+  })
+
+  it('finds a quote that starts mid-phrase', () => {
+    expect(quote(10.4, 'rotate.')).toEqual([[2, [{ start: 15, end: 22 }]]])
+  })
+
+  it('carries a quote across into the next phrase', () => {
+    expect(quote(10, 'and rotate. Slowly,')).toEqual([
+      [2, [{ start: 11, end: 22 }]],
+      [3, [{ start: 0, end: 7 }]],
+    ])
+  })
+
+  it('marks the whole phrase when the quote is not near its start', () => {
+    expect(quote(10, 'Breathe in.')).toEqual([[2, [{ start: 0, end: 22 }]]])
+  })
+})
+
+describe('markRuns', () => {
+  it('cuts text into marked and unmarked runs, merging overlaps', () => {
+    expect(
+      markRuns('Press down and rotate.', [
+        { start: 6, end: 10 },
+        { start: 8, end: 14 },
+      ]),
+    ).toEqual([
+      { text: 'Press ', marked: false },
+      { text: 'down and', marked: true },
+      { text: ' rotate.', marked: false },
+    ])
+  })
+
+  it('leaves text without ranges whole', () => {
+    expect(markRuns('Breathe in.')).toEqual([{ text: 'Breathe in.', marked: false }])
   })
 })
 

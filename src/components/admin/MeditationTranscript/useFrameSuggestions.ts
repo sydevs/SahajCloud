@@ -13,6 +13,7 @@ import type { Frame } from '@/payload-types'
 import type { KeyframeData } from '@/types/frames'
 
 import {
+  approveAllFrames,
   approveFrames,
   pendingSuggestions,
   placeFrame,
@@ -64,6 +65,13 @@ export function useFrameSuggestions(suggestions: Suggestion[]) {
     [frames, setFrames],
   )
 
+  const approveAll = useCallback(() => {
+    setFrames(approveAllFrames(frames, pending))
+    toast.success(
+      `Added ${pending.length} suggested ${pending.length === 1 ? 'frame' : 'frames'}. Save the draft to keep them.`,
+    )
+  }, [frames, pending, setFrames])
+
   const setSuggestionAside = useCallback((suggestion: Suggestion) => {
     setSetAside((previous) => new Set(previous).add(suggestion.id))
   }, [])
@@ -86,5 +94,5 @@ export function useFrameSuggestions(suggestions: Suggestion[]) {
     [frames, setFrames],
   )
 
-  return { frames, pending, approve, setSuggestionAside, change, remove }
+  return { frames, pending, approve, approveAll, setSuggestionAside, change, remove }
 }
