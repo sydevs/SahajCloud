@@ -55,8 +55,9 @@
   background-color: var(--theme-elevation-100);
 }
 
+/* Blue, so the phrase playing never reads as a suggestion's warm quote. */
 .phrase[aria-current='true'] {
-  background-color: var(--theme-warning-100);
+  background-color: var(--theme-success-150);
 }
 
 /* The words a suggestion quotes: a soft highlighter stroke, rounded on every line it wraps
