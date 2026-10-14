@@ -1,7 +1,5 @@
 'use client'
 
-import type { Suggestion } from './frames'
-
 import { Banner, Button, Pill, useListDrawer } from '@payloadcms/ui'
 import { AudioLines } from 'lucide-react'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
@@ -10,6 +8,7 @@ import { usePlaybackTime, useSeekToTime } from '@/components/admin/FrameEditor/h
 import type { Frame } from '@/payload-types'
 
 import { FrameCard } from './FrameCard'
+import { type Suggestion, suggestionTimestamp } from './frames'
 import styles from './MeditationTranscript.module.css'
 import {
   activePhrase,
@@ -168,6 +167,10 @@ export function TranscriptView({
           block.status === 'suggested' && block.suggestion?.replaces
             ? frames.find((f) => f.timestamp === block.suggestion?.replaces?.timestamp)
             : undefined
+        const replacer =
+          block.status === 'suggested'
+            ? undefined
+            : pending.find((s) => s.replaces?.timestamp === block.time)
         return (
           <FrameCard
             details={frameDetails(block.frame)}
@@ -182,7 +185,16 @@ export function TranscriptView({
             onSeek={() => seekTo(block.time)}
             onSetAside={() => block.suggestion && setSuggestionAside(block.suggestion)}
             reason={block.suggestion?.reason}
-            replaces={replaced && { name: frameName(replaced), time: replaced.timestamp }}
+            replacedBy={
+              replacer && {
+                name: frameName(replacer.frame),
+                time: suggestionTimestamp(replacer),
+                frame: replacer.frame,
+              }
+            }
+            replaces={
+              replaced && { name: frameName(replaced), time: replaced.timestamp, frame: replaced }
+            }
             status={block.status}
             time={block.time}
           />

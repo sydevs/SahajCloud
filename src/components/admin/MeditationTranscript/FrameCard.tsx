@@ -13,21 +13,24 @@ import { clock, type FrameStatus } from './rows'
 const PILL = {
   approved: { label: 'Approved', style: 'success' },
   changed: { label: 'Changed', style: 'success' },
-  suggested: { label: 'Suggested', style: 'warning' },
 } as const
+
+/** Another frame at a time, as a card names it. */
+export type OtherFrame = { name: string; time: number; frame: Frame | KeyframeData }
 
 export type FrameCardProps = {
   status: FrameStatus
   time: number
-  /** What editors call the frame: its label, or its subtle-system node. */
   name: string
-  /** Its tags, shown small beside the time. */
+  /** The frame's tags, after the time. */
   details?: string
   frame: Frame | KeyframeData
-  /** The suggestion's one-sentence reason. */
+  /** Why the suggestion picked this frame. */
   reason?: string
-  /** The editor frame a suggestion would replace. */
-  replaces?: { name: string; time: number }
+  /** A suggestion's: the editor frame that approving it removes. */
+  replaces?: OtherFrame
+  /** A frame's: the waiting suggestion that would replace it. */
+  replacedBy?: OtherFrame
   onSeek: () => void
   onApprove: () => void
   onChange: () => void
@@ -35,12 +38,20 @@ export type FrameCardProps = {
   onRemove: () => void
 }
 
+const thumb = (frame: Frame | KeyframeData, size: number) => (
+  <FrameThumbnail frame={frame} style={{ width: size, height: size, objectFit: 'cover' }} />
+)
+
+export function FrameCard(props: FrameCardProps) {
+  return props.status === 'suggested' ? <SuggestionCard {...props} /> : <PlacedCard {...props} />
+}
+
 /**
- * A picture change, set into the transcript where it starts: the picture, its name, when and why,
- * a status pill, the one main action, and the rest in a Payload row menu.
+ * A suggestion stacks in bands — what it is and when, the picture with its reason, what it
+ * replaces, then the actions — so nothing shares a row with the name when the live preview
+ * leaves the form column narrow. Every action stays visible: reviewing them is the job here.
  */
-export function FrameCard({
-  status,
+function SuggestionCard({
   time,
   name,
   details,
@@ -51,25 +62,77 @@ export function FrameCard({
   onApprove,
   onChange,
   onSetAside,
+}: FrameCardProps) {
+  return (
+    <article className={styles.card} data-status="suggested">
+      <header className={styles.suggestionHeader}>
+        <span>Suggested frame</span>
+        <button className={styles.cardTime} onClick={onSeek} title="Play from here" type="button">
+          {clock(time)}
+        </button>
+      </header>
+      <div className={styles.suggestionMain}>
+        <span className={styles.cardImage}>{thumb(frame, 64)}</span>
+        <div className={styles.cardBody}>
+          <span className={styles.suggestionName}>{name}</span>
+          {details && <span className={styles.cardMeta}>{details}</span>}
+          {reason && <p className={styles.suggestionReason}>{reason}</p>}
+        </div>
+      </div>
+      {replaces && (
+        <div className={styles.suggestionReplaces}>
+          <span className={styles.replacesLabel}>Replaces</span>
+          <span className={styles.replacesImage}>{thumb(replaces.frame, 28)}</span>
+          <span className={styles.replacesName}>
+            {replaces.name} at {clock(replaces.time)}
+          </span>
+        </div>
+      )}
+      <footer className={styles.suggestionActions}>
+        <Button
+          buttonStyle="transparent"
+          className={styles.suggestionDismiss}
+          margin={false}
+          onClick={onSetAside}
+          size="small"
+        >
+          {replaces ? 'Keep the current frame' : 'Not needed'}
+        </Button>
+        <Button buttonStyle="secondary" margin={false} onClick={onChange} size="small">
+          Pick another frame
+        </Button>
+        <Button buttonStyle="primary" margin={false} onClick={onApprove} size="small">
+          Approve
+        </Button>
+      </footer>
+    </article>
+  )
+}
+
+function PlacedCard({
+  status,
+  time,
+  name,
+  details,
+  frame,
+  reason,
+  replacedBy,
+  onSeek,
+  onChange,
   onRemove,
 }: FrameCardProps) {
-  const suggested = status === 'suggested'
-  const pill = status === 'frame' ? null : PILL[status]
-  const menu = suggested
-    ? [
-        { label: 'Pick another frame', run: onChange },
-        { label: replaces ? 'Keep the current frame' : 'Not needed', run: onSetAside },
-      ]
-    : [
-        { label: 'Change frame', run: onChange },
-        { label: 'Remove frame', run: onRemove },
-      ]
-
+  const pill = status === 'approved' || status === 'changed' ? PILL[status] : null
+  const menu = [
+    { label: 'Change frame', run: onChange },
+    { label: 'Remove frame', run: onRemove },
+  ]
   return (
-    <article className={styles.card} data-status={status}>
-      <span className={styles.cardImage}>
-        <FrameThumbnail frame={frame} style={{ width: 56, height: 56, objectFit: 'cover' }} />
-      </span>
+    <article
+      className={styles.card}
+      data-replaced={replacedBy ? 'true' : undefined}
+      data-status={status}
+    >
+      <span className={styles.cardImage}>{thumb(frame, 56)}</span>
       <div className={styles.cardBody}>
         <div className={styles.cardTitle}>
           <span className={styles.cardName}>{name}</span>
@@ -86,18 +149,13 @@ export function FrameCard({
           {details && <span> · {details}</span>}
         </div>
         {reason && <p className={styles.cardNote}>{reason}</p>}
-        {replaces && (
-          <p className={styles.cardNote}>
-            Replaces {replaces.name} at {clock(replaces.time)}
+        {replacedBy && (
+          <p className={styles.replacedNote}>
+            The suggestion at {clock(replacedBy.time)} replaces this with {replacedBy.name}
           </p>
         )}
       </div>
       <div className={styles.cardActions}>
-        {suggested && (
-          <Button buttonStyle="primary" margin={false} onClick={onApprove} size="small">
-            Approve
-          </Button>
-        )}
         <Popup
           button={
             <span aria-label="More actions" className={styles.cardMore}>
