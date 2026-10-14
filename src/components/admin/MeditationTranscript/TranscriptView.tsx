@@ -11,8 +11,15 @@ import type { Frame } from '@/payload-types'
 
 import { FrameCard } from './FrameCard'
 import styles from './MeditationTranscript.module.css'
-import { activePhrase, buildRows, clock, cueParts, foldFarLines, type Segment } from './rows'
-import { frameTitle, useFrameSuggestions } from './useFrameSuggestions'
+import {
+  activePhrase,
+  buildBlocks,
+  clock,
+  foldFarParagraphs,
+  frameBlocks,
+  type Segment,
+} from './rows'
+import { frameDetails, frameName, useFrameSuggestions } from './useFrameSuggestions'
 
 /** The shape of a file in `seeds/meditation-transcripts/`. */
 export type TranscriptFile = { audioFilename: string; segments: Segment[] }
@@ -53,13 +60,13 @@ export function TranscriptView({
     openDrawer()
   }
 
-  const rows = useMemo(
-    () => buildRows(segments, frames, pending, suggestions),
+  const blocks = useMemo(
+    () => buildBlocks(segments, frameBlocks(frames, pending, suggestions)),
     [frames, pending, segments, suggestions],
   )
   const shown = useMemo(
-    () => (nearOnly ? foldFarLines(rows, segments, opened) : rows),
-    [nearOnly, opened, rows, segments],
+    () => (nearOnly ? foldFarParagraphs(blocks, segments, opened) : blocks),
+    [blocks, nearOnly, opened, segments],
   )
 
   useEffect(() => {
@@ -79,6 +86,8 @@ export function TranscriptView({
 
   if (!transcript) return <Banner type="info">This meditation has no transcript yet.</Banner>
 
+  const play = (seconds: number) => seekTo(Math.floor(seconds))
+
   return (
     <div className={styles.transcript} ref={container}>
       {outdated && (
@@ -88,29 +97,15 @@ export function TranscriptView({
         </Banner>
       )}
       <div className={styles.toolbar}>
-        {pending.length > 0 ? (
+        {pending.length > 0 && (
           <>
             <Pill pillStyle="warning" size="small">
-              {pending.length} suggested
+              {pending.length} suggested {pending.length === 1 ? 'frame' : 'frames'}
             </Pill>
-            <span className={styles.toolbarNote}>Review each where it sits in the narration.</span>
-            <Button
-              buttonStyle="secondary"
-              icon={['chevron']}
-              iconPosition="right"
-              margin={false}
-              onClick={nextSuggestion}
-              size="small"
-            >
+            <Button buttonStyle="subtle" margin={false} onClick={nextSuggestion} size="small">
               Next suggestion
             </Button>
           </>
-        ) : (
-          <span className={styles.toolbarNote}>
-            {suggestions.length
-              ? 'Every suggestion has been reviewed.'
-              : 'Click a line to play from it.'}
-          </span>
         )}
         <Button
           buttonStyle="subtle"
@@ -119,88 +114,80 @@ export function TranscriptView({
           onClick={() => setNearOnly(!nearOnly)}
           size="small"
         >
-          {nearOnly ? 'Show all lines' : 'Only lines near frames'}
+          {nearOnly ? 'Show the whole transcript' : 'Only text near frames'}
         </Button>
       </div>
 
-      <div className={styles.rows}>
-        {shown.map((row) => {
-          if (row.type === 'line') {
-            const segment = segments[row.index]
-            return (
-              <div
-                aria-current={row.index === active ? 'true' : undefined}
-                className={styles.line}
-                key={row.key}
-              >
-                <button
-                  className={styles.time}
-                  onClick={() => seekTo(Math.floor(segment.start))}
-                  type="button"
-                >
-                  {clock(segment.start, true)}
-                </button>
-                {/* The time is the keyboard route; the text is a larger click target for the same seek. */}
-                <p className={styles.say} onClick={() => seekTo(Math.floor(segment.start))}>
-                  {cueParts(segment.text).map((part, index) =>
-                    part.cue ? (
-                      <strong className={styles.cue} key={index}>
-                        {part.text}
-                      </strong>
-                    ) : (
-                      part.text
-                    ),
-                  )}
-                </p>
-              </div>
-            )
-          }
-          if (row.type === 'gap') {
-            return (
-              <button
-                className={styles.gap}
-                key={row.key}
-                onClick={() => setOpened(new Set(opened).add(row.key))}
-                type="button"
-              >
-                {row.count} {row.count === 1 ? 'line' : 'lines'} · {clock(row.time)}–{clock(row.to)}
-              </button>
-            )
-          }
-          if (row.type === 'silence') {
-            return (
-              <p className={styles.silence} key={row.key}>
-                {/* lucide, because Payload's icon set has no sound wave */}
-                <AudioLines aria-hidden="true" size={14} strokeWidth={1.5} />
-                {row.seconds} s of silence
-              </p>
-            )
-          }
-          const replaced =
-            row.status === 'suggested' && row.suggestion?.replaces
-              ? frames.find((f) => f.timestamp === row.suggestion?.replaces?.timestamp)
-              : undefined
+      {shown.map((block) => {
+        if (block.type === 'paragraph') {
           return (
-            <div className={styles.frameRow} key={row.key}>
-              <FrameCard
-                frame={row.frame}
-                onApprove={() => row.suggestion && approve(row.suggestion)}
-                onChange={() =>
-                  pick(row.time, row.status === 'suggested' ? row.suggestion : undefined)
-                }
-                onRemove={() => remove(row.time)}
-                onSeek={() => seekTo(row.time)}
-                onSetAside={() => row.suggestion && setSuggestionAside(row.suggestion)}
-                reason={row.suggestion?.reason}
-                replaces={replaced && { title: frameTitle(replaced), time: replaced.timestamp }}
-                status={row.status}
-                time={row.time}
-                title={frameTitle(row.frame)}
-              />
-            </div>
+            <section className={styles.paragraph} key={block.key}>
+              <button className={styles.timestamp} onClick={() => play(block.start)} type="button">
+                {clock(block.start)}
+              </button>
+              {/* A button cannot wrap mid-line like running text, so phrases are
+                  spans; the timestamp button is the keyboard route to each paragraph. */}
+              <p className={styles.text}>
+                {block.indexes.map((index) => (
+                  <React.Fragment key={index}>
+                    <span
+                      aria-current={index === active ? 'true' : undefined}
+                      className={styles.phrase}
+                      onClick={() => play(segments[index].start)}
+                    >
+                      {segments[index].text}
+                    </span>{' '}
+                  </React.Fragment>
+                ))}
+              </p>
+            </section>
           )
-        })}
-      </div>
+        }
+        if (block.type === 'silence') {
+          return (
+            <p className={styles.silence} key={block.key}>
+              {/* lucide, because Payload's icon set has no sound wave */}
+              <AudioLines aria-hidden="true" size={16} strokeWidth={1.5} />A moment of silence
+            </p>
+          )
+        }
+        if (block.type === 'gap') {
+          return (
+            <button
+              className={styles.gap}
+              key={block.key}
+              onClick={() => setOpened(new Set(opened).add(block.key))}
+              type="button"
+            >
+              {block.count} {block.count === 1 ? 'paragraph' : 'paragraphs'} · {clock(block.start)}–
+              {clock(block.end)}
+            </button>
+          )
+        }
+        const replaced =
+          block.status === 'suggested' && block.suggestion?.replaces
+            ? frames.find((f) => f.timestamp === block.suggestion?.replaces?.timestamp)
+            : undefined
+        return (
+          <FrameCard
+            details={frameDetails(block.frame)}
+            frame={block.frame}
+            key={block.key}
+            name={frameName(block.frame)}
+            onApprove={() => block.suggestion && approve(block.suggestion)}
+            onChange={() =>
+              pick(block.time, block.status === 'suggested' ? block.suggestion : undefined)
+            }
+            onRemove={() => remove(block.time)}
+            onSeek={() => seekTo(block.time)}
+            onSetAside={() => block.suggestion && setSuggestionAside(block.suggestion)}
+            reason={block.suggestion?.reason}
+            replaces={replaced && { name: frameName(replaced), time: replaced.timestamp }}
+            status={block.status}
+            time={block.time}
+          />
+        )
+      })}
       <FramesDrawer
         onSelect={({ doc }) => {
           if (target?.suggestion) approve(target.suggestion, doc as Frame)

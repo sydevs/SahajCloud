@@ -1,12 +1,10 @@
-/* Narration in two columns (time, text); frames sit in the text column, so the timeline keeps
-   one clean left edge. Colours and radii come from Payload's theme only. */
+/* The #897 transcript (a time over each paragraph, running text) with frame cards set in where
+   the picture changes. Colours and radii come from Payload's theme only. */
 
 .transcript {
-  --time-column: 4rem;
-  --column-gap: calc(var(--base) / 2);
   display: flex;
   flex-direction: column;
-  gap: calc(var(--base) * 0.75);
+  gap: var(--base);
 }
 
 .toolbar {
@@ -14,125 +12,132 @@
   flex-wrap: wrap;
   gap: calc(var(--base) / 2);
   align-items: center;
-  padding-bottom: calc(var(--base) / 2);
-  border-bottom: 1px solid var(--theme-elevation-100);
-}
-
-.toolbarNote {
-  color: var(--theme-elevation-500);
-  font-size: 0.8125rem;
 }
 
 .toolbarEnd {
   margin-left: auto;
 }
 
-.rows {
+.paragraph {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: calc(var(--base) / 4);
 }
 
-.line {
-  display: grid;
-  grid-template-columns: var(--time-column) minmax(0, 1fr);
-  gap: var(--column-gap);
-  padding: 3px 6px;
+.timestamp,
+.phrase {
   border-radius: var(--style-radius-s);
+  cursor: pointer;
 }
 
-.line:hover {
-  background-color: var(--theme-elevation-50);
-}
-
-/* The phrase playing in the preview. */
-.line[aria-current='true'] {
-  background-color: var(--theme-elevation-100);
-  box-shadow: inset 2px 0 0 var(--theme-elevation-800);
-}
-
-.time {
-  padding: 2px 0 0;
+.timestamp {
+  align-self: flex-start;
+  padding: 0;
   border: 0;
   background: none;
   font: inherit;
-  font-size: 0.75rem;
+  color: var(--theme-elevation-500);
   font-variant-numeric: tabular-nums;
-  text-align: left;
+}
+
+.text {
+  margin: 0;
+  line-height: 1.7;
+}
+
+.phrase:hover,
+.timestamp:hover {
+  background-color: var(--theme-elevation-100);
+}
+
+.phrase[aria-current='true'] {
+  background-color: var(--theme-warning-100);
+}
+
+.silence {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--base) / 2);
+  margin: calc(var(--base) / 2) 0 0;
+  color: var(--theme-elevation-500);
+  font-size: 0.8125rem;
+}
+
+.silence::after {
+  content: '';
+  flex: 1;
+  border-top: 1px dashed var(--theme-elevation-200);
+}
+
+.gap {
+  align-self: flex-start;
+  padding: 2px 8px;
+  border: 1px dashed var(--theme-elevation-200);
+  border-radius: var(--style-radius-s);
+  background: none;
+  font: inherit;
+  font-size: 0.8125rem;
   color: var(--theme-elevation-500);
   cursor: pointer;
 }
 
-.time:hover {
+.gap:hover {
+  border-color: var(--theme-elevation-400);
   color: var(--theme-elevation-1000);
 }
 
-.say {
-  margin: 0;
-  line-height: 1.55;
-  color: var(--theme-elevation-800);
-  cursor: pointer;
-}
-
-.cue {
-  font-weight: 600;
-  color: var(--theme-elevation-1000);
-}
-
-.frameRow {
-  padding: 4px 0 4px calc(var(--time-column) + var(--column-gap) + 6px);
-}
-
-/* Laid out like a Payload array row: picture, title line, menu. */
+/* The frame card: picture, name with status, time and tags, why, and its actions. */
 .card {
   display: grid;
-  grid-template-columns: 48px minmax(0, 1fr) auto;
-  gap: calc(var(--base) / 2);
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  gap: 12px;
   align-items: center;
-  padding: 8px 8px 8px 10px;
-  background-color: var(--theme-elevation-0);
+  padding: 10px 10px 10px 10px;
+  background-color: var(--theme-elevation-50);
   border: 1px solid var(--theme-elevation-150);
-  border-left-width: 3px;
   border-radius: var(--style-radius-m);
 }
 
-.frame {
-  border-left-color: var(--theme-elevation-400);
+/* A suggestion is not in the meditation yet: an outline only. */
+.card[data-status='suggested'] {
+  background-color: var(--theme-elevation-0);
+  border-style: dashed;
+  border-color: var(--theme-elevation-300);
 }
 
-.approved,
-.changed {
-  border-left-color: var(--theme-success-500);
-}
-
-.suggested {
-  border-left-color: var(--theme-warning-500);
-}
-
-.thumb {
+.cardImage {
   display: block;
-  width: 48px;
-  height: 48px;
+  width: 56px;
+  height: 56px;
+  overflow: hidden;
+  border-radius: var(--style-radius-s);
+  background-color: var(--theme-elevation-0);
 }
 
-.cardMain {
+.cardBody {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
 }
 
-/* Inline, so a long title wraps like a sentence instead of stranding the time or the pill. */
-.cardHead {
-  line-height: 1.6;
+.cardTitle {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
 }
 
-.cardHead > * {
-  vertical-align: middle;
+.cardName {
+  overflow: hidden;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
-.cardHead > * + * {
-  margin-left: 8px;
+.cardMeta {
+  font-size: 0.75rem;
+  color: var(--theme-elevation-500);
 }
 
 .cardTime {
@@ -140,81 +145,37 @@
   border: 0;
   background: none;
   font: inherit;
-  font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
-  color: var(--theme-elevation-500);
+  color: var(--theme-elevation-800);
   cursor: pointer;
 }
 
 .cardTime:hover {
-  color: var(--theme-elevation-1000);
+  text-decoration: underline;
 }
 
-.cardTitle {
-  font-weight: 600;
-  min-width: 0;
-}
-
-.reason {
-  display: flex;
-  gap: 4px;
-  align-items: center;
+.cardNote {
   margin: 0;
   font-size: 0.75rem;
-  line-height: 1.4;
-  color: var(--theme-elevation-500);
+  line-height: 1.45;
+  color: var(--theme-elevation-600);
 }
 
 .cardActions {
   display: flex;
-  gap: 6px;
+  gap: 4px;
   align-items: center;
 }
 
-.more {
+.cardMore {
   display: inline-flex;
-  padding: 2px;
-  border-radius: var(--style-radius-s);
-}
-
-.more:hover {
-  background-color: var(--theme-elevation-100);
-}
-
-.gap,
-.silence {
-  margin: 0;
-  padding: 4px 6px 4px calc(var(--time-column) + var(--column-gap) + 6px);
-  font-size: 0.75rem;
-  color: var(--theme-elevation-500);
-}
-
-.gap {
-  border: 0;
-  border-radius: var(--style-radius-s);
-  background: none;
-  font-family: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.gap:hover {
-  background-color: var(--theme-elevation-50);
-  color: var(--theme-elevation-1000);
-}
-
-.gap::before {
-  content: '⋯  ';
-}
-
-.silence {
-  display: flex;
-  gap: 6px;
   align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--style-radius-s);
 }
 
-.silence::after {
-  content: '';
-  flex: 1;
-  border-top: 1px dashed var(--theme-elevation-150);
+.cardMore:hover {
+  background-color: var(--theme-elevation-100);
 }
