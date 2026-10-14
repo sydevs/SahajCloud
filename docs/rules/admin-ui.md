@@ -174,6 +174,8 @@ Prefer **`DefaultServerCellComponentProps`** — it gets `payload`, can read col
 
 A **join field**'s `cellData` is a structured object, not a scalar: `{ docs: Array<{ id, ... }>, totalDocs?, limit? }` — read `cellData.docs?.length` for a count. A label can be `string | LabelFunction | Record<string, string>`. Extract it with a small helper that checks each shape and lowercases the result. Reference: `src/components/admin/RelationshipCountCell/RelationshipCountCell.tsx`.
 
+⚠ **A custom `Cell` that can be a collection's first column must handle list-drawer selection itself**, through `useListDrawerContext()`: Payload gives `onSelect` to its own `DefaultCell` only, and the select has to outrank any `onClick` prop (#942). `BaseThumbnailCell` is the worked example, and a cell wrapping it must forward `link`. Which column is the linked one comes from each user's saved column preference, so a cell second by default still has to handle this.
+
 ## Component wrapper pattern (pure UI + field wrapper)
 
 For a complex interactive component, separate a stateless, PayloadCMS-free **pure UI component** (independently testable) from a **field wrapper** that calls `useField`, fetches data, and wraps the UI in field markup.
