@@ -11,11 +11,11 @@
  * property, so an extracted predicate would leave it untested.
  *
  * The stand-in reproduces the two `@payloadcms/ui` behaviours the component
- * relies on: `useListDrawerContext()` answers `{}` outside a drawer, because its
- * context is created with that default
- * (`.../elements/ListDrawer/Provider.js:3`) and carries `drawerSlug` plus
- * `onSelect` inside one (`:10`); and `Link` renders an anchor at `href`
- * (`.../elements/Link/index.js`, which passes `href` straight to `next/link`).
+ * relies on, both read from `.../elements/ListDrawer/Provider.js` and
+ * `.../elements/Link/index.js`: `ListDrawerContext` is created with `{}` as its
+ * default, so outside a drawer the hook answers that and `DrawerContent` is the
+ * one provider that sets `drawerSlug` and `onSelect`; and `Link` passes `href`
+ * straight to `next/link`, which renders an anchor.
  */
 import { act, createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
@@ -24,16 +24,26 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 /** What the stubbed drawer context answers for the render under test. */
 const drawer: { drawerSlug?: string; onSelect?: ReturnType<typeof vi.fn> } = {}
 
+/** `RelationshipThumbnailCell`'s own document drawer, which the select outranks. */
+const openDocumentDrawer = vi.fn()
+
 vi.mock('@payloadcms/ui', () => ({
   Link: ({ children, className, href }: { children: unknown; className?: string; href: string }) =>
     createElement('a', { className, href }, children as never),
   Thumbnail: () => createElement('span'),
+  useDocumentDrawer: () => [() => null, null, { openDrawer: openDocumentDrawer }],
   useListDrawerContext: () => drawer,
+  useLocale: () => ({ code: 'en' }),
 }))
 
-// `vi.mock` is hoisted above these imports, so both cells see the stand-in.
+vi.mock('@/components/admin/ThumbnailCell/relationshipDocLoader', () => ({
+  relationshipDocLoader: { load: () => Promise.resolve(null) },
+}))
+
+// `vi.mock` is hoisted above these imports, so every cell sees the stand-in.
 import { BaseThumbnailCell } from '@/components/admin/ThumbnailCell/BaseThumbnailCell'
 import { PreviewUrlThumbnailCell } from '@/components/admin/ThumbnailCell/PreviewUrlThumbnailCell'
+import { RelationshipThumbnailCell } from '@/components/admin/ThumbnailCell/RelationshipThumbnailCell'
 
 /** A Files row as the list view hands it to a cell. */
 const row = {
@@ -50,6 +60,7 @@ describe('thumbnail cell row selection in a list drawer', () => {
   beforeEach(() => {
     delete drawer.drawerSlug
     delete drawer.onSelect
+    openDocumentDrawer.mockClear()
 
     container = document.createElement('div')
     document.body.appendChild(container)
@@ -70,10 +81,10 @@ describe('thumbnail cell row selection in a list drawer', () => {
 
   const click = () => {
     const button = container.querySelector('button')
+    expect(button, 'expected a button to click').not.toBeNull()
     act(() => {
       button?.click()
     })
-    return button
   }
 
   const previewUrlCell = (props: Record<string, unknown>) =>
@@ -90,7 +101,7 @@ describe('thumbnail cell row selection in a list drawer', () => {
     render(previewUrlCell({ link: true }))
 
     expect(container.querySelector('a')).toBeNull()
-    expect(click()).not.toBeNull()
+    click()
     expect(onSelect).toHaveBeenCalledWith({
       collectionSlug: 'files',
       doc: row,
@@ -121,6 +132,35 @@ describe('thumbnail cell row selection in a list drawer', () => {
 
     expect(onSelect).toHaveBeenCalledTimes(1)
     expect(onClick).not.toHaveBeenCalled()
+  })
+
+  /**
+   * `RelationshipThumbnailCell` passes an `onClick` that opens the related
+   * document, and forwards `link` so the select can outrank it. A `mediaField`
+   * thumbnail becomes a drawer's linked column whenever a saved column
+   * preference hides the columns ahead of it.
+   */
+  it('selects the row from a relationship thumbnail in a drawer', () => {
+    const onSelect = openDrawer()
+
+    render(
+      createElement(RelationshipThumbnailCell as never, {
+        cellData: 3,
+        collectionSlug: 'albums',
+        rowData: row,
+        field: { relationTo: 'images' },
+        link: true,
+      }),
+    )
+
+    click()
+
+    expect(onSelect).toHaveBeenCalledWith({
+      collectionSlug: 'albums',
+      doc: row,
+      docID: '7',
+    })
+    expect(openDocumentDrawer).not.toHaveBeenCalled()
   })
 
   it('links to the document from the list view', () => {
