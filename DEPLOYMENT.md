@@ -74,9 +74,11 @@ or disabled, nothing is cached, which is a fail-safe, not a leak.
 write body up to `experimental.proxyClientMaxBodySize` in `next.config.mjs`, which carries the
 mechanism and the rule for setting it (#938).
 
-⚠ **`upload.limits.fileSize` is not the real upload ceiling.** Payload caps the whole multipart
-request at `upload.requestSizeLimit`, 50 MB, so that is what refuses a larger upload — see #939
-for why it does so opaquely.
+⚠ **Four declarations bound an upload, and they must stay ordered.** A category limit in
+`FILE_SIZE_LIMITS` sits under `upload.limits.fileSize` (48 MB), which sits under
+`upload.requestSizeLimit` (50 MB), which sits under the Next cap. Anything above the request
+ceiling can never fire, because Payload refuses the body first — see #939 for why it does so
+opaquely. `tests/unit/next-config-body-limit.spec.ts` pins the ordering.
 
 **The origin decides *what* is cached; the rule only decides *who may ask*.** The rule matches
 every `/api/**` read that could legitimately be cached and delegates the yes/no to the response
