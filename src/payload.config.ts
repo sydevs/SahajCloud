@@ -30,7 +30,13 @@ import { loginPlugin } from '@/plugins/login'
 import { openapiEndpointAuth, scalarPlugin } from '@/plugins/openapi'
 import { managersLoginHere, seedPreviewAdmin } from '@/plugins/previewAdmin'
 import { sentryPlugin } from '@/plugins/sentry'
-import { storagePlugin } from '@/plugins/storage'
+import {
+  UPLOAD_FILE_SIZE_LIMIT,
+  UPLOAD_REQUEST_SIZE_LIMIT,
+  UPLOAD_SIZE_LIMIT_MESSAGE,
+  storagePlugin,
+  uploadErrorPlugin,
+} from '@/plugins/storage'
 import { isProductionDeployment } from '@/plugins/storage/previewIsolation'
 import { usagePlugin } from '@/plugins/usage'
 import { writeGuardPlugin } from '@/plugins/writeGuard'
@@ -279,6 +285,9 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       // Enabled everywhere, E2E included — it changes what a bad request gets
       // back, which is exactly what an end-to-end run should see.
       databaseErrorPlugin(),
+      // An over-limit upload is the caller's mistake too: say which size it
+      // exceeded, rather than only that it did.
+      uploadErrorPlugin(),
       // Sentry error tracking (disabled in E2E tests)
       sentryPlugin({
         captureErrors: [400, 403, 404], // Capture additional error codes
@@ -358,19 +367,18 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       // generous slack. The Railway/Cloudflare hops don't impose this; it's
       // purely Payload's default. See plans/...luminous-dusk.md (Track A).
       uploadTimeout: 300000,
-      // The ceiling on a whole multipart request, and so what refuses an
-      // oversized upload. It surfaces as an opaque 500, not a 413 (#939).
-      //
-      // ⚠ `experimental.proxyClientMaxBodySize` in `next.config.mjs` must stay
-      // at or above both numbers here, or the middleware truncates the body
-      // first (#938). `tests/unit/next-config-body-limit.spec.ts` pins the
-      // ordering across all four declarations.
-      requestSizeLimit: 52428800, // 50MB whole-request limit, written in bytes
+      // The two ceilings an upload has to fit, and the sentence both answer
+      // with. They are declared in `@/plugins/storage` so nothing can hold a
+      // second copy, and `tests/unit/next-config-body-limit.spec.ts` pins them
+      // against `next.config.mjs`'s cap and the per-category limits (#939).
+      requestSizeLimit: UPLOAD_REQUEST_SIZE_LIMIT,
+      // Payload's own wording for the per-file gate names no size, and the
+      // admin shows it verbatim. `uploadErrorPlugin` answers the request gate
+      // with the same sentence.
+      responseOnLimit: UPLOAD_SIZE_LIMIT_MESSAGE,
       limits: {
-        // Under `requestSizeLimit` with room for the multipart boundary, part
-        // headers and `_payload`, so a file this size still fits one request.
         // A collection may set its own, lower limit.
-        fileSize: 50331648, // 48MB per-file limit, written in bytes
+        fileSize: UPLOAD_FILE_SIZE_LIMIT,
       },
     },
     // Allow overrides (especially important for test database URIs)

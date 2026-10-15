@@ -9,6 +9,14 @@
 export { storagePlugin } from './storagePlugin'
 export { storagePlugin as default } from './storagePlugin'
 
+// Upload size ceilings, and the 413 that names them
+export { uploadErrorPlugin } from './uploadErrorPlugin'
+export {
+  UPLOAD_FILE_SIZE_LIMIT,
+  UPLOAD_REQUEST_SIZE_LIMIT,
+  UPLOAD_SIZE_LIMIT_MESSAGE,
+} from './uploadValidation'
+
 // Storage adapters
 export { cloudflareImagesAdapter, getCloudflareImagesUrl } from './cloudflareImagesAdapter'
 export { cloudflareStreamAdapter, getCloudflareStreamMp4Url, getCloudflareStreamThumbnailUrl } from './cloudflareStreamAdapter'
