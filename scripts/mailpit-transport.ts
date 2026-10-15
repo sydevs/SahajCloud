@@ -18,7 +18,7 @@
  * preview and under `pnpm dev`.
  */
 
-import type { Transport, Transporter } from 'nodemailer'
+import type { Transport } from 'nodemailer'
 
 import nodemailer from 'nodemailer'
 
@@ -172,9 +172,7 @@ export function createCaptureTransport() {
     },
   }
 
-  // @types/nodemailer's custom-transport overload returns the SMTP info type
-  // whatever `T` the transport resolves with.
-  const transport = nodemailer.createTransport(mailpitHttp) as unknown as Transporter<CaptureInfo>
+  const transport = nodemailer.createTransport(mailpitHttp)
 
   /** A viewable link for one captured message. */
   const messageUrl = (info: CaptureInfo): string => `${viewerBase}/view/${info.id}`
