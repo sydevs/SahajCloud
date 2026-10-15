@@ -1,14 +1,14 @@
 import type { CollectionConfig } from 'payload'
 
 import { jsonField } from '@/fields/jsonField'
-import { LOCALES } from '@/lib/locales'
+import { getLocaleOptions } from '@/lib/locales'
 import {
   TRANSCRIPT_PROVIDERS,
   TRANSCRIPT_STATUSES,
   transcriptSegmentsSchema,
 } from '@/lib/meditations/transcript'
 
-import { applyGlossaryToSegments } from './hooks'
+import { applyGlossaryToSegments } from './hooks/applyGlossaryToSegments'
 
 /**
  * The timestamped transcript of a meditation's recording, one row per
@@ -62,7 +62,7 @@ export const MeditationTranscripts: CollectionConfig = {
       // code no entry can match would disable it silently (#897, line 8).
       name: 'language',
       type: 'select',
-      options: LOCALES.map((locale) => ({ label: locale.label, value: locale.code })),
+      options: getLocaleOptions(),
     },
     {
       // Stored rather than compared at render: the mark belongs to the moment

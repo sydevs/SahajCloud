@@ -1,10 +1,6 @@
 /**
  * The timestamped transcript of a meditation's recording, as stored on
  * `meditation-transcripts`.
- *
- * Shared by the collection, the Lemonfox normaliser, and — once they land —
- * the Meditations transcript endpoints, the `transcribeMeditation` task and
- * the admin Transcript tab.
  */
 import { z } from 'zod'
 
@@ -33,10 +29,9 @@ export const TRANSCRIPT_PROVIDERS = ['lemonfox'] as const
 export type TranscriptProvider = (typeof TRANSCRIPT_PROVIDERS)[number]
 
 /**
- * A queued or processing transcript older than this is treated as stalled, and
- * can be requested again. Lemonfox transcribes 30 minutes of audio in about a
- * minute, so this is far past any healthy run — it exists for a run lost to a
- * restart, which leaves the row `processing` with nothing left to finish it.
+ * A queued or processing transcript older than this may be requested again.
+ * Far past any healthy run — it exists for a run lost to a restart, which
+ * leaves the row `processing` with nothing left to finish it.
  */
 export const TRANSCRIPTION_STALL_MS = 15 * 60 * 1000
 

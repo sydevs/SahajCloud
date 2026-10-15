@@ -1,6 +1,4 @@
 /**
- * Lemonfox's `verbose_json` body, reduced to the stored segment shape.
- *
  * Here rather than beside the HTTP client, because two writers share it: a
  * live transcription and the import of the library's existing transcript
  * files. Nothing in this module fetches.
@@ -12,8 +10,8 @@ import type { TranscriptSegment } from '@/lib/meditations/transcript'
 /**
  * Lemonfox exposes an OpenAI-compatible `verbose_json`, but documents no
  * schema for it. Word timings may sit inside each segment (WhisperX) or in one
- * top-level list (OpenAI); nothing stores them, so both are accepted and
- * neither is read. Everything is optional, and unknown keys are ignored.
+ * top-level list (OpenAI); nothing stores them, so this reads neither and both
+ * layouts reduce to the same answer.
  */
 const rawSegmentSchema = z.object({
   text: z.string(),
@@ -40,7 +38,7 @@ export function normalizeLemonfoxResponse(raw: unknown): TranscriptSegment[] {
     throw new Error('Lemonfox returned a response this app cannot read.')
   }
 
-  const segments = [...(parsed.data.segments ?? [])]
+  const segments = (parsed.data.segments ?? [])
     .filter((segment) => segment.text.trim())
     .sort((a, b) => a.start - b.start)
   if (segments.length === 0) {

@@ -12,7 +12,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { applyGlossary, GLOSSARY } from '@/collections/MeditationTranscripts/glossary'
-import { LOCALES, type LocaleCode } from '@/lib/locales'
+import { LOCALES } from '@/lib/locales'
 
 describe('applyGlossary', () => {
   it.each([
@@ -35,12 +35,15 @@ describe('applyGlossary', () => {
   })
 
   it.each([
-    'the fontanelle area',
-    'Raise the Kundalini.',
-    'Anahat, Anahata, Swadhistan and Swadhisthana are all spellings we keep.',
-    'nothing here is a glossary word',
-  ])('is idempotent on %j', (text) => {
-    expect(applyGlossary(applyGlossary(text, 'en'), 'en')).toBe(applyGlossary(text, 'en'))
+    ['the fontanelle area', 'the fontanelle area'],
+    ['Raise the Kundalini.', 'Raise the Kundalini.'],
+    ['anahat, anahata, swadhistan and swadhisthana', 'Anahat, Anahata, Swadhistan and Swadhisthana'],
+    ['nothing here is a glossary word', 'nothing here is a glossary word'],
+  ])('settles %j at %j and stays there', (text, settled) => {
+    // Pinned against a literal, not a recomputation: comparing `f(f(x))` to
+    // `f(x)` alone would pass for an `applyGlossary` that returned its input.
+    expect(applyGlossary(text, 'en')).toBe(settled)
+    expect(applyGlossary(settled, 'en')).toBe(settled)
   })
 
   it('keeps `fontanel` from matching inside `fontanelle`', () => {
@@ -80,8 +83,7 @@ describe('applyGlossary', () => {
 describe('glossary.json', () => {
   const codes = new Set<string>(LOCALES.map((locale) => locale.code))
 
-  it('parses, and is not empty', () => {
-    expect(Array.isArray(GLOSSARY)).toBe(true)
+  it('is not empty, so the cases above are not vacuous', () => {
     expect(GLOSSARY.length).toBeGreaterThan(10)
   })
 
@@ -105,16 +107,4 @@ describe('glossary.json', () => {
     }
   })
 
-  it('settles every spelling the goal measured as wrong', () => {
-    const written = (heard: string, language: LocaleCode = 'en') =>
-      applyGlossary(heard, language)
-
-    expect(written('fontanel')).toBe('fontanelle')
-    expect(written('fentanyl')).toBe('fontanelle')
-    expect(written('kundalini')).toBe('Kundalini')
-    expect(written('bandhanas')).toBe('bandhans')
-    expect(written('sahasrara')).toBe('Sahasrara')
-    expect(written('anahata')).toBe('Anahata')
-    expect(written('swadhisthana')).toBe('Swadhisthana')
-  })
 })

@@ -15,29 +15,6 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createData, testData } from '../utils/testData'
 import { createTestEnvironment, idOnlySelect } from '../utils/testHelpers'
 
-type Caller = Record<string, unknown> | null
-
-const EDITOR: Caller = {
-  id: 9001,
-  collection: 'managers',
-  type: 'manager',
-  roles: { en: ['meditations-editor'] },
-}
-
-const APP_CLIENT: Caller = {
-  id: 1,
-  collection: 'clients',
-  _status: 'published',
-  roles: ['wemeditate-app-client'],
-}
-
-const ATLAS_CLIENT: Caller = {
-  id: 2,
-  collection: 'clients',
-  _status: 'published',
-  roles: ['sahaj-atlas-client'],
-}
-
 describe('meditation transcripts', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
@@ -65,20 +42,30 @@ describe('meditation transcripts', () => {
         }),
       })
 
-      // A client read carries `select`, or the query-validation hook refuses it
-      // before access control ever runs — and the case would pass for the
-      // wrong reason. `select: {}` is not equivalent; the gate 400s on it.
-      const read = (user: Caller) =>
-        payload.find({
-          collection: 'meditation-transcripts',
-          overrideAccess: false,
-          user: user as never,
-          select: idOnlySelect(),
-        })
+      // Real rows, not stubs. A caller the access layer cannot interpret — an
+      // id matching nothing, a client that was never published — is refused
+      // for the wrong reason, which reads exactly like a working restriction.
+      const editor = await testData.createManager(payload, {
+        roles: { en: ['meditations-editor'] },
+      })
+      const callers = [
+        editor,
+        await testData.createClient(payload, editor.id, { roles: ['wemeditate-app-client'] }),
+        await testData.createClient(payload, editor.id, { roles: ['sahaj-atlas-client'] }),
+      ]
 
-      await expect(read(EDITOR)).rejects.toThrow()
-      await expect(read(APP_CLIENT)).rejects.toThrow()
-      await expect(read(ATLAS_CLIENT)).rejects.toThrow()
+      for (const user of callers) {
+        await expect(
+          payload.find({
+            collection: 'meditation-transcripts',
+            overrideAccess: false,
+            user,
+            // A client read carries `select`, or the query-validation hook
+            // refuses it before access control runs. `select: {}` 400s too.
+            select: idOnlySelect(),
+          }),
+        ).rejects.toThrow()
+      }
     })
   })
 
@@ -120,8 +107,6 @@ describe('meditation transcripts', () => {
     })
 
     it('corrects a segment’s spelling on write, without the caller asking', async () => {
-      // The point of putting the pass on the collection: a later writer gets
-      // the corrected spellings without remembering to call `applyGlossary`.
       const meditation = await testData.createMeditation(payload)
 
       const row = await payload.create({

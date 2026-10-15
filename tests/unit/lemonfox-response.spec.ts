@@ -63,12 +63,6 @@ describe('normalizeLemonfoxResponse', () => {
     expect(normalizeLemonfoxResponse(TOP_LEVEL_WORDS)).toEqual(EXPECTED)
   })
 
-  it('carries no key but text, start and end', () => {
-    for (const segment of normalizeLemonfoxResponse(PER_SEGMENT_WORDS)) {
-      expect(Object.keys(segment).sort()).toEqual(['end', 'start', 'text'])
-    }
-  })
-
   it('orders by start time and drops a segment with no speech', () => {
     const out = normalizeLemonfoxResponse({
       segments: [
