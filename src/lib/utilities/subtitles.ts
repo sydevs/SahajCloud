@@ -11,7 +11,12 @@ import { z } from 'zod'
  * both directions. They part company on empty values only, which an optional
  * column accepts either way.
  */
-const subtitleCue = {
+/**
+ * The one cue shape for every timed phrase this app stores. The two readers
+ * below keep it open; `meditation-transcripts` closes it, because that column
+ * has a single internal writer and no row written under an earlier shape.
+ */
+export const subtitleCue = {
   content: z.string(),
   startTimeMs: z.number(),
   endTimeMs: z.number(),

@@ -9,6 +9,7 @@ import { Events } from '@/collections/Events/Events'
 import { Lectures } from '@/collections/Lectures/Lectures'
 import { Managers } from '@/collections/Managers/Managers'
 import { Meditations } from '@/collections/Meditations/Meditations'
+import { MeditationTranscripts } from '@/collections/MeditationTranscripts/MeditationTranscripts'
 import { Videos } from '@/collections/Videos/Videos'
 import { WeMeditateAppStatus } from '@/globals/WeMeditateAppStatus/WeMeditateAppStatus'
 import { TableOfContentsBlock } from '@/lib/richEditor/blocks/TableOfContentsBlock'
@@ -363,5 +364,49 @@ describe('TableOfContentsBlock.headings', () => {
   it('accepts what the field component stores, and refuses a heading with no slug', () => {
     expect(runSchema(field, [{ slug: 'intro', text: 'Introduction', level: 2 }])).toBe(true)
     expect(runSchema(field, [{ text: 'Introduction', level: 2 }])).not.toBe(true)
+  })
+})
+
+describe('transcriptSegments', () => {
+  const field = jsonField(MeditationTranscripts.fields, 'segments')
+
+  it('is wired onto the column', () => {
+    expect(field.jsonSchema?.schema.title).toBe('TranscriptSegments')
+    expect(field.validate).toBeUndefined()
+  })
+
+  it('accepts a subtitle cue, its optional duration, and null for a row with none', () => {
+    expect(
+      runSchema(field, [{ content: 'Let the thoughts settle.', startTimeMs: 0, endTimeMs: 2500 }]),
+    ).toBe(true)
+    expect(
+      runSchema(field, [
+        { content: 'Let the thoughts settle.', startTimeMs: 0, endTimeMs: 2500, durationMs: 2500 },
+      ]),
+    ).toBe(true)
+    expect(runSchema(field, null)).toBe(true)
+  })
+
+  it('refuses a segment the editor could not seek through', () => {
+    expect(runSchema(field, [{ content: 'no start', endTimeMs: 3000 }])).not.toBe(true)
+    expect(
+      runSchema(field, [{ content: 'not a time', startTimeMs: '0', endTimeMs: 3000 }]),
+    ).not.toBe(true)
+  })
+
+  it('refuses word timings, which this column deliberately does not store', () => {
+    // Closed where `subtitles` is open, so no later writer can reintroduce
+    // them: they were 85% of the stored bytes and have no consumer, since the
+    // player seeks by phrase.
+    expect(
+      runSchema(field, [
+        {
+          content: 'Breathe out.',
+          startTimeMs: 0,
+          endTimeMs: 3000,
+          words: [{ content: 'Breathe', startTimeMs: 0, endTimeMs: 1000 }],
+        },
+      ]),
+    ).not.toBe(true)
   })
 })

@@ -7,7 +7,7 @@
 
 import { describe, it, expect } from 'vitest'
 
-import { buildPayloadLocales } from '../../src/lib/locales'
+import { baseLanguage, buildPayloadLocales, LOCALES } from '../../src/lib/locales'
 
 // Build locales once for all tests
 const allLocales = buildPayloadLocales()
@@ -80,5 +80,24 @@ describe('Locale Configuration (buildPayloadLocales)', () => {
 
     const dutchLocale = allLocales.find((l) => l.code === 'nl')
     expect(dutchLocale?.label).toBe('Dutch')
+  })
+})
+
+describe('baseLanguage', () => {
+  it.each([
+    ['en-AU', 'en'],
+    ['pt-BR', 'pt'],
+    ['en', 'en'],
+    ['fa', 'fa'],
+  ] as const)('reduces %j to %j', (code, language) => {
+    expect(baseLanguage(code)).toBe(language)
+  })
+
+  it('reduces every locale to a code carrying no region', () => {
+    // A list keyed by language (the transcript glossary) holds for every
+    // variant only while this is true of all 19.
+    for (const { code } of LOCALES) {
+      expect(baseLanguage(code)).not.toContain('-')
+    }
   })
 })
