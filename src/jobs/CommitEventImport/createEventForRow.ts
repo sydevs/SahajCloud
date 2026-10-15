@@ -38,7 +38,7 @@ import { isSupportedTimezone } from '@/lib/timezones'
 import { describeValidationErrors, validationFieldErrors } from '@/lib/utilities/validationFailure'
 import type { EventImportProposedRegions, Region } from '@/payload-types'
 
-export interface CommitRowArgs {
+export interface CreateEventForRowArgs {
   /** The commit's write request — deferred cache invalidation and a fresh memo. */
   req: PayloadRequest
   row: CommitRow
@@ -59,7 +59,7 @@ export interface CommitRowArgs {
   placements: ReadonlyMap<number, number>
 }
 
-export async function commitRow(args: CommitRowArgs): Promise<void> {
+export async function createEventForRow(args: CreateEventForRowArgs): Promise<void> {
   const { req, row, batchId, uploader, coordinators } = args
   const region = regionForRow(args)
   if (typeof region !== 'number') {
@@ -156,7 +156,7 @@ type RegionChoice = number | { error: string }
  * a city or a venue, so a row the proposal placed in no node would otherwise be
  * refused by that field's own validator — naming a row id rather than the line.
  */
-function regionForRow(args: CommitRowArgs): RegionChoice {
+function regionForRow(args: CreateEventForRowArgs): RegionChoice {
   const { row, targetId, targetLevel, tree, regions, subtree } = args
   const placement = placeLine(row.line, tree.nodes, regions.known)
 

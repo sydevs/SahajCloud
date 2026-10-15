@@ -29,7 +29,7 @@ import type {
 } from '@/payload-types'
 import { purgeCloudflareCache } from '@/plugins/cache/purge'
 
-import { commitRow } from './commitRow'
+import { createEventForRow } from './createEventForRow'
 import { duplicatePlacements, recheckDuplicates } from './recheckDuplicates'
 import { sendImportSummary } from './summaryEmail'
 
@@ -261,7 +261,7 @@ async function writeClasses(args: {
   const writeReq = commitWriteReq(req)
   let done = 0
   for (const row of writable) {
-    await commitRow({
+    await createEventForRow({
       req: writeReq,
       row,
       batchId,
