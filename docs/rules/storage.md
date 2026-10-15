@@ -71,6 +71,8 @@ A preview holds no unmarked row for this recipe to find, so make one (#704):
 | --- | --- |
 | `storagePlugin.ts` | Plugin orchestration, adapter routing, R2 hook injection |
 | `uploadNotice.ts` | The uploading notice, mounted on every `upload` collection above the plugin's early returns (`docs/rules/admin-ui.md`) |
+| `uploadValidation.ts` | The size ceilings an upload has to fit, the per-category limits and allowed MIME types, and the sentence a refused upload gets back. `DEPLOYMENT.md` owns the ordering rule |
+| `uploadErrorPlugin.ts` | Root `afterError` hook answering Payload's unnamed over-limit 413 with that sentence. Registered in `payload.config.ts`, not by `storagePlugin` |
 | `cloudflareImagesAdapter.ts` | Image uploads to Cloudflare Images |
 | `cloudflareStreamAdapter.ts` | Video uploads to Cloudflare Stream (does not enable downloads — the webhook does) |
 | `cloudflareStreamWebhook.ts` | Pure helpers for the webhook handler (signature verify + downloads call) |
