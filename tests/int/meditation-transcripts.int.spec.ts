@@ -78,12 +78,27 @@ describe('meditation transcripts', () => {
           data: createData<'meditation-transcripts'>({
             meditation: meditation.id,
             status: 'queued',
+            language: 'en',
           }),
         })
 
       await transcript()
 
       await expect(transcript()).rejects.toThrow()
+    })
+
+    it('refuses a row with no language, which would skip the glossary pass', async () => {
+      const meditation = await testData.createMeditation(payload)
+
+      await expect(
+        payload.create({
+          collection: 'meditation-transcripts',
+          data: createData<'meditation-transcripts'>({
+            meditation: meditation.id,
+            status: 'queued',
+          } as never),
+        }),
+      ).rejects.toThrow()
     })
 
     it('refuses a segment missing `start`, and one carrying word timings', async () => {
@@ -94,6 +109,7 @@ describe('meditation transcripts', () => {
           data: createData<'meditation-transcripts'>({
             meditation: meditation.id,
             status: 'completed',
+            language: 'en',
             segments: segments as never,
           }),
         })
@@ -153,7 +169,11 @@ describe('meditation transcripts', () => {
 
       const row = await payload.create({
         collection: 'meditation-transcripts',
-        data: createData<'meditation-transcripts'>({ meditation: meditation.id, status: 'queued' }),
+        data: createData<'meditation-transcripts'>({
+          meditation: meditation.id,
+          status: 'queued',
+          language: 'en',
+        }),
       })
 
       expect(row.outdated).toBe(false)

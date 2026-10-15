@@ -77,6 +77,7 @@ import * as migration_20260929_043344_storage_object_key from './20260929_043344
 import * as migration_20260929_173315_null_manager_password_hashes from './20260929_173315_null_manager_password_hashes';
 import * as migration_20261011_194449_wm_web_discover_translations from './20261011_194449_wm_web_discover_translations';
 import * as migration_20261015_061054_meditation_transcripts from './20261015_061054_meditation_transcripts';
+import * as migration_20261015_070852_require_transcript_language from './20261015_070852_require_transcript_language';
 
 export const migrations = [
   {
@@ -472,6 +473,11 @@ export const migrations = [
   {
     up: migration_20261015_061054_meditation_transcripts.up,
     down: migration_20261015_061054_meditation_transcripts.down,
-    name: '20261015_061054_meditation_transcripts'
+    name: '20261015_061054_meditation_transcripts',
+  },
+  {
+    up: migration_20261015_070852_require_transcript_language.up,
+    down: migration_20261015_070852_require_transcript_language.down,
+    name: '20261015_070852_require_transcript_language'
   },
 ];

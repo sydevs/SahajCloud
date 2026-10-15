@@ -58,10 +58,13 @@ export const MeditationTranscripts: CollectionConfig = {
       options: [...TRANSCRIPT_PROVIDERS],
     },
     {
-      // A `select`, not free text: the glossary pass keys on this value, and a
-      // code no entry can match would disable it silently (#897, line 8).
+      // A required `select`, not free text: the glossary pass keys on this
+      // value, and a code no entry can match — or none at all — would disable
+      // it silently (#897, line 8). Every writer has one, because a
+      // meditation's own `locale` is required.
       name: 'language',
       type: 'select',
+      required: true,
       options: getLocaleOptions(),
     },
     {
