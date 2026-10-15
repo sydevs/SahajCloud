@@ -8,6 +8,8 @@ import {
   transcriptSegmentsSchema,
 } from '@/lib/meditations/transcript'
 
+import { applyGlossaryToSegments } from './hooks'
+
 /**
  * The timestamped transcript of a meditation's recording, one row per
  * meditation.
@@ -24,6 +26,9 @@ export const MeditationTranscripts: CollectionConfig = {
   admin: {
     hidden: true,
     useAsTitle: 'audioFilename',
+  },
+  hooks: {
+    beforeChange: [applyGlossaryToSegments],
   },
   fields: [
     {
