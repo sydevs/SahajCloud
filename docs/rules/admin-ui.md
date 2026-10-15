@@ -77,18 +77,18 @@ Three things decide whether the native button is right:
 - **The tab's `condition` has to agree with the target field's own validator.** A tab offering a create form that the validator then refuses reads as broken rather than as scoped, so `IMPORT_TAB` shares `isProposableTargetLevel` with `EventImports.targetRegion` rather than restating the levels.
 - **The tab belongs to the host collection, not to the feature it opens.** `src/collections/Regions/importTab.ts` holds it, beside the Events tab it is shaped like, and the only thing crossing the boundary is that one pure predicate. A field of `Regions.tabs` has exactly one consumer, so by `src/AGENTS.md`'s organization rules it is Regions' own code — declaring it under `EventImports/` made the repo's only collection-to-collection import, which is the edge rule 4 names.
 
-### `WorkflowActions` — stage-dependent document buttons as data
+### `WorkflowButtons` — stage-dependent document buttons as data
 
-`src/components/admin/buttons/WorkflowActions/` replaces a bespoke button component per staged collection. A collection declares its buttons through `clientProps` on an edit-view slot:
+`src/components/admin/WorkflowButtons/` replaces a bespoke button component per staged collection. A collection declares its buttons through `clientProps` on an edit-view slot:
 
 ```ts
 admin.components.edit.SaveButton = {
-  path: WORKFLOW_ACTIONS,
+  path: WORKFLOW_BUTTONS,
   clientProps: {
     statusField: 'status',                      // the form field whose value picks the stage
     fallback: null,                             // 'publish' | 'save' | 'saveDraft' | null
     stages: { [CREATE_STAGE]: [{ label: 'Upload & resolve addresses', overrides: {} }] },
-  } satisfies WorkflowActionsProps<MyStage>,
+  } satisfies WorkflowButtonsProps<MyStage>,
 }
 ```
 

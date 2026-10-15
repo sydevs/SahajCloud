@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * `WorkflowActions` — the document-control buttons every staged collection
+ * `WorkflowButtons` — the document-control buttons every staged collection
  * declares as data (#907).
  *
  * It needs a DOM for the half that is wiring rather than logic: which hook feeds
@@ -57,12 +57,12 @@ vi.mock('@payloadcms/ui', () => ({
 import {
   CREATE_STAGE,
   resolveStage,
-  type WorkflowActionsProps,
-} from '@/components/admin/buttons/WorkflowActions/stages'
-import WorkflowActions from '@/components/admin/buttons/WorkflowActions/WorkflowActions'
+  type WorkflowButtonsProps,
+} from '@/components/admin/WorkflowButtons/stages'
+import WorkflowButtons from '@/components/admin/WorkflowButtons/WorkflowButtons'
 
 /** `event-imports`' own declaration, trimmed to the stages each case needs. */
-const imports: WorkflowActionsProps = {
+const imports: WorkflowButtonsProps = {
   statusField: 'status',
   fallback: null,
   stages: {
@@ -78,7 +78,7 @@ const imports: WorkflowActionsProps = {
 }
 
 /** Meditations' own declaration: no status field, one stage, a fallback. */
-const meditations: WorkflowActionsProps = {
+const meditations: WorkflowButtonsProps = {
   fallback: 'saveDraft',
   stages: {
     [CREATE_STAGE]: [
@@ -122,7 +122,7 @@ describe('resolveStage', () => {
   })
 })
 
-describe('WorkflowActions', () => {
+describe('WorkflowButtons', () => {
   let container: HTMLDivElement
   let root: Root
 
@@ -139,9 +139,9 @@ describe('WorkflowActions', () => {
     root = createRoot(container)
   })
 
-  const render = (props: WorkflowActionsProps) => {
+  const render = (props: WorkflowButtonsProps) => {
     act(() => {
-      root.render(createElement(WorkflowActions, props))
+      root.render(createElement(WorkflowButtons, props))
     })
   }
 

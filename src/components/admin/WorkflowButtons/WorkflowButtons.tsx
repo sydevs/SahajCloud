@@ -1,6 +1,6 @@
 'use client'
 
-import type { WorkflowAction, WorkflowActionsProps } from './stages'
+import type { WorkflowButton, WorkflowButtonsProps } from './stages'
 
 import {
   FormSubmit,
@@ -46,7 +46,7 @@ const FALLBACKS = {
  * and never `SaveButton`, so Meditations declares the first two and
  * `event-imports` the third.
  */
-const WorkflowActions: React.FC<WorkflowActionsProps> = ({ fallback, stages, statusField }) => {
+const WorkflowButtons: React.FC<WorkflowButtonsProps> = ({ fallback, stages, statusField }) => {
   const { uploadStatus } = useDocumentInfo()
   const operation = useOperation()
   const { submit } = useForm()
@@ -56,7 +56,7 @@ const WorkflowActions: React.FC<WorkflowActionsProps> = ({ fallback, stages, sta
   )
 
   const run = useCallback(
-    (action: WorkflowAction) => {
+    (action: WorkflowButton) => {
       if (action.confirm && !window.confirm(action.confirm)) return
       void submit({ overrides: action.overrides, skipValidation: action.skipValidation })
     },
@@ -104,4 +104,4 @@ const WorkflowActions: React.FC<WorkflowActionsProps> = ({ fallback, stages, sta
   )
 }
 
-export default WorkflowActions
+export default WorkflowButtons

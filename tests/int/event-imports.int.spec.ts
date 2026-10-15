@@ -26,8 +26,8 @@ import { EventImports } from '@/collections/EventImports/EventImports'
 import { ALLOWED } from '@/collections/EventImports/hooks/transitionStatus'
 import { PROPOSABLE_TARGET_LEVELS } from '@/collections/EventImports/propose/tree'
 import { IMPORT_TAB } from '@/collections/Regions/importTab'
-import type { WorkflowActionsProps } from '@/components/admin/buttons/WorkflowActions/stages'
-import { CREATE_STAGE } from '@/components/admin/buttons/WorkflowActions/stages'
+import type { WorkflowButtonsProps } from '@/components/admin/WorkflowButtons/stages'
+import { CREATE_STAGE } from '@/components/admin/WorkflowButtons/stages'
 import { getDocManagerFields } from '@/plugins/access/documentManagers'
 
 import { createAnonRestClient, createRestClientAs } from '../utils/restRequest'
@@ -404,7 +404,7 @@ describe('event-imports', () => {
   describe('the buttons and the transition table', () => {
     const stages = (
       EventImports.admin?.components?.edit?.SaveButton as {
-        clientProps: WorkflowActionsProps
+        clientProps: WorkflowButtonsProps
       }
     ).clientProps.stages
 

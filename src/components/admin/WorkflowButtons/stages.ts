@@ -1,22 +1,22 @@
 /**
- * `WorkflowActions`' contract, in a leaf both sides may import.
+ * `WorkflowButtons`' contract, in a leaf both sides may import.
  *
  * ⚠ **A collection config must not import these from the component.** Every
  * export of a `'use client'` module reaches a server module as a client
  * reference rather than its value, so a config reading `CREATE_STAGE` from
- * `WorkflowActions.tsx` would key its `stages` map on an object. The component
+ * `WorkflowButtons.tsx` would key its `stages` map on an object. The component
  * imports this file; the configs that declare it do too — the same shape as
  * `UserSubmissions/statuses.ts`, which `SubmissionActions` and the review
  * operation share.
  */
 
 /** Where the component is declared from, so a move cannot orphan a declaration. */
-export const WORKFLOW_ACTIONS = '@/components/admin/buttons/WorkflowActions'
+export const WORKFLOW_BUTTONS = '@/components/admin/WorkflowButtons'
 
 /** The stage an unsaved document is at, whatever `statusField` already holds. */
 export const CREATE_STAGE = '__create__'
 
-export interface WorkflowAction {
+export interface WorkflowButton {
   /** What the button reads. */
   label: string
   /** Merged into the submit — `{ status: 'committing' }`, `{ _status: 'draft' }`. */
@@ -30,13 +30,13 @@ export interface WorkflowAction {
 /**
  * `TStage` is the collection's own stage vocabulary, so a declaration names it
  * and a typo is a type error rather than a stage that silently renders the
- * fallback — `satisfies WorkflowActionsProps<ImportStatus | typeof CREATE_STAGE>`.
+ * fallback — `satisfies WorkflowButtonsProps<ImportStatus | typeof CREATE_STAGE>`.
  */
-export interface WorkflowActionsProps<TStage extends string = string> {
+export interface WorkflowButtonsProps<TStage extends string = string> {
   /** Form field whose value picks the stage; omit to key on the create alone. */
   statusField?: string
   /** Buttons per stage. An empty array is a stage with no action, not a missing one. */
-  stages: Partial<Record<TStage, WorkflowAction[]>>
+  stages: Partial<Record<TStage, WorkflowButton[]>>
   /** What a stage with no entry renders: Payload's own button, or nothing. */
   fallback: 'publish' | 'save' | 'saveDraft' | null
 }

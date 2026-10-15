@@ -4,7 +4,7 @@
  *
  * ⚠ **`status` carries only `admin.readOnly`, so this hook is the whole gate.**
  * The uploader holds document-level `update` through the `manager` field
- * (`EventImports.ts`), and `WorkflowActions` submits a status override as an
+ * (`EventImports.ts`), and `WorkflowButtons` submits a status override as an
  * ordinary `PATCH` — so field access cannot tell the Commit button from a
  * volunteer naming `finished` by hand. Without this hook a batch could be moved
  * straight to `committing` with no tree, or back out of `finished`.

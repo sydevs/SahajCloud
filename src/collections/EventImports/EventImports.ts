@@ -3,10 +3,10 @@ import type { CollectionConfig } from 'payload'
 import { z } from 'zod'
 
 import type {
-  WorkflowAction,
-  WorkflowActionsProps,
-} from '@/components/admin/buttons/WorkflowActions/stages'
-import { CREATE_STAGE, WORKFLOW_ACTIONS } from '@/components/admin/buttons/WorkflowActions/stages'
+  WorkflowButton,
+  WorkflowButtonsProps,
+} from '@/components/admin/WorkflowButtons/stages'
+import { CREATE_STAGE, WORKFLOW_BUTTONS } from '@/components/admin/WorkflowButtons/stages'
 import { jsonField } from '@/fields/jsonField'
 import { baseLanguage, getLanguageOptions } from '@/lib/locales'
 import type { EventImport, Manager } from '@/payload-types'
@@ -35,7 +35,7 @@ const nodeLocation = z
 /** Every stage the buttons may be declared for: a status, or the unsaved form. */
 type ImportStage = NonNullable<EventImport['status']> | typeof CREATE_STAGE
 
-const DISCARD: WorkflowAction = {
+const DISCARD: WorkflowButton = {
   label: 'Discard',
   overrides: { status: 'discarded' },
   buttonStyle: 'secondary',
@@ -48,7 +48,7 @@ const DISCARD: WorkflowAction = {
  * transition can move — and each job re-reads the status before its terminal
  * write, so a discard that lands mid-run wins.
  */
-const DISCARD_RUNNING: WorkflowAction = {
+const DISCARD_RUNNING: WorkflowButton = {
   ...DISCARD,
   confirm: 'This import is still running. Discard it anyway?',
 }
@@ -118,7 +118,7 @@ export const EventImports: CollectionConfig = {
       // checks both directions, because prose could not.
       edit: {
         SaveButton: {
-          path: WORKFLOW_ACTIONS,
+          path: WORKFLOW_BUTTONS,
           clientProps: {
             statusField: 'status',
             // `finished` and `discarded` are records, and the create form's own
@@ -142,7 +142,7 @@ export const EventImports: CollectionConfig = {
             },
             // The stage vocabulary is this collection's own, so a misspelled key
             // is a type error rather than a stage that renders no buttons.
-          } satisfies WorkflowActionsProps<ImportStage>,
+          } satisfies WorkflowButtonsProps<ImportStage>,
         },
       },
     },
