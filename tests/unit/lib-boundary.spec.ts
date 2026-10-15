@@ -27,8 +27,10 @@ import { describe, expect, it } from 'vitest'
  *    until #681, which made `geocoder` read as single-consumer the moment a
  *    `src/lib` re-export of its `RegionLevel` was removed.
  *
- * So consumers are counted over the whole repo, in every import form. Tests and
- * scripts count as consumers of what they import.
+ * So consumers are counted over `src/`, `scripts/` and `seeds/`, in every import
+ * form. `tests/` is deliberately outside the graph: nearly every lib module has
+ * a spec, so counting one would read as "shared" for exactly the private
+ * helpers this catches.
  *
  * A module consumed **only from inside `src/lib`** is exempt: that is a shared
  * module decomposed into parts (a barrel and its members. An integration seam
