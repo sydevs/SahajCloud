@@ -182,6 +182,8 @@ Every per-field refusal names the input that tripped it: `errors[0].data` is `{ 
 
 An address's domain half is not a link, in any scanned field: `visitor@gmail.com` passes (#921). A value carrying both still fails — `a@b.com buy at cheap.shop`, and `https://user@evil.com`.
 
+A **proposal**'s `proposed` patch is scanned at screening rather than at create, so a link in it never reaches a response: the row is binned `spam` asynchronously, and nothing re-screens it. Every Events column that exists to hold an address or a link is exempt there, read off the Events config rather than listed (#920), so a client may send a real `https://` URL in one and a venue's address in another. Free text beside them — a title, a description, a street line — is refused exactly as `submissionData` is.
+
 Clients hold **create only**, with no update of any kind and no read at any depth or scope.
 
 ### What happens after the 201

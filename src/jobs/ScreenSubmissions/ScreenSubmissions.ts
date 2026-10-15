@@ -189,7 +189,10 @@ async function screen(args: {
   }
 
   if (submission.type === 'proposal') {
-    const refusal = screenProposalContent(submission.proposed)
+    const refusal = screenProposalContent(
+      submission.proposed,
+      req.payload.collections.events?.config.flattenedFields ?? [],
+    )
     if (refusal) {
       diagnostic = refusal
       return settle('content_rejected')

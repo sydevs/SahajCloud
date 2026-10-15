@@ -17,6 +17,12 @@ export interface WriteGuardOperationPolicy {
    * Fields whose free text must not contain URLs. A field holding an object
    * (e.g. registration `questions`) has all its string leaves scanned.
    * Dedicated URL fields (website, onlineUrl, …) are simply never listed.
+   *
+   * ⚠ Omission is the mechanism **here only**, and it is half the answer for
+   * `proposed`: the screening job walks that whole column and derives the same
+   * exemption from the Events config (`@/jobs/ScreenSubmissions/contentScreening`,
+   * #920). So widening a `proposed.*` path here scans more than this list says,
+   * and a new free-text Events column is scanned by neither until it is added.
    */
   urlScanFields?: string[]
 }
