@@ -20,7 +20,7 @@ import { APIError } from 'payload'
 import type { Coordinators } from '@/collections/EventImports/commit/coordinators'
 import { eventCreateData } from '@/collections/EventImports/commit/eventData'
 import { managerKeyOf } from '@/collections/EventImports/commit/managers'
-import { placeLine } from '@/collections/EventImports/commit/placement'
+import { placeLine, placeRepeatOfLine } from '@/collections/EventImports/commit/placement'
 import type { EnsuredRegions } from '@/collections/EventImports/commit/regions'
 import type { CommitRow, Uploader } from '@/collections/EventImports/commit/rows'
 import {
@@ -148,9 +148,9 @@ type RegionChoice = number | { error: string }
  * volunteer reads it, against the line they can fix.
  *
  * ⚠ **A duplicate the reviewer chose to import is in no node.** The proposal
- * leaves duplicates out of the tree, so such a row is filed where the class it
- * repeats is: under the same hall for a strong match, under that hall's town for
- * a weak one, which may be another hall.
+ * leaves duplicates out of the tree, so such a row is filed where the class or
+ * line it repeats is: under the same hall for a strong match, under that hall's
+ * town for a weak one, which may be another hall (`placeRepeatOfLine`).
  *
  * ⚠ **A country or state target cannot hold a class itself.** `Events.region` is
  * a city or a venue, so a row the proposal placed in no node would otherwise be
@@ -183,7 +183,13 @@ function regionForRow(args: CommitRowArgs): RegionChoice {
       : regionId
   }
   if (repeated?.line !== undefined) {
-    const first = placeLine(repeated.line, tree.nodes, regions.known)
+    const first = placeRepeatOfLine(
+      repeated.line,
+      repeated.strength,
+      tree.nodes,
+      regions.known,
+      args.targetId,
+    )
     if (first.kind === 'region') return first.regionId
   }
 

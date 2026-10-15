@@ -112,6 +112,33 @@ export function placeLine(
 }
 
 /**
+ * Where a row that repeats an earlier line of the same file goes, once the
+ * reviewer chose to import it.
+ *
+ * ⚠ **A weak match is filed under the town, never the hall.** It matched on town
+ * and time, not on address, so filing it under the earlier line's venue would
+ * put a class in a hall it is not in. A strong match is the same hall, and goes
+ * where that line went. This is the in-file twin of the rule `commitRow` applies
+ * to a repeat of an existing class.
+ */
+export function placeRepeatOfLine(
+  line: number,
+  strength: 'strong' | 'weak' | undefined,
+  nodes: readonly ProposedNode[],
+  known: NodeRegionIds,
+  targetId: number,
+): Placement {
+  const placement = placeLine(line, nodes, known)
+  if (strength !== 'weak' || placement.kind !== 'region') return placement
+  const hall = deepestNodeFor(line, nodes)
+  if (!hall || hall.level !== 'venue') return placement
+  const town = parentRegionId(hall, known, targetId)
+  if (town !== null) return { kind: 'region', regionId: town }
+  const parent = nodes.find((node) => node.key === hall.parentKey)
+  return parent ? { kind: 'pending', node: parent } : placement
+}
+
+/**
  * ⚠ **Decided before any id is consulted, so an uncreated node cannot be
  * skipped past.** Reading the map first and taking the deepest node that happens
  * to have one is how the ancestor becomes the answer.

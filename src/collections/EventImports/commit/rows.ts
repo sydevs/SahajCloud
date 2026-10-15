@@ -58,7 +58,9 @@ export function skipReasons(row: CommitRow, extra: readonly string[] = []): stri
 export function duplicateMatchNote(row: CommitRow): null | string {
   if (!row.duplicate) return null
   const { atCommit, line, eventId, strength } = row.duplicate
-  if (line !== undefined) return `a repeat of line ${line}`
+  if (line !== undefined) {
+    return strength === 'weak' ? `possibly a repeat of line ${line}` : `a repeat of line ${line}`
+  }
   const what = eventId !== undefined ? `class #${eventId}` : 'an existing class'
   if (atCommit) return `a repeat of ${what}, added after you reviewed this batch`
   return strength === 'weak' ? `possibly a repeat of ${what}` : `a repeat of ${what}`

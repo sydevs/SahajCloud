@@ -5,6 +5,7 @@ import {
   matchedRegionIds,
   parentRegionId,
   placeLine,
+  placeRepeatOfLine,
 } from '@/collections/EventImports/commit/placement'
 import type { ProposedNode } from '@/collections/EventImports/propose/tree'
 
@@ -99,6 +100,53 @@ describe('placeLine', () => {
     ]
 
     expect(placeLine(3, nodes, new Map())).toMatchObject({ kind: 'pending' })
+  })
+})
+
+describe('placeRepeatOfLine', () => {
+  // A city target: each hall hangs straight off it, and line 3 is in the hall.
+  const nodes = [node('venue:hall', 'venue', [3])]
+  const known = new Map([['venue:hall', 61]])
+
+  it('files a strong repeat in the hall of the line it repeats', () => {
+    expect(placeRepeatOfLine(3, 'strong', nodes, known, TARGET_ID)).toEqual({
+      kind: 'region',
+      regionId: 61,
+    })
+  })
+
+  /**
+   * ⚠ **The defect this exists for.** A weak match shares a town and a time, not
+   * an address, so the hall of the line it repeats is a hall it is not in.
+   */
+  it('files a weak repeat in the town, not the hall', () => {
+    expect(placeRepeatOfLine(3, 'weak', nodes, known, TARGET_ID)).toEqual({
+      kind: 'region',
+      regionId: TARGET_ID,
+    })
+  })
+
+  it('files a weak repeat under a proposed parent once it exists, and waits while it does not', () => {
+    const nested = [
+      node('city:pune', 'city', [3]),
+      node('venue:hall', 'venue', [3], { parentKey: 'city:pune' }),
+    ]
+
+    expect(
+      placeRepeatOfLine(3, 'weak', nested, new Map([['city:pune', 60], ['venue:hall', 61]]), TARGET_ID),
+    ).toEqual({ kind: 'region', regionId: 60 })
+    expect(placeRepeatOfLine(3, 'weak', nested, new Map([['venue:hall', 61]]), TARGET_ID)).toEqual({
+      kind: 'pending',
+      node: nested[0],
+    })
+  })
+
+  it('leaves a weak repeat of a line filed in a town where that line went', () => {
+    const cities = [node('city:pune', 'city', [3])]
+    expect(placeRepeatOfLine(3, 'weak', cities, new Map([['city:pune', 60]]), TARGET_ID)).toEqual({
+      kind: 'region',
+      regionId: 60,
+    })
   })
 })
 

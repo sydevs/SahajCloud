@@ -144,6 +144,14 @@ describe('what the rows table says about one line', () => {
     expect(duplicateMatchNote(imported)).toBe('possibly a repeat of class #412')
   })
 
+  it('words a weak repeat of an earlier line as a possibility, like one of a class', () => {
+    const weak = row({ resolved: RESOLVED, duplicate: { reason: 'city-and-time', line: 3, strength: 'weak' } })
+    const strong = row({ resolved: RESOLVED, duplicate: { reason: 'nearby-address', line: 3, strength: 'strong' } })
+
+    expect(duplicateMatchNote(weak)).toBe('possibly a repeat of line 3')
+    expect(duplicateMatchNote(strong)).toBe('a repeat of line 3')
+  })
+
   it('falls back to an em dash for a blank title rather than printing nothing', () => {
     expect(rowTitle(row({ values: { title: '   ' } }))).toBe('—')
     expect(rowTitle(row())).toBe('Tuesday Meditation')
