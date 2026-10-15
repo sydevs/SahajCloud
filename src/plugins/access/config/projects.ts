@@ -154,8 +154,9 @@ const ALL_PROJECT_COLLECTIONS: ContentSlug[] = (() => {
 // --- Restricted collections ---
 
 /**
- * Collections that carry personal data or credentials and must NEVER fall
- * under the "not in any project → shared, readable by every role" rule.
+ * Collections that must NEVER fall under the "not in any project → shared,
+ * readable by every role" rule — personal data, credentials, or internal data
+ * no client key should hold.
  * Implicit read (`hasPermission` step 4a) skips these entirely; only an
  * explicit `read` grant in a role, the admin bypass, or — for the caller's own
  * document — self-access reaches them.
