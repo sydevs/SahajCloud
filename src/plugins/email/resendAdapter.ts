@@ -6,6 +6,7 @@ import * as Sentry from '@sentry/nextjs'
 import { Resend } from 'resend'
 
 import { serverEnv } from '@/lib/env'
+import { headerDisplayName } from '@/lib/utilities/emailSafeText'
 
 import { getEmailBrand } from './brand'
 import { MANAGER_EMAIL_FROM } from './senders'
@@ -48,24 +49,51 @@ function toResendAttachments(
   return mapped.length > 0 ? mapped : undefined
 }
 
+type AddressField = SendEmailOptions['cc'] | SendEmailOptions['replyTo']
+
 /**
- * Flatten nodemailer's `Address | string` forms to the plain strings Resend
- * takes.
+ * Flatten nodemailer's `Address | string` forms to the plain strings Resend takes.
  *
  * Shared by `replyTo` and `cc`, which nodemailer types identically — and an
  * unmapped field is dropped in silence (`docs/rules/email.md`), so one helper is
  * what keeps the second one from being forgotten.
+ *
+ * nodemailer 10 made every `Address` field optional and admits nested arrays, so
+ * an object carrying only a `name` or a `group` now type-checks. Such an entry is
+ * dropped with a warning: nothing it carries can become a header string, and the
+ * Resend 422 that used to surface the shape is gone.
+ *
+ * ⚠ Narrow on the object, never on `'address' in entry` — the shape the optional
+ * field made expressible omits the key, so a key check drops it silently instead.
  */
-function toAddressList(value: SendEmailOptions['cc'] | SendEmailOptions['replyTo']): string[] | undefined {
-  const entries = (Array.isArray(value) ? value : [value]).flatMap((entry) => {
-    if (typeof entry === 'string') return [entry]
-    if (entry && typeof entry === 'object' && 'address' in entry) {
-      return [entry.name ? `${entry.name} <${entry.address}>` : entry.address]
-    }
-    return []
-  })
+function toAddressList(
+  value: AddressField,
+  onUnsupported: (name: string) => void,
+): string[] | undefined {
+  const addresses: string[] = []
 
-  return entries.length > 0 ? entries : undefined
+  const take = (entry: AddressField): void => {
+    if (Array.isArray(entry)) {
+      entry.forEach(take)
+      return
+    }
+    if (typeof entry === 'string') {
+      addresses.push(entry)
+      return
+    }
+    if (!entry) return
+
+    const { address, name } = entry
+    if (!address) {
+      onUnsupported(name ?? 'unnamed')
+      return
+    }
+    addresses.push(name ? `${headerDisplayName(name)} <${address}>` : address)
+  }
+
+  take(value)
+
+  return addresses.length > 0 ? addresses : undefined
 }
 
 export const resendAdapter = (): EmailAdapter => {
@@ -115,8 +143,18 @@ export const resendAdapter = (): EmailAdapter => {
               filename,
             }),
           )
-          const replyTo = toAddressList(message.replyTo)
-          const cc = toAddressList(message.cc)
+          const replyTo = toAddressList(message.replyTo, (name) =>
+            payload.logger.warn({
+              msg: 'Resend adapter: dropping replyTo entry with no address',
+              name,
+            }),
+          )
+          const cc = toAddressList(message.cc, (name) =>
+            payload.logger.warn({
+              msg: 'Resend adapter: dropping cc entry with no address',
+              name,
+            }),
+          )
 
           // Convert Payload's SendEmailOptions to Resend's format
           const { data, error } = await resend.emails.send({

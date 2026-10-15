@@ -51,8 +51,7 @@ Payload's `SendEmailOptions` is nodemailer-shaped, but the adapter translates it
 Currently mapped: `from`, `to`, `cc`, `subject`, `html`, `text`, `replyTo`, `attachments`.
 
 - `attachments` narrows to a string/Buffer `content` or a hosted `path`. nodemailer also allows a `Readable`, which Resend's REST API cannot accept — a stream is dropped with a warning rather than sent as a payload that would 422.
-- `replyTo` and `cc` both flatten nodemailer's `Address` objects to plain strings, through one
-  shared helper — two copies is how the second one gets forgotten.
+- `replyTo` and `cc` both flatten nodemailer's `Address` objects to plain strings, through one shared helper — two copies is how the second one gets forgotten. The display name goes through `headerDisplayName`, emitted unquoted inside `Name <address>`. An entry with no `address` is dropped with a warning: nodemailer 10 made that field optional, so the shape type-checks and the Resend 422 that used to surface it is gone.
 
 The nodemailer/Mailpit adapter needs no such mapping — it spreads `...message` straight into `transport.sendMail()`, so every field passes through.
 
