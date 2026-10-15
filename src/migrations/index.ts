@@ -76,6 +76,7 @@ import * as migration_20260929_041116_payload_3_90_auth_fields from './20260929_
 import * as migration_20260929_043344_storage_object_key from './20260929_043344_storage_object_key';
 import * as migration_20260929_173315_null_manager_password_hashes from './20260929_173315_null_manager_password_hashes';
 import * as migration_20261011_194449_wm_web_discover_translations from './20261011_194449_wm_web_discover_translations';
+import * as migration_20261015_061054_meditation_transcripts from './20261015_061054_meditation_transcripts';
 
 export const migrations = [
   {
@@ -466,6 +467,11 @@ export const migrations = [
   {
     up: migration_20261011_194449_wm_web_discover_translations.up,
     down: migration_20261011_194449_wm_web_discover_translations.down,
-    name: '20261011_194449_wm_web_discover_translations'
+    name: '20261011_194449_wm_web_discover_translations',
+  },
+  {
+    up: migration_20261015_061054_meditation_transcripts.up,
+    down: migration_20261015_061054_meditation_transcripts.down,
+    name: '20261015_061054_meditation_transcripts'
   },
 ];

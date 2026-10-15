@@ -9,6 +9,7 @@ import { Events } from '@/collections/Events/Events'
 import { Lectures } from '@/collections/Lectures/Lectures'
 import { Managers } from '@/collections/Managers/Managers'
 import { Meditations } from '@/collections/Meditations/Meditations'
+import { MeditationTranscripts } from '@/collections/MeditationTranscripts/MeditationTranscripts'
 import { Videos } from '@/collections/Videos/Videos'
 import { WeMeditateAppStatus } from '@/globals/WeMeditateAppStatus/WeMeditateAppStatus'
 import { TableOfContentsBlock } from '@/lib/richEditor/blocks/TableOfContentsBlock'
@@ -363,5 +364,35 @@ describe('TableOfContentsBlock.headings', () => {
   it('accepts what the field component stores, and refuses a heading with no slug', () => {
     expect(runSchema(field, [{ slug: 'intro', text: 'Introduction', level: 2 }])).toBe(true)
     expect(runSchema(field, [{ text: 'Introduction', level: 2 }])).not.toBe(true)
+  })
+})
+
+describe('transcriptSegments', () => {
+  const field = jsonField(MeditationTranscripts.fields, 'segments')
+
+  it('is wired onto the column', () => {
+    expect(field.jsonSchema?.schema.title).toBe('TranscriptSegments')
+    expect(field.validate).toBeUndefined()
+  })
+
+  it('accepts phrase segments, and null for a row with none', () => {
+    expect(runSchema(field, [{ text: 'Let the thoughts settle.', start: 0, end: 2.5 }])).toBe(true)
+    expect(runSchema(field, null)).toBe(true)
+  })
+
+  it('refuses a segment the editor could not seek through', () => {
+    expect(runSchema(field, [{ text: 'no start', end: 3 }])).not.toBe(true)
+    expect(runSchema(field, [{ text: 'backwards', start: -1, end: 3 }])).not.toBe(true)
+  })
+
+  it('refuses word timings, which this column deliberately does not store', () => {
+    // The shape is closed so no later writer can reintroduce them: they were
+    // 85% of the stored bytes and have no consumer, since the player reports
+    // whole seconds.
+    expect(
+      runSchema(field, [
+        { text: 'Breathe out.', start: 0, end: 3, words: [{ text: 'Breathe', start: 0, end: 1 }] },
+      ]),
+    ).not.toBe(true)
   })
 })

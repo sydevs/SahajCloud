@@ -1,0 +1,58 @@
+/**
+ * Lemonfox's `verbose_json` body, reduced to the stored segment shape.
+ *
+ * Here rather than beside the HTTP client, because two writers share it: a
+ * live transcription and the import of the library's existing transcript
+ * files. Nothing in this module fetches.
+ */
+import { z } from 'zod'
+
+import type { TranscriptSegment } from '@/lib/meditations/transcript'
+
+/**
+ * Lemonfox exposes an OpenAI-compatible `verbose_json`, but documents no
+ * schema for it. Word timings may sit inside each segment (WhisperX) or in one
+ * top-level list (OpenAI); nothing stores them, so both are accepted and
+ * neither is read. Everything is optional, and unknown keys are ignored.
+ */
+const rawSegmentSchema = z.object({
+  text: z.string(),
+  start: z.number(),
+  end: z.number(),
+})
+
+const rawResponseSchema = z.object({
+  segments: z.array(rawSegmentSchema).optional(),
+})
+
+const roundToMillisecond = (seconds: number): number =>
+  Math.round(Math.max(0, seconds) * 1000) / 1000
+
+/**
+ * Reduce a Lemonfox `verbose_json` body to the stored segment shape.
+ *
+ * Throws when the body holds no timestamped segment, since a transcript the
+ * editor cannot seek through is not one this feature can use.
+ */
+export function normalizeLemonfoxResponse(raw: unknown): TranscriptSegment[] {
+  const parsed = rawResponseSchema.safeParse(raw)
+  if (!parsed.success) {
+    throw new Error('Lemonfox returned a response this app cannot read.')
+  }
+
+  const segments = [...(parsed.data.segments ?? [])]
+    .filter((segment) => segment.text.trim())
+    .sort((a, b) => a.start - b.start)
+  if (segments.length === 0) {
+    throw new Error('Lemonfox returned no timestamped speech for this recording.')
+  }
+
+  return segments.map((segment) => {
+    const start = roundToMillisecond(segment.start)
+    return {
+      text: segment.text.trim(),
+      start,
+      end: Math.max(start, roundToMillisecond(segment.end)),
+    }
+  })
+}
