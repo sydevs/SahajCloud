@@ -3,8 +3,9 @@
  * spelled in a transcript (#897, success lines 7 and 8).
  *
  * Fixture pre-mortem: the cases below assume `glossary.json` is a flat array
- * of `{ heard, written, language }` whose `language` is a list of `LOCALES`
- * codes, and that every entry names `en` and none names `ru`. Verified against
+ * of `{ heard, written, language }` whose `language` is a list of base
+ * languages — `en`, never `en-AU` — and that every entry names `en` and none
+ * names `ru`. Verified against
  * `src/collections/MeditationTranscripts/glossary.json` and
  * `src/lib/locales/index.ts`. The last `describe` asserts both rather than
  * trusting them.
@@ -12,7 +13,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { applyGlossary, GLOSSARY } from '@/collections/MeditationTranscripts/glossary'
-import { LOCALES } from '@/lib/locales'
+import { baseLanguage, LOCALES } from '@/lib/locales'
 
 describe('applyGlossary', () => {
   it.each([
@@ -85,6 +86,16 @@ describe('applyGlossary', () => {
     expect(GLOSSARY.some((entry) => entry.language.includes('ru'))).toBe(false)
   })
 
+  it.each([
+    ['en-AU', 'at the sahasrara', 'at the Sahasrara'],
+    ['pt-BR', 'a kundalini sobe', 'a Kundalini sobe'],
+  ] as const)('corrects a %s transcript through its base language', (locale, heard, written) => {
+    // `en` covers every `en-*`, so no entry names a region. Without the
+    // reduction in `applyGlossary` an Australian transcript takes no pass at
+    // all, which is the silent skip a required `language` exists to prevent.
+    expect(applyGlossary(heard, locale)).toBe(written)
+  })
+
   it('corrects a Latin-script language the same way as English', () => {
     // The point of the list: these are Sanskrit words, so French wants the
     // same spelling English does rather than nothing at all.
@@ -105,13 +116,13 @@ describe('applyGlossary', () => {
 })
 
 describe('glossary.json', () => {
-  const codes = new Set<string>(LOCALES.map((locale) => locale.code))
+  const languages = new Set<string>(LOCALES.map((locale) => baseLanguage(locale.code)))
 
   it('is not empty, so the cases above are not vacuous', () => {
     expect(GLOSSARY.length).toBeGreaterThan(10)
   })
 
-  it('gives every entry a heard, a written and at least one LocaleCode', () => {
+  it('gives every entry a heard, a written and at least one base language', () => {
     for (const entry of GLOSSARY) {
       expect(typeof entry.heard).toBe('string')
       expect(entry.heard.length).toBeGreaterThan(0)
@@ -121,7 +132,10 @@ describe('glossary.json', () => {
       // working entry in the file and is a silent no-op in the pass.
       expect(entry.language.length).toBeGreaterThan(0)
       for (const language of entry.language) {
-        expect(codes.has(language)).toBe(true)
+        expect(languages.has(language)).toBe(true)
+        // A region here holds for one variant and silently leaves its
+        // siblings uncorrected, so the file may not spell one.
+        expect(language).not.toContain('-')
       }
       expect(new Set(entry.language).size).toBe(entry.language.length)
     }

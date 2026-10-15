@@ -15,32 +15,39 @@
  * lets a word already written lower-case carry an entry at all, and those
  * entries are the vocabulary record (#952 §5) rather than a correction.
  *
- * ⚠ **An entry names the locales it holds for, not one.** These are Sanskrit
+ * ⚠ **An entry names the languages it holds for, not one.** These are Sanskrit
  * words, so the same spelling is wanted in every language written in Latin
  * script — but `Sahasrara` is wrong for ru, uk, bg, el, hy and fa, which want
  * their own script. A list lets a Cyrillic entry sit beside the Latin one
  * instead of competing with it (#957).
+ *
+ * ⚠ **A language, never a locale: `en` covers `en-AU`, `pt` covers `pt-BR`.**
+ * Spelling belongs to the language, so a regional entry would hold for one
+ * variant and leave its siblings uncorrected. `BaseLanguage` makes the
+ * regional code unrepresentable, and the pass reduces the transcript's locale
+ * before it looks up (#957).
  *
  * ⚠ **`void` still earns no entry.** The rule above answers an entry that
  * strips a capital, never one that adds one, and `void` is the one
  * subtle-system node label that is also an ordinary English word.
  */
 import { escapeRegExp } from '@/lib/eventQuality/heuristics'
-import type { LocaleCode } from '@/lib/locales'
+import type { BaseLanguage, LocaleCode } from '@/lib/locales'
+import { baseLanguage } from '@/lib/locales'
 
 import glossaryData from './glossary.json' with { type: 'json' }
 
-export type GlossaryEntry = { heard: string; written: string; language: LocaleCode[] }
+export type GlossaryEntry = { heard: string; written: string; language: BaseLanguage[] }
 
 export const GLOSSARY = glossaryData as GlossaryEntry[]
 
 type Pass = { pattern: RegExp; written: Map<string, string> }
 
 /** A language with no entries is absent, which is what makes the pass a no-op for it. */
-const PASSES: ReadonlyMap<string, Pass> = buildPasses()
+const PASSES: ReadonlyMap<BaseLanguage, Pass> = buildPasses()
 
-function buildPasses(): Map<string, Pass> {
-  const byLanguage = new Map<string, Map<string, string>>()
+function buildPasses(): Map<BaseLanguage, Pass> {
+  const byLanguage = new Map<BaseLanguage, Map<string, string>>()
   for (const entry of GLOSSARY) {
     for (const language of entry.language) {
       const written = byLanguage.get(language) ?? new Map<string, string>()
@@ -65,13 +72,13 @@ function buildPasses(): Map<string, Pass> {
 /**
  * Rewrite every glossary word in `text` to the spelling the list names.
  *
- * Only entries naming `language` are considered, so a spelling never reaches a
- * transcript whose entry does not claim it (#897, success line 8). Word
- * boundaries keep `fontanel` from matching inside `fontanelle`, which is what
- * makes the pass idempotent.
+ * Only entries naming the locale's own language are considered, so a spelling
+ * never reaches a transcript whose entry does not claim it (#897, success line
+ * 8). Word boundaries keep `fontanel` from matching inside `fontanelle`, which
+ * is what makes the pass idempotent.
  */
 export function applyGlossary(text: string, language: LocaleCode): string {
-  const pass = PASSES.get(language)
+  const pass = PASSES.get(baseLanguage(language))
   if (!pass) return text
 
   return text.replace(pass.pattern, (match) => {
