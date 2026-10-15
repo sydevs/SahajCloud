@@ -14,6 +14,10 @@ export function urlField(options: UrlFieldOptions): TextField {
 
   return {
     ...options,
+    // A built URL field is `type: 'text'`, so nothing downstream can tell one
+    // from free text — and the proposal content scan must (#920). Top-level
+    // `custom`, not `admin.custom`: the only reader is server-side.
+    custom: { ...options.custom, holdsUrl: true },
     hasMany: false,
     type: 'text',
     validate: ((value) => {

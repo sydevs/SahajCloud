@@ -11,10 +11,12 @@
  * latter because a subscribe row reaching a provider is one of the things these
  * specs must be able to prove did **not** happen.
  */
-import type { Payload, PayloadRequest } from 'payload'
+import type { FlattenedField, Payload, PayloadRequest } from 'payload'
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { proposableEventFields } from '@/collections/UserSubmissions/hooks/validateProposal'
+import { screenProposalContent } from '@/jobs/ScreenSubmissions/contentScreening'
 import { activeRegistrationWhere } from '@/lib/registrations/active'
 import type { Event, Form, Manager, UserSubmission } from '@/payload-types'
 
@@ -28,6 +30,18 @@ vi.mock('@/lib/antiSpam/mxRecords', () => ({ hasMxRecords: mxMock }))
 
 // Imported after the mock so the job picks up the stub.
 const { ScreenSubmissions } = await import('@/jobs/ScreenSubmissions/ScreenSubmissions')
+
+/**
+ * Every Events column declared to hold an address or a link, by dotted path.
+ * Walked here, not read from the code under test, so the two can disagree.
+ */
+const addressOrLinkColumns = (fields: FlattenedField[], prefix = ''): string[] =>
+  fields.flatMap((field) => {
+    if (!('name' in field)) return []
+    const path = prefix ? `${prefix}.${field.name}` : field.name
+    if (field.type === 'email' || field.custom?.holdsUrl === true) return [path]
+    return 'flattenedFields' in field ? addressOrLinkColumns(field.flattenedFields, path) : []
+  })
 
 describe('Submission screening', () => {
   let payload: Payload
@@ -411,6 +425,56 @@ describe('Submission screening', () => {
     it('passes an ordinary proposal', async () => {
       const submission = await seedProposal({ title: 'Thursday evening class' })
       await expect(screen(submission.id)).resolves.toEqual({ verdict: 'ok', status: 'pending' })
+    })
+
+    /** ⚠ The three columns a proposal was binned over (#920). */
+    it('delivers a proposal naming a contact address, a website and a meeting link', async () => {
+      const submission = await seedProposal({
+        title: 'Thursday evening class',
+        contactEmail: 'venue@gmail.com',
+        website: 'https://example.org/classes',
+        onlineUrl: 'https://zoom.example.com/j/123',
+      })
+
+      await expect(screen(submission.id)).resolves.toEqual({ verdict: 'ok', status: 'pending' })
+      expect(await deliveryQueued(submission.id)).toBe(true)
+    })
+
+    /**
+     * ⚠ What a unit fixture cannot prove: the exemption is read off the config
+     * this app boots with. The paths are walked here rather than taken from
+     * production, so a hardcoded list replacing the derivation fails on the
+     * column it forgot rather than at a submitter.
+     */
+    it('exempts every Events column declared to hold an address or a link', () => {
+      const eventFields = payload.collections.events.config.flattenedFields
+      const paths = addressOrLinkColumns(eventFields)
+      // Named so the walk cannot go quietly empty and assert nothing.
+      expect(paths).toEqual(expect.arrayContaining(['contactEmail', 'website', 'onlineUrl']))
+
+      for (const path of paths) {
+        const proposed = path
+          .split('.')
+          .reduceRight<unknown>((value, key) => ({ [key]: value }), 'https://example.org/classes')
+        expect(screenProposalContent(proposed, eventFields)).toBeNull()
+      }
+    })
+
+    /**
+     * ⚠ The marker is opt-in, so a URL column written by hand carries none and
+     * reproduces #920. Only a column a submitter can propose matters: `webUrl`
+     * and `appUrl` are read-only, and `externalRegistrationUrl` privileged.
+     */
+    it('leaves no proposable URL column for a submitter to discover unmarked', () => {
+      const eventFields = payload.collections.events.config.flattenedFields
+      const proposable = proposableEventFields(eventFields)
+      const unmarked = eventFields
+        .filter((field) => 'name' in field && proposable.has(field.name))
+        .filter((field) => 'name' in field && /(url|link|website)$/i.test(field.name))
+        .filter((field) => field.custom?.holdsUrl !== true)
+        .map((field) => ('name' in field ? field.name : ''))
+
+      expect(unmarked).toEqual([])
     })
   })
 
