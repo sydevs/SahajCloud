@@ -20,12 +20,15 @@ const nextConfig = {
     // every API request body and silently truncates it at this cap. Payload
     // then reads a cut-off upload and throws "Unexpected end of form" (#938).
     //
-    // ⚠ Keep this at or above `upload.requestSizeLimit` in
-    // `src/payload.config.ts` — the size Payload enforces on a whole request,
-    // and so the floor `tests/unit/next-config-body-limit.spec.ts` pins.
-    // Matching it exactly bounds the copy an anonymous POST holds before auth
-    // at what Payload would accept.
-    proxyClientMaxBodySize: 52428800, // 50MB, in bytes — equal to upload.requestSizeLimit
+    // ⚠ Keep this STRICTLY above `upload.requestSizeLimit` in
+    // `src/payload.config.ts`. Payload refuses a body only once it exceeds
+    // that limit, so at an equal cap the truncation always lands first and
+    // its 413 is unreachable — matching the two exactly re-armed #938's
+    // opaque 500 at the new boundary (#939). The headroom is what an
+    // oversized body is read into before Payload rejects it, so keep it
+    // small: it is also pre-auth memory, held twice, by anyone.
+    // `tests/unit/next-config-body-limit.spec.ts` pins the ordering.
+    proxyClientMaxBodySize: 53477376, // 51MB, in bytes — upload.requestSizeLimit + 1MB
     // Railpack restores `.next/cache`, so a store corrupted there panics
     // every later build. Dev's store is elsewhere. #932
     turbopackFileSystemCacheForBuild: false,
