@@ -14,7 +14,7 @@ import { isAdminManager } from '@/plugins/access'
 
 import { MAX_IMPORT_ROWS } from './constants'
 import { enqueueImportJobs } from './hooks/enqueueImportJobs'
-import { parseUpload } from './hooks/parseUpload'
+import { parseUpload, refuseUtf16Upload } from './hooks/parseUpload'
 import { stampManager } from './hooks/stampManager'
 import { targetRegionFilterOptions, validateTargetRegion } from './hooks/targetRegion'
 import { transitionStatus } from './hooks/transitionStatus'
@@ -98,6 +98,7 @@ export const EventImports: CollectionConfig = {
   // for `resolving`, so `transitionStatus` has to run after it to judge the move
   // the re-upload is making rather than the one the caller sent.
   hooks: {
+    beforeOperation: [refuseUtf16Upload],
     beforeChange: [stampManager, parseUpload, transitionStatus],
     afterChange: [enqueueImportJobs],
   },

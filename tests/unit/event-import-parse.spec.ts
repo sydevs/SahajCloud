@@ -180,6 +180,15 @@ describe('parseImportCsv — per-row requirements', () => {
     ])
   })
 
+  it('names only the split when an unquoted comma shifts the required columns', () => {
+    // The comma in the title pushes "Hof" into `eventType` and the real
+    // eventType into `country` — neither is a cell the volunteer should fix.
+    const parsed = rows(`${HEADER}\nT Class, Hof,offline,DE,Berlin,Main St 25,weekly`)
+    expect(parsed[0]!.errors).toEqual([
+      'line 2 has 7 values but the header has 6 columns — a value containing a comma must be wrapped in double quotes',
+    ])
+  })
+
   it('treats a whitespace-only cell as missing', () => {
     const parsed = rows(`${HEADER}\n   ,offline,DE,Berlin,Street 1,weekly`)
     expect(parsed[0]!.errors).toEqual(['title is required'])

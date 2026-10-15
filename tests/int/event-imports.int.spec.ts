@@ -20,6 +20,7 @@ import type { Payload } from 'payload'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 
+import { UTF16_REFUSAL } from '@/collections/EventImports/csv/parse'
 import { buildImportTemplate } from '@/collections/EventImports/csv/template'
 import { EventImports } from '@/collections/EventImports/EventImports'
 import { ALLOWED } from '@/collections/EventImports/hooks/transitionStatus'
@@ -158,6 +159,15 @@ describe('event-imports', () => {
       expect(await fieldErrorMessage(createBatch({}, broken), 'file')).toMatch(
         /Every row in the file has a problem.*line 2/,
       )
+    })
+
+    it('refuses an Excel "Unicode Text" save as UTF-16, not as audio', async () => {
+      // Excel writes UTF-16LE behind an `FF FE` mark, which Payload's own type
+      // check reads as an MPEG frame unless the importer answers first.
+      const text = csvWith([classLine('Unicode Text')]).toString('utf8')
+      const utf16 = Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(text, 'utf16le')])
+
+      expect(await fieldErrorMessage(createBatch({}, utf16), 'file')).toBe(UTF16_REFUSAL)
     })
 
     it('refuses a file the parser cannot read at all', async () => {

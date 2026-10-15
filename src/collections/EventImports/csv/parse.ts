@@ -191,6 +191,18 @@ export function parseImportCsv(input: string): ParseCsvResult {
 }
 
 /**
+ * The refusal for a UTF-16 file — Excel's "Unicode Text" export.
+ *
+ * ⚠ **Two places say it, because Payload reads the file first.** With a byte
+ * order mark, which is how Excel writes it, Payload's own MIME check takes
+ * `FF FE` for an MPEG audio frame and refuses "Invalid MIME type: audio/mpeg"
+ * before this module sees the text — so `refuseUtf16Upload` says it then. Only a
+ * file with no mark reaches `checkEncoding`.
+ */
+export const UTF16_REFUSAL =
+  'This file is saved as UTF-16 ("Unicode Text"), which the import cannot read. Save it as "CSV UTF-8 (Comma delimited)" and upload it again.'
+
+/**
  * Refuse text that was not UTF-8 before it reached us.
  *
  * ⚠ **The browser decodes the file as UTF-8 whatever it was** (`File.text()`),
@@ -199,9 +211,7 @@ export function parseImportCsv(input: string): ParseCsvResult {
  * it, so the file is refused here with the export setting that fixes it.
  */
 function checkEncoding(text: string): string | null {
-  if (text.includes('\u0000')) {
-    return 'This file is saved as UTF-16 ("Unicode Text"), which the import cannot read. Save it as "CSV UTF-8 (Comma delimited)" and upload it again.'
-  }
+  if (text.includes('\u0000')) return UTF16_REFUSAL
   const bad = text.indexOf('\uFFFD')
   if (bad === -1) return null
   const line = (text.slice(0, bad).match(/\r\n|\r|\n/g)?.length ?? 0) + 1
@@ -453,12 +463,17 @@ function buildRow(
   // every later value one column right. When the shifted-out last cell was
   // blank, the overflow is an empty cell, and ignoring it is how a description
   // landed in `website`.
-  const overWide = record.length > headerWidth
-  if (overWide) {
+  //
+  // ⚠ **Returned before every other check, the required-column ones included.**
+  // Every value past the split sits under the wrong column, so its complaints
+  // would point the volunteer at cells that are not wrong — a comma in the title
+  // reads as "eventType must be offline or online (got "…")".
+  if (record.length > headerWidth) {
     const name = DELIMITER_NAMES[delimiter]
     errors.push(
       `line ${line} has ${record.length} values but the header has ${headerWidth} columns — a value containing a ${name} must be wrapped in double quotes`,
     )
+    return { line, values, errors }
   }
   const eventType = values.eventType?.toLowerCase()
   if (eventType) values.eventType = eventType
@@ -479,10 +494,6 @@ function buildRow(
       `this is the template's example row — delete it, or replace it with one of your classes (got title "${echo(values.title ?? '')}")`,
     )
   }
-
-  // Skipped on a shifted row: every value there sits under the wrong column,
-  // so its complaints would point the volunteer at cells that are not wrong.
-  if (overWide) return { line, values, errors }
 
   const checked = checkRowFields(values)
   errors.push(...checked.errors)

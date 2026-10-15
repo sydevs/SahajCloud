@@ -16,11 +16,11 @@
  * what bounds the geocoder spend.
  */
 
-import type { CollectionBeforeChangeHook } from 'payload'
+import type { CollectionBeforeChangeHook, CollectionBeforeOperationHook } from 'payload'
 
 import { ValidationError } from 'payload'
 
-import { parseImportCsv } from '../csv/parse'
+import { parseImportCsv, UTF16_REFUSAL } from '../csv/parse'
 
 /**
  * `MAX_IMPORT_ROWS` rows with every column filled is about 150 KB, so this
@@ -70,6 +70,30 @@ export const parseUpload: CollectionBeforeChangeHook = ({ data, req }) => {
     error: null,
     status: 'resolving',
   }
+}
+
+/**
+ * Refuses a UTF-16 file in the importer's words, before Payload refuses it in
+ * its own.
+ *
+ * ⚠ **A `beforeOperation` hook, because `parseUpload` runs too late.** Payload
+ * checks the file's type in `generateFileData`, between this stage and
+ * `beforeChange`. It reads the byte order mark Excel writes on a "Unicode Text"
+ * save (`FF FE`) as an MPEG audio frame, so that file was refused with "Invalid
+ * MIME type: audio/mpeg." — true of nothing the volunteer did.
+ */
+export const refuseUtf16Upload: CollectionBeforeOperationHook = ({ args, operation, req }) => {
+  if (operation !== 'create' && operation !== 'update') return args
+  if (req.file && hasUtf16Mark(req.file.data)) {
+    throw new ValidationError({ errors: [{ path: 'file', message: UTF16_REFUSAL }] })
+  }
+  return args
+}
+
+/** Either byte order: Excel writes little-endian, some editors big. */
+function hasUtf16Mark(data: Buffer | undefined): boolean {
+  if (!data || data.length < 2) return false
+  return (data[0] === 0xff && data[1] === 0xfe) || (data[0] === 0xfe && data[1] === 0xff)
 }
 
 /** The first few bad lines, named, so a volunteer can open the file and look. */
