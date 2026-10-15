@@ -84,6 +84,13 @@ A preview holds no unmarked row for this recipe to find, so make one (#704):
 | `urlFields.ts` | Virtual URL field factories |
 | `adminThumbnail.ts` | `videoAdminThumbnail`, the `upload.adminThumbnail` every video-capable collection mounts |
 
+⚠ **A `FileValidationError` must keep a non-500 `status`.** The adapters throw it from
+`handleUpload`, so it reaches `routeError`, and `isErrorPublic` discloses an error's message
+only when its status is set and is not 500. Without one the caller gets "Something went wrong."
+and the size the message names is thrown away (#939). It is also why these refusals never appear
+locally: the adapters that run `validateFileUpload` are registered only where every Cloudflare
+credential is set, so a dev machine on the local-storage fallback never reaches them.
+
 ## URL field factories (`urlFields.ts`)
 
 ```typescript
