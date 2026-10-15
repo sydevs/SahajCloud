@@ -285,8 +285,9 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       // Enabled everywhere, E2E included — it changes what a bad request gets
       // back, which is exactly what an end-to-end run should see.
       databaseErrorPlugin(),
-      // An over-limit upload is the caller's mistake too: say which size it
-      // exceeded, rather than only that it did.
+      // At the config root, not inside `storagePlugin`: the error it answers
+      // is thrown while the request body is parsed, before any collection or
+      // adapter is resolved.
       uploadErrorPlugin(),
       // Sentry error tracking (disabled in E2E tests)
       sentryPlugin({
@@ -367,14 +368,11 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       // generous slack. The Railway/Cloudflare hops don't impose this; it's
       // purely Payload's default. See plans/...luminous-dusk.md (Track A).
       uploadTimeout: 300000,
-      // The two ceilings an upload has to fit, and the sentence both answer
-      // with. They are declared in `@/plugins/storage` so nothing can hold a
-      // second copy, and `tests/unit/next-config-body-limit.spec.ts` pins them
-      // against `next.config.mjs`'s cap and the per-category limits (#939).
+      // `tests/unit/next-config-body-limit.spec.ts` pins these against
+      // `next.config.mjs`'s cap and the per-category limits (#939).
       requestSizeLimit: UPLOAD_REQUEST_SIZE_LIMIT,
-      // Payload's own wording for the per-file gate names no size, and the
-      // admin shows it verbatim. `uploadErrorPlugin` answers the request gate
-      // with the same sentence.
+      // Payload's own wording for this gate names no size, and the admin shows
+      // it verbatim.
       responseOnLimit: UPLOAD_SIZE_LIMIT_MESSAGE,
       limits: {
         // A collection may set its own, lower limit.

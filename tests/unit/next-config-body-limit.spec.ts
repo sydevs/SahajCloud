@@ -18,13 +18,12 @@ import { SRC, sourceOf } from '../utils/importGraph'
  *
  * What is pinned is the ORDERING, not `cap >= each limit`. The latter holds even
  * for a limit above the request ceiling, which can never fire: that is how
- * `fileSize` sat at 100 MB inside a 50 MB request with an earlier version of
- * this spec green.
+ * `fileSize` sat at 100 MB inside a 50 MB request with this spec green.
  *
  * Payload's two ceilings are read from the module that declares them, not from
  * `payload.config.ts`, because importing that config builds the whole app. The
- * last case here is what keeps the config honest about using them — a literal
- * typed back in would otherwise pass every comparison above it.
+ * `set upload.<option>` cases keep the config honest about using them — a
+ * literal typed back in would otherwise pass every comparison above it.
  */
 describe('the upload size limits', () => {
   const cap = nextConfig.experimental?.proxyClientMaxBodySize
