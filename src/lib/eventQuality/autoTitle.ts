@@ -6,8 +6,9 @@ import {
   EVENT_TITLE_DEFAULTS,
   EVENT_TITLE_SLOTS,
 } from '@/lib/eventTitle/compose'
+import { escapeRegExp } from '@/lib/utilities/escapeRegExp'
 
-import { escapeRegExp, normalizeForComparison } from './heuristics'
+import { normalizeForComparison } from './heuristics'
 
 /**
  * Whether `title` fills the shape of `template` with *some* place — the fallback
