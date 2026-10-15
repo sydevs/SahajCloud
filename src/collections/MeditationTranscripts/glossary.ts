@@ -15,6 +15,12 @@
  * lets a word already written lower-case carry an entry at all, and those
  * entries are the vocabulary record (#952 §5) rather than a correction.
  *
+ * ⚠ **An entry names the locales it holds for, not one.** These are Sanskrit
+ * words, so the same spelling is wanted in every language written in Latin
+ * script — but `Sahasrara` is wrong for ru, uk, bg, el, hy and fa, which want
+ * their own script. A list lets a Cyrillic entry sit beside the Latin one
+ * instead of competing with it (#957).
+ *
  * ⚠ **`void` still earns no entry.** The rule above answers an entry that
  * strips a capital, never one that adds one, and `void` is the one
  * subtle-system node label that is also an ordinary English word.
@@ -24,7 +30,7 @@ import type { LocaleCode } from '@/lib/locales'
 
 import glossaryData from './glossary.json' with { type: 'json' }
 
-export type GlossaryEntry = { heard: string; written: string; language: LocaleCode }
+export type GlossaryEntry = { heard: string; written: string; language: LocaleCode[] }
 
 export const GLOSSARY = glossaryData as GlossaryEntry[]
 
@@ -36,9 +42,11 @@ const PASSES: ReadonlyMap<string, Pass> = buildPasses()
 function buildPasses(): Map<string, Pass> {
   const byLanguage = new Map<string, Map<string, string>>()
   for (const entry of GLOSSARY) {
-    const written = byLanguage.get(entry.language) ?? new Map<string, string>()
-    written.set(entry.heard.toLowerCase(), entry.written)
-    byLanguage.set(entry.language, written)
+    for (const language of entry.language) {
+      const written = byLanguage.get(language) ?? new Map<string, string>()
+      written.set(entry.heard.toLowerCase(), entry.written)
+      byLanguage.set(language, written)
+    }
   }
 
   return new Map(
@@ -57,10 +65,10 @@ function buildPasses(): Map<string, Pass> {
 /**
  * Rewrite every glossary word in `text` to the spelling the list names.
  *
- * Only entries in `language` are considered, so one language's spellings never
- * reach another's transcript (#897, success line 8). Word boundaries keep
- * `fontanel` from matching inside `fontanelle`, which is what makes the pass
- * idempotent.
+ * Only entries naming `language` are considered, so a spelling never reaches a
+ * transcript whose entry does not claim it (#897, success line 8). Word
+ * boundaries keep `fontanel` from matching inside `fontanelle`, which is what
+ * makes the pass idempotent.
  */
 export function applyGlossary(text: string, language: LocaleCode): string {
   const pass = PASSES.get(language)

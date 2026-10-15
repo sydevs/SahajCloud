@@ -3,8 +3,8 @@
  * spelled in a transcript (#897, success lines 7 and 8).
  *
  * Fixture pre-mortem: the cases below assume `glossary.json` is a flat array
- * of `{ heard, written, language }` whose `language` values are `LOCALES`
- * codes, and that `en` is the only language seeded today. Verified against
+ * of `{ heard, written, language }` whose `language` is a list of `LOCALES`
+ * codes, and that every entry names `en` and none names `ru`. Verified against
  * `src/collections/MeditationTranscripts/glossary.json` and
  * `src/lib/locales/index.ts`. The last `describe` asserts both rather than
  * trusting them.
@@ -37,7 +37,10 @@ describe('applyGlossary', () => {
   it.each([
     ['the fontanelle area', 'the fontanelle area'],
     ['Raise the Kundalini.', 'Raise the Kundalini.'],
-    ['anahat, anahata, swadhistan and swadhisthana', 'Anahat, Anahata, Swadhistan and Swadhisthana'],
+    [
+      'anahat, anahata, swadhistan and swadhisthana',
+      'Anahat, Anahata, Swadhistan and Swadhisthana',
+    ],
     ['nothing here is a glossary word', 'nothing here is a glossary word'],
   ])('settles %j at %j and stays there', (text, settled) => {
     // Pinned against a literal, not a recomputation: comparing `f(f(x))` to
@@ -72,13 +75,23 @@ describe('applyGlossary', () => {
     expect(applyGlossary(heard, 'en')).toBe(written)
   })
 
-  it('applies no entry of another language', () => {
-    // Success line 8. No French entry exists today, so a French transcript
-    // must come back byte-identical rather than taking English's spellings.
-    const french = 'la kundalini monte vers le sahasrara'
+  it('applies no entry to a language none of them names', () => {
+    // Success line 8. A Latin `Sahasrara` is wrong for Russian, which wants
+    // its own script, so no entry claims `ru` and a Russian transcript must
+    // come back byte-identical.
+    const russian = 'kundalini sahasrara'
 
-    expect(applyGlossary(french, 'fr')).toBe(french)
-    expect(GLOSSARY.some((entry) => entry.language === 'fr')).toBe(false)
+    expect(applyGlossary(russian, 'ru')).toBe(russian)
+    expect(GLOSSARY.some((entry) => entry.language.includes('ru'))).toBe(false)
+  })
+
+  it('corrects a Latin-script language the same way as English', () => {
+    // The point of the list: these are Sanskrit words, so French wants the
+    // same spelling English does rather than nothing at all.
+    expect(applyGlossary('la kundalini monte vers le sahasrara', 'fr')).toBe(
+      'la Kundalini monte vers le Sahasrara',
+    )
+    expect(applyGlossary('two bandhanas', 'nl')).toBe('two bandhans')
   })
 
   it('does not depend on the file’s row order', () => {
@@ -98,13 +111,19 @@ describe('glossary.json', () => {
     expect(GLOSSARY.length).toBeGreaterThan(10)
   })
 
-  it('gives every entry a heard, a written and a LocaleCode language', () => {
+  it('gives every entry a heard, a written and at least one LocaleCode', () => {
     for (const entry of GLOSSARY) {
       expect(typeof entry.heard).toBe('string')
       expect(entry.heard.length).toBeGreaterThan(0)
       expect(typeof entry.written).toBe('string')
       expect(entry.written.length).toBeGreaterThan(0)
-      expect(codes.has(entry.language)).toBe(true)
+      // An empty list is an entry that corrects nothing, which reads as a
+      // working entry in the file and is a silent no-op in the pass.
+      expect(entry.language.length).toBeGreaterThan(0)
+      for (const language of entry.language) {
+        expect(codes.has(language)).toBe(true)
+      }
+      expect(new Set(entry.language).size).toBe(entry.language.length)
     }
   })
 
@@ -119,13 +138,16 @@ describe('glossary.json', () => {
   })
 
   it('names each heard form once per language', () => {
+    // Two entries claiming one language for the same heard word make the pass
+    // depend on row order, which the alternation is built to avoid.
     const seen = new Set<string>()
 
     for (const entry of GLOSSARY) {
-      const key = `${entry.language}:${entry.heard.toLowerCase()}`
-      expect(seen.has(key)).toBe(false)
-      seen.add(key)
+      for (const language of entry.language) {
+        const key = `${language}:${entry.heard.toLowerCase()}`
+        expect(seen.has(key)).toBe(false)
+        seen.add(key)
+      }
     }
   })
-
 })
