@@ -2,20 +2,25 @@
 
 import type { DefaultCellComponentProps } from 'payload'
 
+import { CellButton, useDrawerRowSelect } from '@/components/admin/drawerRowSelect'
+
 /**
  * Color Cell Component
  *
  * Displays a color preview square alongside the hex value in list views.
  * The square matches the line height and has a subtle border for visibility.
  */
-export const ColorCell: React.FC<DefaultCellComponentProps> = ({ cellData }) => {
+export const ColorCell: React.FC<DefaultCellComponentProps> = ({
+  cellData,
+  className,
+  collectionSlug,
+  link,
+  rowData,
+}) => {
+  const handleClick = useDrawerRowSelect({ cellData, collectionSlug, link, rowData })
   const color = typeof cellData === 'string' ? cellData : null
 
-  if (!color) {
-    return <span style={{ color: 'var(--theme-elevation-400)' }}>—</span>
-  }
-
-  return (
+  const content = color ? (
     <div
       style={{
         display: 'flex',
@@ -35,7 +40,19 @@ export const ColorCell: React.FC<DefaultCellComponentProps> = ({ cellData }) => 
       />
       <span>{color}</span>
     </div>
+  ) : (
+    <span style={{ color: 'var(--theme-elevation-400)' }}>—</span>
   )
+
+  if (handleClick) {
+    return (
+      <CellButton className={className} onClick={handleClick}>
+        {content}
+      </CellButton>
+    )
+  }
+
+  return content
 }
 
 export default ColorCell

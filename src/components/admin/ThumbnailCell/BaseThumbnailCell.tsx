@@ -1,8 +1,10 @@
 'use client'
 
-import type { CollectionSlug, DefaultCellComponentProps } from 'payload'
+import type { DefaultCellComponentProps } from 'payload'
 
-import { Link, Thumbnail, useListDrawerContext } from '@payloadcms/ui'
+import { Link, Thumbnail } from '@payloadcms/ui'
+
+import { CellButton, useDrawerRowSelect } from '@/components/admin/drawerRowSelect'
 
 /**
  * Props for BaseThumbnailCell extending Payload's DefaultCellComponentProps
@@ -39,33 +41,7 @@ export const BaseThumbnailCell: React.FC<BaseThumbnailCellProps> = ({
   onClick,
   openInNewTab,
 }) => {
-  // Payload hands a drawer's select handler to its own default cell only, so a
-  // custom Cell in the linked column has to call it itself (#942).
-  const { drawerSlug, onSelect } = useListDrawerContext()
-
-  const selectInDrawer =
-    link && drawerSlug && rowData && typeof onSelect === 'function'
-      ? () => {
-          onSelect({
-            collectionSlug: collectionSlug as CollectionSlug,
-            doc: rowData,
-            docID: String(rowData.id),
-          })
-        }
-      : undefined
-
-  // The drawer select replaces an onClick prop, as RenderDefaultCell overwrites it.
-  const handleClick =
-    selectInDrawer ??
-    (typeof onClick === 'function'
-      ? () => {
-          onClick({
-            cellData,
-            collectionSlug: collectionSlug as CollectionSlug,
-            rowData: rowData ?? {},
-          })
-        }
-      : undefined)
+  const handleClick = useDrawerRowSelect({ cellData, collectionSlug, link, onClick, rowData })
 
   const content = (
     <div className="file">
@@ -81,14 +57,9 @@ export const BaseThumbnailCell: React.FC<BaseThumbnailCellProps> = ({
 
   if (handleClick) {
     return (
-      <button
-        type="button"
-        className={className}
-        onClick={handleClick}
-        style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 0 }}
-      >
+      <CellButton className={className} onClick={handleClick}>
         {content}
-      </button>
+      </CellButton>
     )
   }
 

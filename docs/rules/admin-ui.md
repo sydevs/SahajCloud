@@ -174,7 +174,9 @@ Prefer **`DefaultServerCellComponentProps`** — it gets `payload`, can read col
 
 A **join field**'s `cellData` is a structured object, not a scalar: `{ docs: Array<{ id, ... }>, totalDocs?, limit? }` — read `cellData.docs?.length` for a count. A label can be `string | LabelFunction | Record<string, string>`. Extract it with a small helper that checks each shape and lowercases the result. Reference: `src/components/admin/RelationshipCountCell/RelationshipCountCell.tsx`.
 
-⚠ **A custom `Cell` that can be a collection's first column must handle list-drawer selection itself**, through `useListDrawerContext()`: Payload gives `onSelect` to its own `DefaultCell` only, and the select has to outrank any `onClick` prop (#942). `BaseThumbnailCell` is the worked example, and a cell wrapping it must forward `link`. Which column is the linked one comes from each user's saved column preference, so a cell second by default still has to handle this.
+⚠ **A custom `Cell` that can be a collection's first column must handle list-drawer selection itself**: Payload gives `onSelect` to its own `DefaultCell` only, and the select has to outrank any `onClick` prop (#942, #944). `useDrawerRowSelect` (`src/components/admin/drawerRowSelect.tsx`) is that rule — call it, and render `CellButton` beside it when it answers a handler. A cell wrapping another must forward `link`, which is what stands for "this is the linked column". Which column that is comes from each user's saved column preference, so a cell second by default still has to handle this.
+
+A **server** cell keeps its `payload` prop by splitting rather than converting: `RelationshipCountCell` resolves the count and the URL, then renders `RelationshipCountLink`, a client child taking serializable props only.
 
 ## Component wrapper pattern (pure UI + field wrapper)
 
