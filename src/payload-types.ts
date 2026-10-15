@@ -688,6 +688,14 @@ export type MeditationFrames = {
   timestamp: number;
   [k: string]: unknown;
 }[];
+export type TranscriptSegments =
+  | {
+      content: string;
+      startTimeMs: number;
+      endTimeMs: number;
+      durationMs?: number;
+    }[]
+  | null;
 export type TableOfContentsHeadings = {
   slug: string;
   text: string;
@@ -721,6 +729,7 @@ export interface Config {
   collections: {
     pages: Page;
     meditations: Meditation;
+    'meditation-transcripts': MeditationTranscript;
     songs: Song;
     albums: Album;
     videos: Video;
@@ -797,6 +806,7 @@ export interface Config {
   collectionsSelect: {
     pages: PagesSelect<false> | PagesSelect<true>;
     meditations: MeditationsSelect<false> | MeditationsSelect<true>;
+    'meditation-transcripts': MeditationTranscriptsSelect<false> | MeditationTranscriptsSelect<true>;
     songs: SongsSelect<false> | SongsSelect<true>;
     albums: AlbumsSelect<false> | AlbumsSelect<true>;
     videos: VideosSelect<false> | VideosSelect<true>;
@@ -2811,6 +2821,42 @@ export interface Album {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "meditation-transcripts".
+ */
+export interface MeditationTranscript {
+  id: number;
+  meditation?: (number | null) | Meditation;
+  status: 'queued' | 'processing' | 'completed' | 'failed';
+  audioFilename?: string | null;
+  provider?: 'lemonfox' | null;
+  language:
+    | 'en'
+    | 'es'
+    | 'de'
+    | 'it'
+    | 'fr'
+    | 'ru'
+    | 'ro'
+    | 'cs'
+    | 'uk'
+    | 'el'
+    | 'hy'
+    | 'pl'
+    | 'pt-BR'
+    | 'fa'
+    | 'bg'
+    | 'tr'
+    | 'en-AU'
+    | 'hu'
+    | 'nl';
+  outdated?: boolean | null;
+  segments?: TranscriptSegments;
+  error?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "lessons".
  */
 export interface Lesson {
@@ -3891,6 +3937,10 @@ export interface PayloadLockedDocument {
         value: number | Meditation;
       } | null)
     | ({
+        relationTo: 'meditation-transcripts';
+        value: number | MeditationTranscript;
+      } | null)
+    | ({
         relationTo: 'songs';
         value: number | Song;
       } | null)
@@ -4096,6 +4146,22 @@ export interface MeditationsSelect<T extends boolean = true> {
   height?: T;
   focalX?: T;
   focalY?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "meditation-transcripts_select".
+ */
+export interface MeditationTranscriptsSelect<T extends boolean = true> {
+  meditation?: T;
+  status?: T;
+  audioFilename?: T;
+  provider?: T;
+  language?: T;
+  outdated?: T;
+  segments?: T;
+  error?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

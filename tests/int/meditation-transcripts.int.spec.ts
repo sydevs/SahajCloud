@@ -1,0 +1,195 @@
+/**
+ * What the `meditation-transcripts` table itself enforces: who may read it,
+ * that a meditation carries at most one transcript, and that the column's own
+ * validator refuses a segment it cannot seek through.
+ *
+ * The read cases go through `payload.find` with `overrideAccess: false`.
+ * Naming the slug in `RESTRICTED_COLLECTIONS` proves nothing on its own —
+ * asserting `hasPermission` would have passed while the hole was open
+ * (`docs/rules/access.md`).
+ */
+import type { Payload } from 'payload'
+
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+
+import { createData, testData } from '../utils/testData'
+import { createTestEnvironment, idOnlySelect } from '../utils/testHelpers'
+
+describe('meditation transcripts', () => {
+  let payload: Payload
+  let cleanup: () => Promise<void>
+
+  beforeAll(async () => {
+    const testEnv = await createTestEnvironment()
+    payload = testEnv.payload
+    cleanup = testEnv.cleanup
+  })
+
+  afterAll(async () => {
+    await cleanup()
+  })
+
+  describe('access', () => {
+    it('keeps the collection from managers and from every published client key', async () => {
+      const meditation = await testData.createMeditation(payload)
+      await payload.create({
+        collection: 'meditation-transcripts',
+        data: createData<'meditation-transcripts'>({
+          meditation: meditation.id,
+          status: 'completed',
+          language: 'en',
+          segments: [
+            {
+              content: 'Place your attention on the top of the head.',
+              startTimeMs: 0,
+              endTimeMs: 4000,
+            },
+          ],
+        }),
+      })
+
+      // Real rows, not stubs. A caller the access layer cannot interpret — an
+      // id matching nothing, a client that was never published — is refused
+      // for the wrong reason, which reads exactly like a working restriction.
+      const editor = await testData.createManager(payload, {
+        roles: { en: ['meditations-editor'] },
+      })
+      const callers = [
+        editor,
+        await testData.createClient(payload, editor.id, { roles: ['wemeditate-app-client'] }),
+        await testData.createClient(payload, editor.id, { roles: ['sahaj-atlas-client'] }),
+      ]
+
+      for (const user of callers) {
+        await expect(
+          payload.find({
+            collection: 'meditation-transcripts',
+            overrideAccess: false,
+            user,
+            // A client read carries `select`, or the query-validation hook
+            // refuses it before access control runs. `select: {}` 400s too.
+            select: idOnlySelect(),
+          }),
+        ).rejects.toThrow()
+      }
+    })
+  })
+
+  describe('the stored shape', () => {
+    it('refuses a second transcript for a meditation that already has one', async () => {
+      const meditation = await testData.createMeditation(payload)
+      const transcript = () =>
+        payload.create({
+          collection: 'meditation-transcripts',
+          data: createData<'meditation-transcripts'>({
+            meditation: meditation.id,
+            status: 'queued',
+            language: 'en',
+          }),
+        })
+
+      await transcript()
+
+      await expect(transcript()).rejects.toThrow()
+    })
+
+    it('refuses a row with no language, which would skip the glossary pass', async () => {
+      const meditation = await testData.createMeditation(payload)
+
+      await expect(
+        payload.create({
+          collection: 'meditation-transcripts',
+          data: createData<'meditation-transcripts'>({
+            meditation: meditation.id,
+            status: 'queued',
+          } as never),
+        }),
+      ).rejects.toThrow()
+    })
+
+    it('refuses a segment missing `start`, and one carrying word timings', async () => {
+      const meditation = await testData.createMeditation(payload)
+      const withSegments = (segments: unknown) =>
+        payload.create({
+          collection: 'meditation-transcripts',
+          data: createData<'meditation-transcripts'>({
+            meditation: meditation.id,
+            status: 'completed',
+            language: 'en',
+            segments: segments as never,
+          }),
+        })
+
+      await expect(withSegments([{ content: 'Breathe out.', endTimeMs: 3000 }])).rejects.toThrow()
+      await expect(
+        withSegments([
+          {
+            content: 'Breathe out.',
+            startTimeMs: 0,
+            endTimeMs: 3000,
+            words: [{ content: 'Breathe', startTimeMs: 0, endTimeMs: 1000 }],
+          },
+        ]),
+      ).rejects.toThrow()
+    })
+
+    it('corrects a segment’s spelling on write, without the caller asking', async () => {
+      const meditation = await testData.createMeditation(payload)
+
+      const row = await payload.create({
+        collection: 'meditation-transcripts',
+        data: createData<'meditation-transcripts'>({
+          meditation: meditation.id,
+          status: 'completed',
+          language: 'en',
+          segments: [
+            { content: 'Let the kundalini rise.', startTimeMs: 0, endTimeMs: 2000 },
+            { content: 'Feel it at the fontanel.', startTimeMs: 2000, endTimeMs: 4000 },
+          ],
+        }),
+      })
+
+      expect(row.segments).toEqual([
+        { content: 'Let the Kundalini rise.', startTimeMs: 0, endTimeMs: 2000 },
+        { content: 'Feel it at the fontanelle.', startTimeMs: 2000, endTimeMs: 4000 },
+      ])
+    })
+
+    it('reads the language off the stored row when an update omits it', async () => {
+      const meditation = await testData.createMeditation(payload)
+      const row = await payload.create({
+        collection: 'meditation-transcripts',
+        data: createData<'meditation-transcripts'>({
+          meditation: meditation.id,
+          status: 'queued',
+          language: 'en',
+        }),
+      })
+
+      const updated = await payload.update({
+        collection: 'meditation-transcripts',
+        id: row.id,
+        data: { segments: [{ content: 'the kundalini', startTimeMs: 0, endTimeMs: 1000 }] },
+      })
+
+      expect(updated.segments).toEqual([
+        { content: 'the Kundalini', startTimeMs: 0, endTimeMs: 1000 },
+      ])
+    })
+
+    it('defaults `outdated` to false rather than leaving it unset', async () => {
+      const meditation = await testData.createMeditation(payload)
+
+      const row = await payload.create({
+        collection: 'meditation-transcripts',
+        data: createData<'meditation-transcripts'>({
+          meditation: meditation.id,
+          status: 'queued',
+          language: 'en',
+        }),
+      })
+
+      expect(row.outdated).toBe(false)
+    })
+  })
+})

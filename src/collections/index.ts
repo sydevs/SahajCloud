@@ -11,6 +11,7 @@ import { Lectures } from './Lectures/Lectures'
 import { Lessons } from './Lessons/Lessons'
 import { Managers } from './Managers/Managers'
 import { Meditations } from './Meditations/Meditations'
+import { MeditationTranscripts } from './MeditationTranscripts/MeditationTranscripts'
 import { Narrators } from './Narrators/Narrators'
 import { Pages } from './Pages/Pages'
 import { Regions } from './Regions/Regions'
@@ -26,6 +27,7 @@ export const collections = [
   // Content
   Pages,
   Meditations,
+  MeditationTranscripts,
   Songs,
   Albums,
   Videos,
@@ -57,6 +59,7 @@ export {
   // Content
   Pages,
   Meditations,
+  MeditationTranscripts,
   Songs,
   Albums,
   Videos,

@@ -72,6 +72,7 @@ REST docs run on `payload-oapi` plus a custom Scalar plugin with We Meditate bra
 - **Managers** / **Clients** — admin users (email/password, granular permissions) and API clients (keys, usage tracking, alerts).
 - **Pages** — Lexical rich text with embedded blocks, drafts, version history, scheduled and per-locale publishing.
 - **Meditations** — guided audio with `type`, `timings`, auto-extracted `duration`, timestamped frame relationships, and a denormalized `subtleSystemNodeWeights` field that drives the ranking in `/api/meditations/:id/related-lectures`.
+- **MeditationTranscripts** — one row per meditation, holding its recording's timed phrases, in the same cue shape `subtitles` uses (`src/lib/utilities/subtitles.ts`), closed rather than open. Hidden from the sidebar and named in `RESTRICTED_COLLECTIONS`, so no client key reads it. A `beforeChange` hook rewrites every phrase through `glossary.json`, the one word list that decides Sahaja Yoga spellings — each entry naming the base languages it holds for (`en` covers `en-AU`), since a Latin spelling is wrong for the six languages written in another script.
 - **Albums** / **Songs**, **Lessons** ("Path Steps") — music groupings with artwork, and audio + panel Path Steps with an optional meditation link.
 - **Videos** — Cloudflare Stream uploads, HLS. `mp4Url` 404s until the Stream webhook enables it.
 - **AppCards** — mobile cards with `type` (`standard`/`event`), three view tabs, `audiences` (OR), `conditions` (AND), and a `weight`.

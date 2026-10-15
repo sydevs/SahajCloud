@@ -35,6 +35,26 @@ export const LOCALES = [
 /** TypeScript type for locale codes */
 export type LocaleCode = (typeof LOCALES)[number]['code']
 
+/**
+ * A locale's language without its region: `en-AU` → `en`, `pt-BR` → `pt`.
+ *
+ * Distributes over the union, so the set is exactly what `LOCALES` can reduce
+ * to — a regional code is unrepresentable rather than merely discouraged.
+ */
+type WithoutRegion<T extends string> = T extends `${infer Base}-${string}` ? Base : T
+
+export type BaseLanguage = WithoutRegion<LocaleCode>
+
+/**
+ * The language a locale is a variant of.
+ *
+ * What a word is spelled like belongs to the language, not the region, so a
+ * list keyed this way holds for every variant of it (#957).
+ */
+export function baseLanguage(code: LocaleCode): BaseLanguage {
+  return code.split('-')[0] as BaseLanguage
+}
+
 /** Default locale for the application */
 export const DEFAULT_LOCALE: LocaleCode = 'en'
 
@@ -78,9 +98,8 @@ const LOCALE_LABEL_OVERRIDES: Record<string, string> = {
 export function buildPayloadLocales(): Locale[] {
   return LOCALES.map(({ code }) => {
     // Get label from override or ISO 639-1
-    // For compound codes like 'pt-BR', try the full code first, then the base
-    const baseCode = code.split('-')[0]
-    const isoLabel = ISO6391.getName(baseCode)
+    // For compound codes like 'pt-BR', the override answers first, then the base
+    const isoLabel = ISO6391.getName(baseLanguage(code))
     const label = LOCALE_LABEL_OVERRIDES[code] || isoLabel || code
 
     const locale: Locale = {
