@@ -41,17 +41,29 @@ const users: AtlasUserRow[] = JSON.parse(
 )
 
 describe('atlas registrations → user-submissions', () => {
-  it('maps every row within the submissionData bounds', () => {
-    const rejected: string[] = []
-    for (const reg of registrations) {
-      const pairs = registrationSubmissionData(reg, { name: 'Registrant' })
-      const problems = checkSubmissionData(pairs, { type: 'registration' })
-      if (problems.length > 0) {
-        rejected.push(`${reg.uuid}: ${problems.map((problem) => problem.message).join(' ')}`)
+  /**
+   * ⚠ The one case in this lane exempt from its 5000ms `testTimeout`, because
+   * it is the only one whose cost scales with a data file: `checkSubmissionData`
+   * compiles a fresh zod schema per call, and the dump is ~2000 rows. It
+   * measures about 3.6s alone, so the lane's own parallelism is enough to push
+   * it past the cap — which failed a healthy `main` twice before this bound.
+   * Asserting the dump row by row is the point, so the cost is the test.
+   */
+  it(
+    'maps every row within the submissionData bounds',
+    () => {
+      const rejected: string[] = []
+      for (const reg of registrations) {
+        const pairs = registrationSubmissionData(reg, { name: 'Registrant' })
+        const problems = checkSubmissionData(pairs, { type: 'registration' })
+        if (problems.length > 0) {
+          rejected.push(`${reg.uuid}: ${problems.map((problem) => problem.message).join(' ')}`)
+        }
       }
-    }
-    expect(rejected).toEqual([])
-  })
+      expect(rejected).toEqual([])
+    },
+    20_000,
+  )
 
   it('carries the registrant name, so the upserted user is not named after an address', () => {
     // The pair is what `prepareUserSubmission` reads to name the `users` row.

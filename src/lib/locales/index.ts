@@ -35,6 +35,26 @@ export const LOCALES = [
 /** TypeScript type for locale codes */
 export type LocaleCode = (typeof LOCALES)[number]['code']
 
+/**
+ * A locale's language without its region: `en-AU` → `en`, `pt-BR` → `pt`.
+ *
+ * Distributes over the union, so the set is exactly what `LOCALES` can reduce
+ * to — a regional code is unrepresentable rather than merely discouraged.
+ */
+type WithoutRegion<T extends string> = T extends `${infer Base}-${string}` ? Base : T
+
+export type BaseLanguage = WithoutRegion<LocaleCode>
+
+/**
+ * The language a locale is a variant of.
+ *
+ * What a word is spelled like belongs to the language, not the region, so a
+ * list keyed this way holds for every variant of it (#957).
+ */
+export function baseLanguage(code: LocaleCode): BaseLanguage {
+  return code.split('-')[0] as BaseLanguage
+}
+
 /** Default locale for the application */
 export const DEFAULT_LOCALE: LocaleCode = 'en'
 
@@ -50,7 +70,7 @@ export function isValidLocale(code: string): code is LocaleCode {
 }
 
 /**
- * The ISO 639-1 language a locale is written in.
+ * The language of a code that need not be a locale, for a caller holding one.
  *
  * ⚠ **An admin locale is not a language.** `pt-BR` and `en-AU` are two of the
  * nineteen and neither is an ISO 639-1 code, so anything feeding a value into a
@@ -62,12 +82,9 @@ export function isValidLocale(code: string): code is LocaleCode {
  * language, and not a value those fields accept. An unrecognised code answers
  * with the default locale's language instead.
  */
-export function baseLanguage(code: string | undefined): string {
-  if (!code || !isValidLocale(code)) return baseSubtag(DEFAULT_LOCALE)
-  return baseSubtag(code)
+export function baseLanguageOrDefault(code: string | undefined): BaseLanguage {
+  return baseLanguage(code && isValidLocale(code) ? code : DEFAULT_LOCALE)
 }
-
-const baseSubtag = (code: string): string => code.split('-')[0]
 
 /**
  * Select options for the app's configured locales.
@@ -98,7 +115,7 @@ const LOCALE_LABEL_OVERRIDES: Record<string, string> = {
 export function buildPayloadLocales(): Locale[] {
   return LOCALES.map(({ code }) => {
     // Get label from override or ISO 639-1
-    // For compound codes like 'pt-BR', try the full code first, then the base
+    // For compound codes like 'pt-BR', the override answers first, then the base
     const isoLabel = ISO6391.getName(baseLanguage(code))
     const label = LOCALE_LABEL_OVERRIDES[code] || isoLabel || code
 

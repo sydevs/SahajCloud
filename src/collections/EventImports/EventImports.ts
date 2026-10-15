@@ -8,7 +8,7 @@ import type {
 } from '@/components/admin/WorkflowButtons/stages'
 import { CREATE_STAGE, WORKFLOW_BUTTONS } from '@/components/admin/WorkflowButtons/stages'
 import { jsonField } from '@/fields/jsonField'
-import { baseLanguage, getLanguageOptions } from '@/lib/locales'
+import { baseLanguageOrDefault, getLanguageOptions } from '@/lib/locales'
 import type { EventImport, Manager } from '@/payload-types'
 import { isAdminManager } from '@/plugins/access'
 
@@ -186,7 +186,7 @@ export const EventImports: CollectionConfig = {
       // The same option set as `Events.languages`, since that is where these
       // values end up for every row whose own `languages` column is blank.
       options: getLanguageOptions(),
-      defaultValue: ({ req }) => [baseLanguage(req.locale)],
+      defaultValue: ({ req }) => [baseLanguageOrDefault(req.locale)],
       access: { update: () => false },
       admin: {
         description: 'Language(s) to use for rows whose own `languages` column is empty.',
