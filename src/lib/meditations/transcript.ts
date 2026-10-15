@@ -4,12 +4,19 @@
  */
 import { z } from 'zod'
 
-/** Times are seconds from the start of the recording, kept to the millisecond. */
-const transcriptSegmentSchema = z.strictObject({
-  text: z.string(),
-  start: z.number().nonnegative(),
-  end: z.number().nonnegative(),
-})
+import { subtitleCue } from '@/lib/utilities/subtitles'
+
+/**
+ * The subtitle cue shape, closed: times are milliseconds from the start of the
+ * recording. One shape, so a player reading a transcript and a player reading
+ * subtitles read the same cue (#957).
+ *
+ * Closed where `subtitles` is open: only this app's own transcription writes
+ * here, so no stored row can be stranded by refusing an unknown key — and
+ * refusing one is what keeps word timings out, which were 85% of the bytes
+ * with no consumer.
+ */
+const transcriptSegmentSchema = z.strictObject(subtitleCue)
 
 export const transcriptSegmentsSchema = z.array(transcriptSegmentSchema)
 

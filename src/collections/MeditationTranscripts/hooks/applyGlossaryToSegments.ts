@@ -24,10 +24,10 @@ export const applyGlossaryToSegments: CollectionBeforeChangeHook = ({ data, orig
 
   let corrected = false
   const segments = incoming.map((segment: TranscriptSegment) => {
-    const text = applyGlossary(segment.text, language)
-    if (text === segment.text) return segment
+    const content = applyGlossary(segment.content, language)
+    if (content === segment.content) return segment
     corrected = true
-    return { ...segment, text }
+    return { ...segment, content }
   })
 
   return corrected ? { ...data, segments } : data

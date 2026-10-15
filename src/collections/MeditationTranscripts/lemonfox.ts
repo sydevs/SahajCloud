@@ -23,8 +23,8 @@ const rawResponseSchema = z.object({
   segments: z.array(rawSegmentSchema).optional(),
 })
 
-const roundToMillisecond = (seconds: number): number =>
-  Math.round(Math.max(0, seconds) * 1000) / 1000
+/** The provider answers in seconds; the stored cue shape counts milliseconds. */
+const toMilliseconds = (seconds: number): number => Math.round(Math.max(0, seconds) * 1000)
 
 /**
  * Reduce a Lemonfox `verbose_json` body to the stored segment shape.
@@ -46,11 +46,11 @@ export function normalizeLemonfoxResponse(raw: unknown): TranscriptSegment[] {
   }
 
   return segments.map((segment) => {
-    const start = roundToMillisecond(segment.start)
+    const startTimeMs = toMilliseconds(segment.start)
     return {
-      text: segment.text.trim(),
-      start,
-      end: Math.max(start, roundToMillisecond(segment.end)),
+      content: segment.text.trim(),
+      startTimeMs,
+      endTimeMs: Math.max(startTimeMs, toMilliseconds(segment.end)),
     }
   })
 }

@@ -1,6 +1,6 @@
 /**
  * `normalizeLemonfoxResponse` — the `verbose_json` body reduced to the stored
- * phrase segments.
+ * cue shape: seconds in, milliseconds out.
  *
  * Fixture pre-mortem: these bodies claim to be what Lemonfox's
  * OpenAI-compatible `verbose_json` returns. Verified against the shape the
@@ -50,8 +50,8 @@ const TOP_LEVEL_WORDS = {
 }
 
 const EXPECTED = [
-  { text: 'Place your attention.', start: 0, end: 2.5 },
-  { text: 'Let the thoughts settle.', start: 2.5, end: 5 },
+  { content: 'Place your attention.', startTimeMs: 0, endTimeMs: 2500 },
+  { content: 'Let the thoughts settle.', startTimeMs: 2500, endTimeMs: 5000 },
 ]
 
 describe('normalizeLemonfoxResponse', () => {
@@ -72,7 +72,7 @@ describe('normalizeLemonfoxResponse', () => {
       ],
     })
 
-    expect(out.map((segment) => segment.text)).toEqual(['first', 'second'])
+    expect(out.map((segment) => segment.content)).toEqual(['first', 'second'])
   })
 
   it('rounds to the millisecond and never ends before it starts', () => {
@@ -80,7 +80,17 @@ describe('normalizeLemonfoxResponse', () => {
       segments: [{ text: 'drifting', start: 1.00051, end: 0.5 }],
     })
 
-    expect(segment).toEqual({ text: 'drifting', start: 1.001, end: 1.001 })
+    expect(segment).toEqual({ content: 'drifting', startTimeMs: 1001, endTimeMs: 1001 })
+  })
+
+  it('clamps a negative timestamp to the start of the recording', () => {
+    // The stored cue shape takes any number, so this clamp is the only thing
+    // keeping a provider's negative offset out of the column.
+    const [segment] = normalizeLemonfoxResponse({
+      segments: [{ text: 'before the beginning', start: -2, end: 1 }],
+    })
+
+    expect(segment).toEqual({ content: 'before the beginning', startTimeMs: 0, endTimeMs: 1000 })
   })
 
   it('refuses a body it cannot read, and one with no timestamped speech', () => {

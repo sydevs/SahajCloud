@@ -38,7 +38,13 @@ describe('meditation transcripts', () => {
           meditation: meditation.id,
           status: 'completed',
           language: 'en',
-          segments: [{ text: 'Place your attention on the top of the head.', start: 0, end: 4 }],
+          segments: [
+            {
+              content: 'Place your attention on the top of the head.',
+              startTimeMs: 0,
+              endTimeMs: 4000,
+            },
+          ],
         }),
       })
 
@@ -114,10 +120,15 @@ describe('meditation transcripts', () => {
           }),
         })
 
-      await expect(withSegments([{ text: 'Breathe out.', end: 3 }])).rejects.toThrow()
+      await expect(withSegments([{ content: 'Breathe out.', endTimeMs: 3000 }])).rejects.toThrow()
       await expect(
         withSegments([
-          { text: 'Breathe out.', start: 0, end: 3, words: [{ text: 'Breathe', start: 0, end: 1 }] },
+          {
+            content: 'Breathe out.',
+            startTimeMs: 0,
+            endTimeMs: 3000,
+            words: [{ content: 'Breathe', startTimeMs: 0, endTimeMs: 1000 }],
+          },
         ]),
       ).rejects.toThrow()
     })
@@ -132,15 +143,15 @@ describe('meditation transcripts', () => {
           status: 'completed',
           language: 'en',
           segments: [
-            { text: 'Let the kundalini rise.', start: 0, end: 2 },
-            { text: 'Feel it at the fontanel.', start: 2, end: 4 },
+            { content: 'Let the kundalini rise.', startTimeMs: 0, endTimeMs: 2000 },
+            { content: 'Feel it at the fontanel.', startTimeMs: 2000, endTimeMs: 4000 },
           ],
         }),
       })
 
       expect(row.segments).toEqual([
-        { text: 'Let the Kundalini rise.', start: 0, end: 2 },
-        { text: 'Feel it at the fontanelle.', start: 2, end: 4 },
+        { content: 'Let the Kundalini rise.', startTimeMs: 0, endTimeMs: 2000 },
+        { content: 'Feel it at the fontanelle.', startTimeMs: 2000, endTimeMs: 4000 },
       ])
     })
 
@@ -158,10 +169,12 @@ describe('meditation transcripts', () => {
       const updated = await payload.update({
         collection: 'meditation-transcripts',
         id: row.id,
-        data: { segments: [{ text: 'the kundalini', start: 0, end: 1 }] },
+        data: { segments: [{ content: 'the kundalini', startTimeMs: 0, endTimeMs: 1000 }] },
       })
 
-      expect(updated.segments).toEqual([{ text: 'the Kundalini', start: 0, end: 1 }])
+      expect(updated.segments).toEqual([
+        { content: 'the Kundalini', startTimeMs: 0, endTimeMs: 1000 },
+      ])
     })
 
     it('defaults `outdated` to false rather than leaving it unset', async () => {

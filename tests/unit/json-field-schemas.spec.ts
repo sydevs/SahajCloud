@@ -375,23 +375,37 @@ describe('transcriptSegments', () => {
     expect(field.validate).toBeUndefined()
   })
 
-  it('accepts phrase segments, and null for a row with none', () => {
-    expect(runSchema(field, [{ text: 'Let the thoughts settle.', start: 0, end: 2.5 }])).toBe(true)
+  it('accepts a subtitle cue, its optional duration, and null for a row with none', () => {
+    expect(
+      runSchema(field, [{ content: 'Let the thoughts settle.', startTimeMs: 0, endTimeMs: 2500 }]),
+    ).toBe(true)
+    expect(
+      runSchema(field, [
+        { content: 'Let the thoughts settle.', startTimeMs: 0, endTimeMs: 2500, durationMs: 2500 },
+      ]),
+    ).toBe(true)
     expect(runSchema(field, null)).toBe(true)
   })
 
   it('refuses a segment the editor could not seek through', () => {
-    expect(runSchema(field, [{ text: 'no start', end: 3 }])).not.toBe(true)
-    expect(runSchema(field, [{ text: 'backwards', start: -1, end: 3 }])).not.toBe(true)
+    expect(runSchema(field, [{ content: 'no start', endTimeMs: 3000 }])).not.toBe(true)
+    expect(
+      runSchema(field, [{ content: 'not a time', startTimeMs: '0', endTimeMs: 3000 }]),
+    ).not.toBe(true)
   })
 
   it('refuses word timings, which this column deliberately does not store', () => {
-    // The shape is closed so no later writer can reintroduce them: they were
-    // 85% of the stored bytes and have no consumer, since the player reports
-    // whole seconds.
+    // Closed where `subtitles` is open, so no later writer can reintroduce
+    // them: they were 85% of the stored bytes and have no consumer, since the
+    // player seeks by phrase.
     expect(
       runSchema(field, [
-        { text: 'Breathe out.', start: 0, end: 3, words: [{ text: 'Breathe', start: 0, end: 1 }] },
+        {
+          content: 'Breathe out.',
+          startTimeMs: 0,
+          endTimeMs: 3000,
+          words: [{ content: 'Breathe', startTimeMs: 0, endTimeMs: 1000 }],
+        },
       ]),
     ).not.toBe(true)
   })

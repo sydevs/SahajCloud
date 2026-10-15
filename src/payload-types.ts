@@ -690,9 +690,10 @@ export type MeditationFrames = {
 }[];
 export type TranscriptSegments =
   | {
-      text: string;
-      start: number;
-      end: number;
+      content: string;
+      startTimeMs: number;
+      endTimeMs: number;
+      durationMs?: number;
     }[]
   | null;
 export type TableOfContentsHeadings = {
@@ -2828,29 +2829,26 @@ export interface MeditationTranscript {
   status: 'queued' | 'processing' | 'completed' | 'failed';
   audioFilename?: string | null;
   provider?: 'lemonfox' | null;
-  language?:
-    | (
-        | 'en'
-        | 'es'
-        | 'de'
-        | 'it'
-        | 'fr'
-        | 'ru'
-        | 'ro'
-        | 'cs'
-        | 'uk'
-        | 'el'
-        | 'hy'
-        | 'pl'
-        | 'pt-BR'
-        | 'fa'
-        | 'bg'
-        | 'tr'
-        | 'en-AU'
-        | 'hu'
-        | 'nl'
-      )
-    | null;
+  language:
+    | 'en'
+    | 'es'
+    | 'de'
+    | 'it'
+    | 'fr'
+    | 'ru'
+    | 'ro'
+    | 'cs'
+    | 'uk'
+    | 'el'
+    | 'hy'
+    | 'pl'
+    | 'pt-BR'
+    | 'fa'
+    | 'bg'
+    | 'tr'
+    | 'en-AU'
+    | 'hu'
+    | 'nl';
   outdated?: boolean | null;
   segments?: TranscriptSegments;
   error?: string | null;
