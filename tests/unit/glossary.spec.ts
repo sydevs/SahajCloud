@@ -61,6 +61,17 @@ describe('applyGlossary', () => {
     expect(applyGlossary('unkundalinied', 'en')).toBe('unkundalinied')
   })
 
+  it.each([
+    ['Fontanel bone', 'Fontanelle bone'],
+    ['Bandhanas help', 'Bandhans help'],
+    ['Chakra by chakra', 'Chakra by chakra'],
+    ['Vibrations flow', 'Vibrations flow'],
+  ])('keeps the capital %j already carries, giving %j', (heard, written) => {
+    // Without this the lower-case `written` of a vocabulary-record entry would
+    // rewrite a sentence opening to lower case (#952 §5, review round two).
+    expect(applyGlossary(heard, 'en')).toBe(written)
+  })
+
   it('applies no entry of another language', () => {
     // Success line 8. No French entry exists today, so a French transcript
     // must come back byte-identical rather than taking English's spellings.
@@ -94,6 +105,16 @@ describe('glossary.json', () => {
       expect(typeof entry.written).toBe('string')
       expect(entry.written.length).toBeGreaterThan(0)
       expect(codes.has(entry.language)).toBe(true)
+    }
+  })
+
+  it('carries every word #952 §5 names, correction or record', () => {
+    const heard = new Set(GLOSSARY.map((entry) => entry.heard))
+
+    // The five already written lower-case are inert passes today. They are the
+    // vocabulary record, and the capital rule above is what makes them safe.
+    for (const word of ['chakra', 'nadi', 'bandhan', 'puja', 'vibrations']) {
+      expect(heard.has(word)).toBe(true)
     }
   })
 

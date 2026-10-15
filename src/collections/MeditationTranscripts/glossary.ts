@@ -9,11 +9,15 @@
  * `Anahat` and `Anahata` are both accepted spellings and both appear; an entry
  * rewriting one into the other would impose a choice nobody made.
  *
- * ⚠ **An entry whose `written` is lower-case rewrites a sentence-initial
- * capital away**, because the match is case-insensitive. So a word already
- * written lower-case — `chakra`, `nadi`, `puja` — earns no entry, and nor does
- * `void`, the one subtle-system node label that is also an ordinary English
- * word.
+ * ⚠ **A match that already starts with a capital keeps it.** The match is
+ * case-insensitive, so without that rule an entry whose `written` is
+ * lower-case would rewrite a sentence-initial `Chakra` to `chakra`. It is what
+ * lets a word already written lower-case carry an entry at all, and those
+ * entries are the vocabulary record (#952 §5) rather than a correction.
+ *
+ * ⚠ **`void` still earns no entry.** The rule above answers an entry that
+ * strips a capital, never one that adds one, and `void` is the one
+ * subtle-system node label that is also an ordinary English word.
  */
 import { escapeRegExp } from '@/lib/eventQuality/heuristics'
 import type { LocaleCode } from '@/lib/locales'
@@ -62,5 +66,9 @@ export function applyGlossary(text: string, language: LocaleCode): string {
   const pass = PASSES.get(language)
   if (!pass) return text
 
-  return text.replace(pass.pattern, (match) => pass.written.get(match.toLowerCase()) ?? match)
+  return text.replace(pass.pattern, (match) => {
+    const written = pass.written.get(match.toLowerCase())
+    if (written === undefined) return match
+    return /^\p{Lu}/u.test(match) ? written.replace(/^\p{Ll}/u, (c) => c.toUpperCase()) : written
+  })
 }
