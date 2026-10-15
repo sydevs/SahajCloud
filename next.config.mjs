@@ -12,6 +12,24 @@ const nextConfig = {
   // imports, so they trace into the bundle and still run at boot. See
   // issue #471.
   output: 'standalone',
+  // ⚠ One `experimental` key only. A second literal silently replaces this
+  // one, and both flags below fail open — an unset cap truncates at 10 MB, an
+  // unset Turbopack flag restores the corrupt store.
+  experimental: {
+    // `src/middleware.ts` matches `/api/:path*`, so Next buffers a copy of
+    // every API request body and silently truncates it at this cap. Payload
+    // then reads a cut-off upload and throws "Unexpected end of form" (#938).
+    //
+    // ⚠ Keep this at or above `upload.requestSizeLimit` in
+    // `src/payload.config.ts` — the size Payload enforces on a whole request,
+    // and so the floor `tests/unit/next-config-body-limit.spec.ts` pins.
+    // Matching it exactly bounds the copy an anonymous POST holds before auth
+    // at what Payload would accept.
+    proxyClientMaxBodySize: 52428800, // 50MB, in bytes — equal to upload.requestSizeLimit
+    // Railpack restores `.next/cache`, so a store corrupted there panics
+    // every later build. Dev's store is elsewhere. #932
+    turbopackFileSystemCacheForBuild: false,
+  },
   // Keep dev and test files out of the standalone trace. Otherwise Next
   // copies these large directories into `.next/standalone`, and a local
   // `pnpm build` grows to many GB from `media/` and `seeds/`. Production
@@ -109,11 +127,6 @@ const nextConfig = {
   },
   // External packages for server-side rendering
   serverExternalPackages: ['payload', 'jose'],
-  experimental: {
-    // Railpack restores `.next/cache`, so a store corrupted there panics
-    // every later build. Dev's store is elsewhere. #932
-    turbopackFileSystemCacheForBuild: false,
-  },
 }
 
 const configWithPayload = withPayload(nextConfig, { devBundleServerPackages: false })

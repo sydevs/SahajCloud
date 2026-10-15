@@ -77,6 +77,16 @@ Client-facing API reads are made edge-cacheable **at the app layer**: the app em
 single **Cache Rule** on the `sydevelopers.com` zone is what makes Cloudflare honour them — absent
 or disabled, nothing is cached, which is a fail-safe, not a leak.
 
+**That matcher costs on writes, which the read policy does not show.** It makes Next buffer every
+write body up to `experimental.proxyClientMaxBodySize` in `next.config.mjs`, which carries the
+mechanism and the rule for setting it (#938).
+
+⚠ **Four declarations bound an upload, and they must stay ordered.** A category limit in
+`FILE_SIZE_LIMITS` sits under `upload.limits.fileSize` (48 MB), which sits under
+`upload.requestSizeLimit` (50 MB), which sits under the Next cap. Anything above the request
+ceiling can never fire, because Payload refuses the body first — see #939 for why it does so
+opaquely. `tests/unit/next-config-body-limit.spec.ts` pins the ordering.
+
 **The origin decides *what* is cached; the rule only decides *who may ask*.** The rule matches
 every `/api/**` read that could legitimately be cached and delegates the yes/no to the response
 headers, through Edge TTL **"Use cache-control header if present, bypass cache if not"**

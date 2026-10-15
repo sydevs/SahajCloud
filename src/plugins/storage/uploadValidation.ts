@@ -5,11 +5,18 @@
  * uploads conform to expected constraints.
  */
 
-/** File size limits in bytes */
+/**
+ * File size limits in bytes.
+ *
+ * ⚠ None may exceed `upload.limits.fileSize` in `src/payload.config.ts`. These
+ * are checked in `afterChange`, by which point the request limit has already
+ * refused a larger body, so a higher number here can never fire.
+ * `tests/unit/next-config-body-limit.spec.ts` pins that ordering.
+ */
 export const FILE_SIZE_LIMITS = {
   image: 10 * 1024 * 1024, // 10 MB for images
-  video: 500 * 1024 * 1024, // 500 MB for videos
-  audio: 50 * 1024 * 1024, // 50 MB for audio files
+  video: 48 * 1024 * 1024, // 48 MB for videos
+  audio: 48 * 1024 * 1024, // 48 MB for audio files
   document: 20 * 1024 * 1024, // 20 MB for documents
 } as const
 
