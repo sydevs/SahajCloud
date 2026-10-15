@@ -125,8 +125,9 @@ export interface ExistingAccount {
  * active, non-admin manager who already manages a region or a class inside the
  * target.
  *
- * Shared with the review, so the banner promises exactly the links the commit
- * makes.
+ * The commit is the only caller: the review shows no coordinator banner, so a
+ * volunteer learns an address could not be linked only afterwards, from the
+ * `UNLINKED_COORDINATOR` warning the commit leaves on the row.
  */
 export async function linkableAccounts(
   req: PayloadRequest,
@@ -181,11 +182,7 @@ export async function linkableAccounts(
  * access to get the column it matches on — the gate is the caller's ownership
  * of the batch and its target, settled before the commit starts.
  *
- * ⚠ **One spelling, because the review asks the same question.** It shows a
- * volunteer how many accounts a commit would open or link before they ask for
- * one (`endpoints/review.ts`), and a second read answering differently would be
- * a banner the commit then contradicts. The review keeps only verdicts — the
- * ids are for the writes that follow this one.
+ * The ids are for the writes that follow this one.
  */
 export async function managersByEmail(
   req: PayloadRequest,
