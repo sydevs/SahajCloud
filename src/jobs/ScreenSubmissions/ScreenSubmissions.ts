@@ -4,7 +4,7 @@ import type { PayloadRequest, TaskConfig } from 'payload'
 import { appendLogEntry, asLog } from '@/fields'
 import { checkEmailAllowed } from '@/lib/antiSpam/antiSpamGuard'
 import { hasMxRecords } from '@/lib/antiSpam/mxRecords'
-import { runQueueAfterCommit } from '@/lib/jobs/runQueueAfterCommit'
+import { runJobQueueAfterCommit } from '@/lib/jobs/runJobQueueAfterCommit'
 import type { UserSubmission } from '@/payload-types'
 
 import { screenProposalContent } from './contentScreening'
@@ -139,7 +139,7 @@ export const ScreenSubmissions: TaskConfig<'screenSubmission'> = {
     // next autoRun. Harmless for the rows this phase serves — it is Phase 3,
     // where a registrant's confirmation moves behind this queue, that would
     // feel a fifteen-minute wait.
-    runQueueAfterCommit({
+    runJobQueueAfterCommit({
       payload,
       queue: 'screening',
       label: 'ScreenSubmissions',

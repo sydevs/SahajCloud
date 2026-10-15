@@ -27,7 +27,7 @@ const QUEUE_RUN_DELAY_MS = 2000
  * tasks deterministically — a background run two seconds later would race their
  * assertions.
  */
-export function runQueueAfterCommit(args: {
+export function runJobQueueAfterCommit(args: {
   payload: Payload
   queue: string
   /** Names the caller in the warning, so a failed run says which one. */
