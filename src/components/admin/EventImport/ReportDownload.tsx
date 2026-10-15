@@ -6,7 +6,9 @@ import { Banner, Button, useField } from '@payloadcms/ui'
 
 import type { EventImportReport } from '@/payload-types'
 
-import { FieldShell } from './FieldShell'
+import { FieldShell } from '../FieldShell'
+
+import './styles.css'
 
 /**
  * What the import came to, and the lines it did not take.
@@ -46,7 +48,13 @@ export const ReportDownload: JSONFieldClientComponent = ({ field }) => {
   }
 
   return (
-    <FieldShell description={admin?.description} label={label} path={name} readOnly>
+    <FieldShell
+      description={admin?.description}
+      label={label}
+      path={name}
+      readOnly
+      wrapClassName="event-import__stack"
+    >
       <Banner type="success">
         {`${committed} ${committed === 1 ? 'class' : 'classes'} created.`}
       </Banner>

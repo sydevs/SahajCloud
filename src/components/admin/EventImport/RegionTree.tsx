@@ -9,7 +9,8 @@ import type { TreeEdit } from '@/collections/EventImports/propose/edit'
 import type { ExistingRegion } from '@/collections/EventImports/propose/match'
 import { tallyTree, type ProposedNode, type ProposedTree } from '@/collections/EventImports/propose/tree'
 
-import { FieldShell, useBatchReadOnly } from './FieldShell'
+import { FieldShell } from '../FieldShell'
+import { useBatchReadOnly } from './stage'
 import {
   childrenByParent,
   isEditableNode,
@@ -32,6 +33,8 @@ export interface RegionTreeProps {
   /** The target's name, the last disambiguator a top-level slug has. */
   readonly targetName: string
 }
+
+import './styles.css'
 
 /**
  * The region tree the batch would create, and the two edits a reviewer may make
@@ -87,7 +90,13 @@ export const RegionTree = ({ description, label, mappable, path, targetName }: R
   const stateLayer = value?.stateLayer
 
   return (
-    <FieldShell description={description} label={label} path={path} readOnly={readOnly}>
+    <FieldShell
+      description={description}
+      label={label}
+      path={path}
+      readOnly={readOnly}
+      wrapClassName="event-import__stack"
+    >
       {refusal ? <Banner type="error">{refusal}</Banner> : null}
       {stateLayer && !stateLayer.proposed ? (
         <p className="event-import__note">{`No state layer: ${stateLayer.reason}`}</p>

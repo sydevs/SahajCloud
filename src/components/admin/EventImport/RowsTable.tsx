@@ -7,8 +7,8 @@ import { useMemo, useState } from 'react'
 
 import { duplicateMatchNote, type CommitRow } from '@/collections/EventImports/commit/rows'
 
+import { FieldShell } from '../FieldShell'
 import { tableColumn } from '../tableColumn'
-import { FieldShell, useBatchReadOnly } from './FieldShell'
 import {
   DUPLICATE_ACTION_OPTIONS,
   duplicateActionLabel,
@@ -22,6 +22,10 @@ import {
   type DuplicateAction,
   type RowStatus,
 } from './rowModel'
+import { useBatchReadOnly } from './stage'
+
+
+import './styles.css'
 
 /** Payload's own pill colours, mapped onto what each status means to a reviewer. */
 const STATUS_PILL: Record<RowStatus, React.ComponentProps<typeof Pill>['pillStyle']> = {
@@ -72,6 +76,7 @@ export const RowsTable: JSONFieldClientComponent = ({ field }) => {
       label={label}
       path={name}
       readOnly={readOnly}
+      wrapClassName="event-import__stack"
     >
       {rows.length === 0 ? (
         <p className="event-import__note">This file holds no lines.</p>
