@@ -7,7 +7,7 @@ import Link from 'next/link'
 import { CellButton, useDrawerRowSelect } from '@/components/admin/drawerRowSelect'
 
 type RelationshipCountLinkProps = Partial<
-  Pick<DefaultCellComponentProps, 'className' | 'collectionSlug' | 'link' | 'rowData'>
+  Pick<DefaultCellComponentProps, 'collectionSlug' | 'link' | 'rowData'>
 > & {
   count: number
   /** The filtered-list URL, or `null` where this cell shows no link. */
@@ -21,7 +21,6 @@ type RelationshipCountLinkProps = Partial<
  * serializable for that reason.
  */
 export const RelationshipCountLink: React.FC<RelationshipCountLinkProps> = ({
-  className,
   collectionSlug,
   count,
   href,
@@ -33,11 +32,7 @@ export const RelationshipCountLink: React.FC<RelationshipCountLinkProps> = ({
   const text = `${count} ${label}`
 
   if (handleClick) {
-    return (
-      <CellButton className={className} onClick={handleClick}>
-        {text}
-      </CellButton>
-    )
+    return <CellButton onClick={handleClick}>{text}</CellButton>
   }
 
   if (href) {
@@ -48,9 +43,7 @@ export const RelationshipCountLink: React.FC<RelationshipCountLinkProps> = ({
     )
   }
 
-  if (count === 0) {
-    return <span style={{ color: 'var(--theme-elevation-400)' }}>{text}</span>
-  }
-
-  return <span>{text}</span>
+  return (
+    <span style={count === 0 ? { color: 'var(--theme-elevation-400)' } : undefined}>{text}</span>
+  )
 }

@@ -56,16 +56,7 @@ function getLabel(
  */
 export const RelationshipCountCell: React.FC<
   DefaultServerCellComponentProps & RelationshipCountCellServerProps
-> = ({
-  cellData,
-  className,
-  collectionSlug,
-  rowData,
-  field,
-  link,
-  payload,
-  disableLink = false,
-}) => {
+> = ({ cellData, collectionSlug, rowData, field, link, payload, disableLink = false }) => {
   const joinField = field as JoinField
 
   // Extract count from join field data
@@ -95,7 +86,6 @@ export const RelationshipCountCell: React.FC<
 
   return (
     <RelationshipCountLink
-      className={className}
       collectionSlug={collectionSlug}
       count={count}
       href={href}

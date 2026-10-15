@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * The four non-thumbnail custom cells select their row in a list drawer's
+ * The three non-thumbnail custom cells select their row in a list drawer's
  * linked column (#944), and are untouched everywhere else.
  *
  * It needs a DOM for the reason `thumbnail-cell-drawer-select.spec.ts` gives:

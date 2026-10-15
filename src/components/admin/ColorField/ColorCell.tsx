@@ -12,12 +12,11 @@ import { CellButton, useDrawerRowSelect } from '@/components/admin/drawerRowSele
  */
 export const ColorCell: React.FC<DefaultCellComponentProps> = ({
   cellData,
-  className,
   collectionSlug,
   link,
   rowData,
 }) => {
-  const handleClick = useDrawerRowSelect({ cellData, collectionSlug, link, rowData })
+  const handleClick = useDrawerRowSelect({ collectionSlug, link, rowData })
   const color = typeof cellData === 'string' ? cellData : null
 
   const content = color ? (
@@ -45,11 +44,7 @@ export const ColorCell: React.FC<DefaultCellComponentProps> = ({
   )
 
   if (handleClick) {
-    return (
-      <CellButton className={className} onClick={handleClick}>
-        {content}
-      </CellButton>
-    )
+    return <CellButton onClick={handleClick}>{content}</CellButton>
   }
 
   return content
