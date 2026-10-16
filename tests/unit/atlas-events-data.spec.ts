@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 
 import { EMAIL_RE, findStaleDates, GENERIC_TITLE_RE, URL_RE } from '@/lib/eventQuality'
 
-import { EXPECTED_COUNTS } from '../../seeds/lib/expectedCounts'
+import { getExpectedCounts } from '../../seeds/lib/expectedCounts'
 
 /**
  * Guards the grooming pass applied to events.json (#590 follow-up): the free-text
@@ -213,7 +213,7 @@ describe('events.json structured fields', () => {
   })
 
   it('derives the expected region count from the data', () => {
-    // `EXPECTED_COUNTS.atlas.regions` has to equal what the importer actually
+    // The atlas `regions` floor has to equal what the importer actually
     // creates: every source geo node, plus one shared-venue node per venue used
     // by more than one *surviving* event. Verification is `actual >= expected`,
     // so a stale constant here quietly degrades into no check at all — which is
@@ -234,7 +234,7 @@ describe('events.json structured fields', () => {
     expect(sharedVenues).toBe(52)
     // Less region:East, whose invalid source coordinates fail validation on
     // every run — proven by the local end-to-end reseed against a clean DB.
-    expect(EXPECTED_COUNTS.atlas.regions).toBe(sourceNodes.length + sharedVenues - 1)
+    expect(getExpectedCounts('atlas').regions).toBe(sourceNodes.length + sharedVenues - 1)
   })
 
   it('uses languageCodes only where a listing is genuinely multi-language', () => {
@@ -303,7 +303,7 @@ describe('expected counts follow from the data', () => {
     // case-variant duplicates, since Payload stores email lowercased + unique.
     const unique = new Set(importable.map((u) => u.email!.trim().toLowerCase()))
     expect(users.length - importable.length).toBe(29)
-    expect(EXPECTED_COUNTS.atlas.users).toBe(unique.size)
+    expect(getExpectedCounts('atlas').users).toBe(unique.size)
   })
 
   it('drops the registrations whose registrant or event cannot be imported', () => {
@@ -350,6 +350,6 @@ describe('expected counts follow from the data', () => {
       (r) => (r.userId != null && unimportable.has(r.userId)) || !resolves(r.eventId),
     )
     expect(trashedOnImport.size).toBe(2) // #75 and #199
-    expect(EXPECTED_COUNTS.atlas['user-submissions']).toBe(registrations.length - orphaned.length)
+    expect(getExpectedCounts('atlas')['user-submissions']).toBe(registrations.length - orphaned.length)
   })
 })

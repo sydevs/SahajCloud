@@ -6,6 +6,8 @@
  * multiple HTTP requests.
  */
 
+import type { CollectionSlug, Where } from 'payload'
+
 // --- Types ---
 
 /** Options for paginated import execution */
@@ -42,6 +44,20 @@ export interface CollectionMetadata {
   naturalKey: string
   /** Whether this collection involves file uploads (reduces batch size) */
   hasFileUploads?: boolean
+  /**
+   * The collection this step's rows land in, where it has one. `slug` is the
+   * step's own name and is not always a collection: `atlas`'s `pictures`
+   * downloads into `images`, and `payload.count` throws on `'pictures'`. The
+   * type is what keeps a mistyped slug from reaching a count.
+   */
+  collection?: CollectionSlug
+  /**
+   * Counted under this filter rather than whole-collection. It lives beside
+   * the floor it makes meaningful — `atlas`'s `user-submissions` floor counts
+   * registrations, and the table also holds contact, subscribe and proposal
+   * rows, which would pass the floor on their own.
+   */
+  countWhere?: Where
   /** Override batch size for this collection (takes precedence over hasFileUploads) */
   batchSize?: number
 }

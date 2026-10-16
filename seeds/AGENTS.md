@@ -447,11 +447,21 @@ No errors - import completed successfully!
 ## Creating a new seed script
 
 1. Create `seeds/<script-name>/import.ts`, extending `BaseImporter`.
-2. Add collection metadata to `seeds/lib/expectedCounts.ts`.
-3. Register it in `getImporter()` in
+2. Add collection metadata to `seeds/lib/expectedCounts.ts`. Each step names
+   the `collection` its rows land in, and the seed route counts exactly those —
+   a step that lands in no collection of its own names none.
+3. Declare the floor. A script that can state none — it targets a global, or
+   its floor depends on what the target already holds — declares
+   `{ kind: 'not-applicable', reason }` rather than `{}`, so a run that
+   verified nothing stops reporting like one that verified and passed. Where an
+   invariant over the run's own totals still holds, override `verifyRun()`
+   (`seeds/lib/BaseImporter.ts`). `meditation-transcripts` is the worked
+   example: every entry ends in a write, an error, or a skip that named its
+   reason, and the arithmetic is a pure function beside the importer.
+4. Register it in `getImporter()` in
    `src/app/(payload)/api/seed/[script]/route.ts`.
-4. Add it to the "Available Scripts" table above.
-5. **Does it read a committed data file?** Export its path from
+5. Add it to the "Available Scripts" table above.
+6. **Does it read a committed data file?** Export its path from
    `seeds/lib/dataFiles.ts` and register it under the script's key in
    `SCRIPT_DATA_FILES`. An unregistered file is never uploaded, so the
    importer falls back to a disk read that the production build trace
