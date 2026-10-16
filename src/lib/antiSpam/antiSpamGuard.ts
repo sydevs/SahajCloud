@@ -32,6 +32,11 @@ export type AntiSpamCode =
   | 'invalid_email'
   | 'disposable_email'
   | 'urls_not_allowed'
+  // A patch too large or too deeply nested for the content scan to finish. Not
+  // the sender's content being wrong — the check being unable to reach all of
+  // it, which must refuse rather than pass (see `verifyTurnstileOrFail`: a gate
+  // that silently disables itself is worse than no gate).
+  | 'content_unscannable'
 
 export interface AntiSpamFailure {
   ok: false

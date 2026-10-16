@@ -14,17 +14,29 @@ export interface WriteGuardOperationPolicy {
   /** Fields to run the format + disposable-domain email check on. */
   emailFields?: string[]
   /**
-   * Fields whose free text must not contain URLs. A field holding an object
-   * (e.g. registration `questions`) has all its string leaves scanned.
-   * Dedicated URL fields (website, onlineUrl, …) are simply never listed.
+   * Fields whose free text must not contain URLs. Dedicated URL fields
+   * (website, onlineUrl, …) are simply never listed.
    *
-   * ⚠ Omission is the mechanism **here only**, and it is half the answer for
-   * `proposed`: the screening job walks that whole column and derives the same
-   * exemption from the Events config (`@/jobs/ScreenSubmissions/contentScreening`,
-   * #920). So widening a `proposed.*` path here scans more than this list says,
-   * and a new free-text Events column is scanned by neither until it is added.
+   * ⚠ **Every string leaf under a listed path is scanned, not only a string at
+   * the path.** The guard runs `beforeValidate`, so the value is whatever the
+   * body said, and `checkNoUrls` skips a non-string — reading the path as a
+   * scalar accepts `{ name: { nickname: <link> } }`. Pinned by
+   * `tests/unit/write-guard-error-shape.spec.ts`, since every live entry is a
+   * scalar.
+   *
+   * ⚠ Omission is the mechanism here, so this list can only cover a column
+   * somebody remembered to add. A column set that must stay in step with
+   * another collection's config belongs in `derivedScan` instead (#948).
    */
   urlScanFields?: string[]
+  /**
+   * A column holding a client-authored field patch for `collection`. Its string
+   * leaves are scanned by `proposalLeaves` — URLs refused, `type: 'email'`
+   * columns judged as addresses, and a column declared to hold an address or a
+   * link exempt — all read off that collection's live config rather than listed,
+   * so a column added there is covered the day it lands (#948).
+   */
+  derivedScan?: { path: string; collection: CollectionSlug }
 }
 
 export interface WriteGuardPolicy {
@@ -59,10 +71,7 @@ export const DEFAULT_WRITE_GUARD_POLICIES: Partial<Record<CollectionSlug, WriteG
   'user-submissions': {
     create: {
       turnstile: true,
-      emailFields: ['senderEmail', 'proposed.contactEmail'],
-      // `proposed` is scanned the way `event-submissions` scanned it: by group,
-      // so the street line is covered as well as the venue name.
-      //
+      emailFields: ['senderEmail'],
       // ⚠ `submissionData` is deliberately **absent**, and is scanned by
       // `prepareUserSubmission` instead. A path here is walked by
       // `stringLeaves`, which flattens the whole `[{field, value}]` array — and
@@ -81,12 +90,10 @@ export const DEFAULT_WRITE_GUARD_POLICIES: Partial<Record<CollectionSlug, WriteG
       // so for the only callers this guard inspects the value is always gone.
       // The subject a sender actually writes travels in `submissionData`, and
       // `submissionDataSchema` covers it there.
-      urlScanFields: [
-        'proposed.description',
-        'proposed.contactName',
-        'proposed.address',
-        'proposed.title',
-      ],
+      //
+      // `proposed` is an Events field patch, so every check it owes is derived
+      // from that collection's config rather than listed here.
+      derivedScan: { path: 'proposed', collection: 'events' },
     },
   },
 }
