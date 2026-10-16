@@ -23,6 +23,7 @@ import {
   jobStageWait,
   readJobStageConfig,
 } from '@/components/admin/JobStageView/stages'
+import { TRANSCRIPTION_STALL_MS } from '@/lib/meditations/transcript'
 
 import { hasDirective, SRC, sourceOf } from '../utils/importGraph'
 
@@ -67,6 +68,18 @@ describe('readJobStageConfig', () => {
         jobStage: { progressField: 'done', runningStages: ['a'], totalField: 'all' },
       }),
     ).toEqual({ progressField: 'done', runningStages: ['a'], totalField: 'all' })
+  })
+
+  it('keeps a usable `staleAfterMs`, and drops one that would open every row', () => {
+    expect(
+      readJobStageConfig({ jobStage: { runningStages: ['a'], staleAfterMs: 1000 } }),
+    ).toEqual({ runningStages: ['a'], staleAfterMs: 1000 })
+    expect(readJobStageConfig({ jobStage: { runningStages: ['a'], staleAfterMs: 0 } })).toEqual({
+      runningStages: ['a'],
+    })
+    expect(readJobStageConfig({ jobStage: { runningStages: ['a'], staleAfterMs: '60' } })).toEqual(
+      { runningStages: ['a'] },
+    )
   })
 
   it('refuses a declaration with no usable `runningStages`', () => {
@@ -152,6 +165,40 @@ describe('jobStageWait', () => {
     ).toEqual({ progress: 7, stage: 'working', total: 20 })
   })
 
+  /**
+   * Nothing on `main` expires a running stage, so a run lost to a restart
+   * would otherwise hold its row behind the waiting view permanently.
+   */
+  describe('a declared stall window', () => {
+    const stalling: JobStageConfig = { runningStages: ['working'], staleAfterMs: 1000 }
+    const now = Date.parse('2026-10-16T12:00:00.000Z')
+    const at = (msAgo: number) => new Date(now - msAgo).toISOString()
+
+    it('keeps waiting while the window has not passed', () => {
+      expect(jobStageWait(stalling, { status: 'working', updatedAt: at(900) }, now)).toEqual({
+        progress: null,
+        stage: 'working',
+        total: null,
+      })
+    })
+
+    it('opens the form once the window has passed', () => {
+      expect(jobStageWait(stalling, { status: 'working', updatedAt: at(1001) }, now)).toBeNull()
+    })
+
+    it('keeps waiting where `updatedAt` cannot be read', () => {
+      expect(jobStageWait(stalling, { status: 'working' }, now)).not.toBeNull()
+      expect(
+        jobStageWait(stalling, { status: 'working', updatedAt: 'not a date' }, now),
+      ).not.toBeNull()
+    })
+
+    it('waits forever where the collection declares no window', () => {
+      const forever: JobStageConfig = { runningStages: ['working'] }
+      expect(jobStageWait(forever, { status: 'working', updatedAt: at(1e9) }, now)).not.toBeNull()
+    })
+  })
+
   it('waits with no total where the declared column holds no number yet', () => {
     const counted: JobStageConfig = {
       progressField: 'done',
@@ -185,8 +232,11 @@ describe('the view itself', () => {
 })
 
 describe('meditation-transcripts', () => {
-  it('declares `processing` as its only running stage', () => {
-    expect(transcriptConfig()).toEqual({ runningStages: ['processing'] })
+  it('declares `processing` as its only running stage, behind the stall window', () => {
+    expect(transcriptConfig()).toEqual({
+      runningStages: ['processing'],
+      staleAfterMs: TRANSCRIPTION_STALL_MS,
+    })
   })
 
   it('leaves a freshly created row editable, because `status` defaults outside that list', () => {

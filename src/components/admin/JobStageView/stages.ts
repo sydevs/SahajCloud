@@ -20,6 +20,14 @@ export type JobStageConfig = {
   progressField?: string
   /** Statuses a worker holds the document in. */
   runningStages: string[]
+  /**
+   * How long a running stage may stand before the form opens anyway, in
+   * milliseconds, measured against `updatedAt`. Nothing expires a stage, so
+   * without this a run lost to a restart holds its row behind the waiting view
+   * for good. Past it the editor gets the form back, and setting the status
+   * column to its queued value is the retry.
+   */
+  staleAfterMs?: number
   /** Where the stage lives. Defaults to `status`. */
   statusField?: string
   /**
@@ -53,7 +61,7 @@ export function readJobStageConfig(custom: unknown): JobStageConfig | null {
   const declared = custom.jobStage
   if (!isRecord(declared)) return null
 
-  const { progressField, runningStages, statusField, totalField } = declared
+  const { progressField, runningStages, staleAfterMs, statusField, totalField } = declared
   if (!Array.isArray(runningStages) || !runningStages.every((s) => typeof s === 'string')) {
     return null
   }
@@ -61,6 +69,10 @@ export function readJobStageConfig(custom: unknown): JobStageConfig | null {
   return {
     progressField: typeof progressField === 'string' ? progressField : undefined,
     runningStages,
+    // A zero or negative window would open the form on every running row, so
+    // an unusable number reads as undeclared rather than as "always stale".
+    staleAfterMs:
+      typeof staleAfterMs === 'number' && staleAfterMs > 0 ? staleAfterMs : undefined,
     statusField: typeof statusField === 'string' ? statusField : undefined,
     totalField: typeof totalField === 'string' ? totalField : undefined,
   }
@@ -72,15 +84,36 @@ export function readJobStageConfig(custom: unknown): JobStageConfig | null {
  * The stored stage is the whole input. Nothing polls, so a stage that settles
  * is one page load away rather than one refresh interval.
  */
-export function jobStageWait(config: JobStageConfig, doc: unknown): JobStageWait | null {
+export function jobStageWait(
+  config: JobStageConfig,
+  doc: unknown,
+  now: number = Date.now(),
+): JobStageWait | null {
   const stage = valueAt(doc, config.statusField ?? DEFAULT_STATUS_FIELD)
   if (typeof stage !== 'string' || !config.runningStages.includes(stage)) return null
+  if (isStale(config, doc, now)) return null
 
   return {
     progress: numberAt(doc, config.progressField),
     stage,
     total: numberAt(doc, config.totalField),
   }
+}
+
+/**
+ * Whether a declared stall window has passed since the document was last
+ * written, which releases the gate.
+ *
+ * An unreadable `updatedAt` keeps the wait: the alternative opens the form on
+ * a healthy run whenever a timestamp cannot be parsed, which is the failure
+ * the gate exists to prevent.
+ */
+function isStale(config: JobStageConfig, doc: unknown, now: number): boolean {
+  if (config.staleAfterMs === undefined) return false
+  const updatedAt = valueAt(doc, 'updatedAt')
+  if (typeof updatedAt !== 'string') return false
+  const written = Date.parse(updatedAt)
+  return !Number.isNaN(written) && now - written > config.staleAfterMs
 }
 
 /** The number at a declared path, or `null` for an undeclared or unreadable one. */
