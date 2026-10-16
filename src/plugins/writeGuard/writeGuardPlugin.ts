@@ -9,6 +9,7 @@ import {
   checkNoUrls,
   verifyTurnstileOrFail,
 } from '@/lib/antiSpam/antiSpamGuard'
+import type { ProposalLeaves } from '@/lib/antiSpam/proposalLeaves'
 import { proposalLeaves } from '@/lib/antiSpam/proposalLeaves'
 
 
@@ -82,18 +83,46 @@ function throwFailure(failure: AntiSpamFailure): never {
  * The string leaves of `derivedScan`'s column, classified against the target
  * collection's live config.
  *
- * A collection with no config to read — a bare test harness — derives nothing
- * and scans nothing, the way `validateProposal` lets Accept be the gate rather
- * than refusing every submission.
+ * ⚠ **Fails closed, both ways.** This is the only create-time scan of the
+ * column, so a verdict it could not actually reach must refuse: a target
+ * collection with no config to read derives no exemptions and would scan
+ * nothing, and a patch that tripped a bound was scanned only up to it. Either
+ * answer accepted is the fail-open #948 closes. `validateProposal` may fail
+ * open on the same missing config because Accept is still a backstop for the
+ * key gate; a spam link has no equivalent — screening bins the row instead of
+ * telling the sender.
  */
 function derivedLeaves(
   derived: NonNullable<WriteGuardOperationPolicy['derivedScan']>,
   data: Record<string, unknown>,
   req: PayloadRequest,
-) {
+): ProposalLeaves {
+  const patch = valueAtPath(data, derived.path)
+  if (patch == null) return { urlScan: {}, emails: {}, truncated: false }
+
   const fields = req.payload?.collections?.[derived.collection]?.config?.flattenedFields
-  if (!fields?.length) return { urlScan: {}, emails: {} }
-  return proposalLeaves(valueAtPath(data, derived.path), fields, derived.path)
+  if (!fields?.length) {
+    throwFailure({
+      ok: false,
+      code: 'content_unscannable',
+      status: 500,
+      message: 'Could not check this submission. Please try again later.',
+      field: derived.path,
+    })
+  }
+
+  const leaves = proposalLeaves(patch, fields, derived.path)
+  if (leaves.truncated) {
+    throwFailure({
+      ok: false,
+      code: 'content_unscannable',
+      status: 400,
+      message: `Simplify "${derived.path}" — it is too large or too deeply nested to check.`,
+      field: derived.path,
+    })
+  }
+
+  return leaves
 }
 
 async function runPolicy(

@@ -6,6 +6,18 @@ export interface ProposalLeaves {
   urlScan: Record<string, string>
   /** Values sitting in a `type: 'email'` column, to judge as addresses. */
   emails: Record<string, string>
+  /**
+   * A bound stopped the walk, so these maps are a PREFIX of the patch's leaves
+   * and a clean verdict on them says nothing about the rest.
+   *
+   * ⚠ **A caller must refuse a truncated patch, never accept it.** The bounds
+   * exist against hostile input, so the input that trips one is the input most
+   * likely to be hiding a link past it — 210 text nodes in `description` and a
+   * link in `title` spends the leaf budget before `title` is reached. Silently
+   * scanning a prefix is the same fail-open #948 closes, re-armed one layer
+   * down.
+   */
+  truncated: boolean
 }
 
 /**
@@ -55,7 +67,7 @@ export function proposalLeaves(
   fields: FlattenedField[],
   prefix = '',
 ): ProposalLeaves {
-  const leaves: ProposalLeaves = { urlScan: {}, emails: {} }
+  const leaves: ProposalLeaves = { urlScan: {}, emails: {}, truncated: false }
   collect(value, fields, prefix, 0, leaves)
   return leaves
 }
@@ -67,13 +79,17 @@ function collect(
   depth: number,
   into: ProposalLeaves,
 ): void {
-  if (depth > MAX_DEPTH || value == null || count(into) >= MAX_LEAVES) return
+  if (value == null) return
+  if (depth > MAX_DEPTH || count(into) >= MAX_LEAVES) {
+    into.truncated = true
+    return
+  }
 
   if (typeof value === 'string') {
     // An empty string can hold no URL and is no address, so keeping it would
     // spend the MAX_LEAVES budget on values that cannot trip either check and
     // could crowd out one that does.
-    if (value.trim() !== '') into.urlScan[prefix || 'proposed'] = value
+    if (value.trim() !== '') place(into, 'urlScan', prefix || 'proposed', value)
     return
   }
 
@@ -86,13 +102,16 @@ function collect(
 
   if (typeof value === 'object') {
     for (const [key, item] of Object.entries(value)) {
-      if (count(into) >= MAX_LEAVES) break
+      if (count(into) >= MAX_LEAVES) {
+        into.truncated = true
+        break
+      }
       const field = fields.find((candidate) => candidate.name === key)
       const path = prefix ? `${prefix}.${key}` : key
 
       if (typeof item === 'string') {
         if (field?.type === 'email') {
-          if (item.trim() !== '') into.emails[path] = item
+          if (item.trim() !== '') place(into, 'emails', path, item)
           continue
         }
         if (field?.custom?.holdsUrl === true) continue
@@ -102,6 +121,28 @@ function collect(
       collect(item, nested, path, depth + 1, into)
     }
   }
+}
+
+/**
+ * Record a leaf under a key nothing else holds.
+ *
+ * ⚠ **A dotted path is not unique, because a key may contain a dot.** The patch
+ * is submitter-controlled, so `{ address: { 'street.note': <link>, street: {
+ * note: 'ok' } } }` composes one path twice — and the later write discarded the
+ * link outright. The walk this replaced suffixed a position instead and could
+ * not collide.
+ */
+function place(
+  into: ProposalLeaves,
+  bucket: 'urlScan' | 'emails',
+  key: string,
+  value: string,
+): void {
+  let unique = key
+  for (let index = 1; unique in into.urlScan || unique in into.emails; index += 1) {
+    unique = `${key}#${index}`
+  }
+  into[bucket][unique] = value
 }
 
 function count(leaves: ProposalLeaves): number {

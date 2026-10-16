@@ -63,7 +63,7 @@ describe('proposalLeaves', () => {
     // column is indistinguishable from free text.
     const leaves = proposalLeaves({ website: 'https://example.org/classes' }, EVENTS)
 
-    expect(leaves).toEqual({ urlScan: {}, emails: {} })
+    expect(leaves).toEqual({ urlScan: {}, emails: {}, truncated: false })
   })
 
   it('exempts a string value, never the key above it', () => {
@@ -85,7 +85,7 @@ describe('proposalLeaves', () => {
   it('drops an empty value, which can trip neither check', () => {
     const leaves = proposalLeaves({ title: '   ', contactEmail: '' }, EVENTS)
 
-    expect(leaves).toEqual({ urlScan: {}, emails: {} })
+    expect(leaves).toEqual({ urlScan: {}, emails: {}, truncated: false })
   })
 
   it('keys a bare string under the prefix the caller named', () => {
@@ -110,12 +110,52 @@ describe('proposalLeaves', () => {
    * overflow and an unbounded allocation waiting for somebody to post a deeply
    * nested object, and the write guard's own walk had neither until #948.
    */
-  it('stops descending past its depth bound', () => {
+  it('stops descending past its depth bound, and says it did', () => {
     const deep = (levels: number) =>
       Array.from({ length: levels }).reduce<unknown>((inner) => ({ nested: inner }), 'cheap.shop')
 
     expect(Object.keys(proposalLeaves(deep(5), EVENTS).urlScan)).toHaveLength(1)
-    expect(proposalLeaves(deep(60), EVENTS).urlScan).toEqual({})
+    expect(proposalLeaves(deep(5), EVENTS).truncated) /* within the bound */
+      .toBe(false)
+
+    const cut = proposalLeaves(deep(60), EVENTS)
+    expect(cut.urlScan).toEqual({})
+    expect(cut.truncated).toBe(true)
+  })
+
+  /**
+   * ⚠ The fail-open a single bounded walk re-arms, and the reason `truncated`
+   * exists. The budget is spent on 210 harmless text nodes before `title` is
+   * reached, so the link in it is in neither bucket — and a caller reading only
+   * the buckets gets a clean verdict on a patch nothing finished scanning.
+   */
+  it('reports truncation when a later key is never reached', () => {
+    const leaves = proposalLeaves(
+      {
+        description: Object.fromEntries(
+          Array.from({ length: 210 }, (_, index) => [`node${index}`, `paragraph ${index}`]),
+        ),
+        title: 'join us at cheap.shop',
+      },
+      EVENTS,
+    )
+
+    expect(Object.values(leaves.urlScan)).not.toContain('join us at cheap.shop')
+    expect(leaves.truncated).toBe(true)
+  })
+
+  /**
+   * ⚠ A dotted path is not unique, because a submitter chooses the keys. The
+   * later write discarded the link outright before `place` suffixed collisions.
+   */
+  it('keeps both leaves when two keys compose the same path', () => {
+    const leaves = proposalLeaves(
+      { address: { 'street.note': 'join us at cheap.shop', street: { note: 'ok' } } },
+      EVENTS,
+    )
+
+    expect(Object.values(leaves.urlScan)).toContain('join us at cheap.shop')
+    expect(Object.values(leaves.urlScan)).toContain('ok')
   })
 
   /**
@@ -148,12 +188,14 @@ describe('proposalLeaves', () => {
     expect(Object.values(leaves.urlScan)).toContain('buy at cheap.shop')
   })
 
-  it('stops collecting past its leaf bound', () => {
+  it('stops collecting past its leaf bound, and says it did', () => {
     const wide = Object.fromEntries(
       Array.from({ length: 500 }, (_, index) => [`key${index}`, `value ${index}`]),
     )
+    const leaves = proposalLeaves(wide, EVENTS)
 
-    expect(Object.keys(proposalLeaves(wide, EVENTS).urlScan).length).toBeLessThanOrEqual(200)
+    expect(Object.keys(leaves.urlScan).length).toBeLessThanOrEqual(200)
+    expect(leaves.truncated).toBe(true)
   })
 
   it('counts both buckets against that bound', () => {
