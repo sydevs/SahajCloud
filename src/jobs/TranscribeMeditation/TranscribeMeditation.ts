@@ -30,9 +30,9 @@ import { getR2Url } from '@/plugins/storage'
  * that flag forever — so a key would block **Try again** after a stall, for
  * good. The writer's dedupe and the row checks above stop duplicate writes.
  *
- * It writes `status`, `provider` and `segments`. `error`, `outdated` and
- * `language` belong to `requestTranscription`, the only party that can put a row
- * into `queued`.
+ * It writes `status`, `provider`, `segments` and — beside them, never before —
+ * `outdated`. `error` and `language` belong to `requestTranscription`, the only
+ * party that can put a row into `queued`.
  */
 export const TranscribeMeditation: TaskConfig<'transcribeMeditation'> = {
   slug: 'transcribeMeditation',
@@ -82,7 +82,14 @@ export const TranscribeMeditation: TaskConfig<'transcribeMeditation'> = {
       if (!(await findCurrentRow(req, meditationId, audioFilename))) {
         return { output: { status: 'superseded' } }
       }
-      await updateRow(req, row.id, { status: 'completed', provider: 'lemonfox', segments })
+      // `outdated` clears here and nowhere earlier: until these cues exist, the
+      // readable ones are the previous recording's (#897, success line 9).
+      await updateRow(req, row.id, {
+        status: 'completed',
+        provider: 'lemonfox',
+        segments,
+        outdated: false,
+      })
       return { output: { status: 'completed' } }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)

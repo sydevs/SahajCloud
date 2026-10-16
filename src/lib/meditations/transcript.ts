@@ -47,7 +47,10 @@ export type TranscriptView = {
   status: TranscriptStatus | 'none'
   /** Queued or processing for longer than {@link TRANSCRIPTION_STALL_MS}. */
   stalled: boolean
-  /** Read from the stored `outdated` column, written when the audio is replaced. */
+  /**
+   * Read from the stored `outdated` column: set when the audio is replaced, and
+   * cleared only by a completed run for the current recording.
+   */
   outdated: boolean
   provider: TranscriptProvider | null
   segments: TranscriptSegment[]

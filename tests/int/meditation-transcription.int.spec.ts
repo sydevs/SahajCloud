@@ -24,8 +24,10 @@ import type { Payload } from 'payload'
 import fs from 'node:fs'
 import path from 'node:path'
 
+import { createLocalReq } from 'payload'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { requestTranscription } from '@/collections/MeditationTranscripts/requestTranscription'
 import { TranscribeMeditation } from '@/jobs/TranscribeMeditation/TranscribeMeditation'
 import { TRANSCRIPTION_UNAVAILABLE_ERROR } from '@/lib/lemonfox/transcribe'
 import { TRANSCRIPTION_STALL_MS } from '@/lib/meditations/transcript'
@@ -166,6 +168,23 @@ describe('meditation transcription', () => {
    */
   const takeAwayRecording = (meditationId: number): Promise<void> =>
     seedLatestVersion(payload, 'meditations', meditationId, { filename: null })
+
+  /**
+   * The redo a `POST` makes, through the one request writer rather than the
+   * endpoint — these cases are about what the task then writes, not the gate.
+   */
+  const requestTranscriptionFor = async (
+    meditationId: number,
+    audioFilename: string,
+  ): Promise<void> => {
+    await requestTranscription({
+      req: await createLocalReq({}, payload),
+      meditationId,
+      audioFilename,
+      language: 'en',
+      afterCommit: false,
+    })
+  }
 
   /** Replace a meditation's recording, the way an editor does. */
   const replaceAudio = (meditationId: number): Promise<Meditation> => {
@@ -326,13 +345,60 @@ describe('meditation transcription', () => {
       expect(afterReplacement.body.segments).toHaveLength(2)
 
       // The redo: a run for the new recording, with the old text still there.
+      // `outdated` stays true, because the text on offer is still the previous
+      // recording's until that run completes.
       const redo = await rest(path, { method: 'POST' })
       expect(redo.status).toBe(202)
       expect(redo.body.status).toBe('queued')
       expect(redo.body.segments).toHaveLength(2)
+      expect(redo.body.outdated).toBe(true)
       const row = await transcriptOf(meditation.id)
       expect(row?.audioFilename).toBe(replaced.filename)
+      expect(row?.outdated).toBe(true)
+    })
+
+    it('keeps the old text labelled as the old recording when the redo fails', async () => {
+      const meditation = await createMeditation()
+      await runTaskHandler(TranscribeMeditation, {
+        payload,
+        input: { meditationId: meditation.id, audioFilename: meditation.filename! },
+      })
+      const replaced = await replaceAudio(meditation.id)
+      await requestTranscriptionFor(meditation.id, replaced.filename!)
+      lemonfox.requestLemonfoxTranscript.mockRejectedValue(new Error('Lemonfox is unreachable.'))
+
+      const output = await runTaskHandler(TranscribeMeditation, {
+        payload,
+        input: { meditationId: meditation.id, audioFilename: replaced.filename! },
+      })
+
+      expect(output.status).toBe('failed')
+      const row = await transcriptOf(meditation.id)
+      expect(row?.status).toBe('failed')
+      // The readable cues are still the previous recording's, so calling them
+      // current would hand child 4 a transcript of audio nobody can hear.
+      expect(row?.segments).toHaveLength(2)
+      expect(row?.outdated).toBe(true)
+    })
+
+    it('clears the mark when a run for the new recording completes', async () => {
+      const meditation = await createMeditation()
+      await runTaskHandler(TranscribeMeditation, {
+        payload,
+        input: { meditationId: meditation.id, audioFilename: meditation.filename! },
+      })
+      const replaced = await replaceAudio(meditation.id)
+      await requestTranscriptionFor(meditation.id, replaced.filename!)
+
+      const output = await runTaskHandler(TranscribeMeditation, {
+        payload,
+        input: { meditationId: meditation.id, audioFilename: replaced.filename! },
+      })
+
+      expect(output.status).toBe('completed')
+      const row = await transcriptOf(meditation.id)
       expect(row?.outdated).toBe(false)
+      expect(row?.audioFilename).toBe(replaced.filename)
     })
   })
 

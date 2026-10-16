@@ -15,10 +15,13 @@ import { findTranscriptRow, isTranscriptionActive } from './view'
  * `POST /api/meditations/:id/transcript` behind **Transcribe** and **Try
  * again** — go through here, so a request means the same thing either way.
  *
- * ⚠ **`segments`, `provider` and `language` survive a request.** `audioFilename`
- * names the recording this request is for; `segments` holds the last *completed*
- * transcript's cues, which stay readable across a replacement and a redo until
- * a new run completes (#897, success line 9).
+ * ⚠ **`segments`, `provider`, `language` and `outdated` survive a request.**
+ * `audioFilename` names the recording this request is for; `segments` holds the
+ * last *completed* transcript's cues, which stay readable across a replacement
+ * and a redo until a new run completes (#897, success line 9). `outdated` says
+ * those cues are the previous recording's, so only a completed run for the
+ * current one may clear it — a redo that fails must not relabel old text as
+ * current.
  */
 export async function requestTranscription({
   req,
@@ -46,7 +49,6 @@ export async function requestTranscription({
     status: unavailable ? ('failed' as const) : ('queued' as const),
     audioFilename,
     language,
-    outdated: false,
     error: unavailable ? TRANSCRIPTION_UNAVAILABLE_ERROR : null,
   }
 
