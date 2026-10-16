@@ -76,8 +76,9 @@ export const MeditationTranscripts: CollectionConfig = {
       defaultValue: false,
     },
     jsonField({
-      // Cleared to `null` when a new transcription is requested, so the
-      // generated type has to carry it.
+      // Null until the first run completes, so the generated type has to carry
+      // it. A later request leaves the cues alone — the previous recording's
+      // text stays readable, with `outdated` saying whose it is.
       name: 'segments',
       schemaTitle: 'TranscriptSegments',
       schema: transcriptSegmentsSchema.nullable(),
