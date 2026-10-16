@@ -83,9 +83,17 @@ mechanism and the rule for setting it (#938).
 
 ⚠ **Four declarations bound an upload, and they must stay ordered.** A category limit in
 `FILE_SIZE_LIMITS` sits under `upload.limits.fileSize` (48 MB), which sits under
-`upload.requestSizeLimit` (50 MB), which sits under the Next cap. Anything above the request
-ceiling can never fire, because Payload refuses the body first — see #939 for why it does so
-opaquely. `tests/unit/next-config-body-limit.spec.ts` pins the ordering.
+`upload.requestSizeLimit` (50 MB), which sits **strictly** under the Next cap (51 MB). All four
+are declared in `src/plugins/storage/uploadValidation.ts` bar the cap, which `next.config.mjs`
+has to spell as a literal, and `tests/unit/next-config-body-limit.spec.ts` pins the ordering.
+Anything above the request ceiling can never fire, because Payload refuses the body first.
+
+**Strictly under is the part that bites** (#939). Payload refuses a body only once it *exceeds*
+`requestSizeLimit`, so a cap equal to it truncates at the same byte instead, and the request ends
+mid-form — "Unexpected end of form", a 500, which is #938's symptom at a new boundary. The
+headroom above the request ceiling is read into memory before the refusal, pre-auth and twice, so
+keep it small. Payload's own refusals name no size; `uploadErrorPlugin` and `upload.responseOnLimit`
+answer both gates with one sentence that does.
 
 **The origin decides *what* is cached; the rule only decides *who may ask*.** The rule matches
 every `/api/**` read that could legitimately be cached and delegates the yes/no to the response

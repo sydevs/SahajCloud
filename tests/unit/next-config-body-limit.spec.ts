@@ -3,7 +3,12 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import nextConfig from '../../next.config.mjs'
-import { FILE_SIZE_LIMITS } from '../../src/plugins/storage/uploadValidation'
+import {
+  FILE_SIZE_LIMITS,
+  UPLOAD_FILE_SIZE_LIMIT,
+  UPLOAD_REQUEST_SIZE_LIMIT,
+  UPLOAD_SIZE_LIMIT_MESSAGE,
+} from '../../src/plugins/storage/uploadValidation'
 import { SRC, sourceOf } from '../utils/importGraph'
 
 /**
@@ -11,42 +16,34 @@ import { SRC, sourceOf } from '../utils/importGraph'
  * upload under Next's 10 MB default keeps working, and a larger one fails inside
  * Payload instead (#938). `next.config.mjs` carries the mechanism.
  *
- * Payload's half is read as source text, because importing `payload.config.ts`
- * builds the whole config — and a literal copied to here would pin only Next's
- * side, leaving a raised Payload limit green.
- *
  * What is pinned is the ORDERING, not `cap >= each limit`. The latter holds even
  * for a limit above the request ceiling, which can never fire: that is how
  * `fileSize` sat at 100 MB inside a 50 MB request with this spec green.
+ *
+ * Payload's two ceilings are read from the module that declares them, not from
+ * `payload.config.ts`, because importing that config builds the whole app. The
+ * `set upload.<option>` cases keep the config honest about using them — a
+ * literal typed back in would otherwise pass every comparison above it.
  */
-
-/** One upload byte-limit `src/payload.config.ts` declares, by option name. */
-function payloadUploadLimit(option: string): number {
-  const source = sourceOf(join(SRC, 'payload.config.ts'))
-  const matches = [...source.matchAll(new RegExp(`${option}:\\s*(\\d+)`, 'g'))]
-
-  // Without exactly one match the comparisons below would read the wrong
-  // declaration, or pass against nothing.
-  expect(matches, `one upload.${option} expected in src/payload.config.ts`).toHaveLength(1)
-  return Number(matches[0][1])
-}
-
 describe('the upload size limits', () => {
   const cap = nextConfig.experimental?.proxyClientMaxBodySize
-  const requestSizeLimit = payloadUploadLimit('requestSizeLimit')
-  const fileSize = payloadUploadLimit('fileSize')
 
   it('give Next a numeric cap, so it compares without a unit parse', () => {
     // The option is typed `number | string`.
     expect(typeof cap).toBe('number')
   })
 
-  it('let Next admit every request Payload would accept', () => {
-    expect(cap).toBeGreaterThanOrEqual(requestSizeLimit)
+  it('leave Payload room to refuse a request before Next truncates it', () => {
+    // Strictly above, not equal. Payload refuses only ABOVE its own limit, so
+    // an equal cap truncates at the same byte and the body ends instead —
+    // "Unexpected end of form", a 500 (#939).
+    expect(cap).toBeGreaterThan(UPLOAD_REQUEST_SIZE_LIMIT)
   })
 
   it('keep one file inside the request that has to carry it', () => {
-    expect(fileSize).toBeLessThanOrEqual(requestSizeLimit)
+    // Strictly under: the boundary, the part headers and `_payload` ride along
+    // in the same body.
+    expect(UPLOAD_FILE_SIZE_LIMIT).toBeLessThan(UPLOAD_REQUEST_SIZE_LIMIT)
   })
 
   // These are checked in `afterChange`, so a category above `fileSize` is
@@ -54,7 +51,21 @@ describe('the upload size limits', () => {
   it.each(Object.entries(FILE_SIZE_LIMITS))(
     'keep the %s category under the per-file limit',
     (_category, limit) => {
-      expect(limit).toBeLessThanOrEqual(fileSize)
+      expect(limit).toBeLessThanOrEqual(UPLOAD_FILE_SIZE_LIMIT)
     },
   )
+
+  it('name both ceilings in the sentence a refused upload gets back', () => {
+    expect(UPLOAD_SIZE_LIMIT_MESSAGE).toContain(`${UPLOAD_FILE_SIZE_LIMIT / 1024 / 1024} MB`)
+    expect(UPLOAD_SIZE_LIMIT_MESSAGE).toContain(`${UPLOAD_REQUEST_SIZE_LIMIT / 1024 / 1024} MB`)
+  })
+
+  it.each([
+    ['requestSizeLimit', 'UPLOAD_REQUEST_SIZE_LIMIT'],
+    ['fileSize', 'UPLOAD_FILE_SIZE_LIMIT'],
+    ['responseOnLimit', 'UPLOAD_SIZE_LIMIT_MESSAGE'],
+  ])('set upload.%s from %s', (option, constant) => {
+    const source = sourceOf(join(SRC, 'payload.config.ts'))
+    expect(source).toContain(`${option}: ${constant}`)
+  })
 })
