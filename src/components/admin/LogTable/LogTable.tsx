@@ -17,7 +17,7 @@ import React, { useState } from 'react'
 import type { LogCell, LogColumn, LogEntry } from '@/fields/logField'
 import { asLog } from '@/fields/logField'
 
-import { tableColumn } from '../tableColumn'
+import { tableColumn } from '../helpers/tableColumn'
 
 import './styles.css'
 

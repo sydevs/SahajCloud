@@ -4,7 +4,7 @@ import type { RelationshipDoc } from './relationshipDocLoader'
 import type { DefaultCellComponentProps, UploadFieldClient } from 'payload'
 
 import { useDocumentDrawer, useLocale } from '@payloadcms/ui'
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 
 
 import { BaseThumbnailCell } from './BaseThumbnailCell'
@@ -52,7 +52,6 @@ export const RelationshipThumbnailCell: React.FC<DefaultCellComponentProps> = ({
   cellData,
   collectionSlug,
   rowData,
-  className,
   field,
   link,
 }) => {
@@ -77,14 +76,6 @@ export const RelationshipThumbnailCell: React.FC<DefaultCellComponentProps> = ({
     id: relatedId != null ? Number(relatedId) : undefined,
   })
 
-  // Wrap openDrawer to match Payload's onClick signature
-  const handleClick = useCallback(
-    (_args: { cellData: unknown; collectionSlug: string; rowData: Record<string, unknown> }) => {
-      openDrawer()
-    },
-    [openDrawer],
-  )
-
   const doc = useRelationshipDoc(relationTo, relatedId, locale)
 
   return (
@@ -96,9 +87,8 @@ export const RelationshipThumbnailCell: React.FC<DefaultCellComponentProps> = ({
         cellData={cellData}
         collectionSlug={collectionSlug}
         rowData={rowData}
-        className={className}
         link={link}
-        onClick={relatedId ? handleClick : undefined}
+        onClick={relatedId ? openDrawer : undefined}
       />
       <DocumentDrawer />
     </>
