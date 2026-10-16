@@ -292,8 +292,10 @@ const fileData: FileData = {
 1. Create `seeds/<name>/import.ts`.
 2. Extend `BaseImporter`.
 3. Implement `import()`.
-4. Add it to the `seeds/run.ts` SCRIPTS map.
-5. Add an npm script to `package.json`.
+4. Add it to `VALID_SCRIPTS` and `SCRIPT_RUN_ORDER` in `seeds/run.ts`.
+5. Register any committed data file in `dataFiles.ts` — see
+   [seeds/AGENTS.md](../AGENTS.md#creating-a-new-seed-script).
+6. Add an npm script to `package.json`.
 
 ## File structure
 
@@ -301,6 +303,7 @@ const fileData: FileData = {
 lib/
 ├── BaseImporter.ts      # Abstract base class
 ├── cliParser.ts         # CLI argument parsing
+├── dataFiles.ts         # Every committed data-file path, and what uploads it
 ├── logger.ts            # Colored logging + file output
 ├── fileUtils.ts         # File operations, MIME types
 ├── tagManager.ts        # Tag creation/management

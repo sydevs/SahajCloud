@@ -16,6 +16,7 @@ export type ScriptName =
   | 'tags'
   | 'wemeditate'
   | 'meditations'
+  | 'meditation-transcripts'
   | 'storyblok'
   | 'wm-app-translations'
   | 'translations'
@@ -57,6 +58,12 @@ export const EXPECTED_COUNTS: Record<ScriptName, ExpectedCounts> = {
     meditations: 73,
     frames: 60,
   },
+  // Deliberately empty. The floor is however many of the library's recordings
+  // the target environment still carries unchanged — 122 in production, 0 on a
+  // fresh local database — so any single number either fails locally or
+  // confirms nothing. The run's own created/skipped/warning summary is the
+  // signal instead.
+  'meditation-transcripts': {},
   storyblok: {
     lessons: 17,
   },
@@ -237,6 +244,17 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
       dependencies: ['narrators', 'frames', 'user-choices', 'song-tags'],
       naturalKey: 'slug',
       hasFileUploads: true, // Audio files
+    },
+  ],
+  'meditation-transcripts': [
+    {
+      slug: 'meditation-transcripts',
+      totalItems: 126,
+      // No uploads, and each row is one small insert. Pagination would also
+      // re-upload the whole 1 MB data file on every batch.
+      requiresPagination: false,
+      dependencies: ['meditations'],
+      naturalKey: 'meditation',
     },
   ],
   storyblok: [

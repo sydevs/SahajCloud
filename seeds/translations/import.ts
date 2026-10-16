@@ -47,6 +47,13 @@ import { EVENT_TITLE_DEFAULTS } from '../../src/lib/eventTitle/compose'
 import { EMAIL_STRING_DEFAULTS } from '../../src/lib/translations/emailStrings'
 import { BaseImporter, type BaseImportOptions } from '../lib'
 import {
+  ATLAS_TRANSLATION_LOCALES as ATLAS_LOCALES,
+  type AtlasTranslationLocale as AtlasLocale,
+  atlasTranslationsDataFile,
+  WM_APP_TRANSLATIONS_DATA_FILE as WM_APP_SEED_LOCAL_PATH,
+  WM_WEB_TRANSLATIONS_DATA_FILE as WM_WEB_SEED_LOCAL_PATH,
+} from '../lib/dataFiles'
+import {
   buildWmAppGlobalData,
   collectSeedTodos,
   type SeedFile,
@@ -87,30 +94,7 @@ function fillBlanks(
 
 // --- Seed definitions ---
 
-const WM_APP_SEED_LOCAL_PATH = 'seeds/wm-app-translations/data.en.json'
-const WM_WEB_SEED_LOCAL_PATH = 'seeds/wm-web-translations/data.en.json'
-
 const DEFAULT_LOCALE: LocaleCode = 'en'
-
-/**
- * The ten locales the Sahaj Atlas widget ships translations for, and the ten
- * an operator selects in `sy-atlas-config.availableLocales` after this seed
- * runs. One file per locale under `seeds/sy-atlas-translations/`.
- */
-const ATLAS_LOCALES = [
-  'cs',
-  'de',
-  'en',
-  'es',
-  'fr',
-  'hu',
-  'nl',
-  'pt-BR',
-  'ru',
-  'uk',
-] as const satisfies readonly LocaleCode[]
-
-type AtlasLocale = (typeof ATLAS_LOCALES)[number]
 
 /**
  * Shape of a `seeds/sy-atlas-translations/data.<locale>.json` file: the
@@ -201,7 +185,7 @@ export class TranslationsImporter extends BaseImporter<BaseImportOptions> {
     const { loadJsonData } = await import('../lib/dataLoader')
 
     for (const locale of ATLAS_LOCALES) {
-      const localPath = `seeds/sy-atlas-translations/data.${locale}.json`
+      const localPath = atlasTranslationsDataFile(locale)
 
       let seed: AtlasSeedFile
       try {

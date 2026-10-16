@@ -98,6 +98,7 @@ content collection.
 | Cloudflare Stream webhook signature verification + MP4-download handler                                        | `cloudflare-stream-webhook` |
 | Schema introspection (`discoverReferencesForCollection`, `extractIdsFromLexicalContent`)                       | `schema-utils`              |
 | Seed importer existence cache is trash-aware                                                                   | `seed-importer-preload`     |
+| `pnpm seed meditation-transcripts` — the library read seeing every locale, the filename proving an id, the three skip reasons, idempotency and `--update`, the dry run reading no row, and the corpus's corrected spellings | `meditation-transcripts-seed` + unit: `meditation-transcripts-data.spec.ts` |
 | Finished-event definition — `shouldFinish` (in-memory) pinned to agree with `notFinishedWhere` (SQL)           | unit: `schedule-status.spec.ts` |
 | Content-Index block API endpoint generation (`computeApiEndpoint` virtual)                                     | `content-index-block`       |
 | Project-based admin visibility (`createHidden` from accessPlugin)                                              | `project-visibility`        |
