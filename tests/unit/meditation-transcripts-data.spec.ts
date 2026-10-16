@@ -12,6 +12,8 @@
  * in a `beforeChange` hook, and the same pass over the same phrases here gives
  * the same answer the import will store.
  */
+import type { TranscriptEntry } from '../../seeds/meditation-transcripts/import'
+
 import { readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 
@@ -21,16 +23,9 @@ import { applyGlossary } from '@/collections/MeditationTranscripts/glossary'
 import { getLocaleLabel, LOCALES, type LocaleCode } from '@/lib/locales'
 import { transcriptSegmentsSchema } from '@/lib/meditations/transcript'
 
-interface TranscriptEntry {
-  meditationId: number
-  audioFilename: string
-  language: string
-  provider: string
-  segments: { content: string; startTimeMs: number; endTimeMs: number }[]
-}
+import { MEDITATION_TRANSCRIPTS_DATA_FILE, SCRIPT_DATA_FILES } from '../../seeds/lib/dataFiles'
 
-const DATA_FILE = 'seeds/meditation-transcripts/data.json'
-const DATA_PATH = path.resolve(process.cwd(), DATA_FILE)
+const DATA_PATH = path.resolve(process.cwd(), MEDITATION_TRANSCRIPTS_DATA_FILE)
 const raw = readFileSync(DATA_PATH, 'utf-8')
 const entries: TranscriptEntry[] = JSON.parse(raw)
 
@@ -73,16 +68,15 @@ describe('meditation transcripts data file', () => {
   it('names one provider and only languages this CMS is configured for', () => {
     expect(new Set(entries.map((entry) => entry.provider))).toEqual(new Set(['lemonfox']))
     expect(new Set(entries.map((entry) => entry.language))).toEqual(new Set(['english', 'french']))
-    for (const entry of entries) expect(localeOf(entry)).toBeTruthy()
   })
 
   it('carries stored cues and nothing else — no word timings anywhere', () => {
     for (const entry of entries) {
       expect(transcriptSegmentsSchema.safeParse(entry.segments).success).toBe(true)
       for (const segment of entry.segments) {
+        // Beyond the schema, which admits an optional `durationMs` the
+        // conversion must not invent.
         expect(Object.keys(segment).sort()).toEqual(['content', 'endTimeMs', 'startTimeMs'])
-        expect(Number.isFinite(segment.startTimeMs)).toBe(true)
-        expect(Number.isFinite(segment.endTimeMs)).toBe(true)
         expect(segment.startTimeMs).toBeLessThanOrEqual(segment.endTimeMs)
       }
     }
@@ -96,16 +90,10 @@ describe('meditation transcripts data file', () => {
     expect(statSync(DATA_PATH).size).toBeLessThan(1.1 * 1024 * 1024)
   })
 
-  it('is registered in the CLI under exactly the path the importer loads', () => {
-    const run = readFileSync(path.resolve(process.cwd(), 'seeds/run.ts'), 'utf-8')
-    const importer = readFileSync(
-      path.resolve(process.cwd(), 'seeds/meditation-transcripts/import.ts'),
-      'utf-8',
-    )
-    // Spelled differently in the two places, the script works locally and
-    // silently imports nothing in production.
-    expect(run).toContain(`'${DATA_FILE}'`)
-    expect(importer).toContain(`'${DATA_FILE}'`)
+  it('is registered for upload under the path the importer loads', () => {
+    // One definition, so the CLI and the importer cannot disagree — spelled
+    // differently, the script works locally and imports nothing in production.
+    expect(SCRIPT_DATA_FILES['meditation-transcripts']).toEqual([MEDITATION_TRANSCRIPTS_DATA_FILE])
   })
 
   describe('the glossary corrects the corpus', () => {

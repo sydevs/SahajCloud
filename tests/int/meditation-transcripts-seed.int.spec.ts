@@ -27,11 +27,12 @@ import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { PREVIEW_ASSET_PREFIX } from '@/plugins/storage/previewIsolation'
+import type { Meditation } from '@/payload-types'
+import { PREVIEW_ASSET_PREFIX, stripPreviewPrefix } from '@/plugins/storage/previewIsolation'
 
 import { Logger, ValidationReport, type BaseImportOptions } from '../../seeds/lib'
+import { MEDITATION_TRANSCRIPTS_DATA_FILE } from '../../seeds/lib/dataFiles'
 import {
-  DATA_FILE,
   MeditationTranscriptsImporter,
   type TranscriptEntry,
 } from '../../seeds/meditation-transcripts/import'
@@ -55,7 +56,7 @@ class TranscriptsProbe extends MeditationTranscriptsImporter {
       clearCache: false,
       // The real production path: `seeds/**` sits outside the build trace, so
       // the CLI uploads the file and `loadJsonData` reads it back from here.
-      inlineData: { [DATA_FILE]: JSON.stringify(entries) },
+      inlineData: { [MEDITATION_TRANSCRIPTS_DATA_FILE]: JSON.stringify(entries) },
       ...options,
     })
     this.payload = payload
@@ -78,26 +79,31 @@ class TranscriptsProbe extends MeditationTranscriptsImporter {
 }
 
 /** One source entry for a meditation, naming the recording it actually carries. */
-const entryFor = (
-  meditation: { id: number; filename?: string | null },
-  language: string,
-  content: string,
-): TranscriptEntry => ({
+const entryFor = (meditation: Meditation, language: string, content: string): TranscriptEntry => ({
   meditationId: meditation.id,
-  audioFilename: (meditation.filename ?? '').replace(PREVIEW_ASSET_PREFIX, ''),
+  audioFilename: stripPreviewPrefix(meditation.filename ?? ''),
   language,
   provider: 'lemonfox',
   segments: [{ content, startTimeMs: 1720, endTimeMs: 2760 }],
 })
 
+/** What the first case stores, re-read by the two that assert it survived. */
+const CORRECTED_FIRST_ROW = [
+  {
+    content: 'Let the Kundalini rise through the fontanelle bone area.',
+    startTimeMs: 1720,
+    endTimeMs: 2760,
+  },
+]
+
 describe('meditation-transcripts seed', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
 
-  let english: { id: number; filename?: string | null }
-  let french: { id: number; filename?: string | null }
-  let trashed: { id: number; filename?: string | null }
-  let replaced: { id: number; filename?: string | null }
+  let english: Meditation
+  let french: Meditation
+  let trashed: Meditation
+  let replaced: Meditation
 
   beforeAll(async () => {
     const env = await createTestEnvironment()
@@ -160,15 +166,9 @@ describe('meditation-transcripts seed', () => {
     expect(row.language).toBe('en')
     expect(row.outdated).toBe(false)
     expect(row.error).toBeFalsy()
-    expect(row.audioFilename).toBe((english.filename ?? '').replace(PREVIEW_ASSET_PREFIX, ''))
+    expect(row.audioFilename).toBe(english.filename)
     // The hook's work, not the importer's: it never calls `applyGlossary`.
-    expect(row.segments).toEqual([
-      {
-        content: 'Let the Kundalini rise through the fontanelle bone area.',
-        startTimeMs: 1720,
-        endTimeMs: 2760,
-      },
-    ])
+    expect(row.segments).toEqual(CORRECTED_FIRST_ROW)
   })
 
   it('finds the French meditation, which only a locale-wide read can see', async () => {
@@ -191,13 +191,7 @@ describe('meditation-transcripts seed', () => {
     expect(probe.errorCount).toBe(0)
     const row = await readRow(english.id)
     // Skip mode leaves the existing row alone, phrases included.
-    expect(row.segments).toEqual([
-      {
-        content: 'Let the Kundalini rise through the fontanelle bone area.',
-        startTimeMs: 1720,
-        endTimeMs: 2760,
-      },
-    ])
+    expect(row.segments).toEqual(CORRECTED_FIRST_ROW)
   })
 
   it('re-writes the phrases in update mode, so a glossary change reaches them', async () => {
@@ -292,15 +286,9 @@ describe('meditation-transcripts seed', () => {
       data: { filename: `${PREVIEW_ASSET_PREFIX}${production}` },
     })
 
-    const probe = new TranscriptsProbe(payload, [
-      {
-        meditationId: prefixed.id,
-        audioFilename: production,
-        language: 'english',
-        provider: 'lemonfox',
-        segments: [{ content: 'Matched.', startTimeMs: 0, endTimeMs: 1 }],
-      },
-    ])
+    // `prefixed` still holds the pre-update name, so the entry names the
+    // unprefixed file while the row carries the prefixed one.
+    const probe = new TranscriptsProbe(payload, [entryFor(prefixed, 'english', 'Matched.')])
     await probe.drive()
 
     expect(probe.warnings).toEqual([])

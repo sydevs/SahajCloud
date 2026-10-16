@@ -29,9 +29,9 @@ function main(): void {
     process.exit(1)
   }
 
-  const files = readdirSync(sourceDir)
-    .filter((name) => name.endsWith('.json'))
-    .sort()
+  // Unsorted: the output's order is the numeric sort below, so a filesystem's
+  // own order cannot reach it.
+  const files = readdirSync(sourceDir).filter((name) => name.endsWith('.json'))
 
   const entries: TranscriptEntry[] = files.map((name) => {
     const raw = JSON.parse(readFileSync(path.join(sourceDir, name), 'utf-8'))

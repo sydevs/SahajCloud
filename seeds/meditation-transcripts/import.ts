@@ -17,19 +17,11 @@
 import * as path from 'path'
 
 import { getLocaleLabel, type LocaleCode } from '@/lib/locales'
-import type { TranscriptSegment } from '@/lib/meditations/transcript'
-import { PREVIEW_ASSET_PREFIX } from '@/plugins/storage/previewIsolation'
+import { transcriptSegmentsSchema, type TranscriptSegment } from '@/lib/meditations/transcript'
+import { stripPreviewPrefix } from '@/plugins/storage/previewIsolation'
 
 import { BaseImporter, type BaseImportOptions, loadJsonData } from '../lib'
-
-/**
- * ⚠ `SCRIPT_DATA_FILES` in `seeds/run.ts` is keyed by this exact string. A
- * deployed route cannot read a seed file off disk (`seeds/**` is outside the
- * build trace), so the CLI uploads the file under this key and `loadJsonData`
- * reads it back from `inlineData`. Spelled differently in the two places, the
- * script works locally and silently imports nothing in production.
- */
-export const DATA_FILE = 'seeds/meditation-transcripts/data.json'
+import { MEDITATION_TRANSCRIPTS_DATA_FILE as DATA_FILE } from '../lib/dataFiles'
 
 /** One entry of `data.json` — a source file's own keys, segments converted. */
 export interface TranscriptEntry {
@@ -62,8 +54,10 @@ export class MeditationTranscriptsImporter extends BaseImporter<BaseImportOption
     // `meditation` refuses it. So the cache's own key — `String(doc.meditation)`
     // at depth 0 — has to agree with what `extractNaturalKeyValue` derives from
     // the `where` below, and nothing but a re-seed proves that it does.
-    await this.preloadCollection('meditation-transcripts', 'meditation')
-    await this.loadLibrary()
+    await Promise.all([
+      this.preloadCollection('meditation-transcripts', 'meditation'),
+      this.loadLibrary(),
+    ])
   }
 
   protected async import(): Promise<void> {
@@ -74,11 +68,9 @@ export class MeditationTranscriptsImporter extends BaseImporter<BaseImportOption
       return
     }
 
-    let current = 0
-    for (const entry of entries) {
-      current += 1
+    for (const [index, entry] of entries.entries()) {
       try {
-        await this.importEntry(entry, current, entries.length)
+        await this.importEntry(entry, index + 1, entries.length)
       } catch (error) {
         this.addError(`Transcript for meditation ${entry.meditationId}`, error as Error)
         continue
@@ -91,11 +83,12 @@ export class MeditationTranscriptsImporter extends BaseImporter<BaseImportOption
   /**
    * Every meditation, by id, with the recording it carries now.
    *
-   * ⚠ `locale: 'all'` is load-bearing, and `preloadCollection` cannot stand in
-   * for this read. `filterMeditationsByLocale` appends `{ locale: { equals:
-   * req.locale } }` to every `find`, and a Local API call with no locale
-   * resolves that to the default `en` — so a plain read cannot see the one
-   * French meditation at all.
+   * ⚠ `locale: 'all'` is load-bearing. `filterMeditationsByLocale` appends
+   * `{ locale: { equals: req.locale } }` to every `find`, and a Local API call
+   * with no locale resolves that to the default `en` — so a plain read cannot
+   * see the one French meditation at all. `preloadCollection` takes no locale
+   * today, which is why it cannot serve this read; that gap is the commons', and
+   * `seeds/meditations/import.ts` already preloads `meditations` through it.
    */
   private async loadLibrary(): Promise<void> {
     const result = await this.payload.find({
@@ -111,7 +104,7 @@ export class MeditationTranscriptsImporter extends BaseImporter<BaseImportOption
 
     this.meditations = new Map(
       result.docs.map((doc) => [
-        Number(doc.id),
+        doc.id,
         {
           filename: doc.filename ?? null,
           locale: doc.locale as LocaleCode,
@@ -142,7 +135,7 @@ export class MeditationTranscriptsImporter extends BaseImporter<BaseImportOption
     // wrong meditation is worse than none. Every upload here is renamed
     // `<slug>-<6 base36>.<ext>`, so the suffix is unique per upload: the pair
     // agrees where the file was transcribed and disagrees after a re-upload.
-    const filename = stripPreviewPrefix(meditation.filename)
+    const filename = meditation.filename && stripPreviewPrefix(meditation.filename)
     if (filename !== entry.audioFilename) {
       this.addWarning(
         `Meditation ${meditationId}: carries ${filename ?? 'no recording'}, not ${entry.audioFilename} — transcript skipped.`,
@@ -188,15 +181,22 @@ export class MeditationTranscriptsImporter extends BaseImporter<BaseImportOption
       }
       seen.add(entry.meditationId)
 
+      // The column's own schema, not a hand-rolled shape check: closed, so it
+      // also refuses a stray word-timing key the import must never carry.
+      const shape = transcriptSegmentsSchema.safeParse(entry.segments)
+      if (!shape.success) {
+        this.addError(
+          'Dry run',
+          `Meditation ${entry.meditationId}: ${shape.error.issues[0].path.join('.')} ${shape.error.issues[0].message}`,
+        )
+      }
+
       for (const [index, segment] of entry.segments.entries()) {
-        if (
-          !Number.isFinite(segment.startTimeMs) ||
-          !Number.isFinite(segment.endTimeMs) ||
-          segment.startTimeMs > segment.endTimeMs
-        ) {
+        // The one thing no schema expresses.
+        if (segment.startTimeMs > segment.endTimeMs) {
           this.addError(
             'Dry run',
-            `Meditation ${entry.meditationId} segment ${index}: ${segment.startTimeMs}–${segment.endTimeMs} is not a forward range.`,
+            `Meditation ${entry.meditationId} segment ${index}: ${segment.startTimeMs}–${segment.endTimeMs} runs backwards.`,
           )
         }
       }
@@ -219,14 +219,6 @@ export class MeditationTranscriptsImporter extends BaseImporter<BaseImportOption
       inlineContent: this.options.inlineData?.[DATA_FILE],
     })
   }
-}
-
-/** A preview environment prefixes every asset it owns; the stem is the proof. */
-function stripPreviewPrefix(filename: string | null): string | null {
-  if (!filename) return null
-  return filename.startsWith(PREVIEW_ASSET_PREFIX)
-    ? filename.slice(PREVIEW_ASSET_PREFIX.length)
-    : filename
 }
 
 export default MeditationTranscriptsImporter

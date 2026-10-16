@@ -35,7 +35,6 @@ import { activeRegistrationWhere } from '@/lib/registrations/active'
 
 import config from '@payload-config'
 
-
 import {
   getScriptMetadata,
   verifyCountsForScript,
@@ -405,9 +404,8 @@ async function getImporter(
       return new MeditationsImporter(options)
     }
     case 'meditation-transcripts': {
-      const { MeditationTranscriptsImporter } = await import(
-        '../../../../../../seeds/meditation-transcripts/import'
-      )
+      const { MeditationTranscriptsImporter } =
+        await import('../../../../../../seeds/meditation-transcripts/import')
       return new MeditationTranscriptsImporter(options)
     }
     case 'storyblok': {
@@ -481,13 +479,16 @@ async function getDatabaseCounts(
         break
       }
       case 'wm-app-translations':
-      case 'translations':
-      // `meditation-transcripts` writes rows, but how many depends on which of
-      // the library's recordings the target environment still carries — see its
-      // own empty EXPECTED_COUNTS entry.
-      case 'meditation-transcripts': {
+      case 'translations': {
         // These scripts target PayloadCMS globals, not collections.
         // Verification sees an empty EXPECTED_COUNTS entry and passes by default.
+        break
+      }
+      case 'meditation-transcripts': {
+        // This one does write rows, but no floor can be stated: how many
+        // depends on which of the library's recordings the target environment
+        // still carries. Its EXPECTED_COUNTS entry is empty for that reason,
+        // and verification passes by default.
         break
       }
       case 'atlas': {

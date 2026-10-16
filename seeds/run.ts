@@ -44,6 +44,7 @@
 import type { ScriptMetadata, PaginationResult } from './lib/pagination'
 
 import { seedEnv } from './env'
+import { SCRIPT_DATA_FILES } from './lib/dataFiles'
 
 type ScriptName =
   | 'storyblok'
@@ -94,32 +95,9 @@ const SCRIPT_DESCRIPTIONS: Record<ScriptName, string> = {
 
 const VALID_OPTIONS = ['--dry-run', '--clear-cache', '--update']
 
-// Seed-data files that the API endpoint cannot fetch itself because they live in
-// a private repo (the Worker's unauthenticated GitHub raw fetch 404s). The CLI
-// reads these locally and uploads them in the POST body. The importer consumes
-// them via loadJsonData({ inlineContent }). Keys must match each importer's
-// DataSource.localPath exactly.
-const SCRIPT_DATA_FILES: Partial<Record<ScriptName, string[]>> = {
-  'wm-app-translations': ['seeds/wm-app-translations/data.en.json'],
-  // Keyed by DATA_FILE in seeds/meditation-transcripts/import.ts.
-  'meditation-transcripts': ['seeds/meditation-transcripts/data.json'],
-  translations: [
-    'seeds/wm-app-translations/data.en.json',
-    'seeds/wm-web-translations/data.en.json',
-  ],
-  // Atlas reads all 8 dumps via loadJsonData (keyed by these exact paths).
-  // The standalone build excludes seeds/, so the CLI uploads them for remote seeding.
-  atlas: [
-    'seeds/atlas/data/users.json',
-    'seeds/atlas/data/managers.json',
-    'seeds/atlas/data/regions.json',
-    'seeds/atlas/data/venues.json',
-    'seeds/atlas/data/events.json',
-    'seeds/atlas/data/registrations.json',
-    'seeds/atlas/data/clients.json',
-    'seeds/atlas/data/pictures.json',
-  ],
-}
+// The registry lives in seeds/lib/dataFiles.ts, so an importer can import its
+// own path instead of this file and the importer each spelling it. Its docblock
+// owns why the upload exists at all.
 
 /**
  * Read a script's registered data files into an inlineData map (path → raw
