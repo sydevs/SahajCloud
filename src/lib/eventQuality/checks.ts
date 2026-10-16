@@ -35,10 +35,7 @@ export const MINIMUM_IMAGES = 3
  * a stale row can only exist if it hasn't been saved since the bump — and the
  * next save fixes it.
  *
- * 6 — the description is flattened by Payload's converter (#961). A soft break
- * now separates the words either side of it, so a stale date or an address
- * phrase that was glued to its neighbour is found; and a block boundary counts
- * as the two characters it renders as, which moves the length floor by one.
+ * The bump to 6 is #961: three description checks changed verdict.
  */
 export const QUALITY_CHECK_VERSION = 6
 

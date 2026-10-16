@@ -44,14 +44,9 @@ import { breadcrumbList, compactNode, jsonLdEscape, jsonLdGraph } from './jsonLd
 
 /**
  * A rich-text value as plain-text paragraphs; `[]` when it is empty, absent or
- * malformed.
- *
- * `lexicalToPlainText` separates blocks with a blank line and keeps a soft break
- * as a single newline, so splitting on the blank line recovers exactly the block
- * structure the editor stored, and a soft break stays inside its paragraph. It
- * is also where empty, absent and malformed all become `''`, which this split
- * turns into `[]` — a public read on somebody else's page render, so one bad
- * document must not take the response down.
+ * malformed — `lexicalToPlainText` is where all three become `''`. This feeds a
+ * public read on somebody else's page render, so one bad document must not take
+ * the response down.
  */
 export function lexicalToParagraphs(value: unknown): string[] {
   return lexicalToPlainText(value)
