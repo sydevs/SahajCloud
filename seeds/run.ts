@@ -41,20 +41,11 @@
  *   SAHAJCLOUD_URL=https://cloud.sydevelopers.com pnpm seed
  */
 
+import type { ScriptName } from './lib/expectedCounts'
 import type { ScriptMetadata, PaginationResult } from './lib/pagination'
 
 import { seedEnv } from './env'
 import { SCRIPT_DATA_FILES } from './lib/dataFiles'
-
-type ScriptName =
-  | 'storyblok'
-  | 'wemeditate'
-  | 'meditations'
-  | 'meditation-transcripts'
-  | 'tags'
-  | 'wm-app-translations'
-  | 'translations'
-  | 'atlas'
 
 const VALID_SCRIPTS: ScriptName[] = [
   'storyblok',
