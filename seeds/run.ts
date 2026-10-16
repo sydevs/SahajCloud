@@ -86,10 +86,6 @@ const SCRIPT_DESCRIPTIONS: Record<ScriptName, string> = {
 
 const VALID_OPTIONS = ['--dry-run', '--clear-cache', '--update']
 
-// The registry lives in seeds/lib/dataFiles.ts, so an importer can import its
-// own path instead of this file and the importer each spelling it. Its docblock
-// owns why the upload exists at all.
-
 /**
  * Read a script's registered data files into an inlineData map (path → raw
  * contents) for upload. Returns undefined when the script needs no upload.
