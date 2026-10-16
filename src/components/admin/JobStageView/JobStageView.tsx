@@ -3,7 +3,7 @@ import type { DocumentViewClientProps, DocumentViewServerProps } from 'payload'
 import { Banner, Button, DefaultEditView, Gutter, Spinner } from '@payloadcms/ui'
 import { toWords } from 'payload/shared'
 
-import { jobStageWait, readJobStageConfig } from './stages'
+import { type JobStageWait, jobStageWait, readJobStageConfig } from './stages'
 
 /**
  * Every client prop, required. Each `DocumentSlots` member is optional, so a
@@ -44,6 +44,12 @@ function clientPropsOf(props: DocumentViewServerProps): PickedClientProps {
   }
 }
 
+/** The count a collection publishes, as a sentence, or nothing where it publishes none. */
+function countSentence({ progress, total }: JobStageWait): string {
+  if (progress === null) return ''
+  return total === null ? ` ${progress} done so far.` : ` ${progress} of ${total} done.`
+}
+
 /**
  * An Edit view that waits while a job owns the document, for any collection
  * declaring `admin.custom.jobStage` (`stages.ts`).
@@ -69,7 +75,7 @@ export default function JobStageView(props: DocumentViewServerProps) {
         <Gutter>
           <Banner icon={<Spinner loadingText={null} size="sm" />} type="info">
             {toWords(wait.stage)} — a job owns this document. Editing opens when it finishes.
-            {wait.progress === null ? '' : ` ${wait.progress} done so far.`}
+            {countSentence(wait)}
           </Banner>
           <Button
             buttonStyle="secondary"

@@ -22,12 +22,20 @@ export type JobStageConfig = {
   runningStages: string[]
   /** Where the stage lives. Defaults to `status`. */
   statusField?: string
+  /**
+   * Where the denominator lives, for a job that knows one. Declared apart from
+   * `progressField` rather than inferred from a group's shape, so the contract
+   * names no consumer's key. Without it the view says "7 done so far" for a
+   * job that knows it is 7 of 20.
+   */
+  totalField?: string
 }
 
 /** The wait a document is in, while a worker holds it. */
 export type JobStageWait = {
   progress: null | number
   stage: string
+  total: null | number
 }
 
 const DEFAULT_STATUS_FIELD = 'status'
@@ -45,7 +53,7 @@ export function readJobStageConfig(custom: unknown): JobStageConfig | null {
   const declared = custom.jobStage
   if (!isRecord(declared)) return null
 
-  const { progressField, runningStages, statusField } = declared
+  const { progressField, runningStages, statusField, totalField } = declared
   if (!Array.isArray(runningStages) || !runningStages.every((s) => typeof s === 'string')) {
     return null
   }
@@ -54,6 +62,7 @@ export function readJobStageConfig(custom: unknown): JobStageConfig | null {
     progressField: typeof progressField === 'string' ? progressField : undefined,
     runningStages,
     statusField: typeof statusField === 'string' ? statusField : undefined,
+    totalField: typeof totalField === 'string' ? totalField : undefined,
   }
 }
 
@@ -67,8 +76,17 @@ export function jobStageWait(config: JobStageConfig, doc: unknown): JobStageWait
   const stage = valueAt(doc, config.statusField ?? DEFAULT_STATUS_FIELD)
   if (typeof stage !== 'string' || !config.runningStages.includes(stage)) return null
 
-  const progress = config.progressField ? valueAt(doc, config.progressField) : undefined
-  return { progress: typeof progress === 'number' ? progress : null, stage }
+  return {
+    progress: numberAt(doc, config.progressField),
+    stage,
+    total: numberAt(doc, config.totalField),
+  }
+}
+
+/** The number at a declared path, or `null` for an undeclared or unreadable one. */
+function numberAt(doc: unknown, path: string | undefined): null | number {
+  const value = path === undefined ? undefined : valueAt(doc, path)
+  return typeof value === 'number' ? value : null
 }
 
 /**

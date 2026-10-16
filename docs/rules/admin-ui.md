@@ -212,7 +212,7 @@ admin: {
 }
 ```
 
-`runningStages` is required; `statusField` (default `status`) and `progressField` are dotted paths, so a count kept inside a group is reachable. Declare with `satisfies JobStageConfig` — `admin.custom` is `Record<string, any>`, so that is the only thing that makes a misspelled key a build error rather than a view that never fires.
+`runningStages` is required; `statusField` (default `status`), `progressField` and `totalField` are dotted paths, so a count kept inside a group is reachable. Declare `totalField` wherever the job knows its denominator — the banner reads "7 of 20 done" with one and "7 done so far" without. Declare with `satisfies JobStageConfig` — `admin.custom` is `Record<string, any>`, so that is the only thing that makes a misspelled key a build error rather than a view that never fires.
 
 Four things are load-bearing:
 

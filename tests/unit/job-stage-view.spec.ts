@@ -63,8 +63,10 @@ describe('readJobStageConfig', () => {
       runningStages: ['a'],
     })
     expect(
-      readJobStageConfig({ jobStage: { progressField: 'done', runningStages: ['a'] } }),
-    ).toEqual({ progressField: 'done', runningStages: ['a'] })
+      readJobStageConfig({
+        jobStage: { progressField: 'done', runningStages: ['a'], totalField: 'all' },
+      }),
+    ).toEqual({ progressField: 'done', runningStages: ['a'], totalField: 'all' })
   })
 
   it('refuses a declaration with no usable `runningStages`', () => {
@@ -83,6 +85,7 @@ describe('jobStageWait', () => {
     expect(jobStageWait(config, { progress: 3, status: 'working' })).toEqual({
       progress: 3,
       stage: 'working',
+      total: null,
     })
     expect(jobStageWait(config, { status: 'finished' })).toBeNull()
   })
@@ -104,6 +107,7 @@ describe('jobStageWait', () => {
     expect(jobStageWait(countless, { progress: 3, status: 'working' })).toEqual({
       progress: null,
       stage: 'working',
+      total: null,
     })
   })
 
@@ -111,6 +115,7 @@ describe('jobStageWait', () => {
     expect(jobStageWait(config, { progress: '3', status: 'working' })).toEqual({
       progress: null,
       stage: 'working',
+      total: null,
     })
   })
 
@@ -122,10 +127,41 @@ describe('jobStageWait', () => {
     expect(jobStageWait(grouped, { progress: { done: 7 }, status: 'working' })).toEqual({
       progress: 7,
       stage: 'working',
+      total: null,
     })
     expect(jobStageWait(grouped, { progress: null, status: 'working' })).toEqual({
       progress: null,
       stage: 'working',
+      total: null,
+    })
+  })
+
+  /**
+   * #960's promise is that #912 adopts the view unchanged, and #912's
+   * `event-imports` knows its denominator — so a count with no total beside it
+   * would render "7 done so far" for a job that knows it is 7 of 20.
+   */
+  it('reads a total beside the count, from a second declared path', () => {
+    const counted: JobStageConfig = {
+      progressField: 'progress.done',
+      runningStages: ['working'],
+      totalField: 'progress.total',
+    }
+    expect(
+      jobStageWait(counted, { progress: { done: 7, total: 20 }, status: 'working' }),
+    ).toEqual({ progress: 7, stage: 'working', total: 20 })
+  })
+
+  it('waits with no total where the declared column holds no number yet', () => {
+    const counted: JobStageConfig = {
+      progressField: 'done',
+      runningStages: ['working'],
+      totalField: 'total',
+    }
+    expect(jobStageWait(counted, { done: 7, status: 'working' })).toEqual({
+      progress: 7,
+      stage: 'working',
+      total: null,
     })
   })
 })

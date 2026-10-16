@@ -104,7 +104,7 @@ content collection.
 | Canonical Atlas URL shapes, pinned to the cross-repo `atlas-url-contract.json` fixture                         | unit: `atlas-canonical-url.spec.ts` |
 | Live-preview targets — URL composition keeps the origin and `secret` and refuses another origin. The restore across a tab switch. Every declared path is origin-free | unit: `compose-target-url.spec.ts`, `preview-target-component.spec.ts`, `preview-targets.spec.ts`, `translations-globals` |
 | Frame-editor playhead — `PLAYBACK_TIME_UPDATE` is accepted from the preview iframe's origin alone | unit: `playbackTimeStore.spec.ts` |
-| The job-stage Edit view — which stage a declaration selects, a count read out of a group, and the three things no assertion about a rendered page reaches: it names no collection, it is a server component that fetches nothing, and it forwards every `DocumentSlots` member Payload declares | unit: `job-stage-view.spec.ts` |
+| The job-stage Edit view — which stage a declaration selects, a count and its total read out of a group, and the two things no assertion about a rendered page reaches: it names no collection, and it is a server component that fetches nothing | unit: `job-stage-view.spec.ts` |
 | Canonical ownership precedence (nearest owning ancestor wins. Disabled/draft client owns nothing. We Meditate fallback) | unit: `atlas-region-owners.spec.ts`, `region-canonical-url` |
 | Canonical resolution cost — a `webUrl` read costs exactly two extra queries regardless of N                    | `region-canonical-url` |
 | `breadcrumbs[].url` backfill — roots-only resave repopulates the whole tree via the nested-docs cascade        | `region-breadcrumb-url-backfill` |
