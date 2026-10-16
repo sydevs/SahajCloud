@@ -5,16 +5,15 @@ import type { CollectionSlug, DefaultCellComponentProps } from 'payload'
 import { useListDrawerContext } from '@payloadcms/ui'
 
 type DrawerRowSelectArgs = Partial<
-  Pick<DefaultCellComponentProps, 'cellData' | 'collectionSlug' | 'link' | 'onClick' | 'rowData'>
+  Pick<DefaultCellComponentProps, 'collectionSlug' | 'link' | 'rowData'>
 >
 
 /**
- * The click a custom `Cell` owes a list drawer, and the one it owes its own
- * `onClick` prop, in Payload's own order.
+ * The click a custom `Cell` owes a list drawer.
  *
  * Payload wires a drawer's select handler into `propsToPass.onClick` inside
- * `RenderDefaultCell`, which a custom `Cell` replaces, and hands that cell the
- * unassigned `onClick` instead — so the cell has to read the drawer itself
+ * `RenderDefaultCell`, which a custom `Cell` replaces, and hands that cell an
+ * `onClick` key it never fills — so the cell has to read the drawer itself
  * (#942, #944). `link` stands for "this is the linked column", as it is
  * `isLinkedColumn` everywhere `admin.formatDocURL` is unset.
  *
@@ -24,13 +23,12 @@ type DrawerRowSelectArgs = Partial<
  * `LinkedCellOverride` is settable only from `RelationshipTable`.
  *
  * Returns `undefined` when the cell should render whatever it renders outside
- * a drawer.
+ * a drawer. A cell holding a click of its own writes that precedence where it
+ * applies — `useDrawerRowSelect(…) ?? ownClick` — since only one cell has one.
  */
 export function useDrawerRowSelect({
-  cellData,
   collectionSlug,
   link,
-  onClick,
   rowData,
 }: DrawerRowSelectArgs): (() => void) | undefined {
   const { drawerSlug, onSelect } = useListDrawerContext()
@@ -41,16 +39,6 @@ export function useDrawerRowSelect({
         collectionSlug: collectionSlug as CollectionSlug,
         doc: rowData,
         docID: String(rowData.id),
-      })
-    }
-  }
-
-  if (typeof onClick === 'function') {
-    return () => {
-      onClick({
-        cellData,
-        collectionSlug: collectionSlug as CollectionSlug,
-        rowData: rowData ?? {},
       })
     }
   }

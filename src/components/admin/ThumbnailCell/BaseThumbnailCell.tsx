@@ -10,12 +10,17 @@ import { CellButton, useDrawerRowSelect } from '@/components/admin/drawerRowSele
  * Props for BaseThumbnailCell extending Payload's DefaultCellComponentProps
  * with custom thumbnail-specific props
  */
-export type BaseThumbnailCellProps = Partial<DefaultCellComponentProps> & {
+export type BaseThumbnailCellProps = Omit<Partial<DefaultCellComponentProps>, 'onClick'> & {
   thumbnailUrl?: string
   mimeType?: string
   filename?: string
   /** Open link in new tab (custom extension for external links) */
   openInNewTab?: boolean
+  /**
+   * The cell's own click, taken only outside a drawer's linked column. Not
+   * Payload's `onClick`, which `renderCell` never fills for a custom cell.
+   */
+  onClick?: () => void
 }
 
 /**
@@ -24,7 +29,7 @@ export type BaseThumbnailCellProps = Partial<DefaultCellComponentProps> & {
  *
  * Interaction priority (matching Payload's DefaultCell):
  * 1. A list drawer's select, in the linked column - wraps in button, calls onSelect
- * 2. onClick - wraps in button, calls onClick with { cellData, collectionSlug, rowData }
+ * 2. onClick - wraps in button, calls the caller's own handler
  * 3. linkURL - wraps in Link for navigation
  * 4. No interaction - plain display
  */
@@ -32,7 +37,6 @@ export const BaseThumbnailCell: React.FC<BaseThumbnailCellProps> = ({
   thumbnailUrl,
   mimeType,
   filename,
-  cellData,
   collectionSlug,
   rowData,
   className,
@@ -41,7 +45,7 @@ export const BaseThumbnailCell: React.FC<BaseThumbnailCellProps> = ({
   onClick,
   openInNewTab,
 }) => {
-  const handleClick = useDrawerRowSelect({ cellData, collectionSlug, link, onClick, rowData })
+  const handleClick = useDrawerRowSelect({ collectionSlug, link, rowData }) ?? onClick
 
   const content = (
     <div className="file">

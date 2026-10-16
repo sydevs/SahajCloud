@@ -32,7 +32,6 @@ export const PreviewUrlThumbnailCell: React.FC<PreviewUrlThumbnailCellProps> = (
   className,
   link,
   linkURL,
-  onClick,
   fileUrlField = 'url',
 }) => {
   const thumbnailUrl = typeof cellData === 'string' ? cellData : undefined
@@ -64,7 +63,6 @@ export const PreviewUrlThumbnailCell: React.FC<PreviewUrlThumbnailCellProps> = (
       className={className}
       link={link}
       linkURL={resolvedLinkURL}
-      onClick={onClick}
       openInNewTab={shouldOpenInNewTab}
     />
   )
