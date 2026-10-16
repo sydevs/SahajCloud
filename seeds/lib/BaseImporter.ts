@@ -77,8 +77,14 @@ export interface BaseImportOptions {
   inlineData?: Record<string, string>
 }
 
-/** What `verifyRun` answers: a run's own invariants, and why they failed. */
-export type RunVerification = { passed: boolean; failures: string[] }
+/**
+ * What `verifyRun` answers: why a run's own invariants failed, if they did.
+ *
+ * No `passed` beside it. A verdict field and the list it summarizes can
+ * disagree, and the disagreement reads as a pass that said nothing — the
+ * silent verification this hook exists to abolish. Empty means passed.
+ */
+export type RunVerification = { failures: string[] }
 
 export interface UpsertResult<T = any> {
   doc: T
@@ -112,7 +118,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
   protected logger!: Logger
   protected fileUtils!: FileUtils
   protected report!: ValidationReport
-  private runVerification: RunVerification = { passed: true, failures: [] }
+  private runVerification: RunVerification = { failures: [] }
 
   // Configuration - subclasses must define these
   protected abstract readonly importName: string
@@ -565,7 +571,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
    * report a pass, which `getRunVerification` hands to the caller.
    */
   protected async verifyRun(): Promise<RunVerification> {
-    return { passed: true, failures: [] }
+    return { failures: [] }
   }
 
   /** Override to add custom cleanup logic */

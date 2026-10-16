@@ -223,7 +223,6 @@ describe('BaseImporter.verifyRun', () => {
 
   it('reports a pass before anything has run', () => {
     expect(new Probe({ dryRun: true, clearCache: false }).getRunVerification()).toEqual({
-      passed: true,
       failures: [],
     })
   })
@@ -231,25 +230,21 @@ describe('BaseImporter.verifyRun', () => {
   it('carries an override failure to the caller', async () => {
     const probe = new Probe(
       { dryRun: false, clearCache: false, payload: stubPayload },
-      {
-        passed: false,
-        failures: ['3 of 4 entries accounted for'],
-      },
+      { failures: ['3 of 4 entries accounted for'] },
     )
     await probe.run()
 
     expect(probe.checked).toBe(1)
     expect(probe.getRunVerification()).toEqual({
-      passed: false,
       failures: ['3 of 4 entries accounted for'],
     })
   })
 
   it('skips the check on a dry run, which wrote nothing to verify', async () => {
-    const probe = new Probe({ dryRun: true, clearCache: false }, { passed: false, failures: ['x'] })
+    const probe = new Probe({ dryRun: true, clearCache: false }, { failures: ['x'] })
     await probe.run()
 
     expect(probe.checked).toBe(0)
-    expect(probe.getRunVerification()).toEqual({ passed: true, failures: [] })
+    expect(probe.getRunVerification()).toEqual({ failures: [] })
   })
 })

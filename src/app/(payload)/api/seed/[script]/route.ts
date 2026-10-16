@@ -310,7 +310,7 @@ export async function POST(
       // The importer's own invariants, which hold whatever the target carries.
       // `run()` decides whether this run was one to check.
       const runVerification = importer.getRunVerification()
-      const verificationPassed = countsPassed && runVerification.passed
+      const verificationPassed = countsPassed && runVerification.failures.length === 0
 
       const report = importer.getReport()
       const errorMessages = report.getErrors()
