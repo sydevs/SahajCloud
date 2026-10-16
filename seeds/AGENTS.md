@@ -455,7 +455,9 @@ No errors - import completed successfully!
    `{ kind: 'not-applicable', reason }` rather than `{}`, so a run that
    verified nothing stops reporting like one that verified and passed. Where an
    invariant over the run's own totals still holds, override `verifyRun()`
-   (`seeds/lib/BaseImporter.ts`).
+   (`seeds/lib/BaseImporter.ts`). `meditation-transcripts` is the worked
+   example: every entry ends in a write, an error, or a skip that named its
+   reason, and the arithmetic is a pure function beside the importer.
 4. Register it in `getImporter()` in
    `src/app/(payload)/api/seed/[script]/route.ts`.
 5. Add it to the "Available Scripts" table above.
