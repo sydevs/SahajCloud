@@ -3,6 +3,7 @@ import type { PayloadRequest } from 'payload'
 import { describe, expect, it } from 'vitest'
 
 import { MAX_LEAVES } from '@/lib/antiSpam/proposalLeaves'
+import { DEFAULT_WRITE_GUARD_POLICIES } from '@/plugins/writeGuard/policies'
 import { writeGuardBeforeValidate } from '@/plugins/writeGuard/writeGuardPlugin'
 
 /**
@@ -55,6 +56,34 @@ describe('the write guard’s refusal', () => {
    * exemptions and would scan nothing, and a patch that tripped a bound was
    * scanned only as far as the bound.
    */
+  /**
+   * ⚠ **A listed `urlScanFields` path has its every string leaf scanned, not
+   * just a string sitting at the path.** The guard runs `beforeValidate`, so the
+   * value is whatever the body said, and `checkNoUrls` skips a non-string
+   * outright — reading the path as a scalar returns `ok` on the patch below.
+   * Every live entry is a scalar today, so this is what the walk is for.
+   */
+  it('scans a non-string value at a listed path', async () => {
+    const clientReq = {
+      headers: new Headers(),
+      user: { collection: 'clients' },
+    } as PayloadRequest
+    const hook = writeGuardBeforeValidate({ create: DEFAULT_WRITE_GUARD_POLICIES.users!.create! })
+
+    const error = await hook({
+      collection: {},
+      data: { name: { nickname: 'visit cheap.shop' } },
+      operation: 'create',
+      req: clientReq,
+    } as never).then(
+      () => null,
+      (thrown: { data?: { code?: string; field?: string } }) => thrown,
+    )
+
+    expect(error?.data?.code).toBe('urls_not_allowed')
+    expect(error?.data?.field).toBe('name')
+  })
+
   describe('a derived scan it could not finish', () => {
     const derivedRefusalFor = async (data: Record<string, unknown>, req = clientReq) => {
       const hook = writeGuardBeforeValidate({

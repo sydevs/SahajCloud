@@ -14,9 +14,15 @@ export interface WriteGuardOperationPolicy {
   /** Fields to run the format + disposable-domain email check on. */
   emailFields?: string[]
   /**
-   * Fields whose free text must not contain URLs. A field holding an object
-   * (e.g. registration `questions`) has all its string leaves scanned.
-   * Dedicated URL fields (website, onlineUrl, …) are simply never listed.
+   * Fields whose free text must not contain URLs. Dedicated URL fields
+   * (website, onlineUrl, …) are simply never listed.
+   *
+   * ⚠ **Every string leaf under a listed path is scanned, not only a string at
+   * the path.** The guard runs `beforeValidate`, so the value is whatever the
+   * body said, and `checkNoUrls` skips a non-string — reading the path as a
+   * scalar accepts `{ name: { nickname: <link> } }`. Pinned by
+   * `tests/unit/write-guard-error-shape.spec.ts`, since every live entry is a
+   * scalar.
    *
    * ⚠ Omission is the mechanism here, so this list can only cover a column
    * somebody remembered to add. A column set that must stay in step with
