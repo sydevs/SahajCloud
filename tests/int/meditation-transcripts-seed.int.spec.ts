@@ -30,7 +30,12 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { Meditation } from '@/payload-types'
 import { PREVIEW_ASSET_PREFIX, stripPreviewPrefix } from '@/plugins/storage/previewIsolation'
 
-import { Logger, ValidationReport, type BaseImportOptions } from '../../seeds/lib'
+import {
+  Logger,
+  ValidationReport,
+  type BaseImportOptions,
+  type RunVerification,
+} from '../../seeds/lib'
 import { MEDITATION_TRANSCRIPTS_DATA_FILE } from '../../seeds/lib/dataFiles'
 import {
   MeditationTranscriptsImporter,
@@ -75,6 +80,11 @@ class TranscriptsProbe extends MeditationTranscriptsImporter {
 
   get errorCount(): number {
     return this.report.getErrorCount()
+  }
+
+  /** The run invariant `run()` would check, reachable without booting it. */
+  async verify(): Promise<RunVerification> {
+    return this.verifyRun()
   }
 }
 
@@ -293,5 +303,26 @@ describe('meditation-transcripts seed', () => {
 
     expect(probe.warnings).toEqual([])
     expect(await readRow(prefixed.id)).toBeTruthy()
+  })
+
+  it('accounts for every entry, whichever way each one ended', async () => {
+    const imported = await testData.createMeditation(payload, undefined, { label: 'Accounted' })
+    const mismatched = await testData.createMeditation(payload, undefined, {
+      label: 'Wrong Language',
+    })
+
+    const probe = new TranscriptsProbe(payload, [
+      entryFor(imported, 'english', 'Written.'),
+      // Imports, and warns about its language — which is why the invariant
+      // cannot be `created + skipped + warnings === entries`: this entry
+      // carries both a write and a warning.
+      entryFor(mismatched, 'french', 'Written anyway.'),
+      { ...entryFor(imported, 'english', 'Nobody.'), meditationId: 9_000_002 },
+      entryFor(trashed, 'english', 'Retired.'),
+    ])
+    await probe.drive()
+
+    expect(probe.warnings).toHaveLength(3)
+    expect(await probe.verify()).toEqual({ failures: [] })
   })
 })

@@ -41,7 +41,7 @@
  *   SAHAJCLOUD_URL=https://cloud.sydevelopers.com pnpm seed
  */
 
-import type { ScriptName } from './lib/expectedCounts'
+import type { ScriptName, VerificationResult } from './lib/expectedCounts'
 import type { ScriptMetadata, PaginationResult } from './lib/pagination'
 
 import { seedEnv } from './env'
@@ -399,16 +399,29 @@ class ProgressDisplay {
         )
 
         // Display verification results
-        const verification = summary.verification as
-          | { collection: string; actual: number; expected: number; passed: boolean }[]
-          | undefined
+        const verification = summary.verification as VerificationResult[] | undefined
         const verificationPassed = summary.verificationPassed as boolean | undefined
+
+        const skippedReason = summary.verificationSkippedReason as string | null | undefined
+        const runFailures = (summary.runVerificationFailures as string[] | undefined) ?? []
 
         if (verification && verification.length > 0) {
           console.log('\n🔍 Verification:')
           for (const { collection, actual, expected, passed } of verification) {
             const emoji = passed ? '✅' : '❌'
             console.log(`   ${emoji} ${collection}: ${actual} (≥${expected})`)
+          }
+        }
+
+        if (skippedReason) {
+          // Say so. A silent pass and a real pass used to print identically.
+          console.log(`\n🔍 Verification skipped: ${skippedReason}`)
+        }
+
+        if (runFailures.length > 0) {
+          console.log('\n🔍 Run verification failed:')
+          for (const failure of runFailures) {
+            console.log(`   ❌ ${failure}`)
           }
         }
 
@@ -732,7 +745,12 @@ async function runScript(
 
           // Check verification result
           if (summary.verificationPassed === false) {
-            errors.push('Count verification failed')
+            // Both kinds can fail at once, and each names a different problem.
+            // The route sends each verdict rather than leaving it to be re-derived.
+            if (summary.countsPassed === false) {
+              errors.push('Count verification failed')
+            }
+            errors.push(...((summary.runVerificationFailures as string[] | undefined) ?? []))
           }
         }
       }

@@ -6,8 +6,11 @@
  * requiring a full Payload CMS instance.
  */
 
+import type { Payload } from 'payload'
+
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
+import { BaseImporter, type BaseImportOptions, type RunVerification } from './BaseImporter'
 import { FileUtils } from './fileUtils'
 import { Logger } from './logger'
 import { ValidationReport } from './validationReport'
@@ -184,5 +187,64 @@ describe('ValidationReport', () => {
       expect(report.getErrorCount()).toBe(0)
       expect(report.getSummary().created).toBe(0)
     })
+  })
+})
+
+/**
+ * `verifyRun` is what a script asserts about itself when no database floor can
+ * be stated. Two properties, both added by the hook rather than by the
+ * language: the default is a pass, so no existing importer starts failing; and
+ * `run()` skips the check for a run that cannot answer for the whole data file.
+ */
+describe('BaseImporter.verifyRun', () => {
+  class Probe extends BaseImporter<BaseImportOptions> {
+    protected readonly importName = 'Verify Probe'
+    protected readonly cacheDir = '/tmp/seed-verify-run-probe'
+    checked = 0
+
+    constructor(
+      options: BaseImportOptions,
+      private readonly answer?: RunVerification,
+    ) {
+      super(options)
+    }
+
+    protected async import(): Promise<void> {}
+
+    protected async verifyRun(): Promise<RunVerification> {
+      this.checked += 1
+      return this.answer ?? super.verifyRun()
+    }
+  }
+
+  // An external instance keeps `run()` out of Payload initialization; nothing
+  // in this lane has a database, and neither `import()` nor the hook reads one.
+  const stubPayload = {} as Payload
+
+  it('reports a pass before anything has run', () => {
+    expect(new Probe({ dryRun: true, clearCache: false }).getRunVerification()).toEqual({
+      failures: [],
+    })
+  })
+
+  it('carries an override failure to the caller', async () => {
+    const probe = new Probe(
+      { dryRun: false, clearCache: false, payload: stubPayload },
+      { failures: ['3 of 4 entries accounted for'] },
+    )
+    await probe.run()
+
+    expect(probe.checked).toBe(1)
+    expect(probe.getRunVerification()).toEqual({
+      failures: ['3 of 4 entries accounted for'],
+    })
+  })
+
+  it('skips the check on a dry run, which wrote nothing to verify', async () => {
+    const probe = new Probe({ dryRun: true, clearCache: false }, { failures: ['x'] })
+    await probe.run()
+
+    expect(probe.checked).toBe(0)
+    expect(probe.getRunVerification()).toEqual({ failures: [] })
   })
 })
