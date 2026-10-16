@@ -114,7 +114,12 @@ No loose files at the root — every file lives in a named folder:
   so it moved to `antiSpam/`
 - `antiSpam/` — the transport-agnostic public-write checks (`checkNoUrls`,
   `checkEmailAllowed`, `verifyTurnstileOrFail`), shared by the write-guard
-  plugin and both screening jobs
+  plugin and both screening jobs, plus `proposalLeaves` — which leaves of a
+  client-authored field patch owe which of those checks, with the exemptions
+  read off the target collection's live config. Two owners by construction:
+  the write guard refuses a link at create and the screening job bins one it
+  finds later, and a hand-listed path set in either left a free-text column
+  scanned by neither (#948)
 - external-service clients, alongside `mapbox/`: `turnstile/` (Cloudflare
   captcha siteverify) — single-consumer today, but an integration seam
   rather than one endpoint's private helper, and unit-testable without

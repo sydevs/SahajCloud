@@ -13,6 +13,9 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { proposableEventFields } from '@/collections/UserSubmissions/hooks/validateProposal'
+import { checkNoUrls } from '@/lib/antiSpam/antiSpamGuard'
+import { proposalLeaves } from '@/lib/antiSpam/proposalLeaves'
 import type { Client, Form, Manager, UserSubmission } from '@/payload-types'
 
 import { testData } from '../utils/testData'
@@ -204,6 +207,120 @@ describe('User submissions intake (POST /api/user-submissions)', () => {
           proposed: { title: 'Legit', verificationStage: 'verified' },
         }),
       ).rejects.toThrow(/verificationStage/)
+    })
+
+    /**
+     * ⚠ Asserted on `contactPhone`, and the column is the point (#948). The
+     * guard listed four `proposed.*` paths — `description`, `contactName`,
+     * `address`, `title` — while the screening job walked the whole column, so
+     * a link in any other proposable free-text column earned a clean 201 and
+     * then a terminal `spam` bin an hour later, with nothing told to the
+     * sender. `contactPhone` is live proof the list was already short.
+     */
+    it('refuses a link in a proposable Events column no path list named', async () => {
+      await expect(
+        send({
+          type: 'proposal',
+          senderEmail: 'phoner@example.com',
+          proposed: { title: 'A new class in Hull', contactPhone: 'or see https://spam.example' },
+        }),
+      ).rejects.toMatchObject({
+        data: { code: 'urls_not_allowed', field: 'proposed.contactPhone' },
+      })
+    })
+
+    it('names a nested column by the path the sender posted', async () => {
+      // `checkNoUrls` reads the top level only, so the street line is reachable
+      // at all because the derivation flattens the patch — and `field` is what
+      // tells the sender which line to fix.
+      await expect(
+        send({
+          type: 'proposal',
+          senderEmail: 'streeter@example.com',
+          proposed: { title: 'A new class in Hull', address: { street: 'see cheap.shop' } },
+        }),
+      ).rejects.toMatchObject({
+        data: { code: 'urls_not_allowed', field: 'proposed.address.street' },
+      })
+    })
+
+    it('accepts a real URL in a column built to hold one, and an address in an email column', async () => {
+      // The other half of the same derivation: `urlField` marks `website`
+      // `custom.holdsUrl`, and `contactEmail` is `type: 'email'` — so a URL in
+      // the first and an address in the second are the fields working.
+      const doc = await send({
+        type: 'proposal',
+        senderEmail: 'honest@example.com',
+        proposed: {
+          title: 'A new class in Hull',
+          website: 'https://example.org/classes',
+          contactEmail: 'host@example.org',
+        },
+      })
+
+      expect(doc.id).toBeTruthy()
+    })
+
+    it('still judges an email column as an address, so the exemption is no hole', async () => {
+      await expect(
+        send({
+          type: 'proposal',
+          senderEmail: 'forger2@example.com',
+          proposed: { title: 'A new class in Hull', contactEmail: 'see https://spam.example' },
+        }),
+      ).rejects.toMatchObject({
+        data: { code: 'invalid_email', field: 'proposed.contactEmail' },
+      })
+    })
+
+    it('scans a link buried in a rich-text column', () => {
+      // `description` is `richText`, so a patch for it is a Lexical tree rather
+      // than a string. The same walk reaches its leaves, because an
+      // unrecognised key descends into nothing and so exempts nothing.
+      const result = checkNoUrls(
+        proposalLeaves(
+          { description: { root: { children: [{ children: [{ text: 'buy at cheap.shop' }] }] } } },
+          payload.collections.events.config.flattenedFields,
+          'proposed',
+        ).urlScan,
+      )
+
+      expect(result.ok).toBe(false)
+      expect(result.ok === false && result.field).toMatch(/^proposed\.description\./)
+    })
+
+    /**
+     * ⚠ What a fixture cannot prove: the scanned set is read off the config
+     * this app boots with. The columns are walked here rather than listed, so
+     * a path list replacing the derivation fails on the column it forgot
+     * rather than at a submitter — the mirror of
+     * `screen-submissions.int.spec.ts`' exemption walk.
+     */
+    it('leaves no proposable plain-text Events column unscanned at create', () => {
+      const eventFields = payload.collections.events.config.flattenedFields
+      const proposable = proposableEventFields(eventFields)
+      const plainText = eventFields.filter(
+        (field) =>
+          'name' in field &&
+          proposable.has(field.name) &&
+          (field.type === 'text' || field.type === 'textarea') &&
+          field.custom?.holdsUrl !== true,
+      )
+
+      // Named so the walk cannot go quietly empty and assert nothing.
+      expect(plainText.map((field) => ('name' in field ? field.name : ''))).toEqual(
+        expect.arrayContaining(['title', 'contactName', 'contactPhone']),
+      )
+
+      for (const field of plainText) {
+        const name = 'name' in field ? field.name : ''
+        const result = checkNoUrls(
+          proposalLeaves({ [name]: 'see cheap.shop' }, eventFields, 'proposed').urlScan,
+        )
+
+        expect(result.ok).toBe(false)
+        expect(result.ok === false && result.field).toBe(`proposed.${name}`)
+      }
     })
 
     it('accepts a proposal submission, with neither a form nor an event', async () => {

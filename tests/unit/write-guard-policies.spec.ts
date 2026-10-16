@@ -24,17 +24,6 @@ describe('DEFAULT_WRITE_GUARD_POLICIES', () => {
     expect(DEFAULT_WRITE_GUARD_POLICIES[slug]?.create?.turnstile).toBe(true)
   })
 
-  it('leaves the answer pairs to prepareUserSubmission, not a path here', () => {
-    // The captcha stops bulk automation; the URL scan is what stops a human
-    // spammer typing a link into a free-text answer, and neither replaces the
-    // other. A `submissionData` path here would flatten the whole pair array
-    // and scan the crash-report keys that are exempt on purpose, so the hook
-    // that knows each pair's key owns that scan instead.
-    expect(DEFAULT_WRITE_GUARD_POLICIES['user-submissions']?.create?.urlScanFields).not.toContain(
-      'submissionData',
-    )
-  })
-
   it('checks the sender address on the unified intake, for every type', () => {
     // One policy, not four: the guard runs beforeValidate on data whose `type`
     // a forged body chooses, so a check relaxed for one type is reachable by
@@ -45,19 +34,37 @@ describe('DEFAULT_WRITE_GUARD_POLICIES', () => {
   })
 
   it('leaves `submissionData` out of the unified intake\'s URL scan', () => {
-    // Deliberate, and the one thing here that reads like an omission.
-    // `urlScanFields` walks a path's every string leaf, and that array carries
-    // the crash-report context (`error`, `hostUrl`) `user-messages` exempted on
-    // purpose — a bug report names the page it happened on. The pairs are
-    // scanned selectively by `prepareUserSubmission` instead, which can tell
-    // one key from another. Listing it here would refuse every issue report.
-    expect(DEFAULT_WRITE_GUARD_POLICIES['user-submissions']?.create?.urlScanFields).not.toContain(
-      'submissionData',
-    )
-    // The free text the guard CAN judge by path is still scanned.
-    expect(DEFAULT_WRITE_GUARD_POLICIES['user-submissions']?.create?.urlScanFields).toContain(
-      'proposed.address',
-    )
+    // Deliberate, and the one thing here that reads like an omission. The
+    // captcha stops bulk automation; the URL scan is what stops a human
+    // spammer typing a link into a free-text answer, and neither replaces the
+    // other. But a scan of this column — by path or derived — flattens the
+    // whole `[{field, value}]` array, including the crash-report context
+    // (`error`, `hostUrl`) that is exempt on purpose, because a bug report
+    // names the page it happened on. `prepareUserSubmission` scans the pairs
+    // selectively instead, because it knows each pair's key. Scanning it here
+    // would refuse every issue report.
+    const policy = DEFAULT_WRITE_GUARD_POLICIES['user-submissions']?.create
+
+    expect(policy?.urlScanFields ?? []).not.toContain('submissionData')
+    expect(policy?.derivedScan?.path).not.toBe('submissionData')
+  })
+
+  /**
+   * ⚠ The rule this one exists for (#948). `proposed` named four `proposed.*`
+   * paths here while the screening job walked the whole column and derived the
+   * exemption from the Events config, so a proposable free-text Events column
+   * outside those four — `contactPhone` was one — was scanned by neither. A
+   * path list is what makes that possible, so the absence of one is the fix.
+   */
+  it('derives the proposal scan from the Events config, naming no path', () => {
+    const policy = DEFAULT_WRITE_GUARD_POLICIES['user-submissions']?.create
+
+    expect(policy?.derivedScan).toEqual({ path: 'proposed', collection: 'events' })
+
+    // Every list the guard reads, so a path cannot come back through the other
+    // one — `proposed.contactEmail` was an `emailFields` entry.
+    const listed = [...(policy?.urlScanFields ?? []), ...(policy?.emailFields ?? [])]
+    expect(listed.filter((path) => path.startsWith('proposed'))).toEqual([])
   })
 
   it('leaves users create without Turnstile, because no client posts to it directly', () => {
