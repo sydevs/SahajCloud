@@ -451,10 +451,17 @@ No errors - import completed successfully!
 3. Register it in `getImporter()` in
    `src/app/(payload)/api/seed/[script]/route.ts`.
 4. Add it to the "Available Scripts" table above.
+5. **Does it read a committed data file?** Export its path from
+   `seeds/lib/dataFiles.ts` and register it under the script's key in
+   `SCRIPT_DATA_FILES`. An unregistered file is never uploaded, so the
+   importer falls back to a disk read that the production build trace
+   excludes — the script works locally and fails on every deployed target.
+   Import the exported constant; never spell the path twice.
 
 ```typescript
 import path from 'path'
 import { BaseImporter, type BaseImportOptions } from '../lib'
+import { MY_SCRIPT_DATA_FILE } from '../lib/dataFiles'
 
 export interface MyScriptOptions extends BaseImportOptions {
   // Add any script-specific options here
@@ -490,9 +497,8 @@ export class MyScriptImporter extends BaseImporter<MyScriptOptions> {
   private async loadData(): Promise<MyDataType[]> {
     const { loadJsonData } = await import('../lib/dataLoader')
     return loadJsonData<MyDataType[]>({
-      localPath: 'seeds/my-script/data.json',
-      workerUrl:
-        'https://raw.githubusercontent.com/sydevs/SahajCloud/main/seeds/my-script/data.json',
+      localPath: MY_SCRIPT_DATA_FILE,
+      inlineContent: this.options.inlineData?.[MY_SCRIPT_DATA_FILE],
     })
   }
 }
