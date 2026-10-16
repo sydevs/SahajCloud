@@ -10,7 +10,7 @@
  *   pnpm seed [script...] [options]
  *
  * If no script is specified, runs ALL scripts in dependency order:
- *   tags → wemeditate → storyblok → meditations
+ *   tags → wemeditate → meditations → meditation-transcripts → storyblok → wm-app-translations → atlas
  *
  * Scripts:
  *   storyblok    - Seed Path Steps from Storyblok CMS
@@ -180,7 +180,7 @@ Usage:
   pnpm seed [script...] [options]
 
 If no script is specified, runs ALL scripts in dependency order:
-  tags → wemeditate → storyblok → meditations
+  tags → wemeditate → meditations → meditation-transcripts → storyblok → wm-app-translations → atlas
 
 Available Scripts:
   storyblok              Seed Path Steps from Storyblok CMS

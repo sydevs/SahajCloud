@@ -70,7 +70,7 @@ export class MeditationTranscriptsImporter extends BaseImporter<BaseImportOption
     const entries = await this.loadData()
 
     if (this.options.dryRun) {
-      this.validateDryRun(entries)
+      await this.validateDryRun(entries)
       return
     }
 
@@ -180,7 +180,7 @@ export class MeditationTranscriptsImporter extends BaseImporter<BaseImportOption
 
   // ─── Dry run: the data file alone (no DB, no network) ───────────────────
 
-  private validateDryRun(entries: TranscriptEntry[]): void {
+  private async validateDryRun(entries: TranscriptEntry[]): Promise<void> {
     const seen = new Set<number>()
     for (const entry of entries) {
       if (seen.has(entry.meditationId)) {
@@ -203,11 +203,13 @@ export class MeditationTranscriptsImporter extends BaseImporter<BaseImportOption
     }
 
     const phrases = entries.reduce((total, entry) => total + entry.segments.length, 0)
-    this.logger.info(`\nValidated ${entries.length} entries, ${phrases} phrases.`)
-    // Without the library there is nothing to resolve an id against, so a
-    // reader must not take this count as "126 would import".
-    this.logger.info(
-      'Which ids would be skipped is not reported: that answer needs the meditations in the target database.',
+    // `sendInfo`, not `logger`: a dry run is read from the CLI, and the logger
+    // writes to the server's own console. Without the second line a verifier
+    // reads "126 validated, 0 errors" as "126 would import" — but a dry run
+    // issues no database read, so it has nothing to resolve an id against.
+    await this.sendInfo(`Validated ${entries.length} entries, ${phrases} phrases.`)
+    await this.sendInfo(
+      'Which ids would be skipped is not reported: that needs the meditations in the target database.',
     )
   }
 
