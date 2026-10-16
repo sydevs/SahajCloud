@@ -1,8 +1,9 @@
 import type { DocumentViewClientProps, DocumentViewServerProps } from 'payload'
 
-import { Banner, Button, DefaultEditView, Gutter, Spinner } from '@payloadcms/ui'
+import { Banner, DefaultEditView, Gutter, Spinner } from '@payloadcms/ui'
 import { toWords } from 'payload/shared'
 
+import { CheckAgain } from './CheckAgain'
 import { type JobStageWait, jobStageWait, readJobStageConfig } from './stages'
 
 /**
@@ -57,10 +58,9 @@ function countSentence({ progress, total }: JobStageWait): string {
  * A server component, because Payload hands a view the locale and user objects
  * (`docs/rules/admin-ui.md` § Server vs client components), and because the
  * stored stage at page load is the whole input — there is no poll, and so no
- * second request. **Check again** is therefore an `<a href>` and not a
- * `next/link`: a full load re-reads the stage on the server, where a client
- * navigation can be served from the route cache and redraw the same stale
- * waiting view.
+ * second request. Re-reading it is `CheckAgain`'s, the one client component
+ * here: a full load everywhere but a document drawer, where leaving the page
+ * would discard the host document's unsaved edits.
  */
 export default function JobStageView(props: DocumentViewServerProps) {
   const { collectionConfig, docID } = props.initPageResult
@@ -77,13 +77,7 @@ export default function JobStageView(props: DocumentViewServerProps) {
             {toWords(wait.stage)} — this is being prepared automatically, and opens for
             editing when that finishes.{countSentence(wait)}
           </Banner>
-          <Button
-            buttonStyle="secondary"
-            el="anchor"
-            url={`/admin/collections/${collectionConfig.slug}/${docID}`}
-          >
-            Check again
-          </Button>
+          <CheckAgain url={`/admin/collections/${collectionConfig.slug}/${docID}`} />
         </Gutter>
       )
     }

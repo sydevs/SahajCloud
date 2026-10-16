@@ -29,9 +29,12 @@ import { hasDirective, SRC, sourceOf } from '../utils/importGraph'
 
 // Joined from `SRC`, the same root `hasDirective`'s callers use, so a path
 // here cannot drift from the one those guards walk.
-const VIEW_FILES = ['JobStageView.tsx', 'stages.ts'].map((file) =>
-  join(SRC, 'components/admin/JobStageView', file),
-)
+const inFolder = (file: string) => join(SRC, 'components/admin/JobStageView', file)
+
+// The server half. `CheckAgain.tsx` is deliberately not here: whether a
+// document drawer is open is knowable in the browser alone, so it is the
+// folder's one client component and is asserted as such below.
+const VIEW_FILES = ['JobStageView.tsx', 'stages.ts'].map(inFolder)
 
 /**
  * Both checks below read the code without its prose. The view explains in
@@ -218,6 +221,15 @@ describe('the view itself', () => {
     for (const file of VIEW_FILES) {
       expect(codeOf(file)).not.toMatch(/event-imports|eventImports|meditation-transcripts/)
     }
+  })
+
+  /**
+   * The split is the point, not an accident of where code landed: a server
+   * component cannot read `drawerSlug`, and a client one cannot be handed the
+   * `req` and `payload` props the fall-through forwards.
+   */
+  it('keeps the drawer-aware control as the folder\'s only client component', () => {
+    expect(hasDirective(inFolder('CheckAgain.tsx'), 'use client')).toBe(true)
   })
 
   it('stays a server component that fetches nothing', () => {
