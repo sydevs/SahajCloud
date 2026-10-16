@@ -182,7 +182,7 @@ protected async import(): Promise<void> {
 
 **Preload methods:**
 
-- `preloadCollection(collection, naturalKey, additionalFields?)` — bulk fetch for the cache
+- `preloadCollection(collection, naturalKey, additionalFields?, locale?)` — bulk fetch for the cache
 - `getPreloaded(collection, keyValue)` — get a cached doc by natural key
 - `hasPreloaded(collection, keyValue)` — check whether a doc exists in the cache
 
@@ -197,6 +197,21 @@ Guarded by `tests/int/seed-importer-preload.int.spec.ts`.
 Consequence worth knowing: **a deliberately-trashed doc is not re-created by
 a re-seed** — it is skipped (or updated, in `--update` mode). Permanently
 delete it to force recreation.
+
+**A locale-filtered collection needs the `locale` argument.** Omit it and
+Payload resolves the default (`en`), so a collection whose `beforeOperation`
+hook appends a locale filter caches that one locale and every other reads as
+absent. `meditations` is the one here: `filterMeditationsByLocale`
+(`src/collections/Meditations/hooks/`) filters every `find` and `count`. Pass
+`'all'` to cache every locale's rows, or a code to pick one — and state the
+code even when it is the default, so a reader is not left deriving it.
+
+Getting this wrong is quiet, not loud. `label` on `meditations` is not
+`unique`, and a cache miss on a preloaded collection goes straight to
+`payload.create` with no fallback find, so a re-seed creates a second row. The
+locale cases in `tests/int/seed-importer-preload.int.spec.ts` guard both
+directions. One cache per collection, so the first locale asked for wins —
+a second call under a different one warns and reuses it.
 
 ### Pagination pattern
 

@@ -338,9 +338,12 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       // Preload collections for efficient skip/update mode
       // This dramatically reduces DB queries by caching existence checks
       // Note: meditations preloaded by label (the unique natural key after duplicate-title suffixing)
+      // `'en'` is stated rather than left to the default: `filterMeditationsByLocale`
+      // narrows this cache to one locale, and every row this importer creates is
+      // English. Widening it to `'all'` changes what the run skips.
       await Promise.all([
         this.preloadCollection('frames', 'filename'),
-        this.preloadCollection('meditations', 'label'),
+        this.preloadCollection('meditations', 'label', undefined, 'en'),
         this.preloadCollection('narrators', 'name'),
         this.preloadCollection('user-choices', 'slug'),
         this.preloadCollection('song-tags', 'slug'),

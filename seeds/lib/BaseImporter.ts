@@ -123,6 +123,8 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
 
   // Cache of preloaded collections for skip/update decisions
   protected preloadCache: Map<CollectionSlug, PreloadCache> = new Map()
+  /** The locale each cached collection was read under, for the conflict warning below. */
+  private preloadLocales: Map<CollectionSlug, TypedLocale | 'all' | undefined> = new Map()
 
   // Track current operation for heartbeat progress (SSE keep-alive)
   private currentOperation: string = ''
@@ -298,22 +300,36 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
   /**
    * Bulk fetch a collection for skip/update decisions. See the Preload
    * pattern in seeds/lib/AGENTS.md for the full rationale, including
-   * why this includes soft-deleted docs.
+   * why this includes soft-deleted docs and when the locale is required.
    *
    * @param collection - Collection to preload
    * @param naturalKeyField - Field to use as cache key, for example 'slug' or 'filename'
    * @param additionalFields - Additional fields to select beyond id and naturalKeyField
+   * @param locale - Locale to read under. Omitted, Payload resolves the
+   *   default (`en`), which a locale-filtering `beforeOperation` hook then
+   *   narrows the cache to — pass `'all'` to see every locale's rows.
    * @returns PreloadCache map of natural key values to document data
    */
   protected async preloadCollection(
     collection: CollectionSlug,
     naturalKeyField: string,
     additionalFields?: string[],
+    locale?: TypedLocale | 'all',
   ): Promise<PreloadCache> {
     // Return cached version if already preloaded
     if (this.preloadCache.has(collection)) {
+      // One cache per collection, so the first locale wins. Asking again under
+      // a different one would read the first answer and look like a locale miss.
+      if (this.preloadLocales.get(collection) !== locale) {
+        this.addWarning(
+          `Preload of ${collection} requested locale ${locale ?? '(default)'} but the cache ` +
+            `already holds ${this.preloadLocales.get(collection) ?? '(default)'}. Reusing it.`,
+        )
+      }
       return this.preloadCache.get(collection)!
     }
+
+    this.preloadLocales.set(collection, locale)
 
     // Skip preloading in dry-run mode (no Payload instance)
     if (this.options.dryRun || !this.payload) {
@@ -356,6 +372,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
           page,
           depth: 0,
           select,
+          locale,
           // Include soft-deleted docs. See the Preload pattern in
           // seeds/lib/AGENTS.md for why this cache must include trashed
           // rows, and the bug it fixes.
