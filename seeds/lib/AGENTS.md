@@ -202,16 +202,27 @@ delete it to force recreation.
 Payload resolves the default (`en`), so a collection whose `beforeOperation`
 hook appends a locale filter caches that one locale and every other reads as
 absent. `meditations` is the one here: `filterMeditationsByLocale`
-(`src/collections/Meditations/hooks/`) filters every `find` and `count`. Pass
-`'all'` to cache every locale's rows, or a code to pick one — and state the
-code even when it is the default, so a reader is not left deriving it.
+(`src/collections/Meditations/hooks/`) filters every `find` and `count`. State
+the code even when it is the default, so a reader is not left deriving which
+rows a cache holds.
 
-Getting this wrong is quiet, not loud. `label` on `meditations` is not
-`unique`, and a cache miss on a preloaded collection goes straight to
-`payload.create` with no fallback find, so a re-seed creates a second row. The
-locale cases in `tests/int/seed-importer-preload.int.spec.ts` guard both
-directions. One cache per collection, so the first locale asked for wins —
-a second call under a different one warns and reuses it.
+Getting this wrong is quiet, not loud: a cache miss on a preloaded collection
+takes the same no-fallback-find path as a trashed row above, and `label` on
+`meditations` is not `unique`, so a re-seed creates a second row instead of
+erroring. The locale cases in `tests/int/seed-importer-preload.int.spec.ts`
+guard both directions.
+
+Two limits on the argument:
+
+- **One cache per collection**, so the first locale asked for wins. A second
+  call under a different one warns and reuses it.
+- **`'all'` works only where the natural key is not field-localized.** It is
+  right for `meditations.label` — one row, one locale, one key. A localized key
+  arrives as a per-locale object, which is neither one key nor a usable set of
+  them: collapsing it with `String()` collides every row, and merging the
+  locales answers a `cs` existence question with an `en` row. The preload
+  refuses such a key and warns. `albums` and `songs` are preloaded by a
+  localized `title`, so they must name a locale.
 
 ### Pagination pattern
 

@@ -6,6 +6,8 @@
  * requiring a full Payload CMS instance.
  */
 
+import type { Payload } from 'payload'
+
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 import { BaseImporter, type BaseImportOptions, type RunVerification } from './BaseImporter'
@@ -190,40 +192,64 @@ describe('ValidationReport', () => {
 
 /**
  * `verifyRun` is what a script asserts about itself when no database floor can
- * be stated. The default has to be a pass, or every existing importer would
- * start failing; an override's failure has to reach the caller, or declaring
- * the invariant buys nothing.
+ * be stated. Two properties, both added by the hook rather than by the
+ * language: the default is a pass, so no existing importer starts failing; and
+ * `run()` skips the check for a run that cannot answer for the whole data file.
  */
 describe('BaseImporter.verifyRun', () => {
-  class Quiet extends BaseImporter<BaseImportOptions> {
-    protected readonly importName = 'Quiet'
-    protected readonly cacheDir = '/tmp/seed-verify-run-quiet'
-    protected async import(): Promise<void> {}
-  }
+  class Probe extends BaseImporter<BaseImportOptions> {
+    protected readonly importName = 'Verify Probe'
+    protected readonly cacheDir = '/tmp/seed-verify-run-probe'
+    checked = 0
 
-  class Loud extends BaseImporter<BaseImportOptions> {
-    protected readonly importName = 'Loud'
-    protected readonly cacheDir = '/tmp/seed-verify-run-loud'
+    constructor(
+      options: BaseImportOptions,
+      private readonly answer?: RunVerification,
+    ) {
+      super(options)
+    }
+
     protected async import(): Promise<void> {}
 
-    async verifyRun(): Promise<RunVerification> {
-      return { passed: false, failures: ['3 of 4 entries accounted for'] }
+    protected async verifyRun(): Promise<RunVerification> {
+      this.checked += 1
+      return this.answer ?? super.verifyRun()
     }
   }
 
-  const options: BaseImportOptions = { dryRun: true, clearCache: false }
+  // An external instance keeps `run()` out of Payload initialization; nothing
+  // in this lane has a database, and neither `import()` nor the hook reads one.
+  const stubPayload = {} as Payload
 
-  it('passes by default, with nothing to report', async () => {
-    await expect(new Quiet(options).verifyRun()).resolves.toEqual({
+  it('reports a pass before anything has run', () => {
+    expect(new Probe({ dryRun: true, clearCache: false }).getRunVerification()).toEqual({
       passed: true,
       failures: [],
     })
   })
 
-  it('carries an override failure and its reason', async () => {
-    const verification = await new Loud(options).verifyRun()
+  it('carries an override failure to the caller', async () => {
+    const probe = new Probe(
+      { dryRun: false, clearCache: false, payload: stubPayload },
+      {
+        passed: false,
+        failures: ['3 of 4 entries accounted for'],
+      },
+    )
+    await probe.run()
 
-    expect(verification.passed).toBe(false)
-    expect(verification.failures).toEqual(['3 of 4 entries accounted for'])
+    expect(probe.checked).toBe(1)
+    expect(probe.getRunVerification()).toEqual({
+      passed: false,
+      failures: ['3 of 4 entries accounted for'],
+    })
+  })
+
+  it('skips the check on a dry run, which wrote nothing to verify', async () => {
+    const probe = new Probe({ dryRun: true, clearCache: false }, { passed: false, failures: ['x'] })
+    await probe.run()
+
+    expect(probe.checked).toBe(0)
+    expect(probe.getRunVerification()).toEqual({ passed: true, failures: [] })
   })
 })

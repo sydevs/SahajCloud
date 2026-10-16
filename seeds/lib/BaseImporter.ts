@@ -18,6 +18,9 @@ import { getPayload, Payload, CollectionSlug, Where, TypedLocale } from 'payload
 // .env. dotenv walks the array in order and never overwrites an already-set key.
 dotenv.config({ path: ['.env.local', '.env'] })
 
+import { DEFAULT_LOCALE } from '@/lib/locales'
+import { isRecord } from '@/lib/utilities/isRecord'
+
 import { parseArgs, CLIArgs } from './cliParser'
 import { isRetryableError } from './delays'
 import { FileUtils } from './fileUtils'
@@ -74,6 +77,9 @@ export interface BaseImportOptions {
   inlineData?: Record<string, string>
 }
 
+/** What `verifyRun` answers: a run's own invariants, and why they failed. */
+export type RunVerification = { passed: boolean; failures: string[] }
+
 export interface UpsertResult<T = any> {
   doc: T
   action: 'created' | 'updated' | 'skipped' | 'error'
@@ -94,10 +100,8 @@ export interface SlugCollision {
 }
 
 // Type for preloaded document cache (id + natural key + any additional fields)
-/** What `verifyRun` answers: a run's own invariants, and why they failed. */
-export type RunVerification = { passed: boolean; failures: string[] }
-
 export type PreloadedDoc = { id: string | number; [key: string]: unknown }
+
 export type PreloadCache = Map<string, PreloadedDoc>
 
 // --- Base importer class ---
@@ -108,6 +112,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
   protected logger!: Logger
   protected fileUtils!: FileUtils
   protected report!: ValidationReport
+  private runVerification: RunVerification = { passed: true, failures: [] }
 
   // Configuration - subclasses must define these
   protected abstract readonly importName: string
@@ -124,7 +129,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
   // Cache of preloaded collections for skip/update decisions
   protected preloadCache: Map<CollectionSlug, PreloadCache> = new Map()
   /** The locale each cached collection was read under, for the conflict warning below. */
-  private preloadLocales: Map<CollectionSlug, TypedLocale | 'all' | undefined> = new Map()
+  private preloadLocales: Map<CollectionSlug, TypedLocale | 'all'> = new Map()
 
   // Track current operation for heartbeat progress (SSE keep-alive)
   private currentOperation: string = ''
@@ -144,6 +149,11 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
    */
   getReport(): ValidationReport {
     return this.report
+  }
+
+  /** What `verifyRun` answered for this run. A skipped check reports a pass. */
+  getRunVerification(): RunVerification {
+    return this.runVerification
   }
 
   /**
@@ -320,16 +330,20 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     if (this.preloadCache.has(collection)) {
       // One cache per collection, so the first locale wins. Asking again under
       // a different one would read the first answer and look like a locale miss.
-      if (this.preloadLocales.get(collection) !== locale) {
+      // Compared as resolved: omitting the argument and naming the default
+      // locale read the same rows, so a mixed pair of call sites is not a
+      // conflict while one states what the other inherits.
+      const held = this.preloadLocales.get(collection)
+      if (held !== (locale ?? DEFAULT_LOCALE)) {
         this.addWarning(
-          `Preload of ${collection} requested locale ${locale ?? '(default)'} but the cache ` +
-            `already holds ${this.preloadLocales.get(collection) ?? '(default)'}. Reusing it.`,
+          `Preload of ${collection} requested locale ${locale ?? DEFAULT_LOCALE} but the ` +
+            `cache already holds ${held}. Reusing it.`,
         )
       }
       return this.preloadCache.get(collection)!
     }
 
-    this.preloadLocales.set(collection, locale)
+    this.preloadLocales.set(collection, locale ?? DEFAULT_LOCALE)
 
     // Skip preloading in dry-run mode (no Payload instance)
     if (this.options.dryRun || !this.payload) {
@@ -360,6 +374,8 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
         select[field] = true
       }
     }
+
+    let localizedKeyRefused = false
 
     this.setCurrentOperation(`Preloading ${collection}...`)
     await this.logger.info(`Preloading ${collection}...`)
@@ -400,7 +416,16 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
         }
 
         // Always cache by the natural key field
-        const key = String(docRecord[naturalKeyField])
+        const rawKey = docRecord[naturalKeyField]
+        if (isRecord(rawKey)) {
+          // A field-localized key under `locale: 'all'` arrives as a per-locale
+          // object. `String()` would collapse every row onto `[object Object]`,
+          // and merging the locales would answer a single-locale existence
+          // question with another locale's row. Refuse it instead.
+          localizedKeyRefused = true
+          continue
+        }
+        const key = String(rawKey)
         if (key) {
           cache.set(key, doc as unknown as PreloadedDoc)
         }
@@ -408,6 +433,13 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
 
       hasMore = result.hasNextPage
       page++
+    }
+
+    if (localizedKeyRefused) {
+      this.addWarning(
+        `Preload of ${collection} by '${naturalKeyField}' read no key: the field is ` +
+          `localized, so it cannot be cached under locale 'all'. Name one locale instead.`,
+      )
     }
 
     await this.logger.info(`✓ Preloaded ${cache.size} ${collection}`)
@@ -488,7 +520,13 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
       // 7. Execute import (subclass implementation)
       await this.import()
 
-      // 7. Generate report and print summary (file output only for CLI)
+      // 8. Check the run's own invariants. A paginated batch holds only part
+      // of the data and a dry run wrote nothing, so neither is a run to check.
+      if (!this.isPaginated() && !this.options.dryRun) {
+        this.runVerification = await this.verifyRun()
+      }
+
+      // 9. Generate report and print summary (file output only for CLI)
       await this.finalize()
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
@@ -520,8 +558,13 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
    * totals can still hold everywhere — for a data-file-driven script,
    * `created + updated + skipped + warnings === entries in the data file`,
    * which a truncated upload breaks. Default: nothing to check.
+   *
+   * `run()` calls this once the import has finished, so an override may reason
+   * about the complete data file. It is skipped for a paginated batch, which
+   * holds only part of one, and for a dry run, which wrote nothing — both then
+   * report a pass, which `getRunVerification` hands to the caller.
    */
-  async verifyRun(): Promise<RunVerification> {
+  protected async verifyRun(): Promise<RunVerification> {
     return { passed: true, failures: [] }
   }
 

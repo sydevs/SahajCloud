@@ -28,17 +28,13 @@
 
 import type { BaseImporter } from '../../../../../../seeds/lib/BaseImporter'
 import type { NextRequest } from 'next/server'
-import type { CollectionSlug, Where } from 'payload'
 
 import { getPayload } from 'payload'
 
-import { activeRegistrationWhere } from '@/lib/registrations/active'
-
 import config from '@payload-config'
 
-
 import {
-  getCountableCollections,
+  getCountTargets,
   getScriptMetadata,
   verifyCountsForScript,
   type ScriptName,
@@ -311,7 +307,8 @@ export async function POST(
       } = verifyCountsForScript(script as ScriptName, counts, pagination)
 
       // The importer's own invariants, which hold whatever the target carries.
-      const runVerification = await importer.verifyRun()
+      // `run()` decides whether this run was one to check.
+      const runVerification = importer.getRunVerification()
       const verificationPassed = countsPassed && runVerification.passed
 
       const report = importer.getReport()
@@ -345,6 +342,7 @@ export async function POST(
           counts,
           verification,
           verificationPassed,
+          countsPassed,
           verificationSkippedReason: verificationSkippedReason ?? null,
           runVerificationFailures: runVerification.failures,
         },
@@ -437,38 +435,30 @@ async function getImporter(
   }
 }
 
-/**
- * The one count that is not a whole-collection count. `user-submissions` also
- * holds contact, subscribe and proposal rows, so an unfiltered count passes
- * on those alone.
- */
-const COUNT_FILTERS: Partial<Record<ScriptName, Record<string, Where>>> = {
-  atlas: { 'user-submissions': activeRegistrationWhere },
-}
-
 /** Return database counts for verification. */
 async function getDatabaseCounts(
   payload: Awaited<ReturnType<typeof getPayload>>,
   script: ScriptName,
 ): Promise<Record<string, number>> {
   const counts: Record<string, number> = {}
-  const filters = COUNT_FILTERS[script] ?? {}
+  const targets = getCountTargets(script)
 
-  try {
-    const collections = getCountableCollections(script)
-    const totals = await Promise.all(
-      collections.map((slug) =>
-        payload.count({ collection: slug as CollectionSlug, where: filters[slug] }),
-      ),
-    )
+  // Settled, not all-or-nothing: one refused count must not discard the rest,
+  // or a transient pool error would report every floor as 0.
+  const totals = await Promise.allSettled(
+    targets.map(({ collection, where }) => payload.count({ collection, where })),
+  )
 
-    collections.forEach((slug, index) => {
-      counts[slug] = totals[index].totalDocs
-    })
-  } catch (error) {
-    // Log the error, but do not fail the request. Counts are for verification only.
-    payload.logger.error({ msg: 'Failed to get database counts', error })
-  }
+  targets.forEach(({ collection }, index) => {
+    const total = totals[index]
+    if (total.status === 'fulfilled') {
+      counts[collection] = total.value.totalDocs
+      return
+    }
+    // Log it, but do not fail the request. The missing count then fails its own
+    // floor, which is what the operator sees.
+    payload.logger.error({ msg: `Failed to count ${collection}`, error: total.reason })
+  })
 
   return counts
 }

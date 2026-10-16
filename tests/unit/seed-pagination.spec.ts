@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest'
 
+import { activeRegistrationWhere } from '@/lib/registrations/active'
+
 import {
   EXPECTED_COUNTS,
-  getCountableCollections,
+  getCountTargets,
   getScriptMetadata,
   getExpectedCounts,
   isNotApplicable,
@@ -353,23 +355,15 @@ describe('a script that can state no floor says so', () => {
   })
 
   unverifiable.forEach((script) => {
-    it(`${script} carries a reason, and verification reports it`, () => {
+    it(`reports ${script}'s reason rather than passing silently`, () => {
       const { results, allPassed, skippedReason } = verifyCountsForScript(script, {})
 
       expect(results).toEqual([])
       expect(allPassed).toBe(true)
-      // The point of the arm: a run that checked nothing no longer prints
-      // exactly like one that checked and passed.
-      expect(skippedReason).toBeTruthy()
       expect(skippedReason).toMatch(/global/)
-    })
-
-    it(`${script} answers with no floors`, () => {
+      // Nothing to count and no floor to count against, consistently.
       expect(getExpectedCounts(script)).toEqual({})
-    })
-
-    it(`${script} declares no countable collection either`, () => {
-      expect(getCountableCollections(script)).toEqual([])
+      expect(getCountTargets(script)).toEqual([])
     })
   })
 
@@ -384,27 +378,42 @@ describe('a script that can state no floor says so', () => {
   })
 })
 
-describe('getCountableCollections', () => {
-  it('drops a logical step that is not a collection', () => {
-    // `pictures` downloads into `images`; `payload.count` throws on the slug.
-    expect(getCountableCollections('atlas')).not.toContain('pictures')
-    expect(getCountableCollections('atlas')).toContain('user-submissions')
+describe('getCountTargets', () => {
+  it('drops a step that lands in no collection of its own', () => {
+    const atlas = getCountTargets('atlas').map((target) => target.collection)
+
+    expect(atlas).not.toContain('pictures')
+    expect(atlas).toContain('user-submissions')
   })
 
   it('keeps the script metadata order', () => {
-    expect(getCountableCollections('meditations')).toEqual(['narrators', 'frames', 'meditations'])
+    expect(getCountTargets('meditations').map((target) => target.collection)).toEqual([
+      'narrators',
+      'frames',
+      'meditations',
+    ])
+  })
+
+  it('carries the filter the atlas registration floor is stated under', () => {
+    const registrations = getCountTargets('atlas').find(
+      (target) => target.collection === 'user-submissions',
+    )
+
+    // An unfiltered count passes on contact, subscribe and proposal rows alone.
+    expect(registrations?.where).toEqual(activeRegistrationWhere)
+    expect(getCountTargets('tags').every((target) => target.where === undefined)).toBe(true)
   })
 
   /**
-   * The invariant the seed route's `getDatabaseCounts` now rests on. It was
-   * broken: `wemeditate` expected 40 lectures and the route never counted
-   * them, so every run of that script reported verification failed on 0.
+   * The invariant the seed route's `getDatabaseCounts` rests on. It was broken:
+   * `wemeditate` expected 40 lectures the route never counted, so every run of
+   * that script reported verification failed on 0.
    */
   it('covers every floor every script declares', () => {
     const uncounted = ALL_SCRIPTS.flatMap((script) => {
-      const countable = new Set(getCountableCollections(script))
+      const counted = new Set<string>(getCountTargets(script).map((target) => target.collection))
       return Object.keys(getExpectedCounts(script))
-        .filter((collection) => !countable.has(collection))
+        .filter((collection) => !counted.has(collection))
         .map((collection) => `${script}:${collection}`)
     })
 

@@ -15,24 +15,15 @@
  * fixture — the `preloadCollection` code path is shared by every collection, so the
  * mechanism is identical.
  *
- * The locale half is `meditations`, which is the one collection here whose
- * rows each belong to a single locale: `filterMeditationsByLocale` appends
- * `{ locale: { equals: req.locale } }` to every find, and a Local API read
- * naming no locale resolves the default `en`. So a cache built with no locale
- * holds English rows only, and `upsert` sends every other locale's row to
- * `payload.create` with no fallback find — `label` is not unique, so a re-seed
- * duplicates rather than erroring.
+ * The locale half is `meditations`, the one collection here whose rows each
+ * belong to a single locale. The mechanism, and what a wrong locale costs, are
+ * in the Preload pattern in seeds/lib/AGENTS.md.
  */
 import type { CollectionSlug, Payload, TypedLocale } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { BaseImporter, Logger, ValidationReport, type BaseImportOptions } from '../../seeds/lib'
-import {
-  EXPECTED_COUNTS,
-  getCountableCollections,
-  type ScriptName,
-} from '../../seeds/lib/expectedCounts'
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -78,6 +69,7 @@ describe('BaseImporter.preloadCollection', () => {
   let trashedId: number
   let englishLabel: string
   let czechLabel: string
+  let sharedImageId: number
 
   beforeAll(async () => {
     const env = await createTestEnvironment()
@@ -108,16 +100,30 @@ describe('BaseImporter.preloadCollection', () => {
       overrideAccess: true,
     })
 
-    const english = await testData.createMeditation(payload, undefined, {
-      label: 'Preload Probe English',
-      locale: 'en',
-    })
+    // One image and one narrator for all three fixtures below: each
+    // `createMeditation` would otherwise upload its own resized thumbnail.
+    const thumbnail = (await testData.createMediaImage(payload, { alt: 'Probe thumbnail' })).id
+    const narrator = (await testData.createNarrator(payload, { name: 'Probe Narrator' })).id
+    sharedImageId = thumbnail
+
+    const english = await testData.createMeditation(
+      payload,
+      { narrator, thumbnail },
+      {
+        label: 'Preload Probe English',
+        locale: 'en',
+      },
+    )
     englishLabel = english.label
 
-    const czech = await testData.createMeditation(payload, undefined, {
-      label: 'Preload Probe Czech',
-      locale: 'cs',
-    })
+    const czech = await testData.createMeditation(
+      payload,
+      { narrator, thumbnail },
+      {
+        label: 'Preload Probe Czech',
+        locale: 'cs',
+      },
+    )
     czechLabel = czech.label
   })
 
@@ -171,32 +177,6 @@ describe('BaseImporter.preloadCollection', () => {
     })
   })
 
-  /**
-   * `getDatabaseCounts` in the seed route derives its collection list from
-   * `getCountableCollections`, so a metadata slug that names a logical step
-   * rather than a collection makes `payload.count` throw — and the route then
-   * returns no counts at all, failing verification on every floor. `atlas`'s
-   * `pictures` is that case, declared `notACollection`. Nothing but a real
-   * Payload can say whether a slug is one.
-   */
-  describe('every countable collection a script declares is real', () => {
-    const scripts = Object.keys(EXPECTED_COUNTS) as ScriptName[]
-
-    scripts.forEach((script) => {
-      it(`counts every collection ${script} declares`, async () => {
-        const collections = getCountableCollections(script)
-
-        for (const slug of collections) {
-          const { totalDocs } = await payload.count({
-            collection: slug as CollectionSlug,
-            overrideAccess: true,
-          })
-          expect(totalDocs).toBeGreaterThanOrEqual(0)
-        }
-      })
-    })
-  })
-
   describe('reads the locale it is given', () => {
     it('sees English alone when no locale is passed', async () => {
       const probe = new PreloadProbe(payload)
@@ -214,6 +194,48 @@ describe('BaseImporter.preloadCollection', () => {
 
       expect(probe.seesKey('meditations', englishLabel)).toBe(true)
       expect(probe.seesKey('meditations', czechLabel)).toBe(true)
+    })
+
+    /**
+     * `albums.title` and `songs.title` are localized, and `wemeditate` preloads
+     * both by `title`. Under `'all'` Payload returns a per-locale object there,
+     * which `String()` would collapse onto one `[object Object]` key — every
+     * row colliding, so every lookup but one misses and `upsert` creates a
+     * duplicate. Merging the locales instead would answer a `cs` existence
+     * question with an `en` row, which skips creating the `cs` one. Neither is
+     * an answer, so the preload refuses the key and says so.
+     */
+    it("refuses a localized natural key under 'all'", async () => {
+      // Through the fixture helper: `albums` also requires `artist` and an
+      // `artwork` upload, verified against src/collections/Albums/Albums.ts.
+      const album = await testData.createAlbum(payload, {
+        title: 'Preload Probe Album',
+        artwork: sharedImageId,
+      })
+      await payload.update({
+        collection: 'albums',
+        id: album.id,
+        locale: 'cs',
+        // `artist` is required AND localized, so writing a second locale has
+        // to supply it — the English value does not satisfy validation there.
+        data: { title: 'Preload Probe Album CS', artist: 'Test Artist' },
+      })
+
+      const probe = new PreloadProbe(payload)
+      const cache = await probe.preload('albums', 'title', 'all')
+
+      expect(cache.size).toBe(0)
+      expect(probe.seesKey('albums', '[object Object]')).toBe(false)
+      expect(probe.warnings().join('\n')).toContain('localized')
+    })
+
+    it('does not warn when one call states the locale the other inherits', async () => {
+      const probe = new PreloadProbe(payload)
+      await probe.preload('meditations', 'label')
+      await probe.preload('meditations', 'label', 'en')
+
+      // Both read English rows, so a mixed pair of call sites is not a conflict.
+      expect(probe.warnings()).toEqual([])
     })
 
     it('warns rather than silently answering under the first locale', async () => {

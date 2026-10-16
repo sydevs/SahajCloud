@@ -9,8 +9,17 @@
  */
 
 import type { CollectionMetadata, ScriptMetadata } from './pagination'
+import type { CollectionSlug, Where } from 'payload'
+
+import { activeRegistrationWhere } from '@/lib/registrations/active'
 
 import { getDefaultBatchSize } from './pagination'
+
+/** One collection to count for a script, and the filter its floor is stated under. */
+export interface CountTarget {
+  collection: CollectionSlug
+  where?: Where
+}
 
 export type ScriptName =
   | 'tags'
@@ -40,7 +49,9 @@ export interface NotApplicableCounts {
 
 export type ScriptExpectation = ExpectedCounts | NotApplicableCounts
 
-export function isNotApplicable(expectation: ScriptExpectation): expectation is NotApplicableCounts {
+export function isNotApplicable(
+  expectation: ScriptExpectation,
+): expectation is NotApplicableCounts {
   return 'kind' in expectation && expectation.kind === 'not-applicable'
 }
 
@@ -186,6 +197,7 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
   tags: [
     {
       slug: 'user-choices',
+      collection: 'user-choices',
       totalItems: 27,
       requiresPagination: false,
       dependencies: [],
@@ -194,6 +206,7 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
     },
     {
       slug: 'song-tags',
+      collection: 'song-tags',
       totalItems: 7,
       requiresPagination: false,
       dependencies: [],
@@ -205,6 +218,7 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
   wemeditate: [
     {
       slug: 'authors',
+      collection: 'authors',
       totalItems: 18,
       requiresPagination: false,
       dependencies: [],
@@ -213,6 +227,7 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
     },
     {
       slug: 'albums',
+      collection: 'albums',
       totalItems: 8,
       requiresPagination: false,
       dependencies: [],
@@ -221,6 +236,7 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
     },
     {
       slug: 'songs',
+      collection: 'songs',
       totalItems: 27,
       requiresPagination: false,
       dependencies: ['albums'],
@@ -229,6 +245,7 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
     },
     {
       slug: 'pages',
+      collection: 'pages',
       totalItems: 60,
       requiresPagination: true, // Large collection
       dependencies: ['authors'],
@@ -241,6 +258,7 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
       // populateFromNirmalaVidya hook fires on create and hits the NV API
       // synchronously, so this batch implicitly fans out to ~N HTTP calls.
       slug: 'lectures',
+      collection: 'lectures',
       totalItems: 40,
       requiresPagination: false,
       dependencies: [],
@@ -250,6 +268,7 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
   meditations: [
     {
       slug: 'narrators',
+      collection: 'narrators',
       totalItems: 2,
       requiresPagination: false,
       dependencies: [],
@@ -257,6 +276,7 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
     },
     {
       slug: 'frames',
+      collection: 'frames',
       totalItems: 60,
       requiresPagination: true, // Large collection with uploads
       dependencies: [],
@@ -265,6 +285,7 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
     },
     {
       slug: 'meditations',
+      collection: 'meditations',
       totalItems: 73,
       requiresPagination: true, // Large collection with uploads
       dependencies: ['narrators', 'frames', 'user-choices', 'song-tags'],
@@ -275,6 +296,7 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
   storyblok: [
     {
       slug: 'lessons',
+      collection: 'lessons',
       totalItems: 17,
       requiresPagination: true, // For consistency, even though small
       dependencies: [],
@@ -286,6 +308,7 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
       // path is wired but unexercised. Promote to >0 once editorial adds
       // DD_Main_video blocks. Natural key matches lecture upserts (Vimeo URL).
       slug: 'lectures',
+      collection: 'lectures',
       totalItems: 0,
       requiresPagination: false,
       dependencies: [],
@@ -307,6 +330,7 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
   atlas: [
     {
       slug: 'managers',
+      collection: 'managers',
       totalItems: 495,
       requiresPagination: false,
       dependencies: [],
@@ -314,6 +338,7 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
     },
     {
       slug: 'regions',
+      collection: 'regions',
       totalItems: 595,
       requiresPagination: false,
       dependencies: ['managers'],
@@ -321,6 +346,7 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
     },
     {
       slug: 'users',
+      collection: 'users',
       totalItems: 2284,
       requiresPagination: true,
       dependencies: [],
@@ -328,6 +354,7 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
     },
     {
       slug: 'events',
+      collection: 'events',
       totalItems: 653,
       requiresPagination: true,
       dependencies: ['managers', 'regions'],
@@ -335,6 +362,8 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
     },
     {
       slug: 'user-submissions',
+      collection: 'user-submissions',
+      countWhere: activeRegistrationWhere,
       totalItems: 2034,
       requiresPagination: true,
       dependencies: ['events', 'users'],
@@ -342,6 +371,7 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
     },
     {
       slug: 'clients',
+      collection: 'clients',
       totalItems: 31,
       requiresPagination: false,
       dependencies: ['managers', 'regions'],
@@ -354,7 +384,8 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
       dependencies: ['events'],
       naturalKey: 'legacyId',
       hasFileUploads: true, // GCS downloads → Images uploads
-      notACollection: true,
+      // No `collection`: this step uploads into `images`, which `meditations`
+      // and `storyblok` also write, so no floor could be attributed to it.
     },
   ],
 }
@@ -386,16 +417,19 @@ export function getScriptMetadata(script: ScriptName): ScriptMetadata {
 }
 
 /**
- * The collection slugs a script's row counts can be read from, in import
- * order. This is the one definition of that list — `getDatabaseCounts` in the
- * seed route derives from it, so a collection added here is counted and
- * verified without a second edit. A `wemeditate` floor sat unread for exactly
- * that reason: `lectures` was expected and never counted, so every run
- * reported verification failed on 0 of 40.
+ * What a script's row counts are read from, in import order: one collection
+ * each, with the filter a step declares. This is the one definition of that
+ * list — `getDatabaseCounts` in the seed route derives from it, so a
+ * collection added here is counted and verified without a second edit. A
+ * `wemeditate` floor sat unread for exactly that reason: `lectures` was
+ * expected and never counted, so every run reported verification failed on 0
+ * of 40.
  */
-export function getCountableCollections(script: ScriptName): string[] {
-  const collections = COLLECTION_METADATA[script] || []
-  return collections.filter((c) => !c.notACollection).map((c) => c.slug)
+export function getCountTargets(script: ScriptName): CountTarget[] {
+  const steps = COLLECTION_METADATA[script] || []
+  return steps.flatMap((step) =>
+    step.collection ? [{ collection: step.collection, where: step.countWhere }] : [],
+  )
 }
 
 /** Get metadata for a specific collection within a script */
