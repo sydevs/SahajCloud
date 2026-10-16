@@ -52,7 +52,6 @@ export const RelationshipThumbnailCell: React.FC<DefaultCellComponentProps> = ({
   cellData,
   collectionSlug,
   rowData,
-  className,
   field,
   link,
 }) => {
@@ -88,7 +87,6 @@ export const RelationshipThumbnailCell: React.FC<DefaultCellComponentProps> = ({
         cellData={cellData}
         collectionSlug={collectionSlug}
         rowData={rowData}
-        className={className}
         link={link}
         onClick={relatedId ? openDrawer : undefined}
       />

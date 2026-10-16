@@ -10,7 +10,10 @@ import { CellButton, useDrawerRowSelect } from '@/components/admin/drawerRowSele
  * Props for BaseThumbnailCell extending Payload's DefaultCellComponentProps
  * with custom thumbnail-specific props
  */
-export type BaseThumbnailCellProps = Omit<Partial<DefaultCellComponentProps>, 'onClick'> & {
+export type BaseThumbnailCellProps = Omit<
+  Partial<DefaultCellComponentProps>,
+  'className' | 'onClick'
+> & {
   thumbnailUrl?: string
   mimeType?: string
   filename?: string
@@ -39,7 +42,6 @@ export const BaseThumbnailCell: React.FC<BaseThumbnailCellProps> = ({
   filename,
   collectionSlug,
   rowData,
-  className,
   link,
   linkURL,
   onClick,
@@ -61,9 +63,7 @@ export const BaseThumbnailCell: React.FC<BaseThumbnailCellProps> = ({
 
   if (handleClick) {
     return (
-      <CellButton className={className} onClick={handleClick}>
-        {content}
-      </CellButton>
+      <CellButton onClick={handleClick}>{content}</CellButton>
     )
   }
 
@@ -71,20 +71,20 @@ export const BaseThumbnailCell: React.FC<BaseThumbnailCellProps> = ({
     // Use native anchor for new tab links, Payload Link for internal navigation
     if (openInNewTab) {
       return (
-        <a href={linkURL} target="_blank" rel="noopener noreferrer" className={className}>
+        <a href={linkURL} target="_blank" rel="noopener noreferrer">
           {content}
         </a>
       )
     }
     return (
-      <Link href={linkURL} prefetch={false} className={className}>
+      <Link href={linkURL} prefetch={false}>
         {content}
       </Link>
     )
   }
 
   // No interaction - plain display
-  return <span className={className}>{content}</span>
+  return <span>{content}</span>
 }
 
 export default BaseThumbnailCell

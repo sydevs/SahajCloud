@@ -67,10 +67,9 @@ const CELL_BUTTON_STYLE: React.CSSProperties = {
 
 export const CellButton: React.FC<{
   children: React.ReactNode
-  className?: string
   onClick: () => void
-}> = ({ children, className, onClick }) => (
-  <button type="button" className={className} onClick={onClick} style={CELL_BUTTON_STYLE}>
+}> = ({ children, onClick }) => (
+  <button type="button" onClick={onClick} style={CELL_BUTTON_STYLE}>
     {children}
   </button>
 )
