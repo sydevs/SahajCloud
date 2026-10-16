@@ -57,7 +57,7 @@ function countSentence({ progress, total }: JobStageWait): string {
  * A server component, because Payload hands a view the locale and user objects
  * (`docs/rules/admin-ui.md` § Server vs client components), and because the
  * stored stage at page load is the whole input — there is no poll, and so no
- * second request. **Continue** is therefore an `<a href>` and not a
+ * second request. **Check again** is therefore an `<a href>` and not a
  * `next/link`: a full load re-reads the stage on the server, where a client
  * navigation can be served from the route cache and redraw the same stale
  * waiting view.
@@ -74,15 +74,15 @@ export default function JobStageView(props: DocumentViewServerProps) {
       return (
         <Gutter>
           <Banner icon={<Spinner loadingText={null} size="sm" />} type="info">
-            {toWords(wait.stage)} — a job owns this document. Editing opens when it finishes.
-            {countSentence(wait)}
+            {toWords(wait.stage)} — this is being prepared automatically, and opens for
+            editing when that finishes.{countSentence(wait)}
           </Banner>
           <Button
             buttonStyle="secondary"
             el="anchor"
             url={`/admin/collections/${collectionConfig.slug}/${docID}`}
           >
-            Continue
+            Check again
           </Button>
         </Gutter>
       )
