@@ -10,8 +10,7 @@
  * Localized labels come from `@/lib/translations/emailStrings`.
  */
 
-import { convertLexicalToPlaintext } from '@payloadcms/richtext-lexical/plaintext'
-
+import { lexicalToPlainText } from '@/lib/richEditor/lexicalToPlainText'
 import { getLocalTimeHHMM } from '@/lib/schedule/scheduleHooks'
 import type { Event } from '@/payload-types'
 
@@ -169,14 +168,7 @@ export function mapsUrl(event: Pick<Event, 'address'>): string | null {
 
 /** Plain-text event description, or `null` when the richText field is empty. */
 export function descriptionText(description: Event['description']): string | null {
-  if (!description || typeof description !== 'object') return null
-  try {
-    const text = convertLexicalToPlaintext({ data: description as never }).trim()
-    return text || null
-  } catch {
-    // Malformed editor state must not block a confirmation email.
-    return null
-  }
+  return lexicalToPlainText(description) || null
 }
 
 /** The "Where" block, discriminated so the template can't render both variants. */

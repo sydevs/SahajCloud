@@ -1,9 +1,10 @@
 import type { FlattenedField } from 'payload'
 
-import { convertLexicalToPlaintext } from '@payloadcms/richtext-lexical/plaintext'
 import { diffWords } from 'diff'
 import diff from 'microdiff'
 import { toWords } from 'payload/shared'
+
+import { lexicalToPlainText } from '@/lib/richEditor/lexicalToPlainText'
 
 /**
  * What a submission would change, field by field — the reviewer's whole job in
@@ -108,16 +109,7 @@ export function formatValue(value: unknown, field?: FlattenedField): string | nu
   }
 
   // Rich text — compare what a reader would actually see, not the node tree.
-  if (isLexicalValue(value)) {
-    try {
-      return convertLexicalToPlaintext({ data: value as never }).trim() || null
-    } catch {
-      // `proposed` carries whatever an anonymous POST sent — `validateProposal`
-      // gates its keys, never its values — so malformed editor state reads as
-      // no value rather than taking the reviewer's whole read down.
-      return null
-    }
-  }
+  if (isLexicalValue(value)) return lexicalToPlainText(value) || null
 
   if (typeof value === 'object') {
     const record = value as Record<string, unknown>

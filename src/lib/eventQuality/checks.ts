@@ -1,8 +1,7 @@
 import type { CheckContext, EventQualityInput, QualityCheck, RedundancyKind } from './types'
 
-import { convertLexicalToPlaintext } from '@payloadcms/richtext-lexical/plaintext'
-
 import { addressPlaceName, firstAddressSegment } from '@/lib/eventTitle/compose'
+import { lexicalToPlainText } from '@/lib/richEditor/lexicalToPlainText'
 
 import { EVENT_QUALITY_COPY, fillCopy, REDUNDANCY_PHRASES } from './copy'
 import {
@@ -35,6 +34,11 @@ export const MINIMUM_IMAGES = 3
  * through a write that runs `stampEventQuality` (the Atlas import included), so
  * a stale row can only exist if it hasn't been saved since the bump — and the
  * next save fixes it.
+ *
+ * 6 — the description is flattened by Payload's converter (#961). A soft break
+ * now separates the words either side of it, so a stale date or an address
+ * phrase that was glued to its neighbour is found; and a block boundary counts
+ * as the two characters it renders as, which moves the length floor by one.
  */
 export const QUALITY_CHECK_VERSION = 6
 
@@ -42,17 +46,9 @@ export const QUALITY_CHECK_VERSION = 6
  * The event's description as plain text. Computed once per report and handed to
  * every check on the context — several read it, and each read would otherwise
  * walk the whole Lexical tree again.
- *
- * Malformed editor state resolves to `''` rather than throwing: the report is
- * built inside an Events `beforeChange`, where a throw would fail the save
- * itself rather than report a quality finding.
  */
 export function eventDescriptionText(event: EventQualityInput): string {
-  try {
-    return convertLexicalToPlaintext({ data: event.description as never }).trim()
-  } catch {
-    return ''
-  }
+  return lexicalToPlainText(event.description)
 }
 
 /**

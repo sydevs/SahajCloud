@@ -15,43 +15,29 @@ import { EVENT_TITLE_DEFAULTS } from '@/lib/eventTitle/compose'
 /** Fixed clock so the stale-date check cannot drift with the calendar. */
 const NOW = new Date('2026-06-15T00:00:00.000Z')
 
-/** Lexical value for plain paragraphs, as the Atlas importer writes them. */
-const richText = (...paragraphs: string[]) => ({
-  root: {
-    type: 'root',
-    children: paragraphs.map((text) => ({
-      type: 'paragraph',
-      children: [{ type: 'text', text, version: 1 }],
-      version: 1,
-    })),
-    direction: null,
-    format: '',
-    indent: 0,
-    version: 1,
-  },
+const lexicalRoot = (children: unknown[]) => ({
+  root: { type: 'root', children, direction: null, format: '', indent: 0, version: 1 },
 })
 
+const textNode = (text: string) => ({ type: 'text', text, version: 1 })
+
+/** Lexical value for plain paragraphs, as the Atlas importer writes them. */
+const richText = (...paragraphs: string[]) =>
+  lexicalRoot(
+    paragraphs.map((text) => ({ type: 'paragraph', children: [textNode(text)], version: 1 })),
+  )
+
 /** One paragraph whose runs are divided by soft breaks, as Shift+Enter writes them. */
-const softBreak = (...runs: string[]) => ({
-  root: {
-    type: 'root',
-    children: [
-      {
-        type: 'paragraph',
-        children: runs.flatMap((text, index) =>
-          index === 0
-            ? [{ type: 'text', text, version: 1 }]
-            : [{ type: 'linebreak', version: 1 }, { type: 'text', text, version: 1 }],
-        ),
-        version: 1,
-      },
-    ],
-    direction: null,
-    format: '',
-    indent: 0,
-    version: 1,
-  },
-})
+const softBreak = (...runs: string[]) =>
+  lexicalRoot([
+    {
+      type: 'paragraph',
+      children: runs
+        .map(textNode)
+        .flatMap((node, index) => (index ? [{ type: 'linebreak', version: 1 }, node] : [node])),
+      version: 1,
+    },
+  ])
 
 /**
  * A listing that passes every check, so each case can fail exactly one thing.
@@ -207,9 +193,9 @@ describe('description', () => {
   })
 
   it('reads across a soft break, so what follows one is still judged', () => {
-    // A soft break used to be joined with nothing, which glued the words on
-    // either side into one token: `since2019` defeated the stale-date check's
-    // word boundary, and `MeetingHouse` matched no address phrase.
+    // A soft break has to separate the words either side of it. Joined with
+    // nothing, `since2019` passes the stale-date check's word boundary and
+    // `MeetingHouse` matches no address phrase — both findings go missing.
     const staleDate = goodEvent({
       description: softBreak(
         'A quiet hour of guided meditation for anyone who works nights. Running since',
@@ -228,17 +214,16 @@ describe('description', () => {
   })
 
   it('counts a block boundary as the blank line it renders as', () => {
-    // The description floor is a raw length, so it is the one check a block
-    // separator can move. These 58 words' worth of characters clear it only
-    // once the paragraph break between them counts as the blank line it is.
-    const split = goodEvent({
-      description: richText('Quiet guided meditation for everybody', 'all are welcome here.'),
-    })
-    const joined = goodEvent({
-      description: richText('Quiet guided meditation for everybody all are welcome here.'),
-    })
-    expect(failedKeys(split)).not.toContain('description.missing')
-    expect(failedKeys(joined)).toContain('description.missing')
+    // The floor is a raw length, so it is the one check a block separator can
+    // move. Two blocks this size reach it only if the boundary counts for the
+    // two characters a rendered blank line takes.
+    const block = 'x'.repeat((DESCRIPTION_MIN_LENGTH - 2) / 2)
+    expect(failedKeys(goodEvent({ description: richText(block, block) }))).not.toContain(
+      'description.missing',
+    )
+    expect(failedKeys(goodEvent({ description: richText(`${block} ${block}`) }))).toContain(
+      'description.missing',
+    )
   })
 
   it('names exactly what the description repeats', () => {

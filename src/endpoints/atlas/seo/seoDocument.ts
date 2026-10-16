@@ -35,9 +35,8 @@ import type {
   AtlasSeoSchedule,
 } from '../../responseTypes'
 
-import { convertLexicalToPlaintext } from '@payloadcms/richtext-lexical/plaintext'
-
 import { addressOneLine, scheduleOneLine } from '@/lib/notifications/eventDetails'
+import { lexicalToPlainText } from '@/lib/richEditor/lexicalToPlainText'
 import { getLocalTimeHHMM } from '@/lib/schedule/scheduleHooks'
 import type { Event } from '@/payload-types'
 
@@ -47,27 +46,18 @@ import { breadcrumbList, compactNode, jsonLdEscape, jsonLdGraph } from './jsonLd
  * A rich-text value as plain-text paragraphs; `[]` when it is empty, absent or
  * malformed.
  *
- * `convertLexicalToPlaintext` renders each paragraph, heading and list item as
- * text and separates blocks with a blank line, keeping a soft break as a single
- * newline — so splitting on the blank line recovers exactly the block structure
- * the editor stored, and a soft break stays inside its paragraph. The inverse of
- * `@/lib/richEditor/plainTextToLexical`, which the Atlas importer uses to get
- * these values in.
- *
- * Malformed editor state resolves to `[]` rather than throwing: this feeds a
- * public read on somebody else's page render, where one bad document must not
- * take the response down.
+ * `lexicalToPlainText` separates blocks with a blank line and keeps a soft break
+ * as a single newline, so splitting on the blank line recovers exactly the block
+ * structure the editor stored, and a soft break stays inside its paragraph. It
+ * is also where empty, absent and malformed all become `''`, which this split
+ * turns into `[]` — a public read on somebody else's page render, so one bad
+ * document must not take the response down.
  */
 export function lexicalToParagraphs(value: unknown): string[] {
-  if (!value || typeof value !== 'object') return []
-  try {
-    return convertLexicalToPlaintext({ data: value as never })
-      .split(/\n{2,}/)
-      .map((paragraph) => paragraph.trim())
-      .filter(Boolean)
-  } catch {
-    return []
-  }
+  return lexicalToPlainText(value)
+    .split(/\n{2,}/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean)
 }
 
 /**

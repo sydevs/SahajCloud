@@ -207,8 +207,8 @@ describe('formatValue', () => {
   })
 
   it('reads malformed editor state as no value', () => {
-    // `proposed` carries whatever an anonymous POST sent, and a throw here
-    // would take the reviewer's whole read of the submission down.
+    // `validateProposal` gates a proposal's keys, never its values, so these
+    // shapes reach here from an anonymous POST.
     expect(formatValue({ root: { type: 'root', children: 'not an array' } })).toBeNull()
     expect(formatValue({ root: { type: 'root', children: [null] } })).toBeNull()
   })
