@@ -119,7 +119,7 @@ content collection.
 | What one client request costs the meter, for every client-reachable route plus an ordinary list read, a `webPath` read, a populating read and a global read — all exactly 1, and 0 for a manager, an anonymous caller and an origin-denied one (#891) | `usage-tracking-dedup` |
 | A thumbnail cell in a list drawer's linked column selects its row instead of opening it — through the preview-URL cell and the relationship cell, whose own document drawer it outranks — while the list view still links and a non-linked column is untouched (#942) | unit: `thumbnail-cell-drawer-select.spec.ts` |
 | The same for the count, colour and abuse-score cells, including a zero count and a `disableLink` one, with the count cell's own `href` composition read off a stub `payload` (#944) | unit: `custom-cell-drawer-select.spec.ts` |
-| Every `Cell:` registration in `src/` reaches `useDrawerRowSelect`, so a new custom cell cannot omit the drawer select unnoticed (#944) | unit: `custom-cell-drawer-select-coverage.spec.ts` |
+| Every `Cell:` registration in `src/` reaches `SelectableCell`, so a new custom cell cannot omit the drawer select unnoticed (#944) | unit: `custom-cell-drawer-select-coverage.spec.ts` |
 | `pnpm seed translations` on the Atlas global: ten locales published individually, the two live-data groups preserved across a re-run, an untranslated key omitted rather than blanked, and a locale's own plural family stored | `seeds/tests/atlas-translations-import.test.ts` |
 
 ## Gaps

@@ -4,7 +4,7 @@ import type { DefaultCellComponentProps } from 'payload'
 
 import Link from 'next/link'
 
-import { CellButton, useDrawerRowSelect } from '@/components/admin/drawerRowSelect'
+import { SelectableCell } from '@/components/admin/drawerRowSelect'
 
 type RelationshipCountLinkProps = Partial<
   Pick<DefaultCellComponentProps, 'collectionSlug' | 'link' | 'rowData'>
@@ -28,22 +28,26 @@ export const RelationshipCountLink: React.FC<RelationshipCountLinkProps> = ({
   link,
   rowData,
 }) => {
-  const handleClick = useDrawerRowSelect({ collectionSlug, link, rowData })
   const text = `${count} ${label}`
 
-  if (handleClick) {
-    return <CellButton onClick={handleClick}>{text}</CellButton>
-  }
-
-  if (href) {
-    return (
-      <Link href={href} title={`View ${text}`}>
-        {text}
-      </Link>
-    )
-  }
-
   return (
-    <span style={count === 0 ? { color: 'var(--theme-elevation-400)' } : undefined}>{text}</span>
+    <SelectableCell
+      collectionSlug={collectionSlug}
+      fallback={
+        href ? (
+          <Link href={href} title={`View ${text}`}>
+            {text}
+          </Link>
+        ) : (
+          <span style={count === 0 ? { color: 'var(--theme-elevation-400)' } : undefined}>
+            {text}
+          </span>
+        )
+      }
+      link={link}
+      rowData={rowData}
+    >
+      {text}
+    </SelectableCell>
   )
 }

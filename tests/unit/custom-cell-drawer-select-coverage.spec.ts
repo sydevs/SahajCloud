@@ -1,9 +1,9 @@
 /**
- * Every registered custom `Cell` consults `useDrawerRowSelect` (#944).
+ * Every registered custom `Cell` renders through `SelectableCell` (#944).
  *
- * The hook is a convention, and `custom-cell-drawer-select.spec.ts` names the
- * three cells that hold it today — so a sixth custom cell added next month is
- * green and broken in exactly the way #942 and #944 were. This walks the
+ * The component is a convention, and `custom-cell-drawer-select.spec.ts` names
+ * the three cells that hold it today — so a sixth custom cell added next month
+ * is green and broken in exactly the way #942 and #944 were. This walks the
  * registrations instead, the shape `lib-boundary.spec.ts` and
  * `status-config-sync.spec.ts` already use.
  *
@@ -22,8 +22,8 @@ const REGISTRATION = /Cell:\s*(?:'([^']+)'|\{[\s\S]{0,200}?path:\s*'([^']+)')/g
 
 const RELATIVE_IMPORT = /from\s+'(\.[^']+)'/g
 
-/** Anchored: a substring match calls `useDrawerRowSelectX` a hit. */
-const HOOK = /\buseDrawerRowSelect\b/
+/** Anchored: a substring match calls `SelectableCellX` a hit. */
+const CONVENTION = /\bSelectableCell\b/
 
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -59,18 +59,18 @@ function registeredCells(): string[] {
  * The cell's own source, then the modules it reaches by relative import. The
  * walk has to be transitive rather than one hop: a registration naming a
  * folder resolves to its barrel, which is two hops from the component that
- * calls the hook.
+ * renders the convention.
  */
-function readsTheHook(cell: string, seen = new Set<string>()): boolean {
+function rendersTheConvention(cell: string, seen = new Set<string>()): boolean {
   if (seen.has(cell)) return false
   seen.add(cell)
 
   const source = readFileSync(cell, 'utf8')
-  if (HOOK.test(source)) return true
+  if (CONVENTION.test(source)) return true
 
   for (const match of source.matchAll(RELATIVE_IMPORT)) {
     const sibling = resolveModule(match[1], cell)
-    if (sibling && readsTheHook(sibling, seen)) return true
+    if (sibling && rendersTheConvention(sibling, seen)) return true
   }
   return false
 }
@@ -89,7 +89,7 @@ describe('every registered custom Cell handles list-drawer selection', () => {
     ])
   })
 
-  it('reaches useDrawerRowSelect from each one', () => {
-    expect(cells.filter((cell) => !readsTheHook(cell))).toEqual([])
+  it('reaches SelectableCell from each one', () => {
+    expect(cells.filter((cell) => !rendersTheConvention(cell))).toEqual([])
   })
 })

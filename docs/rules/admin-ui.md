@@ -174,15 +174,15 @@ Prefer **`DefaultServerCellComponentProps`** — it gets `payload`, can read col
 
 A **join field**'s `cellData` is a structured object, not a scalar: `{ docs: Array<{ id, ... }>, totalDocs?, limit? }` — read `cellData.docs?.length` for a count. A label can be `string | LabelFunction | Record<string, string>`. Extract it with a small helper that checks each shape and lowercases the result. Reference: `src/components/admin/RelationshipCountCell/RelationshipCountCell.tsx`.
 
-⚠ **A custom `Cell` that can be a collection's first column must handle list-drawer selection itself**: Payload gives `onSelect` to its own `DefaultCell` only, and the select has to outrank any `onClick` prop (#942, #944). `useDrawerRowSelect` (`src/components/admin/drawerRowSelect.tsx`) is that rule — call it, and render `CellButton` beside it when it answers a handler. A cell wrapping another must forward `link`, which is what stands for "this is the linked column". Which column that is comes from each user's saved column preference, so a cell second by default still has to handle this.
+⚠ **A custom `Cell` that can be a collection's first column must handle list-drawer selection itself**: Payload gives `onSelect` to its own `DefaultCell` only, and the select has to outrank any `onClick` prop (#942, #944). `SelectableCell` (`src/components/admin/drawerRowSelect.tsx`) is that rule, and the whole of it — render the cell's content as its children, and pass a cell's own link as `fallback` and its own click as `onClick`, so neither reaches a selected row. A cell wrapping another must forward `link`, which is what stands for "this is the linked column". Which column that is comes from each user's saved column preference, so a cell second by default still has to handle this.
 
 Do not reach for the two seams that look like they would spare a cell this. Both live inside the component a custom `Cell` replaced, so neither is reachable: `useCellProps()` answers `null` because `CellPropsContext` is provided only in `RenderDefaultCell`, and `LinkedCellOverride` is settable only from `RelationshipTable`. The whole convention stands in for a Payload defect that is unreported upstream, so nothing retires it yet — #964 holds that report.
 
-⚠ **`renderCell` hands a custom cell neither `onClick` nor `className`.** `baseCellClientProps` declares no such key, so both read as `undefined` on every input — take neither from props, and give a cell that needs its own click a prop of its own. `CellButton` restores the text properties `className` would have carried, since nothing else does.
+⚠ **`renderCell` hands a custom cell neither `onClick` nor `className`.** `baseCellClientProps` declares no such key, so both read as `undefined` on every input — take neither from props, and give a cell that needs its own click a prop of its own. `SelectableCell`'s button restores the text properties `className` would have carried, since nothing else does.
 
 A **server** cell keeps its `payload` prop by splitting rather than converting: `RelationshipCountCell` resolves the count and the URL, then renders `RelationshipCountLink`, a client child taking serializable props only.
 
-`tests/unit/custom-cell-drawer-select-coverage.spec.ts` walks every `Cell:` registration and fails on one that reaches no `useDrawerRowSelect`, so a new custom cell cannot forget this quietly.
+`tests/unit/custom-cell-drawer-select-coverage.spec.ts` walks every `Cell:` registration and fails on one that reaches no `SelectableCell`, so a new custom cell cannot forget this quietly.
 
 ## Component wrapper pattern (pure UI + field wrapper)
 

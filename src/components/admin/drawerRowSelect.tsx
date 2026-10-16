@@ -26,10 +26,9 @@ type DrawerRowSelectArgs = Partial<
  * upstream, so it has no end date yet. #964 holds that report.
  *
  * Returns `undefined` when the cell should render whatever it renders outside
- * a drawer. A cell holding a click of its own writes that precedence where it
- * applies — `useDrawerRowSelect(…) ?? ownClick` — since only one cell has one.
+ * a drawer.
  */
-export function useDrawerRowSelect({
+function useDrawerRowSelect({
   collectionSlug,
   link,
   rowData,
@@ -50,9 +49,9 @@ export function useDrawerRowSelect({
 }
 
 /**
- * A cell's clickable wrapper. Not `@payloadcms/ui`'s `Button`, which wraps its
- * children in two spans — breaking a cell's own layout — and whose `.btn` rule
- * sets `pointer-events: none` on every descendant.
+ * Not `@payloadcms/ui`'s `Button`, which wraps its children in two spans —
+ * breaking a cell's own layout — and whose `.btn` rule sets
+ * `pointer-events: none` on every descendant.
  *
  * Inheriting the text properties is what keeps a selectable cell looking like
  * the cell it replaces: `renderCell` populates `className` for Payload's own
@@ -68,11 +67,34 @@ const CELL_BUTTON_STYLE: React.CSSProperties = {
   textAlign: 'left',
 }
 
-export const CellButton: React.FC<{
-  children: React.ReactNode
-  onClick: () => void
-}> = ({ children, onClick }) => (
-  <button type="button" onClick={onClick} style={CELL_BUTTON_STYLE}>
-    {children}
-  </button>
-)
+/**
+ * Every custom `Cell` renders through this, so the drawer rule has one home
+ * rather than a copy per cell (#944).
+ *
+ * `children` is what a selected row shows inside the button. `fallback` is
+ * what renders instead when no click applies — a cell's own link, which must
+ * never end up inside the button. Taking it as an element rather than
+ * rendering it is what keeps that true: only one of the two is ever mounted.
+ *
+ * `onClick` is the cell's own click, taken only outside a drawer's linked
+ * column. It is not Payload's `onClick`, which `renderCell` never fills.
+ */
+export const SelectableCell: React.FC<
+  DrawerRowSelectArgs & {
+    children: React.ReactNode
+    fallback?: React.ReactNode
+    onClick?: () => void
+  }
+> = ({ children, collectionSlug, fallback, link, onClick, rowData }) => {
+  const handleClick = useDrawerRowSelect({ collectionSlug, link, rowData }) ?? onClick
+
+  if (handleClick) {
+    return (
+      <button type="button" onClick={handleClick} style={CELL_BUTTON_STYLE}>
+        {children}
+      </button>
+    )
+  }
+
+  return <>{fallback ?? children}</>
+}

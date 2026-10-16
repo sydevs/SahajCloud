@@ -4,7 +4,7 @@ import type { DefaultCellComponentProps } from 'payload'
 
 import { Link, Thumbnail } from '@payloadcms/ui'
 
-import { CellButton, useDrawerRowSelect } from '@/components/admin/drawerRowSelect'
+import { SelectableCell } from '@/components/admin/drawerRowSelect'
 
 /**
  * Props for BaseThumbnailCell extending Payload's DefaultCellComponentProps
@@ -47,8 +47,6 @@ export const BaseThumbnailCell: React.FC<BaseThumbnailCellProps> = ({
   onClick,
   openInNewTab,
 }) => {
-  const handleClick = useDrawerRowSelect({ collectionSlug, link, rowData }) ?? onClick
-
   const content = (
     <div className="file">
       <Thumbnail
@@ -61,30 +59,31 @@ export const BaseThumbnailCell: React.FC<BaseThumbnailCellProps> = ({
     </div>
   )
 
-  if (handleClick) {
-    return (
-      <CellButton onClick={handleClick}>{content}</CellButton>
-    )
-  }
-
+  let fallback: React.ReactNode = <span>{content}</span>
   if (linkURL) {
-    // Use native anchor for new tab links, Payload Link for internal navigation
-    if (openInNewTab) {
-      return (
-        <a href={linkURL} target="_blank" rel="noopener noreferrer">
-          {content}
-        </a>
-      )
-    }
-    return (
+    // Native anchor for new tab links, Payload Link for internal navigation
+    fallback = openInNewTab ? (
+      <a href={linkURL} target="_blank" rel="noopener noreferrer">
+        {content}
+      </a>
+    ) : (
       <Link href={linkURL} prefetch={false}>
         {content}
       </Link>
     )
   }
 
-  // No interaction - plain display
-  return <span>{content}</span>
+  return (
+    <SelectableCell
+      collectionSlug={collectionSlug}
+      fallback={fallback}
+      link={link}
+      onClick={onClick}
+      rowData={rowData}
+    >
+      {content}
+    </SelectableCell>
+  )
 }
 
 export default BaseThumbnailCell

@@ -2,7 +2,7 @@
 
 import type { DefaultCellComponentProps } from 'payload'
 
-import { CellButton, useDrawerRowSelect } from '@/components/admin/drawerRowSelect'
+import { SelectableCell } from '@/components/admin/drawerRowSelect'
 import type { ClientAbuseScore } from '@/payload-types'
 
 import { AbuseScoreDisplay } from './AbuseScoreDisplay'
@@ -16,15 +16,10 @@ export const AbuseScoreCell: React.FC<DefaultCellComponentProps> = ({
   collectionSlug,
   link,
   rowData,
-}) => {
-  const handleClick = useDrawerRowSelect({ collectionSlug, link, rowData })
-  const content = <AbuseScoreDisplay abuseScore={cellData as ClientAbuseScore | null} />
-
-  if (handleClick) {
-    return <CellButton onClick={handleClick}>{content}</CellButton>
-  }
-
-  return content
-}
+}) => (
+  <SelectableCell collectionSlug={collectionSlug} link={link} rowData={rowData}>
+    <AbuseScoreDisplay abuseScore={cellData as ClientAbuseScore | null} />
+  </SelectableCell>
+)
 
 export default AbuseScoreCell
