@@ -11,28 +11,37 @@
  * drift apart silently, and the row stranded behind a waiting view is what
  * drift would cost (#960).
  */
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
 import { MeditationTranscripts } from '@/collections/MeditationTranscripts/MeditationTranscripts'
 import {
-  decideJobStage,
   type JobStageConfig,
+  jobStageWait,
   readJobStageConfig,
 } from '@/components/admin/JobStageView/stages'
 
-import { clientEntries } from '../utils/importGraph'
+import { hasDirective, SRC, sourceOf } from '../utils/importGraph'
 
-const VIEW_DIR = join(__dirname, '../../src/components/admin/JobStageView')
+// Joined from `SRC`, the same root `hasDirective`'s callers use, so a path
+// here cannot drift from the one those guards walk.
+const VIEW_FILES = ['JobStageView.tsx', 'stages.ts'].map((file) =>
+  join(SRC, 'components/admin/JobStageView', file),
+)
+
+const PAYLOAD_ADMIN_TYPES = join(SRC, '../node_modules/payload/dist/admin/types.d.ts')
 
 /**
- * Both files below explain in prose what they must not contain, so a bare
- * regex over the source matches the explanation and fails on a correct file.
+ * Both checks below read the code without its prose. The view explains in
+ * comments what it must not contain and which collection shapes drove the
+ * contract, so matching the source whole fails on a correct file — and a
+ * comment naming the first consumer is not a dependency on it.
  */
-const withoutComments = (source: string): string =>
-  source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')
+const codeOf = (file: string): string =>
+  sourceOf(file)
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/\/\/.*$/gm, '')
 
 const statusField = (): { defaultValue?: unknown; options?: unknown } => {
   const field = MeditationTranscripts.fields.find(
@@ -40,6 +49,12 @@ const statusField = (): { defaultValue?: unknown; options?: unknown } => {
   ) as undefined | { defaultValue?: unknown; options?: unknown }
   if (!field) throw new Error('meditation-transcripts declares no `status` field')
   return field
+}
+
+const transcriptConfig = (): JobStageConfig => {
+  const config = readJobStageConfig(MeditationTranscripts.admin?.custom)
+  if (!config) throw new Error('meditation-transcripts declares no `jobStage`')
+  return config
 }
 
 describe('readJobStageConfig', () => {
@@ -61,92 +76,116 @@ describe('readJobStageConfig', () => {
   })
 })
 
-describe('decideJobStage', () => {
+describe('jobStageWait', () => {
   const config: JobStageConfig = { progressField: 'progress', runningStages: ['working'] }
 
   it('waits on a declared running stage, and falls through on any other', () => {
-    expect(decideJobStage(config, { progress: 3, status: 'working' })).toEqual({
+    expect(jobStageWait(config, { progress: 3, status: 'working' })).toEqual({
       progress: 3,
       stage: 'working',
-      waiting: true,
     })
-    expect(decideJobStage(config, { status: 'finished' })).toEqual({ waiting: false })
+    expect(jobStageWait(config, { status: 'finished' })).toBeNull()
   })
 
   it('falls through when the status column holds nothing it can read', () => {
-    expect(decideJobStage(config, {})).toEqual({ waiting: false })
-    expect(decideJobStage(config, null)).toEqual({ waiting: false })
-    expect(decideJobStage(config, { status: ['working'] })).toEqual({ waiting: false })
+    expect(jobStageWait(config, {})).toBeNull()
+    expect(jobStageWait(config, null)).toBeNull()
+    expect(jobStageWait(config, { status: ['working'] })).toBeNull()
   })
 
   it('reads the stage from `statusField` when the collection names one', () => {
     const named: JobStageConfig = { runningStages: ['working'], statusField: 'stage' }
-    expect(decideJobStage(named, { stage: 'working', status: 'finished' })).toMatchObject({
-      waiting: true,
-    })
-    expect(decideJobStage(named, { status: 'working' })).toEqual({ waiting: false })
+    expect(jobStageWait(named, { stage: 'working', status: 'finished' })).not.toBeNull()
+    expect(jobStageWait(named, { status: 'working' })).toBeNull()
   })
 
   it('waits with no count where the collection declares no `progressField`', () => {
     const countless: JobStageConfig = { runningStages: ['working'] }
-    expect(decideJobStage(countless, { progress: 3, status: 'working' })).toEqual({
+    expect(jobStageWait(countless, { progress: 3, status: 'working' })).toEqual({
       progress: null,
       stage: 'working',
-      waiting: true,
     })
   })
 
   it('waits with no count where the declared column holds no number', () => {
-    expect(decideJobStage(config, { progress: '3', status: 'working' })).toEqual({
+    expect(jobStageWait(config, { progress: '3', status: 'working' })).toEqual({
       progress: null,
       stage: 'working',
-      waiting: true,
+    })
+  })
+
+  it('reads a count out of a group, which is where #912 keeps one', () => {
+    const grouped: JobStageConfig = {
+      progressField: 'progress.done',
+      runningStages: ['working'],
+    }
+    expect(jobStageWait(grouped, { progress: { done: 7 }, status: 'working' })).toEqual({
+      progress: 7,
+      stage: 'working',
+    })
+    expect(jobStageWait(grouped, { progress: null, status: 'working' })).toEqual({
+      progress: null,
+      stage: 'working',
     })
   })
 })
 
 describe('the view itself', () => {
   it('names neither of the collections it was written for', () => {
-    for (const file of ['JobStageView.tsx', 'stages.ts']) {
-      const source = readFileSync(join(VIEW_DIR, file), 'utf8')
-      expect(source).not.toMatch(/event-imports|eventImports|meditation-transcripts/)
+    for (const file of VIEW_FILES) {
+      expect(codeOf(file)).not.toMatch(/event-imports|eventImports|meditation-transcripts/)
     }
   })
 
+  /**
+   * The one silent failure in the fall-through: every `DocumentSlots` member is
+   * optional, so a slot a Payload release adds would be dropped with no type
+   * error, and the only symptom is a control missing from this view while the
+   * default view still shows it. Read off the installed declaration, so the
+   * upgrade that adds one fails here.
+   */
+  it('forwards every document slot Payload declares', () => {
+    const declaration = sourceOf(PAYLOAD_ADMIN_TYPES).match(
+      /export type DocumentSlots = \{([^}]*)\}/,
+    )
+    if (!declaration) throw new Error(`No DocumentSlots in ${PAYLOAD_ADMIN_TYPES}`)
+
+    const slots = [...declaration[1].matchAll(/^\s*(\w+)\??:/gm)].map(([, key]) => key)
+    expect(slots.length).toBeGreaterThan(5)
+
+    const forwarding = codeOf(VIEW_FILES[0])
+    for (const slot of slots) expect(forwarding).toContain(`${slot}: props.${slot},`)
+  })
+
   it('stays a server component that fetches nothing', () => {
-    for (const file of ['JobStageView.tsx', 'stages.ts']) {
-      // `clientEntries()` applies the real directive rule — behind leading
+    for (const file of VIEW_FILES) {
+      // `hasDirective` is the rule the two bundle guards apply — behind leading
       // comments, either quote — rather than a regex that would also match
       // these files' own prose about the directive.
-      expect(clientEntries()).not.toContain(join(VIEW_DIR, file))
-      expect(withoutComments(readFileSync(join(VIEW_DIR, file), 'utf8'))).not.toMatch(
-        /useSWR|\bfetch\(|setInterval/,
-      )
+      expect(hasDirective(file, 'use client')).toBe(false)
+      expect(codeOf(file)).not.toMatch(/useSWR|\bfetch\(|setInterval/)
     }
   })
 })
 
 describe('meditation-transcripts', () => {
   it('declares `processing` as its only running stage', () => {
-    expect(readJobStageConfig(MeditationTranscripts.admin?.custom)).toEqual({
-      runningStages: ['processing'],
-    })
+    expect(transcriptConfig()).toEqual({ runningStages: ['processing'] })
   })
 
   it('leaves a freshly created row editable, because `status` defaults outside that list', () => {
     const { defaultValue } = statusField()
-    const config = readJobStageConfig(MeditationTranscripts.admin?.custom)
 
     expect(defaultValue).toBe('queued')
-    expect(config).not.toBeNull()
-    expect(decideJobStage(config!, { status: defaultValue })).toEqual({ waiting: false })
+    expect(jobStageWait(transcriptConfig(), { status: defaultValue })).toBeNull()
   })
 
   it('declares every running stage the status column can actually hold', () => {
     const { options } = statusField()
-    const config = readJobStageConfig(MeditationTranscripts.admin?.custom)
 
-    expect(config!.runningStages.every((stage) => (options as string[]).includes(stage))).toBe(true)
+    expect(
+      transcriptConfig().runningStages.every((stage) => (options as string[]).includes(stage)),
+    ).toBe(true)
   })
 
   it('registers the view on its default edit route', () => {

@@ -1,5 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
+import type { JobStageConfig } from '@/components/admin/JobStageView/stages'
 import { jsonField } from '@/fields/jsonField'
 import { getLocaleOptions } from '@/lib/locales'
 import {
@@ -32,7 +33,7 @@ export const MeditationTranscripts: CollectionConfig = {
     // `processing` alone, never `queued`: that is the `status` default below,
     // so naming it would hold every newly created row behind the waiting view
     // with nothing to move it on. A queued row holds no worker's lease.
-    custom: { jobStage: { runningStages: ['processing'] } },
+    custom: { jobStage: { runningStages: ['processing'] } satisfies JobStageConfig },
     hidden: true,
     useAsTitle: 'audioFilename',
   },

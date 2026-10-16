@@ -3,9 +3,7 @@ import type { DocumentViewClientProps, DocumentViewServerProps } from 'payload'
 import { Banner, Button, DefaultEditView, Gutter, Spinner } from '@payloadcms/ui'
 import { toWords } from 'payload/shared'
 
-import { adminDocPath } from '@/lib/utilities/adminUrl'
-
-import { decideJobStage, readJobStageConfig } from './stages'
+import { jobStageWait, readJobStageConfig } from './stages'
 
 /**
  * Payload hands a view the server and client prop sets merged, and renders
@@ -43,30 +41,28 @@ function clientPropsOf(props: DocumentViewServerProps): DocumentViewClientProps 
  * stored stage at page load is the whole input — there is no poll, and so no
  * second request. **Continue** is therefore an `<a href>` and not a
  * `next/link`: a full load re-reads the stage on the server, where a client
- * navigation can be served from the route cache and show the same stale
- * waiting view again.
+ * navigation can be served from the route cache and redraw the same stale
+ * waiting view.
  */
 export default function JobStageView(props: DocumentViewServerProps) {
   const { collectionConfig, docID } = props.initPageResult
-  const config = readJobStageConfig(collectionConfig?.admin?.custom)
 
-  // No id is the create form, which no worker can be holding. Without this a
-  // collection whose running stage is also its `defaultValue` would open every
-  // new document behind the waiting view, with nothing able to move it on.
-  if (config && collectionConfig && docID !== undefined) {
-    const decision = decideJobStage(config, props.doc)
+  // No id is the create form, which no worker can be holding.
+  if (collectionConfig && docID !== undefined) {
+    const config = readJobStageConfig(collectionConfig.admin?.custom)
+    const wait = config && jobStageWait(config, props.doc)
 
-    if (decision.waiting) {
+    if (wait) {
       return (
         <Gutter>
           <Banner icon={<Spinner loadingText={null} size="sm" />} type="info">
-            {toWords(decision.stage)} — a job owns this document. Editing opens when it finishes.
-            {decision.progress === null ? '' : ` ${decision.progress} done so far.`}
+            {toWords(wait.stage)} — a job owns this document. Editing opens when it finishes.
+            {wait.progress === null ? '' : ` ${wait.progress} done so far.`}
           </Banner>
           <Button
             buttonStyle="secondary"
             el="anchor"
-            url={adminDocPath(collectionConfig.slug, docID)}
+            url={`/admin/collections/${collectionConfig.slug}/${docID}`}
           >
             Continue
           </Button>
