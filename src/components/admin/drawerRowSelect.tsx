@@ -22,6 +22,9 @@ type DrawerRowSelectArgs = Partial<
  * `CellPropsContext` is provided only in `RenderDefaultCell`, and
  * `LinkedCellOverride` is settable only from `RelationshipTable`.
  *
+ * This convention is a workaround for a Payload defect that is unreported
+ * upstream, so it has no end date yet. #964 holds that report.
+ *
  * Returns `undefined` when the cell should render whatever it renders outside
  * a drawer. A cell holding a click of its own writes that precedence where it
  * applies — `useDrawerRowSelect(…) ?? ownClick` — since only one cell has one.
