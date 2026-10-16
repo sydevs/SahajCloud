@@ -49,6 +49,7 @@ type ScriptName =
   | 'storyblok'
   | 'wemeditate'
   | 'meditations'
+  | 'meditation-transcripts'
   | 'tags'
   | 'wm-app-translations'
   | 'translations'
@@ -58,6 +59,7 @@ const VALID_SCRIPTS: ScriptName[] = [
   'storyblok',
   'wemeditate',
   'meditations',
+  'meditation-transcripts',
   'tags',
   'wm-app-translations',
   'translations',
@@ -71,6 +73,8 @@ const SCRIPT_RUN_ORDER: ScriptName[] = [
   'tags',
   'wemeditate',
   'meditations',
+  // Resolves each transcript against a meditation, so it follows them.
+  'meditation-transcripts',
   'storyblok',
   'wm-app-translations',
   // Atlas is independent of the WeMeditate content above (distinct collections).
@@ -81,6 +85,7 @@ const SCRIPT_DESCRIPTIONS: Record<ScriptName, string> = {
   storyblok: 'Seed Path Steps from Storyblok CMS',
   wemeditate: 'Seed content from WeMeditate Rails database',
   meditations: 'Seed meditation content from legacy database',
+  'meditation-transcripts': "Import the library's existing meditation transcripts",
   tags: 'Seed UserChoices and MusicTags from Cloudinary',
   'wm-app-translations': 'Seed English copy for the wm-app-translations global',
   translations: 'Seed English copy for all three translation globals',
@@ -96,6 +101,8 @@ const VALID_OPTIONS = ['--dry-run', '--clear-cache', '--update']
 // DataSource.localPath exactly.
 const SCRIPT_DATA_FILES: Partial<Record<ScriptName, string[]>> = {
   'wm-app-translations': ['seeds/wm-app-translations/data.en.json'],
+  // Keyed by DATA_FILE in seeds/meditation-transcripts/import.ts.
+  'meditation-transcripts': ['seeds/meditation-transcripts/data.json'],
   translations: [
     'seeds/wm-app-translations/data.en.json',
     'seeds/wm-web-translations/data.en.json',
@@ -176,11 +183,12 @@ If no script is specified, runs ALL scripts in dependency order:
   tags → wemeditate → storyblok → meditations
 
 Available Scripts:
-  storyblok            Seed Path Steps from Storyblok CMS
-  wemeditate           Seed content from WeMeditate Rails database
-  meditations          Seed meditation content from legacy database
-  tags                 Seed UserChoices and MusicTags from Cloudinary
-  wm-app-translations  Seed English copy for the wm-app-translations global
+  storyblok              Seed Path Steps from Storyblok CMS
+  wemeditate             Seed content from WeMeditate Rails database
+  meditations            Seed meditation content from legacy database
+  meditation-transcripts Import the library's existing meditation transcripts
+  tags                   Seed UserChoices and MusicTags from Cloudinary
+  wm-app-translations    Seed English copy for the wm-app-translations global
 
 Options:
   --dry-run      Validate data without writing to database

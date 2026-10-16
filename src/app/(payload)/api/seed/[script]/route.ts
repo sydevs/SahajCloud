@@ -51,6 +51,7 @@ const VALID_SCRIPTS: ScriptName[] = [
   'tags',
   'wemeditate',
   'meditations',
+  'meditation-transcripts',
   'storyblok',
   'wm-app-translations',
   'translations',
@@ -403,6 +404,12 @@ async function getImporter(
       const { MeditationsImporter } = await import('../../../../../../seeds/meditations/import')
       return new MeditationsImporter(options)
     }
+    case 'meditation-transcripts': {
+      const { MeditationTranscriptsImporter } = await import(
+        '../../../../../../seeds/meditation-transcripts/import'
+      )
+      return new MeditationTranscriptsImporter(options)
+    }
     case 'storyblok': {
       const token = process.env.STORYBLOK_ACCESS_TOKEN
       if (!token) {
@@ -474,7 +481,11 @@ async function getDatabaseCounts(
         break
       }
       case 'wm-app-translations':
-      case 'translations': {
+      case 'translations':
+      // `meditation-transcripts` writes rows, but how many depends on which of
+      // the library's recordings the target environment still carries — see its
+      // own empty EXPECTED_COUNTS entry.
+      case 'meditation-transcripts': {
         // These scripts target PayloadCMS globals, not collections.
         // Verification sees an empty EXPECTED_COUNTS entry and passes by default.
         break
