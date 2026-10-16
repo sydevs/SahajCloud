@@ -29,9 +29,8 @@ export const framesByNarrator: Endpoint = {
   method: 'get',
   handler: async (req) => {
     // Gate first so param-validation details don't leak to callers who can't
-    // read frames. The permission alone, with no `requireActiveManager`: a
-    // published API client is a legitimate caller here (see the access note
-    // above), and the guard would refuse one.
+    // read frames. The permission alone, because `requireActiveManager` would
+    // refuse the API clients the docblock above admits.
     const denied = requireCollectionPermission({
       req,
       collection: 'frames',

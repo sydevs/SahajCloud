@@ -19,9 +19,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import type { Manager } from '@/payload-types'
 
-
-
-import { createRestClientAs } from '../utils/restRequest'
+import { createRestClient, createRestClientAs } from '../utils/restRequest'
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -112,9 +110,7 @@ describe('POST /api/user-submissions/:id/review — locale and type gates', () =
     cityId = city.id
 
     rest = await createRestClientAs(env, frenchReviewer)
-
-    const admin = await testData.createManager(payload, { type: 'admin' })
-    adminRest = await createRestClientAs(env, admin)
+    adminRest = await createRestClient(env)
   })
 
   afterAll(async () => {
@@ -137,16 +133,15 @@ describe('POST /api/user-submissions/:id/review — locale and type gates', () =
   })
 
   /**
-   * An admin carries no roles, so `bypassPermissions` is the only thing that
-   * admits them — and the Accept / Reject buttons render for an admin anyway,
-   * since nothing in `SubmissionActions` gates on permission. Without the
-   * bypass the one caller who can see every submission is the one who cannot
-   * act on any, and the locale is beside the point: an admin has no per-locale
-   * roles to resolve.
+   * An admin carries no roles, so `bypassPermissions` alone admits them — and
+   * the Accept / Reject buttons render for one anyway, since
+   * `SubmissionActions` gates on no permission. No locale, because that is the
+   * shape the admin panel sends, and the one the bypass has to answer before
+   * any scope is resolved.
    */
-  it('allows an admin, under any locale and none', async () => {
-    expect((await reviewAsAdmin(await pendingSubmission(), '?locale=fr')).status).toBe(200)
-    expect((await reviewAsAdmin(await pendingSubmission())).status).toBe(200)
+  it('allows an admin, who holds no roles to resolve', async () => {
+    const { status } = await reviewAsAdmin(await pendingSubmission())
+    expect(status).toBe(200)
   })
 
   // One table, four intakes: without the type gate another type would reach

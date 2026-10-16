@@ -55,11 +55,14 @@ export function requireCollectionPermission({
 
 /**
  * {@link requireCollectionPermission} for an endpoint that serves the admin
- * panel alone: the caller must also be an active manager, so an API client is
- * refused by {@link requireActiveManager} — which is what reports a
- * presented-and-rejected API key (#743, `docs/rules/endpoints.md`).
+ * panel alone: {@link requireActiveManager} runs first, so an API client is
+ * refused as a caller rather than on its grants.
  *
- * An endpoint that also serves API clients gates on the permission alone.
+ * ⚠ **An endpoint that serves API clients needs more than the other helper.**
+ * Gating on the permission alone is right for a route managers and clients
+ * share, but `requireActiveClient` is what reports a presented-and-rejected
+ * API key (#743, `docs/rules/endpoints.md`) — neither function here does, so a
+ * client-facing endpoint still calls it as its first statement.
  */
 export function requireManagerPermission(gate: PermissionGate): Response | null {
   const denied = requireActiveManager(gate.req)
