@@ -39,6 +39,7 @@ import {
   loadJsonData,
   MediaUploader,
 } from '../lib'
+import { type AtlasDumpName, atlasDataFile } from '../lib/dataFiles'
 import { plainTextToLexical } from './helpers/lexical'
 import {
   mapContactDetails,
@@ -458,13 +459,8 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
 
   private async getData(): Promise<AtlasData> {
     if (this.cachedData) return this.cachedData
-    // The deployed standalone build excludes the data files (next.config's
-    // `outputFileTracingExcludes` drops `seeds/**`). So when seeding a
-    // remote environment, the CLI uploads them as `inlineData` keyed by
-    // local path (see SCRIPT_DATA_FILES in seeds/run.ts). Locally, they
-    // are read straight from disk.
-    const load = <T>(name: string): Promise<T> => {
-      const localPath = `seeds/atlas/data/${name}.json`
+    const load = <T>(name: AtlasDumpName): Promise<T> => {
+      const localPath = atlasDataFile(name)
       return loadJsonData<T>({ localPath, inlineContent: this.options.inlineData?.[localPath] })
     }
 

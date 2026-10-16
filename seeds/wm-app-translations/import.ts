@@ -25,10 +25,9 @@ import {
   type TranslationsSchemaRoot,
 } from './lexicalConverter'
 import appSchema from '../../src/globals/WeMeditateAppTranslations/translationsSchema.json' with { type: 'json' }
+import { WM_APP_TRANSLATIONS_DATA_FILE as SEED_DATA_LOCAL_PATH } from '../lib/dataFiles'
 
 // --- Constants ---
-
-const SEED_DATA_LOCAL_PATH = 'seeds/wm-app-translations/data.en.json'
 
 const GLOBAL_SLUG = 'wm-app-translations'
 const LOCALE = 'en' as const
