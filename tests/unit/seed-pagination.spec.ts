@@ -1,8 +1,11 @@
 import { describe, it, expect } from 'vitest'
 
 import {
+  EXPECTED_COUNTS,
+  getCountableCollections,
   getScriptMetadata,
   getExpectedCounts,
+  isNotApplicable,
   verifyCountsForScript,
   getCollectionMetadata,
   type ScriptName,
@@ -337,5 +340,74 @@ describe('validatePaginationParam', () => {
     expect(validatePaginationParam('limit', '-1')?.error).toBe('Invalid limit parameter')
     expect(validatePaginationParam('offset', '1.5')?.error).toBe('Invalid offset parameter')
     expect(validatePaginationParam('limit', '')?.error).toBe('Invalid limit parameter')
+  })
+})
+
+const ALL_SCRIPTS = Object.keys(EXPECTED_COUNTS) as ScriptName[]
+
+describe('a script that can state no floor says so', () => {
+  const unverifiable = ALL_SCRIPTS.filter((script) => isNotApplicable(EXPECTED_COUNTS[script]))
+
+  it('covers the globals-only scripts', () => {
+    expect(unverifiable).toEqual(['wm-app-translations', 'translations'])
+  })
+
+  unverifiable.forEach((script) => {
+    it(`${script} carries a reason, and verification reports it`, () => {
+      const { results, allPassed, skippedReason } = verifyCountsForScript(script, {})
+
+      expect(results).toEqual([])
+      expect(allPassed).toBe(true)
+      // The point of the arm: a run that checked nothing no longer prints
+      // exactly like one that checked and passed.
+      expect(skippedReason).toBeTruthy()
+      expect(skippedReason).toMatch(/global/)
+    })
+
+    it(`${script} answers with no floors`, () => {
+      expect(getExpectedCounts(script)).toEqual({})
+    })
+
+    it(`${script} declares no countable collection either`, () => {
+      expect(getCountableCollections(script)).toEqual([])
+    })
+  })
+
+  it('leaves a verifiable script reporting no reason', () => {
+    const { skippedReason, results } = verifyCountsForScript('tags', {
+      'user-choices': 27,
+      'song-tags': 7,
+    })
+
+    expect(skippedReason).toBeUndefined()
+    expect(results).toHaveLength(2)
+  })
+})
+
+describe('getCountableCollections', () => {
+  it('drops a logical step that is not a collection', () => {
+    // `pictures` downloads into `images`; `payload.count` throws on the slug.
+    expect(getCountableCollections('atlas')).not.toContain('pictures')
+    expect(getCountableCollections('atlas')).toContain('user-submissions')
+  })
+
+  it('keeps the script metadata order', () => {
+    expect(getCountableCollections('meditations')).toEqual(['narrators', 'frames', 'meditations'])
+  })
+
+  /**
+   * The invariant the seed route's `getDatabaseCounts` now rests on. It was
+   * broken: `wemeditate` expected 40 lectures and the route never counted
+   * them, so every run of that script reported verification failed on 0.
+   */
+  it('covers every floor every script declares', () => {
+    const uncounted = ALL_SCRIPTS.flatMap((script) => {
+      const countable = new Set(getCountableCollections(script))
+      return Object.keys(getExpectedCounts(script))
+        .filter((collection) => !countable.has(collection))
+        .map((collection) => `${script}:${collection}`)
+    })
+
+    expect(uncounted).toEqual([])
   })
 })

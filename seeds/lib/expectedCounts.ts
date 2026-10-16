@@ -26,6 +26,25 @@ export interface ExpectedCounts {
 }
 
 /**
+ * A script that can state no database floor at all.
+ *
+ * `ExpectedCounts` can only express one claim — `actual >= expected` — so a
+ * script whose floor depends on the target environment used to declare `{}`.
+ * That verified nothing while reporting exactly like a script that verified
+ * and passed. Declaring the reason instead keeps the two apart.
+ */
+export interface NotApplicableCounts {
+  kind: 'not-applicable'
+  reason: string
+}
+
+export type ScriptExpectation = ExpectedCounts | NotApplicableCounts
+
+export function isNotApplicable(expectation: ScriptExpectation): expectation is NotApplicableCounts {
+  return 'kind' in expectation && expectation.kind === 'not-applicable'
+}
+
+/**
  * Minimum expected counts per script.
  *
  * Sources:
@@ -37,7 +56,7 @@ export interface ExpectedCounts {
  * Note: Image tags are now inline enum select values on the Images collection,
  * so they do not have expected counts anymore.
  */
-export const EXPECTED_COUNTS: Record<ScriptName, ExpectedCounts> = {
+export const EXPECTED_COUNTS: Record<ScriptName, ScriptExpectation> = {
   tags: {
     'user-choices': 27,
     'song-tags': 7,
@@ -60,11 +79,14 @@ export const EXPECTED_COUNTS: Record<ScriptName, ExpectedCounts> = {
   storyblok: {
     lessons: 17,
   },
-  // wm-app-translations updates a single PayloadCMS global, not collections.
-  // No collection counts apply — verification is intentionally a no-op.
-  'wm-app-translations': {},
-  // translations updates three PayloadCMS globals, not collections.
-  translations: {},
+  'wm-app-translations': {
+    kind: 'not-applicable',
+    reason: 'targets the wm-app-translations global, so no collection gains a row',
+  },
+  translations: {
+    kind: 'not-applicable',
+    reason: 'targets three translation globals, so no collection gains a row',
+  },
   // Counts follow the 2026-08 Atlas dump (activity through Aug 2026. The
   // previous dump's data ended Oct 2024). Counted, not estimated —
   // verification is `actual >= expected`, so an understated value passes even
@@ -103,9 +125,15 @@ export const EXPECTED_COUNTS: Record<ScriptName, ExpectedCounts> = {
   },
 }
 
-/** Get expected counts for a script */
+/**
+ * Get a script's collection floors. A script that can state none answers with
+ * no floors — read `EXPECTED_COUNTS` directly, or `verifyCountsForScript`'s
+ * `skippedReason`, to tell that apart from a script that simply has none.
+ */
 export function getExpectedCounts(script: ScriptName): ExpectedCounts {
-  return EXPECTED_COUNTS[script] || {}
+  const expectation = EXPECTED_COUNTS[script]
+  if (!expectation || isNotApplicable(expectation)) return {}
+  return expectation
 }
 
 /** Verify actual counts against expected minimums */
@@ -120,8 +148,13 @@ export function verifyCountsForScript(
   script: ScriptName,
   actualCounts: Record<string, number>,
   pagination?: { collection?: string; offset: number; limit: number },
-): { results: VerificationResult[]; allPassed: boolean } {
-  const expected = EXPECTED_COUNTS[script]
+): { results: VerificationResult[]; allPassed: boolean; skippedReason?: string } {
+  const expectation = EXPECTED_COUNTS[script]
+  if (expectation && isNotApplicable(expectation)) {
+    return { results: [], allPassed: true, skippedReason: expectation.reason }
+  }
+
+  const expected = getExpectedCounts(script)
   const results: VerificationResult[] = []
   let allPassed = true
 
@@ -321,6 +354,7 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
       dependencies: ['events'],
       naturalKey: 'legacyId',
       hasFileUploads: true, // GCS downloads → Images uploads
+      notACollection: true,
     },
   ],
 }
@@ -349,6 +383,19 @@ export function getScriptMetadata(script: ScriptName): ScriptMetadata {
     requiresPagination,
     recommendedBatchSize,
   }
+}
+
+/**
+ * The collection slugs a script's row counts can be read from, in import
+ * order. This is the one definition of that list — `getDatabaseCounts` in the
+ * seed route derives from it, so a collection added here is counted and
+ * verified without a second edit. A `wemeditate` floor sat unread for exactly
+ * that reason: `lectures` was expected and never counted, so every run
+ * reported verification failed on 0 of 40.
+ */
+export function getCountableCollections(script: ScriptName): string[] {
+  const collections = COLLECTION_METADATA[script] || []
+  return collections.filter((c) => !c.notACollection).map((c) => c.slug)
 }
 
 /** Get metadata for a specific collection within a script */

@@ -8,6 +8,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
+import { BaseImporter, type BaseImportOptions, type RunVerification } from './BaseImporter'
 import { FileUtils } from './fileUtils'
 import { Logger } from './logger'
 import { ValidationReport } from './validationReport'
@@ -184,5 +185,45 @@ describe('ValidationReport', () => {
       expect(report.getErrorCount()).toBe(0)
       expect(report.getSummary().created).toBe(0)
     })
+  })
+})
+
+/**
+ * `verifyRun` is what a script asserts about itself when no database floor can
+ * be stated. The default has to be a pass, or every existing importer would
+ * start failing; an override's failure has to reach the caller, or declaring
+ * the invariant buys nothing.
+ */
+describe('BaseImporter.verifyRun', () => {
+  class Quiet extends BaseImporter<BaseImportOptions> {
+    protected readonly importName = 'Quiet'
+    protected readonly cacheDir = '/tmp/seed-verify-run-quiet'
+    protected async import(): Promise<void> {}
+  }
+
+  class Loud extends BaseImporter<BaseImportOptions> {
+    protected readonly importName = 'Loud'
+    protected readonly cacheDir = '/tmp/seed-verify-run-loud'
+    protected async import(): Promise<void> {}
+
+    async verifyRun(): Promise<RunVerification> {
+      return { passed: false, failures: ['3 of 4 entries accounted for'] }
+    }
+  }
+
+  const options: BaseImportOptions = { dryRun: true, clearCache: false }
+
+  it('passes by default, with nothing to report', async () => {
+    await expect(new Quiet(options).verifyRun()).resolves.toEqual({
+      passed: true,
+      failures: [],
+    })
+  })
+
+  it('carries an override failure and its reason', async () => {
+    const verification = await new Loud(options).verifyRun()
+
+    expect(verification.passed).toBe(false)
+    expect(verification.failures).toEqual(['3 of 4 entries accounted for'])
   })
 })

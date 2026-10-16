@@ -94,6 +94,9 @@ export interface SlugCollision {
 }
 
 // Type for preloaded document cache (id + natural key + any additional fields)
+/** What `verifyRun` answers: a run's own invariants, and why they failed. */
+export type RunVerification = { passed: boolean; failures: string[] }
+
 export type PreloadedDoc = { id: string | number; [key: string]: unknown }
 export type PreloadCache = Map<string, PreloadedDoc>
 
@@ -491,6 +494,19 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
 
   /** Override to implement the import logic */
   protected abstract import(): Promise<void>
+
+  /**
+   * Assert what this run can check about itself, whatever the target holds.
+   *
+   * Count verification asks the database for a floor, which a script whose
+   * floor varies by environment cannot state. An invariant over the run's own
+   * totals can still hold everywhere — for a data-file-driven script,
+   * `created + updated + skipped + warnings === entries in the data file`,
+   * which a truncated upload breaks. Default: nothing to check.
+   */
+  async verifyRun(): Promise<RunVerification> {
+    return { passed: true, failures: [] }
+  }
 
   /** Override to add custom cleanup logic */
   protected async cleanup(): Promise<void> {

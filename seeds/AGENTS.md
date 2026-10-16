@@ -399,7 +399,16 @@ No errors - import completed successfully!
 ## Creating a new seed script
 
 1. Create `seeds/<script-name>/import.ts`, extending `BaseImporter`.
-2. Add collection metadata to `seeds/lib/expectedCounts.ts`.
+2. Add collection metadata to `seeds/lib/expectedCounts.ts`. A script that can
+   state no database floor — it targets a global, or its floor depends on what
+   the target environment already holds — declares
+   `{ kind: 'not-applicable', reason }` rather than `{}`, so the CLI prints
+   *why* nothing was verified instead of reporting like a run that checked and
+   passed. Where an invariant over the run's own totals still holds, override
+   `verifyRun()` (`seeds/lib/BaseImporter.ts`) and the seed route surfaces its
+   failure. The seed route counts whatever this file's metadata lists, so a
+   collection added here is counted without a second edit; mark a logical step
+   that is not a collection `notACollection`.
 3. Register it in `getImporter()` in
    `src/app/(payload)/api/seed/[script]/route.ts`.
 4. Add it to the "Available Scripts" table above.

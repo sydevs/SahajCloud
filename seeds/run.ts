@@ -431,11 +431,24 @@ class ProgressDisplay {
           | undefined
         const verificationPassed = summary.verificationPassed as boolean | undefined
 
+        const skippedReason = summary.verificationSkippedReason as string | null | undefined
+        const runFailures = (summary.runVerificationFailures as string[] | undefined) ?? []
+
         if (verification && verification.length > 0) {
           console.log('\n🔍 Verification:')
           for (const { collection, actual, expected, passed } of verification) {
             const emoji = passed ? '✅' : '❌'
             console.log(`   ${emoji} ${collection}: ${actual} (≥${expected})`)
+          }
+        } else if (skippedReason) {
+          // Say so. A silent pass and a real pass used to print identically.
+          console.log(`\n🔍 Verification skipped: ${skippedReason}`)
+        }
+
+        if (runFailures.length > 0) {
+          console.log('\n🔍 Run verification failed:')
+          for (const failure of runFailures) {
+            console.log(`   ❌ ${failure}`)
           }
         }
 
@@ -759,7 +772,8 @@ async function runScript(
 
           // Check verification result
           if (summary.verificationPassed === false) {
-            errors.push('Count verification failed')
+            const runFailures = (summary.runVerificationFailures as string[] | undefined) ?? []
+            errors.push(...(runFailures.length > 0 ? runFailures : ['Count verification failed']))
           }
         }
       }

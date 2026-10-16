@@ -42,6 +42,12 @@ export interface CollectionMetadata {
   naturalKey: string
   /** Whether this collection involves file uploads (reduces batch size) */
   hasFileUploads?: boolean
+  /**
+   * Set when `slug` names a logical import step rather than a collection.
+   * `atlas`'s `pictures` downloads and uploads into `images`, so there is no
+   * such collection to count — `payload.count` throws on the slug.
+   */
+  notACollection?: true
   /** Override batch size for this collection (takes precedence over hasFileUploads) */
   batchSize?: number
 }

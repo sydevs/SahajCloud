@@ -28,6 +28,7 @@
 
 import type { BaseImporter } from '../../../../../../seeds/lib/BaseImporter'
 import type { NextRequest } from 'next/server'
+import type { CollectionSlug, Where } from 'payload'
 
 import { getPayload } from 'payload'
 
@@ -37,6 +38,7 @@ import config from '@payload-config'
 
 
 import {
+  getCountableCollections,
   getScriptMetadata,
   verifyCountsForScript,
   type ScriptName,
@@ -302,11 +304,15 @@ export async function POST(
       const counts = await getDatabaseCounts(payload, script as ScriptName)
 
       // Verify counts against the expected minimums. Pagination adjusts the minimums when it applies.
-      const { results: verification, allPassed: verificationPassed } = verifyCountsForScript(
-        script as ScriptName,
-        counts,
-        pagination,
-      )
+      const {
+        results: verification,
+        allPassed: countsPassed,
+        skippedReason: verificationSkippedReason,
+      } = verifyCountsForScript(script as ScriptName, counts, pagination)
+
+      // The importer's own invariants, which hold whatever the target carries.
+      const runVerification = await importer.verifyRun()
+      const verificationPassed = countsPassed && runVerification.passed
 
       const report = importer.getReport()
       const errorMessages = report.getErrors()
@@ -339,6 +345,8 @@ export async function POST(
           counts,
           verification,
           verificationPassed,
+          verificationSkippedReason: verificationSkippedReason ?? null,
+          runVerificationFailures: runVerification.failures,
         },
         pagination: paginationResult,
       })
@@ -429,76 +437,34 @@ async function getImporter(
   }
 }
 
+/**
+ * The one count that is not a whole-collection count. `user-submissions` also
+ * holds contact, subscribe and proposal rows, so an unfiltered count passes
+ * on those alone.
+ */
+const COUNT_FILTERS: Partial<Record<ScriptName, Record<string, Where>>> = {
+  atlas: { 'user-submissions': activeRegistrationWhere },
+}
+
 /** Return database counts for verification. */
 async function getDatabaseCounts(
   payload: Awaited<ReturnType<typeof getPayload>>,
   script: ScriptName,
 ): Promise<Record<string, number>> {
   const counts: Record<string, number> = {}
+  const filters = COUNT_FILTERS[script] ?? {}
 
   try {
-    switch (script) {
-      case 'tags': {
-        // image-tags no longer exists. Its values are now inline enum strings on Images.
-        const userChoices = await payload.count({ collection: 'user-choices' })
-        const songTags = await payload.count({ collection: 'song-tags' })
-        counts['user-choices'] = userChoices.totalDocs
-        counts['song-tags'] = songTags.totalDocs
-        break
-      }
-      case 'wemeditate': {
-        const authors = await payload.count({ collection: 'authors' })
-        const albums = await payload.count({ collection: 'albums' })
-        const songs = await payload.count({ collection: 'songs' })
-        const pages = await payload.count({ collection: 'pages' })
-        counts['authors'] = authors.totalDocs
-        counts['albums'] = albums.totalDocs
-        counts['songs'] = songs.totalDocs
-        counts['pages'] = pages.totalDocs
-        break
-      }
-      case 'meditations': {
-        const narrators = await payload.count({ collection: 'narrators' })
-        const meditations = await payload.count({ collection: 'meditations' })
-        const frames = await payload.count({ collection: 'frames' })
-        counts['narrators'] = narrators.totalDocs
-        counts['meditations'] = meditations.totalDocs
-        counts['frames'] = frames.totalDocs
-        break
-      }
-      case 'storyblok': {
-        const lessons = await payload.count({ collection: 'lessons' })
-        const lectures = await payload.count({ collection: 'lectures' })
-        counts['lessons'] = lessons.totalDocs
-        counts['lectures'] = lectures.totalDocs
-        break
-      }
-      case 'wm-app-translations':
-      case 'translations': {
-        // These scripts target PayloadCMS globals, not collections.
-        // Verification sees an empty EXPECTED_COUNTS entry and passes by default.
-        break
-      }
-      case 'atlas': {
-        const [managers, regions, users, events, registrations, clients] = await Promise.all([
-          payload.count({ collection: 'managers' }),
-          payload.count({ collection: 'regions' }),
-          payload.count({ collection: 'users' }),
-          payload.count({ collection: 'events' }),
-          // Filtered, not a whole-collection count: contact, subscribe and
-          // proposal rows share this table and would pass the check alone.
-          payload.count({ collection: 'user-submissions', where: activeRegistrationWhere }),
-          payload.count({ collection: 'clients' }),
-        ])
-        counts['managers'] = managers.totalDocs
-        counts['regions'] = regions.totalDocs
-        counts['users'] = users.totalDocs
-        counts['events'] = events.totalDocs
-        counts['user-submissions'] = registrations.totalDocs
-        counts['clients'] = clients.totalDocs
-        break
-      }
-    }
+    const collections = getCountableCollections(script)
+    const totals = await Promise.all(
+      collections.map((slug) =>
+        payload.count({ collection: slug as CollectionSlug, where: filters[slug] }),
+      ),
+    )
+
+    collections.forEach((slug, index) => {
+      counts[slug] = totals[index].totalDocs
+    })
   } catch (error) {
     // Log the error, but do not fail the request. Counts are for verification only.
     payload.logger.error({ msg: 'Failed to get database counts', error })
