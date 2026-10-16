@@ -27,14 +27,8 @@ export interface WriteGuardOperationPolicy {
    * A column holding a client-authored field patch for `collection`. Its string
    * leaves are scanned by `proposalLeaves` — URLs refused, `type: 'email'`
    * columns judged as addresses, and a column declared to hold an address or a
-   * link exempt — all read off that collection's live config rather than listed.
-   *
-   * ⚠ **This is the half that used to be hand-written** (#948). `proposed` named
-   * four `proposed.*` paths here while the screening job walked the whole column
-   * and derived the exemption from the Events config, so a free-text Events
-   * column added tomorrow was scanned by neither: a spam link in it earned a
-   * clean 201, then a terminal `spam` bin with nothing told to the sender. One
-   * derivation, two readers, and a new column is covered the day it is added.
+   * link exempt — all read off that collection's live config rather than listed,
+   * so a column added there is covered the day it lands (#948).
    */
   derivedScan?: { path: string; collection: CollectionSlug }
 }
@@ -91,10 +85,8 @@ export const DEFAULT_WRITE_GUARD_POLICIES: Partial<Record<CollectionSlug, WriteG
       // The subject a sender actually writes travels in `submissionData`, and
       // `submissionDataSchema` covers it there.
       //
-      // `proposed` is an Events field patch, so every check it owes — the URL
-      // scan, the address check on `proposed.contactEmail`, the exemption for a
-      // column that holds a link — is derived from the Events config rather
-      // than listed as a path here (#948).
+      // `proposed` is an Events field patch, so every check it owes is derived
+      // from that collection's config rather than listed here.
       derivedScan: { path: 'proposed', collection: 'events' },
     },
   },

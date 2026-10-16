@@ -9,12 +9,11 @@ import { proposalLeaves } from '@/lib/antiSpam/proposalLeaves'
  * A proposal is the one intake that carries a structured patch of real Events
  * fields rather than an answer to a question somebody authored.
  *
- * ⚠ **This is the second reader of the same derivation, not a second rule.**
- * The write guard runs `proposalLeaves` over the same patch at create and
- * refuses a link there (#948), so this job sees one only in a row written before
- * the guard could judge it — a column whose exemption changed, or a write that
- * skipped the guard. Refusing after the fact records the attempt with the
- * offending value intact, which is what makes a sender's history worth counting.
+ * ⚠ **This is the second reader of the same derivation, not a second rule**
+ * (#948). The write guard refuses a link at create, so a row reaching here is
+ * one it could not judge — a column whose exemption changed, or a write that
+ * skipped the guard. Refusing after the fact keeps the attempt with its value
+ * intact, which is what makes a sender's history worth counting.
  *
  * Returns `null` when the content is acceptable, or the reason it was not.
  */

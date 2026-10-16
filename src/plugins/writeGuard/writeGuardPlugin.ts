@@ -4,14 +4,9 @@ import type { CollectionBeforeValidateHook, CollectionSlug, Config, PayloadReque
 import { APIError } from 'payload'
 
 import type { AntiSpamFailure } from '@/lib/antiSpam/antiSpamGuard'
-import {
-  checkEmailAllowed,
-  checkNoUrls,
-  verifyTurnstileOrFail,
-} from '@/lib/antiSpam/antiSpamGuard'
+import { checkEmailAllowed, checkNoUrls, verifyTurnstileOrFail } from '@/lib/antiSpam/antiSpamGuard'
 import type { ProposalLeaves } from '@/lib/antiSpam/proposalLeaves'
 import { proposalLeaves } from '@/lib/antiSpam/proposalLeaves'
-
 
 import { DEFAULT_WRITE_GUARD_POLICIES } from './policies'
 
@@ -42,8 +37,7 @@ import { DEFAULT_WRITE_GUARD_POLICIES } from './policies'
  * so the built-in REST endpoints and custom handlers alike surface the message
  * and machine code (`captcha_failed`, `urls_not_allowed`, `disposable_email`,
  * …). `field` names the input that tripped a per-field check, and is absent
- * from the captcha's verdict, which is about the request. A `derivedScan`
- * column names the leaf it found, having no listed path to name (#948).
+ * from the captcha's verdict, which is about the request.
  *
  * ⚠ **`prepareUserSubmission` raises these same codes** for the pairs no path
  * here can scan selectively, and carries the same `field`. One endpoint, one
@@ -83,14 +77,12 @@ function throwFailure(failure: AntiSpamFailure): never {
  * The string leaves of `derivedScan`'s column, classified against the target
  * collection's live config.
  *
- * ⚠ **Fails closed, both ways.** This is the only create-time scan of the
- * column, so a verdict it could not actually reach must refuse: a target
- * collection with no config to read derives no exemptions and would scan
- * nothing, and a patch that tripped a bound was scanned only up to it. Either
- * answer accepted is the fail-open #948 closes. `validateProposal` may fail
- * open on the same missing config because Accept is still a backstop for the
- * key gate; a spam link has no equivalent — screening bins the row instead of
- * telling the sender.
+ * ⚠ **Fails closed, both ways** (#948). This is the only create-time scan of
+ * the column, so a verdict it could not reach must refuse: a target collection
+ * with no config derives no exemptions and would scan nothing, and a patch that
+ * tripped a bound was scanned only up to it. `validateProposal` may fail open on
+ * the same missing config because Accept still gates the keys; a spam link has
+ * no such backstop — screening bins the row instead of telling the sender.
  */
 function derivedLeaves(
   derived: NonNullable<WriteGuardOperationPolicy['derivedScan']>,

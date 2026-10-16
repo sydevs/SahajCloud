@@ -7,15 +7,11 @@ export interface ProposalLeaves {
   /** Values sitting in a `type: 'email'` column, to judge as addresses. */
   emails: Record<string, string>
   /**
-   * A bound stopped the walk, so these maps are a PREFIX of the patch's leaves
-   * and a clean verdict on them says nothing about the rest.
+   * A bound stopped the walk, so these maps are a PREFIX of the patch's leaves.
    *
-   * ⚠ **A caller must refuse a truncated patch, never accept it.** The bounds
-   * exist against hostile input, so the input that trips one is the input most
-   * likely to be hiding a link past it — 210 text nodes in `description` and a
-   * link in `title` spends the leaf budget before `title` is reached. Silently
-   * scanning a prefix is the same fail-open #948 closes, re-armed one layer
-   * down.
+   * ⚠ **A caller must refuse a truncated patch, never accept it** (#948). The
+   * input that trips a bound is the input most likely to be hiding a link past
+   * it: a long `description` spends the leaf budget before `title` is reached.
    */
   truncated: boolean
 }
@@ -23,40 +19,26 @@ export interface ProposalLeaves {
 /**
  * Flatten a client-authored field patch into `{ 'address.street': 'see buy-now.example.com' }`
  * — the flat, dotted-path maps `checkNoUrls` and `checkEmailAllowed` take — classifying
- * each leaf by the column it sits in, read off `fields`.
+ * each leaf by the column it sits in, read off `fields`. Both anti-spam layers
+ * read this one derivation (#948, `src/AGENTS.md`).
  *
- * ⚠ **Both anti-spam layers derive their scanned set from here, and that is the
- * whole point** (#948). The write guard refuses a link at create; the screening
- * job bins one it finds afterwards. A hand-listed path set in either place covers
- * a column added to the target collection only once somebody widens the list, so
- * a new free-text column was scanned by neither — a spam link in it earned a clean
- * 201 and then a terminal `spam` bin an hour later, with nothing told to the sender.
+ * ⚠ **The flattening is what makes the scan reach a nested field at all.**
+ * `checkNoUrls` tests `typeof value === 'string'` on the **top level** and looks
+ * no further, so handing it the patch raw would wave through a link in
+ * `address.street`. The dotted key also names the offending column in the
+ * refusal a sender reads.
  *
  * ⚠ **Read the exemptions off the live config, never a list** (#920). `type:
  * 'email'` is Payload's own declaration, and `urlField` marks what it builds
  * `custom.holdsUrl` because a built URL column is indistinguishable from free
- * text. So a URL column added to the target collection is exempt the day it is added.
- *
- * ⚠ **This is what makes the scan reach a nested field at all.** `checkNoUrls`
- * tests `typeof value === 'string'` on the **top level** and looks no further, so
- * handing it the patch raw would screen `title` and `description` and wave through
- * a link in `address.street` or `schedule.notes`. A proposal is an Events field
- * patch, and Events nests. The dotted key is also what names the offending column
- * in the refusal a sender reads.
+ * text. So a URL column added to the target collection is exempt the day it lands.
  *
  * ⚠ **`fields` descends with the data, and only a string leaf is ever exempt.**
- * The patch is submitter-controlled, so both halves are load-bearing. Resolving a
- * dotted path instead reaches a column the patch never nested under — payload's
- * `getFieldByPath` keeps the parent's field list past a segment that holds no
- * subfields, so `{ title: { website: 'visit cheap.shop' } }` resolved to the exempt
- * top-level `website`. Exempting a key rather than its string value hid every leaf
- * beneath it the same way. An unrecognised key therefore descends into nothing,
- * which exempts nothing.
- *
- * Bounded by depth and by count: the patch is public input, and a walker with
- * neither bound is a stack overflow and an unbounded allocation waiting for
- * somebody to post a deeply nested object. Both limits sit far above what a real
- * proposal reaches — the column's own schema caps it at 60 properties.
+ * Resolving a dotted path instead reaches a column the patch never nested under:
+ * payload's `getFieldByPath` keeps the parent's field list past a segment that
+ * holds no subfields, so `{ title: { website: … } }` resolved to the exempt
+ * top-level `website`. Exempting a key rather than its string value hid every
+ * leaf beneath it the same way. An unrecognised key descends into nothing.
  *
  * `prefix` names the patch's own column, so a refusal names a path the sender
  * posted. It is required because this module knows no column of its own.
@@ -85,16 +67,15 @@ function collect(
   }
 
   if (typeof value === 'string') {
-    // An empty string can hold no URL and is no address, so keeping it would
-    // spend the MAX_LEAVES budget on values that cannot trip either check and
-    // could crowd out one that does.
+    // An empty string trips neither check, so keeping it would spend leaf
+    // budget a value that can trip one may need.
     if (value.trim() !== '') place(into, 'urlScan', prefix, value)
     return
   }
 
   if (Array.isArray(value)) {
-    // An array field's own `flattenedFields` describe its rows, so the level
-    // does not change here.
+    // An array field's `flattenedFields` describe its rows, so `fields` does
+    // not change here.
     value.forEach((item, index) => collect(item, fields, `${prefix}[${index}]`, depth + 1, into))
     return
   }
@@ -125,11 +106,9 @@ function collect(
 /**
  * Record a leaf under a key nothing else holds.
  *
- * ⚠ **A dotted path is not unique, because a key may contain a dot.** The patch
- * is submitter-controlled, so `{ address: { 'street.note': <link>, street: {
- * note: 'ok' } } }` composes one path twice — and the later write discarded the
- * link outright. The walk this replaced suffixed a position instead and could
- * not collide.
+ * ⚠ **A dotted path is not unique, because a submitter chooses the keys.**
+ * `{ address: { 'street.note': <link>, street: { note: 'ok' } } }` composes one
+ * path twice, and the later write discarded the link.
  */
 function place(
   into: ProposalLeaves,
@@ -149,6 +128,10 @@ function count(leaves: ProposalLeaves): number {
 }
 
 /**
+ * The patch is public input, so the walk is bounded both ways — otherwise a
+ * deeply nested object is a stack overflow and a wide one an unbounded
+ * allocation.
+ *
  * ⚠ **Both bounds are sized for a Lexical tree, because tripping either is now
  * a refusal** — a bound a real proposal reaches refuses a real sender.
  * `description` nests `root → children → paragraph → children → text` before
