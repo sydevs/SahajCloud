@@ -56,9 +56,12 @@ export class MeditationTranscriptsImporter extends BaseImporter<BaseImportOption
   protected async setup(): Promise<void> {
     if (this.options.dryRun) return
 
-    // ⚠ The preload is what stops a re-seed failing. Without it `upsert` takes
-    // its "preloaded, absent" branch straight to `payload.create` and the
-    // `unique` index on `meditation` refuses every row.
+    // ⚠ Preloading is what makes the natural key load-bearing: once a
+    // collection is in the cache, a key the cache does not hold goes straight
+    // to `payload.create` with no fallback find, and the `unique` index on
+    // `meditation` refuses it. So the cache's own key — `String(doc.meditation)`
+    // at depth 0 — has to agree with what `extractNaturalKeyValue` derives from
+    // the `where` below, and nothing but a re-seed proves that it does.
     await this.preloadCollection('meditation-transcripts', 'meditation')
     await this.loadLibrary()
   }
