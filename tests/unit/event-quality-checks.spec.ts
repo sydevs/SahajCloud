@@ -31,6 +31,28 @@ const richText = (...paragraphs: string[]) => ({
   },
 })
 
+/** One paragraph whose runs are divided by soft breaks, as Shift+Enter writes them. */
+const softBreak = (...runs: string[]) => ({
+  root: {
+    type: 'root',
+    children: [
+      {
+        type: 'paragraph',
+        children: runs.flatMap((text, index) =>
+          index === 0
+            ? [{ type: 'text', text, version: 1 }]
+            : [{ type: 'linebreak', version: 1 }, { type: 'text', text, version: 1 }],
+        ),
+        version: 1,
+      },
+    ],
+    direction: null,
+    format: '',
+    indent: 0,
+    version: 1,
+  },
+})
+
 /**
  * A listing that passes every check, so each case can fail exactly one thing.
  * Published + verified, or the whole report short-circuits to `skipped`.
@@ -182,6 +204,41 @@ describe('description', () => {
         expect(report.checks.filter((r) => r.status === 'failed')).toHaveLength(report.openCount)
       }
     })
+  })
+
+  it('reads across a soft break, so what follows one is still judged', () => {
+    // A soft break used to be joined with nothing, which glued the words on
+    // either side into one token: `since2019` defeated the stale-date check's
+    // word boundary, and `MeetingHouse` matched no address phrase.
+    const staleDate = goodEvent({
+      description: softBreak(
+        'A quiet hour of guided meditation for anyone who works nights. Running since',
+        '2019 and still going.',
+      ),
+    })
+    expect(resultFor(staleDate, 'description.quality')?.detail).toContain('a date that has passed')
+
+    const venue = goodEvent({
+      description: softBreak(
+        'A quiet hour of guided meditation for night workers at Friends Meeting',
+        'House, every week.',
+      ),
+    })
+    expect(resultFor(venue, 'description.quality')?.detail).toContain('the address')
+  })
+
+  it('counts a block boundary as the blank line it renders as', () => {
+    // The description floor is a raw length, so it is the one check a block
+    // separator can move. These 58 words' worth of characters clear it only
+    // once the paragraph break between them counts as the blank line it is.
+    const split = goodEvent({
+      description: richText('Quiet guided meditation for everybody', 'all are welcome here.'),
+    })
+    const joined = goodEvent({
+      description: richText('Quiet guided meditation for everybody all are welcome here.'),
+    })
+    expect(failedKeys(split)).not.toContain('description.missing')
+    expect(failedKeys(joined)).toContain('description.missing')
   })
 
   it('names exactly what the description repeats', () => {

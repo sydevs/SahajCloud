@@ -1,5 +1,7 @@
 import type { CheckContext, EventQualityInput, QualityCheck, RedundancyKind } from './types'
 
+import { convertLexicalToPlaintext } from '@payloadcms/richtext-lexical/plaintext'
+
 import { addressPlaceName, firstAddressSegment } from '@/lib/eventTitle/compose'
 
 import { EVENT_QUALITY_COPY, fillCopy, REDUNDANCY_PHRASES } from './copy'
@@ -10,7 +12,6 @@ import {
   containsUrl,
   findStaleDates,
   GENERIC_TITLE_RE,
-  lexicalPlainText,
   normalizeForComparison,
 } from './heuristics'
 
@@ -35,15 +36,23 @@ export const MINIMUM_IMAGES = 3
  * a stale row can only exist if it hasn't been saved since the bump — and the
  * next save fixes it.
  */
-export const QUALITY_CHECK_VERSION = 5
+export const QUALITY_CHECK_VERSION = 6
 
 /**
  * The event's description as plain text. Computed once per report and handed to
  * every check on the context — several read it, and each read would otherwise
  * walk the whole Lexical tree again.
+ *
+ * Malformed editor state resolves to `''` rather than throwing: the report is
+ * built inside an Events `beforeChange`, where a throw would fail the save
+ * itself rather than report a quality finding.
  */
 export function eventDescriptionText(event: EventQualityInput): string {
-  return lexicalPlainText(event.description).trim()
+  try {
+    return convertLexicalToPlaintext({ data: event.description as never }).trim()
+  } catch {
+    return ''
+  }
 }
 
 /**
