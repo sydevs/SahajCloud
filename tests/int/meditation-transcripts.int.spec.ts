@@ -12,6 +12,8 @@ import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import type { Meditation } from '@/payload-types'
+
 import { createData, testData } from '../utils/testData'
 import { createTestEnvironment, idOnlySelect } from '../utils/testHelpers'
 
@@ -29,9 +31,32 @@ describe('meditation transcripts', () => {
     await cleanup()
   })
 
+  /**
+   * A meditation with no transcript row, which is what every case below builds
+   * its own row on.
+   *
+   * ⚠ Since #953 an upload asks for a transcription by itself, so the row
+   * already exists and `meditation` is unique. The two cases that assert a
+   * refusal would otherwise be refused by that constraint instead of by the
+   * rule under test — green, and testing nothing.
+   */
+  const createMeditationWithoutTranscript = async (): Promise<Meditation> => {
+    const meditation = await testData.createMeditation(payload)
+    const { docs } = await payload.find({
+      collection: 'meditation-transcripts',
+      where: { meditation: { equals: meditation.id } },
+      pagination: false,
+      overrideAccess: true,
+    })
+    for (const row of docs) {
+      await payload.delete({ collection: 'meditation-transcripts', id: row.id })
+    }
+    return meditation
+  }
+
   describe('access', () => {
     it('keeps the collection from managers and from every published client key', async () => {
-      const meditation = await testData.createMeditation(payload)
+      const meditation = await createMeditationWithoutTranscript()
       await payload.create({
         collection: 'meditation-transcripts',
         data: createData<'meditation-transcripts'>({
@@ -77,7 +102,7 @@ describe('meditation transcripts', () => {
 
   describe('the stored shape', () => {
     it('refuses a second transcript for a meditation that already has one', async () => {
-      const meditation = await testData.createMeditation(payload)
+      const meditation = await createMeditationWithoutTranscript()
       const transcript = () =>
         payload.create({
           collection: 'meditation-transcripts',
@@ -94,7 +119,7 @@ describe('meditation transcripts', () => {
     })
 
     it('refuses a row with no language, which would skip the glossary pass', async () => {
-      const meditation = await testData.createMeditation(payload)
+      const meditation = await createMeditationWithoutTranscript()
 
       await expect(
         payload.create({
@@ -108,7 +133,7 @@ describe('meditation transcripts', () => {
     })
 
     it('refuses a segment missing `start`, and one carrying word timings', async () => {
-      const meditation = await testData.createMeditation(payload)
+      const meditation = await createMeditationWithoutTranscript()
       const withSegments = (segments: unknown) =>
         payload.create({
           collection: 'meditation-transcripts',
@@ -134,7 +159,7 @@ describe('meditation transcripts', () => {
     })
 
     it('corrects a segment’s spelling on write, without the caller asking', async () => {
-      const meditation = await testData.createMeditation(payload)
+      const meditation = await createMeditationWithoutTranscript()
 
       const row = await payload.create({
         collection: 'meditation-transcripts',
@@ -156,7 +181,7 @@ describe('meditation transcripts', () => {
     })
 
     it('reads the language off the stored row when an update omits it', async () => {
-      const meditation = await testData.createMeditation(payload)
+      const meditation = await createMeditationWithoutTranscript()
       const row = await payload.create({
         collection: 'meditation-transcripts',
         data: createData<'meditation-transcripts'>({
@@ -178,7 +203,7 @@ describe('meditation transcripts', () => {
     })
 
     it('defaults `outdated` to false rather than leaving it unset', async () => {
-      const meditation = await testData.createMeditation(payload)
+      const meditation = await createMeditationWithoutTranscript()
 
       const row = await payload.create({
         collection: 'meditation-transcripts',
