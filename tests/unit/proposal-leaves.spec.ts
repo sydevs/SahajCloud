@@ -15,7 +15,7 @@ import { describe, expect, it } from 'vitest'
 // The factory itself, not the `@/fields` barrel: the barrel pulls the schedule
 // and translations fields into a lane that boots nothing.
 import { urlField } from '@/fields/urlField'
-import { proposalLeaves } from '@/lib/antiSpam/proposalLeaves'
+import { MAX_LEAVES, proposalLeaves } from '@/lib/antiSpam/proposalLeaves'
 
 /** A minimal stand-in for the shape `flattenedFields` hands the walk. */
 const fields = (...declared: unknown[]) => declared as FlattenedField[]
@@ -125,7 +125,7 @@ describe('proposalLeaves', () => {
 
   /**
    * ⚠ The fail-open a single bounded walk re-arms, and the reason `truncated`
-   * exists. The budget is spent on 210 harmless text nodes before `title` is
+   * exists. The budget is spent on harmless text nodes before `title` is
    * reached, so the link in it is in neither bucket — and a caller reading only
    * the buckets gets a clean verdict on a patch nothing finished scanning.
    */
@@ -133,7 +133,10 @@ describe('proposalLeaves', () => {
     const leaves = proposalLeaves(
       {
         description: Object.fromEntries(
-          Array.from({ length: 210 }, (_, index) => [`node${index}`, `paragraph ${index}`]),
+          Array.from({ length: MAX_LEAVES + 10 }, (_, index) => [
+            `node${index}`,
+            `paragraph ${index}`,
+          ]),
         ),
         title: 'join us at cheap.shop',
       },
@@ -188,13 +191,66 @@ describe('proposalLeaves', () => {
     expect(Object.values(leaves.urlScan)).toContain('buy at cheap.shop')
   })
 
+  /**
+   * ⚠ The bound has to clear a real description, because tripping it is now a
+   * refusal rather than a silent stop. Lexical banks about 11 string leaves per
+   * formatted paragraph — its own `type`, `mode` and `direction` keys, not the
+   * sender's prose — so the 200 this replaced turned an ordinary 20-paragraph
+   * blurb into a 400 asking the sender to simplify.
+   */
+  it('scans a long formatted description without truncating, and still finds a link', () => {
+    const text = (value: string, format = 0) => ({
+      detail: 0,
+      format,
+      mode: 'normal',
+      style: '',
+      text: value,
+      type: 'text',
+      version: 1,
+    })
+    const paragraph = (...children: unknown[]) => ({
+      children,
+      direction: 'ltr',
+      format: '',
+      indent: 0,
+      textFormat: 0,
+      textStyle: '',
+      type: 'paragraph',
+      version: 1,
+    })
+    const body = Array.from({ length: 60 }, (_, index) =>
+      paragraph(text(`Paragraph ${index}. `), text('Bold', 1), text(' and the rest of it.')),
+    )
+
+    const leaves = proposalLeaves(
+      {
+        title: 'Thursday class in Hull',
+        description: {
+          root: {
+            children: [...body, paragraph(text('join us at cheap.shop'))],
+            direction: 'ltr',
+            format: '',
+            indent: 0,
+            type: 'root',
+            version: 1,
+          },
+        },
+      },
+      EVENTS,
+      'proposed',
+    )
+
+    expect(leaves.truncated).toBe(false)
+    expect(Object.values(leaves.urlScan)).toContain('join us at cheap.shop')
+  })
+
   it('stops collecting past its leaf bound, and says it did', () => {
     const wide = Object.fromEntries(
-      Array.from({ length: 500 }, (_, index) => [`key${index}`, `value ${index}`]),
+      Array.from({ length: MAX_LEAVES + 100 }, (_, index) => [`key${index}`, `value ${index}`]),
     )
     const leaves = proposalLeaves(wide, EVENTS)
 
-    expect(Object.keys(leaves.urlScan).length).toBeLessThanOrEqual(200)
+    expect(Object.keys(leaves.urlScan).length).toBeLessThanOrEqual(MAX_LEAVES)
     expect(leaves.truncated).toBe(true)
   })
 
@@ -202,12 +258,20 @@ describe('proposalLeaves', () => {
     // Addresses are collected now rather than skipped, so a patch of nothing
     // but email columns must not walk past the bound unmetered.
     const manyEmails = fields(
-      ...Array.from({ length: 500 }, (_, index) => ({ name: `email${index}`, type: 'email' })),
+      ...Array.from({ length: MAX_LEAVES + 100 }, (_, index) => ({
+        name: `email${index}`,
+        type: 'email',
+      })),
     )
     const patch = Object.fromEntries(
-      Array.from({ length: 500 }, (_, index) => [`email${index}`, `host${index}@example.org`]),
+      Array.from({ length: MAX_LEAVES + 100 }, (_, index) => [
+        `email${index}`,
+        `host${index}@example.org`,
+      ]),
     )
 
-    expect(Object.keys(proposalLeaves(patch, manyEmails).emails).length).toBeLessThanOrEqual(200)
+    expect(Object.keys(proposalLeaves(patch, manyEmails).emails).length).toBeLessThanOrEqual(
+      MAX_LEAVES,
+    )
   })
 })

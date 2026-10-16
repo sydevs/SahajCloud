@@ -2,6 +2,7 @@ import type { PayloadRequest } from 'payload'
 
 import { describe, expect, it } from 'vitest'
 
+import { MAX_LEAVES } from '@/lib/antiSpam/proposalLeaves'
 import { writeGuardBeforeValidate } from '@/plugins/writeGuard/writeGuardPlugin'
 
 /**
@@ -87,7 +88,10 @@ describe('the write guard’s refusal', () => {
       const error = await derivedRefusalFor(
         {
           proposed: Object.fromEntries(
-            Array.from({ length: 260 }, (_, index) => [`key${index}`, `value ${index}`]),
+            Array.from({ length: MAX_LEAVES + 60 }, (_, index) => [
+              `key${index}`,
+              `value ${index}`,
+            ]),
           ),
         },
         configuredReq,
@@ -97,9 +101,9 @@ describe('the write guard’s refusal', () => {
     })
 
     it('accepts a patch it scanned to the end', async () => {
-      expect(await derivedRefusalFor({ proposed: { title: 'Thursday class' } }, configuredReq)).toBe(
-        null,
-      )
+      expect(
+        await derivedRefusalFor({ proposed: { title: 'Thursday class' } }, configuredReq),
+      ).toBe(null)
     })
 
     it('scans nothing, and refuses nothing, when the column is absent', async () => {

@@ -150,12 +150,15 @@ function count(leaves: ProposalLeaves): number {
 }
 
 /**
- * ⚠ **A proposed rich-text column is a Lexical tree, and that is what sets this
- * bound.** `description` nests `root → children → paragraph → children → text`
- * before any formatting, so the 6 the screening job's own walk used cut off
- * above every text node — the create-time path list it replaced had no bound at
- * all and did reach them. A list or a quote adds two levels each, so the bound
- * sits far above a real proposal while still ending the recursion.
+ * ⚠ **Both bounds are sized for a Lexical tree, because tripping either is now
+ * a refusal** — a bound a real proposal reaches refuses a real sender.
+ * `description` nests `root → children → paragraph → children → text` before
+ * any formatting, and a list or a quote adds two levels each. One formatted
+ * paragraph banks about 11 string leaves, mostly Lexical's own `type`, `mode`
+ * and `direction` keys: 200 refused a 20-paragraph description, 2000 clears
+ * about 180.
+ *
+ * Exported so a spec sizes its fixtures off the bound instead of restating it.
  */
-const MAX_DEPTH = 20
-const MAX_LEAVES = 200
+export const MAX_DEPTH = 20
+export const MAX_LEAVES = 2000
