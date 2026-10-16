@@ -22,11 +22,15 @@ import { virtualUrlField } from '@/plugins/storage/urlFields'
 import { KeyframeData } from '@/types/frames'
 
 import { meditationLectures } from './endpoints/lectures'
+import { requestMeditationTranscript } from './endpoints/requestTranscript'
 import { meditationSongs } from './endpoints/songs'
+import { meditationTranscript } from './endpoints/transcript'
 import { cacheMeditationNodeWeights } from './hooks/cacheMeditationNodeWeights'
+import { enqueueMeditationTranscription } from './hooks/enqueueMeditationTranscription'
 import { extractAudioDuration } from './hooks/extractAudioDuration'
 import { fallbackTitleAfterRead } from './hooks/fallbackTitle'
 import { filterMeditationsByLocale } from './hooks/filterMeditationsByLocale'
+import { markTranscriptOutdated } from './hooks/markTranscriptOutdated'
 
 /**
  * What `virtualJoinField`'s hook returns: the user-choices rows pointing at
@@ -106,7 +110,12 @@ const virtualJoinField = ({ name, on }: { name: string; on: string }): JSONField
 export const Meditations: CollectionConfig = {
   slug: 'meditations',
   trash: true,
-  endpoints: [meditationLectures, meditationSongs],
+  endpoints: [
+    meditationLectures,
+    meditationSongs,
+    meditationTranscript,
+    requestMeditationTranscript,
+  ],
   hooks: {
     beforeOperation: [filterMeditationsByLocale],
     beforeChange: [
@@ -115,7 +124,11 @@ export const Meditations: CollectionConfig = {
       // duration this save is about to store.
       extractAudioDuration,
       cacheMeditationNodeWeights,
+      // Beside `extractAudioDuration`, which is what proves `req.file` is
+      // readable in this chain. It writes only `meditation-transcripts`.
+      markTranscriptOutdated,
     ],
+    afterChange: [enqueueMeditationTranscription],
   },
   defaultPopulate: {
     // Exclude the expensive per-row afterRead virtual fields when a meditation

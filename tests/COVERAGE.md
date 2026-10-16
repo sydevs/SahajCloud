@@ -74,6 +74,7 @@ content collection.
 | Registration eligibility gate | `gateRegistration` on the unified create: the four refusal codes, 404 vs 409, a create with no event, a spam-flagged row freeing its seat, and both escapes (a non-client write, `skipRegistrationGate`) | `user-submissions-registration-gate` |
 | `/api/lectures/for-audience`          | Priority sampling, audience filter, subtitle/thumbnail fallback, clip metadata inheritance, `userChoices` membership and its per-request localized title (#526) | `lectures-for-audience`  |
 | `/api/meditations/lectures`           | Weight-based ranking, audience validation, frame cascade, auth gate, audience-feed fallback                        | `meditation-lectures`    |
+| `GET`/`POST /api/meditations/:id/transcript` | The 403 matrix (anonymous, an API client, a manager without the role, and a `meditations-editor` holding the role only in French — denied with no `?locale=`, allowed at `?locale=fr`, denied at `?locale=en`, #701), `400` for a malformed id and `404` for an unknown meditation, `409` with no recording, `status: 'none'` before any request, a second `POST` in flight queuing no second job, and the previous `segments` still returned while `outdated` is true | `meditation-transcription` |
 
 ## Scheduled jobs
 
@@ -87,6 +88,7 @@ content collection.
 | `deliverSubmission`              | Per-type dispatch and the retry boundary are exercised through the adapters and the outcome union; the registry is pinned total over `SUBMISSION_TYPES`, covering the window before `generate:types` where a missing deliverer is not yet a compile error; the mailing-list mapping (including that an opted-out address is never re-added, and that Klaviyo's request skips no suppression) is the unit file | unit: `submission-deliverers.spec.ts`, `mailing-list.spec.ts` |
 | `resetUsage` (cron)              | Usage-counter reset, `peakDailyRequests` preservation                     | `api`                                                                   |
 | `cacheMeditationNodeWeights` | Weight recomputation on meditation change                                     | `meditation-lectures` + unit: `compute-meditation-node-weights.spec.ts` |
+| `transcribeMeditation`           | A run reaching `completed` with the normalised cues and `provider: 'lemonfox'`, adding no meditation version; the stale-recording guard, where a run whose row no longer names its audio writes nothing; and a vendor body the normaliser refuses leaving `failed` with its message rather than a row stuck on `processing`. There is no sample provider: with no key the request never queues a job | `meditation-transcription` + unit: `lemonfox-response`, `lemonfox-client` |
 
 ## Cross-cutting subjects (helpers / utilities / RBAC)
 
