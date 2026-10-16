@@ -32,6 +32,7 @@ describe('POST /api/user-submissions/:id/review — locale and type gates', () =
 
   let frenchReviewer: Manager
   let rest: RestClient
+  let adminRest: RestClient
   let countryId: number
   let cityId: number
 
@@ -76,6 +77,12 @@ describe('POST /api/user-submissions/:id/review — locale and type gates', () =
       json: { action: 'reject' },
     })
 
+  const reviewAsAdmin = (id: number, query = '') =>
+    adminRest(`/api/user-submissions/${id}/review${query}`, {
+      method: 'POST',
+      json: { action: 'reject' },
+    })
+
   beforeAll(async () => {
     env = await createTestEnvironment()
     payload = env.payload
@@ -105,6 +112,9 @@ describe('POST /api/user-submissions/:id/review — locale and type gates', () =
     cityId = city.id
 
     rest = await createRestClientAs(env, frenchReviewer)
+
+    const admin = await testData.createManager(payload, { type: 'admin' })
+    adminRest = await createRestClientAs(env, admin)
   })
 
   afterAll(async () => {
@@ -124,6 +134,19 @@ describe('POST /api/user-submissions/:id/review — locale and type gates', () =
   it('allows it under the locale the reviewer holds roles in', async () => {
     const { status } = await review(await pendingSubmission(), '?locale=fr')
     expect(status).toBe(200)
+  })
+
+  /**
+   * An admin carries no roles, so `bypassPermissions` is the only thing that
+   * admits them — and the Accept / Reject buttons render for an admin anyway,
+   * since nothing in `SubmissionActions` gates on permission. Without the
+   * bypass the one caller who can see every submission is the one who cannot
+   * act on any, and the locale is beside the point: an admin has no per-locale
+   * roles to resolve.
+   */
+  it('allows an admin, under any locale and none', async () => {
+    expect((await reviewAsAdmin(await pendingSubmission(), '?locale=fr')).status).toBe(200)
+    expect((await reviewAsAdmin(await pendingSubmission())).status).toBe(200)
   })
 
   // One table, four intakes: without the type gate another type would reach

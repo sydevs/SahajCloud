@@ -10,3 +10,7 @@ export { parseBody } from './parseBody'
 export { parseQuery, type ParseQueryResult } from './parseQuery'
 export { requireActiveClient } from './requireActiveClient'
 export { requireActiveManager } from './requireActiveManager'
+export {
+  requireCollectionPermission,
+  requireManagerPermission,
+} from './requireManagerPermission'
