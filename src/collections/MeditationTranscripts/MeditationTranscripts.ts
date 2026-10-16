@@ -24,6 +24,15 @@ import { applyGlossaryToSegments } from './hooks/applyGlossaryToSegments'
 export const MeditationTranscripts: CollectionConfig = {
   slug: 'meditation-transcripts',
   admin: {
+    components: {
+      views: {
+        edit: { default: { Component: '@/components/admin/JobStageView/JobStageView' } },
+      },
+    },
+    // `processing` alone, never `queued`: that is the `status` default below,
+    // so naming it would hold every newly created row behind the waiting view
+    // with nothing to move it on. A queued row holds no worker's lease.
+    custom: { jobStage: { runningStages: ['processing'] } },
     hidden: true,
     useAsTitle: 'audioFilename',
   },
