@@ -59,13 +59,12 @@ export interface ProposalLeaves {
  * proposal reaches — the column's own schema caps it at 60 properties.
  *
  * `prefix` names the patch's own column, so a refusal names a path the sender
- * posted. Pass none where the caller's message is about the patch rather than the
- * request that carried it.
+ * posted. It is required because this module knows no column of its own.
  */
 export function proposalLeaves(
   value: unknown,
   fields: FlattenedField[],
-  prefix = '',
+  prefix: string,
 ): ProposalLeaves {
   const leaves: ProposalLeaves = { urlScan: {}, emails: {}, truncated: false }
   collect(value, fields, prefix, 0, leaves)
@@ -89,7 +88,7 @@ function collect(
     // An empty string can hold no URL and is no address, so keeping it would
     // spend the MAX_LEAVES budget on values that cannot trip either check and
     // could crowd out one that does.
-    if (value.trim() !== '') place(into, 'urlScan', prefix || 'proposed', value)
+    if (value.trim() !== '') place(into, 'urlScan', prefix, value)
     return
   }
 

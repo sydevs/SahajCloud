@@ -32,36 +32,43 @@ const EVENTS = fields(
   },
 )
 
+/**
+ * Both real callers name the patch's own column, so every fixture here does
+ * too — a bare path is a shape nothing posts.
+ */
+const leavesOf = (value: unknown, declared: FlattenedField[] = EVENTS) =>
+  proposalLeaves(value, declared, 'proposed')
+
 describe('proposalLeaves', () => {
   it('scans a free-text column the caller never named', () => {
     // The defect this exists for: `contactPhone` is proposable free text that
     // no hand-written path list carried, so a link in it was scanned by
     // neither layer.
-    const leaves = proposalLeaves({ contactPhone: 'call 07700 or buy-now.example' }, EVENTS)
+    const leaves = leavesOf({ contactPhone: 'call 07700 or buy-now.example' })
 
-    expect(leaves.urlScan).toEqual({ contactPhone: 'call 07700 or buy-now.example' })
+    expect(leaves.urlScan).toEqual({ 'proposed.contactPhone': 'call 07700 or buy-now.example' })
   })
 
   it('names a nested leaf by its dotted path', () => {
     // `checkNoUrls` reads the top level only, so an unflattened patch would
     // wave a link in `address.street` through — and the key is what names the
     // offending column in the refusal a sender reads.
-    const leaves = proposalLeaves({ address: { street: 'see cheap.shop' } }, EVENTS)
+    const leaves = leavesOf({ address: { street: 'see cheap.shop' } })
 
-    expect(leaves.urlScan).toEqual({ 'address.street': 'see cheap.shop' })
+    expect(leaves.urlScan).toEqual({ 'proposed.address.street': 'see cheap.shop' })
   })
 
   it('routes an email column to the address check instead of the URL scan', () => {
-    const leaves = proposalLeaves({ contactEmail: 'host@example.org' }, EVENTS)
+    const leaves = leavesOf({ contactEmail: 'host@example.org' })
 
-    expect(leaves.emails).toEqual({ contactEmail: 'host@example.org' })
+    expect(leaves.emails).toEqual({ 'proposed.contactEmail': 'host@example.org' })
     expect(leaves.urlScan).toEqual({})
   })
 
   it('exempts a column declared to hold a link', () => {
     // `urlField` marks what it builds `custom.holdsUrl`, because a built URL
     // column is indistinguishable from free text.
-    const leaves = proposalLeaves({ website: 'https://example.org/classes' }, EVENTS)
+    const leaves = leavesOf({ website: 'https://example.org/classes' })
 
     expect(leaves).toEqual({ urlScan: {}, emails: {}, truncated: false })
   })
@@ -69,38 +76,33 @@ describe('proposalLeaves', () => {
   it('exempts a string value, never the key above it', () => {
     // Exempting the key hid every leaf beneath it: `website` here is an object,
     // so its own leaves are still free text somebody could hide a link in.
-    const leaves = proposalLeaves({ website: { note: 'visit cheap.shop' } }, EVENTS)
+    const leaves = leavesOf({ website: { note: 'visit cheap.shop' } })
 
-    expect(leaves.urlScan).toEqual({ 'website.note': 'visit cheap.shop' })
+    expect(leaves.urlScan).toEqual({ 'proposed.website.note': 'visit cheap.shop' })
   })
 
   it('descends an unrecognised key into nothing, which exempts nothing', () => {
     // Resolving a dotted path instead reached a column the patch never nested
     // under, so a link under a made-up key inherited `website`'s exemption.
-    const leaves = proposalLeaves({ title: { website: 'visit cheap.shop' } }, EVENTS)
+    const leaves = leavesOf({ title: { website: 'visit cheap.shop' } })
 
-    expect(leaves.urlScan).toEqual({ 'title.website': 'visit cheap.shop' })
+    expect(leaves.urlScan).toEqual({ 'proposed.title.website': 'visit cheap.shop' })
   })
 
   it('drops an empty value, which can trip neither check', () => {
-    const leaves = proposalLeaves({ title: '   ', contactEmail: '' }, EVENTS)
+    const leaves = leavesOf({ title: '   ', contactEmail: '' })
 
     expect(leaves).toEqual({ urlScan: {}, emails: {}, truncated: false })
   })
 
   it('keys a bare string under the prefix the caller named', () => {
-    // The write guard names the column the sender posted; the screening job's
-    // message is about the patch itself.
-    expect(proposalLeaves('buy-now.example', EVENTS, 'proposed').urlScan).toEqual({
-      proposed: 'buy-now.example',
-    })
-    expect(proposalLeaves('buy-now.example', EVENTS).urlScan).toEqual({
-      proposed: 'buy-now.example',
-    })
+    // A refusal has to name an input the sender posted, and a patch that is
+    // itself a string has no key of its own to name.
+    expect(leavesOf('buy-now.example').urlScan).toEqual({ proposed: 'buy-now.example' })
   })
 
   it('prefixes every nested leaf, so a refusal names a path the sender posted', () => {
-    const leaves = proposalLeaves({ address: { street: 'see cheap.shop' } }, EVENTS, 'proposed')
+    const leaves = leavesOf({ address: { street: 'see cheap.shop' } })
 
     expect(leaves.urlScan).toEqual({ 'proposed.address.street': 'see cheap.shop' })
   })
@@ -114,11 +116,11 @@ describe('proposalLeaves', () => {
     const deep = (levels: number) =>
       Array.from({ length: levels }).reduce<unknown>((inner) => ({ nested: inner }), 'cheap.shop')
 
-    expect(Object.keys(proposalLeaves(deep(5), EVENTS).urlScan)).toHaveLength(1)
-    expect(proposalLeaves(deep(5), EVENTS).truncated) /* within the bound */
+    expect(Object.keys(leavesOf(deep(5)).urlScan)).toHaveLength(1)
+    expect(leavesOf(deep(5)).truncated) /* within the bound */
       .toBe(false)
 
-    const cut = proposalLeaves(deep(60), EVENTS)
+    const cut = leavesOf(deep(60))
     expect(cut.urlScan).toEqual({})
     expect(cut.truncated).toBe(true)
   })
@@ -130,18 +132,15 @@ describe('proposalLeaves', () => {
    * the buckets gets a clean verdict on a patch nothing finished scanning.
    */
   it('reports truncation when a later key is never reached', () => {
-    const leaves = proposalLeaves(
-      {
-        description: Object.fromEntries(
-          Array.from({ length: MAX_LEAVES + 10 }, (_, index) => [
-            `node${index}`,
-            `paragraph ${index}`,
-          ]),
-        ),
-        title: 'join us at cheap.shop',
-      },
-      EVENTS,
-    )
+    const leaves = leavesOf({
+      description: Object.fromEntries(
+        Array.from({ length: MAX_LEAVES + 10 }, (_, index) => [
+          `node${index}`,
+          `paragraph ${index}`,
+        ]),
+      ),
+      title: 'join us at cheap.shop',
+    })
 
     expect(Object.values(leaves.urlScan)).not.toContain('join us at cheap.shop')
     expect(leaves.truncated).toBe(true)
@@ -152,10 +151,9 @@ describe('proposalLeaves', () => {
    * later write discarded the link outright before `place` suffixed collisions.
    */
   it('keeps both leaves when two keys compose the same path', () => {
-    const leaves = proposalLeaves(
-      { address: { 'street.note': 'join us at cheap.shop', street: { note: 'ok' } } },
-      EVENTS,
-    )
+    const leaves = leavesOf({
+      address: { 'street.note': 'join us at cheap.shop', street: { note: 'ok' } },
+    })
 
     expect(Object.values(leaves.urlScan)).toContain('join us at cheap.shop')
     expect(Object.values(leaves.urlScan)).toContain('ok')
@@ -169,24 +167,20 @@ describe('proposalLeaves', () => {
    * create-time path list did reach.
    */
   it('reaches the text node of a rich-text column', () => {
-    const leaves = proposalLeaves(
-      {
-        description: {
-          root: {
-            children: [
-              {
-                children: [
-                  { text: 'Every Tuesday. ' },
-                  { children: [{ text: 'buy at cheap.shop' }] },
-                ],
-              },
-            ],
-          },
+    const leaves = leavesOf({
+      description: {
+        root: {
+          children: [
+            {
+              children: [
+                { text: 'Every Tuesday. ' },
+                { children: [{ text: 'buy at cheap.shop' }] },
+              ],
+            },
+          ],
         },
       },
-      EVENTS,
-      'proposed',
-    )
+    })
 
     expect(Object.values(leaves.urlScan)).toContain('buy at cheap.shop')
   })
@@ -222,23 +216,19 @@ describe('proposalLeaves', () => {
       paragraph(text(`Paragraph ${index}. `), text('Bold', 1), text(' and the rest of it.')),
     )
 
-    const leaves = proposalLeaves(
-      {
-        title: 'Thursday class in Hull',
-        description: {
-          root: {
-            children: [...body, paragraph(text('join us at cheap.shop'))],
-            direction: 'ltr',
-            format: '',
-            indent: 0,
-            type: 'root',
-            version: 1,
-          },
+    const leaves = leavesOf({
+      title: 'Thursday class in Hull',
+      description: {
+        root: {
+          children: [...body, paragraph(text('join us at cheap.shop'))],
+          direction: 'ltr',
+          format: '',
+          indent: 0,
+          type: 'root',
+          version: 1,
         },
       },
-      EVENTS,
-      'proposed',
-    )
+    })
 
     expect(leaves.truncated).toBe(false)
     expect(Object.values(leaves.urlScan)).toContain('join us at cheap.shop')
@@ -248,7 +238,7 @@ describe('proposalLeaves', () => {
     const wide = Object.fromEntries(
       Array.from({ length: MAX_LEAVES + 100 }, (_, index) => [`key${index}`, `value ${index}`]),
     )
-    const leaves = proposalLeaves(wide, EVENTS)
+    const leaves = leavesOf(wide)
 
     expect(Object.keys(leaves.urlScan).length).toBeLessThanOrEqual(MAX_LEAVES)
     expect(leaves.truncated).toBe(true)
@@ -270,8 +260,6 @@ describe('proposalLeaves', () => {
       ]),
     )
 
-    expect(Object.keys(proposalLeaves(patch, manyEmails).emails).length).toBeLessThanOrEqual(
-      MAX_LEAVES,
-    )
+    expect(Object.keys(leavesOf(patch, manyEmails).emails).length).toBeLessThanOrEqual(MAX_LEAVES)
   })
 })

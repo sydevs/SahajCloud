@@ -27,6 +27,6 @@ export function screenProposalContent(
   // the config the only verdict this scan can reach is the destructive one.
   if (eventFields.length === 0) return null
 
-  const urls = checkNoUrls(proposalLeaves(proposed, eventFields).urlScan)
+  const urls = checkNoUrls(proposalLeaves(proposed, eventFields, 'proposed').urlScan)
   return urls.ok ? null : urls.message
 }
