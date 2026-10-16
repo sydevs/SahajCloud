@@ -2,7 +2,9 @@
  * The pure half of `JobStageView`: what a collection's declaration selects,
  * and the two structural properties the view's acceptance criteria name but no
  * assertion about a rendered page can reach — that it names no collection, and
- * that it never fetches.
+ * that it never fetches. The third, that it forwards every `DocumentSlots`
+ * member, is the `PickedClientProps` annotation's: a type catches the Payload
+ * upgrade that adds one, where a regex over the installed `.d.ts` could not.
  *
  * The declaration cases below are inline literals, but the pair that matters
  * most is read off the real `meditation-transcripts` config: that the
@@ -29,8 +31,6 @@ import { hasDirective, SRC, sourceOf } from '../utils/importGraph'
 const VIEW_FILES = ['JobStageView.tsx', 'stages.ts'].map((file) =>
   join(SRC, 'components/admin/JobStageView', file),
 )
-
-const PAYLOAD_ADMIN_TYPES = join(SRC, '../node_modules/payload/dist/admin/types.d.ts')
 
 /**
  * Both checks below read the code without its prose. The view explains in
@@ -135,26 +135,6 @@ describe('the view itself', () => {
     for (const file of VIEW_FILES) {
       expect(codeOf(file)).not.toMatch(/event-imports|eventImports|meditation-transcripts/)
     }
-  })
-
-  /**
-   * The one silent failure in the fall-through: every `DocumentSlots` member is
-   * optional, so a slot a Payload release adds would be dropped with no type
-   * error, and the only symptom is a control missing from this view while the
-   * default view still shows it. Read off the installed declaration, so the
-   * upgrade that adds one fails here.
-   */
-  it('forwards every document slot Payload declares', () => {
-    const declaration = sourceOf(PAYLOAD_ADMIN_TYPES).match(
-      /export type DocumentSlots = \{([^}]*)\}/,
-    )
-    if (!declaration) throw new Error(`No DocumentSlots in ${PAYLOAD_ADMIN_TYPES}`)
-
-    const slots = [...declaration[1].matchAll(/^\s*(\w+)\??:/gm)].map(([, key]) => key)
-    expect(slots.length).toBeGreaterThan(5)
-
-    const forwarding = codeOf(VIEW_FILES[0])
-    for (const slot of slots) expect(forwarding).toContain(`${slot}: props.${slot},`)
   })
 
   it('stays a server component that fetches nothing', () => {

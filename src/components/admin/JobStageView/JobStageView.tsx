@@ -6,13 +6,25 @@ import { toWords } from 'payload/shared'
 import { jobStageWait, readJobStageConfig } from './stages'
 
 /**
+ * Every client prop, required. Each `DocumentSlots` member is optional, so a
+ * slot a Payload release adds would otherwise be dropped with no type error
+ * and no symptom but a missing control — keying off `Required<>` makes that
+ * upgrade a TS2741 here. Keying off `Required<>` rather than mapping with
+ * `-?` is load-bearing: `-?` strips `undefined` from the value type too, and
+ * every slot Payload hands over is `ReactNode | undefined`.
+ */
+type PickedClientProps = {
+  [K in keyof Required<DocumentViewClientProps>]: DocumentViewServerProps[K]
+}
+
+/**
  * Payload hands a view the server and client prop sets merged, and renders
  * `DefaultEditView` with the client half alone, so the fall-through rebuilds
  * it. Picked rather than omitted so that a prop Payload adds on the server
  * side stays there: `req` and `payload` carry methods, and a client component
  * handed either throws.
  */
-function clientPropsOf(props: DocumentViewServerProps): DocumentViewClientProps {
+function clientPropsOf(props: DocumentViewServerProps): PickedClientProps {
   return {
     BeforeDocumentControls: props.BeforeDocumentControls,
     Description: props.Description,
