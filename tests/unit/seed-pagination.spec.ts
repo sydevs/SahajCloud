@@ -347,11 +347,20 @@ describe('validatePaginationParam', () => {
 
 const ALL_SCRIPTS = Object.keys(EXPECTED_COUNTS) as ScriptName[]
 
+// Each script that states no floor, and the reason it gives. A closed list in
+// both directions: a new `{}` entry fails the membership case, and a reason
+// rewritten into something vaguer fails its own.
+const NO_FLOOR_REASONS: Partial<Record<ScriptName, RegExp>> = {
+  'meditation-transcripts': /the target still carries/,
+  'wm-app-translations': /global/,
+  translations: /global/,
+}
+
 describe('a script that can state no floor says so', () => {
   const unverifiable = ALL_SCRIPTS.filter((script) => isNotApplicable(EXPECTED_COUNTS[script]))
 
-  it('covers the globals-only scripts', () => {
-    expect(unverifiable).toEqual(['wm-app-translations', 'translations'])
+  it('covers the globals-only scripts, and the one whose floor is the target\'s own library', () => {
+    expect(unverifiable).toEqual(Object.keys(NO_FLOOR_REASONS))
   })
 
   unverifiable.forEach((script) => {
@@ -360,7 +369,7 @@ describe('a script that can state no floor says so', () => {
 
       expect(results).toEqual([])
       expect(allPassed).toBe(true)
-      expect(skippedReason).toMatch(/global/)
+      expect(skippedReason).toMatch(NO_FLOOR_REASONS[script]!)
       // Nothing to count and no floor to count against, consistently.
       expect(getExpectedCounts(script)).toEqual({})
       expect(getCountTargets(script)).toEqual([])

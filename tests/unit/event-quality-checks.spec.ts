@@ -15,21 +15,29 @@ import { EVENT_TITLE_DEFAULTS } from '@/lib/eventTitle/compose'
 /** Fixed clock so the stale-date check cannot drift with the calendar. */
 const NOW = new Date('2026-06-15T00:00:00.000Z')
 
-/** Lexical value for plain paragraphs, as the Atlas importer writes them. */
-const richText = (...paragraphs: string[]) => ({
-  root: {
-    type: 'root',
-    children: paragraphs.map((text) => ({
-      type: 'paragraph',
-      children: [{ type: 'text', text, version: 1 }],
-      version: 1,
-    })),
-    direction: null,
-    format: '',
-    indent: 0,
-    version: 1,
-  },
+const lexicalRoot = (children: unknown[]) => ({
+  root: { type: 'root', children, direction: null, format: '', indent: 0, version: 1 },
 })
+
+const textNode = (text: string) => ({ type: 'text', text, version: 1 })
+
+/** Lexical value for plain paragraphs, as the Atlas importer writes them. */
+const richText = (...paragraphs: string[]) =>
+  lexicalRoot(
+    paragraphs.map((text) => ({ type: 'paragraph', children: [textNode(text)], version: 1 })),
+  )
+
+/** One paragraph whose runs are divided by soft breaks, as Shift+Enter writes them. */
+const softBreak = (...runs: string[]) =>
+  lexicalRoot([
+    {
+      type: 'paragraph',
+      children: runs
+        .map(textNode)
+        .flatMap((node, index) => (index ? [{ type: 'linebreak', version: 1 }, node] : [node])),
+      version: 1,
+    },
+  ])
 
 /**
  * A listing that passes every check, so each case can fail exactly one thing.
@@ -182,6 +190,40 @@ describe('description', () => {
         expect(report.checks.filter((r) => r.status === 'failed')).toHaveLength(report.openCount)
       }
     })
+  })
+
+  it('reads across a soft break, so what follows one is still judged', () => {
+    // A soft break has to separate the words either side of it. Joined with
+    // nothing, `since2019` passes the stale-date check's word boundary and
+    // `MeetingHouse` matches no address phrase — both findings go missing.
+    const staleDate = goodEvent({
+      description: softBreak(
+        'A quiet hour of guided meditation for anyone who works nights. Running since',
+        '2019 and still going.',
+      ),
+    })
+    expect(resultFor(staleDate, 'description.quality')?.detail).toContain('a date that has passed')
+
+    const venue = goodEvent({
+      description: softBreak(
+        'A quiet hour of guided meditation for night workers at Friends Meeting',
+        'House, every week.',
+      ),
+    })
+    expect(resultFor(venue, 'description.quality')?.detail).toContain('the address')
+  })
+
+  it('counts a block boundary as the blank line it renders as', () => {
+    // The floor is a raw length, so it is the one check a block separator can
+    // move. Two blocks this size reach it only if the boundary counts for the
+    // two characters a rendered blank line takes.
+    const block = 'x'.repeat((DESCRIPTION_MIN_LENGTH - 2) / 2)
+    expect(failedKeys(goodEvent({ description: richText(block, block) }))).not.toContain(
+      'description.missing',
+    )
+    expect(failedKeys(goodEvent({ description: richText(`${block} ${block}`) }))).toContain(
+      'description.missing',
+    )
   })
 
   it('names exactly what the description repeats', () => {

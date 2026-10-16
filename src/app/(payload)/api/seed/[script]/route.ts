@@ -49,6 +49,7 @@ const VALID_SCRIPTS: ScriptName[] = [
   'tags',
   'wemeditate',
   'meditations',
+  'meditation-transcripts',
   'storyblok',
   'wm-app-translations',
   'translations',
@@ -408,6 +409,11 @@ async function getImporter(
     case 'meditations': {
       const { MeditationsImporter } = await import('../../../../../../seeds/meditations/import')
       return new MeditationsImporter(options)
+    }
+    case 'meditation-transcripts': {
+      const { MeditationTranscriptsImporter } =
+        await import('../../../../../../seeds/meditation-transcripts/import')
+      return new MeditationTranscriptsImporter(options)
     }
     case 'storyblok': {
       const token = process.env.STORYBLOK_ACCESS_TOKEN

@@ -76,6 +76,7 @@ Each script's collection metadata lives in `seeds/lib/expectedCounts.ts`:
 | meditations | narrators     | 2     | No         | None                    |
 | meditations | frames        | 60    | Yes        | None                    |
 | meditations | meditations   | 73    | Yes        | narrators, frames, tags |
+| meditation-transcripts | meditation-transcripts | 126 | No | meditations          |
 | storyblok   | lessons       | 17    | Yes        | None                    |
 | storyblok   | lectures      | 0     | No         | None                    |
 | atlas       | managers      | 495   | No         | None                    |
@@ -102,6 +103,7 @@ automatically — printing per-batch progress as it goes.
 | storyblok   | `pnpm seed storyblok`   | STORYBLOK_ACCESS_TOKEN                     | lessons, images, files                |
 | wemeditate  | `pnpm seed wemeditate`  | data.json (pre-extracted)                  | pages, authors, page-tags, albums     |
 | meditations | `pnpm seed meditations` | Run `tags` + `wemeditate` first, data.json | meditations, frames, music, narrators |
+| meditation-transcripts | `pnpm seed meditation-transcripts` | The meditations the transcripts were made from | meditation-transcripts |
 | tags        | `pnpm seed tags`        | None                                       | user-choices, music-tags              |
 | atlas       | `pnpm seed atlas`       | The 8 JSON dumps in `seeds/atlas/data/`    | managers, regions, users, events, user-submissions, clients |
 | translations | `pnpm seed translations` | None                                      | the three translations globals (see below) |
@@ -181,6 +183,52 @@ unchanged rows re-port mechanically. See [atlas/AGENTS.md](atlas/AGENTS.md)
 for the procedure. For the Atlas backend surface and importer decisions,
 see [atlas/AGENTS.md](atlas/AGENTS.md) and
 [atlas/MIGRATION_PLAN.md](atlas/MIGRATION_PLAN.md).
+
+### `meditation-transcripts` — where the data came from, and the id it cannot trust
+
+`data.json` holds the 126 transcripts the library's recordings were already
+transcribed into. The source files live on `proposal/897-transcripts`, which is
+**reference and never merges** — only its data enters this repository, through
+`generate.ts`. To regenerate:
+
+```bash
+mkdir -p /tmp/897-transcripts
+git archive origin/proposal/897-transcripts seeds/meditation-transcripts \
+  | tar -x -C /tmp/897-transcripts --strip-components=2
+pnpm tsx seeds/meditation-transcripts/generate.ts /tmp/897-transcripts
+git diff --exit-code seeds/meditation-transcripts/data.json   # reproducible
+```
+
+The conversion runs each file through `normalizeLemonfoxResponse`
+(`src/collections/MeditationTranscripts/lemonfox.ts`), not a hand-written
+`.map()`, so one definition of "what a phrase is" serves this import and the
+live transcription — and the 86,571 word timings are dropped by the code that
+will drop them at runtime.
+
+⚠ **Each entry's `meditationId` is production's row number, so it is a hint and
+the filename is the proof.** The meditations seed assigns its own ids, so on any
+other database id 5 is a different recording, and a transcript on the wrong
+meditation is worse than none. An entry imports only when the resolved
+meditation's `filename`, less any `preview-` prefix, equals the entry's
+`audioFilename`. On a locally seeded database expect most entries to skip on a
+disagreeing filename — that is the guard working, not a failure.
+
+Everything unresolved is one warning and a skip, never an error: four of the 126
+are known absences (83, 121, 122, 143 are superseded uploads), and a non-zero
+error count would report the whole run as failed. `--dry-run` validates the file
+alone and cannot say which ids would skip — that answer needs the library.
+
+**Loading production is an operator step.** The PR ships the script; a person
+runs it against the live library:
+
+```bash
+ADMIN_TOKEN=<payload-token cookie> SAHAJCLOUD_URL=https://cloud.sydevelopers.com \
+  pnpm seed meditation-transcripts
+```
+
+The glossary is applied by the collection's `applyGlossaryToSegments` hook, not
+here. `language` is the meditation's own `locale`, sent on every write so the
+hook has its key.
 
 ## Common flags
 
@@ -411,10 +459,17 @@ No errors - import completed successfully!
 4. Register it in `getImporter()` in
    `src/app/(payload)/api/seed/[script]/route.ts`.
 5. Add it to the "Available Scripts" table above.
+6. **Does it read a committed data file?** Export its path from
+   `seeds/lib/dataFiles.ts` and register it under the script's key in
+   `SCRIPT_DATA_FILES`. An unregistered file is never uploaded, so the
+   importer falls back to a disk read that the production build trace
+   excludes — the script works locally and fails on every deployed target.
+   Import the exported constant; never spell the path twice.
 
 ```typescript
 import path from 'path'
 import { BaseImporter, type BaseImportOptions } from '../lib'
+import { MY_SCRIPT_DATA_FILE } from '../lib/dataFiles'
 
 export interface MyScriptOptions extends BaseImportOptions {
   // Add any script-specific options here
@@ -450,9 +505,8 @@ export class MyScriptImporter extends BaseImporter<MyScriptOptions> {
   private async loadData(): Promise<MyDataType[]> {
     const { loadJsonData } = await import('../lib/dataLoader')
     return loadJsonData<MyDataType[]>({
-      localPath: 'seeds/my-script/data.json',
-      workerUrl:
-        'https://raw.githubusercontent.com/sydevs/SahajCloud/main/seeds/my-script/data.json',
+      localPath: MY_SCRIPT_DATA_FILE,
+      inlineContent: this.options.inlineData?.[MY_SCRIPT_DATA_FILE],
     })
   }
 }
