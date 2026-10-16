@@ -271,6 +271,51 @@ describe('Job schedules', () => {
     })
 
     /**
+     * The source text of each `jobs.queue(…)` call, parens balanced. A call this
+     * cannot balance yields an empty string, so the case below reports it rather
+     * than scanning on into somebody else's `queue:`.
+     */
+    const enqueueCalls = (source: string): string[] =>
+      [...source.matchAll(/\bjobs\.queue\(/g)].map((match) => {
+        const open = match.index! + match[0].length - 1
+        let depth = 0
+
+        for (let at = open; at < source.length; at++) {
+          if (source[at] === '(') depth++
+          else if (source[at] === ')' && --depth === 0) return source.slice(open, at + 1)
+        }
+
+        return ''
+      })
+
+    /**
+     * ⚠ The driven-queue scan below matches `queue: '<literal>'`, and the two
+     * shapes it cannot see both enqueue onto a queue nothing drives. No `queue:`
+     * key at all takes `default`, which no `autoRun` entry names — so the
+     * easiest call to write is the one whose row waits forever. And
+     * `queue: CONSTANT`, the shape `plugins/login/invitations.ts` uses for its
+     * own name, reads as no queue at all. So a literal is the contract at an
+     * enqueue site: widen both this case and that scan before spelling one any
+     * other way.
+     */
+    it('names its queue with a literal at every call', () => {
+      const unnamed: string[] = []
+
+      for (const file of enqueueingFiles()) {
+        const calls = enqueueCalls(sourceOf(file))
+
+        // A file the walker finds no call in would pass this case by vacuum.
+        if (calls.length === 0) unnamed.push(`${relative(SRC, file)} (no call matched)`)
+
+        for (const call of calls) {
+          if (!/\bqueue:\s*'[^']+'/.test(call)) unnamed.push(relative(SRC, file))
+        }
+      }
+
+      expect(unnamed).toEqual([])
+    })
+
+    /**
      * Read from the file's whole text rather than from inside the call, so a
      * queue named by a `schedule:` entry or a queue-run helper in the same file
      * is checked too. Over-inclusive on purpose: every queue named anywhere in
