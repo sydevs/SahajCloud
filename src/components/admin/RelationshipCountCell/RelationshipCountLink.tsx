@@ -4,7 +4,7 @@ import type { DefaultCellComponentProps } from 'payload'
 
 import Link from 'next/link'
 
-import { SelectableCell } from '@/components/admin/drawerRowSelect'
+import { SelectableCell } from '@/components/admin/helpers/drawerRowSelect'
 
 type RelationshipCountLinkProps = Partial<
   Pick<DefaultCellComponentProps, 'collectionSlug' | 'link' | 'rowData'>

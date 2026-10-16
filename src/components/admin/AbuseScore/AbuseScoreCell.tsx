@@ -2,7 +2,7 @@
 
 import type { DefaultCellComponentProps } from 'payload'
 
-import { SelectableCell } from '@/components/admin/drawerRowSelect'
+import { SelectableCell } from '@/components/admin/helpers/drawerRowSelect'
 import type { ClientAbuseScore } from '@/payload-types'
 
 import { AbuseScoreDisplay } from './AbuseScoreDisplay'

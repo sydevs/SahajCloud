@@ -4,7 +4,7 @@ import type { DefaultCellComponentProps } from 'payload'
 
 import { Link, Thumbnail } from '@payloadcms/ui'
 
-import { SelectableCell } from '@/components/admin/drawerRowSelect'
+import { SelectableCell } from '@/components/admin/helpers/drawerRowSelect'
 
 /**
  * Props for BaseThumbnailCell extending Payload's DefaultCellComponentProps
