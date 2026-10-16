@@ -14,7 +14,7 @@ Production uses Cloudflare-native storage. Development falls back to local files
 | --- | --- | --- |
 | **Cloudflare Images** | `images` (uploads), also referenced from albums, app-cards, meditations, lectures, authors, lessons, page blocks | `https://imagedelivery.net/<hash>/<imageId>/public` |
 | **Cloudflare Stream** | `videos`, `frames` (video MIME types) | thumbnails: `.../thumbnails/thumbnail.jpg`. HLS: `.../manifest/video.m3u8` (`hlsUrl`, also the generic `url`). MP4: `.../downloads/default.mp4` (`mp4Url`) |
-| **R2 (S3 API)** | `meditations`, `songs`, `lessons`, `files`, `user-choices`, `song-tags`, `event-imports`, plus mixed-media fallthrough on `frames`/`files` | `<CLOUDFLARE_R2_DELIVERY_URL>/<filename>` — the key is a bare filename, `preview-`-prefixed outside production |
+| **R2 (S3 API)** | `meditations`, `songs`, `files`, `user-choices`, `song-tags`, `event-imports`, plus mixed-media fallthrough on `frames`/`files` | `<CLOUDFLARE_R2_DELIVERY_URL>/<filename>` — the key is a bare filename, `preview-`-prefixed outside production |
 
 ⚠ **One collection is not served from the URL above, and the difference is access control.** `cloudStoragePlugin` takes `disablePayloadAccessControl`, and `storagePlugin` passes it `true` — the publishing value — for every collection **except** those in `PAYLOAD_SERVED_COLLECTIONS`, today `event-imports` alone. `true` is what mounts no handler on Payload's own file route, leaving R2 as the only way to the bytes and the random suffix in the filename as the only thing in front of them. That is right for an image and wrong for a document: an import CSV holds contact names, phone numbers and email addresses for every class in it, which is exactly what naming the collection in `RESTRICTED_COLLECTIONS` exists to withhold. Listed, the flag is `false`, so `url` points at `/api/<slug>/file/<filename>` and Payload's `checkFileAccess` runs the collection's own `read` — the `Where` a document-manager grant returns included, applied as a constraint on the document behind the filename.
 
@@ -79,6 +79,7 @@ A preview holds no unmarked row for this recipe to find, so make one (#704):
 | --- | --- |
 | `storagePlugin.ts` | Plugin orchestration, adapter routing, R2 hook injection |
 | `uploadNotice.ts` | The uploading notice, mounted on every `upload` collection above the plugin's early returns (`docs/rules/admin-ui.md`) |
+| `uploadValidation.ts` | The size ceilings an upload has to fit, the per-category limits and allowed MIME types, and the sentence a refused upload gets back, which `@/plugins/uploadErrors` rebuilds the request gate's 413 around. `DEPLOYMENT.md` owns the ordering rule |
 | `cloudflareImagesAdapter.ts` | Image uploads to Cloudflare Images |
 | `cloudflareStreamAdapter.ts` | Video uploads to Cloudflare Stream (does not enable downloads — the webhook does) |
 | `cloudflareStreamWebhook.ts` | Pure helpers for the webhook handler (signature verify + downloads call) |
@@ -89,6 +90,13 @@ A preview holds no unmarked row for this recipe to find, so make one (#704):
 | `mimeUtils.ts` | Shared `getMimeCategory()` |
 | `urlFields.ts` | Virtual URL field factories |
 | `adminThumbnail.ts` | `videoAdminThumbnail`, the `upload.adminThumbnail` every video-capable collection mounts |
+
+⚠ **A `FileValidationError` must keep a non-500 `status`.** The adapters throw it from
+`handleUpload`, so it reaches `routeError`, and `isErrorPublic` discloses an error's message
+only when its status is set and is not 500. Without one the caller gets "Something went wrong."
+and the size the message names is thrown away (#939). It is also why these refusals never appear
+locally: the adapters that run `validateFileUpload` are registered only where every Cloudflare
+credential is set, so a dev machine on the local-storage fallback never reaches them.
 
 ## URL field factories (`urlFields.ts`)
 
@@ -135,7 +143,7 @@ const client = new S3Client({
 
 The fix is a `beforeOperation` hook (`createR2FilenameBeforeOperationHook`) that pre-generates the final R2 key from `req.file.name` before Payload derives upload metadata. The adapter confirms `req.context._r2PreassignedFilename` is set and skips its own slugify pass, to avoid double-suffixing.
 
-`storagePlugin.ts` injects the hook into every R2-backed collection, in two modes: `'always'` for pure-R2 collections (`meditations`, `songs`, `user-choices`, `song-tags`), and `'other-only'` for mixed media (`frames`, `files`), where Images/Stream filenames are left alone and only the "other" fallthrough goes through R2.
+`storagePlugin.ts` injects the hook into every R2-backed collection, in two modes: `'always'` for pure-R2 collections (`meditations`, `songs`, `user-choices`, `song-tags`, `event-imports`), and `'other-only'` for mixed media (`frames`, `files`), where Images/Stream filenames are left alone and only the "other" fallthrough goes through R2.
 
 ⚠️ The mode dictionary (`r2FilenameHookModes`) is a second registry, parallel to the `cloudStoragePlugin` collections block. Keep them in sync when adding an R2-backed collection, or filename drift returns silently.
 

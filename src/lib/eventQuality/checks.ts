@@ -1,6 +1,7 @@
 import type { CheckContext, EventQualityInput, QualityCheck, RedundancyKind } from './types'
 
 import { addressPlaceName, firstAddressSegment } from '@/lib/eventTitle/compose'
+import { lexicalToPlainText } from '@/lib/richEditor/lexicalToPlainText'
 
 import { EVENT_QUALITY_COPY, fillCopy, REDUNDANCY_PHRASES } from './copy'
 import {
@@ -10,7 +11,6 @@ import {
   containsUrl,
   findStaleDates,
   GENERIC_TITLE_RE,
-  lexicalPlainText,
   normalizeForComparison,
 } from './heuristics'
 
@@ -34,8 +34,10 @@ export const MINIMUM_IMAGES = 3
  * through a write that runs `stampEventQuality` (the Atlas import included), so
  * a stale row can only exist if it hasn't been saved since the bump — and the
  * next save fixes it.
+ *
+ * The bump to 6 is #961: three description checks changed verdict.
  */
-export const QUALITY_CHECK_VERSION = 5
+export const QUALITY_CHECK_VERSION = 6
 
 /**
  * The event's description as plain text. Computed once per report and handed to
@@ -43,7 +45,7 @@ export const QUALITY_CHECK_VERSION = 5
  * walk the whole Lexical tree again.
  */
 export function eventDescriptionText(event: EventQualityInput): string {
-  return lexicalPlainText(event.description).trim()
+  return lexicalToPlainText(event.description)
 }
 
 /**

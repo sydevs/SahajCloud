@@ -10,8 +10,7 @@
  * Localized labels come from `@/lib/translations/emailStrings`.
  */
 
-import { convertLexicalToPlaintext } from '@payloadcms/richtext-lexical/plaintext'
-
+import { lexicalToPlainText } from '@/lib/richEditor/lexicalToPlainText'
 import { getLocalTimeHHMM } from '@/lib/schedule/scheduleHooks'
 import { minutesOfDay } from '@/lib/schedule/time'
 import type { Event } from '@/payload-types'
@@ -159,18 +158,6 @@ export function mapsUrl(event: Pick<Event, 'address'>): string | null {
     : null
 }
 
-/** Plain-text event description, or `null` when the richText field is empty. */
-export function descriptionText(description: Event['description']): string | null {
-  if (!description || typeof description !== 'object') return null
-  try {
-    const text = convertLexicalToPlaintext({ data: description as never }).trim()
-    return text || null
-  } catch {
-    // Malformed editor state must not block a confirmation email.
-    return null
-  }
-}
-
 /** The "Where" block, discriminated so the template can't render both variants. */
 export type RegistrationLocation =
   | { type: 'online'; joinUrl: string }
@@ -246,7 +233,7 @@ export function buildRegistrationEmailDetails(event: Event): RegistrationEmailDe
     scheduleLine: registrationScheduleLine(event.schedule),
     sessions: sessionCount(event.schedule),
     location,
-    description: descriptionText(event.description),
+    description: lexicalToPlainText(event.description) || null,
     contact: contact || null,
   }
 }

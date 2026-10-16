@@ -91,6 +91,16 @@ export const applyPreviewPrefix = (baseName: string): string => {
 }
 
 /**
+ * `applyPreviewPrefix`'s exact inverse: the name a key would carry in
+ * production, whichever deployment wrote it.
+ *
+ * Anchored at the start, never a bare `replace` — a name holding `preview-`
+ * mid-string belongs to production as it is.
+ */
+export const stripPreviewPrefix = (baseName: string): string =>
+  baseName.startsWith(PREVIEW_ASSET_PREFIX) ? baseName.slice(PREVIEW_ASSET_PREFIX.length) : baseName
+
+/**
  * Whether an Images custom ID / R2 object key was created by a non-production
  * deployment (i.e. carries the preview marker). The delete guard only permits
  * deleting assets for which this is true.

@@ -99,6 +99,7 @@ content collection.
 | Cloudflare Stream webhook signature verification + MP4-download handler                                        | `cloudflare-stream-webhook` |
 | Schema introspection (`discoverReferencesForCollection`, `extractIdsFromLexicalContent`)                       | `schema-utils`              |
 | Seed importer existence cache is trash-aware                                                                   | `seed-importer-preload`     |
+| `pnpm seed meditation-transcripts` — the library read seeing every locale, the filename proving an id, the three skip reasons, idempotency and `--update`, the dry run reading no row, and the corpus's corrected spellings | `meditation-transcripts-seed` + unit: `meditation-transcripts-data.spec.ts` |
 | Finished-event definition — `shouldFinish` (in-memory) pinned to agree with `notFinishedWhere` (SQL)           | unit: `schedule-status.spec.ts` |
 | Content-Index block API endpoint generation (`computeApiEndpoint` virtual)                                     | `content-index-block`       |
 | Project-based admin visibility (`createHidden` from accessPlugin)                                              | `project-visibility`        |
@@ -121,6 +122,8 @@ content collection.
 | `requireActiveClient` reporting the rejected credential its returned 403 hides from every error hook, staying silent for an anonymous or authenticated denial, reporting every repeat rather than collapsing it, and never costing the caller its 403 or its event (#743) | unit: `endpoint-guard-credential-rejected.spec.ts` |
 | What one client request costs the meter, for every client-reachable route plus an ordinary list read, a `webPath` read, a populating read and a global read — all exactly 1, and 0 for a manager, an anonymous caller and an origin-denied one (#891) | `usage-tracking-dedup` |
 | A thumbnail cell in a list drawer's linked column selects its row instead of opening it — through the preview-URL cell and the relationship cell, whose own document drawer it outranks — while the list view still links and a non-linked column is untouched (#942) | unit: `thumbnail-cell-drawer-select.spec.ts` |
+| The same for the count, colour and abuse-score cells, including a zero count and a `disableLink` one, with the count cell's own `href` composition read off a stub `payload` (#944) | unit: `custom-cell-drawer-select.spec.ts` |
+| Every `Cell:` registration in `src/` reaches `SelectableCell`, so a new custom cell cannot omit the drawer select unnoticed (#944) | unit: `custom-cell-drawer-select-coverage.spec.ts` |
 | `pnpm seed translations` on the Atlas global: ten locales published individually, the two live-data groups preserved across a re-run, an untranslated key omitted rather than blanked, and a locale's own plural family stored | `seeds/tests/atlas-translations-import.test.ts` |
 
 ## Gaps

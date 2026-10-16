@@ -14,17 +14,6 @@
 export const MAX_IMPORT_ROWS = 500
 
 /**
- * The queue both import jobs run on.
- *
- * Its own queue, not `nightly` or `screening`: a 500-row resolve holds a worker
- * for minutes, and sharing a queue with the submission screening would delay
- * every public write behind one volunteer's upload. `JOB_AUTO_RUN`
- * (`src/jobs/queues.ts`) is what drives it, and is the safety net for a run lost
- * to a restart.
- */
-export const IMPORT_QUEUE = 'imports'
-
-/**
  * How many rows the resolve job geocodes at once.
  *
  * Mapbox's own rate limit for a temporary-geocoding token is 600 requests a

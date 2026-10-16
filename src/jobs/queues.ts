@@ -41,6 +41,9 @@ export const JOB_AUTO_RUN: AutoRunEntry[] = [
     queue: 'screening',
   },
   {
+    // Its own queue, not `nightly` or `screening`: a 500-row resolve holds a
+    // worker for minutes, and sharing with the submission screening would put
+    // every public write behind one volunteer's upload.
     // Safety net for the per-transition kick (see
     // EventImports/hooks/enqueueImportJobs): a resolve or a commit whose
     // immediate run was lost to a restart waits at most five minutes. Five

@@ -22,8 +22,6 @@ import type { CollectionAfterChangeHook } from 'payload'
 import { runJobQueueAfterCommit } from '@/lib/jobs/runJobQueueAfterCommit'
 import type { EventImport } from '@/payload-types'
 
-import { IMPORT_QUEUE } from '../constants'
-
 /** The task each status queues on being entered. */
 const ON_ENTERING: Partial<Record<NonNullable<EventImport['status']>, 'resolveEventImport' | 'commitEventImport'>> =
   {
@@ -50,11 +48,14 @@ export const enqueueImportJobs: CollectionAfterChangeHook = async ({
   // own contract rather than an assumption made here.
   const batchId = Number(batch.id)
 
-  await req.payload.jobs.queue({ task, input: { batchId }, queue: IMPORT_QUEUE, req })
+  // ⚠ A literal, never a constant: `tests/unit/job-schedules.spec.ts` reads the
+  // queue name off this call's own text to prove something ticks it, and a
+  // constant reads to it as no queue at all.
+  await req.payload.jobs.queue({ task, input: { batchId }, queue: 'imports', req })
 
   runJobQueueAfterCommit({
     payload: req.payload,
-    queue: IMPORT_QUEUE,
+    queue: 'imports',
     label: 'enqueueImportJobs',
     context: { batchId, task },
   })

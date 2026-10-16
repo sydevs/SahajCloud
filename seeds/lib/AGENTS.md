@@ -182,7 +182,7 @@ protected async import(): Promise<void> {
 
 **Preload methods:**
 
-- `preloadCollection(collection, naturalKey, additionalFields?)` — bulk fetch for the cache
+- `preloadCollection(collection, naturalKey, additionalFields?, locale?)` — bulk fetch for the cache
 - `getPreloaded(collection, keyValue)` — get a cached doc by natural key
 - `hasPreloaded(collection, keyValue)` — check whether a doc exists in the cache
 
@@ -197,6 +197,32 @@ Guarded by `tests/int/seed-importer-preload.int.spec.ts`.
 Consequence worth knowing: **a deliberately-trashed doc is not re-created by
 a re-seed** — it is skipped (or updated, in `--update` mode). Permanently
 delete it to force recreation.
+
+**A locale-filtered collection needs the `locale` argument.** Omit it and
+Payload resolves the default (`en`), so a collection whose `beforeOperation`
+hook appends a locale filter caches that one locale and every other reads as
+absent. `meditations` is the one here: `filterMeditationsByLocale`
+(`src/collections/Meditations/hooks/`) filters every `find` and `count`. State
+the code even when it is the default, so a reader is not left deriving which
+rows a cache holds.
+
+Getting this wrong is quiet, not loud: a cache miss on a preloaded collection
+takes the same no-fallback-find path as a trashed row above, and `label` on
+`meditations` is not `unique`, so a re-seed creates a second row instead of
+erroring. The locale cases in `tests/int/seed-importer-preload.int.spec.ts`
+guard both directions.
+
+Two limits on the argument:
+
+- **One cache per collection**, so the first locale asked for wins. A second
+  call under a different one warns and reuses it.
+- **`'all'` works only where the natural key is not field-localized.** It is
+  right for `meditations.label` — one row, one locale, one key. A localized key
+  arrives as a per-locale object, which is neither one key nor a usable set of
+  them: collapsing it with `String()` collides every row, and merging the
+  locales answers a `cs` existence question with an `en` row. The preload
+  refuses such a key and warns. `albums` and `songs` are preloaded by a
+  localized `title`, so they must name a locale.
 
 ### Pagination pattern
 
@@ -292,8 +318,10 @@ const fileData: FileData = {
 1. Create `seeds/<name>/import.ts`.
 2. Extend `BaseImporter`.
 3. Implement `import()`.
-4. Add it to the `seeds/run.ts` SCRIPTS map.
-5. Add an npm script to `package.json`.
+4. Add it to `VALID_SCRIPTS` and `SCRIPT_RUN_ORDER` in `seeds/run.ts`.
+5. Register any committed data file in `dataFiles.ts` — see
+   [seeds/AGENTS.md](../AGENTS.md#creating-a-new-seed-script).
+6. Add an npm script to `package.json`.
 
 ## File structure
 
@@ -301,6 +329,7 @@ const fileData: FileData = {
 lib/
 ├── BaseImporter.ts      # Abstract base class
 ├── cliParser.ts         # CLI argument parsing
+├── dataFiles.ts         # Every committed data-file path, and what uploads it
 ├── logger.ts            # Colored logging + file output
 ├── fileUtils.ts         # File operations, MIME types
 ├── tagManager.ts        # Tag creation/management

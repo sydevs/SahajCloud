@@ -8,7 +8,6 @@ import { useMemo, useState } from 'react'
 import { duplicateMatchNote, type CommitRow } from '@/collections/EventImports/commit/rows'
 
 import { FieldShell } from '../FieldShell'
-import { tableColumn } from '../tableColumn'
 import {
   DUPLICATE_ACTION_OPTIONS,
   duplicateActionLabel,
@@ -23,6 +22,7 @@ import {
   type RowStatus,
 } from './rowModel'
 import { useBatchReadOnly } from './stage'
+import { tableColumn } from '../helpers/tableColumn'
 
 
 import './styles.css'
