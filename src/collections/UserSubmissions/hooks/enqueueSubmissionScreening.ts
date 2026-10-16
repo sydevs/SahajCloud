@@ -1,14 +1,14 @@
 import type { CollectionAfterChangeHook } from 'payload'
 
-import { runScreeningQueueAfterCommit } from '../screeningQueue'
+import { runQueueSoon } from '@/lib/jobs/runQueueSoon'
 
 /**
  * afterChange (create): queue screening for a fresh submission.
  *
  * The job row is queued **inside the caller's transaction** (`req` passed) so a
  * rolled-back submission never leaves an orphaned job. That is also why the
- * queue run is deferred rather than immediate — see `runScreeningQueueAfterCommit`,
- * which owns that contract and the autoRun safety net behind it.
+ * queue run says `afterCommit` — see `runQueueSoon`, which owns that contract
+ * and the autoRun safety net behind it.
  */
 export const enqueueSubmissionScreening: CollectionAfterChangeHook = async ({
   doc,
@@ -34,10 +34,12 @@ export const enqueueSubmissionScreening: CollectionAfterChangeHook = async ({
     req,
   })
 
-  runScreeningQueueAfterCommit({
+  runQueueSoon({
     payload: req.payload,
+    queue: 'screening',
     label: 'enqueueSubmissionScreening',
     context: { submissionId },
+    afterCommit: true,
   })
 
   return doc

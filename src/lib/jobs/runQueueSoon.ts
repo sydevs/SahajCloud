@@ -1,6 +1,15 @@
 import type { Payload } from 'payload'
 
 /**
+ * How long to wait when the caller queued its job row inside a transaction.
+ *
+ * Long enough for that transaction to have committed, short enough that nobody
+ * waits on it. The autoRun safety net below is what makes the exact number
+ * uncritical.
+ */
+const COMMIT_SETTLE_MS = 2000
+
+/**
  * Run a job queue now, rather than leaving its rows until the next sweep.
  *
  * **Best-effort by construction, and never allowed to reject the caller.** A
@@ -20,25 +29,29 @@ export function runQueueSoon(args: {
   /** Whatever identifies the row, merged into the warning. */
   context?: Record<string, unknown>
   /**
-   * How long to wait before running. `0` runs on the next tick.
+   * Whether the caller queued its job row with `req`.
    *
-   * A caller that queued its job row with `req` put that row inside its own
-   * transaction, and the job cannot run until the transaction commits — so it
-   * must wait a beat. One queueing outside a transaction leaves the row already
-   * visible and passes `0`.
+   * Such a row joins the caller's transaction, so the job cannot run until that
+   * transaction commits and the run has to wait a beat. A caller outside a
+   * transaction leaves the row already visible, so the run goes on the next
+   * tick. The fact, rather than a number, because every caller knows this about
+   * itself and none of them should be choosing a delay.
    */
-  delayMs?: number
+  afterCommit?: boolean
 }): void {
   if (process.env.NODE_ENV === 'test') return
 
-  const { payload, queue, label, context, delayMs = 0 } = args
-  setTimeout(() => {
-    payload.jobs.run({ queue }).catch((error: unknown) => {
-      payload.logger.warn({
-        msg: `${label}: immediate queue run failed — autoRun will retry`,
-        ...context,
-        error: error instanceof Error ? error.message : String(error),
+  const { payload, queue, label, context, afterCommit = false } = args
+  setTimeout(
+    () => {
+      payload.jobs.run({ queue }).catch((error: unknown) => {
+        payload.logger.warn({
+          msg: `${label}: immediate queue run failed — autoRun will retry`,
+          ...context,
+          error: error instanceof Error ? error.message : String(error),
+        })
       })
-    })
-  }, delayMs).unref?.()
+    },
+    afterCommit ? COMMIT_SETTLE_MS : 0,
+  ).unref?.()
 }

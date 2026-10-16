@@ -1,9 +1,13 @@
 import type { PayloadRequest, TaskConfig } from 'payload'
 
+import { findMeditationRecording } from '@/collections/Meditations/findMeditationRecording'
 import { normalizeLemonfoxResponse } from '@/collections/MeditationTranscripts/lemonfox'
-import { TRANSCRIPTION_UNAVAILABLE_ERROR } from '@/collections/MeditationTranscripts/requestTranscription'
 import { findTranscriptRow } from '@/collections/MeditationTranscripts/view'
-import { lemonfoxApiKey, requestLemonfoxTranscript } from '@/lib/lemonfox/transcribe'
+import {
+  lemonfoxApiKey,
+  requestLemonfoxTranscript,
+  TRANSCRIPTION_UNAVAILABLE_ERROR,
+} from '@/lib/lemonfox/transcribe'
 import type { MeditationTranscript } from '@/payload-types'
 import { getR2Url } from '@/plugins/storage'
 
@@ -25,6 +29,10 @@ import { getR2Url } from '@/plugins/storage'
  * matches a job still marked `processing`, and a run lost to a restart keeps
  * that flag forever — so a key would block **Try again** after a stall, for
  * good. The writer's dedupe and the row checks above stop duplicate writes.
+ *
+ * It writes `status`, `provider` and `segments`. `error`, `outdated` and
+ * `language` belong to `requestTranscription`, the only party that can put a row
+ * into `queued`.
  */
 export const TranscribeMeditation: TaskConfig<'transcribeMeditation'> = {
   slug: 'transcribeMeditation',
@@ -38,27 +46,21 @@ export const TranscribeMeditation: TaskConfig<'transcribeMeditation'> = {
   handler: async ({ input, req }) => {
     const { meditationId, audioFilename } = input
 
-    const row = await findCurrentRow(req, meditationId, audioFilename)
+    // Neither read feeds the other, and both have to pass before the vendor
+    // call.
+    const [row, recording] = await Promise.all([
+      findCurrentRow(req, meditationId, audioFilename),
+      findMeditationRecording(req, meditationId),
+    ])
     if (!row) return { output: { status: 'superseded' } }
     if (row.status === 'completed') return { output: { status: 'completed' } }
 
     // `segments` is deliberately not cleared: the previous recording's text
     // stays readable until this run completes (#897, success line 9).
-    await updateRow(req, row.id, { status: 'processing', error: null })
+    await updateRow(req, row.id, { status: 'processing' })
 
     try {
-      // The latest draft, as the endpoints read it: its recording is the one
-      // the editor hears.
-      const meditation = await req.payload.findByID({
-        collection: 'meditations',
-        id: meditationId,
-        depth: 0,
-        draft: true,
-        select: { filename: true, locale: true },
-        overrideAccess: true,
-        req,
-      })
-      if (meditation.filename !== audioFilename) {
+      if (recording?.filename !== audioFilename) {
         throw new Error('The recording was replaced while it was being transcribed.')
       }
 
@@ -74,19 +76,13 @@ export const TranscribeMeditation: TaskConfig<'transcribeMeditation'> = {
       // carrying no timestamped speech, and that is a failed transcript rather
       // than a crashed job.
       const segments = normalizeLemonfoxResponse(
-        await requestLemonfoxTranscript({ apiKey, audioUrl, locale: meditation.locale }),
+        await requestLemonfoxTranscript({ apiKey, audioUrl, locale: recording.locale }),
       )
 
       if (!(await findCurrentRow(req, meditationId, audioFilename))) {
         return { output: { status: 'superseded' } }
       }
-      await updateRow(req, row.id, {
-        status: 'completed',
-        provider: 'lemonfox',
-        segments,
-        outdated: false,
-        error: null,
-      })
+      await updateRow(req, row.id, { status: 'completed', provider: 'lemonfox', segments })
       return { output: { status: 'completed' } }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)

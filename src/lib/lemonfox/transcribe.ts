@@ -6,6 +6,7 @@
  * transcription is available before it promises one.
  */
 import { serverEnv } from '@/lib/env'
+import type { LocaleCode } from '@/lib/locales'
 
 import { lemonfoxLanguage } from './languages'
 
@@ -26,6 +27,16 @@ const REQUEST_TIMEOUT_MS = 5 * 60 * 1000
 export const lemonfoxApiKey = (): string | undefined => serverEnv.LEMONFOX_API_KEY
 
 /**
+ * What a reader is told when {@link lemonfoxApiKey} answers nothing.
+ *
+ * Beside the predicate, so the two parties that answer for an unconfigured
+ * deployment — the writer that refuses to queue, and the task that refuses to
+ * run — say the same thing without either depending on the other.
+ */
+export const TRANSCRIPTION_UNAVAILABLE_ERROR =
+  'Transcription is unavailable: this deployment has no Lemonfox API key.'
+
+/**
  * Ask Lemonfox for a timestamped transcript of a recording.
  *
  * `audioUrl` must be publicly reachable: Lemonfox fetches it itself, so the
@@ -41,7 +52,7 @@ export async function requestLemonfoxTranscript({
   apiKey: string
   audioUrl: string
   /** The meditation's locale. Mapped here, so no caller repeats the mapping. */
-  locale?: string
+  locale?: LocaleCode
   fetchFn?: typeof fetch
 }): Promise<unknown> {
   const form = new FormData()

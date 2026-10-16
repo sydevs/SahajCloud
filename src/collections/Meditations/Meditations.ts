@@ -30,7 +30,7 @@ import { enqueueMeditationTranscription } from './hooks/enqueueMeditationTranscr
 import { extractAudioDuration } from './hooks/extractAudioDuration'
 import { fallbackTitleAfterRead } from './hooks/fallbackTitle'
 import { filterMeditationsByLocale } from './hooks/filterMeditationsByLocale'
-import { markTranscriptOutdated } from './hooks/markTranscriptOutdated'
+import { outdateTranscriptOnReplace } from './hooks/outdateTranscriptOnReplace'
 
 /**
  * What `virtualJoinField`'s hook returns: the user-choices rows pointing at
@@ -126,7 +126,7 @@ export const Meditations: CollectionConfig = {
       cacheMeditationNodeWeights,
       // Beside `extractAudioDuration`, which is what proves `req.file` is
       // readable in this chain. It writes only `meditation-transcripts`.
-      markTranscriptOutdated,
+      outdateTranscriptOnReplace,
     ],
     afterChange: [enqueueMeditationTranscription],
   },

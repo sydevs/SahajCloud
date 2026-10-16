@@ -27,6 +27,7 @@ import path from 'node:path'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { TranscribeMeditation } from '@/jobs/TranscribeMeditation/TranscribeMeditation'
+import { TRANSCRIPTION_UNAVAILABLE_ERROR } from '@/lib/lemonfox/transcribe'
 import { TRANSCRIPTION_STALL_MS } from '@/lib/meditations/transcript'
 import type { Meditation, MeditationTranscript } from '@/payload-types'
 
@@ -36,6 +37,7 @@ import {
   createRestClientWithAuth,
   type RestClient,
 } from '../utils/restRequest'
+import { seedLatestVersion } from '../utils/storeInvalidEvent'
 import { runTaskHandler } from '../utils/taskRunner'
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -45,7 +47,12 @@ const lemonfox = vi.hoisted(() => ({
   requestLemonfoxTranscript: vi.fn<() => Promise<unknown>>(),
 }))
 
-vi.mock('@/lib/lemonfox/transcribe', () => lemonfox)
+// Partial: `TRANSCRIPTION_UNAVAILABLE_ERROR` lives here too, and the
+// unavailable case asserts the row carries the real one.
+vi.mock('@/lib/lemonfox/transcribe', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/lemonfox/transcribe')>()),
+  ...lemonfox,
+}))
 
 /**
  * The recording's public URL, which is storage's business and not
@@ -153,39 +160,12 @@ describe('meditation transcription', () => {
    * Take a meditation's recording away.
    *
    * Unreachable from the API — Payload refuses a create with no file, and
-   * `restrictUploadToAdmin` refuses to clear one — so both rows are written
-   * underneath it. The `latest: true` version row is the half that matters:
-   * `findMeditationRecording` reads the draft, so seeding only the main row
-   * leaves the endpoint reading the recording and the case passes for the
-   * wrong reason (the same trap as `tests/utils/storeInvalidEvent.ts`).
+   * `restrictUploadToAdmin` refuses to clear one — so it is seeded underneath.
+   * `seedLatestVersion` writes the version row too, which is the half that
+   * matters here: `findMeditationRecording` reads the draft.
    */
-  const takeAwayRecording = async (meditationId: number): Promise<void> => {
-    await payload.db.updateOne({
-      collection: 'meditations',
-      id: meditationId,
-      data: { filename: null },
-    })
-    const { docs } = await payload.db.findVersions({
-      collection: 'meditations',
-      where: { parent: { equals: meditationId } },
-      sort: '-updatedAt',
-      limit: 1,
-      pagination: false,
-    })
-    const latest = docs[0]
-    if (!latest) throw new Error(`meditation ${meditationId} has no version row to seed`)
-    await payload.db.updateVersion({
-      collection: 'meditations',
-      id: latest.id,
-      versionData: {
-        createdAt: new Date(latest.createdAt).toISOString(),
-        latest: true,
-        parent: meditationId,
-        updatedAt: new Date().toISOString(),
-        version: { ...latest.version, filename: null },
-      },
-    })
-  }
+  const takeAwayRecording = (meditationId: number): Promise<void> =>
+    seedLatestVersion(payload, 'meditations', meditationId, { filename: null })
 
   /** Replace a meditation's recording, the way an editor does. */
   const replaceAudio = (meditationId: number): Promise<Meditation> => {
@@ -299,7 +279,7 @@ describe('meditation transcription', () => {
 
       const row = await transcriptOf(meditation.id)
       expect(row?.status).toBe('failed')
-      expect(row?.error).toBeTruthy()
+      expect(row?.error).toBe(TRANSCRIPTION_UNAVAILABLE_ERROR)
       expect(row?.language).toBe('en')
       expect(row?.segments ?? []).toHaveLength(0)
       expect(await queuedJobs(meditation.id)).toHaveLength(0)

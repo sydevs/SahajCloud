@@ -16,6 +16,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { lemonfoxLanguage } from '@/lib/lemonfox/languages'
 import { requestLemonfoxTranscript } from '@/lib/lemonfox/transcribe'
+import { LOCALES } from '@/lib/locales'
 
 const AUDIO_URL = 'https://media.example.test/meditations/evening-calm-abc123.mp3'
 
@@ -62,13 +63,12 @@ describe('requestLemonfoxTranscript', () => {
     expect((await sentForm(fetchFn)).get('timestamp_granularities[]')).toBeNull()
   })
 
-  it('names no language for a locale Lemonfox does not list, so it detects one', async () => {
+  it('names no language when the caller has none, so the vendor detects one', async () => {
     const fetchFn = vi.fn().mockResolvedValue(okResponse())
 
     await requestLemonfoxTranscript({
       apiKey: 'lf-test-key',
       audioUrl: AUDIO_URL,
-      locale: 'kl',
       fetchFn: fetchFn as unknown as typeof fetch,
     })
 
@@ -125,15 +125,23 @@ describe('lemonfoxLanguage', () => {
     expect(lemonfoxLanguage('en')).toBe('english')
     expect(lemonfoxLanguage('pt-BR')).toBe('portuguese')
     expect(lemonfoxLanguage('en-AU')).toBe('english')
+    expect(lemonfoxLanguage('fa')).toBe('persian')
   })
 
-  it('names nothing for a language Lemonfox does not list', () => {
-    expect(lemonfoxLanguage('kl')).toBeUndefined()
-  })
+  /**
+   * ⚠ The property worth pinning, and the only one that catches a real change:
+   * a locale the vendor does not name would send no `language`, which silently
+   * costs accuracy on every transcript in it. This fails the day a twentieth
+   * locale is added that Lemonfox has no name for — which is also why the
+   * accepted-name list stays the vendor's rather than being derived from
+   * `LOCALES`.
+   */
+  it('names a language the vendor accepts for every locale this app offers', () => {
+    const unnamed = LOCALES.map((locale) => locale.code).filter(
+      (code) => lemonfoxLanguage(code) === undefined,
+    )
 
-  it('names nothing for a locale that is not one', () => {
-    expect(lemonfoxLanguage('not a locale')).toBeUndefined()
-    expect(lemonfoxLanguage('')).toBeUndefined()
+    expect(unnamed).toEqual([])
   })
 })
 

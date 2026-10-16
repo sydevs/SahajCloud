@@ -1,10 +1,7 @@
 import type { Endpoint } from 'payload'
 
-import {
-  findMeditationRecording,
-  findTranscriptRow,
-  toTranscriptView,
-} from '@/collections/MeditationTranscripts/view'
+import { findMeditationRecording } from '@/collections/Meditations/findMeditationRecording'
+import { findTranscriptRow, toTranscriptView } from '@/collections/MeditationTranscripts/view'
 
 import { requireTranscriptAccess } from './transcriptAccess'
 

@@ -1,7 +1,8 @@
 import type { Endpoint } from 'payload'
 
+import { findMeditationRecording } from '@/collections/Meditations/findMeditationRecording'
 import { requestTranscription } from '@/collections/MeditationTranscripts/requestTranscription'
-import { findMeditationRecording, toTranscriptView } from '@/collections/MeditationTranscripts/view'
+import { toTranscriptView } from '@/collections/MeditationTranscripts/view'
 
 import { requireTranscriptAccess } from './transcriptAccess'
 
@@ -45,7 +46,7 @@ export const requestMeditationTranscript: Endpoint = {
       language: recording.locale,
       // No transaction wraps this handler, so the row and the job are already
       // committed and the queue run needs no delay.
-      delayMs: 0,
+      afterCommit: false,
     })
 
     return Response.json(toTranscriptView(row), { status: 202 })

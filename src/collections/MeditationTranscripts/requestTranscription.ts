@@ -1,20 +1,11 @@
 import type { PayloadRequest } from 'payload'
 
 import { runQueueSoon } from '@/lib/jobs/runQueueSoon'
-import { lemonfoxApiKey } from '@/lib/lemonfox/transcribe'
+import { lemonfoxApiKey, TRANSCRIPTION_UNAVAILABLE_ERROR } from '@/lib/lemonfox/transcribe'
+import type { LocaleCode } from '@/lib/locales'
 import type { MeditationTranscript } from '@/payload-types'
 
 import { findTranscriptRow, isTranscriptionActive } from './view'
-
-/**
- * What the Transcript tab reads when transcription is not configured.
- *
- * A `failed` row rather than a queued job: queueing one certain to fail is
- * dishonest latency, and on an environment with no key every upload would queue
- * a doomed job. Shared with the task, so both paths say the same thing.
- */
-export const TRANSCRIPTION_UNAVAILABLE_ERROR =
-  'Transcription is unavailable: this deployment has no Lemonfox API key.'
 
 /**
  * Ask for a transcript of one recording, and start the queue.
@@ -34,22 +25,22 @@ export async function requestTranscription({
   meditationId,
   audioFilename,
   language,
-  delayMs,
+  afterCommit,
 }: {
   req: PayloadRequest
   meditationId: number
   audioFilename: string
   /** The meditation's own `locale`. Required on the row, and what the glossary keys on. */
-  language: MeditationTranscript['language']
-  /**
-   * `2000` from a hook, whose job row joins the caller's transaction and cannot
-   * run before it commits. `0` from the endpoint, which is wrapped in none.
-   */
-  delayMs: number
+  language: LocaleCode
+  /** Whether this call sits inside its caller's transaction — see `runQueueSoon`. */
+  afterCommit: boolean
 }): Promise<MeditationTranscript> {
   const existing = await findTranscriptRow(req, meditationId)
   if (existing && isTranscriptionActive(existing, audioFilename)) return existing
 
+  // A `failed` row rather than a queued job: queueing one certain to fail is
+  // dishonest latency, and on a deployment with no key every upload would queue
+  // a doomed job.
   const unavailable = !lemonfoxApiKey()
   const data = {
     status: unavailable ? ('failed' as const) : ('queued' as const),
@@ -104,8 +95,36 @@ export async function requestTranscription({
     queue: 'transcription',
     label: 'requestTranscription',
     context: { meditationId },
-    delayMs,
+    afterCommit,
   })
 
   return row
+}
+
+/**
+ * Mark a meditation's transcript as belonging to the previous recording.
+ *
+ * Beside the request writer, because the collection that owns the row owns
+ * every write to it. The `meditations` hook that calls this owns the detection
+ * instead — whether a save replaces audio is that collection's knowledge.
+ *
+ * Takes `req`, so the mark lands in the same transaction: a replacement that
+ * rolls back takes the mark with it.
+ */
+export async function markTranscriptOutdated(
+  req: PayloadRequest,
+  meditationId: number,
+  replacedFilename: string,
+): Promise<void> {
+  const row = await findTranscriptRow(req, meditationId)
+  if (!row || row.audioFilename !== replacedFilename || row.outdated) return
+
+  await req.payload.update({
+    collection: 'meditation-transcripts',
+    id: row.id,
+    data: { outdated: true },
+    depth: 0,
+    overrideAccess: true,
+    req,
+  })
 }
