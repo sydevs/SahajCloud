@@ -4,7 +4,7 @@ import { diffWords } from 'diff'
 import diff from 'microdiff'
 import { toWords } from 'payload/shared'
 
-import { lexicalPlainText } from '@/lib/eventQuality'
+import { lexicalToPlainText } from '@/lib/richEditor/lexicalToPlainText'
 
 /**
  * What a submission would change, field by field — the reviewer's whole job in
@@ -109,7 +109,7 @@ export function formatValue(value: unknown, field?: FlattenedField): string | nu
   }
 
   // Rich text — compare what a reader would actually see, not the node tree.
-  if (isLexicalValue(value)) return lexicalPlainText(value).trim() || null
+  if (isLexicalValue(value)) return lexicalToPlainText(value) || null
 
   if (typeof value === 'object') {
     const record = value as Record<string, unknown>
