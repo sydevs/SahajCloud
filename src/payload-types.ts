@@ -939,6 +939,7 @@ export interface Config {
       sendRegistrationDigests: TaskSendRegistrationDigests;
       sendSessionReminders: TaskSendSessionReminders;
       syncLectureMetadata: TaskSyncLectureMetadata;
+      transcribeMeditation: TaskTranscribeMeditation;
       verifyEmbeds: TaskVerifyEmbeds;
       resetUsage: TaskResetUsage;
       sendInvitations: TaskSendInvitations;
@@ -3848,6 +3849,7 @@ export interface PayloadJob {
           | 'sendRegistrationDigests'
           | 'sendSessionReminders'
           | 'syncLectureMetadata'
+          | 'transcribeMeditation'
           | 'verifyEmbeds'
           | 'resetUsage'
           | 'sendInvitations'
@@ -3896,6 +3898,7 @@ export interface PayloadJob {
         | 'sendRegistrationDigests'
         | 'sendSessionReminders'
         | 'syncLectureMetadata'
+        | 'transcribeMeditation'
         | 'verifyEmbeds'
         | 'resetUsage'
         | 'sendInvitations'
@@ -10366,6 +10369,19 @@ export interface TaskSyncLectureMetadata {
     synced: number;
     failed: number;
     skippedNoVimeoId: number;
+  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskTranscribeMeditation".
+ */
+export interface TaskTranscribeMeditation {
+  input: {
+    meditationId: number;
+    audioFilename: string;
+  };
+  output: {
+    status: string;
   };
 }
 /**

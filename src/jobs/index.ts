@@ -7,6 +7,7 @@ import { SendRegistrationDigests } from './RegistrationNotifications/SendRegistr
 import { SendSessionReminders } from './RegistrationNotifications/SendSessionReminders'
 import { ScreenSubmissions } from './ScreenSubmissions/ScreenSubmissions'
 import { SyncLectureMetadata } from './SyncLectureMetadata/SyncLectureMetadata'
+import { TranscribeMeditation } from './TranscribeMeditation/TranscribeMeditation'
 import { VerifyEmbeds } from './VerifyEmbeds/VerifyEmbeds'
 
 // Export all tasks as an array
@@ -21,5 +22,6 @@ export const tasks = [
   SendRegistrationDigests,
   SendSessionReminders,
   SyncLectureMetadata,
+  TranscribeMeditation,
   VerifyEmbeds,
 ]
