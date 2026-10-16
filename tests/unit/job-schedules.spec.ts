@@ -246,6 +246,53 @@ describe('Job schedules', () => {
   })
 
   /**
+   * The other half of the same failure, and the half nothing covered.
+   *
+   * ⚠ Every assertion above reads a task's `schedule`, so a queue only a
+   * `jobs.queue` call names is invisible to all of them. Such a row is enqueued
+   * for real and then waits forever, with no error and no log line — #878's
+   * failure exactly, reached from the other direction: there the queue had no
+   * tick, here the row's queue is simply one nothing ticks.
+   */
+  describe('a queue a row is enqueued onto', () => {
+    /** Files holding a `payload.jobs.queue(…)` call. */
+    const enqueueingFiles = (): string[] =>
+      sourceFiles(SRC).filter((file) => sourceOf(file).includes('jobs.queue('))
+
+    /**
+     * ⚠ A hand-written list, so a third enqueue site fails here until it is
+     * added — without it the case below silently stops covering the new file.
+     */
+    it('scans every file under src/ that enqueues a job row', () => {
+      expect(enqueueingFiles().map((file) => relative(SRC, file)).sort()).toEqual([
+        'collections/UserSubmissions/hooks/enqueueSubmissionScreening.ts',
+        'jobs/ScreenSubmissions/ScreenSubmissions.ts',
+      ])
+    })
+
+    /**
+     * Read from the file's whole text rather than from inside the call, so a
+     * queue named by a `schedule:` entry or a queue-run helper in the same file
+     * is checked too. Over-inclusive on purpose: every queue named anywhere in
+     * a file that enqueues has to be driven, and checking one twice costs
+     * nothing.
+     */
+    it('is a queue something ticks, or one that says why not', () => {
+      const driven = autoRunQueues()
+      const undriven: string[] = []
+
+      for (const file of enqueueingFiles()) {
+        for (const [, queue] of sourceOf(file).matchAll(/\bqueue:\s*'([^']+)'/g)) {
+          if (driven.has(queue!) || queue! in UNSCHEDULED_QUEUES) continue
+          undriven.push(`${queue} (${relative(SRC, file)})`)
+        }
+      }
+
+      expect(undriven).toEqual([])
+    })
+  })
+
+  /**
    * ⚠ `SCHEDULED_TASKS` is a hand-written list, so this is what makes an
    * omission loud: a new `schedule:` anywhere under `src/` fails here until it
    * is added above. Without it the spec silently stops covering the file.
