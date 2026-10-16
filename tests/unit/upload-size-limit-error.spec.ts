@@ -2,13 +2,13 @@ import { APIError, type Config } from 'payload'
 import { describe, expect, it } from 'vitest'
 
 import {
-  isOversizedUploadError,
-  uploadErrorPlugin,
-} from '../../src/plugins/storage/uploadErrorPlugin'
-import {
   FileValidationError,
   UPLOAD_SIZE_LIMIT_MESSAGE,
 } from '../../src/plugins/storage/uploadValidation'
+import {
+  isOversizedUploadError,
+  uploadErrorPlugin,
+} from '../../src/plugins/uploadErrors/uploadErrorPlugin'
 
 /**
  * The errors here are built with Payload's own `APIError`, so the fixtures

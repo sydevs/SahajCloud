@@ -35,9 +35,9 @@ import {
   UPLOAD_REQUEST_SIZE_LIMIT,
   UPLOAD_SIZE_LIMIT_MESSAGE,
   storagePlugin,
-  uploadErrorPlugin,
 } from '@/plugins/storage'
 import { isProductionDeployment } from '@/plugins/storage/previewIsolation'
+import { uploadErrorPlugin } from '@/plugins/uploadErrors'
 import { usagePlugin } from '@/plugins/usage'
 import { writeGuardPlugin } from '@/plugins/writeGuard'
 

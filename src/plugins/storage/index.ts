@@ -9,8 +9,7 @@
 export { storagePlugin } from './storagePlugin'
 export { storagePlugin as default } from './storagePlugin'
 
-// Upload size ceilings, and the 413 that names them
-export { uploadErrorPlugin } from './uploadErrorPlugin'
+// Upload size ceilings. The 413 naming them is `@/plugins/uploadErrors`
 export {
   UPLOAD_FILE_SIZE_LIMIT,
   UPLOAD_REQUEST_SIZE_LIMIT,

@@ -13,8 +13,7 @@
 import type { Config } from 'payload'
 
 import { isRecord } from '@/lib/utilities/isRecord'
-
-import { UPLOAD_SIZE_LIMIT_MESSAGE } from './uploadValidation'
+import { UPLOAD_SIZE_LIMIT_MESSAGE } from '@/plugins/storage'
 
 /**
  * Payload's wording for a body over `requestSizeLimit`, from
@@ -35,7 +34,7 @@ export function isOversizedUploadError(error: unknown): boolean {
  *
  * @example
  * ```typescript
- * import { uploadErrorPlugin } from '@/plugins/storage'
+ * import { uploadErrorPlugin } from '@/plugins/uploadErrors'
  *
  * plugins: [
  *   uploadErrorPlugin(),
