@@ -375,7 +375,10 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       // it verbatim.
       responseOnLimit: UPLOAD_SIZE_LIMIT_MESSAGE,
       limits: {
-        // A collection may set its own, lower limit.
+        // The only per-file ceiling Payload enforces. `CollectionConfig.upload`
+        // takes no `limits`, and the parser reads this root config alone
+        // (`payload/dist/utilities/addDataAndFileToRequest.js`). A lower
+        // per-category ceiling is `FILE_SIZE_LIMITS`, in the adapter (#939).
         fileSize: UPLOAD_FILE_SIZE_LIMIT,
       },
     },
