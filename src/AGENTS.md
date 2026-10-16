@@ -106,7 +106,13 @@ No loose files at the root — every file lives in a named folder:
   do not re-wrap it)
 - `locales/` — locale config (`@/lib/locales` resolves to `locales/index.ts`)
 - `richEditor/` — Lexical editor presets + `blocks/` (the editor's block
-  set) + `lexicalHooks`
+  set) + `lexicalHooks`, plus the two conversions either way:
+  `plainTextToLexical` (what the Atlas importer writes in) and
+  `lexicalToPlainText`, which is Payload's own `convertLexicalToPlaintext`
+  made total. Import both by their deep path — the barrel is the editor
+  presets, so reaching one through it pulls the whole Lexical config. Nothing
+  else may flatten Lexical: a second spelling under `eventQuality/` cost three
+  silently missing quality findings (#961)
 - `endpoints/` — shared client-endpoint helpers (`requireActiveClient`,
   `parseQuery`, `emptyPaginatedResponse`). `antiSpamGuard` lived here for
   the `contactAdmin` endpoint. Once that became a collection (#632), its
