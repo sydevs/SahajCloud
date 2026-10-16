@@ -108,11 +108,10 @@ No loose files at the root — every file lives in a named folder:
 - `richEditor/` — Lexical editor presets + `blocks/` (the editor's block
   set) + `lexicalHooks`, plus the two conversions either way:
   `plainTextToLexical` (what the Atlas importer writes in) and
-  `lexicalToPlainText`, which is Payload's own `convertLexicalToPlaintext`
-  made total. Import both by their deep path — the barrel is the editor
-  presets, so reaching one through it pulls the whole Lexical config. Nothing
-  else may flatten Lexical: a second spelling under `eventQuality/` cost three
-  silently missing quality findings (#961)
+  `lexicalToPlainText`. Never re-export either from the barrel — that is the
+  editor presets, so a caller reaching one through it would pull the whole
+  Lexical config. Nothing else may flatten Lexical: a second spelling under
+  `eventQuality/` cost three silently missing quality findings (#961)
 - `endpoints/` — shared client-endpoint helpers (`requireActiveClient`,
   `parseQuery`, `emptyPaginatedResponse`). `antiSpamGuard` lived here for
   the `contactAdmin` endpoint. Once that became a collection (#632), its
