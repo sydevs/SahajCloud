@@ -174,6 +174,45 @@ describe('formatValue', () => {
     expect(formatValue(lexical)).toBe('Hello there')
   })
 
+  it('keeps the block structure the editor stored', () => {
+    const lexical = {
+      root: {
+        type: 'root',
+        children: [
+          { type: 'paragraph', children: [{ type: 'text', text: 'Free weekly meditation.' }] },
+          { type: 'paragraph', children: [{ type: 'text', text: 'Everyone welcome.' }] },
+        ],
+      },
+    }
+    expect(formatValue(lexical)).toBe('Free weekly meditation.\n\nEveryone welcome.')
+  })
+
+  it('keeps a soft break rather than running the words together', () => {
+    const lexical = {
+      root: {
+        type: 'root',
+        children: [
+          {
+            type: 'paragraph',
+            children: [
+              { type: 'text', text: 'Mondays' },
+              { type: 'linebreak' },
+              { type: 'text', text: '7pm' },
+            ],
+          },
+        ],
+      },
+    }
+    expect(formatValue(lexical)).toBe('Mondays\n7pm')
+  })
+
+  it('reads malformed editor state as no value', () => {
+    // `validateProposal` gates a proposal's keys, never its values, so these
+    // shapes reach here from an anonymous POST.
+    expect(formatValue({ root: { type: 'root', children: 'not an array' } })).toBeNull()
+    expect(formatValue({ root: { type: 'root', children: [null] } })).toBeNull()
+  })
+
   it('names a populated relationship instead of printing its row', () => {
     expect(formatValue({ id: 7, title: 'Bay Area' })).toBe('Bay Area')
     expect(formatValue({ id: 7 })).toBe('#7')

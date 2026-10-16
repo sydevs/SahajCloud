@@ -124,30 +124,6 @@ export function findStaleDates(text: string, currentYear: number): string[] {
   )
 }
 
-/**
- * Flatten a Lexical `richText` value to plain text.
- *
- * Sibling text nodes are joined with nothing so a formatting run inside a
- * sentence ("visit **our** centre") still reads as one phrase; block-level
- * nodes get a trailing newline so a heading can't run into the paragraph below
- * it and invent a phrase that was never written.
- */
-export function lexicalPlainText(node: unknown): string {
-  if (node == null) return ''
-  if (typeof node === 'string') return node
-  if (Array.isArray(node)) return node.map(lexicalPlainText).join('')
-  if (typeof node !== 'object') return ''
-
-  const obj = node as Record<string, unknown>
-  if (typeof obj.text === 'string') return obj.text
-  if (obj.root) return lexicalPlainText(obj.root)
-  if (!Array.isArray(obj.children)) return ''
-
-  const inner = lexicalPlainText(obj.children)
-  const isBlock = obj.type !== 'text' && obj.type !== 'linebreak' && obj.type !== 'root'
-  return isBlock ? `${inner}\n` : inner
-}
-
 /** Collapse whitespace and lowercase, for comparing a title to a field value. */
 export function normalizeForComparison(value: string): string {
   return value.replace(/\s+/g, ' ').trim().toLowerCase()
