@@ -15,17 +15,27 @@ import { accessPlugin, bypassPermissions } from '@/plugins/access'
 plugins: [accessPlugin({ enabled: true, bypassPermissions })]
 ```
 
-For custom logic outside collections, use `hasPermission`:
+A custom **endpoint** gates on `requireManagerPermission`, or
+`requireCollectionPermission` where an API client is a legitimate caller too:
 
 ```typescript
-import { hasPermission } from '@/plugins/access'
+import { requireManagerPermission } from '@/lib/endpoints'
 
-const canUpdate = hasPermission({
-  user,
+const denied = requireManagerPermission({
+  req,
   collection: 'meditations',
   operation: 'update',
+  forbidden: 'You do not have permission to transcribe this meditation.',
 })
+if (denied) return denied
 ```
+
+⚠ **Never call `hasPermission` here.** It takes the locale scope as an
+argument, and a check written out at a handler is free to omit it — which
+resolves the **default** locale and silently 403s every manager whose roles
+live elsewhere (#701, #665). The gates own that argument;
+`tests/unit/endpoint-permission-gate.spec.ts` fails a call under
+`src/collections/**` or `src/endpoints/**`. See `docs/rules/endpoints.md`.
 
 Permission flow, in order:
 
