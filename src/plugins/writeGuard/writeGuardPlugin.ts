@@ -9,6 +9,7 @@ import {
   checkNoUrls,
   verifyTurnstileOrFail,
 } from '@/lib/antiSpam/antiSpamGuard'
+import { proposalLeaves } from '@/lib/antiSpam/proposalLeaves'
 
 
 import { DEFAULT_WRITE_GUARD_POLICIES } from './policies'
@@ -40,7 +41,8 @@ import { DEFAULT_WRITE_GUARD_POLICIES } from './policies'
  * so the built-in REST endpoints and custom handlers alike surface the message
  * and machine code (`captcha_failed`, `urls_not_allowed`, `disposable_email`,
  * …). `field` names the input that tripped a per-field check, and is absent
- * from the captcha's verdict, which is about the request.
+ * from the captcha's verdict, which is about the request. A `derivedScan`
+ * column names the leaf it found, having no listed path to name (#948).
  *
  * ⚠ **`prepareUserSubmission` raises these same codes** for the pairs no path
  * here can scan selectively, and carries the same `field`. One endpoint, one
@@ -76,11 +78,31 @@ function throwFailure(failure: AntiSpamFailure): never {
   )
 }
 
+/**
+ * The string leaves of `derivedScan`'s column, classified against the target
+ * collection's live config.
+ *
+ * A collection with no config to read — a bare test harness — derives nothing
+ * and scans nothing, the way `validateProposal` lets Accept be the gate rather
+ * than refusing every submission.
+ */
+function derivedLeaves(
+  derived: NonNullable<WriteGuardOperationPolicy['derivedScan']>,
+  data: Record<string, unknown>,
+  req: PayloadRequest,
+) {
+  const fields = req.payload?.collections?.[derived.collection]?.config?.flattenedFields
+  if (!fields?.length) return { urlScan: {}, emails: {} }
+  return proposalLeaves(valueAtPath(data, derived.path), fields, derived.path)
+}
+
 async function runPolicy(
   policy: WriteGuardOperationPolicy,
   data: Record<string, unknown>,
   req: PayloadRequest,
 ): Promise<void> {
+  const derived = policy.derivedScan && derivedLeaves(policy.derivedScan, data, req)
+
   // Cheap checks first; the captcha (a network call) goes last so obviously
   // bad content never costs a siteverify round-trip.
   for (const field of policy.urlScanFields ?? []) {
@@ -91,10 +113,23 @@ async function runPolicy(
     if (!result.ok) throwFailure({ ...result, field })
   }
 
+  // ⚠ The leaf's own path is the refusal's `field` here, where a listed path
+  // above overrides it: a derived scan has no listed path to name, and the
+  // column it found is the input the sender can act on.
+  if (derived) {
+    const result = checkNoUrls(derived.urlScan)
+    if (!result.ok) throwFailure(result)
+  }
+
   for (const field of policy.emailFields ?? []) {
     const value = valueAtPath(data, field)
     if (typeof value !== 'string' && value != null) continue
     const result = checkEmailAllowed(value as string | null | undefined, field)
+    if (!result.ok) throwFailure(result)
+  }
+
+  for (const [field, value] of Object.entries(derived?.emails ?? {})) {
+    const result = checkEmailAllowed(value, field)
     if (!result.ok) throwFailure(result)
   }
 
