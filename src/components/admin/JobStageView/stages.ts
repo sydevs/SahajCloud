@@ -12,11 +12,7 @@ import { isRecord } from '@/lib/utilities/isRecord'
 
 /** A collection's `admin.custom.jobStage` declaration. */
 export type JobStageConfig = {
-  /**
-   * Where the count rendered while waiting lives. Optional, because
-   * `meditation-transcripts` publishes none and a waiting view with no number
-   * is the ordinary case.
-   */
+  /** Where the count rendered while waiting lives. Most collections publish none. */
   progressField?: string
   /** Statuses a worker holds the document in. */
   runningStages: string[]
@@ -33,8 +29,7 @@ export type JobStageConfig = {
   /**
    * Where the denominator lives, for a job that knows one. Declared apart from
    * `progressField` rather than inferred from a group's shape, so the contract
-   * names no consumer's key. Without it the view says "7 done so far" for a
-   * job that knows it is 7 of 20.
+   * names no consumer's key.
    */
   totalField?: string
 }
@@ -57,24 +52,21 @@ const DEFAULT_STATUS_FIELD = 'status'
  * answers for a declaration that did not.
  */
 export function readJobStageConfig(custom: unknown): JobStageConfig | null {
-  if (!isRecord(custom)) return null
-  const declared = custom.jobStage
-  if (!isRecord(declared)) return null
+  if (!isRecord(custom) || !isRecord(custom.jobStage)) return null
 
-  const { progressField, runningStages, staleAfterMs, statusField, totalField } = declared
+  const { progressField, runningStages, staleAfterMs, statusField, totalField } = custom.jobStage
   if (!Array.isArray(runningStages) || !runningStages.every((s) => typeof s === 'string')) {
     return null
   }
 
   return {
-    progressField: typeof progressField === 'string' ? progressField : undefined,
+    progressField: asString(progressField),
     runningStages,
     // A zero or negative window would open the form on every running row, so
     // an unusable number reads as undeclared rather than as "always stale".
-    staleAfterMs:
-      typeof staleAfterMs === 'number' && staleAfterMs > 0 ? staleAfterMs : undefined,
-    statusField: typeof statusField === 'string' ? statusField : undefined,
-    totalField: typeof totalField === 'string' ? totalField : undefined,
+    staleAfterMs: typeof staleAfterMs === 'number' && staleAfterMs > 0 ? staleAfterMs : undefined,
+    statusField: asString(statusField),
+    totalField: asString(totalField),
   }
 }
 
@@ -94,9 +86,9 @@ export function jobStageWait(
   if (isStale(config, doc, now)) return null
 
   return {
-    progress: numberAt(doc, config.progressField),
+    progress: asNumber(valueAt(doc, config.progressField)),
     stage,
-    total: numberAt(doc, config.totalField),
+    total: asNumber(valueAt(doc, config.totalField)),
   }
 }
 
@@ -116,19 +108,20 @@ function isStale(config: JobStageConfig, doc: unknown, now: number): boolean {
   return !Number.isNaN(written) && now - written > config.staleAfterMs
 }
 
-/** The number at a declared path, or `null` for an undeclared or unreadable one. */
-function numberAt(doc: unknown, path: string | undefined): null | number {
-  const value = path === undefined ? undefined : valueAt(doc, path)
-  return typeof value === 'number' ? value : null
-}
+const asString = (value: unknown): string | undefined =>
+  typeof value === 'string' ? value : undefined
+
+const asNumber = (value: unknown): null | number => (typeof value === 'number' ? value : null)
 
 /**
+ * The value at a declared path, or nothing for an undeclared one.
+ *
  * A dotted path, not a column name: a collection may keep its count inside a
  * group. #912's `event-imports` does — a `progress` group of `done`/`total` —
  * so a flat key would have given the view's first real count nothing to read.
  */
-function valueAt(doc: unknown, path: string): unknown {
+function valueAt(doc: unknown, path: string | undefined): unknown {
   return path
-    .split('.')
+    ?.split('.')
     .reduce<unknown>((value, key) => (isRecord(value) ? value[key] : undefined), doc)
 }
