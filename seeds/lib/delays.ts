@@ -15,8 +15,6 @@ export interface RetryOptions {
 }
 
 /**
- * Delays between retries auto-skip in local development.
- *
  * @throws The last error, once the retries are exhausted.
  */
 export async function withRetry<T>(
