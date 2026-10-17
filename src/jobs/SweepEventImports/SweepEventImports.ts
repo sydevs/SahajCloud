@@ -1,10 +1,11 @@
-import type { TaskConfig } from 'payload'
+import type { TaskConfig, Where } from 'payload'
 
 import { IMPORT_RETENTION_DAYS } from '@/collections/EventImports/constants'
+import { sweepWindows } from '@/lib/retention/sweepWindows'
+import type { PurgeWindow } from '@/lib/retention/sweepWindows'
 
 /**
- * Nightly retention sweep for `event-imports`: every discarded batch, and every
- * batch untouched for `IMPORT_RETENTION_DAYS`.
+ * The one window, and why there is only one.
  *
  * ⚠ **One window for every status, because what sets it is the CSV.** The file
  * holds the contact names, addresses and phone numbers a volunteer collected,
@@ -15,6 +16,29 @@ import { IMPORT_RETENTION_DAYS } from '@/collections/EventImports/constants'
  * ⚠ **`updatedAt`, not `createdAt`.** A batch somebody is still working — a
  * re-upload, a review left open over a weekend — must not be swept out from
  * under them, and `updatedAt` is what the jobs and the reviewer both move.
+ */
+const IMPORT_WINDOWS: PurgeWindow[] = [
+  {
+    name: 'batches',
+    days: IMPORT_RETENTION_DAYS,
+    where: (cutoff) => {
+      const clauses: Where[] = [
+        { status: { equals: 'discarded' } },
+        { updatedAt: { less_than: cutoff } },
+      ]
+      return { or: clauses }
+    },
+  },
+]
+
+/**
+ * Nightly retention sweep for `event-imports`: every discarded batch, and every
+ * batch untouched for `IMPORT_RETENTION_DAYS`.
+ *
+ * The loop is `@/lib/retention/sweepWindows`, shared with `purgeSubmissions`
+ * (#960). This stays its own task because the slug, the schedule and the output
+ * shape are its own, and because that one has a `users` half this has no
+ * analogue for.
  *
  * Runs on `nightly` at 04:30 UTC, after `purgeSubmissions` at 04:00, so a slow
  * night does not have two retention sweeps contending.
@@ -40,37 +64,22 @@ export const SweepEventImports: TaskConfig<'sweepEventImports'> = {
   ],
   handler: async ({ input, req }) => {
     const now = typeof input?.now === 'string' ? new Date(input.now) : new Date()
-    const cutoff = new Date(
-      now.getTime() - IMPORT_RETENTION_DAYS * 24 * 60 * 60 * 1000,
-    ).toISOString()
 
-    const { docs, errors } = await req.payload.delete({
-      collection: 'event-imports',
-      where: {
-        or: [{ status: { equals: 'discarded' } }, { updatedAt: { less_than: cutoff } }],
-      },
-      overrideAccess: true,
+    const deleted = await sweepWindows({
       req,
+      collection: 'event-imports',
+      windows: IMPORT_WINDOWS,
+      now,
+      label: 'SweepEventImports',
     })
 
-    // A batch that refuses to delete is worth a line — silently returning a
-    // short count would read as "nothing was due", and the collection would grow
-    // with its CSVs without anyone learning why.
-    if (errors.length > 0) {
-      req.payload.logger.warn({
-        msg: 'SweepEventImports: some batches could not be deleted',
-        count: errors.length,
-        firstError: errors[0]?.message,
-      })
-    }
-
-    if (docs.length > 0) {
+    if (deleted > 0) {
       req.payload.logger.info({
         msg: 'SweepEventImports: retention sweep complete',
-        deleted: docs.length,
+        deleted,
       })
     }
 
-    return { output: { deleted: docs.length } }
+    return { output: { deleted } }
   },
 }

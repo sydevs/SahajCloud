@@ -1,6 +1,6 @@
-import type { PurgeWindow } from './retention'
 import type { PayloadRequest, TaskConfig } from 'payload'
 
+import { sweepWindows } from '@/lib/retention/sweepWindows'
 import { relationId } from '@/lib/utilities/relationId'
 
 import { DURABLE_TYPES, PURGE_WINDOWS } from './retention'
@@ -11,7 +11,8 @@ import { DURABLE_TYPES, PURGE_WINDOWS } from './retention'
  *
  * Replaces `PurgeUserMessages`, which knew one collection and two windows. The
  * windows themselves, and why each is the length it is, live in
- * `retention.ts` — this file is the sweep.
+ * `retention.ts`; the loop that applies them is `@/lib/retention/sweepWindows`,
+ * shared with `sweepEventImports`. What stays here is the `users` half.
  *
  * ⚠ **The users sweep is the half that makes retention mean anything.** A
  * contact row's retention promise is about the person who sent it, and every
@@ -64,11 +65,24 @@ export const PurgeSubmissions: TaskConfig<'purgeSubmissions'> = {
      * from `users` instead would mean scanning every user on every run.
      */
     const touchedUsers = new Set<number>()
-    let deletedSubmissions = 0
 
-    for (const window of PURGE_WINDOWS) {
-      deletedSubmissions += await purge({ req, window, now, dryRun, touchedUsers })
-    }
+    const deletedSubmissions = await sweepWindows({
+      req,
+      collection: 'user-submissions',
+      windows: PURGE_WINDOWS,
+      now,
+      dryRun,
+      label: 'PurgeSubmissions',
+      inspect: {
+        select: { user: true },
+        onDue: (due) => {
+          for (const doc of due) {
+            const userId = relationId(doc.user)
+            if (userId != null) touchedUsers.add(userId)
+          }
+        },
+      },
+    })
 
     const deletedUsers = await sweepOrphanedUsers({ req, userIds: touchedUsers, dryRun })
 
@@ -84,57 +98,6 @@ export const PurgeSubmissions: TaskConfig<'purgeSubmissions'> = {
 
     return { output: { deletedSubmissions, deletedUsers } }
   },
-}
-
-/** Delete everything one window selects, and note whose rows they were. */
-async function purge(args: {
-  req: PayloadRequest
-  window: PurgeWindow
-  now: Date
-  dryRun: boolean
-  touchedUsers: Set<number>
-}): Promise<number> {
-  const { req, window, now, dryRun, touchedUsers } = args
-  const cutoff = new Date(now.getTime() - window.days * 24 * 60 * 60 * 1000).toISOString()
-  const where = window.where(cutoff)
-
-  const { docs: due } = await req.payload.find({
-    collection: 'user-submissions',
-    where,
-    select: { user: true },
-    depth: 0,
-    pagination: false,
-    overrideAccess: true,
-    req,
-  })
-
-  for (const doc of due) {
-    const userId = relationId(doc.user)
-    if (userId != null) touchedUsers.add(userId)
-  }
-
-  if (dryRun || due.length === 0) return due.length
-
-  const { docs, errors } = await req.payload.delete({
-    collection: 'user-submissions',
-    where,
-    overrideAccess: true,
-    req,
-  })
-
-  // A row that refuses to delete is worth a line — silently returning a short
-  // count would read as "nothing was due", and the collection would grow
-  // without anyone learning why.
-  if (errors.length > 0) {
-    req.payload.logger.warn({
-      msg: 'PurgeSubmissions: some submissions could not be deleted',
-      window: window.name,
-      count: errors.length,
-      firstError: errors[0]?.message,
-    })
-  }
-
-  return docs.length
 }
 
 /**

@@ -1,4 +1,4 @@
-import type { Where } from 'payload'
+import type { PurgeWindow } from '@/lib/retention/sweepWindows'
 
 import type { UserSubmission } from '@/payload-types'
 
@@ -33,13 +33,6 @@ export const PROPOSAL_DAYS = 30
  * told nobody, and delivered nothing. It stays until a manager resolves it.
  */
 export const DURABLE_TYPES: readonly UserSubmission['type'][] = ['registration', 'subscribe']
-
-/** One sweep: what to delete, and what to call it in the log. */
-export interface PurgeWindow {
-  name: string
-  days: number
-  where: (cutoff: string) => Where
-}
 
 /**
  * The sweeps, in the order they run. **Machine-spam first**, which makes the
