@@ -1,5 +1,3 @@
- 
-
 export interface CLIArgs {
   dryRun: boolean
   clearCache: boolean

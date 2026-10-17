@@ -256,8 +256,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
    *
    * Called when pagination is active, before `import()`.
    */
-  protected async reconstructIdMaps(): Promise<void> {
-  }
+  protected async reconstructIdMaps(): Promise<void> {}
 
   // --- PRELOAD METHODS (for skip/update mode optimization) ---
 
@@ -474,8 +473,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
   }
 
   /** Override to add custom setup logic (called after Payload initialized) */
-  protected async setup(): Promise<void> {
-  }
+  protected async setup(): Promise<void> {}
 
   protected abstract import(): Promise<void>
 
