@@ -1,5 +1,4 @@
 import type { PurgeWindow } from '@/lib/retention/sweepWindows'
-
 import type { UserSubmission } from '@/payload-types'
 
 /**
