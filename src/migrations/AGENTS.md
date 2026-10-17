@@ -71,7 +71,7 @@ Then classify the outcome:
 | Migration created | exit 0, new `.ts` + `.json` pair | Read the DDL first (false positive below), validate (migration-validator skill), check for duplicate DDL (snapshot trap below), commit both files |
 | No schema changes | exit 0, no new files, newest `.json` already has the column | Report it. Not an error |
 | Silent CLI death | exit 0, no files, no output, column **absent** from the snapshot | The CLI died silently — see below. Do **not** conclude "no changes" |
-| Interactive hang | exit 124, no new files | Re-run it over a pty (below). Hand the command to the user only if that still cannot answer the prompt |
+| Interactive hang | exit 124, no new files | Re-run it with `python3 scripts/migrate-create-pty.py <name>` (below). Hand the command to the user only if that still cannot answer the prompt |
 | Partial write | exit 124, lone `.json` (no `.ts`) | Delete the orphaned `.json`, then hand off as above |
 | Other error | exit ≥ 1 with output | Surface the error. Do not retry blindly |
 
@@ -111,16 +111,24 @@ plus an add. **Read the generated DDL before you commit it**: a prompt answered
 wrongly writes a `RENAME COLUMN` that carries the old column's data into the
 new one.
 
-It fires once per ambiguous column, for the UP statements and again for the
-DOWN ones — four times for #968's one added and three dropped columns — so a
-driver must answer every prompt, not the first. Watch for a prompt arriving
-within a second of the previous answer, and make the wait a quiet-period after
-the last byte rather than a fixed delay.
+`scripts/migrate-create-pty.py` is that driver:
 
-⚠ **An unattended session can only run what `.claude/settings.json` allows**,
-and that file is a protected path. Until a driver command is allowlisted there
-in an attended pass, an unattended run reaches an approval prompt it cannot
-answer — the same stall the bound above warns about.
+```bash
+python3 scripts/migrate-create-pty.py <name>    # --timeout 300 by default
+```
+
+It always passes `--skip-empty`, and exits with pnpm's own status, or 124 at
+its deadline, so the outcome table above reads it unchanged. The prompt fires
+once per ambiguous column, for the UP statements and again for the DOWN ones —
+four times for #968's one added and three dropped columns — so the driver
+answers every prompt, each after a quiet period rather than a fixed delay. It
+ends by printing how many it answered.
+
+⚠ **`.claude/settings.json` allowlists it as `Bash(python3
+scripts/migrate-create-pty.py:*)`.** Run it in exactly that form — `cd … &&`,
+`timeout`, or `python3 -I` in front matches no rule, and an unattended run
+then stalls on an approval prompt. The deadline is a flag, not part of the
+prefix, so raising it needs no attended edit. Renaming the script does.
 
 ### "Migration created" has a false positive too — read the DDL first
 
