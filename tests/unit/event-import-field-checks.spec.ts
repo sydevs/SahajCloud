@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { RawImportRow } from '@/collections/EventImports/csv/columns'
+import { IMPORT_COLUMNS } from '@/collections/EventImports/csv/columns'
 import { checkRowFields } from '@/collections/EventImports/csv/fieldChecks'
 
 /**
@@ -161,5 +162,23 @@ describe('checkRowFields — what a spreadsheet does to a value', () => {
     expect(check({ contactName: 'Anna\u202Egnp.exe' }).errors).toEqual([
       'contactName contains an invisible text-direction character that makes it display differently from what was typed — retype it (got "AnnaU+202Egnp.exe")',
     ])
+  })
+})
+
+describe('checkRowFields — the schema is built from the column spec', () => {
+  /**
+   * The spreadsheet checks used to be a loop over whatever `values` held, so
+   * they covered a column nobody had declared and missed nothing. The schema
+   * covers what `IMPORT_COLUMNS` declares instead, which is only equivalent
+   * while every column has an entry — so pin that, in both directions.
+   */
+  it.each(IMPORT_COLUMNS.map(({ name }) => name))('refuses a formula in %s', (column) => {
+    expect(check({ [column]: '=SUM(A1)' }).errors).toContain(
+      `${column} starts like a spreadsheet formula — remove the leading "=" (got "=SUM(A1)")`,
+    )
+  })
+
+  it('leaves a column the template does not declare to the parser', () => {
+    expect(check({ nickname: '=SUM(A1)' }).errors).toEqual([])
   })
 })

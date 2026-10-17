@@ -9,6 +9,12 @@
  * `maxLength` or a tightened URL rule is enforced here the day it lands. A
  * field that disappears throws at import, which fails every spec that loads
  * the parser rather than letting this check go quietly inert.
+ *
+ * ⚠ **Zod owns the spreadsheet half, the Events config owns the value half.**
+ * `importRowSchema` carries what no `events` field can know — what Excel does
+ * to a cell, and what a volunteer typed into a column rather than into a
+ * document. Never restate a `maxLength`, a URL rule or an email rule in it:
+ * that is the delegation above, and a second spelling is what goes stale.
  */
 
 import type { RawImportRow } from './columns'
@@ -16,8 +22,11 @@ import type { Field, FieldAffectingData, PayloadRequest } from 'payload'
 
 import { flattenTopLevelFields } from 'payload'
 import { email, number, text } from 'payload/shared'
+import { z } from 'zod'
 
 import { Events } from '@/collections/Events/Events'
+
+import { IMPORT_COLUMNS } from './columns'
 
 
 export interface FieldCheckResult {
@@ -97,7 +106,7 @@ const URL_COLUMNS = new Set(['website', 'onlineUrl'])
 const EMAIL_COLUMNS = new Set(['contactEmail', 'managerEmail'])
 
 /** Explicit embedding and override controls: they reorder what a reader sees. */
-const BIDI_CONTROL_RE = /[\u202A-\u202E\u2066-\u2069]/
+const BIDI_CONTROL_RE = /[‪-‮⁦-⁩]/
 
 /**
  * A cell a spreadsheet would run as a formula when the published value is
@@ -125,6 +134,90 @@ export function echo(value: string): string {
 }
 
 /**
+ * ⚠ **An issue's message continues its column name**, which `checkRowFields`
+ * prefixes from the issue path. Write each one to read after that name, so a
+ * column renamed in `columns.ts` renames every message it owns.
+ */
+const cell = z.string().superRefine((value, ctx) => {
+  if (BIDI_CONTROL_RE.test(value)) {
+    ctx.addIssue({
+      code: 'custom',
+      message: `contains an invisible text-direction character that makes it display differently from what was typed — retype it (got "${echo(value)}")`,
+    })
+  }
+  if (FORMULA_RE.test(value)) {
+    ctx.addIssue({
+      code: 'custom',
+      message: `starts like a spreadsheet formula — remove the leading "${value[0]}" (got "${echo(value)}")`,
+    })
+  }
+})
+
+const emailCell = cell.superRefine((value, ctx) => {
+  const hint = emailHint(value)
+  if (hint) ctx.addIssue({ code: 'custom', message: `${hint} (got "${echo(value)}")` })
+})
+
+/**
+ * `managerEmail` names a `managers` row rather than an `events` field, so it
+ * has no entry in `EVENT_FIELDS` and the shape check belongs here. Payload's
+ * own email validator is still what answers it.
+ */
+const managerEmailCell = emailCell.superRefine((value, ctx) => {
+  if (emailHint(value)) return
+  const verdict = (email as Validator)(value, { req: VALIDATION_REQ, required: false })
+  if (typeof verdict === 'string') {
+    ctx.addIssue({ code: 'custom', message: `${verdict} (got "${echo(value)}")` })
+  }
+})
+
+const phoneCell = cell.superRefine((value, ctx) => {
+  if (!SCIENTIFIC_RE.test(value)) return
+  ctx.addIssue({
+    code: 'custom',
+    message: `looks like a number the spreadsheet turned into scientific notation — format the column as text and type the number again (got "${echo(value)}")`,
+  })
+})
+
+const registrationLimitCell = cell.superRefine((value, ctx) => {
+  const message = registrationLimitFault(value)
+  if (message) ctx.addIssue({ code: 'custom', message })
+})
+
+function registrationLimitFault(value: string): string | null {
+  if (!/^\d+$/.test(value)) return `must be a whole number of places, digits only (got "${echo(value)}")`
+  if (Number(value) === 0) {
+    return `of 0 would refuse every registration — leave it blank for unlimited (got "${value}")`
+  }
+  if (!Number.isSafeInteger(Number(value))) return `is too large (got "${echo(value)}")`
+  return null
+}
+
+const COLUMN_CELLS: Record<string, typeof cell> = {
+  contactEmail: emailCell,
+  contactPhone: phoneCell,
+  managerEmail: managerEmailCell,
+  registrationLimit: registrationLimitCell,
+}
+
+/**
+ * Every column the template declares, so a new one is checked the moment it is
+ * added rather than the day someone remembers this file.
+ */
+const importRowSchema = z.object(
+  Object.fromEntries(
+    IMPORT_COLUMNS.map(({ name }) => [name, (COLUMN_CELLS[name] ?? cell).optional()]),
+  ),
+)
+
+/** A bare host published over https — the one fix unambiguous enough to make. */
+const urlCell = z
+  .string()
+  .transform((value) =>
+    /^[a-z][a-z0-9+.-]*:/i.test(value) || !BARE_HOST_RE.test(value) ? value : `https://${value}`,
+  )
+
+/**
  * Check every filled value on a row, normalising `values` in place where the
  * fix is unambiguous (a URL missing its scheme) and saying so in `warnings`.
  */
@@ -133,64 +226,25 @@ export function checkRowFields(values: RawImportRow): FieldCheckResult {
   const warnings: string[] = []
   const inactive = values.scheduleType?.trim().toLowerCase() === 'inactive'
 
-  for (const [column, raw] of Object.entries(values)) {
-    if (!raw) continue
-    if (BIDI_CONTROL_RE.test(raw)) {
-      errors.push(
-        `${column} contains an invisible text-direction character that makes it display differently from what was typed — retype it (got "${echo(raw)}")`,
-      )
-    }
-    if (FORMULA_RE.test(raw)) {
-      errors.push(
-        `${column} starts like a spreadsheet formula — remove the leading "${raw[0]}" (got "${echo(raw)}")`,
-      )
-    }
-  }
-
   for (const column of URL_COLUMNS) {
     const raw = values[column]
-    if (!raw || /^[a-z][a-z0-9+.-]*:/i.test(raw) || !BARE_HOST_RE.test(raw)) continue
+    if (!raw) continue
     // Normalised rather than refused: every class page and meeting link this
     // column holds is served over https, and refusing would skip the row over a
     // prefix the volunteer could not have meant otherwise.
-    values[column] = `https://${raw}`
-    warnings.push(
-      `${column} had no https:// — it will be published as "${values[column]}" (got "${echo(raw)}")`,
-    )
+    const normalised = urlCell.parse(raw)
+    if (normalised === raw) continue
+    values[column] = normalised
+    warnings.push(`${column} had no https:// — it will be published as "${normalised}" (got "${echo(raw)}")`)
   }
 
-  for (const column of EMAIL_COLUMNS) {
-    const raw = values[column]
-    if (!raw) continue
-    const hint = emailHint(raw)
-    if (hint) {
-      errors.push(`${column} ${hint} (got "${echo(raw)}")`)
-      continue
-    }
-    if (column === 'managerEmail') {
-      const verdict = (email as Validator)(raw, { req: VALIDATION_REQ, required: false })
-      if (typeof verdict === 'string') errors.push(`${column} ${verdict} (got "${echo(raw)}")`)
-    }
-  }
-
-  const phone = values.contactPhone
-  if (phone && SCIENTIFIC_RE.test(phone)) {
-    errors.push(
-      `contactPhone looks like a number the spreadsheet turned into scientific notation — format the column as text and type the number again (got "${echo(phone)}")`,
-    )
-  }
-
-  const limit = values.registrationLimit
-  if (limit && !/^\d+$/.test(limit)) {
-    errors.push(
-      `registrationLimit must be a whole number of places, digits only (got "${echo(limit)}")`,
-    )
-  } else if (limit && Number(limit) === 0) {
-    errors.push(
-      `registrationLimit of 0 would refuse every registration — leave it blank for unlimited (got "${limit}")`,
-    )
-  } else if (limit && !Number.isSafeInteger(Number(limit))) {
-    errors.push(`registrationLimit is too large (got "${echo(limit)}")`)
+  // ⚠ **Blank cells are dropped before the parse, not made nullable.** A column
+  // the volunteer left empty owes none of these checks, and `requiredColumnsFor`
+  // in `parse.ts` is what decides whether it was allowed to be empty.
+  const filled = Object.fromEntries(Object.entries(values).filter(([, value]) => value))
+  const parsed = importRowSchema.safeParse(filled)
+  if (!parsed.success) {
+    errors.push(...parsed.error.issues.map((issue) => `${String(issue.path[0])} ${issue.message}`))
   }
 
   const data = { inactive, contactEmail: values.contactEmail || null }
@@ -199,7 +253,7 @@ export function checkRowFields(values: RawImportRow): FieldCheckResult {
     if (!raw) continue
     if (EMAIL_COLUMNS.has(column) && emailHint(raw)) continue
     if (column === 'contactPhone' && SCIENTIFIC_RE.test(raw)) continue
-    if (column === 'registrationLimit' && !/^\d+$/.test(raw)) continue
+    if (column === 'registrationLimit' && registrationLimitFault(raw)) continue
     const value = field.type === 'number' ? Number(raw) : raw
     const verdict = validate(value, {
       ...field,
