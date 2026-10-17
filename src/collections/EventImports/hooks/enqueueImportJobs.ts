@@ -22,12 +22,15 @@ import type { CollectionAfterChangeHook } from 'payload'
 import { runJobQueueAfterCommit } from '@/lib/jobs/runJobQueueAfterCommit'
 import type { EventImport } from '@/payload-types'
 
+import { storedStatus } from './transitionStatus'
+
 /** The task each status queues on being entered. */
-const ON_ENTERING: Partial<Record<NonNullable<EventImport['status']>, 'analyzeEventImport' | 'commitEventImport'>> =
-  {
-    resolving: 'analyzeEventImport',
-    committing: 'commitEventImport',
-  }
+const ON_ENTERING: Partial<
+  Record<NonNullable<EventImport['status']>, 'analyzeEventImport' | 'commitEventImport'>
+> = {
+  resolving: 'analyzeEventImport',
+  committing: 'commitEventImport',
+}
 
 export const enqueueImportJobs: CollectionAfterChangeHook = async ({
   doc,
@@ -36,8 +39,9 @@ export const enqueueImportJobs: CollectionAfterChangeHook = async ({
   req,
 }) => {
   const batch = doc as EventImport
-  const status = batch.status
-  const entered = operation === 'create' || (previousDoc as EventImport | undefined)?.status !== status
+  const status = storedStatus(batch)
+  const entered =
+    operation === 'create' || (previousDoc as EventImport | undefined)?.status !== status
   if (!entered) return doc
 
   const task = ON_ENTERING[status]

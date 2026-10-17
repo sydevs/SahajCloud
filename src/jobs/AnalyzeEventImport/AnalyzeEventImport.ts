@@ -3,6 +3,7 @@ import type { PayloadRequest, TaskConfig } from 'payload'
 import { Temporal } from '@js-temporal/polyfill'
 
 import { PROGRESS_EVERY_ROWS, RESOLVE_CONCURRENCY } from '@/collections/EventImports/constants'
+import { storedStatus } from '@/collections/EventImports/hooks/transitionStatus'
 import {
   failBatchWhenSpent,
   jobWriteReq,
@@ -24,7 +25,6 @@ import { proposeTree } from './proposeTree'
 
 type ImportRow = EventImportRows[number]
 type LoadedTarget = Extract<LoadTargetResult, { ok: true }>
-
 
 /**
  * How many times the queue re-runs an analysis that threw.
@@ -91,7 +91,7 @@ export const AnalyzeEventImport: TaskConfig<'analyzeEventImport'> = {
     // write was lost — so a job whose batch has moved on does nothing rather
     // than overwriting a review in progress.
     if (batch.status !== 'resolving') {
-      return { output: { status: batch.status, resolved: 0, pending: 0 } }
+      return { output: { status: storedStatus(batch), resolved: 0, pending: 0 } }
     }
 
     const loaded = await loadTargetOrFail(req, batch, batchId)
@@ -220,7 +220,11 @@ async function writeRows(
     id: batchId,
     data: {
       rows: rows as EventImportRows,
-      progress: { done: rows.filter((row) => row.resolved || row.errors?.length).length, total: rows.length, ...progress },
+      progress: {
+        done: rows.filter((row) => row.resolved || row.errors?.length).length,
+        total: rows.length,
+        ...progress,
+      },
     },
     overrideAccess: true,
     depth: 0,

@@ -13,6 +13,7 @@ import {
 import { commitWriteReq } from '@/collections/EventImports/commit/scope'
 import { commitReport, tallyRows } from '@/collections/EventImports/commit/summary'
 import { PROGRESS_EVERY_ROWS } from '@/collections/EventImports/constants'
+import { storedStatus } from '@/collections/EventImports/hooks/transitionStatus'
 import {
   failBatchWhenSpent,
   jobWriteReq,
@@ -104,7 +105,7 @@ export const CommitEventImport: TaskConfig<'commitEventImport'> = {
     // lost — so a job whose batch is already `finished` does nothing rather than
     // re-reporting and re-mailing it.
     if (batch.status !== 'committing') {
-      return { output: { status: batch.status, committed: 0, skipped: 0 } }
+      return { output: { status: storedStatus(batch), committed: 0, skipped: 0 } }
     }
 
     const targetId =

@@ -36,7 +36,21 @@ import { bypassPermissions, hasPermission, roleScopeFromLocale } from '@/plugins
 import { EVENT_IMPORT_JOB } from '../jobContext'
 import { isUnchanged, refuseRowEdits, refuseTreeEdits } from './reviewerEdits'
 
-type ImportStatus = NonNullable<EventImport['status']>
+export type ImportStatus = NonNullable<EventImport['status']>
+
+/**
+ * A stored batch's stage.
+ *
+ * ⚠ **`status` generates as optional although it is `required`.** The field
+ * carries an `admin.condition`, and Payload's type generator reads that as "the
+ * form may not submit this" — so the generated type is nullable while the
+ * Postgres column stays `NOT NULL` and `defaultValue` fills every create. One
+ * narrowing here rather than a null branch at each of the four readers, none of
+ * which has anything to do when a batch has no stage.
+ */
+export function storedStatus(batch: Pick<EventImport, 'status'>): ImportStatus {
+  return batch.status as ImportStatus
+}
 
 /**
  * Which statuses a caller may move a batch to, from each status.
@@ -80,7 +94,7 @@ export const transitionStatus: CollectionBeforeChangeHook = async ({
   }
 
   const batch = originalDoc as EventImport
-  const from = batch.status
+  const from = storedStatus(batch)
   const to = (data.status ?? from) as ImportStatus
 
   // ⚠ **Checked against `from`, never against the move.** `parseUpload` asks for
@@ -134,14 +148,18 @@ export const transitionStatus: CollectionBeforeChangeHook = async ({
   const storedRows = (batch.rows ?? []) as EventImportRows
 
   if (!isUnchanged(storedRows, data.rows)) {
-    if (closed) throw refusal('rows', `An import that is ${describe(from)} can no longer be edited.`)
+    if (closed)
+      throw refusal('rows', `An import that is ${describe(from)} can no longer be edited.`)
     const refused = refuseRowEdits(storedRows, (data.rows ?? []) as EventImportRows)
     if (refused) throw refusal('rows', refused)
   }
 
   if (!isUnchanged(batch.proposedRegions, data.proposedRegions)) {
     if (closed) {
-      throw refusal('proposedRegions', `An import that is ${describe(from)} can no longer be edited.`)
+      throw refusal(
+        'proposedRegions',
+        `An import that is ${describe(from)} can no longer be edited.`,
+      )
     }
     const stored = batch.proposedRegions
     if (!stored) throw refusal('proposedRegions', 'This import has proposed no regions yet.')
@@ -170,11 +188,15 @@ async function refuseUncommittable(
 ): Promise<void> {
   const rows = (batch.rows ?? []) as EventImportRows
   if (rows.some((row) => !row.resolved && !row.errors?.length)) {
-    throw refusal('status', 'Some rows have no address yet. Wait for the import to finish resolving.')
+    throw refusal(
+      'status',
+      'Some rows have no address yet. Wait for the import to finish resolving.',
+    )
   }
 
   const tree = batch.proposedRegions
-  if (!tree) throw refusal('status', 'This import has proposed no regions yet. Upload the file again.')
+  if (!tree)
+    throw refusal('status', 'This import has proposed no regions yet. Upload the file again.')
 
   const created = tree.nodes.filter((node) => node.match.kind === 'create')
   const unnamed = created.find((node) => !node.slug || !node.location)
@@ -192,7 +214,10 @@ async function refuseUncommittable(
   for (const node of created) {
     const key = `${node.parentKey ?? ''}/${node.slug}`
     if (seen.has(key)) {
-      throw refusal('status', `Two proposed regions under the same parent are both called "${node.slug}".`)
+      throw refusal(
+        'status',
+        `Two proposed regions under the same parent are both called "${node.slug}".`,
+      )
     }
     seen.add(key)
   }

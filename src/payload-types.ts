@@ -2972,7 +2972,7 @@ export interface EventImport {
     | 'za'
     | 'zu'
   )[];
-  status: 'resolving' | 'review' | 'committing' | 'finished' | 'failed' | 'discarded';
+  status?: ('resolving' | 'review' | 'committing' | 'finished' | 'failed' | 'discarded') | null;
   progress?: {
     done?: number | null;
     total?: number | null;
