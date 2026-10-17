@@ -178,9 +178,10 @@ describe('Schema Introspection Utilities', () => {
         hasMany: false,
         relationTo: 'files',
         isLexicalBlock: false,
+        localizedAt: [],
       }
 
-      const ids = extractIdsFromDocument(doc, ref, [])
+      const ids = extractIdsFromDocument(doc, ref)
       expect(ids.has(123)).toBe(true)
     })
 
@@ -200,9 +201,10 @@ describe('Schema Introspection Utilities', () => {
         hasMany: false,
         relationTo: 'files',
         isLexicalBlock: false,
+        localizedAt: [],
       }
 
-      const ids = extractIdsFromDocument(doc, ref, [])
+      const ids = extractIdsFromDocument(doc, ref)
       expect(ids.has(1)).toBe(true)
       expect(ids.has(2)).toBe(true)
       expect(ids.has(3)).toBe(true)
@@ -218,9 +220,10 @@ describe('Schema Introspection Utilities', () => {
         hasMany: true,
         relationTo: 'images',
         isLexicalBlock: false,
+        localizedAt: [],
       }
 
-      const ids = extractIdsFromDocument(doc, ref, [])
+      const ids = extractIdsFromDocument(doc, ref)
       expect(ids.has(10)).toBe(true)
       expect(ids.has(20)).toBe(true)
       expect(ids.has(30)).toBe(true)
@@ -237,9 +240,10 @@ describe('Schema Introspection Utilities', () => {
         hasMany: false,
         relationTo: 'images',
         isLexicalBlock: false,
+        localizedAt: [],
       }
 
-      const ids = extractIdsFromDocument(doc, ref, [])
+      const ids = extractIdsFromDocument(doc, ref)
       expect(ids.has(42)).toBe(true)
     })
 
@@ -253,10 +257,11 @@ describe('Schema Introspection Utilities', () => {
         relationTo: 'images',
         isLexicalBlock: true,
         // No blockSlug - the new approach uses a single marker reference for richText fields
+        localizedAt: [],
       }
 
       // Lexical block fields should be skipped (handled separately by extractIdsFromLexicalContent)
-      const ids = extractIdsFromDocument(doc, ref, [])
+      const ids = extractIdsFromDocument(doc, ref)
       expect(ids.size).toBe(0)
     })
   })
@@ -361,6 +366,7 @@ describe('Schema Introspection Utilities', () => {
           hasMany: false,
           relationTo: 'files',
           isLexicalBlock: false,
+          localizedAt: [],
         },
         {
           collection: 'lessons',
@@ -369,6 +375,7 @@ describe('Schema Introspection Utilities', () => {
           hasMany: false,
           relationTo: 'files',
           isLexicalBlock: false,
+          localizedAt: [],
         },
         {
           collection: 'authors',
@@ -377,6 +384,7 @@ describe('Schema Introspection Utilities', () => {
           hasMany: false,
           relationTo: 'images',
           isLexicalBlock: false,
+          localizedAt: [],
         },
       ]
 

@@ -36,6 +36,38 @@ export interface FieldReference {
   isLexicalBlock: boolean
   /** Block slug if this is a Lexical block field */
   blockSlug?: string
+  /**
+   * Indices into `fieldPath`'s segments whose value a `locale: 'all'` read
+   * returns as a `{ [locale]: value }` map, read off each field's own
+   * `localized` flag while walking the schema.
+   */
+  localizedAt: number[]
+}
+
+/** Append a named field's segment to the path walked so far. */
+function joinPath(pathPrefix: string, segment: string): string {
+  return pathPrefix ? `${pathPrefix}.${segment}` : segment
+}
+
+/** The index a named field's own value sits at, within the path walked so far. */
+function segmentCount(pathPrefix: string): number {
+  return pathPrefix ? pathPrefix.split('.').length : 0
+}
+
+/**
+ * `localizedAt` plus this field's own segment when the field is localized.
+ *
+ * Payload deletes `localized` from a field nested inside a localized one
+ * (`fields/config/sanitize.js`), so a path normally carries at most one.
+ */
+function recordLocalized(
+  localizedAt: readonly number[],
+  pathPrefix: string,
+  localized: boolean | undefined,
+): number[] {
+  const recorded = [...localizedAt]
+  if (localized) recorded.push(segmentCount(pathPrefix))
+  return recorded
 }
 
 /** Check if a relationTo value includes the target collection */
@@ -58,6 +90,7 @@ function traverseField(
   references: FieldReference[],
   isLexicalBlock: boolean = false,
   blockSlug?: string,
+  localizedAt: readonly number[] = [],
 ): void {
   switch (field.type) {
     case 'upload': {
@@ -65,12 +98,13 @@ function traverseField(
       if (matchesTarget(uploadField.relationTo, targetCollection)) {
         references.push({
           collection: collectionSlug,
-          fieldPath: pathPrefix ? `${pathPrefix}.${uploadField.name}` : uploadField.name,
+          fieldPath: joinPath(pathPrefix, uploadField.name),
           fieldType: 'upload',
           hasMany: uploadField.hasMany ?? false,
           relationTo: uploadField.relationTo,
           isLexicalBlock,
           blockSlug,
+          localizedAt: recordLocalized(localizedAt, pathPrefix, uploadField.localized),
         })
       }
       break
@@ -81,12 +115,13 @@ function traverseField(
       if (matchesTarget(relationshipField.relationTo, targetCollection)) {
         references.push({
           collection: collectionSlug,
-          fieldPath: pathPrefix ? `${pathPrefix}.${relationshipField.name}` : relationshipField.name,
+          fieldPath: joinPath(pathPrefix, relationshipField.name),
           fieldType: 'relationship',
           hasMany: relationshipField.hasMany ?? false,
           relationTo: relationshipField.relationTo,
           isLexicalBlock,
           blockSlug,
+          localizedAt: recordLocalized(localizedAt, pathPrefix, relationshipField.localized),
         })
       }
       break
@@ -96,9 +131,13 @@ function traverseField(
       const tabsField = field as TabsField
       for (const tab of tabsField.tabs) {
         // Named tabs add to path, unnamed tabs don't
-        const tabPath = 'name' in tab && tab.name ? `${pathPrefix}.${tab.name}` : pathPrefix
+        const isNamed = 'name' in tab && typeof tab.name === 'string'
+        const tabPath = isNamed ? joinPath(pathPrefix, tab.name as string) : pathPrefix
+        const tabLocalized = isNamed
+          ? recordLocalized(localizedAt, pathPrefix, 'localized' in tab ? tab.localized : false)
+          : localizedAt
         for (const tabField of tab.fields) {
-          traverseField(tabField, targetCollection, tabPath, collectionSlug, references, isLexicalBlock, blockSlug)
+          traverseField(tabField, targetCollection, tabPath, collectionSlug, references, isLexicalBlock, blockSlug, tabLocalized)
         }
       }
       break
@@ -108,11 +147,12 @@ function traverseField(
       const groupField = field as GroupField
       // Named groups add to path, unnamed groups don't
       const hasName = 'name' in groupField && typeof groupField.name === 'string'
-      const groupPath = hasName
-        ? (pathPrefix ? `${pathPrefix}.${groupField.name}` : groupField.name)
-        : pathPrefix
+      const groupPath = hasName ? joinPath(pathPrefix, groupField.name) : pathPrefix
+      const groupLocalized = hasName
+        ? recordLocalized(localizedAt, pathPrefix, groupField.localized)
+        : localizedAt
       for (const groupChildField of groupField.fields) {
-        traverseField(groupChildField, targetCollection, groupPath, collectionSlug, references, isLexicalBlock, blockSlug)
+        traverseField(groupChildField, targetCollection, groupPath, collectionSlug, references, isLexicalBlock, blockSlug, groupLocalized)
       }
       break
     }
@@ -121,16 +161,18 @@ function traverseField(
       const rowField = field as RowField
       // Row fields don't add to path - they're just layout
       for (const rowChildField of rowField.fields) {
-        traverseField(rowChildField, targetCollection, pathPrefix, collectionSlug, references, isLexicalBlock, blockSlug)
+        traverseField(rowChildField, targetCollection, pathPrefix, collectionSlug, references, isLexicalBlock, blockSlug, localizedAt)
       }
       break
     }
 
     case 'array': {
       const arrayField = field as ArrayField
-      const arrayPath = pathPrefix ? `${pathPrefix}.${arrayField.name}.*` : `${arrayField.name}.*`
+      const arrayPath = `${joinPath(pathPrefix, arrayField.name)}.*`
+      // The locale map sits on the array itself, one segment above its items.
+      const arrayLocalized = recordLocalized(localizedAt, pathPrefix, arrayField.localized)
       for (const arrayChildField of arrayField.fields) {
-        traverseField(arrayChildField, targetCollection, arrayPath, collectionSlug, references, isLexicalBlock, blockSlug)
+        traverseField(arrayChildField, targetCollection, arrayPath, collectionSlug, references, isLexicalBlock, blockSlug, arrayLocalized)
       }
       break
     }
@@ -138,12 +180,13 @@ function traverseField(
     case 'blocks': {
       // Note: This is for PayloadCMS blocks fields (not Lexical blocks)
       // Lexical blocks are handled separately via richText field
-      const blocksField = field as { name: string; blocks: Block[] }
-      const blocksPath = pathPrefix ? `${pathPrefix}.${blocksField.name}.*` : `${blocksField.name}.*`
+      const blocksField = field as { name: string; blocks: Block[]; localized?: boolean }
+      const blocksPath = `${joinPath(pathPrefix, blocksField.name)}.*`
+      const blocksLocalized = recordLocalized(localizedAt, pathPrefix, blocksField.localized)
       for (const block of blocksField.blocks) {
         const blockPath = `${blocksPath}.${block.slug}`
         for (const blockField of block.fields) {
-          traverseField(blockField, targetCollection, blockPath, collectionSlug, references, isLexicalBlock, blockSlug)
+          traverseField(blockField, targetCollection, blockPath, collectionSlug, references, isLexicalBlock, blockSlug, blocksLocalized)
         }
       }
       break
@@ -153,7 +196,7 @@ function traverseField(
       const collapsibleField = field as CollapsibleField
       // Collapsible fields don't add to path - they're just layout
       for (const collapsibleChildField of collapsibleField.fields) {
-        traverseField(collapsibleChildField, targetCollection, pathPrefix, collectionSlug, references, isLexicalBlock, blockSlug)
+        traverseField(collapsibleChildField, targetCollection, pathPrefix, collectionSlug, references, isLexicalBlock, blockSlug, localizedAt)
       }
       break
     }
@@ -163,18 +206,19 @@ function traverseField(
       // Instead of trying to introspect block definitions (which are complex to access at runtime),
       // we mark the richText field as containing Lexical content that needs generic traversal.
       // The actual ID extraction happens at content scan time using extractIdsFromLexicalContent().
-      const richTextField = field as { name: string; editor?: unknown }
+      const richTextField = field as { name: string; editor?: unknown; localized?: boolean }
       if (richTextField.editor) {
         // Add a marker reference indicating this field contains Lexical content
         // that should be traversed for the target collection
         references.push({
           collection: collectionSlug,
-          fieldPath: pathPrefix ? `${pathPrefix}.${richTextField.name}` : richTextField.name,
+          fieldPath: joinPath(pathPrefix, richTextField.name),
           fieldType: 'upload',
           hasMany: true,
           relationTo: targetCollection,
           isLexicalBlock: true,
           // No specific blockSlug - generic Lexical traversal
+          localizedAt: recordLocalized(localizedAt, pathPrefix, richTextField.localized),
         })
       }
       break
@@ -254,27 +298,32 @@ export function extractId(value: unknown): number | null {
 }
 
 /**
- * Split the `{ [locale]: value }` shape a `locale: 'all'` read returns for a
- * localized field, so a reference under one is reached in every language.
+ * One value per language where the schema walk recorded this segment as
+ * localized, and the value itself where it did not.
  *
- * Every key has to be a configured locale, so a group whose subfields happened
- * to look like locale codes is not split. Pass `[]` for a single-locale read.
+ * Reads no keys: which segments carry a locale map is the walk's answer
+ * (`FieldReference.localizedAt`), from each field's own `localized` flag. So a
+ * group whose subfields happen to be named like locale codes cannot be split,
+ * and a translated reference cannot be missed for want of a locale list.
  */
-export function localeValues(value: unknown, locales: readonly string[]): unknown[] {
-  if (locales.length === 0 || !isRecord(value)) return [value]
-  const keys = Object.keys(value)
-  if (keys.length === 0 || !keys.every((key) => locales.includes(key))) return [value]
+export function localeValues(value: unknown, localized: boolean): unknown[] {
+  // `isRecord` admits an array, and a locale map is never one.
+  if (!localized || Array.isArray(value) || !isRecord(value)) return [value]
   return Object.values(value)
 }
 
 /**
  * Get value from a document at a given path.
  * Handles dot notation and * wildcards for arrays.
+ *
+ * `localizedAt` describes a `depth: 0`, `locale: 'all'` read — the only shape
+ * a locale map arrives in.
  */
 function getValueAtPath(
   document: Record<string, unknown>,
   pathParts: string[],
-  locales: readonly string[],
+  localizedAt: readonly number[],
+  segment: number = 0,
 ): unknown[] {
   if (pathParts.length === 0) return [document]
 
@@ -286,7 +335,7 @@ function getValueAtPath(
     const results: unknown[] = []
     for (const item of document) {
       if (typeof item === 'object' && item !== null) {
-        results.push(...getValueAtPath(item as Record<string, unknown>, rest, locales))
+        results.push(...getValueAtPath(item as Record<string, unknown>, rest, localizedAt, segment + 1))
       }
     }
     return results
@@ -296,12 +345,12 @@ function getValueAtPath(
   if (value === undefined || value === null) return []
 
   const results: unknown[] = []
-  for (const candidate of localeValues(value, locales)) {
+  for (const candidate of localeValues(value, localizedAt.includes(segment))) {
     if (candidate === undefined || candidate === null) continue
     if (rest.length === 0) {
       results.push(candidate)
     } else if (typeof candidate === 'object') {
-      results.push(...getValueAtPath(candidate as Record<string, unknown>, rest, locales))
+      results.push(...getValueAtPath(candidate as Record<string, unknown>, rest, localizedAt, segment + 1))
     }
   }
   return results
@@ -317,7 +366,6 @@ function getValueAtPath(
 export function extractIdsFromDocument(
   document: Record<string, unknown>,
   reference: FieldReference,
-  locales: readonly string[],
 ): Set<number> {
   const ids = new Set<number>()
 
@@ -327,7 +375,7 @@ export function extractIdsFromDocument(
   }
 
   const pathParts = reference.fieldPath.split('.')
-  const values = getValueAtPath(document, pathParts, locales)
+  const values = getValueAtPath(document, pathParts, reference.localizedAt)
 
   for (const value of values) {
     if (reference.hasMany && Array.isArray(value)) {
