@@ -248,6 +248,30 @@ Examples of the pattern, each a folder holding `<Name>.tsx` beside `<Name>Field.
 
 The component then reads `field.admin?.custom?.descriptions` by the current value. Common keys: `descriptions` (per-value help text), `columns` (LogTable), `filterQuery` (TagSelector API filtering), `size: 'default' | 'large'` (TagSelector).
 
+## Closing the Edit view while a job owns a document — `JobStageView`
+
+A collection whose rows a background job writes needs editing closed while the job runs, or the admin form posts a whole stale document over the worker's writes. `JobStageView` (`src/components/admin/JobStageView/`) is that view, generic over the collection:
+
+```typescript
+admin: {
+  components: { views: { edit: { default: { Component: '@/components/admin/JobStageView/JobStageView' } } } },
+  custom: {
+    jobStage: { runningStages: ['processing'], staleAfterMs: 15 * 60 * 1000 } satisfies JobStageConfig,
+  },
+}
+```
+
+`runningStages` is required; `statusField` (default `status`), `progressField` and `totalField` are dotted paths, so a count kept inside a group is reachable. `staleAfterMs` is how long a running stage may stand against `updatedAt` before the form opens anyway — declare one wherever a run can be lost to a restart, since nothing expires a stage and the gate is otherwise permanent. Declare `totalField` wherever the job knows its denominator — the banner reads "7 of 20 done" with one and "7 done so far" without. Declare with `satisfies JobStageConfig` — `admin.custom` is `Record<string, any>`, so that is the only thing that makes a misspelled key a build error rather than a view that never fires.
+
+Four things are load-bearing:
+
+- **`views.edit.default.Component` replaces `DefaultEditView`; it does not wrap it.** So a settled stage falls through by rendering `DefaultEditView` itself.
+- **The stored stage at page load is the whole input.** There is no poll, so nothing re-requests the document. **Check again** (`CheckAgain.tsx`, the folder's one client component) calls `router.refresh()`, which refetches the route's server render and bypasses the client router cache a `next/link` navigation can be answered from. That is Payload's own idiom — `useRouteCache`'s `clearRouteCache` is the same call. ⚠ Inside a document drawer nothing re-reads the stage: `DocumentDrawerContent` renders the document through the `renderDocument` server function and keeps the result in React state, which no route refresh re-runs. An anchor would re-read it only by leaving the host document and discarding its unsaved edits, so the refresh stands in both surfaces.
+- **The gate releases itself only where `staleAfterMs` is declared.** Without one, a row whose worker died stays behind the waiting view for good; past the window the form opens and setting the status column back to its queued value is the retry.
+- **Never name a running stage that is also the column's `defaultValue`.** `meditation-transcripts` declares `processing` and not `queued` for that reason. The view refuses to fire with no document id, which covers the create form, but a *saved* row sitting at that default would open behind a view nothing can move on.
+
+⚠ **A `hidden: true` collection cannot show it on a route.** Registering the view is still correct there, and a document drawer renders it (`overrideEntityVisibility`), but `/admin/collections/<slug>/<id>` 404s — see "A hidden collection is still reachable through a `join`" above. Reach such a collection through a `join` before concluding the view is broken.
+
 ## Custom array field components
 
 Reach for `ArrayFieldClientComponent` only when the built-in `ArrayField` doesn't fit — flat rows, no per-row collapsibles, no drag-drop.

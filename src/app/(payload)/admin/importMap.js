@@ -31,6 +31,7 @@ import { default as default_e201aca8b8f7be4559f38e80e7a23040 } from '@/component
 import { default as default_f6674fb37b8a49317525e4fb8838a78c } from '@/components/admin/UploadNotice'
 import { default as default_7647a475a77f95462c70b2b16fe92239 } from '@/components/admin/WorkflowButtons'
 import { default as default_277d6fd41e8d1febac87b7e86938523f } from '@/components/admin/AudioUpload'
+import { default as default_aa1cbd65eb0b3cec4fc40542c104a1d5 } from '@/components/admin/JobStageView/JobStageView'
 import { default as default_0d7144728a6a15ce62edc7c88eaf2e1a } from '@/components/admin/RelationshipCountCell'
 import { default as default_f90b1f00bd5c69345510453a62d36e0a } from '@/components/admin/ThumbnailCell/PreviewUrlThumbnailCell'
 import { default as default_216b4fefb509fb8787bce46ede901332 } from '@/components/admin/TimestampInput'
@@ -124,6 +125,7 @@ export const importMap = {
   "@/components/admin/UploadNotice#default": default_f6674fb37b8a49317525e4fb8838a78c,
   "@/components/admin/WorkflowButtons#default": default_7647a475a77f95462c70b2b16fe92239,
   "@/components/admin/AudioUpload#default": default_277d6fd41e8d1febac87b7e86938523f,
+  "@/components/admin/JobStageView/JobStageView#default": default_aa1cbd65eb0b3cec4fc40542c104a1d5,
   "@/components/admin/RelationshipCountCell#default": default_0d7144728a6a15ce62edc7c88eaf2e1a,
   "@/components/admin/ThumbnailCell/PreviewUrlThumbnailCell#default": default_f90b1f00bd5c69345510453a62d36e0a,
   "@/components/admin/TimestampInput#default": default_216b4fefb509fb8787bce46ede901332,
