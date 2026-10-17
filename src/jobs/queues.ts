@@ -35,7 +35,7 @@ export const JOB_AUTO_RUN: AutoRunEntry[] = [
   },
   {
     // Safety net for the per-submission screening kick (see
-    // UserSubmissions/hooks/enqueueSubmissionScreening): a submission whose
+    // UserSubmissions/hooks/queueScreening): a submission whose
     // immediate run was lost to a crash waits at most 15 minutes.
     cron: '*/15 * * * *',
     queue: 'screening',

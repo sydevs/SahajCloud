@@ -7,7 +7,7 @@ import { formFields } from '@/collections/Forms/fields'
 import { validateFormAction } from '@/collections/Forms/hooks/validateFormAction'
 import { reviewSubmission } from '@/collections/UserSubmissions/endpoints/review'
 import { userSubmissionFields } from '@/collections/UserSubmissions/fields'
-import { enqueueSubmissionScreening } from '@/collections/UserSubmissions/hooks/enqueueSubmissionScreening'
+import { queueScreening } from '@/collections/UserSubmissions/hooks/queueScreening'
 import { gateEventFeedback, syncCommunityFeedback } from '@/collections/UserSubmissions/hooks/eventFeedback'
 import { gateRegistration } from '@/collections/UserSubmissions/hooks/gateRegistration'
 import { prepareUserSubmission } from '@/collections/UserSubmissions/hooks/prepareUserSubmission'
@@ -115,7 +115,7 @@ export const formsPlugin = (): Plugin => async (config) => {
                 spawnSubscribeFromRegistration,
                 syncFullnessAfterChange,
                 syncCommunityFeedback,
-                enqueueSubmissionScreening,
+                queueScreening,
               ],
             },
             endpoints: [...(collection.endpoints || []), reviewSubmission],

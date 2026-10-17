@@ -10,7 +10,7 @@ import { runQueueSoon } from '@/lib/jobs/runQueueSoon'
  * queue run says `afterCommit` — see `runQueueSoon`, which owns that contract
  * and the autoRun safety net behind it.
  */
-export const enqueueSubmissionScreening: CollectionAfterChangeHook = async ({
+export const queueScreening: CollectionAfterChangeHook = async ({
   doc,
   operation,
   req,
@@ -37,7 +37,7 @@ export const enqueueSubmissionScreening: CollectionAfterChangeHook = async ({
   runQueueSoon({
     payload: req.payload,
     queue: 'screening',
-    label: 'enqueueSubmissionScreening',
+    label: 'queueScreening',
     context: { submissionId },
     afterCommit: true,
   })

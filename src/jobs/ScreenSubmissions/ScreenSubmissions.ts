@@ -47,7 +47,7 @@ import { isScreeningResult, VERDICT_NOTES } from './verdicts'
  * sender, because the cross-sender version needs a queryable `bodyHash` column
  * that `user-submissions` does not have.
  *
- * Queued per-submission by `enqueueSubmissionScreening`; the `screening`
+ * Queued per-submission by `queueScreening`; the `screening`
  * queue's 15-minute autoRun retries anything a crash dropped.
  */
 export const ScreenSubmissions: TaskConfig<'screenSubmission'> = {
