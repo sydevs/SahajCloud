@@ -457,7 +457,6 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
         this.runVerification = await this.verifyRun()
       }
 
-      // File output is CLI-only.
       await this.finalize()
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
