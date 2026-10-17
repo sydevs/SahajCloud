@@ -132,7 +132,10 @@ function createBaseTestConfig(emailConfig: any, schemaName: string, debug = fals
     }),
     jobs: {
       tasks,
-      deleteJobOnComplete: true,
+      // Mirrors payload.config.ts. A retained job row is the status source a
+      // transcript derives from, so a lane that drops them tests a system
+      // production does not run.
+      deleteJobOnComplete: false,
       // Mirror payload.config.ts: tasks that declare `concurrency` (for example,       // expireEvents) require this, or Payload 3.86 refuses to build the config.
       enableConcurrencyControl: true,
     },

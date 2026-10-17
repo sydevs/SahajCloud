@@ -33,7 +33,8 @@ against Payload 3.86.0 / drizzle-kit 0.31.7):
 2. **Rename-vs-create prompt** — fires on an ambiguous column change (a
    drop+add that looks like a rename). No flag bypasses it. On non-TTY
    stdin it **hangs indefinitely**, before writing any files. Only a
-   timeout catches it.
+   timeout catches it. It reads raw keypresses from a **terminal**, not
+   from stdin, so a pty answers it where a redirect cannot — see below.
 
 Run:
 
@@ -70,7 +71,7 @@ Then classify the outcome:
 | Migration created | exit 0, new `.ts` + `.json` pair | Read the DDL first (false positive below), validate (migration-validator skill), check for duplicate DDL (snapshot trap below), commit both files |
 | No schema changes | exit 0, no new files, newest `.json` already has the column | Report it. Not an error |
 | Silent CLI death | exit 0, no files, no output, column **absent** from the snapshot | The CLI died silently — see below. Do **not** conclude "no changes" |
-| Interactive hang | exit 124, no new files | Hand the user the plain command to run interactively, then validate and commit |
+| Interactive hang | exit 124, no new files | Re-run it with `python3 scripts/migrate-create-pty.py <name>` (below). Hand the command to the user only if that still cannot answer the prompt |
 | Partial write | exit 124, lone `.json` (no `.ts`) | Delete the orphaned `.json`, then hand off as above |
 | Other error | exit ≥ 1 with output | Surface the error. Do not retry blindly |
 
@@ -97,8 +98,37 @@ not support a mixed-version family, so leaving the rest on carets meant one
 — a break with no patch involved. Bump them together, in one commit, and
 re-check the patch key against the drizzle-kit that release pins.
 
-The patch does not remove the rename-vs-create **prompt**. That still needs an
-attended run, per the interactive-hang row above.
+The patch does not remove the rename-vs-create **prompt**, which is answered as
+below rather than handed off.
+
+### Answering the rename-vs-create prompt without a person
+
+The prompt reads keypresses from a controlling terminal, so `< /dev/null` and a
+piped newline both leave it unanswered — but `pty.fork()` gives it one, and
+`\r` then takes the highlighted default. The default is `create column` for
+every column, which is the right answer whenever the change really is a drop
+plus an add. **Read the generated DDL before you commit it**: a prompt answered
+wrongly writes a `RENAME COLUMN` that carries the old column's data into the
+new one.
+
+`scripts/migrate-create-pty.py` is that driver:
+
+```bash
+python3 scripts/migrate-create-pty.py <name>    # --timeout 300 by default
+```
+
+It always passes `--skip-empty`, and exits with pnpm's own status, or 124 at
+its deadline, so the outcome table above reads it unchanged. The prompt fires
+once per ambiguous column, for the UP statements and again for the DOWN ones —
+four times for #968's one added and three dropped columns — so the driver
+answers every prompt, each after a quiet period rather than a fixed delay. It
+ends by printing how many it answered.
+
+⚠ **`.claude/settings.json` allowlists it as `Bash(python3
+scripts/migrate-create-pty.py:*)`.** Run it in exactly that form — `cd … &&`,
+`timeout`, or `python3 -I` in front matches no rule, and an unattended run
+then stalls on an approval prompt. The deadline is a flag, not part of the
+prefix, so raising it needs no attended edit. Renaming the script does.
 
 ### "Migration created" has a false positive too — read the DDL first
 

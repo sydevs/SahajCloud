@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { ROUTING_MODES } from '../../src/lib/clients/canonical'
 import { EMBED_MODES, MAX_MOUNT_KEY_LENGTH } from '../../src/lib/clients/embedMetadata'
 import { LOCALES } from '../../src/lib/locales'
+import { getProjectSlugs } from '../../src/plugins/access/config/projects'
 import {
   depthParameter,
   limitParameter,
@@ -13,6 +14,7 @@ import {
   CUSTOM_ENDPOINT_SCHEMAS,
 } from '../../src/plugins/openapi/customEndpoints'
 import {
+  ALWAYS_HIDDEN_COLLECTIONS,
   filterSpec,
   rootEndpointPathsFrom,
   type OpenAPISpec,
@@ -469,5 +471,60 @@ describe('rootEndpointPathsFrom', () => {
   it('treats absent or disabled endpoints as none', () => {
     expect(rootEndpointPathsFrom(undefined)).toEqual([])
     expect(rootEndpointPathsFrom(false)).toEqual([])
+  })
+})
+
+describe('meditation-transcripts (OpenAPI)', () => {
+  // ⚠ **ALWAYS_HIDDEN_COLLECTIONS is now the only tier hiding it.** The
+  // collection joined the two projects that carry `meditations`, so the project
+  // tier publishes it — a transcript is read alongside its recording, and the
+  // spec is deliberately still silent about the base paths, because a reader
+  // reaches a transcript through the meditation it belongs to.
+  const baseSpec = () =>
+    ({
+      openapi: '3.1.0',
+      info: { title: 't', version: '1' },
+      paths: {
+        '/api/meditation-transcripts': { get: {}, post: {} },
+        '/api/meditation-transcripts/{id}': { get: {} },
+      },
+      components: { schemas: {} },
+    }) as unknown as OpenAPISpec
+
+  const expectHidden = (filtered: OpenAPISpec, tier: string) => {
+    for (const path of ['/api/meditation-transcripts', '/api/meditation-transcripts/{id}']) {
+      const operations = filtered.paths?.[path] as Record<string, Record<string, unknown>>
+      expect(operations, `${path} is missing for ${tier}`).toBeDefined()
+      for (const [method, operation] of Object.entries(operations)) {
+        expect(
+          operation['x-internal'],
+          `${method.toUpperCase()} ${path} is published for ${tier}`,
+        ).toBe(true)
+      }
+    }
+  }
+
+  it('is a collection the spec never publishes', () => {
+    expect(ALWAYS_HIDDEN_COLLECTIONS).toContain('meditation-transcripts')
+  })
+
+  // Read from the config rather than listed here, so a fourth project cannot
+  // publish these paths without this failing.
+  it('hides every base path from every project tier', () => {
+    for (const project of getProjectSlugs()) {
+      expectHidden(filterSpec(baseSpec(), { project }), project)
+    }
+  })
+
+  it('hides them with no project named, where the role union applies instead', () => {
+    expectHidden(filterSpec(baseSpec(), {}), 'no project')
+  })
+
+  // The transcript endpoints are manager-only, and that opt-in is the only
+  // thing that would publish a manager-only action — the precedent is
+  // `POST /api/user-submissions/:id/review`, deliberately absent for the same
+  // reason. `framesByNarrator` is listed because it admits published clients.
+  it('publishes neither transcript endpoint', () => {
+    expect(CUSTOM_ENDPOINT_PATHS['/api/meditations/{id}/transcript']).toBeUndefined()
   })
 })

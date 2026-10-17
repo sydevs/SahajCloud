@@ -117,6 +117,7 @@
       "Edit(CLAUDE.md)",
       "Edit(AGENTS.md)",
       "Write(AGENTS.md)",
+      "Bash(python3 scripts/migrate-create-pty.py:*)",
       "Bash(pnpm test:unit *)"
     ]
   },

@@ -1,5 +1,4 @@
-import type { Where } from 'payload'
-
+import type { PurgeWindow } from '@/lib/retention/sweep'
 import type { UserSubmission } from '@/payload-types'
 
 /**
@@ -34,13 +33,6 @@ export const PROPOSAL_DAYS = 30
  */
 export const DURABLE_TYPES: readonly UserSubmission['type'][] = ['registration', 'subscribe']
 
-/** One sweep: what to delete, and what to call it in the log. */
-export interface PurgeWindow {
-  name: string
-  days: number
-  where: (cutoff: string) => Where
-}
-
 /**
  * The sweeps, in the order they run. **Machine-spam first**, which makes the
  * windows disjoint by construction rather than by reading two `status` clauses
@@ -53,8 +45,8 @@ export interface PurgeWindow {
  */
 export const PURGE_WINDOWS: PurgeWindow[] = [
   {
-    name: 'machineSpam',
     days: MACHINE_SPAM_DAYS,
+    name: 'machineSpam',
     where: (cutoff) => ({
       // The one window naming no type otherwise, so it is the one that has to
       // say which types it does not reach.
@@ -64,8 +56,8 @@ export const PURGE_WINDOWS: PurgeWindow[] = [
     }),
   },
   {
-    name: 'contactAccepted',
     days: CONTACT_ACCEPTED_DAYS,
+    name: 'contactAccepted',
     where: (cutoff) => ({
       type: { equals: 'contact' },
       status: { equals: 'accepted' },
@@ -73,8 +65,8 @@ export const PURGE_WINDOWS: PurgeWindow[] = [
     }),
   },
   {
-    name: 'proposals',
     days: PROPOSAL_DAYS,
+    name: 'proposals',
     where: (cutoff) => ({
       type: { equals: 'proposal' },
       status: { in: ['accepted', 'rejected'] },

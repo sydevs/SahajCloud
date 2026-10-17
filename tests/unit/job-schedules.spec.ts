@@ -349,6 +349,7 @@ describe('Job schedules', () => {
       .sort()
 
     expect(declaring).toEqual([
+      'jobs/CleanupJobs/CleanupJobs.ts',
       'jobs/CleanupOrphanedMedia/CleanupOrphanedMedia.ts',
       'jobs/ExpireEvents/ExpireEvents.ts',
       'jobs/PurgeSubmissions/PurgeSubmissions.ts',

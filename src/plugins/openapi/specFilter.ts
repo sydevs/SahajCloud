@@ -34,6 +34,9 @@ export const ALWAYS_HIDDEN_COLLECTIONS: ContentSlug[] = [
   'managers',
   'clients',
 
+  // Admin-only working data, read through the meditation endpoints
+  'meditation-transcripts',
+
   // System collections - internal file storage
   'images',
   'files',

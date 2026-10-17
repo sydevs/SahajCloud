@@ -32,6 +32,9 @@ const sharedTestEnv: Record<string, string> = {
   WEMEDITATE_WEB_URL: 'http://localhost:5173',
   SAHAJATLAS_URL: 'http://localhost:5174',
   NIRMALA_VIDYA_API_KEY: 'test-nirmala-vidya-api-key-placeholder',
+  // Empty even when a shell exports a real key, so no run can spend one: an
+  // unmocked transcription request then writes its unavailable row instead.
+  LEMONFOX_API_KEY: '',
 }
 
 // Upper bound on concurrent integration-suite forks (#499 §2). The int lane
