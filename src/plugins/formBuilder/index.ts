@@ -2,15 +2,17 @@ import type { Plugin } from 'payload'
 
 import { formBuilderPlugin } from '@payloadcms/plugin-form-builder'
 
-
 import { formFields } from '@/collections/Forms/fields'
 import { validateFormAction } from '@/collections/Forms/hooks/validateFormAction'
 import { reviewSubmission } from '@/collections/UserSubmissions/endpoints/review'
 import { userSubmissionFields } from '@/collections/UserSubmissions/fields'
-import { queueScreening } from '@/collections/UserSubmissions/hooks/queueScreening'
-import { gateEventFeedback, syncCommunityFeedback } from '@/collections/UserSubmissions/hooks/eventFeedback'
+import {
+  gateEventFeedback,
+  syncCommunityFeedback,
+} from '@/collections/UserSubmissions/hooks/eventFeedback'
 import { gateRegistration } from '@/collections/UserSubmissions/hooks/gateRegistration'
 import { prepareUserSubmission } from '@/collections/UserSubmissions/hooks/prepareUserSubmission'
+import { queueScreening } from '@/collections/UserSubmissions/hooks/queueScreening'
 import { spawnSubscribeFromRegistration } from '@/collections/UserSubmissions/hooks/spawnSubscribeFromRegistration'
 import {
   syncFullnessAfterChange,

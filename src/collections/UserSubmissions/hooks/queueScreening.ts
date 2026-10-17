@@ -10,11 +10,7 @@ import { runQueueSoon } from '@/lib/jobs/runQueueSoon'
  * queue run says `afterCommit` — see `runQueueSoon`, which owns that contract
  * and the autoRun safety net behind it.
  */
-export const queueScreening: CollectionAfterChangeHook = async ({
-  doc,
-  operation,
-  req,
-}) => {
+export const queueScreening: CollectionAfterChangeHook = async ({ doc, operation, req }) => {
   if (operation !== 'create') return doc
   // `pending` is the status a row carries while it waits to be screened. Only a
   // fresh intake is: an import, or a spec that pins a terminal status at create
