@@ -29,7 +29,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 
 import { buildImportTemplate } from '@/collections/EventImports/csv/template'
 import { CommitEventImport } from '@/jobs/CommitEventImport/CommitEventImport'
-import { ResolveEventImport } from '@/jobs/ResolveEventImport/ResolveEventImport'
+import { AnalyzeEventImport } from '@/jobs/AnalyzeEventImport/AnalyzeEventImport'
 import { SweepEventImports } from '@/jobs/SweepEventImports/SweepEventImports'
 import type { GeocodedLocation, GeocodeOutcome } from '@/lib/mapbox/geocoder'
 import type { EventImport, EventImportRows } from '@/payload-types'
@@ -152,7 +152,7 @@ describe('event import jobs', () => {
     payload.findByID({ collection: 'event-imports', id, depth: 0 }) as Promise<EventImport>
 
   const resolve = (batchId: number) =>
-    runTaskHandler(ResolveEventImport, { payload, input: { batchId } })
+    runTaskHandler(AnalyzeEventImport, { payload, input: { batchId } })
 
   const commit = (batchId: number) =>
     runTaskHandler(CommitEventImport, { payload, input: { batchId } })

@@ -27,14 +27,14 @@ type LoadedTarget = Extract<LoadTargetResult, { ok: true }>
 
 
 /**
- * How many times the queue re-runs a resolve that threw.
+ * How many times the queue re-runs an analysis that threw.
  *
  * One, because the only error this job throws is "the geocoder did not answer"
  * — `src/lib/mapbox/geocoder.ts` has already spent `p-retry`'s three attempts
  * by then, so a second pass is a minute's grace against a blip and no more.
  * Everything else about a row is written onto the row and is not an error.
  */
-const RESOLVE_RETRIES = 1
+const ANALYZE_RETRIES = 1
 
 /**
  * Geocode every row of a batch, place it against the target, flag the repeats,
@@ -62,11 +62,11 @@ const RESOLVE_RETRIES = 1
  * location" would turn a few minutes of trouble into rows a volunteer can only
  * fix by re-uploading. The batch reads `failed` instead, with the reason.
  */
-export const ResolveEventImport: TaskConfig<'resolveEventImport'> = {
-  slug: 'resolveEventImport',
-  label: 'Resolve Event Import',
-  retries: RESOLVE_RETRIES,
-  onFail: failBatchWhenSpent(RESOLVE_RETRIES),
+export const AnalyzeEventImport: TaskConfig<'analyzeEventImport'> = {
+  slug: 'analyzeEventImport',
+  label: 'Analyze Event Import',
+  retries: ANALYZE_RETRIES,
+  onFail: failBatchWhenSpent(ANALYZE_RETRIES),
   inputSchema: [{ name: 'batchId', type: 'number', required: true }],
   outputSchema: [
     { name: 'status', type: 'text', required: true },

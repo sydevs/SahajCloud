@@ -1051,12 +1051,12 @@ export interface Config {
   user: Manager | Client;
   jobs: {
     tasks: {
+      analyzeEventImport: TaskAnalyzeEventImport;
       cleanupOrphanedMedia: TaskCleanupOrphanedMedia;
       commitEventImport: TaskCommitEventImport;
       deliverSubmission: TaskDeliverSubmission;
       expireEvents: TaskExpireEvents;
       purgeSubmissions: TaskPurgeSubmissions;
-      resolveEventImport: TaskResolveEventImport;
       screenSubmission: TaskScreenSubmission;
       sendPostEventFollowUps: TaskSendPostEventFollowUps;
       sendRegistrationDigests: TaskSendRegistrationDigests;
@@ -4322,12 +4322,12 @@ export interface PayloadJob {
         completedAt: string;
         taskSlug:
           | 'inline'
+          | 'analyzeEventImport'
           | 'cleanupOrphanedMedia'
           | 'commitEventImport'
           | 'deliverSubmission'
           | 'expireEvents'
           | 'purgeSubmissions'
-          | 'resolveEventImport'
           | 'screenSubmission'
           | 'sendPostEventFollowUps'
           | 'sendRegistrationDigests'
@@ -4373,12 +4373,12 @@ export interface PayloadJob {
   taskSlug?:
     | (
         | 'inline'
+        | 'analyzeEventImport'
         | 'cleanupOrphanedMedia'
         | 'commitEventImport'
         | 'deliverSubmission'
         | 'expireEvents'
         | 'purgeSubmissions'
-        | 'resolveEventImport'
         | 'screenSubmission'
         | 'sendPostEventFollowUps'
         | 'sendRegistrationDigests'
@@ -10770,6 +10770,20 @@ export interface CollectionsWidget {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskAnalyzeEventImport".
+ */
+export interface TaskAnalyzeEventImport {
+  input: {
+    batchId: number;
+  };
+  output: {
+    status: string;
+    resolved: number;
+    pending: number;
+  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "TaskCleanupOrphanedMedia".
  */
 export interface TaskCleanupOrphanedMedia {
@@ -10842,20 +10856,6 @@ export interface TaskPurgeSubmissions {
   output: {
     deletedSubmissions: number;
     deletedUsers: number;
-  };
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "TaskResolveEventImport".
- */
-export interface TaskResolveEventImport {
-  input: {
-    batchId: number;
-  };
-  output: {
-    status: string;
-    resolved: number;
-    pending: number;
   };
 }
 /**

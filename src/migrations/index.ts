@@ -80,6 +80,7 @@ import * as migration_20261010_025807_event_import_jobs from './20261010_025807_
 import * as migration_20261011_194449_wm_web_discover_translations from './20261011_194449_wm_web_discover_translations';
 import * as migration_20261015_061054_meditation_transcripts from './20261015_061054_meditation_transcripts';
 import * as migration_20261015_070852_require_transcript_language from './20261015_070852_require_transcript_language';
+import * as migration_20261017_161838_event_import_analyze_slug from './20261017_161838_event_import_analyze_slug';
 
 export const migrations = [
   {
@@ -490,6 +491,11 @@ export const migrations = [
   {
     up: migration_20261015_070852_require_transcript_language.up,
     down: migration_20261015_070852_require_transcript_language.down,
-    name: '20261015_070852_require_transcript_language'
+    name: '20261015_070852_require_transcript_language',
+  },
+  {
+    up: migration_20261017_161838_event_import_analyze_slug.up,
+    down: migration_20261017_161838_event_import_analyze_slug.down,
+    name: '20261017_161838_event_import_analyze_slug'
   },
 ];

@@ -23,9 +23,9 @@ import { runJobQueueAfterCommit } from '@/lib/jobs/runJobQueueAfterCommit'
 import type { EventImport } from '@/payload-types'
 
 /** The task each status queues on being entered. */
-const ON_ENTERING: Partial<Record<NonNullable<EventImport['status']>, 'resolveEventImport' | 'commitEventImport'>> =
+const ON_ENTERING: Partial<Record<NonNullable<EventImport['status']>, 'analyzeEventImport' | 'commitEventImport'>> =
   {
-    resolving: 'resolveEventImport',
+    resolving: 'analyzeEventImport',
     committing: 'commitEventImport',
   }
 
