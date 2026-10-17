@@ -1,4 +1,4 @@
-import type { CollectionConfig } from 'payload'
+import type { CollectionConfig, Condition } from 'payload'
 
 import { z } from 'zod'
 
@@ -19,6 +19,19 @@ import { parseUpload, refuseUtf16Upload } from './hooks/parseUpload'
 import { stampManager } from './hooks/stampManager'
 import { targetRegionFilterOptions, validateTargetRegion } from './hooks/targetRegion'
 import { transitionStatus } from './hooks/transitionStatus'
+
+/**
+ * The stage fields — everything a job or a reviewer fills in — are off the
+ * create form, which leaves the upload, `targetRegion` and `defaultLanguages`.
+ *
+ * ⚠ **A false `admin.condition` skips that field's `required` AND its
+ * `validate`** (`src/collections/CLAUDE.md`), so both guards are given up on
+ * create deliberately. `status` is never typed — `defaultValue` fills it and
+ * `transitionStatus` owns every later move — and `rows` is written by
+ * `parseUpload` during that same create, where the Ajv schema the form would
+ * have run is not what stands between a bad file and the column.
+ */
+const afterCreate: Condition = (_data, _siblingData, { operation }) => operation !== 'create'
 
 /** Where a proposed node is created, shared by the node and its pre-`map` copy. */
 const nodeLocation = z
@@ -228,7 +241,7 @@ export const EventImports: CollectionConfig = {
         { label: 'Failed', value: 'failed' },
         { label: 'Discarded', value: 'discarded' },
       ],
-      admin: { readOnly: true },
+      admin: { condition: afterCreate, readOnly: true },
     },
     {
       // ⚠ **Written by the jobs alone, which is why field access refuses every
@@ -239,6 +252,7 @@ export const EventImports: CollectionConfig = {
       type: 'group',
       access: { update: () => false },
       admin: {
+        condition: afterCreate,
         readOnly: true,
         // The count is rendered by `JobStageView`, from the two paths
         // `custom.jobStage` names above — so the form that opens afterwards has
@@ -262,7 +276,10 @@ export const EventImports: CollectionConfig = {
       // ⚠ **`RowsTable` edits the field value, so it is a `Field` component and
       // not a `Description`.** The one edit it offers is a duplicate's
       // skip-or-import, which is the one delta `hooks/reviewerEdits.ts` accepts.
-      admin: { components: { Field: '@/components/admin/EventImport/RowsTable' } },
+      admin: {
+        components: { Field: '@/components/admin/EventImport/RowsTable' },
+        condition: afterCreate,
+      },
       schemaTitle: 'EventImportRows',
       // One row per CSV data row, in file order, carrying `parseImportCsv`'s
       // output (`csv/parse.ts`) verbatim. The resolve and commit steps widen
@@ -423,7 +440,10 @@ export const EventImports: CollectionConfig = {
       // It resolves the target's subtree and hands the client the levels the
       // proposal holds — #874 asked the same question from an endpoint the
       // browser called on every edit (`docs/rules/admin-ui.md`).
-      admin: { components: { Field: '@/components/admin/EventImport/RegionTreeField' } },
+      admin: {
+        components: { Field: '@/components/admin/EventImport/RegionTreeField' },
+        condition: afterCreate,
+      },
       schemaTitle: 'EventImportProposedRegions',
       // The region tree the batch would create, as `buildProposedTree` returns
       // it (`propose/tree.ts`). Absent until the resolve job has run, which is
@@ -538,6 +558,7 @@ export const EventImports: CollectionConfig = {
         finishedAt: z.string(),
       }),
       admin: {
+        condition: afterCreate,
         readOnly: true,
         // The counts, and the skipped lines as a CSV built in the browser from
         // this very value — which is what replaced #874's email attachment.
@@ -549,6 +570,7 @@ export const EventImports: CollectionConfig = {
       type: 'text',
       access: { update: () => false },
       admin: {
+        condition: afterCreate,
         readOnly: true,
         description: 'Why the last job gave up, for a batch that reads Failed.',
       },
