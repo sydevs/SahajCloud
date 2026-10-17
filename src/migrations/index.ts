@@ -78,6 +78,7 @@ import * as migration_20260929_173315_null_manager_password_hashes from './20260
 import * as migration_20261011_194449_wm_web_discover_translations from './20261011_194449_wm_web_discover_translations';
 import * as migration_20261015_061054_meditation_transcripts from './20261015_061054_meditation_transcripts';
 import * as migration_20261015_070852_require_transcript_language from './20261015_070852_require_transcript_language';
+import * as migration_20261017_093546_localize_lesson_title_and_panels from './20261017_093546_localize_lesson_title_and_panels';
 
 export const migrations = [
   {
@@ -478,6 +479,11 @@ export const migrations = [
   {
     up: migration_20261015_070852_require_transcript_language.up,
     down: migration_20261015_070852_require_transcript_language.down,
-    name: '20261015_070852_require_transcript_language'
+    name: '20261015_070852_require_transcript_language',
+  },
+  {
+    up: migration_20261017_093546_localize_lesson_title_and_panels.up,
+    down: migration_20261017_093546_localize_lesson_title_and_panels.down,
+    name: '20261017_093546_localize_lesson_title_and_panels'
   },
 ];
