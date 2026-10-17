@@ -11,7 +11,7 @@ import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import type { Meditation } from '@/payload-types'
+import type { Meditation, MeditationTranscript } from '@/payload-types'
 
 import { createData, testData } from '../utils/testData'
 import { createTestEnvironment, idOnlySelect } from '../utils/testHelpers'
@@ -106,6 +106,42 @@ describe('meditation transcripts', () => {
       await expect(
         read(await testData.createClient(payload, editor.id, { roles: ['sahaj-atlas-client'] })),
       ).rejects.toThrow()
+    })
+  })
+
+  describe('the join field on meditations', () => {
+    it('carries the transcript to whoever may read the recording', async () => {
+      const meditation = await createMeditationWithoutTranscript()
+      await payload.create({
+        collection: 'meditation-transcripts',
+        data: createData<'meditation-transcripts'>({
+          meditation: meditation.id,
+          status: 'completed',
+          language: 'en',
+          segments: [
+            { content: 'Let your hands rest open.', startTimeMs: 0, endTimeMs: 3000 },
+          ],
+        }),
+      })
+
+      const editor = await testData.createManager(payload, {
+        roles: { en: ['meditations-editor'] },
+      })
+      const read = await payload.findByID({
+        collection: 'meditations',
+        id: meditation.id,
+        depth: 1,
+        overrideAccess: false,
+        user: editor as Parameters<typeof payload.findByID>[0]['user'],
+      })
+
+      // The cues themselves, not the row's id: a join resolving to a bare id
+      // is what a restricted collection answers, and it reads as working.
+      const [row] = read.transcript?.docs ?? []
+      expect(typeof row).toBe('object')
+      expect((row as MeditationTranscript).segments).toEqual([
+        { content: 'Let your hands rest open.', startTimeMs: 0, endTimeMs: 3000 },
+      ])
     })
   })
 

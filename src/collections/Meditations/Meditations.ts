@@ -312,6 +312,24 @@ export const Meditations: CollectionConfig = {
                 ],
               },
             },
+            {
+              // Native, not a `virtualJoinField`: #249's workaround exists for a
+              // join onto a *localized* relationship, and `meditation-transcripts`
+              // localizes nothing. `meditation` is unique there, so this resolves
+              // to at most one row.
+              //
+              // Whoever may read the recording reads its transcript here, through
+              // the two projects both collections sit in (`config/projects.ts`).
+              // There is no second permission to hold, so this supersedes
+              // `GET /api/meditations/:id/transcript`.
+              name: 'transcript',
+              type: 'join',
+              collection: 'meditation-transcripts',
+              on: 'meditation',
+              defaultLimit: 1,
+              // Like every join, it resolves nothing until the document exists.
+              admin: { condition: hideUntilCreated },
+            },
           ],
         },
         {

@@ -667,6 +667,14 @@ export type EventQualityReport =
 export type MeditationNodeWeights = {
   [k: string]: number;
 } | null;
+export type TranscriptSegments =
+  | {
+      content: string;
+      startTimeMs: number;
+      endTimeMs: number;
+      durationMs?: number;
+    }[]
+  | null;
 export type TagAssignments = {
   /**
    * The UserChoice document id.
@@ -688,14 +696,6 @@ export type MeditationFrames = {
   timestamp: number;
   [k: string]: unknown;
 }[];
-export type TranscriptSegments =
-  | {
-      content: string;
-      startTimeMs: number;
-      endTimeMs: number;
-      durationMs?: number;
-    }[]
-  | null;
 export type TableOfContentsHeadings = {
   slug: string;
   text: string;
@@ -759,6 +759,9 @@ export interface Config {
     'payload-migrations': PayloadMigration;
   };
   collectionsJoins: {
+    meditations: {
+      transcript: 'meditation-transcripts';
+    };
     albums: {
       songs: 'songs';
     };
@@ -2687,6 +2690,11 @@ export interface Meditation {
   duration?: number | null;
   subtleSystemNodeWeights?: MeditationNodeWeights;
   durationMinutes?: number | null;
+  transcript?: {
+    docs?: (number | MeditationTranscript)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
   /**
    * Optional auto-generated fallback title (e.g. Meditation for Anahat), derived from this meditation's dominant subtle-system node. Front-end clients use it only when they have no composed label of their own.
    */
@@ -4126,6 +4134,7 @@ export interface MeditationsSelect<T extends boolean = true> {
   duration?: T;
   subtleSystemNodeWeights?: T;
   durationMinutes?: T;
+  transcript?: T;
   title?: T;
   thumbnail?: T;
   type?: T;
