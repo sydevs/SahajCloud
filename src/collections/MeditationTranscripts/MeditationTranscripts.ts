@@ -1,10 +1,12 @@
 import type { CollectionConfig } from 'payload'
 
+import type { JobStageConfig } from '@/components/admin/JobStageView/stages'
 import { jsonField } from '@/fields/jsonField'
 import { getLocaleOptions } from '@/lib/locales'
 import {
   TRANSCRIPT_PROVIDERS,
   TRANSCRIPT_STATUSES,
+  TRANSCRIPTION_STALL_MS,
   transcriptSegmentsSchema,
 } from '@/lib/meditations/transcript'
 
@@ -24,6 +26,23 @@ import { applyGlossaryToSegments } from './hooks/applyGlossaryToSegments'
 export const MeditationTranscripts: CollectionConfig = {
   slug: 'meditation-transcripts',
   admin: {
+    components: {
+      views: {
+        edit: { default: { Component: '@/components/admin/JobStageView/JobStageView' } },
+      },
+    },
+    // `processing` alone, never `queued`: that is the `status` default below,
+    // so naming it would hold every newly created row behind the waiting view
+    // with nothing to move it on. A queued row holds no worker's lease.
+    // `staleAfterMs` is the same window the transcript tab calls stalled, so a
+    // run lost to a restart does not hold the row behind the waiting view for
+    // good — past it the form opens and `status: queued` requests it again.
+    custom: {
+      jobStage: {
+        runningStages: ['processing'],
+        staleAfterMs: TRANSCRIPTION_STALL_MS,
+      } satisfies JobStageConfig,
+    },
     hidden: true,
     useAsTitle: 'audioFilename',
   },

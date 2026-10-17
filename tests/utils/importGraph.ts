@@ -85,7 +85,7 @@ function afterLeadingTrivia(source: string): string {
  * go quiet about it at once, which is why `client-bundle-safety.spec.ts`
  * cross-checks the result against a TypeScript parse.
  */
-function hasDirective(file: string, directive: 'use client' | 'use server'): boolean {
+export function hasDirective(file: string, directive: 'use client' | 'use server'): boolean {
   const rest = afterLeadingTrivia(sourceOf(file))
   return rest.startsWith(`'${directive}'`) || rest.startsWith(`"${directive}"`)
 }
