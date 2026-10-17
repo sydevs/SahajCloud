@@ -2,7 +2,7 @@ import type { Endpoint } from 'payload'
 
 import { z } from 'zod'
 
-import { bypassPermissions, hasPermission, roleScopeFromLocale } from '@/plugins/access'
+import { requireCollectionPermission } from '@/lib/endpoints'
 import { asTrustedReq } from '@/plugins/usage/hooks'
 
 const paramsSchema = z.object({
@@ -29,23 +29,15 @@ export const framesByNarrator: Endpoint = {
   method: 'get',
   handler: async (req) => {
     // Gate first so param-validation details don't leak to callers who can't
-    // read frames. `bypassPermissions` admits admins / denies inactive users;
-    // `locale` is required so a manager's per-locale roles resolve.
-    const canReadFrames = hasPermission(
-      {
-        user: req.user,
-        collection: 'frames',
-        operation: 'read',
-        locale: roleScopeFromLocale(req.locale),
-      },
-      bypassPermissions,
-    )
-    if (!canReadFrames) {
-      return Response.json(
-        { errors: [{ message: 'You are not allowed to perform this action.' }] },
-        { status: 403 },
-      )
-    }
+    // read frames. The permission alone, because `requireActiveManager` would
+    // refuse the API clients the docblock above admits.
+    const denied = requireCollectionPermission({
+      req,
+      collection: 'frames',
+      operation: 'read',
+      forbidden: 'You are not allowed to perform this action.',
+    })
+    if (denied) return denied
 
     const parsed = paramsSchema.safeParse({
       narratorId: req.routeParams?.narratorId,
