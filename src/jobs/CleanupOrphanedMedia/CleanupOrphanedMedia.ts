@@ -575,9 +575,8 @@ async function getAllReferencedIds(
   // Group regular references by source collection for efficient scanning
   const byCollection = groupByCollection(regularReferences)
 
-  // Every locale, not just the default one: a reference that exists only in a
-  // localized field (a Path Step's French panel) is otherwise invisible here,
-  // and an invisible reference reads as an orphan and gets trashed.
+  // A reference held only by a localized field is invisible to a default-locale
+  // read, and an invisible reference reads as an orphan and gets trashed (#977).
   const locales = payload.config.localization ? payload.config.localization.localeCodes : []
 
   // Scan regular field references
@@ -609,6 +608,14 @@ async function getAllReferencedIds(
   return referencedIds
 }
 
+/**
+ * A Payload `select` naming the top level of each field path. The walker needs
+ * the whole value under that root, and Payload selects a container wholesale.
+ */
+function selectRootsOf(fieldPaths: string[]): Record<string, true> {
+  return Object.fromEntries(fieldPaths.map((path) => [path.split('.')[0], true]))
+}
+
 /** Scan a collection for references using discovered field paths. */
 async function scanCollectionForReferences(
   payload: Payload,
@@ -627,6 +634,10 @@ async function scanCollectionForReferences(
       page,
       depth: 0,
       locale: 'all',
+      // `locale: 'all'` returns every translation of every field, and a field
+      // `afterRead` hook runs once per locale, so a read of the whole document
+      // costs what the untouched fields are worth times the locale count.
+      select: selectRootsOf(references.map((ref) => ref.fieldPath)),
     })
 
     for (const doc of result.docs) {
@@ -665,17 +676,16 @@ async function scanCollectionForLexicalReferences(
       page,
       depth: 0,
       locale: 'all',
+      select: selectRootsOf([richTextFieldPath]),
     })
 
     for (const doc of result.docs) {
       const docRecord = doc as unknown as Record<string, unknown>
       for (const content of localeValues(docRecord[richTextFieldPath], locales)) {
-        if (content) {
-          // Use generic Lexical traversal to extract all IDs
-          const ids = extractIdsFromLexicalContent(content)
-          for (const id of ids) {
-            referencedIds.add(id)
-          }
+        // Use generic Lexical traversal to extract all IDs
+        const ids = extractIdsFromLexicalContent(content)
+        for (const id of ids) {
+          referencedIds.add(id)
         }
       }
     }

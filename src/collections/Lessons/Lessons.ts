@@ -30,11 +30,9 @@ export const Lessons: CollectionConfig = {
     {
       name: 'title',
       type: 'text',
-      // Deliberately not `required`. Payload validates a required localized
-      // field against that locale's OWN value, so `required` refuses every
-      // update in a second locale that does not also carry a title for it —
-      // a translator setting only the meditation or the article included.
-      // Launch Readiness reports a step with no title (`title-set`).
+      // Not `required`: Payload validates a required localized field against
+      // that locale's OWN value, so it refuses every write in a locale with no
+      // title of its own (#977). Launch Readiness reports a blank one.
       localized: true,
     },
     // ===== INTRODUCTION ===== //
@@ -47,13 +45,12 @@ export const Lessons: CollectionConfig = {
             {
               name: 'panels',
               type: 'array',
-              // The array is localized, not each text field inside it, so one
-              // language's translator cannot delete or reorder another's panels (#977).
+              // Localized as an array, so one language's translator cannot delete
+              // or reorder another's panels (#977). And deliberately without
+              // `required`, `minRows` or a default row: each one makes a write in
+              // a second locale store a blank list, hiding the panels that locale
+              // falls back to.
               localized: true,
-              // No `required`, `minRows` or default row: any of them makes an
-              // update in a second locale write a blank panel list, which then
-              // hides the panels that locale falls back to. Launch Readiness
-              // reports an empty set instead (`panels-set`).
               admin: {
                 isSortable: true,
                 description: 'Story panels to introduce this lesson.',

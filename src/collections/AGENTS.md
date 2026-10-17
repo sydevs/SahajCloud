@@ -1074,9 +1074,10 @@ only by a localized field is invisible** — and an invisible reference reads
 as an orphan, so the job trashes a file that is in use. `locale: 'all'`
 wraps a localized field's value in a `{ [locale]: value }` map, which
 `localeValues` splits; it splits only when **every** key is a configured
-locale, so a group whose subfields look like locale codes is left alone.
-Omit the codes and nothing is split, which is right for a caller that read
-one locale and wrong for one that read them all.
+locale, so a group whose subfields look like locale codes is left alone. The
+parameter is required rather than defaulted, because an omitted locale list
+splits nothing — which is right for a single-locale read and loses every
+translated reference for an `all` one.
 
 Container types traversed: simple, `tabs`, `groups`, `rows`, `arrays`
 (wildcard `*`), `blocks`, `collapsible`, and `richText`. RichText fields get

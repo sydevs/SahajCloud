@@ -3,8 +3,7 @@ import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
 /**
  * Augmented: the generated DDL adds `lessons_panels._locale` as `NOT NULL` to a
  * populated table and drops `lessons.title` without reading it, so as issued it
- * aborts the boot migration and loses every Path Step title (#977). The
- * statements the generator cannot write are the two backfills below.
+ * aborts the boot migration and loses every Path Step title (#977).
  */
 
 export async function up({ db }: MigrateUpArgs): Promise<void> {

@@ -180,7 +180,7 @@ describe('Schema Introspection Utilities', () => {
         isLexicalBlock: false,
       }
 
-      const ids = extractIdsFromDocument(doc, ref)
+      const ids = extractIdsFromDocument(doc, ref, [])
       expect(ids.has(123)).toBe(true)
     })
 
@@ -202,7 +202,7 @@ describe('Schema Introspection Utilities', () => {
         isLexicalBlock: false,
       }
 
-      const ids = extractIdsFromDocument(doc, ref)
+      const ids = extractIdsFromDocument(doc, ref, [])
       expect(ids.has(1)).toBe(true)
       expect(ids.has(2)).toBe(true)
       expect(ids.has(3)).toBe(true)
@@ -220,7 +220,7 @@ describe('Schema Introspection Utilities', () => {
         isLexicalBlock: false,
       }
 
-      const ids = extractIdsFromDocument(doc, ref)
+      const ids = extractIdsFromDocument(doc, ref, [])
       expect(ids.has(10)).toBe(true)
       expect(ids.has(20)).toBe(true)
       expect(ids.has(30)).toBe(true)
@@ -239,7 +239,7 @@ describe('Schema Introspection Utilities', () => {
         isLexicalBlock: false,
       }
 
-      const ids = extractIdsFromDocument(doc, ref)
+      const ids = extractIdsFromDocument(doc, ref, [])
       expect(ids.has(42)).toBe(true)
     })
 
@@ -256,7 +256,7 @@ describe('Schema Introspection Utilities', () => {
       }
 
       // Lexical block fields should be skipped (handled separately by extractIdsFromLexicalContent)
-      const ids = extractIdsFromDocument(doc, ref)
+      const ids = extractIdsFromDocument(doc, ref, [])
       expect(ids.size).toBe(0)
     })
   })

@@ -8,21 +8,16 @@ import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
  * steps a French panel list of its own, copied from its English one, so the
  * French survives whoever restores the English text over the top of it.
  *
- * Both halves are guarded, so this is a no-op on an environment with no Path
- * Steps and on one a translator has since edited: a step is matched by the
- * exact French string in its English panels, and is skipped entirely if it
- * already has French panels. Row ids are derived from the English row's, which
- * is what lets `down` delete only the rows this migration wrote.
+ * A step is skipped once it has French panels of its own, so this inserts
+ * nothing on a second apply and nothing over a translator's own work. The
+ * derived row id is what lets `down` delete these rows and leave those alone.
+ *
+ * The match is a substring rather than the whole string, and carries no
+ * apostrophe or accent: a migration that matched nothing would still record as
+ * applied, so one curly quote would make this unrepeatable.
  */
 
-const FRENCH_IN_ENGLISH_SLOTS = sql`
-  SELECT DISTINCT "_parent_id"
-  FROM "lessons_panels"
-  WHERE "_locale" = 'en'
-    AND (
-      "text" = '"Votre Kundalini elle-même vous donnera accès à la conscience sans pensée. Elle saura comment vous y faire parvenir."'
-      OR "title" = 'Qu''est-ce que la Kundalini ?'
-    )`
+const FRENCH_ROW_ID = sql`substr(md5("en"."id" || ':fr'), 1, 24)`
 
 export async function up({ db }: MigrateUpArgs): Promise<void> {
   await db.execute(sql`
@@ -32,14 +27,18 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
     "en"."_order",
     "en"."_parent_id",
     'fr',
-    substr(md5("en"."id" || ':fr'), 1, 24),
+    ${FRENCH_ROW_ID},
     "en"."title",
     "en"."text",
     "en"."media_id",
     "en"."subtitles"
   FROM "lessons_panels" AS "en"
   WHERE "en"."_locale" = 'en'
-    AND "en"."_parent_id" IN (${FRENCH_IN_ENGLISH_SLOTS})
+    AND "en"."_parent_id" IN (
+      SELECT "_parent_id" FROM "lessons_panels"
+      WHERE "_locale" = 'en'
+        AND ("text" LIKE '%Votre Kundalini%' OR "title" LIKE '%-ce que la Kundalini%')
+    )
     AND NOT EXISTS (
       SELECT 1 FROM "lessons_panels" AS "existing"
       WHERE "existing"."_locale" = 'fr'
@@ -54,5 +53,5 @@ export async function down({ db }: MigrateDownArgs): Promise<void> {
   WHERE "fr"."_locale" = 'fr'
     AND "en"."_locale" = 'en'
     AND "fr"."_parent_id" = "en"."_parent_id"
-    AND "fr"."id" = substr(md5("en"."id" || ':fr'), 1, 24);`)
+    AND "fr"."id" = ${FRENCH_ROW_ID};`)
 }

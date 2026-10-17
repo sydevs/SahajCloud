@@ -257,9 +257,8 @@ export function extractId(value: unknown): number | null {
  * Split the `{ [locale]: value }` shape a `locale: 'all'` read returns for a
  * localized field, so a reference under one is reached in every language.
  *
- * `locales` is the configured locale list, and every key has to be in it: a
- * group whose subfields happened to look like locale codes must not be split.
- * An empty list means the caller read one locale, and nothing is a map.
+ * Every key has to be a configured locale, so a group whose subfields happened
+ * to look like locale codes is not split. Pass `[]` for a single-locale read.
  */
 export function localeValues(value: unknown, locales: readonly string[]): unknown[] {
   if (locales.length === 0 || !isRecord(value)) return [value]
@@ -318,7 +317,7 @@ function getValueAtPath(
 export function extractIdsFromDocument(
   document: Record<string, unknown>,
   reference: FieldReference,
-  locales: readonly string[] = [],
+  locales: readonly string[],
 ): Set<number> {
   const ids = new Set<number>()
 
