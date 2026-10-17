@@ -1,11 +1,8 @@
 /**
- * Expected Counts Configuration
+ * Minimum expected database counts per import script.
  *
- * Minimum expected database counts for each import script.
- * Used to verify imports completed successfully.
- *
- * Verification passes if actual >= expected (allows multiple
- * importers to contribute to the same collections).
+ * Verification passes if actual >= expected, so several importers may
+ * contribute to one collection.
  */
 
 import type { CollectionMetadata, ScriptMetadata } from './pagination'
@@ -64,9 +61,6 @@ export function isNotApplicable(
  * - wemeditate: seeds/wemeditate/data.json counts
  * - meditations: seeds/meditations/data.json counts
  * - storyblok: Based on current Storyblok content
- *
- * Note: Image tags are now inline enum select values on the Images collection,
- * so they do not have expected counts anymore.
  */
 export const EXPECTED_COUNTS: Record<ScriptName, ScriptExpectation> = {
   tags: {
@@ -155,7 +149,6 @@ export function getExpectedCounts(script: ScriptName): ExpectedCounts {
   return expectation
 }
 
-/** Verify actual counts against expected minimums */
 export interface VerificationResult {
   collection: string
   actual: number
@@ -180,10 +173,8 @@ export function verifyCountsForScript(
   for (const [collection, expectedCount] of Object.entries(expected)) {
     const actual = actualCounts[collection] || 0
 
-    // Adjust expected count for paginated collection
     let adjustedExpected = expectedCount
     if (pagination?.collection === collection && pagination.limit > 0) {
-      // Expected = min(offset + limit, total_expected)
       adjustedExpected = Math.min(pagination.offset + pagination.limit, expectedCount)
     }
 
@@ -221,7 +212,6 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
       naturalKey: 'slug',
       hasFileUploads: true, // SVG icons
     },
-    // Note: image-tags removed - now inline enum select values on Images collection
   ],
   wemeditate: [
     {
@@ -409,16 +399,13 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
   ],
 }
 
-/** Get metadata for a script including pagination info */
 export function getScriptMetadata(script: ScriptName): ScriptMetadata {
   const collections = COLLECTION_METADATA[script] || []
   const totalItems = collections.reduce((sum, c) => sum + c.totalItems, 0)
   const requiresPagination = collections.some((c) => c.requiresPagination)
 
-  // Check if any collection has file uploads for batch size calculation
   const hasFileUploads = collections.some((c) => c.hasFileUploads)
 
-  // Use minimum batch size from collections with explicit batchSize, or fall back to default
   const collectionBatchSizes = collections
     .filter((c) => c.batchSize !== undefined)
     .map((c) => c.batchSize!)
@@ -451,7 +438,6 @@ export function getCountTargets(script: ScriptName): CountTarget[] {
   )
 }
 
-/** Get metadata for a specific collection within a script */
 export function getCollectionMetadata(
   script: ScriptName,
   collectionSlug: string,

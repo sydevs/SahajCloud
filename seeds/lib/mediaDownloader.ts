@@ -1,12 +1,8 @@
 /**
- * Media Downloader
- *
- * Downloads media files for import.
- *
- * Note: image conversion and processing were disabled in the old Cloudflare
- * Workers era, since sharp needs a native binary Workers cannot run. Images
- * download as-is, with no WebP conversion or dimension extraction. Node,
- * this script's current runtime, can run sharp, so this could be re-enabled.
+ * Image conversion and processing are off: sharp needs a native binary the
+ * Cloudflare Workers runtime could not run, so images download as-is, with no
+ * WebP conversion and no dimension extraction. Node, this script's runtime
+ * now, can run sharp, so this could be re-enabled.
  */
 
 import type { Logger } from './logger'
@@ -32,10 +28,9 @@ const CARRIERWAVE_SIZES = ['huge', 'large', 'medium', 'small', 'tiny'] as const
 // --- Url transformation ---
 
 /**
- * Transform CarrierWave preview URL to original quality URL.
- * Strips size prefixes (small_, medium_, large_, huge_, tiny_) from filename.
+ * Strip a CarrierWave size prefix, to get the original.
  *
- * Legacy WeMeditate Rails used CarrierWave which generates size variants:
+ * Legacy WeMeditate Rails used CarrierWave, which generates size variants:
  * - small_ (360px), medium_ (720px), large_ (1440px), huge_ (2880px), tiny_ (180px)
  * - Original images have no prefix
  *
@@ -44,14 +39,11 @@ const CARRIERWAVE_SIZES = ['huge', 'large', 'medium', 'small', 'tiny'] as const
  * // Returns: 'https://.../media_file/file/205/background.jpg'
  */
 export function getOriginalImageUrl(url: string): string {
-  // Match CarrierWave size prefixes at start of filename
-  // Pattern: /path/small_filename.jpg -> /path/filename.jpg
   return url.replace(/\/(small|medium|large|huge|tiny)_([^/]+)$/, '/$2')
 }
 
 /**
- * Add CarrierWave size prefix to a URL.
- * Used for fallback to smaller variants when original is too large.
+ * Falls back to a smaller variant when the original is too large.
  *
  * @example
  * getVariantUrl('https://.../media_file/file/205/background.jpg', 'huge')
@@ -98,14 +90,9 @@ export class MediaDownloader {
   }
 
   /**
-   * Extract the filename that would be used for caching from a URL.
-   * Does NOT download the file - just normalizes URL and extracts filename.
+   * The cache filename for a URL, without downloading it.
    *
-   * This allows checking if media exists BEFORE downloading,
-   * avoiding unnecessary HTTP requests for media that already exists.
-   *
-   * @param url - The media URL to extract filename from
-   * @returns The normalized filename (for example, "background.jpg")
+   * Lets a caller check for existing media before spending an HTTP request.
    */
   getFilenameFromUrl(url: string): string {
     // Normalize URL: Fix legacy domains and Google Storage URLs, then get original quality
@@ -134,7 +121,6 @@ export class MediaDownloader {
       // Generate hash for filename (using normalized URL)
       const hash = crypto.createHash('md5').update(normalizedUrl).digest('hex')
 
-      // Detect file extension from URL
       const urlPath = new URL(normalizedUrl).pathname
       const ext = path.extname(urlPath) || '.jpg'
       const filename = `${hash}${ext}`
@@ -143,7 +129,6 @@ export class MediaDownloader {
       // Extract original filename from normalized URL (after CarrierWave prefix stripped)
       const originalFilename = path.basename(urlPath)
 
-      // Check if file already exists
       try {
         await fs.access(localPath)
         await this.logger.log(`Using cached image: ${filename}`)
@@ -188,7 +173,6 @@ export class MediaDownloader {
     }
   }
 
-  /** Create Media document in Payload */
   async createMediaDocument(
     payload: Payload,
     downloadResult: DownloadResult,
@@ -199,7 +183,6 @@ export class MediaDownloader {
       const fileBuffer = await fs.readFile(downloadResult.localPath)
       const filename = path.basename(downloadResult.localPath)
 
-      // Detect mimetype from file extension
       const ext = path.extname(filename).toLowerCase()
       const mimetypes: Record<string, string> = {
         '.jpg': 'image/jpeg',
@@ -210,7 +193,6 @@ export class MediaDownloader {
       }
       const mimetype = mimetypes[ext] || 'image/jpeg'
 
-      // Create media document
       const media = await payload.create({
         collection: 'images',
         data: {
@@ -234,17 +216,12 @@ export class MediaDownloader {
     }
   }
 
-  /** Get download statistics */
   getStats(): { downloaded: number } {
     return {
       downloaded: this.downloadedFiles.size,
     }
   }
 
-  /**
-   * Download a buffer from URL with timeout
-   * @private
-   */
   private async downloadBuffer(url: string): Promise<Buffer> {
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 60000) // 60 second timeout
@@ -260,17 +237,13 @@ export class MediaDownloader {
     }
   }
 
-  /**
-   * Try to download a smaller CarrierWave variant if original is too large
-   * @private
-   */
+  /** Falls back to a smaller CarrierWave variant when the original is too large. */
   private async downloadWithFallback(
     originalUrl: string,
   ): Promise<{ buffer: Buffer; usedVariant?: string }> {
     // Try original first
     const buffer = await this.downloadBuffer(originalUrl)
 
-    // Check if within size limit
     if (buffer.length <= FILE_SIZE_LIMIT) {
       return { buffer }
     }
@@ -303,7 +276,7 @@ export class MediaDownloader {
 
 // --- Media url extractor ---
 
-/** Extract all media URLs from EditorJS content */
+/** Every media URL in EditorJS content. */
 export function extractMediaUrls(content: any, baseUrl: string): Set<string> {
   const urls = new Set<string>()
 
@@ -314,7 +287,6 @@ export function extractMediaUrls(content: any, baseUrl: string): Set<string> {
   for (const block of content.blocks) {
     if (!block.data) continue
 
-    // TextBox blocks
     if (block.type === 'textbox') {
       // Check for image.preview (modern format with full URL)
       if (block.data.image?.preview) {
@@ -333,7 +305,6 @@ export function extractMediaUrls(content: any, baseUrl: string): Set<string> {
       }
     }
 
-    // Layout blocks
     if (block.type === 'layout' && block.data.items) {
       for (const item of block.data.items) {
         if (item.image?.preview) {
@@ -342,7 +313,6 @@ export function extractMediaUrls(content: any, baseUrl: string): Set<string> {
       }
     }
 
-    // Media blocks
     if (block.type === 'media' && block.data.items) {
       for (const item of block.data.items) {
         if (item.image?.preview) {
@@ -355,20 +325,16 @@ export function extractMediaUrls(content: any, baseUrl: string): Set<string> {
   return urls
 }
 
-/** Build full media URL from file object */
 function buildMediaUrl(file: any, baseUrl: string): string | null {
   if (!file || !file.url) return null
 
-  // If URL is already absolute, return it
   if (file.url.startsWith('http://') || file.url.startsWith('https://')) {
     return file.url
   }
 
-  // Otherwise, prepend base URL
   return baseUrl + file.url
 }
 
-/** Extract media URLs from author image */
 export function extractAuthorImageUrl(imageData: any, baseUrl: string): string | null {
   if (!imageData) return null
 
@@ -377,7 +343,6 @@ export function extractAuthorImageUrl(imageData: any, baseUrl: string): string |
     return buildMediaUrl(imageData.file, baseUrl)
   }
 
-  // Check if it is a direct URL
   if (typeof imageData === 'string' && imageData.startsWith('http')) {
     return imageData
   }

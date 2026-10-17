@@ -1,13 +1,3 @@
-/**
- * Base Importer
- *
- * Abstract base class for all import scripts. Provides common functionality:
- * - Payload CMS initialization
- * - Logger, FileUtils, ValidationReport setup
- * - Idempotent upsert operations
- * - Summary printing and cleanup lifecycle
- */
-
 import { promises as fs } from 'fs'
 import * as path from 'path'
 
@@ -36,7 +26,6 @@ import configPromise from '../../src/payload.config'
 
 // --- Types ---
 
-/** Result of importing a single document */
 export interface DocumentResult {
   collection: string
   identifier: string
@@ -61,7 +50,7 @@ export interface ImportEvent {
   timestamp: string
 }
 
-/** Callback function for import events (used by API routes for SSE) */
+/** Used by API routes for SSE streaming. */
 export type OnProgressCallback = (data: Record<string, unknown>) => Promise<void>
 
 export interface BaseImportOptions {
@@ -120,7 +109,6 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
   protected report!: ValidationReport
   private runVerification: RunVerification = { failures: [] }
 
-  // Configuration - subclasses must define these
   protected abstract readonly importName: string
   protected abstract readonly cacheDir: string
 
@@ -149,10 +137,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
 
   // --- Public api ---
 
-  /**
-   * Get the validation report for access to summary data
-   * Used by API routes to get final counts
-   */
+  /** Used by API routes to read final counts. */
   getReport(): ValidationReport {
     return this.report
   }
@@ -162,35 +147,22 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     return this.runVerification
   }
 
-  /**
-   * Set the current operation for heartbeat progress tracking
-   * Called during long-running operations to provide context in SSE heartbeats
-   */
+  /** Gives SSE heartbeats context during a long operation. */
   setCurrentOperation(operation: string): void {
     this.currentOperation = operation
   }
 
-  /**
-   * Get the current operation for heartbeat progress tracking
-   * Used by API route to include operation context in heartbeat events
-   */
+  /** Read by the API route for heartbeat context. */
   getCurrentOperation(): string {
     return this.currentOperation
   }
 
   // --- Pagination methods ---
 
-  /**
-   * Get paginated slice of items
-   * Updates internal pagination state for reporting
-   *
-   * @param items - Full array of items to paginate
-   * @returns Slice of items based on offset and limit
-   */
+  /** Slices the items, and updates the pagination state the report reads. */
   protected paginateItems<T>(items: T[]): T[] {
     const pagination = this.options.pagination
     if (!pagination || pagination.limit <= 0) {
-      // No pagination - return all items
       this.paginationState = {
         processedCount: items.length,
         hasMore: false,
@@ -207,61 +179,39 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     return slice
   }
 
-  /**
-   * Check if pagination is active for this run
-   * Pagination is active when targeting a specific collection OR when explicit limit is set
-   */
+  /** Active when a collection is targeted, or an explicit limit is set. */
   protected isPaginated(): boolean {
     const pagination = this.options.pagination
     if (!pagination) return false
-    // Pagination is active if collection filter is set OR explicit limit > 0
     return pagination.collection !== undefined || pagination.limit > 0
   }
 
-  /**
-   * Check if a specific collection is targeted by pagination filter
-   * Returns true if no collection filter is set (all collections targeted)
-   *
-   * @param collection - Collection slug to check
-   * @returns Whether this collection should be processed
-   */
+  /** True when no collection filter is set — every collection is targeted. */
   protected isCollectionTargeted(collection: string): boolean {
     const pagination = this.options.pagination
     if (!pagination?.collection) {
-      // No filter = all collections targeted
       return true
     }
     return pagination.collection === collection
   }
 
-  /** Get number of items processed in current batch */
   getProcessedCount(): number {
     return this.paginationState.processedCount
   }
 
-  /** Check if more items remain after current batch */
   hasMoreItems(): boolean {
     return this.paginationState.hasMore
   }
 
-  /** Get starting index for next batch */
   getNextOffset(): number {
     return this.paginationState.nextOffset
   }
 
-  /** Get current pagination options (if set) */
   getPaginationOptions(): PaginationOptions | undefined {
     return this.options.pagination
   }
 
-  /**
-   * Reconstruct ID map from existing database records
-   * Used to restore relationships between paginated requests
-   *
-   * @param collection - Collection slug to query
-   * @param naturalKeyField - Field to use as map key
-   * @returns Map of natural key values to document IDs
-   */
+  /** Restores relationships between paginated requests, which share no state. */
   protected async reconstructIdMap(
     collection: CollectionSlug,
     naturalKeyField: string,
@@ -274,7 +224,6 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
 
     this.setCurrentOperation(`Rebuilding ${collection} ID map...`)
 
-    // Query all existing records (paginated for large collections)
     const BATCH_SIZE = 500
     let page = 1
     let hasMore = true
@@ -303,13 +252,11 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
   }
 
   /**
-   * Hook for subclasses to reconstruct ID maps before import
-   * Override this method to specify which maps to rebuild for paginated runs
-   * Called automatically when pagination is active
+   * Override to rebuild the id maps a paginated run needs.
+   *
+   * Called when pagination is active, before `import()`.
    */
-  protected async reconstructIdMaps(): Promise<void> {
-    // Default: no-op. Subclasses override to reconstruct their specific maps.
-  }
+  protected async reconstructIdMaps(): Promise<void> {}
 
   // --- PRELOAD METHODS (for skip/update mode optimization) ---
 
@@ -332,7 +279,6 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     additionalFields?: string[],
     locale?: TypedLocale | 'all',
   ): Promise<PreloadCache> {
-    // Return cached version if already preloaded
     if (this.preloadCache.has(collection)) {
       // One cache per collection, so the first locale wins. Asking again under
       // a different one would read the first answer and look like a locale miss.
@@ -367,7 +313,6 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     // to enable deduplication by originalFilename (Cloudflare Images/Stream)
     const isUploadCollection = naturalKeyField === 'filename'
 
-    // Build select object - only fetch id and natural key (+ any additional fields)
     const select: Record<string, true> = {
       id: true,
       [naturalKeyField]: true,
@@ -405,8 +350,8 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
       for (const doc of result.docs) {
         const docRecord = doc as unknown as Record<string, unknown>
 
-        // For upload collections: also cache by originalFilename from fileMetadata
-        // This enables deduplication when Cloudflare Images/Stream replaces filename with ID
+        // Cloudflare Images/Stream replaces filename with its own ID, so the
+        // cache carries originalFilename too.
         if (isUploadCollection) {
           const fileMetadata = docRecord.fileMetadata
           const originalFilename =
@@ -421,7 +366,6 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
           }
         }
 
-        // Always cache by the natural key field
         const rawKey = docRecord[naturalKeyField]
         if (isRecord(rawKey)) {
           // A field-localized key under `locale: 'all'` arrives as a per-locale
@@ -453,13 +397,6 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     return cache
   }
 
-  /**
-   * Get a preloaded document by natural key value.
-   *
-   * @param collection - Collection slug
-   * @param naturalKeyValue - The natural key value to look up
-   * @returns PreloadedDoc if exists in cache, undefined otherwise
-   */
   protected getPreloaded(
     collection: CollectionSlug,
     naturalKeyValue: string,
@@ -467,13 +404,6 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     return this.preloadCache.get(collection)?.get(naturalKeyValue)
   }
 
-  /**
-   * Check if a document exists in preload cache.
-   *
-   * @param collection - Collection slug
-   * @param naturalKeyValue - The natural key value to check
-   * @returns true if document exists in cache
-   */
   protected hasPreloaded(collection: CollectionSlug, naturalKeyValue: string): boolean {
     return this.preloadCache.get(collection)?.has(naturalKeyValue) ?? false
   }
@@ -491,20 +421,17 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     }
 
     try {
-      // 1. Setup cache directory
       await this.setupCacheDirectory()
 
-      // 2. Initialize core utilities
       this.logger = new Logger()
       this.fileUtils = new FileUtils(this.logger)
       this.report = new ValidationReport()
 
-      // 3. Handle cache clearing
       if (this.options.clearCache) {
         await this.clearCache()
       }
 
-      // 4. Initialize Payload CMS (skip in dry-run for speed, use external if provided)
+      // An externally supplied Payload wins. A dry run without one skips the init, for speed.
       if (this.options.payload) {
         this.payload = this.options.payload
         this.externalPayload = true
@@ -515,29 +442,25 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
         await this.logger.info('Skipping Payload initialization (dry run)')
       }
 
-      // 5. Hook for subclass-specific setup
       await this.setup()
 
-      // 6. Reconstruct ID maps for paginated runs (after setup, before import)
+      // Must run after setup and before import.
       if (this.isPaginated()) {
         await this.reconstructIdMaps()
       }
 
-      // 7. Execute import (subclass implementation)
       await this.import()
 
-      // 8. Check the run's own invariants. A paginated batch holds only part
-      // of the data and a dry run wrote nothing, so neither is a run to check.
+      // Neither a paginated batch nor a dry run is a run to check: one holds
+      // part of the data, the other wrote nothing.
       if (!this.isPaginated() && !this.options.dryRun) {
         this.runVerification = await this.verifyRun()
       }
 
-      // 9. Generate report and print summary (file output only for CLI)
       await this.finalize()
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       await this.logger?.error(`Fatal error: ${message}`)
-      // Send error event
       await this.sendEvent({
         type: 'error',
         message,
@@ -549,11 +472,8 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
   }
 
   /** Override to add custom setup logic (called after Payload initialized) */
-  protected async setup(): Promise<void> {
-    // Default: no-op
-  }
+  protected async setup(): Promise<void> {}
 
-  /** Override to implement the import logic */
   protected abstract import(): Promise<void>
 
   /**
@@ -574,7 +494,6 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     return { failures: [] }
   }
 
-  /** Override to add custom cleanup logic */
   protected async cleanup(): Promise<void> {
     // Only close the Payload database connection if this instance created it (not external)
     if (!this.externalPayload && this.payload?.db?.destroy) {
@@ -589,12 +508,6 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     await fs.mkdir(path.join(this.cacheDir, 'assets'), { recursive: true })
   }
 
-  /**
-   * Load data file from the filesystem.
-   *
-   * @param localPath - Path to local file
-   * @returns File contents as string
-   */
   protected async loadDataFile(localPath: string): Promise<string> {
     return fs.readFile(localPath, 'utf-8')
   }
@@ -609,20 +522,16 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
   private async clearCache(): Promise<void> {
     await this.logger.info('Clearing cache directory...')
     await this.fileUtils.clearDir(this.cacheDir)
-    // Recreate assets directory
     await fs.mkdir(path.join(this.cacheDir, 'assets'), { recursive: true })
     await this.logger.success('Cache cleared')
   }
 
   private async finalize(): Promise<void> {
-    // Write slug collisions file if any
     await this.writeCollisionsFile()
 
-    // Generate markdown report
     const reportPath = path.join(this.cacheDir, 'import-report.md')
     await this.report.generate(reportPath, this.importName)
 
-    // Print console summary
     this.printSummary()
 
     await this.logger.success(`\nReport saved to: ${reportPath}`)
@@ -630,10 +539,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
 
   // --- Progress reporting ---
 
-  /**
-   * Send import event to callback (if provided)
-   * Used by API routes for SSE streaming
-   */
+  /** Used by API routes for SSE streaming. */
   protected async sendEvent(event: Omit<ImportEvent, 'timestamp'>): Promise<void> {
     if (!this.options.onProgress) return
 
@@ -646,10 +552,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     if (DEBUG) console.log(`[SSE] Sent event: ${event.type}`)
   }
 
-  /**
-   * Report a document result (called automatically by upsert)
-   * Sends SSE event and logs to console
-   */
+  /** Called automatically by `upsert`. */
   protected async reportDocument(
     collection: string,
     identifier: string,
@@ -664,7 +567,6 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
       warnings: options?.warnings,
     }
 
-    // Send SSE event
     await this.sendEvent({
       type: 'document',
       document,
@@ -672,7 +574,6 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
       total: options?.total,
     })
 
-    // Console output
     const icon =
       action === 'created' ? '✓' : action === 'updated' ? '↻' : action === 'skipped' ? '○' : '✗'
     const status = action === 'error' ? `error: ${options?.error}` : action
@@ -685,32 +586,19 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     }
   }
 
-  /**
-   * Send an informational message via SSE
-   * Used for progress summaries and status updates
-   */
+  /** Progress summaries and status updates, over SSE. */
   protected async sendInfo(message: string): Promise<void> {
     await this.sendEvent({
       type: 'info',
       message,
     })
 
-    // Also log to console
     console.log(`  ${message}`)
   }
 
   // --- Idempotent upsert operations ---
 
-  /**
-   * Find or upsert a document by natural key(s)
-   * This is the core idempotency method all scripts should use
-   *
-   * @param collection - Payload collection slug
-   * @param naturalKey - Where clause to find existing document
-   * @param data - Document data to create or update with
-   * @param options - Optional locale, file data, identifier override, and progress tracking
-   * @returns UpsertResult with the document and action taken
-   */
+  /** The core idempotency method every script should use. */
   protected async upsert<T extends { id: number | string }>(
     collection: CollectionSlug,
     naturalKey: Where,
@@ -724,7 +612,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
       current?: number
       /** Total items for SSE streaming */
       total?: number
-      /** Publish this specific locale (uses PayloadCMS native per-locale publishing) */
+      /** Uses Payload's native per-locale publishing. */
       publishSpecificLocale?: TypedLocale
       /** Force file upload even on update (default: false - skips file on update, assumes existing file is correct) */
       forceFileUpload?: boolean
@@ -738,7 +626,6 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     const DEBUG = process.env.DEBUG_IMPORT === 'true'
     const startTime = DEBUG ? Date.now() : 0
 
-    // Track current operation for heartbeat context
     this.setCurrentOperation(`Processing ${collection}:${identifier}`)
 
     if (DEBUG) console.log(`[UPSERT] Starting ${collection}:${identifier}`)
@@ -753,7 +640,6 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     }
 
     try {
-      // Check preload cache first (if collection was preloaded)
       const keyValue = this.extractNaturalKeyValue(naturalKey)
       const preloadedDoc = keyValue ? this.getPreloaded(collection, keyValue) : undefined
       const isPreloaded = this.preloadCache.has(collection)
@@ -778,7 +664,6 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
       if (this.options.updateMode && preloadedDoc) {
         const updateStart = DEBUG ? Date.now() : 0
         if (DEBUG) console.log(`[UPSERT] Updating ${collection}:${identifier} (using cached ID)`)
-        // Skip file upload on update unless forceFileUpload is true
         const fileForUpdate = options?.forceFileUpload ? options?.file : undefined
         if (fileForUpdate) {
           this.setCurrentOperation(`Uploading ${collection}:${identifier}`)
@@ -815,9 +700,6 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
         return { doc: updated as unknown as T, action: 'updated' }
       }
 
-      // The doc does not exist in the preload cache, or the collection
-      // was not preloaded. If the collection was preloaded and the doc
-      // was not found, create it directly.
       if (isPreloaded && !preloadedDoc) {
         const createStart = DEBUG ? Date.now() : 0
         if (DEBUG) console.log(`[UPSERT] Creating ${collection}:${identifier} (not in cache)`)
@@ -851,7 +733,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
         return { doc: created as unknown as T, action: 'created' }
       }
 
-      // Fallback: the collection was not preloaded. Use the original find-then-update-or-create pattern.
+      // Fallback: the collection was not preloaded.
       const findStart = DEBUG ? Date.now() : 0
       if (DEBUG) console.log(`[UPSERT] Finding existing ${collection}:${identifier} (fallback)`)
       const existing = await this.executeWithRetry(() =>
@@ -888,10 +770,8 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
         // UPDATE MODE: Update existing (with retry for transient database errors)
         const updateStart = DEBUG ? Date.now() : 0
         if (DEBUG) console.log(`[UPSERT] Updating ${collection}:${identifier}`)
-        // Skip file upload on update unless forceFileUpload is true
-        // Assumes existing file is correct - only data fields are updated
+        // An existing file is assumed correct, so only data fields update.
         const fileForUpdate = options?.forceFileUpload ? options?.file : undefined
-        // Track file upload operation for heartbeat
         if (fileForUpdate) {
           this.setCurrentOperation(`Uploading ${collection}:${identifier}`)
         }
@@ -931,7 +811,6 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
       // Create new (with retry for transient database errors)
       const createStart = DEBUG ? Date.now() : 0
       if (DEBUG) console.log(`[UPSERT] Creating ${collection}:${identifier}`)
-      // Track file upload operation for heartbeat
       if (options?.file) {
         this.setCurrentOperation(`Uploading ${collection}:${identifier}`)
       }
@@ -962,7 +841,6 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
         )
       return { doc: created as unknown as T, action: 'created' }
     } catch (error) {
-      // Handle slug collision - fetch existing document and return as updated
       if (this.isSlugCollisionError(error)) {
         // Extract slug from data or naturalKey (for auto-generated slugs)
         const slug = (data.slug as string) || this.extractSlugFromKey(naturalKey) || 'unknown'
@@ -995,7 +873,6 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
 
           // If not found, try matching without hyphens (more fuzzy)
           if (existingBySlug.docs.length === 0 && slugWithoutHyphens.length > 3) {
-            // Get all docs with similar starting characters and filter by removing hyphens
             const searchPrefix = slugWithoutHyphens.substring(
               0,
               Math.min(8, slugWithoutHyphens.length),
@@ -1009,7 +886,6 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
                 trash: true,
               }),
             )
-            // Filter to find one where slug without hyphens matches
             existingBySlug.docs = existingBySlug.docs.filter((doc) => {
               const docSlug = ((doc as unknown as Record<string, unknown>).slug as string) || ''
               return docSlug.replace(/-/g, '').toLowerCase() === slugWithoutHyphens
@@ -1017,7 +893,6 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
           }
 
           if (existingBySlug.docs.length > 0) {
-            // Found existing document - treat as update
             const foundDoc = existingBySlug.docs[0]
             this.report.incrementUpdated()
             await this.reportDocument(collection, identifier, 'updated', {
@@ -1037,7 +912,6 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
           )
         }
 
-        // Fallback: skip if no existing document was found
         const errorMsg = error instanceof Error ? error.message : String(error)
         this.report.addError(`Slug collision in ${collection} (slug="${slug}"): ${errorMsg}`)
         this.report.incrementSkipped()
@@ -1065,14 +939,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     }
   }
 
-  /**
-   * Find existing document by natural key (read-only lookup)
-   *
-   * @param collection - Payload collection slug
-   * @param naturalKey - Where clause to find document
-   * @param locale - Optional locale
-   * @returns Document or null if not found
-   */
+  /** Read-only lookup by natural key. */
   protected async findByNaturalKey<T>(
     collection: CollectionSlug,
     naturalKey: Where,
@@ -1097,15 +964,9 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
   }
 
   /**
-   * Update document with localized content for all available translations.
-   * Only updates locales that have actual translation content.
+   * Update localized content for every translation that carries any.
    *
-   * @param collection - Collection slug
-   * @param id - Document ID
-   * @param translations - Array of translation objects with locale field
-   * @param dataExtractor - Function to extract data from each translation (return null to skip)
-   * @param options - Optional settings
-   * @returns Number of locales updated
+   * @returns How many locales were updated.
    */
   protected async updateLocales<T extends { locale?: string }>(
     collection: CollectionSlug,
@@ -1119,7 +980,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
       requiredFields?: (keyof T)[]
       /** List of valid locales (defaults to checking against Payload's TypedLocale) */
       validLocales?: string[]
-      /** Callback to determine if this locale should be published (uses PayloadCMS native per-locale publishing) */
+      /** Uses Payload's native per-locale publishing. */
       shouldPublish?: (translation: T) => boolean
     },
   ): Promise<number> {
@@ -1132,13 +993,11 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     let updatedCount = 0
 
     for (const translation of translations) {
-      // Skip if no locale
       if (!translation.locale) continue
 
       // Skip excluded locale (usually 'en' which was handled in initial upsert)
       if (options?.excludeLocale && translation.locale === options.excludeLocale) continue
 
-      // Validate against allowed locales if provided
       if (options?.validLocales && !options.validLocales.includes(translation.locale)) continue
 
       // Check required fields have non-empty values
@@ -1150,19 +1009,14 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
         if (!hasRequiredContent) continue
       }
 
-      // Extract data for this translation
       const data = dataExtractor(translation)
       if (!data) continue
 
-      // Check if extracted data has any non-empty values
       const hasContent = Object.values(data).some((v) => v !== null && v !== undefined && v !== '')
       if (!hasContent) continue
 
-      // Update the document with locale-specific data
       const localeStart = DEBUG ? Date.now() : 0
-      // Track current operation for heartbeat context
       this.setCurrentOperation(`Updating ${collection}:${id} locale=${translation.locale}`)
-      // Determine if this locale should be published using native per-locale publishing
       const shouldPublishLocale = options?.shouldPublish?.(translation)
       await this.executeWithRetry(() =>
         this.payload.update({
@@ -1192,7 +1046,6 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     return updatedCount
   }
 
-  /** Create a summary string from a natural key Where clause */
   private summarizeKey(key: Where): string {
     if (typeof key === 'object' && key !== null) {
       // Handle simple { field: { equals: value } } pattern
@@ -1214,13 +1067,9 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     return JSON.stringify(key)
   }
 
-  /**
-   * Extract slug value from a natural key Where clause
-   * Handles { slug: { equals: 'value' } } pattern
-   */
+  /** Handles the `{ slug: { equals: value } }` pattern. */
   private extractSlugFromKey(key: Where): string | null {
     if (typeof key === 'object' && key !== null) {
-      // Handle simple { slug: { equals: value } } pattern
       if ('slug' in key) {
         const slugCondition = (key as Record<string, unknown>).slug
         if (
@@ -1246,15 +1095,11 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
   }
 
   /**
-   * Extract the value from a natural key Where clause.
    * Supports:
    * - Simple: { field: { equals: 'value' } }
    * - Compound: { and: [{ field1: { equals: 'value1' } }, { field2: { equals: 'value2' } }] }
    *
-   * For compound keys, values are joined with '-', for example "Unit 1-3"
-   *
-   * @param naturalKey - Where clause to extract value from
-   * @returns The string value, or undefined if the pattern does not match
+   * A compound key joins its values with '-', for example "Unit 1-3".
    */
   private extractNaturalKeyValue(naturalKey: Where): string | undefined {
     if (typeof naturalKey !== 'object' || naturalKey === null) return undefined
@@ -1265,14 +1110,12 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     const [key, condition] = entries[0]
 
     // Handle compound AND conditions: { and: [{ unit: { equals: 'Unit 1' } }, { step: { equals: 3 } }] }
-    // Builds a composite key by joining values with '-', for example "Unit 1-3"
     if (key === 'and' && Array.isArray(condition)) {
       const values: string[] = []
       for (const subCondition of condition as Where[]) {
         const value = this.extractNaturalKeyValue(subCondition)
         if (value) values.push(value)
       }
-      // Only return composite key if all conditions extracted successfully
       return values.length === condition.length ? values.join('-') : undefined
     }
 
@@ -1286,20 +1129,14 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
 
   // --- Retry & throttling ---
 
-  /**
-   * Small delay between database operations to reduce contention
-   * Only applies when not in dry-run mode
-   */
+  /** Reduces database contention. Skipped in a dry run. */
   private async throttle(ms: number = 10): Promise<void> {
     if (!this.options.dryRun && ms > 0) {
       await new Promise((r) => setTimeout(r, ms))
     }
   }
 
-  /**
-   * Execute an operation with exponential backoff retry for transient
-   * database and connection errors
-   */
+  /** Retries transient database and connection errors, with exponential backoff. */
   private async executeWithRetry<T>(
     operation: () => Promise<T>,
     maxRetries: number = 8,
@@ -1308,7 +1145,6 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         const result = await operation()
-        // Small delay after successful operation to reduce contention
         await this.throttle(5)
         return result
       } catch (error) {
@@ -1364,12 +1200,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     this.logger.warn(message)
   }
 
-  /**
-   * Log a skipped item, increment skip counter, and optionally send SSE event
-   *
-   * @param message - Skip reason message
-   * @param options - Optional context for SSE reporting
-   */
+  /** Logs the skip, counts it, and sends an SSE event given a context. */
   protected async skip(
     message: string,
     options?: {
@@ -1382,7 +1213,6 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     this.report.incrementSkipped()
     await this.logger.skip(message)
 
-    // Send SSE event if context is provided
     if (options?.collection && options?.identifier) {
       await this.reportDocument(options.collection, options.identifier, 'skipped', {
         error: message,
@@ -1394,7 +1224,6 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
 
   // --- Summary printing ---
 
-  /** Print summary using ValidationReport data */
   protected printSummary(): void {
     const summary = this.report.getSummary()
 
@@ -1428,10 +1257,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
 
 // --- Factory function ---
 
-/**
- * Helper to parse CLI args and create options object
- * Subclasses can use this in their main() function
- */
+/** For a subclass's own `main()`. */
 export function createImportOptions(): CLIArgs & BaseImportOptions {
   return parseArgs() as CLIArgs & BaseImportOptions
 }

@@ -1,9 +1,3 @@
-/**
- * File Utilities
- *
- * Common file download, caching, and manipulation utilities.
- */
-
 import type { Logger } from './logger'
 
 import { promises as fs } from 'fs'
@@ -33,7 +27,6 @@ export class FileUtils {
     }
   }
 
-  /** Get MIME type from filename extension */
   getMimeType(filename: string): string {
     const ext = path.extname(filename).toLowerCase()
     const mimeTypes: Record<string, string> = {
@@ -54,7 +47,6 @@ export class FileUtils {
     return mimeTypes[ext] || 'application/octet-stream'
   }
 
-  /** Download file using fetch */
   async downloadFileFetch(url: string, destPath: string): Promise<void> {
     if (await this.fileExists(destPath)) {
       return
@@ -71,18 +63,15 @@ export class FileUtils {
     await fs.writeFile(destPath, safeBufferFrom(buffer))
   }
 
-  /** Ensure directory exists */
   async ensureDir(dirPath: string): Promise<void> {
     await fs.mkdir(dirPath, { recursive: true })
   }
 
-  /** Clear directory contents */
   async clearDir(dirPath: string): Promise<void> {
     await fs.rm(dirPath, { recursive: true, force: true })
     await fs.mkdir(dirPath, { recursive: true })
   }
 
-  /** Safe operation wrapper with error handling */
   async safeOperation<T>(operation: () => Promise<T>, errorContext: string): Promise<T | null> {
     try {
       return await operation()
@@ -93,22 +82,14 @@ export class FileUtils {
     }
   }
 
-  /**
-   * Download file with optional disk caching for faster iteration
-   *
-   * @param url - URL to download from
-   * @param cachePath - Optional cache file path
-   * @returns Buffer containing file contents
-   */
+  /** Caches to disk, for faster iteration. */
   async downloadFile(url: string, cachePath?: string): Promise<Buffer> {
-    // Use disk cache if available
     if (cachePath) {
       if (await this.fileExists(cachePath)) {
         await this.logger.info(`  Using cached: ${path.basename(cachePath)}`)
         return fs.readFile(cachePath)
       }
 
-      // Download and cache
       await fs.mkdir(path.dirname(cachePath), { recursive: true })
       const response = await fetch(url)
       if (!response.ok) {
@@ -127,14 +108,6 @@ export class FileUtils {
     return safeBufferFrom(await response.arrayBuffer())
   }
 
-  /**
-   * Download file and return as FileData for Payload upload
-   *
-   * @param url - URL to download from
-   * @param filename - Desired filename for the upload
-   * @param cachePath - Optional cache file path
-   * @returns FileData object ready for Payload upload
-   */
   async downloadAsFileData(
     url: string,
     filename: string,

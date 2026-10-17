@@ -69,14 +69,13 @@ this.skip('Skipping item') // Log skip, increment counter
 
 ```typescript
 import { Logger } from '../lib'
-const logger = new Logger(CACHE_DIR)
+const logger = new Logger()
 
 await logger.success('Created record') // Green
 await logger.error('Failed') // Red
 await logger.warn('Warning') // Yellow
 await logger.info('Processing...') // Cyan
 await logger.skip('Skipped item') // Gray
-await logger.progress(50, 100, 'Items') // Progress bar
 ```
 
 ### FileUtils
@@ -330,13 +329,19 @@ lib/
 ├── BaseImporter.ts      # Abstract base class
 ├── cliParser.ts         # CLI argument parsing
 ├── dataFiles.ts         # Every committed data-file path, and what uploads it
-├── logger.ts            # Colored logging + file output
+├── dataLoader.ts        # Data-file reads, and asset fetch with a disk cache
+├── delays.ts            # Rate-limit delay, and retry with exponential backoff
+├── expectedCounts.ts    # Each script's count floors, and what each was derived from
+├── logger.ts            # Colored console logging
 ├── fileUtils.ts         # File operations, MIME types
+├── pagination.ts        # Pagination types, and the query-param validation
+├── runtime.ts           # ArrayBuffer and Uint8Array to Buffer
 ├── tagManager.ts        # Tag creation/management
 ├── payloadHelpers.ts    # Common Payload operations
-├── mediaDownloader.ts   # Image download + WebP conversion
+├── mediaDownloader.ts   # Image download — no conversion, see the module header
 ├── MediaUploader.ts     # Media upload with deduplication
 ├── lexicalConverter.ts  # EditorJS → Lexical conversion
 ├── validationReport.ts  # Import statistics tracking
+├── lib.test.ts          # The unit lane for this directory
 └── index.ts             # Barrel export
 ```
