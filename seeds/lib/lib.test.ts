@@ -1,10 +1,4 @@
-/**
- * Import Library Tests
- *
- * Basic tests for the shared import utilities.
- * These tests validate that the utilities function correctly without
- * requiring a full Payload CMS instance.
- */
+/** The shared import utilities, tested without a Payload instance. */
 
 import type { Payload } from 'payload'
 
