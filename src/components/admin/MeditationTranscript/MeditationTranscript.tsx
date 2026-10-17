@@ -24,7 +24,6 @@ import { useFollowPlayhead } from './useFollowPlayhead'
 
 const POLL_INTERVAL_MS = 3000
 
-/** What the collection's list endpoint answers, narrowed to what the tab reads. */
 type TranscriptList = { docs?: TranscriptRow[] }
 
 const rowOf = (list: TranscriptList | undefined): TranscriptRow | undefined => list?.docs?.[0]
@@ -35,11 +34,10 @@ const rowOf = (list: TranscriptList | undefined): TranscriptRow | undefined => l
  * forever.
  *
  * ⚠ **Declared once, at module scope.** SWR lists `refreshInterval` in its
- * polling effect's dependencies, so a new arrow each render re-runs that
- * effect and re-arms the timer from zero. `usePlaybackTime` re-renders this
- * component about once a second while the recording plays, which is more often
- * than the 3 s interval — so an inline arrow's timer would never elapse, and
- * the poll would stop exactly while the editor is listening.
+ * polling effect's dependencies, so a new arrow each render re-arms the timer
+ * from zero — and the playhead re-renders this component about once a second
+ * while the recording plays, more often than the interval. An inline arrow
+ * would therefore stop the poll exactly while the editor is listening.
  */
 const pollInterval = (latest?: TranscriptList): number =>
   transcriptPhase(rowOf(latest)) === 'pending' ? POLL_INTERVAL_MS : 0
@@ -59,15 +57,18 @@ async function readTranscripts(url: string): Promise<TranscriptList> {
  * paragraphs, follow it as the live preview plays, and click or key a phrase
  * to play from there.
  *
+ * It reads the collection rather than the `meditations.transcript` join, which
+ * carries the same row: that join resolves once at page load, so a tab built
+ * on it could never show a run finishing.
+ *
  * ⚠ **This tab polls where `JobStageView` deliberately does not.** That view
  * serves a row's own Edit page, opened once; this one sits beside a player an
- * editor is listening to while a run finishes, so a finishing run has to
- * arrive without a reload.
+ * editor is listening to while a run finishes.
  */
 export const MeditationTranscript: UIFieldClientComponent = () => {
   const { id } = useDocumentInfo()
   const { code } = useLocale()
-  const url = transcriptUrl(id ?? undefined, code)
+  const url = transcriptUrl(id, code)
 
   const { data, error } = useSWR(url, readTranscripts, {
     refreshInterval: pollInterval,
@@ -77,11 +78,13 @@ export const MeditationTranscript: UIFieldClientComponent = () => {
   const playheadSeconds = usePlaybackTime()
   const seekTo = useSeekToTime()
   const row = rowOf(data)
+  // Two memos, not one: `react-hooks/preserve-manual-memoization` refuses a
+  // dependency it cannot prove stable, so the cue array needs its own.
   const segments = useMemo(() => row?.segments ?? [], [row])
   const paragraphs = useMemo(() => groupTranscript(segments), [segments])
   const active = activeSegmentIndex(segments, playheadSeconds)
   const container = useRef<HTMLDivElement>(null)
-  useFollowPlayhead(container, active)
+  useFollowPlayhead(container, active, segments.length > 0)
 
   if (!url) {
     return <Banner type="error">The transcript cannot load without an admin locale.</Banner>
@@ -111,9 +114,7 @@ export const MeditationTranscript: UIFieldClientComponent = () => {
             <Spinner loadingText={null} size="sm" />
             <div>
               <strong>Transcription in progress</strong>
-              <p className={styles.muted}>
-                Turning the recording into a timestamped transcript.
-              </p>
+              <p className={styles.muted}>Turning the recording into a timestamped transcript.</p>
             </div>
           </div>
         )}
@@ -131,8 +132,7 @@ export const MeditationTranscript: UIFieldClientComponent = () => {
       </div>
       {/* The cues decide, never `status`: `deriveTranscriptStatus` answers
           `completed` from the cues alone, so gating on the string could
-          disagree with what there is to read. A notice sits above the
-          paragraphs rather than instead of them. */}
+          disagree with what there is to read. */}
       {segments.length > 0 && (
         <div className={styles.paragraphs} ref={container}>
           {paragraphs.map((paragraph) => (
@@ -162,7 +162,6 @@ const Paragraph = memo(function Paragraph({
   activeIndex: number
   onSeek: (seconds: number) => void
 }) {
-  // `formatTime` takes seconds.
   const start = seekSecond(paragraph.startTimeMs)
   return (
     <section className={styles.paragraph}>

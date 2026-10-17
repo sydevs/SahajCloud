@@ -1,5 +1,9 @@
+import * as qs from 'qs-esm'
+
 import type { TranscriptSegment } from '@/lib/meditations/transcript'
-import { TRANSCRIPTION_STALL_MS } from '@/lib/meditations/transcript'
+// The zero-weight door to the bound: `@/lib/meditations/transcript` builds
+// zod schemas at module scope, and this module is reached from the browser.
+import { TRANSCRIPTION_STALL_MS } from '@/lib/meditations/transcriptStall'
 import type { MeditationTranscript } from '@/payload-types'
 
 /** A pause this long between phrases starts a new paragraph. */
@@ -29,30 +33,28 @@ export type TranscriptParagraph = {
  * `{}`, so `code` can be undefined at runtime, and `?locale=undefined` is
  * rewritten to the default locale, reproducing that bug invisibly. So this
  * refuses to build a URL instead, and the caller reports it.
- *
- * It reads the collection rather than `meditations.transcript`, which carries
- * the same row: that join resolves at page load and nothing re-reads it, so a
- * tab built on it could never show a run finishing.
  */
 export const transcriptUrl = (
   meditationId: number | string | undefined,
   locale: string | undefined,
 ): string | null =>
   meditationId && locale
-    ? `/api/meditation-transcripts?where[meditation][equals]=${encodeURIComponent(String(meditationId))}` +
-      `&limit=1&depth=0&locale=${encodeURIComponent(locale)}`
+    ? `/api/meditation-transcripts${qs.stringify(
+        { depth: 0, limit: 1, locale, where: { meditation: { equals: meditationId } } },
+        { addQueryPrefix: true },
+      )}`
     : null
 
 export type TranscriptPhase = 'none' | 'pending' | 'stalled' | 'failed' | 'completed'
 
 /**
- * What the tab shows. No row is "never transcribed": a replaced recording
- * takes its row with it and a fresh one is queued at once, so there is no
- * out-of-date transcript to keep on screen.
+ * Which notice the tab shows. No row means never transcribed: a replaced
+ * recording takes its row with it and a fresh one is queued at once, so there
+ * is no out-of-date transcript to keep on screen.
  *
- * `stalled` is derived rather than stored. `TRANSCRIPTION_STALL_MS` is the
- * bound the collection already passes to `jobStage.staleAfterMs`, so the tab
- * and the row's own Edit view go stale together.
+ * `TRANSCRIPTION_STALL_MS` is the bound the collection already passes
+ * `jobStage.staleAfterMs`, so the tab and the row's own Edit view go stale
+ * together. An unparseable `updatedAt` keeps the wait, as it does there.
  */
 export function transcriptPhase(
   row: Pick<MeditationTranscript, 'status' | 'updatedAt'> | undefined,
@@ -71,9 +73,7 @@ export function groupTranscript(segments: TranscriptSegment[]): TranscriptParagr
   const paragraphs: TranscriptParagraph[] = []
   segments.forEach((segment, index) => {
     const previous = segments[index - 1]
-    const gap = previous
-      ? segment.startTimeMs - previous.endTimeMs
-      : Number.POSITIVE_INFINITY
+    const gap = previous ? segment.startTimeMs - previous.endTimeMs : Number.POSITIVE_INFINITY
     const current = paragraphs[paragraphs.length - 1]
     if (current && gap < PARAGRAPH_GAP_MS) {
       current.segmentIndexes.push(index)
@@ -93,14 +93,13 @@ export function groupTranscript(segments: TranscriptSegment[]): TranscriptParagr
 export const seekSecond = (timeMs: number): number => Math.floor(timeMs / 1000)
 
 /**
- * The phrase being spoken at `playheadSeconds`, or `-1` in a pause. A phrase
- * counts from the whole second it starts in: clicking it seeks there, and the
- * preview reports only whole seconds, so it must light up at once.
+ * The phrase being spoken at `playheadSeconds`, or `-1` in a pause.
+ *
+ * A phrase counts from the whole second it starts in, because a click seeks
+ * there and the preview reports only whole seconds — so it must light up at
+ * once rather than a fraction of a second later.
  */
-export function activeSegmentIndex(
-  segments: TranscriptSegment[],
-  playheadSeconds: number,
-): number {
+export function activeSegmentIndex(segments: TranscriptSegment[], playheadSeconds: number): number {
   for (let index = segments.length - 1; index >= 0; index -= 1) {
     const segment = segments[index]
     if (seekSecond(segment.startTimeMs) <= playheadSeconds) {

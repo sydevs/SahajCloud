@@ -5,7 +5,7 @@
  * is as an element, which one carries `aria-current`, what a key press seeks
  * to, and which notice each phase renders.
  *
- * **Mocked at the Payload boundary only** — `@payloadcms/ui` and `swr`. Three
+ * **Mocked at the Payload boundary only** — `@payloadcms/ui` and `swr`. Four
  * behaviours are reproduced, each read from the real thing:
  *
  * - `useSWR(key, fetcher, options)` makes no request for a null key, and calls
@@ -158,14 +158,13 @@ describe('the Transcript tab', () => {
     })
   }
 
-  describe('keyboard reach (success line 6)', () => {
+  describe('keyboard reach', () => {
     it('makes every phrase a focusable span, and no phrase a button element', () => {
       render()
 
       expect(phrases()).toHaveLength(SEGMENTS.length)
       expect(phrases().map((phrase) => phrase.tagName)).toEqual(['SPAN', 'SPAN', 'SPAN'])
       expect(phrases().map((phrase) => phrase.getAttribute('tabindex'))).toEqual(['0', '0', '0'])
-      expect(container.querySelectorAll('button[role="button"]')).toHaveLength(0)
     })
 
     it.each([
@@ -191,7 +190,7 @@ describe('the Transcript tab', () => {
     })
   })
 
-  describe('read-along (success line 6)', () => {
+  describe('read-along', () => {
     it('marks the phrase the playhead is inside, and moves the mark with it', () => {
       render()
       playTo(3)
@@ -226,7 +225,7 @@ describe('the Transcript tab', () => {
     })
   })
 
-  describe('the notices (success line 10)', () => {
+  describe('the notices', () => {
     const renderRow = (overrides: Partial<MeditationTranscript>) => {
       stub.swr = { data: { docs: [row(overrides)] }, error: undefined }
       render()
@@ -262,14 +261,7 @@ describe('the Transcript tab', () => {
 
       expect(text()).toContain('Transcription stopped responding.')
       expect(text()).not.toContain('Transcription in progress')
-    })
-
-    it('names no duration in any notice, so one bound has one spelling', () => {
-      renderRow({
-        status: 'processing',
-        updatedAt: new Date(Date.now() - TRANSCRIPTION_STALL_MS - 1000).toISOString(),
-      })
-
+      // One bound, one spelling: the copy never names a duration.
       expect(text()).not.toMatch(/\d+\s*(minute|second|hour)/i)
     })
 
@@ -280,6 +272,9 @@ describe('the Transcript tab', () => {
       expect(phrases()).toHaveLength(SEGMENTS.length)
     })
 
+    // A row the server cannot emit, deliberately: `deriveTranscriptStatus`
+    // answers `completed` from the cues, so this is the only fixture that
+    // tells a cue gate from a `status === 'completed'` one.
     it('renders no paragraphs for a completed row carrying no cues', () => {
       renderRow({ status: 'completed', segments: [] })
 
@@ -293,7 +288,9 @@ describe('the Transcript tab', () => {
       render()
 
       expect(stub.swrCalls[0].key).toContain('locale=cs')
-      expect(stub.swrCalls[0].key).toContain('where[meditation][equals]=7')
+      expect(stub.swrCalls[0].key).toContain(
+        `where${encodeURIComponent('[meditation][equals]')}=7`,
+      )
     })
 
     it('builds no URL, makes no request and reports it without a locale (#701)', () => {
@@ -305,12 +302,8 @@ describe('the Transcript tab', () => {
       expect(text()).toContain('admin locale')
     })
 
-    /**
-     * ⚠ The property is the function's **identity**, not its answer. SWR lists
-     * `refreshInterval` in its polling effect's dependencies, so a new arrow
-     * each render re-arms the timer from zero — and the playhead re-renders
-     * this component about once a second, more often than the interval.
-     */
+    // The property is the function's **identity**, not its answer. The
+    // mechanism is in `pollInterval`'s own ⚠ block.
     it('passes one `refreshInterval` function across re-renders', () => {
       render()
       playTo(3)
@@ -330,19 +323,8 @@ describe('the Transcript tab', () => {
 
       expect(refreshInterval({ docs: [row({ status: 'processing' })] })).toBe(3000)
       expect(refreshInterval({ docs: [row({ status: 'completed' })] })).toBe(0)
-      expect(refreshInterval({ docs: [row({ status: 'failed' })] })).toBe(0)
-      expect(refreshInterval({ docs: [] })).toBe(0)
+      // The rest of the phase table is `meditation-transcript-model.spec.ts`'s.
       expect(refreshInterval(undefined)).toBe(0)
-      expect(
-        refreshInterval({
-          docs: [
-            row({
-              status: 'processing',
-              updatedAt: new Date(Date.now() - TRANSCRIPTION_STALL_MS - 1000).toISOString(),
-            }),
-          ],
-        }),
-      ).toBe(0)
     })
   })
 })

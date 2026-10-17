@@ -421,7 +421,7 @@ export const Meditations: CollectionConfig = {
                     // be unique among its siblings.
                     previewTargetField({ autoOpen: true }, 'transcript__preview_target'),
                     {
-                      name: 'transcript_panel',
+                      name: 'transcriptPanel',
                       type: 'ui',
                       admin: {
                         components: { Field: '@/components/admin/MeditationTranscript' },

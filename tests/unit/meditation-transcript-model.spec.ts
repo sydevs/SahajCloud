@@ -1,7 +1,7 @@
 /**
- * The Transcript tab's pure logic: the query it reads, which state it shows,
- * how phrases fall into paragraphs and silences, and which phrase the playhead
- * is in.
+ * The Transcript tab's pure logic: which notice it shows, how phrases fall
+ * into paragraphs and silences, and which phrase the playhead is in. The URL
+ * it reads is pinned in `admin-locale-urls.spec.ts`, with its three siblings.
  *
  * Every cue time here is **milliseconds**, as `meditation-transcripts` stores
  * them; the playhead the preview reports is **seconds**.
@@ -13,7 +13,6 @@ import {
   groupTranscript,
   seekSecond,
   transcriptPhase,
-  transcriptUrl,
 } from '@/components/admin/MeditationTranscript/transcriptModel'
 import { TRANSCRIPTION_STALL_MS } from '@/lib/meditations/transcript'
 import type { TranscriptSegment } from '@/lib/meditations/transcript'
@@ -33,19 +32,6 @@ const row = (
   status: 'completed',
   updatedAt: new Date(NOW).toISOString(),
   ...overrides,
-})
-
-describe('transcriptUrl', () => {
-  it('filters on the meditation and names the admin locale', () => {
-    expect(transcriptUrl(7, 'pt-BR')).toBe(
-      '/api/meditation-transcripts?where[meditation][equals]=7&limit=1&depth=0&locale=pt-BR',
-    )
-  })
-
-  it('builds no URL without a locale, rather than letting the default stand in (#701)', () => {
-    expect(transcriptUrl(7, undefined)).toBeNull()
-    expect(transcriptUrl(undefined, 'en')).toBeNull()
-  })
 })
 
 describe('transcriptPhase', () => {
