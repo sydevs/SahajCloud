@@ -1,8 +1,4 @@
-/**
- * Lexical Converter
- *
- * Converts EditorJS-like content blocks to Payload CMS Lexical editor format
- */
+/** EditorJS-like content blocks, to Payload's Lexical format. */
 
 import type { Logger } from './logger'
 import type { Payload } from 'payload'
@@ -26,8 +22,7 @@ export interface ConversionContext {
 }
 
 // --- Meditation title mapping ---
-// Hard-coded mapping from Rails meditation titles to PayloadCMS meditation titles
-// This handles cases where titles do not match exactly between the two systems
+// Titles do not match exactly between the two systems.
 const RAILS_TO_PAYLOAD_MEDITATION_TITLES: Record<string, string> = {
   'your first meditation': 'first meditation',
   'experience joy': 'feel inner joy',
@@ -83,7 +78,6 @@ interface TextSegment {
   url?: string
 }
 
-/** Parse HTML string into text segments with formatting */
 function parseHTMLToSegments(html: string): TextSegment[] {
   if (!html) return []
 
@@ -93,14 +87,11 @@ function parseHTMLToSegments(html: string): TextSegment[] {
   let currentFormat: TextFormat = { bold: false, italic: false }
   let currentUrl: string | undefined
 
-  // Simple HTML parser using regex
-  // This handles <b>, <i>, <a> tags
   const tagRegex = /<(\/?)(b|i|a|strong|em)([^>]*)>/gi
   let lastIndex = 0
   let match: RegExpExecArray | null
 
   while ((match = tagRegex.exec(html)) !== null) {
-    // Add text before tag
     if (match.index > lastIndex) {
       const textBefore = html.substring(lastIndex, match.index)
       if (textBefore) {
@@ -123,32 +114,26 @@ function parseHTMLToSegments(html: string): TextSegment[] {
         currentText = ''
       }
 
-      // Update format
       if (tagName === 'b' || tagName === 'strong') {
         currentFormat.bold = true
       } else if (tagName === 'i' || tagName === 'em') {
         currentFormat.italic = true
       } else if (tagName === 'a') {
-        // Extract href
         const hrefMatch = attributes.match(/href=["']([^"']+)["']/i)
         if (hrefMatch && hrefMatch[1] && hrefMatch[1].trim()) {
           let url = hrefMatch[1].trim()
-          // Decode HTML entities in URL
           url = url
             .replace(/&amp;/g, '&')
             .replace(/&lt;/g, '<')
             .replace(/&gt;/g, '>')
             .replace(/&quot;/g, '"')
             .replace(/&#039;/g, "'")
-          // Only set URL if it is not just a hash anchor or empty
           if (url !== '#' && url !== '') {
             currentUrl = url
           } else {
-            // Explicitly set to undefined if href is invalid
             currentUrl = undefined
           }
         } else {
-          // No href attribute or invalid - set to undefined
           currentUrl = undefined
         }
       }
@@ -163,7 +148,6 @@ function parseHTMLToSegments(html: string): TextSegment[] {
         currentText = ''
       }
 
-      // Reset format
       if (tagName === 'b' || tagName === 'strong') {
         currentFormat.bold = false
       } else if (tagName === 'i' || tagName === 'em') {
@@ -176,7 +160,6 @@ function parseHTMLToSegments(html: string): TextSegment[] {
     lastIndex = tagRegex.lastIndex
   }
 
-  // Add remaining text
   if (lastIndex < html.length) {
     currentText += html.substring(lastIndex)
   }
@@ -191,7 +174,6 @@ function parseHTMLToSegments(html: string): TextSegment[] {
   return segments
 }
 
-/** Strip all HTML tags from string */
 function stripHTML(html: string): string {
   if (!html) return ''
   // Ensure the input is a string, even if it is accidentally something else
@@ -199,7 +181,6 @@ function stripHTML(html: string): string {
   return htmlString.replace(/<[^>]*>/g, '')
 }
 
-/** Convert HTML string to Lexical text nodes */
 export function htmlToLexicalText(html: string): LexicalNode[] {
   if (!html) return []
 
@@ -210,10 +191,8 @@ export function htmlToLexicalText(html: string): LexicalNode[] {
     const text = stripHTML(segment.text)
     if (!text) continue
 
-    // Ensure text is explicitly a string
     const textString = String(text)
 
-    // Only create link node if URL is valid
     // Filter out mailto:, tel:, javascript:, and other protocol links that Payload may not support
     // Payload accepts: http://, https://, / (relative paths)
     const url = segment.url?.trim()
@@ -226,11 +205,9 @@ export function htmlToLexicalText(html: string): LexicalNode[] {
       !url.startsWith('tel:') &&
       !url.startsWith('javascript:') &&
       !/^\s+$/.test(url) && // Not whitespace-only
-      // Ensure URL is properly formed (starts with http://, https://, /, or is a valid relative path)
       (/^https?:\/\//i.test(url) || url.startsWith('/') || /^[a-zA-Z0-9]/.test(url))
 
     if (isValidLink) {
-      // Ensure URL is not undefined (add extra safety check)
       if (!url || url.trim() === '') {
         // Fallback to text node if URL is somehow invalid
         nodes.push({
@@ -285,10 +262,7 @@ export function htmlToLexicalText(html: string): LexicalNode[] {
   return nodes
 }
 
-/**
- * Convert text format to Lexical format number
- * 0 = normal, 1 = bold, 2 = italic, 3 = bold+italic
- */
+/** 0 = normal, 1 = bold, 2 = italic, 3 = bold+italic. */
 function getTextFormat(format: TextFormat): number {
   let formatNum = 0
   if (format.bold) formatNum += 1
@@ -298,7 +272,6 @@ function getTextFormat(format: TextFormat): number {
 
 // --- Lexical node creators ---
 
-/** Create a Lexical paragraph node */
 export function createParagraphNode(text: string): LexicalNode {
   return {
     type: 'paragraph',
@@ -311,7 +284,6 @@ export function createParagraphNode(text: string): LexicalNode {
   }
 }
 
-/** Create a Lexical heading node */
 export function createHeadingNode(text: string, tag: 'h1' | 'h2' | 'h3'): LexicalNode {
   return {
     type: 'heading',
@@ -324,7 +296,6 @@ export function createHeadingNode(text: string, tag: 'h1' | 'h2' | 'h3'): Lexica
   }
 }
 
-/** Create a Lexical block node (for Payload blocks) */
 export function createBlockNode(blockType: string, blockName: string, fields: any): LexicalNode {
   return {
     type: 'block',
@@ -338,7 +309,6 @@ export function createBlockNode(blockType: string, blockName: string, fields: an
   }
 }
 
-/** Create a Lexical relationship node */
 export function createRelationshipNode(relationTo: string, value: number | string): LexicalNode {
   return {
     type: 'relationship',
@@ -348,7 +318,7 @@ export function createRelationshipNode(relationTo: string, value: number | strin
   }
 }
 
-/** Create a Lexical upload node (inline image) */
+/** An inline image. */
 export function createUploadNode(
   mediaId: number | string,
   align: 'center' | 'left' | 'right' | 'wide',
@@ -367,8 +337,6 @@ export function createUploadNode(
 }
 
 /**
- * Determine align value based on position and size
- * Mapping:
  * - position: left = align: left
  * - position: right = align: right
  * - position: full-width + size: normal = align: center
@@ -385,18 +353,15 @@ export function determineAlign(
     if (size === 'wide') return 'wide'
     return 'center'
   }
-  // Default to center if no position/size specified
   return 'center'
 }
 
-/** Generate a unique ID for blocks */
 function generateId(): string {
   return Math.random().toString(36).substring(2, 11)
 }
 
 // --- Editorjs block converters ---
 
-/** Convert EditorJS paragraph block to Lexical */
 export function convertParagraph(block: EditorJSBlock): LexicalNode {
   const { data } = block
   const text = data.text || ''
@@ -407,7 +372,6 @@ export function convertParagraph(block: EditorJSBlock): LexicalNode {
     return createHeadingNode(text, level)
   }
 
-  // Regular paragraph
   return createParagraphNode(text)
 }
 
@@ -445,7 +409,6 @@ export function convertTextbox(
     imageId = context.mediaMap.get(data.image.preview)
   }
 
-  // Image is required - skip if missing
   if (!imageId) {
     context.logger.skip(
       `TextBoxBlock (missing required image field) for page "${context.pageTitle}" (Rails ID ${context.pageId}). Original data: ${JSON.stringify(data)}`,
@@ -453,7 +416,6 @@ export function convertTextbox(
     return null
   }
 
-  // Determine imagePosition and textPosition based on old style
   let imagePosition: 'left' | 'right' | 'overlay' = 'left'
   let textPosition: 'left' | 'right' | 'center' = 'right'
   let textColor: 'dark' | 'light' = 'dark'
@@ -467,7 +429,6 @@ export function convertTextbox(
     if (data.background === 'image') {
       imagePosition = 'overlay'
       textPosition = 'left'
-      // Determine text color based on old 'color' field
       textColor = data.color === 'dark' ? 'light' : 'dark'
     } else {
       if (data.position === 'right') {
@@ -482,10 +443,8 @@ export function convertTextbox(
     }
   }
 
-  // Determine wisdomStyle (true if background=ornate)
   const wisdomStyle = data.background === 'ornate'
 
-  // Build TextBoxBlock fields
   const fields: any = {
     image: imageId,
     imagePosition,
@@ -494,25 +453,21 @@ export function convertTextbox(
     wisdomStyle,
   }
 
-  // Only include title if non-empty
   const title = stripHTML(data.title || '').trim()
   if (title) {
     fields.title = title
   }
 
-  // Only include subtitle if non-empty
   const subtitle = stripHTML(data.subtitle || '').trim()
   if (subtitle) {
     fields.subtitle = subtitle
   }
 
-  // Text field is now a simple textarea - only include if non-empty
   const textContent = stripHTML(data.text || '').trim()
   if (textContent) {
     fields.text = textContent
   }
 
-  // Map button fields
   const buttonUrl = (data.url || '').trim()
   if (buttonUrl && buttonUrl !== '#' && buttonUrl !== '') {
     fields.buttonUrl = buttonUrl
@@ -522,7 +477,6 @@ export function convertTextbox(
     }
   }
 
-  // Add import metadata
   fields.importData = {
     background: data.background,
     color: data.color,
@@ -534,7 +488,6 @@ export function convertTextbox(
   return createBlockNode('textbox', 'Text Box', fields)
 }
 
-/** Convert EditorJS layout block to LayoutBlock */
 export function convertLayout(
   block: EditorJSBlock,
   context: ConversionContext,
@@ -558,7 +511,6 @@ export function convertLayout(
     .map((item: any, _index: number) => {
       let imageId: number | string | undefined
       if (item.image?.preview) {
-        // Look up in media map by preview URL
         imageId = context.mediaMap.get(item.image.preview)
       }
 
@@ -579,9 +531,8 @@ export function convertLayout(
 
       return convertedItem
     })
-    .filter((item: any) => item !== null) // Remove null items
+    .filter((item: any) => item !== null)
 
-  // Return null if all items were filtered out
   if (items.length === 0) {
     return null
   }
@@ -593,9 +544,9 @@ export function convertLayout(
 }
 
 /**
- * Convert EditorJS media block to GalleryBlock (Image Gallery)
- * Note: GalleryBlock has minRows:3, maxRows:15 and only supports media collection
- * Returns null for <3 items (caller should handle individual upload nodes if needed)
+ * GalleryBlock has minRows:3, maxRows:15, and supports only the media
+ * collection — so fewer than 3 items returns null, and the caller makes
+ * individual upload nodes.
  */
 export function convertMedia(block: EditorJSBlock, context: ConversionContext): LexicalNode | null {
   const { data } = block
@@ -611,15 +562,13 @@ export function convertMedia(block: EditorJSBlock, context: ConversionContext): 
     }
   }
 
-  // GalleryBlock requires minimum 3 items
-  // If <3 items, return null and let caller convert to individual upload nodes
-  // (no skip log needed since we are converting, not skipping)
+  // Fewer than 3 is a conversion, not a skip, so no skip log.
   if (items.length < 3) {
     return null
   }
 
-  // Note: title field was removed from GalleryBlock
-  // If source data has a title, it should be added as a heading node by the caller
+  // GalleryBlock has no title field, so the caller turns a source title
+  // into a heading node.
   return createBlockNode('gallery', 'Image Gallery', {
     items: items,
   })
@@ -637,7 +586,6 @@ export function convertMediaToUploadNodes(
     if (item.image?.preview) {
       const mediaId = context.mediaMap.get(item.image.preview)
       if (mediaId) {
-        // Create upload node with center alignment
         nodes.push(createUploadNode(mediaId, 'center'))
       }
     }
@@ -653,7 +601,6 @@ export function convertAction(
 ): LexicalNode | null {
   const { data } = block
 
-  // Check if it is a form
   if (data.form) {
     const formId = context.formMap.get(data.form)
     if (formId) {
@@ -734,7 +681,6 @@ export async function convertCatalog(
   const type = data.type // 'treatments' or 'meditations'
   const itemIds: (number | string)[] = []
 
-  // Map items to Page/Meditation IDs
   for (const itemId of data.items) {
     if (type === 'treatments') {
       const pageId = context.treatmentMap.get(itemId)
@@ -790,8 +736,7 @@ export async function convertCatalog(
   }
 
   // CatalogBlock requires minimum 3 items (minRows: 3)
-  // If <3 items, return null and let caller convert to individual relationship nodes
-  // (no skip log needed since we are converting, not skipping)
+  // Not a skip, so no skip log.
   if (itemIds.length < 3) {
     return null
   }
@@ -863,19 +808,7 @@ export async function convertCatalogToRelationshipNodes(
   return nodes
 }
 
-/**
- * Convert EditorJS quote block to QuoteBlock
- * Quote block structure:
- * {
- *   "type": "quote",
- *   "data": {
- *     "text": "...",
- *     "credit": "",
- *     "caption": "",
- *     "position": "narrow"
- *   }
- * }
- */
+/** Source shape: `{ type: 'quote', data: { text, credit, caption, position } }`. */
 export function convertQuoteBlock(block: EditorJSBlock): LexicalNode | null {
   const { data } = block
   const text = stripHTML(data.text || '').trim()
@@ -894,23 +827,11 @@ export function convertQuoteBlock(block: EditorJSBlock): LexicalNode | null {
   })
 }
 
-/**
- * Convert EditorJS header block to heading node
- * Header block structure:
- * {
- *   "type": "header",
- *   "data": {
- *     "text": "...",
- *     "level": "h2",
- *     "centered": false
- *   }
- * }
- */
+/** Source shape: `{ type: 'header', data: { text, level, centered } }`. */
 export function convertHeaderBlock(block: EditorJSBlock): LexicalNode | null {
   const { data } = block
   const text = stripHTML(data.text || '').trim()
 
-  // Skip empty headers
   if (!text) {
     return null
   }
@@ -936,7 +857,6 @@ export async function convertEditorJSToLexical(
   const children: LexicalNode[] = []
 
   if (!content || !content.blocks) {
-    // Return valid empty Lexical structure with at least one paragraph node
     // Lexical requires root to always have at least one child
     return {
       root: {
@@ -979,7 +899,7 @@ export async function convertEditorJSToLexical(
           break
 
         case 'media': {
-          // GalleryBlock no longer has title field - add heading if title exists
+          // GalleryBlock has no title field, so a title becomes a heading.
           const title = stripHTML(block.data?.title || '').trim()
           if (title) {
             children.push(createHeadingNode(title, 'h2'))
@@ -988,7 +908,6 @@ export async function convertEditorJSToLexical(
           // convertMedia returns null for <3 items, handle individually
           const result = convertMedia(block, context)
           if (result === null) {
-            // Create individual upload nodes for 1-2 items
             const mediaNodes = convertMediaToUploadNodes(block, context)
             if (mediaNodes.length > 0) {
               children.push(...mediaNodes)
@@ -1008,7 +927,7 @@ export async function convertEditorJSToLexical(
           break
 
         case 'catalog': {
-          // CatalogBlock does not have title field - add heading if title exists
+          // CatalogBlock has no title field, so a title becomes a heading.
           const title = stripHTML(block.data?.title || '').trim()
           if (title) {
             children.push(createHeadingNode(title, 'h2'))
@@ -1017,7 +936,6 @@ export async function convertEditorJSToLexical(
           // convertCatalog returns null for <3 items, handle individually
           const result = await convertCatalog(block, context)
           if (result === null) {
-            // Create individual relationship nodes for 1-2 items
             const catalogNodes = await convertCatalogToRelationshipNodes(block, context)
             if (catalogNodes.length > 0) {
               children.push(...catalogNodes)
@@ -1029,7 +947,6 @@ export async function convertEditorJSToLexical(
         }
 
         case 'whitespace':
-          // Skip whitespace blocks
           continue
 
         case 'list':
@@ -1037,12 +954,10 @@ export async function convertEditorJSToLexical(
           continue
 
         case 'quote':
-          // Convert quote block to QuoteBlock
           node = convertQuoteBlock(block)
           break
 
         case 'header':
-          // Convert header block to heading node
           node = convertHeaderBlock(block)
           break
 
@@ -1066,7 +981,6 @@ export async function convertEditorJSToLexical(
   }
 
   // Ensure root always has at least one child (Lexical requirement)
-  // If all blocks failed to convert or no valid blocks, add empty paragraph
   if (children.length === 0) {
     children.push({
       children: [],

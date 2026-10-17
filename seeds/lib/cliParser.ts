@@ -1,9 +1,3 @@
-/**
- * CLI Argument Parser
- *
- * Simple utility for parsing command line arguments for import scripts.
- */
-
  
 
 export interface CLIArgs {
@@ -13,11 +7,6 @@ export interface CLIArgs {
   [key: string]: boolean | string | undefined
 }
 
-/**
- * Parse command line arguments
- *
- * @returns Parsed arguments object
- */
 export function parseArgs(): CLIArgs {
   const args = process.argv.slice(2)
 
@@ -28,11 +17,7 @@ export function parseArgs(): CLIArgs {
   }
 }
 
-/**
- * Print usage information for a seed script
- *
- * @param scriptName - Name of the script (for example, 'tags', 'meditations')
- */
+/** `scriptName` is a seed script, for example 'tags'. */
 export function printUsage(scriptName: string): void {
   console.log(`Usage: pnpm seed ${scriptName} [options]`)
   console.log('\nOptions:')

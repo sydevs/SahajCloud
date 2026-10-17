@@ -1,21 +1,10 @@
-/**
- * Delay Utilities
- *
- * Centralized delay handling for rate limiting and retries.
- */
-
-/**
- * Rate limit delay - use between API calls to avoid throttling.
- *
- * @param ms - Delay in milliseconds
- */
+/** Use between API calls, to avoid throttling. */
 export async function rateLimitDelay(ms: number): Promise<void> {
   if (ms > 0) {
     await new Promise((resolve) => setTimeout(resolve, ms))
   }
 }
 
-/** Options for retry with exponential backoff */
 export interface RetryOptions {
   /** Maximum number of retry attempts (default: 3) */
   maxRetries?: number
@@ -26,13 +15,9 @@ export interface RetryOptions {
 }
 
 /**
- * Execute an operation with exponential backoff retry.
  * Delays between retries auto-skip in local development.
  *
- * @param operation - Async operation to retry
- * @param options - Retry configuration
- * @returns Result of the operation
- * @throws Last error if all retries exhausted
+ * @throws The last error, once the retries are exhausted.
  */
 export async function withRetry<T>(
   operation: () => Promise<T>,
@@ -50,7 +35,6 @@ export async function withRetry<T>(
     } catch (error) {
       lastError = error
 
-      // Do not retry if this is the last attempt or error is not retryable
       if (attempt === maxRetries || !shouldRetry(error)) {
         throw error
       }
@@ -65,13 +49,7 @@ export async function withRetry<T>(
   throw lastError
 }
 
-/**
- * Check if an error is a retryable database or network error.
- * Use as the `shouldRetry` predicate for database operations.
- *
- * @param error - Error to check
- * @returns true if the error is retryable
- */
+/** Use as the `shouldRetry` predicate for a database operation. */
 export function isRetryableError(error: unknown): boolean {
   if (!(error instanceof Error)) return false
   const msg = error.message.toLowerCase()
