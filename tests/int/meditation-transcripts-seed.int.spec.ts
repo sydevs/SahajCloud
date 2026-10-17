@@ -41,7 +41,7 @@ import {
   MeditationTranscriptsImporter,
   type TranscriptEntry,
 } from '../../seeds/meditation-transcripts/import'
-import { testData } from '../utils/testData'
+import { testData, type FixtureOverrides } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 /**
@@ -115,20 +115,36 @@ describe('meditation-transcripts seed', () => {
   let trashed: Meditation
   let replaced: Meditation
 
+  /**
+   * A meditation in the state this importer targets: a recording, and no
+   * transcript row at all.
+   *
+   * ⚠ An upload writes one by itself since #953 —
+   * `enqueueMeditationTranscription` asks for a transcription, and with no
+   * `LEMONFOX_API_KEY` in this lane that request lands as a `failed`
+   * placeholder carrying no cues. The 126 recordings this script imports were
+   * uploaded before that hook existed and carry nothing, so a fixture keeping
+   * the placeholder would assert against a state no target is in.
+   */
+  const createLibraryMeditation = async (overrides: FixtureOverrides<Meditation>) => {
+    const meditation = await testData.createMeditation(payload, undefined, overrides)
+    await payload.delete({
+      collection: 'meditation-transcripts',
+      where: { meditation: { equals: meditation.id } },
+      overrideAccess: true,
+    })
+    return meditation
+  }
+
   beforeAll(async () => {
     const env = await createTestEnvironment()
     payload = env.payload
     cleanup = env.cleanup
 
-    english = await testData.createMeditation(payload, undefined, { label: 'Om Meditation' })
-    french = await testData.createMeditation(payload, undefined, {
-      label: 'Meditation Francaise',
-      locale: 'fr',
-    })
-    trashed = await testData.createMeditation(payload, undefined, { label: 'Retired Meditation' })
-    replaced = await testData.createMeditation(payload, undefined, {
-      label: 'Reuploaded Meditation',
-    })
+    english = await createLibraryMeditation({ label: 'Om Meditation' })
+    french = await createLibraryMeditation({ label: 'Meditation Francaise', locale: 'fr' })
+    trashed = await createLibraryMeditation({ label: 'Retired Meditation' })
+    replaced = await createLibraryMeditation({ label: 'Reuploaded Meditation' })
 
     // Trashing is setting `deletedAt` — `payload.delete` is a hard delete even
     // on a `trash: true` collection.
@@ -254,7 +270,7 @@ describe('meditation-transcripts seed', () => {
   })
 
   it('writes nothing and reads no row in dry-run mode', async () => {
-    const fresh = await testData.createMeditation(payload, undefined, { label: 'Dry Run Only' })
+    const fresh = await createLibraryMeditation({ label: 'Dry Run Only' })
     const probe = new TranscriptsProbe(payload, [entryFor(fresh, 'english', 'Not stored.')], {
       dryRun: true,
     })
