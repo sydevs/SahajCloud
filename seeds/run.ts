@@ -10,7 +10,7 @@
  *   pnpm seed [script...] [options]
  *
  * If no script is specified, runs ALL scripts in dependency order:
- *   tags → wemeditate → storyblok → meditations
+ *   tags → wemeditate → meditations → meditation-transcripts → storyblok → wm-app-translations → atlas
  *
  * Scripts:
  *   storyblok    - Seed Path Steps from Storyblok CMS
@@ -41,23 +41,17 @@
  *   SAHAJCLOUD_URL=https://cloud.sydevelopers.com pnpm seed
  */
 
+import type { ScriptName, VerificationResult } from './lib/expectedCounts'
 import type { ScriptMetadata, PaginationResult } from './lib/pagination'
 
 import { seedEnv } from './env'
-
-type ScriptName =
-  | 'storyblok'
-  | 'wemeditate'
-  | 'meditations'
-  | 'tags'
-  | 'wm-app-translations'
-  | 'translations'
-  | 'atlas'
+import { SCRIPT_DATA_FILES } from './lib/dataFiles'
 
 const VALID_SCRIPTS: ScriptName[] = [
   'storyblok',
   'wemeditate',
   'meditations',
+  'meditation-transcripts',
   'tags',
   'wm-app-translations',
   'translations',
@@ -71,6 +65,8 @@ const SCRIPT_RUN_ORDER: ScriptName[] = [
   'tags',
   'wemeditate',
   'meditations',
+  // Resolves each transcript against a meditation, so it follows them.
+  'meditation-transcripts',
   'storyblok',
   'wm-app-translations',
   // Atlas is independent of the WeMeditate content above (distinct collections).
@@ -81,6 +77,7 @@ const SCRIPT_DESCRIPTIONS: Record<ScriptName, string> = {
   storyblok: 'Seed Path Steps from Storyblok CMS',
   wemeditate: 'Seed content from WeMeditate Rails database',
   meditations: 'Seed meditation content from legacy database',
+  'meditation-transcripts': "Import the library's existing meditation transcripts",
   tags: 'Seed UserChoices and MusicTags from Cloudinary',
   'wm-app-translations': 'Seed English copy for the wm-app-translations global',
   translations: 'Seed English copy for all three translation globals',
@@ -88,31 +85,6 @@ const SCRIPT_DESCRIPTIONS: Record<ScriptName, string> = {
 }
 
 const VALID_OPTIONS = ['--dry-run', '--clear-cache', '--update']
-
-// Seed-data files that the API endpoint cannot fetch itself because they live in
-// a private repo (the Worker's unauthenticated GitHub raw fetch 404s). The CLI
-// reads these locally and uploads them in the POST body. The importer consumes
-// them via loadJsonData({ inlineContent }). Keys must match each importer's
-// DataSource.localPath exactly.
-const SCRIPT_DATA_FILES: Partial<Record<ScriptName, string[]>> = {
-  'wm-app-translations': ['seeds/wm-app-translations/data.en.json'],
-  translations: [
-    'seeds/wm-app-translations/data.en.json',
-    'seeds/wm-web-translations/data.en.json',
-  ],
-  // Atlas reads all 8 dumps via loadJsonData (keyed by these exact paths).
-  // The standalone build excludes seeds/, so the CLI uploads them for remote seeding.
-  atlas: [
-    'seeds/atlas/data/users.json',
-    'seeds/atlas/data/managers.json',
-    'seeds/atlas/data/regions.json',
-    'seeds/atlas/data/venues.json',
-    'seeds/atlas/data/events.json',
-    'seeds/atlas/data/registrations.json',
-    'seeds/atlas/data/clients.json',
-    'seeds/atlas/data/pictures.json',
-  ],
-}
 
 /**
  * Read a script's registered data files into an inlineData map (path → raw
@@ -173,14 +145,15 @@ Usage:
   pnpm seed [script...] [options]
 
 If no script is specified, runs ALL scripts in dependency order:
-  tags → wemeditate → storyblok → meditations
+  tags → wemeditate → meditations → meditation-transcripts → storyblok → wm-app-translations → atlas
 
 Available Scripts:
-  storyblok            Seed Path Steps from Storyblok CMS
-  wemeditate           Seed content from WeMeditate Rails database
-  meditations          Seed meditation content from legacy database
-  tags                 Seed UserChoices and MusicTags from Cloudinary
-  wm-app-translations  Seed English copy for the wm-app-translations global
+  storyblok              Seed Path Steps from Storyblok CMS
+  wemeditate             Seed content from WeMeditate Rails database
+  meditations            Seed meditation content from legacy database
+  meditation-transcripts Import the library's existing meditation transcripts
+  tags                   Seed UserChoices and MusicTags from Cloudinary
+  wm-app-translations    Seed English copy for the wm-app-translations global
 
 Options:
   --dry-run      Validate data without writing to database
@@ -426,16 +399,29 @@ class ProgressDisplay {
         )
 
         // Display verification results
-        const verification = summary.verification as
-          | { collection: string; actual: number; expected: number; passed: boolean }[]
-          | undefined
+        const verification = summary.verification as VerificationResult[] | undefined
         const verificationPassed = summary.verificationPassed as boolean | undefined
+
+        const skippedReason = summary.verificationSkippedReason as string | null | undefined
+        const runFailures = (summary.runVerificationFailures as string[] | undefined) ?? []
 
         if (verification && verification.length > 0) {
           console.log('\n🔍 Verification:')
           for (const { collection, actual, expected, passed } of verification) {
             const emoji = passed ? '✅' : '❌'
             console.log(`   ${emoji} ${collection}: ${actual} (≥${expected})`)
+          }
+        }
+
+        if (skippedReason) {
+          // Say so. A silent pass and a real pass used to print identically.
+          console.log(`\n🔍 Verification skipped: ${skippedReason}`)
+        }
+
+        if (runFailures.length > 0) {
+          console.log('\n🔍 Run verification failed:')
+          for (const failure of runFailures) {
+            console.log(`   ❌ ${failure}`)
           }
         }
 
@@ -759,7 +745,12 @@ async function runScript(
 
           // Check verification result
           if (summary.verificationPassed === false) {
-            errors.push('Count verification failed')
+            // Both kinds can fail at once, and each names a different problem.
+            // The route sends each verdict rather than leaving it to be re-derived.
+            if (summary.countsPassed === false) {
+              errors.push('Count verification failed')
+            }
+            errors.push(...((summary.runVerificationFailures as string[] | undefined) ?? []))
           }
         }
       }

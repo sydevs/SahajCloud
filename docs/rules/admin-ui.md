@@ -146,12 +146,15 @@ const [meditationsCount] = await Promise.all([payload.count({ collection: 'medit
 
 Group a component family (main plus sub-components) in a folder with a barrel. Keep a standalone component as a single file. A barrel export **must include a default export** — Payload imports by name.
 
+A module several components share, rather than one a collection registers, goes in `admin/helpers/`. The root of `admin/` is for what Payload mounts.
+
 ```
 src/components/
 ├── admin/
 │   ├── SelectDescription.tsx        # standalone
 │   ├── Dashboard/                   # family → folder + barrel
-│   └── ThumbnailCell/
+│   ├── ThumbnailCell/
+│   └── helpers/                     # shared by components, mounted by none
 ├── branding/                        # branding components, barrel
 └── AdminProvider.tsx                # provider wrapping admin UI
 ```
@@ -174,7 +177,15 @@ Prefer **`DefaultServerCellComponentProps`** — it gets `payload`, can read col
 
 A **join field**'s `cellData` is a structured object, not a scalar: `{ docs: Array<{ id, ... }>, totalDocs?, limit? }` — read `cellData.docs?.length` for a count. A label can be `string | LabelFunction | Record<string, string>`. Extract it with a small helper that checks each shape and lowercases the result. Reference: `src/components/admin/RelationshipCountCell/RelationshipCountCell.tsx`.
 
-⚠ **A custom `Cell` that can be a collection's first column must handle list-drawer selection itself**, through `useListDrawerContext()`: Payload gives `onSelect` to its own `DefaultCell` only, and the select has to outrank any `onClick` prop (#942). `BaseThumbnailCell` is the worked example, and a cell wrapping it must forward `link`. Which column is the linked one comes from each user's saved column preference, so a cell second by default still has to handle this.
+⚠ **A custom `Cell` that can be a collection's first column must handle list-drawer selection itself**: Payload gives `onSelect` to its own `DefaultCell` only, and the select has to outrank any `onClick` prop (#942, #944). `SelectableCell` (`src/components/admin/helpers/drawerRowSelect.tsx`) is that rule, and the whole of it — render the cell's content as its children, and pass a cell's own link as `fallback` and its own click as `onClick`, so neither reaches a selected row. A cell wrapping another must forward `link`, which is what stands for "this is the linked column". Which column that is comes from each user's saved column preference, so a cell second by default still has to handle this.
+
+Do not reach for the two seams that look like they would spare a cell this. Both live inside the component a custom `Cell` replaced, so neither is reachable: `useCellProps()` answers `null` because `CellPropsContext` is provided only in `RenderDefaultCell`, and `LinkedCellOverride` is settable only from `RelationshipTable`. The whole convention stands in for a Payload defect that is unreported upstream, so nothing retires it yet — #964 holds that report.
+
+⚠ **`renderCell` hands a custom cell neither `onClick` nor `className`.** `baseCellClientProps` declares no such key, so both read as `undefined` on every input — take neither from props, and give a cell that needs its own click a prop of its own. `SelectableCell`'s button restores the text properties `className` would have carried, since nothing else does.
+
+A **server** cell keeps its `payload` prop by splitting rather than converting: `RelationshipCountCell` resolves the count and the URL, then renders `RelationshipCountLink`, a client child taking serializable props only.
+
+`tests/unit/custom-cell-drawer-select-coverage.spec.ts` walks every `Cell:` registration and fails on one that reaches no `SelectableCell`, so a new custom cell cannot forget this quietly.
 
 ## Component wrapper pattern (pure UI + field wrapper)
 
@@ -200,6 +211,30 @@ Examples of the pattern, each a folder holding `<Name>.tsx` beside `<Name>Field.
 ```
 
 The component then reads `field.admin?.custom?.descriptions` by the current value. Common keys: `descriptions` (per-value help text), `columns` (LogTable), `filterQuery` (TagSelector API filtering), `size: 'default' | 'large'` (TagSelector).
+
+## Closing the Edit view while a job owns a document — `JobStageView`
+
+A collection whose rows a background job writes needs editing closed while the job runs, or the admin form posts a whole stale document over the worker's writes. `JobStageView` (`src/components/admin/JobStageView/`) is that view, generic over the collection:
+
+```typescript
+admin: {
+  components: { views: { edit: { default: { Component: '@/components/admin/JobStageView/JobStageView' } } } },
+  custom: {
+    jobStage: { runningStages: ['processing'], staleAfterMs: 15 * 60 * 1000 } satisfies JobStageConfig,
+  },
+}
+```
+
+`runningStages` is required; `statusField` (default `status`), `progressField` and `totalField` are dotted paths, so a count kept inside a group is reachable. `staleAfterMs` is how long a running stage may stand against `updatedAt` before the form opens anyway — declare one wherever a run can be lost to a restart, since nothing expires a stage and the gate is otherwise permanent. Declare `totalField` wherever the job knows its denominator — the banner reads "7 of 20 done" with one and "7 done so far" without. Declare with `satisfies JobStageConfig` — `admin.custom` is `Record<string, any>`, so that is the only thing that makes a misspelled key a build error rather than a view that never fires.
+
+Four things are load-bearing:
+
+- **`views.edit.default.Component` replaces `DefaultEditView`; it does not wrap it.** So a settled stage falls through by rendering `DefaultEditView` itself.
+- **The stored stage at page load is the whole input.** There is no poll, so nothing re-requests the document. **Check again** (`CheckAgain.tsx`, the folder's one client component) calls `router.refresh()`, which refetches the route's server render and bypasses the client router cache a `next/link` navigation can be answered from. That is Payload's own idiom — `useRouteCache`'s `clearRouteCache` is the same call. ⚠ Inside a document drawer nothing re-reads the stage: `DocumentDrawerContent` renders the document through the `renderDocument` server function and keeps the result in React state, which no route refresh re-runs. An anchor would re-read it only by leaving the host document and discarding its unsaved edits, so the refresh stands in both surfaces.
+- **The gate releases itself only where `staleAfterMs` is declared.** Without one, a row whose worker died stays behind the waiting view for good; past the window the form opens and setting the status column back to its queued value is the retry.
+- **Never name a running stage that is also the column's `defaultValue`.** `meditation-transcripts` declares `processing` and not `queued` for that reason. The view refuses to fire with no document id, which covers the create form, but a *saved* row sitting at that default would open behind a view nothing can move on.
+
+⚠ **A `hidden: true` collection cannot show it on a route.** Registering the view is still correct there, and a document drawer renders it (`overrideEntityVisibility`), but `/admin/collections/<slug>/<id>` 404s — see "A hidden collection is still reachable through a `join`" above. Reach such a collection through a `join` before concluding the view is broken.
 
 ## Custom array field components
 

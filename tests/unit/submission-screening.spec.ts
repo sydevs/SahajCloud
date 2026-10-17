@@ -207,7 +207,9 @@ describe('screenProposalContent', () => {
     // deliberately not one of them, so a spec using it would pass vacuously.
     const refusal = screen({ address: { street: 'see buy-now.example.com' } })
     expect(refusal).not.toBeNull()
-    expect(refusal).toContain('address.street')
+    // The column the patch sits in is named too, so this job and the write
+    // guard spell one path for the same leaf.
+    expect(refusal).toContain('proposed.address.street')
   })
 
   /**

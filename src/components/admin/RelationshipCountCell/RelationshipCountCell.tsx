@@ -1,6 +1,6 @@
 import type { CollectionConfig, DefaultServerCellComponentProps, JoinField } from 'payload'
 
-import Link from 'next/link'
+import { RelationshipCountLink } from './RelationshipCountLink'
 
 /** Join field cell data structure */
 interface JoinFieldData {
@@ -56,13 +56,7 @@ function getLabel(
  */
 export const RelationshipCountCell: React.FC<
   DefaultServerCellComponentProps & RelationshipCountCellServerProps
-> = ({
-  cellData,
-  rowData,
-  field,
-  payload,
-  disableLink = false,
-}) => {
+> = ({ cellData, collectionSlug, rowData, field, link, payload, disableLink = false }) => {
   const joinField = field as JoinField
 
   // Extract count from join field data
@@ -86,28 +80,19 @@ export const RelationshipCountCell: React.FC<
 
   // Build navigation URL
   const href =
-    targetCollectionSlug && relationField && documentId
+    count > 0 && !disableLink && targetCollectionSlug && relationField && documentId
       ? `/admin/collections/${targetCollectionSlug}?where[${relationField}][in][]=${documentId}`
       : null
 
-  // Empty state
-  if (count === 0) {
-    return <span style={{ color: 'var(--theme-elevation-400)' }}>0 {label}</span>
-  }
-
-  // No valid URL or link disabled - just show count
-  if (!href || disableLink) {
-    return (
-      <span>
-        {count} {label}
-      </span>
-    )
-  }
-
   return (
-    <Link href={href} title={`View ${count} ${label}`}>
-      {count} {label}
-    </Link>
+    <RelationshipCountLink
+      collectionSlug={collectionSlug}
+      count={count}
+      href={href}
+      label={label}
+      link={link}
+      rowData={rowData}
+    />
   )
 }
 

@@ -8,7 +8,6 @@ import { describe, expect, it } from 'vitest'
 
 import {
   buildRegistrationEmailDetails,
-  descriptionText,
   mapsUrl,
   registrationScheduleLine,
   sessionCount,
@@ -169,33 +168,6 @@ describe('mapsUrl', () => {
   })
 })
 
-describe('descriptionText', () => {
-  it('extracts plain text from a Lexical editor state', () => {
-    const description = {
-      root: {
-        type: 'root',
-        children: [
-          {
-            type: 'paragraph',
-            children: [{ type: 'text', text: 'Bring a cushion.' }],
-          },
-        ],
-      },
-    }
-
-    expect(descriptionText(description as never)).toBe('Bring a cushion.')
-  })
-
-  it('returns null for empty or missing content', () => {
-    expect(descriptionText(null)).toBeNull()
-    expect(descriptionText(undefined as never)).toBeNull()
-  })
-
-  it('returns null rather than throwing on malformed editor state', () => {
-    expect(descriptionText({ nonsense: true } as never)).toBeNull()
-  })
-})
-
 describe('buildRegistrationEmailDetails', () => {
   it('shapes an online event with the join URL', () => {
     const details = buildRegistrationEmailDetails(
@@ -234,6 +206,22 @@ describe('buildRegistrationEmailDetails', () => {
       buildRegistrationEmailDetails(event({ contactName: 'Ana', contactPhone: '+44 123' })).contact,
     ).toBe('Ana · +44 123')
     expect(buildRegistrationEmailDetails(event()).contact).toBeNull()
+  })
+
+  it('flattens the description, and falls back to null when the field is empty', () => {
+    const description = {
+      root: {
+        type: 'root',
+        children: [{ type: 'paragraph', children: [{ type: 'text', text: 'Bring a cushion.' }] }],
+      },
+    }
+
+    expect(buildRegistrationEmailDetails(event({ description } as never)).description).toBe(
+      'Bring a cushion.',
+    )
+    // The template renders a `null` description as nothing, so the empty string
+    // Lexical flattening gives must not reach it.
+    expect(buildRegistrationEmailDetails(event({ description: null })).description).toBeNull()
   })
 
   it('falls back to an id-based title when the event has none', () => {

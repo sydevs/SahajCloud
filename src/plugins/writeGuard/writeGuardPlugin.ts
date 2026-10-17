@@ -4,12 +4,9 @@ import type { CollectionBeforeValidateHook, CollectionSlug, Config, PayloadReque
 import { APIError } from 'payload'
 
 import type { AntiSpamFailure } from '@/lib/antiSpam/antiSpamGuard'
-import {
-  checkEmailAllowed,
-  checkNoUrls,
-  verifyTurnstileOrFail,
-} from '@/lib/antiSpam/antiSpamGuard'
-
+import { checkEmailAllowed, checkNoUrls, verifyTurnstileOrFail } from '@/lib/antiSpam/antiSpamGuard'
+import type { ProposalLeaves } from '@/lib/antiSpam/proposalLeaves'
+import { proposalLeaves } from '@/lib/antiSpam/proposalLeaves'
 
 import { DEFAULT_WRITE_GUARD_POLICIES } from './policies'
 
@@ -76,11 +73,57 @@ function throwFailure(failure: AntiSpamFailure): never {
   )
 }
 
+/**
+ * The string leaves of `derivedScan`'s column, classified against the target
+ * collection's live config.
+ *
+ * ⚠ **Fails closed, both ways** (#948). This is the only create-time scan of
+ * the column, so a verdict it could not reach must refuse: a target collection
+ * with no config derives no exemptions and would scan nothing, and a patch that
+ * tripped a bound was scanned only up to it. `validateProposal` may fail open on
+ * the same missing config because Accept still gates the keys; a spam link has
+ * no such backstop — screening bins the row instead of telling the sender.
+ */
+function derivedLeaves(
+  derived: NonNullable<WriteGuardOperationPolicy['derivedScan']>,
+  data: Record<string, unknown>,
+  req: PayloadRequest,
+): ProposalLeaves {
+  const patch = valueAtPath(data, derived.path)
+  if (patch == null) return { urlScan: {}, emails: {}, truncated: false }
+
+  const fields = req.payload?.collections?.[derived.collection]?.config?.flattenedFields
+  if (!fields?.length) {
+    throwFailure({
+      ok: false,
+      code: 'content_unscannable',
+      status: 500,
+      message: 'Could not check this submission. Please try again later.',
+      field: derived.path,
+    })
+  }
+
+  const leaves = proposalLeaves(patch, fields, derived.path)
+  if (leaves.truncated) {
+    throwFailure({
+      ok: false,
+      code: 'content_unscannable',
+      status: 400,
+      message: `Simplify "${derived.path}" — it is too large or too deeply nested to check.`,
+      field: derived.path,
+    })
+  }
+
+  return leaves
+}
+
 async function runPolicy(
   policy: WriteGuardOperationPolicy,
   data: Record<string, unknown>,
   req: PayloadRequest,
 ): Promise<void> {
+  const derived = policy.derivedScan && derivedLeaves(policy.derivedScan, data, req)
+
   // Cheap checks first; the captcha (a network call) goes last so obviously
   // bad content never costs a siteverify round-trip.
   for (const field of policy.urlScanFields ?? []) {
@@ -91,10 +134,23 @@ async function runPolicy(
     if (!result.ok) throwFailure({ ...result, field })
   }
 
+  // ⚠ The leaf's own path is the refusal's `field` here, where a listed path
+  // above overrides it: a derived scan has no listed path to name, and the
+  // column it found is the input the sender can act on.
+  if (derived) {
+    const result = checkNoUrls(derived.urlScan)
+    if (!result.ok) throwFailure(result)
+  }
+
   for (const field of policy.emailFields ?? []) {
     const value = valueAtPath(data, field)
     if (typeof value !== 'string' && value != null) continue
     const result = checkEmailAllowed(value as string | null | undefined, field)
+    if (!result.ok) throwFailure(result)
+  }
+
+  for (const [field, value] of Object.entries(derived?.emails ?? {})) {
+    const result = checkEmailAllowed(value, field)
     if (!result.ok) throwFailure(result)
   }
 

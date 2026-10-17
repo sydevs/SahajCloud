@@ -31,12 +31,10 @@ import type { NextRequest } from 'next/server'
 
 import { getPayload } from 'payload'
 
-import { activeRegistrationWhere } from '@/lib/registrations/active'
-
 import config from '@payload-config'
 
-
 import {
+  getCountTargets,
   getScriptMetadata,
   verifyCountsForScript,
   type ScriptName,
@@ -51,6 +49,7 @@ const VALID_SCRIPTS: ScriptName[] = [
   'tags',
   'wemeditate',
   'meditations',
+  'meditation-transcripts',
   'storyblok',
   'wm-app-translations',
   'translations',
@@ -302,11 +301,16 @@ export async function POST(
       const counts = await getDatabaseCounts(payload, script as ScriptName)
 
       // Verify counts against the expected minimums. Pagination adjusts the minimums when it applies.
-      const { results: verification, allPassed: verificationPassed } = verifyCountsForScript(
-        script as ScriptName,
-        counts,
-        pagination,
-      )
+      const {
+        results: verification,
+        allPassed: countsPassed,
+        skippedReason: verificationSkippedReason,
+      } = verifyCountsForScript(script as ScriptName, counts, pagination)
+
+      // The importer's own invariants, which hold whatever the target carries.
+      // `run()` decides whether this run was one to check.
+      const runVerification = importer.getRunVerification()
+      const verificationPassed = countsPassed && runVerification.failures.length === 0
 
       const report = importer.getReport()
       const errorMessages = report.getErrors()
@@ -339,6 +343,9 @@ export async function POST(
           counts,
           verification,
           verificationPassed,
+          countsPassed,
+          verificationSkippedReason: verificationSkippedReason ?? null,
+          runVerificationFailures: runVerification.failures,
         },
         pagination: paginationResult,
       })
@@ -403,6 +410,11 @@ async function getImporter(
       const { MeditationsImporter } = await import('../../../../../../seeds/meditations/import')
       return new MeditationsImporter(options)
     }
+    case 'meditation-transcripts': {
+      const { MeditationTranscriptsImporter } =
+        await import('../../../../../../seeds/meditation-transcripts/import')
+      return new MeditationTranscriptsImporter(options)
+    }
     case 'storyblok': {
       const token = process.env.STORYBLOK_ACCESS_TOKEN
       if (!token) {
@@ -435,74 +447,24 @@ async function getDatabaseCounts(
   script: ScriptName,
 ): Promise<Record<string, number>> {
   const counts: Record<string, number> = {}
+  const targets = getCountTargets(script)
 
-  try {
-    switch (script) {
-      case 'tags': {
-        // image-tags no longer exists. Its values are now inline enum strings on Images.
-        const userChoices = await payload.count({ collection: 'user-choices' })
-        const songTags = await payload.count({ collection: 'song-tags' })
-        counts['user-choices'] = userChoices.totalDocs
-        counts['song-tags'] = songTags.totalDocs
-        break
-      }
-      case 'wemeditate': {
-        const authors = await payload.count({ collection: 'authors' })
-        const albums = await payload.count({ collection: 'albums' })
-        const songs = await payload.count({ collection: 'songs' })
-        const pages = await payload.count({ collection: 'pages' })
-        counts['authors'] = authors.totalDocs
-        counts['albums'] = albums.totalDocs
-        counts['songs'] = songs.totalDocs
-        counts['pages'] = pages.totalDocs
-        break
-      }
-      case 'meditations': {
-        const narrators = await payload.count({ collection: 'narrators' })
-        const meditations = await payload.count({ collection: 'meditations' })
-        const frames = await payload.count({ collection: 'frames' })
-        counts['narrators'] = narrators.totalDocs
-        counts['meditations'] = meditations.totalDocs
-        counts['frames'] = frames.totalDocs
-        break
-      }
-      case 'storyblok': {
-        const lessons = await payload.count({ collection: 'lessons' })
-        const lectures = await payload.count({ collection: 'lectures' })
-        counts['lessons'] = lessons.totalDocs
-        counts['lectures'] = lectures.totalDocs
-        break
-      }
-      case 'wm-app-translations':
-      case 'translations': {
-        // These scripts target PayloadCMS globals, not collections.
-        // Verification sees an empty EXPECTED_COUNTS entry and passes by default.
-        break
-      }
-      case 'atlas': {
-        const [managers, regions, users, events, registrations, clients] = await Promise.all([
-          payload.count({ collection: 'managers' }),
-          payload.count({ collection: 'regions' }),
-          payload.count({ collection: 'users' }),
-          payload.count({ collection: 'events' }),
-          // Filtered, not a whole-collection count: contact, subscribe and
-          // proposal rows share this table and would pass the check alone.
-          payload.count({ collection: 'user-submissions', where: activeRegistrationWhere }),
-          payload.count({ collection: 'clients' }),
-        ])
-        counts['managers'] = managers.totalDocs
-        counts['regions'] = regions.totalDocs
-        counts['users'] = users.totalDocs
-        counts['events'] = events.totalDocs
-        counts['user-submissions'] = registrations.totalDocs
-        counts['clients'] = clients.totalDocs
-        break
-      }
+  // Settled, not all-or-nothing: one refused count must not discard the rest,
+  // or a transient pool error would report every floor as 0.
+  const totals = await Promise.allSettled(
+    targets.map(({ collection, where }) => payload.count({ collection, where })),
+  )
+
+  targets.forEach(({ collection }, index) => {
+    const total = totals[index]
+    if (total.status === 'fulfilled') {
+      counts[collection] = total.value.totalDocs
+      return
     }
-  } catch (error) {
-    // Log the error, but do not fail the request. Counts are for verification only.
-    payload.logger.error({ msg: 'Failed to get database counts', error })
-  }
+    // Log it, but do not fail the request. The missing count then fails its own
+    // floor, which is what the operator sees.
+    payload.logger.error({ msg: `Failed to count ${collection}`, error: total.reason })
+  })
 
   return counts
 }
