@@ -13,7 +13,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import type { Meditation, MeditationTranscript } from '@/payload-types'
 
-import { createData, testData } from '../utils/testData'
+import { createData, testData, type FixtureOverrides } from '../utils/testData'
 import { createTestEnvironment, idOnlySelect } from '../utils/testHelpers'
 
 describe('meditation transcripts', () => {
@@ -34,13 +34,19 @@ describe('meditation transcripts', () => {
    * A meditation with no transcript row, which is what every case below builds
    * its own row on.
    *
+   * ⚠ Published, because `_status` defaults to `draft` and a client now reads
+   * a transcript only while its recording is readable. Left at the default,
+   * the access case below would assert its refusal for the wrong reason.
+   *
    * ⚠ Since #953 an upload asks for a transcription by itself, so the row
    * already exists and `meditation` is unique. The two cases that assert a
    * refusal would otherwise be refused by that constraint instead of by the
    * rule under test — green, and testing nothing.
    */
-  const createMeditationWithoutTranscript = async (): Promise<Meditation> => {
-    const meditation = await testData.createMeditation(payload)
+  const createMeditationWithoutTranscript = async (
+    overrides: FixtureOverrides<Meditation> = { _status: 'published' },
+  ): Promise<Meditation> => {
+    const meditation = await testData.createMeditation(payload, undefined, overrides)
     const { docs } = await payload.find({
       collection: 'meditation-transcripts',
       where: { meditation: { equals: meditation.id } },
@@ -105,6 +111,69 @@ describe('meditation transcripts', () => {
       await expect(
         read(await testData.createClient(payload, editor.id, { roles: ['sahaj-atlas-client'] })),
       ).rejects.toThrow()
+    })
+
+    /**
+     * A client reads a transcript because it may read the recording. The
+     * published-only clause and the trash filter are per collection, so
+     * without the narrowing in `accessConfigs.ts` this row carried a draft
+     * meditation's full spoken text — and its R2 key — out to every client
+     * key (#968). A manager's read is unchanged: drafts are their work.
+     */
+    it('refuses a client the transcript of a meditation it cannot read', async () => {
+      const editor = await testData.createManager(payload, {
+        roles: { en: ['meditations-editor'] },
+      })
+      const client = await testData.createClient(payload, editor.id, {
+        roles: ['wemeditate-web-client'],
+      })
+
+      const transcriptFor = async (overrides: FixtureOverrides<Meditation>) => {
+        const meditation = await createMeditationWithoutTranscript(overrides)
+        const row = await payload.create({
+          collection: 'meditation-transcripts',
+          data: createData<'meditation-transcripts'>({
+            meditation: meditation.id,
+            language: 'en',
+            segments: [{ content: 'Unpublished words.', startTimeMs: 0, endTimeMs: 2000 }],
+          }),
+        })
+        return { meditation, row }
+      }
+
+      const draft = await transcriptFor({ _status: 'draft' })
+      const published = await transcriptFor({ _status: 'published' })
+      const trashed = await transcriptFor({ _status: 'published' })
+      // ⚠ Scoped to these three rows. Every case above leaves its own row in
+      // the suite's schema, and an unscoped count reads them as this one's.
+      const theseRows = [draft.row.id, published.row.id, trashed.row.id]
+
+      // Payload's `trash` filter never reaches this collection: the row
+      // carries no `deletedAt` of its own, which is half of what the
+      // narrowing replaces.
+      await payload.update({
+        collection: 'meditations',
+        id: trashed.meditation.id,
+        data: { deletedAt: new Date().toISOString() },
+      })
+
+      const readAs = async (user: unknown) =>
+        (
+          await payload.find({
+            collection: 'meditation-transcripts',
+            overrideAccess: false,
+            user: user as Parameters<typeof payload.find>[0]['user'],
+            where: { id: { in: theseRows } },
+            select: idOnlySelect(),
+            depth: 0,
+            pagination: false,
+          })
+        ).docs.map((row) => row.id)
+
+      expect(await readAs(client)).toEqual([published.row.id])
+      // The editor is the control: a narrowing that denied everyone would
+      // pass the line above while emptying the admin panel.
+      expect((await readAs(editor)).sort()).toEqual([...theseRows].sort())
     })
   })
 
