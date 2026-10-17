@@ -135,3 +135,18 @@ export const STATE_LAYER_MIN_SUBDIVISIONS = 2
  */
 export const STATE_LAYER_MIN_CITIES = 8
 
+
+/**
+ * How long a batch may sit in a running stage before its form opens again.
+ *
+ * `JobStageView` closes editing while a job owns the batch, and nothing expires
+ * a stage — Payload never releases a job row it claimed — so without this a
+ * worker killed mid-run would strand the batch behind a view with no Discard.
+ * Past it the buttons come back, which is how the batch is discarded or retried.
+ *
+ * Fifteen minutes, from two numbers: the `imports` queue sweeps every five
+ * (`src/jobs/queues.ts`), so a batch whose immediate kick was lost waits that
+ * long to be picked up at all, and a 500-row resolve then holds a worker for
+ * minutes. Shorter and the form would open under a healthy run.
+ */
+export const IMPORT_STALL_MS = 15 * 60 * 1000

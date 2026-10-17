@@ -17,6 +17,8 @@ import { join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
+import { IMPORT_STALL_MS } from '@/collections/EventImports/constants'
+import { EventImports } from '@/collections/EventImports/EventImports'
 import { MeditationTranscripts } from '@/collections/MeditationTranscripts/MeditationTranscripts'
 import {
   type JobStageConfig,
@@ -47,19 +49,37 @@ const codeOf = (file: string): string =>
     .replace(/\/\*[\s\S]*?\*\//g, '')
     .replace(/\/\/.*$/gm, '')
 
-const statusField = (): { defaultValue?: unknown; options?: unknown } => {
-  const field = MeditationTranscripts.fields.find(
-    (f) => 'name' in f && f.name === 'status',
-  ) as undefined | { defaultValue?: unknown; options?: unknown }
-  if (!field) throw new Error('meditation-transcripts declares no `status` field')
-  return field
+type Collection = typeof EventImports | typeof MeditationTranscripts
+
+const fieldNamed = (collection: Collection, name: string) => {
+  const field = collection.fields.find((f) => 'name' in f && f.name === name)
+  if (!field) throw new Error(`${collection.slug} declares no \`${name}\` field`)
+  return field as { defaultValue?: unknown; fields?: unknown; options?: unknown }
 }
 
-const transcriptConfig = (): JobStageConfig => {
-  const config = readJobStageConfig(MeditationTranscripts.admin?.custom)
-  if (!config) throw new Error('meditation-transcripts declares no `jobStage`')
+const statusField = (collection: Collection = MeditationTranscripts) =>
+  fieldNamed(collection, 'status')
+
+const stageConfig = (collection: Collection): JobStageConfig => {
+  const config = readJobStageConfig(collection.admin?.custom)
+  if (!config) throw new Error(`${collection.slug} declares no \`jobStage\``)
   return config
 }
+
+/**
+ * The names a dotted declaration addresses, as the collection's own fields
+ * spell them. A path is only checkable against the schema it reads from, and
+ * `valueAt` answers `undefined` for a wrong one — so a typo would show up as a
+ * banner with no count, which no assertion about the declaration can see.
+ */
+const pathNames = (collection: Collection, path: string | undefined): string[] => {
+  const [group, leaf] = (path ?? '').split('.')
+  const parent = fieldNamed(collection, group)
+  const children = (parent.fields ?? []) as { name?: string }[]
+  return children.flatMap((child) => (child.name === leaf ? [child.name] : []))
+}
+
+const transcriptConfig = (): JobStageConfig => stageConfig(MeditationTranscripts)
 
 describe('readJobStageConfig', () => {
   it('reads a declaration, keeping `progressField` only when one is given', () => {
@@ -268,6 +288,65 @@ describe('meditation-transcripts', () => {
 
   it('registers the view on its default edit route', () => {
     expect(MeditationTranscripts.admin?.components?.views?.edit).toEqual({
+      default: { Component: '@/components/admin/JobStageView/JobStageView' },
+    })
+  })
+})
+
+describe('event-imports', () => {
+  it('declares both stages a job owns, with the count it publishes', () => {
+    expect(stageConfig(EventImports)).toEqual({
+      progressField: 'progress.done',
+      runningStages: ['resolving', 'committing'],
+      staleAfterMs: IMPORT_STALL_MS,
+      totalField: 'progress.total',
+    })
+  })
+
+  it('declares every running stage the status column can actually hold', () => {
+    const options = statusField(EventImports).options as { value: string }[]
+    const held = options.map(({ value }) => value)
+
+    for (const stage of stageConfig(EventImports).runningStages) {
+      expect(held).toContain(stage)
+    }
+  })
+
+  it('names two count paths the `progress` group really holds', () => {
+    const { progressField, totalField } = stageConfig(EventImports)
+
+    expect(pathNames(EventImports, progressField)).toEqual(['done'])
+    expect(pathNames(EventImports, totalField)).toEqual(['total'])
+  })
+
+  it('reads the count off a batch shaped as the resolve job writes one', () => {
+    expect(
+      jobStageWait(stageConfig(EventImports), {
+        progress: { done: 30, note: 'Resolving addresses', total: 120 },
+        status: 'resolving',
+      }),
+    ).toEqual({ progress: 30, stage: 'resolving', total: 120 })
+  })
+
+  /**
+   * The one collection whose `status` defaults INTO a running stage, against
+   * the view's own rule — because here that default is true: the create queues
+   * the resolve job. `staleAfterMs` is the whole safety, so the case asserts
+   * both halves of it, and deleting the window makes the second fail.
+   */
+  it('holds a fresh batch behind the view, and hands it back past the stall window', () => {
+    const config = stageConfig(EventImports)
+    const { defaultValue } = statusField(EventImports)
+    const created = { status: defaultValue, updatedAt: '2026-10-17T00:00:00.000Z' }
+    const createdAt = Date.parse(created.updatedAt)
+
+    expect(defaultValue).toBe('resolving')
+    expect(jobStageWait(config, created, createdAt + IMPORT_STALL_MS)).not.toBeNull()
+    expect(jobStageWait(config, created, createdAt + IMPORT_STALL_MS + 1)).toBeNull()
+  })
+
+  it('registers the view on its default edit route', () => {
+    expect(EventImports.admin?.components?.views?.edit).toEqual({
       default: { Component: '@/components/admin/JobStageView/JobStageView' },
     })
   })

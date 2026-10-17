@@ -48,7 +48,7 @@ export const JOB_AUTO_RUN: AutoRunEntry[] = [
     // EventImports/hooks/enqueueImportJobs): a resolve or a commit whose
     // immediate run was lost to a restart waits at most five minutes. Five
     // rather than `screening`'s fifteen because a volunteer is watching the
-    // progress bar — and offset by one, which is the only five-minute phase
+    // count — and offset by one, which is the only five-minute phase
     // free of all three neighbours: `invitations` holds every fifth minute from
     // zero, `nightly` holds :00, and `monthly` holds :07.
     cron: '1-59/5 * * * *',

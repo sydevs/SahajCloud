@@ -26,10 +26,6 @@ import {
 import type { ExistingRegion } from '@/collections/EventImports/propose/match'
 import type { ProposedNode } from '@/collections/EventImports/propose/tree'
 import {
-  isRunningStatus,
-  progressUrl,
-} from '@/components/admin/EventImport/progressUrl'
-import {
   needsAttention,
   rowNotes,
   rowPlace,
@@ -271,36 +267,6 @@ describe('what the region tree offers per node', () => {
         [node({ slug: 'munich' }), node({ key: 'other', slug: null })],
       ),
     ).toEqual(['berlin', 'munich'])
-  })
-})
-
-describe('the progress poll', () => {
-  /**
-   * ⚠ **Running is named, not derived as a complement.** A status added to the
-   * collection would otherwise read as running and poll a batch nobody is
-   * touching, every three seconds, for as long as the page stays open.
-   */
-  it('counts only the two stages a job owns as running', () => {
-    expect(isRunningStatus('resolving')).toBe(true)
-    expect(isRunningStatus('committing')).toBe(true)
-    for (const settled of ['review', 'finished', 'failed', 'discarded', undefined, null]) {
-      expect(isRunningStatus(settled)).toBe(false)
-    }
-  })
-
-  /**
-   * The locale is in the URL because a manager's roles are per-locale, and a
-   * read naming none resolves to the default one — denying anyone whose roles
-   * live elsewhere (#701).
-   */
-  it('names the locale and selects only the two columns it renders', () => {
-    const url = new URL(progressUrl('/api', 42, 'de'), 'https://cloud.test')
-
-    expect(url.pathname).toBe('/api/event-imports/42')
-    expect(url.searchParams.get('locale')).toBe('de')
-    expect(url.searchParams.get('select[status]')).toBe('true')
-    expect(url.searchParams.get('select[progress]')).toBe('true')
-    expect(url.searchParams.get('select[rows]')).toBeNull()
   })
 })
 

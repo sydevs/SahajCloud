@@ -2,6 +2,7 @@ import type { CollectionConfig } from 'payload'
 
 import { z } from 'zod'
 
+import type { JobStageConfig } from '@/components/admin/JobStageView/stages'
 import type {
   WorkflowButton,
   WorkflowButtonsProps,
@@ -12,7 +13,7 @@ import { baseLanguageOrDefault, getLanguageOptions } from '@/lib/locales'
 import type { EventImport, Manager } from '@/payload-types'
 import { isAdminManager } from '@/plugins/access'
 
-import { MAX_IMPORT_ROWS } from './constants'
+import { IMPORT_STALL_MS, MAX_IMPORT_ROWS } from './constants'
 import { enqueueImportJobs } from './hooks/enqueueImportJobs'
 import { parseUpload, refuseUtf16Upload } from './hooks/parseUpload'
 import { stampManager } from './hooks/stampManager'
@@ -109,6 +110,20 @@ export const EventImports: CollectionConfig = {
     // Admins only: a volunteer reaches their batches from the region's Import
     // tab, and an admin needs this list to look at a stalled one.
     hidden: ({ user }) => !isAdminManager(user as Manager | null),
+    custom: {
+      // ⚠ **`resolving` is also `status`'s `defaultValue`, which the view's own
+      // rules warn against — `staleAfterMs` is what makes it safe here.** A
+      // saved batch at that default is the honest state: the create queues the
+      // resolve job, so a job does own it. What would strand the batch is that
+      // run dying, and the stall window is what hands the form back then — with
+      // `DISCARD_RUNNING` on it, which is the only way out.
+      jobStage: {
+        progressField: 'progress.done',
+        runningStages: ['resolving', 'committing'],
+        staleAfterMs: IMPORT_STALL_MS,
+        totalField: 'progress.total',
+      } satisfies JobStageConfig,
+    },
     components: {
       // ⚠ **The buttons are the only way to reach a transition, so this map and
       // `hooks/transitionStatus.ts`'s `ALLOWED` table have to agree.** A target
@@ -116,6 +131,10 @@ export const EventImports: CollectionConfig = {
       // form — which is how a batch a dead worker left `resolving` became
       // unreachable in the first place. `tests/int/event-imports.int.spec.ts`
       // checks both directions, because prose could not.
+      // ⚠ **Editing is closed while a job owns the batch, so every button below
+      // a running stage declares is reachable only past `staleAfterMs`.** The
+      // view replaces the whole form, this `SaveButton` slot included.
+      views: { edit: { default: { Component: '@/components/admin/JobStageView/JobStageView' } } },
       edit: {
         SaveButton: {
           path: WORKFLOW_BUTTONS,
@@ -221,14 +240,15 @@ export const EventImports: CollectionConfig = {
       access: { update: () => false },
       admin: {
         readOnly: true,
-        // ⚠ **The component replaces the group's three inputs, rather than a
-        // `ui` field beside a hidden group.** `admin.hidden` does not keep a
-        // value out of the save — Payload renders a `HiddenField` and the value
-        // still posts; `access.update` above is what refuses the write. So a
-        // hidden group plus a sibling `ui` field bought nothing but a second
-        // name for one concept. The component polls rather than reading the
-        // value it is declared on, which is the honest reason it exists.
-        components: { Field: '@/components/admin/EventImport/ImportProgress' },
+        // The count is rendered by `JobStageView`, from the two paths
+        // `custom.jobStage` names above — so the form that opens afterwards has
+        // nothing left to show, and these three inputs are hidden rather than
+        // given a component.
+        //
+        // ⚠ **`hidden` is a display decision with no authority.** Payload
+        // renders a `HiddenField` and the value still posts; `access.update`
+        // above is what refuses the write.
+        hidden: true,
       },
       fields: [
         { name: 'done', type: 'number' },
