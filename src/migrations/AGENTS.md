@@ -33,7 +33,8 @@ against Payload 3.86.0 / drizzle-kit 0.31.7):
 2. **Rename-vs-create prompt** — fires on an ambiguous column change (a
    drop+add that looks like a rename). No flag bypasses it. On non-TTY
    stdin it **hangs indefinitely**, before writing any files. Only a
-   timeout catches it.
+   timeout catches it. It reads raw keypresses from a **terminal**, not
+   from stdin, so a pty answers it where a redirect cannot — see below.
 
 Run:
 
@@ -70,7 +71,7 @@ Then classify the outcome:
 | Migration created | exit 0, new `.ts` + `.json` pair | Read the DDL first (false positive below), validate (migration-validator skill), check for duplicate DDL (snapshot trap below), commit both files |
 | No schema changes | exit 0, no new files, newest `.json` already has the column | Report it. Not an error |
 | Silent CLI death | exit 0, no files, no output, column **absent** from the snapshot | The CLI died silently — see below. Do **not** conclude "no changes" |
-| Interactive hang | exit 124, no new files | Hand the user the plain command to run interactively, then validate and commit |
+| Interactive hang | exit 124, no new files | Re-run it over a pty (below). Hand the command to the user only if that still cannot answer the prompt |
 | Partial write | exit 124, lone `.json` (no `.ts`) | Delete the orphaned `.json`, then hand off as above |
 | Other error | exit ≥ 1 with output | Surface the error. Do not retry blindly |
 
@@ -97,8 +98,29 @@ not support a mixed-version family, so leaving the rest on carets meant one
 — a break with no patch involved. Bump them together, in one commit, and
 re-check the patch key against the drizzle-kit that release pins.
 
-The patch does not remove the rename-vs-create **prompt**. That still needs an
-attended run, per the interactive-hang row above.
+The patch does not remove the rename-vs-create **prompt**, which is answered as
+below rather than handed off.
+
+### Answering the rename-vs-create prompt without a person
+
+The prompt reads keypresses from a controlling terminal, so `< /dev/null` and a
+piped newline both leave it unanswered — but `pty.fork()` gives it one, and
+`\r` then takes the highlighted default. The default is `create column` for
+every column, which is the right answer whenever the change really is a drop
+plus an add. **Read the generated DDL before you commit it**: a prompt answered
+wrongly writes a `RENAME COLUMN` that carries the old column's data into the
+new one.
+
+It fires once per ambiguous column, for the UP statements and again for the
+DOWN ones — four times for #968's one added and three dropped columns — so a
+driver must answer every prompt, not the first. Watch for a prompt arriving
+within a second of the previous answer, and make the wait a quiet-period after
+the last byte rather than a fixed delay.
+
+⚠ **An unattended session can only run what `.claude/settings.json` allows**,
+and that file is a protected path. Until a driver command is allowlisted there
+in an attended pass, an unattended run reaches an approval prompt it cannot
+answer — the same stall the bound above warns about.
 
 ### "Migration created" has a false positive too — read the DDL first
 
