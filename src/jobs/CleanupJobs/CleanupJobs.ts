@@ -1,5 +1,7 @@
 import type { TaskConfig, Where } from 'payload'
 
+import { type PurgeWindow, sweepRetention } from '@/lib/retention/sweep'
+
 /**
  * How long a finished job row is kept. Long enough that a transcript's status
  * survives a weekend of nobody looking, short enough that the table stays a
@@ -7,9 +9,26 @@ import type { TaskConfig, Where } from 'payload'
  */
 export const JOB_RETENTION_DAYS = 7
 
-/** The timestamp a finished job row has to predate to be swept. */
-export const jobRetentionCutoff = (now: Date): string =>
-  new Date(now.getTime() - JOB_RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString()
+/**
+ * The one window, and why it names two markers rather than a date alone.
+ *
+ * Only a **finished** row is swept — completed, or errored with no retry left.
+ * A queued row is old because its `waitUntil` has not arrived, and deleting it
+ * would cancel work nobody asked to cancel. A queued row carries neither
+ * marker, so it is unreachable from here rather than excluded by a clause.
+ */
+export const JOB_PURGE_WINDOWS: PurgeWindow[] = [
+  {
+    days: JOB_RETENTION_DAYS,
+    name: 'finishedJobs',
+    where: (cutoff): Where => ({
+      or: [
+        { completedAt: { less_than: cutoff } },
+        { and: [{ hasError: { equals: true } }, { updatedAt: { less_than: cutoff } }] },
+      ],
+    }),
+  },
+]
 
 /**
  * Weekly sweep of finished `payload-jobs` rows.
@@ -18,10 +37,6 @@ export const jobRetentionCutoff = (now: Date): string =>
  * global, so every queue's rows now survive their run and nothing but this
  * sweep bounds the table. Turning the flag back on would strip the status a
  * meditation transcript derives from its job row.
- *
- * Only a **finished** row is swept — completed, or errored with no retry left.
- * A queued row is old because its `waitUntil` has not arrived, and deleting it
- * would cancel work nobody asked to cancel.
  */
 export const CleanupJobs: TaskConfig<'cleanupJobs'> = {
   slug: 'cleanupJobs',
@@ -46,42 +61,15 @@ export const CleanupJobs: TaskConfig<'cleanupJobs'> = {
     },
   ],
   handler: async ({ input, req }) => {
-    const now = typeof input?.now === 'string' ? new Date(input.now) : new Date()
-    const cutoff = jobRetentionCutoff(now)
-    const where: Where = {
-      or: [
-        { completedAt: { less_than: cutoff } },
-        { and: [{ hasError: { equals: true } }, { updatedAt: { less_than: cutoff } }] },
-      ],
-    }
-
-    if (input?.dryRun === true) {
-      const { totalDocs } = await req.payload.count({
-        collection: 'payload-jobs',
-        where,
-        overrideAccess: true,
-        req,
-      })
-      return { output: { deletedJobs: totalDocs } }
-    }
-
-    const { docs, errors } = await req.payload.delete({
+    const deletedJobs = await sweepRetention({
       collection: 'payload-jobs',
-      where,
-      overrideAccess: true,
+      dryRun: input?.dryRun === true,
+      label: 'CleanupJobs',
+      now: typeof input?.now === 'string' ? new Date(input.now) : new Date(),
       req,
+      windows: JOB_PURGE_WINDOWS,
     })
 
-    // A short count would otherwise read as "nothing was due", and the table
-    // would grow with no one learning why.
-    if (errors.length > 0) {
-      req.payload.logger.warn({
-        msg: 'CleanupJobs: some job rows could not be deleted',
-        count: errors.length,
-        firstError: errors[0]?.message,
-      })
-    }
-
-    return { output: { deletedJobs: docs.length } }
+    return { output: { deletedJobs } }
   },
 }
