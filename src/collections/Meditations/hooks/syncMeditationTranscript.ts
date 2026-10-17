@@ -1,7 +1,5 @@
 import type { CollectionAfterChangeHook } from 'payload'
 
-import { findTranscriptRow } from '@/collections/MeditationTranscripts/view'
-
 /**
  * afterChange: the transcript row follows the recording, and only the recording.
  *
@@ -22,7 +20,18 @@ export const syncMeditationTranscript: CollectionAfterChangeHook = async ({
   const audioFilename = doc.filename
   if (!audioFilename || previousDoc?.filename === audioFilename) return doc
 
-  const existing = await findTranscriptRow(req, Number(doc.id))
+  // `meditation` is unique, so there is at most one row to find.
+  const { docs } = await req.payload.find({
+    collection: 'meditation-transcripts',
+    where: { meditation: { equals: Number(doc.id) } },
+    depth: 0,
+    limit: 1,
+    pagination: false,
+    overrideAccess: true,
+    req,
+  })
+
+  const existing = docs[0]
   if (existing) {
     if (existing.audioFilename === audioFilename) return doc
     await req.payload.delete({

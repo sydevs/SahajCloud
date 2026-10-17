@@ -1,8 +1,6 @@
 import type { PayloadRequest, TaskConfig } from 'payload'
 
-import { findMeditationRecording } from '@/collections/Meditations/findMeditationRecording'
 import { normalizeLemonfoxResponse } from '@/collections/MeditationTranscripts/lemonfox'
-import { findTranscriptRow } from '@/collections/MeditationTranscripts/view'
 import {
   lemonfoxApiKey,
   requestLemonfoxTranscript,
@@ -48,7 +46,7 @@ export const TranscribeMeditation: TaskConfig<'transcribeMeditation'> = {
     // call.
     const [row, recording] = await Promise.all([
       findCurrentRow(req, meditationId, audioFilename),
-      findMeditationRecording(req, meditationId),
+      findRecording(req, meditationId),
     ])
     // The recording was replaced, which deleted this row. Nothing to write, and
     // nothing wrong: the replacement queued its own run.
@@ -95,13 +93,42 @@ export const TranscribeMeditation: TaskConfig<'transcribeMeditation'> = {
  * The meditation's transcript row, while it still names `audioFilename`.
  *
  * `meditation` is unique, so there is at most one row per meditation and the
- * recording is a field comparison rather than a second query.
+ * recording is a field comparison rather than a second query. `overrideAccess`
+ * because this run owns the row it is filling in.
  */
 async function findCurrentRow(
   req: PayloadRequest,
   meditationId: number,
   audioFilename: string,
 ): Promise<MeditationTranscript | undefined> {
-  const row = await findTranscriptRow(req, meditationId)
+  const { docs } = await req.payload.find({
+    collection: 'meditation-transcripts',
+    where: { meditation: { equals: meditationId } },
+    depth: 0,
+    limit: 1,
+    pagination: false,
+    overrideAccess: true,
+    req,
+  })
+  const row = docs[0]
   return row?.audioFilename === audioFilename ? row : undefined
+}
+
+/**
+ * The recording this run has to match, and the locale its glossary pass keys on.
+ *
+ * Reads the latest **draft**: the editor hears and places frames against the
+ * draft's audio, so that is the recording a transcript must match.
+ */
+function findRecording(req: PayloadRequest, meditationId: number) {
+  return req.payload.findByID({
+    collection: 'meditations',
+    id: meditationId,
+    depth: 0,
+    draft: true,
+    select: { filename: true, locale: true },
+    overrideAccess: true,
+    disableErrors: true,
+    req,
+  })
 }
