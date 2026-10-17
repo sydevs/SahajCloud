@@ -104,7 +104,7 @@ Five rules, each of which cost something to learn:
 
 The component renders `null` rather than taking `admin.hidden: true`: a hidden field renders Payload's own `HiddenField`, and this one exists to run an effect, not to carry a value into form state.
 
-Declared today in `translationsSchema.json` (a `preview` key beside `screenshot`, read on top-level groups only) and on the Meditations frame tabs, which declare `autoOpen` with no path.
+Declared today in `translationsSchema.json` (a `preview` key beside `screenshot`, read on top-level groups only) and on the Meditations frame and Transcript tabs, which declare `autoOpen` with no path.
 
 ## Styling — PayloadCMS CSS variables
 
