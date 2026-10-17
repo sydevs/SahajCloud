@@ -41,9 +41,24 @@ export const JOB_AUTO_RUN: AutoRunEntry[] = [
     queue: 'screening',
   },
   {
+    // Its own queue, not `nightly` or `screening`: a 500-row resolve holds a
+    // worker for minutes, and sharing with the submission screening would put
+    // every public write behind one volunteer's upload.
+    // Safety net for the per-transition kick (see
+    // EventImports/hooks/enqueueImportJobs): a resolve or a commit whose
+    // immediate run was lost to a restart waits at most five minutes. Five
+    // rather than `screening`'s fifteen because a volunteer is watching the
+    // count — and offset by one, which is the only five-minute phase
+    // free of all three neighbours: `invitations` holds every fifth minute from
+    // zero, `nightly` holds :00, and `monthly` holds :07.
+    cron: '1-59/5 * * * *',
+    queue: 'imports',
+  },
+  {
     // Safety net for the transcription start in `requestTranscription`, the
     // same way. :03 and every 15th minute after it clears `screening` (every
-    // 15th), `invitations` (every 5th), `nightly` (:00) and `monthly` (:07).
+    // 15th), `invitations` (every 5th), `nightly` (:00), `imports` (every 5th
+    // from :01) and `monthly` (:07).
     cron: '3-59/15 * * * *',
     queue: 'transcription',
   },

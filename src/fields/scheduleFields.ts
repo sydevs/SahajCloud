@@ -9,6 +9,7 @@ import {
   computeUpcomingDates,
   getLocalTimeHHMM,
 } from '@/lib/schedule/scheduleHooks'
+import { isHHMM } from '@/lib/schedule/time'
 
 import { jsonField } from './jsonField'
 
@@ -184,8 +185,10 @@ function buildEndTimeField(): Field {
       { siblingData }: { siblingData: Record<string, unknown> },
     ) => {
       if (!value) return true // Optional field
-      const timeRegex = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/
-      if (!timeRegex.test(value)) {
+      // Shared with the bulk import, which writes through this field: two
+      // independent patterns meant a CSV row could be accepted and then
+      // refused at write. See `@/lib/schedule/time`.
+      if (!isHHMM(value)) {
         return 'Enter time in HH:MM format (e.g., 17:00)'
       }
       // End time must be after start time (extracted from firstDate UTC + timezone)

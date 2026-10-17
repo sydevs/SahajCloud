@@ -49,8 +49,14 @@ function toResendAttachments(
   return mapped.length > 0 ? mapped : undefined
 }
 
+type AddressField = SendEmailOptions['cc'] | SendEmailOptions['replyTo']
+
 /**
  * Flatten nodemailer's `Address | string` forms to the plain strings Resend takes.
+ *
+ * Shared by `replyTo` and `cc`, which nodemailer types identically — and an
+ * unmapped field is dropped in silence (`docs/rules/email.md`), so one helper is
+ * what keeps the second one from being forgotten.
  *
  * nodemailer 10 made every `Address` field optional and admits nested arrays, so
  * an object carrying only a `name` or a `group` now type-checks. Such an entry is
@@ -61,12 +67,12 @@ function toResendAttachments(
  * field made expressible omits the key, so a key check drops it silently instead.
  */
 function toAddressList(
-  value: SendEmailOptions['replyTo'],
+  value: AddressField,
   onUnsupported: (name: string) => void,
 ): string[] | undefined {
   const addresses: string[] = []
 
-  const take = (entry: SendEmailOptions['replyTo']): void => {
+  const take = (entry: AddressField): void => {
     if (Array.isArray(entry)) {
       entry.forEach(take)
       return
@@ -143,6 +149,12 @@ export const resendAdapter = (): EmailAdapter => {
               name,
             }),
           )
+          const cc = toAddressList(message.cc, (name) =>
+            payload.logger.warn({
+              msg: 'Resend adapter: dropping cc entry with no address',
+              name,
+            }),
+          )
 
           // Convert Payload's SendEmailOptions to Resend's format
           const { data, error } = await resend.emails.send({
@@ -152,6 +164,7 @@ export const resendAdapter = (): EmailAdapter => {
             html: message.html as string,
             text: message.text as string,
             ...(replyTo && { replyTo }),
+            ...(cc && { cc }),
             ...(attachments && { attachments }),
           })
 

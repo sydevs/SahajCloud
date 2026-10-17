@@ -11,6 +11,7 @@ import { isManualMapboxId } from '@/lib/mapbox/manualLocation'
 import { ownedRegionFilterOptions } from '@/plugins/access'
 
 import { requireOwnedParentOnCreate } from './hooks/requireOwnedParentOnCreate'
+import { IMPORT_TAB } from './importTab'
 import { withNonEmptySlug } from './nonEmptySlug'
 import { buildRegionWebPath } from './webPath'
 
@@ -328,6 +329,9 @@ export const Regions: CollectionConfig = {
             },
           ],
         },
+        // Bulk class import, in `importTab.ts` because it is the one tab with a
+        // cross-collection join and a level condition to explain.
+        IMPORT_TAB,
         // Reverse side of the tree, one tab per child level (see
         // CHILD_LEVEL_TABS). Valid parents per level live in
         // ALLOWED_PARENT_LEVELS, so each tab shows only once the document

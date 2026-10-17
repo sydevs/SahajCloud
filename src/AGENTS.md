@@ -91,6 +91,11 @@ No loose files at the root — every file lives in a named folder:
   zod-free, so `clientLogger` takes the `NEXT_PUBLIC_LOG_LEVEL` vocabulary
   without pulling the schema module into every browser chunk that carries it
 - `logger/` — `clientLogger`, `workerSafeLogger`
+- `jobs/` — `runQueueSoon`, which runs a queue now rather than at the next
+  sweep, and a beat later when the caller queued its row inside a
+  transaction. The only part of the jobs system that is not one job's own: a
+  row queued with `req` cannot run until that transaction commits, and every
+  queue with an `autoRun` entry wants the same best-effort kick
 - `utilities/` — purposeful cross-boundary helpers (`serverUrl`,
   `previewSecret`, `gender`, `subtitles`, `weightedSample`, `isRecord`,
   `requestMemo` — collapses a per-request load to one in-flight promise,
@@ -135,9 +140,9 @@ No loose files at the root — every file lives in a named folder:
   `pageTags/`, `cascadeDeletion/`, `retention/` (the one definition of what a
   retention sweep does — the cutoff, the dry-run branch, and a delete whose
   partial failure is logged rather than returned as a short count. Shared by
-  `PurgeSubmissions` and `CleanupJobs`, which keep their own slugs, schedules
-  and output shapes, and `beforeDelete` is where the `users` orphan sweep reads
-  what the delete is about to make unreachable), `eventTitle/` (the auto-title
+  `PurgeSubmissions`, `CleanupJobs` and `SweepEventImports`, which keep their
+  own slugs, schedules and output shapes, and `beforeDelete` is where the
+  `users` orphan sweep reads what the delete is about to make unreachable), `eventTitle/` (the auto-title
   composition, split by purity: `compose.ts` is pure. `autoTitle.ts`
   resolves a title against the database and is shared by the Events title
   hook and the proposal merge), `eventQuality/` (the listing-quality check

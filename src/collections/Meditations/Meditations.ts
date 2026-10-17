@@ -3,6 +3,8 @@ import type { CollectionConfig, JSONField, JSONFieldValidation, Validate } from 
 import { json as jsonFieldValidation } from 'payload/shared'
 import { z } from 'zod'
 
+import type { WorkflowButtonsProps } from '@/components/admin/WorkflowButtons/stages'
+import { CREATE_STAGE, WORKFLOW_BUTTONS } from '@/components/admin/WorkflowButtons/stages'
 import { hideUntilCreated, mediaField } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
 import { previewTargetField } from '@/fields/previewTargetField'
@@ -179,8 +181,31 @@ export const Meditations: CollectionConfig = {
     },
     components: {
       edit: {
-        PublishButton: '@/components/admin/buttons/UpdateOnlyPublishButton',
-        SaveDraftButton: '@/components/admin/buttons/NextStepButton',
+        // Creating a meditation is the first step of a longer job — audio, then
+        // frames — so the create screen offers only "Next step" and no Publish.
+        // Both declarations are data read by one shared component
+        // (`WorkflowButtons`), which is why neither names a stage beyond the
+        // create: every other stage falls through to Payload's own button.
+        PublishButton: {
+          path: WORKFLOW_BUTTONS,
+          clientProps: {
+            fallback: 'publish',
+            stages: { [CREATE_STAGE]: [] },
+          } satisfies WorkflowButtonsProps<typeof CREATE_STAGE>,
+        },
+        SaveDraftButton: {
+          path: WORKFLOW_BUTTONS,
+          clientProps: {
+            fallback: 'saveDraft',
+            stages: {
+              [CREATE_STAGE]: [
+                // `skipValidation`, because the fields a finished meditation
+                // needs are on tabs this screen has not reached yet.
+                { label: 'Next step', overrides: { _status: 'draft' }, skipValidation: true },
+              ],
+            },
+          } satisfies WorkflowButtonsProps<typeof CREATE_STAGE>,
+        },
         Upload: '@/components/admin/AudioUpload',
       },
     },

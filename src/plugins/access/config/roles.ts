@@ -77,6 +77,13 @@ const ROLES = {
       // Collection-wide on purpose (#821): a picker exists to list *other*
       // managers, so a self-scoped `Where` would empty it.
       managers: ['read'] as PermissionLevel[],
+      // ⚠ **`create` only, and deliberately no `read` or `update`.**
+      // `event-imports` is restricted, so a collection-wide `read` here would
+      // show every volunteer every other region's uploaded CSV. Read and update
+      // arrive per document instead, through the batch's own `manager` field
+      // (the doc-manager path in `accessConfigs.ts`). No `delete` either: a
+      // discard is a status transition, and the nightly sweep does the deleting.
+      'event-imports': ['create'] as PermissionLevel[],
       // `user-submissions` is restricted too, so this grant is what reaches it
       // at all — and it is narrowed per row in `accessConfigs.ts`: a manager
       // reads the contact rows addressed to them, plus proposals. It does NOT

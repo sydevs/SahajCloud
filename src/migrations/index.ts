@@ -75,12 +75,15 @@ import * as migration_20260928_231710_disable_manager_passwords from './20260928
 import * as migration_20260929_041116_payload_3_90_auth_fields from './20260929_041116_payload_3_90_auth_fields';
 import * as migration_20260929_043344_storage_object_key from './20260929_043344_storage_object_key';
 import * as migration_20260929_173315_null_manager_password_hashes from './20260929_173315_null_manager_password_hashes';
+import * as migration_20261010_013059_event_imports from './20261010_013059_event_imports';
+import * as migration_20261010_025807_event_import_jobs from './20261010_025807_event_import_jobs';
 import * as migration_20261011_194449_wm_web_discover_translations from './20261011_194449_wm_web_discover_translations';
 import * as migration_20261015_061054_meditation_transcripts from './20261015_061054_meditation_transcripts';
 import * as migration_20261015_070852_require_transcript_language from './20261015_070852_require_transcript_language';
 import * as migration_20261016_081411_transcribe_meditation_task from './20261016_081411_transcribe_meditation_task';
 import * as migration_20261017_002341_cleanup_jobs_task from './20261017_002341_cleanup_jobs_task';
 import * as migration_20261017_102331_transcript_job_relationship from './20261017_102331_transcript_job_relationship';
+import * as migration_20261017_161838_event_import_analyze_slug from './20261017_161838_event_import_analyze_slug';
 
 export const migrations = [
   {
@@ -469,6 +472,16 @@ export const migrations = [
     name: '20260929_173315_null_manager_password_hashes',
   },
   {
+    up: migration_20261010_013059_event_imports.up,
+    down: migration_20261010_013059_event_imports.down,
+    name: '20261010_013059_event_imports',
+  },
+  {
+    up: migration_20261010_025807_event_import_jobs.up,
+    down: migration_20261010_025807_event_import_jobs.down,
+    name: '20261010_025807_event_import_jobs',
+  },
+  {
     up: migration_20261011_194449_wm_web_discover_translations.up,
     down: migration_20261011_194449_wm_web_discover_translations.down,
     name: '20261011_194449_wm_web_discover_translations',
@@ -496,6 +509,11 @@ export const migrations = [
   {
     up: migration_20261017_102331_transcript_job_relationship.up,
     down: migration_20261017_102331_transcript_job_relationship.down,
-    name: '20261017_102331_transcript_job_relationship'
+    name: '20261017_102331_transcript_job_relationship',
+  },
+  {
+    up: migration_20261017_161838_event_import_analyze_slug.up,
+    down: migration_20261017_161838_event_import_analyze_slug.down,
+    name: '20261017_161838_event_import_analyze_slug'
   },
 ];
