@@ -109,18 +109,15 @@ export const MeditationTranscript: UIFieldClientComponent = () => {
     <div className={styles.transcript}>
       <div aria-live="polite" className={styles.status} role="status">
         {phase === 'none' && (
-          <p className={styles.muted}>
+          <Banner type="info">
             No transcript yet. One is made automatically when a recording is added.
-          </p>
+          </Banner>
         )}
         {phase === 'pending' && (
-          <div className={styles.progress}>
-            <Spinner loadingText={null} size="sm" />
-            <div>
-              <strong>Transcription in progress</strong>
-              <p className={styles.muted}>Turning the recording into a timestamped transcript.</p>
-            </div>
-          </div>
+          <Banner icon={<Spinner loadingText={null} size="sm" />} type="info">
+            <strong>Transcription in progress.</strong> Turning the recording into a timestamped
+            transcript.
+          </Banner>
         )}
         {phase === 'stalled' && (
           <Banner type="error">

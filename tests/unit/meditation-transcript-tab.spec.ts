@@ -50,8 +50,8 @@ const stub = vi.hoisted(() => ({
 }))
 
 vi.mock('@payloadcms/ui', () => ({
-  Banner: ({ children }: { children?: ReactNode }) =>
-    createElement('div', { 'data-banner': 'true' }, children),
+  Banner: ({ children, icon }: { children?: ReactNode; icon?: ReactNode }) =>
+    createElement('div', { 'data-banner': 'true' }, icon, children),
   Spinner: ({ loadingText }: { loadingText?: string | null }) =>
     createElement('div', { 'data-spinner': 'true' }, loadingText),
   useDocumentInfo: () => ({ id: stub.id }),
@@ -149,6 +149,7 @@ describe('the Transcript tab', () => {
   const phrases = () => [...container.querySelectorAll<HTMLElement>('[role="button"]')]
   const current = () => container.querySelector<HTMLElement>('[aria-current="true"]')
   const text = () => container.textContent ?? ''
+  const banners = () => [...container.querySelectorAll('[data-banner]')]
 
   const press = (element: HTMLElement, key: string) => {
     act(() => {
@@ -240,6 +241,7 @@ describe('the Transcript tab', () => {
       // `restrictUploadToAdmin` refuses replacing it to a `meditations-editor`.
       // So the notice names no tab and asks the reader for nothing.
       expect(text()).not.toMatch(/tab/i)
+      expect(banners()).toHaveLength(1)
       expect(phrases()).toHaveLength(0)
     })
 
@@ -248,6 +250,10 @@ describe('the Transcript tab', () => {
 
       expect(text()).toContain('Transcription in progress')
       expect(text()).not.toContain('stopped responding')
+      // Payload's own parts, as `JobStageView` renders the same notice: the
+      // four phases read as one kind of thing rather than three.
+      expect(banners()).toHaveLength(1)
+      expect(container.querySelector('[data-banner] [data-spinner]')).not.toBeNull()
     })
 
     it('shows the failure and the run’s own message', () => {
