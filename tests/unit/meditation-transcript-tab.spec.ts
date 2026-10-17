@@ -269,6 +269,24 @@ describe('the Transcript tab', () => {
       expect(text()).not.toMatch(/\d+\s*(minute|second|hour)/i)
     })
 
+    // The row never changes here, which is the whole point: a stuck run answers
+    // every poll with the same document, so SWR renders nothing and the bound
+    // would otherwise pass unobserved.
+    it('reaches the stall notice while mounted, on no new row', () => {
+      vi.useFakeTimers()
+      try {
+        renderRow({ status: 'processing' })
+        expect(text()).toContain('Transcription in progress')
+
+        act(() => void vi.advanceTimersByTime(TRANSCRIPTION_STALL_MS + 1000))
+
+        expect(text()).toContain('Transcription stopped responding.')
+        expect(text()).not.toContain('Transcription in progress')
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
     it('renders a processing row’s cues beneath its notice', () => {
       renderRow({ status: 'processing', segments: SEGMENTS })
 

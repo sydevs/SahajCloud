@@ -21,6 +21,7 @@ import {
   transcriptUrl,
 } from './transcriptModel'
 import { useFollowPlayhead } from './useFollowPlayhead'
+import { useStallDeadline } from './useStallDeadline'
 
 const POLL_INTERVAL_MS = 3000
 
@@ -31,7 +32,8 @@ const rowOf = (list: TranscriptList | undefined): TranscriptRow | undefined => l
 /**
  * Poll only while a transcription is on its way. The stall bound settles the
  * other end: a run nothing will finish reads `stalled`, so this cannot poll
- * forever.
+ * forever — but only because `useStallDeadline` renders the moment the bound
+ * passes. A poll alone never reaches it.
  *
  * ⚠ **Declared once, at module scope.** SWR lists `refreshInterval` in its
  * polling effect's dependencies, so a new arrow each render re-arms the timer
@@ -85,6 +87,9 @@ export const MeditationTranscript: UIFieldClientComponent = () => {
   const active = activeSegmentIndex(segments, playheadSeconds)
   const container = useRef<HTMLDivElement>(null)
   useFollowPlayhead(container, active, segments.length > 0)
+  // Only a processing row has a bound ahead of it; every other phase is final
+  // until the row itself changes, which SWR renders on its own.
+  useStallDeadline(row?.status === 'processing' ? row.updatedAt : undefined)
 
   if (!url) {
     return <Banner type="error">The transcript cannot load without an admin locale.</Banner>
