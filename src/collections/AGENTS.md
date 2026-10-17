@@ -736,6 +736,8 @@ Mark fields `localized: true`. Currently localized fields include:
 - `UserChoices` / `SongTags`: `title`
 - `Media`: `alt`, `credit`
 - `Songs`: `title`, `credit`
+- `Lessons`: `title`, `panels` (the whole array), `meditation`,
+  `preMeditationLines`, `article`
 - (Many other content-collection fields — see individual collection files.)
 
 ### Meditations locale handling (special)
@@ -900,8 +902,8 @@ Step" / "Path Steps".
 
 ### Fields
 
-- `title` (text, required)
-- `panels` (array, required, min 1) — story panels:
+- `title` (text, localized, **not** required — see below)
+- `panels` (array, localized, optional) — story panels:
   - `title` (text, optional)
   - `text` (textarea, optional)
   - `media` (upload to files, optional) — image OR video
@@ -920,6 +922,36 @@ Step" / "Path Steps".
 
 Trash (soft delete) supported. File attachments cascade-delete via the
 ownership system.
+
+### `title` and `panels` are per locale, and neither is required (#977)
+
+Both were shared across all 19 languages, so a translator typing in French
+replaced the English every app user sees. Two production steps still hold
+French in their English slots because of it.
+
+**The array is localized, not the text fields inside it.** That keeps the
+migration to one `_locale` column on `lessons_panels` rather than a new
+table, makes a panel video's subtitles per-language for free, and stops one
+language's translator deleting or reordering another's panels. The cost: a
+panel added in English does not reach French until someone adds it there.
+Launch Readiness reports an empty set (`panels-set`) and a blank title
+(`lesson-title-set` — prefixed because a check key is global across
+sections and app-cards owns `title-set`).
+
+**Neither field may be `required`, and for two different reasons.** On
+`panels`, `required`/`minRows`/a default row each make an update in a
+second locale write a blank panel list, which then hides the panels that
+locale falls back to. On `title`, `required` is worse: Payload validates a
+required localized field against that locale's **own** value and the
+English fallback does not satisfy it (the same behaviour this file records
+for `publishSpecificLocale`), so it refuses every write in a second locale
+that does not also carry a title — a translator setting only the
+meditation or the article included.
+
+**A localized upload reference is invisible to a single-locale scan.**
+`CleanupOrphanedMedia` reads `locale: 'all'` for exactly this reason: a
+file referenced only by a French panel would otherwise read as an orphan
+and be trashed. See the schema-introspection section below.
 
 ## Trash (soft delete)
 
@@ -1025,15 +1057,26 @@ const fileRefs = discoverReferencesForCollection(payload, 'files')
 
 const byCollection = groupByCollection(fileRefs)
 
+const locales = payload.config.localization ? payload.config.localization.localeCodes : []
+
 for (const [slug, refs] of byCollection) {
-  const docs = await payload.find({ collection: slug, limit: 1000 })
+  const docs = await payload.find({ collection: slug, limit: 1000, locale: 'all' })
   for (const doc of docs.docs) {
     for (const ref of refs) {
-      const ids = extractIdsFromDocument(doc, ref) // Set<number>
+      const ids = extractIdsFromDocument(doc, ref, locales) // Set<number>
     }
   }
 }
 ```
+
+⚠ **Read `locale: 'all'` and pass the locale codes, or a reference held
+only by a localized field is invisible** — and an invisible reference reads
+as an orphan, so the job trashes a file that is in use. `locale: 'all'`
+wraps a localized field's value in a `{ [locale]: value }` map, which
+`localeValues` splits; it splits only when **every** key is a configured
+locale, so a group whose subfields look like locale codes is left alone.
+Omit the codes and nothing is split, which is right for a caller that read
+one locale and wrong for one that read them all.
 
 Container types traversed: simple, `tabs`, `groups`, `rows`, `arrays`
 (wildcard `*`), `blocks`, `collapsible`, and `richText`. RichText fields get

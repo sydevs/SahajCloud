@@ -5,8 +5,6 @@
  * by traversing the configuration schema at runtime.
  */
 
-import { isRecord } from '@/lib/utilities/isRecord'
-
 import type {
   ArrayField,
   Block,
@@ -19,6 +17,8 @@ import type {
   TabsField,
   UploadField,
 } from 'payload'
+
+import { isRecord } from '@/lib/utilities/isRecord'
 
 /** Represents a discovered field reference to a target collection */
 export interface FieldReference {
