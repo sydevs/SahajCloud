@@ -1057,27 +1057,24 @@ const fileRefs = discoverReferencesForCollection(payload, 'files')
 
 const byCollection = groupByCollection(fileRefs)
 
-const locales = payload.config.localization ? payload.config.localization.localeCodes : []
-
 for (const [slug, refs] of byCollection) {
-  const docs = await payload.find({ collection: slug, limit: 1000, locale: 'all' })
+  const docs = await payload.find({ collection: slug, limit: 1000, depth: 0, locale: 'all' })
   for (const doc of docs.docs) {
     for (const ref of refs) {
-      const ids = extractIdsFromDocument(doc, ref, locales) // Set<number>
+      const ids = extractIdsFromDocument(doc, ref) // Set<number>
     }
   }
 }
 ```
 
-⚠ **Read `locale: 'all'` and pass the locale codes, or a reference held
-only by a localized field is invisible** — and an invisible reference reads
-as an orphan, so the job trashes a file that is in use. `locale: 'all'`
-wraps a localized field's value in a `{ [locale]: value }` map, which
-`localeValues` splits; it splits only when **every** key is a configured
-locale, so a group whose subfields look like locale codes is left alone. The
-parameter is required rather than defaulted, because an omitted locale list
-splits nothing — which is right for a single-locale read and loses every
-translated reference for an `all` one.
+⚠ **Read `depth: 0, locale: 'all'`, or a reference held only by a localized
+field is invisible** — and an invisible reference reads as an orphan, so the
+job trashes a file that is in use. `locale: 'all'` wraps a localized field's
+value in a `{ [locale]: value }` map. Which path segments carry one is
+recorded on the reference as `localizedAt` by the walk, off each field's own
+`localized` flag, and `localeValues` splits exactly there. No key is
+inspected, so a group whose subfields are named like locale codes cannot be
+read as a translation, and no locale list can be forgotten.
 
 Container types traversed: simple, `tabs`, `groups`, `rows`, `arrays`
 (wildcard `*`), `blocks`, `collapsible`, and `richText`. RichText fields get
