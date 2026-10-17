@@ -5,6 +5,8 @@
  * by traversing the configuration schema at runtime.
  */
 
+import { isRecord } from '@/lib/utilities/isRecord'
+
 import type {
   ArrayField,
   Block,
@@ -252,10 +254,29 @@ export function extractId(value: unknown): number | null {
 }
 
 /**
+ * Split the `{ [locale]: value }` shape a `locale: 'all'` read returns for a
+ * localized field, so a reference under one is reached in every language.
+ *
+ * `locales` is the configured locale list, and every key has to be in it: a
+ * group whose subfields happened to look like locale codes must not be split.
+ * An empty list means the caller read one locale, and nothing is a map.
+ */
+export function localeValues(value: unknown, locales: readonly string[]): unknown[] {
+  if (locales.length === 0 || !isRecord(value)) return [value]
+  const keys = Object.keys(value)
+  if (keys.length === 0 || !keys.every((key) => locales.includes(key))) return [value]
+  return Object.values(value)
+}
+
+/**
  * Get value from a document at a given path.
  * Handles dot notation and * wildcards for arrays.
  */
-function getValueAtPath(document: Record<string, unknown>, pathParts: string[]): unknown[] {
+function getValueAtPath(
+  document: Record<string, unknown>,
+  pathParts: string[],
+  locales: readonly string[],
+): unknown[] {
   if (pathParts.length === 0) return [document]
 
   const [first, ...rest] = pathParts
@@ -266,7 +287,7 @@ function getValueAtPath(document: Record<string, unknown>, pathParts: string[]):
     const results: unknown[] = []
     for (const item of document) {
       if (typeof item === 'object' && item !== null) {
-        results.push(...getValueAtPath(item as Record<string, unknown>, rest))
+        results.push(...getValueAtPath(item as Record<string, unknown>, rest, locales))
       }
     }
     return results
@@ -275,13 +296,16 @@ function getValueAtPath(document: Record<string, unknown>, pathParts: string[]):
   const value = document[first]
   if (value === undefined || value === null) return []
 
-  if (rest.length === 0) return [value]
-
-  if (typeof value === 'object') {
-    return getValueAtPath(value as Record<string, unknown>, rest)
+  const results: unknown[] = []
+  for (const candidate of localeValues(value, locales)) {
+    if (candidate === undefined || candidate === null) continue
+    if (rest.length === 0) {
+      results.push(candidate)
+    } else if (typeof candidate === 'object') {
+      results.push(...getValueAtPath(candidate as Record<string, unknown>, rest, locales))
+    }
   }
-
-  return []
+  return results
 }
 
 /**
@@ -294,6 +318,7 @@ function getValueAtPath(document: Record<string, unknown>, pathParts: string[]):
 export function extractIdsFromDocument(
   document: Record<string, unknown>,
   reference: FieldReference,
+  locales: readonly string[] = [],
 ): Set<number> {
   const ids = new Set<number>()
 
@@ -303,7 +328,7 @@ export function extractIdsFromDocument(
   }
 
   const pathParts = reference.fieldPath.split('.')
-  const values = getValueAtPath(document, pathParts)
+  const values = getValueAtPath(document, pathParts, locales)
 
   for (const value of values) {
     if (reference.hasMany && Array.isArray(value)) {

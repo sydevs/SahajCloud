@@ -816,4 +816,28 @@ describe('CleanupOrphanedMedia Job', () => {
       expect(await fileInTrash(payload, file.id)).toBe(true)
     })
   })
+  describe('Localized references', () => {
+    // Last in the file on purpose: the throughput cases above assert against
+    // the orphan backlog every earlier case leaves behind, and one more run of
+    // the job spends the budget they measure.
+    it('preserves a file referenced only by a non-English panel', async () => {
+      // `panels` is localized (#977), so a scan of the default locale alone
+      // never sees this reference and the file reads as an orphan.
+      const videoFile = await testData.createFile(payload, {}, 'video-30s.mp4')
+      await backdateCreatedAt(payload, 'files', videoFile.id)
+
+      const lesson = await testData.createLesson(payload, { panels: [{ title: 'English' }] })
+      await payload.update({
+        collection: 'lessons',
+        id: lesson.id,
+        locale: 'fr',
+        data: { panels: [{ media: videoFile.id }] },
+      })
+
+      await runCleanupJob(payload)
+
+      expect(await fileExists(payload, videoFile.id)).toBe(true)
+      expect(await fileInTrash(payload, videoFile.id)).toBe(false)
+    })
+  })
 })

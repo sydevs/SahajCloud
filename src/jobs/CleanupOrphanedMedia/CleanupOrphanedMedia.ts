@@ -6,6 +6,7 @@ import {
   discoverReferencesForCollection,
   extractIdsFromDocument,
   extractIdsFromLexicalContent,
+  localeValues,
   groupByCollection,
   type FieldReference,
 } from './schemaUtils'
@@ -574,9 +575,20 @@ async function getAllReferencedIds(
   // Group regular references by source collection for efficient scanning
   const byCollection = groupByCollection(regularReferences)
 
+  // Every locale, not just the default one: a reference that exists only in a
+  // localized field (a Path Step's French panel) is otherwise invisible here,
+  // and an invisible reference reads as an orphan and gets trashed.
+  const locales = payload.config.localization ? payload.config.localization.localeCodes : []
+
   // Scan regular field references
   for (const [collectionSlug, collectionRefs] of byCollection) {
-    await scanCollectionForReferences(payload, collectionSlug, collectionRefs, referencedIds)
+    await scanCollectionForReferences(
+      payload,
+      collectionSlug,
+      collectionRefs,
+      referencedIds,
+      locales,
+    )
   }
 
   // Scan Lexical content for block references
@@ -589,6 +601,7 @@ async function getAllReferencedIds(
         collectionSlug,
         ref.fieldPath,
         referencedIds,
+        locales,
       )
     }
   }
@@ -602,6 +615,7 @@ async function scanCollectionForReferences(
   collectionSlug: string,
   references: FieldReference[],
   referencedIds: Set<number>,
+  locales: readonly string[],
 ): Promise<void> {
   let page = 1
   let hasMore = true
@@ -612,12 +626,13 @@ async function scanCollectionForReferences(
       limit: PAGINATION_LIMIT,
       page,
       depth: 0,
+      locale: 'all',
     })
 
     for (const doc of result.docs) {
       const docRecord = doc as unknown as Record<string, unknown>
       for (const ref of references) {
-        const ids = extractIdsFromDocument(docRecord, ref)
+        const ids = extractIdsFromDocument(docRecord, ref, locales)
         for (const id of ids) {
           referencedIds.add(id)
         }
@@ -638,6 +653,7 @@ async function scanCollectionForLexicalReferences(
   collectionSlug: string,
   richTextFieldPath: string,
   referencedIds: Set<number>,
+  locales: readonly string[],
 ): Promise<void> {
   let page = 1
   let hasMore = true
@@ -648,16 +664,18 @@ async function scanCollectionForLexicalReferences(
       limit: PAGINATION_LIMIT,
       page,
       depth: 0,
+      locale: 'all',
     })
 
     for (const doc of result.docs) {
       const docRecord = doc as unknown as Record<string, unknown>
-      const content = docRecord[richTextFieldPath]
-      if (content) {
-        // Use generic Lexical traversal to extract all IDs
-        const ids = extractIdsFromLexicalContent(content)
-        for (const id of ids) {
-          referencedIds.add(id)
+      for (const content of localeValues(docRecord[richTextFieldPath], locales)) {
+        if (content) {
+          // Use generic Lexical traversal to extract all IDs
+          const ids = extractIdsFromLexicalContent(content)
+          for (const id of ids) {
+            referencedIds.add(id)
+          }
         }
       }
     }
