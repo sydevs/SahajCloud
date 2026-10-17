@@ -475,14 +475,11 @@ describe('rootEndpointPathsFrom', () => {
 })
 
 describe('meditation-transcripts (OpenAPI)', () => {
-  // Admin-only working data, read through `GET /api/meditations/:id/transcript`
-  // and never directly.
-  //
-  // ⚠ **Two independent tiers hide it, so the filter cases below cannot catch
-  // either one's removal on its own.** It is in ALWAYS_HIDDEN_COLLECTIONS, and
-  // it is in no project (`RESTRICTED_COLLECTIONS`, #957) — each suffices. The
-  // membership case is therefore a direct assertion on the list, and the filter
-  // cases pin the effect that only losing both would break.
+  // ⚠ **ALWAYS_HIDDEN_COLLECTIONS is now the only tier hiding it.** The
+  // collection joined the two projects that carry `meditations`, so the project
+  // tier publishes it — a transcript is read alongside its recording, and the
+  // spec is deliberately still silent about the base paths, because a reader
+  // reaches a transcript through the meditation it belongs to.
   const baseSpec = () =>
     ({
       openapi: '3.1.0',

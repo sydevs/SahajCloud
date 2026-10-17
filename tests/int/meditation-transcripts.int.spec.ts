@@ -4,9 +4,8 @@
  * validator refuses a segment it cannot seek through.
  *
  * The read cases go through `payload.find` with `overrideAccess: false`.
- * Naming the slug in `RESTRICTED_COLLECTIONS` proves nothing on its own —
- * asserting `hasPermission` would have passed while the hole was open
- * (`docs/rules/access.md`).
+ * Project membership proves nothing on its own — asserting `hasPermission`
+ * would have passed while the hole was open (`docs/rules/access.md`).
  */
 import type { Payload } from 'payload'
 
@@ -55,7 +54,7 @@ describe('meditation transcripts', () => {
   }
 
   describe('access', () => {
-    it('keeps the collection from managers and from every published client key', async () => {
+    it('answers whoever may read the recording, and refuses whoever may not', async () => {
       const meditation = await createMeditationWithoutTranscript()
       await payload.create({
         collection: 'meditation-transcripts',
@@ -79,24 +78,34 @@ describe('meditation transcripts', () => {
       const editor = await testData.createManager(payload, {
         roles: { en: ['meditations-editor'] },
       })
-      const callers = [
+      const read = (user: unknown) =>
+        payload.find({
+          collection: 'meditation-transcripts',
+          overrideAccess: false,
+          user: user as Parameters<typeof payload.find>[0]['user'],
+          // A client read carries `select`, or the query-validation hook
+          // refuses it before access control runs. `select: {}` 400s too, and
+          // the default depth of 2 is refused without `populate` — which the
+          // refusal below would otherwise pass on, for the wrong reason.
+          select: idOnlySelect(),
+          depth: 0,
+        })
+
+      for (const user of [
         editor,
         await testData.createClient(payload, editor.id, { roles: ['wemeditate-app-client'] }),
-        await testData.createClient(payload, editor.id, { roles: ['sahaj-atlas-client'] }),
-      ]
-
-      for (const user of callers) {
-        await expect(
-          payload.find({
-            collection: 'meditation-transcripts',
-            overrideAccess: false,
-            user,
-            // A client read carries `select`, or the query-validation hook
-            // refuses it before access control runs. `select: {}` 400s too.
-            select: idOnlySelect(),
-          }),
-        ).rejects.toThrow()
+        await testData.createClient(payload, editor.id, { roles: ['wemeditate-web-client'] }),
+      ]) {
+        expect((await read(user)).totalDocs).toBe(1)
       }
+
+      // The atlas project carries images and files, not meditations, so its
+      // key reads neither a recording nor what was said in one. Both
+      // directions are asserted: membership granting read to everyone would
+      // pass a one-sided case.
+      await expect(
+        read(await testData.createClient(payload, editor.id, { roles: ['sahaj-atlas-client'] })),
+      ).rejects.toThrow()
     })
   })
 

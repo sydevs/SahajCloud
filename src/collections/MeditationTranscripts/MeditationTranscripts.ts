@@ -16,10 +16,10 @@ import { applyGlossaryToSegments } from './hooks/applyGlossaryToSegments'
  *
  * Kept off the meditation itself: Meditations carries drafts and keeps three
  * versions, so a job writing there would push out the versions an editor
- * restores from, and would race their draft. The collection is restricted
- * (`config/projects.ts`), so no API client key reads it and no manager role
- * grants it — the editor-facing read is a later child's endpoint, gated on
- * meditation permissions.
+ * restores from, and would race their draft. It sits in the two projects that
+ * carry `meditations` (`config/projects.ts`), so whoever may read a recording
+ * may read its transcript — there is no second permission to hold, and no
+ * endpoint standing in for one.
  */
 export const MeditationTranscripts: CollectionConfig = {
   slug: 'meditation-transcripts',
