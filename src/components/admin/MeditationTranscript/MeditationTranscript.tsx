@@ -105,8 +105,7 @@ export const MeditationTranscript: UIFieldClientComponent = () => {
       <div aria-live="polite" className={styles.status} role="status">
         {phase === 'none' && (
           <p className={styles.muted}>
-            No transcript yet. One is made automatically when a recording is added, so adding or
-            replacing the audio on the Audio tab is what starts it.
+            No transcript yet. One is made automatically when a recording is added.
           </p>
         )}
         {phase === 'pending' && (

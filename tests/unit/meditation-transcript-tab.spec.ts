@@ -236,6 +236,10 @@ describe('the Transcript tab', () => {
       render()
 
       expect(text()).toContain('No transcript yet.')
+      // The recording is Payload's own Upload control above the tabs, and
+      // `restrictUploadToAdmin` refuses replacing it to a `meditations-editor`.
+      // So the notice names no tab and asks the reader for nothing.
+      expect(text()).not.toMatch(/tab/i)
       expect(phrases()).toHaveLength(0)
     })
 
