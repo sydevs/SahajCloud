@@ -27,6 +27,7 @@ import { cacheMeditationNodeWeights } from './hooks/cacheMeditationNodeWeights'
 import { extractAudioDuration } from './hooks/extractAudioDuration'
 import { fallbackTitleAfterRead } from './hooks/fallbackTitle'
 import { filterMeditationsByLocale } from './hooks/filterMeditationsByLocale'
+import { syncMeditationTranscript } from './hooks/syncMeditationTranscript'
 
 /**
  * What `virtualJoinField`'s hook returns: the user-choices rows pointing at
@@ -116,6 +117,7 @@ export const Meditations: CollectionConfig = {
       extractAudioDuration,
       cacheMeditationNodeWeights,
     ],
+    afterChange: [syncMeditationTranscript],
   },
   defaultPopulate: {
     // Exclude the expensive per-row afterRead virtual fields when a meditation
@@ -298,6 +300,24 @@ export const Meditations: CollectionConfig = {
                   },
                 ],
               },
+            },
+            {
+              // Native, not a `virtualJoinField`: #249's workaround exists for a
+              // join onto a *localized* relationship, and `meditation-transcripts`
+              // localizes nothing. `meditation` is unique there, so this resolves
+              // to at most one row.
+              //
+              // Whoever may read the recording reads its transcript here, through
+              // the two projects both collections sit in (`config/projects.ts`).
+              // There is no second permission to hold, and no endpoint standing
+              // in for one.
+              name: 'transcript',
+              type: 'join',
+              collection: 'meditation-transcripts',
+              on: 'meditation',
+              defaultLimit: 1,
+              // Like every join, it resolves nothing until the document exists.
+              admin: { condition: hideUntilCreated },
             },
           ],
         },

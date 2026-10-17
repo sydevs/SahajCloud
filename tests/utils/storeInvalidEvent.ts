@@ -7,33 +7,37 @@ import { EVENT_IMAGE_LIMIT } from '@/lib/utilities/eventImages'
 import { testData } from './testData'
 
 /**
- * Put an event into a state its own validators refuse — the defect itself
- * (#835), so neither `payload.create` nor `payload.update` can seed it.
+ * Write a document into a state its own validators refuse, underneath Payload.
  *
- * The `latest: true` version row is written with the main row on purpose:
- * `updateByID` loads the document it is about to change from that version, so
- * seeding only the main row would leave the write working from the valid one
- * and every case would pass for the wrong reason.
+ * The `latest: true` version row is written with the main row on purpose: a
+ * draft-enabled collection's `updateByID` — and any `draft: true` read — works
+ * from that version, so seeding only the main row leaves every reader on the
+ * valid one and the case passes for the wrong reason.
+ *
+ * Shared because two suites need the shape against different collections: the
+ * Events cases below (#835), and the meditation with no recording that
+ * `meditation-transcription.int.spec.ts` cannot create through the API.
  */
-export async function storeInvalidEvent(
+export async function seedLatestVersion(
   payload: Payload,
+  collection: 'events' | 'meditations',
   id: number,
   patch: Record<string, unknown>,
 ): Promise<void> {
-  await payload.db.updateOne({ collection: 'events', id, data: patch })
+  await payload.db.updateOne({ collection, id, data: patch })
   const { docs } = await payload.db.findVersions({
-    collection: 'events',
+    collection,
     where: { parent: { equals: id } },
     sort: '-updatedAt',
     limit: 1,
     pagination: false,
   })
   const latest = docs[0]
-  // Events is `versions: { drafts: true }`, so a row without one means the seed
+  // Both collections carry drafts, so a row without a version means the seed
   // silently left the document valid and every case using it is vacuous.
-  if (!latest) throw new Error(`event ${id} has no version row to seed`)
+  if (!latest) throw new Error(`${collection} ${id} has no version row to seed`)
   await payload.db.updateVersion({
-    collection: 'events',
+    collection,
     id: latest.id,
     versionData: {
       createdAt: new Date(latest.createdAt).toISOString(),
@@ -43,6 +47,18 @@ export async function storeInvalidEvent(
       version: { ...latest.version, ...patch },
     },
   })
+}
+
+/**
+ * Put an event into a state its own validators refuse — the defect itself
+ * (#835), so neither `payload.create` nor `payload.update` can seed it.
+ */
+export async function storeInvalidEvent(
+  payload: Payload,
+  id: number,
+  patch: Record<string, unknown>,
+): Promise<void> {
+  await seedLatestVersion(payload, 'events', id, patch)
 }
 
 /**
