@@ -930,6 +930,7 @@ export interface Config {
   user: Manager | Client;
   jobs: {
     tasks: {
+      cleanupJobs: TaskCleanupJobs;
       cleanupOrphanedMedia: TaskCleanupOrphanedMedia;
       deliverSubmission: TaskDeliverSubmission;
       expireEvents: TaskExpireEvents;
@@ -3840,6 +3841,7 @@ export interface PayloadJob {
         completedAt: string;
         taskSlug:
           | 'inline'
+          | 'cleanupJobs'
           | 'cleanupOrphanedMedia'
           | 'deliverSubmission'
           | 'expireEvents'
@@ -3889,6 +3891,7 @@ export interface PayloadJob {
   taskSlug?:
     | (
         | 'inline'
+        | 'cleanupJobs'
         | 'cleanupOrphanedMedia'
         | 'deliverSubmission'
         | 'expireEvents'
@@ -10242,6 +10245,19 @@ export interface CollectionsWidget {
     [k: string]: unknown;
   };
   width: 'full';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskCleanupJobs".
+ */
+export interface TaskCleanupJobs {
+  input: {
+    now?: string | null;
+    dryRun?: boolean | null;
+  };
+  output: {
+    deletedJobs: number;
+  };
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

@@ -215,7 +215,10 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     onInit: seedPreviewAdmin,
     jobs: {
       tasks,
-      deleteJobOnComplete: true,
+      // A finished job row is the status source behind a meditation transcript
+      // — `deleteJobOnComplete: true` dropped it at exactly the moment the
+      // reader needs it. `CleanupJobs` bounds the table instead.
+      deleteJobOnComplete: false,
       enableConcurrencyControl: true,
       // One entry per queue that runs unattended, and the reason a queue has
       // none, both in `./jobs/queues`.
