@@ -59,8 +59,7 @@ function countSentence({ progress, total }: JobStageWait): string {
  * (`docs/rules/admin-ui.md` § Server vs client components), and because the
  * stored stage at page load is the whole input — there is no poll, and so no
  * second request. Re-reading it is `CheckAgain`'s, the one client component
- * here: a full load everywhere but a document drawer, where leaving the page
- * would discard the host document's unsaved edits.
+ * here.
  */
 export default function JobStageView(props: DocumentViewServerProps) {
   const { collectionConfig, docID } = props.initPageResult
@@ -77,7 +76,7 @@ export default function JobStageView(props: DocumentViewServerProps) {
             {toWords(wait.stage)} — this is being prepared automatically, and opens for
             editing when that finishes.{countSentence(wait)}
           </Banner>
-          <CheckAgain url={`/admin/collections/${collectionConfig.slug}/${docID}`} />
+          <CheckAgain />
         </Gutter>
       )
     }
