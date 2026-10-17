@@ -431,7 +431,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
         await this.clearCache()
       }
 
-      // A dry run skips Payload entirely, for speed.
+      // An externally supplied Payload wins. A dry run without one skips the init, for speed.
       if (this.options.payload) {
         this.payload = this.options.payload
         this.externalPayload = true
