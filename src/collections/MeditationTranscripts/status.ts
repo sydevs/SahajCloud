@@ -1,5 +1,7 @@
 import type { PayloadRequest } from 'payload'
 
+import { extractID } from 'payload/shared'
+
 import type { TranscriptStatus } from '@/lib/meditations/transcript'
 import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
 import type { PayloadJob } from '@/payload-types'
@@ -52,10 +54,10 @@ export function transcriptJobError(
  */
 export function loadTranscriptJob(
   req: PayloadRequest,
-  job: unknown,
+  job: number | { id: number } | null | undefined,
 ): Promise<PayloadJob | null> {
-  const id = typeof job === 'number' ? job : isRow(job) ? job.id : null
-  if (id === null) return Promise.resolve(null)
+  if (job === null || job === undefined) return Promise.resolve(null)
+  const id = extractID(job)
 
   return memoizeOnRequest(req, `transcriptJob:${id}`, async () =>
     (await req.payload.findByID({
@@ -67,6 +69,3 @@ export function loadTranscriptJob(
     })) ?? null,
   )
 }
-
-const isRow = (value: unknown): value is { id: number } =>
-  typeof value === 'object' && value !== null && typeof (value as { id?: unknown }).id === 'number'

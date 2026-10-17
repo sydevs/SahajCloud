@@ -1,5 +1,7 @@
 import type { CollectionAfterChangeHook } from 'payload'
 
+import { extractID } from 'payload/shared'
+
 import { runQueueSoon } from '@/lib/jobs/runQueueSoon'
 
 /**
@@ -24,9 +26,11 @@ export const queueTranscription: CollectionAfterChangeHook = async ({ doc, opera
   // there would pay the vendor to re-transcribe the whole library.
   if (Array.isArray(doc.segments) && doc.segments.length > 0) return doc
 
+  const meditation = doc.meditation == null ? null : extractID(doc.meditation)
+
   const job = await req.payload.jobs.queue({
     task: 'transcribeMeditation',
-    input: { meditationId: Number(resolveId(doc.meditation)), audioFilename: doc.audioFilename },
+    input: { meditationId: Number(meditation), audioFilename: doc.audioFilename },
     queue: 'transcription',
     req,
   })
@@ -50,6 +54,3 @@ export const queueTranscription: CollectionAfterChangeHook = async ({ doc, opera
 
   return { ...doc, job: job.id }
 }
-
-const resolveId = (value: unknown): unknown =>
-  typeof value === 'object' && value !== null ? (value as { id?: unknown }).id : value
