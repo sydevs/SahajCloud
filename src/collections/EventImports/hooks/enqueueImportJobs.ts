@@ -8,8 +8,8 @@
  *
  * ⚠ **The row is queued inside the caller's transaction** (`req` passed), so a
  * rolled-back transition never leaves a job that would run against a batch that
- * never moved. That is also why the run is deferred rather than immediate — see
- * `runJobQueueAfterCommit`, which owns that contract and the autoRun net behind it.
+ * never moved. That is also why the queue run says `afterCommit` — see
+ * `runQueueSoon`, which owns that contract and the autoRun net behind it.
  *
  * ⚠ **Two workers cannot hold one batch, and that is what replaces #874's
  * lease.** `jobs.enableConcurrencyControl` is on (`src/payload.config.ts`), so
@@ -19,7 +19,7 @@
 
 import type { CollectionAfterChangeHook } from 'payload'
 
-import { runJobQueueAfterCommit } from '@/lib/jobs/runJobQueueAfterCommit'
+import { runQueueSoon } from '@/lib/jobs/runQueueSoon'
 import type { EventImport } from '@/payload-types'
 
 import { storedStatus } from './transitionStatus'
@@ -57,11 +57,12 @@ export const enqueueImportJobs: CollectionAfterChangeHook = async ({
   // constant reads to it as no queue at all.
   await req.payload.jobs.queue({ task, input: { batchId }, queue: 'imports', req })
 
-  runJobQueueAfterCommit({
+  runQueueSoon({
     payload: req.payload,
     queue: 'imports',
     label: 'enqueueImportJobs',
     context: { batchId, task },
+    afterCommit: true,
   })
 
   return doc

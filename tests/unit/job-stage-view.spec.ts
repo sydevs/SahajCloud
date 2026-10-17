@@ -271,11 +271,22 @@ describe('meditation-transcripts', () => {
     })
   })
 
-  it('leaves a freshly created row editable, because `status` defaults outside that list', () => {
-    const { defaultValue } = statusField()
-
-    expect(defaultValue).toBe('queued')
-    expect(jobStageWait(transcriptConfig(), { status: defaultValue })).toBeNull()
+  it('holds a row whose run is in flight, and releases it past the stall window', () => {
+    // `status` is virtual since #968 — derived from the retained job row — so
+    // there is no default to read off the field. A fresh row has no cues and an
+    // unfinished job, which derives `processing`.
+    const now = Date.now()
+    const iso = (ms: number) => new Date(ms).toISOString()
+    expect(
+      jobStageWait(transcriptConfig(), { status: 'processing', updatedAt: iso(now) }, now),
+    ).toEqual({ progress: null, stage: 'processing', total: null })
+    expect(
+      jobStageWait(
+        transcriptConfig(),
+        { status: 'processing', updatedAt: iso(now - TRANSCRIPTION_STALL_MS - 1000) },
+        now,
+      ),
+    ).toBeNull()
   })
 
   it('declares every running stage the status column can actually hold', () => {

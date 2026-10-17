@@ -31,6 +31,7 @@ const PROJECTS = {
     collections: [
       'pages',
       'meditations',
+      'meditation-transcripts',
       'songs',
       'albums',
       'videos',
@@ -58,6 +59,7 @@ const PROJECTS = {
     collections: [
       'pages',
       'meditations',
+      'meditation-transcripts',
       'songs',
       'albums',
       'videos',
@@ -188,14 +190,10 @@ const ALL_PROJECT_COLLECTIONS: ContentSlug[] = (() => {
  *   contact names, phone numbers and email addresses for every class in it.
  *   The `manager` field is what narrows it again to the uploader, through the
  *   document-manager path in `accessConfigs.ts`.
- * - `meditation-transcripts` — internal working data, not personal data.
- *   Shared read would hand every API client, the Atlas widget's browser key
- *   included, the transcript of every recording. Editors reach it through a
- *   meditation-gated endpoint instead.
  *
  * ⚠ **This list is a holding pattern, not the permanent mechanism.** Exactly
- * six registered collections sit in no project, and all six are named here
- * — so the set is complete today and fails open the day a seventh is added. A
+ * five registered collections sit in no project, and all five are named here
+ * — so the set is complete today and fails open the day a sixth is added. A
  * complete opt-out list is an inverted default in disguise: the fix is for
  * step 4a to test project membership directly, so a new collection fails
  * closed instead. Deferred, not blocked — #821 settled the question that held
@@ -207,7 +205,6 @@ const RESTRICTED_COLLECTIONS: ReadonlySet<string> = new Set([
   'managers',
   'clients',
   'event-imports',
-  'meditation-transcripts',
 ])
 
 /** Whether implicit (project/shared) read must never apply to this collection. */

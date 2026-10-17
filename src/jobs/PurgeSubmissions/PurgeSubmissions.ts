@@ -1,6 +1,6 @@
-import type { PayloadRequest, TaskConfig } from 'payload'
+import type { PayloadRequest, TaskConfig, Where } from 'payload'
 
-import { sweepWindows } from '@/lib/retention/sweepWindows'
+import { sweepRetention } from '@/lib/retention/sweep'
 import { relationId } from '@/lib/utilities/relationId'
 
 import { DURABLE_TYPES, PURGE_WINDOWS } from './retention'
@@ -11,8 +11,7 @@ import { DURABLE_TYPES, PURGE_WINDOWS } from './retention'
  *
  * Replaces `PurgeUserMessages`, which knew one collection and two windows. The
  * windows themselves, and why each is the length it is, live in
- * `retention.ts`; the loop that applies them is `@/lib/retention/sweepWindows`,
- * shared with `sweepEventImports`. What stays here is the `users` half.
+ * `retention.ts` — this file is the sweep.
  *
  * ⚠ **The users sweep is the half that makes retention mean anything.** A
  * contact row's retention promise is about the person who sent it, and every
@@ -57,31 +56,17 @@ export const PurgeSubmissions: TaskConfig<'purgeSubmissions'> = {
     const now = typeof input?.now === 'string' ? new Date(input.now) : new Date()
     const dryRun = input?.dryRun === true
 
-    /**
-     * Whose `users` rows to reconsider afterwards.
-     *
-     * Collected **before** the delete, because after it the submission is gone
-     * and with it the only pointer to the person it named. Re-deriving the set
-     * from `users` instead would mean scanning every user on every run.
-     */
+    // Whose `users` rows to reconsider once the submissions have gone.
     const touchedUsers = new Set<number>()
 
-    const deletedSubmissions = await sweepWindows({
-      req,
+    const deletedSubmissions = await sweepRetention({
+      beforeDelete: (_window, where) => noteSenders({ req, where, touchedUsers }),
       collection: 'user-submissions',
-      windows: PURGE_WINDOWS,
-      now,
       dryRun,
       label: 'PurgeSubmissions',
-      inspect: {
-        select: { user: true },
-        onDue: (due) => {
-          for (const doc of due) {
-            const userId = relationId(doc.user)
-            if (userId != null) touchedUsers.add(userId)
-          }
-        },
-      },
+      now,
+      req,
+      windows: PURGE_WINDOWS,
     })
 
     const deletedUsers = await sweepOrphanedUsers({ req, userIds: touchedUsers, dryRun })
@@ -98,6 +83,36 @@ export const PurgeSubmissions: TaskConfig<'purgeSubmissions'> = {
 
     return { output: { deletedSubmissions, deletedUsers } }
   },
+}
+
+/**
+ * Note whose `users` rows a window is about to orphan.
+ *
+ * Read **before** the delete, because after it the submission is gone and with
+ * it the only pointer to the person it named. Re-deriving the set from `users`
+ * instead would mean scanning every user on every run.
+ */
+async function noteSenders(args: {
+  req: PayloadRequest
+  touchedUsers: Set<number>
+  where: Where
+}): Promise<void> {
+  const { req, touchedUsers, where } = args
+
+  const { docs: due } = await req.payload.find({
+    collection: 'user-submissions',
+    where,
+    select: { user: true },
+    depth: 0,
+    pagination: false,
+    overrideAccess: true,
+    req,
+  })
+
+  for (const doc of due) {
+    const userId = relationId(doc.user)
+    if (userId != null) touchedUsers.add(userId)
+  }
 }
 
 /**

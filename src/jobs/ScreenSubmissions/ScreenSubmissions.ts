@@ -4,7 +4,7 @@ import type { PayloadRequest, TaskConfig } from 'payload'
 import { appendLogEntry, asLog } from '@/fields'
 import { checkEmailAllowed } from '@/lib/antiSpam/antiSpamGuard'
 import { hasMxRecords } from '@/lib/antiSpam/mxRecords'
-import { runJobQueueAfterCommit } from '@/lib/jobs/runJobQueueAfterCommit'
+import { runQueueSoon } from '@/lib/jobs/runQueueSoon'
 import type { UserSubmission } from '@/payload-types'
 
 import { screenProposalContent } from './contentScreening'
@@ -47,7 +47,7 @@ import { isScreeningResult, VERDICT_NOTES } from './verdicts'
  * sender, because the cross-sender version needs a queryable `bodyHash` column
  * that `user-submissions` does not have.
  *
- * Queued per-submission by `enqueueSubmissionScreening`; the `screening`
+ * Queued per-submission by `queueScreening`; the `screening`
  * queue's 15-minute autoRun retries anything a crash dropped.
  */
 export const ScreenSubmissions: TaskConfig<'screenSubmission'> = {
@@ -139,11 +139,12 @@ export const ScreenSubmissions: TaskConfig<'screenSubmission'> = {
     // next autoRun. Harmless for the rows this phase serves — it is Phase 3,
     // where a registrant's confirmation moves behind this queue, that would
     // feel a fifteen-minute wait.
-    runJobQueueAfterCommit({
+    runQueueSoon({
       payload,
       queue: 'screening',
       label: 'ScreenSubmissions',
       context: { submissionId },
+      afterCommit: true,
     })
 
     return { output: { verdict, status: 'pending' } }

@@ -785,6 +785,14 @@ export type EventImportRows = {
 export type MeditationNodeWeights = {
   [k: string]: number;
 } | null;
+export type TranscriptSegments =
+  | {
+      content: string;
+      startTimeMs: number;
+      endTimeMs: number;
+      durationMs?: number;
+    }[]
+  | null;
 export type TagAssignments = {
   /**
    * The UserChoice document id.
@@ -806,14 +814,6 @@ export type MeditationFrames = {
   timestamp: number;
   [k: string]: unknown;
 }[];
-export type TranscriptSegments =
-  | {
-      content: string;
-      startTimeMs: number;
-      endTimeMs: number;
-      durationMs?: number;
-    }[]
-  | null;
 export type TableOfContentsHeadings = {
   slug: string;
   text: string;
@@ -878,6 +878,9 @@ export interface Config {
     'payload-migrations': PayloadMigration;
   };
   collectionsJoins: {
+    meditations: {
+      transcript: 'meditation-transcripts';
+    };
     albums: {
       songs: 'songs';
     };
@@ -1052,6 +1055,7 @@ export interface Config {
   jobs: {
     tasks: {
       analyzeEventImport: TaskAnalyzeEventImport;
+      cleanupJobs: TaskCleanupJobs;
       cleanupOrphanedMedia: TaskCleanupOrphanedMedia;
       commitEventImport: TaskCommitEventImport;
       deliverSubmission: TaskDeliverSubmission;
@@ -1063,6 +1067,7 @@ export interface Config {
       sendSessionReminders: TaskSendSessionReminders;
       sweepEventImports: TaskSweepEventImports;
       syncLectureMetadata: TaskSyncLectureMetadata;
+      transcribeMeditation: TaskTranscribeMeditation;
       verifyEmbeds: TaskVerifyEmbeds;
       resetUsage: TaskResetUsage;
       sendInvitations: TaskSendInvitations;
@@ -3168,6 +3173,11 @@ export interface Meditation {
   duration?: number | null;
   subtleSystemNodeWeights?: MeditationNodeWeights;
   durationMinutes?: number | null;
+  transcript?: {
+    docs?: (number | MeditationTranscript)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
   /**
    * Optional auto-generated fallback title (e.g. Meditation for Anahat), derived from this meditation's dominant subtle-system node. Front-end clients use it only when they have no composed label of their own.
    */
@@ -3309,7 +3319,6 @@ export interface Album {
 export interface MeditationTranscript {
   id: number;
   meditation?: (number | null) | Meditation;
-  status: 'queued' | 'processing' | 'completed' | 'failed';
   audioFilename?: string | null;
   provider?: 'lemonfox' | null;
   language:
@@ -3332,9 +3341,156 @@ export interface MeditationTranscript {
     | 'en-AU'
     | 'hu'
     | 'nl';
-  outdated?: boolean | null;
   segments?: TranscriptSegments;
+  job?: (number | null) | PayloadJob;
+  status?: ('processing' | 'completed' | 'failed') | null;
   error?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "payload-jobs".
+ */
+export interface PayloadJob {
+  id: number;
+  /**
+   * Input data provided to the job
+   */
+  input?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  taskStatus?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  completedAt?: string | null;
+  totalTried?: number | null;
+  /**
+   * If hasError is true this job will not be retried
+   */
+  hasError?: boolean | null;
+  /**
+   * If hasError is true, this is the error that caused it
+   */
+  error?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Task execution log
+   */
+  log?:
+    | {
+        executedAt: string;
+        completedAt: string;
+        taskSlug:
+          | 'inline'
+          | 'analyzeEventImport'
+          | 'cleanupJobs'
+          | 'cleanupOrphanedMedia'
+          | 'commitEventImport'
+          | 'deliverSubmission'
+          | 'expireEvents'
+          | 'purgeSubmissions'
+          | 'screenSubmission'
+          | 'sendPostEventFollowUps'
+          | 'sendRegistrationDigests'
+          | 'sendSessionReminders'
+          | 'sweepEventImports'
+          | 'syncLectureMetadata'
+          | 'transcribeMeditation'
+          | 'verifyEmbeds'
+          | 'resetUsage'
+          | 'sendInvitations'
+          | 'schedulePublish';
+        taskID: string;
+        input?:
+          | {
+              [k: string]: unknown;
+            }
+          | unknown[]
+          | string
+          | number
+          | boolean
+          | null;
+        output?:
+          | {
+              [k: string]: unknown;
+            }
+          | unknown[]
+          | string
+          | number
+          | boolean
+          | null;
+        state: 'failed' | 'succeeded';
+        error?:
+          | {
+              [k: string]: unknown;
+            }
+          | unknown[]
+          | string
+          | number
+          | boolean
+          | null;
+        id?: string | null;
+      }[]
+    | null;
+  taskSlug?:
+    | (
+        | 'inline'
+        | 'analyzeEventImport'
+        | 'cleanupJobs'
+        | 'cleanupOrphanedMedia'
+        | 'commitEventImport'
+        | 'deliverSubmission'
+        | 'expireEvents'
+        | 'purgeSubmissions'
+        | 'screenSubmission'
+        | 'sendPostEventFollowUps'
+        | 'sendRegistrationDigests'
+        | 'sendSessionReminders'
+        | 'sweepEventImports'
+        | 'syncLectureMetadata'
+        | 'transcribeMeditation'
+        | 'verifyEmbeds'
+        | 'resetUsage'
+        | 'sendInvitations'
+        | 'schedulePublish'
+      )
+    | null;
+  queue?: string | null;
+  waitUntil?: string | null;
+  processing?: boolean | null;
+  /**
+   * Used for concurrency control. Jobs with the same key are subject to exclusive/supersedes rules.
+   */
+  concurrencyKey?: string | null;
+  meta?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -4270,148 +4426,6 @@ export interface PayloadKv {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "payload-jobs".
- */
-export interface PayloadJob {
-  id: number;
-  /**
-   * Input data provided to the job
-   */
-  input?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  taskStatus?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  completedAt?: string | null;
-  totalTried?: number | null;
-  /**
-   * If hasError is true this job will not be retried
-   */
-  hasError?: boolean | null;
-  /**
-   * If hasError is true, this is the error that caused it
-   */
-  error?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  /**
-   * Task execution log
-   */
-  log?:
-    | {
-        executedAt: string;
-        completedAt: string;
-        taskSlug:
-          | 'inline'
-          | 'analyzeEventImport'
-          | 'cleanupOrphanedMedia'
-          | 'commitEventImport'
-          | 'deliverSubmission'
-          | 'expireEvents'
-          | 'purgeSubmissions'
-          | 'screenSubmission'
-          | 'sendPostEventFollowUps'
-          | 'sendRegistrationDigests'
-          | 'sendSessionReminders'
-          | 'sweepEventImports'
-          | 'syncLectureMetadata'
-          | 'verifyEmbeds'
-          | 'resetUsage'
-          | 'sendInvitations'
-          | 'schedulePublish';
-        taskID: string;
-        input?:
-          | {
-              [k: string]: unknown;
-            }
-          | unknown[]
-          | string
-          | number
-          | boolean
-          | null;
-        output?:
-          | {
-              [k: string]: unknown;
-            }
-          | unknown[]
-          | string
-          | number
-          | boolean
-          | null;
-        state: 'failed' | 'succeeded';
-        error?:
-          | {
-              [k: string]: unknown;
-            }
-          | unknown[]
-          | string
-          | number
-          | boolean
-          | null;
-        id?: string | null;
-      }[]
-    | null;
-  taskSlug?:
-    | (
-        | 'inline'
-        | 'analyzeEventImport'
-        | 'cleanupOrphanedMedia'
-        | 'commitEventImport'
-        | 'deliverSubmission'
-        | 'expireEvents'
-        | 'purgeSubmissions'
-        | 'screenSubmission'
-        | 'sendPostEventFollowUps'
-        | 'sendRegistrationDigests'
-        | 'sendSessionReminders'
-        | 'sweepEventImports'
-        | 'syncLectureMetadata'
-        | 'verifyEmbeds'
-        | 'resetUsage'
-        | 'sendInvitations'
-        | 'schedulePublish'
-      )
-    | null;
-  queue?: string | null;
-  waitUntil?: string | null;
-  processing?: boolean | null;
-  /**
-   * Used for concurrency control. Jobs with the same key are subject to exclusive/supersedes rules.
-   */
-  concurrencyKey?: string | null;
-  meta?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-locked-documents".
  */
 export interface PayloadLockedDocument {
@@ -4613,6 +4627,7 @@ export interface MeditationsSelect<T extends boolean = true> {
   duration?: T;
   subtleSystemNodeWeights?: T;
   durationMinutes?: T;
+  transcript?: T;
   title?: T;
   thumbnail?: T;
   type?: T;
@@ -4646,12 +4661,12 @@ export interface MeditationsSelect<T extends boolean = true> {
  */
 export interface MeditationTranscriptsSelect<T extends boolean = true> {
   meditation?: T;
-  status?: T;
   audioFilename?: T;
   provider?: T;
   language?: T;
-  outdated?: T;
   segments?: T;
+  job?: T;
+  status?: T;
   error?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -10784,6 +10799,19 @@ export interface TaskAnalyzeEventImport {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskCleanupJobs".
+ */
+export interface TaskCleanupJobs {
+  input: {
+    now?: string | null;
+    dryRun?: boolean | null;
+  };
+  output: {
+    deletedJobs: number;
+  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "TaskCleanupOrphanedMedia".
  */
 export interface TaskCleanupOrphanedMedia {
@@ -10934,6 +10962,19 @@ export interface TaskSyncLectureMetadata {
     synced: number;
     failed: number;
     skippedNoVimeoId: number;
+  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskTranscribeMeditation".
+ */
+export interface TaskTranscribeMeditation {
+  input: {
+    meditationId: number;
+    audioFilename: string;
+  };
+  output: {
+    status: string;
   };
 }
 /**

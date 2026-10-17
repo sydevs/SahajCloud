@@ -35,7 +35,7 @@ export const JOB_AUTO_RUN: AutoRunEntry[] = [
   },
   {
     // Safety net for the per-submission screening kick (see
-    // UserSubmissions/hooks/enqueueSubmissionScreening): a submission whose
+    // UserSubmissions/hooks/queueScreening): a submission whose
     // immediate run was lost to a crash waits at most 15 minutes.
     cron: '*/15 * * * *',
     queue: 'screening',
@@ -53,6 +53,14 @@ export const JOB_AUTO_RUN: AutoRunEntry[] = [
     // zero, `nightly` holds :00, and `monthly` holds :07.
     cron: '1-59/5 * * * *',
     queue: 'imports',
+  },
+  {
+    // Safety net for the transcription start in `requestTranscription`, the
+    // same way. :03 and every 15th minute after it clears `screening` (every
+    // 15th), `invitations` (every 5th), `nightly` (:00), `imports` (every 5th
+    // from :01) and `monthly` (:07).
+    cron: '3-59/15 * * * *',
+    queue: 'transcription',
   },
   {
     // Hourly, not daily, for schedules that fire on the 1st of the month: a

@@ -1,8 +1,8 @@
 import type { TaskConfig, Where } from 'payload'
 
 import { IMPORT_RETENTION_DAYS } from '@/collections/EventImports/constants'
-import { sweepWindows } from '@/lib/retention/sweepWindows'
-import type { PurgeWindow } from '@/lib/retention/sweepWindows'
+import { sweepRetention } from '@/lib/retention/sweep'
+import type { PurgeWindow } from '@/lib/retention/sweep'
 
 /**
  * The one window, and why there is only one.
@@ -35,10 +35,10 @@ const IMPORT_WINDOWS: PurgeWindow[] = [
  * Nightly retention sweep for `event-imports`: every discarded batch, and every
  * batch untouched for `IMPORT_RETENTION_DAYS`.
  *
- * The loop is `@/lib/retention/sweepWindows`, shared with `purgeSubmissions`
- * (#960). This stays its own task because the slug, the schedule and the output
- * shape are its own, and because that one has a `users` half this has no
- * analogue for.
+ * The loop is `@/lib/retention/sweep`, shared with `purgeSubmissions` and
+ * `cleanupJobs` (#960). This stays its own task because the slug, the schedule
+ * and the output shape are its own, and because the submissions sweep has a
+ * `users` half this has no analogue for.
  *
  * Runs on `nightly` at 04:30 UTC, after `purgeSubmissions` at 04:00, so a slow
  * night does not have two retention sweeps contending.
@@ -65,12 +65,13 @@ export const SweepEventImports: TaskConfig<'sweepEventImports'> = {
   handler: async ({ input, req }) => {
     const now = typeof input?.now === 'string' ? new Date(input.now) : new Date()
 
-    const deleted = await sweepWindows({
-      req,
+    const deleted = await sweepRetention({
       collection: 'event-imports',
-      windows: IMPORT_WINDOWS,
-      now,
+      dryRun: false,
       label: 'SweepEventImports',
+      now,
+      req,
+      windows: IMPORT_WINDOWS,
     })
 
     if (deleted > 0) {

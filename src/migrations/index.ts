@@ -80,6 +80,9 @@ import * as migration_20261010_025807_event_import_jobs from './20261010_025807_
 import * as migration_20261011_194449_wm_web_discover_translations from './20261011_194449_wm_web_discover_translations';
 import * as migration_20261015_061054_meditation_transcripts from './20261015_061054_meditation_transcripts';
 import * as migration_20261015_070852_require_transcript_language from './20261015_070852_require_transcript_language';
+import * as migration_20261016_081411_transcribe_meditation_task from './20261016_081411_transcribe_meditation_task';
+import * as migration_20261017_002341_cleanup_jobs_task from './20261017_002341_cleanup_jobs_task';
+import * as migration_20261017_102331_transcript_job_relationship from './20261017_102331_transcript_job_relationship';
 import * as migration_20261017_161838_event_import_analyze_slug from './20261017_161838_event_import_analyze_slug';
 
 export const migrations = [
@@ -492,6 +495,21 @@ export const migrations = [
     up: migration_20261015_070852_require_transcript_language.up,
     down: migration_20261015_070852_require_transcript_language.down,
     name: '20261015_070852_require_transcript_language',
+  },
+  {
+    up: migration_20261016_081411_transcribe_meditation_task.up,
+    down: migration_20261016_081411_transcribe_meditation_task.down,
+    name: '20261016_081411_transcribe_meditation_task',
+  },
+  {
+    up: migration_20261017_002341_cleanup_jobs_task.up,
+    down: migration_20261017_002341_cleanup_jobs_task.down,
+    name: '20261017_002341_cleanup_jobs_task',
+  },
+  {
+    up: migration_20261017_102331_transcript_job_relationship.up,
+    down: migration_20261017_102331_transcript_job_relationship.down,
+    name: '20261017_102331_transcript_job_relationship',
   },
   {
     up: migration_20261017_161838_event_import_analyze_slug.up,

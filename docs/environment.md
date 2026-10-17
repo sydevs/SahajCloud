@@ -10,6 +10,7 @@ Copy `.env.example` and configure it.
 - `DATABASE_URL` — PostgreSQL connection string: `postgres://user:password@host:5432/dbname`.
 - `NEXT_PUBLIC_LOG_LEVEL` — `silent` | `error` | `warn` | `info` | `debug`, for the server Pino logger and the client logger.
 - `RESEND_API_KEY` — Resend API key. Falls back to a mock in dev.
+- `LEMONFOX_API_KEY` — Lemonfox speech-to-text key, for meditation transcripts. Optional, and an empty value counts as unset. Without it transcription is unavailable: a request writes a failed transcript row saying so, queues no job, and nothing stands in for the real text.
 
 ### Storage (R2, S3-compatible)
 

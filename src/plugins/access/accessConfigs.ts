@@ -111,6 +111,35 @@ function managerSubmissionScope(userId: number | string): Where {
 }
 
 /**
+ * A client read of a child row, narrowed to the state of the document it hangs
+ * off.
+ *
+ * The published-only clause above and Payload's own trash filter are both
+ * **per collection**, so a child carrying neither answers for a parent that
+ * refuses to be read at all. A `meditation-transcripts` row is the full spoken
+ * word of a recording plus the R2 key it plays from, and a draft or trashed
+ * meditation handed both to any client key (#968). A client reads a transcript
+ * because it may read the recording, so the row's own reach has to end where
+ * the recording's does.
+ *
+ * Spelled against the parent relationship rather than a resolved id list: this
+ * clause is combined into the join query too (`sanitizeJoinQuery`), where a
+ * second round trip per read would be paid on every meditation.
+ *
+ * ⚠ A row whose `meditation` a hard delete has nulled matches neither key, so
+ * no client reads an orphan.
+ *
+ * Exempt for a live-preview request, for the same reason the published-only
+ * clause above is: a preview is a credentialed read of unpublished work.
+ */
+const CLIENT_PARENT_STATE_SCOPES: Partial<Record<ContentSlug, Where>> = {
+  'meditation-transcripts': {
+    'meditation._status': { equals: 'published' },
+    'meditation.deletedAt': { exists: false },
+  },
+}
+
+/**
  * Create unified access config for collections and globals
  *
  * @param collection - Collection slug
@@ -157,6 +186,15 @@ export function createAccessConfig(
           // page published in English alone returns nothing at `?locale=de`,
           // which is the point rather than a regression.
           return { _status: { equals: 'published' } }
+        }
+
+        if (
+          operation === 'read' &&
+          req.user?.collection === 'clients' &&
+          !isLivePreviewRequest(req)
+        ) {
+          const parentScope = CLIENT_PARENT_STATE_SCOPES[collection]
+          if (parentScope) return parentScope
         }
 
         // An atlas-manager's role grants create/update/delete on regions/events,

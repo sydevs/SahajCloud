@@ -1,4 +1,4 @@
-import type { PurgeWindow } from '@/lib/retention/sweepWindows'
+import type { PurgeWindow } from '@/lib/retention/sweep'
 import type { UserSubmission } from '@/payload-types'
 
 /**
@@ -45,8 +45,8 @@ export const DURABLE_TYPES: readonly UserSubmission['type'][] = ['registration',
  */
 export const PURGE_WINDOWS: PurgeWindow[] = [
   {
-    name: 'machineSpam',
     days: MACHINE_SPAM_DAYS,
+    name: 'machineSpam',
     where: (cutoff) => ({
       // The one window naming no type otherwise, so it is the one that has to
       // say which types it does not reach.
@@ -56,8 +56,8 @@ export const PURGE_WINDOWS: PurgeWindow[] = [
     }),
   },
   {
-    name: 'contactAccepted',
     days: CONTACT_ACCEPTED_DAYS,
+    name: 'contactAccepted',
     where: (cutoff) => ({
       type: { equals: 'contact' },
       status: { equals: 'accepted' },
@@ -65,8 +65,8 @@ export const PURGE_WINDOWS: PurgeWindow[] = [
     }),
   },
   {
-    name: 'proposals',
     days: PROPOSAL_DAYS,
+    name: 'proposals',
     where: (cutoff) => ({
       type: { equals: 'proposal' },
       status: { in: ['accepted', 'rejected'] },
