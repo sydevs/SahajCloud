@@ -1,9 +1,4 @@
-/**
- * Validation Report Generator
- *
- * Generates detailed markdown reports for import validation results.
- * Tracks warnings, errors, field mappings, and record statistics.
- */
+/** Markdown reports for import validation results. */
 
 import { promises as fs } from 'fs'
 import * as path from 'path'
@@ -29,27 +24,22 @@ export class ValidationReport {
   private importName: string = ''
   private startTime: Date = new Date()
 
-  /** Add a warning message to the report */
   addWarning(message: string): void {
     this.warnings.push(message)
   }
 
-  /** Add an error message to the report */
   addError(message: string): void {
     this.errors.push(message)
   }
 
-  /** Document a field mapping transformation */
   addFieldMapping(sourceField: string, targetField: string, notes?: string): void {
     this.fieldMappings.push({ sourceField, targetField, notes })
   }
 
-  /** Set the records summary statistics */
   setRecordsSummary(summary: RecordsSummary): void {
     this.recordsSummary = summary
   }
 
-  /** Update records summary incrementally */
   incrementCreated(): void {
     this.recordsSummary.created++
   }
@@ -66,27 +56,22 @@ export class ValidationReport {
     this.recordsSummary.updated++
   }
 
-  /** Get the current summary */
   getSummary(): RecordsSummary {
     return { ...this.recordsSummary }
   }
 
-  /** Get warning count */
   getWarningCount(): number {
     return this.warnings.length
   }
 
-  /** Get all warning messages */
   getWarnings(): string[] {
     return [...this.warnings]
   }
 
-  /** Get error count */
   getErrorCount(): number {
     return this.errors.length
   }
 
-  /** Get all error messages */
   getErrors(): string[] {
     return [...this.errors]
   }
@@ -98,7 +83,6 @@ export class ValidationReport {
     const duration = this.calculateDuration()
     const report = this.buildReport(duration)
 
-    // Ensure directory exists
     await fs.mkdir(path.dirname(outputPath), { recursive: true })
 
     await fs.writeFile(outputPath, report, 'utf-8')
@@ -120,11 +104,9 @@ export class ValidationReport {
     return `${seconds}s`
   }
 
-  /** Build the markdown report content */
   private buildReport(duration: string): string {
     const lines: string[] = []
 
-    // Header
     lines.push(`# ${this.importName} Import Validation Report`)
     lines.push('')
     lines.push(`**Generated**: ${new Date().toISOString()}`)
@@ -144,7 +126,6 @@ export class ValidationReport {
     lines.push(`| Warnings | ${this.warnings.length} |`)
     lines.push('')
 
-    // Status indicator
     if (this.errors.length === 0) {
       lines.push('**Status**: ✅ Import completed successfully')
     } else {

@@ -1,12 +1,3 @@
-/**
- * Logger
- *
- * Provides console logging with optional colors.
- * Simplified for document-centric progress reporting.
- */
-
- 
-
 // ANSI color codes
 const colors = {
   reset: '\x1b[0m',

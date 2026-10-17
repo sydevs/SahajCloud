@@ -22,7 +22,13 @@ export const transcriptSegmentsSchema = z.array(transcriptSegmentSchema)
 
 export type TranscriptSegment = z.infer<typeof transcriptSegmentSchema>
 
-export const TRANSCRIPT_STATUSES = ['queued', 'processing', 'completed', 'failed'] as const
+/**
+ * Derived, never stored: the retained job row is the one record of a run, so a
+ * column beside it could disagree with it. `queued` is absent because nothing
+ * can observe it — a request kicks its queue in the same breath, and a row
+ * waiting on a worker and one held by it are the same wait to a reader.
+ */
+export const TRANSCRIPT_STATUSES = ['processing', 'completed', 'failed'] as const
 
 export type TranscriptStatus = (typeof TRANSCRIPT_STATUSES)[number]
 
@@ -41,16 +47,3 @@ export type TranscriptProvider = (typeof TRANSCRIPT_PROVIDERS)[number]
  * leaves the row `processing` with nothing left to finish it.
  */
 export const TRANSCRIPTION_STALL_MS = 15 * 60 * 1000
-
-/** What the Transcript tab renders. `none` means no transcript was ever requested. */
-export type TranscriptView = {
-  status: TranscriptStatus | 'none'
-  /** Queued or processing for longer than {@link TRANSCRIPTION_STALL_MS}. */
-  stalled: boolean
-  /** Read from the stored `outdated` column, written when the audio is replaced. */
-  outdated: boolean
-  provider: TranscriptProvider | null
-  segments: TranscriptSegment[]
-  error: string | null
-  updatedAt: string | null
-}

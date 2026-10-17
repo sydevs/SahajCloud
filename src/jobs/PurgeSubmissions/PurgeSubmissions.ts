@@ -1,6 +1,6 @@
-import type { PurgeWindow } from './retention'
-import type { PayloadRequest, TaskConfig } from 'payload'
+import type { PayloadRequest, TaskConfig, Where } from 'payload'
 
+import { sweepRetention } from '@/lib/retention/sweep'
 import { relationId } from '@/lib/utilities/relationId'
 
 import { DURABLE_TYPES, PURGE_WINDOWS } from './retention'
@@ -56,19 +56,18 @@ export const PurgeSubmissions: TaskConfig<'purgeSubmissions'> = {
     const now = typeof input?.now === 'string' ? new Date(input.now) : new Date()
     const dryRun = input?.dryRun === true
 
-    /**
-     * Whose `users` rows to reconsider afterwards.
-     *
-     * Collected **before** the delete, because after it the submission is gone
-     * and with it the only pointer to the person it named. Re-deriving the set
-     * from `users` instead would mean scanning every user on every run.
-     */
+    // Whose `users` rows to reconsider once the submissions have gone.
     const touchedUsers = new Set<number>()
-    let deletedSubmissions = 0
 
-    for (const window of PURGE_WINDOWS) {
-      deletedSubmissions += await purge({ req, window, now, dryRun, touchedUsers })
-    }
+    const deletedSubmissions = await sweepRetention({
+      beforeDelete: (_window, where) => noteSenders({ req, where, touchedUsers }),
+      collection: 'user-submissions',
+      dryRun,
+      label: 'PurgeSubmissions',
+      now,
+      req,
+      windows: PURGE_WINDOWS,
+    })
 
     const deletedUsers = await sweepOrphanedUsers({ req, userIds: touchedUsers, dryRun })
 
@@ -86,17 +85,19 @@ export const PurgeSubmissions: TaskConfig<'purgeSubmissions'> = {
   },
 }
 
-/** Delete everything one window selects, and note whose rows they were. */
-async function purge(args: {
+/**
+ * Note whose `users` rows a window is about to orphan.
+ *
+ * Read **before** the delete, because after it the submission is gone and with
+ * it the only pointer to the person it named. Re-deriving the set from `users`
+ * instead would mean scanning every user on every run.
+ */
+async function noteSenders(args: {
   req: PayloadRequest
-  window: PurgeWindow
-  now: Date
-  dryRun: boolean
   touchedUsers: Set<number>
-}): Promise<number> {
-  const { req, window, now, dryRun, touchedUsers } = args
-  const cutoff = new Date(now.getTime() - window.days * 24 * 60 * 60 * 1000).toISOString()
-  const where = window.where(cutoff)
+  where: Where
+}): Promise<void> {
+  const { req, touchedUsers, where } = args
 
   const { docs: due } = await req.payload.find({
     collection: 'user-submissions',
@@ -112,29 +113,6 @@ async function purge(args: {
     const userId = relationId(doc.user)
     if (userId != null) touchedUsers.add(userId)
   }
-
-  if (dryRun || due.length === 0) return due.length
-
-  const { docs, errors } = await req.payload.delete({
-    collection: 'user-submissions',
-    where,
-    overrideAccess: true,
-    req,
-  })
-
-  // A row that refuses to delete is worth a line — silently returning a short
-  // count would read as "nothing was due", and the collection would grow
-  // without anyone learning why.
-  if (errors.length > 0) {
-    req.payload.logger.warn({
-      msg: 'PurgeSubmissions: some submissions could not be deleted',
-      window: window.name,
-      count: errors.length,
-      firstError: errors[0]?.message,
-    })
-  }
-
-  return docs.length
 }
 
 /**

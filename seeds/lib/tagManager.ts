@@ -1,8 +1,4 @@
-/**
- * Tag Manager
- *
- * Manages import tags for tracking and cleanup
- */
+/** Import tags, for tracking and cleanup. */
 
 import type { Logger } from './logger'
 import type { CollectionSlug, Payload } from 'payload'
@@ -19,13 +15,11 @@ export class TagManager {
     this.logger = logger
   }
 
-  /** Ensure import tag exists in a tag collection */
   async ensureTag(
     tagCollection: CollectionSlug,
     tagName: string,
     additionalData: Record<string, unknown> = {},
   ): Promise<number> {
-    // Check cache first
     const cacheKey = `${tagCollection}:${tagName}`
     if (this.tagCache.has(cacheKey)) {
       return this.tagCache.get(cacheKey)!
@@ -45,8 +39,6 @@ export class TagManager {
       return tagId
     }
 
-    // Create tag with title field.
-    //
     // The cast is what a `CollectionSlug`-typed variable costs: Payload derives
     // `data` from the slug, so with the whole union in play it demands the
     // required fields of *every* collection at once. This only type-checked
@@ -65,27 +57,20 @@ export class TagManager {
     return tagId
   }
 
-  /**
-   * Add string tags to an image document
-   * Image tags are now inline enum select values, not relationships
-   */
+  /** Image tags are inline enum select values, not relationships. */
   async addTagsToImage(imageId: number, tags: string[]): Promise<void> {
     if (tags.length === 0) return
 
     try {
-      // Get current image document
       const image = await this.payload.findByID({
         collection: 'images',
         id: imageId,
       })
 
-      // Get current tags (now string array)
       const currentTags = Array.isArray(image.tags) ? (image.tags as string[]) : []
 
-      // Merge tags (deduplicate)
       const mergedTags = Array.from(new Set([...currentTags, ...tags]))
 
-      // Only update if there are new tags to add
       if (mergedTags.length > currentTags.length) {
         await this.payload.update({
           collection: 'images',

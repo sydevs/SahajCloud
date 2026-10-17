@@ -219,10 +219,9 @@ export class MeditationTranscriptsImporter extends BaseImporter<BaseImportOption
       { meditation: { equals: meditationId } },
       {
         meditation: meditationId,
-        // These transcripts already exist, so there is no job to await. `error`
-        // stays unset and `outdated` keeps its `false` default, which the live
-        // transcription owns and writes when a recording is replaced.
-        status: 'completed',
+        // These already exist, so the row carries cues from the start and
+        // `queueTranscription` asks for nothing. `status` derives `completed`
+        // from them, and there is no job row to read an error off.
         provider: 'lemonfox',
         // The meditation's own locale, not the file's language name: the column
         // is a select over the configured locales, and the glossary keys on it.
