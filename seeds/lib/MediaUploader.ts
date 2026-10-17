@@ -1,9 +1,4 @@
-/**
- * Media Uploader with Deduplication
- *
- * Handles uploading media files to Payload CMS with intelligent deduplication
- * to prevent duplicate media uploads across multiple import runs.
- */
+/** Deduplicates, so a repeated import run does not re-upload the same file. */
 
 import type { Logger } from './logger'
 import type { Payload } from 'payload'
@@ -13,14 +8,8 @@ import * as path from 'path'
 
 import type { ImageTag } from '@/types/tags'
 
-// (no runtime imports needed)
-
 // --- Errors ---
 
-/**
- * Custom error for media upload failures.
- * Provides detailed context for debugging upload issues.
- */
 export class MediaUploadError extends Error {
   constructor(
     message: string,
@@ -65,7 +54,6 @@ export class MediaUploader {
     reused: 0,
   }
 
-  // Track if media has been pre-loaded
   private isPreloaded = false
 
   constructor(payload: Payload, logger: Logger) {
@@ -74,17 +62,11 @@ export class MediaUploader {
   }
 
   /**
-   * Check if media with this filename already exists in cache.
-   * Call preloadExistingMedia() first to populate the cache.
+   * Answers before a download, so media that exists costs no HTTP request.
    *
-   * This method allows checking for existing media BEFORE downloading,
-   * avoiding unnecessary HTTP requests for media that already exists.
-   *
-   * @param filename - The filename to check (for example, "background.jpg")
-   * @returns The existing media ID if found, null otherwise
+   * Call `preloadExistingMedia()` first, or the cache is empty.
    */
   existsInCache(filename: string): number | string | null {
-    // Try exact filename match
     if (this.mediaCache.has(filename)) {
       return this.mediaCache.get(filename)!
     }
@@ -97,11 +79,10 @@ export class MediaUploader {
   }
 
   /**
-   * Pre-load all existing media filenames into memory cache.
-   * Call this before uploading to avoid N+1 database queries.
+   * Call before uploading, to avoid an N+1 of database queries.
    *
-   * For Cloudflare Images: Uses fileMetadata.originalFilename for matching
-   * since the stored filename is the Cloudflare Image ID.
+   * For Cloudflare Images the stored filename is the Image ID, so matching
+   * goes through `fileMetadata.originalFilename`.
    */
   async preloadExistingMedia(): Promise<void> {
     await this.logger.info('Pre-loading existing media index...')
@@ -124,8 +105,7 @@ export class MediaUploader {
       })
 
       for (const doc of result.docs) {
-        // For Cloudflare Images: Use originalFilename from fileMetadata for matching
-        // This is stored before the filename is replaced with the Cloudflare Image ID
+        // Stored before Cloudflare Images replaces the filename with its ID.
         const originalFilename =
           typeof doc.fileMetadata === 'object' &&
           doc.fileMetadata !== null &&
@@ -134,7 +114,6 @@ export class MediaUploader {
             : undefined
 
         if (originalFilename) {
-          // Cache by original filename and its base name
           const baseName = this.extractBaseName(originalFilename)
           this.mediaCache.set(baseName, doc.id)
           this.mediaCache.set(originalFilename, doc.id)
@@ -157,28 +136,17 @@ export class MediaUploader {
     await this.logger.info(`✓ Pre-loaded ${totalLoaded} media files into cache`)
   }
 
-  /**
-   * Extract base filename for deduplication matching
-   * Removes Payload's auto-generated suffixes (for example, "-abc123")
-   */
+  /** Removes Payload's auto-generated suffix, for example "-abc123". */
   private extractBaseName(filename: string): string {
     const ext = filename.substring(filename.lastIndexOf('.'))
     const withoutExt = filename.substring(0, filename.lastIndexOf('.'))
-    // Remove Payload's suffix pattern: -[a-z0-9]+ at the end
     const baseName = withoutExt.replace(/-[a-z0-9]+$/i, '')
     return baseName + ext
   }
 
   /**
-   * Upload media file with deduplication
-   *
-   * This method checks if media with the same filename already exists in the database,
-   * accounting for Payload's automatic filename suffixes (for example, image-abc123.jpg).
-   * If found, it reuses the existing media instead of uploading a duplicate.
-   *
-   * @param localPath - Path to the local file to upload
-   * @param options - Upload options (alt text, credit, tags, locale)
-   * @returns MediaUploadResult with ID, filename, and reuse status
+   * Reuses existing media rather than uploading a duplicate, allowing for
+   * Payload's automatic filename suffix (`image-abc123.jpg`).
    */
   async uploadWithDeduplication(
     localPath: string,
@@ -187,26 +155,20 @@ export class MediaUploader {
     try {
       const filename = path.basename(localPath)
 
-      // Check memory cache first
       let existingMediaId = this.mediaCache.get(filename)
 
-      // If not in memory, check database for existing media with similar filename
-      // Payload adds unique suffixes like "-abc123" to filenames, so we need to check
-      // if the filename starts with our base filename (without extension)
+      // Payload's "-abc123" suffix means matching on the base filename.
       if (!existingMediaId) {
         const foundId = await this.findMediaByFilename(filename)
         if (foundId) {
           existingMediaId = foundId
-          // Add to cache for future lookups
           this.mediaCache.set(filename, foundId)
         }
       }
 
-      // If existing media found, validate and reuse it
       if (existingMediaId) {
         const isValid = await this.validateExistingMedia(existingMediaId)
         if (isValid) {
-          // Update tags if provided
           if (options.tags && options.tags.length > 0) {
             await this.updateMediaTags(existingMediaId, options.tags)
           }
@@ -229,12 +191,10 @@ export class MediaUploader {
             wasReused: true,
           }
         } else {
-          // Media no longer valid, remove from cache
           this.mediaCache.delete(filename)
         }
       }
 
-      // Upload new media file
       const result = await this.uploadNewMedia(localPath, options)
       this.mediaCache.set(filename, result.id)
       // Also cache by original filename if provided (for hash-based localPath lookups)
@@ -255,15 +215,9 @@ export class MediaUploader {
     }
   }
 
-  /**
-   * Find existing media by filename pattern.
-   * Uses pre-loaded cache if available, falls back to database query.
-   * Public method for direct lookups when cache might not have the mapping.
-   */
+  /** Uses the preloaded cache when it is populated, else queries the database. */
   async findMediaByFilename(filename: string): Promise<number | string | null> {
-    // If pre-loaded, check cache first (synchronous lookup)
     if (this.isPreloaded) {
-      // Try exact filename match
       const exactMatch = this.mediaCache.get(filename)
       if (exactMatch) {
         await this.logger.log(`    ✓ Found in cache (exact): ${filename}`)
@@ -301,8 +255,6 @@ export class MediaUploader {
       // baseNameWithoutExt + (optional Payload suffix) + extension
       for (const doc of existingMedia.docs) {
         const docFilename = doc.filename || ''
-        // Check if this is our file (exact match or with Payload's suffix)
-        // Pattern: originalname.ext or originalname-suffix.ext
         const escapedExt = extension.replace('.', '\\.')
         const regex = new RegExp(`^${baseNameWithoutExt}(-[a-z0-9]+)?${escapedExt}$`, 'i')
         if (regex.test(docFilename)) {
@@ -315,7 +267,6 @@ export class MediaUploader {
 
       return null
     } catch (_error) {
-      // No existing media found
       return null
     }
   }
@@ -333,10 +284,7 @@ export class MediaUploader {
     }
   }
 
-  /**
-   * Update tags on existing media
-   * Tags are now inline enum string values, not collection IDs
-   */
+  /** Tags are inline enum string values, not collection IDs. */
   private async updateMediaTags(mediaId: number | string, newTags: string[]): Promise<void> {
     try {
       const media = await this.payload.findByID({
@@ -344,7 +292,6 @@ export class MediaUploader {
         id: mediaId,
       })
 
-      // Merge existing tags with new tags (both are string arrays now)
       const existingTags = Array.isArray(media.tags) ? (media.tags as string[]) : []
 
       const mergedTags = Array.from(new Set([...existingTags, ...newTags]))
@@ -365,18 +312,15 @@ export class MediaUploader {
     }
   }
 
-  /** Upload new media file to Payload */
   private async uploadNewMedia(
     localPath: string,
     options: MediaUploadOptions,
   ): Promise<MediaUploadResult> {
     try {
-      // Use buffer if provided, otherwise read from filesystem
       const fileBuffer: Buffer = options.buffer || (await fs.readFile(localPath))
       const filename = path.basename(localPath)
       const ext = path.extname(filename).toLowerCase()
 
-      // Determine MIME type
       const mimeTypes: Record<string, string> = {
         '.jpg': 'image/jpeg',
         '.jpeg': 'image/jpeg',
@@ -386,7 +330,6 @@ export class MediaUploader {
       }
       const mimeType = mimeTypes[ext] || 'application/octet-stream'
 
-      // Create media document
       // Store originalFilename in fileMetadata for lookup after Cloudflare Images
       // replaces the filename with its ID
       const media = await this.payload.create({
@@ -419,12 +362,11 @@ export class MediaUploader {
     }
   }
 
-  /** Get upload statistics */
   getStats(): { uploaded: number; reused: number } {
     return { ...this.stats }
   }
 
-  /** Clear the internal cache (useful for testing or reset operations) */
+  /** For tests and reset operations. */
   clearCache(): void {
     this.mediaCache.clear()
   }

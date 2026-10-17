@@ -1,9 +1,3 @@
-/**
- * Payload Helpers
- *
- * Common Payload CMS operations and utilities
- */
-
 import type { Logger } from './logger'
 import type { CollectionSlug, Payload } from 'payload'
 
@@ -41,7 +35,6 @@ export class PayloadHelpers {
     return result.docs.length
   }
 
-  /** Reset collection by import tag */
   async resetCollectionByTag(
     collection: CollectionSlug,
     tagFieldName: string,
@@ -104,7 +97,6 @@ export class PayloadHelpers {
     }
   }
 
-  /** Find or create document */
   async findOrCreate(
     collection: CollectionSlug,
     where: Record<string, any>,
