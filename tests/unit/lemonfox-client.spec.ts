@@ -14,8 +14,8 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { lemonfoxLanguage } from '@/lib/lemonfox/languages'
-import { requestLemonfoxTranscript } from '@/lib/lemonfox/transcribe'
+import { lemonfoxLanguage } from '@/jobs/TranscribeMeditation/lemonfox/languages'
+import { requestLemonfoxTranscript } from '@/jobs/TranscribeMeditation/lemonfox/transcribe'
 import { LOCALES } from '@/lib/locales'
 
 const AUDIO_URL = 'https://media.example.test/meditations/evening-calm-abc123.mp3'
@@ -157,7 +157,7 @@ describe('lemonfoxApiKey', () => {
   })
 
   const read = async (): Promise<string | undefined> => {
-    const { lemonfoxApiKey } = await import('@/lib/lemonfox/transcribe')
+    const { lemonfoxApiKey } = await import('@/jobs/TranscribeMeditation/lemonfox/transcribe')
     return lemonfoxApiKey()
   }
 

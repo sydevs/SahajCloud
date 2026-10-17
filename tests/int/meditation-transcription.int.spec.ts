@@ -1,14 +1,14 @@
 /**
- * Transcription end to end: a recording is transcribed by itself, a
- * replacement marks the transcript out of date without destroying it, and every
- * state the Transcript tab can show is honest.
+ * Transcription end to end: a recording is transcribed by itself, and a
+ * replacement takes the old transcript with it.
  *
  * ⚠ A different suite from `meditation-transcripts.int.spec.ts`, which covers
- * what the table itself enforces (#957). This one covers the hooks, the writer,
- * the task and the two endpoints.
+ * what the table itself enforces (#957). This one covers the `meditations`
+ * hook, the row's own queueing hook and the task. The derived status is pure,
+ * and lives in `tests/unit/transcript-status.spec.ts`.
  *
  * **Fixture pre-mortem.** The vendor is mocked at
- * `@/lib/lemonfox/transcribe` — `tests/AGENTS.md`'s boundary rule — so the
+ * `@/jobs/TranscribeMeditation/lemonfox/transcribe` — `tests/AGENTS.md`'s boundary rule — so the
  * suite can drive a completed run and **cannot** make a paid call. Two claims
  * the fixtures make about the real configuration, both verified:
  *
@@ -24,21 +24,11 @@ import type { Payload } from 'payload'
 import fs from 'node:fs'
 import path from 'node:path'
 
-import { createLocalReq } from 'payload'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { requestTranscription } from '@/collections/MeditationTranscripts/requestTranscription'
 import { TranscribeMeditation } from '@/jobs/TranscribeMeditation/TranscribeMeditation'
-import { TRANSCRIPTION_UNAVAILABLE_ERROR } from '@/lib/lemonfox/transcribe'
-import { TRANSCRIPTION_STALL_MS } from '@/lib/meditations/transcript'
 import type { Meditation, MeditationTranscript } from '@/payload-types'
 
-import {
-  createAnonRestClient,
-  createRestClientAs,
-  createRestClientWithAuth,
-  type RestClient,
-} from '../utils/restRequest'
 import { seedLatestVersion } from '../utils/storeInvalidEvent'
 import { runTaskHandler } from '../utils/taskRunner'
 import { testData } from '../utils/testData'
@@ -51,8 +41,8 @@ const lemonfox = vi.hoisted(() => ({
 
 // Partial: `TRANSCRIPTION_UNAVAILABLE_ERROR` lives here too, and the
 // unavailable case asserts the row carries the real one.
-vi.mock('@/lib/lemonfox/transcribe', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/lib/lemonfox/transcribe')>()),
+vi.mock('@/jobs/TranscribeMeditation/lemonfox/transcribe', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/jobs/TranscribeMeditation/lemonfox/transcribe')>()),
   ...lemonfox,
 }))
 
@@ -169,23 +159,6 @@ describe('meditation transcription', () => {
   const takeAwayRecording = (meditationId: number): Promise<void> =>
     seedLatestVersion(payload, 'meditations', meditationId, { filename: null })
 
-  /**
-   * The redo a `POST` makes, through the one request writer rather than the
-   * endpoint — these cases are about what the task then writes, not the gate.
-   */
-  const requestTranscriptionFor = async (
-    meditationId: number,
-    audioFilename: string,
-  ): Promise<void> => {
-    await requestTranscription({
-      req: await createLocalReq({}, payload),
-      meditationId,
-      audioFilename,
-      language: 'en',
-      afterCommit: false,
-    })
-  }
-
   /** Replace a meditation's recording, the way an editor does. */
   const replaceAudio = (meditationId: number): Promise<Meditation> => {
     const data = fs.readFileSync(SAMPLE_AUDIO)
@@ -199,14 +172,16 @@ describe('meditation transcription', () => {
   }
 
   describe('a recording is transcribed by itself', () => {
-    it('queues a request naming that recording, with the meditation locale', async () => {
+    it('creates a row naming that recording, with the meditation locale, and queues one run', async () => {
       const meditation = await createMeditation('cs')
 
       const row = await transcriptOf(meditation.id)
-      expect(row?.status).toBe('queued')
       expect(row?.audioFilename).toBe(meditation.filename)
       expect(row?.language).toBe('cs')
-      expect(row?.outdated).toBe(false)
+      expect(row?.segments ?? null).toBeNull()
+      // The row carries the run it queued, which is where `status` is read
+      // from. A row without one derives `failed`.
+      expect(row?.job).toBeTruthy()
       expect(await queuedJobs(meditation.id)).toHaveLength(1)
     })
 
@@ -219,8 +194,15 @@ describe('meditation transcription', () => {
         input: { meditationId: meditation.id, audioFilename: meditation.filename! },
       })
 
+      // The task writes `meditation-transcripts`, never the meditation. A write
+      // there would push out a version an editor restores from.
       expect(await versionCount(meditation.id)).toBe(before)
-      const after = await payload.findByID({ collection: 'meditations', id: meditation.id })
+      const after = await payload.findByID({
+        collection: 'meditations',
+        id: meditation.id,
+        depth: 0,
+        overrideAccess: true,
+      })
       expect(after._status).toBe(meditation._status)
     })
 
@@ -231,362 +213,134 @@ describe('meditation transcription', () => {
         payload,
         input: { meditationId: meditation.id, audioFilename: meditation.filename! },
       })
-
       expect(output.status).toBe('completed')
+
       const row = await transcriptOf(meditation.id)
-      expect(row?.status).toBe('completed')
       expect(row?.provider).toBe('lemonfox')
-      expect(row?.outdated).toBe(false)
-      expect(row?.error).toBeFalsy()
+      // The vendor answers seconds. The cue shape is milliseconds, so a player
+      // reading a transcript and one reading subtitles agree.
       expect(row?.segments).toEqual([
-        {
-          content: 'Place your attention on the top of the head.',
-          startTimeMs: 0,
-          endTimeMs: 4250,
-        },
-        { content: 'Let the thoughts settle.', startTimeMs: 4250, endTimeMs: 6500 },
+        { text: 'Place your attention on the top of the head.', start: 0, end: 4250 },
+        { text: 'Let the thoughts settle.', start: 4250, end: 6500 },
       ])
+    })
+
+    it('writes no row for a meditation with no recording', async () => {
+      const meditation = await createMeditation()
+      await takeAwayRecording(meditation.id)
+      await payload.update({
+        collection: 'meditations',
+        id: meditation.id,
+        data: { title: 'Renamed with no recording' },
+        overrideAccess: true,
+      })
+
+      // One row, from the upload that created it — the rename cannot add a
+      // second, and nothing asks to transcribe a recording that is gone.
+      expect(await queuedJobs(meditation.id)).toHaveLength(1)
     })
   })
 
   describe('what the task refuses to do', () => {
-    it('writes nothing for a run whose recording was replaced mid-flight', async () => {
+    it('throws for a run whose recording was replaced mid-flight, and writes nothing', async () => {
       const meditation = await createMeditation()
-      const staleFilename = meditation.filename!
-      // The newer request: the row now names a different recording.
-      await payload.update({
-        collection: 'meditation-transcripts',
-        id: (await transcriptOf(meditation.id))!.id,
-        data: { audioFilename: 'a-newer-recording.mp3', status: 'queued' },
-        overrideAccess: true,
-      })
+      const original = meditation.filename!
+      await replaceAudio(meditation.id)
 
+      // The replacement deleted the row this run was for, so there is nothing
+      // to write and nothing wrong: the replacement queued its own run.
       const output = await runTaskHandler(TranscribeMeditation, {
         payload,
-        input: { meditationId: meditation.id, audioFilename: staleFilename },
+        input: { meditationId: meditation.id, audioFilename: original },
       })
-
       expect(output.status).toBe('superseded')
+
       const row = await transcriptOf(meditation.id)
-      expect(row?.audioFilename).toBe('a-newer-recording.mp3')
-      expect(row?.status).toBe('queued')
+      expect(row?.audioFilename).not.toBe(original)
+      expect(row?.segments ?? null).toBeNull()
       expect(lemonfox.requestLemonfoxTranscript).not.toHaveBeenCalled()
     })
 
-    it('leaves a failed row, not a processing one, when the body carries no speech', async () => {
-      const meditation = await createMeditation()
+    it('throws when the body carries no timestamped speech', async () => {
       lemonfox.requestLemonfoxTranscript.mockResolvedValue({ segments: [] })
-
-      const output = await runTaskHandler(TranscribeMeditation, {
-        payload,
-        input: { meditationId: meditation.id, audioFilename: meditation.filename! },
-      })
-
-      expect(output.status).toBe('failed')
-      const row = await transcriptOf(meditation.id)
-      expect(row?.status).toBe('failed')
-      expect(row?.error).toContain('no timestamped speech')
-      expect(row?.segments ?? []).toHaveLength(0)
-    })
-  })
-
-  describe('transcription is unavailable', () => {
-    it('writes a failed row with a reason, queues nothing, and invents no text', async () => {
-      lemonfox.lemonfoxApiKey.mockReturnValue(undefined)
-
       const meditation = await createMeditation()
 
+      // The throw is the record: `retries: 0`, so the retained job row carries
+      // the message and the row's `status` derives `failed` from it.
+      await expect(
+        runTaskHandler(TranscribeMeditation, {
+          payload,
+          input: { meditationId: meditation.id, audioFilename: meditation.filename! },
+        }),
+      ).rejects.toThrow()
+
+      expect((await transcriptOf(meditation.id))?.segments ?? null).toBeNull()
+    })
+
+    it('throws, and invents no text, when transcription is unavailable', async () => {
+      lemonfox.lemonfoxApiKey.mockReturnValue(undefined)
+      const meditation = await createMeditation()
+
+      await expect(
+        runTaskHandler(TranscribeMeditation, {
+          payload,
+          input: { meditationId: meditation.id, audioFilename: meditation.filename! },
+        }),
+      ).rejects.toThrow()
+
       const row = await transcriptOf(meditation.id)
-      expect(row?.status).toBe('failed')
-      expect(row?.error).toBe(TRANSCRIPTION_UNAVAILABLE_ERROR)
-      expect(row?.language).toBe('en')
-      expect(row?.segments ?? []).toHaveLength(0)
-      expect(await queuedJobs(meditation.id)).toHaveLength(0)
+      expect(row?.segments ?? null).toBeNull()
+      expect(row?.provider ?? null).toBeNull()
+      expect(lemonfox.requestLemonfoxTranscript).not.toHaveBeenCalled()
     })
   })
 
   describe('a replaced recording', () => {
-    it('is marked out of date during that save, and queues no transcription', async () => {
+    it('takes the old transcript with it, and asks for a new one', async () => {
       const meditation = await createMeditation()
       await runTaskHandler(TranscribeMeditation, {
         payload,
         input: { meditationId: meditation.id, audioFilename: meditation.filename! },
       })
-      const jobsBefore = (await queuedJobs(meditation.id)).length
+      const completed = await transcriptOf(meditation.id)
+      expect(completed?.segments).toHaveLength(2)
 
       const replaced = await replaceAudio(meditation.id)
 
-      expect(replaced.filename).not.toBe(meditation.filename)
+      // Cues produced from a recording nobody can hear any more are
+      // misleading, not history, so the row goes rather than being marked.
       const row = await transcriptOf(meditation.id)
-      expect(row?.outdated).toBe(true)
-      // The row still names the recording its text belongs to.
-      expect(row?.audioFilename).toBe(meditation.filename)
-      expect(row?.status).toBe('completed')
-      expect(await queuedJobs(meditation.id)).toHaveLength(jobsBefore)
-    })
-
-    it('keeps the previous transcript readable until a new run completes', async () => {
-      const manager = await testData.createManager(payload, {
-        type: 'manager',
-        roles: { en: ['meditations-editor'] },
-      })
-      const rest = await createRestClientAs(env, manager)
-      const meditation = await createMeditation()
-      await runTaskHandler(TranscribeMeditation, {
-        payload,
-        input: { meditationId: meditation.id, audioFilename: meditation.filename! },
-      })
-      const replaced = await replaceAudio(meditation.id)
-      const path = `/api/meditations/${meditation.id}/transcript?locale=en`
-
-      const afterReplacement = await rest(path)
-      expect(afterReplacement.status).toBe(200)
-      expect(afterReplacement.body.outdated).toBe(true)
-      expect(afterReplacement.body.segments).toHaveLength(2)
-
-      // The redo: a run for the new recording, with the old text still there.
-      // `outdated` stays true, because the text on offer is still the previous
-      // recording's until that run completes.
-      const redo = await rest(path, { method: 'POST' })
-      expect(redo.status).toBe(202)
-      expect(redo.body.status).toBe('queued')
-      expect(redo.body.segments).toHaveLength(2)
-      expect(redo.body.outdated).toBe(true)
-      const row = await transcriptOf(meditation.id)
+      expect(row?.id).not.toBe(completed?.id)
       expect(row?.audioFilename).toBe(replaced.filename)
-      expect(row?.outdated).toBe(true)
+      expect(row?.segments ?? null).toBeNull()
+      expect(await queuedJobs(meditation.id)).toHaveLength(2)
     })
 
-    it('keeps the old text labelled as the old recording when the redo fails', async () => {
+    it('completes the new recording on its own run', async () => {
       const meditation = await createMeditation()
-      await runTaskHandler(TranscribeMeditation, {
-        payload,
-        input: { meditationId: meditation.id, audioFilename: meditation.filename! },
-      })
       const replaced = await replaceAudio(meditation.id)
-      await requestTranscriptionFor(meditation.id, replaced.filename!)
-      lemonfox.requestLemonfoxTranscript.mockRejectedValue(new Error('Lemonfox is unreachable.'))
 
       const output = await runTaskHandler(TranscribeMeditation, {
         payload,
         input: { meditationId: meditation.id, audioFilename: replaced.filename! },
       })
-
-      expect(output.status).toBe('failed')
-      const row = await transcriptOf(meditation.id)
-      expect(row?.status).toBe('failed')
-      // The readable cues are still the previous recording's, so calling them
-      // current would hand child 4 a transcript of audio nobody can hear.
-      expect(row?.segments).toHaveLength(2)
-      expect(row?.outdated).toBe(true)
-    })
-
-    it('clears the mark when a run for the new recording completes', async () => {
-      const meditation = await createMeditation()
-      await runTaskHandler(TranscribeMeditation, {
-        payload,
-        input: { meditationId: meditation.id, audioFilename: meditation.filename! },
-      })
-      const replaced = await replaceAudio(meditation.id)
-      await requestTranscriptionFor(meditation.id, replaced.filename!)
-
-      const output = await runTaskHandler(TranscribeMeditation, {
-        payload,
-        input: { meditationId: meditation.id, audioFilename: replaced.filename! },
-      })
-
       expect(output.status).toBe('completed')
-      const row = await transcriptOf(meditation.id)
-      expect(row?.outdated).toBe(false)
-      expect(row?.audioFilename).toBe(replaced.filename)
-    })
-  })
-
-  describe('the endpoints', () => {
-    let manager: Awaited<ReturnType<typeof testData.createManager>>
-    let rest: RestClient
-
-    beforeAll(async () => {
-      manager = await testData.createManager(payload, {
-        type: 'manager',
-        roles: { en: ['meditations-editor'] },
-      })
-      rest = await createRestClientAs(env, manager)
+      expect((await transcriptOf(meditation.id))?.segments).toHaveLength(2)
     })
 
-    it("answers 'none' for a meditation that was never transcribed", async () => {
+    it('leaves the row alone for a save that does not touch the recording', async () => {
       const meditation = await createMeditation()
-      // `none` means no row exists. The upload's own request made one, so this
-      // is the state of a meditation whose transcript was never asked for.
-      await payload.delete({
-        collection: 'meditation-transcripts',
-        id: (await transcriptOf(meditation.id))!.id,
+      const row = await transcriptOf(meditation.id)
+
+      await payload.update({
+        collection: 'meditations',
+        id: meditation.id,
+        data: { title: 'Retitled' },
         overrideAccess: true,
       })
 
-      const { status, body } = await rest(`/api/meditations/${meditation.id}/transcript?locale=en`)
-
-      expect(status).toBe(200)
-      expect(body).toMatchObject({
-        status: 'none',
-        stalled: false,
-        outdated: false,
-        provider: null,
-        segments: [],
-        error: null,
-        updatedAt: null,
-      })
-    })
-
-    it('queues no second job for a POST while one is in flight', async () => {
-      const meditation = await createMeditation()
-      const before = await queuedJobs(meditation.id)
-
-      const { status, body } = await rest(`/api/meditations/${meditation.id}/transcript?locale=en`, {
-        method: 'POST',
-      })
-
-      expect(status).toBe(202)
-      expect(body.status).toBe('queued')
-      expect(await queuedJobs(meditation.id)).toHaveLength(before.length)
-    })
-
-    it('accepts a POST on a stalled row, and queues a run', async () => {
-      const meditation = await createMeditation()
-      const row = (await transcriptOf(meditation.id))!
-      const before = await queuedJobs(meditation.id)
-      // Older than the stall bound, which is what makes "it never spins
-      // forever" expressible: the tab offers Try again, and the POST takes it.
-      //
-      // Through the db layer, because `payload.update` stamps `updatedAt`
-      // itself — a row can only be aged from underneath it.
-      await payload.db.updateOne({
-        collection: 'meditation-transcripts',
-        id: row.id,
-        data: {
-          updatedAt: new Date(Date.now() - TRANSCRIPTION_STALL_MS - 60_000).toISOString(),
-        },
-      })
-
-      const stalled = await rest(`/api/meditations/${meditation.id}/transcript?locale=en`)
-      expect(stalled.body.stalled).toBe(true)
-
-      const { status } = await rest(`/api/meditations/${meditation.id}/transcript?locale=en`, {
-        method: 'POST',
-      })
-
-      expect(status).toBe(202)
-      expect(await queuedJobs(meditation.id)).toHaveLength(before.length + 1)
-    })
-
-    it('refuses a malformed id and an unknown meditation', async () => {
-      expect((await rest('/api/meditations/not-a-number/transcript?locale=en')).status).toBe(400)
-      expect((await rest('/api/meditations/99999999/transcript?locale=en')).status).toBe(404)
-    })
-
-    it('refuses a POST for a meditation with no recording', async () => {
-      const meditation = await createMeditation()
-      await takeAwayRecording(meditation.id)
-
-      const { status } = await rest(`/api/meditations/${meditation.id}/transcript?locale=en`, {
-        method: 'POST',
-      })
-
-      expect(status).toBe(409)
-    })
-
-    describe('who is refused', () => {
-      let meditationId: number
-
-      beforeAll(async () => {
-        meditationId = (await createMeditation()).id
-      })
-
-      it('refuses an anonymous caller', async () => {
-        const anon = createAnonRestClient(env)
-        expect((await anon(`/api/meditations/${meditationId}/transcript?locale=en`)).status).toBe(
-          403,
-        )
-      })
-
-      it('refuses a published API client, on its own API key', async () => {
-        const client = await testData.createClient(payload, manager.id, {
-          roles: ['wemeditate-app-client'],
-        })
-        // The credential a client actually presents. A `managers` session
-        // minted for its id would refuse for the wrong reason — `clients` sets
-        // `disableLocalStrategy` and holds no session at all.
-        const asClient = createRestClientWithAuth(env, {
-          Authorization: `clients API-Key ${client.apiKey}`,
-        })
-
-        expect(
-          (await asClient(`/api/meditations/${meditationId}/transcript?locale=en`)).status,
-        ).toBe(403)
-      })
-
-      it('refuses a manager whose project does not carry meditations', async () => {
-        const atlasManager = await testData.createManager(payload, {
-          type: 'manager',
-          roles: { en: ['atlas-manager'] },
-        })
-        const asAtlas = await createRestClientAs(env, atlasManager)
-        expect((await asAtlas(`/api/meditations/${meditationId}/transcript?locale=en`)).status).toBe(
-          403,
-        )
-      })
-
-      /**
-       * ⚠ A translator **reads** it, and that is the existing rule, not a hole
-       * this endpoint opens: implicit project read grants `meditations: read`
-       * to every role in a project that carries the collection
-       * (`docs/rules/access.md`). Transcribing is an `update`, which is not
-       * implicit — so the GET and the POST diverge here, and nothing else in
-       * the suite would show it.
-       */
-      it('lets a translator read, and refuses them the transcription', async () => {
-        const translator = await testData.createManager(payload, {
-          type: 'manager',
-          roles: { en: ['web-translator'] },
-        })
-        const asTranslator = await createRestClientAs(env, translator)
-        const url = `/api/meditations/${meditationId}/transcript?locale=en`
-
-        expect((await asTranslator(url)).status).toBe(200)
-        expect((await asTranslator(url, { method: 'POST' })).status).toBe(403)
-      })
-
-      /**
-       * ⚠ The gate scopes on `req.locale`, which only the real REST pipeline
-       * derives. A request naming no locale resolves to the **default** one, so
-       * a French-only manager is refused — #701, and the reason the endpoint
-       * docblocks tell the caller to send `?locale=`.
-       */
-      describe('a manager holding the role only in French', () => {
-        let french: RestClient
-        let url: string
-
-        beforeAll(async () => {
-          const frenchManager = await testData.createManager(payload, {
-            type: 'manager',
-            roles: { fr: ['meditations-editor'] },
-          })
-          french = await createRestClientAs(env, frenchManager)
-          url = `/api/meditations/${meditationId}/transcript`
-        })
-
-        it('is refused with no locale named', async () => {
-          expect((await french(url)).status).toBe(403)
-        })
-
-        it('is allowed under the locale the role lives in', async () => {
-          expect((await french(`${url}?locale=fr`)).status).toBe(200)
-        })
-
-        it('is refused under a locale the role does not live in', async () => {
-          expect((await french(`${url}?locale=en`)).status).toBe(403)
-        })
-      })
+      expect((await transcriptOf(meditation.id))?.id).toBe(row?.id)
+      expect(await queuedJobs(meditation.id)).toHaveLength(1)
     })
   })
 })

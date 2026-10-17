@@ -22,15 +22,12 @@ import { virtualUrlField } from '@/plugins/storage/urlFields'
 import { KeyframeData } from '@/types/frames'
 
 import { meditationLectures } from './endpoints/lectures'
-import { requestMeditationTranscript } from './endpoints/requestTranscript'
 import { meditationSongs } from './endpoints/songs'
-import { meditationTranscript } from './endpoints/transcript'
 import { cacheMeditationNodeWeights } from './hooks/cacheMeditationNodeWeights'
-import { enqueueMeditationTranscription } from './hooks/enqueueMeditationTranscription'
 import { extractAudioDuration } from './hooks/extractAudioDuration'
 import { fallbackTitleAfterRead } from './hooks/fallbackTitle'
 import { filterMeditationsByLocale } from './hooks/filterMeditationsByLocale'
-import { outdateTranscriptOnReplace } from './hooks/outdateTranscriptOnReplace'
+import { syncMeditationTranscript } from './hooks/syncMeditationTranscript'
 
 /**
  * What `virtualJoinField`'s hook returns: the user-choices rows pointing at
@@ -110,12 +107,7 @@ const virtualJoinField = ({ name, on }: { name: string; on: string }): JSONField
 export const Meditations: CollectionConfig = {
   slug: 'meditations',
   trash: true,
-  endpoints: [
-    meditationLectures,
-    meditationSongs,
-    meditationTranscript,
-    requestMeditationTranscript,
-  ],
+  endpoints: [meditationLectures, meditationSongs],
   hooks: {
     beforeOperation: [filterMeditationsByLocale],
     beforeChange: [
@@ -124,11 +116,8 @@ export const Meditations: CollectionConfig = {
       // duration this save is about to store.
       extractAudioDuration,
       cacheMeditationNodeWeights,
-      // Beside `extractAudioDuration`, which is what proves `req.file` is
-      // readable in this chain. It writes only `meditation-transcripts`.
-      outdateTranscriptOnReplace,
     ],
-    afterChange: [enqueueMeditationTranscription],
+    afterChange: [syncMeditationTranscript],
   },
   defaultPopulate: {
     // Exclude the expensive per-row afterRead virtual fields when a meditation
@@ -320,8 +309,8 @@ export const Meditations: CollectionConfig = {
               //
               // Whoever may read the recording reads its transcript here, through
               // the two projects both collections sit in (`config/projects.ts`).
-              // There is no second permission to hold, so this supersedes
-              // `GET /api/meditations/:id/transcript`.
+              // There is no second permission to hold, and no endpoint standing
+              // in for one.
               name: 'transcript',
               type: 'join',
               collection: 'meditation-transcripts',

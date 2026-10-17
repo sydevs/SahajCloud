@@ -60,7 +60,6 @@ describe('meditation transcripts', () => {
         collection: 'meditation-transcripts',
         data: createData<'meditation-transcripts'>({
           meditation: meditation.id,
-          status: 'completed',
           language: 'en',
           segments: [
             {
@@ -116,7 +115,6 @@ describe('meditation transcripts', () => {
         collection: 'meditation-transcripts',
         data: createData<'meditation-transcripts'>({
           meditation: meditation.id,
-          status: 'completed',
           language: 'en',
           segments: [
             { content: 'Let your hands rest open.', startTimeMs: 0, endTimeMs: 3000 },
@@ -153,7 +151,6 @@ describe('meditation transcripts', () => {
           collection: 'meditation-transcripts',
           data: createData<'meditation-transcripts'>({
             meditation: meditation.id,
-            status: 'queued',
             language: 'en',
           }),
         })
@@ -171,7 +168,6 @@ describe('meditation transcripts', () => {
           collection: 'meditation-transcripts',
           data: createData<'meditation-transcripts'>({
             meditation: meditation.id,
-            status: 'queued',
           } as never),
         }),
       ).rejects.toThrow()
@@ -184,7 +180,6 @@ describe('meditation transcripts', () => {
           collection: 'meditation-transcripts',
           data: createData<'meditation-transcripts'>({
             meditation: meditation.id,
-            status: 'completed',
             language: 'en',
             segments: segments as never,
           }),
@@ -210,7 +205,6 @@ describe('meditation transcripts', () => {
         collection: 'meditation-transcripts',
         data: createData<'meditation-transcripts'>({
           meditation: meditation.id,
-          status: 'completed',
           language: 'en',
           segments: [
             { content: 'Let the kundalini rise.', startTimeMs: 0, endTimeMs: 2000 },
@@ -231,7 +225,6 @@ describe('meditation transcripts', () => {
         collection: 'meditation-transcripts',
         data: createData<'meditation-transcripts'>({
           meditation: meditation.id,
-          status: 'queued',
           language: 'en',
         }),
       })
@@ -247,19 +240,5 @@ describe('meditation transcripts', () => {
       ])
     })
 
-    it('defaults `outdated` to false rather than leaving it unset', async () => {
-      const meditation = await createMeditationWithoutTranscript()
-
-      const row = await payload.create({
-        collection: 'meditation-transcripts',
-        data: createData<'meditation-transcripts'>({
-          meditation: meditation.id,
-          status: 'queued',
-          language: 'en',
-        }),
-      })
-
-      expect(row.outdated).toBe(false)
-    })
   })
 })

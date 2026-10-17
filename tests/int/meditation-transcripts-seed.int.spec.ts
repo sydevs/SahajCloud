@@ -190,7 +190,6 @@ describe('meditation-transcripts seed', () => {
     expect(row.status).toBe('completed')
     expect(row.provider).toBe('lemonfox')
     expect(row.language).toBe('en')
-    expect(row.outdated).toBe(false)
     expect(row.error).toBeFalsy()
     expect(row.audioFilename).toBe(english.filename)
     // The hook's work, not the importer's: it never calls `applyGlossary`.

@@ -2836,7 +2836,6 @@ export interface Album {
 export interface MeditationTranscript {
   id: number;
   meditation?: (number | null) | Meditation;
-  status: 'queued' | 'processing' | 'completed' | 'failed';
   audioFilename?: string | null;
   provider?: 'lemonfox' | null;
   language:
@@ -2859,9 +2858,150 @@ export interface MeditationTranscript {
     | 'en-AU'
     | 'hu'
     | 'nl';
-  outdated?: boolean | null;
   segments?: TranscriptSegments;
+  job?: (number | null) | PayloadJob;
+  status?: ('processing' | 'completed' | 'failed') | null;
   error?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "payload-jobs".
+ */
+export interface PayloadJob {
+  id: number;
+  /**
+   * Input data provided to the job
+   */
+  input?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  taskStatus?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  completedAt?: string | null;
+  totalTried?: number | null;
+  /**
+   * If hasError is true this job will not be retried
+   */
+  hasError?: boolean | null;
+  /**
+   * If hasError is true, this is the error that caused it
+   */
+  error?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Task execution log
+   */
+  log?:
+    | {
+        executedAt: string;
+        completedAt: string;
+        taskSlug:
+          | 'inline'
+          | 'cleanupJobs'
+          | 'cleanupOrphanedMedia'
+          | 'deliverSubmission'
+          | 'expireEvents'
+          | 'purgeSubmissions'
+          | 'screenSubmission'
+          | 'sendPostEventFollowUps'
+          | 'sendRegistrationDigests'
+          | 'sendSessionReminders'
+          | 'syncLectureMetadata'
+          | 'transcribeMeditation'
+          | 'verifyEmbeds'
+          | 'resetUsage'
+          | 'sendInvitations'
+          | 'schedulePublish';
+        taskID: string;
+        input?:
+          | {
+              [k: string]: unknown;
+            }
+          | unknown[]
+          | string
+          | number
+          | boolean
+          | null;
+        output?:
+          | {
+              [k: string]: unknown;
+            }
+          | unknown[]
+          | string
+          | number
+          | boolean
+          | null;
+        state: 'failed' | 'succeeded';
+        error?:
+          | {
+              [k: string]: unknown;
+            }
+          | unknown[]
+          | string
+          | number
+          | boolean
+          | null;
+        id?: string | null;
+      }[]
+    | null;
+  taskSlug?:
+    | (
+        | 'inline'
+        | 'cleanupJobs'
+        | 'cleanupOrphanedMedia'
+        | 'deliverSubmission'
+        | 'expireEvents'
+        | 'purgeSubmissions'
+        | 'screenSubmission'
+        | 'sendPostEventFollowUps'
+        | 'sendRegistrationDigests'
+        | 'sendSessionReminders'
+        | 'syncLectureMetadata'
+        | 'transcribeMeditation'
+        | 'verifyEmbeds'
+        | 'resetUsage'
+        | 'sendInvitations'
+        | 'schedulePublish'
+      )
+    | null;
+  queue?: string | null;
+  waitUntil?: string | null;
+  processing?: boolean | null;
+  /**
+   * Used for concurrency control. Jobs with the same key are subject to exclusive/supersedes rules.
+   */
+  concurrencyKey?: string | null;
+  meta?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -3797,146 +3937,6 @@ export interface PayloadKv {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "payload-jobs".
- */
-export interface PayloadJob {
-  id: number;
-  /**
-   * Input data provided to the job
-   */
-  input?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  taskStatus?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  completedAt?: string | null;
-  totalTried?: number | null;
-  /**
-   * If hasError is true this job will not be retried
-   */
-  hasError?: boolean | null;
-  /**
-   * If hasError is true, this is the error that caused it
-   */
-  error?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  /**
-   * Task execution log
-   */
-  log?:
-    | {
-        executedAt: string;
-        completedAt: string;
-        taskSlug:
-          | 'inline'
-          | 'cleanupJobs'
-          | 'cleanupOrphanedMedia'
-          | 'deliverSubmission'
-          | 'expireEvents'
-          | 'purgeSubmissions'
-          | 'screenSubmission'
-          | 'sendPostEventFollowUps'
-          | 'sendRegistrationDigests'
-          | 'sendSessionReminders'
-          | 'syncLectureMetadata'
-          | 'transcribeMeditation'
-          | 'verifyEmbeds'
-          | 'resetUsage'
-          | 'sendInvitations'
-          | 'schedulePublish';
-        taskID: string;
-        input?:
-          | {
-              [k: string]: unknown;
-            }
-          | unknown[]
-          | string
-          | number
-          | boolean
-          | null;
-        output?:
-          | {
-              [k: string]: unknown;
-            }
-          | unknown[]
-          | string
-          | number
-          | boolean
-          | null;
-        state: 'failed' | 'succeeded';
-        error?:
-          | {
-              [k: string]: unknown;
-            }
-          | unknown[]
-          | string
-          | number
-          | boolean
-          | null;
-        id?: string | null;
-      }[]
-    | null;
-  taskSlug?:
-    | (
-        | 'inline'
-        | 'cleanupJobs'
-        | 'cleanupOrphanedMedia'
-        | 'deliverSubmission'
-        | 'expireEvents'
-        | 'purgeSubmissions'
-        | 'screenSubmission'
-        | 'sendPostEventFollowUps'
-        | 'sendRegistrationDigests'
-        | 'sendSessionReminders'
-        | 'syncLectureMetadata'
-        | 'transcribeMeditation'
-        | 'verifyEmbeds'
-        | 'resetUsage'
-        | 'sendInvitations'
-        | 'schedulePublish'
-      )
-    | null;
-  queue?: string | null;
-  waitUntil?: string | null;
-  processing?: boolean | null;
-  /**
-   * Used for concurrency control. Jobs with the same key are subject to exclusive/supersedes rules.
-   */
-  concurrencyKey?: string | null;
-  meta?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-locked-documents".
  */
 export interface PayloadLockedDocument {
@@ -4168,12 +4168,12 @@ export interface MeditationsSelect<T extends boolean = true> {
  */
 export interface MeditationTranscriptsSelect<T extends boolean = true> {
   meditation?: T;
-  status?: T;
   audioFilename?: T;
   provider?: T;
   language?: T;
-  outdated?: T;
   segments?: T;
+  job?: T;
+  status?: T;
   error?: T;
   updatedAt?: T;
   createdAt?: T;
