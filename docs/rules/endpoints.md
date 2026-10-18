@@ -131,6 +131,8 @@ handler: async (req) => {
 
 ⚠ **Hand-rolling it also costs you the rejected-credential signal.** A `403` this guard *returns* never reaches Payload's `afterError` hook, so the guard reports a presented-and-rejected API key itself (#743) — see `docs/rules/api-clients.md`. A hand-rolled check is silent, and a dead integration hammering the endpoint stays invisible.
 
+**An endpoint gated on a collection permission takes `requireManagerPermission`, or `requireCollectionPermission` when an API client is a legitimate caller too** — both from `@/lib/endpoints`, differing only in whether `requireActiveManager` runs first. ⚠ **Neither replaces `requireActiveClient`**: a client-facing endpoint still calls that first, or it loses the rejected-credential signal above and, as a root endpoint, the origin and usage calls anchored to it. Never spell the permission check out at the handler — the scope it passes is `roleScopeFromLocale(req.locale)`, and `tests/unit/endpoint-permission-gate.spec.ts` fails a call written out under `src/collections/**` or `src/endpoints/**` (#701, #969).
+
 ### 2. Register it in the OpenAPI shim
 
 `payload-oapi` does not auto-generate paths for custom collection endpoints, so a new one stays invisible in `/api/docs` until hand-authored. For every endpoint:

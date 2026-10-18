@@ -19,9 +19,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import type { Manager } from '@/payload-types'
 
-
-
-import { createRestClientAs } from '../utils/restRequest'
+import { createRestClient, createRestClientAs } from '../utils/restRequest'
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -32,6 +30,7 @@ describe('POST /api/user-submissions/:id/review — locale and type gates', () =
 
   let frenchReviewer: Manager
   let rest: RestClient
+  let adminRest: RestClient
   let countryId: number
   let cityId: number
 
@@ -76,6 +75,12 @@ describe('POST /api/user-submissions/:id/review — locale and type gates', () =
       json: { action: 'reject' },
     })
 
+  const reviewAsAdmin = (id: number, query = '') =>
+    adminRest(`/api/user-submissions/${id}/review${query}`, {
+      method: 'POST',
+      json: { action: 'reject' },
+    })
+
   beforeAll(async () => {
     env = await createTestEnvironment()
     payload = env.payload
@@ -105,6 +110,7 @@ describe('POST /api/user-submissions/:id/review — locale and type gates', () =
     cityId = city.id
 
     rest = await createRestClientAs(env, frenchReviewer)
+    adminRest = await createRestClient(env)
   })
 
   afterAll(async () => {
@@ -123,6 +129,18 @@ describe('POST /api/user-submissions/:id/review — locale and type gates', () =
 
   it('allows it under the locale the reviewer holds roles in', async () => {
     const { status } = await review(await pendingSubmission(), '?locale=fr')
+    expect(status).toBe(200)
+  })
+
+  /**
+   * An admin carries no roles, so `bypassPermissions` alone admits them — and
+   * the Accept / Reject buttons render for one anyway, since
+   * `SubmissionActions` gates on no permission. No locale, because that is the
+   * shape the admin panel sends, and the one the bypass has to answer before
+   * any scope is resolved.
+   */
+  it('allows an admin, who holds no roles to resolve', async () => {
+    const { status } = await reviewAsAdmin(await pendingSubmission())
     expect(status).toBe(200)
   })
 
