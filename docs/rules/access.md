@@ -86,7 +86,7 @@ This only works because the authenticated user loads **four times**, not once. `
 
 ⚠ **Never derive this scope by hand from `req.locale`. Call `roleScopeFromLocale`.** Written out per call site it drifts. Four hand-written copies once existed, and the fourth answered `?locale=all` with `'union'` where the rest denied it. Worse, `req.locale` is a request-supplied string, and `RoleScope` has a non-locale member. A cast lets `?locale=union` name the privileged scope and hand a manager every locale's roles at once. The helper accepts only a configured locale, so `?locale=all` now **denies** instead of leaking the flat array through. The admin UI never sends it. Only a hand-rolled API call can reach this path. Clients are unaffected — `Clients.roles` is not localized.
 
-A custom **endpoint** does not call it directly either: `requireManagerPermission` and `requireCollectionPermission` (`@/lib/endpoints`, `docs/rules/endpoints.md`) are the gate, and they own that call. `tests/unit/endpoint-permission-gate.spec.ts` fails a call written out under `src/collections/**` or `src/endpoints/**`, because the two endpoints that hand-rolled it had already diverged on `bypassPermissions` by the time anything noticed (#969).
+A custom **endpoint** does not call it directly either: `requireManagerPermission` and `requireCollectionPermission` (`@/lib/endpoints`, `docs/rules/endpoints.md`) own that call, and `tests/unit/endpoint-permission-gate.spec.ts` fails one written out under `src/collections/**` or `src/endpoints/**` (#969).
 
 ## API client roles
 

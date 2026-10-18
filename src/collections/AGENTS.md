@@ -30,12 +30,11 @@ const denied = requireManagerPermission({
 if (denied) return denied
 ```
 
-⚠ **Never call `hasPermission` here.** It takes the locale scope as an
-argument, and a check written out at a handler is free to omit it — which
-resolves the **default** locale and silently 403s every manager whose roles
-live elsewhere (#701, #665). The gates own that argument;
-`tests/unit/endpoint-permission-gate.spec.ts` fails a call under
-`src/collections/**` or `src/endpoints/**`. See `docs/rules/endpoints.md`.
+⚠ **Never call `hasPermission` here** — the gates own its locale-scope
+argument, and a check written out at a handler is free to omit it (#701,
+#665). `tests/unit/endpoint-permission-gate.spec.ts` fails one under
+`src/collections/**` or `src/endpoints/**`. What goes wrong without the
+scope is in the gate's own docblock; the rule is in `docs/rules/endpoints.md`.
 
 Permission flow, in order:
 
