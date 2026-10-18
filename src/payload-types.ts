@@ -10944,6 +10944,7 @@ export interface TaskSendSessionReminders {
 export interface TaskSweepEventImports {
   input: {
     now?: string | null;
+    dryRun?: boolean | null;
   };
   output: {
     deleted: number;

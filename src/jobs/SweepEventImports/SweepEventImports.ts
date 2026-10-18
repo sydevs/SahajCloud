@@ -21,13 +21,9 @@ const IMPORT_WINDOWS: PurgeWindow[] = [
   {
     name: 'batches',
     days: IMPORT_RETENTION_DAYS,
-    where: (cutoff) => {
-      const clauses: Where[] = [
-        { status: { equals: 'discarded' } },
-        { updatedAt: { less_than: cutoff } },
-      ]
-      return { or: clauses }
-    },
+    where: (cutoff): Where => ({
+      or: [{ status: { equals: 'discarded' } }, { updatedAt: { less_than: cutoff } }],
+    }),
   },
 ]
 
@@ -54,6 +50,13 @@ export const SweepEventImports: TaskConfig<'sweepEventImports'> = {
       name: 'now',
       type: 'text',
     },
+    {
+      // Reports what *would* go, and deletes nothing. This sweep's rows carry a
+      // volunteer's contact list, so an operator queueing it from the Jobs UI
+      // gets to see the count before the delete.
+      name: 'dryRun',
+      type: 'checkbox',
+    },
   ],
   outputSchema: [{ name: 'deleted', type: 'number', required: true }],
   schedule: [
@@ -64,10 +67,11 @@ export const SweepEventImports: TaskConfig<'sweepEventImports'> = {
   ],
   handler: async ({ input, req }) => {
     const now = typeof input?.now === 'string' ? new Date(input.now) : new Date()
+    const dryRun = input?.dryRun === true
 
     const deleted = await sweepRetention({
       collection: 'event-imports',
-      dryRun: false,
+      dryRun,
       label: 'SweepEventImports',
       now,
       req,
@@ -76,7 +80,9 @@ export const SweepEventImports: TaskConfig<'sweepEventImports'> = {
 
     if (deleted > 0) {
       req.payload.logger.info({
-        msg: 'SweepEventImports: retention sweep complete',
+        msg: dryRun
+          ? 'SweepEventImports: dry run — nothing was deleted'
+          : 'SweepEventImports: retention sweep complete',
         deleted,
       })
     }
