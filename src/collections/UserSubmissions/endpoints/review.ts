@@ -2,8 +2,7 @@ import type { Endpoint } from 'payload'
 
 import { APIError } from 'payload'
 
-import { requireActiveManager } from '@/lib/endpoints'
-import { hasPermission, roleScopeFromLocale } from '@/plugins/access'
+import { requireManagerPermission } from '@/lib/endpoints'
 
 import { applyReview, type ReviewAction } from '../lifecycle/review'
 
@@ -25,24 +24,13 @@ export const reviewSubmission: Endpoint = {
   path: '/:id/review',
   method: 'post',
   handler: async (req) => {
-    const denied = requireActiveManager(req)
+    const denied = requireManagerPermission({
+      req,
+      collection: 'user-submissions',
+      operation: 'update',
+      forbidden: 'You do not have permission to review submissions.',
+    })
     if (denied) return denied
-
-    // `locale` is required, not optional: a manager's roles are per-locale, so a
-    // check with no locale grants them nothing and every non-admin 403s here (#665).
-    if (
-      !hasPermission({
-        user: req.user,
-        collection: 'user-submissions',
-        operation: 'update',
-        locale: roleScopeFromLocale(req.locale),
-      })
-    ) {
-      return Response.json(
-        { errors: [{ message: 'You do not have permission to review submissions.' }] },
-        { status: 403 },
-      )
-    }
 
     const id = Number(req.routeParams?.id)
     if (!Number.isInteger(id) || id <= 0) {
