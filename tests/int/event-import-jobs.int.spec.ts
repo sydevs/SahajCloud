@@ -660,6 +660,28 @@ describe('event import jobs', () => {
       expect((await read(live.id)).id).toBe(live.id)
     })
 
+    it('counts a discarded batch under dryRun and deletes nothing', async () => {
+      const discarded = await createBatch([classLine({ title: 'Dry run' })], 'dry-run.csv')
+      await resolve(discarded.id)
+      await payload.update({
+        collection: 'event-imports',
+        id: discarded.id,
+        data: { status: 'discarded' },
+        user: admin,
+        overrideAccess: false,
+      })
+
+      const { deleted } = await runTaskHandler(SweepEventImports, {
+        payload,
+        input: { dryRun: true },
+      })
+
+      // The count alone would pass against a real delete. Reading the row back
+      // is what proves the operator's preview did not spend the rows it counted.
+      expect(deleted).toBeGreaterThanOrEqual(1)
+      expect((await read(discarded.id)).id).toBe(discarded.id)
+    })
+
     it('deletes a batch untouched for longer than the window, whatever its status', async () => {
       const stale = await createBatch([classLine({ title: 'Stale' })], 'stale.csv')
 
