@@ -30,13 +30,18 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { Meditation } from '@/payload-types'
 import { PREVIEW_ASSET_PREFIX, stripPreviewPrefix } from '@/plugins/storage/previewIsolation'
 
-import { Logger, ValidationReport, type BaseImportOptions } from '../../seeds/lib'
+import {
+  Logger,
+  ValidationReport,
+  type BaseImportOptions,
+  type RunVerification,
+} from '../../seeds/lib'
 import { MEDITATION_TRANSCRIPTS_DATA_FILE } from '../../seeds/lib/dataFiles'
 import {
   MeditationTranscriptsImporter,
   type TranscriptEntry,
 } from '../../seeds/meditation-transcripts/import'
-import { testData } from '../utils/testData'
+import { testData, type FixtureOverrides } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 /**
@@ -76,6 +81,11 @@ class TranscriptsProbe extends MeditationTranscriptsImporter {
   get errorCount(): number {
     return this.report.getErrorCount()
   }
+
+  /** The run invariant `run()` would check, reachable without booting it. */
+  async verify(): Promise<RunVerification> {
+    return this.verifyRun()
+  }
 }
 
 /** One source entry for a meditation, naming the recording it actually carries. */
@@ -105,20 +115,36 @@ describe('meditation-transcripts seed', () => {
   let trashed: Meditation
   let replaced: Meditation
 
+  /**
+   * A meditation in the state this importer targets: a recording, and no
+   * transcript row at all.
+   *
+   * ⚠ An upload writes one by itself since #953 —
+   * `enqueueMeditationTranscription` asks for a transcription, and with no
+   * `LEMONFOX_API_KEY` in this lane that request lands as a `failed`
+   * placeholder carrying no cues. The 126 recordings this script imports were
+   * uploaded before that hook existed and carry nothing, so a fixture keeping
+   * the placeholder would assert against a state no target is in.
+   */
+  const createLibraryMeditation = async (overrides: FixtureOverrides<Meditation>) => {
+    const meditation = await testData.createMeditation(payload, undefined, overrides)
+    await payload.delete({
+      collection: 'meditation-transcripts',
+      where: { meditation: { equals: meditation.id } },
+      overrideAccess: true,
+    })
+    return meditation
+  }
+
   beforeAll(async () => {
     const env = await createTestEnvironment()
     payload = env.payload
     cleanup = env.cleanup
 
-    english = await testData.createMeditation(payload, undefined, { label: 'Om Meditation' })
-    french = await testData.createMeditation(payload, undefined, {
-      label: 'Meditation Francaise',
-      locale: 'fr',
-    })
-    trashed = await testData.createMeditation(payload, undefined, { label: 'Retired Meditation' })
-    replaced = await testData.createMeditation(payload, undefined, {
-      label: 'Reuploaded Meditation',
-    })
+    english = await createLibraryMeditation({ label: 'Om Meditation' })
+    french = await createLibraryMeditation({ label: 'Meditation Francaise', locale: 'fr' })
+    trashed = await createLibraryMeditation({ label: 'Retired Meditation' })
+    replaced = await createLibraryMeditation({ label: 'Reuploaded Meditation' })
 
     // Trashing is setting `deletedAt` — `payload.delete` is a hard delete even
     // on a `trash: true` collection.
@@ -164,7 +190,6 @@ describe('meditation-transcripts seed', () => {
     expect(row.status).toBe('completed')
     expect(row.provider).toBe('lemonfox')
     expect(row.language).toBe('en')
-    expect(row.outdated).toBe(false)
     expect(row.error).toBeFalsy()
     expect(row.audioFilename).toBe(english.filename)
     // The hook's work, not the importer's: it never calls `applyGlossary`.
@@ -244,7 +269,7 @@ describe('meditation-transcripts seed', () => {
   })
 
   it('writes nothing and reads no row in dry-run mode', async () => {
-    const fresh = await testData.createMeditation(payload, undefined, { label: 'Dry Run Only' })
+    const fresh = await createLibraryMeditation({ label: 'Dry Run Only' })
     const probe = new TranscriptsProbe(payload, [entryFor(fresh, 'english', 'Not stored.')], {
       dryRun: true,
     })
@@ -293,5 +318,26 @@ describe('meditation-transcripts seed', () => {
 
     expect(probe.warnings).toEqual([])
     expect(await readRow(prefixed.id)).toBeTruthy()
+  })
+
+  it('accounts for every entry, whichever way each one ended', async () => {
+    const imported = await testData.createMeditation(payload, undefined, { label: 'Accounted' })
+    const mismatched = await testData.createMeditation(payload, undefined, {
+      label: 'Wrong Language',
+    })
+
+    const probe = new TranscriptsProbe(payload, [
+      entryFor(imported, 'english', 'Written.'),
+      // Imports, and warns about its language — which is why the invariant
+      // cannot be `created + skipped + warnings === entries`: this entry
+      // carries both a write and a warning.
+      entryFor(mismatched, 'french', 'Written anyway.'),
+      { ...entryFor(imported, 'english', 'Nobody.'), meditationId: 9_000_002 },
+      entryFor(trashed, 'english', 'Retired.'),
+    ])
+    await probe.drive()
+
+    expect(probe.warnings).toHaveLength(3)
+    expect(await probe.verify()).toEqual({ failures: [] })
   })
 })

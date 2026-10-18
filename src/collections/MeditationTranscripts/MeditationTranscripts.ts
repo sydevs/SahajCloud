@@ -1,14 +1,18 @@
 import type { CollectionConfig } from 'payload'
 
+import type { JobStageConfig } from '@/components/admin/JobStageView/stages'
 import { jsonField } from '@/fields/jsonField'
 import { getLocaleOptions } from '@/lib/locales'
 import {
   TRANSCRIPT_PROVIDERS,
   TRANSCRIPT_STATUSES,
+  TRANSCRIPTION_STALL_MS,
   transcriptSegmentsSchema,
 } from '@/lib/meditations/transcript'
 
 import { applyGlossaryToSegments } from './hooks/applyGlossaryToSegments'
+import { queueTranscription } from './hooks/queueTranscription'
+import { deriveTranscriptStatus, loadTranscriptJob, transcriptJobError } from './status'
 
 /**
  * The timestamped transcript of a meditation's recording, one row per
@@ -16,18 +20,35 @@ import { applyGlossaryToSegments } from './hooks/applyGlossaryToSegments'
  *
  * Kept off the meditation itself: Meditations carries drafts and keeps three
  * versions, so a job writing there would push out the versions an editor
- * restores from, and would race their draft. The collection is restricted
- * (`config/projects.ts`), so no API client key reads it and no manager role
- * grants it — the editor-facing read is a later child's endpoint, gated on
- * meditation permissions.
+ * restores from, and would race their draft. It sits in the two projects that
+ * carry `meditations` (`config/projects.ts`), so whoever may read a recording
+ * may read its transcript — there is no second permission to hold, and no
+ * endpoint standing in for one.
  */
 export const MeditationTranscripts: CollectionConfig = {
   slug: 'meditation-transcripts',
   admin: {
+    components: {
+      views: {
+        edit: { default: { Component: '@/components/admin/JobStageView/JobStageView' } },
+      },
+    },
+    // `processing` is every wait: a row waiting on a worker and one held by it
+    // are indistinguishable to a reader, so `status` spells neither separately.
+    // `staleAfterMs` releases the gate on a run lost to a restart, which would
+    // otherwise hold the row behind the waiting view for good — the job row it
+    // derives from stays incomplete with nothing left to finish it.
+    custom: {
+      jobStage: {
+        runningStages: ['processing'],
+        staleAfterMs: TRANSCRIPTION_STALL_MS,
+      } satisfies JobStageConfig,
+    },
     hidden: true,
     useAsTitle: 'audioFilename',
   },
   hooks: {
+    afterChange: [queueTranscription],
     beforeChange: [applyGlossaryToSegments],
   },
   fields: [
@@ -38,13 +59,6 @@ export const MeditationTranscripts: CollectionConfig = {
       type: 'relationship',
       relationTo: 'meditations',
       unique: true,
-    },
-    {
-      name: 'status',
-      type: 'select',
-      required: true,
-      defaultValue: 'queued',
-      options: [...TRANSCRIPT_STATUSES],
     },
     {
       // The recording this transcript was requested for. A meditation whose
@@ -67,24 +81,54 @@ export const MeditationTranscripts: CollectionConfig = {
       required: true,
       options: getLocaleOptions(),
     },
-    {
-      // Stored rather than compared at render: the mark belongs to the moment
-      // the recording is replaced, and a render-time comparison of filenames is
-      // meaningless across environments, where a preview key prefixes them.
-      name: 'outdated',
-      type: 'checkbox',
-      defaultValue: false,
-    },
     jsonField({
-      // Cleared to `null` when a new transcription is requested, so the
-      // generated type has to carry it.
+      // Null until the run completes, so the generated type has to carry it.
+      // There is no second state to tell apart: a replaced recording takes its
+      // row with it, so cues on a row are always this recording's.
       name: 'segments',
       schemaTitle: 'TranscriptSegments',
       schema: transcriptSegmentsSchema.nullable(),
     }),
     {
+      // The run, kept so a reader can see what happened to it.
+      // `deleteJobOnComplete` is off for this reason (`payload.config.ts`).
+      //
+      // `maxDepth: 0` never populates it: `payload-jobs` is admin-only, and a
+      // client reading a recording reads its transcript, so the row must carry
+      // the id and nothing more. The two virtual fields below read the job
+      // themselves, with `overrideAccess`.
+      name: 'job',
+      type: 'relationship',
+      relationTo: 'payload-jobs',
+      maxDepth: 0,
+      admin: { hidden: true },
+    },
+    {
+      name: 'status',
+      type: 'select',
+      virtual: true,
+      options: [...TRANSCRIPT_STATUSES],
+      admin: { readOnly: true },
+      hooks: {
+        afterRead: [
+          async ({ data, req }) =>
+            deriveTranscriptStatus(data?.segments, await loadTranscriptJob(req, data?.job)),
+        ],
+      },
+    },
+    {
+      // The run's own message. Read off the job rather than copied onto the
+      // row: a copy is a second statement of the same failure, and the one that
+      // goes stale.
       name: 'error',
       type: 'textarea',
+      virtual: true,
+      admin: { readOnly: true },
+      hooks: {
+        afterRead: [
+          async ({ data, req }) => transcriptJobError(await loadTranscriptJob(req, data?.job)),
+        ],
+      },
     },
   ],
 }

@@ -1,3 +1,4 @@
+import { CleanupJobs } from './CleanupJobs/CleanupJobs'
 import { CleanupOrphanedMedia } from './CleanupOrphanedMedia/CleanupOrphanedMedia'
 import { DeliverSubmissions } from './DeliverSubmissions/DeliverSubmissions'
 import { ExpireEvents } from './ExpireEvents/ExpireEvents'
@@ -7,11 +8,13 @@ import { SendRegistrationDigests } from './RegistrationNotifications/SendRegistr
 import { SendSessionReminders } from './RegistrationNotifications/SendSessionReminders'
 import { ScreenSubmissions } from './ScreenSubmissions/ScreenSubmissions'
 import { SyncLectureMetadata } from './SyncLectureMetadata/SyncLectureMetadata'
+import { TranscribeMeditation } from './TranscribeMeditation/TranscribeMeditation'
 import { VerifyEmbeds } from './VerifyEmbeds/VerifyEmbeds'
 
 // Export all tasks as an array
 // Note: TrackUsage and ResetUsage tasks are auto-registered by the usagePlugin
 export const tasks = [
+  CleanupJobs,
   CleanupOrphanedMedia,
   DeliverSubmissions,
   ExpireEvents,
@@ -21,5 +24,6 @@ export const tasks = [
   SendRegistrationDigests,
   SendSessionReminders,
   SyncLectureMetadata,
+  TranscribeMeditation,
   VerifyEmbeds,
 ]

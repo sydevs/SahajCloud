@@ -1,8 +1,13 @@
 import { describe, it, expect } from 'vitest'
 
+import { activeRegistrationWhere } from '@/lib/registrations/active'
+
 import {
+  EXPECTED_COUNTS,
+  getCountTargets,
   getScriptMetadata,
   getExpectedCounts,
+  isNotApplicable,
   verifyCountsForScript,
   getCollectionMetadata,
   type ScriptName,
@@ -337,5 +342,90 @@ describe('validatePaginationParam', () => {
     expect(validatePaginationParam('limit', '-1')?.error).toBe('Invalid limit parameter')
     expect(validatePaginationParam('offset', '1.5')?.error).toBe('Invalid offset parameter')
     expect(validatePaginationParam('limit', '')?.error).toBe('Invalid limit parameter')
+  })
+})
+
+const ALL_SCRIPTS = Object.keys(EXPECTED_COUNTS) as ScriptName[]
+
+// Each script that states no floor, and the reason it gives. A closed list in
+// both directions: a new `{}` entry fails the membership case, and a reason
+// rewritten into something vaguer fails its own.
+const NO_FLOOR_REASONS: Partial<Record<ScriptName, RegExp>> = {
+  'meditation-transcripts': /the target still carries/,
+  'wm-app-translations': /global/,
+  translations: /global/,
+}
+
+describe('a script that can state no floor says so', () => {
+  const unverifiable = ALL_SCRIPTS.filter((script) => isNotApplicable(EXPECTED_COUNTS[script]))
+
+  it('covers the globals-only scripts, and the one whose floor is the target\'s own library', () => {
+    expect(unverifiable).toEqual(Object.keys(NO_FLOOR_REASONS))
+  })
+
+  unverifiable.forEach((script) => {
+    it(`reports ${script}'s reason rather than passing silently`, () => {
+      const { results, allPassed, skippedReason } = verifyCountsForScript(script, {})
+
+      expect(results).toEqual([])
+      expect(allPassed).toBe(true)
+      expect(skippedReason).toMatch(NO_FLOOR_REASONS[script]!)
+      // Nothing to count and no floor to count against, consistently.
+      expect(getExpectedCounts(script)).toEqual({})
+      expect(getCountTargets(script)).toEqual([])
+    })
+  })
+
+  it('leaves a verifiable script reporting no reason', () => {
+    const { skippedReason, results } = verifyCountsForScript('tags', {
+      'user-choices': 27,
+      'song-tags': 7,
+    })
+
+    expect(skippedReason).toBeUndefined()
+    expect(results).toHaveLength(2)
+  })
+})
+
+describe('getCountTargets', () => {
+  it('drops a step that lands in no collection of its own', () => {
+    const atlas = getCountTargets('atlas').map((target) => target.collection)
+
+    expect(atlas).not.toContain('pictures')
+    expect(atlas).toContain('user-submissions')
+  })
+
+  it('keeps the script metadata order', () => {
+    expect(getCountTargets('meditations').map((target) => target.collection)).toEqual([
+      'narrators',
+      'frames',
+      'meditations',
+    ])
+  })
+
+  it('carries the filter the atlas registration floor is stated under', () => {
+    const registrations = getCountTargets('atlas').find(
+      (target) => target.collection === 'user-submissions',
+    )
+
+    // An unfiltered count passes on contact, subscribe and proposal rows alone.
+    expect(registrations?.where).toEqual(activeRegistrationWhere)
+    expect(getCountTargets('tags').every((target) => target.where === undefined)).toBe(true)
+  })
+
+  /**
+   * The invariant the seed route's `getDatabaseCounts` rests on. It was broken:
+   * `wemeditate` expected 40 lectures the route never counted, so every run of
+   * that script reported verification failed on 0.
+   */
+  it('covers every floor every script declares', () => {
+    const uncounted = ALL_SCRIPTS.flatMap((script) => {
+      const counted = new Set<string>(getCountTargets(script).map((target) => target.collection))
+      return Object.keys(getExpectedCounts(script))
+        .filter((collection) => !counted.has(collection))
+        .map((collection) => `${script}:${collection}`)
+    })
+
+    expect(uncounted).toEqual([])
   })
 })

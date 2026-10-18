@@ -29,10 +29,8 @@ export const PreviewUrlThumbnailCell: React.FC<PreviewUrlThumbnailCellProps> = (
   cellData,
   rowData,
   collectionSlug,
-  className,
   link,
   linkURL,
-  onClick,
   fileUrlField = 'url',
 }) => {
   const thumbnailUrl = typeof cellData === 'string' ? cellData : undefined
@@ -61,10 +59,8 @@ export const PreviewUrlThumbnailCell: React.FC<PreviewUrlThumbnailCellProps> = (
       cellData={cellData}
       collectionSlug={collectionSlug}
       rowData={rowData}
-      className={className}
       link={link}
       linkURL={resolvedLinkURL}
-      onClick={onClick}
       openInNewTab={shouldOpenInNewTab}
     />
   )

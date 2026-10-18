@@ -1,18 +1,11 @@
-/**
- * Pagination Types and Utilities
- *
- * Shared types for multi-step seed script execution with pagination.
- * Used for long-running imports by splitting work across
- * multiple HTTP requests.
- */
+/** Splits a long-running import across several HTTP requests. */
+
+import type { CollectionSlug, Where } from 'payload'
 
 // --- Types ---
 
-/** Options for paginated import execution */
 export interface PaginationOptions {
-  /** Starting index for pagination */
   offset: number
-  /** Maximum items to process in this batch */
   limit: number
   /** Optional collection filter for multi-collection scripts */
   collection?: string
@@ -20,21 +13,15 @@ export interface PaginationOptions {
 
 /** Current pagination state for reporting */
 export interface PaginationState {
-  /** Number of items processed in this batch */
   processedCount: number
-  /** Whether more items remain after this batch */
   hasMore: boolean
-  /** Starting index for next batch */
   nextOffset: number
 }
 
-/** Metadata for a single collection within a script */
 export interface CollectionMetadata {
-  /** Collection slug */
   slug: string
   /** Estimated total items (hardcoded from expectedCounts) */
   totalItems: number
-  /** Whether this collection requires pagination */
   requiresPagination: boolean
   /** Collections that must be imported before this one */
   dependencies: string[]
@@ -42,33 +29,40 @@ export interface CollectionMetadata {
   naturalKey: string
   /** Whether this collection involves file uploads (reduces batch size) */
   hasFileUploads?: boolean
+  /**
+   * The collection this step's rows land in, where it has one. `slug` is the
+   * step's own name and is not always a collection: `atlas`'s `pictures`
+   * downloads into `images`, and `payload.count` throws on `'pictures'`. The
+   * type is what keeps a mistyped slug from reaching a count.
+   */
+  collection?: CollectionSlug
+  /**
+   * Counted under this filter rather than whole-collection. It lives beside
+   * the floor it makes meaningful — `atlas`'s `user-submissions` floor counts
+   * registrations, and the table also holds contact, subscribe and proposal
+   * rows, which would pass the floor on their own.
+   */
+  countWhere?: Where
   /** Override batch size for this collection (takes precedence over hasFileUploads) */
   batchSize?: number
 }
 
-/** Metadata for an entire script */
 export interface ScriptMetadata {
   /** Collections in dependency order */
   collections: CollectionMetadata[]
   /** Total estimated items across all collections */
   totalItems: number
-  /** Whether any collection in this script requires pagination */
   requiresPagination: boolean
-  /** Recommended batch size */
   recommendedBatchSize: number
 }
 
 /** Pagination info included in completion events */
 export interface PaginationResult {
-  /** Starting index of this batch */
   offset: number
-  /** Limit used for this batch */
   limit: number
   /** Number of items actually processed */
   processedCount: number
-  /** Whether more items remain */
   hasMore: boolean
-  /** Starting index for next batch */
   nextOffset: number
   /** Collection that was processed (for multi-collection scripts) */
   collection?: string
@@ -76,26 +70,11 @@ export interface PaginationResult {
 
 // --- Utilities ---
 
-/**
- * Get default batch size based on upload requirements
- *
- * @param hasFileUploads - Whether collection involves file uploads
- * @returns Recommended batch size
- */
 export function getDefaultBatchSize(hasFileUploads: boolean = false): number {
   if (hasFileUploads) return 10
   return 100
 }
 
-/**
- * Calculate pagination state from items array
- *
- * @param totalItems - Total items in the array
- * @param offset - Current offset
- * @param limit - Current limit
- * @param processedCount - Number actually processed
- * @returns Pagination state
- */
 export function calculatePaginationState(
   totalItems: number,
   offset: number,

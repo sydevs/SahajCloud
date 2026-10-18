@@ -20,7 +20,12 @@ import { getLocaleLabel, type LocaleCode } from '@/lib/locales'
 import { transcriptSegmentsSchema, type TranscriptSegment } from '@/lib/meditations/transcript'
 import { stripPreviewPrefix } from '@/plugins/storage/previewIsolation'
 
-import { BaseImporter, type BaseImportOptions, loadJsonData } from '../lib'
+import {
+  BaseImporter,
+  type BaseImportOptions,
+  loadJsonData,
+  type RunVerification,
+} from '../lib'
 import { MEDITATION_TRANSCRIPTS_DATA_FILE as DATA_FILE } from '../lib/dataFiles'
 
 /** One entry of `data.json` — a source file's own keys, segments converted. */
@@ -39,11 +44,47 @@ type LibraryMeditation = {
   trashed: boolean
 }
 
+/** What one run of this script did, split by how each entry ended. */
+export interface EntryDisposition {
+  entries: number
+  created: number
+  updated: number
+  skipped: number
+  errors: number
+  /** Entries resolved to no write at all, each warned about by name. */
+  unresolved: number
+}
+
+/**
+ * Every entry ended in a write, an error, or a skip that named its reason.
+ *
+ * This is what the script can assert when no database floor can be stated: how
+ * many of the 126 transcripts import depends on which recordings the target
+ * library still carries, so `EXPECTED_COUNTS` declares `not-applicable`. The
+ * two sides are counted by different code — `unresolved` here, the rest by
+ * `upsert` — so a disposition this importer stops counting, or an `upsert`
+ * branch that returns without counting, breaks the equality.
+ */
+export function verifyEntriesAccountedFor(run: EntryDisposition): RunVerification {
+  const accounted = run.created + run.updated + run.skipped + run.errors + run.unresolved
+  if (accounted === run.entries) return { failures: [] }
+
+  return {
+    failures: [
+      `${run.entries} entries, ${accounted} accounted for: ${run.created} created, ` +
+        `${run.updated} updated, ${run.skipped} skipped, ${run.errors} errors, ` +
+        `${run.unresolved} unresolved.`,
+    ],
+  }
+}
+
 export class MeditationTranscriptsImporter extends BaseImporter<BaseImportOptions> {
   protected readonly importName = 'Meditation Transcripts'
   protected readonly cacheDir = path.resolve(process.cwd(), 'seeds/cache/meditation-transcripts')
 
   private meditations: Map<number, LibraryMeditation> = new Map()
+  private entriesSeen = 0
+  private unresolved = 0
 
   protected async setup(): Promise<void> {
     if (this.options.dryRun) return
@@ -62,6 +103,7 @@ export class MeditationTranscriptsImporter extends BaseImporter<BaseImportOption
 
   protected async import(): Promise<void> {
     const entries = await this.loadData()
+    this.entriesSeen = entries.length
 
     if (this.options.dryRun) {
       await this.validateDryRun(entries)
@@ -78,6 +120,26 @@ export class MeditationTranscriptsImporter extends BaseImporter<BaseImportOption
     }
   }
 
+  /**
+   * `verifyEntriesAccountedFor` over this run's own totals.
+   *
+   * Not the `created + updated + skipped + warnings === entries` #967 names:
+   * the language-mismatch warning below lands on an entry that then imports,
+   * so warnings are not one per unimported entry and that equality fails on a
+   * healthy run. `unresolved` counts the skips instead.
+   */
+  protected async verifyRun(): Promise<RunVerification> {
+    const { created, updated, skipped, errors } = this.report.getSummary()
+    return verifyEntriesAccountedFor({
+      entries: this.entriesSeen,
+      created,
+      updated,
+      skipped,
+      errors,
+      unresolved: this.unresolved,
+    })
+  }
+
   // ─── Resolving the meditation ───────────────────────────────────────────
 
   /**
@@ -86,9 +148,9 @@ export class MeditationTranscriptsImporter extends BaseImporter<BaseImportOption
    * ⚠ `locale: 'all'` is load-bearing. `filterMeditationsByLocale` appends
    * `{ locale: { equals: req.locale } }` to every `find`, and a Local API call
    * with no locale resolves that to the default `en` — so a plain read cannot
-   * see the one French meditation at all. `preloadCollection` takes no locale
-   * today, which is why it cannot serve this read; that gap is the commons', and
-   * `seeds/meditations/import.ts` already preloads `meditations` through it.
+   * see the one French meditation at all. `preloadCollection` takes a locale
+   * since #967, but it caches one document per natural key for an existence
+   * check — this read keys on id and carries three fields per row.
    */
   private async loadLibrary(): Promise<void> {
     const result = await this.payload.find({
@@ -122,10 +184,12 @@ export class MeditationTranscriptsImporter extends BaseImporter<BaseImportOption
     const meditation = this.meditations.get(meditationId)
     if (!meditation) {
       this.addWarning(`Meditation ${meditationId}: no such meditation — transcript skipped.`)
+      this.unresolved += 1
       return
     }
     if (meditation.trashed) {
       this.addWarning(`Meditation ${meditationId}: meditation is trashed — transcript skipped.`)
+      this.unresolved += 1
       return
     }
 
@@ -140,6 +204,7 @@ export class MeditationTranscriptsImporter extends BaseImporter<BaseImportOption
       this.addWarning(
         `Meditation ${meditationId}: carries ${filename ?? 'no recording'}, not ${entry.audioFilename} — transcript skipped.`,
       )
+      this.unresolved += 1
       return
     }
 
@@ -154,10 +219,9 @@ export class MeditationTranscriptsImporter extends BaseImporter<BaseImportOption
       { meditation: { equals: meditationId } },
       {
         meditation: meditationId,
-        // These transcripts already exist, so there is no job to await. `error`
-        // stays unset and `outdated` keeps its `false` default, which the live
-        // transcription owns and writes when a recording is replaced.
-        status: 'completed',
+        // These already exist, so the row carries cues from the start and
+        // `queueTranscription` asks for nothing. `status` derives `completed`
+        // from them, and there is no job row to read an error off.
         provider: 'lemonfox',
         // The meditation's own locale, not the file's language name: the column
         // is a select over the configured locales, and the glossary keys on it.

@@ -1,19 +1,29 @@
 'use client'
 
-import type { CollectionSlug, DefaultCellComponentProps } from 'payload'
+import type { DefaultCellComponentProps } from 'payload'
 
-import { Link, Thumbnail, useListDrawerContext } from '@payloadcms/ui'
+import { Link, Thumbnail } from '@payloadcms/ui'
+
+import { SelectableCell } from '@/components/admin/helpers/drawerRowSelect'
 
 /**
  * Props for BaseThumbnailCell extending Payload's DefaultCellComponentProps
  * with custom thumbnail-specific props
  */
-export type BaseThumbnailCellProps = Partial<DefaultCellComponentProps> & {
+export type BaseThumbnailCellProps = Omit<
+  Partial<DefaultCellComponentProps>,
+  'className' | 'onClick'
+> & {
   thumbnailUrl?: string
   mimeType?: string
   filename?: string
   /** Open link in new tab (custom extension for external links) */
   openInNewTab?: boolean
+  /**
+   * The cell's own click, taken only outside a drawer's linked column. Not
+   * Payload's `onClick`, which `renderCell` never fills for a custom cell.
+   */
+  onClick?: () => void
 }
 
 /**
@@ -22,7 +32,7 @@ export type BaseThumbnailCellProps = Partial<DefaultCellComponentProps> & {
  *
  * Interaction priority (matching Payload's DefaultCell):
  * 1. A list drawer's select, in the linked column - wraps in button, calls onSelect
- * 2. onClick - wraps in button, calls onClick with { cellData, collectionSlug, rowData }
+ * 2. onClick - wraps in button, calls the caller's own handler
  * 3. linkURL - wraps in Link for navigation
  * 4. No interaction - plain display
  */
@@ -30,43 +40,13 @@ export const BaseThumbnailCell: React.FC<BaseThumbnailCellProps> = ({
   thumbnailUrl,
   mimeType,
   filename,
-  cellData,
   collectionSlug,
   rowData,
-  className,
   link,
   linkURL,
   onClick,
   openInNewTab,
 }) => {
-  // Payload hands a drawer's select handler to its own default cell only, so a
-  // custom Cell in the linked column has to call it itself (#942).
-  const { drawerSlug, onSelect } = useListDrawerContext()
-
-  const selectInDrawer =
-    link && drawerSlug && rowData && typeof onSelect === 'function'
-      ? () => {
-          onSelect({
-            collectionSlug: collectionSlug as CollectionSlug,
-            doc: rowData,
-            docID: String(rowData.id),
-          })
-        }
-      : undefined
-
-  // The drawer select replaces an onClick prop, as RenderDefaultCell overwrites it.
-  const handleClick =
-    selectInDrawer ??
-    (typeof onClick === 'function'
-      ? () => {
-          onClick({
-            cellData,
-            collectionSlug: collectionSlug as CollectionSlug,
-            rowData: rowData ?? {},
-          })
-        }
-      : undefined)
-
   const content = (
     <div className="file">
       <Thumbnail
@@ -79,37 +59,31 @@ export const BaseThumbnailCell: React.FC<BaseThumbnailCellProps> = ({
     </div>
   )
 
-  if (handleClick) {
-    return (
-      <button
-        type="button"
-        className={className}
-        onClick={handleClick}
-        style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 0 }}
-      >
-        {content}
-      </button>
-    )
-  }
-
+  let fallback: React.ReactNode = <span>{content}</span>
   if (linkURL) {
-    // Use native anchor for new tab links, Payload Link for internal navigation
-    if (openInNewTab) {
-      return (
-        <a href={linkURL} target="_blank" rel="noopener noreferrer" className={className}>
-          {content}
-        </a>
-      )
-    }
-    return (
-      <Link href={linkURL} prefetch={false} className={className}>
+    // Native anchor for new tab links, Payload Link for internal navigation
+    fallback = openInNewTab ? (
+      <a href={linkURL} target="_blank" rel="noopener noreferrer">
+        {content}
+      </a>
+    ) : (
+      <Link href={linkURL} prefetch={false}>
         {content}
       </Link>
     )
   }
 
-  // No interaction - plain display
-  return <span className={className}>{content}</span>
+  return (
+    <SelectableCell
+      collectionSlug={collectionSlug}
+      fallback={fallback}
+      link={link}
+      onClick={onClick}
+      rowData={rowData}
+    >
+      {content}
+    </SelectableCell>
+  )
 }
 
 export default BaseThumbnailCell

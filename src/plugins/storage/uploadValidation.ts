@@ -6,11 +6,40 @@
  */
 
 /**
+ * The ceiling on one whole multipart request, `upload.requestSizeLimit`.
+ *
+ * ⚠ `experimental.proxyClientMaxBodySize` in `next.config.mjs` must stay
+ * STRICTLY above this. `DEPLOYMENT.md` carries what an equal cap costs
+ * (#938, #939).
+ */
+export const UPLOAD_REQUEST_SIZE_LIMIT = 50 * 1024 * 1024
+
+/**
+ * The ceiling on one file, `upload.limits.fileSize`. The gap below
+ * `UPLOAD_REQUEST_SIZE_LIMIT` is what the multipart boundary, the part headers
+ * and `_payload` ride in, so a file this size still fits one request.
+ */
+export const UPLOAD_FILE_SIZE_LIMIT = 48 * 1024 * 1024
+
+/** Bytes as megabytes, for a size-limit message. */
+const megabytes = (bytes: number) => `${+(bytes / 1024 ** 2).toFixed(2)} MB`
+
+/**
+ * Either ceiling answers with this one sentence, because either can be the one
+ * that fires. Measured on a dev server: a 60 MB file is refused by the request
+ * gate, a 49 MB file by the per-file gate — the request counter is read before
+ * a chunk reaches the parser, so a large enough chunk crosses the request
+ * ceiling before the per-file gate has seen the bytes. Payload's own wording
+ * names neither size (#939).
+ */
+export const UPLOAD_SIZE_LIMIT_MESSAGE = `Upload is too large. The limit is ${megabytes(UPLOAD_FILE_SIZE_LIMIT)} per file and ${megabytes(UPLOAD_REQUEST_SIZE_LIMIT)} per request.`
+
+/**
  * File size limits in bytes.
  *
- * ⚠ None may exceed `upload.limits.fileSize` in `src/payload.config.ts`. These
- * are checked in `afterChange`, by which point the request limit has already
- * refused a larger body, so a higher number here can never fire.
+ * ⚠ None may exceed `UPLOAD_FILE_SIZE_LIMIT`. These are checked in
+ * `afterChange`, by which point the request limit has already refused a larger
+ * body, so a higher number here can never fire.
  * `tests/unit/next-config-body-limit.spec.ts` pins that ordering.
  */
 export const FILE_SIZE_LIMITS = {
@@ -34,13 +63,33 @@ export interface ValidationOptions {
   category?: keyof typeof FILE_SIZE_LIMITS
 }
 
+/** What each refusal answers with, so the message it carries reaches the caller. */
+const STATUS_BY_CODE = {
+  SIZE_EXCEEDED: 413,
+  INVALID_MIME_TYPE: 415,
+  INVALID_FILE: 400,
+} as const
+
+/**
+ * A refusal the caller caused, and has to be told about.
+ *
+ * ⚠ The `status` is load-bearing, not decoration. These are thrown from an
+ * adapter's `handleUpload`, so they reach `routeError`, which asks
+ * `isErrorPublic`: an error carrying no status defaults to 500, and a 500 has
+ * its whole body replaced with "Something went wrong." Every category limit is
+ * well under `UPLOAD_FILE_SIZE_LIMIT`, so this is the gate a 12 MB image
+ * actually hits, and the message naming both sizes was being discarded (#939).
+ */
 export class FileValidationError extends Error {
+  readonly status: number
+
   constructor(
     message: string,
-    public readonly code: 'SIZE_EXCEEDED' | 'INVALID_MIME_TYPE' | 'INVALID_FILE',
+    public readonly code: keyof typeof STATUS_BY_CODE,
   ) {
     super(message)
     this.name = 'FileValidationError'
+    this.status = STATUS_BY_CODE[code]
   }
 }
 
@@ -62,10 +111,8 @@ export function validateFileUpload(
 
   // Validate file size
   if (effectiveMaxSize && file.buffer.length > effectiveMaxSize) {
-    const sizeMB = (file.buffer.length / (1024 * 1024)).toFixed(2)
-    const maxSizeMB = (effectiveMaxSize / (1024 * 1024)).toFixed(2)
     throw new FileValidationError(
-      `File size (${sizeMB} MB) exceeds maximum allowed size (${maxSizeMB} MB)`,
+      `File size (${megabytes(file.buffer.length)}) exceeds maximum allowed size (${megabytes(effectiveMaxSize)})`,
       'SIZE_EXCEEDED',
     )
   }

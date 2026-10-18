@@ -1,16 +1,22 @@
 /**
- * Expected Counts Configuration
+ * Minimum expected database counts per import script.
  *
- * Minimum expected database counts for each import script.
- * Used to verify imports completed successfully.
- *
- * Verification passes if actual >= expected (allows multiple
- * importers to contribute to the same collections).
+ * Verification passes if actual >= expected, so several importers may
+ * contribute to one collection.
  */
 
 import type { CollectionMetadata, ScriptMetadata } from './pagination'
+import type { CollectionSlug, Where } from 'payload'
+
+import { activeRegistrationWhere } from '@/lib/registrations/active'
 
 import { getDefaultBatchSize } from './pagination'
+
+/** One collection to count for a script, and the filter its floor is stated under. */
+export interface CountTarget {
+  collection: CollectionSlug
+  where?: Where
+}
 
 export type ScriptName =
   | 'tags'
@@ -27,6 +33,27 @@ export interface ExpectedCounts {
 }
 
 /**
+ * A script that can state no database floor at all.
+ *
+ * `ExpectedCounts` can only express one claim — `actual >= expected` — so a
+ * script whose floor depends on the target environment used to declare `{}`.
+ * That verified nothing while reporting exactly like a script that verified
+ * and passed. Declaring the reason instead keeps the two apart.
+ */
+export interface NotApplicableCounts {
+  kind: 'not-applicable'
+  reason: string
+}
+
+export type ScriptExpectation = ExpectedCounts | NotApplicableCounts
+
+export function isNotApplicable(
+  expectation: ScriptExpectation,
+): expectation is NotApplicableCounts {
+  return 'kind' in expectation && expectation.kind === 'not-applicable'
+}
+
+/**
  * Minimum expected counts per script.
  *
  * Sources:
@@ -34,11 +61,8 @@ export interface ExpectedCounts {
  * - wemeditate: seeds/wemeditate/data.json counts
  * - meditations: seeds/meditations/data.json counts
  * - storyblok: Based on current Storyblok content
- *
- * Note: Image tags are now inline enum select values on the Images collection,
- * so they do not have expected counts anymore.
  */
-export const EXPECTED_COUNTS: Record<ScriptName, ExpectedCounts> = {
+export const EXPECTED_COUNTS: Record<ScriptName, ScriptExpectation> = {
   tags: {
     'user-choices': 27,
     'song-tags': 7,
@@ -58,20 +82,24 @@ export const EXPECTED_COUNTS: Record<ScriptName, ExpectedCounts> = {
     meditations: 73,
     frames: 60,
   },
-  // Deliberately empty. The floor is however many of the library's recordings
-  // the target environment still carries unchanged — 122 in production, 0 on a
-  // fresh local database — so any single number either fails locally or
-  // confirms nothing. The run's own created/skipped/warning summary is the
-  // signal instead.
-  'meditation-transcripts': {},
+  'meditation-transcripts': {
+    kind: 'not-applicable',
+    // 122 in production, 0 on a fresh local database, so any single number
+    // either fails locally or confirms nothing.
+    reason:
+      "the floor is however many of the library's recordings the target still carries unchanged",
+  },
   storyblok: {
     lessons: 17,
   },
-  // wm-app-translations updates a single PayloadCMS global, not collections.
-  // No collection counts apply — verification is intentionally a no-op.
-  'wm-app-translations': {},
-  // translations updates three PayloadCMS globals, not collections.
-  translations: {},
+  'wm-app-translations': {
+    kind: 'not-applicable',
+    reason: 'targets the wm-app-translations global, so no collection gains a row',
+  },
+  translations: {
+    kind: 'not-applicable',
+    reason: 'targets three translation globals, so no collection gains a row',
+  },
   // Counts follow the 2026-08 Atlas dump (activity through Aug 2026. The
   // previous dump's data ended Oct 2024). Counted, not estimated —
   // verification is `actual >= expected`, so an understated value passes even
@@ -110,12 +138,17 @@ export const EXPECTED_COUNTS: Record<ScriptName, ExpectedCounts> = {
   },
 }
 
-/** Get expected counts for a script */
+/**
+ * Get a script's collection floors. A script that can state none answers with
+ * no floors — read `EXPECTED_COUNTS` directly, or `verifyCountsForScript`'s
+ * `skippedReason`, to tell that apart from a script that simply has none.
+ */
 export function getExpectedCounts(script: ScriptName): ExpectedCounts {
-  return EXPECTED_COUNTS[script] || {}
+  const expectation = EXPECTED_COUNTS[script]
+  if (!expectation || isNotApplicable(expectation)) return {}
+  return expectation
 }
 
-/** Verify actual counts against expected minimums */
 export interface VerificationResult {
   collection: string
   actual: number
@@ -127,18 +160,21 @@ export function verifyCountsForScript(
   script: ScriptName,
   actualCounts: Record<string, number>,
   pagination?: { collection?: string; offset: number; limit: number },
-): { results: VerificationResult[]; allPassed: boolean } {
-  const expected = EXPECTED_COUNTS[script]
+): { results: VerificationResult[]; allPassed: boolean; skippedReason?: string } {
+  const expectation = EXPECTED_COUNTS[script]
+  if (expectation && isNotApplicable(expectation)) {
+    return { results: [], allPassed: true, skippedReason: expectation.reason }
+  }
+
+  const expected = getExpectedCounts(script)
   const results: VerificationResult[] = []
   let allPassed = true
 
   for (const [collection, expectedCount] of Object.entries(expected)) {
     const actual = actualCounts[collection] || 0
 
-    // Adjust expected count for paginated collection
     let adjustedExpected = expectedCount
     if (pagination?.collection === collection && pagination.limit > 0) {
-      // Expected = min(offset + limit, total_expected)
       adjustedExpected = Math.min(pagination.offset + pagination.limit, expectedCount)
     }
 
@@ -160,6 +196,7 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
   tags: [
     {
       slug: 'user-choices',
+      collection: 'user-choices',
       totalItems: 27,
       requiresPagination: false,
       dependencies: [],
@@ -168,17 +205,18 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
     },
     {
       slug: 'song-tags',
+      collection: 'song-tags',
       totalItems: 7,
       requiresPagination: false,
       dependencies: [],
       naturalKey: 'slug',
       hasFileUploads: true, // SVG icons
     },
-    // Note: image-tags removed - now inline enum select values on Images collection
   ],
   wemeditate: [
     {
       slug: 'authors',
+      collection: 'authors',
       totalItems: 18,
       requiresPagination: false,
       dependencies: [],
@@ -187,6 +225,7 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
     },
     {
       slug: 'albums',
+      collection: 'albums',
       totalItems: 8,
       requiresPagination: false,
       dependencies: [],
@@ -195,6 +234,7 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
     },
     {
       slug: 'songs',
+      collection: 'songs',
       totalItems: 27,
       requiresPagination: false,
       dependencies: ['albums'],
@@ -203,6 +243,7 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
     },
     {
       slug: 'pages',
+      collection: 'pages',
       totalItems: 60,
       requiresPagination: true, // Large collection
       dependencies: ['authors'],
@@ -215,6 +256,7 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
       // populateFromNirmalaVidya hook fires on create and hits the NV API
       // synchronously, so this batch implicitly fans out to ~N HTTP calls.
       slug: 'lectures',
+      collection: 'lectures',
       totalItems: 40,
       requiresPagination: false,
       dependencies: [],
@@ -224,6 +266,7 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
   meditations: [
     {
       slug: 'narrators',
+      collection: 'narrators',
       totalItems: 2,
       requiresPagination: false,
       dependencies: [],
@@ -231,6 +274,7 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
     },
     {
       slug: 'frames',
+      collection: 'frames',
       totalItems: 60,
       requiresPagination: true, // Large collection with uploads
       dependencies: [],
@@ -239,6 +283,7 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
     },
     {
       slug: 'meditations',
+      collection: 'meditations',
       totalItems: 73,
       requiresPagination: true, // Large collection with uploads
       dependencies: ['narrators', 'frames', 'user-choices', 'song-tags'],
@@ -260,6 +305,7 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
   storyblok: [
     {
       slug: 'lessons',
+      collection: 'lessons',
       totalItems: 17,
       requiresPagination: true, // For consistency, even though small
       dependencies: [],
@@ -271,6 +317,7 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
       // path is wired but unexercised. Promote to >0 once editorial adds
       // DD_Main_video blocks. Natural key matches lecture upserts (Vimeo URL).
       slug: 'lectures',
+      collection: 'lectures',
       totalItems: 0,
       requiresPagination: false,
       dependencies: [],
@@ -292,6 +339,7 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
   atlas: [
     {
       slug: 'managers',
+      collection: 'managers',
       totalItems: 495,
       requiresPagination: false,
       dependencies: [],
@@ -299,6 +347,7 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
     },
     {
       slug: 'regions',
+      collection: 'regions',
       totalItems: 595,
       requiresPagination: false,
       dependencies: ['managers'],
@@ -306,6 +355,7 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
     },
     {
       slug: 'users',
+      collection: 'users',
       totalItems: 2284,
       requiresPagination: true,
       dependencies: [],
@@ -313,6 +363,7 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
     },
     {
       slug: 'events',
+      collection: 'events',
       totalItems: 653,
       requiresPagination: true,
       dependencies: ['managers', 'regions'],
@@ -320,6 +371,8 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
     },
     {
       slug: 'user-submissions',
+      collection: 'user-submissions',
+      countWhere: activeRegistrationWhere,
       totalItems: 2034,
       requiresPagination: true,
       dependencies: ['events', 'users'],
@@ -327,6 +380,7 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
     },
     {
       slug: 'clients',
+      collection: 'clients',
       totalItems: 31,
       requiresPagination: false,
       dependencies: ['managers', 'regions'],
@@ -339,20 +393,19 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
       dependencies: ['events'],
       naturalKey: 'legacyId',
       hasFileUploads: true, // GCS downloads → Images uploads
+      // No `collection`: this step uploads into `images`, which `meditations`
+      // and `storyblok` also write, so no floor could be attributed to it.
     },
   ],
 }
 
-/** Get metadata for a script including pagination info */
 export function getScriptMetadata(script: ScriptName): ScriptMetadata {
   const collections = COLLECTION_METADATA[script] || []
   const totalItems = collections.reduce((sum, c) => sum + c.totalItems, 0)
   const requiresPagination = collections.some((c) => c.requiresPagination)
 
-  // Check if any collection has file uploads for batch size calculation
   const hasFileUploads = collections.some((c) => c.hasFileUploads)
 
-  // Use minimum batch size from collections with explicit batchSize, or fall back to default
   const collectionBatchSizes = collections
     .filter((c) => c.batchSize !== undefined)
     .map((c) => c.batchSize!)
@@ -369,7 +422,22 @@ export function getScriptMetadata(script: ScriptName): ScriptMetadata {
   }
 }
 
-/** Get metadata for a specific collection within a script */
+/**
+ * What a script's row counts are read from, in import order: one collection
+ * each, with the filter a step declares. This is the one definition of that
+ * list — `getDatabaseCounts` in the seed route derives from it, so a
+ * collection added here is counted and verified without a second edit. A
+ * `wemeditate` floor sat unread for exactly that reason: `lectures` was
+ * expected and never counted, so every run reported verification failed on 0
+ * of 40.
+ */
+export function getCountTargets(script: ScriptName): CountTarget[] {
+  const steps = COLLECTION_METADATA[script] || []
+  return steps.flatMap((step) =>
+    step.collection ? [{ collection: step.collection, where: step.countWhere }] : [],
+  )
+}
+
 export function getCollectionMetadata(
   script: ScriptName,
   collectionSlug: string,

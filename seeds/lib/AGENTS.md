@@ -69,14 +69,13 @@ this.skip('Skipping item') // Log skip, increment counter
 
 ```typescript
 import { Logger } from '../lib'
-const logger = new Logger(CACHE_DIR)
+const logger = new Logger()
 
 await logger.success('Created record') // Green
 await logger.error('Failed') // Red
 await logger.warn('Warning') // Yellow
 await logger.info('Processing...') // Cyan
 await logger.skip('Skipped item') // Gray
-await logger.progress(50, 100, 'Items') // Progress bar
 ```
 
 ### FileUtils
@@ -182,7 +181,7 @@ protected async import(): Promise<void> {
 
 **Preload methods:**
 
-- `preloadCollection(collection, naturalKey, additionalFields?)` — bulk fetch for the cache
+- `preloadCollection(collection, naturalKey, additionalFields?, locale?)` — bulk fetch for the cache
 - `getPreloaded(collection, keyValue)` — get a cached doc by natural key
 - `hasPreloaded(collection, keyValue)` — check whether a doc exists in the cache
 
@@ -197,6 +196,32 @@ Guarded by `tests/int/seed-importer-preload.int.spec.ts`.
 Consequence worth knowing: **a deliberately-trashed doc is not re-created by
 a re-seed** — it is skipped (or updated, in `--update` mode). Permanently
 delete it to force recreation.
+
+**A locale-filtered collection needs the `locale` argument.** Omit it and
+Payload resolves the default (`en`), so a collection whose `beforeOperation`
+hook appends a locale filter caches that one locale and every other reads as
+absent. `meditations` is the one here: `filterMeditationsByLocale`
+(`src/collections/Meditations/hooks/`) filters every `find` and `count`. State
+the code even when it is the default, so a reader is not left deriving which
+rows a cache holds.
+
+Getting this wrong is quiet, not loud: a cache miss on a preloaded collection
+takes the same no-fallback-find path as a trashed row above, and `label` on
+`meditations` is not `unique`, so a re-seed creates a second row instead of
+erroring. The locale cases in `tests/int/seed-importer-preload.int.spec.ts`
+guard both directions.
+
+Two limits on the argument:
+
+- **One cache per collection**, so the first locale asked for wins. A second
+  call under a different one warns and reuses it.
+- **`'all'` works only where the natural key is not field-localized.** It is
+  right for `meditations.label` — one row, one locale, one key. A localized key
+  arrives as a per-locale object, which is neither one key nor a usable set of
+  them: collapsing it with `String()` collides every row, and merging the
+  locales answers a `cs` existence question with an `en` row. The preload
+  refuses such a key and warns. `albums` and `songs` are preloaded by a
+  localized `title`, so they must name a locale.
 
 ### Pagination pattern
 
@@ -304,13 +329,19 @@ lib/
 ├── BaseImporter.ts      # Abstract base class
 ├── cliParser.ts         # CLI argument parsing
 ├── dataFiles.ts         # Every committed data-file path, and what uploads it
-├── logger.ts            # Colored logging + file output
+├── dataLoader.ts        # Data-file reads, and asset fetch with a disk cache
+├── delays.ts            # Rate-limit delay, and retry with exponential backoff
+├── expectedCounts.ts    # Each script's count floors, and what each was derived from
+├── logger.ts            # Colored console logging
 ├── fileUtils.ts         # File operations, MIME types
+├── pagination.ts        # Pagination types, and the query-param validation
+├── runtime.ts           # ArrayBuffer and Uint8Array to Buffer
 ├── tagManager.ts        # Tag creation/management
 ├── payloadHelpers.ts    # Common Payload operations
-├── mediaDownloader.ts   # Image download + WebP conversion
+├── mediaDownloader.ts   # Image download — no conversion, see the module header
 ├── MediaUploader.ts     # Media upload with deduplication
 ├── lexicalConverter.ts  # EditorJS → Lexical conversion
 ├── validationReport.ts  # Import statistics tracking
+├── lib.test.ts          # The unit lane for this directory
 └── index.ts             # Barrel export
 ```

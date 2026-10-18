@@ -306,6 +306,12 @@ on the same document need the same doc — `computePreviewEvent` and
 if the row is gone, so a deleted manager degrades to `#496` rather than
 blanking the line.
 
+**Where a value can arrive either way, narrow it with `extractID` from
+`payload/shared`** — it takes an id or a row and answers the id. Hand-rolled
+`typeof value === 'object' ? value.id : value` guards grew twice in one PR
+(#968) because nothing said this. It reads `.id` unguarded, so a nullable
+relationship still needs its own null check first.
+
 The neighboring trap: a **populated** relationship is a plain object, so
 code that treats "plain object ⇒ a group to expand" renders the whole row.
 `proposedChanges` had to special-case `relationship`/`upload` as

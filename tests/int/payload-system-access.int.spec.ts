@@ -265,7 +265,7 @@ describe('Payload system entities access', () => {
 
     /**
      * ⚠ The one production path that queues a job carries a **client** `req`:
-     * `enqueueSubmissionScreening` forwards it with no `overrideAccess`, and
+     * `queueScreening` forwards it with no `overrideAccess`, and
      * Payload defaults that to `true`, so admin-only `jobs.access.queue` is
      * never consulted. That default is the whole reason the public intake
      * still works, and it is a Payload internal — pin it here, or a version
