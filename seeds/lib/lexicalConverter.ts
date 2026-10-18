@@ -423,8 +423,7 @@ export function convertTextbox(
   if (data.type === 'splash') {
     imagePosition = 'overlay'
     textPosition = 'left'
-    // A splash is text over a full-bleed image, so its text is always light.
-    // The legacy `color` reaches importData but does not decide this (#975).
+    // Text over a full-bleed image: always light, whatever the legacy color says (#975).
     textColor = 'light'
   } else if (data.type === 'image') {
     if (data.background === 'image') {

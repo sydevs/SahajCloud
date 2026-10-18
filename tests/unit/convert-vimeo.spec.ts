@@ -3,46 +3,17 @@
  * converter that wemeditate / storyblok importers use to retarget legacy
  * Vimeo embeds at the lectures collection.
  *
- * Pure-function lane: no Payload bootstrap. We stub a minimal ConversionContext
- * with a `Map`-backed `lectureMap` and a logger spy so we can assert warnings.
+ * Pure-function lane: no Payload bootstrap. The context comes from
+ * `tests/utils/conversionContext.ts`, whose logger is spied so a spec can assert
+ * what a miss warned about.
  */
 
-import type { ConversionContext, EditorJSBlock } from '../../seeds/lib/lexicalConverter'
-import type { Logger } from '../../seeds/lib/logger'
-import type { Payload } from 'payload'
+import type { EditorJSBlock } from '../../seeds/lib/lexicalConverter'
 
 import { describe, it, expect, vi } from 'vitest'
 
 import { convertVimeo } from '../../seeds/lib/lexicalConverter'
-
-function makeLogger(): Logger {
-  return {
-    warn: vi.fn(),
-    skip: vi.fn(),
-    info: vi.fn(),
-    success: vi.fn(),
-    error: vi.fn(),
-    progress: vi.fn(),
-  } as unknown as Logger
-}
-
-function makeContext(overrides: Partial<ConversionContext> = {}): ConversionContext {
-  return {
-    payload: {} as Payload,
-    logger: makeLogger(),
-    pageId: 42,
-    pageTitle: 'Test Page',
-    locale: 'en',
-    mediaMap: new Map(),
-    formMap: new Map(),
-    lectureMap: new Map(),
-    treatmentMap: new Map(),
-    treatmentThumbnailMap: new Map(),
-    meditationTitleMap: new Map(),
-    meditationRailsTitleMap: new Map(),
-    ...overrides,
-  }
-}
+import { makeConversionContext } from '../utils/conversionContext'
 
 describe('convertVimeo', () => {
   it('emits a lectures relationship node when the nested vimeo_id is mapped', () => {
@@ -51,7 +22,7 @@ describe('convertVimeo', () => {
       type: 'vimeo',
       data: { items: [{ vimeo_id: '397267913', title: 'Our Volunteers' }] },
     }
-    const context = makeContext({
+    const context = makeConversionContext({
       lectureMap: new Map([['397267913', 1234]]),
     })
 
@@ -71,7 +42,7 @@ describe('convertVimeo', () => {
       type: 'vimeo',
       data: { vimeo_id: '999', title: 'Flat shape' },
     }
-    const context = makeContext({
+    const context = makeConversionContext({
       lectureMap: new Map([['999', 'lecture-id-string']]),
     })
 
@@ -89,7 +60,7 @@ describe('convertVimeo', () => {
       type: 'vimeo',
       data: { items: [{ vimeo_id: 'unknown-id' }] },
     }
-    const context = makeContext({ lectureMap: new Map() })
+    const context = makeConversionContext({ lectureMap: new Map() })
 
     const result = convertVimeo(block, context)
 
@@ -103,7 +74,7 @@ describe('convertVimeo', () => {
       type: 'vimeo',
       data: { items: [{ youtube_id: 'dQw4w9WgXcQ' }] },
     }
-    const context = makeContext()
+    const context = makeConversionContext()
 
     const result = convertVimeo(block, context)
 
@@ -117,7 +88,7 @@ describe('convertVimeo', () => {
       type: 'vimeo',
       data: { items: [{ title: 'orphaned title' }] },
     }
-    const context = makeContext()
+    const context = makeConversionContext()
 
     const result = convertVimeo(block, context)
 
