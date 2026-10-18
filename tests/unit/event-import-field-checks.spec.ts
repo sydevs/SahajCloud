@@ -163,6 +163,25 @@ describe('checkRowFields — what a spreadsheet does to a value', () => {
       'contactName contains an invisible text-direction character that makes it display differently from what was typed — retype it (got "AnnaU+202Egnp.exe")',
     ])
   })
+
+  /**
+   * A mark opens no range, so it reorders the rest of the cell on its own and
+   * nothing in the value closes it — which is what makes one easy to leave out
+   * of the class and believe it complete. Neither `parse.ts` nor this check
+   * strips `\p{Cf}` from a value, so a mark it does not refuse is published as
+   * typed.
+   */
+  it.each(['\u200E', '\u200F', '\u061C'])('refuses the bare mark %j', (mark) => {
+    const spelled = `U+${mark.codePointAt(0)!.toString(16).toUpperCase().padStart(4, '0')}`
+    expect(check({ contactName: `Anna${mark}Smith` }).errors).toEqual([
+      `contactName contains an invisible text-direction character that makes it display differently from what was typed — retype it (got "Anna${spelled}Smith")`,
+    ])
+  })
+
+  /** Persian and the Indic locales spell words with these. */
+  it.each(['\u200C', '\u200D'])('keeps the joiner %j, which is a letter', (joiner) => {
+    expect(check({ contactName: `Anna${joiner}Smith` }).errors).toEqual([])
+  })
 })
 
 describe('checkRowFields — the schema is built from the column spec', () => {

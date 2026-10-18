@@ -105,8 +105,19 @@ const PHONE = CHECKED.find(({ column }) => column === 'contactPhone')!
 const URL_COLUMNS = new Set(['website', 'onlineUrl'])
 const EMAIL_COLUMNS = new Set(['contactEmail', 'managerEmail'])
 
-/** Explicit embedding and override controls: they reorder what a reader sees. */
-const BIDI_CONTROL_RE = /[‪-‮⁦-⁩]/
+/**
+ * The characters that reorder what a reader sees: the explicit embedding and
+ * override controls, the isolates, and the three bare marks. A mark opens no
+ * range, so nothing later in the cell closes it — which is why it is easy to
+ * leave out and still believe the class is complete.
+ *
+ * ⚠ **Written as escapes.** The literal characters reorder this line itself in
+ * an editor and in a diff, and the file then reads as the attack it refuses.
+ *
+ * ZWJ and ZWNJ are deliberately absent: Persian and the Indic locales need
+ * them to spell words, and this check runs on every locale's cells.
+ */
+const BIDI_CONTROL_RE = /[\u061C\u200E\u200F\u202A-\u202E\u2066-\u2069]/
 
 /**
  * A cell a spreadsheet would run as a formula when the published value is
