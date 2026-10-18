@@ -30,8 +30,8 @@ import type { CollectionBeforeChangeHook } from 'payload'
 
 import { ValidationError } from 'payload'
 
+import { requireCollectionPermission } from '@/lib/endpoints'
 import type { EventImport, EventImportProposedRegions, EventImportRows } from '@/payload-types'
-import { bypassPermissions, hasPermission, roleScopeFromLocale } from '@/plugins/access'
 
 import { EVENT_IMPORT_JOB } from '../jobContext'
 import { isUnchanged, refuseRowEdits, refuseTreeEdits } from './reviewerEdits'
@@ -224,19 +224,13 @@ async function refuseUncommittable(
 
   // Last, because it is the only check that can pass at the upload and fail
   // here — and the reader should see a tree problem as a tree problem.
-  const allowed = hasPermission(
-    {
-      user: req.user,
-      collection: 'events',
-      operation: 'create',
-      // Roles are per-locale, so a check with no locale grants a non-admin
-      // nothing (#665).
-      locale: roleScopeFromLocale(req.locale),
-    },
-    bypassPermissions,
-  )
-  if (!allowed) {
-    throw refusal('status', 'You are no longer allowed to create classes in this language.')
+  //
+  // Through the shared gate, so the per-locale scope has one owner (#969). Its
+  // `Response` is discarded: the refusal a hook owes is a field error, and the
+  // envelope is all that differs.
+  const forbidden = 'You are no longer allowed to create classes in this language.'
+  if (requireCollectionPermission({ req, collection: 'events', operation: 'create', forbidden })) {
+    throw refusal('status', forbidden)
   }
 }
 
