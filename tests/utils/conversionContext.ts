@@ -33,7 +33,7 @@ export function makeConversionContext(
 }
 
 /** Spies for all six of `Logger`'s methods, so a spec can assert what was logged. */
-export function makeLogger(): Logger {
+function makeLogger(): Logger {
   return {
     log: vi.fn(),
     error: vi.fn(),
