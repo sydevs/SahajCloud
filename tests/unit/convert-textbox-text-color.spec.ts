@@ -1,7 +1,9 @@
 /**
  * `convertTextbox`'s `textColor` mapping. The splash arms once both returned
  * `'light'`, so no behaviour case here can catch that defect returning (#975).
- * `textColor` names the TEXT — `splash-block.spec.ts` owns that contract (#516).
+ *
+ * `textColor` names the TEXT (#516): WeMeditateWeb's `textColorToSurface`
+ * inverts it to get the surface its background paints.
  */
 
 import type { EditorJSBlock } from '../../seeds/lib/lexicalConverter'
@@ -15,8 +17,9 @@ import { convertTextbox } from '../../seeds/lib/lexicalConverter'
 import { makeConversionContext } from '../utils/conversionContext'
 
 /**
- * The one image URL in `seeds/wemeditate/data.json`'s splash blocks, which keys
- * `mediaMap` — a textbox with no mapped image is skipped before `textColor`.
+ * Any `mediaMap` key does, since a textbox whose image is unmapped is skipped
+ * before `textColor` is read. This one is shaped like the real thing — one of
+ * the 15 URLs `seeds/wemeditate/data.json`'s splash blocks carry.
  */
 const IMAGE_URL =
   'https://storage.googleapis.com/wemeditate/uploads/media_file/file/205/small_background.jpg'
@@ -82,6 +85,8 @@ describe('the splash branch reads no field it discards', () => {
     expect(start).toBeGreaterThan(-1)
     expect(end).toBeGreaterThan(start)
 
+    // One spelling of the read, which is the one #975 is about. A destructured
+    // `const { color } = data` would pass.
     expect(source.slice(start, end)).not.toContain('data.color')
   })
 })
