@@ -46,7 +46,8 @@ describe('convertTextbox textColor', () => {
     })
   })
 
-  // On an overlay the editor's `color` names the background, hence the inversion.
+  // Pins that the branch inverts `data.color`. What that legacy field names is
+  // the open question on `lexicalConverter.ts` (#975), not something to assert here.
   it.each([
     ['dark', 'light'],
     ['light', 'dark'],
