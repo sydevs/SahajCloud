@@ -14825,8 +14825,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "skipped_rows": {
-          "name": "skipped_rows",
+        "results": {
+          "name": "results",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
@@ -29790,6 +29790,6 @@
     "tables": {},
     "columns": {}
   },
-  "id": "185b3f2c-45a4-46b3-99ff-855f80281765",
+  "id": "c69ef282-f7f9-4ba9-a43e-265f7707f771",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }

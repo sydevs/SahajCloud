@@ -204,10 +204,14 @@ describe('class imports', () => {
       const after = await read(created.id)
       expect(after.status).toBe('completed')
       expect(after.summary?.imported).toBe(2)
-      expect(after.skippedRows).toEqual([])
-
       const { docs } = await importedClasses(created.id)
       expect(docs.map((event) => event.title).sort()).toEqual(['Beginners', 'Evening'])
+      // Each row links the class it created: row 1 Beginners, row 2 Evening.
+      const byId = new Map(docs.map((event) => [event.id, event.title]))
+      expect(after.results?.map(({ outcome, eventId }) => [outcome, byId.get(eventId!)])).toEqual([
+        ['created', 'Beginners'],
+        ['created', 'Evening'],
+      ])
       for (const event of docs) {
         expect(event._status).toBe('draft')
         expect(typeof event.region === 'object' ? event.region.id : event.region).toBe(berlin)
@@ -224,9 +228,9 @@ describe('class imports', () => {
       // Nothing imported and a row skipped: the plugin alone would say `completed`.
       expect(after.status).toBe('failed')
       expect(after.summary).toMatchObject({ imported: 0, issues: 1 })
-      expect(after.skippedRows).toHaveLength(1)
-      expect(after.skippedRows?.[0]).toMatchObject({ row: 1, values: { title: 'Nowhere' } })
-      expect(after.skippedRows?.[0]?.reasons[0]).toMatch(/no city region for "Leipzig"/)
+      expect(after.results).toHaveLength(1)
+      expect(after.results?.[0]).toMatchObject({ row: 1, outcome: 'error', values: { title: 'Nowhere' } })
+      expect(after.results?.[0]?.reasons?.[0]).toMatch(/no city region for "Leipzig"/)
     })
 
     it('skips a row that repeats a class already listed, with the plugin’s own reason', async () => {
@@ -238,8 +242,9 @@ describe('class imports', () => {
       const after = await read(again.id)
       expect(after.status).toBe('failed')
       expect(after.summary?.issues).toBe(1)
-      expect(after.skippedRows).toHaveLength(1)
-      expect(after.skippedRows?.[0]?.reasons[0]).toMatch(/repeats #\d+/)
+      expect(after.results).toHaveLength(1)
+      expect(after.results?.[0]).toMatchObject({ outcome: 'duplicate' })
+      expect(after.results?.[0]?.reasons?.[0]).toMatch(/repeats #\d+/)
       expect((await importedClasses(again.id)).totalDocs).toBe(0)
     })
 
@@ -247,7 +252,7 @@ describe('class imports', () => {
       const created = await createImport([classLine({ title: 'Bad time', startTime: 'six' })])
       await run(created.id)
       const after = await read(created.id)
-      expect(after.skippedRows?.[0]?.reasons.join(' ')).toMatch(/startTime must be HH:MM/)
+      expect(after.results?.[0]?.reasons?.join(' ')).toMatch(/startTime must be HH:MM/)
     })
 
     it('links a manager by email, creating the account when none exists', async () => {

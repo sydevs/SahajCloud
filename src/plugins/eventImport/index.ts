@@ -88,6 +88,7 @@ async function startRun(req: PayloadRequest, importId: number): Promise<ImportRu
     target,
     managerId: relationId(batch.manager),
     defaultLanguages: (batch.defaultLanguages ?? []) as string[],
+    submitted: [],
     skipped: [],
     imported: 0,
   }

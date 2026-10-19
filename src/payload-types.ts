@@ -13,16 +13,26 @@ export type Subtitles = {
   durationMs?: number;
   [k: string]: unknown;
 }[];
-export type EventImportSkippedRows = {
+export type EventImportResults = {
   /**
    * 1-based data row, header excluded.
    */
   row: number;
-  reasons: string[];
+  outcome: 'created' | 'duplicate' | 'error';
   /**
-   * The row as uploaded, to fix and upload again.
+   * The class the row created.
    */
-  values: {
+  eventId?: number;
+  title: string;
+  city: string;
+  /**
+   * Why a skipped row was skipped.
+   */
+  reasons?: string[];
+  /**
+   * A skipped row as uploaded, to fix and upload again.
+   */
+  values?: {
     [k: string]: string;
   };
 }[];
@@ -1967,7 +1977,7 @@ export interface Import {
    * Why the import stopped before it could finish.
    */
   error?: string | null;
-  skippedRows?: EventImportSkippedRows;
+  results?: EventImportResults;
   collectionSlug: string;
   importMode?: ('create' | 'update' | 'upsert') | null;
   matchField?: string | null;
@@ -5211,7 +5221,7 @@ export interface ExportsSelect<T extends boolean = true> {
 export interface ImportsSelect<T extends boolean = true> {
   targetRegion?: T;
   error?: T;
-  skippedRows?: T;
+  results?: T;
   collectionSlug?: T;
   importMode?: T;
   matchField?: T;

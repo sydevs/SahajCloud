@@ -100,6 +100,7 @@ export const beforeImport: ImportBeforeHook = async ({
       defaultLanguages: run.defaultLanguages,
     })
     if (!built.ok) return skip(run, row, built.errors)
+    run.submitted.push({ row: row.row, values: row.values })
     return built.data
   }) as never
 }

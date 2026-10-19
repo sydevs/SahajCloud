@@ -76,21 +76,30 @@ const OUR_MAIN_FIELDS: Field[] = [
     },
   },
   jsonField({
-    name: 'skippedRows',
+    name: 'results',
     label: 'Result',
-    schemaTitle: 'EventImportSkippedRows',
+    schemaTitle: 'EventImportResults',
     schema: z.array(
       z.strictObject({
         row: z.int().describe('1-based data row, header excluded.'),
-        reasons: z.array(z.string()),
-        values: z.record(z.string(), z.string()).describe('The row as uploaded, to fix and upload again.'),
+        outcome: z.enum(['created', 'duplicate', 'error']),
+        eventId: z.int().optional().describe('The class the row created.'),
+        title: z.string(),
+        city: z.string(),
+        reasons: z.array(z.string()).optional().describe('Why a skipped row was skipped.'),
+        values: z
+          .record(z.string(), z.string())
+          .optional()
+          .describe('A skipped row as uploaded, to fix and upload again.'),
       }),
     ),
     access: { update: () => false },
     admin: {
       readOnly: true,
       condition: (data) => Boolean(data?.status) && data.status !== 'pending',
-      components: { Field: '@/components/admin/EventImport/ImportResults' },
+      // A server component: each created row's live status is a read of the
+      // class itself, which may have been published or cleaned up since.
+      components: { Field: '@/components/admin/EventImport/ImportResultsField' },
     },
   }),
 ]
@@ -162,6 +171,8 @@ export const overrideImportCollection: NonNullable<
 > = ({ collection }) => ({
   ...collection,
   labels: { singular: 'Event Import', plural: 'Event Imports' },
+  // The plugin's one custom route is the CSV preview this form does not show.
+  endpoints: [],
   access: { create: managersOnly, read: ownOrAdmin, update: () => false, delete: ownOrAdmin },
   upload: {
     ...(typeof collection.upload === 'object' ? collection.upload : {}),
@@ -244,5 +255,9 @@ export const overrideExportCollection: NonNullable<
     ...collection,
     access: { create: admins, read: admins, update: admins, delete: admins },
     admin: { ...collection.admin, hidden: true },
+    upload: {
+      ...(typeof collection.upload === 'object' ? collection.upload : {}),
+      staticDir: 'media/exports',
+    },
   }
 }

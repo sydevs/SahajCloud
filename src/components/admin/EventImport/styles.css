@@ -11,3 +11,33 @@
   gap: var(--base);
   align-items: flex-start;
 }
+
+.event-import__actions {
+  display: flex;
+  gap: calc(var(--base) / 2);
+}
+
+.event-import__results .table {
+  width: 100%;
+}
+
+/* One colour per row status; the status leads each row's `data-id`. */
+.event-import__results tr[data-id^='published-'] td {
+  background: var(--theme-success-100);
+}
+
+.event-import__results tr[data-id^='draft-'] td {
+  background: var(--theme-elevation-50);
+}
+
+.event-import__results tr[data-id^='duplicate-'] td {
+  background: var(--theme-warning-100);
+}
+
+.event-import__results tr[data-id^='error-'] td {
+  background: var(--theme-error-100);
+}
+
+.event-import__results tr[data-id^='removed-'] td {
+  color: var(--theme-elevation-500);
+}

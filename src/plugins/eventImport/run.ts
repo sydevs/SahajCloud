@@ -21,11 +21,19 @@ export interface SkippedRow {
   values: Record<string, string>
 }
 
+/** A row handed to the plugin to create, in the order the plugin creates them. */
+export interface SubmittedRow {
+  row: number
+  values: Record<string, string>
+}
+
 export interface ImportRun {
   importId: number
   target: ImportTarget
   managerId: number | null
   defaultLanguages: string[]
+  /** Rows the before hook passed on to be created, in row order. */
+  submitted: SubmittedRow[]
   /** Rows the hooks refused or the plugin failed, in row order. */
   skipped: SkippedRow[]
   /** Classes the plugin created, summed over batches. */

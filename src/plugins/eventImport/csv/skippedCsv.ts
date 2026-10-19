@@ -6,8 +6,8 @@
  * so the extra one is named with the `#` prefix `checkHeader` skips (`../rows.ts`),
  * and a volunteer deletes nothing before re-uploading.
  *
- * ⚠ **Pure and server-free, because the browser builds it.** `SkippedRowsDownload`
- * runs this in the admin panel on the import's stored `skippedRows`, so nothing here
+ * ⚠ **Pure and server-free, because the browser builds it.** `ImportResultsTable`
+ * runs this in the admin panel on the import's stored `results`, so nothing here
  * may reach Payload, the request or the filesystem.
  */
 
