@@ -33,8 +33,10 @@ export interface ResultRow {
   city: string
   /** The schedule in a few words (`scheduleSummary.ts`). */
   schedule: string
-  /** Who looks after the class, or null for nobody. */
-  manager: null | string
+  /** Who looks after the class (`id` when there is a record to open), or null for nobody. */
+  manager: null | { id?: number; name: string }
+  /** Published with no manager, so the Atlas lists it as unverified. */
+  unverified?: boolean
   /** When the class was created (a draft) or first published, as ISO. */
   at: null | string
   /** Why a row failed, for `error`. */
@@ -95,23 +97,8 @@ export const ImportResultsTable: React.FC<{
   const toDelete = drafts.filter((id) => !checked.has(id))
   const skipped = rows.filter(({ status }) => status === 'duplicate' || status === 'error')
 
-  // One drawer for every link, as Payload's own relationship table does it.
-  const [drawerId, setDrawerId] = useState<number>()
-  const opening = useRef(false)
-  const [DocumentDrawer, , { openDrawer }] = useDocumentDrawer({
-    collectionSlug: 'events',
-    id: drawerId,
-  })
-  useEffect(() => {
-    if (!opening.current) return
-    opening.current = false
-    openDrawer()
-  }, [drawerId, openDrawer])
-  const openEvent = (id: number) => {
-    opening.current = true
-    if (id === drawerId) openDrawer()
-    setDrawerId(id)
-  }
+  const eventDrawer = useDrawerLink('events')
+  const managerDrawer = useDrawerLink('managers')
 
   // A create drawer for the city region a skipped row needed, under the target.
   const [newCity, setNewCity] = useState<Record<string, unknown>>()
@@ -187,16 +174,24 @@ export const ImportResultsTable: React.FC<{
   const when = (iso: null | string) =>
     iso ? formatDate({ date: iso, i18n, pattern: SHORT_DATE }) : ''
 
-  const eventLink = (id: number, text: string) => (
-    <button className="event-import__link" onClick={() => openEvent(id)} type="button">
+  const link = (open: (id: number) => void, id: number, text: string) => (
+    <button className="event-import__link" onClick={() => open(id)} type="button">
       {text || 'Untitled'}
     </button>
   )
+  const eventLink = (id: number, text: string) => link(eventDrawer.open, id, text)
 
   const statusSentence = (row: ResultRow): React.ReactNode => {
     switch (row.status) {
       case 'published':
-        return `Published ${when(row.at)}`.trim()
+        return row.unverified ? (
+          <span className="event-import__details">
+            <span>{`Published ${when(row.at)}`.trim()}</span>
+            <span>Listed as unverified because the class has no manager</span>
+          </span>
+        ) : (
+          `Published ${when(row.at)}`.trim()
+        )
       case 'draft':
         return `Created ${when(row.at)}`.trim()
       case 'removed':
@@ -313,13 +308,12 @@ export const ImportResultsTable: React.FC<{
           tableColumn(
             'manager',
             'Manager',
-            rows.map(({ manager, status }) =>
-              manager ??
-              (status === 'draft'
-                ? "No manager - this class will be published as 'unverified'"
-                : status === 'published'
-                  ? "No manager - published as 'unverified'"
-                  : '—'),
+            rows.map(({ manager }) =>
+              !manager
+                ? '—'
+                : manager.id !== undefined
+                  ? link(managerDrawer.open, manager.id, manager.name)
+                  : manager.name,
             ),
           ),
           tableColumn(
@@ -331,7 +325,8 @@ export const ImportResultsTable: React.FC<{
         data={rows.map(({ row, status }) => ({ id: `${status}-${row}` }))}
       />
       <FieldDescription description={description} path={path} />
-      <DocumentDrawer onDelete={() => router.refresh()} onSave={() => router.refresh()} />
+      <eventDrawer.Drawer onDelete={() => router.refresh()} onSave={() => router.refresh()} />
+      <managerDrawer.Drawer onSave={() => router.refresh()} />
       <RegionDrawer
         initialData={newCity}
         onSave={() => {
@@ -357,4 +352,26 @@ export const ImportResultsTable: React.FC<{
       />
     </div>
   )
+}
+
+/**
+ * One document drawer serving every link to a collection, opened on the id
+ * clicked — the way Payload's own relationship table does it. The id is set
+ * first and the drawer opened once the hook has it.
+ */
+function useDrawerLink(collectionSlug: string) {
+  const [id, setId] = useState<number>()
+  const opening = useRef(false)
+  const [Drawer, , { openDrawer }] = useDocumentDrawer({ collectionSlug, id })
+  useEffect(() => {
+    if (!opening.current) return
+    opening.current = false
+    openDrawer()
+  }, [id, openDrawer])
+  const open = (next: number) => {
+    opening.current = true
+    if (next === id) openDrawer()
+    setId(next)
+  }
+  return { Drawer, open }
 }

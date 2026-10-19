@@ -52,6 +52,7 @@ export const ImportResultsField: JSONFieldServerComponent = async ({
             _status: true,
             createdAt: true,
             manager: true,
+            verificationStage: true,
             inactive: true,
             schedule: true,
           },
@@ -105,6 +106,7 @@ export const ImportResultsField: JSONFieldServerComponent = async ({
         ? liveScheduleSummary(event.schedule, event.inactive)
         : csvScheduleSummary(result.values),
       manager: managerOf(event, result),
+      unverified: status === 'published' && event?.verificationStage === 'unverified',
       at:
         status === 'published'
           ? (publishedAt.get(event!.id) ?? null)
@@ -134,16 +136,22 @@ export const ImportResultsField: JSONFieldServerComponent = async ({
   )
 }
 
-/** Who looks after the class: its live manager, or the one the CSV row named. */
+/**
+ * Who looks after the class: its live manager, linkable by id, or — for a row
+ * that created nothing — the one the CSV named, which may have no record.
+ */
 function managerOf(
   event: { manager?: number | Manager | null } | undefined,
   result: ImportResultRow,
-): null | string {
+): ResultRow['manager'] {
   if (event) {
     const manager = event.manager
-    return manager && typeof manager === 'object' ? manager.name || manager.email || null : null
+    return manager && typeof manager === 'object'
+      ? { id: manager.id, name: manager.name || manager.email || `#${manager.id}` }
+      : null
   }
-  return result.values?.managerName || result.values?.managerEmail || null
+  const named = result.values?.managerName || result.values?.managerEmail
+  return named ? { name: named } : null
 }
 
 function summaryOf(rows: readonly ResultRow[]): string {
