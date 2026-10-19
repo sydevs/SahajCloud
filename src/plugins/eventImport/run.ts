@@ -14,11 +14,17 @@ import type { PayloadRequest } from 'payload'
 
 export const RUN_CONTEXT_KEY = 'eventImport'
 
+/** A town the import found no city region for, as Mapbox names it. */
+export interface MissingCity {
+  name: string
+}
+
 export interface SkippedRow {
   /** 1-based data row, header excluded — the number the plugin's own issues use. */
   row: number
   reasons: string[]
   values: Record<string, string>
+  missingCity?: MissingCity
 }
 
 /** A row handed to the plugin to create, in the order the plugin creates them. */

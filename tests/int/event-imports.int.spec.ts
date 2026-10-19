@@ -228,6 +228,8 @@ describe('class imports', () => {
       expect(after.results).toHaveLength(1)
       expect(after.results?.[0]).toMatchObject({ row: 1, outcome: 'error', values: { title: 'Nowhere' } })
       expect(after.results?.[0]?.reasons?.[0]).toMatch(/no city region for "Leipzig"/)
+      // What the page's "create it first" link prefills a new city with.
+      expect(after.results?.[0]?.missingCity).toEqual({ name: 'Leipzig' })
     })
 
     it('skips a row that repeats a class already listed, with the plugin’s own reason', async () => {

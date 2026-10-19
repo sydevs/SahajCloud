@@ -31,6 +31,10 @@ export interface ResultRow {
   eventId?: number
   title: string
   city: string
+  /** The schedule in a few words (`scheduleSummary.ts`). */
+  schedule: string
+  /** Who looks after the class, or null for nobody. */
+  manager: null | string
   /** When the class was created (a draft) or first published, as ISO. */
   at: null | string
   /** Why a row failed, for `error`. */
@@ -39,7 +43,15 @@ export interface ResultRow {
   original?: { id: number; title: string }
   reasons?: string[]
   values?: Record<string, string>
+  /** The town a row was skipped for having no city region. */
+  missingCity?: { name: string }
 }
+
+/** Short enough for a table cell: "Oct 19, 1:37 PM". */
+const SHORT_DATE = 'MMM d, h:mm a'
+
+/** The end of the missing-city refusal, which the page turns into a link. */
+const CREATE_IT = 'create it first'
 
 const PUBLISH_MODAL = 'event-import-publish'
 const CLEAN_UP_MODAL = 'event-import-clean-up'
@@ -65,7 +77,8 @@ export const ImportResultsTable: React.FC<{
   label: StaticLabel | undefined
   path: string
   rows: ResultRow[]
-}> = ({ description, importId, label, path, rows }) => {
+  targetId: null | number
+}> = ({ description, importId, label, path, rows, targetId }) => {
   const { config } = useConfig()
   const { i18n } = useTranslation()
   const { openModal } = useModal()
@@ -76,7 +89,8 @@ export const ImportResultsTable: React.FC<{
     () => rows.flatMap(({ eventId, status }) => (status === 'draft' && eventId ? [eventId] : [])),
     [rows],
   )
-  const [checked, setChecked] = useState<Set<number>>(() => new Set(drafts))
+  // Nothing is ticked until the volunteer has looked: Publish starts at zero.
+  const [checked, setChecked] = useState<Set<number>>(() => new Set())
   const toPublish = drafts.filter((id) => checked.has(id))
   const toDelete = drafts.filter((id) => !checked.has(id))
   const skipped = rows.filter(({ status }) => status === 'duplicate' || status === 'error')
@@ -97,6 +111,24 @@ export const ImportResultsTable: React.FC<{
     opening.current = true
     if (id === drawerId) openDrawer()
     setDrawerId(id)
+  }
+
+  // A create drawer for the city region a skipped row needed, under the target.
+  const [newCity, setNewCity] = useState<Record<string, unknown>>()
+  const [RegionDrawer, , { openDrawer: openRegionDrawer }] = useDocumentDrawer({
+    collectionSlug: 'regions',
+  })
+  const creatingCity = useRef(false)
+  useEffect(() => {
+    if (!creatingCity.current) return
+    creatingCity.current = false
+    openRegionDrawer()
+  }, [newCity, openRegionDrawer])
+  // The location is left for the volunteer to search: the field shows a bare
+  // Mapbox id as its label, and searching the name lands on the same place.
+  const createCity = (city: { name: string }) => {
+    creatingCity.current = true
+    setNewCity({ level: 'city', name: city.name, parent: targetId })
   }
 
   const toggle = (id: number) =>
@@ -153,7 +185,7 @@ export const ImportResultsTable: React.FC<{
   }
 
   const when = (iso: null | string) =>
-    iso ? formatDate({ date: iso, i18n, pattern: config.admin.dateFormat }) : ''
+    iso ? formatDate({ date: iso, i18n, pattern: SHORT_DATE }) : ''
 
   const eventLink = (id: number, text: string) => (
     <button className="event-import__link" onClick={() => openEvent(id)} type="button">
@@ -169,8 +201,21 @@ export const ImportResultsTable: React.FC<{
         return `Created ${when(row.at)}`.trim()
       case 'removed':
         return 'Deleted after the import'
-      case 'error':
-        return `Error: ${row.error}`
+      case 'error': {
+        const error = row.error ?? ''
+        if (row.missingCity && targetId !== null && error.endsWith(CREATE_IT)) {
+          const city = row.missingCity
+          return (
+            <>
+              {`Error: ${error.slice(0, -CREATE_IT.length)}`}
+              <button className="event-import__link" onClick={() => createCity(city)} type="button">
+                {CREATE_IT}
+              </button>
+            </>
+          )
+        }
+        return `Error: ${error}`
+      }
       case 'duplicate':
         return row.original ? (
           <>Duplicate of {eventLink(row.original.id, row.original.title)}</>
@@ -256,9 +301,26 @@ export const ImportResultsTable: React.FC<{
             rows.map(({ eventId, title }) => (eventId ? eventLink(eventId, title) : title || '—')),
           ),
           tableColumn(
-            'city',
-            'City',
-            rows.map(({ city }) => city || '—'),
+            'details',
+            'Details',
+            rows.map(({ city, row, schedule }) => (
+              <span className="event-import__details" key={row}>
+                <span>{city || '—'}</span>
+                <span>{schedule}</span>
+              </span>
+            )),
+          ),
+          tableColumn(
+            'manager',
+            'Manager',
+            rows.map(({ manager, status }) =>
+              manager ??
+              (status === 'draft'
+                ? "No manager - this class will be published as 'unverified'"
+                : status === 'published'
+                  ? "No manager - published as 'unverified'"
+                  : '—'),
+            ),
           ),
           tableColumn(
             'status',
@@ -270,6 +332,13 @@ export const ImportResultsTable: React.FC<{
       />
       <FieldDescription description={description} path={path} />
       <DocumentDrawer onDelete={() => router.refresh()} onSave={() => router.refresh()} />
+      <RegionDrawer
+        initialData={newCity}
+        onSave={() => {
+          toast.success('City created. Upload the skipped rows again to import its classes.')
+          router.refresh()
+        }}
+      />
       <ConfirmationModal
         body={`Publish ${classes(toPublish.length)}? They appear in the Atlas straight away.`}
         confirmLabel={`Publish (${toPublish.length})`}

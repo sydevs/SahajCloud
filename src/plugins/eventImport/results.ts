@@ -11,7 +11,7 @@
  * Pure and server-free: the admin component reads these types.
  */
 
-import type { SkippedRow, SubmittedRow } from './run'
+import type { MissingCity, SkippedRow, SubmittedRow } from './run'
 
 /** How a row ended, before anyone acted on its class. */
 export type ImportOutcome = 'created' | 'duplicate' | 'error'
@@ -27,6 +27,8 @@ export interface ImportResultRow {
   reasons?: string[]
   /** The row as uploaded, kept for a skipped row so it can be downloaded and fixed. */
   values?: Record<string, string>
+  /** The town a row was skipped for having no city region, so the page can offer to create it. */
+  missingCity?: MissingCity
 }
 
 /** The duplicate refusal's own sentence (`refuseDuplicateClass`). */
@@ -49,7 +51,7 @@ export function buildResults(
       title: values.title ?? '',
       city: values.city ?? '',
     })),
-    ...skipped.map(({ row, reasons, values }) => ({
+    ...skipped.map(({ row, reasons, values, missingCity }) => ({
       row,
       outcome: reasons.some((reason) => DUPLICATE.test(reason))
         ? ('duplicate' as const)
@@ -58,6 +60,7 @@ export function buildResults(
       city: values.city ?? '',
       reasons,
       values,
+      ...(missingCity ? { missingCity } : {}),
     })),
   ]
   return { rows: rows.sort((a, b) => a.row - b.row), matched }

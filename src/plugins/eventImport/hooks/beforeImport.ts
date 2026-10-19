@@ -13,7 +13,7 @@
  */
 
 import type { RawImportRow } from '../csv/columns'
-import type { ImportRun } from '../run'
+import type { ImportRun, MissingCity } from '../run'
 import type { ImportBeforeHook } from '@payloadcms/plugin-import-export/types'
 
 import { Temporal } from '@js-temporal/polyfill'
@@ -79,9 +79,10 @@ export const beforeImport: ImportBeforeHook = async ({
     const { row, location, timezone } = entry
     const regionId = regionFor(location, run, cities)
     if (regionId === null) {
-      return skip(run, row, [
-        `no city region for "${location.placeName ?? row.values.city}" under ${run.target.name} — create it in Regions first`,
-      ])
+      const name = location.placeName ?? row.values.city ?? ''
+      return skip(run, row, [`no city region for "${name}" under ${run.target.name} — create it first`], {
+        name,
+      })
     }
 
     const email = managerKeyOf(row.values)
@@ -154,7 +155,7 @@ function regionFor(
   return run.target.level === 'city' ? run.target.id : null
 }
 
-function skip(run: ImportRun, row: Row, reasons: string[]): undefined {
-  run.skipped.push({ row: row.row, reasons, values: row.values })
+function skip(run: ImportRun, row: Row, reasons: string[], missingCity?: MissingCity): undefined {
+  run.skipped.push({ row: row.row, reasons, values: row.values, ...(missingCity ? { missingCity } : {}) })
   return undefined
 }

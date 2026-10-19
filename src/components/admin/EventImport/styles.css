@@ -71,3 +71,13 @@
 .event-import__results tr[data-id^='removed-'] td {
   color: var(--theme-elevation-500);
 }
+
+/* City over schedule, the second line quieter. */
+.event-import__details {
+  display: flex;
+  flex-direction: column;
+}
+
+.event-import__details > :last-child {
+  color: var(--theme-elevation-500);
+}

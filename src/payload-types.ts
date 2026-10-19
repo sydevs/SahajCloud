@@ -35,6 +35,12 @@ export type EventImportResults = {
   values?: {
     [k: string]: string;
   };
+  /**
+   * The town a row was skipped for having no city region.
+   */
+  missingCity?: {
+    name: string;
+  };
 }[];
 /**
  * Supported timezones in IANA format.

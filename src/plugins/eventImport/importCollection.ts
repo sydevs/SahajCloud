@@ -53,6 +53,7 @@ const OUR_MAIN_FIELDS: Field[] = [
     filterOptions: targetRegionFilterOptions,
     validate: validateTargetRegion,
     admin: {
+      position: 'sidebar',
       allowCreate: false,
       description:
         'Classes are filed under the cities of this region. A town with no city region yet is skipped — create the city first.',
@@ -84,6 +85,10 @@ const OUR_MAIN_FIELDS: Field[] = [
           .record(z.string(), z.string())
           .optional()
           .describe('A skipped row as uploaded, to fix and upload again.'),
+        missingCity: z
+          .strictObject({ name: z.string() })
+          .optional()
+          .describe('The town a row was skipped for having no city region.'),
       }),
     ),
     access: { update: () => false },

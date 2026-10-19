@@ -1,9 +1,11 @@
 import type { JSONFieldServerComponent } from 'payload'
 
 import { relationId } from '@/lib/utilities/relationId'
+import type { Manager } from '@/payload-types'
 import type { ImportResultRow } from '@/plugins/eventImport/results'
 
 import { type ResultRow, type ResultStatus, ImportResultsTable } from './ImportResultsTable'
+import { csvScheduleSummary, liveScheduleSummary } from './scheduleSummary'
 
 const STATUS_WORDS: Record<ResultStatus, [string, string]> = {
   published: ['published', 'published'],
@@ -41,11 +43,19 @@ export const ImportResultsField: JSONFieldServerComponent = async ({
           collection: 'events',
           where: { id: { in: ids } },
           draft: true,
-          depth: 0,
+          depth: 1,
           pagination: false,
           overrideAccess: false,
           user: req.user,
-          select: { title: true, _status: true, createdAt: true },
+          select: {
+            title: true,
+            _status: true,
+            createdAt: true,
+            manager: true,
+            inactive: true,
+            schedule: true,
+          },
+          populate: { managers: { name: true, email: true } },
           req,
         }),
         // When each created class was first published: its earliest published version.
@@ -91,6 +101,10 @@ export const ImportResultsField: JSONFieldServerComponent = async ({
       eventId: event ? event.id : undefined,
       title: event?.title || result.title,
       city: result.city,
+      schedule: event
+        ? liveScheduleSummary(event.schedule, event.inactive)
+        : csvScheduleSummary(result.values),
+      manager: managerOf(event, result),
       at:
         status === 'published'
           ? (publishedAt.get(event!.id) ?? null)
@@ -104,6 +118,7 @@ export const ImportResultsField: JSONFieldServerComponent = async ({
           : { id: original, title: live.get(original)?.title ?? `#${original}` },
       reasons: result.reasons,
       values: result.values,
+      missingCity: result.missingCity,
     }
   })
 
@@ -111,11 +126,24 @@ export const ImportResultsField: JSONFieldServerComponent = async ({
     <ImportResultsTable
       description={summaryOf(rows)}
       importId={data?.id as number | string}
+      targetId={relationId(data?.targetRegion)}
       label={clientField.label}
       path={path}
       rows={rows}
     />
   )
+}
+
+/** Who looks after the class: its live manager, or the one the CSV row named. */
+function managerOf(
+  event: { manager?: number | Manager | null } | undefined,
+  result: ImportResultRow,
+): null | string {
+  if (event) {
+    const manager = event.manager
+    return manager && typeof manager === 'object' ? manager.name || manager.email || null : null
+  }
+  return result.values?.managerName || result.values?.managerEmail || null
 }
 
 function summaryOf(rows: readonly ResultRow[]): string {
