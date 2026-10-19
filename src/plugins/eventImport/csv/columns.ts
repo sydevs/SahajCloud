@@ -137,13 +137,13 @@ export const IMPORT_COLUMNS: readonly ColumnSpec[] = [
   {
     name: 'managerName',
     requirement: 'optional',
-    help: "The coordinator's name. Used only when managerEmail names a new account.",
+    help: "The class manager's name. Used only when managerEmail names a new account.",
     example: 'Anna Schmidt',
   },
   {
     name: 'managerEmail',
     requirement: 'optional',
-    help: 'The coordinator who vouches for this class. Blank publishes it unverified.',
+    help: 'The manager who vouches for this class. Blank publishes it unverified.',
     example: 'anna.schmidt@example.org',
   },
   {

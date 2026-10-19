@@ -221,7 +221,9 @@ describe('class imports', () => {
       await run(created.id)
 
       const after = await read(created.id)
-      expect(after.summary?.imported).toBe(0)
+      // Nothing imported and a row skipped: the plugin alone would say `completed`.
+      expect(after.status).toBe('failed')
+      expect(after.summary).toMatchObject({ imported: 0, issues: 1 })
       expect(after.skippedRows).toHaveLength(1)
       expect(after.skippedRows?.[0]).toMatchObject({ row: 1, values: { title: 'Nowhere' } })
       expect(after.skippedRows?.[0]?.reasons[0]).toMatch(/no city region for "Leipzig"/)
@@ -248,7 +250,7 @@ describe('class imports', () => {
       expect(after.skippedRows?.[0]?.reasons.join(' ')).toMatch(/startTime must be HH:MM/)
     })
 
-    it('links a coordinator by email, creating the account when none exists', async () => {
+    it('links a manager by email, creating the account when none exists', async () => {
       const created = await createImport([
         classLine({
           title: 'Coordinated',
@@ -272,6 +274,9 @@ describe('class imports', () => {
       try {
         const created = await createImport([classLine({ title: 'Later' })])
         await expect(run(created.id)).rejects.toThrow(/did not answer/)
+        const after = await read(created.id)
+        expect(after.status).toBe('failed')
+        expect(after.error).toMatch(/did not answer/)
       } finally {
         geocoder.outcome = null
       }

@@ -69,7 +69,8 @@ import { FieldsToExport as FieldsToExport_cdf7e044479f899a31f804427d568b36 } fro
 import { CollectionField as CollectionField_cdf7e044479f899a31f804427d568b36 } from '@payloadcms/plugin-import-export/rsc'
 import { ExportPreview as ExportPreview_cdf7e044479f899a31f804427d568b36 } from '@payloadcms/plugin-import-export/rsc'
 import { ExportSaveButton as ExportSaveButton_cdf7e044479f899a31f804427d568b36 } from '@payloadcms/plugin-import-export/rsc'
-import { default as default_2139069a0354934c96e80e3b9d1c02a6 } from '@/components/admin/EventImport/SkippedRowsDownload'
+import { default as default_1101b8f453ec78808b3e5a5bddfd811b } from '@/components/admin/EventImport/TemplateLink'
+import { default as default_161cd5388a36b176e852067a3cfdfc35 } from '@/components/admin/EventImport/ImportResults'
 import { ImportSaveButton as ImportSaveButton_cdf7e044479f899a31f804427d568b36 } from '@payloadcms/plugin-import-export/rsc'
 import { HorizontalRuleFeatureClient as HorizontalRuleFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { ChecklistFeatureClient as ChecklistFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
@@ -174,7 +175,8 @@ export const importMap = {
   "@payloadcms/plugin-import-export/rsc#CollectionField": CollectionField_cdf7e044479f899a31f804427d568b36,
   "@payloadcms/plugin-import-export/rsc#ExportPreview": ExportPreview_cdf7e044479f899a31f804427d568b36,
   "@payloadcms/plugin-import-export/rsc#ExportSaveButton": ExportSaveButton_cdf7e044479f899a31f804427d568b36,
-  "@/components/admin/EventImport/SkippedRowsDownload#default": default_2139069a0354934c96e80e3b9d1c02a6,
+  "@/components/admin/EventImport/TemplateLink#default": default_1101b8f453ec78808b3e5a5bddfd811b,
+  "@/components/admin/EventImport/ImportResults#default": default_161cd5388a36b176e852067a3cfdfc35,
   "@payloadcms/plugin-import-export/rsc#ImportSaveButton": ImportSaveButton_cdf7e044479f899a31f804427d568b36,
   "@payloadcms/richtext-lexical/client#HorizontalRuleFeatureClient": HorizontalRuleFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#ChecklistFeatureClient": ChecklistFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,

@@ -1,5 +1,5 @@
 /**
- * The plugin's `imports` collection, shaped for a volunteer.
+ * The plugin's `imports` collection (labelled Event Imports), shaped for a volunteer.
  *
  * The plugin owns the file, the `status` and `summary` fields, the job that
  * reads the CSV and the per-row `events` creates. This override adds what a
@@ -20,6 +20,7 @@ import type { Access, CollectionConfig, Field } from 'payload'
 import { z } from 'zod'
 
 import type { JobStageConfig } from '@/components/admin/JobStageView/stages'
+import { hideUntilCreated } from '@/fields/hideUntilCreated'
 import { jsonField } from '@/fields/jsonField'
 import { runQueueSoon } from '@/lib/jobs/runQueueSoon'
 import { baseLanguageOrDefault, getLanguageOptions } from '@/lib/locales'
@@ -40,7 +41,17 @@ const managersOnly: Access = ({ req }) => req.user?.collection === 'managers'
 /** The plugin's knobs, kept but out of the way: only `events` is ever imported into. */
 const PLUGIN_FIELDS_HIDDEN: ReadonlySet<string> = new Set(['collectionSlug', 'importMode', 'matchField'])
 
-const OUR_FIELDS: Field[] = [
+/** Counts that mean nothing here: an import only creates, and `importResults` lists the issues. */
+const SUMMARY_FIELDS_HIDDEN: ReadonlySet<string> = new Set(['updated', 'issueDetails'])
+
+const TEMPLATE_LINK = '@/components/admin/EventImport/TemplateLink'
+
+const OUR_MAIN_FIELDS: Field[] = [
+  {
+    name: 'templateLink',
+    type: 'ui',
+    admin: { components: { Field: TEMPLATE_LINK } },
+  },
   {
     name: 'targetRegion',
     type: 'relationship',
@@ -55,32 +66,18 @@ const OUR_FIELDS: Field[] = [
     },
   },
   {
-    // ⚠ Named `manager`: the volunteer's own read and delete come through it.
-    name: 'manager',
-    type: 'relationship',
-    relationTo: 'managers',
-    required: true,
-    maxDepth: 1,
-    admin: { readOnly: true, hidden: true },
-  },
-  {
-    name: 'defaultLanguages',
-    type: 'select',
-    hasMany: true,
-    required: true,
-    options: getLanguageOptions(),
-    defaultValue: ({ req }) => [baseLanguageOrDefault(req.locale)],
-    admin: { description: 'Language(s) for rows whose own `languages` column is empty.' },
-  },
-  {
-    // The admin locale at the upload, which the job writes the classes in.
-    name: 'locale',
+    name: 'error',
     type: 'text',
-    admin: { hidden: true },
+    access: { update: () => false },
+    admin: {
+      readOnly: true,
+      condition: (data) => Boolean(data?.error),
+      description: 'Why the import stopped before it could finish.',
+    },
   },
   jsonField({
     name: 'skippedRows',
-    label: 'Skipped rows',
+    label: 'Result',
     schemaTitle: 'EventImportSkippedRows',
     schema: z.array(
       z.strictObject({
@@ -89,24 +86,92 @@ const OUR_FIELDS: Field[] = [
         values: z.record(z.string(), z.string()).describe('The row as uploaded, to fix and upload again.'),
       }),
     ),
+    access: { update: () => false },
     admin: {
       readOnly: true,
-      condition: (data) => data?.status && data.status !== 'pending',
-      components: { Field: '@/components/admin/EventImport/SkippedRowsDownload' },
+      condition: (data) => Boolean(data?.status) && data.status !== 'pending',
+      components: { Field: '@/components/admin/EventImport/ImportResults' },
     },
   }),
 ]
+
+const OUR_SIDEBAR_FIELDS: Field[] = [
+  {
+    name: 'defaultLanguages',
+    type: 'select',
+    hasMany: true,
+    required: true,
+    options: getLanguageOptions(),
+    defaultValue: ({ req }) => [baseLanguageOrDefault(req.locale)],
+    admin: {
+      position: 'sidebar',
+      description: 'Language(s) for rows whose own `languages` column is empty.',
+    },
+  },
+  {
+    // ⚠ Named `manager`: the volunteer's own read and delete come through it.
+    name: 'manager',
+    type: 'relationship',
+    relationTo: 'managers',
+    required: true,
+    maxDepth: 1,
+    label: 'Uploaded by',
+    access: { update: () => false },
+    // No `condition`: a conditional field generates as nullable, and the stamp
+    // is what every import's access hangs on.
+    admin: { position: 'sidebar', readOnly: true },
+  },
+  {
+    // The admin locale at the upload, which the job writes the classes in.
+    name: 'locale',
+    type: 'text',
+    admin: { hidden: true },
+  },
+]
+
+/** The plugin's own fields, with its knobs hidden and its outcome moved to the sidebar. */
+function pluginFields(fields: readonly Field[]): Field[] {
+  return fields.flatMap((field): Field[] => {
+    if (!('name' in field)) return [field]
+    if (field.name === 'preview') return []
+    if (PLUGIN_FIELDS_HIDDEN.has(field.name)) {
+      return [{ ...field, admin: { ...field.admin, hidden: true } } as Field]
+    }
+    if (field.name === 'status') {
+      return [{ ...field, admin: { ...field.admin, position: 'sidebar', condition: hideUntilCreated } } as Field]
+    }
+    if (field.name === 'summary' && field.type === 'group') {
+      return [
+        {
+          ...field,
+          admin: { ...field.admin, position: 'sidebar' },
+          fields: field.fields.map((child) =>
+            'name' in child && SUMMARY_FIELDS_HIDDEN.has(child.name)
+              ? ({ ...child, admin: { ...child.admin, hidden: true } } as Field)
+              : child,
+          ),
+        } as Field,
+      ]
+    }
+    return [field]
+  })
+}
 
 export const overrideImportCollection: NonNullable<
   ImportExportPluginConfig['overrideImportCollection']
 > = ({ collection }) => ({
   ...collection,
-  labels: { singular: 'Class Import', plural: 'Class Imports' },
+  labels: { singular: 'Event Import', plural: 'Event Imports' },
   access: { create: managersOnly, read: ownOrAdmin, update: () => false, delete: ownOrAdmin },
   upload: {
     ...(typeof collection.upload === 'object' ? collection.upload : {}),
+    // One file is one import: a bulk upload would start one job per file with
+    // no target region chosen for any of them.
+    bulkUpload: false,
+    // Beside every other upload collection's local files, which git ignores.
+    staticDir: 'media/imports',
     // Excel on Windows labels a saved CSV `application/vnd.ms-excel`, and some
-    // editors send `text/plain`; `csvMimeType` below renames both for the plugin.
+    // editors send `text/plain`; the `beforeOperation` hook renames both.
     mimeTypes: ['text/csv', 'application/vnd.ms-excel', 'text/plain'],
   },
   admin: {
@@ -115,9 +180,7 @@ export const overrideImportCollection: NonNullable<
     useAsTitle: 'filename',
     defaultColumns: ['filename', 'targetRegion', 'manager', 'status', 'updatedAt'],
     // Listed for every manager: `access.read` scopes the list to their own
-    // imports, and the import page is where the skipped rows are downloaded.
-    description:
-      'Upload a CSV built from the template at /event-import-template.csv. Each row becomes a draft class to review and publish from the Events list.',
+    // imports, and the import page is where the skipped rows are read.
     custom: {
       ...collection.admin?.custom,
       jobStage: {
@@ -127,18 +190,11 @@ export const overrideImportCollection: NonNullable<
     },
     components: {
       ...collection.admin?.components,
+      Description: TEMPLATE_LINK,
       views: { edit: { default: { Component: '@/components/admin/JobStageView/JobStageView' } } },
     },
   },
-  fields: [
-    ...OUR_FIELDS,
-    ...collection.fields.flatMap((field): Field[] => {
-      if (!('name' in field)) return [field]
-      if (field.name === 'preview') return []
-      if (!PLUGIN_FIELDS_HIDDEN.has(field.name)) return [field]
-      return [{ ...field, admin: { ...field.admin, hidden: true } } as Field]
-    }),
-  ],
+  fields: [...OUR_MAIN_FIELDS, ...pluginFields(collection.fields), ...OUR_SIDEBAR_FIELDS],
   hooks: {
     ...collection.hooks,
     beforeOperation: [

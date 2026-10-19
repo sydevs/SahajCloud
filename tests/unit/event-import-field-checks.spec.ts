@@ -82,7 +82,7 @@ describe('checkRowFields — emails', () => {
     ])
   })
 
-  it('refuses a malformed managerEmail, which would become a coordinator account', () => {
+  it('refuses a malformed managerEmail, which would become a manager account', () => {
     expect(check({ managerEmail: 'anna@@example.org' }).errors).toEqual([
       'managerEmail must be one email address, like name@example.org (got "anna@@example.org")',
     ])

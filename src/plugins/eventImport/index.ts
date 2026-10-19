@@ -11,7 +11,7 @@
  */
 
 import type { ImportRun } from './run'
-import type { Plugin, TaskConfig } from 'payload'
+import type { PayloadRequest, Plugin, TaskConfig } from 'payload'
 
 import { importExportPlugin } from '@payloadcms/plugin-import-export'
 
@@ -19,6 +19,7 @@ import { relationId } from '@/lib/utilities/relationId'
 import type { Import } from '@/payload-types'
 
 import { IMPORT_BATCH_SIZE, MAX_IMPORT_ROWS } from './constants'
+import { failImport, finishImport } from './finish'
 import { afterImport } from './hooks/afterImport'
 import { beforeImport } from './hooks/beforeImport'
 import { overrideExportCollection, overrideImportCollection } from './importCollection'
@@ -54,29 +55,40 @@ export const eventImportPlugin: Plugin = async (config) => {
   const handler = task.handler
   task.handler = async (args) => {
     const importId = Number(args.input.importId)
-    const batch = (await args.req.payload.findByID({
-      collection: 'imports',
-      id: importId,
-      depth: 0,
-      overrideAccess: true,
-      req: args.req,
-    })) as Import
-    const targetId = relationId(batch.targetRegion)
-    const target = targetId === null ? null : await loadTarget(args.req, targetId)
-    if (!target) throw new Error(`Import ${importId} names no target region that still exists.`)
-
-    const run: ImportRun = {
-      importId,
-      target,
-      managerId: relationId(batch.manager),
-      defaultLanguages: (batch.defaultLanguages ?? []) as string[],
-      skipped: [],
-      imported: 0,
+    try {
+      const run = await startRun(args.req, importId)
+      args.req.context = { ...args.req.context, [RUN_CONTEXT_KEY]: run }
+      const result = await handler(args)
+      await finishImport(args.req, run)
+      return result
+    } catch (error) {
+      await failImport(args.req, importId, error)
+      throw error
     }
-    args.req.context = { ...args.req.context, [RUN_CONTEXT_KEY]: run }
-    if (batch.locale) args.req.locale = batch.locale as typeof args.req.locale
-    return handler(args)
   }
 
   return withPlugin
+}
+
+/** The import document, reduced to what the hooks need, with the target it names. */
+async function startRun(req: PayloadRequest, importId: number): Promise<ImportRun> {
+  const batch = (await req.payload.findByID({
+    collection: 'imports',
+    id: importId,
+    depth: 0,
+    overrideAccess: true,
+    req,
+  })) as Import
+  const targetId = relationId(batch.targetRegion)
+  const target = targetId === null ? null : await loadTarget(req, targetId)
+  if (!target) throw new Error('The target region no longer exists. Start a new import.')
+  if (batch.locale) req.locale = batch.locale as typeof req.locale
+  return {
+    importId,
+    target,
+    managerId: relationId(batch.manager),
+    defaultLanguages: (batch.defaultLanguages ?? []) as string[],
+    skipped: [],
+    imported: 0,
+  }
 }

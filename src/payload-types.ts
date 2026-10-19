@@ -1954,8 +1954,6 @@ export interface Event {
   _status?: ('draft' | 'published') | null;
 }
 /**
- * Upload a CSV built from the template at /event-import-template.csv. Each row becomes a draft class to review and publish from the Events list.
- *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "imports".
  */
@@ -1965,7 +1963,30 @@ export interface Import {
    * Classes are filed under the cities of this region. A town with no city region yet is skipped — create the city first.
    */
   targetRegion: number | Region;
-  manager: number | Manager;
+  /**
+   * Why the import stopped before it could finish.
+   */
+  error?: string | null;
+  skippedRows?: EventImportSkippedRows;
+  collectionSlug: string;
+  importMode?: ('create' | 'update' | 'upsert') | null;
+  matchField?: string | null;
+  status?: ('pending' | 'completed' | 'partial' | 'failed') | null;
+  summary?: {
+    imported?: number | null;
+    updated?: number | null;
+    total?: number | null;
+    issues?: number | null;
+    issueDetails?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+  };
   /**
    * Language(s) for rows whose own `languages` column is empty.
    */
@@ -2154,27 +2175,8 @@ export interface Import {
     | 'za'
     | 'zu'
   )[];
+  manager: number | Manager;
   locale?: string | null;
-  skippedRows?: EventImportSkippedRows;
-  collectionSlug: string;
-  importMode?: ('create' | 'update' | 'upsert') | null;
-  matchField?: string | null;
-  status?: ('pending' | 'completed' | 'partial' | 'failed') | null;
-  summary?: {
-    imported?: number | null;
-    updated?: number | null;
-    total?: number | null;
-    issues?: number | null;
-    issueDetails?:
-      | {
-          [k: string]: unknown;
-        }
-      | unknown[]
-      | string
-      | number
-      | boolean
-      | null;
-  };
   _objectKey?: string | null;
   updatedAt: string;
   createdAt: string;
@@ -5208,9 +5210,7 @@ export interface ExportsSelect<T extends boolean = true> {
  */
 export interface ImportsSelect<T extends boolean = true> {
   targetRegion?: T;
-  manager?: T;
-  defaultLanguages?: T;
-  locale?: T;
+  error?: T;
   skippedRows?: T;
   collectionSlug?: T;
   importMode?: T;
@@ -5225,6 +5225,9 @@ export interface ImportsSelect<T extends boolean = true> {
         issues?: T;
         issueDetails?: T;
       };
+  defaultLanguages?: T;
+  manager?: T;
+  locale?: T;
   _objectKey?: T;
   updatedAt?: T;
   createdAt?: T;

@@ -2,7 +2,7 @@
  * Turns each CSV row into the draft class the plugin then creates.
  *
  * Per row: the column checks, a geocode, the zone at the point, the schedule,
- * the city region under the target, the coordinator — and `eventCreateData`.
+ * the city region under the target, the manager — and `eventCreateData`.
  * A row that fails any step is recorded on the run as skipped and handed back
  * as `undefined`, which the plugin's batch loop steps over without counting,
  * so its own row numbers stay aligned with the file.
@@ -24,11 +24,10 @@ import type { GeocodedLocation, GeocodeLocationArgs } from '@/lib/mapbox/geocode
 import { geocodeLocation } from '@/lib/mapbox/geocoder'
 
 import { GEOCODE_CONCURRENCY, IMPORT_BATCH_SIZE } from '../constants'
-import { ensureCoordinators } from '../coordinators'
 import { checkRowFields } from '../csv/fieldChecks'
 import { isTemplateHelpRow } from '../csv/template'
 import { eventCreateData } from '../eventData'
-import { managerKeyOf, managerRoster } from '../managers'
+import { ensureManagers, managerKeyOf, managerRoster } from '../managers'
 import { cityIndex } from '../regions'
 import { checkHeader, normaliseRow } from '../rows'
 import { runOf } from '../run'
@@ -71,7 +70,7 @@ export const beforeImport: ImportBeforeHook = async ({
       entry?.ok ? [{ line: entry.row.row, values: entry.row.values }] : [],
     ),
   )
-  const coordinators = await ensureCoordinators(req, roster)
+  const managers = await ensureManagers(req, roster)
 
   return prepared.map((entry) => {
     if (!entry) return undefined
@@ -86,9 +85,9 @@ export const beforeImport: ImportBeforeHook = async ({
     }
 
     const email = managerKeyOf(row.values)
-    const failure = email ? coordinators.failures.get(email) : undefined
+    const failure = email ? managers.failures.get(email) : undefined
     if (failure) return skip(run, row, [failure])
-    const managerId = email ? (coordinators.ids.get(email) ?? null) : null
+    const managerId = email ? (managers.ids.get(email) ?? null) : null
 
     const built = eventCreateData({
       values: row.values,

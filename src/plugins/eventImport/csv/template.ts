@@ -72,7 +72,7 @@ export function isTemplateHelpRow(record: readonly string[]): boolean {
  * Whether a row is the template's example, left in.
  *
  * Reported rather than skipped: it parses as a valid class, and importing it
- * would publish a class nobody runs and invite its made-up coordinator. Every
+ * would publish a class nobody runs and invite its made-up manager. Every
  * column the example fills and the file carries must match, so a row edited
  * into a real class is not caught by it.
  */
@@ -86,4 +86,3 @@ export function isTemplateExampleRow(values: RawImportRow): boolean {
   return compared > 0
 }
 
-export const IMPORT_TEMPLATE_FILENAME = 'sahaj-atlas-event-import-template.csv'

@@ -10,7 +10,7 @@ function row(line: number, managerEmail?: string, managerName?: string) {
 }
 
 describe('managerRoster', () => {
-  it('names each coordinator once, with the lines that asked for them', () => {
+  it('names each manager once, with the lines that asked for them', () => {
     const roster = managerRoster([
       row(2, 'anna@example.org', 'Anna Schmidt'),
       row(3, 'bo@example.org', 'Bo Lee'),
@@ -29,7 +29,7 @@ describe('managerRoster', () => {
    * case-sensitive roster finds neither on the second pass and tries to create a
    * duplicate the index then refuses, part-way through the commit.
    */
-  it('treats two spellings of one address as one coordinator', () => {
+  it('treats two spellings of one address as one manager', () => {
     const roster = managerRoster([row(2, 'Anna@Example.org', 'Anna'), row(3, 'anna@example.org')])
 
     expect(roster).toEqual([{ email: 'anna@example.org', name: 'Anna', lines: [2, 3] }])
@@ -37,7 +37,7 @@ describe('managerRoster', () => {
 
   /**
    * ⚠ **`Managers.name` is required**, so a blank here loses the class that
-   * named the coordinator rather than merely naming them awkwardly.
+   * named the manager rather than merely naming them awkwardly.
    */
   it('names an account after the address’s local part when no name is given', () => {
     expect(managerRoster([row(2, 'anna.schmidt@example.org')])[0]?.name).toBe('anna.schmidt')
@@ -58,7 +58,7 @@ describe('managerRoster', () => {
     )
   })
 
-  it('leaves out a row that names no coordinator', () => {
+  it('leaves out a row that names no manager', () => {
     expect(managerRoster([row(2), row(3, '   '), row(4, 'anna@example.org', 'Anna')])).toEqual([
       { email: 'anna@example.org', name: 'Anna', lines: [4] },
     ])
@@ -70,7 +70,7 @@ describe('managerKeyOf', () => {
     expect(managerKeyOf({ managerEmail: ' Anna@Example.org ' })).toBe('anna@example.org')
   })
 
-  it('answers null for a row with no coordinator', () => {
+  it('answers null for a row with no manager', () => {
     expect(managerKeyOf({})).toBeNull()
     expect(managerKeyOf({ managerEmail: '  ' })).toBeNull()
   })

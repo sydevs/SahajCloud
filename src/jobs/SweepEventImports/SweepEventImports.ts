@@ -23,7 +23,7 @@ const IMPORT_WINDOWS: PurgeWindow[] = [
 
 export const SweepEventImports: TaskConfig<'sweepEventImports'> = {
   slug: 'sweepEventImports',
-  label: 'Sweep Class Imports',
+  label: 'Sweep Event Imports',
   retries: 2,
   inputSchema: [
     { name: 'now', type: 'text' },
