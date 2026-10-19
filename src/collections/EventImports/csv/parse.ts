@@ -13,22 +13,11 @@
 
 import { CsvError, parse } from 'csv-parse/sync'
 
-import type { Event } from '@/payload-types'
-
 import { MAX_IMPORT_ROWS } from '../constants'
-import { isImportColumn, requiredColumnsFor, type RawImportRow } from './columns'
+import { EVENT_TYPES, isImportColumn, requiredColumnsFor, type RawImportRow } from './columns'
 import { checkRowFields, echo } from './fieldChecks'
 import { SCHEDULE_TYPES } from './schedule'
-import { isTemplateExampleRow, isTemplateHelpRow } from './template'
-
-/**
- * The `eventType` values a row may declare.
- *
- * `satisfies` against the generated union is what stops this drifting wider
- * than the column: adding a value the CMS does not enumerate is a compile
- * error here, rather than a row that type-checks and is refused at write.
- */
-const EVENT_TYPES = ['offline', 'online'] as const satisfies readonly Event['eventType'][]
+import { isTemplateHelpRow } from './template'
 
 /**
  * How many records, blank ones included, the parser is handed at most.
@@ -475,26 +464,6 @@ function buildRow(
     )
     return { line, values, errors }
   }
-  const eventType = values.eventType?.toLowerCase()
-  if (eventType) values.eventType = eventType
-
-  if (!eventType) {
-    errors.push('eventType is required')
-  } else if (!(EVENT_TYPES as readonly string[]).includes(eventType)) {
-    errors.push(`eventType must be ${EVENT_TYPES.join(' or ')} (got "${echo(eventType)}")`)
-  }
-
-  for (const name of requiredColumnsFor(eventType)) {
-    if (name === 'eventType') continue
-    if (!values[name]) errors.push(`${name} is required`)
-  }
-
-  if (isTemplateExampleRow(values)) {
-    errors.push(
-      `this is the template's example row — delete it, or replace it with one of your classes (got title "${echo(values.title ?? '')}")`,
-    )
-  }
-
   const checked = checkRowFields(values)
   errors.push(...checked.errors)
   return checked.warnings.length

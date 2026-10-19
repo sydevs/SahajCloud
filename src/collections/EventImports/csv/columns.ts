@@ -9,6 +9,8 @@
  * own tooling and cost a maintainer an afternoon of "invalid column" reports.
  */
 
+import type { Event } from '@/payload-types'
+
 /** When a column must carry a value. */
 export type ColumnRequirement =
   /** Every row. */
@@ -214,6 +216,15 @@ export const IMPORT_COLUMNS: readonly ColumnSpec[] = [
     example: '',
   },
 ] as const
+
+/**
+ * What the `eventType` column accepts, in the words the error message uses.
+ *
+ * `satisfies` against the generated union is what stops this drifting wider
+ * than the column: adding a value the CMS does not enumerate is a compile
+ * error here, rather than a row that type-checks and is refused at write.
+ */
+export const EVENT_TYPES = ['offline', 'online'] as const satisfies readonly Event['eventType'][]
 
 /**
  * ⚠ Excel opens a CSV without a byte-order mark in the system's legacy code

@@ -26,7 +26,8 @@ import { z } from 'zod'
 
 import { Events } from '@/collections/Events/Events'
 
-import { IMPORT_COLUMNS } from './columns'
+import { EVENT_TYPES, IMPORT_COLUMNS, requiredColumnsFor } from './columns'
+import { isTemplateExampleRow } from './template'
 
 
 export interface FieldCheckResult {
@@ -145,7 +146,7 @@ export function echo(value: string): string {
 }
 
 /**
- * ⚠ **An issue's message continues its column name**, which `checkRowFields`
+ * ⚠ **An issue's message continues its column name**, which `messagesOf`
  * prefixes from the issue path. Write each one to read after that name, so a
  * column renamed in `columns.ts` renames every message it owns.
  */
@@ -212,6 +213,52 @@ const COLUMN_CELLS: Record<string, typeof cell> = {
 }
 
 /**
+ * An issue as a volunteer reads it: its column name, then its own message.
+ *
+ * ⚠ **A pathless issue is the whole row's**, so it carries no column name to
+ * lead with — the template's example row is the one that does this today.
+ */
+function messagesOf(issues: readonly z.core.$ZodIssue[]): string[] {
+  return issues.map((issue) =>
+    issue.path.length ? `${String(issue.path[0])} ${issue.message}` : issue.message,
+  )
+}
+
+/**
+ * The rules about the row rather than about one cell: which columns this
+ * `eventType` owes, and whether the whole line is still the template's example.
+ *
+ * ⚠ **Parsed from the row with its blanks intact**, unlike `importRowSchema`.
+ * Both readers need to tell a cell left empty from a column absent from the
+ * header — `requiredColumnsFor` to refuse it, `isTemplateExampleRow` to compare
+ * it against the example rather than skip it.
+ */
+const importRowShape = z.record(z.string(), z.string()).superRefine((values, ctx) => {
+  const eventType = values.eventType
+  if (!eventType) {
+    ctx.addIssue({ code: 'custom', path: ['eventType'], message: 'is required' })
+  } else if (!(EVENT_TYPES as readonly string[]).includes(eventType)) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['eventType'],
+      message: `must be ${EVENT_TYPES.join(' or ')} (got "${echo(eventType)}")`,
+    })
+  }
+
+  for (const name of requiredColumnsFor(eventType)) {
+    if (name === 'eventType') continue
+    if (!values[name]) ctx.addIssue({ code: 'custom', path: [name], message: 'is required' })
+  }
+
+  if (isTemplateExampleRow(values)) {
+    ctx.addIssue({
+      code: 'custom',
+      message: `this is the template's example row — delete it, or replace it with one of your classes (got title "${echo(values.title ?? '')}")`,
+    })
+  }
+})
+
+/**
  * Every column the template declares, so a new one is checked the moment it is
  * added rather than the day someone remembers this file.
  */
@@ -237,6 +284,14 @@ export function checkRowFields(values: RawImportRow): FieldCheckResult {
   const warnings: string[] = []
   const inactive = values.scheduleType?.trim().toLowerCase() === 'inactive'
 
+  // Normalised silently: `requiredColumnsFor` and the commit both match the
+  // stored vocabulary, and a volunteer who typed `Offline` made no mistake
+  // worth a warning.
+  if (values.eventType) values.eventType = values.eventType.toLowerCase()
+
+  const shape = importRowShape.safeParse(values)
+  if (!shape.success) errors.push(...messagesOf(shape.error.issues))
+
   for (const column of URL_COLUMNS) {
     const raw = values[column]
     if (!raw) continue
@@ -250,13 +305,11 @@ export function checkRowFields(values: RawImportRow): FieldCheckResult {
   }
 
   // ⚠ **Blank cells are dropped before the parse, not made nullable.** A column
-  // the volunteer left empty owes none of these checks, and `requiredColumnsFor`
-  // in `parse.ts` is what decides whether it was allowed to be empty.
+  // the volunteer left empty owes none of these checks, and `importRowShape`
+  // above is what decides whether it was allowed to be empty.
   const filled = Object.fromEntries(Object.entries(values).filter(([, value]) => value))
   const parsed = importRowSchema.safeParse(filled)
-  if (!parsed.success) {
-    errors.push(...parsed.error.issues.map((issue) => `${String(issue.path[0])} ${issue.message}`))
-  }
+  if (!parsed.success) errors.push(...messagesOf(parsed.error.issues))
 
   const data = { inactive, contactEmail: values.contactEmail || null }
   for (const { column, field, validate } of CHECKED) {
