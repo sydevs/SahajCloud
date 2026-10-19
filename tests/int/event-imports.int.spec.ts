@@ -15,6 +15,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { SweepEventImports } from '@/jobs/SweepEventImports/SweepEventImports'
 import type { GeocodedLocation, GeocodeOutcome } from '@/lib/mapbox/geocoder'
+import { relationId } from '@/lib/utilities/relationId'
 import type { Import } from '@/payload-types'
 import { buildImportTemplate } from '@/plugins/eventImport/csv/template'
 
@@ -165,9 +166,7 @@ describe('class imports', () => {
       const other = await testData.createManager(payload, { name: 'Somebody Else' })
       const created = await createImport([classLine({})], admin, { manager: other.id })
       expect(created.status).toBe('pending')
-      expect(typeof created.manager === 'object' ? created.manager.id : created.manager).toBe(
-        admin.id,
-      )
+      expect(relationId(created.manager)).toBe(admin.id)
       expect(created.collectionSlug).toBe('events')
     })
 
@@ -203,7 +202,6 @@ describe('class imports', () => {
 
       const after = await read(created.id)
       expect(after.status).toBe('completed')
-      expect(after.summary?.imported).toBe(2)
       const { docs } = await importedClasses(created.id)
       expect(docs.map((event) => event.title).sort()).toEqual(['Beginners', 'Evening'])
       // Each row links the class it created: row 1 Beginners, row 2 Evening.
@@ -227,7 +225,6 @@ describe('class imports', () => {
       const after = await read(created.id)
       // Nothing imported and a row skipped: the plugin alone would say `completed`.
       expect(after.status).toBe('failed')
-      expect(after.summary).toMatchObject({ imported: 0, issues: 1 })
       expect(after.results).toHaveLength(1)
       expect(after.results?.[0]).toMatchObject({ row: 1, outcome: 'error', values: { title: 'Nowhere' } })
       expect(after.results?.[0]?.reasons?.[0]).toMatch(/no city region for "Leipzig"/)
@@ -241,7 +238,6 @@ describe('class imports', () => {
 
       const after = await read(again.id)
       expect(after.status).toBe('failed')
-      expect(after.summary?.issues).toBe(1)
       expect(after.results).toHaveLength(1)
       expect(after.results?.[0]).toMatchObject({ outcome: 'duplicate' })
       expect(after.results?.[0]?.reasons?.[0]).toMatch(/repeats #\d+/)

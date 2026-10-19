@@ -6,16 +6,19 @@ import {
   Button,
   CheckboxInput,
   ConfirmationModal,
-  Pill,
+  FieldDescription,
+  FieldLabel,
   Table,
   toast,
   useConfig,
+  useDocumentDrawer,
   useModal,
+  useTranslation,
 } from '@payloadcms/ui'
+import { formatDate } from '@payloadcms/ui/shared'
 import { useRouter } from 'next/navigation'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
-import { FieldShell } from '../FieldShell'
 import { tableColumn } from '../helpers/tableColumn'
 
 import './styles.css'
@@ -28,38 +31,32 @@ export interface ResultRow {
   eventId?: number
   title: string
   city: string
-  notes: string
+  /** When the class was created (a draft) or first published, as ISO. */
+  at: null | string
+  /** Why a row failed, for `error`. */
+  error?: string
+  /** The class a `duplicate` row repeats. */
+  original?: { id: number; title: string }
   reasons?: string[]
   values?: Record<string, string>
-}
-
-const STATUS_LABEL: Record<ResultStatus, string> = {
-  published: 'Published',
-  draft: 'Created',
-  duplicate: 'Duplicate',
-  error: 'Error',
-  removed: 'Removed',
-}
-
-const STATUS_PILL: Record<ResultStatus, React.ComponentProps<typeof Pill>['pillStyle']> = {
-  published: 'success',
-  draft: 'light',
-  duplicate: 'warning',
-  error: 'error',
-  removed: 'light-gray',
 }
 
 const PUBLISH_MODAL = 'event-import-publish'
 const CLEAN_UP_MODAL = 'event-import-clean-up'
 
 /**
- * Every row of an import, coloured by what became of it, with the created
- * drafts' checkboxes driving the two bulk actions: publish the checked ones,
- * delete the unchecked ones. Both go through the REST API as the signed-in
- * manager, so their own access to each class decides what is allowed.
+ * Every row of an import, coloured by what became of it. The created drafts'
+ * checkboxes drive the toolbar: publish the ticked ones, delete the unticked
+ * ones. Both go through the REST API as the signed-in manager, so their own
+ * access to each class decides what is allowed.
  *
- * ⚠ **The colour rides on the row's `data-id`** (`styles.css`), the one per-row
- * hook Payload's `Table` renders, which is why each row's id leads with its
+ * ⚠ **Not Payload's `RelationshipTable`.** That table lists one collection's
+ * documents, and half these rows — the skipped ones — never became a document.
+ * The pieces are Payload's own: `Table`, `CheckboxInput`, pill `Button`s laid
+ * out like that table's header, `ConfirmationModal`, and the document drawer.
+ *
+ * ⚠ **The row colour rides on the row's `data-id`** (`styles.css`), the one
+ * per-row hook Payload's `Table` renders, which is why each id leads with its
  * status.
  */
 export const ImportResultsTable: React.FC<{
@@ -70,10 +67,10 @@ export const ImportResultsTable: React.FC<{
   rows: ResultRow[]
 }> = ({ description, importId, label, path, rows }) => {
   const { config } = useConfig()
+  const { i18n } = useTranslation()
   const { openModal } = useModal()
   const router = useRouter()
   const api = `${config.serverURL}${config.routes.api}`
-  const admin = config.routes.admin
 
   const drafts = useMemo(
     () => rows.flatMap(({ eventId, status }) => (status === 'draft' && eventId ? [eventId] : [])),
@@ -83,6 +80,24 @@ export const ImportResultsTable: React.FC<{
   const toPublish = drafts.filter((id) => checked.has(id))
   const toDelete = drafts.filter((id) => !checked.has(id))
   const skipped = rows.filter(({ status }) => status === 'duplicate' || status === 'error')
+
+  // One drawer for every link, as Payload's own relationship table does it.
+  const [drawerId, setDrawerId] = useState<number>()
+  const opening = useRef(false)
+  const [DocumentDrawer, , { openDrawer }] = useDocumentDrawer({
+    collectionSlug: 'events',
+    id: drawerId,
+  })
+  useEffect(() => {
+    if (!opening.current) return
+    opening.current = false
+    openDrawer()
+  }, [drawerId, openDrawer])
+  const openEvent = (id: number) => {
+    opening.current = true
+    if (id === drawerId) openDrawer()
+    setDrawerId(id)
+  }
 
   const toggle = (id: number) =>
     setChecked((current) => {
@@ -111,7 +126,9 @@ export const ImportResultsTable: React.FC<{
     }
     const succeeded = body.docs?.length ?? 0
     if (succeeded) toast.success(`${succeeded} ${succeeded === 1 ? 'class' : 'classes'} ${done}.`)
-    for (const error of body.errors ?? []) toast.error(error.message ?? 'A class could not be changed.')
+    for (const error of body.errors ?? []) {
+      toast.error(error.message ?? 'A class could not be changed.')
+    }
     if (!response.ok && !body.errors?.length) toast.error('The change could not be made.')
     router.refresh()
   }
@@ -135,44 +152,87 @@ export const ImportResultsTable: React.FC<{
     URL.revokeObjectURL(url)
   }
 
-  const plural = (count: number) => `${count} draft ${count === 1 ? 'class' : 'classes'}`
+  const when = (iso: null | string) =>
+    iso ? formatDate({ date: iso, i18n, pattern: config.admin.dateFormat }) : ''
+
+  const eventLink = (id: number, text: string) => (
+    <button className="event-import__link" onClick={() => openEvent(id)} type="button">
+      {text || 'Untitled'}
+    </button>
+  )
+
+  const statusSentence = (row: ResultRow): React.ReactNode => {
+    switch (row.status) {
+      case 'published':
+        return `Published ${when(row.at)}`.trim()
+      case 'draft':
+        return `Created ${when(row.at)}`.trim()
+      case 'removed':
+        return 'Deleted after the import'
+      case 'error':
+        return `Error: ${row.error}`
+      case 'duplicate':
+        return row.original ? (
+          <>Duplicate of {eventLink(row.original.id, row.original.title)}</>
+        ) : (
+          'Duplicate of a class already listed'
+        )
+    }
+  }
+
+  const classes = (count: number) => `${count} draft ${count === 1 ? 'class' : 'classes'}`
 
   return (
-    <FieldShell
-      description={description}
-      label={label}
-      path={path}
-      readOnly
-      wrapClassName="event-import__stack event-import__results"
-    >
-      {drafts.length ? (
-        <div className="event-import__actions">
-          <Button disabled={!toPublish.length} onClick={() => openModal(PUBLISH_MODAL)}>
-            {`Publish (${toPublish.length})`}
-          </Button>
-          <Button
-            buttonStyle="secondary"
-            disabled={!toDelete.length}
-            onClick={() => openModal(CLEAN_UP_MODAL)}
-          >
-            {`Clean Up (${toDelete.length})`}
-          </Button>
+    <div className="field-type event-import__results">
+      <div className="event-import__results-header">
+        <FieldLabel label={label} path={path} />
+        <div className="event-import__results-actions">
+          {drafts.length ? (
+            <>
+              <Button
+                buttonStyle="pill"
+                disabled={!toPublish.length}
+                margin={false}
+                onClick={() => openModal(PUBLISH_MODAL)}
+                size="small"
+              >
+                {`Publish (${toPublish.length})`}
+              </Button>
+              <Button
+                buttonStyle="pill"
+                disabled={!toDelete.length}
+                margin={false}
+                onClick={() => openModal(CLEAN_UP_MODAL)}
+                size="small"
+              >
+                {`Clean Up (${toDelete.length})`}
+              </Button>
+            </>
+          ) : null}
+          {skipped.length ? (
+            <Button
+              buttonStyle="pill"
+              margin={false}
+              onClick={() => void download()}
+              size="small"
+            >
+              {`Download Skipped Rows (${skipped.length})`}
+            </Button>
+          ) : null}
         </div>
-      ) : null}
+      </div>
       <Table
         appearance="condensed"
         columns={[
-          tableColumn(
-            'select',
-            drafts.length ? (
-              <CheckboxInput
-                checked={toPublish.length === drafts.length}
-                onToggle={toggleAll}
-                partialChecked={toPublish.length > 0 && toPublish.length < drafts.length}
-              />
-            ) : (
-              ''
-            ),
+          ...(drafts.length
+            ? [
+                tableColumn(
+                  'select',
+            <CheckboxInput
+              checked={toPublish.length === drafts.length}
+              onToggle={toggleAll}
+              partialChecked={toPublish.length > 0 && toPublish.length < drafts.length}
+            />,
             rows.map(({ eventId, status }) =>
               status === 'draft' && eventId ? (
                 <CheckboxInput
@@ -183,6 +243,8 @@ export const ImportResultsTable: React.FC<{
               ) : null,
             ),
           ),
+              ]
+            : []),
           tableColumn(
             'row',
             'Row',
@@ -191,15 +253,7 @@ export const ImportResultsTable: React.FC<{
           tableColumn(
             'title',
             'Title',
-            rows.map(({ eventId, title }) =>
-              eventId ? (
-                <a href={`${admin}/collections/events/${eventId}`} key={eventId}>
-                  {title || 'Untitled'}
-                </a>
-              ) : (
-                title || '—'
-              ),
-            ),
+            rows.map(({ eventId, title }) => (eventId ? eventLink(eventId, title) : title || '—')),
           ),
           tableColumn(
             'city',
@@ -209,34 +263,22 @@ export const ImportResultsTable: React.FC<{
           tableColumn(
             'status',
             'Status',
-            rows.map(({ row, status }) => (
-              <Pill key={row} pillStyle={STATUS_PILL[status]} size="small">
-                {STATUS_LABEL[status]}
-              </Pill>
-            )),
-          ),
-          tableColumn(
-            'notes',
-            'Notes',
-            rows.map(({ notes }) => notes),
+            rows.map((row) => <span key={row.row}>{statusSentence(row)}</span>),
           ),
         ]}
         data={rows.map(({ row, status }) => ({ id: `${status}-${row}` }))}
       />
-      {skipped.length ? (
-        <Button buttonStyle="secondary" onClick={() => void download()} size="small">
-          {`Download the ${skipped.length} skipped ${skipped.length === 1 ? 'row' : 'rows'} to fix`}
-        </Button>
-      ) : null}
+      <FieldDescription description={description} path={path} />
+      <DocumentDrawer onDelete={() => router.refresh()} onSave={() => router.refresh()} />
       <ConfirmationModal
-        body={`Publish ${plural(toPublish.length)}? They appear in the Atlas straight away.`}
+        body={`Publish ${classes(toPublish.length)}? They appear in the Atlas straight away.`}
         confirmLabel={`Publish (${toPublish.length})`}
         heading="Publish classes"
         modalSlug={PUBLISH_MODAL}
         onConfirm={() => act('PATCH', toPublish, 'published')}
       />
       <ConfirmationModal
-        body={`Delete ${plural(toDelete.length)} that ${
+        body={`Delete ${classes(toDelete.length)} that ${
           toDelete.length === 1 ? 'is' : 'are'
         } not ticked? This cannot be undone.`}
         confirmLabel={`Clean Up (${toDelete.length})`}
@@ -244,6 +286,6 @@ export const ImportResultsTable: React.FC<{
         modalSlug={CLEAN_UP_MODAL}
         onConfirm={() => act('DELETE', toDelete, 'deleted')}
       />
-    </FieldShell>
+    </div>
   )
 }

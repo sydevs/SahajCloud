@@ -1,7 +1,7 @@
 /**
  * The plugin's `imports` collection (labelled Event Imports), shaped for a volunteer.
  *
- * The plugin owns the file, the `status` and `summary` fields, the job that
+ * The plugin owns the file, the `status` field, the job that
  * reads the CSV and the per-row `events` creates. This override adds what a
  * class import needs on top — the target region, the uploader, the languages a
  * blank cell falls back to, and the rows that were skipped — and hides the
@@ -41,17 +41,9 @@ const managersOnly: Access = ({ req }) => req.user?.collection === 'managers'
 /** The plugin's knobs, kept but out of the way: only `events` is ever imported into. */
 const PLUGIN_FIELDS_HIDDEN: ReadonlySet<string> = new Set(['collectionSlug', 'importMode', 'matchField'])
 
-/** Counts that mean nothing here: an import only creates, and `importResults` lists the issues. */
-const SUMMARY_FIELDS_HIDDEN: ReadonlySet<string> = new Set(['updated', 'issueDetails'])
-
 const TEMPLATE_LINK = '@/components/admin/EventImport/TemplateLink'
 
 const OUR_MAIN_FIELDS: Field[] = [
-  {
-    name: 'templateLink',
-    type: 'ui',
-    admin: { components: { Field: TEMPLATE_LINK } },
-  },
   {
     name: 'targetRegion',
     type: 'relationship',
@@ -61,6 +53,7 @@ const OUR_MAIN_FIELDS: Field[] = [
     filterOptions: targetRegionFilterOptions,
     validate: validateTargetRegion,
     admin: {
+      allowCreate: false,
       description:
         'Classes are filed under the cities of this region. A town with no city region yet is skipped — create the city first.',
     },
@@ -126,9 +119,10 @@ const OUR_SIDEBAR_FIELDS: Field[] = [
     maxDepth: 1,
     label: 'Uploaded by',
     access: { update: () => false },
-    // No `condition`: a conditional field generates as nullable, and the stamp
-    // is what every import's access hangs on.
-    admin: { position: 'sidebar', readOnly: true },
+    // Hidden on the create form, where the stamp has not happened yet. The
+    // condition makes the column nullable; `access.create` admitting managers
+    // only is what guarantees the stamp.
+    admin: { position: 'sidebar', readOnly: true, condition: hideUntilCreated },
   },
   {
     // The admin locale at the upload, which the job writes the classes in.
@@ -138,7 +132,11 @@ const OUR_SIDEBAR_FIELDS: Field[] = [
   },
 ]
 
-/** The plugin's own fields, with its knobs hidden and its outcome moved to the sidebar. */
+/**
+ * The plugin's own fields, with its knobs hidden and its status moved to the
+ * sidebar. Its `summary` counts are dropped: `results` says the same per row,
+ * and the plugin's own write of them is discarded as an unknown field.
+ */
 function pluginFields(fields: readonly Field[]): Field[] {
   return fields.flatMap((field): Field[] => {
     if (!('name' in field)) return [field]
@@ -149,19 +147,7 @@ function pluginFields(fields: readonly Field[]): Field[] {
     if (field.name === 'status') {
       return [{ ...field, admin: { ...field.admin, position: 'sidebar', condition: hideUntilCreated } } as Field]
     }
-    if (field.name === 'summary' && field.type === 'group') {
-      return [
-        {
-          ...field,
-          admin: { ...field.admin, position: 'sidebar' },
-          fields: field.fields.map((child) =>
-            'name' in child && SUMMARY_FIELDS_HIDDEN.has(child.name)
-              ? ({ ...child, admin: { ...child.admin, hidden: true } } as Field)
-              : child,
-          ),
-        } as Field,
-      ]
-    }
+    if (field.name === 'summary') return []
     return [field]
   })
 }
@@ -179,6 +165,9 @@ export const overrideImportCollection: NonNullable<
     // One file is one import: a bulk upload would start one job per file with
     // no target region chosen for any of them.
     bulkUpload: false,
+    // The file comes from the volunteer's computer; fetching one from a URL
+    // would be a server-side request to wherever they point it.
+    pasteURL: false,
     // Beside every other upload collection's local files, which git ignores.
     staticDir: 'media/imports',
     // Excel on Windows labels a saved CSV `application/vnd.ms-excel`, and some

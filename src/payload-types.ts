@@ -1982,21 +1982,6 @@ export interface Import {
   importMode?: ('create' | 'update' | 'upsert') | null;
   matchField?: string | null;
   status?: ('pending' | 'completed' | 'partial' | 'failed') | null;
-  summary?: {
-    imported?: number | null;
-    updated?: number | null;
-    total?: number | null;
-    issues?: number | null;
-    issueDetails?:
-      | {
-          [k: string]: unknown;
-        }
-      | unknown[]
-      | string
-      | number
-      | boolean
-      | null;
-  };
   /**
    * Language(s) for rows whose own `languages` column is empty.
    */
@@ -2185,7 +2170,7 @@ export interface Import {
     | 'za'
     | 'zu'
   )[];
-  manager: number | Manager;
+  manager?: (number | null) | Manager;
   locale?: string | null;
   _objectKey?: string | null;
   updatedAt: string;
@@ -5226,15 +5211,6 @@ export interface ImportsSelect<T extends boolean = true> {
   importMode?: T;
   matchField?: T;
   status?: T;
-  summary?:
-    | T
-    | {
-        imported?: T;
-        updated?: T;
-        total?: T;
-        issues?: T;
-        issueDetails?: T;
-      };
   defaultLanguages?: T;
   manager?: T;
   locale?: T;

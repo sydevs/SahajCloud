@@ -1,24 +1,54 @@
-/* The import's outcome field: banners and a download button, stacked. */
-
+/* The import's description, as the Event Imports list and edit header show it. */
 .event-import__note {
   margin: 0;
-  color: var(--theme-elevation-600);
 }
 
-.event-import__stack {
+/* The result: a header like Payload's relationship table, then the table. */
+.event-import__results-header {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
   gap: var(--base);
-  align-items: flex-start;
+  margin-bottom: calc(var(--base) / 2);
 }
 
-.event-import__actions {
+.event-import__results-header .field-label {
+  margin: 0;
+}
+
+.event-import__results-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: calc(var(--base) / 2);
 }
 
-.event-import__results .table {
+.event-import__results .table table {
   width: 100%;
+}
+
+/* The checkbox and row-number columns take only the width they need. */
+.event-import__results #heading-select,
+.event-import__results .cell-select,
+.event-import__results #heading-row,
+.event-import__results .cell-row {
+  width: 1%;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.event-import__results .field-description {
+  margin-top: calc(var(--base) / 2);
+}
+
+.event-import__link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-decoration: underline;
+  cursor: pointer;
 }
 
 /* One colour per row status; the status leads each row's `data-id`. */

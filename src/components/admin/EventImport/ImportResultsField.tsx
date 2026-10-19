@@ -1,5 +1,6 @@
 import type { JSONFieldServerComponent } from 'payload'
 
+import { relationId } from '@/lib/utilities/relationId'
 import type { ImportResultRow } from '@/plugins/eventImport/results'
 
 import { type ResultRow, type ResultStatus, ImportResultsTable } from './ImportResultsTable'
@@ -9,8 +10,11 @@ const STATUS_WORDS: Record<ResultStatus, [string, string]> = {
   draft: ['created', 'created'],
   duplicate: ['duplicate', 'duplicates'],
   error: ['error', 'errors'],
-  removed: ['removed', 'removed'],
+  removed: ['deleted', 'deleted'],
 }
+
+/** The class a duplicate row repeats, as `refuseDuplicateClass` names it. */
+const REPEATS = /\brepeats #(\d+)/
 
 /**
  * The import's result, one line per CSV row, with each created class's live
@@ -23,25 +27,56 @@ export const ImportResultsField: JSONFieldServerComponent = async ({
   req,
 }) => {
   const results = (data?.results ?? []) as ImportResultRow[]
-  const ids = results.flatMap(({ eventId }) => (eventId === undefined ? [] : [eventId]))
+  const created = results.flatMap(({ eventId }) => (eventId === undefined ? [] : [eventId]))
+  const originalOf = (result: ImportResultRow): number | undefined => {
+    const match = result.outcome === 'duplicate' ? REPEATS.exec(result.reasons?.join(' ') ?? '') : null
+    return match ? Number(match[1]) : undefined
+  }
+  const originals = results.flatMap((result) => originalOf(result) ?? [])
+  const ids = [...new Set([...created, ...originals])]
 
-  const { docs } = ids.length
-    ? await req.payload.find({
-        collection: 'events',
-        where: { id: { in: ids } },
-        draft: true,
-        depth: 0,
-        pagination: false,
-        overrideAccess: false,
-        user: req.user,
-        select: { title: true, _status: true },
-        req,
-      })
-    : { docs: [] }
-  const live = new Map(docs.map((event) => [event.id, event]))
+  const [events, published] = ids.length
+    ? await Promise.all([
+        req.payload.find({
+          collection: 'events',
+          where: { id: { in: ids } },
+          draft: true,
+          depth: 0,
+          pagination: false,
+          overrideAccess: false,
+          user: req.user,
+          select: { title: true, _status: true, createdAt: true },
+          req,
+        }),
+        // When each created class was first published: its earliest published version.
+        req.payload.findVersions({
+          collection: 'events',
+          where: {
+            and: [{ parent: { in: created } }, { 'version._status': { equals: 'published' } }],
+          },
+          sort: 'createdAt',
+          depth: 0,
+          pagination: false,
+          overrideAccess: false,
+          user: req.user,
+          select: { parent: true, createdAt: true },
+          req,
+        }),
+      ])
+    : [{ docs: [] }, { docs: [] }]
+
+  const live = new Map(events.docs.map((event) => [event.id, event]))
+  const publishedAt = new Map<number, string>()
+  for (const version of published.docs) {
+    const parent = relationId(version.parent)
+    if (parent !== null && !publishedAt.has(parent)) {
+      publishedAt.set(parent, version.createdAt)
+    }
+  }
 
   const rows: ResultRow[] = results.map((result) => {
     const event = result.eventId === undefined ? undefined : live.get(result.eventId)
+    const original = originalOf(result)
     const status: ResultStatus =
       result.outcome !== 'created'
         ? result.outcome
@@ -56,9 +91,19 @@ export const ImportResultsField: JSONFieldServerComponent = async ({
       eventId: event ? event.id : undefined,
       title: event?.title || result.title,
       city: result.city,
-      notes: result.reasons?.join('; ') ?? '',
-      values: result.values,
+      at:
+        status === 'published'
+          ? (publishedAt.get(event!.id) ?? null)
+          : status === 'draft'
+            ? (event?.createdAt ?? null)
+            : null,
+      error: status === 'error' ? (result.reasons ?? []).join('; ') : undefined,
+      original:
+        original === undefined
+          ? undefined
+          : { id: original, title: live.get(original)?.title ?? `#${original}` },
       reasons: result.reasons,
+      values: result.values,
     }
   })
 

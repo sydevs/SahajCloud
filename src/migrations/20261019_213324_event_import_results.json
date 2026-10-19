@@ -14860,41 +14860,11 @@
           "notNull": false,
           "default": "'pending'"
         },
-        "summary_imported": {
-          "name": "summary_imported",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "summary_updated": {
-          "name": "summary_updated",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "summary_total": {
-          "name": "summary_total",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "summary_issues": {
-          "name": "summary_issues",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "summary_issue_details": {
-          "name": "summary_issue_details",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
         "manager_id": {
           "name": "manager_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "locale": {
           "name": "locale",
@@ -29790,6 +29760,6 @@
     "tables": {},
     "columns": {}
   },
-  "id": "c69ef282-f7f9-4ba9-a43e-265f7707f771",
+  "id": "06110795-0812-4f01-bf01-5006d76f97d5",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }

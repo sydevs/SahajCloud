@@ -51,11 +51,6 @@ export async function finishImport(req: PayloadRequest, run: ImportRun): Promise
     data: {
       status: statusOf(run),
       results: rows,
-      summary: {
-        imported: run.imported,
-        total: run.imported + run.skipped.length,
-        issues: run.skipped.length,
-      },
     },
     overrideAccess: true,
     depth: 0,
