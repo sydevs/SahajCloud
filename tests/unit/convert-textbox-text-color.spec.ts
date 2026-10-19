@@ -1,15 +1,12 @@
 /**
- * `convertTextbox`'s `textColor` mapping. The splash arms once both returned
- * `'light'`, so no behaviour case here can catch that defect returning (#975).
+ * `convertTextbox`'s `textColor` mapping. The legacy `color` names the
+ * BACKGROUND, so both overlay branches invert it to get the text (#975).
  *
  * `textColor` names the TEXT (#516): WeMeditateWeb's `textColorToSurface`
  * inverts it to get the surface its background paints.
  */
 
 import type { EditorJSBlock } from '../../seeds/lib/lexicalConverter'
-
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 
 import { describe, it, expect } from 'vitest'
 
@@ -24,8 +21,6 @@ import { makeConversionContext } from '../utils/conversionContext'
 const IMAGE_URL =
   'https://storage.googleapis.com/wemeditate/uploads/media_file/file/205/small_background.jpg'
 
-const CONVERTER = resolve(__dirname, '../../seeds/lib/lexicalConverter.ts')
-
 function convert(data: Record<string, unknown>) {
   const block: EditorJSBlock = {
     type: 'textbox',
@@ -38,16 +33,19 @@ function convert(data: Record<string, unknown>) {
 }
 
 describe('convertTextbox textColor', () => {
-  it.each(['light', 'dark'])('gives a splash light text when color is %s', (color) => {
+  // All 37 splash rows in the dump say `color: 'light'`, so this is what the
+  // next `--update` writes for every one of them.
+  it.each([
+    ['dark', 'light'],
+    ['light', 'dark'],
+  ])('inverts color %s to textColor %s for a splash', (color, expected) => {
     expect(convert({ type: 'splash', background: 'white', color })).toMatchObject({
       imagePosition: 'overlay',
       textPosition: 'left',
-      textColor: 'light',
+      textColor: expected,
     })
   })
 
-  // Pins that the branch inverts `data.color`. What that legacy field names is
-  // the open question on `lexicalConverter.ts` (#975), not something to assert here.
   it.each([
     ['dark', 'light'],
     ['light', 'dark'],
@@ -73,21 +71,5 @@ describe('convertTextbox textColor', () => {
     expect(
       convert({ type: 'splash', background: 'white', color: 'light' }).importData,
     ).toMatchObject({ background: 'white', color: 'light' })
-  })
-})
-
-describe('the splash branch reads no field it discards', () => {
-  it('decides textColor without consulting data.color', () => {
-    const source = readFileSync(CONVERTER, 'utf8')
-    const start = source.indexOf("if (data.type === 'splash') {")
-    const end = source.indexOf("} else if (data.type === 'image') {")
-
-    // Both found, or the slice below is empty and asserts nothing.
-    expect(start).toBeGreaterThan(-1)
-    expect(end).toBeGreaterThan(start)
-
-    // One spelling of the read, which is the one #975 is about. A destructured
-    // `const { color } = data` would pass.
-    expect(source.slice(start, end)).not.toContain('data.color')
   })
 })

@@ -423,8 +423,8 @@ export function convertTextbox(
   if (data.type === 'splash') {
     imagePosition = 'overlay'
     textPosition = 'left'
-    // Text over a full-bleed image: always light, whatever the legacy color says (#975).
-    textColor = 'light'
+    // The legacy color names the BACKGROUND, so both overlay branches invert it (#975).
+    textColor = data.color === 'dark' ? 'light' : 'dark'
   } else if (data.type === 'image') {
     if (data.background === 'image') {
       imagePosition = 'overlay'
