@@ -33,12 +33,25 @@ export function EventImportSummaryEmail({
   return (
     <EmailLayout
       brand={brand}
-      heading="Your class import is ready to review"
-      previewText={`${imported} ${imported === 1 ? 'class' : 'classes'} ready to review in ${targetName}`}
+      heading={imported ? 'Your class import is ready to review' : 'Your class import needs attention'}
+      previewText={
+        imported
+          ? `${imported} ${imported === 1 ? 'class' : 'classes'} ready to review in ${targetName}`
+          : `No classes were created in ${targetName}`
+      }
     >
       <Text style={styles.paragraph}>
-        {imported} {imported === 1 ? 'class is' : 'classes are'} waiting as drafts in{' '}
-        <strong>{targetName}</strong>. Open the list, look them over, select them and publish.
+        {imported ? (
+          <>
+            {imported} {imported === 1 ? 'class is' : 'classes are'} waiting as drafts in{' '}
+            <strong>{targetName}</strong>. Open the import, look them over and publish them.
+          </>
+        ) : (
+          <>
+            None of the rows could be imported into <strong>{targetName}</strong>. The import page
+            says why for each one.
+          </>
+        )}
       </Text>
 
       {skipped.length ? (

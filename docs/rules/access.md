@@ -43,7 +43,7 @@ The Manager `type` field controls top-level access: `inactive` (denied), `manage
 | `meditations-editor` | Create and edit meditations, upload media |
 | `path-editor` | Edit lessons, lectures, and lecture clips. Upload media |
 | `web-translator` | Edit localized fields on pages, songs, albums (read-only otherwise) |
-| `atlas-manager` | Sahaj Atlas: read project-wide. Create, update, and trash events and regions — writes scoped to the manager's owned-region subtree, below. Start a bulk class import (`imports`, whose own `access` block scopes read and delete to the uploader) |
+| `atlas-manager` | Sahaj Atlas: read project-wide. Create, update, and trash events and regions — writes scoped to the manager's owned-region subtree, below. Start a bulk class import (`imports: create` — the grant that keeps the collection's admin pages visible to them; its own `access` block scopes read and delete to the uploader) |
 
 Manager roles are **per-locale**: a manager can hold `meditations-editor` in English and `web-translator` in Czech, and gets the matching access in each admin locale.
 

@@ -11,12 +11,13 @@
  * Pure and server-free: the admin component reads these types.
  */
 
-import type { MissingCity, SkippedRow, SubmittedRow } from './run'
+import type { DuplicateOf, MissingCity, SkippedRow, SubmittedRow } from './run'
 
 /** How a row ended, before anyone acted on its class. */
 export type ImportOutcome = 'created' | 'duplicate' | 'error'
 
 export interface ImportResultRow {
+  /** The row's line in the volunteer's spreadsheet. */
   row: number
   outcome: ImportOutcome
   /** The class the row created, for an outcome of `created`. */
@@ -25,14 +26,15 @@ export interface ImportResultRow {
   city: string
   /** Why a row was skipped. */
   reasons?: string[]
+  /** Things the volunteer should know about a created row. */
+  warnings?: string[]
   /** The row as uploaded, kept for a skipped row so it can be downloaded and fixed. */
   values?: Record<string, string>
   /** The town a row was skipped for having no city region, so the page can offer to create it. */
   missingCity?: MissingCity
+  /** What a duplicate row repeats. */
+  duplicateOf?: DuplicateOf
 }
-
-/** The duplicate refusal's own sentence (`refuseDuplicateClass`). */
-const DUPLICATE = /\brepeats #\d+/
 
 export function buildResults(
   submitted: readonly SubmittedRow[],
@@ -44,23 +46,23 @@ export function buildResults(
   const matched = created.length === createdIds.length
 
   const rows: ImportResultRow[] = [
-    ...created.map(({ row, values }, index) => ({
+    ...created.map(({ row, values, warnings }, index) => ({
       row,
       outcome: 'created' as const,
       ...(matched ? { eventId: createdIds[index] } : {}),
       title: values.title ?? '',
       city: values.city ?? '',
+      ...(warnings?.length ? { warnings } : {}),
     })),
-    ...skipped.map(({ row, reasons, values, missingCity }) => ({
+    ...skipped.map(({ row, reasons, values, missingCity, duplicateOf }) => ({
       row,
-      outcome: reasons.some((reason) => DUPLICATE.test(reason))
-        ? ('duplicate' as const)
-        : ('error' as const),
+      outcome: duplicateOf ? ('duplicate' as const) : ('error' as const),
       title: values.title ?? '',
       city: values.city ?? '',
       reasons,
       values,
       ...(missingCity ? { missingCity } : {}),
+      ...(duplicateOf ? { duplicateOf } : {}),
     })),
   ]
   return { rows: rows.sort((a, b) => a.row - b.row), matched }

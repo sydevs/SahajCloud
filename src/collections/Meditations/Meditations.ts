@@ -201,7 +201,12 @@ export const Meditations: CollectionConfig = {
               [CREATE_STAGE]: [
                 // `skipValidation`, because the fields a finished meditation
                 // needs are on tabs this screen has not reached yet.
-                { label: 'Next step', overrides: { _status: 'draft' }, skipValidation: true },
+                {
+                  label: 'Next step',
+                  labelKey: 'general:next',
+                  overrides: { _status: 'draft' },
+                  skipValidation: true,
+                },
               ],
             },
           } satisfies WorkflowButtonsProps<typeof CREATE_STAGE>,

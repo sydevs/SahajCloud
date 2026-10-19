@@ -14817,7 +14817,7 @@
           "name": "target_region_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "error": {
           "name": "error",
@@ -29760,6 +29760,6 @@
     "tables": {},
     "columns": {}
   },
-  "id": "06110795-0812-4f01-bf01-5006d76f97d5",
+  "id": "55903f49-3d51-450c-9c3b-68669673e6c6",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }

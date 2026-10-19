@@ -18,6 +18,8 @@ export interface ImportTarget {
   id: number
   level: Region['level']
   name: string
+  /** The Mapbox feature the region stands for, or a `manual-` id. */
+  mapboxId: string
 }
 
 export async function loadTarget(req: PayloadRequest, id: number): Promise<ImportTarget | null> {
@@ -27,11 +29,16 @@ export async function loadTarget(req: PayloadRequest, id: number): Promise<Impor
     depth: 0,
     overrideAccess: true,
     disableErrors: true,
-    select: { level: true, name: true, slug: true },
+    select: { level: true, name: true, slug: true, mapboxId: true },
     req,
   })) as Region | null
   if (!region) return null
-  return { id: region.id, level: region.level, name: region.name?.trim() || region.slug }
+  return {
+    id: region.id,
+    level: region.level,
+    name: region.name?.trim() || region.slug,
+    mapboxId: region.mapboxId,
+  }
 }
 
 /** City regions at or beneath the target, keyed by the Mapbox place id each stands for. */

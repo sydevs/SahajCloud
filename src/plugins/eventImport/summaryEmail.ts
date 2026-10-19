@@ -30,7 +30,9 @@ export async function sendImportSummary(args: {
       to,
       from: `${headerDisplayName(brand.productName)} <${MANAGER_EMAIL_FROM}>`,
       subject: stripNewlines(
-        `${imported} ${imported === 1 ? 'class' : 'classes'} ready to review in ${run.target.name}`,
+        imported
+          ? `${imported} ${imported === 1 ? 'class' : 'classes'} ready to review in ${run.target.name}`
+          : `No classes were created from your import into ${run.target.name}`,
       ),
       html: await renderEmail(
         createElement(EventImportSummaryEmail, {

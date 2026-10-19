@@ -23,7 +23,11 @@ import { runTaskHandler } from '../utils/taskRunner'
 import { createData, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
-const geocoder = vi.hoisted(() => ({ outcome: null as GeocodeOutcome | null }))
+const geocoder = vi.hoisted(() => ({
+  outcome: null as GeocodeOutcome | null,
+  /** Overrides the match level, to stand for an address Mapbox placed only at the street. */
+  featureType: 'address',
+}))
 
 vi.mock('@/lib/mapbox/geocoder', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/mapbox/geocoder')>()),
@@ -37,7 +41,7 @@ function locationFor(city: string, address: string): GeocodedLocation {
   const slug = city.toLowerCase().replace(/\W+/g, '-')
   return {
     mapboxId: `addr.${slug}.${address.toLowerCase().replace(/\W+/g, '-')}`,
-    featureType: 'address',
+    featureType: geocoder.featureType,
     latitude: 52.5 + slug.length / 100,
     longitude: 13.4 + address.length / 100,
     placeName: city,
@@ -114,11 +118,12 @@ describe('class imports', () => {
     lines: readonly string[],
     user: Awaited<ReturnType<typeof testData.createManager>> = admin,
     data: Record<string, unknown> = {},
+    upload = file(csvWith(lines)),
   ) =>
     payload.create({
       collection: 'imports',
       data: createData<'imports'>({ targetRegion: country, defaultLanguages: ['de'], ...data }),
-      file: file(csvWith(lines)),
+      file: upload,
       user,
       overrideAccess: false,
     })
@@ -168,6 +173,36 @@ describe('class imports', () => {
       expect(created.status).toBe('pending')
       expect(relationId(created.manager)).toBe(admin.id)
       expect(created.collectionSlug).toBe('events')
+    })
+
+    it.each([
+      ['a file that is not a CSV', 'classes.xlsx', csvWith([classLine({})]), /Upload a CSV file/],
+      ['an empty file', 'classes.csv', Buffer.from(''), /no classes/],
+      ['a header with no rows', 'classes.csv', csvWith([]), /no classes/],
+    ])('refuses %s at upload', async (_, name, data, message) => {
+      expect(
+        await fieldErrorMessage(createImport([], admin, {}, file(data, name)), 'file'),
+      ).toMatch(message)
+    })
+
+    it('reads a header cell that carries an invisible character', async () => {
+      const header = HEADER.replace('title', 'title\u200b')
+      const created = await createImport([], admin, {}, file(
+        Buffer.from(`${header}\n${classLine({ title: 'Hidden char', startTime: '06:05' })}\n`, 'utf8'),
+      ))
+      await run(created.id)
+      expect((await read(created.id)).results?.[0]).toMatchObject({ outcome: 'created', title: 'Hidden char' })
+    })
+
+    it('stays pending until the import itself writes its outcome', async () => {
+      const created = await createImport([classLine({})])
+      const after = await payload.update({
+        collection: 'imports',
+        id: created.id,
+        data: { status: 'completed' },
+        overrideAccess: true,
+      })
+      expect(after.status).toBe('pending')
     })
 
     it('refuses a target no import can file classes under', async () => {
@@ -226,24 +261,90 @@ describe('class imports', () => {
       // Nothing imported and a row skipped: the plugin alone would say `completed`.
       expect(after.status).toBe('failed')
       expect(after.results).toHaveLength(1)
-      expect(after.results?.[0]).toMatchObject({ row: 1, outcome: 'error', values: { title: 'Nowhere' } })
+      // Row 2: the spreadsheet's own line, header included.
+      expect(after.results?.[0]).toMatchObject({ row: 2, outcome: 'error', values: { title: 'Nowhere' } })
       expect(after.results?.[0]?.reasons?.[0]).toMatch(/no city region for "Leipzig"/)
       // What the page's "create it first" link prefills a new city with.
       expect(after.results?.[0]?.missingCity).toEqual({ name: 'Leipzig' })
     })
 
-    it('skips a row that repeats a class already listed, with the plugin’s own reason', async () => {
-      const first = await createImport([classLine({ title: 'Once' })])
+    it('skips a row that repeats a class already listed, linking that class', async () => {
+      const first = await createImport([classLine({ title: 'Once', startTime: '06:06' })])
       await run(first.id)
-      const again = await createImport([classLine({ title: 'Twice' })])
+      const [original] = (await importedClasses(first.id)).docs
+      const again = await createImport([classLine({ title: 'Twice', startTime: '06:06' })])
       await run(again.id)
 
       const after = await read(again.id)
       expect(after.status).toBe('failed')
       expect(after.results).toHaveLength(1)
-      expect(after.results?.[0]).toMatchObject({ outcome: 'duplicate' })
-      expect(after.results?.[0]?.reasons?.[0]).toMatch(/repeats #\d+/)
+      expect(after.results?.[0]).toMatchObject({
+        outcome: 'duplicate',
+        duplicateOf: { eventId: original!.id, title: 'Once' },
+      })
       expect((await importedClasses(again.id)).totalDocs).toBe(0)
+    })
+
+    it('skips a row that repeats an earlier row of the same file', async () => {
+      const created = await createImport([
+        classLine({ title: 'Twin one', startTime: '06:01' }),
+        classLine({ title: 'Twin two', startTime: '06:01' }),
+      ])
+      await run(created.id)
+      const after = await read(created.id)
+      expect(after.results?.map(({ row, outcome }) => [row, outcome])).toEqual([
+        [2, 'created'],
+        [3, 'duplicate'],
+      ])
+      expect(after.results?.[1]?.duplicateOf).toEqual({ row: 2 })
+    })
+
+    it('keeps every class around a blank row, with the lines the spreadsheet shows', async () => {
+      const blank = HEADER.split(',').map(() => '').join(',')
+      const created = await createImport([
+        classLine({ title: 'Before blank', startTime: '06:02' }),
+        blank,
+        classLine({ title: 'After blank', startTime: '06:03' }),
+      ])
+      await run(created.id)
+      const after = await read(created.id)
+      expect(after.results?.map(({ row, title }) => [row, title])).toEqual([
+        [2, 'Before blank'],
+        [4, 'After blank'],
+      ])
+    })
+
+    it('opens no manager account for a row that is skipped', async () => {
+      const created = await createImport([
+        classLine({ title: 'Skipped with manager', city: 'Leipzig', managerEmail: 'never.opened@example.org' }),
+      ])
+      await run(created.id)
+      const { totalDocs } = await payload.count({
+        collection: 'managers',
+        where: { email: { equals: 'never.opened@example.org' } },
+      })
+      expect(totalDocs).toBe(0)
+    })
+
+    it('refuses a town outside a city target instead of filing it there', async () => {
+      const created = await createImport([classLine({ title: 'Elsewhere', city: 'Hamburg' })], admin, {
+        targetRegion: berlin,
+      })
+      await run(created.id)
+      const after = await read(created.id)
+      expect(after.results?.[0]?.reasons?.[0]).toMatch(/"Hamburg" is not in Berlin/)
+    })
+
+    it('imports an address placed only at the street, without an address id', async () => {
+      geocoder.featureType = 'street'
+      try {
+        const created = await createImport([classLine({ title: 'Street only', startTime: '06:04' })])
+        await run(created.id)
+        const [event] = (await importedClasses(created.id)).docs
+        expect(event!.address?.mapboxId ?? null).toBeNull()
+      } finally {
+        geocoder.featureType = 'address'
+      }
     })
 
     it('reports a bad column in the volunteer’s words before any geocode', async () => {
@@ -287,6 +388,19 @@ describe('class imports', () => {
   })
 
   describe('access', () => {
+    it('runs one import at a time, since a run lives on the shared request', () => {
+      expect(importTask.concurrency).toMatchObject({ exclusive: true })
+    })
+
+    it('lists Event Imports for an atlas-manager, and refuses a manager who cannot create classes', async () => {
+      const volunteer = await testData.createManager(payload, { name: 'Lister', roles: ['atlas-manager'] })
+      const hidden = payload.collections.imports.config.admin.hidden as (args: { user: unknown }) => boolean
+      expect(hidden({ user: volunteer })).toBe(false)
+
+      const noRoles = await testData.createManager(payload, { name: 'No roles' })
+      await expect(createImport([classLine({})], noRoles)).rejects.toThrow()
+    })
+
     it('shows a volunteer only their own imports', async () => {
       const owner = await testData.createManager(payload, {
         name: 'Germany Manager',

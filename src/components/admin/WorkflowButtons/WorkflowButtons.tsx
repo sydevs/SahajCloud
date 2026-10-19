@@ -12,6 +12,7 @@ import {
   useFormFields,
   useFormModified,
   useOperation,
+  useTranslation,
 } from '@payloadcms/ui'
 import React, { useCallback } from 'react'
 
@@ -49,6 +50,7 @@ const WorkflowButtons: React.FC<WorkflowButtonsProps> = ({ fallback, stages, sta
   const { uploadStatus } = useDocumentInfo()
   const operation = useOperation()
   const { submit } = useForm()
+  const { i18n } = useTranslation()
   const modified = useFormModified()
   const status = useFormFields(([fields]) =>
     statusField ? fields?.[statusField]?.value : undefined,
@@ -96,7 +98,9 @@ const WorkflowButtons: React.FC<WorkflowButtonsProps> = ({ fallback, stages, sta
           onClick={() => run(action)}
           type="button"
         >
-          {action.label}
+          {action.labelKey && i18n.t(action.labelKey as never) !== action.labelKey
+            ? i18n.t(action.labelKey as never)
+            : action.label}
         </FormSubmit>
       ))}
     </div>

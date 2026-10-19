@@ -19,6 +19,11 @@ export const CREATE_STAGE = '__create__'
 export interface WorkflowButton {
   /** What the button reads. */
   label: string
+  /**
+   * A Payload translation key read instead of `label` in the admin's own
+   * language (`general:next`), with `label` the fallback should it be missing.
+   */
+  labelKey?: string
   /** Merged into the submit — `{ status: 'committing' }`, `{ _status: 'draft' }`. */
   overrides: Record<string, unknown>
   /** Asked before the submit; a dismissal cancels it. */

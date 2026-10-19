@@ -17,17 +17,20 @@
 import type { ImportExportPluginConfig } from '@payloadcms/plugin-import-export/types'
 import type { Access, CollectionConfig, Field } from 'payload'
 
+import { ValidationError } from 'payload'
 import { z } from 'zod'
 
 import type { JobStageConfig } from '@/components/admin/JobStageView/stages'
 import { hideUntilCreated } from '@/fields/hideUntilCreated'
 import { jsonField } from '@/fields/jsonField'
+import { requireManagerPermission } from '@/lib/endpoints'
 import { runQueueSoon } from '@/lib/jobs/runQueueSoon'
 import { baseLanguageOrDefault, getLanguageOptions } from '@/lib/locales'
 import type { Manager } from '@/payload-types'
 import { isAdminManager } from '@/plugins/access'
 
 import { IMPORT_STALL_MS } from './constants'
+import { prepareUpload } from './csv/upload'
 import { targetRegionFilterOptions, validateTargetRegion } from './targetRegion'
 
 const ownOrAdmin: Access = ({ req }) => {
@@ -36,7 +39,16 @@ const ownOrAdmin: Access = ({ req }) => {
   return { manager: { equals: req.user.id } }
 }
 
-const managersOnly: Access = ({ req }) => req.user?.collection === 'managers'
+/** An active manager who may create classes: what the import does on their behalf. */
+const classCreators: Access = ({ req }) =>
+  requireManagerPermission({ req, collection: 'events', operation: 'create', forbidden: '' }) === null
+
+/**
+ * Set by `finish.ts` on the one write that ends an import. The plugin writes
+ * `status` too, when its own loop ends — before our results are stored — so
+ * without this the page would open on a finished import with no rows.
+ */
+export const IMPORT_FINISH = 'eventImportFinish'
 
 /** The plugin's knobs, kept but out of the way: only `events` is ever imported into. */
 const PLUGIN_FIELDS_HIDDEN: ReadonlySet<string> = new Set(['collectionSlug', 'importMode', 'matchField'])
@@ -45,10 +57,12 @@ const TEMPLATE_LINK = '@/components/admin/EventImport/TemplateLink'
 
 const OUR_MAIN_FIELDS: Field[] = [
   {
+    // Not `required`: the column must accept NULL so a region can still be
+    // deleted while an import names it. `validateTargetRegion` requires it on
+    // create, which is the only write that sets it.
     name: 'targetRegion',
     type: 'relationship',
     relationTo: 'regions',
-    required: true,
     maxDepth: 1,
     filterOptions: targetRegionFilterOptions,
     validate: validateTargetRegion,
@@ -75,12 +89,24 @@ const OUR_MAIN_FIELDS: Field[] = [
     schemaTitle: 'EventImportResults',
     schema: z.array(
       z.strictObject({
-        row: z.int().describe('1-based data row, header excluded.'),
+        row: z.int().describe("The row's line in the volunteer's spreadsheet, header included."),
         outcome: z.enum(['created', 'duplicate', 'error']),
         eventId: z.int().optional().describe('The class the row created.'),
         title: z.string(),
         city: z.string(),
         reasons: z.array(z.string()).optional().describe('Why a skipped row was skipped.'),
+        warnings: z
+          .array(z.string())
+          .optional()
+          .describe('Things the import noticed about a created row that did not stop it.'),
+        duplicateOf: z
+          .strictObject({
+            eventId: z.int().optional(),
+            title: z.string().optional(),
+            row: z.int().optional(),
+          })
+          .optional()
+          .describe('What a duplicate row repeats: a class already listed, or an earlier row.'),
         values: z
           .record(z.string(), z.string())
           .optional()
@@ -164,7 +190,7 @@ export const overrideImportCollection: NonNullable<
   labels: { singular: 'Event Import', plural: 'Event Imports' },
   // The plugin's one custom route is the CSV preview this form does not show.
   endpoints: [],
-  access: { create: managersOnly, read: ownOrAdmin, update: () => false, delete: ownOrAdmin },
+  access: { create: classCreators, read: ownOrAdmin, update: () => false, delete: ownOrAdmin },
   upload: {
     ...(typeof collection.upload === 'object' ? collection.upload : {}),
     // One file is one import: a bulk upload would start one job per file with
@@ -204,21 +230,33 @@ export const overrideImportCollection: NonNullable<
     ...collection.hooks,
     beforeOperation: [
       ...(collection.hooks?.beforeOperation ?? []),
-      ({ args, req }) => {
-        // Decided before Payload's own MIME check, which runs between here and
-        // `beforeChange`; the plugin reads `text/csv` as "parse as CSV".
-        if (req.file && req.file.mimetype !== 'text/csv' && /\.csv$/i.test(req.file.name)) {
-          req.file.mimetype = 'text/csv'
+      ({ args, operation, req }) => {
+        // Before Payload's own MIME check, which runs between here and
+        // `beforeChange`: the stored file is the cleaned CSV, and the plugin
+        // reads `text/csv` as "parse as CSV" (`csv/upload.ts`).
+        if (operation !== 'create' || !req.file) return args
+        const prepared = prepareUpload(req.file.name, req.file.data)
+        if (!prepared.ok) {
+          throw new ValidationError({ errors: [{ path: 'file', message: prepared.error }] })
         }
+        const data = Buffer.from(prepared.csv, 'utf8')
+        req.file = { ...req.file, data, size: data.length, mimetype: 'text/csv' }
         return args
       },
     ],
     beforeChange: [
       ...(collection.hooks?.beforeChange ?? []),
-      ({ data, operation, req }) =>
-        operation === 'create' && req.user?.collection === 'managers'
-          ? { ...data, manager: req.user.id, locale: req.locale ?? null }
-          : data,
+      ({ data, operation, originalDoc, req }) => {
+        if (operation === 'create') {
+          return req.user?.collection === 'managers'
+            ? { ...data, manager: req.user.id, locale: req.locale ?? null }
+            : data
+        }
+        if (originalDoc?.status === 'pending' && !req.context?.[IMPORT_FINISH]) {
+          return { ...data, status: 'pending' }
+        }
+        return data
+      },
     ],
     afterChange: [
       ...(collection.hooks?.afterChange ?? []),

@@ -15,6 +15,7 @@ import type { PayloadRequest, Plugin, TaskConfig } from 'payload'
 
 import { importExportPlugin } from '@payloadcms/plugin-import-export'
 
+import { runQueueSoon } from '@/lib/jobs/runQueueSoon'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Import } from '@/payload-types'
 
@@ -23,7 +24,7 @@ import { failImport, finishImport } from './finish'
 import { afterImport } from './hooks/afterImport'
 import { beforeImport } from './hooks/beforeImport'
 import { overrideExportCollection, overrideImportCollection } from './importCollection'
-import { loadTarget } from './regions'
+import { cityIndex, loadTarget } from './regions'
 import { RUN_CONTEXT_KEY } from './run'
 
 const IMPORT_TASK = 'createCollectionImport'
@@ -52,18 +53,32 @@ export const eventImportPlugin: Plugin = async (config) => {
   if (!task || typeof task.handler !== 'function') {
     throw new Error(`plugin-import-export registered no inline ${IMPORT_TASK} task to wrap`)
   }
+  // ⚠ One import at a time. Payload hands every job in a run the same `req`,
+  // and the run below lives on its `context`, so two imports running together
+  // would write into each other's rows.
+  task.concurrency = { key: () => IMPORT_TASK, exclusive: true }
   const handler = task.handler
   task.handler = async (args) => {
     const importId = Number(args.input.importId)
+    let run: ImportRun | undefined
     try {
-      const run = await startRun(args.req, importId)
+      run = await startRun(args.req, importId)
       args.req.context = { ...args.req.context, [RUN_CONTEXT_KEY]: run }
       const result = await handler(args)
       await finishImport(args.req, run)
       return result
     } catch (error) {
-      await failImport(args.req, importId, error)
+      await failImport(args.req, importId, error, run)
       throw error
+    } finally {
+      // An import queued while this one ran was passed over; start it once
+      // this job's row is released, rather than at the next five-minute sweep.
+      runQueueSoon({
+        payload: args.req.payload,
+        queue: 'default',
+        label: 'imports-next',
+        afterCommit: true,
+      })
     }
   }
 
@@ -91,5 +106,7 @@ async function startRun(req: PayloadRequest, importId: number): Promise<ImportRu
     submitted: [],
     skipped: [],
     imported: 0,
+    cities: await cityIndex(req, target.id),
+    claimed: new Map(),
   }
 }

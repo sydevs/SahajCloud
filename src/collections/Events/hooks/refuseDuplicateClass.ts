@@ -12,7 +12,7 @@
  * a toast and the import records as the row's reason.
  */
 
-import type { CollectionBeforeValidateHook } from 'payload'
+import type { CollectionBeforeValidateHook, PayloadRequest } from 'payload'
 
 import { APIError } from 'payload'
 
@@ -30,27 +30,7 @@ export const refuseDuplicateClass: CollectionBeforeValidateHook = async ({
 }) => {
   if (operation !== 'create' && operation !== 'update') return data
   const merged = { ...(originalDoc ?? {}), ...(data ?? {}) } as Partial<Event>
-  const key = classKey(merged)
-  const regionId = relationId(merged.region)
-  if (!key || regionId === null) return data
-
-  const { docs } = await req.payload.find({
-    collection: 'events',
-    where: {
-      and: [
-        { region: { equals: regionId } },
-        { eventType: { equals: merged.eventType } },
-        ...(originalDoc?.id ? [{ id: { not_equals: originalDoc.id } }] : []),
-      ],
-    },
-    depth: 0,
-    pagination: false,
-    overrideAccess: true,
-    select: { title: true, eventType: true, schedule: true, address: true, inactive: true },
-    req,
-  })
-
-  const twin = (docs as Candidate[]).find((candidate) => classKey(candidate) === key)
+  const twin = await findDuplicateClass(req, merged, originalDoc?.id as number | undefined)
   if (twin) {
     throw new APIError(
       `This class repeats #${twin.id} "${twin.title ?? ''}": same type, region, weekdays, start time and street.`,
@@ -60,6 +40,38 @@ export const refuseDuplicateClass: CollectionBeforeValidateHook = async ({
     )
   }
   return data
+}
+
+/**
+ * The class already listed that `event` would repeat, or null. Shared with the
+ * bulk import, which checks each row before handing it to be created.
+ */
+export async function findDuplicateClass(
+  req: PayloadRequest,
+  event: Partial<Event>,
+  exceptId?: number,
+): Promise<null | { id: number; title: string }> {
+  const key = classKey(event)
+  const regionId = relationId(event.region)
+  if (!key || regionId === null) return null
+
+  const { docs } = await req.payload.find({
+    collection: 'events',
+    where: {
+      and: [
+        { region: { equals: regionId } },
+        { eventType: { equals: event.eventType } },
+        ...(exceptId === undefined ? [] : [{ id: { not_equals: exceptId } }]),
+      ],
+    },
+    depth: 0,
+    pagination: false,
+    overrideAccess: true,
+    select: { title: true, eventType: true, schedule: true, address: true, inactive: true },
+    req,
+  })
+  const twin = (docs as Candidate[]).find((candidate) => classKey(candidate) === key)
+  return twin ? { id: twin.id, title: twin.title ?? '' } : null
 }
 
 /** The identity of a class with a time, or null for one without. */

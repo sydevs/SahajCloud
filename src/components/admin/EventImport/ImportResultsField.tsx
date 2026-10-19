@@ -15,12 +15,14 @@ const STATUS_WORDS: Record<ResultStatus, [string, string]> = {
   removed: ['deleted', 'deleted'],
 }
 
-/** The class a duplicate row repeats, as `refuseDuplicateClass` names it. */
-const REPEATS = /\brepeats #(\d+)/
-
 /**
  * The import's result, one line per CSV row, with each created class's live
  * status: it may have been published or cleaned up since the import ran.
+ *
+ * ⚠ **Read past access, on purpose.** Only the uploader and admins can open an
+ * import, and these are the classes it created — so "not found" here means
+ * deleted, never "you may not see it". Whether a link then opens is the
+ * drawer's own access check.
  */
 export const ImportResultsField: JSONFieldServerComponent = async ({
   clientField,
@@ -30,10 +32,7 @@ export const ImportResultsField: JSONFieldServerComponent = async ({
 }) => {
   const results = (data?.results ?? []) as ImportResultRow[]
   const created = results.flatMap(({ eventId }) => (eventId === undefined ? [] : [eventId]))
-  const originalOf = (result: ImportResultRow): number | undefined => {
-    const match = result.outcome === 'duplicate' ? REPEATS.exec(result.reasons?.join(' ') ?? '') : null
-    return match ? Number(match[1]) : undefined
-  }
+  const originalOf = (result: ImportResultRow): number | undefined => result.duplicateOf?.eventId
   const originals = results.flatMap((result) => originalOf(result) ?? [])
   const ids = [...new Set([...created, ...originals])]
 
@@ -42,13 +41,16 @@ export const ImportResultsField: JSONFieldServerComponent = async ({
         req.payload.find({
           collection: 'events',
           where: { id: { in: ids } },
-          draft: true,
+          // The stored document, not its newest draft: a published class with
+          // an edit saved as a draft is still published.
+          draft: false,
           depth: 1,
           pagination: false,
-          overrideAccess: false,
-          user: req.user,
+          overrideAccess: true,
           select: {
             title: true,
+            eventType: true,
+            address: true,
             _status: true,
             createdAt: true,
             manager: true,
@@ -68,8 +70,7 @@ export const ImportResultsField: JSONFieldServerComponent = async ({
           sort: 'createdAt',
           depth: 0,
           pagination: false,
-          overrideAccess: false,
-          user: req.user,
+          overrideAccess: true,
           select: { parent: true, createdAt: true },
           req,
         }),
@@ -107,6 +108,11 @@ export const ImportResultsField: JSONFieldServerComponent = async ({
         : csvScheduleSummary(result.values),
       manager: managerOf(event, result),
       unverified: status === 'published' && event?.verificationStage === 'unverified',
+      // Placed at the street or town rather than the building: the import
+      // stores no address id then, and choosing an address in the class's
+      // Location tab sets one.
+      approximate: event?.eventType === 'offline' && !event.address?.mapboxId,
+      warnings: result.warnings,
       at:
         status === 'published'
           ? (publishedAt.get(event!.id) ?? null)
@@ -114,10 +120,16 @@ export const ImportResultsField: JSONFieldServerComponent = async ({
             ? (event?.createdAt ?? null)
             : null,
       error: status === 'error' ? (result.reasons ?? []).join('; ') : undefined,
-      original:
-        original === undefined
-          ? undefined
-          : { id: original, title: live.get(original)?.title ?? `#${original}` },
+      duplicateOf: result.duplicateOf
+        ? {
+            row: result.duplicateOf.row,
+            // A deleted original keeps no link; the drawer would open empty.
+            event:
+              original !== undefined && live.has(original)
+                ? { id: original, title: live.get(original)?.title || result.duplicateOf.title || '' }
+                : undefined,
+          }
+        : undefined,
       reasons: result.reasons,
       values: result.values,
       missingCity: result.missingCity,

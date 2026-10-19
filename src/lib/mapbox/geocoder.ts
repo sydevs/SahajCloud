@@ -52,8 +52,8 @@ const DEFAULT_REGION_RADIUS_METERS = 50_000
 
 /**
  * ⚠ **Three attempts of 8 s bound one row at about 25 s.** The bulk import
- * geocodes rows one after another inside one request, so every second a row
- * may take is a second that request holds open.
+ * geocodes four rows at a time inside one job, so a slow lookup holds that
+ * job's worker for as long as it takes.
  */
 const MAX_ATTEMPTS = 3
 const ATTEMPT_TIMEOUT_MS = 8_000
@@ -108,7 +108,6 @@ interface ForwardFeature {
     name?: string
     address?: string
     feature_type?: string
-    /** v6 only: the whole address as Mapbox matched it. */
     /** v6 only: how each part of a structured query matched. */
     context?: {
       country?: ForwardContextEntry

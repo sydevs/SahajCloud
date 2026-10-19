@@ -48,10 +48,13 @@ export function eventCreateData(args: EventDataArgs): EventDataResult {
   if (!languages.ok) return { ok: false, errors: [languages.error] }
 
   const eventType: Event['eventType'] = values.eventType === 'online' ? 'online' : 'offline'
+  const scheduled = schedule.inactive ? {} : { schedule: schedule.schedule }
   const limit = values.registrationLimit?.trim()
 
   const data: Record<string, unknown> = {
-    ...newEventDefaults(schedule.inactive ? {} : { schedule: schedule.schedule }, managerId),
+    // `newEventDefaults` reads the schedule only to derive `inactive`.
+    ...newEventDefaults(scheduled, managerId),
+    ...scheduled,
     title: values.title?.trim() || '',
     languages: languages.codes,
     description: plainTextToLexical(values.description) ?? null,
@@ -63,7 +66,6 @@ export function eventCreateData(args: EventDataArgs): EventDataResult {
     eventType,
     onlineUrl: eventType === 'online' ? values.onlineUrl?.trim() || null : null,
     ...(eventType === 'offline' ? { address: addressFor(values, location) } : {}),
-    ...(schedule.inactive ? {} : { schedule: schedule.schedule }),
     registrationMode: 'sahaj-atlas',
     registrationLimit: limit ? Number(limit) : null,
     importBatch,

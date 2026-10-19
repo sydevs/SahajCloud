@@ -58,8 +58,8 @@ export const IMPORT_COLUMNS: readonly ColumnSpec[] = [
   },
   {
     name: 'city',
-    requirement: 'offline',
-    help: 'Town or city. Required for offline classes; used to place online ones.',
+    requirement: 'always',
+    help: 'Town or city. An online class is placed in it, too.',
     example: 'Berlin',
   },
   {

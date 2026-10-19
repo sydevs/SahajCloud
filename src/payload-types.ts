@@ -15,7 +15,7 @@ export type Subtitles = {
 }[];
 export type EventImportResults = {
   /**
-   * 1-based data row, header excluded.
+   * The row's line in the volunteer's spreadsheet, header included.
    */
   row: number;
   outcome: 'created' | 'duplicate' | 'error';
@@ -29,6 +29,18 @@ export type EventImportResults = {
    * Why a skipped row was skipped.
    */
   reasons?: string[];
+  /**
+   * Things the import noticed about a created row that did not stop it.
+   */
+  warnings?: string[];
+  /**
+   * What a duplicate row repeats: a class already listed, or an earlier row.
+   */
+  duplicateOf?: {
+    eventId?: number;
+    title?: string;
+    row?: number;
+  };
   /**
    * A skipped row as uploaded, to fix and upload again.
    */
@@ -1978,7 +1990,7 @@ export interface Import {
   /**
    * Classes are filed under the cities of this region. A town with no city region yet is skipped — create the city first.
    */
-  targetRegion: number | Region;
+  targetRegion?: (number | null) | Region;
   /**
    * Why the import stopped before it could finish.
    */

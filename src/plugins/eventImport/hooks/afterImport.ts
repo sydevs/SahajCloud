@@ -7,7 +7,7 @@
 import type { ImportAfterHook } from '@payloadcms/plugin-import-export/types'
 
 import { IMPORT_BATCH_SIZE } from '../constants'
-import { normaliseRow } from '../rows'
+import { lineOf, normaliseRow } from '../rows'
 import { runOf } from '../run'
 
 /** Payload's envelope around a field refusal, which names fields and not reasons. */
@@ -26,7 +26,7 @@ export const afterImport: ImportAfterHook = async ({
   for (const failure of result.errors) {
     const raw = originalData[failure.index - offset]
     run.skipped.push({
-      row: failure.index + 1,
+      row: raw ? lineOf(raw) : failure.index + 2,
       reasons: [failure.error.replace(FIELDS_INVALID, 'invalid: ')],
       values: raw ? normaliseRow(raw) : {},
     })

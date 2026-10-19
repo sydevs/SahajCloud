@@ -1,7 +1,6 @@
 /**
  * A class's schedule in a few words, for the import result's Details column:
- * "Weekly on Tue · 19:00", "Monthly on the 7th · 10:00", "One-off on 12 Nov ·
- * 18:00", "Inactive".
+ * "Every week on Tuesday at 7 PM GMT", "One-off on 12 Nov · 18:00", "Inactive".
  *
  * Two readers, because two sources: a created class's live schedule (which
  * may have been edited since), and a skipped row's CSV cells, which may be
@@ -9,8 +8,9 @@
  */
 
 import { Temporal } from '@js-temporal/polyfill'
+import { toText } from 'rrule-temporal/totext'
 
-import { getLocalTimeHHMM } from '@/lib/schedule/scheduleHooks'
+import { buildRRuleTemporal, getLocalTimeHHMM } from '@/lib/schedule/scheduleHooks'
 import type { EventSchedule } from '@/types/schedule'
 
 const DAY: Record<string, string> = {
@@ -42,38 +42,29 @@ function shortDate(iso: string): string {
 const withTime = (text: string, time: null | string | undefined): string =>
   time ? `${text} · ${time}` : text
 
-/** A created class's schedule as it stands now. */
+/**
+ * A created class's schedule as it stands now, in the words the Events form's
+ * own schedule summary uses (`rrule-temporal`'s `toText`). A one-off reads
+ * "every day … for 1 time" there, so it gets its own short sentence.
+ */
 export function liveScheduleSummary(
   schedule: Partial<EventSchedule> | null | undefined,
   inactive: boolean | null | undefined,
 ): string {
   if (inactive || !schedule?.firstDate) return 'Inactive'
-  const zone = schedule.firstDate_tz ?? 'UTC'
-  const time = getLocalTimeHHMM(schedule.firstDate, zone)
-  let localDate = ''
-  try {
-    localDate = Temporal.Instant.from(schedule.firstDate).toZonedDateTimeISO(zone).toPlainDate().toString()
-  } catch {
-    localDate = ''
+  if (!schedule.recurrenceType) {
+    const zone = schedule.firstDate_tz ?? 'UTC'
+    try {
+      const local = Temporal.Instant.from(schedule.firstDate).toZonedDateTimeISO(zone)
+      return withTime(`One-off on ${shortDate(local.toPlainDate().toString())}`, getLocalTimeHHMM(schedule.firstDate, zone))
+    } catch {
+      return 'One-off'
+    }
   }
-  const every = (unit: string) =>
-    schedule.interval && schedule.interval > 1 ? `Every ${schedule.interval} ${unit}s` : ''
-
-  switch (schedule.recurrenceType) {
-    case 'DAILY':
-      return withTime(every('day') || 'Daily', time)
-    case 'WEEKLY':
-      return withTime(`${every('week') || 'Weekly'} on ${days(schedule.weekdays ?? [])}`, time)
-    case 'MONTHLY':
-      return withTime(
-        schedule.monthlyMode === 'date' && schedule.monthDay
-          ? `${every('month') || 'Monthly'} on the ${ordinal(schedule.monthDay)}`
-          : every('month') || 'Monthly',
-        time,
-      )
-    default:
-      return withTime(localDate ? `One-off on ${shortDate(localDate)}` : 'One-off', time)
-  }
+  const rule = buildRRuleTemporal(schedule)
+  if (!rule) return '—'
+  const text = toText(rule)
+  return text.charAt(0).toUpperCase() + text.slice(1)
 }
 
 /** A skipped row's schedule cells, echoed as the volunteer wrote them. */

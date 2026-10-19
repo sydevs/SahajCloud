@@ -51,6 +51,8 @@ vi.mock('@payloadcms/ui', () => ({
     selector([form.fields]),
   useFormModified: () => form.modified,
   useOperation: () => form.operation,
+  // The admin's language: `general:next` reads 'Next' there; any other key is untranslated.
+  useTranslation: () => ({ i18n: { t: (key: string) => (key === 'general:next' ? 'Next' : key) } }),
 }))
 
 // `vi.mock` is hoisted above these imports, so the component sees the stand-in.
@@ -161,6 +163,20 @@ describe('WorkflowButtons', () => {
     render(imports)
 
     expect(labels()).toEqual(['Upload & resolve addresses'])
+  })
+
+  it('reads a label key in the admin language, falling back to the label', () => {
+    render({
+      fallback: null,
+      stages: {
+        __create__: [
+          { label: 'Next step', labelKey: 'general:next', overrides: {} },
+          { label: 'Kept', labelKey: 'general:missing', overrides: {} },
+        ],
+      },
+    })
+
+    expect(labels()).toEqual(['Next', 'Kept'])
   })
 
   it('offers the stage the status field names on a saved document', () => {

@@ -12,6 +12,7 @@ import {
   toast,
   useConfig,
   useDocumentDrawer,
+  useLocale,
   useModal,
   useTranslation,
 } from '@payloadcms/ui'
@@ -37,12 +38,16 @@ export interface ResultRow {
   manager: null | { id?: number; name: string }
   /** Published with no manager, so the Atlas lists it as unverified. */
   unverified?: boolean
+  /** Placed at the street or town, not the building: published one at a time, after a look. */
+  approximate?: boolean
+  /** Things the import noticed that did not stop the row. */
+  warnings?: string[]
   /** When the class was created (a draft) or first published, as ISO. */
   at: null | string
   /** Why a row failed, for `error`. */
   error?: string
-  /** The class a `duplicate` row repeats. */
-  original?: { id: number; title: string }
+  /** What a `duplicate` row repeats: an earlier row, or a class (absent once deleted). */
+  duplicateOf?: { row?: number; event?: { id: number; title: string } }
   reasons?: string[]
   values?: Record<string, string>
   /** The town a row was skipped for having no city region. */
@@ -54,6 +59,22 @@ const SHORT_DATE = 'MMM d, h:mm a'
 
 /** The end of the missing-city refusal, which the page turns into a link. */
 const CREATE_IT = 'create it first'
+
+/** Why an approximately placed class takes no checkbox. */
+const APPROXIMATE = 'Placed at the street, not the building — open the class and check the map pin'
+
+/** A status sentence with quieter lines beneath it. */
+const withNotes = (head: string, notes: readonly string[]): React.ReactNode =>
+  notes.length ? (
+    <span className="event-import__details">
+      <span>{head}</span>
+      {notes.map((note) => (
+        <span key={note}>{note}</span>
+      ))}
+    </span>
+  ) : (
+    head
+  )
 
 const PUBLISH_MODAL = 'event-import-publish'
 const CLEAN_UP_MODAL = 'event-import-clean-up'
@@ -82,13 +103,19 @@ export const ImportResultsTable: React.FC<{
   targetId: null | number
 }> = ({ description, importId, label, path, rows, targetId }) => {
   const { config } = useConfig()
+  const locale = useLocale()
   const { i18n } = useTranslation()
   const { openModal } = useModal()
   const router = useRouter()
   const api = `${config.serverURL}${config.routes.api}`
 
+  // Bulk actions reach only drafts placed at a building. An approximately
+  // placed one is published from its own page, once its pin is checked.
   const drafts = useMemo(
-    () => rows.flatMap(({ eventId, status }) => (status === 'draft' && eventId ? [eventId] : [])),
+    () =>
+      rows.flatMap(({ approximate, eventId, status }) =>
+        status === 'draft' && eventId && !approximate ? [eventId] : [],
+      ),
     [rows],
   )
   // Nothing is ticked until the volunteer has looked: Publish starts at zero.
@@ -133,7 +160,8 @@ export const ImportResultsTable: React.FC<{
     `where[and][0][id][in]=${ids.join(',')}&where[and][1][importBatch][equals]=${importId}&where[and][2][_status][equals]=draft`
 
   const act = async (method: 'DELETE' | 'PATCH', ids: readonly number[], done: string) => {
-    const response = await fetch(`${api}/events?${where(ids)}&depth=0`, {
+    // The admin locale, because the role gates are per locale (#701).
+    const response = await fetch(`${api}/events?${where(ids)}&depth=0&locale=${locale.code}`, {
       method,
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -184,16 +212,16 @@ export const ImportResultsTable: React.FC<{
   const statusSentence = (row: ResultRow): React.ReactNode => {
     switch (row.status) {
       case 'published':
-        return row.unverified ? (
-          <span className="event-import__details">
-            <span>{`Published ${when(row.at)}`.trim()}</span>
-            <span>Listed as unverified because the class has no manager</span>
-          </span>
-        ) : (
-          `Published ${when(row.at)}`.trim()
-        )
+        return withNotes(`Published ${when(row.at)}`.trim(), [
+          ...(row.unverified ? ['Listed as unverified because the class has no manager'] : []),
+          ...(row.approximate ? [APPROXIMATE] : []),
+          ...(row.warnings ?? []),
+        ])
       case 'draft':
-        return `Created ${when(row.at)}`.trim()
+        return withNotes(`Created ${when(row.at)}`.trim(), [
+          ...(row.approximate ? [`${APPROXIMATE} before publishing`] : []),
+          ...(row.warnings ?? []),
+        ])
       case 'removed':
         return 'Deleted after the import'
       case 'error': {
@@ -212,11 +240,11 @@ export const ImportResultsTable: React.FC<{
         return `Error: ${error}`
       }
       case 'duplicate':
-        return row.original ? (
-          <>Duplicate of {eventLink(row.original.id, row.original.title)}</>
-        ) : (
-          'Duplicate of a class already listed'
-        )
+        if (row.duplicateOf?.event) {
+          return <>Duplicate of {eventLink(row.duplicateOf.event.id, row.duplicateOf.event.title)}</>
+        }
+        if (row.duplicateOf?.row) return `Duplicate of row ${row.duplicateOf.row} in this file`
+        return 'Duplicate of a class that has since been deleted'
     }
   }
 
@@ -273,8 +301,8 @@ export const ImportResultsTable: React.FC<{
               onToggle={toggleAll}
               partialChecked={toPublish.length > 0 && toPublish.length < drafts.length}
             />,
-            rows.map(({ eventId, status }) =>
-              status === 'draft' && eventId ? (
+            rows.map(({ approximate, eventId, status }) =>
+              status === 'draft' && eventId && !approximate ? (
                 <CheckboxInput
                   checked={checked.has(eventId)}
                   key={eventId}

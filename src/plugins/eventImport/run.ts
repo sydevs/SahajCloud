@@ -11,7 +11,6 @@
 import type { ImportTarget } from './regions'
 import type { PayloadRequest } from 'payload'
 
-
 export const RUN_CONTEXT_KEY = 'eventImport'
 
 /** A town the import found no city region for, as Mapbox names it. */
@@ -19,18 +18,28 @@ export interface MissingCity {
   name: string
 }
 
+/** What a skipped row repeats: a class already listed, or an earlier row of the same file. */
+export interface DuplicateOf {
+  eventId?: number
+  title?: string
+  row?: number
+}
+
 export interface SkippedRow {
-  /** 1-based data row, header excluded — the number the plugin's own issues use. */
+  /** The row's line in the volunteer's spreadsheet, header included (`csv/upload.ts`). */
   row: number
   reasons: string[]
   values: Record<string, string>
   missingCity?: MissingCity
+  duplicateOf?: DuplicateOf
 }
 
 /** A row handed to the plugin to create, in the order the plugin creates them. */
 export interface SubmittedRow {
   row: number
   values: Record<string, string>
+  /** Things the volunteer should know that did not stop the row. */
+  warnings?: string[]
 }
 
 export interface ImportRun {
@@ -44,6 +53,10 @@ export interface ImportRun {
   skipped: SkippedRow[]
   /** Classes the plugin created, summed over batches. */
   imported: number
+  /** City regions under the target, by the Mapbox place id each holds. */
+  cities: Map<string, number>
+  /** Each class key a row of this file has claimed, and that row, so a later twin is caught. */
+  claimed: Map<string, number>
 }
 
 export function runOf(req: PayloadRequest): ImportRun {
