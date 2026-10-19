@@ -48,7 +48,7 @@
     "@sentry/nextjs": "^10.76.2",
     "@touch4it/ical-timezones": "^1.9.0",
     "@types/styled-components": "^5.1.36",
-    "@vvo/tzdb": "^6.198.0",
+    "@vvo/tzdb": "6.198.0",
     "country-region-data": "^4.1.0",
     "diff": "^9.0.0",
     "dotenv": "16.4.7",

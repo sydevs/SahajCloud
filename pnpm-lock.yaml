@@ -83,7 +83,7 @@ importers:
         specifier: ^5.1.36
         version: 5.1.36
       '@vvo/tzdb':
-        specifier: ^6.198.0
+        specifier: 6.198.0
         version: 6.198.0
       country-region-data:
         specifier: ^4.1.0
