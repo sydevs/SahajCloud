@@ -72,7 +72,7 @@
     "react-inlinesvg": "^4.5.0",
     "react-range": "^1.10.0",
     "resend": "^6.34.1",
-    "rrule-temporal": "^1.4.5",
+    "rrule-temporal": "1.4.5",
     "sharp": "^0.35.5",
     "slugify": "^1.6.9",
     "styled-components": "^6.6.0",
