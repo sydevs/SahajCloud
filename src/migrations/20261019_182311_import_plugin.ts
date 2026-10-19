@@ -82,7 +82,9 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   ALTER TABLE "event_imports" DISABLE ROW LEVEL SECURITY;
   DROP TABLE "event_imports_default_languages" CASCADE;
   DROP TABLE "event_imports" CASCADE;
-  ALTER TABLE "payload_locked_documents_rels" DROP CONSTRAINT "payload_locked_documents_rels_event_imports_fk";
+  -- No DROP CONSTRAINT for payload_locked_documents_rels_event_imports_fk:
+  -- CASCADE above takes it with the table it references, so dropping it again
+  -- aborts the boot migration. migrate:create emits that statement anyway.
   
   -- Rows naming a task slug the new enum lacks would fail the cast below. The
   -- superseded import tasks are the only such slugs, and their jobs are dead.
