@@ -423,8 +423,8 @@ export function convertTextbox(
   if (data.type === 'splash') {
     imagePosition = 'overlay'
     textPosition = 'left'
-    // Splash usually has light text on background
-    textColor = data.color === 'dark' ? 'light' : 'light'
+    // The legacy color names the BACKGROUND, so both overlay branches invert it (#975).
+    textColor = data.color === 'dark' ? 'light' : 'dark'
   } else if (data.type === 'image') {
     if (data.background === 'image') {
       imagePosition = 'overlay'
