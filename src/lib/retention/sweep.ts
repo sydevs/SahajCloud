@@ -18,7 +18,7 @@ export const retentionCutoff = (now: Date, days: number): string =>
  * Three sweeps run through here and none can be the others: the slugs,
  * schedules and output shapes differ, and `user-submissions` carries a second
  * half — the `users` orphan sweep — that neither `payload-jobs` nor
- * `event-imports` has an analogue for. So this is the engine, not the task:
+ * `imports` has an analogue for. So this is the engine, not the task:
  * what is shared is the cutoff, the dry-run branch, and a delete whose partial
  * failure is reported rather than returned as a short count.
  *

@@ -170,8 +170,8 @@ validate: async (value, options) => {
 }
 ```
 
-`EventImports.targetRegion` is the worked example
-(`src/collections/EventImports/hooks/targetRegion.ts`): the composition is what
+The class import's `targetRegion` is the worked example
+(`src/plugins/eventImport/targetRegion.ts`): the composition is what
 refuses a region outside the caller's subtree, and the custom half exists only
 to say *which* of `filterOptions`' clauses refused — Payload's own answer is
 "invalid selection", naming a row number. Pass `filterOptions` from one shared
@@ -479,31 +479,6 @@ composing.
 import, or a third-party payload. Say so in a one-line comment naming
 where the type already lives, rather than restating that type as a second
 definition.
-
-### A JSON column a person edits needs a hook, not field access
-
-A `jsonField` whose editing surface is a custom Field component — `event-imports`
-holds two, its rows table and its region tree — cannot be protected by
-`access.update`. The whole point is that the reviewer writes it, so the field has
-to be open, and the Ajv schema only says the value is *shaped* right. Within one
-schema a caller can still rewrite every row.
-
-So the refusal is a collection `beforeChange` hook comparing the submitted value
-against the stored one, and it has to be, because:
-
-- **Payload back-fills an omitted column by the time the hook runs.** `data`
-  carries every field of the stored document whether or not the patch named it,
-  so presence says nothing — "did this caller touch the column" is only
-  answerable by comparing.
-- **Match by identity, never by index.** `event-imports` matches nodes by `key`
-  and rows by `line`, because an edit that re-prunes the array makes an
-  index-wise diff report every element after the gap as changed.
-- **Matching the count is not matching the set.** Submitting one line twice
-  against two stored lines passes every per-row check while the other line
-  leaves the document.
-
-`src/collections/EventImports/hooks/reviewerEdits.ts` is the worked example, and
-`admin.readOnly` on such a field is a form nicety with no authority at all.
 
 ### A virtual column takes a schema too, and it can be closed
 
@@ -950,7 +925,7 @@ Live preview integrates with the We Meditate Web frontend
 
 | Block               | Notes                                                                                                                                                                                                                                                     |
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `TextBoxBlock`      | `style` (splash / leftAligned / rightAligned / overlay), `title`/`text` (250-char limit, HTML stripped), `image`, `link`, `actionText`                                                                                                                    |
+| `TextBoxBlock`      | `image` (required), `imagePosition` (left / right / overlay), `textPosition` and `textColor` (both shown for `overlay` only — `textColor` names the TEXT, so `light` means light text on a dark image, #516), `wisdomStyle` (⚠ never rendered — its `admin.condition` names a field this block lacks, #989), `title`/`subtitle`/`text`, `buttonText` + `buttonUrl`, read-only `importData` |
 | `ButtonBlock`       | `text` + `url`                                                                                                                                                                                                                                            |
 | `LayoutBlock`       | `style` (grid / columns / accordion) + `items` array (image, title, text, link)                                                                                                                                                                           |
 | `GalleryBlock`      | `title`, `collectionType` (media/meditations/pages), `items` (max 10, dynamic relationTo)                                                                                                                                                                 |

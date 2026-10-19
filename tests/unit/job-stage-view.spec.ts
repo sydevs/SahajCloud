@@ -13,12 +13,12 @@
  * drift apart silently, and the row stranded behind a waiting view is what
  * drift would cost (#960).
  */
+import type { CollectionConfig } from 'payload'
+
 import { join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
-import { IMPORT_STALL_MS } from '@/collections/EventImports/constants'
-import { EventImports } from '@/collections/EventImports/EventImports'
 import { MeditationTranscripts } from '@/collections/MeditationTranscripts/MeditationTranscripts'
 import {
   type JobStageConfig,
@@ -26,6 +26,8 @@ import {
   readJobStageConfig,
 } from '@/components/admin/JobStageView/stages'
 import { TRANSCRIPTION_STALL_MS } from '@/lib/meditations/transcript'
+import { IMPORT_STALL_MS } from '@/plugins/eventImport/constants'
+import { overrideImportCollection } from '@/plugins/eventImport/importCollection'
 
 import { hasDirective, SRC, sourceOf } from '../utils/importGraph'
 
@@ -49,12 +51,44 @@ const codeOf = (file: string): string =>
     .replace(/\/\*[\s\S]*?\*\//g, '')
     .replace(/\/\/.*$/gm, '')
 
-type Collection = typeof EventImports | typeof MeditationTranscripts
+type Collection = CollectionConfig
+
+/**
+ * The plugin's `imports` collection as `overrideImportCollection` receives it,
+ * reduced to what the cases read: the plugin's own builder is not exported.
+ * The `status` column and its default are the plugin's, spelled as its
+ * `getImportCollection` declares them, so a stage the override names that the
+ * plugin stops holding fails here rather than behind a waiting view.
+ */
+const PLUGIN_IMPORTS: CollectionConfig = {
+  slug: 'imports',
+  fields: [
+    {
+      name: 'status',
+      type: 'select',
+      defaultValue: 'pending',
+      options: [
+        { label: 'Pending', value: 'pending' },
+        { label: 'Completed', value: 'completed' },
+        { label: 'Partial', value: 'partial' },
+        { label: 'Failed', value: 'failed' },
+      ],
+    },
+  ],
+  hooks: {},
+  admin: { custom: { 'plugin-import-export': { collectionSlugs: ['events'] } } },
+  upload: { mimeTypes: ['text/csv'] },
+}
+
+const overridden = overrideImportCollection({ collection: PLUGIN_IMPORTS })
+// The plugin allows an async override; ours is not one, and the cases read it as a value.
+if (overridden instanceof Promise) throw new Error('overrideImportCollection must be synchronous')
+const EventImports: CollectionConfig = overridden
 
 const fieldNamed = (collection: Collection, name: string) => {
   const field = collection.fields.find((f) => 'name' in f && f.name === name)
   if (!field) throw new Error(`${collection.slug} declares no \`${name}\` field`)
-  return field as { defaultValue?: unknown; fields?: unknown; options?: unknown }
+  return field as { defaultValue?: unknown; options?: unknown }
 }
 
 const statusField = (collection: Collection = MeditationTranscripts) =>
@@ -64,19 +98,6 @@ const stageConfig = (collection: Collection): JobStageConfig => {
   const config = readJobStageConfig(collection.admin?.custom)
   if (!config) throw new Error(`${collection.slug} declares no \`jobStage\``)
   return config
-}
-
-/**
- * The names a dotted declaration addresses, as the collection's own fields
- * spell them. A path is only checkable against the schema it reads from, and
- * `valueAt` answers `undefined` for a wrong one — so a typo would show up as a
- * banner with no count, which no assertion about the declaration can see.
- */
-const pathNames = (collection: Collection, path: string | undefined): string[] => {
-  const [group, leaf] = (path ?? '').split('.')
-  const parent = fieldNamed(collection, group)
-  const children = (parent.fields ?? []) as { name?: string }[]
-  return children.flatMap((child) => (child.name === leaf ? [child.name] : []))
 }
 
 const transcriptConfig = (): JobStageConfig => stageConfig(MeditationTranscripts)
@@ -304,13 +325,12 @@ describe('meditation-transcripts', () => {
   })
 })
 
-describe('event-imports', () => {
-  it('declares both stages a job owns, with the count it publishes', () => {
+describe('imports', () => {
+  it('declares `pending` as its only running stage, behind the stall window, with no count', () => {
+    // The plugin publishes no progress column, so the view waits without one.
     expect(stageConfig(EventImports)).toEqual({
-      progressField: 'progress.done',
-      runningStages: ['resolving', 'committing'],
+      runningStages: ['pending'],
       staleAfterMs: IMPORT_STALL_MS,
-      totalField: 'progress.total',
     })
   })
 
@@ -323,35 +343,19 @@ describe('event-imports', () => {
     }
   })
 
-  it('names two count paths the `progress` group really holds', () => {
-    const { progressField, totalField } = stageConfig(EventImports)
-
-    expect(pathNames(EventImports, progressField)).toEqual(['done'])
-    expect(pathNames(EventImports, totalField)).toEqual(['total'])
-  })
-
-  it('reads the count off a batch shaped as the resolve job writes one', () => {
-    expect(
-      jobStageWait(stageConfig(EventImports), {
-        progress: { done: 30, note: 'Resolving addresses', total: 120 },
-        status: 'resolving',
-      }),
-    ).toEqual({ progress: 30, stage: 'resolving', total: 120 })
-  })
-
   /**
    * The one collection whose `status` defaults INTO a running stage, against
    * the view's own rule — because here that default is true: the create queues
-   * the resolve job. `staleAfterMs` is the whole safety, so the case asserts
-   * both halves of it, and deleting the window makes the second fail.
+   * the plugin's import job. `staleAfterMs` is the whole safety, so the case
+   * asserts both halves of it, and deleting the window makes the second fail.
    */
-  it('holds a fresh batch behind the view, and hands it back past the stall window', () => {
+  it('holds a fresh import behind the view, and hands it back past the stall window', () => {
     const config = stageConfig(EventImports)
     const { defaultValue } = statusField(EventImports)
     const created = { status: defaultValue, updatedAt: '2026-10-17T00:00:00.000Z' }
     const createdAt = Date.parse(created.updatedAt)
 
-    expect(defaultValue).toBe('resolving')
+    expect(defaultValue).toBe('pending')
     expect(jobStageWait(config, created, createdAt + IMPORT_STALL_MS)).not.toBeNull()
     expect(jobStageWait(config, created, createdAt + IMPORT_STALL_MS + 1)).toBeNull()
   })

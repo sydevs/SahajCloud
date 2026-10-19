@@ -173,7 +173,7 @@ describe('geocodeLocation', () => {
     return outcome.location
   }
 
-  it('returns the point and the administrative context around it', async () => {
+  it('returns the point, the matched feature and the town around it', async () => {
     stubFetch(() => ({ body: placed(berlinContext) }))
     expect(
       await located({
@@ -187,42 +187,8 @@ describe('geocodeLocation', () => {
       featureType: 'address',
       latitude: 52.5026,
       longitude: 13.4186,
-      countryCode: 'DE',
-      subdivisionCode: 'BE',
-      regionMapboxId: 'mbx-be',
       placeName: 'Berlin',
       placeId: 'mbx-berlin',
-      confidence: null,
-      streetMatched: null,
-      placeMatched: null,
-      matchedAddress: null,
-    })
-  })
-
-  it('reports how sure Mapbox is, and which address it matched', async () => {
-    stubFetch(() => ({
-      body: placed(berlinContext, {
-        full_address: 'Oranienstraße 25, 10999 Berlin, Germany',
-        match_code: {
-          confidence: 'medium',
-          street: 'unmatched',
-          address_number: 'matched',
-          place: 'matched',
-        },
-      }),
-    }))
-    expect(
-      await located({
-        kind: 'address',
-        address: 'Oranienstr 25',
-        city: 'Berlin',
-        countryCode: 'DE',
-      }),
-    ).toMatchObject({
-      confidence: 'medium',
-      streetMatched: false,
-      placeMatched: true,
-      matchedAddress: 'Oranienstraße 25, 10999 Berlin, Germany',
     })
   })
 
@@ -313,19 +279,6 @@ describe('geocodeLocation', () => {
     )
   })
 
-  it("maps Mapbox's subdivision code onto the one the dataset lists", async () => {
-    stubFetch(() => ({
-      body: placed({
-        country: { name: 'Spain', country_code: 'ES' },
-        region: { mapbox_id: 'mbx-md', name: 'Community of Madrid', region_code: 'MD' },
-      }),
-    }))
-    expect(await located({ kind: 'place', city: 'Madrid', countryCode: 'DE' })).toMatchObject({
-      subdivisionCode: 'M',
-      regionMapboxId: 'mbx-md',
-    })
-  })
-
   it("restricts the search to the caller's country and asks for its own types", async () => {
     let seenUrl = ''
     stubFetch((url) => {
@@ -361,38 +314,11 @@ describe('geocodeLocation', () => {
     })
   })
 
-  it('resolves a subdivision Mapbox spelled only country-prefixed', async () => {
-    stubFetch(() => ({
-      body: placed({
-        country: berlinContext.country,
-        region: { name: 'Bayern', region_code_full: 'DE-BY' },
-      }),
-    }))
-    expect(
-      (await located({ kind: 'place', city: 'München', countryCode: 'DE' })).subdivisionCode,
-    ).toBe('BY')
-  })
-
-  it('resolves a subdivision Mapbox named but did not code', async () => {
-    stubFetch(() => ({
-      body: placed({ country: berlinContext.country, region: { name: 'Bayern' } }),
-    }))
-    expect(
-      (await located({ kind: 'place', city: 'München', countryCode: 'DE' })).subdivisionCode,
-    ).toBe('BY')
-  })
-
-  it('leaves the context codes null when Mapbox sent none', async () => {
+  it('leaves the town null when Mapbox sent no context', async () => {
     stubFetch(() => ({ body: placed({}) }))
     expect(
       await located({ kind: 'address', address: 'Somewhere', city: 'Berlin', countryCode: 'DE' }),
-    ).toMatchObject({
-      countryCode: null,
-      subdivisionCode: null,
-      regionMapboxId: null,
-      placeName: null,
-      placeId: null,
-    })
+    ).toMatchObject({ placeName: null, placeId: null })
   })
 
   describe('a miss and an outage are different answers', () => {

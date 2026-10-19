@@ -1,7 +1,7 @@
 import { Temporal } from '@js-temporal/polyfill'
 import { describe, expect, it } from 'vitest'
 
-import { mapCsvSchedule, type MapScheduleArgs } from '@/collections/EventImports/csv/schedule'
+import { mapCsvSchedule, type MapScheduleArgs } from '@/plugins/eventImport/csv/schedule'
 
 /** A Thursday, five days before the Tuesday the defaults below use. */
 const TODAY = Temporal.PlainDate.from('2026-10-01')

@@ -41,18 +41,15 @@ export const JOB_AUTO_RUN: AutoRunEntry[] = [
     queue: 'screening',
   },
   {
-    // Its own queue, not `nightly` or `screening`: a 500-row resolve holds a
-    // worker for minutes, and sharing with the submission screening would put
-    // every public write behind one volunteer's upload.
-    // Safety net for the per-transition kick (see
-    // EventImports/hooks/enqueueImportJobs): a resolve or a commit whose
-    // immediate run was lost to a restart waits at most five minutes. Five
-    // rather than `screening`'s fifteen because a volunteer is watching the
-    // count — and offset by one, which is the only five-minute phase
-    // free of all three neighbours: `invitations` holds every fifth minute from
-    // zero, `nightly` holds :00, and `monthly` holds :07.
+    // `default` is where `@payloadcms/plugin-import-export` queues each class
+    // import's job (`src/plugins/eventImport`) — it names no queue of its own.
+    // The import's create hook kicks the queue at once; this is the safety net
+    // for a kick lost to a restart, five minutes because a volunteer is waiting.
+    // Offset by one, the only five-minute phase free of all three neighbours:
+    // `invitations` holds every fifth minute from zero, `nightly` :00, and
+    // `monthly` :07.
     cron: '1-59/5 * * * *',
-    queue: 'imports',
+    queue: 'default',
   },
   {
     // Safety net for the transcription start in `requestTranscription`, the

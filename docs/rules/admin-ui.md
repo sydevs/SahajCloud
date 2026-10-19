@@ -67,16 +67,6 @@ There is no width prop: `Drawer` sets `width: calc(100% - (drawerDepth * var(--g
 
 That combination is often what you want — reachable where it's explained, absent from the sidebar. An event's registrations are read this way, through the join on its Registrations tab rather than the collection's own list. A 404 on the route is not evidence a field needs surfacing elsewhere — try the surfaces that already embed the document first.
 
-### A `tabs` tab with a `join` is the whole entry point — no view, no link component
-
-`event-imports` is reached this way: `Regions` carries an **Import** tab holding one `join` on `targetRegion`, and that is the entire surface a volunteer sees of an admin-hidden collection. The tab lists the region's batches, opens each in a document drawer, and its native **Add new** opens the create form with `targetRegion` prefilled — `RelationshipTable` passes the join's `on` field as `initialData`. PR #874 built the same entry point as an `admin.components.views.edit.import` custom view plus a tab-link component, a gate and a target resolver; the tab replaced all five.
-
-Three things decide whether the native button is right:
-
-- **`allowCreate: true` only when `on` is a field the create form wants prefilled.** `Regions`' own child-level tabs join on `breadcrumbs.doc`, which "Add new" would seed and the create form has no use for — which is why they set `allowCreate: false` and `AddChildRegionButton` exists beside them. `targetRegion` is exactly the field, so the native button needs no replacement.
-- **The tab's `condition` has to agree with the target field's own validator.** A tab offering a create form that the validator then refuses reads as broken rather than as scoped, so `IMPORT_TAB` shares `isProposableTargetLevel` with `EventImports.targetRegion` rather than restating the levels.
-- **The tab belongs to the host collection, not to the feature it opens.** `src/collections/Regions/importTab.ts` holds it, beside the Events tab it is shaped like, and the only thing crossing the boundary is that one pure predicate. A field of `Regions.tabs` has exactly one consumer, so by `src/AGENTS.md`'s organization rules it is Regions' own code — declaring it under `EventImports/` made the repo's only collection-to-collection import, which is the edge rule 4 names.
-
 ### `WorkflowButtons` — stage-dependent document buttons as data
 
 `src/components/admin/WorkflowButtons/` replaces a bespoke button component per staged collection. A collection declares its buttons through `clientProps` on an edit-view slot:
@@ -87,7 +77,7 @@ admin.components.edit.SaveButton = {
   clientProps: {
     statusField: 'status',                      // the form field whose value picks the stage
     fallback: null,                             // 'publish' | 'save' | 'saveDraft' | null
-    stages: { [CREATE_STAGE]: [{ label: 'Upload & resolve addresses', overrides: {} }] },
+    stages: { [CREATE_STAGE]: [{ label: 'Next step', overrides: { _status: 'draft' } }] },
   } satisfies WorkflowButtonsProps<MyStage>,
 }
 ```
@@ -98,8 +88,6 @@ Each action is `{ label, overrides, confirm?, buttonStyle?, skipValidation? }`; 
 - **An empty stage array is not a missing one.** `[]` renders nothing; a stage the declaration never names falls through to `fallback`. Collapsing the two put Publish back on Meditations' create screen.
 - **An unsaved document is `CREATE_STAGE`, whatever the status field holds.** A collection that defaults `status` to a running stage would otherwise hand the create form that stage's buttons.
 - **The contract lives in `stages.ts`, not beside the component.** Every export of a `'use client'` module reaches a server module as a client reference, so a config reading `CREATE_STAGE` off the component would key its map on an object. Same split as `UserSubmissions/statuses.ts`.
-
-⚠ **The declaration and the write-side transition table have to agree, and only a test can say so.** A target the table allows that no button offers is a move nobody can make from the form — which is how a batch a dead worker left `resolving` became unreachable. `tests/int/event-imports.int.spec.ts` checks both directions against the real `clientProps`.
 
 **Building a custom field component?** Compose Payload's primitives instead of bespoke markup: `FieldLabel`, `FieldError`, `FieldDescription`, plus input fields (`TextField`, `SelectField`, `RelationshipField`, `UploadField`, `ArrayField`, `GroupField`, `BlocksField`, and more) and `RenderFields` (a whole field set). Hooks: `useField`, `useForm`, `useFormFields`, `useDocumentInfo`, `useConfig`, `useAuth`, `useTranslation`.
 
@@ -268,10 +256,10 @@ Four things are load-bearing:
 - **`views.edit.default.Component` replaces `DefaultEditView`; it does not wrap it.** So a settled stage falls through by rendering `DefaultEditView` itself.
 - **The stored stage at page load is the whole input.** There is no poll, so nothing re-requests the document. **Check again** (`CheckAgain.tsx`, the folder's one client component) calls `router.refresh()`, which refetches the route's server render and bypasses the client router cache a `next/link` navigation can be answered from. That is Payload's own idiom — `useRouteCache`'s `clearRouteCache` is the same call. ⚠ Inside a document drawer nothing re-reads the stage: `DocumentDrawerContent` renders the document through the `renderDocument` server function and keeps the result in React state, which no route refresh re-runs. An anchor would re-read it only by leaving the host document and discarding its unsaved edits, so the refresh stands in both surfaces.
 - **The gate releases itself only where `staleAfterMs` is declared.** Without one, a row whose worker died stays behind the waiting view for good; past the window the form opens and setting the status column back to its queued value is the retry.
-- **Never name a running stage that is also the column's `defaultValue`** — unless the create genuinely queues the job. `meditation-transcripts` declares `processing` and not `queued`, because a queued row waits for a person. `event-imports` declares its own default `resolving`, because its create hook queues the resolve job, so a saved row at that default really is one a worker owns. Either way the release is `staleAfterMs`: without it, a saved row at that default opens behind a view nothing can move on. The view refuses to fire with no document id, which covers the create form alone.
-- **A stage with no form has no `SaveButton` slot either.** The view replaces the whole form, so a `WorkflowButtons` stage declared for a running status is reachable only past `staleAfterMs` — which is where `event-imports` keeps its Discard, the one way out of a batch a dead worker stranded.
+- **Never name a running stage that is also the column's `defaultValue`** — unless the create genuinely queues the job. `meditation-transcripts` declares `processing` and not `queued`, because a queued row waits for a person. `imports` declares its own default `pending`, because the plugin's create hook queues the import job, so a saved row at that default really is one a worker owns. Either way the release is `staleAfterMs`: without it, a saved row at that default opens behind a view nothing can move on. The view refuses to fire with no document id, which covers the create form alone.
+- **A stage with no form has no `SaveButton` slot either.** The view replaces the whole form, so a `WorkflowButtons` stage declared for a running status is reachable only past `staleAfterMs`.
 
-`event-imports` is the counted consumer: `progressField: 'progress.done'` and `totalField: 'progress.total'` read the group its resolve job writes, and the group is `admin.hidden` because the banner is the only place that count is read.
+`imports` — the bulk class import's upload collection, owned by `@payloadcms/plugin-import-export` and reshaped in `src/plugins/eventImport/importCollection.ts` — declares `runningStages: ['pending']` with no count: the plugin writes `status` once, when its job finishes.
 
 ⚠ **A `hidden: true` collection cannot show it on a route.** Registering the view is still correct there, and a document drawer renders it (`overrideEntityVisibility`), but `/admin/collections/<slug>/<id>` 404s — see "A hidden collection is still reachable through a `join`" above. Reach such a collection through a `join` before concluding the view is broken.
 

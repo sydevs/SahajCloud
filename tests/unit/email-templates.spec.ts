@@ -558,83 +558,52 @@ describe('UserMessageEmail', () => {
 })
 
 describe('EventImportSummaryEmail', () => {
-  const brand = getEmailBrand('sahaj-atlas')
-  const counts = {
-    verified: 3,
-    unverified: 2,
-    duplicates: 1,
-    errors: 1,
-    regionsAdded: 2,
-    coordinators: 2,
-    coordinatorsCreated: 1,
-  }
   const props = {
-    brand,
-    uploaderName: 'Lena Fischer',
+    brand: getEmailBrand('sahaj-atlas'),
     targetName: 'Germany',
-    counts,
-    batchUrl: 'https://cloud.sydevelopers.com/admin/collections/event-imports/42',
-    unverifiedUrl:
-      'https://cloud.sydevelopers.com/admin/collections/events?where[verificationStage][equals]=unverified',
+    imported: 12,
+    reviewUrl: 'https://cloud.sydevelopers.com/admin/collections/events?imported=42',
+    importUrl: 'https://cloud.sydevelopers.com/admin/collections/imports/42',
   }
 
-  it('names the uploader, the target, both halves of the created count, and both links', async () => {
+  const skippedRows = (count: number) =>
+    Array.from({ length: count }, (_, at) => ({
+      row: at + 2,
+      reasons: [`reason for row ${at + 2}`],
+    }))
+
+  it('names the target, the imported count, and both links', async () => {
     const html = await renderEmail(createElement(EventImportSummaryEmail, props))
 
-    expect(html).toContain('Lena Fischer')
+    expect(html).toContain('Your class import is ready to review')
     expect(html).toContain('Germany')
-    expect(html).toContain('With a coordinator')
-    expect(html).toContain('Unverified')
-    expect(html).toContain('/admin/collections/event-imports/42')
-    expect(html).toContain('verificationStage')
+    // The count and its noun are separate JSX expressions, so the body holds a
+    // React comment between them; the preview text is the one place they join.
+    expect(html).toContain('12 classes ready to review in Germany')
+    expect(html).toContain('classes are')
+    expect(html).toContain('/admin/collections/events?imported=42')
+    expect(html).toContain('/admin/collections/imports/42')
   })
 
-  it('lists each skipped line with its reasons, and points at the batch for the rest', async () => {
+  it('lists twenty skipped rows with their reasons, and counts the rest', async () => {
     const html = await renderEmail(
-      createElement(EventImportSummaryEmail, {
-        ...props,
-        skipped: Array.from({ length: 25 }, (_, at) => ({
-          line: at + 2,
-          reasons: [`reason for line ${at + 2}`],
-        })),
-      }),
-    )
-
-    expect(html).toContain('Line 2')
-    expect(html).toContain('reason for line 2')
-    // Twenty listed, and the rest counted rather than printed.
-    expect(html).toContain('Line 21')
-    expect(html).not.toContain('Line 22')
-    expect(html).toContain('and 5 more')
-  })
-
-  /**
-   * ⚠ **A row can carry both a duplicate match and an error**, so a summed
-   * "rows skipped" over-counts the lines. The two counts are shown side by side
-   * instead, and the section appears when either is non-zero — this case is
-   * what fails if the sum comes back.
-   */
-  it('shows the skipped section for errors alone, with no duplicate row', async () => {
-    const html = await renderEmail(
-      createElement(EventImportSummaryEmail, {
-        ...props,
-        counts: { ...counts, duplicates: 0 },
-      }),
+      createElement(EventImportSummaryEmail, { ...props, skipped: skippedRows(25) }),
     )
 
     expect(html).toContain('Rows skipped')
-    expect(html).toContain('With errors')
-    expect(html).not.toContain('Duplicates')
+    expect(html).toContain('Row 2')
+    expect(html).toContain('reason for row 2')
+    // Twenty listed, and the rest counted rather than printed.
+    expect(html).toContain('Row 21')
+    expect(html).not.toContain('Row 22')
+    expect(html).toContain('and 5 more')
   })
 
   it('omits the skipped section when nothing was skipped', async () => {
-    const html = await renderEmail(
-      createElement(EventImportSummaryEmail, {
-        ...props,
-        counts: { ...counts, duplicates: 0, errors: 0 },
-      }),
-    )
+    for (const skipped of [undefined, []]) {
+      const html = await renderEmail(createElement(EventImportSummaryEmail, { ...props, skipped }))
 
-    expect(html).not.toContain('Rows skipped')
+      expect(html).not.toContain('Rows skipped')
+    }
   })
 })

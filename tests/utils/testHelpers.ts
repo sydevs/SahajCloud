@@ -19,6 +19,7 @@ import { REGION_NESTED_DOCS_CONFIG } from '@/lib/atlas/regionTree'
 import { buildPayloadLocales, DEFAULT_LOCALE } from '@/lib/locales'
 import { accessPlugin, bypassPermissions, restrictPayloadSystemEntities } from '@/plugins/access'
 import { databaseErrorPlugin } from '@/plugins/databaseErrors'
+import { eventImportPlugin } from '@/plugins/eventImport'
 import { formsPlugin } from '@/plugins/formBuilder'
 import { loginPlugin } from '@/plugins/login'
 import { managersLoginHere } from '@/plugins/previewAdmin'
@@ -157,6 +158,9 @@ function createBaseTestConfig(emailConfig: any, schemaName: string, debug = fals
       // Nested docs: injects parent + breadcrumbs into Regions (mirrors the
       // real payload.config.ts so collection hooks relying on them are tested).
       nestedDocsPlugin(REGION_NESTED_DOCS_CONFIG),
+      // Bulk class import: the plugin's `imports` collection and task, with the
+      // `importBatch` relationship Events carries (mirrors the real config).
+      eventImportPlugin,
       // Passwordless sign-in: the magic-link field plus its endpoints
       // (mirrors the real payload.config.ts, including which collections it serves
       // and how the preview exchange is resolved — `preview-secret-exchange.int.spec.ts`

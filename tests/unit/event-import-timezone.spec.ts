@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { deriveImportTimezone } from '@/collections/EventImports/resolve/timezone'
 import { SUPPORTED_TIMEZONES } from '@/lib/timezones'
+import { timezoneAt } from '@/plugins/eventImport/timezone'
 
 // Partially mocked: every case below wants the real boundary data, and only the
 // last block substitutes an answer — no coordinates can produce a zone the enum
@@ -18,19 +18,19 @@ afterEach(() => {
   tzlookup.mockImplementation(actualLookup)
 })
 
-function zone(latitude: number, longitude: number, override?: string): string {
-  const result = deriveImportTimezone({ latitude, longitude, override })
+function zone(latitude: number, longitude: number): string {
+  const result = timezoneAt(latitude, longitude)
   if (!result.ok) throw new Error(`expected a zone, got refusal: ${result.error}`)
   return result.timezone
 }
 
-function refusal(args: { latitude: number; longitude: number; override?: string }): string {
-  const result = deriveImportTimezone(args)
+function refusal(latitude: number, longitude: number): string {
+  const result = timezoneAt(latitude, longitude)
   if (result.ok) throw new Error(`expected a refusal, got ${result.timezone}`)
   return result.error
 }
 
-describe('deriveImportTimezone', () => {
+describe('timezoneAt', () => {
   it('reads the zone off the coordinates', () => {
     expect(zone(52.52, 13.405)).toBe('Europe/Berlin')
     expect(zone(22.5726, 88.3639)).toBe('Asia/Kolkata')
@@ -69,78 +69,25 @@ describe('deriveImportTimezone', () => {
     expect(zone(31.738, -106.487)).toBe('America/Ciudad_Juarez')
   })
 
-  it('takes the row override over the lookup', () => {
-    // A border case a volunteer corrects by hand.
-    expect(zone(52.52, 13.405, 'Europe/Prague')).toBe('Europe/Prague')
-    expect(zone(52.52, 13.405, '  Europe/Prague  ')).toBe('Europe/Prague')
-  })
-
-  it('refuses an override that moves the clock at the point, naming both zones', () => {
-    // A copied row's zone on a Berlin class publishes it six hours out.
-    const error = refusal({ latitude: 52.52, longitude: 13.405, override: 'America/New_York' })
-    expect(error).toContain('America/New_York')
-    expect(error).toContain('Europe/Berlin')
-  })
-
-  it('refuses an override that agrees for only half the year', () => {
-    // Phoenix keeps no daylight saving, so it is Denver's clock all winter and
-    // an hour off it all summer.
-    expect(
-      refusal({ latitude: 39.7392, longitude: -104.9903, override: 'America/Phoenix' }),
-    ).toContain('America/Denver')
-  })
-
-  it('ignores a blank override rather than refusing it', () => {
-    expect(zone(52.52, 13.405, '   ')).toBe('Europe/Berlin')
-  })
-
-  it('refuses an override the column cannot store', () => {
-    // The enum is the gate for a hand-typed value too, or the row fails at
-    // write with no line number on it.
-    expect(refusal({ latitude: 52.52, longitude: 13.405, override: 'Mars/Olympus' })).toContain(
-      'Mars/Olympus',
-    )
-    expect(refusal({ latitude: 52.52, longitude: 13.405, override: 'CET+1' })).toContain(
-      'not one this CMS stores',
-    )
-  })
-
   it('refuses coordinates no zone covers instead of throwing', () => {
     // The lookup throws for these; an uncaught throw would lose every row
-    // after it in the chunk.
-    expect(refusal({ latitude: 100, longitude: 0 })).toContain('no timezone covers')
-    expect(refusal({ latitude: Number.NaN, longitude: 0 })).toContain('no timezone covers')
+    // after it in the batch.
+    expect(refusal(100, 0)).toContain('no timezone covers')
+    expect(refusal(Number.NaN, 0)).toContain('no timezone covers')
   })
 })
 
-describe('deriveImportTimezone, when the lookup outruns the column', () => {
+describe('timezoneAt, when the lookup outruns the column', () => {
   it('refuses a looked-up zone the enum lacks, naming it', () => {
     // A `@vvo/tzdb` the boundary data has outgrown. The zone is what tells a
     // maintainer to bump the package and migrate the enum, so the message
     // carries it rather than blaming the row.
     tzlookup.mockReturnValue('Europe/Atlantis')
-    expect(refusal({ latitude: 52.52, longitude: 13.405 })).toContain('Europe/Atlantis')
+    expect(refusal(52.52, 13.405)).toContain('Europe/Atlantis')
   })
 
   it('accepts a looked-up zone the enum has', () => {
     tzlookup.mockReturnValue('Europe/Prague')
-    expect(deriveImportTimezone({ latitude: 52.52, longitude: 13.405 })).toEqual({
-      ok: true,
-      timezone: 'Europe/Prague',
-    })
-  })
-
-  it('checks an override against the lookup rather than trusting it', () => {
-    tzlookup.mockReturnValue('Asia/Tokyo')
-    expect(refusal({ latitude: 52.52, longitude: 13.405, override: 'Europe/Prague' })).toContain(
-      'Asia/Tokyo',
-    )
-  })
-
-  it('takes an override where no zone covers the point to check it against', () => {
-    tzlookup.mockImplementation(() => {
-      throw new Error('invalid coordinates')
-    })
-    expect(zone(52.52, 13.405, 'Europe/Prague')).toBe('Europe/Prague')
+    expect(timezoneAt(52.52, 13.405)).toEqual({ ok: true, timezone: 'Europe/Prague' })
   })
 })

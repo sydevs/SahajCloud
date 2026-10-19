@@ -43,7 +43,6 @@ import { getLanguageOptions } from '@/lib/locales'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
 import {
   adminOnlyCondition,
-  adminOnlyFieldAccess,
   managersOnlyFieldAccess,
   ownedRegionFilterOptions,
 } from '@/plugins/access'
@@ -60,6 +59,7 @@ import { ensureWebPathDeps } from './hooks/ensureWebPathDeps'
 import { computeEventQualityReport, stampEventQuality } from './hooks/eventQuality'
 import { eventTitleBeforeChange, eventTitleValidate } from './hooks/eventTitle'
 import { excludeFinishedEvents } from './hooks/excludeFinishedEvents'
+import { refuseDuplicateClass } from './hooks/refuseDuplicateClass'
 import { syncEventFullness } from './hooks/syncFullness'
 import { syncVerificationOnSave } from './hooks/syncVerificationOnSave'
 import { buildEventWebPath } from './webPath'
@@ -163,6 +163,9 @@ export const Events: CollectionConfig = {
     // published so their pages resolve, but should not be listed. See
     // excludeFinishedEvents.
     beforeOperation: [ensureWebPathDeps, excludeFinishedEvents],
+    // A class that repeats one already listed is refused before anything else
+    // runs, drafts included — see refuseDuplicateClass.
+    beforeValidate: [refuseDuplicateClass],
     // syncVerificationOnSave must run first. It decides the stage this save
     // lands on: verify, or just re-arm the pre-adoption watermark. Both
     // stamping hooks must run after it. `syncEventFullness` writes
@@ -177,16 +180,14 @@ export const Events: CollectionConfig = {
   endpoints: [verifyEventAction, eventsGeoJson],
   fields: [
     {
-      // ⚠ **The bulk import's exactly-once key: `<batch id>:<CSV line>`.**
-      // Unique, so a commit retried after a crash or a lost response finds the
-      // class it already created rather than creating it twice
-      // (`src/collections/EventImports/commit/rows.ts`). Written only by that
-      // commit, which elevates past field access; nobody else may set it.
-      name: 'importKey',
-      type: 'text',
-      unique: true,
+      // The bulk import this class came from (`src/plugins/eventImport`). The
+      // Events list filtered on it is where a volunteer reviews and publishes
+      // the drafts an import created.
+      name: 'importBatch',
+      type: 'relationship',
+      relationTo: 'imports',
       index: true,
-      access: { create: () => false, update: () => false, read: adminOnlyFieldAccess },
+      access: { update: () => false },
       admin: { hidden: true },
     },
     {

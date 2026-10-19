@@ -9,44 +9,72 @@
 import { readFileSync } from 'node:fs'
 
 import { Temporal } from '@js-temporal/polyfill'
+import { parse } from 'csv-parse/sync'
 import { describe, expect, it } from 'vitest'
 
-import { parseImportCsv } from '@/collections/EventImports/csv/parse'
-import { mapCsvSchedule, scheduleArgsFor } from '@/collections/EventImports/csv/schedule'
-import { buildImportTemplate } from '@/collections/EventImports/csv/template'
+import { checkRowFields } from '@/plugins/eventImport/csv/fieldChecks'
+import { mapCsvSchedule, scheduleArgsFor } from '@/plugins/eventImport/csv/schedule'
+import { buildImportTemplate, isTemplateHelpRow } from '@/plugins/eventImport/csv/template'
+import { normaliseRow } from '@/plugins/eventImport/rows'
 
 /** Where the admin panel's own link points. */
 const CHECKED_IN = 'public/event-import-template.csv'
 
-const parsed = () => {
-  const result = parseImportCsv(buildImportTemplate())
-  if (!result.ok) throw new Error(`the template does not parse: ${result.error}`)
-  return result.rows
+/**
+ * The plugin's own `parseCSV` options (`@payloadcms/plugin-import-export`,
+ * `utilities/parseCSV.ts`), repeated here because the function is not
+ * exported. `cast` is what hands `normaliseRow` a number for a bare postcode
+ * and `undefined` for a blank cell, so the template is read exactly as an
+ * upload of it would be.
+ */
+const parsed = (): Record<string, unknown>[] =>
+  parse(buildImportTemplate(), {
+    bom: true,
+    cast: (value: string) => {
+      if (value === '') return undefined
+      if (value === 'true') return true
+      if (value === 'false') return false
+      if (value === 'null' || value === 'NULL') return null
+      if (value.includes(',')) return value
+      if (!Number.isNaN(Number(value))) {
+        const num = Number(value)
+        if (String(num) === value || value.includes('.')) return num
+      }
+      return value
+    },
+    columns: true,
+    skip_empty_lines: true,
+    trim: true,
+  })
+
+const exampleRow = () => {
+  const [, example] = parsed()
+  if (!example) throw new Error('the template has no example row')
+  return normaliseRow(example)
 }
 
-describe('the import template parses as its own parser demands', () => {
-  it('yields exactly the example row, past the header and the help row', () => {
-    const rows = parsed()
-    expect(rows).toHaveLength(1)
-    expect(rows[0]!.values.title).toBe('Tuesday Evening Meditation')
+describe('the import template parses as the plugin parses an upload', () => {
+  it('yields the help row and the example row, and nothing else', () => {
+    const records = parsed()
+    expect(records).toHaveLength(2)
+    expect(isTemplateHelpRow(Object.values(records[0]!).map(String))).toBe(true)
+    expect(exampleRow().title).toBe('Tuesday Evening Meditation')
   })
 
   /**
    * The example row is reported rather than skipped, so a volunteer who leaves
    * it in is told to replace it. That one error is the only one it may carry:
-   * any other means the template itself names a value the parser refuses.
+   * any other means the template itself names a value the checks refuse.
    */
   it('carries no fault but being the example', () => {
-    const [row] = parsed()
-    expect(row!.errors).toHaveLength(1)
-    expect(row!.errors?.[0]).toContain("this is the template's example row")
-    expect(row!.warnings ?? []).toEqual([])
+    const { errors } = checkRowFields(exampleRow())
+    expect(errors).toHaveLength(1)
+    expect(errors[0]).toContain("this is the template's example row")
   })
 
   it('builds a schedule from the example row', () => {
-    const [row] = parsed()
     const result = mapCsvSchedule(
-      scheduleArgsFor(row!.values, 'Europe/Berlin', Temporal.PlainDate.from('2026-10-10')),
+      scheduleArgsFor(exampleRow(), 'Europe/Berlin', Temporal.PlainDate.from('2026-10-10')),
     )
 
     expect(result.ok).toBe(true)

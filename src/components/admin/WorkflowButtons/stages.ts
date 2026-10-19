@@ -45,9 +45,8 @@ export interface WorkflowButtonsProps<TStage extends string = string> {
  * Which stage a document is at, from the operation and the status field's value.
  *
  * ⚠ **An unsaved document is `CREATE_STAGE` whatever the status field holds.**
- * `event-imports` defaults `status` to `resolving`, which is the stage the
- * resolve *job* owns — so keying on the value alone would offer the create form
- * the buttons of a batch already being geocoded.
+ * A collection whose `status` defaults to a stage a job owns would otherwise
+ * offer the create form the buttons of a document already being worked.
  *
  * `undefined` means no stage could be named, which is not the same as a stage
  * with no buttons: the caller renders its fallback for the first and nothing for

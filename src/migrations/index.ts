@@ -84,6 +84,7 @@ import * as migration_20261016_081411_transcribe_meditation_task from './2026101
 import * as migration_20261017_002341_cleanup_jobs_task from './20261017_002341_cleanup_jobs_task';
 import * as migration_20261017_102331_transcript_job_relationship from './20261017_102331_transcript_job_relationship';
 import * as migration_20261017_161838_event_import_analyze_slug from './20261017_161838_event_import_analyze_slug';
+import * as migration_20261019_182311_import_plugin from './20261019_182311_import_plugin';
 
 export const migrations = [
   {
@@ -514,6 +515,11 @@ export const migrations = [
   {
     up: migration_20261017_161838_event_import_analyze_slug.up,
     down: migration_20261017_161838_event_import_analyze_slug.down,
-    name: '20261017_161838_event_import_analyze_slug'
+    name: '20261017_161838_event_import_analyze_slug',
+  },
+  {
+    up: migration_20261019_182311_import_plugin.up,
+    down: migration_20261019_182311_import_plugin.down,
+    name: '20261019_182311_import_plugin'
   },
 ];

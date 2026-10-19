@@ -92,19 +92,6 @@ function managerSubmissionScope(userId: number | string): Where {
 }
 
 /**
- * Collections whose `create` is refused to any caller who is not a manager,
- * whatever the role tables say.
- *
- * ⚠ **A client may not start an `event-imports` batch.** The collection's
- * `manager` field relates to `managers` and is stamped from `req.user`
- * (`EventImports/hooks/stampManager.ts`), so a client's id would point at
- * somebody else's manager row — and that manager would then read a CSV they
- * never uploaded. No client role grants this today; the refusal is what keeps
- * one that does from reaching the stamp.
- */
-const MANAGER_ONLY_CREATE: readonly ContentSlug[] = ['event-imports']
-
-/**
  * A client read of a child row, narrowed to the state of the document it hangs
  * off.
  *
@@ -161,14 +148,6 @@ export function createAccessConfig(
       const hasAccess = hasPermission(args, bypassFn)
 
       if (hasAccess) {
-        if (
-          operation === 'create' &&
-          req.user?.collection !== 'managers' &&
-          MANAGER_ONLY_CREATE.includes(collection)
-        ) {
-          return false
-        }
-
         if (
           operation === 'read' &&
           req.user?.collection === 'clients' &&

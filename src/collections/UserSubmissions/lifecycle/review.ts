@@ -3,7 +3,6 @@ import type { Payload, PayloadRequest } from 'payload'
 import { APIError } from 'payload'
 
 import { appendLogEntry, asLog } from '@/fields'
-import { newListingAdoption } from '@/lib/eventVerification'
 import { relationId } from '@/lib/utilities/relationId'
 import type { UserSubmission } from '@/payload-types'
 
@@ -153,10 +152,7 @@ export async function applyReview(args: {
       context: { skipWriteGuard: true },
       req,
     })
-    const updated = await decide(
-      'accepted',
-      `Accepted — changes applied to event #${targetEventId}`,
-    )
+    const updated = await decide('accepted', `Accepted — changes applied to event #${targetEventId}`)
     return { status: 'accepted', outcome: 'updated', submission: updated, eventId: targetEventId }
   }
 
@@ -190,10 +186,12 @@ export async function applyReview(args: {
       submitter: relationId(submission.user),
     } as never,
     overrideAccess: true,
-    // The verification half comes from `newListingAdoption`, which the bulk
-    // import reads too — the flag is what decides whether a cycle opens, and
-    // getting it wrong is silent for a year.
-    context: { ...newListingAdoption(assignedManagerId).context, skipWriteGuard: true },
+    // `skipVerifyHook` means "don't open a verification cycle", which is right
+    // for an unadopted listing and wrong for an adopted one: with a manager
+    // this save must take the same path as assigning a manager in the admin,
+    // or the event would be stamped `verified` with no `nextCheckAt` and never
+    // come up for re-verification again.
+    context: { skipVerifyHook: assignedManagerId == null, skipWriteGuard: true },
     req,
   })
 

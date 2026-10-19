@@ -1,71 +1,71 @@
 /**
- * The `event-imports` collection, as far as phase 1 of #907 builds it: the
- * upload that becomes a batch, and who may start one.
+ * The bulk class import end to end: the `imports` upload the plugin owns, the
+ * fields and access this repo adds to it, and the job that turns each CSV row
+ * into a draft class — run through the plugin's own task with our wrapper on
+ * it, exactly as the queue would.
  *
- * ⚠ **The access assertions read rows back through `overrideAccess: false`, not
- * `hasPermission`.** Adding a collection to `RESTRICTED_COLLECTIONS` proves
- * nothing on its own (`docs/rules/access.md`), and a `hasPermission` assertion
- * would have passed while the hole was open. The same is true of the
- * `manager`-field grant: it is the field NAME that `getDocManagerFields`
- * recognises, so the only honest test is a read by somebody who is not the
- * uploader.
- *
- * The jobs, the status transitions and the commit live in
- * `event-import-jobs.int.spec.ts`, which mocks the geocoder — the one thing this
- * file must not, since its subject is the upload.
+ * `geocodeLocation` is the one function mocked: every town the fixtures name
+ * resolves to a place id, and a city region holding that id is what a row is
+ * filed under.
  */
 
-import type { Payload } from 'payload'
+import type { Payload, TaskConfig } from 'payload'
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
+import { SweepEventImports } from '@/jobs/SweepEventImports/SweepEventImports'
+import type { GeocodedLocation, GeocodeOutcome } from '@/lib/mapbox/geocoder'
+import type { Import } from '@/payload-types'
+import { buildImportTemplate } from '@/plugins/eventImport/csv/template'
 
-import { UTF16_REFUSAL } from '@/collections/EventImports/csv/parse'
-import { buildImportTemplate } from '@/collections/EventImports/csv/template'
-import { EventImports } from '@/collections/EventImports/EventImports'
-import { ALLOWED } from '@/collections/EventImports/hooks/transitionStatus'
-import { PROPOSABLE_TARGET_LEVELS } from '@/collections/EventImports/propose/tree'
-import { IMPORT_TAB } from '@/collections/Regions/importTab'
-import type { WorkflowButtonsProps } from '@/components/admin/WorkflowButtons/stages'
-import { CREATE_STAGE } from '@/components/admin/WorkflowButtons/stages'
-import { getDocManagerFields } from '@/plugins/access/documentManagers'
-
-import { createAnonRestClient, createRestClientAs } from '../utils/restRequest'
+import { runTaskHandler } from '../utils/taskRunner'
 import { createData, testData } from '../utils/testData'
-import { createTestEnvironment, idOnlySelect } from '../utils/testHelpers'
+import { createTestEnvironment } from '../utils/testHelpers'
 
-/** A CSV with one usable class per line, keyed off the real template's header. */
-function csvWith(lines: readonly string[]): Buffer {
-  const header = buildImportTemplate().split('\n')[0]!
-  return Buffer.from(`${header}\n${lines.join('\n')}\n`, 'utf8')
+const geocoder = vi.hoisted(() => ({ outcome: null as GeocodeOutcome | null }))
+
+vi.mock('@/lib/mapbox/geocoder', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/mapbox/geocoder')>()),
+  geocodeLocation: vi.fn(async (args: { address?: string | null; city: string }) => {
+    if (geocoder.outcome) return geocoder.outcome
+    return { status: 'found', location: locationFor(args.city, args.address ?? '') }
+  }),
+}))
+
+function locationFor(city: string, address: string): GeocodedLocation {
+  const slug = city.toLowerCase().replace(/\W+/g, '-')
+  return {
+    mapboxId: `addr.${slug}.${address.toLowerCase().replace(/\W+/g, '-')}`,
+    featureType: 'address',
+    latitude: 52.5 + slug.length / 100,
+    longitude: 13.4 + address.length / 100,
+    placeName: city,
+    placeId: `place.${slug}`,
+  }
 }
 
-/**
- * One offline weekly class, in the template's own column order.
- *
- * ⚠ **Composed from `IMPORT_COLUMNS` through the header above, never typed out
- * as a 29-field literal.** A column added or reordered upstream would otherwise
- * shift every value one place and the row would still parse.
- */
-function classLine(title: string, city = 'Berlin'): string {
-  const cells: Record<string, string> = {
-    title,
+const HEADER = buildImportTemplate().split('\n')[0]!.replace(/^﻿/, '')
+
+function classLine(cells: Record<string, string>): string {
+  const row: Record<string, string> = {
+    title: 'Tuesday Evening Meditation',
     eventType: 'offline',
     country: 'DE',
-    city,
+    city: 'Berlin',
     address: 'Oranienstraße 25',
     scheduleType: 'weekly',
     date: '2026-01-06',
     startTime: '18:30',
     weekdays: 'TU',
+    ...cells,
   }
-  return buildImportTemplate()
-    .split('\n')[0]!
-    .replace(/^﻿/, '')
-    .split(',')
-    .map((column) => cells[column] ?? '')
+  return HEADER.split(',')
+    .map((column) => row[column] ?? '')
     .join(',')
 }
+
+const csvWith = (lines: readonly string[]) =>
+  Buffer.from(`${HEADER}\n${lines.join('\n')}\n`, 'utf8')
 
 const file = (data: Buffer, name = 'classes.csv') => ({
   data,
@@ -74,52 +74,80 @@ const file = (data: Buffer, name = 'classes.csv') => ({
   size: data.length,
 })
 
-describe('event-imports', () => {
+describe('class imports', () => {
   let payload: Payload
-  let config: Awaited<ReturnType<typeof createTestEnvironment>>['config']
   let cleanup: () => Promise<void>
-  let country: number
-  /**
-   * ⚠ **The factory's whole return value, not `{ id, collection }`.** Access
-   * reads `type` and `roles` straight off `user`, so a hand-built pair is an
-   * anonymous caller with an id and every operation answers `Forbidden`.
-   */
   let admin: Awaited<ReturnType<typeof testData.createManager>>
+  let country: number
+  let berlin: number
+  let importTask: TaskConfig<'createCollectionImport'>
 
   beforeAll(async () => {
     const env = await createTestEnvironment()
     payload = env.payload
-    config = env.config
     cleanup = env.cleanup
-
     admin = await testData.createManager(payload, { name: 'Import Admin', type: 'admin' })
-    const germany = await testData.createRegion(payload, { name: 'Germany', level: 'country' })
+    const germany = await testData.createRegion(payload, {
+      name: 'Germany',
+      slug: 'de',
+      level: 'country',
+    })
     country = germany.id
+    const city = await testData.createRegion(payload, {
+      name: 'Berlin',
+      level: 'city',
+      parent: country,
+      mapboxId: 'place.berlin',
+    })
+    berlin = city.id
+    importTask = payload.config.jobs.tasks!.find(
+      (task) => task.slug === 'createCollectionImport',
+    ) as TaskConfig<'createCollectionImport'>
   })
 
   afterAll(async () => {
     await cleanup()
   })
 
-  const createBatch = (
-    data: Record<string, unknown>,
-    upload: Buffer,
+  const createImport = (
+    lines: readonly string[],
     user: Awaited<ReturnType<typeof testData.createManager>> = admin,
+    data: Record<string, unknown> = {},
   ) =>
     payload.create({
-      collection: 'event-imports',
-      data: createData<'event-imports'>({ targetRegion: country, defaultLanguages: ['de'], ...data }),
-      file: file(upload),
+      collection: 'imports',
+      data: createData<'imports'>({ targetRegion: country, defaultLanguages: ['de'], ...data }),
+      file: file(csvWith(lines)),
       user,
       overrideAccess: false,
     })
 
-  /**
-   * The per-field message off a rejected write. Payload keeps a generic summary
-   * on `.message` ("The following field is invalid: …") and the message a human
-   * actually reads on `.data.errors[]` — which is what the admin form renders
-   * under the field. Asserting the summary would pass for any refusal at all.
-   */
+  const run = (importId: number) =>
+    runTaskHandler(importTask, {
+      payload,
+      input: {
+        importId: String(importId),
+        importCollection: 'imports',
+        userID: String(admin.id),
+        userCollection: 'managers',
+        batchSize: 50,
+        defaultVersionStatus: 'draft',
+        maxLimit: 500,
+      },
+    })
+
+  const read = (id: number) =>
+    payload.findByID({ collection: 'imports', id, depth: 0 }) as Promise<Import>
+
+  const importedClasses = (importId: number) =>
+    payload.find({
+      collection: 'events',
+      where: { importBatch: { equals: importId } },
+      depth: 0,
+      pagination: false,
+      draft: true,
+    })
+
   const fieldErrorMessage = async (write: Promise<unknown>, path: string): Promise<string> => {
     try {
       await write
@@ -132,64 +160,25 @@ describe('event-imports', () => {
     }
   }
 
-  describe('the upload becomes the batch', () => {
-    it('parses the file into rows and starts resolving', async () => {
-      const batch = await createBatch({}, csvWith([classLine('Tuesday Evening Meditation')]))
-
-      expect(batch.status).toBe('resolving')
-      expect(batch.rows).toHaveLength(1)
-      expect(batch.rows?.[0]).toMatchObject({ values: { title: 'Tuesday Evening Meditation' } })
-      // The file itself is the document, so Payload stored it.
-      expect(batch.filename).toMatch(/^classes(-\d+)?\.csv$/)
-    })
-
-    it('stamps the creating manager, whatever the caller sent', async () => {
+  describe('the upload', () => {
+    it('is stamped with the uploader and waits for the job', async () => {
       const other = await testData.createManager(payload, { name: 'Somebody Else' })
-      const batch = await createBatch({ manager: other.id }, csvWith([classLine('Stamped')]))
-
-      const managerId = typeof batch.manager === 'object' ? batch.manager.id : batch.manager
-      expect(managerId).toBe(admin.id)
-    })
-
-    it('refuses a file whose every row is broken, naming the lines', async () => {
-      // `eventType` is required of every row, so a file of blanks under a valid
-      // header parses structurally and fails row by row.
-      const broken = csvWith([classLine('No type').replace('offline', ''), ',,,,,'])
-
-      expect(await fieldErrorMessage(createBatch({}, broken), 'file')).toMatch(
-        /Every row in the file has a problem.*line 2/,
+      const created = await createImport([classLine({})], admin, { manager: other.id })
+      expect(created.status).toBe('pending')
+      expect(typeof created.manager === 'object' ? created.manager.id : created.manager).toBe(
+        admin.id,
       )
+      expect(created.collectionSlug).toBe('events')
     })
 
-    it('refuses an Excel "Unicode Text" save as UTF-16, not as audio', async () => {
-      // Excel writes UTF-16LE behind an `FF FE` mark, which Payload's own type
-      // check reads as an MPEG frame unless the importer answers first.
-      const text = csvWith([classLine('Unicode Text')]).toString('utf8')
-      const utf16 = Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(text, 'utf16le')])
-
-      expect(await fieldErrorMessage(createBatch({}, utf16), 'file')).toBe(UTF16_REFUSAL)
-    })
-
-    it('refuses a file the parser cannot read at all', async () => {
-      await expect(
-        createBatch({}, Buffer.from('not,a,known,header\n1,2,3,4\n', 'utf8')),
-      ).rejects.toThrow()
-    })
-  })
-
-  describe('the target region', () => {
-    it('refuses a level no batch can hold', async () => {
-      // A venue hangs off a city, never a country — `Regions` refuses the
-      // shorter chain itself, so the fixture has to build both.
-      const city = await testData.createRegion(payload, { level: 'city', parent: country })
-      const venue = await testData.createRegion(payload, { level: 'venue', parent: city.id })
-
+    it('refuses a target no import can file classes under', async () => {
+      const venue = await testData.createRegion(payload, { level: 'venue', parent: berlin })
       expect(
         await fieldErrorMessage(
-          createBatch({ targetRegion: venue.id }, csvWith([classLine('At a venue')])),
+          createImport([classLine({})], admin, { targetRegion: venue.id }),
           'targetRegion',
         ),
-      ).toMatch(/cannot hold imported classes/)
+      ).toMatch(/cannot take an import/)
     })
 
     it('refuses a region outside an atlas-manager’s subtree', async () => {
@@ -197,378 +186,151 @@ describe('event-imports', () => {
         name: 'Other Country Manager',
         roles: ['atlas-manager'],
       })
-
       expect(
-        await fieldErrorMessage(
-          createBatch({}, csvWith([classLine('Not mine')]), outsider),
-          'targetRegion',
-        ),
+        await fieldErrorMessage(createImport([classLine({})], outsider), 'targetRegion'),
       ).toMatch(/do not manage that region/)
     })
+  })
 
-    it('accepts one the atlas-manager does manage', async () => {
-      const owner = await testData.createManager(payload, {
-        name: 'Germany Manager',
-        roles: ['atlas-manager'],
-      })
-      await payload.update({
-        collection: 'regions',
-        id: country,
-        data: { managers: [owner.id] },
-      })
+  describe('the job', () => {
+    it('creates one draft class per row, filed under the city its town names', async () => {
+      const created = await createImport([
+        classLine({ title: 'Beginners' }),
+        classLine({ title: 'Evening', address: 'Hauptstraße 1', startTime: '19:00', weekdays: 'WE', date: '2026-01-07' }),
+      ])
+      const output = (await run(created.id)) as { imported: number; errors: unknown[] }
+      expect(output).toMatchObject({ imported: 2, errors: [] })
 
-      const batch = await createBatch({}, csvWith([classLine('Mine')]), owner)
-      expect(batch.status).toBe('resolving')
+      const after = await read(created.id)
+      expect(after.status).toBe('completed')
+      expect(after.summary?.imported).toBe(2)
+      expect(after.skippedRows).toEqual([])
+
+      const { docs } = await importedClasses(created.id)
+      expect(docs.map((event) => event.title).sort()).toEqual(['Beginners', 'Evening'])
+      for (const event of docs) {
+        expect(event._status).toBe('draft')
+        expect(typeof event.region === 'object' ? event.region.id : event.region).toBe(berlin)
+        expect(event.languages).toEqual(['de'])
+        expect(event.schedule?.firstDate_tz).toBe('Europe/Berlin')
+      }
+    })
+
+    it('skips a row whose town has no city region, naming it', async () => {
+      const created = await createImport([classLine({ title: 'Nowhere', city: 'Leipzig' })])
+      await run(created.id)
+
+      const after = await read(created.id)
+      expect(after.summary?.imported).toBe(0)
+      expect(after.skippedRows).toHaveLength(1)
+      expect(after.skippedRows?.[0]).toMatchObject({ row: 1, values: { title: 'Nowhere' } })
+      expect(after.skippedRows?.[0]?.reasons[0]).toMatch(/no city region for "Leipzig"/)
+    })
+
+    it('skips a row that repeats a class already listed, with the plugin’s own reason', async () => {
+      const first = await createImport([classLine({ title: 'Once' })])
+      await run(first.id)
+      const again = await createImport([classLine({ title: 'Twice' })])
+      await run(again.id)
+
+      const after = await read(again.id)
+      expect(after.status).toBe('failed')
+      expect(after.summary?.issues).toBe(1)
+      expect(after.skippedRows).toHaveLength(1)
+      expect(after.skippedRows?.[0]?.reasons[0]).toMatch(/repeats #\d+/)
+      expect((await importedClasses(again.id)).totalDocs).toBe(0)
+    })
+
+    it('reports a bad column in the volunteer’s words before any geocode', async () => {
+      const created = await createImport([classLine({ title: 'Bad time', startTime: 'six' })])
+      await run(created.id)
+      const after = await read(created.id)
+      expect(after.skippedRows?.[0]?.reasons.join(' ')).toMatch(/startTime must be HH:MM/)
+    })
+
+    it('links a coordinator by email, creating the account when none exists', async () => {
+      const created = await createImport([
+        classLine({
+          title: 'Coordinated',
+          address: 'Kastanienallee 7',
+          startTime: '10:00',
+          managerEmail: 'anna.new@example.org',
+          managerName: 'Anna',
+        }),
+      ])
+      await run(created.id)
+      const [event] = (await importedClasses(created.id)).docs
+      const managerId = typeof event!.manager === 'object' ? event!.manager?.id : event!.manager
+      const manager = await payload.findByID({ collection: 'managers', id: managerId!, depth: 0 })
+      expect(manager.email).toBe('anna.new@example.org')
+      expect(manager.type).toBe('manager')
+      expect(event!.verificationStage).toBe('verified')
+    })
+
+    it('fails the whole import, not the rows, when the geocoder is down', async () => {
+      geocoder.outcome = { status: 'unavailable' }
+      try {
+        const created = await createImport([classLine({ title: 'Later' })])
+        await expect(run(created.id)).rejects.toThrow(/did not answer/)
+      } finally {
+        geocoder.outcome = null
+      }
     })
   })
 
   describe('access', () => {
-    it('names `manager` as the document-manager field', () => {
-      // This is what grants the uploader read and update on their own batches,
-      // and the only reason the collection needs no `access` block.
-      expect(getDocManagerFields(payload, 'event-imports').managerField).toBe('manager')
-    })
-
-    /**
-     * ⚠ **Read back through `overrideAccess: false`, never asserted from
-     * `hasPermission`.** `docs/rules/access.md` records two leaks of exactly
-     * this shape (#821, #822) and says a `hasPermission` assertion would have
-     * passed while both holes were open. The widget's browser key is a
-     * published `sahaj-atlas-client`, so this is the caller that matters.
-     */
-    it('refuses a published API client, which is what RESTRICTED_COLLECTIONS is for', async () => {
+    it('shows a volunteer only their own imports', async () => {
       const owner = await testData.createManager(payload, {
-        name: 'Client Test Owner',
+        name: 'Germany Manager',
         roles: ['atlas-manager'],
       })
       await payload.update({ collection: 'regions', id: country, data: { managers: [owner.id] } })
-      await createBatch({}, csvWith([classLine('Not for a key')]), owner)
+      const mine = await createImport([classLine({})], owner)
+      await createImport([classLine({})], admin)
 
-      const clientDoc = await testData.createClient(payload, owner.id, {
+      const seen = await payload.find({
+        collection: 'imports',
+        user: owner,
+        overrideAccess: false,
+        depth: 0,
+        pagination: false,
+      })
+      expect(seen.docs.map((doc) => doc.id)).toEqual([mine.id])
+    })
+
+    it('refuses a published API client, which is what RESTRICTED_COLLECTIONS is for', async () => {
+      const clientDoc = await testData.createClient(payload, admin.id, {
         name: 'Atlas Widget Key',
         roles: ['sahaj-atlas-client'],
       })
-      const asClient = {
-        id: clientDoc.id,
-        collection: 'clients',
-        _status: 'published',
-        roles: ['sahaj-atlas-client'],
-      }
-
       await expect(
         payload.find({
-          collection: 'event-imports',
-          user: asClient as never,
+          collection: 'imports',
+          user: { id: clientDoc.id, collection: 'clients', _status: 'published', roles: ['sahaj-atlas-client'] } as never,
           overrideAccess: false,
-          depth: 0,
-          // The client query gate refuses a read with no `select` before access
-          // control runs, so without this the case would pass for the wrong
-          // reason and say nothing about who may read the collection.
-          select: idOnlySelect(),
         }),
-      ).rejects.toThrow(/not allowed/)
-    })
-
-    it('lists the uploader’s own batch', async () => {
-      const mine = await testData.createManager(payload, {
-        name: 'Mine',
-        roles: ['atlas-manager'],
-      })
-      await payload.update({ collection: 'regions', id: country, data: { managers: [mine.id] } })
-
-      const ownBatch = await createBatch({}, csvWith([classLine('Own batch')]), mine)
-      const listed = await payload.find({
-        collection: 'event-imports',
-        user: mine as never,
-        overrideAccess: false,
-        depth: 0,
-      })
-
-      expect(listed.docs.map((doc) => doc.id)).toContain(ownBatch.id)
-    })
-
-    /**
-     * ⚠ **A manager who manages the region but holds no batch is refused
-     * outright, not handed an empty list.** The grant is keyed on
-     * `event-imports.manager`, so `resolveManagedDocIds` resolves nothing for
-     * them and access answers `false` rather than a `Where`.
-     *
-     * That is the ticket's rule ("reads and updates only their own batches"),
-     * and it is pinned here because phase 4 puts a `join` on `targetRegion` in
-     * front of it: a second manager of the same region will see join rows this
-     * refusal then denies. Whether discovery should move to the region subtree
-     * is the reviewer's call, not this spec's.
-     */
-    it('refuses a region’s other manager, who holds no batch of their own', async () => {
-      const [mine, theirs] = await Promise.all([
-        testData.createManager(payload, { name: 'Holder', roles: ['atlas-manager'] }),
-        testData.createManager(payload, { name: 'Co-manager', roles: ['atlas-manager'] }),
-      ])
-      await payload.update({
-        collection: 'regions',
-        id: country,
-        data: { managers: [mine.id, theirs.id] },
-      })
-      await createBatch({}, csvWith([classLine('Not theirs')]), mine)
-
-      await expect(
-        payload.find({
-          collection: 'event-imports',
-          user: theirs as never,
-          overrideAccess: false,
-          depth: 0,
-        }),
-      ).rejects.toThrow(/not allowed/)
-    })
-
-    /**
-     * ⚠ **`status` is deliberately NOT in this list.** The buttons submit it as
-     * a field value, so field access cannot deny it without denying them too.
-     * `hooks/transitionStatus.ts` is its gate instead, and the transitions it
-     * refuses are covered in `event-import-jobs.int.spec.ts` beside the jobs
-     * they release.
-     */
-    it('leaves the uploader unable to re-point `manager` or `targetRegion`', async () => {
-      const owner = await testData.createManager(payload, {
-        name: 'Field Lock Owner',
-        roles: ['atlas-manager'],
-      })
-      await payload.update({ collection: 'regions', id: country, data: { managers: [owner.id] } })
-      const batch = await createBatch({}, csvWith([classLine('Locked fields')]), owner)
-      const other = await testData.createManager(payload, { name: 'Hijack Target' })
-      const elsewhere = await testData.createRegion(payload, { level: 'country' })
-
-      const updated = await payload.update({
-        collection: 'event-imports',
-        id: batch.id,
-        data: { manager: other.id, targetRegion: elsewhere.id } as never,
-        user: owner as never,
-        overrideAccess: false,
-        depth: 0,
-      })
-
-      // Field access drops the denied value rather than erroring, which is why
-      // this reads the row back instead of expecting a rejection.
-      expect(updated.manager).toBe(owner.id)
-      expect(updated.targetRegion).toBe(country)
+      ).rejects.toThrow()
     })
   })
 
-  /**
-   * What Payload's own file route does with this collection's `read`.
-   *
-   * ⚠ **This does NOT cover `disablePayloadAccessControl`, and cannot.**
-   * `storagePlugin` returns before `cloudStoragePlugin` whenever a Cloudflare
-   * credential is missing — every local run and every CI run — so the flag is
-   * never applied here and Payload serves the file either way. Emptying
-   * `PAYLOAD_SERVED_COLLECTIONS` leaves this green; it is
-   * `tests/unit/storage-payload-served.spec.ts` that goes red, which is why
-   * that spec reads the module's own table.
-   *
-   * What this buys is the other half, and no pure test can state it:
-   * `checkFileAccess` applies the `Where` the document-manager grant returns as
-   * a constraint on the document behind the filename — so the batch's own
-   * `manager` decides who may fetch the CSV, not merely who may read the row.
-   *
-   * Asserted over REST, because the gate lives in the route and the local API
-   * never reaches it.
-   */
-  describe('the uploaded file', () => {
-    it('is refused to an anonymous caller and to a manager who does not hold the batch', async () => {
-      const [holder, outsider] = await Promise.all([
-        testData.createManager(payload, { name: 'File Holder', roles: ['atlas-manager'] }),
-        testData.createManager(payload, { name: 'File Outsider', roles: ['atlas-manager'] }),
-      ])
-      await payload.update({ collection: 'regions', id: country, data: { managers: [holder.id] } })
-      const batch = await createBatch({}, csvWith([classLine('Private contacts')]), holder)
-      const path = `/api/event-imports/file/${batch.filename}`
-
-      const anon = createAnonRestClient({ payload, config })
-      const asOutsider = await createRestClientAs({ payload, config }, outsider)
-      const asHolder = await createRestClientAs({ payload, config }, holder)
-
-      expect((await anon(path)).status).toBe(403)
-      expect((await asOutsider(path)).status).toBe(403)
-      expect((await asHolder(path)).status).toBe(200)
-    })
-  })
-
-  /**
-   * ⚠ **The buttons are the only way a caller reaches a transition, so the
-   * declaration and the table have to agree** — and nothing but this block
-   * makes that true. A target the table allows and no button offers is a move
-   * nobody can make from the only screen an admin looks at, which is how a
-   * batch a dead worker left `resolving` became unreachable. A button offering
-   * a target the table refuses is a save that fails under the reviewer's hands.
-   */
-  describe('the buttons and the transition table', () => {
-    const stages = (
-      EventImports.admin?.components?.edit?.SaveButton as {
-        clientProps: WorkflowButtonsProps
-      }
-    ).clientProps.stages
-
-    /** Re-resolving needs a corrected file, which no button can carry. */
-    const FILE_ONLY = 'resolving'
-
-    const targetsOf = (stage: string) =>
-      (stages[stage] ?? [])
-        .map((action) => action.overrides.status)
-        .filter((status): status is string => typeof status === 'string')
-
-    it('offers no button for a transition the table refuses', () => {
-      for (const stage of Object.keys(stages).filter((key) => key !== CREATE_STAGE)) {
-        for (const target of targetsOf(stage)) {
-          expect(ALLOWED[stage as keyof typeof ALLOWED] ?? [], `${stage} → ${target}`).toContain(
-            target,
-          )
-        }
-      }
-    })
-
-    /**
-     * ⚠ **What `transitionStatus`' stale-copy carve-out rests on.** It keeps the
-     * stored rows for a move out of a stage with no review, and refuses an edit
-     * to such a stage otherwise — so a zero-override button there would post the
-     * browser's rows as an edit and be refused, which is the stranded-batch bug
-     * again in the one path that rescues it. Every button outside `review` must
-     * be a move.
-     */
-    it('offers only moves on a stage that takes no edits', () => {
-      for (const [stage, actions] of Object.entries(stages)) {
-        if (stage === CREATE_STAGE || stage === 'review') continue
-        for (const action of actions ?? []) {
-          expect(Object.keys(action.overrides), `${stage} — ${action.label}`).toContain('status')
-        }
-      }
-    })
-
-    it('offers a button for every transition the table allows', () => {
-      for (const [stage, targets] of Object.entries(ALLOWED)) {
-        for (const target of targets) {
-          if (target === FILE_ONLY) continue
-          expect(targetsOf(stage), `${stage} → ${target}`).toContain(target)
-        }
-      }
-    })
-  })
-
-  describe('leaving a stage a job holds', () => {
-    /**
-     * ⚠ **The admin form posts the whole document, so Discard carries whatever
-     * `rows` the browser loaded.** A batch is discarded from `resolving`
-     * precisely when a worker died mid-run — and by then the resolve job has
-     * written answers the open page never saw. Checking those rows as a
-     * reviewer's edits refuses the save, which strands the one batch this
-     * transition exists to rescue. Retry out of `failed` shares the mechanism.
-     */
-    it('accepts a discard carrying rows a job has since replaced', async () => {
-      const batch = await createBatch({}, csvWith([classLine('Stale In The Browser')]))
-      const asLoadedByTheBrowser = batch.rows
-
-      await payload.update({
-        collection: 'event-imports',
-        id: batch.id,
-        data: {
-          rows: (batch.rows ?? []).map((row) => ({
-            ...row,
-            errors: ['Address lookup is not configured on this server.'],
-          })),
-        },
-        overrideAccess: true,
-        context: { eventImportJob: true },
+  describe('the sweep', () => {
+    it('deletes an import past the retention window and nothing newer', async () => {
+      const old = await createImport([classLine({})])
+      const fresh = await createImport([classLine({})])
+      await payload.db.updateOne({
+        collection: 'imports',
+        id: old.id,
+        data: { updatedAt: '2020-01-01T00:00:00.000Z' },
       })
 
-      const discarded = await payload.update({
-        collection: 'event-imports',
-        id: batch.id,
-        data: { status: 'discarded', rows: asLoadedByTheBrowser },
-        user: admin,
-        overrideAccess: false,
-      })
+      const dry = await runTaskHandler(SweepEventImports, { payload, input: { dryRun: true } })
+      expect(dry.deleted).toBe(1)
+      expect(await read(old.id)).toBeTruthy()
 
-      expect(discarded.status).toBe('discarded')
-      // The job's answers stand: the stale copy is dropped, not written back.
-      expect(discarded.rows?.[0]?.errors).toEqual([
-        'Address lookup is not configured on this server.',
-      ])
-    })
-
-    /**
-     * The refusal the case above must not have widened. A `PATCH` that moves
-     * nothing is an edit, and a batch no longer in review does not take one.
-     */
-    it('still refuses an edit to a batch that is not moving', async () => {
-      const batch = await createBatch({}, csvWith([classLine('Not Moving')]))
-
-      expect(
-        await fieldErrorMessage(
-          payload.update({
-            collection: 'event-imports',
-            id: batch.id,
-            data: {
-              rows: (batch.rows ?? []).map((row) => ({ ...row, errors: ['invented'] })),
-            },
-            user: admin,
-            overrideAccess: false,
-          }),
-          'rows',
-        ),
-      ).toMatch(/can no longer be edited/)
-    })
-  })
-
-  /**
-   * The Import tab on Regions, which is the only way a volunteer reaches a
-   * batch at all: `event-imports` is `admin.hidden` for them, so its list and
-   * its routes both 404 (`docs/rules/admin-ui.md`).
-   */
-  describe('the Regions Import tab', () => {
-    it('is offered at every level a batch may target, and at no other', () => {
-      const condition = IMPORT_TAB.admin?.condition
-      if (!condition) throw new Error('the Import tab declares no condition')
-      // Payload hands a condition four arguments; this one reads only `data`,
-      // and the rest are stubbed rather than invented.
-      const args = { blockData: {}, operation: 'update' as const, path: [], user: admin }
-      const show = (data: Record<string, unknown>) => condition(data, {}, args)
-
-      for (const level of PROPOSABLE_TARGET_LEVELS) {
-        expect(show({ id: country, level })).toBe(true)
-      }
-      // A venue is a leaf: `buildProposedTree` has nothing left to propose
-      // beneath one, so `targetRegion`'s own validator refuses it.
-      expect(show({ id: country, level: 'venue' })).toBe(false)
-      // Before the region exists there is nothing for the join to read, and no
-      // id for the create form to prefill.
-      expect(show({ level: 'country' })).toBe(false)
-    })
-
-    /**
-     * ⚠ **Read through the join, not by querying `event-imports`.** The join is
-     * what the tab renders, and `on: 'targetRegion'` is the half that decides
-     * whose batches a region shows — a direct query would pass with the join
-     * pointed at any field at all.
-     */
-    it('lists this region’s batches and not another region’s', async () => {
-      const austria = await testData.createRegion(payload, { name: 'Austria', level: 'country' })
-      const mine = await createBatch({}, csvWith([classLine('Tab Listing')]))
-      const theirs = await createBatch(
-        { targetRegion: austria.id },
-        csvWith([classLine('Not Mine', 'Vienna')]),
-      )
-
-      const region = await payload.findByID({
-        collection: 'regions',
-        id: country,
-        depth: 0,
-        user: admin,
-      })
-      const listed = (region.imports?.docs ?? []).map((doc) =>
-        typeof doc === 'number' ? doc : doc.id,
-      )
-
-      expect(listed).toContain(mine.id)
-      expect(listed).not.toContain(theirs.id)
+      const real = await runTaskHandler(SweepEventImports, { payload, input: {} })
+      expect(real.deleted).toBe(1)
+      await expect(read(old.id)).rejects.toThrow()
+      expect((await read(fresh.id)).id).toBe(fresh.id)
     })
   })
 })

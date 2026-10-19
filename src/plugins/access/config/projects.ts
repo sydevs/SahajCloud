@@ -186,14 +186,15 @@ const ALL_PROJECT_COLLECTIONS: ContentSlug[] = (() => {
  *   `GET /api/clients/me` is the deliberate exception — self-access answers it
  *   before this check, and `Clients.apiKey`'s field lock is what makes that
  *   safe.
- * - `event-imports` — an uploaded CSV, held verbatim until the batch commits:
- *   contact names, phone numbers and email addresses for every class in it.
- *   The `manager` field is what narrows it again to the uploader, through the
- *   document-manager path in `accessConfigs.ts`.
+ * - `imports` — an uploaded class CSV, kept for the retention window: contact
+ *   names, phone numbers and email addresses for every class in it. The
+ *   collection's own `access` narrows it to the uploader and admins
+ *   (`src/plugins/eventImport/importCollection.ts`). `exports` is the same
+ *   plugin's unused twin, admin-only for the same reason.
  *
  * ⚠ **This list is a holding pattern, not the permanent mechanism.** Exactly
- * five registered collections sit in no project, and all five are named here
- * — so the set is complete today and fails open the day a sixth is added. A
+ * six registered collections sit in no project, and all six are named here
+ * — so the set is complete today and fails open the day a seventh is added. A
  * complete opt-out list is an inverted default in disguise: the fix is for
  * step 4a to test project membership directly, so a new collection fails
  * closed instead. Deferred, not blocked — #821 settled the question that held
@@ -204,7 +205,10 @@ const RESTRICTED_COLLECTIONS: ReadonlySet<string> = new Set([
   'user-submissions',
   'managers',
   'clients',
-  'event-imports',
+  // The bulk class import's uploaded CSVs (contact details), and the plugin's
+  // unused exports collection beside it.
+  'imports',
+  'exports',
 ])
 
 /** Whether implicit (project/shared) read must never apply to this collection. */

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { managerKeyOf, managerRoster } from '@/collections/EventImports/commit/managers'
+import { managerKeyOf, managerRoster } from '@/plugins/eventImport/managers'
 
 function row(line: number, managerEmail?: string, managerName?: string) {
   return {

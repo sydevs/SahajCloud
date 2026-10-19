@@ -43,8 +43,7 @@ const FALLBACKS = {
  *
  * Which slot a declaration belongs in is Payload's choice, not ours: that same
  * module serves a drafts-enabled collection `PublishButton` / `SaveDraftButton`
- * and never `SaveButton`, so Meditations declares the first two and
- * `event-imports` the third.
+ * and never `SaveButton`, so Meditations declares the first two.
  */
 const WorkflowButtons: React.FC<WorkflowButtonsProps> = ({ fallback, stages, statusField }) => {
   const { uploadStatus } = useDocumentInfo()

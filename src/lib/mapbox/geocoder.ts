@@ -24,7 +24,6 @@
 
 import pRetry from 'p-retry'
 
-import { resolveSubdivisionCode } from '@/lib/geography'
 import { isRecord } from '@/lib/utilities/isRecord'
 import type { Region } from '@/payload-types'
 
@@ -110,12 +109,10 @@ interface ForwardFeature {
     address?: string
     feature_type?: string
     /** v6 only: the whole address as Mapbox matched it. */
-    full_address?: string
     /** v6 only: how each part of a structured query matched. */
-    match_code?: { confidence?: string; street?: string; address_number?: string; place?: string }
     context?: {
-      country?: ForwardContextEntry & { country_code?: string }
-      region?: ForwardContextEntry & { region_code?: string; region_code_full?: string }
+      country?: ForwardContextEntry
+      region?: ForwardContextEntry
       place?: ForwardContextEntry
       locality?: ForwardContextEntry
       address?: ForwardContextEntry
@@ -333,60 +330,22 @@ export async function resolveRegionLocation(
 }
 
 /**
- * One geocoded address or city, with the administrative context around it.
- *
- * The region importer wants only an id (`geocodeRegion`); the bulk event import
- * wants the point *and* its country, subdivision and city, because it has to
- * decide whether the row landed inside the batch's target region and which city
- * the row groups under. Same endpoint, same retry, different answer.
+ * One geocoded address or city: the point, the matched feature, and the town
+ * it sits in. The region importer wants only an id (`geocodeRegion`); the bulk
+ * event import wants the point and the town, because the town is what picks the
+ * city region a class is filed under. Same endpoint, same retry, different answer.
  */
 export interface GeocodedLocation {
-  /** The matched feature's own id, for a later `retrieve` or a region's `mapboxId`. */
+  /** The matched feature's own id, for a later `retrieve` or an address's `mapboxId`. */
   mapboxId: string | null
-  /**
-   * Mapbox's `feature_type` for the match. Only `address` and `poi` are a door;
-   * a `street`, `postcode` or `place` is the area around one, and its point is
-   * that area's centre.
-   */
+  /** Mapbox's `feature_type`: `address`, `street`, `postcode`, `place`, `locality`… */
   featureType: string | null
   latitude: number
   longitude: number
-  /** ISO alpha-2 of the country the result sits in. */
-  countryCode: string | null
-  /** ISO 3166-2 subdivision code, resolved from whichever spelling Mapbox sent. */
-  subdivisionCode: string | null
-  /** The `region` layer's own id, which a proposed state can be matched on. */
-  regionMapboxId: string | null
   /** The `place` layer — the town or city, as Mapbox names it. */
   placeName: string | null
-  /** The `place` layer's own id, which a region node can be matched on. */
+  /** The `place` layer's own id, which a city region's `mapboxId` holds. */
   placeId: string | null
-  /**
-   * How sure Mapbox is that this is the address asked for — `exact`, `high`,
-   * `medium` or `low` — or null where it does not grade the answer (a town).
-   */
-  confidence: MatchConfidence | null
-  /** Whether the street itself matched, or null where nothing was asked of one. */
-  streetMatched: boolean | null
-  /**
-   * Whether the town matched as written, or null where it was not graded. A
-   * town's other-language name (Köln, Cologne) reads as unmatched too, so this
-   * is a hint beside `confidence`, never a verdict on its own.
-   */
-  placeMatched: boolean | null
-  /** The address Mapbox matched, as it spells it, for a reviewer to compare. */
-  matchedAddress: string | null
-}
-
-export type MatchConfidence = 'exact' | 'high' | 'low' | 'medium'
-
-const CONFIDENCES: ReadonlySet<string> = new Set(['exact', 'high', 'medium', 'low'])
-
-/** A `match_code` entry as a yes, a no, or "not graded". */
-function matched(code: string | undefined): boolean | null {
-  if (code === 'matched') return true
-  if (code === 'unmatched') return false
-  return null
 }
 
 /** Whichever key this Mapbox response spelled a context layer's id with. */
@@ -484,7 +443,6 @@ export async function geocodeLocation(args: GeocodeLocationArgs): Promise<Geocod
   const properties = answer.feature?.properties
   const context = properties?.context
   const featureType = properties?.feature_type ?? null
-  const countryCode = context?.country?.country_code ?? null
   // `locality` carries the town where a country files one below `place`, so it
   // is read as the city wherever `place` is absent rather than left blank. A
   // town that is itself the match has no layer above it naming it, so it
@@ -503,17 +461,8 @@ export async function geocodeLocation(args: GeocodeLocationArgs): Promise<Geocod
       featureType,
       longitude: coordinates[0],
       latitude: coordinates[1],
-      countryCode,
-      subdivisionCode: resolveSubdivisionCode(context?.region, countryCode),
-      regionMapboxId: contextLayerId(context?.region),
       placeName: place?.name ?? null,
       placeId: contextLayerId(place),
-      confidence: CONFIDENCES.has(properties?.match_code?.confidence ?? '')
-        ? (properties!.match_code!.confidence as MatchConfidence)
-        : null,
-      streetMatched: matched(properties?.match_code?.street),
-      placeMatched: matched(properties?.match_code?.place),
-      matchedAddress: properties?.full_address ?? null,
     },
   }
 }

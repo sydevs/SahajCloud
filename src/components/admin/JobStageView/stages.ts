@@ -117,8 +117,7 @@ const asNumber = (value: unknown): null | number => (typeof value === 'number' ?
  * The value at a declared path, or nothing for an undeclared one.
  *
  * A dotted path, not a column name: a collection may keep its count inside a
- * group. #912's `event-imports` does — a `progress` group of `done`/`total` —
- * so a flat key would have given the view's first real count nothing to read.
+ * group, and a flat key would give such a collection's count nothing to read.
  */
 function valueAt(doc: unknown, path: string | undefined): unknown {
   return path

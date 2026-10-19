@@ -349,8 +349,10 @@ describe('eventsGeoJson endpoint', () => {
     }
 
     it('stores lastDate for a terminating schedule and null for an open-ended one', async () => {
+      // 10:30, not SCHEDULE's 10:00: a daily class at 10:00 in this region is
+      // already the beforeAll's online event, and a twin would be refused.
       const course = await createEvent('Finite Course', {
-        firstDate: '2025-01-06T10:00:00.000Z',
+        firstDate: '2025-01-06T10:30:00.000Z',
         firstDate_tz: 'Europe/London',
         recurrenceType: 'DAILY',
         interval: 1,
@@ -430,7 +432,9 @@ describe('eventsGeoJson endpoint', () => {
     it('drops an event whose trailing occurrence is excluded', async () => {
       // Two occurrences 60 days apart, straddling now: one 30 days back, one 30
       // days ahead. Excluding the future one pulls lastDate into the past, so the
-      // event leaves the feed — while the identical un-excluded rule stays.
+      // event leaves the feed — while the same un-excluded rule stays. The two
+      // start half an hour apart only because the same rule at the same minute
+      // would be refused as a duplicate class.
       // Dates are calendar-anchored at midday so no local date can drift.
       const day = (offsetDays: number) =>
         new Date(Date.now() + offsetDays * 86_400_000).toISOString().slice(0, 10)
@@ -446,6 +450,7 @@ describe('eventsGeoJson endpoint', () => {
       const running = await createEvent('Tail Intact', schedule)
       const trimmed = await createEvent('Tail Excluded', {
         ...schedule,
+        firstDate: `${day(-30)}T12:30:00.000Z`,
         // A generous range around the future occurrence — no exact-date guessing
         exclusions: [{ startDate: day(20), endDate: day(40) }],
       })
@@ -463,8 +468,10 @@ describe('eventsGeoJson endpoint', () => {
     })
 
     it('composes with the caller’s own where', async () => {
+      // Each finished one-off below starts at its own hour: one-offs at the same
+      // minute in one region are the same class to the duplicate-class rule.
       const finished = await createEvent('Finished Offline', {
-        firstDate: '2020-06-01T10:00:00.000Z',
+        firstDate: '2020-06-01T11:00:00.000Z',
         firstDate_tz: 'Europe/London',
       })
 
@@ -476,7 +483,7 @@ describe('eventsGeoJson endpoint', () => {
 
     it('cannot be opted out of by a caller’s where on schedule.lastDate', async () => {
       const finished = await createEvent('Finished Unretrievable', {
-        firstDate: '2020-07-01T10:00:00.000Z',
+        firstDate: '2020-07-01T13:00:00.000Z',
         firstDate_tz: 'Europe/London',
       })
 

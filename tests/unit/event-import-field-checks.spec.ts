@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
-import type { RawImportRow } from '@/collections/EventImports/csv/columns'
-import { IMPORT_COLUMNS } from '@/collections/EventImports/csv/columns'
-import { checkRowFields } from '@/collections/EventImports/csv/fieldChecks'
+import type { RawImportRow } from '@/plugins/eventImport/csv/columns'
+import { IMPORT_COLUMNS } from '@/plugins/eventImport/csv/columns'
+import { checkRowFields } from '@/plugins/eventImport/csv/fieldChecks'
 
 /**
  * Unchecked here, every case would pass upload, resolve and review, and fail

@@ -1,7 +1,5 @@
-import { AnalyzeEventImport } from './AnalyzeEventImport/AnalyzeEventImport'
 import { CleanupJobs } from './CleanupJobs/CleanupJobs'
 import { CleanupOrphanedMedia } from './CleanupOrphanedMedia/CleanupOrphanedMedia'
-import { CommitEventImport } from './CommitEventImport/CommitEventImport'
 import { DeliverSubmissions } from './DeliverSubmissions/DeliverSubmissions'
 import { ExpireEvents } from './ExpireEvents/ExpireEvents'
 import { PurgeSubmissions } from './PurgeSubmissions/PurgeSubmissions'
@@ -17,10 +15,8 @@ import { VerifyEmbeds } from './VerifyEmbeds/VerifyEmbeds'
 // Export all tasks as an array
 // Note: TrackUsage and ResetUsage tasks are auto-registered by the usagePlugin
 export const tasks = [
-  AnalyzeEventImport,
   CleanupJobs,
   CleanupOrphanedMedia,
-  CommitEventImport,
   DeliverSubmissions,
   ExpireEvents,
   PurgeSubmissions,

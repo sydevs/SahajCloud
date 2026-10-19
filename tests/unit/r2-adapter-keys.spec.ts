@@ -10,7 +10,7 @@
  *
  * It stayed dormant because `disablePayloadAccessControl: true` on every R2
  * collection meant `cloudStoragePlugin` mounted no handler on that route at
- * all. `event-imports` is the first collection to want a gated download — the
+ * all. `imports` is the first collection to want a gated download — the
  * CSV is PII — so it is the first that this being wrong would break, and the
  * break would send everyone back to the public delivery URL.
  */
@@ -40,7 +40,7 @@ function recordingClient() {
 
 const adapterFor = (client: S3Client) =>
   r2NativeAdapter({ client, bucket: 'test-bucket', publicUrl: 'https://assets.example.test' })({
-    collection: { slug: 'event-imports' },
+    collection: { slug: 'imports' },
     prefix: undefined,
   } as never)
 
@@ -65,7 +65,7 @@ describe('the R2 adapter addresses one key per object', () => {
     const deleted = keys.at(-1)!
 
     await adapter.staticHandler!(req, {
-      params: { collection: 'event-imports', filename: written },
+      params: { collection: 'imports', filename: written },
     } as never)
     const served = keys.at(-1)!
 
@@ -74,7 +74,7 @@ describe('the R2 adapter addresses one key per object', () => {
     // suffix in it. What must never differ is which of them reaches the object.
     expect(deleted).toBe(written)
     expect(served).toBe(written)
-    expect(served).not.toContain('event-imports/')
+    expect(served).not.toContain('imports/')
   })
 
   it('keeps them in agreement when the factory does carry a prefix', async () => {
@@ -85,7 +85,7 @@ describe('the R2 adapter addresses one key per object', () => {
       client,
       bucket: 'test-bucket',
       publicUrl: 'https://assets.example.test',
-    })({ collection: { slug: 'event-imports' }, prefix: 'preview-pr-1' } as never)
+    })({ collection: { slug: 'imports' }, prefix: 'preview-pr-1' } as never)
 
     await adapter.handleUpload!({
       data: {},
@@ -96,7 +96,7 @@ describe('the R2 adapter addresses one key per object', () => {
     expect(written.startsWith('preview-pr-1/')).toBe(true)
 
     await adapter.staticHandler!(req, {
-      params: { collection: 'event-imports', filename: written.split('/').pop()! },
+      params: { collection: 'imports', filename: written.split('/').pop()! },
     } as never)
 
     expect(keys.at(-1)).toBe(written)
