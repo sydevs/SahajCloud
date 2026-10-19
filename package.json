@@ -48,6 +48,8 @@
     "@photostructure/tz-lookup": "^11.7.0",
     "@sentry/nextjs": "^10.29.0",
     "@touch4it/ical-timezones": "^1.9.0",
+    "@turf/centroid": "^7.4.0",
+    "@turf/distance": "^7.4.0",
     "@types/styled-components": "^5.1.35",
     "@vvo/tzdb": "^6.198.0",
     "any-ascii": "^0.3.3",
