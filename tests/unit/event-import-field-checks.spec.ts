@@ -11,7 +11,19 @@ import { checkRowFields } from '@/collections/EventImports/csv/fieldChecks'
  * the echoed value is the half a volunteer navigates by.
  */
 
-const ROW = { title: 'Tuesday Meditation', eventType: 'offline', scheduleType: 'weekly' }
+/**
+ * A complete `offline` row, so each case below asserts its own column's checks
+ * alone. `checkRowFields` also answers which columns this `eventType` owes, so a
+ * base row missing one would add that refusal to all 26.
+ */
+const ROW = {
+  title: 'Tuesday Meditation',
+  eventType: 'offline',
+  country: 'DE',
+  city: 'Berlin',
+  address: 'Main St 25',
+  scheduleType: 'weekly',
+}
 
 function check(values: RawImportRow) {
   const row: RawImportRow = { ...ROW, ...values }
@@ -192,8 +204,12 @@ describe('checkRowFields — the schema is built from the column spec', () => {
    * while every column has an entry — so pin that, in both directions.
    */
   it.each(IMPORT_COLUMNS.map(({ name }) => name))('refuses a formula in %s', (column) => {
-    expect(check({ [column]: '=SUM(A1)' }).errors).toContain(
-      `${column} starts like a spreadsheet formula — remove the leading "=" (got "=SUM(A1)")`,
+    const typed = '=SUM(A1)'
+    // `eventType` is lowercased before any check reads it, so its message
+    // echoes the value the check saw rather than the one that was typed.
+    const echoed = column === 'eventType' ? typed.toLowerCase() : typed
+    expect(check({ [column]: typed }).errors).toContain(
+      `${column} starts like a spreadsheet formula — remove the leading "=" (got "${echoed}")`,
     )
   })
 
