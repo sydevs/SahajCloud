@@ -21,7 +21,7 @@ validation.
 
 | Lane            | Files                        | Speed                   | When                                                                                  |
 | --------------- | ----------------------------- | -------------------------- | ---------------------------------------------------------------------------------------- |
-| **Unit**        | `tests/unit/**/*.spec.ts`    | ~1–2 s for ~200 cases   | Pure functions, no Payload bootstrap. **No** `globalSetup`/`setupFiles`.              |
+| **Unit**        | `tests/unit/**/*.spec.ts`    | ~59 s for 198 files / 2575 cases; ~2 s for one named spec (4 cores — see `tests/PERF.md`) | Pure functions, no Payload bootstrap. **No** `globalSetup`/`setupFiles`.              |
 | **Integration** | `tests/int/**/*.int.spec.ts` | bootstrap-heavy per file (full-schema push. See `tests/PERF.md`) | Calls `createTestEnvironment()`, exercises hooks/access/virtual fields/relationships. Files run in parallel (see below). |
 | **Smoke (E2E)** | `tests/e2e/**/*.e2e.spec.ts` | Playwright (REST)       | Tier-3 smoke against the Railway PR preview (`pnpm test:smoke`). See below.            |
 
@@ -89,7 +89,7 @@ CI (`.github/workflows/ci.yml`) runs the full suite on every PR. Locally,
 run **targeted**:
 
 ```bash
-pnpm test:unit                                                                      # whole unit lane (fast)
+pnpm test:unit                                                                      # whole unit lane (~59 s — prefer one spec below)
 pnpm exec vitest run tests/int/albums.int.spec.ts --config ./vitest.config.mts      # one integration file
 pnpm exec vitest run tests/int/albums.int.spec.ts -t "creates an album"             # one case by name
 pnpm exec vitest run tests/unit/convert-vimeo.spec.ts --config ./vitest.config.mts  # one unit file
