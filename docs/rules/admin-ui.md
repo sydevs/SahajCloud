@@ -7,29 +7,13 @@ paths:
 
 # Admin UI
 
-Rules for PayloadCMS admin-panel components: server vs client, field components, cells, branding, dashboard, project visibility, and the frame editor.
+Rules for PayloadCMS admin-panel components: server vs client, field components, cells, project visibility, and the frame editor.
 
 ## Prefer Payload's built-in components
 
 **Before building or styling any admin UI, check whether `@payloadcms/ui` already exports it, and use that.** A custom component is a maintenance burden and drifts from the CMS's look and feel. Write a custom-styled component only when no built-in fits, and say so in the PR (what was missing).
 
-Import directly from `@payloadcms/ui` (e.g. `import { Banner, Button, Pill } from '@payloadcms/ui'`). This is a curated list. See `node_modules/@payloadcms/ui/dist/exports/client/index.d.ts` for the full set.
-
-| Need | Use |
-|---|---|
-| Inline notice / callout | `Banner` (`type` default/error/success, plus `icon`) |
-| Status / tag chip | `Pill`, `ErrorPill` |
-| Tabular data | `Table` (columns + `renderedCells`), `OrderableTable` |
-| Buttons / actions | `Button`, `SaveButton`, `PublishButton`, `SaveDraftButton`, `CopyToClipboard` |
-| Cards / layout | `Card`, `Gutter`, `Collapsible`, `AnimateHeight` |
-| Tooltip / popover | `Tooltip`, `Popup`, `PopupList` |
-| Modals / drawers | `Drawer` + `useModal`/`useDrawerSlug`, `ConfirmationModal`, `FullscreenModal` |
-| Loading | `Spinner` (icon + `loadingText`), `LoadingOverlay`, `ProgressBar`, `ShimmerEffect` |
-| Pagination / list | `Pagination`, `PerPage`, `ListControls` |
-| Drag & drop | `DraggableSortable`, `DraggableSortableItem` |
-| Uploads | `Dropzone`, `Upload`, `FileDetails` |
-| Toasts | `toast` |
-| Icons | `WarningIcon`/`ErrorIcon`/`InfoIcon`/`SuccessIcon` plus `CalendarIcon`, `CheckIcon`, `ChevronIcon`, `CopyIcon`, `EditIcon`, `ExternalLinkIcon`, `GearIcon`, `PlusIcon`, `SearchIcon`, `XIcon`, … |
+Import directly from `@payloadcms/ui` (e.g. `import { Banner, Button, Pill } from '@payloadcms/ui'`). See `node_modules/@payloadcms/ui/dist/exports/client/index.d.ts` for the full set.
 
 `Table` is list-view-shaped: pass `data` (rows with an `id`) and `columns: Column[]`, each column carrying pre-rendered `renderedCells` (one node per row), `accessor`, and `active: true`. `Column` also requires a `field` the component never reads — stub it (`field: {} as never`). See `src/components/admin/LogTable/` for the working pattern, and note what it hand-rolls: `Table` exposes nothing per row, so opening a row's detail needs a delegated `closest('tr[data-id]')` listener (Payload writes the row's `id` there), and `cursor` must be a stylesheet rule because it targets Payload's own `<tr>`.
 
@@ -65,7 +49,7 @@ There is no width prop: `Drawer` sets `width: calc(100% - (drawerDepth * var(--g
 
 That combination is often what you want — reachable where it's explained, absent from the sidebar. An event's registrations are read this way, through the join on its Registrations tab rather than the collection's own list. A 404 on the route is not evidence a field needs surfacing elsewhere — try the surfaces that already embed the document first.
 
-**Building a custom field component?** Compose Payload's primitives instead of bespoke markup: `FieldLabel`, `FieldError`, `FieldDescription`, plus input fields (`TextField`, `SelectField`, `RelationshipField`, `UploadField`, `ArrayField`, `GroupField`, `BlocksField`, and more) and `RenderFields` (a whole field set). Hooks: `useField`, `useForm`, `useFormFields`, `useDocumentInfo`, `useConfig`, `useAuth`, `useTranslation`.
+**Building a custom field component?** Compose Payload's primitives (`FieldLabel`, `FieldError`, `FieldDescription`, `RenderFields`, the `*Field` inputs) instead of bespoke markup.
 
 For non-admin (public) React, use `lucide-react` instead (see `docs/code-style.md`). Emails use neither — see `docs/rules/email.md`.
 
@@ -110,23 +94,9 @@ Declared today in `translationsSchema.json` (a `preview` key beside `screenshot`
 
 **Always use PayloadCMS CSS variables** for theme compatibility. A hardcoded color or pixel size breaks the elevation scale.
 
-| Variable | Purpose |
-|---|---|
-| `--base` | Base spacing unit (`calc(...)`) |
-| `--gutter-h` | Horizontal gutter |
-| `--base-body-size` | Base font size (13 — use as `calc(var(--base-body-size) * 1px)`) |
-| `--font-body`, `--font-serif`, `--font-mono` | Font stacks |
-| `--theme-elevation-{0-1000}` | Elevation color scale (auto light/dark) |
-| `--theme-bg`, `--theme-text`, `--theme-input-bg` | Background / text / input |
-| `--style-radius-s/m/l` | Border radius (6 / 8 / 12 px) |
-| `--nav-width` | Sidebar width (275) |
-| `--app-header-height`, `--doc-controls-height` | Layout heights |
-
-Full reference: https://github.com/payloadcms/payload/tree/main/packages/ui/src/scss
+Full reference: `node_modules/@payloadcms/ui/dist/scss/app.scss`
 
 ## Server vs client components
-
-**Server components** (no `'use client'`) are preferred. They accept non-serializable props (a locale object with methods, a user object) and have direct `getPayload()` access. **Client components** (`'use client'`) are for React hooks, event handlers, or browser APIs — props must be JSON-serializable.
 
 Payload passes user data and locale objects with methods to view components, so **custom views must be server components** — a client view throws `Functions cannot be passed directly to Client Components` the moment Payload hands it a locale object.
 
@@ -136,32 +106,15 @@ A server component has direct DB access via `getPayload()`. Don't fetch internal
 
 ⚠ **When a client component calls an `/api/*` path whose gate is per-locale, it sends `useLocale().code`.** A request naming no locale resolves to the default locale, and role gates are per-locale — so a manager with no English roles is denied (#701). Not every hand-rolled fetch qualifies: `docs/rules/access.md`, "What a check with no locale means", names the condition and lists the call sites on each side of it.
 
-```typescript
-const payload = await getPayload({ config })
-// payload.count() is cheaper than payload.find() for counts
-const [meditationsCount] = await Promise.all([payload.count({ collection: 'meditations' })])
-```
-
 ## Component organization
 
 Group a component family (main plus sub-components) in a folder with a barrel. Keep a standalone component as a single file. A barrel export **must include a default export** — Payload imports by name.
 
 A module several components share, rather than one a collection registers, goes in `admin/helpers/`. The root of `admin/` is for what Payload mounts.
 
-```
-src/components/
-├── admin/
-│   ├── SelectDescription.tsx        # standalone
-│   ├── Dashboard/                   # family → folder + barrel
-│   ├── ThumbnailCell/
-│   └── helpers/                     # shared by components, mounted by none
-├── branding/                        # branding components, barrel
-└── AdminProvider.tsx                # provider wrapping admin UI
-```
-
 ## Import map generation
 
-After registering a component in `payload.config.ts` (`admin.components`), run `pnpm generate:importmap`. Every registered component needs a default export. Path aliases (`@/`) work via tsconfig. The generated file (`.next/payload-component-map.json`) is auto-managed — never hand-edit it.
+After registering a component in `payload.config.ts` (`admin.components`), run `pnpm generate:importmap`. Every registered component needs a default export. Path aliases (`@/`) work via tsconfig. The generated file (`src/app/(payload)/admin/importMap.js`, from `admin.importMap.baseDir` in `src/payload.config.ts`) is auto-managed — never hand-edit it.
 
 ## Custom field components
 
@@ -197,33 +150,11 @@ Examples of the pattern, each a folder holding `<Name>.tsx` beside `<Name>Field.
 
 ## Configurable components via `admin.custom`
 
-`field.admin.custom` accepts any JSON-serializable data, so one component can serve many fields without a code change:
-
-```typescript
-{
-  name: 'type', type: 'select',
-  options: [{ label: 'Quick', value: 'quick' }, { label: 'Daily', value: 'daily' }],
-  admin: {
-    custom: { descriptions: { quick: 'Time-based.', daily: 'Personalized.' } },
-    components: { Description: '@/components/admin/SelectDescription' },
-  },
-}
-```
-
-The component then reads `field.admin?.custom?.descriptions` by the current value. Common keys: `descriptions` (per-value help text), `columns` (LogTable), `filterQuery` (TagSelector API filtering), `size: 'default' | 'large'` (TagSelector).
+`field.admin.custom` accepts any JSON-serializable data, so one component can serve many fields without a code change.
 
 ## Closing the Edit view while a job owns a document — `JobStageView`
 
-A collection whose rows a background job writes needs editing closed while the job runs, or the admin form posts a whole stale document over the worker's writes. `JobStageView` (`src/components/admin/JobStageView/`) is that view, generic over the collection:
-
-```typescript
-admin: {
-  components: { views: { edit: { default: { Component: '@/components/admin/JobStageView/JobStageView' } } } },
-  custom: {
-    jobStage: { runningStages: ['processing'], staleAfterMs: 15 * 60 * 1000 } satisfies JobStageConfig,
-  },
-}
-```
+A collection whose rows a background job writes needs editing closed while the job runs, or the admin form posts a whole stale document over the worker's writes. `JobStageView` (`src/components/admin/JobStageView/`) is that view, generic over the collection.
 
 `runningStages` is required; `statusField` (default `status`), `progressField` and `totalField` are dotted paths, so a count kept inside a group is reachable. `staleAfterMs` is how long a running stage may stand against `updatedAt` before the form opens anyway — declare one wherever a run can be lost to a restart, since nothing expires a stage and the gate is otherwise permanent. Declare `totalField` wherever the job knows its denominator — the banner reads "7 of 20 done" with one and "7 done so far" without. Declare with `satisfies JobStageConfig` — `admin.custom` is `Record<string, any>`, so that is the only thing that makes a misspelled key a build error rather than a view that never fires.
 
@@ -258,76 +189,15 @@ See "Eliminating client-side race conditions" in `docs/rules/endpoints.md` — a
 
 ## Project-aware navigation
 
-| Project | Slug | Theme | Logo |
-|---|---|---|---|
-| All Content (admin view) | `null` | Default PayloadCMS | `sahaj-cloud.svg` |
-| WeMeditate Web | `wemeditate-web` | Coral (#F07855) | `wemeditate-web.svg` |
-| WeMeditate App | `wemeditate-app` | Teal (#61aaa0) | `wemeditate-app.svg` |
-| Sahaj Atlas | `sahaj-atlas` | Royal blue (#4a8cd4) | `sahaj-atlas.webp` |
-
 The Managers `currentProject` field stores the selection. `ProjectSelector` (`beforeNavLinks`) updates it on change, then reloads the page — `window.location.reload()` re-evaluates every `admin.hidden` function, since those run server-side off `user.currentProject` and hold no client state, then redirects to `/admin` so the user doesn't land on a now-hidden collection. `ProjectContext` (wrapped in `AdminProvider`) exposes `useProject()` and syncs with the user profile via `useAuth`.
 
 **Atlas sidebar.** `admin.components.Nav` is overridden by `AtlasNav`, a server component. When `user.type === 'manager'` and `user.currentProject === 'sahaj-atlas'`, it renders a purpose-built `AtlasSidebar`. Everyone else falls through to Payload's `DefaultNav`. It reproduces the slide-in chrome from exported primitives (`NavWrapper`/`NavHamburger` are internal to `@payloadcms/next`), reuses `ProjectSelector`/`AdminNavLinks`/`Logout`, and adds two panels: the manager's own events, bucketed by stage and collapsible past 8, and the owned-region subtree as an indented, expandable tree with a published/total count pill per node. Data comes from a server-only fetch wrapped in `unstable_cache`, keyed by manager and locale, invalidated by `revalidateAtlasSidebar()` from the Events/Regions change hooks — a server component with direct Payload access, per this file's own rule above.
 
-## Project-aware dashboard
-
-Dashboard concerns sit in dedicated Payload slots:
-
-```typescript
-admin: {
-  components: {
-    beforeNavLinks: ['@/components/admin/ProjectSelector', '@/components/admin/AdminNavLinks'],
-    beforeDashboard: ['@/components/admin/Dashboard/ProjectSelectionPrompt'],
-    views: { analytics: { Component: '@/components/admin/AnalyticsView', path: '/analytics' } },
-  },
-}
-```
-
-`AnalyticsView` is a server component at `/admin/analytics`, wrapped in `DefaultTemplate`, routing by `currentProject`: `wemeditate-web` and `sahaj-atlas` each get a `FathomDashboard` with their own site id, and any other project sees "No analytics available". `ProjectSelectionPrompt` is a client component that self-guards via `useAuth()` and renders `null` unless its condition holds. CSP headers in `next.config.mjs` allow `https://app.usefathom.com` for the Fathom iframe.
-
-## Project-based branding
-
-`src/components/branding/` holds `Icon.tsx` (project icon, 30px default), `Logo.tsx` (stacked, 64px, login/signup), `InlineLogo.tsx` (horizontal, 48px, admin nav), and `ProjectTheme.tsx` (injects `--theme-elevation-*` per project, light and dark, via a `MutationObserver`, mounted by `AdminProvider`). All read the manager's `currentProject`.
-
-`src/lib/branding/themeColors.ts` holds `PROJECT_BRAND_COLORS`, the `lighten`/`darken`/`tint`/`shade` utilities, and `deriveScalarTheme()` for the Scalar API docs theme.
-
-| Project | Primary | Dark | Light |
-|---|---|---|---|
-| WeMeditate Web | `#F07855` | `#D86545` | `#FF9477` |
-| WeMeditate App | `#61aaa0` | `#4c8d84` | `#72b3a9` |
-| Sahaj Atlas | `#4a8cd4` | `#2d6db8` | `#6fa3dd` |
-
-`next.config.mjs` allows images from `raw.githubusercontent.com` for We Meditate logo assets.
-
 ## Project visibility (collection sidebar filtering)
 
-`accessPlugin` auto-generates `admin.hidden` for every collection and global. **Never hand-write `admin.hidden` — let the plugin do it.**
+`accessPlugin` auto-generates `admin.hidden` for every collection and global. **Never hand-write project visibility — let the plugin do it.** A collection may still hand-write `admin.hidden`, and the plugin composes it (`accessPlugin.ts`): `true` hides the collection outright (`Songs`, `Users`, `MeditationTranscripts`), and a function is asked first, with project visibility applied only when it returns false. A global's own `admin.hidden` is overwritten.
 
-```typescript
-hidden: ({ user }) => {
-  if (!hasWritePermission(user, collectionSlug)) return true
-  if (!projectsContainingCollection.length) return false  // shared
-  if (!user.currentProject) return false                  // admin view
-  return !projectsContainingCollection.includes(user.currentProject)
-}
-```
-
-Project assignments live in the internal `PROJECTS` constant (`config/projects.ts`). Add a collection to a project by editing its `collections:` array there. Lookup tables recompute automatically.
-
-| Collection / Global | wemeditate-web | wemeditate-app | sahaj-atlas |
-|---|:-:|:-:|:-:|
-| pages, meditations, songs, albums, videos | ✅ | ✅ | |
-| lessons, lectures | | ✅ | |
-| lecture-clips | | ✅ (sidebar-hidden) | |
-| images, files | ✅ | ✅ | ✅ |
-| narrators, frames | ✅ | ✅ | |
-| authors | ✅ | | |
-| audiences | | ✅ | |
-| user-choices, song-tags | ✅ | ✅ | |
-| forms | ✅ | | ✅ (admin-only — `atlas-manager` holds no write) |
-| we-meditate-web-settings | ✅ | | |
-| we-meditate-app-settings | | ✅ | |
-| sahaj-atlas-settings | | | ✅ |
+Project assignments live in the internal `PROJECTS` constant (`src/plugins/access/config/projects.ts`). Add a collection to a project by editing its `collections:` array there. Lookup tables recompute automatically.
 
 Page, video, and image tags are inline enum selects, not separate collections.
 
@@ -335,6 +205,6 @@ Page, video, and image tags are inline enum selects, not separate collections.
 
 `src/components/admin/FrameEditor/` manages audio-synced frames on the Meditations collection, integrated with Live Preview. `FrameListManager` (edit/reorder/remove) and `FrameInserter` (browse/insert at the current playback time) sit under a Video tab's Manage/Insert sub-tabs. Both tabs declare `autoOpen` through `previewTargetField`, which replaced a `useLivePreviewAuto` mount effect. A `PLAYBACK_TIME_UPDATE` postMessage from the iframe drives the active-frame highlight — **accepted from the preview iframe's origin only**, because that playhead is the timestamp a newly inserted frame is written at. Each subscription names the origin it will hear from (`usePlaybackTime`, reading `iframeRef`), so the permission belongs to a mounted component instead of to a flag someone has to clear; with no iframe there is no subscription. The same `iframeRef` carries `SEEK_TO_TIME` back. Inserting at an occupied timestamp replaces rather than throws.
 
-Frames filter by narrator gender automatically, with category pills for the visible library. Two layers gate frames, and only one of them errors. On Meditations the `frames` validator returns `'At least one frame is required'`, on update only and never on create — which is what refuses a publish with no frames. Its `beforeChange` hook silently drops any entry with no id or a negative or non-finite timestamp, then sorts the rest; `afterRead` rounds each timestamp and enriches it with its Frame collection details. Duplicate timestamps are allowed here, as is one frame at several times — whole numbers, no duplicates and the one-hour cap are `validateTimestamp`'s rules in the editor alone. Shared helpers in `utils.ts`: `formatTime`, `parseTime`, `validateTimestamp`, `getFrameDisplayLabel`.
+Frames filter by narrator gender automatically, with category pills for the visible library. Two layers gate frames, and only one of them errors. On Meditations the `frames` validator returns `'At least one frame is required'`, on update only and never on create — which is what refuses a publish with no frames. Its `beforeChange` hook silently drops any entry with no id or a negative or non-finite timestamp, then sorts the rest; `afterRead` rounds each timestamp and enriches it with its Frame collection details. Duplicate timestamps are allowed here, as is one frame at several times — whole numbers, no duplicates and the one-hour cap are `validateTimestamp`'s rules in the editor alone.
 
 Tests: `tests/int/meditationFrames.int.spec.ts` (validation, sorting, enrichment, publish rules), `tests/int/frames-by-narrator.int.spec.ts` (the `framesByNarrator` auth gate, gender-matched results, sort order).

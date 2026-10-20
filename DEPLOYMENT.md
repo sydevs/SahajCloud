@@ -384,7 +384,7 @@ deploy. One positive probe promotes a host that serves the widget under the moun
 to `path`. Left alone, the nightly `VerifyEmbeds` job gets there on its own `nextVerifyAt`
 watermark, which in backoff can be up to 8 days out. A host that serves the subtree but refuses
 headless renders stays on `query` — see "Routing is derived, never configured" in
-[`docs/rules/api-clients.md`](./docs/rules/api-clients.md).
+[`docs/rules/clients.md`](./docs/rules/clients.md).
 
 ## Verifying Deployments
 
@@ -439,6 +439,7 @@ history) and set a cost-limit alert under **Billing → Cost limits**. Watch R2 
 - **Database migrations**: [src/migrations/AGENTS.md](./src/migrations/AGENTS.md)
 - **Storage**: [docs/rules/storage.md](./docs/rules/storage.md)
 - **API clients & rate limiting**: [docs/rules/api-clients.md](./docs/rules/api-clients.md)
+- **Client records (canonical URLs, embed verification, mailing lists)**: [docs/rules/clients.md](./docs/rules/clients.md)
 - **Railway docs**: https://docs.railway.app/
 - **Cloudflare R2 / Images / Stream**: https://developers.cloudflare.com/r2/, /images/, /stream/
 - **Resend docs**: https://resend.com/docs

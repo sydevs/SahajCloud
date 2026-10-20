@@ -87,7 +87,7 @@ Page, Video, and Image tags are inline enum fields, not separate collections. Fi
 
 ## Component Architecture
 
-`src/components/AdminProvider.tsx` is the admin UI provider, and `src/components/ErrorBoundary.tsx` is the React error boundary. Custom admin components, the project-aware dashboard, branding, and the audio-synced frame editor live in `docs/rules/admin-ui.md` (auto-loads for `src/components/admin/`, `src/components/branding/`, or `src/globals/`).
+`src/components/AdminProvider.tsx` is the admin UI provider, and `src/components/ErrorBoundary.tsx` is the React error boundary. Custom admin components and the audio-synced frame editor live in `docs/rules/admin-ui.md` (auto-loads for `src/components/admin/`, `src/components/branding/`, or `src/globals/`).
 
 ## Logging & Error Tracking
 
