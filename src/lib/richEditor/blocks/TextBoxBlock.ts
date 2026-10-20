@@ -1,6 +1,6 @@
 import { Block } from 'payload'
 
-import { mediaField } from '@/fields/mediaField'
+import { mediaField } from '@/fields'
 
 export const TextBoxBlock: Block = {
   slug: 'textbox',
