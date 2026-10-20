@@ -211,6 +211,10 @@
       "label": "Translations published",
       "description": "The translations global is published for this locale."
     },
+    "lesson-title-set": {
+      "label": "Title set",
+      "description": "The lesson has a title for this locale."
+    },
     "meditation-afternoon-published": {
       "label": "Afternoon meditation published",
       "description": "The user choice has a published afternoon meditation assigned for this locale."
