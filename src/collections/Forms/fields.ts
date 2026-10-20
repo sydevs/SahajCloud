@@ -1,4 +1,4 @@
-import type { Field } from 'payload'
+import type { Field, TextField } from 'payload'
 
 import { CONTACT_EMAIL } from '@/lib/contact'
 import { managersOnlyFieldAccess } from '@/plugins/access'
@@ -45,6 +45,15 @@ export function formFields({ defaultFields }: { defaultFields: Field[] }): Field
  * which merges arrays by source — so reaching `placeholder` through it means
  * re-supplying the block's whole field list, label thunks included.
  *
+ * ⚠ **`required` comes off with the flag.** `title` and `redirect.url` ship
+ * `required: true`, and Payload validates a required localized field against
+ * that locale's own value — the English fallback does not satisfy it — so a
+ * save in any second locale would be refused unless the editor retyped both.
+ * #977 settled the same question for `lessons.title`
+ * (`src/collections/AGENTS.md`). `tests/int/atlas-report-issue-form.int.spec.ts`
+ * is what goes red if `required` comes back: it saves German labels and
+ * carries neither value.
+ *
  * ⚠ **Copies, never mutates.** `generateFormCollection` puts the plugin's own
  * module-level block objects straight into `blocks`, and both the production
  * config and the test harness build from them.
@@ -56,7 +65,7 @@ export function formFields({ defaultFields }: { defaultFields: Field[] }): Field
 function localizePerLanguage(field: Field): Field {
   if (!('name' in field)) return field
 
-  if (field.name === 'title' && field.type === 'text') return { ...field, localized: true }
+  if (field.name === 'title' && field.type === 'text') return perLanguage(field)
 
   if (field.name === 'redirect' && field.type === 'group') {
     return { ...field, fields: localizeNamedText(field.fields, 'url') }
@@ -76,11 +85,16 @@ function localizePerLanguage(field: Field): Field {
   return field
 }
 
+/** Per language, and so no longer required — see `localizePerLanguage`. */
+function perLanguage(field: TextField): TextField {
+  return { ...field, localized: true, required: false }
+}
+
 /** Descends into wrapper fields, because `placeholder` sits inside a `row`. */
 function localizeNamedText(fields: Field[], name: string): Field[] {
   return fields.map((field) => {
     if ('name' in field) {
-      return field.name === name && field.type === 'text' ? { ...field, localized: true } : field
+      return field.name === name && field.type === 'text' ? perLanguage(field) : field
     }
 
     return 'fields' in field ? { ...field, fields: localizeNamedText(field.fields, name) } : field

@@ -84,6 +84,7 @@ import * as migration_20261017_093546_localize_lesson_title_and_panels from './2
 import * as migration_20261017_095800_rescue_french_lesson_panels from './20261017_095800_rescue_french_lesson_panels';
 import * as migration_20261017_102331_transcript_job_relationship from './20261017_102331_transcript_job_relationship';
 import * as migration_20261020_170450_localize_admin_edited_fields from './20261020_170450_localize_admin_edited_fields';
+import * as migration_20261020_185917_forms_title_optional_per_locale from './20261020_185917_forms_title_optional_per_locale';
 
 export const migrations = [
   {
@@ -514,6 +515,11 @@ export const migrations = [
   {
     up: migration_20261020_170450_localize_admin_edited_fields.up,
     down: migration_20261020_170450_localize_admin_edited_fields.down,
-    name: '20261020_170450_localize_admin_edited_fields'
+    name: '20261020_170450_localize_admin_edited_fields',
+  },
+  {
+    up: migration_20261020_185917_forms_title_optional_per_locale.up,
+    down: migration_20261020_185917_forms_title_optional_per_locale.down,
+    name: '20261020_185917_forms_title_optional_per_locale'
   },
 ];
