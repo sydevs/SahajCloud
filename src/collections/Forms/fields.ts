@@ -22,13 +22,73 @@ import { managersOnlyFieldAccess } from '@/plugins/access'
  * 2. **Add `actionType`** and the two fields conditional on it, so a form
  *    declares what a submission against it *is* rather than leaving that to
  *    whichever client happens to post it.
+ * 3. **Localize the three plugin defaults that hold per-language text**, via
+ *    `localizePerLanguage` below.
  */
 export function formFields({ defaultFields }: { defaultFields: Field[] }): Field[] {
   const withoutEmails = defaultFields.filter(
     (field) => !('name' in field && field.name === 'emails'),
   )
 
-  return [...withoutEmails, actionTypeField, recipientField, clientField]
+  return [
+    ...withoutEmails.map(localizePerLanguage),
+    actionTypeField,
+    recipientField,
+    clientField,
+  ]
+}
+
+/**
+ * Three plugin defaults differ per language but store one value for all 19
+ * locales, so an admin editing one with the panel switched to French replaced
+ * the English everyone else reads (#981): the form's `title`, the
+ * `redirect.url` a visitor lands on, and the `select` block's `placeholder`.
+ *
+ * Done here rather than through the plugin's `fields: { select: … }` option,
+ * which replaces a block's whole field list instead of merging into it.
+ *
+ * ⚠ **Copies, never mutates.** `generateFormCollection` puts the plugin's own
+ * module-level block objects straight into `blocks`, and both the production
+ * config and the test harness build from them.
+ *
+ * ⚠ A plugin release that renames one of the three would leave this a silent
+ * no-op, so `tests/unit/forms-localized-fields.spec.ts` pins all three.
+ */
+function localizePerLanguage(field: Field): Field {
+  if (!('name' in field)) return field
+
+  if (field.name === 'title' && field.type === 'text') return { ...field, localized: true }
+
+  if (field.name === 'redirect' && field.type === 'group') {
+    return { ...field, fields: localizeNamedText(field.fields, 'url') }
+  }
+
+  if (field.name === 'fields' && field.type === 'blocks') {
+    return {
+      ...field,
+      blocks: field.blocks.map((block) =>
+        block.slug === 'select'
+          ? { ...block, fields: localizeNamedText(block.fields, 'placeholder') }
+          : block,
+      ),
+    }
+  }
+
+  return field
+}
+
+/**
+ * Mark one text field localized, descending through the presentational
+ * wrappers the plugin nests its fields in — `placeholder` sits inside a `row`.
+ */
+function localizeNamedText(fields: Field[], name: string): Field[] {
+  return fields.map((field) => {
+    if ('name' in field) {
+      return field.name === name && field.type === 'text' ? { ...field, localized: true } : field
+    }
+
+    return 'fields' in field ? { ...field, fields: localizeNamedText(field.fields, name) } : field
+  })
 }
 
 /**
