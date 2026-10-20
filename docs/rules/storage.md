@@ -16,6 +16,10 @@ Production uses Cloudflare-native storage. Development falls back to local files
 | **Cloudflare Stream** | `videos`, `frames` (video MIME types) | thumbnails: `.../thumbnails/thumbnail.jpg`. HLS: `.../manifest/video.m3u8` (`hlsUrl`, also the generic `url`). MP4: `.../downloads/default.mp4` (`mp4Url`) |
 | **R2 (S3 API)** | `meditations`, `songs`, `files`, `user-choices`, `song-tags`, plus mixed-media fallthrough on `frames`/`files` | `<CLOUDFLARE_R2_DELIVERY_URL>/<filename>` — the key is a bare filename, `preview-`-prefixed outside production |
 
+⚠ **`imports` is an upload collection with no storage at all** (`disableLocalStorage`, and no entry here). A class CSV carries contact details, so it is parsed into the import's own rows at the upload and the file itself is kept nowhere (`src/plugins/eventImport/importCollection.ts`).
+
+⚠ **The adapter's three handlers address one key.** `r2NativeAdapter`'s `staticHandler` composed `<collection>/<filename>` while `handleUpload` and `handleDelete` composed the factory's `prefix` — and `storagePlugin` passes none, so objects sit flat at the bucket root and the route answered 404 for every file. It went unnoticed for as long as no collection mounted that handler. `tests/unit/r2-adapter-keys.spec.ts` pins the three in agreement, with and without a prefix.
+
 R2 uses the S3-compatible API (`@aws-sdk/client-s3`) with `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`. Filenames are slugified to URL-safe names with a random 6-char suffix. With no Cloudflare credentials set, development falls back to local file storage — no setup needed.
 
 ## Preview / non-production isolation

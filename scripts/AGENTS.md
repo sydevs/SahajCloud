@@ -23,6 +23,7 @@ not here.
 | `signin-link.ts` | Print a sign-in link for an existing manager, sending no mail. ⚠ **Production's break-glass entry** when email delivery is down (#840) — a script, not a route, so it grants nothing without `DATABASE_URL` and `PAYLOAD_SECRET`. Refuses an inactive or never-accepted account, because a link for one authenticates nobody |
 | `setup-stream-webhook.ts` | Register, inspect, or delete the account-level Cloudflare Stream webhook |
 | `preview-event-emails.ts` | Send the manager event-verification reminders (all levels/audiences, with the listing-suggestions section populated) to the Mailpit capture inbox |
+| `preview-event-import-emails.ts` | Send the class import's ready-to-review email (#907) to the Mailpit capture inbox, through the real `sendImportSummary`: all created, mixed outcomes, one class, nothing created |
 | `preview-registration-emails.ts` | Send the registrant confirmation in each state (online/offline, locale, branded/fallback, one-off, minimal) to the Mailpit capture inbox, with the `.ics` attached |
 | `preview-registration-notification-emails.ts` | Send the manager registration notice (#588) to the Mailpit capture inbox. Covers each state: named manager, override address, no session, long title |
 | `preview-reminder-digest-emails.ts` | Send the registrant session reminder + manager registration digest (#589) in each state (online/offline, locale, branded/fallback, daily/weekly) to the Mailpit capture inbox |

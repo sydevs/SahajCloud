@@ -15,12 +15,12 @@ export const retentionCutoff = (now: Date, days: number): string =>
  * Delete everything one collection's retention windows select, and report how
  * many rows went.
  *
- * Two sweeps run through here and neither can be the other: the slugs,
+ * Three sweeps run through here and none can be the others: the slugs,
  * schedules and output shapes differ, and `user-submissions` carries a second
- * half — the `users` orphan sweep — that `payload-jobs` has no analogue for. So
- * this is the engine, not the task: what is shared is the cutoff, the dry-run
- * branch, and a delete whose partial failure is reported rather than returned
- * as a short count.
+ * half — the `users` orphan sweep — that neither `payload-jobs` nor
+ * `imports` has an analogue for. So this is the engine, not the task:
+ * what is shared is the cutoff, the dry-run branch, and a delete whose partial
+ * failure is reported rather than returned as a short count.
  *
  * ⚠ **`beforeDelete` runs while the rows are still there.** A promise that
  * extends past the row itself — a contact message's retention is about the

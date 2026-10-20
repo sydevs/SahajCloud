@@ -1,6 +1,8 @@
 import { rawTimeZones } from '@vvo/tzdb'
 import { defaultTimezones } from 'payload/shared'
 
+import type { SupportedTimezones } from '@/payload-types'
+
 export interface TimezoneOption {
   label: string
   value: string
@@ -60,3 +62,27 @@ export const SUPPORTED_TIMEZONES: TimezoneOption[] = (() => {
   }
   return [...byValue.values()]
 })()
+
+/**
+ * The lookup behind `isSupportedTimezone`, built once at load.
+ *
+ * ⚠ **Never trim or case-fold here.** Callers hand this very different strings —
+ * a volunteer's CSV cell, an Atlas dump, a geocoder's answer — and a predicate
+ * that quietly normalised would make the two halves of a narrowing disagree
+ * about what the stored value is.
+ */
+const SUPPORTED_TIMEZONE_VALUES = new Set<string>(SUPPORTED_TIMEZONES.map(({ value }) => value))
+
+/**
+ * Whether `firstDate_tz` and every other `timezone: true` companion can store
+ * this zone.
+ *
+ * The columns are Postgres enums baked from `SUPPORTED_TIMEZONES` above, and
+ * `SupportedTimezones` is generated from the same list — so this is the one test
+ * that cannot disagree with either. What a caller does with a `false` is its own
+ * policy: the Atlas seed substitutes `UTC` and warns, the bulk import reports
+ * the row.
+ */
+export function isSupportedTimezone(value: string): value is SupportedTimezones {
+  return SUPPORTED_TIMEZONE_VALUES.has(value)
+}
