@@ -753,27 +753,35 @@ describe('appCardsForAudience endpoint', () => {
   })
 
   /**
-   * The `meditation` a card opens is localized (#981). A meditation document
-   * is itself single-locale, so the French admin's picker lists only French
-   * meditations — which is what made one editor's save replace the English
-   * target for all 19 locales.
+   * A meditation document is itself single-locale, so the French admin's
+   * picker lists only French meditations — which is what made one editor's
+   * save replace the English target for all 19 locales (#981).
    *
-   * Asserted functionally: Payload strips `localized` from the sanitized
-   * config a booted instance exposes (`tests/AGENTS.md`).
+   * Functional, not config-level: Payload strips `localized` from a booted
+   * config, so reading the flag back would pass either way (`tests/AGENTS.md`).
    */
   describe('per-language destination', () => {
     it('keeps a French edit from repointing the English card', async () => {
-      // `locale` is a stored select on the document, so it is an override (the
-      // third argument), not a dependency — a meditation IS single-locale.
-      const enMeditation = await testData.createMeditation(payload, undefined, { locale: 'en' })
-      const frMeditation = await testData.createMeditation(payload, undefined, { locale: 'fr' })
+      // Both meditations share one narrator and thumbnail. Left to itself,
+      // `createMeditation` builds a narrator and uploads an image per call,
+      // for a test that needs two ids at different locales.
+      const narrator = await testData.createNarrator(payload, { name: 'Localized Narrator' })
+      const thumb = await testData.createMediaImage(
+        payload,
+        { alt: 'Localized meditation thumbnail' },
+        'image-1050x700.webp',
+      )
+      const deps = { narrator: narrator.id, thumbnail: thumb.id }
+
+      const enMeditation = await testData.createMeditation(payload, deps, { locale: 'en' })
+      const frMeditation = await testData.createMeditation(payload, deps, { locale: 'fr' })
 
       const card = await testData.createAppCard(payload, {
         default: { destination: 'meditation', meditation: enMeditation.id },
       })
 
-      // `default.title` is required and was already localized, so a French
-      // save owes one of its own whatever this change does.
+      // `default.title` was already required and localized, so a French save
+      // owes one of its own whatever this change does.
       await payload.update({
         collection: 'app-cards',
         id: card.id,

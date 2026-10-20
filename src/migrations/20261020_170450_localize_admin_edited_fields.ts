@@ -6,23 +6,29 @@ import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
  * target on all three `app-cards` view tabs, and the form-builder defaults
  * `forms.title`, `forms.redirect.url` and the `select` block's `placeholder`.
  *
- * ⚠ **The backfills between the DDL blocks are hand-written, and this
- * migration is wrong without them.** Drizzle's generated delta adds each
- * locale column and then drops the base column, so every existing value is
- * lost: video 1's captions, the meditation 15 app cards open, and all 3 forms'
- * titles. The precedent is
- * `20260911_235823_pages_app_cards_localize_status.ts`.
+ * ⚠ **The backfill between the DDL blocks is hand-written, and this migration
+ * is wrong without it.** Drizzle's generated delta adds each locale column and
+ * then drops the base column, so every existing value is lost. The precedent
+ * is `20260911_235823_pages_app_cards_localize_status.ts`.
  *
  * Each value is copied into the **`en`** row alone. Fallback is on
  * (`src/collections/AGENTS.md`), so every other locale keeps reading exactly
  * what it reads today, and an editor narrows it per locale from there — which
  * is the point of the flag.
  *
- * `forms.title` is the exception, because it is `required`. A required
- * localized field needs a value in every locale row that exists, or the
- * `SET NOT NULL` below fails on a form that already carries, say, a French
- * `submit_button_label`. So its English text is copied to every such row as
- * the starting value, rather than left to fallback.
+ * One rule for all five: insert the `en` row, or update it where it exists.
+ * Two of the locale tables carry a `NOT NULL` sibling, so a row inserted for a
+ * parent that had none has to satisfy it — `forms_locales.title` from
+ * `forms.title`, and `videos_locales.title` from whichever locale row the
+ * video does have. ⚠ That second one is the only place this migration writes a
+ * value the old schema did not hold: a video whose single locale row is, say,
+ * French lands that French title in `en`, where English rendered blank before.
+ * The alternative is losing the cues, since the base column they came from was
+ * read by every locale.
+ *
+ * `forms.title` is `required`, so it also needs a value in every locale row
+ * that already exists, or the `SET NOT NULL` fails on a form carrying only a
+ * French `submit_button_label`.
  */
 export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   await db.execute(sql`
@@ -68,35 +74,20 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   CREATE INDEX "_app_cards_v_version_live_now_version_live_now_meditatio_idx" ON "_app_cards_v_locales" USING btree ("version_live_now_meditation_id","_locale");`)
 
   // Backfill, while the base columns still exist. Not generated — see above.
-  //
-  // `videos_locales.title` is `NOT NULL`, so no `en` row can be inserted for a
-  // video that lacks one, and an `UPDATE` is all that is available. A video
-  // with cues and no `en` row would therefore lose them silently, so the guard
-  // below refuses the migration instead. The whole migration is one
-  // transaction, so that leaves the schema untouched rather than half-moved.
+  // `title` is borrowed from the video's own locale rows, because
+  // `videos_locales.title` is `NOT NULL` and `videos.title` is itself
+  // localized, so there is no unlocalized English to read.
   await db.execute(sql`
-   DO $$
-  DECLARE unreachable bigint;
-  BEGIN
-    SELECT count(*) INTO unreachable FROM "videos" AS v
-     WHERE v."subtitles" IS NOT NULL
-       AND NOT EXISTS (
-         SELECT 1 FROM "videos_locales" AS l
-          WHERE l."_parent_id" = v."id" AND l."_locale" = 'en');
-    IF unreachable > 0 THEN
-      RAISE EXCEPTION
-        'videos.subtitles would be lost for % video(s) with no en locale row', unreachable;
-    END IF;
-  END $$;
-
-  UPDATE "videos_locales" AS l SET "subtitles" = v."subtitles"
+   INSERT INTO "videos_locales" ("_parent_id", "_locale", "title", "subtitles")
+  SELECT v."id", 'en', t."title", v."subtitles"
     FROM "videos" AS v
-   WHERE l."_parent_id" = v."id" AND l."_locale" = 'en' AND v."subtitles" IS NOT NULL;`)
+    JOIN (SELECT DISTINCT ON ("_parent_id") "_parent_id", "title"
+            FROM "videos_locales" ORDER BY "_parent_id", "id") AS t
+      ON t."_parent_id" = v."id"
+   WHERE v."subtitles" IS NOT NULL
+  ON CONFLICT ("_locale", "_parent_id") DO UPDATE SET "subtitles" = EXCLUDED."subtitles";
 
-  // Every other locale column is nullable, so an absent `en` row is inserted
-  // rather than refused.
-  await db.execute(sql`
-   INSERT INTO "app_cards_locales" (
+  INSERT INTO "app_cards_locales" (
      "_parent_id", "_locale",
      "default_meditation_id", "starting_soon_meditation_id", "live_now_meditation_id")
   SELECT c."id", 'en',
@@ -129,16 +120,11 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   INSERT INTO "forms_blocks_select_locales" ("_parent_id", "_locale", "placeholder")
   SELECT s."id", 'en', s."placeholder" FROM "forms_blocks_select" AS s
    WHERE s."placeholder" IS NOT NULL
-  ON CONFLICT ("_locale", "_parent_id") DO UPDATE SET "placeholder" = EXCLUDED."placeholder";`)
+  ON CONFLICT ("_locale", "_parent_id") DO UPDATE SET "placeholder" = EXCLUDED."placeholder";
 
-  // `forms.title` is `NOT NULL` today, so every form has one to copy. It is
-  // required per locale once localized, hence the second statement and the
-  // constraint last.
-  await db.execute(sql`
-   INSERT INTO "forms_locales" ("_parent_id", "_locale", "title", "redirect_url")
+  INSERT INTO "forms_locales" ("_parent_id", "_locale", "title", "redirect_url")
   SELECT f."id", 'en', f."title", f."redirect_url" FROM "forms" AS f
-  ON CONFLICT ("_locale", "_parent_id") DO UPDATE SET
-    "title" = EXCLUDED."title", "redirect_url" = EXCLUDED."redirect_url";
+  ON CONFLICT ("_locale", "_parent_id") DO UPDATE SET "redirect_url" = EXCLUDED."redirect_url";
 
   UPDATE "forms_locales" AS l SET "title" = f."title"
     FROM "forms" AS f WHERE l."_parent_id" = f."id" AND l."title" IS NULL;
@@ -167,9 +153,9 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
  * value is what the base column meant, so that is what is restored.
  *
  * `forms.title` is restored before its `NOT NULL` for the same reason `up()`
- * defers it: the column cannot be added constrained to a table with rows. Its
- * second statement covers a form whose `en` row has gone, so a rollback cannot
- * abort on the constraint.
+ * defers it: the column cannot be added constrained to a table with rows. It
+ * prefers the `en` row and falls back to the form's lowest-id locale row, so a
+ * form whose `en` row has gone cannot abort the rollback on the constraint.
  */
 export async function down({ db, payload, req }: MigrateDownArgs): Promise<void> {
   await db.execute(sql`
@@ -224,17 +210,12 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
 
   UPDATE "forms_blocks_select" AS s SET "placeholder" = l."placeholder"
     FROM "forms_blocks_select_locales" AS l
-   WHERE l."_parent_id" = s."id" AND l."_locale" = 'en';`)
+   WHERE l."_parent_id" = s."id" AND l."_locale" = 'en';
 
-  await db.execute(sql`
-   UPDATE "forms" AS f SET "title" = l."title", "redirect_url" = l."redirect_url"
-    FROM "forms_locales" AS l
-   WHERE l."_parent_id" = f."id" AND l."_locale" = 'en';
-
-  UPDATE "forms" AS f SET "title" = l."title" FROM (
-    SELECT DISTINCT ON ("_parent_id") "_parent_id", "title"
-      FROM "forms_locales" ORDER BY "_parent_id", "id") AS l
-   WHERE l."_parent_id" = f."id" AND f."title" IS NULL;
+  UPDATE "forms" AS f SET "title" = l."title", "redirect_url" = l."redirect_url" FROM (
+    SELECT DISTINCT ON ("_parent_id") "_parent_id", "title", "redirect_url"
+      FROM "forms_locales" ORDER BY "_parent_id", ("_locale" = 'en') DESC, "id") AS l
+   WHERE l."_parent_id" = f."id";
 
   ALTER TABLE "forms" ALTER COLUMN "title" SET NOT NULL;`)
 

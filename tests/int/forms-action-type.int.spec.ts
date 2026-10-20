@@ -300,14 +300,11 @@ describe('Forms action types', () => {
   })
 
   /**
-   * The three form-builder defaults that hold per-language text are localized
-   * (#981): `title`, `redirect.url`, and the `select` block's `placeholder`.
-   * All three ship unlocalized from the plugin, so `formFields` maps them —
-   * the plugin's `fields: { select: … }` option would replace the block's
-   * whole field list instead.
+   * All three ship unlocalized from the plugin, so `formFields` maps them
+   * (#981).
    *
-   * Asserted functionally: Payload strips `localized` from the sanitized
-   * config a booted instance exposes (`tests/AGENTS.md`).
+   * Functional, not config-level: Payload strips `localized` from a booted
+   * config, so reading the flag back would pass either way (`tests/AGENTS.md`).
    */
   describe('per-language authored copy', () => {
     const SELECT_FIELD = {

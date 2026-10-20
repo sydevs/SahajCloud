@@ -6,7 +6,7 @@ import { managersOnlyFieldAccess } from '@/plugins/access'
 /**
  * The `forms` field list, as `formOverrides.fields` hands it to us.
  *
- * Two jobs:
+ * Three jobs:
  *
  * 1. **Strip `emails`.** The plugin's own `sendEmail` afterChange hook fires on
  *    create, before anything screens the submission, and sends through the raw
@@ -22,8 +22,7 @@ import { managersOnlyFieldAccess } from '@/plugins/access'
  * 2. **Add `actionType`** and the two fields conditional on it, so a form
  *    declares what a submission against it *is* rather than leaving that to
  *    whichever client happens to post it.
- * 3. **Localize the three plugin defaults that hold per-language text**, via
- *    `localizePerLanguage` below.
+ * 3. **Localize the three plugin defaults that hold per-language text.**
  */
 export function formFields({ defaultFields }: { defaultFields: Field[] }): Field[] {
   const withoutEmails = defaultFields.filter(
@@ -39,21 +38,20 @@ export function formFields({ defaultFields }: { defaultFields: Field[] }): Field
 }
 
 /**
- * Three plugin defaults differ per language but store one value for all 19
- * locales, so an admin editing one with the panel switched to French replaced
- * the English everyone else reads (#981): the form's `title`, the
- * `redirect.url` a visitor lands on, and the `select` block's `placeholder`.
+ * Three plugin defaults store one value for all 19 locales, so an admin
+ * editing one in French replaced the English everyone else reads (#981).
  *
  * Done here rather than through the plugin's `fields: { select: … }` option,
- * which replaces a block's whole field list instead of merging into it.
+ * which merges arrays by source — so reaching `placeholder` through it means
+ * re-supplying the block's whole field list, label thunks included.
  *
  * ⚠ **Copies, never mutates.** `generateFormCollection` puts the plugin's own
  * module-level block objects straight into `blocks`, and both the production
  * config and the test harness build from them.
  *
- * ⚠ A plugin release that renames one of the three would leave this a silent
- * no-op, so `tests/int/forms-action-type.int.spec.ts` pins each one by
- * writing French and reading English back.
+ * ⚠ A plugin release that renamed one, or moved it into a `tabs` field, would
+ * leave this a silent no-op; `tests/int/forms-action-type.int.spec.ts` pins
+ * each one by writing French and reading English back.
  */
 function localizePerLanguage(field: Field): Field {
   if (!('name' in field)) return field
@@ -78,10 +76,7 @@ function localizePerLanguage(field: Field): Field {
   return field
 }
 
-/**
- * Mark one text field localized, descending through the presentational
- * wrappers the plugin nests its fields in — `placeholder` sits inside a `row`.
- */
+/** Descends into wrapper fields, because `placeholder` sits inside a `row`. */
 function localizeNamedText(fields: Field[], name: string): Field[] {
   return fields.map((field) => {
     if ('name' in field) {
