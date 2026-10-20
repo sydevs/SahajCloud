@@ -3011,20 +3011,22 @@ export interface PayloadJob {
  */
 export interface Lesson {
   id: number;
-  title: string;
+  title?: string | null;
   /**
    * Story panels to introduce this lesson.
    */
-  panels: {
-    title?: string | null;
-    text?: string | null;
-    /**
-     * Image or video for this panel.
-     */
-    media?: (number | null) | File;
-    subtitles?: Subtitles;
-    id?: string | null;
-  }[];
+  panels?:
+    | {
+        title?: string | null;
+        text?: string | null;
+        /**
+         * Image or video for this panel.
+         */
+        media?: (number | null) | File;
+        subtitles?: Subtitles;
+        id?: string | null;
+      }[]
+    | null;
   /**
    * Link to a related guided meditation or video that complements this lesson content.
    */
