@@ -579,6 +579,9 @@ export const testData = {
     // with `validateISOBaseMediaFile`, which uses Buffer-only methods.
     const fileData = fs.readFileSync(filePath)
 
+    // `locale` is resolved once below, so it must not travel in the spread too.
+    const { locale: requestLocale, ...createAs } = as ?? {}
+
     // Create dependencies if not provided
     let thumbnail = deps?.thumbnail
     let narrator = deps?.narrator
@@ -610,7 +613,7 @@ export const testData = {
       collection: 'meditations',
       // locale option provides request-level locale context for join subqueries
       // that reference localized fields on other collections (for example, user-choices)
-      locale: as?.locale || overrides.locale || 'en',
+      locale: requestLocale || overrides.locale || 'en',
       data: createData<'meditations'>({
         label: overrides.label || overrides.title || defaultLabel,
         thumbnail: thumbnail,
@@ -628,7 +631,7 @@ export const testData = {
         name: sampleFile,
         size: fileData.length,
       },
-      ...(as ?? {}),
+      ...createAs,
     })) as Meditation
   },
 
