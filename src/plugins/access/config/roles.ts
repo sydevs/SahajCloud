@@ -29,6 +29,11 @@ const ROLES = {
     label: 'Meditations Editor',
     description: 'Can create and edit meditations, upload related media and files',
     project: 'wemeditate-app' as const,
+    // The `meditations` grants are *scoped to the locale this role was assigned
+    // in* by `scopeMeditationWrite` (accessConfigs.ts) — they are NOT
+    // collection-wide despite appearing here, since a meditation is one
+    // language. `narrators` is collection-wide on purpose: every language
+    // shares them.
     permissions: {
       meditations: ['update', 'create'] as PermissionLevel[],
       narrators: ['update', 'create'] as PermissionLevel[],
