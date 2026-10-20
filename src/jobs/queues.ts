@@ -41,7 +41,7 @@ export const JOB_AUTO_RUN: AutoRunEntry[] = [
     queue: 'screening',
   },
   {
-    // Safety net for the transcription start in `requestTranscription`, the
+    // Safety net for the transcription start in `queueTranscription`, the
     // same way. :03 and every 15th minute after it clears `screening` (every
     // 15th), `invitations` (every 5th), `nightly` (:00) and `monthly` (:07).
     cron: '3-59/15 * * * *',
