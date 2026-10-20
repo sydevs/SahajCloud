@@ -83,3 +83,10 @@ can tell what the icon shows without decoding the base64.
 - `src/lib/richEditor/blocks/index.ts` — barrel export and the `pageBlocks` array
 - `src/lib/richEditor/index.ts` — Lexical editor configuration presets
 - `src/collections/Pages/Pages.ts` — the collection that consumes the blocks
+
+## Field gotchas
+
+- `TextBoxBlock.textColor` names the TEXT: `light` means light text on a dark image (#516).
+- `TextBoxBlock.wisdomStyle` shows for the side layouts and hides for `overlay`. Its condition
+  reads `imagePosition`; `position` is the legacy EditorJS name, live only inside `importData`
+  (#989).
