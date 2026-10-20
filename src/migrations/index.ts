@@ -75,6 +75,8 @@ import * as migration_20260928_231710_disable_manager_passwords from './20260928
 import * as migration_20260929_041116_payload_3_90_auth_fields from './20260929_041116_payload_3_90_auth_fields';
 import * as migration_20260929_043344_storage_object_key from './20260929_043344_storage_object_key';
 import * as migration_20260929_173315_null_manager_password_hashes from './20260929_173315_null_manager_password_hashes';
+import * as migration_20261010_013059_event_imports from './20261010_013059_event_imports';
+import * as migration_20261010_025807_event_import_jobs from './20261010_025807_event_import_jobs';
 import * as migration_20261011_194449_wm_web_discover_translations from './20261011_194449_wm_web_discover_translations';
 import * as migration_20261015_061054_meditation_transcripts from './20261015_061054_meditation_transcripts';
 import * as migration_20261015_070852_require_transcript_language from './20261015_070852_require_transcript_language';
@@ -83,8 +85,14 @@ import * as migration_20261017_002341_cleanup_jobs_task from './20261017_002341_
 import * as migration_20261017_093546_localize_lesson_title_and_panels from './20261017_093546_localize_lesson_title_and_panels';
 import * as migration_20261017_095800_rescue_french_lesson_panels from './20261017_095800_rescue_french_lesson_panels';
 import * as migration_20261017_102331_transcript_job_relationship from './20261017_102331_transcript_job_relationship';
+import * as migration_20261017_161838_event_import_analyze_slug from './20261017_161838_event_import_analyze_slug';
+import * as migration_20261019_182311_import_plugin from './20261019_182311_import_plugin';
+import * as migration_20261020_002253_event_import_results from './20261020_002253_event_import_results';
 import * as migration_20261020_170450_localize_admin_edited_fields from './20261020_170450_localize_admin_edited_fields';
+import * as migration_20261020_172522_event_import_own_job from './20261020_172522_event_import_own_job';
+import * as migration_20261020_181806_merge_main_snapshot from './20261020_181806_merge_main_snapshot';
 import * as migration_20261020_185917_forms_title_optional_per_locale from './20261020_185917_forms_title_optional_per_locale';
+import * as migration_20261020_235623_merge_981_main_snapshot from './20261020_235623_merge_981_main_snapshot';
 
 export const migrations = [
   {
@@ -473,6 +481,16 @@ export const migrations = [
     name: '20260929_173315_null_manager_password_hashes',
   },
   {
+    up: migration_20261010_013059_event_imports.up,
+    down: migration_20261010_013059_event_imports.down,
+    name: '20261010_013059_event_imports',
+  },
+  {
+    up: migration_20261010_025807_event_import_jobs.up,
+    down: migration_20261010_025807_event_import_jobs.down,
+    name: '20261010_025807_event_import_jobs',
+  },
+  {
     up: migration_20261011_194449_wm_web_discover_translations.up,
     down: migration_20261011_194449_wm_web_discover_translations.down,
     name: '20261011_194449_wm_web_discover_translations',
@@ -513,13 +531,43 @@ export const migrations = [
     name: '20261017_102331_transcript_job_relationship',
   },
   {
+    up: migration_20261017_161838_event_import_analyze_slug.up,
+    down: migration_20261017_161838_event_import_analyze_slug.down,
+    name: '20261017_161838_event_import_analyze_slug',
+  },
+  {
+    up: migration_20261019_182311_import_plugin.up,
+    down: migration_20261019_182311_import_plugin.down,
+    name: '20261019_182311_import_plugin',
+  },
+  {
+    up: migration_20261020_002253_event_import_results.up,
+    down: migration_20261020_002253_event_import_results.down,
+    name: '20261020_002253_event_import_results',
+  },
+  {
     up: migration_20261020_170450_localize_admin_edited_fields.up,
     down: migration_20261020_170450_localize_admin_edited_fields.down,
     name: '20261020_170450_localize_admin_edited_fields',
   },
   {
+    up: migration_20261020_172522_event_import_own_job.up,
+    down: migration_20261020_172522_event_import_own_job.down,
+    name: '20261020_172522_event_import_own_job',
+  },
+  {
+    up: migration_20261020_181806_merge_main_snapshot.up,
+    down: migration_20261020_181806_merge_main_snapshot.down,
+    name: '20261020_181806_merge_main_snapshot',
+  },
+  {
     up: migration_20261020_185917_forms_title_optional_per_locale.up,
     down: migration_20261020_185917_forms_title_optional_per_locale.down,
-    name: '20261020_185917_forms_title_optional_per_locale'
+    name: '20261020_185917_forms_title_optional_per_locale',
+  },
+  {
+    up: migration_20261020_235623_merge_981_main_snapshot.up,
+    down: migration_20261020_235623_merge_981_main_snapshot.down,
+    name: '20261020_235623_merge_981_main_snapshot'
   },
 ];

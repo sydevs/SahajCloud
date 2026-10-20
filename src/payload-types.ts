@@ -13,6 +13,54 @@ export type Subtitles = {
   durationMs?: number;
   [k: string]: unknown;
 }[];
+export type EventImportResults = {
+  /**
+   * The row's line in the volunteer's spreadsheet, header included.
+   */
+  row: number;
+  outcome: 'created' | 'duplicate' | 'error';
+  /**
+   * The class the row created.
+   */
+  eventId?: number;
+  title: string;
+  city: string;
+  /**
+   * Why a skipped row was skipped.
+   */
+  reasons?: string[];
+  /**
+   * What a duplicate row repeats: a class already listed, or an earlier row.
+   */
+  duplicateOf?: {
+    eventId?: number;
+    title?: string;
+    row?: number;
+  };
+  /**
+   * A skipped row as uploaded, to fix and upload again.
+   */
+  values?: {
+    [k: string]: string;
+  };
+  /**
+   * The town a row was skipped for having no city region.
+   */
+  missingCity?: {
+    name: string;
+  };
+}[];
+export type EventImportRows =
+  | {
+      /**
+       * The row's line in the volunteer's spreadsheet.
+       */
+      line: number;
+      values: {
+        [k: string]: string;
+      };
+    }[]
+  | null;
 /**
  * Supported timezones in IANA format.
  *
@@ -750,6 +798,7 @@ export interface Config {
     regions: Region;
     events: Event;
     users: User;
+    imports: Import;
     forms: Form;
     'user-submissions': UserSubmission;
     'payload-kv': PayloadKv;
@@ -830,6 +879,7 @@ export interface Config {
     regions: RegionsSelect<false> | RegionsSelect<true>;
     events: EventsSelect<false> | EventsSelect<true>;
     users: UsersSelect<false> | UsersSelect<true>;
+    imports: ImportsSelect<false> | ImportsSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
     'user-submissions': UserSubmissionsSelect<false> | UserSubmissionsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
@@ -942,9 +992,11 @@ export interface Config {
       sendPostEventFollowUps: TaskSendPostEventFollowUps;
       sendRegistrationDigests: TaskSendRegistrationDigests;
       sendSessionReminders: TaskSendSessionReminders;
+      sweepEventImports: TaskSweepEventImports;
       syncLectureMetadata: TaskSyncLectureMetadata;
       transcribeMeditation: TaskTranscribeMeditation;
       verifyEmbeds: TaskVerifyEmbeds;
+      importEvents: TaskImportEvents;
       resetUsage: TaskResetUsage;
       sendInvitations: TaskSendInvitations;
       schedulePublish: TaskSchedulePublish;
@@ -1560,6 +1612,7 @@ export interface Region {
  */
 export interface Event {
   id: number;
+  importBatch?: (number | null) | Import;
   /**
    * Up to 100 characters. Leave blank to fill in from the venue — "Evening Meditation at Broadstairs Friends Meeting House" — which also translates itself into every language.
    */
@@ -1889,14 +1942,7 @@ export interface Event {
    */
   manager?: (number | null) | Manager;
   verificationStage:
-    | 'unverified'
-    | 'denied'
-    | 'verified'
-    | 'reminded'
-    | 'escalated'
-    | 'urgent'
-    | 'expired'
-    | 'finished';
+    'unverified' | 'denied' | 'verified' | 'reminded' | 'escalated' | 'urgent' | 'expired' | 'finished';
   activityLog?: ActivityLog;
   /**
    * How strongly attendees confirm this event is real (0–1) — your check before adopting a listing, or why a denied one stays down. Rises with confirmations, falls with denials, and stays cautious while there are few votes. Blank until the first vote.
@@ -1938,6 +1984,225 @@ export interface Event {
   createdAt: string;
   deletedAt?: string | null;
   _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "imports".
+ */
+export interface Import {
+  id: number;
+  /**
+   * Classes are filed under the cities of this region. A town with no city region yet is skipped — create the city first.
+   */
+  targetRegion?: (number | null) | Region;
+  /**
+   * Why the import stopped before it could finish.
+   */
+  error?: string | null;
+  results?: EventImportResults;
+  rows?: EventImportRows;
+  status?: ('pending' | 'review' | 'completed' | 'failed') | null;
+  /**
+   * Language(s) for rows whose own `languages` column is empty.
+   */
+  defaultLanguages: (
+    | 'ab'
+    | 'aa'
+    | 'af'
+    | 'ak'
+    | 'sq'
+    | 'am'
+    | 'ar'
+    | 'an'
+    | 'hy'
+    | 'as'
+    | 'av'
+    | 'ae'
+    | 'ay'
+    | 'az'
+    | 'bm'
+    | 'ba'
+    | 'eu'
+    | 'be'
+    | 'bn'
+    | 'bi'
+    | 'bs'
+    | 'br'
+    | 'bg'
+    | 'my'
+    | 'ca'
+    | 'ch'
+    | 'ce'
+    | 'ny'
+    | 'zh'
+    | 'cv'
+    | 'kw'
+    | 'co'
+    | 'cr'
+    | 'hr'
+    | 'cs'
+    | 'da'
+    | 'dv'
+    | 'nl'
+    | 'dz'
+    | 'en'
+    | 'eo'
+    | 'et'
+    | 'ee'
+    | 'fo'
+    | 'fj'
+    | 'fi'
+    | 'fr'
+    | 'ff'
+    | 'gl'
+    | 'lg'
+    | 'ka'
+    | 'de'
+    | 'el'
+    | 'gn'
+    | 'gu'
+    | 'ht'
+    | 'ha'
+    | 'he'
+    | 'hz'
+    | 'hi'
+    | 'ho'
+    | 'hu'
+    | 'is'
+    | 'io'
+    | 'ig'
+    | 'id'
+    | 'ia'
+    | 'ie'
+    | 'iu'
+    | 'ik'
+    | 'ga'
+    | 'it'
+    | 'ja'
+    | 'jv'
+    | 'kl'
+    | 'kn'
+    | 'kr'
+    | 'ks'
+    | 'kk'
+    | 'km'
+    | 'ki'
+    | 'rw'
+    | 'rn'
+    | 'kv'
+    | 'kg'
+    | 'ko'
+    | 'ku'
+    | 'kj'
+    | 'ky'
+    | 'lo'
+    | 'la'
+    | 'lv'
+    | 'li'
+    | 'ln'
+    | 'lt'
+    | 'lu'
+    | 'lb'
+    | 'mk'
+    | 'mg'
+    | 'ms'
+    | 'ml'
+    | 'mt'
+    | 'gv'
+    | 'mi'
+    | 'mr'
+    | 'mh'
+    | 'mn'
+    | 'na'
+    | 'nv'
+    | 'ng'
+    | 'ne'
+    | 'nd'
+    | 'se'
+    | 'no'
+    | 'nb'
+    | 'nn'
+    | 'ii'
+    | 'oc'
+    | 'oj'
+    | 'cu'
+    | 'or'
+    | 'om'
+    | 'os'
+    | 'pi'
+    | 'pa'
+    | 'ps'
+    | 'fa'
+    | 'pl'
+    | 'pt'
+    | 'qu'
+    | 'ro'
+    | 'rm'
+    | 'ru'
+    | 'sm'
+    | 'sg'
+    | 'sa'
+    | 'sc'
+    | 'gd'
+    | 'sr'
+    | 'sn'
+    | 'sd'
+    | 'si'
+    | 'sk'
+    | 'sl'
+    | 'so'
+    | 'nr'
+    | 'st'
+    | 'es'
+    | 'su'
+    | 'sw'
+    | 'ss'
+    | 'sv'
+    | 'tl'
+    | 'ty'
+    | 'tg'
+    | 'ta'
+    | 'tt'
+    | 'te'
+    | 'th'
+    | 'bo'
+    | 'ti'
+    | 'to'
+    | 'ts'
+    | 'tn'
+    | 'tr'
+    | 'tk'
+    | 'tw'
+    | 'uk'
+    | 'ur'
+    | 'ug'
+    | 'uz'
+    | 've'
+    | 'vi'
+    | 'vo'
+    | 'wa'
+    | 'cy'
+    | 'fy'
+    | 'wo'
+    | 'xh'
+    | 'yi'
+    | 'yo'
+    | 'za'
+    | 'zu'
+  )[];
+  manager?: (number | null) | Manager;
+  locale?: string | null;
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -2928,9 +3193,11 @@ export interface PayloadJob {
           | 'sendPostEventFollowUps'
           | 'sendRegistrationDigests'
           | 'sendSessionReminders'
+          | 'sweepEventImports'
           | 'syncLectureMetadata'
           | 'transcribeMeditation'
           | 'verifyEmbeds'
+          | 'importEvents'
           | 'resetUsage'
           | 'sendInvitations'
           | 'schedulePublish';
@@ -2978,9 +3245,11 @@ export interface PayloadJob {
         | 'sendPostEventFollowUps'
         | 'sendRegistrationDigests'
         | 'sendSessionReminders'
+        | 'sweepEventImports'
         | 'syncLectureMetadata'
         | 'transcribeMeditation'
         | 'verifyEmbeds'
+        | 'importEvents'
         | 'resetUsage'
         | 'sendInvitations'
         | 'schedulePublish'
@@ -4755,6 +5024,7 @@ export interface RegionsSelect<T extends boolean = true> {
  * via the `definition` "events_select".
  */
 export interface EventsSelect<T extends boolean = true> {
+  importBatch?: T;
   title?: T;
   languages?: T;
   contactPhone?: T;
@@ -4857,6 +5127,31 @@ export interface UsersSelect<T extends boolean = true> {
   legacyData?: T;
   updatedAt?: T;
   createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "imports_select".
+ */
+export interface ImportsSelect<T extends boolean = true> {
+  targetRegion?: T;
+  error?: T;
+  results?: T;
+  rows?: T;
+  status?: T;
+  defaultLanguages?: T;
+  manager?: T;
+  locale?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -10385,6 +10680,19 @@ export interface TaskSendSessionReminders {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskSweepEventImports".
+ */
+export interface TaskSweepEventImports {
+  input: {
+    now?: string | null;
+    dryRun?: boolean | null;
+  };
+  output: {
+    deleted: number;
+  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "TaskSyncLectureMetadata".
  */
 export interface TaskSyncLectureMetadata {
@@ -10426,6 +10734,16 @@ export interface TaskVerifyEmbeds {
     pathPromoted: number;
     pathDemoted: number;
   };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskImportEvents".
+ */
+export interface TaskImportEvents {
+  input: {
+    importId: number;
+  };
+  output?: unknown;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
