@@ -8,27 +8,31 @@ Re-measure with the same command after any change to `vitest.config.mts`
 (parallelism, pool), `tests/utils/testHelpers.ts` (per-suite bootstrap), or
 the schema surface. Record the machine and DB, so the numbers stay honest.
 
-Every runtime figure in `docs/rules/testing-reqs.md`, `tests/AGENTS.md`,
-`AGENTS.md` and `README.md` is a copy of one recorded here. Change a number
-there only with a measurement, and add it below with its machine and date.
-The three-tier budgets drifted an order of magnitude from the lane they
-describe because nothing held them to a run (#990).
+Every figure the three-tier contract states — in `docs/rules/testing-reqs.md`,
+`tests/AGENTS.md`, `AGENTS.md` and `README.md` — is a copy of one recorded
+here. Change a number there only with a measurement, and add it below with
+its machine and date. Those budgets drifted an order of magnitude from the
+lane they describe because nothing held them to a run (#990).
 
 ## How to measure
 
 ```bash
 # Total wall-clock for the whole unit lane (read Vitest's own duration line too)
-/usr/bin/time -p pnpm test:unit
+time pnpm test:unit
 
 # What a narrowed per-edit hook would cost — one spec, cold
-/usr/bin/time -p pnpm exec vitest run tests/unit/convert-vimeo.spec.ts --project unit --config ./vitest.config.mts
+time pnpm exec vitest run tests/unit/convert-vimeo.spec.ts --project unit --config ./vitest.config.mts
 
 # Total wall-clock for the whole integration lane
-/usr/bin/time -p pnpm test:int
+time pnpm test:int
 
 # Cold per-file bootstrap (one isolated suite — dominated by the Drizzle push)
-/usr/bin/time -p pnpm exec vitest run tests/int/albums.int.spec.ts --project int --config ./vitest.config.mts
+time pnpm exec vitest run tests/int/albums.int.spec.ts --project int --config ./vitest.config.mts
 ```
+
+⚠ **`time`, the shell keyword — not `/usr/bin/time -p`**, which these four
+lines used until 2026-10-20 and which the routine containers do not ship
+(exit 127, which reads as a broken command rather than a missing binary).
 
 `pnpm test:int` connects to `DATABASE_URL` — the dev Postgres locally, a
 `postgres:18` service container in CI. Each suite gets an isolated
@@ -48,31 +52,48 @@ record your own row beside it rather than replacing it.
 | Metric | Value |
 | --- | --- |
 | Files / tests | 198 / 2575 |
-| Whole lane (median of 3) | **59.2 s** |
-| Vitest phase breakdown | transform 11.3 s, import 114.1 s, tests 13.0 s, environment 2.8 s |
+| Whole lane, 3 workers (median of 3 runs) | **59.2 s** |
+| Vitest phase breakdown, at 3 workers | transform 11.3 s, import 114.1 s, tests 13.0 s, environment 2.8 s |
 | Sum of per-file durations (JSON reporter) | 17.7 s |
-| Slowest single file | 1.8 s (`proposal-leaves.spec.ts`) |
-| One file alone, cold | **1.9 s** wall (391 ms Vitest duration) |
+| Slowest file's own duration inside the lane | 1.8 s (`proposal-leaves.spec.ts`) |
+| One file alone, cold | **1.9 s** wall (`convert-vimeo`) to **3.0 s** (`proposal-leaves`) |
 | Whole lane at `--maxWorkers=1` | 140.5 s |
-| Tier 2 lean gate (`check.sh`) | **138 s** |
+| Whole lane at `--maxWorkers=4` | 49.2 s |
+| `pnpm lint` | 28.5 s |
+| `pnpm typecheck` | 8.4 s |
+| `pnpm typecheck:tests` | 8.2 s |
+| Those four commands, summed | 104 s |
+| Tier 2 lean gate (`check.sh`) | **138 s** — the four above plus `scripts/ensure-test-db.sh` bringing Postgres up |
+
+⚠ **3 workers, not 4.** Vitest's non-watch default is `max(cores - 1, 1)`
+(`getDefaultThreadsCount`, `vitest/dist/chunks/cli-api.*.js`), so every figure
+above that does not name a worker count is a **3**-worker figure on a 4-core
+box. Reading it as one-per-core is what makes a core-count extrapolation come
+out several times too fast.
 
 **The cost is importing 198 module graphs, not running 2575 assertions.**
 Test bodies are 13 s of the 59.2 s while `import` alone sums to 114 s of
 worker time, and no single file is slow — the slowest is 1.8 s. The first two
 figures are the breakdown Vitest prints on every run.
 
-**No dev machine reaches `< 5 s` for the whole lane.** Four workers already
-cut 140.5 s to 59.2 s, a 2.4× return on 4× the workers, so the lane does not
-scale freely with cores. Even granting perfectly linear scaling from the
-4-core figure, 16 cores lands near 15 s and 64 near 4 s. The `< 5 s` budget
-describes a lane a tenth this size. It had already stopped describing this
-one by `53e4569` (2026-09-29), the commit that last moved the figure, where
-`tests/unit/` held 166 files.
+**No worker count reaches `< 5 s` for the whole lane, because about 19 s of it
+is serial.** Fitting `wall = S + P/N` to the 1-worker and 4-worker runs gives
+**S ≈ 19 s, P ≈ 122 s**, and that fit predicts the 3-worker run at 59.4 s
+against 59.2 s measured — so it holds across all three. The floor is `S`:
+15 workers lands near 27 s, 63 near 21 s, and nothing goes below 19 s. Buying
+cores cannot meet this budget; running fewer files can.
 
-**What the budget protects is the per-edit hook, and one file costs 1.9 s.**
-So the budget is kept and the hook is narrowed to the specs one edit can
-break, rather than the lane being cut — see #990 for the measurement that
-settled it, and #993 for the follow-up.
+The `< 5 s` figure had already stopped describing this lane by `228c3a1`
+(2026-09-02), the commit that moved `docs/rules/testing-reqs.md` to its
+current path carrying it, where `tests/unit/` held 113 files. Its own origin
+is older than this clone reaches.
+
+**What the budget protects is the per-edit hook, and one file costs 1.9–3.0 s
+including the ~1.5 s of start-up a single invocation shares.** So the budget
+is kept and the hook is narrowed to the specs one edit can break, rather than
+the lane being cut — see #990 for the measurement that settled it, and #993
+for the follow-up. A narrowed hook runs several specs, not one, so its own
+per-edit figure is still owed: #993 asks for it, measured and recorded here.
 
 ## The integration lane — baseline, 2026-06-18 (before #499 §2)
 

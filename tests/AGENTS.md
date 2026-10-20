@@ -21,7 +21,7 @@ validation.
 
 | Lane            | Files                        | Speed                   | When                                                                                  |
 | --------------- | ----------------------------- | -------------------------- | ---------------------------------------------------------------------------------------- |
-| **Unit**        | `tests/unit/**/*.spec.ts`    | ~59 s for 198 files / 2575 cases; ~2 s for one named spec (4 cores — see `tests/PERF.md`) | Pure functions, no Payload bootstrap. **No** `globalSetup`/`setupFiles`.              |
+| **Unit**        | `tests/unit/**/*.spec.ts`    | ~59 s for 198 files / 2575 cases; 2–3 s for one named spec (4 cores — see `tests/PERF.md`) | Pure functions, no Payload bootstrap. **No** `globalSetup`/`setupFiles`.              |
 | **Integration** | `tests/int/**/*.int.spec.ts` | bootstrap-heavy per file (full-schema push. See `tests/PERF.md`) | Calls `createTestEnvironment()`, exercises hooks/access/virtual fields/relationships. Files run in parallel (see below). |
 | **Smoke (E2E)** | `tests/e2e/**/*.e2e.spec.ts` | Playwright (REST)       | Tier-3 smoke against the Railway PR preview (`pnpm test:smoke`). See below.            |
 
@@ -186,7 +186,7 @@ file. It does **not** serialise files.
 ## Typed fixtures
 
 `pnpm typecheck:tests` (`tsconfig.test.json`) type-checks all of `tests/**`
-in about 6 s — Vitest does not, since esbuild erases types without
+in about 8 s (`tests/PERF.md`) — Vitest does not, since esbuild erases types without
 checking them. Fixtures must be typed against the real schema for that to
 catch anything, so `tests/utils/testData.ts` exports two helpers. Prefer
 them over `Record<string, unknown>`, a bare object literal, or `as any`:
