@@ -61,10 +61,14 @@ const siblingReadsOf = (source: string): string[] => {
  * flattening answers which names that level declares: a `row`, a `collapsible`
  * and an unnamed `group` or `tab` hold no data, so their children belong to the
  * level above, while a named one contributes its own name and nothing inside it.
+ *
+ * `keepPresentationalFields` stays off: a `ui` field carries a name but no
+ * data, so it never reaches `siblingData`, and admitting one would let this
+ * spec pass the very shape it refuses.
  */
 const scopeOf = (fields: Field[]): Set<string> =>
   new Set(
-    flattenTopLevelFields(fields, { keepPresentationalFields: true })
+    flattenTopLevelFields(fields)
       .map((field) => field.name)
       .filter((name): name is string => Boolean(name)),
   )
