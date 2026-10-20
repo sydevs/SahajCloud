@@ -10,14 +10,12 @@
  * The closed-list case at the end is the general form of that defect.
  */
 
-import type { Field } from 'payload'
+import type { Condition } from 'payload'
 
 import { flattenTopLevelFields } from 'payload/shared'
 import { describe, expect, it } from 'vitest'
 
 import { TextBoxBlock } from '@/lib/richEditor/blocks/TextBoxBlock'
-
-type Condition = NonNullable<NonNullable<Field['admin']>['condition']>
 
 // Hoists the children of `row`, which holds no data of its own, so they are
 // siblings here as they are to Payload. It drops UI fields, but types the
@@ -27,13 +25,10 @@ const FIELDS = flattenTopLevelFields(TextBoxBlock.fields).filter(
 )
 
 function conditionFor(name: string): Condition {
-  const field = FIELDS.find((f) => f.name === name)
-  expect(field, `${name} is not a field of TextBoxBlock`).toBeDefined()
+  const condition = FIELDS.find((f) => f.name === name)?.admin?.condition
+  if (!condition) throw new Error(`TextBoxBlock has no ${name} field with an admin.condition`)
 
-  const condition = field!.admin?.condition
-  expect(condition, `${name} has no admin.condition`).toBeTypeOf('function')
-
-  return condition!
+  return condition
 }
 
 /** The three arguments Payload passes; only `siblingData` is read here. */
@@ -41,7 +36,7 @@ function shows(condition: Condition, siblingData: Record<string, unknown>): bool
   return condition({}, siblingData, {
     blockData: {},
     operation: 'update',
-    path: ['blocks', 0, 'wisdomStyle'],
+    path: [],
     user: null,
   })
 }
@@ -71,14 +66,14 @@ describe('TextBoxBlock wisdomStyle condition', () => {
 describe('TextBoxBlock conditions read declared fields', () => {
   const declared = new Set(FIELDS.map((f) => f.name))
 
-  it.each(FIELDS.filter((f) => f.admin?.condition).map((f) => f.name))(
-    '%s reads only sibling fields the block declares',
-    (name) => {
-      const source = conditionFor(name).toString()
-      const read = [...source.matchAll(/siblingData\??\.(\w+)/g)].map((m) => m[1])
-
-      expect(read.length).toBeGreaterThan(0)
-      expect(read.filter((field) => !declared.has(field))).toEqual([])
-    },
+  const conditions = FIELDS.flatMap((field) =>
+    field.admin?.condition ? [[field.name, field.admin.condition] as const] : [],
   )
+
+  it.each(conditions)('%s reads only sibling fields the block declares', (_name, condition) => {
+    const read = [...condition.toString().matchAll(/siblingData\??\.(\w+)/g)].map((m) => m[1])
+
+    expect(read.length).toBeGreaterThan(0)
+    expect(read.filter((field) => !declared.has(field))).toEqual([])
+  })
 })
