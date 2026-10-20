@@ -7,19 +7,15 @@ import { REPO_ROOT, selectSpecs, toRepoPath } from './select-unit-specs.mjs'
  * The per-edit unit hook's logic, behind the thin `.claude/hooks/unit-test.mjs`. It lives here
  * because `.claude/` is a protected path: this half stays unit-tested
  * (`tests/unit/unit-test-hook.spec.ts`), and an unattended run can change it.
- *
- * It runs only the specs that name the edited file (`select-unit-specs.mjs`), and returns the
- * context to hand the session, or null to stay silent.
  */
 
 /**
- * @typedef {Partial<Pick<import('node:child_process').SpawnSyncReturns<string>,
- *   'status' | 'signal' | 'error' | 'stdout' | 'stderr'>>} RunResult
  * @typedef {(command: string, args: string[],
- *   options: import('node:child_process').SpawnSyncOptionsWithStringEncoding) => RunResult} Spawn
+ *   options: import('node:child_process').SpawnSyncOptionsWithStringEncoding)
+ *   => import('node:child_process').SpawnSyncReturns<string>} Spawn
  */
 
-export const TIMEOUT_MS = 30_000
+const TIMEOUT_MS = 30_000
 
 const TAIL_LINES = 30
 
@@ -35,8 +31,6 @@ const vitestArgs = (specs) => [
 
 const rerun = (specs) => `pnpm exec vitest ${vitestArgs(specs).join(' ')}`
 
-const count = (specs) => `${specs.length} spec${specs.length === 1 ? '' : 's'}`
-
 /**
  * The message for one finished `spawnSync`, or null when the specs passed.
  *
@@ -44,24 +38,25 @@ const count = (specs) => `${specs.length} spec${specs.length === 1 ? '' : 's'}`
  * `error.code` `ETIMEDOUT`; another signal leaves it null with only `signal` set; a binary that
  * never started leaves it null with `error` set and no signal. Reporting any of those as "tests
  * failed" is the false failure this module exists to stop (#993).
- *
- * @param {RunResult} result
- * @param {{ rel: string, specs: string[], timeoutMs?: number }} run
- * @returns {string | null}
  */
-export function describeRun(result, { rel, specs, timeoutMs = TIMEOUT_MS }) {
+function describeRun(result, { rel, specs, timeoutMs }) {
   if (result.status === 0) return null
 
-  const how = `Run \`${rerun(specs)}\` to see whether they pass.`
+  const notATestResult = (what, next = `Run \`${rerun(specs)}\` to see whether they pass.`) =>
+    `The unit-test hook ${what}. This is not a test result. ${next}`
+  const running = `${specs.length} spec${specs.length === 1 ? '' : 's'} for ${rel}`
 
   if (result.error?.code === 'ETIMEDOUT') {
-    return `The unit-test hook timed out after ${timeoutMs / 1000} s running ${count(specs)} for ${rel}. This is not a test result. ${how}`
+    return notATestResult(`timed out after ${timeoutMs / 1000} s running ${running}`)
   }
   if (result.signal) {
-    return `The unit-test hook's vitest run was killed by ${result.signal} while running ${count(specs)} for ${rel}. This is not a test result. ${how}`
+    return notATestResult(`saw vitest killed by ${result.signal} while running ${running}`)
   }
   if (result.error) {
-    return `The unit-test hook could not start vitest for ${rel} (${result.error.code ?? result.error.message}). This is not a test result. Check \`node_modules\` is installed, then ${how}`
+    return notATestResult(
+      `could not start vitest for ${rel} (${result.error.code ?? result.error.message})`,
+      `Install \`node_modules\` if it is missing, then run \`${rerun(specs)}\`.`,
+    )
   }
 
   const tail = `${result.stdout ?? ''}${result.stderr ?? ''}`

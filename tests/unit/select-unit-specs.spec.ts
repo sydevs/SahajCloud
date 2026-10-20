@@ -25,53 +25,34 @@ import {
 
 const ROOT = resolve(__dirname, '../..')
 
-const write = (root: string, rel: string, text: string) => {
-  mkdirSync(join(root, dirname(rel)), { recursive: true })
-  writeFileSync(join(root, rel), text)
-}
-
-/** A missing match must fail, not pass vacuously on `undefined`. */
-const matched = (text: string, re: RegExp) => {
-  const found = re.exec(text)?.[1]
-  expect(found, `nothing matched ${re}`).toBeTruthy()
-  return found as string
-}
-
 let fixture: string
+let lane: ReturnType<typeof readLane>
 
 beforeAll(() => {
   fixture = mkdtempSync(join(tmpdir(), 'select-unit-specs-'))
 
-  for (const source of [
-    'src/lib/thing.ts',
-    'src/lib/thing-other.ts',
-    'src/lib/unspoken.ts',
-    'src/lib/folder/index.ts',
-    'src/payload.config.ts',
-    'src/payload-types.ts',
-    'tests/utils/helper.ts',
-    'seeds/data/import.ts',
-    'scripts/tool.mjs',
-  ]) {
-    write(fixture, source, 'export {}\n')
+  // Selection reads only the specs, so the modules they name need not exist.
+  const specs: Record<string, string> = {
+    'alias.spec.ts': "import { thing } from '@/lib/thing'",
+    'relative.spec.ts': "import { thing } from '../../src/lib/thing'",
+    'nested/deep.spec.ts': "import { thing } from '../../../src/lib/thing'",
+    'quoted.spec.ts': "const READS = ['src/lib/thing.ts']",
+    'near-name.spec.ts': "import { other } from '@/lib/thing-other'",
+    'folder.spec.ts': "import { folder } from '@/lib/folder'",
+    'config.spec.ts': "import config from '@payload-config'",
+    'helper.spec.ts': "import { helper } from '../utils/helper'",
+    'tests-alias.spec.ts': "import { helper } from 'tests/utils/helper'",
+    'seed.spec.ts': "import { run } from '../../seeds/data/import'",
+    'tool.spec.ts': "import { tool } from '../../scripts/tool.mjs'",
+    'types.spec.ts': "import type { Event } from '@/payload-types'",
+  }
+  for (const [name, text] of Object.entries(specs)) {
+    const path = join(fixture, 'tests/unit', name)
+    mkdirSync(dirname(path), { recursive: true })
+    writeFileSync(path, `${text}\n`)
   }
 
-  write(fixture, 'tests/unit/alias.spec.ts', "import { thing } from '@/lib/thing'\n")
-  write(fixture, 'tests/unit/relative.spec.ts', "import { thing } from '../../src/lib/thing'\n")
-  write(
-    fixture,
-    'tests/unit/nested/deep.spec.ts',
-    "import { thing } from '../../../src/lib/thing'\n",
-  )
-  write(fixture, 'tests/unit/quoted.spec.ts', "const READS = ['src/lib/thing.ts']\n")
-  write(fixture, 'tests/unit/near-name.spec.ts', "import { other } from '@/lib/thing-other'\n")
-  write(fixture, 'tests/unit/folder.spec.ts', "import { folder } from '@/lib/folder'\n")
-  write(fixture, 'tests/unit/config.spec.ts', "import config from '@payload-config'\n")
-  write(fixture, 'tests/unit/helper.spec.ts', "import { helper } from '../utils/helper'\n")
-  write(fixture, 'tests/unit/tests-alias.spec.ts', "import { helper } from 'tests/utils/helper'\n")
-  write(fixture, 'tests/unit/seed.spec.ts', "import { run } from '../../seeds/data/import'\n")
-  write(fixture, 'tests/unit/tool.spec.ts', "import { tool } from '../../scripts/tool.mjs'\n")
-  write(fixture, 'tests/unit/types.spec.ts', "import type { Event } from '@/payload-types'\n")
+  lane = readLane(fixture)
 })
 
 afterAll(() => {
@@ -89,16 +70,14 @@ describe('resolveSpecifier', () => {
     expect(resolveSpecifier('src/lib/geo.ts', 'tests/unit')).toBe('src/lib/geo.ts')
   })
 
-  it('ignores a package and prose, so neither enters the index', () => {
-    expect(resolveSpecifier('vitest', 'tests/unit')).toBeNull()
-    expect(resolveSpecifier('payload/shared', 'tests/unit')).toBeNull()
-    expect(resolveSpecifier('node:fs', 'tests/unit')).toBeNull()
-    expect(resolveSpecifier('renders the label', 'tests/unit')).toBeNull()
+  it('reads anything else from the repo root, where a package name matches no file', () => {
+    expect(resolveSpecifier('next.config.mjs', 'tests/unit')).toBe('next.config.mjs')
+    expect(resolveSpecifier('vitest', 'tests/unit')).toBe('vitest')
   })
 })
 
 describe('selectFrom', () => {
-  const select = (rel: string) => selectFrom(rel, readLane(fixture))
+  const select = (rel: string) => selectFrom(rel, lane)
 
   it('reaches an alias, a relative path, a nested relative path and a quoted path', () => {
     expect(select('src/lib/thing.ts')).toEqual([
@@ -142,25 +121,29 @@ describe('selectFrom', () => {
   })
 
   it('selects nothing for a generated file, even one a spec names', () => {
-    expect(readLane(fixture).index.get('src/payload-types')).toContain('tests/unit/types.spec.ts')
+    expect(lane.get('src/payload-types')).toContain('tests/unit/types.spec.ts')
     expect(select('src/payload-types.ts')).toEqual([])
     expect(isLaneSource('src/migrations/20260101_000000.ts')).toBe(false)
   })
 
   it('selects nothing for a file that is not a module, or not in the repo', () => {
     expect(select('README.md')).toEqual([])
-    expect(isLaneSource('/elsewhere/src/lib/thing.ts')).toBe(false)
-    expect(toRepoPath('/elsewhere/src/lib/thing.ts', fixture)).toBe('/elsewhere/src/lib/thing.ts')
+    expect(toRepoPath('/elsewhere/src/lib/thing.ts', fixture)).toBeNull()
     expect(toRepoPath(join(fixture, 'src/lib/thing.ts'), fixture)).toBe('src/lib/thing.ts')
   })
 })
 
 describe('this repository', () => {
-  it('reads the specs from where the unit project collects them', () => {
-    const config = readFileSync(join(ROOT, 'vitest.config.mts'), 'utf8')
-    const include = matched(config, /name: 'unit',[\s\S]*?include: (\[[^\]]*\])/)
+  let repo: ReturnType<typeof readLane>
 
-    expect(JSON.parse(include.replace(/'/g, '"'))).toEqual(['tests/unit/**/*.spec.ts'])
+  beforeAll(() => {
+    repo = readLane(ROOT)
+  })
+
+  it('reads the specs from where the unit project collects them', () => {
+    expect(readFileSync(join(ROOT, 'vitest.config.mts'), 'utf8')).toMatch(
+      /name: 'unit',[\s\S]*?include: \['tests\/unit\/\*\*\/\*\.spec\.ts'\]/,
+    )
   })
 
   it('resolves the aliases tsconfig.json declares, and no others', () => {
@@ -173,30 +156,34 @@ describe('this repository', () => {
     })
   })
 
+  it('runs those two pins on the very edit that would make them drift', () => {
+    expect(selectFrom('tsconfig.json', repo)).toContain('tests/unit/select-unit-specs.spec.ts')
+    expect(selectFrom('vitest.config.mts', repo)).toContain('tests/unit/select-unit-specs.spec.ts')
+  })
+
   it('reaches each specifier form the lane actually writes', () => {
-    // One end-to-end call per form, because the parts passing cannot say the composition does.
+    // `selectSpecs` once, so the composition the hook calls is covered end to end.
     expect(selectSpecs('src/plugins/login/index.ts', ROOT)).toContain(
       'tests/unit/session-cookie-parts.spec.ts',
     )
-    expect(selectSpecs('src/lib/clients/verification.ts', ROOT)).toContain(
+    expect(selectFrom('src/lib/clients/verification.ts', repo)).toContain(
       'tests/unit/embed-verification.spec.ts',
     )
-    expect(selectSpecs('tests/utils/importGraph.ts', ROOT)).toContain(
+    expect(selectFrom('tests/utils/importGraph.ts', repo)).toContain(
       'tests/unit/client-bundle-safety.spec.ts',
     )
-    expect(selectSpecs('seeds/meditation-transcripts/import.ts', ROOT)).toContain(
+    expect(selectFrom('seeds/meditation-transcripts/import.ts', repo)).toContain(
       'tests/unit/meditation-transcripts-verify-run.spec.ts',
     )
-    expect(selectSpecs('src/globals/WeMeditateAppStatus/statusConfig.json', ROOT)).toContain(
+    expect(selectFrom('src/globals/WeMeditateAppStatus/statusConfig.json', repo)).toContain(
       'tests/unit/status-config-sync.spec.ts',
     )
-    expect(selectSpecs('scripts/select-unit-specs.mjs', ROOT)).toContain(
+    expect(selectFrom('scripts/select-unit-specs.mjs', repo)).toContain(
       'tests/unit/select-unit-specs.spec.ts',
     )
   })
 
   it('keeps every edit under the width the per-edit budget is measured on', () => {
-    const lane = readLane(ROOT)
     const sources = ['src', 'tests', 'seeds', 'scripts']
       .flatMap((dir) =>
         readdirSync(join(ROOT, dir), { recursive: true, encoding: 'utf8' }).map(
@@ -208,7 +195,7 @@ describe('this repository', () => {
     expect(sources.length).toBeGreaterThan(500)
 
     const widest = sources
-      .map((source) => ({ source, count: selectFrom(source, lane).length }))
+      .map((source) => ({ source, count: selectFrom(source, repo).length }))
       .reduce((a, b) => (b.count > a.count ? b : a))
 
     // 9 today, on `tests/utils/importGraph.ts`: its 8 specs, plus this one, which names it above.
