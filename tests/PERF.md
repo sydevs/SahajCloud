@@ -16,8 +16,9 @@ lane they describe because nothing held them to a run (#990).
 
 `tests/unit/perf-figures-pinned.spec.ts` is that run. It reds when the file
 count here stops matching the tracked specs, when a consumer doc stops
-quoting the lane figure here, or when Tier 2's target drops below the gate's
-own cold measurement. ⚠ **It asserts no wall-clock time** — a timing bound
+quoting the lane figure here, or when either tier's target drops below the
+measurement its own row is set from — Tier 2's cold gate, Tier 1's widest
+per-edit selection. ⚠ **It asserts no wall-clock time** — a timing bound
 inside the lane reddens on a loaded machine, and a check everyone learns to
 ignore is worse than prose. Re-measuring therefore edits this file and the
 four consumers in one commit, by design.
@@ -28,8 +29,12 @@ four consumers in one commit, by design.
 # Total wall-clock for the whole unit lane (read Vitest's own duration line too)
 time pnpm test:unit
 
-# What a narrowed per-edit hook would cost — one spec, cold
+# What a narrowed per-edit hook would cost — one spec, the typical edit
 time pnpm exec vitest run tests/unit/convert-vimeo.spec.ts --project unit --config ./vitest.config.mts
+
+# …and its widest edit: every spec naming one module. Tier 1's target bounds this.
+# Name the specs that import it, which is what a narrowed hook would select (#993).
+time pnpm exec vitest run $(grep -rl "from '@/payload-types'" tests/unit) --project unit --config ./vitest.config.mts
 
 # Total wall-clock for the whole integration lane
 time pnpm test:int
@@ -38,7 +43,7 @@ time pnpm test:int
 time pnpm exec vitest run tests/int/albums.int.spec.ts --project int --config ./vitest.config.mts
 ```
 
-⚠ **`time`, the shell keyword — not `/usr/bin/time -p`**, which these four
+⚠ **`time`, the shell keyword — not `/usr/bin/time -p`**, which these
 lines used until 2026-10-20 and which the routine containers do not ship
 (exit 127, which reads as a broken command rather than a missing binary).
 
@@ -52,25 +57,35 @@ lines used until 2026-10-20 and which the routine containers do not ship
 Two sessions measured it the same day, on the same container spec — 4 cores
 (Intel Xeon @ 2.80 GHz), 15 GB, a cloud routine container:
 
-| Session | Files / tests | Vitest duration, 3 consecutive runs | Median |
+| Session | Files / tests | Vitest duration, consecutive runs | Median |
 | --- | --- | --- | --- |
 | first | 198 / 2575 | 60.29 · 58.75 · 59.23 s | 59.2 s |
 | second, after merging `main` | 203 / 2643 | 82.19 · 77.93 · 73.21 s | **77.9 s** |
+| third, after merging `main` again | 204 / 2652 | 47.16 · 46.38 s | 46.8 s |
 
-⚠ **Those two medians are 30% apart, and 5 spec files do not explain it.**
-Identical spec, same day, 2.5% more files. The second session's three runs
-also fell monotonically (82 → 73 s) as caches warmed. So **a single
-container's figure is reproducible to about ±30%, no better** — quote the
-slower median as an upper bound, which is what the consumer docs do, and do
-not treat a 20% move as a regression. A maintainer's laptop is faster again.
-Record your own row above rather than replacing one.
+⚠ **Those three medians span 47 to 78 s — 66% — and six spec files do not
+explain it.** Identical container spec, all on 2026-10-20, 3% more files
+across the range. The second session's three runs also fell monotonically
+(82 → 73 s) as caches warmed, and the third session, with the most files,
+was the fastest of the three. So **a single container's figure is worth no
+more than its order of magnitude** — quote the slowest median as an upper
+bound, which is what the consumer docs do, and do not read a 60% move as a
+regression. A maintainer's laptop is faster again. Record your own row above
+rather than replacing one.
 
 Everything below is the second session's run unless the row says otherwise.
+**The file and test counts are the current tree's**, because the spec pins
+them to what is on disk; every timing is the session its row names.
+`| Files / tests |` and the three `**bold**` cells are the captures the spec
+reads, so keep those labels and cell shapes when you add a row.
 
 | Metric | Value |
 | --- | --- |
-| Files / tests | 203 / 2643 |
-| Whole lane, 3 workers (median of 3 runs) | **77.9 s** |
+| Files / tests | 204 / 2652 |
+| Whole lane, 3 workers (slowest session median, what the consumer docs quote) | **77.9 s** |
+| One spec alone, the typical edit (third session) | 1.3 s |
+| Widest per-edit selection, 18 specs naming `@/payload-types` (third session) | **7.8 s** |
+| A 7-spec selection, naming `@/plugins/login` (third session) | 6.9 s |
 | Vitest phase breakdown, at 3 workers | transform 14.4 s, import 141.6 s, tests 17.5 s, environment 5.2 s |
 | Slowest file's own duration inside the lane (first session) | 1.8 s (`proposal-leaves.spec.ts`) |
 | One file alone, cold (first session) | **1.9 s** wall (`convert-vimeo`) to **3.0 s** (`proposal-leaves`) |
@@ -107,12 +122,20 @@ is serial.** Fitting `wall = S + P/N` to the first session's 1-worker and
 against 59.2 s measured — so it holds across all three. Nothing goes below `S`
 however many cores are bought. Running fewer files can.
 
-**What the budget protects is the per-edit hook, and one file costs 1.9–3.0 s
-including the ~1.5 s of start-up a single invocation shares.** So the budget
-is kept and the hook is narrowed to the specs one edit can break, rather than
-the lane being cut — see #990 for the measurement that settled it, and #993
-for the follow-up. A narrowed hook runs several specs, not one, so its own
-per-edit figure is still owed: #993 asks for it, measured and recorded here.
+**What the budget protects is the per-edit hook, so Tier 1's target is set
+from what a narrowed hook costs — not from the lane, and not from one spec.**
+Selecting the specs that name an edited module gives 1 spec for the median
+module, 7 for `@/plugins/login`, and 18 for `@/payload-types`, the generated
+file `pnpm generate:types` rewrites. Those cost 1.3, 6.9 and 7.8 s measured
+above. **Tier 1 targets `< 12 s`**: it bounds the widest of those with room
+for the spread this file records, and it matches SahajAtlasWeb's own
+measured per-edit budget on the same core count, whose hook this one would
+copy. 5 s was below the widest real selection, and 65 s was the whole lane
+wearing the hook's name.
+
+So the lane is not cut and the hook is narrowed to the specs one edit can
+break — #990 settled that, #993 does it. Until then the hook runs the lane,
+so the figure to compare against this target is 47–78 s, not 7.8 s.
 
 ## The integration lane — baseline, 2026-06-18 (before #499 §2)
 
