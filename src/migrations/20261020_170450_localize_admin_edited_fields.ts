@@ -26,9 +26,17 @@ import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
  * The alternative is losing the cues, since the base column they came from was
  * read by every locale.
  *
- * `forms.title` is `required`, so it also needs a value in every locale row
- * that already exists, or the `SET NOT NULL` fails on a form carrying only a
- * French `submit_button_label`.
+ * `forms_locales.title` is `NOT NULL` here, so it also needs a value in every
+ * locale row that already exists, or the `SET NOT NULL` fails on a form
+ * carrying only a French `submit_button_label`. The following migration drops
+ * that constraint again, once `forms.title` stops being `required`.
+ *
+ * ⚠ **An inserted locale row states its publish state rather than taking the
+ * table's.** `app_cards_locales._status` and `_app_cards_v_locales`'s
+ * `version__status` default to `'draft'`, and both are the localized publish
+ * state since #718 — so a card with no `en` row would gain one marked draft
+ * where it had no English state at all. Both are inserted as an explicit
+ * `NULL`, and left untouched on conflict so an existing row keeps its own.
  */
 export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   await db.execute(sql`
@@ -88,9 +96,9 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   ON CONFLICT ("_locale", "_parent_id") DO UPDATE SET "subtitles" = EXCLUDED."subtitles";
 
   INSERT INTO "app_cards_locales" (
-     "_parent_id", "_locale",
+     "_parent_id", "_locale", "_status",
      "default_meditation_id", "starting_soon_meditation_id", "live_now_meditation_id")
-  SELECT c."id", 'en',
+  SELECT c."id", 'en', NULL::"enum_app_cards_status",
          c."default_meditation_id", c."starting_soon_meditation_id", c."live_now_meditation_id"
     FROM "app_cards" AS c
    WHERE c."default_meditation_id" IS NOT NULL
@@ -102,10 +110,10 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
     "live_now_meditation_id" = EXCLUDED."live_now_meditation_id";
 
   INSERT INTO "_app_cards_v_locales" (
-     "_parent_id", "_locale",
+     "_parent_id", "_locale", "version__status",
      "version_default_meditation_id", "version_starting_soon_meditation_id",
      "version_live_now_meditation_id")
-  SELECT v."id", 'en',
+  SELECT v."id", 'en', NULL::"enum__app_cards_v_version_status",
          v."version_default_meditation_id", v."version_starting_soon_meditation_id",
          v."version_live_now_meditation_id"
     FROM "_app_cards_v" AS v
