@@ -5,7 +5,7 @@ import { isRecord } from '@/lib/utilities/isRecord'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
 
-// --- Locale scoping. `runSection` gives each section its own request; these cover the reads inside one. ---
+// --- Locale scoping. Every read here copies the request it was handed; `runSection` copies nothing. ---
 
 /**
  * A copy for a read that names a different locale or fallback than the read

@@ -1,7 +1,6 @@
 import type { ProjectRequestContext, SectionSpec } from './spec'
 import type { ReadinessGroup } from './types'
 
-import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import type { ReadinessReport } from '@/payload-types'
 
 import { aggregateGroup, documentsGroup, erroredGroup, summarize } from './groups'
@@ -39,21 +38,20 @@ export class UndeclaredCheckKeyError extends Error {
  * loudly — we don't want typos hiding behind the graceful-degradation
  * path.
  *
- * Each section gets its own copy of the caller's request. One status
- * global is several virtual fields, and Payload awaits every field's
- * `afterRead` in one `Promise.all`, so the sections run concurrently on
- * one request — while `createLocalReq` assigns `locale` and
- * `fallbackLocale` onto whatever request it is handed. Sharing it lets
- * one section's read decide what another resolves (#982). A section's own
- * reads still copy again wherever they differ from each other.
+ * The caller's request is passed through untouched, and copying it is the
+ * reading section's job. One status global is several virtual fields, and
+ * Payload awaits every field's `afterRead` in one `Promise.all`, so the
+ * sections run concurrently on one request — while `createLocalReq` assigns
+ * `locale` and `fallbackLocale` onto whatever request it is handed. So every
+ * read takes a `localeIsolatedReq` copy (#982), which a copy here could not
+ * replace: reads inside one section differ from each other too. A copy here
+ * would also hide a section that forgot its own, since the spec asserting the
+ * caller's request survives every section would then pass off this one.
  */
 export async function runSection<TConfig, TSectionCtx>(
   spec: SectionSpec<TConfig, TSectionCtx>,
-  incoming: ProjectRequestContext<TConfig>,
+  req: ProjectRequestContext<TConfig>,
 ): Promise<ReadinessReport> {
-  const req: ProjectRequestContext<TConfig> = incoming.req
-    ? { ...incoming, req: localeIsolatedReq(incoming.req) }
-    : incoming
   const sectionCtx = spec.prepare ? await spec.prepare(req) : (undefined as unknown as TSectionCtx)
 
   const declaredCheckKeys = new Set(Object.keys(spec.checks))

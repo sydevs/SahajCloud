@@ -697,6 +697,9 @@ describe('WeMeditateAppStatus Global', () => {
     // ran in" — a section that touches nothing shared cannot. An order
     // comparison would not have failed for the bug: every read re-derives both
     // flags from its own arguments.
+    // It is also what holds the per-read copy rule for a section added later,
+    // and only because `runSection` copies nothing — a copy there would pass
+    // this for every section whether or not its own reads copied.
     it("leaves the caller's locale and fallback untouched after every section", async () => {
       const req = newReq('fr')
       for (const spec of WeMeditateAppStatusSpec.sections) {
