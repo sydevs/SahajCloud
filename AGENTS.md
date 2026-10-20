@@ -23,10 +23,6 @@ Subsystem guidance loads two ways, by whether its scope is one directory:
 - Use a specialized MCP tool for research: `mcp__cloudflare-docs__*`, `mcp__sentry__*`, `mcp__github__*`. Use WebFetch only where no MCP tool covers the site.
 - **Payload docs**: check the `payload` skill first. Otherwise call `mcp__payloadcms-docs__list_doc_sources`, then `mcp__payloadcms-docs__fetch_docs`. Never fetch `payloadcms.com` directly. For research over 3+ pages, dispatch an `Explore` subagent so the main thread fetches only the synthesized answer.
 
-## Project Overview
-
-A Next.js 16 app on Payload CMS 3.0, a headless CMS. TypeScript, PostgreSQL, deployed on Railway. Cloudflare R2 (S3 API) handles storage. Cloudflare's edge (Images, Stream, rate limiting, caching) sits in front.
-
 ## Admin Access
 
 Admin panel: `http://localhost:{PORT}/admin/login`, once the dev server runs.
@@ -44,16 +40,10 @@ Admin panel: `http://localhost:{PORT}/admin/login`, once the dev server runs.
 
 ## Essential Commands
 
-Use the `/workflow:dev-server` skill for a dev server shared across sessions. It prevents port conflicts. Default port 3000. Override with `PORT=4000`. `SAHAJCLOUD_URL` derives from `PORT`. Manual fallback: `pnpm dev`, `pnpm devsafe` (clean, removes `.next`), `pnpm build`, `pnpm start`.
+Use the `/workflow:dev-server` skill for a dev server shared across sessions. It prevents port conflicts. Default port 3000. Override with `PORT=4000`. `SAHAJCLOUD_URL` derives from `PORT`.
 
-- `pnpm lint` — ESLint. It does not check formatting.
-- `pnpm format` / `pnpm format:check` — Prettier, write / check. CI gates on the check.
-- `pnpm typecheck` / `pnpm typecheck:tests` — type-check `src/` / the test suite.
-- `pnpm generate:types` — regenerate types after a schema change.
-- `pnpm generate:importmap` — regenerate the admin import map.
 - `pnpm test:unit` — the unit lane, no Payload bootstrap. About 78 s for all 204 files, so name one spec while editing (`tests/PERF.md`).
-- `pnpm test` / `pnpm test:int` — unit plus integration / integration only. Neither runs the smoke lane.
-- `pnpm test:smoke` — Playwright smoke specs against a Railway preview.
+- `pnpm format:check` — Prettier. `pnpm lint` checks no formatting, and CI gates both.
 
 Locally, run lint, `pnpm test:unit`, and the integration spec for the area you changed. Let CI run the full suite. See `docs/rules/testing-reqs.md` for the tier policy and the CPU rules (never run test commands, or a test and a build, in parallel).
 
@@ -61,23 +51,17 @@ Wrap a slow command in `timeout` only when needed. Other values trigger a permis
 
 ## Code Editing
 
-After a change: lint, and fix every TypeScript error. Run `pnpm generate:types` after a schema change.
-
-macOS ignores filename case, but TypeScript and the Linux builds in CI and on Railway do not — check exact casing when you import. See `docs/code-style.md` for the naming table, and `src/types/AGENTS.md` for type organization.
+See `docs/code-style.md` for the naming table, and `src/types/AGENTS.md` for type organization.
 
 ## Quick Reference
 
-- **Rich text editor** — Basic (`basicRichTextEditor`): Bold, Italic, Link, InlineToolbar. Full (`fullRichTextEditor`): Basic + Lists, Blockquote, Headings, Relationships, Blocks. Config: `src/lib/richEditor/index.ts`.
-- **Key files** — `src/payload.config.ts` (Payload config), `next.config.mjs` (Next.js config), `src/payload-types.ts` (generated, do not edit), `tsconfig.json` (path aliases), `railway.toml` (Railway config).
-- **Seed scripts** — see [seeds/AGENTS.md](seeds/AGENTS.md): Storyblok, WeMeditate, Meditations, Tags. Run with `pnpm seed <script>` or `pnpm seed:<script>`. Every script supports `--dry-run` and `--clear-cache`.
+- **`src/payload-types.ts`** is generated — never edit it (`pnpm generate:types` rewrites it).
+- **Seed scripts** — see [seeds/AGENTS.md](seeds/AGENTS.md).
 - **Migrations** — `src/migrations/`, see its `AGENTS.md`. **Operator scripts** — `scripts/`, see its `AGENTS.md`.
 
 ## Development Workflow
 
-1. Change a collection, then run `pnpm generate:types`.
-2. Database is PostgreSQL on Railway, via migrations in `src/migrations/`. Dev uses `push: true` (auto-sync). Prod applies migrations in-process on boot. See `src/migrations/AGENTS.md`.
-3. Admin is at `/admin`. REST API is at `/api/*` (GraphQL disabled).
-4. To add a migration: create it locally, commit it, and it auto-applies on the next deploy. Run `timeout 300 pnpm db:migrations:create <name> --skip-empty < /dev/null` first. This suppresses the blank-migration prompt and catches drizzle's rename-vs-create prompt, which hangs on non-TTY input. On exit 124, re-run it as `python3 scripts/migrate-create-pty.py <name>`, which answers that prompt over a pty, and read the DDL for a stray `RENAME`. See `src/migrations/AGENTS.md` for the full outcome table, and for why the bound is 300 and not lower.
+To add a migration: create it locally, commit it, and it auto-applies on the next deploy. Run `timeout 300 pnpm db:migrations:create <name> --skip-empty < /dev/null` first. This suppresses the blank-migration prompt and catches drizzle's rename-vs-create prompt, which hangs on non-TTY input. On exit 124, re-run it as `python3 scripts/migrate-create-pty.py <name>`, which answers that prompt over a pty, and read the DDL for a stray `RENAME`. See `src/migrations/AGENTS.md` for the full outcome table, and for why the bound is 300 and not lower.
 
 ### Git Commands
 
@@ -94,11 +78,9 @@ Batch CI runs: do not push, and so retrigger CI, on every small change.
 
 Both skills come from the `workflow` plugin (`sydevs/claude-workflow`), enabled in `.claude/settings.json`. Per-repo variation — the lean gate, the contract step, security-review trigger paths, the autonomy allowlist — lives in `.claude/workflow.json`.
 
-**Before marking a PR ready**: run the Tier 2 lean gate plus the integration spec(s) you touched. See `docs/rules/testing-reqs.md` for the tier policy. Use `/pr-prep` (`.claude/skills/pr-prep/`). Its `--full` flag runs Tier 3's full suite and the build locally, for debugging a red CI run; it checks no formatting (`docs/rules/testing-reqs.md`). Otherwise let CI run the full suite and the build.
+**Before marking a PR ready**: run the Tier 2 lean gate plus the integration spec(s) you touched. See `docs/rules/testing-reqs.md` for the tier policy. Run `.claude/skills/pr-prep/check.sh` — the `leanGate` in `.claude/workflow.json`, which `/workflow:finalize-pr` runs as its gate step. Its `--full` flag runs Tier 3's full suite and the build locally, for debugging a red CI run; it checks no formatting (`docs/rules/testing-reqs.md`). Otherwise let CI run the full suite and the build.
 
 ## Continuous Integration
-
-GitHub Actions (`.github/workflows/ci.yml`) runs one job, **Lint, Test & Smoke**, on every PR. It runs `pnpm lint`, then `pnpm format:check`, then `pnpm test` (against a `postgres:18` container), then `pnpm test:smoke` (Playwright, against the PR's Railway preview — skipped with no preview). It does not build the app. Railway builds it for the preview. A new push cancels the branch's prior run. CI reports status but blocks a merge only if branch protection requires it.
 
 ### A conflicted PR runs no CI
 
@@ -108,20 +90,17 @@ If `main` moves and your branch conflicts, GitHub silently schedules zero CI run
 gh pr view <n> --json mergeable,mergeStateStatus
 ```
 
-`CONFLICTING` / `DIRTY` means: resolve the conflict before CI can run. Merge `origin/main` in, resolve, then push — never close and reopen the PR, and never push an empty commit. See (why: docs/why.md#a-conflicted-pr-schedules-zero-ci-runs).
+`CONFLICTING` / `DIRTY` means: resolve the conflict before CI can run. Merge `origin/main` in, resolve, then push — never close and reopen the PR, and never push an empty commit. (why: sydevs/claude-workflow docs/why.md#a-conflicted-pr-schedules-zero-ci-runs)
 
 ## Deployment
 
 See [DEPLOYMENT.md](DEPLOYMENT.md) for the full documentation.
 
-- **Platform**: Railway (Railpack builder) + PostgreSQL + R2 (S3 API) + Cloudflare edge (Images, Stream, rate limiting, caching).
-- **Production**: https://cloud.sydevelopers.com
 - **Deploy**: push to the branch. Railway builds and deploys it. Migrations apply in-process on boot, via `prodMigrations` in `src/payload.config.ts`.
-- **Monitor**: Railway deploy logs. Environment variables live in the Railway service and platform settings.
 
 ## Project Structure
 
-Standard Next.js + Payload layout under `src/` (plugins, collections, components, globals, jobs, lib, types, fields, app routes, migrations). See **`src/AGENTS.md`** for that layout and where new code belongs (`plugins/` vs `jobs/` vs `lib/` vs an owner's folder). Tests live under `tests/` — see **`tests/AGENTS.md`** for the lanes and where a new spec belongs.
+Standard Next.js + Payload layout under `src/`. See **`src/AGENTS.md`** for that layout and where new code belongs (`plugins/` vs `jobs/` vs `lib/` vs an owner's folder). Tests live under `tests/` — see **`tests/AGENTS.md`** for the lanes and where a new spec belongs.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

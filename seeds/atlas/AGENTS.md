@@ -1,13 +1,10 @@
 # Sahaj Atlas — backend surface
 
-Sahaj Atlas (`sydevs/AtlasReact`, the embeddable `<syatlas-map>` widget)
+Sahaj Atlas (`sydevs/SahajAtlasWeb`, the embeddable `<sahaj-atlas>` widget)
 uses SahajCloud as its backend: it reads collections/globals as raw
-Payload REST and calls the two custom endpoints below. The
-`sahaj-atlas-client` role plus the `sahaj-atlas` project grant read access
-to `regions`, `events`, `images`, `files`, and the
-`sy-atlas-config`/`sy-atlas-translations` globals (see
-`src/plugins/access/config/`). The full migration design lives in
-[MIGRATION_PLAN.md](MIGRATION_PLAN.md). The importer is
+Payload REST and calls two custom endpoints — `GET /api/events/geojson`
+(below) and `POST /api/clients/report` (`docs/rules/clients.md`). The full
+migration design lives in [MIGRATION_PLAN.md](MIGRATION_PLAN.md). The importer is
 [import.ts](import.ts).
 
 ## Region `slug`
@@ -37,13 +34,6 @@ states`). An on-by-default checkbox would rewrite them back to the bare,
   the two-letter slugs), and the `country_slug_iso_code` migration
   rewrites pre-existing rows. `webPath`/`webUrl` are computed from current
   slugs on every read, so paths follow automatically.
-- **The importer assigns collision-free slugs.** `buildRegionSlugs()` in
-  `import.ts` walks every region/center in a fixed `(level, legacyId)`
-  order and assigns the country's ISO code or `slugifyValue(name)`,
-  falling back to `name-parentName` then `name-legacyId` for the handful
-  of repeated names (and `region-<legacyId>` only if a name transliterates
-  to empty). It shares `slugifyValue` with the slugField, so a manager
-  re-generating a slug reproduces the same value.
 - **Reseed (update mode) to backfill**: `pnpm seed atlas --update`. The
   upserts pin `generateSlug: false`, so the explicit slug is never
   rewritten.
@@ -177,7 +167,7 @@ monthly meet-ups are stored as `daily`).
 
 > The Regions level is `venue` (label **Venue**), renamed from `center` /
 > "SY Center" — most of these are libraries and community halls, not
-> Sahaja Yoga centres. **AtlasReact reads `level` off the region API and
+> Sahaja Yoga centres. **SahajAtlasWeb reads `level` off the region API and
 > must be updated in step.**
 
 A venue referenced by **more than one event** becomes a Regions node those
@@ -418,11 +408,16 @@ Online WhatsApp Video Meditation`) or a named event (`Corso Leopold`,
   `Puja a Shri Ganesha`). `tests/unit/atlas-events-data.spec.ts` enforces
   this with a regex over the bare "meditation/class/course" shapes.
 - **Keep it** when it names the **venue**: a library, institute,
-  university, or community centre. The auto-fill only has the _street_,
-  so `Regina Public Library, Glen Elm branch` carries what `1601 Dewdney
-Ave E` cannot. Ten titles are kept on that basis (#122, #131, #136,
-  #142, #204, #223, #499, #528, #611, #626) — an earlier pass standardised
-  them away and they were restored.
+  university, or community centre. Ten titles were kept on that basis
+  (#122, #131, #136, #142, #204, #223, #499, #528, #611, #626) — an
+  earlier pass standardised them away and they were restored — when the
+  auto-fill had only the _street_. It now names the venue itself:
+  `addressPlaceName` (`src/lib/eventTitle/compose.ts`) prefers
+  `address.venueName`, which `venueToEventAddress` sets from the Atlas
+  venue name unless that only repeats the street or city, and falls back
+  to the street. Most of the ten now restate their venue's name (#142
+  `Regina Public Library, Glen Elm branch` against the venue's `Regina
+Public Library - Glen Elm Branch`), so re-check the rule against that.
 - **Keep it** when the street is a poor stand-in for the place — #293
   (`Zentrum`), #294 (`Innenstadt`) would auto-fill to "Meditation at city
   centre," and #371's street is the unusable `B26`.
@@ -440,9 +435,9 @@ sibling sets whose Atlas titles were blank or identical to start with:
 (Luzern's DE/PT pair, distinguished by language and weekday chips rather
 than title).
 
-Because the auto-fill takes the **first comma-segment** of `street`, a
-stray comma or a lowercase town name surfaces straight into the listing's
-name. Three venue records in [data/venues.json](data/venues.json) were
+Where no venue name survives, the auto-fill takes the **first
+comma-segment** of `street`, so a stray comma or a lowercase town name
+surfaces straight into the listing's name. Three venue records in [data/venues.json](data/venues.json) were
 fixed for that reason (they also improve the rendered address): venue 65
 `"9, St Peter's Park Rd"` → `"9 St Peter's Park Rd"` (the comma split "9"
 off as the whole place), 198 `solihull` → `Solihull`, 382 `old bar` →
@@ -475,21 +470,6 @@ stamp if it has never been saved since the columns shipped. The batch that
 finishes the events collection calls `verifyEventQualityStamps()` and
 warns if any remain, scoped past the excluded duplicates and trashed rows,
 which this import refuses to touch by design and so can never stamp.
-
-- Each slot is a **complete sentence** with a `%{place}` placeholder, not
-  a shared prefix plus a separate time-of-day word. A locale that puts the
-  time of day after the place, or inflects it with a preposition, cannot
-  be served by concatenation.
-- The slot comes from the event's **local** start hour, resolved through
-  `schedule.firstDate_tz` — 19:00 in Auckland is 07:00 UTC, so reading the
-  UTC hour would label it a morning class. Boundaries: morning
-  05:00–11:59, afternoon 12:00–16:59, evening 17:00–21:59. `default`
-  covers a 22:00–04:59 start and an event with no schedule (every
-  `inactive` listing).
-- Slots fall back to the English default **individually**, because
-  Payload's locale fallback works per field, not per key — a partly
-  translated locale would otherwise yield `undefined` for the slots a
-  translator skipped.
 
 Historical note: the hook previously read `event.titlePrefix`, which was
 never declared in `translationsSchema.json`, so the read always missed
@@ -532,30 +512,13 @@ pass cleared 36 descriptions, and the first reseed silently kept all 36
 stale until this changed. If you add an optional field to the mapping,
 use `?? null` / `|| null` — never `undefined`.
 
-## `GET /api/events/geojson`
-
-A thin GeoJSON wrapper over a standard published-events read
-([`src/collections/Events/endpoints/geojson.ts`](../../src/collections/Events/endpoints/geojson.ts)).
-
-- Forwards the caller's `where`/`select`/`populate`/`depth`/`sort`/
-  pagination (and `locale`, via `req`) into `payload.find('events')`. The
-  client `req` passes through **unwrapped**, so the usage plugin's
-  `validateClientQueryParamsHook` enforces the same rules as `GET
-/api/events`: `select` required (400 if missing), `populate` required
-  when `depth > 1`. Access is published-only, project-visible.
-- Each feature's `geometry` is a `Point` at
-  `[address.longitude, address.latitude]` — **select those fields** to
-  populate it. Events without coordinates (online events, or coords not
-  selected) return `geometry: null` and are still included. `properties`
-  is the selected/populated event document verbatim (internal field
-  names). Payload pagination metadata rides along as foreign members
-  beside `features`.
-
 ## Response types & docs
 
+- `GET /api/events/geojson`: its contract is the docblock in
+  [`src/collections/Events/endpoints/geojson.ts`](../../src/collections/Events/endpoints/geojson.ts).
 - Response shapes are committed in
   [`src/collections/Events/endpoints/responseTypes.ts`](../../src/collections/Events/endpoints/responseTypes.ts)
-  (self-contained), so AtlasReact can sync them by raw GitHub URL.
+  (self-contained), so SahajAtlasWeb can sync them by raw GitHub URL.
 - `geojson` appears in the Scalar docs (`/docs?project=sahaj-atlas`); its
   OpenAPI path and schemas live in `src/plugins/openapi/customEndpoints.ts`.
   The widget's write path is a plain `POST /api/user-submissions` create with
