@@ -72,12 +72,12 @@
   color: var(--theme-elevation-500);
 }
 
-/* City over schedule, the second line quieter. */
+/* A first line with quieter lines beneath: city over schedule, status over notes. */
 .event-import__details {
   display: flex;
   flex-direction: column;
 }
 
-.event-import__details > :last-child {
+.event-import__details > :not(:first-child) {
   color: var(--theme-elevation-500);
 }

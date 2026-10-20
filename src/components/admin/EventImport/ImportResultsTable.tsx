@@ -109,8 +109,13 @@ export const ImportResultsTable: React.FC<{
   const router = useRouter()
   const api = `${config.serverURL}${config.routes.api}`
 
-  // Bulk actions reach only drafts placed at a building. An approximately
-  // placed one is published from its own page, once its pin is checked.
+  // Every draft this import still holds, which Clean Up reaches when unticked.
+  const allDrafts = useMemo(
+    () => rows.flatMap(({ eventId, status }) => (status === 'draft' && eventId ? [eventId] : [])),
+    [rows],
+  )
+  // The tickable ones: an approximately placed draft is published from its
+  // own page, once its pin is checked, so it takes no checkbox.
   const drafts = useMemo(
     () =>
       rows.flatMap(({ approximate, eventId, status }) =>
@@ -121,7 +126,7 @@ export const ImportResultsTable: React.FC<{
   // Nothing is ticked until the volunteer has looked: Publish starts at zero.
   const [checked, setChecked] = useState<Set<number>>(() => new Set())
   const toPublish = drafts.filter((id) => checked.has(id))
-  const toDelete = drafts.filter((id) => !checked.has(id))
+  const toDelete = allDrafts.filter((id) => !checked.has(id))
   const skipped = rows.filter(({ status }) => status === 'duplicate' || status === 'error')
 
   const eventDrawer = useDrawerLink('events')
@@ -255,7 +260,7 @@ export const ImportResultsTable: React.FC<{
       <div className="event-import__results-header">
         <FieldLabel label={label} path={path} />
         <div className="event-import__results-actions">
-          {drafts.length ? (
+          {allDrafts.length ? (
             <>
               <Button
                 buttonStyle="pill"
@@ -372,7 +377,7 @@ export const ImportResultsTable: React.FC<{
       <ConfirmationModal
         body={`Delete ${classes(toDelete.length)} that ${
           toDelete.length === 1 ? 'is' : 'are'
-        } not ticked? This cannot be undone.`}
+        } not ticked, including any placed only at the street? This cannot be undone.`}
         confirmLabel={`Clean Up (${toDelete.length})`}
         heading="Clean up drafts"
         modalSlug={CLEAN_UP_MODAL}

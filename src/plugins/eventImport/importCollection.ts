@@ -50,6 +50,18 @@ const classCreators: Access = ({ req }) =>
  */
 export const IMPORT_FINISH = 'eventImportFinish'
 
+/** What each import status means for the volunteer, under the Status field. */
+const STATUS_DESCRIPTIONS: Record<string, string> = {
+  pending:
+    'The file is being read and its classes created as drafts. This page opens once it is done.',
+  completed:
+    'Every row became a draft class. Nothing is public yet: check the classes below and publish them.',
+  partial:
+    'Some rows became draft classes and the rest were skipped. Nothing is public until published; each skipped row says why, and can be downloaded, fixed and uploaded again.',
+  failed:
+    'No classes were created. The result or the error says why — fix the file and upload it again.',
+}
+
 /** The plugin's knobs, kept but out of the way: only `events` is ever imported into. */
 const PLUGIN_FIELDS_HIDDEN: ReadonlySet<string> = new Set(['collectionSlug', 'importMode', 'matchField'])
 
@@ -176,7 +188,18 @@ function pluginFields(fields: readonly Field[]): Field[] {
       return [{ ...field, admin: { ...field.admin, hidden: true } } as Field]
     }
     if (field.name === 'status') {
-      return [{ ...field, admin: { ...field.admin, position: 'sidebar', condition: hideUntilCreated } } as Field]
+      return [
+        {
+          ...field,
+          admin: {
+            ...field.admin,
+            position: 'sidebar',
+            condition: hideUntilCreated,
+            custom: { ...field.admin?.custom, descriptions: STATUS_DESCRIPTIONS },
+            components: { ...field.admin?.components, Description: '@/components/admin/SelectDescription' },
+          },
+        } as Field,
+      ]
     }
     if (field.name === 'summary') return []
     return [field]
