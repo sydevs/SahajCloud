@@ -41,6 +41,16 @@ describe('User submission review lifecycle', () => {
     address: { city: 'Novo Selo', street: '1 Main St' },
   }
 
+  /**
+   * The same proposal at another street, for a case that Accepts a scheduled
+   * one: a second class at the same street, schedule and city is refused as a
+   * duplicate, so each accepted class needs a street of its own.
+   */
+  const proposedAt = (street: string) => ({
+    ...BASE_PROPOSED,
+    address: { ...BASE_PROPOSED.address, street },
+  })
+
   /** The `scheduleFields` shape the widget sends, for a case that needs one. */
   const WEEKLY_SCHEDULE = {
     firstDate: '2026-09-01T17:30:00.000Z',
@@ -384,7 +394,7 @@ describe('User submission review lifecycle', () => {
         region: cityId,
         anchorRegion: cityId,
         proposed: {
-          ...BASE_PROPOSED,
+          ...proposedAt('2 Main St'),
           description: 'A weekly meditation class.\nAll welcome.',
           // The real `scheduleFields` shape. The widget sends this directly —
           // there is no simplified one-off/weekly vocabulary to translate, so
@@ -432,7 +442,7 @@ describe('User submission review lifecycle', () => {
       const created = await createProposal({
         region: cityId,
         manager: owner.id,
-        proposed: { ...BASE_PROPOSED, schedule: WEEKLY_SCHEDULE },
+        proposed: { ...proposedAt('3 Main St'), schedule: WEEKLY_SCHEDULE },
       })
 
       const result = await applyReview({

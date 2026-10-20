@@ -64,7 +64,11 @@ describe('SendRegistrationDigests job', () => {
     return manager.id
   }
 
+  // One region, all online: the duplicate-class rule keys the fixtures apart on
+  // start time alone, so each event starts a minute after the last.
+  let startSlot = 0
   async function createEvent(managerId: number, title: string): Promise<number> {
+    startSlot += 1
     const event = await payload.create({
       collection: 'events',
       overrideAccess: true,
@@ -76,7 +80,10 @@ describe('SendRegistrationDigests job', () => {
         registrationMode: 'sahaj-atlas',
         manager: managerId,
         region: regionId,
-        schedule: SCHEDULE,
+        schedule: {
+          ...SCHEDULE,
+          firstDate: new Date(Date.parse(SCHEDULE.firstDate) + startSlot * 60_000).toISOString(),
+        },
         _status: 'published',
       }),
     })

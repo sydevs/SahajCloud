@@ -59,6 +59,7 @@ import { ensureWebPathDeps } from './hooks/ensureWebPathDeps'
 import { computeEventQualityReport, stampEventQuality } from './hooks/eventQuality'
 import { eventTitleBeforeChange, eventTitleValidate } from './hooks/eventTitle'
 import { excludeFinishedEvents } from './hooks/excludeFinishedEvents'
+import { refuseDuplicateClass } from './hooks/refuseDuplicateClass'
 import { syncEventFullness } from './hooks/syncFullness'
 import { syncVerificationOnSave } from './hooks/syncVerificationOnSave'
 import { buildEventWebPath } from './webPath'
@@ -162,6 +163,9 @@ export const Events: CollectionConfig = {
     // published so their pages resolve, but should not be listed. See
     // excludeFinishedEvents.
     beforeOperation: [ensureWebPathDeps, excludeFinishedEvents],
+    // A class that repeats one already listed is refused before anything else
+    // runs, drafts included — see refuseDuplicateClass.
+    beforeValidate: [refuseDuplicateClass],
     // syncVerificationOnSave must run first. It decides the stage this save
     // lands on: verify, or just re-arm the pre-adoption watermark. Both
     // stamping hooks must run after it. `syncEventFullness` writes
@@ -175,6 +179,17 @@ export const Events: CollectionConfig = {
   },
   endpoints: [verifyEventAction, eventsGeoJson],
   fields: [
+    {
+      // The bulk import this class came from (`src/plugins/eventImport`). The
+      // Events list filtered on it is where a volunteer reviews and publishes
+      // the drafts an import created.
+      name: 'importBatch',
+      type: 'relationship',
+      relationTo: 'imports',
+      index: true,
+      access: { update: () => false },
+      admin: { hidden: true },
+    },
     {
       // A contextual banner above the tabs. It warns when the event is due
       // for verification, or past due, and offers a Verify button (the

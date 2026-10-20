@@ -70,6 +70,23 @@ export function isValidLocale(code: string): code is LocaleCode {
 }
 
 /**
+ * The language of a code that need not be a locale, for a caller holding one.
+ *
+ * ⚠ **An admin locale is not a language.** `pt-BR` and `en-AU` are two of the
+ * nineteen and neither is an ISO 639-1 code, so anything feeding a value into a
+ * `getLanguageOptions()` field — `Events.languages`, and the batch default an
+ * import falls back to — needs the base subtag rather than the locale.
+ *
+ * ⚠ **`req.locale` is request-supplied and need not be a locale at all.**
+ * `?locale=all` reaches here as `'all'`, whose base subtag is `'all'` — not a
+ * language, and not a value those fields accept. An unrecognised code answers
+ * with the default locale's language instead.
+ */
+export function baseLanguageOrDefault(code: string | undefined): BaseLanguage {
+  return baseLanguage(code && isValidLocale(code) ? code : DEFAULT_LOCALE)
+}
+
+/**
  * Select options for the app's configured locales.
  *
  * Distinct from `getLanguageOptions()`, which offers every ISO 639-1 language.

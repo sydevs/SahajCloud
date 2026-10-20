@@ -30,8 +30,7 @@ import { default as default_ef915edebbf0e637d2b21d5b814a75f9 } from '@/component
 import { default as default_75e666f79b1160c03532515ca11818f3 } from '@/components/admin/FrameEditor/FrameListManager'
 import { default as default_e201aca8b8f7be4559f38e80e7a23040 } from '@/components/admin/FrameEditor/FrameInserter'
 import { default as default_f6674fb37b8a49317525e4fb8838a78c } from '@/components/admin/UploadNotice'
-import { default as default_b6e352da4aa0be71471f8ee68e4b93ce } from '@/components/admin/buttons/UpdateOnlyPublishButton'
-import { default as default_5540237f7045343fb48f4dc881ba5b8a } from '@/components/admin/buttons/NextStepButton'
+import { default as default_7647a475a77f95462c70b2b16fe92239 } from '@/components/admin/WorkflowButtons'
 import { default as default_277d6fd41e8d1febac87b7e86938523f } from '@/components/admin/AudioUpload'
 import { default as default_aa1cbd65eb0b3cec4fc40542c104a1d5 } from '@/components/admin/JobStageView/JobStageView'
 import { default as default_0d7144728a6a15ce62edc7c88eaf2e1a } from '@/components/admin/RelationshipCountCell'
@@ -52,6 +51,7 @@ import { default as default_694d4100fd066d11aca6d41604a80bc0 } from '@/component
 import { default as default_7994614945cfe693dd6db5da6470f962 } from '@/components/admin/RangeSlider'
 import { default as default_b3cee161bebb1edefc1eda122400dd67 } from '@/components/admin/RegionCreatePrefill'
 import { default as default_ef5838f2c1b8d0747618a584b33f2f1e } from '@/components/admin/AddressSearchField'
+import { default as default_be0ea71e8bd58bc3b61c88fede674d64 } from '@/components/admin/EventImport/ImportClassesLabel'
 import { default as default_f15760648f21b91f3f2a0494c08e91bc } from '@/components/admin/AddChildRegionButton'
 import { default as default_ed3b039830992dc45486e37aaf03df7c } from '@/components/admin/EventVerificationNotice'
 import { default as default_1dd99abed7767ee797cacf1ad150de88 } from '@/components/admin/StringSelectField'
@@ -59,6 +59,9 @@ import { default as default_d749fd4cc4f11cb94ed2d6b537f6015d } from '@/component
 import { default as default_d73215fe105de40829b40e0975052656 } from '@/components/admin/VerificationStageField'
 import { default as default_3db810cf95b8f600a49837ee6d29b565 } from '@/components/admin/LogTable'
 import { default as default_42fbdbfc3b16bbe7c43aa9f07c715c1c } from '@/components/admin/EventQualityPanel'
+import { default as default_b0b21389e90eb8a40a1646856bc83729 } from '@/components/admin/EventImport/ImportListMenuItem'
+import { default as default_e9a0c1434d297758857abb1b1ab57cc0 } from '@/components/admin/EventImport/ImportResultsField'
+import { default as default_1101b8f453ec78808b3e5a5bddfd811b } from '@/components/admin/EventImport/TemplateLink'
 import { HorizontalRuleFeatureClient as HorizontalRuleFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { ChecklistFeatureClient as ChecklistFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { IndentFeatureClient as IndentFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
@@ -122,8 +125,7 @@ export const importMap = {
   "@/components/admin/FrameEditor/FrameListManager#default": default_75e666f79b1160c03532515ca11818f3,
   "@/components/admin/FrameEditor/FrameInserter#default": default_e201aca8b8f7be4559f38e80e7a23040,
   "@/components/admin/UploadNotice#default": default_f6674fb37b8a49317525e4fb8838a78c,
-  "@/components/admin/buttons/UpdateOnlyPublishButton#default": default_b6e352da4aa0be71471f8ee68e4b93ce,
-  "@/components/admin/buttons/NextStepButton#default": default_5540237f7045343fb48f4dc881ba5b8a,
+  "@/components/admin/WorkflowButtons#default": default_7647a475a77f95462c70b2b16fe92239,
   "@/components/admin/AudioUpload#default": default_277d6fd41e8d1febac87b7e86938523f,
   "@/components/admin/JobStageView/JobStageView#default": default_aa1cbd65eb0b3cec4fc40542c104a1d5,
   "@/components/admin/RelationshipCountCell#default": default_0d7144728a6a15ce62edc7c88eaf2e1a,
@@ -144,6 +146,7 @@ export const importMap = {
   "@/components/admin/RangeSlider#default": default_7994614945cfe693dd6db5da6470f962,
   "@/components/admin/RegionCreatePrefill#default": default_b3cee161bebb1edefc1eda122400dd67,
   "@/components/admin/AddressSearchField#default": default_ef5838f2c1b8d0747618a584b33f2f1e,
+  "@/components/admin/EventImport/ImportClassesLabel#default": default_be0ea71e8bd58bc3b61c88fede674d64,
   "@/components/admin/AddChildRegionButton#default": default_f15760648f21b91f3f2a0494c08e91bc,
   "@/components/admin/EventVerificationNotice#default": default_ed3b039830992dc45486e37aaf03df7c,
   "@/components/admin/StringSelectField#default": default_1dd99abed7767ee797cacf1ad150de88,
@@ -151,6 +154,9 @@ export const importMap = {
   "@/components/admin/VerificationStageField#default": default_d73215fe105de40829b40e0975052656,
   "@/components/admin/LogTable#default": default_3db810cf95b8f600a49837ee6d29b565,
   "@/components/admin/EventQualityPanel#default": default_42fbdbfc3b16bbe7c43aa9f07c715c1c,
+  "@/components/admin/EventImport/ImportListMenuItem#default": default_b0b21389e90eb8a40a1646856bc83729,
+  "@/components/admin/EventImport/ImportResultsField#default": default_e9a0c1434d297758857abb1b1ab57cc0,
+  "@/components/admin/EventImport/TemplateLink#default": default_1101b8f453ec78808b3e5a5bddfd811b,
   "@payloadcms/richtext-lexical/client#HorizontalRuleFeatureClient": HorizontalRuleFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#ChecklistFeatureClient": ChecklistFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#IndentFeatureClient": IndentFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,

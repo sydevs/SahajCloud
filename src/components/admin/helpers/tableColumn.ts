@@ -15,7 +15,7 @@ export type PayloadTableColumn = NonNullable<React.ComponentProps<typeof Table>[
  */
 export function tableColumn(
   accessor: string,
-  heading: string,
+  heading: React.ReactNode,
   cells: React.ReactNode[],
 ): PayloadTableColumn {
   return { accessor, active: true, Heading: heading, renderedCells: cells, field: {} as never }

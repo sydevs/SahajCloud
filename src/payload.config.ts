@@ -25,6 +25,7 @@ import {
 import { cachePlugin } from '@/plugins/cache'
 import { databaseErrorPlugin } from '@/plugins/databaseErrors'
 import { buildSmtpTransportOptions, resendAdapter, warnEmailDisabled } from '@/plugins/email'
+import { eventImportPlugin } from '@/plugins/eventImport'
 import { formsPlugin } from '@/plugins/formBuilder'
 import { loginPlugin } from '@/plugins/login'
 import { openapiEndpointAuth, scalarPlugin } from '@/plugins/openapi'
@@ -292,6 +293,9 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       // is thrown while the request body is parsed, before any collection or
       // adapter is resolved.
       uploadErrorPlugin(),
+      // Bulk class import (#907): the `imports` collection, its job, and the
+      // Events hooks that keep an import's status current.
+      eventImportPlugin,
       // Sentry error tracking (disabled in E2E tests)
       sentryPlugin({
         captureErrors: [400, 403, 404], // Capture additional error codes

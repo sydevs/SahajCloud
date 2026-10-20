@@ -324,7 +324,10 @@ export const Regions: CollectionConfig = {
               type: 'join',
               collection: 'events',
               on: 'region',
-              admin: { condition: hideUntilCreated },
+              admin: {
+                condition: hideUntilCreated,
+                components: { Label: '@/components/admin/EventImport/ImportClassesLabel' },
+              },
             },
           ],
         },

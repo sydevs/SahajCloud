@@ -1,0 +1,98 @@
+/* The import's description, as the Event Imports list and edit header show it. */
+.event-import__note {
+  margin: 0;
+}
+
+/* The result: a header like Payload's relationship table, then the table. */
+.event-import__results-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--base);
+  margin-bottom: calc(var(--base) / 2);
+}
+
+.event-import__results-header .field-label {
+  margin: 0;
+}
+
+.event-import__results-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--base) / 2);
+}
+
+.event-import__results .table table {
+  width: 100%;
+}
+
+/* The checkbox and row-number columns take only the width they need. */
+.event-import__results #heading-select,
+.event-import__results .cell-select,
+.event-import__results #heading-row,
+.event-import__results .cell-row {
+  width: 1%;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.event-import__results .field-description {
+  margin-top: calc(var(--base) / 2);
+}
+
+.event-import__link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* One colour per row status; the status leads each row's `data-id`. */
+.event-import__results tr[data-id^='published-'] td {
+  background: var(--theme-success-100);
+}
+
+.event-import__results tr[data-id^='draft-'] td {
+  background: var(--theme-elevation-50);
+}
+
+.event-import__results tr[data-id^='duplicate-'] td {
+  background: var(--theme-warning-100);
+}
+
+.event-import__results tr[data-id^='error-'] td {
+  background: var(--theme-error-100);
+}
+
+.event-import__results tr[data-id^='removed-'] td {
+  color: var(--theme-elevation-500);
+}
+
+/* A first line with quieter lines beneath: city over schedule, status over notes. */
+.event-import__details {
+  display: flex;
+  flex-direction: column;
+}
+
+.event-import__details > :not(:first-child) {
+  color: var(--theme-elevation-500);
+}
+
+/* The Regions "Events" heading with its Import classes link, level with the table's own actions. */
+.relationship-table__header:has(.event-import__region-label) {
+  align-items: center;
+}
+
+.event-import__region-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--base);
+}
+
+.event-import__region-label .field-label {
+  margin: 0;
+}
