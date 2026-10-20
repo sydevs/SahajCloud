@@ -13,7 +13,7 @@ import type { Event, Meditation, Region } from '@/payload-types'
 import { bypassPermissions, hasAnyPermission, hasPermission } from '@/plugins/access'
 import { createSession } from '@/plugins/login'
 
-import { createRestClientAs } from '../utils/restRequest'
+import { createRestClientAs, type RestClient } from '../utils/restRequest'
 import {
   createData,
   createTestLexicalContent,
@@ -2383,6 +2383,15 @@ describe('Role-Based Access Control', () => {
    * (`src/plugins/access/config/roles.ts`), and `Meditations.locale` is a
    * required select defaulting to the admin locale, not updatable by anyone
    * (`src/collections/Meditations/Meditations.ts`).
+   *
+   * ⚠ **Which half each route proves.** `testData.createManager` returns the
+   * document as the create locale read it, so `user:` on a local-API call
+   * carries a FLAT `roles` array that `extractRoles` grants in every locale.
+   * A local-API case therefore proves the `Where`, never the per-locale role —
+   * only a REST case does, because the auth strategy is what hydrates the
+   * per-locale record (`localizedRolesAuth.ts`). The cases that turn on
+   * holding a role in one locale and not another go through REST for that
+   * reason.
    */
   describe('meditation writes scoped to the editor locale', () => {
     let frEditor: ManagerFixture
@@ -2390,36 +2399,20 @@ describe('Role-Based Access Control', () => {
     let localeAdmin: ManagerFixture
     let enMeditation: Meditation
     let frMeditation: Meditation
-    let sharedNarrator: number
-    let sharedThumbnail: number
+    let asFrEditor: RestClient
+    let deps: { narrator: number; thumbnail: number }
 
     /**
-     * A create that runs through access control, which `testData.createMeditation`
-     * cannot — it needs `overrideAccess: true` to get its own dependencies in.
-     * The dependencies here come from the admin, so the only gate under test is
-     * the meditation's own `create`.
+     * A create that runs through access control, as the French-only editor,
+     * with the admin in French. `data.locale` is the language the new
+     * meditation claims, which the editor is free to state wrongly.
      */
-    const createMeditationAs = (
-      user: ManagerFixture,
-      locale: 'en' | 'fr',
-      data: FixtureOverrides<Meditation>,
-    ) => {
-      const audio = fs.readFileSync(path.join(SAMPLE_FILES_DIR, 'audio-42s.mp3'))
-      return payload.create({
-        collection: 'meditations',
-        locale,
-        data: createData<'meditations'>({
-          label: `Meditation ${Math.random().toString(36).substring(7)}`,
-          narrator: sharedNarrator,
-          thumbnail: sharedThumbnail,
-          type: 'daily',
-          ...data,
-        }),
-        file: { data: audio, mimetype: 'audio/mpeg', name: 'audio-42s.mp3', size: audio.length },
-        user,
+    const createAsFrEditor = (data: FixtureOverrides<Meditation>) =>
+      testData.createMeditation(payload, deps, data, undefined, {
+        user: frEditor,
         overrideAccess: false,
+        locale: 'fr',
       })
-    }
 
     beforeAll(async () => {
       localeAdmin = await testData.createManager(payload, {
@@ -2434,6 +2427,20 @@ describe('Role-Based Access Control', () => {
         name: 'Bilingual Editor for Meditation Locale Scope Test',
         roles: { en: ['meditations-editor'], fr: ['meditations-editor'] },
       })
+      asFrEditor = await createRestClientAs(env, frEditor)
+
+      deps = {
+        narrator: (
+          await testData.createNarrator(payload, { name: 'Narrator for Meditation Locale Scope' })
+        ).id,
+        thumbnail: (
+          await testData.createMediaImage(
+            payload,
+            { alt: 'Thumbnail for Meditation Locale Scope', hidden: false },
+            'image-1050x700.webp',
+          )
+        ).id,
+      }
 
       // `Meditations.frames` demands at least one frame on every UPDATE, so a
       // frameless fixture would fail validation before any of these cases
@@ -2441,27 +2448,16 @@ describe('Role-Based Access Control', () => {
       const frame = await testData.createFrame(payload, { label: 'Locale Scope Frame' })
       const withFrame = [{ id: frame.id, timestamp: 0 }] as unknown as Meditation['frames']
 
-      enMeditation = await testData.createMeditation(payload, undefined, {
+      enMeditation = await testData.createMeditation(payload, deps, {
         label: 'English Meditation for Locale Scope Test',
         locale: 'en',
         frames: withFrame,
       })
-      frMeditation = await testData.createMeditation(payload, undefined, {
+      frMeditation = await testData.createMeditation(payload, deps, {
         label: 'French Meditation for Locale Scope Test',
         locale: 'fr',
         frames: withFrame,
       })
-
-      sharedNarrator = (
-        await testData.createNarrator(payload, { name: 'Narrator for Meditation Locale Creates' })
-      ).id
-      sharedThumbnail = (
-        await testData.createMediaImage(
-          payload,
-          { alt: 'Thumbnail for Meditation Locale Creates', hidden: false },
-          'image-1050x700.webp',
-        )
-      ).id
     })
 
     it('refuses an fr-only editor the update of an en meditation', async () => {
@@ -2487,8 +2483,6 @@ describe('Role-Based Access Control', () => {
     it('refuses the same update over REST, in either admin locale', async () => {
       // REST is where `req.locale` is DERIVED from the query string, which a
       // hand-built `req` cannot show (#701).
-      const asFrEditor = await createRestClientAs(env, frEditor)
-
       const refused = await asFrEditor(`/api/meditations/${enMeditation.id}?locale=fr`, {
         method: 'PATCH',
         json: { label: 'Hijacked over REST' },
@@ -2518,19 +2512,33 @@ describe('Role-Based Access Control', () => {
     })
 
     it('lets an fr-only editor create an fr meditation', async () => {
-      const stated = await createMeditationAs(frEditor, 'fr', { locale: 'fr' })
+      const stated = await createAsFrEditor({ locale: 'fr' })
       expect(stated.locale).toBe('fr')
-
-      // No locale in the patch: the field defaults to the admin locale, which
-      // is why an absent one is allowed rather than refused.
-      const defaulted = await createMeditationAs(frEditor, 'fr', {})
-      expect(defaulted.locale).toBe('fr')
     })
 
     it('refuses an fr-only editor a create in another language', async () => {
-      await expect(createMeditationAs(frEditor, 'fr', { locale: 'en' })).rejects.toThrow(
+      await expect(createAsFrEditor({ locale: 'en' })).rejects.toThrow(
         'You are not allowed to perform this action.',
       )
+    })
+
+    it('refuses a duplicate of an en meditation, which states no locale', async () => {
+      // `duplicate` reaches `create` with an empty `data`, then clones the
+      // SOURCE document's locale rather than taking the field's default — so
+      // the access function cannot see the language and
+      // `restrictCreateToRequestLocale` is what refuses it.
+      // Counted either side of the attempt rather than against a fixture
+      // label, which a sibling case rewrites when IT fails.
+      const englishBefore = await payload.count({ collection: 'meditations', locale: 'en' })
+
+      const refused = await asFrEditor(`/api/meditations/${enMeditation.id}/duplicate?locale=fr`, {
+        method: 'POST',
+        json: {},
+      })
+      expect(refused.status).toBe(403)
+
+      const englishAfter = await payload.count({ collection: 'meditations', locale: 'en' })
+      expect(englishAfter.totalDocs).toBe(englishBefore.totalDocs)
     })
 
     it('lets an fr-only editor read fr version history but not en', async () => {
@@ -2558,26 +2566,29 @@ describe('Role-Based Access Control', () => {
     })
 
     it('binds a bilingual editor to the admin locale they are working in', async () => {
-      const inEnglish = await payload.update({
+      // Over REST, so the role record really is per locale (see the docblock).
+      // This editor holds `meditations-editor` in both, so the admin locale is
+      // the only thing deciding which meditation they may save.
+      const asBilingual = await createRestClientAs(env, bilingualEditor)
+
+      const inEnglish = await asBilingual(`/api/meditations/${enMeditation.id}?locale=en`, {
+        method: 'PATCH',
+        json: { label: 'Renamed in English' },
+      })
+      expect(inEnglish.status).toBe(200)
+
+      const inFrench = await asBilingual(`/api/meditations/${enMeditation.id}?locale=fr`, {
+        method: 'PATCH',
+        json: { label: 'Renamed in the wrong language' },
+      })
+      expect(inFrench.status).toBe(403)
+
+      const kept = await payload.findByID({
         collection: 'meditations',
         id: enMeditation.id,
-        locale: 'en',
-        data: { label: 'Renamed in English' },
-        user: bilingualEditor,
-        overrideAccess: false,
+        depth: 0,
       })
-      expect(inEnglish.label).toBe('Renamed in English')
-
-      await expect(
-        payload.update({
-          collection: 'meditations',
-          id: enMeditation.id,
-          locale: 'fr',
-          data: { label: 'Renamed in the wrong language' },
-          user: bilingualEditor,
-          overrideAccess: false,
-        }),
-      ).rejects.toThrow('You are not allowed to perform this action.')
+      expect(kept.label).toBe('Renamed in English')
     })
 
     it('leaves an admin editing any meditation in any admin locale', async () => {
@@ -2619,12 +2630,18 @@ describe('Role-Based Access Control', () => {
       expect(updated.name).toBe('Narrator renamed by the French editor')
     })
 
+    it('still offers the Create button, which asks with no locale at all', async () => {
+      // The collection-level capability check carries no document and no data,
+      // which is why `scopeMeditationWrite` allows an absent `locale`. Deny it
+      // there and a per-locale editor could create nothing.
+      const capability = await asFrEditor('/api/meditations/access?locale=fr', { method: 'POST' })
+      expect(capability.body.create).toBe(true)
+    })
+
     it('withholds the edit view Save button on an en meditation', async () => {
       // Document permissions resolve a `Where` against the real document
       // (`getEntityPermissions`, `fetchData: true`), so the admin UI follows
       // this access function. `sanitizePermissions` drops a denied key.
-      const asFrEditor = await createRestClientAs(env, frEditor)
-
       const onEnglish = await asFrEditor(`/api/meditations/access/${enMeditation.id}?locale=fr`, {
         method: 'POST',
       })

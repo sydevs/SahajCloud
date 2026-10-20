@@ -551,12 +551,28 @@ export const testData = {
     })) as Video
   },
 
-  /** Create a meditation with direct audio upload */
+  /**
+   * Create a meditation with direct audio upload.
+   *
+   * `as` runs the create through access control instead of over it, for a spec
+   * asserting who may create one. The audio upload wiring — a raw `Buffer`, the
+   * browser's own mimetype spelling — lives here and nowhere else, so a spec
+   * that needs a user passes one rather than rebuilding it.
+   *
+   * ⚠ `as.locale` is the REQUEST locale, which this collection keeps separate
+   * from the document's own `locale` field: a spec about who may write which
+   * language needs them to differ, and `overrides.locale` sets both.
+   */
   async createMeditation(
     payload: Payload,
     deps?: { narrator?: number; thumbnail?: number },
     overrides: FixtureOverrides<Meditation> = {},
     sampleFile = 'audio-42s.mp3',
+    as?: {
+      user: Parameters<Payload['create']>[0]['user']
+      overrideAccess: boolean
+      locale?: LocaleCode
+    },
   ): Promise<Meditation> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
     // A real Buffer: Payload sniffs an `audio/mp4` or `audio/x-m4a` container
@@ -594,7 +610,7 @@ export const testData = {
       collection: 'meditations',
       // locale option provides request-level locale context for join subqueries
       // that reference localized fields on other collections (for example, user-choices)
-      locale: overrides.locale || 'en',
+      locale: as?.locale || overrides.locale || 'en',
       data: createData<'meditations'>({
         label: overrides.label || overrides.title || defaultLabel,
         thumbnail: thumbnail,
@@ -612,6 +628,7 @@ export const testData = {
         name: sampleFile,
         size: fileData.length,
       },
+      ...(as ?? {}),
     })) as Meditation
   },
 
