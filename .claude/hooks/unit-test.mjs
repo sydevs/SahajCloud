@@ -3,57 +3,40 @@
 /**
  * Unit Test Hook (PostToolUse / Edit|Write)
  *
- * Runs the unit lane (`pnpm test:unit`) when source files or unit specs
- * change. This gives Claude fast feedback, under 5 seconds, during
- * editing. It stays silent on success. It reports a short failure tail
- * when tests break.
+ * Runs the unit specs that name the edited file, not the whole lane. Silent when they pass or
+ * when no spec names the file. Reports a failing tail as non-blocking context, and reports a
+ * timeout or a vitest that never started as exactly that, never as a test failure.
  *
- * Triggers on edits to:
- *   - src/{file}.ts / .tsx (excludes src/payload-types.ts, src/migrations/**)
- *   - tests/unit/{file}.spec.ts (the unit specs themselves)
- *
- * This is Tier 1 of the three-tier speed contract. See
- * `docs/rules/testing-reqs.md`.
+ * The logic lives in `scripts/unit-test-hook.mjs`, outside this protected directory, so it is
+ * unit-tested and an unattended run can change it. This is Tier 1 of the three-tier speed
+ * contract. See `docs/rules/testing-reqs.md`.
  */
 
-import { execSync } from 'child_process'
 import { readFileSync } from 'fs'
 
-const input = JSON.parse(readFileSync(0, 'utf-8'))
-const filePath = input?.tool_input?.file_path ?? ''
+import { runHook } from '../../scripts/unit-test-hook.mjs'
 
-const projectDir = process.env.CLAUDE_PROJECT_DIR || ''
-const rel = filePath.startsWith(projectDir + '/') ? filePath.slice(projectDir.length + 1) : filePath
-
-const isSrc = /^src\/.*\.(ts|tsx)$/.test(rel)
-const isUnitSpec = /^tests\/unit\/.*\.spec\.ts$/.test(rel)
-const isExcluded = rel === 'src/payload-types.ts' || /^src\/migrations\//.test(rel)
-
-if ((!isSrc && !isUnitSpec) || isExcluded) {
-  console.log(JSON.stringify({ continue: true, suppressOutput: true }))
-  process.exit(0)
-}
-
+let input = null
 try {
-  execSync('pnpm test:unit', {
-    cwd: projectDir,
-    encoding: 'utf-8',
-    stdio: 'pipe',
-    timeout: 30000,
-  })
-  console.log(JSON.stringify({ continue: true, suppressOutput: true }))
-  process.exit(0)
-} catch (error) {
-  const output = (error.stdout || error.stderr || error.message || '')
-    .toString()
-    .split('\n')
-    .slice(-30)
-    .join('\n')
-  console.log(
-    JSON.stringify({
-      continue: true,
-      additionalContext: `Unit tests failed after editing ${rel}:\n\n${output}\n\nRun \`pnpm test:unit\` to see the full output.`,
-    }),
-  )
-  process.exit(0)
+  input = JSON.parse(readFileSync(0, 'utf-8'))
+} catch {
+  // Not a tool call this hook can read. Nothing to run.
 }
+
+let message = null
+try {
+  message = runHook({
+    filePath: input?.tool_input?.file_path,
+    projectDir: process.env.CLAUDE_PROJECT_DIR || undefined,
+  })
+} catch (error) {
+  message = `The unit-test hook itself errored, so no specs ran. This is not a test result: ${error?.message ?? error}`
+}
+
+console.log(
+  JSON.stringify(
+    message
+      ? { continue: true, additionalContext: message }
+      : { continue: true, suppressOutput: true },
+  ),
+)
