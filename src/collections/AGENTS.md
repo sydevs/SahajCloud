@@ -15,17 +15,26 @@ import { accessPlugin, bypassPermissions } from '@/plugins/access'
 plugins: [accessPlugin({ enabled: true, bypassPermissions })]
 ```
 
-For custom logic outside collections, use `hasPermission`:
+A custom **endpoint** gates on `requireManagerPermission`, or
+`requireCollectionPermission` where an API client is a legitimate caller too:
 
 ```typescript
-import { hasPermission } from '@/plugins/access'
+import { requireManagerPermission } from '@/lib/endpoints'
 
-const canUpdate = hasPermission({
-  user,
+const denied = requireManagerPermission({
+  req,
   collection: 'meditations',
   operation: 'update',
+  forbidden: 'You do not have permission to transcribe this meditation.',
 })
+if (denied) return denied
 ```
+
+⚠ **Never call `hasPermission` here** — the gates own its locale-scope
+argument, and a check written out at a handler is free to omit it (#701,
+#665). `tests/unit/endpoint-permission-gate.spec.ts` fails one under
+`src/collections/**` or `src/endpoints/**`. What goes wrong without the
+scope is in the gate's own docblock; the rule is in `docs/rules/endpoints.md`.
 
 Permission flow, in order:
 
@@ -882,7 +891,7 @@ Live preview integrates with the We Meditate Web frontend
 
 | Block               | Notes                                                                                                                                                                                                                                                     |
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `TextBoxBlock`      | `style` (splash / leftAligned / rightAligned / overlay), `title`/`text` (250-char limit, HTML stripped), `image`, `link`, `actionText`                                                                                                                    |
+| `TextBoxBlock`      | `image` (required), `imagePosition` (left / right / overlay), `textPosition` and `textColor` (both shown for `overlay` only — `textColor` names the TEXT, so `light` means light text on a dark image, #516), `wisdomStyle` (⚠ never rendered — its `admin.condition` names a field this block lacks, #989), `title`/`subtitle`/`text`, `buttonText` + `buttonUrl`, read-only `importData` |
 | `ButtonBlock`       | `text` + `url`                                                                                                                                                                                                                                            |
 | `LayoutBlock`       | `style` (grid / columns / accordion) + `items` array (image, title, text, link)                                                                                                                                                                           |
 | `GalleryBlock`      | `title`, `collectionType` (media/meditations/pages), `items` (max 10, dynamic relationTo)                                                                                                                                                                 |
