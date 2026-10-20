@@ -178,6 +178,7 @@ describe('Schema Introspection Utilities', () => {
         hasMany: false,
         relationTo: 'files',
         isLexicalBlock: false,
+        localizedAt: [],
       }
 
       const ids = extractIdsFromDocument(doc, ref)
@@ -200,6 +201,7 @@ describe('Schema Introspection Utilities', () => {
         hasMany: false,
         relationTo: 'files',
         isLexicalBlock: false,
+        localizedAt: [],
       }
 
       const ids = extractIdsFromDocument(doc, ref)
@@ -218,6 +220,7 @@ describe('Schema Introspection Utilities', () => {
         hasMany: true,
         relationTo: 'images',
         isLexicalBlock: false,
+        localizedAt: [],
       }
 
       const ids = extractIdsFromDocument(doc, ref)
@@ -237,6 +240,7 @@ describe('Schema Introspection Utilities', () => {
         hasMany: false,
         relationTo: 'images',
         isLexicalBlock: false,
+        localizedAt: [],
       }
 
       const ids = extractIdsFromDocument(doc, ref)
@@ -253,6 +257,7 @@ describe('Schema Introspection Utilities', () => {
         relationTo: 'images',
         isLexicalBlock: true,
         // No blockSlug - the new approach uses a single marker reference for richText fields
+        localizedAt: [],
       }
 
       // Lexical block fields should be skipped (handled separately by extractIdsFromLexicalContent)
@@ -361,6 +366,7 @@ describe('Schema Introspection Utilities', () => {
           hasMany: false,
           relationTo: 'files',
           isLexicalBlock: false,
+          localizedAt: [],
         },
         {
           collection: 'lessons',
@@ -369,6 +375,7 @@ describe('Schema Introspection Utilities', () => {
           hasMany: false,
           relationTo: 'files',
           isLexicalBlock: false,
+          localizedAt: [],
         },
         {
           collection: 'authors',
@@ -377,6 +384,7 @@ describe('Schema Introspection Utilities', () => {
           hasMany: false,
           relationTo: 'images',
           isLexicalBlock: false,
+          localizedAt: [],
         },
       ]
 

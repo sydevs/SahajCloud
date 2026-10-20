@@ -6,6 +6,7 @@ import {
   discoverReferencesForCollection,
   extractIdsFromDocument,
   extractIdsFromLexicalContent,
+  localeValues,
   groupByCollection,
   type FieldReference,
 } from './schemaUtils'
@@ -584,16 +585,19 @@ async function getAllReferencedIds(
   const lexicalByCollection = groupByCollection(lexicalReferences)
   for (const [collectionSlug, collectionRefs] of lexicalByCollection) {
     for (const ref of collectionRefs) {
-      await scanCollectionForLexicalReferences(
-        payload,
-        collectionSlug,
-        ref.fieldPath,
-        referencedIds,
-      )
+      await scanCollectionForLexicalReferences(payload, collectionSlug, ref, referencedIds)
     }
   }
 
   return referencedIds
+}
+
+/**
+ * A Payload `select` naming the top level of each field path. The walker needs
+ * the whole value under that root, and Payload selects a container wholesale.
+ */
+function selectRootsOf(fieldPaths: string[]): Record<string, true> {
+  return Object.fromEntries(fieldPaths.map((path) => [path.split('.')[0], true]))
 }
 
 /** Scan a collection for references using discovered field paths. */
@@ -612,6 +616,14 @@ async function scanCollectionForReferences(
       limit: PAGINATION_LIMIT,
       page,
       depth: 0,
+      // A reference held only by a localized field is invisible to a
+      // default-locale read, and an invisible reference reads as an orphan, so
+      // the job trashes a file that is in use (#977).
+      locale: 'all',
+      // `locale: 'all'` returns every translation of every field, and a field
+      // `afterRead` hook runs once per locale, so a read of the whole document
+      // costs what the untouched fields are worth times the locale count.
+      select: selectRootsOf(references.map((ref) => ref.fieldPath)),
     })
 
     for (const doc of result.docs) {
@@ -636,7 +648,7 @@ async function scanCollectionForReferences(
 async function scanCollectionForLexicalReferences(
   payload: Payload,
   collectionSlug: string,
-  richTextFieldPath: string,
+  reference: FieldReference,
   referencedIds: Set<number>,
 ): Promise<void> {
   let page = 1
@@ -648,12 +660,15 @@ async function scanCollectionForLexicalReferences(
       limit: PAGINATION_LIMIT,
       page,
       depth: 0,
+      locale: 'all',
+      select: selectRootsOf([reference.fieldPath]),
     })
 
     for (const doc of result.docs) {
       const docRecord = doc as unknown as Record<string, unknown>
-      const content = docRecord[richTextFieldPath]
-      if (content) {
+      // The read addresses the field by its whole path as one key, so a
+      // localized rich text is marked at the first segment or unreachable.
+      for (const content of localeValues(docRecord[reference.fieldPath], reference.localizedAt.includes(0))) {
         // Use generic Lexical traversal to extract all IDs
         const ids = extractIdsFromLexicalContent(content)
         for (const id of ids) {

@@ -80,6 +80,8 @@ import * as migration_20261015_061054_meditation_transcripts from './20261015_06
 import * as migration_20261015_070852_require_transcript_language from './20261015_070852_require_transcript_language';
 import * as migration_20261016_081411_transcribe_meditation_task from './20261016_081411_transcribe_meditation_task';
 import * as migration_20261017_002341_cleanup_jobs_task from './20261017_002341_cleanup_jobs_task';
+import * as migration_20261017_093546_localize_lesson_title_and_panels from './20261017_093546_localize_lesson_title_and_panels';
+import * as migration_20261017_095800_rescue_french_lesson_panels from './20261017_095800_rescue_french_lesson_panels';
 import * as migration_20261017_102331_transcript_job_relationship from './20261017_102331_transcript_job_relationship';
 
 export const migrations = [
@@ -492,6 +494,16 @@ export const migrations = [
     up: migration_20261017_002341_cleanup_jobs_task.up,
     down: migration_20261017_002341_cleanup_jobs_task.down,
     name: '20261017_002341_cleanup_jobs_task',
+  },
+  {
+    up: migration_20261017_093546_localize_lesson_title_and_panels.up,
+    down: migration_20261017_093546_localize_lesson_title_and_panels.down,
+    name: '20261017_093546_localize_lesson_title_and_panels',
+  },
+  {
+    up: migration_20261017_095800_rescue_french_lesson_panels.up,
+    down: migration_20261017_095800_rescue_french_lesson_panels.down,
+    name: '20261017_095800_rescue_french_lesson_panels',
   },
   {
     up: migration_20261017_102331_transcript_job_relationship.up,

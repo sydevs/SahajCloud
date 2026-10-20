@@ -230,6 +230,7 @@ describe('WeMeditateAppStatus Global', () => {
       const fullPassing = full!.checks.filter((c) => c.passed).map((c) => c.key)
       expect(fullPassing).toEqual(
         expect.arrayContaining([
+          'lesson-title-set',
           'panels-set',
           'intro-audio-set',
           'meditation-set',
@@ -251,6 +252,19 @@ describe('WeMeditateAppStatus Global', () => {
           'article-has-lecture-link',
         ]),
       )
+    })
+
+    it('reports a step whose title is blank', async () => {
+      const untitled = await testData.createLesson(payload, { unit: 'Unit 1', step: 9 })
+      // `title` is not `required` any more (#977), so a blank one is reachable
+      // and this check is what reports it.
+      await payload.update({ collection: 'lessons', id: untitled.id, data: { title: '' } })
+
+      const report = await run(lessonsSection, payload)
+      const unit1 = report.groups.find((g) => g.key === 'unit-1')
+      if (unit1?.type !== 'documents') throw new Error('unit-1 is not a documents group')
+      const doc = unit1.documents.find((d) => d.id === untitled.id)
+      expect(doc?.checks.find((c) => c.key === 'lesson-title-set')?.passed).toBe(false)
     })
 
     it('summary counts only required (non-optional) groups', async () => {
