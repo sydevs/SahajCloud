@@ -290,6 +290,12 @@ describe('Atlas report-issue form', () => {
         id: localized.id,
         locale: 'de',
         data: {
+          // `title` and `redirect.url` are localized and required since #981,
+          // so a German save owes one of each — the English values no longer
+          // satisfy them. `createForm` sets `confirmationType: 'redirect'`,
+          // which is what makes the URL required here.
+          title: 'Ein Problem melden, lokalisiert',
+          redirect: { url: '/danke' },
           fields: (localized.fields ?? []).map((block) => ({
             ...block,
             label: germanLabels[(block as { name: string }).name],
