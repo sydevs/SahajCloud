@@ -767,7 +767,10 @@ req.locale } }` to `find`/`count` operations.
 - A **versions read** bypasses filtering too — see the rule below.
 - **Writes are scoped separately**, since that hook deliberately skips them: a
   non-admin manager's create/update is narrowed to the locale their
-  `meditations-editor` role was read in (#980, `docs/rules/access.md`).
+  `meditations-editor` role was read in (#980, `docs/rules/access.md`). A create
+  that states no language — a **duplicate** — is caught by the
+  `restrictCreateToRequestLocale` hook instead, which is the first place the
+  filled value exists.
 
 ```bash
 GET /api/user-choices?locale=en
