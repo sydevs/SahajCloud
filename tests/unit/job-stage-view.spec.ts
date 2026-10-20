@@ -8,10 +8,10 @@
  *
  * The declaration cases below are inline literals, but the pair that matters
  * most is read off the real `meditation-transcripts` config: that the
- * collection declares `processing` and not `queued`, and that `queued` is what
- * `status` defaults to. Stated as two inline fixtures those two facts could
- * drift apart silently, and the row stranded behind a waiting view is what
- * drift would cost (#960).
+ * collection declares `processing`, and that the virtual `status` field can
+ * actually hold it. Stated as two inline fixtures those two facts could drift
+ * apart silently, and the row stranded behind a waiting view is what drift
+ * would cost (#960).
  */
 import { join } from 'node:path'
 
