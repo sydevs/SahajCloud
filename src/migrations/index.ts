@@ -81,6 +81,7 @@ import * as migration_20261015_070852_require_transcript_language from './202610
 import * as migration_20261016_081411_transcribe_meditation_task from './20261016_081411_transcribe_meditation_task';
 import * as migration_20261017_002341_cleanup_jobs_task from './20261017_002341_cleanup_jobs_task';
 import * as migration_20261017_102331_transcript_job_relationship from './20261017_102331_transcript_job_relationship';
+import * as migration_20261020_170450_localize_admin_edited_fields from './20261020_170450_localize_admin_edited_fields';
 
 export const migrations = [
   {
@@ -496,6 +497,11 @@ export const migrations = [
   {
     up: migration_20261017_102331_transcript_job_relationship.up,
     down: migration_20261017_102331_transcript_job_relationship.down,
-    name: '20261017_102331_transcript_job_relationship'
+    name: '20261017_102331_transcript_job_relationship',
+  },
+  {
+    up: migration_20261020_170450_localize_admin_edited_fields.up,
+    down: migration_20261020_170450_localize_admin_edited_fields.down,
+    name: '20261020_170450_localize_admin_edited_fields'
   },
 ];
