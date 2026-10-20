@@ -27,6 +27,7 @@ import { cacheMeditationNodeWeights } from './hooks/cacheMeditationNodeWeights'
 import { extractAudioDuration } from './hooks/extractAudioDuration'
 import { fallbackTitleAfterRead } from './hooks/fallbackTitle'
 import { filterMeditationsByLocale } from './hooks/filterMeditationsByLocale'
+import { restrictCreateToRequestLocale } from './hooks/restrictCreateToRequestLocale'
 import { syncMeditationTranscript } from './hooks/syncMeditationTranscript'
 
 /**
@@ -110,6 +111,7 @@ export const Meditations: CollectionConfig = {
   endpoints: [meditationLectures, meditationSongs],
   hooks: {
     beforeOperation: [filterMeditationsByLocale],
+    beforeValidate: [restrictCreateToRequestLocale],
     beforeChange: [
       restrictUploadToAdmin({ label: 'audio file on a meditation' }),
       // After `extractAudioDuration`: the weights are computed against the
