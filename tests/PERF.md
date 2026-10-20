@@ -92,14 +92,8 @@ figures are the breakdown Vitest prints on every run.
 **No worker count reaches `< 5 s` for the whole lane, because about 19 s of it
 is serial.** Fitting `wall = S + P/N` to the 1-worker and 4-worker runs gives
 **S ≈ 19 s, P ≈ 122 s**, and that fit predicts the 3-worker run at 59.4 s
-against 59.2 s measured — so it holds across all three. The floor is `S`:
-15 workers lands near 27 s, 63 near 21 s, and nothing goes below 19 s. Buying
-cores cannot meet this budget; running fewer files can.
-
-The `< 5 s` figure had already stopped describing this lane by `228c3a1`
-(2026-09-02), the commit that moved `docs/rules/testing-reqs.md` to its
-current path carrying it, where `tests/unit/` held 113 files. Its own origin
-is older than this clone reaches.
+against 59.2 s measured — so it holds across all three. Nothing goes below `S`
+however many cores are bought. Running fewer files can.
 
 **What the budget protects is the per-edit hook, and one file costs 1.9–3.0 s
 including the ~1.5 s of start-up a single invocation shares.** So the budget
