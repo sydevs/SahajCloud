@@ -414,6 +414,22 @@ export const Meditations: CollectionConfig = {
               type: 'tabs',
               tabs: [
                 {
+                  label: 'Transcript',
+                  description: 'Read along with the recording, and click a phrase to play from it',
+                  fields: [
+                    // `transcript` is taken by the join above, and a `name` must
+                    // be unique among its siblings.
+                    previewTargetField({ autoOpen: true }, 'transcript__preview_target'),
+                    {
+                      name: 'transcriptPanel',
+                      type: 'ui',
+                      admin: {
+                        components: { Field: '@/components/admin/MeditationTranscript' },
+                      },
+                    },
+                  ],
+                },
+                {
                   label: 'Frames',
                   description: 'Remove or re-order frames',
                   fields: [

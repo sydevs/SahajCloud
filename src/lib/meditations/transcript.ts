@@ -42,8 +42,7 @@ export const TRANSCRIPT_PROVIDERS = ['lemonfox'] as const
 export type TranscriptProvider = (typeof TRANSCRIPT_PROVIDERS)[number]
 
 /**
- * A queued or processing transcript older than this may be requested again.
- * Far past any healthy run — it exists for a run lost to a restart, which
- * leaves the row `processing` with nothing left to finish it.
+ * Re-exported, not declared here: a `'use client'` consumer must reach the
+ * bound without this module's zod schemas. `./transcriptStall` says why.
  */
-export const TRANSCRIPTION_STALL_MS = 15 * 60 * 1000
+export { TRANSCRIPTION_STALL_MS } from './transcriptStall'
