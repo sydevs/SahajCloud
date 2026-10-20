@@ -3,6 +3,9 @@ paths:
   - src/components/admin/**/*.tsx
   - src/components/branding/**/*.tsx
   - src/globals/**/*.ts
+  - src/collections/**/*.ts
+  - src/fields/**/*.ts
+  - src/lib/richEditor/blocks/**/*.ts
 ---
 
 # Admin UI
@@ -68,6 +71,12 @@ That combination is often what you want — reachable where it's explained, abse
 **Building a custom field component?** Compose Payload's primitives instead of bespoke markup: `FieldLabel`, `FieldError`, `FieldDescription`, plus input fields (`TextField`, `SelectField`, `RelationshipField`, `UploadField`, `ArrayField`, `GroupField`, `BlocksField`, and more) and `RenderFields` (a whole field set). Hooks: `useField`, `useForm`, `useFormFields`, `useDocumentInfo`, `useConfig`, `useAuth`, `useTranslation`.
 
 For non-admin (public) React, use `lucide-react` instead (see `docs/code-style.md`). Emails use neither — see `docs/rules/email.md`.
+
+## A condition reads a sibling its own level declares
+
+`siblingData` is the data at the field's own level, and `Condition` types it as `any`, so a name no level declares compiles, is always false, and hides the field it guards for good — `wisdomStyle` read the legacy `position` for its whole life (#989). `row`, `collapsible` and an unnamed `group` or `tab` hold no data, so a field inside one still reads its parent's level; a named `group`, `array`, `tab` or block starts a level of its own. A `ui` field is declared but holds no data, so its name is not a sibling either.
+
+`tests/unit/admin-condition-fields.spec.ts` fails on a read that names nothing at the level that owns it. It reads the condition's own source text, so the sibling parameter must be spelled `siblingData` — rename it, destructure it, or hand it to a helper and the spec fails rather than cover nothing. `data` and `blockData` are out of its scope: neither names a sibling.
 
 ## Live preview pushes the document — the frontend needn't fetch it
 
