@@ -47,10 +47,10 @@ const codeOf = (file: string): string =>
     .replace(/\/\*[\s\S]*?\*\//g, '')
     .replace(/\/\/.*$/gm, '')
 
-const statusField = (): { defaultValue?: unknown; options?: unknown } => {
+const statusField = (): { options?: unknown } => {
   const field = MeditationTranscripts.fields.find(
     (f) => 'name' in f && f.name === 'status',
-  ) as undefined | { defaultValue?: unknown; options?: unknown }
+  ) as undefined | { options?: unknown }
   if (!field) throw new Error('meditation-transcripts declares no `status` field')
   return field
 }
@@ -106,7 +106,7 @@ describe('jobStageWait', () => {
     expect(jobStageWait(config, { status: 'finished' })).toBeNull()
   })
 
-  it('falls through when the status column holds nothing it can read', () => {
+  it('falls through when the status field holds nothing it can read', () => {
     expect(jobStageWait(config, {})).toBeNull()
     expect(jobStageWait(config, null)).toBeNull()
     expect(jobStageWait(config, { status: ['working'] })).toBeNull()
@@ -269,7 +269,7 @@ describe('meditation-transcripts', () => {
     ).toBeNull()
   })
 
-  it('declares every running stage the status column can actually hold', () => {
+  it('declares every running stage the virtual `status` field can actually hold', () => {
     const { options } = statusField()
 
     expect(
