@@ -9,7 +9,7 @@
  * - createFieldAccessConfig: Create access config for field-level access
  */
 
-import type { BypassPermissionFunction, ContentSlug, FieldAccessConfig } from './types'
+import type { BypassPermissionFunction, ContentSlug, FieldAccessConfig, RoleScope } from './types'
 import type {
   Access,
   AccessArgs,
@@ -89,6 +89,42 @@ function managerSubmissionScope(userId: number | string): Where {
       { type: { equals: 'proposal' } },
     ],
   }
+}
+
+/**
+ * A manager's meditation writes, narrowed to the language their role was read
+ * in.
+ *
+ * A meditation IS one language — its hidden `locale` field — while
+ * `meditations-editor` is granted per locale and the grant itself names none.
+ * So a French or Czech editor could open an English meditation by its URL and
+ * rewrite the label, narrator, thumbnail, type and frames every English
+ * listener gets (#980). `filterMeditationsByLocale` scopes `find` and `count`
+ * only, deliberately, so nothing else stood in the way.
+ *
+ * `scope` is the locale `hasPermission` already evaluated the role in, so the
+ * answer is the language this request's roles came from — never the language
+ * the document claims. `'union'` is not a language and denies: `RoleScope`
+ * carries it, though nothing a request can say selects it.
+ *
+ * `create` answers with a boolean because `executeAccess` reads a `Where` as a
+ * grant, so an object there would allow every language. An absent `locale` is
+ * allowed: the field defaults to the admin locale, and the admin asks this
+ * question with no data at all to decide whether to offer the Create button.
+ */
+function scopeMeditationWrite(
+  operation: 'create' | 'update' | 'delete',
+  scope: RoleScope | undefined,
+  data: unknown,
+): boolean | Where {
+  if (!scope || scope === 'union') return false
+
+  if (operation === 'create') {
+    const incoming = (data as { locale?: unknown } | null)?.locale
+    return incoming === undefined || incoming === null || incoming === scope
+  }
+
+  return { locale: { equals: scope } }
 }
 
 /**
@@ -185,6 +221,17 @@ export function createAccessConfig(
           isRegionSubtreeCollection(collection)
         ) {
           return scopeRegionSubtreeWrite({ req, collection, operation, id, data })
+        }
+
+        // `meditations-editor` is held per locale, but the grant it carries
+        // names no language — so narrow a manager's writes to the language
+        // their role was read in. See `scopeMeditationWrite`.
+        if (
+          operation !== 'read' &&
+          collection === 'meditations' &&
+          isActiveNonAdminManager(req.user)
+        ) {
+          return scopeMeditationWrite(operation, args.locale, data)
         }
 
         // A manager's `user-submissions` grant is collection-wide, but the
