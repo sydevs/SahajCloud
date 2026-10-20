@@ -76,13 +76,12 @@ rather than replacing one.
 Everything below is the second session's run unless the row says otherwise.
 **The file and test counts are the current tree's**, because the spec pins
 them to what is on disk; every timing is the session its row names.
-The `Files / tests` label and the three `**bold**` cells are the captures the
-spec reads, so keep those labels and cell shapes when you add a row. Prettier
-pads these columns, and the spec's patterns allow for it.
+`| Files / tests |` and the three `**bold**` cells are the captures the spec
+reads, so keep those labels and cell shapes when you add a row.
 
 | Metric                                                                       | Value                                                             |
 | ---------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Files / tests                                                                | 204 / 2653                                                        |
+| Files / tests                                                                | 215 / 2783                                                        |
 | Whole lane, 3 workers (slowest session median, what the consumer docs quote) | **77.9 s**                                                        |
 | One spec alone, the typical edit (third session)                             | 1.3 s                                                             |
 | Widest per-edit selection, 18 specs naming `@/payload-types` (third session) | **7.8 s**                                                         |

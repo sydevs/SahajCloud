@@ -15,6 +15,8 @@ Rules for PayloadCMS admin-panel components: server vs client, field components,
 
 Import directly from `@payloadcms/ui` (e.g. `import { Banner, Button, Pill } from '@payloadcms/ui'`). See `node_modules/@payloadcms/ui/dist/exports/client/index.d.ts` for the full set.
 
+⚠ **`ProgressBar` is exported, and it reads as though it should show a job's count.** It is the route-transition bar: it takes no props and reads its value from `RouteTransitionProvider`, so it cannot show a job's own count. A job's count belongs in `JobStageView`'s banner instead (below), which is where both consumers put it and why this repo now renders no bar of its own. For a determinate bar, should one be wanted again, use a native `<progress>` — it carries the value to assistive technology, which no styled div does, and `max={0}` is invalid, so an unknown total means omitting both attributes rather than passing zero.
+
 `Table` is list-view-shaped: pass `data` (rows with an `id`) and `columns: Column[]`, each column carrying pre-rendered `renderedCells` (one node per row), `accessor`, and `active: true`. `Column` also requires a `field` the component never reads — stub it (`field: {} as never`). See `src/components/admin/LogTable/` for the working pattern, and note what it hand-rolls: `Table` exposes nothing per row, so opening a row's detail needs a delegated `closest('tr[data-id]')` listener (Payload writes the row's `id` there), and `cursor` must be a stylesheet rule because it targets Payload's own `<tr>`.
 
 ### A multipart save renders its own feedback
@@ -50,6 +52,28 @@ There is no width prop: `Drawer` sets `width: calc(100% - (drawerDepth * var(--g
 `admin.hidden: true` removes a collection from the nav **and** unregisters its routes — `/admin/collections/<slug>/<id>` 404s. It does not make the documents unreachable: a `join` field on another collection still renders its rows and opens each in a document drawer, which never touches the route. Nested drawers work from there too.
 
 That combination is often what you want — reachable where it's explained, absent from the sidebar. An event's registrations are read this way, through the join on its Registrations tab rather than the collection's own list. A 404 on the route is not evidence a field needs surfacing elsewhere — try the surfaces that already embed the document first.
+
+### `WorkflowButtons` — stage-dependent document buttons as data
+
+`src/components/admin/WorkflowButtons/` replaces a bespoke button component per staged collection. A collection declares its buttons through `clientProps` on an edit-view slot:
+
+```ts
+admin.components.edit.SaveButton = {
+  path: WORKFLOW_BUTTONS,
+  clientProps: {
+    statusField: 'status', // the form field whose value picks the stage
+    fallback: null, // 'publish' | 'save' | 'saveDraft' | null
+    stages: { [CREATE_STAGE]: [{ label: 'Next step', overrides: { _status: 'draft' } }] },
+  } satisfies WorkflowButtonsProps<MyStage>,
+}
+```
+
+Each action is `{ label, overrides, confirm?, buttonStyle?, skipValidation? }`; `overrides` is merged into the submit, so `{ status: 'committing' }` is how a button makes a transition and `{}` is a plain save. Four rules:
+
+- **`clientProps`, not `admin.custom`.** An edit-view slot is not a field, so there is no `field.admin.custom` to read, and `createClientCollectionConfig` strips a collection's top-level `custom`. `renderDocumentSlots` passes a `RawPayloadComponent`'s own `clientProps` through — which is why each declaration is an object rather than a path string.
+- **An empty stage array is not a missing one.** `[]` renders nothing; a stage the declaration never names falls through to `fallback`. Collapsing the two put Publish back on Meditations' create screen.
+- **An unsaved document is `CREATE_STAGE`, whatever the status field holds.** A collection that defaults `status` to a running stage would otherwise hand the create form that stage's buttons.
+- **The contract lives in `stages.ts`, not beside the component.** Every export of a `'use client'` module reaches a server module as a client reference, so a config reading `CREATE_STAGE` off the component would key its map on an object. Same split as `UserSubmissions/statuses.ts`.
 
 **Building a custom field component?** Compose Payload's primitives (`FieldLabel`, `FieldError`, `FieldDescription`, `RenderFields`, the `*Field` inputs) instead of bespoke markup.
 
@@ -166,7 +190,10 @@ Four things are load-bearing:
 - **`views.edit.default.Component` replaces `DefaultEditView`; it does not wrap it.** So a settled stage falls through by rendering `DefaultEditView` itself.
 - **The stored stage at page load is the whole input.** There is no poll, so nothing re-requests the document. **Check again** (`CheckAgain.tsx`, the folder's one client component) calls `router.refresh()`, which refetches the route's server render and bypasses the client router cache a `next/link` navigation can be answered from. That is Payload's own idiom — `useRouteCache`'s `clearRouteCache` is the same call. ⚠ Inside a document drawer nothing re-reads the stage: `DocumentDrawerContent` renders the document through the `renderDocument` server function and keeps the result in React state, which no route refresh re-runs. An anchor would re-read it only by leaving the host document and discarding its unsaved edits, so the refresh stands in both surfaces.
 - **The gate releases itself only where `staleAfterMs` is declared.** Without one, a row whose worker died stays behind the waiting view for good; past the window the form opens and setting the status column back to its queued value is the retry.
-- **Never name a running stage that is also the column's `defaultValue`.** `meditation-transcripts` declares `processing` and not `queued` for that reason. The view refuses to fire with no document id, which covers the create form, but a _saved_ row sitting at that default would open behind a view nothing can move on.
+- **Never name a running stage that is also the column's `defaultValue`** — unless the create genuinely queues the job. `meditation-transcripts` declares `processing` and not `queued`, because a queued row waits for a person. `imports` declares its own default `pending`, because its create hook queues the import job, so a saved row at that default really is one a worker owns. Either way the release is `staleAfterMs`: without it, a saved row at that default opens behind a view nothing can move on. The view refuses to fire with no document id, which covers the create form alone.
+- **A stage with no form has no `SaveButton` slot either.** The view replaces the whole form, so a `WorkflowButtons` stage declared for a running status is reachable only past `staleAfterMs`.
+
+`imports` — the bulk class import's upload collection (`src/plugins/eventImport/importCollection.ts`) — declares `runningStages: ['pending']` with no count. Its job leaves `pending` in one write, with the results (`src/plugins/eventImport/finish.ts`), so the page never opens on a finished import whose rows are not stored yet. After that, a hook on `events` moves it between review and completed as its drafts are published or deleted.
 
 ⚠ **A `hidden: true` collection cannot show it on a route.** Registering the view is still correct there, and a document drawer renders it (`overrideEntityVisibility`), but `/admin/collections/<slug>/<id>` 404s — see "A hidden collection is still reachable through a `join`" above. Reach such a collection through a `join` before concluding the view is broken.
 

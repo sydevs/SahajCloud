@@ -38,6 +38,12 @@ const DAY_MS = 24 * 60 * 60 * 1000
 const daysAgo = (n: number) => new Date(Date.now() - n * DAY_MS).toISOString()
 const inDays = (n: number) => new Date(Date.now() + n * DAY_MS).toISOString()
 
+// Every event here is online and in one region, so `refuseDuplicateClass` tells
+// them apart by local start time alone. Each schedule gets its own minute.
+let startSlot = 0
+const uniqueStart = (iso: string) =>
+  new Date(new Date(iso).getTime() + (startSlot += 1) * 60_000).toISOString()
+
 const runJob = (payload: Payload) => runTaskHandler(ExpireEvents, { payload })
 
 /** Back-date an event's nextCheckAt so the next run treats it as due. */
@@ -127,14 +133,16 @@ describe('Event verification lifecycle', () => {
     }
     if (!hasScheduleOverride) {
       data.schedule = {
-        firstDate: daysAgo(2),
+        firstDate: uniqueStart(daysAgo(2)),
         firstDate_tz: 'Europe/London',
         recurrenceType: 'DAILY',
         interval: 1,
       }
     } else if (scheduleOverride != null) {
       // A null override omits the schedule entirely (inactive events).
-      data.schedule = scheduleOverride
+      data.schedule = scheduleOverride.firstDate
+        ? { ...scheduleOverride, firstDate: uniqueStart(scheduleOverride.firstDate) }
+        : scheduleOverride
     }
     return payload.create({
       collection: 'events',
@@ -1034,7 +1042,7 @@ describe('Event verification lifecycle', () => {
         id: event.id,
         overrideAccess: true,
         data: {
-          schedule: { firstDate: inDays(14), firstDate_tz: 'Europe/London' },
+          schedule: { firstDate: uniqueStart(inDays(14)), firstDate_tz: 'Europe/London' },
         } as Partial<Event>,
       })
 
@@ -1054,7 +1062,7 @@ describe('Event verification lifecycle', () => {
         overrideAccess: true,
         data: {
           schedule: {
-            firstDate: daysAgo(30),
+            firstDate: uniqueStart(daysAgo(30)),
             firstDate_tz: 'Europe/London',
             recurrenceType: 'DAILY',
             interval: 1,
@@ -1090,7 +1098,7 @@ describe('Event verification lifecycle', () => {
         id: event.id,
         overrideAccess: true,
         data: {
-          schedule: { firstDate: daysAgo(3), firstDate_tz: 'Europe/London' },
+          schedule: { firstDate: uniqueStart(daysAgo(3)), firstDate_tz: 'Europe/London' },
         } as Partial<Event>,
       })
 

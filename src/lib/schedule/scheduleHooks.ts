@@ -52,6 +52,15 @@ export function getLocalTimeHHMM(utcDateStr: string, timezone: string): string |
   }
 }
 
+/** Extract the local calendar date as YYYY-MM-DD from a UTC datetime + timezone. */
+export function getLocalDateISO(utcDateStr: string, timezone: string): string | null {
+  try {
+    return Temporal.Instant.from(utcDateStr).toZonedDateTimeISO(timezone).toPlainDate().toString()
+  } catch {
+    return null
+  }
+}
+
 /**
  * Parse a date string to Temporal.PlainDate.
  * Handles both YYYY-MM-DD and ISO datetime formats (PayloadCMS dayOnly

@@ -21,6 +21,9 @@ vi.mock('@payload-config', () => ({ default: configRef.current }))
 // A daily class at 10:00 Europe/London (09:00 UTC in BST). With the run clock
 // pinned below, exactly one occurrence — 2026-07-20T09:00:00Z — falls in the
 // (now, now+24h] window, so the maths is deterministic, not wall-clock dependent.
+// The nth event this file creates starts n minutes later (`createEvent`): all
+// are online in one region, and the duplicate-class rule keys them apart on
+// start time alone. The window still holds exactly one occurrence each.
 const SCHEDULE = {
   firstDate: '2026-07-01T09:00:00.000Z',
   firstDate_tz: 'Europe/London',
@@ -28,7 +31,10 @@ const SCHEDULE = {
   interval: 1,
 } as const
 const NOW = new Date('2026-07-20T00:00:00.000Z')
-const OCCURRENCE = '2026-07-20T09:00:00.000Z'
+const MINUTE_MS = 60_000
+/** The in-window occurrence of the nth event created. */
+const occurrenceOf = (n: number) =>
+  new Date(Date.parse('2026-07-20T09:00:00.000Z') + n * MINUTE_MS).toISOString()
 const OUT_OF_WINDOW = '2026-07-25T09:00:00.000Z'
 
 const runReminders = (payload: Payload, now: Date = NOW) =>
@@ -67,18 +73,22 @@ describe('SendSessionReminders job', () => {
   })
 
   async function createEvent(overrides: Record<string, unknown> = {}): Promise<number> {
+    seq += 1
     const event = await payload.create({
       collection: 'events',
       overrideAccess: true,
       data: createData<'events'>({
-        title: `Reminder Event ${(seq += 1)}`,
+        title: `Reminder Event ${seq}`,
         languages: ['en'],
         eventType: 'online',
         onlineUrl: 'https://example.com/join',
         registrationMode: 'sahaj-atlas',
         manager: managerId,
         region: regionId,
-        schedule: SCHEDULE,
+        schedule: {
+          ...SCHEDULE,
+          firstDate: new Date(Date.parse(SCHEDULE.firstDate) + seq * MINUTE_MS).toISOString(),
+        },
         _status: 'published',
         ...overrides,
       }),
@@ -134,7 +144,9 @@ describe('SendSessionReminders job', () => {
 
   it('reminds a startingAt registrant only for that session', async () => {
     const eventId = await createEvent()
-    await createRegistration(eventId, 'this-session@example.com', { startingAt: OCCURRENCE })
+    await createRegistration(eventId, 'this-session@example.com', {
+      startingAt: occurrenceOf(seq),
+    })
     await createRegistration(eventId, 'other-session@example.com', { startingAt: OUT_OF_WINDOW })
 
     await runReminders(payload)

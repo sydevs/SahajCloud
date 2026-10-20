@@ -13,6 +13,8 @@
  * apart silently, and the row stranded behind a waiting view is what drift
  * would cost (#960).
  */
+import type { CollectionConfig } from 'payload'
+
 import { join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
@@ -24,6 +26,8 @@ import {
   readJobStageConfig,
 } from '@/components/admin/JobStageView/stages'
 import { TRANSCRIPTION_STALL_MS } from '@/lib/meditations/transcript'
+import { IMPORT_STALL_MS } from '@/plugins/eventImport/constants'
+import { importCollection } from '@/plugins/eventImport/importCollection'
 
 import { hasDirective, SRC, sourceOf } from '../utils/importGraph'
 
@@ -47,18 +51,26 @@ const codeOf = (file: string): string =>
     .replace(/\/\*[\s\S]*?\*\//g, '')
     .replace(/\/\/.*$/gm, '')
 
-const statusField = (): { options?: unknown } => {
-  const field = MeditationTranscripts.fields.find((f) => 'name' in f && f.name === 'status') as
-    undefined | { options?: unknown }
-  if (!field) throw new Error('meditation-transcripts declares no `status` field')
-  return field
+type Collection = CollectionConfig
+
+const EventImports: CollectionConfig = importCollection
+
+const fieldNamed = (collection: Collection, name: string) => {
+  const field = collection.fields.find((f) => 'name' in f && f.name === name)
+  if (!field) throw new Error(`${collection.slug} declares no \`${name}\` field`)
+  return field as { defaultValue?: unknown; options?: unknown }
 }
 
-const transcriptConfig = (): JobStageConfig => {
-  const config = readJobStageConfig(MeditationTranscripts.admin?.custom)
-  if (!config) throw new Error('meditation-transcripts declares no `jobStage`')
+const statusField = (collection: Collection = MeditationTranscripts) =>
+  fieldNamed(collection, 'status')
+
+const stageConfig = (collection: Collection): JobStageConfig => {
+  const config = readJobStageConfig(collection.admin?.custom)
+  if (!config) throw new Error(`${collection.slug} declares no \`jobStage\``)
   return config
 }
+
+const transcriptConfig = (): JobStageConfig => stageConfig(MeditationTranscripts)
 
 describe('readJobStageConfig', () => {
   it('reads a declaration, keeping `progressField` only when one is given', () => {
@@ -281,6 +293,48 @@ describe('meditation-transcripts', () => {
 
   it('registers the view on its default edit route', () => {
     expect(MeditationTranscripts.admin?.components?.views?.edit).toEqual({
+      default: { Component: '@/components/admin/JobStageView/JobStageView' },
+    })
+  })
+})
+
+describe('imports', () => {
+  it('declares `pending` as its only running stage, behind the stall window, with no count', () => {
+    // The plugin publishes no progress column, so the view waits without one.
+    expect(stageConfig(EventImports)).toEqual({
+      runningStages: ['pending'],
+      staleAfterMs: IMPORT_STALL_MS,
+    })
+  })
+
+  it('declares every running stage the status column can actually hold', () => {
+    const options = statusField(EventImports).options as { value: string }[]
+    const held = options.map(({ value }) => value)
+
+    for (const stage of stageConfig(EventImports).runningStages) {
+      expect(held).toContain(stage)
+    }
+  })
+
+  /**
+   * The one collection whose `status` defaults INTO a running stage, against
+   * the view's own rule — because here that default is true: the create queues
+   * the plugin's import job. `staleAfterMs` is the whole safety, so the case
+   * asserts both halves of it, and deleting the window makes the second fail.
+   */
+  it('holds a fresh import behind the view, and hands it back past the stall window', () => {
+    const config = stageConfig(EventImports)
+    const { defaultValue } = statusField(EventImports)
+    const created = { status: defaultValue, updatedAt: '2026-10-17T00:00:00.000Z' }
+    const createdAt = Date.parse(created.updatedAt)
+
+    expect(defaultValue).toBe('pending')
+    expect(jobStageWait(config, created, createdAt + IMPORT_STALL_MS)).not.toBeNull()
+    expect(jobStageWait(config, created, createdAt + IMPORT_STALL_MS + 1)).toBeNull()
+  })
+
+  it('registers the view on its default edit route', () => {
+    expect(EventImports.admin?.components?.views?.edit).toEqual({
       default: { Component: '@/components/admin/JobStageView/JobStageView' },
     })
   })

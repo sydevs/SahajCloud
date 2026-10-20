@@ -17,6 +17,7 @@
 import { createElement } from 'react'
 import { describe, expect, it } from 'vitest'
 
+import { EventImportSummaryEmail } from '@/emails/EventImportSummaryEmail'
 import { buildReplyBody, EventRegistrationEmail } from '@/emails/EventRegistrationEmail'
 import { InviteEmail, inviteHeading } from '@/emails/InviteEmail'
 import { buildUserMessageDetails, UserMessageEmail } from '@/emails/UserMessageEmail'
@@ -557,5 +558,40 @@ describe('UserMessageEmail', () => {
 
     expect(html).toContain('data-skip-in-text="true">The pin is in the sea.')
     expect(html).not.toContain('data-skip-in-text="true">seeker@example.com')
+  })
+})
+
+describe('EventImportSummaryEmail', () => {
+  const props = {
+    brand: getEmailBrand('sahaj-atlas'),
+    targetName: 'Germany',
+    created: 12,
+    duplicates: 2,
+    errors: 1,
+    importUrl: 'https://cloud.sydevelopers.com/admin/collections/imports/42',
+  }
+
+  it('counts each outcome and links to the import alone', async () => {
+    const html = await renderEmail(createElement(EventImportSummaryEmail, props))
+
+    expect(html).toContain('Your class import is ready to review')
+    expect(html).toContain('12 classes ready to review in Germany')
+    expect(html).toContain('12 classes')
+    expect(html).toContain('2 rows')
+    expect(html).toContain('1 row')
+    expect(html).toContain('Review and publish')
+    expect(html.match(/href="https:\/\/cloud\.sydevelopers\.com\/admin[^"]*"/g)).toEqual([
+      'href="https://cloud.sydevelopers.com/admin/collections/imports/42"',
+    ])
+  })
+
+  it('leaves out a count of nothing, and asks for attention when nothing was created', async () => {
+    const html = await renderEmail(
+      createElement(EventImportSummaryEmail, { ...props, created: 0, duplicates: 0 }),
+    )
+
+    expect(html).toContain('Your class import needs attention')
+    expect(html).not.toContain('Duplicates skipped')
+    expect(html).toContain('View the import')
   })
 })

@@ -116,6 +116,9 @@ describe('atlasSitemap endpoint', () => {
       })
       .then((doc) => doc.id)
 
+  // Several events share a region and SCHEDULE, so each gets its own street —
+  // the part of the duplicate-class key left to tell them apart.
+  let streetNo = 0
   const createEvent = (overrides: FixtureOverrides<Event>): Promise<number> =>
     payload
       .create({
@@ -128,7 +131,7 @@ describe('atlasSitemap endpoint', () => {
           schedule: SCHEDULE,
           eventType: 'offline',
           address: {
-            street: '1 Test St',
+            street: `${(streetNo += 1)} Test St`,
             city: 'Amsterdam',
             country: 'NL',
             latitude: 52.37,
