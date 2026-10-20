@@ -94,19 +94,15 @@ function managerSubmissionScope(userId: number | string): Where {
 
 /**
  * A manager's meditation writes, narrowed to the language their role was read
- * in — never the language the document claims (#980).
- *
- * A meditation IS one language, in its hidden `locale` field, while
- * `meditations-editor` is granted per locale and the grant itself names none.
- * `filterMeditationsByLocale` scopes `find` and `count` only, by design, so
- * nothing else stood in the way of a cross-language write.
+ * in — never the language the document claims (#980, `docs/rules/access.md`).
  *
  * `create` answers with a boolean because `executeAccess` reads a `Where` as a
  * grant, so an object there would allow every language. An absent `locale` is
- * allowed, because the field pass that fills it has not run yet and the admin
- * asks this question with no data at all to decide whether to offer the Create
- * button — `restrictCreateToRequestLocale` is what then checks the filled
- * value.
+ * allowed: the field pass that fills it has not run yet, and the admin asks
+ * this question with no data at all to decide whether to offer the Create
+ * button. `restrictCreateToRequestLocale` checks the filled value, and covers
+ * a stated one too — this arm refuses that earlier, at the layer that owns
+ * which rows a role may write.
  */
 function scopeMeditationWrite(
   operation: 'create' | 'update' | 'delete',
