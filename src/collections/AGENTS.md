@@ -765,6 +765,9 @@ req.locale } }` to `find`/`count` operations.
 - `findByID` returns the specific doc regardless of locale.
 - `locale=all` bypasses filtering.
 - A **versions read** bypasses filtering too — see the rule below.
+- **Writes are scoped separately**, since that hook deliberately skips them: a
+  non-admin manager's create/update is narrowed to the locale their
+  `meditations-editor` role was read in (#980, `docs/rules/access.md`).
 
 ```bash
 GET /api/user-choices?locale=en

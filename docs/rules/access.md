@@ -150,6 +150,18 @@ A `managers` (hasMany) or `manager` relationship to `managers` on any collection
 
 Wired into `createAccessConfig` on an explicit slug allowlist (`{ regions, events }`), not field introspection, since create/delete are security-sensitive and a stray `managers` field elsewhere must not silently widen access.
 
+### Meditation write scoping (per-locale editors, #980)
+
+A meditation **is** one language — its hidden `locale` select — but `meditations-editor` is granted per locale and the grant it carries names none. So the collection-wide grant let a French or Czech editor open an English meditation by its URL and rewrite its label, narrator, thumbnail, type, music tag and frames for every English listener. `scopeMeditationWrite` (`accessConfigs.ts`) narrows a non-admin manager's write to the locale `hasPermission` evaluated their role in — the language this request's roles came from, never the language the document claims.
+
+- **update** (and `delete`, which no role grants today) → `{ locale: { equals: <scope> } }`. A single-document update that does not match answers **403 Forbidden**, because `updateByID` reports a `Where` policy that matched nothing as a refusal rather than a 404.
+- **create** → a boolean, because `executeAccess` reads a `Where` as a grant and an object there would allow every language. An absent `locale` is allowed: the field defaults to the admin locale, and the admin asks this question with no data at all to decide whether to offer the Create button.
+- **read** is untouched. `filterMeditationsByLocale` already scopes `find` and `count` and deliberately skips writes; the admin list and every client feed are unchanged.
+- **Version history follows on its own.** `withDerivedGrants` derives `readVersions` from `update` and translates the clause onto `version.locale`, so an editor reads the history of their own language's meditations and no other.
+- **Narrators are shared.** Every language draws on the same narrators, so `meditations-editor` keeps its unscoped `narrators` grant.
+
+A bilingual editor is therefore bound to the admin locale they are working in: holding the role in `en` and `fr` edits an English meditation only with the admin in English. Admins are unaffected — the admin bypass answers before any of this.
+
 ### Derived grants: one pass, one table (#719, #748)
 
 Two access keys are **derived from `update`** rather than computed from the role tables, because both are edit authority wearing another name: `readVersions` (version history, #719) and `unlock` (clearing a login lockout, #748). `withDerivedGrants(access, keys)` writes them in one pass, and `DERIVED_GRANTS` in `accessConfigs.ts` is the table of what differs between them — today, only whether the `Where` needs translating.
