@@ -104,7 +104,7 @@ export const pagesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
     {
       key: 'core-pages',
       label: 'Core app pages',
-      description: 'All ten required app pages are published with localized content.',
+      description: 'Every app-required page is published with localized content.',
       type: 'documents',
       evaluate: async ({ coreDocs }) => coreDocs,
     },
