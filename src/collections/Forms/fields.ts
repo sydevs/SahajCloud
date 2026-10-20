@@ -52,7 +52,8 @@ export function formFields({ defaultFields }: { defaultFields: Field[] }): Field
  * config and the test harness build from them.
  *
  * ⚠ A plugin release that renames one of the three would leave this a silent
- * no-op, so `tests/unit/forms-localized-fields.spec.ts` pins all three.
+ * no-op, so `tests/int/forms-action-type.int.spec.ts` pins each one by
+ * writing French and reading English back.
  */
 function localizePerLanguage(field: Field): Field {
   if (!('name' in field)) return field

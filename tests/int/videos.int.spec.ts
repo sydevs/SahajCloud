@@ -105,4 +105,62 @@ describe('Videos Collection — custom behavior', () => {
       expect(fn({ doc: { filename: 123 } })).toBeNull()
     })
   })
+
+  /**
+   * `subtitles` is localized (#981). Asserted functionally, because Payload
+   * strips `localized` from the sanitized config a booted instance exposes
+   * (`tests/AGENTS.md`), so reading the flag back here would pass either way.
+   */
+  describe('per-language subtitles', () => {
+    const enCue = [{ content: 'English cue', startTimeMs: 0, endTimeMs: 1000 }]
+    const frCue = [{ content: 'Replique francaise', startTimeMs: 0, endTimeMs: 1000 }]
+
+    it('keeps a French edit from overwriting the English cues', async () => {
+      const video = await testData.createVideo(payload, {
+        title: 'Localized subtitles',
+        subtitles: enCue,
+      })
+
+      // `title` is required and was already localized, so a French save owes
+      // one of its own whatever this change does. That is the pre-existing
+      // rule, not a cost of localizing `subtitles`.
+      await payload.update({
+        collection: 'videos',
+        id: video.id,
+        locale: 'fr',
+        data: { title: 'Titre francais', subtitles: frCue },
+      })
+
+      const en = await payload.findByID({
+        collection: 'videos',
+        id: video.id,
+        locale: 'en',
+        fallbackLocale: false,
+      })
+      const fr = await payload.findByID({
+        collection: 'videos',
+        id: video.id,
+        locale: 'fr',
+        fallbackLocale: false,
+      })
+
+      expect(en.subtitles).toEqual(enCue)
+      expect(fr.subtitles).toEqual(frCue)
+    })
+
+    // Pins fallback, not localization: an unlocalized column answers this the
+    // same way, so this case stays green with the defect reintroduced. It is
+    // here because "other locales keep reading the English value" is what makes
+    // the migration's en-only backfill correct.
+    it('falls back to the English cues for a locale with none of its own', async () => {
+      const video = await testData.createVideo(payload, {
+        title: 'Fallback subtitles',
+        subtitles: enCue,
+      })
+
+      const de = await payload.findByID({ collection: 'videos', id: video.id, locale: 'de' })
+
+      expect(de.subtitles).toEqual(enCue)
+    })
+  })
 })
