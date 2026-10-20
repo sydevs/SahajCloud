@@ -49,24 +49,33 @@ lines used until 2026-10-20 and which the routine containers do not ship
 
 ## The unit lane — 2026-10-20
 
-`pnpm test:unit`, three consecutive runs, reported Vitest duration:
-**60.29 s · 58.75 s · 59.23 s**, wall clock 60.3–61.7 s. **198 files, 2575
-tests**, all passing.
+Two sessions measured it the same day, on the same container spec — 4 cores
+(Intel Xeon @ 2.80 GHz), 15 GB, a cloud routine container:
 
-Machine: 4 cores (Intel Xeon @ 2.80 GHz), 15 GB, a cloud routine container.
-A maintainer's laptop is likely faster, so read this as an upper bound — and
-record your own row beside it rather than replacing it.
+| Session | Files / tests | Vitest duration, 3 consecutive runs | Median |
+| --- | --- | --- | --- |
+| first | 198 / 2575 | 60.29 · 58.75 · 59.23 s | 59.2 s |
+| second, after merging `main` | 203 / 2643 | 82.19 · 77.93 · 73.21 s | **77.9 s** |
+
+⚠ **Those two medians are 30% apart, and 5 spec files do not explain it.**
+Identical spec, same day, 2.5% more files. The second session's three runs
+also fell monotonically (82 → 73 s) as caches warmed. So **a single
+container's figure is reproducible to about ±30%, no better** — quote the
+slower median as an upper bound, which is what the consumer docs do, and do
+not treat a 20% move as a regression. A maintainer's laptop is faster again.
+Record your own row above rather than replacing one.
+
+Everything below is the second session's run unless the row says otherwise.
 
 | Metric | Value |
 | --- | --- |
-| Files / tests | 198 / 2575 |
-| Whole lane, 3 workers (median of 3 runs) | **59.2 s** |
-| Vitest phase breakdown, at 3 workers | transform 11.3 s, import 114.1 s, tests 13.0 s, environment 2.8 s |
-| Sum of per-file durations (JSON reporter) | 17.7 s |
-| Slowest file's own duration inside the lane | 1.8 s (`proposal-leaves.spec.ts`) |
-| One file alone, cold | **1.9 s** wall (`convert-vimeo`) to **3.0 s** (`proposal-leaves`) |
-| Whole lane at `--maxWorkers=1` | 140.5 s |
-| Whole lane at `--maxWorkers=4` | 49.2 s |
+| Files / tests | 203 / 2643 |
+| Whole lane, 3 workers (median of 3 runs) | **77.9 s** |
+| Vitest phase breakdown, at 3 workers | transform 14.4 s, import 141.6 s, tests 17.5 s, environment 5.2 s |
+| Slowest file's own duration inside the lane (first session) | 1.8 s (`proposal-leaves.spec.ts`) |
+| One file alone, cold (first session) | **1.9 s** wall (`convert-vimeo`) to **3.0 s** (`proposal-leaves`) |
+| Whole lane at `--maxWorkers=1` (first session, 198 files) | 140.5 s |
+| Whole lane at `--maxWorkers=4` (first session, 198 files) | 49.2 s |
 | `pnpm lint` | 28.5 s |
 | `pnpm typecheck` | 8.4 s |
 | `pnpm typecheck:tests` | 8.2 s |
@@ -84,13 +93,14 @@ above that does not name a worker count is a **3**-worker figure on a 4-core
 box. Reading it as one-per-core is what makes a core-count extrapolation come
 out several times too fast.
 
-**The cost is importing 198 module graphs, not running 2575 assertions.**
-Test bodies are 13 s of the 59.2 s while `import` alone sums to 114 s of
-worker time, and no single file is slow — the slowest is 1.8 s. The first two
-figures are the breakdown Vitest prints on every run.
+**The cost is importing 203 module graphs, not running 2643 assertions.**
+Test bodies are 17.5 s of the 77.9 s while `import` alone sums to 142 s of
+worker time, and no single file is slow — the slowest is 1.8 s. Both figures
+are the breakdown Vitest prints on every run.
 
 **No worker count reaches `< 5 s` for the whole lane, because about 19 s of it
-is serial.** Fitting `wall = S + P/N` to the 1-worker and 4-worker runs gives
+is serial.** Fitting `wall = S + P/N` to the first session's 1-worker and
+4-worker runs gives
 **S ≈ 19 s, P ≈ 122 s**, and that fit predicts the 3-worker run at 59.4 s
 against 59.2 s measured — so it holds across all three. Nothing goes below `S`
 however many cores are bought. Running fewer files can.

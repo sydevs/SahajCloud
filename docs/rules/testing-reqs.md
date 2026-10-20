@@ -26,7 +26,7 @@ Every test command belongs to one of three tiers, each with one purpose. Tier 1 
 | **2 — Pre-PR** | `pnpm lint && pnpm typecheck && pnpm typecheck:tests && pnpm test:unit` | < 150 s (138 s cold, 103 s warm) | The pr-prep lean gate (`.claude/skills/pr-prep/check.sh`) |
 | **3 — CI** | `pnpm lint && pnpm typecheck && pnpm typecheck:tests && pnpm test && pnpm test:smoke` | ≤ 20 min | GitHub Actions, on every PR (`.github/workflows/ci.yml`) |
 
-**Each target above is held to a measurement in `tests/PERF.md`, recorded with its machine and date.** Measured 2026-10-20 on 4 cores: `pnpm test:unit` is **59 s** for 198 files and 2575 tests, and Tier 2's four commands sum to **104 s**. **Tier 2's target is 150 s because the gate in its own row is what it bounds**, and `check.sh` also runs `scripts/ensure-test-db.sh`: 138 s on a session's first run, 103 s once Postgres answers. Tier 1's was not, because 5 s is what the *hook* needs per edit, and the whole lane is what it currently spends (#990).
+**Each target above is held to a measurement in `tests/PERF.md`, recorded with its machine and date.** Measured 2026-10-20 on 4 cores: `pnpm test:unit` is **78 s** for 203 files and 2643 tests, and Tier 2's four commands sum to **104 s**. **Tier 2's target is 150 s because the gate in its own row is what it bounds**, and `check.sh` also runs `scripts/ensure-test-db.sh`: 138 s on a session's first run, 103 s once Postgres answers. Tier 1's was not, because 5 s is what the *hook* needs per edit, and the whole lane is what it currently spends (#990).
 
 ⚠ **Tier 1's gap shows up as a false failure, not as slowness.** `.claude/hooks/unit-test.mjs` bounds the lane with a 30 s `execSync` timeout, so wherever the lane runs longer than that — every machine measured so far, and about 19 s of the lane is serial whatever the core count — the timeout fires, and the catch branch reports `Unit tests failed after editing <file>` with a tail carrying no failure in it, just Vitest's banner. **Disregard that report and run `pnpm test:unit` yourself.** Reproduce it with:
 
@@ -66,7 +66,7 @@ If the lane is unavailable, say so. Do not guess why. Name the layer that refuse
 
 Locally, default to targeted runs:
 
-- `pnpm test:unit` — the whole unit lane (about 59 s on 4 cores, no Payload boot — `tests/PERF.md`). For one spec, name it: `pnpm exec vitest run tests/unit/<file>.spec.ts --project unit --config ./vitest.config.mts`, 2–3 s.
+- `pnpm test:unit` — the whole unit lane (about 78 s on 4 cores, no Payload boot — `tests/PERF.md`). For one spec, name it: `pnpm exec vitest run tests/unit/<file>.spec.ts --project unit --config ./vitest.config.mts`, 2–3 s.
 - `pnpm exec vitest run tests/int/<file>.int.spec.ts --config ./vitest.config.mts` — one integration spec, for the area you touched.
 - `pnpm exec vitest run tests/int/<file>.int.spec.ts -t "<case name>"` — one test case.
 
@@ -75,7 +75,7 @@ Run the full `pnpm test:int` locally, or `check.sh --full` for CI parity, only t
 ## Test commands
 
 ```bash
-pnpm test:unit        # Tier 1 — unit lane only (about 59 s, no Payload bootstrap)
+pnpm test:unit        # Tier 1 — unit lane only (about 78 s, no Payload bootstrap)
 pnpm test             # Tier 3 first half — unit + integration (what CI runs locally)
 pnpm test:int         # Integration tests (Vitest) — targeted spec preferred; see Tier 2 for how
 pnpm test:smoke       # Tier 3 second half — Playwright against CF PR preview (CI-only)
