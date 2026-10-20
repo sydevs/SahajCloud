@@ -64,6 +64,10 @@ function buildUnitDocs(lessons: Lesson[], unit: string): DocumentReport[] {
       label: labelOf(lesson as { id: number | string; title?: unknown }),
       checks: [
         {
+          key: 'lesson-title-set',
+          passed: typeof lesson.title === 'string' && lesson.title.trim().length > 0,
+        },
+        {
           key: 'panels-set',
           passed: Array.isArray(lesson.panels) && lesson.panels.length >= 1,
         },
@@ -95,6 +99,12 @@ export const lessonsSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
     'Every lesson in units 1–3 is fully configured for this locale (unit 4 is optional).',
   tutorialLink: null,
   checks: {
+    // Not `title-set`: a check key is global across sections, and app-cards
+    // owns that one with its own description.
+    'lesson-title-set': {
+      label: 'Title set',
+      description: 'The lesson has a title for this locale.',
+    },
     'panels-set': {
       label: 'Panels configured',
       description: 'The lesson has at least one panel.',

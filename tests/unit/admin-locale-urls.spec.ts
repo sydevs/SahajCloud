@@ -1,6 +1,6 @@
 /**
  * The locale on a hand-rolled admin REST call is a permission, not a query
- * option (#701). Two of the three call sites that carry the fix build a URL
+ * option (#701). Three of the four call sites that carry the fix build a URL
  * or an SWR key from `useLocale().code`, and only a browser can observe them
  * end to end — so the string each one builds is pinned here instead.
  *
@@ -8,13 +8,14 @@
  * accepted and its absence is refused. They cannot see whether a client sends
  * it. That is what these assertions cover.
  *
- * The third site, `fetchRelationshipDocs`, is pinned in
+ * The fourth site, `fetchRelationshipDocs`, is pinned in
  * `relationshipDocLoader.spec.ts` against a stubbed `fetch`.
  */
 
 import { describe, expect, it } from 'vitest'
 
 import { framesByNarratorKey } from '../../src/components/admin/FrameEditor/utils'
+import { transcriptUrl } from '../../src/components/admin/MeditationTranscript/transcriptModel'
 import { submissionActionUrl } from '../../src/components/admin/SubmissionReview/urls'
 
 describe('framesByNarratorKey', () => {
@@ -64,5 +65,31 @@ describe('submissionActionUrl', () => {
   it('refuses to build a URL with no locale', () => {
     expect(submissionActionUrl(7, 'accept', undefined)).toBeNull()
     expect(submissionActionUrl(7, 'delete', '')).toBeNull()
+  })
+})
+
+describe('transcriptUrl', () => {
+  it('names the locale, and filters on the meditation', () => {
+    const url = transcriptUrl(7, 'fr')
+
+    expect(url).toContain('locale=fr')
+    expect(url).toContain(`where${encodeURIComponent('[meditation][equals]')}=7`)
+  })
+
+  it('encodes the locale', () => {
+    expect(transcriptUrl(7, 'pt-BR')).toContain('locale=pt-BR')
+  })
+
+  it('keys two locales separately, so a locale switch refetches', () => {
+    expect(transcriptUrl(7, 'fr')).not.toBe(transcriptUrl(7, 'en'))
+  })
+
+  it('refuses to build a URL with no locale', () => {
+    expect(transcriptUrl(7, undefined)).toBeNull()
+    expect(transcriptUrl(7, '')).toBeNull()
+  })
+
+  it('refuses to build a URL with no meditation', () => {
+    expect(transcriptUrl(undefined, 'fr')).toBeNull()
   })
 })
