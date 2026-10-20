@@ -14,6 +14,14 @@ here. Change a number there only with a measurement, and add it below with
 its machine and date. Those budgets drifted an order of magnitude from the
 lane they describe because nothing held them to a run (#990).
 
+`tests/unit/perf-figures-pinned.spec.ts` is that run. It reds when the file
+count here stops matching the tracked specs, when a consumer doc stops
+quoting the lane figure here, or when Tier 2's target drops below the gate's
+own cold measurement. ⚠ **It asserts no wall-clock time** — a timing bound
+inside the lane reddens on a loaded machine, and a check everyone learns to
+ignore is worse than prose. Re-measuring therefore edits this file and the
+four consumers in one commit, by design.
+
 ## How to measure
 
 ```bash
