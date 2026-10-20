@@ -56,7 +56,7 @@ A headless content management system built with **Next.js 16** and **PayloadCMS 
 | `pnpm lint` | Run ESLint |
 | `pnpm typecheck` | Check types in `src/` (`tsc --noEmit`) |
 | `pnpm test` | Run unit and integration tests |
-| `pnpm test:unit` | Run the fast unit lane (no Payload bootstrap) |
+| `pnpm test:unit` | Run the unit lane — no Payload bootstrap, about 78 s (`tests/PERF.md`) |
 | `pnpm test:int` | Run integration tests against Postgres (Vitest) |
 | `pnpm test:smoke` | Run smoke specs against a deployed preview (Playwright) |
 | `pnpm generate:types` | Generate TypeScript types from the Payload schema |
