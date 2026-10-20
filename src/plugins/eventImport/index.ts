@@ -20,7 +20,7 @@ import { relationId } from '@/lib/utilities/relationId'
 import type { Import } from '@/payload-types'
 
 import { IMPORT_BATCH_SIZE, MAX_IMPORT_ROWS } from './constants'
-import { failImport, finishImport } from './finish'
+import { failImport, finishImport, refreshImportStatus } from './finish'
 import { afterImport } from './hooks/afterImport'
 import { beforeImport } from './hooks/beforeImport'
 import { overrideExportCollection, overrideImportCollection } from './importCollection'
@@ -82,7 +82,44 @@ export const eventImportPlugin: Plugin = async (config) => {
     }
   }
 
+  // An import's status follows its classes wherever they are published or
+  // deleted — the result table, a drawer, the Events list, a job.
+  const events = withPlugin.collections?.find((collection) => collection.slug === 'events')
+  if (!events) throw new Error('eventImportPlugin needs the events collection')
+  events.hooks = {
+    ...events.hooks,
+    afterChange: [...(events.hooks?.afterChange ?? []), refreshFromEvent],
+    afterDelete: [...(events.hooks?.afterDelete ?? []), refreshFromEvent],
+  }
+
   return withPlugin
+}
+
+/**
+ * Refresh the status of the import a changed class came from. Skipped inside
+ * the import job itself, where every create would ask while the import is
+ * still pending; never throws, since the class's own write has succeeded.
+ */
+const refreshFromEvent = async ({
+  doc,
+  previousDoc,
+  req,
+}: {
+  doc: { importBatch?: unknown }
+  previousDoc?: { importBatch?: unknown }
+  req: PayloadRequest
+}) => {
+  if (req.context?.[RUN_CONTEXT_KEY]) return doc
+  const ids = new Set([relationId(doc?.importBatch), relationId(previousDoc?.importBatch)])
+  for (const id of ids) {
+    if (id === null) continue
+    try {
+      await refreshImportStatus(req, id)
+    } catch (error) {
+      req.payload.logger.error({ err: error, import: id }, 'Import status could not be refreshed')
+    }
+  }
+  return doc
 }
 
 /** The import document, reduced to what the hooks need, with the target it names. */

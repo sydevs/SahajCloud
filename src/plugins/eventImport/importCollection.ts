@@ -50,16 +50,30 @@ const classCreators: Access = ({ req }) =>
  */
 export const IMPORT_FINISH = 'eventImportFinish'
 
+/**
+ * Where an import stands for the volunteer, replacing the plugin's own
+ * vocabulary (which records how its run went, and never moves afterwards).
+ * `finish.ts` sets the first settled status; `refreshImportStatus` moves an
+ * import between `review` and `completed` as its classes are published or
+ * deleted, wherever that happens.
+ */
+const STATUS_OPTIONS = [
+  { label: 'Pending', value: 'pending' },
+  { label: 'Review', value: 'review' },
+  { label: 'Completed', value: 'completed' },
+  { label: 'Failed', value: 'failed' },
+]
+
 /** What each import status means for the volunteer, under the Status field. */
 const STATUS_DESCRIPTIONS: Record<string, string> = {
   pending:
     'The file is being read and its classes created as drafts. This page opens once it is done.',
+  review:
+    'Some classes from this import are still drafts. Nothing is public until published: publish the ones that are right and clean up the rest.',
   completed:
-    'Every row became a draft class. Nothing is public yet: check the classes below and publish them.',
-  partial:
-    'Some rows became draft classes and the rest were skipped. Nothing is public until published; each skipped row says why, and can be downloaded, fixed and uploaded again.',
+    'Nothing is left to review: every class from this import is published or deleted. Skipped rows say why below, and can be downloaded, fixed and uploaded again.',
   failed:
-    'No classes were created. The result or the error says why — fix the file and upload it again.',
+    'The import stopped, or created no classes. The result or the error says why — fix the file and upload it again.',
 }
 
 /** The plugin's knobs, kept but out of the way: only `events` is ever imported into. */
@@ -191,6 +205,7 @@ function pluginFields(fields: readonly Field[]): Field[] {
       return [
         {
           ...field,
+          options: STATUS_OPTIONS,
           admin: {
             ...field.admin,
             position: 'sidebar',

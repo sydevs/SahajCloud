@@ -13,6 +13,16 @@ import { runOf } from '../run'
 /** Payload's envelope around a field refusal, which names fields and not reasons. */
 const FIELDS_INVALID = /^The following fields? (?:is|are) invalid: /
 
+/** Payload's access refusal, which says nothing about why. */
+const FORBIDDEN = /^You are not allowed to perform this action\.?$/
+
+function reasonOf(error: string): string {
+  if (FORBIDDEN.test(error)) {
+    return "you are not allowed to add classes in this row's city — ask an admin, or remove the row"
+  }
+  return error.replace(FIELDS_INVALID, 'invalid: ')
+}
+
 export const afterImport: ImportAfterHook = async ({
   batchNumber,
   originalData,
@@ -27,7 +37,7 @@ export const afterImport: ImportAfterHook = async ({
     const raw = originalData[failure.index - offset]
     run.skipped.push({
       row: raw ? lineOf(raw) : failure.index + 2,
-      reasons: [failure.error.replace(FIELDS_INVALID, 'invalid: ')],
+      reasons: [reasonOf(failure.error)],
       values: raw ? normaliseRow(raw) : {},
     })
   }

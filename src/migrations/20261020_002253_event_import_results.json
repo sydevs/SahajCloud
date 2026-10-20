@@ -28587,8 +28587,8 @@
       "schema": "public",
       "values": [
         "pending",
+        "review",
         "completed",
-        "partial",
         "failed"
       ]
     },
@@ -29760,6 +29760,6 @@
     "tables": {},
     "columns": {}
   },
-  "id": "55903f49-3d51-450c-9c3b-68669673e6c6",
+  "id": "ca485898-fb2b-4e4f-9aac-3d9885ff6709",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }

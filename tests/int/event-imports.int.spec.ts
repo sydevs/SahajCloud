@@ -128,13 +128,13 @@ describe('class imports', () => {
       overrideAccess: false,
     })
 
-  const run = (importId: number) =>
+  const run = (importId: number, uploaderId: number = admin.id) =>
     runTaskHandler(importTask, {
       payload,
       input: {
         importId: String(importId),
         importCollection: 'imports',
-        userID: String(admin.id),
+        userID: String(uploaderId),
         userCollection: 'managers',
         batchSize: 50,
         defaultVersionStatus: 'draft',
@@ -236,7 +236,8 @@ describe('class imports', () => {
       expect(output).toMatchObject({ imported: 2, errors: [] })
 
       const after = await read(created.id)
-      expect(after.status).toBe('completed')
+      // Every class it created is a draft, so there is something to review.
+      expect(after.status).toBe('review')
       const { docs } = await importedClasses(created.id)
       expect(docs.map((event) => event.title).sort()).toEqual(['Beginners', 'Evening'])
       // Each row links the class it created: row 1 Beginners, row 2 Evening.
@@ -251,6 +252,74 @@ describe('class imports', () => {
         expect(event.languages).toEqual(['de'])
         expect(event.schedule?.firstDate_tz).toBe('Europe/Berlin')
       }
+    })
+
+    it('moves to completed once no draft is left, and back while one is', async () => {
+      const created = await createImport([
+        classLine({ title: 'Publish me', startTime: '06:07' }),
+        classLine({ title: 'Delete me', startTime: '06:08' }),
+      ])
+      await run(created.id)
+      const [toPublish, toDelete] = (await importedClasses(created.id)).docs.sort((a, b) => a.id - b.id)
+      expect((await read(created.id)).status).toBe('review')
+
+      await payload.update({
+        collection: 'events',
+        id: toPublish!.id,
+        data: { _status: 'published' },
+        overrideAccess: true,
+      })
+      expect((await read(created.id)).status).toBe('review')
+
+      await payload.delete({ collection: 'events', id: toDelete!.id, overrideAccess: true })
+      expect((await read(created.id)).status).toBe('completed')
+
+      await payload.update({
+        collection: 'events',
+        id: toPublish!.id,
+        data: { _status: 'draft' },
+        overrideAccess: true,
+      })
+      expect((await read(created.id)).status).toBe('review')
+    })
+
+    it('creates the rows the uploader may write and refuses the rest, naming why', async () => {
+      // Owns Germany at the upload — then, before the job runs, only Berlin.
+      const hamburg = await testData.createRegion(payload, {
+        name: 'Hamburg',
+        level: 'city',
+        parent: country,
+        mapboxId: 'place.hamburg',
+      })
+      const volunteer = await testData.createManager(payload, {
+        name: 'Narrowed Volunteer',
+        roles: ['atlas-manager'],
+      })
+      const germany = await payload.findByID({ collection: 'regions', id: country, depth: 0 })
+      const owners = (germany.managers ?? []).map((m) => (typeof m === 'object' ? m.id : m))
+      await payload.update({ collection: 'regions', id: country, data: { managers: [...owners, volunteer.id] } })
+      const created = await createImport(
+        [
+          classLine({ title: 'Allowed in Berlin', startTime: '06:09' }),
+          classLine({ title: 'Refused in Hamburg', city: 'Hamburg', startTime: '06:10' }),
+        ],
+        volunteer,
+      )
+      await payload.update({ collection: 'regions', id: country, data: { managers: owners } })
+      await payload.update({ collection: 'regions', id: berlin, data: { managers: [volunteer.id] } })
+
+      await run(created.id, volunteer.id)
+
+      const after = await read(created.id)
+      expect(after.status).toBe('review')
+      expect(after.results?.map(({ row, title, outcome }) => [row, title, outcome])).toEqual([
+        [2, 'Allowed in Berlin', 'created'],
+        [3, 'Refused in Hamburg', 'error'],
+      ])
+      expect(after.results?.[1]?.reasons?.[0]).toMatch(/not allowed to add classes/)
+      const { docs } = await importedClasses(created.id)
+      expect(docs.map((event) => relationId(event.region))).toEqual([berlin])
+      expect(hamburg.id).not.toBe(berlin)
     })
 
     it('skips a row whose town has no city region, naming it', async () => {

@@ -16,11 +16,11 @@ import { IMPORT_FINISH } from './importCollection'
 import { buildResults } from './results'
 import { sendImportSummary } from './summaryEmail'
 
-type ImportStatus = 'completed' | 'failed' | 'partial'
+type ImportStatus = 'completed' | 'failed' | 'review'
 
+/** Every class a finished run created is a draft, so it starts in review. */
 function statusOf(run: ImportRun): ImportStatus {
-  if (run.imported === 0) return 'failed'
-  return run.skipped.length ? 'partial' : 'completed'
+  return run.imported === 0 ? 'failed' : 'review'
 }
 
 export async function finishImport(req: PayloadRequest, run: ImportRun): Promise<void> {
@@ -91,4 +91,30 @@ function markImport(req: PayloadRequest, importId: number, data: Record<string, 
     select: { status: true },
     req: { ...req, context: { ...req.context, [IMPORT_FINISH]: true } } as PayloadRequest,
   })
+}
+
+/**
+ * Move a settled import between `review` and `completed` as its drafts are
+ * published or deleted. A pending or failed import is left alone: the one is
+ * still running, and the other keeps the error that explains it.
+ */
+export async function refreshImportStatus(req: PayloadRequest, importId: number): Promise<void> {
+  const current = await req.payload.findByID({
+    collection: 'imports',
+    id: importId,
+    depth: 0,
+    overrideAccess: true,
+    disableErrors: true,
+    select: { status: true },
+    req,
+  })
+  if (current?.status !== 'review' && current?.status !== 'completed') return
+  const { totalDocs: drafts } = await req.payload.count({
+    collection: 'events',
+    where: { and: [{ importBatch: { equals: importId } }, { _status: { equals: 'draft' } }] },
+    overrideAccess: true,
+    req,
+  })
+  const next: ImportStatus = drafts ? 'review' : 'completed'
+  if (next !== current.status) await markImport(req, importId, { status: next })
 }

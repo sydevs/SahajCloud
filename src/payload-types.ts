@@ -1999,7 +1999,7 @@ export interface Import {
   collectionSlug: string;
   importMode?: ('create' | 'update' | 'upsert') | null;
   matchField?: string | null;
-  status?: ('pending' | 'completed' | 'partial' | 'failed') | null;
+  status?: ('pending' | 'review' | 'completed' | 'failed') | null;
   /**
    * Language(s) for rows whose own `languages` column is empty.
    */
