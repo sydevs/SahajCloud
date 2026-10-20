@@ -39,7 +39,7 @@ The fix is to run only the specs one edit can break, which costs 1.3 s for the m
 
 **Why `pnpm typecheck` is its own gate step.** Neither ESLint nor Vitest runs `tsc`. A type error can pass lint and the whole test suite, then surface only at the Railway build — after merge. Tier 2 and CI both run `tsc --noEmit` (8 s measured — `tests/PERF.md`) to catch it first.
 
-**Why Tier 2 omits `pnpm format:check`.** The lean gate lives at `.claude/skills/pr-prep/check.sh`, and `.claude/` is a Claude Code protected path: an unattended run cannot write there. The step belongs beside that script's lint step and needs an attended edit to land. Until it does, a misformat surfaces in CI rather than before the push.
+**Why Tier 2 omits `pnpm format:check`.** The lean gate lives at `.claude/skills/pr-prep/check.sh`, and `.claude/` is a Claude Code protected path: an unattended run cannot write there. The step belongs beside that script's lint step and needs an attended edit to land. Until it does, a misformat surfaces in CI rather than before the push — on a loop PR that costs a red check and one `fix-ci` iteration. Tracked in #1006.
 
 **Why `pnpm typecheck:tests` is a separate command.** The root `tsconfig.json` excludes `tests`, and the Next.js build reads that same config. So `pnpm typecheck` covers only `src/`. Without a second pass, nothing type-checks the specs — esbuild strips their types without checking them. A stale fixture then surfaces as a runtime failure, or never surfaces at all. `tsconfig.test.json` closes that gap over the whole suite (`tests/**`, 8 s measured). Two separate commands means a failure names its own lane.
 
