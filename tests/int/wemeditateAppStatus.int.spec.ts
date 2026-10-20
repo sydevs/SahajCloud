@@ -60,10 +60,16 @@ const EMPTY_CONFIG: WeMeditateAppStatusConfig = {
 function run<TCtx>(
   spec: SectionSpec<WeMeditateAppStatusConfig, TCtx>,
   payload: Payload,
-  locale: 'en' | 'cs' = 'en',
+  locale: TypedLocale = 'en',
   config: WeMeditateAppStatusConfig = EMPTY_CONFIG,
+  req?: PayloadRequest,
 ): Promise<ReadinessReport> {
-  return runSection(spec, { payload: payload as BasePayload, locale, config })
+  return runSection(spec, { payload: payload as BasePayload, locale, config, req })
+}
+
+/** One section's report off a whole-global read. The column is virtual, so it is typed loosely. */
+function sectionReport(global: WmAppStatus, key: string): ReadinessReport | null {
+  return (global as unknown as Record<string, ReadinessReport | null>)[key]
 }
 
 function articleWithLectureLink(lectureId: number) {
@@ -500,10 +506,7 @@ describe('WeMeditateAppStatus Global', () => {
         'appCards',
       ] as const
       for (const key of virtualKeys) {
-        expect(
-          (report as unknown as Record<string, ReadinessReport | null>)[key],
-          `expected ${key} to be null with locale=all`,
-        ).toBeNull()
+        expect(sectionReport(report, key), `expected ${key} to be null with locale=all`).toBeNull()
       }
     })
 
@@ -514,7 +517,7 @@ describe('WeMeditateAppStatus Global', () => {
         depth: 0,
       })) as WmAppStatus
 
-      const userChoices = (report as unknown as Record<string, ReadinessReport | null>).userChoices
+      const userChoices = sectionReport(report, 'userChoices')
       expect(userChoices).not.toBeNull()
       expect(Array.isArray(userChoices?.groups)).toBe(true)
     })
@@ -618,6 +621,8 @@ describe('WeMeditateAppStatus Global', () => {
       })
     })
 
+    // Through `findGlobal` rather than `runSection`, because the admin read is
+    // what runs all seven sections concurrently on one request.
     it('reports a lesson translated only in English as not ready in French', async () => {
       const read = async (locale: 'en' | 'fr') => {
         const global = (await payload.findGlobal({
@@ -625,7 +630,7 @@ describe('WeMeditateAppStatus Global', () => {
           locale,
           depth: 0,
         })) as WmAppStatus
-        const lessons = (global as unknown as Record<string, ReadinessReport | null>).lessons
+        const lessons = sectionReport(global, 'lessons')
         const unit3 = lessons?.groups.find((g) => g.key === 'unit-3')
         expect(unit3?.type).toBe('documents')
         if (unit3?.type !== 'documents') throw new Error('expected unit-3 to be a documents group')
@@ -652,15 +657,10 @@ describe('WeMeditateAppStatus Global', () => {
     })
 
     it('keeps a row label readable while its own check reports red', async () => {
-      const report = await runSection(userChoicesSection, {
-        payload: payload as BasePayload,
-        locale: 'fr',
-        config: EMPTY_CONFIG,
-        req: newReq('fr'),
-      })
+      const report = await run(userChoicesSection, payload, 'fr', EMPTY_CONFIG, newReq('fr'))
       const featured = report.groups.find((g) => g.key === 'featured')
       expect(featured?.type).toBe('documents')
-      if (featured?.type !== 'documents') return
+      if (featured?.type !== 'documents') throw new Error('expected a documents group')
 
       const row = featured.documents.find((d) => d.id === englishOnlyChoice.id)
       expect(row).toBeDefined()
@@ -670,23 +670,14 @@ describe('WeMeditateAppStatus Global', () => {
       expect(row!.checks).toEqual([{ key: 'meditation-morning-published', passed: false }])
     })
 
-    // No section mutating the shared request is the whole of "the report does
-    // not depend on the order its sections ran in", so there is no separate
-    // order case. An order comparison could not fail for this anyway:
-    // `createLocalReq` assigns both flags from each read's own arguments, so
-    // every top-level read overwrites whatever the section before it left.
-    //
-    // It iterates the registered sections rather than a list of its own, so a
-    // section added later is covered without an edit here.
+    // This stands in for "the report does not depend on the order its sections
+    // ran in" — a section that touches nothing shared cannot. An order
+    // comparison would not have failed for the bug: every read re-derives both
+    // flags from its own arguments.
     it("leaves the caller's locale and fallback untouched after every section", async () => {
       const req = newReq('fr')
       for (const spec of WeMeditateAppStatusSpec.sections) {
-        await runSection(spec, {
-          payload: payload as BasePayload,
-          locale: 'fr',
-          config: EMPTY_CONFIG,
-          req,
-        })
+        await run(spec, payload, 'fr', EMPTY_CONFIG, req)
         expect(req.locale, `${spec.key} repointed req.locale`).toBe('fr')
         expect(req.fallbackLocale, `${spec.key} repointed req.fallbackLocale`).toBe('en')
       }

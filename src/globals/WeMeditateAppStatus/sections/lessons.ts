@@ -127,7 +127,7 @@ export const lessonsSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
       locale,
       // `meditation` and `article` are localized, so the fallback would answer
       // `meditation-set`, `article-localized` and `article-has-lecture-link`
-      // off the English value. `title` is not localized, so row labels stand.
+      // off the English value.
       fallbackLocale: false,
       limit: 0,
       pagination: false,

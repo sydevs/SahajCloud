@@ -1,8 +1,8 @@
 import type { ProjectRequestContext, SectionSpec } from './spec'
 import type { ReadinessGroup } from './types'
 
+import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import type { ReadinessReport } from '@/payload-types'
-
 
 import { aggregateGroup, documentsGroup, erroredGroup, summarize } from './groups'
 
@@ -38,11 +38,22 @@ export class UndeclaredCheckKeyError extends Error {
  * whole section. Programming errors (undeclared check keys) still throw
  * loudly — we don't want typos hiding behind the graceful-degradation
  * path.
+ *
+ * Each section gets its own copy of the caller's request. One status
+ * global is several virtual fields, and Payload awaits every field's
+ * `afterRead` in one `Promise.all`, so the sections run concurrently on
+ * one request — while `createLocalReq` assigns `locale` and
+ * `fallbackLocale` onto whatever request it is handed. Sharing it lets
+ * one section's read decide what another resolves (#982). A section's own
+ * reads still copy again wherever they differ from each other.
  */
 export async function runSection<TConfig, TSectionCtx>(
   spec: SectionSpec<TConfig, TSectionCtx>,
-  req: ProjectRequestContext<TConfig>,
+  incoming: ProjectRequestContext<TConfig>,
 ): Promise<ReadinessReport> {
+  const req: ProjectRequestContext<TConfig> = incoming.req
+    ? { ...incoming, req: localeIsolatedReq(incoming.req) }
+    : incoming
   const sectionCtx = spec.prepare ? await spec.prepare(req) : (undefined as unknown as TSectionCtx)
 
   const declaredCheckKeys = new Set(Object.keys(spec.checks))

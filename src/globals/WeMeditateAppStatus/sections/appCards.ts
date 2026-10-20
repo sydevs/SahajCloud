@@ -43,7 +43,7 @@ export const appCardsSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
         locale,
         // `_status` is per-locale (#718) and the three `default` strings are
         // localized, so the fallback would report all four checks green off
-        // the English card. `label` is not localized, so row labels stand.
+        // the English card.
         fallbackLocale: false,
         // Include drafts so unpublished cards still appear in the readiness
         // report — the per-card `published` check then flags them as failing.

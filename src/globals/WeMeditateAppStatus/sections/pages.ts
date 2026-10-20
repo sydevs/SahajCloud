@@ -5,7 +5,7 @@ import { richTextHasContent } from '@/lib/status/helpers'
 import {
   getWmAppConfig,
   isolatedReq,
-  readFallbackLabels,
+  readFallbackTitles,
   type WeMeditateAppStatusConfig,
 } from './shared'
 
@@ -16,7 +16,6 @@ interface Ctx {
 
 function reportForPage(
   pagesById: Map<number | string, Record<string, unknown>>,
-  labels: Map<number | string, string>,
   id: number | string | null,
 ): DocumentReport | null {
   if (id === null) return null
@@ -24,7 +23,7 @@ function reportForPage(
   if (!page) return null
   return {
     id: page.id as number | string,
-    label: labels.get(page.id as number | string) ?? labelOf(page as { id: number | string }),
+    label: labelOf(page as { id: number | string; title?: unknown }),
     checks: [
       { key: 'published', passed: page._status === 'published' },
       { key: 'content-localized', passed: richTextHasContent(page.content) },
@@ -68,11 +67,11 @@ export const pagesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
       new Set([...corePageIds, ...nodePageIds].filter((id): id is number | string => id !== null)),
     )
 
-    const pages =
+    const [pages, titles] = await Promise.all([
       allIds.length === 0
-        ? []
-        : (
-            await payload.find({
+        ? Promise.resolve([])
+        : payload
+            .find({
               collection: 'pages',
               where: { id: { in: allIds } },
               locale,
@@ -85,18 +84,18 @@ export const pagesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
               depth: 0,
               req: isolatedReq(req),
             })
-          ).docs
+            .then((r) => r.docs),
+      readFallbackTitles(payload, 'pages', { locale, req, ids: allIds }),
+    ])
     const pagesById = new Map<number | string, Record<string, unknown>>(
-      pages.map((p) => [p.id, p as unknown as Record<string, unknown>]),
+      pages.map((p) => [p.id, { ...p, title: titles.get(p.id) } as Record<string, unknown>]),
     )
 
-    const labels = await readFallbackLabels(payload, 'pages', allIds, locale, req)
-
     const coreDocs = corePageIds
-      .map((id) => reportForPage(pagesById, labels, id))
+      .map((id) => reportForPage(pagesById, id))
       .filter((r): r is DocumentReport => r !== null)
     const nodeDocs = nodePageIds
-      .map((id) => reportForPage(pagesById, labels, id))
+      .map((id) => reportForPage(pagesById, id))
       .filter((r): r is DocumentReport => r !== null)
 
     return { coreDocs, nodeDocs }

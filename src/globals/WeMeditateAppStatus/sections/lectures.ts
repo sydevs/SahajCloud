@@ -1,11 +1,7 @@
 import { resolveAudienceIds } from '@/lib/audiences/resolve'
 import { labelOf, refId, type DocumentReport, type SectionSpec } from '@/lib/status'
 
-import {
-  isolatedReq,
-  lectureHasSubtitlesForLocale,
-  type WeMeditateAppStatusConfig,
-} from './shared'
+import { isolatedReq, lectureHasSubtitlesForLocale, type WeMeditateAppStatusConfig } from './shared'
 
 const PRIORITY_USERCHOICE_THRESHOLD = 10
 const BASELINE_AUDIENCE_THRESHOLD = 20
@@ -52,13 +48,11 @@ export const lecturesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
     },
   },
   prepare: async ({ payload, locale, config, req }) => {
-    // These reads keep Payload's English fallback, unlike every other section's
-    // (#982). Nothing here checks a localized field: `priority`, `userChoices`,
-    // `audiences` and `metadata` are not localized, and `subtitles-available`
-    // answers per locale from the `subtitles` rows' own `locale` column rather
-    // than from field localization. So the fallback resolves only the row
-    // labels, which `lectures.title` and `user-choices.title` do carry, and a
-    // lecture nobody has renamed stays readable instead of becoming `#42`.
+    // These reads keep the locale fallback, unlike every other section's
+    // (#982): no check here reads a localized field, so it resolves the row
+    // labels and nothing else. `subtitles-available` is the one to look at
+    // twice — it answers per locale from the `subtitles` rows' own `locale`
+    // column, not from field localization.
     //
     // Fetch priority candidates and resolve baseline audience IDs in parallel.
     // depth: 1 is needed so lectureHasSubtitlesForLocale can inspect populated metadata.
