@@ -19,11 +19,11 @@ validation.
 
 ## Test lanes (Vitest projects)
 
-| Lane            | Files                        | Speed                                                            | When                                                                                                                     |
-| --------------- | ---------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| **Unit**        | `tests/unit/**/*.spec.ts`    | ~1–2 s for ~200 cases                                            | Pure functions, no Payload bootstrap. **No** `globalSetup`/`setupFiles`.                                                 |
-| **Integration** | `tests/int/**/*.int.spec.ts` | bootstrap-heavy per file (full-schema push. See `tests/PERF.md`) | Calls `createTestEnvironment()`, exercises hooks/access/virtual fields/relationships. Files run in parallel (see below). |
-| **Smoke (E2E)** | `tests/e2e/**/*.e2e.spec.ts` | Playwright (REST)                                                | Tier-3 smoke against the Railway PR preview (`pnpm test:smoke`). See below.                                              |
+| Lane            | Files                        | Speed                                                                                                                                  | When                                                                                                                     |
+| --------------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| **Unit**        | `tests/unit/**/*.spec.ts`    | ~78 s for 204 files / 2653 cases; 1–3 s for one named spec, under 8 s for the specs one edit can break (4 cores — see `tests/PERF.md`) | Pure functions, no Payload bootstrap. **No** `globalSetup`/`setupFiles`.                                                 |
+| **Integration** | `tests/int/**/*.int.spec.ts` | bootstrap-heavy per file (full-schema push. See `tests/PERF.md`)                                                                       | Calls `createTestEnvironment()`, exercises hooks/access/virtual fields/relationships. Files run in parallel (see below). |
+| **Smoke (E2E)** | `tests/e2e/**/*.e2e.spec.ts` | Playwright (REST)                                                                                                                      | Tier-3 smoke against the Railway PR preview (`pnpm test:smoke`). See below.                                              |
 
 ### When to put a test in `tests/unit/`
 
@@ -89,7 +89,7 @@ CI (`.github/workflows/ci.yml`) runs the full suite on every PR. Locally,
 run **targeted**:
 
 ```bash
-pnpm test:unit                                                                      # whole unit lane (fast)
+pnpm test:unit                                                                      # whole unit lane (~78 s — prefer one spec below)
 pnpm exec vitest run tests/int/albums.int.spec.ts --config ./vitest.config.mts      # one integration file
 pnpm exec vitest run tests/int/albums.int.spec.ts -t "creates an album"             # one case by name
 pnpm exec vitest run tests/unit/convert-vimeo.spec.ts --config ./vitest.config.mts  # one unit file
@@ -186,7 +186,7 @@ file. It does **not** serialise files.
 ## Typed fixtures
 
 `pnpm typecheck:tests` (`tsconfig.test.json`) type-checks all of `tests/**`
-in about 6 s — Vitest does not, since esbuild erases types without
+in about 8 s (`tests/PERF.md`) — Vitest does not, since esbuild erases types without
 checking them. Fixtures must be typed against the real schema for that to
 catch anything, so `tests/utils/testData.ts` exports two helpers. Prefer
 them over `Record<string, unknown>`, a bare object literal, or `as any`:
