@@ -20,13 +20,15 @@ paths:
 
 Every test command belongs to one of three tiers, each with one purpose. Tier 1 gives Claude fast editing feedback. Tier 2 lets a human open a PR with confidence. Tier 3 lets CI catch what the first two skip. Never run a slower tier when a faster one answers the question.
 
-| Tier           | Command                                                                               | Target runtime | Fires when                                                                                                    |
-| -------------- | ------------------------------------------------------------------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------- |
-| **1 — Hook**   | `pnpm test:unit`                                                                      | < 5 s          | Claude's PostToolUse hook, on an Edit/Write under `src/**` or `tests/unit/**` (`.claude/hooks/unit-test.mjs`) |
-| **2 — Pre-PR** | `pnpm lint && pnpm typecheck && pnpm typecheck:tests && pnpm test:unit`               | < 45 s         | The pr-prep lean gate (`.claude/skills/pr-prep/check.sh`)                                                     |
-| **3 — CI**     | `pnpm lint && pnpm typecheck && pnpm typecheck:tests && pnpm test && pnpm test:smoke` | ≤ 20 min       | GitHub Actions, on every PR (`.github/workflows/ci.yml`)                                                      |
+| Tier           | Command                                                                                                    | Target runtime | Fires when                                                                                                    |
+| -------------- | ---------------------------------------------------------------------------------------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------- |
+| **1 — Hook**   | `pnpm test:unit`                                                                                           | < 5 s          | Claude's PostToolUse hook, on an Edit/Write under `src/**` or `tests/unit/**` (`.claude/hooks/unit-test.mjs`) |
+| **2 — Pre-PR** | `pnpm lint && pnpm typecheck && pnpm typecheck:tests && pnpm test:unit`                                    | < 45 s         | The pr-prep lean gate (`.claude/skills/pr-prep/check.sh`)                                                     |
+| **3 — CI**     | `pnpm lint && pnpm format:check && pnpm typecheck && pnpm typecheck:tests && pnpm test && pnpm test:smoke` | ≤ 20 min       | GitHub Actions, on every PR (`.github/workflows/ci.yml`)                                                      |
 
 **Why `pnpm typecheck` is its own gate step.** Neither ESLint nor Vitest runs `tsc`. A type error can pass lint and the whole test suite, then surface only at the Railway build — after merge. Tier 2 and CI both run `tsc --noEmit` (about 15–20 s) to catch it first.
+
+**Why Tier 2 omits `pnpm format:check`.** The lean gate lives at `.claude/skills/pr-prep/check.sh`, and `.claude/` is a Claude Code protected path: an unattended run cannot write there. The step belongs beside that script's lint step and needs an attended edit to land. Until it does, a misformat surfaces in CI rather than before the push.
 
 **Why `pnpm typecheck:tests` is a separate command.** The root `tsconfig.json` excludes `tests`, and the Next.js build reads that same config. So `pnpm typecheck` covers only `src/`. Without a second pass, nothing type-checks the specs — esbuild strips their types without checking them. A stale fixture then surfaces as a runtime failure, or never surfaces at all. `tsconfig.test.json` closes that gap over the whole suite (`tests/**`, about 6 s). Two separate commands means a failure names its own lane.
 

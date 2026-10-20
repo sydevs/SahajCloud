@@ -46,7 +46,8 @@ Admin panel: `http://localhost:{PORT}/admin/login`, once the dev server runs.
 
 Use the `/workflow:dev-server` skill for a dev server shared across sessions. It prevents port conflicts. Default port 3000. Override with `PORT=4000`. `SAHAJCLOUD_URL` derives from `PORT`. Manual fallback: `pnpm dev`, `pnpm devsafe` (clean, removes `.next`), `pnpm build`, `pnpm start`.
 
-- `pnpm lint` — ESLint.
+- `pnpm lint` — ESLint. It does not check formatting.
+- `pnpm format` / `pnpm format:check` — Prettier, write / check. CI gates on the check.
 - `pnpm typecheck` / `pnpm typecheck:tests` — type-check `src/` / the test suite.
 - `pnpm generate:types` — regenerate types after a schema change.
 - `pnpm generate:importmap` — regenerate the admin import map.
@@ -93,11 +94,11 @@ Batch CI runs: do not push, and so retrigger CI, on every small change.
 
 Both skills come from the `workflow` plugin (`sydevs/claude-workflow`), enabled in `.claude/settings.json`. Per-repo variation — the lean gate, the contract step, security-review trigger paths, the autonomy allowlist — lives in `.claude/workflow.json`.
 
-**Before marking a PR ready**: run the Tier 2 lean gate plus the integration spec(s) you touched. See `docs/rules/testing-reqs.md` for the tier policy. Use `/pr-prep` (`.claude/skills/pr-prep/`). Its `--full` flag reproduces Tier 3 locally, for debugging a red CI run. Otherwise let CI run the full suite and the build.
+**Before marking a PR ready**: run the Tier 2 lean gate plus the integration spec(s) you touched. See `docs/rules/testing-reqs.md` for the tier policy. Use `/pr-prep` (`.claude/skills/pr-prep/`). Its `--full` flag runs Tier 3's full suite and the build locally, for debugging a red CI run; it checks no formatting (`docs/rules/testing-reqs.md`). Otherwise let CI run the full suite and the build.
 
 ## Continuous Integration
 
-GitHub Actions (`.github/workflows/ci.yml`) runs one job, **Lint, Test & Smoke**, on every PR. It runs `pnpm lint`, then `pnpm test` (against a `postgres:18` container), then `pnpm test:smoke` (Playwright, against the PR's Railway preview — skipped with no preview). It does not build the app. Railway builds it for the preview. A new push cancels the branch's prior run. CI reports status but blocks a merge only if branch protection requires it.
+GitHub Actions (`.github/workflows/ci.yml`) runs one job, **Lint, Test & Smoke**, on every PR. It runs `pnpm lint`, then `pnpm format:check`, then `pnpm test` (against a `postgres:18` container), then `pnpm test:smoke` (Playwright, against the PR's Railway preview — skipped with no preview). It does not build the app. Railway builds it for the preview. A new push cancels the branch's prior run. CI reports status but blocks a merge only if branch protection requires it.
 
 ### A conflicted PR runs no CI
 
