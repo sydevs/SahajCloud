@@ -650,24 +650,33 @@ describe('WeMeditateAppStatus Global', () => {
         if (unit3?.type !== 'documents') throw new Error('expected unit-3 to be a documents group')
         const row = unit3.documents.find((d) => d.id === englishOnlyLesson.id)
         expect(row, `expected unit-3 to carry the lesson at ${locale}`).toBeDefined()
-        return Object.fromEntries(row!.checks.map((c) => [c.key, c.passed]))
+        return {
+          label: row!.label,
+          checks: Object.fromEntries(row!.checks.map((c) => [c.key, c.passed])),
+        }
       }
 
       const en = await read('en')
-      expect(en['meditation-set']).toBe(true)
-      expect(en['article-localized']).toBe(true)
-      expect(en['article-has-lecture-link']).toBe(true)
+      expect(en.checks['lesson-title-set']).toBe(true)
+      expect(en.checks['panels-set']).toBe(true)
+      expect(en.checks['meditation-set']).toBe(true)
+      expect(en.checks['article-localized']).toBe(true)
+      expect(en.checks['article-has-lecture-link']).toBe(true)
 
-      // The lesson has no French meditation and no French article, so the three
-      // checks that read a localized field report red — they would all pass off
-      // the English fallback.
+      // The lesson carries no French title, panels, meditation or article, so
+      // every check reading one reports red — they would all pass off the
+      // English fallback.
       const fr = await read('fr')
-      expect(fr['meditation-set']).toBe(false)
-      expect(fr['article-localized']).toBe(false)
-      expect(fr['article-has-lecture-link']).toBe(false)
-      // `panels` and `icon` are not localized, so those two are locale-blind.
-      expect(fr['panels-set']).toBe(true)
-      expect(fr['icon-set']).toBe(true)
+      expect(fr.checks['lesson-title-set']).toBe(false)
+      expect(fr.checks['panels-set']).toBe(false)
+      expect(fr.checks['meditation-set']).toBe(false)
+      expect(fr.checks['article-localized']).toBe(false)
+      expect(fr.checks['article-has-lecture-link']).toBe(false)
+      // `icon` is not localized, so that one is locale-blind.
+      expect(fr.checks['icon-set']).toBe(true)
+      // `lessons.title` is localized too (#977), so the row keeps the fallback
+      // title while its own check reports the French one missing.
+      expect(fr.label).toBe('English-only lesson')
     })
 
     it('keeps a row label readable while its own check reports red', async () => {

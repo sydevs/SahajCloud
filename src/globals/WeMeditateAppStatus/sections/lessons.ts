@@ -9,10 +9,15 @@ import {
 import { containsRelationship, richTextHasContent } from '@/lib/status/helpers'
 import { type Lesson } from '@/payload-types'
 
-import { isolatedReq, type WeMeditateAppStatusConfig } from './shared'
+import { isolatedReq, readFallbackTitles, type WeMeditateAppStatusConfig } from './shared'
 
 interface Ctx {
   lessons: Lesson[]
+  /**
+   * Row labels only. `lesson-title-set` answers off the per-locale `title`,
+   * so these must stay out of the documents the checks read.
+   */
+  labels: Map<number | string, unknown>
 }
 
 /**
@@ -55,12 +60,12 @@ const UNIT_GROUPS: ReadonlyArray<{
   },
 ]
 
-function buildUnitDocs(lessons: Lesson[], unit: string): DocumentReport[] {
+function buildUnitDocs(lessons: Lesson[], unit: string, labels: Ctx['labels']): DocumentReport[] {
   return lessons
     .filter((l) => l.unit === unit)
     .map((lesson) => ({
       id: lesson.id,
-      label: labelOf(lesson as { id: number | string; title?: unknown }),
+      label: labelOf({ id: lesson.id, title: labels.get(lesson.id) }),
       checks: [
         {
           key: 'lesson-title-set',
@@ -89,7 +94,7 @@ const unitGroupSpecs: GroupSpec<Ctx, WeMeditateAppStatusConfig>[] = UNIT_GROUPS.
     description: u.description,
     optional: u.optional,
     type: 'documents',
-    evaluate: async ({ lessons }) => buildUnitDocs(lessons, u.unit),
+    evaluate: async ({ lessons, labels }) => buildUnitDocs(lessons, u.unit, labels),
   }),
 )
 
@@ -132,19 +137,22 @@ export const lessonsSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
     },
   },
   prepare: async ({ payload, locale, req }) => {
-    const { docs } = await payload.find({
-      collection: 'lessons',
-      locale,
-      // `meditation` and `article` are localized, so the fallback would answer
-      // `meditation-set`, `article-localized` and `article-has-lecture-link`
-      // off the English value.
-      fallbackLocale: false,
-      limit: 0,
-      pagination: false,
-      depth: 0,
-      req: isolatedReq(req),
-    })
-    return { lessons: docs as Lesson[] }
+    const [{ docs }, labels] = await Promise.all([
+      payload.find({
+        collection: 'lessons',
+        locale,
+        // `title`, `panels`, `meditation` and `article` are localized (#977), so
+        // the fallback would answer every check but `intro-audio-set` and
+        // `icon-set` off the English value.
+        fallbackLocale: false,
+        limit: 0,
+        pagination: false,
+        depth: 0,
+        req: isolatedReq(req),
+      }),
+      readFallbackTitles(payload, 'lessons', { locale, req }),
+    ])
+    return { lessons: docs as Lesson[], labels }
   },
   groups: unitGroupSpecs,
 }

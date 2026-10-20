@@ -28,7 +28,7 @@ export function isolatedReq(req?: PayloadRequest): PayloadRequest | undefined {
  */
 export async function readFallbackTitles(
   payload: BasePayload,
-  collection: 'pages' | 'user-choices',
+  collection: 'lessons' | 'pages' | 'user-choices',
   options: { locale: TypedLocale; req?: PayloadRequest; ids?: Array<number | string> },
 ): Promise<Map<number | string, unknown>> {
   const { ids, locale, req } = options
