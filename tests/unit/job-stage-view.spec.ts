@@ -8,10 +8,10 @@
  *
  * The declaration cases below are inline literals, but the pair that matters
  * most is read off the real `meditation-transcripts` config: that the
- * collection declares `processing` and not `queued`, and that `queued` is what
- * `status` defaults to. Stated as two inline fixtures those two facts could
- * drift apart silently, and the row stranded behind a waiting view is what
- * drift would cost (#960).
+ * collection declares `processing`, and that the virtual `status` field can
+ * actually hold it. Stated as two inline fixtures those two facts could drift
+ * apart silently, and the row stranded behind a waiting view is what drift
+ * would cost (#960).
  */
 import type { CollectionConfig } from 'payload'
 
@@ -118,7 +118,7 @@ describe('jobStageWait', () => {
     expect(jobStageWait(config, { status: 'finished' })).toBeNull()
   })
 
-  it('falls through when the status column holds nothing it can read', () => {
+  it('falls through when the status field holds nothing it can read', () => {
     expect(jobStageWait(config, {})).toBeNull()
     expect(jobStageWait(config, null)).toBeNull()
     expect(jobStageWait(config, { status: ['working'] })).toBeNull()
@@ -283,7 +283,7 @@ describe('meditation-transcripts', () => {
     ).toBeNull()
   })
 
-  it('declares every running stage the status column can actually hold', () => {
+  it('declares every running stage the virtual `status` field can actually hold', () => {
     const { options } = statusField()
 
     expect(
