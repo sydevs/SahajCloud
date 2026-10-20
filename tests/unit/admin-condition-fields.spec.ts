@@ -1,5 +1,11 @@
-import type { Block, CollectionConfig, GlobalConfig } from 'payload'
+import type { Block, CollectionConfig, Field, GlobalConfig, Tab } from 'payload'
 
+import {
+  fieldAffectsData,
+  fieldHasSubFields,
+  flattenTopLevelFields,
+  tabHasName,
+} from 'payload/shared'
 import { describe, expect, it } from 'vitest'
 
 import { collections } from '@/collections'
@@ -11,40 +17,15 @@ import { pageBlocks } from '@/lib/richEditor/blocks'
  * always false, so the field it guards never renders — and nothing fails.
  * `wisdomStyle` read the legacy EditorJS `position` for its whole life, and a
  * docs rewrite is the only reason anyone found it (#989).
- *
- * It runs over the **real** configs, not a fixture: a fixture would assume the
- * field sets under test. The three imports boot no Payload instance, as
- * `upload-notice-coverage.spec.ts` already relies on for `collections`.
- *
- * A condition's own source text is the only available instrument — a condition
- * is a closure, and nothing but its text says which field it reads. So one that
- * computes a field name, or reads it through a helper, is invisible here. That
- * is the limit the floors and the parameter-spelling case below bound: either
- * the walk keeps reaching what it claims to, or the lane goes red.
  */
-
-/** Payload's `Field` union says `fields`/`tabs`/`blocks` exist on some members only; the walk is structural. */
-type FieldLike = {
-  type: string
-  name?: string
-  fields?: FieldLike[]
-  tabs?: TabLike[]
-  blocks?: { slug: string; fields: FieldLike[] }[]
-  admin?: { condition?: unknown }
-}
-
-type TabLike = {
-  name?: string
-  label?: unknown
-  fields?: FieldLike[]
-  admin?: { condition?: unknown }
-}
 
 type ConditionSite = {
   where: string
   field: string
   scope: Set<string>
-  source: string
+  /** The second parameter as transpiled, so a TS assertion around it is already erased. */
+  parameter: string | undefined
+  reads: string[]
 }
 
 /**
@@ -55,85 +36,16 @@ type ConditionSite = {
 const MIN_CONDITION_SITES = 140
 const MIN_SITES_READING_A_SIBLING = 60
 
-/**
- * `siblingData` is the data at the field's own level, so a presentational
- * wrapper holds no data of its own and its children are siblings of its
- * parent's — the same hoisting `flattenTopLevelFields` does for one level.
- */
-const isPresentational = (field: FieldLike) =>
-  field.type === 'row' || field.type === 'collapsible' || (field.type === 'group' && !field.name)
-
-/** The names one data level declares, hoisted out of the wrappers that hold no data. */
-const scopeOf = (fields: FieldLike[]): Set<string> => {
-  const names = new Set<string>()
-
-  for (const field of fields) {
-    if (isPresentational(field)) {
-      for (const name of scopeOf(field.fields ?? [])) names.add(name)
-    } else if (field.type === 'tabs') {
-      // A named tab stores its own data under that name on this level; an
-      // unnamed one stores nothing, so its fields belong to this level.
-      for (const tab of field.tabs ?? []) {
-        if (tab.name) names.add(tab.name)
-        else for (const name of scopeOf(tab.fields ?? [])) names.add(name)
-      }
-    } else if (field.name) {
-      names.add(field.name)
-    }
-  }
-
-  return names
-}
-
-const collectSites = (
-  fields: FieldLike[],
-  scope: Set<string>,
-  where: string,
-  sites: ConditionSite[],
-) => {
-  for (const field of fields) {
-    const label = field.name ?? field.type
-
-    if (typeof field.admin?.condition === 'function') {
-      sites.push({ where, field: label, scope, source: String(field.admin.condition) })
-    }
-
-    if (isPresentational(field)) {
-      collectSites(field.fields ?? [], scope, where, sites)
-    } else if (field.type === 'tabs') {
-      for (const tab of field.tabs ?? []) {
-        const tabFields = tab.fields ?? []
-        // The tab itself sits on the parent's level, whether or not it is named.
-        if (typeof tab.admin?.condition === 'function') {
-          sites.push({
-            where,
-            field: `tab ${tab.name ?? String(tab.label)}`,
-            scope,
-            source: String(tab.admin.condition),
-          })
-        }
-        if (tab.name) collectSites(tabFields, scopeOf(tabFields), `${where} > ${tab.name}`, sites)
-        else collectSites(tabFields, scope, where, sites)
-      }
-    } else if (field.blocks) {
-      for (const block of field.blocks) {
-        collectSites(block.fields, scopeOf(block.fields), `${where} > ${block.slug}`, sites)
-      }
-    } else if (field.fields) {
-      collectSites(field.fields, scopeOf(field.fields), `${where} > ${label}`, sites)
-    }
-  }
-}
+/** Backlog, not approval — it may only shrink. Fix pending in #996 (#989). */
+const KNOWN_UNDECLARED = new Set<string>(['blocks/textbox :: wisdomStyle :: position'])
 
 const DOTTED_READ = /(?<![$\w])siblingData\s*\??\.\s*([A-Za-z_$][\w$]*)/g
 const BRACKETED_READ = /(?<![$\w])siblingData\s*(?:\?\.)?\s*\[\s*(['"])([^'"]+)\1\s*\]/g
 const SECOND_PARAMETER = /^[^(]*\(\s*[^,)]*,\s*([^,)]*)/
 
 /**
- * `data` is the whole document and `blockData` is the enclosing block, so
- * neither names a sibling — `LayoutBlock` reads `blockData.style` correctly.
- * A condition naming no field at all needs no allowlist: there is nothing to
- * check, which is what makes this cheaper than a pinned map of spellings.
+ * Only `siblingData` names a sibling: `data` is the whole document and
+ * `blockData` the enclosing block, which `LayoutBlock` reads deliberately.
  */
 const siblingReadsOf = (source: string): string[] => {
   const names = new Set<string>()
@@ -145,67 +57,129 @@ const siblingReadsOf = (source: string): string[] => {
 }
 
 /**
- * The one condition in the repo that reads a field its level does not declare.
- * Its fix is PR #996, open on #989 with a question of its own; the behaviour is
- * the reviewer's to settle, not a test's. Delete this entry once that PR lands.
- * It is a backlog, not an approval, and may only shrink.
+ * `siblingData` is the data at the field's own level, so Payload's own
+ * flattening answers which names that level declares: a `row`, a `collapsible`
+ * and an unnamed `group` or `tab` hold no data, so their children belong to the
+ * level above, while a named one contributes its own name and nothing inside it.
  */
-const KNOWN_UNDECLARED = new Set<string>(['blocks/textbox :: wisdomStyle :: position'])
+const scopeOf = (fields: Field[]): Set<string> =>
+  new Set(
+    flattenTopLevelFields(fields, { keepPresentationalFields: true })
+      .map((field) => field.name)
+      .filter((name): name is string => Boolean(name)),
+  )
+
+const conditionSource = (node: Field | Tab): string | undefined => {
+  const condition = 'admin' in node ? node.admin?.condition : undefined
+
+  return typeof condition === 'function' ? String(condition) : undefined
+}
+
+const siteFor = (
+  where: string,
+  field: string,
+  scope: Set<string>,
+  source: string,
+): ConditionSite => ({
+  where,
+  field,
+  scope,
+  parameter: SECOND_PARAMETER.exec(source)?.[1]?.trim(),
+  reads: siblingReadsOf(source),
+})
+
+const collectSites = (
+  fields: Field[],
+  scope: Set<string>,
+  where: string,
+  sites: ConditionSite[],
+) => {
+  for (const field of fields) {
+    const label = fieldAffectsData(field) ? field.name : field.type
+    const source = conditionSource(field)
+
+    if (source) sites.push(siteFor(where, label, scope, source))
+
+    if (fieldHasSubFields(field)) {
+      if (fieldAffectsData(field)) {
+        collectSites(field.fields, scopeOf(field.fields), `${where} > ${label}`, sites)
+      } else {
+        collectSites(field.fields, scope, where, sites)
+      }
+    } else if (field.type === 'tabs') {
+      for (const tab of field.tabs) {
+        // The tab itself sits on the parent's level, named or not.
+        const tabSource = conditionSource(tab)
+        const named = tabHasName(tab)
+
+        if (tabSource) {
+          sites.push(
+            siteFor(where, `tab ${named ? tab.name : String(tab.label)}`, scope, tabSource),
+          )
+        }
+
+        if (named) collectSites(tab.fields, scopeOf(tab.fields), `${where} > ${tab.name}`, sites)
+        else collectSites(tab.fields, scope, where, sites)
+      }
+    } else if (field.type === 'blocks') {
+      for (const block of field.blocks ?? []) {
+        collectSites(block.fields, scopeOf(block.fields), `${where} > ${block.slug}`, sites)
+      }
+    }
+  }
+}
 
 const allSites = (): ConditionSite[] => {
   const sites: ConditionSite[] = []
+  const add = (where: string, fields: Field[]) =>
+    collectSites(fields, scopeOf(fields), where, sites)
 
   for (const collection of collections as CollectionConfig[]) {
-    const fields = collection.fields as FieldLike[]
-    collectSites(fields, scopeOf(fields), `collections/${collection.slug}`, sites)
+    add(`collections/${collection.slug}`, collection.fields)
   }
-  for (const global of globals as GlobalConfig[]) {
-    const fields = global.fields as FieldLike[]
-    collectSites(fields, scopeOf(fields), `globals/${global.slug}`, sites)
-  }
-  for (const block of pageBlocks as Block[]) {
-    const fields = block.fields as FieldLike[]
-    collectSites(fields, scopeOf(fields), `blocks/${block.slug}`, sites)
-  }
+  for (const global of globals as GlobalConfig[]) add(`globals/${global.slug}`, global.fields)
+  for (const block of pageBlocks as Block[]) add(`blocks/${block.slug}`, block.fields)
 
   return sites
 }
 
+/**
+ * It runs over the real configs, which boot no Payload instance. A condition is
+ * a closure, so its own source text is the only instrument: one that computes a
+ * field name, or reads it through a helper, is invisible here. The two floors
+ * and the parameter case below are what bound that — either the walk keeps
+ * reaching what it claims to, or the lane goes red.
+ */
 describe('admin.condition reads a declared sibling', () => {
   const sites = allSites()
 
   it('names no field its own level does not declare', () => {
-    const offenders = sites.flatMap((site) =>
-      siblingReadsOf(site.source)
-        .filter((name) => !site.scope.has(name))
-        .map((name) => ({
-          id: `${site.where} :: ${site.field} :: ${name}`,
-          scope: [...site.scope].join(', '),
-        }))
-        .filter((offender) => !KNOWN_UNDECLARED.has(offender.id))
-        .map((offender) => `${offender.id} — level declares: ${offender.scope}`),
-    )
+    const offenders = sites.flatMap((site) => {
+      const idOf = (name: string) => `${site.where} :: ${site.field} :: ${name}`
 
-    // The field this guards never renders. Read the level's own names above:
-    // the condition means one of them, or it belongs on another level.
+      return site.reads
+        .filter((name) => !site.scope.has(name) && !KNOWN_UNDECLARED.has(idOf(name)))
+        .map((name) => `${idOf(name)} — level declares: ${[...site.scope].join(', ')}`)
+    })
+
     expect(offenders).toEqual([])
   })
 
   it('reaches the conditions the configs declare, and the siblings they read', () => {
-    const reading = sites.filter((site) => siblingReadsOf(site.source).length > 0)
-
     expect(sites.length).toBeGreaterThanOrEqual(MIN_CONDITION_SITES)
-    expect(reading.length).toBeGreaterThanOrEqual(MIN_SITES_READING_A_SIBLING)
+    expect(sites.filter((site) => site.reads.length > 0).length).toBeGreaterThanOrEqual(
+      MIN_SITES_READING_A_SIBLING,
+    )
   })
 
-  it('takes every sibling read through a parameter spelled siblingData', () => {
-    // A condition destructuring the parameter, or renaming it, reads siblings
-    // this spec cannot see — so the check above would pass it on vacuum.
-    const renamed = sites
-      .map((site) => ({ site, parameter: SECOND_PARAMETER.exec(site.source)?.[1]?.trim() }))
-      .filter(({ parameter }) => parameter && parameter !== 'siblingData' && parameter !== '_siblingData')
-      .map(({ site, parameter }) => `${site.where} :: ${site.field} takes ${parameter}`)
+  it('reads each sibling where this spec can see it', () => {
+    // A condition that renames the parameter, destructures it, or hands it to a
+    // helper yields no read, so the case above would pass it on vacuum.
+    const unreadable = sites
+      .filter(({ parameter }) => parameter !== undefined && parameter !== '_siblingData')
+      .filter(({ parameter, reads }) => parameter !== 'siblingData' || reads.length === 0)
+      .map((site) => `${site.where} :: ${site.field} takes ${site.parameter}`)
 
-    expect(renamed).toEqual([])
+    expect(unreadable).toEqual([])
   })
 })
