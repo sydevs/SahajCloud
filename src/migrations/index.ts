@@ -89,6 +89,7 @@ import * as migration_20261017_161838_event_import_analyze_slug from './20261017
 import * as migration_20261019_182311_import_plugin from './20261019_182311_import_plugin';
 import * as migration_20261020_002253_event_import_results from './20261020_002253_event_import_results';
 import * as migration_20261020_172522_event_import_own_job from './20261020_172522_event_import_own_job';
+import * as migration_20261020_181806_merge_main_snapshot from './20261020_181806_merge_main_snapshot';
 
 export const migrations = [
   {
@@ -544,6 +545,11 @@ export const migrations = [
   {
     up: migration_20261020_172522_event_import_own_job.up,
     down: migration_20261020_172522_event_import_own_job.down,
-    name: '20261020_172522_event_import_own_job'
+    name: '20261020_172522_event_import_own_job',
+  },
+  {
+    up: migration_20261020_181806_merge_main_snapshot.up,
+    down: migration_20261020_181806_merge_main_snapshot.down,
+    name: '20261020_181806_merge_main_snapshot'
   },
 ];
