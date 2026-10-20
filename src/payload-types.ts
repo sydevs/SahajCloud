@@ -1889,14 +1889,7 @@ export interface Event {
    */
   manager?: (number | null) | Manager;
   verificationStage:
-    | 'unverified'
-    | 'denied'
-    | 'verified'
-    | 'reminded'
-    | 'escalated'
-    | 'urgent'
-    | 'expired'
-    | 'finished';
+    'unverified' | 'denied' | 'verified' | 'reminded' | 'escalated' | 'urgent' | 'expired' | 'finished';
   activityLog?: ActivityLog;
   /**
    * How strongly attendees confirm this event is real (0–1) — your check before adopting a listing, or why a denied one stays down. Rises with confirmations, falls with denials, and stays cautious while there are few votes. Blank until the first vote.

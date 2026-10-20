@@ -8,13 +8,6 @@ to this codebase. This guide also covers `src/fields/`.
 `accessPlugin` applies access control, `admin.hidden`, and field-level
 access automatically. Collections **do not** need a manual `access` config.
 
-```typescript
-// src/payload.config.ts (already wired up)
-import { accessPlugin, bypassPermissions } from '@/plugins/access'
-
-plugins: [accessPlugin({ enabled: true, bypassPermissions })]
-```
-
 A custom **endpoint** gates on `requireManagerPermission`, or
 `requireCollectionPermission` where an API client is a legitimate caller too:
 
@@ -35,18 +28,6 @@ argument, and a check written out at a handler is free to omit it (#701,
 #665). `tests/unit/endpoint-permission-gate.spec.ts` fails one under
 `src/collections/**` or `src/endpoints/**`. What goes wrong without the
 scope is in the gate's own docblock; the rule is in `docs/rules/endpoints.md`.
-
-Permission flow, in order:
-
-1. Block null users.
-2. Bypass function (admin → allow. Inactive → deny. Self-access → allow).
-3. Extract roles (flat array for clients, localized for managers).
-4. Per-role check: implicit project read access, explicit permissions,
-   translate-only for localized field updates.
-5. Document-level manager access: when the checks above deny an active
-   non-admin manager a read/update, `createAccessConfig` grants it if the
-   doc (or an ancestor) lists them via a `managers`/`manager` field.
-6. Default: deny.
 
 Worth knowing: **implicit read access** lets managers and clients read
 everything in their role's project, plus collections in no project.
@@ -115,33 +96,17 @@ when the field is visible.
 When `admin.condition` is false, PayloadCMS skips both `required` and your
 `validate` entirely. When it is true, it runs both.
 
-### The exception: a field a hook fills for you (Events `title`)
+**Supplying `validate` replaces Payload's default validator.**
+`payload/dist/fields/config/sanitize.js` installs the default only when
+`validate === undefined`, and the default is what enforces `required` and
+the type's own checks (`maxLength` on text, the id shape on a
+relationship, the schema on JSON). Compose with the type's validator from
+`payload/shared` instead of replacing it.
 
-A field a `beforeChange` hook auto-fills has to break the rule above,
-because **no field hook runs in the browser**. Server-side the order is
-hooks → `validate`
-(`payload/dist/fields/hooks/beforeChange/promise.js` — hooks at line 58,
-`validate` at 86), so the value is already filled by the time it's checked.
-The admin panel validates _before_ sending the request, with no hook to
-fill anything — so `required` refuses the blank field outright, and "leave
-it blank and we'll write it for you" becomes unreachable.
-
-Permitting the blank in `validate` unblocks the browser but disarms
-`required`, because supplying `validate` **replaces** the default that
-enforces it (`payload/dist/fields/config/sanitize.js` installs the default
-only when `validate === undefined` — also why a custom validator must
-compose with `text` from `payload/shared`, or it silently drops
-`maxLength`).
-
-So put the guarantee where the knowledge is.
-`src/collections/Events/hooks/eventTitle.ts`: the **hook** throws a
-`ValidationError` when the auto-fill comes up empty — it is the only party
-that knows whether it had anything to work from. The **validator** answers
-only the cheap question the browser can answer (is a value _plausible_),
-and never pretends to be the enforcement.
-
-Don't reach for `event: 'submit'` to tell browser from server — Payload's
-server path also passes `event: 'submit'`, so it discriminates nothing.
+**A field a `beforeChange` hook auto-fills breaks the rule above**, because
+no field hook runs in the browser: the hook enforces, and the validator never
+pretends to — see `src/collections/Events/AGENTS.md` (Events `title`). Don't reach for `event: 'submit'` to tell browser from
+server — Payload's server path also passes `event: 'submit'`.
 
 ## `defaultPopulate`
 
@@ -346,20 +311,13 @@ jsonField({
 
 - **Declare the shape in Zod, inline at the field**, so a reader sees the
   column's shape where it is declared. `zod` is already a production
-  dependency. Emission targets `draft-7`, because **Ajv 8** is what
-  compiles the schema — not the `JSONSchema4` type the field is declared
-  as, which never reaches a validator. Target `draft-04` instead and Ajv
-  rejects the schema outright the first time someone writes `.positive()`,
-  `.gt()` or `.lt()`: draft-04 spells those as `exclusiveMinimum: true`,
-  and the save then fails naming a keyword nobody wrote.
+  dependency.
 - **Zod idioms, and what each emits:** `z.strictObject` →
   `additionalProperties: false`. `z.looseObject` → `additionalProperties:
 {}` (the same `[k: string]: unknown` as `true`). `z.literal(true)` →
   `{ type: 'boolean', const: true }`, which keeps a discriminator.
   `.describe()` → `description`, which becomes JSDoc on the generated
-  property. `z.int()` also emits the safe-integer bounds; the helper
-  strips them, because Ajv enforces them and a column that accepts `1e21`
-  today must keep doing so.
+  property.
 - **A raw `JSONSchema4` `schema` is for a shape assembled as data** — a
   `properties` map built by `Object.fromEntries` (`stringsSchema`), or
   `enum`s spliced from an exported const array
@@ -378,16 +336,6 @@ jsonField({
   component reaching it ships both to the browser to describe a shape only
   the server validates. `Clients.canonical.verification` and
   `Managers.notificationPreferences` sit at their fields for that reason.
-- **A `schemaTitle` names the generated interface**, and it is the only
-  thing a URI change cannot move. It is spelled `schemaTitle`, not `title`,
-  because every neighbouring key configures the admin field — `label` is
-  what a person sees, this one names a type. Payload names an interface off
-  the schema **object**, not the title, so equal-but-separate objects emit
-  `FileMetadata`, `FileMetadata1`, … — the same body under several names.
-  `jsonField` interns one object per distinct shape, so declaring a column
-  at its field costs nothing a shared constant used to buy. Two _different_
-  shapes sharing a title still silently merge into one;
-  `tests/unit/json-field-helper.spec.ts` fails when they do.
 - **Every property optional, unless nothing can hold the old shape.**
   Payload validates the column on _every_ save of the document, including
   one that never touched it, so a `required` key or
@@ -484,144 +432,16 @@ exactly that reason.
 
 ## Activity logs (`logField`)
 
-"What happened to this document, and when?" is a question managers ask —
-emails sent, a registration created or cancelled, a listing verified.
-Answering it from application logs or the database is not an answer.
-
-```typescript
-import { logField } from '@/fields'
-
-logField({ description: 'Everything recorded about this registration.' })
-// → an `activityLog` field, "Activity Log", read-only, rendered
-```
-
-`name` and `label` default to `activityLog` / "Activity Log" and are
-overridable for a document that needs a second log. Both current consumers
-use the default: Events resets its log on every verification, `user-submissions`
-accumulates.
-
-### Columns are declared on the field
-
-`logField({ columns: [{ key: 'activity', label: 'Event' }, …] })` — they
-travel to the renderer in `admin.custom`, the same way `SelectDescription`
-and `EventQualityPanel` get theirs. Declaring them fixes order and
-headings even before any entry carries the cell. Omit `columns` and the
-table derives them from the union of the entries' `cells`, which keeps a
-new log zero-config.
-
-A column reads the matching key from an entry's **`cells`**. Everything
-outside `cells` is machine data and never renders — `at`, `type` (the slug
-jobs match on, never a label), `key` (the exactly-once key), plus whatever
-the writer needs to read back. That default matters: a verification entry
-carries ten such fields, and the rule the other way round rendered a
-fourteen-column table of raw enum values.
-
-| Key     | Meaning                                                                |
-| ------- | ---------------------------------------------------------------------- |
-| `at`    | ISO timestamp. Always the first column, and what the log sorts by.     |
-| `type`  | Stable slug (`session-reminder`, `verification`) — matched, not shown. |
-| `key`   | Exactly-once key, scoped to `type`.                                    |
-| `cells` | What the columns read. Everything else is data.                        |
-
-Nothing is hidden by not having a column: every row's trailing **⋯** opens
-the whole entry as JSON in a popover, which is where a reminder's stage,
-level, and recipient live.
-
-A cell is a string, or `{ label?, text, sub? }` — `label` renders muted
-inline before the text (`email: a@b.test`), `sub` as a muted line beneath
-it (a recipient's role and region under their name). Those two options
-replaced the verification log's hand-written cell components.
-
-Columns come from the **union** of entries, not the newest: a log whose
-latest entry is a cancellation would otherwise drop the recipient column
-and hide what it holds for every email above it.
-
-### Writing entries
-
-```typescript
-import { appendLogEntry, asLog, hasLogEntry } from '@/fields'
-
-const log = asLog(registration.activityLog)
-if (hasLogEntry(log, 'session-reminder', occurrenceIso)) continue // exactly-once guard
-// …send…
-data: {
-  activityLog: appendLogEntry(log, {
-    at,
-    type: 'session-reminder',
-    key: occurrenceIso,
-    cells: {
-      activity: `Session reminder for ${date}`,
-      sentTo: { label: 'email', text: address },
-    },
-  })
-}
-```
-
-Three things worth knowing:
-
-- **`appendLogEntry` caps the log** (`DEFAULT_LOG_LIMIT`, oldest dropped).
-  Use it rather than `[...log, entry]` — a reminder log on a weekly class
-  gains one entry per occurrence, and nothing bounded it before this
-  existed.
-- **Match on `type` _and_ `key`.** One log holds several kinds of entry, so
-  a bare key collides — registration 42's follow-up must not read as its
-  reminder.
-- **Display is additive, never a replacement.** Entries are read back as
-  _data_: `hasReminderForStage` decides whether to send by reading an
-  entry's `stage` and `manager.id`. An entry builder adds a `cells` block
-  beside those fields — see `buildReminderEntry`, where that log's wording
-  lives, because it is the code that knows the domain.
-- **A log is a record, not a query filter.** Nothing can `where` on a JSON
-  column cheaply, so a sweep that needs to _find_ documents still wants a
-  real dated column beside the log. `UserSubmissions.followUpSentAt` is
-  exactly that: the log says what happened, the column is what the query
-  selects on.
+Use `logField` (`src/fields/logField.ts`) for a manager-readable record of what happened to a document. Its JSDoc, the `LogEntry` type, and `src/components/admin/LogTable/LogTable.tsx` own the conventions — read them before you add a writer.
 
 ## Plugins
 
-### SEO (`@payloadcms/plugin-seo`)
-
-Applied to Pages. Title template `We Meditate — {title}`, description from
-page content, tabbed admin UI. Configured in `src/payload.config.ts`.
-
 ### Form Builder (`@payloadcms/plugin-form-builder`)
 
-Configured in **`src/plugins/formBuilder`**, once — `payload.config.ts` and
-the test harness both call `formsPlugin()`, since a plugin configured in only
-one of the two behaves differently under test than in production.
-
-It generates `forms` (admin group: Content) and, renamed via
-`formSubmissionOverrides.slug`, **`user-submissions`** (admin group: System) —
-the one intake for every public write, typed by a `type` discriminator
-(`contact` / `subscribe` / `registration` / `proposal`). See
-`src/collections/UserSubmissions/`.
-
-Three things the wrapper does that the plugin options cannot:
-
-- **Clears the plugin's `access` block on `user-submissions`.** `accessPlugin`
-  composes `{ ...rbac, ...collection.access }`, so a collection's own access
-  wins — and the plugin always supplies `read: ({ req: { user } }) => !!user`,
-  which grants read to any authenticated user, every API client included. Left
-  in place it outranks the role table and `RESTRICTED_COLLECTIONS` alike.
-  `forms` keeps its plugin access (`read: () => true`), which is the intended
-  rule: a public site renders a form anonymously.
-- **Removes the plugin's `sendEmail` afterChange hook.** `formOverrides.fields`
-  already strips the `emails` field, so nothing can be authored and the hook has
-  provably nothing to send — but it still loads `data.form` and spreads
-  `data.submissionData` on every create, and both are optional here, so it threw
-  and logged once per registration. Stripping the field alone does not disable
-  it; `formsPlugin` states the full mechanism, and is the one place that does.
-- **Makes the `form` relationship per-type.** The plugin marks it
-  unconditionally `required`; `contact` and `subscribe` need one, and the two
-  types that name an `event` must not have one. The plugin's own existence check
-  is composed with, not replaced.
-- **Registers the proposal review surface.** `POST /api/user-submissions/:id/review`,
-  the Accept/Reject `SaveButton`, and the live-preview panel all hang off the
-  wrapper rather than `formSubmissionOverrides`, because a plugin-generated
-  collection has no `CollectionConfig` file to hang `endpoints` on and this
-  wrapper is the one merge this repo owns. The endpoint is deliberately absent
-  from `CUSTOM_ENDPOINT_PATHS` — that opt-in is the only thing that would
-  publish a manager-only action in the OpenAPI spec.
+Configured once in **`src/plugins/formBuilder`**, which generates `forms` and
+**`user-submissions`** — the one intake for every public write. What the
+wrapper does that the plugin's options cannot, and how a collection-wide
+admin slot branches per intake: `src/plugins/formBuilder/AGENTS.md`.
 
 ⚠ **Every collection-wide admin slot here serves four intakes.** The review
 components gate on `type === 'proposal'` themselves and fall through to the
@@ -630,30 +450,10 @@ explanation page, with a reason that fits a row nobody reviews. A new slot owes
 the same branch — the field hooks behind one included, since `admin.condition`
 hides a field without stopping its hooks.
 
-And an option that takes a **value** rather than a function cannot branch at
-all, so it has to suit the three rather than the one: `openByDefault` is absent
-for that reason, not by oversight. A **field** branches where an option cannot —
-`proposalPreviewTargetField` is a conditioned `previewTargetField` that opens
-the panel for `proposal` alone. That works because a false `admin.condition`
-returns before Payload attaches the custom component to form state, so the
-component never mounts. Reach for it whenever a collection-wide value would
-have to suit the wrong intake.
-
-Default email `contact@sydevelopers.com` (the fallback recipient for a contact
-form with none set).
-
 ### Login (`src/plugins/login`)
 
-Passwordless sign-in for `Managers` (#837). It appends one hidden
-`magicLinkIssuedAt` column and two endpoints — `POST /api/managers/request-magic-link`
-and `POST /api/managers/redeem` (which spends any link) — to whatever
-`Managers.ts` already declares. Since #840 it is the only way in: managers hold no password.
-
-`/admin/login` is the human surface (#838, #840): the plugin replaces Payload's
-login view with `src/components/admin/SignIn`, which asks for a link, confirms a
-delivered one, and explains a refused one. Every emailed link and every
-refusal's redirect lands there. `managersLogin.requestPagePath` is the single
-spelling of that route.
+Passwordless sign-in for `Managers` (#837, #840): managers hold no password.
+The routes, the sign-in page and `createSession`: `src/plugins/login/AGENTS.md`.
 
 Four things worth knowing before you touch `Managers`:
 
@@ -676,109 +476,19 @@ Four things worth knowing before you touch `Managers`:
 - The plugin **appends** to `endpoints` and `fields`. Replacing either array
   would delete `setProject` — the project switcher — silently.
 
-`createSession` (`@/plugins/login`) is the one place a session is minted
-without a password, for any auth collection that can hold one. It refuses a
-collection with no `sessions` field: `clients` sets `disableLocalStrategy`, so
-Payload gives it neither `sessions` nor `email`.
-
-### Slug generation (`slugField` from `payload`)
-
-```typescript
-import { slugField } from 'payload'
-
-slugField({ useAsSlug: 'title' }) // returns a RowField, no spread
-```
-
-`unique: true` and `index: true` are hardcoded. Default `position:
-'sidebar'`. Customize the description via `overrides`:
-
-```typescript
-slugField({
-  useAsSlug: 'name',
-  overrides: (field) => {
-    if (field.fields[1].type === 'text') {
-      field.fields[1].admin = {
-        ...field.fields[1].admin,
-        description: 'URL-friendly identifier (auto-generated from name)',
-      }
-    }
-    return field
-  },
-})
-```
-
 ## Localization (19 locales)
-
-Configured in `src/payload.config.ts` via `buildPayloadLocales()` from
-`src/lib/locales/index.ts`. Default locale: `en`. Fallback is on —
-non-English locales fall back to English. Farsi (`fa`) has `rtl: true`.
-Compound codes use BCP-47 form (lowercase language, uppercase region).
-Locale labels come from the `iso-639-1` package, with overrides for
-`pt-BR` (Brazilian Portuguese), `en-AU` (Australian English), and `fa`
-(Farsi/Persian).
-
-Supported: `en`, `es`, `de`, `it`, `fr`, `ru`, `ro`, `cs`, `uk`, `el`, `hy`,
-`pl`, `pt-BR`, `fa`, `bg`, `tr`, `en-AU`, `hu`, `nl`.
 
 ### Admin locale filtering (`filterAvailableLocales`)
 
-`src/plugins/access/filterAvailableLocales.ts` controls which locales
-appear in the admin locale selector:
-
-| User                             | Locales shown                                                  |
-| -------------------------------- | -------------------------------------------------------------- |
-| Unauthenticated                  | English only (login page)                                      |
-| Admin managers                   | All 19                                                         |
-| API clients                      | All (the filter only applies to the admin UI)                  |
-| Regular managers                 | Exactly the locales where they have ≥ 1 role, most roles first |
-| Managers with roles in no locale | English only                                                   |
-| Inactive managers                | English only                                                   |
-
-A manager with `{ en: ['translator'], cs: ['meditations-editor'] }` sees
-English + Czech, not German/French/etc.
-
-**English is not force-added** (#665). A manager holding roles only in
-French sees French alone, and Payload lands them there — the forced
-English entry used to make their own locale unreachable. The first entry
-is both the top of the dropdown and the landing locale, so the ordering is
-a real behavior, not cosmetics. See `docs/rules/access.md` § "How
-per-locale roles reach `req.user`".
-
-### Field-level localization
-
-Mark fields `localized: true`. Currently localized fields include:
-
-- `UserChoices` / `SongTags`: `title`
-- `Media`: `alt`, `credit`
-- `Songs`: `title`, `credit`
-- `Lessons`: `title`, `panels` (the whole array), `meditation`,
-  `preMeditationLines`, `article`
-- (Many other content-collection fields — see individual collection files.)
+A manager sees only the locales where they hold a role, and **English is not
+force-added** (#665) — see `docs/rules/access.md` § "How a per-locale role
+reaches `req.user`".
 
 ### Meditations locale handling (special)
 
-Meditations don't use field-level localization — each meditation **is** a
-single-locale document:
-
-- A `locale` select field with all 19 options, default `en`.
-- `filterMeditationsByLocale` (a beforeOperation hook in
-  `src/collections/Meditations/hooks/`) adds `{ locale: { equals:
-req.locale } }` to `find`/`count` operations.
-- `findByID` returns the specific doc regardless of locale.
-- `locale=all` bypasses filtering.
-- A **versions read** bypasses filtering too — see the rule below.
-- **Writes are scoped separately**, since that hook deliberately skips them: a
-  non-admin manager's create/update is narrowed to the locale their
-  `meditations-editor` role was read in (#980, `docs/rules/access.md`). A create
-  that states no language — a **duplicate** — is caught by the
-  `restrictCreateToRequestLocale` hook instead, which is the first place the
-  filled value exists.
-
-```bash
-GET /api/user-choices?locale=en
-GET /api/meditations?locale=cs    # Czech meditations only
-GET /api/songs?locale=cs
-```
+Each meditation **is** a single-locale document: `filterMeditationsByLocale`
+filters `find`/`count` to `req.locale`, and `findByID`, `locale=all` and a
+versions read (below) bypass it. See `src/collections/Meditations/AGENTS.md`.
 
 ### A `read` beforeOperation hook also fires on a versions read
 
@@ -842,18 +552,6 @@ branches when you add a consumer: a `findVersions` that resolves, and a
 
 ## Pages collection
 
-`src/collections/Pages/Pages.ts`. Lexical rich text with embedded blocks,
-drafts (60 s autosave), version history (3/doc), scheduled publishing.
-
-### Core fields
-
-- `title` (text, required, localized)
-- `slug` (auto-generated via `slugField`)
-- `content` (richText, localized) — Lexical editor with embedded blocks
-- `_status` (draft | published) — Payload drafts, **stored per locale**
-- `author` (relationship to authors, optional)
-- `tags` (relationship hasMany, optional)
-
 ### Publish state is per locale (#718)
 
 `pages` and `app-cards` set `versions.drafts.localizeStatus: true` — the
@@ -897,86 +595,17 @@ Live preview integrates with the We Meditate Web frontend
 
 ### Page blocks (`src/lib/richEditor/blocks/`)
 
-| Block               | Notes                                                                                                                                                                                                                                                     |
-| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `TextBoxBlock`      | `image` (required), `imagePosition` (left / right / overlay), `textPosition` and `textColor` (both shown for `overlay` only — `textColor` names the TEXT, so `light` means light text on a dark image, #516), `wisdomStyle` (⚠ never rendered — its `admin.condition` names a field this block lacks, #989), `title`/`subtitle`/`text`, `buttonText` + `buttonUrl`, read-only `importData` |
-| `ButtonBlock`       | `text` + `url`                                                                                                                                                                                                                                            |
-| `LayoutBlock`       | `style` (grid / columns / accordion) + `items` array (image, title, text, link)                                                                                                                                                                           |
-| `GalleryBlock`      | `title`, `collectionType` (media/meditations/pages), `items` (max 10, dynamic relationTo)                                                                                                                                                                 |
-| `QuoteBlock`        | `title`, `text` (textarea, required), `credit`, `caption` (shown when credit exists)                                                                                                                                                                      |
-| `CatalogBlock`      | `items` relationship hasMany, min 3/max 6, supports meditations + pages                                                                                                                                                                                   |
-| `ContentIndexBlock` | `type` select (meditations/pages/songs/lectures), `limit` (1–100), per-type filter fields (only the active filter survives, via `clearWhenTypeNot` hooks), virtual `apiEndpoint` (computed by `computeApiEndpoint` afterRead — `null` if `limit` invalid) |
+- ⚠ `TextBoxBlock.wisdomStyle` never renders — its `admin.condition` reads `position`, a field the block lacks (#989).
 
-Custom block icons → see `src/lib/richEditor/blocks/AGENTS.md`.
-
-### Tests
-
-- `tests/int/pages.int.spec.ts` — main suite
-- `tests/int/content-index-block.int.spec.ts` — pure-function tests on
-  `computeApiEndpoint` + integration tests via the virtual field
-- `tests/utils/testData.ts` has a `createPage()` factory
+Field notes and custom block icons → `src/lib/richEditor/blocks/AGENTS.md`.
 
 ## Lessons collection ("Path Steps")
 
-`src/collections/Lessons/Lessons.ts`. Slug `lessons`, admin labels "Path
-Step" / "Path Steps".
-
-### Fields
-
-- `title` (text, localized, **not** required — see below)
-- `panels` (array, localized, optional) — story panels:
-  - `title` (text, optional)
-  - `text` (textarea, optional)
-  - `media` (upload to files, optional) — image OR video
-  - `subtitles` (json, optional, conditionally shown when media exists)
-- `introAudio` (upload to files, optional)
-- `introSubtitles` (json, optional)
-- `meditation` (relationship to Meditations, optional) —
-  `filterOptions: { type: { equals: 'lesson' } }`. Set `type: 'lesson'`
-  when you create meditations for test lessons.
-- `article` (richText, localized, optional) — Lexical with QuoteBlock
-  support. Not a relationship to Pages — it's an inline rich text field
-  within Lesson.
-- `unit` (select, required) — Unit 1–4
-- `step` (number, required)
-- `icon` (relationship to Images, optional)
-
-Trash (soft delete) supported. File attachments cascade-delete via the
-ownership system.
-
-### `title` and `panels` are per locale, and neither is required (#977)
-
-Both were shared across all 19 languages, so a translator typing in French
-replaced the English every app user sees. Two production steps still hold
-French in their English slots because of it.
-
-**The array is localized, not the text fields inside it.** That keeps the
-migration to one `_locale` column on `lessons_panels` rather than a new
-table, makes a panel video's subtitles per-language for free, and stops one
-language's translator deleting or reordering another's panels. The cost: a
-panel added in English does not reach French until someone adds it there.
-Launch Readiness reports an empty set (`panels-set`) and a blank title
-(`lesson-title-set` — prefixed because a check key is global across
-sections and app-cards owns `title-set`).
-
-**Neither field may be `required`, and for two different reasons.** On
-`panels`, `required`/`minRows`/a default row each make an update in a
-second locale write a blank panel list, which then hides the panels that
-locale falls back to. On `title`, `required` is worse: Payload validates a
-required localized field against that locale's **own** value and the
-English fallback does not satisfy it (the same behaviour this file records
-for `publishSpecificLocale`), so it refuses every write in a second locale
-that does not also carry a title — a translator setting only the
-meditation or the article included.
-
-**A localized upload reference is invisible to a single-locale scan.**
-`CleanupOrphanedMedia` reads `locale: 'all'` for exactly this reason: a
-file referenced only by a French panel would otherwise read as an orphan
-and be trashed. See the schema-introspection section below.
+`title` and `panels` are per locale (#977) and neither may be `required` — see
+`src/collections/Lessons/AGENTS.md` for why, and for the polymorphic
+`meditation` relationship.
 
 ## Trash (soft delete)
-
-Collections with `trash: true`: Files, Images, **Events**.
 
 **`payload.delete` is always a _hard_ delete, even on a trash-enabled
 collection.** Its `trash` argument only widens _which_ documents are
@@ -1029,12 +658,11 @@ The asymmetry deserves its own test — assert the write **fails** without
 the flag and succeeds with it, or the guard can be deleted without
 anything noticing (`tests/int/event-quality.int.spec.ts`).
 
-The admin UI shows a "permanently delete" checkbox.
-
 ## Programmatic file upload
 
 Payload expects a Node.js Buffer (not a Web API File/Blob) when uploading
-to upload collections (Media, Frames, Files, tag collections):
+to an upload collection (Images, Frames, Files, UserChoices, SongTags, Songs,
+Meditations, Videos):
 
 ```typescript
 // ✅
@@ -1059,34 +687,10 @@ For text files use `Buffer.from(content, 'utf-8')`. For binary files,
 
 ## Schema introspection (auto-discover field references)
 
-To find every field that references a particular collection (e.g. every
-field pointing at `files` or `images`), use the helpers in
+To find every field that references a collection, use the helpers in
 `src/jobs/CleanupOrphanedMedia/schemaUtils.ts` instead of hardcoding
-collection/field knowledge.
-
-```typescript
-import {
-  discoverReferencesForCollection,
-  extractIdsFromDocument,
-  extractIdsFromLexicalContent,
-  groupByCollection,
-} from '@/jobs/CleanupOrphanedMedia/schemaUtils'
-
-const fileRefs = discoverReferencesForCollection(payload, 'files')
-// [{ collection: 'lessons', fieldPath: 'introAudio', fieldType: 'upload', ... },
-//  { collection: 'lessons', fieldPath: 'panels.*.media', ... }]
-
-const byCollection = groupByCollection(fileRefs)
-
-for (const [slug, refs] of byCollection) {
-  const docs = await payload.find({ collection: slug, limit: 1000, depth: 0, locale: 'all' })
-  for (const doc of docs.docs) {
-    for (const ref of refs) {
-      const ids = extractIdsFromDocument(doc, ref) // Set<number>
-    }
-  }
-}
-```
+collection/field knowledge. How, and the `parseInt` pitfall in ID
+extraction: `src/jobs/CleanupOrphanedMedia/AGENTS.md`.
 
 ⚠ **Read `depth: 0, locale: 'all'`, or a reference held only by a localized
 field is invisible** — and an invisible reference reads as an orphan, so the
@@ -1097,144 +701,9 @@ recorded on the reference as `localizedAt` by the walk, off each field's own
 inspected, so a group whose subfields are named like locale codes cannot be
 read as a translation, and no locale list can be forgotten.
 
-Container types traversed: simple, `tabs`, `groups`, `rows`, `arrays`
-(wildcard `*`), `blocks`, `collapsible`, and `richText`. RichText fields get
-a marker reference (`isLexicalBlock: true`) — at scan time, use
-`extractIdsFromLexicalContent()` to walk the Lexical tree and pull all
-numeric IDs from block fields.
-
-`CleanupOrphanedMedia` uses this pattern to discover unreferenced `files`
-and `images` without hardcoded knowledge.
-
-### `parseInt` pitfall (relevant to ID extraction)
-
-`parseInt('1748234234_abcdef', 10) === 1748234234` — it parses the leading
-digits and silently ignores non-numeric suffixes. Validate strings are
-fully numeric before parsing:
-
-```typescript
-function isNumericString(s: string): boolean {
-  return /^\d+$/.test(s)
-}
-
-function extractId(value: unknown): number | null {
-  if (typeof value === 'number') return value
-  if (typeof value === 'string' && isNumericString(value)) return parseInt(value, 10)
-  return null
-}
-```
-
-This caught a real bug in schema introspection where Lexical block IDs
-like `'1748234234_abcdef'` were parsed as valid IDs.
-
 ## Schedule field
 
-`scheduleFields()` (`src/fields/scheduleFields.ts`) is a Group field with
-native sub-fields stored in individual DB columns. The `firstDate` field
-uses `timezone: true`, which stores the datetime in UTC and auto-creates a
-companion `firstDate_tz` for the IANA timezone. Used by **Events** and
-**AppCards**, so a change here lands on both (and on their version tables).
-
-Two virtual fields compute on read, using
-[`rrule-temporal`](https://www.npmjs.com/package/rrule-temporal):
-
-- **`icalRule`** (text) — an iCalendar string with DTSTART, RRULE, and
-  optional EXDATE lines for both recurring and one-off events. One-off
-  events produce `FREQ=DAILY;COUNT=1`. Returns `null` only when `firstDate`
-  is missing.
-- **`upcomingDates`** (json) — up to 10 ISO 8601 UTC date strings for the
-  next occurrences from now. Computed via `rule.between()`, with correct
-  DST handling. Excludes EXDATE entries. Returns `[]` when `firstDate` is
-  missing or all occurrences are in the past.
-
-Both hooks delegate to a shared `buildRRuleTemporal()` helper.
-
-And one **stored** derived column, recomputed on every write (#603):
-
-- **`lastDate`** (date, indexed, `admin.hidden`) — the end of the final
-  occurrence's **local** day (23:59:59.999 in `firstDate_tz`) as a UTC
-  instant, or `null` when the recurrence never ends. Computed by the
-  `computeLastDate` `beforeChange` field hook from the pure
-  `lastOccurrenceEnd()`. The column is just that function's DB-queryable
-  projection. A real column, rather than a virtual field, so "has this
-  schedule run out?" can appear in a `where` — the public event feeds
-  filter on it (see `docs/rules/api-clients.md`).
-
-  Two things to know if you touch it:
-  - **Termination is read off the built rule's own `options()`**, not
-    re-derived from the sub-fields, so it can't drift from
-    `buildRRuleTemporal`'s conditions (a positive `count`, a parseable
-    `untilDate`). An open-ended rule returns `null` _before_ `all()` is
-    called — `all()` on an infinite rule would run to its iteration cap.
-  - **The partial-update trap.** A field `beforeChange` hook receives only
-    the incoming patch, and Payload materializes an empty `{}` for a
-    group the patch omits — so computing from `siblingData` alone would
-    NULL the column on every unrelated write. `computeLastDate` computes
-    from `{ ...previousSiblingDoc, ...siblingData }`: a partial schedule
-    patch recomputes correctly, an unrelated patch is a no-op, and any
-    write back-fills a NULL for free. Spread, not deep merge — an
-    explicit `null` in the patch (a cleared `recurrenceType`) must win.
-
-  Existing rows are brought up to date by
-  `scripts/backfill-schedule-last-date.ts`.
-
-### Why rrule-temporal (not rrule)
-
-Legacy `rrule` (v2.8.1) has a [double-timezone-conversion
-bug](https://github.com/jkbrzt/rrule/issues/355): its `dateInTimeZone()`
-treats `dtstart`'s UTC slot values as real UTC and applies the timezone
-offset again, producing environment-dependent results. `rrule-temporal`
-handles timezones natively via `Temporal.ZonedDateTime`, eliminating this
-class of bugs entirely.
-
-### UTC → ZonedDateTime conversion
-
-```typescript
-const dtstart = Temporal.Instant.from(fields.firstDate).toZonedDateTimeISO(timezone)
-```
-
-One step, replacing the old multi-step `Intl.DateTimeFormat →
-formatToParts → manual extraction → ZonedDateTime.from`. The
-`getLocalTimeHHMM()` helper uses the same pattern for `endTime` validation.
-
-### Stored-value conventions
-
-| Field            | Stored values                                          | RFC 5545 alignment                                      |
-| ---------------- | ------------------------------------------------------ | ------------------------------------------------------- |
-| `recurrenceType` | `'DAILY'`, `'WEEKLY'`, `'MONTHLY'`                     | matches `freq` directly                                 |
-| `weekdays`       | `'MO'`, `'TU'`, `'WE'`, `'TH'`, `'FR'`, `'SA'`, `'SU'` | matches `byDay`                                         |
-| `weekdayOfMonth` | `'MO'`–`'SU'`                                          | matches RFC 5545 day codes                              |
-| `weekNumber`     | `'1'`–`'4'`, `'-1'`                                    | combined with weekday for `byDay` (e.g., `1MO`, `-1FR`) |
-
-### `ScheduleSummary` (afterInput component)
-
-Client component registered as `beforeInput` on the schedule group. A
-human-readable description that updates in real time. For recurring
-events, it builds an iCalendar string (DTSTART + RRULE) from form values
-and runs it through `toText()` from `rrule-temporal/totext`. For one-off
-events, it formats with `Intl.DateTimeFormat`. Uses `useAllFormFields()`
-for reactive access to schedule sub-fields.
-
-### Key files
-
-- `src/fields/scheduleFields.ts` — group field factory
-- `src/lib/schedule/scheduleHooks.ts` — `buildRRuleTemporal`,
-  `computeIcalRule`, `computeUpcomingDates`, `lastOccurrenceEnd`,
-  `computeLastDate`, `cleanupExpiredExclusions`, `getLocalTimeHHMM`
-- `src/lib/schedule/scheduleStatus.ts` — `shouldFinish` ("has this
-  schedule run out?", shared by the ExpireEvents sweep, the public feeds,
-  and registration)
-- `src/lib/schedule/backfillLastDate.ts` — recompute `lastDate` on
-  existing rows
-- `src/types/schedule.ts` — `EventSchedule` (the stored group, derived
-  from `Event['schedule']`) and `ExclusionRange`. Anything reading a
-  schedule off a document or merging a patch takes `Partial<EventSchedule>`,
-  written out rather than aliased
-- `src/components/admin/ScheduleSummary.tsx` — afterInput component
-- `src/components/admin/FlatArrayField/FlatArrayField.tsx` — custom array
-  field for exclusions (flat rows, no per-row Collapsible)
-- `tests/unit/schedule-hooks.spec.ts` — DST transition tests included
-- `tests/unit/schedule-status.spec.ts` — `shouldFinish`, and the matrix
-  pinning it to agree with `notFinishedWhere`
-- `tests/int/schedule-last-date-backfill.int.spec.ts` — backfill side
-  effects
+`scheduleFields()` (`src/fields/scheduleFields.ts`) is shared by **Events**
+and **AppCards**, so a change lands on both and on their version tables.
+Its stored `lastDate` column, the partial-update trap `computeLastDate`
+avoids, and why it uses `rrule-temporal`: `src/fields/AGENTS.md`.

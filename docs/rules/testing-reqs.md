@@ -22,13 +22,24 @@ Every test command belongs to one of three tiers, each with one purpose. Tier 1 
 
 | Tier | Command | Target runtime | Fires when |
 | --- | --- | --- | --- |
-| **1 — Hook** | `pnpm test:unit` | < 5 s | Claude's PostToolUse hook, on an Edit/Write under `src/**` or `tests/unit/**` (`.claude/hooks/unit-test.mjs`) |
-| **2 — Pre-PR** | `pnpm lint && pnpm typecheck && pnpm typecheck:tests && pnpm test:unit` | < 45 s | The pr-prep lean gate (`.claude/skills/pr-prep/check.sh`) |
+| **1 — Hook** | `pnpm test:unit` | < 12 s per edit — **not met**, see below | Claude's PostToolUse hook, on an Edit/Write under `src/**` or `tests/unit/**` (`.claude/hooks/unit-test.mjs`) |
+| **2 — Pre-PR** | `pnpm lint && pnpm typecheck && pnpm typecheck:tests && pnpm test:unit` | < 210 s (174 s cold, 103 s warm) | The pr-prep lean gate (`.claude/skills/pr-prep/check.sh`) |
 | **3 — CI** | `pnpm lint && pnpm typecheck && pnpm typecheck:tests && pnpm test && pnpm test:smoke` | ≤ 20 min | GitHub Actions, on every PR (`.github/workflows/ci.yml`) |
 
-**Why `pnpm typecheck` is its own gate step.** Neither ESLint nor Vitest runs `tsc`. A type error can pass lint and the whole test suite, then surface only at the Railway build — after merge. Tier 2 and CI both run `tsc --noEmit` (about 15–20 s) to catch it first.
+**Each target above is held to a measurement in `tests/PERF.md`, recorded with its machine and date.** Measured 2026-10-20 on 4 cores: `pnpm test:unit` is **78 s** for 204 files and 2653 tests, and Tier 2's four commands sum to **104 s**. **Each target bounds the thing its own row names, on the slowest measurement recorded for it** — never a median, because three sessions on one container spec spread 47 to 78 s on the same day. Tier 2's is the cold gate, since `check.sh` also runs `scripts/ensure-test-db.sh`: 138 s and 174 s on two sessions' first runs, 103 s once Postgres answers. **Tier 1's is one edit, not the lane**: the specs naming an edited module are 1 file for the median module and 18 for the generated `@/payload-types`, costing 1.3 s and 7.8 s. 12 s bounds the widest with room for that spread (#990).
 
-**Why `pnpm typecheck:tests` is a separate command.** The root `tsconfig.json` excludes `tests`, and the Next.js build reads that same config. So `pnpm typecheck` covers only `src/`. Without a second pass, nothing type-checks the specs — esbuild strips their types without checking them. A stale fixture then surfaces as a runtime failure, or never surfaces at all. `tsconfig.test.json` closes that gap over the whole suite (`tests/**`, about 6 s). Two separate commands means a failure names its own lane.
+⚠ **Tier 1's gap shows up as a false failure, not as slowness.** The hook runs the whole lane, and `.claude/hooks/unit-test.mjs` bounds it with a 30 s `execSync` timeout — so wherever the lane runs longer than that, which is every machine measured so far, the timeout fires and the catch branch reports `Unit tests failed after editing <file>` with a tail carrying no failure in it, just Vitest's banner. **Disregard that report and run `pnpm test:unit` yourself.** Reproduce it with:
+
+```bash
+echo "{\"tool_input\":{\"file_path\":\"$PWD/src/lib/richEditor/index.ts\"}}" > /tmp/edit.json
+CLAUDE_PROJECT_DIR=$PWD node .claude/hooks/unit-test.mjs < /tmp/edit.json
+```
+
+The fix is to run only the specs one edit can break, which costs 1.3 s for the median module and 7.8 s for the widest — both inside Tier 1's target, which is why the target is a number a narrowed hook can meet rather than one the lane could. Making the lane itself faster reaches neither: about 19 s of it is serial whatever the core count. The narrowing is not done here, because the hook sits under `.claude/`, a protected path no unattended run may write, so it needs an attended session. Tracked in #993.
+
+**Why `pnpm typecheck` is its own gate step.** Neither ESLint nor Vitest runs `tsc`. A type error can pass lint and the whole test suite, then surface only at the Railway build — after merge. Tier 2 and CI both run `tsc --noEmit` (8 s measured — `tests/PERF.md`) to catch it first.
+
+**Why `pnpm typecheck:tests` is a separate command.** The root `tsconfig.json` excludes `tests`, and the Next.js build reads that same config. So `pnpm typecheck` covers only `src/`. Without a second pass, nothing type-checks the specs — esbuild strips their types without checking them. A stale fixture then surfaces as a runtime failure, or never surfaces at all. `tsconfig.test.json` closes that gap over the whole suite (`tests/**`, 8 s measured). Two separate commands means a failure names its own lane.
 
 This gate only works when fixtures are typed against the real schema. See "Typed fixtures" in `tests/AGENTS.md`.
 
@@ -55,7 +66,7 @@ If the lane is unavailable, say so. Do not guess why. Name the layer that refuse
 
 Locally, default to targeted runs:
 
-- `pnpm test:unit` — the fast unit lane (about 1–2 s, no Payload boot).
+- `pnpm test:unit` — the whole unit lane (about 78 s on 4 cores, no Payload boot — `tests/PERF.md`). For one spec, name it: `pnpm exec vitest run tests/unit/<file>.spec.ts --project unit --config ./vitest.config.mts`, 1–3 s.
 - `pnpm exec vitest run tests/int/<file>.int.spec.ts --config ./vitest.config.mts` — one integration spec, for the area you touched.
 - `pnpm exec vitest run tests/int/<file>.int.spec.ts -t "<case name>"` — one test case.
 
@@ -64,7 +75,7 @@ Run the full `pnpm test:int` locally, or `check.sh --full` for CI parity, only t
 ## Test commands
 
 ```bash
-pnpm test:unit        # Tier 1 — unit lane only (fast, no Payload bootstrap)
+pnpm test:unit        # Tier 1 — unit lane only (about 78 s, no Payload bootstrap)
 pnpm test             # Tier 3 first half — unit + integration (what CI runs locally)
 pnpm test:int         # Integration tests (Vitest) — targeted spec preferred; see Tier 2 for how
 pnpm test:smoke       # Tier 3 second half — Playwright against CF PR preview (CI-only)
