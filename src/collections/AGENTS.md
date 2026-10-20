@@ -596,7 +596,7 @@ the one intake for every public write, typed by a `type` discriminator
 (`contact` / `subscribe` / `registration` / `proposal`). See
 `src/collections/UserSubmissions/`.
 
-Three things the wrapper does that the plugin options cannot:
+Five things this repo does that the plugin options cannot:
 
 - **Clears the plugin's `access` block on `user-submissions`.** `accessPlugin`
   composes `{ ...rbac, ...collection.access }`, so a collection's own access
@@ -615,6 +615,14 @@ Three things the wrapper does that the plugin options cannot:
   unconditionally `required`; `contact` and `subscribe` need one, and the two
   types that name an `event` must not have one. The plugin's own existence check
   is composed with, not replaced.
+- **Localizes the three plugin defaults that hold per-language text** (#981):
+  `forms.title`, `forms.redirect.url`, and the `select` block's `placeholder`.
+  All three ship storing one value for all 19 locales, so an admin editing one
+  in French replaced the English everyone else reads. `formFields`
+  (`src/collections/Forms/fields.ts`) maps `defaultFields` rather than using
+  the plugin's `fields: { select: … }` option, which merges arrays by source —
+  reaching `placeholder` through it means re-supplying the block's whole field
+  list, label thunks included.
 - **Registers the proposal review surface.** `POST /api/user-submissions/:id/review`,
   the Accept/Reject `SaveButton`, and the live-preview panel all hang off the
   wrapper rather than `formSubmissionOverrides`, because a plugin-generated
