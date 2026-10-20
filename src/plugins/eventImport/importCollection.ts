@@ -1,22 +1,22 @@
 /**
- * The plugin's `imports` collection (labelled Event Imports), shaped for a volunteer.
+ * `imports` (labelled Event Imports): one uploaded CSV of classes, the job that
+ * turns its rows into draft classes (`task.ts`), and the result of that run.
  *
- * The plugin owns the file, the `status` field, the job that
- * reads the CSV and the per-row `events` creates. This override adds what a
- * class import needs on top — the target region, the uploader, the languages a
- * blank cell falls back to, and the rows that were skipped — and hides the
- * plugin's own knobs, since only one collection is ever imported into.
+ * ⚠ **The CSV is parsed at the upload and never stored.** `prepareUpload`
+ * refuses a file no import can use, and the rows it reads go into the hidden
+ * `rows` field, which the job reads and then clears. No storage adapter holds
+ * the file (`disableLocalStorage`, and none in `storagePlugin`), so the contact
+ * details in it exist nowhere but the import's own rows and results.
  *
  * ⚠ **Access is explicit here, not a role grant.** The access plugin spreads a
  * collection's own `access` over its generated one, and a role-wide `read`
- * would show every volunteer every other region's CSV, contact details and all.
- * A manager reads and deletes the imports whose target lies in the region
- * subtree they may write classes in — the same subtree the picker offers.
- * `update` is closed to everyone: nothing on an import is edited after the
- * save, and the jobs write with `overrideAccess`.
+ * would show every volunteer every other region's contact details. A manager
+ * reads and deletes the imports whose target lies in the region subtree they
+ * may write classes in — the same subtree the picker offers. `update` is closed
+ * to everyone: nothing on an import is edited after the save, and the job
+ * writes with `overrideAccess`.
  */
 
-import type { ImportExportPluginConfig } from '@payloadcms/plugin-import-export/types'
 import type { Access, CollectionConfig, Field } from 'payload'
 
 import { ValidationError } from 'payload'
@@ -34,6 +34,7 @@ import { isAdminManager, resolveOwnedRegionIds } from '@/plugins/access'
 import { IMPORT_STALL_MS } from './constants'
 import { prepareUpload } from './csv/upload'
 import { targetRegionFilterOptions, validateTargetRegion } from './targetRegion'
+import { IMPORT_TASK } from './task'
 
 /** Imports into a region the manager may write classes in. Without a target, admins only. */
 const inEditableRegion: Access = async ({ req }) => {
@@ -50,18 +51,9 @@ const classCreators: Access = ({ req }) =>
   null
 
 /**
- * Set by `finish.ts` on the one write that ends an import. The plugin writes
- * `status` too, when its own loop ends — before our results are stored — so
- * without this the page would open on a finished import with no rows.
- */
-export const IMPORT_FINISH = 'eventImportFinish'
-
-/**
- * Where an import stands for the volunteer, replacing the plugin's own
- * vocabulary (which records how its run went, and never moves afterwards).
- * `finish.ts` sets the first settled status; `refreshImportStatus` moves an
- * import between `review` and `completed` as its classes are published or
- * deleted, wherever that happens.
+ * Where an import stands for the volunteer. The job sets the first settled
+ * status; `refreshImportStatus` moves an import between `review` and
+ * `completed` as its classes are published or deleted, wherever that happens.
  */
 const STATUS_OPTIONS = [
   { label: 'Pending', value: 'pending' },
@@ -82,16 +74,7 @@ const STATUS_DESCRIPTIONS: Record<string, string> = {
     'The import stopped, or created no classes. The result or the error says why — fix the file and upload it again.',
 }
 
-/** The plugin's knobs, kept but out of the way: only `events` is ever imported into. */
-const PLUGIN_FIELDS_HIDDEN: ReadonlySet<string> = new Set([
-  'collectionSlug',
-  'importMode',
-  'matchField',
-])
-
-const TEMPLATE_LINK = '@/components/admin/EventImport/TemplateLink'
-
-const OUR_MAIN_FIELDS: Field[] = [
+const MAIN_FIELDS: Field[] = [
   {
     // Not `required`: the column must accept NULL so a region can still be
     // deleted while an import names it. `validateTargetRegion` requires it on
@@ -164,9 +147,40 @@ const OUR_MAIN_FIELDS: Field[] = [
       components: { Field: '@/components/admin/EventImport/ImportResultsField' },
     },
   }),
+  jsonField({
+    // The parsed CSV, from the upload to the end of the run. Never shown:
+    // `results` carries what the volunteer needs, and the job clears this.
+    name: 'rows',
+    schemaTitle: 'EventImportRows',
+    schema: z
+      .array(
+        z.strictObject({
+          line: z.int().describe("The row's line in the volunteer's spreadsheet."),
+          values: z.record(z.string(), z.string()),
+        }),
+      )
+      .nullable(),
+    access: { read: () => false, update: () => false },
+    admin: { hidden: true },
+  }),
 ]
 
-const OUR_SIDEBAR_FIELDS: Field[] = [
+const SIDEBAR_FIELDS: Field[] = [
+  {
+    name: 'status',
+    type: 'select',
+    options: STATUS_OPTIONS,
+    defaultValue: 'pending',
+    required: true,
+    access: { update: () => false },
+    admin: {
+      position: 'sidebar',
+      readOnly: true,
+      condition: hideUntilCreated,
+      custom: { descriptions: STATUS_DESCRIPTIONS },
+      components: { Description: '@/components/admin/SelectDescription' },
+    },
+  },
   {
     name: 'defaultLanguages',
     type: 'select',
@@ -200,153 +214,88 @@ const OUR_SIDEBAR_FIELDS: Field[] = [
   },
 ]
 
-/**
- * The plugin's own fields, with its knobs hidden and its status moved to the
- * sidebar. Its `summary` counts are dropped: `results` says the same per row,
- * and the plugin's own write of them is discarded as an unknown field.
- */
-function pluginFields(fields: readonly Field[]): Field[] {
-  return fields.flatMap((field): Field[] => {
-    if (!('name' in field)) return [field]
-    if (field.name === 'preview') return []
-    if (PLUGIN_FIELDS_HIDDEN.has(field.name)) {
-      return [{ ...field, admin: { ...field.admin, hidden: true } } as Field]
-    }
-    if (field.name === 'status') {
-      return [
-        {
-          ...field,
-          options: STATUS_OPTIONS,
-          admin: {
-            ...field.admin,
-            position: 'sidebar',
-            condition: hideUntilCreated,
-            custom: { ...field.admin?.custom, descriptions: STATUS_DESCRIPTIONS },
-            components: {
-              ...field.admin?.components,
-              Description: '@/components/admin/SelectDescription',
-            },
-          },
-        } as Field,
-      ]
-    }
-    if (field.name === 'summary') return []
-    return [field]
-  })
-}
-
-export const overrideImportCollection: NonNullable<
-  ImportExportPluginConfig['overrideImportCollection']
-> = ({ collection }) => ({
-  ...collection,
+export const importCollection: CollectionConfig = {
+  slug: 'imports',
   labels: { singular: 'Event Import', plural: 'Event Imports' },
-  // The plugin's one custom route is the CSV preview this form does not show.
-  endpoints: [],
   access: {
     create: classCreators,
     read: inEditableRegion,
     update: () => false,
     delete: inEditableRegion,
   },
+  disableDuplicate: true,
+  lockDocuments: false,
   upload: {
-    ...(typeof collection.upload === 'object' ? collection.upload : {}),
+    // Parsed at the upload and never kept (see the top of this file).
+    disableLocalStorage: true,
+    filesRequiredOnCreate: true,
+    hideRemoveFile: true,
     // One file is one import: a bulk upload would start one job per file with
     // no target region chosen for any of them.
     bulkUpload: false,
     // The file comes from the volunteer's computer; fetching one from a URL
     // would be a server-side request to wherever they point it.
     pasteURL: false,
-    // Beside every other upload collection's local files, which git ignores.
-    staticDir: 'media/imports',
     // Excel on Windows labels a saved CSV `application/vnd.ms-excel`, and some
     // editors send `text/plain`; the `beforeOperation` hook renames both.
     mimeTypes: ['text/csv', 'application/vnd.ms-excel', 'text/plain'],
   },
   admin: {
-    ...collection.admin,
     group: 'Classes',
     useAsTitle: 'filename',
     defaultColumns: ['filename', 'targetRegion', 'manager', 'status', 'updatedAt'],
-    // Listed for every manager: `access.read` scopes the list to the imports
-    // into their regions, and the import page is where the skipped rows are read.
+    disableCopyToLocale: true,
     custom: {
-      ...collection.admin?.custom,
       jobStage: {
         runningStages: ['pending'],
         staleAfterMs: IMPORT_STALL_MS,
       } satisfies JobStageConfig,
     },
     components: {
-      ...collection.admin?.components,
-      Description: TEMPLATE_LINK,
+      Description: '@/components/admin/EventImport/TemplateLink',
       views: { edit: { default: { Component: '@/components/admin/JobStageView/JobStageView' } } },
     },
   },
-  fields: [...OUR_MAIN_FIELDS, ...pluginFields(collection.fields), ...OUR_SIDEBAR_FIELDS],
+  fields: [...MAIN_FIELDS, ...SIDEBAR_FIELDS],
   hooks: {
-    ...collection.hooks,
     beforeOperation: [
-      ...(collection.hooks?.beforeOperation ?? []),
       ({ args, operation, req }) => {
         // Before Payload's own MIME check, which runs between here and
-        // `beforeChange`: the stored file is the cleaned CSV, and the plugin
-        // reads `text/csv` as "parse as CSV" (`csv/upload.ts`).
+        // `beforeChange`, so a refused file names its own problem.
         if (operation !== 'create' || !req.file) return args
         const prepared = prepareUpload(req.file.name, req.file.data)
         if (!prepared.ok) {
           throw new ValidationError({ errors: [{ path: 'file', message: prepared.error }] })
         }
-        const data = Buffer.from(prepared.csv, 'utf8')
-        req.file = { ...req.file, data, size: data.length, mimetype: 'text/csv' }
-        return args
+        req.file = { ...req.file, mimetype: 'text/csv' }
+        return { ...args, data: { ...args.data, rows: prepared.rows } }
       },
     ],
     beforeChange: [
-      ...(collection.hooks?.beforeChange ?? []),
-      ({ data, operation, originalDoc, req }) => {
-        if (operation === 'create') {
-          return req.user?.collection === 'managers'
-            ? { ...data, manager: req.user.id, locale: req.locale ?? null }
-            : data
-        }
-        if (originalDoc?.status === 'pending' && !req.context?.[IMPORT_FINISH]) {
-          return { ...data, status: 'pending' }
-        }
-        return data
-      },
+      ({ data, operation, req }) =>
+        operation === 'create' && req.user?.collection === 'managers'
+          ? { ...data, manager: req.user.id, locale: req.locale ?? null, status: 'pending' }
+          : data,
     ],
     afterChange: [
-      ...(collection.hooks?.afterChange ?? []),
-      // The plugin queues its job on `default` with no kick of its own; the
-      // cron on that queue is the safety net, this is what makes it prompt.
-      ({ doc, operation, req }) => {
-        if (operation === 'create') {
-          runQueueSoon({
-            payload: req.payload,
-            queue: 'default',
-            label: 'imports',
-            context: { importId: doc.id },
-            afterCommit: true,
-          })
-        }
+      async ({ doc, operation, req }) => {
+        if (operation !== 'create') return doc
+        await req.payload.jobs.queue({
+          task: IMPORT_TASK,
+          input: { importId: doc.id },
+          queue: 'default',
+          req,
+        })
+        // The `default` queue's cron is the safety net; this is what makes it prompt.
+        runQueueSoon({
+          payload: req.payload,
+          queue: 'default',
+          label: 'imports',
+          context: { importId: doc.id },
+          afterCommit: true,
+        })
         return doc
       },
     ],
   },
-})
-
-/** The plugin's `exports` collection, which nothing here uses: admins only, out of the nav. */
-export const overrideExportCollection: NonNullable<
-  ImportExportPluginConfig['overrideExportCollection']
-> = ({ collection }): CollectionConfig => {
-  const admins: Access = ({ req }) => isAdminManager(req.user as Manager | null)
-  return {
-    ...collection,
-    access: { create: admins, read: admins, update: admins, delete: admins },
-    admin: { ...collection.admin, hidden: true },
-    upload: {
-      ...(typeof collection.upload === 'object' ? collection.upload : {}),
-      staticDir: 'media/exports',
-    },
-  }
 }

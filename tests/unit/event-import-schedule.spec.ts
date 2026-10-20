@@ -16,7 +16,6 @@ const map = (columns: Record<string, string>) =>
 /** Narrow to the success arm so a failing spec reports the errors, not `undefined`. */
 function schedule(result: ReturnType<typeof mapCsvSchedule>) {
   if (!result.ok) throw new Error(`expected a schedule, got errors: ${result.errors.join('; ')}`)
-  if (result.inactive) throw new Error('expected an active schedule')
   return result.schedule
 }
 
@@ -40,17 +39,6 @@ describe('mapCsvSchedule — the recurrence', () => {
     expect(schedule(map({ recurrenceType: 'DAILY' })).recurrenceType).toBe('DAILY')
     expect(errors(map({ recurrenceType: 'fortnightly' }))).toEqual([
       'recurrenceType must be DAILY, WEEKLY, MONTHLY, or blank for a one-off class (got "fortnightly")',
-    ])
-  })
-
-  it('maps inactive to no schedule, and refuses schedule columns beside it', () => {
-    const blank = { recurrenceType: '', startTime: '', date: '' }
-    expect(map({ ...blank, inactive: 'TRUE' })).toEqual({ ok: true, inactive: true })
-    expect(map({ ...blank, inactive: 'true' })).toEqual({ ok: true, inactive: true })
-    expect(errors(map({ inactive: 'TRUE' }))).toEqual([
-      'recurrenceType does not apply to an inactive class (got "WEEKLY")',
-      'date does not apply to an inactive class (got "2026-10-06")',
-      'startTime does not apply to an inactive class (got "18:30")',
     ])
   })
 })
@@ -115,13 +103,6 @@ describe('mapCsvSchedule — strict formats', () => {
       endingType: 'until',
       untilDate: '2027-01-01',
     })
-  })
-
-  it('requires a date and a start time unless the class is inactive', () => {
-    expect(errors(map({ date: '', startTime: '' }))).toEqual([
-      'date is required unless the class is inactive',
-      'startTime is required unless the class is inactive',
-    ])
   })
 })
 

@@ -2,13 +2,12 @@
  * Map a CSV row's schedule columns onto the `scheduleFields` group.
  *
  * The columns carry the Events field names and values (`recurrenceType`,
- * `weekdays`, `interval`, `untilDate`, `inactive`), so this is one Zod schema:
+ * `weekdays`, `interval`, `untilDate`), so this is one Zod schema:
  * the shape of each cell, then the rules across cells. What Payload's own
  * schedule validators already refuse — an interval out of range, an end time
  * before the start — is left to them (`../validate.ts`).
  *
- * ⚠ **`date` is required for every class but an inactive one, and nothing is
- * derived from today.** Picking "the next matching weekday" for a blank date
+ * ⚠ **`date` is required, and nothing is derived from today.** Picking "the next matching weekday" for a blank date
  * built two different first occurrences from one CSV uploaded on two days.
  */
 
@@ -43,10 +42,7 @@ export interface ImportSchedule {
 }
 
 export type MapScheduleResult =
-  /** An inactive row carries no schedule at all; the event takes `inactive: true`. */
-  | { ok: true; inactive: true }
-  | { ok: true; inactive: false; schedule: ImportSchedule }
-  | { ok: false; errors: string[] }
+  { ok: true; schedule: ImportSchedule } | { ok: false; errors: string[] }
 
 /**
  * The last day of the month every month has. A monthly `date` past it lands on
@@ -54,23 +50,14 @@ export type MapScheduleResult =
  */
 const MAX_SAFE_MONTH_DAY = 28
 
-/** The schedule columns that mean nothing on an inactive class, and on a one-off. */
-const TIMED = [
-  'recurrenceType',
-  'date',
-  'startTime',
-  'endTime',
-  'weekdays',
-  'interval',
-  'untilDate',
-] as const
+/** The schedule columns that mean nothing on a one-off class. */
 const REPEATING = ['weekdays', 'interval', 'untilDate'] as const
 
 /** A cell left blank, or one `schema` accepts. */
 const blankOr = (schema: z.ZodType, message: string) =>
   z.string().refine((value) => !value || schema.safeParse(value).success, message)
-const date = blankOr(z.iso.date(), 'must be YYYY-MM-DD')
-const time = blankOr(z.iso.time({ precision: -1 }), 'must be HH:MM, 24-hour, e.g. 09:30')
+const DATE = 'must be YYYY-MM-DD'
+const TIME = 'must be HH:MM, 24-hour, e.g. 09:30'
 const upper = (value: unknown) => (typeof value === 'string' ? value.toUpperCase() : value)
 
 const scheduleColumns = z.object({
@@ -80,10 +67,9 @@ const scheduleColumns = z.object({
       error: `must be ${RECURRENCE_TYPES.join(', ')}, or blank for a one-off class`,
     }),
   ),
-  inactive: z.preprocess(upper, z.enum(['', 'TRUE'], { error: 'must be TRUE or blank' })),
-  date,
-  startTime: time,
-  endTime: time,
+  date: z.iso.date({ error: DATE }),
+  startTime: z.iso.time({ precision: -1, error: TIME }),
+  endTime: blankOr(z.iso.time({ precision: -1 }), TIME),
   weekdays: z.preprocess(
     (value) => [
       ...new Set(
@@ -96,7 +82,7 @@ const scheduleColumns = z.object({
     z.array(z.enum(WEEKDAY_CODES, { error: `must be codes from ${WEEKDAY_CODES.join(',')}` })),
   ),
   interval: blankOr(z.string().regex(/^\d+$/), 'must be a whole number'),
-  untilDate: date,
+  untilDate: blankOr(z.iso.date(), DATE),
 })
 
 type ScheduleColumns = z.output<typeof scheduleColumns>
@@ -109,13 +95,6 @@ function crossChecks(today: Temporal.PlainDate) {
   return (row: ScheduleColumns, ctx: z.RefinementCtx) => {
     const fail = (path: string, message: string) =>
       ctx.addIssue({ code: 'custom', path: [path], message })
-    if (row.inactive) {
-      for (const column of TIMED)
-        if (row[column].length) fail(column, 'does not apply to an inactive class')
-      return
-    }
-    if (!row.date) fail('date', 'is required unless the class is inactive')
-    if (!row.startTime) fail('startTime', 'is required unless the class is inactive')
     const first = dateOf(row.date)
     if (!first) return
 
@@ -172,7 +151,6 @@ export function mapCsvSchedule(
   const parsed = scheduleColumns.superRefine(crossChecks(today)).safeParse(cells)
   if (!parsed.success) return { ok: false, errors: messagesOf(parsed.error.issues, values) }
   const row = parsed.data
-  if (row.inactive) return { ok: true, inactive: true }
 
   const first = Temporal.PlainDate.from(row.date)
   let firstDate: string
@@ -191,7 +169,6 @@ export function mapCsvSchedule(
   const type = row.recurrenceType || undefined
   return {
     ok: true,
-    inactive: false,
     schedule: {
       firstDate,
       firstDate_tz: timezone,

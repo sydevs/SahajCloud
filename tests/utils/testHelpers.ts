@@ -158,8 +158,8 @@ function createBaseTestConfig(emailConfig: any, schemaName: string, debug = fals
       // Nested docs: injects parent + breadcrumbs into Regions (mirrors the
       // real payload.config.ts so collection hooks relying on them are tested).
       nestedDocsPlugin(REGION_NESTED_DOCS_CONFIG),
-      // Bulk class import: the plugin's `imports` collection and task, with the
-      // `importBatch` relationship Events carries (mirrors the real config).
+      // Bulk class import: the `imports` collection and its task, with the
+      // Events hooks it adds (mirrors the real config).
       eventImportPlugin,
       // Passwordless sign-in: the magic-link field plus its endpoints
       // (mirrors the real payload.config.ts, including which collections it serves

@@ -188,17 +188,10 @@ export const IMPORT_COLUMNS: readonly ColumnSpec[] = [
     example: 'WEEKLY',
   },
   {
-    name: 'inactive',
-    requirement: 'optional',
-    field: 'inactive',
-    help: 'TRUE for a dormant class with no schedule: leave every schedule column blank and give a contact phone or email.',
-    example: '',
-  },
-  {
     name: 'date',
-    requirement: 'optional',
+    requirement: 'always',
     field: 'schedule.firstDate',
-    help: 'YYYY-MM-DD. Required unless the class is inactive: the date of a one-off class, or the first occurrence.',
+    help: 'YYYY-MM-DD: the date of a one-off class, or the first occurrence.',
     // ⚠ **A Tuesday, because the example row's `weekdays` is `TU`.** A weekly
     // row whose date falls on another weekday is refused, so an inconsistent
     // pair here would ship a template the parser rejects.
@@ -206,9 +199,9 @@ export const IMPORT_COLUMNS: readonly ColumnSpec[] = [
   },
   {
     name: 'startTime',
-    requirement: 'optional',
+    requirement: 'always',
     field: 'schedule.firstDate',
-    help: 'HH:MM, 24-hour, e.g. 09:30. Required unless the class is inactive.',
+    help: 'HH:MM, 24-hour, e.g. 09:30.',
     example: '18:30',
   },
   {

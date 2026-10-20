@@ -1,8 +1,7 @@
 /**
- * The bulk class import end to end: the `imports` upload the plugin owns, the
- * fields and access this repo adds to it, and the job that turns each CSV row
- * into a draft class — run through the plugin's own task with our wrapper on
- * it, exactly as the queue would.
+ * The bulk class import end to end: the `imports` upload, its access, and the
+ * job that turns each CSV row into a draft class — run through the task's own
+ * handler, exactly as the queue would.
  *
  * `geocodeLocation` is the one function mocked: every town the fixtures name
  * resolves to a place id, and a city region holding that id is what a row is
@@ -86,7 +85,7 @@ describe('class imports', () => {
   let admin: Awaited<ReturnType<typeof testData.createManager>>
   let country: number
   let berlin: number
-  let importTask: TaskConfig<'createCollectionImport'>
+  let importTask: TaskConfig<'importEvents'>
 
   beforeAll(async () => {
     const env = await createTestEnvironment()
@@ -107,8 +106,8 @@ describe('class imports', () => {
     })
     berlin = city.id
     importTask = payload.config.jobs.tasks!.find(
-      (task) => task.slug === 'createCollectionImport',
-    ) as TaskConfig<'createCollectionImport'>
+      (task) => task.slug === 'importEvents',
+    ) as TaskConfig<'importEvents'>
   })
 
   afterAll(async () => {
@@ -129,19 +128,7 @@ describe('class imports', () => {
       overrideAccess: false,
     })
 
-  const run = (importId: number, uploaderId: number = admin.id) =>
-    runTaskHandler(importTask, {
-      payload,
-      input: {
-        importId: String(importId),
-        importCollection: 'imports',
-        userID: String(uploaderId),
-        userCollection: 'managers',
-        batchSize: 50,
-        defaultVersionStatus: 'draft',
-        maxLimit: 500,
-      },
-    })
+  const run = (importId: number) => runTaskHandler(importTask, { payload, input: { importId } })
 
   const read = (id: number) =>
     payload.findByID({ collection: 'imports', id, depth: 0 }) as Promise<Import>
@@ -173,7 +160,7 @@ describe('class imports', () => {
       const created = await createImport([classLine({})], admin, { manager: other.id })
       expect(created.status).toBe('pending')
       expect(relationId(created.manager)).toBe(admin.id)
-      expect(created.collectionSlug).toBe('events')
+      expect(created.rows).toBeUndefined() // never readable, not even by an admin
     })
 
     it.each([
@@ -204,17 +191,6 @@ describe('class imports', () => {
         outcome: 'created',
         title: 'Hidden char',
       })
-    })
-
-    it('stays pending until the import itself writes its outcome', async () => {
-      const created = await createImport([classLine({})])
-      const after = await payload.update({
-        collection: 'imports',
-        id: created.id,
-        data: { status: 'completed' },
-        overrideAccess: true,
-      })
-      expect(after.status).toBe('pending')
     })
 
     it('refuses a target no import can file classes under, or none at all', async () => {
@@ -256,8 +232,7 @@ describe('class imports', () => {
           date: '2026-01-07',
         }),
       ])
-      const output = (await run(created.id)) as { imported: number; errors: unknown[] }
-      expect(output).toMatchObject({ imported: 2, errors: [] })
+      await run(created.id)
 
       const after = await read(created.id)
       // Every class it created is a draft, so there is something to review.
@@ -342,7 +317,7 @@ describe('class imports', () => {
         data: { managers: [volunteer.id] },
       })
 
-      await run(created.id, volunteer.id)
+      await run(created.id)
 
       const after = await read(created.id)
       expect(after.status).toBe('review')
@@ -361,7 +336,6 @@ describe('class imports', () => {
       await run(created.id)
 
       const after = await read(created.id)
-      // Nothing imported and a row skipped: the plugin alone would say `completed`.
       expect(after.status).toBe('failed')
       expect(after.results).toHaveLength(1)
       // Row 2: the spreadsheet's own line, header included.
@@ -577,10 +551,6 @@ describe('class imports', () => {
   })
 
   describe('access', () => {
-    it('runs one import at a time, since a run lives on the shared request', () => {
-      expect(importTask.concurrency).toMatchObject({ exclusive: true })
-    })
-
     it('lists Event Imports for an atlas-manager, and refuses a manager who cannot create classes', async () => {
       const volunteer = await testData.createManager(payload, {
         name: 'Lister',

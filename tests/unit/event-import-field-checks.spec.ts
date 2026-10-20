@@ -17,6 +17,8 @@ const ROW = {
   country: 'DE',
   city: 'Berlin',
   address: 'Main St 25',
+  date: '2026-10-06',
+  startTime: '18:30',
 }
 
 const check = (values: RawImportRow) => checkRowFields({ ...ROW, ...values })

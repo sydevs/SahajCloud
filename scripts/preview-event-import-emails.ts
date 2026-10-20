@@ -8,7 +8,7 @@
  *
  * No database is touched. ⚠ **It drives the real sender, `sendImportSummary`**,
  * so the subject, the brand and every line are what an import sends. The
- * `payload` stub answers only the uploader read, and hands the mail to Mailpit.
+ * `payload` stub hands the mail to Mailpit.
  */
 
 import type { PayloadRequest } from 'payload'
@@ -56,7 +56,6 @@ async function main() {
   for (const scenario of SCENARIOS) {
     const req = {
       payload: {
-        findByID: async () => ({ email: 'volunteer-preview@example.com', type: 'manager' }),
         sendEmail: async (message: { html: string; subject: string; from: string; to: string }) => {
           const info = await transport.sendMail({
             ...message,
@@ -71,10 +70,14 @@ async function main() {
     const run = {
       importId: 42,
       target: { id: 7, level: 'country', name: 'United Kingdom', mapboxId: 'country.gb' },
-      managerId: 1,
-      imported: scenario.imported,
+      uploader: { email: 'volunteer-preview@example.com', type: 'manager' },
+      created: Array.from({ length: scenario.imported }, (_, index) => ({
+        row: index + 2,
+        values: {},
+        eventId: index + 1,
+      })),
       skipped: scenario.skipped,
-    } as ImportRun
+    } as unknown as ImportRun
     if (!(await sendImportSummary({ req, run }))) throw new Error(`${scenario.label}: not sent`)
   }
 

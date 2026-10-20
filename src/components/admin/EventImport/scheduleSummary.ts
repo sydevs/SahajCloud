@@ -72,7 +72,6 @@ export function liveScheduleSummary(
 
 /** A skipped row's schedule cells, echoed as the volunteer wrote them. */
 export function csvScheduleSummary(values: Readonly<Record<string, string>> | undefined): string {
-  if (values?.inactive) return 'Inactive'
   const type = values?.recurrenceType?.toUpperCase()
   const time = values?.startTime
   const date = values?.date ?? ''

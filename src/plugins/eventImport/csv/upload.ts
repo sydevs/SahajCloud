@@ -1,26 +1,25 @@
 /**
- * The uploaded CSV, checked and cleaned before it is stored, so a file no
- * import can use is refused in the upload form rather than failing later in
- * the job — and what the job reads holds only the import's columns and real
- * rows.
+ * The uploaded CSV, read into rows at the upload, so a file no import can use
+ * is refused in the upload form rather than failing later in the job.
  *
- * ⚠ **Every row keeps its spreadsheet line in a `#line` column.** Blank rows
- * and the template's help row are dropped here, which would otherwise shift
- * every later row's number away from the line the volunteer sees in their
- * spreadsheet. A `#` header is one the import ignores (`checkHeader`).
+ * ⚠ **Every row keeps its spreadsheet line.** Blank rows and the template's
+ * help row are dropped here, and each result names the line the volunteer sees
+ * in their spreadsheet, not its position among the rows that remain.
  */
 
 import { CsvError, parse } from 'csv-parse/sync'
-import { stringify } from 'csv-stringify/sync'
 
 import { MAX_IMPORT_ROWS } from '../constants'
-import { isImportColumn, requiredColumnsFor } from './columns'
+import { IMPORT_COLUMNS, isImportColumn, type RawImportRow, requiredColumnsFor } from './columns'
 import { isTemplateHelpRow } from './template'
 
-/** The column the cleaned file carries each row's spreadsheet line in. */
-export const LINE_COLUMN = '#line'
+/** One class row: its spreadsheet line, and a trimmed value for every import column. */
+export interface UploadedRow {
+  line: number
+  values: RawImportRow
+}
 
-export type PreparedUpload = { ok: true; csv: string; rows: number } | { ok: false; error: string }
+export type PreparedUpload = { ok: true; rows: UploadedRow[] } | { ok: false; error: string }
 
 const SAVE_AS_CSV =
   'In Excel, choose Save As › "CSV UTF-8 (Comma delimited)"; in Google Sheets, File › Download › CSV.'
@@ -57,7 +56,7 @@ export function prepareUpload(filename: string, data: Buffer): PreparedUpload {
   const headerError = checkHeader(header)
   if (headerError) return { ok: false, error: headerError }
 
-  const rows: string[][] = []
+  const rows: UploadedRow[] = []
   for (const [index, record] of records.entries()) {
     const line = index + 2
     if (record.every((cell) => !cell.trim()) || isTemplateHelpRow(record)) continue
@@ -67,7 +66,11 @@ export function prepareUpload(filename: string, data: Buffer): PreparedUpload {
         error: `Line ${line} has ${record.length} values but the header has ${header.length} columns. A value that contains a comma must be wrapped in double quotes.`,
       }
     }
-    rows.push([String(line), ...header.map((_, at) => record[at] ?? '')])
+    const cell = (name: string) => record[header.indexOf(name)]?.trim() ?? ''
+    rows.push({
+      line,
+      values: Object.fromEntries(IMPORT_COLUMNS.map(({ name }) => [name, cell(name)])),
+    })
   }
 
   if (!rows.length) return { ok: false, error: 'The file has a header but no classes in it.' }
@@ -77,7 +80,7 @@ export function prepareUpload(filename: string, data: Buffer): PreparedUpload {
       error: `The file has ${rows.length} classes; the limit is ${MAX_IMPORT_ROWS}. Split it into smaller files.`,
     }
   }
-  return { ok: true, csv: stringify([[LINE_COLUMN, ...header], ...rows]), rows: rows.length }
+  return { ok: true, rows }
 }
 
 /**

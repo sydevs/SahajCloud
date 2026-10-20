@@ -1,21 +1,19 @@
 /**
- * Turns each CSV row into the draft class the plugin then creates.
+ * Turns each CSV row into the draft class the job then creates.
  *
  * Per row: the column checks, a geocode, the zone at the point, the city
  * region under the target, the schedule, Payload's own field validation, the
- * duplicate check, the manager — and `eventCreateData`. A row that fails any step is recorded on the run as
- * skipped and handed back as `undefined`, which the plugin's batch loop steps
- * over without counting. The file was cleaned at upload (`csv/upload.ts`), so
- * every row here is a real one and carries its spreadsheet line.
+ * duplicate check, the manager — and `eventCreateData`. A row that fails any
+ * step is recorded on the run as skipped.
  *
  * ⚠ **Only a miss or a refusal is about the row.** The geocoder being down or
  * unconfigured throws, which fails the whole import with that sentence; a row
  * error there would send the volunteer fixing addresses that are fine.
  */
 
-import type { RawImportRow } from '../csv/columns'
-import type { ImportRun, SkippedRow } from '../run'
-import type { ImportBeforeHook } from '@payloadcms/plugin-import-export/types'
+import type { RawImportRow } from './csv/columns'
+import type { UploadedRow } from './csv/upload'
+import type { ImportRow, ImportRun, SkippedRow } from './run'
 import type { PayloadRequest } from 'payload'
 
 import { Temporal } from '@js-temporal/polyfill'
@@ -28,19 +26,14 @@ import { geocodeLocation } from '@/lib/mapbox/geocoder'
 import { isManualMapboxId } from '@/lib/mapbox/manualLocation'
 import type { Event } from '@/payload-types'
 
-import { GEOCODE_CONCURRENCY } from '../constants'
-import { checkRowFields } from '../csv/fieldChecks'
-import { eventCreateData } from '../eventData'
-import { ensureManagers, managerKeyOf, managerRoster } from '../managers'
-import { lineOf, normaliseRow } from '../rows'
-import { runOf } from '../run'
-import { timezoneAt } from '../timezone'
-import { fieldErrors } from '../validate'
+import { GEOCODE_CONCURRENCY } from './constants'
+import { checkRowFields } from './csv/fieldChecks'
+import { eventCreateData } from './eventData'
+import { ensureManagers, managerKeyOf, managerRoster } from './managers'
+import { timezoneAt } from './timezone'
+import { fieldErrors } from './validate'
 
-interface Row {
-  row: number
-  values: RawImportRow
-}
+type Row = ImportRow
 
 type Prepared =
   | { row: Row; ok: true; location: GeocodedLocation; timezone: string }
@@ -54,9 +47,13 @@ interface Ready {
   timezone: string
 }
 
-export const beforeImport: ImportBeforeHook = async ({ originalData, req }) => {
-  const run = runOf(req)
-  const rows: Row[] = originalData.map((raw) => ({ row: lineOf(raw), values: normaliseRow(raw) }))
+/** Every row that passed, in file order, with the class to create from it. */
+export async function prepareRows(
+  req: PayloadRequest,
+  run: ImportRun,
+  uploaded: readonly UploadedRow[],
+): Promise<{ row: Row; data: Record<string, unknown> }[]> {
+  const rows: Row[] = uploaded.map(({ line, values }) => ({ row: line, values }))
   const prepared = await pMap(rows, prepareRow, { concurrency: GEOCODE_CONCURRENCY })
 
   // Everything but the manager is settled first, so an account is opened only
@@ -76,17 +73,16 @@ export const beforeImport: ImportBeforeHook = async ({ originalData, req }) => {
     managerRoster([...ready.values()].map(({ row }) => ({ line: row.row, values: row.values }))),
   )
 
-  return rows.map((row) => {
+  return rows.flatMap((row) => {
     const entry = ready.get(row.row)
-    if (!entry) return undefined
+    if (!entry) return []
     const email = managerKeyOf(row.values)
     const failure = email ? managers.failures.get(email) : undefined
-    if (failure) return skip(run, row, [failure])
+    if (failure) return skip(run, row, [failure]) ?? []
     const built = build(run, entry, email ? (managers.ids.get(email) ?? null) : null)
-    if (!built.ok) return skip(run, row, built.errors)
-    run.submitted.push({ row: row.row, values: row.values })
-    return built.data
-  }) as never
+    if (!built.ok) return skip(run, row, built.errors) ?? []
+    return [{ row, data: built.data }]
+  })
 }
 
 /**

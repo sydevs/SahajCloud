@@ -41,7 +41,6 @@
     "@payloadcms/next": "3.90.2",
     "@payloadcms/plugin-cloud-storage": "3.90.2",
     "@payloadcms/plugin-form-builder": "3.90.2",
-    "@payloadcms/plugin-import-export": "3.90.2",
     "@payloadcms/plugin-nested-docs": "3.90.2",
     "@payloadcms/plugin-seo": "3.90.2",
     "@payloadcms/richtext-lexical": "3.90.2",

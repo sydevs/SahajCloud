@@ -293,8 +293,8 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       // is thrown while the request body is parsed, before any collection or
       // adapter is resolved.
       uploadErrorPlugin(),
-      // Bulk class import (#907): registers the `imports` upload collection the
-      // storage plugin below then puts on R2, so it has to come first.
+      // Bulk class import (#907): the `imports` collection, its job, and the
+      // Events hooks that keep an import's status current.
       eventImportPlugin,
       // Sentry error tracking (disabled in E2E tests)
       sentryPlugin({

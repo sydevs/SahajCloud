@@ -39,7 +39,7 @@ export function eventCreateData(args: EventDataArgs): EventDataResult {
   if (!schedule.ok) return { ok: false, errors: schedule.errors }
 
   const eventType: Event['eventType'] = values.eventType === 'online' ? 'online' : 'offline'
-  const scheduled = schedule.inactive ? {} : { schedule: schedule.schedule }
+  const scheduled = { schedule: schedule.schedule }
   // Payload's own select validation refuses a code the CMS does not list.
   const languages = [...new Set(splitList(values.languages?.toLowerCase()))]
 
@@ -61,8 +61,8 @@ export function eventCreateData(args: EventDataArgs): EventDataResult {
     registrationMode: 'sahaj-atlas',
     registrationLimit: values.registrationLimit ? Number(values.registrationLimit) : null,
     importBatch,
-    // ⚠ Overrides `newEventDefaults`' `published`: the plugin honours a
-    // `_status` the row carries, and the review is the draft list.
+    // ⚠ Overrides `newEventDefaults`' `published`: the import creates drafts,
+    // which the volunteer reviews and publishes from the import page.
     _status: 'draft',
   }
   return { ok: true, data }

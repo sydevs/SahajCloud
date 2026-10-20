@@ -14,9 +14,9 @@ Production uses Cloudflare-native storage. Development falls back to local files
 | --- | --- | --- |
 | **Cloudflare Images** | `images` (uploads), also referenced from albums, app-cards, meditations, lectures, authors, lessons, page blocks | `https://imagedelivery.net/<hash>/<imageId>/public` |
 | **Cloudflare Stream** | `videos`, `frames` (video MIME types) | thumbnails: `.../thumbnails/thumbnail.jpg`. HLS: `.../manifest/video.m3u8` (`hlsUrl`, also the generic `url`). MP4: `.../downloads/default.mp4` (`mp4Url`) |
-| **R2 (S3 API)** | `meditations`, `songs`, `files`, `user-choices`, `song-tags`, `imports`, plus mixed-media fallthrough on `frames`/`files` | `<CLOUDFLARE_R2_DELIVERY_URL>/<filename>` — the key is a bare filename, `preview-`-prefixed outside production |
+| **R2 (S3 API)** | `meditations`, `songs`, `files`, `user-choices`, `song-tags`, plus mixed-media fallthrough on `frames`/`files` | `<CLOUDFLARE_R2_DELIVERY_URL>/<filename>` — the key is a bare filename, `preview-`-prefixed outside production |
 
-⚠ **`imports` holds class CSVs with contact details, at the public URL above.** The only thing in front of the object is the random suffix in its filename, and `@payloadcms/plugin-import-export`'s job fetches the file by that URL, so it cannot sit behind Payload's own gated file route. Treat a leaked filename as a leaked file; the retention sweep (`SweepEventImports`, 30 days) is what bounds the exposure.
+⚠ **`imports` is an upload collection with no storage at all** (`disableLocalStorage`, and no entry here). A class CSV carries contact details, so it is parsed into the import's own rows at the upload and the file itself is kept nowhere (`src/plugins/eventImport/importCollection.ts`).
 
 ⚠ **The adapter's three handlers address one key.** `r2NativeAdapter`'s `staticHandler` composed `<collection>/<filename>` while `handleUpload` and `handleDelete` composed the factory's `prefix` — and `storagePlugin` passes none, so objects sit flat at the bucket root and the route answered 404 for every file. It went unnoticed for as long as no collection mounted that handler. `tests/unit/r2-adapter-keys.spec.ts` pins the three in agreement, with and without a prefix.
 
@@ -139,7 +139,7 @@ const client = new S3Client({
 
 The fix is a `beforeOperation` hook (`createR2FilenameBeforeOperationHook`) that pre-generates the final R2 key from `req.file.name` before Payload derives upload metadata. The adapter confirms `req.context._r2PreassignedFilename` is set and skips its own slugify pass, to avoid double-suffixing.
 
-`storagePlugin.ts` injects the hook into every R2-backed collection, in two modes: `'always'` for pure-R2 collections (`meditations`, `songs`, `user-choices`, `song-tags`, `imports`), and `'other-only'` for mixed media (`frames`, `files`), where Images/Stream filenames are left alone and only the "other" fallthrough goes through R2.
+`storagePlugin.ts` injects the hook into every R2-backed collection, in two modes: `'always'` for pure-R2 collections (`meditations`, `songs`, `user-choices`, `song-tags`), and `'other-only'` for mixed media (`frames`, `files`), where Images/Stream filenames are left alone and only the "other" fallthrough goes through R2.
 
 ⚠️ The mode dictionary (`r2FilenameHookModes`) is a second registry, parallel to the `cloudStoragePlugin` collections block. Keep them in sync when adding an R2-backed collection, or filename drift returns silently.
 

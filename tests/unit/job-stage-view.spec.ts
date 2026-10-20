@@ -27,7 +27,7 @@ import {
 } from '@/components/admin/JobStageView/stages'
 import { TRANSCRIPTION_STALL_MS } from '@/lib/meditations/transcript'
 import { IMPORT_STALL_MS } from '@/plugins/eventImport/constants'
-import { overrideImportCollection } from '@/plugins/eventImport/importCollection'
+import { importCollection } from '@/plugins/eventImport/importCollection'
 
 import { hasDirective, SRC, sourceOf } from '../utils/importGraph'
 
@@ -53,37 +53,7 @@ const codeOf = (file: string): string =>
 
 type Collection = CollectionConfig
 
-/**
- * The plugin's `imports` collection as `overrideImportCollection` receives it,
- * reduced to what the cases read: the plugin's own builder is not exported.
- * The `status` column and its default are the plugin's, spelled as its
- * `getImportCollection` declares them, so a stage the override names that the
- * plugin stops holding fails here rather than behind a waiting view.
- */
-const PLUGIN_IMPORTS: CollectionConfig = {
-  slug: 'imports',
-  fields: [
-    {
-      name: 'status',
-      type: 'select',
-      defaultValue: 'pending',
-      options: [
-        { label: 'Pending', value: 'pending' },
-        { label: 'Completed', value: 'completed' },
-        { label: 'Partial', value: 'partial' },
-        { label: 'Failed', value: 'failed' },
-      ],
-    },
-  ],
-  hooks: {},
-  admin: { custom: { 'plugin-import-export': { collectionSlugs: ['events'] } } },
-  upload: { mimeTypes: ['text/csv'] },
-}
-
-const overridden = overrideImportCollection({ collection: PLUGIN_IMPORTS })
-// The plugin allows an async override; ours is not one, and the cases read it as a value.
-if (overridden instanceof Promise) throw new Error('overrideImportCollection must be synchronous')
-const EventImports: CollectionConfig = overridden
+const EventImports: CollectionConfig = importCollection
 
 const fieldNamed = (collection: Collection, name: string) => {
   const field = collection.fields.find((f) => 'name' in f && f.name === name)
@@ -115,15 +85,16 @@ describe('readJobStageConfig', () => {
   })
 
   it('keeps a usable `staleAfterMs`, and drops one that would open every row', () => {
-    expect(
-      readJobStageConfig({ jobStage: { runningStages: ['a'], staleAfterMs: 1000 } }),
-    ).toEqual({ runningStages: ['a'], staleAfterMs: 1000 })
+    expect(readJobStageConfig({ jobStage: { runningStages: ['a'], staleAfterMs: 1000 } })).toEqual({
+      runningStages: ['a'],
+      staleAfterMs: 1000,
+    })
     expect(readJobStageConfig({ jobStage: { runningStages: ['a'], staleAfterMs: 0 } })).toEqual({
       runningStages: ['a'],
     })
-    expect(readJobStageConfig({ jobStage: { runningStages: ['a'], staleAfterMs: '60' } })).toEqual(
-      { runningStages: ['a'] },
-    )
+    expect(readJobStageConfig({ jobStage: { runningStages: ['a'], staleAfterMs: '60' } })).toEqual({
+      runningStages: ['a'],
+    })
   })
 
   it('refuses a declaration with no usable `runningStages`', () => {
@@ -204,9 +175,11 @@ describe('jobStageWait', () => {
       runningStages: ['working'],
       totalField: 'progress.total',
     }
-    expect(
-      jobStageWait(counted, { progress: { done: 7, total: 20 }, status: 'working' }),
-    ).toEqual({ progress: 7, stage: 'working', total: 20 })
+    expect(jobStageWait(counted, { progress: { done: 7, total: 20 }, status: 'working' })).toEqual({
+      progress: 7,
+      stage: 'working',
+      total: 20,
+    })
   })
 
   /**
@@ -269,7 +242,7 @@ describe('the view itself', () => {
    * component cannot carry the refresh handler, and a client one cannot be
    * handed the `req` and `payload` props the fall-through forwards.
    */
-  it('keeps the refresh control as the folder\'s only client component', () => {
+  it("keeps the refresh control as the folder's only client component", () => {
     expect(hasDirective(inFolder('CheckAgain.tsx'), 'use client')).toBe(true)
   })
 

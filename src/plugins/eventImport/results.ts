@@ -2,16 +2,10 @@
  * One line per CSV row, as the import page shows it: the class it created, or
  * why it was skipped.
  *
- * ⚠ **Created classes are matched to rows by order.** The plugin's hooks never
- * see the ids it creates, but it creates the rows our `before` hook passed on
- * one at a time and in row order, so the import's classes sorted by id line up
- * with the submitted rows that did not fail. A count that disagrees is logged
- * by the caller and the extra rows keep no link rather than a wrong one.
- *
  * Pure and server-free: the admin component reads these types.
  */
 
-import type { DuplicateOf, MissingCity, SkippedRow, SubmittedRow } from './run'
+import type { CreatedRow, DuplicateOf, MissingCity, SkippedRow } from './run'
 
 /** How a row ended, before anyone acted on its class. */
 export type ImportOutcome = 'created' | 'duplicate' | 'error'
@@ -35,19 +29,14 @@ export interface ImportResultRow {
 }
 
 export function buildResults(
-  submitted: readonly SubmittedRow[],
+  created: readonly CreatedRow[],
   skipped: readonly SkippedRow[],
-  createdIds: readonly number[],
-): { rows: ImportResultRow[]; matched: boolean } {
-  const failed = new Set(skipped.map(({ row }) => row))
-  const created = submitted.filter(({ row }) => !failed.has(row)).sort((a, b) => a.row - b.row)
-  const matched = created.length === createdIds.length
-
-  const rows: ImportResultRow[] = [
-    ...created.map(({ row, values }, index) => ({
+): ImportResultRow[] {
+  return [
+    ...created.map(({ row, values, eventId }) => ({
       row,
       outcome: 'created' as const,
-      ...(matched ? { eventId: createdIds[index] } : {}),
+      eventId,
       title: values.title ?? '',
       city: values.city ?? '',
     })),
@@ -61,6 +50,5 @@ export function buildResults(
       ...(missingCity ? { missingCity } : {}),
       ...(duplicateOf ? { duplicateOf } : {}),
     })),
-  ]
-  return { rows: rows.sort((a, b) => a.row - b.row), matched }
+  ].sort((a, b) => a.row - b.row)
 }

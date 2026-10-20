@@ -15,45 +15,22 @@ import { describe, expect, it } from 'vitest'
 import { checkRowFields } from '@/plugins/eventImport/csv/fieldChecks'
 import { mapCsvSchedule } from '@/plugins/eventImport/csv/schedule'
 import { buildImportTemplate, isTemplateHelpRow } from '@/plugins/eventImport/csv/template'
-import { normaliseRow } from '@/plugins/eventImport/rows'
+import { prepareUpload } from '@/plugins/eventImport/csv/upload'
 
 /** Where the admin panel's own link points. */
 const CHECKED_IN = 'public/event-import-template.csv'
 
-/**
- * The plugin's own `parseCSV` options (`@payloadcms/plugin-import-export`,
- * `utilities/parseCSV.ts`), repeated here because the function is not
- * exported. `cast` is what hands `normaliseRow` a number for a bare postcode
- * and `undefined` for a blank cell, so the template is read exactly as an
- * upload of it would be.
- */
 const parsed = (): Record<string, unknown>[] =>
-  parse(buildImportTemplate(), {
-    bom: true,
-    cast: (value: string) => {
-      if (value === '') return undefined
-      if (value === 'true') return true
-      if (value === 'false') return false
-      if (value === 'null' || value === 'NULL') return null
-      if (value.includes(',')) return value
-      if (!Number.isNaN(Number(value))) {
-        const num = Number(value)
-        if (String(num) === value || value.includes('.')) return num
-      }
-      return value
-    },
-    columns: true,
-    skip_empty_lines: true,
-    trim: true,
-  })
+  parse(buildImportTemplate(), { bom: true, columns: true, skip_empty_lines: true })
 
+/** The example row as an upload of the template reads it. */
 const exampleRow = () => {
-  const [, example] = parsed()
-  if (!example) throw new Error('the template has no example row')
-  return normaliseRow(example)
+  const result = prepareUpload('template.csv', Buffer.from(buildImportTemplate(), 'utf8'))
+  if (!result.ok || !result.rows[0]) throw new Error('the template has no example row')
+  return result.rows[0].values
 }
 
-describe('the import template parses as the plugin parses an upload', () => {
+describe('the import template reads as an upload of it does', () => {
   it('yields the help row and the example row, and nothing else', () => {
     const records = parsed()
     expect(records).toHaveLength(2)
@@ -83,7 +60,7 @@ describe('the import template parses as the plugin parses an upload', () => {
     // 18:30 on Tuesday 2026-01-06 in Europe/Berlin (CET, UTC+1) is 17:30Z, so
     // the example's `date` and its `weekdays` agree — the pair the weekly arm
     // refuses when they do not.
-    expect(result.ok && !result.inactive && result.schedule).toMatchObject({
+    expect(result.ok && result.schedule).toMatchObject({
       firstDate: '2026-01-06T17:30:00.000Z',
       recurrenceType: 'WEEKLY',
       weekdays: ['TU'],

@@ -63,5 +63,12 @@ export async function fieldErrors(req: PayloadRequest, data: JsonObject): Promis
     siblingDocWithLocales: {},
     skipValidation: false,
   })
+  return reasonsOf(errors)
+}
+
+/** Payload's field errors, each under the CSV column that held the value. */
+export function reasonsOf(
+  errors: readonly Pick<ValidationFieldError, 'message' | 'path'>[],
+): string[] {
   return errors.map(({ message, path }) => `${columnOf(path)}: ${message}`)
 }

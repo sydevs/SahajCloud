@@ -50,6 +50,17 @@ export type EventImportResults = {
     name: string;
   };
 }[];
+export type EventImportRows =
+  | {
+      /**
+       * The row's line in the volunteer's spreadsheet.
+       */
+      line: number;
+      values: {
+        [k: string]: string;
+      };
+    }[]
+  | null;
 /**
  * Supported timezones in IANA format.
  *
@@ -787,7 +798,6 @@ export interface Config {
     regions: Region;
     events: Event;
     users: User;
-    exports: Export;
     imports: Import;
     forms: Form;
     'user-submissions': UserSubmission;
@@ -869,7 +879,6 @@ export interface Config {
     regions: RegionsSelect<false> | RegionsSelect<true>;
     events: EventsSelect<false> | EventsSelect<true>;
     users: UsersSelect<false> | UsersSelect<true>;
-    exports: ExportsSelect<false> | ExportsSelect<true>;
     imports: ImportsSelect<false> | ImportsSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
     'user-submissions': UserSubmissionsSelect<false> | UserSubmissionsSelect<true>;
@@ -987,8 +996,7 @@ export interface Config {
       syncLectureMetadata: TaskSyncLectureMetadata;
       transcribeMeditation: TaskTranscribeMeditation;
       verifyEmbeds: TaskVerifyEmbeds;
-      createCollectionExport: TaskCreateCollectionExport;
-      createCollectionImport: TaskCreateCollectionImport;
+      importEvents: TaskImportEvents;
       resetUsage: TaskResetUsage;
       sendInvitations: TaskSendInvitations;
       schedulePublish: TaskSchedulePublish;
@@ -1992,9 +2000,7 @@ export interface Import {
    */
   error?: string | null;
   results?: EventImportResults;
-  collectionSlug: string;
-  importMode?: ('create' | 'update' | 'upsert') | null;
-  matchField?: string | null;
+  rows?: EventImportRows;
   status?: ('pending' | 'review' | 'completed' | 'failed') | null;
   /**
    * Language(s) for rows whose own `languages` column is empty.
@@ -2186,7 +2192,6 @@ export interface Import {
   )[];
   manager?: (number | null) | Manager;
   locale?: string | null;
-  _objectKey?: string | null;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -3192,8 +3197,7 @@ export interface PayloadJob {
           | 'syncLectureMetadata'
           | 'transcribeMeditation'
           | 'verifyEmbeds'
-          | 'createCollectionExport'
-          | 'createCollectionImport'
+          | 'importEvents'
           | 'resetUsage'
           | 'sendInvitations'
           | 'schedulePublish';
@@ -3245,8 +3249,7 @@ export interface PayloadJob {
         | 'syncLectureMetadata'
         | 'transcribeMeditation'
         | 'verifyEmbeds'
-        | 'createCollectionExport'
-        | 'createCollectionImport'
+        | 'importEvents'
         | 'resetUsage'
         | 'sendInvitations'
         | 'schedulePublish'
@@ -4172,67 +4175,6 @@ export interface Frame {
   duration?: number | null;
   fileMetadata?: FileMetadata;
   _objectKey?: string | null;
-  updatedAt: string;
-  createdAt: string;
-  url?: string | null;
-  thumbnailURL?: string | null;
-  filename?: string | null;
-  mimeType?: string | null;
-  filesize?: number | null;
-  width?: number | null;
-  height?: number | null;
-  focalX?: number | null;
-  focalY?: number | null;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "exports".
- */
-export interface Export {
-  id: number;
-  name?: string | null;
-  format: 'csv' | 'json';
-  limit?: number | null;
-  page?: number | null;
-  sort?: string | null;
-  sortOrder?: ('asc' | 'desc') | null;
-  locale?:
-    | (
-        | 'all'
-        | 'en'
-        | 'es'
-        | 'de'
-        | 'it'
-        | 'fr'
-        | 'ru'
-        | 'ro'
-        | 'cs'
-        | 'uk'
-        | 'el'
-        | 'hy'
-        | 'pl'
-        | 'pt-BR'
-        | 'fa'
-        | 'bg'
-        | 'tr'
-        | 'en-AU'
-        | 'hu'
-        | 'nl'
-      )
-    | null;
-  drafts?: ('yes' | 'no') | null;
-  selectionToUse?: ('currentSelection' | 'currentFilters' | 'all') | null;
-  fields?: string[] | null;
-  collectionSlug: string;
-  where?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -5186,49 +5128,17 @@ export interface UsersSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "exports_select".
- */
-export interface ExportsSelect<T extends boolean = true> {
-  name?: T;
-  format?: T;
-  limit?: T;
-  page?: T;
-  sort?: T;
-  sortOrder?: T;
-  locale?: T;
-  drafts?: T;
-  selectionToUse?: T;
-  fields?: T;
-  collectionSlug?: T;
-  where?: T;
-  updatedAt?: T;
-  createdAt?: T;
-  url?: T;
-  thumbnailURL?: T;
-  filename?: T;
-  mimeType?: T;
-  filesize?: T;
-  width?: T;
-  height?: T;
-  focalX?: T;
-  focalY?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "imports_select".
  */
 export interface ImportsSelect<T extends boolean = true> {
   targetRegion?: T;
   error?: T;
   results?: T;
-  collectionSlug?: T;
-  importMode?: T;
-  matchField?: T;
+  rows?: T;
   status?: T;
   defaultLanguages?: T;
   manager?: T;
   locale?: T;
-  _objectKey?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;
@@ -10825,76 +10735,11 @@ export interface TaskVerifyEmbeds {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "TaskCreateCollectionExport".
+ * via the `definition` "TaskImportEvents".
  */
-export interface TaskCreateCollectionExport {
+export interface TaskImportEvents {
   input: {
-    id: string;
-    name: string;
-    batchSize?: number | null;
-    collectionSlug:
-      | 'pages'
-      | 'meditations'
-      | 'meditation-transcripts'
-      | 'songs'
-      | 'albums'
-      | 'videos'
-      | 'lessons'
-      | 'lectures'
-      | 'frames'
-      | 'narrators'
-      | 'authors'
-      | 'images'
-      | 'files'
-      | 'audiences'
-      | 'user-choices'
-      | 'subtle-system-nodes'
-      | 'song-tags'
-      | 'managers'
-      | 'clients'
-      | 'app-cards'
-      | 'regions'
-      | 'events'
-      | 'users'
-      | 'exports'
-      | 'imports';
-    drafts?: ('yes' | 'no') | null;
-    exportCollection: string;
-    fields?: string[] | null;
-    format: 'csv' | 'json';
-    limit?: number | null;
-    locale?: string | null;
-    maxLimit?: number | null;
-    page?: number | null;
-    sort?: string | null;
-    userCollection?: string | null;
-    userID?: string | null;
-    where?:
-      | {
-          [k: string]: unknown;
-        }
-      | unknown[]
-      | string
-      | number
-      | boolean
-      | null;
-  };
-  output?: unknown;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "TaskCreateCollectionImport".
- */
-export interface TaskCreateCollectionImport {
-  input: {
-    importId: string;
-    importCollection: string;
-    userID?: string | null;
-    userCollection?: string | null;
-    batchSize?: number | null;
-    debug?: boolean | null;
-    defaultVersionStatus?: ('draft' | 'published') | null;
-    maxLimit?: number | null;
+    importId: number;
   };
   output?: unknown;
 }

@@ -16,10 +16,10 @@ export async function sendImportSummary(args: {
 }): Promise<boolean> {
   const { req, run } = args
   try {
-    const to = await uploaderAddress(req, run.managerId)
+    const to = (run.uploader as Manager).email
     if (!to) return false
     const brand = getEmailBrand('sahaj-atlas')
-    const { imported } = run
+    const imported = run.created.length
     const duplicates = run.skipped.filter(({ duplicateOf }) => duplicateOf).length
     await req.payload.sendEmail({
       to,
@@ -48,23 +48,4 @@ export async function sendImportSummary(args: {
     )
     return false
   }
-}
-
-async function uploaderAddress(
-  req: PayloadRequest,
-  managerId: null | number,
-): Promise<null | string> {
-  if (managerId === null) return null
-  const manager = (await req.payload
-    .findByID({
-      collection: 'managers',
-      id: managerId,
-      depth: 0,
-      overrideAccess: true,
-      disableErrors: true,
-      select: { email: true, type: true },
-      req,
-    })
-    .catch(() => null)) as Manager | null
-  return manager && manager.type !== 'inactive' ? manager.email || null : null
 }

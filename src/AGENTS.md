@@ -23,9 +23,9 @@ split into `plugins/`, `jobs/`, and shared utilities).
 
 One self-contained folder per plugin/adapter, with a public API via an
 `index.ts` barrel: `access/`, `storage/`, `usage/`, `openapi/`, `email/`,
-`eventImport/` (the bulk class import: `@payloadcms/plugin-import-export`
-configured for `events`, its `imports` collection reshaped, and the hooks that
-turn CSV rows into draft classes),
+`eventImport/` (the bulk class import: the `imports` collection, the job that
+turns its CSV rows into draft classes, and the Events hooks that keep an
+import's status current),
 `sentry/`, `login/`. Consumers (including `payload.config.ts`) import from
 `@/plugins/<name>`.
 

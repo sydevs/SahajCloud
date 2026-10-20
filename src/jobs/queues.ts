@@ -41,9 +41,9 @@ export const JOB_AUTO_RUN: AutoRunEntry[] = [
     queue: 'screening',
   },
   {
-    // `default` is where `@payloadcms/plugin-import-export` queues each class
-    // import's job (`src/plugins/eventImport`) — it names no queue of its own.
-    // The import's create hook kicks the queue at once; this is the safety net
+    // `default` is where each class import's job is queued
+    // (`src/plugins/eventImport`). The import's create hook kicks the queue at
+    // once; this is the safety net
     // for a kick lost to a restart, five minutes because a volunteer is waiting.
     // Offset by one, the only five-minute phase free of all three neighbours:
     // `invitations` holds every fifth minute from zero, `nightly` :00, and

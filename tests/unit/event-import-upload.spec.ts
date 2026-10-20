@@ -1,20 +1,19 @@
-import { parse } from 'csv-parse/sync'
 import { describe, expect, it } from 'vitest'
 
 import { MAX_IMPORT_ROWS } from '@/plugins/eventImport/constants'
 import { IMPORT_COLUMNS } from '@/plugins/eventImport/csv/columns'
 import { buildImportTemplate } from '@/plugins/eventImport/csv/template'
-import { LINE_COLUMN, prepareUpload } from '@/plugins/eventImport/csv/upload'
+import { prepareUpload } from '@/plugins/eventImport/csv/upload'
 
 const HEADER = IMPORT_COLUMNS.map(({ name }) => name)
 
 const line = (title: string) => HEADER.map((name) => (name === 'title' ? title : 'x')).join(',')
 const csv = (...lines: string[]) => Buffer.from([HEADER.join(','), ...lines].join('\n'), 'utf8')
 
-function cleaned(data: Buffer, name = 'classes.csv') {
+function cleaned(data: Buffer, name = 'classes.csv'): Record<string, string>[] {
   const result = prepareUpload(name, data)
   if (!result.ok) throw new Error(`expected a clean file, got: ${result.error}`)
-  return parse(result.csv, { columns: true }) as Record<string, string>[]
+  return result.rows.map(({ line, values }) => ({ ...values, line: String(line) }))
 }
 
 function refusal(data: Buffer, name = 'classes.csv') {
@@ -26,7 +25,7 @@ function refusal(data: Buffer, name = 'classes.csv') {
 describe('prepareUpload', () => {
   it('drops blank rows and keeps each row’s spreadsheet line', () => {
     const rows = cleaned(csv(line('A'), HEADER.map(() => '').join(','), '', line('B')))
-    expect(rows.map((row) => [row[LINE_COLUMN], row.title])).toEqual([
+    expect(rows.map((row) => [row.line, row.title])).toEqual([
       ['2', 'A'],
       ['5', 'B'],
     ])
@@ -35,7 +34,7 @@ describe('prepareUpload', () => {
   it('drops the template’s help row, and keeps its example for the row checks to refuse', () => {
     const rows = cleaned(Buffer.from(buildImportTemplate(), 'utf8'))
     expect(rows).toHaveLength(1)
-    expect(rows[0]![LINE_COLUMN]).toBe('3')
+    expect(rows[0]!.line).toBe('3')
   })
 
   it('reads a header cell carrying an invisible character', () => {
@@ -100,7 +99,7 @@ describe('prepareUpload', () => {
 
   it('names the line of a value split on an unquoted comma', () => {
     expect(refusal(csv(line('A'), `${line('B')},spill`))).toMatch(
-      /^Line 3 has 28 values but the header has 27 columns/,
+      `Line 3 has ${HEADER.length + 1} values but the header has ${HEADER.length} columns`,
     )
   })
 

@@ -45,7 +45,6 @@ const r2FilenameHookModes: Record<string, keyof typeof r2FilenameHooks> = {
   'song-tags': 'always',
   meditations: 'always',
   songs: 'always',
-  imports: 'always',
 }
 
 /**
@@ -62,7 +61,6 @@ const STORAGE_BACKENDS = {
   meditations: 'r2',
   songs: 'r2',
   files: 'mixed',
-  imports: 'r2',
 } as const
 
 /**
