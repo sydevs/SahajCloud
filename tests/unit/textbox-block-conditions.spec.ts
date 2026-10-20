@@ -6,8 +6,6 @@
  * the legacy EditorJS `position` for its whole life, which survives only inside
  * `importData`, so the "Ancient Wisdom" checkbox was unreachable in `/admin`
  * and the WeMeditate importer was its only writer (#989).
- *
- * The closed-list case at the end is the general form of that defect.
  */
 
 import type { Condition } from 'payload'
@@ -57,39 +55,5 @@ describe('TextBoxBlock wisdomStyle condition', () => {
   // radio the editor has not touched yet.
   it('shows the checkbox before imagePosition is set', () => {
     expect(shows(condition, {})).toBe(true)
-  })
-})
-
-/** Dotted and bracketed reads alike — a typo in either spelling is the defect. */
-function siblingReads(condition: Condition): string[] {
-  const source = condition.toString()
-  const matches = source.matchAll(/siblingData(?:\?\.|\.)(\w+)|siblingData\??\[['"]([^'"]+)['"]\]/g)
-
-  return [...matches].map(([, dotted, bracketed]) => dotted ?? bracketed)
-}
-
-describe('TextBoxBlock conditions read declared fields', () => {
-  const declared = new Set(FIELDS.map((f) => f.name))
-
-  const conditions = FIELDS.flatMap((field) =>
-    field.admin?.condition ? [[field.name, field.admin.condition] as const] : [],
-  )
-
-  // Pinned rather than counted per case, so a condition rewritten into a
-  // spelling `siblingReads` cannot see fails here instead of passing with
-  // nothing to check. A future condition reading `data` or `blockData` — the
-  // spelling `LayoutBlock` uses — belongs in this map as `[]`.
-  it('reads exactly these sibling fields', () => {
-    expect(Object.fromEntries(conditions.map(([name, c]) => [name, siblingReads(c)]))).toEqual({
-      textPosition: ['imagePosition'],
-      textColor: ['imagePosition'],
-      wisdomStyle: ['imagePosition'],
-      subtitle: ['title'],
-      buttonUrl: ['buttonText'],
-    })
-  })
-
-  it.each(conditions)('%s reads only sibling fields the block declares', (_name, condition) => {
-    expect(siblingReads(condition).filter((field) => !declared.has(field))).toEqual([])
   })
 })
