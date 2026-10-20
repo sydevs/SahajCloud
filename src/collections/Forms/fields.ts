@@ -50,7 +50,7 @@ export function formFields({ defaultFields }: { defaultFields: Field[] }): Field
  * that locale's own value — the English fallback does not satisfy it — so a
  * save in any second locale would be refused unless the editor retyped both.
  * #977 settled the same question for `lessons.title`
- * (`src/collections/AGENTS.md`). `tests/int/atlas-report-issue-form.int.spec.ts`
+ * (`src/collections/Lessons/AGENTS.md`). `tests/int/atlas-report-issue-form.int.spec.ts`
  * is what goes red if `required` comes back: it saves German labels and
  * carries neither value.
  *
