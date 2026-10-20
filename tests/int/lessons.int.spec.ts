@@ -5,8 +5,9 @@
  * This file holds tests for behavior that is project-specific.
  *
  * Currently: subtitle JSON behavior, article rich-text cleanup for stale
- * Lexical relationship nodes, and meditation field locale isolation
- * (per-locale meditation assignments are independent).
+ * Lexical relationship nodes, and locale isolation for the meditation field,
+ * the title and the panel list (all three are per-locale, and a locale with
+ * no panels of its own still falls back to English).
  */
 import type { Payload } from 'payload'
 
@@ -136,6 +137,94 @@ describe('Lessons Collection — custom behavior', () => {
         depth: 0,
       })
       expect(esFetched.meditation).toEqual({ relationTo: 'meditations', value: esMeditation.id })
+    })
+  })
+
+  describe('title and panels — locale isolation', () => {
+    const enPanels = [{ title: 'What is Kundalini?', text: 'There is a dormant energy.' }]
+    const frPanels = [{ title: "Qu'est-ce que la Kundalini ?", text: 'Une énergie dormante.' }]
+
+    it('keeps English intact when the title and panels are written in French', async () => {
+      const lesson = await testData.createLesson(payload, {
+        title: 'Kundalini: The Power Within',
+        panels: enPanels,
+      })
+
+      await payload.update({
+        collection: 'lessons',
+        id: lesson.id,
+        locale: 'fr',
+        data: { title: 'La Kundalini', panels: frPanels },
+      })
+
+      const en = await payload.findByID({ collection: 'lessons', id: lesson.id, depth: 0 })
+      expect(en.title).toBe('Kundalini: The Power Within')
+      expect(en.panels?.map((p) => p.text)).toEqual(['There is a dormant energy.'])
+
+      const fr = await payload.findByID({
+        collection: 'lessons',
+        id: lesson.id,
+        locale: 'fr',
+        depth: 0,
+      })
+      expect(fr.title).toBe('La Kundalini')
+      expect(fr.panels?.map((p) => p.text)).toEqual(['Une énergie dormante.'])
+    })
+
+    it('keeps French intact when the title and panels are written in English', async () => {
+      const lesson = await testData.createLesson(payload, { panels: enPanels })
+      await payload.update({
+        collection: 'lessons',
+        id: lesson.id,
+        locale: 'fr',
+        data: { title: 'La Kundalini', panels: frPanels },
+      })
+
+      await payload.update({
+        collection: 'lessons',
+        id: lesson.id,
+        data: { title: 'Rewritten in English', panels: [{ text: 'Rewritten panel.' }] },
+      })
+
+      const fr = await payload.findByID({
+        collection: 'lessons',
+        id: lesson.id,
+        locale: 'fr',
+        depth: 0,
+      })
+      expect(fr.title).toBe('La Kundalini')
+      expect(fr.panels?.map((p) => p.text)).toEqual(['Une énergie dormante.'])
+    })
+
+    it('stores no French panels when only the French title is saved, so French falls back', async () => {
+      const lesson = await testData.createLesson(payload, { panels: enPanels })
+
+      await payload.update({
+        collection: 'lessons',
+        id: lesson.id,
+        locale: 'fr',
+        data: { title: 'La Kundalini' },
+      })
+
+      const fr = await payload.findByID({
+        collection: 'lessons',
+        id: lesson.id,
+        locale: 'fr',
+        depth: 0,
+      })
+      expect(fr.title).toBe('La Kundalini')
+      expect(fr.panels?.map((p) => p.text)).toEqual(['There is a dormant energy.'])
+
+      // The fallback is what is read, not a copy stored under `fr`: a panel
+      // added in English must still reach a locale nobody has translated.
+      const stored = await payload.findByID({
+        collection: 'lessons',
+        id: lesson.id,
+        locale: 'fr',
+        fallbackLocale: false,
+        depth: 0,
+      })
+      expect(stored.panels ?? []).toEqual([])
     })
   })
 
