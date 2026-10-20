@@ -12,27 +12,25 @@
 
 import type { Field } from 'payload'
 
+import { flattenTopLevelFields } from 'payload/shared'
 import { describe, expect, it } from 'vitest'
 
 import { TextBoxBlock } from '@/lib/richEditor/blocks/TextBoxBlock'
 
 type Condition = NonNullable<NonNullable<Field['admin']>['condition']>
 
-/** Row fields hold no data of their own, so their children are siblings too. */
-function namedFields(fields: Field[]): { name: string; field: Field }[] {
-  return fields.flatMap((field) => [
-    ...('name' in field ? [{ name: field.name, field }] : []),
-    ...('fields' in field && !('name' in field) ? namedFields(field.fields) : []),
-  ])
-}
-
-const FIELDS = namedFields(TextBoxBlock.fields)
+// Hoists the children of `row`, which holds no data of its own, so they are
+// siblings here as they are to Payload. It drops UI fields, but types the
+// result as though it kept them, so the narrowing is what makes `name` a string.
+const FIELDS = flattenTopLevelFields(TextBoxBlock.fields).filter(
+  (field): field is typeof field & { name: string } => 'name' in field,
+)
 
 function conditionFor(name: string): Condition {
-  const entry = FIELDS.find((f) => f.name === name)
-  expect(entry, `${name} is not a field of TextBoxBlock`).toBeDefined()
+  const field = FIELDS.find((f) => f.name === name)
+  expect(field, `${name} is not a field of TextBoxBlock`).toBeDefined()
 
-  const condition = entry!.field.admin?.condition
+  const condition = field!.admin?.condition
   expect(condition, `${name} has no admin.condition`).toBeTypeOf('function')
 
   return condition!
@@ -67,10 +65,13 @@ describe('TextBoxBlock wisdomStyle condition', () => {
   })
 })
 
+// Scoped to this block on purpose. The match reads the plain `siblingData?.x`
+// spelling, which all five of these use; `LayoutBlock` casts (`(siblingData as
+// {…})?.style`) and reads `blockData`, neither of which this would see.
 describe('TextBoxBlock conditions read declared fields', () => {
   const declared = new Set(FIELDS.map((f) => f.name))
 
-  it.each(FIELDS.filter((f) => f.field.admin?.condition).map((f) => f.name))(
+  it.each(FIELDS.filter((f) => f.admin?.condition).map((f) => f.name))(
     '%s reads only sibling fields the block declares',
     (name) => {
       const source = conditionFor(name).toString()
