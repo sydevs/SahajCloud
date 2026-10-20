@@ -63,7 +63,12 @@ record your own row beside it rather than replacing it.
 | `pnpm typecheck` | 8.4 s |
 | `pnpm typecheck:tests` | 8.2 s |
 | Those four commands, summed | 104 s |
-| Tier 2 lean gate (`check.sh`) | **138 s** — the four above plus `scripts/ensure-test-db.sh` bringing Postgres up |
+| Tier 2 lean gate (`check.sh`) | **138 s** cold, **103 s** with Postgres already up |
+
+**The gate's own 35 s spread is `scripts/ensure-test-db.sh`.** It costs nothing
+once port 5432 answers, which is why the warm 103 s lands on the four commands'
+104 s and the first run of a session does not. Time it warm to compare against
+this row.
 
 ⚠ **3 workers, not 4.** Vitest's non-watch default is `max(cores - 1, 1)`
 (`getDefaultThreadsCount`, `vitest/dist/chunks/cli-api.*.js`), so every figure
