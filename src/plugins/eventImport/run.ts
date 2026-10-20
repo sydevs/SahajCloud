@@ -38,8 +38,6 @@ export interface SkippedRow {
 export interface SubmittedRow {
   row: number
   values: Record<string, string>
-  /** Things the volunteer should know that did not stop the row. */
-  warnings?: string[]
 }
 
 export interface ImportRun {

@@ -170,12 +170,10 @@ validate: async (value, options) => {
 }
 ```
 
-The class import's `targetRegion` is the worked example
-(`src/plugins/eventImport/targetRegion.ts`): the composition is what
-refuses a region outside the caller's subtree, and the custom half exists only
-to say *which* of `filterOptions`' clauses refused — Payload's own answer is
-"invalid selection", naming a row number. Pass `filterOptions` from one shared
-constant, so the picker and the validator cannot narrow differently.
+The class import's `targetRegion` (`src/plugins/eventImport/targetRegion.ts`)
+is the smallest worked example: it composes `relationship` on create only, and
+keeps Payload's own "invalid selection" wording. Pass `filterOptions` from one
+shared constant, so the picker and the validator cannot narrow differently.
 
 ## `defaultPopulate`
 

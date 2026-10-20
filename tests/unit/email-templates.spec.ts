@@ -561,49 +561,33 @@ describe('EventImportSummaryEmail', () => {
   const props = {
     brand: getEmailBrand('sahaj-atlas'),
     targetName: 'Germany',
-    imported: 12,
-    reviewUrl: 'https://cloud.sydevelopers.com/admin/collections/events?imported=42',
+    created: 12,
+    duplicates: 2,
+    errors: 1,
     importUrl: 'https://cloud.sydevelopers.com/admin/collections/imports/42',
   }
 
-  const skippedRows = (count: number) =>
-    Array.from({ length: count }, (_, at) => ({
-      row: at + 2,
-      reasons: [`reason for row ${at + 2}`],
-    }))
-
-  it('names the target, the imported count, and both links', async () => {
+  it('counts each outcome and links to the import alone', async () => {
     const html = await renderEmail(createElement(EventImportSummaryEmail, props))
 
     expect(html).toContain('Your class import is ready to review')
-    expect(html).toContain('Germany')
-    // The count and its noun are separate JSX expressions, so the body holds a
-    // React comment between them; the preview text is the one place they join.
     expect(html).toContain('12 classes ready to review in Germany')
-    expect(html).toContain('classes are')
-    expect(html).toContain('/admin/collections/events?imported=42')
-    expect(html).toContain('/admin/collections/imports/42')
+    expect(html).toContain('12 classes')
+    expect(html).toContain('2 rows')
+    expect(html).toContain('1 row')
+    expect(html).toContain('Review and publish')
+    expect(html.match(/href="https:\/\/cloud\.sydevelopers\.com\/admin[^"]*"/g)).toEqual([
+      'href="https://cloud.sydevelopers.com/admin/collections/imports/42"',
+    ])
   })
 
-  it('lists twenty skipped rows with their reasons, and counts the rest', async () => {
+  it('leaves out a count of nothing, and asks for attention when nothing was created', async () => {
     const html = await renderEmail(
-      createElement(EventImportSummaryEmail, { ...props, skipped: skippedRows(25) }),
+      createElement(EventImportSummaryEmail, { ...props, created: 0, duplicates: 0 }),
     )
 
-    expect(html).toContain('Rows skipped')
-    expect(html).toContain('Row 2')
-    expect(html).toContain('reason for row 2')
-    // Twenty listed, and the rest counted rather than printed.
-    expect(html).toContain('Row 21')
-    expect(html).not.toContain('Row 22')
-    expect(html).toContain('and 5 more')
-  })
-
-  it('omits the skipped section when nothing was skipped', async () => {
-    for (const skipped of [undefined, []]) {
-      const html = await renderEmail(createElement(EventImportSummaryEmail, { ...props, skipped }))
-
-      expect(html).not.toContain('Rows skipped')
-    }
+    expect(html).toContain('Your class import needs attention')
+    expect(html).not.toContain('Duplicates skipped')
+    expect(html).toContain('View the import')
   })
 })

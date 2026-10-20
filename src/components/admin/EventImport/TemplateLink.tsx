@@ -7,8 +7,8 @@ import './styles.css'
  */
 export const TemplateLink: React.FC = () => (
   <p className="event-import__note">
-    Upload a CSV to add many classes at once. Each row becomes a draft class to review and
-    publish from the Events list.{' '}
+    Upload a CSV to add many classes at once. Each row becomes a draft class to review and publish
+    from the Events list.{' '}
     <a download href="/event-import-template.csv">
       Download the CSV template
     </a>

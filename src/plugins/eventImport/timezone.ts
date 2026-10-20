@@ -4,8 +4,7 @@ import { isSupportedTimezone } from '@/lib/timezones'
 import type { SupportedTimezones } from '@/payload-types'
 
 export type TimezoneResult =
-  | { ok: true; timezone: SupportedTimezones }
-  | { ok: false; error: string }
+  { ok: true; timezone: SupportedTimezones } | { ok: false; error: string }
 
 /** The zone at a point, narrowed to one the `firstDate_tz` column stores. */
 export function timezoneAt(latitude: number, longitude: number): TimezoneResult {

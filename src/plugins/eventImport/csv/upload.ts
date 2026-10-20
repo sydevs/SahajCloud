@@ -99,7 +99,8 @@ export function checkHeader(names: readonly string[]): string | null {
     return `Unrecognised column${unknown.length > 1 ? 's' : ''}: ${unknown.join(', ')}.${hint}`
   }
   const duplicated = named.filter((name, at) => named.indexOf(name) !== at)
-  if (duplicated.length) return `Duplicated column${duplicated.length > 1 ? 's' : ''}: ${duplicated.join(', ')}.`
+  if (duplicated.length)
+    return `Duplicated column${duplicated.length > 1 ? 's' : ''}: ${duplicated.join(', ')}.`
   const missing = requiredColumnsFor(undefined).filter((name) => !named.includes(name))
   if (missing.length) {
     return `Missing required column${missing.length > 1 ? 's' : ''}: ${missing.join(', ')}.`
@@ -108,7 +109,10 @@ export function checkHeader(names: readonly string[]): string | null {
 }
 
 function isUtf16(data: Buffer): boolean {
-  if (data.length >= 2 && ((data[0] === 0xff && data[1] === 0xfe) || (data[0] === 0xfe && data[1] === 0xff))) {
+  if (
+    data.length >= 2 &&
+    ((data[0] === 0xff && data[1] === 0xfe) || (data[0] === 0xfe && data[1] === 0xff))
+  ) {
     return true
   }
   return data.subarray(0, 512).includes(0)

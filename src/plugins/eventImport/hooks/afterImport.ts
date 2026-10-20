@@ -23,12 +23,7 @@ function reasonOf(error: string): string {
   return error.replace(FIELDS_INVALID, 'invalid: ')
 }
 
-export const afterImport: ImportAfterHook = async ({
-  batchNumber,
-  originalData,
-  req,
-  result,
-}) => {
+export const afterImport: ImportAfterHook = async ({ batchNumber, originalData, req, result }) => {
   const run = runOf(req)
   run.imported += result.imported
 

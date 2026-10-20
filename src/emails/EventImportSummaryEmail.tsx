@@ -2,79 +2,59 @@ import { Hr, Section, Text } from 'react-email'
 
 import type { EmailBrand } from '@/plugins/email'
 
-import { BrandButtonRow, DetailRow, EmailLayout, SectionHeading, styles } from './EmailLayout'
-
-export interface EventImportSkippedLine {
-  row: number
-  reasons: string[]
-}
+import { BrandButtonRow, DetailRow, EmailLayout, styles } from './EmailLayout'
 
 interface EventImportSummaryEmailProps {
   brand: EmailBrand
   targetName: string
-  imported: number
-  skipped?: readonly EventImportSkippedLine[]
-  reviewUrl: string
+  /** Classes created as drafts. */
+  created: number
+  /** Rows skipped as repeats of a listed class or an earlier row. */
+  duplicates: number
+  /** Rows skipped for anything else. */
+  errors: number
   importUrl: string
 }
 
-const MAX_LISTED_ROWS = 20
+const classes = (count: number) => `${count} ${count === 1 ? 'class' : 'classes'}`
+const rows = (count: number) => `${count} ${count === 1 ? 'row' : 'rows'}`
 
+/** The import's outcome in counts, and one link to the import, where the review happens. */
 export function EventImportSummaryEmail({
   brand,
   targetName,
-  imported,
-  skipped = [],
-  reviewUrl,
+  created,
+  duplicates,
+  errors,
   importUrl,
 }: EventImportSummaryEmailProps) {
-  const shown = skipped.slice(0, MAX_LISTED_ROWS)
-
   return (
     <EmailLayout
       brand={brand}
-      heading={imported ? 'Your class import is ready to review' : 'Your class import needs attention'}
+      heading={
+        created ? 'Your class import is ready to review' : 'Your class import needs attention'
+      }
       previewText={
-        imported
-          ? `${imported} ${imported === 1 ? 'class' : 'classes'} ready to review in ${targetName}`
+        created
+          ? `${classes(created)} ready to review in ${targetName}`
           : `No classes were created in ${targetName}`
       }
     >
       <Text style={styles.paragraph}>
-        {imported ? (
-          <>
-            {imported} {imported === 1 ? 'class is' : 'classes are'} waiting as drafts in{' '}
-            <strong>{targetName}</strong>. Open the import, look them over and publish them.
-          </>
-        ) : (
-          <>
-            None of the rows could be imported into <strong>{targetName}</strong>. The import page
-            says why for each one.
-          </>
-        )}
+        {created
+          ? `Your import into ${targetName} has finished. Review the classes it created and publish the ones that are right — nothing is public until you do.`
+          : `Your import into ${targetName} has finished, but none of its rows could be imported. The import page says why for each one.`}
       </Text>
 
-      {skipped.length ? (
-        <Section>
-          <SectionHeading>Rows skipped</SectionHeading>
-          {shown.map(({ row, reasons }) => (
-            <DetailRow key={row} label={`Row ${row}`}>
-              {reasons.join('; ')}
-            </DetailRow>
-          ))}
-          <Text style={styles.paragraph}>
-            {skipped.length > shown.length ? `…and ${skipped.length - shown.length} more. ` : ''}
-            The import page downloads every skipped row as a file to fix and upload again.
-          </Text>
-        </Section>
-      ) : null}
+      <Section>
+        <DetailRow label="Created as drafts">{classes(created)}</DetailRow>
+        {duplicates ? <DetailRow label="Duplicates skipped">{rows(duplicates)}</DetailRow> : null}
+        {errors ? <DetailRow label="Errors">{rows(errors)}</DetailRow> : null}
+      </Section>
 
       <BrandButtonRow
         brand={brand}
-        buttons={[
-          { href: reviewUrl, label: 'Review the classes' },
-          { href: importUrl, label: 'View the import', variant: 'secondary' },
-        ]}
+        buttons={[{ href: importUrl, label: created ? 'Review and publish' : 'View the import' }]}
       />
 
       <Hr style={styles.hr} />

@@ -11,12 +11,11 @@ import type { RawImportRow } from './csv/columns'
 import type { Temporal } from '@js-temporal/polyfill'
 
 import { newEventDefaults } from '@/collections/UserSubmissions/lifecycle/mergeProposal'
-import { getLanguageOptions } from '@/lib/locales'
 import type { GeocodedLocation } from '@/lib/mapbox/geocoder'
 import { plainTextToLexical } from '@/lib/richEditor/plainTextToLexical'
 import type { Event, SupportedTimezones } from '@/payload-types'
 
-import { mapCsvSchedule, scheduleArgsFor } from './csv/schedule'
+import { mapCsvSchedule } from './csv/schedule'
 
 export interface EventDataArgs {
   values: RawImportRow
@@ -31,43 +30,36 @@ export interface EventDataArgs {
 }
 
 export type EventDataResult =
-  | { ok: true; data: Record<string, unknown> }
-  | { ok: false; errors: string[] }
-
-const LANGUAGE_CODES: ReadonlySet<string> = new Set(
-  getLanguageOptions().map((option) => option.value),
-)
+  { ok: true; data: Record<string, unknown> } | { ok: false; errors: string[] }
 
 export function eventCreateData(args: EventDataArgs): EventDataResult {
   const { values, location, timezone, today, regionId, managerId, importBatch } = args
 
-  const schedule = mapCsvSchedule(scheduleArgsFor(values, timezone, today))
+  const schedule = mapCsvSchedule(values, timezone, today)
   if (!schedule.ok) return { ok: false, errors: schedule.errors }
-
-  const languages = resolveLanguages(values.languages, args.defaultLanguages)
-  if (!languages.ok) return { ok: false, errors: [languages.error] }
 
   const eventType: Event['eventType'] = values.eventType === 'online' ? 'online' : 'offline'
   const scheduled = schedule.inactive ? {} : { schedule: schedule.schedule }
-  const limit = values.registrationLimit?.trim()
+  // Payload's own select validation refuses a code the CMS does not list.
+  const languages = [...new Set(splitList(values.languages?.toLowerCase()))]
 
   const data: Record<string, unknown> = {
     // `newEventDefaults` reads the schedule only to derive `inactive`.
     ...newEventDefaults(scheduled, managerId),
     ...scheduled,
-    title: values.title?.trim() || '',
-    languages: languages.codes,
+    title: values.title,
+    languages: languages.length ? languages : [...args.defaultLanguages],
     description: plainTextToLexical(values.description) ?? null,
-    website: values.website?.trim() || null,
-    contactName: values.contactName?.trim() || null,
-    contactPhone: values.contactPhone?.trim() || null,
-    contactEmail: values.contactEmail?.trim() || null,
+    website: values.website || null,
+    contactName: values.contactName || null,
+    contactPhone: values.contactPhone || null,
+    contactEmail: values.contactEmail || null,
     region: regionId,
     eventType,
-    onlineUrl: eventType === 'online' ? values.onlineUrl?.trim() || null : null,
+    onlineUrl: eventType === 'online' ? values.onlineUrl || null : null,
     ...(eventType === 'offline' ? { address: addressFor(values, location) } : {}),
     registrationMode: 'sahaj-atlas',
-    registrationLimit: limit ? Number(limit) : null,
+    registrationLimit: values.registrationLimit ? Number(values.registrationLimit) : null,
     importBatch,
     // ⚠ Overrides `newEventDefaults`' `published`: the plugin honours a
     // `_status` the row carries, and the review is the draft list.
@@ -80,30 +72,21 @@ function addressFor(values: RawImportRow, location: GeocodedLocation): Record<st
   return {
     // The feature id names a door; a street or town match is a point only.
     mapboxId: location.featureType === 'address' ? location.mapboxId : null,
-    venueName: values.venueName?.trim() || null,
-    street: values.address?.trim() || null,
-    room: values.room?.trim() || null,
-    postCode: values.postcode?.trim() || null,
-    country: values.country?.trim().toUpperCase() || null,
-    region: values.state?.trim() || null,
-    city: values.city?.trim() || null,
+    venueName: values.venueName || null,
+    street: values.address || null,
+    room: values.room || null,
+    postCode: values.postcode || null,
+    country: values.country?.toUpperCase() || null,
+    region: values.state || null,
+    city: values.city || null,
     latitude: location.latitude,
     longitude: location.longitude,
   }
 }
 
-function resolveLanguages(
-  column: string | undefined,
-  fallback: readonly string[],
-): { ok: true; codes: string[] } | { ok: false; error: string } {
-  const codes = (column ?? '')
+function splitList(value: string | undefined): string[] {
+  return (value ?? '')
     .split(',')
-    .map((code) => code.trim().toLowerCase())
+    .map((part) => part.trim())
     .filter(Boolean)
-  if (!codes.length) return { ok: true, codes: [...fallback] }
-  const unknown = codes.filter((code) => !LANGUAGE_CODES.has(code))
-  if (unknown.length) {
-    return { ok: false, error: `languages has codes the CMS does not list (got "${unknown.join(', ')}")` }
-  }
-  return { ok: true, codes: [...new Set(codes)] }
 }

@@ -48,8 +48,7 @@ export const eventImportPlugin: Plugin = async (config) => {
   })(config)
 
   const task = withPlugin.jobs?.tasks?.find((entry) => entry.slug === IMPORT_TASK) as
-    | TaskConfig<typeof IMPORT_TASK>
-    | undefined
+    TaskConfig<typeof IMPORT_TASK> | undefined
   if (!task || typeof task.handler !== 'function') {
     throw new Error(`plugin-import-export registered no inline ${IMPORT_TASK} task to wrap`)
   }

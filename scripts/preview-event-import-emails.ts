@@ -26,51 +26,25 @@ dotenv.config({ path: ['.env.local', '.env'] })
 // since the Mailpit viewer cannot reach a localhost URL.
 process.env.SAHAJCLOUD_URL ||= 'https://cloud.sydevelopers.com'
 
-const skippedRow = (row: number, reasons: string[]): SkippedRow => ({ row, reasons, values: {} })
+const error = (row: number): SkippedRow => ({ row, reasons: ['a reason'], values: {} })
+const duplicate = (row: number): SkippedRow => ({ ...error(row), duplicateOf: { row: 2 } })
+const rows = (count: number, make: (row: number) => SkippedRow) =>
+  Array.from({ length: count }, (_, index) => make(index + 3))
 
 const SCENARIOS: { label: string; note: string; imported: number; skipped: SkippedRow[] }[] = [
+  { label: 'all created', note: 'every row became a draft', imported: 12, skipped: [] },
   {
-    label: 'all created',
-    note: 'every row became a draft — no skipped section',
-    imported: 12,
-    skipped: [],
-  },
-  {
-    label: 'some skipped',
-    note: 'drafts plus the three kinds of skipped row: a value, a missing city, a duplicate',
+    label: 'mixed',
+    note: 'drafts, duplicates and errors — one line each',
     imported: 7,
-    skipped: [
-      skippedRow(9, ['startTime must be HH:MM in 24-hour format (got "7pm")']),
-      skippedRow(12, ['no city region for "Oxford" under United Kingdom — create it first']),
-      skippedRow(15, ['this class is already listed as "Tuesday Evening Meditation"']),
-    ],
+    skipped: [...rows(2, duplicate), ...rows(3, error)],
   },
-  {
-    label: 'one class',
-    note: 'singular wording',
-    imported: 1,
-    skipped: [],
-  },
+  { label: 'one class', note: 'singular wording', imported: 1, skipped: rows(1, error) },
   {
     label: 'nothing created',
     note: 'every row skipped — the email asks for attention instead',
     imported: 0,
-    skipped: [
-      skippedRow(2, [
-        'you are not allowed to add classes in this row’s city — ask an admin, or remove the row',
-      ]),
-      skippedRow(3, [
-        'you are not allowed to add classes in this row’s city — ask an admin, or remove the row',
-      ]),
-    ],
-  },
-  {
-    label: 'long list',
-    note: 'more skipped rows than the email lists — the rest are counted',
-    imported: 40,
-    skipped: Array.from({ length: 26 }, (_, index) =>
-      skippedRow(index + 2, [`date is in the past (got "2025-0${(index % 9) + 1}-01")`]),
-    ),
+    skipped: rows(4, error),
   },
 ]
 

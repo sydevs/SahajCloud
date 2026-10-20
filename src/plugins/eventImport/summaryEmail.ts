@@ -4,18 +4,12 @@ import type { PayloadRequest } from 'payload'
 import { createElement } from 'react'
 
 import { EventImportSummaryEmail } from '@/emails/EventImportSummaryEmail'
-import { adminDocUrl, adminUrl } from '@/lib/utilities/adminUrl'
+import { adminDocUrl } from '@/lib/utilities/adminUrl'
 import { headerDisplayName, stripNewlines } from '@/lib/utilities/emailSafeText'
 import type { Manager } from '@/payload-types'
 import { getEmailBrand, MANAGER_EMAIL_FROM, renderEmail } from '@/plugins/email'
 
-
-/** The Events list filtered to one import's classes, draft and published alike. */
-export function importReviewUrl(importId: number): string {
-  return adminUrl(`/collections/events?where[importBatch][equals]=${importId}`)
-}
-
-/** One "ready to review" email to the uploader. A failure is logged, never thrown. */
+/** One "ready to review" email to the uploader, in counts. A failure is logged, never thrown. */
 export async function sendImportSummary(args: {
   req: PayloadRequest
   run: ImportRun
@@ -26,6 +20,7 @@ export async function sendImportSummary(args: {
     if (!to) return false
     const brand = getEmailBrand('sahaj-atlas')
     const { imported } = run
+    const duplicates = run.skipped.filter(({ duplicateOf }) => duplicateOf).length
     await req.payload.sendEmail({
       to,
       from: `${headerDisplayName(brand.productName)} <${MANAGER_EMAIL_FROM}>`,
@@ -38,9 +33,9 @@ export async function sendImportSummary(args: {
         createElement(EventImportSummaryEmail, {
           brand,
           targetName: run.target.name,
-          imported,
-          skipped: run.skipped.map(({ row, reasons }) => ({ row, reasons })),
-          reviewUrl: importReviewUrl(run.importId),
+          created: imported,
+          duplicates,
+          errors: run.skipped.length - duplicates,
           importUrl: adminDocUrl('imports', run.importId),
         }),
       ),
@@ -55,7 +50,10 @@ export async function sendImportSummary(args: {
   }
 }
 
-async function uploaderAddress(req: PayloadRequest, managerId: null | number): Promise<null | string> {
+async function uploaderAddress(
+  req: PayloadRequest,
+  managerId: null | number,
+): Promise<null | string> {
   if (managerId === null) return null
   const manager = (await req.payload
     .findByID({

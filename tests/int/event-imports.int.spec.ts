@@ -17,6 +17,7 @@ import { SweepEventImports } from '@/jobs/SweepEventImports/SweepEventImports'
 import type { GeocodedLocation, GeocodeOutcome } from '@/lib/mapbox/geocoder'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Import } from '@/payload-types'
+import { MAX_IMPORT_ROWS } from '@/plugins/eventImport/constants'
 import { buildImportTemplate } from '@/plugins/eventImport/csv/template'
 
 import { runTaskHandler } from '../utils/taskRunner'
@@ -58,7 +59,7 @@ function classLine(cells: Record<string, string>): string {
     country: 'DE',
     city: 'Berlin',
     address: 'Oranienstraße 25',
-    scheduleType: 'weekly',
+    recurrenceType: 'WEEKLY',
     date: '2026-01-06',
     startTime: '18:30',
     weekdays: 'TU',
@@ -187,11 +188,22 @@ describe('class imports', () => {
 
     it('reads a header cell that carries an invisible character', async () => {
       const header = HEADER.replace('title', 'title\u200b')
-      const created = await createImport([], admin, {}, file(
-        Buffer.from(`${header}\n${classLine({ title: 'Hidden char', startTime: '06:05' })}\n`, 'utf8'),
-      ))
+      const created = await createImport(
+        [],
+        admin,
+        {},
+        file(
+          Buffer.from(
+            `${header}\n${classLine({ title: 'Hidden char', startTime: '06:05' })}\n`,
+            'utf8',
+          ),
+        ),
+      )
       await run(created.id)
-      expect((await read(created.id)).results?.[0]).toMatchObject({ outcome: 'created', title: 'Hidden char' })
+      expect((await read(created.id)).results?.[0]).toMatchObject({
+        outcome: 'created',
+        title: 'Hidden char',
+      })
     })
 
     it('stays pending until the import itself writes its outcome', async () => {
@@ -205,14 +217,20 @@ describe('class imports', () => {
       expect(after.status).toBe('pending')
     })
 
-    it('refuses a target no import can file classes under', async () => {
+    it('refuses a target no import can file classes under, or none at all', async () => {
       const venue = await testData.createRegion(payload, { level: 'venue', parent: berlin })
       expect(
         await fieldErrorMessage(
           createImport([classLine({})], admin, { targetRegion: venue.id }),
           'targetRegion',
         ),
-      ).toMatch(/cannot take an import/)
+      ).toMatch(/invalid selection/)
+      expect(
+        await fieldErrorMessage(
+          createImport([classLine({})], admin, { targetRegion: null }),
+          'targetRegion',
+        ),
+      ).toMatch(/required/)
     })
 
     it('refuses a region outside an atlas-manager’s subtree', async () => {
@@ -222,7 +240,7 @@ describe('class imports', () => {
       })
       expect(
         await fieldErrorMessage(createImport([classLine({})], outsider), 'targetRegion'),
-      ).toMatch(/do not manage that region/)
+      ).toMatch(/invalid selection/)
     })
   })
 
@@ -230,7 +248,13 @@ describe('class imports', () => {
     it('creates one draft class per row, filed under the city its town names', async () => {
       const created = await createImport([
         classLine({ title: 'Beginners' }),
-        classLine({ title: 'Evening', address: 'Hauptstraße 1', startTime: '19:00', weekdays: 'WE', date: '2026-01-07' }),
+        classLine({
+          title: 'Evening',
+          address: 'Hauptstraße 1',
+          startTime: '19:00',
+          weekdays: 'WE',
+          date: '2026-01-07',
+        }),
       ])
       const output = (await run(created.id)) as { imported: number; errors: unknown[] }
       expect(output).toMatchObject({ imported: 2, errors: [] })
@@ -260,7 +284,9 @@ describe('class imports', () => {
         classLine({ title: 'Delete me', startTime: '06:08' }),
       ])
       await run(created.id)
-      const [toPublish, toDelete] = (await importedClasses(created.id)).docs.sort((a, b) => a.id - b.id)
+      const [toPublish, toDelete] = (await importedClasses(created.id)).docs.sort(
+        (a, b) => a.id - b.id,
+      )
       expect((await read(created.id)).status).toBe('review')
 
       await payload.update({
@@ -297,7 +323,11 @@ describe('class imports', () => {
       })
       const germany = await payload.findByID({ collection: 'regions', id: country, depth: 0 })
       const owners = (germany.managers ?? []).map((m) => (typeof m === 'object' ? m.id : m))
-      await payload.update({ collection: 'regions', id: country, data: { managers: [...owners, volunteer.id] } })
+      await payload.update({
+        collection: 'regions',
+        id: country,
+        data: { managers: [...owners, volunteer.id] },
+      })
       const created = await createImport(
         [
           classLine({ title: 'Allowed in Berlin', startTime: '06:09' }),
@@ -306,7 +336,11 @@ describe('class imports', () => {
         volunteer,
       )
       await payload.update({ collection: 'regions', id: country, data: { managers: owners } })
-      await payload.update({ collection: 'regions', id: berlin, data: { managers: [volunteer.id] } })
+      await payload.update({
+        collection: 'regions',
+        id: berlin,
+        data: { managers: [volunteer.id] },
+      })
 
       await run(created.id, volunteer.id)
 
@@ -331,7 +365,11 @@ describe('class imports', () => {
       expect(after.status).toBe('failed')
       expect(after.results).toHaveLength(1)
       // Row 2: the spreadsheet's own line, header included.
-      expect(after.results?.[0]).toMatchObject({ row: 2, outcome: 'error', values: { title: 'Nowhere' } })
+      expect(after.results?.[0]).toMatchObject({
+        row: 2,
+        outcome: 'error',
+        values: { title: 'Nowhere' },
+      })
       expect(after.results?.[0]?.reasons?.[0]).toMatch(/no city region for "Leipzig"/)
       // What the page's "create it first" link prefills a new city with.
       expect(after.results?.[0]?.missingCity).toEqual({ name: 'Leipzig' })
@@ -369,7 +407,9 @@ describe('class imports', () => {
     })
 
     it('keeps every class around a blank row, with the lines the spreadsheet shows', async () => {
-      const blank = HEADER.split(',').map(() => '').join(',')
+      const blank = HEADER.split(',')
+        .map(() => '')
+        .join(',')
       const created = await createImport([
         classLine({ title: 'Before blank', startTime: '06:02' }),
         blank,
@@ -385,7 +425,11 @@ describe('class imports', () => {
 
     it('opens no manager account for a row that is skipped', async () => {
       const created = await createImport([
-        classLine({ title: 'Skipped with manager', city: 'Leipzig', managerEmail: 'never.opened@example.org' }),
+        classLine({
+          title: 'Skipped with manager',
+          city: 'Leipzig',
+          managerEmail: 'never.opened@example.org',
+        }),
       ])
       await run(created.id)
       const { totalDocs } = await payload.count({
@@ -396,9 +440,13 @@ describe('class imports', () => {
     })
 
     it('refuses a town outside a city target instead of filing it there', async () => {
-      const created = await createImport([classLine({ title: 'Elsewhere', city: 'Hamburg' })], admin, {
-        targetRegion: berlin,
-      })
+      const created = await createImport(
+        [classLine({ title: 'Elsewhere', city: 'Hamburg' })],
+        admin,
+        {
+          targetRegion: berlin,
+        },
+      )
       await run(created.id)
       const after = await read(created.id)
       expect(after.results?.[0]?.reasons?.[0]).toMatch(/"Hamburg" is not in Berlin/)
@@ -407,7 +455,9 @@ describe('class imports', () => {
     it('imports an address placed only at the street, without an address id', async () => {
       geocoder.featureType = 'street'
       try {
-        const created = await createImport([classLine({ title: 'Street only', startTime: '06:04' })])
+        const created = await createImport([
+          classLine({ title: 'Street only', startTime: '06:04' }),
+        ])
         await run(created.id)
         const [event] = (await importedClasses(created.id)).docs
         expect(event!.address?.mapboxId ?? null).toBeNull()
@@ -416,12 +466,82 @@ describe('class imports', () => {
       }
     })
 
-    it('reports a bad column in the volunteer’s words before any geocode', async () => {
+    it('reports a bad column in the volunteer’s words', async () => {
       const created = await createImport([classLine({ title: 'Bad time', startTime: 'six' })])
       await run(created.id)
       const after = await read(created.id)
       expect(after.results?.[0]?.reasons?.join(' ')).toMatch(/startTime must be HH:MM/)
     })
+
+    /**
+     * ⚠ Pins `validate.ts`'s use of `beforeChangeTraverseFields`, which `payload`
+     * exports but does not document: a draft create skips validation, so this
+     * pass is the only thing that refuses these values before the publish.
+     */
+    it('refuses what the Events fields refuse, under the column that held it', async () => {
+      const created = await createImport([
+        classLine({ title: 'x'.repeat(101), startTime: '07:00' }),
+        classLine({ title: 'Bare website', website: 'www.example.org', startTime: '07:30' }),
+        classLine({ title: 'Bad contact', contactEmail: 'not-an-email', startTime: '08:00' }),
+        classLine({ title: 'Bad language', languages: 'xx', startTime: '08:30' }),
+        classLine({ title: 'Late end', endTime: '08:00', startTime: '09:00' }),
+        classLine({ title: 'Long gap', interval: '100', startTime: '09:30' }),
+        classLine({ title: 'Valid', startTime: '10:00' }),
+      ])
+      await run(created.id)
+      const after = await read(created.id)
+      const reasons = Object.fromEntries(
+        (after.results ?? []).map(({ title, reasons = [] }) => [
+          title.slice(0, 12),
+          reasons.join('; '),
+        ]),
+      )
+      expect(reasons).toMatchObject({
+        xxxxxxxxxxxx: expect.stringMatching(/^title: /),
+        'Bare website': expect.stringMatching(/^website: /),
+        'Bad contact': expect.stringMatching(/^contactEmail: /),
+        'Bad language': expect.stringMatching(/^languages: /),
+        'Late end': expect.stringMatching(/^endTime: End time must be after start time/),
+        'Long gap': expect.stringMatching(/^interval: /),
+        Valid: '',
+      })
+      expect((await importedClasses(created.id)).docs.map(({ title }) => title)).toEqual(['Valid'])
+    })
+
+    it(
+      'imports a file at the row limit, every row a class with its line',
+      { timeout: 300_000 },
+      async () => {
+        const lines = Array.from({ length: MAX_IMPORT_ROWS }, (_, at) => {
+          const minutes = 6 * 60 + at
+          const time = `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
+          return classLine({
+            title: `Limit class ${at + 1}`,
+            address: 'Limitstraße 1',
+            startTime: time,
+          })
+        })
+        const created = await createImport(lines)
+        const started = Date.now()
+        await run(created.id)
+        const seconds = (Date.now() - started) / 1000
+
+        const after = await read(created.id)
+        expect(after.status).toBe('review')
+        expect(after.results).toHaveLength(MAX_IMPORT_ROWS)
+        expect(
+          after.results?.every(({ outcome, eventId }) => outcome === 'created' && eventId),
+        ).toBe(true)
+        expect(after.results?.at(-1)).toMatchObject({
+          row: MAX_IMPORT_ROWS + 1,
+          title: `Limit class ${MAX_IMPORT_ROWS}`,
+        })
+        expect((await importedClasses(created.id)).totalDocs).toBe(MAX_IMPORT_ROWS)
+        // Logged, not asserted: CI machines vary. The geocoder is stubbed, so this
+        // is the CMS's own cost per row.
+        console.info(`${MAX_IMPORT_ROWS}-row import ran in ${seconds.toFixed(1)}s`)
+      },
+    )
 
     it('links a manager by email, creating the account when none exists', async () => {
       const created = await createImport([
@@ -462,8 +582,13 @@ describe('class imports', () => {
     })
 
     it('lists Event Imports for an atlas-manager, and refuses a manager who cannot create classes', async () => {
-      const volunteer = await testData.createManager(payload, { name: 'Lister', roles: ['atlas-manager'] })
-      const hidden = payload.collections.imports.config.admin.hidden as (args: { user: unknown }) => boolean
+      const volunteer = await testData.createManager(payload, {
+        name: 'Lister',
+        roles: ['atlas-manager'],
+      })
+      const hidden = payload.collections.imports.config.admin.hidden as (args: {
+        user: unknown
+      }) => boolean
       expect(hidden({ user: volunteer })).toBe(false)
 
       const noRoles = await testData.createManager(payload, { name: 'No roles' })
@@ -513,7 +638,12 @@ describe('class imports', () => {
       await expect(
         payload.find({
           collection: 'imports',
-          user: { id: clientDoc.id, collection: 'clients', _status: 'published', roles: ['sahaj-atlas-client'] } as never,
+          user: {
+            id: clientDoc.id,
+            collection: 'clients',
+            _status: 'published',
+            roles: ['sahaj-atlas-client'],
+          } as never,
           overrideAccess: false,
         }),
       ).rejects.toThrow()

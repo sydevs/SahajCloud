@@ -9,7 +9,13 @@
  * own tooling and cost a maintainer an afternoon of "invalid column" reports.
  */
 
-import type { Event } from '@/payload-types'
+import { EVENT_TYPE_OPTIONS } from '@/collections/Events/eventOptions'
+import { RECURRENCE_OPTIONS, WEEKDAY_OPTIONS } from '@/fields/scheduleFields'
+
+/** The values the select columns take, read off the Events fields they write. */
+export const EVENT_TYPES = EVENT_TYPE_OPTIONS.map(({ value }) => value)
+export const RECURRENCE_TYPES = RECURRENCE_OPTIONS.map(({ value }) => value)
+export const WEEKDAY_CODES = WEEKDAY_OPTIONS.map(({ value }) => value)
 
 /** When a column must carry a value. */
 export type ColumnRequirement =
@@ -30,6 +36,11 @@ export interface ColumnSpec {
   help: string
   /** The template's one example row. */
   example: string
+  /**
+   * Where the row writes it on an event, so Payload's own refusal of the value
+   * (`../validate.ts`) is reported under this column.
+   */
+  field?: string
 }
 
 /**
@@ -40,96 +51,112 @@ export interface ColumnSpec {
 export const IMPORT_COLUMNS: readonly ColumnSpec[] = [
   {
     name: 'title',
+    field: 'title',
     requirement: 'always',
     help: 'The class name as a seeker should read it.',
     example: 'Tuesday Evening Meditation',
   },
   {
     name: 'eventType',
+    field: 'eventType',
     requirement: 'always',
-    help: 'offline or online.',
+    help: `${EVENT_TYPES.join(' or ')}.`,
     example: 'offline',
   },
   {
     name: 'country',
+    field: 'address.country',
     requirement: 'always',
     help: 'Two-letter ISO country code, e.g. DE.',
     example: 'DE',
   },
   {
     name: 'city',
+    field: 'address.city',
     requirement: 'always',
     help: 'Town or city. An online class is placed in it, too.',
     example: 'Berlin',
   },
   {
     name: 'address',
+    field: 'address.street',
     requirement: 'offline',
     help: 'Street address, without the city or country.',
     example: 'Oranienstraße 25',
   },
   {
     name: 'state',
+    field: 'address.region',
     requirement: 'optional',
     help: 'State, province or region. Improves the address match where a city name repeats.',
     example: 'Berlin',
   },
   {
     name: 'postcode',
+    field: 'address.postCode',
     requirement: 'optional',
     help: 'Postal code.',
     example: '10999',
   },
   {
     name: 'venueName',
+    field: 'address.venueName',
     requirement: 'optional',
     help: 'The building or hall, where it has a name a seeker would look for.',
     example: 'Community Hall',
   },
   {
     name: 'room',
+    field: 'address.room',
     requirement: 'optional',
     help: 'Room or floor within the venue.',
     example: 'Room 2',
   },
   {
     name: 'onlineUrl',
+    field: 'onlineUrl',
     requirement: 'online',
-    help: 'Meeting link. Required for online classes.',
+    help: 'Meeting link.',
     example: '',
   },
   {
     name: 'description',
+    field: 'description',
     requirement: 'optional',
     help: 'Plain text. Line breaks become paragraphs.',
     example: 'A free weekly meditation class for beginners.',
   },
   {
     name: 'website',
+    field: 'website',
     requirement: 'optional',
     help: 'A page about this class.',
     example: '',
   },
   {
     name: 'contactName',
+    field: 'contactName',
     requirement: 'optional',
     help: 'Published as entered — the name a seeker sees.',
     example: 'Anna',
   },
   {
     name: 'contactPhone',
+    field: 'contactPhone',
     requirement: 'optional',
     help: 'Published as entered. Include the country code.',
     example: '+49 30 123456',
   },
   {
     name: 'contactEmail',
+    field: 'contactEmail',
     requirement: 'optional',
     help: 'Published as entered.',
     example: 'anna@example.org',
   },
   {
     name: 'languages',
+    field: 'languages',
     requirement: 'optional',
     help: 'Comma-separated locale codes, e.g. "de,en". Blank uses the batch default.',
     example: 'de,en',
@@ -148,20 +175,30 @@ export const IMPORT_COLUMNS: readonly ColumnSpec[] = [
   },
   {
     name: 'registrationLimit',
+    field: 'registrationLimit',
     requirement: 'optional',
     help: 'Maximum registrations. Blank means unlimited.',
     example: '',
   },
   {
-    name: 'scheduleType',
-    requirement: 'always',
-    help: 'one-off, weekly, monthly or inactive.',
-    example: 'weekly',
+    name: 'recurrenceType',
+    requirement: 'optional',
+    field: 'schedule.recurrenceType',
+    help: `${RECURRENCE_TYPES.join(', ')}. Blank for a one-off class.`,
+    example: 'WEEKLY',
+  },
+  {
+    name: 'inactive',
+    requirement: 'optional',
+    field: 'inactive',
+    help: 'TRUE for a dormant class with no schedule: leave every schedule column blank and give a contact phone or email.',
+    example: '',
   },
   {
     name: 'date',
     requirement: 'optional',
-    help: 'YYYY-MM-DD. Required unless the class is inactive: the date for one-off, the first occurrence for weekly and monthly.',
+    field: 'schedule.firstDate',
+    help: 'YYYY-MM-DD. Required unless the class is inactive: the date of a one-off class, or the first occurrence.',
     // ⚠ **A Tuesday, because the example row's `weekdays` is `TU`.** A weekly
     // row whose date falls on another weekday is refused, so an inconsistent
     // pair here would ship a template the parser rejects.
@@ -170,43 +207,39 @@ export const IMPORT_COLUMNS: readonly ColumnSpec[] = [
   {
     name: 'startTime',
     requirement: 'optional',
-    help: 'HH:MM, 24-hour. Required unless scheduleType is inactive.',
+    field: 'schedule.firstDate',
+    help: 'HH:MM, 24-hour, e.g. 09:30. Required unless the class is inactive.',
     example: '18:30',
   },
   {
     name: 'endTime',
+    field: 'schedule.endTime',
     requirement: 'optional',
-    help: 'HH:MM, 24-hour, same day.',
+    help: 'HH:MM, 24-hour, same day, e.g. 20:00.',
     example: '20:00',
   },
   {
     name: 'weekdays',
+    field: 'schedule.weekdays',
     requirement: 'optional',
-    help: 'Comma-separated two-letter codes for a weekly class that meets more than once a week, e.g. "MO,TH". Blank uses the weekday of the date. List all seven for a daily class.',
+    help: `Weekly classes only: the days it meets, from ${WEEKDAY_CODES.join(',')}. Blank uses the weekday of the date.`,
     example: 'TU',
   },
   {
     name: 'interval',
+    field: 'schedule.interval',
     requirement: 'optional',
-    help: 'Repeat every N weeks or months. Blank means every one.',
+    help: 'Repeat every N days, weeks or months. Blank means every one.',
     example: '',
   },
   {
     name: 'untilDate',
+    field: 'schedule.untilDate',
     requirement: 'optional',
     help: 'YYYY-MM-DD. Blank means the class repeats indefinitely.',
     example: '',
   },
 ] as const
-
-/**
- * What the `eventType` column accepts, in the words the error message uses.
- *
- * `satisfies` against the generated union is what stops this drifting wider
- * than the column: adding a value the CMS does not enumerate is a compile
- * error here, rather than a row that type-checks and is refused at write.
- */
-export const EVENT_TYPES = ['offline', 'online'] as const satisfies readonly Event['eventType'][]
 
 /** A parsed row, before any value has been interpreted. */
 export type RawImportRow = Record<string, string>

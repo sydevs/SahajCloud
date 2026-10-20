@@ -38,8 +38,11 @@ export interface ScheduleFieldsOptions {
 /** Internal configuration for sub-field builders */
 type SubFieldConfig = Omit<ScheduleFieldsOptions, 'name' | 'label' | 'admin'>
 
-/** Weekday options for the multi-select field */
-const WEEKDAY_OPTIONS = [
+/**
+ * Weekday options for the multi-select field. ⚠ In Temporal `dayOfWeek` order
+ * (Monday first): the class import reads a date's code as `[dayOfWeek - 1]`.
+ */
+export const WEEKDAY_OPTIONS = [
   { label: 'Mon', value: 'MO' },
   { label: 'Tue', value: 'TU' },
   { label: 'Wed', value: 'WE' },
@@ -47,14 +50,14 @@ const WEEKDAY_OPTIONS = [
   { label: 'Fri', value: 'FR' },
   { label: 'Sat', value: 'SA' },
   { label: 'Sun', value: 'SU' },
-]
+] as const
 
 /** Recurrence type options */
-const RECURRENCE_OPTIONS = [
+export const RECURRENCE_OPTIONS = [
   { label: 'Daily', value: 'DAILY' },
   { label: 'Weekly', value: 'WEEKLY' },
   { label: 'Monthly', value: 'MONTHLY' },
-]
+] as const
 
 /** Ending type options */
 const ENDING_OPTIONS = [
@@ -216,7 +219,7 @@ function buildRecurrenceRow(config: SubFieldConfig): Field {
         name: 'recurrenceType',
         type: 'select',
         label: 'Repeats',
-        options: RECURRENCE_OPTIONS,
+        options: [...RECURRENCE_OPTIONS],
         admin: {
           placeholder: 'Does not repeat',
         },
@@ -249,7 +252,7 @@ function buildComplexWeeklyFields({ required }: SubFieldConfig): Field[] {
       type: 'select',
       hasMany: true,
       label: 'On Days',
-      options: WEEKDAY_OPTIONS,
+      options: [...WEEKDAY_OPTIONS],
       required,
       admin: {
         condition: (_data, siblingData) => siblingData?.recurrenceType === 'WEEKLY',

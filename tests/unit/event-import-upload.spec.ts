@@ -61,20 +61,47 @@ describe('prepareUpload', () => {
   it.each([
     ['a file that is not .csv', 'classes.xlsx', csv(line('A')), /Upload a CSV file/],
     ['a UTF-16 file', 'classes.csv', Buffer.from([0xff, 0xfe, 0x74, 0x00]), /UTF-16/],
-    ['a file that is not UTF-8', 'classes.csv', Buffer.concat([csv(line('M')), Buffer.from([0xfc])]), /not UTF-8/],
+    [
+      'a file that is not UTF-8',
+      'classes.csv',
+      Buffer.concat([csv(line('M')), Buffer.from([0xfc])]),
+      /not UTF-8/,
+    ],
     ['an empty file', 'classes.csv', Buffer.from(''), /no classes/],
     ['a header with no rows', 'classes.csv', csv(), /no classes/],
-    ['an unknown column', 'classes.csv', Buffer.from(`${HEADER.join(',')},notes\n${line('A')},x`), /Unrecognised column: notes/],
-    ['a missing column', 'classes.csv', Buffer.from(HEADER.filter((n) => n !== 'scheduleType').join(',')), /Missing required column: scheduleType/],
-    ['a duplicated column', 'classes.csv', Buffer.from(`${HEADER.join(',')},title`), /Duplicated column: title/],
-    ['a semicolon-separated file', 'classes.csv', Buffer.from(HEADER.join(';')), /not comma-separated/],
+    [
+      'an unknown column',
+      'classes.csv',
+      Buffer.from(`${HEADER.join(',')},notes\n${line('A')},x`),
+      /Unrecognised column: notes/,
+    ],
+    [
+      'a missing column',
+      'classes.csv',
+      Buffer.from(HEADER.filter((n) => n !== 'city').join(',')),
+      /Missing required column: city/,
+    ],
+    [
+      'a duplicated column',
+      'classes.csv',
+      Buffer.from(`${HEADER.join(',')},title`),
+      /Duplicated column: title/,
+    ],
+    [
+      'a semicolon-separated file',
+      'classes.csv',
+      Buffer.from(HEADER.join(';')),
+      /not comma-separated/,
+    ],
     ['an unclosed quote', 'classes.csv', csv(`"${line('A')}`), /never closes/],
   ])('refuses %s', (_, name, data, message) => {
     expect(refusal(data, name)).toMatch(message)
   })
 
   it('names the line of a value split on an unquoted comma', () => {
-    expect(refusal(csv(line('A'), `${line('B')},spill`))).toMatch(/^Line 3 has 27 values but the header has 26 columns/)
+    expect(refusal(csv(line('A'), `${line('B')},spill`))).toMatch(
+      /^Line 3 has 28 values but the header has 27 columns/,
+    )
   })
 
   it('refuses a file over the row limit, counting real rows only', () => {

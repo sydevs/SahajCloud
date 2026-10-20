@@ -56,7 +56,10 @@ export function liveScheduleSummary(
     const zone = schedule.firstDate_tz ?? 'UTC'
     try {
       const local = Temporal.Instant.from(schedule.firstDate).toZonedDateTimeISO(zone)
-      return withTime(`One-off on ${shortDate(local.toPlainDate().toString())}`, getLocalTimeHHMM(schedule.firstDate, zone))
+      return withTime(
+        `One-off on ${shortDate(local.toPlainDate().toString())}`,
+        getLocalTimeHHMM(schedule.firstDate, zone),
+      )
     } catch {
       return 'One-off'
     }
@@ -69,28 +72,30 @@ export function liveScheduleSummary(
 
 /** A skipped row's schedule cells, echoed as the volunteer wrote them. */
 export function csvScheduleSummary(values: Readonly<Record<string, string>> | undefined): string {
-  const type = values?.scheduleType?.trim().toLowerCase()
-  const time = values?.startTime?.trim()
-  const date = values?.date?.trim() ?? ''
+  if (values?.inactive) return 'Inactive'
+  const type = values?.recurrenceType?.toUpperCase()
+  const time = values?.startTime
+  const date = values?.date ?? ''
   const weekdayCodes = (values?.weekdays ?? '')
     .split(',')
     .map((code) => code.trim().toUpperCase())
     .filter(Boolean)
   switch (type) {
-    case 'inactive':
-      return 'Inactive'
-    case 'weekly':
+    case 'DAILY':
+      return withTime('Daily', time)
+    case 'WEEKLY':
       return withTime(
         weekdayCodes.length ? `Weekly on ${days(weekdayCodes)}` : `Weekly from ${shortDate(date)}`,
         time,
       )
-    case 'monthly': {
+    case 'MONTHLY': {
       const day = Number(date.slice(8, 10))
       return withTime(day ? `Monthly on the ${ordinal(day)}` : 'Monthly', time)
     }
-    case 'one-off':
-      return withTime(date ? `One-off on ${shortDate(date)}` : 'One-off', time)
+    case '':
+    case undefined:
+      return date ? withTime(`One-off on ${shortDate(date)}`, time) : '—'
     default:
-      return type ? withTime(type, time) : '—'
+      return withTime(type, time)
   }
 }

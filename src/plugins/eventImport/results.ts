@@ -26,8 +26,6 @@ export interface ImportResultRow {
   city: string
   /** Why a row was skipped. */
   reasons?: string[]
-  /** Things the volunteer should know about a created row. */
-  warnings?: string[]
   /** The row as uploaded, kept for a skipped row so it can be downloaded and fixed. */
   values?: Record<string, string>
   /** The town a row was skipped for having no city region, so the page can offer to create it. */
@@ -46,13 +44,12 @@ export function buildResults(
   const matched = created.length === createdIds.length
 
   const rows: ImportResultRow[] = [
-    ...created.map(({ row, values, warnings }, index) => ({
+    ...created.map(({ row, values }, index) => ({
       row,
       outcome: 'created' as const,
       ...(matched ? { eventId: createdIds[index] } : {}),
       title: values.title ?? '',
       city: values.city ?? '',
-      ...(warnings?.length ? { warnings } : {}),
     })),
     ...skipped.map(({ row, reasons, values, missingCity, duplicateOf }) => ({
       row,

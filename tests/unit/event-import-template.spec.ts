@@ -13,7 +13,7 @@ import { parse } from 'csv-parse/sync'
 import { describe, expect, it } from 'vitest'
 
 import { checkRowFields } from '@/plugins/eventImport/csv/fieldChecks'
-import { mapCsvSchedule, scheduleArgsFor } from '@/plugins/eventImport/csv/schedule'
+import { mapCsvSchedule } from '@/plugins/eventImport/csv/schedule'
 import { buildImportTemplate, isTemplateHelpRow } from '@/plugins/eventImport/csv/template'
 import { normaliseRow } from '@/plugins/eventImport/rows'
 
@@ -67,14 +67,16 @@ describe('the import template parses as the plugin parses an upload', () => {
    * any other means the template itself names a value the checks refuse.
    */
   it('carries no fault but being the example', () => {
-    const { errors } = checkRowFields(exampleRow())
+    const errors = checkRowFields(exampleRow())
     expect(errors).toHaveLength(1)
     expect(errors[0]).toContain("this is the template's example row")
   })
 
   it('builds a schedule from the example row', () => {
     const result = mapCsvSchedule(
-      scheduleArgsFor(exampleRow(), 'Europe/Berlin', Temporal.PlainDate.from('2026-10-10')),
+      exampleRow(),
+      'Europe/Berlin',
+      Temporal.PlainDate.from('2026-10-10'),
     )
 
     expect(result.ok).toBe(true)

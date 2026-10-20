@@ -46,7 +46,10 @@ export async function failImport(
     if (run) await writeOutcome(req, run, { status: 'failed', error: message })
     else await markImport(req, importId, { status: 'failed', error: message })
   } catch (failure) {
-    req.payload.logger.error({ err: failure, import: importId }, 'Failed import could not be marked')
+    req.payload.logger.error(
+      { err: failure, import: importId },
+      'Failed import could not be marked',
+    )
   }
 }
 

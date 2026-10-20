@@ -30,10 +30,6 @@ export type EventImportResults = {
    */
   reasons?: string[];
   /**
-   * Things the import noticed about a created row that did not stop it.
-   */
-  warnings?: string[];
-  /**
    * What a duplicate row repeats: a class already listed, or an earlier row.
    */
   duplicateOf?: {

@@ -40,8 +40,6 @@ export interface ResultRow {
   unverified?: boolean
   /** Placed at the street or town, not the building: published one at a time, after a look. */
   approximate?: boolean
-  /** Things the import noticed that did not stop the row. */
-  warnings?: string[]
   /** When the class was created (a draft) or first published, as ISO. */
   at: null | string
   /** Why a row failed, for `error`. */
@@ -187,20 +185,17 @@ export const ImportResultsTable: React.FC<{
   const eventLink = (id: number, text: string) => link(() => eventDrawer.open(id), text)
 
   const statusOf = (row: ResultRow): React.ReactNode => {
-    const notes = row.warnings ?? []
     switch (row.status) {
       case 'published':
         return stacked([
           `Published${when(row.at)}`,
           ...(row.unverified ? ['Listed as unverified because the class has no manager'] : []),
           ...(row.approximate ? [APPROXIMATE] : []),
-          ...notes,
         ])
       case 'draft':
         return stacked([
           `Created${when(row.at)}`,
           ...(row.approximate ? [`${APPROXIMATE} before publishing`] : []),
-          ...notes,
         ])
       case 'removed':
         return 'Deleted after the import'

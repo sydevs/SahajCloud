@@ -2,8 +2,8 @@
  * Turns each CSV row into the draft class the plugin then creates.
  *
  * Per row: the column checks, a geocode, the zone at the point, the city
- * region under the target, the schedule, the duplicate check, the manager —
- * and `eventCreateData`. A row that fails any step is recorded on the run as
+ * region under the target, the schedule, Payload's own field validation, the
+ * duplicate check, the manager — and `eventCreateData`. A row that fails any step is recorded on the run as
  * skipped and handed back as `undefined`, which the plugin's batch loop steps
  * over without counting. The file was cleaned at upload (`csv/upload.ts`), so
  * every row here is a real one and carries its spreadsheet line.
@@ -35,6 +35,7 @@ import { ensureManagers, managerKeyOf, managerRoster } from '../managers'
 import { lineOf, normaliseRow } from '../rows'
 import { runOf } from '../run'
 import { timezoneAt } from '../timezone'
+import { fieldErrors } from '../validate'
 
 interface Row {
   row: number
@@ -42,7 +43,7 @@ interface Row {
 }
 
 type Prepared =
-  | { row: Row; ok: true; location: GeocodedLocation; timezone: string; warnings: string[] }
+  | { row: Row; ok: true; location: GeocodedLocation; timezone: string }
   | { row: Row; ok: false; errors: string[] }
 
 /** A row that passed every check but its manager, with what it will be created from. */
@@ -51,7 +52,6 @@ interface Ready {
   regionId: number
   location: GeocodedLocation
   timezone: string
-  warnings: string[]
 }
 
 export const beforeImport: ImportBeforeHook = async ({ originalData, req }) => {
@@ -84,11 +84,7 @@ export const beforeImport: ImportBeforeHook = async ({ originalData, req }) => {
     if (failure) return skip(run, row, [failure])
     const built = build(run, entry, email ? (managers.ids.get(email) ?? null) : null)
     if (!built.ok) return skip(run, row, built.errors)
-    run.submitted.push({
-      row: row.row,
-      values: row.values,
-      ...(entry.warnings.length ? { warnings: entry.warnings } : {}),
-    })
+    run.submitted.push({ row: row.row, values: row.values })
     return built.data
   }) as never
 }
@@ -129,6 +125,8 @@ async function placeRow(
   const ready: Ready = { ...entry, regionId }
   const built = build(run, ready, null)
   if (!built.ok) return skip(run, row, built.errors) ?? null
+  const refused = await fieldErrors(req, built.data)
+  if (refused.length) return skip(run, row, refused) ?? null
 
   const key = `${regionId}|${classKey(built.data as Partial<Event>)}`
   const earlier = run.claimed.get(key)
@@ -164,7 +162,7 @@ function build(run: ImportRun, entry: Ready, managerId: null | number) {
 }
 
 async function prepareRow(row: Row): Promise<Prepared> {
-  const { errors, warnings } = checkRowFields(row.values)
+  const errors = checkRowFields(row.values)
   if (errors.length) return { row, ok: false, errors }
 
   const outcome = await geocodeLocation(geocodeQuery(row.values))
@@ -177,17 +175,23 @@ async function prepareRow(row: Row): Promise<Prepared> {
       return {
         row,
         ok: false,
-        errors: [`Mapbox could not look up this location (HTTP ${outcome.httpStatus}) — simplify the address and city`],
+        errors: [
+          `Mapbox could not look up this location (HTTP ${outcome.httpStatus}) — simplify the address and city`,
+        ],
       }
     case 'missed':
-      return { row, ok: false, errors: ['the address could not be found — check the address, city and country'] }
+      return {
+        row,
+        ok: false,
+        errors: ['the address could not be found — check the address, city and country'],
+      }
     case 'found':
       break
   }
 
   const zone = timezoneAt(outcome.location.latitude, outcome.location.longitude)
   if (!zone.ok) return { row, ok: false, errors: [zone.error] }
-  return { row, ok: true, location: outcome.location, timezone: zone.timezone, warnings }
+  return { row, ok: true, location: outcome.location, timezone: zone.timezone }
 }
 
 /**
@@ -196,7 +200,11 @@ async function prepareRow(row: Row): Promise<Prepared> {
  * another town. An online class is placed by its town alone.
  */
 function geocodeQuery(values: RawImportRow): GeocodeLocationArgs {
-  const common = { city: values.city ?? '', region: values.state, countryCode: values.country ?? '' }
+  const common = {
+    city: values.city ?? '',
+    region: values.state,
+    countryCode: values.country ?? '',
+  }
   if (values.eventType === 'online') return { kind: 'place', ...common }
   return { kind: 'address', address: values.address, postcode: values.postcode, ...common }
 }

@@ -46,7 +46,8 @@ const inEditableRegion: Access = async ({ req }) => {
 
 /** An active manager who may create classes: what the import does on their behalf. */
 const classCreators: Access = ({ req }) =>
-  requireManagerPermission({ req, collection: 'events', operation: 'create', forbidden: '' }) === null
+  requireManagerPermission({ req, collection: 'events', operation: 'create', forbidden: '' }) ===
+  null
 
 /**
  * Set by `finish.ts` on the one write that ends an import. The plugin writes
@@ -82,7 +83,11 @@ const STATUS_DESCRIPTIONS: Record<string, string> = {
 }
 
 /** The plugin's knobs, kept but out of the way: only `events` is ever imported into. */
-const PLUGIN_FIELDS_HIDDEN: ReadonlySet<string> = new Set(['collectionSlug', 'importMode', 'matchField'])
+const PLUGIN_FIELDS_HIDDEN: ReadonlySet<string> = new Set([
+  'collectionSlug',
+  'importMode',
+  'matchField',
+])
 
 const TEMPLATE_LINK = '@/components/admin/EventImport/TemplateLink'
 
@@ -90,7 +95,7 @@ const OUR_MAIN_FIELDS: Field[] = [
   {
     // Not `required`: the column must accept NULL so a region can still be
     // deleted while an import names it. `validateTargetRegion` requires it on
-    // create, which is the only write that sets it.
+    // create, the only write that sets it.
     name: 'targetRegion',
     type: 'relationship',
     relationTo: 'regions',
@@ -132,10 +137,6 @@ const OUR_MAIN_FIELDS: Field[] = [
         title: z.string(),
         city: z.string(),
         reasons: z.array(z.string()).optional().describe('Why a skipped row was skipped.'),
-        warnings: z
-          .array(z.string())
-          .optional()
-          .describe('Things the import noticed about a created row that did not stop it.'),
         duplicateOf: z
           .strictObject({
             eventId: z.int().optional(),
@@ -221,7 +222,10 @@ function pluginFields(fields: readonly Field[]): Field[] {
             position: 'sidebar',
             condition: hideUntilCreated,
             custom: { ...field.admin?.custom, descriptions: STATUS_DESCRIPTIONS },
-            components: { ...field.admin?.components, Description: '@/components/admin/SelectDescription' },
+            components: {
+              ...field.admin?.components,
+              Description: '@/components/admin/SelectDescription',
+            },
           },
         } as Field,
       ]
@@ -238,7 +242,12 @@ export const overrideImportCollection: NonNullable<
   labels: { singular: 'Event Import', plural: 'Event Imports' },
   // The plugin's one custom route is the CSV preview this form does not show.
   endpoints: [],
-  access: { create: classCreators, read: inEditableRegion, update: () => false, delete: inEditableRegion },
+  access: {
+    create: classCreators,
+    read: inEditableRegion,
+    update: () => false,
+    delete: inEditableRegion,
+  },
   upload: {
     ...(typeof collection.upload === 'object' ? collection.upload : {}),
     // One file is one import: a bulk upload would start one job per file with

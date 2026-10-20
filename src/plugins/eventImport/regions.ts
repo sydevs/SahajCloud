@@ -42,7 +42,10 @@ export async function loadTarget(req: PayloadRequest, id: number): Promise<Impor
 }
 
 /** City regions at or beneath the target, keyed by the Mapbox place id each stands for. */
-export async function cityIndex(req: PayloadRequest, targetId: number): Promise<Map<string, number>> {
+export async function cityIndex(
+  req: PayloadRequest,
+  targetId: number,
+): Promise<Map<string, number>> {
   const { docs } = await req.payload.find({
     collection: 'regions',
     where: {

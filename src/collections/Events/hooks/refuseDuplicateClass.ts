@@ -71,13 +71,27 @@ export async function findDuplicateClass(
     depth: 0,
     pagination: false,
     overrideAccess: true,
+    // ⚠ The stored columns `classKey` reads and nothing else. Selecting the
+    // whole schedule group runs its virtual `icalRule` and `upcomingDates` for
+    // every class in the region, on every save — which made a 500-row import
+    // quadratic in its own drafts.
     select: {
       title: true,
       eventType: true,
-      schedule: true,
-      address: true,
-      onlineUrl: true,
       inactive: true,
+      onlineUrl: true,
+      address: { street: true },
+      schedule: {
+        firstDate: true,
+        firstDate_tz: true,
+        recurrenceType: true,
+        weekdays: true,
+        interval: true,
+        monthlyMode: true,
+        monthDay: true,
+        weekNumber: true,
+        weekdayOfMonth: true,
+      },
     },
     req,
   })

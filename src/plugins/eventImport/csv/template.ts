@@ -103,4 +103,3 @@ export function isTemplateExampleRow(values: RawImportRow): boolean {
   }
   return compared > 0
 }
-

@@ -113,7 +113,6 @@ export const ImportResultsField: JSONFieldServerComponent = async ({
       // stores no address id then, and choosing an address in the class's
       // Location tab sets one.
       approximate: event?.eventType === 'offline' && !event.address?.mapboxId,
-      warnings: result.warnings,
       at:
         status === 'published'
           ? (publishedAt.get(event!.id) ?? null)

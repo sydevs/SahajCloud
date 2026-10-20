@@ -31,7 +31,10 @@ describe('buildResults', () => {
       [3, 'duplicate', undefined],
       [4, 'created', 104],
     ])
-    expect(rows[1]).toMatchObject({ values: values('Two'), reasons: ['the address could not be found'] })
+    expect(rows[1]).toMatchObject({
+      values: values('Two'),
+      reasons: ['the address could not be found'],
+    })
   })
 
   it('links no class when the counts disagree, rather than a wrong one', () => {
