@@ -91,8 +91,7 @@ export const TextBoxBlock: Block = {
       type: 'checkbox',
       label: 'Use "Ancient Wisdom" Styling',
       admin: {
-        condition: (_, siblingData) =>
-          Boolean(siblingData?.position) && siblingData?.position !== 'overlay',
+        condition: (_, siblingData) => siblingData?.imagePosition !== 'overlay',
       },
     },
     {
