@@ -21,7 +21,7 @@ validation.
 
 | Lane            | Files                        | Speed                   | When                                                                                  |
 | --------------- | ----------------------------- | -------------------------- | ---------------------------------------------------------------------------------------- |
-| **Unit**        | `tests/unit/**/*.spec.ts`    | ~78 s for 204 files / 2652 cases; 1–3 s for one named spec, under 8 s for the specs one edit can break (4 cores — see `tests/PERF.md`) | Pure functions, no Payload bootstrap. **No** `globalSetup`/`setupFiles`.              |
+| **Unit**        | `tests/unit/**/*.spec.ts`    | ~78 s for 204 files / 2653 cases; 1–3 s for one named spec, under 8 s for the specs one edit can break (4 cores — see `tests/PERF.md`) | Pure functions, no Payload bootstrap. **No** `globalSetup`/`setupFiles`.              |
 | **Integration** | `tests/int/**/*.int.spec.ts` | bootstrap-heavy per file (full-schema push. See `tests/PERF.md`) | Calls `createTestEnvironment()`, exercises hooks/access/virtual fields/relationships. Files run in parallel (see below). |
 | **Smoke (E2E)** | `tests/e2e/**/*.e2e.spec.ts` | Playwright (REST)       | Tier-3 smoke against the Railway PR preview (`pnpm test:smoke`). See below.            |
 

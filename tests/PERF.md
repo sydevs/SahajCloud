@@ -61,7 +61,7 @@ Two sessions measured it the same day, on the same container spec — 4 cores
 | --- | --- | --- | --- |
 | first | 198 / 2575 | 60.29 · 58.75 · 59.23 s | 59.2 s |
 | second, after merging `main` | 203 / 2643 | 82.19 · 77.93 · 73.21 s | **77.9 s** |
-| third, after merging `main` again | 204 / 2652 | 47.16 · 46.38 s | 46.8 s |
+| third, after merging `main` again | 204 / 2653 | 47.16 · 46.38 · 47.82 s | 47.2 s |
 
 ⚠ **Those three medians span 47 to 78 s — 66% — and six spec files do not
 explain it.** Identical container spec, all on 2026-10-20, 3% more files
@@ -81,7 +81,7 @@ reads, so keep those labels and cell shapes when you add a row.
 
 | Metric | Value |
 | --- | --- |
-| Files / tests | 204 / 2652 |
+| Files / tests | 204 / 2653 |
 | Whole lane, 3 workers (slowest session median, what the consumer docs quote) | **77.9 s** |
 | One spec alone, the typical edit (third session) | 1.3 s |
 | Widest per-edit selection, 18 specs naming `@/payload-types` (third session) | **7.8 s** |
@@ -99,10 +99,10 @@ reads, so keep those labels and cell shapes when you add a row.
 
 **The gate's own spread is `scripts/ensure-test-db.sh`.** It costs nothing once
 port 5432 answers, which is why a warm run lands on the four commands' 104 s and
-a session's first run does not. Cold runs measured 138 s and 174 s in two
-sessions — the same ±30% as the lane above, so **Tier 2's target is set over the
-slowest cold run, not over the median**. Time it warm to compare against this
-row.
+a session's first run does not. Cold runs measured 138 s, 174 s and 110 s in three
+sessions — the same unreliability as the lane above, so **Tier 2's target is set
+over the slowest cold run, not over the median**. Time it warm to compare against
+this row.
 
 ⚠ **3 workers, not 4.** Vitest's non-watch default is `max(cores - 1, 1)`
 (`getDefaultThreadsCount`, `vitest/dist/chunks/cli-api.*.js`), so every figure
