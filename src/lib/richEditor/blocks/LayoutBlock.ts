@@ -3,7 +3,7 @@ import type { FieldHook } from 'payload'
 import { Block } from 'payload'
 import slugify from 'slugify'
 
-import { mediaField } from '@/fields'
+import { mediaField } from '@/fields/mediaField'
 
 const computeTabTitleUrls: FieldHook = ({ value, siblingData }) => {
   if ((siblingData as { style?: string })?.style !== 'tabs') return value
