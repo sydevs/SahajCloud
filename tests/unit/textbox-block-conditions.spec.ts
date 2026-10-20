@@ -60,9 +60,14 @@ describe('TextBoxBlock wisdomStyle condition', () => {
   })
 })
 
-// Scoped to this block on purpose. The match reads the plain `siblingData?.x`
-// spelling, which all five of these use; `LayoutBlock` casts (`(siblingData as
-// {…})?.style`) and reads `blockData`, neither of which this would see.
+/** Dotted and bracketed reads alike — a typo in either spelling is the defect. */
+function siblingReads(condition: Condition): string[] {
+  const source = condition.toString()
+  const matches = source.matchAll(/siblingData(?:\?\.|\.)(\w+)|siblingData\??\[['"]([^'"]+)['"]\]/g)
+
+  return [...matches].map(([, dotted, bracketed]) => dotted ?? bracketed)
+}
+
 describe('TextBoxBlock conditions read declared fields', () => {
   const declared = new Set(FIELDS.map((f) => f.name))
 
@@ -70,10 +75,21 @@ describe('TextBoxBlock conditions read declared fields', () => {
     field.admin?.condition ? [[field.name, field.admin.condition] as const] : [],
   )
 
-  it.each(conditions)('%s reads only sibling fields the block declares', (_name, condition) => {
-    const read = [...condition.toString().matchAll(/siblingData\??\.(\w+)/g)].map((m) => m[1])
+  // Pinned rather than counted per case, so a condition rewritten into a
+  // spelling `siblingReads` cannot see fails here instead of passing with
+  // nothing to check. A future condition reading `data` or `blockData` — the
+  // spelling `LayoutBlock` uses — belongs in this map as `[]`.
+  it('reads exactly these sibling fields', () => {
+    expect(Object.fromEntries(conditions.map(([name, c]) => [name, siblingReads(c)]))).toEqual({
+      textPosition: ['imagePosition'],
+      textColor: ['imagePosition'],
+      wisdomStyle: ['imagePosition'],
+      subtitle: ['title'],
+      buttonUrl: ['buttonText'],
+    })
+  })
 
-    expect(read.length).toBeGreaterThan(0)
-    expect(read.filter((field) => !declared.has(field))).toEqual([])
+  it.each(conditions)('%s reads only sibling fields the block declares', (_name, condition) => {
+    expect(siblingReads(condition).filter((field) => !declared.has(field))).toEqual([])
   })
 })
