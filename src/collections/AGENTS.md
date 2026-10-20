@@ -115,6 +115,21 @@ when the field is visible.
 When `admin.condition` is false, PayloadCMS skips both `required` and your
 `validate` entirely. When it is true, it runs both.
 
+### A condition reads a sibling its own level declares
+
+`siblingData` is the data at the field's own level, and `Condition` types it as
+`any`, so a name no level declares compiles, is always false, and hides the
+field it guards for good — `wisdomStyle` read the legacy `position` for its
+whole life (#989). `row`, `collapsible` and an unnamed `group` or `tab` hold no
+data, so a field inside one still reads its parent's level; a named `group`,
+`array`, `tab` or block starts a level of its own.
+
+`tests/unit/admin-condition-fields.spec.ts` fails on a read that names nothing
+at the level that owns it. It reads the condition's own source text, so the
+sibling parameter must be spelled `siblingData` — rename it, destructure it, or
+hand it to a helper and the spec fails rather than cover nothing. `data` and
+`blockData` are out of its scope: neither names a sibling.
+
 ### The exception: a field a hook fills for you (Events `title`)
 
 A field a `beforeChange` hook auto-fills has to break the rule above,
