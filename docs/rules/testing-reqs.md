@@ -23,10 +23,10 @@ Every test command belongs to one of three tiers, each with one purpose. Tier 1 
 | Tier | Command | Target runtime | Fires when |
 | --- | --- | --- | --- |
 | **1 — Hook** | `pnpm test:unit` | < 5 s per edit — **not met**, see below | Claude's PostToolUse hook, on an Edit/Write under `src/**` or `tests/unit/**` (`.claude/hooks/unit-test.mjs`) |
-| **2 — Pre-PR** | `pnpm lint && pnpm typecheck && pnpm typecheck:tests && pnpm test:unit` | < 150 s (138 s cold, 103 s warm) | The pr-prep lean gate (`.claude/skills/pr-prep/check.sh`) |
+| **2 — Pre-PR** | `pnpm lint && pnpm typecheck && pnpm typecheck:tests && pnpm test:unit` | < 210 s (174 s cold, 103 s warm) | The pr-prep lean gate (`.claude/skills/pr-prep/check.sh`) |
 | **3 — CI** | `pnpm lint && pnpm typecheck && pnpm typecheck:tests && pnpm test && pnpm test:smoke` | ≤ 20 min | GitHub Actions, on every PR (`.github/workflows/ci.yml`) |
 
-**Each target above is held to a measurement in `tests/PERF.md`, recorded with its machine and date.** Measured 2026-10-20 on 4 cores: `pnpm test:unit` is **78 s** for 203 files and 2643 tests, and Tier 2's four commands sum to **104 s**. **Tier 2's target is 150 s because the gate in its own row is what it bounds**, and `check.sh` also runs `scripts/ensure-test-db.sh`: 138 s on a session's first run, 103 s once Postgres answers. Tier 1's was not, because 5 s is what the *hook* needs per edit, and the whole lane is what it currently spends (#990).
+**Each target above is held to a measurement in `tests/PERF.md`, recorded with its machine and date.** Measured 2026-10-20 on 4 cores: `pnpm test:unit` is **78 s** for 203 files and 2643 tests, and Tier 2's four commands sum to **104 s**. **Tier 2's target bounds the gate in its own row, on its slowest measured cold run**, because `check.sh` also runs `scripts/ensure-test-db.sh`: 138 s and 174 s on two sessions' first runs, 103 s once Postgres answers. Tier 1's was not, because 5 s is what the *hook* needs per edit, and the whole lane is what it currently spends (#990).
 
 ⚠ **Tier 1's gap shows up as a false failure, not as slowness.** `.claude/hooks/unit-test.mjs` bounds the lane with a 30 s `execSync` timeout, so wherever the lane runs longer than that — every machine measured so far, and about 19 s of the lane is serial whatever the core count — the timeout fires, and the catch branch reports `Unit tests failed after editing <file>` with a tail carrying no failure in it, just Vitest's banner. **Disregard that report and run `pnpm test:unit` yourself.** Reproduce it with:
 

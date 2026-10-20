@@ -80,12 +80,14 @@ Everything below is the second session's run unless the row says otherwise.
 | `pnpm typecheck` | 8.4 s |
 | `pnpm typecheck:tests` | 8.2 s |
 | Those four commands, summed | 104 s |
-| Tier 2 lean gate (`check.sh`) | **138 s** cold, **103 s** with Postgres already up |
+| Tier 2 lean gate (`check.sh`), slowest cold run of three sessions | **174 s** cold, **103 s** with Postgres already up |
 
-**The gate's own 35 s spread is `scripts/ensure-test-db.sh`.** It costs nothing
-once port 5432 answers, which is why the warm 103 s lands on the four commands'
-104 s and the first run of a session does not. Time it warm to compare against
-this row.
+**The gate's own spread is `scripts/ensure-test-db.sh`.** It costs nothing once
+port 5432 answers, which is why a warm run lands on the four commands' 104 s and
+a session's first run does not. Cold runs measured 138 s and 174 s in two
+sessions — the same ±30% as the lane above, so **Tier 2's target is set over the
+slowest cold run, not over the median**. Time it warm to compare against this
+row.
 
 ⚠ **3 workers, not 4.** Vitest's non-watch default is `max(cores - 1, 1)`
 (`getDefaultThreadsCount`, `vitest/dist/chunks/cli-api.*.js`), so every figure
