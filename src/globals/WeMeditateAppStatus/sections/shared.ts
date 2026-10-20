@@ -1,7 +1,56 @@
 import type { BasePayload, PayloadRequest, TypedLocale } from 'payload'
 
-import { isUploadAssigned, type CheckResult } from '@/lib/status'
+import { isUploadAssigned, labelOf, type CheckResult } from '@/lib/status'
 import { isRecord } from '@/lib/utilities/isRecord'
+import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
+
+// --- Locale scoping. Every read a section issues goes through these two. ---
+
+/**
+ * The `req` every read in this global hands to the Local API.
+ *
+ * `createLocalReq` assigns `locale` and `fallbackLocale` onto the request
+ * object it is given, so a read that forwards `req` decides what the sections
+ * running after it resolve — and the order Payload runs the virtual fields'
+ * `afterRead` hooks in is what would pick the winner. A read naming no
+ * `fallbackLocale` is no safer: Payload sanitises `undefined` back to the
+ * locale's own fallback, so it undoes an earlier `fallbackLocale: false`.
+ * Hence every read here takes a copy, whichever locale it names (#982).
+ * `localeIsolatedReq` owns what a copy shares and what it does not.
+ */
+export function isolatedReq(req?: PayloadRequest): PayloadRequest | undefined {
+  return req ? localeIsolatedReq(req) : undefined
+}
+
+/**
+ * Row labels for a section whose documents carry a **localized** title.
+ *
+ * A check described "for this locale" reads `fallbackLocale: false`, so a
+ * title nobody has translated arrives empty and `labelOf` renders the row as
+ * `#42`. No check on this screen asks about a title, and an operator cannot
+ * act on a row they cannot name — so labels come from their own read with
+ * Payload's fallback left on, and a row keeps its English title until someone
+ * translates it.
+ */
+export async function readFallbackLabels(
+  payload: BasePayload,
+  collection: 'pages' | 'user-choices',
+  ids: Array<number | string>,
+  locale: TypedLocale,
+  req?: PayloadRequest,
+): Promise<Map<number | string, string>> {
+  if (ids.length === 0) return new Map()
+  const { docs } = await payload.find({
+    collection,
+    where: { id: { in: ids } },
+    locale,
+    limit: 0,
+    pagination: false,
+    depth: 0,
+    req: isolatedReq(req),
+  })
+  return new Map(docs.map((doc) => [doc.id, labelOf(doc)]))
+}
 
 // --- Per-project status-global config (persisted on the wm-app-status Configuration tab; extracted from the global's document by the virtualReadinessField factory). ---
 
@@ -64,6 +113,12 @@ const APP_CONFIG_CACHE_KEY = 'wmAppConfigCache'
  * Load the `wm-app-config` global at most once per request per depth,
  * shared across the wm-app-status section reads.
  *
+ * It refuses the English fallback, so `selfRealizationMeditation`,
+ * `postRealizationLecture` and `vibeCheckTracks` answer about the read locale
+ * alone. The Pages tab's relationships are not localized, so the flag leaves
+ * the `pages` section unchanged. Both callers want that one policy, which is
+ * why the memo key does not carry it.
+ *
  * Why memoize the in-flight *promise* rather than the resolved value:
  * concurrent section callers (e.g. sections 1 + 2 both reading at depth 0)
  * can race to load. A resolved-value cache stampedes — all callers clear
@@ -89,8 +144,9 @@ export async function getWmAppConfig(
   const configPromise = payload.findGlobal({
     slug: 'wm-app-config',
     locale,
+    fallbackLocale: false,
     depth,
-    req,
+    req: isolatedReq(req),
   }) as unknown as Promise<Record<string, unknown>>
 
   if (req) {

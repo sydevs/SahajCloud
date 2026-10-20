@@ -2,7 +2,12 @@ import { APP_REQUIRED_PAGE_FIELDS } from '@/globals/WeMeditateAppConfig/WeMedita
 import { labelOf, refId, type DocumentReport, type SectionSpec } from '@/lib/status'
 import { richTextHasContent } from '@/lib/status/helpers'
 
-import { getWmAppConfig, type WeMeditateAppStatusConfig } from './shared'
+import {
+  getWmAppConfig,
+  isolatedReq,
+  readFallbackLabels,
+  type WeMeditateAppStatusConfig,
+} from './shared'
 
 interface Ctx {
   coreDocs: DocumentReport[]
@@ -11,6 +16,7 @@ interface Ctx {
 
 function reportForPage(
   pagesById: Map<number | string, Record<string, unknown>>,
+  labels: Map<number | string, string>,
   id: number | string | null,
 ): DocumentReport | null {
   if (id === null) return null
@@ -18,7 +24,7 @@ function reportForPage(
   if (!page) return null
   return {
     id: page.id as number | string,
-    label: labelOf(page as { id: number | string; title?: unknown }),
+    label: labels.get(page.id as number | string) ?? labelOf(page as { id: number | string }),
     checks: [
       { key: 'published', passed: page._status === 'published' },
       { key: 'content-localized', passed: richTextHasContent(page.content) },
@@ -51,7 +57,7 @@ export const pagesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
         pagination: false,
         depth: 1,
         select: { page: true },
-        req,
+        req: isolatedReq(req),
       }),
     ])
 
@@ -70,21 +76,27 @@ export const pagesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
               collection: 'pages',
               where: { id: { in: allIds } },
               locale,
+              // `_status` is per-locale (#718) and `content` is localized, so
+              // the fallback would report a page published and translated for
+              // a locale nobody has touched.
+              fallbackLocale: false,
               limit: 0,
               pagination: false,
               depth: 0,
-              req,
+              req: isolatedReq(req),
             })
           ).docs
     const pagesById = new Map<number | string, Record<string, unknown>>(
       pages.map((p) => [p.id, p as unknown as Record<string, unknown>]),
     )
 
+    const labels = await readFallbackLabels(payload, 'pages', allIds, locale, req)
+
     const coreDocs = corePageIds
-      .map((id) => reportForPage(pagesById, id))
+      .map((id) => reportForPage(pagesById, labels, id))
       .filter((r): r is DocumentReport => r !== null)
     const nodeDocs = nodePageIds
-      .map((id) => reportForPage(pagesById, id))
+      .map((id) => reportForPage(pagesById, labels, id))
       .filter((r): r is DocumentReport => r !== null)
 
     return { coreDocs, nodeDocs }

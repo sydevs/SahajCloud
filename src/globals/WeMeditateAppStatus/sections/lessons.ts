@@ -9,7 +9,7 @@ import {
 import { containsRelationship, richTextHasContent } from '@/lib/status/helpers'
 import { type Lesson } from '@/payload-types'
 
-import { type WeMeditateAppStatusConfig } from './shared'
+import { isolatedReq, type WeMeditateAppStatusConfig } from './shared'
 
 interface Ctx {
   lessons: Lesson[]
@@ -125,10 +125,14 @@ export const lessonsSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
     const { docs } = await payload.find({
       collection: 'lessons',
       locale,
+      // `meditation` and `article` are localized, so the fallback would answer
+      // `meditation-set`, `article-localized` and `article-has-lecture-link`
+      // off the English value. `title` is not localized, so row labels stand.
+      fallbackLocale: false,
       limit: 0,
       pagination: false,
       depth: 0,
-      req,
+      req: isolatedReq(req),
     })
     return { lessons: docs as Lesson[] }
   },

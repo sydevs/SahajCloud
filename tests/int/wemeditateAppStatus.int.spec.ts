@@ -1,4 +1,4 @@
-import type { BasePayload, Payload } from 'payload'
+import type { BasePayload, Payload, PayloadRequest, TypedLocale } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
@@ -11,6 +11,7 @@ import {
   pagesSection,
   translationsSection,
   userChoicesSection,
+  WeMeditateAppStatusSpec,
   type WeMeditateAppStatusConfig,
 } from '@/globals/WeMeditateAppStatus/WeMeditateAppStatus'
 import { runSection, type SectionSpec } from '@/lib/status'
@@ -579,6 +580,116 @@ describe('WeMeditateAppStatus Global', () => {
         ],
       }
       await expect(run(badSection, payload)).rejects.toThrow(/undeclared check "undeclared-check"/)
+    })
+  })
+  // --- Per-locale truth + request isolation (#982) ---
+  describe('locale scoping', () => {
+    let englishOnlyLesson: Lesson
+    let englishOnlyChoice: UserChoice
+
+    // What a real read hands a section: the shape `createLocalReq` mutates.
+    const newReq = (locale: TypedLocale): PayloadRequest =>
+      ({ locale, fallbackLocale: 'en', context: {} }) as unknown as PayloadRequest
+
+    beforeAll(async () => {
+      const lectureForArticle = await testData.createLecture(payload)
+      const lessonMeditation = await testData.createMeditation(payload, undefined, {
+        type: 'lesson',
+        _status: 'published',
+      })
+      englishOnlyLesson = await testData.createLesson(payload, {
+        title: 'English-only lesson',
+        unit: 'Unit 3',
+        step: 1,
+        meditation: { relationTo: 'meditations', value: lessonMeditation.id },
+        article: articleWithLectureLink(lectureForArticle.id),
+        panels: [{ title: 'p1' }],
+      } as Partial<Lesson>)
+
+      const choiceMeditation = await testData.createMeditation(payload, undefined, {
+        _status: 'published',
+      })
+      englishOnlyChoice = await testData.createUserChoice(payload, {
+        title: 'English-only choice',
+        type: 'mood',
+        isFeatured: true,
+        timings: ['morning'],
+        morningMeditation: choiceMeditation.id,
+      })
+    })
+
+    it('reports a lesson translated only in English as not ready in French', async () => {
+      const read = async (locale: 'en' | 'fr') => {
+        const global = (await payload.findGlobal({
+          slug: 'wm-app-status',
+          locale,
+          depth: 0,
+        })) as WmAppStatus
+        const lessons = (global as unknown as Record<string, ReadinessReport | null>).lessons
+        const unit3 = lessons?.groups.find((g) => g.key === 'unit-3')
+        expect(unit3?.type).toBe('documents')
+        if (unit3?.type !== 'documents') throw new Error('expected unit-3 to be a documents group')
+        const row = unit3.documents.find((d) => d.id === englishOnlyLesson.id)
+        expect(row, `expected unit-3 to carry the lesson at ${locale}`).toBeDefined()
+        return Object.fromEntries(row!.checks.map((c) => [c.key, c.passed]))
+      }
+
+      const en = await read('en')
+      expect(en['meditation-set']).toBe(true)
+      expect(en['article-localized']).toBe(true)
+      expect(en['article-has-lecture-link']).toBe(true)
+
+      // The lesson has no French meditation and no French article, so the three
+      // checks that read a localized field report red — they would all pass off
+      // the English fallback.
+      const fr = await read('fr')
+      expect(fr['meditation-set']).toBe(false)
+      expect(fr['article-localized']).toBe(false)
+      expect(fr['article-has-lecture-link']).toBe(false)
+      // `panels` and `icon` are not localized, so those two are locale-blind.
+      expect(fr['panels-set']).toBe(true)
+      expect(fr['icon-set']).toBe(true)
+    })
+
+    it('keeps a row label readable while its own check reports red', async () => {
+      const report = await runSection(userChoicesSection, {
+        payload: payload as BasePayload,
+        locale: 'fr',
+        config: EMPTY_CONFIG,
+        req: newReq('fr'),
+      })
+      const featured = report.groups.find((g) => g.key === 'featured')
+      expect(featured?.type).toBe('documents')
+      if (featured?.type !== 'documents') return
+
+      const row = featured.documents.find((d) => d.id === englishOnlyChoice.id)
+      expect(row).toBeDefined()
+      // `user-choices.title` is localized, so the per-locale read alone would
+      // render this row as `#<id>` — unusable on a screen an operator acts on.
+      expect(row!.label).toBe('English-only choice')
+      expect(row!.checks).toEqual([{ key: 'meditation-morning-published', passed: false }])
+    })
+
+    // No section mutating the shared request is the whole of "the report does
+    // not depend on the order its sections ran in", so there is no separate
+    // order case. An order comparison could not fail for this anyway:
+    // `createLocalReq` assigns both flags from each read's own arguments, so
+    // every top-level read overwrites whatever the section before it left.
+    //
+    // It iterates the registered sections rather than a list of its own, so a
+    // section added later is covered without an edit here.
+    it("leaves the caller's locale and fallback untouched after every section", async () => {
+      const req = newReq('fr')
+      for (const spec of WeMeditateAppStatusSpec.sections) {
+        await runSection(spec, {
+          payload: payload as BasePayload,
+          locale: 'fr',
+          config: EMPTY_CONFIG,
+          req,
+        })
+        expect(req.locale, `${spec.key} repointed req.locale`).toBe('fr')
+        expect(req.fallbackLocale, `${spec.key} repointed req.fallbackLocale`).toBe('en')
+      }
     })
   })
 })

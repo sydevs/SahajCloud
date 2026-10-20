@@ -2,7 +2,9 @@ import { labelOf, type DocumentReport, type SectionSpec } from '@/lib/status'
 
 import {
   PER_TIMING_FIELDS,
+  isolatedReq,
   meditationMatchesLocale,
+  readFallbackLabels,
   type Timing,
   type UserChoiceRow,
   type WeMeditateAppStatusConfig,
@@ -10,9 +12,19 @@ import {
 
 const NON_FEATURED_THRESHOLD = 4
 
+type Labels = Map<number | string, string>
+
 interface Ctx {
   rows: UserChoiceRow[]
   nonFeaturedMoodOrGoal: UserChoiceRow[]
+  labels: Labels
+}
+
+function rowLabel(choice: UserChoiceRow, labels: Labels): string {
+  return (
+    labels.get(choice.id as number | string) ??
+    labelOf(choice as { id: number | string; title?: unknown })
+  )
 }
 
 function buildPerTimingChecks(choice: UserChoiceRow, locale: string) {
@@ -25,10 +37,10 @@ function buildPerTimingChecks(choice: UserChoiceRow, locale: string) {
     }))
 }
 
-function toDocReport(choice: UserChoiceRow, locale: string): DocumentReport {
+function toDocReport(choice: UserChoiceRow, locale: string, labels: Labels): DocumentReport {
   return {
     id: choice.id as number | string,
-    label: labelOf(choice as { id: number | string; title?: unknown }),
+    label: rowLabel(choice, labels),
     checks: buildPerTimingChecks(choice, locale),
   }
 }
@@ -37,13 +49,14 @@ function itemsForTiming(
   rows: UserChoiceRow[],
   timing: Timing,
   locale: string,
+  labels: Labels,
 ): Array<{ id: string | number; label: string; checks: Array<{ key: string; passed: boolean }> }> {
   const checkKey = `meditation-${timing}-published` as const
   return rows
     .filter((c) => (Array.isArray(c.timings) ? (c.timings as string[]) : []).includes(timing))
     .map((c) => ({
       id: c.id as number | string,
-      label: labelOf(c as { id: number | string; title?: unknown }),
+      label: rowLabel(c, labels),
       checks: [
         { key: checkKey, passed: meditationMatchesLocale(c[PER_TIMING_FIELDS[timing]], locale) },
       ],
@@ -78,16 +91,26 @@ export const userChoicesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
     const { docs } = await payload.find({
       collection: 'user-choices',
       locale,
+      // The four per-timing meditations are localized, so the fallback would
+      // report a choice as configured off English assignments.
+      fallbackLocale: false,
       limit: 0,
       pagination: false,
       depth: 1,
-      req,
+      req: isolatedReq(req),
     })
     const rows = docs as unknown as UserChoiceRow[]
     const nonFeaturedMoodOrGoal = rows.filter(
       (c) => !c.isFeatured && (c.type === 'mood' || c.type === 'goal'),
     )
-    return { rows, nonFeaturedMoodOrGoal }
+    const labels = await readFallbackLabels(
+      payload,
+      'user-choices',
+      rows.map((c) => c.id as number | string),
+      locale,
+      req,
+    )
+    return { rows, nonFeaturedMoodOrGoal, labels }
   },
   groups: [
     {
@@ -96,10 +119,10 @@ export const userChoicesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
       description:
         'Every featured user choice has a published meditation assigned for each of its enabled timings.',
       type: 'documents',
-      evaluate: async ({ rows }, { locale }) =>
+      evaluate: async ({ rows, labels }, { locale }) =>
         rows
           .filter((c) => c.isFeatured === true && c.type !== 'duration')
-          .map((c) => toDocReport(c, locale)),
+          .map((c) => toDocReport(c, locale, labels)),
     },
     {
       key: 'duration',
@@ -107,8 +130,8 @@ export const userChoicesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
       description:
         'Every duration user choice has a published meditation assigned for each of its enabled timings.',
       type: 'documents',
-      evaluate: async ({ rows }, { locale }) =>
-        rows.filter((c) => c.type === 'duration').map((c) => toDocReport(c, locale)),
+      evaluate: async ({ rows, labels }, { locale }) =>
+        rows.filter((c) => c.type === 'duration').map((c) => toDocReport(c, locale, labels)),
     },
     {
       key: 'non-featured-morning',
@@ -118,8 +141,8 @@ export const userChoicesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
       type: 'aggregate',
       threshold: NON_FEATURED_THRESHOLD,
       rowDisplay: 'summarize-excess',
-      evaluate: async ({ nonFeaturedMoodOrGoal }, { locale }) => ({
-        items: itemsForTiming(nonFeaturedMoodOrGoal, 'morning', locale),
+      evaluate: async ({ nonFeaturedMoodOrGoal, labels }, { locale }) => ({
+        items: itemsForTiming(nonFeaturedMoodOrGoal, 'morning', locale, labels),
       }),
     },
     {
@@ -130,8 +153,8 @@ export const userChoicesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
       type: 'aggregate',
       threshold: NON_FEATURED_THRESHOLD,
       rowDisplay: 'summarize-excess',
-      evaluate: async ({ nonFeaturedMoodOrGoal }, { locale }) => ({
-        items: itemsForTiming(nonFeaturedMoodOrGoal, 'afternoon', locale),
+      evaluate: async ({ nonFeaturedMoodOrGoal, labels }, { locale }) => ({
+        items: itemsForTiming(nonFeaturedMoodOrGoal, 'afternoon', locale, labels),
       }),
     },
     {
@@ -142,8 +165,8 @@ export const userChoicesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
       type: 'aggregate',
       threshold: NON_FEATURED_THRESHOLD,
       rowDisplay: 'summarize-excess',
-      evaluate: async ({ nonFeaturedMoodOrGoal }, { locale }) => ({
-        items: itemsForTiming(nonFeaturedMoodOrGoal, 'evening', locale),
+      evaluate: async ({ nonFeaturedMoodOrGoal, labels }, { locale }) => ({
+        items: itemsForTiming(nonFeaturedMoodOrGoal, 'evening', locale, labels),
       }),
     },
     {
@@ -154,8 +177,8 @@ export const userChoicesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
       type: 'aggregate',
       threshold: NON_FEATURED_THRESHOLD,
       rowDisplay: 'summarize-excess',
-      evaluate: async ({ nonFeaturedMoodOrGoal }, { locale }) => ({
-        items: itemsForTiming(nonFeaturedMoodOrGoal, 'night', locale),
+      evaluate: async ({ nonFeaturedMoodOrGoal, labels }, { locale }) => ({
+        items: itemsForTiming(nonFeaturedMoodOrGoal, 'night', locale, labels),
       }),
     },
   ],
