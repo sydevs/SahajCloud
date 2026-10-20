@@ -107,7 +107,9 @@ describe('InviteEmail', () => {
     expect(html).toMatch(
       /<a[^>]+href="https:\/\/atlas.test\/berlin"[^>]*>Berlin<\/a><br\/><a[^>]+href="https:\/\/atlas.test\/hamburg"/,
     )
-    expect(html).toMatch(/<a[^>]+href="https:\/\/atlas.test\/tuesday"[^>]*>Tuesday Evening Meditation/)
+    expect(html).toMatch(
+      /<a[^>]+href="https:\/\/atlas.test\/tuesday"[^>]*>Tuesday Evening Meditation/,
+    )
     expect(html).not.toContain('Including the')
   })
 
@@ -192,8 +194,10 @@ describe('InviteEmail', () => {
   })
 
   it('introduces each project to a manager who has not confirmed, and to no one else', async () => {
-    const render = (project: 'sahaj-atlas' | 'wemeditate-app' | 'wemeditate-web', accepted = false) =>
-      renderEmail(createElement(InviteEmail, { ...inviteProps, accepted, project }))
+    const render = (
+      project: 'sahaj-atlas' | 'wemeditate-app' | 'wemeditate-web',
+      accepted = false,
+    ) => renderEmail(createElement(InviteEmail, { ...inviteProps, accepted, project }))
 
     expect(await render('wemeditate-web')).toContain('We Meditate is a free website')
     expect(await render('wemeditate-app')).toContain('We Meditate is a free app')

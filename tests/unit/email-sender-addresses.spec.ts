@@ -44,80 +44,84 @@ const recipient = {
   frequency: 'immediate',
 }
 
-const CASES: { label: string; to: string; from: string; send: (payload: Payload) => Promise<void> }[] =
-  [
-    {
-      label: 'registration confirmation',
-      to: REGISTRANT,
-      from: USER_EMAIL_FROM,
-      send: (payload) =>
-        sendRegistrationConfirmation({
-          payload,
-          event,
-          registrantName: 'Asha',
-          registrantEmail: REGISTRANT,
-        }),
-    },
-    {
-      label: 'session reminder',
-      to: REGISTRANT,
-      from: USER_EMAIL_FROM,
-      send: (payload) =>
-        sendSessionReminder({
-          payload,
-          event,
-          registrantName: 'Asha',
-          registrantEmail: REGISTRANT,
-          submissionId: 12,
-          occurrenceIso: '2026-06-20T03:56:00.000Z',
-        }),
-    },
-    {
-      label: 'new-registration notice',
-      to: MANAGER,
-      from: MANAGER_EMAIL_FROM,
-      send: (payload) =>
-        sendRegistrationNotification({
-          payload,
-          recipient,
-          event: { id: event.id, title: event.title },
-          registrantName: 'Asha',
-          registrantEmail: REGISTRANT,
-        }),
-    },
-    {
-      label: 'registration digest',
-      to: MANAGER,
-      from: MANAGER_EMAIL_FROM,
-      send: (payload) =>
-        sendRegistrationDigest({
-          payload,
-          recipient,
-          period: 'day',
-          groups: [
-            {
-              eventTitle: 'Sunday meditation',
-              eventAdminUrl: 'https://cloud.example.org/admin/collections/events/7',
-              registrations: [{ registrantName: 'Asha', registrantEmail: REGISTRANT }],
-            },
-          ],
-        }),
-    },
-    {
-      label: 'submission-review request',
-      to: MANAGER,
-      from: MANAGER_EMAIL_FROM,
-      send: (payload) =>
-        sendSubmissionReview({
-          payload,
-          to: MANAGER,
-          kind: 'new-event',
-          submitterName: 'Asha',
-          details: [],
-          reviewUrl: 'https://cloud.example.org/admin/collections/user-submissions/3',
-        }),
-    },
-  ]
+const CASES: {
+  label: string
+  to: string
+  from: string
+  send: (payload: Payload) => Promise<void>
+}[] = [
+  {
+    label: 'registration confirmation',
+    to: REGISTRANT,
+    from: USER_EMAIL_FROM,
+    send: (payload) =>
+      sendRegistrationConfirmation({
+        payload,
+        event,
+        registrantName: 'Asha',
+        registrantEmail: REGISTRANT,
+      }),
+  },
+  {
+    label: 'session reminder',
+    to: REGISTRANT,
+    from: USER_EMAIL_FROM,
+    send: (payload) =>
+      sendSessionReminder({
+        payload,
+        event,
+        registrantName: 'Asha',
+        registrantEmail: REGISTRANT,
+        submissionId: 12,
+        occurrenceIso: '2026-06-20T03:56:00.000Z',
+      }),
+  },
+  {
+    label: 'new-registration notice',
+    to: MANAGER,
+    from: MANAGER_EMAIL_FROM,
+    send: (payload) =>
+      sendRegistrationNotification({
+        payload,
+        recipient,
+        event: { id: event.id, title: event.title },
+        registrantName: 'Asha',
+        registrantEmail: REGISTRANT,
+      }),
+  },
+  {
+    label: 'registration digest',
+    to: MANAGER,
+    from: MANAGER_EMAIL_FROM,
+    send: (payload) =>
+      sendRegistrationDigest({
+        payload,
+        recipient,
+        period: 'day',
+        groups: [
+          {
+            eventTitle: 'Sunday meditation',
+            eventAdminUrl: 'https://cloud.example.org/admin/collections/events/7',
+            registrations: [{ registrantName: 'Asha', registrantEmail: REGISTRANT }],
+          },
+        ],
+      }),
+  },
+  {
+    label: 'submission-review request',
+    to: MANAGER,
+    from: MANAGER_EMAIL_FROM,
+    send: (payload) =>
+      sendSubmissionReview({
+        payload,
+        to: MANAGER,
+        kind: 'new-event',
+        submitterName: 'Asha',
+        details: [],
+        reviewUrl: 'https://cloud.example.org/admin/collections/user-submissions/3',
+      }),
+  },
+]
 
 describe('transactional senders pick their envelope by audience', () => {
   it.each(CASES)('$label → $to, sent as $from', async ({ to, from, send }) => {

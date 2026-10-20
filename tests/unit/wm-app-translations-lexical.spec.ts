@@ -122,7 +122,11 @@ describe('seeds/wm-app-translations/lexicalConverter', () => {
           paragraphs: [
             [
               { text: 'See ' },
-              { type: 'link', text: 'what we share', href: 'wm-app-config://privacyPolicyPage#what-we-share' },
+              {
+                type: 'link',
+                text: 'what we share',
+                href: 'wm-app-config://privacyPolicyPage#what-we-share',
+              },
               { text: ' for details.' },
             ],
           ],
@@ -164,7 +168,12 @@ describe('seeds/wm-app-translations/lexicalConverter', () => {
           _richText: true,
           paragraphs: [
             [
-              { type: 'link', text: 'Terms', href: 'wm-app-config://termsAndConditionsPage', bold: true },
+              {
+                type: 'link',
+                text: 'Terms',
+                href: 'wm-app-config://termsAndConditionsPage',
+                bold: true,
+              },
             ],
           ],
         },
@@ -201,8 +210,7 @@ describe('seeds/wm-app-translations/lexicalConverter', () => {
           paragraphs: [
             [
               {
-                text:
-                  "With your permission, we'll share a few basic app usage and device details with Meta, Apple Search Ads and Google Ads, like app installs or completed sessions. (",
+                text: "With your permission, we'll share a few basic app usage and device details with Meta, Apple Search Ads and Google Ads, like app installs or completed sessions. (",
               },
               {
                 type: 'link',
@@ -241,7 +249,9 @@ describe('seeds/wm-app-translations/lexicalConverter', () => {
         seedRichTextToLexical(
           {
             _richText: true,
-            paragraphs: [[{ type: 'link', href: 'wm-app-config://termsAndConditionsPage' } as never]],
+            paragraphs: [
+              [{ type: 'link', href: 'wm-app-config://termsAndConditionsPage' } as never],
+            ],
           },
           'test.bad-link',
         ),
@@ -265,10 +275,7 @@ describe('seeds/wm-app-translations/lexicalConverter', () => {
 
     it('throws on an empty paragraph (zero segments)', () => {
       expect(() =>
-        seedRichTextToLexical(
-          { _richText: true, paragraphs: [[]] },
-          'test.empty-para',
-        ),
+        seedRichTextToLexical({ _richText: true, paragraphs: [[]] }, 'test.empty-para'),
       ).toThrow(/non-empty array of segments/)
     })
 
@@ -277,10 +284,7 @@ describe('seeds/wm-app-translations/lexicalConverter', () => {
         seedRichTextToLexical(
           {
             _richText: true,
-            paragraphs: [
-              [{ text: 'OK' }],
-              [{ type: 'link', text: 'broken' } as never],
-            ],
+            paragraphs: [[{ text: 'OK' }], [{ type: 'link', text: 'broken' } as never]],
           },
           'onboarding_welcome.legal_disclaimer',
         ),

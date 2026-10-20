@@ -19,11 +19,11 @@ validation.
 
 ## Test lanes (Vitest projects)
 
-| Lane            | Files                        | Speed                   | When                                                                                  |
-| --------------- | ----------------------------- | -------------------------- | ---------------------------------------------------------------------------------------- |
-| **Unit**        | `tests/unit/**/*.spec.ts`    | ~1–2 s for ~200 cases   | Pure functions, no Payload bootstrap. **No** `globalSetup`/`setupFiles`.              |
+| Lane            | Files                        | Speed                                                            | When                                                                                                                     |
+| --------------- | ---------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| **Unit**        | `tests/unit/**/*.spec.ts`    | ~1–2 s for ~200 cases                                            | Pure functions, no Payload bootstrap. **No** `globalSetup`/`setupFiles`.                                                 |
 | **Integration** | `tests/int/**/*.int.spec.ts` | bootstrap-heavy per file (full-schema push. See `tests/PERF.md`) | Calls `createTestEnvironment()`, exercises hooks/access/virtual fields/relationships. Files run in parallel (see below). |
-| **Smoke (E2E)** | `tests/e2e/**/*.e2e.spec.ts` | Playwright (REST)       | Tier-3 smoke against the Railway PR preview (`pnpm test:smoke`). See below.            |
+| **Smoke (E2E)** | `tests/e2e/**/*.e2e.spec.ts` | Playwright (REST)                                                | Tier-3 smoke against the Railway PR preview (`pnpm test:smoke`). See below.                                              |
 
 ### When to put a test in `tests/unit/`
 
@@ -191,10 +191,10 @@ checking them. Fixtures must be typed against the real schema for that to
 catch anything, so `tests/utils/testData.ts` exports two helpers. Prefer
 them over `Record<string, unknown>`, a bare object literal, or `as any`:
 
-| Use | For |
-| --- | ----- |
+| Use                         | For                                             |
+| --------------------------- | ----------------------------------------------- |
 | `createData<'slug'>({ … })` | Anything you hand to `payload.create` as `data` |
-| `FixtureOverrides<Doc>` | The param type of a spec's own fixture helper |
+| `FixtureOverrides<Doc>`     | The param type of a spec's own fixture helper   |
 
 ```typescript
 import { createData, testData, type FixtureOverrides } from '../utils/testData'
@@ -211,11 +211,11 @@ createRegion({ level: 'center' }) // TS2322 — 'center' was renamed to 'venue' 
 Each is needed for a different reason:
 
 - **`createData`** — Payload derives the create `data` type from the
-  *output* doc, so fields it fills itself (`slug`, …) are still demanded
+  _output_ doc, so fields it fills itself (`slug`, …) are still demanded
   on input. Omit one and `tsc` falls through to the draft-create overload
   and reports `Property 'draft' is missing`, which points nowhere near the
   real problem.
-- **`FixtureOverrides<T>`** — every field is optional at *every* depth.
+- **`FixtureOverrides<T>`** — every field is optional at _every_ depth.
   `Partial<T>` relaxes only the top level, so passing a group would
   otherwise oblige you to fill in its `defaultValue`-backed subfields.
   Unknown and mistyped properties still error at any depth, which is the
@@ -249,7 +249,7 @@ local API is faster and is right for everything else.
 returned caller takes `(path, { method, json })` for a POST or DELETE.
 **A third thing lives only in the REST layer: how `req.locale` is DERIVED.**
 A spec that builds `req` by hand and hardcodes `locale: 'en'` cannot see a
-request that names no locale at all — Payload then resolves the *default*
+request that names no locale at all — Payload then resolves the _default_
 locale, and per-locale role gates deny anyone whose roles live elsewhere.
 That is #701, and `frames-by-narrator` / `user-submissions-review` cover it
 by authenticating a French-only manager and varying `?locale=`.
@@ -292,16 +292,16 @@ do.
 
 ## Test file organization
 
-| File                              | Purpose                                                                                                                                                                                                                                                                    |
-| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| File                              | Purpose                                                                                                                                                                                                                                 |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `collections-smoke.int.spec.ts`   | **One reachability canary per content-bearing collection** (create + read + relationship populate). Check this file before writing a dedicated `[collection].int.spec.ts`. Add a new file only for collection-specific custom behavior. |
-| `client-hooks.int.spec.ts`        | Client beforeChange/afterChange hooks                                                                                                                                                                                                                                      |
-| `meditation-duration.int.spec.ts` | Audio duration extraction + `durationMinutes` virtual field                                                                                                                                                                                                                |
-| `field-utils.int.spec.ts`         | `processFile` utility                                                                                                                                                                                                                                                      |
-| `storage-utils.int.spec.ts`       | URL field factories, R2 adapter                                                                                                                                                                                                                                            |
-| `role-based-access.int.spec.ts`   | `hasPermission`, document-level manager access, locale permissions                                                                                                                                                                                                         |
-| `usage-tracking.int.spec.ts`      | API usage tracking job handlers                                                                                                                                                                                                                                            |
-| `[collection].int.spec.ts`        | **Collection-specific custom behavior only** — don't duplicate smoke coverage                                                                                                                                                                                              |
+| `client-hooks.int.spec.ts`        | Client beforeChange/afterChange hooks                                                                                                                                                                                                   |
+| `meditation-duration.int.spec.ts` | Audio duration extraction + `durationMinutes` virtual field                                                                                                                                                                             |
+| `field-utils.int.spec.ts`         | `processFile` utility                                                                                                                                                                                                                   |
+| `storage-utils.int.spec.ts`       | URL field factories, R2 adapter                                                                                                                                                                                                         |
+| `role-based-access.int.spec.ts`   | `hasPermission`, document-level manager access, locale permissions                                                                                                                                                                      |
+| `usage-tracking.int.spec.ts`      | API usage tracking job handlers                                                                                                                                                                                                         |
+| `[collection].int.spec.ts`        | **Collection-specific custom behavior only** — don't duplicate smoke coverage                                                                                                                                                           |
 
 ## Common testing patterns
 
@@ -383,12 +383,12 @@ for localized-field tests to work.
 
 ## PayloadCMS field-behavior gotchas
 
-| Scenario                             | Wrong assumption                                 | Correct behavior                                                                                                                                                                                                                                             |
-| --------------------------------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `hasMany` select, no values          | `null` / `undefined`                             | `[]` (empty array)                                                                                                                                                                                                                                           |
-| Join field at `depth: 0`             | `{ id: number }[]`                               | `number[]` (raw IDs)                                                                                                                                                                                                                                         |
-| `payload.create()` + relationship    | Returns the raw ID                                | Returns a populated object                                                                                                                                                                                                                                   |
-| `filterOptions` fallback             | Return `{}`                                      | Return `true`                                                                                                                                                                                                                                                |
+| Scenario                             | Wrong assumption                                 | Correct behavior                                                                                                                                                                                                                                      |
+| ------------------------------------ | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `hasMany` select, no values          | `null` / `undefined`                             | `[]` (empty array)                                                                                                                                                                                                                                    |
+| Join field at `depth: 0`             | `{ id: number }[]`                               | `number[]` (raw IDs)                                                                                                                                                                                                                                  |
+| `payload.create()` + relationship    | Returns the raw ID                               | Returns a populated object                                                                                                                                                                                                                            |
+| `filterOptions` fallback             | Return `{}`                                      | Return `true`                                                                                                                                                                                                                                         |
 | Mixed-collection response assertions | `.docs.map(d => d.id)` uniquely identifies a row | Each collection has its own auto-increment, so `lectures.id=3` and `lecture-clips.id=3` both exist. Filter by discriminator first (`d.type === 'lecture'`) or match on `title`/slug — a raw numeric id against a mixed pool silently false-positives. |
 
 ```typescript
@@ -442,8 +442,8 @@ database.
 > only the `request` fixture (`APIRequestContext`), which is plain Node
 > HTTP — nothing launches Chromium, despite the `chromium` project name in
 > `playwright.config.ts`. CI used to run `playwright install --with-deps
-> chromium`. That took **18 minutes**, blew the job's `timeout-minutes`, and
-> the job reported as *cancelled* rather than failed, which reads as
+chromium`. That took **18 minutes**, blew the job's `timeout-minutes`, and
+> the job reported as _cancelled_ rather than failed, which reads as
 > unexplained. Verified by running the whole suite with
 > `PLAYWRIGHT_BROWSERS_PATH` pointed at an empty directory: every spec
 > issued real requests. If a future spec needs a page, install the browser
@@ -456,15 +456,15 @@ which needs no Railway API token) and runs `pnpm test:smoke`. Locally it falls b
 `playwright.config.ts` (`testDir: ./tests/e2e`, `testMatch:
 **/*.e2e.spec.ts`, `retries: 2` in CI).
 
-| File                            | Purpose                                                                          |
-| ---------------------------------- | ------------------------------------------------------------------------------------ |
-| `tests/e2e/*.e2e.spec.ts`       | REST flows only a deployed environment can answer. Covers auth, content CRUD, CORS preflight, and what an error body discloses under the shipped `config.debug` (`error-disclosure`) |
-| `tests/e2e/_helpers/preview.ts` | `ensureAdmin` (asks for a link as `PREVIEW_ADMIN_EMAIL`, which a preview answers with a session — the deploy provisions the admin) + auth headers |
-| `tests/e2e/_helpers/runId.ts`   | Per-run record prefix so two runs against one preview don't collide              |
-| `tests/e2e/_helpers/fixtures.ts` | The dependencies a spec creates for itself (image, album, narrator, frame) + the bin that deletes them |
-| `tests/e2e/_helpers/smokeTest.ts` | `test` extended with `headers` and `trash` — import it in any spec that creates records |
-| `tests/e2e/_helpers/failOnSkipReporter.ts` | Reporter that fails the run when a spec skipped while `PREVIEW_URL` was set |
-| `tests/files/`                  | Sample audio/image files used by upload specs                                    |
+| File                                       | Purpose                                                                                                                                                                              |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `tests/e2e/*.e2e.spec.ts`                  | REST flows only a deployed environment can answer. Covers auth, content CRUD, CORS preflight, and what an error body discloses under the shipped `config.debug` (`error-disclosure`) |
+| `tests/e2e/_helpers/preview.ts`            | `ensureAdmin` (asks for a link as `PREVIEW_ADMIN_EMAIL`, which a preview answers with a session — the deploy provisions the admin) + auth headers                                    |
+| `tests/e2e/_helpers/runId.ts`              | Per-run record prefix so two runs against one preview don't collide                                                                                                                  |
+| `tests/e2e/_helpers/fixtures.ts`           | The dependencies a spec creates for itself (image, album, narrator, frame) + the bin that deletes them                                                                               |
+| `tests/e2e/_helpers/smokeTest.ts`          | `test` extended with `headers` and `trash` — import it in any spec that creates records                                                                                              |
+| `tests/e2e/_helpers/failOnSkipReporter.ts` | Reporter that fails the run when a spec skipped while `PREVIEW_URL` was set                                                                                                          |
+| `tests/files/`                             | Sample audio/image files used by upload specs                                                                                                                                        |
 
 #### A per-PR preview carries no content, so every spec builds its own
 

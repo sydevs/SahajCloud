@@ -48,7 +48,6 @@ import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 
 import { hydrateLocalizedRoles } from './localizedRoles'
 
-
 type AuthUser = NonNullable<AuthStrategyResult['user']>
 type AuthUserShape = { collection?: string; id?: number | string; roles?: unknown }
 

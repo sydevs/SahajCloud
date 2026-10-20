@@ -23,13 +23,13 @@ Two Atlas white-label fields, split across the **Config** and **SEO** tabs. `can
 
 `client.region` alone can't identify an owner — several published clients can map to one country. Ownership is an explicit opt-in with a uniqueness rule:
 
-| Field | Notes |
-| --- | --- |
-| `canonical.enabled` | checkbox, default false — every other field is `admin.condition`-gated on it |
-| `canonical.embed` | required when enabled. Which reported mount owns the URLs, chosen from a picker, never typed |
+| Field                    | Notes                                                                                                                                                             |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `canonical.enabled`      | checkbox, default false — every other field is `admin.condition`-gated on it                                                                                      |
+| `canonical.embed`        | required when enabled. Which reported mount owns the URLs, chosen from a picker, never typed                                                                      |
 | `canonical.verification` | json, admin-readonly — written only by the CMS: the verified snapshot, a consecutive-failure count, a bounded attempt log, and the `routingProbe` routing verdict |
-| `canonical.routing` | virtual select, admin-readonly — the derived routing shape (#644, below). No stored column |
-| `canonical.nextVerifyAt` | date, indexed, hidden — the verification job's watermark, a real column so it stays a cheap predicate |
+| `canonical.routing`      | virtual select, admin-readonly — the derived routing shape (#644, below). No stored column                                                                        |
+| `canonical.nextVerifyAt` | date, indexed, hidden — the verification job's watermark, a real column so it stays a cheap predicate                                                             |
 
 `validateCanonicalOwnership` (beforeChange) enforces this: enabling requires `region` and `canonical.embed`, and a second enabled client on a region is rejected, naming the incumbent. It watches `region` too, so moving an enabled client onto an owned region can't dodge the check, and skips when nothing the rule reads has moved. Uniqueness checks against **committed** state, so a conflicting draft is caught only on publish.
 
@@ -48,7 +48,7 @@ Two Atlas white-label fields, split across the **Config** and **SEO** tabs. `can
 
 **Exercised for real** by `pnpm tsx scripts/verify-embed-live.ts --self-test`, which drives all four outcomes against the live API — every unit test stubs the render. Its error codes (`6002` selector timeout, `5006` network/DNS, `10000` auth) are pinned in `tests/unit/embed-verification.spec.ts`. Prose matching is a fallback only, since the messages are generic enough to be misleading.
 
-**What the marker proves, precisely.** It detects an embed that is installed and *not working* — the one thing a client-sent report can never reveal. It does **not** prove the page is honest: the attribute carries no nonce, so any host running our script can hand-write it. The trust boundary stays `allowedDomains`. What the marker buys is that a stolen key can claim a mount on the client's domain, but can't make that domain serve a marker it doesn't control.
+**What the marker proves, precisely.** It detects an embed that is installed and _not working_ — the one thing a client-sent report can never reveal. It does **not** prove the page is honest: the attribute carries no nonce, so any host running our script can hand-write it. The trust boundary stays `allowedDomains`. What the marker buys is that a stolen key can claim a mount on the client's domain, but can't make that domain serve a marker it doesn't control.
 
 ### Routing is derived, never configured (#644)
 
@@ -73,11 +73,11 @@ Vocabulary lives in `src/lib/clients/canonical.ts`, the verification contract in
 
 Admin-readonly JSON, keyed by **origin + pathname**, one record per mount (`mode`, `topLevel`, `urlWritable`, `paramPersisted`, `routing`, `lastSeen`). It stays a JSON column because nothing queries it — the ownership resolver loads every client (`pagination: false`, ~31 rows) and filters in memory. ⚠ Revisit if the client count grows an order of magnitude. A `jsonSchema` lets Payload generate the type and reject a malformed write.
 
-**Canonical viability is automatic. Canonical *identity* is not.** A human designates which discovered mount is canonical. The metadata only decides whether that mount still qualifies. This bounds tampering: a forged report can assert viability only for a mount someone already chose, never invent one the verifier hasn't seen.
+**Canonical viability is automatic. Canonical _identity_ is not.** A human designates which discovered mount is canonical. The metadata only decides whether that mount still qualifies. This bounds tampering: a forged report can assert viability only for a mount someone already chose, never invent one the verifier hasn't seen.
 
 **The body is `origin` + `pathname`, two fields.** A query string or fragment is refused, since the endpoint can only enforce "path alone" that way — except a WordPress permalink (`?p=<digits>`), where discarding it would collapse the whole site onto one mount with no way to name the operator's intended page.
 
-**The write is raw SQL, and has to be.** The other party is always another request — this route is unmetered, since `clients` is excluded from the plugin (below). Every *metered* read under the same client key increments `usage_daily_requests` on that row in autocommit, from the same pool Payload runs request transactions on, and a widget boot issues several on the same page load as the report. `payload.update` would hold the row for the life of the request transaction, so each of those blocks on `Lock: transactionid` while holding a connection that transaction may itself need. An autocommit `jsonb ||` merge has no transaction to hold the row in.
+**The write is raw SQL, and has to be.** The other party is always another request — this route is unmetered, since `clients` is excluded from the plugin (below). Every _metered_ read under the same client key increments `usage_daily_requests` on that row in autocommit, from the same pool Payload runs request transactions on, and a widget boot issues several on the same page load as the report. `payload.update` would hold the row for the life of the request transaction, so each of those blocks on `Lock: transactionid` while holding a connection that transaction may itself need. An autocommit `jsonb ||` merge has no transaction to hold the row in.
 
 ### `POST /api/clients/report`
 
@@ -86,9 +86,11 @@ The write path (`Clients/endpoints/report.ts`). Merges into the keyed object. It
 Two origin checks apply: the request's `Origin`/`Referer` must be in `allowedDomains`, and so must the reported `url`'s host — a client can only describe pages on domains it owns. `url` is origin plus pathname only. A query string or fragment is rejected (`400`, `query_or_fragment`), not stripped, since the widget already strips them and a payload carrying either means the widget is misbehaving.
 
 Rate limiting is Cloudflare's, at the edge, as for every client route. On top of that, a repeat of a recent identical observation gets `updated: false` with **no read and no write** — the widget reports on every page load, so this path carries most of the traffic.
+
 - **The cap bounds storage, never which mounts are knowable** (#639). `MAX_EMBED_MOUNTS` (50) caps what a forger can accumulate. A client at the cap still reports a new mount, evicting the least-recently-seen entry, so the held 50 reflect what is currently live. There is no 429 — refusing growth was tried first, and once ordinary traffic filled the budget an operator's intended page could never get reported. Two exceptions to eviction: the designated `canonical.embed` is never evicted, and the mount just reported can't be evicted by the write that reports it.
 
   `mergeEmbedReport` (`embedMetadata.ts`) computes the decision. The endpoint applies it in one statement — `|| $1::jsonb` merges, `- $2::text[]` deletes evicted keys. Both halves matter: `||` alone can't delete, so the column would grow unbounded while the cap stayed inert.
+
 - Registered in the OpenAPI shim but stays `x-internal` (`docs/rules/openapi.md`).
 
 Tests: `tests/unit/client-embed-metadata.spec.ts` (mount keys incl. `?p=`, the merge), `tests/unit/embed-verification.spec.ts` (marker parsing, error classification, failed/inconclusive), `tests/unit/canonical-embed-picker.spec.ts` (URL building, the three-strike ladder, picker options), `tests/int/client-canonical.int.spec.ts` (the hook, the endpoint, the job ladder, the cap, and that enabling ownership re-roots `webUrl` while `webPath` stays byte-identical).
@@ -97,11 +99,11 @@ Tests: `tests/unit/client-embed-metadata.spec.ts` (mount keys incl. `?p=`, the m
 
 `webUrl` is not one global base. It resolves to the client owning the document's region, or the nearest owning ancestor, and falls back to the We Meditate surface when nothing in the ancestry is owned. `SAHAJATLAS_URL` is no longer a canonical base anywhere — it survives only in the two live-preview URLs.
 
-| Piece | Where |
-| --- | --- |
+| Piece                                                             | Where                                                      |
+| ----------------------------------------------------------------- | ---------------------------------------------------------- |
 | The two URL shapes (`path` / `query`), and the cross-repo fixture | `src/lib/atlas/canonicalUrl.ts`, `atlas-url-contract.json` |
-| Region tree + ancestor chains, one query per request | `src/lib/atlas/regionTree.ts` |
-| Ownership: the `clients` read + nearest-ancestor walk | `src/lib/atlas/regionOwners.ts` |
+| Region tree + ancestor chains, one query per request              | `src/lib/atlas/regionTree.ts`                              |
+| Ownership: the `clients` read + nearest-ancestor walk             | `src/lib/atlas/regionOwners.ts`                            |
 
 ```
 path :  https://{domain}{mount}{webPath}   → https://wemeditate.com/map/nl/amsterdam/1204
@@ -118,13 +120,13 @@ query:  https://{domain}{mount}{?|&}atlas={webPath}
 
 ## Usage plugin (`src/plugins/usage/`)
 
-| File | Purpose |
-| --- | --- |
-| `usagePlugin.ts` | Plugin orchestration |
-| `hooks.ts` | `usageTrackingBeforeOperationHook`, `rateLimitHook` (no-op on Railway) |
-| `tasks.ts` | `resetUsageTask` (the daily atomic Postgres reset) |
-| `constants.ts` | Thresholds and client read bounds |
-| `db.ts` | `getPgPool`, `quotedDbSchema` — the adapter's own pool, for the raw increments |
+| File             | Purpose                                                                        |
+| ---------------- | ------------------------------------------------------------------------------ |
+| `usagePlugin.ts` | Plugin orchestration                                                           |
+| `hooks.ts`       | `usageTrackingBeforeOperationHook`, `rateLimitHook` (no-op on Railway)         |
+| `tasks.ts`       | `resetUsageTask` (the daily atomic Postgres reset)                             |
+| `constants.ts`   | Thresholds and client read bounds                                              |
+| `db.ts`          | `getPgPool`, `quotedDbSchema` — the adapter's own pool, for the raw increments |
 
 ## Authentication flow
 
@@ -146,7 +148,7 @@ API credential presented and rejected
 
 `keyFingerprint` is a 12-hex truncated SHA-256 — enough to tell two broken integrations apart, and never the key. Search Sentry by the `key_fingerprint` tag to find every request from one credential. An anonymous 403 is unchanged.
 
-**Both denial paths report it** (#743). Payload's error hook covers everything that throws; `requireActiveClient` covers the custom endpoints that deny by *returning* a 403 — `/api/atlas/seo` and `/api/atlas/sitemap` among them — which no hook ever sees. `source` says which one denied, and the message is one string on purpose: two spellings would split the log query. Every rejection reports, on both paths — mute the volume with a Sentry-side rule on `auth_outcome`, never in this process. Detail: `docs/architecture.md`.
+**Both denial paths report it** (#743). Payload's error hook covers everything that throws; `requireActiveClient` covers the custom endpoints that deny by _returning_ a 403 — `/api/atlas/seo` and `/api/atlas/sitemap` among them — which no hook ever sees. `source` says which one denied, and the message is one string on purpose: two spellings would split the log query. Every rejection reports, on both paths — mute the volume with a Sentry-side rule on `auth_outcome`, never in this process. Detail: `docs/architecture.md`.
 
 ## Security
 
@@ -156,12 +158,12 @@ Access is permission-based via `accessPlugin` — a client needs an explicit per
 
 `writeGuardPlugin` runs anti-spam checks on **client-originated** writes. `turnstile: true` in `DEFAULT_WRITE_GUARD_POLICIES` requires a solved token in the **`x-turnstile-token`** header, kept out of the document shape. Registrations were the last public write without it (#629) — the gate could only turn on once the Atlas widget sent the header (sydevs/SahajAtlasWeb#182), so the two shipped in that order.
 
-| Outcome | Status | `errors[0].code` | Client action |
-| --- | --- | --- | --- |
-| Missing, forged, expired, or **replayed** token | 403 | `captcha_failed` | Reset the challenge, retry with a fresh token |
-| Our secret unset, or Cloudflare unreachable | 500 | `captcha_unavailable` | Retry later — never a pass |
+| Outcome                                         | Status | `errors[0].code`      | Client action                                 |
+| ----------------------------------------------- | ------ | --------------------- | --------------------------------------------- |
+| Missing, forged, expired, or **replayed** token | 403    | `captcha_failed`      | Reset the challenge, retry with a fresh token |
+| Our secret unset, or Cloudflare unreachable     | 500    | `captcha_unavailable` | Retry later — never a pass                    |
 
-⚠ **Tokens are single-use** — a replay is refused exactly like a forgery, so retrying with the *same* token after any error gets a second 403.
+⚠ **Tokens are single-use** — a replay is refused exactly like a forgery, so retrying with the _same_ token after any error gets a second 403.
 
 ⚠ **The gate fails closed on our own misconfiguration, on purpose.** A captcha that silently disables itself on a missing secret is worse than none, since nothing would surface the misconfiguration. There is no dev/test bypass — point `TURNSTILE_SECRET_KEY` at Cloudflare's always-passes test key locally.
 
@@ -171,10 +173,10 @@ One collection accepts every public write, discriminated by `type`: `contact`, `
 
 Two refusals are specific to it, each with a message naming what to fix:
 
-| `errors[0].code` | Status | Means |
-| --- | --- | --- |
-| `submission_data_invalid` | 400 | An unrecognised `type`, or a `submissionData` pair carrying a key this type does not accept, a duplicate key, a non-string value, or an over-long one. The message names the key |
-| `submission_type_mismatch` | 400 | The `type` disagrees with the form's `actionType`. The form is the authority on what a submission against it is |
+| `errors[0].code`           | Status | Means                                                                                                                                                                            |
+| -------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `submission_data_invalid`  | 400    | An unrecognised `type`, or a `submissionData` pair carrying a key this type does not accept, a duplicate key, a non-string value, or an over-long one. The message names the key |
+| `submission_type_mismatch` | 400    | The `type` disagrees with the form's `actionType`. The form is the authority on what a submission against it is                                                                  |
 
 Every per-field refusal names the input that tripped it: `errors[0].data` is `{ code, field }`, where `field` is the body path (`senderEmail`, `proposed.contactEmail`) or the `submissionData` pair name. The write guard and the intake hook raise the same codes with the same shape, so a client never has to tell which of the two refused it. `captcha_failed` and `captcha_unavailable` carry no `field` — they judge the request, not an input.
 
@@ -196,12 +198,12 @@ A **registration** carrying `subscribe` in its `submissionData` spawns a linked 
 
 A service that relays subscribe submissions names its own provider, under **Config → Mailing List**. Any service may run a list, whatever its roles.
 
-| Field | Notes |
-| --- | --- |
-| `mailingList.enabled` | The master switch. Every other field is `admin.condition`-gated on it, and `required` only while it is on |
-| `mailingList.provider` | `mailchimp` \| `brevo` \| `klaviyo` |
-| `mailingList.listId` | Mailchimp's Audience ID, Brevo's numeric list id, or Klaviyo's List ID |
-| `mailingList.apiKey` | The provider secret. Mailchimp's datacenter is read off the key's `-us14` suffix, so there is no second field for it |
+| Field                     | Notes                                                                                                                                             |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `mailingList.enabled`     | The master switch. Every other field is `admin.condition`-gated on it, and `required` only while it is on                                         |
+| `mailingList.provider`    | `mailchimp` \| `brevo` \| `klaviyo`                                                                                                               |
+| `mailingList.listId`      | Mailchimp's Audience ID, Brevo's numeric list id, or Klaviyo's List ID                                                                            |
+| `mailingList.apiKey`      | The provider secret. Mailchimp's datacenter is read off the key's `-us14` suffix, so there is no second field for it                              |
 | `mailingList.doubleOptIn` | **Mailchimp only** — the one provider with a per-call lever. Brevo and Klaviyo each show their own read-only opt-in note under `provider` instead |
 
 ⚠ **No API client can read any of it, at any depth.** Two things hold that up, and both are needed. The group carries `managersOnlyFieldAccess` (`@/plugins/access`), which closes the read `RESTRICTED_COLLECTIONS` never reaches — self-access hands a published key its own row whole over `GET /api/clients/me`. And `stripLockedFieldsOnSelfRead`, the `afterRead` hook `accessPlugin` gives every auth collection, closes `POST /api/clients/refresh-token`, which re-reads the row at `overrideAccess: true` and so skips field access entirely (#822). The group still appears in `payload-types.ts`; both strip it at runtime, not from the generated type.
@@ -247,7 +249,7 @@ An API client read must declare its data needs: `select` is required on every re
 
 The same gate bounds the two numbers that reach SQL. A client may send `limit` up to **2000** and `page` up to **10000** (`MAX_CLIENT_LIMIT` / `MAX_CLIENT_PAGE` in `src/plugins/usage/constants.ts`, which the OpenAPI parameter docs also read); either outside `0 … its ceiling`, or not a whole number, is refused **400** naming the bound. A global read carries neither, so nothing changes there.
 
-**Clients only, deliberately** — a manager, the admin UI and an internal read are trusted with their own numbers, and `hooks.ts` returns early for all three. The bound runs *ahead* of the `asTrustedReq` and live-preview bypasses, though, unlike the `select` gate: those relax a shape policy, and this one keeps a number out of the driver.
+**Clients only, deliberately** — a manager, the admin UI and an internal read are trusted with their own numbers, and `hooks.ts` returns early for all three. The bound runs _ahead_ of the `asTrustedReq` and live-preview bypasses, though, unlike the `select` gate: those relax a shape policy, and this one keeps a number out of the driver.
 
 ```
 ❌ GET /api/meditations?select[label]=true&limit=99999999999999999999   → 400
@@ -288,7 +290,7 @@ A shaped endpoint issues 2 to 5 forwarded reads, and each one is a `read` the me
 `countClientRead(req)` is now idempotent per request, through a **mutable object** on `req.context`:
 
 - ⚠ **An object, not a boolean.** `asTrustedReq` spreads `req.context` into a new object, so a boolean written through one copy is invisible to the next. That is the mechanism #559's commit message describes and never had. A nested object is copied by reference, so every copy mutates one cell.
-- ⚠ **Seeded before the spread.** `asTrustedReq` creates the cell on the `req` it is copying *from*, which is what makes the copies share one. A wrapper that spread first would give each read its own cell.
+- ⚠ **Seeded before the spread.** `asTrustedReq` creates the cell on the `req` it is copying _from_, which is what makes the copies share one. A wrapper that spread first would give each read its own cell.
 - ⚠ **The count lands inside the first read, after that read's own gates.** The meter runs last in the chain, so an origin-denied or malformed read costs no quota. A handler counting before its first read would let a misconfigured host page drain a client's daily quota while being refused 403 every time — a collection endpoint has no origin check of its own, because enforcement happens in the forwarded read.
 
 So **a collection endpoint needs nothing**: its own reads count it, exactly once. **A root endpoint calls `countClientRead(req)` itself**, because it runs no collection `beforeOperation` hook and may read no metered collection at all — `GET /api/atlas/seo`'s root route resolves through two globals and the caller's own `clients` row, and so counted nothing.
@@ -299,7 +301,7 @@ So **a collection endpoint needs nothing**: its own reads count it, exactly once
 
 ### System writes: `asSystemReq`, and why `overrideAccess` isn't enough
 
-`asSystemReq(req)` returns the same request with **no user** — reach for it when a client-triggered write isn't on the caller's own authority (the registration vote-sync hook updating the *event*). `overrideAccess: true` alone is not enough: it skips collection access but **not** `filterOptions`, which Payload validates against `req.user` — a write touching an owner-scoped picker would 400 for a caller entitled to trigger the operation but not to perform it directly. `context`, `transactionID`, and `payload` still travel by reference. Only the authority changes. `asTrustedReq` keeps the user and relaxes the query-shape gate instead — the two compose.
+`asSystemReq(req)` returns the same request with **no user** — reach for it when a client-triggered write isn't on the caller's own authority (the registration vote-sync hook updating the _event_). `overrideAccess: true` alone is not enough: it skips collection access but **not** `filterOptions`, which Payload validates against `req.user` — a write touching an owner-scoped picker would 400 for a caller entitled to trigger the operation but not to perform it directly. `context`, `transactionID`, and `payload` still travel by reference. Only the authority changes. `asTrustedReq` keeps the user and relaxes the query-shape gate instead — the two compose.
 
 ### Live preview bypass
 
@@ -311,16 +313,16 @@ Admin live preview opens a consumer site with a short-lived Ed25519 token (an Ed
 
 ## Client read contract: finished events (#603)
 
-A **finished** event (its schedule fully run out) stays `published`, since its Atlas page must keep resolving for an old link — but it drops out of public *feeds*:
+A **finished** event (its schedule fully run out) stays `published`, since its Atlas page must keep resolving for an old link — but it drops out of public _feeds_:
 
-| Read | Finished events |
-| --- | --- |
-| `GET /api/events` | Excluded by default. An explicit `where` on `schedule.lastDate` opts out |
-| `GET /api/events/geojson` | Always excluded, no opt-out |
-| `GET /api/events/{id}` | Returned normally |
-| `GET /api/atlas/seo` | A region listing excludes them. A single-event read returns it |
-| `GET /api/atlas/sitemap` | Excluded — the page still resolves, but a sitemap shouldn't ask a crawler to index it |
-| Admin / manager / job reads | Unaffected |
+| Read                        | Finished events                                                                       |
+| --------------------------- | ------------------------------------------------------------------------------------- |
+| `GET /api/events`           | Excluded by default. An explicit `where` on `schedule.lastDate` opts out              |
+| `GET /api/events/geojson`   | Always excluded, no opt-out                                                           |
+| `GET /api/events/{id}`      | Returned normally                                                                     |
+| `GET /api/atlas/seo`        | A region listing excludes them. A single-event read returns it                        |
+| `GET /api/atlas/sitemap`    | Excluded — the page still resolves, but a sitemap shouldn't ask a crawler to index it |
+| Admin / manager / job reads | Unaffected                                                                            |
 
 "Finished" means `schedule.lastDate` (the final occurrence's local end-of-day) is in the past — an event running today stays listed until midnight in its own timezone. A NULL `lastDate` (open-ended recurrence) and an `inactive` event are never finished. One definition, two expressions: `shouldFinish` in memory, `notFinishedWhere` as SQL, pinned to agree by `tests/unit/schedule-status.spec.ts`.
 
@@ -337,7 +339,7 @@ GET /api/pages?locale=all&select[_status]=true
 → { "docs": [ { "id": 12, "_status": { "en": "published", "de": "draft" } } ] }
 ```
 
-Read the map by this rule: **a locale is published only when it says `published`.** A locale that was never translated has no row at all and is simply **absent** from the map — a page published in English alone reports `{ "en": "published" }` and nothing else. Absent is not published. Do not derive the answer from the site's locale set, or from which locales have *any* version.
+Read the map by this rule: **a locale is published only when it says `published`.** A locale that was never translated has no row at all and is simply **absent** from the map — a page published in English alone reports `{ "en": "published" }` and nothing else. Absent is not published. Do not derive the answer from the site's locale set, or from which locales have _any_ version.
 
 Five things to know:
 
@@ -345,8 +347,8 @@ Five things to know:
 - **It costs no extra query.** The Postgres adapter joins `_locales` unfiltered on every localized read, so a 25-row list at `locale=all` is still one query. That is why there is no `publishedLocales` field — a collection `afterRead` computing one would have to re-read each row at `locale: 'all'`, 25 reads on a 25-row list. Pinned by `tests/int/pages-localize-status.int.spec.ts`.
 - **`payload-types.ts` still types `_status` as a single string.** Payload generates the resolved shape, not the `locale=all` one, so a consumer reading the map casts. The map is the contract; the generated type has not caught up.
 - **The published-only filter is now per locale.** A client restricted to published documents reads a locale only where that locale's row says `published`. The filter is SQL, so it sees rows, not the fallback the bullet above describes: an unpublished translation is unreachable, and so is a locale that was never translated, because it has no row for the filter to match.
-- ⚠ **That second case fires on existing data, not only on a deliberate unpublish — and it is intended.** The migration copies each document's old status into every locale row that *exists*, and an untranslated locale has none, so a page published in English alone returns nothing at `?locale=de` where Payload's English fallback used to serve it. **Decided on #765: an unpublished locale should 404, and a page must not serve English text under a German URL.** Do not add a fallback, here or in a consumer. A consumer that wants to link the locales a page *is* live in reads the map above ([WeMeditateWeb#81](https://github.com/sydevs/WeMeditateWeb/issues/81)). Note Payload's own `localizeStatus` migration template behaves the same way: it `UPDATE`s locale rows and never inserts one.
-- ⚠ **A `locale=all` read returns every locale's content, unpublished locales included.** The filter matches *documents* — a document published in any locale — and does not narrow the locales in the response. So a cross-locale read is not a publish gate: read one locale at a time when the answer must respect publish state. This is deliberate (#765). Content here is not sensitive to read; write, edit and delete are what the roles guard. Pinned by `tests/int/pages-localize-status.int.spec.ts`.
+- ⚠ **That second case fires on existing data, not only on a deliberate unpublish — and it is intended.** The migration copies each document's old status into every locale row that _exists_, and an untranslated locale has none, so a page published in English alone returns nothing at `?locale=de` where Payload's English fallback used to serve it. **Decided on #765: an unpublished locale should 404, and a page must not serve English text under a German URL.** Do not add a fallback, here or in a consumer. A consumer that wants to link the locales a page _is_ live in reads the map above ([WeMeditateWeb#81](https://github.com/sydevs/WeMeditateWeb/issues/81)). Note Payload's own `localizeStatus` migration template behaves the same way: it `UPDATE`s locale rows and never inserts one.
+- ⚠ **A `locale=all` read returns every locale's content, unpublished locales included.** The filter matches _documents_ — a document published in any locale — and does not narrow the locales in the response. So a cross-locale read is not a publish gate: read one locale at a time when the answer must respect publish state. This is deliberate (#765). Content here is not sensitive to read; write, edit and delete are what the roles guard. Pinned by `tests/int/pages-localize-status.int.spec.ts`.
 
 ## Origin / Referer enforcement
 
@@ -372,11 +374,11 @@ Tracking is **in-request**, not queued: `countClientRead` issues one atomic `UPD
 
 Per-user rate limiting runs at the Cloudflare edge, in front of Railway, so no app-level limiter binding is needed. A request that fails the edge's rate-limiting rules gets a 429 before it ever reaches Railway, and `rateLimitHook` is a no-op.
 
-| Setting | Value |
-| --- | --- |
-| Limit | 500 requests |
-| Period | 60 seconds |
-| Scope | per `(client, IP)` tuple, at the edge |
+| Setting | Value                                 |
+| ------- | ------------------------------------- |
+| Limit   | 500 requests                          |
+| Period  | 60 seconds                            |
+| Scope   | per `(client, IP)` tuple, at the edge |
 
 `X-User-ID` (`^[a-zA-Z0-9-_]{8,64}$`) still travels for semantic clarity and log identification, but the edge does not rate-limit on it, and it is visible to the app but not privacy-enforced.
 

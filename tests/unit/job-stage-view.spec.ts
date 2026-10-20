@@ -48,9 +48,8 @@ const codeOf = (file: string): string =>
     .replace(/\/\/.*$/gm, '')
 
 const statusField = (): { defaultValue?: unknown; options?: unknown } => {
-  const field = MeditationTranscripts.fields.find(
-    (f) => 'name' in f && f.name === 'status',
-  ) as undefined | { defaultValue?: unknown; options?: unknown }
+  const field = MeditationTranscripts.fields.find((f) => 'name' in f && f.name === 'status') as
+    undefined | { defaultValue?: unknown; options?: unknown }
   if (!field) throw new Error('meditation-transcripts declares no `status` field')
   return field
 }
@@ -74,15 +73,16 @@ describe('readJobStageConfig', () => {
   })
 
   it('keeps a usable `staleAfterMs`, and drops one that would open every row', () => {
-    expect(
-      readJobStageConfig({ jobStage: { runningStages: ['a'], staleAfterMs: 1000 } }),
-    ).toEqual({ runningStages: ['a'], staleAfterMs: 1000 })
+    expect(readJobStageConfig({ jobStage: { runningStages: ['a'], staleAfterMs: 1000 } })).toEqual({
+      runningStages: ['a'],
+      staleAfterMs: 1000,
+    })
     expect(readJobStageConfig({ jobStage: { runningStages: ['a'], staleAfterMs: 0 } })).toEqual({
       runningStages: ['a'],
     })
-    expect(readJobStageConfig({ jobStage: { runningStages: ['a'], staleAfterMs: '60' } })).toEqual(
-      { runningStages: ['a'] },
-    )
+    expect(readJobStageConfig({ jobStage: { runningStages: ['a'], staleAfterMs: '60' } })).toEqual({
+      runningStages: ['a'],
+    })
   })
 
   it('refuses a declaration with no usable `runningStages`', () => {
@@ -163,9 +163,11 @@ describe('jobStageWait', () => {
       runningStages: ['working'],
       totalField: 'progress.total',
     }
-    expect(
-      jobStageWait(counted, { progress: { done: 7, total: 20 }, status: 'working' }),
-    ).toEqual({ progress: 7, stage: 'working', total: 20 })
+    expect(jobStageWait(counted, { progress: { done: 7, total: 20 }, status: 'working' })).toEqual({
+      progress: 7,
+      stage: 'working',
+      total: 20,
+    })
   })
 
   /**
@@ -228,7 +230,7 @@ describe('the view itself', () => {
    * component cannot carry the refresh handler, and a client one cannot be
    * handed the `req` and `payload` props the fall-through forwards.
    */
-  it('keeps the refresh control as the folder\'s only client component', () => {
+  it("keeps the refresh control as the folder's only client component", () => {
     expect(hasDirective(inFolder('CheckAgain.tsx'), 'use client')).toBe(true)
   })
 

@@ -93,7 +93,6 @@ const ROLE_LABELS = new Map(
 /** The one collection whose grants this can describe. @see summarizeGrants */
 export const MANAGERS_COLLECTION = 'managers'
 
-
 /**
  * The manager joins declared among `fields`: which collection names a manager,
  * and through which of its fields.
@@ -165,11 +164,13 @@ export async function summarizeGrants({
   const held = fullAccess ? {} : await hydrateLocalizedRoles(payload, id, isolated)
   const roles = narrowRoles(held, only)
 
-  const roleProject = (role: string) =>
-    getRoleProject(role as Parameters<typeof getRoleProject>[0])
+  const roleProject = (role: string) => getRoleProject(role as Parameters<typeof getRoleProject>[0])
   const heldProjects = new Set(Object.values(held).flat().map(roleProject))
 
-  const parts = new Map<ProjectSlug, { roles: Record<string, string[]>; responsibilities: Responsibility[] }>()
+  const parts = new Map<
+    ProjectSlug,
+    { roles: Record<string, string[]>; responsibilities: Responsibility[] }
+  >()
   const part = (project: ProjectSlug) => {
     if (!parts.has(project)) parts.set(project, { roles: {}, responsibilities: [] })
     return parts.get(project)!

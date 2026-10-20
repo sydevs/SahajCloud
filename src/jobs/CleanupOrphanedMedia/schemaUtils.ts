@@ -79,7 +79,9 @@ function traverseField(
       if (matchesTarget(relationshipField.relationTo, targetCollection)) {
         references.push({
           collection: collectionSlug,
-          fieldPath: pathPrefix ? `${pathPrefix}.${relationshipField.name}` : relationshipField.name,
+          fieldPath: pathPrefix
+            ? `${pathPrefix}.${relationshipField.name}`
+            : relationshipField.name,
           fieldType: 'relationship',
           hasMany: relationshipField.hasMany ?? false,
           relationTo: relationshipField.relationTo,
@@ -96,7 +98,15 @@ function traverseField(
         // Named tabs add to path, unnamed tabs don't
         const tabPath = 'name' in tab && tab.name ? `${pathPrefix}.${tab.name}` : pathPrefix
         for (const tabField of tab.fields) {
-          traverseField(tabField, targetCollection, tabPath, collectionSlug, references, isLexicalBlock, blockSlug)
+          traverseField(
+            tabField,
+            targetCollection,
+            tabPath,
+            collectionSlug,
+            references,
+            isLexicalBlock,
+            blockSlug,
+          )
         }
       }
       break
@@ -107,10 +117,20 @@ function traverseField(
       // Named groups add to path, unnamed groups don't
       const hasName = 'name' in groupField && typeof groupField.name === 'string'
       const groupPath = hasName
-        ? (pathPrefix ? `${pathPrefix}.${groupField.name}` : groupField.name)
+        ? pathPrefix
+          ? `${pathPrefix}.${groupField.name}`
+          : groupField.name
         : pathPrefix
       for (const groupChildField of groupField.fields) {
-        traverseField(groupChildField, targetCollection, groupPath, collectionSlug, references, isLexicalBlock, blockSlug)
+        traverseField(
+          groupChildField,
+          targetCollection,
+          groupPath,
+          collectionSlug,
+          references,
+          isLexicalBlock,
+          blockSlug,
+        )
       }
       break
     }
@@ -119,7 +139,15 @@ function traverseField(
       const rowField = field as RowField
       // Row fields don't add to path - they're just layout
       for (const rowChildField of rowField.fields) {
-        traverseField(rowChildField, targetCollection, pathPrefix, collectionSlug, references, isLexicalBlock, blockSlug)
+        traverseField(
+          rowChildField,
+          targetCollection,
+          pathPrefix,
+          collectionSlug,
+          references,
+          isLexicalBlock,
+          blockSlug,
+        )
       }
       break
     }
@@ -128,7 +156,15 @@ function traverseField(
       const arrayField = field as ArrayField
       const arrayPath = pathPrefix ? `${pathPrefix}.${arrayField.name}.*` : `${arrayField.name}.*`
       for (const arrayChildField of arrayField.fields) {
-        traverseField(arrayChildField, targetCollection, arrayPath, collectionSlug, references, isLexicalBlock, blockSlug)
+        traverseField(
+          arrayChildField,
+          targetCollection,
+          arrayPath,
+          collectionSlug,
+          references,
+          isLexicalBlock,
+          blockSlug,
+        )
       }
       break
     }
@@ -137,11 +173,21 @@ function traverseField(
       // Note: This is for PayloadCMS blocks fields (not Lexical blocks)
       // Lexical blocks are handled separately via richText field
       const blocksField = field as { name: string; blocks: Block[] }
-      const blocksPath = pathPrefix ? `${pathPrefix}.${blocksField.name}.*` : `${blocksField.name}.*`
+      const blocksPath = pathPrefix
+        ? `${pathPrefix}.${blocksField.name}.*`
+        : `${blocksField.name}.*`
       for (const block of blocksField.blocks) {
         const blockPath = `${blocksPath}.${block.slug}`
         for (const blockField of block.fields) {
-          traverseField(blockField, targetCollection, blockPath, collectionSlug, references, isLexicalBlock, blockSlug)
+          traverseField(
+            blockField,
+            targetCollection,
+            blockPath,
+            collectionSlug,
+            references,
+            isLexicalBlock,
+            blockSlug,
+          )
         }
       }
       break
@@ -151,7 +197,15 @@ function traverseField(
       const collapsibleField = field as CollapsibleField
       // Collapsible fields don't add to path - they're just layout
       for (const collapsibleChildField of collapsibleField.fields) {
-        traverseField(collapsibleChildField, targetCollection, pathPrefix, collectionSlug, references, isLexicalBlock, blockSlug)
+        traverseField(
+          collapsibleChildField,
+          targetCollection,
+          pathPrefix,
+          collectionSlug,
+          references,
+          isLexicalBlock,
+          blockSlug,
+        )
       }
       break
     }

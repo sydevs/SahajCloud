@@ -27,7 +27,10 @@ describe('weightedSample', () => {
   })
 
   it('returns all items when limit exceeds input length', () => {
-    const items = [{ id: 1, w: 1 }, { id: 2, w: 2 }]
+    const items = [
+      { id: 1, w: 1 },
+      { id: 2, w: 2 },
+    ]
     const result = weightedSample(items, 10, weightOf)
     expect(result).toHaveLength(2)
   })
@@ -42,7 +45,11 @@ describe('weightedSample', () => {
   })
 
   it('falls back to uniform random when all weights are zero', () => {
-    const items = [{ id: 'a', w: 0 }, { id: 'b', w: 0 }, { id: 'c', w: 0 }]
+    const items = [
+      { id: 'a', w: 0 },
+      { id: 'b', w: 0 },
+      { id: 'c', w: 0 },
+    ]
     const result = weightedSample(items, 2, weightOf)
     expect(result).toHaveLength(2)
     const ids = new Set(result.map((x) => x.id))
@@ -68,7 +75,11 @@ describe('weightedSample', () => {
   })
 
   it('supports an injected random function for determinism', () => {
-    const items = [{ id: 'a', w: 1 }, { id: 'b', w: 1 }, { id: 'c', w: 1 }]
+    const items = [
+      { id: 'a', w: 1 },
+      { id: 'b', w: 1 },
+      { id: 'c', w: 1 },
+    ]
     // Always returns 0 → always picks index 0 from the current pool
     const pickFirst = () => 0
     const result = weightedSample(items, 3, weightOf, pickFirst)

@@ -69,10 +69,7 @@ export type EventFeatureCollection = {
  * Sent on the refusal responses only; the plain not-found 404 carries no `code`.
  */
 export type EventRegistrationErrorCode =
-  | 'external_registration'
-  | 'event_ended'
-  | 'registration_closed'
-  | 'event_full'
+  'external_registration' | 'event_ended' | 'registration_closed' | 'event_full'
 
 /**
  * Error body for a refused registration.

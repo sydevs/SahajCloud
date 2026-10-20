@@ -7,12 +7,12 @@ inline base64 data URL.
 
 ## Icon specs
 
-| Property | Value |
-|---|---|
-| ViewBox | `0 0 20 20` (20×20 px) |
-| Format | SVG encoded as a base64 data URL |
-| Color | `#6B7280` (gray-500) |
-| Style | Stroked outline preferred |
+| Property     | Value                                            |
+| ------------ | ------------------------------------------------ |
+| ViewBox      | `0 0 20 20` (20×20 px)                           |
+| Format       | SVG encoded as a base64 data URL                 |
+| Color        | `#6B7280` (gray-500)                             |
+| Style        | Stroked outline preferred                        |
 | Stroke attrs | `stroke-linecap="round" stroke-linejoin="round"` |
 
 **Critical**: do not use `currentColor`. It renders as black in data-URL
@@ -58,12 +58,12 @@ can tell what the icon shows without decoding the base64.
 
 ## Common pitfalls
 
-| Don't | Do |
-|---|---|
-| `stroke="currentColor"` | `stroke="#6B7280"` |
-| External icon URLs | Inline base64 data URLs |
+| Don't                       | Do                                      |
+| --------------------------- | --------------------------------------- |
+| `stroke="currentColor"`     | `stroke="#6B7280"`                      |
+| External icon URLs          | Inline base64 data URLs                 |
 | Omit the `// Icon:` comment | Describe the icon in a one-line comment |
-| `viewBox` other than 20×20 | `viewBox="0 0 20 20"` |
+| `viewBox` other than 20×20  | `viewBox="0 0 20 20"`                   |
 
 ## Reference examples
 

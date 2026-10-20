@@ -201,9 +201,7 @@ describe('eventsGeoJson endpoint', () => {
         where: { eventType: { equals: 'bogus' } },
       })
       expect(status).toBe(400)
-      expect(body.errors).toEqual([
-        { code: '22P02', message: expect.stringContaining('"bogus"') },
-      ])
+      expect(body.errors).toEqual([{ code: '22P02', message: expect.stringContaining('"bogus"') }])
     })
   })
 

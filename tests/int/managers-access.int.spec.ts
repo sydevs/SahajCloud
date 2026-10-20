@@ -50,9 +50,7 @@ describe('Managers access (#821)', () => {
 
   /** A client request, as API-key auth builds one. The key is unused: no read below goes over REST. */
   const clientReq = (): PayloadRequest => {
-    const base = createClientAuthenticatedRequest(client.id, 'unused', [
-      'sahaj-atlas-client',
-    ])
+    const base = createClientAuthenticatedRequest(client.id, 'unused', ['sahaj-atlas-client'])
     return { ...base, payload, context: {} } as unknown as PayloadRequest
   }
 

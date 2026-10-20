@@ -110,9 +110,7 @@ export function InviteEmail({
 
       {responsibilities.length > 0 ? (
         <>
-          <SectionHeading>
-            {sectionHeading('responsibility', count, listsOnlyNew)}
-          </SectionHeading>
+          <SectionHeading>{sectionHeading('responsibility', count, listsOnlyNew)}</SectionHeading>
           {responsibilities.map(({ items, label, singular }) => (
             <DetailRow key={label} label={items.length === 1 ? singular : label}>
               {items.map((item, index) => (

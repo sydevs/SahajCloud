@@ -337,10 +337,12 @@ to attach to a field that skipped it.
 jsonField({
   name: 'frames',
   schemaTitle: 'MeditationFrames',
-  schema: z.array(z.looseObject({
-    id: z.union([z.int(), z.string()]).describe('The Frame document id.'),
-    timestamp: z.number().describe('Seconds into the meditation.'),
-  })),
+  schema: z.array(
+    z.looseObject({
+      id: z.union([z.int(), z.string()]).describe('The Frame document id.'),
+      timestamp: z.number().describe('Seconds into the meditation.'),
+    }),
+  ),
 })
 ```
 
@@ -794,8 +796,8 @@ import { isVersionsRead } from '@/lib/utilities/versionsRead'
 
 export const myHook: CollectionBeforeOperationHook = ({ operation, args }) => {
   if (operation !== 'read' && operation !== 'count') return args
-  if (isVersionsRead(operation, args)) return args   // cannot carry a document filter
-  if ('id' in args) return args                      // findByID
+  if (isVersionsRead(operation, args)) return args // cannot carry a document filter
+  if ('id' in args) return args // findByID
   // …append the where…
 }
 ```
@@ -869,7 +871,7 @@ Three consequences, each of which has already bitten:
 
 - **A field `afterRead` hook sees `_status` in either shape** — a plain
   string on a collection without the flag, a `{ locale: status }` map on
-  one with it. The map arrives *unresolved*, because Payload hoists a
+  one with it. The map arrives _unresolved_, because Payload hoists a
   localized value down to the requested locale in the same afterRead field
   pass that runs the hook, so field order decides. Handle both shapes;
   `isPublished` in `src/fields/publicUrlFields.ts` is the one to copy. A
@@ -889,15 +891,15 @@ Live preview integrates with the We Meditate Web frontend
 
 ### Page blocks (`src/lib/richEditor/blocks/`)
 
-| Block               | Notes                                                                                                                                                                                                                                                     |
-| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Block               | Notes                                                                                                                                                                                                                                                                                                                                                                                      |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `TextBoxBlock`      | `image` (required), `imagePosition` (left / right / overlay), `textPosition` and `textColor` (both shown for `overlay` only — `textColor` names the TEXT, so `light` means light text on a dark image, #516), `wisdomStyle` (⚠ never rendered — its `admin.condition` names a field this block lacks, #989), `title`/`subtitle`/`text`, `buttonText` + `buttonUrl`, read-only `importData` |
-| `ButtonBlock`       | `text` + `url`                                                                                                                                                                                                                                            |
-| `LayoutBlock`       | `style` (grid / columns / accordion) + `items` array (image, title, text, link)                                                                                                                                                                           |
-| `GalleryBlock`      | `title`, `collectionType` (media/meditations/pages), `items` (max 10, dynamic relationTo)                                                                                                                                                                 |
-| `QuoteBlock`        | `title`, `text` (textarea, required), `credit`, `caption` (shown when credit exists)                                                                                                                                                                      |
-| `CatalogBlock`      | `items` relationship hasMany, min 3/max 6, supports meditations + pages                                                                                                                                                                                   |
-| `ContentIndexBlock` | `type` select (meditations/pages/songs/lectures), `limit` (1–100), per-type filter fields (only the active filter survives, via `clearWhenTypeNot` hooks), virtual `apiEndpoint` (computed by `computeApiEndpoint` afterRead — `null` if `limit` invalid) |
+| `ButtonBlock`       | `text` + `url`                                                                                                                                                                                                                                                                                                                                                                             |
+| `LayoutBlock`       | `style` (grid / columns / accordion) + `items` array (image, title, text, link)                                                                                                                                                                                                                                                                                                            |
+| `GalleryBlock`      | `title`, `collectionType` (media/meditations/pages), `items` (max 10, dynamic relationTo)                                                                                                                                                                                                                                                                                                  |
+| `QuoteBlock`        | `title`, `text` (textarea, required), `credit`, `caption` (shown when credit exists)                                                                                                                                                                                                                                                                                                       |
+| `CatalogBlock`      | `items` relationship hasMany, min 3/max 6, supports meditations + pages                                                                                                                                                                                                                                                                                                                    |
+| `ContentIndexBlock` | `type` select (meditations/pages/songs/lectures), `limit` (1–100), per-type filter fields (only the active filter survives, via `clearWhenTypeNot` hooks), virtual `apiEndpoint` (computed by `computeApiEndpoint` afterRead — `null` if `limit` invalid)                                                                                                                                  |
 
 Custom block icons → see `src/lib/richEditor/blocks/AGENTS.md`.
 

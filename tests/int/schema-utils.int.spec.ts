@@ -68,9 +68,7 @@ describe('Schema Introspection Utilities', () => {
       const refs = discoverReferencesForCollection(payload, 'images')
 
       // authors.photo is an upload field to images
-      const photoRef = refs.find(
-        (r) => r.collection === 'authors' && r.fieldPath === 'photo',
-      )
+      const photoRef = refs.find((r) => r.collection === 'authors' && r.fieldPath === 'photo')
       expect(photoRef).toBeDefined()
       expect(photoRef?.fieldType).toBe('upload')
       expect(photoRef?.relationTo).toBe('images')
@@ -88,9 +86,7 @@ describe('Schema Introspection Utilities', () => {
       expect(meditationThumbRef).toBeDefined()
 
       // lessons.icon
-      const iconRef = refs.find(
-        (r) => r.collection === 'lessons' && r.fieldPath === 'icon',
-      )
+      const iconRef = refs.find((r) => r.collection === 'lessons' && r.fieldPath === 'icon')
       expect(iconRef).toBeDefined()
     })
 
@@ -100,9 +96,7 @@ describe('Schema Introspection Utilities', () => {
       // Filter to only Lexical marker references from pages.content
       // The new approach creates a single marker reference for richText fields
       // that indicates the field contains Lexical content needing generic traversal
-      const lexicalRefs = refs.filter(
-        (r) => r.collection === 'pages' && r.isLexicalBlock,
-      )
+      const lexicalRefs = refs.filter((r) => r.collection === 'pages' && r.isLexicalBlock)
 
       expect(lexicalRefs.length).toBeGreaterThan(0)
 
@@ -124,9 +118,7 @@ describe('Schema Introspection Utilities', () => {
       expect(narratorRef).toBeUndefined()
 
       // pages.author references authors, not files
-      const authorRef = fileRefs.find(
-        (r) => r.collection === 'pages' && r.fieldPath === 'author',
-      )
+      const authorRef = fileRefs.find((r) => r.collection === 'pages' && r.fieldPath === 'author')
       expect(authorRef).toBeUndefined()
     })
 
@@ -186,12 +178,7 @@ describe('Schema Introspection Utilities', () => {
 
     it('extracts IDs from array path with wildcard', () => {
       const doc = {
-        panels: [
-          { media: 1 },
-          { media: 2 },
-          { title: 'No media' },
-          { media: 3 },
-        ],
+        panels: [{ media: 1 }, { media: 2 }, { title: 'No media' }, { media: 3 }],
       }
       const ref: FieldReference = {
         collection: 'lessons',

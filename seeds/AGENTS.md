@@ -65,26 +65,26 @@ paginates every collection with `requiresPagination: true`.
 
 Each script's collection metadata lives in `seeds/lib/expectedCounts.ts`:
 
-| Script      | Collection    | Items | Paginated? | Dependencies            |
-| ----------- | ------------- | ----- | ---------- | ------------------------ |
-| tags        | user-choices  | 27    | No         | None                    |
-| tags        | music-tags    | 7     | No         | None                    |
-| wemeditate  | authors       | 18    | No         | None                    |
-| wemeditate  | albums        | 8     | No         | None                    |
-| wemeditate  | music         | 27    | No         | albums                  |
-| wemeditate  | pages         | 60    | Yes        | authors                 |
-| meditations | narrators     | 2     | No         | None                    |
-| meditations | frames        | 60    | Yes        | None                    |
-| meditations | meditations   | 73    | Yes        | narrators, frames, tags |
-| meditation-transcripts | meditation-transcripts | 126 | No | meditations          |
-| storyblok   | lessons       | 17    | Yes        | None                    |
-| storyblok   | lectures      | 0     | No         | None                    |
-| atlas       | managers      | 495   | No         | None                    |
-| atlas       | regions       | 646   | No         | managers                |
-| atlas       | users         | 1864  | Yes        | None                    |
-| atlas       | events        | 649   | Yes        | managers, regions       |
-| atlas       | user-submissions | 2004 | Yes     | events, users           |
-| atlas       | clients       | 31    | No         | managers                |
+| Script                 | Collection             | Items | Paginated? | Dependencies            |
+| ---------------------- | ---------------------- | ----- | ---------- | ----------------------- |
+| tags                   | user-choices           | 27    | No         | None                    |
+| tags                   | music-tags             | 7     | No         | None                    |
+| wemeditate             | authors                | 18    | No         | None                    |
+| wemeditate             | albums                 | 8     | No         | None                    |
+| wemeditate             | music                  | 27    | No         | albums                  |
+| wemeditate             | pages                  | 60    | Yes        | authors                 |
+| meditations            | narrators              | 2     | No         | None                    |
+| meditations            | frames                 | 60    | Yes        | None                    |
+| meditations            | meditations            | 73    | Yes        | narrators, frames, tags |
+| meditation-transcripts | meditation-transcripts | 126   | No         | meditations             |
+| storyblok              | lessons                | 17    | Yes        | None                    |
+| storyblok              | lectures               | 0     | No         | None                    |
+| atlas                  | managers               | 495   | No         | None                    |
+| atlas                  | regions                | 646   | No         | managers                |
+| atlas                  | users                  | 1864  | Yes        | None                    |
+| atlas                  | events                 | 649   | Yes        | managers, regions       |
+| atlas                  | user-submissions       | 2004  | Yes        | events, users           |
+| atlas                  | clients                | 31    | No         | managers                |
 
 **Meditations note**: targeting `collection=meditations` also runs
 `narrators`, `frames`, and `tags` in bulk (unpaginated) in the same
@@ -98,15 +98,15 @@ automatically — printing per-batch progress as it goes.
 
 ## Available scripts
 
-| Script      | Command                 | Prerequisites                              | Target Collections                    |
-| ----------- | ------------------------ | -------------------------------------------- | ---------------------------------------- |
-| storyblok   | `pnpm seed storyblok`   | STORYBLOK_ACCESS_TOKEN                     | lessons, images, files                |
-| wemeditate  | `pnpm seed wemeditate`  | data.json (pre-extracted)                  | pages, authors, page-tags, albums     |
-| meditations | `pnpm seed meditations` | Run `tags` + `wemeditate` first, data.json | meditations, frames, music, narrators |
-| meditation-transcripts | `pnpm seed meditation-transcripts` | The meditations the transcripts were made from | meditation-transcripts |
-| tags        | `pnpm seed tags`        | None                                       | user-choices, music-tags              |
-| atlas       | `pnpm seed atlas`       | The 8 JSON dumps in `seeds/atlas/data/`    | managers, regions, users, events, user-submissions, clients |
-| translations | `pnpm seed translations` | None                                      | the three translations globals (see below) |
+| Script                 | Command                            | Prerequisites                                  | Target Collections                                          |
+| ---------------------- | ---------------------------------- | ---------------------------------------------- | ----------------------------------------------------------- |
+| storyblok              | `pnpm seed storyblok`              | STORYBLOK_ACCESS_TOKEN                         | lessons, images, files                                      |
+| wemeditate             | `pnpm seed wemeditate`             | data.json (pre-extracted)                      | pages, authors, page-tags, albums                           |
+| meditations            | `pnpm seed meditations`            | Run `tags` + `wemeditate` first, data.json     | meditations, frames, music, narrators                       |
+| meditation-transcripts | `pnpm seed meditation-transcripts` | The meditations the transcripts were made from | meditation-transcripts                                      |
+| tags                   | `pnpm seed tags`                   | None                                           | user-choices, music-tags                                    |
+| atlas                  | `pnpm seed atlas`                  | The 8 JSON dumps in `seeds/atlas/data/`        | managers, regions, users, events, user-submissions, clients |
+| translations           | `pnpm seed translations`           | None                                           | the three translations globals (see below)                  |
 
 ### `translations` — real copy everywhere, and the locales it publishes
 
@@ -147,7 +147,7 @@ Four properties to preserve when you touch it:
 - It is not what lets `wm-web-config.availableLocales` offer `en`. English is
   **exempt** from that field's publish gate by design — gating the one locale
   nobody can deselect would deadlock the save (`src/fields/availableLocalesField.ts`).
-  The gate gates every *other* locale.
+  The gate gates every _other_ locale.
 - It does not change what a read returns. A global read comes back identical
   whether `draft` is true, false, or unset. The publish sets state.
 
@@ -232,11 +232,11 @@ hook has its key.
 
 ## Common flags
 
-| Flag            | Description                                       |
-| --------------- | --------------------------------------------------- |
-| `--dry-run`     | Validate data without writing to the database        |
-| `--clear-cache` | Clear downloaded files before import                  |
-| `--update`      | Update existing records (default: skip existing)      |
+| Flag            | Description                                      |
+| --------------- | ------------------------------------------------ |
+| `--dry-run`     | Validate data without writing to the database    |
+| `--clear-cache` | Clear downloaded files before import             |
+| `--update`      | Update existing records (default: skip existing) |
 
 ## Skip mode vs. update mode
 
@@ -245,10 +245,10 @@ documents entirely (no updates, no file re-uploads), which cuts DB queries
 and speeds up imports of new content. Pass `--update` for **update mode**
 (upsert behavior) when content has changed:
 
-| Mode                | Behavior                            | DB queries                            | Use case                                    |
-| -------------------- | -------------------------------------- | ---------------------------------------- | ---------------------------------------------- |
-| Skip (default)      | Skip existing docs, only create new | Minimal (bulk preload + creates)      | Adding new content, resuming failed imports |
-| Update (`--update`) | Update existing + create new        | Bulk preload + update/create per doc  | Content has changed, fixing data issues     |
+| Mode                | Behavior                            | DB queries                           | Use case                                    |
+| ------------------- | ----------------------------------- | ------------------------------------ | ------------------------------------------- |
+| Skip (default)      | Skip existing docs, only create new | Minimal (bulk preload + creates)     | Adding new content, resuming failed imports |
+| Update (`--update`) | Update existing + create new        | Bulk preload + update/create per doc | Content has changed, fixing data issues     |
 
 On startup, each importer preloads the relevant collections into memory
 with only the fields needed to validate existence (id + natural key). In
@@ -256,7 +256,7 @@ skip mode, a cache hit skips the document entirely. In update mode, it
 updates using the cached ID. Either way, a cache miss creates.
 
 | Scenario                     | Before (per-doc find)       | After (bulk preload)            |
-| ------------------------------- | ------------------------------- | ------------------------------------ |
+| ---------------------------- | --------------------------- | ------------------------------- |
 | 73 meditations, all exist    | 146 queries (find + skip)   | 2 queries (preload + done)      |
 | 73 meditations, all new      | 146 queries (find + create) | ~75 queries (preload + creates) |
 | 73 meditations with --update | 146 queries (find + update) | ~75 queries (preload + updates) |
@@ -353,7 +353,7 @@ const result = await withRetry(() => fetchData(), { maxRetries: 3 }) // Exponent
 ```
 
 | Function              | Behavior                         |
-| ------------------------ | ----------------------------------- |
+| --------------------- | -------------------------------- |
 | `rateLimitDelay(ms)`  | Waits ms                         |
 | `withRetry(fn, opts)` | Retries with exponential backoff |
 
@@ -376,13 +376,13 @@ const cached = await readCache('seeds/cache/file.jpg')
 await writeCache('seeds/cache/file.jpg', buffer)
 ```
 
-| Function                 | Local mode              | Workers mode              |
-| --------------------------- | -------------------------- | ---------------------------- |
-| `loadDataFile(source)`   | Reads from `localPath`  | Fetches from `workerUrl`  |
-| `fetchAsset(url, opts)`  | Caches to `cachePath`   | Streams directly          |
-| `readCache(path)`        | Returns a file buffer   | Returns `null`            |
-| `writeCache(path, data)` | Writes to disk          | No-op                     |
-| `cacheExists(path)`      | Validates the file exists | Returns `false`        |
+| Function                 | Local mode                | Workers mode             |
+| ------------------------ | ------------------------- | ------------------------ |
+| `loadDataFile(source)`   | Reads from `localPath`    | Fetches from `workerUrl` |
+| `fetchAsset(url, opts)`  | Caches to `cachePath`     | Streams directly         |
+| `readCache(path)`        | Returns a file buffer     | Returns `null`           |
+| `writeCache(path, data)` | Writes to disk            | No-op                    |
+| `cacheExists(path)`      | Validates the file exists | Returns `false`          |
 
 ## File organization
 

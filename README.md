@@ -13,28 +13,33 @@ A headless content management system built with **Next.js 16** and **PayloadCMS 
 ## Quick Start
 
 1. **Clone the repository**
+
    ```bash
    git clone <repository-url>
    cd SahajCloud
    ```
 
 2. **Install dependencies**
+
    ```bash
    pnpm install
    ```
 
 3. **Set up the environment**
+
    ```bash
    cp .env.example .env
    ```
 
    Set at minimum:
+
    ```
    PAYLOAD_SECRET=your-secret-key-here-at-least-32-chars
    DATABASE_URL=postgresql://postgres:postgres@localhost:5432/sahajcloud
    ```
 
 4. **Start the development server**
+
    ```bash
    pnpm dev
    ```
@@ -47,21 +52,21 @@ A headless content management system built with **Next.js 16** and **PayloadCMS 
 
 ## Key Commands
 
-| Command | Description |
-|---------|-------------|
-| `pnpm dev` | Start the development server |
-| `pnpm devsafe` | Clean start (removes the `.next` cache first) |
-| `pnpm build` | Build for production |
-| `pnpm start` | Start the production server |
-| `pnpm lint` | Run ESLint |
-| `pnpm typecheck` | Check types in `src/` (`tsc --noEmit`) |
-| `pnpm test` | Run unit and integration tests |
-| `pnpm test:unit` | Run the fast unit lane (no Payload bootstrap) |
-| `pnpm test:int` | Run integration tests against Postgres (Vitest) |
-| `pnpm test:smoke` | Run smoke specs against a deployed preview (Playwright) |
-| `pnpm generate:types` | Generate TypeScript types from the Payload schema |
-| `pnpm db:migrate` | Apply pending database migrations |
-| `pnpm seed` | Seed local data |
+| Command               | Description                                             |
+| --------------------- | ------------------------------------------------------- |
+| `pnpm dev`            | Start the development server                            |
+| `pnpm devsafe`        | Clean start (removes the `.next` cache first)           |
+| `pnpm build`          | Build for production                                    |
+| `pnpm start`          | Start the production server                             |
+| `pnpm lint`           | Run ESLint                                              |
+| `pnpm typecheck`      | Check types in `src/` (`tsc --noEmit`)                  |
+| `pnpm test`           | Run unit and integration tests                          |
+| `pnpm test:unit`      | Run the fast unit lane (no Payload bootstrap)           |
+| `pnpm test:int`       | Run integration tests against Postgres (Vitest)         |
+| `pnpm test:smoke`     | Run smoke specs against a deployed preview (Playwright) |
+| `pnpm generate:types` | Generate TypeScript types from the Payload schema       |
+| `pnpm db:migrate`     | Apply pending database migrations                       |
+| `pnpm seed`           | Seed local data                                         |
 
 ## Environment Configuration
 

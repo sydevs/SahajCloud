@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 
-
 import { checkEmailAllowed, checkNoUrls } from '@/lib/antiSpam/antiSpamGuard'
 import { signToken, verifyToken } from '@/lib/utilities/signedToken'
 

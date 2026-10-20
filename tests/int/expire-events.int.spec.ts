@@ -37,12 +37,8 @@ vi.mock('@/jobs/ExpireEvents/featureFlag', () => ({
 
 vi.mock('@sentry/nextjs', () => ({
   withScope: vi.fn(
-    (
-      callback: (scope: {
-        setContext: typeof setContextMock
-        setTag: typeof setTagMock
-      }) => void,
-    ) => callback({ setContext: setContextMock, setTag: setTagMock }),
+    (callback: (scope: { setContext: typeof setContextMock; setTag: typeof setTagMock }) => void) =>
+      callback({ setContext: setContextMock, setTag: setTagMock }),
   ),
   captureException: vi.fn(),
   // `resolveRecipients` reports a missing region manager this way, so any stage
@@ -128,8 +124,7 @@ describe('ExpireEvents job', () => {
     // The lock itself is enforced by Payload's queue at runtime. What's under our
     // control (and what this asserts) is that the task declares it correctly.
     const concurrency = ExpireEvents.concurrency as
-      | { key: (args: { input: unknown; queue: string }) => string; exclusive?: boolean }
-      | undefined
+      { key: (args: { input: unknown; queue: string }) => string; exclusive?: boolean } | undefined
     expect(concurrency).toBeDefined()
     expect(concurrency!.exclusive).toBe(true)
     expect(concurrency!.key({ input: {}, queue: 'nightly' })).toBe('expireEvents')

@@ -15,21 +15,21 @@ Rules for PayloadCMS admin-panel components: server vs client, field components,
 
 Import directly from `@payloadcms/ui` (e.g. `import { Banner, Button, Pill } from '@payloadcms/ui'`). This is a curated list. See `node_modules/@payloadcms/ui/dist/exports/client/index.d.ts` for the full set.
 
-| Need | Use |
-|---|---|
-| Inline notice / callout | `Banner` (`type` default/error/success, plus `icon`) |
-| Status / tag chip | `Pill`, `ErrorPill` |
-| Tabular data | `Table` (columns + `renderedCells`), `OrderableTable` |
-| Buttons / actions | `Button`, `SaveButton`, `PublishButton`, `SaveDraftButton`, `CopyToClipboard` |
-| Cards / layout | `Card`, `Gutter`, `Collapsible`, `AnimateHeight` |
-| Tooltip / popover | `Tooltip`, `Popup`, `PopupList` |
-| Modals / drawers | `Drawer` + `useModal`/`useDrawerSlug`, `ConfirmationModal`, `FullscreenModal` |
-| Loading | `Spinner` (icon + `loadingText`), `LoadingOverlay`, `ProgressBar`, `ShimmerEffect` |
-| Pagination / list | `Pagination`, `PerPage`, `ListControls` |
-| Drag & drop | `DraggableSortable`, `DraggableSortableItem` |
-| Uploads | `Dropzone`, `Upload`, `FileDetails` |
-| Toasts | `toast` |
-| Icons | `WarningIcon`/`ErrorIcon`/`InfoIcon`/`SuccessIcon` plus `CalendarIcon`, `CheckIcon`, `ChevronIcon`, `CopyIcon`, `EditIcon`, `ExternalLinkIcon`, `GearIcon`, `PlusIcon`, `SearchIcon`, `XIcon`, … |
+| Need                    | Use                                                                                                                                                                                              |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Inline notice / callout | `Banner` (`type` default/error/success, plus `icon`)                                                                                                                                             |
+| Status / tag chip       | `Pill`, `ErrorPill`                                                                                                                                                                              |
+| Tabular data            | `Table` (columns + `renderedCells`), `OrderableTable`                                                                                                                                            |
+| Buttons / actions       | `Button`, `SaveButton`, `PublishButton`, `SaveDraftButton`, `CopyToClipboard`                                                                                                                    |
+| Cards / layout          | `Card`, `Gutter`, `Collapsible`, `AnimateHeight`                                                                                                                                                 |
+| Tooltip / popover       | `Tooltip`, `Popup`, `PopupList`                                                                                                                                                                  |
+| Modals / drawers        | `Drawer` + `useModal`/`useDrawerSlug`, `ConfirmationModal`, `FullscreenModal`                                                                                                                    |
+| Loading                 | `Spinner` (icon + `loadingText`), `LoadingOverlay`, `ProgressBar`, `ShimmerEffect`                                                                                                               |
+| Pagination / list       | `Pagination`, `PerPage`, `ListControls`                                                                                                                                                          |
+| Drag & drop             | `DraggableSortable`, `DraggableSortableItem`                                                                                                                                                     |
+| Uploads                 | `Dropzone`, `Upload`, `FileDetails`                                                                                                                                                              |
+| Toasts                  | `toast`                                                                                                                                                                                          |
+| Icons                   | `WarningIcon`/`ErrorIcon`/`InfoIcon`/`SuccessIcon` plus `CalendarIcon`, `CheckIcon`, `ChevronIcon`, `CopyIcon`, `EditIcon`, `ExternalLinkIcon`, `GearIcon`, `PlusIcon`, `SearchIcon`, `XIcon`, … |
 
 `Table` is list-view-shaped: pass `data` (rows with an `id`) and `columns: Column[]`, each column carrying pre-rendered `renderedCells` (one node per row), `accessor`, and `active: true`. `Column` also requires a `field` the component never reads — stub it (`field: {} as never`). See `src/components/admin/LogTable/` for the working pattern, and note what it hand-rolls: `Table` exposes nothing per row, so opening a row's detail needs a delegated `closest('tr[data-id]')` listener (Payload writes the row's `id` there), and `cursor` must be a stylesheet rule because it targets Payload's own `<tr>`.
 
@@ -51,10 +51,12 @@ Payload publishes the state and renders nothing for it. `Form` holds `processing
 
 ```tsx
 // ❌ mounts already-open; no slide
-{selected !== null && <Drawer slug={slug}>{body}</Drawer>}
+{
+  selected !== null && <Drawer slug={slug}>{body}</Drawer>
+}
 
 // ✅ mounts closed, animates on open — and returns null while closed, so it costs nothing
-<Drawer slug={slug}>{selected === null ? null : body}</Drawer>
+;<Drawer slug={slug}>{selected === null ? null : body}</Drawer>
 ```
 
 There is no width prop: `Drawer` sets `width: calc(100% - (drawerDepth * var(--gutter-h)))` in JS, narrowing one gutter per nesting level. A narrower drawer needs a `className` and a CSS rule.
@@ -76,17 +78,18 @@ Payload posts the edited document's form state into the preview iframe on every 
 ```js
 const values = reduceFieldsToValues(formState, true)
 iframeRef.current.contentWindow?.postMessage(
-  { type: 'payload-live-preview', collectionSlug, data: values }, url,
+  { type: 'payload-live-preview', collectionSlug, data: values },
+  url,
 )
 ```
 
-Most preview routes here ignore that and re-fetch by `?collection=…&id=…` instead — fine for Events/Regions/Pages, but a *choice*, not a requirement, and it costs preview on anything the frontend can't read: a **restricted** collection (API clients hold create-only on `user-submissions`), or a document with **no id to fetch** (a submission proposing a brand-new event).
+Most preview routes here ignore that and re-fetch by `?collection=…&id=…` instead — fine for Events/Regions/Pages, but a _choice_, not a requirement, and it costs preview on anything the frontend can't read: a **restricted** collection (API clients hold create-only on `user-submissions`), or a document with **no id to fetch** (a submission proposing a brand-new event).
 
 For those, carry the render-ready shape in a field and let postMessage deliver it: `UserSubmissions.previewEvent` is a virtual JSON field holding the merged event, and the widget renders from the message. Relationship hydration still fetches by id, so a referenced doc must stay readable by the client.
 
 Two mechanics worth knowing:
 
-- **Open the panel with `livePreview.openByDefault: true`** (Payload 3.86+), not a mount effect. It applies server-side while building the document view, only until the user toggles the panel — after that their stored `editViewType` preference wins. A `setIsLivePreviewing(true)` effect can't honour that, and re-opened the panel every time a reviewer closed it. The proposal review surface was ported off exactly such an effect. A *tab* still needs the client, and declares `autoOpen` instead — see below.
+- **Open the panel with `livePreview.openByDefault: true`** (Payload 3.86+), not a mount effect. It applies server-side while building the document view, only until the user toggles the panel — after that their stored `editViewType` preference wins. A `setIsLivePreviewing(true)` effect can't honour that, and re-opened the panel every time a reviewer closed it. The proposal review surface was ported off exactly such an effect. A _tab_ still needs the client, and declares `autoOpen` instead — see below.
 - A field that only carries data to the iframe wants `admin.hidden: true`, not a component rendering `null` — Payload renders it as a `HiddenField`, so the value still sits in form state (what `reduceFieldsToValues` posts) while nothing takes up space on the page.
 - A **virtual** field's value computes on read, so it never recomputes as the user types — the right trade only when the document isn't editable, as in the submission-review case.
 
@@ -110,17 +113,17 @@ Declared today in `translationsSchema.json` (a `preview` key beside `screenshot`
 
 **Always use PayloadCMS CSS variables** for theme compatibility. A hardcoded color or pixel size breaks the elevation scale.
 
-| Variable | Purpose |
-|---|---|
-| `--base` | Base spacing unit (`calc(...)`) |
-| `--gutter-h` | Horizontal gutter |
-| `--base-body-size` | Base font size (13 — use as `calc(var(--base-body-size) * 1px)`) |
-| `--font-body`, `--font-serif`, `--font-mono` | Font stacks |
-| `--theme-elevation-{0-1000}` | Elevation color scale (auto light/dark) |
-| `--theme-bg`, `--theme-text`, `--theme-input-bg` | Background / text / input |
-| `--style-radius-s/m/l` | Border radius (6 / 8 / 12 px) |
-| `--nav-width` | Sidebar width (275) |
-| `--app-header-height`, `--doc-controls-height` | Layout heights |
+| Variable                                         | Purpose                                                          |
+| ------------------------------------------------ | ---------------------------------------------------------------- |
+| `--base`                                         | Base spacing unit (`calc(...)`)                                  |
+| `--gutter-h`                                     | Horizontal gutter                                                |
+| `--base-body-size`                               | Base font size (13 — use as `calc(var(--base-body-size) * 1px)`) |
+| `--font-body`, `--font-serif`, `--font-mono`     | Font stacks                                                      |
+| `--theme-elevation-{0-1000}`                     | Elevation color scale (auto light/dark)                          |
+| `--theme-bg`, `--theme-text`, `--theme-input-bg` | Background / text / input                                        |
+| `--style-radius-s/m/l`                           | Border radius (6 / 8 / 12 px)                                    |
+| `--nav-width`                                    | Sidebar width (275)                                              |
+| `--app-header-height`, `--doc-controls-height`   | Layout heights                                                   |
 
 Full reference: https://github.com/payloadcms/payload/tree/main/packages/ui/src/scss
 
@@ -232,7 +235,7 @@ Four things are load-bearing:
 - **`views.edit.default.Component` replaces `DefaultEditView`; it does not wrap it.** So a settled stage falls through by rendering `DefaultEditView` itself.
 - **The stored stage at page load is the whole input.** There is no poll, so nothing re-requests the document. **Check again** (`CheckAgain.tsx`, the folder's one client component) calls `router.refresh()`, which refetches the route's server render and bypasses the client router cache a `next/link` navigation can be answered from. That is Payload's own idiom — `useRouteCache`'s `clearRouteCache` is the same call. ⚠ Inside a document drawer nothing re-reads the stage: `DocumentDrawerContent` renders the document through the `renderDocument` server function and keeps the result in React state, which no route refresh re-runs. An anchor would re-read it only by leaving the host document and discarding its unsaved edits, so the refresh stands in both surfaces.
 - **The gate releases itself only where `staleAfterMs` is declared.** Without one, a row whose worker died stays behind the waiting view for good; past the window the form opens and setting the status column back to its queued value is the retry.
-- **Never name a running stage that is also the column's `defaultValue`.** `meditation-transcripts` declares `processing` and not `queued` for that reason. The view refuses to fire with no document id, which covers the create form, but a *saved* row sitting at that default would open behind a view nothing can move on.
+- **Never name a running stage that is also the column's `defaultValue`.** `meditation-transcripts` declares `processing` and not `queued` for that reason. The view refuses to fire with no document id, which covers the create form, but a _saved_ row sitting at that default would open behind a view nothing can move on.
 
 ⚠ **A `hidden: true` collection cannot show it on a route.** Registering the view is still correct there, and a document drawer renders it (`overrideEntityVisibility`), but `/admin/collections/<slug>/<id>` 404s — see "A hidden collection is still reachable through a `join`" above. Reach such a collection through a `join` before concluding the view is broken.
 
@@ -258,12 +261,12 @@ See "Eliminating client-side race conditions" in `docs/rules/endpoints.md` — a
 
 ## Project-aware navigation
 
-| Project | Slug | Theme | Logo |
-|---|---|---|---|
-| All Content (admin view) | `null` | Default PayloadCMS | `sahaj-cloud.svg` |
-| WeMeditate Web | `wemeditate-web` | Coral (#F07855) | `wemeditate-web.svg` |
-| WeMeditate App | `wemeditate-app` | Teal (#61aaa0) | `wemeditate-app.svg` |
-| Sahaj Atlas | `sahaj-atlas` | Royal blue (#4a8cd4) | `sahaj-atlas.webp` |
+| Project                  | Slug             | Theme                | Logo                 |
+| ------------------------ | ---------------- | -------------------- | -------------------- |
+| All Content (admin view) | `null`           | Default PayloadCMS   | `sahaj-cloud.svg`    |
+| WeMeditate Web           | `wemeditate-web` | Coral (#F07855)      | `wemeditate-web.svg` |
+| WeMeditate App           | `wemeditate-app` | Teal (#61aaa0)       | `wemeditate-app.svg` |
+| Sahaj Atlas              | `sahaj-atlas`    | Royal blue (#4a8cd4) | `sahaj-atlas.webp`   |
 
 The Managers `currentProject` field stores the selection. `ProjectSelector` (`beforeNavLinks`) updates it on change, then reloads the page — `window.location.reload()` re-evaluates every `admin.hidden` function, since those run server-side off `user.currentProject` and hold no client state, then redirects to `/admin` so the user doesn't land on a now-hidden collection. `ProjectContext` (wrapped in `AdminProvider`) exposes `useProject()` and syncs with the user profile via `useAuth`.
 
@@ -291,11 +294,11 @@ admin: {
 
 `src/lib/branding/themeColors.ts` holds `PROJECT_BRAND_COLORS`, the `lighten`/`darken`/`tint`/`shade` utilities, and `deriveScalarTheme()` for the Scalar API docs theme.
 
-| Project | Primary | Dark | Light |
-|---|---|---|---|
+| Project        | Primary   | Dark      | Light     |
+| -------------- | --------- | --------- | --------- |
 | WeMeditate Web | `#F07855` | `#D86545` | `#FF9477` |
 | WeMeditate App | `#61aaa0` | `#4c8d84` | `#72b3a9` |
-| Sahaj Atlas | `#4a8cd4` | `#2d6db8` | `#6fa3dd` |
+| Sahaj Atlas    | `#4a8cd4` | `#2d6db8` | `#6fa3dd` |
 
 `next.config.mjs` allows images from `raw.githubusercontent.com` for We Meditate logo assets.
 
@@ -306,28 +309,28 @@ admin: {
 ```typescript
 hidden: ({ user }) => {
   if (!hasWritePermission(user, collectionSlug)) return true
-  if (!projectsContainingCollection.length) return false  // shared
-  if (!user.currentProject) return false                  // admin view
+  if (!projectsContainingCollection.length) return false // shared
+  if (!user.currentProject) return false // admin view
   return !projectsContainingCollection.includes(user.currentProject)
 }
 ```
 
 Project assignments live in the internal `PROJECTS` constant (`config/projects.ts`). Add a collection to a project by editing its `collections:` array there. Lookup tables recompute automatically.
 
-| Collection / Global | wemeditate-web | wemeditate-app | sahaj-atlas |
-|---|:-:|:-:|:-:|
-| pages, meditations, songs, albums, videos | ✅ | ✅ | |
-| lessons, lectures | | ✅ | |
-| lecture-clips | | ✅ (sidebar-hidden) | |
-| images, files | ✅ | ✅ | ✅ |
-| narrators, frames | ✅ | ✅ | |
-| authors | ✅ | | |
-| audiences | | ✅ | |
-| user-choices, song-tags | ✅ | ✅ | |
-| forms | ✅ | | ✅ (admin-only — `atlas-manager` holds no write) |
-| we-meditate-web-settings | ✅ | | |
-| we-meditate-app-settings | | ✅ | |
-| sahaj-atlas-settings | | | ✅ |
+| Collection / Global                       | wemeditate-web |   wemeditate-app    |                   sahaj-atlas                    |
+| ----------------------------------------- | :------------: | :-----------------: | :----------------------------------------------: |
+| pages, meditations, songs, albums, videos |       ✅       |         ✅          |                                                  |
+| lessons, lectures                         |                |         ✅          |                                                  |
+| lecture-clips                             |                | ✅ (sidebar-hidden) |                                                  |
+| images, files                             |       ✅       |         ✅          |                        ✅                        |
+| narrators, frames                         |       ✅       |         ✅          |                                                  |
+| authors                                   |       ✅       |                     |                                                  |
+| audiences                                 |                |         ✅          |                                                  |
+| user-choices, song-tags                   |       ✅       |         ✅          |                                                  |
+| forms                                     |       ✅       |                     | ✅ (admin-only — `atlas-manager` holds no write) |
+| we-meditate-web-settings                  |       ✅       |                     |                                                  |
+| we-meditate-app-settings                  |                |         ✅          |                                                  |
+| sahaj-atlas-settings                      |                |                     |                        ✅                        |
 
 Page, video, and image tags are inline enum selects, not separate collections.
 

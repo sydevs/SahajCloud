@@ -10,11 +10,11 @@ Production uses Cloudflare-native storage. Development falls back to local files
 
 ## Routing matrix
 
-| Storage | Collections | URL format |
-| --- | --- | --- |
-| **Cloudflare Images** | `images` (uploads), also referenced from albums, app-cards, meditations, lectures, authors, lessons, page blocks | `https://imagedelivery.net/<hash>/<imageId>/public` |
-| **Cloudflare Stream** | `videos`, `frames` (video MIME types) | thumbnails: `.../thumbnails/thumbnail.jpg`. HLS: `.../manifest/video.m3u8` (`hlsUrl`, also the generic `url`). MP4: `.../downloads/default.mp4` (`mp4Url`) |
-| **R2 (S3 API)** | `meditations`, `songs`, `files`, `user-choices`, `song-tags`, plus mixed-media fallthrough on `frames`/`files` | `<CLOUDFLARE_R2_DELIVERY_URL>/<filename>` — the key is a bare filename, `preview-`-prefixed outside production |
+| Storage               | Collections                                                                                                      | URL format                                                                                                                                                 |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Cloudflare Images** | `images` (uploads), also referenced from albums, app-cards, meditations, lectures, authors, lessons, page blocks | `https://imagedelivery.net/<hash>/<imageId>/public`                                                                                                        |
+| **Cloudflare Stream** | `videos`, `frames` (video MIME types)                                                                            | thumbnails: `.../thumbnails/thumbnail.jpg`. HLS: `.../manifest/video.m3u8` (`hlsUrl`, also the generic `url`). MP4: `.../downloads/default.mp4` (`mp4Url`) |
+| **R2 (S3 API)**       | `meditations`, `songs`, `files`, `user-choices`, `song-tags`, plus mixed-media fallthrough on `frames`/`files`   | `<CLOUDFLARE_R2_DELIVERY_URL>/<filename>` — the key is a bare filename, `preview-`-prefixed outside production                                             |
 
 R2 uses the S3-compatible API (`@aws-sdk/client-s3`) with `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`. Filenames are slugified to URL-safe names with a random 6-char suffix. With no Cloudflare credentials set, development falls back to local file storage — no setup needed.
 
@@ -26,10 +26,10 @@ Cloudflare Images and Stream are account-scoped, and R2 is one shared bucket, so
 
 `previewIsolation.ts` fixes this by namespacing within the single account, and is a **no-op in production**:
 
-| Backend | Non-prod upload marker | Delete guard (non-prod) |
-| --- | --- | --- |
-| Cloudflare Images | `preview-` prefix on the custom ID | Refuses IDs without the prefix |
-| R2 | `preview-` prefix on the object key | Refuses keys without the prefix |
+| Backend           | Non-prod upload marker                          | Delete guard (non-prod)               |
+| ----------------- | ----------------------------------------------- | ------------------------------------- |
+| Cloudflare Images | `preview-` prefix on the custom ID              | Refuses IDs without the prefix        |
+| R2                | `preview-` prefix on the object key             | Refuses keys without the prefix       |
 | Cloudflare Stream | `meta.env=preview` tag (UIDs aren't caller-set) | GETs the video, refuses unless tagged |
 
 **"Is this production?" keys off the Railway environment name, not `NODE_ENV` and not the origin.** Railway previews run with `NODE_ENV=production`, and they inherit the shared `SAHAJCLOUD_URL` variable, so neither can tell prod and preview apart. `isProductionDeployment()` is true only when `RAILWAY_ENVIRONMENT_NAME` (fallback `RAILWAY_ENVIRONMENT`) equals `production` — PR previews are `pr-<number>` (see `RAILWAY_RUNBOOK.md`). It **fails safe**: any other or unknown name is treated as non-production, so the guard stays active. The only failure mode is prod self-isolating from a misnamed environment — loud, never destructive.
@@ -40,14 +40,14 @@ Cloudflare Images and Stream are account-scoped, and R2 is one shared bucket, so
 
 **Cleanup.** Preview uploads accumulate in the shared account/bucket. A daily GitHub Actions job (`.github/workflows/cleanup-preview-assets.yml` → `scripts/cleanup-preview-assets.ts`) reaps preview-marked assets older than 7 days across all three backends. `isReapablePreviewAsset` only deletes an asset that is **both** marked **and** past the cutoff. The script defaults to a dry run (`--apply` deletes for real).
 
-**Config, split by sensitivity.** Only the token is a GitHub *secret*. The rest are *variables*, unmasked in the run log — a masked `R2_BUCKET: ***` makes an R2 403 unreadable.
+**Config, split by sensitivity.** Only the token is a GitHub _secret_. The rest are _variables_, unmasked in the run log — a masked `R2_BUCKET: ***` makes an R2 403 unreadable.
 
-| Name | Kind | Required |
-| --- | --- | --- |
-| `CLOUDFLARE_ACCOUNT_ID` | secret | yes |
-| `CLOUDFLARE_API_KEY` | secret | yes |
-| `R2_BUCKET` | variable | yes |
-| `R2_JURISDICTION` | workflow env | only for a jurisdiction-bound bucket |
+| Name                    | Kind         | Required                             |
+| ----------------------- | ------------ | ------------------------------------ |
+| `CLOUDFLARE_ACCOUNT_ID` | secret       | yes                                  |
+| `CLOUDFLARE_API_KEY`    | secret       | yes                                  |
+| `R2_BUCKET`             | variable     | yes                                  |
+| `R2_JURISDICTION`       | workflow env | only for a jurisdiction-bound bucket |
 
 The script exits 1 with any of the required three missing — deliberately, since a cleanup that silently reaps nothing is worse than one that fails loudly.
 
@@ -67,21 +67,21 @@ A preview holds no unmarked row for this recipe to find, so make one (#704):
 
 ## Module layout (`src/plugins/storage/`)
 
-| File | Purpose |
-| --- | --- |
-| `storagePlugin.ts` | Plugin orchestration, adapter routing, R2 hook injection |
-| `uploadNotice.ts` | The uploading notice, mounted on every `upload` collection above the plugin's early returns (`docs/rules/admin-ui.md`) |
-| `uploadValidation.ts` | The size ceilings an upload has to fit, the per-category limits and allowed MIME types, and the sentence a refused upload gets back, which `@/plugins/uploadErrors` rebuilds the request gate's 413 around. `DEPLOYMENT.md` owns the ordering rule |
-| `cloudflareImagesAdapter.ts` | Image uploads to Cloudflare Images |
-| `cloudflareStreamAdapter.ts` | Video uploads to Cloudflare Stream (does not enable downloads — the webhook does) |
-| `cloudflareStreamWebhook.ts` | Pure helpers for the webhook handler (signature verify + downloads call) |
-| `cloudflareSchemas.ts` | Zod schemas for Cloudflare API responses |
-| `r2NativeAdapter.ts` | Custom R2 adapter with filename sanitization |
-| `r2FilenameHook.ts` | `beforeOperation` hook that pre-assigns the final R2 key |
-| `mixedMediaAdapter.ts` | Routes by MIME type to Images/Stream/R2 |
-| `mimeUtils.ts` | Shared `getMimeCategory()` |
-| `urlFields.ts` | Virtual URL field factories |
-| `adminThumbnail.ts` | `videoAdminThumbnail`, the `upload.adminThumbnail` every video-capable collection mounts |
+| File                         | Purpose                                                                                                                                                                                                                                            |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `storagePlugin.ts`           | Plugin orchestration, adapter routing, R2 hook injection                                                                                                                                                                                           |
+| `uploadNotice.ts`            | The uploading notice, mounted on every `upload` collection above the plugin's early returns (`docs/rules/admin-ui.md`)                                                                                                                             |
+| `uploadValidation.ts`        | The size ceilings an upload has to fit, the per-category limits and allowed MIME types, and the sentence a refused upload gets back, which `@/plugins/uploadErrors` rebuilds the request gate's 413 around. `DEPLOYMENT.md` owns the ordering rule |
+| `cloudflareImagesAdapter.ts` | Image uploads to Cloudflare Images                                                                                                                                                                                                                 |
+| `cloudflareStreamAdapter.ts` | Video uploads to Cloudflare Stream (does not enable downloads — the webhook does)                                                                                                                                                                  |
+| `cloudflareStreamWebhook.ts` | Pure helpers for the webhook handler (signature verify + downloads call)                                                                                                                                                                           |
+| `cloudflareSchemas.ts`       | Zod schemas for Cloudflare API responses                                                                                                                                                                                                           |
+| `r2NativeAdapter.ts`         | Custom R2 adapter with filename sanitization                                                                                                                                                                                                       |
+| `r2FilenameHook.ts`          | `beforeOperation` hook that pre-assigns the final R2 key                                                                                                                                                                                           |
+| `mixedMediaAdapter.ts`       | Routes by MIME type to Images/Stream/R2                                                                                                                                                                                                            |
+| `mimeUtils.ts`               | Shared `getMimeCategory()`                                                                                                                                                                                                                         |
+| `urlFields.ts`               | Virtual URL field factories                                                                                                                                                                                                                        |
+| `adminThumbnail.ts`          | `videoAdminThumbnail`, the `upload.adminThumbnail` every video-capable collection mounts                                                                                                                                                           |
 
 ⚠ **A `FileValidationError` must keep a non-500 `status`.** The adapters throw it from
 `handleUpload`, so it reaches `routeError`, and `isErrorPublic` discloses an error's message
@@ -100,13 +100,13 @@ fields: [
 ]
 ```
 
-| Factory | Purpose |
-| --- | --- |
-| `virtualUrlField({ collection, adapter })` | Base URL for a single-storage collection |
-| `previewUrlField({ collection, width?, height? })` | Preview/thumbnail URL for images/videos |
-| `mixedMediaUrlField({ collection })` | Full-resolution URL for mixed media |
-| `hlsUrlField({ collection })` | HLS manifest (`hlsUrl`), `null` for non-video |
-| `mp4UrlField({ collection })` | MP4 download (`mp4Url`), `null` for non-video |
+| Factory                                            | Purpose                                       |
+| -------------------------------------------------- | --------------------------------------------- |
+| `virtualUrlField({ collection, adapter })`         | Base URL for a single-storage collection      |
+| `previewUrlField({ collection, width?, height? })` | Preview/thumbnail URL for images/videos       |
+| `mixedMediaUrlField({ collection })`               | Full-resolution URL for mixed media           |
+| `hlsUrlField({ collection })`                      | HLS manifest (`hlsUrl`), `null` for non-video |
+| `mp4UrlField({ collection })`                      | MP4 download (`mp4Url`), `null` for non-video |
 
 ## R2 S3 adapter (`r2NativeAdapter.ts`)
 
@@ -117,7 +117,9 @@ const client = new S3Client({
   region: 'auto',
   // R2_S3_ENDPOINT overrides this for a jurisdiction-specific bucket (e.g. EU).
   // The native binding hid the jurisdiction; the S3 API needs the exact endpoint or the bucket 404s.
-  endpoint: serverEnv.R2_S3_ENDPOINT ?? `https://${serverEnv.CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  endpoint:
+    serverEnv.R2_S3_ENDPOINT ??
+    `https://${serverEnv.CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com`,
   credentials: {
     accessKeyId: serverEnv.R2_ACCESS_KEY_ID,
     secretAccessKey: serverEnv.R2_SECRET_ACCESS_KEY,
@@ -185,11 +187,11 @@ Thumbnails are composed URLs, never generated files. `previewUrlField` (`src/plu
 
 Three surfaces draw a thumbnail, and they diverge exactly where it is absent. The third reads `thumbnailURL`, not `previewUrl`, so no `previewUrl` wiring reaches it:
 
-| Surface | Component | With no thumbnail |
-| --- | --- | --- |
-| Frames list column | `PreviewUrlThumbnailCell` (`src/components/admin/ThumbnailCell/PreviewUrlThumbnailCell.tsx`) → `BaseThumbnailCell` (`src/components/admin/ThumbnailCell/BaseThumbnailCell.tsx`) | Payload's `<Thumbnail>` placeholder. **No video fallback.** |
-| FrameEditor grid | `FrameThumbnail` (`src/components/admin/FrameEditor/FrameThumbnail.tsx`) | `<video preload="metadata">` from `hlsUrl` or `mp4Url` — and an empty box when the document has neither. |
-| Payload's own upload components — edit header (`StaticFileDetails`), upload-field cards, bulk-upload sidebar, default file cell | Payload's, not ours. They draw `thumbnailURL || url`, and `thumbnailURL` comes from `upload.adminThumbnail` alone | the generic file icon, since a video's `url` is the HLS manifest and no image tag can render it (#927) |
+| Surface                                                                                                                         | Component                                                                                                                                                                       | With no thumbnail                                                                                        |
+| ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Frames list column                                                                                                              | `PreviewUrlThumbnailCell` (`src/components/admin/ThumbnailCell/PreviewUrlThumbnailCell.tsx`) → `BaseThumbnailCell` (`src/components/admin/ThumbnailCell/BaseThumbnailCell.tsx`) | Payload's `<Thumbnail>` placeholder. **No video fallback.**                                              |
+| FrameEditor grid                                                                                                                | `FrameThumbnail` (`src/components/admin/FrameEditor/FrameThumbnail.tsx`)                                                                                                        | `<video preload="metadata">` from `hlsUrl` or `mp4Url` — and an empty box when the document has neither. |
+| Payload's own upload components — edit header (`StaticFileDetails`), upload-field cards, bulk-upload sidebar, default file cell | Payload's, not ours. They draw `thumbnailURL                                                                                                                                    |                                                                                                          | url`, and `thumbnailURL`comes from`upload.adminThumbnail` alone | the generic file icon, since a video's `url` is the HLS manifest and no image tag can render it (#927) |
 
 `videoAdminThumbnail` (`src/plugins/storage/adminThumbnail.ts`) is mounted per collection rather than applied to every upload collection the way `withUploadNotice` is (#892), and `tests/unit/video-admin-thumbnail.spec.ts` fails naming any video-capable collection that declares none.
 
@@ -275,7 +277,8 @@ export const ApiResponseSchema = z.object({
 
 try {
   const result = ApiResponseSchema.parse(await response.json())
-  if (!result.success) throw new Error(`API failed: ${result.errors.map((e) => e.message).join(', ')}`)
+  if (!result.success)
+    throw new Error(`API failed: ${result.errors.map((e) => e.message).join(', ')}`)
   return result.result.id
 } catch (error) {
   if (error instanceof z.ZodError) {

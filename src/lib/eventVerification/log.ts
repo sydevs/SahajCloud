@@ -5,7 +5,6 @@ import { toWords } from 'payload/shared'
 import type { LogCell } from '@/fields'
 import type { ReminderAudience, ReminderLevel } from '@/lib/notifications'
 
-
 /**
  * The on-document `activityLog` — the **current verification cycle**.
  *

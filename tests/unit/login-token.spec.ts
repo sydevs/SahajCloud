@@ -43,7 +43,13 @@ describe('login token kinds', () => {
 
     // The two other kinds in use, asserted as strings because signing one needs
     // nothing this spec has.
-    const kinds = [signin.aud, invite.aud, page.aud, 'submission-feedback', 'submission-unsubscribe']
+    const kinds = [
+      signin.aud,
+      invite.aud,
+      page.aud,
+      'submission-feedback',
+      'submission-unsubscribe',
+    ]
     expect(new Set(kinds).size).toBe(kinds.length)
   })
 
@@ -93,8 +99,9 @@ describe('login token kinds', () => {
     await expect(
       readSigninToken(`${header}.${forgedBody}.${signature}`, SECRET, NOW),
     ).resolves.toEqual({ status: 'invalid' })
-    await expect(readSigninToken(`${header}.${body}.${signature}`, 'other-secret', NOW)).resolves
-      .toEqual({ status: 'invalid' })
+    await expect(
+      readSigninToken(`${header}.${body}.${signature}`, 'other-secret', NOW),
+    ).resolves.toEqual({ status: 'invalid' })
     await expect(readSigninToken(null, SECRET, NOW)).resolves.toEqual({ status: 'invalid' })
   })
 
@@ -141,7 +148,11 @@ describe('page links', () => {
   })
 
   it('carries the tab to open the landing page on', async () => {
-    const token = await signLinkToken({ ...link, to: '/admin/account', tab: 'Contact' }, SECRET, NOW)
+    const token = await signLinkToken(
+      { ...link, to: '/admin/account', tab: 'Contact' },
+      SECRET,
+      NOW,
+    )
     const result = await readLinkToken(token, SECRET, NOW)
     expect(result.status === 'valid' && result.claims.tab).toBe('Contact')
   })
@@ -191,9 +202,9 @@ describe('readAnyLoginToken', () => {
       JSON.stringify({ ...claims, aud: 'manager-signin', exp: NOW.getTime() / 1000 + 60 }),
     ).toString('base64url')
 
-    await expect(readAnyLoginToken(`${header}.${relabelled}.${signature}`, SECRET, NOW)).resolves.toEqual(
-      { status: 'invalid' },
-    )
+    await expect(
+      readAnyLoginToken(`${header}.${relabelled}.${signature}`, SECRET, NOW),
+    ).resolves.toEqual({ status: 'invalid' })
   })
 
   it('refuses a token of no login kind, and anything that is not a token', async () => {

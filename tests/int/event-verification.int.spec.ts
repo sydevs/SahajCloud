@@ -80,9 +80,8 @@ describe('Event verification lifecycle', () => {
     cleanup = env.cleanup
     adminUser = env.adminUser
     configRef.current = payload.config
-    ;({ verifyEventAction: verifyPageAction } = await import(
-      '@/app/(frontend)/events/verify/actions'
-    ))
+    ;({ verifyEventAction: verifyPageAction } =
+      await import('@/app/(frontend)/events/verify/actions'))
 
     eventManager = await testData.createManager(payload, {
       name: 'Event Manager',
@@ -415,7 +414,9 @@ describe('Event verification lifecycle', () => {
       const email = sent.find((message) => message.html.includes(title))
       expect(email, `no reminder was sent for ${title}`).toBeDefined()
       // The primary button's own href — the one the manager clicks.
-      const href = email!.html.match(/<a href="([^"]+)"[^>]*>(?:<span>.*?<\/span>)*<span[^>]*>Verify this event</)?.[1]
+      const href = email!.html.match(
+        /<a href="([^"]+)"[^>]*>(?:<span>.*?<\/span>)*<span[^>]*>Verify this event</,
+      )?.[1]
       expect(href, 'the Verify button carries no link').toBeDefined()
       const link = new URL(href!.replaceAll('&amp;', '&')).searchParams.get('link')
       expect(link, 'the Verify button is not a verify-page link').toBeTruthy()
@@ -1187,7 +1188,9 @@ describe('Event verification lifecycle', () => {
       form.set('link', await verifyLink(event.id))
       // Raised from inside the write the action performs, so it takes the same
       // catch as the case above.
-      const spy = vi.spyOn(payload, 'update').mockRejectedValueOnce(new Error('the database went away'))
+      const spy = vi
+        .spyOn(payload, 'update')
+        .mockRejectedValueOnce(new Error('the database went away'))
 
       const outcome = await verifyPageAction(null, form)
       spy.mockRestore()
@@ -1195,6 +1198,5 @@ describe('Event verification lifecycle', () => {
       expect(outcome.tone).toBe('error')
       expect(outcome.actions.some((action) => action.href.startsWith('mailto:'))).toBe(true)
     })
-
   })
 })
