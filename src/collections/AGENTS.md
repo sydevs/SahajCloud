@@ -108,6 +108,38 @@ no field hook runs in the browser: the hook enforces, and the validator never
 pretends to — see `src/collections/Events/AGENTS.md` (Events `title`). Don't reach for `event: 'submit'` to tell browser from
 server — Payload's server path also passes `event: 'submit'`.
 
+### A custom `validate` on a relationship silently disarms `filterOptions`
+
+The `maxLength` trap above has a sharper twin, because here the thing dropped
+is a write refusal rather than a length check. **`filterOptions` narrows the
+admin picker; what applies it at save time is `validateFilterOptions`, and that
+lives inside Payload's own `relationship` validator** — installed only when the
+field supplies no `validate` of its own (`fields/config/sanitize.js`). So a
+relationship that declares both gets the picker narrowing and **nothing
+enforcing it**: an API `PATCH` naming any id the collection holds is accepted.
+
+Compose, exactly as a custom `text` validator composes `text`:
+
+```typescript
+import { relationship } from 'payload/shared'
+
+validate: async (value, options) => {
+  const standard = await relationship(value, {
+    ...options,
+    relationTo: 'regions',
+    filterOptions: myFilterOptions, // the same function the field declares
+    required: true,
+  } as never)
+  if (standard !== true) return betterMessage(value, options) ?? standard
+  return true
+}
+```
+
+The class import's `targetRegion` (`src/plugins/eventImport/targetRegion.ts`)
+is the smallest worked example: it composes `relationship` on create only, and
+keeps Payload's own "invalid selection" wording. Pass `filterOptions` from one
+shared constant, so the picker and the validator cannot narrow differently.
+
 ## `defaultPopulate`
 
 `defaultPopulate` controls what's included **only when a doc is loaded

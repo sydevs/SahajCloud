@@ -41,9 +41,21 @@ export const JOB_AUTO_RUN: AutoRunEntry[] = [
     queue: 'screening',
   },
   {
+    // `default` is where each class import's job is queued
+    // (`src/plugins/eventImport`). The import's create hook kicks the queue at
+    // once; this is the safety net
+    // for a kick lost to a restart, five minutes because a volunteer is waiting.
+    // Offset by one, the only five-minute phase free of all three neighbours:
+    // `invitations` holds every fifth minute from zero, `nightly` :00, and
+    // `monthly` :07.
+    cron: '1-59/5 * * * *',
+    queue: 'default',
+  },
+  {
     // Safety net for the transcription start in `queueTranscription`, the
     // same way. :03 and every 15th minute after it clears `screening` (every
-    // 15th), `invitations` (every 5th), `nightly` (:00) and `monthly` (:07).
+    // 15th), `invitations` (every 5th), `nightly` (:00), `default` (every 5th
+    // from :01) and `monthly` (:07).
     cron: '3-59/15 * * * *',
     queue: 'transcription',
   },
