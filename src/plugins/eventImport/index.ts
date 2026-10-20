@@ -71,6 +71,9 @@ export const eventImportPlugin: Plugin = async (config) => {
       await failImport(args.req, importId, error, run)
       throw error
     } finally {
+      // Payload hands every job in a run the same `req`, so a run left here
+      // would make a later job's Events write skip its status refresh below.
+      if (args.req.context) delete args.req.context[RUN_CONTEXT_KEY]
       // An import queued while this one ran was passed over; start it once
       // this job's row is released, rather than at the next five-minute sweep.
       runQueueSoon({
