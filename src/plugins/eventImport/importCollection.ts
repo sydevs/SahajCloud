@@ -277,6 +277,9 @@ export const importCollection: CollectionConfig = {
           ? { ...data, manager: req.user.id, locale: req.locale ?? null, status: 'pending' }
           : data,
     ],
+    // No file is stored, so there is no URL to offer: without this the edit
+    // view fetches the CSV for its preview and gets a 500.
+    afterRead: [({ doc }) => ({ ...doc, url: null, thumbnailURL: null })],
     afterChange: [
       async ({ doc, operation, req }) => {
         if (operation !== 'create') return doc
