@@ -18,10 +18,11 @@ import {
   seekSecond,
   type TranscriptParagraph,
   transcriptPhase,
+  type TranscriptPhase,
   transcriptUrl,
 } from './transcriptModel'
 import { useFollowPlayhead } from './useFollowPlayhead'
-import { useStallDeadline } from './useStallDeadline'
+import { useTranscriptPhase } from './useTranscriptPhase'
 
 const POLL_INTERVAL_MS = 3000
 
@@ -32,7 +33,7 @@ const rowOf = (list: TranscriptList | undefined): TranscriptRow | undefined => l
 /**
  * Poll only while a transcription is on its way. The stall bound settles the
  * other end: a run nothing will finish reads `stalled`, so this cannot poll
- * forever — but only because `useStallDeadline` renders the moment the bound
+ * forever — but only because `useTranscriptPhase` renders the moment the bound
  * passes. A poll alone never reaches it.
  *
  * ⚠ **Declared once, at module scope.** SWR lists `refreshInterval` in its
@@ -43,6 +44,38 @@ const rowOf = (list: TranscriptList | undefined): TranscriptRow | undefined => l
  */
 const pollInterval = (latest?: TranscriptList): number =>
   transcriptPhase(rowOf(latest)) === 'pending' ? POLL_INTERVAL_MS : 0
+
+type Notice = {
+  type: 'error' | 'info'
+  heading?: string
+  /** Absent on `failed`, whose sentence is the run's own `error`. */
+  detail?: string
+  spinner?: boolean
+}
+
+/**
+ * The four phases with nothing to read, as one table of `Banner`s — the parts
+ * `JobStageView.tsx:75` builds the same notice from. Declared rather than
+ * branched so the four cannot drift into three kinds of thing.
+ */
+const NOTICES: Record<Exclude<TranscriptPhase, 'completed'>, Notice> = {
+  failed: { heading: 'Transcription failed.', type: 'error' },
+  none: {
+    detail: 'No transcript yet. One is made automatically when a recording is added.',
+    type: 'info',
+  },
+  pending: {
+    detail: 'Turning the recording into a timestamped transcript.',
+    heading: 'Transcription in progress.',
+    spinner: true,
+    type: 'info',
+  },
+  stalled: {
+    detail: 'It has not finished, and nothing is still working on it.',
+    heading: 'Transcription stopped responding.',
+    type: 'error',
+  },
+}
 
 async function readTranscripts(url: string): Promise<TranscriptList> {
   const response = await fetch(url, { credentials: 'include' })
@@ -87,9 +120,7 @@ export const MeditationTranscript: UIFieldClientComponent = () => {
   const active = activeSegmentIndex(segments, playheadSeconds)
   const container = useRef<HTMLDivElement>(null)
   useFollowPlayhead(container, active, segments.length > 0)
-  // Only a processing row has a bound ahead of it; every other phase is final
-  // until the row itself changes, which SWR renders on its own.
-  useStallDeadline(row?.status === 'processing' ? row.updatedAt : undefined)
+  const phase = useTranscriptPhase(row)
 
   if (!url) {
     return <Banner type="error">The transcript cannot load without an admin locale.</Banner>
@@ -103,31 +134,17 @@ export const MeditationTranscript: UIFieldClientComponent = () => {
   }
   if (!data) return <Spinner loadingText="Loading the transcript…" size="sm" />
 
-  const phase = transcriptPhase(row)
+  const notice = phase === 'completed' ? undefined : NOTICES[phase]
 
   return (
     <div className={styles.transcript}>
       <div aria-live="polite" className={styles.status} role="status">
-        {phase === 'none' && (
-          <Banner type="info">
-            No transcript yet. One is made automatically when a recording is added.
-          </Banner>
-        )}
-        {phase === 'pending' && (
-          <Banner icon={<Spinner loadingText={null} size="sm" />} type="info">
-            <strong>Transcription in progress.</strong> Turning the recording into a timestamped
-            transcript.
-          </Banner>
-        )}
-        {phase === 'stalled' && (
-          <Banner type="error">
-            <strong>Transcription stopped responding.</strong> It has not finished, and nothing is
-            still working on it.
-          </Banner>
-        )}
-        {phase === 'failed' && (
-          <Banner type="error">
-            <strong>Transcription failed.</strong> {row?.error}
+        {notice && (
+          <Banner
+            icon={notice.spinner ? <Spinner loadingText={null} size="sm" /> : undefined}
+            type={notice.type}
+          >
+            {notice.heading && <strong>{notice.heading}</strong>} {notice.detail ?? row?.error}
           </Banner>
         )}
       </div>
