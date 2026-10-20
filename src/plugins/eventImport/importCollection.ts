@@ -10,6 +10,8 @@
  * ⚠ **Access is explicit here, not a role grant.** The access plugin spreads a
  * collection's own `access` over its generated one, and a role-wide `read`
  * would show every volunteer every other region's CSV, contact details and all.
+ * A manager reads and deletes the imports whose target lies in the region
+ * subtree they may write classes in — the same subtree the picker offers.
  * `update` is closed to everyone: nothing on an import is edited after the
  * save, and the jobs write with `overrideAccess`.
  */
@@ -27,16 +29,19 @@ import { requireManagerPermission } from '@/lib/endpoints'
 import { runQueueSoon } from '@/lib/jobs/runQueueSoon'
 import { baseLanguageOrDefault, getLanguageOptions } from '@/lib/locales'
 import type { Manager } from '@/payload-types'
-import { isAdminManager } from '@/plugins/access'
+import { isAdminManager, resolveOwnedRegionIds } from '@/plugins/access'
 
 import { IMPORT_STALL_MS } from './constants'
 import { prepareUpload } from './csv/upload'
 import { targetRegionFilterOptions, validateTargetRegion } from './targetRegion'
 
-const ownOrAdmin: Access = ({ req }) => {
-  if (isAdminManager(req.user as Manager | null)) return true
-  if (req.user?.collection !== 'managers') return false
-  return { manager: { equals: req.user.id } }
+/** Imports into a region the manager may write classes in. Without a target, admins only. */
+const inEditableRegion: Access = async ({ req }) => {
+  const user = req.user as Manager | null
+  if (isAdminManager(user)) return true
+  if (req.user?.collection !== 'managers' || user?.type !== 'manager') return false
+  const regions = await resolveOwnedRegionIds(req, user.id)
+  return regions.length ? { targetRegion: { in: regions } } : false
 }
 
 /** An active manager who may create classes: what the import does on their behalf. */
@@ -92,6 +97,12 @@ const OUR_MAIN_FIELDS: Field[] = [
     maxDepth: 1,
     filterOptions: targetRegionFilterOptions,
     validate: validateTargetRegion,
+    // A region's "Import classes" link opens the create form as
+    // `?targetRegion=<id>`; the validator still refuses one the uploader may not use.
+    defaultValue: ({ req }) => {
+      const id = Number(req.query?.targetRegion)
+      return Number.isInteger(id) && id > 0 ? id : undefined
+    },
     admin: {
       position: 'sidebar',
       allowCreate: false,
@@ -168,7 +179,6 @@ const OUR_SIDEBAR_FIELDS: Field[] = [
     },
   },
   {
-    // ⚠ Named `manager`: the volunteer's own read and delete come through it.
     name: 'manager',
     type: 'relationship',
     relationTo: 'managers',
@@ -228,7 +238,7 @@ export const overrideImportCollection: NonNullable<
   labels: { singular: 'Event Import', plural: 'Event Imports' },
   // The plugin's one custom route is the CSV preview this form does not show.
   endpoints: [],
-  access: { create: classCreators, read: ownOrAdmin, update: () => false, delete: ownOrAdmin },
+  access: { create: classCreators, read: inEditableRegion, update: () => false, delete: inEditableRegion },
   upload: {
     ...(typeof collection.upload === 'object' ? collection.upload : {}),
     // One file is one import: a bulk upload would start one job per file with
@@ -248,8 +258,8 @@ export const overrideImportCollection: NonNullable<
     group: 'Classes',
     useAsTitle: 'filename',
     defaultColumns: ['filename', 'targetRegion', 'manager', 'status', 'updatedAt'],
-    // Listed for every manager: `access.read` scopes the list to their own
-    // imports, and the import page is where the skipped rows are read.
+    // Listed for every manager: `access.read` scopes the list to the imports
+    // into their regions, and the import page is where the skipped rows are read.
     custom: {
       ...collection.admin?.custom,
       jobStage: {

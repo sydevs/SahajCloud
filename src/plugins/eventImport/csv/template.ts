@@ -1,5 +1,6 @@
 /**
- * The downloadable CSV template, generated from `IMPORT_COLUMNS`.
+ * The two CSVs this feature writes, both generated from `IMPORT_COLUMNS`: the
+ * downloadable template, and an import's skipped rows to fix and upload again.
  *
  * Derived from `IMPORT_COLUMNS` so a renamed or added column cannot ship a
  * template the parser refuses — the whole reason the column spec is one
@@ -13,12 +14,13 @@
 
 import { stringify } from 'csv-stringify/sync'
 
-import {
-  IMPORT_COLUMNS,
-  UTF8_BOM,
-  type ColumnRequirement,
-  type RawImportRow,
-} from './columns'
+import { IMPORT_COLUMNS, type ColumnRequirement, type RawImportRow } from './columns'
+
+/**
+ * ⚠ Excel opens a CSV without a byte-order mark in the system's legacy code
+ * page, so every accent reads as mojibake — and is saved back that way.
+ */
+const UTF8_BOM = '\ufeff'
 
 /** What the help row prints before each column's own help text. */
 const REQUIREMENT_PREFIX: Record<ColumnRequirement, string> = {
@@ -46,6 +48,22 @@ export function buildImportTemplate(): string {
   const example = IMPORT_COLUMNS.map(({ example: value }) => value)
 
   return `${UTF8_BOM}${stringify([header, help, example])}`
+}
+
+/**
+ * Skipped rows as uploaded, in the template's columns and order, plus one for
+ * the reasons. ⚠ That column is named with the `#` prefix `checkHeader` skips
+ * (`upload.ts`), so the file goes back through the same upload unedited.
+ */
+export function skippedRowsCsv(
+  rows: readonly { row: number; reasons: readonly string[]; values: Readonly<RawImportRow> }[],
+): string {
+  const columns = IMPORT_COLUMNS.map(({ name }) => name)
+  const records = rows.map(({ row, reasons, values }) => [
+    ...columns.map((column) => values[column] ?? ''),
+    `row ${row}: ${reasons.join('; ')}`,
+  ])
+  return `${UTF8_BOM}${stringify([[...columns, '#error'], ...records])}`
 }
 
 /**

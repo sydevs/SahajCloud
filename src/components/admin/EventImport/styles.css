@@ -81,3 +81,18 @@
 .event-import__details > :not(:first-child) {
   color: var(--theme-elevation-500);
 }
+
+/* The Regions "Events" heading with its Import classes link, level with the table's own actions. */
+.relationship-table__header:has(.event-import__region-label) {
+  align-items: center;
+}
+
+.event-import__region-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--base);
+}
+
+.event-import__region-label .field-label {
+  margin: 0;
+}

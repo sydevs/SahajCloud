@@ -470,13 +470,19 @@ describe('class imports', () => {
       await expect(createImport([classLine({})], noRoles)).rejects.toThrow()
     })
 
-    it('shows a volunteer only their own imports', async () => {
+    it('shows a manager the imports into their regions, whoever uploaded them', async () => {
       const owner = await testData.createManager(payload, {
-        name: 'Germany Manager',
+        name: 'Austria Manager',
         roles: ['atlas-manager'],
       })
-      await payload.update({ collection: 'regions', id: country, data: { managers: [owner.id] } })
-      const mine = await createImport([classLine({})], owner)
+      const austria = await testData.createRegion(payload, {
+        name: 'Austria',
+        slug: 'at',
+        level: 'country',
+        managers: [owner.id],
+      })
+      const mine = await createImport([classLine({})], owner, { targetRegion: austria.id })
+      const colleagues = await createImport([classLine({})], admin, { targetRegion: austria.id })
       await createImport([classLine({})], admin)
 
       const seen = await payload.find({
@@ -485,8 +491,18 @@ describe('class imports', () => {
         overrideAccess: false,
         depth: 0,
         pagination: false,
+        sort: 'id',
       })
-      expect(seen.docs.map((doc) => doc.id)).toEqual([mine.id])
+      expect(seen.docs.map((doc) => doc.id)).toEqual([mine.id, colleagues.id])
+    })
+
+    it('opens the create form on the region a Regions page links it to', () => {
+      const field = payload.collections.imports.config.fields.find(
+        (candidate) => 'name' in candidate && candidate.name === 'targetRegion',
+      ) as { defaultValue: (args: { req: { query: Record<string, unknown> } }) => unknown }
+      expect(field.defaultValue({ req: { query: { targetRegion: String(berlin) } } })).toBe(berlin)
+      expect(field.defaultValue({ req: { query: { targetRegion: 'x' } } })).toBeUndefined()
+      expect(field.defaultValue({ req: { query: {} } })).toBeUndefined()
     })
 
     it('refuses a published API client, which is what RESTRICTED_COLLECTIONS is for', async () => {

@@ -18,7 +18,7 @@ import {
 } from '@payloadcms/ui'
 import { formatDate } from '@payloadcms/ui/shared'
 import { useRouter } from 'next/navigation'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { tableColumn } from '../helpers/tableColumn'
 
@@ -48,14 +48,9 @@ export interface ResultRow {
   error?: string
   /** What a `duplicate` row repeats: an earlier row, or a class (absent once deleted). */
   duplicateOf?: { row?: number; event?: { id: number; title: string } }
-  reasons?: string[]
-  values?: Record<string, string>
   /** The town a row was skipped for having no city region. */
   missingCity?: { name: string }
 }
-
-/** Short enough for a table cell: "Oct 19, 1:37 PM". */
-const SHORT_DATE = 'MMM d, h:mm a'
 
 /** The end of the missing-city refusal, which the page turns into a link. */
 const CREATE_IT = 'create it first'
@@ -63,21 +58,21 @@ const CREATE_IT = 'create it first'
 /** Why an approximately placed class takes no checkbox. */
 const APPROXIMATE = 'Placed at the street, not the building — open the class and check the map pin'
 
-/** A status sentence with quieter lines beneath it. */
-const withNotes = (head: string, notes: readonly string[]): React.ReactNode =>
-  notes.length ? (
+const CONFIRM_MODAL = 'event-import-confirm'
+
+const classes = (count: number) => `${count} draft ${count === 1 ? 'class' : 'classes'}`
+
+/** A first line with quieter lines beneath it. */
+const stacked = (lines: readonly React.ReactNode[]) =>
+  lines.length > 1 ? (
     <span className="event-import__details">
-      <span>{head}</span>
-      {notes.map((note) => (
-        <span key={note}>{note}</span>
+      {lines.map((line, index) => (
+        <span key={index}>{line}</span>
       ))}
     </span>
   ) : (
-    head
+    lines[0]
   )
-
-const PUBLISH_MODAL = 'event-import-publish'
-const CLEAN_UP_MODAL = 'event-import-clean-up'
 
 /**
  * Every row of an import, coloured by what became of it. The created drafts'
@@ -100,198 +95,156 @@ export const ImportResultsTable: React.FC<{
   label: StaticLabel | undefined
   path: string
   rows: ResultRow[]
+  /** The skipped rows as a file to fix and upload again, or null for none. */
+  skippedCsv: null | string
   targetId: null | number
-}> = ({ description, importId, label, path, rows, targetId }) => {
+}> = ({ description, importId, label, path, rows, skippedCsv, targetId }) => {
   const { config } = useConfig()
   const locale = useLocale()
   const { i18n } = useTranslation()
   const { openModal } = useModal()
   const router = useRouter()
-  const api = `${config.serverURL}${config.routes.api}`
+  const refresh = () => router.refresh()
 
-  // Every draft this import still holds, which Clean Up reaches when unticked.
-  const allDrafts = useMemo(
-    () => rows.flatMap(({ eventId, status }) => (status === 'draft' && eventId ? [eventId] : [])),
-    [rows],
-  )
-  // The tickable ones: an approximately placed draft is published from its
-  // own page, once its pin is checked, so it takes no checkbox.
-  const drafts = useMemo(
-    () =>
-      rows.flatMap(({ approximate, eventId, status }) =>
-        status === 'draft' && eventId && !approximate ? [eventId] : [],
-      ),
-    [rows],
-  )
+  // Every draft the import still holds, which Clean Up reaches when unticked.
+  // The tickable ones exclude an approximately placed draft: that is published
+  // from its own page, once its pin is checked.
+  const allDrafts = rows.filter((row) => row.status === 'draft' && row.eventId)
+  const drafts = allDrafts.flatMap((row) => (row.approximate ? [] : [row.eventId!]))
   // Nothing is ticked until the volunteer has looked: Publish starts at zero.
-  const [checked, setChecked] = useState<Set<number>>(() => new Set())
+  const [checked, setChecked] = useState<ReadonlySet<number>>(new Set())
   const toPublish = drafts.filter((id) => checked.has(id))
-  const toDelete = allDrafts.filter((id) => !checked.has(id))
-  const skipped = rows.filter(({ status }) => status === 'duplicate' || status === 'error')
+  const toDelete = allDrafts.flatMap((row) => (checked.has(row.eventId!) ? [] : [row.eventId!]))
+  const skipped = rows.filter((row) => row.status === 'duplicate' || row.status === 'error').length
 
   const eventDrawer = useDrawerLink('events')
   const managerDrawer = useDrawerLink('managers')
-
   // A create drawer for the city region a skipped row needed, under the target.
+  // The location is left for the volunteer to search: the field shows a bare
+  // Mapbox id as its label, and searching the name lands on the same place.
   const [newCity, setNewCity] = useState<Record<string, unknown>>()
   const [RegionDrawer, , { openDrawer: openRegionDrawer }] = useDocumentDrawer({
     collectionSlug: 'regions',
   })
-  const creatingCity = useRef(false)
-  useEffect(() => {
-    if (!creatingCity.current) return
-    creatingCity.current = false
-    openRegionDrawer()
-  }, [newCity, openRegionDrawer])
-  // The location is left for the volunteer to search: the field shows a bare
-  // Mapbox id as its label, and searching the name lands on the same place.
-  const createCity = (city: { name: string }) => {
-    creatingCity.current = true
-    setNewCity({ level: 'city', name: city.name, parent: targetId })
+
+  const [action, setAction] = useState<'clean-up' | 'publish'>('publish')
+  const publishing = action === 'publish'
+  const confirm = (next: typeof action) => {
+    setAction(next)
+    openModal(CONFIRM_MODAL)
   }
 
   const toggle = (id: number) =>
     setChecked((current) => {
       const next = new Set(current)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
+      if (!next.delete(id)) next.add(id)
       return next
     })
-  const toggleAll = () =>
-    setChecked(toPublish.length === drafts.length ? new Set() : new Set(drafts))
 
-  /** Only drafts this import created: a stale page can never touch anything else. */
-  const where = (ids: readonly number[]) =>
-    `where[and][0][id][in]=${ids.join(',')}&where[and][1][importBatch][equals]=${importId}&where[and][2][_status][equals]=draft`
-
-  const act = async (method: 'DELETE' | 'PATCH', ids: readonly number[], done: string) => {
-    // The admin locale, because the role gates are per locale (#701).
-    const response = await fetch(`${api}/events?${where(ids)}&depth=0&locale=${locale.code}`, {
-      method,
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      ...(method === 'PATCH' ? { body: JSON.stringify({ _status: 'published' }) } : {}),
-    })
+  /** Only drafts this import created, in the admin locale (#701): a stale page touches nothing else. */
+  const act = async () => {
+    const ids = publishing ? toPublish : toDelete
+    const query = `where[and][0][id][in]=${ids.join(',')}&where[and][1][importBatch][equals]=${importId}&where[and][2][_status][equals]=draft`
+    const response = await fetch(
+      `${config.serverURL}${config.routes.api}/events?${query}&depth=0&locale=${locale.code}`,
+      {
+        method: publishing ? 'PATCH' : 'DELETE',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        ...(publishing ? { body: JSON.stringify({ _status: 'published' }) } : {}),
+      },
+    )
     const body = (await response.json().catch(() => ({}))) as {
       docs?: unknown[]
       errors?: { message?: string }[]
     }
-    const succeeded = body.docs?.length ?? 0
-    if (succeeded) toast.success(`${succeeded} ${succeeded === 1 ? 'class' : 'classes'} ${done}.`)
-    for (const error of body.errors ?? []) {
+    const done = body.docs?.length ?? 0
+    if (done)
+      toast.success(
+        `${done} ${done === 1 ? 'class' : 'classes'} ${publishing ? 'published' : 'deleted'}.`,
+      )
+    for (const error of body.errors ?? [])
       toast.error(error.message ?? 'A class could not be changed.')
-    }
     if (!response.ok && !body.errors?.length) toast.error('The change could not be made.')
-    router.refresh()
+    refresh()
   }
 
-  const download = async () => {
-    const { SKIPPED_CSV_FILENAME, skippedRowsCsv } = await import(
-      '@/plugins/eventImport/csv/skippedCsv'
-    )
-    const csv = skippedRowsCsv(
-      skipped.map(({ row, reasons, values }) => ({
-        row,
-        reasons: reasons ?? [],
-        values: values ?? {},
-      })),
-    )
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+  const download = () => {
     const link = document.createElement('a')
-    link.href = url
-    link.download = SKIPPED_CSV_FILENAME
+    link.href = `data:text/csv;charset=utf-8,${encodeURIComponent(skippedCsv ?? '')}`
+    link.download = 'sahaj-atlas-skipped-lines.csv'
     link.click()
-    URL.revokeObjectURL(url)
   }
 
   const when = (iso: null | string) =>
-    iso ? formatDate({ date: iso, i18n, pattern: SHORT_DATE }) : ''
+    iso ? ` ${formatDate({ date: iso, i18n, pattern: 'MMM d, h:mm a' })}` : ''
 
-  const link = (open: (id: number) => void, id: number, text: string) => (
-    <button className="event-import__link" onClick={() => open(id)} type="button">
+  const link = (onClick: () => void, text: string) => (
+    <button className="event-import__link" onClick={onClick} type="button">
       {text || 'Untitled'}
     </button>
   )
-  const eventLink = (id: number, text: string) => link(eventDrawer.open, id, text)
+  const eventLink = (id: number, text: string) => link(() => eventDrawer.open(id), text)
 
-  const statusSentence = (row: ResultRow): React.ReactNode => {
+  const statusOf = (row: ResultRow): React.ReactNode => {
+    const notes = row.warnings ?? []
     switch (row.status) {
       case 'published':
-        return withNotes(`Published ${when(row.at)}`.trim(), [
+        return stacked([
+          `Published${when(row.at)}`,
           ...(row.unverified ? ['Listed as unverified because the class has no manager'] : []),
           ...(row.approximate ? [APPROXIMATE] : []),
-          ...(row.warnings ?? []),
+          ...notes,
         ])
       case 'draft':
-        return withNotes(`Created ${when(row.at)}`.trim(), [
+        return stacked([
+          `Created${when(row.at)}`,
           ...(row.approximate ? [`${APPROXIMATE} before publishing`] : []),
-          ...(row.warnings ?? []),
+          ...notes,
         ])
       case 'removed':
         return 'Deleted after the import'
       case 'error': {
         const error = row.error ?? ''
-        if (row.missingCity && targetId !== null && error.endsWith(CREATE_IT)) {
-          const city = row.missingCity
-          return (
-            <>
-              {`Error: ${error.slice(0, -CREATE_IT.length)}`}
-              <button className="event-import__link" onClick={() => createCity(city)} type="button">
-                {CREATE_IT}
-              </button>
-            </>
-          )
-        }
-        return `Error: ${error}`
+        const city = row.missingCity
+        if (!city || targetId === null || !error.endsWith(CREATE_IT)) return `Error: ${error}`
+        return (
+          <>
+            {`Error: ${error.slice(0, -CREATE_IT.length)}`}
+            {link(() => {
+              setNewCity({ level: 'city', name: city.name, parent: targetId })
+              openRegionDrawer()
+            }, CREATE_IT)}
+          </>
+        )
       }
-      case 'duplicate':
-        if (row.duplicateOf?.event) {
-          return <>Duplicate of {eventLink(row.duplicateOf.event.id, row.duplicateOf.event.title)}</>
-        }
-        if (row.duplicateOf?.row) return `Duplicate of row ${row.duplicateOf.row} in this file`
+      case 'duplicate': {
+        const { event, row: earlier } = row.duplicateOf ?? {}
+        if (event) return <>Duplicate of {eventLink(event.id, event.title)}</>
+        if (earlier) return `Duplicate of row ${earlier} in this file`
         return 'Duplicate of a class that has since been deleted'
+      }
     }
   }
 
-  const classes = (count: number) => `${count} draft ${count === 1 ? 'class' : 'classes'}`
+  const pill = (text: string, onClick: () => void, disabled = false) => (
+    <Button buttonStyle="pill" disabled={disabled} margin={false} onClick={onClick} size="small">
+      {text}
+    </Button>
+  )
 
   return (
     <div className="field-type event-import__results">
       <div className="event-import__results-header">
         <FieldLabel label={label} path={path} />
         <div className="event-import__results-actions">
-          {allDrafts.length ? (
+          {allDrafts.length > 0 && (
             <>
-              <Button
-                buttonStyle="pill"
-                disabled={!toPublish.length}
-                margin={false}
-                onClick={() => openModal(PUBLISH_MODAL)}
-                size="small"
-              >
-                {`Publish (${toPublish.length})`}
-              </Button>
-              <Button
-                buttonStyle="pill"
-                disabled={!toDelete.length}
-                margin={false}
-                onClick={() => openModal(CLEAN_UP_MODAL)}
-                size="small"
-              >
-                {`Clean Up (${toDelete.length})`}
-              </Button>
+              {pill(`Publish (${toPublish.length})`, () => confirm('publish'), !toPublish.length)}
+              {pill(`Clean Up (${toDelete.length})`, () => confirm('clean-up'), !toDelete.length)}
             </>
-          ) : null}
-          {skipped.length ? (
-            <Button
-              buttonStyle="pill"
-              margin={false}
-              onClick={() => void download()}
-              size="small"
-            >
-              {`Download Skipped Rows (${skipped.length})`}
-            </Button>
-          ) : null}
+          )}
+          {skipped > 0 && pill(`Download Skipped Rows (${skipped})`, download)}
         </div>
       </div>
       <Table
@@ -301,21 +254,23 @@ export const ImportResultsTable: React.FC<{
             ? [
                 tableColumn(
                   'select',
-            <CheckboxInput
-              checked={toPublish.length === drafts.length}
-              onToggle={toggleAll}
-              partialChecked={toPublish.length > 0 && toPublish.length < drafts.length}
-            />,
-            rows.map(({ approximate, eventId, status }) =>
-              status === 'draft' && eventId && !approximate ? (
-                <CheckboxInput
-                  checked={checked.has(eventId)}
-                  key={eventId}
-                  onToggle={() => toggle(eventId)}
-                />
-              ) : null,
-            ),
-          ),
+                  <CheckboxInput
+                    checked={toPublish.length === drafts.length}
+                    onToggle={() =>
+                      setChecked(new Set(toPublish.length === drafts.length ? [] : drafts))
+                    }
+                    partialChecked={toPublish.length > 0 && toPublish.length < drafts.length}
+                  />,
+                  rows.map(({ approximate, eventId, status }) =>
+                    status === 'draft' && eventId && !approximate ? (
+                      <CheckboxInput
+                        checked={checked.has(eventId)}
+                        key={eventId}
+                        onToggle={() => toggle(eventId)}
+                      />
+                    ) : null,
+                  ),
+                ),
               ]
             : []),
           tableColumn(
@@ -331,57 +286,43 @@ export const ImportResultsTable: React.FC<{
           tableColumn(
             'details',
             'Details',
-            rows.map(({ city, row, schedule }) => (
-              <span className="event-import__details" key={row}>
-                <span>{city || '—'}</span>
-                <span>{schedule}</span>
-              </span>
-            )),
+            rows.map(({ city, schedule }) => stacked([city || '—', schedule])),
           ),
           tableColumn(
             'manager',
             'Manager',
             rows.map(({ manager }) =>
-              !manager
-                ? '—'
-                : manager.id !== undefined
-                  ? link(managerDrawer.open, manager.id, manager.name)
-                  : manager.name,
+              manager?.id !== undefined
+                ? link(() => managerDrawer.open(manager.id!), manager.name)
+                : (manager?.name ?? '—'),
             ),
           ),
-          tableColumn(
-            'status',
-            'Status',
-            rows.map((row) => <span key={row.row}>{statusSentence(row)}</span>),
-          ),
+          tableColumn('status', 'Status', rows.map(statusOf)),
         ]}
         data={rows.map(({ row, status }) => ({ id: `${status}-${row}` }))}
       />
       <FieldDescription description={description} path={path} />
-      <eventDrawer.Drawer onDelete={() => router.refresh()} onSave={() => router.refresh()} />
-      <managerDrawer.Drawer onSave={() => router.refresh()} />
+      <eventDrawer.Drawer onDelete={refresh} onSave={refresh} />
+      <managerDrawer.Drawer onSave={refresh} />
       <RegionDrawer
         initialData={newCity}
         onSave={() => {
           toast.success('City created. Upload the skipped rows again to import its classes.')
-          router.refresh()
+          refresh()
         }}
       />
       <ConfirmationModal
-        body={`Publish ${classes(toPublish.length)}? They appear in the Atlas straight away.`}
-        confirmLabel={`Publish (${toPublish.length})`}
-        heading="Publish classes"
-        modalSlug={PUBLISH_MODAL}
-        onConfirm={() => act('PATCH', toPublish, 'published')}
-      />
-      <ConfirmationModal
-        body={`Delete ${classes(toDelete.length)} that ${
-          toDelete.length === 1 ? 'is' : 'are'
-        } not ticked, including any placed only at the street? This cannot be undone.`}
-        confirmLabel={`Clean Up (${toDelete.length})`}
-        heading="Clean up drafts"
-        modalSlug={CLEAN_UP_MODAL}
-        onConfirm={() => act('DELETE', toDelete, 'deleted')}
+        body={
+          publishing
+            ? `Publish ${classes(toPublish.length)}? They appear in the Atlas straight away.`
+            : `Delete ${classes(toDelete.length)} that ${toDelete.length === 1 ? 'is' : 'are'} not ticked, including any placed only at the street? This cannot be undone.`
+        }
+        confirmLabel={
+          publishing ? `Publish (${toPublish.length})` : `Clean Up (${toDelete.length})`
+        }
+        heading={publishing ? 'Publish classes' : 'Clean up drafts'}
+        modalSlug={CONFIRM_MODAL}
+        onConfirm={act}
       />
     </div>
   )

@@ -188,8 +188,8 @@ const ALL_PROJECT_COLLECTIONS: ContentSlug[] = (() => {
  *   safe.
  * - `imports` — an uploaded class CSV, kept for the retention window: contact
  *   names, phone numbers and email addresses for every class in it. The
- *   collection's own `access` narrows it to the uploader and admins
- *   (`src/plugins/eventImport/importCollection.ts`). `exports` is the same
+ *   collection's own `access` narrows it to admins and the managers of its
+ *   target region's subtree (`src/plugins/eventImport/importCollection.ts`). `exports` is the same
  *   plugin's unused twin, admin-only for the same reason.
  *
  * ⚠ **This list is a holding pattern, not the permanent mechanism.** Exactly

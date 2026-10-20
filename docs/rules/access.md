@@ -43,7 +43,7 @@ The Manager `type` field controls top-level access: `inactive` (denied), `manage
 | `meditations-editor` | Create and edit meditations, upload media |
 | `path-editor` | Edit lessons, lectures, and lecture clips. Upload media |
 | `web-translator` | Edit localized fields on pages, songs, albums (read-only otherwise) |
-| `atlas-manager` | Sahaj Atlas: read project-wide. Create, update, and trash events and regions — writes scoped to the manager's owned-region subtree, below. Start a bulk class import (`imports: create` — the grant that keeps the collection's admin pages visible to them; its own `access` block scopes read and delete to the uploader) |
+| `atlas-manager` | Sahaj Atlas: read project-wide. Create, update, and trash events and regions — writes scoped to the manager's owned-region subtree, below. Start a bulk class import (`imports: create` — the grant that keeps the collection's admin pages visible to them; its own `access` block scopes read and delete to imports whose target region is in the manager's subtree) |
 
 Manager roles are **per-locale**: a manager can hold `meditations-editor` in English and `web-translator` in Czech, and gets the matching access in each admin locale.
 
@@ -223,7 +223,7 @@ This cuts the opposite way from implicit read, above, and the obvious reading is
 
 ⚠ **`clients` is there because the same default exposed every service's credentials** (#822): a published key read every other service's decrypted `apiKey`, origin allowlist and usage counters. A service's own listed managers still reach it, through the document-manager path in `accessConfigs.ts`.
 
-⚠ **`imports` is there because an uploaded class CSV is kept for the retention window** (#907): contact names, phone numbers and email addresses for every class in it. The collection declares its own `access` block (`src/plugins/eventImport/importCollection.ts`): any manager may create, the uploader and admins read and delete, nobody updates. `exports`, the same plugin's unused twin, is admin-only and out of the nav.
+⚠ **`imports` is there because an uploaded class CSV is kept for the retention window** (#907): contact names, phone numbers and email addresses for every class in it. The collection declares its own `access` block (`src/plugins/eventImport/importCollection.ts`): any manager who may create classes may create one, admins and the managers of the target region's subtree read and delete, nobody updates. `exports`, the same plugin's unused twin, is admin-only and out of the nav.
 
 ⚠ **Restricting a collection reaches a relationship to it. It does not reach a copy of it.** Every `relationTo: 'managers'` field is covered and needs no lock of its own, because populate falls back to the bare id once the related read is refused. A field storing a manager's name or address *as a value* is not covered, and needs a field lock instead — which is the next section, and why two fields on `events` have one.
 

@@ -2,6 +2,7 @@ import type { JSONFieldServerComponent } from 'payload'
 
 import { relationId } from '@/lib/utilities/relationId'
 import type { Manager } from '@/payload-types'
+import { skippedRowsCsv } from '@/plugins/eventImport/csv/template'
 import type { ImportResultRow } from '@/plugins/eventImport/results'
 
 import { type ResultRow, type ResultStatus, ImportResultsTable } from './ImportResultsTable'
@@ -19,10 +20,10 @@ const STATUS_WORDS: Record<ResultStatus, [string, string]> = {
  * The import's result, one line per CSV row, with each created class's live
  * status: it may have been published or cleaned up since the import ran.
  *
- * ⚠ **Read past access, on purpose.** Only the uploader and admins can open an
- * import, and these are the classes it created — so "not found" here means
- * deleted, never "you may not see it". Whether a link then opens is the
- * drawer's own access check.
+ * ⚠ **Read past access, on purpose.** Only admins and the managers of the
+ * target region can open an import, and these are the classes it created there
+ * — so "not found" here means deleted, never "you may not see it". Whether a
+ * link then opens is the drawer's own access check.
  */
 export const ImportResultsField: JSONFieldServerComponent = async ({
   clientField,
@@ -126,19 +127,33 @@ export const ImportResultsField: JSONFieldServerComponent = async ({
             // A deleted original keeps no link; the drawer would open empty.
             event:
               original !== undefined && live.has(original)
-                ? { id: original, title: live.get(original)?.title || result.duplicateOf.title || '' }
+                ? {
+                    id: original,
+                    title: live.get(original)?.title || result.duplicateOf.title || '',
+                  }
                 : undefined,
           }
         : undefined,
-      reasons: result.reasons,
-      values: result.values,
       missingCity: result.missingCity,
     }
   })
 
+  const skipped = results.filter(({ outcome }) => outcome !== 'created')
+
   return (
     <ImportResultsTable
       description={summaryOf(rows)}
+      skippedCsv={
+        skipped.length
+          ? skippedRowsCsv(
+              skipped.map(({ row, reasons, values }) => ({
+                row,
+                reasons: reasons ?? [],
+                values: values ?? {},
+              })),
+            )
+          : null
+      }
       importId={data?.id as number | string}
       targetId={relationId(data?.targetRegion)}
       label={clientField.label}
