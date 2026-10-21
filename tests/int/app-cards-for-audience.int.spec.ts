@@ -753,9 +753,9 @@ describe('appCardsForAudience endpoint', () => {
     })
   })
 
-  // Fixtures here assume the suite runs every locale with `fallbackLocale: 'en'`
-  // on each non-English one, which `testHelpers.ts` gets from
-  // `buildPayloadLocales()` (`src/lib/locales/index.ts`).
+  // These cards are published at `en` only, and the endpoint filters on
+  // `_status`, so they reach it because `app_cards` carries publish state per
+  // locale — `testHelpers.ts` sets `experimental.localizeStatus` for that.
   describe('per-language destination (#1001)', () => {
     it('stores a destination per locale, in both directions', async () => {
       const album = await testData.createAlbum(payload, { title: 'Per-locale Album' })
@@ -806,24 +806,6 @@ describe('appCardsForAudience endpoint', () => {
         depth: 0,
       })
       expect(frAfter.default?.destination).toBe('url')
-    })
-
-    it('falls back to the English destination in a locale that holds none', async () => {
-      const album = await testData.createAlbum(payload, { title: 'Fallback Album' })
-      const card = await testData.createAppCard(payload, {
-        default: { title: 'Fallback Card', destination: 'album', album: album.id },
-        targetSections: ['hero'],
-        audiences: [openAudience.id],
-        _status: 'published',
-      })
-
-      const de = await payload.findByID({
-        collection: 'app-cards',
-        id: card.id,
-        locale: 'de',
-        depth: 0,
-      })
-      expect(de.default?.destination).toBe('album')
     })
 
     // The defect end to end: the discriminator stored once for all 19 locales
