@@ -627,8 +627,6 @@ Live preview integrates with the We Meditate Web frontend
 
 ### Page blocks (`src/lib/richEditor/blocks/`)
 
-- ⚠ `TextBoxBlock.wisdomStyle` never renders — its `admin.condition` reads `position`, a field the block lacks (#989).
-
 Field notes and custom block icons → `src/lib/richEditor/blocks/AGENTS.md`.
 
 ## Lessons collection ("Path Steps")

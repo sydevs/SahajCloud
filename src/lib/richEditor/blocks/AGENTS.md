@@ -87,4 +87,6 @@ can tell what the icon shows without decoding the base64.
 ## Field gotchas
 
 - `TextBoxBlock.textColor` names the TEXT: `light` means light text on a dark image (#516).
-- ⚠ `TextBoxBlock.wisdomStyle` never renders — its `admin.condition` reads `position`, a field the block lacks (#989).
+- `TextBoxBlock.wisdomStyle` shows for the side layouts and hides for `overlay`. Its condition
+  reads `imagePosition`; `position` is the legacy EditorJS name, live only inside `importData`
+  (#989).

@@ -229,7 +229,7 @@ value, so the resolver merges over English key defaults. Add a key to
 blank in every locale that has any translation at all.
 
 ```typescript
-import { buildTranslationTabs, type TranslationsSchema } from '@/fields'
+import { buildTranslationTabs, type TranslationsSchema } from '@/fields/translationsField'
 import translationsSchema from './translationsSchema.json' with { type: 'json' }
 
 export const MyTranslations: GlobalConfig = {
