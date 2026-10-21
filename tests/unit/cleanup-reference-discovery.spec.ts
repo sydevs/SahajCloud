@@ -54,7 +54,9 @@ describe('discoverReferencesForCollection', () => {
   it('records a localized upload field at its own segment', () => {
     const fields: Field[] = [{ ...media, localized: true } as Field]
 
-    expect(walk(fields)).toEqual([expect.objectContaining({ fieldPath: 'media', localizedAt: [0] })])
+    expect(walk(fields)).toEqual([
+      expect.objectContaining({ fieldPath: 'media', localizedAt: [0] }),
+    ])
   })
 
   it('names a field under a named tab without a leading dot', () => {
@@ -64,7 +66,10 @@ describe('discoverReferencesForCollection', () => {
       {
         type: 'tabs',
         tabs: [
-          { label: 'Appearance', fields: [{ type: 'tabs', tabs: [{ name: 'default', fields: [media] }] }] },
+          {
+            label: 'Appearance',
+            fields: [{ type: 'tabs', tabs: [{ name: 'default', fields: [media] }] }],
+          },
         ],
       },
     ]

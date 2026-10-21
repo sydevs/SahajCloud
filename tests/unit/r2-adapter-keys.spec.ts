@@ -89,7 +89,12 @@ describe('the R2 adapter addresses one key per object', () => {
 
     await adapter.handleUpload!({
       data: {},
-      file: { filename: 'classes.csv', buffer: Buffer.from('a\n1\n'), filesize: 4, mimeType: 'text/csv' },
+      file: {
+        filename: 'classes.csv',
+        buffer: Buffer.from('a\n1\n'),
+        filesize: 4,
+        mimeType: 'text/csv',
+      },
       req,
     } as never)
     const written = keys.at(-1)!

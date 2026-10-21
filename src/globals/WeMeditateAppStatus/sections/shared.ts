@@ -81,8 +81,7 @@ export async function getWmAppConfig(
   const key = `${locale}:${depth}`
   const ctx = (req?.context ?? {}) as Record<string, unknown>
   const existing = ctx[APP_CONFIG_CACHE_KEY] as
-    | Map<string, Promise<Record<string, unknown>>>
-    | undefined
+    Map<string, Promise<Record<string, unknown>>> | undefined
 
   if (existing?.has(key)) return existing.get(key)!
 

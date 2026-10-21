@@ -53,7 +53,9 @@ async function main(): Promise<void> {
 
   const { collection, expiresAt, origin, token: linkToken } = parseSignInLink(link)
   if (expiresAt <= new Date()) {
-    fail(`The link expired at ${expiresAt.toISOString()}. Request a new one at ${origin}/admin/login.`)
+    fail(
+      `The link expired at ${expiresAt.toISOString()}. Request a new one at ${origin}/admin/login.`,
+    )
   }
 
   const redeemed = await fetch(

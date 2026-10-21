@@ -9,7 +9,6 @@ import { sendSubmissionReview } from '@/lib/notifications/sendSubmissionReview'
 import { adminDocUrl } from '@/lib/utilities/adminUrl'
 import { relationId } from '@/lib/utilities/relationId'
 
-
 /**
  * Deliver a proposal: email the responsible manager that there is something to
  * review.
@@ -71,7 +70,12 @@ export async function deliverProposal({
 async function loadTarget(
   req: DeliveryContext['req'],
   eventId: number,
-): Promise<{ title: string | null; managerEmail: string | null; managerName: string | null; regionId: number | null } | null> {
+): Promise<{
+  title: string | null
+  managerEmail: string | null
+  managerName: string | null
+  regionId: number | null
+} | null> {
   const event = await req.payload.findByID({
     collection: 'events',
     id: eventId,

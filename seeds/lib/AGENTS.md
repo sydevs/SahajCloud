@@ -22,10 +22,10 @@ class MyImporter extends BaseImporter<BaseImportOptions> {
 ### Lifecycle hooks
 
 | Method      | Purpose                               | Default           |
-| ----------- | -------------------------------------- | ------------------ |
-| `setup()`   | Custom initialization after Payload    | No-op              |
-| `import()`  | **Required** — main import logic       | Abstract           |
-| `cleanup()` | Custom cleanup (DB connections, etc.)  | Closes Payload DB  |
+| ----------- | ------------------------------------- | ----------------- |
+| `setup()`   | Custom initialization after Payload   | No-op             |
+| `import()`  | **Required** — main import logic      | Abstract          |
+| `cleanup()` | Custom cleanup (DB connections, etc.) | Closes Payload DB |
 
 ### Core methods
 

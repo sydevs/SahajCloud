@@ -5,7 +5,6 @@ import { subscribeToMailingList } from '@/lib/mailingList/subscribe'
 import type { MailingListConfig } from '@/lib/mailingList/types'
 import { relationId } from '@/lib/utilities/relationId'
 
-
 /**
  * Deliver a subscribe submission: push the address to the target client's
  * mailing-list provider.

@@ -27,8 +27,7 @@ const CanonicalEmbedDescription: FieldDescriptionClientComponent<TextFieldClient
 
   const embedMetadata = formState['embedMetadata']?.value as EmbedMetadata | undefined
   const verification = formState['canonical.verification']?.value as
-    | CanonicalVerification
-    | undefined
+    CanonicalVerification | undefined
   const clientId = formState['id']?.value as number | string | undefined
 
   const model = useMemo(

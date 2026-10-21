@@ -36,7 +36,11 @@ import {
 } from '@/plugins/login'
 
 import { EmailTestAdapter } from '../utils/emailTestAdapter'
-import { createAnonRestClient, createRestClientWithAuth, type RestClient } from '../utils/restRequest'
+import {
+  createAnonRestClient,
+  createRestClientWithAuth,
+  type RestClient,
+} from '../utils/restRequest'
 import { testData } from '../utils/testData'
 import { createTestEnvironmentWithEmail } from '../utils/testHelpers'
 
@@ -60,8 +64,7 @@ describe('manager magic-link sign-in', () => {
   let anon: RestClient
   let cleanup: () => Promise<void>
 
-  const requestLinkFor = (email: string) =>
-    anon(REQUEST_PATH, { method: 'POST', json: { email } })
+  const requestLinkFor = (email: string) => anon(REQUEST_PATH, { method: 'POST', json: { email } })
 
   /** Open the redeem path the way a mail scanner does: a bare GET, no click. */
   const scan = (token: string) => anon(`${REDEEM_PATH}?token=${encodeURIComponent(token)}`)

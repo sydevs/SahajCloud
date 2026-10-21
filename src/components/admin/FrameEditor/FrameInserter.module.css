@@ -5,7 +5,9 @@
   border: 2px solid var(--theme-elevation-100);
   background-color: var(--theme-elevation-100);
   cursor: pointer;
-  transition: border-color 0.15s ease, transform 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    transform 0.15s ease;
 }
 
 .frame-card:hover {

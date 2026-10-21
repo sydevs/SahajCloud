@@ -1,9 +1,4 @@
-import type {
-  CollectionSlug,
-  Payload,
-  PayloadRequest,
-  SanitizedCollectionConfig,
-} from 'payload'
+import type { CollectionSlug, Payload, PayloadRequest, SanitizedCollectionConfig } from 'payload'
 
 import { randomUUID } from 'node:crypto'
 
@@ -156,7 +151,8 @@ export function sessionCookieParts(
   for (const attribute of attributes) {
     const at = attribute.indexOf('=')
     const raw = at === -1 ? undefined : attribute.slice(at + 1).trim()
-    const key = COOKIE_OPTION_KEYS[(at === -1 ? attribute : attribute.slice(0, at)).trim().toLowerCase()]
+    const key =
+      COOKIE_OPTION_KEYS[(at === -1 ? attribute : attribute.slice(0, at)).trim().toLowerCase()]
     // An attribute Payload starts sending that Next has no option for is dropped
     // rather than guessed at — every one it sends today is in the map above, and
     // the spec fails the day that stops being true.

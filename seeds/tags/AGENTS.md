@@ -27,24 +27,24 @@ PAYLOAD_SECRET=your-secret
 
 User emotional-state categories, each with a color:
 
-| Title | Slug | Color |
-|-------|------|-------|
-| Excited for the day | `excited-today` | `#FFD591` |
-| Stressed and tense | `stressed-tense` | `#DF8D7A` |
-| Sad, emotionally down | `emotionally-down` | `#DF8E7A` |
+| Title                    | Slug                | Color     |
+| ------------------------ | ------------------- | --------- |
+| Excited for the day      | `excited-today`     | `#FFD591` |
+| Stressed and tense       | `stressed-tense`    | `#DF8D7A` |
+| Sad, emotionally down    | `emotionally-down`  | `#DF8E7A` |
 | Can't wake up, lethargic | `feeling-lethargic` | `#A4D9D1` |
-| Too many thoughts | `hard-to-focus` | `#DF8D7A` |
-| ... | ... | ... |
+| Too many thoughts        | `hard-to-focus`     | `#DF8D7A` |
+| ...                      | ...                 | ...       |
 
 ### Music tags (4)
 
 Background music categories, no colors:
 
-| Title | Slug |
-|-------|------|
-| Nature | `nature` |
-| Flute | `flute` |
-| None | `none` |
+| Title   | Slug      |
+| ------- | --------- |
+| Nature  | `nature`  |
+| Flute   | `flute`   |
+| None    | `none`    |
 | Strings | `strings` |
 
 ## SVG processing
@@ -55,11 +55,13 @@ Background music categories, no colors:
 4. Uploads the SVGs as file attachments
 
 **Before** (hardcoded):
+
 ```xml
 <path fill="#FFD591" d="..." />
 ```
 
 **After** (themeable):
+
 ```xml
 <path fill="currentColor" d="..." />
 ```

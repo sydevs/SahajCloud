@@ -6,7 +6,6 @@ import { SignInLinkEmail } from '@/emails/SignInLinkEmail'
 import { headerDisplayName, stripNewlines } from '@/lib/utilities/emailSafeText'
 import { getEmailBrand, MANAGER_EMAIL_FROM, renderEmail } from '@/plugins/email'
 
-
 /**
  * The sign-in mail. Nothing here is `managers`-specific: the template brands
  * itself from `project`, which `LoginCollectionConfig.project` resolves per

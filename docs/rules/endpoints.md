@@ -58,7 +58,7 @@ The bar is high. Two endpoints clear it: `GET /api/atlas/seo` takes a **route** 
 
 A third case, `POST /api/contact-admin`, once justified itself as "stored nowhere, owned by nothing" — true only because it chose not to store anything. Once the feature needed spam screening, it needed a collection, so the endpoint was deleted and the intake became a plain create on a collection (#632, now `user-submissions`), recovering the origin checks and usage tracking it had skipped. Before reaching for a root endpoint, ask whether the resource is genuinely ownerless, or merely unpersisted. Prefer a collection endpoint whenever a collection plausibly owns the resource.
 
-**The folder path mirrors the URL.** A single-file endpoint sits at `src/endpoints/<name>.ts`. One that needs supporting modules gets a folder whose path *is* the URL, with the handler in `index.ts`:
+**The folder path mirrors the URL.** A single-file endpoint sits at `src/endpoints/<name>.ts`. One that needs supporting modules gets a folder whose path _is_ the URL, with the handler in `index.ts`:
 
 ```
 src/endpoints/atlas/seo/        →  GET /api/atlas/seo
@@ -129,7 +129,7 @@ handler: async (req) => {
 
 `requireActiveClient` returns `403` unless the caller is a **published** `clients` user. Don't hand-roll the check — it is the single source for the guard's shape and message. An endpoint that must skip it (internal or admin-only) needs a comment saying why.
 
-⚠ **Hand-rolling it also costs you the rejected-credential signal.** A `403` this guard *returns* never reaches Payload's `afterError` hook, so the guard reports a presented-and-rejected API key itself (#743) — see `docs/rules/api-clients.md`. A hand-rolled check is silent, and a dead integration hammering the endpoint stays invisible.
+⚠ **Hand-rolling it also costs you the rejected-credential signal.** A `403` this guard _returns_ never reaches Payload's `afterError` hook, so the guard reports a presented-and-rejected API key itself (#743) — see `docs/rules/api-clients.md`. A hand-rolled check is silent, and a dead integration hammering the endpoint stays invisible.
 
 **An endpoint gated on a collection permission takes `requireManagerPermission`, or `requireCollectionPermission` when an API client is a legitimate caller too** — both from `@/lib/endpoints`, differing only in whether `requireActiveManager` runs first. ⚠ **Neither replaces `requireActiveClient`**: a client-facing endpoint still calls that first, or it loses the rejected-credential signal above and, as a root endpoint, the origin and usage calls anchored to it. Never spell the permission check out at the handler — the scope it passes is `roleScopeFromLocale(req.locale)`, and `tests/unit/endpoint-permission-gate.spec.ts` fails a call written out under `src/collections/**` or `src/endpoints/**` (#701, #969).
 
@@ -170,16 +170,17 @@ The client REST surface is already protected: `validateClientQueryParamsHook` re
 - **Co-select a virtual field's dependency.** An include-mode `select` strips unselected siblings before `afterRead` runs, so a computed field reads `null` unless its own dependency is also selected — miss one and the card silently drops, rather than just slowing down.
 - **`select` cannot narrow a relationship's fields** — it is boolean-only there. Two things can, and they are not interchangeable:
   - **`defaultPopulate` on the target collection**, for a field every hydration of that collection should skip (`Lectures.defaultPopulate: { clips: false }`). It only affects relationship hydration. Direct reads and the admin edit view are unaffected.
-  - **The read's own `populate` option**, for a bound that belongs to *this* read rather than to the target collection. `LECTURE_FEED_POPULATE` (`src/lib/lectures/lectureShape.ts`) is that case: the lecture feeds return a user-choice's `id` and `title`, so they populate those two and nothing else. `user-choices` is an upload collection with a virtual URL field and several localized fields, and no other reader of it wants them skipped — so narrowing it globally would be wrong. `id` always survives, which is what lets the related-lectures ranking loop keep comparing `uc.id`.
+  - **The read's own `populate` option**, for a bound that belongs to _this_ read rather than to the target collection. `LECTURE_FEED_POPULATE` (`src/lib/lectures/lectureShape.ts`) is that case: the lecture feeds return a user-choice's `id` and `title`, so they populate those two and nothing else. `user-choices` is an upload collection with a virtual URL field and several localized fields, and no other reader of it wants them skipped — so narrowing it globally would be wrong. `id` always survives, which is what lets the related-lectures ranking loop keep comparing `uc.id`.
 
   Pair a `populate` bound with the `select` that admits the relationship, and keep the two next to each other for the same reason the select sits beside its shape helper.
+
 - **Regression-test it flat, not fast.** Spy on `payload.find` and assert the per-row sub-query count stays at zero as the pool doubles. For native joins, assert the field is absent from populated docs. A timing assertion is flaky. A count assertion pins the behavior.
 
 ## Payload endpoint vs Next.js route
 
-| Use case | Where |
-| --- | --- |
-| URL belongs under a collection, operates on that collection's docs, wants automatic Payload auth/access | `src/collections/<Name>/endpoints/*.ts` (this file) |
+| Use case                                                                                                                      | Where                                                        |
+| ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| URL belongs under a collection, operates on that collection's docs, wants automatic Payload auth/access                       | `src/collections/<Name>/endpoints/*.ts` (this file)          |
 | A webhook, health check, OpenAPI generation, seed trigger, multi-collection operation, raw request body, or Next.js streaming | `src/app/(payload)/api/**/route.ts` (`docs/rules/routes.md`) |
 
 ## Eliminating client-side race conditions

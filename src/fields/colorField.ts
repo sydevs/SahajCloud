@@ -59,4 +59,3 @@ export function colorField(options: ColorFieldOptions = {}): Field {
     },
   }
 }
-

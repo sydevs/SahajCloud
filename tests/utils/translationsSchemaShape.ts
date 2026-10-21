@@ -64,8 +64,7 @@ function declaredKeys(tabSlug: string, tabNode: SchemaNode): number {
  */
 export function schemaShape(schema: SchemaRoot): SchemaShape {
   const tabs = Object.entries(schema.properties ?? {}).filter(
-    (entry): entry is [string, SchemaNode] =>
-      entry[0].trim().length > 0 && isObjectNode(entry[1]),
+    (entry): entry is [string, SchemaNode] => entry[0].trim().length > 0 && isObjectNode(entry[1]),
   )
   // A walker that found nothing would let a seed quoting zeroes pass.
   if (tabs.length === 0) throw new Error('schemaShape walked a schema with no tabs')

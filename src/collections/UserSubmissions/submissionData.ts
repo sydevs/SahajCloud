@@ -6,7 +6,6 @@ import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
 import { CLIENT_CONTEXT_KEYS } from '@/lib/submissions/clientContext'
 import type { Form, UserSubmission } from '@/payload-types'
 
-
 /**
  * The bound on `submissionData` — the plugin's `[{ field, value }]` array,
  * which holds the free-form remainder of a submission.
@@ -106,7 +105,10 @@ export function parseOptIn(value: string | undefined): boolean {
 export const TYPE_SUBMISSION_KEYS: Record<UserSubmission['type'], readonly string[]> = {
   contact: ['subject', 'message'],
   subscribe: [],
-  registration: [...EVENT_REGISTRATION_QUESTIONS.map((question) => question.name), SUBSCRIBE_OPT_IN],
+  registration: [
+    ...EVENT_REGISTRATION_QUESTIONS.map((question) => question.name),
+    SUBSCRIBE_OPT_IN,
+  ],
   proposal: ['note'],
 }
 
@@ -246,7 +248,11 @@ export function submissionDataSchema(rules: SubmissionDataRules) {
     formFields.map((block) => [block.name, block.blockType]),
   )
   const schemas = new Map<string, z.ZodType<string | null | undefined>>()
-  for (const key of [...BASE_SUBMISSION_KEYS, ...TYPE_SUBMISSION_KEYS[type], ...blockTypes.keys()]) {
+  for (const key of [
+    ...BASE_SUBMISSION_KEYS,
+    ...TYPE_SUBMISSION_KEYS[type],
+    ...blockTypes.keys(),
+  ]) {
     schemas.set(key, valueSchemaFor(key, blockTypes.get(key), checkContent))
   }
 

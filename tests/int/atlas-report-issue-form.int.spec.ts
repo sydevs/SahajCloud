@@ -83,7 +83,10 @@ describe('Atlas report-issue form', () => {
       actionType: 'contact',
       recipient: recipient.id,
     })
-    unaddressedForm = await createForm({ title: 'Report an issue, unaddressed', actionType: 'contact' })
+    unaddressedForm = await createForm({
+      title: 'Report an issue, unaddressed',
+      actionType: 'contact',
+    })
     subscribeForm = await createForm({
       title: 'Newsletter',
       actionType: 'subscribe',
@@ -204,8 +207,7 @@ describe('Atlas report-issue form', () => {
         submission,
       })
       const args = sendUserMessageMock.mock.calls[0]?.[0] as
-        | { to?: string; answers?: { label: string; value: string }[] }
-        | undefined
+        { to?: string; answers?: { label: string; value: string }[] } | undefined
       return { outcome, to: args?.to, answers: args?.answers }
     }
 

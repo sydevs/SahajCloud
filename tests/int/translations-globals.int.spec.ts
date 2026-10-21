@@ -101,7 +101,10 @@ describe('Translations Globals Configuration', () => {
         // the wrapper this builder emits is always named after its tab.
         if (field.type === 'group' && 'name' in field) {
           for (const child of collectFieldsByPredicate(field.fields, (f) => f.type === 'json')) {
-            out.push({ field: child as JSONField, path: `${field.name}.${(child as JSONField).name}` })
+            out.push({
+              field: child as JSONField,
+              path: `${field.name}.${(child as JSONField).name}`,
+            })
           }
         } else if (field.type === 'json') {
           out.push({ field, path: field.name })
@@ -307,7 +310,10 @@ describe('Translations Globals Configuration', () => {
           continue
         }
         expect(groups, label).toHaveLength(1)
-        expect(groups[0]!.fields.every((f) => f.type === 'collapsible'), label).toBe(true)
+        expect(
+          groups[0]!.fields.every((f) => f.type === 'collapsible'),
+          label,
+        ).toBe(true)
       }
     })
 
@@ -361,7 +367,10 @@ describe('Translations Globals Configuration', () => {
           // Nested tabs wrap their sub-groups in exactly one group, whose
           // fields are one collapsible each (#705 — no inner tabs row).
           expect(groups, label).toHaveLength(1)
-          expect(groups[0]!.fields.every((f) => f.type === 'collapsible'), label).toBe(true)
+          expect(
+            groups[0]!.fields.every((f) => f.type === 'collapsible'),
+            label,
+          ).toBe(true)
         } else {
           // Leaf tabs (Countries, Online, Calendar, Share, Compact, Emails)
           // have no group wrapper.
@@ -436,7 +445,10 @@ describe('Translations Globals Configuration', () => {
         slug: 'sy-atlas-translations',
         locale: 'fr',
         publishSpecificLocale: 'fr',
-        data: { _status: 'published', countries: { title: 'Cours de méditation gratuits' } } as never,
+        data: {
+          _status: 'published',
+          countries: { title: 'Cours de méditation gratuits' },
+        } as never,
         overrideAccess: true,
       })
 

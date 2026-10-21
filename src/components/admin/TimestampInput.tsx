@@ -19,13 +19,7 @@ function hhmmssToSeconds(time: string): number | null {
 }
 
 export const TimestampInput: NumberFieldClientComponent = ({ field, readOnly }) => {
-  const {
-    name,
-    label,
-    localized,
-    required,
-    admin: { description, className, style } = {},
-  } = field
+  const { name, label, localized, required, admin: { description, className, style } = {} } = field
 
   const { value, setValue, showError } = useField<number | null>()
 
@@ -59,7 +53,13 @@ export const TimestampInput: NumberFieldClientComponent = ({ field, readOnly }) 
     }
   }, [value])
 
-  const fieldClasses = ['field-type', 'text', className, showError && 'error', readOnly && 'read-only']
+  const fieldClasses = [
+    'field-type',
+    'text',
+    className,
+    showError && 'error',
+    readOnly && 'read-only',
+  ]
     .filter(Boolean)
     .join(' ')
 

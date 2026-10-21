@@ -49,9 +49,7 @@ export interface CascadeRule {
  * }
  * ```
  */
-export function deleteChildren(
-  ...rules: CascadeRule[]
-): CollectionBeforeDeleteHook {
+export function deleteChildren(...rules: CascadeRule[]): CollectionBeforeDeleteHook {
   return async ({ id, req }) => {
     for (const rule of rules) {
       await req.payload.delete({

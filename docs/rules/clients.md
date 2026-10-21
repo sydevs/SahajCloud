@@ -36,7 +36,7 @@ Two Atlas white-label fields, split across the **Config** and **SEO** tabs. `can
 
 **Exercised for real** by `pnpm tsx scripts/verify-embed-live.ts --self-test`, which drives all four outcomes against the live API — every unit test stubs the render. Its error codes (`6002` selector timeout, `5006` network/DNS, `10000` auth) are pinned in `tests/unit/embed-verification.spec.ts`. Prose matching is a fallback only, since the messages are generic enough to be misleading.
 
-**What the marker proves, precisely.** It detects an embed that is installed and *not working* — the one thing a client-sent report can never reveal. It does **not** prove the page is honest: the attribute carries no nonce, so any host running our script can hand-write it. The trust boundary stays `allowedDomains`. What the marker buys is that a stolen key can claim a mount on the client's domain, but can't make that domain serve a marker it doesn't control.
+**What the marker proves, precisely.** It detects an embed that is installed and _not working_ — the one thing a client-sent report can never reveal. It does **not** prove the page is honest: the attribute carries no nonce, so any host running our script can hand-write it. The trust boundary stays `allowedDomains`. What the marker buys is that a stolen key can claim a mount on the client's domain, but can't make that domain serve a marker it doesn't control.
 
 ### Routing is derived, never configured (#644)
 
@@ -61,11 +61,11 @@ Vocabulary lives in `src/lib/clients/canonical.ts`, the verification contract in
 
 Admin-readonly JSON, keyed by **origin + pathname**, one record per mount (`mode`, `topLevel`, `urlWritable`, `paramPersisted`, `routing`, `lastSeen`). It stays a JSON column because nothing queries it — the ownership resolver loads every client (`pagination: false`, ~31 rows) and filters in memory. ⚠ Revisit if the client count grows an order of magnitude. A `jsonSchema` lets Payload generate the type and reject a malformed write.
 
-**Canonical viability is automatic. Canonical *identity* is not.** A human designates which discovered mount is canonical. The metadata only decides whether that mount still qualifies. This bounds tampering: a forged report can assert viability only for a mount someone already chose, never invent one the verifier hasn't seen.
+**Canonical viability is automatic. Canonical _identity_ is not.** A human designates which discovered mount is canonical. The metadata only decides whether that mount still qualifies. This bounds tampering: a forged report can assert viability only for a mount someone already chose, never invent one the verifier hasn't seen.
 
 **The body is `origin` + `pathname`, two fields.** A query string or fragment is refused, since the endpoint can only enforce "path alone" that way — except a WordPress permalink (`?p=<digits>`), where discarding it would collapse the whole site onto one mount with no way to name the operator's intended page.
 
-**The write is raw SQL, and has to be.** The other party is always another request — this route is unmetered, since `clients` is excluded from the plugin (below). Every *metered* read under the same client key increments `usage_daily_requests` on that row in autocommit, from the same pool Payload runs request transactions on, and a widget boot issues several on the same page load as the report. `payload.update` would hold the row for the life of the request transaction, so each of those blocks on `Lock: transactionid` while holding a connection that transaction may itself need. An autocommit `jsonb ||` merge has no transaction to hold the row in.
+**The write is raw SQL, and has to be.** The other party is always another request — this route is unmetered, since `clients` is excluded from the plugin (below). Every _metered_ read under the same client key increments `usage_daily_requests` on that row in autocommit, from the same pool Payload runs request transactions on, and a widget boot issues several on the same page load as the report. `payload.update` would hold the row for the life of the request transaction, so each of those blocks on `Lock: transactionid` while holding a connection that transaction may itself need. An autocommit `jsonb ||` merge has no transaction to hold the row in.
 
 ### `POST /api/clients/report`
 
@@ -74,9 +74,11 @@ The write path (`Clients/endpoints/report.ts`). Merges into the keyed object. It
 Two origin checks apply: the request's `Origin`/`Referer` must be in `allowedDomains`, and so must the reported `url`'s host — a client can only describe pages on domains it owns. `url` is origin plus pathname only. A query string or fragment is rejected (`400`, `query_or_fragment`), not stripped, since the widget already strips them and a payload carrying either means the widget is misbehaving.
 
 Rate limiting is Cloudflare's, at the edge, as for every client route. On top of that, a repeat of a recent identical observation gets `updated: false` with **no read and no write** — the widget reports on every page load, so this path carries most of the traffic.
+
 - **The cap bounds storage, never which mounts are knowable** (#639). `MAX_EMBED_MOUNTS` (50) caps what a forger can accumulate. A client at the cap still reports a new mount, evicting the least-recently-seen entry, so the held 50 reflect what is currently live. There is no 429 — refusing growth was tried first, and once ordinary traffic filled the budget an operator's intended page could never get reported. Two exceptions to eviction: the designated `canonical.embed` is never evicted, and the mount just reported can't be evicted by the write that reports it.
 
   `mergeEmbedReport` (`embedMetadata.ts`) computes the decision. The endpoint applies it in one statement — `|| $1::jsonb` merges, `- $2::text[]` deletes evicted keys. Both halves matter: `||` alone can't delete, so the column would grow unbounded while the cap stayed inert.
+
 - Registered in the OpenAPI shim but stays `x-internal` (`docs/rules/openapi.md`).
 
 Tests: `tests/unit/client-embed-metadata.spec.ts` (mount keys incl. `?p=`, the merge), `tests/unit/embed-verification.spec.ts` (marker parsing, error classification, failed/inconclusive), `tests/unit/canonical-embed-picker.spec.ts` (URL building, the three-strike ladder, picker options), `tests/int/client-canonical.int.spec.ts` (the hook, the endpoint, the job ladder, the cap, and that enabling ownership re-roots `webUrl` while `webPath` stays byte-identical).
@@ -85,11 +87,11 @@ Tests: `tests/unit/client-embed-metadata.spec.ts` (mount keys incl. `?p=`, the m
 
 `webUrl` is not one global base. It resolves to the client owning the document's region, or the nearest owning ancestor, and falls back to the We Meditate surface when nothing in the ancestry is owned. `SAHAJATLAS_URL` is no longer a canonical base anywhere — it survives only in the two live-preview URLs.
 
-| Piece | Where |
-| --- | --- |
+| Piece                                                             | Where                                                      |
+| ----------------------------------------------------------------- | ---------------------------------------------------------- |
 | The two URL shapes (`path` / `query`), and the cross-repo fixture | `src/lib/atlas/canonicalUrl.ts`, `atlas-url-contract.json` |
-| Region tree + ancestor chains, one query per request | `src/lib/atlas/regionTree.ts` |
-| Ownership: the `clients` read + nearest-ancestor walk | `src/lib/atlas/regionOwners.ts` |
+| Region tree + ancestor chains, one query per request              | `src/lib/atlas/regionTree.ts`                              |
+| Ownership: the `clients` read + nearest-ancestor walk             | `src/lib/atlas/regionOwners.ts`                            |
 
 ```
 path :  https://{domain}{mount}{webPath}   → https://wemeditate.com/map/nl/amsterdam/1204

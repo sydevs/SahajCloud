@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest'
 import { resolveThumbnailUrl } from '@/lib/utilities/thumbnailUrl'
 import type { Image } from '@/payload-types'
 
-
 describe('resolveThumbnailUrl', () => {
   // A populated thumbnail relationship. The resolver only reads `url`.
   const img = (url: string) => ({ id: 1, url }) as Image

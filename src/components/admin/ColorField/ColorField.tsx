@@ -25,13 +25,7 @@ import React, { useCallback } from 'react'
  * ```
  */
 export const ColorField: TextFieldClientComponent = ({ field, readOnly }) => {
-  const {
-    name,
-    label,
-    localized,
-    required,
-    admin: { description, className, style } = {},
-  } = field
+  const { name, label, localized, required, admin: { description, className, style } = {} } = field
 
   const { value, setValue, showError } = useField<string>()
 
@@ -44,7 +38,13 @@ export const ColorField: TextFieldClientComponent = ({ field, readOnly }) => {
     [readOnly, setValue],
   )
 
-  const fieldClasses = ['field-type', 'text', className, showError && 'error', readOnly && 'read-only']
+  const fieldClasses = [
+    'field-type',
+    'text',
+    className,
+    showError && 'error',
+    readOnly && 'read-only',
+  ]
     .filter(Boolean)
     .join(' ')
 

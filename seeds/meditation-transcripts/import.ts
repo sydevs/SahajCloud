@@ -20,12 +20,7 @@ import { getLocaleLabel, type LocaleCode } from '@/lib/locales'
 import { transcriptSegmentsSchema, type TranscriptSegment } from '@/lib/meditations/transcript'
 import { stripPreviewPrefix } from '@/plugins/storage/previewIsolation'
 
-import {
-  BaseImporter,
-  type BaseImportOptions,
-  loadJsonData,
-  type RunVerification,
-} from '../lib'
+import { BaseImporter, type BaseImportOptions, loadJsonData, type RunVerification } from '../lib'
 import { MEDITATION_TRANSCRIPTS_DATA_FILE as DATA_FILE } from '../lib/dataFiles'
 
 /** One entry of `data.json` — a source file's own keys, segments converted. */

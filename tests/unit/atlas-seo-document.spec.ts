@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { breadcrumbList, compactNode, jsonLdEscape, jsonLdGraph } from '@/endpoints/atlas/seo/jsonLd'
+import {
+  breadcrumbList,
+  compactNode,
+  jsonLdEscape,
+  jsonLdGraph,
+} from '@/endpoints/atlas/seo/jsonLd'
 import {
   buildEventSeo,
   buildRegionSeo,

@@ -142,7 +142,9 @@ describe('User submissions intake (POST /api/user-submissions)', () => {
       .mockReset()
       .mockImplementation((token: string) =>
         Promise.resolve(
-          token === 'tok-valid' ? { success: true } : { success: false, reason: 'rejected', errorCodes: [] },
+          token === 'tok-valid'
+            ? { success: true }
+            : { success: false, reason: 'rejected', errorCodes: [] },
         ),
       )
   })
@@ -401,9 +403,9 @@ describe('User submissions intake (POST /api/user-submissions)', () => {
           title: 'Long contact form',
           actionType: 'contact',
           // The plugin's `confirmationMessage` is required under the default
-        // `message` confirmation type; a redirect sidesteps building Lexical.
-        confirmationType: 'redirect',
-        redirect: { url: '/thanks' },
+          // `message` confirmation type; a redirect sidesteps building Lexical.
+          confirmationType: 'redirect',
+          redirect: { url: '/thanks' },
           fields: [
             { blockType: 'email', name: 'email', label: 'Email' },
             { blockType: 'textarea', name: 'message', label: 'Message' },
@@ -490,7 +492,9 @@ describe('User submissions intake (POST /api/user-submissions)', () => {
       // Stored, not dropped: the answer is the operator's view of the question
       // they asked.
       expect(doc.submissionData).toEqual(
-        expect.arrayContaining([expect.objectContaining({ field: 'email', value: 'visitor@gmail.com' })]),
+        expect.arrayContaining([
+          expect.objectContaining({ field: 'email', value: 'visitor@gmail.com' }),
+        ]),
       )
     })
 

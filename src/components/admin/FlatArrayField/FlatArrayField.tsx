@@ -30,8 +30,12 @@ const FlatArrayField: ArrayFieldClientComponent = ({
   readOnly,
 }) => {
   const { fields, label, labels, maxRows, name, admin: { description } = {} } = field
-  const singularLabel = (typeof labels?.singular === 'string' ? labels.singular : name).toLowerCase()
-  const pluralLabel = (typeof labels?.plural === 'string' ? labels.plural : `${singularLabel}s`).toLowerCase()
+  const singularLabel = (
+    typeof labels?.singular === 'string' ? labels.singular : name
+  ).toLowerCase()
+  const pluralLabel = (
+    typeof labels?.plural === 'string' ? labels.plural : `${singularLabel}s`
+  ).toLowerCase()
   const schemaPath = parentSchemaPath ? `${parentSchemaPath}.${name}` : name
 
   const { addFieldRow, removeFieldRow } = useForm()
@@ -63,7 +67,11 @@ const FlatArrayField: ArrayFieldClientComponent = ({
       <FieldLabel label={label} path={path} />
       <FieldError path={path} showError={showError} />
 
-      <Collapsible header={rows.length !== 1 ? `${rows.length} ${pluralLabel}` : `${rows.length} ${singularLabel}`}>
+      <Collapsible
+        header={
+          rows.length !== 1 ? `${rows.length} ${pluralLabel}` : `${rows.length} ${singularLabel}`
+        }
+      >
         {rows.map((row, i) => {
           const rowPath = `${path}.${i}`
           return (

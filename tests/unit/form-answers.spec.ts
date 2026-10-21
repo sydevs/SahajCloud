@@ -142,9 +142,9 @@ describe('buildFormAnswers', () => {
       { blockType: 'text', name: 'kept', label: 'Kept' },
     ] as Fields
 
-    expect(
-      buildFormAnswers(fields, pairs({ blank: '', whitespace: '   ', kept: 'yes' })),
-    ).toEqual([{ label: 'Kept', value: 'yes' }])
+    expect(buildFormAnswers(fields, pairs({ blank: '', whitespace: '   ', kept: 'yes' }))).toEqual([
+      { label: 'Kept', value: 'yes' },
+    ])
   })
 
   it('returns nothing for a form with no fields, and for a blob that is not a list', () => {

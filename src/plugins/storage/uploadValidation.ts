@@ -122,7 +122,10 @@ export function validateFileUpload(
     allowedMimeTypes ?? (category ? ALLOWED_MIME_TYPES[category] : undefined)
 
   // Validate MIME type
-  if (effectiveAllowedTypes && !(effectiveAllowedTypes as readonly string[]).includes(file.mimeType)) {
+  if (
+    effectiveAllowedTypes &&
+    !(effectiveAllowedTypes as readonly string[]).includes(file.mimeType)
+  ) {
     throw new FileValidationError(
       `File type '${file.mimeType}' is not allowed. Allowed types: ${(effectiveAllowedTypes as readonly string[]).join(', ')}`,
       'INVALID_MIME_TYPE',

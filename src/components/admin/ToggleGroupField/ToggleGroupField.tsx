@@ -114,8 +114,8 @@ export const ToggleGroupField: FieldClientComponent = ({ field, readOnly }) => {
 
   // Normalize value for the ToggleGroup component
   const normalizedValue = hasMany
-    ? (Array.isArray(value) ? value : []) as string[]
-    : ((value as string) || '')
+    ? ((Array.isArray(value) ? value : []) as string[])
+    : (value as string) || ''
 
   return (
     <div className={fieldClasses} id={fieldId} style={style}>

@@ -8,7 +8,11 @@ import type { Manager } from '@/payload-types'
 
 import FathomDashboard from './Dashboard/FathomDashboard'
 
-export default function AnalyticsView({ initPageResult, params, searchParams }: AdminViewServerProps) {
+export default function AnalyticsView({
+  initPageResult,
+  params,
+  searchParams,
+}: AdminViewServerProps) {
   const { req, visibleEntities, permissions, locale } = initPageResult
   const { payload } = req
   const user = req.user as Manager | null
@@ -28,11 +32,7 @@ export default function AnalyticsView({ initPageResult, params, searchParams }: 
       break
     case 'sahaj-atlas':
       content = (
-        <FathomDashboard
-          siteId="qqwctiuv"
-          siteName="sahaj+atlas"
-          title="Sahaj Atlas Analytics"
-        />
+        <FathomDashboard siteId="qqwctiuv" siteName="sahaj+atlas" title="Sahaj Atlas Analytics" />
       )
       break
     default:

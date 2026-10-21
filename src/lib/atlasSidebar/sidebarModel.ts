@@ -20,12 +20,7 @@ import type { Region } from '@/payload-types'
  * trashed event (any stage, `deletedAt` set) becomes its own bucket.
  */
 export type EventBucket =
-  | 'urgent'
-  | 'needsVerification'
-  | 'expired'
-  | 'verified'
-  | 'trashed'
-  | 'finished'
+  'urgent' | 'needsVerification' | 'expired' | 'verified' | 'trashed' | 'finished'
 
 /** Sidebar order: most-attention-needed first. */
 export const EVENT_BUCKET_ORDER: readonly EventBucket[] = [

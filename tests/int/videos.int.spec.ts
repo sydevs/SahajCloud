@@ -67,7 +67,9 @@ describe('Videos Collection — custom behavior', () => {
           title: 'Invalid Subs Video',
           // Deliberately malformed — the case asserts the field validator
           // rejects it, so it cannot be typed as a valid row.
-          subtitles: [{ startTimeMs: 'oops', endTimeMs: 1000, content: 'x' }] as unknown as Video['subtitles'],
+          subtitles: [
+            { startTimeMs: 'oops', endTimeMs: 1000, content: 'x' },
+          ] as unknown as Video['subtitles'],
         }),
       ).rejects.toThrow(/subtitles|startTimeMs/i)
     })

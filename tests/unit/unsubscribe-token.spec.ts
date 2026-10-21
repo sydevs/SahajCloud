@@ -35,9 +35,9 @@ describe('unsubscribe token', () => {
   it('rejects a tampered signature', async () => {
     const token = await signUnsubscribeToken({ submissionId: 42 }, SECRET)
     const [header, payloadB64] = token.split('.')
-    expect(
-      (await readUnsubscribeToken(`${header}.${payloadB64}.deadbeef`, SECRET)).status,
-    ).toBe('invalid')
+    expect((await readUnsubscribeToken(`${header}.${payloadB64}.deadbeef`, SECRET)).status).toBe(
+      'invalid',
+    )
   })
 
   it('rejects malformed / empty tokens', async () => {
@@ -60,6 +60,8 @@ describe('unsubscribe token', () => {
 
   it('is replay-safe: reading the same token twice yields the same claims', async () => {
     const token = await signUnsubscribeToken({ submissionId: 5 }, SECRET)
-    expect(await readUnsubscribeToken(token, SECRET)).toEqual(await readUnsubscribeToken(token, SECRET))
+    expect(await readUnsubscribeToken(token, SECRET)).toEqual(
+      await readUnsubscribeToken(token, SECRET),
+    )
   })
 })

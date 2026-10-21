@@ -29,36 +29,38 @@ pnpm seed wemeditate --clear-cache # Fresh start
 
 ## Source tables → target collections
 
-| PostgreSQL Table | Payload Collection | Tag Applied |
-|------------------|-------------------|-------------|
-| `authors` | authors | - |
-| `categories` | page-tags | - |
-| `static_pages` | pages | `static-page` |
-| `articles` | pages | `article` + category |
-| `promo_pages` | pages | `promo` |
-| `subtle_system_nodes` | pages | `subtle-system` |
-| `treatments` | pages | `treatment` |
+| PostgreSQL Table      | Payload Collection | Tag Applied          |
+| --------------------- | ------------------ | -------------------- |
+| `authors`             | authors            | -                    |
+| `categories`          | page-tags          | -                    |
+| `static_pages`        | pages              | `static-page`        |
+| `articles`            | pages              | `article` + category |
+| `promo_pages`         | pages              | `promo`              |
+| `subtle_system_nodes` | pages              | `subtle-system`      |
+| `treatments`          | pages              | `treatment`          |
 
 ## Field mappings
 
 ### Authors
-| Source | Target | Notes |
-|--------|--------|-------|
-| `author_translations.name` | `authors.name` | Localized |
-| `author_translations.title` | `authors.title` | Localized |
-| `author_translations.text` | `authors.description` | Localized |
-| `authors.country_code` | `authors.countryCode` | ISO code |
-| `authors.years_meditating` | `authors.yearsMeditating` | Number |
+
+| Source                      | Target                    | Notes     |
+| --------------------------- | ------------------------- | --------- |
+| `author_translations.name`  | `authors.name`            | Localized |
+| `author_translations.title` | `authors.title`           | Localized |
+| `author_translations.text`  | `authors.description`     | Localized |
+| `authors.country_code`      | `authors.countryCode`     | ISO code  |
+| `authors.years_meditating`  | `authors.yearsMeditating` | Number    |
 
 ### Pages
-| Source | Target | Notes |
-|--------|--------|-------|
-| `*_translations.name` | `pages.title` | Localized |
-| `*_translations.slug` | `pages.slug` | Auto-generated on conflict |
+
+| Source                        | Target          | Notes                                                                                      |
+| ----------------------------- | --------------- | ------------------------------------------------------------------------------------------ |
+| `*_translations.name`         | `pages.title`   | Localized                                                                                  |
+| `*_translations.slug`         | `pages.slug`    | Auto-generated on conflict                                                                 |
 | `*_translations.published_at` | `pages._status` | A flag, not a date. Any locale's value publishes `en`; other locales are written as drafts |
-| `*_translations.content` | `pages.content` | EditorJS → Lexical |
-| `articles.author_id` | `pages.author` | Relationship |
-| `articles.category_id` | `pages.tags` | PageTag relationship |
+| `*_translations.content`      | `pages.content` | EditorJS → Lexical                                                                         |
+| `articles.author_id`          | `pages.author`  | Relationship                                                                               |
+| `articles.category_id`        | `pages.tags`    | PageTag relationship                                                                       |
 
 ## Multi-locale support
 
@@ -71,24 +73,24 @@ Translation tables (`*_translations`) hold the locale-specific content.
 
 The import also updates the `we-meditate-web-settings` global:
 
-| Setting | Type | Description |
-|---------|------|-------------|
-| Static Pages | relationship | homePage, musicPage, classesPage, subtleSystemPage, techniquesPage, inspirationPage |
-| Navigation | relationship[] | featuredPages, footerPages |
-| Chakras | relationship | mooladhara, kundalini, swadhistan, nabhi, void, anahat, vishuddhi, agnya, sahasrara |
-| Channels | relationship | left, right, center |
+| Setting      | Type           | Description                                                                         |
+| ------------ | -------------- | ----------------------------------------------------------------------------------- |
+| Static Pages | relationship   | homePage, musicPage, classesPage, subtleSystemPage, techniquesPage, inspirationPage |
+| Navigation   | relationship[] | featuredPages, footerPages                                                          |
+| Chakras      | relationship   | mooladhara, kundalini, swadhistan, nabhi, void, anahat, vishuddhi, agnya, sahasrara |
+| Channels     | relationship   | left, right, center                                                                 |
 
 ## Content conversion
 
 EditorJS blocks convert to Lexical format via `lexicalConverter.ts`:
 
-| EditorJS Block | Lexical Node |
-|----------------|--------------|
-| `paragraph` | paragraph |
-| `header` | heading |
-| `list` | list |
-| `image` | upload |
-| `vimeo` | relationship (lectures). Each unique `vimeo_id` seeds one Lecture via the `populateFromNirmalaVidya` create hook (a synchronous NV API call). YouTube blocks are dropped, with a warning. |
+| EditorJS Block | Lexical Node                                                                                                                                                                              |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `paragraph`    | paragraph                                                                                                                                                                                 |
+| `header`       | heading                                                                                                                                                                                   |
+| `list`         | list                                                                                                                                                                                      |
+| `image`        | upload                                                                                                                                                                                    |
+| `vimeo`        | relationship (lectures). Each unique `vimeo_id` seeds one Lecture via the `populateFromNirmalaVidya` create hook (a synchronous NV API call). YouTube blocks are dropped, with a warning. |
 
 ## Troubleshooting
 
@@ -99,6 +101,7 @@ EditorJS blocks convert to Lexical format via `lexicalConverter.ts`:
 are safe to ignore.
 
 **Database cleanup issues**
+
 ```bash
 dropdb temp_wemeditate_import
 ```

@@ -88,14 +88,14 @@ are declared in `src/plugins/storage/uploadValidation.ts` bar the cap, which `ne
 has to spell as a literal, and `tests/unit/next-config-body-limit.spec.ts` pins the ordering.
 Anything above the request ceiling can never fire, because Payload refuses the body first.
 
-**Strictly under is the part that bites** (#939). Payload refuses a body only once it *exceeds*
+**Strictly under is the part that bites** (#939). Payload refuses a body only once it _exceeds_
 `requestSizeLimit`, so a cap equal to it truncates at the same byte instead, and the request ends
 mid-form — "Unexpected end of form", a 500, which is #938's symptom at a new boundary. The
 headroom above the request ceiling is read into memory before the refusal, pre-auth and twice, so
 keep it small. Payload's own refusals name no size; `uploadErrorPlugin` and `upload.responseOnLimit`
 answer both gates with one sentence that does.
 
-**The origin decides *what* is cached; the rule only decides *who may ask*.** The rule matches
+**The origin decides _what_ is cached; the rule only decides _who may ask_.** The rule matches
 every `/api/**` read that could legitimately be cached and delegates the yes/no to the response
 headers, through Edge TTL **"Use cache-control header if present, bypass cache if not"**
 (`bypass_by_default` in the API). A path the app does not stamp sends no `Cache-Control` at all,
@@ -109,8 +109,8 @@ source of truth: adding a collection, a global, or a root endpoint there is the 
 > never been added, `/api/atlas/sitemap` was stamped but uncovered, and `/api/user-choices` (#804)
 > likewise — all three served `DYNAMIC` in production while this file said otherwise.
 
-**Live rule** (Cloudflare dashboard → Caching → Cache Rules) — enabled, named *"Client read edge
-cache (Vary: Authorization)"*, and the only rule in the zone's cache phase:
+**Live rule** (Cloudflare dashboard → Caching → Cache Rules) — enabled, named _"Client read edge
+cache (Vary: Authorization)"_, and the only rule in the zone's cache phase:
 
 ```
 (http.request.method eq "GET"
@@ -125,8 +125,8 @@ cache (Vary: Authorization)"*, and the only rule in the zone's cache phase:
   else. Manager and admin reads are cookie-authenticated, carry no `Authorization`, and never
   match; neither does any write.
 - **⚠️ The `Authorization`-present condition is mandatory — never match a bare `/api/*`.**
-  `Vary: Authorization` partitions the cache per API-key *value*, but it does not isolate the
-  *absent*-header case. Without requiring the header, Cloudflare serves the cached **authed**
+  `Vary: Authorization` partitions the cache per API-key _value_, but it does not isolate the
+  _absent_-header case. Without requiring the header, Cloudflare serves the cached **authed**
   response to an **unauthenticated** request — `cf-cache-status: HIT`, `200` — even though the
   origin returns **403** for it. That is a verified production access-control bypass, and it also
   skips edge rate limiting and usage tracking.
@@ -159,7 +159,7 @@ every collection or global the app does not stamp (`clients`, `managers`, `users
 
 > **Adding a cacheable read needs no dashboard change.** A new collection, global, or root
 > endpoint becomes cacheable the moment it is listed in `CACHE_TTLS` (or stamps
-> `publicReadCacheHeaders` in-handler) and that code is deployed. To *stop* a read being cached,
+> `publicReadCacheHeaders` in-handler) and that code is deployed. To _stop_ a read being cached,
 > remove it from `CACHE_TTLS` — the app then sends no cache header and the edge bypasses it.
 > Only a genuinely new **exclusion** — a path that stamps `public` without `Vary: Authorization`,
 > as the upload routes do — needs a term on the rule.
@@ -278,12 +278,12 @@ Never paste a secret into git or email.
 
 ### Core
 
-| Variable | Notes |
-| --- | --- |
-| `PAYLOAD_SECRET` | ≥32 chars. Payload's authentication and encryption secret. |
-| `DATABASE_URL` | `postgres://user:password@host:5432/dbname` — the only required database variable. |
-| `DATABASE_POOL_MAX` | Optional, default 10. `node-postgres` `pool.max`. Size it to the Railway Postgres connection limit divided by running instances, leaving headroom for in-process migrations and `psql`. |
-| `DB_QUERY_LOGGING` | Optional, default false, **local dev only** — force-disabled when `NODE_ENV=production` (every Railway build, previews included). Logs Drizzle SQL and bound params. ⚠️ It logs bound params — emails, tokens, API keys. Never enable it against real or cloned production data. Use Railway's `log_min_duration_statement` for server-side timings there instead. |
+| Variable                     | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PAYLOAD_SECRET`             | ≥32 chars. Payload's authentication and encryption secret.                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `DATABASE_URL`               | `postgres://user:password@host:5432/dbname` — the only required database variable.                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `DATABASE_POOL_MAX`          | Optional, default 10. `node-postgres` `pool.max`. Size it to the Railway Postgres connection limit divided by running instances, leaving headroom for in-process migrations and `psql`.                                                                                                                                                                                                                                                                                                                                    |
+| `DB_QUERY_LOGGING`           | Optional, default false, **local dev only** — force-disabled when `NODE_ENV=production` (every Railway build, previews included). Logs Drizzle SQL and bound params. ⚠️ It logs bound params — emails, tokens, API keys. Never enable it against real or cloned production data. Use Railway's `log_min_duration_statement` for server-side timings there instead.                                                                                                                                                         |
 | `EVENT_VERIFICATION_ENABLED` | Optional, default true. Set it to `false` or `0`, in any case, to pause the nightly `ExpireEvents` sweep: it sends no reminder and unpublishes, trashes or finishes nothing. The cron entry stays registered, so the variable plus a redeploy is the whole toggle. PR previews inherit production variables, so they pause too. It pauses that job only — an ended event stays `unverified`, so `SendPostEventFollowUps` keeps asking its registrants for feedback, and enough denials still unpublish the listing (#819). |
 
 ### Storage and Cloudflare services
@@ -404,26 +404,26 @@ and Sentry for new errors, and watch Postgres and R2 usage.
 
 ## Troubleshooting
 
-| Symptom | Diagnose | Fix |
-| --- | --- | --- |
-| Deploy fails or hangs | `railway logs -s sahajcloud --tail`, `railway variables list` | Fix the reported error, then `git push origin main` to redeploy |
-| DB connection fails (`ENOTFOUND` / `ECONNREFUSED`) | `railway services list`, `psql "$DATABASE_URL" -c "SELECT 1;"` | Fix `DATABASE_URL` (`postgres://user:password@host:5432/dbname`) or, on a private network, verify Postgres is reachable |
-| Migrations don't run (tables missing, `payload_migrations` empty) | `ls src/migrations/`, verify `prodMigrations` is in `src/payload.config.ts`, `railway logs -s sahajcloud --tail \| grep -i migrat` | A failed migration stops the server. Read the Drizzle/Payload error in the logs and fix it |
-| Email not sending | `railway variables get RESEND_API_KEY`, then test the Resend API directly with `curl` | Review the Resend dashboard for bounces and rate limits |
-| High error rate | Sentry, then `railway logs -s sahajcloud --tail \| grep -i error` | Review recent changes and env vars. Roll back if critical (see [RAILWAY_RUNBOOK.md § Disaster Recovery & Rollback](./RAILWAY_RUNBOOK.md#disaster-recovery--rollback)) |
+| Symptom                                                           | Diagnose                                                                                                                           | Fix                                                                                                                                                                   |
+| ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Deploy fails or hangs                                             | `railway logs -s sahajcloud --tail`, `railway variables list`                                                                      | Fix the reported error, then `git push origin main` to redeploy                                                                                                       |
+| DB connection fails (`ENOTFOUND` / `ECONNREFUSED`)                | `railway services list`, `psql "$DATABASE_URL" -c "SELECT 1;"`                                                                     | Fix `DATABASE_URL` (`postgres://user:password@host:5432/dbname`) or, on a private network, verify Postgres is reachable                                               |
+| Migrations don't run (tables missing, `payload_migrations` empty) | `ls src/migrations/`, verify `prodMigrations` is in `src/payload.config.ts`, `railway logs -s sahajcloud --tail \| grep -i migrat` | A failed migration stops the server. Read the Drizzle/Payload error in the logs and fix it                                                                            |
+| Email not sending                                                 | `railway variables get RESEND_API_KEY`, then test the Resend API directly with `curl`                                              | Review the Resend dashboard for bounces and rate limits                                                                                                               |
+| High error rate                                                   | Sentry, then `railway logs -s sahajcloud --tail \| grep -i error`                                                                  | Review recent changes and env vars. Roll back if critical (see [RAILWAY_RUNBOOK.md § Disaster Recovery & Rollback](./RAILWAY_RUNBOOK.md#disaster-recovery--rollback)) |
 
 ---
 
 ## Cost Monitoring
 
-| Service | Plan | Expected cost |
-| --- | --- | --- |
-| Railway | Standard usage | $5–20/month |
-| Postgres | Railway built-in | included |
-| R2 | 10GB+ storage | $1–5/month |
-| Resend | 3k emails/month | $0/month |
-| Sentry | Free tier | $0/month |
-| **Total** | | **$6–25/mo** |
+| Service   | Plan             | Expected cost |
+| --------- | ---------------- | ------------- |
+| Railway   | Standard usage   | $5–20/month   |
+| Postgres  | Railway built-in | included      |
+| R2        | 10GB+ storage    | $1–5/month    |
+| Resend    | 3k emails/month  | $0/month      |
+| Sentry    | Free tier        | $0/month      |
+| **Total** |                  | **$6–25/mo**  |
 
 Railway bills per-minute resource usage (CPU, memory, bandwidth). Production typically runs
 $10–15/month. Watch usage in the Railway dashboard (resource usage, Postgres disk, deploy

@@ -16,12 +16,12 @@ environment via the seed API.
 
 ## Overview & status
 
-| Phase                        | Scope                                                                          | Status      |
-| ---------------------------- | ------------------------------------------------------------------------------ | ----------- |
-| **1 — Data export**          | Decide keep/discard. Extract `seeds/atlas/data/*.json` in target-shaped format | **done** ✅ |
+| Phase                        | Scope                                                                          | Status                                                   |
+| ---------------------------- | ------------------------------------------------------------------------------ | -------------------------------------------------------- |
+| **1 — Data export**          | Decide keep/discard. Extract `seeds/atlas/data/*.json` in target-shaped format | **done** ✅                                              |
 | **2 — Collections & schema** | Create collections + nested-docs plugin + Payload migration                    | #457 (new collections). #462 (extend Managers + Clients) |
-| **3 — Seed importer**        | `seeds/atlas/import.ts` reads the JSON into Payload                            | **done** ✅ (#479) |
-| **4 — Verification**         | Counts, referential integrity, spot-checks against a seeded env                | planned     |
+| **3 — Seed importer**        | `seeds/atlas/import.ts` reads the JSON into Payload                            | **done** ✅ (#479)                                       |
+| **4 — Verification**         | Counts, referential integrity, spot-checks against a seeded env                | planned                                                  |
 
 ## Phases
 
@@ -78,7 +78,7 @@ mappings below).
 - **Event title**: Payload forbids a virtual field as `useAsTitle`, so
   Atlas `customName` becomes a stored, **localized** `title`. A
   `beforeChange` hook auto-fills an empty title with `"<prefix> <first
-  comma-segment of street>"`. The prefix ("Meditation at") is a per-locale,
+comma-segment of street>"`. The prefix ("Meditation at") is a per-locale,
   admin-editable string in the `sy-atlas-translations` global (with an
   English code default). A live placeholder mirroring the typed address
   needs a custom field component — **follow-up**.
@@ -151,25 +151,25 @@ environment.
 ## Keep / discard decisions (18 source tables)
 
 | Table                   | Rows          | Decision          | Target                                                      |
-| ----------------------- | ------------- | ------------------ | ----------------------------------------------------------- |
+| ----------------------- | ------------- | ----------------- | ----------------------------------------------------------- |
 | `events`                | 511           | **KEEP**          | `events.json` → new Events                                  |
 | `registrations`         | 886           | **KEEP**          | `registrations.json` → new Registrations                    |
 | `countries`             | 29            | **KEEP**          | `regions.json` (level=country)                              |
-| `regions`               | 100           | **KEEP**          | `regions.json` (level=region)                                |
-| `areas`                 | 353           | **KEEP**          | `regions.json` (level=area)                                  |
+| `regions`               | 100           | **KEEP**          | `regions.json` (level=region)                               |
+| `areas`                 | 353           | **KEEP**          | `regions.json` (level=area)                                 |
 | `venues`                | 507 → **407** | **KEEP (pruned)** | `venues.json` → new Venues (only event-referenced)          |
 | `users`                 | 910           | **KEEP**          | `users.json` → new Users                                    |
 | `managers`              | 327           | **KEEP**          | `managers.json` → existing Managers                         |
 | `managed_records`       | 202           | **KEEP (folded)** | merged into `managers.json` as `customResourceAccess`       |
 | `pictures`              | 142 → **134** | **KEEP (pruned)** | `pictures.json` → re-upload to Images (8 orphans dropped)   |
 | `clients`               | 25            | **KEEP**          | `clients.json` → existing Clients/Services (secret dropped) |
-| `conversations`         | 30            | **DISCARD**       | user-specified                                               |
-| `audits`                | 144           | **DISCARD**       | user-specified                                               |
-| `area_venues`           | 722           | **DISCARD**       | derived geo-containment join, regenerable                    |
-| `passwordless_sessions` | 144           | **DISCARD**       | ephemeral auth tokens                                        |
-| `stashes`               | 1             | **DISCARD**       | cron bookkeeping                                              |
-| `ar_internal_metadata`  | 1             | **DISCARD**       | Rails internal                                                |
-| `schema_migrations`     | 22            | **DISCARD**       | Rails internal                                                |
+| `conversations`         | 30            | **DISCARD**       | user-specified                                              |
+| `audits`                | 144           | **DISCARD**       | user-specified                                              |
+| `area_venues`           | 722           | **DISCARD**       | derived geo-containment join, regenerable                   |
+| `passwordless_sessions` | 144           | **DISCARD**       | ephemeral auth tokens                                       |
+| `stashes`               | 1             | **DISCARD**       | cron bookkeeping                                            |
+| `ar_internal_metadata`  | 1             | **DISCARD**       | Rails internal                                              |
+| `schema_migrations`     | 22            | **DISCARD**       | Rails internal                                              |
 
 ## Field mappings & transforms
 
@@ -261,8 +261,8 @@ see [AGENTS.md](AGENTS.md#website-selection-rules-584).
 - **`schedule`**: parsed from `recurrence_data` (two Ruby-YAML dialects:
   old `:symbol:` keys + ISO dates. New string keys + human dates like
   `August 19, 2023`). Shape: `{frequency: 'daily'|'weekly'|'monthly',
-  interval, weekNumber, weekday, startDate (ISO), startTime (HH:MM), endDate
-  (ISO|null), endTime}`. Types seen: `daily`, `weekly_1`, `weekly_2`
+interval, weekNumber, weekday, startDate (ISO), startTime (HH:MM), endDate
+(ISO|null), endTime}`. Types seen: `daily`, `weekly_1`, `weekly_2`
   (interval 2), `monthly_1st` (weekNumber 1). `null` for the 18 inactive
   events with no recurrence. Phase 3 maps this to the project
   `scheduleFields` (rrule-based).
@@ -278,7 +278,7 @@ see [AGENTS.md](AGENTS.md#website-selection-rules-584).
 > cleared them on reactivation**, so they are stale on almost every row: 287
 > of 289 `archived_at` and 295 of 297 `expired_at` values are superseded by
 > a later `verified_at`, and all 12 events with a `finished_at` but `status:
-> 0` were re-verified afterwards. Never derive state from one of these
+0` were re-verified afterwards. Never derive state from one of these
 > timestamps alone — check it against `verified_at` first
 > (`isCurrentLifecycleFlag` in `helpers/verification.ts`). The only place
 > the importer acts on one is `archived_at` when nothing supersedes it,
@@ -315,7 +315,7 @@ see [AGENTS.md](AGENTS.md#website-selection-rules-584).
 all 327 records.)
 
 - **`managed_records`** (region responsibility): array of `{level,
-  legacyId}` geo refs. `record_type` `Area`/`LocalArea` → `area`, `Region` →
+legacyId}` geo refs. `record_type` `Area`/`LocalArea` → `area`, `Region` →
   `region`, `Country` → `country`. Orphan refs (1 `LocalArea` → missing
   area 59) are dropped. Duplicates deduped. Phase 3 resolves each to a
   `regions` doc and **adds this manager to that region's `managers`** (the
@@ -325,7 +325,7 @@ all 327 records.)
 - **Payload mapping (Phase 2/3, #462):** `languageCode` (UPPER → lower
   ISO-639-1). `contactDetails` ← `contactMethod` ∈ (whatsapp, telegram,
   wechat) → `[{ platform: contactMethod, identifier: phone, verified:
-  phoneVerified }]` (a `contactMethod` of `email` produces no entry).
+phoneVerified }]` (a `contactMethod` of `email` produces no entry).
   `notificationPreferences` ← the `notifications` bitmask + `contactMethod`,
   with the type remap `new_managed_record`→`invitation`,
   `event_verification`→`event_verification`,
@@ -356,7 +356,7 @@ adds a `region` relationship field (relationTo `regions`) to Clients.
   `config.primary_color` (`color2`/`color3` ship empty — not in the
   extract). `locale` ← `config.locale` (ISO-639-1, any language). `region`
   ← `location` geo ref → `regions` doc. `legacyConfig` ← `{ routing_type,
-  embed_type, default_view }` (readOnly json — `config.default_view` is
+embed_type, default_view }` (readOnly json — `config.default_view` is
   folded in here, not separately dropped).
   - **Superseded by #633.** `legacyConfig` is gone — the field, the
     column, and the importer write. Keeping a second, contradictory source
@@ -384,20 +384,20 @@ Images, linking it to the event.
 
 ## Open items / dependencies
 
-| Item                                                          | Status |
-| -------------------------------------------------------------- | ------ |
-| `GCLOUD_BUCKET` value for image URLs                          | **resolved**: `sahaj-atlas` |
-| GCS objects still live/public at import time                  | open — check in Phase 3 |
-| `area_venues` discard                                         | **resolved**: discard (derived) |
-| `geojson` / `bounds` retention                                | **resolved**: drop both. `osm_id` kept in `legacyData` only (geo identity is now the Mapbox `mapboxId`) |
-| Regions `mapboxId` resolution (Phase 3)                       | **resolved (#479)** — `src/lib/mapbox/geocoder.ts` forward-geocodes each node via the Search Box `/forward` endpoint (the id-space `AddressSearchField` round-trips), `types` scoped per level + coordinate-biased. Verified live: 29/29 countries + 100/100 regions resolve. Miss fallback: `manual` sentinel + legacy coords (cities/centers) → untyped centroid search (coordless countries/regions) → `manual` + null coords with a logged warning for cleanup. |
-| `eventType` representation                                    | **resolved**: enum `offline`/`online` |
-| jsonb columns parsed (not stringified)                        | **resolved** |
-| Atlas client geo scope mapping                                | **resolved**: → `regions` ref |
-| `mailing_list` Brevo `api_key` in repo                        | **resolved**: keep only `mailingService` (e.g. `brevo`). Drop key + list_id + copy |
-| `translations` (~250 langs)                                   | **resolved**: dropped entirely — derive from a package downstream |
-| Clients secret handling                                       | **resolved**: drop `secret_key`. Keep `public_key` as `clientId` (reference-only) |
-| Clients API-key impedance (Atlas pair vs. single Payload key) | open — decide in Phase 2/3 |
+| Item                                                          | Status                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GCLOUD_BUCKET` value for image URLs                          | **resolved**: `sahaj-atlas`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| GCS objects still live/public at import time                  | open — check in Phase 3                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `area_venues` discard                                         | **resolved**: discard (derived)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `geojson` / `bounds` retention                                | **resolved**: drop both. `osm_id` kept in `legacyData` only (geo identity is now the Mapbox `mapboxId`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| Regions `mapboxId` resolution (Phase 3)                       | **resolved (#479)** — `src/lib/mapbox/geocoder.ts` forward-geocodes each node via the Search Box `/forward` endpoint (the id-space `AddressSearchField` round-trips), `types` scoped per level + coordinate-biased. Verified live: 29/29 countries + 100/100 regions resolve. Miss fallback: `manual` sentinel + legacy coords (cities/centers) → untyped centroid search (coordless countries/regions) → `manual` + null coords with a logged warning for cleanup.                                                                                                                                                                                                                                                                                   |
+| `eventType` representation                                    | **resolved**: enum `offline`/`online`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| jsonb columns parsed (not stringified)                        | **resolved**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Atlas client geo scope mapping                                | **resolved**: → `regions` ref                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `mailing_list` Brevo `api_key` in repo                        | **resolved**: keep only `mailingService` (e.g. `brevo`). Drop key + list_id + copy                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `translations` (~250 langs)                                   | **resolved**: dropped entirely — derive from a package downstream                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| Clients secret handling                                       | **resolved**: drop `secret_key`. Keep `public_key` as `clientId` (reference-only)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| Clients API-key impedance (Atlas pair vs. single Payload key) | open — decide in Phase 2/3                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `CLOUDFLARE_STREAM_WEBHOOK_SECRET` on Railway (infra #466)    | **resolved (deferred to cutover)**. Leave it **entirely unset** in Railway. Do **not** add it as a blank variable: an empty value fails the schema's `min(32)` check and breaks the pre-deploy (this was the blank "ghost" var. Removing it made the deploy green). Set it only **post-cutover**: the Stream webhook is account-scoped and shared with the still-running Cloudflare Worker, so rotating it early breaks the live Worker. At cutover, rotate + capture it (`scripts/setup-stream-webhook.ts --url https://cloud.sydevelopers.com/api/webhooks/cloudflare-stream --force`) and set it via `railway variables --set`. The app boots fine without it (the webhook route 503s. New videos just won't auto-enable MP4 downloads until set). |
 
 ## Verification
@@ -412,7 +412,7 @@ Images, linking it to the event.
 - **Spot-checks**: a `weekly_1` event's `schedule` has the right weekday.
   one area with `region_id=null` parents to its country, one with
   `region_id` to its region. `administrator=true` managers show `type:
-  'admin'`. A `pictures.sourceUrl` returns HTTP 200 (Phase 3). No `api_key`
+'admin'`. A `pictures.sourceUrl` returns HTTP 200 (Phase 3). No `api_key`
   string appears in `regions.json`.
 - **JSON validity**: all 8 files parse. No embedded-newline corruption in
   `events.description`.

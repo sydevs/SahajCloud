@@ -327,9 +327,7 @@ describe('lecturesForAudience endpoint', () => {
 
   describe('userChoices (#526)', () => {
     const findUserChoiceLecture = (body: unknown) =>
-      (body as { docs: LecturePlayerData[] }).docs.find(
-        (d) => d.id === lectureWithUserChoices.id,
-      )
+      (body as { docs: LecturePlayerData[] }).docs.find((d) => d.id === lectureWithUserChoices.id)
 
     it('returns each membership as an id and a title', async () => {
       const { body } = await callEndpoint(payload, { limit: 100 }, undefined, {

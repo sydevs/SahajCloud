@@ -1,5 +1,4 @@
 #!/usr/bin/env tsx
- 
 
 /**
  * Setup Test Database for Migration Scripts
@@ -69,7 +68,6 @@ async function setupTestDatabase() {
     console.log(`  Lessons: ${lessonsCount.totalDocs} documents`)
     console.log(`  Images: ${imagesCount.totalDocs} documents`)
     console.log('✓ Database verification complete')
-
   } catch (error) {
     console.error('❌ Error setting up test database:', error)
     throw error

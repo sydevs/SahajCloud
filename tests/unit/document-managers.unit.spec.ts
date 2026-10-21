@@ -143,7 +143,10 @@ describe('resolveManagedDocIds is memoized per request', () => {
     // Six callers, one roots query and one descendants query between them.
     expect(find).toHaveBeenCalledTimes(2)
     expect(find).toHaveBeenCalledWith(
-      expect.objectContaining({ collection: 'regions', where: { or: [{ managers: { in: [99] } }] } }),
+      expect.objectContaining({
+        collection: 'regions',
+        where: { or: [{ managers: { in: [99] } }] },
+      }),
     )
     // Copy before sorting: all six entries are the same memoized array, and
     // `resolveManagedDocIds` no longer hands each caller a fresh one.

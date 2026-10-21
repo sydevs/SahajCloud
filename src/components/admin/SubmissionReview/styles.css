@@ -13,7 +13,6 @@
   flex-shrink: 0;
 }
 
-
 /* The state, named. Inherits the banner's colour so it can't drift from it. */
 .event-submission-status__title {
   display: block;

@@ -56,7 +56,12 @@ export function buildSmtpTransportOptions(url: string): SmtpTransportOptions {
     port,
     secure,
     ...(parsed.username
-      ? { auth: { user: decodeURIComponent(parsed.username), pass: decodeURIComponent(parsed.password) } }
+      ? {
+          auth: {
+            user: decodeURIComponent(parsed.username),
+            pass: decodeURIComponent(parsed.password),
+          },
+        }
       : {}),
   }
 }

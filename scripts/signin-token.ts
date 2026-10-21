@@ -54,7 +54,10 @@ export function parseSignInLink(link: string): SignInLink {
  * none. `payload-token` is `${cookiePrefix}-token` under the default prefix,
  * which `src/payload.config.ts` keeps.
  */
-export function sessionTokenFrom(setCookies: string[], cookieName = 'payload-token'): null | string {
+export function sessionTokenFrom(
+  setCookies: string[],
+  cookieName = 'payload-token',
+): null | string {
   for (const cookie of setCookies) {
     const [pair] = cookie.split(';')
     const separator = pair!.indexOf('=')

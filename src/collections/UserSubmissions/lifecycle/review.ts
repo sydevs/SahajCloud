@@ -152,7 +152,10 @@ export async function applyReview(args: {
       context: { skipWriteGuard: true },
       req,
     })
-    const updated = await decide('accepted', `Accepted — changes applied to event #${targetEventId}`)
+    const updated = await decide(
+      'accepted',
+      `Accepted — changes applied to event #${targetEventId}`,
+    )
     return { status: 'accepted', outcome: 'updated', submission: updated, eventId: targetEventId }
   }
 

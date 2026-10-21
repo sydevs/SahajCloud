@@ -149,7 +149,8 @@ export async function issueMagicLink({
   // nothing, as ever.
   if (hasAcceptedFlag(payload, slug) && account._verified !== true) {
     const invitations = await composeInvitations({ config, doc: account, now, payload })
-    for (const invitation of invitations) await payload.sendEmail({ to: account.email, ...invitation })
+    for (const invitation of invitations)
+      await payload.sendEmail({ to: account.email, ...invitation })
     return
   }
 
@@ -204,7 +205,12 @@ export async function mintSignInLink({
  * Record the instant a link is minted. The stamp is the link's nonce, its
  * throttle window, and what a fresh request overwrites — see `magicLinkIssuedAt`.
  */
-async function stampIssuedAt(payload: Payload, slug: CollectionSlug, id: number | string, now: Date) {
+async function stampIssuedAt(
+  payload: Payload,
+  slug: CollectionSlug,
+  id: number | string,
+  now: Date,
+) {
   await payload.update({
     collection: slug,
     id,

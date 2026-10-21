@@ -10,10 +10,7 @@ const bodySchema = z.object({
   // `isValidProject` is the membership check, and `''` is not a member.
   //
   // The refine sits on the field, so its predicate narrows `parsed.data`.
-  currentProject: z
-    .string()
-    .nullable()
-    .refine(isValidProject, { message: 'Invalid project.' }),
+  currentProject: z.string().nullable().refine(isValidProject, { message: 'Invalid project.' }),
 })
 
 /**

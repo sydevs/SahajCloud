@@ -19,14 +19,7 @@ import type { Config } from 'payload'
 type LogArgument = unknown
 type LogBindings = Record<string, unknown>
 
-export type WorkerSafeLogLevel =
-  | 'silent'
-  | 'fatal'
-  | 'error'
-  | 'warn'
-  | 'info'
-  | 'debug'
-  | 'trace'
+export type WorkerSafeLogLevel = 'silent' | 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace'
 
 type LoggerMethod = 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal'
 

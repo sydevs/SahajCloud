@@ -327,8 +327,8 @@ describe('entry order', () => {
     // unsorted output groups them (blocks first, then scalars in the order
     // microdiff walked the patch), so it cannot pass by coincidence.
     const order = ['address', 'contactPhone', 'languages', 'description']
-    const reordered = order.map(
-      (name) => EVENT_FIELDS.find((entry) => 'name' in entry && entry.name === name)!,
+    const reordered = order.map((name) =>
+      EVENT_FIELDS.find((entry) => 'name' in entry && entry.name === name)!,
     )
     const changes = buildProposedChanges({ before: {}, after: PATCH, fields: reordered })
     expect(changes.map((change) => change.label)).toEqual([
@@ -399,7 +399,11 @@ describe('group blocks', () => {
     // submission and another on an update — and the diff called the reshuffle
     // a change.
     const scrambled = {
-      schedule: { recurrenceType: 'WEEKLY', endTime: '20:00', firstDate: '2026-09-03T16:30:00.000Z' },
+      schedule: {
+        recurrenceType: 'WEEKLY',
+        endTime: '20:00',
+        firstDate: '2026-09-03T16:30:00.000Z',
+      },
     }
     const [change] = buildProposedChanges({ before: {}, after: scrambled, fields: EVENT_FIELDS })
     const keys = (change.after ?? '').split('\n').map((line) => line.split(':')[0])

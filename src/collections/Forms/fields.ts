@@ -29,12 +29,7 @@ export function formFields({ defaultFields }: { defaultFields: Field[] }): Field
     (field) => !('name' in field && field.name === 'emails'),
   )
 
-  return [
-    ...withoutEmails.map(localizePerLanguage),
-    actionTypeField,
-    recipientField,
-    clientField,
-  ]
+  return [...withoutEmails.map(localizePerLanguage), actionTypeField, recipientField, clientField]
 }
 
 /**

@@ -161,7 +161,11 @@ const PayloadLinkPlugin: React.FC = () => {
           return true
         }
 
-        const fields = { linkType: 'custom' as const, url: payload.fields?.url ?? '', newTab: false }
+        const fields = {
+          linkType: 'custom' as const,
+          url: payload.fields?.url ?? '',
+          newTab: false,
+        }
         const nodes = selection.getNodes()
         const firstNode = nodes[0]
         const parent = firstNode?.getParent()
@@ -215,7 +219,10 @@ const Toolbar: React.FC<{ readOnly?: boolean }> = ({ readOnly }) => {
   const applyLink = useCallback(() => {
     const url = pendingUrl.trim()
     if (url) {
-      editor.dispatchCommand(TOGGLE_LINK_COMMAND, { fields: { linkType: 'custom', url, newTab: false }, text: null })
+      editor.dispatchCommand(TOGGLE_LINK_COMMAND, {
+        fields: { linkType: 'custom', url, newTab: false },
+        text: null,
+      })
     }
     setLinkInputVisible(false)
     setPendingUrl('')
@@ -292,10 +299,22 @@ const Toolbar: React.FC<{ readOnly?: boolean }> = ({ readOnly }) => {
             placeholder="https://..."
             aria-label="Link URL"
           />
-          <button type="button" onMouseDown={(e) => { e.preventDefault(); applyLink() }}>
+          <button
+            type="button"
+            onMouseDown={(e) => {
+              e.preventDefault()
+              applyLink()
+            }}
+          >
             Apply
           </button>
-          <button type="button" onMouseDown={(e) => { e.preventDefault(); cancelLink() }}>
+          <button
+            type="button"
+            onMouseDown={(e) => {
+              e.preventDefault()
+              cancelLink()
+            }}
+          >
             Cancel
           </button>
         </div>

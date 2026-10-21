@@ -68,7 +68,9 @@ const SubmissionActions: React.FC = () => {
   const modified = useFormModified()
   const { code: locale } = useLocale()
   const status = useFormFields(([fields]) => fields?.status?.value as SubmissionStatus | undefined)
-  const type = useFormFields(([fields]) => fields?.type?.value as UserSubmission['type'] | undefined)
+  const type = useFormFields(
+    ([fields]) => fields?.type?.value as UserSubmission['type'] | undefined,
+  )
   const [busy, setBusy] = useState<Action | null>(null)
 
   const run = useCallback(

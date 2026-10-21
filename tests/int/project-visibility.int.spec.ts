@@ -37,14 +37,38 @@ describe('Project Visibility System', () => {
       if (typeof hiddenFn === 'function') {
         // Using admin mock objects to test project visibility logic
         // Note: collection: 'managers' required for bypass function to recognize admin users
-         
-        expect(hiddenFn({ user: { collection: 'managers', type: 'admin', currentProject: 'wemeditate-web' } as any })).toBe(false)
-         
-        expect(hiddenFn({ user: { collection: 'managers', type: 'admin', currentProject: 'wemeditate-app' } as any })).toBe(false)
-         
-        expect(hiddenFn({ user: { collection: 'managers', type: 'admin', currentProject: 'sahaj-atlas' } as any })).toBe(true)
-         
-        expect(hiddenFn({ user: { collection: 'managers', type: 'admin', currentProject: null } as any })).toBe(false)
+
+        expect(
+          hiddenFn({
+            user: {
+              collection: 'managers',
+              type: 'admin',
+              currentProject: 'wemeditate-web',
+            } as any,
+          }),
+        ).toBe(false)
+
+        expect(
+          hiddenFn({
+            user: {
+              collection: 'managers',
+              type: 'admin',
+              currentProject: 'wemeditate-app',
+            } as any,
+          }),
+        ).toBe(false)
+
+        expect(
+          hiddenFn({
+            user: { collection: 'managers', type: 'admin', currentProject: 'sahaj-atlas' } as any,
+          }),
+        ).toBe(true)
+
+        expect(
+          hiddenFn({
+            user: { collection: 'managers', type: 'admin', currentProject: null } as any,
+          }),
+        ).toBe(false)
       }
     })
 
@@ -56,14 +80,38 @@ describe('Project Visibility System', () => {
       if (typeof hiddenFn === 'function') {
         // Using admin mock objects to test project visibility logic
         // Note: collection: 'managers' required for bypass function to recognize admin users
-         
-        expect(hiddenFn({ user: { collection: 'managers', type: 'admin', currentProject: 'wemeditate-web' } as any })).toBe(false)
-         
-        expect(hiddenFn({ user: { collection: 'managers', type: 'admin', currentProject: 'wemeditate-app' } as any })).toBe(false)
-         
-        expect(hiddenFn({ user: { collection: 'managers', type: 'admin', currentProject: 'sahaj-atlas' } as any })).toBe(true)
-         
-        expect(hiddenFn({ user: { collection: 'managers', type: 'admin', currentProject: null } as any })).toBe(false)
+
+        expect(
+          hiddenFn({
+            user: {
+              collection: 'managers',
+              type: 'admin',
+              currentProject: 'wemeditate-web',
+            } as any,
+          }),
+        ).toBe(false)
+
+        expect(
+          hiddenFn({
+            user: {
+              collection: 'managers',
+              type: 'admin',
+              currentProject: 'wemeditate-app',
+            } as any,
+          }),
+        ).toBe(false)
+
+        expect(
+          hiddenFn({
+            user: { collection: 'managers', type: 'admin', currentProject: 'sahaj-atlas' } as any,
+          }),
+        ).toBe(true)
+
+        expect(
+          hiddenFn({
+            user: { collection: 'managers', type: 'admin', currentProject: null } as any,
+          }),
+        ).toBe(false)
       }
     })
 
@@ -75,14 +123,38 @@ describe('Project Visibility System', () => {
       if (typeof hiddenFn === 'function') {
         // Using admin mock objects to test project visibility logic
         // Note: collection: 'managers' required for bypass function to recognize admin users
-         
-        expect(hiddenFn({ user: { collection: 'managers', type: 'admin', currentProject: 'wemeditate-web' } as any })).toBe(true)
-         
-        expect(hiddenFn({ user: { collection: 'managers', type: 'admin', currentProject: 'wemeditate-app' } as any })).toBe(false)
-         
-        expect(hiddenFn({ user: { collection: 'managers', type: 'admin', currentProject: 'sahaj-atlas' } as any })).toBe(true)
-         
-        expect(hiddenFn({ user: { collection: 'managers', type: 'admin', currentProject: null } as any })).toBe(false)
+
+        expect(
+          hiddenFn({
+            user: {
+              collection: 'managers',
+              type: 'admin',
+              currentProject: 'wemeditate-web',
+            } as any,
+          }),
+        ).toBe(true)
+
+        expect(
+          hiddenFn({
+            user: {
+              collection: 'managers',
+              type: 'admin',
+              currentProject: 'wemeditate-app',
+            } as any,
+          }),
+        ).toBe(false)
+
+        expect(
+          hiddenFn({
+            user: { collection: 'managers', type: 'admin', currentProject: 'sahaj-atlas' } as any,
+          }),
+        ).toBe(true)
+
+        expect(
+          hiddenFn({
+            user: { collection: 'managers', type: 'admin', currentProject: null } as any,
+          }),
+        ).toBe(false)
       }
     })
   })
@@ -96,15 +168,39 @@ describe('Project Visibility System', () => {
       if (typeof hiddenFn === 'function') {
         // Using admin mock objects to test project visibility logic
         // Note: collection: 'managers' required for bypass function to recognize admin users
-         
-        expect(hiddenFn({ user: { collection: 'managers', type: 'admin', currentProject: 'wemeditate-web' } as any })).toBe(false)
-         
-        expect(hiddenFn({ user: { collection: 'managers', type: 'admin', currentProject: 'wemeditate-app' } as any })).toBe(true)
-         
-        expect(hiddenFn({ user: { collection: 'managers', type: 'admin', currentProject: 'sahaj-atlas' } as any })).toBe(true)
+
+        expect(
+          hiddenFn({
+            user: {
+              collection: 'managers',
+              type: 'admin',
+              currentProject: 'wemeditate-web',
+            } as any,
+          }),
+        ).toBe(false)
+
+        expect(
+          hiddenFn({
+            user: {
+              collection: 'managers',
+              type: 'admin',
+              currentProject: 'wemeditate-app',
+            } as any,
+          }),
+        ).toBe(true)
+
+        expect(
+          hiddenFn({
+            user: { collection: 'managers', type: 'admin', currentProject: 'sahaj-atlas' } as any,
+          }),
+        ).toBe(true)
         // Admin view (null) sees all globals
-         
-        expect(hiddenFn({ user: { collection: 'managers', type: 'admin', currentProject: null } as any })).toBe(false)
+
+        expect(
+          hiddenFn({
+            user: { collection: 'managers', type: 'admin', currentProject: null } as any,
+          }),
+        ).toBe(false)
       }
     })
   })

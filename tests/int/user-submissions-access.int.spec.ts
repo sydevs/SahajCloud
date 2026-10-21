@@ -141,7 +141,11 @@ describe('User submissions access', () => {
       senderEmail: 'theirs@example.com',
       submissionData: [{ field: 'message', value: 'For somebody else.' }],
     })
-    await seed({ type: 'proposal', senderEmail: 'proposer@example.com', proposed: { title: 'New' } })
+    await seed({
+      type: 'proposal',
+      senderEmail: 'proposer@example.com',
+      proposed: { title: 'New' },
+    })
     await seed({ type: 'registration', senderEmail: 'registrant@example.com' })
     await seed({ type: 'subscribe', form: subscribeForm.id, senderEmail: 'sub@example.com' })
   })

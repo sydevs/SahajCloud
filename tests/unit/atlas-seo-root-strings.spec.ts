@@ -79,22 +79,19 @@ describe('resolveRootStrings', () => {
     ['whitespace only', '   '],
     ['a non-string value', 42],
   ])('treats %s as no copy at all', (_label, value) => {
-    const blank = copy(
-      { root_title: value, root_description: value },
-      { widget_label: value },
-    )
+    const blank = copy({ root_title: value, root_description: value }, { widget_label: value })
     const resolved = resolveRootStrings(blank, en)
     expect(resolved.title).toBe('Free Meditation Classes')
     expect(resolved.description).toBeNull()
   })
 
   it('trims the copy it does use', () => {
-    expect(resolveRootStrings(copy({ root_title: '  Atlas  ', root_description: ' Hi. ' }), en)).toEqual({
+    expect(
+      resolveRootStrings(copy({ root_title: '  Atlas  ', root_description: ' Hi. ' }), en),
+    ).toEqual({
       title: 'Atlas',
       description: 'Hi.',
     })
-    expect(resolveRootStrings(copy(null, { widget_label: '  Cours  ' }), en).title).toBe(
-      'Cours',
-    )
+    expect(resolveRootStrings(copy(null, { widget_label: '  Cours  ' }), en).title).toBe('Cours')
   })
 })

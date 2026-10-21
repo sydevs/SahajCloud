@@ -8,9 +8,7 @@ interface StatusIconProps {
 }
 
 export const StatusIcon: React.FC<StatusIconProps> = ({ passed, title }) => {
-  const color = passed
-    ? 'var(--theme-success-500, #10b981)'
-    : 'var(--theme-error-500, #ef4444)'
+  const color = passed ? 'var(--theme-success-500, #10b981)' : 'var(--theme-error-500, #ef4444)'
   const label = passed ? 'Passing' : 'Failing'
   return (
     <span

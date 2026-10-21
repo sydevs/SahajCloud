@@ -334,10 +334,12 @@ to attach to a field that skipped it.
 jsonField({
   name: 'frames',
   schemaTitle: 'MeditationFrames',
-  schema: z.array(z.looseObject({
-    id: z.union([z.int(), z.string()]).describe('The Frame document id.'),
-    timestamp: z.number().describe('Seconds into the meditation.'),
-  })),
+  schema: z.array(
+    z.looseObject({
+      id: z.union([z.int(), z.string()]).describe('The Frame document id.'),
+      timestamp: z.number().describe('Seconds into the meditation.'),
+    }),
+  ),
 })
 ```
 
@@ -544,8 +546,8 @@ import { isVersionsRead } from '@/lib/utilities/versionsRead'
 
 export const myHook: CollectionBeforeOperationHook = ({ operation, args }) => {
   if (operation !== 'read' && operation !== 'count') return args
-  if (isVersionsRead(operation, args)) return args   // cannot carry a document filter
-  if ('id' in args) return args                      // findByID
+  if (isVersionsRead(operation, args)) return args // cannot carry a document filter
+  if ('id' in args) return args // findByID
   // …append the where…
 }
 ```
@@ -607,7 +609,7 @@ Three consequences, each of which has already bitten:
 
 - **A field `afterRead` hook sees `_status` in either shape** — a plain
   string on a collection without the flag, a `{ locale: status }` map on
-  one with it. The map arrives *unresolved*, because Payload hoists a
+  one with it. The map arrives _unresolved_, because Payload hoists a
   localized value down to the requested locale in the same afterRead field
   pass that runs the hook, so field order decides. Handle both shapes;
   `isPublished` in `src/fields/publicUrlFields.ts` is the one to copy. A

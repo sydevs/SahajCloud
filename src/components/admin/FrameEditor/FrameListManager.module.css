@@ -7,7 +7,9 @@
   border-radius: var(--style-radius-s);
   border: 1px solid var(--theme-elevation-100);
   border-left: 3px solid transparent;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
   cursor: pointer;
 }
 
@@ -27,7 +29,9 @@
   border-radius: var(--style-radius-s);
   cursor: pointer;
   color: var(--theme-elevation-400);
-  transition: color 0.15s ease, background-color 0.15s ease;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease;
   display: flex;
   align-items: center;
   justify-content: center;

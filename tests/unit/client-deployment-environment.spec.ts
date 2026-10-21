@@ -1,9 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import {
-  clientDeploymentEnvironment,
-  deploymentEnvironment,
-} from '@/lib/env/deploymentEnvironment'
+import { clientDeploymentEnvironment, deploymentEnvironment } from '@/lib/env/deploymentEnvironment'
 
 /**
  * The browser half of #733's fix (#737).

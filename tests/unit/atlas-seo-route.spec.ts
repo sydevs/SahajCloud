@@ -102,7 +102,6 @@ describe('parseAtlasRoute', () => {
       // most hosts mount — the landing page needs metadata of its own.
       expect(parseAtlasRoute(route)).toEqual({ kind: 'root' })
     })
-
   })
 
   // "Names nothing" and "is not a route" must not collapse into one answer:

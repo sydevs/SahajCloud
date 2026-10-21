@@ -57,8 +57,7 @@ describe('wm-app-status — ReadinessField registration contract', () => {
 
       // sectionMetadata
       const sectionMetadata = custom?.sectionMetadata as
-        | { key: string; label: string; description: string; tutorialLink: string | null }
-        | undefined
+        { key: string; label: string; description: string; tutorialLink: string | null } | undefined
       expect(sectionMetadata?.key).toBe(sectionKey)
       expect(typeof sectionMetadata?.label).toBe('string')
       expect(sectionMetadata?.label.length).toBeGreaterThan(0)
@@ -70,8 +69,7 @@ describe('wm-app-status — ReadinessField registration contract', () => {
 
       // groupsMetadata — every declared group key has metadata
       const groupsMetadata = custom?.groupsMetadata as
-        | Record<string, { label: string; description: string }>
-        | undefined
+        Record<string, { label: string; description: string }> | undefined
       expect(groupsMetadata).toBeTruthy()
       for (const group of section.groups) {
         expect(groupsMetadata?.[group.key]?.label).toBe(group.label)
@@ -80,15 +78,13 @@ describe('wm-app-status — ReadinessField registration contract', () => {
 
       // checksMetadata — exactly the section's declared checks
       const checksMetadata = custom?.checksMetadata as
-        | Record<string, { label: string; description: string }>
-        | undefined
+        Record<string, { label: string; description: string }> | undefined
       expect(Object.keys(checksMetadata ?? {}).sort()).toEqual(Object.keys(section.checks).sort())
 
       // groupKeyToCollection — one entry per group, value either a non-empty
       // string slug or null
       const groupKeyToCollection = custom?.groupKeyToCollection as
-        | Record<string, string | null>
-        | undefined
+        Record<string, string | null> | undefined
       expect(Object.keys(groupKeyToCollection ?? {}).sort()).toEqual(
         section.groups.map((g) => g.key).sort(),
       )
@@ -98,9 +94,7 @@ describe('wm-app-status — ReadinessField registration contract', () => {
 
       // configFallback — either null or a { type: 'global', slug } object
       const configFallback = custom?.configFallback as
-        | { type: 'global'; slug: string }
-        | null
-        | undefined
+        { type: 'global'; slug: string } | null | undefined
       if (configFallback !== null && configFallback !== undefined) {
         expect(configFallback.type).toBe('global')
         expect(typeof configFallback.slug).toBe('string')

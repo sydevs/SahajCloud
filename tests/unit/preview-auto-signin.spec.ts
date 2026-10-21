@@ -67,9 +67,7 @@ describe('the preview auto sign-in', () => {
     const without = paths(fold({ collections: [withoutCredential] }, 'managers').managers!)
 
     expect(withAddress).toEqual(without)
-    expect(withAddress).toEqual(
-      expect.arrayContaining(['/request-magic-link', '/redeem']),
-    )
+    expect(withAddress).toEqual(expect.arrayContaining(['/request-magic-link', '/redeem']))
   })
 })
 

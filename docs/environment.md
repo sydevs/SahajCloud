@@ -26,12 +26,12 @@ R2 is used in both dev and prod. Local file storage applies automatically when c
 
 Separate from `.env`, gitignored, and never committed. It lets an agent operate infrastructure directly.
 
-| Key | What it opens |
-| --- | --- |
-| `CLOUDFLARE_CLAUDE_KEY` | Cloudflare API token — Cache Rules on the `sydevelopers.com` zone. |
-| `ADMIN_PASSWORD` | **Spent.** `POST /api/managers/login` answers 403 on every environment since #840, so this value opens nothing. Production admin access is an emailed sign-in link, or `pnpm tsx scripts/signin-link.ts <email>` when mail is down, and a remote seed run carries that session's token as `ADMIN_TOKEN` (`seeds/AGENTS.md`). |
-| `MAILPIT_URL`, `MAILPIT_UI_AUTH` | The Mailpit capture inbox, and its login — what the `preview-*-emails` scripts post with, and what opens their links (`docs/rules/email.md`). The Claude cloud environment carries both. |
-| `SMTP_URL` | Mailpit's SMTP ingress, for mail the app sends under `pnpm dev`. |
+| Key                              | What it opens                                                                                                                                                                                                                                                                                                                |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CLOUDFLARE_CLAUDE_KEY`          | Cloudflare API token — Cache Rules on the `sydevelopers.com` zone.                                                                                                                                                                                                                                                           |
+| `ADMIN_PASSWORD`                 | **Spent.** `POST /api/managers/login` answers 403 on every environment since #840, so this value opens nothing. Production admin access is an emailed sign-in link, or `pnpm tsx scripts/signin-link.ts <email>` when mail is down, and a remote seed run carries that session's token as `ADMIN_TOKEN` (`seeds/AGENTS.md`). |
+| `MAILPIT_URL`, `MAILPIT_UI_AUTH` | The Mailpit capture inbox, and its login — what the `preview-*-emails` scripts post with, and what opens their links (`docs/rules/email.md`). The Claude cloud environment carries both.                                                                                                                                     |
+| `SMTP_URL`                       | Mailpit's SMTP ingress, for mail the app sends under `pnpm dev`.                                                                                                                                                                                                                                                             |
 
 ```bash
 set -a; . ./.env.claude.local; set +a
@@ -51,6 +51,7 @@ The "Admin Access" section in `AGENTS.md` covers each environment's way in; none
   ⚠ **This is `https://sahajatlas.com`, the replacement.** `atlas.sydevelopers.com` is the legacy service: it serves none of the document paths the Live Preview panel points at, so preview aimed there 404s. Production carried the legacy value (visible in the admin's own CSP `frame-src`), which is why atlas live preview did not work. Changing it moves the preview target, the CSP `frame-src` and the `csrf` allowlist together.
 
   ⚠ `next.config.mjs` falls back to a literal when this is unset at **build** time, which is any local or CI build. That fallback must stay equal to the production value above — it was left pointing at the legacy host, so such a build emitted a `frame-src` admitting the old atlas and blocking the real one.
+
 - `WEMEDITATE_ATLAS_BASE_PATH` — optional, default `/map`. Feeds the fallback `webUrl` for a region no client owns: `WEMEDITATE_WEB_URL + WEMEDITATE_ATLAS_BASE_PATH + webPath`.
 
 Neither URL takes a trailing slash, since both are used as prefixes and compared against `Origin` headers. **Restart `next dev` after you change these** — `next.config.mjs` bakes the CSP allowlist at boot, so a stale server blocks the preview iframe (`ERR_BLOCKED_BY_CSP`).
@@ -61,7 +62,7 @@ Neither URL takes a trailing slash, since both are used as prefixes and compared
 
 The matching **public** key is committed into each consumer that verifies tokens (`PUBLIC__LIVE_PREVIEW_VERIFY_KEY` in WeMeditateWeb, `VITE_LIVE_PREVIEW_VERIFY_KEY` in SahajAtlasWeb). It is not a secret, and that is the point of signing rather than sharing a symmetric secret: SahajAtlasWeb ships as a public bundle, so any key it holds is published — a verification key being published costs nothing, a signing key being published is the whole vulnerability.
 
-The token carries `{ exp }` and nothing else. An audience claim naming the API-client role was dropped in #788: the client key on the request already decides which collections are readable, so the claim only narrowed which *surface* a leaked token unlocked drafts on, never what it could reach.
+The token carries `{ exp }` and nothing else. An audience claim naming the API-client role was dropped in #788: the client key on the request already decides which collections are readable, so the claim only narrowed which _surface_ a leaked token unlocked drafts on, never what it could reach.
 
 This replaces putting `SAHAJCLOUD_PREVIEW_SECRET` on the URL. A long-lived symmetric secret in a URL leaks permanently to everything that reads a URL — browser history, `Referer`, Sentry session replay, and an analytics script that posts `location.href`. A token expires in 45 minutes on its own.
 

@@ -18,7 +18,11 @@ export {
 
 // Storage adapters
 export { cloudflareImagesAdapter, getCloudflareImagesUrl } from './cloudflareImagesAdapter'
-export { cloudflareStreamAdapter, getCloudflareStreamMp4Url, getCloudflareStreamThumbnailUrl } from './cloudflareStreamAdapter'
+export {
+  cloudflareStreamAdapter,
+  getCloudflareStreamMp4Url,
+  getCloudflareStreamThumbnailUrl,
+} from './cloudflareStreamAdapter'
 export { r2NativeAdapter, getR2Url } from './r2NativeAdapter'
 export { mixedMediaAdapter } from './mixedMediaAdapter'
 

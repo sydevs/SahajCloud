@@ -90,9 +90,9 @@ describe('per-locale role scoping', () => {
     })
 
     for (const locale of ['fr', 'de', 'union', undefined] as const) {
-      expect(
-        hasPermission({ user: client, collection: 'pages', operation: 'read', locale }),
-      ).toBe(true)
+      expect(hasPermission({ user: client, collection: 'pages', operation: 'read', locale })).toBe(
+        true,
+      )
     }
   })
 })

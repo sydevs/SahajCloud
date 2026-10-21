@@ -92,11 +92,13 @@ describe('useFollowPlayhead', () => {
 
   it('does nothing when no phrase is marked', () => {
     act(() => {
-      root.render(createElement(() => {
-        const empty = useRef<HTMLDivElement>(null)
-        useFollowPlayhead(empty, -1, true)
-        return createElement('div', { ref: empty })
-      }))
+      root.render(
+        createElement(() => {
+          const empty = useRef<HTMLDivElement>(null)
+          useFollowPlayhead(empty, -1, true)
+          return createElement('div', { ref: empty })
+        }),
+      )
     })
 
     expect(scrollIntoView).not.toHaveBeenCalled()

@@ -47,8 +47,9 @@ describe('verifyEntriesAccountedFor', () => {
   })
 
   it('fails when an entry was counted twice', () => {
-    expect(verifyEntriesAccountedFor({ ...ZERO, entries: 2, created: 2, skipped: 1 }).failures)
-      .toHaveLength(1)
+    expect(
+      verifyEntriesAccountedFor({ ...ZERO, entries: 2, created: 2, skipped: 1 }).failures,
+    ).toHaveLength(1)
   })
 
   it('passes an empty data file, which has nothing to account for', () => {

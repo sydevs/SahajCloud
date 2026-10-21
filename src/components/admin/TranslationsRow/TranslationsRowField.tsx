@@ -2,7 +2,6 @@
 
 import type { JSONFieldClientComponent } from 'payload'
 
-
 import { FieldError, FieldLabel, useField, useLocale } from '@payloadcms/ui'
 import { toWords } from 'payload/shared'
 import React, { useCallback, useMemo } from 'react'

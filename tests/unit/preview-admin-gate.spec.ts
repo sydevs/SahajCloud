@@ -46,8 +46,6 @@ describe('resolvePreviewAdminEmail', () => {
   it('does not seed an unnamed environment, whatever else is set', () => {
     // Fail-safe direction: an unknown or misnamed environment seeds nothing rather than
     // guessing it is a preview.
-    expect(
-      resolvePreviewAdminEmail({ ...preview, environmentName: '' }),
-    ).toBeUndefined()
+    expect(resolvePreviewAdminEmail({ ...preview, environmentName: '' })).toBeUndefined()
   })
 })

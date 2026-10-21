@@ -579,7 +579,9 @@ describe('Role-Based Access Control', () => {
           .map(([args]) => args)
           .filter((args) => args.collection === 'regions')
         const rootFinds = regionFinds.filter((args) => Array.isArray(args.where?.or))
-        const descendantFinds = regionFinds.filter((args) => 'breadcrumbs.doc' in (args.where ?? {}))
+        const descendantFinds = regionFinds.filter(
+          (args) => 'breadcrumbs.doc' in (args.where ?? {}),
+        )
 
         expect(rootFinds).toHaveLength(1)
         expect(descendantFinds).toHaveLength(1)
@@ -935,7 +937,10 @@ describe('Role-Based Access Control', () => {
 
       webProjectCollections.forEach((collection) => {
         expect(
-          hasPermission({ user: managerUser, locale: 'en', collection, operation: 'read' }, bypassPermissions),
+          hasPermission(
+            { user: managerUser, locale: 'en', collection, operation: 'read' },
+            bypassPermissions,
+          ),
         ).toBe(true)
       })
 

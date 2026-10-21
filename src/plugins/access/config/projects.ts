@@ -108,9 +108,7 @@ const ADMIN_VIEW_EMAIL_ICON = '/images/sahaj-cloud.png'
  * Project to collections mapping (includes globals)
  * Computed once at module load from PROJECTS configuration
  */
-const PROJECT_TO_COLLECTIONS: Record<ProjectSlug, ContentSlug[]> = Object.entries(
-  PROJECTS,
-).reduce(
+const PROJECT_TO_COLLECTIONS: Record<ProjectSlug, ContentSlug[]> = Object.entries(PROJECTS).reduce(
   (acc, [projectSlug, projectConfig]) => {
     // `Object.entries` widens the key to `string`. The `satisfies` clause on
     // `PROJECTS` is what makes the assertion back to `ProjectSlug` safe.
@@ -272,12 +270,12 @@ export function getProjectLabel(project: ProjectSlug | null): string {
  * @returns Array of project options with value and label
  */
 export function getProjectOptions(): Array<{ value: ProjectSlug; label: string }> {
-  return (
-    Object.entries(PROJECTS) as [ProjectSlug, (typeof PROJECTS)[ProjectSlug]][]
-  ).map(([value, config]) => ({
-    value,
-    label: config.label,
-  }))
+  return (Object.entries(PROJECTS) as [ProjectSlug, (typeof PROJECTS)[ProjectSlug]][]).map(
+    ([value, config]) => ({
+      value,
+      label: config.label,
+    }),
+  )
 }
 
 /**

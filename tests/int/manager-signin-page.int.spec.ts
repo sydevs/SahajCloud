@@ -159,8 +159,7 @@ describe('manager sign-in page', () => {
     // Every refusal lands back on this page, which states what happened and
     // already carries the form that fixes it. A dead end that says "request a
     // new sign-in link" is the failure the 404 was rejected for.
-    const refusedTo = (reason: string) =>
-      `${getServerUrl()}${MANAGER_SIGNIN_PATH}?error=${reason}`
+    const refusedTo = (reason: string) => `${getServerUrl()}${MANAGER_SIGNIN_PATH}?error=${reason}`
 
     it('sends an unreadable link back to this page, and serves no GET at all', async () => {
       const visited = await anon(`${REDEEM_PATH}?token=rubbish`)

@@ -5,7 +5,6 @@ import { isNumber } from 'payload/shared'
 import * as qs from 'qs-esm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-
 import { serverEnv } from '@/lib/env'
 import { mintLivePreviewToken } from '@/lib/livePreview/token'
 import { resolveLivePreviewHook } from '@/lib/utilities/previewSecret'
@@ -416,9 +415,9 @@ describe('Client query parameter validation', () => {
       // The coercion, asserted on its own: a case reading `limit` as the
       // string '2001' would pass without ever exceeding the cap.
       expect(parseRestQuery('?limit=2001').limit).toBe(2001)
-      await expect(
-        restFind('/api/narrators?select[name]=true&depth=1&limit=2001'),
-      ).rejects.toThrow(/"limit"/)
+      await expect(restFind('/api/narrators?select[name]=true&depth=1&limit=2001')).rejects.toThrow(
+        /"limit"/,
+      )
     })
 
     describe('accepts the correct bracket notation', () => {

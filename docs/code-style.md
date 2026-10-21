@@ -6,14 +6,14 @@ Global code style guidelines for this codebase.
 
 **IMPORTANT**: macOS ignores filename case, but TypeScript and the Linux builds in CI and on Railway do not. Always check exact casing when you import.
 
-| Directory | Convention | Examples |
-|-----------|------------|----------|
-| `src/collections/` | PascalCase | `Managers.ts`, `Pages.ts` |
-| `src/fields/` | camelCase | `permissionsField.ts`, `slugField.ts` |
-| `src/lib/` | camelCase | `accessControl.ts`, `serverUrl.ts` |
-| `src/components/` | PascalCase | `Dashboard.tsx`, `ProjectSelector.tsx` |
-| `src/types/` | camelCase | `roles.ts`, `users.ts` |
-| `src/lib/richEditor/blocks/` | PascalCase | `TextBoxBlock.ts`, `GalleryBlock.ts` |
+| Directory                    | Convention | Examples                               |
+| ---------------------------- | ---------- | -------------------------------------- |
+| `src/collections/`           | PascalCase | `Managers.ts`, `Pages.ts`              |
+| `src/fields/`                | camelCase  | `permissionsField.ts`, `slugField.ts`  |
+| `src/lib/`                   | camelCase  | `accessControl.ts`, `serverUrl.ts`     |
+| `src/components/`            | PascalCase | `Dashboard.tsx`, `ProjectSelector.tsx` |
+| `src/types/`                 | camelCase  | `roles.ts`, `users.ts`                 |
+| `src/lib/richEditor/blocks/` | PascalCase | `TextBoxBlock.ts`, `GalleryBlock.ts`   |
 
 ## Import Order
 

@@ -1,4 +1,9 @@
-import type { CollectionAfterReadHook, Config, FieldAccess, SanitizedCollectionConfig } from 'payload'
+import type {
+  CollectionAfterReadHook,
+  Config,
+  FieldAccess,
+  SanitizedCollectionConfig,
+} from 'payload'
 
 import { describe, expect, it } from 'vitest'
 

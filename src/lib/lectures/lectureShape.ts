@@ -1,6 +1,5 @@
 import type { PayloadLogger, PopulateType } from 'payload'
 
-
 import { resolveThumbnailUrl } from '@/lib/utilities/thumbnailUrl'
 import type { Lecture, LectureMetadata, LecturesSelect, UserChoice } from '@/payload-types'
 

@@ -38,7 +38,10 @@ import { SignInForm } from './SignInForm'
  * dashboard instead of the event. A delivered link is confirmed whoever is
  * signed in.
  */
-export default async function SignInView({ initPageResult, searchParams = {} }: AdminViewServerProps) {
+export default async function SignInView({
+  initPageResult,
+  searchParams = {},
+}: AdminViewServerProps) {
   const { payload, user } = initPageResult.req
   const query = (key: string): string | undefined => {
     // Next hands a repeated key over as an array.

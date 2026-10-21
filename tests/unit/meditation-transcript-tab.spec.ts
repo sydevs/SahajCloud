@@ -316,9 +316,7 @@ describe('the Transcript tab', () => {
       render()
 
       expect(stub.swrCalls[0].key).toContain('locale=cs')
-      expect(stub.swrCalls[0].key).toContain(
-        `where${encodeURIComponent('[meditation][equals]')}=7`,
-      )
+      expect(stub.swrCalls[0].key).toContain(`where${encodeURIComponent('[meditation][equals]')}=7`)
     })
 
     it('builds no URL, makes no request and reports it without a locale (#701)', () => {

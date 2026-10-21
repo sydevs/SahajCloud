@@ -69,9 +69,7 @@ describe('error disclosure over REST — debug ON, as local development is', () 
 
     expect(status).toBe(400)
     expect(body).toEqual({
-      errors: [
-        { code: '22P02', message: expect.stringContaining('invalid input value for enum') },
-      ],
+      errors: [{ code: '22P02', message: expect.stringContaining('invalid input value for enum') }],
     })
   })
 })

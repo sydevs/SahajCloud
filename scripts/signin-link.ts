@@ -69,7 +69,9 @@ async function main(): Promise<void> {
     process.exit(1)
   }
   if (account._verified !== true) {
-    console.error(`${account.email} has never accepted an invitation, so a sign-in link is refused.`)
+    console.error(
+      `${account.email} has never accepted an invitation, so a sign-in link is refused.`,
+    )
     process.exit(1)
   }
 

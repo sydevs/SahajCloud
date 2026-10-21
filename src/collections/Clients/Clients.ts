@@ -213,8 +213,7 @@ const mailingListGroup: Field = {
             // One sentence naming all three, rather than a per-provider hint:
             // `admin.description`'s function form is handed `{ i18n, t }` and
             // never the document, so it cannot see which provider is chosen.
-            description:
-              'Mailchimp’s Audience ID, Brevo’s numeric list id, or Klaviyo’s List ID.',
+            description: 'Mailchimp’s Audience ID, Brevo’s numeric list id, or Klaviyo’s List ID.',
           },
         },
         {

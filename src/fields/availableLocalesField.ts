@@ -35,10 +35,7 @@ export const SKIP_AVAILABLE_LOCALES_CHECK = 'skipAvailableLocalesCheck'
  * `addFieldStatePromise` runs a field's `validate` with `event: 'onChange'`, so
  * the admin repeats it on every form-state rebuild of the config global.
  */
-async function readPublishStatus(
-  req: PayloadRequest,
-  translationsSlug: string,
-): Promise<unknown> {
+async function readPublishStatus(req: PayloadRequest, translationsSlug: string): Promise<unknown> {
   const global = await req.payload.findGlobal({
     slug: translationsSlug as Parameters<typeof req.payload.findGlobal>[0]['slug'],
     locale: 'all',

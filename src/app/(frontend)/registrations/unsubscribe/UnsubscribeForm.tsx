@@ -4,7 +4,6 @@ import { useActionState } from 'react'
 
 import type { EmailBrand } from '@/plugins/email'
 
-
 import { unsubscribeAction } from './actions'
 import { UnsubscribeCard } from './UnsubscribeCard'
 import { pageHeading, pageLead, PublicPage, primaryButton } from '../../_components/PublicPage'

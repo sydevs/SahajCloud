@@ -20,18 +20,18 @@ pnpm seed storyblok --clear-cache # Re-download assets
 
 ## Field mappings
 
-| Storyblok Source | Payload Target | Notes |
-|------------------|----------------|-------|
-| `story.name` | `lessons.title` | Escape sequences convert to spaces |
-| `story.slug` (e.g., "step-1") | `lessons.step` | Regex extracts the step number |
-| `Step_info[0].Unit_number` | `lessons.unit` | Maps to "Unit 1", "Unit 2", etc. |
-| `Intro_quote` | `panels[0].quote` | CoverStoryBlock (first panel) |
-| `Intro_stories[]` | `panels[]` | TextStoryBlock or VideoStoryBlock |
-| `Audio_intro[0].Audio_track` | `lessons.introAudio` | FileAttachment (R2 audio) |
-| `Audio_intro[0].Subtitles` | `lessons.introSubtitles` | JSON-parsed subtitles |
-| `Step_info[0].Step_Image` | `lessons.icon` | FileAttachment (R2 image) |
-| `Meditation_reference[0]` | `lessons.meditation` | Lookup by "Step N" title |
-| `Delving_deeper_article[0].Blocks` | `lessons.article` | Lexical rich text conversion |
+| Storyblok Source                   | Payload Target           | Notes                              |
+| ---------------------------------- | ------------------------ | ---------------------------------- |
+| `story.name`                       | `lessons.title`          | Escape sequences convert to spaces |
+| `story.slug` (e.g., "step-1")      | `lessons.step`           | Regex extracts the step number     |
+| `Step_info[0].Unit_number`         | `lessons.unit`           | Maps to "Unit 1", "Unit 2", etc.   |
+| `Intro_quote`                      | `panels[0].quote`        | CoverStoryBlock (first panel)      |
+| `Intro_stories[]`                  | `panels[]`               | TextStoryBlock or VideoStoryBlock  |
+| `Audio_intro[0].Audio_track`       | `lessons.introAudio`     | FileAttachment (R2 audio)          |
+| `Audio_intro[0].Subtitles`         | `lessons.introSubtitles` | JSON-parsed subtitles              |
+| `Step_info[0].Step_Image`          | `lessons.icon`           | FileAttachment (R2 image)          |
+| `Meditation_reference[0]`          | `lessons.meditation`     | Lookup by "Step N" title           |
+| `Delving_deeper_article[0].Blocks` | `lessons.article`        | Lexical rich text conversion       |
 
 ## Panel structure
 
@@ -41,25 +41,25 @@ another language would need `locale` passed through, which no caller does today.
 
 The Storyblok `Intro_stories` array maps to the Payload `panels` array:
 
-| Panel Type | blockType | Fields |
-|------------|-----------|--------|
-| Cover | `cover` | title, quote |
-| Text | `text` | title, text, image (relationship) |
-| Video | `video` | video (FileAttachment) |
+| Panel Type | blockType | Fields                            |
+| ---------- | --------- | --------------------------------- |
+| Cover      | `cover`   | title, quote                      |
+| Text       | `text`    | title, text, image (relationship) |
+| Video      | `video`   | video (FileAttachment)            |
 
 **The first panel must be a CoverStoryBlock**, with title and quote from Shri
 Mataji.
 
 ## Lexical block conversion
 
-| Storyblok Block | Lexical Node |
-|-----------------|--------------|
-| `h1` | heading (level 1) |
-| `DD_H2` | heading (level 2) |
-| `DD_Paragraph` | paragraph |
-| `DD_Quote` | QuoteBlock (text, credit, caption) |
-| `DD_Image` | upload (images collection) |
-| `DD_Main_video` | relationship (lectures) |
+| Storyblok Block | Lexical Node                       |
+| --------------- | ---------------------------------- |
+| `h1`            | heading (level 1)                  |
+| `DD_H2`         | heading (level 2)                  |
+| `DD_Paragraph`  | paragraph                          |
+| `DD_Quote`      | QuoteBlock (text, credit, caption) |
+| `DD_Image`      | upload (images collection)         |
+| `DD_Main_video` | relationship (lectures)            |
 
 ## Output
 

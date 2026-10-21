@@ -24,18 +24,18 @@ const reqWith = (headers: Record<string, string> = {}): PayloadRequest =>
 
 describe('publicReadCacheHeaders', () => {
   it('returns private, no-store when the live-preview header is present', () => {
-    expect(publicReadCacheHeaders(reqWith({ [PREVIEW_SECRET_HEADER]: 'a.token' }), ['meditations'])).toEqual(
-      { 'Cache-Control': 'private, no-store' },
-    )
+    expect(
+      publicReadCacheHeaders(reqWith({ [PREVIEW_SECRET_HEADER]: 'a.token' }), ['meditations']),
+    ).toEqual({ 'Cache-Control': 'private, no-store' })
   })
 
   it('refuses to cache even a header it cannot validate', () => {
     // Presence cannot miss the way a context lookup did. The cost is a
     // slightly colder cache for a bogus header; the alternative was caching a
     // draft. The access layer still decides what is actually returned.
-    expect(publicReadCacheHeaders(reqWith({ [PREVIEW_SECRET_HEADER]: 'nonsense' }), ['songs'])).toEqual(
-      { 'Cache-Control': 'private, no-store' },
-    )
+    expect(
+      publicReadCacheHeaders(reqWith({ [PREVIEW_SECRET_HEADER]: 'nonsense' }), ['songs']),
+    ).toEqual({ 'Cache-Control': 'private, no-store' })
   })
 
   it('caches normally when no live-preview header rides along', () => {

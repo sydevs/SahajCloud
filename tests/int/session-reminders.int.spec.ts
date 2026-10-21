@@ -2,7 +2,6 @@ import type { EmailTestAdapter } from '../utils/emailTestAdapter'
 import type { FixtureOverrides } from '../utils/testData'
 import type { Payload } from 'payload'
 
-
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { SendSessionReminders } from '@/jobs/RegistrationNotifications/SendSessionReminders'
@@ -57,9 +56,7 @@ describe('SendSessionReminders job', () => {
     emailAdapter = env.emailAdapter
 
     configRef.current = payload.config
-    ;({ unsubscribeAction } = await import(
-      '@/app/(frontend)/registrations/unsubscribe/actions'
-    ))
+    ;({ unsubscribeAction } = await import('@/app/(frontend)/registrations/unsubscribe/actions'))
 
     const region = await testData.createRegion(payload, { name: 'Rem City', slug: 'rem-city' })
     regionId = region.id
@@ -221,8 +218,7 @@ describe('SendSessionReminders job', () => {
 
   it('declares the single-run concurrency lock', () => {
     const concurrency = SendSessionReminders.concurrency as
-      | { key: (args: { input: unknown; queue: string }) => string; exclusive?: boolean }
-      | undefined
+      { key: (args: { input: unknown; queue: string }) => string; exclusive?: boolean } | undefined
     expect(concurrency?.exclusive).toBe(true)
     expect(concurrency?.key({ input: {}, queue: 'nightly' })).toBe('sendSessionReminders')
   })

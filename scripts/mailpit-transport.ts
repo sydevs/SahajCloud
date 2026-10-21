@@ -138,7 +138,10 @@ export function createCaptureTransport() {
     send(mail, callback) {
       mail.normalize((normalizeError, data) => {
         if (normalizeError || !data) {
-          callback(normalizeError ?? new Error('nodemailer produced no message'), undefined as never)
+          callback(
+            normalizeError ?? new Error('nodemailer produced no message'),
+            undefined as never,
+          )
           return
         }
 

@@ -13,7 +13,12 @@ import type { Config, Endpoint } from 'payload'
 import { getScalarThemeColors, type ScalarThemeColors } from '@/lib/branding'
 import { serverEnv } from '@/lib/env'
 import type { ProjectSlug } from '@/payload-types'
-import { getProjectIcon, getProjectLabel, getProjectOptions, isValidProject } from '@/plugins/access'
+import {
+  getProjectIcon,
+  getProjectLabel,
+  getProjectOptions,
+  isValidProject,
+} from '@/plugins/access'
 import { checkBasicAuth } from '@/plugins/openapi/basicAuth'
 
 export interface ScalarPluginOptions {

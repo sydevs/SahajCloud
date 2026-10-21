@@ -37,7 +37,9 @@ export function feedbackDestination(args: {
   region: unknown
 }): string | null {
   const base =
-    args.vote === 'confirmed' ? (webUrlOf(args.event) ?? webUrlOf(args.region)) : webUrlOf(args.region)
+    args.vote === 'confirmed'
+      ? (webUrlOf(args.event) ?? webUrlOf(args.region))
+      : webUrlOf(args.region)
   if (!base) return null
   return `${base}${base.includes('?') ? '&' : '?'}feedback=${args.vote}`
 }

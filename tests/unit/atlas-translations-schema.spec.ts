@@ -27,7 +27,6 @@ import { PLURAL_CATEGORIES } from '@/lib/translations/pluralCategories'
 
 import { schemaShape } from '../utils/translationsSchemaShape'
 
-
 const SEED_LOCALES = ['cs', 'de', 'en', 'es', 'fr', 'hu', 'nl', 'pt-BR', 'ru', 'uk'] as const
 
 type Leaf = {
@@ -37,7 +36,11 @@ type Leaf = {
   plural?: boolean
   description?: string
 }
-type Node = { type: 'object'; properties?: Record<string, Leaf | Node>; additionalProperties?: boolean }
+type Node = {
+  type: 'object'
+  properties?: Record<string, Leaf | Node>
+  additionalProperties?: boolean
+}
 
 const schema = schemaJson as unknown as Node
 
@@ -199,9 +202,7 @@ describe('atlas translations schema', () => {
     expect(
       declaredKeys().filter(
         (key) =>
-          !key.startsWith('emails.') &&
-          !key.startsWith('event.title.') &&
-          !key.startsWith('seo.'),
+          !key.startsWith('emails.') && !key.startsWith('event.title.') && !key.startsWith('seo.'),
       ).length,
     ).toBe(195)
   })
@@ -302,10 +303,7 @@ describe('atlas translations seeds', () => {
   // (`of Every Month` against `of every month`), and rendered in English
   // exactly as the other 22 did. Folding costs nothing — it matched no value
   // byte equality did not already match, across all ten files.
-  const ENGLISH_VALUES_ALLOWED: Record<
-    Exclude<(typeof SEED_LOCALES)[number], 'en'>,
-    string[]
-  > = {
+  const ENGLISH_VALUES_ALLOWED: Record<Exclude<(typeof SEED_LOCALES)[number], 'en'>, string[]> = {
     // `%{start} – %{end}` is a format string with no word in it, so every
     // locale shares it. `Online` is the same word in seven of these languages.
     cs: [
@@ -355,7 +353,9 @@ describe('atlas translations seeds', () => {
       const untranslated = (seedEntries(readSeed(locale)) as Array<[string, string]>)
         .filter(([key, value]) => {
           const source = english.get(key)
-          return typeof source === 'string' && typeof value === 'string' && fold(source) === fold(value)
+          return (
+            typeof source === 'string' && typeof value === 'string' && fold(source) === fold(value)
+          )
         })
         .map(([key]) => key)
         .sort()

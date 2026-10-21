@@ -39,10 +39,12 @@ function boldKey(line: string, key: React.Key): React.ReactNode {
 
 /** Each line of a rendered group, keys emphasised, inside one `−`/`+` side. */
 function blockLines(text: string): React.ReactNode[] {
-  return text.split('\n').flatMap((line, index) => [
-    ...(index > 0 ? [<br key={`br-${index}`} />] : []),
-    boldKey(line, index),
-  ])
+  return text
+    .split('\n')
+    .flatMap((line, index) => [
+      ...(index > 0 ? [<br key={`br-${index}`} />] : []),
+      boldKey(line, index),
+    ])
 }
 
 /** One `−`/`+` row. `null` renders the word "empty" rather than a blank line. */

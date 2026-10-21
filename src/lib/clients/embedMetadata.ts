@@ -118,15 +118,10 @@ const WORDPRESS_PERMALINK_RE = /^\?p=\d+$/
 
 /** Why a reported mount URL was refused. */
 export type MountKeyRejection =
-  | 'invalid_url'
-  | 'unsupported_scheme'
-  | 'query_or_fragment'
-  | 'credentials'
-  | 'too_long'
+  'invalid_url' | 'unsupported_scheme' | 'query_or_fragment' | 'credentials' | 'too_long'
 
 export type MountKeyResult =
-  | { ok: true; key: string; host: string }
-  | { ok: false; reason: MountKeyRejection }
+  { ok: true; key: string; host: string } | { ok: false; reason: MountKeyRejection }
 
 /**
  * Validate and normalize a reported mount URL into its storage key.

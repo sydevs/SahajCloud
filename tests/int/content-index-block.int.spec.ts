@@ -16,8 +16,7 @@ import { createTestEnvironment } from '../utils/testHelpers'
  */
 function callHook(siblingData: Record<string, unknown>): string | null {
   return computeApiEndpoint({ siblingData } as Parameters<typeof computeApiEndpoint>[0]) as
-    | string
-    | null
+    string | null
 }
 
 describe('computeApiEndpoint hook (pure)', () => {

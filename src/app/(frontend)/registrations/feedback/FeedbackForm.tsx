@@ -7,7 +7,6 @@ import { startTransition, useActionState, useEffect, useRef } from 'react'
 
 import type { EmailBrand } from '@/plugins/email'
 
-
 import { submitFeedbackAction } from './actions'
 import { PublicPage, primaryButton, TONES } from '../../_components/PublicPage'
 import { VerificationCard } from '../../_components/VerificationCard'
@@ -190,7 +189,12 @@ function Question({
 }
 
 const heading: CSSProperties = { margin: '0 0 12px', fontSize: 20, color: 'var(--text)' }
-const lead: CSSProperties = { margin: '0 0 20px', color: 'var(--text-muted)', lineHeight: 1.6, fontSize: 15 }
+const lead: CSSProperties = {
+  margin: '0 0 20px',
+  color: 'var(--text-muted)',
+  lineHeight: 1.6,
+  fontSize: 15,
+}
 const buttonRow: CSSProperties = { display: 'flex', gap: 12, flexWrap: 'wrap' }
 const emblem: CSSProperties = { marginBottom: 12 }
 const cardTitle: CSSProperties = { margin: '0 0 10px', fontSize: 22 }

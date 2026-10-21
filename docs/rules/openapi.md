@@ -22,13 +22,13 @@ src/plugins/openapi/
 
 ## Endpoints
 
-| Endpoint | Description |
-| --- | --- |
-| `/api/openapi.json` | Filtered OpenAPI 3.1 spec (hides internal ops) |
-| `/api/openapi.json?project=<project>` | Project-filtered spec |
-| `/api/openapi-raw.json` | Raw spec — everything visible |
-| `/api/docs` | Scalar UI, We Meditate branding |
-| `/api/docs?project=<project>` | Project-filtered Scalar UI |
+| Endpoint                              | Description                                    |
+| ------------------------------------- | ---------------------------------------------- |
+| `/api/openapi.json`                   | Filtered OpenAPI 3.1 spec (hides internal ops) |
+| `/api/openapi.json?project=<project>` | Project-filtered spec                          |
+| `/api/openapi-raw.json`               | Raw spec — everything visible                  |
+| `/api/docs`                           | Scalar UI, We Meditate branding                |
+| `/api/docs?project=<project>`         | Project-filtered Scalar UI                     |
 
 ## Plugin registration (`src/payload.config.ts`)
 
@@ -40,7 +40,11 @@ plugins: [
   openapi({
     openapiVersion: '3.1',
     specEndpoint: '/openapi-raw.json',
-    metadata: { title: 'Sahaj Cloud API', version: '1.0.0', description: 'REST API for Sahaj Cloud CMS' },
+    metadata: {
+      title: 'Sahaj Cloud API',
+      version: '1.0.0',
+      description: 'REST API for Sahaj Cloud CMS',
+    },
   }),
   scalarPlugin({ specEndpoint: '/openapi.json', docsUrl: '/docs' }),
 ]
@@ -102,18 +106,18 @@ To document one of them, change project membership plus `RESTRICTED_COLLECTIONS`
 
 `payload-oapi` v0.2.5 does not auto-generate paths for endpoints wired through a collection's `endpoints` array. This shim hand-authors those entries and merges them into the raw spec **between** `generateV31Spec` and `filterSpec`, so project-based visibility still applies by collection slug.
 
-| Custom path | Handler | Response schema |
-| --- | --- | --- |
-| `GET /api/frames/by-narrator/{narratorId}` | `Frames/endpoints/byNarrator.ts` | `#/components/schemas/Frames` |
-| `GET /api/audiences/for-user` | `Audiences/endpoints/forUser.ts` | `#/components/schemas/AudienceIdList` |
-| `GET /api/lectures/for-audience` | `Lectures/endpoints/forAudience.ts` | `#/components/schemas/LecturePlayerData` (hand-authored) |
-| `GET /api/app-cards/for-audience` | `AppCards/endpoints/forAudience.ts` | `#/components/schemas/AppCards` |
-| `GET /api/meditations/{id}/related-lectures` | `Meditations/endpoints/lectures.ts` | `#/components/schemas/LecturePlayerData` (hand-authored) |
-| `GET /api/lectures/{id}/related-meditations` | `Lectures/endpoints/relatedMeditations.ts` | `#/components/schemas/MeditationCardData` (hand-authored) |
-| `GET /api/events/geojson` | `Events/endpoints/geojson.ts` | `#/components/schemas/EventFeatureCollection` (hand-authored) |
-| `GET /api/atlas/seo` | `src/endpoints/atlas/seo/` (root endpoint) | `#/components/schemas/AtlasSeoResponse` (hand-authored) |
-| `GET /api/atlas/sitemap` | `src/endpoints/atlas/sitemap/` (root endpoint) | `#/components/schemas/AtlasSitemapResponse` (hand-authored) |
-| `POST /api/clients/report` | `Clients/endpoints/report.ts` | `#/components/schemas/ClientEmbedReportResponse` (hand-authored) — **`x-internal`**, see below |
+| Custom path                                  | Handler                                        | Response schema                                                                                |
+| -------------------------------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `GET /api/frames/by-narrator/{narratorId}`   | `Frames/endpoints/byNarrator.ts`               | `#/components/schemas/Frames`                                                                  |
+| `GET /api/audiences/for-user`                | `Audiences/endpoints/forUser.ts`               | `#/components/schemas/AudienceIdList`                                                          |
+| `GET /api/lectures/for-audience`             | `Lectures/endpoints/forAudience.ts`            | `#/components/schemas/LecturePlayerData` (hand-authored)                                       |
+| `GET /api/app-cards/for-audience`            | `AppCards/endpoints/forAudience.ts`            | `#/components/schemas/AppCards`                                                                |
+| `GET /api/meditations/{id}/related-lectures` | `Meditations/endpoints/lectures.ts`            | `#/components/schemas/LecturePlayerData` (hand-authored)                                       |
+| `GET /api/lectures/{id}/related-meditations` | `Lectures/endpoints/relatedMeditations.ts`     | `#/components/schemas/MeditationCardData` (hand-authored)                                      |
+| `GET /api/events/geojson`                    | `Events/endpoints/geojson.ts`                  | `#/components/schemas/EventFeatureCollection` (hand-authored)                                  |
+| `GET /api/atlas/seo`                         | `src/endpoints/atlas/seo/` (root endpoint)     | `#/components/schemas/AtlasSeoResponse` (hand-authored)                                        |
+| `GET /api/atlas/sitemap`                     | `src/endpoints/atlas/sitemap/` (root endpoint) | `#/components/schemas/AtlasSitemapResponse` (hand-authored)                                    |
+| `POST /api/clients/report`                   | `Clients/endpoints/report.ts`                  | `#/components/schemas/ClientEmbedReportResponse` (hand-authored) — **`x-internal`**, see below |
 
 `POST /api/clients/report` is the one custom endpoint deliberately hidden from `/api/docs`: `clients` sits in `ALWAYS_HIDDEN_COLLECTIONS` and belongs to no project, so `filterSpec` marks it `x-internal` under every project tier. That is intended — it is the first-party Atlas widget's telemetry channel, not a third-party integration surface, and advertising it only invites forged reports. It still appears in `/api/openapi-raw.json`, and a pinned test case in `tests/unit/openapi-custom-endpoints.spec.ts` stops a future filter change from publishing it by accident.
 

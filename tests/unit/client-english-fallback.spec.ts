@@ -14,7 +14,6 @@ import { describe, expect, it } from 'vitest'
 import { mergeEnglish, schemaLookups } from '@/lib/translations/clientEnglishFallback'
 import type { SchemaNode } from '@/lib/translations/schemaWalker'
 
-
 const SCHEMA = {
   properties: {
     common: {

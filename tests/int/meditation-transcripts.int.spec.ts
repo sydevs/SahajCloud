@@ -185,9 +185,7 @@ describe('meditation transcripts', () => {
         data: createData<'meditation-transcripts'>({
           meditation: meditation.id,
           language: 'en',
-          segments: [
-            { content: 'Let your hands rest open.', startTimeMs: 0, endTimeMs: 3000 },
-          ],
+          segments: [{ content: 'Let your hands rest open.', startTimeMs: 0, endTimeMs: 3000 }],
         }),
       })
 
@@ -308,6 +306,5 @@ describe('meditation transcripts', () => {
         { content: 'the Kundalini', startTimeMs: 0, endTimeMs: 1000 },
       ])
     })
-
   })
 })

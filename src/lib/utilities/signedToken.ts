@@ -41,9 +41,7 @@ export interface SignedTokenOptions {
 }
 
 export type SignedTokenResult<T> =
-  | { status: 'valid'; claims: T }
-  | { status: 'expired' }
-  | { status: 'invalid' }
+  { status: 'valid'; claims: T } | { status: 'expired' } | { status: 'invalid' }
 
 function key(secret: string): Uint8Array {
   return new TextEncoder().encode(secret)

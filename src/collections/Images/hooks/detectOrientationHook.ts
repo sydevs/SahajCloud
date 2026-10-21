@@ -6,10 +6,7 @@ type OrientationName = 'landscape' | 'portrait' | 'square'
  * Detects image orientation from dimensions and returns the orientation name.
  * Uses 10% tolerance for square classification (ratio 0.9-1.1).
  */
-function getOrientationFromDimensions(
-  width: number,
-  height: number,
-): OrientationName {
+function getOrientationFromDimensions(width: number, height: number): OrientationName {
   const ratio = width / height
   if (ratio > 1.1) return 'landscape'
   if (ratio < 0.9) return 'portrait'

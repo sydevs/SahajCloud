@@ -16,7 +16,10 @@ import { clientNameFor, contextFromSubmissionData } from './submissionContext'
  * Throws nothing. A transport failure comes back as a retryable outcome, which
  * is what earns the task its retry and the row its `failed` status.
  */
-export async function deliverContact({ req, submission }: DeliveryContext): Promise<DeliveryOutcome> {
+export async function deliverContact({
+  req,
+  submission,
+}: DeliveryContext): Promise<DeliveryOutcome> {
   const { to, answers } = await formDelivery(req, submission)
   const clientName = await clientNameFor(req, relationId(submission.client))
 
@@ -121,9 +124,8 @@ async function formDelivery(
 
   if (form == null) return { to: CONTACT_EMAIL, answers: messageOnly }
 
-  const email = typeof form.recipient === 'object' && form.recipient !== null
-    ? form.recipient.email
-    : null
+  const email =
+    typeof form.recipient === 'object' && form.recipient !== null ? form.recipient.email : null
 
   return {
     to: typeof email === 'string' && email.trim() !== '' ? email : CONTACT_EMAIL,

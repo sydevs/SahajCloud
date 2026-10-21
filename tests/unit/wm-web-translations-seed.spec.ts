@@ -104,8 +104,8 @@ function declaredKeys(): DeclaredKey[] {
           path: seedPath(groupField, fieldName, storageKey),
           value: readSeed(groupField, fieldName, storageKey),
         })),
-        allowed: (prop.plural === true ? pluralStorageKeys(innerKey) : [innerKey]).map((storageKey) =>
-          seedPath(groupField, fieldName, storageKey),
+        allowed: (prop.plural === true ? pluralStorageKeys(innerKey) : [innerKey]).map(
+          (storageKey) => seedPath(groupField, fieldName, storageKey),
         ),
       })
     }
@@ -217,8 +217,7 @@ describe('seeds/wm-web-translations/data.en.json', () => {
    */
   it('declares one article tag key per PAGE_TAGS entry', () => {
     const general = (schema.properties.article?.properties ?? {})['general'] as
-      | SchemaNode
-      | undefined
+      SchemaNode | undefined
     const declared = Object.keys(general?.properties ?? {})
       .filter((key) => key.startsWith('tag_'))
       .map((key) => key.slice('tag_'.length))

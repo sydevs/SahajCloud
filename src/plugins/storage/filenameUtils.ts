@@ -17,9 +17,7 @@ const buildSlug = (baseName: string): string => {
   // toString(36) yields a long enough base36 expansion for the slice
   // below. Plain Math.random() can return values like 0.5 whose base36
   // form ("0.i") yields fewer than RANDOM_SUFFIX_LENGTH chars.
-  const randomSuffix = (Math.random() + 1)
-    .toString(36)
-    .substring(2, 2 + RANDOM_SUFFIX_LENGTH)
+  const randomSuffix = (Math.random() + 1).toString(36).substring(2, 2 + RANDOM_SUFFIX_LENGTH)
   return `${slugified}-${randomSuffix}`
 }
 

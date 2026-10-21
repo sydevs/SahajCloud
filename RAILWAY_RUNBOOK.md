@@ -230,7 +230,7 @@ same `railway.toml` and Railpack builder as production.
 
 **The `SahajCloud` service in the `production` environment must keep a Railway-provided
 `*.up.railway.app` domain, on target port 8080, alongside the custom `cloud.sydevelopers.com`.**
-Railway's rule: a service in a PR environment receives a domain automatically *only* when the
+Railway's rule: a service in a PR environment receives a domain automatically _only_ when the
 corresponding base-environment service has a Railway-provided one. Remove it from production and
 every future PR environment silently gets none.
 
@@ -305,12 +305,12 @@ new error spike, and response times and the DB connection pool (under 95% used) 
 Issues specific to provisioning. For day-to-day operational issues (deploy fails, DB connection,
 migrations, email), see [DEPLOYMENT.md § Troubleshooting](./DEPLOYMENT.md#troubleshooting).
 
-| Symptom | Cause | Fix |
-| --- | --- | --- |
-| Health check times out (300s) | App takes too long to start, or `/api/health` doesn't exist | Confirm the endpoint responds `200`. Raise `healthcheckTimeout` in `railway.toml` for a slow cold start |
-| `PAYLOAD_SECRET must be at least 32 characters` | Secret too short | `railway variables --set PAYLOAD_SECRET="$(openssl rand -base64 24)"` |
-| Memory limit exceeded | Free Hobby plan (128 MB RAM) can't run this app | Upgrade to the Pro plan |
-| `DATABASE_URL not resolved` | The `${{ Postgres.DATABASE_URL }}` reference doesn't match the Postgres service's real name | `railway services list`, then set the reference to the exact name |
+| Symptom                                         | Cause                                                                                       | Fix                                                                                                     |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Health check times out (300s)                   | App takes too long to start, or `/api/health` doesn't exist                                 | Confirm the endpoint responds `200`. Raise `healthcheckTimeout` in `railway.toml` for a slow cold start |
+| `PAYLOAD_SECRET must be at least 32 characters` | Secret too short                                                                            | `railway variables --set PAYLOAD_SECRET="$(openssl rand -base64 24)"`                                   |
+| Memory limit exceeded                           | Free Hobby plan (128 MB RAM) can't run this app                                             | Upgrade to the Pro plan                                                                                 |
+| `DATABASE_URL not resolved`                     | The `${{ Postgres.DATABASE_URL }}` reference doesn't match the Postgres service's real name | `railway services list`, then set the reference to the exact name                                       |
 
 ---
 

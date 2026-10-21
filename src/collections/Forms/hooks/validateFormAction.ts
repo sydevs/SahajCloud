@@ -71,7 +71,9 @@ export const validateFormAction: CollectionBeforeValidateHook<Form> = ({
 
   // Which blocks the author placed, as a set — the only thing this rule reads
   // off the field list.
-  const present = new Set<string>(Array.isArray(fields) ? fields.map((block) => block.blockType) : [])
+  const present = new Set<string>(
+    Array.isArray(fields) ? fields.map((block) => block.blockType) : [],
+  )
   const errors: { message: string; path: string }[] = []
 
   const hasEmail = EMAIL_BLOCKS.some((type) => present.has(type))

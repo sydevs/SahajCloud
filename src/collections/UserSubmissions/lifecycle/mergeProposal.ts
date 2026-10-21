@@ -106,9 +106,7 @@ export function mergeProposal(args: {
  * keeps it off the block path. A proposed description replaces, whole.
  */
 function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return (
-    typeof value === 'object' && value !== null && !Array.isArray(value) && !('root' in value)
-  )
+  return typeof value === 'object' && value !== null && !Array.isArray(value) && !('root' in value)
 }
 
 function mergeInto(base: ProposedPatch, patch: ProposedPatch): ProposedPatch {

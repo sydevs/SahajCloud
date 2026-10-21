@@ -1,7 +1,11 @@
 import { Temporal } from '@js-temporal/polyfill'
 import { describe, expect, it } from 'vitest'
 
-import { DAYTIME_END_HOUR, DAYTIME_START_HOUR, isEventInUserDaytime } from '@/lib/audiences/daytimeMatch'
+import {
+  DAYTIME_END_HOUR,
+  DAYTIME_START_HOUR,
+  isEventInUserDaytime,
+} from '@/lib/audiences/daytimeMatch'
 
 function instant(iso: string) {
   return Temporal.Instant.from(iso)

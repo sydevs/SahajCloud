@@ -75,8 +75,7 @@ export interface AggregateGroupSpec<TSectionCtx, TConfig> extends BaseGroupSpec 
 }
 
 export type GroupSpec<TSectionCtx, TConfig> =
-  | DocumentsGroupSpec<TSectionCtx, TConfig>
-  | AggregateGroupSpec<TSectionCtx, TConfig>
+  DocumentsGroupSpec<TSectionCtx, TConfig> | AggregateGroupSpec<TSectionCtx, TConfig>
 
 /**
  * One section of the status global — corresponds to a single virtual

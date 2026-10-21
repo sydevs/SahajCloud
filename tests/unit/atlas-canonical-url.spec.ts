@@ -251,9 +251,7 @@ describe('canonicalMountUrl', () => {
       mount: '/locatelessons/',
       routing: 'query',
     }
-    expect(canonicalUrlBase(target)).toBe(
-      `${canonicalMountUrl(target)}?${ATLAS_QUERY_PARAM}=`,
-    )
+    expect(canonicalUrlBase(target)).toBe(`${canonicalMountUrl(target)}?${ATLAS_QUERY_PARAM}=`)
     expect(canonicalUrlBase({ ...target, mount: '/ma p' })).toBeNull()
   })
 })

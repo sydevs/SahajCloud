@@ -11,11 +11,7 @@ import {
   hasReminderForStage,
 } from '@/lib/eventVerification/log'
 import { addDays } from '@/lib/eventVerification/periods'
-import {
-  stageAction,
-  transitionUnpublishes,
-  unpublishDate,
-} from '@/lib/eventVerification/stages'
+import { stageAction, transitionUnpublishes, unpublishDate } from '@/lib/eventVerification/stages'
 import { resolveNextCheckAt } from '@/lib/eventVerification/watermark'
 import {
   buildEventEmailDetails,
@@ -32,7 +28,6 @@ import type { Event } from '@/payload-types'
 
 import { isEventVerificationEnabled } from './featureFlag'
 import { reminderButtonUrl } from './verifyUrl'
-
 
 /**
  * Cap the verification log the same way `appendLogEntry` caps a delivery log.

@@ -251,7 +251,7 @@ tab. Each leaf group emits:
 
 - One localized JSON field, named after the leaf slug (e.g. `welcome` or
   `onboarding_welcome`), holding every `string`-typed key as flat `{ key:
-  value }` pairs. `TranslationsRow` renders each key as its own row.
+value }` pairs. `TranslationsRow` renders each key as its own row.
 - One localized `richText` field per `richText` key, named
   `<leafSlug>_<key>`, with a `RichTextReference` description showing the
   English reference value.
@@ -312,7 +312,7 @@ write.
   every save of its document, so a `required` key would strand a locale
   that predates it, on a save that never touched translations.
 - **Only standard JSON Schema keywords may appear.** Payload runs Ajv 8 in
-  strict mode, where an unknown keyword throws at *validate* time, not at
+  strict mode, where an unknown keyword throws at _validate_ time, not at
   boot — so `plural`, `preview`, `screenshot` and `strict` must never reach
   the emitted schema. A plural key contributes its expanded CLDR family.
 

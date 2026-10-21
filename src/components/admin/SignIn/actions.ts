@@ -22,8 +22,7 @@ import payloadConfig from '@payload-config'
  * message beneath it. A `title` on the refusal would never reach a screen.
  */
 export type SignInOutcome =
-  | { tone: 'error'; message: string }
-  | { tone: 'success'; title: string; message: string }
+  { tone: 'error'; message: string } | { tone: 'success'; title: string; message: string }
 
 /**
  * ⚠ **The one answer a submitted address gets.** It must not vary with whether

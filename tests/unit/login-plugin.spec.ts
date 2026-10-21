@@ -152,7 +152,7 @@ describe('loginPlugin', () => {
     const passwordless: LoginCollectionConfig = { ...managers, passwordless: true }
     const SIGN_IN_VIEW = '@/components/admin/SignIn'
 
-    it('replaces Payload\'s login view for a passwordless admin collection', () => {
+    it("replaces Payload's login view for a passwordless admin collection", () => {
       const folded = foldConfig(loginPlugin({ collections: [passwordless] }), adminConfig())
 
       expect(folded.admin?.components?.views?.login).toEqual({ Component: SIGN_IN_VIEW })
@@ -168,7 +168,10 @@ describe('loginPlugin', () => {
       const components = folded.admin!.components!
 
       expect(Object.keys(components).sort()).toEqual(Object.keys(before.admin!.components!).sort())
-      expect(components.views).toEqual({ ...before.admin!.components!.views, login: expect.anything() })
+      expect(components.views).toEqual({
+        ...before.admin!.components!.views,
+        login: expect.anything(),
+      })
       expect(components.beforeNavLinks).toEqual(before.admin!.components!.beforeNavLinks)
       expect(components.Nav).toBe(before.admin!.components!.Nav)
       expect(components.graphics).toEqual(before.admin!.components!.graphics)

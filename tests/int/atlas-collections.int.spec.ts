@@ -4,7 +4,6 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import type { Region } from '@/payload-types'
 
-
 import { createData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
