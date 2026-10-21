@@ -5,7 +5,10 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { JOB_PURGE_WINDOWS, JOB_RETENTION_DAYS } from '@/jobs/CleanupCollections/entries/payloadJobs'
+import {
+  JOB_PURGE_WINDOWS,
+  JOB_RETENTION_DAYS,
+} from '@/jobs/CleanupCollections/entries/payloadJobs'
 import { retentionCutoff } from '@/jobs/CleanupCollections/sweepCollection'
 
 describe('job retention', () => {

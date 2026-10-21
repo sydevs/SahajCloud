@@ -2874,12 +2874,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "subtitles": {
-          "name": "subtitles",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
         "tags": {
           "name": "tags",
           "type": "enum_videos_tags",
@@ -3055,6 +3049,12 @@
           "type": "varchar",
           "primaryKey": false,
           "notNull": true
+        },
+        "subtitles": {
+          "name": "subtitles",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
         },
         "id": {
           "name": "id",
@@ -8837,12 +8837,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "default_meditation_id": {
-          "name": "default_meditation_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
         "default_image_id": {
           "name": "default_image_id",
           "type": "integer",
@@ -8918,12 +8912,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "starting_soon_meditation_id": {
-          "name": "starting_soon_meditation_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
         "starting_soon_image_id": {
           "name": "starting_soon_image_id",
           "type": "integer",
@@ -8995,12 +8983,6 @@
         },
         "live_now_album_id": {
           "name": "live_now_album_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "live_now_meditation_id": {
-          "name": "live_now_meditation_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": false
@@ -9157,21 +9139,6 @@
           "method": "btree",
           "with": {}
         },
-        "app_cards_default_default_meditation_idx": {
-          "name": "app_cards_default_default_meditation_idx",
-          "columns": [
-            {
-              "expression": "default_meditation_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "app_cards_default_default_image_idx": {
           "name": "app_cards_default_default_image_idx",
           "columns": [
@@ -9247,21 +9214,6 @@
           "method": "btree",
           "with": {}
         },
-        "app_cards_starting_soon_starting_soon_meditation_idx": {
-          "name": "app_cards_starting_soon_starting_soon_meditation_idx",
-          "columns": [
-            {
-              "expression": "starting_soon_meditation_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "app_cards_starting_soon_starting_soon_image_idx": {
           "name": "app_cards_starting_soon_starting_soon_image_idx",
           "columns": [
@@ -9327,21 +9279,6 @@
           "columns": [
             {
               "expression": "live_now_album_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "app_cards_live_now_live_now_meditation_idx": {
-          "name": "app_cards_live_now_live_now_meditation_idx",
-          "columns": [
-            {
-              "expression": "live_now_meditation_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -9466,19 +9403,6 @@
           "onDelete": "set null",
           "onUpdate": "no action"
         },
-        "app_cards_default_meditation_id_meditations_id_fk": {
-          "name": "app_cards_default_meditation_id_meditations_id_fk",
-          "tableFrom": "app_cards",
-          "tableTo": "meditations",
-          "columnsFrom": [
-            "default_meditation_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
         "app_cards_default_image_id_images_id_fk": {
           "name": "app_cards_default_image_id_images_id_fk",
           "tableFrom": "app_cards",
@@ -9537,19 +9461,6 @@
           "tableTo": "albums",
           "columnsFrom": [
             "starting_soon_album_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "app_cards_starting_soon_meditation_id_meditations_id_fk": {
-          "name": "app_cards_starting_soon_meditation_id_meditations_id_fk",
-          "tableFrom": "app_cards",
-          "tableTo": "meditations",
-          "columnsFrom": [
-            "starting_soon_meditation_id"
           ],
           "columnsTo": [
             "id"
@@ -9622,19 +9533,6 @@
           "onDelete": "set null",
           "onUpdate": "no action"
         },
-        "app_cards_live_now_meditation_id_meditations_id_fk": {
-          "name": "app_cards_live_now_meditation_id_meditations_id_fk",
-          "tableFrom": "app_cards",
-          "tableTo": "meditations",
-          "columnsFrom": [
-            "live_now_meditation_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
         "app_cards_live_now_image_id_images_id_fk": {
           "name": "app_cards_live_now_image_id_images_id_fk",
           "tableFrom": "app_cards",
@@ -9683,6 +9581,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "default_meditation_id": {
+          "name": "default_meditation_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "default_url": {
           "name": "default_url",
           "type": "varchar",
@@ -9713,6 +9617,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "starting_soon_meditation_id": {
+          "name": "starting_soon_meditation_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "starting_soon_url": {
           "name": "starting_soon_url",
           "type": "varchar",
@@ -9740,6 +9650,12 @@
         "live_now_button_text": {
           "name": "live_now_button_text",
           "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "live_now_meditation_id": {
+          "name": "live_now_meditation_id",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false
         },
@@ -9778,6 +9694,69 @@
         }
       },
       "indexes": {
+        "app_cards_default_default_meditation_idx": {
+          "name": "app_cards_default_default_meditation_idx",
+          "columns": [
+            {
+              "expression": "default_meditation_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "_locale",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "app_cards_starting_soon_starting_soon_meditation_idx": {
+          "name": "app_cards_starting_soon_starting_soon_meditation_idx",
+          "columns": [
+            {
+              "expression": "starting_soon_meditation_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "_locale",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "app_cards_live_now_live_now_meditation_idx": {
+          "name": "app_cards_live_now_live_now_meditation_idx",
+          "columns": [
+            {
+              "expression": "live_now_meditation_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "_locale",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "app_cards__status_idx": {
           "name": "app_cards__status_idx",
           "columns": [
@@ -9822,6 +9801,45 @@
         }
       },
       "foreignKeys": {
+        "app_cards_locales_default_meditation_id_meditations_id_fk": {
+          "name": "app_cards_locales_default_meditation_id_meditations_id_fk",
+          "tableFrom": "app_cards_locales",
+          "tableTo": "meditations",
+          "columnsFrom": [
+            "default_meditation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "app_cards_locales_starting_soon_meditation_id_meditations_id_fk": {
+          "name": "app_cards_locales_starting_soon_meditation_id_meditations_id_fk",
+          "tableFrom": "app_cards_locales",
+          "tableTo": "meditations",
+          "columnsFrom": [
+            "starting_soon_meditation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "app_cards_locales_live_now_meditation_id_meditations_id_fk": {
+          "name": "app_cards_locales_live_now_meditation_id_meditations_id_fk",
+          "tableFrom": "app_cards_locales",
+          "tableTo": "meditations",
+          "columnsFrom": [
+            "live_now_meditation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
         "app_cards_locales_parent_id_fk": {
           "name": "app_cards_locales_parent_id_fk",
           "tableFrom": "app_cards_locales",
@@ -10383,12 +10401,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "version_default_meditation_id": {
-          "name": "version_default_meditation_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
         "version_default_image_id": {
           "name": "version_default_image_id",
           "type": "integer",
@@ -10464,12 +10476,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "version_starting_soon_meditation_id": {
-          "name": "version_starting_soon_meditation_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
         "version_starting_soon_image_id": {
           "name": "version_starting_soon_image_id",
           "type": "integer",
@@ -10541,12 +10547,6 @@
         },
         "version_live_now_album_id": {
           "name": "version_live_now_album_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "version_live_now_meditation_id": {
-          "name": "version_live_now_meditation_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": false
@@ -10749,21 +10749,6 @@
           "method": "btree",
           "with": {}
         },
-        "_app_cards_v_version_default_version_default_meditation_idx": {
-          "name": "_app_cards_v_version_default_version_default_meditation_idx",
-          "columns": [
-            {
-              "expression": "version_default_meditation_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "_app_cards_v_version_default_version_default_image_idx": {
           "name": "_app_cards_v_version_default_version_default_image_idx",
           "columns": [
@@ -10839,21 +10824,6 @@
           "method": "btree",
           "with": {}
         },
-        "_app_cards_v_version_starting_soon_version_starting_so_4_idx": {
-          "name": "_app_cards_v_version_starting_soon_version_starting_so_4_idx",
-          "columns": [
-            {
-              "expression": "version_starting_soon_meditation_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "_app_cards_v_version_starting_soon_version_starting_so_5_idx": {
           "name": "_app_cards_v_version_starting_soon_version_starting_so_5_idx",
           "columns": [
@@ -10919,21 +10889,6 @@
           "columns": [
             {
               "expression": "version_live_now_album_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "_app_cards_v_version_live_now_version_live_now_meditatio_idx": {
-          "name": "_app_cards_v_version_live_now_version_live_now_meditatio_idx",
-          "columns": [
-            {
-              "expression": "version_live_now_meditation_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -11146,19 +11101,6 @@
           "onDelete": "set null",
           "onUpdate": "no action"
         },
-        "_app_cards_v_version_default_meditation_id_meditations_id_fk": {
-          "name": "_app_cards_v_version_default_meditation_id_meditations_id_fk",
-          "tableFrom": "_app_cards_v",
-          "tableTo": "meditations",
-          "columnsFrom": [
-            "version_default_meditation_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
         "_app_cards_v_version_default_image_id_images_id_fk": {
           "name": "_app_cards_v_version_default_image_id_images_id_fk",
           "tableFrom": "_app_cards_v",
@@ -11217,19 +11159,6 @@
           "tableTo": "albums",
           "columnsFrom": [
             "version_starting_soon_album_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "_app_cards_v_version_starting_soon_meditation_id_meditations_id_fk": {
-          "name": "_app_cards_v_version_starting_soon_meditation_id_meditations_id_fk",
-          "tableFrom": "_app_cards_v",
-          "tableTo": "meditations",
-          "columnsFrom": [
-            "version_starting_soon_meditation_id"
           ],
           "columnsTo": [
             "id"
@@ -11302,19 +11231,6 @@
           "onDelete": "set null",
           "onUpdate": "no action"
         },
-        "_app_cards_v_version_live_now_meditation_id_meditations_id_fk": {
-          "name": "_app_cards_v_version_live_now_meditation_id_meditations_id_fk",
-          "tableFrom": "_app_cards_v",
-          "tableTo": "meditations",
-          "columnsFrom": [
-            "version_live_now_meditation_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
         "_app_cards_v_version_live_now_image_id_images_id_fk": {
           "name": "_app_cards_v_version_live_now_image_id_images_id_fk",
           "tableFrom": "_app_cards_v",
@@ -11363,6 +11279,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "version_default_meditation_id": {
+          "name": "version_default_meditation_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "version_default_url": {
           "name": "version_default_url",
           "type": "varchar",
@@ -11393,6 +11315,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "version_starting_soon_meditation_id": {
+          "name": "version_starting_soon_meditation_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "version_starting_soon_url": {
           "name": "version_starting_soon_url",
           "type": "varchar",
@@ -11420,6 +11348,12 @@
         "version_live_now_button_text": {
           "name": "version_live_now_button_text",
           "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_live_now_meditation_id": {
+          "name": "version_live_now_meditation_id",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false
         },
@@ -11458,6 +11392,69 @@
         }
       },
       "indexes": {
+        "_app_cards_v_version_default_version_default_meditation_idx": {
+          "name": "_app_cards_v_version_default_version_default_meditation_idx",
+          "columns": [
+            {
+              "expression": "version_default_meditation_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "_locale",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "_app_cards_v_version_starting_soon_version_starting_so_4_idx": {
+          "name": "_app_cards_v_version_starting_soon_version_starting_so_4_idx",
+          "columns": [
+            {
+              "expression": "version_starting_soon_meditation_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "_locale",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "_app_cards_v_version_live_now_version_live_now_meditatio_idx": {
+          "name": "_app_cards_v_version_live_now_version_live_now_meditatio_idx",
+          "columns": [
+            {
+              "expression": "version_live_now_meditation_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "_locale",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "_app_cards_v_version_version__status_idx": {
           "name": "_app_cards_v_version_version__status_idx",
           "columns": [
@@ -11502,6 +11499,45 @@
         }
       },
       "foreignKeys": {
+        "_app_cards_v_locales_version_default_meditation_id_meditations_id_fk": {
+          "name": "_app_cards_v_locales_version_default_meditation_id_meditations_id_fk",
+          "tableFrom": "_app_cards_v_locales",
+          "tableTo": "meditations",
+          "columnsFrom": [
+            "version_default_meditation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "_app_cards_v_locales_version_starting_soon_meditation_id_meditations_id_fk": {
+          "name": "_app_cards_v_locales_version_starting_soon_meditation_id_meditations_id_fk",
+          "tableFrom": "_app_cards_v_locales",
+          "tableTo": "meditations",
+          "columnsFrom": [
+            "version_starting_soon_meditation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "_app_cards_v_locales_version_live_now_meditation_id_meditations_id_fk": {
+          "name": "_app_cards_v_locales_version_live_now_meditation_id_meditations_id_fk",
+          "tableFrom": "_app_cards_v_locales",
+          "tableTo": "meditations",
+          "columnsFrom": [
+            "version_live_now_meditation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
         "_app_cards_v_locales_parent_id_fk": {
           "name": "_app_cards_v_locales_parent_id_fk",
           "tableFrom": "_app_cards_v_locales",
@@ -15943,12 +15979,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "placeholder": {
-          "name": "placeholder",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": false
-        },
         "required": {
           "name": "required",
           "type": "boolean",
@@ -16042,6 +16072,12 @@
         },
         "default_value": {
           "name": "default_value",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "placeholder": {
+          "name": "placeholder",
           "type": "varchar",
           "primaryKey": false,
           "notNull": false
@@ -16717,12 +16753,6 @@
           "primaryKey": true,
           "notNull": true
         },
-        "title": {
-          "name": "title",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": true
-        },
         "confirmation_type": {
           "name": "confirmation_type",
           "type": "enum_forms_confirmation_type",
@@ -16730,12 +16760,6 @@
           "primaryKey": false,
           "notNull": false,
           "default": "'message'"
-        },
-        "redirect_url": {
-          "name": "redirect_url",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": false
         },
         "action_type": {
           "name": "action_type",
@@ -16887,6 +16911,12 @@
       "name": "forms_locales",
       "schema": "",
       "columns": {
+        "title": {
+          "name": "title",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
         "submit_button_label": {
           "name": "submit_button_label",
           "type": "varchar",
@@ -16896,6 +16926,12 @@
         "confirmation_message": {
           "name": "confirmation_message",
           "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "redirect_url": {
+          "name": "redirect_url",
+          "type": "varchar",
           "primaryKey": false,
           "notNull": false
         },
@@ -28897,7 +28933,7 @@
         "sendPostEventFollowUps",
         "sendRegistrationDigests",
         "sendSessionReminders",
-        "sweepRetention",
+        "cleanupCollections",
         "syncLectureMetadata",
         "transcribeMeditation",
         "verifyEmbeds",
@@ -28927,7 +28963,7 @@
         "sendPostEventFollowUps",
         "sendRegistrationDigests",
         "sendSessionReminders",
-        "sweepRetention",
+        "cleanupCollections",
         "syncLectureMetadata",
         "transcribeMeditation",
         "verifyEmbeds",
@@ -29415,6 +29451,6 @@
     "tables": {},
     "columns": {}
   },
-  "id": "1069e07e-be74-4861-b1ab-8cdb2600284e",
+  "id": "11ca0d66-cc9a-4a6d-a8df-1ed0a58709dc",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }

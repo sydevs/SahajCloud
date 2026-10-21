@@ -2,8 +2,8 @@ import type { Payload, TaskInput } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { RETENTION_REGISTRY } from '@/jobs/CleanupCollections/registry'
 import { CleanupCollections } from '@/jobs/CleanupCollections/CleanupCollections'
+import { RETENTION_REGISTRY } from '@/jobs/CleanupCollections/registry'
 
 import { deletedIn } from '../utils/retention'
 import { runTaskHandler } from '../utils/taskRunner'

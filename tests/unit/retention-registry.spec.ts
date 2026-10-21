@@ -8,8 +8,8 @@ import type { Field, Payload } from 'payload'
 
 import { describe, expect, it } from 'vitest'
 
-import { NO_RETENTION, RETENTION_REGISTRY } from '@/jobs/CleanupCollections/registry'
 import { CleanupCollections } from '@/jobs/CleanupCollections/CleanupCollections'
+import { NO_RETENTION, RETENTION_REGISTRY } from '@/jobs/CleanupCollections/registry'
 
 import { runTaskHandler } from '../utils/taskRunner'
 

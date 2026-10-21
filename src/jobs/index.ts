@@ -1,3 +1,4 @@
+import { CleanupCollections } from './CleanupCollections/CleanupCollections'
 import { CleanupOrphanedMedia } from './CleanupOrphanedMedia/CleanupOrphanedMedia'
 import { DeliverSubmissions } from './DeliverSubmissions/DeliverSubmissions'
 import { ExpireEvents } from './ExpireEvents/ExpireEvents'
@@ -5,7 +6,6 @@ import { SendPostEventFollowUps } from './RegistrationNotifications/SendPostEven
 import { SendRegistrationDigests } from './RegistrationNotifications/SendRegistrationDigests'
 import { SendSessionReminders } from './RegistrationNotifications/SendSessionReminders'
 import { ScreenSubmissions } from './ScreenSubmissions/ScreenSubmissions'
-import { CleanupCollections } from './CleanupCollections/CleanupCollections'
 import { SyncLectureMetadata } from './SyncLectureMetadata/SyncLectureMetadata'
 import { TranscribeMeditation } from './TranscribeMeditation/TranscribeMeditation'
 import { VerifyEmbeds } from './VerifyEmbeds/VerifyEmbeds'

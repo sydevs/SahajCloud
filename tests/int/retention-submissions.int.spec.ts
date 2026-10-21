@@ -16,12 +16,12 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { CleanupCollections } from '@/jobs/CleanupCollections/CleanupCollections'
 import {
   CONTACT_ACCEPTED_DAYS,
   MACHINE_SPAM_DAYS,
   PROPOSAL_DAYS,
 } from '@/jobs/CleanupCollections/entries/userSubmissions'
-import { CleanupCollections } from '@/jobs/CleanupCollections/CleanupCollections'
 import type { Event, Form, Manager, UserSubmission } from '@/payload-types'
 
 import { deletedIn } from '../utils/retention'
