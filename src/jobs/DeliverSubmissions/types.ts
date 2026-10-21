@@ -45,6 +45,21 @@ export type DeliveryOutcome =
       sentTo: string
       /** What the receiving end called the result, when it named one. */
       detail?: string
+      /**
+       * Where a successful delivery leaves the row, where `accepted` would be
+       * wrong.
+       *
+       * ⚠ **A proposal's delivery only tells a manager there is something to
+       * review**, so the row has to stay `pending` for them to decide on.
+       * Settling it here hid the review buttons on every proposal whose
+       * notification email sent — the whole review surface, unreachable — and
+       * since #909 moved the accept onto that same transition it would also
+       * create the event nobody approved.
+       *
+       * Narrowed to `pending` on purpose: this is "the delivery decided
+       * nothing", not a general channel for a deliverer to pick a status.
+       */
+      nextStatus?: Extract<UserSubmission['status'], 'pending'>
     }
   | { ok: false; detail: string; retryable: boolean }
 

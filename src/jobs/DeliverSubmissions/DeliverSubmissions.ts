@@ -79,7 +79,9 @@ export const DeliverSubmissions: TaskConfig<'deliverSubmission'> = {
       collection: 'user-submissions',
       id: submissionId,
       data: {
-        status: outcome.ok ? ('accepted' as const) : ('failed' as const),
+        // Still no branch on the type: what a delivered row becomes is the
+        // deliverer's own answer, defaulting to settled.
+        status: outcome.ok ? (outcome.nextStatus ?? ('accepted' as const)) : ('failed' as const),
         activityLog: appendLogEntry(asLog(submission.activityLog), {
           at: now.toISOString(),
           type: 'delivery',

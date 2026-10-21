@@ -64,7 +64,9 @@ export async function deliverProposal({
     }
   }
 
-  return { ok: true, sentTo: to }
+  // The email reached a reviewer; nobody has reviewed anything. `nextStatus`
+  // is what keeps the row open for them.
+  return { ok: true, nextStatus: 'pending', sentTo: to }
 }
 
 /** The target event's own fields, at the depth the routing needs. */
