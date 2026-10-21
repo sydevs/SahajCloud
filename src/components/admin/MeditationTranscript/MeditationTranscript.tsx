@@ -8,6 +8,7 @@ import React, { memo, useMemo, useRef } from 'react'
 import useSWR from 'swr'
 
 import { formatTime, usePlaybackTime, useSeekToTime } from '@/components/admin/FrameEditor'
+import { type PayloadList, payloadListFetcher } from '@/components/admin/helpers/payloadListFetcher'
 import { type JobStageConfig, readJobStageConfig } from '@/components/admin/JobStageView/stages'
 import type { TranscriptSegment } from '@/lib/meditations/transcript'
 import type { MeditationTranscript as TranscriptRow } from '@/payload-types'
@@ -28,7 +29,10 @@ import { useTranscriptPhase } from './useTranscriptPhase'
 
 const POLL_INTERVAL_MS = 3000
 
-type TranscriptList = { docs?: TranscriptRow[] }
+type TranscriptList = PayloadList<TranscriptRow>
+
+/** Named at module scope: SWR re-arms its effects on a new fetcher identity. */
+const readTranscripts = payloadListFetcher<TranscriptRow>
 
 const rowOf = (list: TranscriptList | undefined): TranscriptRow | undefined => list?.docs?.[0]
 
@@ -91,16 +95,6 @@ const NOTICES: Record<Exclude<TranscriptPhase, 'completed'>, Notice> = {
     heading: 'Transcription stopped responding.',
     type: 'error',
   },
-}
-
-async function readTranscripts(url: string): Promise<TranscriptList> {
-  const response = await fetch(url, { credentials: 'include' })
-  const body: unknown = await response.json().catch(() => null)
-  if (!response.ok) {
-    const message = (body as { errors?: { message?: string }[] } | null)?.errors?.[0]?.message
-    throw new Error(message ?? `The server answered ${response.status}.`)
-  }
-  return body as TranscriptList
 }
 
 /**

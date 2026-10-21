@@ -4,11 +4,15 @@ import { useLivePreviewContext, useLocale } from '@payloadcms/ui'
 import { useCallback, useEffect, useState } from 'react'
 import useSWR from 'swr'
 
+import { payloadListFetcher } from '@/components/admin/helpers/payloadListFetcher'
 import { originOf } from '@/lib/utilities/url'
 import type { Frame } from '@/payload-types'
 
 import { getCachedPlaybackTime, subscribePlaybackTime } from './playbackTimeStore'
 import { framesByNarratorKey } from './utils'
+
+/** Named at module scope: SWR re-arms its effects on a new fetcher identity. */
+const readFrames = payloadListFetcher<Frame>
 
 /**
  * Hook to listen for playback time updates from the live preview iframe.
@@ -64,15 +68,6 @@ export const useSeekToTime = (): ((timestamp: number) => void) => {
   )
 }
 
-/** SWR fetcher with error handling and proper typing */
-const frameFetcher = async (url: string): Promise<{ docs?: Frame[] }> => {
-  const res = await fetch(url)
-  if (!res.ok) {
-    throw new Error(`Failed to fetch: ${res.status} ${res.statusText}`)
-  }
-  return res.json() as Promise<{ docs?: Frame[] }>
-}
-
 /**
  * Hook to fetch and cache available frames for a narrator
  * Uses SWR for automatic caching, deduplication, and revalidation
@@ -93,7 +88,7 @@ export const useAvailableFrames = (
 } => {
   const { code } = useLocale()
 
-  const { data, error, isLoading } = useSWR(framesByNarratorKey(narratorId, code), frameFetcher, {
+  const { data, error, isLoading } = useSWR(framesByNarratorKey(narratorId, code), readFrames, {
     revalidateOnFocus: false, // Don't refetch when window regains focus
     revalidateOnReconnect: false, // Don't refetch on network reconnect
     dedupingInterval: 300000, // 5 minutes - deduplication window
