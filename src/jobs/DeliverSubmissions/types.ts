@@ -66,6 +66,25 @@ export interface DeliveryContext {
 export type SubmissionDeliverer = (context: DeliveryContext) => Promise<DeliveryOutcome>
 
 /**
+ * One submission type's delivery, and what delivering it means for the row.
+ *
+ * ⚠ **`deliveredStatus` is a fact about the type, not about an attempt.**
+ * Every intake but one is finished once its message is away, so `accepted`.
+ * A **proposal**'s delivery only tells a manager there is something to review,
+ * so that row stays `pending` for them to decide on — settling it hid the
+ * review buttons on every proposal whose notification sent, and since #909 put
+ * the accept on that same transition it would create the event nobody
+ * approved. Keeping the answer here rather than on `DeliveryOutcome` is what
+ * makes a new type state it: the registry is total over the type union, so
+ * omitting the row is a compile error, where an optional outcome field would
+ * default silently to the wrong one.
+ */
+export interface SubmissionDelivery {
+  deliver: SubmissionDeliverer
+  deliveredStatus: UserSubmission['status']
+}
+
+/**
  * The delivery table: one entry per submission type, and the one place a new
  * type is wired in.
  *
@@ -77,4 +96,4 @@ export type SubmissionDeliverer = (context: DeliveryContext) => Promise<Delivery
  * to deliver it. It is the same shape, for the same reason, as `TYPE_LABELS`
  * and `TYPE_SUBMISSION_KEYS` beside it.
  */
-export type DeliveryRegistry = Record<UserSubmission['type'], SubmissionDeliverer>
+export type DeliveryRegistry = Record<UserSubmission['type'], SubmissionDelivery>

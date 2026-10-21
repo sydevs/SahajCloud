@@ -1,28 +1,36 @@
 /**
- * The proposal review lifecycle on `user-submissions` (#796): the two read-only
- * projections a reviewer works from, reopening a shelved row, and `applyReview`
- * itself.
+ * The proposal review lifecycle on `user-submissions` (#796, #909): the two
+ * read-only projections a reviewer works from, and every review decision as the
+ * admin now makes one — by moving `status` on the document form.
  *
- * Ported from `event-submissions.int.spec.ts` with the code. Two semantics moved
- * with it, and the assertions follow the new ones rather than the old names:
- * the status vocabulary collapsed to five, so what an accept *did* is
- * `ReviewResult.outcome` and no longer the status; and a decision is recorded as
- * an `activityLog` entry of `type: 'review'` rather than a `reviewedBy` /
- * `reviewedAt` pair.
+ * ⚠ **The subject is `payload.update` as a manager, not `applyReview`.** #909
+ * deleted `POST /api/user-submissions/:id/review` and put the whole decision on
+ * the collection's own hooks: `guardStatusTransition` judges the move,
+ * `applyReviewDecision` applies it. Calling the lifecycle function directly
+ * would test neither, and both are where the refusals now live — so each case
+ * posts the transition the button posts.
+ *
+ * Both hooks bind a **manager's** write and nothing else, which is why every
+ * case here passes `user`. A write with no user is a system write (screening,
+ * delivery) and passes untouched — `screen-submissions.int.spec.ts` holds that
+ * side.
  *
  * Rows are created with `overrideAccess: true` rather than through a client key.
  * The write guard, the per-type gates and screening are
  * `user-submissions-create.int.spec.ts`'s subject, and nothing here depends on
  * them — so this file needs no external stubs at all.
- *
- * The REST-layer half of the review path — the locale gate and the 409 for a
- * non-proposal row — lives in `user-submissions-review.int.spec.ts`.
  */
 import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { applyReview } from '@/collections/UserSubmissions/lifecycle/review'
+import { reviewMove } from '@/collections/UserSubmissions/lifecycle/review'
+import {
+  OPEN_REVIEW_STATUSES,
+  REOPENABLE_REVIEW_STATUSES,
+} from '@/collections/UserSubmissions/statuses'
+import type { WorkflowButtonsProps } from '@/components/admin/WorkflowButtons/stages'
+import { relationId } from '@/lib/utilities/relationId'
 import type { Manager, UserSubmission } from '@/payload-types'
 
 import { createData, testData } from '../utils/testData'
@@ -34,6 +42,7 @@ describe('User submission review lifecycle', () => {
   let regionManager: Manager
   let countryId: number
   let cityId: number
+  let secondCityId: number
 
   /** The patch a plain offline proposal carries, unless a case needs another. */
   const BASE_PROPOSED = {
@@ -105,6 +114,43 @@ describe('User submission review lifecycle', () => {
       overrideAccess: true,
     }) as Promise<UserSubmission>
 
+  /**
+   * The write a review button posts: a status move, as the reviewing manager.
+   *
+   * `user` is the whole reason this is not an ordinary update — both review
+   * hooks bind `req.user.collection === 'managers'`, and `createLocalReq` would
+   * otherwise leave `collection` to a fallback rather than to this spec.
+   * `data` carries anything the reviewer edited in the same post.
+   */
+  const decide = (
+    id: number,
+    status: UserSubmission['status'],
+    data: Record<string, unknown> = {},
+  ) =>
+    payload.update({
+      collection: 'user-submissions',
+      id,
+      data: { status, ...data } as never,
+      user: { ...regionManager, collection: 'managers' } as never,
+      overrideAccess: true,
+    }) as Promise<UserSubmission>
+
+  /**
+   * A system status write — screening's and delivery's shape, with no user.
+   * Both review hooks let it through, which is what puts a row at a status this
+   * file's cases start from.
+   */
+  const settle = (id: number, status: UserSubmission['status']) =>
+    payload.update({
+      collection: 'user-submissions',
+      id,
+      data: { status },
+      overrideAccess: true,
+    })
+
+  /** The event a decided proposal ended up pointing at. */
+  const acceptedEventId = async (id: number) => relationId((await reload(id)).event)
+
   /** The decisions recorded on a row, newest last. */
   const reviewEntries = (submission: UserSubmission) =>
     (submission.activityLog ?? []).filter((entry) => entry.type === 'review')
@@ -116,9 +162,13 @@ describe('User submission review lifecycle', () => {
     payload = env.payload
     cleanup = env.cleanup
 
+    // `atlas-manager` is the one role granting `user-submissions: update`, and
+    // `reviewMove` reads that grant — a manager without it is not a reviewer,
+    // whatever rows name them.
     regionManager = await testData.createManager(payload, {
       name: 'Region Reviewer',
       email: 'region-reviewer@example.com',
+      roles: { en: ['atlas-manager'] },
     })
     const country = await testData.createRegion(payload, {
       name: 'Submissia',
@@ -133,6 +183,12 @@ describe('User submission review lifecycle', () => {
       parent: countryId,
     })
     cityId = city.id
+    const secondCity = await testData.createRegion(payload, {
+      name: 'Sub Town',
+      level: 'city',
+      parent: countryId,
+    })
+    secondCityId = secondCity.id
   })
 
   afterAll(async () => {
@@ -210,15 +266,10 @@ describe('User submission review lifecycle', () => {
       expect(preview.images).toBeUndefined()
       expect(preview.region).toBe(cityId)
 
-      const result = await applyReview({
-        payload,
-        submissionId: created.id,
-        action: 'accept',
-        managerId: regionManager.id,
-      })
+      await decide(created.id, 'accepted')
       const event = await payload.findByID({
         collection: 'events',
-        id: result.eventId as number,
+        id: (await acceptedEventId(created.id)) as number,
         depth: 0,
         overrideAccess: true,
       })
@@ -311,29 +362,89 @@ describe('User submission review lifecycle', () => {
     })
   })
 
+  /**
+   * The buttons the admin offers, read off the live declaration.
+   *
+   * Which statuses carry buttons is derived from the two status sets, so it
+   * cannot drift. Where each button *points* is not — `overrides.status` is
+   * written at the declaration, and a Reject aimed at `spam` would build the
+   * same map and be refused by `reviewMove` at the click. So the targets are
+   * pinned against the decision the server would make for them.
+   */
+  describe('the review buttons', () => {
+    const declaration = () => {
+      const slot =
+        payload.collections['user-submissions']!.config.admin.components?.edit?.SaveButton
+      if (typeof slot !== 'object' || slot === null || !('clientProps' in slot)) {
+        throw new Error('expected the SaveButton slot to declare clientProps')
+      }
+      return slot.clientProps as WorkflowButtonsProps<UserSubmission['status']>
+    }
+
+    it('gates on the one intake with a review path', () => {
+      expect(declaration().onlyWhen).toEqual({ field: 'type', equals: 'proposal' })
+      // Every other intake, and the create screen, keep Payload's own button.
+      expect(declaration().fallback).toBe('save')
+    })
+
+    it('offers buttons at exactly the statuses a decision is still open at', () => {
+      const stages = declaration().stages
+      expect(Object.keys(stages).sort()).toEqual(
+        [...OPEN_REVIEW_STATUSES, ...REOPENABLE_REVIEW_STATUSES, 'accepted'].sort(),
+      )
+      // A stage with no action, not a missing one: `[]` renders nothing, where
+      // an unnamed stage would put Payload's Save button back on a decided row.
+      expect(stages.accepted).toEqual([])
+    })
+
+    it('aims every button at a move the server would accept', () => {
+      const stages = declaration().stages
+      for (const [from, buttons] of Object.entries(stages) as [
+        UserSubmission['status'],
+        NonNullable<
+          WorkflowButtonsProps<UserSubmission['status']>['stages'][UserSubmission['status']]
+        >,
+      ][]) {
+        for (const button of buttons) {
+          const to = button.overrides.status as UserSubmission['status']
+          const move = reviewMove({
+            from,
+            to,
+            type: 'proposal',
+            // An admin, so the only thing left for `reviewMove` to judge is the
+            // transition — `bypassPermissions` admits them before any role
+            // lookup. Whether a given manager holds the grant is the
+            // assigned-manager suite's subject, not this one's.
+            req: { locale: 'en', user: { collection: 'managers', type: 'admin' } } as never,
+          })
+          expect(move, `${button.label}: ${from} → ${to}`).toMatchObject({ kind: 'decision' })
+        }
+      }
+    })
+
+    it('leaves every button enabled on a row nobody edited', () => {
+      // `WorkflowButtons` disables an action whose `overrides` are empty, the
+      // rule Payload's own Save button applies to an unmodified document — so a
+      // review button carrying none would be unreachable until something moved.
+      for (const buttons of Object.values(declaration().stages)) {
+        for (const button of buttons ?? []) {
+          expect(Object.keys(button.overrides).length, button.label).toBeGreaterThan(0)
+        }
+      }
+    })
+  })
+
   describe('reopen', () => {
     const shelve = async (status: 'spam' | 'rejected') => {
       const created = await createProposal({ country: countryId })
-      await payload.update({
-        collection: 'user-submissions',
-        id: created.id,
-        data: { status },
-        overrideAccess: true,
-      })
+      await settle(created.id, status)
       return created.id
     }
 
     it('returns a shelved submission to pending and records the reopening', async () => {
       for (const status of ['spam', 'rejected'] as const) {
         const id = await shelve(status)
-        const result = await applyReview({
-          payload,
-          submissionId: id,
-          action: 'reopen',
-          managerId: regionManager.id,
-        })
-        expect(result.status).toBe('pending')
-        expect(result.outcome).toBe('reopened')
+        await decide(id, 'pending')
 
         const fresh = await reload(id)
         expect(fresh.status).toBe('pending')
@@ -348,45 +459,26 @@ describe('User submission review lifecycle', () => {
       // Reopening an accepted row would invite a second Accept, and a duplicate
       // listing with it.
       const created = await createProposal({ country: countryId })
-      await payload.update({
-        collection: 'user-submissions',
-        id: created.id,
-        data: { status: 'accepted' },
-        overrideAccess: true,
+      await settle(created.id, 'accepted')
+
+      await expect(decide(created.id, 'pending')).rejects.toMatchObject({
+        data: { errors: [{ path: 'status' }] },
       })
-      await expect(
-        applyReview({
-          payload,
-          submissionId: created.id,
-          action: 'reopen',
-          managerId: regionManager.id,
-        }),
-      ).rejects.toMatchObject({ status: 409, data: { code: 'not_reopenable' } })
+      expect((await reload(created.id)).status).toBe('accepted')
     })
   })
 
-  describe('applyReview', () => {
+  describe('a decision posted on the form', () => {
     it('acts on a failed row — the review email not sending is not a refusal', async () => {
       // ⚠ This is the one status `event-submissions`' own open set had no
       // equivalent for, so porting that set verbatim would have stranded every
       // row whose review email bounced. `failed` means the decision path was
       // fine and the delivery was not.
       const created = await createProposal({ country: countryId })
-      await payload.update({
-        collection: 'user-submissions',
-        id: created.id,
-        data: { status: 'failed' },
-        overrideAccess: true,
-      })
+      await settle(created.id, 'failed')
 
-      const result = await applyReview({
-        payload,
-        submissionId: created.id,
-        action: 'reject',
-        managerId: regionManager.id,
-      })
-      expect(result.status).toBe('rejected')
-      expect(result.outcome).toBe('rejected')
+      await decide(created.id, 'rejected')
+      expect((await reload(created.id)).status).toBe('rejected')
     })
 
     it('accept on a new-event submission creates a published unverified event', async () => {
@@ -403,20 +495,16 @@ describe('User submission review lifecycle', () => {
         },
       })
 
-      const result = await applyReview({
-        payload,
-        submissionId: created.id,
-        action: 'accept',
-        managerId: regionManager.id,
-      })
-      // One status for every accept; `outcome` is what the accept actually did.
-      expect(result.status).toBe('accepted')
-      expect(result.outcome).toBe('created')
-      expect(result.eventId).toBeTruthy()
+      await decide(created.id, 'accepted')
+
+      const after = await reload(created.id)
+      expect(after.status).toBe('accepted')
+      const eventId = relationId(after.event)
+      expect(eventId).toBeTruthy()
 
       const event = await payload.findByID({
         collection: 'events',
-        id: result.eventId as number,
+        id: eventId as number,
         overrideAccess: true,
         depth: 0,
       })
@@ -425,14 +513,11 @@ describe('User submission review lifecycle', () => {
       expect(event.manager ?? null).toBeNull()
       expect(event.schedule?.recurrenceType).toBe('WEEKLY')
 
-      const after = await reload(created.id)
-      expect(after.status).toBe('accepted')
-      expect(typeof after.event === 'object' ? after.event?.id : after.event).toBe(result.eventId)
-      // The decision, and who made it, live on the row's own log.
+      // The decision, and who made it, live on the row's own log. One status
+      // for every accept, so this entry is where created-versus-patched is
+      // readable at all — which is why no toast had to carry it.
       expect(lastReviewEntry(after)?.managerId).toBe(regionManager.id)
-      expect(lastReviewEntry(after)?.cells?.activity).toBe(
-        `Accepted — event #${result.eventId} created`,
-      )
+      expect(lastReviewEntry(after)?.cells?.activity).toBe(`Accepted — event #${eventId} created`)
     })
 
     it('accept with an assigned manager adopts and verifies the created event', async () => {
@@ -445,16 +530,11 @@ describe('User submission review lifecycle', () => {
         proposed: { ...proposedAt('3 Main St'), schedule: WEEKLY_SCHEDULE },
       })
 
-      const result = await applyReview({
-        payload,
-        submissionId: created.id,
-        action: 'accept',
-        managerId: regionManager.id,
-      })
+      await decide(created.id, 'accepted')
 
       const event = await payload.findByID({
         collection: 'events',
-        id: result.eventId as number,
+        id: (await acceptedEventId(created.id)) as number,
         overrideAccess: true,
         depth: 0,
       })
@@ -472,6 +552,13 @@ describe('User submission review lifecycle', () => {
       })
       const event = await testData.createEvent(payload, {
         manager: eventManager.id,
+        // ⚠ In the reviewer's own region, because accepting is a manager save:
+        // `Events.region`'s `filterOptions` narrows to the saver's owned
+        // subtree, and it runs over the merged document even on a patch that
+        // never names `region`. A target outside that subtree is refused — the
+        // same answer the review endpoint gave, which forwarded the reviewer's
+        // `req` too.
+        region: cityId,
         _status: 'published',
         contactPhone: '+1-555-0100',
       })
@@ -487,14 +574,13 @@ describe('User submission review lifecycle', () => {
         event: event.id,
         proposed: { eventType: 'offline', contactPhone: '+44 20 9999 0000' },
       })
-      const result = await applyReview({
-        payload,
-        submissionId: created.id,
-        action: 'accept',
-        managerId: regionManager.id,
-      })
-      expect(result.status).toBe('accepted')
-      expect(result.outcome).toBe('updated')
+      await decide(created.id, 'accepted')
+
+      const settled = await reload(created.id)
+      expect(settled.status).toBe('accepted')
+      expect(lastReviewEntry(settled)?.cells?.activity).toBe(
+        `Accepted — changes applied to event #${event.id}`,
+      )
 
       const after = await payload.findByID({
         collection: 'events',
@@ -524,15 +610,10 @@ describe('User submission review lifecycle', () => {
         },
       })
 
-      const result = await applyReview({
-        payload,
-        submissionId: created.id,
-        action: 'accept',
-        managerId: regionManager.id,
-      })
+      await decide(created.id, 'accepted')
       const event = await payload.findByID({
         collection: 'events',
-        id: result.eventId as number,
+        id: (await acceptedEventId(created.id)) as number,
         overrideAccess: true,
       })
       expect((event.address as Record<string, unknown>).smuggled).toBeUndefined()
@@ -541,49 +622,230 @@ describe('User submission review lifecycle', () => {
 
     it('reject shelves the submission without touching any event', async () => {
       const created = await createProposal({ anchorRegion: cityId })
-      const result = await applyReview({
-        payload,
-        submissionId: created.id,
-        action: 'reject',
-        managerId: regionManager.id,
-      })
-      expect(result.status).toBe('rejected')
-      expect(result.outcome).toBe('rejected')
-      expect(result.eventId).toBeUndefined()
+      await decide(created.id, 'rejected')
+
+      const after = await reload(created.id)
+      expect(after.status).toBe('rejected')
+      expect(relationId(after.event)).toBeNull()
+      expect(lastReviewEntry(after)?.cells?.activity).toBe('Rejected')
     })
 
-    it('is idempotent: a second review reports the terminal status unchanged', async () => {
-      const created = await createProposal({ anchorRegion: cityId })
-      await applyReview({
-        payload,
-        submissionId: created.id,
-        action: 'reject',
-        managerId: regionManager.id,
+    it('uses a region the reviewer corrected in the same post', async () => {
+      // The one edit a reviewer makes on this page, and the reason Accept is a
+      // form submit rather than a button that posts an action: screening can
+      // resolve the wrong city, and fixing it must not be a second save.
+      const created = await createProposal({
+        anchorRegion: cityId,
+        proposed: { ...proposedAt('7 Main St'), schedule: WEEKLY_SCHEDULE },
       })
-      const again = await applyReview({
-        payload,
-        submissionId: created.id,
-        action: 'accept',
-        managerId: regionManager.id,
+
+      await decide(created.id, 'accepted', { region: secondCityId })
+
+      const event = await payload.findByID({
+        collection: 'events',
+        id: (await acceptedEventId(created.id)) as number,
+        depth: 0,
+        overrideAccess: true,
       })
-      expect(again.status).toBe('rejected')
-      expect(again.outcome).toBe('already-decided')
-      expect(again.eventId).toBeUndefined()
-      // Nothing was written the second time round, so the log still holds one
-      // decision — which is what "already decided" has to mean.
-      expect(reviewEntries(await reload(created.id))).toHaveLength(1)
+      expect(event.region).toBe(secondCityId)
     })
 
-    it('refuses to accept a new event with no resolved region', async () => {
+    /**
+     * What replaced `applyReview`'s own `already-decided` answer, which
+     * reported the terminal status with a 200 and wrote nothing. A move no
+     * reviewer may make is now refused outright, so nothing has to read an
+     * outcome word to find out whether anything happened.
+     */
+    it.each([
+      ['rejected', 'accepted'],
+      ['accepted', 'pending'],
+      ['pending', 'spam'],
+    ] as const)('refuses the move from %s to %s', async (from, to) => {
+      const created = await createProposal({ region: cityId, anchorRegion: cityId })
+      if (from !== 'pending') await settle(created.id, from)
+
+      await expect(decide(created.id, to)).rejects.toMatchObject({
+        data: { errors: [{ path: 'status' }] },
+      })
+      const after = await reload(created.id)
+      expect(after.status).toBe(from)
+      expect(reviewEntries(after)).toHaveLength(0)
+    })
+
+    /**
+     * Refused on `region`, not with a 409 nothing renders: the field is on the
+     * page the reviewer is looking at, and it is the field that fixes this.
+     */
+    it('refuses to accept a new event with no resolved region, and writes none', async () => {
       const created = await createProposal({ country: countryId })
-      await expect(
-        applyReview({
-          payload,
-          submissionId: created.id,
-          action: 'accept',
-          managerId: regionManager.id,
-        }),
-      ).rejects.toMatchObject({ status: 409, data: { code: 'region_unresolved' } })
+      const before = await payload.count({ collection: 'events', overrideAccess: true })
+
+      await expect(decide(created.id, 'accepted')).rejects.toMatchObject({
+        data: { errors: [{ path: 'region' }] },
+      })
+
+      expect((await reload(created.id)).status).toBe('pending')
+      expect((await payload.count({ collection: 'events', overrideAccess: true })).totalDocs).toBe(
+        before.totalDocs,
+      )
     })
+
+    /**
+     * The same refusal reached by clearing a resolved region, which the form
+     * posts as `region: null` — where the case above never had one. No
+     * `anchorRegion` either, so nothing is left for `submissionRegionId` to
+     * fall back to.
+     */
+    it('refuses an accept that clears the resolved region in the same post', async () => {
+      const created = await createProposal({ region: cityId })
+      const before = await payload.count({ collection: 'events', overrideAccess: true })
+
+      await expect(decide(created.id, 'accepted', { region: null })).rejects.toMatchObject({
+        data: { errors: [{ path: 'region' }] },
+      })
+
+      expect((await reload(created.id)).status).toBe('pending')
+      expect((await payload.count({ collection: 'events', overrideAccess: true })).totalDocs).toBe(
+        before.totalDocs,
+      )
+    })
+  })
+
+  /**
+   * ⚠ **Being assigned a proposal is not authority to decide it.**
+   *
+   * The deleted endpoint gated on the `user-submissions: update` **grant**
+   * alone. A plain `PATCH` is wider: when the role grants deny,
+   * `createAccessConfig` falls back to document-level manager access, and this
+   * collection has a `manager` field — so whoever it names may edit the row
+   * with no grant at all. Reading the collection's `update` to decide who may
+   * review would have turned that into authority to publish the Events row an
+   * accept writes, with `overrideAccess: true` behind it. `reviewMove` reads
+   * the grant instead.
+   */
+  describe('a manager named on the row but holding no grant', () => {
+    let assignee: Manager
+    let assigneeDecide: (id: number, status: UserSubmission['status']) => Promise<unknown>
+
+    beforeAll(async () => {
+      // Roles that touch neither `user-submissions` nor `events`.
+      assignee = await testData.createManager(payload, {
+        email: 'assigned-no-grant@example.com',
+        roles: { en: ['meditations-editor'] },
+      })
+      assigneeDecide = (id, status) =>
+        payload.update({
+          collection: 'user-submissions',
+          id,
+          data: { status } as never,
+          user: { ...assignee, collection: 'managers' } as never,
+          overrideAccess: true,
+        })
+    })
+
+    it('cannot accept it, and no event is written', async () => {
+      const created = await createProposal({
+        region: cityId,
+        anchorRegion: cityId,
+        manager: assignee.id,
+        proposed: { ...proposedAt('11 Main St'), schedule: WEEKLY_SCHEDULE },
+      })
+      const before = await payload.count({ collection: 'events', overrideAccess: true })
+
+      await expect(assigneeDecide(created.id, 'accepted')).rejects.toMatchObject({
+        data: { errors: [{ path: 'status' }] },
+      })
+
+      expect((await reload(created.id)).status).toBe('pending')
+      expect((await payload.count({ collection: 'events', overrideAccess: true })).totalDocs).toBe(
+        before.totalDocs,
+      )
+    })
+
+    it('cannot reject it either — the refusal is about the grant, not the move', async () => {
+      const created = await createProposal({ region: cityId, manager: assignee.id })
+
+      await expect(assigneeDecide(created.id, 'rejected')).rejects.toMatchObject({
+        data: { errors: [{ path: 'status' }] },
+      })
+      expect((await reload(created.id)).status).toBe('pending')
+    })
+  })
+
+  /**
+   * One table, four intakes, one status vocabulary. `onlyWhen` keeps the review
+   * buttons off the other three in the admin; this is the half a forged
+   * `PATCH /api/user-submissions/:id` meets, which no button can enforce.
+   */
+  describe('the three intakes with no review path', () => {
+    let contactFormId: number
+
+    beforeAll(async () => {
+      const form = await payload.create({
+        collection: 'forms',
+        data: {
+          title: 'Report an issue',
+          actionType: 'contact',
+          recipient: regionManager.id,
+          // `confirmationMessage` is required under the default `message`
+          // confirmation type; a redirect sidesteps building Lexical.
+          confirmationType: 'redirect',
+          redirect: { url: '/thanks' },
+          fields: [
+            { blockType: 'email', name: 'email', label: 'Email' },
+            { blockType: 'textarea', name: 'message', label: 'Message' },
+          ],
+        } as never,
+        overrideAccess: true,
+      })
+      contactFormId = form.id
+    })
+
+    /**
+     * One row per intake, each in the shape its own gates accept: `contact`
+     * owes a `contact` form (`prepareUserSubmission` matches the form's
+     * `actionType` to the type), and `subscribe` names an event instead, which
+     * is the shape a registration spawns and the one that owes no form.
+     */
+    const createIntake = async (type: 'contact' | 'registration' | 'subscribe') => {
+      const target =
+        type === 'subscribe' ? await testData.createEvent(payload, { _status: 'published' }) : null
+      const created = (await payload.create({
+        collection: 'user-submissions',
+        data: createData<'user-submissions'>({
+          type,
+          senderEmail: 'aria@example.com',
+          ...(type === 'contact' ? { form: contactFormId } : {}),
+          ...(target ? { event: target.id } : {}),
+        }),
+        overrideAccess: true,
+      })) as UserSubmission
+      return created.id
+    }
+
+    it.each(['contact', 'registration', 'subscribe'] as const)(
+      'refuses a manager moving a %s row’s status',
+      async (type) => {
+        const id = await createIntake(type)
+
+        await expect(decide(id, 'accepted')).rejects.toMatchObject({
+          data: { errors: [{ path: 'status' }] },
+        })
+        expect((await reload(id)).status).toBe('pending')
+      },
+    )
+
+    it.each(['contact', 'registration', 'subscribe'] as const)(
+      'lets an ordinary save through on a %s row',
+      async (type) => {
+        // The form posts the whole document, so every save re-posts the stored
+        // status. A guard reading that as a transition would refuse every edit
+        // on three of the four intakes.
+        const id = await createIntake(type)
+
+        await decide(id, 'pending', { subject: 'Edited by a manager' })
+        expect((await reload(id)).subject).toBe('Edited by a manager')
+      },
+    )
   })
 })

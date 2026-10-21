@@ -519,9 +519,9 @@ describe('meditation-transcripts (OpenAPI)', () => {
 
   // No transcript endpoint exists since #968, so this guards the one #984 may
   // re-add: a manager-only action reaches the spec only through an explicit
-  // opt-in. The precedent is `POST /api/user-submissions/:id/review`,
-  // deliberately absent for the same reason. `framesByNarrator` is listed
-  // because it admits published clients.
+  // opt-in. `POST /api/user-submissions/:id/review` was the precedent,
+  // deliberately absent for the same reason until #909 deleted it outright.
+  // `framesByNarrator` is listed because it admits published clients.
   it('publishes neither transcript endpoint', () => {
     expect(CUSTOM_ENDPOINT_PATHS['/api/meditations/{id}/transcribe']).toBeUndefined()
   })

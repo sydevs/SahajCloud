@@ -18,7 +18,16 @@ export const CONTACT_ACCEPTED_DAYS = 7
  */
 export const MACHINE_SPAM_DAYS = 90
 
-/** How long a proposal is kept once a manager has decided it, either way. */
+/**
+ * How long a proposal is kept once a manager has decided it, either way.
+ *
+ * ⚠ **An undecided proposal is in no window**, so one nobody reviews keeps its
+ * sender's address and phone number until somebody decides. Delivery leaves a
+ * proposal `pending` for exactly that reviewer
+ * (`DeliverSubmissions/deliverers.ts`); before #909 it settled as `accepted`
+ * the moment the review email sent, and this window swept it under a label no
+ * manager had chosen.
+ */
 export const PROPOSAL_DAYS = 30
 
 /**

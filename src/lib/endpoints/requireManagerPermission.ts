@@ -1,7 +1,7 @@
 import type { PayloadRequest } from 'payload'
 
 import type { PermissionCheckArgs } from '@/plugins/access'
-import { bypassPermissions, hasPermission, roleScopeFromLocale } from '@/plugins/access'
+import { holdsCollectionPermission } from '@/plugins/access'
 
 import { requireActiveManager } from './requireActiveManager'
 
@@ -18,19 +18,12 @@ type PermissionGate = {
  * **request's** locale. Returns a `403` {@link Response}, or `null` when the
  * caller may proceed.
  *
- * ⚠ **The locale scope is the whole point of this helper.** A manager's roles
- * are per locale, so the scope comes from `req.locale` via
- * `roleScopeFromLocale`; a request naming no locale resolves to the **default**
- * locale, and the gate then reads the caller's English roles and silently 403s
- * anyone whose roles live only elsewhere (#701, #665, `docs/rules/access.md`).
- * A hand-rolled admin `fetch` must therefore send `?locale=`. Never derive the
- * scope by hand — `roleScopeFromLocale` is what refuses `all` and keeps a
- * request from naming `union`.
- *
- * `bypassPermissions` is passed, so an admin manager is admitted and an
- * inactive manager or unpublished client denied before any role lookup — the
- * same step 2 every collection's own access config runs
- * (`docs/rules/access.md` § Permission flow).
+ * ⚠ **The locale scope is the whole point of this helper**, and
+ * `holdsCollectionPermission` (`@/plugins/access`) owns it — a manager's roles
+ * are per locale, so a request naming none resolves to the **default** locale
+ * and silently 403s anyone whose roles live only elsewhere (#701, #665,
+ * `docs/rules/access.md`). A hand-rolled admin `fetch` must therefore send
+ * `?locale=`. All this adds is the 403 envelope.
  */
 export function requireCollectionPermission({
   req,
@@ -38,16 +31,7 @@ export function requireCollectionPermission({
   operation,
   forbidden,
 }: PermissionGate): Response | null {
-  const permitted = hasPermission(
-    {
-      user: req.user,
-      collection,
-      operation,
-      locale: roleScopeFromLocale(req.locale),
-    },
-    bypassPermissions,
-  )
-  if (!permitted) {
+  if (!holdsCollectionPermission({ req, collection, operation })) {
     return Response.json({ errors: [{ message: forbidden }] }, { status: 403 })
   }
   return null

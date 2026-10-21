@@ -491,11 +491,12 @@ wrapper does that the plugin's options cannot, and how a collection-wide
 admin slot branches per intake: `src/plugins/formBuilder/AGENTS.md`.
 
 ⚠ **Every collection-wide admin slot here serves four intakes.** The review
-components gate on `type === 'proposal'` themselves and fall through to the
-ordinary Save otherwise; `livePreview.url` sends the other three to the
-explanation page, with a reason that fits a row nobody reviews. A new slot owes
-the same branch — the field hooks behind one included, since `admin.condition`
-hides a field without stopping its hooks.
+buttons gate on `type === 'proposal'` through `WorkflowButtons`' `onlyWhen` and
+fall through to the ordinary Save otherwise; `livePreview.url` sends the other
+three to the explanation page, with a reason that fits a row nobody reviews. A
+new slot owes the same branch — the field hooks behind one included, since
+`admin.condition` hides a field without stopping its hooks. So do the two hooks
+behind the review buttons (#909).
 
 ### Login (`src/plugins/login`)
 

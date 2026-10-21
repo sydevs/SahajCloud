@@ -27,10 +27,14 @@ import { deliverSubscribe } from './deliverSubscribe'
  *
  * A deliverer that is not an email send is expected, not an exception:
  * `deliverSubscribe` is an HTTP call to a mailing-list provider.
+ *
+ * Each row also says what a successful delivery leaves the row's `status` at,
+ * which is the second per-type difference the table now carries.
  */
 export const DELIVERERS: DeliveryRegistry = {
-  contact: deliverContact,
-  subscribe: deliverSubscribe,
-  registration: deliverRegistration,
-  proposal: deliverProposal,
+  contact: { deliver: deliverContact, deliveredStatus: 'accepted' },
+  subscribe: { deliver: deliverSubscribe, deliveredStatus: 'accepted' },
+  registration: { deliver: deliverRegistration, deliveredStatus: 'accepted' },
+  // The one row that is not settled by its own delivery — see `SubmissionDelivery`.
+  proposal: { deliver: deliverProposal, deliveredStatus: 'pending' },
 }

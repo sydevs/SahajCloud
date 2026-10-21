@@ -46,7 +46,12 @@ const FALLBACKS = {
  * module serves a drafts-enabled collection `PublishButton` / `SaveDraftButton`
  * and never `SaveButton`, so Meditations declares the first two.
  */
-const WorkflowButtons: React.FC<WorkflowButtonsProps> = ({ fallback, stages, statusField }) => {
+const WorkflowButtons: React.FC<WorkflowButtonsProps> = ({
+  fallback,
+  onlyWhen,
+  stages,
+  statusField,
+}) => {
   const { uploadStatus } = useDocumentInfo()
   const operation = useOperation()
   const { submit } = useForm()
@@ -55,6 +60,10 @@ const WorkflowButtons: React.FC<WorkflowButtonsProps> = ({ fallback, stages, sta
   const status = useFormFields(([fields]) =>
     statusField ? fields?.[statusField]?.value : undefined,
   )
+  // Its own subscription, not a tuple selector beside the status: a selector
+  // returning an object hands back a fresh reference on every form-state change
+  // and re-renders the button row on every keystroke.
+  const gate = useFormFields(([fields]) => (onlyWhen ? fields?.[onlyWhen.field]?.value : undefined))
 
   const run = useCallback(
     (action: WorkflowButton) => {
@@ -64,7 +73,14 @@ const WorkflowButtons: React.FC<WorkflowButtonsProps> = ({ fallback, stages, sta
     [submit],
   )
 
-  const stage = resolveStage({ operation, status, statusField })
+  // A gated-out document names no stage, which is the same answer as a status
+  // the declaration never mentioned — so it takes the fallback path already
+  // below. ⚠ That is also what puts it ahead of a stage declared `[]`, which
+  // renders nothing: a gated-out row would otherwise lose its Save button.
+  const stage =
+    onlyWhen && gate !== onlyWhen.equals
+      ? undefined
+      : resolveStage({ operation, status, statusField })
   const actions = stage === undefined ? undefined : stages[stage]
 
   if (!actions) {
