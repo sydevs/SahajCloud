@@ -7,7 +7,8 @@ import { isMachineSpam } from './verdicts'
 /**
  * How far back the history checks look. Must stay comfortably inside the
  * shortest retention window that holds the rows they count against — see
- * `PurgeSubmissions`, where the same number is pinned from the other side. A
+ * `SweepRetention/entries/userSubmissions`, where the same number is pinned
+ * from the other side. A
  * shorter retention would blind these checks silently: they would pass
  * everything, with no error anywhere.
  */

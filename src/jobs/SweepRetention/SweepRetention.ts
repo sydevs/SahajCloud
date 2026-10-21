@@ -1,0 +1,120 @@
+import type { RetentionCount } from './registry'
+import type { TaskConfig } from 'payload'
+
+import { RETENTION_REGISTRY } from './registry'
+import { sweepCollection } from './sweepCollection'
+
+/**
+ * The one nightly retention sweep, over every entry in `registry.ts`.
+ *
+ * Replaces `purgeSubmissions`, `sweepEventImports` and `cleanupJobs`, which
+ * differed only in their declaration: three slugs, three input schemas, three
+ * output schemas and three crons around one loop (#987). A collection joins
+ * retention as a registry row now, not as a job folder.
+ *
+ * ⚠ **One task carries one schedule, and the three it replaces were not one.**
+ * `cleanupJobs` ran weekly; here every entry runs nightly and its own window
+ * does the bounding. See the `payload-jobs` entry for what that costs.
+ *
+ * Runs on the existing `nightly` queue at 04:00 UTC, after the 02:00 event
+ * expiry and 03:00 notification sweeps, so a slow night does not have three
+ * jobs contending.
+ */
+export const SweepRetention: TaskConfig<'sweepRetention'> = {
+  slug: 'sweepRetention',
+  label: 'Sweep Retention',
+  retries: 2,
+  inputSchema: [
+    {
+      // Test seam: specs inject the clock so they can assert a window boundary
+      // without waiting ninety days. Absent in production, where `now` is now.
+      name: 'now',
+      type: 'text',
+    },
+    {
+      // Reports what *would* go, and deletes nothing.
+      name: 'dryRun',
+      type: 'checkbox',
+    },
+    {
+      // One task over a registry costs the operator the three queueable rows
+      // the admin Jobs UI used to show, so a run can name one entry instead.
+      name: 'collection',
+      type: 'text',
+      admin: {
+        description: `One registry collection to sweep. Blank sweeps all of them: ${RETENTION_REGISTRY.map((entry) => entry.collection).join(', ')}.`,
+      },
+    },
+  ],
+  outputSchema: [
+    { name: 'deleted', type: 'number', required: true },
+    { name: 'dryRun', type: 'checkbox', required: true },
+    {
+      // Named counters cannot carry a registry: the shape would change with
+      // every row. One row of this array per collection the run touched,
+      // `users` included, which no entry of its own sweeps.
+      name: 'collections',
+      type: 'array',
+      required: true,
+      fields: [
+        { name: 'collection', type: 'text', required: true },
+        { name: 'deleted', type: 'number', required: true },
+      ],
+    },
+  ],
+  schedule: [
+    {
+      cron: '0 4 * * *', // daily at 04:00 UTC (after the 02:00/03:00 sweeps)
+      queue: 'nightly',
+    },
+  ],
+  handler: async ({ input, req }) => {
+    const now = typeof input?.now === 'string' ? new Date(input.now) : new Date()
+    const dryRun = input?.dryRun === true
+    const only = typeof input?.collection === 'string' ? input.collection.trim() : ''
+
+    const entries = only
+      ? RETENTION_REGISTRY.filter((entry) => entry.collection === only)
+      : RETENTION_REGISTRY
+
+    // A typo in the input would otherwise sweep nothing and report success.
+    if (only && entries.length === 0) {
+      throw new Error(`SweepRetention: no registry entry for collection "${only}"`)
+    }
+
+    const collections: RetentionCount[] = []
+
+    for (const entry of entries) {
+      const hooks = entry.hooks?.({ dryRun, now, req }) ?? {}
+
+      collections.push({
+        collection: entry.collection,
+        deleted: await sweepCollection({
+          beforeDelete: hooks.beforeDelete,
+          collection: entry.collection,
+          dryRun,
+          label: `SweepRetention/${entry.collection}`,
+          now,
+          req,
+          windows: entry.windows,
+        }),
+      })
+
+      collections.push(...((await hooks.afterDelete?.()) ?? []))
+    }
+
+    const deleted = collections.reduce((total, count) => total + count.deleted, 0)
+
+    if (deleted > 0) {
+      req.payload.logger.info({
+        msg: dryRun
+          ? 'SweepRetention: dry run — nothing was deleted'
+          : 'SweepRetention: retention sweep complete',
+        deleted,
+        collections,
+      })
+    }
+
+    return { output: { collections, deleted, dryRun } }
+  },
+}

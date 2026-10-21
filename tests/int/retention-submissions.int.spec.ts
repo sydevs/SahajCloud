@@ -1,6 +1,6 @@
 /**
- * The `purgeSubmissions` job (#724) — the per-type retention windows, and the
- * `users` orphan sweep that follows them.
+ * The `user-submissions` retention entry (#724, #987) — the per-type windows,
+ * and the `users` orphan sweep its two hooks run.
  *
  * Rows are not aged by editing `createdAt`; the clock is moved instead. The
  * task takes an injected `now` for exactly this, so a case can assert a
@@ -16,14 +16,15 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { PurgeSubmissions } from '@/jobs/PurgeSubmissions/PurgeSubmissions'
 import {
   CONTACT_ACCEPTED_DAYS,
   MACHINE_SPAM_DAYS,
   PROPOSAL_DAYS,
-} from '@/jobs/PurgeSubmissions/retention'
+} from '@/jobs/SweepRetention/entries/userSubmissions'
+import { SweepRetention } from '@/jobs/SweepRetention/SweepRetention'
 import type { Event, Form, Manager, UserSubmission } from '@/payload-types'
 
+import { deletedIn } from '../utils/retention'
 import { runTaskHandler } from '../utils/taskRunner'
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -85,9 +86,15 @@ describe('Submission retention sweep', () => {
 
   /** Run the sweep as if `days` had passed since `anchor`. */
   const sweep = (anchor: number, days: number, dryRun = false) =>
-    runTaskHandler(PurgeSubmissions, {
+    runTaskHandler(SweepRetention, {
       payload,
-      input: { now: new Date(anchor + days * DAY_MS).toISOString(), dryRun },
+      input: {
+        now: new Date(anchor + days * DAY_MS).toISOString(),
+        dryRun,
+        // The orphan sweep is this entry's, so the case needs no other entry
+        // running beside it.
+        collection: 'user-submissions',
+      },
     })
 
   const exists = async (collection: 'user-submissions' | 'users', id: number) => {
@@ -306,11 +313,11 @@ describe('Submission retention sweep', () => {
 
       expect(await exists('users', userId)).toBe(true)
 
-      const { output } = { output: await sweep(anchor, CONTACT_ACCEPTED_DAYS + 1) }
+      const output = await sweep(anchor, CONTACT_ACCEPTED_DAYS + 1)
 
       expect(await exists('user-submissions', row.id)).toBe(false)
       expect(await exists('users', userId)).toBe(false)
-      expect(output.deletedUsers).toBeGreaterThanOrEqual(1)
+      expect(deletedIn(output, 'users')).toBeGreaterThanOrEqual(1)
     })
 
     /**
@@ -364,8 +371,8 @@ describe('Submission retention sweep', () => {
 
       const output = await sweep(anchor, CONTACT_ACCEPTED_DAYS + 1, true)
 
-      expect(output.deletedSubmissions).toBeGreaterThanOrEqual(1)
-      expect(output.deletedUsers).toBeGreaterThanOrEqual(1)
+      expect(deletedIn(output, 'user-submissions')).toBeGreaterThanOrEqual(1)
+      expect(deletedIn(output, 'users')).toBeGreaterThanOrEqual(1)
       expect(await exists('user-submissions', row.id)).toBe(true)
       expect(await exists('users', userId)).toBe(true)
     })

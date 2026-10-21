@@ -983,16 +983,14 @@ export interface Config {
   user: Manager | Client;
   jobs: {
     tasks: {
-      cleanupJobs: TaskCleanupJobs;
       cleanupOrphanedMedia: TaskCleanupOrphanedMedia;
       deliverSubmission: TaskDeliverSubmission;
       expireEvents: TaskExpireEvents;
-      purgeSubmissions: TaskPurgeSubmissions;
       screenSubmission: TaskScreenSubmission;
       sendPostEventFollowUps: TaskSendPostEventFollowUps;
       sendRegistrationDigests: TaskSendRegistrationDigests;
       sendSessionReminders: TaskSendSessionReminders;
-      sweepEventImports: TaskSweepEventImports;
+      sweepRetention: TaskSweepRetention;
       syncLectureMetadata: TaskSyncLectureMetadata;
       transcribeMeditation: TaskTranscribeMeditation;
       verifyEmbeds: TaskVerifyEmbeds;
@@ -3184,16 +3182,14 @@ export interface PayloadJob {
         completedAt: string;
         taskSlug:
           | 'inline'
-          | 'cleanupJobs'
           | 'cleanupOrphanedMedia'
           | 'deliverSubmission'
           | 'expireEvents'
-          | 'purgeSubmissions'
           | 'screenSubmission'
           | 'sendPostEventFollowUps'
           | 'sendRegistrationDigests'
           | 'sendSessionReminders'
-          | 'sweepEventImports'
+          | 'sweepRetention'
           | 'syncLectureMetadata'
           | 'transcribeMeditation'
           | 'verifyEmbeds'
@@ -3236,16 +3232,14 @@ export interface PayloadJob {
   taskSlug?:
     | (
         | 'inline'
-        | 'cleanupJobs'
         | 'cleanupOrphanedMedia'
         | 'deliverSubmission'
         | 'expireEvents'
-        | 'purgeSubmissions'
         | 'screenSubmission'
         | 'sendPostEventFollowUps'
         | 'sendRegistrationDigests'
         | 'sendSessionReminders'
-        | 'sweepEventImports'
+        | 'sweepRetention'
         | 'syncLectureMetadata'
         | 'transcribeMeditation'
         | 'verifyEmbeds'
@@ -10554,19 +10548,6 @@ export interface CollectionsWidget {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "TaskCleanupJobs".
- */
-export interface TaskCleanupJobs {
-  input: {
-    now?: string | null;
-    dryRun?: boolean | null;
-  };
-  output: {
-    deletedJobs: number;
-  };
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "TaskCleanupOrphanedMedia".
  */
 export interface TaskCleanupOrphanedMedia {
@@ -10611,20 +10592,6 @@ export interface TaskExpireEvents {
     trashed: number;
     remindersSent: number;
     failed: number;
-  };
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "TaskPurgeSubmissions".
- */
-export interface TaskPurgeSubmissions {
-  input: {
-    now?: string | null;
-    dryRun?: boolean | null;
-  };
-  output: {
-    deletedSubmissions: number;
-    deletedUsers: number;
   };
 }
 /**
@@ -10680,15 +10647,24 @@ export interface TaskSendSessionReminders {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "TaskSweepEventImports".
+ * via the `definition` "TaskSweepRetention".
  */
-export interface TaskSweepEventImports {
+export interface TaskSweepRetention {
   input: {
     now?: string | null;
     dryRun?: boolean | null;
+    /**
+     * One registry collection to sweep. Blank sweeps all of them: user-submissions, imports, payload-jobs.
+     */
+    collection?: string | null;
   };
   output: {
     deleted: number;
+    dryRun: boolean;
+    collections: {
+      collection: string;
+      deleted: number;
+    }[];
   };
 }
 /**

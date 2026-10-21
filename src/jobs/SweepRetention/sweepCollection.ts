@@ -15,19 +15,17 @@ export const retentionCutoff = (now: Date, days: number): string =>
  * Delete everything one collection's retention windows select, and report how
  * many rows went.
  *
- * Three sweeps run through here and none can be the others: the slugs,
- * schedules and output shapes differ, and `user-submissions` carries a second
- * half — the `users` orphan sweep — that neither `payload-jobs` nor
- * `imports` has an analogue for. So this is the engine, not the task:
- * what is shared is the cutoff, the dry-run branch, and a delete whose partial
- * failure is reported rather than returned as a short count.
+ * The engine behind every registry entry (`registry.ts`): what each collection
+ * shares is the cutoff, the dry-run branch, and a delete whose partial failure
+ * is reported rather than returned as a short count. What differs is the
+ * declaration, which is a row rather than a task (#987).
  *
  * ⚠ **`beforeDelete` runs while the rows are still there.** A promise that
  * extends past the row itself — a contact message's retention is about the
  * person who sent it — cannot be re-derived once the only pointer to them is
- * gone, so a sweep that owes one reads what it needs here.
+ * gone, so an entry that owes one reads what it needs here.
  */
-export async function sweepRetention(args: {
+export async function sweepCollection(args: {
   beforeDelete?: (window: PurgeWindow, where: Where) => Promise<void>
   collection: CollectionSlug
   dryRun: boolean

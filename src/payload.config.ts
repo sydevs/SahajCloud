@@ -224,7 +224,8 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       tasks,
       // A finished job row is the status source behind a meditation transcript
       // — `deleteJobOnComplete: true` dropped it at exactly the moment the
-      // reader needs it. `CleanupJobs` bounds the table instead.
+      // reader needs it. The `payload-jobs` retention entry bounds the table
+      // instead (`@/jobs/SweepRetention/registry`).
       deleteJobOnComplete: false,
       enableConcurrencyControl: true,
       // One entry per queue that runs unattended, and the reason a queue has

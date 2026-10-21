@@ -1,5 +1,9 @@
-import type { PurgeWindow } from '@/lib/retention/sweep'
+import type { RetentionEntry } from '../registry'
+import type { PurgeWindow } from '../sweepCollection'
+
 import type { UserSubmission } from '@/payload-types'
+
+import { orphanedUserHooks } from '../orphanedUsers'
 
 /**
  * How long a **delivered contact message** is kept. Short on purpose: the row
@@ -74,3 +78,16 @@ export const PURGE_WINDOWS: PurgeWindow[] = [
     }),
   },
 ]
+
+/**
+ * ⚠ **The users sweep is the half that makes retention mean anything**, and it
+ * is why an entry may carry hooks at all. A contact row's retention promise is
+ * about the person who sent it, and every submission upserts its sender into
+ * `users` — so deleting the message while keeping the address would leave the
+ * personal data behind and the promise unkept.
+ */
+export const userSubmissionsEntry: RetentionEntry = {
+  collection: 'user-submissions',
+  hooks: orphanedUserHooks,
+  windows: PURGE_WINDOWS,
+}

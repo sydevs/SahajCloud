@@ -2,8 +2,9 @@ import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { CleanupJobs } from '@/jobs/CleanupJobs/CleanupJobs'
+import { SweepRetention } from '@/jobs/SweepRetention/SweepRetention'
 
+import { deletedIn } from '../utils/retention'
 import { runTaskHandler } from '../utils/taskRunner'
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -11,7 +12,12 @@ const NOW = '2026-10-17T05:00:00.000Z'
 const LONG_AGO = '2026-10-01T05:00:00.000Z'
 const YESTERDAY = '2026-10-16T05:00:00.000Z'
 
-describe('CleanupJobs', () => {
+/**
+ * The `payload-jobs` registry entry (#987). It is run through the whole task
+ * rather than in isolation, because the collection input is what an operator
+ * reaches for and nothing else exercises it.
+ */
+describe('the payload-jobs retention entry', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
 
@@ -28,7 +34,7 @@ describe('CleanupJobs', () => {
   const seedJob = async (data: { completedAt?: string; hasError?: boolean }) =>
     payload.create({
       collection: 'payload-jobs',
-      data: { taskSlug: 'cleanupJobs', queue: 'nightly', input: {}, ...data },
+      data: { taskSlug: 'sweepRetention', queue: 'nightly', input: {}, ...data },
       overrideAccess: true,
     })
 
@@ -49,9 +55,12 @@ describe('CleanupJobs', () => {
     // and sweeping it would cancel work nobody asked to cancel.
     const queued = await seedJob({})
 
-    const { deletedJobs } = await runTaskHandler(CleanupJobs, { payload, input: { now: NOW } })
+    const output = await runTaskHandler(SweepRetention, {
+      payload,
+      input: { now: NOW, collection: 'payload-jobs' },
+    })
 
-    expect(deletedJobs).toBe(1)
+    expect(deletedIn(output, 'payload-jobs')).toBe(1)
     const remaining = await idsRemaining()
     expect(remaining).toContain(recent.id)
     expect(remaining).toContain(queued.id)
@@ -67,21 +76,51 @@ describe('CleanupJobs', () => {
       req: undefined,
     })
 
-    const { deletedJobs } = await runTaskHandler(CleanupJobs, { payload, input: { now: NOW } })
+    const output = await runTaskHandler(SweepRetention, {
+      payload,
+      input: { now: NOW, collection: 'payload-jobs' },
+    })
 
-    expect(deletedJobs).toBe(1)
+    expect(deletedIn(output, 'payload-jobs')).toBe(1)
     expect(await idsRemaining()).not.toContain(errored.id)
   })
 
   it('counts without deleting on a dry run', async () => {
     const old = await seedJob({ completedAt: LONG_AGO })
 
-    const { deletedJobs } = await runTaskHandler(CleanupJobs, {
+    const output = await runTaskHandler(SweepRetention, {
+      payload,
+      input: { now: NOW, dryRun: true, collection: 'payload-jobs' },
+    })
+
+    expect(deletedIn(output, 'payload-jobs')).toBe(1)
+    expect(output.dryRun).toBe(true)
+    expect(await idsRemaining()).toContain(old.id)
+  })
+
+  /**
+   * ⚠ A dry run reports every entry, including the ones with nothing due. A
+   * run that reported only what it deleted would make a misspelled registry
+   * entry indistinguishable from a quiet night.
+   */
+  it('reports a count for every entry when no collection is named', async () => {
+    const output = await runTaskHandler(SweepRetention, {
       payload,
       input: { now: NOW, dryRun: true },
     })
 
-    expect(deletedJobs).toBe(1)
-    expect(await idsRemaining()).toContain(old.id)
+    expect(output.collections.map((count) => count.collection)).toEqual([
+      'user-submissions',
+      'users',
+      'imports',
+      'payload-jobs',
+    ])
+  })
+
+  /** A typo would otherwise sweep nothing and report success. */
+  it('refuses a collection the registry does not name', async () => {
+    await expect(
+      runTaskHandler(SweepRetention, { payload, input: { collection: 'managers' } }),
+    ).rejects.toThrow(/no registry entry/)
   })
 })

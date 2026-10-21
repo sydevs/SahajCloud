@@ -1,6 +1,6 @@
-import type { TaskConfig, Where } from 'payload'
-
-import { type PurgeWindow, sweepRetention } from '@/lib/retention/sweep'
+import type { RetentionEntry } from '../registry'
+import type { PurgeWindow } from '../sweepCollection'
+import type { Where } from 'payload'
 
 /**
  * How long a finished job row is kept. Long enough that a transcript's status
@@ -31,45 +31,18 @@ export const JOB_PURGE_WINDOWS: PurgeWindow[] = [
 ]
 
 /**
- * Weekly sweep of finished `payload-jobs` rows.
- *
  * ⚠ **This is the other half of `deleteJobOnComplete: false`.** That flag is
  * global, so every queue's rows now survive their run and nothing but this
- * sweep bounds the table. Turning the flag back on would strip the status a
+ * window bounds the table. Turning the flag back on would strip the status a
  * meditation transcript derives from its job row.
+ *
+ * ⚠ **This sweep ran weekly until #987 and now runs nightly with the rest.**
+ * One task carries one schedule, and `JOB_RETENTION_DAYS` is what bounds what
+ * goes either way: a row still lives its full week, it just stops surviving the
+ * extra nought-to-seven days until the next Sunday. Nothing here was tuned to
+ * the weekly cadence — the window was, and it is unchanged.
  */
-export const CleanupJobs: TaskConfig<'cleanupJobs'> = {
-  slug: 'cleanupJobs',
-  label: 'Cleanup Jobs',
-  retries: 2,
-  inputSchema: [
-    {
-      // Test seam: a spec asserts the window boundary without waiting a week.
-      name: 'now',
-      type: 'text',
-    },
-    {
-      name: 'dryRun',
-      type: 'checkbox',
-    },
-  ],
-  outputSchema: [{ name: 'deletedJobs', type: 'number', required: true }],
-  schedule: [
-    {
-      cron: '0 5 * * 0', // Sundays at 05:00 UTC, after the 02:00–04:00 nightly sweeps
-      queue: 'nightly',
-    },
-  ],
-  handler: async ({ input, req }) => {
-    const deletedJobs = await sweepRetention({
-      collection: 'payload-jobs',
-      dryRun: input?.dryRun === true,
-      label: 'CleanupJobs',
-      now: typeof input?.now === 'string' ? new Date(input.now) : new Date(),
-      req,
-      windows: JOB_PURGE_WINDOWS,
-    })
-
-    return { output: { deletedJobs } }
-  },
+export const payloadJobsEntry: RetentionEntry = {
+  collection: 'payload-jobs',
+  windows: JOB_PURGE_WINDOWS,
 }
