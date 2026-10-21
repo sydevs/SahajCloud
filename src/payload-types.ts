@@ -10654,9 +10654,9 @@ export interface TaskSweepRetention {
     now?: string | null;
     dryRun?: boolean | null;
     /**
-     * One registry collection to sweep. Blank sweeps all of them: user-submissions, imports, payload-jobs.
+     * One registry collection to sweep. Blank sweeps all of them.
      */
-    collection?: string | null;
+    collection?: ('user-submissions' | 'imports' | 'payload-jobs') | null;
   };
   output: {
     deleted: number;

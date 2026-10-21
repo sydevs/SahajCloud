@@ -39,10 +39,14 @@ export const SweepRetention: TaskConfig<'sweepRetention'> = {
     {
       // One task over a registry costs the operator the three queueable rows
       // the admin Jobs UI used to show, so a run can name one entry instead.
+      // The options are the registry, so the dropdown cannot name a row that
+      // is not there — the handler's guard covers the programmatic queue,
+      // which no field validates.
       name: 'collection',
-      type: 'text',
+      type: 'select',
+      options: RETENTION_REGISTRY.map((entry) => entry.collection),
       admin: {
-        description: `One registry collection to sweep. Blank sweeps all of them: ${RETENTION_REGISTRY.map((entry) => entry.collection).join(', ')}.`,
+        description: 'One registry collection to sweep. Blank sweeps all of them.',
       },
     },
   ],

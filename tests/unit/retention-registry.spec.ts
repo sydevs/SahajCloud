@@ -71,6 +71,22 @@ describe('the retention registry', () => {
   })
 
   /**
+   * ⚠ The dropdown's options are the registry itself, so a row added to one
+   * reaches the other. Free text left the typo case to a runtime throw, and
+   * left the operator retyping a slug the task already knows.
+   */
+  it('offers the registry as the collection options', () => {
+    const field = (SweepRetention.inputSchema ?? []).find(
+      (entry) => 'name' in entry && entry.name === 'collection',
+    )
+
+    expect(field?.type).toBe('select')
+    expect(field && 'options' in field ? field.options : []).toEqual(
+      RETENTION_REGISTRY.map((entry) => entry.collection),
+    )
+  })
+
+  /**
    * ⚠ Three tasks could not fail each other; one task can. Nothing but the
    * `payload-jobs` entry bounds that table, so an entry that throws must not
    * cost the entries after it their run — while the run still has to end

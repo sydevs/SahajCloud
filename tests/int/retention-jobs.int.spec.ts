@@ -1,4 +1,4 @@
-import type { Payload } from 'payload'
+import type { Payload, TaskInput } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -8,6 +8,9 @@ import { SweepRetention } from '@/jobs/SweepRetention/SweepRetention'
 import { deletedIn } from '../utils/retention'
 import { runTaskHandler } from '../utils/taskRunner'
 import { createTestEnvironment } from '../utils/testHelpers'
+
+/** The generated input's own spelling of the registry, so this spec cannot drift from it. */
+type RetentionCollection = NonNullable<TaskInput<'sweepRetention'>['collection']>
 
 const NOW = '2026-10-17T05:00:00.000Z'
 const LONG_AGO = '2026-10-01T05:00:00.000Z'
@@ -119,10 +122,17 @@ describe('the payload-jobs retention entry', () => {
     ])
   })
 
-  /** A typo would otherwise sweep nothing and report success. */
+  /**
+   * The admin dropdown offers the registry and nothing else, and the generated
+   * input type says so — which is why this case has to spell the value past it.
+   * ⚠ A queue call in code reaches the handler with whatever it was handed, and
+   * an unknown collection would otherwise sweep nothing and report success.
+   */
   it('refuses a collection the registry does not name', async () => {
+    const collection = 'managers' as RetentionCollection
+
     await expect(
-      runTaskHandler(SweepRetention, { payload, input: { collection: 'managers' } }),
+      runTaskHandler(SweepRetention, { payload, input: { collection } }),
     ).rejects.toThrow(/no registry entry/)
   })
 })
