@@ -96,6 +96,40 @@ describe('the retention registry', () => {
   })
 
   /**
+   * ⚠ A throw discards `sweepCollection`'s return value, so the windows that
+   * ran before it reported nothing and the entry was absent from the run's
+   * report — which `tests/utils/retention.ts` reads as zero, the answer a
+   * collection with nothing due gets.
+   */
+  it('reports what a failed entry deleted before it threw', async () => {
+    const logged: { collections?: unknown }[] = []
+    let windows = 0
+    const payload = {
+      count: async ({ collection }: { collection: string }) => {
+        if (collection !== 'user-submissions') return { totalDocs: 0 }
+        windows += 1
+        if (windows === 3) throw new Error('the third window broke')
+        return { totalDocs: 4 }
+      },
+      find: async () => ({ docs: [] }),
+      logger: {
+        error: () => {},
+        info: (entry: { collections?: unknown }) => logged.push(entry),
+        warn: () => {},
+      },
+    } as unknown as Payload
+
+    await expect(
+      runTaskHandler(SweepRetention, { payload, input: { dryRun: true } }),
+    ).rejects.toThrow(/user-submissions failed/)
+
+    expect(logged.at(-1)?.collections).toContainEqual({
+      collection: 'user-submissions',
+      deleted: 8,
+    })
+  })
+
+  /**
    * ⚠ Per-collection counts, not a total: a registry cannot name its counters
    * in a static `outputSchema`, and a total alone cannot tell "nothing was due"
    * apart from "that entry never ran".

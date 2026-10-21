@@ -2,7 +2,7 @@ import type { RetentionCount } from './types'
 import type { TaskConfig } from 'payload'
 
 import { RETENTION_REGISTRY } from './registry'
-import { sweepCollection } from './sweepCollection'
+import { SweepFailure, sweepCollection } from './sweepCollection'
 
 /**
  * The one nightly retention sweep, over every entry in `registry.ts`.
@@ -113,6 +113,14 @@ export const SweepRetention: TaskConfig<'sweepRetention'> = {
         if (extra) collections.push(extra)
       } catch (error) {
         failed.push(collection)
+
+        // A sweep that threw mid-window still deleted what the windows before
+        // it selected, and the entry owes a row either way. `afterDelete`
+        // throws past this branch, its entry's row already pushed above.
+        if (error instanceof SweepFailure) {
+          collections.push({ collection, deleted: error.deleted })
+        }
+
         req.payload.logger.error({
           msg: `SweepRetention: ${collection} failed`,
           error: error instanceof Error ? error.message : String(error),
