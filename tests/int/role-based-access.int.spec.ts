@@ -2632,7 +2632,7 @@ describe('Role-Based Access Control', () => {
 
     it('still offers the Create button, which asks with no locale at all', async () => {
       // The collection-level capability check carries no document and no data,
-      // which is why `scopeMeditationWrite` allows an absent `locale`. Deny it
+      // which is why `scopeLocaleWrite` allows an absent `locale`. Deny it
       // there and a per-locale editor could create nothing.
       const capability = await asFrEditor('/api/meditations/access?locale=fr', { method: 'POST' })
       expect(capability.body.create).toBe(true)

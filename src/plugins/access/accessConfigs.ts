@@ -21,7 +21,6 @@ import type {
 
 import { appendVersionToQueryKey, hasWhereAccessResult } from 'payload'
 
-import type { LocaleCode } from '@/lib/locales'
 import { isLivePreviewRequest } from '@/lib/utilities/previewSecret'
 
 import {
@@ -30,6 +29,7 @@ import {
   resolveManagedDocIds,
   userManagesDocument,
 } from './documentManagers'
+import { isLocaleScopedCollection, scopeLocaleWrite } from './localeScopedWrites'
 import { roleScopeFromLocale } from './localizedRoles'
 import { hasPermission } from './permissions'
 import { isRegionSubtreeCollection, scopeRegionSubtreeWrite } from './regionSubtreeAccess'
@@ -90,33 +90,6 @@ function managerSubmissionScope(userId: number | string): Where {
       { type: { equals: 'proposal' } },
     ],
   }
-}
-
-/**
- * A manager's meditation writes, narrowed to the language their role was read
- * in — never the language the document claims (#980, `docs/rules/access.md`).
- *
- * `create` answers with a boolean because `executeAccess` reads a `Where` as a
- * grant, so an object there would allow every language. An absent `locale` is
- * allowed: the field pass that fills it has not run yet, and the admin asks
- * this question with no data at all to decide whether to offer the Create
- * button. `restrictCreateToRequestLocale` checks the filled value, and covers
- * a stated one too — this arm refuses that earlier, at the layer that owns
- * which rows a role may write.
- */
-function scopeMeditationWrite(
-  operation: 'create' | 'update' | 'delete',
-  scope: LocaleCode | undefined,
-  data: unknown,
-): boolean | Where {
-  if (!scope) return false
-
-  if (operation === 'create') {
-    const incoming = (data as { locale?: unknown } | null)?.locale
-    return incoming == null || incoming === scope
-  }
-
-  return { locale: { equals: scope } }
 }
 
 /**
@@ -215,14 +188,15 @@ export function createAccessConfig(
           return scopeRegionSubtreeWrite({ req, collection, operation, id, data })
         }
 
-        // Narrow a manager's meditation write to the language their role was
-        // read in. See `scopeMeditationWrite`.
+        // Narrow a manager's write to the language their role was read in, on
+        // a collection whose `locale` IS the document's language. See
+        // localeScopedWrites.ts.
         if (
           operation !== 'read' &&
-          collection === 'meditations' &&
+          isLocaleScopedCollection(collection) &&
           isActiveNonAdminManager(req.user)
         ) {
-          return scopeMeditationWrite(operation, args.locale, data)
+          return scopeLocaleWrite(operation, args.locale, data)
         }
 
         // A manager's `user-submissions` grant is collection-wide, but the
