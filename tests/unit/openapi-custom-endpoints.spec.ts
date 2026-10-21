@@ -523,6 +523,6 @@ describe('meditation-transcripts (OpenAPI)', () => {
   // deliberately absent for the same reason. `framesByNarrator` is listed
   // because it admits published clients.
   it('publishes neither transcript endpoint', () => {
-    expect(CUSTOM_ENDPOINT_PATHS['/api/meditations/{id}/transcript']).toBeUndefined()
+    expect(CUSTOM_ENDPOINT_PATHS['/api/meditations/{id}/transcribe']).toBeUndefined()
   })
 })

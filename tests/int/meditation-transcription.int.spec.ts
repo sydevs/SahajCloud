@@ -358,7 +358,7 @@ describe('meditation transcription', () => {
     })
   })
   /**
-   * `POST /api/meditations/:id/transcript` — the Transcript tab's
+   * `POST /api/meditations/:id/transcribe` — the Transcript tab's
    * Transcribe-again button (#984).
    *
    * Driven through Payload's real REST pipeline rather than a hand-built `req`,
@@ -387,7 +387,7 @@ describe('meditation transcription', () => {
     })
 
     const post = (meditationId: number | string, locale = 'en', caller: RestClient = rest) =>
-      caller(`/api/meditations/${meditationId}/transcript?locale=${locale}`, { method: 'POST' })
+      caller(`/api/meditations/${meditationId}/transcribe?locale=${locale}`, { method: 'POST' })
 
     /** Mark the run behind this meditation's transcript errored, so the row reads `failed`. */
     const failTheRun = async (meditationId: number): Promise<MeditationTranscript> => {
@@ -702,7 +702,7 @@ describe('meditation transcription', () => {
       it('denies a request that names no locale, because it resolves to the default', async () => {
         const meditation = await retryableMeditation()
 
-        const { status } = await frenchRest(`/api/meditations/${meditation.id}/transcript`, {
+        const { status } = await frenchRest(`/api/meditations/${meditation.id}/transcribe`, {
           method: 'POST',
         })
 

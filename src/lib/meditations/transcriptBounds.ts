@@ -45,7 +45,7 @@ export type TranscriptPhase = 'none' | 'pending' | 'stalled' | 'failed' | 'compl
 
 /**
  * How far a meditation's transcript has got: which notice the Transcript tab
- * shows, and which answer `POST /api/meditations/:id/transcript` gives. No row
+ * shows, and which answer `POST /api/meditations/:id/transcribe` gives. No row
  * means never transcribed: a replaced recording takes its row with it and a
  * fresh one is queued at once, so there is no out-of-date transcript to keep on
  * screen.

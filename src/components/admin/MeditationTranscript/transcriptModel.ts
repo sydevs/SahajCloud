@@ -45,12 +45,12 @@ export const transcriptUrl = (
  * Where the Transcribe-again button posts, or `null` without a document id or a
  * locale — `transcriptUrl`'s own docblock carries why both are required.
  */
-export const retryTranscriptUrl = (
+export const transcribeUrl = (
   meditationId: number | string | undefined,
   locale: string | undefined,
 ): string | null =>
   meditationId && locale
-    ? `/api/meditations/${meditationId}/transcript${qs.stringify(
+    ? `/api/meditations/${meditationId}/transcribe${qs.stringify(
         { locale },
         { addQueryPrefix: true },
       )}`

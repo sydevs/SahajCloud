@@ -25,7 +25,7 @@ import { KeyframeData } from '@/types/frames'
 
 import { meditationLectures } from './endpoints/lectures'
 import { meditationSongs } from './endpoints/songs'
-import { meditationTranscript } from './endpoints/transcript'
+import { meditationTranscribe } from './endpoints/transcribe'
 import { cacheMeditationNodeWeights } from './hooks/cacheMeditationNodeWeights'
 import { extractAudioDuration } from './hooks/extractAudioDuration'
 import { fallbackTitleAfterRead } from './hooks/fallbackTitle'
@@ -110,7 +110,7 @@ const virtualJoinField = ({ name, on }: { name: string; on: string }): JSONField
 export const Meditations: CollectionConfig = {
   slug: 'meditations',
   trash: true,
-  endpoints: [meditationLectures, meditationSongs, meditationTranscript],
+  endpoints: [meditationLectures, meditationSongs, meditationTranscribe],
   hooks: {
     beforeOperation: [filterMeditationsByLocale],
     beforeChange: [

@@ -35,7 +35,7 @@ const isDuplicateTranscript = (error: ValidationError): boolean =>
   error.data.errors.some(({ path }) => path === 'meditation')
 
 /**
- * POST /api/meditations/:id/transcript — ask for this meditation's recording to
+ * POST /api/meditations/:id/transcribe — ask for this meditation's recording to
  * be transcribed again.
  *
  * The Transcript tab's Transcribe-again button is the only caller
@@ -55,8 +55,8 @@ const isDuplicateTranscript = (error: ValidationError): boolean =>
  * read from the functions the tab offers the button from, so the control cannot
  * promise what this refuses.
  */
-export const meditationTranscript: Endpoint = {
-  path: '/:id/transcript',
+export const meditationTranscribe: Endpoint = {
+  path: '/:id/transcribe',
   method: 'post',
   handler: async (req) => {
     const denied = requireManagerPermission({
@@ -171,7 +171,7 @@ export const meditationTranscript: Endpoint = {
       if (error instanceof APIError) return refusal(error.message, error.status)
 
       req.payload.logger.error({
-        msg: 'meditationTranscript: could not ask for a transcript',
+        msg: 'meditationTranscribe: could not ask for a transcript',
         meditationId: id,
         error: error instanceof Error ? error.message : String(error),
       })

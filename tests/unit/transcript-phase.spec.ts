@@ -2,7 +2,7 @@
  * The transcript phase, and which phases may be asked for again.
  *
  * One function answers for two consumers — the Transcript tab's notice table
- * and `POST /api/meditations/:id/transcript`'s refusal (#984) — so the table
+ * and `POST /api/meditations/:id/transcribe`'s refusal (#984) — so the table
  * below is what stops a button offering a retry the endpoint refuses. Pure, and
  * away from the tab's own specs, because neither side owns it.
  */

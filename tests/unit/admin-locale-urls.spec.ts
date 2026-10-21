@@ -16,7 +16,7 @@ import { describe, expect, it } from 'vitest'
 
 import { framesByNarratorKey } from '../../src/components/admin/FrameEditor/utils'
 import {
-  retryTranscriptUrl,
+  transcribeUrl,
   transcriptUrl,
 } from '../../src/components/admin/MeditationTranscript/transcriptModel'
 import { submissionActionUrl } from '../../src/components/admin/SubmissionReview/urls'
@@ -97,21 +97,21 @@ describe('transcriptUrl', () => {
   })
 })
 
-describe('retryTranscriptUrl', () => {
+describe('transcribeUrl', () => {
   it('names the locale, because the endpoint gates on it', () => {
-    expect(retryTranscriptUrl(7, 'fr')).toBe('/api/meditations/7/transcript?locale=fr')
+    expect(transcribeUrl(7, 'fr')).toBe('/api/meditations/7/transcribe?locale=fr')
   })
 
   it('encodes the locale', () => {
-    expect(retryTranscriptUrl(7, 'pt-BR')).toBe('/api/meditations/7/transcript?locale=pt-BR')
+    expect(transcribeUrl(7, 'pt-BR')).toBe('/api/meditations/7/transcribe?locale=pt-BR')
   })
 
   it('refuses to build a URL with no locale', () => {
-    expect(retryTranscriptUrl(7, undefined)).toBeNull()
-    expect(retryTranscriptUrl(7, '')).toBeNull()
+    expect(transcribeUrl(7, undefined)).toBeNull()
+    expect(transcribeUrl(7, '')).toBeNull()
   })
 
   it('refuses to build a URL with no meditation', () => {
-    expect(retryTranscriptUrl(undefined, 'fr')).toBeNull()
+    expect(transcribeUrl(undefined, 'fr')).toBeNull()
   })
 })

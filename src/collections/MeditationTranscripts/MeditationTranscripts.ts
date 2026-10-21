@@ -25,7 +25,7 @@ import { deriveTranscriptStatus, loadTranscriptJob, transcriptJobError } from '.
  * may read its transcript — there is no second **read** permission to hold.
  *
  * Nor is there a write grant here. The one write an editor can ask for is
- * `POST /api/meditations/:id/transcript` (#984), which gates on
+ * `POST /api/meditations/:id/transcribe` (#984), which gates on
  * `meditations: update` and writes these rows with `overrideAccess`, so the
  * authority to re-transcribe stays the authority to edit the meditation.
  */

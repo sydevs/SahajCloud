@@ -5,7 +5,7 @@ import React, { useCallback, useState } from 'react'
 
 import { retranscribeWaitLabel } from '@/lib/meditations/transcriptBounds'
 
-import { retryTranscriptUrl } from './transcriptModel'
+import { transcribeUrl } from './transcriptModel'
 import { useRetryCooldown } from './useTranscriptPhase'
 
 const FAILED = 'Could not ask for a transcript.'
@@ -48,7 +48,7 @@ export const RetryTranscript: React.FC<{
     try {
       // No locale, no request: one resolves the default locale server-side and
       // reproduces the #701 403 silently — see `transcriptUrl`.
-      const url = retryTranscriptUrl(meditationId, locale)
+      const url = transcribeUrl(meditationId, locale)
       if (!url) {
         toast.error(FAILED)
         return

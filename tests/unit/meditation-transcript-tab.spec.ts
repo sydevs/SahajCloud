@@ -486,7 +486,7 @@ describe('the Transcript tab', () => {
 
       await act(async () => void retryButton()!.click())
 
-      expect(fetchMock).toHaveBeenCalledExactlyOnceWith('/api/meditations/7/transcript?locale=cs', {
+      expect(fetchMock).toHaveBeenCalledExactlyOnceWith('/api/meditations/7/transcribe?locale=cs', {
         credentials: 'include',
         method: 'POST',
       })
