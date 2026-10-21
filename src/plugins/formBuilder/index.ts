@@ -20,30 +20,46 @@ import {
   syncFullnessAfterDelete,
 } from '@/collections/UserSubmissions/hooks/syncFullness'
 import { validateProposal } from '@/collections/UserSubmissions/hooks/validateProposal'
-import type { WorkflowButtonsProps } from '@/components/admin/WorkflowButtons/stages'
+import {
+  OPEN_REVIEW_STATUSES,
+  REOPENABLE_REVIEW_STATUSES,
+} from '@/collections/UserSubmissions/statuses'
+import type { WorkflowButton, WorkflowButtonsProps } from '@/components/admin/WorkflowButtons/stages'
 import { WORKFLOW_BUTTONS } from '@/components/admin/WorkflowButtons/stages'
 import { CONTACT_EMAIL } from '@/lib/contact'
 import { serverEnv } from '@/lib/env/server'
 import { livePreviewUrl } from '@/lib/livePreview/url'
 import type { UserSubmission } from '@/payload-types'
 
-/**
- * Accept and Reject, offered at every status a decision is still open at —
- * `pending` and `failed` alike, because `failed` means the review email did not
- * send and the decision was never made.
- */
-const REVIEW_BUTTONS = [
+const REVIEW_BUTTONS: WorkflowButton[] = [
   {
     label: 'Reject',
     overrides: { status: 'rejected' },
-    buttonStyle: 'secondary' as const,
+    buttonStyle: 'secondary',
     confirm: 'Reject this submission?',
   },
   { label: 'Accept', overrides: { status: 'accepted' } },
 ]
 
-/** Reopen, offered where the row was shelved without ever touching an event. */
-const REOPEN_BUTTONS = [{ label: 'Reopen', overrides: { status: 'pending' } }]
+const REOPEN_BUTTONS: WorkflowButton[] = [{ label: 'Reopen', overrides: { status: 'pending' } }]
+
+/**
+ * Which buttons a reviewer is offered at which status.
+ *
+ * ⚠ **Built from the two status sets, never from a list of its own.** The
+ * server decides the same thing from `OPEN_REVIEW_STATUSES` and
+ * `REOPENABLE_REVIEW_STATUSES` (`reviewMove`), so a hand-written map here could
+ * offer a button whose transition the guard then refuses, or leave a newly-open
+ * status with no button at all. `SubmissionActions` imported both sets for
+ * exactly this reason before the move to data.
+ */
+const REVIEW_STAGES: WorkflowButtonsProps<UserSubmission['status']>['stages'] = {
+  ...Object.fromEntries(OPEN_REVIEW_STATUSES.map((status) => [status, REVIEW_BUTTONS])),
+  ...Object.fromEntries(REOPENABLE_REVIEW_STATUSES.map((status) => [status, REOPEN_BUTTONS])),
+  // A stage with no action, not a missing one: Payload's own ⋯ menu carries this
+  // row's Delete, for whoever holds the grant.
+  accepted: [],
+}
 
 /**
  * The form-builder plugin, configured once, plus the two things its options
@@ -178,33 +194,16 @@ const formBuilder = (config: Parameters<Plugin>[0]) =>
         defaultColumns: ['subject', 'type', 'status', 'senderEmail', 'createdAt'],
         components: {
           edit: {
-            // Accept / Reject / Reopen replace Save on a `proposal` row, as
-            // data read by the shared `WorkflowButtons` component. `onlyWhen`
-            // is what makes a collection-wide slot safe over four intakes:
-            // every one of them shares this status vocabulary, so without it a
-            // `contact` row at `pending` would be offered Accept and Reject.
-            //
-            // Each button carries a non-empty `overrides`, so none is disabled
-            // on a row nobody edited (`WorkflowButtons`' own rule), and none
-            // sets `skipValidation` — the no-region refusal has to reach the
-            // form as a field error on `region`.
-            //
-            // An `accepted` row is a stage with no action: Payload's own ⋯ menu
-            // carries its Delete, for whoever holds the grant. `atlas-manager`
-            // does not, and that is the button that used to 403.
+            // No `skipValidation` on any button: the no-region refusal reaches
+            // the form as a field error on `region`, which validation is what
+            // delivers.
             SaveButton: {
               path: WORKFLOW_BUTTONS,
               clientProps: {
                 statusField: 'status',
                 onlyWhen: { field: 'type', equals: 'proposal' },
                 fallback: 'save',
-                stages: {
-                  pending: REVIEW_BUTTONS,
-                  failed: REVIEW_BUTTONS,
-                  rejected: REOPEN_BUTTONS,
-                  spam: REOPEN_BUTTONS,
-                  accepted: [],
-                },
+                stages: REVIEW_STAGES,
               } satisfies WorkflowButtonsProps<UserSubmission['status']>,
             },
           },

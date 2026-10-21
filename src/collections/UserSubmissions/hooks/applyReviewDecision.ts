@@ -2,10 +2,10 @@ import type { CollectionAfterChangeHook } from 'payload'
 
 import type { UserSubmission } from '@/payload-types'
 
-import { applyReview, reviewActionFor, SKIP_REVIEW_CONTEXT } from '../lifecycle/review'
+import { applyReview, reviewMove } from '../lifecycle/review'
 
 /**
- * afterChange (update): a manager moved `status`, so apply what that decision
+ * afterChange (update): apply what the status move the reviewer just posted
  * means — write the event an accept approves, and log the decision.
  *
  * ⚠ **`afterChange`, not `beforeChange`.** A collection `beforeChange` runs
@@ -15,10 +15,6 @@ import { applyReview, reviewActionFor, SKIP_REVIEW_CONTEXT } from '../lifecycle/
  * (`payload/dist/collections/operations/updateByID.js`, where the commit is the
  * last statement before the `catch` that kills the transaction), so a throw in
  * here still takes the whole update back.
- *
- * The transition was already judged by `guardStatusTransition`, which binds the
- * same writes on the same rule — so reaching here means the move is one a
- * reviewer may make.
  */
 export const applyReviewDecision: CollectionAfterChangeHook = async ({
   context,
@@ -28,25 +24,27 @@ export const applyReviewDecision: CollectionAfterChangeHook = async ({
   req,
 }) => {
   if (operation !== 'update') return doc
-  if (req.user?.collection !== 'managers') return doc
-  // `applyReview`'s own update to this row carries the flag, or logging the
-  // decision would be read as a second one.
-  if (context[SKIP_REVIEW_CONTEXT]) return doc
+  // `applyReview`'s own write to this row forwards the same `req`.
+  if (context.skipSubmissionReview) return doc
 
   const submission = doc as UserSubmission
-  if (submission.type !== 'proposal') return doc
-
-  const action = reviewActionFor((previousDoc as UserSubmission).status, submission.status)
-  if (!action) return doc
+  const move = reviewMove({
+    from: (previousDoc as UserSubmission).status,
+    to: submission.status,
+    type: submission.type,
+    req,
+  })
+  // An `illegal` move never reaches here — `guardStatusTransition` refused it
+  // on the same write, off this same answer.
+  if (move.kind !== 'decision') return doc
 
   await applyReview({
-    payload: req.payload,
+    req,
     // The document the update just wrote, so a `region` the reviewer corrected
     // in the same post is the one the accept uses.
     submission,
-    action,
-    managerId: typeof req.user.id === 'number' ? req.user.id : null,
-    req,
+    action: move.action,
+    managerId: typeof req.user?.id === 'number' ? req.user.id : null,
   })
 
   return doc

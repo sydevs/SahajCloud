@@ -40,11 +40,18 @@ Four things the wrapper does that the plugin options cannot:
 
 **Review is a status move, not an action endpoint** (#909). `WorkflowButtons`
 submits `{ status: 'accepted' }` through Payload's own document form;
-`guardStatusTransition` (a `beforeChange`) decides whether the move is allowed,
+`guardStatusTransition` (a `beforeChange`) refuses a move no reviewer may make,
 and `applyReviewDecision` (an `afterChange`) writes the event an accept
-approves. Both bind `req.user.collection === 'managers'`, so screening and
-delivery pass untouched. `POST /api/user-submissions/:id/review` is gone, and
-with it the hand-rolled locale on the call (`docs/rules/access.md`).
+approves. Both read one answer, `reviewMove` in
+`UserSubmissions/lifecycle/review.ts`. `POST /api/user-submissions/:id/review`
+is gone, and with it the hand-rolled locale on the call.
+
+⚠ **A reviewer is a manager holding the `user-submissions: update` grant, not
+whoever a row's `manager` field names.** The collection's own `update` admits
+the second through the document-manager fallback, which would make being
+assigned a proposal authority to publish the event accepting it writes — see
+`docs/rules/access.md`. Nothing else binds, so screening and delivery, which
+carry no manager, pass untouched.
 
 ⚠ **Every collection-wide admin slot here serves four intakes.** The review
 buttons gate on `type === 'proposal'` through `WorkflowButtons`' `onlyWhen` and

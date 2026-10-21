@@ -24,6 +24,13 @@ import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+
+import { reviewMove } from '@/collections/UserSubmissions/lifecycle/review'
+import {
+  OPEN_REVIEW_STATUSES,
+  REOPENABLE_REVIEW_STATUSES,
+} from '@/collections/UserSubmissions/statuses'
+import type { WorkflowButtonsProps } from '@/components/admin/WorkflowButtons/stages'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Manager, UserSubmission } from '@/payload-types'
 
@@ -156,9 +163,13 @@ describe('User submission review lifecycle', () => {
     payload = env.payload
     cleanup = env.cleanup
 
+    // `atlas-manager` is the one role granting `user-submissions: update`, and
+    // `reviewMove` reads that grant — a manager without it is not a reviewer,
+    // whatever rows name them.
     regionManager = await testData.createManager(payload, {
       name: 'Region Reviewer',
       email: 'region-reviewer@example.com',
+      roles: { en: ['atlas-manager'] },
     })
     const country = await testData.createRegion(payload, {
       name: 'Submissia',
@@ -349,6 +360,76 @@ describe('User submission review lifecycle', () => {
       // explanation page instead.
       const { livePreview } = payload.collections['user-submissions']!.config.admin
       expect(livePreview?.openByDefault).toBeFalsy()
+    })
+  })
+
+  /**
+   * The buttons the admin offers, read off the live declaration.
+   *
+   * Which statuses carry buttons is derived from the two status sets, so it
+   * cannot drift. Where each button *points* is not — `overrides.status` is
+   * written at the declaration, and a Reject aimed at `spam` would build the
+   * same map and be refused by `reviewMove` at the click. So the targets are
+   * pinned against the decision the server would make for them.
+   */
+  describe('the review buttons', () => {
+    const declaration = () => {
+      const slot = payload.collections['user-submissions']!.config.admin.components?.edit
+        ?.SaveButton
+      if (typeof slot !== 'object' || slot === null || !('clientProps' in slot)) {
+        throw new Error('expected the SaveButton slot to declare clientProps')
+      }
+      return slot.clientProps as WorkflowButtonsProps<UserSubmission['status']>
+    }
+
+    it('gates on the one intake with a review path', () => {
+      expect(declaration().onlyWhen).toEqual({ field: 'type', equals: 'proposal' })
+      // Every other intake, and the create screen, keep Payload's own button.
+      expect(declaration().fallback).toBe('save')
+    })
+
+    it('offers buttons at exactly the statuses a decision is still open at', () => {
+      const stages = declaration().stages
+      expect(Object.keys(stages).sort()).toEqual(
+        [...OPEN_REVIEW_STATUSES, ...REOPENABLE_REVIEW_STATUSES, 'accepted'].sort(),
+      )
+      // A stage with no action, not a missing one: `[]` renders nothing, where
+      // an unnamed stage would put Payload's Save button back on a decided row.
+      expect(stages.accepted).toEqual([])
+    })
+
+    it('aims every button at a move the server would accept', () => {
+      const stages = declaration().stages
+      for (const [from, buttons] of Object.entries(stages) as [
+        UserSubmission['status'],
+        NonNullable<WorkflowButtonsProps<UserSubmission['status']>['stages'][UserSubmission['status']]>,
+      ][]) {
+        for (const button of buttons) {
+          const to = button.overrides.status as UserSubmission['status']
+          const move = reviewMove({
+            from,
+            to,
+            type: 'proposal',
+            // An admin, so the only thing left for `reviewMove` to judge is the
+            // transition — `bypassPermissions` admits them before any role
+            // lookup. Whether a given manager holds the grant is the
+            // assigned-manager suite's subject, not this one's.
+            req: { locale: 'en', user: { collection: 'managers', type: 'admin' } } as never,
+          })
+          expect(move, `${button.label}: ${from} → ${to}`).toMatchObject({ kind: 'decision' })
+        }
+      }
+    })
+
+    it('leaves every button enabled on a row nobody edited', () => {
+      // `WorkflowButtons` disables an action whose `overrides` are empty, the
+      // rule Payload's own Save button applies to an unmodified document — so a
+      // review button carrying none would be unreachable until something moved.
+      for (const buttons of Object.values(declaration().stages)) {
+        for (const button of buttons ?? []) {
+          expect(Object.keys(button.overrides).length, button.label).toBeGreaterThan(0)
+        }
+      }
     })
   })
 
@@ -606,6 +687,67 @@ describe('User submission review lifecycle', () => {
       expect((await payload.count({ collection: 'events', overrideAccess: true })).totalDocs).toBe(
         before.totalDocs,
       )
+    })
+  })
+
+  /**
+   * ⚠ **Being assigned a proposal is not authority to decide it.**
+   *
+   * The deleted endpoint gated on the `user-submissions: update` **grant**
+   * alone. A plain `PATCH` is wider: when the role grants deny,
+   * `createAccessConfig` falls back to document-level manager access, and this
+   * collection has a `manager` field — so whoever it names may edit the row
+   * with no grant at all. Reading the collection's `update` to decide who may
+   * review would have turned that into authority to publish the Events row an
+   * accept writes, with `overrideAccess: true` behind it. `reviewMove` reads
+   * the grant instead.
+   */
+  describe('a manager named on the row but holding no grant', () => {
+    let assignee: Manager
+    let assigneeDecide: (id: number, status: UserSubmission['status']) => Promise<unknown>
+
+    beforeAll(async () => {
+      // Roles that touch neither `user-submissions` nor `events`.
+      assignee = await testData.createManager(payload, {
+        email: 'assigned-no-grant@example.com',
+        roles: { en: ['meditations-editor'] },
+      })
+      assigneeDecide = (id, status) =>
+        payload.update({
+          collection: 'user-submissions',
+          id,
+          data: { status } as never,
+          user: { ...assignee, collection: 'managers' } as never,
+          overrideAccess: true,
+        })
+    })
+
+    it('cannot accept it, and no event is written', async () => {
+      const created = await createProposal({
+        region: cityId,
+        anchorRegion: cityId,
+        manager: assignee.id,
+        proposed: { ...proposedAt('11 Main St'), schedule: WEEKLY_SCHEDULE },
+      })
+      const before = await payload.count({ collection: 'events', overrideAccess: true })
+
+      await expect(assigneeDecide(created.id, 'accepted')).rejects.toMatchObject({
+        data: { errors: [{ path: 'status' }] },
+      })
+
+      expect((await reload(created.id)).status).toBe('pending')
+      expect((await payload.count({ collection: 'events', overrideAccess: true })).totalDocs).toBe(
+        before.totalDocs,
+      )
+    })
+
+    it('cannot reject it either — the refusal is about the grant, not the move', async () => {
+      const created = await createProposal({ region: cityId, manager: assignee.id })
+
+      await expect(assigneeDecide(created.id, 'rejected')).rejects.toMatchObject({
+        data: { errors: [{ path: 'status' }] },
+      })
+      expect((await reload(created.id)).status).toBe('pending')
     })
   })
 

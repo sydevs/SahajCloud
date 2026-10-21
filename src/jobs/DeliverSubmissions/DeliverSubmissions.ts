@@ -65,8 +65,11 @@ export const DeliverSubmissions: TaskConfig<'deliverSubmission'> = {
     }
 
     // Looked up, never branched on: the registry is total over the type union,
-    // so there is no "unknown type" case for this handler to get wrong.
-    const outcome = await DELIVERERS[submission.type]({ req, submission })
+    // so there is no "unknown type" case for this handler to get wrong. What a
+    // delivered row becomes is the same lookup's answer, not this handler's.
+    const delivery = DELIVERERS[submission.type]
+    const outcome = await delivery.deliver({ req, submission })
+    const status = outcome.ok ? delivery.deliveredStatus : ('failed' as const)
 
     const entry: Record<string, string> = outcome.ok
       ? {
@@ -79,9 +82,7 @@ export const DeliverSubmissions: TaskConfig<'deliverSubmission'> = {
       collection: 'user-submissions',
       id: submissionId,
       data: {
-        // Still no branch on the type: what a delivered row becomes is the
-        // deliverer's own answer, defaulting to settled.
-        status: outcome.ok ? (outcome.nextStatus ?? ('accepted' as const)) : ('failed' as const),
+        status,
         activityLog: appendLogEntry(asLog(submission.activityLog), {
           at: now.toISOString(),
           type: 'delivery',
@@ -99,7 +100,9 @@ export const DeliverSubmissions: TaskConfig<'deliverSubmission'> = {
       req,
     })
 
-    if (outcome.ok) return { output: { status: 'accepted' } }
+    // The status this run actually wrote, so the task's own output cannot
+    // disagree with the row it just left behind.
+    if (outcome.ok) return { output: { status } }
 
     if (!outcome.retryable) {
       // Terminal. Logged rather than thrown: throwing would spend three more

@@ -60,8 +60,9 @@ const WorkflowButtons: React.FC<WorkflowButtonsProps> = ({
   const status = useFormFields(([fields]) =>
     statusField ? fields?.[statusField]?.value : undefined,
   )
-  // Read from form state beside the status, not from the loaded document, so a
-  // declaration can gate on a field the reviewer is editing.
+  // Its own subscription, not a tuple selector beside the status: a selector
+  // returning an object hands back a fresh reference on every form-state change
+  // and re-renders the button row on every keystroke.
   const gate = useFormFields(([fields]) => (onlyWhen ? fields?.[onlyWhen.field]?.value : undefined))
 
   const run = useCallback(
@@ -74,7 +75,8 @@ const WorkflowButtons: React.FC<WorkflowButtonsProps> = ({
 
   // A gated-out document names no stage, which is the same answer as a status
   // the declaration never mentioned — so it takes the fallback path already
-  // below rather than a branch of its own.
+  // below. ⚠ That is also what puts it ahead of a stage declared `[]`, which
+  // renders nothing: a gated-out row would otherwise lose its Save button.
   const stage =
     onlyWhen && gate !== onlyWhen.equals
       ? undefined

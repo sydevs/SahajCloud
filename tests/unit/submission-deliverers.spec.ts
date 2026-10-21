@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { SUBMISSION_TYPES } from '@/collections/UserSubmissions/fields'
+import { OPEN_REVIEW_STATUSES } from '@/collections/UserSubmissions/statuses'
 import { DELIVERERS } from '@/jobs/DeliverSubmissions/deliverers'
 import type { UserSubmission } from '@/payload-types'
 
@@ -28,58 +29,56 @@ describe('DELIVERERS', () => {
 
   it('maps every type to a callable', () => {
     for (const type of SUBMISSION_TYPES) {
-      expect(typeof DELIVERERS[type], `${type} should have a deliverer`).toBe('function')
+      expect(typeof DELIVERERS[type].deliver, `${type} should have a deliverer`).toBe('function')
     }
   })
 })
 
 /**
- * What a successful delivery leaves the row at — `accepted` for three of the
- * four intakes, and `pending` for the one whose delivery decides nothing.
+ * What a successful delivery leaves the row at.
  *
- * ⚠ **A proposal's delivery only emails a reviewer.** Settling it `accepted`
- * hid the review buttons on every proposal whose notification sent, and since
- * #909 put the accept on that same transition it would create the event nobody
- * approved. `deliverProposal` is the one row that answers `nextStatus`, and
- * `DeliverSubmissions` is what honours it.
+ * ⚠ **A proposal's delivery only emails a reviewer**, so that row stays
+ * `pending` for them to decide on. Settling it `accepted` hid the review
+ * buttons on every proposal whose notification sent, and since #909 put the
+ * accept on that same transition it would create the event nobody approved.
+ *
+ * Pinned against `OPEN_REVIEW_STATUSES` rather than the literal `pending`: the
+ * point is that a delivered proposal is still open for review, so the day that
+ * set changes this reads the new answer instead of the old one.
  */
-describe('what a delivered row becomes', () => {
-  const proposal = {
-    id: 3,
-    type: 'proposal',
-    senderEmail: 'aria@example.com',
-    proposed: { eventType: 'offline' },
-    submissionData: [],
-  } as unknown as UserSubmission
-
-  it('leaves a delivered proposal open for its reviewer', async () => {
-    const { payload, sendEmail } = stubEmailPayload()
-
-    const outcome = await DELIVERERS.proposal({
-      req: { payload } as never,
-      submission: proposal,
-    })
-
-    expect(sendEmail).toHaveBeenCalledOnce()
-    expect(outcome).toMatchObject({ ok: true, nextStatus: 'pending' })
+describe('deliveredStatus', () => {
+  it('leaves a delivered proposal open for review', () => {
+    expect(OPEN_REVIEW_STATUSES).toContain(DELIVERERS.proposal.deliveredStatus)
   })
 
-  it('names no status on a delivery that settles the row', async () => {
-    // The default the task applies is `accepted`, so a deliverer that decides
-    // the outcome itself says nothing — only the open case is declared.
-    const { payload } = stubEmailPayload()
+  it.each(['contact', 'subscribe', 'registration'] as const)(
+    'settles a delivered %s row',
+    (type) => {
+      expect(DELIVERERS[type].deliveredStatus).toBe('accepted')
+    },
+  )
+})
 
-    const outcome = await DELIVERERS.contact({
+/**
+ * The one deliverer whose success does not settle its row, driven for real —
+ * so the registry entry above is pinned to a deliverer that genuinely sends.
+ */
+describe('deliverProposal', () => {
+  it('emails a reviewer and reports success', async () => {
+    const { payload, sendEmail } = stubEmailPayload()
+
+    const outcome = await DELIVERERS.proposal.deliver({
       req: { payload } as never,
       submission: {
-        id: 4,
-        type: 'contact',
+        id: 3,
+        type: 'proposal',
         senderEmail: 'aria@example.com',
-        submissionData: [{ field: 'message', value: 'Hello' }],
+        proposed: { eventType: 'offline' },
+        submissionData: [],
       } as unknown as UserSubmission,
     })
 
+    expect(sendEmail).toHaveBeenCalledOnce()
     expect(outcome).toMatchObject({ ok: true })
-    expect(outcome).not.toHaveProperty('nextStatus')
   })
 })

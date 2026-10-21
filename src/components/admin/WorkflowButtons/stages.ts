@@ -44,10 +44,9 @@ export interface WorkflowButtonsProps<TStage extends string = string> {
    * Render `fallback` unless this form field holds this value, whatever stage
    * the status names.
    *
-   * ⚠ **A collection-wide slot over several intakes needs this.**
-   * `user-submissions` holds four, and all four share one status vocabulary, so
-   * a `contact` row sitting at `pending` resolves the same stage as a proposal
-   * awaiting review — and would be offered Accept and Reject.
+   * For a slot whose collection holds several kinds of document sharing one
+   * status vocabulary, where stage alone cannot tell them apart
+   * (`docs/rules/admin-ui.md`).
    */
   onlyWhen?: { field: string; equals: unknown }
   /** Buttons per stage. An empty array is a stage with no action, not a missing one. */
