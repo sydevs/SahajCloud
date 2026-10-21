@@ -990,7 +990,7 @@ export interface Config {
       sendPostEventFollowUps: TaskSendPostEventFollowUps;
       sendRegistrationDigests: TaskSendRegistrationDigests;
       sendSessionReminders: TaskSendSessionReminders;
-      sweepRetention: TaskSweepRetention;
+      cleanupCollections: TaskCleanupCollections;
       syncLectureMetadata: TaskSyncLectureMetadata;
       transcribeMeditation: TaskTranscribeMeditation;
       verifyEmbeds: TaskVerifyEmbeds;
@@ -3189,7 +3189,7 @@ export interface PayloadJob {
           | 'sendPostEventFollowUps'
           | 'sendRegistrationDigests'
           | 'sendSessionReminders'
-          | 'sweepRetention'
+          | 'cleanupCollections'
           | 'syncLectureMetadata'
           | 'transcribeMeditation'
           | 'verifyEmbeds'
@@ -3239,7 +3239,7 @@ export interface PayloadJob {
         | 'sendPostEventFollowUps'
         | 'sendRegistrationDigests'
         | 'sendSessionReminders'
-        | 'sweepRetention'
+        | 'cleanupCollections'
         | 'syncLectureMetadata'
         | 'transcribeMeditation'
         | 'verifyEmbeds'
@@ -10647,9 +10647,9 @@ export interface TaskSendSessionReminders {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "TaskSweepRetention".
+ * via the `definition` "TaskCleanupCollections".
  */
-export interface TaskSweepRetention {
+export interface TaskCleanupCollections {
   input: {
     now?: string | null;
     dryRun?: boolean | null;

@@ -20,8 +20,8 @@ import {
   CONTACT_ACCEPTED_DAYS,
   MACHINE_SPAM_DAYS,
   PROPOSAL_DAYS,
-} from '@/jobs/SweepRetention/entries/userSubmissions'
-import { SweepRetention } from '@/jobs/SweepRetention/SweepRetention'
+} from '@/jobs/CleanupCollections/entries/userSubmissions'
+import { CleanupCollections } from '@/jobs/CleanupCollections/CleanupCollections'
 import type { Event, Form, Manager, UserSubmission } from '@/payload-types'
 
 import { deletedIn } from '../utils/retention'
@@ -86,7 +86,7 @@ describe('Submission retention sweep', () => {
 
   /** Run the sweep as if `days` had passed since `anchor`. */
   const sweep = (anchor: number, days: number, dryRun = false) =>
-    runTaskHandler(SweepRetention, {
+    runTaskHandler(CleanupCollections, {
       payload,
       input: {
         now: new Date(anchor + days * DAY_MS).toISOString(),

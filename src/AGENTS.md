@@ -55,7 +55,7 @@ imports that code (tests may reach a folder's internals). `src/jobs/index.ts`
 re-exports **only** the task definitions for `payload.config.ts`'s
 `jobs.tasks`.
 
-`SweepRetention/` is one folder per _collection_ instead: every window sweep
+`CleanupCollections/` is one folder per _collection_ instead: every window sweep
 runs from `registry.ts`, and a collection joins retention as a row there plus a
 file under `entries/` carrying its windows and why each is the length it is
 (#987). `NO_RETENTION` beside it records a collection deliberately left out.

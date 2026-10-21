@@ -20,9 +20,9 @@ import { SweepFailure, sweepCollection } from './sweepCollection'
  * expiry and 03:00 notification sweeps, so a slow night does not have three
  * jobs contending.
  */
-export const SweepRetention: TaskConfig<'sweepRetention'> = {
-  slug: 'sweepRetention',
-  label: 'Sweep Retention',
+export const CleanupCollections: TaskConfig<'cleanupCollections'> = {
+  slug: 'cleanupCollections',
+  label: 'Cleanup Collections',
   retries: 2,
   inputSchema: [
     {
@@ -83,7 +83,7 @@ export const SweepRetention: TaskConfig<'sweepRetention'> = {
 
     // A typo in the input would otherwise sweep nothing and report success.
     if (only && entries.length === 0) {
-      throw new Error(`SweepRetention: no registry entry for collection "${only}"`)
+      throw new Error(`CleanupCollections: no registry entry for collection "${only}"`)
     }
 
     const collections: RetentionCount[] = []
@@ -106,7 +106,7 @@ export const SweepRetention: TaskConfig<'sweepRetention'> = {
             beforeDelete: hooks.beforeDelete,
             collection,
             dryRun,
-            label: `SweepRetention/${collection}`,
+            label: `CleanupCollections/${collection}`,
             now,
             req,
             windows,
@@ -126,7 +126,7 @@ export const SweepRetention: TaskConfig<'sweepRetention'> = {
         }
 
         req.payload.logger.error({
-          msg: `SweepRetention: ${collection} failed`,
+          msg: `CleanupCollections: ${collection} failed`,
           error: error instanceof Error ? error.message : String(error),
         })
       }
@@ -137,15 +137,15 @@ export const SweepRetention: TaskConfig<'sweepRetention'> = {
     if (deleted > 0) {
       req.payload.logger.info({
         msg: dryRun
-          ? 'SweepRetention: dry run — nothing was deleted'
-          : 'SweepRetention: retention sweep complete',
+          ? 'CleanupCollections: dry run — nothing was deleted'
+          : 'CleanupCollections: retention sweep complete',
         deleted,
         collections,
       })
     }
 
     if (failed.length > 0) {
-      throw new Error(`SweepRetention: ${failed.join(', ')} failed — see the logged errors`)
+      throw new Error(`CleanupCollections: ${failed.join(', ')} failed — see the logged errors`)
     }
 
     return { output: { collections, deleted, dryRun } }

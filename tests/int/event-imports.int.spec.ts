@@ -12,7 +12,7 @@ import type { Payload, TaskConfig } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import { SweepRetention } from '@/jobs/SweepRetention/SweepRetention'
+import { CleanupCollections } from '@/jobs/CleanupCollections/CleanupCollections'
 import type { GeocodedLocation, GeocodeOutcome } from '@/lib/mapbox/geocoder'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Import } from '@/payload-types'
@@ -631,14 +631,14 @@ describe('class imports', () => {
         data: { updatedAt: '2020-01-01T00:00:00.000Z' },
       })
 
-      const dry = await runTaskHandler(SweepRetention, {
+      const dry = await runTaskHandler(CleanupCollections, {
         payload,
         input: { dryRun: true, collection: 'imports' },
       })
       expect(deletedIn(dry, 'imports')).toBe(1)
       expect(await read(old.id)).toBeTruthy()
 
-      const real = await runTaskHandler(SweepRetention, {
+      const real = await runTaskHandler(CleanupCollections, {
         payload,
         input: { collection: 'imports' },
       })

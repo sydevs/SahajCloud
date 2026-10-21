@@ -2,15 +2,15 @@ import type { Payload, TaskInput } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { RETENTION_REGISTRY } from '@/jobs/SweepRetention/registry'
-import { SweepRetention } from '@/jobs/SweepRetention/SweepRetention'
+import { RETENTION_REGISTRY } from '@/jobs/CleanupCollections/registry'
+import { CleanupCollections } from '@/jobs/CleanupCollections/CleanupCollections'
 
 import { deletedIn } from '../utils/retention'
 import { runTaskHandler } from '../utils/taskRunner'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 /** The generated input's own spelling of the registry, so this spec cannot drift from it. */
-type RetentionCollection = NonNullable<TaskInput<'sweepRetention'>['collection']>
+type RetentionCollection = NonNullable<TaskInput<'cleanupCollections'>['collection']>
 
 const NOW = '2026-10-17T05:00:00.000Z'
 const LONG_AGO = '2026-10-01T05:00:00.000Z'
@@ -38,7 +38,7 @@ describe('the payload-jobs retention entry', () => {
   const seedJob = async (data: { completedAt?: string; hasError?: boolean }) =>
     payload.create({
       collection: 'payload-jobs',
-      data: { taskSlug: 'sweepRetention', queue: 'nightly', input: {}, ...data },
+      data: { taskSlug: 'cleanupCollections', queue: 'nightly', input: {}, ...data },
       overrideAccess: true,
     })
 
@@ -59,7 +59,7 @@ describe('the payload-jobs retention entry', () => {
     // and sweeping it would cancel work nobody asked to cancel.
     const queued = await seedJob({})
 
-    const output = await runTaskHandler(SweepRetention, {
+    const output = await runTaskHandler(CleanupCollections, {
       payload,
       input: { now: NOW, collection: 'payload-jobs' },
     })
@@ -80,7 +80,7 @@ describe('the payload-jobs retention entry', () => {
       req: undefined,
     })
 
-    const output = await runTaskHandler(SweepRetention, {
+    const output = await runTaskHandler(CleanupCollections, {
       payload,
       input: { now: NOW, collection: 'payload-jobs' },
     })
@@ -92,7 +92,7 @@ describe('the payload-jobs retention entry', () => {
   it('counts without deleting on a dry run', async () => {
     const old = await seedJob({ completedAt: LONG_AGO })
 
-    const output = await runTaskHandler(SweepRetention, {
+    const output = await runTaskHandler(CleanupCollections, {
       payload,
       input: { now: NOW, dryRun: true, collection: 'payload-jobs' },
     })
@@ -108,7 +108,7 @@ describe('the payload-jobs retention entry', () => {
    * entry indistinguishable from a quiet night.
    */
   it('reports a count for every entry when no collection is named', async () => {
-    const output = await runTaskHandler(SweepRetention, {
+    const output = await runTaskHandler(CleanupCollections, {
       payload,
       input: { now: NOW, dryRun: true },
     })
@@ -132,7 +132,7 @@ describe('the payload-jobs retention entry', () => {
     const collection = 'managers' as RetentionCollection
 
     await expect(
-      runTaskHandler(SweepRetention, { payload, input: { collection } }),
+      runTaskHandler(CleanupCollections, { payload, input: { collection } }),
     ).rejects.toThrow(/no registry entry/)
   })
 })

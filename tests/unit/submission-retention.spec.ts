@@ -11,7 +11,7 @@ import {
   MACHINE_SPAM_DAYS,
   PROPOSAL_DAYS,
   PURGE_WINDOWS,
-} from '@/jobs/SweepRetention/entries/userSubmissions'
+} from '@/jobs/CleanupCollections/entries/userSubmissions'
 
 describe('Submission retention', () => {
   /**

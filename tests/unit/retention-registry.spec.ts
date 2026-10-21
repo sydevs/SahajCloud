@@ -8,8 +8,8 @@ import type { Field, Payload } from 'payload'
 
 import { describe, expect, it } from 'vitest'
 
-import { NO_RETENTION, RETENTION_REGISTRY } from '@/jobs/SweepRetention/registry'
-import { SweepRetention } from '@/jobs/SweepRetention/SweepRetention'
+import { NO_RETENTION, RETENTION_REGISTRY } from '@/jobs/CleanupCollections/registry'
+import { CleanupCollections } from '@/jobs/CleanupCollections/CleanupCollections'
 
 import { runTaskHandler } from '../utils/taskRunner'
 
@@ -18,7 +18,7 @@ const fieldNames = (fields: Field[] | undefined) =>
 
 describe('the retention registry', () => {
   it('sweeps every collection from one nightly task', () => {
-    expect(SweepRetention.schedule).toEqual([{ cron: '0 4 * * *', queue: 'nightly' }])
+    expect(CleanupCollections.schedule).toEqual([{ cron: '0 4 * * *', queue: 'nightly' }])
   })
 
   /**
@@ -65,7 +65,7 @@ describe('the retention registry', () => {
    * to show.
    */
   it('offers a dry run and a single-collection run', () => {
-    expect(fieldNames(SweepRetention.inputSchema)).toEqual(
+    expect(fieldNames(CleanupCollections.inputSchema)).toEqual(
       expect.arrayContaining(['dryRun', 'collection']),
     )
   })
@@ -76,7 +76,7 @@ describe('the retention registry', () => {
    * left the operator retyping a slug the task already knows.
    */
   it('offers the registry as the collection options', () => {
-    const field = (SweepRetention.inputSchema ?? []).find(
+    const field = (CleanupCollections.inputSchema ?? []).find(
       (entry) => 'name' in entry && entry.name === 'collection',
     )
 
@@ -105,7 +105,7 @@ describe('the retention registry', () => {
     } as unknown as Payload
 
     await expect(
-      runTaskHandler(SweepRetention, { payload, input: { dryRun: true } }),
+      runTaskHandler(CleanupCollections, { payload, input: { dryRun: true } }),
     ).rejects.toThrow(/user-submissions failed/)
 
     expect(counted).toEqual(['user-submissions', 'imports', 'payload-jobs'])
@@ -136,7 +136,7 @@ describe('the retention registry', () => {
     } as unknown as Payload
 
     await expect(
-      runTaskHandler(SweepRetention, { payload, input: { dryRun: true } }),
+      runTaskHandler(CleanupCollections, { payload, input: { dryRun: true } }),
     ).rejects.toThrow(/user-submissions failed/)
 
     expect(logged.at(-1)?.collections).toContainEqual({
@@ -151,7 +151,7 @@ describe('the retention registry', () => {
    * apart from "that entry never ran".
    */
   it('reports a count per collection', () => {
-    const collections = (SweepRetention.outputSchema ?? []).find(
+    const collections = (CleanupCollections.outputSchema ?? []).find(
       (field) => 'name' in field && field.name === 'collections',
     )
 

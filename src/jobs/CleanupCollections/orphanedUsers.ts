@@ -113,7 +113,7 @@ async function sweepOrphanedUsers(args: {
       // sweep does not know about — worth a line, never worth failing the run
       // and leaving the submissions purge unrepeatable.
       req.payload.logger.warn({
-        msg: 'SweepRetention: an orphaned user could not be deleted',
+        msg: 'CleanupCollections: an orphaned user could not be deleted',
         userId,
         error: error instanceof Error ? error.message : String(error),
       })
