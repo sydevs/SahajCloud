@@ -41,6 +41,12 @@ export const TRANSCRIPTION_STALL_MS = 15 * 60 * 1000
  */
 export const RETRANSCRIBE_COOLDOWN_MS = 10 * 60 * 1000
 
+/**
+ * The row's own `status` widened by the two cases no status column holds: no
+ * row at all, and a `processing` row past the stall bound. `payload-jobs`
+ * carries none to borrow either — it spells a run's lifecycle as `processing`,
+ * `completedAt` and `hasError`.
+ */
 export type TranscriptPhase = 'none' | 'pending' | 'stalled' | 'failed' | 'completed'
 
 /**
