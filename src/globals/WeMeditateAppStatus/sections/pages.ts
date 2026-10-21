@@ -2,7 +2,12 @@ import { APP_REQUIRED_PAGE_FIELDS } from '@/globals/WeMeditateAppConfig/WeMedita
 import { labelOf, refId, type DocumentReport, type SectionSpec } from '@/lib/status'
 import { richTextHasContent } from '@/lib/status/helpers'
 
-import { getWmAppConfig, type WeMeditateAppStatusConfig } from './shared'
+import {
+  getWmAppConfig,
+  isolatedReq,
+  readFallbackTitles,
+  type WeMeditateAppStatusConfig,
+} from './shared'
 
 interface Ctx {
   coreDocs: DocumentReport[]
@@ -51,7 +56,7 @@ export const pagesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
         pagination: false,
         depth: 1,
         select: { page: true },
-        req,
+        req: isolatedReq(req),
       }),
     ])
 
@@ -62,22 +67,28 @@ export const pagesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
       new Set([...corePageIds, ...nodePageIds].filter((id): id is number | string => id !== null)),
     )
 
-    const pages =
+    const [pages, titles] = await Promise.all([
       allIds.length === 0
-        ? []
-        : (
-            await payload.find({
+        ? Promise.resolve([])
+        : payload
+            .find({
               collection: 'pages',
               where: { id: { in: allIds } },
               locale,
+              // `_status` is per-locale (#718) and `content` is localized, so
+              // the fallback would report a page published and translated for
+              // a locale nobody has touched.
+              fallbackLocale: false,
               limit: 0,
               pagination: false,
               depth: 0,
-              req,
+              req: isolatedReq(req),
             })
-          ).docs
+            .then((r) => r.docs),
+      readFallbackTitles(payload, 'pages', { locale, req, ids: allIds }),
+    ])
     const pagesById = new Map<number | string, Record<string, unknown>>(
-      pages.map((p) => [p.id, p as unknown as Record<string, unknown>]),
+      pages.map((p) => [p.id, { ...p, title: titles.get(p.id) } as Record<string, unknown>]),
     )
 
     const coreDocs = corePageIds
@@ -93,7 +104,7 @@ export const pagesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
     {
       key: 'core-pages',
       label: 'Core app pages',
-      description: 'All ten required app pages are published with localized content.',
+      description: 'Every app-required page is published with localized content.',
       type: 'documents',
       evaluate: async ({ coreDocs }) => coreDocs,
     },
