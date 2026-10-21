@@ -34,7 +34,7 @@ Admin panel: `http://localhost:{PORT}/admin/login`, once the dev server runs.
 | Environment | How you get in |
 | --- | --- |
 | Railway PR preview | Ask for a sign-in link as `PREVIEW_ADMIN_EMAIL` (a Railway preview env var, also a CI secret) and the preview signs you in instead of mailing one — the smoke lane's way in too. The address is the credential there, so keep its local part unguessable. Only where the same gate provisions the admin (`src/plugins/previewAdmin`): an environment without the variable has neither. |
-| Production | A sign-in link, delivered by email. `ADMIN_PASSWORD` no longer opens anything — `POST /api/managers/login` is closed here too. **When mail delivery is down, `pnpm tsx scripts/signin-link.ts <email>` prints the same link.** That is the whole break-glass path, and it is deliberately a script rather than a route: it grants nothing to anyone not already holding `DATABASE_URL` and `PAYLOAD_SECRET`. |
+| Production | A sign-in link, delivered by email. `ADMIN_PASSWORD` no longer opens anything — `POST /api/managers/login` is closed here too. **When mail delivery is down, `pnpm tsx scripts/signin-link.ts <email>` prints the same link.** That is the whole break-glass path, and it is deliberately a script rather than a route: it grants nothing to anyone not already holding `DATABASE_URL` and `PAYLOAD_SECRET`. **For a remote seed run, `pnpm tsx scripts/redeem-signin-link.ts '<link>' --seed <script>` turns the link into that run's `ADMIN_TOKEN` instead** (`seeds/AGENTS.md`). |
 
 **A fresh database has no manager to invite the first one.** `pnpm tsx scripts/create-manager.ts <email>` writes one through the local API, which the closed routes do not gate. Payload's own `create-first-user` is `Forbidden` like every other password route.
 
@@ -42,7 +42,7 @@ Admin panel: `http://localhost:{PORT}/admin/login`, once the dev server runs.
 
 Use the `/workflow:dev-server` skill for a dev server shared across sessions. It prevents port conflicts. Default port 3000. Override with `PORT=4000`. `SAHAJCLOUD_URL` derives from `PORT`.
 
-- `pnpm test:unit` — the unit lane, no Payload bootstrap. About 78 s for all 204 files, so name one spec while editing (`tests/PERF.md`).
+- `pnpm test:unit` — the unit lane, no Payload bootstrap. About 78 s for all 215 files, so name one spec while editing (`tests/PERF.md`).
 
 Locally, run lint, `pnpm test:unit`, and the integration spec for the area you changed. Let CI run the full suite. See `docs/rules/testing-reqs.md` for the tier policy and the CPU rules (never run test commands, or a test and a build, in parallel).
 

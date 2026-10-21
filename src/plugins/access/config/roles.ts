@@ -79,6 +79,11 @@ const ROLES = {
       regions: ['create', 'update'] as PermissionLevel[],
       events: ['create', 'update', 'delete'] as PermissionLevel[],
       users: ['read'] as PermissionLevel[],
+      // Starts a bulk class import. `imports` is restricted and declares its own
+      // `access` (imports into their own regions), so this grants no read — it is what keeps
+      // the collection's admin pages visible to an atlas-manager at all, since
+      // the access plugin hides a collection its role cannot write.
+      imports: ['create'] as PermissionLevel[],
       // Collection-wide on purpose (#821): a picker exists to list *other*
       // managers, so a self-scoped `Where` would empty it.
       managers: ['read'] as PermissionLevel[],

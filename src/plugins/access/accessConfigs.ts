@@ -338,9 +338,7 @@ export function withDerivedGrants<
         // row id back on itself.
         async ({ id: _id, ...args }) => {
           const result = await update(args)
-          return translateWhere && hasWhereAccessResult(result)
-            ? translateWhere(result)
-            : result
+          return translateWhere && hasWhereAccessResult(result) ? translateWhere(result) : result
         }
       : () => false
   }
