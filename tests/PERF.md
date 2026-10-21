@@ -56,21 +56,25 @@ lines used until 2026-10-20 and which the routine containers do not ship
 
 ## The unit lane — 2026-10-20
 
-All but one session measured it on the same container spec — 4 cores
-(Intel Xeon @ 2.80 GHz), 15 GB, a cloud routine container. The seventh is a
+Every session but the sixth measured it on the same container spec — 4 cores
+(Intel Xeon @ 2.80 GHz), 15 GB, a cloud routine container. The sixth is a
 maintainer's laptop, for scale: Apple M3 Pro, 11 cores, 18 GB, so 10 workers.
 
-| Session                            | Files / tests | Vitest duration, consecutive runs      | Median     |
-| ---------------------------------- | ------------- | -------------------------------------- | ---------- |
-| first                              | 198 / 2575    | 60.29 · 58.75 · 59.23 s                | 59.2 s     |
-| second, after merging `main`       | 203 / 2643    | 82.19 · 77.93 · 73.21 s                | **77.9 s** |
-| third, after merging `main` again  | 204 / 2653    | 47.16 · 46.38 · 47.82 s                | 47.2 s     |
-| fourth, after merging `main` again | 205 / 2656    | 54.00 · 50.45 s (both inside the gate) | 52.2 s     |
-| fifth, after merging `main` again  | 218 / 2795    | 49.13 s (inside the gate)              | 49.1 s     |
-| sixth, after merging `main` again  | 219 / 2807    | 55.70 s                                | 55.7 s     |
-| seventh, M3 Pro laptop (#993)      | 206 / 2676    | 18.45 · 19.15 · 18.86 s                | 18.9 s     |
-| eighth, after merging `main` again | 223 / 2855    | 52.93 s                                | 52.9 s     |
-| ninth, after merging `main` again  | 225 / 2892    | 51.87 s                                | 51.9 s     |
+| Session                                          | Files / tests | Vitest duration, consecutive runs      | Median     |
+| ------------------------------------------------ | ------------- | -------------------------------------- | ---------- |
+| first                                            | 198 / 2575    | 60.29 · 58.75 · 59.23 s                | 59.2 s     |
+| second, after merging `main`                     | 203 / 2643    | 82.19 · 77.93 · 73.21 s                | **77.9 s** |
+| third, after merging `main` again                | 204 / 2653    | 47.16 · 46.38 · 47.82 s                | 47.2 s     |
+| fourth, after merging `main` again               | 205 / 2656    | 54.00 · 50.45 s (both inside the gate) | 52.2 s     |
+| fifth, after merging `main` again                | 218 / 2795    | 49.13 s (inside the gate)              | 49.1 s     |
+| sixth, M3 Pro laptop (#993)                      | 206 / 2676    | 18.45 · 19.15 · 18.86 s                | 18.9 s     |
+| seventh, #1012 after merging `main` (2026-10-21) | 218 / 2801    | 55.01 s                                | 55.0 s     |
+| eighth, #1012 after merging `main` (2026-10-21)  | 222 / 2849    | 55.26 s                                | 55.3 s     |
+| ninth, #1012 after merging `main` (2026-10-21)   | 224 / 2886    | 50.05 s (inside the gate)              | 50.1 s     |
+| tenth, #999 after merging `main` (2026-10-21)    | 219 / 2807    | 55.70 s                                | 55.7 s     |
+| eleventh, #999 after merging `main` (2026-10-21) | 223 / 2855    | 52.93 s                                | 52.9 s     |
+| twelfth, #999 after merging `main` (2026-10-21)  | 225 / 2892    | 51.87 s                                | 51.9 s     |
+| thirteenth, #999 and #1012 merged (2026-10-21)   | 225 / 2898    | 56.70 s (inside the gate)              | 56.7 s     |
 
 ⚠ **Those three medians span 47 to 78 s — 66% — and six spec files do not
 explain it.** Identical container spec, all on 2026-10-20, 3% more files
@@ -90,7 +94,7 @@ reads, so keep those labels and cell shapes when you add a row.
 
 | Metric                                                                                                    | Value                                                             |
 | --------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Files / tests                                                                                             | 225 / 2892                                                        |
+| Files / tests                                                                                             | 225 / 2898                                                        |
 | Whole lane, 3 workers (slowest session median, what the consumer docs quote)                              | **77.9 s**                                                        |
 | One spec alone, the typical edit (third session)                                                          | 1.3 s                                                             |
 | Slowest per-edit selection timed on 4 cores, the 9 specs naming `tests/utils/importGraph.ts` (2026-10-21) | **8.0 s**                                                         |

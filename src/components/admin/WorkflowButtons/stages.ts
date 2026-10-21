@@ -6,8 +6,8 @@
  * reference rather than its value, so a config reading `CREATE_STAGE` from
  * `WorkflowButtons.tsx` would key its `stages` map on an object. The component
  * imports this file; the configs that declare it do too — the same shape as
- * `UserSubmissions/statuses.ts`, which `SubmissionActions` and the review
- * operation share.
+ * `UserSubmissions/statuses.ts`, which the collection's own hooks and the
+ * review lifecycle share.
  */
 
 /** Where the component is declared from, so a move cannot orphan a declaration. */
@@ -40,10 +40,38 @@ export interface WorkflowButton {
 export interface WorkflowButtonsProps<TStage extends string = string> {
   /** Form field whose value picks the stage; omit to key on the create alone. */
   statusField?: string
+  /**
+   * Render `fallback` unless this form field holds this value, whatever stage
+   * the status names.
+   *
+   * For a slot whose collection holds several kinds of document sharing one
+   * status vocabulary, where stage alone cannot tell them apart
+   * (`docs/rules/admin-ui.md`).
+   *
+   * The match is `!==`, so `equals` is only what that compares by value. An
+   * object or an array would be a declaration nothing can ever satisfy.
+   */
+  onlyWhen?: { field: string; equals: string | number | boolean | null }
   /** Buttons per stage. An empty array is a stage with no action, not a missing one. */
   stages: Partial<Record<TStage, WorkflowButton[]>>
   /** What a stage with no entry renders: Payload's own button, or nothing. */
   fallback: 'publish' | 'save' | 'saveDraft' | null
+}
+
+/**
+ * `stages` entries giving every status in a set the same buttons.
+ *
+ * So a declaration can be built from whatever set the server's own rule reads
+ * rather than listing those statuses again — a hand-written map can offer a
+ * button the server then refuses, or leave a newly-added status with none.
+ */
+export function stagesFor<TStage extends string>(
+  statuses: readonly TStage[],
+  buttons: WorkflowButton[],
+): Partial<Record<TStage, WorkflowButton[]>> {
+  return Object.fromEntries(statuses.map((status) => [status, buttons])) as Partial<
+    Record<TStage, WorkflowButton[]>
+  >
 }
 
 /**
