@@ -1,5 +1,6 @@
 import type { Payload, PayloadRequest } from 'payload'
 
+import { extractID } from 'payload/shared'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { appCardsForAudience } from '@/collections/AppCards/endpoints/forAudience'
@@ -69,6 +70,9 @@ describe('appCardsForAudience endpoint', () => {
   let cardWithCondition: AppCard
   let cardWithMultipleConditions: AppCard
 
+  /** Every card in this file shares one image rather than uploading its own. */
+  let imageId: number
+
   beforeAll(async () => {
     const env = await createTestEnvironment()
     payload = env.payload
@@ -76,7 +80,7 @@ describe('appCardsForAudience endpoint', () => {
     adminUserId = env.adminUser.id
 
     const img = await testData.createMediaImage(payload, { alt: 'Shared card image' })
-    const imageId = img.id
+    imageId = img.id
 
     // Always-match audiences — no configured range rules. Rule semantics are
     // tested in audiences-for-user.int.spec.ts. Here we only care about
@@ -806,6 +810,92 @@ describe('appCardsForAudience endpoint', () => {
 
       expect(en.default?.meditation).toBe(enMeditation.id)
       expect(fr.default?.meditation).toBe(frMeditation.id)
+    })
+
+    // The direction the endpoint case below cannot reach: it reads `en`, so
+    // only this one sees an English edit arriving at a French card.
+    it('leaves French with its own destination when English changes', async () => {
+      const card = await testData.createAppCard(payload, {
+        default: { title: 'Per-locale Card', destination: 'album', image: imageId },
+        targetSections: ['hero'],
+        audiences: [openAudience.id],
+        _status: 'published',
+      })
+
+      await payload.update({
+        collection: 'app-cards',
+        id: card.id,
+        locale: 'fr',
+        data: {
+          default: {
+            title: 'Carte par langue',
+            destination: 'url',
+            url: 'https://example.fr/cours',
+          },
+        },
+      })
+
+      await payload.update({
+        collection: 'app-cards',
+        id: card.id,
+        locale: 'en',
+        data: { default: { destination: 'lecture' } },
+      })
+
+      const fr = await payload.findByID({
+        collection: 'app-cards',
+        id: card.id,
+        locale: 'fr',
+        fallbackLocale: false,
+        depth: 0,
+      })
+      expect(fr.default?.destination).toBe('url')
+    })
+
+    // The defect end to end: the discriminator stored once for all 19 locales
+    // made a French edit repoint English at a `url` only French filled in, so
+    // the English card reached the app with no destination at all.
+    it('keeps the English card on its meditation after a French editor picks a URL', async () => {
+      // Its own audience, so the weighted sample cannot drop this card to stay
+      // under `limit` as the suite's hero cards on `openAudience` grow.
+      const audience = await testData.createAudience(payload, { label: 'Per-locale Audience' })
+      const meditation = await testData.createMeditation(payload)
+      const card = await testData.createAppCard(payload, {
+        default: {
+          title: 'Meditation Card',
+          destination: 'meditation',
+          meditation: meditation.id,
+          image: imageId,
+        },
+        targetSections: ['hero'],
+        audiences: [audience.id],
+        _status: 'published',
+      })
+
+      await payload.update({
+        collection: 'app-cards',
+        id: card.id,
+        locale: 'fr',
+        data: {
+          default: {
+            title: 'Carte de méditation',
+            destination: 'url',
+            url: 'https://example.fr/meditation',
+          },
+        },
+      })
+
+      const { status, body } = await callEndpoint(
+        payload,
+        { targetSection: 'hero', limit: 20 },
+        undefined,
+        { defaultAudiences: [audience.id].join(',') },
+      )
+
+      expect(status).toBe(200)
+      const served = (body as { docs: AppCard[] }).docs.find((c) => c.id === card.id)
+      expect(served?.default?.destination).toBe('meditation')
+      expect(extractID(served!.default!.meditation!)).toBe(meditation.id)
     })
   })
 })
