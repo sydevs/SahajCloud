@@ -2,7 +2,6 @@ import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-
 import type { Image, LectureMetadata } from '@/payload-types'
 
 import { createData, testData } from '../utils/testData'

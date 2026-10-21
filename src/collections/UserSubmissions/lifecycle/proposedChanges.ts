@@ -103,7 +103,8 @@ export function formatValue(value: unknown, field?: FlattenedField): string | nu
   }
 
   if (Array.isArray(value)) {
-    const parts = value.map((entry) => formatValue(entry, field))
+    const parts = value
+      .map((entry) => formatValue(entry, field))
       .filter((part): part is string => part != null)
     return parts.length > 0 ? parts.join(', ') : null
   }
@@ -387,8 +388,7 @@ function fieldAtPath(
     if (typeof segment === 'number') continue
     found = current?.find((entry) => 'name' in entry && entry.name === segment)
     if (!found) return undefined
-    current =
-      'flattenedFields' in found ? (found.flattenedFields as FlattenedField[]) : undefined
+    current = 'flattenedFields' in found ? (found.flattenedFields as FlattenedField[]) : undefined
   }
   return found
 }

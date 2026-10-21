@@ -52,7 +52,10 @@ describe('relationshipDocLoader', () => {
     const fetchDocs = echoFetcher()
     const loader = createRelationshipDocLoader(fetchDocs)
 
-    const [a, b] = await Promise.all([loader.load('images', 7, 'en'), loader.load('images', 7, 'en')])
+    const [a, b] = await Promise.all([
+      loader.load('images', 7, 'en'),
+      loader.load('images', 7, 'en'),
+    ])
 
     expect(fetchDocs).toHaveBeenCalledTimes(1)
     expect(fetchDocs).toHaveBeenCalledWith('images', [7], 'en')
@@ -64,7 +67,10 @@ describe('relationshipDocLoader', () => {
     const fetchDocs = vi.fn(async () => [doc(1)]) // id 2 deliberately missing
     const loader = createRelationshipDocLoader(fetchDocs)
 
-    const [found, missing] = await Promise.all([loader.load('images', 1, 'en'), loader.load('images', 2, 'en')])
+    const [found, missing] = await Promise.all([
+      loader.load('images', 1, 'en'),
+      loader.load('images', 2, 'en'),
+    ])
 
     expect(found).toEqual(doc(1))
     expect(missing).toBeNull()
@@ -99,7 +105,10 @@ describe('relationshipDocLoader', () => {
     })
     const loader = createRelationshipDocLoader(fetchDocs)
 
-    const results = await Promise.all([loader.load('images', 1, 'en'), loader.load('images', 2, 'en')])
+    const results = await Promise.all([
+      loader.load('images', 1, 'en'),
+      loader.load('images', 2, 'en'),
+    ])
 
     expect(results).toEqual([null, null])
   })

@@ -5,6 +5,7 @@ Imports meditation content from the legacy PostgreSQL database.
 ## Prerequisite
 
 **Run the tags seed first**:
+
 ```bash
 pnpm seed tags
 ```
@@ -37,27 +38,27 @@ pnpm seed meditations --clear-cache # Re-download files
 
 ## Source → target mappings
 
-| Source | Target Collection | Notes |
-|--------|-------------------|-------|
-| Narrator index 0 | narrators | Female Narrator |
-| Narrator index 1 | narrators | Male Narrator |
-| `frames` + attachments | frames | Male/female variants |
-| `musics` + attachments | music | Audio files |
-| `meditations` + attachments | meditations | Audio + thumbnails |
-| `keyframes` | meditations.frames | Timestamp array |
+| Source                      | Target Collection  | Notes                |
+| --------------------------- | ------------------ | -------------------- |
+| Narrator index 0            | narrators          | Female Narrator      |
+| Narrator index 1            | narrators          | Male Narrator        |
+| `frames` + attachments      | frames             | Male/female variants |
+| `musics` + attachments      | music              | Audio files          |
+| `meditations` + attachments | meditations        | Audio + thumbnails   |
+| `keyframes`                 | meditations.frames | Timestamp array      |
 
 ## Frame category mapping
 
-| Legacy | Payload |
-|--------|---------|
-| `heart` | `anahat` |
+| Legacy       | Payload      |
+| ------------ | ------------ |
+| `heart`      | `anahat`     |
 | `mooladhara` | `mooladhara` |
 | `swadhistan` | `swadhistan` |
-| `nabhi` | `nabhi` |
-| `void` | `void` |
-| `vishuddhi` | `vishuddhi` |
-| `agnya` | `agnya` |
-| `sahasrara` | `sahasrara` |
+| `nabhi`      | `nabhi`      |
+| `void`       | `void`       |
+| `vishuddhi`  | `vishuddhi`  |
+| `agnya`      | `agnya`      |
+| `sahasrara`  | `sahasrara`  |
 
 ## Tag slug mappings
 

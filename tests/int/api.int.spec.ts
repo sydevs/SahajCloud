@@ -383,8 +383,7 @@ describe('API', () => {
       // Verify we got the populated data
       expect(result.docs.length).toBeGreaterThan(0)
       const foundChoice = result.docs.find((choice) => choice.id === userChoice.id) as
-        | (UserChoice & { morningMeditation: unknown })
-        | undefined
+        (UserChoice & { morningMeditation: unknown }) | undefined
       expect(foundChoice).toBeDefined()
       expect(foundChoice?.morningMeditation).toBeDefined()
 

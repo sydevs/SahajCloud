@@ -23,8 +23,7 @@ import type { Region } from '@/payload-types'
 export const AddChildRegionButton: UIFieldClientComponent = ({ field }) => {
   const { id } = useDocumentInfo()
   const custom = field?.admin?.custom as
-    | { childLevel?: Region['level']; levelLabel?: string }
-    | undefined
+    { childLevel?: Region['level']; levelLabel?: string } | undefined
   const childLevel = custom?.childLevel
 
   // No parent id until the doc is saved; the tab only shows post-create, but guard anyway.

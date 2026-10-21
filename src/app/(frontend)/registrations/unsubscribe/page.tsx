@@ -61,9 +61,10 @@ export default async function UnsubscribePage({
 
   const strings = await resolveEmailStrings({
     payload,
-  // `locale` is a `submissionData` pair on this collection, not a column —
+    // `locale` is a `submissionData` pair on this collection, not a column —
     // `deliverRegistration` reads it the same way. Do not add a column for it.
-    locale: (readSubmissionValue(registration.submissionData, 'locale') ?? null) as LocaleCode | null,
+    locale: (readSubmissionValue(registration.submissionData, 'locale') ??
+      null) as LocaleCode | null,
   })
 
   // Already unsubscribed — show the done card straight away (the flow is idempotent).

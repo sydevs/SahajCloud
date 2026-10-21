@@ -36,7 +36,7 @@ on:
     types: [completed]
   status:
   schedule:
-    - cron: '*/30 * * * *'   # residue sweeper
+    - cron: '*/30 * * * *' # residue sweeper
   workflow_dispatch:
 
 permissions: {}

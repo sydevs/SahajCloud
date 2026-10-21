@@ -114,7 +114,9 @@ async function sendFollowUp(
     ...(client?.supportEmail && { replyTo: client.supportEmail }),
     // The event title is manager-authored free text; strip line breaks so it
     // can't inject a second header off the Subject line.
-    subject: stripNewlines(interpolate(strings.followup_subject, { event: templateProps.eventTitle })),
+    subject: stripNewlines(
+      interpolate(strings.followup_subject, { event: templateProps.eventTitle }),
+    ),
     html: await renderEmail(createElement(PostEventFollowUpEmail, templateProps)),
     text: postEventFollowUpText(templateProps),
   })

@@ -38,8 +38,7 @@ export const adminOnlyFieldAccess: FieldAccess = ({ req }) => isAdminManager(req
  * See `docs/rules/access.md`, "A field lock, for a collection a client
  * reaches", for why, and why it is spelled positively.
  */
-export const managersOnlyFieldAccess: FieldAccess = ({ req }) =>
-  req.user?.collection === 'managers'
+export const managersOnlyFieldAccess: FieldAccess = ({ req }) => req.user?.collection === 'managers'
 
 /**
  * Admin-only admin-UI condition: hides the field from non-admin managers.
@@ -49,5 +48,4 @@ export const managersOnlyFieldAccess: FieldAccess = ({ req }) =>
  * PATCHes to the field are silently stripped. The condition covers UX; the
  * access guard is the security boundary.
  */
-export const adminOnlyCondition: Condition = (_data, _siblingData, { user }) =>
-  isAdminManager(user)
+export const adminOnlyCondition: Condition = (_data, _siblingData, { user }) => isAdminManager(user)

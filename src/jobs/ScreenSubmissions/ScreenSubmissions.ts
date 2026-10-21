@@ -201,7 +201,8 @@ async function screen(args: {
     }
   }
 
-  const userId = typeof submission.user === 'number' ? submission.user : (submission.user?.id ?? null)
+  const userId =
+    typeof submission.user === 'number' ? submission.user : (submission.user?.id ?? null)
   if (userId != null) {
     const history = await loadSenderHistory({
       req,

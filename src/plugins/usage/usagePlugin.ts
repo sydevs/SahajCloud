@@ -44,7 +44,6 @@ const BEFORE_OPERATION_HOOKS: ClientReadGate[] = [
   usageTrackingBeforeOperationHook,
 ]
 
-
 /**
  * Usage Plugin for PayloadCMS
  *
