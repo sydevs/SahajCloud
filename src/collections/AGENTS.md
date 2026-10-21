@@ -238,6 +238,19 @@ reference, so memoization, the transaction, and access control are
 unaffected — only `locale`/`fallbackLocale` become the copy's own. Skip
 this when the nested call uses the caller's own locale.
 
+⚠ **Unless reads run concurrently on one `req` — then copy even for the
+caller's own locale.** `createLocalReq` assigns both keys before the
+operation reads them back (`payload/dist/collections/operations/find.js`
+destructures `{ fallbackLocale, locale }` off `req` after its own
+`await`), so a sibling read can land its assignment inside that window.
+Payload awaits every field's `afterRead` in one `Promise.all`, which is
+how the seven `wm-app-status` sections reached this (#982): every read a
+section makes copies, and the machinery running them copies nothing — a
+copy there cannot cover reads that differ inside one section, and it hides
+a read that forgot its own. Omitting `fallbackLocale` is not the safe
+choice either — it is sanitised back to the locale's own fallback, so it
+undoes a `fallbackLocale: false` beside it.
+
 ### A virtual field's `afterRead` must not join the caller's transaction
 
 A nastier version of the same trap: **`afterRead` also runs on the response

@@ -29,12 +29,14 @@ four consumers in one commit, by design.
 # Total wall-clock for the whole unit lane (read Vitest's own duration line too)
 time pnpm test:unit
 
-# What a narrowed per-edit hook would cost — one spec, the typical edit
+# One spec, cold
 time pnpm exec vitest run tests/unit/convert-vimeo.spec.ts --project unit --config ./vitest.config.mts
 
-# …and its widest edit: every spec naming one module. Tier 1's target bounds this.
-# Name the specs that import it, which is what a narrowed hook would select (#993).
-time pnpm exec vitest run $(grep -rl "from '@/payload-types'" tests/unit) --project unit --config ./vitest.config.mts
+# What one edit costs, which Tier 1's target bounds: time the hook itself, since the
+# command it builds is the thing under budget. The second line lists what it selects.
+echo "{\"tool_input\":{\"file_path\":\"$PWD/src/plugins/login/index.ts\"}}" > /tmp/edit.json
+time CLAUDE_PROJECT_DIR=$PWD node .claude/hooks/unit-test.mjs < /tmp/edit.json
+node scripts/select-unit-specs.mjs src/plugins/login/index.ts
 
 # Total wall-clock for the whole integration lane
 time pnpm test:int
@@ -54,8 +56,9 @@ lines used until 2026-10-20 and which the routine containers do not ship
 
 ## The unit lane — 2026-10-20
 
-Two sessions measured it the same day, on the same container spec — 4 cores
-(Intel Xeon @ 2.80 GHz), 15 GB, a cloud routine container:
+The first five sessions measured it on the same container spec — 4 cores
+(Intel Xeon @ 2.80 GHz), 15 GB, a cloud routine container. The sixth is a
+maintainer's laptop, for scale: Apple M3 Pro, 11 cores, 18 GB, so 10 workers.
 
 | Session                            | Files / tests | Vitest duration, consecutive runs      | Median     |
 | ---------------------------------- | ------------- | -------------------------------------- | ---------- |
@@ -64,6 +67,7 @@ Two sessions measured it the same day, on the same container spec — 4 cores
 | third, after merging `main` again  | 204 / 2653    | 47.16 · 46.38 · 47.82 s                | 47.2 s     |
 | fourth, after merging `main` again | 205 / 2656    | 54.00 · 50.45 s (both inside the gate) | 52.2 s     |
 | fifth, after merging `main` again  | 218 / 2795    | 49.13 s (inside the gate)              | 49.1 s     |
+| sixth, M3 Pro laptop (#993)        | 206 / 2676    | 18.45 · 19.15 · 18.86 s                | 18.9 s     |
 
 ⚠ **Those three medians span 47 to 78 s — 66% — and six spec files do not
 explain it.** Identical container spec, all on 2026-10-20, 3% more files
@@ -81,32 +85,32 @@ them to what is on disk; every timing is the session its row names.
 `| Files / tests |` and the three `**bold**` cells are the captures the spec
 reads, so keep those labels and cell shapes when you add a row.
 
-| Metric                                                                       | Value                                                             |
-| ---------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Files / tests                                                                | 220 / 2812                                                        |
-| Whole lane, 3 workers (slowest session median, what the consumer docs quote) | **77.9 s**                                                        |
-| One spec alone, the typical edit (third session)                             | 1.3 s                                                             |
-| Widest per-edit selection, 18 specs naming `@/payload-types` (third session) | **7.8 s**                                                         |
-| A 7-spec selection, naming `@/plugins/login` (third session)                 | 6.9 s                                                             |
-| Vitest phase breakdown, at 3 workers                                         | transform 14.4 s, import 141.6 s, tests 17.5 s, environment 5.2 s |
-| Slowest file's own duration inside the lane (first session)                  | 1.8 s (`proposal-leaves.spec.ts`)                                 |
-| One file alone, cold (first session)                                         | **1.9 s** wall (`convert-vimeo`) to **3.0 s** (`proposal-leaves`) |
-| Whole lane at `--maxWorkers=1` (first session, 198 files)                    | 140.5 s                                                           |
-| Whole lane at `--maxWorkers=4` (first session, 198 files)                    | 49.2 s                                                            |
-| `pnpm lint`                                                                  | 28.5 s                                                            |
+| Metric                                                                                          | Value                                                             |
+| ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Files / tests                                                                                   | 224 / 2860                                                        |
+| Whole lane, 3 workers (slowest session median, what the consumer docs quote)                    | **77.9 s**                                                        |
+| One spec alone, the typical edit (third session)                                                | 1.3 s                                                             |
+| Slowest per-edit selection timed on 4 cores, the 3 specs naming `@/payload.config` (2026-10-21) | **8.7 s**                                                         |
+| 8 specs naming `tests/utils/importGraph.ts` (2026-10-21)                                        | 8.6 s                                                             |
+| 18 specs naming `@/payload-types`, which the hook skips as generated (third session)            | 7.8 s                                                             |
+| Vitest phase breakdown, at 3 workers                                                            | transform 14.4 s, import 141.6 s, tests 17.5 s, environment 5.2 s |
+| Slowest file's own duration inside the lane (first session)                                     | 1.8 s (`proposal-leaves.spec.ts`)                                 |
+| One file alone, cold (first session)                                                            | **1.9 s** wall (`convert-vimeo`) to **3.0 s** (`proposal-leaves`) |
+| Whole lane at `--maxWorkers=1` (first session, 198 files)                                       | 140.5 s                                                           |
+| Whole lane at `--maxWorkers=4` (first session, 198 files)                                       | 49.2 s                                                            |
+| `pnpm lint`                                                                                     | 28.5 s                                                            |
+| `pnpm typecheck`                                                                                | 8.4 s                                                             |
+| `pnpm typecheck:tests`                                                                          | 8.2 s                                                             |
+| Those four commands, summed                                                                     | 104 s                                                             |
+| Tier 2 lean gate (`check.sh`), slowest cold run of three sessions                               | **174 s** cold, **103 s** with Postgres already up                |
 
 ⚠ **One unit spec boots the Payload config, and it is the lane's most expensive
 file.** `tests/unit/sanitized-config-rules.spec.ts` imports `@/payload.config`
-to walk the sanitized config: 6.9 s wall, of which 6.7 s is that import and
-46 ms the assertions. It is paid once per worker, not per case. It is also the
-file the per-edit narrowing in #993 will select for almost any `src/**` edit,
-since `@/payload.config` transitively names nearly everything — so budget it
-against Tier 1's per-edit target, not against the lane. Nothing else under
-`tests/unit/` imports that module; keep it that way.
-| `pnpm typecheck` | 8.4 s |
-| `pnpm typecheck:tests` | 8.2 s |
-| Those four commands, summed | 104 s |
-| Tier 2 lean gate (`check.sh`), slowest cold run of three sessions | **174 s** cold, **103 s** with Postgres already up |
+to walk the sanitized config: 6.9 s wall, of which 6.7 s is that import and 46 ms
+the assertions. It is paid once per worker, not per case, and it is in both
+selections above that cost over 8 s. Budget it against Tier 1's per-edit target
+rather than against the lane. Nothing else under `tests/unit/` imports that
+module; keep it that way.
 
 **The gate's own spread is `scripts/ensure-test-db.sh`.** It costs nothing once
 port 5432 answers, which is why a warm run lands on the four commands' 104 s and
@@ -136,17 +140,61 @@ however many cores are bought. Running fewer files can.
 **What the budget protects is the per-edit hook, so Tier 1's target is set
 from what a narrowed hook costs — not from the lane, and not from one spec.**
 Selecting the specs that name an edited module gives 1 spec for the median
-module, 7 for `@/plugins/login`, and 18 for `@/payload-types`, the generated
-file `pnpm generate:types` rewrites. Those cost 1.3, 6.9 and 7.8 s measured
-above. **Tier 1 targets `< 12 s`**: it bounds the widest of those with room
-for the spread this file records, and it matches SahajAtlasWeb's own
-measured per-edit budget on the same core count, whose hook this one would
-copy. 5 s was below the widest real selection, and 65 s was the whole lane
+module, 9 for `tests/utils/importGraph.ts`, and 18 for `@/payload-types`, the
+generated file `pnpm generate:types` rewrites. Those cost 1.3, 8.0 and 7.8 s
+measured above. The hook skips generated files, so its own slowest on 4 cores
+is the importGraph nine.
+**Tier 1 targets `< 12 s`**: it bounds the widest of those with room for the
+spread this file records, and it matches SahajAtlasWeb's own measured
+per-edit budget on the same core count, whose hook this one copies. 5 s was
+below the widest real selection on 4 cores, and 65 s was the whole lane
 wearing the hook's name.
 
 So the lane is not cut and the hook is narrowed to the specs one edit can
-break — #990 settled that, #993 does it. Until then the hook runs the lane,
-so the figure to compare against this target is 47–78 s, not 7.8 s.
+break — #990 settled that, #993 did it. The next section times the hook.
+
+## The per-edit hook — 2026-10-20
+
+Timed as the hook itself, the command under Tier 1's budget, with the
+`time … unit-test.mjs` lines above. On the sixth session's M3 Pro laptop,
+one warm-up run, then three:
+
+| Edited file                                                                  | Specs selected | Hook wall-clock, consecutive runs | Median |
+| ---------------------------------------------------------------------------- | -------------- | --------------------------------- | ------ |
+| `src/lib/richEditor/index.ts`, the edit #993 reproduced the false failure on | 0              | 0.18 · 0.18 · 0.20 s              | 0.18 s |
+| `seeds/lib/lexicalConverter.ts`                                              | 2              | 0.82 · 0.81 · 0.78 s              | 0.81 s |
+| `src/lib/locales/index.ts`                                                   | 7              | 1.50 · 1.39 · 1.48 s              | 1.48 s |
+| `src/plugins/login/index.ts`                                                 | 8              | 3.03 · 2.67 · 2.68 s              | 2.68 s |
+| `tests/utils/importGraph.ts`, the widest in the tree                         | 9              | 3.09 · 3.13 · 2.88 s              | 3.09 s |
+
+**Most edits run nothing.** 399 of the 664 modules under `src/` are named by
+no spec, so the hook spawns no vitest and costs 0.2 s, mostly node's own
+start-up. The median `src/` edit selects none.
+
+Timed again on 2026-10-21, on 4 cores (Intel Xeon @ 2.80 GHz), one warm-up
+then three:
+
+| Edited file                                          | Specs selected | Hook wall-clock, consecutive runs | Median    |
+| ---------------------------------------------------- | -------------- | --------------------------------- | --------- |
+| `tests/utils/importGraph.ts`, the widest in the tree | 9              | 7.65 · 8.12 · 8.03 s              | **8.0 s** |
+| `src/plugins/login/index.ts`                         | 8              | 7.35 · 7.46 · 7.86 s              | 7.5 s     |
+| `README.md`, the widest doc                          | 3              | 1.17 · 1.06 s                     | 1.1 s     |
+| `src/lib/richEditor/index.ts`                        | 0              | 0.12 s                            | 0.12 s    |
+
+**So 8.0 s is the slowest recorded on 4 cores** — the figure Tier 1's `< 12 s`
+is held to, and the widest selection is the slowest there too. An earlier
+session timed the 7 specs naming `@/plugins/login` at 6.9 s and another the 8
+at 6.1 s, on the same container spec, so the move here is the spread this
+file records rather than a regression. Width stands in for time without being it:
+`tests/unit/select-unit-specs.spec.ts` caps the widest selection at 10, and a
+jump past that means re-timing here.
+
+⚠ **The hook selects by name, never by import.** A spec runs when its own
+text names the edited module, through an alias, a relative path or a quoted
+repo path (`scripts/select-unit-specs.mjs`). That is why `richEditor` runs
+nothing although 40 specs reach it through a collection. Following imports
+selects up to 86 of the 222 specs for one edit (`@/lib/locales`), so the
+lean gate and CI catch that coupling instead.
 
 ## The integration lane — baseline, 2026-06-18 (before #499 §2)
 
