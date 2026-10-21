@@ -20,10 +20,32 @@ SAHAJCLOUD_URL=https://cloud.sydevelopers.com pnpm seed <script>  # Seed product
 **Environment variables:**
 
 - `SAHAJCLOUD_URL` — target URL (default: `http://localhost:PORT`)
-- `ADMIN_TOKEN` — **only needed for a remote target**. A manager session token:
-  sign in to that target's `/admin` with an emailed link, then copy the
-  `payload-token` cookie. ⚠ **There is no password to send instead** —
-  `POST /api/managers/login` answers 403 everywhere since #840.
+- `ADMIN_TOKEN` — **only needed for a remote target**. A manager session token.
+  ⚠ **There is no password to send instead** — `POST /api/managers/login`
+  answers 403 everywhere since #840. **Get one from a sign-in link**, requested
+  at the target's `/admin/login` as an admin manager, and hand it straight to
+  the run:
+
+  ```bash
+  pnpm tsx scripts/redeem-signin-link.ts '<sign-in link>' --seed <script> [seed flags]
+  ```
+
+  It redeems the link the way the sign-in page's button does, checks the
+  session against `/api/managers/me`, and runs `pnpm seed` with `ADMIN_TOKEN`
+  and `SAHAJCLOUD_URL` taken from the link. **Nothing is saved**: the session
+  expires within hours, so a copy in `.env.local` only goes stale. ⚠ It spends
+  the link, so every run needs a fresh one — a dry run and the real run are
+  two links. Without `--seed` it prints the token, for
+  `export ADMIN_TOKEN=$(pnpm -s tsx scripts/redeem-signin-link.ts '<link>')`.
+  Copying the `payload-token` cookie out of a signed-in browser still works.
+
+  **An agent can run it with a link the operator pastes**, once the operator
+  allows `Bash(pnpm tsx scripts/redeem-signin-link.ts *)` in the main
+  checkout's `.claude/settings.local.json` (worktrees share it). Without that
+  rule, Claude Code's auto mode refuses to turn a pasted link into a session,
+  even when asked to. `--seed` runs `pnpm seed` and nothing else, so the rule
+  grants no other command.
+
   `seeds/env.ts` resolves it the way Next.js does: a shell-exported (or
   command-prefixed) value wins, then `.env.local`, then `.env` — so the blank
   `ADMIN_TOKEN=` local dev keeps in `.env.local` never clobbers a credential
@@ -214,16 +236,17 @@ meditation's `filename`, less any `preview-` prefix, equals the entry's
 disagreeing filename — that is the guard working, not a failure.
 
 Everything unresolved is one warning and a skip, never an error: four of the 126
-are known absences (83, 121, 122, 143 are superseded uploads), and a non-zero
-error count would report the whole run as failed. `--dry-run` validates the file
-alone and cannot say which ids would skip — that answer needs the library.
+name a meditation production no longer has (121, 122, 143, and 151, the one
+French recording), and a non-zero error count would report the whole run as
+failed. `--dry-run` validates the file alone and cannot say which ids would
+skip — that answer needs the library.
 
-**Loading production is an operator step.** The PR ships the script; a person
-runs it against the live library:
+**Production was loaded on 2026-10-21**: 122 created, those four skipped, 0
+errors, and every live meditation carries a transcript. A re-run skips all 122.
+To load another target:
 
 ```bash
-ADMIN_TOKEN=<payload-token cookie> SAHAJCLOUD_URL=https://cloud.sydevelopers.com \
-  pnpm seed meditation-transcripts
+pnpm tsx scripts/redeem-signin-link.ts '<sign-in link>' --seed meditation-transcripts
 ```
 
 The glossary is applied by the collection's `applyGlossaryToSegments` hook, not
@@ -285,10 +308,11 @@ STORYBLOK_ACCESS_TOKEN=your-token
 STORAGE_BASE_URL=https://storage.googleapis.com/your-bucket
 ```
 
-For production, pass the token via the shell and target production:
+For production, hand a sign-in link to the run. The target is the server the
+link came from:
 
 ```bash
-ADMIN_TOKEN=<payload-token cookie> SAHAJCLOUD_URL=https://cloud.sydevelopers.com pnpm seed <script>
+pnpm tsx scripts/redeem-signin-link.ts '<sign-in link>' --seed <script>
 ```
 
 ## Design principles

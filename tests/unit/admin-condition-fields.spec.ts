@@ -36,9 +36,6 @@ type ConditionSite = {
 const MIN_CONDITION_SITES = 140
 const MIN_SITES_READING_A_SIBLING = 60
 
-/** Backlog, not approval — it may only shrink. Fix pending in #996 (#989). */
-const KNOWN_UNDECLARED = new Set<string>(['blocks/textbox :: wisdomStyle :: position'])
-
 const DOTTED_READ = /(?<![$\w])siblingData\s*\??\.\s*([A-Za-z_$][\w$]*)/g
 const BRACKETED_READ = /(?<![$\w])siblingData\s*(?:\?\.)?\s*\[\s*(['"])([^'"]+)\1\s*\]/g
 const SECOND_PARAMETER = /^[^(]*\(\s*[^,)]*,\s*([^,)]*)/
@@ -162,7 +159,7 @@ describe('admin.condition reads a declared sibling', () => {
       const idOf = (name: string) => `${site.where} :: ${site.field} :: ${name}`
 
       return site.reads
-        .filter((name) => !site.scope.has(name) && !KNOWN_UNDECLARED.has(idOf(name)))
+        .filter((name) => !site.scope.has(name))
         .map((name) => `${idOf(name)} — level declares: ${[...site.scope].join(', ')}`)
     })
 
