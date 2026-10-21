@@ -114,7 +114,12 @@ const FINISHED: Doc = { id: 9, title: 'Summer Retreat', verificationStage: 'fini
 
 describe('summarizeGrants', () => {
   const summarize = (roles: unknown, managed: Managed = {}, extra: Record<string, unknown> = {}) =>
-    summarizeGrants({ ...managers, payload: fakePayload(roles, managed).payload, type: 'manager', ...extra })
+    summarizeGrants({
+      ...managers,
+      payload: fakePayload(roles, managed).payload,
+      type: 'manager',
+      ...extra,
+    })
 
   it('renders role LABELS per locale, most roles first', async () => {
     const [app] = await summarize({ en: ['meditations-editor'], fr: ['path-editor'] })
@@ -182,9 +187,13 @@ describe('summarizeGrants', () => {
 
   it('files pages under the We Meditate project the manager holds a role in', async () => {
     // Pages sit in both We Meditate projects. A Path Editor's go with the App.
-    const [part] = await summarize({ en: ['path-editor'] }, { pages: [{ id: 3, title: 'About' }] }, {
-      only: { managed: { pages: [3] } },
-    })
+    const [part] = await summarize(
+      { en: ['path-editor'] },
+      { pages: [{ id: 3, title: 'About' }] },
+      {
+        only: { managed: { pages: [3] } },
+      },
+    )
 
     expect(part?.project).toBe('wemeditate-app')
   })
@@ -310,7 +319,9 @@ describe('composeInvitations', () => {
   it('gives an accepted account a sign-in link to its notification settings', async () => {
     const [invitation] = await compose({}, { regions: [BERLIN] }, { _verified: true })
 
-    const link = invitation?.html.match(new RegExp(`${MANAGER_SIGNIN_PATH}\\?token=([\\w.%-]+)`))?.[1]
+    const link = invitation?.html.match(
+      new RegExp(`${MANAGER_SIGNIN_PATH}\\?token=([\\w.%-]+)`),
+    )?.[1]
     expect(link, 'no settings link in the body').toBeDefined()
     // A page link, and no invitation: the account has accepted already.
     expect(decodeJwt(decodeURIComponent(link!)).aud).toBe('manager-link')

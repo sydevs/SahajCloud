@@ -243,7 +243,9 @@ describe('handleCacheMiddleware', () => {
     const headers = run('/api/globals/wm-web-translations?draft=false', {
       headers: { authorization: API_KEY },
     })
-    expect(headers.get('Cache-Control')).toBe(`public, max-age=${DEFAULT_SMAXAGE}, s-maxage=${DEFAULT_SMAXAGE}`)
+    expect(headers.get('Cache-Control')).toBe(
+      `public, max-age=${DEFAULT_SMAXAGE}, s-maxage=${DEFAULT_SMAXAGE}`,
+    )
     expect(headers.get('Cache-Tag')).toBe('wm-web-translations')
   })
 

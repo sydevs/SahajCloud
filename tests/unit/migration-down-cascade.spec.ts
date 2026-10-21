@@ -30,8 +30,7 @@ const bodyOf = (source: string, fn: 'up' | 'down'): string =>
 const referencedTable = new Map<string, string>()
 for (const file of files) {
   const up = bodyOf(readFileSync(join(MIGRATIONS_DIR, file), 'utf8'), 'up')
-  const pattern =
-    /ADD CONSTRAINT "([^"]+)" FOREIGN KEY \([^)]*\) REFERENCES "public"\."([^"]+)"/g
+  const pattern = /ADD CONSTRAINT "([^"]+)" FOREIGN KEY \([^)]*\) REFERENCES "public"\."([^"]+)"/g
   for (const [, constraint, table] of up.matchAll(pattern)) {
     referencedTable.set(constraint, table)
   }
@@ -39,13 +38,14 @@ for (const file of files) {
 
 /** Statements a `down` issues, in order, that the CASCADE rule cares about. */
 type Statement =
-  | { kind: 'dropTableCascade'; table: string }
-  | { kind: 'dropConstraint'; constraint: string }
+  { kind: 'dropTableCascade'; table: string } | { kind: 'dropConstraint'; constraint: string }
 
 const statementsOf = (down: string): Statement[] => {
   const pattern = /DROP TABLE "([^"]+)" CASCADE|DROP CONSTRAINT "([^"]+)"/g
   return [...down.matchAll(pattern)].map(([, table, constraint]) =>
-    table ? { kind: 'dropTableCascade', table } : { kind: 'dropConstraint', constraint: constraint! },
+    table
+      ? { kind: 'dropTableCascade', table }
+      : { kind: 'dropConstraint', constraint: constraint! },
   )
 }
 

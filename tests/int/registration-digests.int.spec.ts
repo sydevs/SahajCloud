@@ -2,7 +2,6 @@ import type { EmailTestAdapter } from '../utils/emailTestAdapter'
 import type { FixtureOverrides } from '../utils/testData'
 import type { Payload } from 'payload'
 
-
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 
 import { SendRegistrationDigests } from '@/jobs/RegistrationNotifications/SendRegistrationDigests'
@@ -216,8 +215,7 @@ describe('SendRegistrationDigests job', () => {
 
   it('declares the single-run concurrency lock', () => {
     const concurrency = SendRegistrationDigests.concurrency as
-      | { key: (args: { input: unknown; queue: string }) => string; exclusive?: boolean }
-      | undefined
+      { key: (args: { input: unknown; queue: string }) => string; exclusive?: boolean } | undefined
     expect(concurrency?.exclusive).toBe(true)
     expect(concurrency?.key({ input: {}, queue: 'nightly' })).toBe('sendRegistrationDigests')
   })

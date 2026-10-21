@@ -33,7 +33,7 @@ describe('DEFAULT_WRITE_GUARD_POLICIES', () => {
     )
   })
 
-  it('leaves `submissionData` out of the unified intake\'s URL scan', () => {
+  it("leaves `submissionData` out of the unified intake's URL scan", () => {
     // Deliberate, and the one thing here that reads like an omission. The
     // captcha stops bulk automation; the URL scan is what stops a human
     // spammer typing a link into a free-text answer, and neither replaces the

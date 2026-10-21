@@ -155,11 +155,7 @@ export const MeditationTranscript: UIFieldClientComponent = () => {
           >
             {notice.heading && <strong>{notice.heading}</strong>} {notice.detail ?? row?.error}{' '}
             {transcriptPhaseIsRetryable(phase) && id && (
-              <RetryTranscript
-                meditationId={id}
-                onRetried={mutate}
-                requestedAt={row?.createdAt}
-              />
+              <RetryTranscript meditationId={id} onRetried={mutate} requestedAt={row?.createdAt} />
             )}
           </Banner>
         )}

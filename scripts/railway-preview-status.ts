@@ -63,10 +63,7 @@ const DOMAIN_RE = /([a-z0-9-]+\.(?:up\.)?railway\.app)/i
  * GitHub returns statuses most-recent first, so the first context match is
  * the current one. Later entries are that context's own history.
  */
-export function classifyStatuses(
-  statuses: CommitStatus[],
-  contextMatch: string,
-): PreviewStatus {
+export function classifyStatuses(statuses: CommitStatus[], contextMatch: string): PreviewStatus {
   const match = statuses.find((s) => (s.context || '').includes(contextMatch))
   if (!match) return { kind: 'absent' }
 

@@ -72,7 +72,8 @@ vi.mock('@payloadcms/ui', () => ({
     children?: ReactNode
     disabled?: boolean
     onClick?: () => void
-  }) => createElement('button', { 'data-retry': 'true', disabled, onClick, type: 'button' }, children),
+  }) =>
+    createElement('button', { 'data-retry': 'true', disabled, onClick, type: 'button' }, children),
   Spinner: ({ loadingText }: { loadingText?: string | null }) =>
     createElement('div', { 'data-spinner': 'true' }, loadingText),
   toast: { error: stub.toastError, success: stub.toastSuccess },
@@ -350,9 +351,7 @@ describe('the Transcript tab', () => {
       render()
 
       expect(stub.swrCalls[0].key).toContain('locale=cs')
-      expect(stub.swrCalls[0].key).toContain(
-        `where${encodeURIComponent('[meditation][equals]')}=7`,
-      )
+      expect(stub.swrCalls[0].key).toContain(`where${encodeURIComponent('[meditation][equals]')}=7`)
     })
 
     it('builds no URL, makes no request and reports it without a locale (#701)', () => {

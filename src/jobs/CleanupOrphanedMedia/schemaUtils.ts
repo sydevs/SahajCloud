@@ -137,7 +137,16 @@ function traverseField(
           ? recordLocalized(localizedAt, pathPrefix, 'localized' in tab ? tab.localized : false)
           : localizedAt
         for (const tabField of tab.fields) {
-          traverseField(tabField, targetCollection, tabPath, collectionSlug, references, isLexicalBlock, blockSlug, tabLocalized)
+          traverseField(
+            tabField,
+            targetCollection,
+            tabPath,
+            collectionSlug,
+            references,
+            isLexicalBlock,
+            blockSlug,
+            tabLocalized,
+          )
         }
       }
       break
@@ -152,7 +161,16 @@ function traverseField(
         ? recordLocalized(localizedAt, pathPrefix, groupField.localized)
         : localizedAt
       for (const groupChildField of groupField.fields) {
-        traverseField(groupChildField, targetCollection, groupPath, collectionSlug, references, isLexicalBlock, blockSlug, groupLocalized)
+        traverseField(
+          groupChildField,
+          targetCollection,
+          groupPath,
+          collectionSlug,
+          references,
+          isLexicalBlock,
+          blockSlug,
+          groupLocalized,
+        )
       }
       break
     }
@@ -161,7 +179,16 @@ function traverseField(
       const rowField = field as RowField
       // Row fields don't add to path - they're just layout
       for (const rowChildField of rowField.fields) {
-        traverseField(rowChildField, targetCollection, pathPrefix, collectionSlug, references, isLexicalBlock, blockSlug, localizedAt)
+        traverseField(
+          rowChildField,
+          targetCollection,
+          pathPrefix,
+          collectionSlug,
+          references,
+          isLexicalBlock,
+          blockSlug,
+          localizedAt,
+        )
       }
       break
     }
@@ -172,7 +199,16 @@ function traverseField(
       // The locale map sits on the array itself, one segment above its items.
       const arrayLocalized = recordLocalized(localizedAt, pathPrefix, arrayField.localized)
       for (const arrayChildField of arrayField.fields) {
-        traverseField(arrayChildField, targetCollection, arrayPath, collectionSlug, references, isLexicalBlock, blockSlug, arrayLocalized)
+        traverseField(
+          arrayChildField,
+          targetCollection,
+          arrayPath,
+          collectionSlug,
+          references,
+          isLexicalBlock,
+          blockSlug,
+          arrayLocalized,
+        )
       }
       break
     }
@@ -186,7 +222,16 @@ function traverseField(
       for (const block of blocksField.blocks) {
         const blockPath = `${blocksPath}.${block.slug}`
         for (const blockField of block.fields) {
-          traverseField(blockField, targetCollection, blockPath, collectionSlug, references, isLexicalBlock, blockSlug, blocksLocalized)
+          traverseField(
+            blockField,
+            targetCollection,
+            blockPath,
+            collectionSlug,
+            references,
+            isLexicalBlock,
+            blockSlug,
+            blocksLocalized,
+          )
         }
       }
       break
@@ -196,7 +241,16 @@ function traverseField(
       const collapsibleField = field as CollapsibleField
       // Collapsible fields don't add to path - they're just layout
       for (const collapsibleChildField of collapsibleField.fields) {
-        traverseField(collapsibleChildField, targetCollection, pathPrefix, collectionSlug, references, isLexicalBlock, blockSlug, localizedAt)
+        traverseField(
+          collapsibleChildField,
+          targetCollection,
+          pathPrefix,
+          collectionSlug,
+          references,
+          isLexicalBlock,
+          blockSlug,
+          localizedAt,
+        )
       }
       break
     }
@@ -335,7 +389,9 @@ function getValueAtPath(
     const results: unknown[] = []
     for (const item of document) {
       if (typeof item === 'object' && item !== null) {
-        results.push(...getValueAtPath(item as Record<string, unknown>, rest, localizedAt, segment + 1))
+        results.push(
+          ...getValueAtPath(item as Record<string, unknown>, rest, localizedAt, segment + 1),
+        )
       }
     }
     return results
@@ -350,7 +406,9 @@ function getValueAtPath(
     if (rest.length === 0) {
       results.push(candidate)
     } else if (typeof candidate === 'object') {
-      results.push(...getValueAtPath(candidate as Record<string, unknown>, rest, localizedAt, segment + 1))
+      results.push(
+        ...getValueAtPath(candidate as Record<string, unknown>, rest, localizedAt, segment + 1),
+      )
     }
   }
   return results

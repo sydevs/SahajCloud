@@ -48,15 +48,9 @@ describe('framesByNarratorKey', () => {
 
 describe('submissionActionUrl', () => {
   it('sends the locale on the review op, which is role-gated', () => {
-    expect(submissionActionUrl(7, 'accept', 'fr')).toBe(
-      '/api/user-submissions/7/review?locale=fr',
-    )
-    expect(submissionActionUrl(7, 'reject', 'fr')).toBe(
-      '/api/user-submissions/7/review?locale=fr',
-    )
-    expect(submissionActionUrl(7, 'reopen', 'fr')).toBe(
-      '/api/user-submissions/7/review?locale=fr',
-    )
+    expect(submissionActionUrl(7, 'accept', 'fr')).toBe('/api/user-submissions/7/review?locale=fr')
+    expect(submissionActionUrl(7, 'reject', 'fr')).toBe('/api/user-submissions/7/review?locale=fr')
+    expect(submissionActionUrl(7, 'reopen', 'fr')).toBe('/api/user-submissions/7/review?locale=fr')
   })
 
   it('sends it on DELETE too, so both calls have one shape', () => {

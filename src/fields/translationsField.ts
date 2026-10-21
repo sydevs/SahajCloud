@@ -14,7 +14,6 @@ import { json as validateJson, toWords } from 'payload/shared'
 import { basicRichTextEditor } from '@/lib/richEditor'
 import { pluralStorageKeys } from '@/lib/translations/pluralCategories'
 
-
 import { jsonField } from './jsonField'
 import { previewTargetField, type PreviewTarget } from './previewTargetField'
 

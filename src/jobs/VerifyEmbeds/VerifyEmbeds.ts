@@ -74,11 +74,7 @@ const updateSql = (quotedSchema: string) => `
  * `nextCheckAt`. A service that has never been checked has a null watermark, so it is picked up by
  * the `exists: false` arm rather than waiting for a backfill.
  */
-async function dueClients(
-  payload: Payload,
-  req: PayloadRequest,
-  now: Date,
-): Promise<DueClient[]> {
+async function dueClients(payload: Payload, req: PayloadRequest, now: Date): Promise<DueClient[]> {
   const { docs } = await payload.find({
     collection: 'clients',
     where: {
@@ -102,11 +98,7 @@ async function dueClients(
 }
 
 /** Tell whoever owns the service that its canonical ownership was switched off. */
-async function notifyDisabled(
-  payload: Payload,
-  client: DueClient,
-  mount: string,
-): Promise<void> {
+async function notifyDisabled(payload: Payload, client: DueClient, mount: string): Promise<void> {
   const contactId =
     typeof client.primaryContact === 'number'
       ? client.primaryContact

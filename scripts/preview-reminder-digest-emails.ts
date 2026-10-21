@@ -331,8 +331,10 @@ type Preview = { label: string; note: string; url: string | false }
 
 async function main() {
   const nodemailer = (await import('nodemailer')).default
-  const { sendSessionReminder } = await import('@/jobs/RegistrationNotifications/sendSessionReminder')
-  const { sendRegistrationDigest } = await import('@/jobs/RegistrationNotifications/sendRegistrationDigest')
+  const { sendSessionReminder } =
+    await import('@/jobs/RegistrationNotifications/sendSessionReminder')
+  const { sendRegistrationDigest } =
+    await import('@/jobs/RegistrationNotifications/sendRegistrationDigest')
 
   const { transport, messageUrl } = createCaptureTransport()
 

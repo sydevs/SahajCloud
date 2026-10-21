@@ -42,7 +42,11 @@ export function requestMagicLink(config: LoginCollectionConfig): Endpoint {
       if (!parsed.ok) return parsed.response
 
       try {
-        const signedIn = await issueMagicLink({ payload: req.payload, config, email: parsed.data.email })
+        const signedIn = await issueMagicLink({
+          payload: req.payload,
+          config,
+          email: parsed.data.email,
+        })
         if (signedIn) {
           return Response.json(
             { ...ACCEPTED, token: signedIn.token },

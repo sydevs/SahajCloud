@@ -8,24 +8,24 @@ paths:
 
 The app switches email providers by environment:
 
-| Environment | Provider | Notes |
-|---|---|---|
-| Development & PR previews | Mailpit, via `SMTP_URL` | Captures outbound mail. Nothing is delivered. Messages keep a stable `/view/<id>` link for **7 days**, so a PR reviewer can open them. From `dev@wemeditate.com`. Previews inherit `SMTP_URL` from production (see below). Locally it lives in `.env.claude.local`, beside the preview scripts' `MAILPIT_*` variables. |
-| Anywhere else, with no `SMTP_URL` | Disabled, with a warning | No silent fallback transport — see below. |
-| Production | Resend (transactional API) | Custom adapter at `src/plugins/email/resendAdapter.ts`. `From` splits by audience — see below. Free tier: 3,000 emails/month. |
-| Test | Disabled | Avoids Payload model conflicts under parallel test runs. Test email logic separately, without a full Payload boot. |
+| Environment                       | Provider                   | Notes                                                                                                                                                                                                                                                                                                                  |
+| --------------------------------- | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Development & PR previews         | Mailpit, via `SMTP_URL`    | Captures outbound mail. Nothing is delivered. Messages keep a stable `/view/<id>` link for **7 days**, so a PR reviewer can open them. From `dev@wemeditate.com`. Previews inherit `SMTP_URL` from production (see below). Locally it lives in `.env.claude.local`, beside the preview scripts' `MAILPIT_*` variables. |
+| Anywhere else, with no `SMTP_URL` | Disabled, with a warning   | No silent fallback transport — see below.                                                                                                                                                                                                                                                                              |
+| Production                        | Resend (transactional API) | Custom adapter at `src/plugins/email/resendAdapter.ts`. `From` splits by audience — see below. Free tier: 3,000 emails/month.                                                                                                                                                                                          |
+| Test                              | Disabled                   | Avoids Payload model conflicts under parallel test runs. Test email logic separately, without a full Payload boot.                                                                                                                                                                                                     |
 
 ## The envelope sender splits by audience, and is not the contact address
 
 Three addresses, three jobs. Confusing them is what #790 was:
 
-| Constant | Default | Used as |
-|---|---|---|
-| `USER_EMAIL_FROM` (`@/plugins/email`) | `admin@wemeditate.com` | `From` on registrant mail — confirmation, session reminder, post-event follow-up |
+| Constant                                 | Default                    | Used as                                                                                                  |
+| ---------------------------------------- | -------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `USER_EMAIL_FROM` (`@/plugins/email`)    | `admin@wemeditate.com`     | `From` on registrant mail — confirmation, session reminder, post-event follow-up                         |
 | `MANAGER_EMAIL_FROM` (`@/plugins/email`) | `contact@sydevelopers.com` | `From` on manager, reviewer and admin-inbox mail, and the adapter's default (so Payload's own auth mail) |
-| `CONTACT_EMAIL` (`@/lib/contact`) | `contact@sydevelopers.com` | The `mailto:` shown to a human, and the default `To` for inbound forms and messages. **Never a `From`.** |
+| `CONTACT_EMAIL` (`@/lib/contact`)        | `contact@sydevelopers.com` | The `mailto:` shown to a human, and the default `To` for inbound forms and messages. **Never a `From`.** |
 
-**The `to:` of a send decides which sender it takes** — there is no audience flag to thread. `sendUserMessage` is the one that reads wrong: despite the name it delivers a *viewer's* message to the admin inbox, so it is manager-facing.
+**The `to:` of a send decides which sender it takes** — there is no audience flag to thread. `sendUserMessage` is the one that reads wrong: despite the name it delivers a _viewer's_ message to the admin inbox, so it is manager-facing.
 
 ⚠ **An envelope sender's domain must be verified in Resend.** Resend refuses a send from an unverified domain, and the adapter's non-throwing contract below turns that refusal into a Sentry event and nothing else — no admin error, no user-visible failure. Production sent nothing for weeks on a one-label mismatch: `cloud.sydevelopers.com` was verified while the sender resolved to the root domain. Adding a third sender means verifying its domain **first**.
 
@@ -64,7 +64,7 @@ This file once said development used Ethereal, which was never actually configur
 
 So: canonical production uses Resend, `SMTP_URL` set uses Mailpit, and otherwise mail is disabled loudly.
 
-**Production is detected with `isProductionDeployment()`, not `NODE_ENV`** — the same helper storage relies on, reading Railway's environment name. This matters more than variable hygiene: a preview environment inherits `RESEND_API_KEY` from production and is recreated for every PR, so "remember to unset the key on preview" would fail on the next PR. Gating in code means a preview *cannot* reach Resend, whatever it inherits.
+**Production is detected with `isProductionDeployment()`, not `NODE_ENV`** — the same helper storage relies on, reading Railway's environment name. This matters more than variable hygiene: a preview environment inherits `RESEND_API_KEY` from production and is recreated for every PR, so "remember to unset the key on preview" would fail on the next PR. Gating in code means a preview _cannot_ reach Resend, whatever it inherits.
 
 **`SMTP_URL` is set on production's SahajCloud service for the same reason.** Railway copies production's variables into a PR environment when it creates one, so a per-preview setting would not survive the next PR. On production it is inert, since the Resend branch is taken first. It must be Mailpit's public TCP-proxy address, not `mailpit.railway.internal`: private networking does not cross environments. A preview created before the variable existed has no `SMTP_URL`, and drops its mail with a warning until it is set there by hand.
 
@@ -91,31 +91,31 @@ RESEND_API_KEY=your-resend-api-key-here   # production only
 
 Transactional emails are [React Email](https://react.email) components under `src/emails/`, rendered to inline HTML at send time. Components and `render()` both come from the single `react-email` package (v6 unified them — `@react-email/components` and `@react-email/render` are deprecated).
 
-| File | Purpose |
-|---|---|
-| `EmailLayout.tsx` | Shared shell (header, card body, footer). Exports `BrandButton`, `BrandButtonRow`, `DetailRow` (manager fact table), `StackedDetailRow` (guest itinerary row), `SectionHeading`, `ProgressBar`, and shared `styles`. Reuse these for visual consistency. |
-| `InviteEmail.tsx` | Manager invitation (#839): what a manager was just assigned — roles, and each region, event and page naming them, one per line and linked to its public page — with an Atlas introduction and the assigner's name. An accepted manager gets the same email with a button to the admin instead of an invitation to accept. |
-| `SignInLinkEmail.tsx` | The emailed sign-in link an ACCEPTED manager gets (#837). `issueMagicLink` picks between this and the invitation on `_verified`. |
-| `EventVerificationEmail.tsx` | Manager/region verification reminder, with a listing-quality progress section (#611) shown to the **event manager only**. A complete listing drops the progress bar and keeps only the ticks. An absent `listingProgress` renders no section at all. |
-| `RegistrationConfirmationEmail.tsx` | Registrant confirmation — client-branded, localized, ICS attached. Also exports `registrationConfirmationText`. |
-| `SessionReminderEmail.tsx` | Registrant reminder ~24h before a session (#589) — client-branded, no ICS, footer unsubscribe link. Sent by `SendSessionReminders`. |
-| `EventRegistrationEmail.tsx` | Manager notice of a new registration — Sahaj Atlas brand, `DetailRow`s, a Reply/View-event button row. Informational, no alert callout. |
-| `UserMessageEmail.tsx` | Admin-facing message sent on a viewer's behalf, once a contact submission passes screening (#632). Caller-agnostic: the named form's own answers from `buildFormAnswers` (#832), plus a `DetailRow` context block from `buildUserMessageDetails`, each row omitted when its value is absent. There is no `Message` section — every answer is a sibling row, whatever the field was named. |
-| `RegistrationDigestEmail.tsx` | Manager digest of new registrations (#589), grouped by event, one email per recipient per period. Sent by `SendRegistrationDigests`. |
-| `PostEventFollowUpEmail.tsx` | Registrant follow-up after an attended session (#626), built from composable `sections` so later kinds can be added. Today's only section is a feedback ask, sent only for a published, `unverified` event. Sent by `SendPostEventFollowUps`. |
+| File                                | Purpose                                                                                                                                                                                                                                                                                                                                                                                   |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `EmailLayout.tsx`                   | Shared shell (header, card body, footer). Exports `BrandButton`, `BrandButtonRow`, `DetailRow` (manager fact table), `StackedDetailRow` (guest itinerary row), `SectionHeading`, `ProgressBar`, and shared `styles`. Reuse these for visual consistency.                                                                                                                                  |
+| `InviteEmail.tsx`                   | Manager invitation (#839): what a manager was just assigned — roles, and each region, event and page naming them, one per line and linked to its public page — with an Atlas introduction and the assigner's name. An accepted manager gets the same email with a button to the admin instead of an invitation to accept.                                                                 |
+| `SignInLinkEmail.tsx`               | The emailed sign-in link an ACCEPTED manager gets (#837). `issueMagicLink` picks between this and the invitation on `_verified`.                                                                                                                                                                                                                                                          |
+| `EventVerificationEmail.tsx`        | Manager/region verification reminder, with a listing-quality progress section (#611) shown to the **event manager only**. A complete listing drops the progress bar and keeps only the ticks. An absent `listingProgress` renders no section at all.                                                                                                                                      |
+| `RegistrationConfirmationEmail.tsx` | Registrant confirmation — client-branded, localized, ICS attached. Also exports `registrationConfirmationText`.                                                                                                                                                                                                                                                                           |
+| `SessionReminderEmail.tsx`          | Registrant reminder ~24h before a session (#589) — client-branded, no ICS, footer unsubscribe link. Sent by `SendSessionReminders`.                                                                                                                                                                                                                                                       |
+| `EventRegistrationEmail.tsx`        | Manager notice of a new registration — Sahaj Atlas brand, `DetailRow`s, a Reply/View-event button row. Informational, no alert callout.                                                                                                                                                                                                                                                   |
+| `UserMessageEmail.tsx`              | Admin-facing message sent on a viewer's behalf, once a contact submission passes screening (#632). Caller-agnostic: the named form's own answers from `buildFormAnswers` (#832), plus a `DetailRow` context block from `buildUserMessageDetails`, each row omitted when its value is absent. There is no `Message` section — every answer is a sibling row, whatever the field was named. |
+| `RegistrationDigestEmail.tsx`       | Manager digest of new registrations (#589), grouped by event, one email per recipient per period. Sent by `SendRegistrationDigests`.                                                                                                                                                                                                                                                      |
+| `PostEventFollowUpEmail.tsx`        | Registrant follow-up after an attended session (#626), built from composable `sections` so later kinds can be added. Today's only section is a feedback ask, sent only for a published, `unverified` event. Sent by `SendPostEventFollowUps`.                                                                                                                                             |
 
 ### Registrant mail: the six things, every time
 
 The follow-up email once shipped missing four of these, which is why they're written down. Every registrant template and sender does all six:
 
-| # | What | Why it isn't optional |
-|---|---|---|
-| 1 | `brand = client ? getClientEmailBrand(client) : getEmailBrand('sahaj-atlas')` | Registrant mail is branded per **client service**, not per project. The project brand is a fallback. |
-| 2 | `strings = await resolveEmailStrings({ payload, locale, req })` | The registration stores a `locale` for this. Hardcoded English JSX ships English to every locale. |
-| 3 | `from: headerDisplayName(brand.productName) <USER_EMAIL_FROM>` | Resend verifies senders per domain, so mail can't send *as* the client — the display name carries the brand. |
-| 4 | `replyTo: client.supportEmail` when set | Otherwise a reply reaches nobody who can answer. |
-| 5 | `subject: stripNewlines(...)` | An event title is manager-authored free text. A CR/LF starts a second header. |
-| 6 | `text: <template>Text(props)` | A message with no plain-text part scores worse with spam filters and renders as nothing in a text-only client. |
+| #   | What                                                                          | Why it isn't optional                                                                                          |
+| --- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| 1   | `brand = client ? getClientEmailBrand(client) : getEmailBrand('sahaj-atlas')` | Registrant mail is branded per **client service**, not per project. The project brand is a fallback.           |
+| 2   | `strings = await resolveEmailStrings({ payload, locale, req })`               | The registration stores a `locale` for this. Hardcoded English JSX ships English to every locale.              |
+| 3   | `from: headerDisplayName(brand.productName) <USER_EMAIL_FROM>`                | Resend verifies senders per domain, so mail can't send _as_ the client — the display name carries the brand.   |
+| 4   | `replyTo: client.supportEmail` when set                                       | Otherwise a reply reaches nobody who can answer.                                                               |
+| 5   | `subject: stripNewlines(...)`                                                 | An event title is manager-authored free text. A CR/LF starts a second header.                                  |
+| 6   | `text: <template>Text(props)`                                                 | A message with no plain-text part scores worse with spam filters and renders as nothing in a text-only client. |
 
 `sendSessionReminder` is the reference implementation — copy its shape, not a template's.
 
@@ -200,7 +200,7 @@ The invitation is sent by a queue (`src/plugins/login/invitations.ts`):
 - **A resend names everything held.** `issueMagicLink` re-sends an invitation to an unaccepted account that asks for a link, listing every role and document it holds — how an imported Atlas manager, named on regions before anything mailed them, gets in. One with nothing assigned is sent nothing: there is nothing to invite them to.
 - ⚠ **One email per project.** `summarizeGrants` splits what it names by project, and each part is its own email, branded for that project and introducing it: a brand, an introduction and a heading can speak for only one product. A role goes with its own project, a region or event with Sahaj Atlas, and a page — in both We Meditate projects — with one the manager holds a role in, else We Meditate Web. `currentProject` cannot decide it: only `set-project` writes it, and an account that has never accepted has never signed in to call it. Subject, `From` and body all come from one `composeInvitations` call.
 - **Every email to an unconfirmed account carries an invitation link.** The first used activates the account; the others are then spent, and the redeem route answers them with `invite-accepted` — "Your email is already confirmed" — rather than `invalid`. That refusal is reached only with an authentic, unexpired token, so naming it tells nothing to anyone probing without one.
-- ⚠ **`_verified` is not a column every auth collection has.** `getAuthFields.js` adds the verification fields only where `auth.verify` is configured. Anything branching on the flag for a *served* collection — `issueMagicLink` picking between the two mails — asks the sanitized config first, or it reads `undefined` and invites every account forever.
+- ⚠ **`_verified` is not a column every auth collection has.** `getAuthFields.js` adds the verification fields only where `auth.verify` is configured. Anything branching on the flag for a _served_ collection — `issueMagicLink` picking between the two mails — asks the sanitized config first, or it reads `undefined` and invites every account forever.
 
 ### A verification reminder verifies in one click, and never on a `GET`
 
@@ -216,10 +216,10 @@ The reminder's button is a login-plugin **page link** (`manager-link`), built pe
 
 ⚠ **History now, for both rows.** `auth.verify` no longer builds an admin URL at all — the invitation addresses the sign-in page (`/admin/login?token=…`) instead — and the reset route is `Forbidden` since #840, so nothing addresses it either. The table stays because the trap is the routing rule, and the next auth link written against `formatAdminURL` meets it again.
 
-| Link | Correct URL | Why |
-|---|---|---|
+| Link   | Correct URL                     | Why                                                                                                                                     |
+| ------ | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
 | Verify | `/admin/managers/verify/:token` | Payload matches `/:collectionSlug/verify/:token` in `getRouteData.js`. The slug is **required**, and there is no `collections/` prefix. |
-| Reset | `/admin/reset/:token` | Matched by name against `config.admin.routes.reset`, so it carries **no** slug. |
+| Reset  | `/admin/reset/:token`           | Matched by name against `config.admin.routes.reset`, so it carries **no** slug.                                                         |
 
 A verify URL written in the reset shape (`/admin/verify/:token`) matches nothing, and **fails silently instead of 404ing**: `isPublicAdminRoute` returns true for any route containing `/verify/`, so the auth gate never fires and a logged-out recipient lands on the login form. It looks exactly like the email never arrived, and it shipped that way from #483 to #320.
 

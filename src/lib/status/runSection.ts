@@ -3,7 +3,6 @@ import type { ReadinessGroup } from './types'
 
 import type { ReadinessReport } from '@/payload-types'
 
-
 import { aggregateGroup, documentsGroup, erroredGroup, summarize } from './groups'
 
 /**
