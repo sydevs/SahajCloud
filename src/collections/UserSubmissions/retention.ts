@@ -1,8 +1,7 @@
-import type { PurgeWindow, RetentionEntry } from '../types'
-
+import type { PurgeWindow, RetentionConfig } from '@/lib/retention'
 import type { UserSubmission } from '@/payload-types'
 
-import { orphanedUserHooks } from '../orphanedUsers'
+import { orphanedUserHooks } from './orphanedUsers'
 
 /**
  * How long a **delivered contact message** is kept. Short on purpose: the row
@@ -80,13 +79,16 @@ export const PURGE_WINDOWS: PurgeWindow[] = [
 
 /**
  * ⚠ **The users sweep is the half that makes retention mean anything**, and it
- * is why an entry may carry hooks at all. A contact row's retention promise is
- * about the person who sent it, and every submission upserts its sender into
- * `users` — so deleting the message while keeping the address would leave the
- * personal data behind and the promise unkept.
+ * is why a collection's retention may carry hooks at all. A contact row's
+ * retention promise is about the person who sent it, and every submission
+ * upserts its sender into `users` — so deleting the message while keeping the
+ * address would leave the personal data behind and the promise unkept.
+ *
+ * ⚠ **So the task reports a collection that declares no retention of its own.**
+ * `users` is swept from here: an orphan ages nothing, going when its last
+ * referencing submission goes, and retention windows are all the sweep reads.
  */
-export const userSubmissionsEntry: RetentionEntry = {
-  collection: 'user-submissions',
+export const userSubmissionsRetention: RetentionConfig = {
   hooks: orphanedUserHooks,
   windows: PURGE_WINDOWS,
 }

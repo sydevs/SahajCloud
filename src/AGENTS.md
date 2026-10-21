@@ -55,10 +55,15 @@ imports that code (tests may reach a folder's internals). `src/jobs/index.ts`
 re-exports **only** the task definitions for `payload.config.ts`'s
 `jobs.tasks`.
 
-`CleanupCollections/` is one folder per _collection_ instead: every window sweep
-runs from `registry.ts`, and a collection joins retention as a row there plus a
-file under `entries/` carrying its windows and why each is the length it is
-(#987). `NO_RETENTION` beside it records a collection deliberately left out.
+`CleanupCollections/` holds no collection list at all: a collection joins
+retention by declaring windows on its own config's `custom.retention`, and the
+job reads the built config at run time (#987). So the vocabulary is shared —
+`@/lib/retention` — and each collection's file carries its windows and why each
+is the length it is, beside the fields they age. A collection deliberately left
+out declares the reason in the same place, as `retention.excluded`.
+`payload-jobs` is Payload's own collection and reaches `custom` through
+`jobs.jobsCollectionOverrides`, which is the whole of
+`src/collections/PayloadJobs/`.
 
 ### `src/endpoints/`
 
@@ -158,12 +163,16 @@ No loose files at the root — every file lives in a named folder:
   helpers), `submissions/` (`CLIENT_CONTEXT_KEYS` — the `submissionData`
   keys the client writes about itself, rather than answers a visitor typed.
   `user-submissions` derives its URL-scan exemption from them and `Forms`
-  refuses a field named after one, so the list belongs to neither collection)
+  refuses a field named after one, so the list belongs to neither collection),
+  `retention/` (the `custom.retention` vocabulary every swept collection
+  declares its windows in, plus the discovery the nightly sweep reads the
+  built config with — barrelled, and shared by three collections, the
+  form-builder plugin and the job)
 
 **Barrels.** A folder gets an `index.ts` barrel only when it presents one
 cohesive public surface imported as a unit (`@/lib/locales`,
 `@/lib/status`, `@/lib/endpoints`, `@/lib/subtleSystem`,
-`@/lib/pageTags`, `@/lib/cascadeDeletion`). Grab-bag and per-owner helper
+`@/lib/pageTags`, `@/lib/cascadeDeletion`, `@/lib/retention`). Grab-bag and per-owner helper
 folders whose modules are cherry-picked individually use deep imports and
 have **no** barrel: `utilities/`, `logger/`, `lectures/`, `meditations/`,
 `audiences/`, `mapbox/`, `turnstile/`, `schedule/`

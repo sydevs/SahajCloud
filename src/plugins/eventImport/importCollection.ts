@@ -33,6 +33,7 @@ import { isAdminManager, resolveOwnedRegionIds } from '@/plugins/access'
 
 import { IMPORT_STALL_MS } from './constants'
 import { prepareUpload } from './csv/upload'
+import { importsRetention } from './retention'
 import { targetRegionFilterOptions, validateTargetRegion } from './targetRegion'
 import { IMPORT_TASK } from './task'
 
@@ -223,6 +224,9 @@ export const importCollection: CollectionConfig = {
     update: () => false,
     delete: inEditableRegion,
   },
+  // Retention is declared beside the window's own reason, and read by
+  // `cleanupCollections` off the built config.
+  custom: { retention: importsRetention },
   disableDuplicate: true,
   lockDocuments: false,
   upload: {

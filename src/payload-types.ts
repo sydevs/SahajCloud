@@ -10654,9 +10654,9 @@ export interface TaskCleanupCollections {
     now?: string | null;
     dryRun?: boolean | null;
     /**
-     * One registry collection to sweep. Blank sweeps all of them.
+     * One collection to sweep, by slug. Blank sweeps all of them.
      */
-    collection?: ('user-submissions' | 'imports' | 'payload-jobs') | null;
+    collection?: string | null;
   };
   output: {
     deleted: number;

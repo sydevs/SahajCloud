@@ -1,5 +1,6 @@
-import type { PurgeWindow, RetentionEntry } from '../types'
 import type { Where } from 'payload'
+
+import type { PurgeWindow, RetentionConfig } from '@/lib/retention'
 
 /**
  * How long a finished job row is kept. Long enough that a transcript's status
@@ -41,7 +42,6 @@ export const JOB_PURGE_WINDOWS: PurgeWindow[] = [
  * extra nought-to-seven days until the next Sunday. Nothing here was tuned to
  * the weekly cadence — the window was, and it is unchanged.
  */
-export const payloadJobsEntry: RetentionEntry = {
-  collection: 'payload-jobs',
+export const payloadJobsRetention: RetentionConfig = {
   windows: JOB_PURGE_WINDOWS,
 }

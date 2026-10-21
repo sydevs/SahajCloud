@@ -1,9 +1,7 @@
-import type { BeforeDelete, PurgeWindow } from './types'
 import type { CollectionSlug, PayloadRequest } from 'payload'
 
-/** The timestamp a row has to predate to fall inside a window. */
-export const retentionCutoff = (now: Date, days: number): string =>
-  new Date(now.getTime() - days * 24 * 60 * 60 * 1000).toISOString()
+import type { BeforeDelete, PurgeWindow } from '@/lib/retention'
+import { retentionCutoff } from '@/lib/retention'
 
 /**
  * A window threw, carrying the rows the windows before it had already deleted.
@@ -27,15 +25,15 @@ export class SweepFailure extends Error {
  * Delete everything one collection's retention windows select, and report how
  * many rows went.
  *
- * The engine behind every registry entry (`registry.ts`): what each collection
- * shares is the cutoff, the dry-run branch, and a delete whose partial failure
- * is reported rather than returned as a short count. What differs is the
- * declaration, which is a row rather than a task (#987).
+ * The engine behind every collection's `custom.retention`: what they share is
+ * the cutoff, the dry-run branch, and a delete whose partial failure is
+ * reported rather than returned as a short count. What differs is the
+ * declaration, which is a `custom` key rather than a task (#987).
  *
  * ⚠ **`beforeDelete` runs while the rows are still there.** A promise that
  * extends past the row itself — a contact message's retention is about the
  * person who sent it — cannot be re-derived once the only pointer to them is
- * gone, so an entry that owes one reads what it needs here.
+ * gone, so a collection that owes one reads what it needs here.
  */
 export async function sweepCollection(args: {
   beforeDelete?: BeforeDelete

@@ -1,27 +1,24 @@
-import type { Payload, TaskInput } from 'payload'
+import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { CleanupCollections } from '@/jobs/CleanupCollections/CleanupCollections'
-import { RETENTION_REGISTRY } from '@/jobs/CleanupCollections/registry'
+import { retentionConfigOf, retentionEntries } from '@/lib/retention'
 
 import { deletedIn } from '../utils/retention'
 import { runTaskHandler } from '../utils/taskRunner'
 import { createTestEnvironment } from '../utils/testHelpers'
-
-/** The generated input's own spelling of the registry, so this spec cannot drift from it. */
-type RetentionCollection = NonNullable<TaskInput<'cleanupCollections'>['collection']>
 
 const NOW = '2026-10-17T05:00:00.000Z'
 const LONG_AGO = '2026-10-01T05:00:00.000Z'
 const YESTERDAY = '2026-10-16T05:00:00.000Z'
 
 /**
- * The `payload-jobs` registry entry (#987). It is run through the whole task
- * rather than in isolation, because the collection input is what an operator
- * reaches for and nothing else exercises it.
+ * `payload-jobs` retention (#987), and the discovery that finds it. It is run
+ * through the whole task rather than in isolation, because the collection input
+ * is what an operator reaches for and nothing else exercises it.
  */
-describe('the payload-jobs retention entry', () => {
+describe('payload-jobs retention', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
 
@@ -103,36 +100,50 @@ describe('the payload-jobs retention entry', () => {
   })
 
   /**
-   * ⚠ A dry run reports every entry, including the ones with nothing due. A
-   * run that reported only what it deleted would make a misspelled registry
-   * entry indistinguishable from a quiet night.
+   * ⚠ **Payload builds `payload-jobs` itself**, so its window reaches the
+   * collection through `jobs.jobsCollectionOverrides` and nothing else. Lose
+   * that override and the sweep simply stops finding this collection — no
+   * error, and the table grows with `deleteJobOnComplete: false` behind it.
    */
-  it('reports a count for every entry when no collection is named', async () => {
+  it('declares its window on the built collection', () => {
+    const jobs = payload.config.collections.find((entry) => entry.slug === 'payload-jobs')
+
+    expect(retentionConfigOf(jobs ?? {})?.windows).toHaveLength(1)
+  })
+
+  /**
+   * ⚠ A dry run reports every collection, including the ones with nothing due.
+   * A run that reported only what it deleted would make a collection whose
+   * declaration never arrived indistinguishable from a quiet night.
+   */
+  it('reports a count for every declared collection when none is named', async () => {
     const output = await runTaskHandler(CleanupCollections, {
       payload,
       input: { now: NOW, dryRun: true },
     })
 
-    // Derived, so a fourth entry is covered with no edit here. `users` is the
-    // one row no entry of its own sweeps — the submissions hooks report it.
+    // Read off the booted config, so a fourth declaration is covered with no
+    // edit here. `users` is the one row no collection declares — the
+    // `user-submissions` hooks report it.
+    const declared = retentionEntries(payload.config.collections).map((entry) => entry.collection)
+
+    expect(declared[0]).toBe('user-submissions')
     expect(output.collections.map((count) => count.collection)).toEqual([
       'user-submissions',
       'users',
-      ...RETENTION_REGISTRY.slice(1).map((entry) => entry.collection),
+      ...declared.slice(1),
     ])
   })
 
   /**
-   * The admin dropdown offers the registry and nothing else, and the generated
-   * input type says so — which is why this case has to spell the value past it.
    * ⚠ A queue call in code reaches the handler with whatever it was handed, and
    * an unknown collection would otherwise sweep nothing and report success.
+   * The message names the config's own declarations, which is the whole reason
+   * the input is not a fixed dropdown.
    */
-  it('refuses a collection the registry does not name', async () => {
-    const collection = 'managers' as RetentionCollection
-
+  it('refuses a collection that declares no retention', async () => {
     await expect(
-      runTaskHandler(CleanupCollections, { payload, input: { collection } }),
-    ).rejects.toThrow(/no registry entry/)
+      runTaskHandler(CleanupCollections, { payload, input: { collection: 'managers' } }),
+    ).rejects.toThrow(/"managers" declares no retention — user-submissions, /)
   })
 })

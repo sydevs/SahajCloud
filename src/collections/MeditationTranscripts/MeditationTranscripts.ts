@@ -9,6 +9,7 @@ import {
   TRANSCRIPTION_STALL_MS,
   transcriptSegmentsSchema,
 } from '@/lib/meditations/transcript'
+import type { RetentionExclusion } from '@/lib/retention'
 
 import { applyGlossaryToSegments } from './hooks/applyGlossaryToSegments'
 import { queueTranscription } from './hooks/queueTranscription'
@@ -27,6 +28,14 @@ import { deriveTranscriptStatus, loadTranscriptJob, transcriptJobError } from '.
  */
 export const MeditationTranscripts: CollectionConfig = {
   slug: 'meditation-transcripts',
+  // ⚠ The other answer `cleanupCollections` reads off a collection: no windows,
+  // and the reason. A collection declaring neither is an open question (#987).
+  custom: {
+    retention: {
+      excluded:
+        'No window chosen yet. A hard delete of a meditation nulls a transcript parent, and the orphan then keeps the full spoken word and its R2 key with nothing able to read it. How long that may last is a policy decision, not a refactor (#987).',
+    } satisfies RetentionExclusion,
+  },
   admin: {
     components: {
       views: {

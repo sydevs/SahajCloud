@@ -1,12 +1,11 @@
-import type { PurgeWindow, RetentionHooks, RetentionRun } from './types'
 import type { PayloadRequest, Where } from 'payload'
 
+import type { PurgeWindow, RetentionHooks, RetentionRun } from '@/lib/retention'
+import { retentionCutoff } from '@/lib/retention'
 import { relationId } from '@/lib/utilities/relationId'
 
-import { retentionCutoff } from './sweepCollection'
-
 /**
- * The `users` orphan sweep, as the `user-submissions` entry's two hooks.
+ * The `users` orphan sweep, as the `user-submissions` retention hooks.
  *
  * A `users` row goes when its last referencing submission goes, unless some
  * submission still points at it. The set of senders is filled while the

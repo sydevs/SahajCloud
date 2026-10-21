@@ -1,15 +1,12 @@
 /**
- * The `payload-jobs` retention entry's own invariants. The window is asserted
+ * The `payload-jobs` retention window's own invariants. The window is asserted
  * rather than the constant beside it: `submission-retention.spec.ts` records
  * what happens when a spec pins a table nothing reads.
  */
 import { describe, expect, it } from 'vitest'
 
-import {
-  JOB_PURGE_WINDOWS,
-  JOB_RETENTION_DAYS,
-} from '@/jobs/CleanupCollections/entries/payloadJobs'
-import { retentionCutoff } from '@/jobs/CleanupCollections/sweepCollection'
+import { JOB_PURGE_WINDOWS, JOB_RETENTION_DAYS } from '@/collections/PayloadJobs/retention'
+import { retentionCutoff } from '@/lib/retention'
 
 describe('job retention', () => {
   it('puts the cutoff a week behind the clock it is given', () => {

@@ -10,7 +10,7 @@ import {
   MACHINE_SPAM_DAYS,
   PROPOSAL_DAYS,
   PURGE_WINDOWS,
-} from '@/jobs/CleanupCollections/entries/userSubmissions'
+} from '@/collections/UserSubmissions/retention'
 import { HISTORY_WINDOW_HOURS, REPEAT_SENDER_MAX } from '@/jobs/ScreenSubmissions/senderHistory'
 
 describe('Submission retention', () => {

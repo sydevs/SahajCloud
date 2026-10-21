@@ -1,20 +1,23 @@
-import type { RetentionCount } from './types'
 import type { TaskConfig } from 'payload'
 
-import { RETENTION_REGISTRY } from './registry'
+import type { RetentionCount } from '@/lib/retention'
+import { retentionEntries } from '@/lib/retention'
+
 import { SweepFailure, sweepCollection } from './sweepCollection'
 
 /**
- * The one nightly retention sweep, over every entry in `registry.ts`.
+ * The one nightly retention sweep, over every collection that declares
+ * retention on its own `custom.retention` (#987).
  *
  * Replaces `purgeSubmissions`, `sweepEventImports` and `cleanupJobs`, which
  * differed only in their declaration: three slugs, three input schemas, three
- * output schemas and three crons around one loop (#987). A collection joins
- * retention as a registry row now, not as a job folder.
+ * output schemas and three crons around one loop. A collection joins retention
+ * by declaring windows beside the fields they age, not by gaining a job folder.
  *
  * ⚠ **One task carries one schedule, and the three it replaces were not one.**
- * `cleanupJobs` ran weekly; here every entry runs nightly and its own window
- * does the bounding. See the `payload-jobs` entry for what that costs.
+ * `cleanupJobs` ran weekly; here every collection runs nightly and its own
+ * window does the bounding. See `@/collections/PayloadJobs/retention` for what
+ * that costs.
  *
  * Runs on the existing `nightly` queue at 04:00 UTC, after the 02:00 event
  * expiry and 03:00 notification sweeps, so a slow night does not have three
@@ -37,16 +40,20 @@ export const CleanupCollections: TaskConfig<'cleanupCollections'> = {
       type: 'checkbox',
     },
     {
-      // One task over a registry costs the operator the three queueable rows
-      // the admin Jobs UI used to show, so a run can name one entry instead.
-      // The options are the registry, so the dropdown cannot name a row that
-      // is not there — the handler's guard covers the programmatic queue,
-      // which no field validates.
+      // One task over the whole config costs the operator the three queueable
+      // rows the admin Jobs UI used to show, so a run can name one collection
+      // instead.
+      //
+      // ⚠ **Not a `select`, because its options could only be a copy.** A
+      // field's options are fixed when this task is declared, and which
+      // collections carry retention is not known until `buildConfig` has run
+      // the plugins — so a dropdown here would be a second list to keep in
+      // step. The guard below answers a typo instead, naming what the config
+      // does declare.
       name: 'collection',
-      type: 'select',
-      options: RETENTION_REGISTRY.map((entry) => entry.collection),
+      type: 'text',
       admin: {
-        description: 'One registry collection to sweep. Blank sweeps all of them.',
+        description: 'One collection to sweep, by slug. Blank sweeps all of them.',
       },
     },
   ],
@@ -54,9 +61,9 @@ export const CleanupCollections: TaskConfig<'cleanupCollections'> = {
     { name: 'deleted', type: 'number', required: true },
     { name: 'dryRun', type: 'checkbox', required: true },
     {
-      // Named counters cannot carry a registry: the shape would change with
-      // every row. One row of this array per collection the run touched,
-      // `users` included, which no entry of its own sweeps.
+      // Named counters cannot carry a list the config decides: the shape would
+      // change with every collection. One row of this array per collection the
+      // run touched, `users` included, which declares no retention of its own.
       name: 'collections',
       type: 'array',
       required: true,
@@ -77,13 +84,16 @@ export const CleanupCollections: TaskConfig<'cleanupCollections'> = {
     const dryRun = input?.dryRun === true
     const only = typeof input?.collection === 'string' ? input.collection.trim() : ''
 
-    const entries = only
-      ? RETENTION_REGISTRY.filter((entry) => entry.collection === only)
-      : RETENTION_REGISTRY
+    const declared = retentionEntries(req.payload.config.collections)
+    const entries = only ? declared.filter((entry) => entry.collection === only) : declared
 
     // A typo in the input would otherwise sweep nothing and report success.
     if (only && entries.length === 0) {
-      throw new Error(`CleanupCollections: no registry entry for collection "${only}"`)
+      throw new Error(
+        `CleanupCollections: "${only}" declares no retention — ${declared
+          .map((entry) => entry.collection)
+          .join(', ')} do`,
+      )
     }
 
     const collections: RetentionCount[] = []
@@ -94,11 +104,11 @@ export const CleanupCollections: TaskConfig<'cleanupCollections'> = {
       const hooks = entry.hooks?.({ dryRun, now, req, windows }) ?? {}
 
       // ⚠ One task means one failure, where three tasks could not fail each
-      // other. Nothing else bounds `payload-jobs`, so an entry that throws must
-      // not cost the entries after it their run — the throw is re-raised below
-      // instead, once every entry has had its turn. The job runner gives the
-      // handler a `req` with no transaction of its own, so a failed delete
-      // leaves the next entry's reads working.
+      // other. Nothing else bounds `payload-jobs`, so a collection that throws
+      // must not cost the ones after it their run — the throw is re-raised
+      // below instead, once every collection has had its turn. The job runner
+      // gives the handler a `req` with no transaction of its own, so a failed
+      // delete leaves the next collection's reads working.
       try {
         collections.push({
           collection,
@@ -119,8 +129,8 @@ export const CleanupCollections: TaskConfig<'cleanupCollections'> = {
         failed.push(collection)
 
         // A sweep that threw mid-window still deleted what the windows before
-        // it selected, and the entry owes a row either way. `afterDelete`
-        // throws past this branch, its entry's row already pushed above.
+        // it selected, and the collection owes a row either way. `afterDelete`
+        // throws past this branch, its row already pushed above.
         if (error instanceof SweepFailure) {
           collections.push({ collection, deleted: error.deleted })
         }

@@ -1,5 +1,5 @@
 /**
- * The `user-submissions` retention entry (#724, #987) — the per-type windows,
+ * `user-submissions` retention (#724, #987) — the per-type windows,
  * and the `users` orphan sweep its two hooks run.
  *
  * Rows are not aged by editing `createdAt`; the clock is moved instead. The
@@ -16,12 +16,12 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { CleanupCollections } from '@/jobs/CleanupCollections/CleanupCollections'
 import {
   CONTACT_ACCEPTED_DAYS,
   MACHINE_SPAM_DAYS,
   PROPOSAL_DAYS,
-} from '@/jobs/CleanupCollections/entries/userSubmissions'
+} from '@/collections/UserSubmissions/retention'
+import { CleanupCollections } from '@/jobs/CleanupCollections/CleanupCollections'
 import type { Event, Form, Manager, UserSubmission } from '@/payload-types'
 
 import { deletedIn } from '../utils/retention'

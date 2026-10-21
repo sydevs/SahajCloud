@@ -1,7 +1,8 @@
-import type { PurgeWindow, RetentionEntry } from '../types'
 import type { Where } from 'payload'
 
-import { IMPORT_RETENTION_DAYS } from '@/plugins/eventImport/constants'
+import type { PurgeWindow, RetentionConfig } from '@/lib/retention'
+
+import { IMPORT_RETENTION_DAYS } from './constants'
 
 /**
  * One window for every status, because what sets it is the CSV: the file holds
@@ -20,7 +21,6 @@ export const IMPORT_WINDOWS: PurgeWindow[] = [
   },
 ]
 
-export const importsEntry: RetentionEntry = {
-  collection: 'imports',
+export const importsRetention: RetentionConfig = {
   windows: IMPORT_WINDOWS,
 }

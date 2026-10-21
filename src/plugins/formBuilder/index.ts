@@ -19,6 +19,7 @@ import {
   syncFullnessAfterDelete,
 } from '@/collections/UserSubmissions/hooks/syncFullness'
 import { validateProposal } from '@/collections/UserSubmissions/hooks/validateProposal'
+import { userSubmissionsRetention } from '@/collections/UserSubmissions/retention'
 import { CONTACT_EMAIL } from '@/lib/contact'
 import { serverEnv } from '@/lib/env/server'
 import { livePreviewUrl } from '@/lib/livePreview/url'
@@ -198,6 +199,9 @@ const formBuilder = (config: Parameters<Plugin>[0]) =>
           breakpoints: [{ label: 'Mobile', name: 'mobile', width: 390, height: 844 }],
         },
       },
+      // Retention is declared beside the windows' own reasons, and read by
+      // `cleanupCollections` off the built config.
+      custom: { retention: userSubmissionsRetention },
       fields: userSubmissionFields,
       // Order matters: the reach check refuses a forbidden target before
       // `prepareUserSubmission` upserts a `users` row for its sender.
