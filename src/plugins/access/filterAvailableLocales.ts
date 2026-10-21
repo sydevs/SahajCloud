@@ -30,10 +30,7 @@ type FilterAvailableLocalesArgs = {
  * @param args - Arguments containing locales array and request
  * @returns Filtered array of locales
  */
-export const filterAvailableLocales = ({
-  locales,
-  req,
-}: FilterAvailableLocalesArgs): Locale[] => {
+export const filterAvailableLocales = ({ locales, req }: FilterAvailableLocalesArgs): Locale[] => {
   const englishLocale = locales.find((l) => l.code === 'en')!
 
   // Unauthenticated - return only English (for login page)

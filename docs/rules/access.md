@@ -21,7 +21,7 @@ This only works because the authenticated user loads **four times**, not once. `
 
 `src/plugins/access/localizedRolesAuth.ts` re-loads the manager at the auth strategy (every request), `afterLogin`, `afterMe` (the admin's own `/me` call on mount), and `afterRefresh` (a tab left open). Skip any one and that moment's read reverts to the flat, default-locale array.
 
-⚠ **All four are hooks on an auth *response*, so a sign-in that builds its own response gets none of them.** That is why `POST /api/managers/redeem` (#837) **redirects** to `/admin` instead of returning a user: a hand-built body there would carry flat, single-locale `roles` that nothing else in the app hands out. The redirect leaves `afterMe` to resolve them on the admin's next `/me`. Any future route that mints a session itself owes the same choice — return nothing, or run the roles through `withLocalizedRoleAuth`'s shape.
+⚠ **All four are hooks on an auth _response_, so a sign-in that builds its own response gets none of them.** That is why `POST /api/managers/redeem` (#837) **redirects** to `/admin` instead of returning a user: a hand-built body there would carry flat, single-locale `roles` that nothing else in the app hands out. The redirect leaves `afterMe` to resolve them on the admin's next `/me`. Any future route that mints a session itself owes the same choice — return nothing, or run the roles through `withLocalizedRoleAuth`'s shape.
 
 ⚠ **Nothing wires this up on the collection**. `accessPlugin` attaches all four hooks to any auth collection whose `roles` field is `localized`. A future such collection is covered automatically. `Clients.roles` is flat, so it is skipped.
 
@@ -33,24 +33,24 @@ This only works because the authenticated user loads **four times**, not once. `
 
 `hasPermission`'s `locale` argument is a `RoleScope`. Each value is a deliberate answer:
 
-| Scope | Meaning | Used by |
-| --- | --- | --- |
-| A `LocaleCode` | Roles assigned in that locale | Every ordinary access check |
-| `'union'` | Roles in **any** locale | Admin nav visibility, called with no locale — anything narrower empties the sidebar for non-admins |
-| `undefined` | Nothing resolvable, so deny | `?locale=all`, and any locale outside `LOCALES` |
+| Scope          | Meaning                       | Used by                                                                                            |
+| -------------- | ----------------------------- | -------------------------------------------------------------------------------------------------- |
+| A `LocaleCode` | Roles assigned in that locale | Every ordinary access check                                                                        |
+| `'union'`      | Roles in **any** locale       | Admin nav visibility, called with no locale — anything narrower empties the sidebar for non-admins |
+| `undefined`    | Nothing resolvable, so deny   | `?locale=all`, and any locale outside `LOCALES`                                                    |
 
 ⚠ **A hand-rolled admin `fetch('/api/…')` must send the active admin locale — `useLocale().code` from `@payloadcms/ui` — whenever the endpoint or collection it calls runs a per-locale `hasPermission`.** A request naming no locale resolves to the **default** locale, so the gate reads the manager's English roles and denies anyone whose roles live only elsewhere. Payload's own admin requests and `usePayloadAPI` already send it; a hand-rolled `fetch` does not. Three of them shipped without it, and a French-only manager saw a 403 on the frames library, blank list thumbnails, and a refused Accept (#701). A locale-keyed request cache (an SWR key, a batch key) must include the locale too, or one locale's response answers another's cells.
 
 **The condition is the gate, not the call.** `grep "fetch('/api/"` over `src/components` finds more call sites than this rule governs, so check what the target does before you "fix" one:
 
-| Call site | Sends the locale? | Why |
-| --- | --- | --- |
-| `FrameEditor/utils.ts` → `/api/frames/by-narrator/:id` | **Yes** | The endpoint's permission gate resolves `req.locale` |
-| `ThumbnailCell/relationshipDocLoader.ts` → `/api/:collection` | **Yes** | The collection read gate does |
-| `SubmissionReview/urls.ts` → `/api/user-submissions/:id/review` | **Yes** | The endpoint's permission gate resolves `req.locale` |
-| `ProjectSelector.tsx`, `ProjectContext.tsx` → `/api/managers/set-project` | No | Gated on `requireActiveManager`, then reads with `overrideAccess: true` — no per-locale check runs |
-| `CanonicalEmbedPicker/Description.tsx` → `/api/clients/:id/verify-embed` | No | Same shape, and `Clients.roles` is not localized |
-| `TranslationsRow/useEnglishTranslation.ts` → `?locale=en` | Pinned to `en` | It wants the English **text** for translators, not the caller's roles. Admin-only today |
+| Call site                                                                 | Sends the locale? | Why                                                                                                |
+| ------------------------------------------------------------------------- | ----------------- | -------------------------------------------------------------------------------------------------- |
+| `FrameEditor/utils.ts` → `/api/frames/by-narrator/:id`                    | **Yes**           | The endpoint's permission gate resolves `req.locale`                                               |
+| `ThumbnailCell/relationshipDocLoader.ts` → `/api/:collection`             | **Yes**           | The collection read gate does                                                                      |
+| `SubmissionReview/urls.ts` → `/api/user-submissions/:id/review`           | **Yes**           | The endpoint's permission gate resolves `req.locale`                                               |
+| `ProjectSelector.tsx`, `ProjectContext.tsx` → `/api/managers/set-project` | No                | Gated on `requireActiveManager`, then reads with `overrideAccess: true` — no per-locale check runs |
+| `CanonicalEmbedPicker/Description.tsx` → `/api/clients/:id/verify-embed`  | No                | Same shape, and `Clients.roles` is not localized                                                   |
+| `TranslationsRow/useEnglishTranslation.ts` → `?locale=en`                 | Pinned to `en`    | It wants the English **text** for translators, not the caller's roles. Admin-only today            |
 
 **Where the locale is required, build the URL in a pure module and return `null` without one** — `framesByNarratorKey` and `submissionActionUrl` both do. `useLocale()`'s context default is `{}`, so `code` is `string` to the compiler but can be `undefined` at runtime, and `?locale=undefined` is rewritten to the default locale by `sanitizeLocales` — the #701 403 again, silently. Refusing to build the URL turns that into a visible failure, and makes the call site testable without a browser.
 
@@ -108,13 +108,13 @@ Two access keys are **derived from `update`** rather than computed from the role
 
 They are one function because they share one failure, one guard, and one hazard. Both shipped by going **unwritten**, both must drop `args.id` before delegating, and both fail closed when there is no `update`. Two copies of that drift: a fix to one is a fix somebody must remember to port.
 
-It wraps the **merged** access config in `accessPlugin.ts`, after `...collection.access` / `...global.access` — **not inside `createAccessConfig`**, which is the obvious-looking home and the wrong one. `createAccessConfig` runs *before* a collection's own `access` overrides are spread in, so a grant derived there binds to an `update` the override then replaces — silently, and in the permissive direction whenever the override is the narrower function. Deriving from the merged config is what makes "whoever may edit this entity" true of the entity as configured, and it is why a collection that sets its own `readVersions` or `unlock` keeps it.
+It wraps the **merged** access config in `accessPlugin.ts`, after `...collection.access` / `...global.access` — **not inside `createAccessConfig`**, which is the obvious-looking home and the wrong one. `createAccessConfig` runs _before_ a collection's own `access` overrides are spread in, so a grant derived there binds to an `update` the override then replaces — silently, and in the permissive direction whenever the override is the narrower function. Deriving from the merged config is what makes "whoever may edit this entity" true of the entity as configured, and it is why a collection that sets its own `readVersions` or `unlock` keeps it.
 
 A global has no `unlock` — its access keys are `read`, `update`, `readVersions` — so the globals call site asks for that one key. Nothing else about the pass differs.
 
-⚠ **Both derivations fail closed when there is no `update` to delegate to.** They write `() => false` rather than returning the config untouched — an *unset* key is refilled with the permissive `Boolean(user)` (from Payload's collection defaults for `unlock`, from `executeAccess`'s fallback for `readVersions`), which is exactly how #719 and #748 shipped. `createAccessConfig` always assigns `update` and every `access:` under `src/collections` is field-level, so the branch is unreachable through `accessPlugin` today. `tests/unit/access-derived-grants.spec.ts` reaches it directly, so the direction is asserted rather than assumed.
+⚠ **Both derivations fail closed when there is no `update` to delegate to.** They write `() => false` rather than returning the config untouched — an _unset_ key is refilled with the permissive `Boolean(user)` (from Payload's collection defaults for `unlock`, from `executeAccess`'s fallback for `readVersions`), which is exactly how #719 and #748 shipped. `createAccessConfig` always assigns `update` and every `access:` under `src/collections` is field-level, so the branch is unreachable through `accessPlugin` today. `tests/unit/access-derived-grants.spec.ts` reaches it directly, so the direction is asserted rather than assumed.
 
-⚠ **`args.id` is dropped before delegating, and must be.** `findVersionByID` calls access with the *version row's* primary key, not the document's — two independent sequences that happen to overlap. Forwarded to `update`, every id-sensitive branch answers about the wrong document: the self-access bypass hands a manager row `N` of `_managers_v` because their own id is `N`, and `userManagesDocument` grants any row whose number matches a page the caller manages. Dropping it makes `update` answer at the list level, which `findVersionByID` then ANDs with `{ id: { equals: <row> } }` itself. `unlockOperation` passes no `id` at all today; dropping it keeps that true if a future Payload passes one.
+⚠ **`args.id` is dropped before delegating, and must be.** `findVersionByID` calls access with the _version row's_ primary key, not the document's — two independent sequences that happen to overlap. Forwarded to `update`, every id-sensitive branch answers about the wrong document: the self-access bypass hands a manager row `N` of `_managers_v` because their own id is `N`, and `userManagesDocument` grants any row whose number matches a page the caller manages. Dropping it makes `update` answer at the list level, which `findVersionByID` then ANDs with `{ id: { equals: <row> } }` itself. `unlockOperation` passes no `id` at all today; dropping it keeps that true if a future Payload passes one.
 
 ### The one key still unwritten: `admin`
 
@@ -130,7 +130,7 @@ The gap worth naming: an **inactive** manager still loads the admin shell, then 
 
 This is not Payload's default, and the default is the permissive one. `findVersions`, `findVersionByID` and `countVersions` consult `access.readVersions` alone — the published-only constraint in the `read` branch never runs for them. With `readVersions` unset, `executeAccess` falls back to "is anyone logged in", which an API key satisfies, so every draft on `pages`, `meditations`, `app-cards`, `events`, `clients` and the three translations globals was readable by any published client key — including one that cannot read the collection at all.
 
-⚠ **A `Where` from `update` must be translated before it reaches a versions query.** `update` returns a query over *documents*; every versions operation combines the access result straight into a query over the *versions* collection without remapping it, where a document's fields sit under `version.` and its id is `parent`. `appendVersionToQueryKey` (exported by `payload`, and what `replaceWithDraftIfAvailable` applies to the `read` result) is the mapping. Skip it and `{ id: { in: [7] } }` matches version *rows* by their own primary key — a wrong answer that still returns documents.
+⚠ **A `Where` from `update` must be translated before it reaches a versions query.** `update` returns a query over _documents_; every versions operation combines the access result straight into a query over the _versions_ collection without remapping it, where a document's fields sit under `version.` and its id is `parent`. `appendVersionToQueryKey` (exported by `payload`, and what `replaceWithDraftIfAvailable` applies to the `read` result) is the mapping. Skip it and `{ id: { in: [7] } }` matches version _rows_ by their own primary key — a wrong answer that still returns documents.
 
 Two consequences worth knowing:
 
@@ -141,7 +141,7 @@ Two consequences worth knowing:
 
 Whoever may edit an account may clear its login lockout. Nobody else.
 
-Payload fills an *omitted* `unlock` from its collection defaults (`collections/config/defaults.js`) with `defaultAccess` — `Boolean(user)` — which a published client's API key satisfies. `unlockOperation` is the only reader, and `POST /:collection/unlock` is registered for every auth collection, so any client key could reset a locked manager's failed-attempt counter and defeat the brute-force lockout (`maxLoginAttempts: 5`, `lockTime: 10 min`). `clients` was already denied structurally by `disableLocalStrategy: true`, which throws `Forbidden` before the access check; `managers` was the live target.
+Payload fills an _omitted_ `unlock` from its collection defaults (`collections/config/defaults.js`) with `defaultAccess` — `Boolean(user)` — which a published client's API key satisfies. `unlockOperation` is the only reader, and `POST /:collection/unlock` is registered for every auth collection, so any client key could reset a locked manager's failed-attempt counter and defeat the brute-force lockout (`maxLoginAttempts: 5`, `lockTime: 10 min`). `clients` was already denied structurally by `disableLocalStrategy: true`, which throws `Forbidden` before the access check; `managers` was the live target.
 
 ⚠ **Nothing else needs the grant.** A lockout expires by itself once `lockUntil` passes, and a successful login then calls `resetLoginAttempts` with no access check. `unlock` is only the administrative shortcut that clears a lockout early, so denying it costs a non-admin nothing.
 
@@ -175,9 +175,9 @@ This cuts the opposite way from implicit read, above, and the obvious reading is
 
 ⚠ **`imports` is there because a class import is kept for the retention window** (#907): its skipped rows carry contact names, phone numbers and email addresses. The collection declares its own `access` block (`src/plugins/eventImport/importCollection.ts`): any manager who may create classes may create one, admins and the managers of the target region's subtree read and delete, nobody updates. `atlas-manager` holds `imports: create`, which is also what keeps the collection's admin pages visible to them.
 
-⚠ **Restricting a collection reaches a relationship to it. It does not reach a copy of it.** Every `relationTo: 'managers'` field is covered and needs no lock of its own, because populate falls back to the bare id once the related read is refused. A field storing a manager's name or address *as a value* is not covered, and needs a field lock instead — which is the next section, and why two fields on `events` have one.
+⚠ **Restricting a collection reaches a relationship to it. It does not reach a copy of it.** Every `relationTo: 'managers'` field is covered and needs no lock of its own, because populate falls back to the bare id once the related read is refused. A field storing a manager's name or address _as a value_ is not covered, and needs a field lock instead — which is the next section, and why two fields on `events` have one.
 
-⚠ **It does not cover the caller's own row.** Self-access read answers at step 2, before the check, so a published client still reads its whole `clients` document over `GET /api/clients/me` — deliberately, because the atlas widget suspends on that read at every boot. Restricting `clients` is what stops a key reading *other* services (#822); the field lock below is what keeps `apiKey` out of its own answer. Neither layer does the other's job.
+⚠ **It does not cover the caller's own row.** Self-access read answers at step 2, before the check, so a published client still reads its whole `clients` document over `GET /api/clients/me` — deliberately, because the atlas widget suspends on that read at every boot. Restricting `clients` is what stops a key reading _other_ services (#822); the field lock below is what keeps `apiKey` out of its own answer. Neither layer does the other's job.
 
 ⚠ **Treat the list as a holding pattern.** All five collections that sit in no project are named in it now, so it is complete today and fails open the day a sixth is added. The real fix is for step 4a to test project membership directly, so a new collection fails closed. Its docblock says so.
 
@@ -201,7 +201,7 @@ It is deliberately **wider** than `adminOnlyFieldAccess`, which is the wrong too
 - `Clients.mailingList` — the same self-read would otherwise hand a service's own key its provider secret (`docs/rules/clients.md`).
 - `Forms.client` — `forms` keeps the form-builder plugin's `read: () => true`, which outranks the generated access config, and populating a `clients` document hands over a plaintext `apiKey` (#822). Belt and braces now that `clients` is restricted, and it stays: it is the half that survives if the collection is ever unrestricted.
 - `Forms.recipient` — the same collection, and now defence in depth behind restricted `managers` (#821).
-- `Events.registrationNotificationEmail` — a manager's address *copied* onto a collection the `sahaj-atlas` project reads (#821).
+- `Events.registrationNotificationEmail` — a manager's address _copied_ onto a collection the `sahaj-atlas` project reads (#821).
 
 ⚠ **Reach for a field lock, not `RESTRICTED_COLLECTIONS`, whenever personal data is denormalized rather than related.** `Events.activityLog` is the same shape one step further out — a JSON column whose reminder entries record the address each one went to — so the lock lives in the `logField` factory (`src/fields/logField.ts`) and every consumer inherits it. The sibling `Events.contactEmail` deliberately has no lock: that one is the address a seeker is meant to write to.
 
@@ -209,13 +209,13 @@ It is deliberately **wider** than `adminOnlyFieldAccess`, which is the wrong too
 
 ⚠ **A field lock only covers a read that checks access, and not every self-read does.** Payload's `refreshOperation` re-reads the document with `findByID` and no `overrideAccess: false`, so it defaults to `true` and every field lock is skipped — `meOperation` passes the flag, `refresh` does not. `POST /api/clients/refresh-token` handed a browser-shipped key its own decrypted `apiKey` and its `mailingList` provider secret, with both locks in place (#822). `disableLocalStrategy` does not close it: `refresh` is the one auth operation that does not refuse on that flag. `stripLockedFieldsOnSelfRead`, the `afterRead` hook `accessPlugin` attaches to every auth collection, is what does — a hook runs on every read path, so it holds whichever operation forgets the flag next. It re-evaluates every field's own `read` lock whenever `req.user.collection` is the collection being read, so a sixth locked field needs no edit there, and the next `read` lock on `managers` is covered before anyone notices it leaks. **When you lock a field on an auth collection, lock it and then check what else re-reads the row.**
 
-| Want | Do |
-| --- | --- |
-| Nobody reads it implicitly | Add it to `RESTRICTED_COLLECTIONS` |
-| A client may still create it | Grant `['create']` in that client's role |
-| **No manager role may read it** | Grant it in **no** role |
-| Only *some* rows, for a manager | Grant `read`, then narrow to a `Where` in `createAccessConfig` (`user-submissions`) |
-| Visible in `/api/docs` | Add it to a project's `collections` (`docs/rules/openapi.md`) |
+| Want                            | Do                                                                                  |
+| ------------------------------- | ----------------------------------------------------------------------------------- |
+| Nobody reads it implicitly      | Add it to `RESTRICTED_COLLECTIONS`                                                  |
+| A client may still create it    | Grant `['create']` in that client's role                                            |
+| **No manager role may read it** | Grant it in **no** role                                                             |
+| Only _some_ rows, for a manager | Grant `read`, then narrow to a `Where` in `createAccessConfig` (`user-submissions`) |
+| Visible in `/api/docs`          | Add it to a project's `collections` (`docs/rules/openapi.md`)                       |
 
 Both public intakes' POSTs are `x-internal` for exactly this reason: neither sits in a project.
 

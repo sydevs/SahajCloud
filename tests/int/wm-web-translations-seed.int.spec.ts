@@ -80,7 +80,9 @@ describe('seeding wm-web-translations', () => {
     expect((doc.common as Record<string, Record<string, string>>).general.loading).toBe(
       'Loading...',
     )
-    expect((doc.common as Record<string, Record<string, string>>).a11y.breadcrumb).toBe('Breadcrumb')
+    expect((doc.common as Record<string, Record<string, string>>).a11y.breadcrumb).toBe(
+      'Breadcrumb',
+    )
     expect((doc.navigation as unknown as Record<string, string>).about_meditation).toBe(
       'About Meditation',
     )

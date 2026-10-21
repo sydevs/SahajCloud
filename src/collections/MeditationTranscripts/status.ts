@@ -32,9 +32,7 @@ export function deriveTranscriptStatus(
 }
 
 /** The run's own error message, or null while nothing has failed. */
-export function transcriptJobError(
-  job: Pick<PayloadJob, 'error'> | null,
-): string | null {
+export function transcriptJobError(job: Pick<PayloadJob, 'error'> | null): string | null {
   const error = job?.error
   if (typeof error === 'string') return error
   if (error && typeof error === 'object' && 'message' in error) {
@@ -59,13 +57,16 @@ export function loadTranscriptJob(
   if (job === null || job === undefined) return Promise.resolve(null)
   const id = extractID(job)
 
-  return memoizeOnRequest(req, `transcriptJob:${id}`, async () =>
-    (await req.payload.findByID({
-      collection: 'payload-jobs',
-      id,
-      depth: 0,
-      overrideAccess: true,
-      disableErrors: true,
-    })) ?? null,
+  return memoizeOnRequest(
+    req,
+    `transcriptJob:${id}`,
+    async () =>
+      (await req.payload.findByID({
+        collection: 'payload-jobs',
+        id,
+        depth: 0,
+        overrideAccess: true,
+        disableErrors: true,
+      })) ?? null,
   )
 }

@@ -1,12 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import {
-  mergeSubtitles,
-  shapeLecture,
-  shapeUserChoices,
-} from '@/lib/lectures/lectureShape'
+import { mergeSubtitles, shapeLecture, shapeUserChoices } from '@/lib/lectures/lectureShape'
 import type { Lecture, UserChoice } from '@/payload-types'
-
 
 /** The `overrides` argument's own type, so locale codes are checked. */
 type SubtitleOverrides = NonNullable<Lecture['subtitles']>

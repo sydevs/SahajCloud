@@ -31,7 +31,9 @@ import { handleStreamWebhook } from '@/plugins/storage/cloudflareStreamWebhook'
 // createWorkerSafeLogger is typed as Config['logger'] (a union including option
 // shapes and undefined); at runtime it returns a Pino-compatible instance with
 // info/warn/error, which is all WebhookLogger needs.
-const logger = createWorkerSafeLogger(serverEnv.NEXT_PUBLIC_LOG_LEVEL ?? 'info') as unknown as WebhookLogger
+const logger = createWorkerSafeLogger(
+  serverEnv.NEXT_PUBLIC_LOG_LEVEL ?? 'info',
+) as unknown as WebhookLogger
 
 /**
  * POST /api/webhooks/cloudflare-stream

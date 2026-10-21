@@ -6,7 +6,6 @@ import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import { relationId } from '@/lib/utilities/relationId'
 import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
 
-
 export { composeEventTitleFromPlace } from './compose'
 
 import {
@@ -44,7 +43,9 @@ const REGION_NAME_KEY = 'eventTitleRegionName'
  * `findGlobal` — see its own doc comment for why the in-flight promise, rather
  * than the resolved value, is the thing cached.
  */
-export async function resolveTitleTemplates(req: PayloadRequest): Promise<Record<EventTitleSlot, string>> {
+export async function resolveTitleTemplates(
+  req: PayloadRequest,
+): Promise<Record<EventTitleSlot, string>> {
   return memoizeOnRequest(req, CACHE_KEY, async () => {
     try {
       const translations = await req.payload.findGlobal({

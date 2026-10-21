@@ -26,7 +26,6 @@ import { isValidLocale, DEFAULT_LOCALE } from '@/lib/locales'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
 
-
 import { collectLeafLookups, extractPlainText, isObjectNode } from './schemaWalker'
 
 type WalkableSchema = { properties?: Record<string, SchemaNode> }
@@ -58,7 +57,11 @@ function container(doc: Doc, groupField: string | null): Doc | null {
  * this merge promises not to do. Cloning lazily leaves a document with no gaps
  * untouched.
  */
-function writableContainer(merged: Doc, groupField: string | null, cloned: Set<string>): Doc | null {
+function writableContainer(
+  merged: Doc,
+  groupField: string | null,
+  cloned: Set<string>,
+): Doc | null {
   if (groupField === null) return merged
   if (!cloned.has(groupField)) {
     const group = merged[groupField]

@@ -1,5 +1,11 @@
 import type { LoginCollectionConfig } from './types'
-import type { CollectionBeforeOperationHook, CollectionConfig, Config, Field, Plugin } from 'payload'
+import type {
+  CollectionBeforeOperationHook,
+  CollectionConfig,
+  Config,
+  Field,
+  Plugin,
+} from 'payload'
 
 import { redeem } from './endpoints/redeem'
 import { requestMagicLink } from './endpoints/requestMagicLink'

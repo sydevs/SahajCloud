@@ -359,7 +359,7 @@ const NO_FLOOR_REASONS: Partial<Record<ScriptName, RegExp>> = {
 describe('a script that can state no floor says so', () => {
   const unverifiable = ALL_SCRIPTS.filter((script) => isNotApplicable(EXPECTED_COUNTS[script]))
 
-  it('covers the globals-only scripts, and the one whose floor is the target\'s own library', () => {
+  it("covers the globals-only scripts, and the one whose floor is the target's own library", () => {
     expect(unverifiable).toEqual(Object.keys(NO_FLOOR_REASONS))
   })
 
