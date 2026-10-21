@@ -1,6 +1,6 @@
 /**
  * The locale on a hand-rolled admin REST call is a permission, not a query
- * option (#701). Two of the three call sites that carry the fix build a URL
+ * option (#701). Three of the four call sites that carry the fix build a URL
  * or an SWR key from `useLocale().code`, and only a browser can observe them
  * end to end — so the string each one builds is pinned here instead.
  *
@@ -8,10 +8,10 @@
  * accepted and its absence is refused. They cannot see whether a client sends
  * it. That is what these assertions cover.
  *
- * The third site, `fetchRelationshipDocs`, is pinned in
+ * The fourth site, `fetchRelationshipDocs`, is pinned in
  * `relationshipDocLoader.spec.ts` against a stubbed `fetch`.
  *
- * `submissionActionUrl` was a fourth until #909 moved submission review onto
+ * `submissionActionUrl` was one of them until #909 moved submission review onto
  * `WorkflowButtons`. Payload's own document form carries the locale in the
  * `action` it builds, so there is no hand-rolled URL left to pin.
  */
@@ -19,7 +19,10 @@
 import { describe, expect, it } from 'vitest'
 
 import { framesByNarratorKey } from '../../src/components/admin/FrameEditor/utils'
-import { transcriptUrl } from '../../src/components/admin/MeditationTranscript/transcriptModel'
+import {
+  transcribeUrl,
+  transcriptUrl,
+} from '../../src/components/admin/MeditationTranscript/transcriptModel'
 
 describe('framesByNarratorKey', () => {
   it('puts the locale in the request URL', () => {
@@ -69,5 +72,24 @@ describe('transcriptUrl', () => {
 
   it('refuses to build a URL with no meditation', () => {
     expect(transcriptUrl(undefined, 'fr')).toBeNull()
+  })
+})
+
+describe('transcribeUrl', () => {
+  it('names the locale, because the endpoint gates on it', () => {
+    expect(transcribeUrl(7, 'fr')).toBe('/api/meditations/7/transcribe?locale=fr')
+  })
+
+  it('encodes the locale', () => {
+    expect(transcribeUrl(7, 'pt-BR')).toBe('/api/meditations/7/transcribe?locale=pt-BR')
+  })
+
+  it('refuses to build a URL with no locale', () => {
+    expect(transcribeUrl(7, undefined)).toBeNull()
+    expect(transcribeUrl(7, '')).toBeNull()
+  })
+
+  it('refuses to build a URL with no meditation', () => {
+    expect(transcribeUrl(undefined, 'fr')).toBeNull()
   })
 })
