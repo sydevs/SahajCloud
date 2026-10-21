@@ -20,7 +20,15 @@
 import type { UIFieldClientComponent } from 'payload'
 import type { ReactNode } from 'react'
 
-import { act, createContext, createElement, useCallback, useContext, useEffect, useState } from 'react'
+import {
+  act,
+  createContext,
+  createElement,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 

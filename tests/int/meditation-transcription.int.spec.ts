@@ -220,7 +220,11 @@ describe('meditation transcription', () => {
       // The vendor answers seconds. The cue shape is milliseconds, so a player
       // reading a transcript and one reading subtitles agree.
       expect(row?.segments).toEqual([
-        { content: 'Place your attention on the top of the head.', startTimeMs: 0, endTimeMs: 4250 },
+        {
+          content: 'Place your attention on the top of the head.',
+          startTimeMs: 0,
+          endTimeMs: 4250,
+        },
         { content: 'Let the thoughts settle.', startTimeMs: 4250, endTimeMs: 6500 },
       ])
     })

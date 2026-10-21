@@ -56,17 +56,18 @@ lines used until 2026-10-20 and which the routine containers do not ship
 
 ## The unit lane — 2026-10-20
 
-The first three sessions measured it the same day, on the same container
-spec — 4 cores (Intel Xeon @ 2.80 GHz), 15 GB, a cloud routine container. The
-fourth is a maintainer's laptop, for scale: Apple M3 Pro, 11 cores, 18 GB, so
-10 workers.
+The first five sessions measured it on the same container spec — 4 cores
+(Intel Xeon @ 2.80 GHz), 15 GB, a cloud routine container. The sixth is a
+maintainer's laptop, for scale: Apple M3 Pro, 11 cores, 18 GB, so 10 workers.
 
-| Session | Files / tests | Vitest duration, consecutive runs | Median |
-| --- | --- | --- | --- |
-| first | 198 / 2575 | 60.29 · 58.75 · 59.23 s | 59.2 s |
-| second, after merging `main` | 203 / 2643 | 82.19 · 77.93 · 73.21 s | **77.9 s** |
-| third, after merging `main` again | 204 / 2653 | 47.16 · 46.38 · 47.82 s | 47.2 s |
-| fourth, M3 Pro laptop (#993) | 206 / 2676 | 18.45 · 19.15 · 18.86 s | 18.9 s |
+| Session                            | Files / tests | Vitest duration, consecutive runs      | Median     |
+| ---------------------------------- | ------------- | -------------------------------------- | ---------- |
+| first                              | 198 / 2575    | 60.29 · 58.75 · 59.23 s                | 59.2 s     |
+| second, after merging `main`       | 203 / 2643    | 82.19 · 77.93 · 73.21 s                | **77.9 s** |
+| third, after merging `main` again  | 204 / 2653    | 47.16 · 46.38 · 47.82 s                | 47.2 s     |
+| fourth, after merging `main` again | 205 / 2656    | 54.00 · 50.45 s (both inside the gate) | 52.2 s     |
+| fifth, after merging `main` again  | 218 / 2795    | 49.13 s (inside the gate)              | 49.1 s     |
+| sixth, M3 Pro laptop (#993)        | 206 / 2676    | 18.45 · 19.15 · 18.86 s                | 18.9 s     |
 
 ⚠ **Those three medians span 47 to 78 s — 66% — and six spec files do not
 explain it.** Identical container spec, all on 2026-10-20, 3% more files
@@ -84,23 +85,23 @@ them to what is on disk; every timing is the session its row names.
 `| Files / tests |` and the three `**bold**` cells are the captures the spec
 reads, so keep those labels and cell shapes when you add a row.
 
-| Metric | Value |
-| --- | --- |
-| Files / tests | 220 / 2835 |
-| Whole lane, 3 workers (slowest session median, what the consumer docs quote) | **77.9 s** |
-| One spec alone, the typical edit (third session) | 1.3 s |
-| Slowest per-edit selection timed on 4 cores, the 7 specs naming `@/plugins/login` (third session) | **6.9 s** |
-| 18 specs naming `@/payload-types`, which the hook skips as generated (third session) | 7.8 s |
-| Vitest phase breakdown, at 3 workers | transform 14.4 s, import 141.6 s, tests 17.5 s, environment 5.2 s |
-| Slowest file's own duration inside the lane (first session) | 1.8 s (`proposal-leaves.spec.ts`) |
-| One file alone, cold (first session) | **1.9 s** wall (`convert-vimeo`) to **3.0 s** (`proposal-leaves`) |
-| Whole lane at `--maxWorkers=1` (first session, 198 files) | 140.5 s |
-| Whole lane at `--maxWorkers=4` (first session, 198 files) | 49.2 s |
-| `pnpm lint` | 28.5 s |
-| `pnpm typecheck` | 8.4 s |
-| `pnpm typecheck:tests` | 8.2 s |
-| Those four commands, summed | 104 s |
-| Tier 2 lean gate (`check.sh`), slowest cold run of three sessions | **174 s** cold, **103 s** with Postgres already up |
+| Metric                                                                                            | Value                                                             |
+| ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Files / tests                                                                                     | 222 / 2843                                                        |
+| Whole lane, 3 workers (slowest session median, what the consumer docs quote)                      | **77.9 s**                                                        |
+| One spec alone, the typical edit (third session)                                                  | 1.3 s                                                             |
+| Slowest per-edit selection timed on 4 cores, the 7 specs naming `@/plugins/login` (third session) | **6.9 s**                                                         |
+| 18 specs naming `@/payload-types`, which the hook skips as generated (third session)              | 7.8 s                                                             |
+| Vitest phase breakdown, at 3 workers                                                              | transform 14.4 s, import 141.6 s, tests 17.5 s, environment 5.2 s |
+| Slowest file's own duration inside the lane (first session)                                       | 1.8 s (`proposal-leaves.spec.ts`)                                 |
+| One file alone, cold (first session)                                                              | **1.9 s** wall (`convert-vimeo`) to **3.0 s** (`proposal-leaves`) |
+| Whole lane at `--maxWorkers=1` (first session, 198 files)                                         | 140.5 s                                                           |
+| Whole lane at `--maxWorkers=4` (first session, 198 files)                                         | 49.2 s                                                            |
+| `pnpm lint`                                                                                       | 28.5 s                                                            |
+| `pnpm typecheck`                                                                                  | 8.4 s                                                             |
+| `pnpm typecheck:tests`                                                                            | 8.2 s                                                             |
+| Those four commands, summed                                                                       | 104 s                                                             |
+| Tier 2 lean gate (`check.sh`), slowest cold run of three sessions                                 | **174 s** cold, **103 s** with Postgres already up                |
 
 **The gate's own spread is `scripts/ensure-test-db.sh`.** It costs nothing once
 port 5432 answers, which is why a warm run lands on the four commands' 104 s and
@@ -132,7 +133,8 @@ from what a narrowed hook costs — not from the lane, and not from one spec.**
 Selecting the specs that name an edited module gives 1 spec for the median
 module, 7 for `@/plugins/login`, and 18 for `@/payload-types`, the generated
 file `pnpm generate:types` rewrites. Those cost 1.3, 6.9 and 7.8 s measured
-above. The hook skips generated files, so the slowest it makes that 4 cores have timed is the login seven.
+above. The hook skips generated files, so the slowest it makes that 4 cores
+have timed is the login seven.
 **Tier 1 targets `< 12 s`**: it bounds the widest of those with room for the
 spread this file records, and it matches SahajAtlasWeb's own measured
 per-edit budget on the same core count, whose hook this one copies. 5 s was
@@ -145,16 +147,16 @@ break — #990 settled that, #993 did it. The next section times the hook.
 ## The per-edit hook — 2026-10-20
 
 Timed as the hook itself, the command under Tier 1's budget, with the
-`time … unit-test.mjs` lines above. On the fourth session's M3 Pro laptop,
+`time … unit-test.mjs` lines above. On the sixth session's M3 Pro laptop,
 one warm-up run, then three:
 
-| Edited file | Specs selected | Hook wall-clock, consecutive runs | Median |
-| --- | --- | --- | --- |
-| `src/lib/richEditor/index.ts`, the edit #993 reproduced the false failure on | 0 | 0.18 · 0.18 · 0.20 s | 0.18 s |
-| `seeds/lib/lexicalConverter.ts` | 2 | 0.82 · 0.81 · 0.78 s | 0.81 s |
-| `src/lib/locales/index.ts` | 7 | 1.50 · 1.39 · 1.48 s | 1.48 s |
-| `src/plugins/login/index.ts` | 8 | 3.03 · 2.67 · 2.68 s | 2.68 s |
-| `tests/utils/importGraph.ts`, the widest in the tree | 9 | 3.09 · 3.13 · 2.88 s | 3.09 s |
+| Edited file                                                                  | Specs selected | Hook wall-clock, consecutive runs | Median |
+| ---------------------------------------------------------------------------- | -------------- | --------------------------------- | ------ |
+| `src/lib/richEditor/index.ts`, the edit #993 reproduced the false failure on | 0              | 0.18 · 0.18 · 0.20 s              | 0.18 s |
+| `seeds/lib/lexicalConverter.ts`                                              | 2              | 0.82 · 0.81 · 0.78 s              | 0.81 s |
+| `src/lib/locales/index.ts`                                                   | 7              | 1.50 · 1.39 · 1.48 s              | 1.48 s |
+| `src/plugins/login/index.ts`                                                 | 8              | 3.03 · 2.67 · 2.68 s              | 2.68 s |
+| `tests/utils/importGraph.ts`, the widest in the tree                         | 9              | 3.09 · 3.13 · 2.88 s              | 3.09 s |
 
 **Most edits run nothing.** 399 of the 664 modules under `src/` are named by
 no spec, so the hook spawns no vitest and costs 0.2 s, mostly node's own
@@ -165,14 +167,15 @@ specs in the table above — the figure Tier 1's `< 12 s` is held to. ⚠ **The
 widest today, `importGraph`'s 9, is untimed on 4 cores.** On the laptop it
 costs 15% more than login's, which puts it near 8 s there, still inside the
 target; time it on the next container session and record it above. Width
-stands in for time without being it: `tests/unit/select-unit-specs.spec.ts`
-caps the widest selection at 10, and a jump past that means re-timing here.
+stands in for time without being it:
+`tests/unit/select-unit-specs.spec.ts` caps the widest selection at 10, and a
+jump past that means re-timing here.
 
 ⚠ **The hook selects by name, never by import.** A spec runs when its own
 text names the edited module, through an alias, a relative path or a quoted
 repo path (`scripts/select-unit-specs.mjs`). That is why `richEditor` runs
 nothing although 40 specs reach it through a collection. Following imports
-selects up to 86 of the 220 specs for one edit (`@/lib/locales`), so the
+selects up to 86 of the 222 specs for one edit (`@/lib/locales`), so the
 lean gate and CI catch that coupling instead.
 
 ## The integration lane — baseline, 2026-06-18 (before #499 §2)
@@ -181,13 +184,13 @@ Measured on the unmodified config (`pool: 'forks'`, `maxConcurrency: 1`, no
 explicit `fileParallelism`/`poolOptions`), before the explicit-parallelism
 change.
 
-| Metric                                   | Value                                      |
-| ------------------------------------------ | --------------------------------------------- |
-| Suites / tests                           | 38 files, 675 tests (all passing)          |
-| **Total wall-clock — local**             | **314.5s** (`pnpm test:int`)               |
-| Total wall-clock — CI (reference)        | ~240–300s for the whole Lint+Test job¹     |
-| **Cold per-file bootstrap (isolated)**   | **~58–60s** (3–4 trivial tests per file)²  |
-| CPU utilisation (local)                  | user 841s + sys 166s over 314s ≈ 3.2 cores |
+| Metric                                 | Value                                      |
+| -------------------------------------- | ------------------------------------------ |
+| Suites / tests                         | 38 files, 675 tests (all passing)          |
+| **Total wall-clock — local**           | **314.5s** (`pnpm test:int`)               |
+| Total wall-clock — CI (reference)      | ~240–300s for the whole Lint+Test job¹     |
+| **Cold per-file bootstrap (isolated)** | **~58–60s** (3–4 trivial tests per file)²  |
+| CPU utilisation (local)                | user 841s + sys 166s over 314s ≈ 3.2 cores |
 
 Vitest phase breakdown (local total run): `transform 5.4s, setup 0.7s,
 import 166s, tests 1738s` (the `tests` figure sums per-file wall across
@@ -212,7 +215,7 @@ Postgres migration and is stale.
 
 The lane **already parallelises files** (default `forks` pool,
 `fileParallelism` defaults to `true`. `maxConcurrency: 1` only serialises
-tests *within* a file, not files). The dominant cost is the per-suite
+tests _within_ a file, not files). The dominant cost is the per-suite
 full-schema `push`, and every fork contends on the **same Postgres**, so
 the lane is **DB-bound, not CPU-bound**: adding forks past a point yields
 diminishing returns and risks exhausting Postgres connections (each
@@ -221,7 +224,7 @@ Payload instance opens a pool).
 The right lever is therefore to make file parallelism **explicit and
 bounded** — prevent connection storms on high-core CI, leave headroom for
 the dev machine locally — not to crank fork count. See the schema-reuse
-evaluation below for the alternative that *was* considered and rejected.
+evaluation below for the alternative that _was_ considered and rejected.
 
 ## The integration lane — after, 2026-06-18 (with #499 §2 explicit parallelism)
 
@@ -229,9 +232,9 @@ Same command, same machine (11 cores), with `fileParallelism: true` +
 `poolOptions.forks.maxForks` bounded (6 locally) and the §7 orphaned-schema
 sweep active. All 38 files / 675 tests still pass.
 
-| Metric                       | Value    | Δ vs baseline      |
-| ------------------------------ | ---------- | -------------------- |
-| Total wall-clock — local     | 261.5s   | **−53s (−17%)**    |
+| Metric                   | Value  | Δ vs baseline   |
+| ------------------------ | ------ | --------------- |
+| Total wall-clock — local | 261.5s | **−53s (−17%)** |
 
 **Bounding forks made it _faster_, not slower.** The baseline let Vitest
 spawn its default (~10–11 forks). Capping at 6 reduced the number of
@@ -248,7 +251,7 @@ suite instead of running a full Drizzle `push` 38 times (the dominant cost
 above).
 
 **Rejected.** Postgres has no first-class "clone schema" primitive, and
-rebuilding Payload's *generated* DDL (enum types, sequences, foreign keys,
+rebuilding Payload's _generated_ DDL (enum types, sequences, foreign keys,
 indexes, the `_v` version tables) by hand per suite is fragile and would
 drift the moment the schema changes — exactly the kind of bespoke
 infrastructure the suite avoids. The realistic, low-risk win — bounded

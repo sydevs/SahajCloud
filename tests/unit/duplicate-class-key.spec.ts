@@ -33,7 +33,10 @@ describe('classKey', () => {
   it('keeps one local date when the UTC instant crosses midnight', () => {
     const sameLocalDay = classKey({
       ...offline('2026-03-02T23:30:00.000Z'),
-      schedule: { firstDate: '2026-03-02T23:30:00.000Z', firstDate_tz: 'Pacific/Auckland' satisfies SupportedTimezones },
+      schedule: {
+        firstDate: '2026-03-02T23:30:00.000Z',
+        firstDate_tz: 'Pacific/Auckland' satisfies SupportedTimezones,
+      },
     })
     expect(sameLocalDay).toContain('2026-03-03')
   })

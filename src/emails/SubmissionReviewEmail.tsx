@@ -76,12 +76,7 @@ export function SubmissionReviewEmail({
         </Section>
       ) : null}
 
-      <BrandButtonRow
-        brand={brand}
-        buttons={[
-          { label: 'Review submission', href: reviewUrl },
-        ]}
-      />
+      <BrandButtonRow brand={brand} buttons={[{ label: 'Review submission', href: reviewUrl }]} />
     </EmailLayout>
   )
 }

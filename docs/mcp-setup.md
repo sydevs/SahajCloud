@@ -6,13 +6,13 @@ MCP topology.
 
 ## Active MCPs
 
-| Server | Transport | URL / Command | Auth | Purpose |
-| --- | --- | --- | --- | --- |
-| `payloadcms-docs` | (built-in) | — | None | Search PayloadCMS 3.0 documentation |
-| `cloudflare-docs` | stdio bridge | `mcp-remote https://docs.mcp.cloudflare.com/mcp` | None | Search Cloudflare R2 / Stream / Images docs |
-| `puppeteer` | stdio | `puppeteer-mcp-server` | None | Run headless-browser checks against the UI |
-| `sentry` | HTTP | `https://mcp.sentry.dev/mcp` | OAuth | Query production error monitoring |
-| `github` | HTTP | `https://api.githubcopilot.com/mcp/` | OAuth | Search GitHub issues, PRs, and code |
+| Server            | Transport    | URL / Command                                    | Auth  | Purpose                                     |
+| ----------------- | ------------ | ------------------------------------------------ | ----- | ------------------------------------------- |
+| `payloadcms-docs` | (built-in)   | —                                                | None  | Search PayloadCMS 3.0 documentation         |
+| `cloudflare-docs` | stdio bridge | `mcp-remote https://docs.mcp.cloudflare.com/mcp` | None  | Search Cloudflare R2 / Stream / Images docs |
+| `puppeteer`       | stdio        | `puppeteer-mcp-server`                           | None  | Run headless-browser checks against the UI  |
+| `sentry`          | HTTP         | `https://mcp.sentry.dev/mcp`                     | OAuth | Query production error monitoring           |
+| `github`          | HTTP         | `https://api.githubcopilot.com/mcp/`             | OAuth | Search GitHub issues, PRs, and code         |
 
 ## Authentication
 
@@ -32,11 +32,11 @@ holds no secrets.
 
 ## When to use which MCP
 
-| Question | Use |
-| --- | --- |
-| How does PayloadCMS X work? | `mcp__payloadcms-docs__*` |
-| How does Cloudflare X work? | `mcp__cloudflare-docs__*` |
-| Did this code path error in production? | `mcp__sentry__*` |
-| What is the state of PR #N? What issues are open? | `mcp__github__*` |
-| Check a UI change in the running app | `mcp__puppeteer__*`, after you start the dev server |
-| Any other research | `WebFetch` / `WebSearch` — already allow-listed for common domains |
+| Question                                          | Use                                                                |
+| ------------------------------------------------- | ------------------------------------------------------------------ |
+| How does PayloadCMS X work?                       | `mcp__payloadcms-docs__*`                                          |
+| How does Cloudflare X work?                       | `mcp__cloudflare-docs__*`                                          |
+| Did this code path error in production?           | `mcp__sentry__*`                                                   |
+| What is the state of PR #N? What issues are open? | `mcp__github__*`                                                   |
+| Check a UI change in the running app              | `mcp__puppeteer__*`, after you start the dev server                |
+| Any other research                                | `WebFetch` / `WebSearch` — already allow-listed for common domains |

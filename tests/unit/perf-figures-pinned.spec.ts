@@ -50,7 +50,13 @@ function unitSpecCount(dir = resolve(ROOT, 'tests/unit')): number {
   )
 }
 
-/** The one capture per figure. A miss throws here rather than asserting vacuously. */
+/**
+ * The one capture per figure. A miss throws here rather than asserting
+ * vacuously. ⚠ Every pattern below tolerates whitespace around a cell's pipes:
+ * prettier owns the markdown now, and it pads a table's columns to its widest
+ * cell, so a pattern written against single-space pipes matches nothing the
+ * formatter has touched.
+ */
 function capture(source: string, label: string, pattern: RegExp): string {
   const match = source.match(pattern)
   if (!match) throw new Error(`tests/PERF.md no longer states ${label} as ${pattern}`)
@@ -60,17 +66,17 @@ function capture(source: string, label: string, pattern: RegExp): string {
 const PERF = read('tests/PERF.md')
 
 const figures = {
-  files: Number(capture(PERF, 'the file count', /\| Files \/ tests \| (\d+) \/ \d+ \|/)),
-  tests: Number(capture(PERF, 'the test count', /\| Files \/ tests \| \d+ \/ (\d+) \|/)),
-  lane: capture(PERF, 'the whole-lane median', /\| Whole lane,[^|]*\| \*\*([\d.]+) s\*\* \|/),
+  files: Number(capture(PERF, 'the file count', /\|\s*Files \/ tests\s*\|\s*(\d+) \/ \d+\s*\|/)),
+  tests: Number(capture(PERF, 'the test count', /\|\s*Files \/ tests\s*\|\s*\d+ \/ (\d+)\s*\|/)),
+  lane: capture(PERF, 'the whole-lane median', /\|\s*Whole lane,[^|]*\|\s*\*\*([\d.]+) s\*\*\s*\|/),
   gateCold: Number(
-    capture(PERF, "the gate's cold figure", /\| Tier 2 lean gate[^|]*\| \*\*(\d+) s\*\* cold/),
+    capture(PERF, "the gate's cold figure", /\|\s*Tier 2 lean gate[^|]*\|\s*\*\*(\d+) s\*\* cold/),
   ),
   slowestEdit: Number(
     capture(
       PERF,
       'the slowest per-edit selection',
-      /\| Slowest per-edit selection[^|]*\| \*\*([\d.]+) s\*\* \|/,
+      /\|\s*Slowest per-edit selection[^|]*\|\s*\*\*([\d.]+) s\*\*\s*\|/,
     ),
   ),
 }
@@ -84,7 +90,7 @@ const CONSUMERS = ['docs/rules/testing-reqs.md', 'tests/AGENTS.md', 'AGENTS.md',
 /** A tier's own row of the three-tier contract, so a target is read from the tier it belongs to. */
 function tierRow(tier: string): string {
   const row = read('docs/rules/testing-reqs.md').match(
-    new RegExp(`\\| \\*\\*${tier}\\*\\* \\|[^\\n]*`),
+    new RegExp(`\\|\\s*\\*\\*${tier}\\*\\*\\s*\\|[^\\n]*`),
   )
   if (!row) throw new Error(`the three-tier contract no longer has a ${tier} row`)
   return row[0]
