@@ -668,7 +668,10 @@ async function scanCollectionForLexicalReferences(
       const docRecord = doc as unknown as Record<string, unknown>
       // The read addresses the field by its whole path as one key, so a
       // localized rich text is marked at the first segment or unreachable.
-      for (const content of localeValues(docRecord[reference.fieldPath], reference.localizedAt.includes(0))) {
+      for (const content of localeValues(
+        docRecord[reference.fieldPath],
+        reference.localizedAt.includes(0),
+      )) {
         // Use generic Lexical traversal to extract all IDs
         const ids = extractIdsFromLexicalContent(content)
         for (const id of ids) {

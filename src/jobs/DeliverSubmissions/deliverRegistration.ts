@@ -11,7 +11,6 @@ import { relationId } from '@/lib/utilities/relationId'
 import type { Event } from '@/payload-types'
 import { asTrustedReq } from '@/plugins/usage/hooks'
 
-
 /**
  * Deliver a registration: the registrant's confirmation, then the manager's
  * notification.
@@ -59,9 +58,8 @@ export async function deliverRegistration({
   }
 
   const registrantName = readSubmissionValue(submission.submissionData, 'name') ?? email
-  const locale = (readSubmissionValue(submission.submissionData, 'locale') ?? null) as
-    | LocaleCode
-    | null
+  const locale = (readSubmissionValue(submission.submissionData, 'locale') ??
+    null) as LocaleCode | null
 
   try {
     await sendRegistrationConfirmation({
@@ -171,7 +169,14 @@ async function loadEmailClient(
     // `depth: 1` so `logo` arrives as an image document rather than an id — the
     // template resolves it to a PNG, and cannot from a bare number.
     depth: 1,
-    select: { color1: true, color2: true, logo: true, name: true, supportEmail: true, websiteUrl: true },
+    select: {
+      color1: true,
+      color2: true,
+      logo: true,
+      name: true,
+      supportEmail: true,
+      websiteUrl: true,
+    },
     overrideAccess: true,
     disableErrors: true,
     req,

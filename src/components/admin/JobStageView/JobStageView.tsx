@@ -73,8 +73,8 @@ export default function JobStageView(props: DocumentViewServerProps) {
       return (
         <Gutter>
           <Banner icon={<Spinner loadingText={null} size="sm" />} type="info">
-            {toWords(wait.stage)} — this is being prepared automatically, and opens for
-            editing when that finishes.{countSentence(wait)}
+            {toWords(wait.stage)} — this is being prepared automatically, and opens for editing when
+            that finishes.{countSentence(wait)}
           </Banner>
           <CheckAgain />
         </Gutter>

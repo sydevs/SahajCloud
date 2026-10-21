@@ -487,7 +487,6 @@ describe('manager invitation', () => {
 
       expectRefused(await open(token), 'invalid')
     })
-
   })
 
   describe('asking for a link', () => {

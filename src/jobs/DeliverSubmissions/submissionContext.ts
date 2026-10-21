@@ -13,10 +13,7 @@ const UNKNOWN_CLIENT = 'Unknown service'
  * single narrow query — and so a deleted client degrades to a label instead of
  * throwing in a job nobody is watching.
  */
-export async function clientNameFor(
-  req: PayloadRequest,
-  clientId: number | null,
-): Promise<string> {
+export async function clientNameFor(req: PayloadRequest, clientId: number | null): Promise<string> {
   if (clientId == null) return UNKNOWN_CLIENT
 
   const client = await req.payload.findByID({
@@ -51,9 +48,7 @@ export async function clientNameFor(
  * never turn them into anchors. That constraint is stated at the exemption and
  * repeated here because this is where the values meet a renderer.
  */
-export function contextFromSubmissionData(
-  entries: unknown,
-): UserMessageContext | undefined {
+export function contextFromSubmissionData(entries: unknown): UserMessageContext | undefined {
   const context = {
     locale: readSubmissionValue(entries, 'locale'),
     path: readSubmissionValue(entries, 'path'),

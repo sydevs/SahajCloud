@@ -1,4 +1,3 @@
-
 import translationsSchema from '@/globals/WeMeditateAppTranslations/translationsSchema.json' with { type: 'json' }
 import { getLocaleLabel, isValidLocale } from '@/lib/locales'
 import { type GroupSpec, type SectionSpec } from '@/lib/status'

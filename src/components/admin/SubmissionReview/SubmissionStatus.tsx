@@ -101,7 +101,9 @@ const BANNER_TYPE: Record<Severity, 'default' | 'error' | 'success'> = {
  */
 function notesOf(result: SubmissionScreeningResult | null | undefined): string[] {
   const notes = result?.notes
-  return Array.isArray(notes) ? notes.filter((note): note is string => typeof note === 'string') : []
+  return Array.isArray(notes)
+    ? notes.filter((note): note is string => typeof note === 'string')
+    : []
 }
 
 /**
@@ -124,7 +126,9 @@ export const SubmissionStatus: FieldClientComponent = ({ field }) => {
   const { id } = useDocumentInfo()
   const status = useFormFields(([fields]) => fields?.status?.value as SubmissionStatus | undefined)
   const hasManager = useFormFields(([fields]) => Boolean(fields?.manager?.value))
-  const type = useFormFields(([fields]) => fields?.type?.value as UserSubmission['type'] | undefined)
+  const type = useFormFields(
+    ([fields]) => fields?.type?.value as UserSubmission['type'] | undefined,
+  )
   const { value } = useField<SubmissionScreeningResult | null>()
 
   // One table, four intakes. The banner speaks the review path's language, so
@@ -134,15 +138,13 @@ export const SubmissionStatus: FieldClientComponent = ({ field }) => {
   const { severity } = COPY[status]
   const title = STATUS_LABELS[status]
   const Icon = ICONS[severity]
-  const message =
-    status === 'accepted' && hasManager ? CREATED_WITH_MANAGER : COPY[status].message
+  const message = status === 'accepted' && hasManager ? CREATED_WITH_MANAGER : COPY[status].message
   // Screening's notes tell the reviewer what to settle *before* deciding
   // ("check the Region below looks right"). Once the decision is made they are
   // spent advice about a field the page no longer even shows — an accepted
   // submission hides Region, because the event owns it now. Spam is the
   // exception: its note is the reason, which is the whole point of the banner.
-  const notes =
-    OPEN_REVIEW_STATUSES.includes(status) || status === 'spam' ? notesOf(value) : []
+  const notes = OPEN_REVIEW_STATUSES.includes(status) || status === 'spam' ? notesOf(value) : []
 
   return (
     <div className="field-type json read-only">

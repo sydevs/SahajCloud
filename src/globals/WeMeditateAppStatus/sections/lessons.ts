@@ -55,7 +55,8 @@ const UNIT_GROUPS: ReadonlyArray<{
     key: 'unit-4',
     unit: 'Unit 4',
     label: 'Unit 4',
-    description: 'All lessons in Unit 4 are fully configured for this locale (optional for launch).',
+    description:
+      'All lessons in Unit 4 are fully configured for this locale (optional for launch).',
     optional: true,
   },
 ]
@@ -87,16 +88,14 @@ function buildUnitDocs(lessons: Lesson[], unit: string, labels: Ctx['labels']): 
     }))
 }
 
-const unitGroupSpecs: GroupSpec<Ctx, WeMeditateAppStatusConfig>[] = UNIT_GROUPS.map(
-  (u) => ({
-    key: u.key,
-    label: u.label,
-    description: u.description,
-    optional: u.optional,
-    type: 'documents',
-    evaluate: async ({ lessons, labels }) => buildUnitDocs(lessons, u.unit, labels),
-  }),
-)
+const unitGroupSpecs: GroupSpec<Ctx, WeMeditateAppStatusConfig>[] = UNIT_GROUPS.map((u) => ({
+  key: u.key,
+  label: u.label,
+  description: u.description,
+  optional: u.optional,
+  type: 'documents',
+  evaluate: async ({ lessons, labels }) => buildUnitDocs(lessons, u.unit, labels),
+}))
 
 export const lessonsSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
   key: 'lessons',

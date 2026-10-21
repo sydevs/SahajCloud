@@ -7,7 +7,6 @@ import useSWR from 'swr'
 import { originOf } from '@/lib/utilities/url'
 import type { Frame } from '@/payload-types'
 
-
 import { getCachedPlaybackTime, subscribePlaybackTime } from './playbackTimeStore'
 import { framesByNarratorKey } from './utils'
 
@@ -94,15 +93,11 @@ export const useAvailableFrames = (
 } => {
   const { code } = useLocale()
 
-  const { data, error, isLoading } = useSWR(
-    framesByNarratorKey(narratorId, code),
-    frameFetcher,
-    {
-      revalidateOnFocus: false, // Don't refetch when window regains focus
-      revalidateOnReconnect: false, // Don't refetch on network reconnect
-      dedupingInterval: 300000, // 5 minutes - deduplication window
-    },
-  )
+  const { data, error, isLoading } = useSWR(framesByNarratorKey(narratorId, code), frameFetcher, {
+    revalidateOnFocus: false, // Don't refetch when window regains focus
+    revalidateOnReconnect: false, // Don't refetch on network reconnect
+    dedupingInterval: 300000, // 5 minutes - deduplication window
+  })
 
   return {
     frames: data?.docs || [],

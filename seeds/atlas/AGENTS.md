@@ -20,9 +20,9 @@ for stable Atlas identity and routing.
   collapse them to empty — so new regions auto-generate readable slugs.
 - **`generateSlug` defaults OFF for regions.** Not for the non-Latin
   reason anymore (transliteration handles that), but because the importer
-  assigns *disambiguated* slugs for names that repeat across the tree
+  assigns _disambiguated_ slugs for names that repeat across the tree
   (Georgia the country vs. the US state → `georgia` / `georgia-united-
-  states`). An on-by-default checkbox would rewrite them back to the bare,
+states`). An on-by-default checkbox would rewrite them back to the bare,
   colliding `slugify(name)` on any save, including the nested-docs
   breadcrumb cascade. New regions still auto-slug (the create hook fills
   from `name`). The column-default off also keeps the prod backfill
@@ -59,15 +59,15 @@ unchanged). Only rows a manager edited upstream, plus brand-new rows, need
 a fresh grooming pass. That is how the 2026-08 refresh ran: ~170 events
 ported automatically, ~330 groomed by hand.
 
-| What | Scope |
-| --- | --- |
-| `website` | 56 events — the "learn more" link (#584, extended by both grooming passes) |
-| `contactEmail` | 31 events — no Atlas column at all |
-| Groomed `customName` / `description` / `room` | ~490 events across both passes (below) |
-| Derived `schedule.weekday` | reproducible — `parseSchedule` emits it for rows with no `on` key |
-| **Curated** `schedule.weekday` | 7 events (#102, #455, #517, #520, #527, #629, #2291) whose own title/description names a different day. The mismatch is against Atlas's stale `on` value or a misleading `start_date` derivation. Title and start date agree in each case |
-| Contact name/phone fixes | swapped `contactInfo` pairs (#1990, #5189 in this pass) |
-| URL-field fixes | scheme-less (#1724 `vk.com`), leading whitespace (#1823), an email in a URL field (#2846, the #352 class) |
+| What                                          | Scope                                                                                                                                                                                                                                     |
+| --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `website`                                     | 56 events — the "learn more" link (#584, extended by both grooming passes)                                                                                                                                                                |
+| `contactEmail`                                | 31 events — no Atlas column at all                                                                                                                                                                                                        |
+| Groomed `customName` / `description` / `room` | ~490 events across both passes (below)                                                                                                                                                                                                    |
+| Derived `schedule.weekday`                    | reproducible — `parseSchedule` emits it for rows with no `on` key                                                                                                                                                                         |
+| **Curated** `schedule.weekday`                | 7 events (#102, #455, #517, #520, #527, #629, #2291) whose own title/description names a different day. The mismatch is against Atlas's stale `on` value or a misleading `start_date` derivation. Title and start date agree in each case |
+| Contact name/phone fixes                      | swapped `contactInfo` pairs (#1990, #5189 in this pass)                                                                                                                                                                                   |
+| URL-field fixes                               | scheme-less (#1724 `vk.com`), leading whitespace (#1823), an email in a URL field (#2846, the #352 class)                                                                                                                                 |
 
 ### `contactInfo` carries more than the importer reads
 
@@ -75,7 +75,7 @@ Atlas's `contact_info` jsonb has six keys — `phone_name`, `phone_number`,
 `email_name`, `email_address`, `meetup`, `facebook` — but `AtlasEvent` and
 the importer only read the phone pair. The other four carry a value on
 **13 events** (18 have the keys, 5 with all four blank), almost all
-`category: inactive` ones where a contact *is* the whole offer — easy to
+`category: inactive` ones where a contact _is_ the whole offer — easy to
 discard by accident, which happened once during the grooming pass, and is
 now guarded by a unit assertion.
 
@@ -155,9 +155,9 @@ monthly meet-ups are stored as `daily`).
   importer cannot resolve a region for it.
 - #965's `onlineUrl` is the bare `https://zoom.com` — not a join link. The
   real information lives on its `website`.
-- Two Atlas *areas* are actually street addresses masquerading as geo
+- Two Atlas _areas_ are actually street addresses masquerading as geo
   nodes — `Rue de Nimy 46` (Mons) and `Rue du Petit Bruxelles 94 Quenast
-  (Rebecq)` — surfacing as oddly-named region entries.
+(Rebecq)` — surfacing as oddly-named region entries.
 - Venue-side typos in [data/venues.json](data/venues.json): city
   `Bichinno do Mato` (#586/#587), `Феодосия Росиия` jammed into #1465's
   city, the junk street `Rua A` (#2719) and `-` (#4106), and #448's street
@@ -184,7 +184,7 @@ shared venues** as of the 2026-08 dump.
 
 The refresh added seven venue-merge pairs, each hand-verified: a fourth
 row for the Amsterdam Manenburgstraat building (3116 → 11), the Mons
-P'tite Maison Folie (4337 → 4336), *three* rows for the Frankfurt
+P'tite Maison Folie (4337 → 4336), _three_ rows for the Frankfurt
 stadtRAUM concert hall at 293 Mainzer Landstraße (5062/5293 → 5194), two
 rows for the Frankfurt Burgstraße 72 centre (5095/5096 → 492, three
 different managers list there), a second Nottingham Central Library row
@@ -203,7 +203,7 @@ slogan (now `Málnárium`), 5755's city was lowercase `sydney`.
 Ten pairs were added, each verified by hand. Coordinates alone are not
 evidence **in either direction**: two Civitavecchia venues sit 177 m apart
 but are different places, while Athens 386/432 are 230 m apart yet share a
-name, street, city *and* postcode. Two candidates were rejected outright
+name, street, city _and_ postcode. Two candidates were rejected outright
 after confirming — Móstoles 155/158 (404 km apart, different venue names.
 one row's `street` is simply wrong) and Воронеж/Тольятти 483/511 (700 km
 apart).
@@ -211,8 +211,8 @@ apart).
 - **The kept side is whichever carries better data**, not the lower id:
   191 → 215 because 215 is named `Wensum Sports Centre`, which event
   #315's own description names. 50 → 514 because 50's postcode `1017ZP`
-  is *Amsterdam's* on a Den Haag venue.
-- **`VENUE_FIELD_OVERRIDES`** fixes a field where the *removed* row held
+  is _Amsterdam's_ on a Den Haag venue.
+- **`VENUE_FIELD_OVERRIDES`** fixes a field where the _removed_ row held
   the better value (venue 514 keeps its correct postcode but takes 50's
   real name, `Atelier`). Kept in code so a re-extraction reproduces it.
 - **Targets must be terminal.** `dedupeAtlasData` applies the map in one
@@ -222,7 +222,7 @@ apart).
   `tests/unit/atlas-dedupe.spec.ts` asserts no chains, no
   self-references, and no override on a deleted venue.
 - Venues 11 and 104 were **both** shared venues 1 m apart, so the import
-  used to create *two* nodes for one Amsterdam building.
+  used to create _two_ nodes for one Amsterdam building.
 
 Three postcode conflicts could not be resolved from the data and stand as
 they are — Eindhoven `5641EC` vs `5641PC`, Tampere `33541` vs `33540`,
@@ -252,31 +252,31 @@ non-overlapping date ranges at the same venue and slot. The open-ended or
 latest term survives. Anything the removed rows held that it lacked was
 carried over first (#4662 gained #1988's contact number and room).
 
-| Removed (2026-08) | Survivor | Why |
-| --- | --- | --- |
-| #4365 #4366 | #4364 | Melbourne Ross House entered three times, identical rows |
-| #5849 | #5684 | "Klanken van India" Amsterdam concert entered twice |
-| #4299 | #4298 | one bilingual Mons session listed twice, FR and NL (`languageCodes: ['FR','NL']`) |
-| #2951 | #3440 | Mittagong re-entered two months later, same manager/address/slot |
-| #1988 | #4662 | Nottingham Central Library under two venue rows, same manager/slot |
-| #1328 | #2945 | Reading: Feb–Apr 2025 term superseded by the open-ended re-listing |
-| #3078 #4331 | #4332 | Milton Parc fall/winter terms superseded by the latest |
+| Removed (2026-08) | Survivor | Why                                                                               |
+| ----------------- | -------- | --------------------------------------------------------------------------------- |
+| #4365 #4366       | #4364    | Melbourne Ross House entered three times, identical rows                          |
+| #5849             | #5684    | "Klanken van India" Amsterdam concert entered twice                               |
+| #4299             | #4298    | one bilingual Mons session listed twice, FR and NL (`languageCodes: ['FR','NL']`) |
+| #2951             | #3440    | Mittagong re-entered two months later, same manager/address/slot                  |
+| #1988             | #4662    | Nottingham Central Library under two venue rows, same manager/slot                |
+| #1328             | #2945    | Reading: Feb–Apr 2025 term superseded by the open-ended re-listing                |
+| #3078 #4331       | #4332    | Milton Parc fall/winter terms superseded by the latest                            |
 
 Of the #605 exclusions, five rows (#575, #458, #461, #468, #469) have
 since been deleted in Atlas itself — their entries stay as harmless
 no-ops. The #605 survivors #570/#571 were also deleted upstream, so the
 Swiss set is gone entirely.
 
-| Removed | Survivor | Why |
-| --- | --- | --- |
-| #195 | #603 | same Zoom room (`zoom.us/j/827783773`) + slot, same manager, same region |
-| #752 | #753 | one bilingual Ixelles session listed twice, EN and FR |
-| #360 | #684 | Helsinki EN — #360 was `finished` |
-| #392 | #698 | Helsinki FI — #392 was `finished` |
+| Removed                  | Survivor                 | Why                                                                                                                              |
+| ------------------------ | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| #195                     | #603                     | same Zoom room (`zoom.us/j/827783773`) + slot, same manager, same region                                                         |
+| #752                     | #753                     | one bilingual Ixelles session listed twice, EN and FR                                                                            |
+| #360                     | #684                     | Helsinki EN — #360 was `finished`                                                                                                |
+| #392                     | #698                     | Helsinki FI — #392 was `finished`                                                                                                |
 | #458 #461 #464 #468 #469 | #560 #565 #562 #570 #571 | the Swiss set. One manager's `course` rows retired and re-entered as `dropin`, at the same venue/weekday/time/language each time |
-| #82 + #496 | — | duplicates of each other, **both** already retired |
-| #497 + #534 | — | duplicates of each other, **both** already retired |
-| #355 + #535 | — | Amstelveen NL/EN pair, **both** already retired |
+| #82 + #496               | —                        | duplicates of each other, **both** already retired                                                                               |
+| #497 + #534              | —                        | duplicates of each other, **both** already retired                                                                               |
+| #355 + #535              | —                        | Amstelveen NL/EN pair, **both** already retired                                                                                  |
 
 **A merge is not a delete.** Anything the removed row held that the
 survivor lacked was carried over first: #684 gained #360's `website` (the
@@ -334,7 +334,7 @@ DE/EN). Every other row leaves it unset.
   `endTime`, #156/#524 in `room`). Needs both people to agree first.
 - **#400/#404 (Brasília), #435/#437 (Rio)** — these look co-located only
   because a venue record's coordinates disagree with its own stated
-  address. A *venue* data bug, not duplicate events.
+  address. A _venue_ data bug, not duplicate events.
 - **2026-08 additions to the different-managers list**: #748/#759 (Mol —
   the same Thursday course re-listed for the new season under a second
   manager account, same contact person on both), #3242/#5618 (Gent — a
@@ -353,7 +353,7 @@ been deleted in Atlas itself.)
 
 **Skipping can't undo an earlier import.** Any environment seeded before
 these guards still holds the rows — the test records (#575's Atlas
-`published` was `true`, so it landed as a *published* listing) and every
+`published` was `true`, so it landed as a _published_ listing) and every
 merged duplicate. The importer emits a warning naming the existing
 document id (`events/<id>`) for every excluded row on every run, and —
 since the 2026-08 refresh — a warning for every imported event whose
@@ -361,9 +361,9 @@ since the 2026-08 refresh — a warning for every imported event whose
 (`reportUpstreamDeletedEvents`), which is how the 64 events deleted in
 Atlas between the two dumps surface for hand-trashing. The same report
 exists for regions (`reportUpstreamDeletedRegions`), and there it is
-**load-bearing**: Atlas *renumbers* geo nodes (Paris moved from area 438
+**load-bearing**: Atlas _renumbers_ geo nodes (Paris moved from area 438
 to 1208 between dumps), and because `slug` and `mapboxId` are unique, a
-stale doc under the old id *blocks the renumbered node's create* — a
+stale doc under the old id _blocks the renumbered node's create_ — a
 region upsert failing with "The following field is invalid:
 Slug"/"mapboxId" means exactly this. Trash the reported docs in the admin
 panel, then re-run the import. Check prod.
@@ -372,7 +372,7 @@ panel, then re-run the import. Check prod.
 
 `customName` maps to the Events `title`, and an empty title is auto-filled
 by `eventTitleBeforeChange` with a template — `"<time of day> Meditation
-at <place>"`. So a blank title is *preferred* over a hand-written generic
+at <place>"`. So a blank title is _preferred_ over a hand-written generic
 one: it can be improved for every event at once by editing one string,
 where 60 copies of "Free Meditation Classes in <Place>" cannot, and the
 Atlas widget translates the result client-side.
@@ -397,27 +397,27 @@ The rule the grooming pass settled on:
   which the listing already renders from `address`/`schedule`.
 - **Blank it** when the title says nothing but "meditation" in some
   language — `Méditation`, `Taller de meditación`, `Corso di
-  Meditazione`, `Meditatie Cursus`, `Viikoittainen meditaatio`,
+Meditazione`, `Meditatie Cursus`, `Viikoittainen meditaatio`,
   `Медитация`. 78 titles went this way. The same string was often
   repeated verbatim across a dozen cities, so it never distinguished
   anything. A title earns its place by naming something the auto-fill
-  *can't*: a venue, an audience (`Kids' Meditations`, `Aula de
-  Aprofundamento`), a language (`Viikoittainen meditaatio suomeksi`,
+  _can't_: a venue, an audience (`Kids' Meditations`, `Aula de
+Aprofundamento`), a language (`Viikoittainen meditaatio suomeksi`,
   `Meditationskurs auf Deutsch`), a format (`Music and Meditation`, `Live
-  Online WhatsApp Video Meditation`) or a named event (`Corso Leopold`,
+Online WhatsApp Video Meditation`) or a named event (`Corso Leopold`,
   `Puja a Shri Ganesha`). `tests/unit/atlas-events-data.spec.ts` enforces
   this with a regex over the bare "meditation/class/course" shapes.
 - **Keep it** when it names the **venue**: a library, institute,
   university, or community centre. Ten titles were kept on that basis
   (#122, #131, #136, #142, #204, #223, #499, #528, #611, #626) — an
   earlier pass standardised them away and they were restored — when the
-  auto-fill had only the *street*. It now names the venue itself:
+  auto-fill had only the _street_. It now names the venue itself:
   `addressPlaceName` (`src/lib/eventTitle/compose.ts`) prefers
   `address.venueName`, which `venueToEventAddress` sets from the Atlas
   venue name unless that only repeats the street or city, and falls back
   to the street. Most of the ten now restate their venue's name (#142
   `Regina Public Library, Glen Elm branch` against the venue's `Regina
-  Public Library - Glen Elm Branch`), so re-check the rule against that.
+Public Library - Glen Elm Branch`), so re-check the rule against that.
 - **Keep it** when the street is a poor stand-in for the place — #293
   (`Zentrum`), #294 (`Innenstadt`) would auto-fill to "Meditation at city
   centre," and #371's street is the unusable `B26`.
@@ -482,7 +482,7 @@ level — which is why the new keys are a `title` group rather than a bare
 
 `payload.config.ts` sets `admin.timezones.supportedTimezones =
 SUPPORTED_TIMEZONES` (581 zones, the full IANA set from the pinned
-`@vvo/tzdb`) *because* the Atlas data uses zones beyond Payload's curated
+`@vvo/tzdb`) _because_ the Atlas data uses zones beyond Payload's curated
 default — over half the events sit on one (`Europe/Prague`,
 `Europe/Vienna`, `Asia/Novosibirsk`, …).
 
@@ -506,7 +506,7 @@ ticket rather than a drive-by.
 
 `importEvent` maps every optional field to `null` when the source has no
 value. This is load-bearing for `--update` reseeds: Payload omits
-`undefined` keys from an update, so a value that *disappears* from
+`undefined` keys from an update, so a value that _disappears_ from
 events.json would otherwise survive in the database forever. The grooming
 pass cleared 36 descriptions, and the first reseed silently kept all 36
 stale until this changed. If you add an optional field to the mapping,

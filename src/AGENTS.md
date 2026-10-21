@@ -6,18 +6,18 @@ split into `plugins/`, `jobs/`, and shared utilities).
 
 ## `src/` layout
 
-| Directory          | Holds                                                                       |
-| ------------------ | ---------------------------------------------------------------------------- |
-| `src/plugins/`     | Modules registered in `payload.config.ts` (`plugins`, `email`, `db`)         |
-| `src/collections/` | One folder per collection — schema + colocated hooks, endpoints, helpers    |
-| `src/endpoints/`   | Root-level endpoints only — resources no collection owns (see below)        |
-| `src/globals/`     | One folder per global — same colocation shape as collections                |
-| `src/jobs/`        | One folder per scheduled job. `index.ts` exports only the task definitions  |
-| `src/lib/`         | Cross-cutting shared code (not a plugin, not owned by one collection/job)   |
-| `src/fields/`      | Reusable field factories (`camelCase`)                                      |
-| `src/components/`  | Admin-panel React components (`PascalCase`)                                 |
+| Directory          | Holds                                                                                                                                                               |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/plugins/`     | Modules registered in `payload.config.ts` (`plugins`, `email`, `db`)                                                                                                |
+| `src/collections/` | One folder per collection — schema + colocated hooks, endpoints, helpers                                                                                            |
+| `src/endpoints/`   | Root-level endpoints only — resources no collection owns (see below)                                                                                                |
+| `src/globals/`     | One folder per global — same colocation shape as collections                                                                                                        |
+| `src/jobs/`        | One folder per scheduled job. `index.ts` exports only the task definitions                                                                                          |
+| `src/lib/`         | Cross-cutting shared code (not a plugin, not owned by one collection/job)                                                                                           |
+| `src/fields/`      | Reusable field factories (`camelCase`)                                                                                                                              |
+| `src/components/`  | Admin-panel React components (`PascalCase`)                                                                                                                         |
 | `src/app/`         | Next.js routes (admin, REST API, frontend, webhooks). Shared UI for one route group goes in a `_components/` folder there — `_`-prefixed, so Next does not route it |
-| `src/migrations/`  | Payload schema migrations (see `src/migrations/AGENTS.md`)                  |
+| `src/migrations/`  | Payload schema migrations (see `src/migrations/AGENTS.md`)                                                                                                          |
 
 ### `src/plugins/`
 
@@ -64,7 +64,7 @@ raw GitHub URL (same shape as `Events/endpoints/responseTypes.ts`).
 
 **The layout mirrors the URL**: a single-file endpoint is
 `src/endpoints/<name>.ts`. One with supporting modules is a folder whose
-path *is* the URL path, handler in `index.ts` (`src/endpoints/atlas/seo/` →
+path _is_ the URL path, handler in `index.ts` (`src/endpoints/atlas/seo/` →
 `GET /api/atlas/seo`, #645. `src/endpoints/atlas/sitemap/` → `GET
 /api/atlas/sitemap`, #650). #632 turned another into a collection once its
 resource needed storing — the intake `user-submissions` now carries. Those supporting modules are
@@ -174,7 +174,7 @@ client bundles, hurts tree-shaking, and invites import cycles.
 **That barrel hazard is not hypothetical, and CI cannot see it.** GitHub
 Actions does not build this app — Railway does — so a client component that
 reaches server-only code type-checks, passes every test, then fails the
-*deploy* with `Module not found: Can't resolve 'dns'`. It happened in #633:
+_deploy_ with `Module not found: Can't resolve 'dns'`. It happened in #633:
 the canonical picker imported `@/lib/clients/canonical`, which imported the
 `@/plugins/usage` barrel, which re-exports the pg-pool seam, which pulls
 `pg` into the browser bundle. The fix was a deep import
@@ -265,11 +265,11 @@ template from there.
 **Counting consumers has three traps**, each of which gave a wrong answer
 while this was written, so let the test do it rather than grepping:
 
-| Trap | Example |
-| --- | --- |
-| Barrel re-exports | `recipients.ts` looked single-consumer by direct import. It has three, two via `lib/notifications/index.ts` |
+| Trap                     | Example                                                                                                                   |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| Barrel re-exports        | `recipients.ts` looked single-consumer by direct import. It has three, two via `lib/notifications/index.ts`               |
 | Sibling relative imports | `browserRendering.ts` is imported as `./browserRendering` by `verifyEmbed.ts` next door — invisible to a `@/lib/…` search |
-| `scripts/` | The email preview scripts import senders directly |
+| `scripts/`               | The email preview scripts import senders directly                                                                         |
 
 Two exemptions are built in:
 

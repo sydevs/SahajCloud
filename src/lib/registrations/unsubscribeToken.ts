@@ -36,8 +36,7 @@ export interface UnsubscribeTokenClaims {
  * There is no `expired` state: these tokens never expire (see the module note).
  */
 export type UnsubscribeTokenResult =
-  | { status: 'valid'; claims: UnsubscribeTokenClaims }
-  | { status: 'invalid' }
+  { status: 'valid'; claims: UnsubscribeTokenClaims } | { status: 'invalid' }
 
 /** Sign an unsubscribe-link token for a registration. */
 export function signUnsubscribeToken(

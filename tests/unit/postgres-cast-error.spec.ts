@@ -62,7 +62,10 @@ describe('findPostgresError', () => {
 
   it('returns null for an error carrying no driver code at any depth', () => {
     expect(
-      findPostgresError(drizzleWrapped(new Error('connection terminated')), INVALID_TEXT_REPRESENTATION),
+      findPostgresError(
+        drizzleWrapped(new Error('connection terminated')),
+        INVALID_TEXT_REPRESENTATION,
+      ),
     ).toBeNull()
   })
 
