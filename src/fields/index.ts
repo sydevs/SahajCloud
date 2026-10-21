@@ -34,9 +34,10 @@ export type { ColorFieldOptions } from './colorField'
 export { slugField } from './slugField'
 export type { SlugFieldOptions } from './slugField'
 
-// Translations field - builds tabs from nested JSON schema for translations
-export { buildTranslationTabs } from './translationsField'
-export type { SchemaEntry, TranslationsSchema } from './translationsField'
+// translationsField is deliberately NOT re-exported here, for the reason
+// jsonField is not: it imports the lexical editor, so the barrel would drag
+// that graph into every light module taking a field from it. Use the deep path
+// `@/fields/translationsField`, as all its call sites do.
 
 // Available locales - the language set a web project offers, gated on published
 // translations for each one
