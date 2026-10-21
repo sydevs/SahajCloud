@@ -25,6 +25,10 @@ const EMAIL_FIELD = { blockType: 'email', name: 'email', label: 'Email' }
 const MESSAGE_FIELD = { blockType: 'textarea', name: 'message', label: 'Message' }
 const STATIC_MESSAGE = { blockType: 'message' }
 
+/** The `placeholder` on a form's one `select` block, whatever its position. */
+const selectPlaceholder = (form: Form): string | null | undefined =>
+  form.fields?.find((field) => field.blockType === 'select')?.placeholder
+
 /**
  * A `ValidationError`'s own message is composed from field paths ("The
  * following field is invalid: fields"), and the sentence a form author reads
@@ -292,6 +296,82 @@ describe('Forms action types', () => {
       expect(fields.some((field) => 'name' in field && field.name === 'emails')).toBe(false)
       // Contrast, so this cannot pass on an empty field list.
       expect(fields.some((field) => 'name' in field && field.name === 'actionType')).toBe(true)
+    })
+  })
+
+  /**
+   * All three ship unlocalized from the plugin, so `formFields` maps them
+   * (#981).
+   *
+   * Functional, not config-level: Payload strips `localized` from a booted
+   * config, so reading the flag back would pass either way (`tests/AGENTS.md`).
+   */
+  describe('per-language authored copy', () => {
+    const SELECT_FIELD = {
+      blockType: 'select',
+      name: 'country',
+      label: 'Country',
+      placeholder: 'Choose one',
+    }
+
+    // One form, edited once in French, then read back at both locales. Three
+    // cases rather than three assertions, so a field that stopped being
+    // localized names itself instead of hiding behind the first failure.
+    let en: Form
+    let fr: Form
+
+    beforeAll(async () => {
+      const form = await createForm({
+        title: 'English title',
+        redirect: { url: '/en/thanks' },
+        fields: [EMAIL_FIELD, MESSAGE_FIELD, SELECT_FIELD],
+      })
+
+      // The block rows carry their ids back, so the French write updates the
+      // same rows rather than replacing the list.
+      const frFields = (form.fields ?? []).map((field) =>
+        field.blockType === 'select' ? { ...field, placeholder: 'Choisissez' } : field,
+      )
+
+      await payload.update({
+        collection: 'forms',
+        id: form.id,
+        locale: 'fr',
+        data: {
+          title: 'Titre francais',
+          redirect: { url: '/fr/merci' },
+          fields: frFields,
+        } as never,
+        overrideAccess: true,
+      })
+
+      en = (await payload.findByID({
+        collection: 'forms',
+        id: form.id,
+        locale: 'en',
+        fallbackLocale: false,
+      })) as Form
+      fr = (await payload.findByID({
+        collection: 'forms',
+        id: form.id,
+        locale: 'fr',
+        fallbackLocale: false,
+      })) as Form
+    })
+
+    it('stores `title` per locale', () => {
+      expect(en.title).toBe('English title')
+      expect(fr.title).toBe('Titre francais')
+    })
+
+    it('stores `redirect.url` per locale', () => {
+      expect(en.redirect?.url).toBe('/en/thanks')
+      expect(fr.redirect?.url).toBe('/fr/merci')
+    })
+
+    it("stores the select block's `placeholder` per locale", () => {
+      expect(selectPlaceholder(en)).toBe('Choose one')
+      expect(selectPlaceholder(fr)).toBe('Choisissez')
     })
   })
 })

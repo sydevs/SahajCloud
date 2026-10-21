@@ -56,6 +56,7 @@ export const Videos: CollectionConfig = {
       name: 'subtitles',
       schemaTitle: 'Subtitles',
       schema: subtitlesSchema,
+      localized: true,
       admin: {
         description: 'Subtitle cues: [{ startTimeMs, endTimeMs, durationMs?, content }]',
       },

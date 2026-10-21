@@ -1,4 +1,4 @@
-import type { Field } from 'payload'
+import type { Field, TextField } from 'payload'
 
 import { CONTACT_EMAIL } from '@/lib/contact'
 import { managersOnlyFieldAccess } from '@/plugins/access'
@@ -6,7 +6,7 @@ import { managersOnlyFieldAccess } from '@/plugins/access'
 /**
  * The `forms` field list, as `formOverrides.fields` hands it to us.
  *
- * Two jobs:
+ * Three jobs:
  *
  * 1. **Strip `emails`.** The plugin's own `sendEmail` afterChange hook fires on
  *    create, before anything screens the submission, and sends through the raw
@@ -22,13 +22,83 @@ import { managersOnlyFieldAccess } from '@/plugins/access'
  * 2. **Add `actionType`** and the two fields conditional on it, so a form
  *    declares what a submission against it *is* rather than leaving that to
  *    whichever client happens to post it.
+ * 3. **Localize the three plugin defaults that hold per-language text.**
  */
 export function formFields({ defaultFields }: { defaultFields: Field[] }): Field[] {
   const withoutEmails = defaultFields.filter(
     (field) => !('name' in field && field.name === 'emails'),
   )
 
-  return [...withoutEmails, actionTypeField, recipientField, clientField]
+  return [
+    ...withoutEmails.map(localizePerLanguage),
+    actionTypeField,
+    recipientField,
+    clientField,
+  ]
+}
+
+/**
+ * Three plugin defaults store one value for all 19 locales, so an admin
+ * editing one in French replaced the English everyone else reads (#981).
+ *
+ * Done here rather than through the plugin's `fields: { select: … }` option,
+ * which merges arrays by source — so reaching `placeholder` through it means
+ * re-supplying the block's whole field list, label thunks included.
+ *
+ * ⚠ **`required` comes off with the flag.** `title` and `redirect.url` ship
+ * `required: true`, and Payload validates a required localized field against
+ * that locale's own value — the English fallback does not satisfy it — so a
+ * save in any second locale would be refused unless the editor retyped both.
+ * #977 settled the same question for `lessons.title`
+ * (`src/collections/Lessons/AGENTS.md`). `tests/int/atlas-report-issue-form.int.spec.ts`
+ * is what goes red if `required` comes back: it saves German labels and
+ * carries neither value.
+ *
+ * ⚠ **Copies, never mutates.** `generateFormCollection` puts the plugin's own
+ * module-level block objects straight into `blocks`, and both the production
+ * config and the test harness build from them.
+ *
+ * ⚠ A plugin release that renamed one, or moved it into a `tabs` field, would
+ * leave this a silent no-op; `tests/int/forms-action-type.int.spec.ts` pins
+ * each one by writing French and reading English back.
+ */
+function localizePerLanguage(field: Field): Field {
+  if (!('name' in field)) return field
+
+  if (field.name === 'title' && field.type === 'text') return perLanguage(field)
+
+  if (field.name === 'redirect' && field.type === 'group') {
+    return { ...field, fields: localizeNamedText(field.fields, 'url') }
+  }
+
+  if (field.name === 'fields' && field.type === 'blocks') {
+    return {
+      ...field,
+      blocks: field.blocks.map((block) =>
+        block.slug === 'select'
+          ? { ...block, fields: localizeNamedText(block.fields, 'placeholder') }
+          : block,
+      ),
+    }
+  }
+
+  return field
+}
+
+/** Per language, and so no longer required — see `localizePerLanguage`. */
+function perLanguage(field: TextField): TextField {
+  return { ...field, localized: true, required: false }
+}
+
+/** Descends into wrapper fields, because `placeholder` sits inside a `row`. */
+function localizeNamedText(fields: Field[], name: string): Field[] {
+  return fields.map((field) => {
+    if ('name' in field) {
+      return field.name === name && field.type === 'text' ? perLanguage(field) : field
+    }
+
+    return 'fields' in field ? { ...field, fields: localizeNamedText(field.fields, name) } : field
+  })
 }
 
 /**

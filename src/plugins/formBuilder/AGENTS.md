@@ -10,7 +10,7 @@ the one intake for every public write, typed by a `type` discriminator
 (`contact` / `subscribe` / `registration` / `proposal`). See
 `src/collections/UserSubmissions/`.
 
-Four things the wrapper does that the plugin options cannot:
+Five things this repo does that the plugin options cannot:
 
 - **Clears the plugin's `access` block on `user-submissions`.** `accessPlugin`
   composes `{ ...rbac, ...collection.access }`, so a collection's own access
@@ -29,6 +29,18 @@ Four things the wrapper does that the plugin options cannot:
   unconditionally `required`; `contact` and `subscribe` need one, and the two
   types that name an `event` must not have one. The plugin's own existence check
   is composed with, not replaced.
+- **Localizes the three plugin defaults that hold per-language text** (#981):
+  `forms.title`, `forms.redirect.url`, and the `select` block's `placeholder`.
+  All three ship storing one value for all 19 locales, so an admin editing one
+  in French replaced the English everyone else reads. `formFields`
+  (`src/collections/Forms/fields.ts`) maps `defaultFields` rather than using
+  the plugin's `fields: { select: … }` option, which merges arrays by source —
+  reaching `placeholder` through it means re-supplying the block's whole field
+  list, label thunks included. ⚠ **`title` and `redirect.url` lose `required` in
+  the same pass**, for the reason #977 records for `lessons.title`
+  (`src/collections/Lessons/AGENTS.md`): a required localized field is validated
+  against that locale's own value, so leaving the flag on refuses every save in
+  a second locale.
 - **Registers the proposal review surface.** `POST /api/user-submissions/:id/review`,
   the Accept/Reject `SaveButton`, and the live-preview panel all hang off the
   wrapper rather than `formSubmissionOverrides`, because a plugin-generated

@@ -2285,7 +2285,7 @@ export interface UserSubmission {
  */
 export interface Form {
   id: number;
-  title: string;
+  title?: string | null;
   fields?:
     | (
         | {
@@ -2413,7 +2413,7 @@ export interface Form {
     [k: string]: unknown;
   } | null;
   redirect?: {
-    url: string;
+    url?: string | null;
   };
   /**
    * Contact forms deliver the message to a recipient. Subscribe forms add the sender to a client’s mailing list.

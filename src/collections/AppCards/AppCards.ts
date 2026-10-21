@@ -206,6 +206,10 @@ function destinationFields(
           name: 'meditation',
           type: 'relationship',
           relationTo: 'meditations',
+          // A meditation document IS single-locale (src/collections/AGENTS.md), so
+          // the card's target differs per language and the picker only ever lists
+          // the admin's own locale.
+          localized: true,
           admin: {
             condition: (_, siblingData) => siblingData?.destination === 'meditation',
           },
