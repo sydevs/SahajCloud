@@ -2,7 +2,9 @@ import { labelOf, type DocumentReport, type SectionSpec } from '@/lib/status'
 
 import {
   PER_TIMING_FIELDS,
+  isolatedReq,
   meditationMatchesLocale,
+  readFallbackTitles,
   type Timing,
   type UserChoiceRow,
   type WeMeditateAppStatusConfig,
@@ -75,15 +77,21 @@ export const userChoicesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
     },
   },
   prepare: async ({ payload, locale, req }) => {
-    const { docs } = await payload.find({
-      collection: 'user-choices',
-      locale,
-      limit: 0,
-      pagination: false,
-      depth: 1,
-      req,
-    })
-    const rows = docs as unknown as UserChoiceRow[]
+    const [{ docs }, titles] = await Promise.all([
+      payload.find({
+        collection: 'user-choices',
+        locale,
+        // The four per-timing meditations are localized, so the fallback would
+        // report a choice as configured off English assignments.
+        fallbackLocale: false,
+        limit: 0,
+        pagination: false,
+        depth: 1,
+        req: isolatedReq(req),
+      }),
+      readFallbackTitles(payload, 'user-choices', { locale, req }),
+    ])
+    const rows = docs.map((c) => ({ ...c, title: titles.get(c.id) })) as unknown as UserChoiceRow[]
     const nonFeaturedMoodOrGoal = rows.filter(
       (c) => !c.isFeatured && (c.type === 'mood' || c.type === 'goal'),
     )

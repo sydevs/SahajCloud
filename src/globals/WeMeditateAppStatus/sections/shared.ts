@@ -2,6 +2,49 @@ import type { BasePayload, PayloadRequest, TypedLocale } from 'payload'
 
 import { isUploadAssigned, type CheckResult } from '@/lib/status'
 import { isRecord } from '@/lib/utilities/isRecord'
+import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
+import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
+
+// --- Locale scoping. Every read here copies the request it was handed; `runSection` copies nothing. ---
+
+/**
+ * A copy for a read that names a different locale or fallback than the read
+ * beside it — `prepare` runs several concurrently, and `createLocalReq`
+ * assigns both onto whatever request it is handed (#982). An omitted
+ * `fallbackLocale` is not the safe choice: Payload sanitises `undefined` back
+ * to the locale's own fallback, undoing a `fallbackLocale: false` next to it.
+ */
+export function isolatedReq(req?: PayloadRequest): PayloadRequest | undefined {
+  return req ? localeIsolatedReq(req) : undefined
+}
+
+/**
+ * The title each row would show with the locale fallback on, for a section
+ * whose documents carry a **localized** title. `DocumentReport.label` owns why
+ * a label and a check want opposite policies.
+ *
+ * Omit `ids` where the section reads the whole collection — a `where` built
+ * from its rows would only force this read to wait for them.
+ */
+export async function readFallbackTitles(
+  payload: BasePayload,
+  collection: 'lessons' | 'pages' | 'user-choices',
+  options: { locale: TypedLocale; req?: PayloadRequest; ids?: Array<number | string> },
+): Promise<Map<number | string, unknown>> {
+  const { ids, locale, req } = options
+  if (ids?.length === 0) return new Map()
+  const { docs } = await payload.find({
+    collection,
+    ...(ids ? { where: { id: { in: ids } } } : {}),
+    locale,
+    limit: 0,
+    pagination: false,
+    depth: 0,
+    select: { title: true },
+    req: isolatedReq(req),
+  })
+  return new Map(docs.map((doc) => [doc.id, doc.title]))
+}
 
 // --- Per-project status-global config (persisted on the wm-app-status Configuration tab; extracted from the global's document by the virtualReadinessField factory). ---
 
@@ -56,49 +99,35 @@ export function meditationMatchesLocale(value: unknown, locale: string): boolean
   return value.locale === locale && value._status === 'published'
 }
 
-// --- Request-scoped memoizer for wm-app-config — Sections 4 + 5 both read it. Keyed on `${locale}:${depth}` so the two callers can request different depths without colliding. ---
-
-const APP_CONFIG_CACHE_KEY = 'wmAppConfigCache'
+// --- wm-app-config, read by the appConfig and pages sections. ---
 
 /**
- * Load the `wm-app-config` global at most once per request per depth,
- * shared across the wm-app-status section reads.
+ * Load the `wm-app-config` global at most once per request per depth. The key
+ * carries the depth because the two callers ask for different ones;
+ * `memoizeOnRequest` owns why the in-flight promise is what gets memoized.
  *
- * Why memoize the in-flight *promise* rather than the resolved value:
- * concurrent section callers (e.g. sections 1 + 2 both reading at depth 0)
- * can race to load. A resolved-value cache stampedes — all callers clear
- * the "not cached yet" check before the first load settles, so each issues
- * its own `findGlobal`. Storing the promise synchronously (no await between
- * check and store) means every later caller awaits the same one, collapsing
- * the load to exactly one per (locale, depth) pair.
+ * It refuses the locale fallback, so `selfRealizationMeditation`,
+ * `postRealizationLecture` and `vibeCheckTracks` answer about the read locale
+ * alone. The Pages tab's relationships are not localized, so the flag leaves
+ * the `pages` section unchanged — which is why one policy serves both callers
+ * and the key does not carry it.
  */
-export async function getWmAppConfig(
+export function getWmAppConfig(
   payload: BasePayload,
   locale: TypedLocale,
   depth: 0 | 1,
   req?: PayloadRequest,
 ): Promise<Record<string, unknown>> {
-  const key = `${locale}:${depth}`
-  const ctx = (req?.context ?? {}) as Record<string, unknown>
-  const existing = ctx[APP_CONFIG_CACHE_KEY] as
-    Map<string, Promise<Record<string, unknown>>> | undefined
+  const load = () =>
+    payload.findGlobal({
+      slug: 'wm-app-config',
+      locale,
+      fallbackLocale: false,
+      depth,
+      req: isolatedReq(req),
+    }) as unknown as Promise<Record<string, unknown>>
 
-  if (existing?.has(key)) return existing.get(key)!
-
-  const configPromise = payload.findGlobal({
-    slug: 'wm-app-config',
-    locale,
-    depth,
-    req,
-  }) as unknown as Promise<Record<string, unknown>>
-
-  if (req) {
-    const cache = existing ?? new Map<string, Promise<Record<string, unknown>>>()
-    cache.set(key, configPromise)
-    ctx[APP_CONFIG_CACHE_KEY] = cache
-    req.context = ctx
-  }
-  return configPromise
+  return req ? memoizeOnRequest(req, `wmAppConfig:${locale}:${depth}`, load) : load()
 }
 
 // --- Lecture subtitle resolution — used by Section 3's lesson-referenced-subtitles. ---

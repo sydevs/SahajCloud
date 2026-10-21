@@ -2,7 +2,7 @@ import type { Where } from 'payload'
 
 import { labelOf, type DocumentReport, type SectionSpec } from '@/lib/status'
 
-import { appCardChecks, type WeMeditateAppStatusConfig } from './shared'
+import { appCardChecks, isolatedReq, type WeMeditateAppStatusConfig } from './shared'
 
 interface Ctx {
   launchCriticalDocs: DocumentReport[]
@@ -41,6 +41,10 @@ export const appCardsSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
         collection: 'app-cards',
         where: { id: { in: launchCriticalIds } },
         locale,
+        // `_status` is per-locale (#718) and the three `default` strings are
+        // localized, so the fallback would report all four checks green off
+        // the English card.
+        fallbackLocale: false,
         // Include drafts so unpublished cards still appear in the readiness
         // report — the per-card `published` check then flags them as failing.
         draft: true,
@@ -48,7 +52,7 @@ export const appCardsSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
         pagination: false,
         depth: 0,
         select: { _status: true, default: true, label: true },
-        req,
+        req: isolatedReq(req),
       })
       launchCriticalCards = docs as unknown as Record<string, unknown>[]
     }
@@ -75,7 +79,7 @@ export const appCardsSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
       pagination: false,
       depth: 0,
       select: { _status: true, default: true, label: true },
-      req,
+      req: isolatedReq(req),
     })
     const enPublishedIds = new Set<number | string>(enPublishedOther.map((card) => card.id))
 
@@ -92,13 +96,15 @@ export const appCardsSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
         collection: 'app-cards',
         where: otherLocaleWhere,
         locale,
-        // Per-locale checks still evaluate the latest content for this locale.
+        // Per-locale checks still evaluate the latest content for this locale,
+        // and only this locale — see the launch-critical read above.
+        fallbackLocale: false,
         draft: true,
         limit: 0,
         pagination: false,
         depth: 0,
         select: { _status: true, default: true, label: true },
-        req,
+        req: isolatedReq(req),
       })
       otherDocs = (otherCardDocs as unknown as Record<string, unknown>[])
         .filter((card) => enPublishedIds.has(card.id as number | string))

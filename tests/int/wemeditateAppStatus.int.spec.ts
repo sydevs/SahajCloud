@@ -1,4 +1,4 @@
-import type { BasePayload, Payload } from 'payload'
+import type { BasePayload, Payload, PayloadRequest, TypedLocale } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
@@ -11,6 +11,7 @@ import {
   pagesSection,
   translationsSection,
   userChoicesSection,
+  WeMeditateAppStatusSpec,
   type WeMeditateAppStatusConfig,
 } from '@/globals/WeMeditateAppStatus/WeMeditateAppStatus'
 import { runSection, type SectionSpec } from '@/lib/status'
@@ -59,10 +60,16 @@ const EMPTY_CONFIG: WeMeditateAppStatusConfig = {
 function run<TCtx>(
   spec: SectionSpec<WeMeditateAppStatusConfig, TCtx>,
   payload: Payload,
-  locale: 'en' | 'cs' = 'en',
+  locale: TypedLocale = 'en',
   config: WeMeditateAppStatusConfig = EMPTY_CONFIG,
+  req?: PayloadRequest,
 ): Promise<ReadinessReport> {
-  return runSection(spec, { payload: payload as BasePayload, locale, config })
+  return runSection(spec, { payload: payload as BasePayload, locale, config, req })
+}
+
+/** One section's report off a whole-global read. The column is virtual, so it is typed loosely. */
+function sectionReport(global: WmAppStatus, key: string): ReadinessReport | null {
+  return (global as unknown as Record<string, ReadinessReport | null>)[key]
 }
 
 function articleWithLectureLink(lectureId: number) {
@@ -513,10 +520,7 @@ describe('WeMeditateAppStatus Global', () => {
         'appCards',
       ] as const
       for (const key of virtualKeys) {
-        expect(
-          (report as unknown as Record<string, ReadinessReport | null>)[key],
-          `expected ${key} to be null with locale=all`,
-        ).toBeNull()
+        expect(sectionReport(report, key), `expected ${key} to be null with locale=all`).toBeNull()
       }
     })
 
@@ -527,7 +531,7 @@ describe('WeMeditateAppStatus Global', () => {
         depth: 0,
       })) as WmAppStatus
 
-      const userChoices = (report as unknown as Record<string, ReadinessReport | null>).userChoices
+      const userChoices = sectionReport(report, 'userChoices')
       expect(userChoices).not.toBeNull()
       expect(Array.isArray(userChoices?.groups)).toBe(true)
     })
@@ -593,6 +597,116 @@ describe('WeMeditateAppStatus Global', () => {
         ],
       }
       await expect(run(badSection, payload)).rejects.toThrow(/undeclared check "undeclared-check"/)
+    })
+  })
+  // --- Per-locale truth + request isolation (#982) ---
+  describe('locale scoping', () => {
+    let englishOnlyLesson: Lesson
+    let englishOnlyChoice: UserChoice
+
+    // What a real read hands a section: the shape `createLocalReq` mutates.
+    const newReq = (locale: TypedLocale): PayloadRequest =>
+      ({ locale, fallbackLocale: 'en', context: {} }) as unknown as PayloadRequest
+
+    beforeAll(async () => {
+      const lectureForArticle = await testData.createLecture(payload)
+      const lessonMeditation = await testData.createMeditation(payload, undefined, {
+        type: 'lesson',
+        _status: 'published',
+      })
+      englishOnlyLesson = await testData.createLesson(payload, {
+        title: 'English-only lesson',
+        unit: 'Unit 3',
+        step: 1,
+        meditation: { relationTo: 'meditations', value: lessonMeditation.id },
+        article: articleWithLectureLink(lectureForArticle.id),
+        panels: [{ title: 'p1' }],
+      } as Partial<Lesson>)
+
+      const choiceMeditation = await testData.createMeditation(payload, undefined, {
+        _status: 'published',
+      })
+      englishOnlyChoice = await testData.createUserChoice(payload, {
+        title: 'English-only choice',
+        type: 'mood',
+        isFeatured: true,
+        timings: ['morning'],
+        morningMeditation: choiceMeditation.id,
+      })
+    })
+
+    // Through `findGlobal` rather than `runSection`, because the admin read is
+    // what runs all seven sections concurrently on one request.
+    it('reports a lesson translated only in English as not ready in French', async () => {
+      const read = async (locale: 'en' | 'fr') => {
+        const global = (await payload.findGlobal({
+          slug: 'wm-app-status',
+          locale,
+          depth: 0,
+        })) as WmAppStatus
+        const lessons = sectionReport(global, 'lessons')
+        const unit3 = lessons?.groups.find((g) => g.key === 'unit-3')
+        expect(unit3?.type).toBe('documents')
+        if (unit3?.type !== 'documents') throw new Error('expected unit-3 to be a documents group')
+        const row = unit3.documents.find((d) => d.id === englishOnlyLesson.id)
+        expect(row, `expected unit-3 to carry the lesson at ${locale}`).toBeDefined()
+        return {
+          label: row!.label,
+          checks: Object.fromEntries(row!.checks.map((c) => [c.key, c.passed])),
+        }
+      }
+
+      const en = await read('en')
+      expect(en.checks['lesson-title-set']).toBe(true)
+      expect(en.checks['panels-set']).toBe(true)
+      expect(en.checks['meditation-set']).toBe(true)
+      expect(en.checks['article-localized']).toBe(true)
+      expect(en.checks['article-has-lecture-link']).toBe(true)
+
+      // The lesson carries no French title, panels, meditation or article, so
+      // every check reading one reports red — they would all pass off the
+      // English fallback.
+      const fr = await read('fr')
+      expect(fr.checks['lesson-title-set']).toBe(false)
+      expect(fr.checks['panels-set']).toBe(false)
+      expect(fr.checks['meditation-set']).toBe(false)
+      expect(fr.checks['article-localized']).toBe(false)
+      expect(fr.checks['article-has-lecture-link']).toBe(false)
+      // `icon` is not localized, so that one is locale-blind.
+      expect(fr.checks['icon-set']).toBe(true)
+      // `lessons.title` is localized too (#977), so the row keeps the fallback
+      // title while its own check reports the French one missing.
+      expect(fr.label).toBe('English-only lesson')
+    })
+
+    it('keeps a row label readable while its own check reports red', async () => {
+      const report = await run(userChoicesSection, payload, 'fr', EMPTY_CONFIG, newReq('fr'))
+      const featured = report.groups.find((g) => g.key === 'featured')
+      expect(featured?.type).toBe('documents')
+      if (featured?.type !== 'documents') throw new Error('expected a documents group')
+
+      const row = featured.documents.find((d) => d.id === englishOnlyChoice.id)
+      expect(row).toBeDefined()
+      // `user-choices.title` is localized, so the per-locale read alone would
+      // render this row as `#<id>` — unusable on a screen an operator acts on.
+      expect(row!.label).toBe('English-only choice')
+      expect(row!.checks).toEqual([{ key: 'meditation-morning-published', passed: false }])
+    })
+
+    // This stands in for "the report does not depend on the order its sections
+    // ran in" — a section that touches nothing shared cannot. An order
+    // comparison would not have failed for the bug: every read re-derives both
+    // flags from its own arguments.
+    // It is also what holds the per-read copy rule for a section added later,
+    // and only because `runSection` copies nothing — a copy there would pass
+    // this for every section whether or not its own reads copied.
+    it("leaves the caller's locale and fallback untouched after every section", async () => {
+      const req = newReq('fr')
+      for (const spec of WeMeditateAppStatusSpec.sections) {
+        await run(spec, payload, 'fr', EMPTY_CONFIG, req)
+        expect(req.locale, `${spec.key} repointed req.locale`).toBe('fr')
+        expect(req.fallbackLocale, `${spec.key} repointed req.fallbackLocale`).toBe('en')
+      }
     })
   })
 })
