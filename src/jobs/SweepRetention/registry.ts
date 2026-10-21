@@ -6,12 +6,17 @@ import { payloadJobsEntry } from './entries/payloadJobs'
 import { userSubmissionsEntry } from './entries/userSubmissions'
 
 /**
- * Every window sweep this app runs, one entry per collection.
+ * Every window sweep this app runs, one entry per collection it ages.
  *
  * Adding a collection to retention is a row here plus a file under `entries/`,
  * rather than a task slug, an input schema, an output schema and a cron (#987).
  * Each entry's own file carries its windows and the reason each window is the
  * length it is.
+ *
+ * ⚠ **A collection the task reports is not always a row here.** `users` is
+ * swept through the `user-submissions` entry's `hooks`: an orphan ages nothing
+ * of its own, going when its last referencing submission goes, and every entry
+ * owes a window.
  *
  * ⚠ **The order is what the task reports in**, so it is the order
  * `tests/int/retention-jobs.int.spec.ts` reads back.
