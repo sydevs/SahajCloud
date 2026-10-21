@@ -50,7 +50,7 @@ Use the `/workflow:dev-server` skill for a dev server shared across sessions. It
 - `pnpm typecheck` / `pnpm typecheck:tests` — type-check `src/` / the test suite.
 - `pnpm generate:types` — regenerate types after a schema change.
 - `pnpm generate:importmap` — regenerate the admin import map.
-- `pnpm test:unit` — the unit lane, no Payload bootstrap. About 78 s for all 206 files, so name one spec while editing (`tests/PERF.md`).
+- `pnpm test:unit` — the unit lane, no Payload bootstrap. About 78 s for all 208 files, so name one spec while editing (`tests/PERF.md`).
 - `pnpm test` / `pnpm test:int` — unit plus integration / integration only. Neither runs the smoke lane.
 - `pnpm test:smoke` — Playwright smoke specs against a Railway preview.
 

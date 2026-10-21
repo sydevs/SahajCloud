@@ -2,6 +2,8 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { dirname, join, posix, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { REPO_ROOT, toRepoPath } from './hook-run.mjs'
+
 /**
  * Chooses the unit specs one edit can break, for the per-edit hook (`scripts/unit-test-hook.mjs`).
  *
@@ -16,8 +18,6 @@ import { fileURLToPath } from 'node:url'
  * module, which no per-edit budget fits (`tests/PERF.md`). The lean gate and CI still run the whole
  * lane, and `docs/rules/testing-reqs.md` carries the trade.
  */
-
-export const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 
 /** What the unit project collects (`vitest.config.mts`). */
 const SPEC_DIR = 'tests/unit'
@@ -35,17 +35,6 @@ const QUOTED = /['"]([^'"\n]+)['"]/g
 /** Whether the hook acts on this repo-relative path: a hand-edited module inside the repo. */
 export function isLaneSource(rel) {
   return rel !== null && MODULE_EXT.test(rel) && !GENERATED.test(rel)
-}
-
-/** `filePath` relative to `root`, POSIX, or null when it sits outside it. */
-export function toRepoPath(filePath, root = REPO_ROOT) {
-  const absolute = resolve(root, filePath)
-  return absolute.startsWith(root + sep)
-    ? absolute
-        .slice(root.length + 1)
-        .split(sep)
-        .join('/')
-    : null
 }
 
 /**

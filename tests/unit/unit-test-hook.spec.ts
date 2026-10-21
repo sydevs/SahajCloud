@@ -8,9 +8,8 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { runHook } from '../../scripts/unit-test-hook.mjs'
 
 /**
- * The per-edit hook used to report every timeout as "Unit tests failed", with a tail holding no
- * failure (#993). Each outcome here runs through the real `spawnSync`, with a stand-in for the
- * vitest binary, so the result shapes the hook branches on are node's own rather than a guess.
+ * The per-edit unit hook runs only the specs naming the edited file, and nothing when none does.
+ * How each outcome is worded is `hook-run.spec.ts`'s; this pins what the unit hook hands it.
  */
 
 let fixture: string
@@ -25,7 +24,6 @@ afterAll(() => {
   rmSync(fixture, { recursive: true, force: true })
 })
 
-/** Runs `node -e <script>` in place of vitest, with the options the hook passed. */
 const standIn =
   (script: string) =>
   (_command: string, _args: string[], options: SpawnSyncOptionsWithStringEncoding) =>
@@ -60,50 +58,21 @@ describe('runHook', () => {
     expect(spawn.mock.calls[0][2]).toMatchObject({ cwd: fixture })
   })
 
-  describe('reports each way a run can end distinctly', () => {
-    let failure: string | null
-    let timeout: string | null
-    let killed: string | null
-    let unstarted: string | null
+  it('names the edit and the exact rerun when a spec fails', () => {
+    const message = edit('src/lib/thing.ts', { spawn: standIn('process.exit(1)') })
 
-    beforeAll(() => {
-      failure = edit('src/lib/thing.ts', {
-        spawn: standIn('console.log("FAIL tests/unit/thing.spec.ts"); process.exit(1)'),
-      })
-      timeout = edit('src/lib/thing.ts', {
-        spawn: standIn('setTimeout(() => {}, 10_000)'),
-        timeoutMs: 50,
-      })
-      killed = edit('src/lib/thing.ts', { spawn: standIn('process.kill(process.pid, "SIGKILL")') })
-      // The fixture has no node_modules, so the hook's own vitest path does not exist.
-      unstarted = edit('src/lib/thing.ts')
+    expect(message).toMatch(/^Unit tests failed after editing src\/lib\/thing\.ts:/)
+    expect(message).toContain(
+      'pnpm exec vitest run --project unit --config ./vitest.config.mts tests/unit/thing.spec.ts',
+    )
+  })
+
+  it('names how many specs it was running when it times out', () => {
+    const message = edit('src/lib/thing.ts', {
+      spawn: standIn('setTimeout(() => {}, 10_000)'),
+      timeoutMs: 50,
     })
 
-    it('a genuine failure says tests failed, with the tail and the command to rerun', () => {
-      expect(failure).toMatch(/^Unit tests failed after editing src\/lib\/thing\.ts:/)
-      expect(failure).toContain('FAIL tests/unit/thing.spec.ts')
-      expect(failure).toContain(
-        'pnpm exec vitest run --project unit --config ./vitest.config.mts tests/unit/thing.spec.ts',
-      )
-    })
-
-    it('a timeout says it timed out', () => {
-      expect(timeout).toMatch(/timed out after 0\.05 s running 1 spec for src\/lib\/thing\.ts/)
-    })
-
-    it('a signal says which one', () => {
-      expect(killed).toContain('killed by SIGKILL')
-    })
-
-    it('a binary that never started says so', () => {
-      expect(unstarted).toMatch(/could not start vitest for src\/lib\/thing\.ts \(ENOENT\)/)
-    })
-
-    it('and only the genuine failure mentions failing', () => {
-      const messages = [failure, timeout, killed, unstarted]
-
-      expect(new Set(messages).size).toBe(4)
-      expect(messages.filter((message) => /fail/i.test(message ?? ''))).toEqual([failure])
-    })
+    expect(message).toContain('timed out after 0.05 s running 1 spec for src/lib/thing.ts')
   })
 })

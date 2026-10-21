@@ -10,7 +10,6 @@ import {
   resolveSpecifier,
   selectFrom,
   selectSpecs,
-  toRepoPath,
 } from '../../scripts/select-unit-specs.mjs'
 
 /**
@@ -77,7 +76,7 @@ describe('resolveSpecifier', () => {
 })
 
 describe('selectFrom', () => {
-  const select = (rel: string) => selectFrom(rel, lane)
+  const select = (rel: string | null) => selectFrom(rel, lane)
 
   it('reaches an alias, a relative path, a nested relative path and a quoted path', () => {
     expect(select('src/lib/thing.ts')).toEqual([
@@ -128,8 +127,7 @@ describe('selectFrom', () => {
 
   it('selects nothing for a file that is not a module, or not in the repo', () => {
     expect(select('README.md')).toEqual([])
-    expect(toRepoPath('/elsewhere/src/lib/thing.ts', fixture)).toBeNull()
-    expect(toRepoPath(join(fixture, 'src/lib/thing.ts'), fixture)).toBe('src/lib/thing.ts')
+    expect(select(null)).toEqual([])
   })
 })
 
