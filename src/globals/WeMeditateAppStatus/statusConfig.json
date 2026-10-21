@@ -43,7 +43,7 @@
     },
     "core-pages": {
       "label": "Core app pages",
-      "description": "All ten required app pages are published with localized content."
+      "description": "Every app-required page is published with localized content."
     },
     "duration": {
       "label": "Duration user choices",

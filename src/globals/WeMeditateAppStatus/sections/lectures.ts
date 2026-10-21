@@ -1,7 +1,7 @@
 import { resolveAudienceIds } from '@/lib/audiences/resolve'
 import { labelOf, refId, type DocumentReport, type SectionSpec } from '@/lib/status'
 
-import { lectureHasSubtitlesForLocale, type WeMeditateAppStatusConfig } from './shared'
+import { isolatedReq, lectureHasSubtitlesForLocale, type WeMeditateAppStatusConfig } from './shared'
 
 const PRIORITY_USERCHOICE_THRESHOLD = 10
 const BASELINE_AUDIENCE_THRESHOLD = 20
@@ -48,6 +48,12 @@ export const lecturesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
     },
   },
   prepare: async ({ payload, locale, config, req }) => {
+    // These reads keep the locale fallback, unlike every other section's
+    // (#982): no check here reads a localized field, so it resolves the row
+    // labels and nothing else. `subtitles-available` is the one to look at
+    // twice — it answers per locale from the `subtitles` rows' own `locale`
+    // column, not from field localization.
+    //
     // Fetch priority candidates and resolve baseline audience IDs in parallel.
     // depth: 1 is needed so lectureHasSubtitlesForLocale can inspect populated metadata.
     const [{ docs: rawPriorityCandidates }, baselineAudienceIds] = await Promise.all([
@@ -67,7 +73,7 @@ export const lecturesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
         },
         limit: 0,
         pagination: false,
-        req,
+        req: isolatedReq(req),
       }),
       resolveAudienceIds(
         payload,
@@ -78,7 +84,7 @@ export const lecturesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
           totalLecturesViewed: 0,
           country: config.baselineCountry,
         },
-        req,
+        isolatedReq(req),
       ),
     ])
     const priorityCandidateDocs = rawPriorityCandidates as unknown as PriorityCandidate[]
@@ -94,7 +100,7 @@ export const lecturesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
         select: { id: true, title: true, subtitles: true, metadata: true, fullLecture: true },
         limit: 0,
         pagination: false,
-        req,
+        req: isolatedReq(req),
       })
       baselineLectureDocs = docs as unknown as Record<string, unknown>[]
     }
@@ -107,7 +113,7 @@ export const lecturesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
         limit: 0,
         pagination: false,
         depth: 0,
-        req,
+        req: isolatedReq(req),
       }),
       payload.find({
         collection: 'lectures',
@@ -117,7 +123,7 @@ export const lecturesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
         limit: 0,
         pagination: false,
         depth: 0,
-        req,
+        req: isolatedReq(req),
       }),
     ])
 
