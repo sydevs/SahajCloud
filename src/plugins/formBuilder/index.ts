@@ -28,7 +28,7 @@ import type {
   WorkflowButton,
   WorkflowButtonsProps,
 } from '@/components/admin/WorkflowButtons/stages'
-import { WORKFLOW_BUTTONS } from '@/components/admin/WorkflowButtons/stages'
+import { stagesFor, WORKFLOW_BUTTONS } from '@/components/admin/WorkflowButtons/stages'
 import { CONTACT_EMAIL } from '@/lib/contact'
 import { serverEnv } from '@/lib/env/server'
 import { livePreviewUrl } from '@/lib/livePreview/url'
@@ -57,8 +57,8 @@ const REOPEN_BUTTONS: WorkflowButton[] = [{ label: 'Reopen', overrides: { status
  * exactly this reason before the move to data.
  */
 const REVIEW_STAGES: WorkflowButtonsProps<UserSubmission['status']>['stages'] = {
-  ...Object.fromEntries(OPEN_REVIEW_STATUSES.map((status) => [status, REVIEW_BUTTONS])),
-  ...Object.fromEntries(REOPENABLE_REVIEW_STATUSES.map((status) => [status, REOPEN_BUTTONS])),
+  ...stagesFor(OPEN_REVIEW_STATUSES, REVIEW_BUTTONS),
+  ...stagesFor(REOPENABLE_REVIEW_STATUSES, REOPEN_BUTTONS),
   // A stage with no action, not a missing one: Payload's own ⋯ menu carries this
   // row's Delete, for whoever holds the grant.
   accepted: [],

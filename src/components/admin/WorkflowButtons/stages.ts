@@ -59,6 +59,22 @@ export interface WorkflowButtonsProps<TStage extends string = string> {
 }
 
 /**
+ * `stages` entries giving every status in a set the same buttons.
+ *
+ * So a declaration can be built from whatever set the server's own rule reads
+ * rather than listing those statuses again — a hand-written map can offer a
+ * button the server then refuses, or leave a newly-added status with none.
+ */
+export function stagesFor<TStage extends string>(
+  statuses: readonly TStage[],
+  buttons: WorkflowButton[],
+): Partial<Record<TStage, WorkflowButton[]>> {
+  return Object.fromEntries(statuses.map((status) => [status, buttons])) as Partial<
+    Record<TStage, WorkflowButton[]>
+  >
+}
+
+/**
  * Which stage a document is at, from the operation and the status field's value.
  *
  * ⚠ **An unsaved document is `CREATE_STAGE` whatever the status field holds.**
