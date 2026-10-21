@@ -82,6 +82,8 @@ Each action is `{ label, overrides, confirm?, buttonStyle?, skipValidation? }`; 
 
 **A button is an offer, never a permission, so the server owes its own guard.** `admin.readOnly` on a status column is the admin UI alone, and a field access rule that admits managers admits every manager's `PATCH`. `user-submissions` pairs its declaration with `guardStatusTransition` (which moves a reviewer may make) and `applyReviewDecision` (what each one then does), both reading one `reviewMove` predicate — see `src/plugins/formBuilder/AGENTS.md`. Build the `stages` map from whatever the server's own rule reads, rather than listing the statuses again: a hand-written map can offer a button the guard then refuses. `stagesFor(statuses, buttons)` in `stages.ts` is that spread — `{ ...stagesFor(OPEN_REVIEW_STATUSES, REVIEW_BUTTONS), accepted: [] }`.
 
+**That guard stays collection-owned until a second staged collection needs one.** Three of its four rules are domain facts, and Meditations' buttons post `{ _status: 'draft' }` — Payload's own gate — so `user-submissions` is the only consumer with a status column to guard. Extract a generic transition guard at the second such consumer, not before (#1012).
+
 **Building a custom field component?** Compose Payload's primitives (`FieldLabel`, `FieldError`, `FieldDescription`, `RenderFields`, the `*Field` inputs) instead of bespoke markup.
 
 For non-admin (public) React, use `lucide-react` instead (see `docs/code-style.md`). Emails use neither — see `docs/rules/email.md`.
