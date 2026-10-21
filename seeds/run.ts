@@ -248,8 +248,10 @@ async function authenticate(baseUrl: string): Promise<string | null> {
   if (!token) {
     throw new Error(
       'Missing authentication credentials.\n' +
-        'Set ADMIN_TOKEN to a manager session token. Sign in to the target at ' +
-        '/admin with an emailed link, then copy the `payload-token` cookie.\n' +
+        'Set ADMIN_TOKEN to a manager session token. Request a sign-in link at ' +
+        "the target's /admin/login, then run\n" +
+        "  pnpm tsx scripts/redeem-signin-link.ts '<link>' --seed <script>\n" +
+        'which runs this with ADMIN_TOKEN set from the link.\n' +
         'There is no ADMIN_PASSWORD to send instead: managers hold no password, ' +
         'and POST /api/managers/login answers 403 everywhere (#840).\n' +
         '(Local dev normally needs none — auto-login covers it. Seeing this ' +

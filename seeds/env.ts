@@ -35,7 +35,8 @@ const SeedEnvSchema = z.object({
    *
    * ⚠ **There is no password to send instead** (#840). `POST /api/managers/login`
    * answers 403 everywhere, so a remote run carries a token its operator already
-   * holds — the `payload-token` cookie of their own signed-in admin session.
+   * holds — the `payload-token` of their own admin session, which
+   * `scripts/redeem-signin-link.ts --seed` sets for one run from a sign-in link.
    * Local runs need none: auto-login covers them.
    */
   ADMIN_TOKEN: emptyAsUndefined(z.string().min(1)),
