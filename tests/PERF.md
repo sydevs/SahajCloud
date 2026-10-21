@@ -62,6 +62,9 @@ Two sessions measured it the same day, on the same container spec — 4 cores
 | first | 198 / 2575 | 60.29 · 58.75 · 59.23 s | 59.2 s |
 | second, after merging `main` | 203 / 2643 | 82.19 · 77.93 · 73.21 s | **77.9 s** |
 | third, after merging `main` again | 204 / 2653 | 47.16 · 46.38 · 47.82 s | 47.2 s |
+| fourth, after merging `main` again | 205 / 2656 | 54.00 · 50.45 s (both inside the gate) | 52.2 s |
+| fifth, after merging `main` again | 218 / 2795 | 49.13 s (inside the gate) | 49.1 s |
+| sixth, after merging `main` again | 219 / 2807 | 55.70 s | 55.7 s |
 
 ⚠ **Those three medians span 47 to 78 s — 66% — and six spec files do not
 explain it.** Identical container spec, all on 2026-10-20, 3% more files
@@ -81,7 +84,7 @@ reads, so keep those labels and cell shapes when you add a row.
 
 | Metric | Value |
 | --- | --- |
-| Files / tests | 218 / 2804 |
+| Files / tests | 219 / 2807 |
 | Whole lane, 3 workers (slowest session median, what the consumer docs quote) | **77.9 s** |
 | One spec alone, the typical edit (third session) | 1.3 s |
 | Widest per-edit selection, 18 specs naming `@/payload-types` (third session) | **7.8 s** |
