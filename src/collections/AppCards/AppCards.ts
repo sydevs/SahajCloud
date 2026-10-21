@@ -166,6 +166,9 @@ function destinationFields(
         {
           name: 'destination',
           type: 'select',
+          // Per locale because the targets it selects are: one discriminator for
+          // all 19 would resolve `en` against a `url` only `fr` filled in (#1001).
+          localized: true,
           options: [
             { label: 'Page', value: 'page' },
             { label: 'Lecture', value: 'lecture' },

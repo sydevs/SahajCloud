@@ -1,5 +1,6 @@
 import type { Payload, PayloadRequest } from 'payload'
 
+import { extractID } from 'payload/shared'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { appCardsForAudience } from '@/collections/AppCards/endpoints/forAudience'
@@ -749,6 +750,123 @@ describe('appCardsForAudience endpoint', () => {
       )
       const cardsWithCond = (resultWithCond as { docs: AppCard[] }).docs
       expect(cardsWithCond.map((c) => c.id)).toContain(cardWithCondition.id)
+    })
+  })
+
+  // Fixtures here assume the suite runs every locale with `fallbackLocale: 'en'`
+  // on each non-English one, which `testHelpers.ts` gets from
+  // `buildPayloadLocales()` (`src/lib/locales/index.ts`).
+  describe('per-language destination (#1001)', () => {
+    it('stores a destination per locale, in both directions', async () => {
+      const album = await testData.createAlbum(payload, { title: 'Per-locale Album' })
+      const card = await testData.createAppCard(payload, {
+        default: { title: 'Per-locale Card', destination: 'album', album: album.id },
+        targetSections: ['hero'],
+        audiences: [openAudience.id],
+        _status: 'published',
+      })
+
+      await payload.update({
+        collection: 'app-cards',
+        id: card.id,
+        locale: 'fr',
+        data: {
+          default: {
+            title: 'Carte par langue',
+            destination: 'url',
+            url: 'https://example.fr/cours',
+          },
+        },
+      })
+
+      const en = await payload.findByID({ collection: 'app-cards', id: card.id, depth: 0 })
+      expect(en.default?.destination).toBe('album')
+
+      const fr = await payload.findByID({
+        collection: 'app-cards',
+        id: card.id,
+        locale: 'fr',
+        fallbackLocale: false,
+        depth: 0,
+      })
+      expect(fr.default?.destination).toBe('url')
+
+      await payload.update({
+        collection: 'app-cards',
+        id: card.id,
+        locale: 'en',
+        data: { default: { destination: 'lecture' } },
+      })
+
+      const frAfter = await payload.findByID({
+        collection: 'app-cards',
+        id: card.id,
+        locale: 'fr',
+        fallbackLocale: false,
+        depth: 0,
+      })
+      expect(frAfter.default?.destination).toBe('url')
+    })
+
+    it('falls back to the English destination in a locale that holds none', async () => {
+      const album = await testData.createAlbum(payload, { title: 'Fallback Album' })
+      const card = await testData.createAppCard(payload, {
+        default: { title: 'Fallback Card', destination: 'album', album: album.id },
+        targetSections: ['hero'],
+        audiences: [openAudience.id],
+        _status: 'published',
+      })
+
+      const de = await payload.findByID({
+        collection: 'app-cards',
+        id: card.id,
+        locale: 'de',
+        depth: 0,
+      })
+      expect(de.default?.destination).toBe('album')
+    })
+
+    // The defect end to end: the discriminator stored once for all 19 locales
+    // made a French edit repoint English at a `url` only French filled in, so
+    // the English card reached the app with no destination at all.
+    it('keeps the English card on its meditation after a French editor picks a URL', async () => {
+      const audience = await testData.createAudience(payload, { label: 'Per-locale Audience' })
+      const meditation = await testData.createMeditation(payload)
+      const card = await testData.createAppCard(payload, {
+        default: {
+          title: 'Meditation Card',
+          destination: 'meditation',
+          meditation: meditation.id,
+        },
+        targetSections: ['hero'],
+        audiences: [audience.id],
+        _status: 'published',
+      })
+
+      await payload.update({
+        collection: 'app-cards',
+        id: card.id,
+        locale: 'fr',
+        data: {
+          default: {
+            title: 'Carte de méditation',
+            destination: 'url',
+            url: 'https://example.fr/meditation',
+          },
+        },
+      })
+
+      const { status, body } = await callEndpoint(
+        payload,
+        { targetSection: 'hero', limit: 20 },
+        undefined,
+        { defaultAudiences: String(audience.id) },
+      )
+
+      expect(status).toBe(200)
+      const served = (body as { docs: AppCard[] }).docs.find((c) => c.id === card.id)
+      expect(served?.default?.destination).toBe('meditation')
+      expect(extractID(served!.default!.meditation!)).toBe(meditation.id)
     })
   })
 })
