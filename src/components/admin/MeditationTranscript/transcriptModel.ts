@@ -1,10 +1,6 @@
 import * as qs from 'qs-esm'
 
 import type { TranscriptSegment } from '@/lib/meditations/transcript'
-// The zero-weight door to the bound: `@/lib/meditations/transcript` builds
-// zod schemas at module scope, and this module is reached from the browser.
-import { TRANSCRIPTION_STALL_MS } from '@/lib/meditations/transcriptStall'
-import type { MeditationTranscript } from '@/payload-types'
 
 /** A pause this long between phrases starts a new paragraph. */
 const PARAGRAPH_GAP_MS = 3000
@@ -45,28 +41,20 @@ export const transcriptUrl = (
       )}`
     : null
 
-export type TranscriptPhase = 'none' | 'pending' | 'stalled' | 'failed' | 'completed'
-
 /**
- * Which notice the tab shows. No row means never transcribed: a replaced
- * recording takes its row with it and a fresh one is queued at once, so there
- * is no out-of-date transcript to keep on screen.
- *
- * `TRANSCRIPTION_STALL_MS` is the bound the collection already passes
- * `jobStage.staleAfterMs`, so the tab and the row's own Edit view go stale
- * together. An unparseable `updatedAt` keeps the wait, as it does there.
+ * Where the Transcribe-again button posts, or `null` without a document id or a
+ * locale — `transcriptUrl`'s own docblock carries why both are required.
  */
-export function transcriptPhase(
-  row: Pick<MeditationTranscript, 'status' | 'updatedAt'> | undefined,
-  now: number = Date.now(),
-): TranscriptPhase {
-  if (!row) return 'none'
-  if (row.status === 'failed') return 'failed'
-  if (row.status === 'processing') {
-    return now - Date.parse(row.updatedAt) > TRANSCRIPTION_STALL_MS ? 'stalled' : 'pending'
-  }
-  return 'completed'
-}
+export const transcribeUrl = (
+  meditationId: number | string | undefined,
+  locale: string | undefined,
+): string | null =>
+  meditationId && locale
+    ? `/api/meditations/${meditationId}/transcribe${qs.stringify(
+        { locale },
+        { addQueryPrefix: true },
+      )}`
+    : null
 
 /** Split the phrases into paragraphs at pauses, and mark the long ones. */
 export function groupTranscript(segments: TranscriptSegment[]): TranscriptParagraph[] {

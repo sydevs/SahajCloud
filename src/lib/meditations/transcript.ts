@@ -43,6 +43,6 @@ export type TranscriptProvider = (typeof TRANSCRIPT_PROVIDERS)[number]
 
 /**
  * Re-exported, not declared here: a `'use client'` consumer must reach the
- * bound without this module's zod schemas. `./transcriptStall` says why.
+ * bound without this module's zod schemas. `./transcriptBounds` says why.
  */
-export { TRANSCRIPTION_STALL_MS } from './transcriptStall'
+export { TRANSCRIPTION_STALL_MS } from './transcriptBounds'

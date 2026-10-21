@@ -87,7 +87,7 @@ reads, so keep those labels and cell shapes when you add a row.
 
 | Metric                                                                                                    | Value                                                             |
 | --------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Files / tests                                                                                             | 222 / 2843                                                        |
+| Files / tests                                                                                             | 224 / 2880                                                        |
 | Whole lane, 3 workers (slowest session median, what the consumer docs quote)                              | **77.9 s**                                                        |
 | One spec alone, the typical edit (third session)                                                          | 1.3 s                                                             |
 | Slowest per-edit selection timed on 4 cores, the 9 specs naming `tests/utils/importGraph.ts` (2026-10-21) | **8.0 s**                                                         |

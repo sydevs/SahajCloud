@@ -1,7 +1,8 @@
 /**
- * The Transcript tab's pure logic: which notice it shows, how phrases fall
- * into paragraphs and silences, and which phrase the playhead is in. The URL
- * it reads is pinned in `admin-locale-urls.spec.ts`, with its three siblings.
+ * The Transcript tab's pure logic: how phrases fall into paragraphs and
+ * silences, and which phrase the playhead is in. Which notice it shows is
+ * `transcript-phase.spec.ts`'s, since the endpoint reads that too; the URLs it
+ * builds are pinned in `admin-locale-urls.spec.ts`, with their siblings.
  *
  * Every cue time here is **milliseconds**, as `meditation-transcripts` stores
  * them; the playhead the preview reports is **seconds**.
@@ -12,59 +13,13 @@ import {
   activeSegmentIndex,
   groupTranscript,
   seekSecond,
-  transcriptPhase,
 } from '@/components/admin/MeditationTranscript/transcriptModel'
-import { TRANSCRIPTION_STALL_MS } from '@/lib/meditations/transcript'
 import type { TranscriptSegment } from '@/lib/meditations/transcript'
-import type { MeditationTranscript } from '@/payload-types'
 
 const cue = (startTimeMs: number, endTimeMs: number): TranscriptSegment => ({
   content: `${startTimeMs}-${endTimeMs}`,
   startTimeMs,
   endTimeMs,
-})
-
-const NOW = Date.parse('2026-10-17T12:00:00.000Z')
-
-const row = (
-  overrides: Partial<Pick<MeditationTranscript, 'status' | 'updatedAt'>>,
-): Pick<MeditationTranscript, 'status' | 'updatedAt'> => ({
-  status: 'completed',
-  updatedAt: new Date(NOW).toISOString(),
-  ...overrides,
-})
-
-describe('transcriptPhase', () => {
-  it('reads no row as nothing transcribed yet', () => {
-    expect(transcriptPhase(undefined, NOW)).toBe('none')
-  })
-
-  it.each([
-    ['processing', 'pending'],
-    ['failed', 'failed'],
-    ['completed', 'completed'],
-  ] as const)('reads a fresh %s row as %s', (status, phase) => {
-    expect(transcriptPhase(row({ status }), NOW)).toBe(phase)
-  })
-
-  it('reads a processing row older than the stall bound as stalled', () => {
-    const stale = new Date(NOW - TRANSCRIPTION_STALL_MS - 1000).toISOString()
-
-    expect(transcriptPhase(row({ status: 'processing', updatedAt: stale }), NOW)).toBe('stalled')
-  })
-
-  it('leaves a processing row inside the stall bound pending', () => {
-    const recent = new Date(NOW - TRANSCRIPTION_STALL_MS + 1000).toISOString()
-
-    expect(transcriptPhase(row({ status: 'processing', updatedAt: recent }), NOW)).toBe('pending')
-  })
-
-  it('does not stall a failed or completed row, however old', () => {
-    const ancient = new Date(NOW - TRANSCRIPTION_STALL_MS * 100).toISOString()
-
-    expect(transcriptPhase(row({ status: 'failed', updatedAt: ancient }), NOW)).toBe('failed')
-    expect(transcriptPhase(row({ status: 'completed', updatedAt: ancient }), NOW)).toBe('completed')
-  })
 })
 
 describe('groupTranscript', () => {
