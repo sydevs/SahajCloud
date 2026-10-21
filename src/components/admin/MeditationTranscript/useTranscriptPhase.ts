@@ -2,10 +2,13 @@
 
 import { useEffect, useState } from 'react'
 
-import { TRANSCRIPTION_STALL_MS } from '@/lib/meditations/transcriptStall'
+import {
+  retranscribeWaitMs,
+  TRANSCRIPTION_STALL_MS,
+  type TranscriptPhase,
+  transcriptPhase,
+} from '@/lib/meditations/transcriptBounds'
 import type { MeditationTranscript as TranscriptRow } from '@/payload-types'
-
-import { type TranscriptPhase, transcriptPhase } from './transcriptModel'
 
 /**
  * Which notice the tab shows, and the one re-render that lets `stalled` reach
@@ -39,4 +42,28 @@ export function useTranscriptPhase(row: TranscriptRow | undefined): TranscriptPh
   }, [waitingSince])
 
   return phase
+}
+
+/**
+ * Milliseconds left before a transcript asked for at `requestedAt` may be asked
+ * for again, `0` once the cooldown has passed — and the render that lets that
+ * moment reach the screen.
+ *
+ * ⚠ **Its own timer, for the reason above.** A `failed` row never changes, so
+ * every poll answers the row SWR already has and nothing renders: the instant
+ * the cooldown passes is invisible without this. Beside `useTranscriptPhase`
+ * because it is the same defect one bound apart, and a caller holding the
+ * remaining wait without the timer is that defect.
+ */
+export function useRetryCooldown(requestedAt: string | undefined): number {
+  const [, recheck] = useState(0)
+
+  useEffect(() => {
+    const remaining = retranscribeWaitMs(requestedAt)
+    if (!(remaining > 0)) return
+    const timer = setTimeout(() => recheck((count) => count + 1), remaining)
+    return () => clearTimeout(timer)
+  }, [requestedAt])
+
+  return retranscribeWaitMs(requestedAt)
 }
