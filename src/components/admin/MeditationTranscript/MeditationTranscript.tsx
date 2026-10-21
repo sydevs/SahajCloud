@@ -9,16 +9,20 @@ import useSWR from 'swr'
 
 import { formatTime, usePlaybackTime, useSeekToTime } from '@/components/admin/FrameEditor'
 import type { TranscriptSegment } from '@/lib/meditations/transcript'
+import {
+  transcriptPhase,
+  type TranscriptPhase,
+  transcriptPhaseIsRetryable,
+} from '@/lib/meditations/transcriptPhase'
 import type { MeditationTranscript as TranscriptRow } from '@/payload-types'
 
 import styles from './MeditationTranscript.module.css'
+import { RetryTranscript } from './RetryTranscript'
 import {
   activeSegmentIndex,
   groupTranscript,
   seekSecond,
   type TranscriptParagraph,
-  transcriptPhase,
-  type TranscriptPhase,
   transcriptUrl,
 } from './transcriptModel'
 import { useFollowPlayhead } from './useFollowPlayhead'
@@ -57,6 +61,11 @@ type Notice = {
  * The four phases with nothing to read, as one table of `Banner`s — the parts
  * `JobStageView.tsx:75` builds the same notice from. Declared rather than
  * branched so the four cannot drift into three kinds of thing.
+ *
+ * ⚠ **Which of them offer a retry is not a column here.**
+ * `transcriptPhaseIsRetryable` answers that, and the endpoint refuses from the
+ * same function — a column would be a second copy of the rule, free to
+ * disagree with no test failing.
  */
 const NOTICES: Record<Exclude<TranscriptPhase, 'completed'>, Notice> = {
   failed: { heading: 'Transcription failed.', type: 'error' },
@@ -105,7 +114,7 @@ export const MeditationTranscript: UIFieldClientComponent = () => {
   const { code } = useLocale()
   const url = transcriptUrl(id, code)
 
-  const { data, error } = useSWR(url, readTranscripts, {
+  const { data, error, mutate } = useSWR(url, readTranscripts, {
     refreshInterval: pollInterval,
     revalidateOnFocus: false,
   })
@@ -144,7 +153,14 @@ export const MeditationTranscript: UIFieldClientComponent = () => {
             icon={notice.spinner ? <Spinner loadingText={null} size="sm" /> : undefined}
             type={notice.type}
           >
-            {notice.heading && <strong>{notice.heading}</strong>} {notice.detail ?? row?.error}
+            {notice.heading && <strong>{notice.heading}</strong>} {notice.detail ?? row?.error}{' '}
+            {transcriptPhaseIsRetryable(phase) && id && (
+              <RetryTranscript
+                meditationId={id}
+                onRetried={mutate}
+                requestedAt={row?.createdAt}
+              />
+            )}
           </Banner>
         )}
       </div>
