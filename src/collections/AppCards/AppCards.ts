@@ -166,6 +166,10 @@ function destinationFields(
         {
           name: 'destination',
           type: 'select',
+          // Per locale because `url` and `meditation` are (#1001, #981).
+          // `page`, `lecture` and `album` stay shared — each points at a
+          // document localized itself.
+          localized: true,
           options: [
             { label: 'Page', value: 'page' },
             { label: 'Lecture', value: 'lecture' },
