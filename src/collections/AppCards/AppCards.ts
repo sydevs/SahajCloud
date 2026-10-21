@@ -166,8 +166,9 @@ function destinationFields(
         {
           name: 'destination',
           type: 'select',
-          // Per locale because `url` is (#1001). The relationship targets stay
-          // shared — each points at a document localized itself.
+          // Per locale because `url` and `meditation` are (#1001, #981).
+          // `page`, `lecture` and `album` stay shared — each points at a
+          // document localized itself.
           localized: true,
           options: [
             { label: 'Page', value: 'page' },
@@ -209,6 +210,10 @@ function destinationFields(
           name: 'meditation',
           type: 'relationship',
           relationTo: 'meditations',
+          // A meditation document IS single-locale (src/collections/AGENTS.md), so
+          // the card's target differs per language and the picker only ever lists
+          // the admin's own locale.
+          localized: true,
           admin: {
             condition: (_, siblingData) => siblingData?.destination === 'meditation',
           },

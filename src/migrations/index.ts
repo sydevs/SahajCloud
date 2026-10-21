@@ -88,9 +88,13 @@ import * as migration_20261017_102331_transcript_job_relationship from './202610
 import * as migration_20261017_161838_event_import_analyze_slug from './20261017_161838_event_import_analyze_slug';
 import * as migration_20261019_182311_import_plugin from './20261019_182311_import_plugin';
 import * as migration_20261020_002253_event_import_results from './20261020_002253_event_import_results';
+import * as migration_20261020_170450_localize_admin_edited_fields from './20261020_170450_localize_admin_edited_fields';
 import * as migration_20261020_172522_event_import_own_job from './20261020_172522_event_import_own_job';
 import * as migration_20261020_181806_merge_main_snapshot from './20261020_181806_merge_main_snapshot';
+import * as migration_20261020_185917_forms_title_optional_per_locale from './20261020_185917_forms_title_optional_per_locale';
+import * as migration_20261020_235623_merge_981_main_snapshot from './20261020_235623_merge_981_main_snapshot';
 import * as migration_20261021_014535_localize_app_card_destination from './20261021_014535_localize_app_card_destination';
+import * as migration_20261021_024228_merge_1002_main_snapshot from './20261021_024228_merge_1002_main_snapshot';
 
 export const migrations = [
   {
@@ -544,6 +548,11 @@ export const migrations = [
     name: '20261020_002253_event_import_results',
   },
   {
+    up: migration_20261020_170450_localize_admin_edited_fields.up,
+    down: migration_20261020_170450_localize_admin_edited_fields.down,
+    name: '20261020_170450_localize_admin_edited_fields',
+  },
+  {
     up: migration_20261020_172522_event_import_own_job.up,
     down: migration_20261020_172522_event_import_own_job.down,
     name: '20261020_172522_event_import_own_job',
@@ -554,8 +563,23 @@ export const migrations = [
     name: '20261020_181806_merge_main_snapshot',
   },
   {
+    up: migration_20261020_185917_forms_title_optional_per_locale.up,
+    down: migration_20261020_185917_forms_title_optional_per_locale.down,
+    name: '20261020_185917_forms_title_optional_per_locale',
+  },
+  {
+    up: migration_20261020_235623_merge_981_main_snapshot.up,
+    down: migration_20261020_235623_merge_981_main_snapshot.down,
+    name: '20261020_235623_merge_981_main_snapshot',
+  },
+  {
     up: migration_20261021_014535_localize_app_card_destination.up,
     down: migration_20261021_014535_localize_app_card_destination.down,
-    name: '20261021_014535_localize_app_card_destination'
+    name: '20261021_014535_localize_app_card_destination',
+  },
+  {
+    up: migration_20261021_024228_merge_1002_main_snapshot.up,
+    down: migration_20261021_024228_merge_1002_main_snapshot.down,
+    name: '20261021_024228_merge_1002_main_snapshot'
   },
 ];

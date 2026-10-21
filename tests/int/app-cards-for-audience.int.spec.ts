@@ -756,7 +756,62 @@ describe('appCardsForAudience endpoint', () => {
     })
   })
 
-  describe('per-language destination (#1001)', () => {
+  /**
+   * A meditation document is itself single-locale, so the French admin's
+   * picker lists only French meditations — which is what made one editor's
+   * save replace the English target for all 19 locales (#981).
+   *
+   * Functional, not config-level: Payload strips `localized` from a booted
+   * config, so reading the flag back would pass either way (`tests/AGENTS.md`).
+   */
+  describe('per-language destination', () => {
+    it('keeps a French edit from repointing the English card', async () => {
+      // Both meditations share one narrator and thumbnail. Left to itself,
+      // `createMeditation` builds a narrator and uploads an image per call,
+      // for a test that needs two ids at different locales.
+      const narrator = await testData.createNarrator(payload, { name: 'Localized Narrator' })
+      const thumb = await testData.createMediaImage(
+        payload,
+        { alt: 'Localized meditation thumbnail' },
+        'image-1050x700.webp',
+      )
+      const deps = { narrator: narrator.id, thumbnail: thumb.id }
+
+      const enMeditation = await testData.createMeditation(payload, deps, { locale: 'en' })
+      const frMeditation = await testData.createMeditation(payload, deps, { locale: 'fr' })
+
+      const card = await testData.createAppCard(payload, {
+        default: { destination: 'meditation', meditation: enMeditation.id },
+      })
+
+      // `default.title` was already required and localized, so a French save
+      // owes one of its own whatever this change does.
+      await payload.update({
+        collection: 'app-cards',
+        id: card.id,
+        locale: 'fr',
+        data: { default: { title: 'Titre francais', meditation: frMeditation.id } },
+      })
+
+      const en = await payload.findByID({
+        collection: 'app-cards',
+        id: card.id,
+        locale: 'en',
+        fallbackLocale: false,
+        depth: 0,
+      })
+      const fr = await payload.findByID({
+        collection: 'app-cards',
+        id: card.id,
+        locale: 'fr',
+        fallbackLocale: false,
+        depth: 0,
+      })
+
+      expect(en.default?.meditation).toBe(enMeditation.id)
+      expect(fr.default?.meditation).toBe(frMeditation.id)
+    })
+
     // The direction the endpoint case below cannot reach: it reads `en`, so
     // only this one sees an English edit arriving at a French card.
     it('leaves French with its own destination when English changes', async () => {
