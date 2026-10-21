@@ -82,14 +82,19 @@ export function jobStageWait(
   now: number = Date.now(),
 ): JobStageWait | null {
   const stage = valueAt(doc, config.statusField ?? DEFAULT_STATUS_FIELD)
-  if (typeof stage !== 'string' || !config.runningStages.includes(stage)) return null
-  if (isStale(config, doc, now)) return null
+  if (!jobStageIsRunning(config, stage)) return null
+  if (jobStageIsStale(config, doc, now)) return null
 
   return {
     progress: asNumber(valueAt(doc, config.progressField)),
     stage,
     total: asNumber(valueAt(doc, config.totalField)),
   }
+}
+
+/** Whether a stored stage is one the declaring collection calls running. */
+export function jobStageIsRunning(config: JobStageConfig, stage: unknown): stage is string {
+  return typeof stage === 'string' && config.runningStages.includes(stage)
 }
 
 /**
@@ -100,7 +105,7 @@ export function jobStageWait(
  * a healthy run whenever a timestamp cannot be parsed, which is the failure
  * the gate exists to prevent.
  */
-function isStale(config: JobStageConfig, doc: unknown, now: number): boolean {
+export function jobStageIsStale(config: JobStageConfig, doc: unknown, now: number): boolean {
   if (config.staleAfterMs === undefined) return false
   const updatedAt = valueAt(doc, 'updatedAt')
   if (typeof updatedAt !== 'string') return false

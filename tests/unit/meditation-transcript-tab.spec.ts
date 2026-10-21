@@ -17,6 +17,14 @@
  * - `useLivePreviewContext().iframeRef` is the live-preview iframe, which is
  *   where both playhead seams reach: `usePlaybackTime` subscribes to its
  *   origin and `useSeekToTime` posts back to it.
+ * - `useConfig().getEntityConfig({ collectionSlug })` answers that collection's
+ *   client config, from a slug-keyed map built over `config.collections`
+ *   (`@payloadcms/ui/dist/providers/Config/index.js`), and `null` for a slug it
+ *   does not hold. It is served the **real** `MeditationTranscripts.admin.custom`
+ *   here, because `admin.custom` survives `createClientCollectionConfig` —
+ *   `serverOnlyCollectionAdminProperties` does not list it
+ *   (`payload/dist/collections/config/client.js`). A fixture restating the
+ *   declaration would assume what the tab is under test for.
  *
  * Everything under test is therefore our own: the playhead arrives as a real
  * `PLAYBACK_TIME_UPDATE` message through `playbackTimeStore`, and a seek is
@@ -29,9 +37,16 @@ import { act, createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { MeditationTranscripts } from '@/collections/MeditationTranscripts/MeditationTranscripts'
 import { __resetPlaybackTimeStoreForTests } from '@/components/admin/FrameEditor/playbackTimeStore'
+import { readJobStageConfig } from '@/components/admin/JobStageView/stages'
 import { TRANSCRIPTION_STALL_MS } from '@/lib/meditations/transcript'
 import type { MeditationTranscript } from '@/payload-types'
+
+const DECLARED_CUSTOM = MeditationTranscripts.admin?.custom
+const RUNNING = readJobStageConfig(DECLARED_CUSTOM)?.runningStages[0] as
+  MeditationTranscript['status'] | undefined
+if (!RUNNING) throw new Error('meditation-transcripts declares no runningStages')
 
 const PREVIEW_ORIGIN = 'https://preview.example'
 
@@ -47,6 +62,8 @@ const stub = vi.hoisted(() => ({
   swr: { data: undefined as unknown, error: undefined as unknown },
   swrCalls: [] as { key: unknown; options: { refreshInterval?: unknown } }[],
   iframe: null as unknown,
+  /** The `admin.custom` the config answers for `meditation-transcripts`. */
+  custom: undefined as unknown,
 }))
 
 vi.mock('@payloadcms/ui', () => ({
@@ -57,6 +74,10 @@ vi.mock('@payloadcms/ui', () => ({
   useDocumentInfo: () => ({ id: stub.id }),
   useLocale: () => ({ code: stub.locale }),
   useLivePreviewContext: () => ({ iframeRef: stub.iframe, url: '' }),
+  useConfig: () => ({
+    getEntityConfig: ({ collectionSlug }: { collectionSlug?: string }) =>
+      collectionSlug === 'meditation-transcripts' ? { admin: { custom: stub.custom } } : null,
+  }),
 }))
 
 vi.mock('swr', () => ({
@@ -112,6 +133,7 @@ describe('the Transcript tab', () => {
     stub.swr = { data: { docs: [row({ segments: SEGMENTS })] }, error: undefined }
     stub.swrCalls = []
     stub.iframe = iframeRef
+    stub.custom = DECLARED_CUSTOM
 
     MeditationTranscript = (
       await import('@/components/admin/MeditationTranscript/MeditationTranscript')
@@ -246,7 +268,7 @@ describe('the Transcript tab', () => {
     })
 
     it('shows progress while a run is in flight', () => {
-      renderRow({ status: 'processing' })
+      renderRow({ status: RUNNING })
 
       expect(text()).toContain('Transcription in progress')
       expect(text()).not.toContain('stopped responding')
@@ -254,6 +276,20 @@ describe('the Transcript tab', () => {
       // four phases read as one kind of thing rather than three.
       expect(banners()).toHaveLength(1)
       expect(container.querySelector('[data-banner] [data-spinner]')).not.toBeNull()
+    })
+
+    /**
+     * The declaration is the tab's only stage vocabulary, so losing it is a
+     * wiring failure to report rather than a wait to guess at. Silently reading
+     * `completed` would render a blank tab over a run still in flight.
+     */
+    it('refuses outright when the collection declares no jobStage', () => {
+      stub.custom = {}
+      renderRow({ status: RUNNING })
+
+      expect(text()).toContain('declares no')
+      expect(text()).not.toContain('Transcription in progress')
+      expect(phrases()).toHaveLength(0)
     })
 
     it('shows the failure and the run’s own message', () => {
@@ -265,7 +301,7 @@ describe('the Transcript tab', () => {
 
     it('shows the stopped-responding notice for a processing row past the stall bound', () => {
       renderRow({
-        status: 'processing',
+        status: RUNNING,
         updatedAt: new Date(Date.now() - TRANSCRIPTION_STALL_MS - 1000).toISOString(),
       })
 
@@ -281,7 +317,7 @@ describe('the Transcript tab', () => {
     it('reaches the stall notice while mounted, on no new row', () => {
       vi.useFakeTimers()
       try {
-        renderRow({ status: 'processing' })
+        renderRow({ status: RUNNING })
         expect(text()).toContain('Transcription in progress')
 
         act(() => void vi.advanceTimersByTime(TRANSCRIPTION_STALL_MS + 1000))
@@ -294,7 +330,7 @@ describe('the Transcript tab', () => {
     })
 
     it('renders a processing row’s cues beneath its notice', () => {
-      renderRow({ status: 'processing', segments: SEGMENTS })
+      renderRow({ status: RUNNING, segments: SEGMENTS })
 
       expect(text()).toContain('Transcription in progress')
       expect(phrases()).toHaveLength(SEGMENTS.length)
@@ -347,7 +383,7 @@ describe('the Transcript tab', () => {
         latest?: unknown,
       ) => number
 
-      expect(refreshInterval({ docs: [row({ status: 'processing' })] })).toBe(3000)
+      expect(refreshInterval({ docs: [row({ status: RUNNING })] })).toBe(3000)
       expect(refreshInterval({ docs: [row({ status: 'completed' })] })).toBe(0)
       // The rest of the phase table is `meditation-transcript-model.spec.ts`'s.
       expect(refreshInterval(undefined)).toBe(0)

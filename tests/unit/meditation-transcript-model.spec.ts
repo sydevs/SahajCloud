@@ -8,15 +8,31 @@
  */
 import { describe, expect, it } from 'vitest'
 
+import { MeditationTranscripts } from '@/collections/MeditationTranscripts/MeditationTranscripts'
+import { type JobStageConfig, readJobStageConfig } from '@/components/admin/JobStageView/stages'
 import {
   activeSegmentIndex,
   groupTranscript,
   seekSecond,
   transcriptPhase,
 } from '@/components/admin/MeditationTranscript/transcriptModel'
-import { TRANSCRIPTION_STALL_MS } from '@/lib/meditations/transcript'
 import type { TranscriptSegment } from '@/lib/meditations/transcript'
 import type { MeditationTranscript } from '@/payload-types'
+
+/**
+ * The collection's own declaration, which is what the tab reads in the browser
+ * — not a fixture restating it. A fixture here would assume the one thing these
+ * cases exist to prove: that the tab's wait and the row's Edit view are read
+ * off the same two values.
+ */
+const DECLARED = readJobStageConfig(MeditationTranscripts.admin?.custom)
+if (!DECLARED) throw new Error('meditation-transcripts declares no jobStage')
+
+const STALL_MS = DECLARED.staleAfterMs
+if (STALL_MS === undefined) throw new Error('meditation-transcripts declares no staleAfterMs')
+
+const RUNNING = DECLARED.runningStages[0] as MeditationTranscript['status']
+if (!RUNNING) throw new Error('meditation-transcripts declares no runningStages')
 
 const cue = (startTimeMs: number, endTimeMs: number): TranscriptSegment => ({
   content: `${startTimeMs}-${endTimeMs}`,
@@ -36,34 +52,78 @@ const row = (
 
 describe('transcriptPhase', () => {
   it('reads no row as nothing transcribed yet', () => {
-    expect(transcriptPhase(undefined, NOW)).toBe('none')
+    expect(transcriptPhase(DECLARED, undefined, NOW)).toBe('none')
   })
 
   it.each([
-    ['processing', 'pending'],
+    [RUNNING, 'pending'],
     ['failed', 'failed'],
     ['completed', 'completed'],
   ] as const)('reads a fresh %s row as %s', (status, phase) => {
-    expect(transcriptPhase(row({ status }), NOW)).toBe(phase)
+    expect(transcriptPhase(DECLARED, row({ status }), NOW)).toBe(phase)
   })
 
-  it('reads a processing row older than the stall bound as stalled', () => {
-    const stale = new Date(NOW - TRANSCRIPTION_STALL_MS - 1000).toISOString()
+  it('reads a running row older than the declared stall bound as stalled', () => {
+    const stale = new Date(NOW - STALL_MS - 1000).toISOString()
 
-    expect(transcriptPhase(row({ status: 'processing', updatedAt: stale }), NOW)).toBe('stalled')
+    expect(transcriptPhase(DECLARED, row({ status: RUNNING, updatedAt: stale }), NOW)).toBe(
+      'stalled',
+    )
   })
 
-  it('leaves a processing row inside the stall bound pending', () => {
-    const recent = new Date(NOW - TRANSCRIPTION_STALL_MS + 1000).toISOString()
+  it('leaves a running row inside the declared stall bound pending', () => {
+    const recent = new Date(NOW - STALL_MS + 1000).toISOString()
 
-    expect(transcriptPhase(row({ status: 'processing', updatedAt: recent }), NOW)).toBe('pending')
+    expect(transcriptPhase(DECLARED, row({ status: RUNNING, updatedAt: recent }), NOW)).toBe(
+      'pending',
+    )
   })
 
   it('does not stall a failed or completed row, however old', () => {
-    const ancient = new Date(NOW - TRANSCRIPTION_STALL_MS * 100).toISOString()
+    const ancient = new Date(NOW - STALL_MS * 100).toISOString()
 
-    expect(transcriptPhase(row({ status: 'failed', updatedAt: ancient }), NOW)).toBe('failed')
-    expect(transcriptPhase(row({ status: 'completed', updatedAt: ancient }), NOW)).toBe('completed')
+    expect(transcriptPhase(DECLARED, row({ status: 'failed', updatedAt: ancient }), NOW)).toBe(
+      'failed',
+    )
+    expect(transcriptPhase(DECLARED, row({ status: 'completed', updatedAt: ancient }), NOW)).toBe(
+      'completed',
+    )
+  })
+
+  /**
+   * The drift the seam exists to absorb, and the reason this file asserts
+   * against a declaration rather than against `'processing'`: #912 added a
+   * second `jobStage` whose running stage is spelled differently, so a tab
+   * naming its own would wait while the row's Edit view did not — or fall
+   * through to `completed` and render a blank tab.
+   */
+  describe('a stage the tab has never heard of', () => {
+    const renamed: JobStageConfig = { runningStages: ['transcribing'], staleAfterMs: STALL_MS }
+    const transcribing = row({ status: 'transcribing' as MeditationTranscript['status'] })
+
+    it('is pending while it is fresh', () => {
+      expect(transcriptPhase(renamed, transcribing, NOW)).toBe('pending')
+    })
+
+    it('is stalled once the bound passes', () => {
+      const stale = { ...transcribing, updatedAt: new Date(NOW - STALL_MS - 1000).toISOString() }
+
+      expect(transcriptPhase(renamed, stale, NOW)).toBe('stalled')
+    })
+
+    it('leaves the stage the declaration dropped reading completed', () => {
+      expect(transcriptPhase(renamed, row({ status: RUNNING }), NOW)).toBe('completed')
+    })
+  })
+
+  /** No declared bound is no bound: the wait keeps, as it does in `JobStageView`. */
+  it('never stalls a running row where no staleAfterMs is declared', () => {
+    const unbounded: JobStageConfig = { runningStages: [RUNNING as string] }
+    const ancient = new Date(NOW - STALL_MS * 100).toISOString()
+
+    expect(transcriptPhase(unbounded, row({ status: RUNNING, updatedAt: ancient }), NOW)).toBe(
+      'pending',
+    )
   })
 })
 

@@ -1,10 +1,15 @@
 import * as qs from 'qs-esm'
 
+import {
+  type JobStageConfig,
+  jobStageIsRunning,
+  jobStageIsStale,
+} from '@/components/admin/JobStageView/stages'
 import type { TranscriptSegment } from '@/lib/meditations/transcript'
-// The zero-weight door to the bound: `@/lib/meditations/transcript` builds
-// zod schemas at module scope, and this module is reached from the browser.
-import { TRANSCRIPTION_STALL_MS } from '@/lib/meditations/transcriptStall'
 import type { MeditationTranscript } from '@/payload-types'
+
+/** The collection the tab reads, and whose `jobStage` declaration it follows. */
+export const TRANSCRIPTS_SLUG = 'meditation-transcripts'
 
 /** A pause this long between phrases starts a new paragraph. */
 const PARAGRAPH_GAP_MS = 3000
@@ -39,7 +44,7 @@ export const transcriptUrl = (
   locale: string | undefined,
 ): string | null =>
   meditationId && locale
-    ? `/api/meditation-transcripts${qs.stringify(
+    ? `/api/${TRANSCRIPTS_SLUG}${qs.stringify(
         { depth: 0, limit: 1, locale, where: { meditation: { equals: meditationId } } },
         { addQueryPrefix: true },
       )}`
@@ -52,18 +57,20 @@ export type TranscriptPhase = 'none' | 'pending' | 'stalled' | 'failed' | 'compl
  * recording takes its row with it and a fresh one is queued at once, so there
  * is no out-of-date transcript to keep on screen.
  *
- * `TRANSCRIPTION_STALL_MS` is the bound the collection already passes
- * `jobStage.staleAfterMs`, so the tab and the row's own Edit view go stale
- * together. An unparseable `updatedAt` keeps the wait, as it does there.
+ * Which stages are a wait, and how long one may stand, are read off the
+ * collection's own `jobStage` declaration rather than named here, so the tab
+ * and the row's Edit view cannot disagree about either. `failed` stays a
+ * literal: it is this collection's terminal status, not a running stage.
  */
 export function transcriptPhase(
+  config: JobStageConfig,
   row: Pick<MeditationTranscript, 'status' | 'updatedAt'> | undefined,
   now: number = Date.now(),
 ): TranscriptPhase {
   if (!row) return 'none'
   if (row.status === 'failed') return 'failed'
-  if (row.status === 'processing') {
-    return now - Date.parse(row.updatedAt) > TRANSCRIPTION_STALL_MS ? 'stalled' : 'pending'
+  if (jobStageIsRunning(config, row.status)) {
+    return jobStageIsStale(config, row, now) ? 'stalled' : 'pending'
   }
   return 'completed'
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 
-import { TRANSCRIPTION_STALL_MS } from '@/lib/meditations/transcriptStall'
+import type { JobStageConfig } from '@/components/admin/JobStageView/stages'
 import type { MeditationTranscript as TranscriptRow } from '@/payload-types'
 
 import { type TranscriptPhase, transcriptPhase } from './transcriptModel'
@@ -24,19 +24,27 @@ import { type TranscriptPhase, transcriptPhase } from './transcriptModel'
  * Only a wait has a bound ahead of it. Every other phase is final until the
  * row changes, which SWR renders on its own, and an unparseable or
  * already-passed `updatedAt` reads as the phase it already is.
+ *
+ * A collection declaring no `staleAfterMs` has no bound to wake for, and
+ * `transcriptPhase` never reads `stalled` there, so the timer stands down with
+ * it rather than firing on a phase that cannot change.
  */
-export function useTranscriptPhase(row: TranscriptRow | undefined): TranscriptPhase {
+export function useTranscriptPhase(
+  config: JobStageConfig,
+  row: TranscriptRow | undefined,
+): TranscriptPhase {
   const [, recheck] = useState(0)
-  const phase = transcriptPhase(row)
+  const phase = transcriptPhase(config, row)
+  const { staleAfterMs } = config
   const waitingSince = phase === 'pending' ? row?.updatedAt : undefined
 
   useEffect(() => {
-    if (!waitingSince) return
-    const remaining = Date.parse(waitingSince) + TRANSCRIPTION_STALL_MS - Date.now()
+    if (!waitingSince || staleAfterMs === undefined) return
+    const remaining = Date.parse(waitingSince) + staleAfterMs - Date.now()
     if (!(remaining > 0)) return
     const timer = setTimeout(() => recheck((count) => count + 1), remaining)
     return () => clearTimeout(timer)
-  }, [waitingSince])
+  }, [staleAfterMs, waitingSince])
 
   return phase
 }

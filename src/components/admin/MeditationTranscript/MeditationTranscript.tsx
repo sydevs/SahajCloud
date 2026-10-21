@@ -2,12 +2,13 @@
 
 import type { UIFieldClientComponent } from 'payload'
 
-import { Banner, Spinner, useDocumentInfo, useLocale } from '@payloadcms/ui'
+import { Banner, Spinner, useConfig, useDocumentInfo, useLocale } from '@payloadcms/ui'
 import { AudioLines } from 'lucide-react'
 import React, { memo, useMemo, useRef } from 'react'
 import useSWR from 'swr'
 
 import { formatTime, usePlaybackTime, useSeekToTime } from '@/components/admin/FrameEditor'
+import { type JobStageConfig, readJobStageConfig } from '@/components/admin/JobStageView/stages'
 import type { TranscriptSegment } from '@/lib/meditations/transcript'
 import type { MeditationTranscript as TranscriptRow } from '@/payload-types'
 
@@ -19,6 +20,7 @@ import {
   type TranscriptParagraph,
   transcriptPhase,
   type TranscriptPhase,
+  TRANSCRIPTS_SLUG,
   transcriptUrl,
 } from './transcriptModel'
 import { useFollowPlayhead } from './useFollowPlayhead'
@@ -36,14 +38,28 @@ const rowOf = (list: TranscriptList | undefined): TranscriptRow | undefined => l
  * forever — but only because `useTranscriptPhase` renders the moment the bound
  * passes. A poll alone never reaches it.
  *
- * ⚠ **Declared once, at module scope.** SWR lists `refreshInterval` in its
- * polling effect's dependencies, so a new arrow each render re-arms the timer
- * from zero — and the playhead re-renders this component about once a second
- * while the recording plays, more often than the interval. An inline arrow
- * would therefore stop the poll exactly while the editor is listening.
+ * ⚠ **One identity per declaration, never one per render.** SWR lists
+ * `refreshInterval` in its polling effect's dependencies, so a new arrow each
+ * render re-arms the timer from zero — and the playhead re-renders this
+ * component about once a second while the recording plays, more often than the
+ * interval. So the caller memoises this on the declaration, which
+ * `getEntityConfig` answers from a map keyed on the client config: it changes
+ * when that config is replaced, not as the editor listens.
  */
-const pollInterval = (latest?: TranscriptList): number =>
-  transcriptPhase(rowOf(latest)) === 'pending' ? POLL_INTERVAL_MS : 0
+const pollIntervalFor =
+  (config: JobStageConfig) =>
+  (latest?: TranscriptList): number =>
+    transcriptPhase(config, rowOf(latest)) === 'pending' ? POLL_INTERVAL_MS : 0
+
+/**
+ * What the hooks below read while the collection declares no `jobStage`, which
+ * the render refuses outright a few lines later.
+ *
+ * Naming the stages here instead would restore the second implementation this
+ * tab was built to drop: it would read a wait the row's own Edit view does not,
+ * on the one configuration where the two provably disagree.
+ */
+const NO_STAGES: JobStageConfig = { runningStages: [] }
 
 type Notice = {
   type: 'error' | 'info'
@@ -103,7 +119,15 @@ async function readTranscripts(url: string): Promise<TranscriptList> {
 export const MeditationTranscript: UIFieldClientComponent = () => {
   const { id } = useDocumentInfo()
   const { code } = useLocale()
+  const { getEntityConfig } = useConfig()
   const url = transcriptUrl(id, code)
+
+  // Memoised on the stored declaration, not rebuilt per render: `readJobStageConfig`
+  // answers a fresh object, and both consumers below are identity-sensitive.
+  const custom = getEntityConfig({ collectionSlug: TRANSCRIPTS_SLUG })?.admin?.custom
+  const declared = useMemo(() => readJobStageConfig(custom), [custom])
+  const stageConfig = declared ?? NO_STAGES
+  const pollInterval = useMemo(() => pollIntervalFor(stageConfig), [stageConfig])
 
   const { data, error } = useSWR(url, readTranscripts, {
     refreshInterval: pollInterval,
@@ -120,10 +144,19 @@ export const MeditationTranscript: UIFieldClientComponent = () => {
   const active = activeSegmentIndex(segments, playheadSeconds)
   const container = useRef<HTMLDivElement>(null)
   useFollowPlayhead(container, active, segments.length > 0)
-  const phase = useTranscriptPhase(row)
+  const phase = useTranscriptPhase(stageConfig, row)
 
   if (!url) {
     return <Banner type="error">The transcript cannot load without an admin locale.</Banner>
+  }
+  // Loud rather than assumed: with no declaration to read, a notice about a run
+  // in progress would be this tab's own guess at another collection's states.
+  if (!declared) {
+    return (
+      <Banner type="error">
+        The transcript cannot load: {TRANSCRIPTS_SLUG} declares no `admin.custom.jobStage`.
+      </Banner>
+    )
   }
   if (error) {
     return (
