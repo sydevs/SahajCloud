@@ -11,11 +11,13 @@ import {
 /**
  * The set of locale-scoped collections is named, never derived from "has a
  * field called `locale`" (#980). Four collections carry one and no two mean the
- * same thing, so the cases below pin the three that must stay out: `lectures`
- * grants a role `update` and keeps its `locale` inside `subtitles` rows, so a
- * field-name rule would answer every lecture write with an unqueryable path;
- * `clients` stores a service's preferred language; `imports` stores the admin
- * locale an upload happened in (#912).
+ * same thing, so the cases below pin the three that must stay out: `clients`
+ * stores a service's preferred language, `imports` the admin locale an upload
+ * happened in (#912), and `lectures` a row key inside `subtitles`.
+ *
+ * These pin the verdicts. What forces a NEW collection to get one is
+ * `role-based-access.int.spec.ts`, which needs the booted config to see the
+ * column at all.
  */
 
 type HookArgs = Parameters<CollectionBeforeValidateHook>[0]

@@ -11,6 +11,8 @@ import { mintLivePreviewToken } from '@/lib/livePreview/token'
 import { PREVIEW_SECRET_HEADER, resolveLivePreviewHook } from '@/lib/utilities/previewSecret'
 import type { Event, Meditation, Region } from '@/payload-types'
 import { bypassPermissions, hasAnyPermission, hasPermission } from '@/plugins/access'
+import { isLocaleScopedCollection } from '@/plugins/access/localeScopedWrites'
+import type { ContentSlug } from '@/plugins/access/types'
 import { createSession } from '@/plugins/login'
 
 import { createRestClientAs, type RestClient } from '../utils/restRequest'
@@ -2654,6 +2656,50 @@ describe('Role-Based Access Control', () => {
         method: 'POST',
       })
       expect((onFrench.body.update as { permission?: boolean }).permission).toBe(true)
+    })
+  })
+
+  /**
+   * `LOCALE_SCOPED_COLLECTIONS` is hand-named, so on its own it fails open: a
+   * collection that gains a queryable top-level `locale` is silently left
+   * unscoped. This walks the booted config so a new one has to be classified
+   * here before the suite passes. It is the half `RESTRICTED_COLLECTIONS`
+   * still lacks (`docs/rules/access.md`).
+   *
+   * `flattenedFields` is the queryable top-level path set, so `lectures` is
+   * absent from it — its `locale` sits in `subtitles` rows. Membership is
+   * therefore a judgement about what the column MEANS, not about where it
+   * sits: only `meditations` stores the document's own language.
+   */
+  describe('locale-scoped collections are classified, never derived', () => {
+    const CLASSIFIED: Record<string, boolean> = {
+      meditations: true,
+      clients: false, // a service's preferred language
+      imports: false, // the admin locale an upload happened in (#912)
+    }
+
+    const carryingLocale = () =>
+      payload.config.collections
+        .filter((collection) =>
+          collection.flattenedFields.some((field) => 'name' in field && field.name === 'locale'),
+        )
+        .map((collection) => collection.slug)
+
+    it('classifies every collection with a queryable top-level locale', () => {
+      const carrying = carryingLocale()
+      expect(carrying).toContain('meditations')
+
+      for (const slug of carrying) {
+        expect(
+          Object.hasOwn(CLASSIFIED, slug),
+          `${slug} carries a top-level locale and is not classified here`,
+        ).toBe(true)
+        expect(isLocaleScopedCollection(slug as ContentSlug)).toBe(CLASSIFIED[slug])
+      }
+    })
+
+    it('names no collection that has since lost the column', () => {
+      expect(carryingLocale().sort()).toEqual(Object.keys(CLASSIFIED).sort())
     })
   })
 })
