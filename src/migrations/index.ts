@@ -96,6 +96,7 @@ import * as migration_20261020_235623_merge_981_main_snapshot from './20261020_2
 import * as migration_20261021_014535_localize_app_card_destination from './20261021_014535_localize_app_card_destination';
 import * as migration_20261021_024228_merge_1002_main_snapshot from './20261021_024228_merge_1002_main_snapshot';
 import * as migration_20261021_152406_retention_registry from './20261021_152406_retention_registry';
+import * as migration_20261021_165805_merge_1010_main_snapshot from './20261021_165805_merge_1010_main_snapshot';
 
 export const migrations = [
   {
@@ -586,6 +587,11 @@ export const migrations = [
   {
     up: migration_20261021_152406_retention_registry.up,
     down: migration_20261021_152406_retention_registry.down,
-    name: '20261021_152406_retention_registry'
+    name: '20261021_152406_retention_registry',
+  },
+  {
+    up: migration_20261021_165805_merge_1010_main_snapshot.up,
+    down: migration_20261021_165805_merge_1010_main_snapshot.down,
+    name: '20261021_165805_merge_1010_main_snapshot'
   },
 ];
