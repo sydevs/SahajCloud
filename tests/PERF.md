@@ -70,6 +70,7 @@ maintainer's laptop, for scale: Apple M3 Pro, 11 cores, 18 GB, so 10 workers.
 | sixth, after merging `main` again  | 219 / 2807    | 55.70 s                                | 55.7 s     |
 | seventh, M3 Pro laptop (#993)      | 206 / 2676    | 18.45 · 19.15 · 18.86 s                | 18.9 s     |
 | eighth, after merging `main` again | 223 / 2855    | 52.93 s                                | 52.9 s     |
+| ninth, after merging `main` again  | 225 / 2892    | 51.87 s                                | 51.9 s     |
 
 ⚠ **Those three medians span 47 to 78 s — 66% — and six spec files do not
 explain it.** Identical container spec, all on 2026-10-20, 3% more files
@@ -89,7 +90,7 @@ reads, so keep those labels and cell shapes when you add a row.
 
 | Metric                                                                                                    | Value                                                             |
 | --------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Files / tests                                                                                             | 223 / 2855                                                        |
+| Files / tests                                                                                             | 225 / 2892                                                        |
 | Whole lane, 3 workers (slowest session median, what the consumer docs quote)                              | **77.9 s**                                                        |
 | One spec alone, the typical edit (third session)                                                          | 1.3 s                                                             |
 | Slowest per-edit selection timed on 4 cores, the 9 specs naming `tests/utils/importGraph.ts` (2026-10-21) | **8.0 s**                                                         |
