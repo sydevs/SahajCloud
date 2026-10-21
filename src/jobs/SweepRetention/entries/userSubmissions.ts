@@ -1,5 +1,4 @@
-import type { RetentionEntry } from '../registry'
-import type { PurgeWindow } from '../sweepCollection'
+import type { PurgeWindow, RetentionEntry } from '../types'
 
 import type { UserSubmission } from '@/payload-types'
 

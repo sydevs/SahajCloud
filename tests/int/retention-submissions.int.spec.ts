@@ -376,5 +376,35 @@ describe('Submission retention sweep', () => {
       expect(await exists('user-submissions', row.id)).toBe(true)
       expect(await exists('users', userId)).toBe(true)
     })
+
+    /**
+     * ⚠ A dry run has deleted nothing, so "would this sender be orphaned" has
+     * to be answered by subtraction. Reading the durable types alone reported
+     * this sender as going: their proposal is in a window too, 30 days out,
+     * and the real sweep at 8 days then kept them.
+     *
+     * Asserted as a delta, because the count is the whole run's and the cases
+     * above leave their own dry-run rows behind.
+     */
+    it('keeps a sender whose other row is in a window but not yet due', async () => {
+      const before = await sweep(Date.now(), CONTACT_ACCEPTED_DAYS + 1, true)
+
+      const email = 'not-due-yet@example.com'
+      const message = await seed({ senderEmail: email, status: 'accepted' })
+      const proposal = await seed({
+        type: 'proposal',
+        form: undefined,
+        senderEmail: email,
+        proposed: { title: 'Thursday class' },
+        status: 'accepted',
+      })
+      expect(userIdOf(proposal)).toBe(userIdOf(message))
+
+      const after = await sweep(Date.now(), CONTACT_ACCEPTED_DAYS + 1, true)
+
+      // The contact message is due at 8 days; the proposal is not, at 30.
+      expect(deletedIn(after, 'user-submissions')).toBe(deletedIn(before, 'user-submissions') + 1)
+      expect(deletedIn(after, 'users')).toBe(deletedIn(before, 'users'))
+    })
   })
 })

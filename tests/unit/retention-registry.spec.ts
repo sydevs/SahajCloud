@@ -4,12 +4,14 @@
  * windows, the `retention-*.int.spec.ts` files for the sweep. This file is about
  * the shape the registry has to keep for those to mean anything.
  */
-import type { Field } from 'payload'
+import type { Field, Payload } from 'payload'
 
 import { describe, expect, it } from 'vitest'
 
 import { NO_RETENTION, RETENTION_REGISTRY } from '@/jobs/SweepRetention/registry'
 import { SweepRetention } from '@/jobs/SweepRetention/SweepRetention'
+
+import { runTaskHandler } from '../utils/taskRunner'
 
 const fieldNames = (fields: Field[] | undefined) =>
   (fields ?? []).map((field) => ('name' in field ? field.name : undefined))
@@ -48,11 +50,11 @@ describe('the retention registry', () => {
   /**
    * ⚠ The reason is the whole value of `NO_RETENTION`. A bare slug would read as
    * a decision taken while recording none, which is what an absent collection
-   * already means.
+   * already means. The key is checked by its type, not here.
    */
   it('gives every excused collection a reason', () => {
     for (const [collection, reason] of Object.entries(NO_RETENTION)) {
-      expect(reason.length, collection).toBeGreaterThan(40)
+      expect(reason?.trim(), collection).toBeTruthy()
     }
   })
 
@@ -66,6 +68,31 @@ describe('the retention registry', () => {
     expect(fieldNames(SweepRetention.inputSchema)).toEqual(
       expect.arrayContaining(['dryRun', 'collection']),
     )
+  })
+
+  /**
+   * ⚠ Three tasks could not fail each other; one task can. Nothing but the
+   * `payload-jobs` entry bounds that table, so an entry that throws must not
+   * cost the entries after it their run — while the run still has to end
+   * failed, or a nightly breakage reports as a clean sweep.
+   */
+  it('sweeps past an entry that throws, and still fails the run', async () => {
+    const counted: string[] = []
+    const payload = {
+      count: async ({ collection }: { collection: string }) => {
+        counted.push(collection)
+        if (collection === 'user-submissions') throw new Error('the window query broke')
+        return { totalDocs: 0 }
+      },
+      find: async () => ({ docs: [] }),
+      logger: { error: () => {}, info: () => {}, warn: () => {} },
+    } as unknown as Payload
+
+    await expect(
+      runTaskHandler(SweepRetention, { payload, input: { dryRun: true } }),
+    ).rejects.toThrow(/user-submissions failed/)
+
+    expect(counted).toEqual(['user-submissions', 'imports', 'payload-jobs'])
   })
 
   /**

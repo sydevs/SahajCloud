@@ -1,4 +1,4 @@
-import type { RetentionCount } from './registry'
+import type { RetentionCount } from './types'
 import type { TaskConfig } from 'payload'
 
 import { RETENTION_REGISTRY } from './registry'
@@ -83,24 +83,41 @@ export const SweepRetention: TaskConfig<'sweepRetention'> = {
     }
 
     const collections: RetentionCount[] = []
+    const failed: string[] = []
 
     for (const entry of entries) {
-      const hooks = entry.hooks?.({ dryRun, now, req }) ?? {}
+      const { collection, windows } = entry
+      const hooks = entry.hooks?.({ dryRun, now, req, windows }) ?? {}
 
-      collections.push({
-        collection: entry.collection,
-        deleted: await sweepCollection({
-          beforeDelete: hooks.beforeDelete,
-          collection: entry.collection,
-          dryRun,
-          label: `SweepRetention/${entry.collection}`,
-          now,
-          req,
-          windows: entry.windows,
-        }),
-      })
+      // ⚠ One task means one failure, where three tasks could not fail each
+      // other. Nothing else bounds `payload-jobs`, so an entry that throws must
+      // not cost the entries after it their run — the throw is re-raised below
+      // instead, once every entry has had its turn. The job runner gives the
+      // handler a `req` with no transaction of its own, so a failed delete
+      // leaves the next entry's reads working.
+      try {
+        collections.push({
+          collection,
+          deleted: await sweepCollection({
+            beforeDelete: hooks.beforeDelete,
+            collection,
+            dryRun,
+            label: `SweepRetention/${collection}`,
+            now,
+            req,
+            windows,
+          }),
+        })
 
-      collections.push(...((await hooks.afterDelete?.()) ?? []))
+        const extra = await hooks.afterDelete?.()
+        if (extra) collections.push(extra)
+      } catch (error) {
+        failed.push(collection)
+        req.payload.logger.error({
+          msg: `SweepRetention: ${collection} failed`,
+          error: error instanceof Error ? error.message : String(error),
+        })
+      }
     }
 
     const deleted = collections.reduce((total, count) => total + count.deleted, 0)
@@ -113,6 +130,10 @@ export const SweepRetention: TaskConfig<'sweepRetention'> = {
         deleted,
         collections,
       })
+    }
+
+    if (failed.length > 0) {
+      throw new Error(`SweepRetention: ${failed.join(', ')} failed — see the logged errors`)
     }
 
     return { output: { collections, deleted, dryRun } }

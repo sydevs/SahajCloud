@@ -2,6 +2,7 @@ import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { RETENTION_REGISTRY } from '@/jobs/SweepRetention/registry'
 import { SweepRetention } from '@/jobs/SweepRetention/SweepRetention'
 
 import { deletedIn } from '../utils/retention'
@@ -109,11 +110,12 @@ describe('the payload-jobs retention entry', () => {
       input: { now: NOW, dryRun: true },
     })
 
+    // Derived, so a fourth entry is covered with no edit here. `users` is the
+    // one row no entry of its own sweeps — the submissions hooks report it.
     expect(output.collections.map((count) => count.collection)).toEqual([
       'user-submissions',
       'users',
-      'imports',
-      'payload-jobs',
+      ...RETENTION_REGISTRY.slice(1).map((entry) => entry.collection),
     ])
   })
 

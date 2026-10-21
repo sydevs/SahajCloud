@@ -11,6 +11,15 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   -- lacks, which aborts the boot migration rather than failing one row. The
   -- retention sweep removes those rows; the labels go with the next
   -- regeneration of this enum.
+  --
+  -- The committed .json snapshot carries the new set WITHOUT these three, since
+  -- that is what the config declares. So the next migration touching a task
+  -- slug recreates the enum without them and re-arms this cast: it must not
+  -- land while any row still names one, which is JOB_RETENTION_DAYS from this
+  -- deploy. Check first:
+  --   SELECT task_slug, count(*) FROM payload_jobs
+  --   WHERE task_slug IN ('cleanupJobs','purgeSubmissions','sweepEventImports')
+  --   GROUP BY 1;
   CREATE TYPE "public"."enum_payload_jobs_log_task_slug" AS ENUM('inline', 'cleanupJobs', 'cleanupOrphanedMedia', 'deliverSubmission', 'expireEvents', 'purgeSubmissions', 'screenSubmission', 'sendPostEventFollowUps', 'sendRegistrationDigests', 'sendSessionReminders', 'sweepEventImports', 'sweepRetention', 'syncLectureMetadata', 'transcribeMeditation', 'verifyEmbeds', 'importEvents', 'resetUsage', 'sendInvitations', 'schedulePublish');
   ALTER TABLE "payload_jobs_log" ALTER COLUMN "task_slug" SET DATA TYPE "public"."enum_payload_jobs_log_task_slug" USING "task_slug"::"public"."enum_payload_jobs_log_task_slug";
   ALTER TABLE "payload_jobs" ALTER COLUMN "task_slug" SET DATA TYPE text;

@@ -1,11 +1,5 @@
-import type { CollectionSlug, PayloadRequest, Where } from 'payload'
-
-/** One sweep: what to delete, and what to call it in the log. */
-export interface PurgeWindow {
-  days: number
-  name: string
-  where: (cutoff: string) => Where
-}
+import type { BeforeDelete, PurgeWindow } from './types'
+import type { CollectionSlug, PayloadRequest } from 'payload'
 
 /** The timestamp a row has to predate to fall inside a window. */
 export const retentionCutoff = (now: Date, days: number): string =>
@@ -26,7 +20,7 @@ export const retentionCutoff = (now: Date, days: number): string =>
  * gone, so an entry that owes one reads what it needs here.
  */
 export async function sweepCollection(args: {
-  beforeDelete?: (window: PurgeWindow, where: Where) => Promise<void>
+  beforeDelete?: BeforeDelete
   collection: CollectionSlug
   dryRun: boolean
   label: string
@@ -39,7 +33,7 @@ export async function sweepCollection(args: {
 
   for (const window of windows) {
     const where = window.where(retentionCutoff(now, window.days))
-    await beforeDelete?.(window, where)
+    await beforeDelete?.(where)
 
     if (dryRun) {
       const { totalDocs } = await req.payload.count({

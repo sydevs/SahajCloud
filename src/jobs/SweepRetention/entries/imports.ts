@@ -1,5 +1,4 @@
-import type { RetentionEntry } from '../registry'
-import type { PurgeWindow } from '../sweepCollection'
+import type { PurgeWindow, RetentionEntry } from '../types'
 import type { Where } from 'payload'
 
 import { IMPORT_RETENTION_DAYS } from '@/plugins/eventImport/constants'
