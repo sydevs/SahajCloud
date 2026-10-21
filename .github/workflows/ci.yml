@@ -46,6 +46,12 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
+      # Its own step, so a formatting failure names itself rather than
+      # reading as a lint error. `pnpm lint` is eslint only, and nothing
+      # here checked the formatter until #992: a prettier bump landed
+      # without a reformat and 229 files drifted silently (#991).
+      - name: Check formatting
+        run: pnpm format:check
       - run: pnpm typecheck # tsc --noEmit. Neither lint nor Vitest typechecks. Only this step and the Railway build do.
       - run: pnpm typecheck:tests # the root tsconfig excludes `tests`, so specs need their own pass (#606)
       - run: pnpm test # runs test:unit and test:int (integration runs against Postgres)

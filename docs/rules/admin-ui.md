@@ -3,6 +3,9 @@ paths:
   - src/components/admin/**/*.tsx
   - src/components/branding/**/*.tsx
   - src/globals/**/*.ts
+  - src/collections/**/*.ts
+  - src/fields/**/*.ts
+  - src/lib/richEditor/blocks/**/*.ts
 ---
 
 # Admin UI
@@ -37,10 +40,12 @@ Payload publishes the state and renders nothing for it. `Form` holds `processing
 
 ```tsx
 // ❌ mounts already-open; no slide
-{selected !== null && <Drawer slug={slug}>{body}</Drawer>}
+{
+  selected !== null && <Drawer slug={slug}>{body}</Drawer>
+}
 
 // ✅ mounts closed, animates on open — and returns null while closed, so it costs nothing
-<Drawer slug={slug}>{selected === null ? null : body}</Drawer>
+;<Drawer slug={slug}>{selected === null ? null : body}</Drawer>
 ```
 
 There is no width prop: `Drawer` sets `width: calc(100% - (drawerDepth * var(--gutter-h)))` in JS, narrowing one gutter per nesting level. A narrower drawer needs a `className` and a CSS rule.
@@ -59,8 +64,8 @@ That combination is often what you want — reachable where it's explained, abse
 admin.components.edit.SaveButton = {
   path: WORKFLOW_BUTTONS,
   clientProps: {
-    statusField: 'status',                      // the form field whose value picks the stage
-    fallback: null,                             // 'publish' | 'save' | 'saveDraft' | null
+    statusField: 'status', // the form field whose value picks the stage
+    fallback: null, // 'publish' | 'save' | 'saveDraft' | null
     stages: { [CREATE_STAGE]: [{ label: 'Next step', overrides: { _status: 'draft' } }] },
   } satisfies WorkflowButtonsProps<MyStage>,
 }
@@ -77,6 +82,12 @@ Each action is `{ label, overrides, confirm?, buttonStyle?, skipValidation? }`; 
 
 For non-admin (public) React, use `lucide-react` instead (see `docs/code-style.md`). Emails use neither — see `docs/rules/email.md`.
 
+## A condition reads a sibling its own level declares
+
+`siblingData` is the data at the field's own level, and `Condition` types it as `any`, so a name no level declares compiles, is always false, and hides the field it guards for good — `wisdomStyle` read the legacy `position` for its whole life (#989). `row`, `collapsible` and an unnamed `group` or `tab` hold no data, so a field inside one still reads its parent's level; a named `group`, `array`, `tab` or block starts a level of its own. A `ui` field is declared but holds no data, so its name is not a sibling either.
+
+`tests/unit/admin-condition-fields.spec.ts` fails on a read that names nothing at the level that owns it. It reads the condition's own source text, so a condition reading a sibling must spell its parameter `siblingData` — rename it, destructure it, or hand it to a helper and the spec fails rather than cover nothing. The one exempt spelling is `_siblingData`, which is how a condition declares it reads no sibling at all. `data` and `blockData` are out of its scope: neither names a sibling.
+
 ## Live preview pushes the document — the frontend needn't fetch it
 
 Payload posts the edited document's form state into the preview iframe on every change:
@@ -84,17 +95,18 @@ Payload posts the edited document's form state into the preview iframe on every 
 ```js
 const values = reduceFieldsToValues(formState, true)
 iframeRef.current.contentWindow?.postMessage(
-  { type: 'payload-live-preview', collectionSlug, data: values }, url,
+  { type: 'payload-live-preview', collectionSlug, data: values },
+  url,
 )
 ```
 
-Most preview routes here ignore that and re-fetch by `?collection=…&id=…` instead — fine for Events/Regions/Pages, but a *choice*, not a requirement, and it costs preview on anything the frontend can't read: a **restricted** collection (API clients hold create-only on `user-submissions`), or a document with **no id to fetch** (a submission proposing a brand-new event).
+Most preview routes here ignore that and re-fetch by `?collection=…&id=…` instead — fine for Events/Regions/Pages, but a _choice_, not a requirement, and it costs preview on anything the frontend can't read: a **restricted** collection (API clients hold create-only on `user-submissions`), or a document with **no id to fetch** (a submission proposing a brand-new event).
 
 For those, carry the render-ready shape in a field and let postMessage deliver it: `UserSubmissions.previewEvent` is a virtual JSON field holding the merged event, and the widget renders from the message. Relationship hydration still fetches by id, so a referenced doc must stay readable by the client.
 
 Two mechanics worth knowing:
 
-- **Open the panel with `livePreview.openByDefault: true`** (Payload 3.86+), not a mount effect. It applies server-side while building the document view, only until the user toggles the panel — after that their stored `editViewType` preference wins. A `setIsLivePreviewing(true)` effect can't honour that, and re-opened the panel every time a reviewer closed it. The proposal review surface was ported off exactly such an effect. A *tab* still needs the client, and declares `autoOpen` instead — see below.
+- **Open the panel with `livePreview.openByDefault: true`** (Payload 3.86+), not a mount effect. It applies server-side while building the document view, only until the user toggles the panel — after that their stored `editViewType` preference wins. A `setIsLivePreviewing(true)` effect can't honour that, and re-opened the panel every time a reviewer closed it. The proposal review surface was ported off exactly such an effect. A _tab_ still needs the client, and declares `autoOpen` instead — see below.
 - A field that only carries data to the iframe wants `admin.hidden: true`, not a component rendering `null` — Payload renders it as a `HiddenField`, so the value still sits in form state (what `reduceFieldsToValues` posts) while nothing takes up space on the page.
 - A **virtual** field's value computes on read, so it never recomputes as the user types — the right trade only when the document isn't editable, as in the submission-review case.
 

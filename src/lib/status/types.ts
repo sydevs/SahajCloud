@@ -17,6 +17,12 @@ export type CheckResult = {
  * The `label` is the document instance title (e.g. a lesson title); the
  * `id` is the document's primary key (or a sentinel string for "unset"
  * single-row groups).
+ *
+ * A check and a label want opposite locale policies, and a section owes
+ * both: a check described "for this locale" must refuse the locale
+ * fallback or it passes on another language's value, while a `label` is
+ * only there to name the row, so it keeps the fallback rather than
+ * leaving an operator a row they cannot identify (#982).
  */
 export type DocumentReport = {
   id: number | string

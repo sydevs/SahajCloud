@@ -5,14 +5,12 @@ import { randomUUID } from 'node:crypto'
 
 import { APIError } from 'payload'
 
-
 import { upsertUserByEmail } from '@/lib/users/upsertUserByEmail'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Form, UserSubmission } from '@/payload-types'
 
 import { FORM_BACKED_TYPES, SUBMISSION_TYPES, TYPE_LABELS } from '../fields'
 import { authoredBlocks, checkSubmissionData, readSubmissionValue } from '../submissionData'
-
 
 /** Said when an address has no usable local part (`"..."@example.org`). */
 const FALLBACK_NAME = 'Submitter'

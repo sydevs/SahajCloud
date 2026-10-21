@@ -12,7 +12,6 @@ import {
 } from '@/collections/UserSubmissions/submissionData'
 import type { Form } from '@/payload-types'
 
-
 /**
  * `submissionData` is the one part of a submission a public caller writes as a
  * single blob, so field-level access protects nothing inside it and this schema
@@ -58,8 +57,9 @@ describe('submissionDataSchema keys', () => {
   it("adds the form's own authored fields", () => {
     // A form author names their fields, so no fixed list can know them — this
     // is why the hook reads the live `forms` document.
-    expect(messages(checkSubmissionData([{ field: 'howDidYouHear', value: 'A friend' }], contact)))
-      .toEqual([])
+    expect(
+      messages(checkSubmissionData([{ field: 'howDidYouHear', value: 'A friend' }], contact)),
+    ).toEqual([])
     expect(
       checkSubmissionData([{ field: 'howDidYouHear', value: 'A friend' }], { type: 'contact' }),
     ).toHaveLength(1)

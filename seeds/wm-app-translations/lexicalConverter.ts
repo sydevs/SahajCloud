@@ -133,10 +133,7 @@ function textNode(text: string, format = 0): LexicalTextNode {
   return { type: 'text', version: 1, format, text, detail: 0, mode: 'normal', style: '' }
 }
 
-function segmentToLexicalChild(
-  seg: SeedSegment,
-  ctx: string,
-): LexicalTextNode | LexicalLinkNode {
+function segmentToLexicalChild(seg: SeedSegment, ctx: string): LexicalTextNode | LexicalLinkNode {
   if ('type' in seg && seg.type === 'link') {
     if (!seg.href) {
       throw new Error(`[${ctx}] link segment missing href: ${JSON.stringify(seg)}`)

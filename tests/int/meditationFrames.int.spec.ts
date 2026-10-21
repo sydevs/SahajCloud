@@ -671,10 +671,12 @@ describe('Meditation Frames Field', () => {
         data: { subtleSystemNode: nextNode.id },
       })
 
-      const cascaded = ((await payload.findByID({
-        collection: 'meditations',
-        id: meditation.id,
-      })) as Meditation).subtleSystemNodeWeights as Record<string, number>
+      const cascaded = (
+        (await payload.findByID({
+          collection: 'meditations',
+          id: meditation.id,
+        })) as Meditation
+      ).subtleSystemNodeWeights as Record<string, number>
 
       expect(cascaded?.[nextNode.slug as string]).toBeGreaterThan(0)
 

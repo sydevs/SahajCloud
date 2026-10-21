@@ -1,11 +1,10 @@
-
 import translationsSchema from '@/globals/WeMeditateAppTranslations/translationsSchema.json' with { type: 'json' }
 import { getLocaleLabel, isValidLocale } from '@/lib/locales'
 import { type GroupSpec, type SectionSpec } from '@/lib/status'
 import type { LeafLookup, SchemaNode } from '@/lib/translations/schemaWalker'
 import { collectLeafLookups, extractPlainText } from '@/lib/translations/schemaWalker'
 
-import { type WeMeditateAppStatusConfig } from './shared'
+import { isolatedReq, type WeMeditateAppStatusConfig } from './shared'
 
 const tabProperties =
   (translationsSchema as { properties?: Record<string, SchemaNode> }).properties ?? {}
@@ -109,7 +108,7 @@ export const translationsSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = 
       locale,
       fallbackLocale: false,
       depth: 0,
-      req,
+      req: isolatedReq(req),
     })) as unknown as Record<string, unknown>
     return { translations }
   },

@@ -9,10 +9,15 @@ import {
 import { containsRelationship, richTextHasContent } from '@/lib/status/helpers'
 import { type Lesson } from '@/payload-types'
 
-import { type WeMeditateAppStatusConfig } from './shared'
+import { isolatedReq, readFallbackTitles, type WeMeditateAppStatusConfig } from './shared'
 
 interface Ctx {
   lessons: Lesson[]
+  /**
+   * Row labels only. `lesson-title-set` answers off the per-locale `title`,
+   * so these must stay out of the documents the checks read.
+   */
+  labels: Map<number | string, unknown>
 }
 
 /**
@@ -50,17 +55,18 @@ const UNIT_GROUPS: ReadonlyArray<{
     key: 'unit-4',
     unit: 'Unit 4',
     label: 'Unit 4',
-    description: 'All lessons in Unit 4 are fully configured for this locale (optional for launch).',
+    description:
+      'All lessons in Unit 4 are fully configured for this locale (optional for launch).',
     optional: true,
   },
 ]
 
-function buildUnitDocs(lessons: Lesson[], unit: string): DocumentReport[] {
+function buildUnitDocs(lessons: Lesson[], unit: string, labels: Ctx['labels']): DocumentReport[] {
   return lessons
     .filter((l) => l.unit === unit)
     .map((lesson) => ({
       id: lesson.id,
-      label: labelOf(lesson as { id: number | string; title?: unknown }),
+      label: labelOf({ id: lesson.id, title: labels.get(lesson.id) }),
       checks: [
         {
           key: 'lesson-title-set',
@@ -82,16 +88,14 @@ function buildUnitDocs(lessons: Lesson[], unit: string): DocumentReport[] {
     }))
 }
 
-const unitGroupSpecs: GroupSpec<Ctx, WeMeditateAppStatusConfig>[] = UNIT_GROUPS.map(
-  (u) => ({
-    key: u.key,
-    label: u.label,
-    description: u.description,
-    optional: u.optional,
-    type: 'documents',
-    evaluate: async ({ lessons }) => buildUnitDocs(lessons, u.unit),
-  }),
-)
+const unitGroupSpecs: GroupSpec<Ctx, WeMeditateAppStatusConfig>[] = UNIT_GROUPS.map((u) => ({
+  key: u.key,
+  label: u.label,
+  description: u.description,
+  optional: u.optional,
+  type: 'documents',
+  evaluate: async ({ lessons, labels }) => buildUnitDocs(lessons, u.unit, labels),
+}))
 
 export const lessonsSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
   key: 'lessons',
@@ -132,15 +136,22 @@ export const lessonsSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
     },
   },
   prepare: async ({ payload, locale, req }) => {
-    const { docs } = await payload.find({
-      collection: 'lessons',
-      locale,
-      limit: 0,
-      pagination: false,
-      depth: 0,
-      req,
-    })
-    return { lessons: docs as Lesson[] }
+    const [{ docs }, labels] = await Promise.all([
+      payload.find({
+        collection: 'lessons',
+        locale,
+        // `title`, `panels`, `meditation` and `article` are localized (#977), so
+        // the fallback would answer every check but `intro-audio-set` and
+        // `icon-set` off the English value.
+        fallbackLocale: false,
+        limit: 0,
+        pagination: false,
+        depth: 0,
+        req: isolatedReq(req),
+      }),
+      readFallbackTitles(payload, 'lessons', { locale, req }),
+    ])
+    return { lessons: docs as Lesson[], labels }
   },
   groups: unitGroupSpecs,
 }

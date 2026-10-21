@@ -12,13 +12,7 @@ import { activeRegistrationWhere, isActiveRegistration } from '@/lib/registratio
 import type { UserSubmission } from '@/payload-types'
 
 /** Every status, so a new one cannot be added without a decision being made. */
-const STATUSES: UserSubmission['status'][] = [
-  'pending',
-  'accepted',
-  'rejected',
-  'spam',
-  'failed',
-]
+const STATUSES: UserSubmission['status'][] = ['pending', 'accepted', 'rejected', 'spam', 'failed']
 
 describe('isActiveRegistration', () => {
   it('counts a registration that is pending or accepted', () => {

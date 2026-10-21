@@ -52,9 +52,7 @@ async function main(): Promise<void> {
   dotenv.config({ path: ['.env.local', '.env'] })
 
   // Imported after dotenv: these modules read `serverEnv`, which validates on access.
-  const { verifyEmbed, resultFromRender } = await import(
-    '../src/lib/embedVerification/verifyEmbed'
-  )
+  const { verifyEmbed, resultFromRender } = await import('../src/lib/embedVerification/verifyEmbed')
   const { renderPage } = await import('../src/lib/embedVerification/browserRendering')
   const { READY_ATTR } = await import('../src/lib/embedVerification/readinessMarker')
 
@@ -85,9 +83,7 @@ async function main(): Promise<void> {
         },
         { label: 'unparseable mount', url: 'not-a-url', expect: 'failed/http' },
       ]
-    : args
-        .filter((a) => !a.startsWith('--'))
-        .map((url) => ({ label: url, url, expect: '(live)' }))
+    : args.filter((a) => !a.startsWith('--')).map((url) => ({ label: url, url, expect: '(live)' }))
 
   if (cases.length === 0) {
     console.error('Pass one or more URLs, or --self-test.')
@@ -103,8 +99,7 @@ async function main(): Promise<void> {
       : await verifyEmbed(testCase.url)
     const elapsed = `${((Date.now() - started) / 1000).toFixed(1)}s`
 
-    const outcome =
-      result.status === 'verified' ? 'verified' : `${result.status}/${result.reason}`
+    const outcome = result.status === 'verified' ? 'verified' : `${result.status}/${result.reason}`
     const ok = testCase.expect === '(live)' || outcome === testCase.expect
     if (!ok) mismatches++
 
