@@ -105,4 +105,43 @@ describe('Videos Collection — custom behavior', () => {
       expect(fn({ doc: { filename: 123 } })).toBeNull()
     })
   })
+
+  // Functional, not config-level: Payload strips `localized` from a booted
+  // config, so reading the flag back would pass either way (`tests/AGENTS.md`).
+  describe('per-language subtitles (#981)', () => {
+    const enCue = [{ content: 'English cue', startTimeMs: 0, endTimeMs: 1000 }]
+    const frCue = [{ content: 'Replique francaise', startTimeMs: 0, endTimeMs: 1000 }]
+
+    it('keeps a French edit from overwriting the English cues', async () => {
+      const video = await testData.createVideo(payload, {
+        title: 'Localized subtitles',
+        subtitles: enCue,
+      })
+
+      // `title` was already required and localized, so a French save owes one
+      // of its own whatever this change does.
+      await payload.update({
+        collection: 'videos',
+        id: video.id,
+        locale: 'fr',
+        data: { title: 'Titre francais', subtitles: frCue },
+      })
+
+      const en = await payload.findByID({
+        collection: 'videos',
+        id: video.id,
+        locale: 'en',
+        fallbackLocale: false,
+      })
+      const fr = await payload.findByID({
+        collection: 'videos',
+        id: video.id,
+        locale: 'fr',
+        fallbackLocale: false,
+      })
+
+      expect(en.subtitles).toEqual(enCue)
+      expect(fr.subtitles).toEqual(frCue)
+    })
+  })
 })
