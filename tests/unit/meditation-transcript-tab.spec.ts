@@ -40,13 +40,23 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MeditationTranscripts } from '@/collections/MeditationTranscripts/MeditationTranscripts'
 import { __resetPlaybackTimeStoreForTests } from '@/components/admin/FrameEditor/playbackTimeStore'
 import { readJobStageConfig } from '@/components/admin/JobStageView/stages'
-import { TRANSCRIPTION_STALL_MS } from '@/lib/meditations/transcript'
 import type { MeditationTranscript } from '@/payload-types'
 
+/**
+ * Both values come off the declaration this spec serves the component, never
+ * from a constant beside it: the bound the tab measures against is the one the
+ * collection declares, and restating it here would assume that.
+ */
 const DECLARED_CUSTOM = MeditationTranscripts.admin?.custom
-const RUNNING = readJobStageConfig(DECLARED_CUSTOM)?.runningStages[0] as
-  MeditationTranscript['status'] | undefined
-if (!RUNNING) throw new Error('meditation-transcripts declares no runningStages')
+const DECLARED = readJobStageConfig(DECLARED_CUSTOM)
+const [FIRST_RUNNING] = DECLARED?.runningStages ?? []
+const STALL_MS = DECLARED?.staleAfterMs
+
+if (!FIRST_RUNNING || STALL_MS === undefined) {
+  throw new Error('meditation-transcripts must declare jobStage.runningStages and staleAfterMs')
+}
+
+const RUNNING = FIRST_RUNNING as MeditationTranscript['status']
 
 const PREVIEW_ORIGIN = 'https://preview.example'
 
@@ -302,7 +312,7 @@ describe('the Transcript tab', () => {
     it('shows the stopped-responding notice for a processing row past the stall bound', () => {
       renderRow({
         status: RUNNING,
-        updatedAt: new Date(Date.now() - TRANSCRIPTION_STALL_MS - 1000).toISOString(),
+        updatedAt: new Date(Date.now() - STALL_MS - 1000).toISOString(),
       })
 
       expect(text()).toContain('Transcription stopped responding.')
@@ -320,7 +330,7 @@ describe('the Transcript tab', () => {
         renderRow({ status: RUNNING })
         expect(text()).toContain('Transcription in progress')
 
-        act(() => void vi.advanceTimersByTime(TRANSCRIPTION_STALL_MS + 1000))
+        act(() => void vi.advanceTimersByTime(STALL_MS + 1000))
 
         expect(text()).toContain('Transcription stopped responding.')
         expect(text()).not.toContain('Transcription in progress')

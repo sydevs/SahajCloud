@@ -94,10 +94,19 @@ reads, so keep those labels and cell shapes when you add a row.
 | Whole lane at `--maxWorkers=1` (first session, 198 files)                    | 140.5 s                                                           |
 | Whole lane at `--maxWorkers=4` (first session, 198 files)                    | 49.2 s                                                            |
 | `pnpm lint`                                                                  | 28.5 s                                                            |
-| `pnpm typecheck`                                                             | 8.4 s                                                             |
-| `pnpm typecheck:tests`                                                       | 8.2 s                                                             |
-| Those four commands, summed                                                  | 104 s                                                             |
-| Tier 2 lean gate (`check.sh`), slowest cold run of three sessions            | **174 s** cold, **103 s** with Postgres already up                |
+
+⚠ **One unit spec boots the Payload config, and it is the lane's most expensive
+file.** `tests/unit/sanitized-config-rules.spec.ts` imports `@/payload.config`
+to walk the sanitized config: 6.9 s wall, of which 6.7 s is that import and
+46 ms the assertions. It is paid once per worker, not per case. It is also the
+file the per-edit narrowing in #993 will select for almost any `src/**` edit,
+since `@/payload.config` transitively names nearly everything — so budget it
+against Tier 1's per-edit target, not against the lane. Nothing else under
+`tests/unit/` imports that module; keep it that way.
+| `pnpm typecheck` | 8.4 s |
+| `pnpm typecheck:tests` | 8.2 s |
+| Those four commands, summed | 104 s |
+| Tier 2 lean gate (`check.sh`), slowest cold run of three sessions | **174 s** cold, **103 s** with Postgres already up |
 
 **The gate's own spread is `scripts/ensure-test-db.sh`.** It costs nothing once
 port 5432 answers, which is why a warm run lands on the four commands' 104 s and

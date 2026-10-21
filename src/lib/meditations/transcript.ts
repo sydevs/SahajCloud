@@ -42,7 +42,13 @@ export const TRANSCRIPT_PROVIDERS = ['lemonfox'] as const
 export type TranscriptProvider = (typeof TRANSCRIPT_PROVIDERS)[number]
 
 /**
- * Re-exported, not declared here: a `'use client'` consumer must reach the
- * bound without this module's zod schemas. `./transcriptStall` says why.
+ * How long a processing transcript may stand before it counts as stalled.
+ *
+ * Far past any healthy run — it exists for a run lost to a restart, which
+ * leaves the row in a running stage with nothing left to finish it. The
+ * collection passes it to `jobStage.staleAfterMs`, and both readers take it
+ * from there: the row's own Edit view on the server, and the Transcript tab
+ * from the client config, where `admin.custom` carries the declaration as
+ * data. So nothing imports this into the browser to read it there.
  */
-export { TRANSCRIPTION_STALL_MS } from './transcriptStall'
+export const TRANSCRIPTION_STALL_MS = 15 * 60 * 1000

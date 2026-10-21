@@ -18,16 +18,30 @@ export type PayloadList<T> = { docs?: T[] }
  * An unparsable success body throws too, rather than resolving to nothing: a
  * caller waiting on `docs` cannot tell "no list" from "not yet" and would keep
  * its spinner up for good.
+ *
+ * An SWR caller names its instantiation at module scope — `readFrames`,
+ * `readTranscripts` — because SWR re-arms its effects on a new fetcher
+ * identity, and a TS instantiation expression erases to this same function.
  */
 export async function payloadListFetcher<T>(url: string): Promise<PayloadList<T>> {
+  // `credentials: 'include'` is how `@payloadcms/ui`'s own `requests.get`
+  // spells it. Not called here: it sits on no public entry point, only the
+  // deep `@payloadcms/ui/utilities/api`.
   const response = await fetch(url, { credentials: 'include' })
   const body: unknown = await response.json().catch(() => null)
 
   if (!response.ok) {
-    const message = (body as { errors?: { message?: string }[] } | null)?.errors?.[0]?.message
-    throw new Error(message ?? `The server answered ${response.status}.`)
+    throw new Error(refusalMessage(body) ?? `The server answered ${response.status}.`)
   }
   if (!isRecord(body)) throw new Error(`The server answered ${response.status} with no list.`)
 
   return body as PayloadList<T>
+}
+
+/** The first message off Payload's error envelope, where it sent one. */
+function refusalMessage(body: unknown): string | undefined {
+  if (!isRecord(body) || !Array.isArray(body.errors)) return undefined
+  const first: unknown = body.errors[0]
+
+  return isRecord(first) && typeof first.message === 'string' ? first.message : undefined
 }

@@ -24,21 +24,13 @@ import { sourceOf, SRC } from '../utils/importGraph'
  * the four `EventImport` components arrive during a plugin fold, so the raw
  * `collections` array would miss them.
  *
- * It costs about 6.5 s and opens no database connection, which is why each case
- * carries its own timeout — the config import alone exceeds vitest's 5 s
- * default.
+ * It costs about 6.5 s and opens no database connection. That import is paid
+ * once per worker, not per case, so the `await config` in each helper below is
+ * on an already-settled promise.
  */
 
-const CASE_TIMEOUT_MS = 60_000
-
-/**
- * Measured on `main` at 9eedacf: 62 distinct registration strings, which are 61
- * distinct paths — one carries a `#NamedExport` — found over 687 occurrences,
- * the Lexical block set repeating per field. The floor sits below that to
- * absorb a deleted component, and far above the vacuum a walk that stopped at
- * the wrong key would pass with.
- */
-const MIN_REGISTRATIONS = 55
+/** The config import alone exceeds vitest's 5 s default. */
+const TIMEOUT = 60_000
 
 const IMPORT_MAP = `${SRC}/app/(payload)/admin/importMap.js`
 
@@ -52,7 +44,7 @@ const IMPORT_MAP = `${SRC}/app/(payload)/admin/importMap.js`
  * (`@payloadcms/richtext-lexical/...`) is that package's own to resolve, and is
  * left out.
  */
-function registrationsOn(node: unknown, inComponents = false, depth = 0): Set<string> {
+function registrationsOn(node: unknown): Set<string> {
   const found = new Set<string>()
 
   const visit = (value: unknown, within: boolean, level: number): void => {
@@ -73,7 +65,7 @@ function registrationsOn(node: unknown, inComponents = false, depth = 0): Set<st
     }
   }
 
-  visit(node, inComponents, depth)
+  visit(node, false, 0)
   return found
 }
 
@@ -163,47 +155,45 @@ const namespaces = async (): Promise<Namespace[]> => {
   ]
 }
 
-describe('every admin component registration resolves in the import map', () => {
-  it(
-    'finds the registrations, so the assertion below cannot pass by vacuum',
-    async () => {
-      const sanitized = await config
-      const found = registrationsOn([sanitized.collections, sanitized.globals, sanitized.admin])
+const registrations = async (): Promise<Set<string>> => {
+  const sanitized = await config
+  return registrationsOn([sanitized.collections, sanitized.globals, sanitized.admin])
+}
 
-      expect(found.size).toBeGreaterThanOrEqual(MIN_REGISTRATIONS)
-    },
-    CASE_TIMEOUT_MS,
-  )
+/** Every `@/components` key the generated map actually holds. */
+const mappedKeys = (): Set<string> =>
+  new Set(sourceOf(IMPORT_MAP).match(/"@\/components[^"]*"/g) ?? [])
 
-  it(
-    'resolves every one of them',
-    async () => {
-      const sanitized = await config
-      const found = registrationsOn([sanitized.collections, sanitized.globals, sanitized.admin])
-      const map = sourceOf(IMPORT_MAP)
+describe(
+  'the import map holds exactly the components the config registers',
+  { timeout: TIMEOUT },
+  () => {
+    /**
+     * Set equality, not a floor: the registrations and the map are two
+     * derivations of one fact, so each is the other's expected value. It catches
+     * both directions — a component registered without `pnpm generate:importmap`,
+     * and a map entry left behind for one nothing registers any more — and it
+     * needs no hand-kept count to stay honest.
+     */
+    it('matches the map key for key', async () => {
+      const keys = [...(await registrations())].map(importMapKey).sort()
 
-      const missing = [...found].filter((registration) => !map.includes(importMapKey(registration)))
+      expect(keys).toEqual([...mappedKeys()].sort())
+    })
 
-      expect(missing).toEqual([])
-    },
-    CASE_TIMEOUT_MS,
-  )
-})
+    /** A walk that stopped early would otherwise agree with an empty map. */
+    it('finds the registrations rather than passing by vacuum', async () => {
+      expect((await registrations()).size).toBeGreaterThan(40)
+    })
+  },
+)
 
-describe('no ui field shares a name with a sibling', () => {
-  it(
-    'walks every collection and global',
-    async () => {
-      expect((await namespaces()).length).toBeGreaterThan(20)
-    },
-    CASE_TIMEOUT_MS,
-  )
+describe('no ui field shares a name with a sibling', { timeout: TIMEOUT }, () => {
+  it('walks every collection and global', async () => {
+    expect((await namespaces()).length).toBeGreaterThan(20)
+  })
 
-  it(
-    'finds no clash',
-    async () => {
-      expect((await namespaces()).flatMap(uiNameClashes)).toEqual([])
-    },
-    CASE_TIMEOUT_MS,
-  )
+  it('finds no clash', async () => {
+    expect((await namespaces()).flatMap(uiNameClashes)).toEqual([])
+  })
 })

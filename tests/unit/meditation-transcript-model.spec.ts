@@ -26,13 +26,14 @@ import type { MeditationTranscript } from '@/payload-types'
  * off the same two values.
  */
 const DECLARED = readJobStageConfig(MeditationTranscripts.admin?.custom)
-if (!DECLARED) throw new Error('meditation-transcripts declares no jobStage')
+const [FIRST_RUNNING] = DECLARED?.runningStages ?? []
+const STALL_MS = DECLARED?.staleAfterMs
 
-const STALL_MS = DECLARED.staleAfterMs
-if (STALL_MS === undefined) throw new Error('meditation-transcripts declares no staleAfterMs')
+if (!DECLARED || !FIRST_RUNNING || STALL_MS === undefined) {
+  throw new Error('meditation-transcripts must declare jobStage.runningStages and staleAfterMs')
+}
 
-const RUNNING = DECLARED.runningStages[0] as MeditationTranscript['status']
-if (!RUNNING) throw new Error('meditation-transcripts declares no runningStages')
+const RUNNING = FIRST_RUNNING as MeditationTranscript['status']
 
 const cue = (startTimeMs: number, endTimeMs: number): TranscriptSegment => ({
   content: `${startTimeMs}-${endTimeMs}`,

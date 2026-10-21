@@ -2,8 +2,8 @@ import * as qs from 'qs-esm'
 
 import {
   type JobStageConfig,
-  jobStageIsRunning,
-  jobStageIsStale,
+  type JobStagePhase,
+  jobStagePhase,
 } from '@/components/admin/JobStageView/stages'
 import type { TranscriptSegment } from '@/lib/meditations/transcript'
 import type { MeditationTranscript } from '@/payload-types'
@@ -60,7 +60,8 @@ export type TranscriptPhase = 'none' | 'pending' | 'stalled' | 'failed' | 'compl
  * Which stages are a wait, and how long one may stand, are read off the
  * collection's own `jobStage` declaration rather than named here, so the tab
  * and the row's Edit view cannot disagree about either. `failed` stays a
- * literal: it is this collection's terminal status, not a running stage.
+ * literal: no declaration can express a terminal status, so there is nothing
+ * for it to drift from, and `tsc` catches a renamed enum member here.
  */
 export function transcriptPhase(
   config: JobStageConfig,
@@ -69,11 +70,16 @@ export function transcriptPhase(
 ): TranscriptPhase {
   if (!row) return 'none'
   if (row.status === 'failed') return 'failed'
-  if (jobStageIsRunning(config, row.status)) {
-    return jobStageIsStale(config, row, now) ? 'stalled' : 'pending'
-  }
-  return 'completed'
+
+  return PHASES[jobStagePhase(config, row, now)]
 }
+
+/** The contract's three phases in this tab's own words. */
+const PHASES = {
+  running: 'pending',
+  settled: 'completed',
+  stale: 'stalled',
+} as const satisfies Record<JobStagePhase, TranscriptPhase>
 
 /** Split the phrases into paragraphs at pauses, and mark the long ones. */
 export function groupTranscript(segments: TranscriptSegment[]): TranscriptParagraph[] {

@@ -11,7 +11,6 @@ import type { Frame } from '@/payload-types'
 import { getCachedPlaybackTime, subscribePlaybackTime } from './playbackTimeStore'
 import { framesByNarratorKey } from './utils'
 
-/** Named at module scope: SWR re-arms its effects on a new fetcher identity. */
 const readFrames = payloadListFetcher<Frame>
 
 /**
