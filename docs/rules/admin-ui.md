@@ -202,6 +202,15 @@ Four things are load-bearing:
 - **Never name a running stage that is also the column's `defaultValue`** — unless the create genuinely queues the job. `meditation-transcripts` declares `processing` and not `queued`, because a queued row waits for a person. `imports` declares its own default `pending`, because its create hook queues the import job, so a saved row at that default really is one a worker owns. Either way the release is `staleAfterMs`: without it, a saved row at that default opens behind a view nothing can move on. The view refuses to fire with no document id, which covers the create form alone.
 - **A stage with no form has no `SaveButton` slot either.** The view replaces the whole form, so a `WorkflowButtons` stage declared for a running status is reachable only past `staleAfterMs`.
 
+**A client component on the same collection reads the same declaration, and must not restate it.** `stages.ts` carries no `'use client'` for that reason, and `jobStagePhase(config, doc, now)` — `settled`, `running` or `stale` — is the one answer both surfaces read, so neither composes the stage test and the stall bound itself. The browser gets the declaration off the client config:
+
+```ts
+const custom = useConfig().getEntityConfig({ collectionSlug })?.admin?.custom
+const config = useMemo(() => readJobStageConfig(custom), [custom])
+```
+
+Three things make that work, and each has bitten: **`admin.custom` survives `createClientCollectionConfig` while `admin.components` and a top-level `custom` do not** (`serverOnlyCollectionAdminProperties`, `payload/dist/collections/config/client.js`), a `hidden: true` collection is still in the client config, and **`readJobStageConfig` answers a fresh object**, so an identity-sensitive consumer — SWR's `refreshInterval`, a hook dependency — needs the memo or it re-arms every render. The Transcript tab (`src/components/admin/MeditationTranscript/`) is the one client reader today, and it refuses to render with a notice rather than naming stages of its own when a collection declares none. `tests/unit/sanitized-config-rules.spec.ts` holds the wiring: every `jobStage` a collection declares has to parse, and every collection registering `JobStageView` has to declare one — which is what answers for a collection that left `satisfies JobStageConfig` off and misspelled a key.
+
 `imports` — the bulk class import's upload collection (`src/plugins/eventImport/importCollection.ts`) — declares `runningStages: ['pending']` with no count. Its job leaves `pending` in one write, with the results (`src/plugins/eventImport/finish.ts`), so the page never opens on a finished import whose rows are not stored yet. After that, a hook on `events` moves it between review and completed as its drafts are published or deleted.
 
 ⚠ **A `hidden: true` collection cannot show it on a route.** Registering the view is still correct there, and a document drawer renders it (`overrideEntityVisibility`), but `/admin/collections/<slug>/<id>` 404s — see "A hidden collection is still reachable through a `join`" above. Reach such a collection through a `join` before concluding the view is broken.

@@ -3,14 +3,16 @@ import type { Block, Field } from 'payload'
 import { flattenTopLevelFields } from 'payload/shared'
 import { describe, expect, it } from 'vitest'
 
+import { readJobStageConfig } from '@/components/admin/JobStageView/stages'
+import { isRecord } from '@/lib/utilities/isRecord'
 import config from '@/payload.config'
 
 import { sourceOf, SRC } from '../utils/importGraph'
 
 /**
- * Two rules that hold over every collection and global, asserted by walking the
- * sanitized config rather than by naming the components and fields that happen
- * to break them today.
+ * Three rules that hold over every collection and global, asserted by walking
+ * the sanitized config rather than by naming the components and fields that
+ * happen to break them today.
  *
  * `meditation-transcript-tab-wiring` and `upload-notice-coverage` each used to
  * pin one component's path into the import map by hand. The rule was never
@@ -195,5 +197,61 @@ describe('no ui field shares a name with a sibling', { timeout: TIMEOUT }, () =>
 
   it('finds no clash', async () => {
     expect((await namespaces()).flatMap(uiNameClashes)).toEqual([])
+  })
+})
+
+/**
+ * The view that cannot render without a readable declaration. The Transcript
+ * panel is deliberately not here: it is registered on `meditations` but reads
+ * `meditation-transcripts`' declaration, so a collection registering it owes
+ * nothing. Its own two specs refuse to load if that declaration goes missing.
+ */
+const JOB_STAGE_VIEW = '@/components/admin/JobStageView/JobStageView'
+
+const declaresJobStage = (custom: unknown): boolean => isRecord(custom) && 'jobStage' in custom
+
+describe('a declared job stage is a readable one', { timeout: TIMEOUT }, () => {
+  /**
+   * `admin.custom` is `Record<string, any>`, so `satisfies JobStageConfig`
+   * catches a typo only where a collection remembered to write it. This is what
+   * answers for one that did not: a misspelled key reads as no declaration at
+   * all, which is a view that silently never fires.
+   */
+  it('parses on every collection that declares one', async () => {
+    const sanitized = await config
+
+    const malformed = sanitized.collections
+      .filter((collection) => declaresJobStage(collection.admin?.custom))
+      .filter((collection) => readJobStageConfig(collection.admin?.custom) === null)
+      .map((collection) => collection.slug)
+
+    expect(malformed).toEqual([])
+  })
+
+  it('is declared wherever JobStageView is registered', async () => {
+    const sanitized = await config
+
+    const unwired = sanitized.collections
+      .filter((collection) =>
+        [...registrationsOn(collection)].some((path) => path.split('#')[0] === JOB_STAGE_VIEW),
+      )
+      .filter((collection) => readJobStageConfig(collection.admin?.custom) === null)
+      .map((collection) => collection.slug)
+
+    expect(unwired).toEqual([])
+  })
+
+  /** The registration this rule is about exists, so neither case is vacuous. */
+  it('finds the collections that register it', async () => {
+    const sanitized = await config
+
+    const registered = sanitized.collections.filter((collection) =>
+      [...registrationsOn(collection)].some((path) => path.split('#')[0] === JOB_STAGE_VIEW),
+    )
+
+    expect(registered.map((collection) => collection.slug).sort()).toEqual([
+      'imports',
+      'meditation-transcripts',
+    ])
   })
 })

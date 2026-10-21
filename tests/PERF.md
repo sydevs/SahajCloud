@@ -83,7 +83,7 @@ reads, so keep those labels and cell shapes when you add a row.
 
 | Metric                                                                       | Value                                                             |
 | ---------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Files / tests                                                                | 220 / 2809                                                        |
+| Files / tests                                                                | 220 / 2812                                                        |
 | Whole lane, 3 workers (slowest session median, what the consumer docs quote) | **77.9 s**                                                        |
 | One spec alone, the typical edit (third session)                             | 1.3 s                                                             |
 | Widest per-edit selection, 18 specs naming `@/payload-types` (third session) | **7.8 s**                                                         |
