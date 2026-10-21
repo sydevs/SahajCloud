@@ -5,10 +5,8 @@ import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
  * so it is per locale like the `url` it selects (#1001).
  *
  * ⚠ **The backfill between the two DDL blocks is hand-written, and the
- * migration loses every card's destination without it.** Drizzle's generated
- * delta adds the locale column and drops the base column, with nothing in
- * between — so every card reads no destination in any locale after the deploy,
- * and `GET /api/app-cards/for-audience` serves cards the app cannot open.
+ * migration loses every card's destination without it** — `GET
+ * /api/app-cards/for-audience` would serve cards the app cannot open.
  *
  * It **inserts** rather than updates, unlike
  * `20260911_235823_pages_app_cards_localize_status.ts`. A card created with the
@@ -68,7 +66,6 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
  * with no destination at all.
  *
  * Collapsing 19 locales back to one value loses information by definition.
- * `en` is the value restored, because it is the one the single column meant.
  */
 export async function down({ db, payload, req }: MigrateDownArgs): Promise<void> {
   await db.execute(sql`
@@ -86,13 +83,19 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
       "starting_soon_destination" = l."starting_soon_destination",
       "live_now_destination" = l."live_now_destination"
     FROM "app_cards_locales" AS l
-   WHERE l."_parent_id" = c."id" AND l."_locale" = 'en';
+   WHERE l."_parent_id" = c."id" AND l."_locale" = 'en'
+     AND (l."default_destination" IS NOT NULL
+       OR l."starting_soon_destination" IS NOT NULL
+       OR l."live_now_destination" IS NOT NULL);
   UPDATE "_app_cards_v" AS v SET
       "version_default_destination" = l."version_default_destination",
       "version_starting_soon_destination" = l."version_starting_soon_destination",
       "version_live_now_destination" = l."version_live_now_destination"
     FROM "_app_cards_v_locales" AS l
-   WHERE l."_parent_id" = v."id" AND l."_locale" = 'en';`)
+   WHERE l."_parent_id" = v."id" AND l."_locale" = 'en'
+     AND (l."version_default_destination" IS NOT NULL
+       OR l."version_starting_soon_destination" IS NOT NULL
+       OR l."version_live_now_destination" IS NOT NULL);`)
 
   await db.execute(sql`
    ALTER TABLE "app_cards_locales" DROP COLUMN "default_destination";

@@ -70,6 +70,9 @@ describe('appCardsForAudience endpoint', () => {
   let cardWithCondition: AppCard
   let cardWithMultipleConditions: AppCard
 
+  /** Every card in this file shares one image rather than uploading its own. */
+  let imageId: number
+
   beforeAll(async () => {
     const env = await createTestEnvironment()
     payload = env.payload
@@ -77,7 +80,7 @@ describe('appCardsForAudience endpoint', () => {
     adminUserId = env.adminUser.id
 
     const img = await testData.createMediaImage(payload, { alt: 'Shared card image' })
-    const imageId = img.id
+    imageId = img.id
 
     // Always-match audiences — no configured range rules. Rule semantics are
     // tested in audiences-for-user.int.spec.ts. Here we only care about
@@ -753,14 +756,12 @@ describe('appCardsForAudience endpoint', () => {
     })
   })
 
-  // These cards are published at `en` only, and the endpoint filters on
-  // `_status`, so they reach it because `app_cards` carries publish state per
-  // locale — `testHelpers.ts` sets `experimental.localizeStatus` for that.
   describe('per-language destination (#1001)', () => {
-    it('stores a destination per locale, in both directions', async () => {
-      const album = await testData.createAlbum(payload, { title: 'Per-locale Album' })
+    // The direction the endpoint case below cannot reach: it reads `en`, so
+    // only this one sees an English edit arriving at a French card.
+    it('leaves French with its own destination when English changes', async () => {
       const card = await testData.createAppCard(payload, {
-        default: { title: 'Per-locale Card', destination: 'album', album: album.id },
+        default: { title: 'Per-locale Card', destination: 'album', image: imageId },
         targetSections: ['hero'],
         audiences: [openAudience.id],
         _status: 'published',
@@ -779,8 +780,12 @@ describe('appCardsForAudience endpoint', () => {
         },
       })
 
-      const en = await payload.findByID({ collection: 'app-cards', id: card.id, depth: 0 })
-      expect(en.default?.destination).toBe('album')
+      await payload.update({
+        collection: 'app-cards',
+        id: card.id,
+        locale: 'en',
+        data: { default: { destination: 'lecture' } },
+      })
 
       const fr = await payload.findByID({
         collection: 'app-cards',
@@ -790,28 +795,14 @@ describe('appCardsForAudience endpoint', () => {
         depth: 0,
       })
       expect(fr.default?.destination).toBe('url')
-
-      await payload.update({
-        collection: 'app-cards',
-        id: card.id,
-        locale: 'en',
-        data: { default: { destination: 'lecture' } },
-      })
-
-      const frAfter = await payload.findByID({
-        collection: 'app-cards',
-        id: card.id,
-        locale: 'fr',
-        fallbackLocale: false,
-        depth: 0,
-      })
-      expect(frAfter.default?.destination).toBe('url')
     })
 
     // The defect end to end: the discriminator stored once for all 19 locales
     // made a French edit repoint English at a `url` only French filled in, so
     // the English card reached the app with no destination at all.
     it('keeps the English card on its meditation after a French editor picks a URL', async () => {
+      // Its own audience, so the weighted sample cannot drop this card to stay
+      // under `limit` as the suite's hero cards on `openAudience` grow.
       const audience = await testData.createAudience(payload, { label: 'Per-locale Audience' })
       const meditation = await testData.createMeditation(payload)
       const card = await testData.createAppCard(payload, {
@@ -819,6 +810,7 @@ describe('appCardsForAudience endpoint', () => {
           title: 'Meditation Card',
           destination: 'meditation',
           meditation: meditation.id,
+          image: imageId,
         },
         targetSections: ['hero'],
         audiences: [audience.id],
@@ -842,7 +834,7 @@ describe('appCardsForAudience endpoint', () => {
         payload,
         { targetSection: 'hero', limit: 20 },
         undefined,
-        { defaultAudiences: String(audience.id) },
+        { defaultAudiences: [audience.id].join(',') },
       )
 
       expect(status).toBe(200)
