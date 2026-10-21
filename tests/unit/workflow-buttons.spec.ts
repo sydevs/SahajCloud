@@ -87,6 +87,24 @@ const meditations: WorkflowButtonsProps = {
   },
 }
 
+/**
+ * `user-submissions`' own declaration, trimmed. One slot serves four intakes
+ * sharing one status vocabulary, so `onlyWhen` is what keeps a `contact` row
+ * sitting at `pending` away from Accept and Reject.
+ */
+const submissions: WorkflowButtonsProps = {
+  statusField: 'status',
+  onlyWhen: { field: 'type', equals: 'proposal' },
+  fallback: 'save',
+  stages: {
+    pending: [
+      { label: 'Reject', overrides: { status: 'rejected' } },
+      { label: 'Accept', overrides: { status: 'accepted' } },
+    ],
+    accepted: [],
+  },
+}
+
 describe('resolveStage', () => {
   it('names the create stage for an unsaved document whatever the status holds', () => {
     expect(resolveStage({ operation: 'create', status: 'resolving', statusField: 'status' })).toBe(
@@ -296,6 +314,57 @@ describe('WorkflowButtons', () => {
     render(imports)
 
     expect(buttons().map((b) => b.disabled)).toEqual([false])
+  })
+
+  it('offers the stage’s buttons when the gated field holds its value', () => {
+    form.operation = 'update'
+    form.fields = { status: { value: 'pending' }, type: { value: 'proposal' } }
+
+    render(submissions)
+
+    expect(labels()).toEqual(['Reject', 'Accept'])
+  })
+
+  /**
+   * The whole point of the gate. Every intake here shares one status
+   * vocabulary, so a contact message awaiting delivery resolves stage
+   * `pending` exactly as a proposal awaiting review does — and would be
+   * offered a decision that has no `proposed` patch to apply.
+   */
+  it.each(['contact', 'subscribe', 'registration'])(
+    'renders the fallback on a %s row at a stage the declaration names',
+    (type) => {
+      form.operation = 'update'
+      form.fields = { status: { value: 'pending' }, type: { value: type } }
+
+      render(submissions)
+
+      expect(labels()).toEqual(['Payload save'])
+    },
+  )
+
+  /**
+   * ⚠ **The gate outranks an empty stage, not just a populated one.** `[]`
+   * renders nothing, so a row gated out at that stage would lose its Save
+   * button altogether rather than falling back to it.
+   */
+  it('renders the fallback on a gated-out row whose stage declares no actions', () => {
+    form.operation = 'update'
+    form.fields = { status: { value: 'accepted' }, type: { value: 'contact' } }
+
+    render(submissions)
+
+    expect(labels()).toEqual(['Payload save'])
+  })
+
+  /** An absent field is not a match, or a row whose gate never loaded gets the buttons. */
+  it('renders the fallback when the gated field holds nothing', () => {
+    form.operation = 'update'
+    form.fields = { status: { value: 'pending' } }
+
+    render(submissions)
+
+    expect(labels()).toEqual(['Payload save'])
   })
 
   /**

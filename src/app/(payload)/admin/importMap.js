@@ -73,7 +73,6 @@ import { StrikethroughFeatureClient as StrikethroughFeatureClient_e70f5e05f09f93
 import { UnderlineFeatureClient as UnderlineFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { default as default_1362f9d401458600fb8b976a104ad7f3 } from '@/components/admin/SubmissionReview/SubmissionChanges'
 import { default as default_af29cb1ab17d55265c927ecaae54b307 } from '@/components/admin/SubmissionReview/SubmissionStatus'
-import { default as default_7f2d46ee1b409fcfce4d4804d79d7227 } from '@/components/admin/SubmissionReview/SubmissionActions'
 import { default as default_4e22aa57842837eff3a83b422834aab2 } from '@/components/admin/TranslationsRow'
 import { default as default_cbd7ea31609971bfa7093afb69bf75ad } from '@/components/admin/TabScreenshot'
 import { TranslationsRichTextField as TranslationsRichTextField_4e22aa57842837eff3a83b422834aab2 } from '@/components/admin/TranslationsRow'
@@ -168,7 +167,6 @@ export const importMap = {
   "@payloadcms/richtext-lexical/client#UnderlineFeatureClient": UnderlineFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@/components/admin/SubmissionReview/SubmissionChanges#default": default_1362f9d401458600fb8b976a104ad7f3,
   "@/components/admin/SubmissionReview/SubmissionStatus#default": default_af29cb1ab17d55265c927ecaae54b307,
-  "@/components/admin/SubmissionReview/SubmissionActions#default": default_7f2d46ee1b409fcfce4d4804d79d7227,
   "@/components/admin/TranslationsRow#default": default_4e22aa57842837eff3a83b422834aab2,
   "@/components/admin/TabScreenshot#default": default_cbd7ea31609971bfa7093afb69bf75ad,
   "@/components/admin/TranslationsRow#TranslationsRichTextField": TranslationsRichTextField_4e22aa57842837eff3a83b422834aab2,
