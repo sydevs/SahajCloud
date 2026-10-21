@@ -9,8 +9,12 @@ import {
 } from 'payload'
 
 import { requireManagerPermission } from '@/lib/endpoints'
-import { transcriptPhase, transcriptPhaseIsRetryable } from '@/lib/meditations/transcriptPhase'
-import { retranscribeWaitLabel, retranscribeWaitMs } from '@/lib/meditations/transcriptThrottle'
+import {
+  retranscribeWaitLabel,
+  retranscribeWaitMs,
+  transcriptPhase,
+  transcriptPhaseIsRetryable,
+} from '@/lib/meditations/transcriptBounds'
 import type { MeditationTranscript } from '@/payload-types'
 
 const refusal = (message: string, status: number, headers?: HeadersInit): Response =>

@@ -32,7 +32,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { __resetPlaybackTimeStoreForTests } from '@/components/admin/FrameEditor/playbackTimeStore'
 import { TRANSCRIPTION_STALL_MS } from '@/lib/meditations/transcript'
-import { RETRANSCRIBE_COOLDOWN_MS } from '@/lib/meditations/transcriptThrottle'
+import { RETRANSCRIBE_COOLDOWN_MS } from '@/lib/meditations/transcriptBounds'
 import type { MeditationTranscript } from '@/payload-types'
 
 const PREVIEW_ORIGIN = 'https://preview.example'

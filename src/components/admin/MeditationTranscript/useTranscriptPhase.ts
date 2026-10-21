@@ -2,9 +2,12 @@
 
 import { useEffect, useState } from 'react'
 
-import { type TranscriptPhase, transcriptPhase } from '@/lib/meditations/transcriptPhase'
-import { TRANSCRIPTION_STALL_MS } from '@/lib/meditations/transcriptStall'
-import { retranscribeWaitMs } from '@/lib/meditations/transcriptThrottle'
+import {
+  retranscribeWaitMs,
+  TRANSCRIPTION_STALL_MS,
+  type TranscriptPhase,
+  transcriptPhase,
+} from '@/lib/meditations/transcriptBounds'
 import type { MeditationTranscript as TranscriptRow } from '@/payload-types'
 
 /**

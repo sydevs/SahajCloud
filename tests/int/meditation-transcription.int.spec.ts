@@ -27,8 +27,10 @@ import path from 'node:path'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { TranscribeMeditation } from '@/jobs/TranscribeMeditation/TranscribeMeditation'
-import { TRANSCRIPTION_STALL_MS } from '@/lib/meditations/transcriptStall'
-import { RETRANSCRIBE_COOLDOWN_MS } from '@/lib/meditations/transcriptThrottle'
+import {
+  RETRANSCRIBE_COOLDOWN_MS,
+  TRANSCRIPTION_STALL_MS,
+} from '@/lib/meditations/transcriptBounds'
 import type { Meditation, MeditationTranscript } from '@/payload-types'
 
 import {

@@ -13,7 +13,7 @@ import {
   transcriptPhase,
   type TranscriptPhase,
   transcriptPhaseIsRetryable,
-} from '@/lib/meditations/transcriptPhase'
+} from '@/lib/meditations/transcriptBounds'
 import type { MeditationTranscript as TranscriptRow } from '@/payload-types'
 
 import styles from './MeditationTranscript.module.css'

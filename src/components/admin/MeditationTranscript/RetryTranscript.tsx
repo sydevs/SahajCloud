@@ -3,7 +3,7 @@
 import { Button, toast, useDocumentInfo, useLocale } from '@payloadcms/ui'
 import React, { useCallback, useState } from 'react'
 
-import { retranscribeWaitLabel } from '@/lib/meditations/transcriptThrottle'
+import { retranscribeWaitLabel } from '@/lib/meditations/transcriptBounds'
 
 import { retryTranscriptUrl } from './transcriptModel'
 import { useRetryCooldown } from './useTranscriptPhase'

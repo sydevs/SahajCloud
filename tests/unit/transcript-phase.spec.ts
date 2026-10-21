@@ -9,10 +9,10 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  TRANSCRIPTION_STALL_MS,
   transcriptPhase,
   transcriptPhaseIsRetryable,
-} from '@/lib/meditations/transcriptPhase'
-import { TRANSCRIPTION_STALL_MS } from '@/lib/meditations/transcriptStall'
+} from '@/lib/meditations/transcriptBounds'
 import type { MeditationTranscript } from '@/payload-types'
 
 const NOW = Date.parse('2026-10-17T12:00:00.000Z')
