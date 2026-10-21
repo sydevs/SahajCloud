@@ -6,7 +6,7 @@
 # parity, without smoke) under --full. See docs/rules/testing-reqs.md for
 # the full three-tier contract.
 #
-# Default, Tier 2: lint, typecheck, and the fast unit suite. Run the
+# Default, Tier 2: lint, typecheck, and the whole unit lane. Run the
 # integration spec(s) for your change separately, for example:
 #   pnpm exec vitest run tests/int/<file>.int.spec.ts --config ./vitest.config.mts
 #
