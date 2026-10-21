@@ -85,23 +85,23 @@ them to what is on disk; every timing is the session its row names.
 `| Files / tests |` and the three `**bold**` cells are the captures the spec
 reads, so keep those labels and cell shapes when you add a row.
 
-| Metric                                                                                            | Value                                                             |
-| ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Files / tests                                                                                     | 222 / 2843                                                        |
-| Whole lane, 3 workers (slowest session median, what the consumer docs quote)                      | **77.9 s**                                                        |
-| One spec alone, the typical edit (third session)                                                  | 1.3 s                                                             |
-| Slowest per-edit selection timed on 4 cores, the 7 specs naming `@/plugins/login` (third session) | **6.9 s**                                                         |
-| 18 specs naming `@/payload-types`, which the hook skips as generated (third session)              | 7.8 s                                                             |
-| Vitest phase breakdown, at 3 workers                                                              | transform 14.4 s, import 141.6 s, tests 17.5 s, environment 5.2 s |
-| Slowest file's own duration inside the lane (first session)                                       | 1.8 s (`proposal-leaves.spec.ts`)                                 |
-| One file alone, cold (first session)                                                              | **1.9 s** wall (`convert-vimeo`) to **3.0 s** (`proposal-leaves`) |
-| Whole lane at `--maxWorkers=1` (first session, 198 files)                                         | 140.5 s                                                           |
-| Whole lane at `--maxWorkers=4` (first session, 198 files)                                         | 49.2 s                                                            |
-| `pnpm lint`                                                                                       | 28.5 s                                                            |
-| `pnpm typecheck`                                                                                  | 8.4 s                                                             |
-| `pnpm typecheck:tests`                                                                            | 8.2 s                                                             |
-| Those four commands, summed                                                                       | 104 s                                                             |
-| Tier 2 lean gate (`check.sh`), slowest cold run of three sessions                                 | **174 s** cold, **103 s** with Postgres already up                |
+| Metric                                                                                                    | Value                                                             |
+| --------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Files / tests                                                                                             | 222 / 2843                                                        |
+| Whole lane, 3 workers (slowest session median, what the consumer docs quote)                              | **77.9 s**                                                        |
+| One spec alone, the typical edit (third session)                                                          | 1.3 s                                                             |
+| Slowest per-edit selection timed on 4 cores, the 9 specs naming `tests/utils/importGraph.ts` (2026-10-21) | **8.0 s**                                                         |
+| 18 specs naming `@/payload-types`, which the hook skips as generated (third session)                      | 7.8 s                                                             |
+| Vitest phase breakdown, at 3 workers                                                                      | transform 14.4 s, import 141.6 s, tests 17.5 s, environment 5.2 s |
+| Slowest file's own duration inside the lane (first session)                                               | 1.8 s (`proposal-leaves.spec.ts`)                                 |
+| One file alone, cold (first session)                                                                      | **1.9 s** wall (`convert-vimeo`) to **3.0 s** (`proposal-leaves`) |
+| Whole lane at `--maxWorkers=1` (first session, 198 files)                                                 | 140.5 s                                                           |
+| Whole lane at `--maxWorkers=4` (first session, 198 files)                                                 | 49.2 s                                                            |
+| `pnpm lint`                                                                                               | 28.5 s                                                            |
+| `pnpm typecheck`                                                                                          | 8.4 s                                                             |
+| `pnpm typecheck:tests`                                                                                    | 8.2 s                                                             |
+| Those four commands, summed                                                                               | 104 s                                                             |
+| Tier 2 lean gate (`check.sh`), slowest cold run of three sessions                                         | **174 s** cold, **103 s** with Postgres already up                |
 
 **The gate's own spread is `scripts/ensure-test-db.sh`.** It costs nothing once
 port 5432 answers, which is why a warm run lands on the four commands' 104 s and
@@ -131,10 +131,10 @@ however many cores are bought. Running fewer files can.
 **What the budget protects is the per-edit hook, so Tier 1's target is set
 from what a narrowed hook costs — not from the lane, and not from one spec.**
 Selecting the specs that name an edited module gives 1 spec for the median
-module, 7 for `@/plugins/login`, and 18 for `@/payload-types`, the generated
-file `pnpm generate:types` rewrites. Those cost 1.3, 6.9 and 7.8 s measured
-above. The hook skips generated files, so the slowest it makes that 4 cores
-have timed is the login seven.
+module, 9 for `tests/utils/importGraph.ts`, and 18 for `@/payload-types`, the
+generated file `pnpm generate:types` rewrites. Those cost 1.3, 8.0 and 7.8 s
+measured above. The hook skips generated files, so its own slowest on 4 cores
+is the importGraph nine.
 **Tier 1 targets `< 12 s`**: it bounds the widest of those with room for the
 spread this file records, and it matches SahajAtlasWeb's own measured
 per-edit budget on the same core count, whose hook this one copies. 5 s was
@@ -162,12 +162,21 @@ one warm-up run, then three:
 no spec, so the hook spawns no vitest and costs 0.2 s, mostly node's own
 start-up. The median `src/` edit selects none.
 
-**On 4 cores the slowest recorded is 6.9 s**, the third session's login
-specs in the table above — the figure Tier 1's `< 12 s` is held to. ⚠ **The
-widest today, `importGraph`'s 9, is untimed on 4 cores.** On the laptop it
-costs 15% more than login's, which puts it near 8 s there, still inside the
-target; time it on the next container session and record it above. Width
-stands in for time without being it:
+Timed again on 2026-10-21, on 4 cores (Intel Xeon @ 2.80 GHz), one warm-up
+then three:
+
+| Edited file                                          | Specs selected | Hook wall-clock, consecutive runs | Median    |
+| ---------------------------------------------------- | -------------- | --------------------------------- | --------- |
+| `tests/utils/importGraph.ts`, the widest in the tree | 9              | 7.65 · 8.12 · 8.03 s              | **8.0 s** |
+| `src/plugins/login/index.ts`                         | 8              | 7.35 · 7.46 · 7.86 s              | 7.5 s     |
+| `README.md`, the widest doc                          | 3              | 1.17 · 1.06 s                     | 1.1 s     |
+| `src/lib/richEditor/index.ts`                        | 0              | 0.12 s                            | 0.12 s    |
+
+**So 8.0 s is the slowest recorded on 4 cores** — the figure Tier 1's `< 12 s`
+is held to, and the widest selection is the slowest there too. An earlier
+session timed the 7 specs naming `@/plugins/login` at 6.9 s and another the 8
+at 6.1 s, on the same container spec, so the move here is the spread this
+file records rather than a regression. Width stands in for time without being it:
 `tests/unit/select-unit-specs.spec.ts` caps the widest selection at 10, and a
 jump past that means re-timing here.
 
