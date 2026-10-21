@@ -11,7 +11,8 @@
  * - `useSWR(key, fetcher, options)` makes no request for a null key, and calls
  *   `refreshInterval` with the latest data
  *   (`swr/dist/index/index.mjs`, `useSWRHandler`).
- * - `useDocumentInfo().id` is the saved document's id.
+ * - `useDocumentInfo()` carries the saved document: its `id`, and the `data`
+ *   the Edit view last read, which is where `filename` lives.
  * - `useLocale().code` is the active admin locale, and its context default is
  *   `{}`, so the code can be `undefined` at runtime (#701).
  * - `useLivePreviewContext().iframeRef` is the live-preview iframe, which is
@@ -45,7 +46,7 @@ const iframeRef = {
 const stub = vi.hoisted(() => ({
   id: 7 as number | undefined,
   locale: 'en' as string | undefined,
-  /** The meditation's own `filename`, as the document form holds it. */
+  /** The meditation's own `filename`, as the saved document holds it. */
   filename: undefined as string | null | undefined,
   swr: { data: undefined as unknown, error: undefined as unknown },
   swrCalls: [] as { key: unknown; options: { refreshInterval?: unknown } }[],
@@ -56,10 +57,9 @@ const stub = vi.hoisted(() => ({
 }))
 
 /**
- * Two more behaviours of the boundary, read off the real thing like the four
- * above: `Button` renders a `<button type="button">` (its own default, which is
- * what keeps a click out of the document's save), and `useFormFields(selector)`
- * calls the selector with `[formState, dispatch]`.
+ * One more behaviour of the boundary, read off the real thing like the four
+ * above: `Button` renders a `<button type="button">` — its own default, which
+ * is what keeps a click out of the document's save.
  */
 vi.mock('@payloadcms/ui', () => ({
   Banner: ({ children, icon }: { children?: ReactNode; icon?: ReactNode }) =>
@@ -76,9 +76,7 @@ vi.mock('@payloadcms/ui', () => ({
   Spinner: ({ loadingText }: { loadingText?: string | null }) =>
     createElement('div', { 'data-spinner': 'true' }, loadingText),
   toast: { error: stub.toastError, success: stub.toastSuccess },
-  useDocumentInfo: () => ({ id: stub.id }),
-  useFormFields: (selector: (state: [Record<string, { value?: unknown }>, unknown]) => unknown) =>
-    selector([{ filename: { value: stub.filename } }, () => undefined]),
+  useDocumentInfo: () => ({ data: { filename: stub.filename }, id: stub.id }),
   useLocale: () => ({ code: stub.locale }),
   useLivePreviewContext: () => ({ iframeRef: stub.iframe, url: '' }),
 }))

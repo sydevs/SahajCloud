@@ -1,6 +1,6 @@
 'use client'
 
-import { Button, toast, useFormFields, useLocale } from '@payloadcms/ui'
+import { Button, toast, useDocumentInfo, useLocale } from '@payloadcms/ui'
 import React, { useCallback, useState } from 'react'
 
 import { retranscribeWaitLabel } from '@/lib/meditations/transcriptThrottle'
@@ -22,11 +22,13 @@ const FAILED = 'Could not ask for a transcript.'
  *
  * - **The cooldown** becomes a sentence naming the wait.
  * - **No recording** hides the control outright, in every phase, exactly as
- *   the endpoint refuses it in every phase. Read off form state rather than the
- *   transcript row, because the recording lives on the meditation document.
- *   ⚠ Staging a file populates form state's `file`, not `filename`, so this
- *   stays hidden until the save that stores it — which is the safe order,
- *   since the endpoint reads the stored document.
+ *   the endpoint refuses it in every phase. Read off the saved document rather
+ *   than the transcript row, because the recording lives on the meditation —
+ *   and off `useDocumentInfo().data` rather than form state, which is what
+ *   `AudioUpload` reads on this same collection to decide whether to render a
+ *   player. ⚠ Both are the stored filename: `<Upload>` writes only the `file`
+ *   path, so neither staging nor removing one moves this until the save. That
+ *   is the safe order, since the endpoint reads the stored document too.
  */
 export const RetryTranscript: React.FC<{
   meditationId: number | string
@@ -36,9 +38,8 @@ export const RetryTranscript: React.FC<{
   requestedAt: string | undefined
 }> = ({ meditationId, onRetried, requestedAt }) => {
   const { code: locale } = useLocale()
-  const filename = useFormFields(
-    ([fields]) => fields?.filename?.value as string | null | undefined,
-  )
+  const { data } = useDocumentInfo()
+  const filename = data?.filename as string | null | undefined
   const cooldownMs = useRetryCooldown(requestedAt)
   const [busy, setBusy] = useState(false)
 
