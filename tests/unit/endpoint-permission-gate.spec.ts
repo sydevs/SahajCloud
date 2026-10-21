@@ -42,13 +42,15 @@ describe('an endpoint reaches a permission check through the shared gate', () =>
   })
 
   // Without this the case above passes by scanning nothing, which is how a
-  // renamed tree would read as compliance. Named files rather than a count,
-  // because the two the extraction repointed are the ones the scan must reach.
+  // renamed tree would read as compliance. Named files rather than a count, and
+  // one per tree, so neither half of `GATED_TREES` can go unreached quietly.
+  // `byNarrator` is the only gated collection endpoint left: #909 deleted the
+  // submission review endpoint, whose own `requireManagerPermission` call was
+  // the other anchor here.
   it('scans the trees the rule is about', () => {
     const scanned = GATED_TREES.flatMap((tree) =>
       sourceFiles(`${SRC}/${tree}`).map((file) => relative(SRC, file)),
     )
-    expect(scanned).toContain('collections/UserSubmissions/endpoints/review.ts')
     expect(scanned).toContain('collections/Frames/endpoints/byNarrator.ts')
     expect(scanned).toContain('endpoints/atlas/seo/index.ts')
   })
