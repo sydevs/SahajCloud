@@ -71,8 +71,7 @@ function runFieldValidate(
 ): true | string {
   if (typeof field.validate !== 'function') throw new Error('field has no validate')
   return field.validate(value as never, { ...field, req, required: false, ...extra } as never) as
-    | true
-    | string
+    true | string
 }
 
 describe('subtitles', () => {

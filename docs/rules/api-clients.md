@@ -29,7 +29,7 @@ API credential presented and rejected
 
 `keyFingerprint` is a 12-hex truncated SHA-256 — enough to tell two broken integrations apart, and never the key. Search Sentry by the `key_fingerprint` tag to find every request from one credential. An anonymous 403 is unchanged.
 
-**Both denial paths report it** (#743). Payload's error hook covers everything that throws; `requireActiveClient` covers the custom endpoints that deny by *returning* a 403 — `/api/atlas/seo` and `/api/atlas/sitemap` among them — which no hook ever sees. `source` says which one denied, and the message is one string on purpose: two spellings would split the log query. Every rejection reports, on both paths — mute the volume with a Sentry-side rule on `auth_outcome`, never in this process. Detail: `docs/architecture.md`.
+**Both denial paths report it** (#743). Payload's error hook covers everything that throws; `requireActiveClient` covers the custom endpoints that deny by _returning_ a 403 — `/api/atlas/seo` and `/api/atlas/sitemap` among them — which no hook ever sees. `source` says which one denied, and the message is one string on purpose: two spellings would split the log query. Every rejection reports, on both paths — mute the volume with a Sentry-side rule on `auth_outcome`, never in this process. Detail: `docs/architecture.md`.
 
 ## Security
 
@@ -39,12 +39,12 @@ Access is permission-based via `accessPlugin` — a client needs an explicit per
 
 `writeGuardPlugin` runs anti-spam checks on **client-originated** writes. `turnstile: true` in `DEFAULT_WRITE_GUARD_POLICIES` requires a solved token in the **`x-turnstile-token`** header, kept out of the document shape. Registrations were the last public write without it (#629) — the gate could only turn on once the Atlas widget sent the header (sydevs/SahajAtlasWeb#182), so the two shipped in that order.
 
-| Outcome | Status | `errors[0].code` | Client action |
-| --- | --- | --- | --- |
-| Missing, forged, expired, or **replayed** token | 403 | `captcha_failed` | Reset the challenge, retry with a fresh token |
-| Our secret unset, or Cloudflare unreachable | 500 | `captcha_unavailable` | Retry later — never a pass |
+| Outcome                                         | Status | `errors[0].code`      | Client action                                 |
+| ----------------------------------------------- | ------ | --------------------- | --------------------------------------------- |
+| Missing, forged, expired, or **replayed** token | 403    | `captcha_failed`      | Reset the challenge, retry with a fresh token |
+| Our secret unset, or Cloudflare unreachable     | 500    | `captcha_unavailable` | Retry later — never a pass                    |
 
-⚠ **Tokens are single-use** — a replay is refused exactly like a forgery, so retrying with the *same* token after any error gets a second 403.
+⚠ **Tokens are single-use** — a replay is refused exactly like a forgery, so retrying with the _same_ token after any error gets a second 403.
 
 ⚠ **The gate fails closed on our own misconfiguration, on purpose.** A captcha that silently disables itself on a missing secret is worse than none, since nothing would surface the misconfiguration. There is no dev/test bypass — point `TURNSTILE_SECRET_KEY` at Cloudflare's always-passes test key locally.
 
@@ -54,10 +54,10 @@ One collection accepts every public write, discriminated by `type`: `contact`, `
 
 Two refusals are specific to it, each with a message naming what to fix:
 
-| `errors[0].code` | Status | Means |
-| --- | --- | --- |
-| `submission_data_invalid` | 400 | An unrecognised `type`, or a `submissionData` pair carrying a key this type does not accept, a duplicate key, a non-string value, or an over-long one. The message names the key |
-| `submission_type_mismatch` | 400 | The `type` disagrees with the form's `actionType`. The form is the authority on what a submission against it is |
+| `errors[0].code`           | Status | Means                                                                                                                                                                            |
+| -------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `submission_data_invalid`  | 400    | An unrecognised `type`, or a `submissionData` pair carrying a key this type does not accept, a duplicate key, a non-string value, or an over-long one. The message names the key |
+| `submission_type_mismatch` | 400    | The `type` disagrees with the form's `actionType`. The form is the authority on what a submission against it is                                                                  |
 
 Every per-field refusal names the input that tripped it: `errors[0].data` is `{ code, field }`, where `field` is the body path (`senderEmail`, `proposed.contactEmail`) or the `submissionData` pair name. The write guard and the intake hook raise the same codes with the same shape, so a client never has to tell which of the two refused it. `captcha_failed` and `captcha_unavailable` carry no `field` — they judge the request, not an input.
 
@@ -107,7 +107,7 @@ An API client read must declare its data needs: `select` is required on every re
 
 The same gate bounds the two numbers that reach SQL. A client may send `limit` up to **2000** and `page` up to **10000** (`MAX_CLIENT_LIMIT` / `MAX_CLIENT_PAGE` in `src/plugins/usage/constants.ts`, which the OpenAPI parameter docs also read); either outside `0 … its ceiling`, or not a whole number, is refused **400** naming the bound. A global read carries neither, so nothing changes there.
 
-**Clients only, deliberately** — a manager, the admin UI and an internal read are trusted with their own numbers, and `hooks.ts` returns early for all three. The bound runs *ahead* of the `asTrustedReq` and live-preview bypasses, though, unlike the `select` gate: those relax a shape policy, and this one keeps a number out of the driver.
+**Clients only, deliberately** — a manager, the admin UI and an internal read are trusted with their own numbers, and `hooks.ts` returns early for all three. The bound runs _ahead_ of the `asTrustedReq` and live-preview bypasses, though, unlike the `select` gate: those relax a shape policy, and this one keeps a number out of the driver.
 
 ```
 ❌ GET /api/meditations?select[label]=true&limit=99999999999999999999   → 400
@@ -148,7 +148,7 @@ A shaped endpoint issues 2 to 5 forwarded reads, and each one is a `read` the me
 `countClientRead(req)` is now idempotent per request, through a **mutable object** on `req.context`:
 
 - ⚠ **An object, not a boolean.** `asTrustedReq` spreads `req.context` into a new object, so a boolean written through one copy is invisible to the next. That is the mechanism #559's commit message describes and never had. A nested object is copied by reference, so every copy mutates one cell.
-- ⚠ **Seeded before the spread.** `asTrustedReq` creates the cell on the `req` it is copying *from*, which is what makes the copies share one. A wrapper that spread first would give each read its own cell.
+- ⚠ **Seeded before the spread.** `asTrustedReq` creates the cell on the `req` it is copying _from_, which is what makes the copies share one. A wrapper that spread first would give each read its own cell.
 - ⚠ **The count lands inside the first read, after that read's own gates.** The meter runs last in the chain, so an origin-denied or malformed read costs no quota. A handler counting before its first read would let a misconfigured host page drain a client's daily quota while being refused 403 every time — a collection endpoint has no origin check of its own, because enforcement happens in the forwarded read.
 
 So **a collection endpoint needs nothing**: its own reads count it, exactly once. **A root endpoint calls `countClientRead(req)` itself**, because it runs no collection `beforeOperation` hook and may read no metered collection at all — `GET /api/atlas/seo`'s root route resolves through two globals and the caller's own `clients` row, and so counted nothing.
@@ -159,7 +159,7 @@ So **a collection endpoint needs nothing**: its own reads count it, exactly once
 
 ### System writes: `asSystemReq`, and why `overrideAccess` isn't enough
 
-`asSystemReq(req)` returns the same request with **no user** — reach for it when a client-triggered write isn't on the caller's own authority (the registration vote-sync hook updating the *event*). `overrideAccess: true` alone is not enough: it skips collection access but **not** `filterOptions`, which Payload validates against `req.user` — a write touching an owner-scoped picker would 400 for a caller entitled to trigger the operation but not to perform it directly. `context`, `transactionID`, and `payload` still travel by reference. Only the authority changes. `asTrustedReq` keeps the user and relaxes the query-shape gate instead — the two compose.
+`asSystemReq(req)` returns the same request with **no user** — reach for it when a client-triggered write isn't on the caller's own authority (the registration vote-sync hook updating the _event_). `overrideAccess: true` alone is not enough: it skips collection access but **not** `filterOptions`, which Payload validates against `req.user` — a write touching an owner-scoped picker would 400 for a caller entitled to trigger the operation but not to perform it directly. `context`, `transactionID`, and `payload` still travel by reference. Only the authority changes. `asTrustedReq` keeps the user and relaxes the query-shape gate instead — the two compose.
 
 ### Live preview bypass
 
@@ -171,16 +171,16 @@ Admin live preview opens a consumer site with a short-lived Ed25519 token (an Ed
 
 ## Client read contract: finished events (#603)
 
-A **finished** event (its schedule fully run out) stays `published`, since its Atlas page must keep resolving for an old link — but it drops out of public *feeds*:
+A **finished** event (its schedule fully run out) stays `published`, since its Atlas page must keep resolving for an old link — but it drops out of public _feeds_:
 
-| Read | Finished events |
-| --- | --- |
-| `GET /api/events` | Excluded by default. An explicit `where` on `schedule.lastDate` opts out |
-| `GET /api/events/geojson` | Always excluded, no opt-out |
-| `GET /api/events/{id}` | Returned normally |
-| `GET /api/atlas/seo` | A region listing excludes them. A single-event read returns it |
-| `GET /api/atlas/sitemap` | Excluded — the page still resolves, but a sitemap shouldn't ask a crawler to index it |
-| Admin / manager / job reads | Unaffected |
+| Read                        | Finished events                                                                       |
+| --------------------------- | ------------------------------------------------------------------------------------- |
+| `GET /api/events`           | Excluded by default. An explicit `where` on `schedule.lastDate` opts out              |
+| `GET /api/events/geojson`   | Always excluded, no opt-out                                                           |
+| `GET /api/events/{id}`      | Returned normally                                                                     |
+| `GET /api/atlas/seo`        | A region listing excludes them. A single-event read returns it                        |
+| `GET /api/atlas/sitemap`    | Excluded — the page still resolves, but a sitemap shouldn't ask a crawler to index it |
+| Admin / manager / job reads | Unaffected                                                                            |
 
 "Finished" means `schedule.lastDate` (the final occurrence's local end-of-day) is in the past — an event running today stays listed until midnight in its own timezone. A NULL `lastDate` (open-ended recurrence) and an `inactive` event are never finished. One definition, two expressions: `shouldFinish` in memory, `notFinishedWhere` as SQL, pinned to agree by `tests/unit/schedule-status.spec.ts`.
 
@@ -197,7 +197,7 @@ GET /api/pages?locale=all&select[_status]=true
 → { "docs": [ { "id": 12, "_status": { "en": "published", "de": "draft" } } ] }
 ```
 
-Read the map by this rule: **a locale is published only when it says `published`.** A locale that was never translated has no row at all and is simply **absent** from the map — a page published in English alone reports `{ "en": "published" }` and nothing else. Absent is not published. Do not derive the answer from the site's locale set, or from which locales have *any* version.
+Read the map by this rule: **a locale is published only when it says `published`.** A locale that was never translated has no row at all and is simply **absent** from the map — a page published in English alone reports `{ "en": "published" }` and nothing else. Absent is not published. Do not derive the answer from the site's locale set, or from which locales have _any_ version.
 
 Five things to know:
 
@@ -205,8 +205,8 @@ Five things to know:
 - **It costs no extra query.** The Postgres adapter joins `_locales` unfiltered on every localized read, so a 25-row list at `locale=all` is still one query. That is why there is no `publishedLocales` field — a collection `afterRead` computing one would have to re-read each row at `locale: 'all'`, 25 reads on a 25-row list. Pinned by `tests/int/pages-localize-status.int.spec.ts`.
 - **`payload-types.ts` still types `_status` as a single string.** Payload generates the resolved shape, not the `locale=all` one, so a consumer reading the map casts. The map is the contract; the generated type has not caught up.
 - **The published-only filter is now per locale.** A client restricted to published documents reads a locale only where that locale's row says `published`. The filter is SQL, so it sees rows, not the fallback the bullet above describes: an unpublished translation is unreachable, and so is a locale that was never translated, because it has no row for the filter to match.
-- ⚠ **That second case fires on existing data, not only on a deliberate unpublish — and it is intended.** The migration copies each document's old status into every locale row that *exists*, and an untranslated locale has none, so a page published in English alone returns nothing at `?locale=de` where Payload's English fallback used to serve it. **Decided on #765: an unpublished locale should 404, and a page must not serve English text under a German URL.** Do not add a fallback, here or in a consumer. A consumer that wants to link the locales a page *is* live in reads the map above ([WeMeditateWeb#81](https://github.com/sydevs/WeMeditateWeb/issues/81)). Note Payload's own `localizeStatus` migration template behaves the same way: it `UPDATE`s locale rows and never inserts one.
-- ⚠ **A `locale=all` read returns every locale's content, unpublished locales included.** The filter matches *documents* — a document published in any locale — and does not narrow the locales in the response. So a cross-locale read is not a publish gate: read one locale at a time when the answer must respect publish state. This is deliberate (#765). Content here is not sensitive to read; write, edit and delete are what the roles guard. Pinned by `tests/int/pages-localize-status.int.spec.ts`.
+- ⚠ **That second case fires on existing data, not only on a deliberate unpublish — and it is intended.** The migration copies each document's old status into every locale row that _exists_, and an untranslated locale has none, so a page published in English alone returns nothing at `?locale=de` where Payload's English fallback used to serve it. **Decided on #765: an unpublished locale should 404, and a page must not serve English text under a German URL.** Do not add a fallback, here or in a consumer. A consumer that wants to link the locales a page _is_ live in reads the map above ([WeMeditateWeb#81](https://github.com/sydevs/WeMeditateWeb/issues/81)). Note Payload's own `localizeStatus` migration template behaves the same way: it `UPDATE`s locale rows and never inserts one.
+- ⚠ **A `locale=all` read returns every locale's content, unpublished locales included.** The filter matches _documents_ — a document published in any locale — and does not narrow the locales in the response. So a cross-locale read is not a publish gate: read one locale at a time when the answer must respect publish state. This is deliberate (#765). Content here is not sensitive to read; write, edit and delete are what the roles guard. Pinned by `tests/int/pages-localize-status.int.spec.ts`.
 
 ## Origin / Referer enforcement
 
@@ -232,11 +232,11 @@ Tracking is **in-request**, not queued: `countClientRead` issues one atomic `UPD
 
 Per-user rate limiting runs at the Cloudflare edge, in front of Railway, so no app-level limiter binding is needed. A request that fails the edge's rate-limiting rules gets a 429 before it ever reaches Railway, and `rateLimitHook` is a no-op.
 
-| Setting | Value |
-| --- | --- |
-| Limit | 500 requests |
-| Period | 60 seconds |
-| Scope | per `(client, IP)` tuple, at the edge |
+| Setting | Value                                 |
+| ------- | ------------------------------------- |
+| Limit   | 500 requests                          |
+| Period  | 60 seconds                            |
+| Scope   | per `(client, IP)` tuple, at the edge |
 
 `X-User-ID` (`^[a-zA-Z0-9-_]{8,64}$`) still travels for semantic clarity and log identification, but the edge does not rate-limit on it, and it is visible to the app but not privacy-enforced.
 

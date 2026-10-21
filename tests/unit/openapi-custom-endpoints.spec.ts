@@ -118,8 +118,7 @@ describe('Atlas events custom endpoints (OpenAPI)', () => {
 
 describe('Lectures related-meditations custom endpoint (OpenAPI)', () => {
   const get = CUSTOM_ENDPOINT_PATHS['/api/lectures/{id}/related-meditations']?.get as
-    | { parameters?: Array<{ name: string; required?: boolean }> }
-    | undefined
+    { parameters?: Array<{ name: string; required?: boolean }> } | undefined
 
   it('registers the related-meditations GET path and its card schema', () => {
     expect(get).toBeDefined()
@@ -215,8 +214,7 @@ describe('limit and page parameters (OpenAPI)', () => {
 
 describe('clients embed-report custom endpoint (OpenAPI)', () => {
   const post = CUSTOM_ENDPOINT_PATHS['/api/clients/report']?.post as
-    | { description?: string; responses?: Record<string, { description?: string }> }
-    | undefined
+    { description?: string; responses?: Record<string, { description?: string }> } | undefined
 
   it('registers the POST path and both hand-authored schemas', () => {
     expect(post).toBeDefined()
@@ -451,8 +449,7 @@ describe('atlas sitemap root endpoint (OpenAPI)', () => {
       const filtered = filterSpec(spec(), { project, rootEndpointPaths })
       const operation = (
         filtered.paths?.['/api/atlas/sitemap'] as
-          | Record<string, Record<string, unknown>>
-          | undefined
+          Record<string, Record<string, unknown>> | undefined
       )?.get
       expect(operation, `GET /api/atlas/sitemap is missing for ${project}`).toBeDefined()
       expect(operation!['x-internal'], `hidden for ${project}`).toBeFalsy()

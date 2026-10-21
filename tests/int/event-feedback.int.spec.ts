@@ -10,7 +10,6 @@ import { randomUUID } from 'node:crypto'
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-
 import { SendPostEventFollowUps } from '@/jobs/RegistrationNotifications/SendPostEventFollowUps'
 import { readCommunityFeedback } from '@/lib/eventVerification/communityFeedback'
 import type { Event, Manager, UserSubmission } from '@/payload-types'
@@ -95,7 +94,11 @@ describe('Event feedback (registrant voting)', () => {
       context: {},
     }) as unknown as PayloadRequest
 
-  const voteAsClient = (registration: UserSubmission, vote: 'confirmed' | 'denied', uuid?: string) =>
+  const voteAsClient = (
+    registration: UserSubmission,
+    vote: 'confirmed' | 'denied',
+    uuid?: string,
+  ) =>
     payload.update({
       collection: 'user-submissions',
       id: registration.id,

@@ -19,11 +19,11 @@ validation.
 
 ## Test lanes (Vitest projects)
 
-| Lane            | Files                        | Speed                   | When                                                                                  |
-| --------------- | ----------------------------- | -------------------------- | ---------------------------------------------------------------------------------------- |
-| **Unit**        | `tests/unit/**/*.spec.ts`    | ~78 s for 219 files / 2807 cases; 1–3 s for one named spec, under 8 s for the specs one edit can break (4 cores — see `tests/PERF.md`) | Pure functions, no Payload bootstrap. **No** `globalSetup`/`setupFiles`.              |
-| **Integration** | `tests/int/**/*.int.spec.ts`, `seeds/**/*.test.ts` | bootstrap-heavy per file (full-schema push. See `tests/PERF.md`) | Calls `createTestEnvironment()`, exercises hooks/access/virtual fields/relationships. Files run in parallel (`vitest.config.mts`). |
-| **Smoke (E2E)** | `tests/e2e/**/*.e2e.spec.ts` | Playwright (REST)       | Tier-3 smoke against the Railway PR preview (`pnpm test:smoke`). See below.            |
+| Lane            | Files                                              | Speed                                                                                                                                  | When                                                                                                                               |
+| --------------- | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| **Unit**        | `tests/unit/**/*.spec.ts`                          | ~78 s for 219 files / 2807 cases; 1–3 s for one named spec, under 8 s for the specs one edit can break (4 cores — see `tests/PERF.md`) | Pure functions, no Payload bootstrap. **No** `globalSetup`/`setupFiles`.                                                           |
+| **Integration** | `tests/int/**/*.int.spec.ts`, `seeds/**/*.test.ts` | bootstrap-heavy per file (full-schema push. See `tests/PERF.md`)                                                                       | Calls `createTestEnvironment()`, exercises hooks/access/virtual fields/relationships. Files run in parallel (`vitest.config.mts`). |
+| **Smoke (E2E)** | `tests/e2e/**/*.e2e.spec.ts`                       | Playwright (REST)                                                                                                                      | Tier-3 smoke against the Railway PR preview (`pnpm test:smoke`). See below.                                                        |
 
 ### When to put a test in `tests/unit/`
 
@@ -112,10 +112,10 @@ Fixtures must be typed against the real schema for `pnpm typecheck:tests` to
 catch anything, so `tests/utils/testData.ts` exports two helpers. Prefer
 them over `Record<string, unknown>`, a bare object literal, or `as any`:
 
-| Use | For |
-| --- | ----- |
+| Use                         | For                                             |
+| --------------------------- | ----------------------------------------------- |
 | `createData<'slug'>({ … })` | Anything you hand to `payload.create` as `data` |
-| `FixtureOverrides<Doc>` | The param type of a spec's own fixture helper |
+| `FixtureOverrides<Doc>`     | The param type of a spec's own fixture helper   |
 
 ```typescript
 import { createData, testData, type FixtureOverrides } from '../utils/testData'
@@ -132,11 +132,11 @@ createRegion({ level: 'center' }) // TS2322 — 'center' was renamed to 'venue' 
 Each is needed for a different reason:
 
 - **`createData`** — Payload derives the create `data` type from the
-  *output* doc, so fields it fills itself (`slug`, …) are still demanded
+  _output_ doc, so fields it fills itself (`slug`, …) are still demanded
   on input. Omit one and `tsc` falls through to the draft-create overload
   and reports `Property 'draft' is missing`, which points nowhere near the
   real problem.
-- **`FixtureOverrides<T>`** — every field is optional at *every* depth.
+- **`FixtureOverrides<T>`** — every field is optional at _every_ depth.
   `Partial<T>` relaxes only the top level, so passing a group would
   otherwise oblige you to fill in its `defaultValue`-backed subfields.
   Unknown and mistyped properties still error at any depth, which is the
@@ -170,7 +170,7 @@ local API is faster and is right for everything else.
 returned caller takes `(path, { method, json })` for a POST or DELETE.
 **A third thing lives only in the REST layer: how `req.locale` is DERIVED.**
 A spec that builds `req` by hand and hardcodes `locale: 'en'` cannot see a
-request that names no locale at all — Payload then resolves the *default*
+request that names no locale at all — Payload then resolves the _default_
 locale, and per-locale role gates deny anyone whose roles live elsewhere.
 That is #701, and `frames-by-narrator` / `user-submissions-review` cover it
 by authenticating a French-only manager and varying `?locale=`.
@@ -295,12 +295,12 @@ for localized-field tests to work.
 
 ## PayloadCMS field-behavior gotchas
 
-| Scenario                             | Wrong assumption                                 | Correct behavior                                                                                                                                                                                                                                             |
-| --------------------------------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `hasMany` select, no values          | `null` / `undefined`                             | `[]` (empty array)                                                                                                                                                                                                                                           |
-| Join field at `depth: 0`             | `{ id: number }[]`                               | `number[]` (raw IDs)                                                                                                                                                                                                                                         |
-| `payload.create()` + relationship    | Returns the raw ID                                | Returns a populated object                                                                                                                                                                                                                                   |
-| `filterOptions` fallback             | Return `{}`                                      | Return `true`                                                                                                                                                                                                                                                |
+| Scenario                             | Wrong assumption                                 | Correct behavior                                                                                                                                                                                                                                      |
+| ------------------------------------ | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `hasMany` select, no values          | `null` / `undefined`                             | `[]` (empty array)                                                                                                                                                                                                                                    |
+| Join field at `depth: 0`             | `{ id: number }[]`                               | `number[]` (raw IDs)                                                                                                                                                                                                                                  |
+| `payload.create()` + relationship    | Returns the raw ID                               | Returns a populated object                                                                                                                                                                                                                            |
+| `filterOptions` fallback             | Return `{}`                                      | Return `true`                                                                                                                                                                                                                                         |
 | Mixed-collection response assertions | `.docs.map(d => d.id)` uniquely identifies a row | Each collection has its own auto-increment, so `lectures.id=3` and `lecture-clips.id=3` both exist. Filter by discriminator first (`d.type === 'lecture'`) or match on `title`/slug — a raw numeric id against a mixed pool silently false-positives. |
 
 ```typescript
@@ -354,8 +354,8 @@ database.
 > only the `request` fixture (`APIRequestContext`), which is plain Node
 > HTTP — nothing launches Chromium, despite the `chromium` project name in
 > `playwright.config.ts`. CI used to run `playwright install --with-deps
-> chromium`. That took **18 minutes**, blew the job's `timeout-minutes`, and
-> the job reported as *cancelled* rather than failed, which reads as
+chromium`. That took **18 minutes**, blew the job's `timeout-minutes`, and
+> the job reported as _cancelled_ rather than failed, which reads as
 > unexplained. Verified by running the whole suite with
 > `PLAYWRIGHT_BROWSERS_PATH` pointed at an empty directory: every spec
 > issued real requests. If a future spec needs a page, install the browser

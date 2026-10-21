@@ -39,9 +39,14 @@ describe('WeMeditate Web live-preview URLs', () => {
 
   const req = () => ({ payload, locale: 'cs', context: {} }) as unknown as PayloadRequest
 
-  const collectionUrl = async (slug: 'pages' | 'meditations' | 'lectures', data: object, code = 'cs') => {
+  const collectionUrl = async (
+    slug: 'pages' | 'meditations' | 'lectures',
+    data: object,
+    code = 'cs',
+  ) => {
     const { livePreview } = payload.collections[slug].config.admin
-    if (typeof livePreview?.url !== 'function') throw new Error(`${slug} resolves no live-preview URL`)
+    if (typeof livePreview?.url !== 'function')
+      throw new Error(`${slug} resolves no live-preview URL`)
     return (await livePreview.url({
       data,
       locale: { code },

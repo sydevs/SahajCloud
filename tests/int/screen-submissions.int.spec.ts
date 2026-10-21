@@ -54,7 +54,11 @@ describe('Submission screening', () => {
 
   /** A system `req`, so a spec can pin a starting state no client could post. */
   const systemReq = () =>
-    ({ payload, context: { skipWriteGuard: true }, headers: new Headers() }) as unknown as PayloadRequest
+    ({
+      payload,
+      context: { skipWriteGuard: true },
+      headers: new Headers(),
+    }) as unknown as PayloadRequest
 
   /**
    * Create a submission as the intake would. A DISTINCT body unless the case

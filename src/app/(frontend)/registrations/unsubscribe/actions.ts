@@ -48,9 +48,10 @@ export async function unsubscribeAction(
     })
     const strings = await resolveEmailStrings({
       payload,
-  // `locale` is a `submissionData` pair on this collection, not a column —
-    // `deliverRegistration` reads it the same way. Do not add a column for it.
-    locale: (readSubmissionValue(registration.submissionData, 'locale') ?? null) as LocaleCode | null,
+      // `locale` is a `submissionData` pair on this collection, not a column —
+      // `deliverRegistration` reads it the same way. Do not add a column for it.
+      locale: (readSubmissionValue(registration.submissionData, 'locale') ??
+        null) as LocaleCode | null,
     })
 
     // The column is `unsubscribedAt` here — deliberately generic, so a future

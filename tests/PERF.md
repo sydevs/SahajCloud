@@ -57,14 +57,14 @@ lines used until 2026-10-20 and which the routine containers do not ship
 Two sessions measured it the same day, on the same container spec — 4 cores
 (Intel Xeon @ 2.80 GHz), 15 GB, a cloud routine container:
 
-| Session | Files / tests | Vitest duration, consecutive runs | Median |
-| --- | --- | --- | --- |
-| first | 198 / 2575 | 60.29 · 58.75 · 59.23 s | 59.2 s |
-| second, after merging `main` | 203 / 2643 | 82.19 · 77.93 · 73.21 s | **77.9 s** |
-| third, after merging `main` again | 204 / 2653 | 47.16 · 46.38 · 47.82 s | 47.2 s |
-| fourth, after merging `main` again | 205 / 2656 | 54.00 · 50.45 s (both inside the gate) | 52.2 s |
-| fifth, after merging `main` again | 218 / 2795 | 49.13 s (inside the gate) | 49.1 s |
-| sixth, after merging `main` again | 219 / 2807 | 55.70 s | 55.7 s |
+| Session                            | Files / tests | Vitest duration, consecutive runs      | Median     |
+| ---------------------------------- | ------------- | -------------------------------------- | ---------- |
+| first                              | 198 / 2575    | 60.29 · 58.75 · 59.23 s                | 59.2 s     |
+| second, after merging `main`       | 203 / 2643    | 82.19 · 77.93 · 73.21 s                | **77.9 s** |
+| third, after merging `main` again  | 204 / 2653    | 47.16 · 46.38 · 47.82 s                | 47.2 s     |
+| fourth, after merging `main` again | 205 / 2656    | 54.00 · 50.45 s (both inside the gate) | 52.2 s     |
+| fifth, after merging `main` again  | 218 / 2795    | 49.13 s (inside the gate)              | 49.1 s     |
+| sixth, after merging `main` again  | 219 / 2807    | 55.70 s                                | 55.7 s     |
 
 ⚠ **Those three medians span 47 to 78 s — 66% — and six spec files do not
 explain it.** Identical container spec, all on 2026-10-20, 3% more files
@@ -82,23 +82,23 @@ them to what is on disk; every timing is the session its row names.
 `| Files / tests |` and the three `**bold**` cells are the captures the spec
 reads, so keep those labels and cell shapes when you add a row.
 
-| Metric | Value |
-| --- | --- |
-| Files / tests | 219 / 2807 |
-| Whole lane, 3 workers (slowest session median, what the consumer docs quote) | **77.9 s** |
-| One spec alone, the typical edit (third session) | 1.3 s |
-| Widest per-edit selection, 18 specs naming `@/payload-types` (third session) | **7.8 s** |
-| A 7-spec selection, naming `@/plugins/login` (third session) | 6.9 s |
-| Vitest phase breakdown, at 3 workers | transform 14.4 s, import 141.6 s, tests 17.5 s, environment 5.2 s |
-| Slowest file's own duration inside the lane (first session) | 1.8 s (`proposal-leaves.spec.ts`) |
-| One file alone, cold (first session) | **1.9 s** wall (`convert-vimeo`) to **3.0 s** (`proposal-leaves`) |
-| Whole lane at `--maxWorkers=1` (first session, 198 files) | 140.5 s |
-| Whole lane at `--maxWorkers=4` (first session, 198 files) | 49.2 s |
-| `pnpm lint` | 28.5 s |
-| `pnpm typecheck` | 8.4 s |
-| `pnpm typecheck:tests` | 8.2 s |
-| Those four commands, summed | 104 s |
-| Tier 2 lean gate (`check.sh`), slowest cold run of three sessions | **174 s** cold, **103 s** with Postgres already up |
+| Metric                                                                       | Value                                                             |
+| ---------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Files / tests                                                                | 219 / 2807                                                        |
+| Whole lane, 3 workers (slowest session median, what the consumer docs quote) | **77.9 s**                                                        |
+| One spec alone, the typical edit (third session)                             | 1.3 s                                                             |
+| Widest per-edit selection, 18 specs naming `@/payload-types` (third session) | **7.8 s**                                                         |
+| A 7-spec selection, naming `@/plugins/login` (third session)                 | 6.9 s                                                             |
+| Vitest phase breakdown, at 3 workers                                         | transform 14.4 s, import 141.6 s, tests 17.5 s, environment 5.2 s |
+| Slowest file's own duration inside the lane (first session)                  | 1.8 s (`proposal-leaves.spec.ts`)                                 |
+| One file alone, cold (first session)                                         | **1.9 s** wall (`convert-vimeo`) to **3.0 s** (`proposal-leaves`) |
+| Whole lane at `--maxWorkers=1` (first session, 198 files)                    | 140.5 s                                                           |
+| Whole lane at `--maxWorkers=4` (first session, 198 files)                    | 49.2 s                                                            |
+| `pnpm lint`                                                                  | 28.5 s                                                            |
+| `pnpm typecheck`                                                             | 8.4 s                                                             |
+| `pnpm typecheck:tests`                                                       | 8.2 s                                                             |
+| Those four commands, summed                                                  | 104 s                                                             |
+| Tier 2 lean gate (`check.sh`), slowest cold run of three sessions            | **174 s** cold, **103 s** with Postgres already up                |
 
 **The gate's own spread is `scripts/ensure-test-db.sh`.** It costs nothing once
 port 5432 answers, which is why a warm run lands on the four commands' 104 s and
@@ -146,13 +146,13 @@ Measured on the unmodified config (`pool: 'forks'`, `maxConcurrency: 1`, no
 explicit `fileParallelism`/`poolOptions`), before the explicit-parallelism
 change.
 
-| Metric                                   | Value                                      |
-| ------------------------------------------ | --------------------------------------------- |
-| Suites / tests                           | 38 files, 675 tests (all passing)          |
-| **Total wall-clock — local**             | **314.5s** (`pnpm test:int`)               |
-| Total wall-clock — CI (reference)        | ~240–300s for the whole Lint+Test job¹     |
-| **Cold per-file bootstrap (isolated)**   | **~58–60s** (3–4 trivial tests per file)²  |
-| CPU utilisation (local)                  | user 841s + sys 166s over 314s ≈ 3.2 cores |
+| Metric                                 | Value                                      |
+| -------------------------------------- | ------------------------------------------ |
+| Suites / tests                         | 38 files, 675 tests (all passing)          |
+| **Total wall-clock — local**           | **314.5s** (`pnpm test:int`)               |
+| Total wall-clock — CI (reference)      | ~240–300s for the whole Lint+Test job¹     |
+| **Cold per-file bootstrap (isolated)** | **~58–60s** (3–4 trivial tests per file)²  |
+| CPU utilisation (local)                | user 841s + sys 166s over 314s ≈ 3.2 cores |
 
 Vitest phase breakdown (local total run): `transform 5.4s, setup 0.7s,
 import 166s, tests 1738s` (the `tests` figure sums per-file wall across
@@ -177,7 +177,7 @@ Postgres migration and is stale.
 
 The lane **already parallelises files** (default `forks` pool,
 `fileParallelism` defaults to `true`. `maxConcurrency: 1` only serialises
-tests *within* a file, not files). The dominant cost is the per-suite
+tests _within_ a file, not files). The dominant cost is the per-suite
 full-schema `push`, and every fork contends on the **same Postgres**, so
 the lane is **DB-bound, not CPU-bound**: adding forks past a point yields
 diminishing returns and risks exhausting Postgres connections (each
@@ -186,7 +186,7 @@ Payload instance opens a pool).
 The right lever is therefore to make file parallelism **explicit and
 bounded** — prevent connection storms on high-core CI, leave headroom for
 the dev machine locally — not to crank fork count. See the schema-reuse
-evaluation below for the alternative that *was* considered and rejected.
+evaluation below for the alternative that _was_ considered and rejected.
 
 ## The integration lane — after, 2026-06-18 (with #499 §2 explicit parallelism)
 
@@ -194,9 +194,9 @@ Same command, same machine (11 cores), with `fileParallelism: true` +
 `poolOptions.forks.maxForks` bounded (6 locally) and the §7 orphaned-schema
 sweep active. All 38 files / 675 tests still pass.
 
-| Metric                       | Value    | Δ vs baseline      |
-| ------------------------------ | ---------- | -------------------- |
-| Total wall-clock — local     | 261.5s   | **−53s (−17%)**    |
+| Metric                   | Value  | Δ vs baseline   |
+| ------------------------ | ------ | --------------- |
+| Total wall-clock — local | 261.5s | **−53s (−17%)** |
 
 **Bounding forks made it _faster_, not slower.** The baseline let Vitest
 spawn its default (~10–11 forks). Capping at 6 reduced the number of
@@ -213,7 +213,7 @@ suite instead of running a full Drizzle `push` 38 times (the dominant cost
 above).
 
 **Rejected.** Postgres has no first-class "clone schema" primitive, and
-rebuilding Payload's *generated* DDL (enum types, sequences, foreign keys,
+rebuilding Payload's _generated_ DDL (enum types, sequences, foreign keys,
 indexes, the `_v` version tables) by hand per suite is fragile and would
 drift the moment the schema changes — exactly the kind of bespoke
 infrastructure the suite avoids. The realistic, low-risk win — bounded

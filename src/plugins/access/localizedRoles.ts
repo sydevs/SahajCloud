@@ -25,7 +25,6 @@ import type { LocaleCode } from '@/lib/locales'
 import { LOCALES } from '@/lib/locales'
 import type { Manager, RoleSlug } from '@/payload-types'
 
-
 /**
  * A manager's roles, keyed by the locale they were assigned in.
  *

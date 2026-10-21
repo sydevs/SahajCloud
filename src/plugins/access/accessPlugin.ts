@@ -107,7 +107,11 @@ export function accessPlugin(options: AccessPluginOptions = {}): (config: Config
           // (#719, #748).
           access: withDerivedGrants(
             {
-              ...createAccessConfig(slug, ['read', 'create', 'update', 'delete'], bypassPermissions),
+              ...createAccessConfig(
+                slug,
+                ['read', 'create', 'update', 'delete'],
+                bypassPermissions,
+              ),
               ...collection.access,
             },
             ['readVersions', 'unlock'],

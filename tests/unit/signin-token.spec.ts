@@ -22,7 +22,9 @@ describe('parseSignInLink', () => {
     expect(() => parseSignInLink('https://cloud.example.com/admin/login')).toThrow(/no \?token=/)
     expect(() => parseSignInLink('cloud.example.com/admin/login')).toThrow(/not a URL/)
     expect(() => parseSignInLink('https://x.test/?token=abc')).toThrow(/not a JWT/)
-    expect(() => parseSignInLink(`https://x.test/?token=${jwt({ exp: 1 })}`)).toThrow(/no collection/)
+    expect(() => parseSignInLink(`https://x.test/?token=${jwt({ exp: 1 })}`)).toThrow(
+      /no collection/,
+    )
   })
 })
 

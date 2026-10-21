@@ -13,7 +13,6 @@ import React from 'react'
 import type { VerificationStage } from '@/lib/eventVerification/stages'
 import type { Event } from '@/payload-types'
 
-
 type Severity = 'warning' | 'error' | 'info'
 
 interface NoticeContext {
