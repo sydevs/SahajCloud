@@ -42,7 +42,7 @@ Admin panel: `http://localhost:{PORT}/admin/login`, once the dev server runs.
 
 Use the `/workflow:dev-server` skill for a dev server shared across sessions. It prevents port conflicts. Default port 3000. Override with `PORT=4000`. `SAHAJCLOUD_URL` derives from `PORT`.
 
-- `pnpm test:unit` — the unit lane, no Payload bootstrap. About 78 s for all 219 files, so name one spec while editing (`tests/PERF.md`).
+- `pnpm test:unit` — the unit lane, no Payload bootstrap. About 78 s for all 220 files, so name one spec while editing (`tests/PERF.md`).
 
 Locally, run lint, `pnpm test:unit`, and the integration spec for the area you changed. Let CI run the full suite. See `docs/rules/testing-reqs.md` for the tier policy and the CPU rules (never run test commands, or a test and a build, in parallel).
 
