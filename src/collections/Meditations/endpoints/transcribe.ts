@@ -1,4 +1,4 @@
-import type { Endpoint, PayloadRequest } from 'payload'
+import type { Endpoint } from 'payload'
 
 import {
   APIError,
@@ -15,7 +15,6 @@ import {
   transcriptPhase,
   transcriptPhaseIsRetryable,
 } from '@/lib/meditations/transcriptBounds'
-import type { MeditationTranscript } from '@/payload-types'
 
 const refusal = (message: string, status: number, headers?: HeadersInit): Response =>
   Response.json({ errors: [{ message }] }, { headers, status })
@@ -95,7 +94,26 @@ export const meditationTranscribe: Endpoint = {
       return refusal('This meditation has no recording to transcribe.', 409)
     }
 
-    const existing = await findTranscript(req, id)
+    // ⚠ **No `select`, because the row has to arrive whole.** `status` is
+    // virtual, computed by its own `afterRead` from `segments` and `job`
+    // (`MeditationTranscripts.ts`) — so a `select` would starve that hook and
+    // the phase below would read every row as `completed`, refusing every
+    // retry. The integration lane's phase cases are what hold this.
+    // `meditation` is unique, so there is at most one row.
+    //
+    // `overrideAccess` here and on the two writes below: the authority is the
+    // `meditations: update` gate above, and `meditation-transcripts` carries no
+    // write grant of its own (`MeditationTranscripts.ts`).
+    const { docs } = await req.payload.find({
+      collection: 'meditation-transcripts',
+      where: { meditation: { equals: id } },
+      depth: 0,
+      limit: 1,
+      pagination: false,
+      overrideAccess: true,
+      req,
+    })
+    const existing = docs[0]
 
     if (existing) {
       const phase = transcriptPhase(existing)
@@ -178,30 +196,4 @@ export const meditationTranscribe: Endpoint = {
       return refusal('Could not ask for a transcript. Please try again.', 500)
     }
   },
-}
-
-/**
- * The meditation's transcript row, or `undefined`.
- *
- * ⚠ **No `select`, because the row has to arrive whole.** `status` is virtual,
- * computed by its own `afterRead` from `segments` and `job`
- * (`MeditationTranscripts.ts`) — so a `select` would starve that hook and the
- * phase above would read every row as `completed`, refusing every retry. The
- * integration lane's phase cases are what hold this. `meditation` is unique, so
- * there is at most one row.
- */
-async function findTranscript(
-  req: PayloadRequest,
-  meditationId: number,
-): Promise<MeditationTranscript | undefined> {
-  const { docs } = await req.payload.find({
-    collection: 'meditation-transcripts',
-    where: { meditation: { equals: meditationId } },
-    depth: 0,
-    limit: 1,
-    pagination: false,
-    overrideAccess: true,
-    req,
-  })
-  return docs[0]
 }
