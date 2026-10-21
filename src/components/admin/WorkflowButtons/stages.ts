@@ -47,8 +47,11 @@ export interface WorkflowButtonsProps<TStage extends string = string> {
    * For a slot whose collection holds several kinds of document sharing one
    * status vocabulary, where stage alone cannot tell them apart
    * (`docs/rules/admin-ui.md`).
+   *
+   * The match is `!==`, so `equals` is only what that compares by value. An
+   * object or an array would be a declaration nothing can ever satisfy.
    */
-  onlyWhen?: { field: string; equals: unknown }
+  onlyWhen?: { field: string; equals: string | number | boolean | null }
   /** Buttons per stage. An empty array is a stage with no action, not a missing one. */
   stages: Partial<Record<TStage, WorkflowButton[]>>
   /** What a stage with no entry renders: Payload's own button, or nothing. */
