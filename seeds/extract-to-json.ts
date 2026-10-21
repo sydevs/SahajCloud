@@ -1,5 +1,5 @@
 #!/usr/bin/env tsx
- 
+
 /**
  * PostgreSQL Data Extraction Script
  *
@@ -245,10 +245,10 @@ async function extractMeditationsData(): Promise<void> {
           "SELECT media_type, media_id, frame_id, seconds FROM keyframes WHERE media_type = 'Meditation' ORDER BY media_id, seconds",
         ),
         client.query('SELECT tag_id, taggable_type, taggable_id, context FROM taggings'),
-        client.query('SELECT name, record_type, record_id, blob_id FROM active_storage_attachments'),
         client.query(
-          'SELECT id, key, filename, content_type, byte_size FROM active_storage_blobs',
+          'SELECT name, record_type, record_id, blob_id FROM active_storage_attachments',
         ),
+        client.query('SELECT id, key, filename, content_type, byte_size FROM active_storage_blobs'),
       ])
 
     const data: MeditationsData = {
@@ -489,9 +489,9 @@ async function extractWeMeditateData(): Promise<void> {
 // --- Main ---
 
 async function main(): Promise<void> {
-  console.log('=' .repeat(60))
+  console.log('='.repeat(60))
   console.log('PostgreSQL Data Extraction')
-  console.log('=' .repeat(60))
+  console.log('='.repeat(60))
   console.log('\nThis script extracts data from PostgreSQL dumps to JSON files.')
   console.log('This is a ONE-TIME operation to remove PostgreSQL dependency.\n')
 

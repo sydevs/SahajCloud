@@ -40,10 +40,12 @@ Payload publishes the state and renders nothing for it. `Form` holds `processing
 
 ```tsx
 // ❌ mounts already-open; no slide
-{selected !== null && <Drawer slug={slug}>{body}</Drawer>}
+{
+  selected !== null && <Drawer slug={slug}>{body}</Drawer>
+}
 
 // ✅ mounts closed, animates on open — and returns null while closed, so it costs nothing
-<Drawer slug={slug}>{selected === null ? null : body}</Drawer>
+;<Drawer slug={slug}>{selected === null ? null : body}</Drawer>
 ```
 
 There is no width prop: `Drawer` sets `width: calc(100% - (drawerDepth * var(--gutter-h)))` in JS, narrowing one gutter per nesting level. A narrower drawer needs a `className` and a CSS rule.
@@ -97,17 +99,18 @@ Payload posts the edited document's form state into the preview iframe on every 
 ```js
 const values = reduceFieldsToValues(formState, true)
 iframeRef.current.contentWindow?.postMessage(
-  { type: 'payload-live-preview', collectionSlug, data: values }, url,
+  { type: 'payload-live-preview', collectionSlug, data: values },
+  url,
 )
 ```
 
-Most preview routes here ignore that and re-fetch by `?collection=…&id=…` instead — fine for Events/Regions/Pages, but a *choice*, not a requirement, and it costs preview on anything the frontend can't read: a **restricted** collection (API clients hold create-only on `user-submissions`), or a document with **no id to fetch** (a submission proposing a brand-new event).
+Most preview routes here ignore that and re-fetch by `?collection=…&id=…` instead — fine for Events/Regions/Pages, but a _choice_, not a requirement, and it costs preview on anything the frontend can't read: a **restricted** collection (API clients hold create-only on `user-submissions`), or a document with **no id to fetch** (a submission proposing a brand-new event).
 
 For those, carry the render-ready shape in a field and let postMessage deliver it: `UserSubmissions.previewEvent` is a virtual JSON field holding the merged event, and the widget renders from the message. Relationship hydration still fetches by id, so a referenced doc must stay readable by the client.
 
 Two mechanics worth knowing:
 
-- **Open the panel with `livePreview.openByDefault: true`** (Payload 3.86+), not a mount effect. It applies server-side while building the document view, only until the user toggles the panel — after that their stored `editViewType` preference wins. A `setIsLivePreviewing(true)` effect can't honour that, and re-opened the panel every time a reviewer closed it. The proposal review surface was ported off exactly such an effect. A *tab* still needs the client, and declares `autoOpen` instead — see below.
+- **Open the panel with `livePreview.openByDefault: true`** (Payload 3.86+), not a mount effect. It applies server-side while building the document view, only until the user toggles the panel — after that their stored `editViewType` preference wins. A `setIsLivePreviewing(true)` effect can't honour that, and re-opened the panel every time a reviewer closed it. The proposal review surface was ported off exactly such an effect. A _tab_ still needs the client, and declares `autoOpen` instead — see below.
 - A field that only carries data to the iframe wants `admin.hidden: true`, not a component rendering `null` — Payload renders it as a `HiddenField`, so the value still sits in form state (what `reduceFieldsToValues` posts) while nothing takes up space on the page.
 - A **virtual** field's value computes on read, so it never recomputes as the user types — the right trade only when the document isn't editable, as in the submission-review case.
 

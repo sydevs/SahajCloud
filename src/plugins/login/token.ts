@@ -221,7 +221,10 @@ export async function readAnyLoginToken(
   let kind: LoginTokenKind | undefined
   try {
     const { aud } = decodeJwt(token ?? '')
-    kind = typeof aud === 'string' && Object.hasOwn(KIND_BY_AUDIENCE, aud) ? KIND_BY_AUDIENCE[aud] : undefined
+    kind =
+      typeof aud === 'string' && Object.hasOwn(KIND_BY_AUDIENCE, aud)
+        ? KIND_BY_AUDIENCE[aud]
+        : undefined
   } catch {
     // Not a JWT at all.
   }
@@ -229,7 +232,8 @@ export async function readAnyLoginToken(
 
   if (kind === 'link') {
     const result = await readLinkToken(token, secret, now)
-    if (result.status === 'valid') return { status: 'valid', token: { kind, claims: result.claims } }
+    if (result.status === 'valid')
+      return { status: 'valid', token: { kind, claims: result.claims } }
     return result.status === 'expired' ? { status: 'expired', kind } : result
   }
 

@@ -5,7 +5,6 @@ import { handleEndpoints } from 'payload'
 
 import { createSession } from '@/plugins/login'
 
-
 type TestConfig = Awaited<ReturnType<typeof createTestEnvironment>>['config']
 
 /**

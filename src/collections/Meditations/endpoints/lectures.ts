@@ -160,9 +160,7 @@ export const meditationLectures: Endpoint = {
     // the Meditations/Frames afterChange hooks. Falling through to an ad-hoc
     // compute covers any unbackfilled row without mutating state from a GET.
     const cachedWeights = meditation.subtleSystemNodeWeights as
-      | Record<string, number>
-      | null
-      | undefined
+      Record<string, number> | null | undefined
     const weights =
       cachedWeights ??
       (await recomputeWeightsForMeditation(req.payload, meditation, asTrustedReq(req)))

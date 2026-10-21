@@ -18,30 +18,36 @@ feel.
 ## Server vs client components
 
 ### Server components (preferred for data fetching)
+
 - **Definition**: components with no `'use client'` directive
 - **Props**: can receive non-serializable props (functions, class instances)
 - **Data access**: direct access to the Payload API via `getPayload()`
 - **Use cases**: dashboard views, components receiving PayloadCMS props
 
 ### Client components (only when necessary)
+
 - **Definition**: components with a `'use client'` directive at the top
 - **Props**: can only receive serializable props (JSON-compatible)
 - **Use cases**: interactive elements, components with useState/useEffect
 
 ### Common error
+
 ```
 Error: Functions cannot be passed directly to Client Components...
 ```
+
 **Fix**: use server components for views that receive PayloadCMS props.
 
 ## Component folder organization
 
 ### When to use a folder
+
 - The component has multiple related files (UI + wrapper, sub-components).
 - Types export alongside the component.
 - The component registers in the PayloadCMS config (needs a default export).
 
 ### Pattern: field component (UI + wrapper)
+
 ```
 src/components/admin/
 └── TagSelector/
@@ -51,6 +57,7 @@ src/components/admin/
 ```
 
 ### Pattern: view component family
+
 ```
 src/components/admin/
 └── Dashboard/
@@ -61,13 +68,15 @@ src/components/admin/
 ```
 
 ### Barrel export pattern
+
 ```typescript
 export { TagSelector, type TagOption } from './TagSelector'
 export { TagSelectorField } from './TagSelectorField'
-export { default } from './TagSelectorField'  // Default for PayloadCMS
+export { default } from './TagSelectorField' // Default for PayloadCMS
 ```
 
 ### Key points
+
 - **Default export**: required for PayloadCMS component registration.
 - **Named exports**: allow importing specific components.
 - **Folder naming**: match the main component name (Dashboard/ contains

@@ -2,7 +2,14 @@
 
 import type { TextFieldClientComponent } from 'payload'
 
-import { FieldDescription, FieldError, FieldLabel, ReactSelect, useAllFormFields, useField } from '@payloadcms/ui'
+import {
+  FieldDescription,
+  FieldError,
+  FieldLabel,
+  ReactSelect,
+  useAllFormFields,
+  useField,
+} from '@payloadcms/ui'
 import React, { useMemo } from 'react'
 
 import type { EmbedMetadata } from '@/lib/clients/embedMetadata'
@@ -54,9 +61,7 @@ const CanonicalEmbedPicker: TextFieldClientComponent = ({ field, path, readOnly 
           <ReactSelect
             isClearable
             disabled={readOnly}
-            onChange={(option) =>
-              setValue((option as { value?: string } | null)?.value ?? '')
-            }
+            onChange={(option) => setValue((option as { value?: string } | null)?.value ?? '')}
             options={options}
             value={options.find((option) => option.value === value)}
           />

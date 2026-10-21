@@ -496,8 +496,9 @@ describe('buildTranslationTabs', () => {
       // Why it has to be `admin.custom`: the same declaration one level up is
       // stripped on its way to the browser, and the component would find
       // nothing.
-      expect(toClient({ ...field, custom: { previewTarget: { path: '/search' } } }).custom)
-        .toBeUndefined()
+      expect(
+        toClient({ ...field, custom: { previewTarget: { path: '/search' } } }).custom,
+      ).toBeUndefined()
 
       // Serialized, so it can hold data and never a function.
       const custom = toClient(field).admin!.custom
@@ -632,7 +633,9 @@ describe('buildTranslationTabs', () => {
         },
       }
       const tabs = buildTranslationTabs(nested, 'wm-web-translations')
-      const group = tabs[0].fields[0] as { fields: { fields: { jsonSchema?: { schema: JsonSchemaObject } }[] }[] }
+      const group = tabs[0].fields[0] as {
+        fields: { fields: { jsonSchema?: { schema: JsonSchemaObject } }[] }[]
+      }
       expect(group.fields[0].fields[0].jsonSchema!.schema.title).toBe(
         'WmWebTranslationsMapA11yStrings',
       )

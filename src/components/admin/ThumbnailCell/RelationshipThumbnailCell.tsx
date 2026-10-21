@@ -6,7 +6,6 @@ import type { DefaultCellComponentProps, UploadFieldClient } from 'payload'
 import { useDocumentDrawer, useLocale } from '@payloadcms/ui'
 import { useEffect, useState } from 'react'
 
-
 import { BaseThumbnailCell } from './BaseThumbnailCell'
 import { relationshipDocLoader } from './relationshipDocLoader'
 

@@ -34,7 +34,7 @@ export class EmailTestAdapter {
     pass: string
     web: string
   }
-  
+
   // Create function that returns email adapter configuration
   static create(adapter?: EmailTestAdapter): () => {
     defaultFromAddress: string
@@ -49,7 +49,7 @@ export class EmailTestAdapter {
       defaultFromName: 'Test Email Adapter',
       name: 'in-memory',
       sendEmail: instance.sendEmail.bind(instance),
-      adapter: instance // Keep reference to adapter for testing
+      adapter: instance, // Keep reference to adapter for testing
     })
   }
 
@@ -73,7 +73,13 @@ export class EmailTestAdapter {
     })
   }
 
-  async sendEmail(options: { to?: string | Address | (string | Address)[]; from?: string | Address; subject?: string; html?: string | Buffer; text?: string | Buffer; }): Promise<any> {
+  async sendEmail(options: {
+    to?: string | Address | (string | Address)[]
+    from?: string | Address
+    subject?: string
+    html?: string | Buffer
+    text?: string | Buffer
+  }): Promise<any> {
     const { to, from, subject, html, text } = options
 
     if (!this.transporter) {
@@ -92,12 +98,14 @@ export class EmailTestAdapter {
       })
 
       // Capture email for testing after successful send
-      const capturedTo = Array.isArray(to) 
-        ? to.map(t => typeof t === 'string' ? t : t.address || '').join(', ')
-        : typeof to === 'string' ? to : to?.address || ''
-      
+      const capturedTo = Array.isArray(to)
+        ? to.map((t) => (typeof t === 'string' ? t : t.address || '')).join(', ')
+        : typeof to === 'string'
+          ? to
+          : to?.address || ''
+
       const capturedFrom = typeof from === 'string' ? from : from?.address || ''
-      
+
       this.capturedEmails.push({
         to: capturedTo,
         from: capturedFrom,
@@ -127,7 +135,7 @@ export class EmailTestAdapter {
   }
 
   findEmailByTo(recipient: string): CapturedEmail | undefined {
-    return this.capturedEmails.find(email => {
+    return this.capturedEmails.find((email) => {
       const recipients = Array.isArray(email.to) ? email.to : [email.to]
       return recipients.includes(recipient)
     })
@@ -136,14 +144,16 @@ export class EmailTestAdapter {
   async waitForEmail(timeout: number = 5000): Promise<CapturedEmail> {
     const startTime = Date.now()
     const initialCount = this.capturedEmails.length
-    
+
     while (Date.now() - startTime < timeout) {
       if (this.capturedEmails.length > initialCount) {
         return this.capturedEmails[this.capturedEmails.length - 1]
       }
-      await new Promise(resolve => setTimeout(resolve, 100))
+      await new Promise((resolve) => setTimeout(resolve, 100))
     }
-    
-    throw new Error(`No email captured within ${timeout}ms. Current count: ${this.capturedEmails.length}`)
+
+    throw new Error(
+      `No email captured within ${timeout}ms. Current count: ${this.capturedEmails.length}`,
+    )
   }
 }

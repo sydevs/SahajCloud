@@ -76,9 +76,7 @@ const MAX_EVENT_ID = 2147483647
  * Refusing it would 404 every link into a restructured subtree instead.
  */
 export type AtlasRouteTarget =
-  | { kind: 'root' }
-  | { kind: 'region'; slug: string }
-  | { kind: 'event'; id: number }
+  { kind: 'root' } | { kind: 'region'; slug: string } | { kind: 'event'; id: number }
 
 /** Decode one segment, tolerating a malformed `%` escape (returns it unchanged). */
 function safeDecode(segment: string): string {

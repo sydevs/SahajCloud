@@ -12,3 +12,35 @@
 src/migrations/
 src/payload-types.ts
 src/app/(payload)/admin/importMap.js
+
+# Protected paths. Claude Code never auto-approves a write under `.claude/`,
+# `.vscode/` or to `.mcp.json`, so an unattended run cannot clear a formatting
+# failure here: it waits on a prompt nobody answers (WeMeditateWeb#97). Gating
+# them would make the gate unfixable by the loop, not merely inconvenient.
+# `.vscode/` earns its place even though its three tracked files are clean
+# today — VS Code rewrites them from its own UI. `.claude/` is already ignored
+# in eslint.config.mjs for its own reasons. `.npmrc` and `.yarnrc` need no
+# entry: prettier infers no parser for them and skips them.
+.claude/
+.vscode/
+.mcp.json
+
+# pnpm writes this. Reformatting it makes the next `pnpm install` churn it back.
+pnpm-lock.yaml
+
+# Seed data dumps, each emitted as `JSON.stringify(data, null, 2)` by the
+# script named beside it. Listed one by one on purpose: the translation seed
+# files alongside them have no writer, so they are ordinary tracked data and
+# stay in scope.
+seeds/atlas/data/
+seeds/meditations/data.json
+seeds/wemeditate/data.json
+seeds/meditation-transcripts/data.json
+
+# The canonical block here is compared against the copies in the other three
+# product repos, modulo whitespace only
+# (claude-workflow/workflow/lib/comment-rule-sync.mjs). Prettier rewrites
+# `*why*` to `_why_`, which that check reads as drift — measured: it reported
+# the other three repos DRIFTED. Formatting this file means formatting all four
+# copies and the canonical source in one change.
+docs/rules/code-comments.md

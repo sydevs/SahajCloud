@@ -83,9 +83,7 @@ const imports: WorkflowButtonsProps = {
 const meditations: WorkflowButtonsProps = {
   fallback: 'saveDraft',
   stages: {
-    [CREATE_STAGE]: [
-      { label: 'Next step', overrides: { _status: 'draft' }, skipValidation: true },
-    ],
+    [CREATE_STAGE]: [{ label: 'Next step', overrides: { _status: 'draft' }, skipValidation: true }],
   },
 }
 
@@ -127,10 +125,12 @@ describe('resolveStage', () => {
    * own buttons on every screen but the create.
    */
   it('names no stage when no status field is declared, or it holds no string', () => {
-    expect(resolveStage({ operation: 'update', status: 'review', statusField: undefined }))
-      .toBeUndefined()
-    expect(resolveStage({ operation: 'update', status: undefined, statusField: 'status' }))
-      .toBeUndefined()
+    expect(
+      resolveStage({ operation: 'update', status: 'review', statusField: undefined }),
+    ).toBeUndefined()
+    expect(
+      resolveStage({ operation: 'update', status: undefined, statusField: 'status' }),
+    ).toBeUndefined()
     expect(resolveStage({ operation: 'update', status: 3, statusField: 'status' })).toBeUndefined()
   })
 
