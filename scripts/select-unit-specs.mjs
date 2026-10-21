@@ -7,8 +7,8 @@ import { REPO_ROOT, toRepoPath } from './hook-run.mjs'
 /**
  * Chooses the unit specs one edit can break, for the per-edit hook (`scripts/unit-test-hook.mjs`).
  *
- * A spec is selected when its own text names the edited module, by any specifier the lane
- * resolves: the `@/` and `@payload-config` aliases, a path relative to the spec (`../../src/…`,
+ * A spec is selected when its own text names the edited file — a module, or a Markdown doc a spec
+ * asserts on — by any specifier the lane resolves: the `@/` and `@payload-config` aliases, a path relative to the spec (`../../src/…`,
  * `../utils/…`, `../../seeds/…`), or a repo-relative path like `tests/utils/…`. Specifiers are
  * resolved, never matched by name: specs live in `tests/unit/` and their subjects do not, so there
  * is no sibling to find, and `@/lib/thing-other` must not select `thing.ts`.
@@ -26,6 +26,12 @@ const SPEC = /\.spec\.ts$/
 /** `.json` too: specs import translation schemas and status config directly. */
 const MODULE_EXT = /\.(ts|tsx|mts|cts|js|mjs|cjs|json)$/
 
+/**
+ * Markdown is selectable because a spec can assert on a doc's text, and the pins that do are the
+ * ones an edit to that doc breaks: `perf-figures-pinned.spec.ts` holds four docs in agreement.
+ */
+const DOC_EXT = /\.md$/
+
 /** Generated: an edit to either is a regeneration, never one typed by hand. */
 const GENERATED = /^src\/payload-types\.ts$|^src\/migrations\//
 
@@ -36,9 +42,9 @@ const GENERATED = /^src\/payload-types\.ts$|^src\/migrations\//
  */
 const QUOTED = /(['"])([^'"\n]+)\1/g
 
-/** Whether the hook acts on this repo-relative path: a hand-edited module inside the repo. */
+/** Whether the hook acts on this repo-relative path: a hand-edited module or doc inside the repo. */
 export function isLaneSource(rel) {
-  return rel !== null && MODULE_EXT.test(rel) && !GENERATED.test(rel)
+  return rel !== null && (MODULE_EXT.test(rel) || DOC_EXT.test(rel)) && !GENERATED.test(rel)
 }
 
 /**
@@ -57,7 +63,8 @@ export function resolveSpecifier(specifier, fromDir) {
 
 /**
  * How a resolved specifier can address this module: with its extension, as a quoted path names
- * it; without, as an import writes it; and by its folder, for an `index` file.
+ * it; without, as an import writes it; and by its folder, for an `index` file. A doc is only ever
+ * quoted whole, so stripping its extension adds a key nothing matches.
  */
 function referenceKeys(rel) {
   const noExt = rel.replace(MODULE_EXT, '')
@@ -102,8 +109,7 @@ export function selectFrom(rel, lane) {
   return [...new Set(referenceKeys(rel).flatMap((key) => [...(lane.get(key) ?? [])]))].sort()
 }
 
-// Gated before `readLane`, so editing a doc or a config costs nothing. That is scope as much as
-// speed: a spec can quote a doc (`perf-figures-pinned` reads four), and the lean gate covers it.
+// Gated before `readLane`, so an edit the hook ignores never pays to index the lane.
 export const selectSpecs = (rel, root) => (isLaneSource(rel) ? selectFrom(rel, readLane(root)) : [])
 
 // `node scripts/select-unit-specs.mjs <path>…` prints the selection, one spec per line.

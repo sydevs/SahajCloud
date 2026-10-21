@@ -46,6 +46,7 @@ beforeAll(() => {
     'seed.spec.ts': "import { run } from '../../seeds/data/import'",
     'tool.spec.ts': "import { tool } from '../../scripts/tool.mjs'",
     'types.spec.ts': "import type { Event } from '@/payload-types'",
+    'doc-pin.spec.ts': "const DOCS = ['tests/PERF.md']",
   }
   for (const [name, text] of Object.entries(specs)) {
     const path = join(fixture, 'tests/unit', name)
@@ -128,7 +129,11 @@ describe('selectFrom', () => {
     expect(isLaneSource('src/migrations/20260101_000000.ts')).toBe(false)
   })
 
-  it('selects nothing for a file that is not a module, or not in the repo', () => {
+  it('selects the spec that pins a doc, because an edit to it breaks that spec', () => {
+    expect(select('tests/PERF.md')).toEqual(['tests/unit/doc-pin.spec.ts'])
+  })
+
+  it('selects nothing for a doc no spec names, or for a file outside the repo', () => {
     expect(select('README.md')).toEqual([])
     expect(select(null)).toEqual([])
   })
@@ -185,12 +190,13 @@ describe('this repository', () => {
   })
 
   it('keeps every edit under the width the per-edit budget is measured on', () => {
-    const sources = ['src', 'tests', 'seeds', 'scripts']
+    const sources = ['src', 'tests', 'seeds', 'scripts', 'docs']
       .flatMap((dir) =>
         readdirSync(join(ROOT, dir), { recursive: true, encoding: 'utf8' }).map(
           (entry) => `${dir}/${entry.split(sep).join('/')}`,
         ),
       )
+      .concat(readdirSync(ROOT, { encoding: 'utf8' }))
       .filter(isLaneSource)
 
     expect(sources.length).toBeGreaterThan(500)
