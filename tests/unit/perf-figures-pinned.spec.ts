@@ -17,7 +17,7 @@ import { describe, expect, it } from 'vitest'
  * 2. Every consumer doc states PERF.md's lane figure, so a re-measurement that
  *    stops at PERF.md reddens all four rather than passing quietly.
  * 3. Each tier target covers the measurement its own row is set from — Tier 2's
- *    cold gate, since `check.sh` starts Postgres, and Tier 1's widest per-edit
+ *    cold gate, since `check.sh` starts Postgres, and Tier 1's slowest per-edit
  *    selection, since what the hook costs per edit is what that budget buys.
  *
  * ⚠ **Timings are deliberately not asserted.** A wall-clock bound in the lane
@@ -66,11 +66,11 @@ const figures = {
   gateCold: Number(
     capture(PERF, "the gate's cold figure", /\| Tier 2 lean gate[^|]*\| \*\*(\d+) s\*\* cold/),
   ),
-  widestEdit: Number(
+  slowestEdit: Number(
     capture(
       PERF,
-      'the widest per-edit selection',
-      /\| Widest per-edit selection[^|]*\| \*\*([\d.]+) s\*\* \|/,
+      'the slowest per-edit selection',
+      /\| Slowest per-edit selection[^|]*\| \*\*([\d.]+) s\*\* \|/,
     ),
   ),
 }
@@ -117,12 +117,12 @@ describe('tests/PERF.md is the single writer of every tier figure', () => {
 
   /**
    * Tier 1's target is what one edit may cost, so the lane's own 47–78 s is not
-   * what it bounds — the specs a narrowed hook would select are (#993). Pinning
-   * it to the widest recorded selection is what stops the target drifting back
-   * to a figure no hook can meet, which is how `< 5 s` outlived its own lane.
+   * what it bounds — the specs the hook selects are (#993). Pinning it to the
+   * slowest recorded selection is what stops the target drifting back to a
+   * figure no hook can meet, which is how `< 5 s` outlived its own lane.
    */
-  it('gives Tier 1 a target the widest recorded edit can meet', () => {
+  it('gives Tier 1 a target the slowest recorded edit can meet', () => {
     const target = Number(capture(tierRow('1 — Hook'), "Tier 1's target", /< (\d+) s/))
-    expect(target).toBeGreaterThanOrEqual(figures.widestEdit)
+    expect(target).toBeGreaterThanOrEqual(figures.slowestEdit)
   })
 })

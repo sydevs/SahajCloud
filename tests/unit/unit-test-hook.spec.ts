@@ -1,4 +1,3 @@
-import { spawnSync, type SpawnSyncOptionsWithStringEncoding } from 'node:child_process'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -6,6 +5,7 @@ import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { runHook } from '../../scripts/unit-test-hook.mjs'
+import { standIn } from '../utils/spawnStandIn'
 
 /**
  * The per-edit unit hook runs only the specs naming the edited file, and nothing when none does.
@@ -23,11 +23,6 @@ beforeAll(() => {
 afterAll(() => {
   rmSync(fixture, { recursive: true, force: true })
 })
-
-const standIn =
-  (script: string) =>
-  (_command: string, _args: string[], options: SpawnSyncOptionsWithStringEncoding) =>
-    spawnSync(process.execPath, ['-e', script], options)
 
 const edit = (rel: string, overrides: Partial<Parameters<typeof runHook>[0]> = {}) =>
   runHook({ filePath: join(fixture, rel), projectDir: fixture, ...overrides })

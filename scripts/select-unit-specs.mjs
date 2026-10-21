@@ -29,8 +29,12 @@ const MODULE_EXT = /\.(ts|tsx|mts|cts|js|mjs|cjs|json)$/
 /** Generated: an edit to either is a regeneration, never one typed by hand. */
 const GENERATED = /^src\/payload-types\.ts$|^src\/migrations\//
 
-/** Anything quoted. Most matches are prose or package names, which no edited path matches. */
-const QUOTED = /['"]([^'"\n]+)['"]/g
+/**
+ * Anything quoted, closed by the quote that opened it, so `"it's"` cannot swallow the opening
+ * quote of a specifier later on the line. Most matches are prose or package names, which no
+ * edited path matches.
+ */
+const QUOTED = /(['"])([^'"\n]+)\1/g
 
 /** Whether the hook acts on this repo-relative path: a hand-edited module inside the repo. */
 export function isLaneSource(rel) {
@@ -61,14 +65,11 @@ function referenceKeys(rel) {
 }
 
 /** Every spec the unit lane collects, repo-relative and POSIX. */
+// Unguarded: a lane that cannot be listed must surface as a hook error, not as silence.
 function listSpecs(root) {
-  try {
-    return readdirSync(join(root, SPEC_DIR), { recursive: true, encoding: 'utf8' })
-      .filter((entry) => SPEC.test(entry))
-      .map((entry) => `${SPEC_DIR}/${entry.split(sep).join('/')}`)
-  } catch {
-    return []
-  }
+  return readdirSync(join(root, SPEC_DIR), { recursive: true, encoding: 'utf8' })
+    .filter((entry) => SPEC.test(entry))
+    .map((entry) => `${SPEC_DIR}/${entry.split(sep).join('/')}`)
 }
 
 /** Every spec by the paths its text names, itself included. Every selection is answered from this. */
@@ -88,7 +89,7 @@ export function readLane(root = REPO_ROOT) {
     } catch {
       continue
     }
-    for (const [, specifier] of text.matchAll(QUOTED))
+    for (const [, , specifier] of text.matchAll(QUOTED))
       add(resolveSpecifier(specifier, dirname(spec)), spec)
   }
 

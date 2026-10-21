@@ -1,20 +1,15 @@
-import { spawnSync, type SpawnSyncOptionsWithStringEncoding } from 'node:child_process'
 import { join } from 'node:path'
 
 import { describe, expect, it, vi } from 'vitest'
 
 import { REPO_ROOT } from '../../scripts/hook-run.mjs'
 import { runTypesHook } from '../../scripts/payload-types-hook.mjs'
+import { standIn } from '../utils/spawnStandIn'
 
 /**
  * The types hook regenerates `src/payload-types.ts` after a schema edit, and spawns nothing for
  * any other file. How each outcome is worded is `hook-run.spec.ts`'s; this pins what it hands it.
  */
-
-const standIn =
-  (script: string) =>
-  (_command: string, _args: string[], options: SpawnSyncOptionsWithStringEncoding) =>
-    spawnSync(process.execPath, ['-e', script], options)
 
 const edit = (rel: string, overrides: Partial<Parameters<typeof runTypesHook>[0]> = {}) =>
   runTypesHook({ filePath: join(REPO_ROOT, rel), ...overrides })

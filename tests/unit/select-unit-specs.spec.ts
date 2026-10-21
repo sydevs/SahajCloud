@@ -36,6 +36,8 @@ beforeAll(() => {
     'relative.spec.ts': "import { thing } from '../../src/lib/thing'",
     'nested/deep.spec.ts': "import { thing } from '../../../src/lib/thing'",
     'quoted.spec.ts': "const READS = ['src/lib/thing.ts']",
+    // A double-quoted apostrophe first: the opening quote of the specifier must not close it.
+    'mixed-quotes.spec.ts': `const label = "it's", subject = '@/lib/thing'`,
     'near-name.spec.ts': "import { other } from '@/lib/thing-other'",
     'folder.spec.ts': "import { folder } from '@/lib/folder'",
     'config.spec.ts': "import config from '@payload-config'",
@@ -78,9 +80,10 @@ describe('resolveSpecifier', () => {
 describe('selectFrom', () => {
   const select = (rel: string | null) => selectFrom(rel, lane)
 
-  it('reaches an alias, a relative path, a nested relative path and a quoted path', () => {
+  it('reaches an alias, relative paths, a quoted path, and one after a stray apostrophe', () => {
     expect(select('src/lib/thing.ts')).toEqual([
       'tests/unit/alias.spec.ts',
+      'tests/unit/mixed-quotes.spec.ts',
       'tests/unit/nested/deep.spec.ts',
       'tests/unit/quoted.spec.ts',
       'tests/unit/relative.spec.ts',

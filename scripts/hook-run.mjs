@@ -18,14 +18,18 @@ export const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 
 const TIMEOUT_MS = 30_000
 
-const TAIL_LINES = 30
+/** Node's 1 MB default kills a long failing run with `ENOBUFS`, which reads as a signal. */
+const MAX_BUFFER = 64 * 1024 * 1024
+
+const lastLines = (text, count) => (text ?? '').trimEnd().split('\n').slice(-count).join('\n')
 
 /** `filePath` relative to `root`, POSIX, or null when it sits outside it. */
 export function toRepoPath(filePath, root = REPO_ROOT) {
-  const absolute = resolve(root, filePath)
-  return absolute.startsWith(root + sep)
+  const base = resolve(root)
+  const absolute = resolve(base, filePath)
+  return absolute.startsWith(base + sep)
     ? absolute
-        .slice(root.length + 1)
+        .slice(base.length + 1)
         .split(sep)
         .join('/')
     : null
@@ -60,6 +64,7 @@ export function runForHook({
     encoding: 'utf-8',
     // The tail is read by a model, not a terminal, so escape codes are noise in it.
     env: { ...process.env, NO_COLOR: '1' },
+    maxBuffer: MAX_BUFFER,
     timeout: timeoutMs,
   })
   if (result.status === 0) return null
@@ -81,11 +86,45 @@ export function runForHook({
     )
   }
 
-  const tail = `${result.stdout ?? ''}${result.stderr ?? ''}`
-    .trimEnd()
-    .split('\n')
-    .slice(-TAIL_LINES)
-    .join('\n')
+  // Both ends, stdout first: vitest prints which files failed and the summary there, and the
+  // failure details on stderr, so one combined tail cuts the first failure and the summary.
+  const tail = [lastLines(result.stdout, 15), lastLines(result.stderr, 25)]
+    .filter(Boolean)
+    .join('\n\n')
 
   return `${failure}:\n\n${tail}\n\nRun \`${rerun}\` to see the full output.`
+}
+
+/**
+ * The whole of a `.claude/hooks/` entry point: reads the tool call, runs the hook, and returns the
+ * JSON line to print. Unreadable input runs nothing; a hook that throws says so.
+ *
+ * @param {() => string} readInput
+ * @param {(hook: { filePath?: string, projectDir?: string }) => string | null} runHook
+ * @param {string} name
+ * @returns {string}
+ */
+export function respond(readInput, runHook, name) {
+  let input = null
+  try {
+    input = JSON.parse(readInput())
+  } catch {
+    // Not a tool call a hook can read. Nothing to run.
+  }
+
+  let message = null
+  try {
+    message = runHook({
+      filePath: input?.tool_input?.file_path,
+      projectDir: process.env.CLAUDE_PROJECT_DIR || undefined,
+    })
+  } catch (error) {
+    message = `The ${name} itself errored, so it did nothing: ${error?.message ?? error}`
+  }
+
+  return JSON.stringify(
+    message
+      ? { continue: true, additionalContext: message }
+      : { continue: true, suppressOutput: true },
+  )
 }

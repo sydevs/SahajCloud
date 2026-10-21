@@ -86,10 +86,10 @@ reads, so keep those labels and cell shapes when you add a row.
 
 | Metric | Value |
 | --- | --- |
-| Files / tests | 208 / 2693 |
+| Files / tests | 208 / 2700 |
 | Whole lane, 3 workers (slowest session median, what the consumer docs quote) | **77.9 s** |
 | One spec alone, the typical edit (third session) | 1.3 s |
-| Widest per-edit selection the hook makes, the 7 specs naming `@/plugins/login` (third session) | **6.9 s** |
+| Slowest per-edit selection timed on 4 cores, the 7 specs naming `@/plugins/login` (third session) | **6.9 s** |
 | 18 specs naming `@/payload-types`, which the hook skips as generated (third session) | 7.8 s |
 | Vitest phase breakdown, at 3 workers | transform 14.4 s, import 141.6 s, tests 17.5 s, environment 5.2 s |
 | Slowest file's own duration inside the lane (first session) | 1.8 s (`proposal-leaves.spec.ts`) |
@@ -132,7 +132,7 @@ from what a narrowed hook costs — not from the lane, and not from one spec.**
 Selecting the specs that name an edited module gives 1 spec for the median
 module, 7 for `@/plugins/login`, and 18 for `@/payload-types`, the generated
 file `pnpm generate:types` rewrites. Those cost 1.3, 6.9 and 7.8 s measured
-above. The hook skips generated files, so its widest is the login seven.
+above. The hook skips generated files, so the slowest it makes that 4 cores have timed is the login seven.
 **Tier 1 targets `< 12 s`**: it bounds the widest of those with room for the
 spread this file records, and it matches SahajAtlasWeb's own measured
 per-edit budget on the same core count, whose hook this one copies. 5 s was
@@ -161,7 +161,10 @@ no spec, so the hook spawns no vitest and costs 0.2 s, mostly node's own
 start-up. The median `src/` edit selects none.
 
 **On 4 cores the slowest recorded is 6.9 s**, the third session's login
-specs in the table above — the figure Tier 1's `< 12 s` is held to. Width
+specs in the table above — the figure Tier 1's `< 12 s` is held to. ⚠ **The
+widest today, `importGraph`'s 9, is untimed on 4 cores.** On the laptop it
+costs 15% more than login's, which puts it near 8 s there, still inside the
+target; time it on the next container session and record it above. Width
 stands in for time without being it: `tests/unit/select-unit-specs.spec.ts`
 caps the widest selection at 10, and a jump past that means re-timing here.
 
