@@ -64,9 +64,9 @@ That combination is often what you want — reachable where it's explained, abse
 admin.components.edit.SaveButton = {
   path: WORKFLOW_BUTTONS,
   clientProps: {
-    statusField: 'status',                      // the form field whose value picks the stage
+    statusField: 'status', // the form field whose value picks the stage
     onlyWhen: { field: 'type', equals: 'proposal' }, // optional: otherwise the fallback
-    fallback: null,                             // 'publish' | 'save' | 'saveDraft' | null
+    fallback: null, // 'publish' | 'save' | 'saveDraft' | null
     stages: { [CREATE_STAGE]: [{ label: 'Next step', overrides: { _status: 'draft' } }] },
   } satisfies WorkflowButtonsProps<MyStage>,
 }

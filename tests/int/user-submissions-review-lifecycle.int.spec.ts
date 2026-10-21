@@ -24,7 +24,6 @@ import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-
 import { reviewMove } from '@/collections/UserSubmissions/lifecycle/review'
 import {
   OPEN_REVIEW_STATUSES,
@@ -374,8 +373,8 @@ describe('User submission review lifecycle', () => {
    */
   describe('the review buttons', () => {
     const declaration = () => {
-      const slot = payload.collections['user-submissions']!.config.admin.components?.edit
-        ?.SaveButton
+      const slot =
+        payload.collections['user-submissions']!.config.admin.components?.edit?.SaveButton
       if (typeof slot !== 'object' || slot === null || !('clientProps' in slot)) {
         throw new Error('expected the SaveButton slot to declare clientProps')
       }
@@ -402,7 +401,9 @@ describe('User submission review lifecycle', () => {
       const stages = declaration().stages
       for (const [from, buttons] of Object.entries(stages) as [
         UserSubmission['status'],
-        NonNullable<WorkflowButtonsProps<UserSubmission['status']>['stages'][UserSubmission['status']]>,
+        NonNullable<
+          WorkflowButtonsProps<UserSubmission['status']>['stages'][UserSubmission['status']]
+        >,
       ][]) {
         for (const button of buttons) {
           const to = button.overrides.status as UserSubmission['status']

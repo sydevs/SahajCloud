@@ -57,14 +57,14 @@ lines used until 2026-10-20 and which the routine containers do not ship
 Two sessions measured it the same day, on the same container spec — 4 cores
 (Intel Xeon @ 2.80 GHz), 15 GB, a cloud routine container:
 
-| Session | Files / tests | Vitest duration, consecutive runs | Median |
-| --- | --- | --- | --- |
-| first | 198 / 2575 | 60.29 · 58.75 · 59.23 s | 59.2 s |
-| second, after merging `main` | 203 / 2643 | 82.19 · 77.93 · 73.21 s | **77.9 s** |
-| third, after merging `main` again | 204 / 2653 | 47.16 · 46.38 · 47.82 s | 47.2 s |
-| fourth, after merging `main` again | 205 / 2656 | 54.00 · 50.45 s (both inside the gate) | 52.2 s |
-| fifth, after merging `main` again | 218 / 2795 | 49.13 s (inside the gate) | 49.1 s |
-| sixth, after merging `main` again (2026-10-21) | 218 / 2801 | 55.01 s | 55.0 s |
+| Session                                        | Files / tests | Vitest duration, consecutive runs      | Median     |
+| ---------------------------------------------- | ------------- | -------------------------------------- | ---------- |
+| first                                          | 198 / 2575    | 60.29 · 58.75 · 59.23 s                | 59.2 s     |
+| second, after merging `main`                   | 203 / 2643    | 82.19 · 77.93 · 73.21 s                | **77.9 s** |
+| third, after merging `main` again              | 204 / 2653    | 47.16 · 46.38 · 47.82 s                | 47.2 s     |
+| fourth, after merging `main` again             | 205 / 2656    | 54.00 · 50.45 s (both inside the gate) | 52.2 s     |
+| fifth, after merging `main` again              | 218 / 2795    | 49.13 s (inside the gate)              | 49.1 s     |
+| sixth, after merging `main` again (2026-10-21) | 218 / 2801    | 55.01 s                                | 55.0 s     |
 
 ⚠ **Those three medians span 47 to 78 s — 66% — and six spec files do not
 explain it.** Identical container spec, all on 2026-10-20, 3% more files
@@ -82,23 +82,23 @@ them to what is on disk; every timing is the session its row names.
 `| Files / tests |` and the three `**bold**` cells are the captures the spec
 reads, so keep those labels and cell shapes when you add a row.
 
-| Metric | Value |
-| --- | --- |
-| Files / tests | 218 / 2801 |
-| Whole lane, 3 workers (slowest session median, what the consumer docs quote) | **77.9 s** |
-| One spec alone, the typical edit (third session) | 1.3 s |
-| Widest per-edit selection, 18 specs naming `@/payload-types` (third session) | **7.8 s** |
-| A 7-spec selection, naming `@/plugins/login` (third session) | 6.9 s |
-| Vitest phase breakdown, at 3 workers | transform 14.4 s, import 141.6 s, tests 17.5 s, environment 5.2 s |
-| Slowest file's own duration inside the lane (first session) | 1.8 s (`proposal-leaves.spec.ts`) |
-| One file alone, cold (first session) | **1.9 s** wall (`convert-vimeo`) to **3.0 s** (`proposal-leaves`) |
-| Whole lane at `--maxWorkers=1` (first session, 198 files) | 140.5 s |
-| Whole lane at `--maxWorkers=4` (first session, 198 files) | 49.2 s |
-| `pnpm lint` | 28.5 s |
-| `pnpm typecheck` | 8.4 s |
-| `pnpm typecheck:tests` | 8.2 s |
-| Those four commands, summed | 104 s |
-| Tier 2 lean gate (`check.sh`), slowest cold run of three sessions | **174 s** cold, **103 s** with Postgres already up |
+| Metric                                                                       | Value                                                             |
+| ---------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Files / tests                                                                | 218 / 2801                                                        |
+| Whole lane, 3 workers (slowest session median, what the consumer docs quote) | **77.9 s**                                                        |
+| One spec alone, the typical edit (third session)                             | 1.3 s                                                             |
+| Widest per-edit selection, 18 specs naming `@/payload-types` (third session) | **7.8 s**                                                         |
+| A 7-spec selection, naming `@/plugins/login` (third session)                 | 6.9 s                                                             |
+| Vitest phase breakdown, at 3 workers                                         | transform 14.4 s, import 141.6 s, tests 17.5 s, environment 5.2 s |
+| Slowest file's own duration inside the lane (first session)                  | 1.8 s (`proposal-leaves.spec.ts`)                                 |
+| One file alone, cold (first session)                                         | **1.9 s** wall (`convert-vimeo`) to **3.0 s** (`proposal-leaves`) |
+| Whole lane at `--maxWorkers=1` (first session, 198 files)                    | 140.5 s                                                           |
+| Whole lane at `--maxWorkers=4` (first session, 198 files)                    | 49.2 s                                                            |
+| `pnpm lint`                                                                  | 28.5 s                                                            |
+| `pnpm typecheck`                                                             | 8.4 s                                                             |
+| `pnpm typecheck:tests`                                                       | 8.2 s                                                             |
+| Those four commands, summed                                                  | 104 s                                                             |
+| Tier 2 lean gate (`check.sh`), slowest cold run of three sessions            | **174 s** cold, **103 s** with Postgres already up                |
 
 **The gate's own spread is `scripts/ensure-test-db.sh`.** It costs nothing once
 port 5432 answers, which is why a warm run lands on the four commands' 104 s and

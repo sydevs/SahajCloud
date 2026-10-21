@@ -24,7 +24,10 @@ import {
   OPEN_REVIEW_STATUSES,
   REOPENABLE_REVIEW_STATUSES,
 } from '@/collections/UserSubmissions/statuses'
-import type { WorkflowButton, WorkflowButtonsProps } from '@/components/admin/WorkflowButtons/stages'
+import type {
+  WorkflowButton,
+  WorkflowButtonsProps,
+} from '@/components/admin/WorkflowButtons/stages'
 import { WORKFLOW_BUTTONS } from '@/components/admin/WorkflowButtons/stages'
 import { CONTACT_EMAIL } from '@/lib/contact'
 import { serverEnv } from '@/lib/env/server'

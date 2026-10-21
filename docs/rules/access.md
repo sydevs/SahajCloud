@@ -43,13 +43,13 @@ This only works because the authenticated user loads **four times**, not once. `
 
 **The condition is the gate, not the call.** `grep "fetch('/api/"` over `src/components` finds more call sites than this rule governs, so check what the target does before you "fix" one:
 
-| Call site | Sends the locale? | Why |
-| --- | --- | --- |
-| `FrameEditor/utils.ts` → `/api/frames/by-narrator/:id` | **Yes** | The endpoint's permission gate resolves `req.locale` |
-| `ThumbnailCell/relationshipDocLoader.ts` → `/api/:collection` | **Yes** | The collection read gate does |
-| `ProjectSelector.tsx`, `ProjectContext.tsx` → `/api/managers/set-project` | No | Gated on `requireActiveManager`, then reads with `overrideAccess: true` — no per-locale check runs |
-| `CanonicalEmbedPicker/Description.tsx` → `/api/clients/:id/verify-embed` | No | Same shape, and `Clients.roles` is not localized |
-| `TranslationsRow/useEnglishTranslation.ts` → `?locale=en` | Pinned to `en` | It wants the English **text** for translators, not the caller's roles. Admin-only today |
+| Call site                                                                 | Sends the locale? | Why                                                                                                |
+| ------------------------------------------------------------------------- | ----------------- | -------------------------------------------------------------------------------------------------- |
+| `FrameEditor/utils.ts` → `/api/frames/by-narrator/:id`                    | **Yes**           | The endpoint's permission gate resolves `req.locale`                                               |
+| `ThumbnailCell/relationshipDocLoader.ts` → `/api/:collection`             | **Yes**           | The collection read gate does                                                                      |
+| `ProjectSelector.tsx`, `ProjectContext.tsx` → `/api/managers/set-project` | No                | Gated on `requireActiveManager`, then reads with `overrideAccess: true` — no per-locale check runs |
+| `CanonicalEmbedPicker/Description.tsx` → `/api/clients/:id/verify-embed`  | No                | Same shape, and `Clients.roles` is not localized                                                   |
+| `TranslationsRow/useEnglishTranslation.ts` → `?locale=en`                 | Pinned to `en`    | It wants the English **text** for translators, not the caller's roles. Admin-only today            |
 
 Submission review was a fourth **Yes** row until #909 put it on Payload's own document form. `DocumentInfo` builds the form `action` with `qs.stringify({ depth: 0, 'fallback-locale': 'null', locale, … })`, so a review that submits the form carries the locale without anything here arranging it — which is the cheapest way to satisfy this rule: don't hand-roll the call.
 
@@ -59,7 +59,7 @@ Submission review was a fourth **Yes** row until #909 put it on Payload's own do
 
 A custom **endpoint** does not call it directly either: `requireManagerPermission` and `requireCollectionPermission` (`@/lib/endpoints`, `docs/rules/endpoints.md`) own that call, and `tests/unit/endpoint-permission-gate.spec.ts` fails one written out under `src/collections/**` or `src/endpoints/**` (#969). A **hook** has no 403 envelope to return, so it calls `holdsCollectionPermission` (`@/plugins/access`), which both gates read the scope from — one owner, two shapes.
 
-⚠ **A collection's own `update` is wider than its role grants, so never read it to answer "may this user decide".** When the grants deny, `createAccessConfig` falls back to document-level manager access (`accessConfigs.ts`), so whoever a `manager`-shaped field names holds `update` on that row with no grant at all. That is right for editing the row and wrong for a privileged write taken *through* it: on `user-submissions`, accepting a proposal creates a published Events row with `overrideAccess: true`, so reading the collection's `update` would make being assigned a proposal authority to publish it. `reviewMove` (`src/collections/UserSubmissions/lifecycle/review.ts`) reads the grant, which is what `POST :id/review` gated on before #909 deleted it.
+⚠ **A collection's own `update` is wider than its role grants, so never read it to answer "may this user decide".** When the grants deny, `createAccessConfig` falls back to document-level manager access (`accessConfigs.ts`), so whoever a `manager`-shaped field names holds `update` on that row with no grant at all. That is right for editing the row and wrong for a privileged write taken _through_ it: on `user-submissions`, accepting a proposal creates a published Events row with `overrideAccess: true`, so reading the collection's `update` would make being assigned a proposal authority to publish it. `reviewMove` (`src/collections/UserSubmissions/lifecycle/review.ts`) reads the grant, which is what `POST :id/review` gated on before #909 deleted it.
 
 ## API client roles
 

@@ -1,7 +1,6 @@
 import type { PermissionCheckArgs } from './types'
 import type { PayloadRequest } from 'payload'
 
-
 import { hasPermission } from './accessPlugin'
 import { bypassPermissions } from './bypassPermissions'
 import { roleScopeFromLocale } from './localizedRoles'
