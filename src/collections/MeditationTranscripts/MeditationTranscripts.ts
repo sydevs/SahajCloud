@@ -23,8 +23,12 @@ import { deriveTranscriptStatus, loadTranscriptJob, transcriptJobError } from '.
  * versions, so a job writing there would push out the versions an editor
  * restores from, and would race their draft. It sits in the two projects that
  * carry `meditations` (`config/projects.ts`), so whoever may read a recording
- * may read its transcript — there is no second permission to hold, and no
- * endpoint standing in for one.
+ * may read its transcript — there is no second **read** permission to hold.
+ *
+ * Nor is there a write grant here. The one write an editor can ask for is
+ * `POST /api/meditations/:id/transcribe` (#984), which gates on
+ * `meditations: update` and writes these rows with `overrideAccess`, so the
+ * authority to re-transcribe stays the authority to edit the meditation.
  */
 export const MeditationTranscripts: CollectionConfig = {
   slug: 'meditation-transcripts',
