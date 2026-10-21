@@ -86,7 +86,7 @@ reads, so keep those labels and cell shapes when you add a row.
 
 | Metric | Value |
 | --- | --- |
-| Files / tests | 208 / 2700 |
+| Files / tests | 220 / 2835 |
 | Whole lane, 3 workers (slowest session median, what the consumer docs quote) | **77.9 s** |
 | One spec alone, the typical edit (third session) | 1.3 s |
 | Slowest per-edit selection timed on 4 cores, the 7 specs naming `@/plugins/login` (third session) | **6.9 s** |
@@ -156,7 +156,7 @@ one warm-up run, then three:
 | `src/plugins/login/index.ts` | 8 | 3.03 · 2.67 · 2.68 s | 2.68 s |
 | `tests/utils/importGraph.ts`, the widest in the tree | 9 | 3.09 · 3.13 · 2.88 s | 3.09 s |
 
-**Most edits run nothing.** 384 of the 633 modules under `src/` are named by
+**Most edits run nothing.** 399 of the 664 modules under `src/` are named by
 no spec, so the hook spawns no vitest and costs 0.2 s, mostly node's own
 start-up. The median `src/` edit selects none.
 
@@ -171,8 +171,8 @@ caps the widest selection at 10, and a jump past that means re-timing here.
 ⚠ **The hook selects by name, never by import.** A spec runs when its own
 text names the edited module, through an alias, a relative path or a quoted
 repo path (`scripts/select-unit-specs.mjs`). That is why `richEditor` runs
-nothing although 34 specs reach it through a collection. Following imports
-selects up to 81 of the 206 specs for one edit (`@/lib/locales`), so the
+nothing although 40 specs reach it through a collection. Following imports
+selects up to 86 of the 220 specs for one edit (`@/lib/locales`), so the
 lean gate and CI catch that coupling instead.
 
 ## The integration lane — baseline, 2026-06-18 (before #499 §2)

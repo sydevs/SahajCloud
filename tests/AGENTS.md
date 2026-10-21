@@ -4,7 +4,7 @@ Rules for writing and running tests in this codebase.
 
 ## What to test (and what not to)
 
-**Do test**: custom hooks (`src/hooks/`), storage utilities (URL field
+**Do test**: custom hooks (`src/collections/<Name>/hooks/`), storage utilities (URL field
 factories, R2 filename sanitization), access control (`hasPermission`,
 `roleBasedAccess`, document-level manager access), custom field logic
 (virtual fields, computed values, custom validators), document-level
@@ -21,8 +21,8 @@ validation.
 
 | Lane            | Files                        | Speed                   | When                                                                                  |
 | --------------- | ----------------------------- | -------------------------- | ---------------------------------------------------------------------------------------- |
-| **Unit**        | `tests/unit/**/*.spec.ts`    | ~78 s for 208 files / 2700 cases; 1–3 s for one named spec, under 7 s for the specs one edit can break (4 cores — see `tests/PERF.md`) | Pure functions, no Payload bootstrap. **No** `globalSetup`/`setupFiles`.              |
-| **Integration** | `tests/int/**/*.int.spec.ts` | bootstrap-heavy per file (full-schema push. See `tests/PERF.md`) | Calls `createTestEnvironment()`, exercises hooks/access/virtual fields/relationships. Files run in parallel (see below). |
+| **Unit**        | `tests/unit/**/*.spec.ts`    | ~78 s for 220 files / 2835 cases; 1–3 s for one named spec, under 7 s for the specs one edit can break (4 cores — see `tests/PERF.md`) | Pure functions, no Payload bootstrap. **No** `globalSetup`/`setupFiles`.              |
+| **Integration** | `tests/int/**/*.int.spec.ts`, `seeds/**/*.test.ts` | bootstrap-heavy per file (full-schema push. See `tests/PERF.md`) | Calls `createTestEnvironment()`, exercises hooks/access/virtual fields/relationships. Files run in parallel (`vitest.config.mts`). |
 | **Smoke (E2E)** | `tests/e2e/**/*.e2e.spec.ts` | Playwright (REST)       | Tier-3 smoke against the Railway PR preview (`pnpm test:smoke`). See below.            |
 
 ### When to put a test in `tests/unit/`
@@ -62,41 +62,10 @@ Use `vi.resetModules()` + a dynamic `await import(...)` to swap env vars
 between cases. Inject dependencies (`fetchFn`, `logger`) as function
 arguments instead of stubbing globals, to keep tests state-clean.
 
-```typescript
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-
-let myHelper: typeof import('@/lib/domain/myHelper').myHelper
-
-beforeEach(async () => {
-  vi.resetModules()
-  process.env = { ...originalEnv, SOME_VAR: 'test-value' }
-  const mod = await import('@/lib/domain/myHelper')
-  myHelper = mod.myHelper
-})
-
-afterEach(() => {
-  process.env = originalEnv
-  vi.restoreAllMocks()
-})
-```
-
 Examples: `tests/int/storage-utils.int.spec.ts`,
 `tests/int/cloudflare-stream-webhook.int.spec.ts`.
 
 ## Running tests locally
-
-CI (`.github/workflows/ci.yml`) runs the full suite on every PR. Locally,
-run **targeted**:
-
-```bash
-pnpm test:unit                                                                      # whole unit lane (~78 s — prefer one spec below)
-pnpm exec vitest run tests/int/albums.int.spec.ts --config ./vitest.config.mts      # one integration file
-pnpm exec vitest run tests/int/albums.int.spec.ts -t "creates an album"             # one case by name
-pnpm exec vitest run tests/unit/convert-vimeo.spec.ts --config ./vitest.config.mts  # one unit file
-```
-
-The `--config ./vitest.config.mts` flag is required — it defines the
-`unit`/`int` projects and injects test env vars.
 
 **"Tests no tests" on a file you just edited means the spec doesn't
 parse** — not that no case matched. Vitest reports a syntax error in a
@@ -119,7 +88,7 @@ tests is the #1 form of scope creep on test-audit work.
 ```bash
 rg -l "RRuleTemporal|DST|timezone" tests/
 rg -l "filterMeditationsByLocale|locale.*filter" tests/
-grep -E "^\s*(it|describe)\(" tests/int/schedule-hooks.int.spec.ts
+grep -E "^\s*(it|describe)\(" tests/unit/schedule-hooks.spec.ts
 ```
 
 If existing cases already cover the claim, document that finding in the PR
@@ -137,57 +106,9 @@ only once per file** — multiple calls cause Payload global-state conflicts
 (`TypeError: Cannot read properties of undefined`). Use nested `describe`
 blocks to organize cases inside a single environment.
 
-```typescript
-import { describe, it, beforeAll, afterAll, expect } from 'vitest'
-import type { Payload } from 'payload'
-import { createTestEnvironment } from '../utils/testHelpers'
-
-describe('My Collection', () => {
-  let payload: Payload
-  let cleanup: () => Promise<void>
-
-  beforeAll(async () => {
-    const testEnv = await createTestEnvironment()
-    payload = testEnv.payload
-    cleanup = testEnv.cleanup
-  })
-
-  afterAll(async () => {
-    await cleanup()
-  })
-
-  it('performs operations with complete isolation', async () => {
-    // Test operations
-  })
-
-  describe('nested feature tests', () => {
-    // Share the same payload instance
-  })
-})
-```
-
-## Integration test isolation
-
-Each integration test file gets its own isolated **Postgres schema**
-(created via Drizzle `push`, dropped on cleanup) against `DATABASE_URL` —
-the same per-suite isolation the in-memory SQLite previously provided.
-Requires a reachable Postgres (Docker locally, a service container in
-CI). No data conflicts between suites.
-
-**Test files run in parallel** across forked workers (`pool: 'forks'`,
-`fileParallelism: true`), bounded by `poolOptions.forks.maxForks` — 6
-locally (leaves the dev machine headroom), ≤4 in CI, override with
-`VITEST_INT_MAX_FORKS`. The bound is deliberate: the lane is **DB-bound**
-(every suite runs a full-schema `push` against the same Postgres), so more
-forks give diminishing returns and risk exhausting connections — see
-`tests/PERF.md`. `maxConcurrency: 1` only serialises tests **within** a
-file. It does **not** serialise files.
-
 ## Typed fixtures
 
-`pnpm typecheck:tests` (`tsconfig.test.json`) type-checks all of `tests/**`
-in about 8 s (`tests/PERF.md`) — Vitest does not, since esbuild erases types without
-checking them. Fixtures must be typed against the real schema for that to
+Fixtures must be typed against the real schema for `pnpm typecheck:tests` to
 catch anything, so `tests/utils/testData.ts` exports two helpers. Prefer
 them over `Record<string, unknown>`, a bare object literal, or `as any`:
 
@@ -292,16 +213,7 @@ do.
 
 ## Test file organization
 
-| File                              | Purpose                                                                                                                                                                                                                                                                    |
-| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `collections-smoke.int.spec.ts`   | **One reachability canary per content-bearing collection** (create + read + relationship populate). Check this file before writing a dedicated `[collection].int.spec.ts`. Add a new file only for collection-specific custom behavior. |
-| `client-hooks.int.spec.ts`        | Client beforeChange/afterChange hooks                                                                                                                                                                                                                                      |
-| `meditation-duration.int.spec.ts` | Audio duration extraction + `durationMinutes` virtual field                                                                                                                                                                                                                |
-| `field-utils.int.spec.ts`         | `processFile` utility                                                                                                                                                                                                                                                      |
-| `storage-utils.int.spec.ts`       | URL field factories, R2 adapter                                                                                                                                                                                                                                            |
-| `role-based-access.int.spec.ts`   | `hasPermission`, document-level manager access, locale permissions                                                                                                                                                                                                         |
-| `usage-tracking.int.spec.ts`      | API usage tracking job handlers                                                                                                                                                                                                                                            |
-| `[collection].int.spec.ts`        | **Collection-specific custom behavior only** — don't duplicate smoke coverage                                                                                                                                                                                              |
+Check `collections-smoke.int.spec.ts` (one reachability canary per content-bearing collection) before writing a dedicated `[collection].int.spec.ts`. A new file is only for collection-specific custom behaviour — never duplicate smoke coverage.
 
 ## Common testing patterns
 
@@ -449,23 +361,6 @@ database.
 > issued real requests. If a future spec needs a page, install the browser
 > in that spec's own job rather than the shared one.
 
-CI points `PREVIEW_URL` at the per-PR **Railway preview** (discovered from
-Railway's **GitHub commit status** by `scripts/get-railway-preview-url.ts`,
-which needs no Railway API token) and runs `pnpm test:smoke`. Locally it falls back to
-`http://localhost:3000` (the dev-server skill). Config:
-`playwright.config.ts` (`testDir: ./tests/e2e`, `testMatch:
-**/*.e2e.spec.ts`, `retries: 2` in CI).
-
-| File                            | Purpose                                                                          |
-| ---------------------------------- | ------------------------------------------------------------------------------------ |
-| `tests/e2e/*.e2e.spec.ts`       | REST flows only a deployed environment can answer. Covers auth, content CRUD, CORS preflight, and what an error body discloses under the shipped `config.debug` (`error-disclosure`) |
-| `tests/e2e/_helpers/preview.ts` | `ensureAdmin` (asks for a link as `PREVIEW_ADMIN_EMAIL`, which a preview answers with a session — the deploy provisions the admin) + auth headers |
-| `tests/e2e/_helpers/runId.ts`   | Per-run record prefix so two runs against one preview don't collide              |
-| `tests/e2e/_helpers/fixtures.ts` | The dependencies a spec creates for itself (image, album, narrator, frame) + the bin that deletes them |
-| `tests/e2e/_helpers/smokeTest.ts` | `test` extended with `headers` and `trash` — import it in any spec that creates records |
-| `tests/e2e/_helpers/failOnSkipReporter.ts` | Reporter that fails the run when a spec skipped while `PREVIEW_URL` was set |
-| `tests/files/`                  | Sample audio/image files used by upload specs                                    |
-
 #### A per-PR preview carries no content, so every spec builds its own
 
 Railway forks service **configuration and variables**, never volume data.
@@ -527,15 +422,6 @@ Records are namespaced by `runId()` (`SMOKE_RUN_ID` in CI). A preview
 database is per-PR, but successive runs — and Playwright's own retries —
 share it, so the prefix keeps a leaked record from blocking the next
 attempt on a unique column.
-
-### Commands
-
-```bash
-pnpm test:smoke                                       # all smoke specs (vs PREVIEW_URL or localhost:3000)
-PREVIEW_URL=https://<preview>.up.railway.app pnpm test:smoke
-pnpm exec playwright test tests/e2e/auth.e2e.spec.ts  # one spec
-pnpm exec playwright test --ui                        # debug UI
-```
 
 There is no `pnpm test:e2e` script or local-boot E2E config — the old
 dedicated-`e2e`-schema / port-4567 setup was removed (#499 §4).

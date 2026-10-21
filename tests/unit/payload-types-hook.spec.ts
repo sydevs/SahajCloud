@@ -33,7 +33,7 @@ describe('runTypesHook', () => {
   })
 
   it.each([
-    'src/lib/richEditor/index.ts',
+    'src/lib/richEditor/notABlock.ts',
     'src/payload-types.ts',
     'src/collectionsIndex.ts',
     'tests/unit/locales.spec.ts',
