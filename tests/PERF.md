@@ -1,28 +1,143 @@
 # Test Suite Performance
 
-Runtime baseline for the integration lane, so future changes to the test
-infrastructure stay comparable. Complements `tests/COVERAGE.md` (what is
+Runtime baseline for the unit and integration lanes, so future changes to the
+test infrastructure stay comparable. Complements `tests/COVERAGE.md` (what is
 tested) and `tests/AGENTS.md` (how to test).
 
 Re-measure with the same command after any change to `vitest.config.mts`
 (parallelism, pool), `tests/utils/testHelpers.ts` (per-suite bootstrap), or
 the schema surface. Record the machine and DB, so the numbers stay honest.
 
+Every figure the three-tier contract states — in `docs/rules/testing-reqs.md`,
+`tests/AGENTS.md`, `AGENTS.md` and `README.md` — is a copy of one recorded
+here. Change a number there only with a measurement, and add it below with
+its machine and date. Those budgets drifted an order of magnitude from the
+lane they describe because nothing held them to a run (#990).
+
+`tests/unit/perf-figures-pinned.spec.ts` is that run. It reds when the file
+count here stops matching the tracked specs, when a consumer doc stops
+quoting the lane figure here, or when either tier's target drops below the
+measurement its own row is set from — Tier 2's cold gate, Tier 1's widest
+per-edit selection. ⚠ **It asserts no wall-clock time** — a timing bound
+inside the lane reddens on a loaded machine, and a check everyone learns to
+ignore is worse than prose. Re-measuring therefore edits this file and the
+four consumers in one commit, by design.
+
 ## How to measure
 
 ```bash
+# Total wall-clock for the whole unit lane (read Vitest's own duration line too)
+time pnpm test:unit
+
+# What a narrowed per-edit hook would cost — one spec, the typical edit
+time pnpm exec vitest run tests/unit/convert-vimeo.spec.ts --project unit --config ./vitest.config.mts
+
+# …and its widest edit: every spec naming one module. Tier 1's target bounds this.
+# Name the specs that import it, which is what a narrowed hook would select (#993).
+time pnpm exec vitest run $(grep -rl "from '@/payload-types'" tests/unit) --project unit --config ./vitest.config.mts
+
 # Total wall-clock for the whole integration lane
-/usr/bin/time -p pnpm test:int
+time pnpm test:int
 
 # Cold per-file bootstrap (one isolated suite — dominated by the Drizzle push)
-/usr/bin/time -p pnpm exec vitest run tests/int/albums.int.spec.ts --project int --config ./vitest.config.mts
+time pnpm exec vitest run tests/int/albums.int.spec.ts --project int --config ./vitest.config.mts
 ```
+
+⚠ **`time`, the shell keyword — not `/usr/bin/time -p`**, which these
+lines used until 2026-10-20 and which the routine containers do not ship
+(exit 127, which reads as a broken command rather than a missing binary).
 
 `pnpm test:int` connects to `DATABASE_URL` — the dev Postgres locally, a
 `postgres:18` service container in CI. Each suite gets an isolated
 `test_<rand>` schema, created via Drizzle `push` and dropped on cleanup.
+`pnpm test:unit` needs neither.
 
-## Baseline — 2026-06-18 (before #499 §2)
+## The unit lane — 2026-10-20
+
+Two sessions measured it the same day, on the same container spec — 4 cores
+(Intel Xeon @ 2.80 GHz), 15 GB, a cloud routine container:
+
+| Session | Files / tests | Vitest duration, consecutive runs | Median |
+| --- | --- | --- | --- |
+| first | 198 / 2575 | 60.29 · 58.75 · 59.23 s | 59.2 s |
+| second, after merging `main` | 203 / 2643 | 82.19 · 77.93 · 73.21 s | **77.9 s** |
+| third, after merging `main` again | 204 / 2653 | 47.16 · 46.38 · 47.82 s | 47.2 s |
+
+⚠ **Those three medians span 47 to 78 s — 66% — and six spec files do not
+explain it.** Identical container spec, all on 2026-10-20, 3% more files
+across the range. The second session's three runs also fell monotonically
+(82 → 73 s) as caches warmed, and the third session, with the most files,
+was the fastest of the three. So **a single container's figure is worth no
+more than its order of magnitude** — quote the slowest median as an upper
+bound, which is what the consumer docs do, and do not read a 60% move as a
+regression. A maintainer's laptop is faster again. Record your own row above
+rather than replacing one.
+
+Everything below is the second session's run unless the row says otherwise.
+**The file and test counts are the current tree's**, because the spec pins
+them to what is on disk; every timing is the session its row names.
+`| Files / tests |` and the three `**bold**` cells are the captures the spec
+reads, so keep those labels and cell shapes when you add a row.
+
+| Metric | Value |
+| --- | --- |
+| Files / tests | 215 / 2783 |
+| Whole lane, 3 workers (slowest session median, what the consumer docs quote) | **77.9 s** |
+| One spec alone, the typical edit (third session) | 1.3 s |
+| Widest per-edit selection, 18 specs naming `@/payload-types` (third session) | **7.8 s** |
+| A 7-spec selection, naming `@/plugins/login` (third session) | 6.9 s |
+| Vitest phase breakdown, at 3 workers | transform 14.4 s, import 141.6 s, tests 17.5 s, environment 5.2 s |
+| Slowest file's own duration inside the lane (first session) | 1.8 s (`proposal-leaves.spec.ts`) |
+| One file alone, cold (first session) | **1.9 s** wall (`convert-vimeo`) to **3.0 s** (`proposal-leaves`) |
+| Whole lane at `--maxWorkers=1` (first session, 198 files) | 140.5 s |
+| Whole lane at `--maxWorkers=4` (first session, 198 files) | 49.2 s |
+| `pnpm lint` | 28.5 s |
+| `pnpm typecheck` | 8.4 s |
+| `pnpm typecheck:tests` | 8.2 s |
+| Those four commands, summed | 104 s |
+| Tier 2 lean gate (`check.sh`), slowest cold run of three sessions | **174 s** cold, **103 s** with Postgres already up |
+
+**The gate's own spread is `scripts/ensure-test-db.sh`.** It costs nothing once
+port 5432 answers, which is why a warm run lands on the four commands' 104 s and
+a session's first run does not. Cold runs measured 138 s, 174 s and 110 s in three
+sessions — the same unreliability as the lane above, so **Tier 2's target is set
+over the slowest cold run, not over the median**. Time it warm to compare against
+this row.
+
+⚠ **3 workers, not 4.** Vitest's non-watch default is `max(cores - 1, 1)`
+(`getDefaultThreadsCount`, `vitest/dist/chunks/cli-api.*.js`), so every figure
+above that does not name a worker count is a **3**-worker figure on a 4-core
+box. Reading it as one-per-core is what makes a core-count extrapolation come
+out several times too fast.
+
+**The cost is importing 203 module graphs, not running 2643 assertions.**
+Test bodies are 17.5 s of the 77.9 s while `import` alone sums to 142 s of
+worker time, and no single file is slow — the slowest is 1.8 s. Both figures
+are the breakdown Vitest prints on every run.
+
+**No worker count reaches `< 5 s` for the whole lane, because about 19 s of it
+is serial.** Fitting `wall = S + P/N` to the first session's 1-worker and
+4-worker runs gives
+**S ≈ 19 s, P ≈ 122 s**, and that fit predicts the 3-worker run at 59.4 s
+against 59.2 s measured — so it holds across all three. Nothing goes below `S`
+however many cores are bought. Running fewer files can.
+
+**What the budget protects is the per-edit hook, so Tier 1's target is set
+from what a narrowed hook costs — not from the lane, and not from one spec.**
+Selecting the specs that name an edited module gives 1 spec for the median
+module, 7 for `@/plugins/login`, and 18 for `@/payload-types`, the generated
+file `pnpm generate:types` rewrites. Those cost 1.3, 6.9 and 7.8 s measured
+above. **Tier 1 targets `< 12 s`**: it bounds the widest of those with room
+for the spread this file records, and it matches SahajAtlasWeb's own
+measured per-edit budget on the same core count, whose hook this one would
+copy. 5 s was below the widest real selection, and 65 s was the whole lane
+wearing the hook's name.
+
+So the lane is not cut and the hook is narrowed to the specs one edit can
+break — #990 settled that, #993 does it. Until then the hook runs the lane,
+so the figure to compare against this target is 47–78 s, not 7.8 s.
+
+## The integration lane — baseline, 2026-06-18 (before #499 §2)
 
 Measured on the unmodified config (`pool: 'forks'`, `maxConcurrency: 1`, no
 explicit `fileParallelism`/`poolOptions`), before the explicit-parallelism
@@ -70,7 +185,7 @@ bounded** — prevent connection storms on high-core CI, leave headroom for
 the dev machine locally — not to crank fork count. See the schema-reuse
 evaluation below for the alternative that *was* considered and rejected.
 
-## After — 2026-06-18 (with #499 §2 explicit parallelism)
+## The integration lane — after, 2026-06-18 (with #499 §2 explicit parallelism)
 
 Same command, same machine (11 cores), with `fileParallelism: true` +
 `poolOptions.forks.maxForks` bounded (6 locally) and the §7 orphaned-schema

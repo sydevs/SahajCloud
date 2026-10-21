@@ -1,0 +1,94 @@
+/**
+ * The template is generated from `IMPORT_COLUMNS`, so a column rename cannot
+ * ship a header the parser refuses. Nothing guaranteed the same of its **example
+ * row**, and #907 broke it: requiring `date` for a weekly class left the example
+ * with a blank one, so the template shipped a row its own schedule mapper
+ * refused.
+ */
+
+import { readFileSync } from 'node:fs'
+
+import { Temporal } from '@js-temporal/polyfill'
+import { parse } from 'csv-parse/sync'
+import { describe, expect, it } from 'vitest'
+
+import { checkRowFields } from '@/plugins/eventImport/csv/fieldChecks'
+import { mapCsvSchedule } from '@/plugins/eventImport/csv/schedule'
+import { buildImportTemplate, isTemplateHelpRow } from '@/plugins/eventImport/csv/template'
+import { prepareUpload } from '@/plugins/eventImport/csv/upload'
+
+/** Where the admin panel's own link points. */
+const CHECKED_IN = 'public/event-import-template.csv'
+
+const parsed = (): Record<string, unknown>[] =>
+  parse(buildImportTemplate(), { bom: true, columns: true, skip_empty_lines: true })
+
+/** The example row as an upload of the template reads it. */
+const exampleRow = () => {
+  const result = prepareUpload('template.csv', Buffer.from(buildImportTemplate(), 'utf8'))
+  if (!result.ok || !result.rows[0]) throw new Error('the template has no example row')
+  return result.rows[0].values
+}
+
+describe('the import template reads as an upload of it does', () => {
+  it('yields the help row and the example row, and nothing else', () => {
+    const records = parsed()
+    expect(records).toHaveLength(2)
+    expect(isTemplateHelpRow(Object.values(records[0]!).map(String))).toBe(true)
+    expect(exampleRow().title).toBe('Tuesday Evening Meditation')
+  })
+
+  /**
+   * The example row is reported rather than skipped, so a volunteer who leaves
+   * it in is told to replace it. That one error is the only one it may carry:
+   * any other means the template itself names a value the checks refuse.
+   */
+  it('carries no fault but being the example', () => {
+    const errors = checkRowFields(exampleRow())
+    expect(errors).toHaveLength(1)
+    expect(errors[0]).toContain("this is the template's example row")
+  })
+
+  it('builds a schedule from the example row', () => {
+    const result = mapCsvSchedule(
+      exampleRow(),
+      'Europe/Berlin',
+      Temporal.PlainDate.from('2026-10-10'),
+    )
+
+    expect(result.ok).toBe(true)
+    // 18:30 on Tuesday 2026-01-06 in Europe/Berlin (CET, UTC+1) is 17:30Z, so
+    // the example's `date` and its `weekdays` agree — the pair the weekly arm
+    // refuses when they do not.
+    expect(result.ok && result.schedule).toMatchObject({
+      firstDate: '2026-01-06T17:30:00.000Z',
+      recurrenceType: 'WEEKLY',
+      weekdays: ['TU'],
+    })
+  })
+})
+
+/**
+ * The volunteer downloads a static file, not a generated one: the Import tab's
+ * description links `/event-import-template.csv`, which Next serves straight out
+ * of `public/`. So nothing but this case stands between a renamed column and a
+ * template the parser refuses — which is exactly the failure `columns.ts` was
+ * made one constant to prevent.
+ *
+ * ⚠ **No endpoint and no build step, deliberately.** An endpoint would have to
+ * be reachable anonymously (a volunteer downloads before anything is saved), and
+ * a generated file in `public/` is one nobody can see go stale. A checked-in file
+ * plus this case is the whole mechanism, and the failure message carries what to
+ * paste.
+ */
+describe('the checked-in template matches the generated one', () => {
+  it('has not drifted from IMPORT_COLUMNS', () => {
+    const expected = buildImportTemplate()
+    const actual = readFileSync(CHECKED_IN, 'utf-8')
+    if (actual !== expected) {
+      throw new Error(
+        `${CHECKED_IN} is out of date. Replace its contents with exactly this:\n\n${expected}`,
+      )
+    }
+  })
+})

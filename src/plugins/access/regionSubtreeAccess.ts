@@ -52,7 +52,7 @@ interface ScopeArgs {
  * writes are confined to. One-to-two queries regardless of tree depth (see
  * `resolveManagedDocIds`).
  */
-function resolveOwnedRegionIds(req: PayloadRequest, userId: number): Promise<number[]> {
+export function resolveOwnedRegionIds(req: PayloadRequest, userId: number): Promise<number[]> {
   const regionFields = getDocManagerFields(req.payload, 'regions')
   return resolveManagedDocIds(req, 'regions', userId, regionFields)
 }

@@ -26,7 +26,11 @@ describe('registrationsFull signal (#599)', () => {
   let userId: number
   let client: TestUser
 
+  // One region, all online: the duplicate-class rule keys the fixtures apart on
+  // start time alone, so each event starts a minute after the last.
+  let startSlot = 0
   async function createEvent(overrides: Record<string, unknown>): Promise<number> {
+    startSlot += 1
     const event = await payload.create({
       collection: 'events',
       overrideAccess: true,
@@ -38,7 +42,12 @@ describe('registrationsFull signal (#599)', () => {
         registrationMode: 'sahaj-atlas',
         manager: managerId,
         region: regionId,
-        schedule: FUTURE_ONE_OFF,
+        schedule: {
+          ...FUTURE_ONE_OFF,
+          firstDate: new Date(
+            Date.parse(FUTURE_ONE_OFF.firstDate) + startSlot * 60_000,
+          ).toISOString(),
+        },
         _status: 'published',
         ...overrides,
       }),

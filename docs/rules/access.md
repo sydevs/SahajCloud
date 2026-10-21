@@ -9,41 +9,9 @@ paths:
 
 The `accessPlugin` gives every collection access control automatically. A collection needs no manual `access` config. The plugin also sets `admin.hidden` for project visibility and field-level access for localized fields.
 
-## Architecture
-
-- Static permission checking, no factory pattern.
-- O(1) lookup tables, built once at module load.
-- Bypass logic in `src/plugins/access/bypassPermissions.ts`.
-
-| File | Purpose |
-| --- | --- |
-| `config/projects.ts` | Project config, lookup tables, helpers |
-| `config/roles.ts` | Role config, lookup tables, helpers |
-| `config/index.ts` | Barrel export |
-| `bypassPermissions.ts` | Shared bypass function |
-| `accessPlugin.ts` | Main orchestration |
-| `permissions.ts` | `hasPermission`, `hasAnyPermission` |
-| `accessConfigs.ts` | Access configuration factories, plus `withDerivedGrants` (the derived keys, below) |
-| `fieldAccess.ts` | Field-level access for translatable collections |
-| `visibility.ts` | Admin UI visibility (`createHidden`) |
-| `filterAvailableLocales.ts` | Admin locale-selector filtering |
-
-```typescript
-import { accessPlugin, bypassPermissions } from '@/plugins/access'
-
-plugins: [accessPlugin({ enabled: true, bypassPermissions })]
-```
-
 ## Manager roles
 
 The Manager `type` field controls top-level access: `inactive` (denied), `manager` (uses `roles` plus document-level manager access, below), `admin` (full bypass — the admin UI hides `roles`).
-
-| Role | Description |
-| --- | --- |
-| `meditations-editor` | Create and edit meditations, upload media |
-| `path-editor` | Edit lessons, lectures, and lecture clips. Upload media |
-| `web-translator` | Edit localized fields on pages, songs, albums (read-only otherwise) |
-| `atlas-manager` | Sahaj Atlas: read project-wide. Create, update, and trash events and regions — writes scoped to the manager's owned-region subtree, below |
 
 Manager roles are **per-locale**: a manager can hold `meditations-editor` in English and `web-translator` in Czech, and gets the matching access in each admin locale.
 
@@ -58,6 +26,8 @@ This only works because the authenticated user loads **four times**, not once. `
 ⚠ **Nothing wires this up on the collection**. `accessPlugin` attaches all four hooks to any auth collection whose `roles` field is `localized`. A future such collection is covered automatically. `Clients.roles` is flat, so it is skipped.
 
 ⚠ **A manager loaded any other way still carries the flat array.** Fine for editing the document. Wrong for deciding access.
+
+**The admin locale selector follows the same roles** (`filterAvailableLocales`). **English is not force-added** (#665). A manager holding roles only in French sees French alone, and Payload lands them there — the forced English entry used to make their own locale unreachable. The first entry is both the top of the dropdown and the landing locale, so the ordering is a real behavior, not cosmetics.
 
 ### What a check with no locale means
 
@@ -90,39 +60,19 @@ A custom **endpoint** does not call it directly either: `requireManagerPermissio
 
 ## API client roles
 
-| Role | Application |
-| --- | --- |
-| `wemeditate-web-client` | We Meditate web frontend |
-| `wemeditate-app-client` | We Meditate mobile app |
-| `sahaj-atlas-client` | Sahaj Atlas application |
-
 The `-client` suffix disambiguates a client role from a project slug. Client roles are **not localized** — one set of roles applies across every locale. Clients are read-only by default. `wemeditate-web` and `sahaj-atlas` may additionally **create** `user-submissions` — create only, with no update of any kind. The registrant confirm/deny vote that once needed an `update` grant, a uuid-scoped access branch and a field-whitelist hook is written by the CMS-hosted `/registrations/feedback` page with `overrideAccess`, and always was, so all three were removed (#723). API clients see only published documents on draft-enabled collections **and globals**.
 
 ⚠ **"and globals" is load-bearing, and was false until it was fixed.** The published-only clause asks `entityHasDrafts` whether the entity carries drafts. That used to resolve the slug through `req.payload.collections[...]` alone — a map a global is not in — so it answered `false` for every global, the clause never fired on one, and an ordinary client API key plus `?draft=true` read unpublished copy out of all three translations globals with no live-preview credential at all. It now checks `req.payload.config.globals` too. `globals-client-reads.int.spec.ts` reproduces the leak and fails if that branch is removed.
-
-## Permission checking
-
-```typescript
-import { hasPermission, hasAnyPermission } from '@/plugins/access'
-
-hasPermission({ user, collection: 'pages', operation: 'read' })
-hasPermission({ user, collection: 'pages', operation: 'update', field: { localized: true } })
-
-// Any-of (visibility, multi-op gating)
-hasAnyPermission({ user, collection: 'pages', operations: ['create', 'update', 'delete'] })
-
-// With an explicit bypass (testing or custom logic)
-hasPermission({ user, collection: 'pages', operation: 'update' }, bypassFn)
-```
 
 ## Permission flow
 
 1. Block null users.
 2. Run `bypassPermissions`, in the order the code checks them: the admin bypass, then inactive-manager and unpublished-client blocking, then self-access (read your own document, and update it if you are a manager). Self-access is last, so neither an inactive manager nor a draft client reaches it.
-3. Run an O(1) permission-table lookup.
-4. Check translate permission for a localized field update.
-5. Apply project-based implicit read: the role's project, plus every collection listed in no project (shared).
-6. Apply document-level manager access — see below — when every prior step denies an active non-admin manager a read or update.
+3. Resolve the roles for the request's scope (`extractRoles`). None resolvable → deny.
+4. For each role: **(a)** project-based implicit read — the role's project, plus every collection listed in no project (shared), restricted collections excepted. **(b)** An O(1) permission-table lookup, where `translate` grants an update on localized fields only.
+5. Otherwise deny. `createAccessConfig` then applies document-level manager access — see below — when `hasPermission` denies an active non-admin manager a read or update.
+
+The numbers are the step comments in `permissions.ts`.
 
 A bypass function returns `'allow'`, `'deny'`, or `'continue'`.
 
@@ -130,7 +80,7 @@ A bypass function returns `'allow'`, `'deny'`, or `'continue'`.
 
 ### Project-based implicit read
 
-Managers and API clients both read their role's project plus every shared collection. `web-translator` reads pages, meditations, songs, and shared. `wemeditate-app-client` reads meditations, lessons, lectures, lecture clips, and shared. `sahaj-atlas-client` reads images and files (sahaj-atlas) and shared.
+Managers and API clients both read their role's project plus every shared collection.
 
 ### Document-level manager access
 
@@ -142,7 +92,7 @@ A `managers` (hasMany) or `manager` relationship to `managers` on any collection
 
 ### Region-subtree write scoping (Atlas managers)
 
-`atlas-manager` is the one role granting **create, update, and delete** on `events` and `regions`. `regionSubtreeAccess.ts` narrows every such grant to the manager's **owned-region subtree**: the regions listing them in `managers`, plus every descendant via `breadcrumbs`.
+`atlas-manager` is the one role granting writes on `events` (create, update, delete) and `regions` (create and update) — `config/roles.ts`. `regionSubtreeAccess.ts` narrows every such grant to the manager's **owned-region subtree**: the regions listing them in `managers`, plus every descendant via `breadcrumbs`.
 
 - **regions** — `create` requires the new region's `parent` in the subtree. `update` is scoped to subtree members. There is no `delete` (admin-only, since child regions and events reference it by foreign key).
 - **events** — scoped by `region ∈ subtree` **or** `manager == user` (the direct-owner case). `create` requires the incoming `region` in the subtree. Hard `delete` is scoped the same way. Soft-delete (trash) is an `update` to `deletedAt`, already covered.
@@ -217,17 +167,19 @@ Withdrawing the bypass is the whole close: no client role names `clients` at all
 
 This cuts the opposite way from implicit read, above, and the obvious reading is wrong. Payload's system collections sit in no project. They are reachable only by explicit permission or the admin bypass — because no role grants write on them, not because "no project" is restrictive. For read, "no project" means the opposite: shared, and readable by every role.
 
-**`RESTRICTED_COLLECTIONS`** (`config/projects.ts`) is the only way to stop that. A collection named there is skipped by implicit read, so only an explicit `read` grant, or the admin bypass, reaches it. It holds `users`, `user-submissions`, `managers` and `clients` — personal data and credentials.
+**`RESTRICTED_COLLECTIONS`** (`config/projects.ts`) is the only way to stop that. A collection named there is skipped by implicit read, so only an explicit `read` grant, or the admin bypass, reaches it. It holds `users`, `user-submissions`, `managers`, `clients` and `imports` — personal data and credentials.
 
 ⚠ **`managers` is there because "no project" was reading as shared** (#821): every published API key, the Atlas widget's browser key included, read every manager's name and email. **No client role gets a grant back.** `atlas-manager` holds the only one, because it picks on `Events.manager` and `Regions.managers`; `web-translator` gets nothing and renders a raw id in the Page Editors sidebar, which is the accepted cost.
 
 ⚠ **`clients` is there because the same default exposed every service's credentials** (#822): a published key read every other service's decrypted `apiKey`, origin allowlist and usage counters. A service's own listed managers still reach it, through the document-manager path in `accessConfigs.ts`.
 
+⚠ **`imports` is there because a class import is kept for the retention window** (#907): its skipped rows carry contact names, phone numbers and email addresses. The collection declares its own `access` block (`src/plugins/eventImport/importCollection.ts`): any manager who may create classes may create one, admins and the managers of the target region's subtree read and delete, nobody updates. `atlas-manager` holds `imports: create`, which is also what keeps the collection's admin pages visible to them.
+
 ⚠ **Restricting a collection reaches a relationship to it. It does not reach a copy of it.** Every `relationTo: 'managers'` field is covered and needs no lock of its own, because populate falls back to the bare id once the related read is refused. A field storing a manager's name or address *as a value* is not covered, and needs a field lock instead — which is the next section, and why two fields on `events` have one.
 
 ⚠ **It does not cover the caller's own row.** Self-access read answers at step 2, before the check, so a published client still reads its whole `clients` document over `GET /api/clients/me` — deliberately, because the atlas widget suspends on that read at every boot. Restricting `clients` is what stops a key reading *other* services (#822); the field lock below is what keeps `apiKey` out of its own answer. Neither layer does the other's job.
 
-⚠ **Treat the list as a holding pattern.** All four collections that sit in no project are named in it now, so it is complete today and fails open the day a fifth is added. The real fix is for step 4a to test project membership directly, so a new collection fails closed. Its docblock says so.
+⚠ **Treat the list as a holding pattern.** All five collections that sit in no project are named in it now, so it is complete today and fails open the day a sixth is added. The real fix is for step 4a to test project membership directly, so a new collection fails closed. Its docblock says so.
 
 ⚠ **A collection's own `access` block outranks all of this**, because `accessPlugin` composes `{ ...createAccessConfig(slug, …), ...collection.access }` so a deliberate override is never clobbered. A plugin-created collection can therefore arrive with an `access` nobody here chose: the form-builder's submissions collection ships `read: ({ req: { user } }) => !!user`, which grants read to every authenticated user, API clients included. `src/plugins/formBuilder` clears it for `user-submissions` for exactly that reason. **Adding a collection to this list proves nothing on its own** — assert it by reading rows back through `overrideAccess: false`, as `tests/int/user-submissions-access.int.spec.ts` does. Asserting `hasPermission` alone would have passed while the hole was open.
 
@@ -236,14 +188,6 @@ This cuts the opposite way from implicit read, above, and the obvious reading is
 ⚠ **`accessPlugin` never sees them.** `sanitizeConfig` appends `payload-jobs`, `payload-jobs-stats`, `payload-locked-documents`, `payload-preferences`, `payload-migrations` and `payload-kv` after every plugin has run, mostly with `Boolean(user)` access — which a published client key satisfies. Any client key could queue or rewrite jobs, call `/api/payload-jobs/run`, overwrite the job-stats global, create locks, and PATCH another user's preference row into its own.
 
 `restrictPayloadSystemEntities` (`systemEntities.ts`) sets their access on the **sanitized** config, so every `buildConfig` call site applies it — `src/payload.config.ts`, `tests/utils/testHelpers.ts` and `seeds/tests/test-payload.config.ts`. ⚠ Nothing enforces that coupling but prose, so count the call sites when you add one. Not `onInit`: dev hot reload swaps in a freshly sanitized config without re-running it.
-
-| Entity | Access |
-| --- | --- |
-| `payload-jobs`, `payload-migrations`, `payload-jobs-stats`, `jobs.access` (`run`/`queue`/`cancel`) | Admins only |
-| `payload-locked-documents` | Active managers — the edit view locks, takes over and releases over REST |
-| `payload-preferences` | Managers, own rows only; every endpoint refuses a non-manager, since the `/:key` handlers skip access |
-| `payload-kv` | Nobody |
-| Any other `payload-*` | Admins only, so a new one fails closed |
 
 In-app job callers (autoRun, the screening kick) leave `overrideAccess` at its default `true`, so none reaches `jobs.access`. `tests/int/payload-system-access.int.spec.ts` sweeps every `payload-*` entity's access for a client key.
 
@@ -254,7 +198,7 @@ In-app job callers (autoRun, the screening kick) leave `overrideAccess` at its d
 It is deliberately **wider** than `adminOnlyFieldAccess`, which is the wrong tool for this: a client's own managers must be able to configure their service, and document-level manager access already decides which clients each manager sees. Five fields carry it:
 
 - ⚠ `Clients.apiKey` — the base auth field. Until Payload 3.90 it was decrypted on every read, so without the lock `GET /api/clients/me` handed a browser-shipped key its own plaintext credential (#822). Payload now strips a stored key from **every** read itself (`omitAPIKey`, exposing only a `hasAPIKey` boolean), and the one way to read a key back is `POST /api/clients/:id/api-key/reveal`, enabled by `useAPIKey: { reveal: true }`. That endpoint requires admin access, `update` on the row, and then this field's own `update` lock — so the lock is still load-bearing: it is the last gate on reveal, and the whole gate on a client choosing its own key. Declare it at the **top level** of `Clients.fields`: `mergeBaseFields` matches by name only at the level it is handed, so a copy nested in a tab sanitizes to two `apiKey` fields instead of one.
-- `Clients.mailingList` — the same self-read would otherwise hand a service's own key its provider secret (`docs/rules/api-clients.md`).
+- `Clients.mailingList` — the same self-read would otherwise hand a service's own key its provider secret (`docs/rules/clients.md`).
 - `Forms.client` — `forms` keeps the form-builder plugin's `read: () => true`, which outranks the generated access config, and populating a `clients` document hands over a plaintext `apiKey` (#822). Belt and braces now that `clients` is restricted, and it stays: it is the half that survives if the collection is ever unrestricted.
 - `Forms.recipient` — the same collection, and now defence in depth behind restricted `managers` (#821).
 - `Events.registrationNotificationEmail` — a manager's address *copied* onto a collection the `sahaj-atlas` project reads (#821).
@@ -277,31 +221,9 @@ Both public intakes' POSTs are `x-internal` for exactly this reason: neither sit
 
 ## Adding a new role
 
-1. Add it to the `ROLES` constant in `src/plugins/access/config/roles.ts`:
-
-```typescript
-const ROLES = {
-  'my-new-role': {
-    label: 'My New Role',
-    description: 'Description of the role',
-    project: 'wemeditate-web' as const,
-    permissions: {
-      'my-collection': ['create', 'update'] as PermissionLevel[],
-    },
-  },
-}
-```
+1. Add it to the `ROLES` constant in `src/plugins/access/config/roles.ts`.
 
 Lookup tables compute automatically. No manual update is needed.
 
 2. Run `pnpm generate:types` to regenerate `RoleSlug`.
 3. Add tests in `tests/int/role-based-access.int.spec.ts`.
-
-## Admin UI
-
-`PermissionsTable` (`src/components/admin/PermissionsTable.tsx`) shows computed permissions live as roles are toggled, rendered as `afterInput` on the `roles` field, with color-coded pills for read, create, update, and delete.
-
-## Testing
-
-- `tests/int/role-based-access.int.spec.ts` — RBAC integration tests.
-- `tests/utils/testData.ts` — factories for managers and clients with roles.

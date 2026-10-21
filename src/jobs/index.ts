@@ -7,6 +7,7 @@ import { SendPostEventFollowUps } from './RegistrationNotifications/SendPostEven
 import { SendRegistrationDigests } from './RegistrationNotifications/SendRegistrationDigests'
 import { SendSessionReminders } from './RegistrationNotifications/SendSessionReminders'
 import { ScreenSubmissions } from './ScreenSubmissions/ScreenSubmissions'
+import { SweepEventImports } from './SweepEventImports/SweepEventImports'
 import { SyncLectureMetadata } from './SyncLectureMetadata/SyncLectureMetadata'
 import { TranscribeMeditation } from './TranscribeMeditation/TranscribeMeditation'
 import { VerifyEmbeds } from './VerifyEmbeds/VerifyEmbeds'
@@ -23,6 +24,7 @@ export const tasks = [
   SendPostEventFollowUps,
   SendRegistrationDigests,
   SendSessionReminders,
+  SweepEventImports,
   SyncLectureMetadata,
   TranscribeMeditation,
   VerifyEmbeds,

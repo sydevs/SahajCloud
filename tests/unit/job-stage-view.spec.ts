@@ -8,11 +8,13 @@
  *
  * The declaration cases below are inline literals, but the pair that matters
  * most is read off the real `meditation-transcripts` config: that the
- * collection declares `processing` and not `queued`, and that `queued` is what
- * `status` defaults to. Stated as two inline fixtures those two facts could
- * drift apart silently, and the row stranded behind a waiting view is what
- * drift would cost (#960).
+ * collection declares `processing`, and that the virtual `status` field can
+ * actually hold it. Stated as two inline fixtures those two facts could drift
+ * apart silently, and the row stranded behind a waiting view is what drift
+ * would cost (#960).
  */
+import type { CollectionConfig } from 'payload'
+
 import { join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
@@ -24,6 +26,8 @@ import {
   readJobStageConfig,
 } from '@/components/admin/JobStageView/stages'
 import { TRANSCRIPTION_STALL_MS } from '@/lib/meditations/transcript'
+import { IMPORT_STALL_MS } from '@/plugins/eventImport/constants'
+import { importCollection } from '@/plugins/eventImport/importCollection'
 
 import { hasDirective, SRC, sourceOf } from '../utils/importGraph'
 
@@ -47,19 +51,26 @@ const codeOf = (file: string): string =>
     .replace(/\/\*[\s\S]*?\*\//g, '')
     .replace(/\/\/.*$/gm, '')
 
-const statusField = (): { defaultValue?: unknown; options?: unknown } => {
-  const field = MeditationTranscripts.fields.find(
-    (f) => 'name' in f && f.name === 'status',
-  ) as undefined | { defaultValue?: unknown; options?: unknown }
-  if (!field) throw new Error('meditation-transcripts declares no `status` field')
-  return field
+type Collection = CollectionConfig
+
+const EventImports: CollectionConfig = importCollection
+
+const fieldNamed = (collection: Collection, name: string) => {
+  const field = collection.fields.find((f) => 'name' in f && f.name === name)
+  if (!field) throw new Error(`${collection.slug} declares no \`${name}\` field`)
+  return field as { defaultValue?: unknown; options?: unknown }
 }
 
-const transcriptConfig = (): JobStageConfig => {
-  const config = readJobStageConfig(MeditationTranscripts.admin?.custom)
-  if (!config) throw new Error('meditation-transcripts declares no `jobStage`')
+const statusField = (collection: Collection = MeditationTranscripts) =>
+  fieldNamed(collection, 'status')
+
+const stageConfig = (collection: Collection): JobStageConfig => {
+  const config = readJobStageConfig(collection.admin?.custom)
+  if (!config) throw new Error(`${collection.slug} declares no \`jobStage\``)
   return config
 }
+
+const transcriptConfig = (): JobStageConfig => stageConfig(MeditationTranscripts)
 
 describe('readJobStageConfig', () => {
   it('reads a declaration, keeping `progressField` only when one is given', () => {
@@ -74,15 +85,16 @@ describe('readJobStageConfig', () => {
   })
 
   it('keeps a usable `staleAfterMs`, and drops one that would open every row', () => {
-    expect(
-      readJobStageConfig({ jobStage: { runningStages: ['a'], staleAfterMs: 1000 } }),
-    ).toEqual({ runningStages: ['a'], staleAfterMs: 1000 })
+    expect(readJobStageConfig({ jobStage: { runningStages: ['a'], staleAfterMs: 1000 } })).toEqual({
+      runningStages: ['a'],
+      staleAfterMs: 1000,
+    })
     expect(readJobStageConfig({ jobStage: { runningStages: ['a'], staleAfterMs: 0 } })).toEqual({
       runningStages: ['a'],
     })
-    expect(readJobStageConfig({ jobStage: { runningStages: ['a'], staleAfterMs: '60' } })).toEqual(
-      { runningStages: ['a'] },
-    )
+    expect(readJobStageConfig({ jobStage: { runningStages: ['a'], staleAfterMs: '60' } })).toEqual({
+      runningStages: ['a'],
+    })
   })
 
   it('refuses a declaration with no usable `runningStages`', () => {
@@ -106,7 +118,7 @@ describe('jobStageWait', () => {
     expect(jobStageWait(config, { status: 'finished' })).toBeNull()
   })
 
-  it('falls through when the status column holds nothing it can read', () => {
+  it('falls through when the status field holds nothing it can read', () => {
     expect(jobStageWait(config, {})).toBeNull()
     expect(jobStageWait(config, null)).toBeNull()
     expect(jobStageWait(config, { status: ['working'] })).toBeNull()
@@ -163,9 +175,11 @@ describe('jobStageWait', () => {
       runningStages: ['working'],
       totalField: 'progress.total',
     }
-    expect(
-      jobStageWait(counted, { progress: { done: 7, total: 20 }, status: 'working' }),
-    ).toEqual({ progress: 7, stage: 'working', total: 20 })
+    expect(jobStageWait(counted, { progress: { done: 7, total: 20 }, status: 'working' })).toEqual({
+      progress: 7,
+      stage: 'working',
+      total: 20,
+    })
   })
 
   /**
@@ -228,7 +242,7 @@ describe('the view itself', () => {
    * component cannot carry the refresh handler, and a client one cannot be
    * handed the `req` and `payload` props the fall-through forwards.
    */
-  it('keeps the refresh control as the folder\'s only client component', () => {
+  it("keeps the refresh control as the folder's only client component", () => {
     expect(hasDirective(inFolder('CheckAgain.tsx'), 'use client')).toBe(true)
   })
 
@@ -269,7 +283,7 @@ describe('meditation-transcripts', () => {
     ).toBeNull()
   })
 
-  it('declares every running stage the status column can actually hold', () => {
+  it('declares every running stage the virtual `status` field can actually hold', () => {
     const { options } = statusField()
 
     expect(
@@ -279,6 +293,48 @@ describe('meditation-transcripts', () => {
 
   it('registers the view on its default edit route', () => {
     expect(MeditationTranscripts.admin?.components?.views?.edit).toEqual({
+      default: { Component: '@/components/admin/JobStageView/JobStageView' },
+    })
+  })
+})
+
+describe('imports', () => {
+  it('declares `pending` as its only running stage, behind the stall window, with no count', () => {
+    // The plugin publishes no progress column, so the view waits without one.
+    expect(stageConfig(EventImports)).toEqual({
+      runningStages: ['pending'],
+      staleAfterMs: IMPORT_STALL_MS,
+    })
+  })
+
+  it('declares every running stage the status column can actually hold', () => {
+    const options = statusField(EventImports).options as { value: string }[]
+    const held = options.map(({ value }) => value)
+
+    for (const stage of stageConfig(EventImports).runningStages) {
+      expect(held).toContain(stage)
+    }
+  })
+
+  /**
+   * The one collection whose `status` defaults INTO a running stage, against
+   * the view's own rule — because here that default is true: the create queues
+   * the plugin's import job. `staleAfterMs` is the whole safety, so the case
+   * asserts both halves of it, and deleting the window makes the second fail.
+   */
+  it('holds a fresh import behind the view, and hands it back past the stall window', () => {
+    const config = stageConfig(EventImports)
+    const { defaultValue } = statusField(EventImports)
+    const created = { status: defaultValue, updatedAt: '2026-10-17T00:00:00.000Z' }
+    const createdAt = Date.parse(created.updatedAt)
+
+    expect(defaultValue).toBe('pending')
+    expect(jobStageWait(config, created, createdAt + IMPORT_STALL_MS)).not.toBeNull()
+    expect(jobStageWait(config, created, createdAt + IMPORT_STALL_MS + 1)).toBeNull()
+  })
+
+  it('registers the view on its default edit route', () => {
+    expect(EventImports.admin?.components?.views?.edit).toEqual({
       default: { Component: '@/components/admin/JobStageView/JobStageView' },
     })
   })
