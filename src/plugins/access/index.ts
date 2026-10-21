@@ -18,12 +18,12 @@
 // --- PLUGIN (main export) ---
 
 export { accessPlugin, hasPermission, hasAnyPermission } from './accessPlugin'
+export { holdsCollectionPermission } from './permissions'
 export type { AccessPluginOptions } from './accessPlugin'
 
 // --- BYPASS FUNCTION (shared between accessPlugin and tests) ---
 
 export { bypassPermissions } from './bypassPermissions'
-export { holdsCollectionPermission } from './collectionPermission'
 
 // --- Utilities ---
 
