@@ -46,7 +46,12 @@ const FALLBACKS = {
  * module serves a drafts-enabled collection `PublishButton` / `SaveDraftButton`
  * and never `SaveButton`, so Meditations declares the first two.
  */
-const WorkflowButtons: React.FC<WorkflowButtonsProps> = ({ fallback, stages, statusField }) => {
+const WorkflowButtons: React.FC<WorkflowButtonsProps> = ({
+  fallback,
+  onlyWhen,
+  stages,
+  statusField,
+}) => {
   const { uploadStatus } = useDocumentInfo()
   const operation = useOperation()
   const { submit } = useForm()
@@ -55,6 +60,9 @@ const WorkflowButtons: React.FC<WorkflowButtonsProps> = ({ fallback, stages, sta
   const status = useFormFields(([fields]) =>
     statusField ? fields?.[statusField]?.value : undefined,
   )
+  // Read from form state beside the status, not from the loaded document, so a
+  // declaration can gate on a field the reviewer is editing.
+  const gate = useFormFields(([fields]) => (onlyWhen ? fields?.[onlyWhen.field]?.value : undefined))
 
   const run = useCallback(
     (action: WorkflowButton) => {
@@ -64,7 +72,13 @@ const WorkflowButtons: React.FC<WorkflowButtonsProps> = ({ fallback, stages, sta
     [submit],
   )
 
-  const stage = resolveStage({ operation, status, statusField })
+  // A gated-out document names no stage, which is the same answer as a status
+  // the declaration never mentioned — so it takes the fallback path already
+  // below rather than a branch of its own.
+  const stage =
+    onlyWhen && gate !== onlyWhen.equals
+      ? undefined
+      : resolveStage({ operation, status, statusField })
   const actions = stage === undefined ? undefined : stages[stage]
 
   if (!actions) {

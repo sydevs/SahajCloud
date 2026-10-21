@@ -6,8 +6,8 @@
  * reference rather than its value, so a config reading `CREATE_STAGE` from
  * `WorkflowButtons.tsx` would key its `stages` map on an object. The component
  * imports this file; the configs that declare it do too — the same shape as
- * `UserSubmissions/statuses.ts`, which `SubmissionActions` and the review
- * operation share.
+ * `UserSubmissions/statuses.ts`, which the collection's own hooks and the
+ * review lifecycle share.
  */
 
 /** Where the component is declared from, so a move cannot orphan a declaration. */
@@ -40,6 +40,16 @@ export interface WorkflowButton {
 export interface WorkflowButtonsProps<TStage extends string = string> {
   /** Form field whose value picks the stage; omit to key on the create alone. */
   statusField?: string
+  /**
+   * Render `fallback` unless this form field holds this value, whatever stage
+   * the status names.
+   *
+   * ⚠ **A collection-wide slot over several intakes needs this.**
+   * `user-submissions` holds four, and all four share one status vocabulary, so
+   * a `contact` row sitting at `pending` resolves the same stage as a proposal
+   * awaiting review — and would be offered Accept and Reject.
+   */
+  onlyWhen?: { field: string; equals: unknown }
   /** Buttons per stage. An empty array is a stage with no action, not a missing one. */
   stages: Partial<Record<TStage, WorkflowButton[]>>
   /** What a stage with no entry renders: Payload's own button, or nothing. */

@@ -1,6 +1,6 @@
 /**
  * The locale on a hand-rolled admin REST call is a permission, not a query
- * option (#701). Three of the four call sites that carry the fix build a URL
+ * option (#701). Two of the three call sites that carry the fix build a URL
  * or an SWR key from `useLocale().code`, and only a browser can observe them
  * end to end — so the string each one builds is pinned here instead.
  *
@@ -8,15 +8,18 @@
  * accepted and its absence is refused. They cannot see whether a client sends
  * it. That is what these assertions cover.
  *
- * The fourth site, `fetchRelationshipDocs`, is pinned in
+ * The third site, `fetchRelationshipDocs`, is pinned in
  * `relationshipDocLoader.spec.ts` against a stubbed `fetch`.
+ *
+ * `submissionActionUrl` was a fourth until #909 moved submission review onto
+ * `WorkflowButtons`. Payload's own document form carries the locale in the
+ * `action` it builds, so there is no hand-rolled URL left to pin.
  */
 
 import { describe, expect, it } from 'vitest'
 
 import { framesByNarratorKey } from '../../src/components/admin/FrameEditor/utils'
 import { transcriptUrl } from '../../src/components/admin/MeditationTranscript/transcriptModel'
-import { submissionActionUrl } from '../../src/components/admin/SubmissionReview/urls'
 
 describe('framesByNarratorKey', () => {
   it('puts the locale in the request URL', () => {
@@ -40,37 +43,6 @@ describe('framesByNarratorKey', () => {
 
   it('refuses to build a key with no narrator', () => {
     expect(framesByNarratorKey(null, 'fr')).toBeNull()
-  })
-})
-
-describe('submissionActionUrl', () => {
-  it('sends the locale on the review op, which is role-gated', () => {
-    expect(submissionActionUrl(7, 'accept', 'fr')).toBe(
-      '/api/user-submissions/7/review?locale=fr',
-    )
-    expect(submissionActionUrl(7, 'reject', 'fr')).toBe(
-      '/api/user-submissions/7/review?locale=fr',
-    )
-    expect(submissionActionUrl(7, 'reopen', 'fr')).toBe(
-      '/api/user-submissions/7/review?locale=fr',
-    )
-  })
-
-  it('sends it on DELETE too, so both calls have one shape', () => {
-    expect(submissionActionUrl(7, 'delete', 'fr')).toBe('/api/user-submissions/7?locale=fr')
-  })
-
-  it('encodes the locale', () => {
-    expect(submissionActionUrl(7, 'accept', 'pt-BR')).toBe(
-      '/api/user-submissions/7/review?locale=pt-BR',
-    )
-  })
-
-  // `?locale=undefined` is rewritten to the default locale by `sanitizeLocales`,
-  // so interpolating an absent code reproduces #701 with no visible failure.
-  it('refuses to build a URL with no locale', () => {
-    expect(submissionActionUrl(7, 'accept', undefined)).toBeNull()
-    expect(submissionActionUrl(7, 'delete', '')).toBeNull()
   })
 })
 

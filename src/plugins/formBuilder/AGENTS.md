@@ -29,20 +29,30 @@ Four things the wrapper does that the plugin options cannot:
   unconditionally `required`; `contact` and `subscribe` need one, and the two
   types that name an `event` must not have one. The plugin's own existence check
   is composed with, not replaced.
-- **Registers the proposal review surface.** `POST /api/user-submissions/:id/review`,
-  the Accept/Reject `SaveButton`, and the live-preview panel all hang off the
+- **Registers the proposal review surface.** The `WorkflowButtons`
+  declaration, `applyReviewDecision` and the live-preview panel all hang off the
   wrapper rather than `formSubmissionOverrides`, because a plugin-generated
-  collection has no `CollectionConfig` file to hang `endpoints` on and this
-  wrapper is the one merge this repo owns. The endpoint is deliberately absent
-  from `CUSTOM_ENDPOINT_PATHS` — that opt-in is the only thing that would
-  publish a manager-only action in the OpenAPI spec.
+  collection has no `CollectionConfig` file to hang them on and this wrapper is
+  the one merge this repo owns. ⚠ The review hook has to be in the wrapper's own
+  `afterChange` array, which **replaces** whatever `formSubmissionOverrides`
+  declared — a review hook listed there would never run, leaving buttons that
+  move a status and apply nothing.
+
+**Review is a status move, not an action endpoint** (#909). `WorkflowButtons`
+submits `{ status: 'accepted' }` through Payload's own document form;
+`guardStatusTransition` (a `beforeChange`) decides whether the move is allowed,
+and `applyReviewDecision` (an `afterChange`) writes the event an accept
+approves. Both bind `req.user.collection === 'managers'`, so screening and
+delivery pass untouched. `POST /api/user-submissions/:id/review` is gone, and
+with it the hand-rolled locale on the call (`docs/rules/access.md`).
 
 ⚠ **Every collection-wide admin slot here serves four intakes.** The review
-components gate on `type === 'proposal'` themselves and fall through to the
-ordinary Save otherwise; `livePreview.url` sends the other three to the
-explanation page, with a reason that fits a row nobody reviews. A new slot owes
-the same branch — the field hooks behind one included, since `admin.condition`
-hides a field without stopping its hooks.
+buttons gate on `type === 'proposal'` through `WorkflowButtons`' `onlyWhen` and
+fall through to the ordinary Save otherwise; `livePreview.url` sends the other
+three to the explanation page, with a reason that fits a row nobody reviews. A
+new slot owes the same branch — the field hooks behind one included, since
+`admin.condition` hides a field without stopping its hooks. The hooks above owe
+it too, which is why both check `type` for themselves.
 
 And an option that takes a **value** rather than a function cannot branch at
 all, so it has to suit the three rather than the one: `openByDefault` is absent

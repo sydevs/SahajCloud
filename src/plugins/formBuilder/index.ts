@@ -4,13 +4,14 @@ import { formBuilderPlugin } from '@payloadcms/plugin-form-builder'
 
 import { formFields } from '@/collections/Forms/fields'
 import { validateFormAction } from '@/collections/Forms/hooks/validateFormAction'
-import { reviewSubmission } from '@/collections/UserSubmissions/endpoints/review'
 import { userSubmissionFields } from '@/collections/UserSubmissions/fields'
+import { applyReviewDecision } from '@/collections/UserSubmissions/hooks/applyReviewDecision'
 import {
   gateEventFeedback,
   syncCommunityFeedback,
 } from '@/collections/UserSubmissions/hooks/eventFeedback'
 import { gateRegistration } from '@/collections/UserSubmissions/hooks/gateRegistration'
+import { guardStatusTransition } from '@/collections/UserSubmissions/hooks/guardStatusTransition'
 import { prepareUserSubmission } from '@/collections/UserSubmissions/hooks/prepareUserSubmission'
 import { queueScreening } from '@/collections/UserSubmissions/hooks/queueScreening'
 import { spawnSubscribeFromRegistration } from '@/collections/UserSubmissions/hooks/spawnSubscribeFromRegistration'
@@ -19,9 +20,30 @@ import {
   syncFullnessAfterDelete,
 } from '@/collections/UserSubmissions/hooks/syncFullness'
 import { validateProposal } from '@/collections/UserSubmissions/hooks/validateProposal'
+import type { WorkflowButtonsProps } from '@/components/admin/WorkflowButtons/stages'
+import { WORKFLOW_BUTTONS } from '@/components/admin/WorkflowButtons/stages'
 import { CONTACT_EMAIL } from '@/lib/contact'
 import { serverEnv } from '@/lib/env/server'
 import { livePreviewUrl } from '@/lib/livePreview/url'
+import type { UserSubmission } from '@/payload-types'
+
+/**
+ * Accept and Reject, offered at every status a decision is still open at —
+ * `pending` and `failed` alike, because `failed` means the review email did not
+ * send and the decision was never made.
+ */
+const REVIEW_BUTTONS = [
+  {
+    label: 'Reject',
+    overrides: { status: 'rejected' },
+    buttonStyle: 'secondary' as const,
+    confirm: 'Reject this submission?',
+  },
+  { label: 'Accept', overrides: { status: 'accepted' } },
+]
+
+/** Reopen, offered where the row was shelved without ever touching an event. */
+const REOPEN_BUTTONS = [{ label: 'Reopen', overrides: { status: 'pending' } }]
 
 /**
  * The form-builder plugin, configured once, plus the two things its options
@@ -56,13 +78,6 @@ import { livePreviewUrl } from '@/lib/livePreview/url'
  *   behaviour change from `form-submissions` and the reason `type`,
  *   `status` and the rest carry field-level access.
  *
- * ⚠ **The review endpoint is registered here, not in `formSubmissionOverrides`.**
- * `user-submissions` is plugin-generated, so there is no `CollectionConfig`
- * file to hang `endpoints` on, and this wrapper is the one merge whose
- * behaviour this repo owns. It is deliberately absent from
- * `CUSTOM_ENDPOINT_PATHS` — that opt-in is the only thing that would publish a
- * manager-only action in the OpenAPI spec.
- *
  * `access: {}` hands the collection back to RBAC.
  * `tests/int/user-submissions-access.int.spec.ts` reads rows back through
  * `overrideAccess: false` rather than asserting the grants, which is what
@@ -74,6 +89,11 @@ import { livePreviewUrl } from '@/lib/livePreview/url'
  * ⚠ Both the clear and the hook removal key on the literal slug
  * `user-submissions`. Renaming the collection without changing them silently
  * restores the anonymous create above.
+ *
+ * ⚠ **`applyReviewDecision` is listed in the `afterChange` array below, not in
+ * `formSubmissionOverrides`.** The replacement below discards whatever that
+ * array held, so a review hook declared there would never run — and the review
+ * surface would be buttons that moved a status and applied nothing.
  *
  * ⚠ The plugin's `sendEmail` afterChange hook is removed below — as
  * `afterChange: []`, which discards the whole array — and stripping `emails` is
@@ -118,9 +138,9 @@ export const formsPlugin = (): Plugin => async (config) => {
                 syncFullnessAfterChange,
                 syncCommunityFeedback,
                 queueScreening,
+                applyReviewDecision,
               ],
             },
-            endpoints: [...(collection.endpoints || []), reviewSubmission],
           }
         : collection,
     ),
@@ -158,10 +178,35 @@ const formBuilder = (config: Parameters<Plugin>[0]) =>
         defaultColumns: ['subject', 'type', 'status', 'senderEmail', 'createdAt'],
         components: {
           edit: {
-            // Accept / Reject replace Save on a `proposal` row. The component
-            // renders the ordinary Save for every other type — this slot is
-            // collection-wide and only one intake has a review path.
-            SaveButton: '@/components/admin/SubmissionReview/SubmissionActions',
+            // Accept / Reject / Reopen replace Save on a `proposal` row, as
+            // data read by the shared `WorkflowButtons` component. `onlyWhen`
+            // is what makes a collection-wide slot safe over four intakes:
+            // every one of them shares this status vocabulary, so without it a
+            // `contact` row at `pending` would be offered Accept and Reject.
+            //
+            // Each button carries a non-empty `overrides`, so none is disabled
+            // on a row nobody edited (`WorkflowButtons`' own rule), and none
+            // sets `skipValidation` — the no-region refusal has to reach the
+            // form as a field error on `region`.
+            //
+            // An `accepted` row is a stage with no action: Payload's own ⋯ menu
+            // carries its Delete, for whoever holds the grant. `atlas-manager`
+            // does not, and that is the button that used to 403.
+            SaveButton: {
+              path: WORKFLOW_BUTTONS,
+              clientProps: {
+                statusField: 'status',
+                onlyWhen: { field: 'type', equals: 'proposal' },
+                fallback: 'save',
+                stages: {
+                  pending: REVIEW_BUTTONS,
+                  failed: REVIEW_BUTTONS,
+                  rejected: REOPEN_BUTTONS,
+                  spam: REOPEN_BUTTONS,
+                  accepted: [],
+                },
+              } satisfies WorkflowButtonsProps<UserSubmission['status']>,
+            },
           },
         },
         // Live Preview renders the event **as an accepted proposal would leave
@@ -220,7 +265,7 @@ const formBuilder = (config: Parameters<Plugin>[0]) =>
         // arrays the wrapper above replaces — so both belong here. Their
         // `afterChange` siblings do not: listing them here would have the
         // wrapper's whole-array replacement discard them.
-        beforeChange: [gateEventFeedback],
+        beforeChange: [gateEventFeedback, guardStatusTransition],
         afterDelete: [syncFullnessAfterDelete],
       },
     },

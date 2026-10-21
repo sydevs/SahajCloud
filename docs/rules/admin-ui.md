@@ -60,18 +60,22 @@ admin.components.edit.SaveButton = {
   path: WORKFLOW_BUTTONS,
   clientProps: {
     statusField: 'status',                      // the form field whose value picks the stage
+    onlyWhen: { field: 'type', equals: 'proposal' }, // optional: otherwise the fallback
     fallback: null,                             // 'publish' | 'save' | 'saveDraft' | null
     stages: { [CREATE_STAGE]: [{ label: 'Next step', overrides: { _status: 'draft' } }] },
   } satisfies WorkflowButtonsProps<MyStage>,
 }
 ```
 
-Each action is `{ label, overrides, confirm?, buttonStyle?, skipValidation? }`; `overrides` is merged into the submit, so `{ status: 'committing' }` is how a button makes a transition and `{}` is a plain save. Four rules:
+Each action is `{ label, overrides, confirm?, buttonStyle?, skipValidation? }`; `overrides` is merged into the submit, so `{ status: 'committing' }` is how a button makes a transition and `{}` is a plain save. Five rules:
 
 - **`clientProps`, not `admin.custom`.** An edit-view slot is not a field, so there is no `field.admin.custom` to read, and `createClientCollectionConfig` strips a collection's top-level `custom`. `renderDocumentSlots` passes a `RawPayloadComponent`'s own `clientProps` through — which is why each declaration is an object rather than a path string.
 - **An empty stage array is not a missing one.** `[]` renders nothing; a stage the declaration never names falls through to `fallback`. Collapsing the two put Publish back on Meditations' create screen.
 - **An unsaved document is `CREATE_STAGE`, whatever the status field holds.** A collection that defaults `status` to a running stage would otherwise hand the create form that stage's buttons.
 - **The contract lives in `stages.ts`, not beside the component.** Every export of a `'use client'` module reaches a server module as a client reference, so a config reading `CREATE_STAGE` off the component would key its map on an object. Same split as `UserSubmissions/statuses.ts`.
+- **A slot serving several kinds of document needs `onlyWhen`.** It reads a second form field and renders `fallback` unless that field holds the declared value, whatever stage the status names. `user-submissions` holds four intakes sharing one status vocabulary, so a `contact` row at `pending` resolves the same stage as a proposal awaiting review — and without the gate would be offered Accept and Reject. The gate outranks a stage declared `[]` too, so a gated-out row falls back to its Save button rather than losing it.
+
+**Only `WorkflowButtons` moves a staged document, so the server needs its own guard.** `admin.readOnly` on the status column is the admin UI alone, and a field access rule that admits managers admits every manager's `PATCH`. `user-submissions` pairs the declaration with `guardStatusTransition` (which transitions a manager may make) and `applyReviewDecision` (what each one then does) — see `src/plugins/formBuilder/AGENTS.md`.
 
 **Building a custom field component?** Compose Payload's primitives (`FieldLabel`, `FieldError`, `FieldDescription`, `RenderFields`, the `*Field` inputs) instead of bespoke markup.
 
