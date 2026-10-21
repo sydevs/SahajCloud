@@ -16,7 +16,11 @@ import type { Field } from 'payload'
 import { createClientField } from 'payload'
 import { describe, expect, it } from 'vitest'
 
-import { buildTranslationTabs, type SchemaEntry, type TranslationsSchema } from '@/fields'
+import {
+  buildTranslationTabs,
+  type SchemaEntry,
+  type TranslationsSchema,
+} from '@/fields/translationsField'
 import { EMAIL_STRING_DEFAULTS } from '@/lib/translations/emailStrings'
 import { PLURAL_CATEGORIES } from '@/lib/translations/pluralCategories'
 
