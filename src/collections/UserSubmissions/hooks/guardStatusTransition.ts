@@ -45,10 +45,19 @@ export const guardStatusTransition: CollectionBeforeChangeHook = ({ data, origin
   // field that fixes it: `region` is editable on an unresolved proposal, and a
   // reviewer correcting it and pressing Accept again is one click.
   if (move.action === 'accept') {
-    const event = relationId(data.event ?? previous.event)
+    // ⚠ **An explicit `null` is not an absent key.** The document form posts
+    // every field, so a reviewer who clears Region posts `region: null` — and
+    // `??` reads the stored value for that as readily as for a field the write
+    // never named. The gate then passed a row whose written `region` is empty,
+    // leaving `applyReview` to refuse it with a bare `Error` no field can
+    // render.
+    const written = (field: 'event' | 'region' | 'regionHint') =>
+      field in data ? data[field] : previous[field]
+
+    const event = relationId(written('event'))
     const region = submissionRegionId({
-      region: data.region ?? previous.region,
-      regionHint: data.regionHint ?? previous.regionHint,
+      region: written('region'),
+      regionHint: written('regionHint'),
     })
     if (event == null && region == null) {
       throw new ValidationError({ errors: [{ path: 'region', message: NO_REGION_MESSAGE }] })

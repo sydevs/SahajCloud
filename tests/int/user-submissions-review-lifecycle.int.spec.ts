@@ -688,6 +688,26 @@ describe('User submission review lifecycle', () => {
         before.totalDocs,
       )
     })
+
+    /**
+     * The same refusal reached by clearing a resolved region, which the form
+     * posts as `region: null` — where the case above never had one. No
+     * `anchorRegion` either, so nothing is left for `submissionRegionId` to
+     * fall back to.
+     */
+    it('refuses an accept that clears the resolved region in the same post', async () => {
+      const created = await createProposal({ region: cityId })
+      const before = await payload.count({ collection: 'events', overrideAccess: true })
+
+      await expect(decide(created.id, 'accepted', { region: null })).rejects.toMatchObject({
+        data: { errors: [{ path: 'region' }] },
+      })
+
+      expect((await reload(created.id)).status).toBe('pending')
+      expect((await payload.count({ collection: 'events', overrideAccess: true })).totalDocs).toBe(
+        before.totalDocs,
+      )
+    })
   })
 
   /**
