@@ -104,7 +104,7 @@ reads, so keep those labels and cell shapes when you add a row.
 | `pnpm typecheck`                                                                                          | 8.4 s                                                             |
 | `pnpm typecheck:tests`                                                                                    | 8.2 s                                                             |
 | Those four commands, summed                                                                               | 104 s                                                             |
-| Tier 2 lean gate (`check.sh`), slowest cold run of three sessions                                         | **174 s** cold, **103 s** with Postgres already up                |
+| Tier 2 lean gate (`check.sh`), slowest cold run of three sessions, before the Format step                 | **174 s** cold, **103 s** with Postgres already up                |
 | `pnpm format:check`, 4 cores, cold (2026-10-20, `89f6569`)                                                | 15 s                                                              |
 | `pnpm format:check`, 11-core M3 Pro, 2026-10-23                                                           | 8.7 s first run, 7.2 s second                                     |
 | Gate with the Format step (`check.sh`, #1006), 11-core M3 Pro, 2026-10-23, Postgres already up            | 57 s first run, 45 s second                                       |
@@ -117,7 +117,8 @@ over the slowest cold run, not over the median**. Time it warm to compare agains
 this row.
 
 **The Format step (#1006) postdates the 174 s cold run.** Its 15 s puts a 4-core
-cold gate near 189 s, inside 210 s. Re-take the cold row with the step before
+cold gate near 189 s, inside 210 s, and a warm one near 119 s — add it before
+comparing a warm run to the row above. Re-take the cold row with the step before
 moving the target.
 
 ⚠ **3 workers, not 4.** Vitest's non-watch default is `max(cores - 1, 1)`
