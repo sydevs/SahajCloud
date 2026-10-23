@@ -1,47 +1,53 @@
 import type { PayloadRequest } from 'payload'
 
-import { isAtlasOrganiser, programSummary } from './model'
+import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
+
+import { sortPrograms } from './model'
+import { isAtlasOrganiser } from '../helpers/isAtlasOrganiser'
 
 /** Use the collection's actual write scope: project read access alone is wider. */
 export async function getAtlasDashboardData(req: PayloadRequest) {
   if (!isAtlasOrganiser(req.user)) return null
   const access = req.payload.collections.events.config.access
   const [scope, canCreate] = await Promise.all([access.update!({ req }), access.create!({ req })])
-  if (scope === false) return { ...programSummary([]), canCreate: canCreate === true }
-  const result = await req.payload.find({
+  if (scope === false) return { events: [], canCreate: canCreate === true }
+  const where = scope === true ? {} : scope
+  const common = {
     collection: 'events',
-    req,
     overrideAccess: false,
-    draft: true,
     depth: 0,
     pagination: false,
     locale: req.locale,
-    ...(scope === true ? {} : { where: scope }),
-    select: {
-      title: true,
-      _status: true,
-      verificationStage: true,
-      updatedAt: true,
-      eventType: true,
-      address: { venueName: true, city: true },
-    },
-  })
-  // Latest drafts can have a published copy. Read the base documents separately.
-  const published = await req.payload.find({
-    collection: 'events',
-    req,
-    overrideAccess: false,
-    draft: false,
-    depth: 0,
-    pagination: false,
-    locale: req.locale,
-    where: { and: [scope === true ? {} : scope, { _status: { equals: 'published' } }] },
-    select: { _status: true, verificationStage: true },
-  })
+  } as const
+  // Latest drafts can have a published copy, so read the base documents too.
+  // Concurrent reads on one req must not share it (src/collections/AGENTS.md).
+  const [latest, published] = await Promise.all([
+    req.payload.find({
+      ...common,
+      req: localeIsolatedReq(req),
+      draft: true,
+      where,
+      select: {
+        title: true,
+        _status: true,
+        verificationStage: true,
+        updatedAt: true,
+        eventType: true,
+        address: { venueName: true, city: true },
+      },
+    }),
+    req.payload.find({
+      ...common,
+      req: localeIsolatedReq(req),
+      draft: false,
+      where: { and: [where, { _status: { equals: 'published' } }] },
+      select: { verificationStage: true },
+    }),
+  ])
   const publishedById = new Map(published.docs.map((event) => [event.id, event]))
   return {
-    ...programSummary(
-      result.docs.map((event) => ({
+    events: sortPrograms(
+      latest.docs.map((event) => ({
         ...event,
         published: publishedById.has(event.id),
         // Draft saves can reset verification without changing the live listing.

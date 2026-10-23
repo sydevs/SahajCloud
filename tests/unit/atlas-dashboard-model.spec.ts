@@ -5,7 +5,9 @@ import { describe, expect, it } from 'vitest'
 import {
   atlasDashboardLayout,
   needsAtlasDashboardFallback,
-  programSummary,
+  programGroups,
+  programStatus,
+  sortPrograms,
 } from '@/components/admin/AtlasDashboard/model'
 
 import { testData } from '../utils/testData'
@@ -31,14 +33,18 @@ describe('Atlas organiser dashboard', () => {
 
   it('prioritises confirmation and counts actual draft state, excluding finished counts', () => {
     const base = { title: 'Program', updatedAt: '2026-10-23' }
-    const data = programSummary([
+    const programs = sortPrograms([
       { ...base, id: 1, published: false, _status: 'draft', verificationStage: 'verified' },
       { ...base, id: 2, published: true, _status: 'published', verificationStage: 'finished' },
       { ...base, id: 3, published: true, _status: 'published', verificationStage: 'reminded' },
       { ...base, id: 4, published: false, _status: 'draft', verificationStage: 'urgent' },
     ])
-    expect(data).toMatchObject({ published: 1, drafts: 2, needsConfirmation: 2 })
-    expect(data.events.map((event) => event.id)).toEqual([4, 3, 1, 2])
+    expect(programs.map((program) => program.id)).toEqual([4, 3, 1, 2])
+    expect(programs.map(programStatus)).toEqual(['review', 'review', 'draft', 'finished'])
+    const groups = programGroups(programs)
+    expect(groups.published.map((program) => program.id)).toEqual([3])
+    expect(groups.drafts.map((program) => program.id)).toEqual([4, 1])
+    expect(groups.review.map((program) => program.id)).toEqual([4, 3])
   })
   it('adds the organiser home for saved collection or empty layouts without duplicating the widget', () => {
     expect(needsAtlasDashboardFallback(undefined)).toBe(false)

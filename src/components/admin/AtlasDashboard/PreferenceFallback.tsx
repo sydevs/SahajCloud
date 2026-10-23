@@ -3,7 +3,8 @@ import type { ServerProps } from 'payload'
 import { createLocalReq } from 'payload'
 import { PREFERENCE_KEYS } from 'payload/shared'
 
-import { isAtlasOrganiser, needsAtlasDashboardFallback } from './model'
+import { needsAtlasDashboardFallback } from './model'
+import { isAtlasOrganiser } from '../helpers/isAtlasOrganiser'
 
 import { AtlasDashboardContent } from './index'
 
@@ -17,6 +18,7 @@ export default async function PreferenceFallback({ payload, user, locale }: Serv
     overrideAccess: false,
     depth: 0,
     limit: 1,
+    pagination: false,
     where: { key: { equals: PREFERENCE_KEYS.DASHBOARD_LAYOUT } },
   })
   const value = preferences.docs[0]?.value as { layouts?: { id?: string }[] } | undefined

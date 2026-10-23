@@ -3,8 +3,8 @@ import type { WidgetServerProps } from 'payload'
 import { CollectionCards } from '@payloadcms/ui/rsc'
 
 import { getAtlasDashboardData } from './data'
-import { isAtlasOrganiser } from './model'
 import { OrganiserHome } from './OrganiserHome'
+import { isAtlasOrganiser } from '../helpers/isAtlasOrganiser'
 
 export async function AtlasDashboardContent({ req }: Pick<WidgetServerProps, 'req'>) {
   const data = await getAtlasDashboardData(req)
