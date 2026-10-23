@@ -2,10 +2,13 @@
 
 import { useEffect, useState } from 'react'
 
-import type { JobStageConfig } from '@/components/admin/JobStageView/stages'
+import {
+  retranscribeWaitMs,
+  TRANSCRIPTION_STALL_MS,
+  type TranscriptPhase,
+  transcriptPhase,
+} from '@/lib/meditations/transcriptBounds'
 import type { MeditationTranscript as TranscriptRow } from '@/payload-types'
-
-import { type TranscriptPhase, transcriptPhase } from './transcriptModel'
 
 /**
  * Which notice the tab shows, and the one re-render that lets `stalled` reach
@@ -24,27 +27,43 @@ import { type TranscriptPhase, transcriptPhase } from './transcriptModel'
  * Only a wait has a bound ahead of it. Every other phase is final until the
  * row changes, which SWR renders on its own, and an unparseable or
  * already-passed `updatedAt` reads as the phase it already is.
- *
- * A collection declaring no `staleAfterMs` has no bound to wake for, and
- * `transcriptPhase` never reads `stalled` there, so the timer stands down with
- * it rather than firing on a phase that cannot change.
  */
-export function useTranscriptPhase(
-  config: JobStageConfig,
-  row: TranscriptRow | undefined,
-): TranscriptPhase {
+export function useTranscriptPhase(row: TranscriptRow | undefined): TranscriptPhase {
   const [, recheck] = useState(0)
-  const phase = transcriptPhase(config, row)
-  const { staleAfterMs } = config
+  const phase = transcriptPhase(row)
   const waitingSince = phase === 'pending' ? row?.updatedAt : undefined
 
   useEffect(() => {
-    if (!waitingSince || staleAfterMs === undefined) return
-    const remaining = Date.parse(waitingSince) + staleAfterMs - Date.now()
+    if (!waitingSince) return
+    const remaining = Date.parse(waitingSince) + TRANSCRIPTION_STALL_MS - Date.now()
     if (!(remaining > 0)) return
     const timer = setTimeout(() => recheck((count) => count + 1), remaining)
     return () => clearTimeout(timer)
-  }, [staleAfterMs, waitingSince])
+  }, [waitingSince])
 
   return phase
+}
+
+/**
+ * Milliseconds left before a transcript asked for at `requestedAt` may be asked
+ * for again, `0` once the cooldown has passed — and the render that lets that
+ * moment reach the screen.
+ *
+ * ⚠ **Its own timer, for the reason above.** A `failed` row never changes, so
+ * every poll answers the row SWR already has and nothing renders: the instant
+ * the cooldown passes is invisible without this. Beside `useTranscriptPhase`
+ * because it is the same defect one bound apart, and a caller holding the
+ * remaining wait without the timer is that defect.
+ */
+export function useRetryCooldown(requestedAt: string | undefined): number {
+  const [, recheck] = useState(0)
+
+  useEffect(() => {
+    const remaining = retranscribeWaitMs(requestedAt)
+    if (!(remaining > 0)) return
+    const timer = setTimeout(() => recheck((count) => count + 1), remaining)
+    return () => clearTimeout(timer)
+  }, [requestedAt])
+
+  return retranscribeWaitMs(requestedAt)
 }

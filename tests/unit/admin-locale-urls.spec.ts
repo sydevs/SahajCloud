@@ -10,13 +10,19 @@
  *
  * The fourth site, `fetchRelationshipDocs`, is pinned in
  * `relationshipDocLoader.spec.ts` against a stubbed `fetch`.
+ *
+ * `submissionActionUrl` was one of them until #909 moved submission review onto
+ * `WorkflowButtons`. Payload's own document form carries the locale in the
+ * `action` it builds, so there is no hand-rolled URL left to pin.
  */
 
 import { describe, expect, it } from 'vitest'
 
 import { framesByNarratorKey } from '../../src/components/admin/FrameEditor/utils'
-import { transcriptUrl } from '../../src/components/admin/MeditationTranscript/transcriptModel'
-import { submissionActionUrl } from '../../src/components/admin/SubmissionReview/urls'
+import {
+  transcribeUrl,
+  transcriptUrl,
+} from '../../src/components/admin/MeditationTranscript/transcriptModel'
 
 describe('framesByNarratorKey', () => {
   it('puts the locale in the request URL', () => {
@@ -43,31 +49,6 @@ describe('framesByNarratorKey', () => {
   })
 })
 
-describe('submissionActionUrl', () => {
-  it('sends the locale on the review op, which is role-gated', () => {
-    expect(submissionActionUrl(7, 'accept', 'fr')).toBe('/api/user-submissions/7/review?locale=fr')
-    expect(submissionActionUrl(7, 'reject', 'fr')).toBe('/api/user-submissions/7/review?locale=fr')
-    expect(submissionActionUrl(7, 'reopen', 'fr')).toBe('/api/user-submissions/7/review?locale=fr')
-  })
-
-  it('sends it on DELETE too, so both calls have one shape', () => {
-    expect(submissionActionUrl(7, 'delete', 'fr')).toBe('/api/user-submissions/7?locale=fr')
-  })
-
-  it('encodes the locale', () => {
-    expect(submissionActionUrl(7, 'accept', 'pt-BR')).toBe(
-      '/api/user-submissions/7/review?locale=pt-BR',
-    )
-  })
-
-  // `?locale=undefined` is rewritten to the default locale by `sanitizeLocales`,
-  // so interpolating an absent code reproduces #701 with no visible failure.
-  it('refuses to build a URL with no locale', () => {
-    expect(submissionActionUrl(7, 'accept', undefined)).toBeNull()
-    expect(submissionActionUrl(7, 'delete', '')).toBeNull()
-  })
-})
-
 describe('transcriptUrl', () => {
   it('names the locale, and filters on the meditation', () => {
     const url = transcriptUrl(7, 'fr')
@@ -91,5 +72,24 @@ describe('transcriptUrl', () => {
 
   it('refuses to build a URL with no meditation', () => {
     expect(transcriptUrl(undefined, 'fr')).toBeNull()
+  })
+})
+
+describe('transcribeUrl', () => {
+  it('names the locale, because the endpoint gates on it', () => {
+    expect(transcribeUrl(7, 'fr')).toBe('/api/meditations/7/transcribe?locale=fr')
+  })
+
+  it('encodes the locale', () => {
+    expect(transcribeUrl(7, 'pt-BR')).toBe('/api/meditations/7/transcribe?locale=pt-BR')
+  })
+
+  it('refuses to build a URL with no locale', () => {
+    expect(transcribeUrl(7, undefined)).toBeNull()
+    expect(transcribeUrl(7, '')).toBeNull()
+  })
+
+  it('refuses to build a URL with no meditation', () => {
+    expect(transcribeUrl(undefined, 'fr')).toBeNull()
   })
 })

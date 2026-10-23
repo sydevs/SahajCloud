@@ -2,26 +2,28 @@
 
 import type { UIFieldClientComponent } from 'payload'
 
-import { Banner, Spinner, useConfig, useDocumentInfo, useLocale } from '@payloadcms/ui'
+import { Banner, Spinner, useDocumentInfo, useLocale } from '@payloadcms/ui'
 import { AudioLines } from 'lucide-react'
 import React, { memo, useMemo, useRef } from 'react'
 import useSWR from 'swr'
 
 import { formatTime, usePlaybackTime, useSeekToTime } from '@/components/admin/FrameEditor'
 import { type PayloadList, payloadListFetcher } from '@/components/admin/helpers/payloadListFetcher'
-import { type JobStageConfig, readJobStageConfig } from '@/components/admin/JobStageView/stages'
 import type { TranscriptSegment } from '@/lib/meditations/transcript'
+import {
+  transcriptPhase,
+  type TranscriptPhase,
+  transcriptPhaseIsRetryable,
+} from '@/lib/meditations/transcriptBounds'
 import type { MeditationTranscript as TranscriptRow } from '@/payload-types'
 
 import styles from './MeditationTranscript.module.css'
+import { RetryTranscript } from './RetryTranscript'
 import {
   activeSegmentIndex,
   groupTranscript,
   seekSecond,
   type TranscriptParagraph,
-  transcriptPhase,
-  type TranscriptPhase,
-  TRANSCRIPTS_SLUG,
   transcriptUrl,
 } from './transcriptModel'
 import { useFollowPlayhead } from './useFollowPlayhead'
@@ -35,6 +37,21 @@ const readTranscripts = payloadListFetcher<TranscriptRow>
 
 const rowOf = (list: TranscriptList | undefined): TranscriptRow | undefined => list?.docs?.[0]
 
+/**
+ * Poll only while a transcription is on its way. The stall bound settles the
+ * other end: a run nothing will finish reads `stalled`, so this cannot poll
+ * forever — but only because `useTranscriptPhase` renders the moment the bound
+ * passes. A poll alone never reaches it.
+ *
+ * ⚠ **Declared once, at module scope.** SWR lists `refreshInterval` in its
+ * polling effect's dependencies, so a new arrow each render re-arms the timer
+ * from zero — and the playhead re-renders this component about once a second
+ * while the recording plays, more often than the interval. An inline arrow
+ * would therefore stop the poll exactly while the editor is listening.
+ */
+const pollInterval = (latest?: TranscriptList): number =>
+  transcriptPhase(rowOf(latest)) === 'pending' ? POLL_INTERVAL_MS : 0
+
 type Notice = {
   type: 'error' | 'info'
   heading?: string
@@ -47,6 +64,11 @@ type Notice = {
  * The four phases with nothing to read, as one table of `Banner`s — the parts
  * `JobStageView.tsx:75` builds the same notice from. Declared rather than
  * branched so the four cannot drift into three kinds of thing.
+ *
+ * ⚠ **Which of them offer a retry is not a column here.**
+ * `transcriptPhaseIsRetryable` answers that, and the endpoint refuses from the
+ * same function — a column would be a second copy of the rule, free to
+ * disagree with no test failing.
  */
 const NOTICES: Record<Exclude<TranscriptPhase, 'completed'>, Notice> = {
   failed: { heading: 'Transcription failed.', type: 'error' },
@@ -81,55 +103,11 @@ const NOTICES: Record<Exclude<TranscriptPhase, 'completed'>, Notice> = {
  * editor is listening to while a run finishes.
  */
 export const MeditationTranscript: UIFieldClientComponent = () => {
-  const { getEntityConfig } = useConfig()
-
-  // Memoised on the stored declaration, not rebuilt per render: `readJobStageConfig`
-  // answers a fresh object, and the panel's poll interval is keyed on its identity.
-  // `getEntityConfig` answers from a map keyed on the client config, so `custom`
-  // changes when that config is replaced, not as the editor listens.
-  const custom = getEntityConfig({ collectionSlug: TRANSCRIPTS_SLUG })?.admin?.custom
-  const config = useMemo(() => readJobStageConfig(custom), [custom])
-
-  // Loud rather than assumed, and ahead of every hook that would need it: with
-  // no declaration to read, a notice about a run in progress would be this tab's
-  // own guess at another collection's states.
-  if (!config) {
-    return (
-      <Banner type="error">
-        The transcript cannot load: {TRANSCRIPTS_SLUG} declares no `admin.custom.jobStage`.
-      </Banner>
-    )
-  }
-
-  return <TranscriptPanel config={config} />
-}
-
-/**
- * Poll only while a transcription is on its way. The stall bound settles the
- * other end: a run nothing will finish reads `stalled`, so this cannot poll
- * forever — but only because `useTranscriptPhase` renders the moment the bound
- * passes. A poll alone never reaches it.
- *
- * ⚠ **One identity per declaration, never one per render.** SWR lists
- * `refreshInterval` in its polling effect's dependencies, so a new arrow each
- * render re-arms the timer from zero — and the playhead re-renders this panel
- * about once a second while the recording plays, more often than the interval.
- * An inline arrow would therefore stop the poll exactly while the editor is
- * listening, which is why this is memoised on the declaration.
- */
-const TranscriptPanel = ({ config }: { config: JobStageConfig }) => {
   const { id } = useDocumentInfo()
   const { code } = useLocale()
   const url = transcriptUrl(id, code)
 
-  const pollInterval = useMemo(
-    () =>
-      (latest?: TranscriptList): number =>
-        transcriptPhase(config, rowOf(latest)) === 'pending' ? POLL_INTERVAL_MS : 0,
-    [config],
-  )
-
-  const { data, error } = useSWR(url, readTranscripts, {
+  const { data, error, mutate } = useSWR(url, readTranscripts, {
     refreshInterval: pollInterval,
     revalidateOnFocus: false,
   })
@@ -144,7 +122,7 @@ const TranscriptPanel = ({ config }: { config: JobStageConfig }) => {
   const active = activeSegmentIndex(segments, playheadSeconds)
   const container = useRef<HTMLDivElement>(null)
   useFollowPlayhead(container, active, segments.length > 0)
-  const phase = useTranscriptPhase(config, row)
+  const phase = useTranscriptPhase(row)
 
   if (!url) {
     return <Banner type="error">The transcript cannot load without an admin locale.</Banner>
@@ -168,7 +146,10 @@ const TranscriptPanel = ({ config }: { config: JobStageConfig }) => {
             icon={notice.spinner ? <Spinner loadingText={null} size="sm" /> : undefined}
             type={notice.type}
           >
-            {notice.heading && <strong>{notice.heading}</strong>} {notice.detail ?? row?.error}
+            {notice.heading && <strong>{notice.heading}</strong>} {notice.detail ?? row?.error}{' '}
+            {transcriptPhaseIsRetryable(phase) && id && (
+              <RetryTranscript meditationId={id} onRetried={mutate} requestedAt={row?.createdAt} />
+            )}
           </Banner>
         )}
       </div>

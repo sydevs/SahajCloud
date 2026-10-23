@@ -41,17 +41,6 @@ export type JobStageWait = {
   total: null | number
 }
 
-/**
- * What a stored document is, against a declaration.
- *
- * `settled` is nothing to wait for; `running` is a worker holding it; `stale`
- * is a running stage that stood past its declared bound, which releases the
- * gate. Every consumer reads this one answer rather than composing the two
- * predicates behind it, so the order they compose in — and the rule that an
- * unreadable `updatedAt` keeps the wait — is decided here and nowhere else.
- */
-export type JobStagePhase = 'running' | 'settled' | 'stale'
-
 const DEFAULT_STATUS_FIELD = 'status'
 
 /**
@@ -93,31 +82,14 @@ export function jobStageWait(
   now: number = Date.now(),
 ): JobStageWait | null {
   const stage = valueAt(doc, config.statusField ?? DEFAULT_STATUS_FIELD)
-  if (jobStagePhase(config, doc, now) !== 'running' || typeof stage !== 'string') return null
+  if (typeof stage !== 'string' || !config.runningStages.includes(stage)) return null
+  if (isStale(config, doc, now)) return null
 
   return {
     progress: asNumber(valueAt(doc, config.progressField)),
     stage,
     total: asNumber(valueAt(doc, config.totalField)),
   }
-}
-
-/**
- * Which phase a stored document is in, against a declaration.
- *
- * The stage a collection does not call running is `settled` — including one its
- * declaration dropped or renamed, which is the drift the declaration exists to
- * absorb.
- */
-export function jobStagePhase(
-  config: JobStageConfig,
-  doc: unknown,
-  now: number = Date.now(),
-): JobStagePhase {
-  const stage = valueAt(doc, config.statusField ?? DEFAULT_STATUS_FIELD)
-  if (typeof stage !== 'string' || !config.runningStages.includes(stage)) return 'settled'
-
-  return isStale(config, doc, now) ? 'stale' : 'running'
 }
 
 /**

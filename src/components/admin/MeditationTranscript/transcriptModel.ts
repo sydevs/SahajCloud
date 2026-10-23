@@ -1,15 +1,6 @@
 import * as qs from 'qs-esm'
 
-import {
-  type JobStageConfig,
-  type JobStagePhase,
-  jobStagePhase,
-} from '@/components/admin/JobStageView/stages'
 import type { TranscriptSegment } from '@/lib/meditations/transcript'
-import type { MeditationTranscript } from '@/payload-types'
-
-/** The collection the tab reads, and whose `jobStage` declaration it follows. */
-export const TRANSCRIPTS_SLUG = 'meditation-transcripts'
 
 /** A pause this long between phrases starts a new paragraph. */
 const PARAGRAPH_GAP_MS = 3000
@@ -44,42 +35,26 @@ export const transcriptUrl = (
   locale: string | undefined,
 ): string | null =>
   meditationId && locale
-    ? `/api/${TRANSCRIPTS_SLUG}${qs.stringify(
+    ? `/api/meditation-transcripts${qs.stringify(
         { depth: 0, limit: 1, locale, where: { meditation: { equals: meditationId } } },
         { addQueryPrefix: true },
       )}`
     : null
 
-export type TranscriptPhase = 'none' | 'pending' | 'stalled' | 'failed' | 'completed'
-
 /**
- * Which notice the tab shows. No row means never transcribed: a replaced
- * recording takes its row with it and a fresh one is queued at once, so there
- * is no out-of-date transcript to keep on screen.
- *
- * Which stages are a wait, and how long one may stand, are read off the
- * collection's own `jobStage` declaration rather than named here, so the tab
- * and the row's Edit view cannot disagree about either. `failed` stays a
- * literal: no declaration can express a terminal status, so there is nothing
- * for it to drift from, and `tsc` catches a renamed enum member here.
+ * Where the Transcribe-again button posts, or `null` without a document id or a
+ * locale — `transcriptUrl`'s own docblock carries why both are required.
  */
-export function transcriptPhase(
-  config: JobStageConfig,
-  row: Pick<MeditationTranscript, 'status' | 'updatedAt'> | undefined,
-  now: number = Date.now(),
-): TranscriptPhase {
-  if (!row) return 'none'
-  if (row.status === 'failed') return 'failed'
-
-  return PHASES[jobStagePhase(config, row, now)]
-}
-
-/** The contract's three phases in this tab's own words. */
-const PHASES = {
-  running: 'pending',
-  settled: 'completed',
-  stale: 'stalled',
-} as const satisfies Record<JobStagePhase, TranscriptPhase>
+export const transcribeUrl = (
+  meditationId: number | string | undefined,
+  locale: string | undefined,
+): string | null =>
+  meditationId && locale
+    ? `/api/meditations/${meditationId}/transcribe${qs.stringify(
+        { locale },
+        { addQueryPrefix: true },
+      )}`
+    : null
 
 /** Split the phrases into paragraphs at pauses, and mark the long ones. */
 export function groupTranscript(segments: TranscriptSegment[]): TranscriptParagraph[] {
