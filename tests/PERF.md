@@ -71,6 +71,7 @@ maintainer's laptop, for scale: Apple M3 Pro, 11 cores, 18 GB, so 10 workers.
 | seventh, after merging `main` again (2026-10-21) | 218 / 2801    | 55.01 s                                | 55.0 s     |
 | eighth, after merging `main` again (2026-10-21)  | 222 / 2849    | 55.26 s                                | 55.3 s     |
 | ninth, after merging `main` again (2026-10-21)   | 224 / 2886    | 50.05 s (inside the gate)              | 50.1 s     |
+| tenth, after merging `main` again (2026-10-23)   | 226 / 2898    | 50.52 s                                | 50.5 s     |
 
 ⚠ **Those three medians span 47 to 78 s — 66% — and six spec files do not
 explain it.** Identical container spec, all on 2026-10-20, 3% more files
@@ -90,11 +91,12 @@ reads, so keep those labels and cell shapes when you add a row.
 
 | Metric                                                                                          | Value                                                             |
 | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Files / tests                                                                                   | 224 / 2860                                                        |
+| Files / tests                                                                                   | 226 / 2898                                                        |
 | Whole lane, 3 workers (slowest session median, what the consumer docs quote)                    | **77.9 s**                                                        |
 | One spec alone, the typical edit (third session)                                                | 1.3 s                                                             |
 | Slowest per-edit selection timed on 4 cores, the 3 specs naming `@/payload.config` (2026-10-21) | **8.7 s**                                                         |
-| 8 specs naming `tests/utils/importGraph.ts` (2026-10-21)                                        | 8.6 s                                                             |
+| The same 3 specs on the merged tree (2026-10-23)                                                | 7.7 s                                                             |
+| 8 specs naming `tests/utils/importGraph.ts` (2026-10-23)                                        | 7.9 s                                                             |
 | 18 specs naming `@/payload-types`, which the hook skips as generated (third session)            | 7.8 s                                                             |
 | Vitest phase breakdown, at 3 workers                                                            | transform 14.4 s, import 141.6 s, tests 17.5 s, environment 5.2 s |
 | Slowest file's own duration inside the lane (first session)                                     | 1.8 s (`proposal-leaves.spec.ts`)                                 |
@@ -110,9 +112,9 @@ reads, so keep those labels and cell shapes when you add a row.
 ⚠ **One unit spec boots the Payload config, and it is the lane's most expensive
 file.** `tests/unit/sanitized-config-rules.spec.ts` imports `@/payload.config`
 to walk the sanitized config: 6.9 s wall, of which 6.7 s is that import and 46 ms
-the assertions. It is paid once per worker, not per case, and it is in both
-selections above that cost over 8 s. Budget it against Tier 1's per-edit target
-rather than against the lane. Nothing else under `tests/unit/` imports that
+the assertions. It is paid once per worker, not per case, and it sits in
+both selections above the hook can fire, which is what makes them the widest.
+Budget it against Tier 1's per-edit target rather than against the lane. Nothing else under `tests/unit/` imports that
 module; keep it that way.
 
 **The gate's own spread is `scripts/ensure-test-db.sh`.** It costs nothing once
