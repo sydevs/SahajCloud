@@ -215,7 +215,7 @@ curl -I https://cloud.sydevelopers.com/admin                # Cache-Control: no-
 
 ## CI & Preview Environments
 
-`.github/workflows/ci.yml` runs on every PR: lint, typecheck, and `pnpm test` against a
+`.github/workflows/ci.yml` runs on every PR: lint, `format:check`, both typechecks, and `pnpm test` against a
 `postgres:18` service container. It then discovers that PR's Railway preview URL from Railway's
 GitHub commit status via `scripts/get-railway-preview-url.ts` (no Railway API token needed) and
 runs `pnpm test:smoke` against it. When a PR genuinely has no preview environment, the smoke step
