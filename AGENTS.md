@@ -43,7 +43,7 @@ Admin panel: `http://localhost:{PORT}/admin/login`, once the dev server runs.
 Use the `/workflow:dev-server` skill for a dev server shared across sessions. It prevents port conflicts. Default port 3000. Override with `PORT=4000`. `SAHAJCLOUD_URL` derives from `PORT`.
 
 - `pnpm test:unit` — the unit lane, no Payload bootstrap. About 78 s for all 224 files, so name one spec while editing (`tests/PERF.md`).
-- `pnpm format:check` — Prettier. `pnpm lint` checks no formatting, and CI gates both.
+- `pnpm format:check` — Prettier. `pnpm lint` checks no formatting, so the lean gate and CI run both.
 
 Locally, run lint, `pnpm test:unit`, and the integration spec for the area you changed. Let CI run the full suite. See `docs/rules/testing-reqs.md` for the tier policy and the CPU rules (never run test commands, or a test and a build, in parallel).
 
@@ -78,7 +78,7 @@ Batch CI runs: do not push, and so retrigger CI, on every small change.
 
 Both skills come from the `workflow` plugin (`sydevs/claude-workflow`), enabled in `.claude/settings.json`. Per-repo variation — the lean gate, the contract step, security-review trigger paths, the autonomy allowlist — lives in `.claude/workflow.json`.
 
-**Before marking a PR ready**: run the Tier 2 lean gate plus the integration spec(s) you touched. See `docs/rules/testing-reqs.md` for the tier policy. Run `.claude/skills/pr-prep/check.sh` — the `leanGate` in `.claude/workflow.json`, which `/workflow:finalize-pr` runs as its gate step. Its `--full` flag runs Tier 3's full suite and the build locally, for debugging a red CI run; it checks no formatting (`docs/rules/testing-reqs.md`). Otherwise let CI run the full suite and the build.
+**Before marking a PR ready**: run the Tier 2 lean gate plus the integration spec(s) you touched. See `docs/rules/testing-reqs.md` for the tier policy. Run `.claude/skills/pr-prep/check.sh` — the `leanGate` in `.claude/workflow.json`, which `/workflow:finalize-pr` runs as its gate step. Its `--full` flag runs Tier 3's full suite and the build locally, for debugging a red CI run. Otherwise let CI run the full suite and the build.
 
 ## Continuous Integration
 
