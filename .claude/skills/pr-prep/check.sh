@@ -6,12 +6,12 @@
 # parity, without smoke) under --full. See docs/rules/testing-reqs.md for
 # the full three-tier contract.
 #
-# Default, Tier 2: lint, format:check, typecheck, and the whole unit
-# lane. Run the integration spec(s) for your change separately, for
+# Default, Tier 2: lint, format:check, both typechecks, and the whole
+# unit lane. Run the integration spec(s) for your change separately, for
 # example:
 #   pnpm exec vitest run tests/int/<file>.int.spec.ts --config ./vitest.config.mts
 #
-# --full, Tier 3 locally: lint, format:check, typecheck, the full
+# --full, Tier 3 locally: lint, format:check, both typechecks, the full
 # `pnpm test`, and the Railway `pnpm build`. This skips `pnpm test:smoke`,
 # since the smoke specs target a deployed Railway PR preview, not a local
 # build. For full Tier 3 coverage, push and let CI run smoke against the
@@ -21,8 +21,8 @@
 # PR.
 #
 # Usage:
-#   .claude/skills/pr-prep/check.sh          # Tier 2: lint, format:check, typecheck, test:unit
-#   .claude/skills/pr-prep/check.sh --full   # Tier 3 locally (no smoke): lint, format:check, typecheck, full test, Railway build
+#   .claude/skills/pr-prep/check.sh          # Tier 2: lint, format:check, typecheck, typecheck:tests, test:unit
+#   .claude/skills/pr-prep/check.sh --full   # Tier 3 locally (no smoke): lint, format:check, typecheck, typecheck:tests, full test, Railway build
 
 set -u
 
