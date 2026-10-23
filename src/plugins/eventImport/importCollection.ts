@@ -17,7 +17,7 @@
  * writes with `overrideAccess`.
  */
 
-import type { Access, CollectionConfig, Field } from 'payload'
+import type { Access, CollectionConfig, Field, Where } from 'payload'
 
 import { ValidationError } from 'payload'
 import { z } from 'zod'
@@ -28,14 +28,31 @@ import { jsonField } from '@/fields/jsonField'
 import { requireManagerPermission } from '@/lib/endpoints'
 import { runQueueSoon } from '@/lib/jobs/runQueueSoon'
 import { baseLanguageOrDefault, getLanguageOptions } from '@/lib/locales'
+import type { PurgeWindow, RetentionConfig } from '@/lib/retention'
 import type { Manager } from '@/payload-types'
 import { isAdminManager, resolveOwnedRegionIds } from '@/plugins/access'
 
-import { IMPORT_STALL_MS } from './constants'
+import { IMPORT_RETENTION_DAYS, IMPORT_STALL_MS } from './constants'
 import { prepareUpload } from './csv/upload'
-import { importsRetention } from './retention'
 import { targetRegionFilterOptions, validateTargetRegion } from './targetRegion'
 import { IMPORT_TASK } from './task'
+
+/**
+ * One window for every status, because what sets it is the CSV: the file holds
+ * the contact names, addresses and phone numbers a volunteer collected, and a
+ * finished import keeps them no more legitimately than a failed one. Payload's
+ * own upload delete removes the R2 object with the row.
+ *
+ * `updatedAt`, not `createdAt`: an import still being read is not swept from
+ * under its owner.
+ */
+export const IMPORT_WINDOWS: PurgeWindow[] = [
+  {
+    days: IMPORT_RETENTION_DAYS,
+    name: 'imports',
+    where: (cutoff): Where => ({ updatedAt: { less_than: cutoff } }),
+  },
+]
 
 /** Imports into a region the manager may write classes in. Without a target, admins only. */
 const inEditableRegion: Access = async ({ req }) => {
@@ -226,7 +243,7 @@ export const importCollection: CollectionConfig = {
   },
   // Retention is declared beside the window's own reason, and read by
   // `cleanupCollections` off the built config.
-  custom: { retention: importsRetention },
+  custom: { retention: { windows: IMPORT_WINDOWS } satisfies RetentionConfig },
   disableDuplicate: true,
   lockDocuments: false,
   upload: {

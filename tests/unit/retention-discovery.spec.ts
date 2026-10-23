@@ -13,7 +13,7 @@ import { JOB_PURGE_WINDOWS } from '@/collections/PayloadJobs/PayloadJobs'
 import { userSubmissionsRetention } from '@/collections/UserSubmissions/retention'
 import { CleanupCollections } from '@/jobs/CleanupCollections/CleanupCollections'
 import { retentionEntries } from '@/lib/retention'
-import { importsRetention } from '@/plugins/eventImport/retention'
+import { IMPORT_WINDOWS } from '@/plugins/eventImport/importCollection'
 
 import { runTaskHandler } from '../utils/taskRunner'
 
@@ -23,7 +23,7 @@ const fieldNames = (fields: Field[] | undefined) =>
 /** The three real declarations, in the order the app's own config carries them. */
 const DECLARED = [
   { custom: { retention: userSubmissionsRetention }, slug: 'user-submissions' },
-  { custom: { retention: importsRetention }, slug: 'imports' },
+  { custom: { retention: { windows: IMPORT_WINDOWS } }, slug: 'imports' },
   { custom: { retention: { windows: JOB_PURGE_WINDOWS } }, slug: 'payload-jobs' },
 ]
 
