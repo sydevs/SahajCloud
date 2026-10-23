@@ -1,8 +1,7 @@
 import type { PayloadRequest, Where } from 'payload'
 
-import type { PurgeWindow, RetentionHooks, RetentionRun } from '@/lib/retention'
-import { retentionCutoff } from '@/lib/retention'
 import { relationId } from '@/lib/utilities/relationId'
+import type { RetentionHooks, RetentionRun } from '@/types/retention'
 
 /**
  * The `users` orphan sweep, as the `user-submissions` retention hooks.
@@ -12,14 +11,14 @@ import { relationId } from '@/lib/utilities/relationId'
  * submissions are still there and read once they are gone, which is what the
  * two halves are for.
  */
-export const orphanedUserHooks = ({ dryRun, now, req, windows }: RetentionRun): RetentionHooks => {
+export const orphanedUserHooks = ({ dryRun, req, wheres }: RetentionRun): RetentionHooks => {
   /** Whose `users` rows to reconsider once the submissions have gone. */
   const touchedUsers = new Set<number>()
 
   return {
     afterDelete: async () => ({
       collection: 'users',
-      deleted: await sweepOrphanedUsers({ dryRun, now, req, touchedUsers, windows }),
+      deleted: await sweepOrphanedUsers({ dryRun, req, touchedUsers, wheres }),
     }),
     beforeDelete: (where) => noteSenders({ req, touchedUsers, where }),
   }
@@ -71,17 +70,14 @@ async function noteSenders(args: {
  */
 async function sweepOrphanedUsers(args: {
   dryRun: boolean
-  now: Date
   req: PayloadRequest
   touchedUsers: ReadonlySet<number>
-  windows: readonly PurgeWindow[]
+  wheres: readonly Where[]
 }): Promise<number> {
-  const { dryRun, now, req, touchedUsers, windows } = args
+  const { dryRun, req, touchedUsers, wheres } = args
   let deleted = 0
 
-  const dueWhere: Where = {
-    or: windows.map((window) => window.where(retentionCutoff(now, window.days))),
-  }
+  const dueWhere: Where = { or: [...wheres] }
 
   for (const userId of touchedUsers) {
     const { totalDocs: remaining } = await req.payload.count({

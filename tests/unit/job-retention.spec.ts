@@ -6,12 +6,12 @@
 import { describe, expect, it } from 'vitest'
 
 import { JOB_PURGE_WINDOWS, JOB_RETENTION_DAYS } from '@/collections/PayloadJobs/PayloadJobs'
-import { retentionCutoff } from '@/lib/retention'
+import { dueWindows } from '@/jobs/CleanupCollections/sweepCollection'
 
 describe('job retention', () => {
   it('puts the cutoff a week behind the clock it is given', () => {
-    expect(retentionCutoff(new Date('2026-10-17T05:00:00.000Z'), JOB_RETENTION_DAYS)).toBe(
-      '2026-10-10T05:00:00.000Z',
+    expect(dueWindows(JOB_PURGE_WINDOWS, new Date('2026-10-17T05:00:00.000Z'))[0]?.where).toEqual(
+      JOB_PURGE_WINDOWS[0]!.where('2026-10-10T05:00:00.000Z'),
     )
   })
 

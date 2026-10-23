@@ -74,6 +74,7 @@ maintainer's laptop, for scale: Apple M3 Pro, 11 cores, 18 GB, so 10 workers.
 | tenth, on #1013's branch (2026-10-21)                 | 223 / 2852    | 58.08 s                                | 58.1 s     |
 | eleventh, on #1013's branch (2026-10-21)              | 223 / 2851    | 54.78 s                                | 54.8 s     |
 | twelfth, after merging `main` into #1013 (2026-10-21) | 225 / 2894    | 54.22 s (inside the gate)              | 54.2 s     |
+| thirteenth, on #1013's branch (2026-10-23)            | 225 / 2895    | 50.24 s (inside the gate)              | 50.2 s     |
 
 ⚠ **Those three medians span 47 to 78 s — 66% — and six spec files do not
 explain it.** Identical container spec, all on 2026-10-20, 3% more files
@@ -93,7 +94,7 @@ reads, so keep those labels and cell shapes when you add a row.
 
 | Metric                                                                                                    | Value                                                             |
 | --------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Files / tests                                                                                             | 225 / 2894                                                        |
+| Files / tests                                                                                             | 225 / 2895                                                        |
 | Whole lane, 3 workers (slowest session median, what the consumer docs quote)                              | **77.9 s**                                                        |
 | One spec alone, the typical edit (third session)                                                          | 1.3 s                                                             |
 | Slowest per-edit selection timed on 4 cores, the 9 specs naming `tests/utils/importGraph.ts` (2026-10-21) | **8.0 s**                                                         |

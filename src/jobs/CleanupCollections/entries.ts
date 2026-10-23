@@ -1,8 +1,14 @@
-import type { RetentionConfig, RetentionEntry } from './types'
 import type { CollectionSlug } from 'payload'
+
+import type { RetentionConfig } from '@/types/retention'
 
 /** The one `custom` key retention reads. */
 const RETENTION_KEY = 'retention'
+
+/** One collection the nightly sweep visits, as discovery reports it. */
+export interface RetentionEntry extends RetentionConfig {
+  collection: CollectionSlug
+}
 
 /**
  * ⚠ **`custom` is typed `Record<string, any>`**, so nothing the compiler does

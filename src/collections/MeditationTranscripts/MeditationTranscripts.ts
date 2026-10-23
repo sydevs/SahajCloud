@@ -9,7 +9,7 @@ import {
   TRANSCRIPTION_STALL_MS,
   transcriptSegmentsSchema,
 } from '@/lib/meditations/transcript'
-import type { PurgeWindow, RetentionConfig } from '@/lib/retention'
+import type { PurgeWindow, RetentionConfig } from '@/types/retention'
 
 import { applyGlossaryToSegments } from './hooks/applyGlossaryToSegments'
 import { queueTranscription } from './hooks/queueTranscription'

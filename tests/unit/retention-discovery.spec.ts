@@ -13,7 +13,7 @@ import { ORPHAN_WINDOWS } from '@/collections/MeditationTranscripts/MeditationTr
 import { JOB_PURGE_WINDOWS } from '@/collections/PayloadJobs/PayloadJobs'
 import { orphanedUserHooks } from '@/collections/UserSubmissions/orphanedUsers'
 import { CleanupCollections } from '@/jobs/CleanupCollections/CleanupCollections'
-import { retentionEntries } from '@/lib/retention'
+import { retentionEntries } from '@/jobs/CleanupCollections/entries'
 import { IMPORT_WINDOWS } from '@/plugins/eventImport/importCollection'
 import { PURGE_WINDOWS } from '@/plugins/formBuilder'
 

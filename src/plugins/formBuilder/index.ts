@@ -33,8 +33,8 @@ import { stagesFor, WORKFLOW_BUTTONS } from '@/components/admin/WorkflowButtons/
 import { CONTACT_EMAIL } from '@/lib/contact'
 import { serverEnv } from '@/lib/env/server'
 import { livePreviewUrl } from '@/lib/livePreview/url'
-import type { PurgeWindow, RetentionConfig } from '@/lib/retention'
 import type { UserSubmission } from '@/payload-types'
+import type { PurgeWindow, RetentionConfig } from '@/types/retention'
 
 /**
  * How long a **delivered contact message** is kept. Short on purpose: the row

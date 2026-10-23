@@ -1,7 +1,12 @@
-import type { CollectionSlug, PayloadRequest } from 'payload'
+import type { CollectionSlug, PayloadRequest, Where } from 'payload'
 
-import type { BeforeDelete, PurgeWindow } from '@/lib/retention'
-import { retentionCutoff } from '@/lib/retention'
+import type { BeforeDelete, PurgeWindow } from '@/types/retention'
+
+/** One window resolved against the run's clock. */
+export interface DueWindow {
+  name: string
+  where: Where
+}
 
 /**
  * A window threw, carrying the rows the windows before it had already deleted.
@@ -22,6 +27,19 @@ export class SweepFailure extends Error {
 }
 
 /**
+ * Resolve a collection's windows against one clock, once per run.
+ *
+ * The sweep and a collection's own hooks both ask what this run is about to
+ * delete, so the cutoffs are computed here and handed to both rather than
+ * derived twice from a date each side reads for itself.
+ */
+export const dueWindows = (windows: readonly PurgeWindow[], now: Date): DueWindow[] =>
+  windows.map((window) => ({
+    name: window.name,
+    where: window.where(new Date(now.getTime() - window.days * 24 * 60 * 60 * 1000).toISOString()),
+  }))
+
+/**
  * Delete everything one collection's retention windows select, and report how
  * many rows went.
  *
@@ -40,16 +58,14 @@ export async function sweepCollection(args: {
   collection: CollectionSlug
   dryRun: boolean
   label: string
-  now: Date
   req: PayloadRequest
-  windows: readonly PurgeWindow[]
+  windows: readonly DueWindow[]
 }): Promise<number> {
-  const { beforeDelete, collection, dryRun, label, now, req, windows } = args
+  const { beforeDelete, collection, dryRun, label, req, windows } = args
   let deleted = 0
 
   try {
-    for (const window of windows) {
-      const where = window.where(retentionCutoff(now, window.days))
+    for (const { name, where } of windows) {
       await beforeDelete?.(where)
 
       if (dryRun) {
@@ -77,7 +93,7 @@ export async function sweepCollection(args: {
           msg: `${label}: some rows could not be deleted`,
           count: errors.length,
           firstError: errors[0]?.message,
-          window: window.name,
+          window: name,
         })
       }
 

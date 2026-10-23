@@ -1,9 +1,9 @@
 import type { TaskConfig } from 'payload'
 
-import type { RetentionCount } from '@/lib/retention'
-import { retentionEntries } from '@/lib/retention'
+import type { RetentionCount } from '@/types/retention'
 
-import { SweepFailure, sweepCollection } from './sweepCollection'
+import { retentionEntries } from './entries'
+import { dueWindows, SweepFailure, sweepCollection } from './sweepCollection'
 
 /**
  * The one nightly retention sweep, over every collection that declares
@@ -100,8 +100,9 @@ export const CleanupCollections: TaskConfig<'cleanupCollections'> = {
     const failed: string[] = []
 
     for (const entry of entries) {
-      const { collection, windows } = entry
-      const hooks = entry.hooks?.({ dryRun, now, req, windows }) ?? {}
+      const { collection } = entry
+      const windows = dueWindows(entry.windows, now)
+      const hooks = entry.hooks?.({ dryRun, req, wheres: windows.map((due) => due.where) }) ?? {}
 
       // ⚠ One task means one failure, where three tasks could not fail each
       // other. Nothing else bounds `payload-jobs`, so a collection that throws
@@ -117,7 +118,6 @@ export const CleanupCollections: TaskConfig<'cleanupCollections'> = {
             collection,
             dryRun,
             label: `CleanupCollections/${collection}`,
-            now,
             req,
             windows,
           }),

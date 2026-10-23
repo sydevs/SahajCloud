@@ -1,7 +1,7 @@
 import type { CollectionConfig, PayloadRequest, Where } from 'payload'
 
-import type { PurgeWindow, RetentionConfig } from '@/lib/retention'
 import { isAdminManager } from '@/plugins/access/adminOnly'
+import type { PurgeWindow, RetentionConfig } from '@/types/retention'
 
 /**
  * How long a finished job row is kept. Long enough that a transcript's status

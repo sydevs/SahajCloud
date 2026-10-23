@@ -3,7 +3,7 @@ import type { Payload } from 'payload'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { CleanupCollections } from '@/jobs/CleanupCollections/CleanupCollections'
-import { retentionConfigOf, retentionEntries } from '@/lib/retention'
+import { retentionConfigOf, retentionEntries } from '@/jobs/CleanupCollections/entries'
 
 import { deletedIn } from '../utils/retention'
 import { runTaskHandler } from '../utils/taskRunner'
