@@ -39,7 +39,12 @@ import type { LocaleCode } from '@/lib/locales'
 
 import { isAdminManager } from './adminOnly'
 
-/** Collections whose `locale` column IS the document's language. */
+/**
+ * Collections whose `locale` column IS the document's language.
+ *
+ * Hand-named, never derived from the column's presence: `clients` and `imports`
+ * carry one that means something else. See the ⚠ above before widening this.
+ */
 const LOCALE_SCOPED_COLLECTIONS = new Set<ContentSlug>(['meditations'])
 
 /** True when the collection's writes are scoped to the role's locale. */
