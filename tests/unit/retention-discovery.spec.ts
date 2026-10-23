@@ -10,10 +10,11 @@ import type { Field, Payload, SanitizedConfig } from 'payload'
 import { describe, expect, it } from 'vitest'
 
 import { JOB_PURGE_WINDOWS } from '@/collections/PayloadJobs/PayloadJobs'
-import { userSubmissionsRetention } from '@/collections/UserSubmissions/retention'
+import { orphanedUserHooks } from '@/collections/UserSubmissions/orphanedUsers'
 import { CleanupCollections } from '@/jobs/CleanupCollections/CleanupCollections'
 import { retentionEntries } from '@/lib/retention'
 import { IMPORT_WINDOWS } from '@/plugins/eventImport/importCollection'
+import { PURGE_WINDOWS } from '@/plugins/formBuilder'
 
 import { runTaskHandler } from '../utils/taskRunner'
 
@@ -22,7 +23,10 @@ const fieldNames = (fields: Field[] | undefined) =>
 
 /** The three real declarations, in the order the app's own config carries them. */
 const DECLARED = [
-  { custom: { retention: userSubmissionsRetention }, slug: 'user-submissions' },
+  {
+    custom: { retention: { hooks: orphanedUserHooks, windows: PURGE_WINDOWS } },
+    slug: 'user-submissions',
+  },
   { custom: { retention: { windows: IMPORT_WINDOWS } }, slug: 'imports' },
   { custom: { retention: { windows: JOB_PURGE_WINDOWS } }, slug: 'payload-jobs' },
 ]

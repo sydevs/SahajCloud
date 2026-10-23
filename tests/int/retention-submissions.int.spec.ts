@@ -16,13 +16,9 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import {
-  CONTACT_ACCEPTED_DAYS,
-  MACHINE_SPAM_DAYS,
-  PROPOSAL_DAYS,
-} from '@/collections/UserSubmissions/retention'
 import { CleanupCollections } from '@/jobs/CleanupCollections/CleanupCollections'
 import type { Event, Form, Manager, UserSubmission } from '@/payload-types'
+import { CONTACT_ACCEPTED_DAYS, MACHINE_SPAM_DAYS, PROPOSAL_DAYS } from '@/plugins/formBuilder'
 
 import { deletedIn } from '../utils/retention'
 import { runTaskHandler } from '../utils/taskRunner'
