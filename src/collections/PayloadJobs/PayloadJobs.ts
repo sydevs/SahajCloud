@@ -1,6 +1,7 @@
-import type { CollectionConfig, Where } from 'payload'
+import type { CollectionConfig, PayloadRequest, Where } from 'payload'
 
 import type { PurgeWindow, RetentionConfig } from '@/lib/retention'
+import { isAdminManager } from '@/plugins/access/adminOnly'
 
 /**
  * How long a finished job row is kept. Long enough that a transcript's status
@@ -60,6 +61,19 @@ export const payloadJobsOverrides = ({
   defaultJobsCollection: CollectionConfig
 }): CollectionConfig => ({
   ...defaultJobsCollection,
+  admin: {
+    ...defaultJobsCollection.admin,
+    // Payload ships this collection `hidden: true`, which also unregisters its
+    // routes — so the Jobs UI an operator queues a sweep or a dry run from was
+    // reachable by nobody. Access is admin-only already
+    // (`restrictPayloadSystemEntities`), and this is the nav half of the same
+    // answer: `admin.hidden` takes the user, so a non-admin sees neither the
+    // sidebar entry nor the route.
+    //
+    // ⚠ `accessPlugin` never sees `payload-jobs`, so nothing composes project
+    // visibility over this the way `createHidden` does elsewhere.
+    hidden: ({ user }: { user: unknown }) => !isAdminManager(user as PayloadRequest['user']),
+  },
   custom: {
     ...defaultJobsCollection.custom,
     retention: { windows: JOB_PURGE_WINDOWS } satisfies RetentionConfig,

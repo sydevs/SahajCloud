@@ -312,6 +312,23 @@ describe('Payload system entities access', () => {
       expect(adminList.status).toBe(200)
       expect(adminList.body.totalDocs).toBeGreaterThan(0)
     })
+
+    /**
+     * ⚠ **`admin.hidden` unregisters the routes as well as the nav entry**, so
+     * Payload's own `hidden: true` left the Jobs UI reachable by nobody — an
+     * admin could not queue a sweep or read a dry run's output. The override
+     * narrows it to admins rather than lifting it (#1013); access was already
+     * admin-only, and this is the half the admin panel reads.
+     */
+    it('shows the Jobs UI to an admin and to nobody else', async () => {
+      const jobs = payload.config.collections.find((entry) => entry.slug === 'payload-jobs')
+      const hidden = jobs?.admin.hidden
+
+      expect(typeof hidden).toBe('function')
+      expect((hidden as (args: { user: unknown }) => boolean)({ user: adminManager })).toBe(false)
+      expect((hidden as (args: { user: unknown }) => boolean)({ user: editor })).toBe(true)
+      expect((hidden as (args: { user: unknown }) => boolean)({ user: null })).toBe(true)
+    })
   })
 
   describe('payload-jobs-stats', () => {
