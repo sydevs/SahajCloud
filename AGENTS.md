@@ -45,7 +45,7 @@ Use the `/workflow:dev-server` skill for a dev server shared across sessions. It
 - `pnpm test:unit` — the unit lane, no Payload bootstrap. About 78 s for all 224 files, so name one spec while editing (`tests/PERF.md`).
 - `pnpm format:check` — Prettier. `pnpm lint` checks no formatting, so the lean gate and CI run both.
 
-Locally, run lint, `pnpm test:unit`, and the integration spec for the area you changed. Let CI run the full suite. See `docs/rules/testing-reqs.md` for the tier policy and the CPU rules (never run test commands, or a test and a build, in parallel).
+Locally, run the lean gate (`.claude/skills/pr-prep/check.sh`: lint, `format:check`, both typechecks, `pnpm test:unit`) and the integration spec for the area you changed. Let CI run the full suite. See `docs/rules/testing-reqs.md` for the tier policy and the CPU rules (never run test commands, or a test and a build, in parallel).
 
 Wrap a slow command in `timeout` only when needed. Other values trigger a permission prompt: `timeout 600 pnpm build`, `timeout 300 pnpm test:*`, `timeout 120 pnpm generate:*`.
 
