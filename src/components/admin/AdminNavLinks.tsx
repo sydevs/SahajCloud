@@ -12,7 +12,7 @@ const LINKS = [
 
 export type AdminNavLinkKey = (typeof LINKS)[number]['key']
 
-/** Top-of-sidebar links. Pass `disabled` to hide specific links (e.g. the Atlas sidebar hides the dashboard). */
+/** Top-of-sidebar links. Pass `disabled` to hide specific links. */
 const AdminNavLinks = ({ disabled = [] }: { disabled?: AdminNavLinkKey[] }) => {
   const { currentProject } = useProject()
   const links = LINKS.filter((link) => {

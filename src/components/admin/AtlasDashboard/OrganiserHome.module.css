@@ -1,0 +1,108 @@
+/* Only layout unique to the organiser home. Controls and tables use the shared CMS theme. */
+.home {
+  margin: 12px 0 48px;
+}
+.header,
+.notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+.header h1 {
+  margin: 0 0 8px;
+}
+.subtitle,
+.summary,
+.footnote,
+.programInfo p,
+.programInfo small {
+  color: var(--theme-elevation-650);
+}
+.subtitle {
+  margin: 0;
+}
+.summary {
+  margin: 24px 0;
+}
+.summary strong {
+  color: var(--theme-text);
+}
+.notice {
+  gap: 16px;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.notice :global(.btn),
+.header :global(.btn) {
+  flex-shrink: 0;
+}
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 28px 0 16px;
+}
+.filterCount {
+  margin-inline-start: 8px;
+}
+.programInfo a {
+  font-weight: 550;
+  text-decoration: none;
+}
+.programInfo a:hover {
+  text-decoration: underline;
+}
+.programInfo p {
+  margin: 4px 0 0;
+}
+.home :global(.cell-program) {
+  width: 100%;
+  min-width: 240px;
+}
+.home :global(.cell-action) {
+  white-space: nowrap;
+}
+.footnote {
+  margin-top: 16px;
+  font-size: 0.875rem;
+}
+.empty,
+.filteredEmpty {
+  padding: 48px 24px;
+  text-align: center;
+  border: 1px solid var(--theme-elevation-150);
+  border-radius: var(--style-radius-m);
+}
+.empty {
+  margin-top: 24px;
+}
+.empty p,
+.filteredEmpty p {
+  max-width: 440px;
+  margin: 12px auto 24px;
+}
+.empty h2,
+.filteredEmpty h3 {
+  margin: 12px 0;
+}
+.empty span {
+  display: block;
+  margin-top: 16px;
+}
+.emptyIcon svg,
+.filteredEmpty > svg {
+  width: 32px;
+  height: 32px;
+}
+@media (max-width: 700px) {
+  .header,
+  .notice {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 16px;
+  }
+}
