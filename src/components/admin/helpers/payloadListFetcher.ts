@@ -18,10 +18,6 @@ export type PayloadList<T> = { docs?: T[] }
  * An unparsable success body throws too, rather than resolving to nothing: a
  * caller waiting on `docs` cannot tell "no list" from "not yet" and would keep
  * its spinner up for good.
- *
- * An SWR caller names its instantiation at module scope — `readFrames`,
- * `readTranscripts` — because SWR re-arms its effects on a new fetcher
- * identity, and a TS instantiation expression erases to this same function.
  */
 export async function payloadListFetcher<T>(url: string): Promise<PayloadList<T>> {
   // `credentials: 'include'` is how `@payloadcms/ui`'s own `requests.get`
