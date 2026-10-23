@@ -1,6 +1,11 @@
-import type { Block, Field } from 'payload'
+import type { Block, Field, SanitizedCollectionConfig } from 'payload'
 
-import { flattenTopLevelFields } from 'payload/shared'
+import fs from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
+
+import { generateImportMap } from 'payload'
+import { flattenTopLevelFields, parsePayloadComponent } from 'payload/shared'
 import { describe, expect, it } from 'vitest'
 
 import { readJobStageConfig } from '@/components/admin/JobStageView/stages'
@@ -10,9 +15,9 @@ import config from '@/payload.config'
 import { sourceOf, SRC } from '../utils/importGraph'
 
 /**
- * Three rules that hold over every collection and global, asserted by walking
- * the sanitized config rather than by naming the components and fields that
- * happen to break them today.
+ * Three rules that hold over every collection and global, asserted against the
+ * sanitized config rather than by naming the components and fields that happen
+ * to break them today.
  *
  * `meditation-transcript-tab-wiring` and `upload-notice-coverage` each used to
  * pin one component's path into the import map by hand. The rule was never
@@ -37,48 +42,35 @@ const TIMEOUT = 60_000
 const IMPORT_MAP = `${SRC}/app/(payload)/admin/importMap.js`
 
 /**
- * Every string under an `admin.components` subtree that names a component in
- * this repo.
+ * What `pnpm generate:importmap` would write for this config, from Payload's
+ * own generator — so nothing here decides a second time what a registration
+ * is. That mattered: `iterateConfig` also reads `admin.avatar.Component`,
+ * `admin.dependencies`, root `blocks` and any `importMap.generators`, none of
+ * which sits under a key named `components`.
  *
- * Both registration shapes are caught without naming either, because the walk
- * reads strings rather than keys: a bare path, and the `{ path, clientProps }`
- * form an edit-view slot needs. A vendor registration
- * (`@payloadcms/richtext-lexical/...`) is that package's own to resolve, and is
- * left out.
+ * The generator only writes, so it is pointed at a scratch file. Its output
+ * does not depend on where that file sits as long as no registration is a
+ * relative path: `addPayloadComponentToImportMap` prepends the map's path to
+ * the base directory only for one starting `.` or `/`, and every registration
+ * here is a tsconfig alias or a package.
  */
-function registrationsOn(node: unknown): Set<string> {
-  const found = new Set<string>()
+const generatedImportMap = async (): Promise<string> => {
+  const sanitized = await config
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'sahajcloud-importmap-'))
+  const importMapFile = path.join(dir, 'importMap.js')
 
-  const visit = (value: unknown, within: boolean, level: number): void => {
-    if (level > 40) return
+  await generateImportMap(
+    {
+      ...sanitized,
+      admin: {
+        ...sanitized.admin,
+        importMap: { ...sanitized.admin.importMap, importMapFile },
+      },
+    },
+    { force: true, log: false },
+  )
 
-    if (typeof value === 'string') {
-      if (within && value.startsWith('@/components')) found.add(value)
-      return
-    }
-    if (Array.isArray(value)) {
-      for (const item of value) visit(item, within, level + 1)
-      return
-    }
-    if (!value || typeof value !== 'object') return
-
-    for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
-      visit(nested, within || key === 'components', level + 1)
-    }
-  }
-
-  visit(node, false, 0)
-  return found
-}
-
-/**
- * The key `generate:importmap` writes for a registration. A path carrying no
- * `#NamedExport` is registered by its default export, which is why an
- * unstripped comparison counts 62 paths where the map holds 61.
- */
-const importMapKey = (registration: string): string => {
-  const [path, exported] = registration.split('#')
-  return `"${path}#${exported ?? 'default'}"`
+  return await fs.readFile(importMapFile, 'utf-8')
 }
 
 const blocksOf = (field: Field): Block[] => {
@@ -157,35 +149,19 @@ const namespaces = async (): Promise<Namespace[]> => {
   ]
 }
 
-const registrations = async (): Promise<Set<string>> => {
-  const sanitized = await config
-  return registrationsOn([sanitized.collections, sanitized.globals, sanitized.admin])
-}
-
-/** Every `@/components` key the generated map actually holds. */
-const mappedKeys = (): Set<string> =>
-  new Set(sourceOf(IMPORT_MAP).match(/"@\/components[^"]*"/g) ?? [])
-
 describe(
   'the import map holds exactly the components the config registers',
   { timeout: TIMEOUT },
   () => {
     /**
-     * Set equality, not a floor: the registrations and the map are two
-     * derivations of one fact, so each is the other's expected value. It catches
-     * both directions — a component registered without `pnpm generate:importmap`,
-     * and a map entry left behind for one nothing registers any more — and it
-     * needs no hand-kept count to stay honest.
+     * Byte equality against the generator's own output. It reads from both
+     * sides at once: a component registered without `pnpm generate:importmap`,
+     * and an entry left behind for one nothing registers any more, are the same
+     * failure. A spec is the home rather than a CI dirty-tree check so the
+     * per-edit hook and the lean gate catch it before a push.
      */
-    it('matches the map key for key', async () => {
-      const keys = [...(await registrations())].map(importMapKey).sort()
-
-      expect(keys).toEqual([...mappedKeys()].sort())
-    })
-
-    /** A walk that stopped early would otherwise agree with an empty map. */
-    it('finds the registrations rather than passing by vacuum', async () => {
-      expect((await registrations()).size).toBeGreaterThan(40)
+    it('matches what generate:importmap would write', async () => {
+      expect(await generatedImportMap()).toBe(sourceOf(IMPORT_MAP))
     })
   },
 )
@@ -210,6 +186,17 @@ const JOB_STAGE_VIEW = '@/components/admin/JobStageView/JobStageView'
 
 const declaresJobStage = (custom: unknown): boolean => isRecord(custom) && 'jobStage' in custom
 
+/**
+ * Both registrations are the edit view's default, and reading that one slot is
+ * what keeps this rule's claim to the view it is about. `parsePayloadComponent`
+ * is Payload's own split, so a `#NamedExport` form is read the way the
+ * generator reads it.
+ */
+const registersJobStageView = (collection: SanitizedCollectionConfig): boolean => {
+  const component = collection.admin?.components?.views?.edit?.default?.Component
+  return component !== undefined && parsePayloadComponent(component).path === JOB_STAGE_VIEW
+}
+
 describe('a declared job stage is a readable one', { timeout: TIMEOUT }, () => {
   /**
    * `admin.custom` is `Record<string, any>`, so `satisfies JobStageConfig`
@@ -232,9 +219,7 @@ describe('a declared job stage is a readable one', { timeout: TIMEOUT }, () => {
     const sanitized = await config
 
     const unwired = sanitized.collections
-      .filter((collection) =>
-        [...registrationsOn(collection)].some((path) => path.split('#')[0] === JOB_STAGE_VIEW),
-      )
+      .filter(registersJobStageView)
       .filter((collection) => readJobStageConfig(collection.admin?.custom) === null)
       .map((collection) => collection.slug)
 
@@ -245,9 +230,7 @@ describe('a declared job stage is a readable one', { timeout: TIMEOUT }, () => {
   it('finds the collections that register it', async () => {
     const sanitized = await config
 
-    const registered = sanitized.collections.filter((collection) =>
-      [...registrationsOn(collection)].some((path) => path.split('#')[0] === JOB_STAGE_VIEW),
-    )
+    const registered = sanitized.collections.filter(registersJobStageView)
 
     expect(registered.map((collection) => collection.slug).sort()).toEqual([
       'imports',
