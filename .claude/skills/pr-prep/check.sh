@@ -6,11 +6,11 @@
 # parity, without smoke) under --full. See docs/rules/testing-reqs.md for
 # the full three-tier contract.
 #
-# Default, Tier 2: lint, typecheck, and the whole unit lane. Run the
+# Default, Tier 2: lint, format check, typecheck, and the whole unit lane. Run the
 # integration spec(s) for your change separately, for example:
 #   pnpm exec vitest run tests/int/<file>.int.spec.ts --config ./vitest.config.mts
 #
-# --full, Tier 3 locally: lint, typecheck, the full `pnpm test`, and the
+# --full, Tier 3 locally: lint, format check, typecheck, the full `pnpm test`, and the
 # Railway `pnpm build`. This skips `pnpm test:smoke`, since the smoke
 # specs target a deployed Railway PR preview, not a local build. For full
 # Tier 3 coverage, push and let CI run smoke against the preview.
@@ -19,8 +19,8 @@
 # PR.
 #
 # Usage:
-#   .claude/skills/pr-prep/check.sh          # Tier 2: lint, typecheck, test:unit
-#   .claude/skills/pr-prep/check.sh --full   # Tier 3 locally (no smoke): lint, typecheck, full test, Railway build
+#   .claude/skills/pr-prep/check.sh          # Tier 2: lint, format:check, typecheck, test:unit
+#   .claude/skills/pr-prep/check.sh --full   # Tier 3 locally (no smoke): lint, format:check, typecheck, full test, Railway build
 
 set -u
 
@@ -45,6 +45,18 @@ if ! pnpm lint; then
   exit 1
 fi
 echo "✓ Lint passed"
+echo
+
+# Separate from lint. `pnpm lint` is eslint only and never looks at
+# formatting, so without this step a misformat passes every local gate and
+# first fails in CI (#1006).
+echo "=== Format ==="
+if ! pnpm format:check; then
+  echo
+  echo "❌ Formatting failed. Run \`pnpm format\` to fix it."
+  exit 1
+fi
+echo "✓ Format passed"
 echo
 
 echo "=== Typecheck (src) ==="
