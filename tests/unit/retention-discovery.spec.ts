@@ -9,6 +9,7 @@ import type { Field, Payload, SanitizedConfig } from 'payload'
 
 import { describe, expect, it } from 'vitest'
 
+import { ORPHAN_WINDOWS } from '@/collections/MeditationTranscripts/MeditationTranscripts'
 import { JOB_PURGE_WINDOWS } from '@/collections/PayloadJobs/PayloadJobs'
 import { orphanedUserHooks } from '@/collections/UserSubmissions/orphanedUsers'
 import { CleanupCollections } from '@/jobs/CleanupCollections/CleanupCollections'
@@ -21,8 +22,9 @@ import { runTaskHandler } from '../utils/taskRunner'
 const fieldNames = (fields: Field[] | undefined) =>
   (fields ?? []).map((field) => ('name' in field ? field.name : undefined))
 
-/** The three real declarations, in the order the app's own config carries them. */
+/** The four real declarations, in the order the app's own config carries them. */
 const DECLARED = [
+  { custom: { retention: { windows: ORPHAN_WINDOWS } }, slug: 'meditation-transcripts' },
   {
     custom: { retention: { hooks: orphanedUserHooks, windows: PURGE_WINDOWS } },
     slug: 'user-submissions',
@@ -51,6 +53,7 @@ describe('retention discovery', () => {
 
   it('reads the collections that declare windows, in config order', () => {
     expect(retentionEntries(DECLARED).map((entry) => entry.collection)).toEqual([
+      'meditation-transcripts',
       'user-submissions',
       'imports',
       'payload-jobs',
@@ -65,11 +68,8 @@ describe('retention discovery', () => {
   it('ignores a declaration carrying no windows', () => {
     expect(
       retentionEntries([
-        {
-          custom: { retention: { excluded: 'a policy decision' } },
-          slug: 'meditation-transcripts',
-        },
-        { custom: { retention: { windows: 7 } }, slug: 'songs' },
+        { custom: { retention: { days: 7 } }, slug: 'songs' },
+        { custom: { retention: { windows: 7 } }, slug: 'videos' },
         { custom: {}, slug: 'images' },
         { slug: 'pages' },
       ]),
@@ -111,7 +111,7 @@ describe('retention discovery', () => {
         input: { collection: 'managers' },
       }),
     ).rejects.toThrow(
-      '"managers" declares no retention — user-submissions, imports, payload-jobs do',
+      '"managers" declares no retention — meditation-transcripts, user-submissions, imports, payload-jobs do',
     )
   })
 
@@ -135,7 +135,12 @@ describe('retention discovery', () => {
       runTaskHandler(CleanupCollections, { payload, input: { dryRun: true } }),
     ).rejects.toThrow(/user-submissions failed/)
 
-    expect(counted).toEqual(['user-submissions', 'imports', 'payload-jobs'])
+    expect(counted).toEqual([
+      'meditation-transcripts',
+      'user-submissions',
+      'imports',
+      'payload-jobs',
+    ])
   })
 
   /**
@@ -164,6 +169,21 @@ describe('retention discovery', () => {
     expect(logged.at(-1)?.collections).toContainEqual({
       collection: 'user-submissions',
       deleted: 8,
+    })
+  })
+
+  /**
+   * ⚠ **A window with no parent clause sweeps every transcript**, which is the
+   * one mistake here that destroys data rather than keeping it: the rows are
+   * swept on `updatedAt` alone, and every transcript has one. The reviewer set
+   * the grace period at 7 days (#1013), so the days are pinned beside it.
+   */
+  it('sweeps only a transcript whose meditation has gone', () => {
+    expect(ORPHAN_WINDOWS).toHaveLength(1)
+    expect(ORPHAN_WINDOWS[0]!.days).toBe(7)
+    expect(ORPHAN_WINDOWS[0]!.where('2026-10-10T05:00:00.000Z')).toEqual({
+      meditation: { exists: false },
+      updatedAt: { less_than: '2026-10-10T05:00:00.000Z' },
     })
   })
 

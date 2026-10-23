@@ -1,4 +1,4 @@
-import type { CollectionConfig } from 'payload'
+import type { CollectionConfig, Where } from 'payload'
 
 import type { JobStageConfig } from '@/components/admin/JobStageView/stages'
 import { jsonField } from '@/fields/jsonField'
@@ -9,11 +9,44 @@ import {
   TRANSCRIPTION_STALL_MS,
   transcriptSegmentsSchema,
 } from '@/lib/meditations/transcript'
-import type { RetentionExclusion } from '@/lib/retention'
+import type { PurgeWindow, RetentionConfig } from '@/lib/retention'
 
 import { applyGlossaryToSegments } from './hooks/applyGlossaryToSegments'
 import { queueTranscription } from './hooks/queueTranscription'
 import { deriveTranscriptStatus, loadTranscriptJob, transcriptJobError } from './status'
+
+/**
+ * How long an orphaned transcript is kept. A transcript is useless the moment
+ * its meditation goes — nothing can read the cues or play the recording they
+ * time — so the window is a grace period, not a retention promise.
+ */
+const ORPHAN_DAYS = 7
+
+/**
+ * The one window: a transcript whose meditation has gone.
+ *
+ * A hard delete of a meditation nulls `meditation` through its foreign key, so
+ * a null parent is the orphan test. Nothing else reaches it — the sync hook on
+ * `meditations` sets the parent at create and deletes the row outright when a
+ * recording is replaced.
+ *
+ * ⚠ **`updatedAt` is the last app write, not the moment the parent went.** The
+ * foreign key nulls the column in the database, so nothing bumps the timestamp
+ * — an orphan last written over a week ago therefore goes on the next sweep,
+ * and only a recently-written one waits out the rest of its week. That is the
+ * safe direction: the grace period protects a transcript somebody is still
+ * working on, and the row is worthless either way.
+ */
+export const ORPHAN_WINDOWS: PurgeWindow[] = [
+  {
+    days: ORPHAN_DAYS,
+    name: 'orphanedTranscripts',
+    where: (cutoff): Where => ({
+      meditation: { exists: false },
+      updatedAt: { less_than: cutoff },
+    }),
+  },
+]
 
 /**
  * The timestamped transcript of a meditation's recording, one row per
@@ -32,14 +65,9 @@ import { deriveTranscriptStatus, loadTranscriptJob, transcriptJobError } from '.
  */
 export const MeditationTranscripts: CollectionConfig = {
   slug: 'meditation-transcripts',
-  // ⚠ The other answer `cleanupCollections` reads off a collection: no windows,
-  // and the reason. A collection declaring neither is an open question (#987).
-  custom: {
-    retention: {
-      excluded:
-        'No window chosen yet. A hard delete of a meditation nulls a transcript parent, and the orphan then keeps the full spoken word and its R2 key with nothing able to read it. How long that may last is a policy decision, not a refactor (#987).',
-    } satisfies RetentionExclusion,
-  },
+  // Retention is declared beside the window's own reason, and read by
+  // `cleanupCollections` off the built config.
+  custom: { retention: { windows: ORPHAN_WINDOWS } satisfies RetentionConfig },
   admin: {
     components: {
       views: {

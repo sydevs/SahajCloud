@@ -122,16 +122,17 @@ describe('payload-jobs retention', () => {
       input: { now: NOW, dryRun: true },
     })
 
-    // Read off the booted config, so a fourth declaration is covered with no
+    // Read off the booted config, so a fifth declaration is covered with no
     // edit here. `users` is the one row no collection declares — the
-    // `user-submissions` hooks report it.
+    // `user-submissions` hooks report it, right after the entry that runs them.
     const declared = retentionEntries(payload.config.collections).map((entry) => entry.collection)
+    const senders = declared.indexOf('user-submissions')
 
-    expect(declared[0]).toBe('user-submissions')
+    expect(senders).toBeGreaterThanOrEqual(0)
     expect(output.collections.map((count) => count.collection)).toEqual([
-      'user-submissions',
+      ...declared.slice(0, senders + 1),
       'users',
-      ...declared.slice(1),
+      ...declared.slice(senders + 1),
     ])
   })
 
@@ -144,6 +145,6 @@ describe('payload-jobs retention', () => {
   it('refuses a collection that declares no retention', async () => {
     await expect(
       runTaskHandler(CleanupCollections, { payload, input: { collection: 'managers' } }),
-    ).rejects.toThrow(/"managers" declares no retention — user-submissions, /)
+    ).rejects.toThrow(/"managers" declares no retention — \w[\w-]*, /)
   })
 })

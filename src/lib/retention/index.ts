@@ -6,7 +6,6 @@ export type {
   RetentionConfig,
   RetentionCount,
   RetentionEntry,
-  RetentionExclusion,
   RetentionHooks,
   RetentionRun,
 } from './types'

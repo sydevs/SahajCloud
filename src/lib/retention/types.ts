@@ -51,16 +51,6 @@ export interface RetentionConfig {
   windows: readonly PurgeWindow[]
 }
 
-/**
- * The other thing `custom.retention` may carry: the reason a collection is
- * deliberately not swept. Nothing reads it — it is a decision recorded beside
- * the collection it was taken about, so a collection declaring neither is an
- * open question rather than a settled one.
- */
-export interface RetentionExclusion {
-  excluded: string
-}
-
 /** One collection the nightly sweep visits, as discovery reports it. */
 export interface RetentionEntry extends RetentionConfig {
   collection: CollectionSlug
