@@ -23,7 +23,7 @@ import { decodeJwt } from 'jose'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { managersLogin, MANAGER_SIGNIN_PATH } from '@/collections/Managers/login'
-import { escapeRegExp } from '@/lib/eventQuality/heuristics'
+import { escapeRegExp } from '@/lib/utilities/escapeRegExp'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 import type { Manager } from '@/payload-types'
 import {

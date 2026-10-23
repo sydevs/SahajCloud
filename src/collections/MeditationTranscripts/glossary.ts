@@ -31,9 +31,9 @@
  * strips a capital, never one that adds one, and `void` is the one
  * subtle-system node label that is also an ordinary English word.
  */
-import { escapeRegExp } from '@/lib/eventQuality/heuristics'
 import type { BaseLanguage, LocaleCode } from '@/lib/locales'
 import { baseLanguage } from '@/lib/locales'
+import { escapeRegExp } from '@/lib/utilities/escapeRegExp'
 
 import glossaryData from './glossary.json' with { type: 'json' }
 

@@ -25,7 +25,7 @@ import type { Payload } from 'payload'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { MANAGER_SIGNIN_PATH, managersLogin } from '@/collections/Managers/login'
-import { escapeRegExp } from '@/lib/eventQuality/heuristics'
+import { escapeRegExp } from '@/lib/utilities/escapeRegExp'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 import {
   createSession,

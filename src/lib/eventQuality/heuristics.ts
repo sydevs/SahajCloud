@@ -7,6 +7,7 @@
  * spec now imports them from here rather than keeping its own copies to drift.
  */
 import { LOCALES } from '@/lib/locales'
+import { escapeRegExp } from '@/lib/utilities/escapeRegExp'
 
 /** A link anywhere in the text. Bare `www.` counts — it renders as dead text too. */
 export const URL_RE = /(?:https?:\/\/|www\.)[^\s<>"')]+/i
@@ -72,11 +73,6 @@ const WEEKDAY_NAMES: string[] = (() => {
   }
   return [...names]
 })()
-
-/** Escape a literal for embedding in a RegExp. */
-export function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
 
 /**
  * `\b` is ASCII-only in JavaScript, so it won't anchor a Cyrillic or Greek
