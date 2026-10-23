@@ -87,3 +87,61 @@
 .field-type.string-select .react-select {
   width: 100%;
 }
+
+/* Shared CMS presentation — used by native lists, edit forms and the organiser
+   home. Keep status colours, focus rings and disabled states owned by Payload. */
+h1 {
+  font-size: clamp(1.65rem, 2.2vw, 2rem);
+  line-height: 1.25;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+/* Tabs keep Payload's own weights: the active list tab is bolder. */
+.btn:not(.btn--style-tab) {
+  --btn-font-weight: 500;
+}
+
+.btn--style-secondary:not(.btn--disabled) {
+  --btn-border: 1px solid var(--theme-elevation-250);
+  --hover-btn-border: 1px solid var(--theme-elevation-450);
+  --hover-bg: var(--theme-elevation-50);
+}
+
+label.field-label {
+  font-weight: 500;
+}
+
+.field-description {
+  color: var(--theme-elevation-650);
+  line-height: 1.55;
+}
+
+/* The same table treatment applies to native collection lists and the home. */
+.table {
+  border: 1px solid var(--theme-border-color);
+  border-radius: var(--style-radius-m);
+
+  th,
+  td {
+    padding-block: 16px;
+    vertical-align: middle;
+  }
+
+  thead {
+    background: var(--theme-elevation-50);
+    color: var(--theme-elevation-650);
+  }
+
+  tbody tr:nth-child(odd) {
+    background: transparent;
+  }
+
+  tbody tr + tr td {
+    border-top: 1px solid var(--theme-elevation-100);
+  }
+
+  tbody tr:hover {
+    background: var(--theme-elevation-50);
+  }
+}
