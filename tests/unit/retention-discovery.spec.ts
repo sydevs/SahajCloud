@@ -9,7 +9,7 @@ import type { Field, Payload, SanitizedConfig } from 'payload'
 
 import { describe, expect, it } from 'vitest'
 
-import { payloadJobsRetention } from '@/collections/PayloadJobs/retention'
+import { JOB_PURGE_WINDOWS } from '@/collections/PayloadJobs/PayloadJobs'
 import { userSubmissionsRetention } from '@/collections/UserSubmissions/retention'
 import { CleanupCollections } from '@/jobs/CleanupCollections/CleanupCollections'
 import { retentionEntries } from '@/lib/retention'
@@ -24,7 +24,7 @@ const fieldNames = (fields: Field[] | undefined) =>
 const DECLARED = [
   { custom: { retention: userSubmissionsRetention }, slug: 'user-submissions' },
   { custom: { retention: importsRetention }, slug: 'imports' },
-  { custom: { retention: payloadJobsRetention }, slug: 'payload-jobs' },
+  { custom: { retention: { windows: JOB_PURGE_WINDOWS } }, slug: 'payload-jobs' },
 ]
 
 /** A payload stub whose `config.collections` is the list under test. */

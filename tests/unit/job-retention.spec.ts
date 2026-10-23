@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { JOB_PURGE_WINDOWS, JOB_RETENTION_DAYS } from '@/collections/PayloadJobs/retention'
+import { JOB_PURGE_WINDOWS, JOB_RETENTION_DAYS } from '@/collections/PayloadJobs/PayloadJobs'
 import { retentionCutoff } from '@/lib/retention'
 
 describe('job retention', () => {
