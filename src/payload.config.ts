@@ -9,6 +9,7 @@ import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import { buildConfig, Config } from 'payload'
 import { openapi } from 'payload-oapi'
 
+import { atlasDashboardLayout } from '@/components/admin/AtlasDashboard/model'
 import { REGION_NESTED_DOCS_CONFIG } from '@/lib/atlas/regionTree'
 import { serverEnv } from '@/lib/env'
 import { buildPayloadLocales, DEFAULT_LOCALE } from '@/lib/locales'
@@ -140,6 +141,17 @@ const payloadConfig = (overrides?: Partial<Config>) => {
           },
         ],
       },
+      dashboard: {
+        widgets: [
+          {
+            slug: 'atlas-programs',
+            label: 'Your programs',
+            Component: '@/components/admin/AtlasDashboard',
+            minWidth: 'full',
+          },
+        ],
+        defaultLayout: atlasDashboardLayout,
+      },
       components: {
         providers: [
           {
@@ -150,7 +162,10 @@ const payloadConfig = (overrides?: Partial<Config>) => {
         // Non-admin Atlas managers get a custom sidebar; everyone else falls
         // back to DefaultNav inside the component itself. See AtlasNav.
         Nav: '@/components/admin/AtlasNav/AtlasNav',
-        beforeDashboard: ['@/components/admin/Dashboard/ProjectSelectionPrompt'],
+        beforeDashboard: [
+          '@/components/admin/Dashboard/ProjectSelectionPrompt',
+          '@/components/admin/AtlasDashboard/PreferenceFallback',
+        ],
         graphics: {
           Logo: '@/components/branding/Logo',
           Icon: '@/components/branding/Icon',
