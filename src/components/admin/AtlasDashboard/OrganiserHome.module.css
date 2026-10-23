@@ -74,7 +74,7 @@
 .filteredEmpty {
   padding: 48px 24px;
   text-align: center;
-  border: 1px solid var(--theme-elevation-150);
+  border: 1px solid var(--theme-border-color);
   border-radius: var(--style-radius-m);
 }
 .empty {
@@ -89,7 +89,7 @@
 .filteredEmpty h3 {
   margin: 12px 0;
 }
-.empty span {
+.empty > span {
   display: block;
   margin-top: 16px;
 }

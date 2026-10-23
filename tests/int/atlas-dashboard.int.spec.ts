@@ -4,6 +4,7 @@ import { createLocalReq } from 'payload'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { getAtlasDashboardData } from '@/components/admin/AtlasDashboard/data'
+import { programGroups } from '@/components/admin/AtlasDashboard/model'
 import type { Manager as ManagerDoc } from '@/payload-types'
 
 import { createData, testData } from '../utils/testData'
@@ -96,8 +97,9 @@ describe('Atlas organiser dashboard access', () => {
     const data = await getAtlasDashboardData(await request(owner))
     expect(data?.canCreate).toBe(true)
     expect(data?.events.map((event) => event.id)).toEqual([ownId])
-    expect(data?.drafts).toBe(1)
-    expect(data?.needsConfirmation).toBe(1)
+    const groups = programGroups(data!.events)
+    expect(groups.drafts).toHaveLength(1)
+    expect(groups.review).toHaveLength(1)
   })
   it('supports direct assignment without granting creation', async () => {
     const data = await getAtlasDashboardData(await request(assignee))
@@ -125,7 +127,9 @@ describe('Atlas organiser dashboard access', () => {
     const data = await getAtlasDashboardData(await request(owner))
     const program = data?.events.find((event) => event.id === live.id)
     expect(program).toMatchObject({ title: 'Changed title', _status: 'draft', published: true })
-    expect(data).toMatchObject({ published: 1, drafts: 1, unpublishedChanges: 1 })
+    const groups = programGroups(data!.events)
+    expect(groups.published.map((event) => event.id)).toEqual([live.id])
+    expect(groups.drafts.map((event) => event.id)).toEqual([ownId])
   })
   it.each(['urgent', 'finished'] as const)(
     'uses the live %s stage when a draft save resets verification',

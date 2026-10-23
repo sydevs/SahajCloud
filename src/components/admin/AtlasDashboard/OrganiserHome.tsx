@@ -6,12 +6,32 @@ import { Banner, Button, CalendarIcon, CheckIcon, Pill, Table } from '@payloadcm
 import Link from 'next/link'
 import { useState } from 'react'
 
-import { tableColumn } from '../tableColumn'
-import { needsConfirmation, type Program } from './model'
+import { programGroups, programStatus, type Program, type ProgramStatus } from './model'
 import styles from './OrganiserHome.module.css'
+import { tableColumn } from '../helpers/tableColumn'
 
 type DashboardData = NonNullable<Awaited<ReturnType<typeof getAtlasDashboardData>>>
 type Filter = 'all' | 'review' | 'drafts'
+
+const FILTERS: { value: Filter; label: string }[] = [
+  { value: 'all', label: 'All programs' },
+  { value: 'review', label: 'Needs review' },
+  { value: 'drafts', label: 'Drafts' },
+]
+
+const STATUS: Record<
+  ProgramStatus,
+  { label: string; pillStyle: 'light-gray' | 'warning' | 'success' }
+> = {
+  finished: { label: 'Finished', pillStyle: 'light-gray' },
+  review: { label: 'Needs review', pillStyle: 'warning' },
+  published: { label: 'Published', pillStyle: 'success' },
+  draft: { label: 'Draft', pillStyle: 'light-gray' },
+}
+
+function programTitle(program: Program): string {
+  return program.title?.trim() || 'Untitled program'
+}
 
 function locationLabel(program: Program): string {
   if (program.eventType === 'online') return 'Online program'
@@ -19,23 +39,20 @@ function locationLabel(program: Program): string {
   return location || 'Location to be added'
 }
 
+function nextStep(program: Program): string {
+  const status = programStatus(program)
+  if (status === 'finished') return 'View program'
+  if (status === 'review') return 'Review details'
+  // `_status`, not `published`: a live program with unpublished edits continues as a draft.
+  return program._status === 'draft' ? 'Continue editing' : 'Edit program'
+}
+
 /** A small composition of native Payload controls; data and permissions stay on the server. */
 export function OrganiserHome({ data }: { data: DashboardData }) {
   const [filter, setFilter] = useState<Filter>('all')
-  const reviewPrograms = data.events.filter(
-    (program) => program.verificationStage !== 'finished' && needsConfirmation(program),
-  )
-  const draftPrograms = data.events.filter(
-    (program) => program.verificationStage !== 'finished' && !program.published,
-  )
-  const programs =
-    filter === 'review' ? reviewPrograms : filter === 'drafts' ? draftPrograms : data.events
-  const firstReview = reviewPrograms[0]
-  const filters: { value: Filter; label: string; count: number }[] = [
-    { value: 'all', label: 'All programs', count: data.events.length },
-    { value: 'review', label: 'Needs review', count: reviewPrograms.length },
-    { value: 'drafts', label: 'Drafts', count: draftPrograms.length },
-  ]
+  const groups = programGroups(data.events)
+  const programs = groups[filter]
+  const firstReview = groups.review[0]
   return (
     <section className={styles.home} aria-label="Atlas organiser dashboard">
       <header className={styles.header}>
@@ -65,18 +82,19 @@ export function OrganiserHome({ data }: { data: DashboardData }) {
       {data.events.length > 0 ? (
         <>
           <p className={styles.summary} aria-label="Program overview">
-            <strong>{data.published}</strong> published · <strong>{data.drafts}</strong>{' '}
-            {data.drafts === 1 ? 'draft' : 'drafts'} · <strong>{data.needsConfirmation}</strong>{' '}
-            awaiting review
+            <strong>{groups.published.length}</strong> published ·{' '}
+            <strong>{groups.drafts.length}</strong>{' '}
+            {groups.drafts.length === 1 ? 'draft' : 'drafts'} ·{' '}
+            <strong>{groups.review.length}</strong> awaiting review
           </p>
           {firstReview && (
             <Banner type="warning">
               <div className={styles.notice}>
                 <div>
                   <strong>
-                    {reviewPrograms.length === 1
+                    {groups.review.length === 1
                       ? 'One program needs a check'
-                      : `${reviewPrograms.length} programs need a check`}
+                      : `${groups.review.length} programs need a check`}
                   </strong>
                   <div>Confirm the time and location so visitors see current details.</div>
                 </div>
@@ -87,13 +105,13 @@ export function OrganiserHome({ data }: { data: DashboardData }) {
                   size="small"
                   margin={false}
                 >
-                  Review {reviewPrograms.length === 1 ? 'program' : 'first program'}
+                  Review {groups.review.length === 1 ? 'program' : 'first program'}
                 </Button>
               </div>
             </Banner>
           )}
           <div className={styles.filters} role="group" aria-label="Filter programs">
-            {filters.map((item) => (
+            {FILTERS.map((item) => (
               <Button
                 key={item.value}
                 margin={false}
@@ -106,7 +124,7 @@ export function OrganiserHome({ data }: { data: DashboardData }) {
                 }}
               >
                 {item.label}
-                <span className={styles.filterCount}>{item.count}</span>
+                <span className={styles.filterCount}>{groups[item.value].length}</span>
               </Button>
             ))}
           </div>
@@ -120,8 +138,8 @@ export function OrganiserHome({ data }: { data: DashboardData }) {
                     'Program',
                     programs.map((program) => (
                       <div key={program.id} className={styles.programInfo}>
-                        <Link href={`/admin/collections/events/${program.id}`}>
-                          {program.title?.trim() || 'Untitled program'}
+                        <Link href={`/admin/collections/events/${program.id}`} prefetch={false}>
+                          {programTitle(program)}
                         </Link>
                         <p>{locationLabel(program)}</p>
                         {program.published && program._status === 'draft' && (
@@ -134,29 +152,10 @@ export function OrganiserHome({ data }: { data: DashboardData }) {
                     'status',
                     'Status',
                     programs.map((program) => {
-                      const finished = program.verificationStage === 'finished'
-                      const review = !finished && needsConfirmation(program)
+                      const status = STATUS[programStatus(program)]
                       return (
-                        <Pill
-                          key={program.id}
-                          size="small"
-                          pillStyle={
-                            finished
-                              ? 'light-gray'
-                              : review
-                                ? 'warning'
-                                : program.published
-                                  ? 'success'
-                                  : 'light-gray'
-                          }
-                        >
-                          {finished
-                            ? 'Finished'
-                            : review
-                              ? 'Needs review'
-                              : program.published
-                                ? 'Published'
-                                : 'Draft'}
+                        <Pill key={program.id} size="small" pillStyle={status.pillStyle}>
+                          {status.label}
                         </Pill>
                       )
                     }),
@@ -165,14 +164,7 @@ export function OrganiserHome({ data }: { data: DashboardData }) {
                     'action',
                     'Next step',
                     programs.map((program) => {
-                      const action =
-                        program.verificationStage === 'finished'
-                          ? 'View program'
-                          : needsConfirmation(program)
-                            ? 'Review details'
-                            : program._status === 'draft'
-                              ? 'Continue editing'
-                              : 'Edit program'
+                      const action = nextStep(program)
                       return (
                         <Button
                           key={program.id}
@@ -181,7 +173,7 @@ export function OrganiserHome({ data }: { data: DashboardData }) {
                           buttonStyle="secondary"
                           size="small"
                           margin={false}
-                          aria-label={`${action}: ${program.title?.trim() || 'Untitled program'}`}
+                          aria-label={`${action}: ${programTitle(program)}`}
                         >
                           {action}
                         </Button>
@@ -229,17 +221,19 @@ export function OrganiserHome({ data }: { data: DashboardData }) {
               : 'Once a region manager assigns a program to you, you can keep its details up to date here.'}
           </p>
           {data.canCreate && (
-            <Button
-              el="link"
-              url="/admin/collections/events/create"
-              icon="plus"
-              iconPosition="left"
-              margin={false}
-            >
-              Add your first program
-            </Button>
+            <>
+              <Button
+                el="link"
+                url="/admin/collections/events/create"
+                icon="plus"
+                iconPosition="left"
+                margin={false}
+              >
+                Add your first program
+              </Button>
+              <span>Nothing goes live until you publish.</span>
+            </>
           )}
-          {data.canCreate && <span>Nothing goes live until you publish.</span>}
         </div>
       )}
     </section>

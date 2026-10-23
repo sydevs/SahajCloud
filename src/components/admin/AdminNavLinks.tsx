@@ -10,16 +10,10 @@ const LINKS = [
   { key: 'map', href: '/admin/map', label: 'Public Map', project: 'sahaj-atlas' },
 ] as const
 
-export type AdminNavLinkKey = (typeof LINKS)[number]['key']
-
-/** Top-of-sidebar links. Pass `disabled` to hide specific links. */
-const AdminNavLinks = ({ disabled = [] }: { disabled?: AdminNavLinkKey[] }) => {
+/** Top-of-sidebar links. */
+const AdminNavLinks = () => {
   const { currentProject } = useProject()
-  const links = LINKS.filter((link) => {
-    if (disabled.includes(link.key)) return false
-    if ('project' in link && link.project !== currentProject) return false
-    return true
-  })
+  const links = LINKS.filter((link) => !('project' in link) || link.project === currentProject)
 
   return (
     <div style={{ marginBottom: 'calc(var(--base) * 0.5)', width: '100%' }}>

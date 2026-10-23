@@ -97,7 +97,8 @@ h1 {
   letter-spacing: -0.025em;
 }
 
-.btn {
+/* Tabs keep Payload's own weights: the active list tab is bolder. */
+.btn:not(.btn--style-tab) {
   --btn-font-weight: 500;
 }
 
@@ -118,7 +119,7 @@ label.field-label {
 
 /* The same table treatment applies to native collection lists and the home. */
 .table {
-  border: 1px solid var(--theme-elevation-150);
+  border: 1px solid var(--theme-border-color);
   border-radius: var(--style-radius-m);
 
   th,
