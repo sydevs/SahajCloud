@@ -1,5 +1,6 @@
 import type { ServerProps } from 'payload'
 
+import { headers } from 'next/headers'
 import { createLocalReq } from 'payload'
 import { PREFERENCE_KEYS } from 'payload/shared'
 
@@ -23,5 +24,10 @@ export default async function PreferenceFallback({ payload, user, locale }: Serv
   })
   const value = preferences.docs[0]?.value as { layouts?: { id?: string }[] } | undefined
   if (!needsAtlasDashboardFallback(value)) return null
-  return <AtlasDashboardContent req={req} />
+  // The `user` prop has been through a field read, which flattens the per-locale
+  // roles; access needs the user the auth strategies build (docs/rules/access.md).
+  const { user: authUser } = await payload.auth({ headers: await headers() })
+  if (!authUser) return null
+  const accessReq = await createLocalReq({ user: authUser, locale: locale?.code }, payload)
+  return <AtlasDashboardContent req={accessReq} />
 }

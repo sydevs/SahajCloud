@@ -9,7 +9,11 @@ import { isAtlasOrganiser } from '../helpers/isAtlasOrganiser'
 export async function getAtlasDashboardData(req: PayloadRequest) {
   if (!isAtlasOrganiser(req.user)) return null
   const access = req.payload.collections.events.config.access
-  const [scope, canCreate] = await Promise.all([access.update!({ req }), access.create!({ req })])
+  // Concurrent reads on one req must not share it (src/collections/AGENTS.md).
+  const [scope, canCreate] = await Promise.all([
+    access.update!({ req: localeIsolatedReq(req) }),
+    access.create!({ req: localeIsolatedReq(req) }),
+  ])
   if (scope === false) return { events: [], canCreate: canCreate === true }
   const where = scope === true ? {} : scope
   const common = {
@@ -20,7 +24,6 @@ export async function getAtlasDashboardData(req: PayloadRequest) {
     locale: req.locale,
   } as const
   // Latest drafts can have a published copy, so read the base documents too.
-  // Concurrent reads on one req must not share it (src/collections/AGENTS.md).
   const [latest, published] = await Promise.all([
     req.payload.find({
       ...common,
