@@ -31,7 +31,7 @@ describe('Atlas organiser dashboard', () => {
     ).toBe('atlas-programs')
   })
 
-  it('prioritises confirmation and counts actual draft state, excluding finished counts', () => {
+  it('prioritises confirmation and counts each active program once, excluding finished', () => {
     const base = { title: 'Program', updatedAt: '2026-10-23' }
     const programs = sortPrograms([
       { ...base, id: 1, published: false, _status: 'draft', verificationStage: 'verified' },
@@ -42,9 +42,12 @@ describe('Atlas organiser dashboard', () => {
     expect(programs.map((program) => program.id)).toEqual([4, 3, 1, 2])
     expect(programs.map(programStatus)).toEqual(['review', 'review', 'draft', 'finished'])
     const groups = programGroups(programs)
-    expect(groups.published.map((program) => program.id)).toEqual([3])
-    expect(groups.drafts.map((program) => program.id)).toEqual([4, 1])
     expect(groups.review.map((program) => program.id)).toEqual([4, 3])
+    expect(groups.drafts.map((program) => program.id)).toEqual([1])
+    expect(groups.published).toEqual([])
+    // Program 3 is live and needs review: the summary line must not count it twice.
+    const summary = groups.published.length + groups.drafts.length + groups.review.length
+    expect(summary).toBe(programs.filter((program) => programStatus(program) !== 'finished').length)
   })
   it('adds the organiser home for saved collection or empty layouts without duplicating the widget', () => {
     expect(needsAtlasDashboardFallback(undefined)).toBe(false)

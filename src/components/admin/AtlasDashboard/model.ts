@@ -53,14 +53,19 @@ export function sortPrograms(programs: Program[]): Program[] {
   )
 }
 
-/** The dashboard's tabs and summary counts. Finished programs appear only under "all". */
+/**
+ * The dashboard's tabs and summary counts, keyed on `programStatus` so the three
+ * are disjoint: the summary adds them up, and a program's pill must agree with
+ * whichever one counts it. Finished programs appear only under "all".
+ */
 export function programGroups(programs: Program[]) {
-  const active = programs.filter((program) => program.verificationStage !== 'finished')
+  const byStatus = (status: ProgramStatus) =>
+    programs.filter((program) => programStatus(program) === status)
   return {
     all: programs,
-    review: programs.filter(needsConfirmation),
-    drafts: active.filter((program) => !program.published),
-    published: active.filter((program) => program.published),
+    review: byStatus('review'),
+    drafts: byStatus('draft'),
+    published: byStatus('published'),
   }
 }
 

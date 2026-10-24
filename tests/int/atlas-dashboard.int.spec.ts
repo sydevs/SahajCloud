@@ -98,8 +98,9 @@ describe('Atlas organiser dashboard access', () => {
     expect(data?.canCreate).toBe(true)
     expect(data?.events.map((event) => event.id)).toEqual([ownId])
     const groups = programGroups(data!.events)
-    expect(groups.drafts).toHaveLength(1)
+    // The one event is an urgent draft, so it is awaiting review and nothing else.
     expect(groups.review).toHaveLength(1)
+    expect(groups.drafts).toEqual([])
   })
   it('supports direct assignment without granting creation', async () => {
     const data = await getAtlasDashboardData(await request(assignee))
@@ -129,7 +130,8 @@ describe('Atlas organiser dashboard access', () => {
     expect(program).toMatchObject({ title: 'Changed title', _status: 'draft', published: true })
     const groups = programGroups(data!.events)
     expect(groups.published.map((event) => event.id)).toEqual([live.id])
-    expect(groups.drafts.map((event) => event.id)).toEqual([ownId])
+    expect(groups.review.map((event) => event.id)).toEqual([ownId])
+    expect(groups.drafts).toEqual([])
   })
   it.each(['urgent', 'finished'] as const)(
     'uses the live %s stage when a draft save resets verification',
