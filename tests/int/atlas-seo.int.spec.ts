@@ -694,7 +694,7 @@ describe('atlasSeo endpoint', () => {
     // A view of the root is still the root, so a host that mounts the widget at
     // `/search` must get the same document — and the same canonical — as one
     // that mounts it at `/`.
-    it.each(['/search', '/calendar', '/filters', '/online', '/share'])(
+    it.each(['/search', '/calendar', '/filters', '/online', '/share', '/add'])(
       'answers %s with the same document as the root',
       async (route) => {
         const [root, view] = await Promise.all([callSeo({ route: '/' }), callSeo({ route })])
