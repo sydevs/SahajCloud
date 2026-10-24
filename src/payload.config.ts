@@ -9,7 +9,10 @@ import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import { buildConfig, Config } from 'payload'
 import { openapi } from 'payload-oapi'
 
-import { atlasDashboardLayout } from '@/components/admin/AtlasDashboard/model'
+import {
+  ATLAS_PROGRAMS_WIDGET,
+  atlasDashboardLayout,
+} from '@/components/admin/AtlasDashboard/model'
 import { REGION_NESTED_DOCS_CONFIG } from '@/lib/atlas/regionTree'
 import { serverEnv } from '@/lib/env'
 import { buildPayloadLocales, DEFAULT_LOCALE } from '@/lib/locales'
@@ -144,7 +147,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       dashboard: {
         widgets: [
           {
-            slug: 'atlas-programs',
+            slug: ATLAS_PROGRAMS_WIDGET,
             label: 'Your programs',
             Component: '@/components/admin/AtlasDashboard',
             minWidth: 'full',
