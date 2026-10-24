@@ -125,13 +125,29 @@ describe('Atlas organiser dashboard access', () => {
       draft: true,
       data: { title: 'Changed title' },
     })
+    // Verified, so it lands in `drafts` for never having been published rather
+    // than for its stage — which is the only reason `ownId` is in `review`.
+    const draft = await payload.create({
+      collection: 'events',
+      draft: true,
+      data: {
+        title: 'Never published draft',
+        region: cityId,
+        manager: owner.id,
+        eventType: 'offline',
+      },
+    })
     const data = await getAtlasDashboardData(await request(owner))
     const program = data?.events.find((event) => event.id === live.id)
     expect(program).toMatchObject({ title: 'Changed title', _status: 'draft', published: true })
+    expect(data?.events.find((event) => event.id === draft.id)).toMatchObject({
+      verificationStage: 'verified',
+      published: false,
+    })
     const groups = programGroups(data!.events)
     expect(groups.published.map((event) => event.id)).toEqual([live.id])
+    expect(groups.drafts.map((event) => event.id)).toEqual([draft.id])
     expect(groups.review.map((event) => event.id)).toEqual([ownId])
-    expect(groups.drafts).toEqual([])
   })
   it.each(['urgent', 'finished'] as const)(
     'uses the live %s stage when a draft save resets verification',
