@@ -995,6 +995,10 @@
             "captcha_retry": {
               "type": "string",
               "description": "Refusal: the security check expired and must be redone before registering."
+            },
+            "subscribe": {
+              "type": "string",
+              "description": "Mailing-list opt-in checkbox on the registration form. Shown only when the event’s `offersMailingList` is true."
             }
           },
           "additionalProperties": false
@@ -1037,6 +1041,320 @@
             "questions": {
               "type": "string",
               "description": "Question `questions`: anything the registrant wants to ask beforehand."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "submit": {
+      "type": "object",
+      "description": "The add-a-class and suggest-a-correction panel: its entry points, its five steps, the review bar and the confirmation.",
+      "properties": {
+        "chrome": {
+          "type": "object",
+          "description": "Entry points, panel headings and step navigation.",
+          "properties": {
+            "add_entry": {
+              "type": "string",
+              "description": "Link at the foot of the event list and in its empty state. Opens the add-a-class panel with no place in context."
+            },
+            "add_here": {
+              "type": "string",
+              "description": "Action on a region or venue page. Opens the add-a-class panel with the address search starting near that place."
+            },
+            "correct_entry": {
+              "type": "string",
+              "description": "Action on a class page. Opens the panel on its review step, prefilled with the class."
+            },
+            "title_add": {
+              "type": "string",
+              "description": "Panel heading while adding a new class."
+            },
+            "title_correct": {
+              "type": "string",
+              "description": "Panel heading while correcting a published class."
+            },
+            "step_progress": {
+              "type": "string",
+              "description": "Progress line under the panel heading. `%{step}` = the current step, `%{total}` = the number of steps."
+            },
+            "next": {
+              "type": "string",
+              "description": "Button that moves to the next step."
+            },
+            "back": {
+              "type": "string",
+              "description": "Button that returns to the previous step."
+            },
+            "skip": {
+              "type": "string",
+              "description": "Button on the Contact and About steps, moving on without filling them in."
+            },
+            "preview_note": {
+              "type": "string",
+              "description": "Note above the listing that fills in behind the panel as the visitor types."
+            }
+          },
+          "additionalProperties": false
+        },
+        "where": {
+          "type": "object",
+          "description": "Step 1: in person or online, and where.",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "Step heading."
+            },
+            "offline": {
+              "type": "string",
+              "description": "Toggle option for a class held at a venue."
+            },
+            "online": {
+              "type": "string",
+              "description": "Toggle option for a class held online."
+            },
+            "address_label": {
+              "type": "string",
+              "description": "Label of the address search, in person only."
+            },
+            "address_placeholder": {
+              "type": "string",
+              "description": "Placeholder of the address search."
+            },
+            "room_label": {
+              "type": "string",
+              "description": "Label of the room input under the address."
+            },
+            "online_url_label": {
+              "type": "string",
+              "description": "Label of the join-link input, online only."
+            },
+            "online_url_placeholder": {
+              "type": "string",
+              "description": "Placeholder of the join-link input."
+            },
+            "city_label": {
+              "type": "string",
+              "description": "Label of the city search, online only."
+            },
+            "city_placeholder": {
+              "type": "string",
+              "description": "Placeholder of the city search."
+            },
+            "city_help": {
+              "type": "string",
+              "description": "Help text under the city search, online only."
+            }
+          },
+          "additionalProperties": false
+        },
+        "when": {
+          "type": "object",
+          "description": "Step 2: the schedule. Repeat options reuse `filters.cadence`.",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "Step heading."
+            },
+            "first_date": {
+              "type": "string",
+              "description": "Label of the first-session date picker."
+            },
+            "start_time": {
+              "type": "string",
+              "description": "Label of the start-time input."
+            },
+            "end_time": {
+              "type": "string",
+              "description": "Label of the end-time input."
+            },
+            "repeats": {
+              "type": "string",
+              "description": "Label of the repeat choice (one-off, weekly, monthly)."
+            },
+            "end_date": {
+              "type": "string",
+              "description": "Label of the optional end-date picker, shown for a repeating class."
+            },
+            "timezone_note": {
+              "type": "string",
+              "description": "Note under the times. `%{timezone}` = the timezone read from the address or city."
+            }
+          },
+          "additionalProperties": false
+        },
+        "contact": {
+          "type": "object",
+          "description": "Step 3: contact details shown on the listing. Skippable.",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "Step heading."
+            },
+            "help": {
+              "type": "string",
+              "description": "Help text under the heading."
+            },
+            "name_label": {
+              "type": "string",
+              "description": "Label of the contact name input."
+            },
+            "phone_label": {
+              "type": "string",
+              "description": "Label of the contact phone input."
+            },
+            "email_label": {
+              "type": "string",
+              "description": "Label of the contact email input. Not the submitter’s own address, which `submit.review.email_label` asks for."
+            }
+          },
+          "additionalProperties": false
+        },
+        "about": {
+          "type": "object",
+          "description": "Step 4: the description. Skippable.",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "Step heading."
+            },
+            "description_label": {
+              "type": "string",
+              "description": "Label of the description input."
+            },
+            "description_placeholder": {
+              "type": "string",
+              "description": "Placeholder of the description input."
+            }
+          },
+          "additionalProperties": false
+        },
+        "more": {
+          "type": "object",
+          "description": "Optional details reached from the review step’s “Add more details”.",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "Step heading."
+            },
+            "title_label": {
+              "type": "string",
+              "description": "Label of the title input."
+            },
+            "title_help": {
+              "type": "string",
+              "description": "Help text under the title input."
+            },
+            "languages_label": {
+              "type": "string",
+              "description": "Label of the languages picker."
+            },
+            "website_label": {
+              "type": "string",
+              "description": "Label of the website input."
+            }
+          },
+          "additionalProperties": false
+        },
+        "review": {
+          "type": "object",
+          "description": "Step 5: the minimal bar under the finished listing.",
+          "properties": {
+            "edit": {
+              "type": "string",
+              "description": "Link on each section of the listing, returning to the step that fills it."
+            },
+            "email_label": {
+              "type": "string",
+              "description": "Label of the submitter’s own email input. Required."
+            },
+            "email_help": {
+              "type": "string",
+              "description": "Help text under the submitter’s email."
+            },
+            "note_label": {
+              "type": "string",
+              "description": "Label of the optional note to the reviewer."
+            },
+            "submit": {
+              "type": "string",
+              "description": "Button that sends the submission."
+            },
+            "add_more": {
+              "type": "string",
+              "description": "Button that opens the optional details step."
+            },
+            "no_changes": {
+              "type": "string",
+              "description": "Shown when a correction is submitted with nothing changed."
+            }
+          },
+          "additionalProperties": false
+        },
+        "done": {
+          "type": "object",
+          "description": "The confirmation after a submission is sent.",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "Confirmation heading."
+            },
+            "body": {
+              "type": "string",
+              "description": "Confirmation body. `%{city}` = the city the visitor chose."
+            },
+            "body_no_city": {
+              "type": "string",
+              "description": "Confirmation body when no city name is known."
+            }
+          },
+          "additionalProperties": false
+        },
+        "errors": {
+          "type": "object",
+          "description": "Validation messages and server refusals for the panel.",
+          "properties": {
+            "email": {
+              "type": "string",
+              "description": "Validation and refusal (`invalid_email`): the submitter’s email is not an address."
+            },
+            "address_required": {
+              "type": "string",
+              "description": "Validation: in person, no address was picked."
+            },
+            "city_required": {
+              "type": "string",
+              "description": "Validation: online, no city was picked."
+            },
+            "online_url": {
+              "type": "string",
+              "description": "Validation: the join link is not a web address."
+            },
+            "first_date": {
+              "type": "string",
+              "description": "Validation: no first date was picked."
+            },
+            "start_time": {
+              "type": "string",
+              "description": "Validation: no start time was entered."
+            },
+            "send_failed": {
+              "type": "string",
+              "description": "Refusal: the security check was unavailable, or the send failed for an unnamed reason."
+            },
+            "captcha": {
+              "type": "string",
+              "description": "Refusal (`captcha_failed`): the security check must be redone before sending."
+            },
+            "disposable_email": {
+              "type": "string",
+              "description": "Refusal: the email address belongs to a disposable-address provider."
+            },
+            "urls_not_allowed": {
+              "type": "string",
+              "description": "Refusal: a free-text field contains a link, which is rejected as spam."
             }
           },
           "additionalProperties": false

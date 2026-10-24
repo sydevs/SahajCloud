@@ -140,14 +140,14 @@ describe('Events collection', () => {
         id: finishedId,
         depth: 0,
         // API clients must declare a select (the usage plugin's client gate).
-        // `region` / `_status` are injected by ensureWebPathDeps so the paths resolve.
+        // `region` / `_status` are injected by ensureVirtualFieldDeps so the paths resolve.
         select: { title: true, webPath: true, webUrl: true },
         user: clientUser as never,
         overrideAccess: false,
       })
       expect(doc.id).toBe(finishedId)
       // Absent from the declared select on purpose: getting it back is what
-      // proves ensureWebPathDeps injected it, so the type needs widening here.
+      // proves ensureVirtualFieldDeps injected it, so the type needs widening here.
       expect((doc as typeof doc & Pick<Event, '_status'>)._status).toBe('published')
       // Publish-gated, so a non-null path proves nothing unpublished it.
       expect(doc.webPath).toBeTruthy()

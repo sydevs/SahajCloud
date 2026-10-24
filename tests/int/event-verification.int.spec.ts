@@ -274,7 +274,7 @@ describe('Event verification lifecycle', () => {
     })
 
     it('resolves on a direct read that selects only the path fields', async () => {
-      // The ensureWebPathDeps beforeOperation hook re-adds `region` / `_status`,
+      // The ensureVirtualFieldDeps beforeOperation hook re-adds `region` / `_status`,
       // so a caller can select webPath/webUrl without their inputs.
       const event = await createEvent()
       const [fetched, region] = await Promise.all([

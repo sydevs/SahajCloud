@@ -178,6 +178,7 @@ describe('Translations Globals Configuration', () => {
         'Event',
         'Calendar',
         'Registration',
+        'Submit',
         'Share',
         'Compact',
         'Seo',
@@ -264,6 +265,15 @@ describe('Translations Globals Configuration', () => {
         'form',
         'errors',
         'questions',
+        'chrome',
+        'where',
+        'when',
+        'contact',
+        'about',
+        'more',
+        'review',
+        'done',
+        'errors',
         'share',
         'compact',
         'seo',
@@ -356,7 +366,7 @@ describe('Translations Globals Configuration', () => {
 
     it('sy-atlas-translations wraps every nested tab in a single group of collapsibles', () => {
       const tabsField = findGlobal('sy-atlas-translations').fields[0] as TabsField
-      const nestedTabs = new Set(['Common', 'Search', 'Filters', 'Event', 'Registration'])
+      const nestedTabs = new Set(['Common', 'Search', 'Filters', 'Event', 'Registration', 'Submit'])
       for (const tab of tabsField.tabs) {
         const label = String(tab.label)
         const groups = tab.fields.filter((f) => f.type === 'group') as Array<{
