@@ -88,14 +88,8 @@
   width: 100%;
 }
 
-/* Shared CMS presentation — used by native lists, edit forms and the organiser
-   home. Keep status colours, focus rings and disabled states owned by Payload. */
-h1 {
-  font-size: clamp(1.65rem, 2.2vw, 2rem);
-  line-height: 1.25;
-  font-weight: 600;
-  letter-spacing: -0.025em;
-}
+/* Shared CMS presentation. Keep status colours, focus rings and disabled
+   states owned by Payload. */
 
 /* Tabs keep Payload's own weights: the active list tab is bolder. */
 .btn:not(.btn--style-tab) {

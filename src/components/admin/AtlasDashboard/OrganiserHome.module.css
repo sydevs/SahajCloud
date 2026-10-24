@@ -9,8 +9,14 @@
   justify-content: space-between;
   gap: 24px;
 }
+/* Payload's layered `h1` is list-view sized. Stated here, not globally, so the
+   panel's own type scale keeps every other heading. */
 .header h1 {
   margin: 0 0 8px;
+  font-size: clamp(1.65rem, 2.2vw, 2rem);
+  line-height: 1.25;
+  font-weight: 600;
+  letter-spacing: -0.025em;
 }
 .subtitle,
 .summary,
