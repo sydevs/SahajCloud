@@ -198,6 +198,9 @@ async function loadCanonicalFallbackOwner(
  * The client `sy-atlas-config` names as the fallback, eligible or not, read
  * once per request. Canonical ownership and the mailing-list fallback
  * (`mailingListOwners.ts`) each apply their own eligibility to it.
+ *
+ * Read without `req`: both callers resolve on an Events write's response, and a
+ * nested read joining that open transaction can roll the write back (#641).
  */
 export function getCanonicalFallbackClientId(req: PayloadRequest): Promise<number | null> {
   return memoizeOnRequest(req, FALLBACK_CLIENT_MEMO_KEY, async () => {
@@ -205,7 +208,6 @@ export function getCanonicalFallbackClientId(req: PayloadRequest): Promise<numbe
       slug: 'sy-atlas-config',
       depth: 0,
       overrideAccess: true,
-      req,
     })
     return relationId(config.canonicalFallbackClient)
   })
