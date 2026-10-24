@@ -2,6 +2,7 @@ import type { DeliveryContext, DeliveryOutcome } from './types'
 
 import * as Sentry from '@sentry/nextjs'
 
+import { submissionRegionId } from '@/collections/UserSubmissions/lifecycle/mergeProposal'
 import { readSubmissionValue } from '@/collections/UserSubmissions/submissionData'
 import { CONTACT_EMAIL } from '@/lib/contact'
 import { findManagerForRegion } from '@/lib/notifications/recipients'
@@ -18,12 +19,10 @@ import { relationId } from '@/lib/utilities/relationId'
  * person to ask; a managerless (unverified) target escalates up the region
  * chain.
  *
- * ⚠ **A brand-new-event proposal routes to the system contact**, so it reaches
- * a person rather than a dead end. It no longer has to: screening resolves the
- * row's own `region` from its `regionHint`, so the nearest manager up *that*
- * chain is now reachable here — the column gap that forced the last resort is
- * closed. TODO: route an untargeted proposal by `submission.region` before
- * falling back. It changes who is emailed, so it wants its own spec.
+ * A brand-new-event proposal routes up the chain of the region intake placed
+ * it in (`resolveProposalRegion`, #1021): its city, else the state or country
+ * when the city is not on the atlas yet. Only a proposal placed nowhere falls
+ * to the system contact.
  */
 export async function deliverProposal({
   req,
@@ -31,7 +30,9 @@ export async function deliverProposal({
 }: DeliveryContext): Promise<DeliveryOutcome> {
   const eventId = relationId(submission.event)
   const target = eventId != null ? await loadTarget(req, eventId) : null
-  const recipient = target ? await routeTo(req, target) : null
+  const recipient = target
+    ? await routeTo(req, target)
+    : await managerUpChain(req, placedRegionId(submission))
 
   if (!recipient) {
     // Not a note on the row: who received the email is our problem, and the
@@ -107,12 +108,26 @@ async function routeTo(
     return { email: target.managerEmail, name: target.managerName }
   }
 
-  if (target.regionId == null) return null
+  return managerUpChain(req, target.regionId)
+}
 
-  const found = await findManagerForRegion(req.payload, target.regionId, { req })
+/** The nearest manager from `regionId` up to its country. */
+async function managerUpChain(
+  req: DeliveryContext['req'],
+  regionId: number | null,
+): Promise<{ email: string; name: string | null } | null> {
+  if (regionId == null) return null
+
+  const found = await findManagerForRegion(req.payload, regionId, { req })
   if (!found?.manager.email) return null
 
   return { email: found.manager.email, name: found.manager.name ?? null }
+}
+
+/** Where a new-event proposal was placed: its city, else the deepest layer matched above it. */
+function placedRegionId(submission: DeliveryContext['submission']): number | null {
+  const hint = (submission.regionHint ?? {}) as Record<string, unknown>
+  return submissionRegionId(submission) ?? relationId(hint.state) ?? relationId(hint.country)
 }
 
 /**

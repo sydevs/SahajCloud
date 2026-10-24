@@ -122,6 +122,12 @@ export function userSubmissionFields({ defaultFields }: { defaultFields: Field[]
 const unresolvedProposal = (data?: { event?: unknown; type?: unknown }): boolean =>
   data?.type === 'proposal' && !data?.event
 
+/** A Mapbox feature id: base64url-ish, so no dot, slash or space can reach a reviewer as a link. */
+const MAPBOX_FEATURE_ID = z
+  .string()
+  .max(200)
+  .regex(/^[A-Za-z0-9_=-]+$/)
+
 /** What this submission is. Every access rule and policy branch keys on it. */
 const typeField: Field = {
   name: 'type',
@@ -646,13 +652,38 @@ const systemGroup: Field = {
       admin: { readOnly: true },
     },
     {
-      // Where the submitter said the event belongs, before screening resolved
-      // it: `{ country, state, anchorRegion }`. Inputs to region resolution,
-      // kept for triage afterwards.
+      // Where the visitor said a new event is: the Mapbox feature ids of the
+      // address or city they picked, and of the layers above it. The one
+      // location input a client may write; `resolveProposalRegion` matches it
+      // against `regions.mapboxId` into `regionHint` (#1021).
       //
-      // Open on purpose: it is a verbatim record of what the widget sent, and
-      // `review.ts` reads one key off it. Naming the keys beside an open value
-      // is what `src/collections/AGENTS.md` refuses.
+      // Ids, not names: an id only ever matches a region that already exists,
+      // so a forged value can misroute a submission but never name a region id
+      // or carry text a reviewer reads. The character class keeps out a URL.
+      ...jsonField({
+        name: 'location',
+        schemaTitle: 'SubmissionLocation',
+        schema: z.strictObject({
+          mapboxId: MAPBOX_FEATURE_ID.optional().describe('The picked address or place itself.'),
+          placeId: MAPBOX_FEATURE_ID.optional().describe('Its `place` layer — the city.'),
+          regionId: MAPBOX_FEATURE_ID.optional().describe('Its `region` layer — the state.'),
+          countryId: MAPBOX_FEATURE_ID.optional().describe('Its `country` layer.'),
+        }),
+        admin: {
+          condition: unresolvedProposal,
+          readOnly: true,
+          description: 'Where the visitor placed the event, as Mapbox feature ids.',
+        },
+      }),
+    },
+    {
+      // What region resolution made of `location`: `{ country, state,
+      // anchorRegion }`, each a region id. `anchorRegion` is the matched city or
+      // venue the event is created in; `state` and `country` route a proposal
+      // whose city is not on the atlas yet.
+      //
+      // Open on purpose: `review.ts` reads one key off it, and naming the keys
+      // beside an open value is what `src/collections/AGENTS.md` refuses.
       ...jsonField({
         name: 'regionHint',
         schemaTitle: 'SubmissionRegionHint',
@@ -661,7 +692,7 @@ const systemGroup: Field = {
         admin: {
           condition: (data) => data?.type === 'proposal',
           readOnly: true,
-          description: 'Region targeting as submitted (country / state / anchor).',
+          description: 'Regions matched from the location (country / state / anchor).',
         },
       }),
     },
