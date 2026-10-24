@@ -1,5 +1,7 @@
 import * as qs from 'qs-esm'
 
+import { payloadListFetcher } from '@/components/admin/helpers/payloadListFetcher'
+
 /**
  * A related document resolved for a thumbnail cell. Only the fields a thumbnail
  * needs are selected — the related collection (e.g. `images`) carries far more.
@@ -23,14 +25,17 @@ export type FetchRelationshipDocs = (
 
 /**
  * Default fetcher: one REST request to `/api/{relationTo}` selecting only the
- * thumbnail fields. Mirrors `@payloadcms/ui`'s `requests.get` (cookie auth via
- * `credentials: 'include'`).
+ * thumbnail fields.
  *
  * The locale is required even though none of the selected fields is localized.
  * The collection's read gate resolves the manager's roles at `req.locale`, and
  * a request naming no locale resolves to the default one — so a manager whose
  * roles live only in another locale got a 403 and a page of placeholder
  * thumbnails (#701).
+ *
+ * A refusal throws, where this returned `[]` before. `createRelationshipDocLoader`
+ * resolves an empty map for either, so each cell still gets the placeholder
+ * thumbnail it got then.
  */
 export const fetchRelationshipDocs: FetchRelationshipDocs = async (relationTo, ids, locale) => {
   const query = qs.stringify(
@@ -44,11 +49,8 @@ export const fetchRelationshipDocs: FetchRelationshipDocs = async (relationTo, i
     { addQueryPrefix: true },
   )
 
-  const response = await fetch(`/api/${relationTo}${query}`, { credentials: 'include' })
-  if (response.status > 201) return []
-
-  const json = (await response.json()) as { docs?: RelationshipDoc[] }
-  return json.docs ?? []
+  const { docs } = await payloadListFetcher<RelationshipDoc>(`/api/${relationTo}${query}`)
+  return docs ?? []
 }
 
 interface PendingBatch {
