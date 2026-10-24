@@ -122,6 +122,12 @@ export function userSubmissionFields({ defaultFields }: { defaultFields: Field[]
 const unresolvedProposal = (data?: { event?: unknown; type?: unknown }): boolean =>
   data?.type === 'proposal' && !data?.event
 
+/** A Mapbox feature id: base64url-ish, so no dot, slash or space can reach a reviewer as a link. */
+const MAPBOX_FEATURE_ID = z
+  .string()
+  .max(200)
+  .regex(/^[A-Za-z0-9_=-]+$/)
+
 /** What this submission is. Every access rule and policy branch keys on it. */
 const typeField: Field = {
   name: 'type',
@@ -167,8 +173,8 @@ const subjectField: Field = {
  * exemption.
  *
  * A subscribe row spawned by a registration opt-in has no form of its own —
- * nobody authored one, and the target list resolves from the provenance client
- * at delivery time. It carries the registration's `event` instead, which is
+ * nobody authored one, and the target list resolves from the event's region at
+ * delivery time. It carries the registration's `event` instead, which is
  * both the exemption's condition and the link back to the row that created it
  * (`hooks/spawnSubscribeFromRegistration.ts`). A contact submission never
  * qualifies: it has nowhere to go without a form's `recipient`.
@@ -495,9 +501,9 @@ const managerField: Field = {
 }
 
 /**
- * Screening resolves it, but it can come back empty (an address that matched no
- * city), and Accept refuses a new-event proposal without one — so the fix has
- * to be reachable here.
+ * Intake resolves it from `location` (`resolveProposalRegion`), but it can come
+ * back empty (an address in a city the atlas does not have), and Accept refuses
+ * a new-event proposal without one — so the fix has to be reachable here.
  *
  * No `filterOptions`, deliberately: Payload validates it on save with a find
  * that forwards the caller's `req`, and a client `req` trips the
@@ -511,7 +517,7 @@ const regionField: Field = {
   admin: {
     condition: unresolvedProposal,
     description:
-      'The city or venue this event belongs to. Resolved by screening — correct it here if it came back empty or wrong.',
+      'The city or venue this event belongs to. Matched from the visitor’s location — correct it here if it came back empty or wrong.',
   },
 }
 
@@ -646,22 +652,48 @@ const systemGroup: Field = {
       admin: { readOnly: true },
     },
     {
-      // Where the submitter said the event belongs, before screening resolved
-      // it: `{ country, state, anchorRegion }`. Inputs to region resolution,
-      // kept for triage afterwards.
-      //
-      // Open on purpose: it is a verbatim record of what the widget sent, and
-      // `review.ts` reads one key off it. Naming the keys beside an open value
-      // is what `src/collections/AGENTS.md` refuses.
+      // The layers above where the visitor placed a new event (#1021): what the
+      // Events address group cannot carry. The address's own id already rides
+      // in `proposed.address.mapboxId`; an online class, which has no address,
+      // names its city here as `placeId`. Ids, not names: an id only ever
+      // matches a region that already exists, so a forged value can misroute a
+      // submission but never name a region id or carry text a reviewer reads.
+      ...jsonField({
+        name: 'location',
+        schemaTitle: 'SubmissionLocation',
+        schema: z.strictObject({
+          placeId: MAPBOX_FEATURE_ID.optional().describe(
+            'The `place` layer — the city. An online class’s city goes here.',
+          ),
+          regionId: MAPBOX_FEATURE_ID.optional().describe('The `region` layer — the state.'),
+          countryId: MAPBOX_FEATURE_ID.optional().describe('The `country` layer.'),
+        }),
+        admin: {
+          condition: unresolvedProposal,
+          readOnly: true,
+          description: 'Where the visitor placed the event, as Mapbox feature ids.',
+        },
+      }),
+    },
+    {
+      // What `resolveProposalRegion` matched `location` to. Closed: that hook is
+      // its only writer, since `systemFieldAccess` strips a client's own value.
       ...jsonField({
         name: 'regionHint',
         schemaTitle: 'SubmissionRegionHint',
-        schema: z.looseObject({}).meta({ maxProperties: 20 }),
+        schema: z.strictObject({
+          country: z.int().optional().describe('The matched country region.'),
+          state: z.int().optional().describe('The matched state region.'),
+          anchorRegion: z
+            .int()
+            .optional()
+            .describe('The matched city or venue, kept after a reviewer changes `region`.'),
+        }),
         access: systemFieldAccess,
         admin: {
           condition: (data) => data?.type === 'proposal',
           readOnly: true,
-          description: 'Region targeting as submitted (country / state / anchor).',
+          description: 'Regions matched from the location (country / state / anchor).',
         },
       }),
     },

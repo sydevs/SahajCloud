@@ -1962,6 +1962,10 @@ export interface Event {
    */
   registrationsFull?: boolean | null;
   /**
+   * Registrants are offered a mailing list: this region, one above it, or the atlas fallback service has one switched on.
+   */
+  offersMailingList?: boolean | null;
+  /**
    * Open listing-quality recommendations.
    */
   qualityOpenCount?: number | null;
@@ -2265,7 +2269,7 @@ export interface UserSubmission {
    */
   manager?: (number | null) | Manager;
   /**
-   * The city or venue this event belongs to. Resolved by screening — correct it here if it came back empty or wrong.
+   * The city or venue this event belongs to. Matched from the visitor’s location — correct it here if it came back empty or wrong.
    */
   region?: (number | null) | Region;
   screeningResult?: SubmissionScreeningResult;
@@ -2274,6 +2278,7 @@ export interface UserSubmission {
   client?: (number | null) | Client;
   user?: (number | null) | User;
   unsubscribedAt?: string | null;
+  location?: SubmissionLocation;
   regionHint?: SubmissionRegionHint;
   followUpSentAt?: string | null;
   updatedAt: string;
@@ -2891,8 +2896,33 @@ export interface User {
   updatedAt: string;
   createdAt: string;
 }
+export interface SubmissionLocation {
+  /**
+   * The `place` layer — the city. An online class’s city goes here.
+   */
+  placeId?: string;
+  /**
+   * The `region` layer — the state.
+   */
+  regionId?: string;
+  /**
+   * The `country` layer.
+   */
+  countryId?: string;
+}
 export interface SubmissionRegionHint {
-  [k: string]: unknown;
+  /**
+   * The matched country region.
+   */
+  country?: number;
+  /**
+   * The matched state region.
+   */
+  state?: number;
+  /**
+   * The matched city or venue, kept after a reviewer changes `region`.
+   */
+  anchorRegion?: number;
 }
 export interface EventSystemMeta {
   communityFeedback?: {
@@ -5104,6 +5134,7 @@ export interface EventsSelect<T extends boolean = true> {
   submitter?: T;
   nextCheckAt?: T;
   registrationsFull?: T;
+  offersMailingList?: T;
   qualityOpenCount?: T;
   qualityCheckVersion?: T;
   systemMeta?: T;
@@ -5309,6 +5340,7 @@ export interface UserSubmissionsSelect<T extends boolean = true> {
   client?: T;
   user?: T;
   unsubscribedAt?: T;
+  location?: T;
   regionHint?: T;
   followUpSentAt?: T;
   updatedAt?: T;
@@ -9152,6 +9184,17 @@ export interface SyAtlasTranslation {
     errors?: SyAtlasTranslationsRegistrationErrorsStrings;
     questions?: SyAtlasTranslationsRegistrationQuestionsStrings;
   };
+  submit?: {
+    chrome?: SyAtlasTranslationsSubmitChromeStrings;
+    where?: SyAtlasTranslationsSubmitWhereStrings;
+    when?: SyAtlasTranslationsSubmitWhenStrings;
+    contact?: SyAtlasTranslationsSubmitContactStrings;
+    about?: SyAtlasTranslationsSubmitAboutStrings;
+    more?: SyAtlasTranslationsSubmitMoreStrings;
+    review?: SyAtlasTranslationsSubmitReviewStrings;
+    done?: SyAtlasTranslationsSubmitDoneStrings;
+    errors?: SyAtlasTranslationsSubmitErrorsStrings;
+  };
   share?: SyAtlasTranslationsShareStrings;
   compact?: SyAtlasTranslationsCompactStrings;
   seo?: SyAtlasTranslationsSeoStrings;
@@ -9971,6 +10014,10 @@ export interface SyAtlasTranslationsRegistrationFormStrings {
    * Refusal: the security check expired and must be redone before registering.
    */
   captcha_retry?: string;
+  /**
+   * Mailing-list opt-in checkbox on the registration form. Shown only when the event’s `offersMailingList` is true.
+   */
+  subscribe?: string;
 }
 export interface SyAtlasTranslationsRegistrationErrorsStrings {
   /**
@@ -10003,6 +10050,268 @@ export interface SyAtlasTranslationsRegistrationQuestionsStrings {
    * Question `questions`: anything the registrant wants to ask beforehand.
    */
   questions?: string;
+}
+export interface SyAtlasTranslationsSubmitChromeStrings {
+  /**
+   * Link at the foot of the event list and in its empty state. Opens the add-a-class panel with no place in context.
+   */
+  add_entry?: string;
+  /**
+   * Action on a region or venue page. Opens the add-a-class panel with the address search starting near that place.
+   */
+  add_here?: string;
+  /**
+   * Action on a class page. Opens the panel on its review step, prefilled with the class.
+   */
+  correct_entry?: string;
+  /**
+   * Panel heading while adding a new class.
+   */
+  title_add?: string;
+  /**
+   * Panel heading while correcting a published class.
+   */
+  title_correct?: string;
+  /**
+   * Progress line under the panel heading. `%{step}` = the current step, `%{total}` = the number of steps.
+   */
+  step_progress?: string;
+  /**
+   * Button that moves to the next step.
+   */
+  next?: string;
+  /**
+   * Button that returns to the previous step.
+   */
+  back?: string;
+  /**
+   * Button on the Contact and About steps, moving on without filling them in.
+   */
+  skip?: string;
+  /**
+   * Note above the listing that fills in behind the panel as the visitor types.
+   */
+  preview_note?: string;
+}
+export interface SyAtlasTranslationsSubmitWhereStrings {
+  /**
+   * Step heading.
+   */
+  title?: string;
+  /**
+   * Toggle option for a class held at a venue.
+   */
+  offline?: string;
+  /**
+   * Toggle option for a class held online.
+   */
+  online?: string;
+  /**
+   * Label of the address search, in person only.
+   */
+  address_label?: string;
+  /**
+   * Placeholder of the address search.
+   */
+  address_placeholder?: string;
+  /**
+   * Label of the room input under the address.
+   */
+  room_label?: string;
+  /**
+   * Label of the join-link input, online only.
+   */
+  online_url_label?: string;
+  /**
+   * Placeholder of the join-link input.
+   */
+  online_url_placeholder?: string;
+  /**
+   * Label of the city search, online only.
+   */
+  city_label?: string;
+  /**
+   * Placeholder of the city search.
+   */
+  city_placeholder?: string;
+  /**
+   * Help text under the city search, online only.
+   */
+  city_help?: string;
+}
+export interface SyAtlasTranslationsSubmitWhenStrings {
+  /**
+   * Step heading.
+   */
+  title?: string;
+  /**
+   * Label of the first-session date picker.
+   */
+  first_date?: string;
+  /**
+   * Label of the start-time input.
+   */
+  start_time?: string;
+  /**
+   * Label of the end-time input.
+   */
+  end_time?: string;
+  /**
+   * Label of the repeat choice (one-off, weekly, monthly).
+   */
+  repeats?: string;
+  /**
+   * Label of the optional end-date picker, shown for a repeating class.
+   */
+  end_date?: string;
+  /**
+   * Note under the times. `%{timezone}` = the timezone read from the address or city.
+   */
+  timezone_note?: string;
+}
+export interface SyAtlasTranslationsSubmitContactStrings {
+  /**
+   * Step heading.
+   */
+  title?: string;
+  /**
+   * Help text under the heading.
+   */
+  help?: string;
+  /**
+   * Label of the contact name input.
+   */
+  name_label?: string;
+  /**
+   * Label of the contact phone input.
+   */
+  phone_label?: string;
+  /**
+   * Label of the contact email input. Not the submitter’s own address, which `submit.review.email_label` asks for.
+   */
+  email_label?: string;
+}
+export interface SyAtlasTranslationsSubmitAboutStrings {
+  /**
+   * Step heading.
+   */
+  title?: string;
+  /**
+   * Label of the description input.
+   */
+  description_label?: string;
+  /**
+   * Placeholder of the description input.
+   */
+  description_placeholder?: string;
+}
+export interface SyAtlasTranslationsSubmitMoreStrings {
+  /**
+   * Step heading.
+   */
+  title?: string;
+  /**
+   * Label of the title input.
+   */
+  title_label?: string;
+  /**
+   * Help text under the title input.
+   */
+  title_help?: string;
+  /**
+   * Label of the languages picker.
+   */
+  languages_label?: string;
+  /**
+   * Label of the website input.
+   */
+  website_label?: string;
+}
+export interface SyAtlasTranslationsSubmitReviewStrings {
+  /**
+   * Link on each section of the listing, returning to the step that fills it.
+   */
+  edit?: string;
+  /**
+   * Label of the submitter’s own email input. Required.
+   */
+  email_label?: string;
+  /**
+   * Help text under the submitter’s email.
+   */
+  email_help?: string;
+  /**
+   * Label of the optional note to the reviewer.
+   */
+  note_label?: string;
+  /**
+   * Button that sends the submission.
+   */
+  submit?: string;
+  /**
+   * Button that opens the optional details step.
+   */
+  add_more?: string;
+  /**
+   * Shown when a correction is submitted with nothing changed.
+   */
+  no_changes?: string;
+}
+export interface SyAtlasTranslationsSubmitDoneStrings {
+  /**
+   * Confirmation heading.
+   */
+  title?: string;
+  /**
+   * Confirmation body. `%{city}` = the city the visitor chose.
+   */
+  body?: string;
+  /**
+   * Confirmation body when no city name is known.
+   */
+  body_no_city?: string;
+}
+export interface SyAtlasTranslationsSubmitErrorsStrings {
+  /**
+   * Validation and refusal (`invalid_email`): the submitter’s email is not an address.
+   */
+  email?: string;
+  /**
+   * Validation: in person, no address was picked.
+   */
+  address_required?: string;
+  /**
+   * Validation: online, no city was picked.
+   */
+  city_required?: string;
+  /**
+   * Validation: the join link is not a web address.
+   */
+  online_url?: string;
+  /**
+   * Validation: no first date was picked.
+   */
+  first_date?: string;
+  /**
+   * Validation: no start time was entered.
+   */
+  start_time?: string;
+  /**
+   * Refusal: the security check was unavailable, or the send failed for an unnamed reason.
+   */
+  send_failed?: string;
+  /**
+   * Refusal (`captcha_failed`): the security check must be redone before sending.
+   */
+  captcha?: string;
+  /**
+   * Refusal: the email address belongs to a disposable-address provider.
+   */
+  disposable_email?: string;
+  /**
+   * Refusal: a free-text field contains a link, which is rejected as spam.
+   */
+  urls_not_allowed?: string;
 }
 export interface SyAtlasTranslationsShareStrings {
   /**
@@ -10522,6 +10831,19 @@ export interface SyAtlasTranslationsSelect<T extends boolean = true> {
         form?: T;
         errors?: T;
         questions?: T;
+      };
+  submit?:
+    | T
+    | {
+        chrome?: T;
+        where?: T;
+        when?: T;
+        contact?: T;
+        about?: T;
+        more?: T;
+        review?: T;
+        done?: T;
+        errors?: T;
       };
   share?: T;
   compact?: T;

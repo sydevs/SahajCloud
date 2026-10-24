@@ -75,7 +75,7 @@ const toBoolean = (value: unknown): boolean | undefined => {
  * selected/populated event document verbatim — AtlasReact maps the internal
  * field names client-side. Selecting `webPath` / `webUrl` (the canonical Atlas
  * path/URL) additionally pulls in `region` / `_status`, which those computed
- * fields derive from (see the `ensureWebPathDeps` beforeOperation hook on Events).
+ * fields derive from (see the `ensureVirtualFieldDeps` beforeOperation hook on Events).
  *
  * Response: `EventFeatureCollection` (see ./responseTypes).
  */

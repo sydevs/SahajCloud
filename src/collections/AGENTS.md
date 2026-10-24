@@ -589,7 +589,7 @@ covered by integration specs that go red when the guard is deleted
 (`tests/int/meditations.int.spec.ts`, `tests/int/events.int.spec.ts`).
 Other `read` hooks still fire on a versions read and are meant to:
 `validateClientQueryParamsHook` (an API client must declare `select` there
-too), `usageTrackingBeforeOperationHook`, and `ensureWebPathDeps`, which
+too), `usageTrackingBeforeOperationHook`, and `ensureVirtualFieldDeps`, which
 mutates `select` rather than `where`.
 
 ⚠ **The guard fails silently in the dangerous direction.** It reads an

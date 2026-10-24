@@ -3,7 +3,7 @@
     "global": "sy-atlas-translations",
     "locale": "en",
     "source": "Converted from sydevs/SahajAtlasWeb@main:public/locales/en/{common,events}.json through Appendix A of sydevs/SahajCloud#706.",
-    "schema_version": "post-#739 (12 tabs, 34 leaf groups, grouped by widget view)",
+    "schema_version": "post-#1023 (13 tabs, 43 leaf groups, grouped by widget view)",
     "excluded": "emails and event.title are omitted on purpose — both hold live production data and are never overwritten by a seed.",
     "omitted_keys": "A key this locale has no translation for is omitted, never blank. The client-read English merge (#705) serves English for it."
   },
@@ -251,7 +251,8 @@
       "online_notice_title": "Online Session",
       "privacy_policy": "By submitting you confirm you agree to receive follow up messages about this and similar events, in accordance with our privacy policy.",
       "error_title": "Something went wrong",
-      "captcha_retry": "The security check needs doing again. Wait for it to refresh, then register once more."
+      "captcha_retry": "The security check needs doing again. Wait for it to refresh, then register once more.",
+      "subscribe": "Send me news about meditation programmes near me"
     },
     "errors": {
       "email": "Enter a valid email",
@@ -263,6 +264,87 @@
       "referral": "How did you hear about this event?",
       "aspirations": "What are you hoping to get out of this?",
       "questions": "Do you have any questions for us?"
+    }
+  },
+  "submit": {
+    "chrome": {
+      "add_entry": "Don’t see your class? Add it",
+      "add_here": "Add a class here",
+      "correct_entry": "Suggest a correction",
+      "title_add": "Add a class",
+      "title_correct": "Suggest a correction",
+      "step_progress": "Step %{step} of %{total}",
+      "next": "Next",
+      "back": "Back",
+      "skip": "Skip",
+      "preview_note": "This is how your class will appear once a coordinator approves it."
+    },
+    "where": {
+      "title": "Where does the class take place?",
+      "offline": "In person",
+      "online": "Online",
+      "address_label": "Address",
+      "address_placeholder": "Search for the address",
+      "room_label": "Room or floor (optional)",
+      "online_url_label": "Link to join",
+      "online_url_placeholder": "https://",
+      "city_label": "City",
+      "city_placeholder": "Search for a city",
+      "city_help": "The city the class is hosted from, so the right coordinator reviews it."
+    },
+    "when": {
+      "title": "When does it meet?",
+      "first_date": "First date",
+      "start_time": "Starts at",
+      "end_time": "Ends at",
+      "repeats": "Repeats",
+      "end_date": "Last date (optional)",
+      "timezone_note": "Times are in %{timezone}."
+    },
+    "contact": {
+      "title": "Who can people contact?",
+      "help": "Shown on the listing so people can ask questions before they come.",
+      "name_label": "Name",
+      "phone_label": "Phone",
+      "email_label": "Email"
+    },
+    "about": {
+      "title": "Tell people about the class",
+      "description_label": "Description",
+      "description_placeholder": "What to expect, who it is for, anything a newcomer should know."
+    },
+    "more": {
+      "title": "More details",
+      "title_label": "Class name",
+      "title_help": "Leave blank to name it after the venue.",
+      "languages_label": "Languages",
+      "website_label": "Website"
+    },
+    "review": {
+      "edit": "Edit",
+      "email_label": "Your email",
+      "email_help": "We’ll only use this to tell you what happens to your submission.",
+      "note_label": "Note for the coordinator (optional)",
+      "submit": "Submit",
+      "add_more": "Add more details",
+      "no_changes": "Change at least one detail before submitting."
+    },
+    "done": {
+      "title": "Thank you",
+      "body": "A coordinator for %{city} will review it.",
+      "body_no_city": "A coordinator will review it."
+    },
+    "errors": {
+      "email": "Enter a valid email address.",
+      "address_required": "Choose an address from the search results.",
+      "city_required": "Choose a city from the search results.",
+      "online_url": "Enter a link starting with https://",
+      "first_date": "Choose the first date.",
+      "start_time": "Choose a start time.",
+      "send_failed": "We couldn’t send your submission. Please try again.",
+      "captcha": "The security check expired. Please try again.",
+      "disposable_email": "Please use a permanent email address.",
+      "urls_not_allowed": "Links aren’t allowed here. Please remove them."
     }
   },
   "share": {

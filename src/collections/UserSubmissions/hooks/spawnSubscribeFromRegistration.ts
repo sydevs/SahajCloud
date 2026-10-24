@@ -21,9 +21,10 @@ import { parseOptIn, readSubmissionValue, SUBSCRIBE_OPT_IN } from '../submission
  * a form of its own (`perTypeForm` in `../fields.ts`), and what tells
  * `deliverSubscribe` to tag the subscription `event-registration`.
  *
- * ⚠ **The target list is resolved at delivery, not here.** The row names no
- * client of its own beyond the provenance one it inherits, so an operator
- * moving a client between providers does not have to rewrite pending rows.
+ * ⚠ **The target list is resolved at delivery, not here**, from the event's
+ * region (`mailingListClientFor`), so an operator moving a client between
+ * providers does not have to rewrite pending rows. The provenance `client` it
+ * inherits records who relayed the opt-in, not whose list it joins.
  *
  * Failure is swallowed and logged. The registrant *is* registered by the time
  * this runs, and a subscription that could not be recorded must not undo that
