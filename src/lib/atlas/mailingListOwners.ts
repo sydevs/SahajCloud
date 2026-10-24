@@ -26,7 +26,7 @@ const OWNERS_MEMO_KEY = 'atlas:mailingListOwners'
 const FALLBACK_MEMO_KEY = 'atlas:mailingListFallback'
 
 /**
- * A client whose list can take an address: the same four fields
+ * A client whose list can take an address: the same non-blank fields
  * `isMailingListConfigured` demands at delivery, so a half-filled list is never
  * offered and never hides a complete one further up. A draft client has not
  * been signed off.
@@ -35,17 +35,15 @@ const LIST_ELIGIBLE = [
   { 'mailingList.enabled': { equals: true } },
   { 'mailingList.provider': { exists: true } },
   { 'mailingList.listId': { exists: true } },
+  { 'mailingList.listId': { not_equals: '' } },
   { 'mailingList.apiKey': { exists: true } },
+  { 'mailingList.apiKey': { not_equals: '' } },
   { _status: { equals: 'published' } },
 ] as const
 
 /**
  * Region id → the client with a list that claims it. Ascending id, so two
  * clients claiming one region resolve the same way on every request.
- *
- * Read without `req`: the Events field resolves on the response of a create,
- * and a nested read joining that transaction can roll the write back
- * (`src/collections/AGENTS.md`).
  */
 async function loadDirectListOwners(req: PayloadRequest): Promise<Map<number, number>> {
   const { docs } = await req.payload.find({

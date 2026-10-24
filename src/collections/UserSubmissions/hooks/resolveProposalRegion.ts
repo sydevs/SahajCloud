@@ -28,7 +28,7 @@ export const resolveProposalRegion: CollectionBeforeValidateHook = async ({
   const location = (data.location ?? {}) as SubmissionLocation
   // A hand-entered region's `manual-…` id names no real place to match.
   const ids = [location.mapboxId, location.placeId, location.regionId, location.countryId].filter(
-    (id): id is string => Boolean(id) && !isManualMapboxId(id),
+    (id): id is string => typeof id === 'string' && id !== '' && !isManualMapboxId(id),
   )
   if (ids.length === 0) return data
 
@@ -41,6 +41,8 @@ export const resolveProposalRegion: CollectionBeforeValidateHook = async ({
     sort: 'id',
     select: { level: true },
   })
+  // Nothing on the atlas: leave whatever a trusted writer passed alone.
+  if (docs.length === 0) return data
   const first = (level: Region['level']) => docs.find((region) => region.level === level)?.id
 
   const anchorRegion = first('venue') ?? first('city')

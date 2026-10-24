@@ -188,6 +188,12 @@ describe('atlas submission routing', () => {
       await expect(propose({ location: { placeId: 'see cheap.shop' } })).rejects.toThrow()
     })
 
+    it('answers a non-string location id with a validation error, not a query error', async () => {
+      await expect(propose({ location: { placeId: { in: ['x'] } } })).rejects.toMatchObject({
+        status: 400,
+      })
+    })
+
     it('leaves a correction on its target event', async () => {
       const event = await testData.createEvent(payload, {
         manager: admin.id,

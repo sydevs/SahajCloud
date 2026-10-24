@@ -173,8 +173,8 @@ const subjectField: Field = {
  * exemption.
  *
  * A subscribe row spawned by a registration opt-in has no form of its own —
- * nobody authored one, and the target list resolves from the provenance client
- * at delivery time. It carries the registration's `event` instead, which is
+ * nobody authored one, and the target list resolves from the event's region at
+ * delivery time. It carries the registration's `event` instead, which is
  * both the exemption's condition and the link back to the row that created it
  * (`hooks/spawnSubscribeFromRegistration.ts`). A contact submission never
  * qualifies: it has nowhere to go without a form's `recipient`.
@@ -501,9 +501,9 @@ const managerField: Field = {
 }
 
 /**
- * Screening resolves it, but it can come back empty (an address that matched no
- * city), and Accept refuses a new-event proposal without one — so the fix has
- * to be reachable here.
+ * Intake resolves it from `location` (`resolveProposalRegion`), but it can come
+ * back empty (an address in a city the atlas does not have), and Accept refuses
+ * a new-event proposal without one — so the fix has to be reachable here.
  *
  * No `filterOptions`, deliberately: Payload validates it on save with a find
  * that forwards the caller's `req`, and a client `req` trips the
@@ -517,7 +517,7 @@ const regionField: Field = {
   admin: {
     condition: unresolvedProposal,
     description:
-      'The city or venue this event belongs to. Resolved by screening — correct it here if it came back empty or wrong.',
+      'The city or venue this event belongs to. Matched from the visitor’s location — correct it here if it came back empty or wrong.',
   },
 }
 

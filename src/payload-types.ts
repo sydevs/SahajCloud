@@ -2269,7 +2269,7 @@ export interface UserSubmission {
    */
   manager?: (number | null) | Manager;
   /**
-   * The city or venue this event belongs to. Resolved by screening — correct it here if it came back empty or wrong.
+   * The city or venue this event belongs to. Matched from the visitor’s location — correct it here if it came back empty or wrong.
    */
   region?: (number | null) | Region;
   screeningResult?: SubmissionScreeningResult;

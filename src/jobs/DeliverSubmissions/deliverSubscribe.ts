@@ -66,9 +66,10 @@ export async function deliverSubscribe({
 /**
  * Which client's list this address belongs on.
  *
- * A registration-spawned row names its event, and goes to the list that owns
- * the event's region (`mailingListClientFor`, #1022), never to the site that
- * relayed it. Otherwise the form's `client`, else the provenance client.
+ * The form's `client` when an authored form produced the row. A
+ * registration-spawned row names its event instead, and goes to the list that
+ * owns the event's region (`mailingListClientFor`, #1022), never to the site
+ * that relayed it. Anything else goes to its provenance client.
  *
  * ⚠ **Read from the `clients` document, never from `req.user`.** The API-key
  * strategy loads the whole client record onto the request — but
@@ -82,9 +83,8 @@ async function resolveMailingList(
 ): Promise<MailingListConfig | null> {
   const eventId = relationId(submission.event)
   const clientId =
-    eventId != null
-      ? await clientIdFromEvent(req, eventId)
-      : ((await clientIdFromForm(req, submission.form)) ?? relationId(submission.client))
+    (await clientIdFromForm(req, submission.form)) ??
+    (eventId != null ? await clientIdFromEvent(req, eventId) : relationId(submission.client))
   if (clientId == null) return null
 
   const client = await req.payload.findByID({
@@ -115,7 +115,10 @@ async function clientIdFromEvent(
     draft: true,
     trash: true,
   })
-  return mailingListClientFor(req, relationId(event?.region))
+  // A hard-deleted event names nobody who runs the class, so the fallback list
+  // must not quietly stand in for them.
+  if (!event) return null
+  return mailingListClientFor(req, relationId(event.region))
 }
 
 /** The `client` a subscribe form names, or `null` when there is no form. */
