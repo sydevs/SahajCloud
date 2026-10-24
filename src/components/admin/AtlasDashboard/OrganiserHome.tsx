@@ -206,7 +206,8 @@ export function OrganiserHome({ data }: { data: DashboardData }) {
           </div>
           <p className={styles.footnote}>
             Your programs and programs in the areas you manage appear here. Summary counts exclude
-            finished programs.
+            finished programs. A published program awaiting review is counted under review and stays
+            on the public map.
           </p>
         </>
       ) : (
