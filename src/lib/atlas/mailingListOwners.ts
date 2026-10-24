@@ -1,9 +1,12 @@
 import type { PayloadRequest } from 'payload'
 
-import { relationId } from '@/lib/utilities/relationId'
 import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
 
-import { getCanonicalFallbackClientId, resolveOwnersByRegion } from './regionOwners'
+import {
+  getCanonicalFallbackClientId,
+  loadRegionClaims,
+  resolveOwnersByRegion,
+} from './regionOwners'
 import { getRegionTree } from './regionTree'
 
 /**
@@ -41,31 +44,11 @@ const LIST_ELIGIBLE = [
   { _status: { equals: 'published' } },
 ] as const
 
-/**
- * Region id → the client with a list that claims it. Ascending id, so two
- * clients claiming one region resolve the same way on every request.
- */
-async function loadDirectListOwners(req: PayloadRequest): Promise<Map<number, number>> {
-  const { docs } = await req.payload.find({
-    collection: 'clients',
-    depth: 0,
-    pagination: false,
-    overrideAccess: true,
-    sort: 'id',
-    where: { and: [...LIST_ELIGIBLE, { region: { exists: true } }] },
-    select: { region: true },
-  })
-
-  const owners = new Map<number, number>()
-  for (const row of docs) {
-    const regionId = relationId(row.region)
-    if (regionId != null && !owners.has(regionId)) owners.set(regionId, row.id)
-  }
-  return owners
-}
-
 async function loadMailingListOwners(req: PayloadRequest): Promise<Map<number, number>> {
-  const [{ chainById }, direct] = await Promise.all([getRegionTree(req), loadDirectListOwners(req)])
+  const [{ chainById }, direct] = await Promise.all([
+    getRegionTree(req),
+    loadRegionClaims(req, LIST_ELIGIBLE, (row) => row.id),
+  ])
   return resolveOwnersByRegion(chainById, direct)
 }
 

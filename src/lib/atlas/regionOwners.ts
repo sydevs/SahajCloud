@@ -1,5 +1,5 @@
 import type { CanonicalTarget } from './canonicalUrl'
-import type { PayloadRequest } from 'payload'
+import type { PayloadRequest, Where } from 'payload'
 
 import type { RoutingMode } from '@/lib/clients/canonical'
 import { isValidCanonicalDomain } from '@/lib/clients/canonical'
@@ -49,8 +49,8 @@ export interface CanonicalOwner {
   routing: RoutingMode
 }
 
-/** The `clients` row shape this resolver reads. */
-interface ClientRow {
+/** The `clients` row shape these resolvers read. */
+export interface ClientRow {
   id: number
   region?: unknown
   canonical?: {
@@ -90,52 +90,63 @@ const CANONICAL_ELIGIBLE = [
 ] as const
 
 /**
- * The clients that directly own a region, keyed by that region's id.
+ * The clients that directly claim a region (`clients.region`), keyed by that
+ * region's id, under one notion of ownership: `eligible` narrows the rows and
+ * `ownerFrom` says what a row owns, or `undefined` when it owns nothing.
+ * Canonical ownership and mailing-list ownership (`mailingListOwners.ts`) both
+ * load through here, so they share one tie-break.
  *
  * One extra query per request, about 31 rows, deliberately unoptimized. A
  * process-level cache would need invalidation across instances, and
  * denormalizing the owner onto 595 regions would need a sync hook that can
  * drift. Revisit only if the client count grows by an order of magnitude.
+ *
+ * Read without `req`, for the reason `getCanonicalFallbackClientId` gives.
  */
-async function loadDirectOwners(req: PayloadRequest): Promise<Map<number, CanonicalOwner>> {
+export async function loadRegionClaims<Owner>(
+  req: PayloadRequest,
+  eligible: readonly Where[],
+  ownerFrom: (row: ClientRow) => Owner | undefined,
+): Promise<Map<number, Owner>> {
   const { docs } = await req.payload.find({
     collection: 'clients',
     depth: 0,
     pagination: false,
     overrideAccess: true,
-    where: { and: [...CANONICAL_ELIGIBLE] },
+    // Ascending id. If two clients ever claim one region — canonical
+    // uniqueness is enforced, but data can predate a hook — the winner stays
+    // stable across requests, instead of depending on row order.
+    sort: 'id',
+    where: { and: [...eligible, { region: { exists: true } }] },
     select: { region: true, canonical: true },
-    req,
   })
 
-  const owners = new Map<number, CanonicalOwner>()
-  // Ascending id. If two enabled clients ever claim one region — the
-  // uniqueness hook rejects that, but data can predate a hook — the winner
-  // stays stable across requests, instead of depending on row order.
-  const rows = (docs as ClientRow[]).slice().sort((a, b) => a.id - b.id)
-
-  for (const row of rows) {
+  const owners = new Map<number, Owner>()
+  for (const row of docs as ClientRow[]) {
     const regionId = relationId(row.region)
-    // An incomplete declaration owns nothing. Without a region there is no
-    // subtree to cover, and without a *verified* host there is no URL we
-    // are willing to publish. It is better to fall through to the next
-    // ancestor (or We Meditate) than to emit a canonical URL that points at
-    // a page we have never confirmed actually runs the widget.
-    //
-    // The host must also be a *bare* host, checked here rather than
-    // trusted. The VerifyEmbeds job writes this column with a raw UPDATE,
-    // so the JSON schema's domain rule never runs on that write (see
-    // `canonicalTargetForHost`). Rejecting it at this point, before the
-    // ancestor walk rather than after, is what makes the next ancestor up
-    // win, instead of collapsing the whole subtree to the We Meditate
-    // fallback because one client mid-chain is unusable.
-    if (regionId == null) continue
-    const owner = canonicalOwnerFrom(row)
-    if (!owner || owners.has(regionId)) continue
-
-    owners.set(regionId, owner)
+    if (regionId == null || owners.has(regionId)) continue
+    // A row that owns nothing falls through, so the next ancestor up wins.
+    const owner = ownerFrom(row)
+    if (owner !== undefined) owners.set(regionId, owner)
   }
   return owners
+}
+
+/**
+ * Canonical owners. An incomplete declaration owns nothing: without a
+ * *verified* host there is no URL we are willing to publish, and it is better
+ * to fall through to the next ancestor (or We Meditate) than to emit a
+ * canonical URL pointing at a page we have never confirmed runs the widget.
+ *
+ * The host must also be a *bare* host, checked in `canonicalOwnerFrom` rather
+ * than trusted. The VerifyEmbeds job writes this column with a raw UPDATE, so
+ * the JSON schema's domain rule never runs on that write (see
+ * `canonicalTargetForHost`). Rejecting it before the ancestor walk rather than
+ * after is what makes the next ancestor up win, instead of collapsing the whole
+ * subtree to the We Meditate fallback because one client mid-chain is unusable.
+ */
+function loadDirectOwners(req: PayloadRequest): Promise<Map<number, CanonicalOwner>> {
+  return loadRegionClaims(req, CANONICAL_ELIGIBLE, canonicalOwnerFrom)
 }
 
 /**
