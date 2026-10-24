@@ -16,10 +16,11 @@
 /**
  * Words that never name a region, dropped wherever they appear.
  *
- * `search` / `calendar` / `filters` / `register` / `share` / `online` are the
- * widget's own routed views, and `preview` is its live-preview boot route: each
- * is a *view of* the entity beside it, so dropping it leaves the entity the page
- * is actually about (`/gb/london/1204/register` → event 1204). `events` /
+ * `search` / `calendar` / `filters` / `register` / `share` / `online` / `add` /
+ * `correct` are the widget's own routed views, and `preview` is its live-preview
+ * boot route: each is a *view of* the entity beside it, so dropping it leaves the
+ * entity the page is actually about (`/gb/london/1204/register` → event 1204,
+ * `/gb/london/add` → london, `/gb/london/1204/correct` → event 1204). `events` /
  * `areas` / `regions` / `venues` are legacy Atlas URL prefixes that carry no
  * view of their own, so dropping them makes an old inbound link resolve to the
  * same document its modern route does.
@@ -35,6 +36,8 @@ const RESERVED_SEGMENTS: ReadonlySet<string> = new Set([
   'register',
   'share',
   'online',
+  'add',
+  'correct',
   'preview',
   'events',
   'areas',
