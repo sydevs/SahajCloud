@@ -70,6 +70,10 @@ describe('parseAtlasRoute', () => {
       ['/gb/london/1204/share', { kind: 'event', id: 1204 }],
       ['/gb/london/online', { kind: 'region', slug: 'london' }],
       ['/gb/london/calendar', { kind: 'region', slug: 'london' }],
+      // The add-a-class and suggest-a-correction panels (sydevs/SahajAtlasWeb#147).
+      ['/gb/london/add', { kind: 'region', slug: 'london' }],
+      ['/gb/london/1204/correct', { kind: 'event', id: 1204 }],
+      ['/gb/london/CORRECT', { kind: 'region', slug: 'london' }],
       // Case-insensitive, matching the widget's own lowercased comparison.
       ['/gb/london/REGISTER', { kind: 'region', slug: 'london' }],
     ])('drops the view segment in %s', (route, expected) => {
@@ -95,6 +99,8 @@ describe('parseAtlasRoute', () => {
       ['a bare filters view', '/filters'],
       ['a bare online view', '/online'],
       ['a bare share view', '/share'],
+      ['a bare add view', '/add'],
+      ['a bare correct view', '/correct'],
       ['several stacked view segments', '/search/filters'],
       ['nothing but legacy prefixes', '/events/areas'],
     ])('resolves %s to the root', (_label, route) => {
