@@ -14,6 +14,7 @@ import { gateRegistration } from '@/collections/UserSubmissions/hooks/gateRegist
 import { guardStatusTransition } from '@/collections/UserSubmissions/hooks/guardStatusTransition'
 import { prepareUserSubmission } from '@/collections/UserSubmissions/hooks/prepareUserSubmission'
 import { queueScreening } from '@/collections/UserSubmissions/hooks/queueScreening'
+import { resolveProposalRegion } from '@/collections/UserSubmissions/hooks/resolveProposalRegion'
 import { spawnSubscribeFromRegistration } from '@/collections/UserSubmissions/hooks/spawnSubscribeFromRegistration'
 import {
   syncFullnessAfterChange,
@@ -366,7 +367,12 @@ const formBuilder = (config: Parameters<Plugin>[0]) =>
         // `beforeChange`, so a refusal has to live in this array to come first.
         // See the hook for why the ordering is about cost rather than
         // correctness.
-        beforeValidate: [validateProposal, gateRegistration, prepareUserSubmission],
+        beforeValidate: [
+          validateProposal,
+          gateRegistration,
+          prepareUserSubmission,
+          resolveProposalRegion,
+        ],
         // The vote gate is a `beforeChange`, and `afterDelete` is not one of the
         // arrays the wrapper above replaces — so both belong here. Their
         // `afterChange` siblings do not: listing them here would have the
