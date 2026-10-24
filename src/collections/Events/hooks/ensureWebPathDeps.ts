@@ -22,7 +22,9 @@ export const ensureWebPathDeps: CollectionBeforeOperationHook = ({ operation, ar
   if (!select || typeof select !== 'object') return args
 
   const fields = select as Record<string, unknown>
-  if (!fields.webPath && !fields.webUrl) return args
+  // `offersMailingList` reads `region` too; it needs no `_status`, but an extra
+  // status costs nothing.
+  if (!fields.webPath && !fields.webUrl && !fields.offersMailingList) return args
 
   const patched = { ...fields }
   if (!('region' in patched)) patched.region = true

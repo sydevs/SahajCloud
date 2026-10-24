@@ -248,13 +248,14 @@ export function getCanonicalFallbackOwner(
  * a chain depth of 4 or fewer (country, region, area, venue), so this stays O(n).
  *
  * Pure, and separate from the query above, so precedence is unit-testable
- * without a database.
+ * without a database. Generic because mailing-list ownership
+ * (`mailingListOwners.ts`) walks the same chains with a different owner.
  */
-export function resolveOwnersByRegion(
+export function resolveOwnersByRegion<Owner = CanonicalOwner>(
   chainById: Map<number, number[]>,
-  directOwners: Map<number, CanonicalOwner>,
-): Map<number, CanonicalOwner> {
-  const ownerById = new Map<number, CanonicalOwner>()
+  directOwners: Map<number, Owner>,
+): Map<number, Owner> {
+  const ownerById = new Map<number, Owner>()
   if (directOwners.size === 0) return ownerById
 
   for (const [regionId, chain] of chainById) {

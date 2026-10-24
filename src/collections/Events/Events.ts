@@ -24,6 +24,7 @@ import {
   urlField,
 } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
+import { mailingListClientFor } from '@/lib/atlas/mailingListOwners'
 import { getCanonicalUrlBase } from '@/lib/atlas/regionOwners'
 import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
 import { serverEnv } from '@/lib/env/server'
@@ -754,6 +755,25 @@ export const Events: CollectionConfig = {
           type: 'checkbox',
           defaultValue: false,
           admin: { readOnly: true, description: 'Registrations have reached the limit.' },
+        },
+        {
+          // Whether the registration form offers a mailing-list opt-in: true
+          // when a list resolves for this class's region (#1022). Virtual, so
+          // a client switching its list on or off is reflected on the next read.
+          name: 'offersMailingList',
+          type: 'checkbox',
+          virtual: true,
+          admin: {
+            readOnly: true,
+            description:
+              'Registrants are offered a mailing list: this region, one above it, or the atlas fallback service has one switched on.',
+          },
+          hooks: {
+            afterRead: [
+              async ({ data, req }) =>
+                (await mailingListClientFor(req, relationId(data?.region))) != null,
+            ],
+          },
         },
         {
           // Open document-scope items, for list-view sorting and targeted
