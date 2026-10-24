@@ -652,18 +652,21 @@ const systemGroup: Field = {
       admin: { readOnly: true },
     },
     {
-      // Where the visitor placed a new event (#1021). Ids, not names: an id only
-      // ever matches a region that already exists, so a forged value can
-      // misroute a submission but never name a region id or carry text a
-      // reviewer reads.
+      // The layers above where the visitor placed a new event (#1021): what the
+      // Events address group cannot carry. The address's own id already rides
+      // in `proposed.address.mapboxId`; an online class, which has no address,
+      // names its city here as `placeId`. Ids, not names: an id only ever
+      // matches a region that already exists, so a forged value can misroute a
+      // submission but never name a region id or carry text a reviewer reads.
       ...jsonField({
         name: 'location',
         schemaTitle: 'SubmissionLocation',
         schema: z.strictObject({
-          mapboxId: MAPBOX_FEATURE_ID.optional().describe('The picked address or place itself.'),
-          placeId: MAPBOX_FEATURE_ID.optional().describe('Its `place` layer — the city.'),
-          regionId: MAPBOX_FEATURE_ID.optional().describe('Its `region` layer — the state.'),
-          countryId: MAPBOX_FEATURE_ID.optional().describe('Its `country` layer.'),
+          placeId: MAPBOX_FEATURE_ID.optional().describe(
+            'The `place` layer — the city. An online class’s city goes here.',
+          ),
+          regionId: MAPBOX_FEATURE_ID.optional().describe('The `region` layer — the state.'),
+          countryId: MAPBOX_FEATURE_ID.optional().describe('The `country` layer.'),
         }),
         admin: {
           condition: unresolvedProposal,

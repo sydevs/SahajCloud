@@ -50,7 +50,7 @@ describe('atlas submission routing', () => {
   let cleanup: () => Promise<void>
   let admin: Manager
   let widget: Client
-  const region = {} as Record<'country' | 'state' | 'city' | 'otherCity', number>
+  const region = {} as Record<'country' | 'state' | 'city' | 'otherCity' | 'venue', number>
 
   const clientReq = (): PayloadRequest =>
     ({
@@ -122,6 +122,12 @@ describe('atlas submission routing', () => {
       level: 'city',
       parent: region.state,
     })
+    region.venue = await testData.createRegionNode(payload, {
+      prefix: PREFIX,
+      slug: 'hall',
+      level: 'venue',
+      parent: region.city,
+    })
     region.otherCity = await testData.createRegionNode(payload, {
       prefix: PREFIX,
       slug: 'other-city',
@@ -148,8 +154,8 @@ describe('atlas submission routing', () => {
   describe('placing a new-event proposal (#1021)', () => {
     it('anchors it in the city its location names', async () => {
       const doc = await propose({
+        proposed: { eventType: 'offline', address: { mapboxId: 'routing-unknown-address' } },
         location: {
-          mapboxId: 'routing-unknown-address',
           placeId: `${PREFIX}-city`,
           regionId: `${PREFIX}-state`,
           countryId: `${PREFIX}-country`,
@@ -171,6 +177,25 @@ describe('atlas submission routing', () => {
 
       expect(doc.region).toBeFalsy()
       expect(doc.regionHint).toEqual({ state: region.state })
+    })
+
+    it('anchors it in a venue the address itself is', async () => {
+      const doc = await propose({
+        proposed: { eventType: 'offline', address: { mapboxId: `${PREFIX}-hall` } },
+        location: { placeId: `${PREFIX}-city` },
+      })
+
+      expect(doc.region).toMatchObject({ id: region.venue })
+      expect(doc.regionHint).toEqual({ anchorRegion: region.venue })
+    })
+
+    it('places an online class by the city it names', async () => {
+      const doc = await propose({
+        proposed: { eventType: 'online', onlineUrl: 'https://meet.example.com/class' },
+        location: { placeId: `${PREFIX}-other-city` },
+      })
+
+      expect(doc.region).toMatchObject({ id: region.otherCity })
     })
 
     it('ignores a region or regionHint the client writes itself', async () => {

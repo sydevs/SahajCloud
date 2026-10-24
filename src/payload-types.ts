@@ -2898,19 +2898,15 @@ export interface User {
 }
 export interface SubmissionLocation {
   /**
-   * The picked address or place itself.
-   */
-  mapboxId?: string;
-  /**
-   * Its `place` layer — the city.
+   * The `place` layer — the city. An online class’s city goes here.
    */
   placeId?: string;
   /**
-   * Its `region` layer — the state.
+   * The `region` layer — the state.
    */
   regionId?: string;
   /**
-   * Its `country` layer.
+   * The `country` layer.
    */
   countryId?: string;
 }

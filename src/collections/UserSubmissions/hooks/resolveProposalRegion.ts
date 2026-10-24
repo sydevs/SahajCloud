@@ -5,7 +5,9 @@ import type { Region, SubmissionLocation, SubmissionRegionHint } from '@/payload
 
 /**
  * beforeValidate (create): place a new-event proposal on the region tree from
- * the Mapbox ids in its `location` (#1021), matched against `regions.mapboxId`.
+ * its Mapbox ids (#1021) — the address's own (`proposed.address.mapboxId`, which
+ * can match a venue) and the layers in `location` — matched against
+ * `regions.mapboxId`.
  *
  * Only a venue or city becomes `region`, because an event must sit in one; a
  * state or country match is kept in `regionHint` so delivery can still reach
@@ -26,8 +28,9 @@ export const resolveProposalRegion: CollectionBeforeValidateHook = async ({
   }
 
   const location = (data.location ?? {}) as SubmissionLocation
+  const address = (data.proposed as { address?: { mapboxId?: unknown } } | undefined)?.address
   // A hand-entered region's `manual-…` id names no real place to match.
-  const ids = [location.mapboxId, location.placeId, location.regionId, location.countryId].filter(
+  const ids = [address?.mapboxId, location.placeId, location.regionId, location.countryId].filter(
     (id): id is string => typeof id === 'string' && id !== '' && !isManualMapboxId(id),
   )
   if (ids.length === 0) return data

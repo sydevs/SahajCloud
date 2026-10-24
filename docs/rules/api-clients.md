@@ -75,7 +75,7 @@ A create returns `status: pending`; screening and then delivery run on the queue
 
 A **registration** carrying `subscribe` in its `submissionData` spawns a linked subscribe-type row in the same request, carrying the registration's own `event`. That row is the consent record, with its own status, screening and retries — there is no `mailingListSubscribedAt` timestamp, because a timestamp recorded that somebody had consented and delivered nothing. Offer the opt-in only where the event's `offersMailingList` is true: that is the list the row will be delivered to (`docs/rules/clients.md`). It resolves on a single-event read only, and is `null` in a list.
 
-A new-event **proposal** may carry `location`: the Mapbox feature ids (`mapboxId`, `placeId`, `regionId`, `countryId`) of the address or city the visitor picked. Intake matches them against `regions.mapboxId` and places the row in the matched city or venue, so its review email reaches that region's manager (#1021). The ids are the only location input a client writes — `region` and `regionHint` are system fields — and a value outside `[A-Za-z0-9_=-]` is refused.
+A new-event **proposal** is placed from its Mapbox feature ids: the address's own `proposed.address.mapboxId`, and `location` — the `placeId`, `regionId` and `countryId` layers above it. An online class has no address, so its city goes in `location.placeId`. Intake matches them against `regions.mapboxId` and places the row in the matched venue or city, so its review email reaches that region's manager (#1021). The ids are the only location input a client writes — `region` and `regionHint` are system fields — and a value outside `[A-Za-z0-9_=-]` is refused.
 
 ## A global read is a client read (#710)
 
