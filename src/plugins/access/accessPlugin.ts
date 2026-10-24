@@ -17,6 +17,7 @@ import type { CollectionSlug, Config } from 'payload'
 import { createAccessConfig, withDerivedGrants } from './accessConfigs'
 import { getProjectSlugs, getRoleSlugs, isTranslatableCollection } from './config'
 import { applyFieldAccessForTranslatableCollections } from './fieldAccess'
+import { isLocaleScopedCollection, restrictCreateToRequestLocale } from './localeScopedWrites'
 import { withLocalizedRoleAuth } from './localizedRolesAuth'
 import { stripLockedFieldsOnSelfRead } from './stripLockedFieldsOnSelfRead'
 import { createHidden } from './visibility'
@@ -80,15 +81,25 @@ export function accessPlugin(options: AccessPluginOptions = {}): (config: Config
         const collection = withLocalizedRoleAuth(original)
         return {
           ...collection,
-          // A caller reading its own auth collection may be on a path that
-          // skips field access entirely, so the `read` locks are re-applied
-          // after the read — see stripLockedFieldsOnSelfRead.ts (#822).
-          hooks: collection.auth
-            ? {
-                ...collection.hooks,
-                afterRead: [...(collection.hooks?.afterRead ?? []), stripLockedFieldsOnSelfRead],
-              }
-            : collection.hooks,
+          hooks: {
+            ...collection.hooks,
+            // A caller reading its own auth collection may be on a path that
+            // skips field access entirely, so the `read` locks are re-applied
+            // after the read — see stripLockedFieldsOnSelfRead.ts (#822).
+            ...(collection.auth && {
+              afterRead: [...(collection.hooks?.afterRead ?? []), stripLockedFieldsOnSelfRead],
+            }),
+            // `access.create` runs before the field pass, so a create that
+            // states no language is only answerable here — appended last, so
+            // it reads whatever the collection's own hooks settled on. See
+            // localeScopedWrites.ts (#980).
+            ...(isLocaleScopedCollection(slug) && {
+              beforeValidate: [
+                ...(collection.hooks?.beforeValidate ?? []),
+                restrictCreateToRequestLocale,
+              ],
+            }),
+          },
           // Apply role-based access control (preserve existing overrides).
           // `readVersions` and `unlock` are derived from the MERGED `update` by
           // one table-driven pass, so an override carries into version history

@@ -19,7 +19,6 @@
  * a strategy-only fix is overwritten the moment the admin client calls `/me`.
  */
 
-import type { RoleScope } from './types'
 import type { Payload, PayloadRequest } from 'payload'
 
 import type { LocaleCode } from '@/lib/locales'
@@ -45,7 +44,7 @@ const LOCALE_ORDER: readonly string[] = LOCALES.map((l) => l.code)
 /**
  * The one translation from a request's `locale` to the scope a permission check
  * evaluates — `PayloadRequest['locale']` is a `string | undefined` that also
- * carries `'all'`, and {@link RoleScope} is not.
+ * carries `'all'`, and a `LocaleCode` is not.
  *
  * It exists so the mapping is stated once instead of at every call site. It was
  * written out four times before, and the fourth disagreed with the other three:
@@ -64,8 +63,13 @@ const LOCALE_ORDER: readonly string[] = LOCALES.map((l) => l.code)
  * and `RoleScope` has one non-locale member — so a cast would let
  * `?locale=union` name the privileged scope directly and hand a manager their
  * roles from every locale at once. Nothing a request says may select `'union'`.
+ *
+ * ⚠ **The return type is `LocaleCode`, narrower than the `RoleScope` callers
+ * pass it to, and deliberately.** A caller that scopes a `Where` on the answer
+ * then has no unreachable `'union'` branch to write, and no reason to guess
+ * what one would mean.
  */
-export function roleScopeFromLocale(locale: string | undefined): RoleScope | undefined {
+export function roleScopeFromLocale(locale: string | undefined): LocaleCode | undefined {
   if (!locale || !LOCALE_ORDER.includes(locale)) return undefined
   return locale as LocaleCode
 }

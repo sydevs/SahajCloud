@@ -29,6 +29,7 @@ import {
   resolveManagedDocIds,
   userManagesDocument,
 } from './documentManagers'
+import { isLocaleScopedCollection, scopeLocaleWrite } from './localeScopedWrites'
 import { roleScopeFromLocale } from './localizedRoles'
 import { hasPermission } from './permissions'
 import { isRegionSubtreeCollection, scopeRegionSubtreeWrite } from './regionSubtreeAccess'
@@ -185,6 +186,17 @@ export function createAccessConfig(
           isRegionSubtreeCollection(collection)
         ) {
           return scopeRegionSubtreeWrite({ req, collection, operation, id, data })
+        }
+
+        // Narrow a manager's write to the language their role was read in, on
+        // a collection whose `locale` IS the document's language. See
+        // localeScopedWrites.ts.
+        if (
+          operation !== 'read' &&
+          isLocaleScopedCollection(collection) &&
+          isActiveNonAdminManager(req.user)
+        ) {
+          return scopeLocaleWrite(operation, args.locale, data)
         }
 
         // A manager's `user-submissions` grant is collection-wide, but the

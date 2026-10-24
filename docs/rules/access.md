@@ -105,6 +105,25 @@ A `managers` (hasMany) or `manager` relationship to `managers` on any collection
 
 Wired into `createAccessConfig` on an explicit slug allowlist (`{ regions, events }`), not field introspection, since create/delete are security-sensitive and a stray `managers` field elsewhere must not silently widen access.
 
+### Locale-scoped write scoping (per-locale editors, #980)
+
+A meditation **is** one language — its hidden `locale` select — but `meditations-editor` is granted per locale and the grant it carries names none. So the collection-wide grant let a French or Czech editor open an English meditation by its URL and rewrite its label, narrator, thumbnail, type, music tag and frames for every English listener. `scopeLocaleWrite` (`localeScopedWrites.ts`) narrows a non-admin manager's write to the locale `hasPermission` evaluated their role in — the language this request's roles came from, never the language the document claims.
+
+`LOCALE_SCOPED_COLLECTIONS` names which collections this applies to — `meditations` alone today. ⚠ **Not every collection with a `locale` field, and never derived from the field name.** Three carry a queryable top-level one, and only `meditations` means the document's own language: `Clients.locale` is a service's preferred language and `imports.locale` the admin locale an upload happened in (#912), so scoping either by the editor's locale would refuse a write over a column that says nothing about who may write it. `Lectures.subtitles[].locale` is a row key inside an array, which no top-level rule reaches either way. Same reasoning as `REGION_SUBTREE_COLLECTIONS` above, and the set is the one thing a second such collection edits.
+
+A hand-named set fails open, so the classification is asserted rather than trusted: `tests/int/role-based-access.int.spec.ts` walks `payload.config.collections` for a queryable top-level `locale` and fails until every collection carrying one is named there, in or out. That is the half `RESTRICTED_COLLECTIONS` above still lacks.
+
+- **update** (and `delete`, which no role grants today) → `{ locale: { equals: <scope> } }`. A single-document update that does not match answers **403 Forbidden**, because `updateByID` reports a `Where` policy that matched nothing as a refusal rather than a 404.
+- **create** → a boolean, because `executeAccess` reads a `Where` as a grant and an object there would allow every language. An absent `locale` is allowed: the field pass that fills it has not run yet, and the admin asks this question with no data at all to decide whether to offer the Create button.
+
+⚠ **A create can state its language or have it filled, and only the first is answerable here.** `access.create` runs before the field pass, so an absent `locale` has to pass — and `duplicate` sends an **empty `data`** and then clones the _source document's_ locale rather than taking the default, because `getFallbackValue` prefers `siblingDoc` over `defaultValue`. Unguarded, a French editor could `POST /api/meditations/<english id>/duplicate` and land a new English meditation in the app's English catalogue that only an admin can then edit. `restrictCreateToRequestLocale` — the `beforeValidate` hook `accessPlugin` attaches to every collection in the set, so no collection wires one by hand — refuses that, at the first point the language is known. It is the complete rule: a stated `locale` survives the field pass untouched, so the hook sees that one too. The `create` arm above is kept because an access config that scoped `update` and `delete` but not `create` would read as an oversight — it refuses a stated language one layer earlier, and nothing depends on it alone.
+
+- **read** is untouched. `filterMeditationsByLocale` already scopes `find` and `count` and deliberately skips writes; the admin list and every client feed are unchanged.
+- **Version history follows on its own.** `withDerivedGrants` derives `readVersions` from `update` and translates the clause onto `version.locale`, so an editor reads the history of their own language's meditations and no other.
+- **Narrators are shared.** Every language draws on the same narrators, so `meditations-editor` keeps its unscoped `narrators` grant.
+
+A bilingual editor is therefore bound to the admin locale they are working in: holding the role in `en` and `fr` edits an English meditation only with the admin in English. Admins are unaffected — the admin bypass answers before any of this.
+
 ### Derived grants: one pass, one table (#719, #748)
 
 Two access keys are **derived from `update`** rather than computed from the role tables, because both are edit authority wearing another name: `readVersions` (version history, #719) and `unlock` (clearing a login lockout, #748). `withDerivedGrants(access, keys)` writes them in one pass, and `DERIVED_GRANTS` in `accessConfigs.ts` is the table of what differs between them — today, only whether the `Where` needs translating.
