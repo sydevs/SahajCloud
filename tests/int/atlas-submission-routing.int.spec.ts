@@ -19,7 +19,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { DELIVERERS } from '@/jobs/DeliverSubmissions/deliverers'
 import type { Client, Manager, UserSubmission } from '@/payload-types'
 
-import { testData } from '../utils/testData'
+import { createData, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 const { verifyMock, subscribeMock, reviewMock } = vi.hoisted(() => ({
@@ -271,12 +271,12 @@ describe('atlas submission routing', () => {
         })
         const row = (await payload.create({
           collection: 'user-submissions',
-          data: {
+          data: createData<'user-submissions'>({
             type: 'subscribe',
             senderEmail: 'reg@example.com',
             event: event.id,
             client: widget.id,
-          },
+          }),
           overrideAccess: true,
           context: { skipWriteGuard: true },
         })) as UserSubmission
