@@ -72,6 +72,9 @@ const OWNERS_MEMO_KEY = 'atlas:regionOwners'
 /** `req.context` key for the per-request canonical-fallback memo. */
 const FALLBACK_MEMO_KEY = 'atlas:canonicalFallbackOwner'
 
+/** `req.context` key for the per-request `sy-atlas-config` fallback-client memo. */
+const FALLBACK_CLIENT_MEMO_KEY = 'atlas:canonicalFallbackClientId'
+
 /**
  * Which clients may own a canonical, as `where` clauses.
  *
@@ -188,13 +191,24 @@ function canonicalOwnerFrom(row: ClientRow): CanonicalOwner | undefined {
 async function loadCanonicalFallbackOwner(
   req: PayloadRequest,
 ): Promise<CanonicalOwner | undefined> {
-  const config = await req.payload.findGlobal({
-    slug: 'sy-atlas-config',
-    depth: 0,
-    overrideAccess: true,
-    req,
+  return canonicalOwnerForClient(req, await getCanonicalFallbackClientId(req))
+}
+
+/**
+ * The client `sy-atlas-config` names as the fallback, eligible or not, read
+ * once per request. Canonical ownership and the mailing-list fallback
+ * (`mailingListOwners.ts`) each apply their own eligibility to it.
+ */
+export function getCanonicalFallbackClientId(req: PayloadRequest): Promise<number | null> {
+  return memoizeOnRequest(req, FALLBACK_CLIENT_MEMO_KEY, async () => {
+    const config = await req.payload.findGlobal({
+      slug: 'sy-atlas-config',
+      depth: 0,
+      overrideAccess: true,
+      req,
+    })
+    return relationId(config.canonicalFallbackClient)
   })
-  return canonicalOwnerForClient(req, relationId(config.canonicalFallbackClient))
 }
 
 /**
@@ -251,7 +265,7 @@ export function getCanonicalFallbackOwner(
  * without a database. Generic because mailing-list ownership
  * (`mailingListOwners.ts`) walks the same chains with a different owner.
  */
-export function resolveOwnersByRegion<Owner = CanonicalOwner>(
+export function resolveOwnersByRegion<Owner>(
   chainById: Map<number, number[]>,
   directOwners: Map<number, Owner>,
 ): Map<number, Owner> {

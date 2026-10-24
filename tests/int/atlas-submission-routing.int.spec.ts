@@ -249,6 +249,33 @@ describe('atlas submission routing', () => {
       }
     })
 
+    it('answers a client selecting only the flag, and skips list reads', async () => {
+      const stateList = await listClient('State List 2', region.state, 'state-list-2')
+      try {
+        const event = await testData.createEvent(payload, {
+          manager: admin.id,
+          region: region.city,
+        })
+        // `region` is not selected: `ensureVirtualFieldDeps` has to add it back.
+        const selected = await payload.findByID({
+          collection: 'events',
+          id: event.id,
+          depth: 0,
+          select: { offersMailingList: true },
+        })
+        expect(selected.offersMailingList).toBe(true)
+
+        const listed = await payload.find({
+          collection: 'events',
+          where: { id: { equals: event.id } },
+          depth: 0,
+        })
+        expect(listed.docs[0]?.offersMailingList).toBeNull()
+      } finally {
+        await payload.delete({ collection: 'clients', id: stateList.id, overrideAccess: true })
+      }
+    })
+
     it('falls back to the canonical fallback client’s list', async () => {
       const central = await listClient('We Meditate', null, 'central-list')
       await setFallback(central.id)

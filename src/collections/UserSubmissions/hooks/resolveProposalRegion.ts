@@ -1,29 +1,20 @@
 import type { CollectionBeforeValidateHook } from 'payload'
 
-import type { Region, SubmissionLocation } from '@/payload-types'
-
-/** Most specific first: the event is created in the deepest match. */
-const LEVEL_RANK: Record<Region['level'], number> = { venue: 0, city: 1, region: 2, country: 3 }
+import { isManualMapboxId } from '@/lib/mapbox/manualLocation'
+import type { Region, SubmissionLocation, SubmissionRegionHint } from '@/payload-types'
 
 /**
  * beforeValidate (create): place a new-event proposal on the region tree from
- * the `location` the visitor picked (#1021).
+ * the Mapbox ids in its `location` (#1021), matched against `regions.mapboxId`.
  *
- * Matches each Mapbox id against `regions.mapboxId` — the id-space the admin
- * picker and the widget's geocoder share — and writes what it found:
+ * Only a venue or city becomes `region`, because an event must sit in one; a
+ * state or country match is kept in `regionHint` so delivery can still reach
+ * the manager above a city the atlas does not have yet. A correction keeps its
+ * target's region. Both outputs carry `systemFieldAccess`, which strips a
+ * client's own value before this runs.
  *
- * - `region` and `regionHint.anchorRegion` — the matched venue or city, which
- *   Accept creates the event in. Left empty when only a state or country
- *   matched: an event must sit in a city or venue, and the reviewer sets one.
- * - `regionHint.state` / `regionHint.country` — so `deliverProposal` can still
- *   reach the nearest manager above a city the atlas does not have yet.
- *
- * A correction (`event` set) keeps its target's region, so it is skipped. Both
- * outputs carry `systemFieldAccess`, which strips a client's own value in the
- * field pass before this runs — so whatever reaches the row came from here.
- *
- * Read without `req`: regions are committed state, and a nested read joining
- * the create's transaction can take the create down with it.
+ * Read without `req`: a nested read joining the create's transaction can take
+ * the create down with it.
  */
 export const resolveProposalRegion: CollectionBeforeValidateHook = async ({
   data,
@@ -35,8 +26,9 @@ export const resolveProposalRegion: CollectionBeforeValidateHook = async ({
   }
 
   const location = (data.location ?? {}) as SubmissionLocation
+  // A hand-entered region's `manual-…` id names no real place to match.
   const ids = [location.mapboxId, location.placeId, location.regionId, location.countryId].filter(
-    (id): id is string => typeof id === 'string' && id.length > 0,
+    (id): id is string => Boolean(id) && !isManualMapboxId(id),
   )
   if (ids.length === 0) return data
 
@@ -46,24 +38,16 @@ export const resolveProposalRegion: CollectionBeforeValidateHook = async ({
     depth: 0,
     pagination: false,
     overrideAccess: true,
+    sort: 'id',
     select: { level: true },
   })
-  const matched = (docs as Pick<Region, 'id' | 'level'>[])
-    .slice()
-    .sort((a, b) => LEVEL_RANK[a.level] - LEVEL_RANK[b.level] || a.id - b.id)
+  const first = (level: Region['level']) => docs.find((region) => region.level === level)?.id
 
-  const first = (levels: Region['level'][]) => matched.find((r) => levels.includes(r.level))?.id
-  const anchorRegion = first(['venue', 'city'])
-  const state = first(['region'])
-  const country = first(['country'])
-
-  return {
-    ...data,
-    ...(anchorRegion != null ? { region: anchorRegion } : {}),
-    regionHint: {
-      ...(country != null ? { country } : {}),
-      ...(state != null ? { state } : {}),
-      ...(anchorRegion != null ? { anchorRegion } : {}),
-    },
+  const anchorRegion = first('venue') ?? first('city')
+  const regionHint: SubmissionRegionHint = {
+    country: first('country'),
+    state: first('region'),
+    anchorRegion,
   }
+  return { ...data, region: anchorRegion ?? data.region, regionHint }
 }

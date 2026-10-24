@@ -2,7 +2,7 @@ import type { DeliveryContext, DeliveryOutcome } from './types'
 
 import * as Sentry from '@sentry/nextjs'
 
-import { submissionRegionId } from '@/collections/UserSubmissions/lifecycle/mergeProposal'
+import { submissionRoutingRegionId } from '@/collections/UserSubmissions/lifecycle/mergeProposal'
 import { readSubmissionValue } from '@/collections/UserSubmissions/submissionData'
 import { CONTACT_EMAIL } from '@/lib/contact'
 import { findManagerForRegion } from '@/lib/notifications/recipients'
@@ -32,7 +32,7 @@ export async function deliverProposal({
   const target = eventId != null ? await loadTarget(req, eventId) : null
   const recipient = target
     ? await routeTo(req, target)
-    : await managerUpChain(req, placedRegionId(submission))
+    : await managerUpChain(req, submissionRoutingRegionId(submission))
 
   if (!recipient) {
     // Not a note on the row: who received the email is our problem, and the
@@ -122,12 +122,6 @@ async function managerUpChain(
   if (!found?.manager.email) return null
 
   return { email: found.manager.email, name: found.manager.name ?? null }
-}
-
-/** Where a new-event proposal was placed: its city, else the deepest layer matched above it. */
-function placedRegionId(submission: DeliveryContext['submission']): number | null {
-  const hint = (submission.regionHint ?? {}) as Record<string, unknown>
-  return submissionRegionId(submission) ?? relationId(hint.state) ?? relationId(hint.country)
 }
 
 /**

@@ -66,11 +66,9 @@ export async function deliverSubscribe({
 /**
  * Which client's list this address belongs on.
  *
- * The form's `client` when the row came from an authored subscribe form. A
- * registration-spawned row names its event instead, and goes to the list that
- * owns the event's region — the one the Events `offersMailingList` field
- * promised the registrant (#1022), never the site that embedded the form. Any
- * other row falls back to its provenance client.
+ * A registration-spawned row names its event, and goes to the list that owns
+ * the event's region (`mailingListClientFor`, #1022), never to the site that
+ * relayed it. Otherwise the form's `client`, else the provenance client.
  *
  * ⚠ **Read from the `clients` document, never from `req.user`.** The API-key
  * strategy loads the whole client record onto the request — but
@@ -84,8 +82,9 @@ async function resolveMailingList(
 ): Promise<MailingListConfig | null> {
   const eventId = relationId(submission.event)
   const clientId =
-    (await clientIdFromForm(req, submission.form)) ??
-    (eventId != null ? await clientIdFromEvent(req, eventId) : relationId(submission.client))
+    eventId != null
+      ? await clientIdFromEvent(req, eventId)
+      : ((await clientIdFromForm(req, submission.form)) ?? relationId(submission.client))
   if (clientId == null) return null
 
   const client = await req.payload.findByID({

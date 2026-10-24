@@ -652,14 +652,10 @@ const systemGroup: Field = {
       admin: { readOnly: true },
     },
     {
-      // Where the visitor said a new event is: the Mapbox feature ids of the
-      // address or city they picked, and of the layers above it. The one
-      // location input a client may write; `resolveProposalRegion` matches it
-      // against `regions.mapboxId` into `regionHint` (#1021).
-      //
-      // Ids, not names: an id only ever matches a region that already exists,
-      // so a forged value can misroute a submission but never name a region id
-      // or carry text a reviewer reads. The character class keeps out a URL.
+      // Where the visitor placed a new event (#1021). Ids, not names: an id only
+      // ever matches a region that already exists, so a forged value can
+      // misroute a submission but never name a region id or carry text a
+      // reviewer reads.
       ...jsonField({
         name: 'location',
         schemaTitle: 'SubmissionLocation',
@@ -677,17 +673,19 @@ const systemGroup: Field = {
       }),
     },
     {
-      // What region resolution made of `location`: `{ country, state,
-      // anchorRegion }`, each a region id. `anchorRegion` is the matched city or
-      // venue the event is created in; `state` and `country` route a proposal
-      // whose city is not on the atlas yet.
-      //
-      // Open on purpose: `review.ts` reads one key off it, and naming the keys
-      // beside an open value is what `src/collections/AGENTS.md` refuses.
+      // What `resolveProposalRegion` matched `location` to. Closed: that hook is
+      // its only writer, since `systemFieldAccess` strips a client's own value.
       ...jsonField({
         name: 'regionHint',
         schemaTitle: 'SubmissionRegionHint',
-        schema: z.looseObject({}).meta({ maxProperties: 20 }),
+        schema: z.strictObject({
+          country: z.int().optional().describe('The matched country region.'),
+          state: z.int().optional().describe('The matched state region.'),
+          anchorRegion: z
+            .int()
+            .optional()
+            .describe('The matched city or venue, kept after a reviewer changes `region`.'),
+        }),
         access: systemFieldAccess,
         admin: {
           condition: (data) => data?.type === 'proposal',

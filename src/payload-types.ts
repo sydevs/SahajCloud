@@ -2915,7 +2915,18 @@ export interface SubmissionLocation {
   countryId?: string;
 }
 export interface SubmissionRegionHint {
-  [k: string]: unknown;
+  /**
+   * The matched country region.
+   */
+  country?: number;
+  /**
+   * The matched state region.
+   */
+  state?: number;
+  /**
+   * The matched city or venue, kept after a reviewer changes `region`.
+   */
+  anchorRegion?: number;
 }
 export interface EventSystemMeta {
   communityFeedback?: {

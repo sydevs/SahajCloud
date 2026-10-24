@@ -56,7 +56,7 @@ import {
   EVENT_TYPE_OPTIONS,
   VERIFICATION_STAGE_OPTIONS,
 } from './eventOptions'
-import { ensureWebPathDeps } from './hooks/ensureWebPathDeps'
+import { ensureVirtualFieldDeps } from './hooks/ensureVirtualFieldDeps'
 import { computeEventQualityReport, stampEventQuality } from './hooks/eventQuality'
 import { eventTitleBeforeChange, eventTitleValidate } from './hooks/eventTitle'
 import { excludeFinishedEvents } from './hooks/excludeFinishedEvents'
@@ -124,7 +124,7 @@ export const Events: CollectionConfig = {
   // Computing the listing-quality report costs two extra reads. Nothing that
   // hydrates an Event through a relationship (a registration row, the sidebar)
   // wants that report. Its `afterRead` also opts out of list reads. See the field.
-  defaultPopulate: { qualityReport: false },
+  defaultPopulate: { qualityReport: false, offersMailingList: false },
   admin: {
     group: 'Classes',
     useAsTitle: 'title',
@@ -159,11 +159,11 @@ export const Events: CollectionConfig = {
   // which runs the shared verify operation from its button's Server Action.
   hooks: {
     // Keep `webPath`/`webUrl` resolvable when a read selects them without
-    // their inputs (`region`, and `_status` for `webUrl`). See ensureWebPathDeps.
+    // their inputs (`region`, and `_status` for `webUrl`). See ensureVirtualFieldDeps.
     // Then drop finished events from API-client list reads. They stay
     // published so their pages resolve, but should not be listed. See
     // excludeFinishedEvents.
-    beforeOperation: [ensureWebPathDeps, excludeFinishedEvents],
+    beforeOperation: [ensureVirtualFieldDeps, excludeFinishedEvents],
     // A class that repeats one already listed is refused before anything else
     // runs, drafts included — see refuseDuplicateClass.
     beforeValidate: [refuseDuplicateClass],
@@ -352,7 +352,7 @@ export const Events: CollectionConfig = {
             // that null-on-unpublish contract. (`appUrl` is always null. There
             // is no Atlas app deep-link.)
             // `region` (an id at depth 0) must be present for the path to
-            // resolve. The ensureWebPathDeps beforeOperation hook keeps
+            // resolve. The ensureVirtualFieldDeps beforeOperation hook keeps
             // `region` selectable on its own. `region` is also exactly the
             // input that canonical ownership resolves on, so that hook needs
             // no change to keep `webUrl` resolvable.
@@ -757,9 +757,10 @@ export const Events: CollectionConfig = {
           admin: { readOnly: true, description: 'Registrations have reached the limit.' },
         },
         {
-          // Whether the registration form offers a mailing-list opt-in: true
-          // when a list resolves for this class's region (#1022). Virtual, so
-          // a client switching its list on or off is reflected on the next read.
+          // Whether the registration form offers a mailing-list opt-in (#1022).
+          // Virtual, so a client switching its list on or off shows on the next
+          // read. Null on list reads and system writes, like `qualityReport`:
+          // only the widget's single-event read asks.
           name: 'offersMailingList',
           type: 'checkbox',
           virtual: true,
@@ -770,8 +771,10 @@ export const Events: CollectionConfig = {
           },
           hooks: {
             afterRead: [
-              async ({ data, req }) =>
-                (await mailingListClientFor(req, relationId(data?.region))) != null,
+              async ({ data, findMany, req }) => {
+                if (findMany || req.context?.skipVerifyHook) return null
+                return (await mailingListClientFor(req, relationId(data?.region))) != null
+              },
             ],
           },
         },
