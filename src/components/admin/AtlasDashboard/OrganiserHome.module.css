@@ -1,4 +1,4 @@
-/* Only layout unique to the organiser home. Controls and tables use the shared CMS theme. */
+/* Layout and table treatment for the organiser home alone. Controls come from the CMS theme. */
 .home {
   margin: 12px 0 48px;
 }
@@ -65,6 +65,30 @@
 }
 .home :global(.cell-action) {
   white-space: nowrap;
+}
+/* Payload stripes its rows; the home separates them with rules instead. Scoped
+   here because unlayered `.table` rules reach every list view in the CMS. */
+.home :global(.table) {
+  border: 1px solid var(--theme-border-color);
+  border-radius: var(--style-radius-m);
+}
+.home :global(.table) th,
+.home :global(.table) td {
+  padding-block: 16px;
+  vertical-align: middle;
+}
+.home :global(.table) thead {
+  background: var(--theme-elevation-50);
+  color: var(--theme-elevation-650);
+}
+.home :global(.table) tbody tr:nth-child(odd) {
+  background: transparent;
+}
+.home :global(.table) tbody tr + tr td {
+  border-top: 1px solid var(--theme-elevation-100);
+}
+.home :global(.table) tbody tr:hover {
+  background: var(--theme-elevation-50);
 }
 .footnote {
   margin-top: 16px;

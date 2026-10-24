@@ -116,32 +116,3 @@ label.field-label {
   color: var(--theme-elevation-650);
   line-height: 1.55;
 }
-
-/* The same table treatment applies to native collection lists and the home. */
-.table {
-  border: 1px solid var(--theme-border-color);
-  border-radius: var(--style-radius-m);
-
-  th,
-  td {
-    padding-block: 16px;
-    vertical-align: middle;
-  }
-
-  thead {
-    background: var(--theme-elevation-50);
-    color: var(--theme-elevation-650);
-  }
-
-  tbody tr:nth-child(odd) {
-    background: transparent;
-  }
-
-  tbody tr + tr td {
-    border-top: 1px solid var(--theme-elevation-100);
-  }
-
-  tbody tr:hover {
-    background: var(--theme-elevation-50);
-  }
-}
