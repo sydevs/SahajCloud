@@ -240,7 +240,7 @@ The Managers `currentProject` field stores the selection. `ProjectSelector` (`be
 
 **The dashboard is one custom view per project.** `admin.components.views.dashboard` is `DashboardView` (`src/components/admin/Dashboard/`), in place of Payload's widget grid — a project's home is composed here rather than registered as a widget, which a saved layout could drop or carry into another project. `dashboardChoiceFor` (`Dashboard/model.ts`) owns the branch and reads `currentProject` alone, never a role, so an admin working in a project sees what its managers see. A project with no dashboard of its own falls through to `ProjectPlaceholder`, so no project list is spelled out in the view. `currentProject: null` is the admin "All Content" view (`Managers.ts`) and keeps Payload's `CollectionCards`; a manager who has chosen no project gets `ProjectSelectionPrompt`, which the view renders rather than `beforeDashboard`.
 
-**Manager home.** The Atlas project's own view (`Dashboard/AtlasDashboard/`) gives "Your programs": the events the Events collection's own `update` access scopes the user to, read with `overrideAccess: false`; "Add new program" follows `create`, as the sidebar's "New Event" does through `permissions`.
+**Manager home.** The Atlas project's own view (`Dashboard/AtlasDashboard/`) gives "Your programs": the events the Events collection's own `update` access scopes the user to, read with `overrideAccess: false`; "Add new program" follows `create`, as the sidebar's "New Event" does through `permissions`. Its header links to the public map through `PUBLIC_MAP_LINK`, exported from `AdminNavLinks` so the sidebar link and the button cannot give one destination two names.
 
 ## Project visibility (collection sidebar filtering)
 

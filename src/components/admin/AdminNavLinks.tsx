@@ -4,10 +4,18 @@ import { useProject } from '@/contexts/ProjectContext'
 
 import NavLink from './NavLink'
 
+/** The Atlas map's one name and address; the manager home's header links here too. */
+export const PUBLIC_MAP_LINK = {
+  key: 'map',
+  href: '/admin/map',
+  label: 'Public Map',
+  project: 'sahaj-atlas',
+} as const
+
 const LINKS = [
   { key: 'dashboard', href: '/admin', label: 'Dashboard' },
   { key: 'analytics', href: '/admin/analytics', label: 'Analytics' },
-  { key: 'map', href: '/admin/map', label: 'Public Map', project: 'sahaj-atlas' },
+  PUBLIC_MAP_LINK,
 ] as const
 
 /** Top-of-sidebar links. */

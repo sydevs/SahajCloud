@@ -6,6 +6,7 @@ import { useState } from 'react'
 
 import type { getAtlasDashboardData } from './data'
 
+import { PUBLIC_MAP_LINK } from '../../AdminNavLinks'
 import { tableColumn } from '../../helpers/tableColumn'
 import { programGroups, programStatus, type Program, type ProgramStatus } from './model'
 import styles from './ManagerHome.module.css'
@@ -63,8 +64,8 @@ export function ManagerHome({ data }: { data: DashboardData }) {
           </p>
         </div>
         <div className={styles.actions}>
-          <Button el="link" url="/admin/map" buttonStyle="secondary" margin={false}>
-            View public map
+          <Button el="link" url={PUBLIC_MAP_LINK.href} buttonStyle="secondary" margin={false}>
+            {PUBLIC_MAP_LINK.label}
           </Button>
           {data.canCreate && data.events.length > 0 && (
             <Button
