@@ -5,6 +5,12 @@ export type Program = Pick<Event, 'id' | 'title' | '_status' | 'verificationStag
     published: boolean
   }
 
+/** What the loader reads and the home renders: the one shape both sides import. */
+export type AtlasDashboardData = {
+  canCreate: boolean
+  events: Program[]
+}
+
 /** Sort rank per stage; 0 and 1 need the manager. A Record, so a new stage cannot be missed. */
 const STAGE_RANK: Record<Event['verificationStage'], 0 | 1 | 2 | 3> = {
   urgent: 0,

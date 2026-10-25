@@ -4,14 +4,17 @@ import { Banner, Button, CalendarIcon, CheckIcon, Pill, Table } from '@payloadcm
 import Link from 'next/link'
 import { useState } from 'react'
 
-import type { getAtlasDashboardData } from './data'
-
 import { PUBLIC_MAP_LINK } from '../../AdminNavLinks'
 import { tableColumn } from '../../helpers/tableColumn'
-import { programGroups, programStatus, type Program, type ProgramStatus } from './model'
+import {
+  programGroups,
+  programStatus,
+  type AtlasDashboardData,
+  type Program,
+  type ProgramStatus,
+} from './model'
 import styles from './ManagerHome.module.css'
 
-type DashboardData = Awaited<ReturnType<typeof getAtlasDashboardData>>
 type Filter = 'all' | 'review' | 'drafts'
 
 const FILTERS: { value: Filter; label: string }[] = [
@@ -49,7 +52,7 @@ function nextStep(program: Program): string {
 }
 
 /** A small composition of native Payload controls; data and permissions stay on the server. */
-export function ManagerHome({ data }: { data: DashboardData }) {
+export function ManagerHome({ data }: { data: AtlasDashboardData }) {
   const [filter, setFilter] = useState<Filter>('all')
   const groups = programGroups(data.events)
   const programs = groups[filter]
