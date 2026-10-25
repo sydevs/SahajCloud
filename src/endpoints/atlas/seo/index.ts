@@ -51,7 +51,7 @@ const REGION_SELECT: SelectType = {
 
 /**
  * Fields an event's own read needs. `region` and `_status` back `webPath` /
- * `webUrl`; the `ensureWebPathDeps` beforeOperation hook keeps them present
+ * `webUrl`; the `ensureVirtualFieldDeps` beforeOperation hook keeps them present
  * even when a caller selects the URL fields without them.
  */
 const EVENT_SELECT: SelectType = {
@@ -368,7 +368,7 @@ async function eventSeo(
  * - A region's `content.events` covers **the region and everything beneath it**,
  *   capped at 50; `content.eventCount` is the true total.
  * - **The atlas root is answered, not refused** (#739). `/` and every bare view
- *   route (`/search`, `/calendar`, `/filters`, `/online`, `/share`) return one
+ *   route (`/search`, `/calendar`, `/filters`, `/online`, `/share`, `/add`) return one
  *   document, of `type: 'root'`, with `id: null`, `route: '/'` and empty
  *   `breadcrumbs`. Those are the routes most hosts mount, so refusing them left
  *   the one page a host links from its own nav as the only page with no
