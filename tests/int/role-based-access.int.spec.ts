@@ -2675,11 +2675,14 @@ describe('Role-Based Access Control', () => {
    * absent from it — its `locale` sits in `subtitles` rows. Membership is
    * therefore a judgement about what the column MEANS, not about where it
    * sits: only `meditations` stores the document's own language.
+   *
+   * `clients` is absent because its column is `language` now: a service's
+   * preferred language, on a collection that is not localized. The second case
+   * below is what refuses a stale entry like that one.
    */
   describe('locale-scoped collections are classified, never derived', () => {
     const CLASSIFIED: Record<string, boolean> = {
       meditations: true,
-      clients: false, // a service's preferred language
       imports: false, // the admin locale an upload happened in (#912)
     }
 

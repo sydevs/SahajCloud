@@ -2476,7 +2476,7 @@ export interface Client {
   /**
    * Primary language for this service (any language).
    */
-  locale?:
+  language?:
     | (
         | 'ab'
         | 'aa'
@@ -4865,7 +4865,7 @@ export interface ClientsSelect<T extends boolean = true> {
   logo?: T;
   websiteUrl?: T;
   supportEmail?: T;
-  locale?: T;
+  language?: T;
   region?: T;
   mailingList?:
     | T

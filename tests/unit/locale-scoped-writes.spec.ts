@@ -10,10 +10,12 @@ import {
 
 /**
  * The set of locale-scoped collections is named, never derived from "has a
- * field called `locale`" (#980). Four collections carry one and no two mean the
- * same thing, so the cases below pin the three that must stay out: `clients`
- * stores a service's preferred language, `imports` the admin locale an upload
- * happened in (#912), and `lectures` a row key inside `subtitles`.
+ * field called `locale`" (#980). Three collections carry one and no two mean
+ * the same thing, so the cases below pin the two that must stay out: `imports`
+ * stores the admin locale an upload happened in (#912), and `lectures` a row
+ * key inside `subtitles`. `clients` was a third until its column was renamed
+ * to `language` — it is not a localized collection, so there is no longer a
+ * verdict to pin.
  *
  * These pin the verdicts. What forces a NEW collection to get one is
  * `role-based-access.int.spec.ts`, which needs the booted config to see the
@@ -41,7 +43,7 @@ describe('isLocaleScopedCollection', () => {
     expect(isLocaleScopedCollection('meditations')).toBe(true)
   })
 
-  it.each(['lectures', 'clients', 'imports'] as const)(
+  it.each(['lectures', 'imports'] as const)(
     'leaves %s out, whose locale field means something else',
     (collection) => {
       expect(isLocaleScopedCollection(collection)).toBe(false)

@@ -357,7 +357,7 @@ async function selectFromDatabase(): Promise<Scenario[]> {
         client,
         // A service's configured language is the realistic locale for someone
         // registering through it.
-        locale: (isValidLocale(String(client.locale)) ? client.locale : 'en') as LocaleCode,
+        locale: (isValidLocale(String(client.language)) ? client.language : 'en') as LocaleCode,
       }
     })
 }

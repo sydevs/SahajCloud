@@ -16,14 +16,16 @@
  * and then clones the SOURCE document's locale.
  *
  * ⚠ **Keyed on an explicit slug set, never on "has a field named `locale`".**
- * Three collections carry a queryable top-level `locale` and only this one
- * means the document's language: `Clients.locale` is a service's preferred
- * language, `imports.locale` the admin locale an upload happened in (#912).
- * Scoping either by the editor's locale would refuse a write over a column
- * that says nothing about who may write it. `Lectures.subtitles[].locale` is a
- * row key inside an array, so no top-level rule reaches it either way. Same
- * reasoning as `REGION_SUBTREE_COLLECTIONS`: a security-sensitive narrowing is
- * audited at a glance, and a stray field must not silently opt a collection in.
+ * Two collections carry a queryable top-level `locale` and only this one means
+ * the document's language: `imports.locale` is the admin locale an upload
+ * happened in (#912), so scoping it by the editor's locale would refuse a
+ * write over a column that says nothing about who may write it. A service's
+ * own preferred language was a third until it was renamed to
+ * `Clients.language` — `clients` is not localized, and the old name read as
+ * though it were. `Lectures.subtitles[].locale` is a row key inside an array,
+ * so no top-level rule reaches it either way. Same reasoning as
+ * `REGION_SUBTREE_COLLECTIONS`: a security-sensitive narrowing is audited at a
+ * glance, and a stray field must not silently opt a collection in.
  *
  * The set is hand-named, so it would otherwise fail open.
  * `role-based-access.int.spec.ts` walks the booted config and fails until a
@@ -42,8 +44,8 @@ import { isAdminManager } from './adminOnly'
 /**
  * Collections whose `locale` column IS the document's language.
  *
- * Hand-named, never derived from the column's presence: `clients` and `imports`
- * carry one that means something else. See the ⚠ above before widening this.
+ * Hand-named, never derived from the column's presence: `imports` carries one
+ * that means something else. See the ⚠ above before widening this.
  */
 const LOCALE_SCOPED_COLLECTIONS = new Set<ContentSlug>(['meditations'])
 
