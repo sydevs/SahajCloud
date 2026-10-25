@@ -9402,6 +9402,14 @@ export interface SyAtlasTranslationsCommonMapStrings {
    * Label of the geolocate control once the browser has refused or failed to supply a location.
    */
   location_not_available?: string;
+  /**
+   * Label of the Mapbox wordmark, which links to mapbox.com.
+   */
+  mapbox_homepage?: string;
+  /**
+   * Label of the control that shows and hides the map's data credits.
+   */
+  toggle_attribution?: string;
 }
 export interface SyAtlasTranslationsCommonFeedbackStrings {
   /**

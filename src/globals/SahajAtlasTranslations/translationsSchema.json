@@ -231,6 +231,14 @@
             "location_not_available": {
               "type": "string",
               "description": "Label of the geolocate control once the browser has refused or failed to supply a location."
+            },
+            "mapbox_homepage": {
+              "type": "string",
+              "description": "Label of the Mapbox wordmark, which links to mapbox.com."
+            },
+            "toggle_attribution": {
+              "type": "string",
+              "description": "Label of the control that shows and hides the map's data credits."
             }
           },
           "additionalProperties": false

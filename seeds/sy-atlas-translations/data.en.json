@@ -65,7 +65,9 @@
     },
     "map": {
       "find_my_location": "Find my location",
-      "location_not_available": "Location not available"
+      "location_not_available": "Location not available",
+      "mapbox_homepage": "Mapbox homepage",
+      "toggle_attribution": "Map data credits"
     },
     "feedback": {
       "confirmed_title": "Thank you for confirming",
