@@ -92,6 +92,12 @@ came from, and the next narrowing has several places to miss. Give a shape
 its own name only when it is genuinely not spellable from the generated
 type.
 
+**A shape two modules derive is the other case**, and this rule does not
+refuse it: it gets one exported alias here — `EventSchedule`,
+`EventAddress`, `ImageTag` — which nothing re-exports. What the rule
+refuses is a shorthand escaping the one file that needed it, and a second
+derivation standing beside a consumer once that alias exists.
+
 **A modifier applied to a derived name is still spellable, so it earns no
 alias.** `Partial<EventSchedule>` reads better than a name for it — the
 modifier says the shape is the familiar one minus its requirements, where an

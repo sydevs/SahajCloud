@@ -4,12 +4,11 @@ import type { EventDetails } from '@/emails/EventVerificationEmail'
 import { asNotificationLog } from '@/lib/eventVerification/log'
 import { activeRegistrationWhere } from '@/lib/registrations/active'
 import type { Event } from '@/payload-types'
+import type { EventAddress } from '@/types/address'
 import type { EventSchedule } from '@/types/schedule'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const RECENT_REGISTRATION_DAYS = 30
-
-type Address = NonNullable<Event['address']>
 
 const WEEKDAY_NAMES: Record<string, string> = {
   MO: 'Monday',
@@ -35,7 +34,7 @@ function ordinal(n: number): string {
 }
 
 /** One-line address: street, room, city, region, "country postCode". */
-export function addressOneLine(address: Address): string {
+export function addressOneLine(address: EventAddress): string {
   const countryLine = [address.country, address.postCode].filter(Boolean).join(' ')
   return [address.street, address.room, address.city, address.region, countryLine]
     .map((part) => part?.trim())

@@ -1,6 +1,6 @@
 import type { Condition, Field, GroupField } from 'payload'
 
-import type { Event } from '@/payload-types'
+import type { EventAddress } from '@/types/address'
 
 /** Text-backed searchable dropdown component (country + region), see src/components/admin/StringSelectField. */
 const STRING_SELECT_FIELD = '@/components/admin/StringSelectField'
@@ -67,13 +67,12 @@ export function addressFields(options: AddressFieldsOptions = {}): Field {
 
   // With geocoding on, the address starts as just the search field; every other
   // field appears once `mapboxId` is set (a chosen result, or "Enter manually").
-  // `Event['address']` is this factory's own group, named by its one caller —
-  // the level belongs to the factory, so the generated interface is the only
-  // spelling of it. A second caller with a different option set needs its own.
+  // `EventAddress` is this factory's own group, named by its one caller — the
+  // level belongs to the factory. A second caller with a different option set
+  // needs its own.
   const revealOnSearch: { condition?: Condition } = hasGeocoding
     ? {
-        condition: (_data, siblingData: Partial<NonNullable<Event['address']>>) =>
-          Boolean(siblingData?.mapboxId),
+        condition: (_data, siblingData: Partial<EventAddress>) => Boolean(siblingData?.mapboxId),
       }
     : {}
 
