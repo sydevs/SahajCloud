@@ -88,11 +88,20 @@ Each action is `{ label, overrides, confirm?, buttonStyle?, skipValidation? }`; 
 
 For non-admin (public) React, use `lucide-react` instead (see `docs/code-style.md`). Emails use neither — see `docs/rules/email.md`.
 
-## A condition reads a sibling its own level declares
+## A condition reads a field the level it names declares
 
-`siblingData` is the data at the field's own level, and `Condition` types it as `any`, so a name no level declares compiles, is always false, and hides the field it guards for good — `wisdomStyle` read the legacy `position` for its whole life (#989). `row`, `collapsible` and an unnamed `group` or `tab` hold no data, so a field inside one still reads its parent's level; a named `group`, `array`, `tab` or block starts a level of its own. A `ui` field is declared but holds no data, so its name is not a sibling either.
+A condition takes three levels — `data` is the document, `siblingData` the field's own level, `blockData` the enclosing block — and `Condition<TData extends TypeWithID = any, TSiblingData = any>` defaults both generics to `any`, so a name no level declares compiles, is always false, and hides the field it guards for good. `wisdomStyle` read the legacy `position` for its whole life that way (#989). `row`, `collapsible` and an unnamed `group` or `tab` hold no data, so a field inside one still reads its parent's level; a named `group`, `array`, `tab` or block starts a level of its own. A `ui` field is declared but holds no data, so its name is not a sibling either.
 
-`tests/unit/admin-condition-fields.spec.ts` fails on a read that names nothing at the level that owns it. It reads the condition's own source text, so a condition reading a sibling must spell its parameter `siblingData` — rename it, destructure it, or hand it to a helper and the spec fails rather than cover nothing. The one exempt spelling is `_siblingData`, which is how a condition declares it reads no sibling at all. `data` and `blockData` are out of its scope: neither names a sibling.
+**Annotate every parameter the condition reads with the generated interface for its level, and `_`-prefix the rest** — `no-restricted-syntax` in [eslint.config.mjs](../../eslint.config.mjs) fails a read through an unannotated one (#1004). Two facts shape the form:
+
+- **Annotate the parameter, not the function.** `satisfies Condition<never, TextBoxBlock>` catches a misspelled read and also fails TS2322, because a parameter typed `never` is not assignable to the field's own `Condition<any, any>`. `(_data, siblingData: Partial<TextBoxBlock>) => …` carries no such cost.
+- **`blockData` is annotatable, but never through the generics.** `Condition` types it `Partial<TData>`, and no generated block interface can reach `TData`: `LayoutBlock` carries `id?: string | null`, so `Condition<LayoutBlock, …>` is TS2344 against `TypeWithID`. Annotate the destructured third parameter instead — `(_data, _siblingData, { blockData }: { blockData: Partial<LayoutBlock> })`.
+
+A factory serving more than one collection cannot name a document type, so `hideUntilCreated`'s `data?.id` stays guarded at runtime alone. A factory that owns a _level_ can still name it: `scheduleFields` annotates the schedule group through `Event['schedule']`.
+
+`tests/unit/admin-condition-fields.spec.ts` fails on a read that names nothing at the level it reads, for all three. `data` is checked against the document's root level plus the columns Payload injects — derived from `upload`, `auth`, `trash` and drafts, so a collection turning one on needs no edit there. It reads the condition's own source text, so a parameter has to be spelled as its level: rename one, or hand it to a helper, and the spec fails rather than cover nothing. An `_`-prefixed name is how a condition declares it reads nothing at that level, and a destructured parameter (`{ id }`, `{ blockData }`) is checked by its annotation instead, since no regex sees through the pattern.
+
+**A site inside a page block is not checked against any root.** `pageBlocks` are shared by every collection whose richText carries them, so there is no one document to be their root — their `siblingData` and `blockData` reads are checked like any other.
 
 ## Live preview pushes the document — the frontend needn't fetch it
 
