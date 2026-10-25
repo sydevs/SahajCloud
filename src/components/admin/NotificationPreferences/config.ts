@@ -65,17 +65,17 @@ export function getFrequencyOptions(key: string): string[] {
 
 /**
  * Frequencies whose delivery is a scheduled digest run rather than an immediate
- * send. Not yet built — the digest ticket follows #588 — so the per-event
- * override select omits them (a manager can't pick a cadence that silently does
- * nothing). Delete the omission once digests ship.
+ * send (#588, shipped in #589). The per-event override select omits them
+ * because `SendRegistrationDigests` skips any event carrying an override
+ * address, so a summary cadence chosen there would silently do nothing.
  */
 export const SUMMARY_FREQUENCIES = ['Daily Summary', 'Weekly Summary']
 
 /**
  * Cadence options for the per-event `registrationNotificationEmail` override.
- * Derived from `event_registration` minus the not-yet-delivered summaries, so
- * every selectable option acts immediately and deterministically today:
- * `Immediate` sends now, `Never` never sends.
+ * Derived from `event_registration` minus the summary cadences, so every
+ * selectable option acts immediately and deterministically here: `Immediate`
+ * sends now, `Never` never sends.
  */
 export const REGISTRATION_OVERRIDE_FREQUENCY_OPTIONS = getFrequencyOptions(
   'event_registration',
