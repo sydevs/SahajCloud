@@ -704,6 +704,10 @@
               "type": "string",
               "description": "When-line for a listing with no schedule, and the message shown when registration is hidden."
             },
+            "room": {
+              "type": "string",
+              "description": "Where-line addition naming the room within the venue. Event view only — the list card and the Calendar entry never show it. `%{room}` = room name."
+            },
             "online": {
               "type": "string",
               "description": "Where-line badge, and the Calendar entry badge, for an online class."

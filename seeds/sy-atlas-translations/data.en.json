@@ -185,6 +185,7 @@
       "contact_to_join_full": "Contact the host to join anyway",
       "contact_to_join_late": "Contact the host to join late",
       "contact_for_timing": "Contact host for timings",
+      "room": "Room: %{room}",
       "online": "Online",
       "hosted_from": "Hosted from %{city}",
       "time_in_place": "%{time} in %{city}",
