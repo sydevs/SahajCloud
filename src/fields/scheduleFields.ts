@@ -10,7 +10,7 @@ import {
   getLocalTimeHHMM,
 } from '@/lib/schedule/scheduleHooks'
 import { isHHMM } from '@/lib/schedule/time'
-import type { Event } from '@/payload-types'
+import type { EventSchedule } from '@/types/schedule'
 
 import { jsonField } from './jsonField'
 
@@ -35,13 +35,6 @@ export interface ScheduleFieldsOptions {
   /** Admin configuration (uses PayloadCMS JSONField admin type) */
   admin?: Partial<JSONField['admin']>
 }
-
-/**
- * The schedule group's own level, as this factory declares it with every option
- * on. Events turns them all on, so its generated group is the superset; AppCards
- * declares a subset of the same names.
- */
-type ScheduleLevel = NonNullable<Event['schedule']>
 
 /** Internal configuration for sub-field builders */
 type SubFieldConfig = Omit<ScheduleFieldsOptions, 'name' | 'label' | 'admin'>
@@ -242,7 +235,7 @@ function buildRecurrenceRow(config: SubFieldConfig): Field {
         required: config.required,
         admin: {
           step: 1,
-          condition: (_data, siblingData: Partial<ScheduleLevel>) => !!siblingData?.recurrenceType,
+          condition: (_data, siblingData: Partial<EventSchedule>) => !!siblingData?.recurrenceType,
           description: 'Repeat every N days/weeks/months',
         },
       },
@@ -263,7 +256,7 @@ function buildComplexWeeklyFields({ required }: SubFieldConfig): Field[] {
       options: [...WEEKDAY_OPTIONS],
       required,
       admin: {
-        condition: (_data, siblingData: Partial<ScheduleLevel>) =>
+        condition: (_data, siblingData: Partial<EventSchedule>) =>
           siblingData?.recurrenceType === 'WEEKLY',
       },
     },
@@ -284,7 +277,7 @@ function buildComplexMonthlyFields({ required }: SubFieldConfig): Field[] {
         { label: 'By weekday', value: 'weekday' },
       ],
       admin: {
-        condition: (_data, siblingData: Partial<ScheduleLevel>) =>
+        condition: (_data, siblingData: Partial<EventSchedule>) =>
           siblingData?.recurrenceType === 'MONTHLY',
         isClearable: false,
       },
@@ -299,7 +292,7 @@ function buildComplexMonthlyFields({ required }: SubFieldConfig): Field[] {
       required,
       admin: {
         step: 1,
-        condition: (_data, siblingData: Partial<ScheduleLevel>) =>
+        condition: (_data, siblingData: Partial<EventSchedule>) =>
           siblingData?.recurrenceType === 'MONTHLY' && siblingData?.monthlyMode === 'date',
         description: 'Day of the month (1-31)',
       },
@@ -318,7 +311,7 @@ function buildComplexMonthlyFields({ required }: SubFieldConfig): Field[] {
       ],
       required,
       admin: {
-        condition: (_data, siblingData: Partial<ScheduleLevel>) =>
+        condition: (_data, siblingData: Partial<EventSchedule>) =>
           siblingData?.recurrenceType === 'MONTHLY' && siblingData?.monthlyMode === 'weekday',
         isClearable: false,
       },
@@ -339,7 +332,7 @@ function buildComplexMonthlyFields({ required }: SubFieldConfig): Field[] {
       ],
       required,
       admin: {
-        condition: (_data, siblingData: Partial<ScheduleLevel>) =>
+        condition: (_data, siblingData: Partial<EventSchedule>) =>
           siblingData?.recurrenceType === 'MONTHLY' && siblingData?.monthlyMode === 'weekday',
         isClearable: false,
       },
@@ -361,7 +354,7 @@ function buildEndingRow({ required, hasEnding }: SubFieldConfig): Field[] {
           label: 'Ends',
           options: ENDING_OPTIONS,
           admin: {
-            condition: (_data, siblingData: Partial<ScheduleLevel>) =>
+            condition: (_data, siblingData: Partial<EventSchedule>) =>
               !!siblingData?.recurrenceType,
             placeholder: 'Never',
           },
@@ -376,7 +369,7 @@ function buildEndingRow({ required, hasEnding }: SubFieldConfig): Field[] {
           required,
           admin: {
             step: 1,
-            condition: (_data, siblingData: Partial<ScheduleLevel>) =>
+            condition: (_data, siblingData: Partial<EventSchedule>) =>
               !!siblingData?.recurrenceType && siblingData?.endingType === 'count',
           },
         },
@@ -386,7 +379,7 @@ function buildEndingRow({ required, hasEnding }: SubFieldConfig): Field[] {
           label: 'End Date',
           required,
           admin: {
-            condition: (_data, siblingData: Partial<ScheduleLevel>) =>
+            condition: (_data, siblingData: Partial<EventSchedule>) =>
               !!siblingData?.recurrenceType && siblingData?.endingType === 'until',
             date: {
               pickerAppearance: 'dayOnly',
@@ -415,7 +408,7 @@ function buildExclusionsField({ hasExclusions }: SubFieldConfig): Field[] {
       admin: {
         description:
           'Dates when this recurring event will not occur, such as holidays or seasonal breaks.',
-        condition: (_data, siblingData: Partial<ScheduleLevel>) => !!siblingData?.recurrenceType,
+        condition: (_data, siblingData: Partial<EventSchedule>) => !!siblingData?.recurrenceType,
         components: {
           Field: '@/components/admin/FlatArrayField',
         },

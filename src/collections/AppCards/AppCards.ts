@@ -1,4 +1,4 @@
-import type { Condition, CollectionConfig, Field, FieldHook } from 'payload'
+import type { CollectionConfig, Condition, Field, FieldHook } from 'payload'
 
 import { Temporal } from '@js-temporal/polyfill'
 import { z } from 'zod'
@@ -23,6 +23,9 @@ type ViewLevel = NonNullable<AppCard['default']>
 
 /** The two event-gated tabs, which add `enabled` and `threshold`. */
 type EventViewLevel = NonNullable<AppCard['startingSoon']>
+
+/** Hero placement is a document-level choice, so both view factories read it. */
+const targetsHero = (data: Partial<AppCard>) => !!data?.targetSections?.includes('hero')
 
 /**
  * afterRead hook: computes the view schedule spec for event-type app cards.
@@ -243,15 +246,13 @@ function destinationFields(condition?: Condition): Field[] {
 
 /** Fields shared by all view tabs (no enabled/threshold). */
 function defaultViewFields(): Field[] {
-  const heroCondition = (data: Partial<AppCard>) => !!data?.targetSections?.includes('hero')
-
   return [
     {
       name: 'header',
       type: 'text',
       localized: true,
       admin: {
-        condition: heroCondition,
+        condition: targetsHero,
         description: 'Shown above the card in hero placement.',
       },
     },
@@ -361,7 +362,7 @@ function eventViewFields(thresholdDefault: string): Field[] {
     siblingData?.enabled === true
 
   const headerCondition = (data: Partial<AppCard>, siblingData: Partial<EventViewLevel>) =>
-    siblingData?.enabled === true && !!data?.targetSections?.includes('hero')
+    siblingData?.enabled === true && targetsHero(data)
 
   return [
     {
@@ -436,7 +437,9 @@ function eventViewFields(thresholdDefault: string): Field[] {
         mediaField({
           name: 'buttonIcon',
           label: 'Button Icon',
-          admin: { condition: (_, siblingData: Partial<ViewLevel>) => !!siblingData?.buttonText },
+          admin: {
+            condition: (_, siblingData: Partial<EventViewLevel>) => !!siblingData?.buttonText,
+          },
         }),
       ],
     },
