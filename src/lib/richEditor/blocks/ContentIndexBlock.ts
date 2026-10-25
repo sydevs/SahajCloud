@@ -3,6 +3,7 @@ import type { Block, FieldHook } from 'payload'
 import { extractID } from 'payload/shared'
 
 import { PAGE_TAGS } from '@/lib/pageTags'
+import type { ContentIndexBlock as ContentIndexBlockData } from '@/payload-types'
 
 /**
  * Configuration for each content type's API endpoint generation.
@@ -136,7 +137,8 @@ export const ContentIndexBlock: Block = {
       options: PAGE_TAGS,
       hooks: clearWhenTypeNot('pages'),
       admin: {
-        condition: (_, siblingData) => siblingData?.type === 'pages',
+        condition: (_, siblingData: Partial<ContentIndexBlockData>) =>
+          siblingData?.type === 'pages',
         description: 'Select page tags to use as filters for this index grid',
       },
     },
@@ -149,7 +151,8 @@ export const ContentIndexBlock: Block = {
       maxDepth: 0,
       hooks: clearWhenTypeNot('meditations'),
       admin: {
-        condition: (_, siblingData) => siblingData?.type === 'meditations',
+        condition: (_, siblingData: Partial<ContentIndexBlockData>) =>
+          siblingData?.type === 'meditations',
         description: 'Select user choices to use as filters for this index grid',
       },
     },
@@ -162,7 +165,8 @@ export const ContentIndexBlock: Block = {
       maxDepth: 0,
       hooks: clearWhenTypeNot('songs'),
       admin: {
-        condition: (_, siblingData) => siblingData?.type === 'songs',
+        condition: (_, siblingData: Partial<ContentIndexBlockData>) =>
+          siblingData?.type === 'songs',
         description: 'Select music tags to use as filters for this index grid',
       },
     },

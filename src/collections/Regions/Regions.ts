@@ -8,6 +8,7 @@ import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
 import { serverEnv } from '@/lib/env/server'
 import { livePreviewUrl } from '@/lib/livePreview/url'
 import { isManualMapboxId } from '@/lib/mapbox/manualLocation'
+import type { Region } from '@/payload-types'
 import { ownedRegionFilterOptions } from '@/plugins/access'
 
 import { requireOwnedParentOnCreate } from './hooks/requireOwnedParentOnCreate'
@@ -36,8 +37,7 @@ export const REGION_LEVEL_OPTIONS = [
  * `required` field with no condition of its own would force a NOT NULL
  * column, and reject every Mapbox-identified region.
  */
-const isManualLocation = (data: Record<string, unknown>): boolean =>
-  isManualMapboxId(data?.mapboxId)
+const isManualLocation = (data: Partial<Region>): boolean => isManualMapboxId(data?.mapboxId)
 
 /**
  * Which levels may be a node's direct parent. A node nests exactly one level
@@ -209,7 +209,7 @@ export const Regions: CollectionConfig = {
                   },
                   admin: {
                     // A country is the tree root, so it has no parent.
-                    condition: (data) => data?.level !== 'country',
+                    condition: (data: Partial<Region>) => data?.level !== 'country',
                     description: 'The geographic parent of this node (a higher level).',
                   },
                 },
@@ -277,14 +277,14 @@ export const Regions: CollectionConfig = {
                   // the conditional-validation rule — not required and kept
                   // nullable, until `mapboxId` has any value, manual or a real
                   // Mapbox id.
-                  admin: { condition: (data) => !!data?.mapboxId },
+                  admin: { condition: (data: Partial<Region>) => !!data?.mapboxId },
                 },
                 {
                   name: 'subtitle',
                   type: 'text',
                   admin: {
                     description: 'Text that appears below the region name in listings',
-                    condition: (data) =>
+                    condition: (data: Partial<Region>) =>
                       ['city', 'venue'].includes(data?.level as string) && !!data.name,
                   },
                 },

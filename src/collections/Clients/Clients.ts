@@ -17,6 +17,7 @@ import {
 import { getLanguageOptions } from '@/lib/locales'
 import type { MailingListProvider } from '@/lib/mailingList/types'
 import { MAILING_LIST_PROVIDERS } from '@/lib/mailingList/types'
+import type { Client } from '@/payload-types'
 import { getRoleOptions, managersOnlyFieldAccess } from '@/plugins/access'
 import { abuseScoreSchema, calculateAbuseScore } from '@/plugins/usage'
 
@@ -117,8 +118,7 @@ const canonicalEnabled = (data: { canonical?: { enabled?: boolean | null } | nul
   Boolean(data?.canonical?.enabled)
 
 /** Same master-switch shape as `canonicalEnabled`, for the mailing-list group. */
-const mailingListEnabled = (data: { mailingList?: { enabled?: boolean | null } | null }): boolean =>
-  Boolean(data?.mailingList?.enabled)
+const mailingListEnabled = (data: Partial<Client>): boolean => Boolean(data?.mailingList?.enabled)
 
 /** What each provider is called in the select. */
 const PROVIDER_LABELS: Record<MailingListProvider, string> = {
@@ -196,7 +196,7 @@ const mailingListGroup: Field = {
           })),
           enumName: 'enum_clients_mailing_list_provider',
           admin: {
-            condition: (data) => mailingListEnabled(data),
+            condition: (data: Partial<Client>) => mailingListEnabled(data),
             // The opt-in note for the chosen provider, in place of a checkbox
             // two of the three cannot honour. See `OPT_IN_NOTES`.
             custom: { descriptions: OPT_IN_NOTES },
@@ -209,7 +209,7 @@ const mailingListGroup: Field = {
           label: 'List ID',
           required: true,
           admin: {
-            condition: (data) => mailingListEnabled(data),
+            condition: (data: Partial<Client>) => mailingListEnabled(data),
             // One sentence naming all three, rather than a per-provider hint:
             // `admin.description`'s function form is handed `{ i18n, t }` and
             // never the document, so it cannot see which provider is chosen.
@@ -222,7 +222,7 @@ const mailingListGroup: Field = {
           label: 'API Key',
           required: true,
           admin: {
-            condition: (data) => mailingListEnabled(data),
+            condition: (data: Partial<Client>) => mailingListEnabled(data),
             description:
               'The provider secret. Checked against the provider when you save, and never readable by an API client.',
           },
@@ -234,7 +234,7 @@ const mailingListGroup: Field = {
           label: 'Send a confirmation email before subscribing',
           admin: {
             // Mailchimp only — the one provider with a per-call lever.
-            condition: (data) =>
+            condition: (data: Partial<Client>) =>
               mailingListEnabled(data) && data?.mailingList?.provider === 'mailchimp',
             description:
               'Mailchimp adds the address as `pending` and emails it a confirmation link.',
@@ -316,7 +316,7 @@ export const Clients: CollectionConfig = {
               label: 'Sahaj Atlas',
               admin: {
                 initCollapsed: false,
-                condition: (data) =>
+                condition: (data: Partial<Client>) =>
                   Array.isArray(data?.roles) && data.roles.includes('sahaj-atlas-client'),
               },
               fields: [
@@ -383,7 +383,7 @@ export const Clients: CollectionConfig = {
         {
           label: 'SEO',
           admin: {
-            condition: (data) =>
+            condition: (data: Partial<Client>) =>
               Array.isArray(data?.roles) && data.roles.includes('sahaj-atlas-client'),
           },
           fields: [
@@ -563,7 +563,8 @@ export const Clients: CollectionConfig = {
                       'Primary user contact for this client. Only needed when more than one manager is assigned.',
                     // Hidden (and not required) with a single manager — that
                     // lone manager is implicitly the primary contact.
-                    condition: (data) => Array.isArray(data?.managers) && data.managers.length > 1,
+                    condition: (data: Partial<Client>) =>
+                      Array.isArray(data?.managers) && data.managers.length > 1,
                   },
                 },
               ],

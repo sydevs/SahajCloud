@@ -4,6 +4,9 @@ import { Block } from 'payload'
 import slugify from 'slugify'
 
 import { mediaField } from '@/fields'
+import type { LayoutBlock as LayoutBlockData } from '@/payload-types'
+
+type LayoutItem = NonNullable<LayoutBlockData['items']>[number]
 
 const computeTabTitleUrls: FieldHook = ({ value, siblingData }) => {
   if ((siblingData as { style?: string })?.style !== 'tabs') return value
@@ -78,7 +81,7 @@ export const LayoutBlock: Block = {
       name: 'defaultTab',
       type: 'text',
       admin: {
-        condition: (_, siblingData) => (siblingData as { style?: string })?.style === 'tabs',
+        condition: (_, siblingData: Partial<LayoutBlockData>) => siblingData?.style === 'tabs',
         description:
           'Enter the title of the tab that should be open by default. Will be converted to match the tab anchor (e.g. "My Tab" → "#my-tab").',
       },
@@ -112,7 +115,7 @@ export const LayoutBlock: Block = {
       type: 'checkbox',
       defaultValue: false,
       admin: {
-        condition: (_, siblingData) => (siblingData as { style?: string })?.style === 'tabs',
+        condition: (_, siblingData: Partial<LayoutBlockData>) => siblingData?.style === 'tabs',
         description: 'Display tabs as side-by-side columns on desktop screens.',
       },
     },
@@ -134,8 +137,8 @@ export const LayoutBlock: Block = {
           name: 'image',
           orientation: 'landscape',
           admin: {
-            condition: (_, _siblingData, { blockData }) =>
-              !['textList', 'tabs'].includes((blockData as { style?: string })?.style ?? ''),
+            condition: (_, _siblingData, { blockData }: { blockData: Partial<LayoutBlockData> }) =>
+              !['textList', 'tabs'].includes(blockData?.style ?? ''),
           },
         }),
         {
@@ -150,14 +153,16 @@ export const LayoutBlock: Block = {
               type: 'text',
               label: 'Title Link',
               admin: {
-                condition: (_, siblingData, { blockData }) => {
-                  const style = (blockData as { style?: string })?.style
+                condition: (
+                  _,
+                  siblingData: Partial<LayoutItem>,
+                  { blockData }: { blockData: Partial<LayoutBlockData> },
+                ) => {
+                  const style = blockData?.style
                   if (style === 'textList') return false
                   // For tabs, show the auto-computed anchor only after first save (beforeChange stores it)
-                  if (style === 'tabs') {
-                    return Boolean((siblingData as { titleUrl?: string })?.titleUrl)
-                  }
-                  return Boolean((siblingData as { title?: string })?.title)
+                  if (style === 'tabs') return Boolean(siblingData?.titleUrl)
+                  return Boolean(siblingData?.title)
                 },
               },
             },

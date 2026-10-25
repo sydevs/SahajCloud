@@ -28,7 +28,7 @@ import { jsonField } from '@/fields/jsonField'
 import { requireManagerPermission } from '@/lib/endpoints'
 import { runQueueSoon } from '@/lib/jobs/runQueueSoon'
 import { baseLanguageOrDefault, getLanguageOptions } from '@/lib/locales'
-import type { Manager } from '@/payload-types'
+import type { Import, Manager } from '@/payload-types'
 import { isAdminManager, resolveOwnedRegionIds } from '@/plugins/access'
 
 import { IMPORT_STALL_MS } from './constants'
@@ -104,7 +104,7 @@ const MAIN_FIELDS: Field[] = [
     access: { update: () => false },
     admin: {
       readOnly: true,
-      condition: (data) => Boolean(data?.error),
+      condition: (data: Partial<Import>) => Boolean(data?.error),
       description: 'Why the import stopped before it could finish.',
     },
   },
@@ -141,7 +141,7 @@ const MAIN_FIELDS: Field[] = [
     access: { update: () => false },
     admin: {
       readOnly: true,
-      condition: (data) => Boolean(data?.status) && data.status !== 'pending',
+      condition: (data: Partial<Import>) => Boolean(data?.status) && data.status !== 'pending',
       // A server component: each created row's live status is a read of the
       // class itself, which may have been published or cleaned up since.
       components: { Field: '@/components/admin/EventImport/ImportResultsField' },

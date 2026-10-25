@@ -1,4 +1,4 @@
-import type { CollectionConfig, Field, FieldHook } from 'payload'
+import type { Condition, CollectionConfig, Field, FieldHook } from 'payload'
 
 import { Temporal } from '@js-temporal/polyfill'
 import { z } from 'zod'
@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { mediaField, scheduleFields, urlField } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
 import { buildRRuleTemporal } from '@/lib/schedule/scheduleHooks'
+import type { AppCard } from '@/payload-types'
 import type { EventSchedule } from '@/types/schedule'
 
 import { appCardsForAudience } from './endpoints/forAudience'
@@ -13,6 +14,15 @@ import { appCardsForAudience } from './endpoints/forAudience'
 const TIME_REGEX = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/
 
 type ViewName = 'startingSoon' | 'liveNow' | 'default'
+
+/**
+ * A view tab's own level. `default` carries no event gate, so it is the subset
+ * all three share — a condition in a factory serving every tab reads only these.
+ */
+type ViewLevel = NonNullable<AppCard['default']>
+
+/** The two event-gated tabs, which add `enabled` and `threshold`. */
+type EventViewLevel = NonNullable<AppCard['startingSoon']>
 
 /**
  * afterRead hook: computes the view schedule spec for event-type app cards.
@@ -155,9 +165,7 @@ const viewScheduleAfterRead: FieldHook = ({ data: doc, req }) => {
 }
 
 /** Destination row shared across all view tabs. */
-function destinationFields(
-  condition?: (data: Record<string, unknown>, siblingData: Record<string, unknown>) => boolean,
-): Field[] {
+function destinationFields(condition?: Condition): Field[] {
   return [
     {
       type: 'row',
@@ -186,7 +194,7 @@ function destinationFields(
           type: 'relationship',
           relationTo: 'pages',
           admin: {
-            condition: (_, siblingData) => siblingData?.destination === 'page',
+            condition: (_, siblingData: Partial<ViewLevel>) => siblingData?.destination === 'page',
             description: 'Page this card links to.',
           },
         },
@@ -195,7 +203,8 @@ function destinationFields(
           type: 'relationship',
           relationTo: 'lectures',
           admin: {
-            condition: (_, siblingData) => siblingData?.destination === 'lecture',
+            condition: (_, siblingData: Partial<ViewLevel>) =>
+              siblingData?.destination === 'lecture',
           },
         },
         {
@@ -203,7 +212,7 @@ function destinationFields(
           type: 'relationship',
           relationTo: 'albums',
           admin: {
-            condition: (_, siblingData) => siblingData?.destination === 'album',
+            condition: (_, siblingData: Partial<ViewLevel>) => siblingData?.destination === 'album',
           },
         },
         {
@@ -215,7 +224,8 @@ function destinationFields(
           // the admin's own locale.
           localized: true,
           admin: {
-            condition: (_, siblingData) => siblingData?.destination === 'meditation',
+            condition: (_, siblingData: Partial<ViewLevel>) =>
+              siblingData?.destination === 'meditation',
           },
         },
         urlField({
@@ -223,7 +233,7 @@ function destinationFields(
           label: 'URL',
           localized: true,
           admin: {
-            condition: (_, siblingData) => siblingData?.destination === 'url',
+            condition: (_, siblingData: Partial<ViewLevel>) => siblingData?.destination === 'url',
           },
         }),
       ],
@@ -233,10 +243,7 @@ function destinationFields(
 
 /** Fields shared by all view tabs (no enabled/threshold). */
 function defaultViewFields(): Field[] {
-  const heroCondition = (data: Record<string, unknown>) => {
-    const sections = data?.targetSections as string[] | null | undefined
-    return !!sections?.includes('hero')
-  }
+  const heroCondition = (data: Partial<AppCard>) => !!data?.targetSections?.includes('hero')
 
   return [
     {
@@ -289,7 +296,7 @@ function defaultViewFields(): Field[] {
         mediaField({
           name: 'buttonIcon',
           label: 'Button Icon',
-          admin: { condition: (_, siblingData) => !!siblingData?.buttonText },
+          admin: { condition: (_, siblingData: Partial<ViewLevel>) => !!siblingData?.buttonText },
         }),
       ],
     },
@@ -350,14 +357,11 @@ function defaultViewFields(): Field[] {
 
 /** Fields for Starting Soon / Live Now view tabs (adds enabled + threshold gate). */
 function eventViewFields(thresholdDefault: string): Field[] {
-  const enabledCondition = (_: Record<string, unknown>, siblingData: Record<string, unknown>) =>
+  const enabledCondition = (_data: Partial<AppCard>, siblingData: Partial<EventViewLevel>) =>
     siblingData?.enabled === true
 
-  const headerCondition = (data: Record<string, unknown>, siblingData: Record<string, unknown>) => {
-    if (siblingData?.enabled !== true) return false
-    const sections = data?.targetSections as string[] | null | undefined
-    return !!sections?.includes('hero')
-  }
+  const headerCondition = (data: Partial<AppCard>, siblingData: Partial<EventViewLevel>) =>
+    siblingData?.enabled === true && !!data?.targetSections?.includes('hero')
 
   return [
     {
@@ -432,7 +436,7 @@ function eventViewFields(thresholdDefault: string): Field[] {
         mediaField({
           name: 'buttonIcon',
           label: 'Button Icon',
-          admin: { condition: (_, siblingData) => !!siblingData?.buttonText },
+          admin: { condition: (_, siblingData: Partial<ViewLevel>) => !!siblingData?.buttonText },
         }),
       ],
     },
@@ -562,7 +566,7 @@ export const AppCards: CollectionConfig = {
                 afterRead: [viewScheduleAfterRead],
               },
               admin: {
-                condition: (data) => data.type === 'event',
+                condition: (data: Partial<AppCard>) => data.type === 'event',
                 disableListColumn: true,
                 disableListFilter: true,
                 components: {
@@ -582,7 +586,7 @@ export const AppCards: CollectionConfig = {
                   name: 'startingSoon',
                   label: 'Starting Soon',
                   admin: {
-                    condition: (data) => data.type === 'event',
+                    condition: (data: Partial<AppCard>) => data.type === 'event',
                   },
                   fields: eventViewFields('1:00'),
                 },
@@ -590,7 +594,7 @@ export const AppCards: CollectionConfig = {
                   name: 'liveNow',
                   label: 'Live Now',
                   admin: {
-                    condition: (data) => data.type === 'event',
+                    condition: (data: Partial<AppCard>) => data.type === 'event',
                   },
                   fields: eventViewFields('0:00'),
                 },
@@ -601,7 +605,7 @@ export const AppCards: CollectionConfig = {
         {
           label: 'Event Schedule',
           admin: {
-            condition: (data) => data.type === 'event',
+            condition: (data: Partial<AppCard>) => data.type === 'event',
           },
           fields: [
             scheduleFields({

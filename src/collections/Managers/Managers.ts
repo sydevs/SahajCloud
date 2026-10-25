@@ -11,6 +11,7 @@ import {
 import { hideUntilCreated, legacyMigrationFields } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
 import { getLanguageOptions } from '@/lib/locales'
+import type { Manager } from '@/payload-types'
 import { adminOnlyFieldAccess, getRoleOptions, getProjectOptions } from '@/plugins/access'
 
 import { setProject } from './endpoints/setProject'
@@ -110,7 +111,7 @@ export const Managers: CollectionConfig = {
               admin: {
                 description:
                   'Assign roles for each locale. Different roles can be assigned for different languages.',
-                condition: (data) => data.type === 'manager',
+                condition: (data: Partial<Manager>) => data.type === 'manager',
                 components: {
                   afterInput: ['@/components/admin/PermissionsTable'],
                 },

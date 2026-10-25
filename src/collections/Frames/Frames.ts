@@ -2,6 +2,7 @@ import type { CollectionConfig } from 'payload'
 
 import { fileMetadataField } from '@/fields'
 import { GENDER_OPTIONS } from '@/lib/utilities/gender'
+import type { Frame } from '@/payload-types'
 import { restrictUploadToAdmin } from '@/plugins/access'
 import { videoAdminThumbnail } from '@/plugins/storage/adminThumbnail'
 import {
@@ -90,7 +91,7 @@ export const Frames: CollectionConfig = {
           admin: {
             description:
               'Human-readable name for "Other" frames (bandhan, namaste, etc.) that have no chakra/nadi node.',
-            condition: (_, siblingData) => !siblingData?.subtleSystemNode,
+            condition: (_, siblingData: Partial<Frame>) => !siblingData?.subtleSystemNode,
           },
         },
       ],

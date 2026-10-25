@@ -240,7 +240,7 @@ function perTypeForm(field: Field): Field {
     required: true,
     index: true,
     validate,
-    admin: { ...field.admin, condition: (data) => needsForm(data) },
+    admin: { ...field.admin, condition: (data: Partial<UserSubmission>) => needsForm(data) },
   } as RelationshipField
 }
 
@@ -330,7 +330,7 @@ const eventField: Field = {
   index: true,
   validate: eventPlacement,
   admin: {
-    condition: (data) => data?.type !== 'contact',
+    condition: (data: Partial<UserSubmission>) => data?.type !== 'contact',
     description:
       'The event this registration attends, this proposal targets, or this subscription came from.',
   },
@@ -347,7 +347,7 @@ const startingAtField: Field = {
   type: 'date',
   timezone: true,
   admin: {
-    condition: (data) => data?.type === 'registration',
+    condition: (data: Partial<UserSubmission>) => data?.type === 'registration',
     date: { pickerAppearance: 'dayAndTime' },
     description: 'Which occurrence the registrant is attending.',
   },
@@ -371,7 +371,7 @@ const eventFeedbackField: Field = {
   enumName: 'enum_user_submissions_event_feedback',
   access: systemFieldAccess,
   admin: {
-    condition: (data) => data?.type === 'registration',
+    condition: (data: Partial<UserSubmission>) => data?.type === 'registration',
     description: 'Registrant’s verdict on an unverified event.',
   },
 }
@@ -415,7 +415,7 @@ const proposedField: Field = jsonField({
   // approaches 60.
   schema: z.looseObject({}).meta({ maxProperties: 60 }),
   admin: {
-    condition: (data) => data?.type === 'proposal',
+    condition: (data: Partial<UserSubmission>) => data?.type === 'proposal',
     readOnly: true,
     description: 'The proposed Events field patch, exactly as submitted.',
   },
@@ -434,7 +434,7 @@ const proposedChangesField: Field = {
   label: 'Proposed Changes',
   access: reviewProjectionAccess,
   admin: {
-    condition: (data) => data?.type === 'proposal',
+    condition: (data: Partial<UserSubmission>) => data?.type === 'proposal',
     readOnly: true,
     components: { Field: '@/components/admin/SubmissionReview/SubmissionChanges' },
   },
@@ -476,7 +476,7 @@ const proposalPreviewTargetField: Field = {
   ...proposalPreviewTarget,
   admin: {
     ...proposalPreviewTarget.admin,
-    condition: (data) => data?.type === 'proposal',
+    condition: (data: Partial<UserSubmission>) => data?.type === 'proposal',
   },
 }
 
@@ -691,7 +691,7 @@ const systemGroup: Field = {
         }),
         access: systemFieldAccess,
         admin: {
-          condition: (data) => data?.type === 'proposal',
+          condition: (data: Partial<UserSubmission>) => data?.type === 'proposal',
           readOnly: true,
           description: 'Regions matched from the location (country / state / anchor).',
         },

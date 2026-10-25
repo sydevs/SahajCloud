@@ -42,6 +42,7 @@ import {
 import { livePreviewUrl } from '@/lib/livePreview/url'
 import { getLanguageOptions } from '@/lib/locales'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
+import type { Event } from '@/payload-types'
 import {
   adminOnlyCondition,
   managersOnlyFieldAccess,
@@ -319,7 +320,8 @@ export const Events: CollectionConfig = {
                   // away the only contact route a dormant listing had. A
                   // nicety, not a necessity.
                   admin: {
-                    condition: (data) => !!data?.contactPhone || !!data?.contactEmail,
+                    condition: (data: Partial<Event>) =>
+                      !!data?.contactPhone || !!data?.contactEmail,
                     description: 'The name of the person seekers will reach',
                   },
                 },
@@ -402,7 +404,7 @@ export const Events: CollectionConfig = {
               label: 'Online URL',
               required: true,
               admin: {
-                condition: (data) => data?.eventType === 'online',
+                condition: (data: Partial<Event>) => data?.eventType === 'online',
                 description: 'Link attendees join the online event through.',
               },
             }),
@@ -412,7 +414,7 @@ export const Events: CollectionConfig = {
               // The building's name is what a seeker recognizes. The title
               // auto-fill prefers this over the street — see eventTitle.ts.
               hasVenueName: true,
-              admin: { condition: (data) => data?.eventType === 'offline' },
+              admin: { condition: (data: Partial<Event>) => data?.eventType === 'offline' },
             }),
           ],
         },
@@ -442,7 +444,7 @@ export const Events: CollectionConfig = {
               hasEndTime: true,
               hasEnding: true,
               hasExclusions: true,
-              admin: { condition: (data) => !data?.inactive },
+              admin: { condition: (data: Partial<Event>) => !data?.inactive },
             }),
           ],
         },
@@ -464,7 +466,7 @@ export const Events: CollectionConfig = {
                   name: 'externalRegistrationUrl',
                   label: 'External Registration URL',
                   admin: {
-                    condition: (data) => data?.registrationMode === 'external',
+                    condition: (data: Partial<Event>) => data?.registrationMode === 'external',
                   },
                 }),
                 {
@@ -473,7 +475,7 @@ export const Events: CollectionConfig = {
                   min: 0,
                   admin: {
                     description: 'Maximum registrations (blank = unlimited).',
-                    condition: (data) => data?.registrationMode === 'sahaj-atlas',
+                    condition: (data: Partial<Event>) => data?.registrationMode === 'sahaj-atlas',
                   },
                 },
               ],
@@ -499,7 +501,7 @@ export const Events: CollectionConfig = {
                     // Hidden pre-adoption. An unverified or denied event has
                     // no manager, and its registrations are recorded, but
                     // forwarded to nobody until a manager adopts the event.
-                    condition: (data) =>
+                    condition: (data: Partial<Event>) =>
                       data?.registrationMode === 'sahaj-atlas' &&
                       !isPreAdoptionStage(data?.verificationStage),
                     placeholder: 'Event Manager',
@@ -523,7 +525,8 @@ export const Events: CollectionConfig = {
                   // the drafts `_status` enum.
                   enumName: 'enum_events_registration_notification_frequency',
                   admin: {
-                    condition: (data) => Boolean(data?.registrationNotificationEmail),
+                    condition: (data: Partial<Event>) =>
+                      Boolean(data?.registrationNotificationEmail),
                   },
                 },
               ],
@@ -664,7 +667,7 @@ export const Events: CollectionConfig = {
               index: true,
               admin: {
                 readOnly: true,
-                condition: (data) => isPreAdoptionStage(data?.verificationStage),
+                condition: (data: Partial<Event>) => isPreAdoptionStage(data?.verificationStage),
                 description:
                   'How strongly attendees confirm this event is real (0–1) — your check before adopting a listing, or why a denied one stays down. Rises with confirmations, falls with denials, and stays cautious while there are few votes. Blank until the first vote.',
               },
