@@ -4,19 +4,16 @@ import { describe, expect, it } from 'vitest'
 
 import { collections } from '@/collections'
 
-import { sourceOf, SRC } from '../utils/importGraph'
-
 /**
- * Where the Transcript tab sits, and that Payload can resolve the component it
- * names.
+ * Where the Transcript tab sits, and the deliberate choices that one tab makes.
  *
  * It reads the **real** collection array rather than a fixture, which would
  * assume the very thing under test — the tab tree, and the names already in
  * it. The import boots no Payload instance.
  *
- * The generated `src/app/(payload)/admin/importMap.js` is asserted because
- * nothing else proves the string path resolves: that entry exists only because
- * `pnpm generate:importmap` found the component on the sanitized config.
+ * Two rules this file used to state by hand are now general, in
+ * `sanitized-config-rules.spec.ts`: that the component's path resolves in the
+ * import map, and that `transcriptPanel` does not shadow the `transcript` join.
  */
 
 const PANEL = '@/components/admin/MeditationTranscript'
@@ -59,20 +56,5 @@ describe('the meditation Transcript tab', () => {
 
     expect(panel?.type).toBe('ui')
     expect(panel?.admin?.components?.Field).toBe(PANEL)
-  })
-
-  // `transcript` is the native `join` onto `meditation-transcripts`. Shadowing
-  // it would take the join's rows off the Details tab.
-  it('does not shadow the `transcript` join', () => {
-    const names = videoTabs()[0].fields.flatMap((field) =>
-      'name' in field && field.name ? [field.name] : [],
-    )
-
-    expect(names).not.toContain('transcript')
-    expect(names).toContain('transcriptPanel')
-  })
-
-  it('has its component in the generated import map', () => {
-    expect(sourceOf(`${SRC}/app/(payload)/admin/importMap.js`)).toContain(`"${PANEL}#default"`)
   })
 })

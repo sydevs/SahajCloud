@@ -156,7 +156,7 @@ A module several components share, rather than one a collection registers, goes 
 
 ## Import map generation
 
-After registering a component in `payload.config.ts` (`admin.components`), run `pnpm generate:importmap`. Every registered component needs a default export. Path aliases (`@/`) work via tsconfig. The generated file (`src/app/(payload)/admin/importMap.js`, from `admin.importMap.baseDir` in `src/payload.config.ts`) is auto-managed — never hand-edit it.
+After registering a component in `payload.config.ts` (`admin.components`), run `pnpm generate:importmap`. Every registered component needs a default export. Path aliases (`@/`) work via tsconfig. The generated file (`src/app/(payload)/admin/importMap.js`, from `admin.importMap.baseDir` in `src/payload.config.ts`) is auto-managed — never hand-edit it. `tests/unit/sanitized-config-rules.spec.ts` compares it byte for byte against what the generator writes for the sanitized config, so a skipped regeneration and a stale entry both fail the unit lane.
 
 ## Custom field components
 
@@ -207,6 +207,8 @@ Four things are load-bearing:
 - **The gate releases itself only where `staleAfterMs` is declared.** Without one, a row whose worker died stays behind the waiting view for good; past the window the form opens and setting the status column back to its queued value is the retry.
 - **Never name a running stage that is also the column's `defaultValue`** — unless the create genuinely queues the job. `meditation-transcripts` declares `processing` and not `queued`, because a queued row waits for a person. `imports` declares its own default `pending`, because its create hook queues the import job, so a saved row at that default really is one a worker owns. Either way the release is `staleAfterMs`: without it, a saved row at that default opens behind a view nothing can move on. The view refuses to fire with no document id, which covers the create form alone.
 - **A stage with no form has no `SaveButton` slot either.** The view replaces the whole form, so a `WorkflowButtons` stage declared for a running status is reachable only past `staleAfterMs`.
+
+**`tests/unit/sanitized-config-rules.spec.ts` holds the declaration's wiring.** Every `jobStage` a collection declares has to parse, and every collection registering `JobStageView` has to declare one — which is what answers for a collection that left `satisfies JobStageConfig` off and misspelled a key.
 
 `imports` — the bulk class import's upload collection (`src/plugins/eventImport/importCollection.ts`) — declares `runningStages: ['pending']` with no count. Its job leaves `pending` in one write, with the results (`src/plugins/eventImport/finish.ts`), so the page never opens on a finished import whose rows are not stored yet. After that, a hook on `events` moves it between review and completed as its drafts are published or deleted.
 

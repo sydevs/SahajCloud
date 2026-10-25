@@ -5,8 +5,6 @@ import { describe, expect, it } from 'vitest'
 import { collections } from '@/collections'
 import { UPLOAD_NOTICE, withUploadNotice } from '@/plugins/storage/uploadNotice'
 
-import { sourceOf, SRC } from '../utils/importGraph'
-
 /**
  * Every upload collection gets the uploading notice, with no per-collection
  * wiring (#888). That `storagePlugin` applies this on all three of its paths
@@ -18,11 +16,6 @@ import { sourceOf, SRC } from '../utils/importGraph'
  * that module graph, so the marginal lane cost is nil. A synthetic collection
  * still earns its place for the cases the real array cannot show: a brand-new
  * upload collection, and one already using the slot.
- *
- * The generated `src/app/(payload)/admin/importMap.js` is asserted because
- * nothing else here proves Payload resolves the string path: that entry exists
- * only because `pnpm generate:importmap` found the component on the sanitized
- * config.
  */
 
 const apply = (input: CollectionConfig[]): CollectionConfig[] =>
@@ -85,11 +78,5 @@ describe('withUploadNotice', () => {
 
     expect(kept!.admin?.components?.edit?.Upload).toBe(audio)
     expect(noticesOf(kept!)).toEqual([UPLOAD_NOTICE])
-  })
-
-  it('has its component in the generated import map', () => {
-    expect(sourceOf(`${SRC}/app/(payload)/admin/importMap.js`)).toContain(
-      `"${UPLOAD_NOTICE}#default"`,
-    )
   })
 })
