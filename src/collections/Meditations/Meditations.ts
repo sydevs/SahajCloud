@@ -19,6 +19,7 @@ import {
   normalizeMeditationFrames,
   normalizeMeditationFramesForStorage,
 } from '@/lib/meditations/frames'
+import type { Meditation } from '@/payload-types'
 import { restrictUploadToAdmin } from '@/plugins/access'
 import { virtualUrlField } from '@/plugins/storage/urlFields'
 import { KeyframeData } from '@/types/frames'
@@ -282,7 +283,7 @@ export const Meditations: CollectionConfig = {
               type: 'relationship',
               relationTo: 'song-tags',
               admin: {
-                condition: ({ id }) => !!id,
+                condition: ({ id }: Partial<Meditation>) => !!id,
                 description: 'Music with this tag will be offered to the seeker',
                 components: {
                   Field: '@/components/admin/TagSelector',
@@ -355,7 +356,7 @@ export const Meditations: CollectionConfig = {
         {
           label: 'Publishing',
           admin: {
-            condition: ({ id }) => !!id,
+            condition: ({ id }: Partial<Meditation>) => !!id,
           },
           fields: [
             {
@@ -419,7 +420,7 @@ export const Meditations: CollectionConfig = {
               type: 'group',
               label: 'Category Assignments',
               admin: {
-                condition: ({ id }) => !!id,
+                condition: ({ id }: Partial<Meditation>) => !!id,
                 description:
                   'Shows which categories use this meditation for each time of day. Managed from the Categories collection.',
                 // Each virtualJoinField subfield runs a user-choices query per row.
@@ -438,7 +439,7 @@ export const Meditations: CollectionConfig = {
         {
           label: 'Video',
           admin: {
-            condition: ({ id }) => !!id,
+            condition: ({ id }: Partial<Meditation>) => !!id,
           },
           fields: [
             {

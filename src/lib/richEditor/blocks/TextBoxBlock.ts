@@ -1,6 +1,7 @@
 import { Block } from 'payload'
 
 import { mediaField } from '@/fields'
+import type { TextBoxBlock as TextBoxBlockData } from '@/payload-types'
 
 export const TextBoxBlock: Block = {
   slug: 'textbox',
@@ -63,7 +64,8 @@ export const TextBoxBlock: Block = {
         },
       ],
       admin: {
-        condition: (_, siblingData) => siblingData?.imagePosition === 'overlay',
+        condition: (_, siblingData: Partial<TextBoxBlockData>) =>
+          siblingData?.imagePosition === 'overlay',
       },
     },
     {
@@ -83,7 +85,8 @@ export const TextBoxBlock: Block = {
         },
       ],
       admin: {
-        condition: (_, siblingData) => siblingData?.imagePosition === 'overlay',
+        condition: (_, siblingData: Partial<TextBoxBlockData>) =>
+          siblingData?.imagePosition === 'overlay',
       },
     },
     {
@@ -91,7 +94,8 @@ export const TextBoxBlock: Block = {
       type: 'checkbox',
       label: 'Use "Ancient Wisdom" Styling',
       admin: {
-        condition: (_, siblingData) => siblingData?.imagePosition !== 'overlay',
+        condition: (_, siblingData: Partial<TextBoxBlockData>) =>
+          siblingData?.imagePosition !== 'overlay',
       },
     },
     {
@@ -102,7 +106,7 @@ export const TextBoxBlock: Block = {
       name: 'subtitle',
       type: 'text',
       admin: {
-        condition: (_, siblingData) => Boolean(siblingData?.title),
+        condition: (_, siblingData: Partial<TextBoxBlockData>) => Boolean(siblingData?.title),
       },
     },
     {
@@ -121,7 +125,8 @@ export const TextBoxBlock: Block = {
           type: 'text',
           required: true,
           admin: {
-            condition: (_, siblingData) => Boolean(siblingData?.buttonText),
+            condition: (_, siblingData: Partial<TextBoxBlockData>) =>
+              Boolean(siblingData?.buttonText),
           },
         },
       ],

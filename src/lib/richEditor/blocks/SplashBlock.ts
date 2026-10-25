@@ -1,5 +1,7 @@
 import { Block } from 'payload'
 
+import type { SplashBlock as SplashBlockData } from '@/payload-types'
+
 export const SplashBlock: Block = {
   slug: 'splash',
   interfaceName: 'SplashBlock',
@@ -57,14 +59,15 @@ export const SplashBlock: Block = {
       name: 'title',
       type: 'text',
       admin: {
-        condition: (_, siblingData) => siblingData?.layout !== 'map-search',
+        condition: (_, siblingData: Partial<SplashBlockData>) =>
+          siblingData?.layout !== 'map-search',
       },
     },
     {
       name: 'subtitle',
       type: 'text',
       admin: {
-        condition: (_, siblingData) =>
+        condition: (_, siblingData: Partial<SplashBlockData>) =>
           Boolean(siblingData?.title) && siblingData?.layout !== 'map-search',
       },
     },
@@ -79,7 +82,7 @@ export const SplashBlock: Block = {
       name: 'actionURL',
       type: 'text',
       admin: {
-        condition: (_, siblingData) =>
+        condition: (_, siblingData: Partial<SplashBlockData>) =>
           Boolean(siblingData?.actionText) && siblingData?.layout !== 'map-search',
         description: 'URL for the action button',
       },

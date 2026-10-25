@@ -6,6 +6,7 @@ import { serverEnv } from '@/lib/env'
 import { lectureMetadataSchema } from '@/lib/lectures/nirmalaVidya'
 import { livePreviewUrl, wmWebLocalePath } from '@/lib/livePreview/url'
 import { LOCALES, getLocaleLabel } from '@/lib/locales'
+import type { Lecture } from '@/payload-types'
 
 import { lecturesForAudience } from './endpoints/forAudience'
 import { lectureRelatedMeditations } from './endpoints/relatedMeditations'
@@ -92,7 +93,7 @@ export const Lectures: CollectionConfig = {
         description:
           'Paste the Vimeo URL from amruta.org (e.g. https://vimeo.com/123456789). For clips, this is a creation-time lookup key — supply it OR pick a Full Lecture below; it is nulled after save.',
         // Show during create for either type; hide on a saved clip (URL is nulled there).
-        condition: (data) => !data?.id || data?.type === 'full',
+        condition: (data: Partial<Lecture>) => !data?.id || data?.type === 'full',
       },
       access: {
         update: () => false, // Vimeo URL is immutable after creation
@@ -104,7 +105,7 @@ export const Lectures: CollectionConfig = {
       required: false, // Hook satisfies this on create for full lectures
       localized: true,
       admin: {
-        condition: (data) => !!data?.id, // Hidden during create — the hook auto-populates this field for full lectures
+        condition: (data: Partial<Lecture>) => !!data?.id, // Hidden during create — the hook auto-populates this field for full lectures
       },
     },
     mediaField({
@@ -113,7 +114,7 @@ export const Lectures: CollectionConfig = {
       admin: {
         description:
           'Optional override for the Nirmala Vidya thumbnail. If blank, the API thumbnail is used.',
-        condition: (data) => !!data?.id,
+        condition: (data: Partial<Lecture>) => !!data?.id,
       },
     }),
     {
@@ -128,7 +129,7 @@ export const Lectures: CollectionConfig = {
             components: {
               Field: '@/components/admin/TimestampInput',
             },
-            condition: (data) => !!data?.id,
+            condition: (data: Partial<Lecture>) => !!data?.id,
           },
         },
         {
@@ -140,7 +141,7 @@ export const Lectures: CollectionConfig = {
             components: {
               Field: '@/components/admin/TimestampInput',
             },
-            condition: (data) => !!data?.id,
+            condition: (data: Partial<Lecture>) => !!data?.id,
           },
           validate: (
             value: number | null | undefined,
@@ -163,7 +164,7 @@ export const Lectures: CollectionConfig = {
       admin: {
         description:
           'Per-locale subtitle overrides. Any locale not listed here falls back to the parent lecture’s Nirmala Vidya subtitles.',
-        condition: (data) => !!data?.id && data?.type === 'clip',
+        condition: (data: Partial<Lecture>) => !!data?.id && data?.type === 'clip',
       },
       fields: [
         {
@@ -196,7 +197,7 @@ export const Lectures: CollectionConfig = {
       },
       admin: {
         readOnly: true,
-        condition: (data) => !!data?.id && data?.type === 'full',
+        condition: (data: Partial<Lecture>) => !!data?.id && data?.type === 'full',
         description: 'Auto-populated from Nirmala Vidya API and updated monthly.',
       },
     }),
@@ -213,7 +214,7 @@ export const Lectures: CollectionConfig = {
       admin: {
         description:
           'The full lecture this clip is excerpted from. Required for clips (alternatively, supply a Vimeo URL during create to look up or create the parent automatically).',
-        condition: (data) => data?.type === 'clip',
+        condition: (data: Partial<Lecture>) => data?.type === 'clip',
         position: 'sidebar',
       },
     },
@@ -226,7 +227,7 @@ export const Lectures: CollectionConfig = {
         description:
           'A user can view this lecture if they are a member of any of these audience groups. If empty, this lecture is only visible when directly referenced (e.g. from a meditation or path step).',
         position: 'sidebar',
-        condition: (data) => !!data?.id,
+        condition: (data: Partial<Lecture>) => !!data?.id,
       },
     },
     {
@@ -238,7 +239,7 @@ export const Lectures: CollectionConfig = {
         description:
           'User choices this lecture is relevant to. Used by the app to select contextually appropriate lectures.',
         position: 'sidebar',
-        condition: (data) => !!data?.id,
+        condition: (data: Partial<Lecture>) => !!data?.id,
       },
     },
     {
@@ -250,7 +251,7 @@ export const Lectures: CollectionConfig = {
         description:
           'Chakras and nadis discussed in this lecture. This allows us to select relevant lectures when a viewer finishes a meditation.',
         position: 'sidebar',
-        condition: (data) => !!data?.id,
+        condition: (data: Partial<Lecture>) => !!data?.id,
       },
     },
     {
@@ -263,7 +264,7 @@ export const Lectures: CollectionConfig = {
         description:
           'Lectures with priority > 0 are always returned first in the for-audience feed, sorted by priority (highest first). Lectures with equal priority are shuffled randomly. Leave at 0 for the normal random pool.',
         position: 'sidebar',
-        condition: (data) => !!data?.id,
+        condition: (data: Partial<Lecture>) => !!data?.id,
       },
     },
     {
@@ -274,7 +275,7 @@ export const Lectures: CollectionConfig = {
       admin: {
         allowCreate: true,
         defaultColumns: ['title', 'startTime', 'stopTime', 'subtleSystemNodes'],
-        condition: (data) => !!data?.id && data?.type === 'full',
+        condition: (data: Partial<Lecture>) => !!data?.id && data?.type === 'full',
       },
     },
   ],

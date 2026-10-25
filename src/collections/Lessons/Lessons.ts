@@ -6,6 +6,7 @@ import { fullRichTextEditor } from '@/lib/richEditor'
 import { QuoteBlock } from '@/lib/richEditor/blocks'
 import { removeDanglingLexicalReferencesAfterRead } from '@/lib/richEditor/lexicalHooks'
 import { subtitlesSchema } from '@/lib/utilities/subtitles'
+import type { Lesson } from '@/payload-types'
 
 export const Lessons: CollectionConfig = {
   slug: 'lessons',
@@ -78,7 +79,8 @@ export const Lessons: CollectionConfig = {
                   schemaTitle: 'Subtitles',
                   schema: subtitlesSchema,
                   admin: {
-                    condition: (_, siblingData) => !!siblingData?.media,
+                    condition: (_, siblingData: Partial<NonNullable<Lesson['panels']>[number]>) =>
+                      !!siblingData?.media,
                     description:
                       'Subtitles for video media: [{ startTimeMs, endTimeMs, durationMs?, content }].',
                   },

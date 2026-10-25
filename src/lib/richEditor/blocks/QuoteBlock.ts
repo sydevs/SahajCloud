@@ -1,5 +1,7 @@
 import { Block } from 'payload'
 
+import type { QuoteBlock as QuoteBlockData } from '@/payload-types'
+
 export const QuoteBlock: Block = {
   slug: 'quote',
   interfaceName: 'QuoteBlock',
@@ -34,7 +36,7 @@ export const QuoteBlock: Block = {
       name: 'caption',
       type: 'text',
       admin: {
-        condition: (_, siblingData) => Boolean(siblingData?.credit),
+        condition: (_, siblingData: Partial<QuoteBlockData>) => Boolean(siblingData?.credit),
         description: 'This will appear below the credit.',
       },
     },

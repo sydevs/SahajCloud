@@ -1,6 +1,7 @@
 import type { Field, TextField } from 'payload'
 
 import { CONTACT_EMAIL } from '@/lib/contact'
+import type { Form } from '@/payload-types'
 import { managersOnlyFieldAccess } from '@/plugins/access'
 
 /**
@@ -140,7 +141,7 @@ const recipientField: Field = {
     update: managersOnlyFieldAccess,
   },
   admin: {
-    condition: (_data, siblingData) => siblingData?.actionType === 'contact',
+    condition: (_data, siblingData: Partial<Form>) => siblingData?.actionType === 'contact',
     description: `Who receives messages from this form. Leave blank to send to ${CONTACT_EMAIL}.`,
   },
 }
@@ -175,7 +176,7 @@ const clientField: Field = {
     update: managersOnlyFieldAccess,
   },
   admin: {
-    condition: (_data, siblingData) => siblingData?.actionType === 'subscribe',
+    condition: (_data, siblingData: Partial<Form>) => siblingData?.actionType === 'subscribe',
     description: 'Whose mailing list a subscriber joins.',
   },
 }

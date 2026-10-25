@@ -1,6 +1,7 @@
-import type { CollectionConfig } from 'payload'
+import type { CollectionConfig, PayloadRequest } from 'payload'
 
 import { colorField, hideUntilCreated, slugField } from '@/fields'
+import type { UserChoice } from '@/payload-types'
 import {
   adminOnlyCondition,
   adminOnlyFieldAccess,
@@ -13,7 +14,8 @@ import { clearIsParentOnDelete } from './hooks/clearIsParentOnDelete'
 import { maintainIsParent } from './hooks/maintainIsParent'
 import { validateNesting } from './hooks/validateNesting'
 
-const isMoodChoice = (data: { type?: string } | undefined): boolean => !data || data.type !== 'goal'
+const isMoodChoice = (data: Partial<UserChoice> | undefined): boolean =>
+  !data || data.type !== 'goal'
 
 export const UserChoices: CollectionConfig = {
   slug: 'user-choices',
@@ -118,7 +120,7 @@ export const UserChoices: CollectionConfig = {
       maxDepth: 1,
       access: { update: adminOnlyFieldAccess },
       admin: {
-        condition: (data) => !data.isParent,
+        condition: (data: Partial<UserChoice>) => !data.isParent,
         position: 'sidebar',
         description:
           'Parent category for grouping. Parent categories are not selectable on meditations. Editable by admin managers only.',
@@ -172,8 +174,11 @@ export const UserChoices: CollectionConfig = {
       ],
       access: { update: adminOnlyFieldAccess },
       admin: {
-        condition: (data, _siblingData, { user }) =>
-          isMoodChoice(data) && !data.isParent && isAdminManager(user),
+        condition: (
+          data: Partial<UserChoice>,
+          _siblingData,
+          { user }: { user: PayloadRequest['user'] },
+        ) => isMoodChoice(data) && !data.isParent && isAdminManager(user),
         description: 'Which times of day this category offers meditations',
         components: {
           Field: '@/components/admin/ToggleGroupField',
@@ -188,7 +193,7 @@ export const UserChoices: CollectionConfig = {
       localized: true,
       filterOptions: { type: { equals: 'daily' } },
       admin: {
-        condition: (data) =>
+        condition: (data: Partial<UserChoice>) =>
           isMoodChoice(data) &&
           !data.isParent &&
           Array.isArray(data.timings) &&
@@ -203,7 +208,7 @@ export const UserChoices: CollectionConfig = {
       localized: true,
       filterOptions: { type: { equals: 'daily' } },
       admin: {
-        condition: (data) =>
+        condition: (data: Partial<UserChoice>) =>
           isMoodChoice(data) &&
           !data.isParent &&
           Array.isArray(data.timings) &&
@@ -218,7 +223,7 @@ export const UserChoices: CollectionConfig = {
       localized: true,
       filterOptions: { type: { equals: 'daily' } },
       admin: {
-        condition: (data) =>
+        condition: (data: Partial<UserChoice>) =>
           isMoodChoice(data) &&
           !data.isParent &&
           Array.isArray(data.timings) &&
@@ -233,7 +238,7 @@ export const UserChoices: CollectionConfig = {
       localized: true,
       filterOptions: { type: { equals: 'daily' } },
       admin: {
-        condition: (data) =>
+        condition: (data: Partial<UserChoice>) =>
           isMoodChoice(data) &&
           !data.isParent &&
           Array.isArray(data.timings) &&
@@ -266,7 +271,7 @@ export const UserChoices: CollectionConfig = {
       collection: 'user-choices',
       on: 'parent',
       admin: {
-        condition: (data) => hideUntilCreated(data) && data.isParent,
+        condition: (data: Partial<UserChoice>) => hideUntilCreated(data) && !!data.isParent,
         components: {
           Cell: '@/components/admin/RelationshipCountCell',
         },
