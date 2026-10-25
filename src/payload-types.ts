@@ -9399,6 +9399,10 @@ export interface SyAtlasTranslationsCommonMapStrings {
    */
   find_my_location?: string;
   /**
+   * Sentence shown in the dialog that opens when the geolocate control fails to supply a location. A full sentence, not a control label.
+   */
+  location_failed?: string;
+  /**
    * Label of the geolocate control once the browser has refused or failed to supply a location.
    */
   location_not_available?: string;

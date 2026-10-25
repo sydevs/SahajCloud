@@ -222,11 +222,15 @@
         },
         "map": {
           "type": "object",
-          "description": "Labels on the map’s own controls.",
+          "description": "The map’s own controls — their labels, and the message shown when one of them fails.",
           "properties": {
             "find_my_location": {
               "type": "string",
               "description": "Label of the geolocate control."
+            },
+            "location_failed": {
+              "type": "string",
+              "description": "Sentence shown in the dialog that opens when the geolocate control fails to supply a location. A full sentence, not a control label."
             },
             "location_not_available": {
               "type": "string",
