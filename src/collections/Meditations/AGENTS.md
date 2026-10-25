@@ -20,7 +20,8 @@ req.locale } }` to `find`/`count` operations.
   that states no language — a **duplicate** — is caught by
   `restrictCreateToRequestLocale` instead, the first place the filled value
   exists. Both live in `src/plugins/access/localeScopedWrites.ts` and reach this
-  collection because `LOCALE_SCOPED_COLLECTIONS` names it — nothing is wired
-  here.
+  collection because the `locale` field declares itself the document's language
+  in its `custom` — that one line is the whole opt-in, and no hook or access
+  config is wired here.
 
 Testing a non-English query: `tests/AGENTS.md`.

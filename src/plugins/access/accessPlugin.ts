@@ -93,7 +93,7 @@ export function accessPlugin(options: AccessPluginOptions = {}): (config: Config
             // states no language is only answerable here — appended last, so
             // it reads whatever the collection's own hooks settled on. See
             // localeScopedWrites.ts (#980).
-            ...(isLocaleScopedCollection(slug) && {
+            ...(isLocaleScopedCollection(collection.fields) && {
               beforeValidate: [
                 ...(collection.hooks?.beforeValidate ?? []),
                 restrictCreateToRequestLocale,

@@ -29,7 +29,7 @@ import { requireManagerPermission } from '@/lib/endpoints'
 import { runQueueSoon } from '@/lib/jobs/runQueueSoon'
 import { baseLanguageOrDefault, getLanguageOptions } from '@/lib/locales'
 import type { Manager } from '@/payload-types'
-import { isAdminManager, resolveOwnedRegionIds } from '@/plugins/access'
+import { isAdminManager, localeColumn, resolveOwnedRegionIds } from '@/plugins/access'
 
 import { IMPORT_STALL_MS } from './constants'
 import { prepareUpload } from './csv/upload'
@@ -210,6 +210,9 @@ const SIDEBAR_FIELDS: Field[] = [
     // The admin locale at the upload, which the job writes the classes in.
     name: 'locale',
     type: 'text',
+    // Not the row's own language, so locale-scoped writes must skip it (#912,
+    // `src/plugins/access/localeScopedWrites.ts`).
+    custom: localeColumn('unrelated'),
     admin: { hidden: true },
   },
 ]

@@ -4,20 +4,19 @@ import { describe, expect, it } from 'vitest'
 
 import {
   isLocaleScopedCollection,
+  localeColumn,
+  localeColumnMeaning,
   restrictCreateToRequestLocale,
   scopeLocaleWrite,
 } from '@/plugins/access/localeScopedWrites'
 
 /**
- * The set of locale-scoped collections is named, never derived from "has a
- * field called `locale`" (#980). Three collections carry one and no two mean
- * the same thing, so the cases below pin the two that must stay out: `imports`
- * stores the admin locale an upload happened in (#912), and `lectures` a row
- * key inside `subtitles`. `clients` was a third until its column was renamed
- * to `language` — it is not a localized collection, so there is no longer a
- * verdict to pin.
+ * A collection's `locale` column says what it means, and the write scoping
+ * reads that declaration rather than the column's presence (#980). The cases
+ * below pin the walk: which containers it descends, and that a column
+ * declaring nothing scopes nothing.
  *
- * These pin the verdicts. What forces a NEW collection to get one is
+ * What forces a NEW collection to declare one is
  * `role-based-access.int.spec.ts`, which needs the booted config to see the
  * column at all.
  */
@@ -38,17 +37,70 @@ const callHook = (args: {
 
 const frEditor = { collection: 'managers', type: 'manager' }
 
-describe('isLocaleScopedCollection', () => {
-  it('names meditations', () => {
-    expect(isLocaleScopedCollection('meditations')).toBe(true)
+const localeField = (meaning?: 'document-language' | 'unrelated') => ({
+  name: 'locale',
+  type: 'select' as const,
+  options: ['en', 'fr'],
+  ...(meaning && { custom: localeColumn(meaning) }),
+})
+
+describe('localeColumnMeaning', () => {
+  it('reads the declaration off a top-level locale field', () => {
+    expect(localeColumnMeaning([localeField('document-language')])).toBe('document-language')
+    expect(localeColumnMeaning([localeField('unrelated')])).toBe('unrelated')
   })
 
-  it.each(['lectures', 'imports'] as const)(
-    'leaves %s out, whose locale field means something else',
-    (collection) => {
-      expect(isLocaleScopedCollection(collection)).toBe(false)
-    },
-  )
+  it('answers undeclared for a column that declares nothing', () => {
+    expect(localeColumnMeaning([localeField()])).toBe('undeclared')
+  })
+
+  it('answers undefined for a field list carrying no locale column', () => {
+    expect(localeColumnMeaning([{ name: 'label', type: 'text' }])).toBeUndefined()
+  })
+
+  it('descends the containers that add no path of their own', () => {
+    expect(
+      localeColumnMeaning([{ type: 'group', fields: [localeField('document-language')] }]),
+    ).toBe('document-language')
+    expect(localeColumnMeaning([{ type: 'row', fields: [localeField('document-language')] }])).toBe(
+      'document-language',
+    )
+    expect(
+      localeColumnMeaning([
+        { type: 'tabs', tabs: [{ label: 'Details', fields: [localeField('document-language')] }] },
+      ]),
+    ).toBe('document-language')
+  })
+
+  it('ignores a locale nested under a path of its own', () => {
+    expect(
+      localeColumnMeaning([
+        { name: 'subtitles', type: 'array', fields: [localeField('document-language')] },
+      ]),
+    ).toBeUndefined()
+    expect(
+      localeColumnMeaning([
+        { name: 'meta', type: 'group', fields: [localeField('document-language')] },
+      ]),
+    ).toBeUndefined()
+    expect(
+      localeColumnMeaning([
+        { type: 'tabs', tabs: [{ name: 'meta', fields: [localeField('document-language')] }] },
+      ]),
+    ).toBeUndefined()
+  })
+})
+
+describe('isLocaleScopedCollection', () => {
+  it('scopes a column declared the document language', () => {
+    expect(isLocaleScopedCollection([localeField('document-language')])).toBe(true)
+  })
+
+  it('fails closed on anything else', () => {
+    expect(isLocaleScopedCollection([localeField('unrelated')])).toBe(false)
+    expect(isLocaleScopedCollection([localeField()])).toBe(false)
+    expect(isLocaleScopedCollection([{ name: 'language', type: 'text' }])).toBe(false)
+  })
 })
 
 describe('scopeLocaleWrite', () => {

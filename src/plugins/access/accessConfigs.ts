@@ -56,6 +56,17 @@ function entityHasDrafts(req: PayloadRequest, slug: string): boolean {
 }
 
 /**
+ * True when this collection's `locale` column declares itself the document's
+ * own language, so a manager's write is scoped to it. Read off the booted
+ * config rather than a list of slugs, so a collection that declares one is
+ * covered the day it does — see localeScopedWrites.ts.
+ */
+function scopesWritesByLocale(req: PayloadRequest, collection: ContentSlug): boolean {
+  const fields = req.payload.collections?.[collection as CollectionSlug]?.config?.flattenedFields
+  return !!fields && isLocaleScopedCollection(fields)
+}
+
+/**
  * True for an active, non-admin manager (`type === 'manager'`). Admins are
  * already granted by the bypass; inactive managers are denied there. This is
  * the only user class eligible for document-level manager access.
@@ -193,7 +204,7 @@ export function createAccessConfig(
         // localeScopedWrites.ts.
         if (
           operation !== 'read' &&
-          isLocaleScopedCollection(collection) &&
+          scopesWritesByLocale(req, collection) &&
           isActiveNonAdminManager(req.user)
         ) {
           return scopeLocaleWrite(operation, args.locale, data)

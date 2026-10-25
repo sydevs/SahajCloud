@@ -45,6 +45,8 @@ export {
 export { restrictUploadToAdmin } from './restrictUploadToAdmin'
 export { restrictPayloadSystemEntities } from './systemEntities'
 export { ownedRegionFilterOptions, resolveOwnedRegionIds } from './regionSubtreeAccess'
+export { localeColumn } from './localeScopedWrites'
+export type { LocaleColumnMeaning } from './localeScopedWrites'
 
 // --- HELPER FUNCTIONS (public API - consolidated from projects.ts and data.ts) ---
 

@@ -11,8 +11,11 @@ import { mintLivePreviewToken } from '@/lib/livePreview/token'
 import { PREVIEW_SECRET_HEADER, resolveLivePreviewHook } from '@/lib/utilities/previewSecret'
 import type { Event, Meditation, Region } from '@/payload-types'
 import { bypassPermissions, hasAnyPermission, hasPermission } from '@/plugins/access'
-import { isLocaleScopedCollection } from '@/plugins/access/localeScopedWrites'
-import type { ContentSlug } from '@/plugins/access/types'
+import {
+  isLocaleScopedCollection,
+  localeColumnMeaning,
+  UNDECLARED_LOCALE_COLUMN,
+} from '@/plugins/access/localeScopedWrites'
 import { createSession } from '@/plugins/login'
 
 import { createRestClientAs, type RestClient } from '../utils/restRequest'
@@ -2665,49 +2668,44 @@ describe('Role-Based Access Control', () => {
   })
 
   /**
-   * `LOCALE_SCOPED_COLLECTIONS` is hand-named, so on its own it fails open: a
-   * collection that gains a queryable top-level `locale` is silently left
-   * unscoped. This walks the booted config so a new one has to be classified
-   * here before the suite passes. It is the half `RESTRICTED_COLLECTIONS`
-   * still lacks (`docs/rules/access.md`).
+   * The write scoping reads a declaration at the field, so a collection that
+   * gains a queryable top-level `locale` is unscoped until it says which kind
+   * of column it is. That direction is the safe one, and this is what refuses
+   * the silence: it walks the booted config and goes red until every such
+   * column declares a meaning. It is the half `RESTRICTED_COLLECTIONS` still
+   * lacks (`docs/rules/access.md`).
    *
    * `flattenedFields` is the queryable top-level path set, so `lectures` is
-   * absent from it — its `locale` sits in `subtitles` rows. Membership is
-   * therefore a judgement about what the column MEANS, not about where it
-   * sits: only `meditations` stores the document's own language.
-   *
-   * `clients` is absent because its column is `language` now: a service's
-   * preferred language, on a collection that is not localized. The second case
-   * below is what refuses a stale entry like that one.
+   * absent from it — its `locale` sits in `subtitles` rows, which no top-level
+   * rule reaches. `clients` is absent because its column is `language` now: a
+   * service's preferred language, on a collection that is not localized.
    */
-  describe('locale-scoped collections are classified, never derived', () => {
-    const CLASSIFIED: Record<string, boolean> = {
-      meditations: true,
-      imports: false, // the admin locale an upload happened in (#912)
-    }
-
+  describe('every top-level locale column declares what it means', () => {
     const carryingLocale = () =>
-      payload.config.collections
-        .filter((collection) =>
-          collection.flattenedFields.some((field) => 'name' in field && field.name === 'locale'),
-        )
-        .map((collection) => collection.slug)
+      payload.config.collections.filter((collection) =>
+        collection.flattenedFields.some((field) => 'name' in field && field.name === 'locale'),
+      )
 
-    it('classifies every collection with a queryable top-level locale', () => {
+    it('declares a meaning on every one', () => {
       const carrying = carryingLocale()
-      expect(carrying).toContain('meditations')
+      expect(carrying.map((collection) => collection.slug)).toContain('meditations')
 
-      for (const slug of carrying) {
+      for (const collection of carrying) {
         expect(
-          Object.hasOwn(CLASSIFIED, slug),
-          `${slug} carries a top-level locale and is not classified here`,
-        ).toBe(true)
-        expect(isLocaleScopedCollection(slug as ContentSlug)).toBe(CLASSIFIED[slug])
+          localeColumnMeaning(collection.flattenedFields),
+          `${collection.slug} carries a top-level locale that declares nothing`,
+        ).not.toBe(UNDECLARED_LOCALE_COLUMN)
       }
     })
 
-    it('names no collection that has since lost the column', () => {
-      expect(carryingLocale().sort()).toEqual(Object.keys(CLASSIFIED).sort())
+    it('scopes meditations and leaves the upload locale out', () => {
+      const bySlug = new Map(
+        carryingLocale().map((collection) => [collection.slug, collection.flattenedFields]),
+      )
+
+      expect(isLocaleScopedCollection(bySlug.get('meditations')!)).toBe(true)
+      // The admin locale an upload happened in (#912).
+      expect(isLocaleScopedCollection(bySlug.get('imports')!)).toBe(false)
     })
   })
 })
