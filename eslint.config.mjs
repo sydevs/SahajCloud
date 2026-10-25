@@ -36,6 +36,26 @@ const eslintConfig = [
       // Unused imports auto-removal
       'unused-imports/no-unused-imports': 'warn',
 
+      // `Condition` defaults both its generics to `any`, so an unannotated
+      // parameter makes every read of it uncheckable — `wisdomStyle` read a
+      // field no level declared for years (#989, #1004). An `_`-prefixed
+      // parameter is how a condition declares it reads nothing at that level.
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            "Property[key.name='condition'] > ArrowFunctionExpression > Identifier.params:not([name=/^_/]):not([typeAnnotation])",
+          message:
+            'Annotate this condition parameter with the generated type for its level, or prefix it with `_` if the condition does not read it.',
+        },
+        {
+          selector:
+            "Property[key.name='condition'] > ArrowFunctionExpression > ObjectPattern.params:not([typeAnnotation])",
+          message:
+            'Annotate this destructured condition parameter with the type of the level it reads.',
+        },
+      ],
+
       // Import ordering with alphabetization
       'import/order': [
         'warn',
