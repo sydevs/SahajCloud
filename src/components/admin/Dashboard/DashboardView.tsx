@@ -1,7 +1,7 @@
 import type { AdminViewServerProps } from 'payload'
 import type { ReactNode } from 'react'
 
-import { DefaultTemplate } from '@payloadcms/next/templates'
+import { Gutter } from '@payloadcms/ui'
 import { CollectionCards } from '@payloadcms/ui/rsc'
 
 import AtlasDashboard from './AtlasDashboard'
@@ -15,15 +15,16 @@ import ProjectSelectionPrompt from './ProjectSelectionPrompt'
  * rather than a widget a saved layout can drop or carry across projects.
  *
  * `dashboardChoiceFor` owns which home a user gets.
+ *
+ * ⚠ Payload's own `DashboardView` renders this in `DefaultDashboard`'s slot, so
+ * the route has already applied `DefaultTemplate` and `SetStepNav` — a second
+ * template here would nest the whole admin chrome. `Gutter` is what the default
+ * dashboard wraps its own content in. That slot is also where `beforeDashboard`
+ * is rendered, so a custom view replaces that hook rather than composing with
+ * it: anything it carried has to move into the branch below.
  */
-export default function DashboardView({
-  initPageResult,
-  params,
-  searchParams,
-  user,
-}: AdminViewServerProps) {
-  const { cookies, locale, permissions, req, visibleEntities } = initPageResult
-  const { payload } = req
+export default function DashboardView({ initPageResult, user }: AdminViewServerProps) {
+  const { cookies, locale, permissions, req } = initPageResult
   const choice = dashboardChoiceFor(req.user)
 
   let content: ReactNode
@@ -50,18 +51,5 @@ export default function DashboardView({
       )
   }
 
-  return (
-    <DefaultTemplate
-      i18n={req.i18n}
-      locale={locale}
-      params={params}
-      payload={payload}
-      permissions={permissions}
-      searchParams={searchParams}
-      user={req.user ?? undefined}
-      visibleEntities={visibleEntities}
-    >
-      {content}
-    </DefaultTemplate>
-  )
+  return <Gutter className="dashboard">{content}</Gutter>
 }
