@@ -173,6 +173,20 @@ export function reachableFiles(entry: string): string[] {
   return walk(entry).files
 }
 
+/**
+ * `entry` and the files its own imports resolve to — one hop, never the graph
+ * below them. Enough for a registration naming a folder, whose barrel
+ * re-exports the component one hop away, and no further: a module the entry
+ * merely pulls in answers nothing about the entry itself.
+ */
+export function entryAndDirectImports(entry: string): string[] {
+  const direct = importsOf(entry)
+    .map((spec) => resolveSpec(spec, entry))
+    .filter((file): file is string => file !== null)
+
+  return [...new Set([entry, ...direct])]
+}
+
 /** Every `.ts`/`.tsx` file under `src/`. */
 export function sourceFiles(dir: string = SRC, out: string[] = []): string[] {
   for (const item of readdirSync(dir, { withFileTypes: true })) {

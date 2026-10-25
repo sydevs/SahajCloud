@@ -12,7 +12,7 @@ import { readJobStageConfig } from '@/components/admin/JobStageView/stages'
 import { isRecord } from '@/lib/utilities/isRecord'
 import config from '@/payload.config'
 
-import { reachableFiles, resolveSpec, sourceOf, SRC } from '../utils/importGraph'
+import { entryAndDirectImports, resolveSpec, sourceOf, SRC } from '../utils/importGraph'
 
 /**
  * Three rules that hold over every collection and global, asserted against the
@@ -262,16 +262,18 @@ const pathBearingViews = async (): Promise<[string, AdminViewConfig][]> => {
 }
 
 /**
- * The view's own module and everything it imports, because a registration
- * naming a folder resolves to its barrel rather than to the component that
- * calls the guard. The guard's own module is excluded: its definition matches
- * `CALLS_GUARD` too, and would make every importer green.
+ * The view's own module and the ones it imports directly, because a
+ * registration naming a folder resolves to its barrel rather than to the
+ * component that calls the guard. One hop and no further: the whole graph
+ * below a view would pass it on any reachable module's call. The guard's own
+ * module is excluded: its definition matches `CALLS_GUARD` too, and would make
+ * every importer green.
  */
 const callsTheGuard = (view: AdminViewConfig): boolean => {
   const entry = resolveSpec(parsePayloadComponent(view.Component).path, IMPORT_MAP)
   if (!entry) return false
 
-  return reachableFiles(entry).some(
+  return entryAndDirectImports(entry).some(
     (file) => file !== ADMIN_ACCESS_GUARD && CALLS_GUARD.test(withoutComments(sourceOf(file))),
   )
 }
