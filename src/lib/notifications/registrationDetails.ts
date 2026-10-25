@@ -14,10 +14,9 @@ import { lexicalToPlainText } from '@/lib/richEditor/lexicalToPlainText'
 import { getLocalTimeHHMM } from '@/lib/schedule/scheduleHooks'
 import { minutesOfDay } from '@/lib/schedule/time'
 import type { Event } from '@/payload-types'
+import type { EventSchedule } from '@/types/schedule'
 
 import { addressOneLine, recurrencePhrase } from './eventDetails'
-
-type Schedule = NonNullable<Event['schedule']>
 
 /** Times render in `en-US` — this is the event's data, not the registrant's locale. */
 const TIME_LOCALE = 'en-US'
@@ -63,7 +62,7 @@ function formatMinutesOfDay(minutes: number): string {
  * With no (or a malformed, or a non-increasing) end time, the span collapses to
  * the start alone.
  */
-function timeSpan(schedule: Schedule): string {
+function timeSpan(schedule: EventSchedule): string {
   const timezone: string = schedule.firstDate_tz || 'UTC'
   const start = new Date(schedule.firstDate)
   if (Number.isNaN(start.getTime())) return ''
@@ -103,7 +102,7 @@ function zoneName(date: Date, timezone: string): string {
 }
 
 /** Full date for a one-off, e.g. `Tuesday, 21 July 2026`. */
-function formatFullDate(schedule: Schedule): string {
+function formatFullDate(schedule: EventSchedule): string {
   const timezone: string = schedule.firstDate_tz || 'UTC'
   const date = new Date(schedule.firstDate)
   if (Number.isNaN(date.getTime())) return ''
@@ -121,7 +120,7 @@ function formatFullDate(schedule: Schedule): string {
  * class. Only a `count`-bounded run has a knowable total — an `until`-bounded
  * one would need the recurrence expanded, which the ICS attachment covers.
  */
-export function sessionCount(schedule: Schedule | null | undefined): number | null {
+export function sessionCount(schedule: EventSchedule | null | undefined): number | null {
   if (!schedule?.recurrenceType) return null
   if (schedule.endingType !== 'count') return null
   return schedule.count && schedule.count > 0 ? schedule.count : null
@@ -135,7 +134,7 @@ export function sessionCount(schedule: Schedule | null | undefined): number | nu
  * count is *not* appended here — it is a translated, pluralized string, so the
  * caller appends it via `pluralize(strings, 'sessions_count', …)`.
  */
-export function registrationScheduleLine(schedule: Schedule | null | undefined): string {
+export function registrationScheduleLine(schedule: EventSchedule | null | undefined): string {
   if (!schedule?.firstDate) return ''
   const when = schedule.recurrenceType ? recurrencePhrase(schedule) : formatFullDate(schedule)
   return [when, timeSpan(schedule)].filter(Boolean).join(', ')
@@ -186,7 +185,7 @@ export interface RegistrationEmailDetails {
  * DST-safe reasoning as {@link registrationScheduleLine}'s `timeSpan`.
  */
 export function occurrenceLine(
-  schedule: Schedule | null | undefined,
+  schedule: EventSchedule | null | undefined,
   occurrenceIso: string,
 ): string {
   if (!schedule?.firstDate) return ''

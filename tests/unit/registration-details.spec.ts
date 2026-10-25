@@ -13,18 +13,17 @@ import {
   sessionCount,
 } from '@/lib/notifications/registrationDetails'
 import type { Event } from '@/payload-types'
+import type { EventSchedule } from '@/types/schedule'
 
 // 19:00 in Europe/London on Tue 21 Jul 2026 (BST) == 18:00 UTC.
 const FIRST_DATE = '2026-07-21T18:00:00.000Z'
 
-type Schedule = NonNullable<Event['schedule']>
-
-function schedule(overrides: Partial<Schedule> = {}): Schedule {
+function schedule(overrides: Partial<EventSchedule> = {}): EventSchedule {
   return {
     firstDate: FIRST_DATE,
     firstDate_tz: 'Europe/London',
     ...overrides,
-  } as Schedule
+  } as EventSchedule
 }
 
 // `title` is widened to allow `null`: the collection requires it, so that state
@@ -92,7 +91,7 @@ describe('registrationScheduleLine', () => {
 
   it('returns an empty string when there is no firstDate', () => {
     expect(registrationScheduleLine(null)).toBe('')
-    expect(registrationScheduleLine({} as Schedule)).toBe('')
+    expect(registrationScheduleLine({} as EventSchedule)).toBe('')
   })
 
   it('renders endTime as written across a DST transition', () => {

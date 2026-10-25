@@ -4,12 +4,12 @@ import type { EventDetails } from '@/emails/EventVerificationEmail'
 import { asNotificationLog } from '@/lib/eventVerification/log'
 import { activeRegistrationWhere } from '@/lib/registrations/active'
 import type { Event } from '@/payload-types'
+import type { EventSchedule } from '@/types/schedule'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const RECENT_REGISTRATION_DAYS = 30
 
 type Address = NonNullable<Event['address']>
-type Schedule = NonNullable<Event['schedule']>
 
 const WEEKDAY_NAMES: Record<string, string> = {
   MO: 'Monday',
@@ -68,7 +68,7 @@ function startTime(firstDate: string, tz: string): string {
 }
 
 /** Concise recurrence phrase, e.g. "Every week on Saturday". */
-export function recurrencePhrase(schedule: Schedule): string {
+export function recurrencePhrase(schedule: EventSchedule): string {
   const interval = schedule.interval && schedule.interval > 1 ? schedule.interval : 1
   switch (schedule.recurrenceType) {
     case 'DAILY':
@@ -98,7 +98,7 @@ export function recurrencePhrase(schedule: Schedule): string {
 }
 
 /** One-line schedule, e.g. "Every week on Saturday at 9:26 AM". */
-export function scheduleOneLine(schedule: Schedule | null | undefined): string {
+export function scheduleOneLine(schedule: EventSchedule | null | undefined): string {
   if (!schedule?.firstDate) return ''
   // `firstDate_tz` is a curated enum (no UTC); widen to string for the fallback.
   const tz: string = schedule.firstDate_tz || 'UTC'
@@ -120,7 +120,7 @@ export function scheduleOneLine(schedule: Schedule | null | undefined): string {
 }
 
 /** Formatted scheduled-break lines, e.g. "Diwali break: 21 Jul – 23 Jul 2026". */
-function formatBreaks(schedule: Schedule | null | undefined): string[] {
+function formatBreaks(schedule: EventSchedule | null | undefined): string[] {
   return (schedule?.exclusions ?? [])
     .map((exclusion) => {
       const start = formatDate(exclusion?.startDate, false)
