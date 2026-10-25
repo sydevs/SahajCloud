@@ -160,4 +160,31 @@ describe('fetchRelationshipDocs', () => {
     expect(calls[0]).toContain('/api/images')
     expect(calls[0]).toContain('locale=fr')
   })
+
+  /**
+   * The shared fetcher throws on a refusal where this one returned `[]`. Each
+   * cell must still get the placeholder it got then — the loader's own `catch`
+   * is what makes the two indistinguishable from a cell, and this asserts it
+   * over the real fetcher rather than an injected fake.
+   */
+  it('leaves every cell on its placeholder when the request is refused', async () => {
+    const stub = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ errors: [{ message: 'Forbidden' }] }), {
+          status: 403,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+    )
+    vi.stubGlobal('fetch', stub)
+
+    try {
+      const loader = createRelationshipDocLoader()
+
+      await expect(
+        Promise.all([loader.load('images', 1, 'en'), loader.load('images', 2, 'en')]),
+      ).resolves.toEqual([null, null])
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
 })
