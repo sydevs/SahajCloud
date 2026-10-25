@@ -1,39 +1,35 @@
+import type { SanitizedConfig } from 'payload'
+
 import { redirect } from 'next/navigation'
 import { formatAdminURL } from 'payload/shared'
 
-/**
- * What the guard reads out of a view's `initPageResult`, which satisfies it.
- * Spelling only these four reads is what lets a spec call the guard with a
- * literal instead of casting a whole `InitPageResult`.
- */
+/** Only what the guard reads, so a spec passes a literal rather than casting an `InitPageResult`. */
 export type AdminAccessContext = {
   permissions: { canAccessAdmin?: boolean }
   req: {
     pathname: string
     payload: {
       config: {
-        admin: { routes: { login: `/${string}`; unauthorized: `/${string}` } }
+        admin: { routes: Pick<SanitizedConfig['admin']['routes'], 'login' | 'unauthorized'> }
         routes: { admin: string }
       }
     }
+    searchParams: URLSearchParams
     user: object | null
   }
 }
 
 /**
  * Refuse a path-bearing custom admin view to anyone `canAccessAdmin` denies.
+ * `Root` does not: it skips its own redirect for any view declaring a `path`
+ * (`isCustomAdminView`, @payloadcms/next 3.90.2). `docs/rules/admin-ui.md`
+ * carries the rest, and `sanitized-config-rules.spec.ts` fails on a view that
+ * skips this (#1030).
  *
- * Payload's `Root` view skips its own auth redirect for every
- * `admin.components.views` entry declaring a `path` other than `'/'`:
- * `isCustomAdminView` matches on that path alone and reads no `public` flag,
- * whatever its docstring claims (@payloadcms/next 3.90.2). So each such view
- * owes its own gate, and one that forgets it is unauthenticated with nothing to
- * notice — `sanitized-config-rules.spec.ts` fails on a view that skips this
- * (#1030).
- *
- * `handleAuthRedirect` is not exported, so this reproduces its target: the
- * unauthorized view for a signed-in user, the login view otherwise, each
- * carrying the refused route as `redirect` so the visitor lands back here.
+ * `handleAuthRedirect` is in none of that package's export subpaths, so this
+ * rebuilds its target: the unauthorized view for a signed-in user, the login
+ * view otherwise, carrying the refused route — its own query included, less an
+ * inbound `redirect` — so the visitor lands back where they were refused.
  */
 export function requireAdminAccess({ permissions, req }: AdminAccessContext): void {
   if (permissions.canAccessAdmin) return
@@ -45,10 +41,14 @@ export function requireAdminAccess({ permissions, req }: AdminAccessContext): vo
     routes: { admin: adminRoute },
   } = req.payload.config
 
+  const query = new URLSearchParams(req.searchParams)
+  query.delete('redirect')
+  const refused = query.size > 0 ? `${req.pathname}?${query}` : req.pathname
+
   const target = formatAdminURL({
     adminRoute,
     path: req.user ? unauthorizedRoute : loginRoute,
   })
 
-  redirect(`${target}?${new URLSearchParams({ redirect: req.pathname })}`)
+  redirect(`${target}?redirect=${encodeURIComponent(refused)}`)
 }

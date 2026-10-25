@@ -240,17 +240,19 @@ describe('a declared job stage is a readable one', { timeout: TIMEOUT }, () => {
 })
 
 /**
- * Payload routes a custom admin view by its `path`, and `isCustomAdminView`
- * skips `Root`'s auth redirect for every view that declares one — it matches on
- * that path alone and reads no `public` flag. So the gate is the view's own
- * (`requireAdminAccess`), and a view registered without it is reachable
- * unauthenticated with nothing in review or in the rest of the suite to show it
- * (#1030). The `dashboard` view declares no path, which is why `/admin` was
- * never affected.
+ * `isCustomAdminView` skips `Root`'s auth redirect for every view declaring a
+ * `path`, so the gate is the view's own (`requireAdminAccess`) and a view
+ * registered without it is reachable unauthenticated. `docs/rules/admin-ui.md`
+ * carries the rest (#1030).
  */
 const ADMIN_ACCESS_GUARD = `${SRC}/components/admin/helpers/requireAdminAccess.ts`
 
-const GUARD = /\brequireAdminAccess\b/
+/** A call, not a mention: an imported guard nobody calls must not satisfy this. */
+const CALLS_GUARD = /requireAdminAccess\(/
+
+/** Nor may a commented-out call, so comments come off before the match. */
+const withoutComments = (source: string): string =>
+  source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')
 
 const pathBearingViews = async (): Promise<[string, AdminViewConfig][]> => {
   const sanitized = await config
@@ -260,17 +262,18 @@ const pathBearingViews = async (): Promise<[string, AdminViewConfig][]> => {
 }
 
 /**
- * The view's own module and everything it imports, minus the guard itself — so
- * an import nobody calls cannot pass this. Lint owns that half: an unused
- * import fails `no-unused-vars` before it reaches here.
+ * The view's own module and everything it imports, because a registration
+ * naming a folder resolves to its barrel rather than to the component that
+ * calls the guard. The guard's own module is excluded: its definition matches
+ * `CALLS_GUARD` too, and would make every importer green.
  */
-const reachesTheGuard = (view: AdminViewConfig): boolean => {
+const callsTheGuard = (view: AdminViewConfig): boolean => {
   const entry = resolveSpec(parsePayloadComponent(view.Component).path, IMPORT_MAP)
   if (!entry) return false
 
-  return reachableFiles(entry)
-    .filter((file) => file !== ADMIN_ACCESS_GUARD)
-    .some((file) => GUARD.test(sourceOf(file)))
+  return reachableFiles(entry).some(
+    (file) => file !== ADMIN_ACCESS_GUARD && CALLS_GUARD.test(withoutComments(sourceOf(file))),
+  )
 }
 
 describe('every path-bearing admin view gates itself', { timeout: TIMEOUT }, () => {
@@ -279,9 +282,17 @@ describe('every path-bearing admin view gates itself', { timeout: TIMEOUT }, () 
     expect((await pathBearingViews()).map(([key]) => key).sort()).toEqual(['analytics', 'map'])
   })
 
-  it('reaches requireAdminAccess from each one', async () => {
+  /**
+   * And so would a moved guard: the exclusion is a path, so renaming the module
+   * would silence it, and then a view that merely imports the guard passes.
+   */
+  it('excludes a file that is really the guard', () => {
+    expect(CALLS_GUARD.test(sourceOf(ADMIN_ACCESS_GUARD))).toBe(true)
+  })
+
+  it('calls requireAdminAccess from each one', async () => {
     const views = await pathBearingViews()
 
-    expect(views.filter(([, view]) => !reachesTheGuard(view)).map(([key]) => key)).toEqual([])
+    expect(views.filter(([, view]) => !callsTheGuard(view)).map(([key]) => key)).toEqual([])
   })
 })

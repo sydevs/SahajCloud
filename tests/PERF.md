@@ -73,7 +73,7 @@ maintainer's laptop, for scale: Apple M3 Pro, 11 cores, 18 GB, so 10 workers.
 | ninth, after merging `main` again (2026-10-21)    | 224 / 2886    | 50.05 s (inside the gate)              | 50.1 s     |
 | tenth, after merging `main` again (2026-10-23)    | 226 / 2898    | 50.52 s                                | 50.5 s     |
 | eleventh, after merging `main` again (2026-10-23) | 226 / 2897    | 48.41 s (inside the gate)              | 48.4 s     |
-| twelfth, on a feature branch (2026-10-25)         | 227 / 2907    | 54.72 s (inside the gate)              | 54.7 s     |
+| twelfth, on a feature branch (2026-10-25)         | 227 / 2909    | 55.66 s (inside the gate)              | 55.7 s     |
 
 ⚠ **Those three medians span 47 to 78 s — 66% — and six spec files do not
 explain it.** Identical container spec, all on 2026-10-20, 3% more files
@@ -91,27 +91,27 @@ them to what is on disk; every timing is the session its row names.
 `| Files / tests |` and the three `**bold**` cells are the captures the spec
 reads, so keep those labels and cell shapes when you add a row.
 
-| Metric                                                                                          | Value                                                                           |
-| ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| Files / tests                                                                                   | 227 / 2907                                                                      |
-| Whole lane, 3 workers (slowest session median, what the consumer docs quote)                    | **77.9 s**                                                                      |
-| One spec alone, the typical edit (third session)                                                | 1.3 s                                                                           |
-| Slowest per-edit selection timed on 4 cores, the 3 specs naming `@/payload.config` (2026-10-21) | **8.7 s**                                                                       |
-| The same 3 specs on the merged tree (2026-10-23)                                                | 7.7 s                                                                           |
-| 8 specs naming `tests/utils/importGraph.ts` (2026-10-23)                                        | 7.9 s                                                                           |
-| 18 specs naming `@/payload-types`, which the hook skips as generated (third session)            | 7.8 s                                                                           |
-| Vitest phase breakdown, at 3 workers                                                            | transform 14.4 s, import 141.6 s, tests 17.5 s, environment 5.2 s               |
-| Slowest file's own duration inside the lane (first session)                                     | 1.8 s (`proposal-leaves.spec.ts`)                                               |
-| One file alone, cold (first session)                                                            | **1.9 s** wall (`convert-vimeo`) to **3.0 s** (`proposal-leaves`)               |
-| Whole lane at `--maxWorkers=1` (first session, 198 files)                                       | 140.5 s                                                                         |
-| Whole lane at `--maxWorkers=4` (first session, 198 files)                                       | 49.2 s                                                                          |
-| `pnpm lint`                                                                                     | 28.5 s                                                                          |
-| `pnpm typecheck`                                                                                | 8.4 s                                                                           |
-| `pnpm typecheck:tests`                                                                          | 8.2 s                                                                           |
-| Those four commands, summed                                                                     | 104 s                                                                           |
-| Tier 2 lean gate (`check.sh`), slowest cold run of three sessions                               | **174 s** cold, **103 s** with Postgres already up (112 s on the 227-file lane) |
-| `pnpm format:check`, 11-core M3 Pro, 2026-10-23                                                 | 8.7 s first run, 7.2 s second                                                   |
-| Gate with the Format step (`check.sh`, #1006), 11-core M3 Pro, 2026-10-23, Postgres already up  | 57 s first run, 45 s second                                                     |
+| Metric                                                                                          | Value                                                             |
+| ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Files / tests                                                                                   | 227 / 2909                                                        |
+| Whole lane, 3 workers (slowest session median, what the consumer docs quote)                    | **77.9 s**                                                        |
+| One spec alone, the typical edit (third session)                                                | 1.3 s                                                             |
+| Slowest per-edit selection timed on 4 cores, the 3 specs naming `@/payload.config` (2026-10-21) | **8.7 s**                                                         |
+| The same 3 specs on the merged tree (2026-10-23)                                                | 7.7 s                                                             |
+| 8 specs naming `tests/utils/importGraph.ts` (2026-10-23)                                        | 7.9 s                                                             |
+| 18 specs naming `@/payload-types`, which the hook skips as generated (third session)            | 7.8 s                                                             |
+| Vitest phase breakdown, at 3 workers                                                            | transform 14.4 s, import 141.6 s, tests 17.5 s, environment 5.2 s |
+| Slowest file's own duration inside the lane (first session)                                     | 1.8 s (`proposal-leaves.spec.ts`)                                 |
+| One file alone, cold (first session)                                                            | **1.9 s** wall (`convert-vimeo`) to **3.0 s** (`proposal-leaves`) |
+| Whole lane at `--maxWorkers=1` (first session, 198 files)                                       | 140.5 s                                                           |
+| Whole lane at `--maxWorkers=4` (first session, 198 files)                                       | 49.2 s                                                            |
+| `pnpm lint`                                                                                     | 28.5 s                                                            |
+| `pnpm typecheck`                                                                                | 8.4 s                                                             |
+| `pnpm typecheck:tests`                                                                          | 8.2 s                                                             |
+| Those four commands, summed                                                                     | 104 s                                                             |
+| Tier 2 lean gate (`check.sh`), slowest cold run of three sessions                               | **174 s** cold, **112 s** with Postgres already up                |
+| `pnpm format:check`, 11-core M3 Pro, 2026-10-23                                                 | 8.7 s first run, 7.2 s second                                     |
+| Gate with the Format step (`check.sh`, #1006), 11-core M3 Pro, 2026-10-23, Postgres already up  | 57 s first run, 45 s second                                       |
 
 ⚠ **One unit spec boots the Payload config, and it is the lane's most expensive
 file.** `tests/unit/sanitized-config-rules.spec.ts` imports `@/payload.config`

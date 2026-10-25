@@ -25,9 +25,10 @@ import configPromise from '@/payload.config'
  * `manager-auth-urls.spec.ts` does, so the two sides differ only in where the
  * route came from.
  *
- * `login` and `unauthorized` are the two `requireAdminAccess` composes a
- * refusal from (#1030), and `admin-view-auth-guard.spec.ts` builds its context
- * from these literals rather than booting a config.
+ * `admin-view-auth-guard.spec.ts` hardcodes `login` and `unauthorized` rather
+ * than booting a config (#1030). `manager-signin-page.int.spec.ts` already
+ * forces `login` through `MANAGER_SIGNIN_PATH`; `unauthorized` is pinned
+ * nowhere else.
  */
 describe('admin routes', () => {
   it('are the defaults every literal assumes', async () => {

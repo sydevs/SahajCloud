@@ -144,9 +144,11 @@ Payload passes user data and locale objects with methods to view components, so 
 
 ## A custom view that declares a `path` owes its own auth gate
 
-⚠ **A view registered in `admin.components.views` with a `path` is reachable without `canAccessAdmin`.** `Root` guards its own `handleAuthRedirect` with `!isCustomAdminView(...)`, and that helper matches on `view.path` alone — it reads no `public` flag, whatever its docstring says. The `dashboard` view declares no path, so `/admin` itself was never affected, and that is also why nothing local signals the difference: the gate turns on a config detail with no marker at the component (#1030).
+⚠ **A view registered in `admin.components.views` with a `path` is reachable without `canAccessAdmin`.** `Root` guards its own `handleAuthRedirect` with `!isCustomAdminView(...)`, and that helper matches on `view.path` alone — it reads no `public` flag, whatever its docstring says. Nothing local signals the difference: the gate turns on a config detail with no marker at the component (#1030).
 
-So call `requireAdminAccess(initPageResult)` first thing in such a view (`src/components/admin/helpers/requireAdminAccess.ts`). It redirects to the unauthorized view for a signed-in user and to the login view otherwise, each carrying the refused route back as `redirect`. `tests/unit/sanitized-config-rules.spec.ts` walks the registrations and fails on a path-bearing view that reaches no such call, so a view added later cannot forget it quietly.
+So call `requireAdminAccess(initPageResult)` first thing in such a view (`src/components/admin/helpers/requireAdminAccess.ts`). It redirects to the unauthorized view for a signed-in user and to the login view otherwise, each carrying the refused route — query included — back as `redirect`. `tests/unit/sanitized-config-rules.spec.ts` walks the registrations and fails on a path-bearing view that reaches no such call, so a view added later cannot forget it quietly.
+
+**Dropping the `path` is not the alternative.** `isPathMatchingRoute` returns false for a pathless view, and `getRouteData` then routes it only by matching its key against Payload's own `oneSegmentViews` — which is why `loginPlugin`'s pathless `login` view works and why a pathless `analytics` would be reachable at no URL at all. A view with a name of its own needs a path, and therefore needs the guard.
 
 ## Performance — direct Payload access
 
