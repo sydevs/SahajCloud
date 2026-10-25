@@ -17,7 +17,7 @@ import { dirname, join, resolve } from 'node:path'
 export const SRC = resolve(__dirname, '../../src')
 
 /** Resolve an `@/…` or relative specifier to a file under src/, or null. */
-function resolveSpec(spec: string, fromFile: string): string | null {
+export function resolveSpec(spec: string, fromFile: string): string | null {
   const base = spec.startsWith('@/')
     ? join(SRC, spec.slice(2))
     : spec.startsWith('.')

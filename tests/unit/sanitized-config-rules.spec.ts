@@ -1,4 +1,4 @@
-import type { Block, Field, SanitizedCollectionConfig } from 'payload'
+import type { AdminViewConfig, Block, Field, SanitizedCollectionConfig } from 'payload'
 
 import fs from 'node:fs/promises'
 import os from 'node:os'
@@ -12,7 +12,7 @@ import { readJobStageConfig } from '@/components/admin/JobStageView/stages'
 import { isRecord } from '@/lib/utilities/isRecord'
 import config from '@/payload.config'
 
-import { sourceOf, SRC } from '../utils/importGraph'
+import { reachableFiles, resolveSpec, sourceOf, SRC } from '../utils/importGraph'
 
 /**
  * Three rules that hold over every collection and global, asserted against the
@@ -236,5 +236,52 @@ describe('a declared job stage is a readable one', { timeout: TIMEOUT }, () => {
       'imports',
       'meditation-transcripts',
     ])
+  })
+})
+
+/**
+ * Payload routes a custom admin view by its `path`, and `isCustomAdminView`
+ * skips `Root`'s auth redirect for every view that declares one — it matches on
+ * that path alone and reads no `public` flag. So the gate is the view's own
+ * (`requireAdminAccess`), and a view registered without it is reachable
+ * unauthenticated with nothing in review or in the rest of the suite to show it
+ * (#1030). The `dashboard` view declares no path, which is why `/admin` was
+ * never affected.
+ */
+const ADMIN_ACCESS_GUARD = `${SRC}/components/admin/helpers/requireAdminAccess.ts`
+
+const GUARD = /\brequireAdminAccess\b/
+
+const pathBearingViews = async (): Promise<[string, AdminViewConfig][]> => {
+  const sanitized = await config
+  return Object.entries(sanitized.admin.components.views).filter(
+    ([, view]) => view.path && view.path !== '/',
+  )
+}
+
+/**
+ * The view's own module and everything it imports, minus the guard itself — so
+ * an import nobody calls cannot pass this. Lint owns that half: an unused
+ * import fails `no-unused-vars` before it reaches here.
+ */
+const reachesTheGuard = (view: AdminViewConfig): boolean => {
+  const entry = resolveSpec(parsePayloadComponent(view.Component).path, IMPORT_MAP)
+  if (!entry) return false
+
+  return reachableFiles(entry)
+    .filter((file) => file !== ADMIN_ACCESS_GUARD)
+    .some((file) => GUARD.test(sourceOf(file)))
+}
+
+describe('every path-bearing admin view gates itself', { timeout: TIMEOUT }, () => {
+  /** A scan finding nothing would make the assertion below pass by vacuum. */
+  it('finds the registrations', async () => {
+    expect((await pathBearingViews()).map(([key]) => key).sort()).toEqual(['analytics', 'map'])
+  })
+
+  it('reaches requireAdminAccess from each one', async () => {
+    const views = await pathBearingViews()
+
+    expect(views.filter(([, view]) => !reachesTheGuard(view)).map(([key]) => key)).toEqual([])
   })
 })

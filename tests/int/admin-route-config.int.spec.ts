@@ -24,6 +24,10 @@ import configPromise from '@/payload.config'
  * The expectation joins through Payload's own `formatAdminURL`, as
  * `manager-auth-urls.spec.ts` does, so the two sides differ only in where the
  * route came from.
+ *
+ * `login` and `unauthorized` are the two `requireAdminAccess` composes a
+ * refusal from (#1030), and `admin-view-auth-guard.spec.ts` builds its context
+ * from these literals rather than booting a config.
  */
 describe('admin routes', () => {
   it('are the defaults every literal assumes', async () => {
@@ -36,5 +40,7 @@ describe('admin routes', () => {
     )
     expect(config.admin.routes.account).toBe('/account')
     expect(config.admin.routes.reset).toBe('/reset')
+    expect(config.admin.routes.login).toBe('/login')
+    expect(config.admin.routes.unauthorized).toBe('/unauthorized')
   })
 })

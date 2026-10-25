@@ -3,6 +3,8 @@ import type { AdminViewServerProps } from 'payload'
 import { DefaultTemplate } from '@payloadcms/next/templates'
 import { SetStepNav } from '@payloadcms/ui'
 
+import { requireAdminAccess } from './helpers/requireAdminAccess'
+
 /**
  * Custom admin view (registered as `admin.components.views.map`) that
  * embeds the Sahaj Atlas map app full-height inside the default admin chrome.
@@ -12,6 +14,8 @@ export default function AtlasMapView({
   params,
   searchParams,
 }: AdminViewServerProps) {
+  requireAdminAccess(initPageResult)
+
   const { req, visibleEntities, permissions, locale } = initPageResult
   const { payload } = req
 
