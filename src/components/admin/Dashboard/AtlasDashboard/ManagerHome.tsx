@@ -4,8 +4,7 @@ import { Banner, Button, CalendarIcon, CheckIcon, Pill, Table } from '@payloadcm
 import Link from 'next/link'
 import { useState } from 'react'
 
-import { PUBLIC_MAP_LINK } from '../../AdminNavLinks'
-import { tableColumn } from '../../helpers/tableColumn'
+import styles from './ManagerHome.module.css'
 import {
   programGroups,
   programStatus,
@@ -13,7 +12,8 @@ import {
   type Program,
   type ProgramStatus,
 } from './model'
-import styles from './ManagerHome.module.css'
+import { PUBLIC_MAP_LINK } from '../../AdminNavLinks'
+import { tableColumn } from '../../helpers/tableColumn'
 
 type Filter = 'all' | 'review' | 'drafts'
 

@@ -1,5 +1,4 @@
 import type { ProjectSlug } from '@/payload-types'
-
 import { getProjectLabel } from '@/plugins/access/config'
 
 /** Stands in for a project whose own dashboard has not been built yet. */
