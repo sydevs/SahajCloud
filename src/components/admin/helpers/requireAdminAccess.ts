@@ -1,11 +1,10 @@
-import type { SanitizedConfig } from 'payload'
+import type { InitPageResult, SanitizedConfig } from 'payload'
 
 import { redirect } from 'next/navigation'
 import { formatAdminURL } from 'payload/shared'
 
 /** Only what the guard reads, so a spec passes a literal rather than casting an `InitPageResult`. */
-export type AdminAccessContext = {
-  permissions: { canAccessAdmin?: boolean }
+export type AdminAccessContext = Pick<InitPageResult, 'permissions'> & {
   req: {
     pathname: string
     payload: {
