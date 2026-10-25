@@ -9749,6 +9749,10 @@ export interface SyAtlasTranslationsEventDisplayStrings {
    */
   contact_for_timing?: string;
   /**
+   * Where-line addition naming the room within the venue. Event view only — the list card and the Calendar entry never show it. `%{room}` = room name.
+   */
+  room?: string;
+  /**
    * Where-line badge, and the Calendar entry badge, for an online class.
    */
   online?: string;
