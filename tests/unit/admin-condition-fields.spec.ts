@@ -14,6 +14,7 @@ import {
   fieldAffectsData,
   fieldHasSubFields,
   flattenTopLevelFields,
+  hasDraftsEnabled,
   tabHasName,
 } from 'payload/shared'
 import { describe, expect, it } from 'vitest'
@@ -42,7 +43,11 @@ type ConditionSite = {
   root: Set<string> | undefined
   /** The enclosing block's own level, or undefined outside a block. */
   block: Set<string> | undefined
-  /** The parameters as transpiled, so a TS annotation around one is already erased. */
+  /**
+   * The parameters as transpiled, so a TS annotation around one is already
+   * erased, and with each destructured one folded to `{…}` — otherwise its own
+   * commas would shift every later index.
+   */
   parameters: string[]
   reads: Record<Parameter, string[]>
 }
@@ -116,6 +121,11 @@ const scopeOf = (fields: Field[]): Set<string> =>
  * `versions/baseFields.ts`), so they are named. Every auth group is admitted
  * whenever `auth` is set, rather than per `loginWithUsername` and `useAPIKey` —
  * wider than Payload injects, and free while no condition reads one.
+ *
+ * ⚠ `sanitizeCollection` injects all of these into `sanitized.fields`, so the
+ * sanitized config would answer this with no list at all. It is not the input
+ * because importing it costs 6.5 s (`sanitized-config-rules.spec.ts`), against
+ * the 12 s Tier 1 budget this spec is selected into (`docs/rules/testing-reqs.md`).
  */
 const AUTH_COLUMNS = (
   [
@@ -144,28 +154,24 @@ const UPLOAD_COLUMNS = [
 
 const TIMESTAMP_COLUMNS = ['createdAt', 'updatedAt']
 
-const hasDrafts = (versions: CollectionConfig['versions'] | GlobalConfig['versions']): boolean =>
-  typeof versions === 'object' && Boolean(versions.drafts)
-
-const collectionRootScope = (collection: CollectionConfig): Set<string> => {
+const collectionInjected = (collection: CollectionConfig): string[] => {
   const injected = [baseIDField.name]
 
   if (collection.timestamps !== false) injected.push(...TIMESTAMP_COLUMNS)
   if (collection.trash) injected.push('deletedAt')
   if (collection.upload) injected.push(...UPLOAD_COLUMNS)
   if (collection.auth) injected.push(...AUTH_COLUMNS)
-  if (hasDrafts(collection.versions)) injected.push('_status')
+  if (hasDraftsEnabled(collection)) injected.push('_status')
 
-  return new Set([...scopeOf(collection.fields), ...injected])
+  return injected
 }
 
-const globalRootScope = (global: GlobalConfig): Set<string> => {
-  const injected = [baseIDField.name, 'globalType', ...TIMESTAMP_COLUMNS]
-
-  if (hasDrafts(global.versions)) injected.push('_status')
-
-  return new Set([...scopeOf(global.fields), ...injected])
-}
+const globalInjected = (global: GlobalConfig): string[] => [
+  baseIDField.name,
+  'globalType',
+  ...TIMESTAMP_COLUMNS,
+  ...(hasDraftsEnabled(global) ? ['_status'] : []),
+]
 
 const conditionSource = (node: Field | Tab): string | undefined => {
   const condition = 'admin' in node ? node.admin?.condition : undefined
@@ -184,6 +190,7 @@ const siteFor = (where: string, field: string, levels: Levels, source: string): 
   field,
   ...levels,
   parameters: (PARAMETERS.exec(source)?.[1] ?? '')
+    .replace(/\{[^}]*\}/g, '{…}')
     .split(',')
     .map((parameter) => parameter.trim())
     .filter(Boolean),
@@ -238,22 +245,24 @@ const allSites = (): ConditionSite[] => {
   const sites: ConditionSite[] = []
 
   for (const collection of collections as CollectionConfig[]) {
-    const root = collectionRootScope(collection)
+    const own = scopeOf(collection.fields)
+    const root = new Set([...own, ...collectionInjected(collection)])
 
     collectSites(
       collection.fields,
-      { scope: scopeOf(collection.fields), root, block: undefined },
+      { scope: own, root, block: undefined },
       `collections/${collection.slug}`,
       sites,
     )
   }
 
   for (const global of globals as GlobalConfig[]) {
-    const root = globalRootScope(global)
+    const own = scopeOf(global.fields)
+    const root = new Set([...own, ...globalInjected(global)])
 
     collectSites(
       global.fields,
-      { scope: scopeOf(global.fields), root, block: undefined },
+      { scope: own, root, block: undefined },
       `globals/${global.slug}`,
       sites,
     )
@@ -287,13 +296,15 @@ const allSites = (): ConditionSite[] => {
 describe('admin.condition reads a declared field', () => {
   const sites = allSites()
 
-  const report = (site: ConditionSite, parameter: Parameter, name: string, declares: string) =>
-    `${site.where} :: ${site.field} :: ${parameter}.${name} — ${declares}`
+  const undeclared = (site: ConditionSite, parameter: Parameter, level: Set<string>) => {
+    const declares = [...level].join(', ')
 
-  const undeclared = (site: ConditionSite, parameter: Parameter, level: Set<string>) =>
-    site.reads[parameter]
+    return site.reads[parameter]
       .filter((name) => !level.has(name))
-      .map((name) => report(site, parameter, name, `declares: ${[...level].join(', ')}`))
+      .map(
+        (name) => `${site.where} :: ${site.field} :: ${parameter}.${name} — declares: ${declares}`,
+      )
+  }
 
   it('names no sibling its own level does not declare', () => {
     expect(sites.flatMap((site) => undeclared(site, 'siblingData', site.scope))).toEqual([])
@@ -314,7 +325,9 @@ describe('admin.condition reads a declared field', () => {
     const offenders = sites.flatMap((site) =>
       site.block
         ? undeclared(site, 'blockData', site.block)
-        : site.reads.blockData.map((name) => report(site, 'blockData', name, 'no enclosing block')),
+        : site.reads.blockData.map(
+            (name) => `${site.where} :: ${site.field} :: blockData.${name} — no enclosing block`,
+          ),
     )
 
     expect(offenders).toEqual([])
@@ -338,8 +351,9 @@ describe('admin.condition reads a declared field', () => {
     // read what it names, and the parameter's own type annotation is what checks
     // those names (#1004), since no regex sees through the pattern. And a
     // parameter spelled `siblingData` that yields no read has handed the level to
-    // a helper, where the annotation on the helper's own parameter takes over;
-    // `data` does that deliberately in three places, so it is not asked.
+    // a helper, where the annotation on the helper's own parameter takes over.
+    // That is asked of `siblingData` alone, because `data` is handed to a shared
+    // predicate deliberately — `targetsHero`, read by two of AppCards' view tabs.
     const unreadable = sites.flatMap(({ where, field, parameters, reads }) => {
       const spelled = (index: number, expected: Parameter) => {
         const parameter = parameters[index]

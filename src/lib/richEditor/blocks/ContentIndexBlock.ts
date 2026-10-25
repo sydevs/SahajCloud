@@ -75,7 +75,7 @@ export const computeApiEndpoint: FieldHook = ({ siblingData }) => {
  * Creates hooks that clear a filter field's value when the block's type doesn't match.
  * Prevents stale filter data from being stored or returned in the API.
  */
-function clearWhenTypeNot(activeType: string): {
+function clearWhenTypeNot(activeType: ContentIndexBlockData['type']): {
   beforeChange: FieldHook[]
   afterRead: FieldHook[]
 } {

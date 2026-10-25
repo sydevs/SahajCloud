@@ -114,8 +114,7 @@ const canonicalVerificationSchema: JSONSchema4 = {
  * governs is hidden rather than shown inert. Shared so the fields cannot drift apart, and so
  * `required` on `embed` reads as exactly "required when canonical ownership is on".
  */
-const canonicalEnabled = (data: { canonical?: { enabled?: boolean | null } | null }): boolean =>
-  Boolean(data?.canonical?.enabled)
+const canonicalEnabled = (data: Partial<Client>): boolean => Boolean(data?.canonical?.enabled)
 
 /** Same master-switch shape as `canonicalEnabled`, for the mailing-list group. */
 const mailingListEnabled = (data: Partial<Client>): boolean => Boolean(data?.mailingList?.enabled)
@@ -196,7 +195,7 @@ const mailingListGroup: Field = {
           })),
           enumName: 'enum_clients_mailing_list_provider',
           admin: {
-            condition: (data: Partial<Client>) => mailingListEnabled(data),
+            condition: mailingListEnabled,
             // The opt-in note for the chosen provider, in place of a checkbox
             // two of the three cannot honour. See `OPT_IN_NOTES`.
             custom: { descriptions: OPT_IN_NOTES },
@@ -209,7 +208,7 @@ const mailingListGroup: Field = {
           label: 'List ID',
           required: true,
           admin: {
-            condition: (data: Partial<Client>) => mailingListEnabled(data),
+            condition: mailingListEnabled,
             // One sentence naming all three, rather than a per-provider hint:
             // `admin.description`'s function form is handed `{ i18n, t }` and
             // never the document, so it cannot see which provider is chosen.
@@ -222,7 +221,7 @@ const mailingListGroup: Field = {
           label: 'API Key',
           required: true,
           admin: {
-            condition: (data: Partial<Client>) => mailingListEnabled(data),
+            condition: mailingListEnabled,
             description:
               'The provider secret. Checked against the provider when you save, and never readable by an API client.',
           },

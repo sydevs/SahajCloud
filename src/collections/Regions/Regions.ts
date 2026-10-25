@@ -61,7 +61,7 @@ const ALLOWED_PARENT_LEVELS: Record<string, string[]> = {
  */
 const childLevelVisible = (childLevel: string) => {
   const parentLevels: string[] = ALLOWED_PARENT_LEVELS[childLevel] ?? []
-  return (data: Record<string, unknown>): boolean =>
+  return (data: Partial<Region>): boolean =>
     hideUntilCreated(data) && parentLevels.includes(data?.level as string)
 }
 

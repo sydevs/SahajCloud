@@ -1,4 +1,4 @@
-import type { CollectionConfig, PayloadRequest } from 'payload'
+import type { CollectionConfig, Condition } from 'payload'
 
 import { colorField, hideUntilCreated, slugField } from '@/fields'
 import type { UserChoice } from '@/payload-types'
@@ -174,11 +174,8 @@ export const UserChoices: CollectionConfig = {
       ],
       access: { update: adminOnlyFieldAccess },
       admin: {
-        condition: (
-          data: Partial<UserChoice>,
-          _siblingData,
-          { user }: { user: PayloadRequest['user'] },
-        ) => isMoodChoice(data) && !data.isParent && isAdminManager(user),
+        condition: (data: Partial<UserChoice>, _siblingData, { user }: Parameters<Condition>[2]) =>
+          isMoodChoice(data) && !data.isParent && isAdminManager(user),
         description: 'Which times of day this category offers meditations',
         components: {
           Field: '@/components/admin/ToggleGroupField',

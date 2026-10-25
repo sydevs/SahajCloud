@@ -179,7 +179,7 @@ const subjectField: Field = {
  * (`hooks/spawnSubscribeFromRegistration.ts`). A contact submission never
  * qualifies: it has nowhere to go without a form's `recipient`.
  */
-function needsForm(data?: { event?: unknown; type?: unknown }): boolean {
+function needsForm(data?: Partial<UserSubmission>): boolean {
   const type = data?.type
   if (typeof type !== 'string') return false
   if (!(FORM_BACKED_TYPES as readonly string[]).includes(type)) return false
@@ -240,7 +240,7 @@ function perTypeForm(field: Field): Field {
     required: true,
     index: true,
     validate,
-    admin: { ...field.admin, condition: (data: Partial<UserSubmission>) => needsForm(data) },
+    admin: { ...field.admin, condition: needsForm },
   } as RelationshipField
 }
 
