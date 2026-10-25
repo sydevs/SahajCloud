@@ -18,6 +18,8 @@ The `clients` record itself — its key, canonical ownership and embed verificat
 5. `usageTrackingBeforeOperationHook` counts one request per client request, skipping internal relationship-population sub-reads (`depth >= 1`, #559) and, through a per-request cell, every later read of the same request (#891) — see "One request, one count" below.
 6. The increment is a single atomic Postgres UPDATE.
 
+⚠ **A local dev server authenticates every request as its auto-login manager**, whatever credential it carries, so a client-contract check sent at `localhost` passes as a manager and proves nothing — the `select` gate below never even fires. Send `DisableAutologin: true` beside the API key to be read as the client.
+
 ### A key that authenticates nothing is reported as its own signal (#734)
 
 A key matching no `clients` row is denied, correctly — but it used to be reported exactly like an anonymous read, so a dead integration looked like background noise for three months. A sub-500 error whose `Authorization` header failed to authenticate now reaches Sentry at `error` level, under its own fingerprint, and the same denial is written to the application log at WARN:
