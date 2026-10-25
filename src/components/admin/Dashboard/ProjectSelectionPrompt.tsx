@@ -13,7 +13,6 @@ export default function ProjectSelectionPrompt() {
   const { user } = useAuth()
   const allowedProjects = getProjectsFromRoles(user?.roles)
 
-  // No projects available - show error message
   if (allowedProjects.length === 0) {
     return (
       <div
