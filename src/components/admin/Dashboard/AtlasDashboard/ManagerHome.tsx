@@ -1,16 +1,16 @@
 'use client'
 
-import type { getAtlasDashboardData } from './data'
-
 import { Banner, Button, CalendarIcon, CheckIcon, Pill, Table } from '@payloadcms/ui'
 import Link from 'next/link'
 import { useState } from 'react'
 
-import { programGroups, programStatus, type Program, type ProgramStatus } from './model'
-import styles from './OrganiserHome.module.css'
-import { tableColumn } from '../helpers/tableColumn'
+import type { getAtlasDashboardData } from './data'
 
-type DashboardData = NonNullable<Awaited<ReturnType<typeof getAtlasDashboardData>>>
+import { tableColumn } from '../../helpers/tableColumn'
+import { programGroups, programStatus, type Program, type ProgramStatus } from './model'
+import styles from './ManagerHome.module.css'
+
+type DashboardData = Awaited<ReturnType<typeof getAtlasDashboardData>>
 type Filter = 'all' | 'review' | 'drafts'
 
 const FILTERS: { value: Filter; label: string }[] = [
@@ -48,13 +48,13 @@ function nextStep(program: Program): string {
 }
 
 /** A small composition of native Payload controls; data and permissions stay on the server. */
-export function OrganiserHome({ data }: { data: DashboardData }) {
+export function ManagerHome({ data }: { data: DashboardData }) {
   const [filter, setFilter] = useState<Filter>('all')
   const groups = programGroups(data.events)
   const programs = groups[filter]
   const firstReview = groups.review[0]
   return (
-    <section className={styles.home} aria-label="Atlas organiser dashboard">
+    <section className={styles.home} aria-label="Atlas manager dashboard">
       <header className={styles.header}>
         <div>
           <h1>Your programs</h1>

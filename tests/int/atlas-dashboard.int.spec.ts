@@ -3,14 +3,14 @@ import type { Payload } from 'payload'
 import { createLocalReq } from 'payload'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { getAtlasDashboardData } from '@/components/admin/AtlasDashboard/data'
-import { programGroups } from '@/components/admin/AtlasDashboard/model'
+import { getAtlasDashboardData } from '@/components/admin/Dashboard/AtlasDashboard/data'
+import { programGroups } from '@/components/admin/Dashboard/AtlasDashboard/model'
 import type { Manager as ManagerDoc } from '@/payload-types'
 
 import { createData, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
-describe('Atlas organiser dashboard access', () => {
+describe('Atlas manager dashboard access', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
   let owner: ManagerDoc
@@ -95,22 +95,27 @@ describe('Atlas organiser dashboard access', () => {
 
   it('includes manageable region drafts but excludes other project-readable events', async () => {
     const data = await getAtlasDashboardData(await request(owner))
-    expect(data?.canCreate).toBe(true)
-    expect(data?.events.map((event) => event.id)).toEqual([ownId])
-    const groups = programGroups(data!.events)
+    expect(data.canCreate).toBe(true)
+    expect(data.events.map((event) => event.id)).toEqual([ownId])
+    const groups = programGroups(data.events)
     // The one event is an urgent draft, so it is awaiting review and nothing else.
     expect(groups.review).toHaveLength(1)
     expect(groups.drafts).toEqual([])
   })
   it('supports direct assignment without granting creation', async () => {
     const data = await getAtlasDashboardData(await request(assignee))
-    expect(data?.canCreate).toBe(false)
-    expect(data?.events.map((event) => event.id)).toEqual([assignedId])
+    expect(data.canCreate).toBe(false)
+    expect(data.events.map((event) => event.id)).toEqual([assignedId])
   })
-  it('does not load organiser data for other project contexts', async () => {
-    expect(
-      await getAtlasDashboardData(await request({ ...owner, currentProject: 'wemeditate-web' })),
-    ).toBeNull()
+  it('answers from the Events write scope and not from the current project', async () => {
+    // The Events `update` scope is regions and assignment, so it admits the same
+    // programs whatever project is selected. That is why containment to Sahaj
+    // Atlas belongs to `dashboardChoiceFor`, which decides whether this view
+    // renders at all — never to this read.
+    const elsewhere = await getAtlasDashboardData(
+      await request({ ...owner, currentProject: 'wemeditate-web' }),
+    )
+    expect(elsewhere.events.map((event) => event.id)).toEqual([ownId])
   })
   it('distinguishes a never-published draft from unpublished changes to a live program', async () => {
     const live = await testData.createEvent(payload, {
@@ -138,13 +143,13 @@ describe('Atlas organiser dashboard access', () => {
       },
     })
     const data = await getAtlasDashboardData(await request(owner))
-    const program = data?.events.find((event) => event.id === live.id)
+    const program = data.events.find((event) => event.id === live.id)
     expect(program).toMatchObject({ title: 'Changed title', _status: 'draft', published: true })
-    expect(data?.events.find((event) => event.id === draft.id)).toMatchObject({
+    expect(data.events.find((event) => event.id === draft.id)).toMatchObject({
       verificationStage: 'verified',
       published: false,
     })
-    const groups = programGroups(data!.events)
+    const groups = programGroups(data.events)
     expect(groups.published.map((event) => event.id)).toEqual([live.id])
     expect(groups.drafts.map((event) => event.id)).toEqual([draft.id])
     expect(groups.review.map((event) => event.id)).toEqual([ownId])
@@ -178,13 +183,13 @@ describe('Atlas organiser dashboard access', () => {
       expect(latest.verificationStage).toBe('verified')
       expect(base.verificationStage).toBe(stage)
       const data = await getAtlasDashboardData(await request(owner))
-      expect(data?.events.find((event) => event.id === live.id)).toMatchObject({
+      expect(data.events.find((event) => event.id === live.id)).toMatchObject({
         verificationStage: stage,
         published: true,
         _status: 'draft',
       })
-      if (stage === 'urgent') expect(data?.events[0].id).toBe(live.id)
-      else expect(data?.events.at(-1)?.id).toBe(live.id)
+      if (stage === 'urgent') expect(data.events[0].id).toBe(live.id)
+      else expect(data.events.at(-1)?.id).toBe(live.id)
     },
   )
 })

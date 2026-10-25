@@ -978,7 +978,6 @@ export interface Config {
     | 'hu'
     | 'nl';
   widgets: {
-    'atlas-programs': AtlasProgramsWidget;
     collections: CollectionsWidget;
   };
   user: Manager | Client;
@@ -10542,16 +10541,6 @@ export interface PayloadJobsStatsSelect<T extends boolean = true> {
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "atlas-programs_widget".
- */
-export interface AtlasProgramsWidget {
-  data?: {
-    [k: string]: unknown;
-  };
-  width: 'full';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

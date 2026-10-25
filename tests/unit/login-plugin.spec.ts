@@ -49,9 +49,11 @@ function adminConfig(): Config {
         providers: ['@/components/AdminProvider.tsx'],
         beforeNavLinks: ['@/components/admin/ProjectSelector'],
         Nav: '@/components/admin/AtlasNav/AtlasNav',
-        beforeDashboard: ['@/components/admin/Dashboard/ProjectSelectionPrompt'],
         graphics: { Logo: '@/components/branding/Logo' },
-        views: { analytics: { Component: '@/components/admin/AnalyticsView', path: '/analytics' } },
+        views: {
+          analytics: { Component: '@/components/admin/AnalyticsView', path: '/analytics' },
+          dashboard: { Component: '@/components/admin/Dashboard/DashboardView' },
+        },
       },
     },
     collections: [collection('managers')],
@@ -175,7 +177,6 @@ describe('loginPlugin', () => {
       expect(components.beforeNavLinks).toEqual(before.admin!.components!.beforeNavLinks)
       expect(components.Nav).toBe(before.admin!.components!.Nav)
       expect(components.graphics).toEqual(before.admin!.components!.graphics)
-      expect(components.beforeDashboard).toEqual(before.admin!.components!.beforeDashboard)
     })
 
     it('leaves the view alone while the collection still has passwords', () => {

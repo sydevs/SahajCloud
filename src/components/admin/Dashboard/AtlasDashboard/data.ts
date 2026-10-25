@@ -3,11 +3,12 @@ import type { PayloadRequest } from 'payload'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 
 import { sortPrograms } from './model'
-import { isAtlasOrganiser } from '../helpers/isAtlasOrganiser'
 
-/** Use the collection's actual write scope: project read access alone is wider. */
+/**
+ * Use the collection's actual write scope: project read access alone is wider.
+ * Containment to the Atlas project is the dashboard view's call, not this read's.
+ */
 export async function getAtlasDashboardData(req: PayloadRequest) {
-  if (!isAtlasOrganiser(req.user)) return null
   const access = req.payload.collections.events.config.access
   // Concurrent reads on one req must not share it (src/collections/AGENTS.md).
   const [scope, canCreate] = await Promise.all([

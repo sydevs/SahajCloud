@@ -8,15 +8,10 @@ import { getProjectLabel, getProjectsFromRoles } from '@/plugins/access/config'
 
 import ProjectSelector from '../ProjectSelector'
 
+/** Rendered by `DashboardView`, which decides that no project is selected. */
 export default function ProjectSelectionPrompt() {
   const { user } = useAuth()
-
-  // Only show for regular managers who haven't selected a project
-  if (!user || user.type === 'admin' || user.type === 'inactive' || user.currentProject) {
-    return null
-  }
-
-  const allowedProjects = getProjectsFromRoles(user.roles)
+  const allowedProjects = getProjectsFromRoles(user?.roles)
 
   // No projects available - show error message
   if (allowedProjects.length === 0) {

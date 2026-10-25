@@ -1,26 +1,11 @@
-import type { PayloadRequest, WidgetInstance } from 'payload'
-
 import type { Event } from '@/payload-types'
-
-import { isAtlasOrganiser } from '../helpers/isAtlasOrganiser'
-
-export const ATLAS_PROGRAMS_WIDGET = 'atlas-programs'
-
-export function atlasDashboardLayout({ req }: { req: PayloadRequest }): WidgetInstance[] {
-  return [
-    {
-      widgetSlug: isAtlasOrganiser(req.user) ? ATLAS_PROGRAMS_WIDGET : 'collections',
-      width: 'full',
-    },
-  ]
-}
 
 export type Program = Pick<Event, 'id' | 'title' | '_status' | 'verificationStage' | 'updatedAt'> &
   Partial<Pick<Event, 'eventType' | 'address'>> & {
     published: boolean
   }
 
-/** Sort rank per stage; 0 and 1 need the organiser. A Record, so a new stage cannot be missed. */
+/** Sort rank per stage; 0 and 1 need the manager. A Record, so a new stage cannot be missed. */
 const STAGE_RANK: Record<Event['verificationStage'], 0 | 1 | 2 | 3> = {
   urgent: 0,
   reminded: 1,
@@ -67,14 +52,4 @@ export function programGroups(programs: Program[]) {
     drafts: byStatus('draft'),
     published: byStatus('published'),
   }
-}
-
-/** Payload stores dashboard preferences as { layouts: [{ id, ... }] }. */
-export function needsAtlasDashboardFallback(
-  value: { layouts?: { id?: string }[] } | undefined,
-): boolean {
-  return (
-    Array.isArray(value?.layouts) &&
-    !value.layouts.some((item) => item.id?.startsWith(`${ATLAS_PROGRAMS_WIDGET}-`))
-  )
 }

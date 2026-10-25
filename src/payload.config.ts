@@ -9,10 +9,6 @@ import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import { buildConfig, Config } from 'payload'
 import { openapi } from 'payload-oapi'
 
-import {
-  ATLAS_PROGRAMS_WIDGET,
-  atlasDashboardLayout,
-} from '@/components/admin/AtlasDashboard/model'
 import { REGION_NESTED_DOCS_CONFIG } from '@/lib/atlas/regionTree'
 import { serverEnv } from '@/lib/env'
 import { buildPayloadLocales, DEFAULT_LOCALE } from '@/lib/locales'
@@ -144,17 +140,6 @@ const payloadConfig = (overrides?: Partial<Config>) => {
           },
         ],
       },
-      dashboard: {
-        widgets: [
-          {
-            slug: ATLAS_PROGRAMS_WIDGET,
-            label: 'Your programs',
-            Component: '@/components/admin/AtlasDashboard',
-            minWidth: 'full',
-          },
-        ],
-        defaultLayout: atlasDashboardLayout,
-      },
       components: {
         providers: [
           {
@@ -165,10 +150,6 @@ const payloadConfig = (overrides?: Partial<Config>) => {
         // Non-admin Atlas managers get a custom sidebar; everyone else falls
         // back to DefaultNav inside the component itself. See AtlasNav.
         Nav: '@/components/admin/AtlasNav/AtlasNav',
-        beforeDashboard: [
-          '@/components/admin/Dashboard/ProjectSelectionPrompt',
-          '@/components/admin/AtlasDashboard/PreferenceFallback',
-        ],
         graphics: {
           Logo: '@/components/branding/Logo',
           Icon: '@/components/branding/Icon',
@@ -177,6 +158,12 @@ const payloadConfig = (overrides?: Partial<Config>) => {
           analytics: {
             Component: '@/components/admin/AnalyticsView',
             path: '/analytics',
+          },
+          // The admin homepage, in place of Payload's widget grid: one custom
+          // view per project. Takes no `path` — `dashboard` is the key Payload's
+          // route resolver looks up for `/admin`.
+          dashboard: {
+            Component: '@/components/admin/Dashboard/DashboardView',
           },
           map: {
             Component: '@/components/admin/AtlasMapView',
