@@ -1,10 +1,14 @@
 'use client'
 
-import { useAuth } from '@payloadcms/ui'
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { useAuth, useRouteTransition } from '@payloadcms/ui'
+import { usePathname, useRouter } from 'next/navigation'
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 
+import { shouldRedirectToAdmin } from '@/components/admin/ProjectSelector/utils'
+import { clientLogger } from '@/lib/logger/clientLogger'
 import type { ProjectSlug } from '@/payload-types'
-import { getProjectsFromRoles } from '@/plugins/access/config'
+
+import { resolveProject } from './resolveProject'
 
 interface ProjectContextType {
   currentProject: ProjectSlug | null
@@ -13,51 +17,47 @@ interface ProjectContextType {
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined)
 
+/**
+ * Wraps the whole admin (`AdminProvider`), so a manager with a single project is
+ * moved into it from any page, not only the dashboard.
+ */
 export const ProjectProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth()
+  const { startRouteTransition } = useRouteTransition()
+  const router = useRouter()
+  const pathname = usePathname()
   const [currentProject, setCurrentProject] = useState<ProjectSlug | null>(null)
+  // `useAuth` keeps the pre-save user after the refresh, so the effect would
+  // otherwise persist again on its next run.
+  const persisted = useRef<ProjectSlug | null>(null)
 
-  // Validate current project and auto-select if needed
   useEffect(() => {
     if (!user) return
+    const { project, persist } = resolveProject({
+      type: user.type,
+      roles: user.roles,
+      currentProject: user.currentProject,
+    })
+    setCurrentProject(project)
+    if (!persist || !project || persisted.current === project) return
+    persisted.current = project
 
-    // Compute allowed projects from user's roles
-    const allowedProjects = getProjectsFromRoles(user.roles)
-    const current = user.currentProject
-
-    // Case 1: Admin with no project selected - use null (admin view)
-    if (user.type === 'admin' && !current) {
-      setCurrentProject(null)
-      return
-    }
-
-    // Case 2: Current project is valid - keep it
-    if (current && (user.type === 'admin' || allowedProjects.includes(current))) {
-      setCurrentProject(current)
-      return
-    }
-
-    // Case 3: Auto-select if only one project available
-    if (user.type !== 'admin' && allowedProjects.length === 1) {
-      const selected = allowedProjects[0]
-      setCurrentProject(selected)
-
-      // Persist the auto-selected project via the lightweight self-only endpoint.
-      fetch('/api/managers/set-project', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ currentProject: selected }),
-      }).catch((error) => {
-        // eslint-disable-next-line no-console
-        console.error('Failed to auto-select project:', error)
+    // Every server-rendered part of this page — nav visibility, sidebar,
+    // dashboard — read the stored project, so save it and render again.
+    fetch('/api/managers/set-project', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ currentProject: project }),
+    })
+      .then((response) => {
+        if (!response.ok) throw new Error(`Failed to set project: ${response.statusText}`)
+        startRouteTransition(() =>
+          shouldRedirectToAdmin(pathname, project) ? router.push('/admin') : router.refresh(),
+        )
       })
-      return
-    }
-
-    // Case 4: Multiple projects or invalid current - require manual selection
-    setCurrentProject(null)
-  }, [user, user?.id, user?.roles, user?.currentProject, user?.type])
+      .catch((error) => clientLogger.error('Failed to auto-select project', error))
+  }, [user, pathname, router, startRouteTransition])
 
   return (
     <ProjectContext.Provider value={{ currentProject, setCurrentProject }}>
