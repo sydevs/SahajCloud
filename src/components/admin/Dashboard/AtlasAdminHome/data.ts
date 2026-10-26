@@ -17,10 +17,10 @@ export type RecentProgram = Pick<
   regionName: string | null
 }
 
-export type AtlasOverviewData = {
+export type AtlasAdminHomeData = {
   health: (OverviewCount & { stage: VerificationStage })[]
-  unowned: OverviewCount[]
-  proposals: OverviewCount
+  /** Work only an admin can move: unadopted events, unmanaged countries, open proposals. */
+  attention: OverviewCount[]
   recent: RecentProgram[]
 }
 
@@ -36,7 +36,14 @@ const HEALTH_STAGES: { stage: VerificationStage; label: string }[] = [
 const UNADOPTED: Where = {
   and: [{ verificationStage: { equals: 'unverified' } }, { manager: { exists: false } }],
 }
-const UNMANAGED_REGIONS: Where = { managers: { exists: false } }
+/**
+ * A country is the top of the escalation ladder, so one with no manager has
+ * nobody above its regions' managers. Below country level, a region with no
+ * manager of its own is still covered by its ancestors'.
+ */
+const UNMANAGED_COUNTRIES: Where = {
+  and: [{ level: { equals: 'country' } }, { managers: { exists: false } }],
+}
 const OPEN_PROPOSALS: Where = {
   and: [{ type: { equals: 'proposal' } }, { status: { in: [...OPEN_REVIEW_STATUSES] } }],
 }
@@ -50,14 +57,14 @@ export function listHref(collection: string, where: Where): string {
  * The admin's view of the whole map. Every count is a list-view filter, so an
  * admin follows one straight into the rows behind it.
  */
-export async function getAtlasOverviewData(req: PayloadRequest): Promise<AtlasOverviewData> {
+export async function getAtlasAdminHomeData(req: PayloadRequest): Promise<AtlasAdminHomeData> {
   // Concurrent reads on one req must not share it (src/collections/AGENTS.md).
   const count = (collection: 'events' | 'regions' | 'user-submissions', where: Where) =>
     req.payload
       .count({ collection, where, overrideAccess: false, req: localeIsolatedReq(req) })
       .then((result) => result.totalDocs)
 
-  const [health, unadopted, unmanagedRegions, proposals, recent] = await Promise.all([
+  const [health, unadopted, unmanagedCountries, proposals, recent] = await Promise.all([
     Promise.all(
       HEALTH_STAGES.map(async ({ stage, label }) => {
         const where: Where = { verificationStage: { equals: stage } }
@@ -70,7 +77,7 @@ export async function getAtlasOverviewData(req: PayloadRequest): Promise<AtlasOv
       }),
     ),
     count('events', UNADOPTED),
-    count('regions', UNMANAGED_REGIONS),
+    count('regions', UNMANAGED_COUNTRIES),
     count('user-submissions', OPEN_PROPOSALS),
     req.payload.find({
       collection: 'events',
@@ -94,19 +101,19 @@ export async function getAtlasOverviewData(req: PayloadRequest): Promise<AtlasOv
 
   return {
     health,
-    unowned: [
+    attention: [
       { label: 'Imported, not adopted', count: unadopted, href: listHref('events', UNADOPTED) },
       {
-        label: 'Regions with no manager',
-        count: unmanagedRegions,
-        href: listHref('regions', UNMANAGED_REGIONS),
+        label: 'Countries with no manager',
+        count: unmanagedCountries,
+        href: listHref('regions', UNMANAGED_COUNTRIES),
+      },
+      {
+        label: 'Proposals awaiting review',
+        count: proposals,
+        href: listHref('user-submissions', OPEN_PROPOSALS),
       },
     ],
-    proposals: {
-      label: 'Awaiting review',
-      count: proposals,
-      href: listHref('user-submissions', OPEN_PROPOSALS),
-    },
     recent: recent.docs.map((event) => ({
       id: event.id,
       title: event.title,

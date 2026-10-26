@@ -21,3 +21,5 @@ export function CenteredNotice({ title, icon, fullHeight, children }: CenteredNo
   )
   return fullHeight ? <div className={styles.fullHeight}>{notice}</div> : notice
 }
+
+export default CenteredNotice

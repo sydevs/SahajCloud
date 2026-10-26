@@ -14,17 +14,17 @@ import {
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 
-import styles from './ManagerHome.module.css'
+import styles from './AtlasManagerHome.module.css'
 import {
   PROGRAM_LIMITS,
   programStatus,
-  type AtlasDashboardData,
+  type AtlasManagerHomeData,
   type Program,
   type ProgramQuery,
   type ProgramStatus,
   type ProgramTab,
 } from './model'
-import { CenteredNotice } from '../../helpers/CenteredNotice'
+import { CenteredNotice } from '../../CenteredNotice'
 import { PUBLIC_MAP_LINK } from '../../helpers/navLinks'
 import { tableColumn } from '../../helpers/tableColumn'
 
@@ -76,7 +76,7 @@ function nextStep(program: Program): string {
 }
 
 /** A small composition of native Payload controls; data and permissions stay on the server. */
-export function ManagerHome({ data }: { data: AtlasDashboardData }) {
+export function AtlasManagerHomeView({ data }: { data: AtlasManagerHomeData }) {
   const setQuery = useProgramQuery()
   const { counts, programs, query } = data
   const rows = programs.docs

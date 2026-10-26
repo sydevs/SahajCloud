@@ -6,7 +6,7 @@ import { TriangleAlert } from 'lucide-react'
 import { CONTACT_EMAIL } from '@/lib/contact'
 import { getManagerProjects, getProjectLabel } from '@/plugins/access/config'
 
-import { CenteredNotice } from '../helpers/CenteredNotice'
+import { CenteredNotice } from '../CenteredNotice'
 import ProjectSelector from '../ProjectSelector'
 
 /** Rendered by `DashboardView`, which decides that no project is selected. */

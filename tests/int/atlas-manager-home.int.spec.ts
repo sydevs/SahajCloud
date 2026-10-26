@@ -3,14 +3,17 @@ import type { Payload } from 'payload'
 import { createLocalReq } from 'payload'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { getAtlasDashboardData } from '@/components/admin/Dashboard/AtlasDashboard/data'
-import { programStatus, type ProgramQuery } from '@/components/admin/Dashboard/AtlasDashboard/model'
+import { getAtlasManagerHomeData } from '@/components/admin/Dashboard/AtlasManagerHome/data'
+import {
+  programStatus,
+  type ProgramQuery,
+} from '@/components/admin/Dashboard/AtlasManagerHome/model'
 import type { Manager as ManagerDoc } from '@/payload-types'
 
 import { createData, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
-describe('Atlas manager dashboard access', () => {
+describe('Atlas manager home', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
   let owner: ManagerDoc
@@ -93,7 +96,7 @@ describe('Atlas manager dashboard access', () => {
   const request = (user: ManagerDoc) =>
     createLocalReq({ user: { ...user, collection: 'managers' }, locale: 'en' }, payload)
   const load = async (user: ManagerDoc, query: Partial<ProgramQuery> = {}) =>
-    getAtlasDashboardData(await request(user), { tab: 'all', page: 1, limit: 50, ...query })
+    getAtlasManagerHomeData(await request(user), { tab: 'all', page: 1, limit: 50, ...query })
   const ids = (data: { programs: { docs: { id: number }[] } }) =>
     data.programs.docs.map((event) => event.id)
 
@@ -191,22 +194,21 @@ describe('Atlas manager dashboard access', () => {
       else expect(data.programs.docs.at(-1)?.id).toBe(live.id)
     },
   )
-  it('stores the rank of every save, so the review-first order holds across pages', async () => {
-    const event = await testData.createEvent(payload, {
-      title: 'Ranked program',
+  it('pages the review-first order without reordering it', async () => {
+    const urgent = await testData.createEvent(payload, {
+      title: 'Newly urgent program',
       manager: owner.id,
       region: cityId,
     })
-    expect(event.verificationRank).toBe(2)
-    const urgent = await payload.update({
+    await payload.update({
       collection: 'events',
-      id: event.id,
+      id: urgent.id,
       context: { skipVerifyHook: true },
       data: { verificationStage: 'urgent' },
     })
-    expect(urgent.verificationRank).toBe(0)
 
     const all = await load(owner)
+    expect(all.programs.docs[0]!.verificationStage).toBe('urgent')
     const paged = []
     for (let page = 1; page <= all.programs.totalDocs; page++) {
       const data = await load(owner, { page, limit: 1 })
@@ -214,7 +216,9 @@ describe('Atlas manager dashboard access', () => {
       paged.push(...ids(data))
     }
     expect(paged).toEqual(ids(all))
-    const ranks = all.programs.docs.map((program) => programStatus(program))
-    expect(ranks.indexOf('finished')).toBeGreaterThan(ranks.lastIndexOf('review'))
+    const statuses = all.programs.docs.map((program) => programStatus(program))
+    expect(statuses.indexOf('finished')).toBeGreaterThan(statuses.lastIndexOf('review'))
+    // A page past the end clamps to the last one rather than coming back empty.
+    expect(ids(await load(owner, { page: 999, limit: 1 }))).toEqual([ids(all).at(-1)])
   })
 })

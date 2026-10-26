@@ -3,13 +3,13 @@ import type { Payload, PayloadRequest } from 'payload'
 import { createLocalReq } from 'payload'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { getAtlasOverviewData } from '@/components/admin/Dashboard/AtlasAdminHome/data'
+import { getAtlasAdminHomeData } from '@/components/admin/Dashboard/AtlasAdminHome/data'
 import type { Manager } from '@/payload-types'
 
 import { createData, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
-describe('Atlas admin overview', () => {
+describe('Atlas admin home', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
   let admin: Manager
@@ -22,7 +22,7 @@ describe('Atlas admin overview', () => {
       headers: new Headers(),
     }) as unknown as PayloadRequest
   const overview = async () =>
-    getAtlasOverviewData(
+    getAtlasAdminHomeData(
       await createLocalReq({ user: { ...admin, collection: 'managers' }, locale: 'en' }, payload),
     )
   const countOf = (items: { label: string; count: number }[], label: string) =>
@@ -37,7 +37,7 @@ describe('Atlas admin overview', () => {
   })
   afterAll(async () => cleanup())
 
-  it('counts unowned events and regions, each linking to the rows it counts', async () => {
+  it('counts unadopted events and unmanaged countries, each linking to its rows', async () => {
     const before = await overview()
     const country = await payload.create({
       collection: 'regions',
@@ -64,13 +64,15 @@ describe('Atlas admin overview', () => {
 
     const after = await overview()
     const delta = (label: string) =>
-      countOf(after.unowned, label)! - countOf(before.unowned, label)!
+      countOf(after.attention, label)! - countOf(before.attention, label)!
     expect(delta('Imported, not adopted')).toBe(1)
-    // The country has no manager; the city has one.
-    expect(delta('Regions with no manager')).toBe(1)
-    expect(after.unowned.map((item) => item.href)).toEqual([
+    // Only countries count: the new country has no manager, and the city would
+    // not count even without its own.
+    expect(delta('Countries with no manager')).toBe(1)
+    expect(after.attention.map((item) => item.href)).toEqual([
       expect.stringMatching(/^\/admin\/collections\/events\?where/),
       expect.stringMatching(/^\/admin\/collections\/regions\?where/),
+      expect.stringMatching(/^\/admin\/collections\/user-submissions\?where/),
     ])
     expect(countOf(after.health, 'Verified')! - countOf(before.health, 'Verified')!).toBe(1)
     expect(after.recent.map((event) => event.title)).toEqual(
@@ -80,7 +82,9 @@ describe('Atlas admin overview', () => {
   })
 
   it('counts only proposals still open for review', async () => {
-    const before = (await overview()).proposals.count
+    const proposals = async () =>
+      countOf((await overview()).attention, 'Proposals awaiting review')!
+    const before = await proposals()
     const propose = async (status?: 'accepted') => {
       const row = await payload.create({
         collection: 'user-submissions',
@@ -105,6 +109,6 @@ describe('Atlas admin overview', () => {
     }
     await propose()
     await propose('accepted')
-    expect((await overview()).proposals.count - before).toBe(1)
+    expect((await proposals()) - before).toBe(1)
   })
 })

@@ -1,4 +1,4 @@
-import type { PaginatedDocs, Where } from 'payload'
+import type { PaginatedDocs } from 'payload'
 
 import { stageRank } from '@/lib/eventVerification/stages'
 import type { Event } from '@/payload-types'
@@ -17,7 +17,7 @@ const DEFAULT_LIMIT = 50
 export type ProgramQuery = { tab: ProgramTab; page: number; limit: number }
 
 /** What the loader reads and the home renders: the one shape both sides import. */
-export type AtlasDashboardData = {
+export type AtlasManagerHomeData = {
   canCreate: boolean
   query: ProgramQuery
   counts: Record<ProgramTab, number>
@@ -38,17 +38,46 @@ export function parseProgramQuery(
   return { tab, page, limit: limit ?? DEFAULT_LIMIT }
 }
 
+/** The columns the home orders and counts by, read for every program in scope. */
+export type ProgramRow = Pick<Event, 'id' | '_status' | 'verificationStage' | 'updatedAt'>
+
 /**
- * Each tab as a filter on the stored `verificationRank`, so it pages in the
- * database. Ranks 0 and 1 need the manager; a draft is a settled program that
- * has never gone live. Finished programs appear only under "all".
+ * Whether a program belongs on a tab. Ranks 0 and 1 need the manager; a draft
+ * is a settled program that has never gone live. Finished programs appear only
+ * under "all".
  */
-export function programTabWhere(tab: ProgramTab): Where {
-  if (tab === 'review') return { verificationRank: { less_than_equal: 1 } }
-  if (tab === 'drafts') {
-    return { and: [{ verificationRank: { equals: 2 } }, { _status: { equals: 'draft' } }] }
+export function inProgramTab(program: ProgramRow, tab: ProgramTab): boolean {
+  const rank = stageRank(program.verificationStage)
+  if (tab === 'review') return rank <= 1
+  if (tab === 'drafts') return rank === 2 && program._status === 'draft'
+  return true
+}
+
+/** Urgent first, then needing review, then the rest; finished last. Newest edit first within a rank. */
+export function sortPrograms<T extends ProgramRow>(programs: T[]): T[] {
+  return [...programs].sort(
+    (a, b) =>
+      stageRank(a.verificationStage) - stageRank(b.verificationStage) ||
+      b.updatedAt.localeCompare(a.updatedAt),
+  )
+}
+
+/** One page of `items`, in Payload's own paginated shape; a page past the end clamps to the last. */
+export function paginate<T>(items: T[], page: number, limit: number): PaginatedDocs<T> {
+  const totalPages = Math.max(1, Math.ceil(items.length / limit))
+  const current = Math.min(page, totalPages)
+  return {
+    docs: items.slice((current - 1) * limit, current * limit),
+    totalDocs: items.length,
+    limit,
+    page: current,
+    totalPages,
+    pagingCounter: (current - 1) * limit + 1,
+    hasPrevPage: current > 1,
+    hasNextPage: current < totalPages,
+    prevPage: current > 1 ? current - 1 : null,
+    nextPage: current < totalPages ? current + 1 : null,
   }
-  return {}
 }
 
 export type ProgramStatus = 'finished' | 'review' | 'published' | 'draft'

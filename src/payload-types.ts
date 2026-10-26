@@ -1955,7 +1955,6 @@ export interface Event {
    * When the nightly job will next act on this event.
    */
   nextCheckAt?: string | null;
-  verificationRank?: number | null;
   /**
    * Registrations have reached the limit.
    */
@@ -5128,7 +5127,6 @@ export interface EventsSelect<T extends boolean = true> {
   qualityReport?: T;
   submitter?: T;
   nextCheckAt?: T;
-  verificationRank?: T;
   registrationsFull?: T;
   offersMailingList?: T;
   qualityOpenCount?: T;

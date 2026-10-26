@@ -3,11 +3,13 @@ import type { PayloadRequest } from 'payload'
 import { describe, expect, it } from 'vitest'
 
 import {
+  inProgramTab,
+  paginate,
   parseProgramQuery,
   programStatus,
-  programTabWhere,
+  sortPrograms,
   type Program,
-} from '@/components/admin/Dashboard/AtlasDashboard/model'
+} from '@/components/admin/Dashboard/AtlasManagerHome/model'
 import { dashboardChoiceFor } from '@/components/admin/Dashboard/model'
 import type { RoleSlug } from '@/payload-types'
 
@@ -48,7 +50,7 @@ describe('dashboardChoiceFor', () => {
     const translator = { type: 'manager' as const, roles: { en: ['web-translator' as const] } }
     // One reachable project: rendered as the project they are moved into.
     expect(choiceFor({ ...translator, currentProject: 'sahaj-atlas' })).toEqual({
-      kind: 'placeholder',
+      kind: 'no-dashboard',
       project: 'wemeditate-web',
     })
     // Several, none of them stored: asked to choose.
@@ -63,7 +65,7 @@ describe('dashboardChoiceFor', () => {
 
   it('contains the Atlas homes to their own project', () => {
     expect(choiceFor({ type: 'admin', currentProject: 'wemeditate-app' })).toEqual({
-      kind: 'placeholder',
+      kind: 'no-dashboard',
       project: 'wemeditate-app',
     })
   })
@@ -91,12 +93,40 @@ describe('manager home model', () => {
     expect(parseProgramQuery(undefined)).toEqual({ tab: 'all', page: 1, limit: 50 })
   })
 
-  it('filters each tab on the stored rank', () => {
-    expect(programTabWhere('all')).toEqual({})
-    expect(programTabWhere('review')).toEqual({ verificationRank: { less_than_equal: 1 } })
-    expect(programTabWhere('drafts')).toEqual({
-      and: [{ verificationRank: { equals: 2 } }, { _status: { equals: 'draft' } }],
+  it('orders urgent first and finished last, newest edit first within a rank', () => {
+    const row = (id: number, stage: Program['verificationStage'], updatedAt: string) => ({
+      id,
+      _status: 'published' as const,
+      verificationStage: stage,
+      updatedAt,
     })
+    const ordered = sortPrograms([
+      row(1, 'verified', '2026-10-24'),
+      row(2, 'finished', '2026-10-25'),
+      row(3, 'reminded', '2026-10-20'),
+      row(4, 'expired', '2026-10-22'),
+      row(5, 'urgent', '2026-10-01'),
+    ])
+    expect(ordered.map((program) => program.id)).toEqual([5, 4, 3, 1, 2])
+    expect(ordered.filter((program) => inProgramTab(program, 'review')).map((p) => p.id)).toEqual([
+      5, 4, 3,
+    ])
+    // Live, so not a draft; finished, so on no tab but "all".
+    expect(ordered.filter((program) => inProgramTab(program, 'drafts'))).toEqual([])
+  })
+
+  it('pages like Payload, clamping a page past the end to the last', () => {
+    const items = [1, 2, 3, 4, 5]
+    expect(paginate(items, 2, 2)).toMatchObject({
+      docs: [3, 4],
+      page: 2,
+      totalPages: 3,
+      prevPage: 1,
+      nextPage: 3,
+      pagingCounter: 3,
+    })
+    expect(paginate(items, 9, 2)).toMatchObject({ docs: [5], page: 3, hasNextPage: false })
+    expect(paginate([], 1, 50)).toMatchObject({ docs: [], page: 1, totalPages: 1 })
   })
 
   it('gives each program the status its tab lists it under', () => {

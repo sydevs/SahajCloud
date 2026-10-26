@@ -96,8 +96,7 @@ export interface StageConfig {
   onDue: StageAction
   /**
    * How soon a manager should look at it, for the manager home's order:
-   * 0 urgent, 1 needs the manager, 2 settled, 3 finished. Stored on each event
-   * as `verificationRank`, so the order holds across pages.
+   * 0 urgent, 1 needs the manager, 2 settled, 3 finished.
    */
   rank: 0 | 1 | 2 | 3
 }

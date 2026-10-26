@@ -4,10 +4,12 @@ import type { ReactNode } from 'react'
 import { Gutter } from '@payloadcms/ui'
 import { CollectionCards } from '@payloadcms/ui/rsc'
 
+import { getProjectLabel } from '@/plugins/access/config'
+
 import AtlasAdminHome from './AtlasAdminHome'
-import AtlasDashboard from './AtlasDashboard'
+import AtlasManagerHome from './AtlasManagerHome'
 import { dashboardChoiceFor } from './model'
-import ProjectPlaceholder from './ProjectPlaceholder'
+import { CenteredNotice } from '../CenteredNotice'
 import ProjectSelectionPrompt from './ProjectSelectionPrompt'
 
 /**
@@ -38,10 +40,14 @@ export default function DashboardView({
       content = <AtlasAdminHome req={req} />
       break
     case 'atlas-manager':
-      content = <AtlasDashboard req={req} searchParams={searchParams} />
+      content = <AtlasManagerHome req={req} searchParams={searchParams} />
       break
-    case 'placeholder':
-      content = <ProjectPlaceholder project={choice.project} />
+    case 'no-dashboard':
+      content = (
+        <CenteredNotice fullHeight title={getProjectLabel(choice.project)}>
+          <p>This project does not have a dashboard yet. Use the sidebar to open its content.</p>
+        </CenteredNotice>
+      )
       break
     case 'select-project':
       content = <ProjectSelectionPrompt />
