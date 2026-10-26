@@ -7,12 +7,15 @@ import { SetStepNav } from '@payloadcms/ui'
 import type { Manager } from '@/payload-types'
 
 import FathomDashboard from './Dashboard/FathomDashboard'
+import { requireAdminAccess } from './helpers/requireAdminAccess'
 
 export default function AnalyticsView({
   initPageResult,
   params,
   searchParams,
 }: AdminViewServerProps) {
+  requireAdminAccess(initPageResult)
+
   const { req, visibleEntities, permissions, locale } = initPageResult
   const { payload } = req
   const user = req.user as Manager | null

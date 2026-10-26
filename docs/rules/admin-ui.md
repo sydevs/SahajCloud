@@ -151,6 +151,14 @@ Full reference: `node_modules/@payloadcms/ui/dist/scss/app.scss`
 
 Payload passes user data and locale objects with methods to view components, so **custom views must be server components** — a client view throws `Functions cannot be passed directly to Client Components` the moment Payload hands it a locale object.
 
+## A custom view that declares a `path` owes its own auth gate
+
+⚠ **A view registered in `admin.components.views` with a `path` is reachable without `canAccessAdmin`.** `Root` guards its own `handleAuthRedirect` with `!isCustomAdminView(...)`, and that helper matches on `view.path` alone — it reads no `public` flag, whatever its docstring says. Nothing local signals the difference: the gate turns on a config detail with no marker at the component (#1030).
+
+So call `requireAdminAccess(initPageResult)` first thing in such a view (`src/components/admin/helpers/requireAdminAccess.ts`). It redirects to the unauthorized view for a signed-in user and to the login view otherwise, each carrying the refused route — query included — back as `redirect`. `tests/unit/sanitized-config-rules.spec.ts` walks the registrations and fails on a path-bearing view whose own module, or the ones it imports directly, make no such call — one hop, so a folder registration's barrel counts and a module deeper in the graph does not.
+
+**Dropping the `path` is not the alternative.** `isPathMatchingRoute` returns false for a pathless view, and `getRouteData` then routes it only by matching its key against Payload's own `oneSegmentViews` — which is why `loginPlugin`'s pathless `login` view works and why a pathless `analytics` would be reachable at no URL at all. A view with a name of its own needs a path, and therefore needs the guard.
+
 ## Performance — direct Payload access
 
 A server component has direct DB access via `getPayload()`. Don't fetch internal data over HTTP from a client component. Reserve `fetch()` for external APIs.
