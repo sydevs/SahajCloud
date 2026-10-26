@@ -38,6 +38,7 @@ import {
   DEFAULT_VERIFICATION_STAGE,
   isPreAdoptionStage,
   isUnmanagedStage,
+  stageRank,
 } from '@/lib/eventVerification/stages'
 import { livePreviewUrl } from '@/lib/livePreview/url'
 import { getLanguageOptions } from '@/lib/locales'
@@ -737,6 +738,20 @@ export const Events: CollectionConfig = {
           admin: {
             readOnly: true,
             description: 'When the nightly job will next act on this event.',
+          },
+        },
+        {
+          // The manager home's sort key, derived from `verificationStage` on
+          // every save so the review-first order can page in the database.
+          name: 'verificationRank',
+          type: 'number',
+          index: true,
+          admin: { hidden: true },
+          hooks: {
+            beforeChange: [
+              ({ siblingData, originalDoc }) =>
+                stageRank(siblingData.verificationStage ?? originalDoc?.verificationStage),
+            ],
           },
         },
         {

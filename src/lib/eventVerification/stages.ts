@@ -94,6 +94,12 @@ export interface StageConfig {
   managed: boolean
   /** What the job does when the watermark comes due. */
   onDue: StageAction
+  /**
+   * How soon a manager should look at it, for the manager home's order:
+   * 0 urgent, 1 needs the manager, 2 settled, 3 finished. Stored on each event
+   * as `verificationRank`, so the order holds across pages.
+   */
+  rank: 0 | 1 | 2 | 3
 }
 
 /**
@@ -109,11 +115,13 @@ export const STAGES: Record<VerificationStage, StageConfig> = {
     published: true, // the whole point — the community can only vouch for what it can see
     managed: false,
     onDue: { kind: 'await-schedule' },
+    rank: 1,
   },
   denied: {
     published: false, // the community's verdict took it off the map
     managed: false,
     onDue: { kind: 'await-schedule' },
+    rank: 1,
   },
 
   verified: {
@@ -126,6 +134,7 @@ export const STAGES: Record<VerificationStage, StageConfig> = {
       nextStage: 'reminded',
       offsetDays: 7,
     },
+    rank: 2,
   },
   reminded: {
     published: true,
@@ -137,6 +146,7 @@ export const STAGES: Record<VerificationStage, StageConfig> = {
       nextStage: 'escalated',
       offsetDays: 7,
     },
+    rank: 1,
   },
   escalated: {
     published: true,
@@ -148,6 +158,7 @@ export const STAGES: Record<VerificationStage, StageConfig> = {
       nextStage: 'urgent',
       offsetDays: 7,
     },
+    rank: 1,
   },
   urgent: {
     published: true,
@@ -161,12 +172,14 @@ export const STAGES: Record<VerificationStage, StageConfig> = {
       nextStage: 'expired',
       offsetDays: 14,
     },
+    rank: 0,
   },
 
   expired: {
     published: false, // hidden from the public until re-verified
     managed: true,
     onDue: { kind: 'trash' }, // the grace period elapsed
+    rank: 1,
   },
   finished: {
     // Still published (#603): its Atlas page must keep resolving for a late
@@ -178,12 +191,18 @@ export const STAGES: Record<VerificationStage, StageConfig> = {
     // no reminders for a manager to receive.
     managed: false,
     onDue: { kind: 'trash' }, // the retention window elapsed
+    rank: 3,
   },
 }
 
 /** What to do with a due event at this stage. No-op fallback for an unrecognised value. */
 export function stageAction(stage: VerificationStage): StageAction {
   return STAGES[stage]?.onDue ?? { kind: 'await-schedule' }
+}
+
+/** Where this stage sorts on the manager home; an unrecognised value sorts with the settled ones. */
+export function stageRank(stage: string | null | undefined): StageConfig['rank'] {
+  return STAGES[stage as VerificationStage]?.rank ?? 2
 }
 
 /** Whether an event at this stage should be published. */
