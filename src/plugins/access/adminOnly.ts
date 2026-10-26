@@ -1,5 +1,7 @@
 import type { Condition, FieldAccess, PayloadRequest } from 'payload'
 
+import type { ProjectSlug } from '@/payload-types'
+
 /**
  * Admin-only access helpers.
  *
@@ -17,6 +19,24 @@ import type { Condition, FieldAccess, PayloadRequest } from 'payload'
  */
 export function isAdminManager(user: PayloadRequest['user']): boolean {
   return user?.collection === 'managers' && user.type === 'admin'
+}
+
+type ManagerUser = Extract<NonNullable<PayloadRequest['user']>, { collection: 'managers' }>
+
+/**
+ * True for an active, non-admin manager (`type: 'manager'`), optionally only
+ * while `project` is their current one. Admins and inactive managers are
+ * excluded, and no role is read — so it is not a check for any one role.
+ */
+export function isManager(
+  user: PayloadRequest['user'] | undefined,
+  project?: ProjectSlug,
+): user is ManagerUser {
+  return (
+    user?.collection === 'managers' &&
+    user.type === 'manager' &&
+    (project === undefined || user.currentProject === project)
+  )
 }
 
 /**

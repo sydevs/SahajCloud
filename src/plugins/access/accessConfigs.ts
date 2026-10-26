@@ -23,6 +23,7 @@ import { appendVersionToQueryKey, hasWhereAccessResult } from 'payload'
 
 import { isLivePreviewRequest } from '@/lib/utilities/previewSecret'
 
+import { isManager } from './adminOnly'
 import {
   getDocManagerFields,
   hasDocManagerAccess,
@@ -52,15 +53,6 @@ function entityHasDrafts(req: PayloadRequest, slug: string): boolean {
 
   const global = req.payload.config.globals?.find((candidate) => candidate.slug === slug)
   return !!global?.versions?.drafts
-}
-
-/**
- * True for an active, non-admin manager (`type === 'manager'`). Admins are
- * already granted by the bypass; inactive managers are denied there. This is
- * the only user class eligible for document-level manager access.
- */
-function isActiveNonAdminManager(user: PayloadRequest['user']): boolean {
-  return user?.collection === 'managers' && (user as { type?: string }).type === 'manager'
 }
 
 /**
@@ -179,18 +171,14 @@ export function createAccessConfig(
         // An atlas-manager's role grants create/update/delete on regions/events,
         // but only within the region subtree they own — narrow the collection-
         // wide grant to a scoped Where (or boolean). See regionSubtreeAccess.ts.
-        if (
-          operation !== 'read' &&
-          isActiveNonAdminManager(req.user) &&
-          isRegionSubtreeCollection(collection)
-        ) {
+        if (operation !== 'read' && isManager(req.user) && isRegionSubtreeCollection(collection)) {
           return scopeRegionSubtreeWrite({ req, collection, operation, id, data })
         }
 
         // A manager's `user-submissions` grant is collection-wide, but the
         // collection holds four different things — so narrow it to the rows
         // their job actually needs. See `managerSubmissionScope`.
-        if (collection === 'user-submissions' && isActiveNonAdminManager(req.user)) {
+        if (collection === 'user-submissions' && isManager(req.user)) {
           return managerSubmissionScope(req.user!.id)
         }
 
@@ -201,7 +189,7 @@ export function createAccessConfig(
       // read/update on documents that list them (or an ancestor) via a manager
       // field — see documentManagers.ts. This DB-touching path runs only after
       // the query-free permission check has already failed.
-      if ((operation === 'read' || operation === 'update') && isActiveNonAdminManager(req.user)) {
+      if ((operation === 'read' || operation === 'update') && isManager(req.user)) {
         const fields = getDocManagerFields(req.payload, collection)
         if (hasDocManagerAccess(fields)) {
           const userId = req.user!.id

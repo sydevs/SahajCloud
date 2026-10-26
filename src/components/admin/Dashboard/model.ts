@@ -1,6 +1,7 @@
 import type { PayloadRequest } from 'payload'
 
 import type { ProjectSlug } from '@/payload-types'
+import { isManager } from '@/plugins/access/adminOnly'
 
 /** The placeholder carries its project, so the view needs no second read of it. */
 export type DashboardChoice =
@@ -17,11 +18,7 @@ export type DashboardChoice =
  * (`Managers.ts`), which keeps Payload's collection cards.
  */
 export function dashboardChoiceFor(user: PayloadRequest['user'] | undefined): DashboardChoice {
-  const manager = user?.collection === 'managers' ? user : undefined
-  if (!manager?.currentProject) {
-    return manager?.type === 'manager' ? { kind: 'select-project' } : { kind: 'collections' }
-  }
-  return manager.currentProject === 'sahaj-atlas'
-    ? { kind: 'atlas' }
-    : { kind: 'placeholder', project: manager.currentProject }
+  const project = user?.collection === 'managers' ? user.currentProject : null
+  if (!project) return isManager(user) ? { kind: 'select-project' } : { kind: 'collections' }
+  return project === 'sahaj-atlas' ? { kind: 'atlas' } : { kind: 'placeholder', project }
 }
