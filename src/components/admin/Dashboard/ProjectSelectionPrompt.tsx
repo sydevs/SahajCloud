@@ -4,7 +4,7 @@ import { useAuth } from '@payloadcms/ui'
 import { TriangleAlert } from 'lucide-react'
 
 import { CONTACT_EMAIL } from '@/lib/contact'
-import { getProjectLabel, getProjectsFromRoles } from '@/plugins/access/config'
+import { getManagerProjects, getProjectLabel } from '@/plugins/access/config'
 
 import { CenteredNotice } from '../helpers/CenteredNotice'
 import ProjectSelector from '../ProjectSelector'
@@ -12,7 +12,7 @@ import ProjectSelector from '../ProjectSelector'
 /** Rendered by `DashboardView`, which decides that no project is selected. */
 export default function ProjectSelectionPrompt() {
   const { user } = useAuth()
-  const projects = getProjectsFromRoles(user?.roles)
+  const projects = user ? getManagerProjects(user) : []
 
   if (projects.length === 0) {
     return (

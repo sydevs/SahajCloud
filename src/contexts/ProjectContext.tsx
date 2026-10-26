@@ -1,14 +1,21 @@
 'use client'
 
-import { useAuth, useRouteTransition } from '@payloadcms/ui'
-import { usePathname, useRouter } from 'next/navigation'
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
+import { toast, useAuth } from '@payloadcms/ui'
+import { usePathname } from 'next/navigation'
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 
-import { shouldRedirectToAdmin } from '@/components/admin/ProjectSelector/utils'
+import { useSwitchProject } from '@/components/admin/ProjectSelector/useSwitchProject'
 import { clientLogger } from '@/lib/logger/clientLogger'
 import type { ProjectSlug } from '@/payload-types'
-
-import { resolveProject } from './resolveProject'
+import { resolveProject } from '@/plugins/access/config'
 
 interface ProjectContextType {
   currentProject: ProjectSlug | null
@@ -23,41 +30,32 @@ const ProjectContext = createContext<ProjectContextType | undefined>(undefined)
  */
 export const ProjectProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth()
-  const { startRouteTransition } = useRouteTransition()
-  const router = useRouter()
   const pathname = usePathname()
+  const switchProject = useSwitchProject()
   const [currentProject, setCurrentProject] = useState<ProjectSlug | null>(null)
-  // `useAuth` keeps the pre-save user after the refresh, so the effect would
-  // otherwise persist again on its next run.
-  const persisted = useRef<ProjectSlug | null>(null)
+  // `useAuth` keeps the pre-save user after the refresh, so without this the
+  // effect would save again on its next run. Cleared on failure, so the next
+  // navigation retries.
+  const attempted = useRef<ProjectSlug | null>(null)
+
+  const resolved = useMemo(() => (user ? resolveProject(user) : null), [user])
 
   useEffect(() => {
-    if (!user) return
-    const { project, persist } = resolveProject({
-      type: user.type,
-      roles: user.roles,
-      currentProject: user.currentProject,
-    })
-    setCurrentProject(project)
-    if (!persist || !project || persisted.current === project) return
-    persisted.current = project
+    if (resolved) setCurrentProject(resolved.project)
+  }, [resolved])
 
-    // Every server-rendered part of this page — nav visibility, sidebar,
-    // dashboard — read the stored project, so save it and render again.
-    fetch('/api/managers/set-project', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ currentProject: project }),
+  // Separate from the effect above, so a retry on navigation never resets a
+  // project the selector has switched to since.
+  useEffect(() => {
+    const project = resolved?.persist ? resolved.project : null
+    if (!project || attempted.current === project) return
+    attempted.current = project
+    switchProject(project).catch((error) => {
+      attempted.current = null
+      clientLogger.error('Failed to open the only project', error)
+      toast.error('Could not open your project. Reload the page to try again.')
     })
-      .then((response) => {
-        if (!response.ok) throw new Error(`Failed to set project: ${response.statusText}`)
-        startRouteTransition(() =>
-          shouldRedirectToAdmin(pathname, project) ? router.push('/admin') : router.refresh(),
-        )
-      })
-      .catch((error) => clientLogger.error('Failed to auto-select project', error))
-  }, [user, pathname, router, startRouteTransition])
+  }, [resolved, pathname, switchProject])
 
   return (
     <ProjectContext.Provider value={{ currentProject, setCurrentProject }}>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { resolveProject } from '@/contexts/resolveProject'
+import { getManagerProjects, resolveProject, type ProjectUser } from '@/plugins/access/config'
 
 describe('resolveProject', () => {
   it('moves a manager with one reachable project into it, and asks for it to be saved', () => {
@@ -39,5 +39,16 @@ describe('resolveProject', () => {
     expect(
       resolveProject({ type: 'admin', roles: ['atlas-manager'], currentProject: null }),
     ).toEqual({ project: null, persist: false })
+  })
+
+  it('counts an assigned event as access to Sahaj Atlas', () => {
+    const assignee: ProjectUser = { type: 'manager', roles: [], managedEvents: { docs: [12] } }
+    expect(getManagerProjects(assignee)).toEqual(['sahaj-atlas'])
+    expect(resolveProject({ ...assignee, currentProject: null })).toEqual({
+      project: 'sahaj-atlas',
+      persist: true,
+    })
+    expect(getManagerProjects({ ...assignee, roles: ['atlas-manager'] })).toEqual(['sahaj-atlas'])
+    expect(getManagerProjects({ ...assignee, managedEvents: { docs: [] } })).toEqual([])
   })
 })
