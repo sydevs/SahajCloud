@@ -198,14 +198,14 @@ describe('atlas translations schema', () => {
 
   // Every other assertion here filters a list. This one states its size, so
   // none of them can pass by walking an empty schema.
-  it('declares 258 widget-facing keys across 43 leaf groups', () => {
+  it('declares 259 widget-facing keys across 43 leaf groups', () => {
     expect(schemaShape(schema).leafGroups).toBe(43)
     expect(
       declaredKeys().filter(
         (key) =>
           !key.startsWith('emails.') && !key.startsWith('event.title.') && !key.startsWith('seo.'),
       ).length,
-    ).toBe(258)
+    ).toBe(259)
   })
 
   it('describes every key, naming where it appears', () => {
