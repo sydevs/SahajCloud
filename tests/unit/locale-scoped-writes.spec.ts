@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   isLocaleScopedCollection,
+  isOutsideWritableLocale,
   localeColumn,
   localeColumnMeaning,
   restrictCreateToRequestLocale,
@@ -122,6 +123,36 @@ describe('scopeLocaleWrite', () => {
   it('allows a create that states no locale, so the Create button survives', () => {
     expect(scopeLocaleWrite('create', 'fr', {})).toBe(true)
     expect(scopeLocaleWrite('create', 'fr', null)).toBe(true)
+  })
+})
+
+/**
+ * The comparison the two `Where`-less writes share — the create hook, and the
+ * transcribe endpoint, which reads with `overrideAccess` after its permission
+ * gate.
+ */
+describe('isOutsideWritableLocale', () => {
+  const request = (user: Record<string, unknown> | null, locale = 'fr') =>
+    ({ user, locale }) as PayloadRequest
+
+  it('refuses a language that is not the one being edited in', () => {
+    expect(isOutsideWritableLocale(request(frEditor), 'en')).toBe(true)
+    expect(isOutsideWritableLocale(request(frEditor), 'fr')).toBe(false)
+  })
+
+  it('binds nobody but a non-admin manager', () => {
+    expect(isOutsideWritableLocale(request({ collection: 'managers', type: 'admin' }), 'en')).toBe(
+      false,
+    )
+    expect(isOutsideWritableLocale(request({ collection: 'clients' }), 'en')).toBe(false)
+    expect(isOutsideWritableLocale(request(null), 'en')).toBe(false)
+  })
+
+  // A document whose language is unreadable is not a document in another
+  // language, and the layers that own the refusal still run.
+  it('refuses nothing over an absent language', () => {
+    expect(isOutsideWritableLocale(request(frEditor), undefined)).toBe(false)
+    expect(isOutsideWritableLocale(request(frEditor), null)).toBe(false)
   })
 })
 

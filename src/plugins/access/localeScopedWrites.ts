@@ -28,7 +28,13 @@
  * top-level rule reaches either way.
  */
 
-import type { CollectionBeforeValidateHook, Field, FlattenedField, Where } from 'payload'
+import type {
+  CollectionBeforeValidateHook,
+  Field,
+  FlattenedField,
+  PayloadRequest,
+  Where,
+} from 'payload'
 
 import { APIError } from 'payload'
 
@@ -136,6 +142,21 @@ export function scopeLocaleWrite(
 }
 
 /**
+ * Whether `documentLocale` is outside the language this request may write.
+ *
+ * `scopeLocaleWrite` answers with a `Where`, which only Payload's own
+ * operations combine. Two writes carry none, so each compares the language
+ * itself: the create hook below, which runs past the layer a `Where` reaches,
+ * and `POST /api/meditations/:id/transcribe`, which proves `meditations: update`
+ * and then reads with `overrideAccess` — so the grant this module narrows
+ * everywhere else would stay collection-wide at that one door.
+ */
+export function isOutsideWritableLocale(req: PayloadRequest, documentLocale: unknown): boolean {
+  if (req.user?.collection !== 'managers' || isAdminManager(req.user)) return false
+  return typeof documentLocale === 'string' && documentLocale !== req.locale
+}
+
+/**
  * Refuse a non-admin manager's create whose resolved `locale` is not the one
  * they are editing in. Attached by `accessPlugin` to every collection whose
  * `locale` column declares `'document-language'`, so no collection wires it by
@@ -147,10 +168,8 @@ export const restrictCreateToRequestLocale: CollectionBeforeValidateHook = ({
   req,
 }) => {
   if (operation !== 'create') return data
-  if (req.user?.collection !== 'managers' || isAdminManager(req.user)) return data
 
-  const locale = data?.locale
-  if (typeof locale === 'string' && locale !== req.locale) {
+  if (isOutsideWritableLocale(req, data?.locale)) {
     throw new APIError('You can only create documents in the language you are editing in.', 403)
   }
 

@@ -23,5 +23,9 @@ req.locale } }` to `find`/`count` operations.
   collection because the `locale` field declares itself the document's language
   in its `custom` — that one line is the whole opt-in, and no hook or access
   config is wired here.
+- **One write is outside that opt-in**, because a `Where` cannot reach it:
+  `POST :id/transcribe` proves `meditations: update` and then reads and writes
+  with `overrideAccess`, so it compares the row's language itself. See
+  `docs/rules/access.md`.
 
 Testing a non-English query: `tests/AGENTS.md`.

@@ -122,6 +122,8 @@ An undeclared column scopes nothing, which is the safe direction and also a sile
 - **Version history follows on its own.** `withDerivedGrants` derives `readVersions` from `update` and translates the clause onto `version.locale`, so an editor reads the history of their own language's meditations and no other.
 - **Narrators are shared.** Every language draws on the same narrators, so `meditations-editor` keeps its unscoped `narrators` grant.
 
+⚠ **A `Where` reaches only the operations Payload itself combines it into, so a custom endpoint owes the comparison.** `POST /api/meditations/:id/transcribe` gates on `meditations: update` and then reads and writes with `overrideAccess`, so nothing here narrows it: the grant this section narrows everywhere else stayed collection-wide at that one door, and a `fr`-only editor could delete an `en` meditation's transcript and buy a new paid run. It calls `isOutsideWritableLocale` — the same predicate the create hook uses — on the row's own `locale`, and the Transcript tab hides the Transcribe-again button on the same condition, because a control that can only answer 403 is what the access layer avoided for Save. **Any future endpoint that reads a locale-scoped collection with `overrideAccess` after a permission gate owes the same call.**
+
 A bilingual editor is therefore bound to the admin locale they are working in: holding the role in `en` and `fr` edits an English meditation only with the admin in English. Admins are unaffected — the admin bypass answers before any of this.
 
 ### Derived grants: one pass, one table (#719, #748)
