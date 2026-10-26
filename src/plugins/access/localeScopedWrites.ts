@@ -9,11 +9,12 @@
  *
  * Two layers, because a create's language arrives at either of two moments.
  * `scopeLocaleWrite` answers `access[operation]`, which runs before the field
- * pass and so sees only a language the caller STATED. `restrictCreateToRequestLocale`
- * is the `beforeValidate` hook `accessPlugin` attaches to the same collections,
- * and is the complete rule: it runs after that pass, the first point a filled
- * value exists — which is what a `duplicate` has, since it sends empty `data`
- * and then clones the SOURCE document's locale.
+ * pass and so sees only a language the caller STATED.
+ * `restrictCreateToRequestLocale` is the `beforeValidate` hook `accessPlugin`
+ * attaches to every collection, and is the complete rule: it runs after that
+ * pass, the first point a filled value exists — which is what a `duplicate`
+ * has, since it sends empty `data` and then clones the SOURCE document's
+ * locale.
  *
  * ⚠ **The column's meaning is declared at the field, never inferred from its
  * presence.** Two collections carry a queryable top-level `locale` and they do
@@ -28,13 +29,7 @@
  * top-level rule reaches either way.
  */
 
-import type {
-  CollectionBeforeValidateHook,
-  Field,
-  FlattenedField,
-  PayloadRequest,
-  Where,
-} from 'payload'
+import type { CollectionBeforeValidateHook, FlattenedField, PayloadRequest, Where } from 'payload'
 
 import { APIError } from 'payload'
 
@@ -58,18 +53,20 @@ export function localeColumn(meaning: LocaleColumnMeaning): Record<string, Local
   return { [CUSTOM_KEY]: meaning }
 }
 
-type FieldList = readonly (Field | FlattenedField)[]
+type FieldList = readonly FlattenedField[]
 
 /**
  * What a field list's top-level `locale` column means, or `undefined` for a
  * list carrying none.
  *
- * Takes a collection's raw `fields` or its sanitized `flattenedFields`, so one
- * walk answers for the plugin and for a request alike. It descends only the
- * containers that add no path of their own — a row, a collapsible, an unnamed
- * tab or group — which is exactly the set sanitization splices into the top
- * level. A `locale` inside a named group, an array or a block is a nested path,
- * so it is not this column.
+ * ⚠ **Takes `flattenedFields`, and only ever that.** Sanitization splices every
+ * container that adds no path of its own — a row, a collapsible, an unnamed tab
+ * or group — straight into the top level, so a walk over the raw `fields` has to
+ * reproduce that rule to agree with a query. Reproducing it once missed an
+ * unnamed group, which scoped the column at the access layer while leaving the
+ * collection without the create hook: the `duplicate` bypass, reopened. Every
+ * caller now hands the flattened list instead, so there is no copy of Payload's
+ * rule to keep.
  */
 export function localeColumnMeaning(
   fields: FieldList,
@@ -80,22 +77,6 @@ export function localeColumnMeaning(
       return declared === 'document-language' || declared === 'unrelated'
         ? declared
         : UNDECLARED_LOCALE_COLUMN
-    }
-
-    // Payload's `flattenAllFields` splices a container carrying no name of its
-    // own straight into the top level — a row, a collapsible, an unnamed group.
-    // Descend exactly those, or the raw reader and the flattened one disagree.
-    if ('fields' in field && !('name' in field)) {
-      const nested = localeColumnMeaning(field.fields)
-      if (nested) return nested
-    }
-
-    if (field.type === 'tabs') {
-      for (const tab of field.tabs) {
-        if ('name' in tab) continue
-        const nested = localeColumnMeaning(tab.fields)
-        if (nested) return nested
-      }
     }
   }
 
@@ -158,16 +139,18 @@ export function isOutsideWritableLocale(req: PayloadRequest, documentLocale: unk
 
 /**
  * Refuse a non-admin manager's create whose resolved `locale` is not the one
- * they are editing in. Attached by `accessPlugin` to every collection whose
- * `locale` column declares `'document-language'`, so no collection wires it by
- * hand.
+ * they are editing in. Attached by `accessPlugin` to every collection, and
+ * answers for the ones whose `locale` column declares `'document-language'` —
+ * a verdict it reads off the same `flattenedFields` a write decision does.
  */
 export const restrictCreateToRequestLocale: CollectionBeforeValidateHook = ({
+  collection,
   data,
   operation,
   req,
 }) => {
   if (operation !== 'create') return data
+  if (!isLocaleScopedCollection(collection.flattenedFields)) return data
 
   if (isOutsideWritableLocale(req, data?.locale)) {
     throw new APIError('You can only create documents in the language you are editing in.', 403)

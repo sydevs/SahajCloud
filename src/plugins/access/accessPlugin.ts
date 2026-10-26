@@ -17,7 +17,7 @@ import type { CollectionSlug, Config } from 'payload'
 import { createAccessConfig, withDerivedGrants } from './accessConfigs'
 import { getProjectSlugs, getRoleSlugs, isTranslatableCollection } from './config'
 import { applyFieldAccessForTranslatableCollections } from './fieldAccess'
-import { isLocaleScopedCollection, restrictCreateToRequestLocale } from './localeScopedWrites'
+import { restrictCreateToRequestLocale } from './localeScopedWrites'
 import { withLocalizedRoleAuth } from './localizedRolesAuth'
 import { stripLockedFieldsOnSelfRead } from './stripLockedFieldsOnSelfRead'
 import { createHidden } from './visibility'
@@ -91,14 +91,16 @@ export function accessPlugin(options: AccessPluginOptions = {}): (config: Config
             }),
             // `access.create` runs before the field pass, so a create that
             // states no language is only answerable here — appended last, so
-            // it reads whatever the collection's own hooks settled on. See
+            // it reads whatever the collection's own hooks settled on. It
+            // attaches everywhere and answers for its own collections, off the
+            // `flattenedFields` a write decision reads: a verdict taken here
+            // instead would have to walk the raw `fields`, reproducing
+            // Payload's flattening rule a second time. See
             // localeScopedWrites.ts (#980).
-            ...(isLocaleScopedCollection(collection.fields) && {
-              beforeValidate: [
-                ...(collection.hooks?.beforeValidate ?? []),
-                restrictCreateToRequestLocale,
-              ],
-            }),
+            beforeValidate: [
+              ...(collection.hooks?.beforeValidate ?? []),
+              restrictCreateToRequestLocale,
+            ],
           },
           // Apply role-based access control (preserve existing overrides).
           // `readVersions` and `unlock` are derived from the MERGED `update` by
