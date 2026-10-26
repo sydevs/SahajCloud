@@ -43,6 +43,7 @@ import { usagePlugin } from '@/plugins/usage'
 import { writeGuardPlugin } from '@/plugins/writeGuard'
 
 import { collections, Managers } from './collections'
+import { payloadJobsOverrides } from './collections/PayloadJobs/PayloadJobs'
 import { atlasSeo } from './endpoints/atlas/seo'
 import { atlasSitemap } from './endpoints/atlas/sitemap'
 import { globals } from './globals'
@@ -229,8 +230,10 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       tasks,
       // A finished job row is the status source behind a meditation transcript
       // — `deleteJobOnComplete: true` dropped it at exactly the moment the
-      // reader needs it. `CleanupJobs` bounds the table instead.
+      // reader needs it. `payload-jobs` declares a retention window instead,
+      // which is the one thing this override exists to carry.
       deleteJobOnComplete: false,
+      jobsCollectionOverrides: payloadJobsOverrides,
       enableConcurrencyControl: true,
       // One entry per queue that runs unattended, and the reason a queue has
       // none, both in `./jobs/queues`.

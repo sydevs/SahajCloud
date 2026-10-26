@@ -1,5 +1,5 @@
 import { relationId } from '@/lib/utilities/relationId'
-import type { Event } from '@/payload-types'
+import type { Event, SubmissionRegionHint } from '@/payload-types'
 
 /**
  * What a submission would make the event look like.
@@ -76,10 +76,23 @@ export function newEventDefaults(
  */
 export function submissionRegionId(submission: {
   region?: unknown
-  regionHint?: unknown
+  regionHint?: SubmissionRegionHint | null
 }): number | null {
-  const hint = (submission.regionHint ?? {}) as Record<string, unknown>
-  return relationId(submission.region) ?? relationId(hint.anchorRegion)
+  return relationId(submission.region) ?? submission.regionHint?.anchorRegion ?? null
+}
+
+/**
+ * Where to look for a reviewer: the event's region, else the deepest layer
+ * intake matched above a city the atlas does not have yet. Never an Accept
+ * target — an event must sit in a city or venue, which is
+ * {@link submissionRegionId}'s answer.
+ */
+export function submissionRoutingRegionId(submission: {
+  region?: unknown
+  regionHint?: SubmissionRegionHint | null
+}): number | null {
+  const hint = submission.regionHint
+  return submissionRegionId(submission) ?? hint?.state ?? hint?.country ?? null
 }
 
 /**

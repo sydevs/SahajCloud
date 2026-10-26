@@ -4,14 +4,14 @@
  */
 import { describe, expect, it } from 'vitest'
 
+import { HISTORY_WINDOW_HOURS, REPEAT_SENDER_MAX } from '@/jobs/ScreenSubmissions/senderHistory'
 import {
   CONTACT_ACCEPTED_DAYS,
   DURABLE_TYPES,
   MACHINE_SPAM_DAYS,
   PROPOSAL_DAYS,
   PURGE_WINDOWS,
-} from '@/jobs/PurgeSubmissions/retention'
-import { HISTORY_WINDOW_HOURS, REPEAT_SENDER_MAX } from '@/jobs/ScreenSubmissions/senderHistory'
+} from '@/plugins/formBuilder'
 
 describe('Submission retention', () => {
   /**

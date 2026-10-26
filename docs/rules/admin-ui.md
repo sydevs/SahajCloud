@@ -142,6 +142,14 @@ Full reference: `node_modules/@payloadcms/ui/dist/scss/app.scss`
 
 Payload passes user data and locale objects with methods to view components, so **custom views must be server components** — a client view throws `Functions cannot be passed directly to Client Components` the moment Payload hands it a locale object.
 
+## A custom view that declares a `path` owes its own auth gate
+
+⚠ **A view registered in `admin.components.views` with a `path` is reachable without `canAccessAdmin`.** `Root` guards its own `handleAuthRedirect` with `!isCustomAdminView(...)`, and that helper matches on `view.path` alone — it reads no `public` flag, whatever its docstring says. Nothing local signals the difference: the gate turns on a config detail with no marker at the component (#1030).
+
+So call `requireAdminAccess(initPageResult)` first thing in such a view (`src/components/admin/helpers/requireAdminAccess.ts`). It redirects to the unauthorized view for a signed-in user and to the login view otherwise, each carrying the refused route — query included — back as `redirect`. `tests/unit/sanitized-config-rules.spec.ts` walks the registrations and fails on a path-bearing view whose own module, or the ones it imports directly, make no such call — one hop, so a folder registration's barrel counts and a module deeper in the graph does not.
+
+**Dropping the `path` is not the alternative.** `isPathMatchingRoute` returns false for a pathless view, and `getRouteData` then routes it only by matching its key against Payload's own `oneSegmentViews` — which is why `loginPlugin`'s pathless `login` view works and why a pathless `analytics` would be reachable at no URL at all. A view with a name of its own needs a path, and therefore needs the guard.
+
 ## Performance — direct Payload access
 
 A server component has direct DB access via `getPayload()`. Don't fetch internal data over HTTP from a client component. Reserve `fetch()` for external APIs.
@@ -156,7 +164,7 @@ A module several components share, rather than one a collection registers, goes 
 
 ## Import map generation
 
-After registering a component in `payload.config.ts` (`admin.components`), run `pnpm generate:importmap`. Every registered component needs a default export. Path aliases (`@/`) work via tsconfig. The generated file (`src/app/(payload)/admin/importMap.js`, from `admin.importMap.baseDir` in `src/payload.config.ts`) is auto-managed — never hand-edit it.
+After registering a component in `payload.config.ts` (`admin.components`), run `pnpm generate:importmap`. Every registered component needs a default export. Path aliases (`@/`) work via tsconfig. The generated file (`src/app/(payload)/admin/importMap.js`, from `admin.importMap.baseDir` in `src/payload.config.ts`) is auto-managed — never hand-edit it. `tests/unit/sanitized-config-rules.spec.ts` compares it byte for byte against what the generator writes for the sanitized config, so a skipped regeneration and a stale entry both fail the unit lane.
 
 ## Custom field components
 
@@ -207,6 +215,8 @@ Four things are load-bearing:
 - **The gate releases itself only where `staleAfterMs` is declared.** Without one, a row whose worker died stays behind the waiting view for good; past the window the form opens and setting the status column back to its queued value is the retry.
 - **Never name a running stage that is also the column's `defaultValue`** — unless the create genuinely queues the job. `meditation-transcripts` declares `processing` and not `queued`, because a queued row waits for a person. `imports` declares its own default `pending`, because its create hook queues the import job, so a saved row at that default really is one a worker owns. Either way the release is `staleAfterMs`: without it, a saved row at that default opens behind a view nothing can move on. The view refuses to fire with no document id, which covers the create form alone.
 - **A stage with no form has no `SaveButton` slot either.** The view replaces the whole form, so a `WorkflowButtons` stage declared for a running status is reachable only past `staleAfterMs`.
+
+**`tests/unit/sanitized-config-rules.spec.ts` holds the declaration's wiring.** Every `jobStage` a collection declares has to parse, and every collection registering `JobStageView` has to declare one — which is what answers for a collection that left `satisfies JobStageConfig` off and misspelled a key.
 
 `imports` — the bulk class import's upload collection (`src/plugins/eventImport/importCollection.ts`) — declares `runningStages: ['pending']` with no count. Its job leaves `pending` in one write, with the results (`src/plugins/eventImport/finish.ts`), so the page never opens on a finished import whose rows are not stored yet. After that, a hook on `events` moves it between review and completed as its drafts are published or deleted.
 
