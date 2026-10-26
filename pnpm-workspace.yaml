@@ -22,7 +22,7 @@ minimumReleaseAge: 0
 # Transitive-security overrides (Dependabot alerts, #563). Only leaves still
 # flagged after an in-range parent refresh (`pnpm update`) are pinned here; every
 # bump stays within the package's existing major (patch/minor, API-stable), with
-# one deliberate exception, marked ⚠ below.
+# two deliberate exceptions, each marked ⚠ below.
 # picomatch/minimatch are scoped to the vulnerable major so the other major line
 # (already patched) is left untouched.
 #
@@ -55,7 +55,7 @@ overrides:
   # degenerate private-cache directive) is reachable: undici is the HTTP client every
   # server-side fetch uses. Same major, patch-only.
   undici: '^7.29.1'
-  # ⚠ The one override past a declared major. GHSA-v53p-9fqp-m79j and
+  # ⚠ Past a declared major, one of two. GHSA-v53p-9fqp-m79j and
   # GHSA-prgh-xp8r-p3m5 are fixed in 10.0.6, and the only range still capping at
   # 9.x is @payloadcms/email-nodemailer@3.90.2's `^9.1.1`. Taken deliberately
   # (#931): the adapter calls `createTransport`, `sendMail` and `verify`, which
@@ -63,6 +63,21 @@ overrides:
   # Mailpit transport and the preview scripts — production mail goes through
   # `resendAdapter()`. Drop this line once the adapter declares `^10`.
   nodemailer: '^10.1.1'
+  # ⚠ Past a declared major, two of two. GHSA-834v-8h66-3h79 (an unvalidated
+  # import alias in happy-dom's ES-module compiler reaches `process` and Node
+  # built-ins) is fixed in 21.0.4, and every published @lexical/headless —
+  # through 0.52.0 — still caps at `^20.9.0`. Nothing loads the vulnerable code:
+  # happy-dom sits behind @lexical/headless's `/dom` subpath, which nothing in
+  # the tree imports (@payloadcms/richtext-lexical takes only the root entry's
+  # `createHeadlessEditor`), and the compiler runs only under
+  # `enableJavaScriptEvaluation`, which defaults false. Overridden because the
+  # dependency is runtime-scope, so `pnpm audit --audit-level=high` and the
+  # Dependabot check both count it, and the bump is free: @lexical/headless
+  # touches six symbols — `Window`, `document`, `DOMParser`,
+  # `MutationObserver`, `getComputedStyle`, `happyDOM.close` — all unchanged in
+  # 21, whose one breaking change turns CSS and iframe file loading off by
+  # default. Drop this line once @lexical/headless declares `^21`.
+  happy-dom: '^21.0.4'
 
 patchedDependencies:
   # `payload migrate:create` crashes with "Cannot read properties of undefined
