@@ -65,6 +65,7 @@
     },
     "map": {
       "find_my_location": "Find my location",
+      "location_failed": "We couldn’t get your location. Search for a place instead.",
       "location_not_available": "Location not available",
       "mapbox_homepage": "Mapbox homepage",
       "toggle_attribution": "Map data credits"

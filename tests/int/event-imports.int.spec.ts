@@ -12,13 +12,14 @@ import type { Payload, TaskConfig } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import { SweepEventImports } from '@/jobs/SweepEventImports/SweepEventImports'
+import { CleanupCollections } from '@/jobs/CleanupCollections/CleanupCollections'
 import type { GeocodedLocation, GeocodeOutcome } from '@/lib/mapbox/geocoder'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Import } from '@/payload-types'
 import { MAX_IMPORT_ROWS } from '@/plugins/eventImport/constants'
 import { buildImportTemplate } from '@/plugins/eventImport/csv/template'
 
+import { deletedIn } from '../utils/retention'
 import { runTaskHandler } from '../utils/taskRunner'
 import { createData, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -630,12 +631,18 @@ describe('class imports', () => {
         data: { updatedAt: '2020-01-01T00:00:00.000Z' },
       })
 
-      const dry = await runTaskHandler(SweepEventImports, { payload, input: { dryRun: true } })
-      expect(dry.deleted).toBe(1)
+      const dry = await runTaskHandler(CleanupCollections, {
+        payload,
+        input: { dryRun: true, collection: 'imports' },
+      })
+      expect(deletedIn(dry, 'imports')).toBe(1)
       expect(await read(old.id)).toBeTruthy()
 
-      const real = await runTaskHandler(SweepEventImports, { payload, input: {} })
-      expect(real.deleted).toBe(1)
+      const real = await runTaskHandler(CleanupCollections, {
+        payload,
+        input: { collection: 'imports' },
+      })
+      expect(deletedIn(real, 'imports')).toBe(1)
       await expect(read(old.id)).rejects.toThrow()
       expect((await read(fresh.id)).id).toBe(fresh.id)
     })
