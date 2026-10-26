@@ -17,7 +17,7 @@ import { dirname, join, resolve } from 'node:path'
 export const SRC = resolve(__dirname, '../../src')
 
 /** Resolve an `@/…` or relative specifier to a file under src/, or null. */
-function resolveSpec(spec: string, fromFile: string): string | null {
+export function resolveSpec(spec: string, fromFile: string): string | null {
   const base = spec.startsWith('@/')
     ? join(SRC, spec.slice(2))
     : spec.startsWith('.')
@@ -171,6 +171,20 @@ export function findInImportGraph<T>(
  */
 export function reachableFiles(entry: string): string[] {
   return walk(entry).files
+}
+
+/**
+ * `entry` and the files its own imports resolve to — one hop, never the graph
+ * below them. Enough for a registration naming a folder, whose barrel
+ * re-exports the component one hop away, and no further: a module the entry
+ * merely pulls in answers nothing about the entry itself.
+ */
+export function entryAndDirectImports(entry: string): string[] {
+  const direct = importsOf(entry)
+    .map((spec) => resolveSpec(spec, entry))
+    .filter((file): file is string => file !== null)
+
+  return [...new Set([entry, ...direct])]
 }
 
 /** Every `.ts`/`.tsx` file under `src/`. */
