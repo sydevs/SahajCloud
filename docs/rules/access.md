@@ -150,6 +150,8 @@ A collection's access keys are `create`, `read`, `update`, `delete`, `readVersio
 
 The gap worth naming: an **inactive** manager still loads the admin shell, then finds every collection denied. That is its own ticket, not a derived grant.
 
+⚠ **And `canAccessAdmin` does not govern every admin route on its own.** Payload skips its auth redirect for any custom view declaring a `path`, so such a view consults the key itself or not at all — see "A custom view that declares a `path` owes its own auth gate" in `docs/rules/admin-ui.md` (#1030).
+
 ### What version history exposed (#719)
 
 This is not Payload's default, and the default is the permissive one. `findVersions`, `findVersionByID` and `countVersions` consult `access.readVersions` alone — the published-only constraint in the `read` branch never runs for them. With `readVersions` unset, `executeAccess` falls back to "is anyone logged in", which an API key satisfies, so every draft on `pages`, `meditations`, `app-cards`, `events`, `clients` and the three translations globals was readable by any published client key — including one that cannot read the collection at all.
