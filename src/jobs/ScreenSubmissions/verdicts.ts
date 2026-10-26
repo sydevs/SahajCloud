@@ -68,8 +68,9 @@ export function isScreeningResult(value: unknown): value is SubmissionScreeningR
  * has not been screened, and is not a strike either.
  *
  * `status` is indexed, so unlike the verdict this is a predicate a query can
- * reach — which is why `PurgeSubmissions` spells the same status in SQL rather
- * than importing this. The generated union is what keeps the two honest.
+ * reach — which is why the `user-submissions` retention windows spell the same
+ * status in SQL rather than importing this. The generated union is what keeps
+ * the two honest.
  */
 export function isMachineSpam(submission: { status?: UserSubmission['status'] | null }): boolean {
   return submission.status === 'spam'

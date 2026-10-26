@@ -55,6 +55,16 @@ imports that code (tests may reach a folder's internals). `src/jobs/index.ts`
 re-exports **only** the task definitions for `payload.config.ts`'s
 `jobs.tasks`.
 
+`CleanupCollections/` holds no collection list at all: a collection joins
+retention by declaring windows inline on its own config's `custom.retention`,
+and the job reads the built config at run time (#987). Each config carries its
+windows and why each is the length it is, beside the fields they age; a
+collection that declares none is not swept. The discovery and the sweep live in
+the job folder, and only the vocabulary every declaring config needs is shared
+— `@/types/retention`. `payload-jobs` is Payload's own collection and reaches
+`custom` through `jobs.jobsCollectionOverrides`, which is the whole of
+`src/collections/PayloadJobs/`.
+
 ### `src/endpoints/`
 
 Custom endpoints registered on the **config root** (`config.endpoints`)
@@ -141,12 +151,7 @@ No loose files at the root — every file lives in a named folder:
 - domain folders shared across 2+ owners (**2+ is enforced** — see "One
   consumer ⇒ it isn't shared" below): `audiences/`, `meditations/`,
   `branding/`, `status/`, `lectures/`, `schedule/`, `subtleSystem/`,
-  `pageTags/`, `cascadeDeletion/`, `retention/` (the one definition of what a
-  retention sweep does — the cutoff, the dry-run branch, and a delete whose
-  partial failure is logged rather than returned as a short count. Shared by
-  `PurgeSubmissions`, `CleanupJobs` and `SweepEventImports`, which keep their
-  own slugs, schedules and output shapes, and `beforeDelete` is where the
-  `users` orphan sweep reads what the delete is about to make unreachable), `eventTitle/` (the auto-title
+  `pageTags/`, `cascadeDeletion/`, `eventTitle/` (the auto-title
   composition, split by purity: `compose.ts` is pure. `autoTitle.ts`
   resolves a title against the database and is shared by the Events title
   hook and the proposal merge), `eventQuality/` (the listing-quality check

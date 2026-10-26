@@ -11,8 +11,11 @@ import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { CleanupCollections } from '@/jobs/CleanupCollections/CleanupCollections'
 import type { Meditation, MeditationTranscript } from '@/payload-types'
 
+import { deletedIn } from '../utils/retention'
+import { runTaskHandler } from '../utils/taskRunner'
 import { createData, testData, type FixtureOverrides } from '../utils/testData'
 import { createTestEnvironment, idOnlySelect } from '../utils/testHelpers'
 
@@ -305,6 +308,79 @@ describe('meditation transcripts', () => {
       expect(updated.segments).toEqual([
         { content: 'the Kundalini', startTimeMs: 0, endTimeMs: 1000 },
       ])
+    })
+  })
+  /**
+   * The retention window (#1013). Asserted through the whole task rather than
+   * against the window object, because the one thing a unit case cannot answer
+   * is whether `exists: false` matches a parent the **foreign key** nulled —
+   * no application write puts a transcript in that state.
+   */
+  describe('retention', () => {
+    it('sweeps an orphan past the window and keeps a parented row', async () => {
+      const orphaned = await createMeditationWithoutTranscript()
+      const kept = await createMeditationWithoutTranscript()
+      const rows = await Promise.all(
+        [orphaned, kept].map((meditation) =>
+          payload.create({
+            collection: 'meditation-transcripts',
+            data: createData<'meditation-transcripts'>({
+              meditation: meditation.id,
+              language: 'en',
+            }),
+          }),
+        ),
+      )
+
+      // A hard delete, which is what nulls the transcript's parent — the sync
+      // hook on `meditations` deletes the row outright on every other path.
+      await payload.delete({ collection: 'meditations', id: orphaned.id, overrideAccess: true })
+
+      const output = await runTaskHandler(CleanupCollections, {
+        payload,
+        input: {
+          collection: 'meditation-transcripts',
+          now: new Date(Date.now() + 8 * 24 * 60 * 60 * 1000).toISOString(),
+        },
+      })
+
+      expect(deletedIn(output, 'meditation-transcripts')).toBe(1)
+      const remaining = await payload.find({
+        collection: 'meditation-transcripts',
+        where: { id: { in: rows.map((row) => row.id) } },
+        pagination: false,
+        overrideAccess: true,
+      })
+      expect(remaining.docs.map((row) => row.id)).toEqual([rows[1]!.id])
+    })
+
+    /**
+     * ⚠ The grace period is what stops a transcript going the night its
+     * meditation does. It is seven days, and the row is swept on `updatedAt`,
+     * so a clock inside the window must delete nothing.
+     */
+    it('keeps an orphan still inside the window', async () => {
+      const meditation = await createMeditationWithoutTranscript()
+      const row = await payload.create({
+        collection: 'meditation-transcripts',
+        data: createData<'meditation-transcripts'>({ meditation: meditation.id, language: 'en' }),
+      })
+
+      await payload.delete({ collection: 'meditations', id: meditation.id, overrideAccess: true })
+
+      const output = await runTaskHandler(CleanupCollections, {
+        payload,
+        input: { collection: 'meditation-transcripts', now: new Date().toISOString() },
+      })
+
+      expect(deletedIn(output, 'meditation-transcripts')).toBe(0)
+      await expect(
+        payload.findByID({
+          collection: 'meditation-transcripts',
+          id: row.id,
+          overrideAccess: true,
+        }),
+      ).resolves.toMatchObject({ id: row.id })
     })
   })
 })

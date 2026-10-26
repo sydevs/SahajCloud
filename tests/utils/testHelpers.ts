@@ -30,6 +30,7 @@ import { EmailTestAdapter } from './emailTestAdapter'
 import { TEST_PG_POOL_OPTIONS } from './postgresTestPool'
 import { testData } from './testData'
 import { collections, Managers } from '../../src/collections'
+import { payloadJobsOverrides } from '../../src/collections/PayloadJobs/PayloadJobs'
 import { globals } from '../../src/globals'
 import { tasks } from '../../src/jobs'
 
@@ -137,6 +138,10 @@ function createBaseTestConfig(emailConfig: any, schemaName: string, debug = fals
       // transcript derives from, so a lane that drops them tests a system
       // production does not run.
       deleteJobOnComplete: false,
+      // Mirrors payload.config.ts, and the retention sweep reads it: the window
+      // bounding `payload-jobs` is declared on that collection's `custom`, and
+      // this override is the only seam that reaches it.
+      jobsCollectionOverrides: payloadJobsOverrides,
       // Mirror payload.config.ts: tasks that declare `concurrency` (for example,       // expireEvents) require this, or Payload 3.86 refuses to build the config.
       enableConcurrencyControl: true,
     },
