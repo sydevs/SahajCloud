@@ -31,6 +31,8 @@ Admin panel: `http://localhost:{PORT}/admin/login`, once the dev server runs.
 
 **Local dev needs no link either.** `src/payload.config.ts` auto-logs in as `contact@sydevelopers.com` outside production and E2E runs. `admin.autoLogin` lives inside the JWT strategy, so it never touches the login operation and survives the switch. If you still see the login form, re-seed the local admin instead of hunting for a password.
 
+⚠ **That auto-login also shadows a local API-client read.** The dev server authenticates every request as the auto-login manager, whatever credential it carries, so a `clients` key sent at `localhost` is read as a manager and a client-contract check there proves nothing — the client `select` gate never fires. Send `DisableAutologin: true` beside the API key to be read as the client (`docs/rules/api-clients.md`).
+
 | Environment        | How you get in                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Railway PR preview | Ask for a sign-in link as `PREVIEW_ADMIN_EMAIL` (a Railway preview env var, also a CI secret) and the preview signs you in instead of mailing one — the smoke lane's way in too. The address is the credential there, so keep its local part unguessable. Only where the same gate provisions the admin (`src/plugins/previewAdmin`): an environment without the variable has neither.                                                                                                                                                                                              |
@@ -42,7 +44,7 @@ Admin panel: `http://localhost:{PORT}/admin/login`, once the dev server runs.
 
 Use the `/workflow:dev-server` skill for a dev server shared across sessions. It prevents port conflicts. Default port 3000. Override with `PORT=4000`. `SAHAJCLOUD_URL` derives from `PORT`.
 
-- `pnpm test:unit` — the unit lane, no Payload bootstrap. About 78 s for all 228 files, so name one spec while editing (`tests/PERF.md`).
+- `pnpm test:unit` — the unit lane, no Payload bootstrap. About 78 s for all 229 files, so name one spec while editing (`tests/PERF.md`).
 - `pnpm format:check` — Prettier. `pnpm lint` checks no formatting, so the lean gate and CI run both.
 
 Locally, run lint, `pnpm test:unit`, and the integration spec for the area you changed. Let CI run the full suite. See `docs/rules/testing-reqs.md` for the tier policy and the CPU rules (never run test commands, or a test and a build, in parallel).

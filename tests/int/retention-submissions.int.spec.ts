@@ -1,6 +1,6 @@
 /**
- * The `purgeSubmissions` job (#724) — the per-type retention windows, and the
- * `users` orphan sweep that follows them.
+ * `user-submissions` retention (#724, #987) — the per-type windows,
+ * and the `users` orphan sweep its two hooks run.
  *
  * Rows are not aged by editing `createdAt`; the clock is moved instead. The
  * task takes an injected `now` for exactly this, so a case can assert a
@@ -16,14 +16,11 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { PurgeSubmissions } from '@/jobs/PurgeSubmissions/PurgeSubmissions'
-import {
-  CONTACT_ACCEPTED_DAYS,
-  MACHINE_SPAM_DAYS,
-  PROPOSAL_DAYS,
-} from '@/jobs/PurgeSubmissions/retention'
+import { CleanupCollections } from '@/jobs/CleanupCollections/CleanupCollections'
 import type { Event, Form, Manager, UserSubmission } from '@/payload-types'
+import { CONTACT_ACCEPTED_DAYS, MACHINE_SPAM_DAYS, PROPOSAL_DAYS } from '@/plugins/formBuilder'
 
+import { deletedIn } from '../utils/retention'
 import { runTaskHandler } from '../utils/taskRunner'
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -85,9 +82,15 @@ describe('Submission retention sweep', () => {
 
   /** Run the sweep as if `days` had passed since `anchor`. */
   const sweep = (anchor: number, days: number, dryRun = false) =>
-    runTaskHandler(PurgeSubmissions, {
+    runTaskHandler(CleanupCollections, {
       payload,
-      input: { now: new Date(anchor + days * DAY_MS).toISOString(), dryRun },
+      input: {
+        now: new Date(anchor + days * DAY_MS).toISOString(),
+        dryRun,
+        // The orphan sweep is this entry's, so the case needs no other entry
+        // running beside it.
+        collection: 'user-submissions',
+      },
     })
 
   const exists = async (collection: 'user-submissions' | 'users', id: number) => {
@@ -306,11 +309,11 @@ describe('Submission retention sweep', () => {
 
       expect(await exists('users', userId)).toBe(true)
 
-      const { output } = { output: await sweep(anchor, CONTACT_ACCEPTED_DAYS + 1) }
+      const output = await sweep(anchor, CONTACT_ACCEPTED_DAYS + 1)
 
       expect(await exists('user-submissions', row.id)).toBe(false)
       expect(await exists('users', userId)).toBe(false)
-      expect(output.deletedUsers).toBeGreaterThanOrEqual(1)
+      expect(deletedIn(output, 'users')).toBeGreaterThanOrEqual(1)
     })
 
     /**
@@ -364,10 +367,40 @@ describe('Submission retention sweep', () => {
 
       const output = await sweep(anchor, CONTACT_ACCEPTED_DAYS + 1, true)
 
-      expect(output.deletedSubmissions).toBeGreaterThanOrEqual(1)
-      expect(output.deletedUsers).toBeGreaterThanOrEqual(1)
+      expect(deletedIn(output, 'user-submissions')).toBeGreaterThanOrEqual(1)
+      expect(deletedIn(output, 'users')).toBeGreaterThanOrEqual(1)
       expect(await exists('user-submissions', row.id)).toBe(true)
       expect(await exists('users', userId)).toBe(true)
+    })
+
+    /**
+     * ⚠ A dry run has deleted nothing, so "would this sender be orphaned" has
+     * to be answered by subtraction. Reading the durable types alone reported
+     * this sender as going: their proposal is in a window too, 30 days out,
+     * and the real sweep at 8 days then kept them.
+     *
+     * Asserted as a delta, because the count is the whole run's and the cases
+     * above leave their own dry-run rows behind.
+     */
+    it('keeps a sender whose other row is in a window but not yet due', async () => {
+      const before = await sweep(Date.now(), CONTACT_ACCEPTED_DAYS + 1, true)
+
+      const email = 'not-due-yet@example.com'
+      const message = await seed({ senderEmail: email, status: 'accepted' })
+      const proposal = await seed({
+        type: 'proposal',
+        form: undefined,
+        senderEmail: email,
+        proposed: { title: 'Thursday class' },
+        status: 'accepted',
+      })
+      expect(userIdOf(proposal)).toBe(userIdOf(message))
+
+      const after = await sweep(Date.now(), CONTACT_ACCEPTED_DAYS + 1, true)
+
+      // The contact message is due at 8 days; the proposal is not, at 30.
+      expect(deletedIn(after, 'user-submissions')).toBe(deletedIn(before, 'user-submissions') + 1)
+      expect(deletedIn(after, 'users')).toBe(deletedIn(before, 'users'))
     })
   })
 })

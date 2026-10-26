@@ -95,8 +95,12 @@ import * as migration_20261020_185917_forms_title_optional_per_locale from './20
 import * as migration_20261020_235623_merge_981_main_snapshot from './20261020_235623_merge_981_main_snapshot';
 import * as migration_20261021_014535_localize_app_card_destination from './20261021_014535_localize_app_card_destination';
 import * as migration_20261021_024228_merge_1002_main_snapshot from './20261021_024228_merge_1002_main_snapshot';
+import * as migration_20261021_152406_retention_registry from './20261021_152406_retention_registry';
+import * as migration_20261021_165805_merge_1010_main_snapshot from './20261021_165805_merge_1010_main_snapshot';
 import * as migration_20261024_005319_submission_location from './20261024_005319_submission_location';
+import * as migration_20261024_161437_merge_1027_main_snapshot from './20261024_161437_merge_1027_main_snapshot';
 import * as migration_20261025_195340_clients_language_rename from './20261025_195340_clients_language_rename';
+import * as migration_20261026_204230_merge_1013_main_snapshot from './20261026_204230_merge_1013_main_snapshot';
 
 export const migrations = [
   {
@@ -585,13 +589,33 @@ export const migrations = [
     name: '20261021_024228_merge_1002_main_snapshot',
   },
   {
+    up: migration_20261021_152406_retention_registry.up,
+    down: migration_20261021_152406_retention_registry.down,
+    name: '20261021_152406_retention_registry',
+  },
+  {
+    up: migration_20261021_165805_merge_1010_main_snapshot.up,
+    down: migration_20261021_165805_merge_1010_main_snapshot.down,
+    name: '20261021_165805_merge_1010_main_snapshot',
+  },
+  {
     up: migration_20261024_005319_submission_location.up,
     down: migration_20261024_005319_submission_location.down,
     name: '20261024_005319_submission_location',
   },
   {
+    up: migration_20261024_161437_merge_1027_main_snapshot.up,
+    down: migration_20261024_161437_merge_1027_main_snapshot.down,
+    name: '20261024_161437_merge_1027_main_snapshot',
+  },
+  {
     up: migration_20261025_195340_clients_language_rename.up,
     down: migration_20261025_195340_clients_language_rename.down,
-    name: '20261025_195340_clients_language_rename'
+    name: '20261025_195340_clients_language_rename',
+  },
+  {
+    up: migration_20261026_204230_merge_1013_main_snapshot.up,
+    down: migration_20261026_204230_merge_1013_main_snapshot.down,
+    name: '20261026_204230_merge_1013_main_snapshot'
   },
 ];
