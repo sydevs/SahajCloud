@@ -4,7 +4,7 @@ import { createLocalReq } from 'payload'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { getAtlasDashboardData } from '@/components/admin/Dashboard/AtlasDashboard/data'
-import { programGroups } from '@/components/admin/Dashboard/AtlasDashboard/model'
+import { programStatus, type ProgramQuery } from '@/components/admin/Dashboard/AtlasDashboard/model'
 import type { Manager as ManagerDoc } from '@/payload-types'
 
 import { createData, testData } from '../utils/testData'
@@ -92,30 +92,30 @@ describe('Atlas manager dashboard access', () => {
   afterAll(async () => cleanup())
   const request = (user: ManagerDoc) =>
     createLocalReq({ user: { ...user, collection: 'managers' }, locale: 'en' }, payload)
+  const load = async (user: ManagerDoc, query: Partial<ProgramQuery> = {}) =>
+    getAtlasDashboardData(await request(user), { tab: 'all', page: 1, limit: 50, ...query })
+  const ids = (data: { programs: { docs: { id: number }[] } }) =>
+    data.programs.docs.map((event) => event.id)
 
   it('includes manageable region drafts but excludes other project-readable events', async () => {
-    const data = await getAtlasDashboardData(await request(owner))
+    const data = await load(owner)
     expect(data.canCreate).toBe(true)
-    expect(data.events.map((event) => event.id)).toEqual([ownId])
-    const groups = programGroups(data.events)
+    expect(ids(data)).toEqual([ownId])
     // The one event is an urgent draft, so it is awaiting review and nothing else.
-    expect(groups.review).toHaveLength(1)
-    expect(groups.drafts).toEqual([])
+    expect(data.counts).toEqual({ all: 1, review: 1, drafts: 0 })
   })
   it('supports direct assignment without granting creation', async () => {
-    const data = await getAtlasDashboardData(await request(assignee))
+    const data = await load(assignee)
     expect(data.canCreate).toBe(false)
-    expect(data.events.map((event) => event.id)).toEqual([assignedId])
+    expect(ids(data)).toEqual([assignedId])
   })
   it('answers from the Events write scope and not from the current project', async () => {
     // The Events `update` scope is regions and assignment, so it admits the same
     // programs whatever project is selected. That is why containment to Sahaj
     // Atlas belongs to `dashboardChoiceFor`, which decides whether this view
     // renders at all — never to this read.
-    const elsewhere = await getAtlasDashboardData(
-      await request({ ...owner, currentProject: 'wemeditate-web' }),
-    )
-    expect(elsewhere.events.map((event) => event.id)).toEqual([ownId])
+    const elsewhere = await load({ ...owner, currentProject: 'wemeditate-web' })
+    expect(ids(elsewhere)).toEqual([ownId])
   })
   it('distinguishes a never-published draft from unpublished changes to a live program', async () => {
     const live = await testData.createEvent(payload, {
@@ -142,17 +142,16 @@ describe('Atlas manager dashboard access', () => {
         eventType: 'offline',
       },
     })
-    const data = await getAtlasDashboardData(await request(owner))
-    const program = data.events.find((event) => event.id === live.id)
+    const data = await load(owner)
+    const program = data.programs.docs.find((event) => event.id === live.id)
     expect(program).toMatchObject({ title: 'Changed title', _status: 'draft', published: true })
-    expect(data.events.find((event) => event.id === draft.id)).toMatchObject({
+    expect(programStatus(program!)).toBe('published')
+    expect(data.programs.docs.find((event) => event.id === draft.id)).toMatchObject({
       verificationStage: 'verified',
       published: false,
     })
-    const groups = programGroups(data.events)
-    expect(groups.published.map((event) => event.id)).toEqual([live.id])
-    expect(groups.drafts.map((event) => event.id)).toEqual([draft.id])
-    expect(groups.review.map((event) => event.id)).toEqual([ownId])
+    expect(ids(await load(owner, { tab: 'drafts' }))).toEqual([draft.id])
+    expect(ids(await load(owner, { tab: 'review' }))).toEqual([ownId])
   })
   it.each(['urgent', 'finished'] as const)(
     'uses the live %s stage when a draft save resets verification',
@@ -182,14 +181,40 @@ describe('Atlas manager dashboard access', () => {
       const base = await payload.findByID({ collection: 'events', id: live.id, draft: false })
       expect(latest.verificationStage).toBe('verified')
       expect(base.verificationStage).toBe(stage)
-      const data = await getAtlasDashboardData(await request(owner))
-      expect(data.events.find((event) => event.id === live.id)).toMatchObject({
+      const data = await load(owner)
+      expect(data.programs.docs.find((event) => event.id === live.id)).toMatchObject({
         verificationStage: stage,
         published: true,
         _status: 'draft',
       })
-      if (stage === 'urgent') expect(data.events[0].id).toBe(live.id)
-      else expect(data.events.at(-1)?.id).toBe(live.id)
+      if (stage === 'urgent') expect(data.programs.docs[0]!.id).toBe(live.id)
+      else expect(data.programs.docs.at(-1)?.id).toBe(live.id)
     },
   )
+  it('stores the rank of every save, so the review-first order holds across pages', async () => {
+    const event = await testData.createEvent(payload, {
+      title: 'Ranked program',
+      manager: owner.id,
+      region: cityId,
+    })
+    expect(event.verificationRank).toBe(2)
+    const urgent = await payload.update({
+      collection: 'events',
+      id: event.id,
+      context: { skipVerifyHook: true },
+      data: { verificationStage: 'urgent' },
+    })
+    expect(urgent.verificationRank).toBe(0)
+
+    const all = await load(owner)
+    const paged = []
+    for (let page = 1; page <= all.programs.totalDocs; page++) {
+      const data = await load(owner, { page, limit: 1 })
+      expect(data.programs.totalPages).toBe(all.programs.totalDocs)
+      paged.push(...ids(data))
+    }
+    expect(paged).toEqual(ids(all))
+    const ranks = all.programs.docs.map((program) => programStatus(program))
+    expect(ranks.indexOf('finished')).toBeGreaterThan(ranks.lastIndexOf('review'))
+  })
 })

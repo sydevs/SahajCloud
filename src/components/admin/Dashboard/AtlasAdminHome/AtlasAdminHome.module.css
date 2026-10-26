@@ -1,0 +1,35 @@
+/* Layout for the admin overview alone. Cards, pills and the table come from the CMS theme. */
+.home {
+  margin: calc(var(--base) * 0.5) 0 calc(var(--base) * 2);
+}
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--base);
+}
+.header h1 {
+  margin: 0 0 calc(var(--base) / 3);
+}
+.subtitle,
+.recentMeta {
+  margin: 0;
+  color: var(--theme-elevation-650);
+}
+.home h2 {
+  margin: calc(var(--base) * 1.5) 0 calc(var(--base) * 0.5);
+}
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(calc(var(--base) * 9), 1fr));
+  gap: calc(var(--base) * 0.5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+@media (max-width: 700px) {
+  .header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

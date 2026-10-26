@@ -1,3 +1,6 @@
+import type { PaginatedDocs, Where } from 'payload'
+
+import { stageRank } from '@/lib/eventVerification/stages'
 import type { Event } from '@/payload-types'
 
 export type Program = Pick<Event, 'id' | 'title' | '_status' | 'verificationStage' | 'updatedAt'> &
@@ -5,57 +8,54 @@ export type Program = Pick<Event, 'id' | 'title' | '_status' | 'verificationStag
     published: boolean
   }
 
+export const PROGRAM_TABS = ['all', 'review', 'drafts'] as const
+export type ProgramTab = (typeof PROGRAM_TABS)[number]
+
+export const PROGRAM_LIMITS = [10, 25, 50, 100]
+const DEFAULT_LIMIT = 50
+
+export type ProgramQuery = { tab: ProgramTab; page: number; limit: number }
+
 /** What the loader reads and the home renders: the one shape both sides import. */
 export type AtlasDashboardData = {
   canCreate: boolean
-  events: Program[]
+  query: ProgramQuery
+  counts: Record<ProgramTab, number>
+  programs: PaginatedDocs<Program>
 }
 
-/** Sort rank per stage; 0 and 1 need the manager. A Record, so a new stage cannot be missed. */
-const STAGE_RANK: Record<Event['verificationStage'], 0 | 1 | 2 | 3> = {
-  urgent: 0,
-  reminded: 1,
-  escalated: 1,
-  unverified: 1,
-  expired: 1,
-  denied: 1,
-  verified: 2,
-  finished: 3,
+/** The home's URL state; anything unrecognised falls back to the first page of every program. */
+export function parseProgramQuery(
+  searchParams: Record<string, string | string[] | undefined> | undefined,
+): ProgramQuery {
+  const read = (key: string) => {
+    const value = searchParams?.[key]
+    return Array.isArray(value) ? value[0] : value
+  }
+  const tab = PROGRAM_TABS.find((candidate) => candidate === read('tab')) ?? 'all'
+  const page = Math.max(1, Number.parseInt(read('page') ?? '', 10) || 1)
+  const limit = PROGRAM_LIMITS.find((candidate) => String(candidate) === read('limit'))
+  return { tab, page, limit: limit ?? DEFAULT_LIMIT }
 }
 
-export function needsConfirmation(program: Program): boolean {
-  return STAGE_RANK[program.verificationStage] <= 1
+/**
+ * Each tab as a filter on the stored `verificationRank`, so it pages in the
+ * database. Ranks 0 and 1 need the manager; a draft is a settled program that
+ * has never gone live. Finished programs appear only under "all".
+ */
+export function programTabWhere(tab: ProgramTab): Where {
+  if (tab === 'review') return { verificationRank: { less_than_equal: 1 } }
+  if (tab === 'drafts') {
+    return { and: [{ verificationRank: { equals: 2 } }, { _status: { equals: 'draft' } }] }
+  }
+  return {}
 }
 
 export type ProgramStatus = 'finished' | 'review' | 'published' | 'draft'
 
+/** The pill a program shows; it agrees with the tab that lists it. */
 export function programStatus(program: Program): ProgramStatus {
   if (program.verificationStage === 'finished') return 'finished'
-  if (needsConfirmation(program)) return 'review'
+  if (stageRank(program.verificationStage) <= 1) return 'review'
   return program.published ? 'published' : 'draft'
-}
-
-/** Urgent first, then needing review, then the rest; finished last. Newest edit first within a rank. */
-export function sortPrograms(programs: Program[]): Program[] {
-  return [...programs].sort(
-    (a, b) =>
-      STAGE_RANK[a.verificationStage] - STAGE_RANK[b.verificationStage] ||
-      b.updatedAt.localeCompare(a.updatedAt),
-  )
-}
-
-/**
- * The dashboard's tabs and summary counts, keyed on `programStatus` so the three
- * are disjoint: the summary adds them up, and a program's pill must agree with
- * whichever one counts it. Finished programs appear only under "all".
- */
-export function programGroups(programs: Program[]) {
-  const byStatus = (status: ProgramStatus) =>
-    programs.filter((program) => programStatus(program) === status)
-  return {
-    all: programs,
-    review: byStatus('review'),
-    drafts: byStatus('draft'),
-    published: byStatus('published'),
-  }
 }

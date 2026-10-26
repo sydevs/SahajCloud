@@ -1,16 +1,16 @@
 /* Layout for the manager home alone. Controls and the table come from the CMS theme. */
 .home {
-  margin: 12px 0 48px;
+  margin: calc(var(--base) * 0.5) 0 calc(var(--base) * 2);
 }
 .header,
 .notice {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 24px;
+  gap: var(--base);
 }
 .header h1 {
-  margin: 0 0 8px;
+  margin: 0 0 calc(var(--base) / 3);
 }
 .subtitle,
 .programInfo p,
@@ -18,28 +18,27 @@
   color: var(--theme-elevation-650);
 }
 .subtitle {
-  margin: 0 0 24px;
+  margin: 0 0 var(--base);
 }
 .notice {
-  gap: 16px;
+  gap: calc(var(--base) * 0.75);
 }
-.actions {
+.actions,
+.filters {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: calc(var(--base) * 0.5);
 }
 .notice :global(.btn),
 .header :global(.btn) {
   flex-shrink: 0;
 }
 .filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 28px 0 16px;
+  gap: calc(var(--base) / 3);
+  margin: var(--base) 0 calc(var(--base) * 0.75);
 }
 .filterCount {
-  margin-inline-start: 8px;
+  margin-inline-start: calc(var(--base) / 3);
 }
 .programInfo a {
   font-weight: 550;
@@ -49,20 +48,27 @@
   text-decoration: underline;
 }
 .programInfo p {
-  margin: 4px 0 0;
+  margin: calc(var(--base) / 6) 0 0;
 }
 .home :global(.cell-program) {
   width: 100%;
-  min-width: 240px;
+  min-width: calc(var(--base) * 10);
 }
 .home :global(.cell-action) {
   white-space: nowrap;
+}
+.pageControls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--base);
 }
 @media (max-width: 700px) {
   .header,
   .notice {
     align-items: flex-start;
     flex-direction: column;
-    gap: 16px;
+    gap: calc(var(--base) * 0.75);
   }
 }
