@@ -81,6 +81,7 @@ maintainer's laptop, for scale: Apple M3 Pro, 11 cores, 18 GB, so 10 workers.
 | seventeenth, #999 after merging `main` (2026-10-25) | 227 / 2917    | 53.54 s (inside the gate)                    | 53.5 s     |
 | eighteenth, #1034 on a feature branch (2026-10-25)  | 227 / 2909    | 55.66 s (inside the gate)                    | 55.7 s     |
 | nineteenth, #999 after merging `main` (2026-10-26)  | 228 / 2924    | 74.58 · 64.62 s (the second inside the gate) | 69.6 s     |
+| twentieth, #999 addressing a review (2026-10-26)    | 228 / 2929    | 56.58 · 56.99 s (both inside the gate)       | 56.8 s     |
 
 ⚠ **Those three medians span 47 to 78 s — 66% — and six spec files do not
 explain it.** Identical container spec, all on 2026-10-20, 3% more files
@@ -100,7 +101,7 @@ reads, so keep those labels and cell shapes when you add a row.
 
 | Metric                                                                                          | Value                                                             |
 | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Files / tests                                                                                   | 228 / 2924                                                        |
+| Files / tests                                                                                   | 228 / 2929                                                        |
 | Whole lane, 3 workers (slowest session median, what the consumer docs quote)                    | **77.9 s**                                                        |
 | One spec alone, the typical edit (third session)                                                | 1.3 s                                                             |
 | Slowest per-edit selection timed on 4 cores, the 3 specs naming `@/payload.config` (2026-10-21) | **8.7 s**                                                         |
