@@ -1,4 +1,4 @@
-/* Layout and table treatment for the manager home alone. Controls come from the CMS theme. */
+/* Layout for the manager home alone. Controls and the table come from the CMS theme. */
 .home {
   margin: 12px 0 48px;
 }
@@ -9,30 +9,16 @@
   justify-content: space-between;
   gap: 24px;
 }
-/* Payload's layered `h1` is list-view sized. Stated here, not globally, so the
-   panel's own type scale keeps every other heading. */
 .header h1 {
   margin: 0 0 8px;
-  font-size: clamp(1.65rem, 2.2vw, 2rem);
-  line-height: 1.25;
-  font-weight: 600;
-  letter-spacing: -0.025em;
 }
 .subtitle,
-.summary,
-.footnote,
 .programInfo p,
 .programInfo small {
   color: var(--theme-elevation-650);
 }
 .subtitle {
-  margin: 0;
-}
-.summary {
-  margin: 24px 0;
-}
-.summary strong {
-  color: var(--theme-text);
+  margin: 0 0 24px;
 }
 .notice {
   gap: 16px;
@@ -71,62 +57,6 @@
 }
 .home :global(.cell-action) {
   white-space: nowrap;
-}
-/* Payload stripes its rows; the home separates them with rules instead. Scoped
-   here because unlayered `.table` rules reach every list view in the CMS. */
-.home :global(.table) {
-  border: 1px solid var(--theme-border-color);
-  border-radius: var(--style-radius-m);
-}
-.home :global(.table) th,
-.home :global(.table) td {
-  padding-block: 16px;
-  vertical-align: middle;
-}
-.home :global(.table) thead {
-  background: var(--theme-elevation-50);
-  color: var(--theme-elevation-650);
-}
-.home :global(.table) tbody tr:nth-child(odd) {
-  background: transparent;
-}
-.home :global(.table) tbody tr + tr td {
-  border-top: 1px solid var(--theme-elevation-100);
-}
-.home :global(.table) tbody tr:hover {
-  background: var(--theme-elevation-50);
-}
-.footnote {
-  margin-top: 16px;
-  font-size: 0.875rem;
-}
-.empty,
-.filteredEmpty {
-  padding: 48px 24px;
-  text-align: center;
-  border: 1px solid var(--theme-border-color);
-  border-radius: var(--style-radius-m);
-}
-.empty {
-  margin-top: 24px;
-}
-.empty p,
-.filteredEmpty p {
-  max-width: 440px;
-  margin: 12px auto 24px;
-}
-.empty h2,
-.filteredEmpty h3 {
-  margin: 12px 0;
-}
-.empty > span {
-  display: block;
-  margin-top: 16px;
-}
-.emptyIcon svg,
-.filteredEmpty > svg {
-  width: 32px;
-  height: 32px;
 }
 @media (max-width: 700px) {
   .header,

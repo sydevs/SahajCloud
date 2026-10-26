@@ -13,6 +13,7 @@ import {
   type ProgramStatus,
 } from './model'
 import { PUBLIC_MAP_LINK } from '../../AdminNavLinks'
+import { CenteredNotice } from '../../helpers/CenteredNotice'
 import { tableColumn } from '../../helpers/tableColumn'
 
 type Filter = 'all' | 'review' | 'drafts'
@@ -85,12 +86,6 @@ export function ManagerHome({ data }: { data: AtlasDashboardData }) {
       </header>
       {data.events.length > 0 ? (
         <>
-          <p className={styles.summary} aria-label="Program overview">
-            <strong>{groups.published.length}</strong> published ·{' '}
-            <strong>{groups.drafts.length}</strong>{' '}
-            {groups.drafts.length === 1 ? 'draft' : 'drafts'} ·{' '}
-            <strong>{groups.review.length}</strong> awaiting review
-          </p>
           {firstReview && (
             <Banner type="warning">
               <div className={styles.notice}>
@@ -187,11 +182,12 @@ export function ManagerHome({ data }: { data: AtlasDashboardData }) {
                 ]}
               />
             ) : (
-              <div className={styles.filteredEmpty}>
-                <CheckIcon />
-                <h3>
-                  {filter === 'review' ? 'Nothing needs your attention' : 'No drafts at the moment'}
-                </h3>
+              <CenteredNotice
+                icon={<CheckIcon />}
+                title={
+                  filter === 'review' ? 'Nothing needs your attention' : 'No drafts at the moment'
+                }
+              >
                 <p>
                   {filter === 'review'
                     ? 'Your programs are up to date.'
@@ -205,21 +201,15 @@ export function ManagerHome({ data }: { data: AtlasDashboardData }) {
                 >
                   Show all programs
                 </Button>
-              </div>
+              </CenteredNotice>
             )}
           </div>
-          <p className={styles.footnote}>
-            Your programs and programs in the areas you manage appear here. Summary counts exclude
-            finished programs. A published program awaiting review is counted under review and stays
-            on the public map.
-          </p>
         </>
       ) : (
-        <div className={styles.empty}>
-          <div className={styles.emptyIcon}>
-            <CalendarIcon />
-          </div>
-          <h2>{data.canCreate ? 'Your first program starts here' : 'A home for your programs'}</h2>
+        <CenteredNotice
+          icon={<CalendarIcon />}
+          title={data.canCreate ? 'Your first program starts here' : 'A home for your programs'}
+        >
           <p>
             {data.canCreate
               ? 'Add the details, save a draft, and publish when you’re ready. We’ll help people find their way to you.'
@@ -236,10 +226,10 @@ export function ManagerHome({ data }: { data: AtlasDashboardData }) {
               >
                 Add your first program
               </Button>
-              <span>Nothing goes live until you publish.</span>
+              <p>Nothing goes live until you publish.</p>
             </>
           )}
-        </div>
+        </CenteredNotice>
       )}
     </section>
   )

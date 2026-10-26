@@ -6,170 +6,36 @@ import { TriangleAlert } from 'lucide-react'
 import { CONTACT_EMAIL } from '@/lib/contact'
 import { getProjectLabel, getProjectsFromRoles } from '@/plugins/access/config'
 
+import { CenteredNotice } from '../helpers/CenteredNotice'
 import ProjectSelector from '../ProjectSelector'
 
 /** Rendered by `DashboardView`, which decides that no project is selected. */
 export default function ProjectSelectionPrompt() {
   const { user } = useAuth()
-  const allowedProjects = getProjectsFromRoles(user?.roles)
+  const projects = getProjectsFromRoles(user?.roles)
 
-  if (allowedProjects.length === 0) {
+  if (projects.length === 0) {
     return (
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '60vh',
-          padding: 'var(--base)',
-        }}
+      <CenteredNotice
+        fullHeight
+        icon={<TriangleAlert color="var(--theme-warning-500)" aria-hidden />}
+        title="No projects available"
       >
-        <div
-          style={{
-            maxWidth: '600px',
-            textAlign: 'center',
-            background: 'var(--theme-elevation-50)',
-            padding: 'calc(var(--base) * 2.5)',
-            borderRadius: 'var(--style-radius-m)',
-            border: '2px solid var(--theme-elevation-200)',
-          }}
-        >
-          <div style={{ marginBottom: 'calc(var(--base) * 1.5)' }}>
-            <TriangleAlert size={52} color="var(--theme-warning-500)" aria-hidden />
-          </div>
-          <h2
-            style={{
-              fontSize: 'calc(var(--base-body-size) * 2px)',
-              fontWeight: 'bold',
-              color: 'var(--theme-elevation-900)',
-              marginBottom: 'calc(var(--base) * 0.8)',
-            }}
-          >
-            No Projects Available
-          </h2>
-          <p
-            style={{
-              fontSize: 'calc(var(--base-body-size) * 1.15px)',
-              color: 'var(--theme-elevation-700)',
-              lineHeight: '1.6',
-              marginBottom: 'calc(var(--base) * 1.5)',
-            }}
-          >
-            You don&apos;t have access to any projects yet. Please contact an administrator to
-            request access.
-          </p>
-          <div
-            style={{
-              background: 'var(--theme-elevation-100)',
-              padding: 'calc(var(--base) * 1.2)',
-              borderRadius: 'var(--style-radius-s)',
-            }}
-          >
-            <p
-              style={{
-                fontSize: 'calc(var(--base-body-size) * 0.95px)',
-                color: 'var(--theme-elevation-600)',
-                margin: 0,
-              }}
-            >
-              Contact:{' '}
-              <a
-                href={`mailto:${CONTACT_EMAIL}`}
-                style={{
-                  color: 'var(--theme-elevation-800)',
-                  fontWeight: '600',
-                  textDecoration: 'underline',
-                }}
-              >
-                {CONTACT_EMAIL}
-              </a>
-            </p>
-          </div>
-        </div>
-      </div>
+        <p>
+          You don&apos;t have access to any projects yet. Ask an administrator for access at{' '}
+          <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
+        </p>
+      </CenteredNotice>
     )
   }
 
-  // Has projects - show selector
   return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: '60vh',
-        padding: 'var(--base)',
-      }}
-    >
-      <div
-        style={{
-          maxWidth: '500px',
-          width: '100%',
-          background: 'var(--theme-elevation-50)',
-          padding: 'calc(var(--base) * 2.5)',
-          borderRadius: 'var(--style-radius-m)',
-          border: '1px solid var(--theme-elevation-200)',
-        }}
-      >
-        <h2
-          style={{
-            fontSize: 'calc(var(--base-body-size) * 2px)',
-            fontWeight: 'bold',
-            color: 'var(--theme-elevation-900)',
-            marginBottom: 'calc(var(--base) * 0.8)',
-            textAlign: 'center',
-          }}
-        >
-          Select a Project
-        </h2>
-        <p
-          style={{
-            fontSize: 'calc(var(--base-body-size) * 1.15px)',
-            color: 'var(--theme-elevation-700)',
-            lineHeight: '1.6',
-            marginBottom: 'calc(var(--base) * 2)',
-            textAlign: 'center',
-          }}
-        >
-          Please select a project to get started:
-        </p>
-
-        {/* List available projects */}
-        <div
-          style={{
-            background: 'var(--theme-elevation-100)',
-            padding: 'calc(var(--base) * 1.2)',
-            borderRadius: 'var(--style-radius-s)',
-            marginBottom: 'calc(var(--base) * 2)',
-          }}
-        >
-          <p
-            style={{
-              fontSize: 'calc(var(--base-body-size) * 0.95px)',
-              color: 'var(--theme-elevation-600)',
-              marginBottom: 'calc(var(--base) * 0.6)',
-              fontWeight: '600',
-            }}
-          >
-            Available Projects:
-          </p>
-          <ul
-            style={{
-              margin: 0,
-              paddingLeft: 'calc(var(--base) * 1.2)',
-              color: 'var(--theme-elevation-700)',
-              fontSize: 'calc(var(--base-body-size) * 0.95px)',
-            }}
-          >
-            {allowedProjects.map((project) => (
-              <li key={project}>{getProjectLabel(project)}</li>
-            ))}
-          </ul>
-        </div>
-
-        {/* Project Selector */}
-        <ProjectSelector />
-      </div>
-    </div>
+    <CenteredNotice fullHeight title="Select a project">
+      <p>
+        You can work in {projects.map((project) => getProjectLabel(project)).join(', ')}. Choose one
+        to get started.
+      </p>
+      <ProjectSelector />
+    </CenteredNotice>
   )
 }
