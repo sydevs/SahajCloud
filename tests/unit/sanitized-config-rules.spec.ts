@@ -1,4 +1,4 @@
-import type { Block, Field, SanitizedCollectionConfig } from 'payload'
+import type { AdminViewConfig, Block, Field, SanitizedCollectionConfig } from 'payload'
 
 import fs from 'node:fs/promises'
 import os from 'node:os'
@@ -12,7 +12,7 @@ import { readJobStageConfig } from '@/components/admin/JobStageView/stages'
 import { isRecord } from '@/lib/utilities/isRecord'
 import config from '@/payload.config'
 
-import { sourceOf, SRC } from '../utils/importGraph'
+import { entryAndDirectImports, resolveSpec, sourceOf, SRC } from '../utils/importGraph'
 
 /**
  * Three rules that hold over every collection and global, asserted against the
@@ -236,5 +236,65 @@ describe('a declared job stage is a readable one', { timeout: TIMEOUT }, () => {
       'imports',
       'meditation-transcripts',
     ])
+  })
+})
+
+/**
+ * `isCustomAdminView` skips `Root`'s auth redirect for every view declaring a
+ * `path`, so the gate is the view's own (`requireAdminAccess`) and a view
+ * registered without it is reachable unauthenticated. `docs/rules/admin-ui.md`
+ * carries the rest (#1030).
+ */
+const ADMIN_ACCESS_GUARD = `${SRC}/components/admin/helpers/requireAdminAccess.ts`
+
+/** A call, not a mention: an imported guard nobody calls must not satisfy this. */
+const CALLS_GUARD = /requireAdminAccess\(/
+
+/** Nor may a commented-out call, so comments come off before the match. */
+const withoutComments = (source: string): string =>
+  source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')
+
+const pathBearingViews = async (): Promise<[string, AdminViewConfig][]> => {
+  const sanitized = await config
+  return Object.entries(sanitized.admin.components.views).filter(
+    ([, view]) => view.path && view.path !== '/',
+  )
+}
+
+/**
+ * The view's own module and the ones it imports directly, because a
+ * registration naming a folder resolves to its barrel rather than to the
+ * component that calls the guard. One hop and no further: the whole graph
+ * below a view would pass it on any reachable module's call. The guard's own
+ * module is excluded: its definition matches `CALLS_GUARD` too, and would make
+ * every importer green.
+ */
+const callsTheGuard = (view: AdminViewConfig): boolean => {
+  const entry = resolveSpec(parsePayloadComponent(view.Component).path, IMPORT_MAP)
+  if (!entry) return false
+
+  return entryAndDirectImports(entry).some(
+    (file) => file !== ADMIN_ACCESS_GUARD && CALLS_GUARD.test(withoutComments(sourceOf(file))),
+  )
+}
+
+describe('every path-bearing admin view gates itself', { timeout: TIMEOUT }, () => {
+  /** A scan finding nothing would make the assertion below pass by vacuum. */
+  it('finds the registrations', async () => {
+    expect((await pathBearingViews()).map(([key]) => key).sort()).toEqual(['analytics', 'map'])
+  })
+
+  /**
+   * And so would a moved guard: the exclusion is a path, so renaming the module
+   * would silence it, and then a view that merely imports the guard passes.
+   */
+  it('excludes a file that is really the guard', () => {
+    expect(CALLS_GUARD.test(sourceOf(ADMIN_ACCESS_GUARD))).toBe(true)
+  })
+
+  it('calls requireAdminAccess from each one', async () => {
+    const views = await pathBearingViews()
+
+    expect(views.filter(([, view]) => !callsTheGuard(view)).map(([key]) => key)).toEqual([])
   })
 })
