@@ -10,9 +10,12 @@ import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
 //
 // A blank slug has no public path either way (`src/collections/Pages/webPath.ts`).
 //
-// No other `slugField` collection needs this: `authors`, `song_tags`,
-// `user_choices` and `regions` are all NOT NULL and none enables drafts — the
-// one path that skips the field's own `required` validation and lets `''` land.
+// No other `slugField` collection has rows to clear. The slug field's own
+// `required` guards nothing anywhere — the factory's uniqueness `validate`
+// replaces Payload's default validator (`src/collections/Regions/nonEmptySlug.ts`).
+// What keeps `''` out of `authors`, `song_tags`, `user_choices` and `regions`
+// is their *source* field's `required`, and drafts, which `pages` alone
+// enables, are the one path that skips it. NOT NULL would not refuse `''`.
 
 export async function up({ db }: MigrateUpArgs): Promise<void> {
   await db.execute(sql`
