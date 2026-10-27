@@ -31,10 +31,13 @@ against Payload 3.86.0 / drizzle-kit 0.31.7):
 1. **Blank-migration confirm** — fires only with no schema changes.
    `--skip-empty` suppresses it (a no-op when changes exist).
 2. **Rename-vs-create prompt** — fires on an ambiguous column change (a
-   drop+add that looks like a rename). No flag bypasses it. On non-TTY
-   stdin it **hangs indefinitely**, before writing any files. Only a
-   timeout catches it. It reads raw keypresses from a **terminal**, not
+   drop+add that looks like a rename). No flag bypasses it, and either way
+   no files are written. It reads raw keypresses from a **terminal**, not
    from stdin, so a pty answers it where a redirect cannot — see below.
+   How it ends depends on what stdin is: with no stdin at all it **hangs
+   indefinitely** and only a timeout catches it, while `< /dev/null` is an
+   EOF it reads as an abort, so the command exits **0** having printed the
+   prompt and written nothing. Both outcomes are in the table below.
 
 Run:
 
@@ -71,6 +74,7 @@ Then classify the outcome:
 | Migration created | exit 0, new `.ts` + `.json` pair | Read the DDL first (false positive below), validate (migration-validator skill), check for duplicate DDL (snapshot trap below), commit both files |
 | No schema changes | exit 0, no new files, newest `.json` already has the column | Report it. Not an error |
 | Silent CLI death | exit 0, no files, no output, column **absent** from the snapshot | The CLI died silently — see below. Do **not** conclude "no changes" |
+| Prompt refused | exit 0, no files, the rename-vs-create prompt visible in the output | The same as an interactive hang: re-run it with `python3 scripts/migrate-create-pty.py <name>`. `< /dev/null` is an EOF the prompt's TUI can read, so it exits before the timeout rather than hanging — measured on #999's second rename |
 | Interactive hang | exit 124, no new files | Re-run it with `python3 scripts/migrate-create-pty.py <name>` (below). Hand the command to the user only if that still cannot answer the prompt |
 | Partial write | exit 124, lone `.json` (no `.ts`) | Delete the orphaned `.json`, then hand off as above |
 | Other error | exit ≥ 1 with output | Surface the error. Do not retry blindly |
