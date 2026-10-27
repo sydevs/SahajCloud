@@ -89,7 +89,7 @@ async function startRun(req: PayloadRequest, importId: number) {
       collection: 'managers',
       roles: await hydrateLocalizedRoles(req.payload, uploader.id, localeIsolatedReq(req)),
     } as unknown as ImportRun['uploader'],
-    locale: batch.locale ?? undefined,
+    locale: batch.uploadLocale ?? undefined,
     defaultLanguages: (batch.defaultLanguages ?? []) as string[],
     created: [],
     skipped: [],

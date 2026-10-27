@@ -354,10 +354,12 @@ describe('Meditations Collection', () => {
         //
         // `meditations-editor` grants meditations `update`, which
         // `withDerivedGrants` derives `readVersions` from
-        // (`src/plugins/access/accessConfigs.ts`). That grant is unconditional,
-        // so this case does NOT pin the `Where` translation beside it —
-        // verified by disabling it and watching this stay green.
-        // `role-based-access.int.spec.ts` pins the translation, on `pages`.
+        // (`src/plugins/access/accessConfigs.ts`). Since #980 that grant
+        // carries a locale `Where`, so this case now pins the `version.`
+        // translation too: drop `appendVersionToQueryKey` and it queries a bare
+        // `locale` on the versions collection, which is the 400 this suite is
+        // about. `role-based-access.int.spec.ts` pins it on `pages` as well,
+        // and pins which meditations an editor's history reaches.
         const editor = await testData.createManager(payload, {
           name: 'Meditations Editor for Version History Test',
           roles: { en: ['meditations-editor'] },

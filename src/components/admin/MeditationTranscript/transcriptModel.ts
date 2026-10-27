@@ -56,6 +56,29 @@ export const transcribeUrl = (
       )}`
     : null
 
+/**
+ * Whether the Transcribe-again button may be offered for a meditation in
+ * `documentLocale`, to a manager editing in `requestLocale`.
+ *
+ * The endpoint refuses a non-admin manager outside the meditation's own
+ * language (`src/plugins/access/localeScopedWrites.ts`, #980), so the control
+ * is not offered there either: a button that can only answer 403 is what the
+ * access layer avoided for Save. Mirrored here rather than imported, because
+ * the module owning that refusal pulls `payload` in with it and this one is
+ * read by a `'use client'` component.
+ *
+ * Admins are unaffected, as the admin bypass is, and an unread language offers
+ * the button — the endpoint is what refuses, never this.
+ */
+export const mayTranscribeLocale = (
+  user: { collection?: string; type?: string } | null | undefined,
+  requestLocale: string | undefined,
+  documentLocale: unknown,
+): boolean => {
+  if (user?.collection !== 'managers' || user.type === 'admin') return true
+  return typeof documentLocale !== 'string' || documentLocale === requestLocale
+}
+
 /** Split the phrases into paragraphs at pauses, and mark the long ones. */
 export function groupTranscript(segments: TranscriptSegment[]): TranscriptParagraph[] {
   const paragraphs: TranscriptParagraph[] = []
