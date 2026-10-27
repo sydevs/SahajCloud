@@ -60,26 +60,36 @@ Every session but the sixth measured it on the same container spec — 4 cores
 (Intel Xeon @ 2.80 GHz), 15 GB, a cloud routine container. The sixth is a
 maintainer's laptop, for scale: Apple M3 Pro, 11 cores, 18 GB, so 10 workers.
 
-| Session                                                  | Files / tests | Vitest duration, consecutive runs      | Median     |
-| -------------------------------------------------------- | ------------- | -------------------------------------- | ---------- |
-| first                                                    | 198 / 2575    | 60.29 · 58.75 · 59.23 s                | 59.2 s     |
-| second, after merging `main`                             | 203 / 2643    | 82.19 · 77.93 · 73.21 s                | **77.9 s** |
-| third, after merging `main` again                        | 204 / 2653    | 47.16 · 46.38 · 47.82 s                | 47.2 s     |
-| fourth, after merging `main` again                       | 205 / 2656    | 54.00 · 50.45 s (both inside the gate) | 52.2 s     |
-| fifth, after merging `main` again                        | 218 / 2795    | 49.13 s (inside the gate)              | 49.1 s     |
-| sixth, M3 Pro laptop (#993)                              | 206 / 2676    | 18.45 · 19.15 · 18.86 s                | 18.9 s     |
-| seventh, after merging `main` again (2026-10-21)         | 218 / 2801    | 55.01 s                                | 55.0 s     |
-| eighth, after merging `main` again (2026-10-21)          | 222 / 2849    | 55.26 s                                | 55.3 s     |
-| ninth, after merging `main` again (2026-10-21)           | 224 / 2886    | 50.05 s (inside the gate)              | 50.1 s     |
-| tenth, on #1013's branch (2026-10-21)                    | 223 / 2852    | 58.08 s                                | 58.1 s     |
-| eleventh, on #1013's branch (2026-10-21)                 | 223 / 2851    | 54.78 s                                | 54.8 s     |
-| twelfth, after merging `main` into #1013 (2026-10-21)    | 225 / 2894    | 54.22 s (inside the gate)              | 54.2 s     |
-| thirteenth, on #1013's branch (2026-10-23)               | 225 / 2895    | 50.24 s (inside the gate)              | 50.2 s     |
-| fourteenth, after merging `main` again (2026-10-23)      | 226 / 2898    | 50.52 s                                | 50.5 s     |
-| fifteenth, after merging `main` again (2026-10-23)       | 226 / 2897    | 48.41 s (inside the gate)              | 48.4 s     |
-| sixteenth, after merging `main` into #1013 (2026-10-25)  | 227 / 2911    | 51.65 s (inside the gate)              | 51.7 s     |
-| seventeenth, on #1034's branch (2026-10-25)              | 227 / 2909    | 55.66 s (inside the gate)              | 55.7 s     |
-| eighteenth, after merging `main` into #1013 (2026-10-26) | 228 / 2918    | 60.66 s (inside the gate)              | 60.7 s     |
+| Session                                                | Files / tests | Vitest duration, consecutive runs            | Median     |
+| ------------------------------------------------------ | ------------- | -------------------------------------------- | ---------- |
+| first                                                  | 198 / 2575    | 60.29 · 58.75 · 59.23 s                      | 59.2 s     |
+| second, after merging `main`                           | 203 / 2643    | 82.19 · 77.93 · 73.21 s                      | **77.9 s** |
+| third, after merging `main` again                      | 204 / 2653    | 47.16 · 46.38 · 47.82 s                      | 47.2 s     |
+| fourth, after merging `main` again                     | 205 / 2656    | 54.00 · 50.45 s (both inside the gate)       | 52.2 s     |
+| fifth, after merging `main` again                      | 218 / 2795    | 49.13 s (inside the gate)                    | 49.1 s     |
+| sixth, M3 Pro laptop (#993)                            | 206 / 2676    | 18.45 · 19.15 · 18.86 s                      | 18.9 s     |
+| seventh, #1012 after merging `main` (2026-10-21)       | 218 / 2801    | 55.01 s                                      | 55.0 s     |
+| eighth, #1012 after merging `main` (2026-10-21)        | 222 / 2849    | 55.26 s                                      | 55.3 s     |
+| ninth, #1012 after merging `main` (2026-10-21)         | 224 / 2886    | 50.05 s (inside the gate)                    | 50.1 s     |
+| tenth, #999 after merging `main` (2026-10-21)          | 219 / 2807    | 55.70 s                                      | 55.7 s     |
+| eleventh, #999 after merging `main` (2026-10-21)       | 223 / 2855    | 52.93 s                                      | 52.9 s     |
+| twelfth, #999 after merging `main` (2026-10-21)        | 225 / 2892    | 51.87 s                                      | 51.9 s     |
+| thirteenth, #999 and #1012 merged (2026-10-21)         | 225 / 2898    | 56.70 s (inside the gate)                    | 56.7 s     |
+| fourteenth, #1013 on its own branch (2026-10-21)       | 223 / 2852    | 58.08 s                                      | 58.1 s     |
+| fifteenth, #1013 on its own branch (2026-10-21)        | 223 / 2851    | 54.78 s                                      | 54.8 s     |
+| sixteenth, #1013 after merging `main` (2026-10-21)     | 225 / 2894    | 54.22 s (inside the gate)                    | 54.2 s     |
+| seventeenth, #1013 on its own branch (2026-10-23)      | 225 / 2895    | 50.24 s (inside the gate)                    | 50.2 s     |
+| eighteenth, #1014 after merging `main` (2026-10-23)    | 226 / 2898    | 50.52 s                                      | 50.5 s     |
+| nineteenth, #1014 after merging `main` (2026-10-23)    | 226 / 2897    | 48.41 s (inside the gate)                    | 48.4 s     |
+| twentieth, #999 after merging `main` (2026-10-25)      | 225 / 2902    | 53.56 s (inside the gate)                    | 53.6 s     |
+| twenty-first, #999 after merging `main` (2026-10-25)   | 227 / 2917    | 53.54 s (inside the gate)                    | 53.5 s     |
+| twenty-second, #1013 after merging `main` (2026-10-25) | 227 / 2911    | 51.65 s (inside the gate)                    | 51.7 s     |
+| twenty-third, #1034 on a feature branch (2026-10-25)   | 227 / 2909    | 55.66 s (inside the gate)                    | 55.7 s     |
+| twenty-fourth, #999 after merging `main` (2026-10-26)  | 228 / 2924    | 74.58 · 64.62 s (the second inside the gate) | 69.6 s     |
+| twenty-fifth, #999 addressing a review (2026-10-26)    | 228 / 2929    | 56.58 · 56.99 s (both inside the gate)       | 56.8 s     |
+| twenty-sixth, #1013 after merging `main` (2026-10-26)  | 228 / 2918    | 60.66 s (inside the gate)                    | 60.7 s     |
+| twenty-seventh, #999 after merging `main` (2026-10-26) | 229 / 2938    | 59.58 s                                      | 59.6 s     |
+| twenty-eighth, #999 addressing a review (2026-10-27)   | 229 / 2935    | 38.62 s (inside the gate)                    | 38.6 s     |
 
 ⚠ **Those three medians span 47 to 78 s — 66% — and six spec files do not
 explain it.** Identical container spec, all on 2026-10-20, 3% more files
@@ -99,7 +109,7 @@ reads, so keep those labels and cell shapes when you add a row.
 
 | Metric                                                                                          | Value                                                             |
 | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Files / tests                                                                                   | 228 / 2918                                                        |
+| Files / tests                                                                                   | 229 / 2935                                                        |
 | Whole lane, 3 workers (slowest session median, what the consumer docs quote)                    | **77.9 s**                                                        |
 | One spec alone, the typical edit (third session)                                                | 1.3 s                                                             |
 | Slowest per-edit selection timed on 4 cores, the 3 specs naming `@/payload.config` (2026-10-21) | **8.7 s**                                                         |

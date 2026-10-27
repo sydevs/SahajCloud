@@ -29,6 +29,7 @@ import {
   resolveManagedDocIds,
   userManagesDocument,
 } from './documentManagers'
+import { isLocaleScopedCollection, scopeLocaleWrite } from './localeScopedWrites'
 import { roleScopeFromLocale } from './localizedRoles'
 import { hasPermission } from './permissions'
 import { isRegionSubtreeCollection, scopeRegionSubtreeWrite } from './regionSubtreeAccess'
@@ -52,6 +53,17 @@ function entityHasDrafts(req: PayloadRequest, slug: string): boolean {
 
   const global = req.payload.config.globals?.find((candidate) => candidate.slug === slug)
   return !!global?.versions?.drafts
+}
+
+/**
+ * True when this collection carries a top-level `locale` column, which is the
+ * document's own language, so a manager's write is scoped to it. Read off the
+ * booted config rather than a list of slugs, so a collection that takes the
+ * column is covered the day it does — see localeScopedWrites.ts.
+ */
+function scopesWritesByLocale(req: PayloadRequest, collection: ContentSlug): boolean {
+  const fields = req.payload.collections?.[collection as CollectionSlug]?.config?.flattenedFields
+  return !!fields && isLocaleScopedCollection(fields)
 }
 
 /**
@@ -185,6 +197,17 @@ export function createAccessConfig(
           isRegionSubtreeCollection(collection)
         ) {
           return scopeRegionSubtreeWrite({ req, collection, operation, id, data })
+        }
+
+        // Narrow a manager's write to the language their role was read in, on
+        // a collection carrying a top-level `locale` — the document's own
+        // language. See localeScopedWrites.ts.
+        if (
+          operation !== 'read' &&
+          scopesWritesByLocale(req, collection) &&
+          isActiveNonAdminManager(req.user)
+        ) {
+          return scopeLocaleWrite(operation, args.locale, data)
         }
 
         // A manager's `user-submissions` grant is collection-wide, but the

@@ -99,6 +99,9 @@ import * as migration_20261021_152406_retention_registry from './20261021_152406
 import * as migration_20261021_165805_merge_1010_main_snapshot from './20261021_165805_merge_1010_main_snapshot';
 import * as migration_20261024_005319_submission_location from './20261024_005319_submission_location';
 import * as migration_20261024_161437_merge_1027_main_snapshot from './20261024_161437_merge_1027_main_snapshot';
+import * as migration_20261025_195340_clients_language_rename from './20261025_195340_clients_language_rename';
+import * as migration_20261026_204230_merge_1013_main_snapshot from './20261026_204230_merge_1013_main_snapshot';
+import * as migration_20261027_000341_imports_upload_locale_rename from './20261027_000341_imports_upload_locale_rename';
 
 export const migrations = [
   {
@@ -604,6 +607,21 @@ export const migrations = [
   {
     up: migration_20261024_161437_merge_1027_main_snapshot.up,
     down: migration_20261024_161437_merge_1027_main_snapshot.down,
-    name: '20261024_161437_merge_1027_main_snapshot'
+    name: '20261024_161437_merge_1027_main_snapshot',
+  },
+  {
+    up: migration_20261025_195340_clients_language_rename.up,
+    down: migration_20261025_195340_clients_language_rename.down,
+    name: '20261025_195340_clients_language_rename',
+  },
+  {
+    up: migration_20261026_204230_merge_1013_main_snapshot.up,
+    down: migration_20261026_204230_merge_1013_main_snapshot.down,
+    name: '20261026_204230_merge_1013_main_snapshot',
+  },
+  {
+    up: migration_20261027_000341_imports_upload_locale_rename.up,
+    down: migration_20261027_000341_imports_upload_locale_rename.down,
+    name: '20261027_000341_imports_upload_locale_rename'
   },
 ];
