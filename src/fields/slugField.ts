@@ -75,10 +75,11 @@ export function slugField(options: SlugFieldOptions = {}): RowField {
     // NULL — and Postgres admits any number of NULLs under a unique index but
     // only one `''`. An autosaving collection's create view saves an empty draft
     // before it redirects, so a single `''` row refused every later create
-    // (#1038). This is exactly Payload's own default, which returns `undefined`
-    // for a nullish source and `''` for one that merely slugifies to nothing
-    // (`東京`): matching it rather than beating it keeps the collections whose
-    // slug column is NOT NULL writing what they wrote before.
+    // (#1038). Payload's own default answers `''` for a blank-string source and
+    // `undefined` only for a nullish one. We answer `undefined` for both, and
+    // keep its `''` where a source merely transliterates to nothing (`東京`) —
+    // which is what keeps the collections whose slug column is NOT NULL writing
+    // what they wrote before.
     //
     // The rule stops here rather than moving into `slugifyValue`, whose contract
     // is string to string. "Absent means NULL" is a fact about a unique-indexed
