@@ -3,7 +3,7 @@ import type { PayloadRequest, ServerProps } from 'payload'
 import { DefaultNav } from '@payloadcms/next/rsc'
 import React from 'react'
 
-import type { Manager } from '@/payload-types'
+import { isManager } from '@/plugins/access/adminOnly'
 
 import { AtlasSidebar } from './AtlasSidebar'
 
@@ -17,8 +17,7 @@ type AtlasNavProps = ServerProps & { req?: PayloadRequest }
  * `DefaultNav` unchanged.
  */
 export default function AtlasNav(props: AtlasNavProps) {
-  const user = props.user as Manager | undefined
-  if (user?.type === 'manager' && user.currentProject === 'sahaj-atlas') {
+  if (isManager(props.user, 'sahaj-atlas')) {
     return <AtlasSidebar {...props} />
   }
   return <DefaultNav {...props} />

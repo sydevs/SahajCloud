@@ -1,0 +1,74 @@
+/* Layout for the manager home alone. Controls and the table come from the CMS theme. */
+.home {
+  margin: calc(var(--base) * 0.5) 0 calc(var(--base) * 2);
+}
+.header,
+.notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--base);
+}
+.header h1 {
+  margin: 0 0 calc(var(--base) / 3);
+}
+.subtitle,
+.programInfo p,
+.programInfo small {
+  color: var(--theme-elevation-650);
+}
+.subtitle {
+  margin: 0 0 var(--base);
+}
+.notice {
+  gap: calc(var(--base) * 0.75);
+}
+.actions,
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--base) * 0.5);
+}
+.notice :global(.btn),
+.header :global(.btn) {
+  flex-shrink: 0;
+}
+.filters {
+  gap: calc(var(--base) / 3);
+  margin: var(--base) 0 calc(var(--base) * 0.75);
+}
+.filterCount {
+  margin-inline-start: calc(var(--base) / 3);
+}
+.programInfo a {
+  font-weight: 550;
+  text-decoration: none;
+}
+.programInfo a:hover {
+  text-decoration: underline;
+}
+.programInfo p {
+  margin: calc(var(--base) / 6) 0 0;
+}
+.home :global(.cell-program) {
+  width: 100%;
+  min-width: calc(var(--base) * 10);
+}
+.home :global(.cell-action) {
+  white-space: nowrap;
+}
+.pageControls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--base);
+}
+@media (max-width: 700px) {
+  .header,
+  .notice {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: calc(var(--base) * 0.75);
+  }
+}

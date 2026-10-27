@@ -87,3 +87,59 @@
 .field-type.string-select .react-select {
   width: 100%;
 }
+
+/* Shared CMS presentation. Keep status colours, focus rings and disabled
+   states owned by Payload. */
+
+/* Tabs keep Payload's own weights: the active list tab is bolder. */
+.btn:not(.btn--style-tab) {
+  --btn-font-weight: 500;
+}
+
+.btn--style-secondary:not(.btn--disabled) {
+  --btn-border: 1px solid var(--theme-elevation-250);
+  --hover-btn-border: 1px solid var(--theme-elevation-450);
+  --hover-bg: var(--theme-elevation-50);
+}
+
+label.field-label {
+  font-weight: 500;
+}
+
+.field-description {
+  color: var(--theme-elevation-650);
+  line-height: 1.55;
+}
+
+/* ============================================================================
+   6. TABLES (every list view and `Table`)
+   ============================================================================ */
+
+/* Ruled rows in a bordered frame, in place of Payload's zebra stripes. The
+   condensed appearance (relationship and join tables) keeps its own grid. */
+.table:not(.table--appearance-condensed) {
+  border: 1px solid var(--theme-border-color);
+  border-radius: var(--style-radius-m);
+
+  th,
+  td {
+    vertical-align: middle;
+  }
+
+  thead {
+    background: var(--theme-elevation-50);
+    color: var(--theme-elevation-650);
+  }
+
+  tbody tr:nth-child(odd) {
+    background: transparent;
+  }
+
+  tbody tr + tr td {
+    border-top: 1px solid var(--theme-elevation-100);
+  }
+
+  tbody tr:hover {
+    background: var(--theme-elevation-50);
+  }
+}

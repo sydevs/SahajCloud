@@ -40,6 +40,7 @@ export {
   adminOnlyCondition,
   adminOnlyFieldAccess,
   isAdminManager,
+  isManager,
   managersOnlyFieldAccess,
 } from './adminOnly'
 export { restrictUploadToAdmin } from './restrictUploadToAdmin'

@@ -28,8 +28,7 @@ import { jsonField } from '@/fields/jsonField'
 import { requireManagerPermission } from '@/lib/endpoints'
 import { runQueueSoon } from '@/lib/jobs/runQueueSoon'
 import { baseLanguageOrDefault, getLanguageOptions } from '@/lib/locales'
-import type { Manager } from '@/payload-types'
-import { isAdminManager, resolveOwnedRegionIds } from '@/plugins/access'
+import { isAdminManager, isManager, resolveOwnedRegionIds } from '@/plugins/access'
 import type { PurgeWindow, RetentionConfig } from '@/types/retention'
 
 import { IMPORT_RETENTION_DAYS, IMPORT_STALL_MS } from './constants'
@@ -56,9 +55,9 @@ export const IMPORT_WINDOWS: PurgeWindow[] = [
 
 /** Imports into a region the manager may write classes in. Without a target, admins only. */
 const inEditableRegion: Access = async ({ req }) => {
-  const user = req.user as Manager | null
+  const user = req.user
   if (isAdminManager(user)) return true
-  if (req.user?.collection !== 'managers' || user?.type !== 'manager') return false
+  if (!isManager(user)) return false
   const regions = await resolveOwnedRegionIds(req, user.id)
   return regions.length ? { targetRegion: { in: regions } } : false
 }

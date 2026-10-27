@@ -2,7 +2,7 @@ import type { CollectionBeforeValidateHook } from 'payload'
 
 import { APIError } from 'payload'
 
-import { isAdminManager } from '@/plugins/access'
+import { isAdminManager, isManager } from '@/plugins/access'
 
 /**
  * Atlas managers may only create regions inside their owned subtree — i.e. as a
@@ -27,9 +27,7 @@ export const requireOwnedParentOnCreate: CollectionBeforeValidateHook = ({
   if (operation !== 'create') return data
   const user = req.user
   if (isAdminManager(user)) return data
-  const isScopedManager =
-    user?.collection === 'managers' && (user as { type?: string }).type === 'manager'
-  if (isScopedManager && !data?.parent) {
+  if (isManager(user) && !data?.parent) {
     throw new APIError(
       'You can only create regions inside your own area — choose a parent region.',
       403,
