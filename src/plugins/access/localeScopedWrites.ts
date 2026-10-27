@@ -1,11 +1,20 @@
 /**
  * Locale-Scoped Writes (per-locale editors)
  *
- * A collection whose top-level `locale` column IS the document's own language
- * stores one language per document, while the role that writes it is granted
- * per locale and carries no language of its own. So a manager's write is
- * narrowed to the locale their role was read in — never the language the
- * document claims (#980, `docs/rules/access.md`).
+ * A collection carrying a top-level `locale` column stores one language per
+ * document, while the role that writes it is granted per locale and carries no
+ * language of its own. So a manager's write is narrowed to the locale their
+ * role was read in — never the language the document claims (#980,
+ * `docs/rules/access.md`).
+ *
+ * ⚠ **A top-level field named `locale` IS the document's own language.** That
+ * is an invariant this repo keeps, not a guess the code makes: a column
+ * meaning anything else takes a name of its own — `Clients.language` for a
+ * service's preferred language, `imports.uploadLocale` for the admin locale an
+ * upload happened in (#912). `role-based-access.int.spec.ts` names every
+ * collection carrying one and reds the suite when another appears, so a new
+ * column cannot take this scope silently. `Lectures.subtitles[].locale` is a
+ * row key inside an array, which no top-level rule reaches either way.
  *
  * Two layers, because a create's language arrives at either of two moments.
  * `scopeLocaleWrite` answers `access[operation]`, which runs before the field
@@ -15,18 +24,6 @@
  * pass, the first point a filled value exists — which is what a `duplicate`
  * has, since it sends empty `data` and then clones the SOURCE document's
  * locale.
- *
- * ⚠ **The column's meaning is declared at the field, never inferred from its
- * presence.** Two collections carry a queryable top-level `locale` and they do
- * not mean the same thing: `imports.locale` is the admin locale an upload
- * happened in (#912), so scoping it by the editor's locale would refuse a write
- * over a column that says nothing about who may write it. Presence as the rule
- * would scope it the day it takes an update grant. Only the collection owning
- * the column knows which it is, so each says so in `custom` via `localeColumn`,
- * and a column declaring nothing is scoped by nothing — `role-based-access.int.spec.ts`
- * walks the booted config and fails until it declares one.
- * `Lectures.subtitles[].locale` is a row key inside an array, which no
- * top-level rule reaches either way.
  */
 
 import type { CollectionBeforeValidateHook, FlattenedField, PayloadRequest, Where } from 'payload'
@@ -37,65 +34,21 @@ import type { LocaleCode } from '@/lib/locales'
 
 import { isAdminManager } from './adminOnly'
 
-/** What a top-level `locale` column means. */
-export type LocaleColumnMeaning = 'document-language' | 'unrelated'
-
-/** A column that declares nothing. Scoped by nothing, and the int guard's target. */
-export const UNDECLARED_LOCALE_COLUMN = 'undeclared'
-
-const CUSTOM_KEY = 'localeColumn'
-
-/**
- * `custom` for a top-level `locale` field, declaring what its column means.
- * `'document-language'` is the one value that scopes a collection's writes.
- */
-export function localeColumn(meaning: LocaleColumnMeaning): Record<string, LocaleColumnMeaning> {
-  return { [CUSTOM_KEY]: meaning }
-}
-
 type FieldList = readonly FlattenedField[]
 
 /**
- * What a field list's top-level `locale` column means, or `undefined` for a
- * list carrying none.
+ * True when the collection's writes are scoped to the role's locale.
  *
- * ⚠ **Takes `flattenedFields`, and only ever that.** Sanitization splices every
- * container that adds no path of its own — a row, a collapsible, an unnamed tab
- * or group — straight into the top level, so a walk over the raw `fields` has to
- * reproduce that rule to agree with a query. Reproducing it once missed an
- * unnamed group, which scoped the column at the access layer while leaving the
- * collection without the create hook: the `duplicate` bypass, reopened. Every
- * caller now hands the flattened list instead, so there is no copy of Payload's
- * rule to keep.
+ * ⚠ **Takes `flattenedFields`, and only ever that.** Sanitization splices
+ * every container that adds no path of its own — a row, a collapsible, an
+ * unnamed tab or group — straight into the top level, so a walk over the raw
+ * `fields` has to reproduce that rule to agree with a query. Reproducing it
+ * once missed an unnamed group, which scoped the column at the access layer
+ * while leaving the collection without the create hook: the `duplicate`
+ * bypass, reopened.
  */
-export function localeColumnMeaning(
-  fields: FieldList,
-): LocaleColumnMeaning | typeof UNDECLARED_LOCALE_COLUMN | undefined {
-  for (const field of fields) {
-    if ('name' in field && field.name === 'locale') {
-      const declared = ('custom' in field ? field.custom : undefined)?.[CUSTOM_KEY]
-      return declared === 'document-language' || declared === 'unrelated'
-        ? declared
-        : UNDECLARED_LOCALE_COLUMN
-    }
-  }
-
-  return undefined
-}
-
-// Memoized on the field array, as `getDocManagerFields` is: the answer is fixed
-// for the life of a config, and a write access decision asks on every request.
-// A WeakMap rather than a slug-keyed Map keeps a spec's throwaway config
-// isolated from the booted one.
-const verdictCache = new WeakMap<FieldList, boolean>()
-
-/** True when the collection's writes are scoped to the role's locale. */
 export function isLocaleScopedCollection(fields: FieldList): boolean {
-  const cached = verdictCache.get(fields)
-  if (cached !== undefined) return cached
-  const verdict = localeColumnMeaning(fields) === 'document-language'
-  verdictCache.set(fields, verdict)
-  return verdict
+  return fields.some((field) => 'name' in field && field.name === 'locale')
 }
 
 /**
@@ -140,8 +93,8 @@ export function isOutsideWritableLocale(req: PayloadRequest, documentLocale: unk
 /**
  * Refuse a non-admin manager's create whose resolved `locale` is not the one
  * they are editing in. Attached by `accessPlugin` to every collection, and
- * answers for the ones whose `locale` column declares `'document-language'` —
- * a verdict it reads off the same `flattenedFields` a write decision does.
+ * answers for the ones carrying a top-level `locale` — a verdict it reads off
+ * the same `flattenedFields` a write decision does.
  */
 export const restrictCreateToRequestLocale: CollectionBeforeValidateHook = ({
   collection,

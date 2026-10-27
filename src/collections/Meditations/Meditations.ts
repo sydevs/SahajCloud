@@ -19,7 +19,7 @@ import {
   normalizeMeditationFrames,
   normalizeMeditationFramesForStorage,
 } from '@/lib/meditations/frames'
-import { localeColumn, restrictUploadToAdmin } from '@/plugins/access'
+import { restrictUploadToAdmin } from '@/plugins/access'
 import { virtualUrlField } from '@/plugins/storage/urlFields'
 import { KeyframeData } from '@/types/frames'
 
@@ -246,10 +246,9 @@ export const Meditations: CollectionConfig = {
               // load — index it to keep list/pagination queries off a seq scan.
               // See issue #529 (Phase 3). Needs a migration (dev/test use push).
               index: true,
-              // What this column means, for the write scoping that reads it:
-              // the document's own language, not an editing locale (#980,
-              // `src/plugins/access/localeScopedWrites.ts`).
-              custom: localeColumn('document-language'),
+              // ⚠ The name is the opt-in: a top-level `locale` column is the
+              // document's own language, so a manager's write is scoped to it
+              // (#980, `docs/rules/access.md`).
               admin: {
                 hidden: true,
               },

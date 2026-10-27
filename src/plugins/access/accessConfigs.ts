@@ -56,10 +56,10 @@ function entityHasDrafts(req: PayloadRequest, slug: string): boolean {
 }
 
 /**
- * True when this collection's `locale` column declares itself the document's
- * own language, so a manager's write is scoped to it. Read off the booted
- * config rather than a list of slugs, so a collection that declares one is
- * covered the day it does — see localeScopedWrites.ts.
+ * True when this collection carries a top-level `locale` column, which is the
+ * document's own language, so a manager's write is scoped to it. Read off the
+ * booted config rather than a list of slugs, so a collection that takes the
+ * column is covered the day it does — see localeScopedWrites.ts.
  */
 function scopesWritesByLocale(req: PayloadRequest, collection: ContentSlug): boolean {
   const fields = req.payload.collections?.[collection as CollectionSlug]?.config?.flattenedFields
@@ -200,8 +200,8 @@ export function createAccessConfig(
         }
 
         // Narrow a manager's write to the language their role was read in, on
-        // a collection whose `locale` IS the document's language. See
-        // localeScopedWrites.ts.
+        // a collection carrying a top-level `locale` — the document's own
+        // language. See localeScopedWrites.ts.
         if (
           operation !== 'read' &&
           scopesWritesByLocale(req, collection) &&

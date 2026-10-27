@@ -11,11 +11,7 @@ import { mintLivePreviewToken } from '@/lib/livePreview/token'
 import { PREVIEW_SECRET_HEADER, resolveLivePreviewHook } from '@/lib/utilities/previewSecret'
 import type { Event, Meditation, Region } from '@/payload-types'
 import { bypassPermissions, hasAnyPermission, hasPermission } from '@/plugins/access'
-import {
-  isLocaleScopedCollection,
-  localeColumnMeaning,
-  UNDECLARED_LOCALE_COLUMN,
-} from '@/plugins/access/localeScopedWrites'
+import { isLocaleScopedCollection } from '@/plugins/access/localeScopedWrites'
 import { createSession } from '@/plugins/login'
 
 import { createRestClientAs, type RestClient } from '../utils/restRequest'
@@ -2668,44 +2664,42 @@ describe('Role-Based Access Control', () => {
   })
 
   /**
-   * The write scoping reads a declaration at the field, so a collection that
-   * gains a queryable top-level `locale` is unscoped until it says which kind
-   * of column it is. That direction is the safe one, and this is what refuses
-   * the silence: it walks the booted config and goes red until every such
-   * column declares a meaning. It is the half `RESTRICTED_COLLECTIONS` still
-   * lacks (`docs/rules/access.md`).
+   * A top-level `locale` column IS the document's own language, and its
+   * presence is the whole opt-in to write scoping. Nothing declares that per
+   * collection, so this is what keeps the invariant honest: it names every
+   * collection carrying the column and goes red when another appears. A column
+   * that means something else needs its own name — `Clients.language`,
+   * `imports.uploadLocale` — rather than a scope nobody asked for
+   * (`docs/rules/access.md`).
    *
    * `flattenedFields` is the queryable top-level path set, so `lectures` is
    * absent from it — its `locale` sits in `subtitles` rows, which no top-level
-   * rule reaches. `clients` is absent because its column is `language` now: a
-   * service's preferred language, on a collection that is not localized.
+   * rule reaches.
+   *
+   * ⚠ Confirming a new column is a language is not the whole job: the locale
+   * branch in `createAccessConfig` returns before the `user-submissions` one,
+   * so a `locale` column on that collection would replace
+   * `managerSubmissionScope`'s row restriction with a language clause. Read the
+   * branch order there before you widen this list.
    */
-  describe('every top-level locale column declares what it means', () => {
+  describe('a top-level locale column is the document language', () => {
     const carryingLocale = () =>
       payload.config.collections.filter((collection) =>
         collection.flattenedFields.some((field) => 'name' in field && field.name === 'locale'),
       )
 
-    it('declares a meaning on every one', () => {
-      const carrying = carryingLocale()
-      expect(carrying.map((collection) => collection.slug)).toContain('meditations')
-
-      for (const collection of carrying) {
-        expect(
-          localeColumnMeaning(collection.flattenedFields),
-          `${collection.slug} carries a top-level locale that declares nothing`,
-        ).not.toBe(UNDECLARED_LOCALE_COLUMN)
-      }
+    it('names every collection carrying one', () => {
+      expect(
+        carryingLocale()
+          .map((collection) => collection.slug)
+          .sort(),
+      ).toEqual(['meditations'])
     })
 
-    it('scopes meditations and leaves the upload locale out', () => {
-      const bySlug = new Map(
-        carryingLocale().map((collection) => [collection.slug, collection.flattenedFields]),
-      )
+    it('scopes the writes of the one that carries it', () => {
+      const meditations = carryingLocale().find((collection) => collection.slug === 'meditations')!
 
-      expect(isLocaleScopedCollection(bySlug.get('meditations')!)).toBe(true)
-      // The admin locale an upload happened in (#912).
-      expect(isLocaleScopedCollection(bySlug.get('imports')!)).toBe(false)
+      expect(isLocaleScopedCollection(meditations.flattenedFields)).toBe(true)
     })
   })
 })

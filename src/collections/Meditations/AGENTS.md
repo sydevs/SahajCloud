@@ -20,9 +20,9 @@ req.locale } }` to `find`/`count` operations.
   that states no language — a **duplicate** — is caught by
   `restrictCreateToRequestLocale` instead, the first place the filled value
   exists. Both live in `src/plugins/access/localeScopedWrites.ts` and reach this
-  collection because the `locale` field declares itself the document's language
-  in its `custom` — that one line is the whole opt-in, and no hook or access
-  config is wired here.
+  collection because it carries a top-level `locale` field at all: a column of
+  that name IS a document's own language, which is the whole opt-in, and no hook
+  or access config is wired here.
 - **One write is outside that opt-in**, because a `Where` cannot reach it:
   `POST :id/transcribe` proves `meditations: update` and then reads and writes
   with `overrideAccess`, so it compares the row's language itself. See

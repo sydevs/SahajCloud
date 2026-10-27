@@ -5,25 +5,22 @@ import { describe, expect, it } from 'vitest'
 import {
   isLocaleScopedCollection,
   isOutsideWritableLocale,
-  localeColumn,
-  localeColumnMeaning,
   restrictCreateToRequestLocale,
   scopeLocaleWrite,
 } from '@/plugins/access/localeScopedWrites'
 
 /**
- * A collection's `locale` column says what it means, and the write scoping
- * reads that declaration rather than the column's presence (#980).
+ * A top-level `locale` column is the document's own language, so its presence
+ * is what scopes a collection's writes (#980).
  *
  * ⚠ **Every list below is a `flattenedFields` list**, which is the only shape
  * the walk takes. Sanitization is what splices a row, a collapsible or an
- * unnamed group into the top level, so the cases that used to pin a descent
- * through one now belong to Payload — and the fields a reader would expect
- * descended are exactly the ones that reach the top level without one.
+ * unnamed group into the top level, so the lists that keep their own path are
+ * exactly the ones whose `locale` is not this column.
  *
- * What forces a NEW collection to declare a meaning is
- * `role-based-access.int.spec.ts`, which needs the booted config to see the
- * column at all.
+ * What keeps the invariant honest across the whole config is
+ * `role-based-access.int.spec.ts`, which needs the booted config to see every
+ * collection carrying the column.
  */
 
 type HookArgs = Parameters<CollectionBeforeValidateHook>[0]
@@ -36,7 +33,7 @@ const callHook = (args: {
   locale?: string
 }) =>
   restrictCreateToRequestLocale({
-    collection: { flattenedFields: args.fields ?? [localeField('document-language')] },
+    collection: { flattenedFields: args.fields ?? [localeField()] },
     data: args.data ?? {},
     operation: args.operation ?? 'create',
     req: { user: args.user ?? null, locale: args.locale ?? 'fr' } as PayloadRequest,
@@ -47,50 +44,32 @@ const frEditor = { collection: 'managers', type: 'manager' }
 const request = (user: Record<string, unknown> | null, locale = 'fr') =>
   ({ user, locale }) as PayloadRequest
 
-const localeField = (meaning?: 'document-language' | 'unrelated') =>
+const localeField = () =>
   ({
     name: 'locale',
     type: 'select',
     options: ['en', 'fr'],
-    ...(meaning && { custom: localeColumn(meaning) }),
   }) as unknown as FlattenedField
 
 const named = (name: string, type: string, fields: FlattenedField[] = []) =>
   ({ name, type, flattenedFields: fields }) as unknown as FlattenedField
 
-describe('localeColumnMeaning', () => {
-  it('reads the declaration off a top-level locale field', () => {
-    expect(localeColumnMeaning([localeField('document-language')])).toBe('document-language')
-    expect(localeColumnMeaning([localeField('unrelated')])).toBe('unrelated')
-  })
-
-  it('answers undeclared for a column that declares nothing', () => {
-    expect(localeColumnMeaning([localeField()])).toBe('undeclared')
-  })
-
-  it('answers undefined for a field list carrying no locale column', () => {
-    expect(localeColumnMeaning([named('label', 'text')])).toBeUndefined()
-  })
-
-  it('descends nothing: a container at this level owns a path, so its locale is not this column', () => {
-    expect(
-      localeColumnMeaning([named('subtitles', 'array', [localeField('document-language')])]),
-    ).toBeUndefined()
-    expect(
-      localeColumnMeaning([named('meta', 'group', [localeField('document-language')])]),
-    ).toBeUndefined()
-  })
-})
-
 describe('isLocaleScopedCollection', () => {
-  it('scopes a column declared the document language', () => {
-    expect(isLocaleScopedCollection([localeField('document-language')])).toBe(true)
+  it('scopes a collection carrying a top-level locale column', () => {
+    expect(isLocaleScopedCollection([localeField()])).toBe(true)
   })
 
-  it('fails closed on anything else', () => {
-    expect(isLocaleScopedCollection([localeField('unrelated')])).toBe(false)
-    expect(isLocaleScopedCollection([localeField()])).toBe(false)
+  it('scopes nothing without one', () => {
+    expect(isLocaleScopedCollection([])).toBe(false)
     expect(isLocaleScopedCollection([named('language', 'text')])).toBe(false)
+  })
+
+  // A container at this level owns a path of its own, so the `locale` inside
+  // it is a key in its rows rather than the document's language — which is
+  // why the list a caller hands over must be the flattened one.
+  it('descends nothing', () => {
+    expect(isLocaleScopedCollection([named('subtitles', 'array', [localeField()])])).toBe(false)
+    expect(isLocaleScopedCollection([named('meta', 'group', [localeField()])])).toBe(false)
   })
 })
 
@@ -169,14 +148,12 @@ describe('restrictCreateToRequestLocale', () => {
   })
 
   // It is attached to every collection, so standing down is its own case:
-  // without it, an upload's admin locale would scope who may create the row.
-  it('stands down on a collection whose locale column is not the document language', () => {
-    expect(() =>
-      callHook({ data: { locale: 'en' }, fields: [localeField('unrelated')], user: frEditor }),
-    ).not.toThrow()
-    expect(() =>
-      callHook({ data: { locale: 'en' }, fields: [localeField()], user: frEditor }),
-    ).not.toThrow()
+  // without it, any column a create happens to call `locale` would decide who
+  // may create the row.
+  it('stands down on a collection carrying no top-level locale column', () => {
     expect(() => callHook({ data: { locale: 'en' }, fields: [], user: frEditor })).not.toThrow()
+    expect(() =>
+      callHook({ data: { locale: 'en' }, fields: [named('language', 'text')], user: frEditor }),
+    ).not.toThrow()
   })
 })
