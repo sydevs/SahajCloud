@@ -80,10 +80,6 @@ export function slugField(options: SlugFieldOptions = {}): RowField {
     // keep its `''` where a source merely transliterates to nothing (`東京`) —
     // which is what keeps the collections whose slug column is NOT NULL writing
     // what they wrote before.
-    //
-    // The rule stops here rather than moving into `slugifyValue`, whose contract
-    // is string to string. "Absent means NULL" is a fact about a unique-indexed
-    // column, not about a string.
     slugify: ({ valueToSlugify }) => (valueToSlugify ? slugifyValue(valueToSlugify) : undefined),
     ...payloadOptions,
     overrides: (field) => {
