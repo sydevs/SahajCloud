@@ -2193,7 +2193,7 @@ export interface Import {
     | 'zu'
   )[];
   manager?: (number | null) | Manager;
-  locale?: string | null;
+  uploadLocale?: string | null;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -2474,7 +2474,7 @@ export interface Client {
   /**
    * Primary language for this service (any language).
    */
-  locale?:
+  language?:
     | (
         | 'ab'
         | 'aa'
@@ -4859,7 +4859,7 @@ export interface ClientsSelect<T extends boolean = true> {
   logo?: T;
   websiteUrl?: T;
   supportEmail?: T;
-  locale?: T;
+  language?: T;
   region?: T;
   mailingList?:
     | T
@@ -5165,7 +5165,7 @@ export interface ImportsSelect<T extends boolean = true> {
   status?: T;
   defaultLanguages?: T;
   manager?: T;
-  locale?: T;
+  uploadLocale?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;

@@ -1,11 +1,11 @@
 'use client'
 
-import { Button, toast, useDocumentInfo, useLocale } from '@payloadcms/ui'
+import { Button, toast, useAuth, useDocumentInfo, useLocale } from '@payloadcms/ui'
 import React, { useCallback, useState } from 'react'
 
 import { retranscribeWaitLabel } from '@/lib/meditations/transcriptBounds'
 
-import { transcribeUrl } from './transcriptModel'
+import { mayTranscribeLocale, transcribeUrl } from './transcriptModel'
 import { useRetryCooldown } from './useTranscriptPhase'
 
 const FAILED = 'Could not ask for a transcript.'
@@ -21,6 +21,10 @@ const FAILED = 'Could not ask for a transcript.'
  * keep:
  *
  * - **The cooldown** becomes a sentence naming the wait.
+ * - **A meditation in another language** hides it, because the endpoint refuses
+ *   a non-admin manager outside the language they are editing in
+ *   (`mayTranscribeLocale`). The document's own `locale` is read off the saved
+ *   document for the same reason the recording is, below.
  * - **No recording** hides the control outright, in every phase, exactly as
  *   the endpoint refuses it in every phase. Read off the saved document rather
  *   than the transcript row, because the recording lives on the meditation —
@@ -38,6 +42,7 @@ export const RetryTranscript: React.FC<{
   requestedAt: string | undefined
 }> = ({ meditationId, onRetried, requestedAt }) => {
   const { code: locale } = useLocale()
+  const { user } = useAuth()
   const { data } = useDocumentInfo()
   const filename = data?.filename as string | null | undefined
   const cooldownMs = useRetryCooldown(requestedAt)
@@ -81,6 +86,7 @@ export const RetryTranscript: React.FC<{
   }, [locale, meditationId, onRetried])
 
   if (!filename) return null
+  if (!mayTranscribeLocale(user, locale, data?.locale)) return null
   if (cooldownMs > 0) {
     return <span>You can ask for it again in {retranscribeWaitLabel(cooldownMs)}.</span>
   }

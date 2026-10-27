@@ -364,7 +364,10 @@ export const Clients: CollectionConfig = {
                   ],
                 },
                 {
-                  name: 'locale',
+                  // Not `locale`: this is the service's own preferred language,
+                  // not a localization locale, and the old name read as one —
+                  // `clients` is not a localized collection (#980).
+                  name: 'language',
                   type: 'select',
                   options: getLanguageOptions(),
                   admin: { description: 'Primary language for this service (any language).' },

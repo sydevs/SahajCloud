@@ -15,6 +15,7 @@ import {
   transcriptPhase,
   transcriptPhaseIsRetryable,
 } from '@/lib/meditations/transcriptBounds'
+import { isOutsideWritableLocale } from '@/plugins/access/localeScopedWrites'
 
 const refusal = (message: string, status: number, headers?: HeadersInit): Response =>
   Response.json({ errors: [{ message }] }, { headers, status })
@@ -39,7 +40,8 @@ const isDuplicateTranscript = (error: ValidationError): boolean =>
  *
  * The Transcript tab's Transcribe-again button is the only caller
  * (`RetryTranscript.tsx`). Manager-only, gated on the same `meditations: update`
- * permission an editor already holds, and so deliberately not published in the
+ * permission an editor already holds **and** on the meditation's own language,
+ * and so deliberately not published in the
  * OpenAPI spec — `tests/unit/openapi-custom-endpoints.spec.ts` holds that. Only
  * one write comes back from sydevs/SahajCloud#968: the read is still the
  * `meditations.transcript` join plus the collection the tab queries.
@@ -90,6 +92,16 @@ export const meditationTranscribe: Endpoint = {
       req,
     })
     if (!meditation) return refusal('Meditation not found.', 404)
+    // ⚠ **The gate above proves a grant, never a language.** A meditation IS
+    // one language and `meditations-editor` is granted per locale, so every
+    // other write narrows to the locale the role was read in — a narrowing that
+    // travels as a `Where` and so reaches none of the reads below
+    // (`src/plugins/access/localeScopedWrites.ts`, #980). Without this the
+    // grant stays collection-wide at this one door, and a `fr`-only editor
+    // deletes an `en` transcript and buys a new run.
+    if (isOutsideWritableLocale(req, meditation.locale)) {
+      return refusal('You can only transcribe meditations in the language you are editing in.', 403)
+    }
     if (!meditation.filename) {
       return refusal('This meditation has no recording to transcribe.', 409)
     }

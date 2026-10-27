@@ -413,8 +413,8 @@ describe('meditation transcription', () => {
       })
 
     /** A meditation whose transcript failed long enough ago to be retryable. */
-    const retryableMeditation = async (): Promise<Meditation> => {
-      const meditation = await createMeditation()
+    const retryableMeditation = async (locale = 'en'): Promise<Meditation> => {
+      const meditation = await createMeditation(locale)
       const row = await failTheRun(meditation.id)
       await backdate(row.id)
       return meditation
@@ -693,10 +693,40 @@ describe('meditation transcription', () => {
       })
 
       it('denies a manager whose roles live in another locale, and admits them in theirs', async () => {
+        const english = await retryableMeditation()
+        const french = await retryableMeditation('fr')
+
+        expect((await post(english.id, 'en', frenchRest)).status).toBe(403)
+        expect((await post(french.id, 'fr', frenchRest)).status).toBe(200)
+      })
+
+      /**
+       * The grant is per locale and a meditation IS one language, so holding
+       * the role is not enough — the row's own language has to match. Nothing
+       * narrows this read: the gate proves `meditations: update`, and the
+       * handler then reads with `overrideAccess`, so a `Where` reaches none of
+       * it (#980). Without the comparison a `fr`-only editor deletes an `en`
+       * transcript and buys a new run.
+       */
+      it('denies a meditation outside the language the editor is in', async () => {
+        const meditation = await retryableMeditation()
+        const row = await transcriptOf(meditation.id)
+
+        const { status, body } = await post(meditation.id, 'fr', frenchRest)
+
+        expect(status).toBe(403)
+        expect(JSON.stringify(body)).toContain('language you are editing in')
+        // The refusal is before the delete: the transcript it would have
+        // replaced is still the one that was there.
+        expect((await transcriptOf(meditation.id))?.id).toBe(row?.id)
+        expect(await queuedJobs(meditation.id)).toHaveLength(1)
+      })
+
+      // The admin bypass answers before any of this, as it does for a write.
+      it('admits an admin editing in another language', async () => {
         const meditation = await retryableMeditation()
 
-        expect((await post(meditation.id, 'en', frenchRest)).status).toBe(403)
-        expect((await post(meditation.id, 'fr', frenchRest)).status).toBe(200)
+        expect((await post(meditation.id, 'fr')).status).toBe(200)
       })
 
       it('denies a request that names no locale, because it resolves to the default', async () => {

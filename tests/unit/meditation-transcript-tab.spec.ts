@@ -18,6 +18,8 @@
  * - `useLivePreviewContext().iframeRef` is the live-preview iframe, which is
  *   where both playhead seams reach: `usePlaybackTime` subscribes to its
  *   origin and `useSeekToTime` posts back to it.
+ * - `useAuth().user` carries the signed-in manager, `type` included, which is
+ *   what exempts an admin from the language gate below.
  *
  * Everything under test is therefore our own: the playhead arrives as a real
  * `PLAYBACK_TIME_UPDATE` message through `playbackTimeStore`, and a seek is
@@ -48,6 +50,9 @@ const stub = vi.hoisted(() => ({
   locale: 'en' as string | undefined,
   /** The meditation's own `filename`, as the saved document holds it. */
   filename: undefined as string | null | undefined,
+  /** The meditation's own language, which the Transcribe-again gate compares. */
+  docLocale: 'en' as string | undefined,
+  user: { collection: 'managers', type: 'manager' } as Record<string, unknown> | null,
   swr: { data: undefined as unknown, error: undefined as unknown },
   swrCalls: [] as { key: unknown; options: { refreshInterval?: unknown } }[],
   iframe: null as unknown,
@@ -77,7 +82,11 @@ vi.mock('@payloadcms/ui', () => ({
   Spinner: ({ loadingText }: { loadingText?: string | null }) =>
     createElement('div', { 'data-spinner': 'true' }, loadingText),
   toast: { error: stub.toastError, success: stub.toastSuccess },
-  useDocumentInfo: () => ({ data: { filename: stub.filename }, id: stub.id }),
+  useAuth: () => ({ user: stub.user }),
+  useDocumentInfo: () => ({
+    data: { filename: stub.filename, locale: stub.docLocale },
+    id: stub.id,
+  }),
   useLocale: () => ({ code: stub.locale }),
   useLivePreviewContext: () => ({ iframeRef: stub.iframe, url: '' }),
 }))
@@ -142,6 +151,8 @@ describe('the Transcript tab', () => {
     stub.id = 7
     stub.locale = 'en'
     stub.filename = 'calm.mp3'
+    stub.docLocale = 'en'
+    stub.user = { collection: 'managers', type: 'manager' }
     stub.swr = { data: { docs: [row({ segments: SEGMENTS })] }, error: undefined }
     stub.swrCalls = []
     stub.iframe = iframeRef
@@ -456,6 +467,24 @@ describe('the Transcript tab', () => {
       expect(retryButton()).toBeNull()
     })
 
+    // `POST :id/transcribe` refuses a non-admin manager outside the
+    // meditation's own language, so the control is not offered there either
+    // (#980). An admin editing in another locale still gets it.
+    it('offers none on a meditation in another language', () => {
+      stub.docLocale = 'fr'
+      renderRow({ status: 'failed', createdAt: pastCooldown() })
+
+      expect(retryButton()).toBeNull()
+    })
+
+    it('offers it to an admin whatever language they are editing in', () => {
+      stub.docLocale = 'fr'
+      stub.user = { collection: 'managers', type: 'admin' }
+      renderRow({ status: 'failed', createdAt: pastCooldown() })
+
+      expect(retryButton()).not.toBeNull()
+    })
+
     it('names the wait instead of a button inside the cooldown', () => {
       renderRow({ status: 'failed', createdAt: ago(2 * 60 * 1000) })
 
@@ -482,6 +511,7 @@ describe('the Transcript tab', () => {
 
     it('posts to the locale-named endpoint and re-reads the row', async () => {
       stub.locale = 'cs'
+      stub.docLocale = 'cs'
       renderRow({ status: 'failed', createdAt: pastCooldown() })
 
       await act(async () => void retryButton()!.click())
