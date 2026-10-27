@@ -9,7 +9,7 @@ import {
   createLexicalWithRelationshipNode,
   createLexicalWithUploadNode,
 } from '../utils/lexicalTestHelpers'
-import { testData, type LexicalContent } from '../utils/testData'
+import { createData, testData, type LexicalContent } from '../utils/testData'
 import { createTestEnvironment, idOnlySelect } from '../utils/testHelpers'
 
 describe('Pages Collection', () => {
@@ -45,6 +45,46 @@ describe('Pages Collection', () => {
       expect(page.tags).toHaveLength(2)
       expect(page.tags).toContain(wisdomTag)
       expect(page.tags).toContain(creativityTag)
+    })
+
+    // #1038: `pages` autosaves, so the admin Create view saves an empty draft
+    // server-side before it redirects. A slug of `''` is one value under the
+    // unique index, so the second such draft was refused and the view rendered
+    // nothing — no one could create a Page at all. NULL has no such limit.
+    it('creates successive untitled drafts, each with a null slug', async () => {
+      const first = await payload.create({
+        collection: 'pages',
+        data: createData<'pages'>({}),
+        draft: true,
+      })
+      const second = await payload.create({
+        collection: 'pages',
+        data: createData<'pages'>({}),
+        draft: true,
+      })
+
+      expect(first.slug).toBeNull()
+      expect(second.slug).toBeNull()
+    })
+
+    it('generates the slug once an untitled draft is given a title', async () => {
+      const draft = await payload.create({
+        collection: 'pages',
+        data: createData<'pages'>({}),
+        draft: true,
+      })
+
+      // The admin posts whole form state, so the slug it holds comes back
+      // alongside the new title. Payload only regenerates while that value
+      // still matches the stored one.
+      const titled = await payload.update({
+        collection: 'pages',
+        id: draft.id,
+        data: { title: 'Our Approach', slug: draft.slug },
+        draft: true,
+      })
+
+      expect(titled.slug).toBe('our-approach')
     })
   })
 

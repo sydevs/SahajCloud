@@ -70,7 +70,14 @@ export function slugField(options: SlugFieldOptions = {}): RowField {
     // Default for every slugField: transliterating slugify so non-Latin titles /
     // names (Cyrillic, …) produce readable ASCII slugs instead of collapsing to
     // empty under Payload's ASCII-only default.
-    slugify: ({ valueToSlugify }) => slugifyValue(valueToSlugify),
+    //
+    // ⚠ `undefined`, never `''`, for a blank source. Payload's own default
+    // returns `undefined` here, which leaves the column NULL — and Postgres
+    // admits any number of NULLs under a unique index but only one `''`. On an
+    // autosaving collection the create view saves an empty draft first, so a
+    // single `''` row made every later Create collide (#1038). `slugifyValue`
+    // itself still answers `''`; its seed callers rely on that for their `||`.
+    slugify: ({ valueToSlugify }) => slugifyValue(valueToSlugify) || undefined,
     ...payloadOptions,
     overrides: (field) => {
       // Apply description if provided
