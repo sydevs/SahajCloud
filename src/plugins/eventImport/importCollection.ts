@@ -29,7 +29,7 @@ import { requireManagerPermission } from '@/lib/endpoints'
 import { runQueueSoon } from '@/lib/jobs/runQueueSoon'
 import { baseLanguageOrDefault, getLanguageOptions } from '@/lib/locales'
 import type { Manager } from '@/payload-types'
-import { isAdminManager, localeColumn, resolveOwnedRegionIds } from '@/plugins/access'
+import { isAdminManager, resolveOwnedRegionIds } from '@/plugins/access'
 import type { PurgeWindow, RetentionConfig } from '@/types/retention'
 
 import { IMPORT_RETENTION_DAYS, IMPORT_STALL_MS } from './constants'
@@ -226,11 +226,11 @@ const SIDEBAR_FIELDS: Field[] = [
   },
   {
     // The admin locale at the upload, which the job writes the classes in.
-    name: 'locale',
+    // ⚠ Never spelled `locale`: a top-level column of that name IS a
+    // document's own language, and so scopes who may write the row (#912,
+    // `docs/rules/access.md`). This one says nothing about that.
+    name: 'uploadLocale',
     type: 'text',
-    // Not the row's own language, so locale-scoped writes must skip it (#912,
-    // `src/plugins/access/localeScopedWrites.ts`).
-    custom: localeColumn('unrelated'),
     admin: { hidden: true },
   },
 ]
@@ -298,7 +298,7 @@ export const importCollection: CollectionConfig = {
     beforeChange: [
       ({ data, operation, req }) =>
         operation === 'create' && req.user?.collection === 'managers'
-          ? { ...data, manager: req.user.id, locale: req.locale ?? null, status: 'pending' }
+          ? { ...data, manager: req.user.id, uploadLocale: req.locale ?? null, status: 'pending' }
           : data,
     ],
     // No file is stored, so there is no URL to offer: without this the edit

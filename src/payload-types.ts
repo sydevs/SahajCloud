@@ -2193,7 +2193,7 @@ export interface Import {
     | 'zu'
   )[];
   manager?: (number | null) | Manager;
-  locale?: string | null;
+  uploadLocale?: string | null;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -5165,7 +5165,7 @@ export interface ImportsSelect<T extends boolean = true> {
   status?: T;
   defaultLanguages?: T;
   manager?: T;
-  locale?: T;
+  uploadLocale?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;
