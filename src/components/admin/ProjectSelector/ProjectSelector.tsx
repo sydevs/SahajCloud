@@ -1,16 +1,15 @@
 'use client'
 
-import { ReactSelect, toast, useAuth, useRouteTransition } from '@payloadcms/ui'
-import { usePathname, useRouter } from 'next/navigation'
+import { ReactSelect, toast, useAuth } from '@payloadcms/ui'
 import { useMemo, useState } from 'react'
 
 import { InlineLogo } from '@/components/branding'
 import { useProject } from '@/contexts/ProjectContext'
 import { clientLogger } from '@/lib/logger/clientLogger'
 import type { ProjectSlug } from '@/payload-types'
-import { getProjectOptions, getProjectsFromRoles } from '@/plugins/access/config'
+import { getManagerProjects, getProjectOptions } from '@/plugins/access/config'
 
-import { shouldRedirectToAdmin } from './utils'
+import { useSwitchProject } from './useSwitchProject'
 
 // Define Option type for ReactSelect
 interface SelectOption {
@@ -29,9 +28,7 @@ const containerStyle: React.CSSProperties = {
 const ProjectSelector = () => {
   const { currentProject, setCurrentProject } = useProject()
   const { user } = useAuth()
-  const { startRouteTransition } = useRouteTransition()
-  const router = useRouter()
-  const pathname = usePathname()
+  const switchProject = useSwitchProject()
   const [isSaving, setIsSaving] = useState(false)
 
   // Calculate allowed projects and available options
@@ -48,11 +45,12 @@ const ProjectSelector = () => {
 
     const allProjects = getProjectOptions()
 
-    // Compute allowed projects from user's roles
     const allowedProjects =
       user?.type === 'admin'
         ? allProjects.map((p) => p.value) // Admins see all projects
-        : getProjectsFromRoles(user?.roles)
+        : user
+          ? getManagerProjects(user)
+          : []
 
     // Add projects the user has access to
     allowedProjects.forEach((projectValue) => {
@@ -66,7 +64,7 @@ const ProjectSelector = () => {
     })
 
     return options
-  }, [user?.type, user?.roles])
+  }, [user])
 
   // A non-admin with a single project has nothing to switch to — show the
   // project's logo + name as a header instead of a "Current Project" selector.
@@ -91,25 +89,7 @@ const ProjectSelector = () => {
     setCurrentProject(newProject)
     setIsSaving(true)
     try {
-      // Lightweight self-only persist — skips the generic Managers PATCH pipeline.
-      const response = await fetch('/api/managers/set-project', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ currentProject: newProject }),
-      })
-
-      if (!response.ok) {
-        throw new Error(`Failed to update project: ${response.statusText}`)
-      }
-
-      // Re-render the current route so the nav re-evaluates admin.hidden under
-      // the new project. Only navigate to /admin when the collection currently
-      // viewed becomes hidden — otherwise the route stays valid and refreshes
-      // in place (no full navigation).
-      startRouteTransition(() =>
-        shouldRedirectToAdmin(pathname, newProject) ? router.push('/admin') : router.refresh(),
-      )
+      await switchProject(newProject)
     } catch (error) {
       clientLogger.error('Failed to update project', error)
       toast.error('Failed to change project. Please try again.')

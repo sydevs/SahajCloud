@@ -1,10 +1,21 @@
 'use client'
 
-import { useAuth } from '@payloadcms/ui'
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { toast, useAuth } from '@payloadcms/ui'
+import { usePathname } from 'next/navigation'
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 
+import { useSwitchProject } from '@/components/admin/ProjectSelector/useSwitchProject'
+import { clientLogger } from '@/lib/logger/clientLogger'
 import type { ProjectSlug } from '@/payload-types'
-import { getProjectsFromRoles } from '@/plugins/access/config'
+import { resolveProject } from '@/plugins/access/config'
 
 interface ProjectContextType {
   currentProject: ProjectSlug | null
@@ -13,51 +24,38 @@ interface ProjectContextType {
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined)
 
+/**
+ * Wraps the whole admin (`AdminProvider`), so a manager with a single project is
+ * moved into it from any page, not only the dashboard.
+ */
 export const ProjectProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth()
+  const pathname = usePathname()
+  const switchProject = useSwitchProject()
   const [currentProject, setCurrentProject] = useState<ProjectSlug | null>(null)
+  // `useAuth` keeps the pre-save user after the refresh, so without this the
+  // effect would save again on its next run. Cleared on failure, so the next
+  // navigation retries.
+  const attempted = useRef<ProjectSlug | null>(null)
 
-  // Validate current project and auto-select if needed
+  const resolved = useMemo(() => (user ? resolveProject(user) : null), [user])
+
   useEffect(() => {
-    if (!user) return
+    if (resolved) setCurrentProject(resolved.project)
+  }, [resolved])
 
-    // Compute allowed projects from user's roles
-    const allowedProjects = getProjectsFromRoles(user.roles)
-    const current = user.currentProject
-
-    // Case 1: Admin with no project selected - use null (admin view)
-    if (user.type === 'admin' && !current) {
-      setCurrentProject(null)
-      return
-    }
-
-    // Case 2: Current project is valid - keep it
-    if (current && (user.type === 'admin' || allowedProjects.includes(current))) {
-      setCurrentProject(current)
-      return
-    }
-
-    // Case 3: Auto-select if only one project available
-    if (user.type !== 'admin' && allowedProjects.length === 1) {
-      const selected = allowedProjects[0]
-      setCurrentProject(selected)
-
-      // Persist the auto-selected project via the lightweight self-only endpoint.
-      fetch('/api/managers/set-project', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ currentProject: selected }),
-      }).catch((error) => {
-        // eslint-disable-next-line no-console
-        console.error('Failed to auto-select project:', error)
-      })
-      return
-    }
-
-    // Case 4: Multiple projects or invalid current - require manual selection
-    setCurrentProject(null)
-  }, [user, user?.id, user?.roles, user?.currentProject, user?.type])
+  // Separate from the effect above, so a retry on navigation never resets a
+  // project the selector has switched to since.
+  useEffect(() => {
+    const project = resolved?.persist ? resolved.project : null
+    if (!project || attempted.current === project) return
+    attempted.current = project
+    switchProject(project).catch((error) => {
+      attempted.current = null
+      clientLogger.error('Failed to open the only project', error)
+      toast.error('Could not open your project. Reload the page to try again.')
+    })
+  }, [resolved, pathname, switchProject])
 
   return (
     <ProjectContext.Provider value={{ currentProject, setCurrentProject }}>

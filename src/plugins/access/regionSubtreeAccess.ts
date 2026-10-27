@@ -27,6 +27,7 @@
 import type { ContentSlug } from './types'
 import type { PayloadRequest, Where } from 'payload'
 
+import { isManager } from './adminOnly'
 import { getDocManagerFields, relationId, resolveManagedDocIds } from './documentManagers'
 
 /** Collections whose writes are scoped to the Atlas manager's owned-region subtree. */
@@ -68,7 +69,7 @@ export async function ownedRegionFilterOptions({
   req: PayloadRequest
 }): Promise<Where | boolean> {
   const user = req.user
-  if (user?.collection !== 'managers' || (user as { type?: string }).type !== 'manager') {
+  if (!isManager(user)) {
     return true
   }
   const ownedRegionIds = await resolveOwnedRegionIds(req, Number(user.id))

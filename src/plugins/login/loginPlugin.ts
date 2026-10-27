@@ -151,9 +151,10 @@ const SIGN_IN_VIEW = '@/components/admin/SignIn'
  *
  * ⚠ **Every key of `admin`, `admin.components` and `views` is spread, never
  * replaced.** `src/payload.config.ts` declares `providers`, `beforeNavLinks`,
- * `Nav`, `beforeDashboard`, `graphics` and two custom `views` there — assigning
- * a fresh object would delete the project selector, the custom nav and both
- * custom views, and nothing would fail until someone opened the admin panel.
+ * `Nav`, `graphics` and three custom `views` there — assigning a fresh object
+ * would delete the project selector, the custom nav and every custom view, the
+ * dashboard included, and nothing would fail until someone opened the admin
+ * panel.
  *
  * Only for the collection the admin panel authenticates, and only when it is
  * `passwordless`: the view has no password field, so on a collection that

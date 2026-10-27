@@ -40,3 +40,5 @@ export {
   getProjectsFromRoles,
   getReadableCollections,
 } from './roles'
+export { getManagerProjects, resolveProject } from './currentProject'
+export type { ProjectUser } from './currentProject'

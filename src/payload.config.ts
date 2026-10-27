@@ -151,7 +151,6 @@ const payloadConfig = (overrides?: Partial<Config>) => {
         // Non-admin Atlas managers get a custom sidebar; everyone else falls
         // back to DefaultNav inside the component itself. See AtlasNav.
         Nav: '@/components/admin/AtlasNav/AtlasNav',
-        beforeDashboard: ['@/components/admin/Dashboard/ProjectSelectionPrompt'],
         graphics: {
           Logo: '@/components/branding/Logo',
           Icon: '@/components/branding/Icon',
@@ -160,6 +159,12 @@ const payloadConfig = (overrides?: Partial<Config>) => {
           analytics: {
             Component: '@/components/admin/AnalyticsView',
             path: '/analytics',
+          },
+          // The admin homepage, in place of Payload's widget grid: one custom
+          // view per project. Takes no `path` — `dashboard` is the key Payload's
+          // route resolver looks up for `/admin`.
+          dashboard: {
+            Component: '@/components/admin/Dashboard/DashboardView',
           },
           map: {
             Component: '@/components/admin/AtlasMapView',

@@ -7,7 +7,8 @@ import { isValidProject } from '@/plugins/access'
 
 const bodySchema = z.object({
   // `null` is the admin "All Content" view. A slug selects a project.
-  // `isValidProject` is the membership check, and `''` is not a member.
+  // `isValidProject` checks the slug exists, not that the caller holds it; `''`
+  // is no slug. Nothing here needs to — see the grant note below.
   //
   // The refine sits on the field, so its predicate narrows `parsed.data`.
   currentProject: z.string().nullable().refine(isValidProject, { message: 'Invalid project.' }),

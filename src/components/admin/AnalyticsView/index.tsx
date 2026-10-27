@@ -6,8 +6,8 @@ import { SetStepNav } from '@payloadcms/ui'
 
 import type { Manager } from '@/payload-types'
 
-import FathomDashboard from './Dashboard/FathomDashboard'
-import { requireAdminAccess } from './helpers/requireAdminAccess'
+import FathomDashboard from './FathomDashboard'
+import { requireAdminAccess } from '../helpers/requireAdminAccess'
 
 export default function AnalyticsView({
   initPageResult,
