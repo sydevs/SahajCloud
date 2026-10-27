@@ -2,8 +2,8 @@
 
 import { useProject } from '@/contexts/ProjectContext'
 
-import { NAV_LINKS } from './helpers/navLinks'
-import NavLink from './NavLink'
+import { NAV_LINKS } from './links'
+import NavLink from '../NavLink'
 
 /** Top-of-sidebar links. */
 const AdminNavLinks = () => {

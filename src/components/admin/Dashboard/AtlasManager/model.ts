@@ -17,7 +17,7 @@ const DEFAULT_LIMIT = 50
 export type ProgramQuery = { tab: ProgramTab; page: number; limit: number }
 
 /** What the loader reads and the home renders: the one shape both sides import. */
-export type AtlasManagerHomeData = {
+export type AtlasManagerData = {
   canCreate: boolean
   query: ProgramQuery
   counts: Record<ProgramTab, number>

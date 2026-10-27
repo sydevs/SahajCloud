@@ -1,11 +1,11 @@
-import type { AtlasAdminHomeData, OverviewCount } from './data'
+import type { AtlasAdminData, OverviewCount } from './data'
 
 import { Button, Card, Pill, Table } from '@payloadcms/ui'
 import Link from 'next/link'
 import { toWords } from 'payload/shared'
 
-import styles from './AtlasAdminHome.module.css'
-import { PUBLIC_MAP_LINK } from '../../helpers/navLinks'
+import styles from './AtlasAdmin.module.css'
+import { NAV_LINKS } from '../../AdminNavLinks/links'
 import { tableColumn } from '../../helpers/tableColumn'
 
 /** Stages a manager has let slide, whose counts should catch the eye. */
@@ -32,13 +32,7 @@ function CountCards({ items }: { items: (OverviewCount & { alert?: boolean })[] 
 }
 
 /** Every count links into Payload's own list view, filtered to its rows. */
-export function AtlasAdminHomeView({
-  data,
-  language,
-}: {
-  data: AtlasAdminHomeData
-  language: string
-}) {
+export function AtlasAdminView({ data, language }: { data: AtlasAdminData; language: string }) {
   const dateFormat = new Intl.DateTimeFormat(language, {
     dateStyle: 'medium',
     timeStyle: 'short',
@@ -50,8 +44,8 @@ export function AtlasAdminHomeView({
           <h1>Sahaj Atlas</h1>
           <p className={styles.subtitle}>Map-wide health, open work, and recent changes.</p>
         </div>
-        <Button el="link" url={PUBLIC_MAP_LINK.href} buttonStyle="secondary" margin={false}>
-          {PUBLIC_MAP_LINK.label}
+        <Button el="link" url={NAV_LINKS.map.href} buttonStyle="secondary" margin={false}>
+          {NAV_LINKS.map.label}
         </Button>
       </header>
 

@@ -7,7 +7,7 @@ import {
   paginate,
   PROGRAM_TABS,
   sortPrograms,
-  type AtlasManagerHomeData,
+  type AtlasManagerData,
   type Program,
   type ProgramQuery,
 } from './model'
@@ -22,10 +22,10 @@ import {
  * the stage and status the nightly job acts on. Only the page shown then reads
  * its latest drafts, for what the manager last wrote.
  */
-export async function getAtlasManagerHomeData(
+export async function getAtlasManagerData(
   req: PayloadRequest,
   query: ProgramQuery,
-): Promise<AtlasManagerHomeData> {
+): Promise<AtlasManagerData> {
   const access = req.payload.collections.events.config.access
   // Concurrent reads on one req must not share it (src/collections/AGENTS.md).
   const [scope, canCreate] = await Promise.all([
@@ -78,7 +78,7 @@ export async function getAtlasManagerHomeData(
     query: { ...query, page: page.page ?? query.page },
     counts: Object.fromEntries(
       PROGRAM_TABS.map((tab) => [tab, ordered.filter((row) => inProgramTab(row, tab)).length]),
-    ) as AtlasManagerHomeData['counts'],
+    ) as AtlasManagerData['counts'],
     programs: {
       ...page,
       docs: page.docs.map((row): Program => {

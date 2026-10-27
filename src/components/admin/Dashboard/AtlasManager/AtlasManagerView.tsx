@@ -14,18 +14,18 @@ import {
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 
-import styles from './AtlasManagerHome.module.css'
+import styles from './AtlasManager.module.css'
 import {
   PROGRAM_LIMITS,
   programStatus,
-  type AtlasManagerHomeData,
+  type AtlasManagerData,
   type Program,
   type ProgramQuery,
   type ProgramStatus,
   type ProgramTab,
 } from './model'
+import { NAV_LINKS } from '../../AdminNavLinks/links'
 import { CenteredNotice } from '../../CenteredNotice'
-import { PUBLIC_MAP_LINK } from '../../helpers/navLinks'
 import { tableColumn } from '../../helpers/tableColumn'
 
 const TABS: { value: ProgramTab; label: string }[] = [
@@ -76,7 +76,7 @@ function nextStep(program: Program): string {
 }
 
 /** A small composition of native Payload controls; data and permissions stay on the server. */
-export function AtlasManagerHomeView({ data }: { data: AtlasManagerHomeData }) {
+export function AtlasManagerView({ data }: { data: AtlasManagerData }) {
   const setQuery = useProgramQuery()
   const { counts, programs, query } = data
   const rows = programs.docs
@@ -90,8 +90,8 @@ export function AtlasManagerHomeView({ data }: { data: AtlasManagerHomeData }) {
           </p>
         </div>
         <div className={styles.actions}>
-          <Button el="link" url={PUBLIC_MAP_LINK.href} buttonStyle="secondary" margin={false}>
-            {PUBLIC_MAP_LINK.label}
+          <Button el="link" url={NAV_LINKS.map.href} buttonStyle="secondary" margin={false}>
+            {NAV_LINKS.map.label}
           </Button>
           {data.canCreate && counts.all > 0 && (
             <Button

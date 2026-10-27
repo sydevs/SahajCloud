@@ -17,7 +17,7 @@ export type RecentProgram = Pick<
   regionName: string | null
 }
 
-export type AtlasAdminHomeData = {
+export type AtlasAdminData = {
   health: (OverviewCount & { stage: VerificationStage })[]
   /** Work only an admin can move: unadopted events, unmanaged countries, open proposals. */
   attention: OverviewCount[]
@@ -57,7 +57,7 @@ export function listHref(collection: string, where: Where): string {
  * The admin's view of the whole map. Every count is a list-view filter, so an
  * admin follows one straight into the rows behind it.
  */
-export async function getAtlasAdminHomeData(req: PayloadRequest): Promise<AtlasAdminHomeData> {
+export async function getAtlasAdminData(req: PayloadRequest): Promise<AtlasAdminData> {
   // Concurrent reads on one req must not share it (src/collections/AGENTS.md).
   const count = (collection: 'events' | 'regions' | 'user-submissions', where: Where) =>
     req.payload

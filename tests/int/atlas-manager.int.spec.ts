@@ -3,11 +3,8 @@ import type { Payload } from 'payload'
 import { createLocalReq } from 'payload'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { getAtlasManagerHomeData } from '@/components/admin/Dashboard/AtlasManagerHome/data'
-import {
-  programStatus,
-  type ProgramQuery,
-} from '@/components/admin/Dashboard/AtlasManagerHome/model'
+import { getAtlasManagerData } from '@/components/admin/Dashboard/AtlasManager/data'
+import { programStatus, type ProgramQuery } from '@/components/admin/Dashboard/AtlasManager/model'
 import type { Manager as ManagerDoc } from '@/payload-types'
 
 import { createData, testData } from '../utils/testData'
@@ -96,7 +93,7 @@ describe('Atlas manager home', () => {
   const request = (user: ManagerDoc) =>
     createLocalReq({ user: { ...user, collection: 'managers' }, locale: 'en' }, payload)
   const load = async (user: ManagerDoc, query: Partial<ProgramQuery> = {}) =>
-    getAtlasManagerHomeData(await request(user), { tab: 'all', page: 1, limit: 50, ...query })
+    getAtlasManagerData(await request(user), { tab: 'all', page: 1, limit: 50, ...query })
   const ids = (data: { programs: { docs: { id: number }[] } }) =>
     data.programs.docs.map((event) => event.id)
 

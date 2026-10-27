@@ -3,7 +3,7 @@ import type { Payload, PayloadRequest } from 'payload'
 import { createLocalReq } from 'payload'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { getAtlasAdminHomeData } from '@/components/admin/Dashboard/AtlasAdminHome/data'
+import { getAtlasAdminData } from '@/components/admin/Dashboard/AtlasAdmin/data'
 import type { Manager } from '@/payload-types'
 
 import { createData, testData } from '../utils/testData'
@@ -22,7 +22,7 @@ describe('Atlas admin home', () => {
       headers: new Headers(),
     }) as unknown as PayloadRequest
   const overview = async () =>
-    getAtlasAdminHomeData(
+    getAtlasAdminData(
       await createLocalReq({ user: { ...admin, collection: 'managers' }, locale: 'en' }, payload),
     )
   const countOf = (items: { label: string; count: number }[], label: string) =>
