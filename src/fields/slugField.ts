@@ -71,13 +71,19 @@ export function slugField(options: SlugFieldOptions = {}): RowField {
     // names (Cyrillic, …) produce readable ASCII slugs instead of collapsing to
     // empty under Payload's ASCII-only default.
     //
-    // ⚠ `undefined`, never `''`, for a blank source. Payload's own default
-    // returns `undefined` here, which leaves the column NULL — and Postgres
-    // admits any number of NULLs under a unique index but only one `''`. On an
-    // autosaving collection the create view saves an empty draft first, so a
-    // single `''` row made every later Create collide (#1038). `slugifyValue`
-    // itself still answers `''`; its seed callers rely on that for their `||`.
-    slugify: ({ valueToSlugify }) => slugifyValue(valueToSlugify) || undefined,
+    // ⚠ A blank source answers `undefined`, never `''`, which leaves the column
+    // NULL — and Postgres admits any number of NULLs under a unique index but
+    // only one `''`. An autosaving collection's create view saves an empty draft
+    // before it redirects, so a single `''` row refused every later create
+    // (#1038). This is exactly Payload's own default, which returns `undefined`
+    // for a nullish source and `''` for one that merely slugifies to nothing
+    // (`東京`): matching it rather than beating it keeps the collections whose
+    // slug column is NOT NULL writing what they wrote before.
+    //
+    // The rule stops here rather than moving into `slugifyValue`, whose contract
+    // is string to string. "Absent means NULL" is a fact about a unique-indexed
+    // column, not about a string.
+    slugify: ({ valueToSlugify }) => (valueToSlugify ? slugifyValue(valueToSlugify) : undefined),
     ...payloadOptions,
     overrides: (field) => {
       // Apply description if provided

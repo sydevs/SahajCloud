@@ -1,26 +1,18 @@
 import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
 
-// Data only — no schema change. The `.json` beside this file is the previous
-// migration's snapshot under this timestamp, which keeps the chain intact.
+// Data only — no DDL; the `.json` is the prior snapshot re-stamped
+// (`src/migrations/AGENTS.md`).
 //
-// `pages.slug` carries a unique index, and Postgres admits any number of NULLs
-// under one but only a single `''`. `pages` autosaves, so the admin Create view
-// saves an empty draft server-side before it redirects — and one row holding
-// `''` refused every one of those (#1038). `slugField` now writes NULL for a
-// blank title; this clears the rows written before it did.
+// Clears the blank slugs written before `slugField` started answering NULL for
+// one (#1038 — see that override for why `''` was fatal). `_pages_v` is swept
+// alongside, with no index to force it: restoring a version whose
+// `version_slug` is `''` would write that value back onto the row.
 //
-// `_pages_v` is swept too, with no index to force it: restoring a version whose
-// `version_slug` is `''` would write that value straight back onto the row and
-// re-arm the collision.
+// A blank slug has no public path either way (`src/collections/Pages/webPath.ts`).
 //
-// A page with no slug has no public path either way — `buildPageWebPath` reads
-// `''` and NULL alike (`src/collections/Pages/webPath.ts`) — so nothing a
-// reader can see changes here.
-//
-// The other `slugField` collections need no sweep: `authors`, `song_tags`,
-// `user_choices` and `regions` all declare `slug` NOT NULL, so none can hold
-// NULL, and none enables drafts — the one path that skips the field's own
-// `required` validation and lets `''` land.
+// No other `slugField` collection needs this: `authors`, `song_tags`,
+// `user_choices` and `regions` are all NOT NULL and none enables drafts — the
+// one path that skips the field's own `required` validation and lets `''` land.
 
 export async function up({ db }: MigrateUpArgs): Promise<void> {
   await db.execute(sql`

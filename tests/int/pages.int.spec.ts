@@ -47,36 +47,23 @@ describe('Pages Collection', () => {
       expect(page.tags).toContain(creativityTag)
     })
 
-    // #1038: `pages` autosaves, so the admin Create view saves an empty draft
-    // server-side before it redirects. A slug of `''` is one value under the
-    // unique index, so the second such draft was refused and the view rendered
-    // nothing — no one could create a Page at all. NULL has no such limit.
+    // What the admin Create view does before it redirects (#1038).
+    const createUntitledDraft = () =>
+      payload.create({ collection: 'pages', data: createData<'pages'>({}), draft: true })
+
     it('creates successive untitled drafts, each with a null slug', async () => {
-      const first = await payload.create({
-        collection: 'pages',
-        data: createData<'pages'>({}),
-        draft: true,
-      })
-      const second = await payload.create({
-        collection: 'pages',
-        data: createData<'pages'>({}),
-        draft: true,
-      })
+      const first = await createUntitledDraft()
+      const second = await createUntitledDraft()
 
       expect(first.slug).toBeNull()
       expect(second.slug).toBeNull()
     })
 
     it('generates the slug once an untitled draft is given a title', async () => {
-      const draft = await payload.create({
-        collection: 'pages',
-        data: createData<'pages'>({}),
-        draft: true,
-      })
+      const draft = await createUntitledDraft()
 
-      // The admin posts whole form state, so the slug it holds comes back
-      // alongside the new title. Payload only regenerates while that value
-      // still matches the stored one.
+      // Sends the slug back as the admin's form state does: Payload regenerates
+      // only while the posted value still matches the stored one.
       const titled = await payload.update({
         collection: 'pages',
         id: draft.id,
