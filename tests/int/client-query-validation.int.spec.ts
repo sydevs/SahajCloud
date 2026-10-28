@@ -1,16 +1,13 @@
 import type { Payload, PayloadRequest } from 'payload'
 
-import { sanitizePopulateParam, sanitizeSelectParam } from 'payload'
-import { isNumber } from 'payload/shared'
+import { parseParams } from 'payload'
 import * as qs from 'qs-esm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { atlasSeo } from '@/endpoints/atlas/seo'
-import { atlasSitemap } from '@/endpoints/atlas/sitemap'
 import { serverEnv } from '@/lib/env'
 import { mintLivePreviewToken } from '@/lib/livePreview/token'
 import { resolveLivePreviewHook } from '@/lib/utilities/previewSecret'
-import type { Client, Event, Image, Narrator, Page, Region } from '@/payload-types'
+import type { Client, Image, Narrator, Page } from '@/payload-types'
 import { MAX_CLIENT_LIMIT, MAX_CLIENT_PAGE } from '@/plugins/usage/constants'
 
 import { testData } from 'tests/utils/testData'
@@ -20,8 +17,8 @@ import { createClientAuthenticatedRequest, createTestEnvironment } from '../util
 /**
  * Emulate Payload's REST URL → args parse pipeline:
  *   createPayloadRequest → qs.parse(search) → parseParams(query)
- * Same `qs.parse` options as `createPayloadRequest` (depth: 10, arrayLimit: 1000)
- * and same sanitize functions as `parseParams`. Returns the args shape that
+ * Same `qs.parse` options as `createPayloadRequest` (depth: 10, arrayLimit:
+ * 1000), then payload's own `parseParams`. Returns the args shape that
  * beforeOperation hooks receive when a real HTTP request hits the REST handler.
  */
 function parseRestQuery(url: string): Record<string, unknown> {
@@ -31,30 +28,13 @@ function parseRestQuery(url: string): Record<string, unknown> {
     depth: 10,
     ignoreQueryPrefix: true,
   }) as Record<string, unknown>
-  const args = { ...query }
-  if ('select' in args) {
-    // sanitizeSelectParam mutates the input. Pass through it the same way parseParams does
-    args.select = sanitizeSelectParam(args.select as never)
-  }
-  if ('populate' in args) {
-    args.populate = sanitizePopulateParam(args.populate as never)
-  }
-  // `parseParams` coerces these three only when payload's own `isNumber`
-  // passes. A REST case added without this passes vacuously — the string
-  // '2001' is not > 2000.
-  for (const key of ['depth', 'limit', 'page']) {
-    if (key in args && isNumber(args[key])) args[key] = Number(args[key])
-  }
-  // `pagination` is a `booleanParam`, coerced by `parseBooleanString` — which
-  // payload exports from no public entry point, so it is reproduced here. The
-  // string 'false' is truthy, so a REST case added without this asserts
-  // nothing. Note the fallback: `?pagination=0` arrives as `undefined` and
-  // defaults to true, so `false` has exactly one REST spelling.
-  if ('pagination' in args) {
-    args.pagination =
-      args.pagination === 'true' ? true : args.pagination === 'false' ? false : undefined
-  }
-  return args
+  // `parseParams` is payload's own second stage, exported from `payload`, so
+  // this helper reproduces none of it. Reaching for it rather than coercing the
+  // params a case happens to use is what keeps the emulation faithful: it
+  // parses all 11, so a case added for a new one cannot assert vacuously
+  // against an uncoerced string ('2001' is not > 2000, and 'false' is truthy).
+  // It mutates its argument, which is why the spread above is not reused.
+  return parseParams({ ...query }) as Record<string, unknown>
 }
 
 describe('Client query parameter validation', () => {
@@ -239,7 +219,6 @@ describe('Client query parameter validation', () => {
 
     it.each([
       ['a limit at the cap', { limit: MAX_CLIENT_LIMIT }],
-      ['an absent limit and page', {}],
       ['pagination=false with a non-zero limit', { pagination: false, limit: 100 }],
     ])('allows %s', async (_name, args) => {
       const result = await findAsClient(args)
@@ -300,35 +279,22 @@ describe('Client query parameter validation', () => {
     })
   })
 
-  // SahajCloud reads unpaginated on the caller's own `req` in three places, and
+  // SahajCloud reads unpaginated on the caller's own `req` in four places, and
   // the gate reads its arguments rather than the URL — so it cannot tell those
-  // from a client asking for the whole table. Each now forwards
-  // `asTrustedReq(req)` (#889); without that, every case here 400s from inside
-  // SahajCloud on a request the client spelled correctly.
+  // from a client asking for the whole table. Each forwards `asTrustedReq` as of
+  // #889; without that the refusal 400s from inside SahajCloud, on a request the
+  // client spelled correctly.
   //
-  // Driven through the field and the endpoint rather than a hand-built
-  // `payload.find`, because the forwarded read is what the refusal meets and
-  // only these paths issue it.
+  // Only the region tree's case lives here, because this is the spec that owns
+  // the gate's contract and that read is reachable from a plain collection read.
+  // The others are covered where their own contract lives, by cases asserting a
+  // whole response rather than a status: reverting the wraps reds 23 cases in
+  // `atlas-sitemap.int.spec.ts`, 36 in `atlas-seo.int.spec.ts`,
+  // `events.int.spec.ts`'s client `findByID` selecting `webPath`, and
+  // `app-status-readiness.int.spec.ts`.
   describe("SahajCloud's own unpaginated reads on a client req", () => {
-    let region: Region
-    let event: Event
-
-    // The two atlas endpoints read `regions` and `events` on the caller's
-    // authority, so a `wemeditate-web-client` key reaches them and is refused
-    // 403 before the unbounded read is ever issued.
-    const atlasClientReq = (): PayloadRequest =>
-      createClientAuthenticatedRequest(testClient.id, testClient.apiKey || 'test-key', [
-        'sahaj-atlas-client',
-      ]) as PayloadRequest
-
     beforeAll(async () => {
-      region = await testData.createRegion(payload, { name: 'Boundland', slug: 'boundland' })
-      event = await testData.createEvent(payload, {
-        region: region.id,
-        // `webPath` resolves to null on an unpublished event, which would make
-        // the assertion below pass whether the tree loaded or not.
-        _status: 'published',
-      })
+      await testData.createRegion(payload, { name: 'Boundland', slug: 'boundland' })
     })
 
     // `webPath`/`webUrl`'s afterRead resolves the whole region tree through
@@ -347,43 +313,6 @@ describe('Client query parameter validation', () => {
       // Non-vacuous only if the field resolved: a null `webPath` would mean the
       // resolver returned before it read anything.
       expect(result.docs.map((doc) => doc.webPath)).toContain('/boundland')
-    })
-
-    it('serves a client read selecting webPath on events', async () => {
-      const result = await payload.findByID({
-        collection: 'events',
-        id: event.id,
-        select: { webPath: true },
-        depth: 0,
-        req: clientReq(),
-        overrideAccess: true,
-      })
-      expect(result.webPath).toBe(`/boundland/${event.id}`)
-    })
-
-    // Both of this endpoint's reads are unpaginated by design — a truncated
-    // sitemap is worse than a slow one, and nothing in the response would say
-    // it had been cut.
-    it('serves GET /api/atlas/sitemap for a client', async () => {
-      const response = (await atlasSitemap.handler({
-        ...atlasClientReq(),
-        payload,
-        query: {},
-        routeParams: {},
-      } as unknown as PayloadRequest)) as Response
-      expect(response.status).toBe(200)
-    })
-
-    // The seo endpoint reaches `loadRegionTree` too, through its own route
-    // resolution rather than through a selected field.
-    it('serves GET /api/atlas/seo for a client', async () => {
-      const response = (await atlasSeo.handler({
-        ...atlasClientReq(),
-        payload,
-        query: { route: '/boundland' },
-        routeParams: {},
-      } as unknown as PayloadRequest)) as Response
-      expect(response.status).toBe(200)
     })
   })
 

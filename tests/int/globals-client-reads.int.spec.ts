@@ -152,6 +152,34 @@ describe('client reads of a global (#710)', () => {
     })
   })
 
+  // The gate skips a *global* read made on our own authority, and nothing about
+  // this global's own arguments is unbounded. Its readiness fields are the
+  // catch: each one's `afterRead` fans out into **collection** reads, which get
+  // the gates raw, on a copy of the caller's `req` that carries the client by
+  // reference — and those reads are deliberately unpaginated.
+  //
+  // So "a global read is unaffected" is true of the global and false of what it
+  // fans out to. `sections/shared.ts`'s `isolatedReq` wraps them trusted for
+  // that reason (#889); without it this read 400s and the operator report is
+  // unreachable for the one project whose client may read it.
+  describe('a readiness field fans out into unpaginated collection reads', () => {
+    it("serves wm-app-status to the app client that holds the project's implicit read", async () => {
+      const result = await payload.findGlobal({
+        slug: 'wm-app-status',
+        // A readiness field computes on read, so selecting it is what runs the
+        // fan-out — an unselected field returns before its hook.
+        select: { userChoices: true },
+        locale: 'en',
+        depth: 0,
+        req: clientReq({ roles: ['wemeditate-app-client'] }),
+        overrideAccess: false,
+      })
+      // Non-vacuous only if the hook ran to completion: a refused inner read
+      // throws rather than returning a partial section.
+      expect(result.userChoices).toBeDefined()
+    })
+  })
+
   describe('origin enforcement', () => {
     it('refuses a global read from an origin outside a non-empty allowedDomains', async () => {
       await expect(

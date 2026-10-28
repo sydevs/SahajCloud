@@ -325,9 +325,11 @@ export const validateClientQueryParamsHook: ClientReadGate = ({ args, operation,
  * 500 as `OFFSET -20`. A negative `limit` is harmless — the adapter swallows
  * it — and is refused anyway rather than splitting the rule in two.
  *
- * `0` passes for both: it is payload's "no limit" sentinel on `limit` and
- * reads as page 1 on `page`. Whether a client may read unbounded at all is
- * `docs/rules/api-clients.md`'s question, not this gate's.
+ * `0` passes both bounds: it is payload's "no limit" sentinel on `limit` and
+ * reads as page 1 on `page` (`find.js`: `sanitizedPage = page || 1`). The
+ * sentinel is refused, but by {@link assertRequestIsBounded} rather than here —
+ * that rule sits on the far side of two bypasses this one runs ahead of, which
+ * is why the two cannot share a body.
  */
 function assertWithinBound(
   name: 'limit' | 'page',
@@ -372,13 +374,10 @@ function assertWithinBound(
  * would 400 on a client request.
  */
 function assertRequestIsBounded(args: ReadOperationArgs, req: PayloadRequest): void {
-  const spelling =
-    args.limit === 0
-      ? 'limit=0'
-      : args.limit == null && args.pagination === false
-        ? 'pagination'
-        : null
-  if (spelling === null) return
+  let spelling: 'limit=0' | 'pagination=false'
+  if (args.limit === 0) spelling = 'limit=0'
+  else if (args.limit == null && args.pagination === false) spelling = 'pagination=false'
+  else return
 
   req.payload.logger.warn({
     msg: 'Client query validation rejected: unbounded read',

@@ -4,6 +4,7 @@ import { isUploadAssigned, type CheckResult } from '@/lib/status'
 import { isRecord } from '@/lib/utilities/isRecord'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
+import { asTrustedReq } from '@/plugins/usage/hooks'
 
 // --- Locale scoping. Every read here copies the request it was handed; `runSection` copies nothing. ---
 
@@ -13,9 +14,18 @@ import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
  * assigns both onto whatever request it is handed (#982). An omitted
  * `fallbackLocale` is not the safe choice: Payload sanitises `undefined` back
  * to the locale's own fallback, undoing a `fallbackLocale: false` next to it.
+ *
+ * ⚠ **Trusted as well as isolated, because these reads are unpaginated.** A
+ * client may read this global — `wm-app-status` is in the `wemeditate-app`
+ * project, so `wemeditate-app-client` holds implicit read — and selecting a
+ * readiness field fans its `afterRead` out into *collection* reads on a copy of
+ * the caller's own `req`, which get the usage gates raw. Untrusted, each would
+ * meet the unbounded-read refusal (#889) and 400 a global read that is allowed.
+ * Every read in this folder goes through here, so the wrap belongs here rather
+ * than at fourteen call sites.
  */
 export function isolatedReq(req?: PayloadRequest): PayloadRequest | undefined {
-  return req ? localeIsolatedReq(req) : undefined
+  return req ? asTrustedReq(localeIsolatedReq(req)) : undefined
 }
 
 /**

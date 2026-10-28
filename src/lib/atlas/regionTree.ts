@@ -137,8 +137,8 @@ async function loadRegionTree(req: PayloadRequest): Promise<RegionTree> {
     // ⚠ Trusted, because this whole-table read runs on the caller's own `req`
     // and a client's `req` would otherwise meet the unbounded-read refusal from
     // inside SahajCloud (#889) — on every page of a client's own paginated
-    // walk, since the memo below is per request. It is SahajCloud asking, not
-    // the client: the client selected `webPath`, not 646 region rows.
+    // walk, since the memo below is per request. The client asked for one
+    // document's `webPath`; the table scan is ours.
     req: asTrustedReq(req),
   })
   const rows = docs as RegionRow[]
