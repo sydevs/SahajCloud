@@ -19,6 +19,7 @@
  */
 import type { Payload, PayloadRequest } from 'payload'
 
+import { docAccessOperation } from 'payload'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { buildReminderEntry } from '@/lib/eventVerification/log'
@@ -385,6 +386,32 @@ describe('Managers access (#821)', () => {
       // an empty column.
       expect(self.notificationPreferences).toMatchObject({ invitation: { frequency: 'Never' } })
       expect(self.contactDetails).toHaveLength(1)
+    })
+
+    it('is offered its own locked inputs in the admin, and not another row’s', async () => {
+      // What the edit view renders from. ⚠ `getEntityPermissions` calls
+      // `populateFieldPermissions` with no `id`, only the fetched row as `doc`,
+      // so a lock reading `id` alone answers "unreadable" for the holder's own
+      // document — and `RenderFields` renders nothing for a field with no read
+      // permission, which would leave this manager's Contact tab empty.
+      // `sanitizePermissions` collapses an all-allowed set to a bare `true`,
+      // at either level, so both shapes have to be read.
+      const readableOn = async (id: number, names: string[]): Promise<string[]> => {
+        const { fields } = await docAccessOperation({
+          id,
+          collection: payload.collections.managers,
+          req: managerReq(atlasManager),
+        })
+        if (fields === true) return names
+        return names.filter((name) => {
+          const field = fields[name]
+          return field === true || field?.read === true
+        })
+      }
+
+      const asked = ['name', 'email', 'contactDetails', 'notificationPreferences']
+      expect(await readableOn(atlasManager.id, asked)).toEqual(asked)
+      expect(await readableOn(eventManager.id, asked)).toEqual(['name'])
     })
 
     it('is the only thing narrowing the read — an admin still sees every field', async () => {
