@@ -42,6 +42,7 @@ const REMINDER_DESTINATION = 'reminded-manager@example.com'
 describe('Managers access (#821)', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
+  let adminUser: Manager
   let eventManager: Manager
   let atlasManager: Manager
   let client: Client
@@ -67,16 +68,34 @@ describe('Managers access (#821)', () => {
     const env = await createTestEnvironment()
     payload = env.payload
     cleanup = env.cleanup
+    adminUser = env.adminUser
 
     eventManager = await testData.createManager(payload, {
       name: 'Event Manager',
       email: 'event-manager@example.com',
       roles: ['atlas-manager'],
+      // Every locked field carries a value, so the field-lock read-backs below
+      // assert a deletion rather than an empty column. The three machine
+      // columns are `update: () => false`, which a create does not consult.
+      language: 'en',
+      contactDetails: [{ platform: 'whatsapp', identifier: '+15550000001', verified: true }],
+      notificationPreferences: { event_verification: { frequency: 'Monthly', method: 'email' } },
+      lastRegistrationDigestSentAt: new Date().toISOString(),
+      legacyId: 4242,
+      legacyData: { phone: '+15550000001' },
+      magicLinkIssuedAt: new Date().toISOString(),
+      // Seeded so the column is non-null even if nothing assigns this manager.
+      // The invitation queue rewrites both when the region below names them.
+      pendingInvitation: { regions: [1] },
+      invitationDueAt: new Date().toISOString(),
     })
     atlasManager = await testData.createManager(payload, {
       name: 'Atlas Manager',
       email: 'atlas-manager@example.com',
       roles: ['atlas-manager'],
+      // The self-read case asserts these come back, so they have to be set.
+      contactDetails: [{ platform: 'telegram', identifier: '@atlas-manager' }],
+      notificationPreferences: { invitation: { frequency: 'Never' } },
     })
 
     region = await testData.createRegion(payload, {
@@ -283,7 +302,8 @@ describe('Managers access (#821)', () => {
   })
 
   describe('an atlas-manager', () => {
-    it('still reads managers, through the explicit grant', async () => {
+    /** Another manager's row, as the picker's own read returns it. */
+    const readOther = async (): Promise<Manager> => {
       const { docs } = await payload.find({
         collection: 'managers',
         depth: 0,
@@ -291,10 +311,108 @@ describe('Managers access (#821)', () => {
         overrideAccess: false,
         req: managerReq(atlasManager),
       })
-
+      const other = docs.find((doc) => doc.id === eventManager.id)
       // The picker lists OTHER managers, so a self-scoped result would be a
       // regression rather than a pass.
-      expect(docs.some((doc) => doc.id === eventManager.id)).toBe(true)
+      expect(other).toBeDefined()
+      return other!
+    }
+
+    it('still reads managers, through the explicit grant', async () => {
+      // What the `Events.manager` and `Regions.managers` pickers render:
+      // `admin.useAsTitle` is `name`, so the grant has to survive the locks.
+      expect((await readOther()).name).toBe('Event Manager')
+    })
+
+    it('reads nothing on another manager but the title and the timestamps', async () => {
+      // ⚠ A denied `array` comes back as `[]`, not absent: access control
+      // deletes the key and the array branch then re-assigns an empty array
+      // (`payload/dist/fields/hooks/afterRead/promise.js`). `toBeUndefined()`
+      // would fail here against a correct implementation.
+      const other = await readOther()
+      expect(Object.keys(other).sort()).toEqual([
+        'collection',
+        'contactDetails',
+        'createdAt',
+        'id',
+        'name',
+        'sessions',
+        'updatedAt',
+      ])
+      expect(other.contactDetails).toEqual([])
+      expect(other.sessions).toEqual([])
+    })
+
+    it('reads none of the machine columns on another manager, asking by name', async () => {
+      // A `select` is how a caller asks for a field directly rather than
+      // taking what a list happens to return.
+      const { docs } = await payload.find({
+        collection: 'managers',
+        select: {
+          name: true,
+          email: true,
+          _verified: true,
+          magicLinkIssuedAt: true,
+          pendingInvitation: true,
+          invitationDueAt: true,
+          legacyId: true,
+          legacyData: true,
+          notificationPreferences: true,
+        },
+        depth: 0,
+        pagination: false,
+        overrideAccess: false,
+        req: managerReq(atlasManager),
+      })
+
+      const other = docs.find((doc) => doc.id === eventManager.id)
+      expect(other).toBeDefined()
+      expect(Object.keys(other!).sort()).toEqual(['collection', 'id', 'name'])
+    })
+
+    it('still reads its own row whole', async () => {
+      const self = await payload.findByID({
+        collection: 'managers',
+        id: atlasManager.id,
+        depth: 0,
+        overrideAccess: false,
+        req: managerReq(atlasManager),
+      })
+
+      expect(self.email).toBe('atlas-manager@example.com')
+      expect(self.type).toBe('manager')
+      // Set on this fixture below, so the key being present is a read and not
+      // an empty column.
+      expect(self.notificationPreferences).toMatchObject({ invitation: { frequency: 'Never' } })
+      expect(self.contactDetails).toHaveLength(1)
+    })
+
+    it('is the only thing narrowing the read — an admin still sees every field', async () => {
+      // Non-vacuity for the three cases above: the fixture really does hold a
+      // value in every field they assert is gone, and the locks are what
+      // withhold them rather than an empty row.
+      const whole = await payload.findByID({
+        collection: 'managers',
+        id: eventManager.id,
+        depth: 0,
+        overrideAccess: false,
+        req: managerReq(adminUser),
+      })
+
+      expect(whole.email).toBe('event-manager@example.com')
+      expect(whole.type).toBe('manager')
+      expect(whole.contactDetails).toHaveLength(1)
+      expect(whole.notificationPreferences).toMatchObject({
+        event_verification: { frequency: 'Monthly' },
+      })
+      expect(whole.legacyId).toBe(4242)
+      expect(whole.legacyData).toMatchObject({ phone: '+15550000001' })
+      expect(whole.magicLinkIssuedAt).toBeTruthy()
+      // The invitation queue owns this column's shape, so only its presence is
+      // this spec's business.
+      expect(whole.pendingInvitation).toBeTruthy()
+      expect(whole.invitationDueAt).toBeTruthy()
+      expect(whole.lastRegistrationDigestSentAt).toBeTruthy()
     })
 
     it('still reads and writes registrationNotificationEmail', async () => {
