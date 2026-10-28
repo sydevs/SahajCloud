@@ -41,6 +41,19 @@ const folded = (loginPlugin({ collections: [managersLogin] }) as (config: Config
 
 const fields: FlattenedField[] = flattenAllFields({ fields: folded.fields })
 
+/** A non-admin manager — what `atlas-manager`'s pickers read as. */
+const ATLAS_MANAGER = { collection: 'managers', id: 7, type: 'manager' }
+const ANOTHER_ROW = 8
+
+/** A `read` lock's arguments, in the shape `afterRead` passes them. */
+const readOf = (rowId: number, user: unknown): FieldAccessArgs => ({
+  id: rowId,
+  data: {},
+  doc: { id: rowId } as never,
+  siblingData: {},
+  req: { user } as PayloadRequest,
+})
+
 describe('Managers field read locks', () => {
   it('enumerates the collection, the plugin columns and the legacy collapsible', () => {
     // Non-vacuity first: a shallow enumeration would make the sweep below pass
@@ -61,16 +74,24 @@ describe('Managers field read locks', () => {
     }
   })
 
-  it('locks every named field outside MANAGER_PUBLIC_FIELDS', () => {
-    // ⚠ Asked through `readLockOf`, the same function the hook enforcing these
+  it('denies an atlas-manager every named field outside MANAGER_PUBLIC_FIELDS', async () => {
+    // ⚠ **Each lock is EVALUATED, not counted.** "Carries a read function" is
+    // not the property: `read: () => true` is one, and so is Payload's own
+    // `defaultAccess` — which is how the sanitized sweep in
+    // `managers-access.int.spec.ts` first passed with `_verified` wide open.
+    //
+    // ⚠ Read through `readLockOf`, the same function the hook enforcing these
     // locks reads them with: a lock in a shape only this spec recognised would
     // pass here and still leak.
-    const unlocked = fields
-      .filter((field) => !MANAGER_PUBLIC_FIELDS.has(field.name))
-      .filter((field) => !readLockOf(field))
-      .map((field) => field.name)
+    const readable: string[] = []
+    for (const field of fields) {
+      if (MANAGER_PUBLIC_FIELDS.has(field.name)) continue
+      const lock = readLockOf(field)
+      const allowed = lock ? await lock(readOf(ANOTHER_ROW, ATLAS_MANAGER)) : true
+      if (allowed) readable.push(field.name)
+    }
 
-    expect(unlocked).toEqual([])
+    expect(readable).toEqual([])
   })
 
   it('leaves the picker title readable', () => {
@@ -81,7 +102,7 @@ describe('Managers field read locks', () => {
 })
 
 describe('selfOrAdminFieldAccess', () => {
-  const manager = { collection: 'managers', id: 7, type: 'manager' }
+  const manager = ATLAS_MANAGER
   const may = (user: unknown, args: Omit<FieldAccessArgs, 'req'> = {}) =>
     selfOrAdminFieldAccess({ ...args, req: { user } as PayloadRequest })
 
