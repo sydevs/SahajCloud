@@ -42,7 +42,6 @@ export {
   isAdminManager,
   isManager,
   managersOnlyFieldAccess,
-  isOwnRow,
   selfOrAdminFieldAccess,
 } from './adminOnly'
 export { readLockOf } from './stripLockedFieldsOnSelfRead'
