@@ -113,6 +113,22 @@ Two differences follow from the guard denying rather than throwing. It captures 
 
 ⚠ **`requireActiveManager` is deliberately not covered.** It guards the admin surface, where a denial is a person's stale session far more often than a broken integration, and #743's criteria name the client guard alone. Adding it is a one-line call to the same helper if the admin surface ever wants the signal.
 
+### A swallowed admin write reaches no one (#1039)
+
+`afterError` is invoked from `routeError` and the GraphQL handler alone, so it sees only a failure a routed request answers with. The admin also writes through the **Local API**, while a page renders or inside a server function, and those failures are caught inside `node_modules`: `DocumentView` hands the error to Payload's `logError` and returns `undefined` — the page answers 200 with the admin chrome and an empty body — and `schedulePublishHandler` returns `{ error }` to the UI. Payload logs a `ValidationError` at `info` by default, so neither leaves a line that reads as an incident, and nothing escapes the render for `onRequestError` to see. That is how #1038 — nobody could create a Page at all — stood for four months, visible only in the Railway deploy log.
+
+Two such paths exist in this app. The **autosave create-on-open** (`payload.create` while the document view renders) needs `autosave` and no `versions.drafts.validate`, so `pages` is the only collection that reaches it. **`schedule-publish`** is reachable on `pages` and `meditations`. Save, Publish and the periodic autosave are not among them: they submit to the REST API and already report.
+
+`installLocalApiCapture` (`src/plugins/sentry/localApiCapture.ts`) wraps every Local API write on the live instance from the plugin's `onInit`, and reports through the same `captureFailure` body the hook uses — one set of exclusions, so a new site cannot re-report what `mapPostgresCastError` deliberately drops. Two gates keep it to writes the admin makes. A request Payload itself routed is excluded, because `afterError` is about to report it and our own hooks write through the Local API while one is in flight; `src/plugins/sentry/payloadRouteScope.ts` carries that flag, set by the generated REST route and read through Node's async context. And a write with no acting user is excluded, which is every job, seed and operator script.
+
+⚠ **`jobs.queue` is wrapped separately.** It writes the row through `payload.db.create` unless `jobs.depth` or `jobs.runHooks` is configured, so wrapping the collection operations does not reach it — and it is half of `schedule-publish`. One error instance still reports once: the queue's throw is the create's.
+
+⚠ **The capture reads `data.errors[].path`, not the message.** A `ValidationError`'s message carries field _labels_, which are localised and change with the editor's language. `tests/int/admin-write-capture.int.spec.ts` pins the paths against a real failed `payload.create`, because a hand-built fixture that is wrong about that shape passes while production reports no field at all.
+
+⚠ **Editing `src/app/(payload)/api/[...slug]/route.ts` is required, and it is generated.** It carries Payload's "DO NOT MODIFY" banner. Re-running the generator drops the `withPayloadRouteScope` wrapper, and an ordinary REST 400 then reports twice.
+
+The managers sign-in action reports from its own catch (`src/components/admin/SignIn/actions.ts`). Its answer is uniform by design, so nothing downstream can, and it has no acting user — the page is open to anyone, which is the point.
+
 ### What an error body discloses (#684)
 
 `config.debug` (`!isProduction`) controls the response body, not logging: with it on, `routeError` attaches `response.stack` and the real error message. It was `true` everywhere until #684, so production once returned a database error's full statement and bound parameters. Server logs and Sentry are unaffected either way.
