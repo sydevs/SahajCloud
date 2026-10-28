@@ -134,11 +134,9 @@ async function loadRegionTree(req: PayloadRequest): Promise<RegionTree> {
     // Anything added here must be checked against that same rule; `name` is a
     // plain text column with no hooks, so it adds a column and nothing else.
     select: { slug: true, name: true, breadcrumbs: true },
-    // ⚠ Trusted, because this whole-table read runs on the caller's own `req`
-    // and a client's `req` would otherwise meet the unbounded-read refusal from
-    // inside SahajCloud (#889) — on every page of a client's own paginated
-    // walk, since the memo below is per request. The client asked for one
-    // document's `webPath`; the table scan is ours.
+    // ⚠ Trusted: the client asked for one document's `webPath`, and this
+    // table scan is ours, so the unbounded-read refusal is not theirs to
+    // meet (#889).
     req: asTrustedReq(req),
   })
   const rows = docs as RegionRow[]

@@ -325,18 +325,15 @@ export const validateClientQueryParamsHook: ClientReadGate = ({ args, operation,
  * 500 as `OFFSET -20`. A negative `limit` is harmless — the adapter swallows
  * it — and is refused anyway rather than splitting the rule in two.
  *
- * `0` passes both bounds: it is payload's "no limit" sentinel on `limit` and
- * reads as page 1 on `page` (`find.js`: `sanitizedPage = page || 1`). The
- * sentinel is refused, but by {@link assertRequestIsBounded} rather than here —
- * that rule sits on the far side of two bypasses this one runs ahead of, which
- * is why the two cannot share a body.
+ * `0` passes both bounds: payload's "no limit" sentinel on `limit`, and page 1
+ * on `page` (`find.js`: `sanitizedPage = page || 1`).
+ * {@link assertRequestIsBounded} refuses the sentinel instead.
  *
  * ⚠ **A present non-number is refused, not skipped.** `parseParams` coerces
- * `limit` and `page` only when payload's own `isNumber` passes, so `?limit=abc`
- * and a bare `?limit=` arrive as the strings `'abc'` and `''`. Skipping those
- * handed the driver a non-integer `LIMIT` and answered 500 — the very hole this
- * function closes for a 20-digit number. Only an **absent** value may pass:
- * `find.js` defaults it, and most reads send neither.
+ * these two only when payload's own `isNumber` passes, so `?limit=abc` and a
+ * bare `?limit=` arrive as strings and reached the driver as a non-integer
+ * `LIMIT` — the same 500 this function closes for a 20-digit number. Only an
+ * **absent** value may pass (#889).
  */
 function assertWithinBound(
   name: 'limit' | 'page',
@@ -362,23 +359,15 @@ function assertWithinBound(
 /**
  * Refuse a client read of the whole table (#889).
  *
- * Payload decides this in two steps, so neither parameter answers it alone:
- * `collections/operations/find.js` computes
- * `usePagination = pagination && limit !== 0` and then
- * `limit ?? (usePagination ? 10 : 0)`, and `@payloadcms/drizzle`'s `findMany`
- * turns a `0` into `undefined`, emitting no `LIMIT` clause at all. So a read is
- * unbounded in exactly two shapes: `limit: 0`, and an absent `limit` with
- * `pagination: false`.
+ * Neither parameter answers it alone: `collections/operations/find.js` computes
+ * `usePagination = pagination && limit !== 0`, then `limit ?? (usePagination ?
+ * 10 : 0)`, and `@payloadcms/drizzle`'s `findMany` turns a `0` into `undefined`,
+ * emitting no `LIMIT` clause at all. So exactly two shapes are unbounded:
+ * `limit: 0`, and an absent `limit` with `pagination: false`. `pagination:
+ * false` beside a non-zero limit only skips the `COUNT(*)`, so it stays allowed.
  *
- * Both other shapes stay allowed, deliberately. `pagination: false` with a
- * non-zero `limit` is bounded — it only skips the `COUNT(*)`, which three
- * internal reads do on purpose — and an absent `limit` alone defaults to 10.
- *
- * ⚠ **Unlike {@link assertWithinBound}, this runs after the `asTrustedReq` and
- * live-preview bypasses.** A range bound keeps a number out of the driver; this
- * is a policy about what a client may ask for. Six internal reads forward
- * `limit: 0` through `asTrustedReq`, so ahead of that bypass every one of them
- * would 400 on a client request.
+ * ⚠ Runs **after** the two bypasses above, unlike {@link assertWithinBound}.
+ * `docs/rules/api-clients.md` owns that rule and why it differs.
  */
 function assertRequestIsBounded(args: ReadOperationArgs, req: PayloadRequest): void {
   let spelling: 'limit=0' | 'pagination=false'

@@ -158,7 +158,7 @@ On rejection the hook logs the offending shape at WARN (type, top-level keys, a 
 
 A trusted internal handler forwarding a client `req` to `payload.find`/`findByID` should wrap it via `asTrustedReq()` (sets `req.context.skipClientQueryValidation`), so it need not enumerate `select` while rate limiting and usage tracking still see the authenticated client — counting it once for the whole request, not once per wrapped read (below). The companion `isTrustedReq(req)` reads that flag back. Honour it in a hook shaping the **client-facing result** (`excludeFinishedEvents` exempts a trusted req so registration can answer 409 instead of 404), but never in a security gate — `validateClientOriginHook` does not honour it.
 
-⚠ **The flag relaxes two of the three query rules, so a wrapped read is bounded by nothing but its own arguments.** It skips the `select`/`populate` shape gate and the unbounded-read refusal (#889) — which is what lets an internal read pass `limit: 0` on a client's request — while the `limit` and `page` range ceilings still apply (#887). **So wrapping a read is also taking responsibility for its size.** Say at the call site why the corpus it reads is bounded, as `loadRegionTree` and `GET /api/atlas/sitemap` do.
+⚠ **The flag relaxes two of the three query rules**: it skips the `select`/`populate` shape gate and the unbounded-read refusal (#889), while the `limit` and `page` range ceilings still apply (#887). **So wrapping a read is also taking responsibility for its size.** Say at the call site why the corpus it reads is bounded, as `loadRegionTree` and `GET /api/atlas/sitemap` do.
 
 ### One request, one count (#891)
 
