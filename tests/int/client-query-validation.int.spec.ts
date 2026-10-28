@@ -481,6 +481,20 @@ describe('Client query parameter validation', () => {
       expect(result.docs.length).toBeGreaterThan(0)
     })
 
+    // The unbounded refusal sits after this bypass, where the range bounds sit
+    // ahead of it. A preview renders a whole document, so it is trusted with
+    // its own shape — and nothing else pins which side of the bypass the
+    // refusal landed on.
+    it('allows an unbounded read when a valid preview token is present', async () => {
+      const result = await payload.find({
+        collection: 'narrators',
+        pagination: false,
+        req: await previewClientReq(),
+        overrideAccess: true,
+      })
+      expect(result.docs.length).toBeGreaterThan(0)
+    })
+
     it('allows client findByID at depth > 1 without select or populate when a valid preview token is present', async () => {
       const result = await payload.findByID({
         collection: 'narrators',
