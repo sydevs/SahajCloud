@@ -317,6 +317,36 @@ describe('User submission review lifecycle', () => {
       expect(fresh.proposedChanges).toBeNull()
       expect(fresh.previewEvent).toBeNull()
     })
+
+    it('carries the assigned manager into both projections by name alone', async () => {
+      // ⚠ Both projections resolve the manager with `overrideAccess: true`, so
+      // the `managers` field locks (#908) do not apply — and `previewEvent` is
+      // readable by every manager, `atlas-manager` included. Unselected, this
+      // handed them a colleague's whole row through a copy rather than a
+      // relationship.
+      const owner = await testData.createManager(payload, {
+        email: 'assigned-owner@example.com',
+        name: 'Assigned Owner',
+        contactDetails: [{ platform: 'whatsapp', identifier: '+44 20 7777 8888' }],
+      })
+      const created = await createProposal({ region: cityId, manager: owner.id })
+
+      const fresh = await reload(created.id)
+      const preview = fresh.previewEvent as Record<string, unknown>
+      // Exact, not `not.toHaveProperty('email')`: any column added to
+      // `Managers` would otherwise ride along here unnoticed. `collection` is
+      // Payload's own, added to every auth-collection read.
+      expect(preview.manager).toEqual({
+        id: owner.id,
+        name: 'Assigned Owner',
+        collection: 'managers',
+      })
+
+      // The diff still names them rather than printing their row number, which
+      // is the whole reason either projection resolves the row at all.
+      const changes = fresh.proposedChanges as { label: string; after: string | null }[]
+      expect(changes.find((change) => change.label === 'Manager')?.after).toBe('Assigned Owner')
+    })
   })
 
   describe('live preview', () => {
