@@ -5,10 +5,12 @@ import { isNumber } from 'payload/shared'
 import * as qs from 'qs-esm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { atlasSeo } from '@/endpoints/atlas/seo'
+import { atlasSitemap } from '@/endpoints/atlas/sitemap'
 import { serverEnv } from '@/lib/env'
 import { mintLivePreviewToken } from '@/lib/livePreview/token'
 import { resolveLivePreviewHook } from '@/lib/utilities/previewSecret'
-import type { Client, Image, Narrator, Page } from '@/payload-types'
+import type { Client, Event, Image, Narrator, Page, Region } from '@/payload-types'
 import { MAX_CLIENT_LIMIT, MAX_CLIENT_PAGE } from '@/plugins/usage/constants'
 
 import { testData } from 'tests/utils/testData'
@@ -42,6 +44,15 @@ function parseRestQuery(url: string): Record<string, unknown> {
   // '2001' is not > 2000.
   for (const key of ['depth', 'limit', 'page']) {
     if (key in args && isNumber(args[key])) args[key] = Number(args[key])
+  }
+  // `pagination` is a `booleanParam`, coerced by `parseBooleanString` — which
+  // payload exports from no public entry point, so it is reproduced here. The
+  // string 'false' is truthy, so a REST case added without this asserts
+  // nothing. Note the fallback: `?pagination=0` arrives as `undefined` and
+  // defaults to true, so `false` has exactly one REST spelling.
+  if ('pagination' in args) {
+    args.pagination =
+      args.pagination === 'true' ? true : args.pagination === 'false' ? false : undefined
   }
   return args
 }
@@ -213,15 +224,23 @@ describe('Client query parameter validation', () => {
       await expect(findAsClient(args)).rejects.toThrow(message)
     })
 
-    // `limit: 0` and `pagination: false` are payload's two spellings of an
-    // unbounded read. Both stay allowed — the Atlas widget sends the second on
-    // three live feeds, so refusing them is a policy decision with a
-    // downstream migration behind it, not part of closing the 500.
+    // `limit: 0` and `pagination: false` with no `limit` are payload's two
+    // spellings of an unbounded read, and a client now gets neither (#889).
+    // The refusal keys on the effective limit payload computes, so the third
+    // row below — bounded, and only skipping the `COUNT(*)` — still passes.
+    it.each([
+      ['limit=0', { limit: 0 }],
+      ['pagination=false with no limit', { pagination: false }],
+    ])('rejects an unbounded read spelled %s', async (_name, args) => {
+      await expect(findAsClient(args)).rejects.toThrow(
+        new RegExp(`unbounded.*${MAX_CLIENT_LIMIT}`, 'i'),
+      )
+    })
+
     it.each([
       ['a limit at the cap', { limit: MAX_CLIENT_LIMIT }],
       ['an absent limit and page', {}],
-      ['limit=0', { limit: 0 }],
-      ['pagination=false', { pagination: false }],
+      ['pagination=false with a non-zero limit', { pagination: false, limit: 100 }],
     ])('allows %s', async (_name, args) => {
       const result = await findAsClient(args)
       expect(result.docs).toHaveLength(1)
@@ -230,6 +249,14 @@ describe('Client query parameter validation', () => {
     it('allows a page at the bound', async () => {
       const result = await findAsClient({ page: MAX_CLIENT_PAGE })
       expect(result.page).toBe(MAX_CLIENT_PAGE)
+    })
+
+    // An absent `limit` is not an unbounded read: `find.js` defaults it to 10.
+    // Asserted on the response rather than on the absence of a throw, because
+    // a refusal keyed on `limit == null` alone would also pass that.
+    it('leaves an absent limit at payload default of 10', async () => {
+      const result = await findAsClient({})
+      expect(result.limit).toBe(10)
     })
 
     // The bound runs ahead of the two bypasses the select gate honours, so a
@@ -249,6 +276,114 @@ describe('Client query parameter validation', () => {
           overrideAccess: true,
         }),
       ).rejects.toThrow(/"limit"/)
+    })
+
+    // The unbounded refusal is the opposite case, and must be: six internal
+    // endpoint reads forward `limit: 0` through `asTrustedReq`, so a refusal
+    // ahead of that bypass would 400 every one of them on a client request.
+    it.each([
+      ['limit=0', { limit: 0 }],
+      ['pagination=false with no limit', { pagination: false }],
+    ])('allows an unbounded trusted internal read spelled %s', async (_name, args) => {
+      const trustedReq = {
+        ...clientReq(),
+        context: { skipClientQueryValidation: true },
+      } as unknown as PayloadRequest
+
+      const result = await payload.find({
+        collection: 'narrators',
+        ...args,
+        req: trustedReq,
+        overrideAccess: true,
+      })
+      expect(result.docs).toHaveLength(1)
+    })
+  })
+
+  // SahajCloud reads unpaginated on the caller's own `req` in three places, and
+  // the gate reads its arguments rather than the URL — so it cannot tell those
+  // from a client asking for the whole table. Each now forwards
+  // `asTrustedReq(req)` (#889); without that, every case here 400s from inside
+  // SahajCloud on a request the client spelled correctly.
+  //
+  // Driven through the field and the endpoint rather than a hand-built
+  // `payload.find`, because the forwarded read is what the refusal meets and
+  // only these paths issue it.
+  describe("SahajCloud's own unpaginated reads on a client req", () => {
+    let region: Region
+    let event: Event
+
+    // The two atlas endpoints read `regions` and `events` on the caller's
+    // authority, so a `wemeditate-web-client` key reaches them and is refused
+    // 403 before the unbounded read is ever issued.
+    const atlasClientReq = (): PayloadRequest =>
+      createClientAuthenticatedRequest(testClient.id, testClient.apiKey || 'test-key', [
+        'sahaj-atlas-client',
+      ]) as PayloadRequest
+
+    beforeAll(async () => {
+      region = await testData.createRegion(payload, { name: 'Boundland', slug: 'boundland' })
+      event = await testData.createEvent(payload, {
+        region: region.id,
+        // `webPath` resolves to null on an unpublished event, which would make
+        // the assertion below pass whether the tree loaded or not.
+        _status: 'published',
+      })
+    })
+
+    // `webPath`/`webUrl`'s afterRead resolves the whole region tree through
+    // `loadRegionTree`, which reads every `regions` row with `pagination: false`.
+    // The memo is per request, so each page of a client's own paginated walk
+    // issues it again.
+    it('serves a client read selecting webPath and webUrl on regions', async () => {
+      const result = await payload.find({
+        collection: 'regions',
+        select: { webPath: true, webUrl: true },
+        depth: 0,
+        limit: 10,
+        req: clientReq(),
+        overrideAccess: true,
+      })
+      // Non-vacuous only if the field resolved: a null `webPath` would mean the
+      // resolver returned before it read anything.
+      expect(result.docs.map((doc) => doc.webPath)).toContain('/boundland')
+    })
+
+    it('serves a client read selecting webPath on events', async () => {
+      const result = await payload.findByID({
+        collection: 'events',
+        id: event.id,
+        select: { webPath: true },
+        depth: 0,
+        req: clientReq(),
+        overrideAccess: true,
+      })
+      expect(result.webPath).toBe(`/boundland/${event.id}`)
+    })
+
+    // Both of this endpoint's reads are unpaginated by design — a truncated
+    // sitemap is worse than a slow one, and nothing in the response would say
+    // it had been cut.
+    it('serves GET /api/atlas/sitemap for a client', async () => {
+      const response = (await atlasSitemap.handler({
+        ...atlasClientReq(),
+        payload,
+        query: {},
+        routeParams: {},
+      } as unknown as PayloadRequest)) as Response
+      expect(response.status).toBe(200)
+    })
+
+    // The seo endpoint reaches `loadRegionTree` too, through its own route
+    // resolution rather than through a selected field.
+    it('serves GET /api/atlas/seo for a client', async () => {
+      const response = (await atlasSeo.handler({
+        ...atlasClientReq(),
+        payload,
+        query: { route: '/boundland' },
+        routeParams: {},
+      } as unknown as PayloadRequest)) as Response
+      expect(response.status).toBe(200)
     })
   })
 
@@ -417,6 +552,18 @@ describe('Client query parameter validation', () => {
       expect(parseRestQuery('?limit=2001').limit).toBe(2001)
       await expect(restFind('/api/narrators?select[name]=true&depth=1&limit=2001')).rejects.toThrow(
         /"limit"/,
+      )
+    })
+
+    it('rejects an unbounded read over the wire', async () => {
+      // The coercion, asserted on its own: the string 'false' is truthy, so a
+      // case reading it unparsed would never reach the refusal.
+      expect(parseRestQuery('?pagination=false').pagination).toBe(false)
+      await expect(
+        restFind('/api/narrators?select[name]=true&depth=1&pagination=false'),
+      ).rejects.toThrow(/unbounded/i)
+      await expect(restFind('/api/narrators?select[name]=true&depth=1&limit=0')).rejects.toThrow(
+        /unbounded/i,
       )
     })
 
