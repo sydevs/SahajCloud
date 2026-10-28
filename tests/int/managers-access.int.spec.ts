@@ -24,7 +24,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { buildReminderEntry } from '@/lib/eventVerification/log'
 import type { Client, Event, Manager, Region } from '@/payload-types'
-import { bypassPermissions, hasPermission } from '@/plugins/access'
+import { bypassPermissions, hasPermission, readLockOf } from '@/plugins/access'
 
 import { testData } from '../utils/testData'
 import {
@@ -299,6 +299,58 @@ describe('Managers access (#821)', () => {
           ).toBe(false)
         }
       }
+    })
+  })
+
+  // The unit sweep (`tests/unit/manager-field-locks.spec.ts`) reads the config
+  // a plugin sees, which is the only place `loginPlugin`'s appended columns
+  // exist. It therefore cannot see the auth columns Payload merges in at
+  // sanitize, so those are swept here, where the config is the booted one.
+  describe('the sanitized collection', () => {
+    it('answers "no" for every field but the picker title and the timestamps', async () => {
+      // ⚠ **The locks are EVALUATED, not counted.** "Carries a read function"
+      // is not the property: the base `_verified` field ships
+      // `read: defaultAccess`, which is `Boolean(user)` — a function, and wide
+      // open. A sweep that only asked whether a lock existed passed with that
+      // field readable by every atlas-manager.
+      //
+      // `createdAt` / `updatedAt` are Payload's own, appended outside `fields`,
+      // so the locker never reaches them — which is why they are named here and
+      // not in `MANAGER_PUBLIC_FIELDS`.
+      const readable: string[] = []
+      for (const field of payload.collections.managers.config.flattenedFields) {
+        // A hidden field is dropped from every read unless the caller passes
+        // `showHiddenFields`, which no client or picker read does — that is
+        // what covers `salt`, `hash` and the reset-password columns.
+        if (field.hidden === true) continue
+        const lock = readLockOf(field)
+        const allowed = lock
+          ? await lock({
+              id: eventManager.id,
+              data: {},
+              doc: { id: eventManager.id } as never,
+              siblingData: {},
+              req: managerReq(atlasManager),
+            })
+          : true
+        if (allowed) readable.push(field.name)
+      }
+
+      expect(readable.sort()).toEqual(['createdAt', 'name', 'updatedAt'])
+    })
+
+    it('keeps Payload’s own labels on the two base fields it redeclares', () => {
+      // ⚠ `sanitizeFields` labels a field from its name BEFORE `mergeBaseFields`
+      // runs, and the merge lets ours win — so redeclaring `_verified` bare put
+      // a column headed `_verified` in the list view, in every locale.
+      const labels = Object.fromEntries(
+        payload.collections.managers.config.flattenedFields
+          .filter((field) => field.name === 'email' || field.name === '_verified')
+          .map((field) => [field.name, field.label]),
+      )
+
+      expect(typeof labels.email).toBe('function')
+      expect(typeof labels._verified).toBe('function')
     })
   })
 

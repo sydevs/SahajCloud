@@ -61,11 +61,16 @@ export const Managers: CollectionConfig = {
     // LEVEL, and only here: `mergeBaseFields` matches by `name` against the
     // level it is handed, so a copy nested in a tab appends a second field
     // instead of merging. The merge keeps the base field's `required`,
-    // `unique`, `validate` and label and takes our `read`. Payload merges them
-    // in at all because `loginPlugin` sets
+    // `unique` and `validate` and takes our `read`. Payload merges them in at
+    // all because `loginPlugin` sets
     // `disableLocalStrategy: { enableFields: true }` (#840).
-    { name: 'email', type: 'email' },
-    { name: '_verified', type: 'checkbox' },
+    //
+    // ⚠ **Each restates its own label**, because `sanitizeFields` fills one in
+    // from the field name before the merge runs, and ours then beats Payload's
+    // i18n function — which left the Managers list view with a column headed
+    // `_verified` in every locale.
+    { name: 'email', type: 'email', label: ({ t }) => t('general:email') },
+    { name: '_verified', type: 'checkbox', label: ({ t }) => t('authentication:verified') },
     {
       // `null` is the admin "All Content" view, and it has no option of its own.
       // The field is `admin.hidden`, so Payload never renders this select, and
