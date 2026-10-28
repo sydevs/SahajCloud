@@ -75,6 +75,7 @@ describe('Event verification lifecycle', () => {
   let cleanup: () => Promise<void>
   let adminUser: Manager
   let eventManager: Manager
+  let otherManager: Manager
   let defaultRegion: { id: number }
   let verifyPageAction: (typeof import('@/app/(frontend)/events/verify/actions'))['verifyEventAction']
   let anon: RestClient
@@ -93,6 +94,12 @@ describe('Event verification lifecycle', () => {
       name: 'Event Manager',
       email: 'event-manager@example.com',
       notificationPreferences: { event_verification: { frequency: 'Monthly', method: 'email' } },
+    })
+    // A colleague with no claim on the events below: the cadence case needs an
+    // actor who is neither the event's manager nor an admin.
+    otherManager = await testData.createManager(payload, {
+      name: 'Other Manager',
+      email: 'other-manager@example.com',
     })
     defaultRegion = await payload.create({
       collection: 'regions',
@@ -742,6 +749,49 @@ describe('Event verification lifecycle', () => {
     expect(reminders(fresh.activityLog)).toHaveLength(0)
     const log = fresh.activityLog as NotificationLogEntry[]
     expect(log[0]).toMatchObject({ kind: 'verification', method: 're-save' })
+  })
+
+  it("keeps the event manager's cadence when a different manager saves", async () => {
+    // The verify-on-save hook loads the event's manager with
+    // `overrideAccess: true, req` and reads `notificationPreferences` off that
+    // row. `stripLockedFieldsOnSelfRead` used to re-apply the field locks on
+    // ANY row of an auth collection the caller belongs to, so a save by a
+    // colleague stripped the cadence and `nextCheckAt` silently fell back to
+    // the 90-day default (#908).
+    //
+    // ⚠ The actor must be a NON-ADMIN manager, and not this event's manager:
+    // either one passes `selfOrAdminFieldAccess` and the regression does not
+    // reproduce.
+    //
+    // ⚠ The actor needs the event's region in their own subtree even under
+    // `overrideAccess: true`: `Events.region` narrows its `filterOptions` to
+    // that subtree, and Payload applies those at save time regardless of
+    // access. Hence a region of its own rather than `defaultRegion`, whose
+    // manager list every reminder case here counts recipients from.
+    const region = await payload.create({
+      collection: 'regions',
+      overrideAccess: true,
+      data: createData<'regions'>({
+        name: 'Colleague City',
+        level: 'city',
+        mapboxId: 'colleague-city',
+        managers: [otherManager.id],
+      }),
+    })
+    const event = await createEvent({ region: region.id })
+    const saved = await payload.update({
+      collection: 'events',
+      id: event.id,
+      overrideAccess: true,
+      user: { ...otherManager, collection: 'managers' } as never,
+      data: { title: 'Saved By A Colleague' } as Partial<Event>,
+    })
+
+    // `eventManager` is on `Monthly` — 30 days. The fallback is 90, so the
+    // window is what tells a read cadence from a stripped one.
+    const days = (new Date(saved.nextCheckAt!).getTime() - Date.now()) / DAY_MS
+    expect(days).toBeGreaterThan(25)
+    expect(days).toBeLessThan(35)
   })
 
   describe('systemMeta write protection', () => {

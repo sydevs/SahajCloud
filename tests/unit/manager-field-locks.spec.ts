@@ -32,12 +32,12 @@ import { describe, expect, it } from 'vitest'
 import { MANAGER_PUBLIC_FIELDS } from '@/collections/Managers/access'
 import { managersLogin } from '@/collections/Managers/login'
 import { Managers } from '@/collections/Managers/Managers'
-import { loginPlugin } from '@/plugins/login'
 import { selfOrAdminFieldAccess } from '@/plugins/access'
+import { loginPlugin } from '@/plugins/login'
 
-const folded = (
-  loginPlugin({ collections: [managersLogin] }) as (config: Config) => Config
-)({ collections: [Managers] } as Config).collections?.[0] as CollectionConfig
+const folded = (loginPlugin({ collections: [managersLogin] }) as (config: Config) => Config)({
+  collections: [Managers],
+} as Config).collections?.[0] as CollectionConfig
 
 const fields: FlattenedField[] = flattenAllFields({ fields: folded.fields })
 
