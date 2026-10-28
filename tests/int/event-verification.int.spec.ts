@@ -75,7 +75,6 @@ describe('Event verification lifecycle', () => {
   let cleanup: () => Promise<void>
   let adminUser: Manager
   let eventManager: Manager
-  let otherManager: Manager
   let defaultRegion: { id: number }
   let verifyPageAction: (typeof import('@/app/(frontend)/events/verify/actions'))['verifyEventAction']
   let anon: RestClient
@@ -94,12 +93,6 @@ describe('Event verification lifecycle', () => {
       name: 'Event Manager',
       email: 'event-manager@example.com',
       notificationPreferences: { event_verification: { frequency: 'Monthly', method: 'email' } },
-    })
-    // A colleague with no claim on the events below: the cadence case needs an
-    // actor who is neither the event's manager nor an admin.
-    otherManager = await testData.createManager(payload, {
-      name: 'Other Manager',
-      email: 'other-manager@example.com',
     })
     defaultRegion = await payload.create({
       collection: 'regions',
@@ -768,6 +761,10 @@ describe('Event verification lifecycle', () => {
     // that subtree, and Payload applies those at save time regardless of
     // access. Hence a region of its own rather than `defaultRegion`, whose
     // manager list every reminder case here counts recipients from.
+    const otherManager = await testData.createManager(payload, {
+      name: 'Other Manager',
+      email: 'other-manager@example.com',
+    })
     const region = await payload.create({
       collection: 'regions',
       overrideAccess: true,
