@@ -107,7 +107,7 @@ An API client read must declare its data needs: `select` is required on every re
 
 ### `limit` and `page` bounds (#887)
 
-The same gate bounds the two numbers that reach SQL. A client may send `limit` up to **2000** and `page` up to **10000** (`MAX_CLIENT_LIMIT` / `MAX_CLIENT_PAGE` in `src/plugins/usage/constants.ts`, which the OpenAPI parameter docs also read); either outside `0 … its ceiling`, or not a whole number, is refused **400** naming the bound. A global read carries neither, so nothing changes there.
+The same gate bounds the two numbers that reach SQL. A client may send `limit` up to **2000** and `page` up to **10000** (`MAX_CLIENT_LIMIT` / `MAX_CLIENT_PAGE` in `src/plugins/usage/constants.ts`, which the OpenAPI parameter docs also read); either outside `0 … its ceiling`, or not a whole number, is refused **400** naming the bound. ⚠ **"Not a whole number" includes a value that is not a number at all**, which it did not until #889: `parseParams` coerces these two only when payload's own `isNumber` passes, so `?limit=abc` and a bare `?limit=` arrive as strings and used to be skipped — reaching the driver as a non-integer `LIMIT` and answering 500. Only an **absent** value passes. A global read carries neither, so nothing changes there.
 
 **Clients only, deliberately** — a manager, the admin UI and an internal read are trusted with their own numbers, and `hooks.ts` returns early for all three. The bound runs _ahead_ of the `asTrustedReq` and live-preview bypasses, though, unlike the `select` gate: those relax a shape policy, and this one keeps a number out of the driver.
 
@@ -135,6 +135,8 @@ A client gets no whole-table read. Payload decides that in two steps — `find.j
 **This check sits _after_ the `asTrustedReq` and live-preview bypasses** — the opposite of the range bounds above, and the difference is the point. A range bound keeps a number out of the driver, so it runs ahead of every bypass. This one is a policy about what a _client_ may ask for, and six internal endpoint reads forward `limit: 0` through `asTrustedReq`; ahead of the bypass each would 400 on a client request.
 
 ⚠ **SahajCloud's own forwarded reads had to be fixed first, in the same change.** The gate reads its arguments, not the URL, so it cannot tell a client's `pagination=false` from one this codebase wrote on the client's own `req`. `loadRegionTree` (reached from the `webPath` / `webUrl` virtual fields) and both `GET /api/atlas/sitemap` reads are unpaginated on purpose, and now forward `asTrustedReq(req)`. The sitemap's events read ANDs `notFinishedWhere` itself as a result, because `excludeFinishedEvents` stands down for a trusted req.
+
+⚠ **A fourth such read is deliberately left refused**, and the asymmetry is the point. `wm-app-status`'s readiness fields fan their `afterRead` out into fourteen unpaginated **collection** reads on a copy of the caller's `req` (`src/globals/WeMeditateAppStatus/sections/shared.ts`), so a client selecting one is now refused from inside. That global is an operator report over cookie auth — the one global excluded from edge caching for that reason — and five of its six sections were already refused, because their reads pass no `select`. Wrapping them would relax the select gate too and open all six. Whether the fields should carry a read lock, closing it by construction rather than by that accident, is open.
 
 ### Expected REST format (bracket notation)
 

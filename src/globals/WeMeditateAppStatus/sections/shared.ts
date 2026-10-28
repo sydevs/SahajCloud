@@ -4,7 +4,6 @@ import { isUploadAssigned, type CheckResult } from '@/lib/status'
 import { isRecord } from '@/lib/utilities/isRecord'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
-import { asTrustedReq } from '@/plugins/usage/hooks'
 
 // --- Locale scoping. Every read here copies the request it was handed; `runSection` copies nothing. ---
 
@@ -15,17 +14,19 @@ import { asTrustedReq } from '@/plugins/usage/hooks'
  * `fallbackLocale` is not the safe choice: Payload sanitises `undefined` back
  * to the locale's own fallback, undoing a `fallbackLocale: false` next to it.
  *
- * ⚠ **Trusted as well as isolated, because these reads are unpaginated.** A
- * client may read this global — `wm-app-status` is in the `wemeditate-app`
- * project, so `wemeditate-app-client` holds implicit read — and selecting a
- * readiness field fans its `afterRead` out into *collection* reads on a copy of
- * the caller's own `req`, which get the usage gates raw. Untrusted, each would
- * meet the unbounded-read refusal (#889) and 400 a global read that is allowed.
- * Every read in this folder goes through here, so the wrap belongs here rather
- * than at fourteen call sites.
+ * ⚠ **Deliberately NOT trusted, though these reads are unpaginated.** A client
+ * holds implicit read on this global (`wm-app-status` is in the
+ * `wemeditate-app` project), and a selected readiness field fans its `afterRead`
+ * out into *collection* reads on a copy of the caller's `req`, which get the
+ * usage gates raw — so an API client's read of a readiness field is refused
+ * from in here (#889). That is intended: this is an operator report over cookie
+ * auth, and five of the six sections were already refused because their reads
+ * pass no `select`. Wrapping these in `asTrustedReq` would relax that gate too
+ * and open all six. `tests/int/globals-client-reads.int.spec.ts` pins the
+ * refusal. A manager read is untouched — the gates return on a non-client.
  */
 export function isolatedReq(req?: PayloadRequest): PayloadRequest | undefined {
-  return req ? asTrustedReq(localeIsolatedReq(req)) : undefined
+  return req ? localeIsolatedReq(req) : undefined
 }
 
 /**

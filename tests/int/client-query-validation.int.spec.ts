@@ -200,6 +200,12 @@ describe('Client query parameter validation', () => {
       ['a negative page', { page: -1 }, /"page"/],
       ['a negative limit', { limit: -1 }, /"limit"/],
       ['a fractional limit', { limit: 1.5 }, /"limit"/],
+      // `parseParams` coerces these two only when `isNumber` passes, so they
+      // arrive as strings. Skipped, they reached the driver as a non-integer
+      // LIMIT and answered 500 — the hole this bound exists to close.
+      ['a non-numeric limit', { limit: 'abc' }, /"limit"/],
+      ['an empty limit', { limit: '' }, /"limit"/],
+      ['a non-numeric page', { page: 'abc' }, /"page"/],
     ])('rejects %s', async (_name, args, message) => {
       await expect(findAsClient(args)).rejects.toThrow(message)
     })
@@ -279,7 +285,7 @@ describe('Client query parameter validation', () => {
     })
   })
 
-  // SahajCloud reads unpaginated on the caller's own `req` in four places, and
+  // SahajCloud reads unpaginated on the caller's own `req` in three places, and
   // the gate reads its arguments rather than the URL — so it cannot tell those
   // from a client asking for the whole table. Each forwards `asTrustedReq` as of
   // #889; without that the refusal 400s from inside SahajCloud, on a request the
@@ -289,9 +295,11 @@ describe('Client query parameter validation', () => {
   // the gate's contract and that read is reachable from a plain collection read.
   // The others are covered where their own contract lives, by cases asserting a
   // whole response rather than a status: reverting the wraps reds 23 cases in
-  // `atlas-sitemap.int.spec.ts`, 36 in `atlas-seo.int.spec.ts`,
-  // `events.int.spec.ts`'s client `findByID` selecting `webPath`, and
-  // `app-status-readiness.int.spec.ts`.
+  // `atlas-sitemap.int.spec.ts`, 36 in `atlas-seo.int.spec.ts`, and
+  // `events.int.spec.ts`'s client `findByID` selecting `webPath`.
+  //
+  // `wm-app-status`'s own fan-out reads are deliberately NOT wrapped — see
+  // `globals-client-reads.int.spec.ts`, which pins that refusal.
   describe("SahajCloud's own unpaginated reads on a client req", () => {
     beforeAll(async () => {
       await testData.createRegion(payload, { name: 'Boundland', slug: 'boundland' })
@@ -494,6 +502,15 @@ describe('Client query parameter validation', () => {
       // string '2001' would pass without ever exceeding the cap.
       expect(parseRestQuery('?limit=2001').limit).toBe(2001)
       await expect(restFind('/api/narrators?select[name]=true&depth=1&limit=2001')).rejects.toThrow(
+        /"limit"/,
+      )
+    })
+
+    it('rejects a non-numeric limit over the wire', async () => {
+      // The coercion, asserted on its own: `isNumber` refuses 'abc', so the
+      // bound receives a string and the early return has to refuse it.
+      expect(parseRestQuery('?limit=abc').limit).toBe('abc')
+      await expect(restFind('/api/narrators?select[name]=true&depth=1&limit=abc')).rejects.toThrow(
         /"limit"/,
       )
     })

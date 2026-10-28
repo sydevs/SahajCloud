@@ -330,6 +330,13 @@ export const validateClientQueryParamsHook: ClientReadGate = ({ args, operation,
  * sentinel is refused, but by {@link assertRequestIsBounded} rather than here —
  * that rule sits on the far side of two bypasses this one runs ahead of, which
  * is why the two cannot share a body.
+ *
+ * ⚠ **A present non-number is refused, not skipped.** `parseParams` coerces
+ * `limit` and `page` only when payload's own `isNumber` passes, so `?limit=abc`
+ * and a bare `?limit=` arrive as the strings `'abc'` and `''`. Skipping those
+ * handed the driver a non-integer `LIMIT` and answered 500 — the very hole this
+ * function closes for a 20-digit number. Only an **absent** value may pass:
+ * `find.js` defaults it, and most reads send neither.
  */
 function assertWithinBound(
   name: 'limit' | 'page',
@@ -337,8 +344,8 @@ function assertWithinBound(
   max: number,
   req: PayloadRequest,
 ): void {
-  if (typeof value !== 'number') return
-  if (Number.isInteger(value) && value >= 0 && value <= max) return
+  if (value == null) return
+  if (typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= max) return
 
   req.payload.logger.warn({
     msg: `Client query validation rejected: ${name} out of bounds`,
