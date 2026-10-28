@@ -147,6 +147,7 @@ interface ReadOperationArgs {
   depth?: unknown
   limit?: unknown
   page?: unknown
+  pagination?: unknown
   populate?: unknown
   select?: unknown
 }
@@ -272,6 +273,8 @@ export const validateClientQueryParamsHook: ClientReadGate = ({ args, operation,
     return
   }
 
+  assertRequestIsBounded(findArgs, req)
+
   const hasSelect =
     findArgs.select != null &&
     typeof findArgs.select === 'object' &&
@@ -343,6 +346,47 @@ function assertWithinBound(
   })
   throw new APIError(
     `The "${name}" query parameter must be a whole number between 0 and ${max} for API clients.`,
+    400,
+  )
+}
+
+/**
+ * Refuse a client read of the whole table (#889).
+ *
+ * Payload decides this in two steps, so neither parameter answers it alone:
+ * `collections/operations/find.js` computes
+ * `usePagination = pagination && limit !== 0` and then
+ * `limit ?? (usePagination ? 10 : 0)`, and `@payloadcms/drizzle`'s `findMany`
+ * turns a `0` into `undefined`, emitting no `LIMIT` clause at all. So a read is
+ * unbounded in exactly two shapes: `limit: 0`, and an absent `limit` with
+ * `pagination: false`.
+ *
+ * Both other shapes stay allowed, deliberately. `pagination: false` with a
+ * non-zero `limit` is bounded — it only skips the `COUNT(*)`, which three
+ * internal reads do on purpose — and an absent `limit` alone defaults to 10.
+ *
+ * ⚠ **Unlike {@link assertWithinBound}, this runs after the `asTrustedReq` and
+ * live-preview bypasses.** A range bound keeps a number out of the driver; this
+ * is a policy about what a client may ask for. Six internal reads forward
+ * `limit: 0` through `asTrustedReq`, so ahead of that bypass every one of them
+ * would 400 on a client request.
+ */
+function assertRequestIsBounded(args: ReadOperationArgs, req: PayloadRequest): void {
+  const spelling =
+    args.limit === 0
+      ? 'limit=0'
+      : args.limit == null && args.pagination === false
+        ? 'pagination'
+        : null
+  if (spelling === null) return
+
+  req.payload.logger.warn({
+    msg: 'Client query validation rejected: unbounded read',
+    clientId: req.user?.id,
+    spelling,
+  })
+  throw new APIError(
+    `An unbounded read is not available to API clients. Read at most ${MAX_CLIENT_LIMIT} documents per request with "limit", and walk the rest with "page".`,
     400,
   )
 }

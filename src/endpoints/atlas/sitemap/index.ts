@@ -4,11 +4,13 @@ import type { Endpoint, PayloadRequest, SelectType } from 'payload'
 
 import { APIError } from 'payload'
 
+import { andWhere, notFinishedWhere } from '@/collections/Events/lifecycle/finished'
 import { getCanonicalFallbackOwner, getRegionOwners } from '@/lib/atlas/regionOwners'
 import { getRegionTree } from '@/lib/atlas/regionTree'
 import { requireActiveClient } from '@/lib/endpoints'
 import { publicReadCacheHeaders } from '@/plugins/cache'
 import { assertClientOriginAllowed, countClientRead } from '@/plugins/usage'
+import { asTrustedReq } from '@/plugins/usage/hooks'
 
 import { fallbackRegionIds, ownedRegionIds, sitemapUrls } from './sitemapUrls'
 
@@ -42,12 +44,19 @@ function errorResponse(message: string, status: number): Response {
  * bounding, a cursor is easier to add than to remove.
  *
  * Both forward the caller's `req` with `overrideAccess: false`, so the client's
- * own access rules apply — published-only, and (on events) the
- * `excludeFinishedEvents` beforeOperation hook drops classes whose schedule has
- * run out, exactly as it does for `GET /api/events/geojson` and for a region
- * page's listing. A finished class stays reachable by direct link, but a sitemap
- * is a list of pages we are asking a crawler to index, and a class that no
- * longer happens is not one of them.
+ * own access rules still apply — published-only. They forward it **trusted**,
+ * because an unpaginated read on a client's own `req` now meets the
+ * unbounded-read refusal from inside SahajCloud (#889), and the corpus bound
+ * above is this endpoint's judgement rather than the caller's.
+ *
+ * ⚠ **That bypass is why the events read ANDs `notFinishedWhere` itself.**
+ * `excludeFinishedEvents` stands down for a trusted req — a forwarded internal
+ * lookup must see the true state — so relying on the hook here would publish
+ * finished classes the moment the read was wrapped. The endpoint now applies the
+ * predicate unconditionally, exactly as `GET /api/events/geojson` does, and the
+ * hook's own opt-out keeps it from being applied twice. A finished class stays
+ * reachable by direct link, but a sitemap is a list of pages we are asking a
+ * crawler to index, and a class that no longer happens is not one of them.
  *
  * ⚠ **The `regions` read is not redundant with the region tree**, though it
  * looks it: resolving ownership has already loaded every region's `pathById`,
@@ -63,6 +72,7 @@ async function ownedDocuments(
   req: PayloadRequest,
   regionIds: number[],
 ): Promise<SitemapCandidate[]> {
+  const trustedReq = asTrustedReq(req)
   const [regions, events] = await Promise.all([
     req.payload.find({
       collection: 'regions',
@@ -71,16 +81,16 @@ async function ownedDocuments(
       depth: 0,
       select: REGION_SELECT,
       overrideAccess: false,
-      req,
+      req: trustedReq,
     }),
     req.payload.find({
       collection: 'events',
-      where: { region: { in: regionIds } },
+      where: andWhere({ region: { in: regionIds } }, notFinishedWhere(new Date())),
       pagination: false,
       depth: 0,
       select: EVENT_SELECT,
       overrideAccess: false,
-      req,
+      req: trustedReq,
     }),
   ])
   return [...(regions.docs as SitemapCandidate[]), ...(events.docs as SitemapCandidate[])]

@@ -119,7 +119,22 @@ The same gate bounds the two numbers that reach SQL. A client may send `limit` u
 
 Both ceilings are headroom, not a budget: our own largest paginated read asks for 1000 (`src/plugins/usage/tasks.ts`), and the largest any consumer sends is 100. They exist because unbounded, **each one alone returns 500** — the driver overflows on a 20-digit `limit`, and on the `(page - 1) * limit` offset a 20-digit `page` produces. Bounding `limit` alone leaves the second door open, and a negative `page` reaches the same 500 as `OFFSET -20`.
 
-⚠ **An unbounded read is still allowed.** `limit=0` and `pagination=false` are payload's two spellings of "the whole table", and both remain open to clients — the Atlas widget reads its region tree, its map feed and its title map that way. Whether that should stay open is #887's phase 2, and it costs a coordinated SahajAtlasWeb change before any cap can land.
+### No unbounded read (#889)
+
+A client gets no whole-table read. Payload decides that in two steps — `find.js` computes `usePagination = pagination && limit !== 0`, then `limit ?? (usePagination ? 10 : 0)`, and the drizzle adapter emits no `LIMIT` clause for `0` — so **the refusal keys on the effective limit, not on a parameter**. Exactly two shapes are refused **400**:
+
+```
+❌ GET /api/regions?select[name]=true&limit=0                      → 400
+❌ GET /api/regions?select[name]=true&pagination=false             → 400
+✅ GET /api/regions?select[name]=true&pagination=false&limit=100   → 200
+✅ GET /api/regions?select[name]=true                              → 200 (limit defaults to 10)
+```
+
+⚠ **`pagination=false` with a non-zero `limit` is bounded and stays allowed.** It only skips the `COUNT(*)`, and three internal reads use exactly that shape on purpose. Refusing the parameter rather than the effective limit would break them.
+
+**This check sits _after_ the `asTrustedReq` and live-preview bypasses** — the opposite of the range bounds above, and the difference is the point. A range bound keeps a number out of the driver, so it runs ahead of every bypass. This one is a policy about what a _client_ may ask for, and six internal endpoint reads forward `limit: 0` through `asTrustedReq`; ahead of the bypass each would 400 on a client request.
+
+⚠ **SahajCloud's own forwarded reads had to be fixed first, in the same change.** The gate reads its arguments, not the URL, so it cannot tell a client's `pagination=false` from one this codebase wrote on the client's own `req`. `loadRegionTree` (reached from the `webPath` / `webUrl` virtual fields) and both `GET /api/atlas/sitemap` reads are unpaginated on purpose, and now forward `asTrustedReq(req)`. The sitemap's events read ANDs `notFinishedWhere` itself as a result, because `excludeFinishedEvents` stands down for a trusted req.
 
 ### Expected REST format (bracket notation)
 

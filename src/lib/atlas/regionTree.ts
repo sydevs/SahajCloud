@@ -3,6 +3,7 @@ import type { PayloadRequest } from 'payload'
 
 import { relationId } from '@/lib/utilities/relationId'
 import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
+import { asTrustedReq } from '@/plugins/usage/hooks'
 
 /**
  * The Regions tree, resolved once per request: every region's canonical Atlas
@@ -133,7 +134,12 @@ async function loadRegionTree(req: PayloadRequest): Promise<RegionTree> {
     // Anything added here must be checked against that same rule; `name` is a
     // plain text column with no hooks, so it adds a column and nothing else.
     select: { slug: true, name: true, breadcrumbs: true },
-    req,
+    // ⚠ Trusted, because this whole-table read runs on the caller's own `req`
+    // and a client's `req` would otherwise meet the unbounded-read refusal from
+    // inside SahajCloud (#889) — on every page of a client's own paginated
+    // walk, since the memo below is per request. It is SahajCloud asking, not
+    // the client: the client selected `webPath`, not 646 region rows.
+    req: asTrustedReq(req),
   })
   const rows = docs as RegionRow[]
 
