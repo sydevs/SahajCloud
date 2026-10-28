@@ -42,6 +42,7 @@ export {
   isAdminManager,
   isManager,
   managersOnlyFieldAccess,
+  selfOrAdminFieldAccess,
 } from './adminOnly'
 export { restrictUploadToAdmin } from './restrictUploadToAdmin'
 export { restrictPayloadSystemEntities } from './systemEntities'

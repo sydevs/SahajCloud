@@ -55,6 +55,17 @@ function lockedFields(collection: SanitizedCollectionConfig): LockedField[] {
  * Reads by anyone else are untouched, and so are server-side reads, which run
  * with no user. So is authentication: `APIKeyAuthentication` resolves before
  * `req.user` exists, and matches the `apiKeyIndex` hash rather than the field.
+ *
+ * ⚠ **Only the caller's OWN row**, which is the hole's own shape: every
+ * operation in the class it closes re-reads the authenticated document.
+ * Without that test it re-ran the locks on *any* row of the collection,
+ * including a row an internal `overrideAccess: true` read had deliberately
+ * fetched whole: `syncVerificationOnSave` loads an event's manager while a
+ * *different* manager saves the event, and a stripped
+ * `notificationPreferences` silently moved `nextCheckAt` from 30 days to 90
+ * (#908). It makes the hook a no-op on `managers`, where every lock is
+ * self-or-admin, and leaves it live for `Clients.apiKey` — the one field
+ * locked against its own holder.
  */
 export const stripLockedFieldsOnSelfRead: CollectionAfterReadHook = async ({
   collection,
@@ -62,11 +73,13 @@ export const stripLockedFieldsOnSelfRead: CollectionAfterReadHook = async ({
   req,
 }) => {
   if (req.user?.collection !== collection.slug) return doc
+  const id = (doc as { id?: number | string })?.id
+  if (id === undefined || String(req.user.id) !== String(id)) return doc
 
   for (const field of lockedFields(collection)) {
     const allowed = await field.read({
       req,
-      id: (doc as { id?: number | string })?.id,
+      id,
       data: doc,
       siblingData: doc,
       doc,

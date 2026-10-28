@@ -13,6 +13,7 @@ import { jsonField } from '@/fields/jsonField'
 import { getLanguageOptions } from '@/lib/locales'
 import { adminOnlyFieldAccess, getRoleOptions, getProjectOptions } from '@/plugins/access'
 
+import { lockManagerFieldReads } from './access'
 import { setProject } from './endpoints/setProject'
 import { MANAGER_NOTIFICATIONS_TAB } from './login'
 
@@ -47,12 +48,24 @@ export const Managers: CollectionConfig = {
   // accessPlugin detects that pair and attaches the auth strategy and the three
   // auth-response hooks that keep a manager's roles resolved at every locale —
   // see `src/plugins/access/localizedRolesAuth.ts` (#665). Nothing to wire here.
-  fields: [
+  // Every field but `name` is locked to the row's own holder and to admins, so
+  // the pickers `atlas-manager`'s collection-wide read exists for list titles
+  // and nothing else — see `./access.ts` (#908).
+  fields: lockManagerFieldReads([
     {
       name: 'name',
       type: 'text',
       required: true,
     },
+    // Declared so the lock has a base auth field to merge onto. ⚠ At the TOP
+    // LEVEL, and only here: `mergeBaseFields` matches by `name` against the
+    // level it is handed, so a copy nested in a tab appends a second field
+    // instead of merging. The merge keeps the base field's `required`,
+    // `unique`, `validate` and label and takes our `read`. Payload merges them
+    // in at all because `loginPlugin` sets
+    // `disableLocalStrategy: { enableFields: true }` (#840).
+    { name: 'email', type: 'email' },
+    { name: '_verified', type: 'checkbox' },
     {
       // `null` is the admin "All Content" view, and it has no option of its own.
       // The field is `admin.hidden`, so Payload never renders this select, and
@@ -256,5 +269,5 @@ export const Managers: CollectionConfig = {
       ],
     },
     ...legacyMigrationFields(),
-  ],
+  ]),
 }
