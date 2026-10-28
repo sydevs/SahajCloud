@@ -11,6 +11,11 @@
  *   sentryPlugin({ enabled: true }),
  * ]
  * ```
+ *
+ * ⚠ `captureFailure` and `payloadRouteScope` are deliberately **not** here.
+ * Their callers — a server action and the generated REST route — import them by
+ * deep path, so neither pulls the plugin, its env parse, or the Local API
+ * wrapper in behind it.
  */
 
 export { sentryPlugin } from './sentryPlugin'
