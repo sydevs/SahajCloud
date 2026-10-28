@@ -203,12 +203,22 @@ describe('limit and page parameters (OpenAPI)', () => {
     expect(pageParameter.schema.maximum).toBe(MAX_CLIENT_PAGE)
   })
 
-  // `limit=0` is payload's "no limit" spelling, which the Atlas widget sends
-  // on three feeds (docs/rules/api-clients.md). `page` is 1-based, so 0 is
-  // not a page: the gate admits it only because one rule covers both.
-  it('publishes limit=0 and keeps page 1-based', () => {
-    expect(limitParameter.schema.minimum).toBe(0)
+  // `limit=0` is payload's "no limit" spelling, refused since #889, so the
+  // published floor is 1. `page` is 1-based, and 0 still reaches the server:
+  // `find.js` reads it as page 1, and `assertWithinBound` admits it because
+  // one rule covers both numbers. So these two 1s mean different things —
+  // `limit` publishes a bound the gate enforces, `page` publishes a shape.
+  it('publishes limit=1 as the floor and keeps page 1-based', () => {
+    expect(limitParameter.schema.minimum).toBe(1)
     expect(pageParameter.schema.minimum).toBe(1)
+  })
+
+  // The description is the only place a client learns that `pagination=false`
+  // is refused — it is not a parameter the spec declares, so nothing else
+  // would say so.
+  it('names both spellings of the unbounded read it refuses', () => {
+    expect(limitParameter.description).toMatch(/unbounded read is rejected/)
+    expect(limitParameter.description).toMatch(/pagination=false/)
   })
 })
 
