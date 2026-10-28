@@ -17,7 +17,7 @@ import type { Config } from 'payload'
 
 import { serverEnv } from '@/lib/env'
 
-import { captureFailure, type SentryContextFn } from './captureFailure'
+import { captureFailure, errorStatus, type SentryContextFn } from './captureFailure'
 import { installLocalApiCapture } from './localApiCapture'
 
 export type { SentryContext, SentryContextFn } from './captureFailure'
@@ -90,17 +90,16 @@ export const sentryPlugin = (options: SentryPluginOptions = {}) => {
           async (args) => {
             const { error, req } = args
 
-            const status =
-              'status' in error && typeof error.status === 'number' ? error.status : 500
+            const status = errorStatus(error)
 
             // Capture 500+ errors and any explicitly configured status codes
             if (status < 500 && !captureErrors.includes(status)) {
               return
             }
 
-            const collection = 'collection' in args ? args.collection?.slug : undefined
+            const collection = args.collection?.slug
             const captured = captureFailure({
-              collection: collection === undefined ? undefined : String(collection),
+              collection,
               context,
               error,
               req,
@@ -123,7 +122,7 @@ export const sentryPlugin = (options: SentryPluginOptions = {}) => {
       onInit: async (payload) => {
         // Before the config's own `onInit`, so every write that follows is
         // covered — including whatever that hook does.
-        installLocalApiCapture(payload, { context })
+        installLocalApiCapture(payload, context)
         await config.onInit?.(payload)
       },
     }

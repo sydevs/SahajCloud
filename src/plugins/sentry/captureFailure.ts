@@ -22,6 +22,8 @@ import * as Sentry from '@sentry/nextjs'
 
 import { mapPostgresCastError } from '@/lib/databaseErrors'
 import { deploymentEnvironment } from '@/lib/env/deploymentEnvironment'
+import { isRecord } from '@/lib/utilities/isRecord'
+import { validationFieldErrors } from '@/lib/utilities/validationFailure'
 
 import { describeRejectedCredential } from './credentialRejection'
 
@@ -75,35 +77,16 @@ export interface CaptureFailureArgs {
 }
 
 /**
- * ⚠ **One error instance reports once.** `payload.jobs.queue` writes through
- * `payload.create`, so the Local API wrapper sees a single throw on its way out
- * of both — and criterion 4 of #1039 is that nothing reports twice.
+ * ⚠ **One error instance reports once.** A hook's own Local API write nests
+ * inside the admin write that triggered it, so a throw from the inner one
+ * passes through both wrappers — and criterion 4 of #1039 is that nothing
+ * reports twice.
  */
 const reported = new WeakSet<object>()
 
-/**
- * A `ValidationError`'s field paths. Its message carries field *labels*, which
- * are localised and change with the editor's language, so the paths are what a
- * Sentry search can be written against.
- */
-const invalidFieldPaths = (error: unknown): string[] | undefined => {
-  if (typeof error !== 'object' || error === null || !('data' in error)) return undefined
-  const { data } = error as { data?: unknown }
-  if (typeof data !== 'object' || data === null || !('errors' in data)) return undefined
-
-  const { errors } = data as { errors?: unknown }
-  if (!Array.isArray(errors)) return undefined
-
-  const paths = errors
-    .map((entry) =>
-      typeof entry === 'object' && entry !== null && 'path' in entry
-        ? String((entry as { path: unknown }).path)
-        : undefined,
-    )
-    .filter((path): path is string => Boolean(path))
-
-  return paths.length > 0 ? paths : undefined
-}
+/** The status a failure would answer with, or 500 for one that names none. */
+export const errorStatus = (error: unknown): number =>
+  isRecord(error) && typeof error.status === 'number' ? error.status : 500
 
 /**
  * Report a failed operation to Sentry. Returns whether an event was sent, so a
@@ -116,7 +99,7 @@ export const captureFailure = ({
   level,
   req,
   source,
-  status = 500,
+  status = errorStatus(error),
 }: CaptureFailureArgs): boolean => {
   try {
     // A Postgres cast failure is the caller sending a value the column cannot
@@ -133,7 +116,7 @@ export const captureFailure = ({
       return false
     }
 
-    if (typeof error === 'object' && error !== null) {
+    if (isRecord(error)) {
       if (reported.has(error)) return false
       reported.add(error)
     }
@@ -145,16 +128,21 @@ export const captureFailure = ({
       capture_source: source,
     }
     const extra: Record<string, unknown> = { status, url: req?.url }
-    const fields = invalidFieldPaths(error)
-    if (fields) extra.fields = fields
 
-    let eventLevel: SentryContext['level'] = level ?? (status >= 500 ? 'error' : 'warning')
-    let fingerprint: string[] | undefined
-    let clientIp: string | undefined
+    // ⚠ **The field PATHS, never the message.** A `ValidationError`'s message
+    // carries field labels, which are localised and change with the editor's
+    // language. `tests/int/admin-write-capture.int.spec.ts` pins the paths
+    // against a real failed write.
+    const invalid = validationFieldErrors(error)
+    if (invalid?.length) extra.fields = invalid.map(({ path }) => path)
 
     // A presented-and-rejected credential is a broken integration, not
     // traffic — but only below 500. The caller's credential is not what
     // is wrong with a 500, so nothing auth-related is computed there.
+    //
+    // Only the hook can see one: the other two sites either hold an acting
+    // user already or carry no request at all, which is why `source` can be
+    // spelled as a literal below.
     //
     // ⚠ This also writes the WARN mirror, and `sentryPlugin` returns the
     // config untouched when no `NEXT_PUBLIC_SENTRY_DSN` is set — so a
@@ -162,41 +150,39 @@ export const captureFailure = ({
     // hook. Every deployed environment sets it; a local run that does not,
     // will not see it. `requireActiveClient`'s path has no such gate (#743).
     const rejected =
-      req && status < 500
+      req && status < 500 && source === 'afterError'
         ? describeRejectedCredential(req, { status, source: 'sentryPlugin' })
         : null
 
     if (rejected) {
-      // ⚠ **Accepted risk: this level is caller-triggerable.** Any
-      // anonymous caller can raise a captured 400/403/404 to `error` by
-      // sending a junk `Authorization` header. Grouping stays bounded by
-      // the collection check, so the cost is event quota and alert noise,
-      // never one Sentry issue per value. #734 leaves routing to a
-      // Sentry-side rule on `auth_outcome`, which is where to mute this —
-      // not by dropping the level. (#734)
-      eventLevel = level ?? 'error'
-      // ⚠ **The IP belongs on `user.ip_address`, never in an `extra`.**
-      // `sendDefaultPii: false` and the project's "Prevent Storing of
-      // IP Addresses" setting both act on that field alone; an `extra`
-      // is opaque context no scrubber reaches.
-      clientIp = rejected.ip
       Object.assign(tags, rejected.tags)
       Object.assign(extra, { userAgent: rejected.userAgent })
-      fingerprint = rejected.fingerprint
     }
 
-    // The two arms are mutually exclusive: `clientIp` is set only on
-    // the rejected branch, which requires no `req.user`. So a rejected
-    // caller's `user` carries the IP alone — the absent `id` is what
-    // still says nobody authenticated, and `auth_outcome` says so
+    // ⚠ **Accepted risk: this level is caller-triggerable.** Any anonymous
+    // caller can raise a captured 400/403/404 to `error` by sending a junk
+    // `Authorization` header. Grouping stays bounded by the collection check,
+    // so the cost is event quota and alert noise, never one Sentry issue per
+    // value. #734 leaves routing to a Sentry-side rule on `auth_outcome`,
+    // which is where to mute this — not by dropping the level. (#734)
+    const eventLevel = level ?? (rejected || status >= 500 ? 'error' : 'warning')
+
+    // The two arms are mutually exclusive: `rejected` requires no `req.user`.
+    // So a rejected caller's `user` carries the IP alone — the absent `id` is
+    // what still says nobody authenticated, and `auth_outcome` says so
     // outright.
+    //
+    // ⚠ **The IP belongs on `user.ip_address`, never in an `extra`.**
+    // `sendDefaultPii: false` and the project's "Prevent Storing of IP
+    // Addresses" setting both act on that field alone; an `extra` is opaque
+    // context no scrubber reaches.
     const user = req?.user
       ? {
           id: String(req.user.id),
           email: 'email' in req.user ? String(req.user.email) : undefined,
         }
-      : clientIp
-        ? { ip_address: clientIp }
+      : rejected?.ip
+        ? { ip_address: rejected.ip }
         : undefined
 
     const defaultContext: SentryContext = {
@@ -204,7 +190,11 @@ export const captureFailure = ({
       tags,
       extra,
       level: eventLevel,
-      fingerprint,
+      /**
+       * Grouped by the collection, so a rejected key opens one issue wherever
+       * it was denied. Unset otherwise, and Sentry groups as usual.
+       */
+      fingerprint: rejected?.fingerprint,
     }
 
     const finalContext = context && req ? context({ defaultContext, req }) : defaultContext
