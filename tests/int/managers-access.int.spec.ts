@@ -394,15 +394,16 @@ describe('Managers access (#821)', () => {
       // so a lock reading `id` alone answers "unreadable" for the holder's own
       // document — and `RenderFields` renders nothing for a field with no read
       // permission, which would leave this manager's Contact tab empty.
-      // `sanitizePermissions` collapses an all-allowed set to a bare `true`,
-      // at either level, so both shapes have to be read.
       const readableOn = async (id: number, names: string[]): Promise<string[]> => {
         const { fields } = await docAccessOperation({
           id,
           collection: payload.collections.managers,
           req: managerReq(atlasManager),
         })
-        if (fields === true) return names
+        // `sanitizePermissions` collapses a set whose every operation is true to
+        // a bare `true`. It cannot here — `type` and `roles` carry
+        // `update: adminOnlyFieldAccess` — so narrowing it is not a fallback.
+        if (fields === true) throw new Error('every field allowed: the update locks are gone')
         return names.filter((name) => {
           const field = fields[name]
           return field === true || field?.read === true

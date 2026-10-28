@@ -94,10 +94,19 @@ export const adminOnlyCondition: Condition = (_data, _siblingData, { user }) => 
  * ⚠ **Spelled as an allowlist**, like `managersOnlyFieldAccess`, so a future
  * third auth collection arrives denied rather than exempt.
  */
-export const selfOrAdminFieldAccess: FieldAccess = ({ doc, id, req }) => {
-  if (isAdminManager(req.user)) return true
-  const { user } = req
+export const selfOrAdminFieldAccess: FieldAccess = ({ doc, id, req: { user } }) => {
+  if (isAdminManager(user)) return true
   if (!isManager(user)) return false
-  const row = id ?? doc?.id
-  return row !== undefined && String(user.id) === String(row)
+  return isOwnRow(user.id, id ?? doc?.id)
+}
+
+/**
+ * Whether `rowId` is the row `userId` holds.
+ *
+ * One spelling of the coercion, because the two sides arrive differently
+ * typed: a numeric `req.user.id` against an id REST parsed out of a path. An
+ * unidentifiable row is never the caller's own.
+ */
+export function isOwnRow(userId: number | string, rowId: number | string | undefined): boolean {
+  return rowId !== undefined && String(userId) === String(rowId)
 }

@@ -42,8 +42,10 @@ export {
   isAdminManager,
   isManager,
   managersOnlyFieldAccess,
+  isOwnRow,
   selfOrAdminFieldAccess,
 } from './adminOnly'
+export { readLockOf } from './stripLockedFieldsOnSelfRead'
 export { restrictUploadToAdmin } from './restrictUploadToAdmin'
 export { restrictPayloadSystemEntities } from './systemEntities'
 export { ownedRegionFilterOptions, resolveOwnedRegionIds } from './regionSubtreeAccess'

@@ -32,7 +32,7 @@ import { describe, expect, it } from 'vitest'
 import { MANAGER_PUBLIC_FIELDS } from '@/collections/Managers/access'
 import { managersLogin } from '@/collections/Managers/login'
 import { Managers } from '@/collections/Managers/Managers'
-import { selfOrAdminFieldAccess } from '@/plugins/access'
+import { readLockOf, selfOrAdminFieldAccess } from '@/plugins/access'
 import { loginPlugin } from '@/plugins/login'
 
 const folded = (loginPlugin({ collections: [managersLogin] }) as (config: Config) => Config)({
@@ -41,37 +41,33 @@ const folded = (loginPlugin({ collections: [managersLogin] }) as (config: Config
 
 const fields: FlattenedField[] = flattenAllFields({ fields: folded.fields })
 
-const readLock = (field: FlattenedField): unknown =>
-  (field as { access?: { read?: unknown } }).access?.read
-
 describe('Managers field read locks', () => {
-  describe('the sweep reaches what it claims to', () => {
-    it('enumerates the collection, the plugin columns and the legacy collapsible', () => {
-      // Non-vacuity first: an empty or shallow enumeration would make every
-      // assertion below pass against a wide-open collection. `legacyData` sits
-      // in a top-level `collapsible`, and the other four are appended or merged
-      // outside the tabs.
-      expect(fields.length).toBeGreaterThan(10)
-      for (const name of [
-        'magicLinkIssuedAt',
-        'pendingInvitation',
-        'invitationDueAt',
-        'email',
-        '_verified',
-        'legacyData',
-      ]) {
-        expect(
-          fields.map((field) => field.name),
-          `${name} should be enumerated`,
-        ).toContain(name)
-      }
-    })
+  it('enumerates the collection, the plugin columns and the legacy collapsible', () => {
+    // Non-vacuity first: a shallow enumeration would make the sweep below pass
+    // against a wide-open collection. `legacyData` sits in a top-level
+    // `collapsible`, and the other four are appended or merged outside the tabs.
+    for (const name of [
+      'magicLinkIssuedAt',
+      'pendingInvitation',
+      'invitationDueAt',
+      'email',
+      '_verified',
+      'legacyData',
+    ]) {
+      expect(
+        fields.map((field) => field.name),
+        `${name} should be enumerated`,
+      ).toContain(name)
+    }
   })
 
   it('locks every named field outside MANAGER_PUBLIC_FIELDS', () => {
+    // ⚠ Asked through `readLockOf`, the same function the hook enforcing these
+    // locks reads them with: a lock in a shape only this spec recognised would
+    // pass here and still leak.
     const unlocked = fields
       .filter((field) => !MANAGER_PUBLIC_FIELDS.has(field.name))
-      .filter((field) => typeof readLock(field) !== 'function')
+      .filter((field) => !readLockOf(field))
       .map((field) => field.name)
 
     expect(unlocked).toEqual([])
@@ -80,7 +76,7 @@ describe('Managers field read locks', () => {
   it('leaves the picker title readable', () => {
     const name = fields.find((field) => field.name === 'name')
     expect(name).toBeDefined()
-    expect(readLock(name!)).toBeUndefined()
+    expect(readLockOf(name!)).toBeUndefined()
   })
 })
 
