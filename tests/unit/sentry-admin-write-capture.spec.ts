@@ -2,16 +2,16 @@
  * The wiring, not just the helper.
  *
  * A spec on `captureFailure` alone cannot see whether the Local API is wrapped
- * at all, whether the wrapper rethrows, or whether it stands down inside a
- * Payload route — and an unreached capture site with a green spec beside it is
+ * at all, whether the wrapper rethrows, or whether it stands down on a routed
+ * request — and an unreached capture site with a green spec beside it is
  * exactly the shape #1039 set out to make visible.
  */
 import type { Payload } from 'payload'
 
+import { ValidationError } from 'payload'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { installLocalApiCapture } from '@/plugins/sentry/localApiCapture'
-import { withPayloadRouteScope } from '@/plugins/sentry/payloadRouteScope'
 
 const sentry = vi.hoisted(() => ({
   captureException: vi.fn(),
@@ -41,50 +41,48 @@ const URL = 'https://cloud.sydevelopers.com/admin/collections/pages/create'
  * `payload.collections` are there because `describeRejectedCredential` reads
  * both on any sub-500 capture.
  */
-const buildRequest = (user?: unknown) =>
+const buildRequest = (payloadAPI: string, user?: unknown) =>
   ({
     headers: new Headers(),
     locale: 'en',
     payload: { collections: { managers: {}, pages: {} }, logger: { warn: vi.fn() } },
+    payloadAPI,
     url: URL,
     user,
   }) as never
 
-const adminRequest = () => buildRequest(MANAGER)
+const adminRequest = () => buildRequest('local', MANAGER)
+
+/** A request Payload routed, carrying the stamp `createLocalReq` preserves. */
+const routedRequest = () => buildRequest('REST', MANAGER)
 
 /** What a job, a seed or an operator script writes with. */
-const unattendedRequest = () => buildRequest()
-
-/** A Payload `ValidationError`, as the `pages` create-on-open produces one. */
-const validationError = () =>
-  Object.assign(new Error('The following field is invalid: Slug'), {
-    name: 'ValidationError',
-    status: 400,
-    data: { errors: [{ path: 'slug', message: 'Value must be unique' }] },
-  })
+const unattendedRequest = () => buildRequest('local')
 
 /**
- * A stub standing in for the live instance `onInit` wraps. `jobs.queue` writes
- * through `payload.create` the way Payload's own does, so the pair covers the
- * nesting that must not report twice.
+ * Payload's own error, not a look-alike: `captureFailure` reads the field paths
+ * through `validationFieldErrors`, which asks `instanceof`.
  */
+const validationError = () =>
+  new ValidationError({
+    collection: 'pages',
+    errors: [{ label: 'Slug', message: 'Value must be unique', path: 'slug' }],
+  })
+
+/** A stub standing in for the live instance `onInit` wraps. */
 const stubPayload = (failWith: () => unknown) => {
   const failing = () => async (_options?: unknown) => {
     throw failWith()
   }
 
-  const payload = {
+  return {
     create: failing(),
     delete: failing(),
     duplicate: failing(),
     update: failing(),
     updateGlobal: failing(),
-    // Payload's own `queue` writes the row through `create`, so the throw that
-    // leaves it is the one `create` already reported.
-    jobs: { queue: async (options?: unknown) => payload.create(options) },
-  }
-
-  return payload as unknown as Payload
+    jobs: { queue: failing() },
+  } as unknown as Payload
 }
 
 const install = (failWith: () => unknown) => {
@@ -150,9 +148,23 @@ describe('a Local API write the admin makes outside a route', () => {
       payload.jobs.queue({ task: 'schedulePublish', req: adminRequest() } as never),
     ).rejects.toThrow()
 
-    // Three calls, two reports: the queue's own throw is the create's, and one
-    // error instance reports once.
     expect(sentry.captureException).toHaveBeenCalledTimes(2)
+  })
+
+  it('reports once when a hook writes through the Local API inside the write', async () => {
+    const error = new Error('the afterChange hook could not update its sibling')
+    const payload = stubPayload(() => error)
+    // An admin `create` whose hook writes through the Local API. Set before the
+    // install, so the inner call reaches the wrapped `update` and both wrappers
+    // see one throw on its way out.
+    payload.create = ((options: never) => payload.update(options)) as typeof payload.create
+    installLocalApiCapture(payload)
+
+    await expect(
+      payload.create({ collection: 'pages', data: {}, req: adminRequest() } as never),
+    ).rejects.toBe(error)
+
+    expect(sentry.captureException).toHaveBeenCalledTimes(1)
   })
 
   it('tags a global write with its slug', async () => {
@@ -167,14 +179,13 @@ describe('a Local API write the admin makes outside a route', () => {
 })
 
 describe('what must not report', () => {
-  it('stands down inside a Payload route, where afterError reports instead', async () => {
+  it('stands down on a routed request, where afterError reports instead', async () => {
     const { payload } = install(validationError)
 
-    const routed = withPayloadRouteScope(() =>
-      payload.create({ collection: 'pages', data: {}, req: adminRequest() } as never),
-    )
+    await expect(
+      payload.create({ collection: 'pages', data: {}, req: routedRequest() } as never),
+    ).rejects.toThrow()
 
-    await expect(routed()).rejects.toThrow()
     expect(sentry.captureException).not.toHaveBeenCalled()
   })
 
@@ -184,6 +195,16 @@ describe('what must not report', () => {
     await expect(payload.create({ collection: 'pages', data: {} } as never)).rejects.toThrow()
     await expect(
       payload.create({ collection: 'pages', data: {}, req: unattendedRequest() } as never),
+    ).rejects.toThrow()
+
+    expect(sentry.captureException).not.toHaveBeenCalled()
+  })
+
+  it('ignores a `user` option with no request — the eventImport task', async () => {
+    const { payload } = install(validationError)
+
+    await expect(
+      payload.create({ collection: 'events', data: {}, user: MANAGER } as never),
     ).rejects.toThrow()
 
     expect(sentry.captureException).not.toHaveBeenCalled()

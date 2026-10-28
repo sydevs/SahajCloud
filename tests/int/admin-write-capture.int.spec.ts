@@ -1,21 +1,22 @@
 /**
- * What a real Payload failure puts in the Sentry event.
+ * The two facts about a real Payload write that the unit lane can only assume.
  *
- * The unit spec builds its own `ValidationError`, so it pins the wrapper's
- * behaviour against an assumption: that `data.errors[].path` is where a field
- * name lives. Only a real `payload.create` settles that — a hand-built fixture
- * that is wrong about the shape passes while production reports no field at
- * all, which is the gap #1039 is about.
+ * One: that `data.errors[].path` is where a failing field's name lives — a
+ * stubbed error that is wrong about the shape passes while production reports
+ * no field at all, which is the gap #1039 is about.
+ *
+ * Two: that `createLocalReq` **preserves** a `REST` stamp into a Local API
+ * call. The whole gate rests on it. Nothing in this repo sets that property, so
+ * only a real `payload.create` can show it still holds after a Payload bump.
  *
  * `pages` is the collection that reaches the autosave create-on-open, and
  * `title` is its one required field.
  */
 import type { Payload, PayloadRequest } from 'payload'
 
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { installLocalApiCapture } from '@/plugins/sentry/localApiCapture'
-import { withPayloadRouteScope } from '@/plugins/sentry/payloadRouteScope'
 
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -36,8 +37,8 @@ vi.mock('@sentry/nextjs', () => ({
 }))
 
 let payload: Payload
+let buildRequest: (payloadAPI: 'local' | 'REST') => PayloadRequest
 let cleanup: () => Promise<void>
-let adminRequest: PayloadRequest
 
 beforeAll(async () => {
   const env = await createTestEnvironment()
@@ -48,17 +49,23 @@ beforeAll(async () => {
   // the same call the plugin makes there.
   installLocalApiCapture(payload)
 
-  adminRequest = {
-    headers: new Headers(),
-    locale: 'en',
-    payload,
-    url: 'https://cloud.sydevelopers.com/admin/collections/pages/create',
-    user: env.adminUser,
-  } as unknown as PayloadRequest
+  buildRequest = (payloadAPI) =>
+    ({
+      headers: new Headers(),
+      locale: 'en',
+      payload,
+      payloadAPI,
+      url: 'https://cloud.sydevelopers.com/admin/collections/pages/create',
+      user: env.adminUser,
+    }) as unknown as PayloadRequest
 })
 
 afterAll(async () => {
   await cleanup()
+})
+
+beforeEach(() => {
+  vi.clearAllMocks()
 })
 
 const createPageWithoutTitle = (req?: PayloadRequest) =>
@@ -66,12 +73,7 @@ const createPageWithoutTitle = (req?: PayloadRequest) =>
 
 describe('a failed admin write through the Local API', () => {
   it('reports one error event naming the collection and the failing field', async () => {
-    sentry.captureException.mockClear()
-    sentry.scope.setTag.mockClear()
-    sentry.scope.setExtra.mockClear()
-    sentry.scope.setLevel.mockClear()
-
-    await expect(createPageWithoutTitle(adminRequest)).rejects.toThrow()
+    await expect(createPageWithoutTitle(buildRequest('local'))).rejects.toThrow()
 
     expect(sentry.captureException).toHaveBeenCalledTimes(1)
     expect(Object.fromEntries(sentry.scope.setTag.mock.calls)).toMatchObject({
@@ -85,11 +87,11 @@ describe('a failed admin write through the Local API', () => {
     expect(sentry.scope.setLevel).toHaveBeenCalledWith('error')
   })
 
-  it('reports nothing for the same failure inside a Payload route', async () => {
-    sentry.captureException.mockClear()
-
-    const routed = withPayloadRouteScope(() => createPageWithoutTitle(adminRequest))
-    await expect(routed()).rejects.toThrow()
+  // Not the unit lane's case repeated: there the stamp is read off a stub, so
+  // nothing shows that `createLocalReq` leaves a routed one alone. It does that
+  // for the whole nested tree too, hooks of this collection included.
+  it('reports nothing for the same failure on a routed request', async () => {
+    await expect(createPageWithoutTitle(buildRequest('REST'))).rejects.toThrow()
 
     expect(sentry.captureException).not.toHaveBeenCalled()
   })

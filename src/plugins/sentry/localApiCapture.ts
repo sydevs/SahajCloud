@@ -10,68 +10,52 @@
  * is how #1038 — nobody could create a Page at all — stood for four months
  * (#1039).
  *
- * Two gates keep this to writes the admin makes:
- *
- * - **`isHandlingPayloadRoute()`** — Save, Publish and the periodic autosave
- *   submit to the REST API, and a routed failure already reports through
- *   `afterError`. Our own hooks write through the Local API while a request is
- *   in flight, so without this gate an ordinary 400 would report twice.
- * - **an acting user** — a scheduled job, a seed and an operator script all
- *   write with none, and none of them is a write the admin made. The managers
- *   sign-in action has none either, by design, and reports from its own catch
- *   rather than from here.
+ * Two properties of the request keep this to writes the admin makes. Both are
+ * read off the request Payload itself built — nothing here infers anything from
+ * a clock or a call stack.
  *
  * ⚠ **The wrapper rethrows, always.** It observes; it must not change what any
  * caller sees.
  */
 import type { Payload, PayloadRequest } from 'payload'
 
+import { isRecord } from '@/lib/utilities/isRecord'
+
 import { captureFailure, type SentryContextFn } from './captureFailure'
-import { isHandlingPayloadRoute } from './payloadRouteScope'
-
-/** The shape of a Local API write's options that this module reads. */
-type WriteOptions = {
-  collection?: unknown
-  req?: PayloadRequest
-  slug?: unknown
-  user?: unknown
-}
-
-const writeOptions = (value: unknown): WriteOptions =>
-  typeof value === 'object' && value !== null ? (value as WriteOptions) : {}
-
-/** `collection` for a document write, `slug` for a global one. */
-const entityOf = ({ collection, slug }: WriteOptions): string | undefined => {
-  if (typeof collection === 'string') return collection
-  return typeof slug === 'string' ? slug : undefined
-}
-
-const statusOf = (error: unknown): number =>
-  typeof error === 'object' &&
-  error !== null &&
-  'status' in error &&
-  typeof (error as { status: unknown }).status === 'number'
-    ? (error as { status: number }).status
-    : 500
 
 const report = (error: unknown, options: unknown, context?: SentryContextFn): void => {
-  if (isHandlingPayloadRoute()) return
+  const { collection, req, slug } = isRecord(options) ? options : {}
+  const request = req as PayloadRequest | undefined
 
-  const parsed = writeOptions(options)
-  const { req } = parsed
-  if (!parsed.user && !req?.user) return
+  // Save, Publish and the periodic autosave submit to the REST API, where
+  // `routeError` already reports through `afterError`. `createPayloadRequest`
+  // stamps such a request `REST` or `GraphQL`, and `createLocalReq` **preserves
+  // that stamp** through a nested Local API call — so a write our own hooks
+  // make while a request is in flight reads as routed and stands down, rather
+  // than reporting what the hook is about to report.
+  //
+  // The admin page render and every admin server function build their request
+  // through `initReq`, which goes through `createLocalReq`, so both read
+  // `local`. `tests/int/admin-write-capture.int.spec.ts` pins the preservation.
+  if (request?.payloadAPI !== 'local') return
+
+  // An acting manager **on the request**. A job, a seed and an operator script
+  // carry no user; `eventImport`'s task passes a `user` option with no request
+  // at all, and a refused CSV row is reported to its uploader already.
+  if (!request.user) return
 
   captureFailure({
-    collection: entityOf(parsed),
+    // `collection` for a document write, `slug` for a global one.
+    collection:
+      typeof collection === 'string' ? collection : typeof slug === 'string' ? slug : undefined,
     context,
     error,
     // A `ValidationError` answers 400 on a route. Swallowed, it is the whole
     // incident — the page renders empty and no one is told — so the level is
     // not derived from that status.
     level: 'error',
-    req,
+    req: request,
     source: 'localApi',
-    status: statusOf(error),
   })
 }
 
@@ -104,10 +88,7 @@ const capturing = <Operation extends (options: never) => Promise<unknown>>(
  * wrapping the collection operations does not reach it — and `schedule-publish`
  * is one of the two paths #1039 names.
  */
-export const installLocalApiCapture = (
-  payload: Payload,
-  { context }: { context?: SentryContextFn } = {},
-): void => {
+export const installLocalApiCapture = (payload: Payload, context?: SentryContextFn): void => {
   const { create, delete: remove, duplicate, update, updateGlobal } = payload
   const { queue } = payload.jobs
 

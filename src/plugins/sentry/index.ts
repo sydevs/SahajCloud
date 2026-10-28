@@ -12,10 +12,10 @@
  * ]
  * ```
  *
- * ⚠ `captureFailure` and `payloadRouteScope` are deliberately **not** here.
- * Their callers — a server action and the generated REST route — import them by
- * deep path, so neither pulls the plugin, its env parse, or the Local API
- * wrapper in behind it.
+ * ⚠ `captureFailure` is deliberately **not** here. Its one caller outside this
+ * folder is the managers sign-in action, which imports it by deep path so it
+ * does not pull the plugin, its env parse, or the Local API wrapper in behind
+ * it.
  */
 
 export { sentryPlugin } from './sentryPlugin'
