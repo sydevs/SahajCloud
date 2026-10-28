@@ -150,6 +150,8 @@ See `docs/rules/openapi.md` for the full shim contract.
 
 **Passthrough endpoints** forward the query into a Payload read and return the docs (`GET /api/events/geojson`). These **must** accept and document `select`, `populate`, and `depth` — reuse `selectParameter`, `populateParameter`, and `depthParameter` from `clientReadParametersDocs.ts`, and enforce the client read contract: `select` required, and `populate` required when `depth > 1`.
 
+⚠ **A passthrough coercing `limit` or `page` itself must forward an uncoercible value, not drop it.** Payload's `parseParams` runs on its own REST layer and nowhere else, so such a handler coerces qs's strings by hand — and dropping what it cannot read substitutes payload's default, leaving the client gate nothing to refuse. That is how `?limit=abc` answered 200 on the geojson feed while `/api/events` answered 400 (#889). `toBoundedNumber` there is the shape: coerce what coerces, forward what does not.
+
 **A passthrough may still narrow the caller's `where`.** "Passthrough" does not mean the caller's `where` goes in untouched — a feed endpoint may AND its own predicate on top (geojson excludes finished events via `notFinishedWhere`). Two rules apply:
 
 - Filter inside the read, never after it. ANDing onto `where` keeps `totalDocs` and pagination consistent with the returned docs. Dropping rows afterward corrupts both and breaks a paginating client.
