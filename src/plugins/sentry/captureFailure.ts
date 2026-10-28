@@ -74,6 +74,11 @@ export interface CaptureFailureArgs {
   source: CaptureSource
   /** The status the failure would answer with. Defaults to 500. */
   status?: number
+  /**
+   * Who acted, for a site that knows but holds no request — `jobs.queue`, whose
+   * admin caller passes only the queued input. `req.user` wins where it exists.
+   */
+  user?: SentryContext['user']
 }
 
 /**
@@ -100,6 +105,7 @@ export const captureFailure = ({
   req,
   source,
   status = errorStatus(error),
+  user: actingUser,
 }: CaptureFailureArgs): boolean => {
   try {
     // A Postgres cast failure is the caller sending a value the column cannot
@@ -181,9 +187,7 @@ export const captureFailure = ({
           id: String(req.user.id),
           email: 'email' in req.user ? String(req.user.email) : undefined,
         }
-      : rejected?.ip
-        ? { ip_address: rejected.ip }
-        : undefined
+      : (actingUser ?? (rejected?.ip ? { ip_address: rejected.ip } : undefined))
 
     const defaultContext: SentryContext = {
       user,

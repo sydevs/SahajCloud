@@ -136,19 +136,47 @@ describe('a Local API write the admin makes outside a route', () => {
     })
   })
 
-  it('covers the schedule-publish pair — a delete and a queue', async () => {
+  it('covers the cancel half of schedule-publish, which passes a request', async () => {
     const { payload } = install(() => new Error('could not reach payload-jobs'))
 
     await expect(
       payload.delete({ collection: 'payload-jobs', req: adminRequest(), where: {} } as never),
     ).rejects.toThrow()
+
+    expect(sentry.captureException).toHaveBeenCalledTimes(1)
     expect(tags()).toMatchObject({ collection: 'payload-jobs', capture_source: 'localApi' })
+  })
+
+  /**
+   * ⚠ No `req`, deliberately. `schedulePublishHandler` passes only `input`,
+   * `task` and `waitUntil` — so a spec that hands `jobs.queue` a request keeps
+   * the acting-user gate green over a path it never covers.
+   */
+  it('covers the scheduling half, which passes none', async () => {
+    const { payload } = install(() => new Error('could not write the job row'))
 
     await expect(
-      payload.jobs.queue({ task: 'schedulePublish', req: adminRequest() } as never),
+      payload.jobs.queue({
+        input: { type: 'publish', user: { relationTo: 'managers', value: 7 } },
+        task: 'schedulePublish',
+        waitUntil: new Date(),
+      } as never),
     ).rejects.toThrow()
 
-    expect(sentry.captureException).toHaveBeenCalledTimes(2)
+    expect(sentry.captureException).toHaveBeenCalledTimes(1)
+    expect(tags()).toMatchObject({ collection: 'payload-jobs', capture_source: 'localApi' })
+    // Named from the queued input, the only place that path records who asked.
+    expect(sentry.scope.setUser).toHaveBeenCalledWith({ id: '7' })
+  })
+
+  it('leaves a queue a routed request owns to afterError', async () => {
+    const { payload } = install(() => new Error('could not write the job row'))
+
+    await expect(
+      payload.jobs.queue({ input: {}, req: routedRequest(), task: 'deliverSubmission' } as never),
+    ).rejects.toThrow()
+
+    expect(sentry.captureException).not.toHaveBeenCalled()
   })
 
   it('reports once when a hook writes through the Local API inside the write', async () => {
