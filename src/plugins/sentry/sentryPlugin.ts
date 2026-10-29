@@ -20,8 +20,6 @@ import { serverEnv } from '@/lib/env'
 import { captureFailure, errorStatus, type SentryContextFn } from './captureFailure'
 import { installLocalApiCapture } from './localApiCapture'
 
-export type { SentryContext, SentryContextFn } from './captureFailure'
-
 export interface SentryPluginOptions {
   /**
    * Array of additional HTTP status codes to capture (500+ are always captured)

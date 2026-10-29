@@ -169,6 +169,20 @@ describe('a Local API write the admin makes outside a route', () => {
     expect(sentry.scope.setUser).toHaveBeenCalledWith({ id: '7' })
   })
 
+  it('ignores a queue a job or a cron tick makes, with no acting user', async () => {
+    const { payload } = install(() => new Error('could not write the job row'))
+
+    await expect(
+      payload.jobs.queue({
+        input: {},
+        req: unattendedRequest(),
+        task: 'deliverSubmission',
+      } as never),
+    ).rejects.toThrow()
+
+    expect(sentry.captureException).not.toHaveBeenCalled()
+  })
+
   it('leaves a queue a routed request owns to afterError', async () => {
     const { payload } = install(() => new Error('could not write the job row'))
 
@@ -177,22 +191,6 @@ describe('a Local API write the admin makes outside a route', () => {
     ).rejects.toThrow()
 
     expect(sentry.captureException).not.toHaveBeenCalled()
-  })
-
-  it('reports once when a hook writes through the Local API inside the write', async () => {
-    const error = new Error('the afterChange hook could not update its sibling')
-    const payload = stubPayload(() => error)
-    // An admin `create` whose hook writes through the Local API. Set before the
-    // install, so the inner call reaches the wrapped `update` and both wrappers
-    // see one throw on its way out.
-    payload.create = ((options: never) => payload.update(options)) as typeof payload.create
-    installLocalApiCapture(payload)
-
-    await expect(
-      payload.create({ collection: 'pages', data: {}, req: adminRequest() } as never),
-    ).rejects.toBe(error)
-
-    expect(sentry.captureException).toHaveBeenCalledTimes(1)
   })
 
   it('tags a global write with its slug', async () => {

@@ -6,9 +6,7 @@
  * admin chrome and an empty body, and nothing escapes to `onRequestError`.
  * `schedulePublishHandler` catches the same way and returns `{ error }` to the
  * UI. Both are caught inside `node_modules`, upstream of any component we can
- * supply, so the Local API call itself is the only seam left. That blind spot
- * is how #1038 — nobody could create a Page at all — stood for four months
- * (#1039).
+ * supply, so the Local API call itself is the only seam left (#1038, #1039).
  *
  * Two properties of the request keep this to writes the admin makes. Both are
  * read off the request Payload itself built — nothing here infers anything from
@@ -68,21 +66,20 @@ const reportWrite = (error: unknown, options: unknown, context?: SentryContextFn
  * `jobs.queue` answers neither gate above, so it reports under its own rule.
  *
  * ⚠ **`schedulePublishHandler` passes no `req` at all** — only `input`, `task`
- * and `waitUntil` — so an acting-user gate silently covers nothing, and the
- * `payload.delete` half of that same handler (the cancel branch, which does
- * pass `req`) would be the only half reported. The rule here is therefore just
- * that no routed request owns the failure: a queue that fails is told to
- * nobody else, the handler logging it and handing the UI a toast.
- *
- * The acting manager comes from the queued input, which is where
- * `schedulePublish` records who asked for the publish.
+ * and `waitUntil` — so for a queue without one the acting manager comes from
+ * the queued input, where `schedulePublish` records who asked. A queue that
+ * does carry a request answers the same two gates as a write.
  */
 const reportQueue = (error: unknown, options: unknown, context?: SentryContextFn): void => {
   const { input, req } = isRecord(options) ? options : {}
   const request = req as PayloadRequest | undefined
   if (isRouted(request)) return
+  // With a request the write rule holds: a job or a cron tick queues with a userless local
+  // request, and the job runner records that failure already.
+  if (request && !request.user) return
 
-  const queuedBy = isRecord(input) && isRecord(input.user) ? input.user.value : undefined
+  const queuedBy =
+    !request && isRecord(input) && isRecord(input.user) ? input.user.value : undefined
 
   captureFailure({
     // The row that could not be written. The task is in the error's own message.

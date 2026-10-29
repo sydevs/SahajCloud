@@ -81,14 +81,6 @@ export interface CaptureFailureArgs {
   user?: SentryContext['user']
 }
 
-/**
- * ⚠ **One error instance reports once.** A hook's own Local API write nests
- * inside the admin write that triggered it, so a throw from the inner one
- * passes through both wrappers — and criterion 4 of #1039 is that nothing
- * reports twice.
- */
-const reported = new WeakSet<object>()
-
 /** The status a failure would answer with, or 500 for one that names none. */
 export const errorStatus = (error: unknown): number =>
   isRecord(error) && typeof error.status === 'number' ? error.status : 500
@@ -120,11 +112,6 @@ export const captureFailure = ({
     // reaches here. `docs/architecture.md` has the trade. (sydevs/SahajCloud#670)
     if (mapPostgresCastError(error)) {
       return false
-    }
-
-    if (isRecord(error)) {
-      if (reported.has(error)) return false
-      reported.add(error)
     }
 
     const tags: Record<string, string | undefined> = {
@@ -223,6 +210,9 @@ export const captureFailure = ({
       if (finalContext.fingerprint) {
         scope.setFingerprint(finalContext.fingerprint)
       }
+      // A hook's nested Local API write rethrows the same instance through both wrappers, and
+      // `onRequestError` can see it again; the SDK's own `__sentry_captured__` mark drops each
+      // repeat, so nothing here dedupes.
       Sentry.captureException(error)
     })
 
