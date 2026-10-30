@@ -82,7 +82,21 @@ const stubPayload = (failWith: () => unknown) => {
     update: failing(),
     updateGlobal: failing(),
     jobs: { queue: failing() },
+    config: {
+      jobs: {
+        tasks: [
+          { slug: 'schedulePublish', handler: failing() },
+          { slug: 'deliverSubmission', handler: failing() },
+        ],
+      },
+    },
   } as unknown as Payload
+}
+
+/** A task's handler, called the way the job runner calls it. */
+const runTask = (payload: Payload, slug: string, input: unknown, req: unknown) => {
+  const task = payload.config.jobs.tasks?.find((candidate) => candidate.slug === slug)
+  return (task?.handler as (args: unknown) => Promise<unknown>)({ input, req })
 }
 
 const install = (failWith: () => unknown) => {
@@ -157,14 +171,23 @@ describe('a Local API write the admin makes outside a route', () => {
 
     await expect(
       payload.jobs.queue({
-        input: { type: 'publish', user: { relationTo: 'managers', value: 7 } },
+        input: {
+          doc: { relationTo: 'pages', value: '12' },
+          type: 'publish',
+          user: { relationTo: 'managers', value: 7 },
+        },
         task: 'schedulePublish',
         waitUntil: new Date(),
       } as never),
     ).rejects.toThrow()
 
     expect(sentry.captureException).toHaveBeenCalledTimes(1)
-    expect(tags()).toMatchObject({ collection: 'payload-jobs', capture_source: 'localApi' })
+    // The schedule's own target, so one failing schedule is not every other's issue.
+    expect(tags()).toMatchObject({
+      collection: 'payload-jobs',
+      capture_source: 'localApi',
+      target: 'pages/12',
+    })
     // Named from the queued input, the only place that path records who asked.
     expect(captured().user).toEqual({ id: '7' })
   })
@@ -212,6 +235,61 @@ describe('a Local API write the admin makes outside a route', () => {
     ).rejects.toThrow()
 
     expect(tags()).toMatchObject({ collection: 'sy-atlas-config' })
+  })
+})
+
+describe('the publish a schedule runs', () => {
+  const scheduled = {
+    doc: { relationTo: 'pages', value: '12' },
+    type: 'publish',
+    user: { relationTo: 'managers', value: 7 },
+  }
+
+  it('reports a schedulePublish job that fails, naming its target and who scheduled it', async () => {
+    const error = validationError()
+    const { payload } = install(() => error)
+
+    await expect(runTask(payload, 'schedulePublish', scheduled, unattendedRequest())).rejects.toBe(
+      error,
+    )
+
+    expect(sentry.captureException).toHaveBeenCalledTimes(1)
+    expect(captured().level).toBe('error')
+    expect(tags()).toMatchObject({
+      collection: 'pages',
+      capture_source: 'job',
+      target: 'pages/12',
+    })
+    expect(captured().user).toEqual({ id: '7' })
+  })
+
+  it('tags a scheduled global by its slug', async () => {
+    const { payload } = install(() => new Error('nope'))
+
+    await expect(
+      runTask(payload, 'schedulePublish', { global: 'wm-web-config' }, unattendedRequest()),
+    ).rejects.toThrow()
+
+    expect(tags()).toMatchObject({ collection: 'wm-web-config', target: 'wm-web-config' })
+  })
+
+  it('leaves every other task to its own reporting', async () => {
+    const { payload } = install(() => new Error('delivery failed'))
+
+    await expect(runTask(payload, 'deliverSubmission', {}, unattendedRequest())).rejects.toThrow()
+
+    expect(sentry.captureException).not.toHaveBeenCalled()
+  })
+
+  it('drops a tag whose value is null or empty', async () => {
+    const { payload } = install(() => new Error('nope'))
+    const req = { ...(adminRequest() as object), locale: null }
+
+    await expect(payload.create({ collection: '', data: {}, req } as never)).rejects.toThrow()
+
+    expect(sentry.captureException).toHaveBeenCalledTimes(1)
+    expect(Object.keys(tags())).not.toContain('locale')
+    expect(Object.keys(tags())).not.toContain('collection')
   })
 })
 

@@ -4,7 +4,9 @@
  * `DocumentView` catches a failed render inside `node_modules` and answers 200
  * with an empty body; `schedulePublishHandler` catches and returns `{ error }`.
  * Nothing escapes to `onRequestError`, so the Local API call itself is the only
- * seam left (#1038, #1039).
+ * seam left (#1038, #1039). The publish a schedule later runs fails inside the
+ * job runner instead, which records it on the job row alone — so its handler is
+ * wrapped too.
  *
  * ⚠ **The wrapper rethrows, always.** It observes; it must not change what any
  * caller sees.
@@ -14,6 +16,22 @@ import type { Payload, PayloadRequest } from 'payload'
 import { isRecord } from '@/lib/utilities/isRecord'
 
 import { captureFailure } from './captureFailure'
+
+/** What a `schedulePublish` input is for: `pages/12`, or a global's slug. */
+const scheduledTarget = (input: unknown): string | undefined => {
+  if (!isRecord(input)) return undefined
+  const { doc, global } = input
+  if (isRecord(doc) && typeof doc.relationTo === 'string') {
+    return `${doc.relationTo}/${String(doc.value)}`
+  }
+  return typeof global === 'string' ? global : undefined
+}
+
+/** Who queued a `schedulePublish` — the input records it as a relationship. */
+const scheduledBy = (input: unknown): { id: string } | undefined =>
+  isRecord(input) && isRecord(input.user) && input.user.value != null
+    ? { id: String(input.user.value) }
+    : undefined
 
 const report = (error: unknown, options: unknown, row?: string): void => {
   const { collection, input, req, slug } = isRecord(options) ? options : {}
@@ -28,8 +46,7 @@ const report = (error: unknown, options: unknown, row?: string): void => {
 
   // ⚠ **`schedulePublishHandler` queues with no `req` at all**, so its acting
   // manager comes from the queued input, where `schedulePublish` records it.
-  const queuedBy =
-    !request && isRecord(input) && isRecord(input.user) ? input.user.value : undefined
+  const queuedBy = request ? undefined : scheduledBy(input)
 
   // An acting manager on the request. A job, a cron tick, a seed and a script
   // carry none, and `eventImport` passes `user` with no request — its refused
@@ -43,8 +60,42 @@ const report = (error: unknown, options: unknown, row?: string): void => {
     error,
     req: request,
     source: 'localApi',
-    user: queuedBy === undefined ? undefined : { id: String(queuedBy) },
+    target: row ? scheduledTarget(input) : undefined,
+    user: queuedBy,
   })
+}
+
+/**
+ * The publish a schedule runs fails inside the job runner, which writes the job
+ * row and a log line and tells no one. Only Payload's own `schedulePublish` is
+ * wrapped: it is the one job whose failure an admin asked for and nothing else
+ * reports. Our own tasks report from their own catch, or record an expected
+ * failure for a person — `eventImport` does — which wrapping every task would
+ * turn into incidents.
+ *
+ * Its `payload.update` runs with no request, so the write wrapper stands down
+ * and this is the one report.
+ */
+const wrapScheduledPublish = (payload: Payload): void => {
+  const task = payload.config.jobs?.tasks?.find(({ slug }) => slug === 'schedulePublish')
+  if (!task || typeof task.handler !== 'function') return
+  const handler = task.handler
+  task.handler = async (args) => {
+    try {
+      return await handler(args)
+    } catch (error) {
+      const target = scheduledTarget(args.input)
+      captureFailure({
+        collection: target?.split('/')[0],
+        error,
+        req: args.req,
+        source: 'job',
+        target,
+        user: scheduledBy(args.input),
+      })
+      throw error
+    }
+  }
 }
 
 /**
@@ -76,4 +127,5 @@ export const installLocalApiCapture = (payload: Payload): void => {
     wrap(payload, key)
   }
   wrap(payload.jobs, 'queue', 'payload-jobs')
+  wrapScheduledPublish(payload)
 }

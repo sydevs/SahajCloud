@@ -1,8 +1,9 @@
 /**
  * The one capture body behind every exception this plugin reports: Payload's
- * root `afterError` hook, the Local API wrapper (#1039), and the managers
- * sign-in action. A second copy of the exclusions would let one site report what
- * another deliberately drops.
+ * root `afterError` hook, the Local API wrapper and the scheduled-publish job
+ * (#1039), and the two managers sign-in paths — the page's action and the
+ * magic-link endpoint. A second copy of the exclusions would let one site report
+ * what another deliberately drops.
  *
  * ⚠ **Never throws.** Every site calls this while already handling a failure,
  * and a telemetry error must not replace the one the caller is dealing with.
@@ -26,7 +27,7 @@ import { describeRejectedCredential } from './credentialRejection'
  * The `capture_source` tag. A routed failure and a swallowed admin write can
  * carry the same error class, and only this tells them apart in Sentry.
  */
-export type CaptureSource = 'afterError' | 'localApi' | 'signIn'
+export type CaptureSource = 'afterError' | 'job' | 'localApi' | 'signIn'
 
 export interface CaptureFailureArgs {
   /** Collection or global slug, where the failure names one. */
@@ -36,6 +37,11 @@ export interface CaptureFailureArgs {
   source: CaptureSource
   /** The status the failure would answer with. Defaults to the error's own, or 500. */
   status?: number
+  /**
+   * What a scheduled publish was for — `pages/12`, or a global's slug — so one
+   * failing schedule can be told from another.
+   */
+  target?: string
   /** Who acted, for a site that holds no request. `req.user` wins where it exists. */
   user?: { id: string }
 }
@@ -46,6 +52,14 @@ export const errorStatus = (error: unknown): number =>
 const defined = (record: Record<string, unknown>) =>
   Object.fromEntries(Object.entries(record).filter(([, value]) => value !== undefined))
 
+/** A tag is a non-empty string or absent: Sentry has no use for `null` or `''`. */
+const tagsOf = (record: Record<string, unknown>): Record<string, string> =>
+  Object.fromEntries(
+    Object.entries(record).filter(
+      (entry): entry is [string, string] => typeof entry[1] === 'string' && entry[1] !== '',
+    ),
+  )
+
 /** Report a failed operation. Returns whether an event was sent. */
 export const captureFailure = ({
   collection,
@@ -53,6 +67,7 @@ export const captureFailure = ({
   req,
   source,
   status = errorStatus(error),
+  target,
   user: actingUser,
 }: CaptureFailureArgs): boolean => {
   try {
@@ -79,11 +94,15 @@ export const captureFailure = ({
     const fields = validationFieldErrors(error)?.map(({ path }) => path)
 
     Sentry.captureException(error, {
-      // A swallowed admin write is the whole incident whatever its status.
+      // A swallowed admin write, or a scheduled publish that never happened, is
+      // the whole incident whatever its status.
       // ⚠ **Accepted risk: a rejected credential's level is caller-triggerable**
       // with a junk `Authorization` header; mute it Sentry-side on
       // `auth_outcome`, never by dropping the level. (#734)
-      level: source === 'localApi' || rejected || status >= 500 ? 'error' : 'warning',
+      level:
+        source === 'localApi' || source === 'job' || rejected || status >= 500
+          ? 'error'
+          : 'warning',
       // ⚠ **The IP belongs on `user.ip_address`, never in an `extra`** — the
       // only field `sendDefaultPii: false` and the project's IP setting act on.
       // A rejected caller has no `req.user`, so the arms never overlap.
@@ -93,13 +112,14 @@ export const captureFailure = ({
             email: 'email' in req.user ? String(req.user.email) : undefined,
           }
         : (actingUser ?? (rejected?.ip ? { ip_address: rejected.ip } : undefined)),
-      tags: defined({
+      tags: tagsOf({
         environment: deploymentEnvironment(),
         locale: req?.locale,
         collection,
+        target,
         capture_source: source,
         ...rejected?.tags,
-      }) as Record<string, string>,
+      }),
       extra: defined({
         status,
         url: req?.url,
