@@ -55,6 +55,16 @@ imports that code (tests may reach a folder's internals). `src/jobs/index.ts`
 re-exports **only** the task definitions for `payload.config.ts`'s
 `jobs.tasks`.
 
+**A task's failure reaches Sentry once, on its final attempt**
+(`src/plugins/sentry/jobCapture.ts`), at `error`. When the task cannot do its
+work for a reason that is an answer rather than an incident — already shown to
+whoever needs it, or needing no one — throw `ExpectedJobFailure`
+(`@/lib/jobs/expectedFailure`) with the message the job row should carry. It is
+still reported, at `warning`. Leave an outage, such as a vendor down or a query
+failing, a plain `Error` — and a missing key or bucket URL too, in production
+(`isProductionDeployment()`), where it must alert. `TranscribeMeditation` and the `importEvents` task
+(`src/plugins/eventImport/task.ts`) show both.
+
 `CleanupCollections/` holds no collection list at all: a collection joins
 retention by declaring windows inline on its own config's `custom.retention`,
 and the job reads the built config at run time (#987). Each config carries its
@@ -104,7 +114,9 @@ No loose files at the root — every file lives in a named folder:
   zod-free, so `clientLogger` takes the `NEXT_PUBLIC_LOG_LEVEL` vocabulary
   without pulling the schema module into every browser chunk that carries it
 - `logger/` — `clientLogger`, `workerSafeLogger`
-- `jobs/` — `runQueueSoon`, which runs a queue now rather than at the next
+- `jobs/` — `ExpectedJobFailure`, the error a task throws for an answer
+  rather than an incident (the job capture sends it at `warning`), and
+  `runQueueSoon`, which runs a queue now rather than at the next
   sweep, and a beat later when the caller queued its row inside a
   transaction. The only part of the jobs system that is not one job's own: a
   row queued with `req` cannot run until that transaction commits, and every
