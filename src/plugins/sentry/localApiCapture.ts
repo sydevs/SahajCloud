@@ -5,8 +5,7 @@
  * with an empty body; `schedulePublishHandler` catches and returns `{ error }`.
  * Nothing escapes to `onRequestError`, so the Local API call itself is the only
  * seam left (#1038, #1039). The publish a schedule later runs fails inside the
- * job runner instead, which records it on the job row alone — so its handler is
- * wrapped too.
+ * job runner instead — `installScheduledPublishCapture` covers that one.
  *
  * ⚠ **The wrapper rethrows, always.** It observes; it must not change what any
  * caller sees.
@@ -66,39 +65,6 @@ const report = (error: unknown, options: unknown, row?: string): void => {
 }
 
 /**
- * The publish a schedule runs fails inside the job runner, which writes the job
- * row and a log line and tells no one. Only Payload's own `schedulePublish` is
- * wrapped: it is the one job whose failure an admin asked for and nothing else
- * reports. Our own tasks report from their own catch, or record an expected
- * failure for a person — `eventImport` does — which wrapping every task would
- * turn into incidents.
- *
- * Its `payload.update` runs with no request, so the write wrapper stands down
- * and this is the one report.
- */
-const wrapScheduledPublish = (payload: Payload): void => {
-  const task = payload.config.jobs?.tasks?.find(({ slug }) => slug === 'schedulePublish')
-  if (!task || typeof task.handler !== 'function') return
-  const handler = task.handler
-  task.handler = async (args) => {
-    try {
-      return await handler(args)
-    } catch (error) {
-      const target = scheduledTarget(args.input)
-      captureFailure({
-        collection: target?.split('/')[0],
-        error,
-        req: args.req,
-        source: 'job',
-        target,
-        user: scheduledBy(args.input),
-      })
-      throw error
-    }
-  }
-}
-
-/**
  * Wrap every Local API write on a live Payload instance.
  *
  * ⚠ **`jobs.queue` needs wrapping too.** It writes through `payload.db.create`
@@ -127,5 +93,43 @@ export const installLocalApiCapture = (payload: Payload): void => {
     wrap(payload, key)
   }
   wrap(payload.jobs, 'queue', 'payload-jobs')
-  wrapScheduledPublish(payload)
+}
+
+/**
+ * Report a scheduled publish that fails when its job runs. The runner records
+ * the throw on the job row and a log line alone, and the task's `payload.update`
+ * carries no request, so the write wrapper above stands down for it.
+ *
+ * Only Payload's own `schedulePublish` is wrapped. Payload has no final-failure
+ * hook that carries the error — `onFail` gets none, and runs on every attempt —
+ * so a handler wrapper reports once per attempt, and only this task, with no
+ * `retries`, makes that one event per job.
+ *
+ * ⚠ **The runner reads the handler off the live config**, which a dev HMR
+ * `reload()` replaces without running `onInit`, so in dev the wrap lasts until
+ * the first reload.
+ *
+ * ⚠ **No `req` is passed.** The runner's request carries the default locale and
+ * a placeholder URL, and on `/api/payload-jobs/run` it is the admin who
+ * triggered the run, not the manager who scheduled it.
+ */
+export const installScheduledPublishCapture = (payload: Payload): void => {
+  const task = payload.config.jobs?.tasks?.find(({ slug }) => slug === 'schedulePublish')
+  if (!task || typeof task.handler !== 'function') return
+  const handler = task.handler
+  task.handler = async (args) => {
+    try {
+      return await handler(args)
+    } catch (error) {
+      const { doc, global } = isRecord(args.input) ? args.input : {}
+      captureFailure({
+        collection: isRecord(doc) ? String(doc.relationTo) : (global as string | undefined),
+        error,
+        source: 'job',
+        target: scheduledTarget(args.input),
+        user: scheduledBy(args.input),
+      })
+      throw error
+    }
+  }
 }

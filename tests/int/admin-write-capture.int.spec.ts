@@ -19,7 +19,10 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { installLocalApiCapture } from '@/plugins/sentry/localApiCapture'
+import {
+  installLocalApiCapture,
+  installScheduledPublishCapture,
+} from '@/plugins/sentry/localApiCapture'
 
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -51,6 +54,7 @@ beforeAll(async () => {
   // The suite config carries no `sentryPlugin`, so `onInit` never ran — this is
   // the same call the plugin makes there.
   installLocalApiCapture(payload)
+  installScheduledPublishCapture(payload)
 
   buildRequest = (payloadAPI) =>
     ({

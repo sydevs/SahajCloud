@@ -11,7 +11,10 @@ import type { Payload } from 'payload'
 import { ValidationError } from 'payload'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { installLocalApiCapture } from '@/plugins/sentry/localApiCapture'
+import {
+  installLocalApiCapture,
+  installScheduledPublishCapture,
+} from '@/plugins/sentry/localApiCapture'
 
 const sentry = vi.hoisted(() => ({ captureException: vi.fn() }))
 
@@ -102,6 +105,7 @@ const runTask = (payload: Payload, slug: string, input: unknown, req: unknown) =
 const install = (failWith: () => unknown) => {
   const payload = stubPayload(failWith)
   installLocalApiCapture(payload)
+  installScheduledPublishCapture(payload)
   return { payload }
 }
 
@@ -227,6 +231,17 @@ describe('a Local API write the admin makes outside a route', () => {
     expect(sentry.captureException).not.toHaveBeenCalled()
   })
 
+  it('drops a tag whose value is null or empty', async () => {
+    const { payload } = install(() => new Error('nope'))
+    const req = { ...(adminRequest() as object), locale: null }
+
+    await expect(payload.create({ collection: '', data: {}, req } as never)).rejects.toThrow()
+
+    expect(sentry.captureException).toHaveBeenCalledTimes(1)
+    expect(Object.keys(tags())).not.toContain('locale')
+    expect(Object.keys(tags())).not.toContain('collection')
+  })
+
   it('tags a global write with its slug', async () => {
     const { payload } = install(() => new Error('nope'))
 
@@ -263,6 +278,17 @@ describe('the publish a schedule runs', () => {
     expect(captured().user).toEqual({ id: '7' })
   })
 
+  it('names who scheduled it, not whoever triggered the run', async () => {
+    const { payload } = install(() => new Error('nope'))
+
+    // `/api/payload-jobs/run` hands the job the triggering admin's request.
+    await expect(
+      runTask(payload, 'schedulePublish', scheduled, buildRequest('local', { id: 99 })),
+    ).rejects.toThrow()
+
+    expect(captured().user).toEqual({ id: '7' })
+  })
+
   it('tags a scheduled global by its slug', async () => {
     const { payload } = install(() => new Error('nope'))
 
@@ -279,17 +305,6 @@ describe('the publish a schedule runs', () => {
     await expect(runTask(payload, 'deliverSubmission', {}, unattendedRequest())).rejects.toThrow()
 
     expect(sentry.captureException).not.toHaveBeenCalled()
-  })
-
-  it('drops a tag whose value is null or empty', async () => {
-    const { payload } = install(() => new Error('nope'))
-    const req = { ...(adminRequest() as object), locale: null }
-
-    await expect(payload.create({ collection: '', data: {}, req } as never)).rejects.toThrow()
-
-    expect(sentry.captureException).toHaveBeenCalledTimes(1)
-    expect(Object.keys(tags())).not.toContain('locale')
-    expect(Object.keys(tags())).not.toContain('collection')
   })
 })
 
