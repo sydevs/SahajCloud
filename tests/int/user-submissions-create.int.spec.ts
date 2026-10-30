@@ -902,6 +902,24 @@ describe('User submissions intake (POST /api/user-submissions)', () => {
       ).rejects.toThrow()
     })
 
+    // A proxying consumer's own address is its egress, so it names the visitor (#808).
+    it.each([
+      ['the forwarded visitor', { 'x-client-ip': '203.0.113.7' }, '203.0.113.7'],
+      ['the edge address when none is forwarded', {}, '198.51.100.1'],
+    ])('sends siteverify %s', async (_, forwarded, expected) => {
+      await send(
+        {
+          type: 'contact',
+          form: contactForm.id,
+          senderEmail: 'proxied@example.com',
+          submissionData: [{ field: 'message', value: 'Sent through a proxy.' }],
+        },
+        { headers: { ...VALID_TURNSTILE, 'cf-connecting-ip': '198.51.100.1', ...forwarded } },
+      )
+
+      expect(verifyMock).toHaveBeenCalledWith('tok-valid', expected)
+    })
+
     it('refuses a create Cloudflare rejects', async () => {
       verifyMock.mockResolvedValue({ success: false, reason: 'rejected', errorCodes: [] })
 

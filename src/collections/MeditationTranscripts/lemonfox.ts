@@ -5,6 +5,7 @@
  */
 import { z } from 'zod'
 
+import { ExpectedJobFailure } from '@/lib/jobs/expectedFailure'
 import type { TranscriptSegment } from '@/lib/meditations/transcript'
 
 /**
@@ -42,7 +43,8 @@ export function normalizeLemonfoxResponse(raw: unknown): TranscriptSegment[] {
     .filter((segment) => segment.text.trim())
     .sort((a, b) => a.start - b.start)
   if (segments.length === 0) {
-    throw new Error('Lemonfox returned no timestamped speech for this recording.')
+    // An answer about the recording (music, silence), already shown on its row.
+    throw new ExpectedJobFailure('Lemonfox returned no timestamped speech for this recording.')
   }
 
   return segments.map((segment) => {

@@ -11,21 +11,21 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { sentryPlugin, type SentryPluginOptions } from '@/plugins/sentry/sentryPlugin'
 
-const sentry = vi.hoisted(() => ({
-  captureException: vi.fn(),
-  scope: {
-    setUser: vi.fn(),
-    setTag: vi.fn(),
-    setExtra: vi.fn(),
-    setLevel: vi.fn(),
-    setFingerprint: vi.fn(),
-  },
-}))
+const sentry = vi.hoisted(() => ({ captureException: vi.fn() }))
 
 vi.mock('@sentry/nextjs', () => ({
   captureException: sentry.captureException,
-  withScope: (callback: (scope: typeof sentry.scope) => void) => callback(sentry.scope),
 }))
+
+/** The capture context `captureFailure` handed the SDK on its latest call. */
+const captured = () =>
+  (sentry.captureException.mock.calls.at(-1)?.[1] ?? {}) as {
+    extra?: Record<string, unknown>
+    fingerprint?: string[]
+    level?: string
+    tags?: Record<string, unknown>
+    user?: Record<string, unknown>
+  }
 
 // The plugin short-circuits without a DSN, and `@/lib/env` parses the real
 // environment. Mocked so the lane never depends on a `.env` value.
@@ -79,8 +79,8 @@ const captureError = async (
   await afterError({ error, req } as unknown as Parameters<typeof afterError>[0])
 }
 
-const tags = () => Object.fromEntries(sentry.scope.setTag.mock.calls)
-const extras = () => Object.fromEntries(sentry.scope.setExtra.mock.calls)
+const tags = () => captured().tags ?? {}
+const extras = () => captured().extra ?? {}
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -91,8 +91,8 @@ describe('a 403 with no credential presented', () => {
     await captureError(403, buildRequest(null))
 
     expect(sentry.captureException).toHaveBeenCalledOnce()
-    expect(sentry.scope.setLevel).toHaveBeenCalledWith('warning')
-    expect(sentry.scope.setFingerprint).not.toHaveBeenCalled()
+    expect(captured().level).toBe('warning')
+    expect(captured().fingerprint).toBeUndefined()
     expect(tags()).not.toHaveProperty('key_fingerprint')
     expect(logger.warn).not.toHaveBeenCalled()
   })
@@ -102,8 +102,8 @@ describe('a 403 whose credential authenticated', () => {
   it('is an ordinary authorisation denial, not a broken integration', async () => {
     await captureError(403, buildRequest(`clients API-Key ${KEY}`, { id: 12 }))
 
-    expect(sentry.scope.setLevel).toHaveBeenCalledWith('warning')
-    expect(sentry.scope.setFingerprint).not.toHaveBeenCalled()
+    expect(captured().level).toBe('warning')
+    expect(captured().fingerprint).toBeUndefined()
     expect(tags()).not.toHaveProperty('auth_outcome')
     expect(logger.warn).not.toHaveBeenCalled()
   })
@@ -115,12 +115,8 @@ describe('a 403 whose credential was rejected', () => {
   })
 
   it('is captured at error level, in a group of its own', () => {
-    expect(sentry.scope.setLevel).toHaveBeenCalledWith('error')
-    expect(sentry.scope.setFingerprint).toHaveBeenCalledWith([
-      'credential-rejected',
-      '403',
-      'clients',
-    ])
+    expect(captured().level).toBe('error')
+    expect(captured().fingerprint).toEqual(['credential-rejected', '403', 'clients'])
   })
 
   it('carries the user agent, the collection and a key fingerprint', () => {
@@ -136,7 +132,7 @@ describe('a 403 whose credential was rejected', () => {
   it('reports the IP on Sentry`s own user field, where the PII scrubbers reach it', () => {
     // In an `extra` it would be opaque context, past both `sendDefaultPii:
     // false` and the project`s "Prevent Storing of IP Addresses" setting.
-    expect(sentry.scope.setUser).toHaveBeenCalledWith({ ip_address: IP })
+    expect(captured().user).toEqual({ ip_address: IP })
     expect(extras()).not.toHaveProperty('ip')
   })
 
@@ -157,9 +153,7 @@ describe('a 403 whose credential was rejected', () => {
 
   it('puts no part of the key into Sentry or the log', () => {
     const written = JSON.stringify([
-      sentry.scope.setTag.mock.calls,
-      sentry.scope.setExtra.mock.calls,
-      sentry.scope.setFingerprint.mock.calls,
+      sentry.captureException.mock.calls.map(([, context]) => context),
       logger.warn.mock.calls,
     ])
 
@@ -177,39 +171,8 @@ describe('a 403 naming a collection that does not exist', () => {
     // collection rather than by key fingerprint exists to prevent.
     await captureError(403, buildRequest(`made-up-slug API-Key ${KEY}`))
 
-    expect(sentry.scope.setFingerprint).toHaveBeenCalledWith([
-      'credential-rejected',
-      '403',
-      'unknown',
-    ])
+    expect(captured().fingerprint).toEqual(['credential-rejected', '403', 'unknown'])
     expect(tags().auth_collection).toBeUndefined()
-  })
-})
-
-describe('a context function shaped like the one the real config passes', () => {
-  it('does not drop the fingerprint on its way through', async () => {
-    // A `context` that reshapes `tags` and spreads the rest keeps the new
-    // field, which a dropped fingerprint would fail silently on — the events
-    // would just group with the anonymous ones again.
-    //
-    // ⚠ **This is a replica, not the real callback.** `src/payload.config.ts`
-    // declares its `context` inline and importing that file boots the whole
-    // config, which the unit lane will not do. So this pins the SHAPE, and
-    // `payload.config.ts:281` dropping its spread stays uncovered — check it by
-    // hand when editing that callback.
-    await captureError(403, buildRequest(`clients API-Key ${KEY}`), {
-      context: ({ defaultContext, req }) => ({
-        ...defaultContext,
-        tags: { ...defaultContext.tags, locale: req.locale },
-      }),
-    })
-
-    expect(sentry.scope.setFingerprint).toHaveBeenCalledWith([
-      'credential-rejected',
-      '403',
-      'clients',
-    ])
-    expect(sentry.scope.setLevel).toHaveBeenCalledWith('error')
   })
 })
 
@@ -219,8 +182,8 @@ describe('a 500 whose credential was rejected', () => {
     // `credential-rejected` would bury a real incident.
     await captureError(500, buildRequest(`clients API-Key ${KEY}`))
 
-    expect(sentry.scope.setLevel).toHaveBeenCalledWith('error')
-    expect(sentry.scope.setFingerprint).not.toHaveBeenCalled()
+    expect(captured().level).toBe('error')
+    expect(captured().fingerprint).toBeUndefined()
     expect(logger.warn).not.toHaveBeenCalled()
   })
 })

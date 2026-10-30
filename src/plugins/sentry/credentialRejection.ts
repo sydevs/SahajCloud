@@ -84,7 +84,9 @@ export const describeRejectedCredential = (
   )
   if (attempt.outcome !== 'rejected') return null
 
-  // Read `cf-connecting-ip` the same way `verifyTurnstileOrFail` does.
+  // `cf-connecting-ip` only, not `verifyTurnstileOrFail`'s `x-client-ip`: a
+  // rejected credential is no authenticated client, so that header is the
+  // caller's own unverified claim (#808).
   const userAgent = req.headers?.get?.('user-agent') ?? undefined
   const ip = req.headers?.get?.('cf-connecting-ip') ?? undefined
 

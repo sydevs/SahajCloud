@@ -29,6 +29,22 @@ const toNumber = (value: unknown): number | undefined => {
   return undefined
 }
 
+/**
+ * Coerce `limit` / `page`. Unlike {@link toNumber}, a value that is **present**
+ * but uncoercible is forwarded as it arrived instead of dropped, so the client
+ * gate refuses it 400 exactly as it does on `GET /api/events` (#889). Dropping
+ * it answered 200 at payload's default of 10, and this handler's whole contract
+ * is that the gate runs here as it does there. The cast is what carries it:
+ * the gate reads these as `unknown`, `payload.find` types them as numbers. Only
+ * a published client reaches this handler, so the gate always runs and no raw
+ * value can reach the driver.
+ */
+const toBoundedNumber = (value: unknown): number | undefined => {
+  const parsed = toNumber(value)
+  if (parsed !== undefined || value == null) return parsed
+  return value as number
+}
+
 const toBoolean = (value: unknown): boolean | undefined => {
   if (value === true || value === 'true') return true
   if (value === false || value === 'false') return false
@@ -95,8 +111,8 @@ export const eventsGeoJson: Endpoint = {
         select: query.select as SelectType | undefined,
         populate: query.populate as PopulateType | undefined,
         depth: toNumber(query.depth),
-        limit: toNumber(query.limit),
-        page: toNumber(query.page),
+        limit: toBoundedNumber(query.limit),
+        page: toBoundedNumber(query.page),
         sort: query.sort as Sort | undefined,
         pagination: toBoolean(query.pagination),
         overrideAccess: false,

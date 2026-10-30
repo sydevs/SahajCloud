@@ -64,8 +64,12 @@ export async function verifyTurnstileOrFail(
   token: string | null | undefined,
 ): Promise<AntiSpamResult> {
   // Cloudflare sets CF-Connecting-IP at the edge; it's absent for a direct
-  // origin hit, which siteverify tolerates (remoteip is optional).
-  const remoteIp = req.headers?.get?.('cf-connecting-ip')
+  // origin hit, which siteverify tolerates (remoteip is optional). A client that
+  // proxies the create is that edge's caller, so it names the visitor in
+  // `x-client-ip`, read only from a `clients` caller. Any key holder can set it,
+  // the published Atlas key included, so it is a scoring hint, not a binding (#808).
+  const forwardedIp = req.user?.collection === 'clients' ? req.headers?.get?.('x-client-ip') : null
+  const remoteIp = forwardedIp || req.headers?.get?.('cf-connecting-ip')
   const verification = await verifyTurnstileToken(token ?? '', remoteIp)
 
   if (verification.success) return { ok: true }

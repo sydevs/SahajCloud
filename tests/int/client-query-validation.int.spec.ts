@@ -1,7 +1,6 @@
 import type { Payload, PayloadRequest } from 'payload'
 
-import { sanitizePopulateParam, sanitizeSelectParam } from 'payload'
-import { isNumber } from 'payload/shared'
+import { parseParams } from 'payload'
 import * as qs from 'qs-esm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -18,8 +17,8 @@ import { createClientAuthenticatedRequest, createTestEnvironment } from '../util
 /**
  * Emulate Payload's REST URL → args parse pipeline:
  *   createPayloadRequest → qs.parse(search) → parseParams(query)
- * Same `qs.parse` options as `createPayloadRequest` (depth: 10, arrayLimit: 1000)
- * and same sanitize functions as `parseParams`. Returns the args shape that
+ * Same `qs.parse` options as `createPayloadRequest` (depth: 10, arrayLimit:
+ * 1000), then payload's own `parseParams`. Returns the args shape that
  * beforeOperation hooks receive when a real HTTP request hits the REST handler.
  */
 function parseRestQuery(url: string): Record<string, unknown> {
@@ -29,21 +28,13 @@ function parseRestQuery(url: string): Record<string, unknown> {
     depth: 10,
     ignoreQueryPrefix: true,
   }) as Record<string, unknown>
-  const args = { ...query }
-  if ('select' in args) {
-    // sanitizeSelectParam mutates the input. Pass through it the same way parseParams does
-    args.select = sanitizeSelectParam(args.select as never)
-  }
-  if ('populate' in args) {
-    args.populate = sanitizePopulateParam(args.populate as never)
-  }
-  // `parseParams` coerces these three only when payload's own `isNumber`
-  // passes. A REST case added without this passes vacuously — the string
-  // '2001' is not > 2000.
-  for (const key of ['depth', 'limit', 'page']) {
-    if (key in args && isNumber(args[key])) args[key] = Number(args[key])
-  }
-  return args
+  // `parseParams` is payload's own second stage, exported from `payload`, so
+  // this helper reproduces none of it. Reaching for it rather than coercing the
+  // params a case happens to use is what keeps the emulation faithful: it
+  // parses all 11, so a case added for a new one cannot assert vacuously
+  // against an uncoerced string ('2001' is not > 2000, and 'false' is truthy).
+  // It mutates its argument, which is why the spread above is not reused.
+  return parseParams({ ...query }) as Record<string, unknown>
 }
 
 describe('Client query parameter validation', () => {
@@ -209,19 +200,32 @@ describe('Client query parameter validation', () => {
       ['a negative page', { page: -1 }, /"page"/],
       ['a negative limit', { limit: -1 }, /"limit"/],
       ['a fractional limit', { limit: 1.5 }, /"limit"/],
+      // `parseParams` coerces these two only when `isNumber` passes, so they
+      // arrive as strings. Skipped, they reached the driver as a non-integer
+      // LIMIT and answered 500 — the hole this bound exists to close.
+      ['a non-numeric limit', { limit: 'abc' }, /"limit"/],
+      ['an empty limit', { limit: '' }, /"limit"/],
+      ['a non-numeric page', { page: 'abc' }, /"page"/],
     ])('rejects %s', async (_name, args, message) => {
       await expect(findAsClient(args)).rejects.toThrow(message)
     })
 
-    // `limit: 0` and `pagination: false` are payload's two spellings of an
-    // unbounded read. Both stay allowed — the Atlas widget sends the second on
-    // three live feeds, so refusing them is a policy decision with a
-    // downstream migration behind it, not part of closing the 500.
+    // `limit: 0` and `pagination: false` with no `limit` are payload's two
+    // spellings of an unbounded read, and a client now gets neither (#889).
+    // The refusal keys on the effective limit payload computes, so the third
+    // row below — bounded, and only skipping the `COUNT(*)` — still passes.
+    it.each([
+      ['limit=0', { limit: 0 }],
+      ['pagination=false with no limit', { pagination: false }],
+    ])('rejects an unbounded read spelled %s', async (_name, args) => {
+      await expect(findAsClient(args)).rejects.toThrow(
+        new RegExp(`unbounded.*${MAX_CLIENT_LIMIT}`, 'i'),
+      )
+    })
+
     it.each([
       ['a limit at the cap', { limit: MAX_CLIENT_LIMIT }],
-      ['an absent limit and page', {}],
-      ['limit=0', { limit: 0 }],
-      ['pagination=false', { pagination: false }],
+      ['pagination=false with a non-zero limit', { pagination: false, limit: 100 }],
     ])('allows %s', async (_name, args) => {
       const result = await findAsClient(args)
       expect(result.docs).toHaveLength(1)
@@ -230,6 +234,14 @@ describe('Client query parameter validation', () => {
     it('allows a page at the bound', async () => {
       const result = await findAsClient({ page: MAX_CLIENT_PAGE })
       expect(result.page).toBe(MAX_CLIENT_PAGE)
+    })
+
+    // An absent `limit` is not an unbounded read: `find.js` defaults it to 10.
+    // Asserted on the response rather than on the absence of a throw, because
+    // a refusal keyed on `limit == null` alone would also pass that.
+    it('leaves an absent limit at payload default of 10', async () => {
+      const result = await findAsClient({})
+      expect(result.limit).toBe(10)
     })
 
     // The bound runs ahead of the two bypasses the select gate honours, so a
@@ -249,6 +261,66 @@ describe('Client query parameter validation', () => {
           overrideAccess: true,
         }),
       ).rejects.toThrow(/"limit"/)
+    })
+
+    // The unbounded refusal is the opposite case, and must be: six internal
+    // endpoint reads forward `limit: 0` through `asTrustedReq`, so a refusal
+    // ahead of that bypass would 400 every one of them on a client request.
+    it.each([
+      ['limit=0', { limit: 0 }],
+      ['pagination=false with no limit', { pagination: false }],
+    ])('allows an unbounded trusted internal read spelled %s', async (_name, args) => {
+      const trustedReq = {
+        ...clientReq(),
+        context: { skipClientQueryValidation: true },
+      } as unknown as PayloadRequest
+
+      const result = await payload.find({
+        collection: 'narrators',
+        ...args,
+        req: trustedReq,
+        overrideAccess: true,
+      })
+      expect(result.docs).toHaveLength(1)
+    })
+  })
+
+  // SahajCloud reads unpaginated on the caller's own `req` in three places, and
+  // the gate reads its arguments rather than the URL — so it cannot tell those
+  // from a client asking for the whole table. Each forwards `asTrustedReq` as of
+  // #889; without that the refusal 400s from inside SahajCloud, on a request the
+  // client spelled correctly.
+  //
+  // Only the region tree's case lives here, because this is the spec that owns
+  // the gate's contract and that read is reachable from a plain collection read.
+  // The others are covered where their own contract lives, by cases asserting a
+  // whole response rather than a status: reverting the wraps reds 23 cases in
+  // `atlas-sitemap.int.spec.ts`, 36 in `atlas-seo.int.spec.ts`, and
+  // `events.int.spec.ts`'s client `findByID` selecting `webPath`.
+  //
+  // `wm-app-status`'s own fan-out reads are deliberately NOT wrapped — see
+  // `globals-client-reads.int.spec.ts`, which pins that refusal.
+  describe("SahajCloud's own unpaginated reads on a client req", () => {
+    beforeAll(async () => {
+      await testData.createRegion(payload, { name: 'Boundland', slug: 'boundland' })
+    })
+
+    // `webPath`/`webUrl`'s afterRead resolves the whole region tree through
+    // `loadRegionTree`, which reads every `regions` row with `pagination: false`.
+    // The memo is per request, so each page of a client's own paginated walk
+    // issues it again.
+    it('serves a client read selecting webPath and webUrl on regions', async () => {
+      const result = await payload.find({
+        collection: 'regions',
+        select: { webPath: true, webUrl: true },
+        depth: 0,
+        limit: 10,
+        req: clientReq(),
+        overrideAccess: true,
+      })
+      // Non-vacuous only if the field resolved: a null `webPath` would mean the
+      // resolver returned before it read anything.
+      expect(result.docs.map((doc) => doc.webPath)).toContain('/boundland')
     })
   })
 
@@ -346,6 +418,20 @@ describe('Client query parameter validation', () => {
       expect(result.docs.length).toBeGreaterThan(0)
     })
 
+    // The unbounded refusal sits after this bypass, where the range bounds sit
+    // ahead of it. A preview renders a whole document, so it is trusted with
+    // its own shape — and nothing else pins which side of the bypass the
+    // refusal landed on.
+    it('allows an unbounded read when a valid preview token is present', async () => {
+      const result = await payload.find({
+        collection: 'narrators',
+        pagination: false,
+        req: await previewClientReq(),
+        overrideAccess: true,
+      })
+      expect(result.docs.length).toBeGreaterThan(0)
+    })
+
     it('allows client findByID at depth > 1 without select or populate when a valid preview token is present', async () => {
       const result = await payload.findByID({
         collection: 'narrators',
@@ -417,6 +503,27 @@ describe('Client query parameter validation', () => {
       expect(parseRestQuery('?limit=2001').limit).toBe(2001)
       await expect(restFind('/api/narrators?select[name]=true&depth=1&limit=2001')).rejects.toThrow(
         /"limit"/,
+      )
+    })
+
+    it('rejects a non-numeric limit over the wire', async () => {
+      // The coercion, asserted on its own: `isNumber` refuses 'abc', so the
+      // bound receives a string and the early return has to refuse it.
+      expect(parseRestQuery('?limit=abc').limit).toBe('abc')
+      await expect(restFind('/api/narrators?select[name]=true&depth=1&limit=abc')).rejects.toThrow(
+        /"limit"/,
+      )
+    })
+
+    it('rejects an unbounded read over the wire', async () => {
+      // The coercion, asserted on its own: the string 'false' is truthy, so a
+      // case reading it unparsed would never reach the refusal.
+      expect(parseRestQuery('?pagination=false').pagination).toBe(false)
+      await expect(
+        restFind('/api/narrators?select[name]=true&depth=1&pagination=false'),
+      ).rejects.toThrow(/unbounded/i)
+      await expect(restFind('/api/narrators?select[name]=true&depth=1&limit=0')).rejects.toThrow(
+        /unbounded/i,
       )
     })
 

@@ -12,6 +12,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { normalizeLemonfoxResponse } from '@/collections/MeditationTranscripts/lemonfox'
+import { ExpectedJobFailure } from '@/lib/jobs/expectedFailure'
 
 const PER_SEGMENT_WORDS = {
   text: 'Place your attention. Let the thoughts settle.',
@@ -96,6 +97,9 @@ describe('normalizeLemonfoxResponse', () => {
   it('refuses a body it cannot read, and one with no timestamped speech', () => {
     expect(() => normalizeLemonfoxResponse({ segments: 'nope' })).toThrow(/cannot read/)
     expect(() => normalizeLemonfoxResponse({ segments: [] })).toThrow(/no timestamped speech/)
+    // No speech is an answer about the recording; an unreadable body is not.
+    expect(() => normalizeLemonfoxResponse({ segments: [] })).toThrow(ExpectedJobFailure)
+    expect(() => normalizeLemonfoxResponse({ segments: 'nope' })).not.toThrow(ExpectedJobFailure)
     expect(() => normalizeLemonfoxResponse({})).toThrow(/no timestamped speech/)
   })
 })

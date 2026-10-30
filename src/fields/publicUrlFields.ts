@@ -68,7 +68,7 @@ export interface PublicUrlFieldsOptions {
  * At `locale: 'all'` no single locale is being asked about, so any published
  * locale counts.
  */
-function isPublished(status: unknown, locale: string | undefined): boolean {
+export function isPublished(status: unknown, locale: string | undefined): boolean {
   if (typeof status === 'string') return status === 'published'
   if (typeof status !== 'object' || status === null) return false
   const map = status as Record<string, unknown>

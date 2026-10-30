@@ -1,5 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
+import { extractID } from 'payload/shared'
+
 import { slugField, publicUrlFields } from '@/fields'
 import { APP_REQUIRED_PAGE_FIELDS } from '@/globals/WeMeditateAppConfig/WeMeditateAppConfig'
 import { serverEnv } from '@/lib/env'
@@ -74,7 +76,22 @@ export const Pages: CollectionConfig = {
         },
       ],
     },
-    slugField({ useAsSlug: 'title', collectionSlug: 'pages' }),
+    slugField({
+      useAsSlug: 'title',
+      collectionSlug: 'pages',
+      // The home page, served at `/`, keeps `''` — a WeMeditateWeb contract
+      // (`src/globals/AGENTS.md`).
+      blankAllowed: async ({ originalDoc, req }) => {
+        if (originalDoc?.id == null) return false
+        const { homePage } = await req.payload.findGlobal({
+          slug: 'wm-web-config',
+          depth: 0,
+          req,
+          select: { homePage: true },
+        })
+        return homePage != null && extractID(homePage) === originalDoc.id
+      },
+    }),
     {
       name: 'author',
       type: 'relationship',

@@ -2,6 +2,7 @@ import type { LoginCollectionConfig } from '../types'
 import type { Endpoint } from 'payload'
 
 import { parseBody } from '@/lib/endpoints'
+import { captureFailure } from '@/plugins/sentry/captureFailure'
 
 import { issueMagicLink, magicLinkEmailSchema } from '../magicLinks'
 import { sessionCookie } from '../session'
@@ -61,6 +62,9 @@ export function requestMagicLink(config: LoginCollectionConfig): Endpoint {
           collection: config.slug,
           error: error instanceof Error ? error.message : String(error),
         })
+        // The 202 below means `afterError` never sees this. ⚠ A database failure's message can
+        // carry the typed address, an exposure a routed 500 already accepts.
+        captureFailure({ error, req, source: 'signIn' })
       }
 
       return Response.json(ACCEPTED)

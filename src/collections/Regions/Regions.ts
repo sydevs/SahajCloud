@@ -11,7 +11,6 @@ import { isManualMapboxId } from '@/lib/mapbox/manualLocation'
 import { ownedRegionFilterOptions } from '@/plugins/access'
 
 import { requireOwnedParentOnCreate } from './hooks/requireOwnedParentOnCreate'
-import { withNonEmptySlug } from './nonEmptySlug'
 import { buildRegionWebPath } from './webPath'
 
 /**
@@ -429,13 +428,6 @@ export const Regions: CollectionConfig = {
         // column default off, so the production backfill of existing rows
         // stays cascade-safe.
         if (field.fields[0].type === 'checkbox') field.fields[0].defaultValue = false
-        // Refuse a *newly* blank slug: it is one segment of every canonical
-        // URL in the subtree below this region. This wraps, rather than
-        // replaces, the uniqueness validator the factory just installed. See
-        // withNonEmptySlug for why this is a validator, not a collection hook.
-        if (field.fields[1].type === 'text') {
-          field.fields[1].validate = withNonEmptySlug(field.fields[1].validate, 'name')
-        }
         return field
       },
     }),

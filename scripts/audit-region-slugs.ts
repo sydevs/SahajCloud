@@ -12,8 +12,13 @@
  * of these regions cannot come from the data, so fixing them is a human
  * decision, made in the admin panel or by the Atlas importer. This
  * script exists to say exactly which rows need that decision, and what
- * each one costs, so `withNonEmptySlug`'s grandfather clause can
- * eventually be dropped.
+ * each one costs.
+ *
+ * ⚠ **Production held 0 of 646 such regions on 2026-10-29.** One can only
+ * arrive by a write that bypasses the hooks, and `slugField` refuses it on its
+ * next save — nothing refills a region's slug. The nested-docs cascade
+ * re-saves every descendant, so every save of an ancestor then fails with a
+ * 400, "One or more children are invalid".
  *
  * Usage:
  *   pnpm tsx scripts/audit-region-slugs.ts

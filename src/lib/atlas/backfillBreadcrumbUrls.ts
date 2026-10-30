@@ -24,7 +24,7 @@ import { relationId } from '@/lib/utilities/relationId'
  *
  * The write is an **empty patch**: it changes no field, and exists purely to
  * make the beforeChange hook recompute breadcrumbs from `{...originalDoc}`.
- * That also means it can't trip `withNonEmptySlug` on the root itself.
+ * That also means it can't trip `slugField`'s blank-slug refusal on the root itself.
  *
  * Re-runnable — `url` is a pure function of the ancestor slug chain.
  */
