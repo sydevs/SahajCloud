@@ -24,7 +24,7 @@ import type { Payload } from 'payload'
 import fs from 'node:fs'
 import path from 'node:path'
 
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { TranscribeMeditation } from '@/jobs/TranscribeMeditation/TranscribeMeditation'
 import { ExpectedJobFailure } from '@/lib/jobs/expectedFailure'
@@ -63,9 +63,11 @@ vi.mock('@/jobs/TranscribeMeditation/lemonfox/transcribe', async (importOriginal
  * real `getR2Url` answers `undefined` and the task would refuse every run
  * before reaching the vendor.
  */
+const storage = vi.hoisted(() => ({ getR2Url: vi.fn<(filename: string) => string | undefined>() }))
+
 vi.mock('@/plugins/storage', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/plugins/storage')>()),
-  getR2Url: (filename: string) => `https://assets.test/${filename}`,
+  ...storage,
 }))
 
 /** Two phrases, in the provider's seconds. `normalizeLemonfoxResponse` converts. */
@@ -118,6 +120,7 @@ describe('meditation transcription', () => {
     vi.clearAllMocks()
     lemonfox.lemonfoxApiKey.mockReturnValue('lf-test-key')
     lemonfox.requestLemonfoxTranscript.mockResolvedValue(VENDOR_BODY)
+    storage.getR2Url.mockImplementation((filename) => `https://assets.test/${filename}`)
   })
 
   const createMeditation = (locale = 'en'): Promise<Meditation> =>
@@ -297,14 +300,14 @@ describe('meditation transcription', () => {
       const meditation = await createMeditation()
 
       // The throw is the record: `retries: 0`, so the retained job row carries
-      // the message and the row's `status` derives `failed` from it. It is not
-      // one of the failures the task marks as expected, so it is sent at `error`.
-      const failure = await runTaskHandler(TranscribeMeditation, {
-        payload,
-        input: { meditationId: meditation.id, audioFilename: meditation.filename! },
-      }).catch((error: unknown) => error)
-      expect(failure).toBeInstanceOf(Error)
-      expect(failure).not.toBeInstanceOf(ExpectedJobFailure)
+      // the message and the row's `status` derives `failed` from it. A recording
+      // with no speech is an answer about it, so an expected failure.
+      await expect(
+        runTaskHandler(TranscribeMeditation, {
+          payload,
+          input: { meditationId: meditation.id, audioFilename: meditation.filename! },
+        }),
+      ).rejects.toBeInstanceOf(ExpectedJobFailure)
 
       expect((await transcriptOf(meditation.id))?.segments ?? null).toBeNull()
     })
@@ -324,6 +327,49 @@ describe('meditation transcription', () => {
       expect(row?.segments ?? null).toBeNull()
       expect(row?.provider ?? null).toBeNull()
       expect(lemonfox.requestLemonfoxTranscript).not.toHaveBeenCalled()
+    })
+  })
+
+  /**
+   * A missing key or bucket URL is a deployment gap: expected on a preview,
+   * where nothing configures them, and a plain error in production, where it
+   * must alert. `isProductionDeployment()` reads the Railway name per call.
+   */
+  describe.each([
+    ['no Lemonfox key', () => lemonfox.lemonfoxApiKey.mockReturnValue(undefined)],
+    ['no public URL', () => storage.getR2Url.mockReturnValue(undefined)],
+  ])('a deployment with %s', (_gap, unconfigure) => {
+    afterEach(() => {
+      vi.unstubAllEnvs()
+    })
+
+    const failureIn = async (railwayName: string | undefined, nodeEnv = 'test') => {
+      const meditation = await createMeditation()
+      vi.stubEnv('RAILWAY_ENVIRONMENT_NAME', railwayName)
+      vi.stubEnv('NODE_ENV', nodeEnv)
+      unconfigure()
+      const failure = await runTaskHandler(TranscribeMeditation, {
+        payload,
+        input: { meditationId: meditation.id, audioFilename: meditation.filename! },
+      }).catch((error: unknown) => error)
+      expect(lemonfox.requestLemonfoxTranscript).not.toHaveBeenCalled()
+      return failure
+    }
+
+    it('fails as expected on a preview', async () => {
+      expect(await failureIn('pr-12')).toBeInstanceOf(ExpectedJobFailure)
+    })
+
+    it('fails as expected in a local build with NODE_ENV=production', async () => {
+      // Production is Railway's name, never NODE_ENV (`docs/environment.md`).
+      expect(await failureIn(undefined, 'production')).toBeInstanceOf(ExpectedJobFailure)
+    })
+
+    it('fails as an outage in production', async () => {
+      const failure = await failureIn('production')
+      expect(failure).toBeInstanceOf(Error)
+      expect(failure).not.toBeInstanceOf(ExpectedJobFailure)
+      expect(String(failure)).toMatch(/Transcription is|no public URL/)
     })
   })
 

@@ -61,7 +61,8 @@ work for a reason that is an answer rather than an incident — already shown to
 whoever needs it, or needing no one — throw `ExpectedJobFailure`
 (`@/lib/jobs/expectedFailure`) with the message the job row should carry. It is
 still reported, at `warning`. Leave an outage, such as a vendor down or a query
-failing, a plain `Error`. `TranscribeMeditation` and the `importEvents` task
+failing, a plain `Error` — and a missing key or bucket URL too, in production
+(`isProductionDeployment()`), where it must alert. `TranscribeMeditation` and the `importEvents` task
 (`src/plugins/eventImport/task.ts`) show both.
 
 `CleanupCollections/` holds no collection list at all: a collection joins

@@ -572,6 +572,20 @@ describe('class imports', () => {
       expect((await read(created.id)).error).toMatch(/target region no longer exists/)
     })
 
+    it('fails as expected when the import itself was deleted before it ran', async () => {
+      const created = await createImport([classLine({ title: 'Withdrawn' })])
+      await payload.delete({ collection: 'imports', id: created.id, overrideAccess: true })
+      const logged = vi.spyOn(payload.logger, 'error')
+
+      try {
+        await expect(run(created.id)).rejects.toBeInstanceOf(ExpectedJobFailure)
+        // No row is left to mark, so nothing tries to, and nothing logs that it could not.
+        expect(logged).not.toHaveBeenCalled()
+      } finally {
+        logged.mockRestore()
+      }
+    })
+
     it('fails as expected when its uploader is no longer active', async () => {
       const leaver = await testData.createManager(payload, { name: 'Leaver', type: 'admin' })
       const created = await createImport([classLine({ title: 'Left Behind' })], leaver)
