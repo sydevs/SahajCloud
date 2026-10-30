@@ -7,6 +7,8 @@ import { readSubmissionValue } from '@/collections/UserSubmissions/submissionDat
 import { NEVER_FREQUENCY } from '@/components/admin/NotificationPreferences/config'
 import type { RefusedEventGroup, RefusedSignup } from '@/emails/RefusedRegistrationDigestEmail'
 import type { DigestPeriod } from '@/emails/RegistrationDigestEmail'
+import { VERDICT_NOTES } from '@/jobs/ScreenSubmissions/verdicts'
+import type { AntiSpamCode } from '@/lib/antiSpam/antiSpamGuard'
 import { pickChannel } from '@/lib/notifications'
 import { adminDocUrl, adminUrl } from '@/lib/utilities/adminUrl'
 import { relationId } from '@/lib/utilities/relationId'
@@ -31,11 +33,12 @@ const MAX_LISTED_PER_EVENT = 25
 const MAX_LISTED_EVENTS = 50
 
 /**
- * What each refusal code means, said for an admin. The codes come from two
- * vocabularies — the write guard's `AntiSpamCode` at the form, the screening
- * verdicts after it — and an unlisted one is shown as itself rather than lost.
+ * What a refusal at the form means, said for an admin. Keyed `AntiSpamCode`, so
+ * a code added to the write guard is a compile error here rather than a raw
+ * `content_unscannable` in an inbox. Each is a noun phrase: the email prints it
+ * after a count.
  */
-const REASON_LABELS: Record<string, string> = {
+const REQUEST_REASON_LABELS: Record<AntiSpamCode, string> = {
   captcha_failed: 'The captcha check failed',
   captcha_unavailable:
     'The captcha could not be checked — our own configuration, or Cloudflare unreachable',
@@ -43,13 +46,21 @@ const REASON_LABELS: Record<string, string> = {
   disposable_email: 'A disposable email address',
   urls_not_allowed: 'A link in one of the answers',
   content_unscannable: 'An answer too large to check',
-  no_mx_records: 'The email address’s domain receives no mail',
-  repeat_sender: 'This address was refused repeatedly in the last day',
-  duplicate_body: 'The same sign-up was sent twice in a day',
-  content_rejected: 'The content checks refused it',
 }
 
-const reasonLabel = (code: string): string => REASON_LABELS[code] ?? code
+/**
+ * The stage picks the vocabulary, never the code: `invalid_email` and
+ * `disposable_email` are a name each stage spells for its own check. A
+ * screening refusal reads `VERDICT_NOTES`, the wording its own submission is
+ * annotated with, so the two cannot drift. An unlisted code — the column is
+ * free text, so that a code added upstream is never a lost refusal — is shown
+ * as itself.
+ */
+const reasonLabel = (stage: RegistrationRefusal['stage'], code: string): string => {
+  const labels: Record<string, string | null> =
+    stage === 'request' ? REQUEST_REASON_LABELS : VERDICT_NOTES
+  return labels[code] ?? code
+}
 
 type RefusalRow = Pick<
   RegistrationRefusal,
@@ -255,7 +266,7 @@ async function buildGroups(
     const draft = drafts.get(relationId(row.event))!
 
     if (row.stage === 'request') {
-      const label = reasonLabel(row.reason)
+      const label = reasonLabel(row.stage, row.reason)
       draft.counts.set(label, (draft.counts.get(label) ?? 0) + refusalsIn(row))
       continue
     }
@@ -270,7 +281,7 @@ async function buildGroups(
       // A manager may have deleted the row since; the refusal still counts.
       name: signup?.name ?? 'A sign-up that has since been deleted',
       email: signup?.email ?? '',
-      reason: reasonLabel(row.reason),
+      reason: reasonLabel(row.stage, row.reason),
       submissionAdminUrl:
         signup && submissionId != null ? adminDocUrl('user-submissions', submissionId) : null,
     }
