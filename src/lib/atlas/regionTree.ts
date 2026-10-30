@@ -94,8 +94,7 @@ const TREE_MEMO_KEY = 'atlas:regionTree'
  * resolver and the nested-docs `generateURL` that stores the same value on
  * `breadcrumbs.url` — so the canonical URL and the path *lookup* cannot
  * disagree. A gap (an ancestor with no slug) yields no path at all rather than
- * a `//`-containing one: 16 regions have a blank name today, and a malformed
- * canonical URL is worse than an absent one.
+ * a `//`-containing one: a malformed canonical URL is worse than an absent one.
  */
 export function buildRegionPath(slugs: Array<string | null | undefined>): string | null {
   if (slugs.length === 0) return null
