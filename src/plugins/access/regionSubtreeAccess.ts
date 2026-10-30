@@ -76,6 +76,27 @@ export async function ownedRegionFilterOptions({
   return ownedRegionIds.length ? { id: { in: ownedRegionIds } } : false
 }
 
+/** An event as the subtree scope sees it: where it sits, and who owns it. */
+export interface EventScope {
+  regionId: number | null
+  managerId: number | null
+}
+
+/**
+ * Whether one event is inside a manager's scope: its region is in their owned
+ * subtree, or they are its own manager. The single-document form of
+ * `eventScopeWhere`, shared by the write scope below and by who may read the
+ * contact addresses in an event's activity log (`logAddressVisibility.ts`).
+ */
+export function isEventInScope(
+  ownedRegionIds: readonly number[],
+  userId: number,
+  event: EventScope,
+): boolean {
+  if (event.regionId !== null && ownedRegionIds.includes(event.regionId)) return true
+  return event.managerId === userId
+}
+
 /** `Where` selecting events inside the owned subtree, unioned with directly-owned events. */
 function eventScopeWhere(ownedRegionIds: number[], userId: number): Where {
   const or: Where[] = [{ manager: { equals: userId } }]
@@ -148,9 +169,10 @@ export async function scopeRegionSubtreeWrite({
       req,
     })) as { region?: unknown; manager?: unknown } | null
     if (!event) return false
-    const regionId = relationId(event.region)
-    if (regionId !== null && ownedRegionIds.includes(regionId)) return true
-    return relationId(event.manager) === userId
+    return isEventInScope(ownedRegionIds, userId, {
+      regionId: relationId(event.region),
+      managerId: relationId(event.manager),
+    })
   }
   return eventScopeWhere(ownedRegionIds, userId)
 }

@@ -8,6 +8,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { appendLogEntry, asLog, DEFAULT_LOG_LIMIT, hasLogEntry, type LogEntry } from '@/fields'
+import { logEntryAddresses, restoreLogAddresses, withoutLogAddresses } from '@/fields/logField'
 
 const entry = (overrides: Partial<LogEntry> = {}): LogEntry => ({
   at: '2026-07-20T10:00:00.000Z',
@@ -83,5 +84,83 @@ describe('hasLogEntry', () => {
     // registration 42's follow-up must not read as its reminder.
     expect(hasLogEntry(log, 'session-reminder', '42')).toBe(false)
     expect(hasLogEntry(log, 'post-event-follow-up', '42')).toBe(true)
+  })
+})
+
+// #1047 — the address keys a log opts into narrowing.
+describe('log addresses', () => {
+  const KEYS = { types: ['reminder'], keys: ['destination', 'cells.delivery'] }
+  const reminder = {
+    at: '2026-10-30T09:00:00.000Z',
+    type: 'reminder',
+    manager: { id: 7, name: 'Region Manager' },
+    channel: 'whatsapp',
+    destination: '+44 7700 900123',
+    cells: {
+      activity: 'Escalation',
+      who: { text: 'Region Manager', sub: 'Region manager' },
+      delivery: { label: 'whatsapp', text: '+44 7700 900123' },
+    },
+  }
+
+  it('reads an address from a machine key and from a cell object or string', () => {
+    expect(logEntryAddresses(reminder, KEYS)).toEqual(['+44 7700 900123', '+44 7700 900123'])
+    expect(
+      logEntryAddresses(
+        { type: 'delivery', cells: { sentTo: 'a@b.test' } },
+        { types: ['delivery'], keys: ['cells.sentTo'] },
+      ),
+    ).toEqual(['a@b.test'])
+    expect(logEntryAddresses(null, KEYS)).toEqual([])
+  })
+
+  it('reads none from an entry of a type that records no address', () => {
+    // A verification's Delivery cell is the method — 'Saved', 'Email link' —
+    // under the same key a reminder's address sits in.
+    const verification = { ...reminder, type: 'verification', cells: { delivery: 'Email link' } }
+    expect(logEntryAddresses(verification, KEYS)).toEqual([])
+    expect(withoutLogAddresses(verification, KEYS)).toBe(verification)
+  })
+
+  it('removes every address key and leaves the rest of the entry, and the input, alone', () => {
+    const redacted = withoutLogAddresses(reminder, KEYS) as typeof reminder
+    expect(redacted).not.toHaveProperty('destination')
+    expect(redacted.cells).not.toHaveProperty('delivery')
+    expect(redacted).toMatchObject({
+      channel: 'whatsapp',
+      manager: { id: 7 },
+      cells: { activity: 'Escalation', who: { text: 'Region Manager' } },
+    })
+    expect(reminder.destination).toBe('+44 7700 900123')
+    expect(reminder.cells.delivery.text).toBe('+44 7700 900123')
+  })
+
+  it('restores a stored entry from its exact redacted copy, whatever the key order', () => {
+    const { cells, ...rest } = withoutLogAddresses(reminder, KEYS) as typeof reminder
+    const reordered = { cells: { who: cells.who, activity: cells.activity }, ...rest }
+    const appended = {
+      at: '2026-10-30T10:00:00.000Z',
+      type: 'review',
+      cells: { activity: 'Rejected' },
+    }
+
+    expect(restoreLogAddresses([reordered, appended], [reminder], KEYS)).toEqual([
+      reminder,
+      appended,
+    ])
+  })
+
+  it('restores nothing to an entry that differs from the stored one in any other way', () => {
+    // A writer can get back only what was already stored for that exact entry.
+    const altered = { ...(withoutLogAddresses(reminder, KEYS) as object), channel: 'email' }
+    expect(restoreLogAddresses([altered], [reminder], KEYS)).toEqual([altered])
+  })
+
+  it('leaves a write with nothing stored, or nothing redactable, untouched', () => {
+    const incoming = [withoutLogAddresses(reminder, KEYS)]
+    expect(restoreLogAddresses(incoming, undefined, KEYS)).toBe(incoming)
+    expect(
+      restoreLogAddresses(incoming, [{ type: 'verification', cells: { delivery: 'Saved' } }], KEYS),
+    ).toBe(incoming)
   })
 })
