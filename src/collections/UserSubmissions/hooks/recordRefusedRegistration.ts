@@ -1,8 +1,10 @@
 import type { CollectionAfterErrorHook } from 'payload'
 
+import { refusalHour } from '@/collections/RegistrationRefusals/RegistrationRefusals'
 import type { AntiSpamCode } from '@/lib/antiSpam/antiSpamGuard'
 import { isRecord } from '@/lib/utilities/isRecord'
 import { relationId } from '@/lib/utilities/relationId'
+import { getPgPool, quotedDbSchema } from '@/plugins/usage'
 
 /**
  * Every code the spam check refuses with. A `Record` rather than a list, so a
@@ -29,14 +31,28 @@ const spamCheckCode = (error: unknown): AntiSpamCode | null => {
 }
 
 /**
- * afterError: record a class sign-up the spam check refused at the request, so
- * the admins' refused-sign-up digest can count it (sydevs/SahajAtlasWeb#259).
+ * One more refusal on its class, reason and hour, in a single statement: the
+ * unique index on those three is what makes concurrent refusals add up rather
+ * than race. On the pool, like the usage counters, because Payload has no
+ * atomic increment; the schema is qualified for the same reason they are.
+ */
+const countRefusalSql = (quotedSchema: string) => `
+  INSERT INTO ${quotedSchema}."registration_refusals"
+    ("event_id", "stage", "reason", "hour", "count", "created_at", "updated_at")
+  VALUES ($1, 'request', $2, $3, 1, now(), now())
+  ON CONFLICT ("event_id", "reason", "hour")
+  DO UPDATE SET "count" = "registration_refusals"."count" + 1, "updated_at" = now()
+`
+
+/**
+ * afterError: count a class sign-up the spam check refused at the request, for
+ * the admins' refused-sign-up digest (sydevs/SahajAtlasWeb#259).
  *
  * The write guard and `prepareUserSubmission` refuse in `beforeValidate`, so
  * no row exists to read later — this is the one place a refusal can still be
- * seen. Only the class and the code are kept: the body failed the spam check,
- * so none of it is trusted enough to store or to put in an admin's inbox
- * (`src/collections/RegistrationRefusals/`).
+ * seen. Only the class, the code and the hour are kept: the body failed the
+ * spam check, so none of it is trusted enough to store or to put in an admin's
+ * inbox (`src/collections/RegistrationRefusals/`).
  *
  * ⚠ **REST only, which is every refusal there is.** Payload runs a collection's
  * `afterError` from `routeError` alone, and the write guard judges only an API
@@ -44,13 +60,14 @@ const spamCheckCode = (error: unknown): AntiSpamCode | null => {
  * `req.data`, which the REST create handler parsed before the operation ran.
  *
  * ⚠ **It never changes the answer.** By the time this runs the create's
- * transaction is already rolled back, so the row is written on a connection of
- * its own, and any failure is logged and swallowed: the visitor gets the same
- * refusal whether or not it was recorded.
+ * transaction is already rolled back, so the count is written on the pool, and
+ * any failure is logged and swallowed: the visitor gets the same refusal
+ * whether or not it was counted.
  *
- * A class id the body names but no event holds is not recorded. Nobody can
- * sign up for a class that does not exist, so that is a forged request, and
- * recording it would let anyone fill the table for free.
+ * Only a class a visitor could sign up for counts — published, not in the
+ * trash, and taking registrations here. Anyone holding the published widget key
+ * can be refused for free, so a body naming any other id is not a sign-up, and
+ * counting it would let them put any class they like in the digest.
  */
 export const recordRefusedRegistration: CollectionAfterErrorHook = async ({ error, req }) => {
   if (req.user?.collection !== 'clients') return
@@ -73,18 +90,19 @@ export const recordRefusedRegistration: CollectionAfterErrorHook = async ({ erro
       collection: 'events',
       id: eventId,
       depth: 0,
-      select: { createdAt: true },
+      select: { _status: true, registrationMode: true },
       overrideAccess: true,
       disableErrors: true,
-      trash: true,
     })
-    if (!event) return
+    if (event?._status !== 'published' || event.registrationMode === 'external') return
 
-    await payload.create({
-      collection: 'registration-refusals',
-      data: { event: eventId, stage: 'request', reason: code },
-      overrideAccess: true,
-    })
+    const pool = getPgPool(req)
+    if (!pool) throw new Error('Postgres pool not available')
+    await pool.query(countRefusalSql(quotedDbSchema(req)), [
+      eventId,
+      code,
+      refusalHour(new Date()).toISOString(),
+    ])
   } catch (recordError) {
     payload.logger.warn({
       msg: 'recordRefusedRegistration: could not record a refused sign-up',

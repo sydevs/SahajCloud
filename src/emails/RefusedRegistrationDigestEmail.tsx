@@ -40,6 +40,8 @@ export interface RefusedRegistrationDigestEmailProps {
   recipientName?: string | null
   period: DigestPeriod
   groups: RefusedEventGroup[]
+  /** Classes with refusals beyond the ones given a section. */
+  moreClasses?: number
   /** Every refusal in the period, listed or not. */
   total: number
   /** Absolute admin link to the full list of refusals. */
@@ -52,7 +54,7 @@ function countLabel(n: number): string {
 }
 
 const REQUEST_NOTE =
-  'Turned away at the form. The visitor was shown why and could try again; nothing they entered was kept.'
+  'Turned away at the form. The visitor was shown why and could try again, and nothing they entered was kept. These counts include automated requests and repeated attempts, so read them for a pattern rather than as people.'
 const SCREENING_NOTE =
   'Refused after the visitor was told they were signed up, so they do not know. Contact anyone who looks genuine.'
 
@@ -69,6 +71,7 @@ export function RefusedRegistrationDigestEmail({
   recipientName,
   period,
   groups,
+  moreClasses = 0,
   total,
   listUrl,
   project = 'sahaj-atlas',
@@ -144,6 +147,11 @@ export function RefusedRegistrationDigestEmail({
         </Section>
       ))}
 
+      {moreClasses > 0 && (
+        <Text style={styles.paragraph}>
+          …and {moreClasses} more class{moreClasses === 1 ? '' : 'es'}.
+        </Text>
+      )}
       <Text style={styles.hint}>
         <Link href={listUrl} style={{ color: brand.colors.primary }}>
           See every refused sign-up
@@ -161,7 +169,7 @@ export function RefusedRegistrationDigestEmail({
 
 /** Plain-text alternative, kept beside the component so the two can't drift. */
 export function refusedRegistrationDigestText(props: RefusedRegistrationDigestEmailProps): string {
-  const { recipientName, period, groups, total, listUrl } = props
+  const { recipientName, period, groups, moreClasses = 0, total, listUrl } = props
 
   const lines: string[] = [
     `Hello ${recipientName ?? 'there'},`,
@@ -185,6 +193,9 @@ export function refusedRegistrationDigestText(props: RefusedRegistrationDigestEm
     if (group.eventAdminUrl) lines.push(`View class: ${group.eventAdminUrl}`)
   }
 
+  if (moreClasses > 0) {
+    lines.push('', `…and ${moreClasses} more class${moreClasses === 1 ? '' : 'es'}.`)
+  }
   lines.push('', `See every refused sign-up: ${listUrl}`)
   return lines.join('\n')
 }

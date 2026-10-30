@@ -14532,6 +14532,19 @@
           "primaryKey": false,
           "notNull": true
         },
+        "hour": {
+          "name": "hour",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "count": {
+          "name": "count",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
         "submission_id": {
           "name": "submission_id",
           "type": "integer",
@@ -14610,6 +14623,33 @@
             }
           ],
           "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "event_reason_hour_idx": {
+          "name": "event_reason_hour_idx",
+          "columns": [
+            {
+              "expression": "event_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "reason",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "hour",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -29761,6 +29801,6 @@
     "tables": {},
     "columns": {}
   },
-  "id": "cb1d56e4-8e9a-4ad6-b5c7-437266526ec1",
+  "id": "5a3e7b65-656d-4f95-a4a2-18fc93accd35",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }

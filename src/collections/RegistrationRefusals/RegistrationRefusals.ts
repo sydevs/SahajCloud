@@ -9,8 +9,10 @@
  *   reason, and the request's contents are not kept: a body that failed the
  *   captcha is untrusted, and copying its name or address into an admin's inbox
  *   would hand anyone a captcha-free way to email admins text of their choosing.
- *   What is kept is the class and the reason, which is what tells an admin that
- *   real people are being turned away from it.
+ *   What is kept is a **count** per class, reason and hour, which is what tells
+ *   an admin that real people are being turned away. One row per hour rather
+ *   than per request, because anyone holding the published widget key can be
+ *   refused for free: a flood moves a number, never the row count.
  * - **`screening`** — the row was accepted, then `screenSubmission` filed it
  *   `spam`. The visitor saw a success message, so this is the refusal nobody
  *   else hears of. `submission` points at that row, which already holds who
@@ -45,6 +47,16 @@ const REFUSAL_WINDOWS: PurgeWindow[] = [
 
 const REFUSAL_RETENTION: RetentionConfig = { windows: REFUSAL_WINDOWS }
 
+/**
+ * The hour a refusal at the form is counted in. The digest reads whole hours
+ * that ended before it ran, so an hour is never split between two digests.
+ */
+export const refusalHour = (at: Date): Date => {
+  const hour = new Date(at)
+  hour.setUTCMinutes(0, 0, 0)
+  return hour
+}
+
 const adminsOnly: Access = ({ req }) => isAdminManager(req.user)
 
 export const RegistrationRefusals: CollectionConfig = {
@@ -52,7 +64,7 @@ export const RegistrationRefusals: CollectionConfig = {
   labels: { singular: 'Refused Sign-up', plural: 'Refused Sign-ups' },
   admin: {
     group: 'System',
-    defaultColumns: ['event', 'stage', 'reason', 'createdAt'],
+    defaultColumns: ['event', 'stage', 'reason', 'count', 'createdAt'],
     description:
       'Class sign-ups the spam check refused. Admins receive these as a digest, configured under Notifications.',
   },
@@ -63,6 +75,10 @@ export const RegistrationRefusals: CollectionConfig = {
     delete: adminsOnly,
   },
   custom: { retention: REFUSAL_RETENTION },
+  // The key `recordRefusedRegistration` upserts on. A screening row has no
+  // `hour`, and Postgres never matches NULLs in a unique index, so those rows
+  // stay one per refusal.
+  indexes: [{ fields: ['event', 'reason', 'hour'], unique: true }],
   fields: [
     {
       name: 'event',
@@ -88,6 +104,23 @@ export const RegistrationRefusals: CollectionConfig = {
       name: 'reason',
       type: 'text',
       required: true,
+      admin: { readOnly: true },
+    },
+    {
+      name: 'hour',
+      type: 'date',
+      admin: {
+        readOnly: true,
+        description: 'The hour these refusals at the form were counted in.',
+        condition: (data) => data?.stage === 'request',
+      },
+    },
+    {
+      name: 'count',
+      type: 'number',
+      required: true,
+      defaultValue: 1,
+      min: 1,
       admin: { readOnly: true },
     },
     {
