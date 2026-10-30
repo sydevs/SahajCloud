@@ -58,6 +58,10 @@ export async function deliveredLink(
 
   switch (read.token.kind) {
     case 'invite':
+      // `_verified` is what makes an invitation single-use, and it is account
+      // state rather than a claim — so the redeem route's own refusal is
+      // knowable here, before the holder is offered a button that cannot work.
+      if (account._verified === true) return NOTICES['invite-accepted']
       return {
         ...confirmation,
         heading: `Welcome, ${who}`,
@@ -83,7 +87,8 @@ export async function deliveredLink(
 
 /**
  * The account a link names, or `null` when it is gone or no longer eligible —
- * the two checks the redeem route makes before anything else.
+ * the two checks the redeem route makes before anything else. `_verified` comes
+ * with it, because an invitation's spent-ness is that flag.
  */
 async function accountFor(token: LoginToken, payload: Payload) {
   try {
@@ -95,7 +100,7 @@ async function accountFor(token: LoginToken, payload: Payload) {
       // `undefined` — the same cast the redeem route makes.
       joins: false as never,
       overrideAccess: true,
-      select: { email: true, name: true, ...managersLogin.select },
+      select: { _verified: true, email: true, name: true, ...managersLogin.select },
     })
     const doc = account as unknown as LoginDocument
     return managersLogin.isEligible && !managersLogin.isEligible(doc) ? null : doc

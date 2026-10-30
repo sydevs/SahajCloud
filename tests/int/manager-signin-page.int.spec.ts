@@ -242,6 +242,20 @@ describe('manager sign-in page', () => {
       })
     })
 
+    it('refuses an already-accepted invitation before the click', async () => {
+      const manager = await activeManager({ name: 'Jane Doe' })
+      const now = new Date()
+      const invite = await signInviteToken(
+        { collection: 'managers', issuedAt: now.getTime(), userId: manager.id },
+        payload.secret,
+        now,
+      )
+
+      expect(await deliveredLink(invite, payload)).toMatchObject({
+        title: 'Your email is already confirmed',
+      })
+    })
+
     it('refuses a link to a deactivated or deleted account before the click', async () => {
       const deactivated = await activeManager()
       const deleted = await activeManager()
