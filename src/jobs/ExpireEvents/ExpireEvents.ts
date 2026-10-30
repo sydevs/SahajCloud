@@ -265,10 +265,9 @@ async function processEvent(args: {
         level: action.level,
         role: recipient.role,
         region: recipient.regionName,
-        manager: {
-          id: recipient.manager.id,
-          name: recipient.manager.name || recipient.destination,
-        },
+        // A nameless manager reads as `#id` (`actorName`), never as the
+        // address — `destination` is the one key the log narrows (#1047).
+        manager: { id: recipient.manager.id, name: recipient.manager.name },
         channel: recipient.channel,
         destination: recipient.destination,
         at: now.toISOString(),

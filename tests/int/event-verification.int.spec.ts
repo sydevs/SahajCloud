@@ -1,5 +1,6 @@
-import type { Payload } from 'payload'
+import type { Payload, PayloadRequest, Where } from 'payload'
 
+import { docAccessOperation } from 'payload'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { verifyEventAction } from '@/collections/Events/endpoints/verifyEventAction'
@@ -11,11 +12,11 @@ import { buildReminderEntry, buildVerificationEntry } from '@/lib/eventVerificat
 import type { Event, Manager } from '@/payload-types'
 import { readLinkToken, signLinkToken } from '@/plugins/login'
 
-import { createAnonRestClient, type RestClient } from '../utils/restRequest'
+import { createAnonRestClient, createRestClientAs, type RestClient } from '../utils/restRequest'
 import { expectEventWriteRefused, storeInvalidEvent } from '../utils/storeInvalidEvent'
 import { runTaskHandler } from '../utils/taskRunner'
 import { createData, testData, type FixtureOverrides } from '../utils/testData'
-import { createTestEnvironment } from '../utils/testHelpers'
+import { createClientAuthenticatedRequest, createTestEnvironment } from '../utils/testHelpers'
 
 // The verify page's Server Action reaches for the app config with
 // `getPayload({ config })`. Pointed at this suite's own sanitized config, it
@@ -78,9 +79,11 @@ describe('Event verification lifecycle', () => {
   let defaultRegion: { id: number }
   let verifyPageAction: (typeof import('@/app/(frontend)/events/verify/actions'))['verifyEventAction']
   let anon: RestClient
+  let restEnv: Awaited<ReturnType<typeof createTestEnvironment>>
 
   beforeAll(async () => {
     const env = await createTestEnvironment()
+    restEnv = env
     anon = createAnonRestClient(env)
     payload = env.payload
     cleanup = env.cleanup
@@ -1205,6 +1208,379 @@ describe('Event verification lifecycle', () => {
 
       expect(outcome.tone).toBe('error')
       expect(outcome.actions.some((action) => action.href.startsWith('mailto:'))).toBe(true)
+    })
+  })
+
+  // #1047. A reminder records the address it went to, and `atlas-manager`
+  // reads `events` project-wide — so the log is narrowed per reader, address
+  // only. Every read below is `overrideAccess: false` AS the reader: an
+  // override read skips the narrowing by design, so it would prove nothing.
+  describe('who reads a reminder address', () => {
+    const EVENT_MANAGER = 'log-event-manager@example.com'
+    const COUNTRY_MANAGER = 'log-country-manager@example.com'
+    const FORMER_MANAGER = 'log-former-manager@example.com'
+    const OUTSIDER = 'log-outsider@example.com'
+
+    let event: Event
+    let logEventManager: Manager
+    let countryManager: Manager
+    let formerManager: Manager
+    let outsider: Manager
+    let elsewhere: { id: number }
+
+    const asManager = (manager: Manager): PayloadRequest =>
+      ({
+        payload,
+        headers: new Headers(),
+        context: {},
+        locale: 'en',
+        user: { ...manager, collection: 'managers' },
+      }) as unknown as PayloadRequest
+
+    const readLog = async (req: PayloadRequest, select?: Record<string, true>) => {
+      const doc = await payload.findByID({
+        collection: 'events',
+        id: event.id,
+        depth: 0,
+        overrideAccess: false,
+        ...(select && { select }),
+        req,
+      })
+      return reminders(doc.activityLog)
+    }
+
+    /** destination → whether it, and its Delivery cell, came back. */
+    const shown = (log: ReturnType<typeof reminders>) =>
+      Object.fromEntries(
+        log.map((entry) => [
+          entry.manager.name,
+          entry.destination !== undefined && entry.cells.delivery !== undefined,
+        ]),
+      )
+
+    beforeAll(async () => {
+      logEventManager = await testData.createManager(payload, {
+        name: 'Log Event Manager',
+        email: EVENT_MANAGER,
+        roles: ['atlas-manager'],
+      })
+      countryManager = await testData.createManager(payload, {
+        name: 'Log Country Manager',
+        email: COUNTRY_MANAGER,
+        roles: ['atlas-manager'],
+      })
+      // Was escalated to once, and manages nothing this event sits in now.
+      formerManager = await testData.createManager(payload, {
+        name: 'Log Former Manager',
+        email: FORMER_MANAGER,
+        roles: ['atlas-manager'],
+      })
+      outsider = await testData.createManager(payload, {
+        name: 'Log Outsider',
+        email: OUTSIDER,
+        roles: ['atlas-manager'],
+      })
+
+      const country = await payload.create({
+        collection: 'regions',
+        overrideAccess: true,
+        data: createData<'regions'>({
+          name: 'Log Country',
+          level: 'country',
+          mapboxId: 'log-country',
+          managers: [countryManager.id],
+        }),
+      })
+      const city = await payload.create({
+        collection: 'regions',
+        overrideAccess: true,
+        data: createData<'regions'>({
+          name: 'Log City',
+          level: 'city',
+          mapboxId: 'log-city',
+          parent: country.id,
+        }),
+      })
+      // The outsider runs a region of their own, so "outside" means another
+      // subtree rather than no subtree at all.
+      elsewhere = await payload.create({
+        collection: 'regions',
+        overrideAccess: true,
+        data: createData<'regions'>({
+          name: 'Elsewhere',
+          level: 'country',
+          mapboxId: 'log-elsewhere',
+          managers: [outsider.id],
+        }),
+      })
+
+      event = await createEvent({ region: city.id, manager: logEventManager.id })
+      const at = new Date().toISOString()
+      const entry = (manager: Manager, destination: string, role: 'manager' | 'region') =>
+        buildReminderEntry({
+          stage: 'reminded',
+          level: 'escalated',
+          role,
+          ...(role === 'region' && { region: 'Log Country' }),
+          manager: { id: manager.id, name: manager.name },
+          channel: 'email',
+          destination,
+          at,
+        })
+      // `skipVerifyHook`, or the managed save resets the log to one entry.
+      await payload.update({
+        collection: 'events',
+        id: event.id,
+        overrideAccess: true,
+        context: { skipVerifyHook: true },
+        data: {
+          activityLog: [
+            buildVerificationEntry(
+              're-save',
+              { id: logEventManager.id, name: 'Log Event Manager' },
+              at,
+            ),
+            entry(logEventManager, EVENT_MANAGER, 'manager'),
+            entry(countryManager, COUNTRY_MANAGER, 'region'),
+            entry(formerManager, FORMER_MANAGER, 'region'),
+          ],
+        } as never,
+      })
+    })
+
+    it('stores every address, so a hidden one below is the narrowing', async () => {
+      expect(shown(reminders((await getEvent(payload, event.id)).activityLog))).toEqual({
+        'Log Event Manager': true,
+        'Log Country Manager': true,
+        'Log Former Manager': true,
+      })
+    })
+
+    it('hides every address from an atlas-manager outside the region, and nothing else', async () => {
+      const log = await readLog(asManager(outsider))
+      expect(shown(log)).toEqual({
+        'Log Event Manager': false,
+        'Log Country Manager': false,
+        'Log Former Manager': false,
+      })
+      // That a reminder went out, to whom and when, still reads.
+      expect(log[1]).toMatchObject({
+        kind: 'reminder',
+        channel: 'email',
+        manager: { id: countryManager.id, name: 'Log Country Manager' },
+        cells: { activity: 'Escalation', who: { text: 'Log Country Manager' } },
+      })
+      expect(JSON.stringify(log)).not.toMatch(/@example\.com/)
+
+      // A verification's Delivery cell is the method, not an address, so it
+      // stays — under the very key a reminder's address is removed from.
+      const whole = await payload.findByID({
+        collection: 'events',
+        id: event.id,
+        depth: 0,
+        overrideAccess: false,
+        req: asManager(outsider),
+      })
+      expect((whole.activityLog as NotificationLogEntry[])[0]).toMatchObject({
+        kind: 'verification',
+        cells: { delivery: 'Saved' },
+      })
+    })
+
+    it('hides them on a read that selects the log alone', async () => {
+      // No `region` or `manager` on the row, so the decision loads them.
+      expect(shown(await readLog(asManager(outsider), { activityLog: true }))).toEqual({
+        'Log Event Manager': false,
+        'Log Country Manager': false,
+        'Log Former Manager': false,
+      })
+    })
+
+    it('hides them over REST, select and all', async () => {
+      const rest = await createRestClientAs(restEnv, outsider)
+      const { status, body } = await rest(
+        `/api/events/${event.id}?depth=0&select[activityLog]=true`,
+      )
+      expect(status).toBe(200)
+      expect(reminders(body.activityLog as Event['activityLog'])).toHaveLength(3)
+      expect(JSON.stringify(body)).not.toMatch(/@example\.com/)
+    })
+
+    it('shows the region manager above the event every address', async () => {
+      const all = {
+        'Log Event Manager': true,
+        'Log Country Manager': true,
+        'Log Former Manager': true,
+      }
+      expect(shown(await readLog(asManager(countryManager)))).toEqual(all)
+      expect(shown(await readLog(asManager(countryManager), { activityLog: true }))).toEqual(all)
+    })
+
+    it("shows the event's own manager the region managers it escalated to", async () => {
+      expect(shown(await readLog(asManager(logEventManager)))).toEqual({
+        'Log Event Manager': true,
+        'Log Country Manager': true,
+        'Log Former Manager': true,
+      })
+    })
+
+    it('shows a manager outside the region their own address, and only theirs', async () => {
+      expect(shown(await readLog(asManager(formerManager)))).toEqual({
+        'Log Event Manager': false,
+        'Log Country Manager': false,
+        'Log Former Manager': true,
+      })
+    })
+
+    it('shows an admin every address', async () => {
+      expect(shown(await readLog(asManager(adminUser)))).toEqual({
+        'Log Event Manager': true,
+        'Log Country Manager': true,
+        'Log Former Manager': true,
+      })
+    })
+
+    it('gives an API client no log at all', async () => {
+      const client = await testData.createClient(payload, logEventManager.id, {
+        name: 'Log Widget Key',
+        roles: ['sahaj-atlas-client'],
+      })
+      const req = {
+        ...createClientAuthenticatedRequest(client.id, 'unused', ['sahaj-atlas-client']),
+        payload,
+        context: {},
+      } as unknown as PayloadRequest
+      const { docs } = await payload.find({
+        collection: 'events',
+        where: { id: { equals: event.id } },
+        select: { title: true, activityLog: true },
+        depth: 0,
+        overrideAccess: false,
+        req,
+      })
+      expect(docs).toHaveLength(1)
+      expect(docs[0]!.activityLog).toBeUndefined()
+    })
+
+    it('refuses a filter on the log to every non-admin, so no guess can be tested', async () => {
+      const probe = (req: PayloadRequest, where: Where) =>
+        payload
+          .find({
+            collection: 'events',
+            where: { and: [{ id: { equals: event.id } }, where] },
+            select: { title: true },
+            depth: 0,
+            overrideAccess: false,
+            req,
+          })
+          .then(
+            ({ docs }) => docs.length,
+            (error: { status?: number }) => `refused ${error.status}`,
+          )
+      const guesses: Where[] = [
+        { 'activityLog.destination': { equals: COUNTRY_MANAGER } },
+        { 'activityLog.destination': { like: 'log-country' } },
+        { 'activityLog.cells.delivery.text': { equals: COUNTRY_MANAGER } },
+        { or: [{ activityLog: { exists: true } }] },
+        // Payload reads `AND`/`OR` case-insensitively, so a guard spelled in
+        // lower case alone would wave these through.
+        { OR: [{ 'activityLog.destination': { like: 'log-country' } }] } as Where,
+      ]
+
+      // The control: the filter really does match, and really can miss. Without
+      // it a refusal below could be a filter Payload never applied at all.
+      expect(await probe(asManager(adminUser), guesses[0]!)).toBe(1)
+      expect(
+        await probe(asManager(adminUser), {
+          'activityLog.destination': { equals: 'nobody@example.com' },
+        }),
+      ).toBe(0)
+
+      // A region manager is refused too: a query spans every event, not the
+      // one whose addresses they may read.
+      for (const reader of [outsider, countryManager]) {
+        for (const where of guesses) {
+          expect(await probe(asManager(reader), where)).toBe('refused 400')
+        }
+      }
+      const rest = await createRestClientAs(restEnv, outsider)
+      for (const path of [
+        `/api/events?where[activityLog.destination][like]=log-country`,
+        `/api/events?sort=-activityLog`,
+        `/api/events/count?where[AND][0][activityLog.destination][like]=log-country`,
+        // Through a join, and across a relationship from another collection —
+        // neither runs the events collection's own hooks.
+        `/api/regions?where[events.activityLog.destination][like]=log-country`,
+        `/api/regions?joins[events][where][activityLog.destination][like]=log-country`,
+        `/api/managers?joins[managedEvents][where][activityLog.destination][like]=log-country`,
+      ]) {
+        expect((await rest(path)).status, path).toBe(400)
+      }
+      await expect(
+        payload.findDistinct({
+          collection: 'events',
+          field: 'activityLog',
+          overrideAccess: false,
+          req: asManager(outsider),
+        }),
+      ).rejects.toMatchObject({ status: 403 })
+    })
+
+    it('still renders the log on the edit view for a non-admin', async () => {
+      // The lock refuses a read with no row in hand, and the admin decides
+      // what to render from field permissions — computed WITH the row for a
+      // document view. Refused there, the Verification tab would show nothing.
+      const { fields } = await docAccessOperation({
+        id: event.id,
+        collection: payload.collections.events,
+        req: asManager(outsider),
+      })
+      const log = fields === true ? true : fields.activityLog
+      expect(log === true || log?.read === true).toBe(true)
+    })
+
+    it('starts a duplicate with no log, so a copy re-homed elsewhere carries no address', async () => {
+      // Unmanaged, so the verify-on-save hook leaves the copy's log alone —
+      // it is this field's own duplicate hook that empties it.
+      const source = await createEvent({
+        manager: null,
+        verificationStage: 'unverified',
+        _status: 'draft',
+      })
+      await payload.update({
+        collection: 'events',
+        id: source.id,
+        overrideAccess: true,
+        context: { skipVerifyHook: true },
+        data: {
+          activityLog: [
+            buildReminderEntry({
+              stage: 'reminded',
+              level: 'escalated',
+              role: 'region',
+              manager: { id: countryManager.id, name: countryManager.name },
+              channel: 'email',
+              destination: COUNTRY_MANAGER,
+              at: new Date().toISOString(),
+            }),
+          ],
+        } as never,
+      })
+      expect(JSON.stringify((await getEvent(payload, source.id)).activityLog)).toContain(
+        COUNTRY_MANAGER,
+      )
+
+      // Re-homed into the outsider's own region, where they would read it whole.
+      const copy = await payload.duplicate({
+        collection: 'events',
+        id: source.id,
+        data: { region: elsewhere.id },
+        overrideAccess: true,
+        draft: true,
+      })
+      expect(JSON.stringify((await getEvent(payload, copy.id)).activityLog ?? [])).not.toContain(
+        COUNTRY_MANAGER,
+      )
     })
   })
 })
