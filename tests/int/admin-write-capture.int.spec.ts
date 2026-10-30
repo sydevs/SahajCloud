@@ -126,7 +126,8 @@ describe('a scheduled publish that fails when its job runs', () => {
     })
     vi.clearAllMocks()
 
-    // An untitled page cannot publish: `title` is required.
+    // An untitled page cannot publish: it has no slug to be published under
+    // (#1041), which the slug field refuses before `title`'s own check runs.
     await payload.jobs.runByID({ id: job.id })
 
     expect(sentry.captureException).toHaveBeenCalledTimes(1)
@@ -135,7 +136,7 @@ describe('a scheduled publish that fails when its job runs', () => {
       collection: 'pages',
       target: `pages/${draft.id}`,
     })
-    expect(captured().extra).toMatchObject({ fields: ['title'] })
+    expect(captured().extra).toMatchObject({ fields: ['slug'] })
   })
 })
 

@@ -92,7 +92,7 @@ maintainer's laptop, for scale: Apple M3 Pro, 11 cores, 18 GB, so 10 workers.
 | twenty-eighth, #999 addressing a review (2026-10-27)   | 229 / 2935    | 38.62 s (inside the gate)                    | 38.6 s     |
 | twenty-ninth, M4 Max laptop, 14 cores (2026-10-23)     | 225 / 2890    | 16.38 s (inside the gate)                    | 16.4 s     |
 | thirtieth, #1029 after merging `main` (2026-10-27)     | 233 / 2955    | 42.54 s                                      | 42.5 s     |
-| thirty-first, #1039 on its own branch (2026-10-28)     | 234 / 2967    | 66.21 s (inside the gate)                    | 66.2 s     |
+| thirty-first, #1039 on its own branch (2026-10-28)     | 233 / 2962    | 66.21 s (inside the gate)                    | 66.2 s     |
 
 ⚠ **Those three medians span 47 to 78 s — 66% — and six spec files do not
 explain it.** Identical container spec, all on 2026-10-20, 3% more files
@@ -112,7 +112,7 @@ reads, so keep those labels and cell shapes when you add a row.
 
 | Metric                                                                                          | Value                                                             |
 | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Files / tests                                                                                   | 234 / 2967                                                        |
+| Files / tests                                                                                   | 233 / 2967                                                        |
 | Whole lane, 3 workers (slowest session median, what the consumer docs quote)                    | **77.9 s**                                                        |
 | One spec alone, the typical edit (third session)                                                | 1.3 s                                                             |
 | Slowest per-edit selection timed on 4 cores, the 3 specs naming `@/payload.config` (2026-10-21) | **8.7 s**                                                         |

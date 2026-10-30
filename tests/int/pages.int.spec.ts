@@ -9,7 +9,7 @@ import {
   createLexicalWithRelationshipNode,
   createLexicalWithUploadNode,
 } from '../utils/lexicalTestHelpers'
-import { testData, type LexicalContent } from '../utils/testData'
+import { createData, testData, type LexicalContent } from '../utils/testData'
 import { createTestEnvironment, idOnlySelect } from '../utils/testHelpers'
 
 describe('Pages Collection', () => {
@@ -45,6 +45,33 @@ describe('Pages Collection', () => {
       expect(page.tags).toHaveLength(2)
       expect(page.tags).toContain(wisdomTag)
       expect(page.tags).toContain(creativityTag)
+    })
+
+    // What the admin Create view does before it redirects (#1038).
+    const createUntitledDraft = () =>
+      payload.create({ collection: 'pages', data: createData<'pages'>({}), draft: true })
+
+    it('creates successive untitled drafts, each with a null slug', async () => {
+      const first = await createUntitledDraft()
+      const second = await createUntitledDraft()
+
+      expect(first.slug).toBeNull()
+      expect(second.slug).toBeNull()
+    })
+
+    it('generates the slug once an untitled draft is given a title', async () => {
+      const draft = await createUntitledDraft()
+
+      // Sends the slug back as the admin's form state does: Payload regenerates
+      // only while the posted value still matches the stored one.
+      const titled = await payload.update({
+        collection: 'pages',
+        id: draft.id,
+        data: { title: 'Our Approach', slug: draft.slug },
+        draft: true,
+      })
+
+      expect(titled.slug).toBe('our-approach')
     })
   })
 
