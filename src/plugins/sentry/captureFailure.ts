@@ -1,6 +1,6 @@
 /**
  * The one capture body behind every exception this plugin reports: Payload's
- * root `afterError` hook, the Local API wrapper and the scheduled-publish job
+ * root `afterError` hook, the Local API wrapper and every failed job run
  * (#1039), and the two managers sign-in paths — the page's action and the
  * magic-link endpoint. A second copy of the exclusions would let one site report
  * what another deliberately drops.
@@ -42,6 +42,10 @@ export interface CaptureFailureArgs {
    * failing schedule can be told from another.
    */
   target?: string
+  /** A failure the task marked as an answer (`ExpectedJobFailure`): sent at `warning`. */
+  expected?: boolean
+  /** The job run that failed, for a `job` source. */
+  job?: { id: string; task: string }
   /** Who acted, for a site that holds no request. `req.user` wins where it exists. */
   user?: { id: string }
 }
@@ -67,6 +71,8 @@ export const captureFailure = ({
   req,
   source,
   status = errorStatus(error),
+  expected = false,
+  job,
   target,
   user: actingUser,
 }: CaptureFailureArgs): boolean => {
@@ -99,8 +105,9 @@ export const captureFailure = ({
       // ⚠ **Accepted risk: a rejected credential's level is caller-triggerable**
       // with a junk `Authorization` header; mute it Sentry-side on
       // `auth_outcome`, never by dropping the level. (#734)
-      level:
-        source === 'localApi' || source === 'job' || rejected || status >= 500
+      level: expected
+        ? 'warning'
+        : source === 'localApi' || source === 'job' || rejected || status >= 500
           ? 'error'
           : 'warning',
       // ⚠ **The IP belongs on `user.ip_address`, never in an `extra`** — the
@@ -117,6 +124,8 @@ export const captureFailure = ({
         locale: req?.locale,
         collection,
         target,
+        task: job?.task,
+        job_id: job?.id,
         capture_source: source,
         ...rejected?.tags,
       }),

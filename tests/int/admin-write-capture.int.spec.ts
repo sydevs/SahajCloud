@@ -12,17 +12,17 @@
  * `pages` is the collection that reaches the autosave create-on-open, and
  * `title` is its one required field.
  *
- * Three: that the job runner reads `schedulePublish`'s handler off the live
- * config, so the wrapper `onInit` installs is the one a scheduled publish runs.
+ * Three: that the job runner reads each task's handler off the live config, so
+ * the wrapper `onInit` installs is the one a job runs, and that the job it hands
+ * the handler counts prior tries in `taskStatus` — the final-attempt rule's
+ * one input.
  */
 import type { Payload, PayloadRequest } from 'payload'
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import {
-  installLocalApiCapture,
-  installScheduledPublishCapture,
-} from '@/plugins/sentry/localApiCapture'
+import { installJobCapture } from '@/plugins/sentry/jobCapture'
+import { installLocalApiCapture } from '@/plugins/sentry/localApiCapture'
 
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -51,10 +51,18 @@ beforeAll(async () => {
   payload = env.payload
   cleanup = env.cleanup
 
-  // The suite config carries no `sentryPlugin`, so `onInit` never ran — this is
-  // the same call the plugin makes there.
+  // One of our own tasks, with its real `retries: 1`, made to fail. `task_slug`
+  // is a Postgres enum, so a task the schema does not know cannot be queued.
+  const verifyEmbeds = payload.config.jobs.tasks?.find(({ slug }) => slug === 'verifyEmbeds')
+  if (!verifyEmbeds) throw new Error('verifyEmbeds is not registered')
+  verifyEmbeds.handler = async () => {
+    throw new Error('could not finish')
+  }
+
+  // The suite config carries no `sentryPlugin`, so `onInit` never ran — these
+  // are the same calls the plugin makes there.
   installLocalApiCapture(payload)
-  installScheduledPublishCapture(payload)
+  installJobCapture(payload)
 
   buildRequest = (payloadAPI) =>
     ({
@@ -128,5 +136,23 @@ describe('a scheduled publish that fails when its job runs', () => {
       target: `pages/${draft.id}`,
     })
     expect(captured().extra).toMatchObject({ fields: ['title'] })
+  })
+})
+
+describe('a job run of ours that fails', () => {
+  it('reports once, on its final attempt, not on the retry before it', async () => {
+    const job = await payload.jobs.queue({ input: {}, task: 'verifyEmbeds' } as never)
+    vi.clearAllMocks()
+
+    await payload.jobs.runByID({ id: job.id })
+    expect(sentry.captureException).not.toHaveBeenCalled()
+
+    await payload.jobs.runByID({ id: job.id })
+    expect(sentry.captureException).toHaveBeenCalledTimes(1)
+    expect(captured().tags).toMatchObject({
+      capture_source: 'job',
+      task: 'verifyEmbeds',
+      job_id: String(job.id),
+    })
   })
 })

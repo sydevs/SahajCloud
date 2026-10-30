@@ -8,13 +8,12 @@
  */
 import type { Payload } from 'payload'
 
-import { ValidationError } from 'payload'
+import { JobCancelledError, ValidationError } from 'payload'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import {
-  installLocalApiCapture,
-  installScheduledPublishCapture,
-} from '@/plugins/sentry/localApiCapture'
+import { ExpectedJobFailure } from '@/lib/jobs/expectedFailure'
+import { installJobCapture } from '@/plugins/sentry/jobCapture'
+import { installLocalApiCapture } from '@/plugins/sentry/localApiCapture'
 
 const sentry = vi.hoisted(() => ({ captureException: vi.fn() }))
 
@@ -89,6 +88,8 @@ const stubPayload = (failWith: () => unknown) => {
       jobs: {
         tasks: [
           { slug: 'schedulePublish', handler: failing() },
+          { slug: 'cleanupCollections', retries: 2, handler: failing() },
+          { slug: 'verifyEmbeds', retries: { attempts: 1 }, handler: failing() },
           { slug: 'deliverSubmission', handler: failing() },
         ],
       },
@@ -96,16 +97,31 @@ const stubPayload = (failWith: () => unknown) => {
   } as unknown as Payload
 }
 
-/** A task's handler, called the way the job runner calls it. */
-const runTask = (payload: Payload, slug: string, input: unknown, req: unknown) => {
+/**
+ * A task's handler, called the way the job runner calls a single-task job: as
+ * task `'1'`, with the job's `taskStatus` counting the tries before this one.
+ */
+const runTask = (
+  payload: Payload,
+  slug: string,
+  input: unknown,
+  req: unknown,
+  priorTries = 0,
+  job: Record<string, unknown> = { taskSlug: slug },
+) => {
   const task = payload.config.jobs.tasks?.find((candidate) => candidate.slug === slug)
-  return (task?.handler as (args: unknown) => Promise<unknown>)({ input, req })
+  const taskStatus = priorTries ? { [slug]: { '1': { totalTried: priorTries } } } : {}
+  return (task?.handler as (args: unknown) => Promise<unknown>)({
+    input,
+    job: { id: 42, taskStatus, ...job },
+    req,
+  })
 }
 
 const install = (failWith: () => unknown) => {
   const payload = stubPayload(failWith)
   installLocalApiCapture(payload)
-  installScheduledPublishCapture(payload)
+  installJobCapture(payload)
   return { payload }
 }
 
@@ -298,11 +314,92 @@ describe('the publish a schedule runs', () => {
 
     expect(tags()).toMatchObject({ collection: 'wm-web-config', target: 'wm-web-config' })
   })
+})
 
-  it('leaves every other task to its own reporting', async () => {
-    const { payload } = install(() => new Error('delivery failed'))
+describe('a job run of ours that fails', () => {
+  it('reports once, on the final attempt, tagging the task and the job', async () => {
+    const error = new Error('could not sweep')
+    const { payload } = install(() => error)
 
-    await expect(runTask(payload, 'deliverSubmission', {}, unattendedRequest())).rejects.toThrow()
+    // `retries: 2` — the third try is the last.
+    for (const prior of [0, 1]) {
+      await expect(
+        runTask(payload, 'cleanupCollections', {}, unattendedRequest(), prior),
+      ).rejects.toBe(error)
+    }
+    expect(sentry.captureException).not.toHaveBeenCalled()
+
+    await expect(runTask(payload, 'cleanupCollections', {}, unattendedRequest(), 2)).rejects.toBe(
+      error,
+    )
+
+    expect(sentry.captureException).toHaveBeenCalledTimes(1)
+    expect(captured().level).toBe('error')
+    expect(tags()).toMatchObject({
+      capture_source: 'job',
+      task: 'cleanupCollections',
+      job_id: '42',
+    })
+    expect(Object.keys(tags())).not.toContain('collection')
+    expect(captured().user).toBeUndefined()
+  })
+
+  it('still reports a failure the task marked as expected, at warning', async () => {
+    const { payload } = install(() => new ExpectedJobFailure('The target region no longer exists.'))
+
+    await expect(
+      runTask(payload, 'cleanupCollections', {}, unattendedRequest(), 2),
+    ).rejects.toBeInstanceOf(ExpectedJobFailure)
+
+    expect(sentry.captureException).toHaveBeenCalledTimes(1)
+    expect(captured().level).toBe('warning')
+    expect(tags()).toMatchObject({ capture_source: 'job', task: 'cleanupCollections' })
+  })
+
+  it('reads `retries` in its object form too', async () => {
+    const { payload } = install(() => new Error('nope'))
+
+    await expect(runTask(payload, 'verifyEmbeds', {}, unattendedRequest(), 0)).rejects.toThrow()
+    expect(sentry.captureException).not.toHaveBeenCalled()
+
+    await expect(runTask(payload, 'verifyEmbeds', {}, unattendedRequest(), 1)).rejects.toThrow()
+    expect(sentry.captureException).toHaveBeenCalledTimes(1)
+  })
+
+  it('sends no input of any task but schedulePublish, even one shaped like it', async () => {
+    const { payload } = install(() => new Error('nope'))
+    const lookalike = {
+      doc: { relationTo: 'pages', value: '12' },
+      user: { relationTo: 'managers', value: 7 },
+    }
+
+    await expect(
+      runTask(payload, 'deliverSubmission', lookalike, unattendedRequest()),
+    ).rejects.toThrow()
+
+    expect(sentry.captureException).toHaveBeenCalledTimes(1)
+    expect(Object.keys(tags())).not.toContain('target')
+    expect(Object.keys(tags())).not.toContain('collection')
+    expect(captured().user).toBeUndefined()
+  })
+
+  it('reports nothing for a cancelled job', async () => {
+    const { payload } = install(() => new JobCancelledError('cancelled'))
+
+    await expect(runTask(payload, 'schedulePublish', {}, unattendedRequest())).rejects.toThrow()
+
+    expect(sentry.captureException).not.toHaveBeenCalled()
+  })
+
+  it('reports nothing for a task run inside a workflow, whose retries it cannot see', async () => {
+    const { payload } = install(() => new Error('nope'))
+
+    await expect(
+      runTask(payload, 'cleanupCollections', {}, unattendedRequest(), 2, {
+        taskSlug: undefined,
+        workflowSlug: 'nightly',
+      }),
+    ).rejects.toThrow()
 
     expect(sentry.captureException).not.toHaveBeenCalled()
   })

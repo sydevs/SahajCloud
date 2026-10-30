@@ -13,6 +13,7 @@ import type { Payload, TaskConfig } from 'payload'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { CleanupCollections } from '@/jobs/CleanupCollections/CleanupCollections'
+import { ExpectedJobFailure } from '@/lib/jobs/expectedFailure'
 import type { GeocodedLocation, GeocodeOutcome } from '@/lib/mapbox/geocoder'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Import } from '@/payload-types'
@@ -541,13 +542,62 @@ describe('class imports', () => {
       geocoder.outcome = { status: 'unavailable' }
       try {
         const created = await createImport([classLine({ title: 'Later' })])
-        await expect(run(created.id)).rejects.toThrow(/did not answer/)
+        // An outage, so not an expected failure: the job capture sends it at `error`.
+        const failure = await run(created.id).catch((error: unknown) => error)
+        expect(failure).toBeInstanceOf(Error)
+        expect(failure).not.toBeInstanceOf(ExpectedJobFailure)
+        expect(String(failure)).toMatch(/did not answer/)
         const after = await read(created.id)
         expect(after.status).toBe('failed')
         expect(after.error).toMatch(/did not answer/)
       } finally {
         geocoder.outcome = null
       }
+    })
+  })
+
+  describe('an import that can no longer run', () => {
+    it('fails as expected when its target region is gone', async () => {
+      const gone = await testData.createRegion(payload, {
+        name: 'Gone Land',
+        slug: 'gone-land',
+        level: 'country',
+      })
+      const created = await createImport([classLine({ title: 'Orphaned' })], admin, {
+        targetRegion: gone.id,
+      })
+      await payload.delete({ collection: 'regions', id: gone.id, overrideAccess: true })
+
+      await expect(run(created.id)).rejects.toBeInstanceOf(ExpectedJobFailure)
+      expect((await read(created.id)).error).toMatch(/target region no longer exists/)
+    })
+
+    it('fails as expected when the import itself was deleted before it ran', async () => {
+      const created = await createImport([classLine({ title: 'Withdrawn' })])
+      await payload.delete({ collection: 'imports', id: created.id, overrideAccess: true })
+      const logged = vi.spyOn(payload.logger, 'error')
+
+      try {
+        await expect(run(created.id)).rejects.toBeInstanceOf(ExpectedJobFailure)
+        // No row is left to mark, so nothing tries to, and nothing logs that it could not.
+        expect(logged).not.toHaveBeenCalled()
+      } finally {
+        logged.mockRestore()
+      }
+    })
+
+    it('fails as expected when its uploader is no longer active', async () => {
+      const leaver = await testData.createManager(payload, { name: 'Leaver', type: 'admin' })
+      const created = await createImport([classLine({ title: 'Left Behind' })], leaver)
+      await payload.update({
+        collection: 'managers',
+        id: leaver.id,
+        data: { type: 'inactive' },
+        overrideAccess: true,
+      })
+
+      await expect(run(created.id)).rejects.toBeInstanceOf(ExpectedJobFailure)
+      expect((await read(created.id)).error).toMatch(/no longer active/)
     })
   })
 

@@ -17,6 +17,7 @@ import type { PayloadRequest, TaskConfig } from 'payload'
 
 import { APIError, ValidationError } from 'payload'
 
+import { ExpectedJobFailure } from '@/lib/jobs/expectedFailure'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Import } from '@/payload-types'
@@ -38,9 +39,20 @@ export const importEventsTask: TaskConfig<'importEvents'> = {
   inputSchema: [{ name: 'importId', type: 'number', required: true }],
   handler: async ({ input, req }) => {
     const importId = Number(input.importId)
+    const batch = (await req.payload.findByID({
+      collection: 'imports',
+      id: importId,
+      depth: 0,
+      overrideAccess: true,
+      disableErrors: true,
+      req,
+    })) as Import | null
+    // Deleted while it waited for this job: a manager's choice, not a failure,
+    // and no row is left to mark.
+    if (!batch) throw new ExpectedJobFailure('The import was deleted before it ran.')
     let run: ImportRun | undefined
     try {
-      const started = await startRun(req, importId)
+      const started = await startRun(req, batch)
       run = started.run
       for (const { row, data } of await prepareRows(req, run, started.rows)) {
         await createRow(req, run, row, data)
@@ -54,16 +66,11 @@ export const importEventsTask: TaskConfig<'importEvents'> = {
   },
 }
 
-async function startRun(req: PayloadRequest, importId: number) {
-  const batch = (await req.payload.findByID({
-    collection: 'imports',
-    id: importId,
-    depth: 0,
-    overrideAccess: true,
-    req,
-  })) as Import
+async function startRun(req: PayloadRequest, batch: Import) {
   const target = await loadTarget(req, relationId(batch.targetRegion) ?? 0)
-  if (!target) throw new Error('The target region no longer exists. Start a new import.')
+  if (!target) {
+    throw new ExpectedJobFailure('The target region no longer exists. Start a new import.')
+  }
   const uploaderId = relationId(batch.manager)
   const uploader =
     uploaderId === null
@@ -77,10 +84,12 @@ async function startRun(req: PayloadRequest, importId: number) {
           req,
         })
   if (!uploader || uploader.type === 'inactive') {
-    throw new Error('The manager who uploaded this import is no longer active. Start a new import.')
+    throw new ExpectedJobFailure(
+      'The manager who uploaded this import is no longer active. Start a new import.',
+    )
   }
   const run: ImportRun = {
-    importId,
+    importId: batch.id,
     target,
     // Their roles in every locale, as a signed-in request carries them: the
     // creates check the role the uploader holds in the import's locale.

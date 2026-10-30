@@ -5,7 +5,7 @@
  * with an empty body; `schedulePublishHandler` catches and returns `{ error }`.
  * Nothing escapes to `onRequestError`, so the Local API call itself is the only
  * seam left (#1038, #1039). The publish a schedule later runs fails inside the
- * job runner instead — `installScheduledPublishCapture` covers that one.
+ * job runner instead — `installJobCapture` covers that, with every other job.
  *
  * ⚠ **The wrapper rethrows, always.** It observes; it must not change what any
  * caller sees.
@@ -15,22 +15,7 @@ import type { Payload, PayloadRequest } from 'payload'
 import { isRecord } from '@/lib/utilities/isRecord'
 
 import { captureFailure } from './captureFailure'
-
-/** What a `schedulePublish` input is for: `pages/12`, or a global's slug. */
-const scheduledTarget = (input: unknown): string | undefined => {
-  if (!isRecord(input)) return undefined
-  const { doc, global } = input
-  if (isRecord(doc) && typeof doc.relationTo === 'string') {
-    return `${doc.relationTo}/${String(doc.value)}`
-  }
-  return typeof global === 'string' ? global : undefined
-}
-
-/** Who queued a `schedulePublish` — the input records it as a relationship. */
-const scheduledBy = (input: unknown): { id: string } | undefined =>
-  isRecord(input) && isRecord(input.user) && input.user.value != null
-    ? { id: String(input.user.value) }
-    : undefined
+import { scheduledBy, scheduledTarget } from './jobCapture'
 
 const report = (error: unknown, options: unknown, row?: string): void => {
   const { collection, input, req, slug } = isRecord(options) ? options : {}
@@ -93,43 +78,4 @@ export const installLocalApiCapture = (payload: Payload): void => {
     wrap(payload, key)
   }
   wrap(payload.jobs, 'queue', 'payload-jobs')
-}
-
-/**
- * Report a scheduled publish that fails when its job runs. The runner records
- * the throw on the job row and a log line alone, and the task's `payload.update`
- * carries no request, so the write wrapper above stands down for it.
- *
- * Only Payload's own `schedulePublish` is wrapped. Payload has no final-failure
- * hook that carries the error — `onFail` gets none, and runs on every attempt —
- * so a handler wrapper reports once per attempt, and only this task, with no
- * `retries`, makes that one event per job.
- *
- * ⚠ **The runner reads the handler off the live config**, which a dev HMR
- * `reload()` replaces without running `onInit`, so in dev the wrap lasts until
- * the first reload.
- *
- * ⚠ **No `req` is passed.** The runner's request carries the default locale and
- * a placeholder URL, and on `/api/payload-jobs/run` it is the admin who
- * triggered the run, not the manager who scheduled it.
- */
-export const installScheduledPublishCapture = (payload: Payload): void => {
-  const task = payload.config.jobs?.tasks?.find(({ slug }) => slug === 'schedulePublish')
-  if (!task || typeof task.handler !== 'function') return
-  const handler = task.handler
-  task.handler = async (args) => {
-    try {
-      return await handler(args)
-    } catch (error) {
-      const { doc, global } = isRecord(args.input) ? args.input : {}
-      captureFailure({
-        collection: isRecord(doc) ? String(doc.relationTo) : (global as string | undefined),
-        error,
-        source: 'job',
-        target: scheduledTarget(args.input),
-        user: scheduledBy(args.input),
-      })
-      throw error
-    }
-  }
 }

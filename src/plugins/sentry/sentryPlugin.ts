@@ -18,7 +18,8 @@ import type { Config } from 'payload'
 import { serverEnv } from '@/lib/env'
 
 import { captureFailure, errorStatus } from './captureFailure'
-import { installLocalApiCapture, installScheduledPublishCapture } from './localApiCapture'
+import { installJobCapture } from './jobCapture'
+import { installLocalApiCapture } from './localApiCapture'
 
 export interface SentryPluginOptions {
   /**
@@ -110,7 +111,7 @@ export const sentryPlugin = (options: SentryPluginOptions = {}) => {
         // Before the config's own `onInit`, so every write that follows is
         // covered — including whatever that hook does.
         installLocalApiCapture(payload)
-        installScheduledPublishCapture(payload)
+        installJobCapture(payload)
         await config.onInit?.(payload)
       },
     }
