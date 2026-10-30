@@ -14,8 +14,10 @@ spelling of that route.
 A sign-in link returns its holder to the page Payload sent them from: the
 page's `?redirect=` rides the form into the token's signed `to` claim, and the
 redeem route lands there. That value is anonymous input, so `returnPath` keeps
-only an admin path and drops the sign-in and logout routes. An expired link
-cannot be read for it, so the fresh one it prompts lands on the dashboard.
+only an admin path and drops the sign-in and logout routes. A visitor already
+signed in is sent there directly, by the same rule — Payload's own
+`getSafeRedirect` would keep `/admin/logout`. An expired link cannot be read for
+a destination, so the fresh one it prompts lands on the dashboard.
 
 Four things worth knowing before you touch `Managers`:
 
