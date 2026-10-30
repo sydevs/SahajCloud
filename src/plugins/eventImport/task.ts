@@ -17,6 +17,7 @@ import type { PayloadRequest, TaskConfig } from 'payload'
 
 import { APIError, ValidationError } from 'payload'
 
+import { ExpectedJobFailure } from '@/lib/jobs/expectedFailure'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Import } from '@/payload-types'
@@ -63,7 +64,9 @@ async function startRun(req: PayloadRequest, importId: number) {
     req,
   })) as Import
   const target = await loadTarget(req, relationId(batch.targetRegion) ?? 0)
-  if (!target) throw new Error('The target region no longer exists. Start a new import.')
+  if (!target) {
+    throw new ExpectedJobFailure('The target region no longer exists. Start a new import.')
+  }
   const uploaderId = relationId(batch.manager)
   const uploader =
     uploaderId === null
@@ -77,7 +80,9 @@ async function startRun(req: PayloadRequest, importId: number) {
           req,
         })
   if (!uploader || uploader.type === 'inactive') {
-    throw new Error('The manager who uploaded this import is no longer active. Start a new import.')
+    throw new ExpectedJobFailure(
+      'The manager who uploaded this import is no longer active. Start a new import.',
+    )
   }
   const run: ImportRun = {
     importId,

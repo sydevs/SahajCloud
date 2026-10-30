@@ -42,6 +42,8 @@ export interface CaptureFailureArgs {
    * failing schedule can be told from another.
    */
   target?: string
+  /** A failure the task marked as an answer (`ExpectedJobFailure`): sent at `warning`. */
+  expected?: boolean
   /** The job run that failed, for a `job` source. */
   job?: { id: string; task: string }
   /** Who acted, for a site that holds no request. `req.user` wins where it exists. */
@@ -69,6 +71,7 @@ export const captureFailure = ({
   req,
   source,
   status = errorStatus(error),
+  expected = false,
   job,
   target,
   user: actingUser,
@@ -102,8 +105,9 @@ export const captureFailure = ({
       // ⚠ **Accepted risk: a rejected credential's level is caller-triggerable**
       // with a junk `Authorization` header; mute it Sentry-side on
       // `auth_outcome`, never by dropping the level. (#734)
-      level:
-        source === 'localApi' || source === 'job' || rejected || status >= 500
+      level: expected
+        ? 'warning'
+        : source === 'localApi' || source === 'job' || rejected || status >= 500
           ? 'error'
           : 'warning',
       // ⚠ **The IP belongs on `user.ip_address`, never in an `extra`** — the

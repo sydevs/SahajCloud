@@ -14,6 +14,7 @@ import type { Payload, TaskConfig } from 'payload'
 
 import { JobCancelledError } from 'payload'
 
+import { ExpectedJobFailure } from '@/lib/jobs/expectedFailure'
 import { isRecord } from '@/lib/utilities/isRecord'
 
 import { captureFailure } from './captureFailure'
@@ -76,6 +77,7 @@ export const installJobCapture = (payload: Payload): void => {
           captureFailure({
             collection: target?.split('/')[0],
             error,
+            expected: error instanceof ExpectedJobFailure,
             job: { id: String(args.job.id), task: task.slug },
             source: 'job',
             target,

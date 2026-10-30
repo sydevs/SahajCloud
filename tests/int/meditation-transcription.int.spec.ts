@@ -27,6 +27,7 @@ import path from 'node:path'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { TranscribeMeditation } from '@/jobs/TranscribeMeditation/TranscribeMeditation'
+import { ExpectedJobFailure } from '@/lib/jobs/expectedFailure'
 import {
   RETRANSCRIBE_COOLDOWN_MS,
   TRANSCRIPTION_STALL_MS,
@@ -275,23 +276,40 @@ describe('meditation transcription', () => {
       expect(lemonfox.requestLemonfoxTranscript).not.toHaveBeenCalled()
     })
 
+    it('throws an expected failure for a recording replaced between its two reads', async () => {
+      const meditation = await createMeditation()
+      // The task reads the row and the recording in parallel, so a replacement
+      // can commit between them: the row still names this file, the recording
+      // does not.
+      await takeAwayRecording(meditation.id)
+
+      const failure = await runTaskHandler(TranscribeMeditation, {
+        payload,
+        input: { meditationId: meditation.id, audioFilename: meditation.filename! },
+      }).catch((error: unknown) => error)
+      expect(failure).toBeInstanceOf(ExpectedJobFailure)
+      expect(String(failure)).toMatch(/replaced while it was being transcribed/)
+      expect(lemonfox.requestLemonfoxTranscript).not.toHaveBeenCalled()
+    })
+
     it('throws when the body carries no timestamped speech', async () => {
       lemonfox.requestLemonfoxTranscript.mockResolvedValue({ segments: [] })
       const meditation = await createMeditation()
 
       // The throw is the record: `retries: 0`, so the retained job row carries
-      // the message and the row's `status` derives `failed` from it.
-      await expect(
-        runTaskHandler(TranscribeMeditation, {
-          payload,
-          input: { meditationId: meditation.id, audioFilename: meditation.filename! },
-        }),
-      ).rejects.toThrow()
+      // the message and the row's `status` derives `failed` from it. It is not
+      // one of the failures the task marks as expected, so it is sent at `error`.
+      const failure = await runTaskHandler(TranscribeMeditation, {
+        payload,
+        input: { meditationId: meditation.id, audioFilename: meditation.filename! },
+      }).catch((error: unknown) => error)
+      expect(failure).toBeInstanceOf(Error)
+      expect(failure).not.toBeInstanceOf(ExpectedJobFailure)
 
       expect((await transcriptOf(meditation.id))?.segments ?? null).toBeNull()
     })
 
-    it('throws, and invents no text, when transcription is unavailable', async () => {
+    it('throws an expected failure, and invents no text, when transcription is unavailable', async () => {
       lemonfox.lemonfoxApiKey.mockReturnValue(undefined)
       const meditation = await createMeditation()
 
@@ -300,7 +318,7 @@ describe('meditation transcription', () => {
           payload,
           input: { meditationId: meditation.id, audioFilename: meditation.filename! },
         }),
-      ).rejects.toThrow()
+      ).rejects.toBeInstanceOf(ExpectedJobFailure)
 
       const row = await transcriptOf(meditation.id)
       expect(row?.segments ?? null).toBeNull()

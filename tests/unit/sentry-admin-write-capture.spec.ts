@@ -11,6 +11,7 @@ import type { Payload } from 'payload'
 import { JobCancelledError, ValidationError } from 'payload'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { ExpectedJobFailure } from '@/lib/jobs/expectedFailure'
 import { installJobCapture } from '@/plugins/sentry/jobCapture'
 import { installLocalApiCapture } from '@/plugins/sentry/localApiCapture'
 
@@ -341,6 +342,18 @@ describe('a job run of ours that fails', () => {
     })
     expect(Object.keys(tags())).not.toContain('collection')
     expect(captured().user).toBeUndefined()
+  })
+
+  it('still reports a failure the task marked as expected, at warning', async () => {
+    const { payload } = install(() => new ExpectedJobFailure('The target region no longer exists.'))
+
+    await expect(
+      runTask(payload, 'cleanupCollections', {}, unattendedRequest(), 2),
+    ).rejects.toBeInstanceOf(ExpectedJobFailure)
+
+    expect(sentry.captureException).toHaveBeenCalledTimes(1)
+    expect(captured().level).toBe('warning')
+    expect(tags()).toMatchObject({ capture_source: 'job', task: 'cleanupCollections' })
   })
 
   it('reads `retries` in its object form too', async () => {

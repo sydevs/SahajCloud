@@ -6,6 +6,7 @@ import {
   requestLemonfoxTranscript,
   TRANSCRIPTION_UNAVAILABLE_ERROR,
 } from '@/jobs/TranscribeMeditation/lemonfox/transcribe'
+import { ExpectedJobFailure } from '@/lib/jobs/expectedFailure'
 import type { MeditationTranscript } from '@/payload-types'
 import { getR2Url } from '@/plugins/storage'
 
@@ -56,11 +57,11 @@ export const TranscribeMeditation: TaskConfig<'transcribeMeditation'> = {
     }
 
     if (recording?.filename !== audioFilename) {
-      throw new Error('The recording was replaced while it was being transcribed.')
+      throw new ExpectedJobFailure('The recording was replaced while it was being transcribed.')
     }
 
     const apiKey = lemonfoxApiKey()
-    if (!apiKey) throw new Error(TRANSCRIPTION_UNAVAILABLE_ERROR)
+    if (!apiKey) throw new ExpectedJobFailure(TRANSCRIPTION_UNAVAILABLE_ERROR)
 
     const audioUrl = getR2Url(audioFilename)
     if (!audioUrl) {
