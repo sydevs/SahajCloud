@@ -2,8 +2,9 @@ import type { Payload, PayloadRequest, TaskConfig } from 'payload'
 
 import * as Sentry from '@sentry/nextjs'
 
+import { refusalHour } from '@/collections/RegistrationRefusals/RegistrationRefusals'
 import { readSubmissionValue } from '@/collections/UserSubmissions/submissionData'
-import { getFrequencyOptions } from '@/components/admin/NotificationPreferences/config'
+import { NEVER_FREQUENCY } from '@/components/admin/NotificationPreferences/config'
 import type { RefusedEventGroup, RefusedSignup } from '@/emails/RefusedRegistrationDigestEmail'
 import type { DigestPeriod } from '@/emails/RegistrationDigestEmail'
 import { pickChannel } from '@/lib/notifications'
@@ -22,6 +23,12 @@ const PAGINATION_LIMIT = 200
  * the admin list holds every one.
  */
 const MAX_LISTED_PER_EVENT = 25
+/**
+ * Classes given a section, most-refused first. Only a published class taking
+ * registrations is counted at the form, so this bounds what a flood across
+ * every class could make of one email; the rest are named as a number.
+ */
+const MAX_LISTED_EVENTS = 50
 
 /**
  * What each refusal code means, said for an admin. The codes come from two
@@ -44,7 +51,10 @@ const REASON_LABELS: Record<string, string> = {
 
 const reasonLabel = (code: string): string => REASON_LABELS[code] ?? code
 
-type RefusalRow = Pick<RegistrationRefusal, 'id' | 'event' | 'stage' | 'reason' | 'submission'>
+type RefusalRow = Pick<
+  RegistrationRefusal,
+  'id' | 'event' | 'stage' | 'reason' | 'count' | 'submission'
+>
 
 interface DigestResult {
   eligibleAdmins: number
@@ -54,15 +64,12 @@ interface DigestResult {
 }
 
 /**
- * The cadence an admin chose, or the type's first option when they never chose
- * one — the same fallback `buildDefaultNotificationPreferences` seeds a new
- * manager with, so an admin created before this type existed is not left out.
+ * The cadence an admin chose. No fallback, as for every other type: what the
+ * preferences table shows is what is sent. The migration that added the type
+ * wrote its default into every existing manager's preferences.
  */
 function refusedRegistrationsFrequency(manager: Manager): string | undefined {
-  return (
-    manager.notificationPreferences?.[PREFERENCE_KEY]?.frequency ||
-    getFrequencyOptions(PREFERENCE_KEY)[0]
-  )
+  return manager.notificationPreferences?.[PREFERENCE_KEY]?.frequency
 }
 
 async function advanceWatermark(
@@ -80,7 +87,12 @@ async function advanceWatermark(
   })
 }
 
-/** Refusals created in `(since, until]`, oldest first. */
+/**
+ * One window's refusals. A refusal at the form is an hourly count, read by the
+ * hours that ended inside the window — `[hour(since), hour(until))` — so an hour
+ * still being counted waits for the next digest rather than being split. A
+ * screening refusal is one row, read by when it was refused.
+ */
 async function loadRefusals(
   payload: Payload,
   req: PayloadRequest,
@@ -94,15 +106,27 @@ async function loadRefusals(
     const batch = await payload.find({
       collection: 'registration-refusals',
       where: {
-        and: [
-          { createdAt: { greater_than: since.toISOString() } },
-          { createdAt: { less_than_equal: until.toISOString() } },
+        or: [
+          {
+            and: [
+              { stage: { equals: 'request' } },
+              { hour: { greater_than_equal: refusalHour(since).toISOString() } },
+              { hour: { less_than: refusalHour(until).toISOString() } },
+            ],
+          },
+          {
+            and: [
+              { stage: { equals: 'screening' } },
+              { createdAt: { greater_than: since.toISOString() } },
+              { createdAt: { less_than_equal: until.toISOString() } },
+            ],
+          },
         ],
       },
       depth: 0,
       limit: PAGINATION_LIMIT,
       page,
-      select: { event: true, stage: true, reason: true, submission: true },
+      select: { event: true, stage: true, reason: true, count: true, submission: true },
       sort: 'createdAt',
       overrideAccess: true,
       req,
@@ -167,16 +191,29 @@ async function loadSignups(
   return signups
 }
 
+/** How many sign-ups one row stands for: an hour's count at the form, one at screening. */
+const refusalsIn = (row: RefusalRow): number => (row.stage === 'request' ? row.count || 1 : 1)
+
 /**
  * Group one window's refusals by class: the form's refusals as a count per
- * reason, screening's as one card per sign-up. Classes come in order of their
- * first refusal, so the one a flood hit first leads.
+ * reason, screening's as one card per sign-up. The most-refused class leads,
+ * and only the first `MAX_LISTED_EVENTS` get a section.
  */
 async function buildGroups(
   payload: Payload,
   req: PayloadRequest,
-  rows: RefusalRow[],
-): Promise<RefusedEventGroup[]> {
+  allRows: RefusalRow[],
+): Promise<{ groups: RefusedEventGroup[]; moreClasses: number }> {
+  const totals = new Map<number | null, number>()
+  for (const row of allRows) {
+    const eventId = relationId(row.event)
+    totals.set(eventId, (totals.get(eventId) ?? 0) + refusalsIn(row))
+  }
+  const ranked = [...totals.entries()].sort((a, b) => b[1] - a[1]).map(([eventId]) => eventId)
+  const listed = new Set(ranked.slice(0, MAX_LISTED_EVENTS))
+  const moreClasses = ranked.length - listed.size
+  const rows = allRows.filter((row) => listed.has(relationId(row.event)))
+
   const eventIds = [...new Set(rows.map((row) => relationId(row.event)).filter((id) => id != null))]
   const submissionIds = [
     ...new Set(
@@ -195,29 +232,31 @@ async function buildGroups(
     group: RefusedEventGroup
     counts: Map<string, number>
   }
-  const drafts = new Map<number | null, Draft>()
+  const drafts = new Map<number | null, Draft>(
+    ranked
+      .filter((eventId) => listed.has(eventId))
+      .map((eventId) => {
+        const title = eventId == null ? undefined : titles.get(eventId)
+        const draft: Draft = {
+          group: {
+            eventTitle: title ?? 'A class that has since been deleted',
+            eventAdminUrl: title != null && eventId != null ? adminDocUrl('events', eventId) : null,
+            atRequest: [],
+            atScreening: [],
+            moreAtScreening: 0,
+          },
+          counts: new Map(),
+        }
+        return [eventId, draft]
+      }),
+  )
 
   for (const row of rows) {
-    const eventId = relationId(row.event)
-    let draft = drafts.get(eventId)
-    if (!draft) {
-      const title = eventId == null ? undefined : titles.get(eventId)
-      draft = {
-        group: {
-          eventTitle: title ?? 'A class that has since been deleted',
-          eventAdminUrl: title != null && eventId != null ? adminDocUrl('events', eventId) : null,
-          atRequest: [],
-          atScreening: [],
-          moreAtScreening: 0,
-        },
-        counts: new Map(),
-      }
-      drafts.set(eventId, draft)
-    }
+    const draft = drafts.get(relationId(row.event))!
 
     if (row.stage === 'request') {
       const label = reasonLabel(row.reason)
-      draft.counts.set(label, (draft.counts.get(label) ?? 0) + 1)
+      draft.counts.set(label, (draft.counts.get(label) ?? 0) + refusalsIn(row))
       continue
     }
 
@@ -238,12 +277,13 @@ async function buildGroups(
     draft.group.atScreening.push(card)
   }
 
-  return [...drafts.values()].map(({ group, counts }) => ({
+  const groups = [...drafts.values()].map(({ group, counts }) => ({
     ...group,
     atRequest: [...counts.entries()]
       .sort((a, b) => b[1] - a[1])
       .map(([reason, count]) => ({ reason, count })),
   }))
+  return { groups, moreClasses }
 }
 
 async function digestForAdmin(args: {
@@ -279,7 +319,8 @@ async function digestForAdmin(args: {
     return
   }
 
-  const groups = await buildGroups(payload, req, rows)
+  const total = rows.reduce((sum, row) => sum + refusalsIn(row), 0)
+  const { groups, moreClasses } = await buildGroups(payload, req, rows)
   await sendRefusedRegistrationDigest({
     payload,
     channel,
@@ -288,14 +329,15 @@ async function digestForAdmin(args: {
       recipientName: manager.name || manager.email || null,
       period,
       groups,
-      total: rows.length,
+      moreClasses,
+      total,
       listUrl: adminUrl('/collections/registration-refusals'),
     },
   })
   await advanceWatermark(payload, req, manager.id, runStart)
 
   result.digestsSent++
-  result.refusalsIncluded += rows.length
+  result.refusalsIncluded += total
 }
 
 /**
@@ -306,13 +348,14 @@ async function digestForAdmin(args: {
  * any class, and only an admin can act on all of them. Each sets the cadence on
  * their `refused_registrations` preference, which runs exactly as the
  * registration digest's does — daily at 07:00 UTC, weekly on the Monday run,
- * `Never` for none — and an admin who has not chosen gets the type's first
- * option, `Daily Summary`.
+ * `Never` for none.
  *
  * Exactly-once by the same per-manager watermark as `SendRegistrationDigests`,
- * on `lastRefusedRegistrationDigestSentAt`: a run covers refusals created in
- * `(watermark ?? runStart − period, runStart]` and advances it. A period with
- * none sends nothing and still advances.
+ * on `lastRefusedRegistrationDigestSentAt`: a run covers the window from the
+ * watermark (or one period back) to its own start, and advances it. A period
+ * with none sends nothing and still advances. An admin at `Never` is advanced
+ * too, so turning the digest back on starts from that day rather than
+ * delivering months of refusals as one day's.
  *
  * Manual trigger: `pnpm payload jobs:run --queue nightly`
  */
@@ -361,8 +404,20 @@ export const SendRefusedRegistrationDigests: TaskConfig<'sendRefusedRegistration
       })
 
       for (const manager of batch.docs as Manager[]) {
-        const due = dueDigestPeriod(refusedRegistrationsFrequency(manager), runStart)
-        if (!due) continue
+        const frequency = refusedRegistrationsFrequency(manager)
+        const due = dueDigestPeriod(frequency, runStart)
+        if (!due) {
+          if (frequency === NEVER_FREQUENCY) {
+            await advanceWatermark(payload, req, manager.id, runStart).catch((error: unknown) =>
+              payload.logger.warn({
+                msg: 'SendRefusedRegistrationDigests: could not advance a muted admin',
+                managerId: manager.id,
+                error: error instanceof Error ? error.message : String(error),
+              }),
+            )
+          }
+          continue
+        }
 
         result.eligibleAdmins++
         try {

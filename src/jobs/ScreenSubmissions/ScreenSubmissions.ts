@@ -1,6 +1,8 @@
 import type { SubmissionScreeningResult, SubmissionVerdict } from './verdicts'
 import type { PayloadRequest, TaskConfig } from 'payload'
 
+import { commitTransaction, initTransaction, killTransaction } from 'payload'
+
 import { appendLogEntry, asLog } from '@/fields'
 import { checkEmailAllowed } from '@/lib/antiSpam/antiSpamGuard'
 import { hasMxRecords } from '@/lib/antiSpam/mxRecords'
@@ -101,36 +103,41 @@ export const ScreenSubmissions: TaskConfig<'screenSubmission'> = {
 
     const passed = verdict === 'ok'
 
-    await payload.update({
-      collection: 'user-submissions',
-      id: submissionId,
-      data: {
-        screeningResult: result,
-        // A pass leaves the row `pending` — delivery is what settles it. Only a
-        // refusal is terminal here.
-        ...(passed ? {} : { status: 'spam' as const }),
-        activityLog: appendLogEntry(asLog(submission.activityLog), {
-          at: now.toISOString(),
-          type: 'screening',
-          key: 'screening',
-          verdict,
-          cells: {
-            activity: passed ? 'Screening passed' : `Screening refused: ${verdict}`,
-          },
-        }),
-      },
-      overrideAccess: true,
-      context: { skipWriteGuard: true },
-      req,
-    })
+    const eventId = relationId(submission.event)
+    const refusedRegistration = !passed && submission.type === 'registration' && eventId != null
 
-    if (!passed) {
+    // A refused registration is two writes, and they land together or not at
+    // all. Payload gives a task no transaction of its own, so without this the
+    // status write commits alone; a failed refusal row then leaves a `spam` row
+    // that the settled-row guard above never screens, or records, again.
+    const opened = refusedRegistration ? await initTransaction(req) : false
+    try {
+      await payload.update({
+        collection: 'user-submissions',
+        id: submissionId,
+        data: {
+          screeningResult: result,
+          // A pass leaves the row `pending` — delivery is what settles it. Only a
+          // refusal is terminal here.
+          ...(passed ? {} : { status: 'spam' as const }),
+          activityLog: appendLogEntry(asLog(submission.activityLog), {
+            at: now.toISOString(),
+            type: 'screening',
+            key: 'screening',
+            verdict,
+            cells: {
+              activity: passed ? 'Screening passed' : `Screening refused: ${verdict}`,
+            },
+          }),
+        },
+        overrideAccess: true,
+        context: { skipWriteGuard: true },
+        req,
+      })
+
       // The visitor was told they were signed up, so this refusal reaches no
-      // one unless the admins' digest names it (sydevs/SahajAtlasWeb#259). Same
-      // transaction as the status write: the two land together or not at all,
-      // and the settled-row guard above keeps a retry from recording it twice.
-      const eventId = relationId(submission.event)
-      if (submission.type === 'registration' && eventId != null) {
+      // one unless the admins' digest names it (sydevs/SahajAtlasWeb#259).
+      if (refusedRegistration) {
         await payload.create({
           collection: 'registration-refusals',
           data: { event: eventId, stage: 'screening', reason: verdict, submission: submissionId },
@@ -138,8 +145,13 @@ export const ScreenSubmissions: TaskConfig<'screenSubmission'> = {
           req,
         })
       }
-      return { output: { verdict, status: 'spam' } }
+      if (opened) await commitTransaction(req)
+    } catch (error) {
+      if (opened) await killTransaction(req)
+      throw error
     }
+
+    if (!passed) return { output: { verdict, status: 'spam' } }
 
     // Delivery is a separate task, not the rest of this handler: a transport
     // failure must earn its own retries without re-running the screening work,

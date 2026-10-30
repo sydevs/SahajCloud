@@ -1,4 +1,3 @@
-
 import { createElement } from 'react'
 import { describe, expect, it } from 'vitest'
 
@@ -68,6 +67,10 @@ describe('RefusedRegistrationDigestEmail', () => {
     expect(text).toContain('- 3× The captcha check failed')
     expect(text).toContain('- Kept Visitor — kept@example.com: A disposable email address')
     expect(text).toContain('- …and 25 more.')
+    expect(text).not.toContain('more class')
+    expect(refusedRegistrationDigestText({ ...props, moreClasses: 3 })).toContain(
+      '…and 3 more classes.',
+    )
     expect(text).toContain(
       'See every refused sign-up: https://cloud.example/admin/collections/registration-refusals',
     )

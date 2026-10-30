@@ -4230,6 +4230,11 @@ export interface RegistrationRefusal {
   event?: (number | null) | Event;
   stage: 'request' | 'screening';
   reason: string;
+  /**
+   * The hour these refusals at the form were counted in.
+   */
+  hour?: string | null;
+  count: number;
   submission?: (number | null) | UserSubmission;
   updatedAt: string;
   createdAt: string;
@@ -5187,6 +5192,8 @@ export interface RegistrationRefusalsSelect<T extends boolean = true> {
   event?: T;
   stage?: T;
   reason?: T;
+  hour?: T;
+  count?: T;
   submission?: T;
   updatedAt?: T;
   createdAt?: T;

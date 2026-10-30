@@ -15,6 +15,7 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { refusalHour } from '@/collections/RegistrationRefusals/RegistrationRefusals'
 import { CleanupCollections } from '@/jobs/CleanupCollections/CleanupCollections'
 import { SendRefusedRegistrationDigests } from '@/jobs/RegistrationNotifications/SendRefusedRegistrationDigests'
 import type { Client, Manager, RegistrationRefusal, UserSubmission } from '@/payload-types'
@@ -30,6 +31,8 @@ vi.mock('@/lib/turnstile/verifyTurnstile', () => ({ verifyTurnstileToken: verify
 vi.mock('@/lib/antiSpam/mxRecords', () => ({ hasMxRecords: mxMock }))
 
 const { ScreenSubmissions } = await import('@/jobs/ScreenSubmissions/ScreenSubmissions')
+
+const HOUR_MS = 60 * 60 * 1000
 
 const SCHEDULE = {
   firstDate: '2026-07-01T09:00:00.000Z',
@@ -63,7 +66,10 @@ describe('Refused sign-ups digest', () => {
       context: {},
     }) as unknown as PayloadRequest
 
-  async function createEvent(title: string): Promise<number> {
+  async function createEvent(
+    title: string,
+    status: 'draft' | 'published' = 'published',
+  ): Promise<number> {
     startSlot += 1
     const event = await payload.create({
       collection: 'events',
@@ -80,7 +86,7 @@ describe('Refused sign-ups digest', () => {
           ...SCHEDULE,
           firstDate: new Date(Date.parse(SCHEDULE.firstDate) + startSlot * 60_000).toISOString(),
         },
-        _status: 'published',
+        _status: status,
       }),
     })
     return event.id
@@ -178,19 +184,64 @@ describe('Refused sign-ups digest', () => {
 
   afterEach(() => {
     emailAdapter.clearCapturedEmails()
+    vi.restoreAllMocks()
   })
 
+  /** The start of the hour after this one: the first moment a digest reads this hour's counts. */
+  const nextHour = () => new Date(refusalHour(new Date()).getTime() + HOUR_MS)
+
+  /** Admins that earlier cases left behind would otherwise receive this case's digest too. */
+  const createAdmin = (email: string, frequency: string | null) =>
+    testData.createManager(payload, {
+      type: 'admin',
+      name: email,
+      email,
+      notificationPreferences:
+        frequency === null
+          ? {}
+          : {
+              refused_registrations: {
+                frequency,
+                method: frequency === 'Never' ? '' : 'email',
+              },
+            },
+    })
+
+  const screenAsSpam = async (eventId: number, name: string, email: string) => {
+    const submission = (await payload.create({
+      collection: 'user-submissions',
+      data: createData<'user-submissions'>({
+        type: 'registration',
+        event: eventId,
+        senderEmail: email,
+        submissionData: [{ field: 'name', value: name }],
+      }),
+      overrideAccess: true,
+    })) as UserSubmission
+    mxMock.mockResolvedValue(false)
+    await runTaskHandler(ScreenSubmissions, { payload, input: { submissionId: submission.id } })
+    return submission
+  }
+
   describe('recording a refusal at the form', () => {
-    it('keeps the class and the reason, and nothing the visitor typed', async () => {
+    it('counts the class, reason and hour, and keeps nothing the visitor typed', async () => {
       const eventId = await createEvent('Captcha Class')
       await refuseAtRequest(registration(eventId))
+      await refuseAtRequest(registration(eventId))
+      await refuseAtRequest(registration(eventId))
 
-      const [refusal, ...rest] = await refusalsFor(eventId)
-      expect(rest).toHaveLength(0)
-      expect(refusal).toMatchObject({ event: eventId, stage: 'request', reason: 'captcha_failed' })
-      expect(refusal.submission ?? null).toBeNull()
+      const rows = await refusalsFor(eventId)
+      expect(rows).toHaveLength(1)
+      expect(rows[0]).toMatchObject({
+        event: eventId,
+        stage: 'request',
+        reason: 'captcha_failed',
+        count: 3,
+        hour: refusalHour(new Date()).toISOString(),
+      })
+      expect(rows[0].submission ?? null).toBeNull()
 
-      // No row anywhere carries the refused visitor's address.
+      // No row anywhere carries the refused visitors' addresses.
       const { totalDocs } = await payload.count({
         collection: 'user-submissions',
         where: { event: { equals: eventId } },
@@ -219,11 +270,13 @@ describe('Refused sign-ups digest', () => {
       expect((await refusalsFor(eventId)).map((row) => row.reason)).toEqual(['urls_not_allowed'])
     })
 
-    it('records nothing for another type, a class that does not exist, or a manager', async () => {
+    it('records nothing for another type, a class nobody can sign up for, or a manager', async () => {
       const eventId = await createEvent('Quiet Class')
+      const draftId = await createEvent('Draft Class', 'draft')
 
       await refuseAtRequest({ ...registration(eventId), type: 'contact' })
       await refuseAtRequest(registration(2_000_000_000))
+      await refuseAtRequest(registration(draftId))
 
       const managerReq = {
         payload,
@@ -243,6 +296,7 @@ describe('Refused sign-ups digest', () => {
       }
 
       expect(await refusalsFor(eventId)).toHaveLength(0)
+      expect(await refusalsFor(draftId)).toHaveLength(0)
       const { totalDocs } = await payload.count({
         collection: 'registration-refusals',
         where: { event: { exists: false } },
@@ -265,19 +319,7 @@ describe('Refused sign-ups digest', () => {
   describe('recording a refusal at screening', () => {
     it('links the refused registration, which holds who it was', async () => {
       const eventId = await createEvent('Screened Class')
-      mxMock.mockResolvedValue(false)
-      const submission = (await payload.create({
-        collection: 'user-submissions',
-        data: createData<'user-submissions'>({
-          type: 'registration',
-          event: eventId,
-          senderEmail: 'nomail@example.com',
-          submissionData: [{ field: 'name', value: 'Nomail Person' }],
-        }),
-        overrideAccess: true,
-      })) as UserSubmission
-
-      await runTaskHandler(ScreenSubmissions, { payload, input: { submissionId: submission.id } })
+      const submission = await screenAsSpam(eventId, 'Nomail Person', 'nomail@example.com')
       // A retry finds the row settled and records nothing more.
       await runTaskHandler(ScreenSubmissions, { payload, input: { submissionId: submission.id } })
 
@@ -285,9 +327,50 @@ describe('Refused sign-ups digest', () => {
         expect.objectContaining({
           stage: 'screening',
           reason: 'no_mx_records',
+          count: 1,
           submission: submission.id,
         }),
       ])
+    })
+
+    it('leaves the row unscreened when the refusal cannot be recorded, so a retry records it', async () => {
+      const eventId = await createEvent('Retried Class')
+      const submission = (await payload.create({
+        collection: 'user-submissions',
+        data: createData<'user-submissions'>({
+          type: 'registration',
+          event: eventId,
+          senderEmail: 'retried@example.com',
+          submissionData: [{ field: 'name', value: 'Retried Person' }],
+        }),
+        overrideAccess: true,
+      })) as UserSubmission
+      mxMock.mockResolvedValue(false)
+
+      const create = payload.create.bind(payload)
+      const spy = vi.spyOn(payload, 'create').mockImplementationOnce((async (args: never) => {
+        if ((args as { collection: string }).collection === 'registration-refusals') {
+          throw new Error('the refusal insert failed')
+        }
+        return create(args)
+      }) as never)
+
+      await expect(
+        runTaskHandler(ScreenSubmissions, { payload, input: { submissionId: submission.id } }),
+      ).rejects.toThrow('the refusal insert failed')
+      spy.mockRestore()
+
+      const reloaded = (await payload.findByID({
+        collection: 'user-submissions',
+        id: submission.id,
+        depth: 0,
+        overrideAccess: true,
+      })) as UserSubmission
+      expect(reloaded.status).toBe('pending')
+      expect(await refusalsFor(eventId)).toHaveLength(0)
+
+      await runTaskHandler(ScreenSubmissions, { payload, input: { submissionId: submission.id } })
+      expect((await refusalsFor(eventId)).map((row) => row.submission)).toEqual([submission.id])
     })
   })
 
@@ -296,40 +379,13 @@ describe('Refused sign-ups digest', () => {
       const eventId = await createEvent('Digest Class')
       await refuseAtRequest(registration(eventId))
       await refuseAtRequest(registration(eventId))
-      mxMock.mockResolvedValue(false)
-      const screened = (await payload.create({
-        collection: 'user-submissions',
-        data: createData<'user-submissions'>({
-          type: 'registration',
-          event: eventId,
-          senderEmail: 'quiet-visitor@example.com',
-          submissionData: [{ field: 'name', value: 'Quiet Visitor' }],
-        }),
-        overrideAccess: true,
-      })) as UserSubmission
-      await runTaskHandler(ScreenSubmissions, { payload, input: { submissionId: screened.id } })
+      await screenAsSpam(eventId, 'Quiet Visitor', 'quiet-visitor@example.com')
 
-      await testData.createManager(payload, {
-        type: 'admin',
-        name: 'Daily Admin',
-        email: 'daily-admin@example.com',
-        notificationPreferences: {
-          refused_registrations: { frequency: 'Daily Summary', method: 'email' },
-        },
-      })
-      // An admin from before this preference existed gets the type's default.
-      await testData.createManager(payload, {
-        type: 'admin',
-        name: 'Unset Admin',
-        email: 'unset-admin@example.com',
-        notificationPreferences: {},
-      })
-      await testData.createManager(payload, {
-        type: 'admin',
-        name: 'Muted Admin',
-        email: 'muted-admin@example.com',
-        notificationPreferences: { refused_registrations: { frequency: 'Never', method: '' } },
-      })
+      await createAdmin('daily-admin@example.com', 'Daily Summary')
+      // The migration wrote the default into every existing manager; one with
+      // no key at all has chosen nothing, and is sent nothing, as for every type.
+      await createAdmin('unset-admin@example.com', null)
+      const muted = await createAdmin('muted-admin@example.com', 'Never')
       await testData.createManager(payload, {
         type: 'manager',
         name: 'Plain Manager',
@@ -339,28 +395,41 @@ describe('Refused sign-ups digest', () => {
         },
       })
 
+      // Still inside the hour: the screening refusal goes now, while the hour's
+      // counts at the form are not complete, so they wait for the next run.
       emailAdapter.clearCapturedEmails()
-      const now = new Date(Date.now() + 1000)
+      await runDigests(new Date(Date.now() + 1000))
+      const [early] = emailsTo('daily-admin@example.com')
+      expect(String(early?.html)).toContain('Quiet Visitor')
+      expect(String(early?.html)).toContain('quiet-visitor@example.com')
+
+      emailAdapter.clearCapturedEmails()
+      const now = nextHour()
       const output = await runDigests(now)
-      const { totalDocs: total } = await payload.count({
-        collection: 'registration-refusals',
-        overrideAccess: true,
-      })
 
       const sent = emailsTo('daily-admin@example.com')
       expect(sent).toHaveLength(1)
-      expect(String(sent[0].subject)).toBe(`Refused sign-ups: ${total}`)
+      expect(String(sent[0].subject)).toBe(`Refused sign-ups: ${output.refusalsIncluded}`)
       const html = String(sent[0].html)
       expect(html).toContain('Digest Class')
       expect(html).toContain('The captcha check failed')
-      expect(html).toContain('Quiet Visitor')
-      expect(html).toContain('quiet-visitor@example.com')
-      expect(String(sent[0].text)).toContain(`2× The captcha check failed`)
+      expect(String(sent[0].text)).toContain('2× The captcha check failed')
+      // The screening refusal went out in the earlier run, and is not repeated.
+      expect(html).not.toContain('Quiet Visitor')
 
-      expect(emailsTo('unset-admin@example.com')).toHaveLength(1)
+      expect(emailsTo('unset-admin@example.com')).toHaveLength(0)
       expect(emailsTo('muted-admin@example.com')).toHaveLength(0)
       expect(emailsTo('plain-manager@example.com')).toHaveLength(0)
-      expect(output).toMatchObject({ eligibleAdmins: 2, digestsSent: 2, failed: 0 })
+      expect(output).toMatchObject({ eligibleAdmins: 1, digestsSent: 1, failed: 0 })
+
+      // A muted admin's window moves on, so turning it back on starts today.
+      const reloaded = (await payload.findByID({
+        collection: 'managers',
+        id: muted.id,
+        depth: 0,
+        overrideAccess: true,
+      })) as Manager
+      expect(reloaded.lastRefusedRegistrationDigestSentAt).toBe(now.toISOString())
 
       // The watermark: the same refusals are never sent twice.
       emailAdapter.clearCapturedEmails()
@@ -368,20 +437,26 @@ describe('Refused sign-ups digest', () => {
       expect(emailsTo('daily-admin@example.com')).toHaveLength(0)
     })
 
+    it('lists a screening refusal with who it was', async () => {
+      const eventId = await createEvent('Listed Class')
+      await screenAsSpam(eventId, 'Listed Visitor', 'listed-visitor@example.com')
+      await createAdmin('listing-admin@example.com', 'Daily Summary')
+
+      emailAdapter.clearCapturedEmails()
+      await runDigests(new Date(Date.now() + 1000))
+
+      const [sent] = emailsTo('listing-admin@example.com')
+      expect(String(sent?.html)).toContain('Listed Visitor')
+      expect(String(sent?.html)).toContain('listed-visitor@example.com')
+    })
+
     it('sends a weekly digest on the Monday run only', async () => {
       const eventId = await createEvent('Weekly Class')
       await refuseAtRequest(registration(eventId))
-      await testData.createManager(payload, {
-        type: 'admin',
-        name: 'Weekly Admin',
-        email: 'weekly-admin@example.com',
-        notificationPreferences: {
-          refused_registrations: { frequency: 'Weekly Summary', method: 'email' },
-        },
-      })
+      await createAdmin('weekly-admin@example.com', 'Weekly Summary')
 
-      const monday = mondayOnOrAfter(new Date(Date.now() + 1000))
-      const tuesday = new Date(monday.getTime() + 24 * 60 * 60 * 1000)
+      const monday = mondayOnOrAfter(nextHour())
+      const tuesday = new Date(monday.getTime() + 24 * HOUR_MS)
 
       emailAdapter.clearCapturedEmails()
       await runDigests(tuesday)
@@ -399,23 +474,25 @@ describe('Refused sign-ups digest', () => {
     it('sweeps a refusal past its window and keeps a recent one', async () => {
       const eventId = await createEvent('Retention Class')
       await refuseAtRequest(registration(eventId))
-      await refuseAtRequest(registration(eventId))
-      const [old, recent] = await refusalsFor(eventId)
-      const now = new Date()
+      const [old] = await refusalsFor(eventId)
+      const longAgo = new Date(Date.now() - 91 * 24 * HOUR_MS).toISOString()
       await payload.db.updateOne({
         collection: 'registration-refusals',
         id: old.id,
-        data: { createdAt: new Date(now.getTime() - 91 * 24 * 60 * 60 * 1000).toISOString() },
+        data: { createdAt: longAgo, hour: longAgo },
         req: undefined,
       })
+      await refuseAtRequest(registration(eventId))
 
       const output = await runTaskHandler(CleanupCollections, {
         payload,
-        input: { now: now.toISOString(), collection: 'registration-refusals' },
+        input: { now: new Date().toISOString(), collection: 'registration-refusals' },
       })
 
       expect(deletedIn(output, 'registration-refusals')).toBe(1)
-      expect((await refusalsFor(eventId)).map((row) => row.id)).toEqual([recent.id])
+      const remaining = await refusalsFor(eventId)
+      expect(remaining).toHaveLength(1)
+      expect(remaining[0].id).not.toBe(old.id)
     })
   })
 })
