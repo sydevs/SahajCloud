@@ -146,6 +146,11 @@ describe('returnPath', () => {
   it('keeps the admin page Payload sent a signed-out visitor from, query and all', () => {
     const page = '/admin/collections/events/12?locale=fr'
     expect(returnPath(payload, page)).toBe(page)
+
+    // A list filter can hold a URL, and the `/admin/` prefix already refuses a
+    // protocol-relative destination — so `//` deeper in is not ours to drop.
+    const filtered = '/admin/collections/media?where[url][like]=https://cdn.example/x'
+    expect(returnPath(payload, filtered)).toBe(filtered)
   })
 
   it('drops anything outside the admin, so the link cannot leave this server', () => {

@@ -94,9 +94,16 @@ export interface LinkTokenClaims extends LoginTokenClaims {
 
 export type LinkTokenResult = SignedTokenResult<LinkTokenClaims>
 
-/** Whether `to` is a path this server may redirect a signed-in manager to. */
+/**
+ * Whether `to` is a path this server may redirect a signed-in manager to.
+ *
+ * ⚠ **The `/admin/` prefix is the whole open-redirect guard**, and it already
+ * refuses a protocol-relative `//host`. A `//` further along is an ordinary
+ * query value — `?where[url][like]=https://…` — so refusing one dropped a real
+ * destination to the dashboard with nothing said.
+ */
 export function isAdminPath(to: unknown): to is string {
-  return typeof to === 'string' && to.startsWith('/admin/') && !to.includes('//')
+  return typeof to === 'string' && to.startsWith('/admin/')
 }
 
 /**
