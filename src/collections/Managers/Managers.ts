@@ -251,6 +251,13 @@ export const Managers: CollectionConfig = {
               type: 'date',
               admin: { readOnly: true, hidden: true },
             },
+            {
+              // The same watermark, for the refused sign-ups digest an admin
+              // receives at their `refused_registrations` cadence.
+              name: 'lastRefusedRegistrationDigestSentAt',
+              type: 'date',
+              admin: { readOnly: true, hidden: true },
+            },
           ],
         },
       ],

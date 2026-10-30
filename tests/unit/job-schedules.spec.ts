@@ -353,6 +353,7 @@ describe('Job schedules', () => {
       'jobs/CleanupOrphanedMedia/CleanupOrphanedMedia.ts',
       'jobs/ExpireEvents/ExpireEvents.ts',
       'jobs/RegistrationNotifications/SendPostEventFollowUps.ts',
+      'jobs/RegistrationNotifications/SendRefusedRegistrationDigests.ts',
       'jobs/RegistrationNotifications/SendRegistrationDigests.ts',
       'jobs/RegistrationNotifications/SendSessionReminders.ts',
       'jobs/SyncLectureMetadata/SyncLectureMetadata.ts',

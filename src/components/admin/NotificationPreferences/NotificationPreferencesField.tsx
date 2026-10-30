@@ -73,6 +73,8 @@ export const NotificationPreferencesField: FieldClientComponent = ({ field, read
   )
 
   const prefs = value ?? {}
+  const isAdmin = formState.type?.value === 'admin'
+  const visibleTypes = notificationTypes.filter((type) => !type.adminOnly || isAdmin)
 
   const updateRow = (key: string, patch: Partial<{ frequency: string; method: string }>) => {
     const updated = { ...(prefs[key] ?? { frequency: '', method: '' }), ...patch }
@@ -112,7 +114,7 @@ export const NotificationPreferencesField: FieldClientComponent = ({ field, read
             </tr>
           </thead>
           <tbody>
-            {notificationTypes.map((type) => {
+            {visibleTypes.map((type) => {
               const pref = prefs[type.key] ?? { frequency: '', method: '' }
               const isNever = pref.frequency === NEVER_FREQUENCY
               const methodRequired = Boolean(pref.frequency) && !isNever

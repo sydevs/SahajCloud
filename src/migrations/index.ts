@@ -103,6 +103,7 @@ import * as migration_20261025_195340_clients_language_rename from './20261025_1
 import * as migration_20261026_204230_merge_1013_main_snapshot from './20261026_204230_merge_1013_main_snapshot';
 import * as migration_20261027_000341_imports_upload_locale_rename from './20261027_000341_imports_upload_locale_rename';
 import * as migration_20261027_190500_pages_blank_slug_to_null from './20261027_190500_pages_blank_slug_to_null';
+import * as migration_20261030_202020_registration_refusals from './20261030_202020_registration_refusals';
 
 export const migrations = [
   {
@@ -623,11 +624,16 @@ export const migrations = [
   {
     up: migration_20261027_000341_imports_upload_locale_rename.up,
     down: migration_20261027_000341_imports_upload_locale_rename.down,
-    name: '20261027_000341_imports_upload_locale_rename'
+    name: '20261027_000341_imports_upload_locale_rename',
   },
   {
     up: migration_20261027_190500_pages_blank_slug_to_null.up,
     down: migration_20261027_190500_pages_blank_slug_to_null.down,
-    name: '20261027_190500_pages_blank_slug_to_null'
+    name: '20261027_190500_pages_blank_slug_to_null',
+  },
+  {
+    up: migration_20261030_202020_registration_refusals.up,
+    down: migration_20261030_202020_registration_refusals.down,
+    name: '20261030_202020_registration_refusals'
   },
 ];

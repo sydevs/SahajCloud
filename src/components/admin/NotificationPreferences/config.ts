@@ -24,6 +24,11 @@ export interface NotificationType {
   title: string
   description: string
   frequencyOptions: string[]
+  /**
+   * Shown only on an admin's preferences. Only admins are sent it, so a
+   * manager offered the row would be choosing a cadence for nothing.
+   */
+  adminOnly?: boolean
 }
 
 export const NOTIFICATION_TYPES: NotificationType[] = [
@@ -50,6 +55,13 @@ export const NOTIFICATION_TYPES: NotificationType[] = [
     title: 'Regional Summary',
     description: 'Sent regularly about the status of regions you manage',
     frequencyOptions: ['Monthly', NEVER_FREQUENCY],
+  },
+  {
+    key: 'refused_registrations',
+    title: 'Refused Sign-ups',
+    description: 'A summary of class sign-ups the spam check refused',
+    frequencyOptions: ['Daily Summary', 'Weekly Summary', NEVER_FREQUENCY],
+    adminOnly: true,
   },
 ]
 

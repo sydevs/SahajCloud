@@ -3,6 +3,7 @@ import { CleanupOrphanedMedia } from './CleanupOrphanedMedia/CleanupOrphanedMedi
 import { DeliverSubmissions } from './DeliverSubmissions/DeliverSubmissions'
 import { ExpireEvents } from './ExpireEvents/ExpireEvents'
 import { SendPostEventFollowUps } from './RegistrationNotifications/SendPostEventFollowUps'
+import { SendRefusedRegistrationDigests } from './RegistrationNotifications/SendRefusedRegistrationDigests'
 import { SendRegistrationDigests } from './RegistrationNotifications/SendRegistrationDigests'
 import { SendSessionReminders } from './RegistrationNotifications/SendSessionReminders'
 import { ScreenSubmissions } from './ScreenSubmissions/ScreenSubmissions'
@@ -18,6 +19,7 @@ export const tasks = [
   ExpireEvents,
   ScreenSubmissions,
   SendPostEventFollowUps,
+  SendRefusedRegistrationDigests,
   SendRegistrationDigests,
   SendSessionReminders,
   CleanupCollections,

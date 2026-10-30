@@ -15,6 +15,7 @@ import { MeditationTranscripts } from './MeditationTranscripts/MeditationTranscr
 import { Narrators } from './Narrators/Narrators'
 import { Pages } from './Pages/Pages'
 import { Regions } from './Regions/Regions'
+import { RegistrationRefusals } from './RegistrationRefusals/RegistrationRefusals'
 import { Songs } from './Songs/Songs'
 import { SongTags } from './SongTags/SongTags'
 import { SubtleSystemNodes } from './SubtleSystemNodes/SubtleSystemNodes'
@@ -53,6 +54,7 @@ export const collections = [
   Regions,
   Events,
   Users,
+  RegistrationRefusals,
 ]
 
 export {
