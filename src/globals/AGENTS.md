@@ -29,6 +29,13 @@ pages, required), `featuredPages` (hasMany 2–3), `featuredArticles`
 (hasMany, required, min 2 — article pages for the header dropdown),
 `classPages` / `knowledgePages` / `infoPages` (hasMany, max 5).
 
+⚠ **The `homePage` document keeps the slug `''`, never NULL.** WeMeditateWeb
+reads its per-locale status with `where[slug][equals]=<homePage.slug>`, and an
+empty value matches `''` alone, so a NULL home slug silently drops `/`'s
+hreflang cluster. `blankAllowed` on the `pages` slug lets the home page store
+`''` where every other page gets NULL or a refusal. Nothing moves `''` when
+`homePage` changes: clear the old home's slug, or give it one, first.
+
 **WeMeditate App** (admin group: WeMeditate App, tabs: First Meditation) —
 `availableLocales` (above the tabs, #709),
 `selfRealizationMeditation` (localized relationship to meditations),

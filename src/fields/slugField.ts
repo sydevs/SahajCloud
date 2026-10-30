@@ -1,7 +1,10 @@
-import type { CollectionSlug, RowField, TextField } from 'payload'
+import type { CollectionSlug, FieldHook, FieldHookArgs, RowField, TextField } from 'payload'
 
-import { slugField as payloadSlugField } from 'payload'
+import { slugField as payloadSlugField, ValidationError } from 'payload'
+import { hasDraftsEnabled } from 'payload/shared'
 
+import { isPublished } from '@/fields/publicUrlFields'
+import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import { slugifyValue } from '@/lib/utilities/slugify'
 import { adminOnlyCondition, adminOnlyFieldAccess } from '@/plugins/access/adminOnly'
 
@@ -34,6 +37,8 @@ export type SlugFieldOptions = {
    * before the DB write, converting 500 constraint errors into 400 validation errors.
    */
   collectionSlug?: string
+  /** The documents allowed a blank slug, stored as `''`. */
+  blankAllowed?: (args: FieldHookArgs) => boolean | Promise<boolean>
 } & {
   /**
    * Description text for the slug field.
@@ -41,6 +46,98 @@ export type SlugFieldOptions = {
    * @example 'URL-friendly identifier (auto-generated from {sourceField})'
    */
   description?: string
+}
+
+const isBlank = (value: unknown): boolean => typeof value !== 'string' || value.trim() === ''
+
+/**
+ * Settles a blank slug (#1038, #1040), whether a caller posted it — the admin
+ * Generate button posts `''` for a blank title — or the generator produced it.
+ * The two hooks sit either side of Payload's own `generateSlug`, so they judge
+ * the slug it leaves rather than predict it.
+ *
+ * - A document `blankAllowed` names keeps `''`.
+ * - A page not yet live is filled from a usable source, whatever the checkbox
+ *   says. Payload's generator stores `generateSlug: false` on a publish, on a
+ *   posted slug, and once a draft passes two versions, and a non-admin can
+ *   reset neither it nor the slug — so an untitled draft titled later could
+ *   otherwise never publish.
+ * - Otherwise a page not yet live gets NULL, unless this write publishes it.
+ *   Only a collection with drafts can store it
+ *   (Payload drops NOT NULL there), and Postgres admits many NULLs under a
+ *   unique index but one `''`, which is what made every untitled draft after
+ *   the first unsaveable. It is nulled before the generator too, or the
+ *   autosave branch reads a posted `''` against a stored NULL as a deliberate
+ *   override and never regenerates.
+ * - Anything else is refused: a live page's slug, which is its public URL, and
+ *   every write to a collection whose column is NOT NULL.
+ */
+function blankSlugHooks(options: {
+  blankAllowed?: SlugFieldOptions['blankAllowed']
+  slugFieldName: string
+  sourceField: string
+}) {
+  const { blankAllowed, slugFieldName, sourceField } = options
+
+  const nullOnDrafts: FieldHook = ({ collection, data }) => {
+    if (data && isBlank(data[slugFieldName]) && collection && hasDraftsEnabled(collection)) {
+      data[slugFieldName] = null
+    }
+    return undefined
+  }
+
+  /**
+   * Whether the page is live in any locale — the slug is not localized. Read
+   * from the published row (`draft: false`): on a drafts update the hook's
+   * `siblingDocWithLocales` is the latest version, which a draft over a live
+   * page makes look unpublished. In the write's transaction, on a copy of `req`
+   * so `locale: 'all'` does not repoint the write.
+   */
+  const isLive = async ({ collection, operation, originalDoc, req }: FieldHookArgs) => {
+    if (operation !== 'update' || !collection || originalDoc?.id == null) return false
+    const live = await req.payload.findByID({
+      collection: collection.slug as CollectionSlug,
+      id: originalDoc.id,
+      draft: false,
+      locale: 'all',
+      depth: 0,
+      select: { _status: true },
+      overrideAccess: true,
+      disableErrors: true,
+      trash: true,
+      req: localeIsolatedReq(req),
+    })
+    return isPublished((live as { _status?: unknown } | null)?._status, 'all')
+  }
+
+  const settleBlank: FieldHook = async (args) => {
+    const { collection, data, req } = args
+    if (!data || !isBlank(data[slugFieldName])) return undefined
+    if (await blankAllowed?.(args)) {
+      data[slugFieldName] = ''
+      return undefined
+    }
+    if (collection && hasDraftsEnabled(collection) && !(await isLive(args))) {
+      const generated = slugifyValue(data[sourceField] as string | undefined)
+      if (generated) {
+        data[slugFieldName] = generated
+        return undefined
+      }
+      if (!isPublished(data._status, req.locale ?? undefined)) {
+        data[slugFieldName] = null
+        return undefined
+      }
+    }
+    throw new ValidationError(
+      {
+        collection: collection?.slug,
+        errors: [{ message: 'A slug is required here. Set one directly.', path: slugFieldName }],
+      },
+      req.t,
+    )
+  }
+
+  return { before: nullOnDrafts, after: settleBlank }
 }
 
 /**
@@ -62,9 +159,16 @@ export type SlugFieldOptions = {
  * ```
  */
 export function slugField(options: SlugFieldOptions = {}): RowField {
-  const { collectionSlug, description, overrides: userOverrides, ...payloadOptions } = options
+  const {
+    blankAllowed,
+    collectionSlug,
+    description,
+    overrides: userOverrides,
+    ...payloadOptions
+  } = options
   const sourceField = options.useAsSlug || 'title'
   const resolvedDescription = description?.replace('{sourceField}', sourceField)
+  const slugFieldName = options.name ?? 'slug'
 
   return payloadSlugField({
     // Default for every slugField: transliterating slugify so non-Latin titles /
@@ -87,6 +191,11 @@ export function slugField(options: SlugFieldOptions = {}): RowField {
       if (field.fields[0].type === 'checkbox') {
         field.fields[0].access = { ...field.fields[0].access, update: adminOnlyFieldAccess }
         field.fields[0].admin = { ...field.fields[0].admin, condition: adminOnlyCondition }
+        const blank = blankSlugHooks({ blankAllowed, slugFieldName, sourceField })
+        field.fields[0].hooks = {
+          ...field.fields[0].hooks,
+          beforeChange: [blank.before, ...(field.fields[0].hooks?.beforeChange ?? []), blank.after],
+        }
       }
 
       // Lock the slug text field on update. create is intentionally left open
@@ -109,7 +218,6 @@ export function slugField(options: SlugFieldOptions = {}): RowField {
         // Application-layer uniqueness check so D1 UNIQUE constraint violations
         // surface as 400 validation errors instead of 500 DB errors.
         if (collectionSlug) {
-          const slugFieldName = options.name ?? 'slug'
           field.fields[1].validate = (async (
             value: string | null | undefined,
             opts: {

@@ -6,8 +6,18 @@ import {
   requestLemonfoxTranscript,
   TRANSCRIPTION_UNAVAILABLE_ERROR,
 } from '@/jobs/TranscribeMeditation/lemonfox/transcribe'
+import { ExpectedJobFailure } from '@/lib/jobs/expectedFailure'
 import type { MeditationTranscript } from '@/payload-types'
 import { getR2Url } from '@/plugins/storage'
+import { isProductionDeployment } from '@/plugins/storage/previewIsolation'
+
+/**
+ * A missing key or bucket URL is the deployment's gap, not the recording's: an
+ * answer on a preview or locally, where nothing configures them, and an outage
+ * in production, where it must alert.
+ */
+const configGap = (message: string): Error =>
+  isProductionDeployment() ? new Error(message) : new ExpectedJobFailure(message)
 
 /**
  * Transcribe one meditation's recording into `meditation-transcripts`.
@@ -56,19 +66,15 @@ export const TranscribeMeditation: TaskConfig<'transcribeMeditation'> = {
     }
 
     if (recording?.filename !== audioFilename) {
-      throw new Error('The recording was replaced while it was being transcribed.')
+      throw new ExpectedJobFailure('The recording was replaced while it was being transcribed.')
     }
 
     const apiKey = lemonfoxApiKey()
-    if (!apiKey) throw new Error(TRANSCRIPTION_UNAVAILABLE_ERROR)
+    if (!apiKey) throw configGap(TRANSCRIPTION_UNAVAILABLE_ERROR)
 
     const audioUrl = getR2Url(audioFilename)
-    if (!audioUrl) {
-      throw new Error('This recording has no public URL, so Lemonfox cannot fetch it.')
-    }
+    if (!audioUrl) throw configGap('This recording has no public URL, so Lemonfox cannot fetch it.')
 
-    // The normaliser throws on a body carrying no timestamped speech, which is
-    // a failed run like any other.
     const segments = normalizeLemonfoxResponse(
       await requestLemonfoxTranscript({ apiKey, audioUrl, locale: recording.locale }),
     )

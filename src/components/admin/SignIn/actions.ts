@@ -11,6 +11,7 @@ import {
   SIGNIN_VALID_FOR,
 } from '@/plugins/login'
 import { managersLoginHere } from '@/plugins/previewAdmin'
+import { captureFailure } from '@/plugins/sentry/captureFailure'
 
 import payloadConfig from '@payload-config'
 
@@ -78,6 +79,10 @@ export async function requestSignInLinkAction(
       msg: 'managers sign-in page: could not issue a sign-in link',
       error: error instanceof Error ? error.message : String(error),
     })
+    // The answer below is uniform by design, so nothing downstream can report
+    // this. No acting manager exists here either — the page is open to anyone,
+    // which is the point (#1039).
+    captureFailure({ error, source: 'signIn' })
     return SENT
   }
 

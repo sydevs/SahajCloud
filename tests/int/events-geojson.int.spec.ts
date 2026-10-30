@@ -185,6 +185,30 @@ describe('eventsGeoJson endpoint', () => {
     })
 
     /**
+     * #889. qs hands this handler every param as a string, so it coerces the
+     * numeric ones itself — and dropping an uncoercible value answered 200 at
+     * payload's default of 10, where `GET /api/events` refuses it. A client
+     * typo read ten classes and was told nothing.
+     */
+    it.each(['abc', ''])('returns 400 for a non-numeric limit (%j)', async (limit) => {
+      const { status } = await callGeoJson({ ...SELECT, limit })
+      expect(status).toBe(400)
+    })
+
+    it('returns 400 for a non-numeric page', async () => {
+      const { status } = await callGeoJson({ ...SELECT, page: 'abc' })
+      expect(status).toBe(400)
+    })
+
+    // A pin, not a regression test: this one passed before the fix too, and it
+    // is what stops the fix from refusing every caller qs hands a string.
+    it('still coerces a numeric limit arriving as a string', async () => {
+      const { status, body } = await callGeoJson({ ...SELECT, limit: '1' })
+      expect(status).toBe(200)
+      expect(body.features).toHaveLength(1)
+    })
+
+    /**
      * sydevs/SahajCloud#670. This handler forwards `where` verbatim and catches its own
      * errors, so Payload's root `afterError` hook — which only `routeError` invokes —
      * never sees a cast failure raised here. Without the explicit
