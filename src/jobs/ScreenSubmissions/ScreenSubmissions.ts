@@ -140,7 +140,13 @@ export const ScreenSubmissions: TaskConfig<'screenSubmission'> = {
       if (refusedRegistration) {
         await payload.create({
           collection: 'registration-refusals',
-          data: { event: eventId, stage: 'screening', reason: verdict, submission: submissionId },
+          data: {
+            event: eventId,
+            stage: 'screening',
+            reason: verdict,
+            count: 1,
+            submission: submissionId,
+          },
           overrideAccess: true,
           req,
         })
