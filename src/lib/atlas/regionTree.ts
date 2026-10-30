@@ -3,6 +3,7 @@ import type { PayloadRequest } from 'payload'
 
 import { relationId } from '@/lib/utilities/relationId'
 import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
+import { asTrustedReq } from '@/plugins/usage/hooks'
 
 /**
  * The Regions tree, resolved once per request: every region's canonical Atlas
@@ -133,7 +134,10 @@ async function loadRegionTree(req: PayloadRequest): Promise<RegionTree> {
     // Anything added here must be checked against that same rule; `name` is a
     // plain text column with no hooks, so it adds a column and nothing else.
     select: { slug: true, name: true, breadcrumbs: true },
-    req,
+    // ⚠ Trusted: the client asked for one document's `webPath`, and this
+    // table scan is ours, so the unbounded-read refusal is not theirs to
+    // meet (#889).
+    req: asTrustedReq(req),
   })
   const rows = docs as RegionRow[]
 

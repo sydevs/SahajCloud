@@ -122,19 +122,19 @@ export const depthParameter = {
 Pass \`depth=1\` or \`depth=0\` when you do not need nested relationship traversal. Keep \`depth\` as low as the client needs; deeper depths multiply query work.`,
 }
 
-/** `limit` parameter. Default 10, capped by `validateClientQueryParamsHook` (#887). */
+/** `limit` parameter. Default 10, bounded at both ends by `validateClientQueryParamsHook` (#887, #889). */
 export const limitParameter = {
   ...PARAMETER_BASE,
   name: 'limit',
   schema: {
     type: 'integer',
-    minimum: 0,
+    minimum: 1,
     maximum: MAX_CLIENT_LIMIT,
     default: 10,
   },
   description: `Maximum number of docs to return in the \`docs\` array. Defaults to 10. Above ${MAX_CLIENT_LIMIT} the request is rejected with a 400 — paginate instead. An individual endpoint may cap it lower.
 
-\`0\` is Payload's spelling of "no limit" and returns the whole collection, as \`pagination=false\` does.`,
+\`0\` is Payload's spelling of "no limit", and an unbounded read is rejected with a 400 — as is \`pagination=false\` sent without a \`limit\`, which means the same thing. Read ${MAX_CLIENT_LIMIT} at a time and walk the rest with \`page\`. \`pagination=false\` **with** a \`limit\` is bounded and still allowed: it only skips the \`totalDocs\` count.`,
 }
 
 /** `page` parameter. 1-based, bounded by `validateClientQueryParamsHook` (#887). */
