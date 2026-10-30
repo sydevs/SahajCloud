@@ -1,6 +1,6 @@
 /**
  * The one capture body behind every exception this plugin reports: Payload's
- * root `afterError` hook, the Local API wrapper and the scheduled-publish job
+ * root `afterError` hook, the Local API wrapper and every failed job run
  * (#1039), and the two managers sign-in paths — the page's action and the
  * magic-link endpoint. A second copy of the exclusions would let one site report
  * what another deliberately drops.
@@ -42,6 +42,8 @@ export interface CaptureFailureArgs {
    * failing schedule can be told from another.
    */
   target?: string
+  /** The job run that failed, for a `job` source. */
+  job?: { id: string; task: string }
   /** Who acted, for a site that holds no request. `req.user` wins where it exists. */
   user?: { id: string }
 }
@@ -67,6 +69,7 @@ export const captureFailure = ({
   req,
   source,
   status = errorStatus(error),
+  job,
   target,
   user: actingUser,
 }: CaptureFailureArgs): boolean => {
@@ -117,6 +120,8 @@ export const captureFailure = ({
         locale: req?.locale,
         collection,
         target,
+        task: job?.task,
+        job_id: job?.id,
         capture_source: source,
         ...rejected?.tags,
       }),
