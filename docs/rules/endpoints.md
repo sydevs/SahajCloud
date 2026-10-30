@@ -150,6 +150,8 @@ See `docs/rules/openapi.md` for the full shim contract.
 
 **Passthrough endpoints** forward the query into a Payload read and return the docs (`GET /api/events/geojson`). These **must** accept and document `select`, `populate`, and `depth` — reuse `selectParameter`, `populateParameter`, and `depthParameter` from `clientReadParametersDocs.ts`, and enforce the client read contract: `select` required, and `populate` required when `depth > 1`.
 
+⚠ **A passthrough coercing `limit` or `page` itself must forward an uncoercible value, not drop it.** Payload's `parseParams` runs on its own REST layer and nowhere else, so such a handler coerces qs's strings by hand — and dropping what it cannot read substitutes payload's default, leaving the client gate nothing to refuse. That is how `?limit=abc` answered 200 on the geojson feed while `/api/events` answered 400 (#889). `toBoundedNumber` there is the shape: coerce what coerces, forward what does not.
+
 **A passthrough may still narrow the caller's `where`.** "Passthrough" does not mean the caller's `where` goes in untouched — a feed endpoint may AND its own predicate on top (geojson excludes finished events via `notFinishedWhere`). Two rules apply:
 
 - Filter inside the read, never after it. ANDing onto `where` keeps `totalDocs` and pagination consistent with the returned docs. Dropping rows afterward corrupts both and breaks a paginating client.
@@ -166,7 +168,7 @@ Two Payload behaviors to know before writing such a hook:
 
 **Any internal `depth ≥ 1` read that fetches a pool of rows to shape must carry a bounded `select`.** A read without one runs every field's `afterRead` on every row, and an expensive one — a virtual/computed field, a native `join` — fires a per-row sub-query. One shaped endpoint then becomes an N+1 that scales with the pool size. This was #541: `related-meditations`, `related-lectures`, and `for-audience` each paid roughly 16 extra queries per candidate until their internal reads carried a `select`.
 
-The client REST surface is already protected: `validateClientQueryParamsHook` rejects any API-client read with no `select` (see `docs/rules/api-clients.md`). The gap is **server-side reads that forward `asTrustedReq(req)`**, which bypass that gate — bound those by hand. Only the shape half is bypassed: the same hook's `limit` and `page` ceilings run ahead of the opt-out and apply to a forwarded read too (#887).
+The client REST surface is already protected: `validateClientQueryParamsHook` rejects any API-client read with no `select` (see `docs/rules/api-clients.md`). The gap is **server-side reads that forward `asTrustedReq(req)`**, which bypass that gate — bound those by hand. ⚠ **That bypass relaxes two of the hook's three rules**, not one — the shape gate and the unbounded-read refusal (#889) — so a forwarded read is bounded by nothing but the `select` you give it. Which rules survive it is `docs/rules/api-clients.md`'s, under "Internal-endpoint bypass".
 
 - **Co-locate the select with the shape helper.** Export a `FOO_CARD_SELECT` next to the function reading those fields, so the two stay in sync. The endpoint spreads it and adds any extra field its own sort or rank needs.
 - **Co-select a virtual field's dependency.** An include-mode `select` strips unselected siblings before `afterRead` runs, so a computed field reads `null` unless its own dependency is also selected — miss one and the card silently drops, rather than just slowing down.

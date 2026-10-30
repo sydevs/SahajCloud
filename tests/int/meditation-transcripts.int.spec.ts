@@ -169,6 +169,11 @@ describe('meditation transcripts', () => {
             where: { id: { in: theseRows } },
             select: idOnlySelect(),
             depth: 0,
+            // `pagination: false` alone is an unbounded read, which a client is
+            // refused (#889). The `limit` is what keeps this bounded — and
+            // keeps the three rows off a page boundary, which is why
+            // `pagination` was here at all.
+            limit: theseRows.length,
             pagination: false,
           })
         ).docs.map((row) => row.id)

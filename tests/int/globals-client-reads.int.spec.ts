@@ -152,6 +152,49 @@ describe('client reads of a global (#710)', () => {
     })
   })
 
+  // `onlyOnCallerAuthority` skips a *global* read made on our own authority, and
+  // nothing about this global's own arguments is unbounded. Its readiness fields
+  // are the catch: each one's `afterRead` fans out into **collection** reads,
+  // which get the gates raw, on a copy of the caller's `req` carrying the client
+  // by reference — and those reads are deliberately unpaginated.
+  //
+  // So a client selecting one is refused from inside SahajCloud, and that is the
+  // intended end state rather than a gap to wrap away (#889). `wm-app-status` is
+  // an operator report over cookie auth — the one global excluded from edge
+  // caching for that reason — and five of its six sections were already refused
+  // because their reads pass no `select`. `asTrustedReq` in `isolatedReq` would
+  // relax the select gate too, opening all six.
+  describe('a readiness field is not a client surface', () => {
+    it('refuses an app client the readiness fields of wm-app-status', async () => {
+      await expect(
+        payload.findGlobal({
+          slug: 'wm-app-status',
+          // A readiness field computes on read, so selecting it is what runs the
+          // fan-out — an unselected field returns before its hook.
+          select: { appCards: true },
+          locale: 'en',
+          depth: 0,
+          req: clientReq({ roles: ['wemeditate-app-client'] }),
+          overrideAccess: false,
+        }),
+      ).rejects.toThrow(/unbounded/i)
+    })
+
+    // The same read as a manager, which is who the report is for. This is the
+    // half that would go red if the refusal ever reached the operator's own
+    // path — the gates all return on a non-client caller.
+    it('still serves the report to a manager', async () => {
+      const result = await payload.findGlobal({
+        slug: 'wm-app-status',
+        select: { appCards: true },
+        locale: 'en',
+        depth: 0,
+        overrideAccess: true,
+      })
+      expect(result.appCards).toBeDefined()
+    })
+  })
+
   describe('origin enforcement', () => {
     it('refuses a global read from an origin outside a non-empty allowedDomains', async () => {
       await expect(

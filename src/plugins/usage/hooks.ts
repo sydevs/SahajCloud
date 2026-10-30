@@ -147,6 +147,7 @@ interface ReadOperationArgs {
   depth?: unknown
   limit?: unknown
   page?: unknown
+  pagination?: unknown
   populate?: unknown
   select?: unknown
 }
@@ -272,6 +273,8 @@ export const validateClientQueryParamsHook: ClientReadGate = ({ args, operation,
     return
   }
 
+  assertRequestIsBounded(findArgs, req)
+
   const hasSelect =
     findArgs.select != null &&
     typeof findArgs.select === 'object' &&
@@ -322,9 +325,15 @@ export const validateClientQueryParamsHook: ClientReadGate = ({ args, operation,
  * 500 as `OFFSET -20`. A negative `limit` is harmless — the adapter swallows
  * it — and is refused anyway rather than splitting the rule in two.
  *
- * `0` passes for both: it is payload's "no limit" sentinel on `limit` and
- * reads as page 1 on `page`. Whether a client may read unbounded at all is
- * `docs/rules/api-clients.md`'s question, not this gate's.
+ * `0` passes both bounds: payload's "no limit" sentinel on `limit`, and page 1
+ * on `page` (`find.js`: `sanitizedPage = page || 1`).
+ * {@link assertRequestIsBounded} refuses the sentinel instead.
+ *
+ * ⚠ **A present non-number is refused, not skipped.** `parseParams` coerces
+ * these two only when payload's own `isNumber` passes, so `?limit=abc` and a
+ * bare `?limit=` arrive as strings and reached the driver as a non-integer
+ * `LIMIT` — the same 500 this function closes for a 20-digit number. Only an
+ * **absent** value may pass (#889).
  */
 function assertWithinBound(
   name: 'limit' | 'page',
@@ -332,8 +341,8 @@ function assertWithinBound(
   max: number,
   req: PayloadRequest,
 ): void {
-  if (typeof value !== 'number') return
-  if (Number.isInteger(value) && value >= 0 && value <= max) return
+  if (value == null) return
+  if (typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= max) return
 
   req.payload.logger.warn({
     msg: `Client query validation rejected: ${name} out of bounds`,
@@ -343,6 +352,36 @@ function assertWithinBound(
   })
   throw new APIError(
     `The "${name}" query parameter must be a whole number between 0 and ${max} for API clients.`,
+    400,
+  )
+}
+
+/**
+ * Refuse a client read of the whole table (#889).
+ *
+ * Neither parameter answers it alone: `collections/operations/find.js` computes
+ * `usePagination = pagination && limit !== 0`, then `limit ?? (usePagination ?
+ * 10 : 0)`, and `@payloadcms/drizzle`'s `findMany` turns a `0` into `undefined`,
+ * emitting no `LIMIT` clause at all. So exactly two shapes are unbounded:
+ * `limit: 0`, and an absent `limit` with `pagination: false`. `pagination:
+ * false` beside a non-zero limit only skips the `COUNT(*)`, so it stays allowed.
+ *
+ * ⚠ Runs **after** the two bypasses above, unlike {@link assertWithinBound}.
+ * `docs/rules/api-clients.md` owns that rule and why it differs.
+ */
+function assertRequestIsBounded(args: ReadOperationArgs, req: PayloadRequest): void {
+  let spelling: 'limit=0' | 'pagination=false'
+  if (args.limit === 0) spelling = 'limit=0'
+  else if (args.limit == null && args.pagination === false) spelling = 'pagination=false'
+  else return
+
+  req.payload.logger.warn({
+    msg: 'Client query validation rejected: unbounded read',
+    clientId: req.user?.id,
+    spelling,
+  })
+  throw new APIError(
+    `An unbounded read is not available to API clients. Read at most ${MAX_CLIENT_LIMIT} documents per request with "limit", and walk the rest with "page".`,
     400,
   )
 }
