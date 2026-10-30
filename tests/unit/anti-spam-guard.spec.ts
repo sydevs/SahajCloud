@@ -1,9 +1,55 @@
-import { describe, expect, it } from 'vitest'
+import type { PayloadRequest } from 'payload'
 
-import { checkEmailAllowed, checkNoUrls } from '@/lib/antiSpam/antiSpamGuard'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { checkEmailAllowed, checkNoUrls, verifyTurnstileOrFail } from '@/lib/antiSpam/antiSpamGuard'
 import { signToken, verifyToken } from '@/lib/utilities/signedToken'
 
+const { verifyMock } = vi.hoisted(() => ({ verifyMock: vi.fn() }))
+
+vi.mock('@/lib/turnstile/verifyTurnstile', () => ({ verifyTurnstileToken: verifyMock }))
+
 const NOW = new Date('2026-08-11T12:00:00.000Z')
+
+describe('verifyTurnstileOrFail — which address siteverify is sent (#808)', () => {
+  const EDGE = '198.51.100.1'
+  const VISITOR = '203.0.113.7'
+
+  const req = (collection: string | undefined, headers: Record<string, string>) =>
+    ({
+      headers: new Headers(headers),
+      user: collection ? { id: 1, collection } : null,
+      payload: { logger: { warn: vi.fn(), error: vi.fn() } },
+    }) as unknown as PayloadRequest
+
+  beforeEach(() => verifyMock.mockReset().mockResolvedValue({ success: true }))
+
+  it("sends an authenticated client's x-client-ip", async () => {
+    await verifyTurnstileOrFail(
+      req('clients', { 'cf-connecting-ip': EDGE, 'x-client-ip': VISITOR }),
+      'tok',
+    )
+    expect(verifyMock).toHaveBeenCalledWith('tok', VISITOR)
+  })
+
+  it('falls back to cf-connecting-ip when a client sends none, and still passes', async () => {
+    const result = await verifyTurnstileOrFail(req('clients', { 'cf-connecting-ip': EDGE }), 'tok')
+
+    expect(verifyMock).toHaveBeenCalledWith('tok', EDGE)
+    expect(result.ok).toBe(true)
+  })
+
+  it.each([
+    ['a manager', 'managers'],
+    ['an anonymous caller', undefined],
+  ])('ignores x-client-ip from %s', async (_, collection) => {
+    await verifyTurnstileOrFail(
+      req(collection, { 'cf-connecting-ip': EDGE, 'x-client-ip': VISITOR }),
+      'tok',
+    )
+    expect(verifyMock).toHaveBeenCalledWith('tok', EDGE)
+  })
+})
 
 describe('checkNoUrls', () => {
   // `.example` is on no listed TLD, so each of the first three dies with its

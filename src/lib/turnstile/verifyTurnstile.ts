@@ -48,7 +48,8 @@ interface SiteverifyResponse {
  * Verify a Turnstile token against Cloudflare.
  *
  * @param token - The `cf-turnstile-response` token the widget produced.
- * @param remoteIp - The end user's IP (`CF-Connecting-IP`), when known. Optional
+ * @param remoteIp - The visitor's IP (`x-client-ip` from a proxying client, else
+ *   `CF-Connecting-IP`), when known. Optional
  *   per Cloudflare; passing it lets them factor the client address into the
  *   verdict.
  */
