@@ -65,7 +65,7 @@ describe('slugField: a blank slug', () => {
       expect(published.slug).toBe('posted-blank-page')
     })
 
-    it('stores NULL when an unpublished page has its slug cleared', async () => {
+    it('regenerates a cleared slug from the title rather than leaving it blank', async () => {
       const page = await testData.createPage(payload, { title: 'Clears Its Slug' })
 
       const cleared = await payload.update({
@@ -74,27 +74,42 @@ describe('slugField: a blank slug', () => {
         data: { slug: '' },
       })
 
-      expect(cleared.slug).toBeNull()
+      expect(cleared.slug).toBe('clears-its-slug')
     })
 
-    it.each(['', null])('refuses a published page whose slug is cleared to %j', async (slug) => {
-      const page = await testData.createPage(payload, {
-        title: `Published Keeps Slug ${slug}`,
-        _status: 'published',
+    /** A live page with a title that could fill a slug — which a live URL must not take. */
+    const createLivePage = (slug: string) =>
+      payload.create({
+        collection: 'pages',
+        data: createData<'pages'>({ title: 'Live Page', slug, _status: 'published' }),
       })
 
+    it.each(['', null])(
+      'refuses, not renames, a live page whose slug is cleared to %j',
+      async (slug) => {
+        const page = await createLivePage(`live-${String(slug)}-cleared`)
+
+        await expect(
+          payload.update({ collection: 'pages', id: page.id, data: { slug } as never }),
+        ).rejects.toMatchObject(blankSlugRefusal)
+      },
+    )
+
+    it('refuses clearing the slug of a live page through a newer draft', async () => {
+      // On a drafts update the latest version is the draft, so the live state
+      // has to come from the published row, not from that version.
+      const page = await createLivePage('live-through-draft')
+      await payload.update({ collection: 'pages', id: page.id, data: {}, draft: true })
+
       await expect(
-        payload.update({ collection: 'pages', id: page.id, data: { slug } as never }),
+        payload.update({ collection: 'pages', id: page.id, data: { slug: '' }, draft: true }),
       ).rejects.toMatchObject(blankSlugRefusal)
     })
 
     it('refuses clearing the slug from another locale of a published page', async () => {
       // The slug is not localized, so a `de` write that clears it would take
       // the live `en` page's URL with it.
-      const page = await testData.createPage(payload, {
-        title: 'Published In English',
-        _status: 'published',
-      })
+      const page = await createLivePage('live-other-locale')
 
       await expect(
         payload.update({
@@ -104,6 +119,23 @@ describe('slugField: a blank slug', () => {
           data: { title: 'Auf Deutsch', slug: '' },
         }),
       ).rejects.toMatchObject(blankSlugRefusal)
+    })
+
+    it('publishes an untitled draft once titled, however many times it was saved', async () => {
+      // Past two versions, Payload's autosave stores `generateSlug: false`, so
+      // its own generator never fills the slug again.
+      const draft = await createUntitledDraft()
+      for (let save = 0; save < 3; save++) {
+        await payload.update({ collection: 'pages', id: draft.id, data: {}, draft: true })
+      }
+
+      const published = await payload.update({
+        collection: 'pages',
+        id: draft.id,
+        data: { title: 'Titled At Last', _status: 'published' },
+      })
+
+      expect(published.slug).toBe('titled-at-last')
     })
 
     it('stores NULL for a title that transliterates to nothing, so a second one still saves', async () => {
@@ -159,7 +191,7 @@ describe('slugField: a blank slug', () => {
 
   describe('a collection whose slug column is NOT NULL', () => {
     it.each(['', null])(
-      'refuses %j posted alone, rather than storing it or failing in Postgres',
+      'refuses %j posted alone, and fills nothing from the name, rather than failing in Postgres',
       async (slug) => {
         const author = await testData.createAuthor(payload, { name: `Blank Patch ${slug}` })
 

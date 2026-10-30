@@ -4,6 +4,7 @@ import { slugField as payloadSlugField, ValidationError } from 'payload'
 import { hasDraftsEnabled } from 'payload/shared'
 
 import { isPublished } from '@/fields/publicUrlFields'
+import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import { slugifyValue } from '@/lib/utilities/slugify'
 import { adminOnlyCondition, adminOnlyFieldAccess } from '@/plugins/access/adminOnly'
 
@@ -36,10 +37,7 @@ export type SlugFieldOptions = {
    * before the DB write, converting 500 constraint errors into 400 validation errors.
    */
   collectionSlug?: string
-  /**
-   * The documents allowed a blank slug, stored as `''`. Every other blank is
-   * NULL on an unpublished draft and refused everywhere else.
-   */
+  /** The documents allowed a blank slug, stored as `''`. */
   blankAllowed?: (args: FieldHookArgs) => boolean | Promise<boolean>
 } & {
   /**
@@ -59,14 +57,20 @@ const isBlank = (value: unknown): boolean => typeof value !== 'string' || value.
  * the slug it leaves rather than predict it.
  *
  * - A document `blankAllowed` names keeps `''`.
- * - An unpublished draft gets NULL. Only a collection with drafts can store it
+ * - A page not yet live is filled from a usable source, whatever the checkbox
+ *   says. Payload's generator stores `generateSlug: false` on a publish, on a
+ *   posted slug, and once a draft passes two versions, and a non-admin can
+ *   reset neither it nor the slug — so an untitled draft titled later could
+ *   otherwise never publish.
+ * - Otherwise a page not yet live gets NULL, unless this write publishes it.
+ *   Only a collection with drafts can store it
  *   (Payload drops NOT NULL there), and Postgres admits many NULLs under a
  *   unique index but one `''`, which is what made every untitled draft after
  *   the first unsaveable. It is nulled before the generator too, or the
  *   autosave branch reads a posted `''` against a stored NULL as a deliberate
  *   override and never regenerates.
- * - Anything else is refused: a page published in any locale, and every write
- *   to a collection whose column is NOT NULL.
+ * - Anything else is refused: a live page's slug, which is its public URL, and
+ *   every write to a collection whose column is NOT NULL.
  */
 function blankSlugHooks(options: {
   blankAllowed?: SlugFieldOptions['blankAllowed']
@@ -82,6 +86,30 @@ function blankSlugHooks(options: {
     return undefined
   }
 
+  /**
+   * Whether the page is live in any locale — the slug is not localized. Read
+   * from the published row (`draft: false`): on a drafts update the hook's
+   * `siblingDocWithLocales` is the latest version, which a draft over a live
+   * page makes look unpublished. In the write's transaction, on a copy of `req`
+   * so `locale: 'all'` does not repoint the write.
+   */
+  const isLive = async ({ collection, operation, originalDoc, req }: FieldHookArgs) => {
+    if (operation !== 'update' || !collection || originalDoc?.id == null) return false
+    const live = await req.payload.findByID({
+      collection: collection.slug as CollectionSlug,
+      id: originalDoc.id,
+      draft: false,
+      locale: 'all',
+      depth: 0,
+      select: { _status: true },
+      overrideAccess: true,
+      disableErrors: true,
+      trash: true,
+      req: localeIsolatedReq(req),
+    })
+    return isPublished((live as { _status?: unknown } | null)?._status, 'all')
+  }
+
   const settleBlank: FieldHook = async (args) => {
     const { collection, data, req } = args
     if (!data || !isBlank(data[slugFieldName])) return undefined
@@ -89,24 +117,21 @@ function blankSlugHooks(options: {
       data[slugFieldName] = ''
       return undefined
     }
-    // The slug is not localized, so a page published in any locale needs one,
-    // whichever locale this write is in.
-    const published =
-      isPublished(data._status, req.locale ?? undefined) ||
-      isPublished(args.siblingDocWithLocales?._status, 'all')
-    if (collection && hasDraftsEnabled(collection) && !published) {
-      data[slugFieldName] = null
-      return undefined
+    if (collection && hasDraftsEnabled(collection) && !(await isLive(args))) {
+      const generated = slugifyValue(data[sourceField] as string | undefined)
+      if (generated) {
+        data[slugFieldName] = generated
+        return undefined
+      }
+      if (!isPublished(data._status, req.locale ?? undefined)) {
+        data[slugFieldName] = null
+        return undefined
+      }
     }
     throw new ValidationError(
       {
         collection: collection?.slug,
-        errors: [
-          {
-            message: `A slug is required. Set one, or give this document a ${sourceField} it can be generated from.`,
-            path: slugFieldName,
-          },
-        ],
+        errors: [{ message: 'A slug is required here. Set one directly.', path: slugFieldName }],
       },
       req.t,
     )
