@@ -1,17 +1,10 @@
 /**
  * Reporting a Local API write the admin makes outside a Payload route.
  *
- * `DocumentView` wraps its whole render in a `try/catch`, hands the error to
- * Payload's `logError` and returns `undefined` — the page answers 200 with the
- * admin chrome and an empty body, and nothing escapes to `onRequestError`.
- * `schedulePublishHandler` catches the same way and returns `{ error }` to the
- * UI. Both are caught inside `node_modules`, upstream of any component we can
- * supply, so the Local API call itself is the only seam left (#1038, #1039).
- *
- * Two properties of the request keep this to writes the admin makes. Both are
- * read off the request Payload itself built — nothing here infers anything from
- * a clock or a call stack. `jobs.queue` is not a document write and answers
- * neither, so it has its own reporter below.
+ * `DocumentView` catches a failed render inside `node_modules` and answers 200
+ * with an empty body; `schedulePublishHandler` catches and returns `{ error }`.
+ * Nothing escapes to `onRequestError`, so the Local API call itself is the only
+ * seam left (#1038, #1039).
  *
  * ⚠ **The wrapper rethrows, always.** It observes; it must not change what any
  * caller sees.
@@ -20,73 +13,34 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import { isRecord } from '@/lib/utilities/isRecord'
 
-import { captureFailure, type SentryContextFn } from './captureFailure'
+import { captureFailure } from './captureFailure'
 
-/** `payloadAPI` is `local` on anything Payload did not route itself. */
-const isRouted = (request: PayloadRequest | undefined): boolean =>
-  Boolean(request) && request?.payloadAPI !== 'local'
-
-const reportWrite = (error: unknown, options: unknown, context?: SentryContextFn): void => {
-  const { collection, req, slug } = isRecord(options) ? options : {}
+const report = (error: unknown, options: unknown, row?: string): void => {
+  const { collection, input, req, slug } = isRecord(options) ? options : {}
   const request = req as PayloadRequest | undefined
 
-  // Save, Publish and the periodic autosave submit to the REST API, where
-  // `routeError` already reports through `afterError`. `createPayloadRequest`
-  // stamps such a request `REST` or `GraphQL`, and `createLocalReq` **preserves
-  // that stamp** through a nested Local API call — so a write our own hooks
-  // make while a request is in flight reads as routed and stands down, rather
-  // than reporting what the hook is about to report.
-  //
-  // The admin page render and every admin server function build their request
-  // through `initReq`, which goes through `createLocalReq`, so both read
-  // `local`. `tests/int/admin-write-capture.int.spec.ts` pins the preservation.
-  if (isRouted(request)) return
+  // Save, Publish and autosave submit to the REST API, where `afterError`
+  // reports. `createLocalReq` **preserves** the `REST`/`GraphQL` stamp through
+  // a nested Local API call, so a write our hooks make mid-request stands down
+  // too. The admin page render and server functions read `local`.
+  // `tests/int/admin-write-capture.int.spec.ts` pins the preservation.
+  if (request && request.payloadAPI !== 'local') return
 
-  // An acting manager **on the request**. A job, a seed and an operator script
-  // carry no user; `eventImport`'s task passes a `user` option with no request
-  // at all, and a refused CSV row is reported to its uploader already.
-  if (!request?.user) return
-
-  captureFailure({
-    // `collection` for a document write, `slug` for a global one.
-    collection:
-      typeof collection === 'string' ? collection : typeof slug === 'string' ? slug : undefined,
-    context,
-    error,
-    // A `ValidationError` answers 400 on a route. Swallowed, it is the whole
-    // incident — the page renders empty and no one is told — so the level is
-    // not derived from that status.
-    level: 'error',
-    req: request,
-    source: 'localApi',
-  })
-}
-
-/**
- * `jobs.queue` answers neither gate above, so it reports under its own rule.
- *
- * ⚠ **`schedulePublishHandler` passes no `req` at all** — only `input`, `task`
- * and `waitUntil` — so for a queue without one the acting manager comes from
- * the queued input, where `schedulePublish` records who asked. A queue that
- * does carry a request answers the same two gates as a write.
- */
-const reportQueue = (error: unknown, options: unknown, context?: SentryContextFn): void => {
-  const { input, req } = isRecord(options) ? options : {}
-  const request = req as PayloadRequest | undefined
-  if (isRouted(request)) return
-  // With a request the write rule holds: a job or a cron tick queues with a userless local
-  // request, and the job runner records that failure already.
-  if (request && !request.user) return
-
+  // ⚠ **`schedulePublishHandler` queues with no `req` at all**, so its acting
+  // manager comes from the queued input, where `schedulePublish` records it.
   const queuedBy =
     !request && isRecord(input) && isRecord(input.user) ? input.user.value : undefined
 
+  // An acting manager on the request. A job, a cron tick, a seed and a script
+  // carry none, and `eventImport` passes `user` with no request — its refused
+  // rows are reported to the uploader already. Only a queue reports without one.
+  if (request ? !request.user : !row) return
+
   captureFailure({
-    // The row that could not be written. The task is in the error's own message.
-    collection: 'payload-jobs',
-    context,
+    // `collection` for a document write, `slug` for a global, the jobs row for a queue.
+    collection: [collection, slug, row].find((value) => typeof value === 'string') as
+      string | undefined,
     error,
-    level: 'error',
     req: request,
     source: 'localApi',
     user: queuedBy === undefined ? undefined : { id: String(queuedBy) },
@@ -94,45 +48,32 @@ const reportQueue = (error: unknown, options: unknown, context?: SentryContextFn
 }
 
 /**
- * The original is called through `.call(payload)`: `delete` and `update` are
- * prototype methods that read `this`, while `create` is an instance property.
- * The cast carries the method's own overloads through unchanged.
- */
-const capturing = <Operation extends (options: never) => Promise<unknown>>(
-  operation: Operation,
-  thisArg: unknown,
-  report: (error: unknown, options: unknown) => void,
-): Operation =>
-  (async (options: unknown) => {
-    try {
-      return await (
-        operation as unknown as (this: unknown, options: unknown) => Promise<unknown>
-      ).call(thisArg, options)
-    } catch (error) {
-      report(error, options)
-      throw error
-    }
-  }) as unknown as Operation
-
-/**
  * Wrap every Local API write on a live Payload instance.
  *
- * ⚠ **`jobs.queue` needs wrapping too.** It writes the row through
- * `payload.db.create` unless `jobs.depth` or `jobs.runHooks` is configured, so
- * wrapping the collection operations does not reach it — and it is half of
- * `schedule-publish`, one of the two paths #1039 names.
+ * ⚠ **`jobs.queue` needs wrapping too.** It writes through `payload.db.create`
+ * unless `jobs.depth` or `jobs.runHooks` is configured, so the collection
+ * operations do not reach it — and it is half of `schedule-publish` (#1039).
  */
-export const installLocalApiCapture = (payload: Payload, context?: SentryContextFn): void => {
-  const { create, delete: remove, duplicate, update, updateGlobal } = payload
-  const { queue } = payload.jobs
-  const write = (error: unknown, options: unknown) => reportWrite(error, options, context)
+export const installLocalApiCapture = (payload: Payload): void => {
+  const wrap = <Target extends object, Key extends keyof Target>(
+    target: Target,
+    key: Key,
+    row?: string,
+  ) => {
+    // `.bind`: `delete` and `update` are prototype methods that read `this`.
+    const original = (target[key] as (options: unknown) => Promise<unknown>).bind(target)
+    target[key] = (async (options: unknown) => {
+      try {
+        return await original(options)
+      } catch (error) {
+        report(error, options, row)
+        throw error
+      }
+    }) as Target[Key]
+  }
 
-  payload.create = capturing(create, payload, write)
-  payload.delete = capturing(remove, payload, write)
-  payload.duplicate = capturing(duplicate, payload, write)
-  payload.update = capturing(update, payload, write)
-  payload.updateGlobal = capturing(updateGlobal, payload, write)
-  payload.jobs.queue = capturing(queue, payload.jobs, (error, options) =>
-    reportQueue(error, options, context),
-  )
+  for (const key of ['create', 'delete', 'duplicate', 'update', 'updateGlobal'] as const) {
+    wrap(payload, key)
+  }
+  wrap(payload.jobs, 'queue', 'payload-jobs')
 }

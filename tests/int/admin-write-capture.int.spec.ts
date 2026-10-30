@@ -20,21 +20,21 @@ import { installLocalApiCapture } from '@/plugins/sentry/localApiCapture'
 
 import { createTestEnvironment } from '../utils/testHelpers'
 
-const sentry = vi.hoisted(() => ({
-  captureException: vi.fn(),
-  scope: {
-    setUser: vi.fn(),
-    setTag: vi.fn(),
-    setExtra: vi.fn(),
-    setLevel: vi.fn(),
-    setFingerprint: vi.fn(),
-  },
-}))
+const sentry = vi.hoisted(() => ({ captureException: vi.fn() }))
 
 vi.mock('@sentry/nextjs', () => ({
   captureException: sentry.captureException,
-  withScope: (callback: (scope: typeof sentry.scope) => void) => callback(sentry.scope),
 }))
+
+/** The capture context `captureFailure` handed the SDK on its latest call. */
+const captured = () =>
+  (sentry.captureException.mock.calls.at(-1)?.[1] ?? {}) as {
+    extra?: Record<string, unknown>
+    fingerprint?: string[]
+    level?: string
+    tags?: Record<string, unknown>
+    user?: Record<string, unknown>
+  }
 
 let payload: Payload
 let buildRequest: (payloadAPI: 'local' | 'REST') => PayloadRequest
@@ -76,15 +76,15 @@ describe('a failed admin write through the Local API', () => {
     await expect(createPageWithoutTitle(buildRequest('local'))).rejects.toThrow()
 
     expect(sentry.captureException).toHaveBeenCalledTimes(1)
-    expect(Object.fromEntries(sentry.scope.setTag.mock.calls)).toMatchObject({
+    expect(captured().tags).toMatchObject({
       capture_source: 'localApi',
       collection: 'pages',
     })
-    expect(Object.fromEntries(sentry.scope.setExtra.mock.calls)).toMatchObject({
+    expect(captured().extra).toMatchObject({
       fields: ['title'],
       status: 400,
     })
-    expect(sentry.scope.setLevel).toHaveBeenCalledWith('error')
+    expect(captured().level).toBe('error')
   })
 
   // Not the unit lane's case repeated: there the stamp is read off a stub, so

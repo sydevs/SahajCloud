@@ -13,21 +13,21 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { installLocalApiCapture } from '@/plugins/sentry/localApiCapture'
 
-const sentry = vi.hoisted(() => ({
-  captureException: vi.fn(),
-  scope: {
-    setUser: vi.fn(),
-    setTag: vi.fn(),
-    setExtra: vi.fn(),
-    setLevel: vi.fn(),
-    setFingerprint: vi.fn(),
-  },
-}))
+const sentry = vi.hoisted(() => ({ captureException: vi.fn() }))
 
 vi.mock('@sentry/nextjs', () => ({
   captureException: sentry.captureException,
-  withScope: (callback: (scope: typeof sentry.scope) => void) => callback(sentry.scope),
 }))
+
+/** The capture context `captureFailure` handed the SDK on its latest call. */
+const captured = () =>
+  (sentry.captureException.mock.calls.at(-1)?.[1] ?? {}) as {
+    extra?: Record<string, unknown>
+    fingerprint?: string[]
+    level?: string
+    tags?: Record<string, unknown>
+    user?: Record<string, unknown>
+  }
 
 vi.mock('@/lib/env/deploymentEnvironment', () => ({
   deploymentEnvironment: () => 'test',
@@ -91,8 +91,8 @@ const install = (failWith: () => unknown) => {
   return { payload }
 }
 
-const tags = () => Object.fromEntries(sentry.scope.setTag.mock.calls)
-const extras = () => Object.fromEntries(sentry.scope.setExtra.mock.calls)
+const tags = () => captured().tags ?? {}
+const extras = () => captured().extra ?? {}
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -108,7 +108,7 @@ describe('a Local API write the admin makes outside a route', () => {
     ).rejects.toBe(error)
 
     expect(sentry.captureException).toHaveBeenCalledTimes(1)
-    expect(sentry.captureException).toHaveBeenCalledWith(error)
+    expect(sentry.captureException).toHaveBeenCalledWith(error, expect.anything())
     expect(tags()).toMatchObject({ collection: 'pages', capture_source: 'localApi' })
     expect(extras()).toMatchObject({ fields: ['slug'], status: 400, url: URL })
   })
@@ -120,7 +120,7 @@ describe('a Local API write the admin makes outside a route', () => {
       payload.create({ collection: 'pages', data: {}, req: adminRequest() } as never),
     ).rejects.toThrow()
 
-    expect(sentry.scope.setLevel).toHaveBeenCalledWith('error')
+    expect(captured().level).toBe('error')
   })
 
   it('names the acting manager', async () => {
@@ -130,7 +130,7 @@ describe('a Local API write the admin makes outside a route', () => {
       payload.create({ collection: 'pages', data: {}, req: adminRequest() } as never),
     ).rejects.toThrow()
 
-    expect(sentry.scope.setUser).toHaveBeenCalledWith({
+    expect(captured().user).toEqual({
       id: '7',
       email: 'editor@sydevelopers.com',
     })
@@ -166,7 +166,18 @@ describe('a Local API write the admin makes outside a route', () => {
     expect(sentry.captureException).toHaveBeenCalledTimes(1)
     expect(tags()).toMatchObject({ collection: 'payload-jobs', capture_source: 'localApi' })
     // Named from the queued input, the only place that path records who asked.
-    expect(sentry.scope.setUser).toHaveBeenCalledWith({ id: '7' })
+    expect(captured().user).toEqual({ id: '7' })
+  })
+
+  it('still reports a queue with no request whose input names nobody', async () => {
+    const { payload } = install(() => new Error('could not write the job row'))
+
+    await expect(
+      payload.jobs.queue({ input: {}, task: 'schedulePublish' } as never),
+    ).rejects.toThrow()
+
+    expect(sentry.captureException).toHaveBeenCalledTimes(1)
+    expect(captured().user).toBeUndefined()
   })
 
   it('ignores a queue a job or a cron tick makes, with no acting user', async () => {

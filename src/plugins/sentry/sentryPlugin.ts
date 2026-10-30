@@ -17,7 +17,7 @@ import type { Config } from 'payload'
 
 import { serverEnv } from '@/lib/env'
 
-import { captureFailure, errorStatus, type SentryContextFn } from './captureFailure'
+import { captureFailure, errorStatus } from './captureFailure'
 import { installLocalApiCapture } from './localApiCapture'
 
 export interface SentryPluginOptions {
@@ -32,9 +32,6 @@ export interface SentryPluginOptions {
    * @default false
    */
   debug?: boolean
-
-  /** Custom context function to enrich Sentry error context */
-  context?: SentryContextFn
 
   /**
    * Enable/disable the plugin
@@ -58,20 +55,13 @@ export interface SentryPluginOptions {
  *     sentryPlugin({
  *       captureErrors: [400, 403, 404],
  *       debug: process.env.NODE_ENV !== 'production',
- *       context: ({ defaultContext, req }) => ({
- *         ...defaultContext,
- *         tags: {
- *           ...defaultContext.tags,
- *           locale: req.locale,
- *         },
- *       }),
  *     }),
  *   ],
  * })
  * ```
  */
 export const sentryPlugin = (options: SentryPluginOptions = {}) => {
-  const { captureErrors = [], debug = false, context, enabled = true } = options
+  const { captureErrors = [], debug = false, enabled = true } = options
 
   return (config: Config): Config => {
     // Skip plugin if disabled or no DSN configured
@@ -98,7 +88,6 @@ export const sentryPlugin = (options: SentryPluginOptions = {}) => {
             const collection = args.collection?.slug
             const captured = captureFailure({
               collection,
-              context,
               error,
               req,
               source: 'afterError',
@@ -120,7 +109,7 @@ export const sentryPlugin = (options: SentryPluginOptions = {}) => {
       onInit: async (payload) => {
         // Before the config's own `onInit`, so every write that follows is
         // covered — including whatever that hook does.
-        installLocalApiCapture(payload, context)
+        installLocalApiCapture(payload)
         await config.onInit?.(payload)
       },
     }
