@@ -14,9 +14,15 @@
  *
  * Three: that the job runner reads `schedulePublish`'s handler off the live
  * config, so the wrapper `onInit` installs is the one a scheduled publish runs.
+ *
+ * Four: that Payload's own preferences upsert, create and update alike, still
+ * makes the exact call the wrapper matches, and reads only `.value` back — what
+ * lets a failed one answer with the incoming preferences instead of blanking
+ * the list.
  */
 import type { Payload, PayloadRequest } from 'payload'
 
+import { upsertPreferences } from '@payloadcms/ui/utilities/upsertPreferences'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
@@ -45,11 +51,13 @@ const captured = () =>
 let payload: Payload
 let buildRequest: (payloadAPI: 'local' | 'REST') => PayloadRequest
 let cleanup: () => Promise<void>
+let admin: { id: number | string }
 
 beforeAll(async () => {
   const env = await createTestEnvironment()
   payload = env.payload
   cleanup = env.cleanup
+  admin = env.adminUser
 
   // The suite config carries no `sentryPlugin`, so `onInit` never ran — this is
   // the same call the plugin makes there.
@@ -128,5 +136,43 @@ describe('a scheduled publish that fails when its job runs', () => {
       target: `pages/${draft.id}`,
     })
     expect(captured().extra).toMatchObject({ fields: ['title'] })
+  })
+})
+
+describe("Payload's preferences upsert, as an admin list render makes it", () => {
+  it('reports a failed write and still answers with the incoming preferences', async () => {
+    // A manager deleted mid-session: the `user` relationship's foreign key
+    // refuses the id, so the write itself fails.
+    const req = { payload, user: { id: 999_999, collection: 'managers' } } as PayloadRequest
+
+    await expect(
+      upsertPreferences({ key: 'collection-pages', req, value: { limit: 10 } }),
+    ).resolves.toEqual({ limit: 10 })
+
+    expect(sentry.captureException).toHaveBeenCalledTimes(1)
+    expect(captured().tags).toMatchObject({
+      capture_source: 'localApi',
+      collection: 'payload-preferences',
+    })
+    expect(captured().user).toEqual({ id: '999999' })
+  })
+
+  it('answers a failed update with the merged preferences', async () => {
+    const req = { payload, user: { ...admin, collection: 'managers' } } as unknown as PayloadRequest
+    await upsertPreferences({ key: 'collection-lectures', req, value: { limit: 10 } })
+    vi.clearAllMocks()
+
+    // The stored row exists now, so this is `upsertPreferences`' by-id update.
+    const fail = vi.spyOn(payload.db, 'updateOne').mockRejectedValueOnce(new Error('db down'))
+    try {
+      await expect(
+        upsertPreferences({ key: 'collection-lectures', req, value: { sort: 'title' } }),
+      ).resolves.toEqual({ limit: 10, sort: 'title' })
+    } finally {
+      fail.mockRestore()
+    }
+
+    expect(sentry.captureException).toHaveBeenCalledTimes(1)
+    expect(captured().tags).toMatchObject({ collection: 'payload-preferences' })
   })
 })

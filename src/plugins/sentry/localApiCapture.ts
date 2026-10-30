@@ -7,8 +7,8 @@
  * seam left (#1038, #1039). The publish a schedule later runs fails inside the
  * job runner instead — `installScheduledPublishCapture` covers that one.
  *
- * ⚠ **The wrapper rethrows, always.** It observes; it must not change what any
- * caller sees.
+ * ⚠ **The wrapper rethrows every failure but one**, `preferencesUpsert`'s: it
+ * observes, and changes nothing any other caller sees.
  */
 import type { Payload, PayloadRequest } from 'payload'
 
@@ -32,7 +32,39 @@ const scheduledBy = (input: unknown): { id: string } | undefined =>
     ? { id: String(input.user.value) }
     : undefined
 
-const report = (error: unknown, options: unknown, row?: string): void => {
+/** The options `upsertPreferences` passes, and nothing else. */
+const PREFERENCES_UPSERT_KEYS = {
+  create: ['collection', 'data', 'depth', 'disableTransaction', 'user'],
+  update: ['collection', 'data', 'depth', 'disableTransaction', 'id', 'user'],
+}
+
+/**
+ * ⚠ **The one write reported without a request, and the one failure absorbed**:
+ * Payload's own preferences upsert, matched on its exact call. Why it is
+ * absorbed, and which callers read it: `docs/architecture.md` (#1039).
+ */
+const preferencesUpsert = (
+  key: string,
+  options: unknown,
+): { data: Record<string, unknown>; user: { id: string } } | undefined => {
+  if (key !== 'create' && key !== 'update') return undefined
+  if (!isRecord(options) || options.collection !== 'payload-preferences') return undefined
+  const { data, depth, disableTransaction, user } = options
+  const exactCall =
+    Object.keys(options).sort().join() === PREFERENCES_UPSERT_KEYS[key].join() &&
+    depth === 0 &&
+    disableTransaction === true
+  if (!exactCall || !isRecord(data) || !isRecord(user) || user.id == null) return undefined
+  return { data, user: { id: String(user.id) } }
+}
+
+/** Whether an event was sent. */
+const report = (
+  error: unknown,
+  options: unknown,
+  row?: string,
+  preferences?: { user: { id: string } },
+): boolean => {
   const { collection, input, req, slug } = isRecord(options) ? options : {}
   const request = req as PayloadRequest | undefined
 
@@ -41,7 +73,7 @@ const report = (error: unknown, options: unknown, row?: string): void => {
   // a nested Local API call, so a write our hooks make mid-request stands down
   // too. The admin page render and server functions read `local`.
   // `tests/int/admin-write-capture.int.spec.ts` pins the preservation.
-  if (request && request.payloadAPI !== 'local') return
+  if (request && request.payloadAPI !== 'local') return false
 
   // ⚠ **`schedulePublishHandler` queues with no `req` at all**, so its acting
   // manager comes from the queued input, where `schedulePublish` records it.
@@ -49,10 +81,11 @@ const report = (error: unknown, options: unknown, row?: string): void => {
 
   // An acting manager on the request. A job, a cron tick, a seed and a script
   // carry none, and `eventImport` passes `user` with no request — its refused
-  // rows are reported to the uploader already. Only a queue reports without one.
-  if (request ? !request.user : !row) return
+  // rows are reported to the uploader already. Only a queue and a preferences
+  // upsert report without one.
+  if (request ? !request.user : !row && !preferences) return false
 
-  captureFailure({
+  return captureFailure({
     // `collection` for a document write, `slug` for a global, the jobs row for a queue.
     collection: [collection, slug, row].find((value) => typeof value === 'string') as
       string | undefined,
@@ -60,7 +93,7 @@ const report = (error: unknown, options: unknown, row?: string): void => {
     req: request,
     source: 'localApi',
     target: row ? scheduledTarget(input) : undefined,
-    user: queuedBy,
+    user: queuedBy ?? preferences?.user,
   })
 }
 
@@ -83,7 +116,8 @@ export const installLocalApiCapture = (payload: Payload): void => {
       try {
         return await original(options)
       } catch (error) {
-        report(error, options, row)
+        const preferences = preferencesUpsert(String(key), options)
+        if (report(error, options, row, preferences) && preferences) return preferences.data
         throw error
       }
     }) as Target[Key]
