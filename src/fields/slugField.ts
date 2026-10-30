@@ -1,8 +1,9 @@
-import type { CollectionSlug, FieldHook, RowField, TextField } from 'payload'
+import type { CollectionSlug, FieldHook, FieldHookArgs, RowField, TextField } from 'payload'
 
 import { slugField as payloadSlugField, ValidationError } from 'payload'
 import { hasDraftsEnabled } from 'payload/shared'
 
+import { isPublished } from '@/fields/publicUrlFields'
 import { slugifyValue } from '@/lib/utilities/slugify'
 import { adminOnlyCondition, adminOnlyFieldAccess } from '@/plugins/access/adminOnly'
 
@@ -35,6 +36,11 @@ export type SlugFieldOptions = {
    * before the DB write, converting 500 constraint errors into 400 validation errors.
    */
   collectionSlug?: string
+  /**
+   * The documents allowed a blank slug, stored as `''`. Every other blank is
+   * NULL on an unpublished draft and refused everywhere else.
+   */
+  blankAllowed?: (args: FieldHookArgs) => boolean | Promise<boolean>
 } & {
   /**
    * Description text for the slug field.
@@ -47,22 +53,28 @@ export type SlugFieldOptions = {
 const isBlank = (value: unknown): boolean => typeof value !== 'string' || value.trim() === ''
 
 /**
- * Keeps a blank slug out of the database (#1038, #1040), whether a caller
- * posted it — the admin Generate button posts `''` for a blank title — or the
- * generator produced it. The two hooks sit either side of Payload's own
- * `generateSlug`, so they judge the slug it leaves rather than predict it.
+ * Settles a blank slug (#1038, #1040), whether a caller posted it — the admin
+ * Generate button posts `''` for a blank title — or the generator produced it.
+ * The two hooks sit either side of Payload's own `generateSlug`, so they judge
+ * the slug it leaves rather than predict it.
  *
- * - With drafts the column is nullable, and a blank is written as NULL:
- *   Postgres admits many NULLs under a unique index but one `''`, and draft
- *   saves skip validation, so nothing else could refuse it. It is nulled
- *   before the generator too, or the autosave branch reads a posted `''`
- *   against a stored NULL as a deliberate override and never regenerates.
- * - Otherwise the column is NOT NULL, and a blank is refused unless it is the
- *   stored one unchanged: the nested-docs cascade re-saves every descendant
- *   region whole, so one grandfathered blank must not make its ancestors
- *   unsaveable (`scripts/audit-region-slugs.ts` lists them).
+ * - A document `blankAllowed` names keeps `''`.
+ * - An unpublished draft gets NULL. Only a collection with drafts can store it
+ *   (Payload drops NOT NULL there), and Postgres admits many NULLs under a
+ *   unique index but one `''`, which is what made every untitled draft after
+ *   the first unsaveable. It is nulled before the generator too, or the
+ *   autosave branch reads a posted `''` against a stored NULL as a deliberate
+ *   override and never regenerates.
+ * - Anything else is refused: a published page, and every write to a
+ *   collection whose column is NOT NULL.
  */
-function blankSlugHooks(slugFieldName: string, sourceField: string) {
+function blankSlugHooks(options: {
+  blankAllowed?: SlugFieldOptions['blankAllowed']
+  slugFieldName: string
+  sourceField: string
+}) {
+  const { blankAllowed, slugFieldName, sourceField } = options
+
   const nullOnDrafts: FieldHook = ({ collection, data }) => {
     if (data && isBlank(data[slugFieldName]) && collection && hasDraftsEnabled(collection)) {
       data[slugFieldName] = null
@@ -70,11 +82,16 @@ function blankSlugHooks(slugFieldName: string, sourceField: string) {
     return undefined
   }
 
-  const refuseNewBlank: FieldHook = (args) => {
-    const { collection, data, operation, originalDoc, req } = args
+  const settleBlank: FieldHook = async (args) => {
+    const { collection, data, req } = args
     if (!data || !isBlank(data[slugFieldName])) return undefined
-    if (collection && hasDraftsEnabled(collection)) return nullOnDrafts(args)
-    if (operation === 'update' && data[slugFieldName] === originalDoc?.[slugFieldName]) {
+    if (await blankAllowed?.(args)) {
+      data[slugFieldName] = ''
+      return undefined
+    }
+    const drafts = Boolean(collection && hasDraftsEnabled(collection))
+    if (drafts && !isPublished(data._status, req.locale ?? undefined)) {
+      data[slugFieldName] = null
       return undefined
     }
     throw new ValidationError(
@@ -91,7 +108,7 @@ function blankSlugHooks(slugFieldName: string, sourceField: string) {
     )
   }
 
-  return { before: nullOnDrafts, after: refuseNewBlank }
+  return { before: nullOnDrafts, after: settleBlank }
 }
 
 /**
@@ -113,7 +130,13 @@ function blankSlugHooks(slugFieldName: string, sourceField: string) {
  * ```
  */
 export function slugField(options: SlugFieldOptions = {}): RowField {
-  const { collectionSlug, description, overrides: userOverrides, ...payloadOptions } = options
+  const {
+    blankAllowed,
+    collectionSlug,
+    description,
+    overrides: userOverrides,
+    ...payloadOptions
+  } = options
   const sourceField = options.useAsSlug || 'title'
   const resolvedDescription = description?.replace('{sourceField}', sourceField)
   const slugFieldName = options.name ?? 'slug'
@@ -139,7 +162,7 @@ export function slugField(options: SlugFieldOptions = {}): RowField {
       if (field.fields[0].type === 'checkbox') {
         field.fields[0].access = { ...field.fields[0].access, update: adminOnlyFieldAccess }
         field.fields[0].admin = { ...field.fields[0].admin, condition: adminOnlyCondition }
-        const blank = blankSlugHooks(slugFieldName, sourceField)
+        const blank = blankSlugHooks({ blankAllowed, slugFieldName, sourceField })
         field.fields[0].hooks = {
           ...field.fields[0].hooks,
           beforeChange: [blank.before, ...(field.fields[0].hooks?.beforeChange ?? []), blank.after],

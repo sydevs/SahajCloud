@@ -12,8 +12,9 @@ import { createTestEnvironment } from '../utils/testHelpers'
  * Payload's Generate button posts `''` for a blank title, any REST or Local API
  * write can carry one, and a source that transliterates to nothing (`東京`)
  * generates one. `pages` is the one collection with drafts — so the one whose
- * slug column is nullable. `authors` stands in for the four whose column is
- * NOT NULL. A grandfathered blank region is `region-blank-slug-cascade`'s.
+ * slug column is nullable — and its home page is the one document that keeps
+ * `''`. `authors` stands in for the NOT NULL collections; a grandfathered blank
+ * region is `region-blank-slug-cascade`'s.
  */
 describe('slugField: a blank slug', () => {
   let payload: Payload
@@ -65,7 +66,7 @@ describe('slugField: a blank slug', () => {
       expect(published.slug).toBe('posted-blank-page')
     })
 
-    it('stores NULL when a published save clears a real slug', async () => {
+    it('stores NULL when an unpublished page has its slug cleared', async () => {
       const page = await testData.createPage(payload, { title: 'Clears Its Slug' })
 
       const cleared = await payload.update({
@@ -77,12 +78,55 @@ describe('slugField: a blank slug', () => {
       expect(cleared.slug).toBeNull()
     })
 
+    it.each(['', null])('refuses a published page whose slug is cleared to %j', async (slug) => {
+      const page = await testData.createPage(payload, {
+        title: `Published Keeps Slug ${slug}`,
+        _status: 'published',
+      })
+
+      await expect(
+        payload.update({ collection: 'pages', id: page.id, data: { slug } as never }),
+      ).rejects.toMatchObject(blankSlugRefusal)
+    })
+
     it('stores NULL for a title that transliterates to nothing, so a second one still saves', async () => {
       const first = await testData.createPage(payload, { title: '東京' })
       const second = await testData.createPage(payload, { title: '!!!' })
 
       expect(first.slug).toBeNull()
       expect(second.slug).toBeNull()
+    })
+
+    describe('the home page', () => {
+      let home: number
+
+      beforeAll(async () => {
+        home = (await testData.createPage(payload, { title: 'Home Page', _status: 'published' })).id
+        // The global's other required fields are beside the point here.
+        await payload.db.createGlobal({ slug: 'wm-web-config', data: { homePage: home } })
+      })
+
+      it('keeps a blank slug, published, where any other page is refused', async () => {
+        const cleared = await payload.update({ collection: 'pages', id: home, data: { slug: '' } })
+        expect(cleared.slug).toBe('')
+
+        const renamed = await payload.update({
+          collection: 'pages',
+          id: home,
+          data: { title: 'Home Page Renamed' },
+        })
+        expect(renamed.slug).toBe('')
+      })
+
+      it('stores a posted NULL as the blank it keeps', async () => {
+        const saved = await payload.update({
+          collection: 'pages',
+          id: home,
+          data: { slug: null } as never,
+        })
+
+        expect(saved.slug).toBe('')
+      })
     })
   })
 
@@ -100,6 +144,15 @@ describe('slugField: a blank slug', () => {
         expect(stored.slug).toBe(author.slug)
       },
     )
+
+    it('refuses a stored blank even when it is re-saved unchanged', async () => {
+      const author = await testData.createAuthor(payload, { name: 'Stored Blank' })
+      await payload.db.updateOne({ collection: 'authors', id: author.id, data: { slug: '' } })
+
+      await expect(
+        payload.update({ collection: 'authors', id: author.id, data: { name: 'Still Blank' } }),
+      ).rejects.toMatchObject(blankSlugRefusal)
+    })
 
     it('regenerates from the name when the generator is switched on', async () => {
       const author = await testData.createAuthor(payload, { name: 'Regenerated Author' })

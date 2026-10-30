@@ -1,5 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
+import { extractID } from 'payload/shared'
+
 import { slugField, publicUrlFields } from '@/fields'
 import { APP_REQUIRED_PAGE_FIELDS } from '@/globals/WeMeditateAppConfig/WeMeditateAppConfig'
 import { serverEnv } from '@/lib/env'
@@ -74,7 +76,23 @@ export const Pages: CollectionConfig = {
         },
       ],
     },
-    slugField({ useAsSlug: 'title', collectionSlug: 'pages' }),
+    slugField({
+      useAsSlug: 'title',
+      collectionSlug: 'pages',
+      // The home page is served at `/`, so it has no slug of its own. It keeps
+      // `''`, never NULL: WeMeditateWeb reads its locale status by
+      // `where[slug][equals]=` with this slug, and an empty value there
+      // matches `''` alone.
+      blankAllowed: async ({ originalDoc, req }) => {
+        if (originalDoc?.id == null) return false
+        const { homePage } = await req.payload.findGlobal({
+          slug: 'wm-web-config',
+          depth: 0,
+          req,
+        })
+        return homePage != null && extractID(homePage) === originalDoc.id
+      },
+    }),
     {
       name: 'author',
       type: 'relationship',

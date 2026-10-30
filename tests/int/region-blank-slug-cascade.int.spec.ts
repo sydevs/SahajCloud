@@ -8,7 +8,7 @@ import { createTestEnvironment } from '../utils/testHelpers'
 /**
  * The grandfather clause's actual purpose (#634).
  *
- * `slugField` lets a **pre-existing** blank slug through on update, and
+ * Regions' `blankAllowed` lets a **pre-existing** blank slug through on update, and
  * the reason is entirely about the nested-docs cascade: `resaveChildren` fires
  * on every region write and re-saves each descendant by passing its whole
  * existing document back through `update` — blank slug included. Reject that
