@@ -18,6 +18,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { refusalHour } from '@/collections/RegistrationRefusals/RegistrationRefusals'
 import { CleanupCollections } from '@/jobs/CleanupCollections/CleanupCollections'
 import { SendRefusedRegistrationDigests } from '@/jobs/RegistrationNotifications/SendRefusedRegistrationDigests'
+import { VERDICT_NOTES } from '@/jobs/ScreenSubmissions/verdicts'
 import type { Client, Manager, RegistrationRefusal, UserSubmission } from '@/payload-types'
 
 import { deletedIn } from '../utils/retention'
@@ -402,6 +403,11 @@ describe('Refused sign-ups digest', () => {
       const [early] = emailsTo('daily-admin@example.com')
       expect(String(early?.html)).toContain('Quiet Visitor')
       expect(String(early?.html)).toContain('quiet-visitor@example.com')
+      // The screening card says what the submission itself is annotated with,
+      // so a second wording of the verdicts cannot drift back in.
+      expect(String(early?.text)).toContain(
+        `- Quiet Visitor — quiet-visitor@example.com: ${VERDICT_NOTES.no_mx_records as string}`,
+      )
 
       emailAdapter.clearCapturedEmails()
       const now = nextHour()
