@@ -47,34 +47,36 @@ export type SlugFieldOptions = {
 const isBlank = (value: unknown): boolean => typeof value !== 'string' || value.trim() === ''
 
 /**
- * Wraps Payload's `generateSlug` so a blank slug never reaches the database
- * (#1038, #1040) — whether the caller posted it (the admin Generate button
- * posts `''` for a blank title) or the generator produced it. It judges the
- * slug the generator leaves, so it needs no copy of the generator's rules.
+ * Keeps a blank slug out of the database (#1038, #1040), whether a caller
+ * posted it — the admin Generate button posts `''` for a blank title — or the
+ * generator produced it. The two hooks sit either side of Payload's own
+ * `generateSlug`, so they judge the slug it leaves rather than predict it.
  *
- * - With drafts, the column is nullable and a blank is written as NULL:
+ * - With drafts the column is nullable, and a blank is written as NULL:
  *   Postgres admits many NULLs under a unique index but one `''`, and draft
  *   saves skip validation, so nothing else could refuse it. It is nulled
- *   before the generator runs too, or the autosave branch reads a posted `''`
+ *   before the generator too, or the autosave branch reads a posted `''`
  *   against a stored NULL as a deliberate override and never regenerates.
- * - Without drafts, the column is NOT NULL, so a blank is refused — unless the
- *   slug was already blank, which the nested-docs cascade re-saves verbatim
- *   (`src/collections/Regions/nonEmptySlug.ts`).
+ * - Otherwise the column is NOT NULL, and a blank is refused unless it is the
+ *   stored one unchanged: the nested-docs cascade re-saves every descendant
+ *   region whole, so one grandfathered blank must not make its ancestors
+ *   unsaveable (`scripts/audit-region-slugs.ts` lists them).
  */
-function settleBlankSlug(generateSlug: FieldHook, slugFieldName: string, sourceField: string) {
-  const settle: FieldHook = async (args) => {
-    const { collection, data, operation, originalDoc, req } = args
-    const nullable = Boolean(collection && hasDraftsEnabled(collection))
-    if (nullable && data && isBlank(data[slugFieldName])) data[slugFieldName] = null
-
-    const checkbox = await generateSlug(args)
-
-    if (!data || !isBlank(data[slugFieldName])) return checkbox
-    if (nullable) {
+function blankSlugHooks(slugFieldName: string, sourceField: string) {
+  const nullOnDrafts: FieldHook = ({ collection, data }) => {
+    if (data && isBlank(data[slugFieldName]) && collection && hasDraftsEnabled(collection)) {
       data[slugFieldName] = null
-      return checkbox
     }
-    if (operation === 'update' && isBlank(originalDoc?.[slugFieldName])) return checkbox
+    return undefined
+  }
+
+  const refuseNewBlank: FieldHook = (args) => {
+    const { collection, data, operation, originalDoc, req } = args
+    if (!data || !isBlank(data[slugFieldName])) return undefined
+    if (collection && hasDraftsEnabled(collection)) return nullOnDrafts(args)
+    if (operation === 'update' && data[slugFieldName] === originalDoc?.[slugFieldName]) {
+      return undefined
+    }
     throw new ValidationError(
       {
         collection: collection?.slug,
@@ -88,7 +90,8 @@ function settleBlankSlug(generateSlug: FieldHook, slugFieldName: string, sourceF
       req.t,
     )
   }
-  return settle
+
+  return { before: nullOnDrafts, after: refuseNewBlank }
 }
 
 /**
@@ -136,11 +139,10 @@ export function slugField(options: SlugFieldOptions = {}): RowField {
       if (field.fields[0].type === 'checkbox') {
         field.fields[0].access = { ...field.fields[0].access, update: adminOnlyFieldAccess }
         field.fields[0].admin = { ...field.fields[0].admin, condition: adminOnlyCondition }
+        const blank = blankSlugHooks(slugFieldName, sourceField)
         field.fields[0].hooks = {
           ...field.fields[0].hooks,
-          beforeChange: (field.fields[0].hooks?.beforeChange ?? []).map((generateSlug) =>
-            settleBlankSlug(generateSlug, slugFieldName, sourceField),
-          ),
+          beforeChange: [blank.before, ...(field.fields[0].hooks?.beforeChange ?? []), blank.after],
         }
       }
 

@@ -13,7 +13,7 @@ import { createTestEnvironment } from '../utils/testHelpers'
  * write can carry one, and a source that transliterates to nothing (`東京`)
  * generates one. `pages` is the one collection with drafts — so the one whose
  * slug column is nullable. `authors` stands in for the four whose column is
- * NOT NULL, and `regions` for its own extra rule (`region-blank-slug-cascade`).
+ * NOT NULL. A grandfathered blank region is `region-blank-slug-cascade`'s.
  */
 describe('slugField: a blank slug', () => {
   let payload: Payload
