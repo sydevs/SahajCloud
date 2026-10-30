@@ -298,7 +298,8 @@ Never paste a secret into git or email.
 ### Sentry and Resend
 
 - `NEXT_PUBLIC_SENTRY_DSN` — public, needed at build time and runtime
-- `SENTRY_AUTH_TOKEN` — optional, for source-map upload
+- `SENTRY_AUTH_TOKEN` — optional, for source-map upload. The tracked `.env` no longer carries
+  it (#877), so a service without it uploads nothing; the build log now says so.
 - `SENTRY_TRACES_SAMPLE_RATE` — optional, default 0.1. A low non-zero rate samples admin
   transactions with their DB-span breakdown. `0` disables tracing.
 - `RESEND_API_KEY` — transactional email API key
