@@ -2,9 +2,9 @@ import type { AdminViewServerProps } from 'payload'
 
 import { Button } from '@payloadcms/ui'
 import { redirect } from 'next/navigation'
-import { getSafeRedirect } from 'payload/shared'
 
 import Logo from '@/components/branding/Logo'
+import { returnPath } from '@/plugins/login'
 
 import { deliveredLink, linkNotice } from './deliveredLink'
 import styles from './SignIn.module.css'
@@ -32,7 +32,8 @@ import { SignInForm } from './SignInForm'
  *
  * `?redirect=` is where Payload sends a signed-out visitor from. The form
  * carries it into the emailed link, so following that link lands on the page
- * the visitor first asked for (`returnPath`).
+ * the visitor first asked for — and a visitor who is already signed in is sent
+ * there directly. `returnPath` is the one rule for both.
  */
 export default async function SignInView({
   initPageResult,
@@ -49,9 +50,10 @@ export default async function SignInView({
   const returnTo = query('redirect')
 
   if (user && !error && !token) {
-    redirect(
-      getSafeRedirect({ fallbackTo: payload.config.routes.admin, redirectTo: returnTo ?? '' }),
-    )
+    // `returnPath`, not Payload's `getSafeRedirect`: that one keeps any
+    // site-relative path, so `?redirect=/admin/logout` would send a live session
+    // straight back out of the panel — the bounce this guard exists to refuse.
+    redirect(returnPath(payload, returnTo) ?? payload.config.routes.admin)
   }
 
   const shown = token ? await deliveredLink(token, payload) : null
