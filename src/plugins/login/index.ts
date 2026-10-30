@@ -26,6 +26,7 @@ export {
   magicLinkEmailSchema,
   mintSignInLink,
   REQUEST_LINK_THROTTLE_MS,
+  returnPath,
   SIGNIN_VALID_FOR,
 } from './magicLinks'
 export { createSession, sessionCookie, sessionCookieParts } from './session'
@@ -43,4 +44,5 @@ export {
   signSigninToken,
   SIGNIN_TOKEN_TTL_MS,
 } from './token'
-export type { LoginCollectionConfig, LoginMailArgs } from './types'
+export type { LoginToken } from './token'
+export type { LoginCollectionConfig, LoginDocument, LoginMailArgs } from './types'

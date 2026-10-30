@@ -8,6 +8,8 @@
  * copy-pastes a kind. These specs read the `aud` claim back off the wire rather
  * than importing the constants, so a changed string is visible here.
  */
+import type { Payload } from 'payload'
+
 import { decodeJwt } from 'jose'
 import { describe, expect, it } from 'vitest'
 
@@ -18,6 +20,7 @@ import {
   readInviteToken,
   readLinkToken,
   readSigninToken,
+  returnPath,
   signInviteToken,
   signLinkToken,
   signSigninToken,
@@ -115,6 +118,51 @@ describe('login token kinds', () => {
       NOW,
     )
     await expect(readSigninToken(stale, SECRET, NOW)).resolves.toEqual({ status: 'invalid' })
+  })
+
+  it('carries the page a sign-in link returns to, and refuses one outside the admin', async () => {
+    const back = { ...claims, to: '/admin/collections/events/7?locale=fr' }
+    await expect(
+      readSigninToken(await signSigninToken(back, SECRET, NOW), SECRET, NOW),
+    ).resolves.toEqual({ status: 'valid', claims: back })
+
+    // `returnPath` keeps these out at signing; the reader refuses them anyway.
+    for (const to of ['https://evil.example/admin/', '//evil.example/admin/', '/api/managers']) {
+      const token = await signSigninToken({ ...claims, to }, SECRET, NOW)
+      await expect(readSigninToken(token, SECRET, NOW)).resolves.toEqual({ status: 'invalid' })
+    }
+  })
+})
+
+describe('returnPath', () => {
+  // Payload's defaults, which `src/payload.config.ts` keeps.
+  const payload = {
+    config: {
+      admin: { routes: { login: '/login', logout: '/logout' } },
+      routes: { admin: '/admin' },
+    },
+  } as unknown as Payload
+
+  it('keeps the admin page Payload sent a signed-out visitor from, query and all', () => {
+    const page = '/admin/collections/events/12?locale=fr'
+    expect(returnPath(payload, page)).toBe(page)
+  })
+
+  it('drops anything outside the admin, so the link cannot leave this server', () => {
+    for (const to of ['https://evil.example/admin/', '//evil.example', '/api/managers', '', null]) {
+      expect(returnPath(payload, to)).toBeUndefined()
+    }
+  })
+
+  it('drops the sign-in and logout routes, which would undo the session the link buys', () => {
+    for (const to of [
+      '/admin/login',
+      '/admin/login?token=x',
+      '/admin/logout',
+      '/admin/logout-inactivity',
+    ]) {
+      expect(returnPath(payload, to)).toBeUndefined()
+    }
   })
 })
 
