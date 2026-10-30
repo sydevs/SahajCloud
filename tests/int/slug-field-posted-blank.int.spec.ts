@@ -13,8 +13,7 @@ import { createTestEnvironment } from '../utils/testHelpers'
  * write can carry one, and a source that transliterates to nothing (`東京`)
  * generates one. `pages` is the one collection with drafts — so the one whose
  * slug column is nullable — and its home page is the one document that keeps
- * `''`. `authors` stands in for the NOT NULL collections; a grandfathered blank
- * region is `region-blank-slug-cascade`'s.
+ * `''`. `authors` and `regions` stand in for the NOT NULL collections.
  */
 describe('slugField: a blank slug', () => {
   let payload: Payload
@@ -209,6 +208,21 @@ describe('slugField: a blank slug', () => {
           id: author.id,
           data: { name: '東京', generateSlug: true },
         }),
+      ).rejects.toMatchObject(blankSlugRefusal)
+    })
+
+    it('refuses a stored blank region slug, even re-saved unchanged', async () => {
+      const id = await testData.createRegionNode(payload, {
+        prefix: 'sb',
+        slug: 'stored-blank-region',
+        level: 'country',
+      })
+      await payload.db.updateOne({ collection: 'regions', id, data: { slug: '' } })
+
+      // What the nested-docs cascade does to every descendant: a whole-document re-save.
+      const stored = await payload.findByID({ collection: 'regions', id, depth: 0 })
+      await expect(
+        payload.update({ collection: 'regions', id, overrideAccess: true, data: stored as never }),
       ).rejects.toMatchObject(blankSlugRefusal)
     })
 

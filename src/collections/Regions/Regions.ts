@@ -414,12 +414,6 @@ export const Regions: CollectionConfig = {
       useAsSlug: 'name',
       collectionSlug: 'regions',
       description: 'Stable identifier for Atlas routing (auto-generated from {sourceField}).',
-      // Regions with a blank name, and so a blank slug, predate #634
-      // (`scripts/audit-region-slugs.ts` lists them), and the nested-docs
-      // cascade re-saves every descendant whole. A stored blank re-saved
-      // unchanged must pass, or one such row makes its ancestry unsaveable.
-      blankAllowed: ({ data, operation, originalDoc }) =>
-        operation === 'update' && data?.slug === originalDoc?.slug,
       overrides: (field) => {
         // generateSlug defaults OFF for regions. The slugField default
         // slugify now transliterates non-Latin names (Москва → "moskva"), so
