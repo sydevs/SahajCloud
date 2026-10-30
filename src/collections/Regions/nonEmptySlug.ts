@@ -17,12 +17,11 @@ const MESSAGE =
  * beneath it, and every event inside those all silently lose `webPath` and
  * `webUrl`.
  *
- * The hole this closes is in the slug field's own validator: `slugField`
- * installs a uniqueness `validate`, and supplying one **replaces** Payload's
- * default that enforces `required` — and that validator opens with
- * `if (!value) return true`. So an empty slug passes field validation entirely
- * today. (Same trap as the Events `title` case in
- * `src/collections/Events/AGENTS.md`.)
+ * `slugField` already refuses a newly blank slug once its generator has run
+ * (#1040). This validator runs ahead of that for regions, to name why a region
+ * needs one, and is stricter in one case: it refuses clearing a slug even when
+ * the `generateSlug` checkbox would refill it from `name`, because that refill
+ * drops the importer's disambiguated slug (`georgia-united-states` → `georgia`).
  *
  * ## Why this is a validator and not a hook
  *
