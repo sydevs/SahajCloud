@@ -18,6 +18,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { MANAGER_SIGNIN_PATH } from '@/collections/Managers/login'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
+import { captureFailure } from '@/plugins/sentry/captureFailure'
 
 import { createAnonRestClient, type RestClient } from '../utils/restRequest'
 import { testData } from '../utils/testData'
@@ -28,6 +29,12 @@ import { createTestEnvironmentWithEmail } from '../utils/testHelpers'
 // schema instead of booting the real one.
 const { configRef } = vi.hoisted(() => ({ configRef: { current: undefined as unknown } }))
 vi.mock('@payload-config', () => ({ default: configRef.current }))
+
+// Wrapped, not replaced: the real body still runs, so this only observes whether a site reports.
+vi.mock('@/plugins/sentry/captureFailure', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/plugins/sentry/captureFailure')>()
+  return { ...actual, captureFailure: vi.fn(actual.captureFailure) }
+})
 
 const REQUEST_PATH = '/api/managers/request-magic-link'
 const REDEEM_PATH = '/api/managers/redeem'
@@ -152,6 +159,27 @@ describe('manager sign-in page', () => {
 
       expect(emailAdapter.findEmailByTo(manager.email)).toBeUndefined()
       expect(await stampOf(manager.id)).toBe(first)
+    })
+  })
+
+  describe('a link that could not be sent', () => {
+    // Both callers answer uniformly whatever happens, so nothing downstream can report a failed
+    // send — each reports it itself (#1039).
+    it.each([
+      ['the page', (email: string) => submit(email)],
+      ['the endpoint', (email: string) => anon(REQUEST_PATH, { method: 'POST', json: { email } })],
+    ])('is reported once by %s', async (_, send) => {
+      const manager = await activeManager()
+      const sendEmail = vi.spyOn(payload, 'sendEmail').mockRejectedValueOnce(new Error('smtp down'))
+      vi.mocked(captureFailure).mockClear()
+
+      try {
+        await send(manager.email)
+      } finally {
+        sendEmail.mockRestore()
+      }
+
+      expect(vi.mocked(captureFailure).mock.calls.map(([args]) => args.source)).toEqual(['signIn'])
     })
   })
 

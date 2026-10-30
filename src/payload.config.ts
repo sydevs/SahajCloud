@@ -308,13 +308,6 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       sentryPlugin({
         captureErrors: [400, 403, 404], // Capture additional error codes
         debug: !isProduction,
-        context: ({ defaultContext, req }) => ({
-          ...defaultContext,
-          tags: {
-            ...defaultContext.tags,
-            locale: req.locale,
-          },
-        }),
         enabled: !isE2ETest, // Skip in E2E tests
       }),
       // File storage: Cloudflare Images/Stream + R2 over S3 (disabled in E2E tests).

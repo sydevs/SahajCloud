@@ -38,7 +38,7 @@ Three addresses, three jobs. Confusing them is what #790 was:
 
 ### A failed send never throws — so it reports itself to Sentry
 
-This must stay true: `sendVerificationEmail` runs at `create.js:231`, after `registerLocalStrategy` but **before** `commitTransaction`. A throw there would roll back the whole manager creation and return a 500 with no account. The cost is that nothing reaches the Sentry plugin, which only hooks `afterError` — so a production delivery failure used to exist **only as a pino line**, with no Sentry issue, no admin-visible error, and no DB trace (#320).
+This must stay true: `sendVerificationEmail` runs at `create.js:231`, after `registerLocalStrategy` but **before** `commitTransaction`. A throw there would roll back the whole manager creation and return a 500 with no account. The cost is that nothing reaches the Sentry plugin, whose two sites both need a throw (`afterError` runs only from `routeError`, the Local API wrapper only on a write that threw, #1039) — so a production delivery failure used to exist **only as a pino line**, with no Sentry issue, no admin-visible error, and no DB trace (#320).
 
 So the adapter's three non-throwing paths — no client, a Resend API error, a caught exception — each capture to Sentry themselves, and still return normally.
 
