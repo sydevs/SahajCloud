@@ -308,6 +308,79 @@ describe('the publish a schedule runs', () => {
   })
 })
 
+describe("Payload's preferences upsert, which `ListView` would turn into a blank list", () => {
+  /** `upsertPreferences`' exact call: `user`, no `req`, `depth: 0`, `disableTransaction`. */
+  const upsert = (extra: Record<string, unknown> = {}) => ({
+    collection: 'payload-preferences',
+    data: { key: 'collection-pages', value: { limit: 10 } },
+    depth: 0,
+    disableTransaction: true,
+    user: MANAGER,
+    ...extra,
+  })
+
+  it.each([
+    ['create', {}],
+    ['update', { id: 3 }],
+  ] as const)(
+    'reports the %s and answers with the document it was given',
+    async (operation, extra) => {
+      const { payload } = install(() => new Error('could not write the preference'))
+
+      await expect(payload[operation](upsert(extra) as never)).resolves.toEqual(upsert().data)
+
+      expect(sentry.captureException).toHaveBeenCalledTimes(1)
+      expect(tags()).toMatchObject({
+        collection: 'payload-preferences',
+        capture_source: 'localApi',
+      })
+      expect(captured().user).toEqual({ id: '7' })
+    },
+  )
+
+  it.each([
+    ['no user', { id: 3, user: undefined }],
+    ['access enforced', { id: 3, overrideAccess: false }],
+    ['a transaction', { id: 3, disableTransaction: undefined }],
+    ['a bulk update', { where: { id: { equals: 3 } } }],
+    ['any other option', { id: 3, locale: 'de' }],
+    ['another depth', { id: 3, depth: 1 }],
+    ['no id', {}],
+  ])('neither reports nor absorbs anything else without a request: %s', async (_shape, extra) => {
+    const error = new Error('could not write the preference')
+    const { payload } = install(() => error)
+
+    await expect(payload.update(upsert(extra) as never)).rejects.toBe(error)
+    expect(sentry.captureException).not.toHaveBeenCalled()
+  })
+
+  it('neither reports nor absorbs any other operation with the same options', async () => {
+    const error = new Error('could not duplicate the preference')
+    const { payload } = install(() => error)
+
+    await expect(payload.duplicate(upsert({ id: 3 }) as never)).rejects.toBe(error)
+    expect(sentry.captureException).not.toHaveBeenCalled()
+  })
+
+  it('throws one it reported nothing for — a cast failure `captureFailure` drops', async () => {
+    const castFailure = Object.assign(new Error('query failed'), {
+      cause: { code: '22P02', message: 'invalid input syntax for type integer: "x"' },
+    })
+    const { payload } = install(() => castFailure)
+
+    await expect(payload.create(upsert() as never)).rejects.toBe(castFailure)
+    expect(sentry.captureException).not.toHaveBeenCalled()
+  })
+
+  it('throws one that carries a request, reported as any admin write is', async () => {
+    const error = new Error('could not write the preference')
+    const { payload } = install(() => error)
+
+    await expect(payload.create(upsert({ req: adminRequest() }) as never)).rejects.toBe(error)
+    expect(sentry.captureException).toHaveBeenCalledTimes(1)
+  })
+})
+
 describe('what must not report', () => {
   it('stands down on a routed request, where afterError reports instead', async () => {
     const { payload } = install(validationError)
@@ -333,8 +406,25 @@ describe('what must not report', () => {
   it('ignores a `user` option with no request — the eventImport task', async () => {
     const { payload } = install(validationError)
 
+    // The access-enforced shape `src/plugins/eventImport/task.ts` sends.
     await expect(
-      payload.create({ collection: 'events', data: {}, user: MANAGER } as never),
+      payload.create({
+        collection: 'events',
+        data: {},
+        draft: true,
+        overrideAccess: false,
+        user: MANAGER,
+      } as never),
+    ).rejects.toThrow()
+    // And the preferences call's own shape, on any other collection.
+    await expect(
+      payload.create({
+        collection: 'events',
+        data: {},
+        depth: 0,
+        disableTransaction: true,
+        user: MANAGER,
+      } as never),
     ).rejects.toThrow()
 
     expect(sentry.captureException).not.toHaveBeenCalled()
