@@ -8,17 +8,16 @@ import { createTestEnvironment } from '../utils/testHelpers'
 /**
  * The grandfather clause's actual purpose (#634).
  *
- * `withNonEmptySlug` lets a **pre-existing** blank slug through on update, and
+ * `slugField` lets a **pre-existing** blank slug through on update, and
  * the reason is entirely about the nested-docs cascade: `resaveChildren` fires
  * on every region write and re-saves each descendant by passing its whole
  * existing document back through `update` — blank slug included. Reject that
  * and one bad row makes its whole ancestry unsaveable.
  *
  * 16 regions have a blank name (and so a blank slug) in production today, so
- * this is a live scenario, not a hypothetical. The unit spec covers the
- * validator in isolation. This covers the contract it depends on — that
- * Payload really does supply `previousValue` during a cascade re-save, so the
- * clause fires when it should.
+ * this is a live scenario, not a hypothetical. This covers the contract the
+ * clause depends on — that a cascade re-save hands the stored blank back
+ * unchanged, so the clause fires when it should.
  *
  * Blank-slugged regions are created through `payload.db` directly, because the
  * invariant under test is precisely what stops the normal path creating one.
@@ -67,7 +66,7 @@ describe('blank region slug vs the nested-docs cascade', () => {
 
   it('still lets an ancestor be saved, cascade and all', async () => {
     // This is the whole point. The country's write cascades into the blank
-    // region. Without the grandfather clause the validator rejects that child
+    // region. Without the grandfather clause `slugField` refuses that child
     // and the plugin turns it into "Could not publish or save changes: One or
     // more children are invalid" — an entire country made unsaveable by one row.
     await expect(
@@ -96,6 +95,17 @@ describe('blank region slug vs the nested-docs cascade', () => {
         data: { slug: '' } as never,
       }),
     ).rejects.toThrow()
+
+    // Only the stored `''` unchanged is grandfathered. A NULL would break the
+    // NOT NULL column, so it is refused like any other new blank.
+    await expect(
+      payload.update({
+        collection: 'regions',
+        id: blankRegion,
+        overrideAccess: true,
+        data: { slug: null } as never,
+      }),
+    ).rejects.toMatchObject({ status: 400, data: { errors: [{ path: 'slug' }] } })
 
     const fixed = await payload.update({
       collection: 'regions',

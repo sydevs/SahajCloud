@@ -12,7 +12,7 @@
  * of these regions cannot come from the data, so fixing them is a human
  * decision, made in the admin panel or by the Atlas importer. This
  * script exists to say exactly which rows need that decision, and what
- * each one costs, so `withNonEmptySlug`'s grandfather clause can
+ * each one costs, so `slugField`'s grandfather clause can
  * eventually be dropped.
  *
  * Usage:
