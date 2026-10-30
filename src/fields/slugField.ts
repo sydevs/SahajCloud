@@ -65,8 +65,8 @@ const isBlank = (value: unknown): boolean => typeof value !== 'string' || value.
  *   the first unsaveable. It is nulled before the generator too, or the
  *   autosave branch reads a posted `''` against a stored NULL as a deliberate
  *   override and never regenerates.
- * - Anything else is refused: a published page, and every write to a
- *   collection whose column is NOT NULL.
+ * - Anything else is refused: a page published in any locale, and every write
+ *   to a collection whose column is NOT NULL.
  */
 function blankSlugHooks(options: {
   blankAllowed?: SlugFieldOptions['blankAllowed']
@@ -89,8 +89,12 @@ function blankSlugHooks(options: {
       data[slugFieldName] = ''
       return undefined
     }
-    const drafts = Boolean(collection && hasDraftsEnabled(collection))
-    if (drafts && !isPublished(data._status, req.locale ?? undefined)) {
+    // The slug is not localized, so a page published in any locale needs one,
+    // whichever locale this write is in.
+    const published =
+      isPublished(data._status, req.locale ?? undefined) ||
+      isPublished(args.siblingDocWithLocales?._status, 'all')
+    if (collection && hasDraftsEnabled(collection) && !published) {
       data[slugFieldName] = null
       return undefined
     }

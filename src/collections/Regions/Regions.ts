@@ -414,10 +414,10 @@ export const Regions: CollectionConfig = {
       useAsSlug: 'name',
       collectionSlug: 'regions',
       description: 'Stable identifier for Atlas routing (auto-generated from {sourceField}).',
-      // 16 regions have a blank name, and so a blank slug, from before #634,
-      // and the nested-docs cascade re-saves every descendant region whole. A
-      // stored blank re-saved unchanged must pass, or one such row makes its
-      // whole ancestry unsaveable (`scripts/audit-region-slugs.ts` lists them).
+      // Regions with a blank name, and so a blank slug, predate #634
+      // (`scripts/audit-region-slugs.ts` lists them), and the nested-docs
+      // cascade re-saves every descendant whole. A stored blank re-saved
+      // unchanged must pass, or one such row makes its ancestry unsaveable.
       blankAllowed: ({ data, operation, originalDoc }) =>
         operation === 'update' && data?.slug === originalDoc?.slug,
       overrides: (field) => {

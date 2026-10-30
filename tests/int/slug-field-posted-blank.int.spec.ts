@@ -89,6 +89,24 @@ describe('slugField: a blank slug', () => {
       ).rejects.toMatchObject(blankSlugRefusal)
     })
 
+    it('refuses clearing the slug from another locale of a published page', async () => {
+      // The slug is not localized, so a `de` write that clears it would take
+      // the live `en` page's URL with it.
+      const page = await testData.createPage(payload, {
+        title: 'Published In English',
+        _status: 'published',
+      })
+
+      await expect(
+        payload.update({
+          collection: 'pages',
+          id: page.id,
+          locale: 'de',
+          data: { title: 'Auf Deutsch', slug: '' },
+        }),
+      ).rejects.toMatchObject(blankSlugRefusal)
+    })
+
     it('stores NULL for a title that transliterates to nothing, so a second one still saves', async () => {
       const first = await testData.createPage(payload, { title: '東京' })
       const second = await testData.createPage(payload, { title: '!!!' })
@@ -116,6 +134,16 @@ describe('slugField: a blank slug', () => {
           data: { title: 'Home Page Renamed' },
         })
         expect(renamed.slug).toBe('')
+      })
+
+      it('keeps its blank slug with the generator switched on', async () => {
+        const saved = await payload.update({
+          collection: 'pages',
+          id: home,
+          data: { title: 'Home Page Again', generateSlug: true },
+        })
+
+        expect(saved.slug).toBe('')
       })
 
       it('stores a posted NULL as the blank it keeps', async () => {
