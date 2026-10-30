@@ -40,8 +40,7 @@ const MAX_LISTED_EVENTS = 50
  */
 const REQUEST_REASON_LABELS: Record<AntiSpamCode, string> = {
   captcha_failed: 'The captcha check failed',
-  captcha_unavailable:
-    'The captcha could not be checked — our own configuration, or Cloudflare unreachable',
+  captcha_unavailable: 'The captcha could not be checked',
   invalid_email: 'The email address was not a usable address',
   disposable_email: 'A disposable email address',
   urls_not_allowed: 'A link in one of the answers',
