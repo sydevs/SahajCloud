@@ -1,3 +1,4 @@
+import type { ReminderWindow } from './reminderWindow'
 import type { Payload, PayloadRequest, TaskConfig } from 'payload'
 
 import * as Sentry from '@sentry/nextjs'
@@ -12,6 +13,7 @@ import { relationId } from '@/lib/utilities/relationId'
 import type { Event } from '@/payload-types'
 import type { EventSchedule } from '@/types/schedule'
 
+import { reminderWindow, reminderWindowWhere, withinReminderWindow } from './reminderWindow'
 import { sendSessionReminder } from './sendSessionReminder'
 
 /** `type` slug for reminder entries in the registration's `activityLog`. */
@@ -27,8 +29,6 @@ function formatOccurrenceLabel(occurrenceIso: string): string {
 }
 
 const PAGINATION_LIMIT = 200
-/** 24 hours — how far ahead a run reminds. */
-const REMINDER_WINDOW_MS = 24 * 60 * 60 * 1000
 
 const CLIENT_BRAND_SELECT = {
   name: true,
@@ -51,30 +51,27 @@ interface ReminderResult {
 }
 
 /**
- * Real occurrence starts (ISO) strictly within `(windowStart, windowEnd]`.
+ * Real occurrence starts (ISO) inside the window.
  *
  * Uses the same `buildRRuleTemporal` source as the ICS attachment, so recurrence
  * is never re-derived and the schedule's `exclusions` are applied automatically.
  * Recurring rules are bounded with `between`; a one-off (which has no
  * `recurrenceType`) uses `all()` — calling `all()` on an unbounded recurring
  * rule would never terminate, which is exactly why the branch keys on it.
+ *
+ * `between` is inclusive at both ends, so the bounds are re-applied by
+ * `withinReminderWindow` — the same expression the registration query runs in
+ * SQL (`reminderWindow.ts`).
  */
-function upcomingOccurrences(
-  schedule: Event['schedule'],
-  windowStart: Date,
-  windowEnd: Date,
-): string[] {
+function upcomingOccurrences(schedule: Event['schedule'], window: ReminderWindow): string[] {
   const rule = buildRRuleTemporal((schedule ?? {}) as Partial<EventSchedule>)
   if (!rule) return []
 
-  const raw = schedule?.recurrenceType ? rule.between(windowStart, windowEnd, true) : rule.all()
+  const raw = schedule?.recurrenceType ? rule.between(window.start, window.end, true) : rule.all()
 
   return raw
     .map((zdt) => new Date(Number(zdt.epochMilliseconds)).toISOString())
-    .filter((iso) => {
-      const ms = new Date(iso).getTime()
-      return ms > windowStart.getTime() && ms <= windowEnd.getTime()
-    })
+    .filter((iso) => withinReminderWindow(iso, window))
 }
 
 /**
@@ -138,13 +135,13 @@ async function remindForEvent(args: {
   req: PayloadRequest
   event: Event
   now: Date
-  windowEnd: Date
+  window: ReminderWindow
   clientCache: Map<number, EmailClient | null>
   result: ReminderResult
 }): Promise<void> {
-  const { payload, req, event, now, windowEnd, clientCache, result } = args
+  const { payload, req, event, now, window, clientCache, result } = args
 
-  const occurrences = upcomingOccurrences(event.schedule, now, windowEnd)
+  const occurrences = upcomingOccurrences(event.schedule, window)
   if (occurrences.length === 0) return
 
   // Collect the registrations with a reminder due, as bare ids — reading at
@@ -168,15 +165,7 @@ async function remindForEvent(args: {
           // A whole-series row, or one whose session is in the window — else the
           // read grows with every past session the event has had.
           {
-            or: [
-              { startingAt: { exists: false } },
-              {
-                and: [
-                  { startingAt: { greater_than: now.toISOString() } },
-                  { startingAt: { less_than_equal: windowEnd.toISOString() } },
-                ],
-              },
-            ],
+            or: [{ startingAt: { exists: false } }, reminderWindowWhere('startingAt', window)],
           },
         ],
       },
@@ -320,7 +309,7 @@ export const SendSessionReminders: TaskConfig<'sendSessionReminders'> = {
     // `req.context.now` overrides the clock for deterministic tests.
     const contextNow = (req.context as { now?: unknown } | undefined)?.now
     const now = contextNow instanceof Date ? contextNow : new Date()
-    const windowEnd = new Date(now.getTime() + REMINDER_WINDOW_MS)
+    const window = reminderWindow(now)
     const result: ReminderResult = {
       processedEvents: 0,
       remindersSent: 0,
@@ -354,7 +343,7 @@ export const SendSessionReminders: TaskConfig<'sendSessionReminders'> = {
       for (const event of batch.docs as Event[]) {
         result.processedEvents++
         try {
-          await remindForEvent({ payload, req, event, now, windowEnd, clientCache, result })
+          await remindForEvent({ payload, req, event, now, window, clientCache, result })
         } catch (error) {
           result.failed++
           Sentry.withScope((scope) => {
