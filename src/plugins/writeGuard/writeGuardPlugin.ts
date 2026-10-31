@@ -43,7 +43,32 @@ import { DEFAULT_WRITE_GUARD_POLICIES } from './policies'
  * here can scan selectively, and carries the same `field`. One endpoint, one
  * error shape — a client reading `errors[0].data` must not have to know which
  * of the two refused it.
+ *
+ * The guard also strips {@link CLIENT_UNWRITABLE_TIMESTAMPS}, which no policy
+ * names: it is a fact about what a client may send, not about one collection.
  */
+
+/**
+ * Timestamps a client may not choose, dropped from every guarded write.
+ *
+ * A client-set `createdAt` hides the row from the 24h spam history and ages it
+ * into retention early; `updatedAt` travels with it because a retention window
+ * can sweep on either column (`PayloadJobs.ts`, `UserSubmissions`). Payload
+ * writes both itself, so dropping them restores the real clock rather than
+ * refusing the write — a caller echoing a row back is not an attack.
+ *
+ * Here rather than in a collection hook, because the next client-writable
+ * collection would otherwise have to remember it: `policies.ts` already calls
+ * itself the whole public write surface.
+ */
+const CLIENT_UNWRITABLE_TIMESTAMPS = ['createdAt', 'updatedAt'] as const
+
+function withoutClientTimestamps<T extends Record<string, unknown>>(data: T): T {
+  if (!CLIENT_UNWRITABLE_TIMESTAMPS.some((key) => key in data)) return data
+  const stripped = { ...data }
+  for (const key of CLIENT_UNWRITABLE_TIMESTAMPS) delete stripped[key]
+  return stripped
+}
 
 /** Read a (possibly dotted) path off the incoming data. */
 function valueAtPath(data: Record<string, unknown>, path: string): unknown {
@@ -171,7 +196,7 @@ export function writeGuardBeforeValidate(policy: WriteGuardPolicy): CollectionBe
     if (req.context?.skipWriteGuard) return data
 
     await runPolicy(operationPolicy, (data ?? {}) as Record<string, unknown>, req)
-    return data
+    return data && withoutClientTimestamps(data as Record<string, unknown>)
   }
 }
 
