@@ -202,7 +202,7 @@ function adminWithSignInView(
  * and replacing it would delete the project switcher.
  *
  * Deliberately `onInit`-free: `config.onInit` is a single function, and
- * `src/payload.config.ts` already points it at `seedPreviewAdmin`.
+ * `src/payload.config.ts` already owns it.
  *
  * @example
  * ```typescript

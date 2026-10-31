@@ -1,4 +1,4 @@
-import type { CollectionConfig, PayloadRequest, Where } from 'payload'
+import type { CollectionConfig, Payload, PayloadRequest, Where } from 'payload'
 
 import { isAdminManager } from '@/plugins/access/adminOnly'
 import type { PurgeWindow, RetentionConfig } from '@/types/retention'
@@ -79,3 +79,22 @@ export const payloadJobsOverrides = ({
     retention: { windows: JOB_PURGE_WINDOWS } satisfies RetentionConfig,
   },
 })
+
+/** How long a `processing` row may go unwritten before a boot treats it as dead. */
+export const STALE_JOB_MS = 60 * 60 * 1000
+
+/**
+ * Cancel every job a dead container left `processing`, so its schedule runs
+ * again. Payload never recovers such a row, and while it stands
+ * `countRunnableOrActiveJobsForQueue` stops its schedule queueing another. A
+ * cancelled row is `hasError`, so the window above sweeps it. Runs on boot, and
+ * logs rather than throws: a failed cleanup must not stop the server starting.
+ */
+export async function cancelStaleJobs(payload: Payload): Promise<void> {
+  const before = new Date(Date.now() - STALE_JOB_MS).toISOString()
+  await payload.jobs
+    .cancel({
+      where: { and: [{ processing: { equals: true } }, { updatedAt: { less_than: before } }] },
+    })
+    .catch((err: unknown) => payload.logger.error({ err, msg: 'Could not cancel stale jobs' }))
+}
