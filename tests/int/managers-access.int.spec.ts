@@ -776,7 +776,7 @@ describe('Managers access (#821)', () => {
       ).rejects.toThrow('The following path cannot be queried')
       await expect(
         payload.find({ collection: 'managers', sort: 'email', overrideAccess: false, req: req() }),
-      ).rejects.toThrow()
+      ).rejects.toThrow('The following path cannot be queried')
       await expect(
         payload.findDistinct({
           collection: 'managers',

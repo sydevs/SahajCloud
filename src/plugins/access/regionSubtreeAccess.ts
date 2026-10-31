@@ -137,11 +137,14 @@ export const contactableManagersMemoKey = (userId: number): string =>
  * staleness window `resolveManagedDocIds` documents: both relationships are
  * non-localized, so a locale copy of `req` sharing `context` reads the same set.
  *
- * ⚠ **The two queries take no `req`.** They run inside a field lock, which
+ * ⚠ **Its own two queries take no `req`.** They run inside a field lock, which
  * `afterRead` evaluates on the response of a write while its transaction is
  * still open — joining it can roll the write back (`src/collections/AGENTS.md`).
  * An assignment made earlier in the same request is therefore not yet seen,
- * which hides an address rather than showing one.
+ * which hides an address rather than showing one. `resolveOwnedRegionIds` does
+ * pass `req`, as every access decision on it does; on a write it is usually
+ * already memoized by that write's own access check, and when it is not it
+ * joins the transaction with two plain SELECTs.
  *
  * A trashed event assigns nobody: `find` excludes trash by default.
  */

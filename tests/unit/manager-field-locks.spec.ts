@@ -119,10 +119,13 @@ describe('Managers field read locks', () => {
   })
 
   it('answers a read with no row in hand self-or-admin, even for a region manager', async () => {
-    // A `where`, `sort` or `distinct` path check carries no `doc` and no `id`.
+    // A `where`, `sort` or `distinct` path check carries no `doc`. The `id` is
+    // kept, so this fails if the lock ever widens off an id alone rather than
+    // a row in hand.
     const docless: FieldAccessArgs = { ...readOf(ANOTHER_ROW, ATLAS_MANAGER, [ANOTHER_ROW]) }
-    delete docless.id
     delete docless.doc
+    expect(await readableBy(docless)).toEqual([])
+    delete docless.id
     expect(await readableBy(docless)).toEqual([])
   })
 
