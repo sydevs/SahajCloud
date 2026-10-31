@@ -20,6 +20,7 @@ import type { Payload, PayloadRequest } from 'payload'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { buildReminderEntry } from '@/lib/eventVerification/log'
+import { relationId } from '@/lib/utilities/relationId'
 import type { Client, Event, Form, Manager, UserSubmission } from '@/payload-types'
 import { bypassPermissions, hasPermission } from '@/plugins/access'
 
@@ -457,6 +458,47 @@ describe('User submissions access', () => {
     it('shows the region manager above the event or region either address', async () => {
       expect((await sentTo(regionManager, updateProposal.id)).sentTo).toBe(EVENT_MANAGER)
       expect((await sentTo(regionManager, newProposal.id)).sentTo).toBe(REGION_MANAGER)
+    })
+
+    it('places a list of proposals on one events query, however many targets it names', async () => {
+      const second = await testData.createEvent(payload, {
+        title: 'Sub Event Two',
+        manager: eventManager.id,
+        region: relationId(event.region)!,
+      })
+      const another = await seed({
+        type: 'proposal',
+        event: second.id,
+        senderEmail: 'sub-update-two@example.com',
+        proposed: { title: 'Renamed too' },
+      })
+      await writeLog(another.id, [delivered(EVENT_MANAGER)])
+
+      const findByID = vi.spyOn(payload, 'findByID')
+      const find = vi.spyOn(payload, 'find')
+      try {
+        const { docs } = await payload.find({
+          collection: 'user-submissions',
+          where: { id: { in: [updateProposal.id, another.id] } },
+          depth: 0,
+          overrideAccess: false,
+          req: managerReq(regionManager),
+        })
+        const addresses = docs.map(
+          (doc) => (doc.activityLog as { cells: { sentTo?: string } }[])[0]!.cells.sentTo,
+        )
+        expect(addresses).toEqual([EVENT_MANAGER, EVENT_MANAGER])
+        // A list read skips the preview's own target load (`findMany`), so
+        // these are the address check's alone: one set for the reader, not
+        // one event per row.
+        const eventReads = [...findByID.mock.calls, ...find.mock.calls].filter(
+          ([args]) => args.collection === 'events',
+        )
+        expect(eventReads).toHaveLength(1)
+      } finally {
+        findByID.mockRestore()
+        find.mockRestore()
+      }
     })
 
     it("shows the event's manager their own proposal's address, and not another region's", async () => {

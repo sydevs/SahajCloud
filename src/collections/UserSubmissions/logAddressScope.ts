@@ -12,7 +12,8 @@ const ROUTING_KEYS = ['event', 'region', 'regionHint'] as const
 
 /**
  * The columns `deliverProposal` routes on, off the row when selected, else
- * loaded — without `req`, for the reason `eventAddressScope` gives.
+ * loaded — without `req`, for the reason `resolveScopedEvents` gives
+ * (`src/plugins/access/regionSubtreeAccess.ts`).
  */
 async function routingColumns(
   req: PayloadRequest,
@@ -49,7 +50,7 @@ export const submissionLogAddressVisibility = regionScopedAddressVisibility(
     if (eventId != null) {
       const event =
         typeof row.event === 'object' ? (row.event as unknown as Record<string, unknown>) : null
-      return eventAddressScope(req, event, eventId)
+      return eventAddressScope(event, eventId)
     }
     return { regionId: submissionRoutingRegionId(row), managerId: null }
   },

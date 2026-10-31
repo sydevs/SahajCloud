@@ -649,8 +649,8 @@ export const Events: CollectionConfig = {
               addresses: {
                 types: ['reminder'],
                 keys: ['destination', 'cells.delivery'],
-                visibility: regionScopedAddressVisibility(({ req, doc, docId }) =>
-                  eventAddressScope(req, doc, docId),
+                visibility: regionScopedAddressVisibility(async ({ doc, docId }) =>
+                  eventAddressScope(doc, docId),
                 ),
               },
             }),

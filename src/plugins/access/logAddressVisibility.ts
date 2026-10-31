@@ -3,10 +3,9 @@ import type { PayloadRequest } from 'payload'
 
 import type { LogAddressEntry, LogAddressVisibility } from '@/fields/logField'
 import { relationId } from '@/lib/utilities/relationId'
-import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
 
 import { isAdminManager, isManager } from './adminOnly'
-import { isEventInScope, resolveOwnedRegionIds } from './regionSubtreeAccess'
+import { isEventInScope, resolveOwnedRegionIds, resolveScopedEventIds } from './regionSubtreeAccess'
 
 /**
  * Who reads the contact addresses an activity log records (#1047).
@@ -53,12 +52,18 @@ function isOwnEntry(
   return addresses.every((address) => address.trim().toLowerCase() === own)
 }
 
-/** Where the document a log sits on belongs, or `null` when it cannot be placed. */
+/**
+ * Where the document a log sits on belongs: its event's region and manager
+ * when the read has them, else that event's id.
+ */
+export type AddressScope = EventScope | { eventId: number }
+
+/** Place the document a log sits on, or `null` when it cannot be placed. */
 export type LocateAddressScope = (args: {
   req: PayloadRequest
   doc: Record<string, unknown>
   docId: number | null
-}) => Promise<EventScope | null>
+}) => Promise<AddressScope | null>
 
 /** The visibility rule above, for a document placed by `locate`. */
 export function regionScopedAddressVisibility(locate: LocateAddressScope): LogAddressVisibility {
@@ -74,44 +79,26 @@ export function regionScopedAddressVisibility(locate: LocateAddressScope): LogAd
     if (entries.every(isOwn)) return SHOW_ALL
 
     const scope = await locate({ req, doc, docId })
-    if (scope && isEventInScope(await resolveOwnedRegionIds(req, userId), userId, scope)) {
-      return SHOW_ALL
-    }
-    return isOwn
+    if (!scope) return isOwn
+    const inScope =
+      'eventId' in scope
+        ? (await resolveScopedEventIds(req, userId)).has(scope.eventId)
+        : isEventInScope(await resolveOwnedRegionIds(req, userId), userId, scope)
+    return inScope ? SHOW_ALL : isOwn
   }
 }
 
 /**
- * An event's region and manager, read off the row when the read selected
- * both, else loaded.
- *
- * ⚠ The load is `overrideAccess: true` and selects the two columns the
- * decision reads, nothing else — it is a gate, never copied into the response.
- * A `select` that omits either (`?select[activityLog]=true`) is what reaches
- * it. It runs inside an `afterRead`, so it takes no `req`: joining a write's
- * open transaction from there can roll the write back (`src/collections/AGENTS.md`).
- * An uncommitted row then reads as absent, which shows no address.
+ * An event's region and manager, read off the row when the read selected both,
+ * else just its id — which `resolveScopedEventIds` answers for a whole list in
+ * one query (`?select[activityLog]=true`, a proposal list at depth 0).
  */
-export async function eventAddressScope(
-  req: PayloadRequest,
+export function eventAddressScope(
   event: Record<string, unknown> | null,
   eventId: number | null,
-): Promise<EventScope | null> {
+): AddressScope | null {
   if (event && 'region' in event && 'manager' in event) {
     return { regionId: relationId(event.region), managerId: relationId(event.manager) }
   }
-  if (eventId == null) return null
-  const loaded = await memoizeOnRequest(req, `logAddressEventScope:${eventId}`, () =>
-    req.payload.findByID({
-      collection: 'events',
-      id: eventId,
-      depth: 0,
-      select: { region: true, manager: true },
-      overrideAccess: true,
-      disableErrors: true,
-      trash: true,
-    }),
-  )
-  if (!loaded) return null
-  return { regionId: relationId(loaded.region), managerId: relationId(loaded.manager) }
+  return eventId == null ? null : { eventId }
 }
