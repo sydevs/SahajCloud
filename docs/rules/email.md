@@ -27,20 +27,20 @@ Three addresses, three jobs. Confusing them is what #790 was:
 
 **The `to:` of a send decides which sender it takes** — there is no audience flag to thread. `sendUserMessage` is the one that reads wrong: despite the name it delivers a _viewer's_ message to the admin inbox, so it is manager-facing.
 
-⚠ **An envelope sender's domain must be verified in Resend.** Resend refuses a send from an unverified domain, and the adapter's non-throwing contract below turns that refusal into a Sentry event and nothing else — no admin error, no user-visible failure. Production sent nothing for weeks on a one-label mismatch: `cloud.sydevelopers.com` was verified while the sender resolved to the root domain. Adding a third sender means verifying its domain **first**.
+⚠ **An envelope sender's domain must be verified in Resend.** Resend refuses a send from an unverified domain, and the adapter turns that refusal into a Sentry event and a throw (below) — which a delivery records as failed, but which the sign-in routes swallow by design, so a sign-in link that never left shows its requester nothing. Production sent nothing for weeks on a one-label mismatch: `cloud.sydevelopers.com` was verified while the sender resolved to the root domain. Adding a third sender means verifying its domain **first**.
 
 ## Resend adapter
 
 - Implements Payload's `EmailAdapter`.
-- **Graceful fallback**: a missing `RESEND_API_KEY` logs an error and returns an error message ID. It never throws.
+- **No key, no mail**: a missing `RESEND_API_KEY` warns at boot, and every send then fails as below.
 - Every operation is logged for debugging.
 - `src/payload.config.ts` picks the adapter by `NODE_ENV`.
 
-### A failed send never throws — so it reports itself to Sentry
+### A failed send throws — and reports itself to Sentry first
 
-This must stay true: `sendVerificationEmail` runs at `create.js:231`, after `registerLocalStrategy` but **before** `commitTransaction`. A throw there would roll back the whole manager creation and return a 500 with no account. The cost is that nothing reaches the Sentry plugin, whose two sites both need a throw (`afterError` runs only from `routeError`, the Local API wrapper only on a write that threw, #1039) — so a production delivery failure used to exist **only as a pino line**, with no Sentry issue, no admin-visible error, and no DB trace (#320).
+Each failure path — no client, a Resend API error, a thrown exception — logs, captures to Sentry, then throws, so a caller can tell "not sent" from sent: a delivery is retried and marked failed, and a sending job neither stamps nor advances past what did not go out. The capture stays in the adapter because most callers catch the throw — the sign-in routes must answer uniformly — and the Sentry plugin's two sites both need one that escapes (`afterError` runs only from `routeError`, the Local API wrapper only on a write that threw, #1039). Without it a production delivery failure existed **only as a pino line** (#320).
 
-So the adapter's three non-throwing paths — no client, a Resend API error, a caught exception — each capture to Sentry themselves, and still return normally.
+A throw cannot roll back a manager create: a create sends no mail (`suppressCreateMail`, `src/plugins/login/loginPlugin.ts`).
 
 ⚠ **The capture carries nothing from the message** — no recipient, no subject. A contact send carries a viewer-authored subject, and `user-submissions` sits in `RESTRICTED_COLLECTIONS` because it holds personal data. Copying it into a third-party error tracker would widen where that data lives. The pino line beside each capture already has the detail — don't add more.
 

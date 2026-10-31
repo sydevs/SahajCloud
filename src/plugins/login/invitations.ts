@@ -171,8 +171,8 @@ export const queueOnRoles: CollectionAfterChangeHook = async ({ doc, previousDoc
  * ⚠ **Each queue is claimed — cleared — before its send, not after.** An
  * assignment saved while the email renders then starts a fresh queue instead
  * of being wiped with the one just sent. The cost is that a failed send is not
- * retried; Payload's email adapters log rather than throw, so a failure here is
- * a render bug, and retrying one every five minutes would mail nothing.
+ * retried: it is counted `failed` and reported, and the next assignment
+ * queues a fresh one.
  */
 export function sendInvitationsTask(config: LoginCollectionConfig): TaskConfig<'sendInvitations'> {
   return {
