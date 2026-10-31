@@ -99,13 +99,13 @@ A collection hook skips an internal read through the numeric `currentDepth` payl
 
 **A spec exercising these gates must therefore pass `overrideAccess: false`** — unlike the collection specs, where `overrideAccess: true` is a convenience that changes nothing. Omit it and every gate correctly skips, leaving assertions that pass for the wrong reason. `tests/int/globals-client-reads.int.spec.ts` says this at its head.
 
-⚠ **Reproducing that value is not pinning it.** A spec that supplies the flag proves the adapter and says nothing about what payload hands it on a real request, so a default of `undefined` after a payload bump would no-op all four gates with the whole suite green. The same spec's `the REST default for overrideAccess` cases close that: they drive `handleEndpoints` with the client's API key and supply nothing. That pair is the only place the gates are observed reaching a real client request — keep it when the spec is reorganised.
+⚠ **Reproducing that value is not pinning it.** A spec that supplies the flag proves the adapter and says nothing about what payload hands it on a real request, so a default of `undefined` after a payload bump would no-op all three gates with the whole suite green. The same spec's `the REST default for overrideAccess` cases close that: they drive `handleEndpoints` with the client's API key and supply nothing. That pair is the only place the gates are observed reaching a real client request — keep it when the spec is reorganised.
 
 Caching and purge for the same reads are in `DEPLOYMENT.md`; the cacheable set is `CACHEABLE_GLOBALS` in `src/plugins/cache/policy.ts`.
 
 ## Query parameter validation
 
-An API client read must declare its data needs: `select` is required on every read, and `populate` is required whenever effective `depth > 1` (explicit or the server default). `validateClientQueryParamsHook` enforces this before rate limiting, so a malformed read costs no rate-limit slot. Managers, admin UI requests, and writes are unaffected. It applies to a global read too (#710, above).
+An API client read must declare its data needs: `select` is required on every read, and `populate` is required whenever effective `depth > 1` (explicit or the server default). `validateClientQueryParamsHook` enforces this before usage tracking, so a malformed read is never counted. Managers, admin UI requests, and writes are unaffected. It applies to a global read too (#710, above).
 
 ### `limit` and `page` bounds (#887)
 
@@ -158,7 +158,7 @@ On rejection the hook logs the offending shape at WARN (type, top-level keys, a 
 
 ### Internal-endpoint bypass
 
-A trusted internal handler forwarding a client `req` to `payload.find`/`findByID` should wrap it via `asTrustedReq()` (sets `req.context.skipClientQueryValidation`), so it need not enumerate `select` while rate limiting and usage tracking still see the authenticated client — counting it once for the whole request, not once per wrapped read (below). The companion `isTrustedReq(req)` reads that flag back. Honour it in a hook shaping the **client-facing result** (`excludeFinishedEvents` exempts a trusted req so registration can answer 409 instead of 404), but never in a security gate — `validateClientOriginHook` does not honour it.
+A trusted internal handler forwarding a client `req` to `payload.find`/`findByID` should wrap it via `asTrustedReq()` (sets `req.context.skipClientQueryValidation`), so it need not enumerate `select` while usage tracking still sees the authenticated client — counting it once for the whole request, not once per wrapped read (below). The companion `isTrustedReq(req)` reads that flag back. Honour it in a hook shaping the **client-facing result** (`excludeFinishedEvents` exempts a trusted req so registration can answer 409 instead of 404), but never in a security gate — `validateClientOriginHook` does not honour it.
 
 ⚠ **The flag relaxes two of the three query rules**: it skips the `select`/`populate` shape gate and the unbounded-read refusal (#889), while the `limit` and `page` range ceilings still apply (#887). **So wrapping a read is also taking responsibility for its size.** Say at the call site why the corpus it reads is bounded, as `loadRegionTree` and `GET /api/atlas/sitemap` do.
 
@@ -253,7 +253,7 @@ Tracking is **in-request**, not queued: `countClientRead` issues one atomic `UPD
 
 ## Rate limiting (Cloudflare edge)
 
-Per-user rate limiting runs at the Cloudflare edge, in front of Railway, so no app-level limiter binding is needed. A request that fails the edge's rate-limiting rules gets a 429 before it ever reaches Railway, and `rateLimitHook` is a no-op.
+Per-user rate limiting runs at the Cloudflare edge, in front of Railway, so no app-level limiter binding is needed. A request that fails the edge's rate-limiting rules gets a 429 before it ever reaches Railway. The app has no limiter of its own.
 
 | Setting | Value                                 |
 | ------- | ------------------------------------- |

@@ -1,7 +1,8 @@
 /**
  * Usage Plugin Hooks
  *
- * Hooks for rate limiting and usage tracking.
+ * The client read gates and usage tracking. Rate limiting is Cloudflare's, at
+ * the edge (`docs/rules/api-clients.md`).
  */
 import type { PayloadRequest } from 'payload'
 
@@ -90,21 +91,6 @@ export function isTrustedReq(req: PayloadRequest | undefined): boolean {
   return req?.context?.[SKIP_VALIDATION] === true
 }
 
-// --- Rate limiting utilities ---
-
-/**
- * Builds a composite key for rate limiting.
- *
- * Key format: `user:{clientId}:{ip}:{userId}`
- */
-export function buildRateLimitKey(
-  clientId: string | number,
-  ip: string | null,
-  userId: string | null,
-): string {
-  return `user:${clientId}:${ip || 'no-ip'}:${userId || 'no-user-id'}`
-}
-
 // --- The client-read gate shape ---
 
 /**
@@ -184,24 +170,6 @@ export function onlyOnCallerAuthority(gate: ClientReadGate): ClientReadGate {
     if (hookArgs.overrideAccess !== false) return
     return gate(hookArgs)
   }
-}
-
-// --- Rate limit hook ---
-
-/**
- * A beforeOperation hook slot for API client rate limiting.
- *
- * Rate limiting now lives at the Cloudflare edge, in Rate Limiting Rules in
- * front of the Railway origin, so this hook is intentionally a no-op in the
- * app. It stays as an extension point: if app-level limits become
- * necessary, implement them here — for example a Railway Redis limiter
- * keyed by `buildRateLimitKey`.
- *
- * TODO(railway): finalize the rate-limiter home — Cloudflare edge rules or
- * Redis (#466).
- */
-export const rateLimitHook: ClientReadGate = () => {
-  // Enforced at the Cloudflare edge. Intentionally a no-op here.
 }
 
 // --- Query parameter validation hook ---
