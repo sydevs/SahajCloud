@@ -64,7 +64,8 @@ describe('manager magic-link sign-in', () => {
   let anon: RestClient
   let cleanup: () => Promise<void>
 
-  const requestLinkFor = (email: string) => anon(REQUEST_PATH, { method: 'POST', json: { email } })
+  const requestLinkFor = (email: string, redirect?: string) =>
+    anon(REQUEST_PATH, { method: 'POST', json: { email, redirect } })
 
   /** Open the redeem path the way a mail scanner does: a bare GET, no click. */
   const scan = (token: string) => anon(`${REDEEM_PATH}?token=${encodeURIComponent(token)}`)
@@ -74,9 +75,9 @@ describe('manager magic-link sign-in', () => {
     anon(`${REDEEM_PATH}?token=${encodeURIComponent(token)}`, { method: 'POST' })
 
   /** Ask for a link and hand back the token from the email that arrives. */
-  const linkTokenFor = async (email: string): Promise<string> => {
+  const linkTokenFor = async (email: string, redirect?: string): Promise<string> => {
     emailAdapter.clearCapturedEmails()
-    await requestLinkFor(email)
+    await requestLinkFor(email, redirect)
     const sent = emailAdapter.findEmailByTo(email)
     expect(sent, `no sign-in email captured for ${email}`).toBeDefined()
     const match = sent!.html?.match(SIGN_IN_URL)
@@ -289,6 +290,24 @@ describe('manager magic-link sign-in', () => {
 
       expect((await rolesAt('en'))?.en).toEqual(['meditations-editor'])
       expect((await rolesAt('cs'))?.cs).toEqual(['web-translator'])
+    })
+
+    it('returns the holder to the page that sent them to sign in', async () => {
+      const manager = await activeManager()
+      const page = '/admin/collections/events/12?locale=fr'
+
+      const response = await consume(await linkTokenFor(manager.email, page))
+
+      expect(response.status).toBe(302)
+      expect(response.headers.get('Location')).toBe(`${getServerUrl()}${page}`)
+      expect(response.headers.get('Set-Cookie')).toBeTruthy()
+    })
+
+    it('lands on the dashboard for a return path it will not take, and still sends the link', async () => {
+      for (const redirect of ['https://evil.example/admin/', '/admin/logout']) {
+        const manager = await activeManager()
+        expectSignedIn(await consume(await linkTokenFor(manager.email, redirect)))
+      }
     })
 
     it('refuses the same link a second time', async () => {

@@ -7,7 +7,7 @@ import { composeInvitations } from './invite'
 import { signInLinkUrl } from './links'
 import { emailFrom, generateEmailHTML, generateEmailSubject } from './mail'
 import { createSession } from './session'
-import { SIGNIN_TOKEN_TTL_MS } from './token'
+import { isAdminPath, SIGNIN_TOKEN_TTL_MS } from './token'
 
 /**
  * Issuing a sign-in link: the work, with no wiring around it. Two callers —
@@ -37,7 +37,7 @@ export const REQUEST_LINK_THROTTLE_MS = 60 * 1000
 export const SIGNIN_VALID_FOR = `${SIGNIN_TOKEN_TTL_MS / 60_000} minutes`
 
 /**
- * The one spelling of a submitted address.
+ * The one spelling of a submitted request: the address, and the page to return to.
  *
  * ⚠ Both callers parse with this. Normalisation living in one of them would let
  * the other miss a match, and the uniform answer below would hide the miss.
@@ -47,7 +47,27 @@ export const magicLinkEmailSchema = z.object({
   // lowercases and trims on every write, so a bare equality against the typed
   // address misses `John.Smith@…`.
   email: z.string().trim().email().toLowerCase(),
+  // The page that sent the holder here, carried into the link (`returnPath`).
+  // ⚠ `.catch`: a malformed value is dropped, never refused — refusing it
+  // would be a second answer beside the uniform one.
+  redirect: z.string().optional().catch(undefined),
 })
+
+/**
+ * The admin page a sign-in link may return its holder to, or `undefined` for
+ * the dashboard.
+ *
+ * The value is anonymous input, so it must be an {@link isAdminPath} — an
+ * origin is never taken from it. The sign-in and logout routes are dropped too:
+ * returning to either would bounce the holder straight back out of the session
+ * the link just bought.
+ */
+export function returnPath(payload: Payload, redirect: null | string | undefined) {
+  if (!isAdminPath(redirect)) return undefined
+  const { admin, routes } = payload.config
+  const leaves = [admin.routes.login, admin.routes.logout].map((route) => `${routes.admin}${route}`)
+  return leaves.some((route) => redirect.startsWith(route)) ? undefined : redirect
+}
 
 /**
  * Whether this collection has the `_verified` accepted flag — and so an
@@ -86,10 +106,13 @@ export async function issueMagicLink({
   config,
   email,
   payload,
+  redirect,
 }: {
   config: LoginCollectionConfig
   email: string
   payload: Payload
+  /** The page to return to once signed in. Dropped unless {@link returnPath} keeps it. */
+  redirect?: string
 }): Promise<undefined | { token: string }> {
   const { slug } = config
 
@@ -157,7 +180,13 @@ export async function issueMagicLink({
   const args: LoginMailArgs = {
     doc: account,
     project: config.project?.(account) ?? undefined,
-    signInUrl: await signInLinkUrl(config, account.id, payload.secret, now),
+    signInUrl: await signInLinkUrl(
+      config,
+      account.id,
+      payload.secret,
+      now,
+      returnPath(payload, redirect),
+    ),
     validFor: SIGNIN_VALID_FOR,
   }
 

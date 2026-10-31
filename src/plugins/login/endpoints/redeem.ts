@@ -50,6 +50,9 @@ function rulesFor(config: LoginCollectionConfig, token: LoginToken): KindRules {
         isUnspent: ({ magicLinkIssuedAt }) =>
           Boolean(magicLinkIssuedAt) &&
           new Date(magicLinkIssuedAt!).getTime() === token.claims.issuedAt,
+        // The page that sent the holder to sign in, checked as `isAdminPath`
+        // when the token was read.
+        redirectTo: token.claims.to,
       }
     case 'invite':
       // `_verified` is what makes an invitation single-use: it stamps nothing,

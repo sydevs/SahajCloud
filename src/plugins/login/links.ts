@@ -26,14 +26,18 @@ const claimsFor = (config: LoginCollectionConfig, userId: number | string, now: 
 /**
  * A sign-in link. ⚠ `now` must be the instant stamped into
  * `magicLinkIssuedAt`, or the redeem route refuses it — see `stampIssuedAt`.
+ *
+ * @param to - The admin page to return to once signed in. @see returnPath
  */
 export async function signInLinkUrl(
   config: LoginCollectionConfig,
   userId: number | string,
   secret: string,
   now: Date,
+  to?: string,
 ): Promise<string> {
-  return pageUrl(config, await signSigninToken(claimsFor(config, userId, now), secret, now))
+  const claims = { ...claimsFor(config, userId, now), ...(to && { to }) }
+  return pageUrl(config, await signSigninToken(claims, secret, now))
 }
 
 /** An invitation. Single-use by `_verified`, not by a stamp — see `endpoints/redeem.ts`. */
