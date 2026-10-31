@@ -128,8 +128,11 @@ export const prepareUserSubmission: CollectionBeforeValidateHook = async ({
       })
     : null
 
+  // A client dating its own row would dodge the 24h spam history and retention.
+  const { createdAt: _createdAt, updatedAt: _updatedAt, ...body } = data
+
   return {
-    ...data,
+    ...(fromClient ? body : data),
     type,
     // Always a list, never absent. The plugin's own `sendEmail` afterChange
     // spreads this value unconditionally, so `undefined` makes it throw on

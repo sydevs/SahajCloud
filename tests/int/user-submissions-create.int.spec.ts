@@ -722,6 +722,21 @@ describe('User submissions intake (POST /api/user-submissions)', () => {
       })
       expect(doc.uuid).not.toBe('chosen-by-the-caller')
     })
+
+    it('refuses client-chosen timestamps', async () => {
+      // A backdated row would fall outside the 24h spam history, and into retention.
+      const longAgo = '2020-01-01T00:00:00.000Z'
+      const doc = await send({
+        type: 'contact',
+        form: contactForm.id,
+        createdAt: longAgo,
+        updatedAt: longAgo,
+        senderEmail: 'backdater@example.com',
+        submissionData: [{ field: 'message', value: 'Dated long ago.' }],
+      })
+      expect(doc.createdAt).not.toBe(longAgo)
+      expect(doc.updatedAt).not.toBe(longAgo)
+    })
   })
 
   describe('the type discriminator', () => {
