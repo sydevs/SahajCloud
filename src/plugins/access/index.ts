@@ -47,7 +47,12 @@ export {
 export { readLockOf } from './stripLockedFieldsOnSelfRead'
 export { restrictUploadToAdmin } from './restrictUploadToAdmin'
 export { restrictPayloadSystemEntities } from './systemEntities'
-export { ownedRegionFilterOptions, resolveOwnedRegionIds } from './regionSubtreeAccess'
+export {
+  contactableManagersMemoKey,
+  ownedRegionFilterOptions,
+  resolveContactableManagerIds,
+  resolveOwnedRegionIds,
+} from './regionSubtreeAccess'
 export { eventAddressScope, regionScopedAddressVisibility } from './logAddressVisibility'
 
 // --- HELPER FUNCTIONS (public API - consolidated from projects.ts and data.ts) ---

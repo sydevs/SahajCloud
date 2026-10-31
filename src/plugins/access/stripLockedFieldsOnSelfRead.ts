@@ -79,7 +79,7 @@ function lockedFields(collection: SanitizedCollectionConfig): LockedField[] {
  * fetched whole: `syncVerificationOnSave` loads an event's manager while a
  * *different* manager saves the event, and a stripped
  * `notificationPreferences` silently moved `nextCheckAt` from 30 days to 90
- * (#908). On `managers` every lock is self-or-admin, so the hook now strips
+ * (#908). On `managers` every lock admits the holder, so the hook now strips
  * nothing there — bar an inactive manager's own read, which `isManager` denies.
  * It stays live for `Clients.apiKey`, the one field locked against its own
  * holder.

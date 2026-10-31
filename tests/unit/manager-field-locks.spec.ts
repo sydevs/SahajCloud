@@ -32,7 +32,7 @@ import { describe, expect, it } from 'vitest'
 import { MANAGER_PUBLIC_FIELDS } from '@/collections/Managers/access'
 import { managersLogin } from '@/collections/Managers/login'
 import { Managers } from '@/collections/Managers/Managers'
-import { readLockOf, selfOrAdminFieldAccess } from '@/plugins/access'
+import { contactableManagersMemoKey, readLockOf, selfOrAdminFieldAccess } from '@/plugins/access'
 import { loginPlugin } from '@/plugins/login'
 
 const folded = (loginPlugin({ collections: [managersLogin] }) as (config: Config) => Config)({
@@ -45,14 +45,35 @@ const fields: FlattenedField[] = flattenAllFields({ fields: folded.fields })
 const ATLAS_MANAGER = { collection: 'managers', id: 7, type: 'manager' }
 const ANOTHER_ROW = 8
 
-/** A `read` lock's arguments, in the shape `afterRead` passes them. */
-const readOf = (rowId: number, user: unknown): FieldAccessArgs => ({
+/**
+ * A `read` lock's arguments, in the shape `afterRead` passes them.
+ *
+ * `contactable` seeds the per-request set the region-contact lock reads
+ * (`resolveContactableManagerIds`), so the sweep evaluates that lock without a
+ * database: the rows assigned inside the reader's owned subtree.
+ */
+const readOf = (rowId: number, user: unknown, contactable: number[] = []): FieldAccessArgs => ({
   id: rowId,
   data: {},
   doc: { id: rowId } as never,
   siblingData: {},
-  req: { user } as PayloadRequest,
+  req: {
+    user,
+    context: { [contactableManagersMemoKey(7)]: Promise.resolve(new Set(contactable)) },
+  } as unknown as PayloadRequest,
 })
+
+/** Every named field outside `MANAGER_PUBLIC_FIELDS` whose lock admits this read. */
+const readableBy = async (args: FieldAccessArgs): Promise<string[]> => {
+  const readable: string[] = []
+  for (const field of fields) {
+    if (MANAGER_PUBLIC_FIELDS.has(field.name)) continue
+    const lock = readLockOf(field)
+    const allowed = lock ? await lock(args) : true
+    if (allowed) readable.push(field.name)
+  }
+  return readable.sort()
+}
 
 describe('Managers field read locks', () => {
   it('enumerates the collection, the plugin columns and the legacy collapsible', () => {
@@ -83,15 +104,26 @@ describe('Managers field read locks', () => {
     // ⚠ Read through `readLockOf`, the same function the hook enforcing these
     // locks reads them with: a lock in a shape only this spec recognised would
     // pass here and still leak.
-    const readable: string[] = []
-    for (const field of fields) {
-      if (MANAGER_PUBLIC_FIELDS.has(field.name)) continue
-      const lock = readLockOf(field)
-      const allowed = lock ? await lock(readOf(ANOTHER_ROW, ATLAS_MANAGER)) : true
-      if (allowed) readable.push(field.name)
-    }
+    expect(await readableBy(readOf(ANOTHER_ROW, ATLAS_MANAGER))).toEqual([])
+  })
 
-    expect(readable).toEqual([])
+  it('widens exactly the two contact fields for a row inside the reader’s region', async () => {
+    // The maintainer's region exception, and nothing past it: a column added to
+    // `Managers` arrives self-or-admin, never region-readable.
+    // Spelled out rather than read off `MANAGER_REGION_CONTACT_FIELDS`, which
+    // would follow any widening of the set it is checking.
+    expect(await readableBy(readOf(ANOTHER_ROW, ATLAS_MANAGER, [ANOTHER_ROW]))).toEqual([
+      'contactDetails',
+      'email',
+    ])
+  })
+
+  it('answers a read with no row in hand self-or-admin, even for a region manager', async () => {
+    // A `where`, `sort` or `distinct` path check carries no `doc` and no `id`.
+    const docless: FieldAccessArgs = { ...readOf(ANOTHER_ROW, ATLAS_MANAGER, [ANOTHER_ROW]) }
+    delete docless.id
+    delete docless.doc
+    expect(await readableBy(docless)).toEqual([])
   })
 
   it('leaves the picker title readable', () => {
