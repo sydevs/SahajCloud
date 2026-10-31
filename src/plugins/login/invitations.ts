@@ -82,10 +82,11 @@ async function enqueue(
   added: Omit<PendingInvitation, 'by'>,
 ): Promise<void> {
   // A manager's own change is not news to them — creating an event they
-  // manage, or a sub-region they look after.
+  // manage, or a sub-region they look after. Nor is a seed import's
+  // (`LoginPluginOptions.invitations`).
   const self =
     req.user?.collection === MANAGERS_COLLECTION && String(req.user.id) === String(managerId)
-  if (self) return
+  if (self || req.context?.seed) return
 
   const { payload } = req
   const manager = await payload
