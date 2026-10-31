@@ -165,6 +165,19 @@ async function remindForEvent(args: {
           { event: { equals: event.id } },
           { unsubscribedAt: { exists: false } },
           activeRegistrationWhere,
+          // A whole-series row, or one whose session is in the window — else the
+          // read grows with every past session the event has had.
+          {
+            or: [
+              { startingAt: { exists: false } },
+              {
+                and: [
+                  { startingAt: { greater_than: now.toISOString() } },
+                  { startingAt: { less_than_equal: windowEnd.toISOString() } },
+                ],
+              },
+            ],
+          },
         ],
       },
       depth: 0,
