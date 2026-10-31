@@ -71,13 +71,9 @@ export const managersOnlyFieldAccess: FieldAccess = ({ req }) => req.user?.colle
 export const adminOnlyCondition: Condition = (_data, _siblingData, { user }) => isAdminManager(user)
 
 /**
- * Field-level access: the row's own holder, or an admin manager.
- *
- * A different question from `managersOnlyFieldAccess`, which asks which
- * collection the caller comes from. This one asks whether the caller **is** the
- * row, and it is what narrows `atlas-manager`'s collection-wide
- * `managers: read` grant — a picker needs the title, not a colleague's phone
- * number (#908). See `docs/rules/access.md`.
+ * Field-level access: the row's own holder, or an admin manager — whether the
+ * caller **is** the row, where `managersOnlyFieldAccess` asks which collection
+ * they come from (#908, `docs/rules/access.md`).
  *
  * ⚠ **The row id arrives as `id` on a read and as `doc.id` on a permissions
  * check.** `afterRead` passes `id: doc.id`
@@ -101,11 +97,8 @@ export const selfOrAdminFieldAccess: FieldAccess = ({ doc, id, req: { user } }) 
 }
 
 /**
- * Whether `rowId` is the row `userId` holds.
- *
- * One spelling of the coercion, because the two sides arrive differently
- * typed: a numeric `req.user.id` against an id REST parsed out of a path. An
- * unidentifiable row is never the caller's own.
+ * Whether `rowId` is the row `userId` holds: a numeric `req.user.id` against an
+ * id REST may have parsed out of a path as a string.
  */
 export function isOwnRow(userId: number | string, rowId: number | string | undefined): boolean {
   return rowId !== undefined && String(userId) === String(rowId)

@@ -3,28 +3,19 @@ import type { Field, FieldAccess } from 'payload'
 import { isManager, resolveContactableManagerIds, selfOrAdminFieldAccess } from '@/plugins/access'
 
 /**
- * The fields an `atlas-manager` reads on somebody else's manager row.
- *
- * `admin.useAsTitle` is `name`, so this is the whole of what the
- * `Events.manager` and `Regions.managers` pickers render. Payload appends
- * `createdAt` and `updatedAt` outside `fields`, so the locker never reaches
- * them and they need no entry here.
+ * The fields an `atlas-manager` reads on somebody else's manager row: the
+ * pickers' title (`admin.useAsTitle`). `createdAt` and `updatedAt` sit outside
+ * `fields`, so the locker never reaches them.
  */
 export const MANAGER_PUBLIC_FIELDS = new Set(['name'])
 
-/**
- * The fields a region manager also reads on a manager assigned inside their
- * owned subtree: how to reach them, and nothing about their account. See
- * {@link regionContactFieldAccess}.
- */
+/** What a region manager also reads on a manager assigned inside their subtree. */
 export const MANAGER_REGION_CONTACT_FIELDS = new Set(['email', 'contactDetails'])
 
 /**
- * Field-level access: {@link selfOrAdminFieldAccess}, widened to a manager
- * whose owned subtree this row is assigned inside — the manager of an event
- * there, or of a region there, co-managers of their own region included
- * (`resolveContactableManagerIds`). Ardnived, 2026-10-30: region managers
- * "need to be able to contact these users" (#908).
+ * {@link selfOrAdminFieldAccess}, widened to a manager whose owned subtree this
+ * row is assigned inside (`resolveContactableManagerIds`). Region managers
+ * "need to be able to contact these users" (Ardnived, 2026-10-30, #908).
  *
  * ⚠ **The widening answers only with a row in hand.** A `where`, `sort` or
  * `distinct` on these paths, and `/api/access`, evaluate field access with no
@@ -46,19 +37,12 @@ export const regionContactFieldAccess: FieldAccess = async (args) => {
 
 /**
  * Lock every field on `managers` to the row's own holder and to admins, bar
- * {@link MANAGER_PUBLIC_FIELDS} (#908). {@link MANAGER_REGION_CONTACT_FIELDS}
- * take {@link regionContactFieldAccess} instead, which also admits the
- * reader's region.
+ * {@link MANAGER_PUBLIC_FIELDS} (#908); {@link MANAGER_REGION_CONTACT_FIELDS}
+ * also admit the reader's region. Field by field, because `atlas-manager`'s
+ * collection-wide read is what lets its pickers list other managers (#821).
  *
- * `atlas-manager` holds a collection-wide `managers: read` so its pickers can
- * list other managers (#821), and a self-scoped `Where` would empty them. This
- * is the narrowing that costs nothing: the list still answers, each row
- * carrying the title alone.
- *
- * A **merge** in both directions: `...field.access` keeps the `update` locks
- * `type` and `roles` declare, and a field that declares its own `read` keeps
- * that one. One expression covers the whole `Field` union rather than a branch
- * per type.
+ * A **merge**: `...field.access` keeps the `update` locks `type` and `roles`
+ * declare, and a field declaring its own `read` keeps it.
  *
  * ⚠ **Assigning `access` here stands `applyFieldAccessForTranslatableCollections`
  * down**, because that pass acts only `if (!field.access)`
@@ -70,10 +54,9 @@ export const regionContactFieldAccess: FieldAccess = async (args) => {
  * `legacyMigrationFields()` returns a top-level `collapsible` holding
  * `legacyId` and `legacyData` — the imported Atlas row verbatim.
  *
- * Locking an `array` or `group` wholesale is enough: the value sits under the
- * parent's own name, which is what `afterRead` deletes. ⚠ A denied array comes
- * back as `[]` rather than absent — access control deletes the key and the
- * array branch then re-assigns an empty array.
+ * An `array` or `group` locks wholesale. ⚠ A denied array comes back as `[]`
+ * rather than absent — access control deletes the key and the array branch
+ * then re-assigns an empty array.
  *
  * ⚠ It reaches only the fields passed to it, so a field appended after this
  * runs carries its own lock. `loginPlugin`'s three machine columns are that

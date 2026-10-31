@@ -20,9 +20,7 @@ import { isEventInScope, resolveOwnedRegionIds, resolveScopedEventIds } from './
  *   went to their email;
  * - the document is in their scope — `isEventInScope`, the same test their
  *   writes on `events` pass: the event's region is in their owned subtree, or
- *   they are its own manager. A region manager has to be able to contact the
- *   managers below them, and an event's manager the region managers a
- *   reminder escalated to about their own event.
+ *   they are its own manager.
  *
  * Everyone else keeps the entry and loses the address. An API client never
  * gets this far: the field lock removes the whole log for it.

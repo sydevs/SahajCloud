@@ -11,12 +11,9 @@ import { isOwnRow } from './adminOnly'
 type LockedField = { name: string; read: FieldAccess }
 
 /**
- * This field's `read` lock, or `undefined` for a field without one.
- *
- * The one runtime definition of "locked for reading", so a sweep asserting
- * which fields are locked and the hook enforcing it cannot disagree — a lock
- * declared in a shape only one of them recognised would pass the sweep and
- * still leak (`tests/unit/manager-field-locks.spec.ts`).
+ * This field's `read` lock, or `undefined`. The hook and
+ * `tests/unit/manager-field-locks.spec.ts` share it, so the sweep and the
+ * enforcement cannot disagree on what counts as a lock.
  */
 export function readLockOf(field: FlattenedField | Field): FieldAccess | undefined {
   const read = (field as { access?: { read?: unknown } }).access?.read

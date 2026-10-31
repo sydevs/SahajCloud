@@ -48,9 +48,8 @@ export const Managers: CollectionConfig = {
   // accessPlugin detects that pair and attaches the auth strategy and the three
   // auth-response hooks that keep a manager's roles resolved at every locale —
   // see `src/plugins/access/localizedRolesAuth.ts` (#665). Nothing to wire here.
-  // Every field but `name` is locked to the row's own holder and to admins, so
-  // the pickers `atlas-manager`'s collection-wide read exists for list titles
-  // and nothing else — see `./access.ts` (#908).
+  // Every field but `name` is read-locked to the row's holder and to admins
+  // (`./access.ts`, #908).
   fields: lockManagerFieldReads([
     {
       name: 'name',
