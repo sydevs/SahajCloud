@@ -14,19 +14,10 @@ import { adminDocUrl } from '@/lib/utilities/adminUrl'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Event, Manager } from '@/payload-types'
 
+import { digestRunStart, dueDigestPeriod } from './digestCadence'
 import { sendRegistrationDigest } from './sendRegistrationDigest'
 
 const PAGINATION_LIMIT = 200
-const DAY_MS = 24 * 60 * 60 * 1000
-const WEEK_MS = 7 * DAY_MS
-/** Weekly digests fire on this UTC weekday (Sunday = 0 … Monday = 1). */
-const WEEKLY_ANCHOR_WEEKDAY = 1
-
-// The summary cadence strings, from the NotificationPreferences source of truth
-// (`event_registration` frequency options). A manager whose resolved cadence is
-// one of these gets a digest instead of per-registration emails.
-const DAILY_SUMMARY = 'Daily Summary'
-const WEEKLY_SUMMARY = 'Weekly Summary'
 
 interface DigestResult {
   /** Managers whose cadence is due this run. */
@@ -263,10 +254,7 @@ export const SendRegistrationDigests: TaskConfig<'sendRegistrationDigests'> = {
   ],
   handler: async ({ req }) => {
     const payload = req.payload
-    // `req.context.now` overrides the clock for deterministic tests.
-    const contextNow = (req.context as { now?: unknown } | undefined)?.now
-    const runStart = contextNow instanceof Date ? contextNow : new Date()
-    const isWeeklyAnchor = runStart.getUTCDay() === WEEKLY_ANCHOR_WEEKDAY
+    const runStart = digestRunStart(req)
     const result: DigestResult = {
       eligibleManagers: 0,
       digestsSent: 0,
@@ -289,17 +277,11 @@ export const SendRegistrationDigests: TaskConfig<'sendRegistrationDigests'> = {
       })
 
       for (const manager of batch.docs as Manager[]) {
-        const frequency = eventRegistrationFrequency(manager)
-        let period: DigestPeriod | null = null
-        let periodMs = 0
-        if (frequency === DAILY_SUMMARY) {
-          period = 'day'
-          periodMs = DAY_MS
-        } else if (frequency === WEEKLY_SUMMARY && isWeeklyAnchor) {
-          period = 'week'
-          periodMs = WEEK_MS
-        }
-        if (!period) continue
+        // A manager whose cadence is a summary gets a digest instead of
+        // per-registration emails.
+        const due = dueDigestPeriod(eventRegistrationFrequency(manager), runStart)
+        if (!due) continue
+        const { period, periodMs } = due
 
         result.eligibleManagers++
         try {

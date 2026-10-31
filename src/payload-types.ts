@@ -798,6 +798,7 @@ export interface Config {
     regions: Region;
     events: Event;
     users: User;
+    'registration-refusals': RegistrationRefusal;
     imports: Import;
     forms: Form;
     'user-submissions': UserSubmission;
@@ -879,6 +880,7 @@ export interface Config {
     regions: RegionsSelect<false> | RegionsSelect<true>;
     events: EventsSelect<false> | EventsSelect<true>;
     users: UsersSelect<false> | UsersSelect<true>;
+    'registration-refusals': RegistrationRefusalsSelect<false> | RegistrationRefusalsSelect<true>;
     imports: ImportsSelect<false> | ImportsSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
     'user-submissions': UserSubmissionsSelect<false> | UserSubmissionsSelect<true>;
@@ -988,6 +990,7 @@ export interface Config {
       expireEvents: TaskExpireEvents;
       screenSubmission: TaskScreenSubmission;
       sendPostEventFollowUps: TaskSendPostEventFollowUps;
+      sendRefusedRegistrationDigests: TaskSendRefusedRegistrationDigests;
       sendRegistrationDigests: TaskSendRegistrationDigests;
       sendSessionReminders: TaskSendSessionReminders;
       cleanupCollections: TaskCleanupCollections;
@@ -1472,6 +1475,7 @@ export interface Manager {
     | null;
   notificationPreferences?: NotificationPreferences;
   lastRegistrationDigestSentAt?: string | null;
+  lastRefusedRegistrationDigestSentAt?: string | null;
   legacyId?: number | null;
   legacyData?:
     | {
@@ -3217,6 +3221,7 @@ export interface PayloadJob {
           | 'expireEvents'
           | 'screenSubmission'
           | 'sendPostEventFollowUps'
+          | 'sendRefusedRegistrationDigests'
           | 'sendRegistrationDigests'
           | 'sendSessionReminders'
           | 'cleanupCollections'
@@ -3267,6 +3272,7 @@ export interface PayloadJob {
         | 'expireEvents'
         | 'screenSubmission'
         | 'sendPostEventFollowUps'
+        | 'sendRefusedRegistrationDigests'
         | 'sendRegistrationDigests'
         | 'sendSessionReminders'
         | 'cleanupCollections'
@@ -4214,6 +4220,26 @@ export interface Frame {
   focalY?: number | null;
 }
 /**
+ * Class sign-ups the spam check refused. Admins receive these as a digest, configured under Notifications.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "registration-refusals".
+ */
+export interface RegistrationRefusal {
+  id: number;
+  event?: (number | null) | Event;
+  stage: 'request' | 'screening';
+  reason: string;
+  /**
+   * The hour these refusals at the form were counted in.
+   */
+  hour?: string | null;
+  count: number;
+  submission?: (number | null) | UserSubmission;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
@@ -4328,6 +4354,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'users';
         value: number | User;
+      } | null)
+    | ({
+        relationTo: 'registration-refusals';
+        value: number | RegistrationRefusal;
       } | null)
     | ({
         relationTo: 'forms';
@@ -4823,6 +4853,7 @@ export interface ManagersSelect<T extends boolean = true> {
       };
   notificationPreferences?: T;
   lastRegistrationDigestSentAt?: T;
+  lastRefusedRegistrationDigestSentAt?: T;
   legacyId?: T;
   legacyData?: T;
   magicLinkIssuedAt?: T;
@@ -5150,6 +5181,20 @@ export interface UsersSelect<T extends boolean = true> {
   submittedEvents?: T;
   legacyId?: T;
   legacyData?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "registration-refusals_select".
+ */
+export interface RegistrationRefusalsSelect<T extends boolean = true> {
+  event?: T;
+  stage?: T;
+  reason?: T;
+  hour?: T;
+  count?: T;
+  submission?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -10946,6 +10991,19 @@ export interface TaskSendPostEventFollowUps {
   output: {
     scanned: number;
     sent: number;
+    failed: number;
+  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskSendRefusedRegistrationDigests".
+ */
+export interface TaskSendRefusedRegistrationDigests {
+  input?: unknown;
+  output: {
+    eligibleAdmins: number;
+    digestsSent: number;
+    refusalsIncluded: number;
     failed: number;
   };
 }
