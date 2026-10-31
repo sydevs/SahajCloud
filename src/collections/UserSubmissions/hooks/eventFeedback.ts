@@ -69,8 +69,9 @@ export const gateEventFeedback: CollectionBeforeChangeHook = async ({ data, orig
 /**
  * afterChange: recount the event's confirm/deny tallies and store the verdict.
  *
- * Recount (two indexed counts), never increment: concurrent votes converge on
- * the true tally instead of compounding a race. Writes the Wilson lower bound
+ * Recount, never increment: concurrent votes converge on the true tally
+ * instead of compounding a race. Each registrant (`user`) counts once, so
+ * registering twice does not buy a second vote. Writes the Wilson lower bound
  * to the indexed `confidenceScore` and the tallies into
  * `systemMeta.communityFeedback` (admin notice), preserving sibling keys.
  * When the denial threshold lands (≥5 denials AND Wilson upper bound < 0.5)
@@ -94,8 +95,8 @@ export const syncCommunityFeedback: CollectionAfterChangeHook = async ({
   if (eventId == null) return doc
 
   const trustedReq = asTrustedReq(req)
-  const countVotes = (vote: 'confirmed' | 'denied') =>
-    req.payload.count({
+  const countVotes = async (vote: 'confirmed' | 'denied') => {
+    const { docs } = await req.payload.find({
       collection: 'user-submissions',
       // `activeRegistrationWhere`, not a bare `type` predicate: a row flagged
       // `spam` after its follow-up token was minted frees its seat, so it must
@@ -108,12 +109,17 @@ export const syncCommunityFeedback: CollectionAfterChangeHook = async ({
           { eventFeedback: { equals: vote } },
         ],
       },
+      select: { user: true },
+      depth: 0,
+      pagination: false,
       overrideAccess: true,
       req: trustedReq,
     })
+    return new Set(docs.map((row) => relationId(row.user) ?? `row ${row.id}`)).size
+  }
   // All three are independent reads — the event's current state doesn't depend
   // on the tallies — so one round trip instead of two in an afterChange hook.
-  const [confirmed, denied, event] = await Promise.all([
+  const [confirmations, denials, event] = await Promise.all([
     countVotes('confirmed'),
     countVotes('denied'),
     req.payload.findByID({
@@ -125,8 +131,6 @@ export const syncCommunityFeedback: CollectionAfterChangeHook = async ({
       req: trustedReq,
     }),
   ])
-  const confirmations = confirmed.totalDocs
-  const denials = denied.totalDocs
   const verdict = computeCommunityVerdict({ confirmations, denials })
 
   // Bookkeeping, so it must not re-validate the stored event. This hook is

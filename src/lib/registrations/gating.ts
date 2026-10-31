@@ -29,15 +29,18 @@ const CONFLICT = 409
  * Order is deliberate — the most terminal / mode-level reason wins:
  * 1. `external` mode — the native endpoint doesn't own these registrations.
  * 2. ended — the schedule has fully run out (reuses `shouldFinish`).
- * 3. started course — a limited-run course closes once its first session begins.
+ * 3. started — a limited-run course closes once its first session begins, and
+ *    a session once it does.
  * 4. full — the count has reached the limit.
  */
 export function evaluateRegistrationGate(args: {
   event: RegistrationGateInput
   registrationCount: number
   now: Date
+  /** The session the registration names, if it names one. */
+  startingAt?: string | null
 }): RegistrationGateRejection | null {
-  const { event, registrationCount, now } = args
+  const { event, registrationCount, now, startingAt } = args
 
   if (event.registrationMode === 'external') {
     return {
@@ -54,6 +57,14 @@ export function evaluateRegistrationGate(args: {
       code: 'registration_closed',
       status: CONFLICT,
       message: 'Registration for this course has closed — it has already started.',
+    }
+  }
+  // A past session would also earn its registrant the post-event feedback vote.
+  if (startingAt && new Date(startingAt) < now) {
+    return {
+      code: 'registration_closed',
+      status: CONFLICT,
+      message: 'Registration for this session has closed — it has already started.',
     }
   }
   if (isEventFull(event, registrationCount)) {

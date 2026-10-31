@@ -189,7 +189,7 @@ describe('User submissions intake (POST /api/user-submissions)', () => {
         type: 'registration',
         event: event.id,
         senderEmail: 'registrant@example.com',
-        startingAt: new Date('2026-10-01T18:00:00.000Z').toISOString(),
+        startingAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
         submissionData: [{ field: 'experience', value: 'None yet' }],
       })
 

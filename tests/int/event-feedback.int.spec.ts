@@ -266,6 +266,17 @@ describe('Event feedback (registrant voting)', () => {
       })
     })
 
+    it('counts a registrant once, however many times they registered', async () => {
+      const event = await createUnverifiedEvent()
+      const senderEmail = `repeat-${randomUUID().slice(0, 8)}@example.com`
+      for (let i = 0; i < 2; i++) {
+        await vote(await createRegistration(event.id, { senderEmail }), 'denied')
+      }
+
+      const after = await reloadEvent(event.id)
+      expect(readCommunityFeedback(after.systemMeta)).toMatchObject({ denials: 1 })
+    })
+
     describe('an event whose stored data fails a field validator (#842)', () => {
       /** The seed leaves `_status` and `verificationStage` alone, so the vote
        * gate is unaffected by it. */
