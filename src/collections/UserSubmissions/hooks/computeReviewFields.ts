@@ -56,6 +56,10 @@ function loadTargetEvent(req: PayloadRequest, targetId: number): Promise<Event |
         draft: true,
         trash: true,
         overrideAccess: true,
+        // ⚠ Copied into `previewEvent`, which every manager reads, past the
+        // per-reader address narrowing this read skips (#1047). Neither
+        // projection renders the log.
+        select: { activityLog: false },
         disableErrors: true,
       })
       .catch(() => null)) as Event | null
