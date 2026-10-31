@@ -4,6 +4,8 @@
 
 Copy `.env.example` and configure it.
 
+⚠ **The tracked `.env` holds no production credential.** This repository is public, so `.env` carries only local defaults that a worktree needs on checkout. Where one of those is secret-shaped — `PAYLOAD_SECRET`, `LIVE_PREVIEW_SIGNING_KEY`, `TURNSTILE_SECRET_KEY` — the comment beside it says why publishing that value costs nothing, and production sets its own. A real credential goes in `.env.local`, which is gitignored (`.env*.local`). That includes `SENTRY_AUTH_TOKEN` (source-map upload at build; the Railway service must carry its own) and `STORYBLOK_ACCESS_TOKEN` (`pnpm seed storyblok` only). A value committed once is public for good: rotate it at the provider, because removing it from the file does not help (#877).
+
 ### Core
 
 - `PAYLOAD_SECRET` — secret key for authentication (min 32 chars).
