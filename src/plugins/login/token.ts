@@ -58,6 +58,12 @@ export interface LoginTokenClaims {
    */
   issuedAt: number
   userId: number | string
+  /**
+   * The admin page a sign-in link returns its holder to — the page that sent
+   * them to sign in. Only a sign-in link carries one, and only an
+   * {@link isAdminPath}: it reaches the token from an anonymous form field.
+   */
+  to?: string
 }
 
 export type LoginTokenResult = SignedTokenResult<LoginTokenClaims>
@@ -88,9 +94,16 @@ export interface LinkTokenClaims extends LoginTokenClaims {
 
 export type LinkTokenResult = SignedTokenResult<LinkTokenClaims>
 
-/** Whether `to` is a path this server may redirect a signed-in manager to. */
+/**
+ * Whether `to` is a path this server may redirect a signed-in manager to.
+ *
+ * ⚠ **The `/admin/` prefix is the whole open-redirect guard**, and it already
+ * refuses a protocol-relative `//host`. A `//` further along is an ordinary
+ * query value — `?where[url][like]=https://…` — so refusing one dropped a real
+ * destination to the dashboard with nothing said.
+ */
 export function isAdminPath(to: unknown): to is string {
-  return typeof to === 'string' && to.startsWith('/admin/') && !to.includes('//')
+  return typeof to === 'string' && to.startsWith('/admin/')
 }
 
 /**
@@ -115,11 +128,19 @@ function baseKind(kind: string, ttlMs: number) {
 
       // The signature already proves we minted it; this only catches a token
       // from an older shape of these claims, which is malformed rather than expired.
-      const { collection, issuedAt, userId } = result.claims
-      if (typeof collection !== 'string' || typeof issuedAt !== 'number' || userId === undefined) {
+      const { collection, issuedAt, to, userId } = result.claims
+      if (
+        typeof collection !== 'string' ||
+        typeof issuedAt !== 'number' ||
+        userId === undefined ||
+        (to !== undefined && !isAdminPath(to))
+      ) {
         return { status: 'invalid' }
       }
-      return { status: 'valid', claims: { collection, issuedAt, userId } }
+      return {
+        status: 'valid',
+        claims: { collection, issuedAt, userId, ...(to !== undefined && { to }) },
+      }
     },
   }
 }
