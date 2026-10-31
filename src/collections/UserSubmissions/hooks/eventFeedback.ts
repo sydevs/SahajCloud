@@ -104,6 +104,10 @@ export const syncCommunityFeedback: CollectionAfterChangeHook = async ({
    * only from a `senderEmail` — and the hand-built `Set` this replaced keyed
    * such a row on its own id, so every one of them counted. DISTINCT folds
    * them together instead, which is the cap the rule asks for.
+   *
+   * ⚠ **Passing a `limit` would undo that.** The adapter's paginating branch
+   * counts with `COUNT(DISTINCT …)`, which drops NULL entirely; only the
+   * unpaginated branch returns the NULL group as a value of its own.
    */
   const countVotes = async (vote: 'confirmed' | 'denied') => {
     const { totalDocs } = await req.payload.findDistinct({

@@ -71,6 +71,8 @@ A **proposal**'s `proposed` patch is scanned at screening rather than at create,
 
 Clients hold **create only**, with no update of any kind and no read at any depth or scope.
 
+**A client cannot date its own row.** `createdAt` and `updatedAt` are dropped from every write the policy map guards, not refused — Payload writes both itself, and a caller echoing a row back is not an attack. A backdated row would otherwise fall outside the 24h spam history and age into retention early. The strip is `writeGuardPlugin`'s, so it reaches the next client-writable collection the day a policy names it.
+
 ### What happens after the 201
 
 A create returns `status: pending`; screening and then delivery run on the queue. A client is never told the outcome — there is no status endpoint and no callback. The row's `activityLog` is the record, and a manager reads it in the admin.
