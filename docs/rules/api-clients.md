@@ -255,6 +255,8 @@ Tracking is **in-request**, not queued: `countClientRead` issues one atomic `UPD
 
 Per-user rate limiting runs at the Cloudflare edge, in front of Railway, so no app-level limiter binding is needed. A request that fails the edge's rate-limiting rules gets a 429 before it ever reaches Railway. The app has no limiter of its own.
 
+⚠ **Whether that stays the home is still #466's open question** — edge rules, or a Railway Redis limiter keyed on `(client, IP, user)`. The hook that carried this breadcrumb was deleted as a no-op, so this line is the only place the decision is recorded. Anything the edge cannot see needs its own in-app bound meanwhile: the sign-in throttle (`src/plugins/login/magicLinks.ts`) is one, because the edge keys on IP and cannot read the email in a request body.
+
 | Setting | Value                                 |
 | ------- | ------------------------------------- |
 | Limit   | 500 requests                          |
