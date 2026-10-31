@@ -1,6 +1,6 @@
-import type { Field } from 'payload'
+import type { Field, FieldAccess } from 'payload'
 
-import { selfOrAdminFieldAccess } from '@/plugins/access'
+import { isManager, resolveContactableManagerIds, selfOrAdminFieldAccess } from '@/plugins/access'
 
 /**
  * The fields an `atlas-manager` reads on somebody else's manager row.
@@ -13,8 +13,42 @@ import { selfOrAdminFieldAccess } from '@/plugins/access'
 export const MANAGER_PUBLIC_FIELDS = new Set(['name'])
 
 /**
+ * The fields a region manager also reads on a manager assigned inside their
+ * owned subtree: how to reach them, and nothing about their account. See
+ * {@link regionContactFieldAccess}.
+ */
+export const MANAGER_REGION_CONTACT_FIELDS = new Set(['email', 'contactDetails'])
+
+/**
+ * Field-level access: {@link selfOrAdminFieldAccess}, widened to a manager
+ * whose owned subtree this row is assigned inside — the manager of an event
+ * there, or of a region there, co-managers of their own region included
+ * (`resolveContactableManagerIds`). Ardnived, 2026-10-30: region managers
+ * "need to be able to contact these users" (#908).
+ *
+ * ⚠ **The widening answers only with a row in hand.** A `where`, `sort` or
+ * `distinct` on these paths, and `/api/access`, evaluate field access with no
+ * `doc` — a question about every row. Answering it from the subtree would make
+ * `?where[email][like]=a` an oracle for the addresses of managers anywhere, so
+ * with no row it stays self-or-admin, exactly as `logField`'s doc-less lock
+ * does for #1047. Every read of a row, the admin drawer's permissions
+ * included, passes the row as `doc`.
+ */
+export const regionContactFieldAccess: FieldAccess = async (args) => {
+  if (await selfOrAdminFieldAccess(args)) return true
+  const { doc, id, req } = args
+  if (!isManager(req.user) || !doc) return false
+  const rowId = Number(id ?? doc.id)
+  if (!Number.isInteger(rowId)) return false
+  const contactable = await resolveContactableManagerIds(req, Number(req.user.id))
+  return contactable.has(rowId)
+}
+
+/**
  * Lock every field on `managers` to the row's own holder and to admins, bar
- * {@link MANAGER_PUBLIC_FIELDS} (#908).
+ * {@link MANAGER_PUBLIC_FIELDS} (#908). {@link MANAGER_REGION_CONTACT_FIELDS}
+ * take {@link regionContactFieldAccess} instead, which also admits the
+ * reader's region.
  *
  * `atlas-manager` holds a collection-wide `managers: read` so its pickers can
  * list other managers (#821), and a self-scoped `Where` would empty them. This
@@ -61,11 +95,11 @@ export function lockManagerFieldReads(fields: Field[]): Field[] {
     if (field.type === 'ui' || !('name' in field) || MANAGER_PUBLIC_FIELDS.has(field.name)) {
       return field
     }
+    const lock = MANAGER_REGION_CONTACT_FIELDS.has(field.name)
+      ? regionContactFieldAccess
+      : selfOrAdminFieldAccess
     // `as Field` because `JoinField` declares `access.create?: never`, which the
     // spread-merged object is not assignable to.
-    return {
-      ...field,
-      access: { ...field.access, read: field.access?.read ?? selfOrAdminFieldAccess },
-    } as Field
+    return { ...field, access: { ...field.access, read: field.access?.read ?? lock } } as Field
   })
 }

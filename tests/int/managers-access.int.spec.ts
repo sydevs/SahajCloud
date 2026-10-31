@@ -17,10 +17,10 @@
  * a 400 before access runs, so a bare `rejects.toThrow()` would go green
  * against a wide-open collection. The refusals assert a 403 specifically.
  */
-import type { Payload, PayloadRequest } from 'payload'
+import type { Payload, PayloadRequest, Where } from 'payload'
 
 import { docAccessOperation } from 'payload'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { buildReminderEntry } from '@/lib/eventVerification/log'
 import type { Client, Event, Manager, Region } from '@/payload-types'
@@ -520,6 +520,292 @@ describe('Managers access (#821)', () => {
         data: { registrationNotificationEmail: NOTIFICATION_EMAIL },
         overrideAccess: true,
       })
+    })
+  })
+  // Ardnived, 2026-10-30: "Region managers should be able to see the email
+  // addresses of managers on sub-regions and events within their region. They
+  // need to be able to contact these users." Two fields widen, on the rows the
+  // same subtree test atlas-manager writes pass places inside the reader's
+  // owned regions, and nothing else does (`src/collections/Managers/access.ts`).
+  describe('a region manager (#908, widened to the region)', () => {
+    let regionManager: Manager
+    let coManager: Manager
+    let subRegionManager: Manager
+    let subtreeEventManager: Manager
+    let parentRegion: Region
+    let subRegion: Region
+    let subtreeEvent: Event
+
+    /** A manager carrying a value in every field the widening must keep hidden. */
+    const contactable = (name: string, slug: string) =>
+      testData.createManager(payload, {
+        name,
+        email: `${slug}@example.com`,
+        roles: ['atlas-manager'],
+        language: 'en',
+        contactDetails: [{ platform: 'telegram', identifier: `@${slug}` }],
+        notificationPreferences: { event_verification: { frequency: 'Monthly', method: 'email' } },
+        lastRegistrationDigestSentAt: new Date().toISOString(),
+        legacyId: 9000 + slug.length,
+        legacyData: { phone: `+1555${slug.length}` },
+        magicLinkIssuedAt: new Date().toISOString(),
+      })
+
+    /** Every key a widened row carries: the title, the two contact fields, and what Payload adds. */
+    const WIDENED_KEYS = [
+      'collection',
+      'contactDetails',
+      'createdAt',
+      'email',
+      'id',
+      'name',
+      'sessions',
+      'updatedAt',
+    ]
+
+    const listAs = async (reader: Manager, target: Manager): Promise<Manager> => {
+      const { docs } = await payload.find({
+        collection: 'managers',
+        depth: 0,
+        pagination: false,
+        overrideAccess: false,
+        req: managerReq(reader),
+      })
+      const row = docs.find((doc) => doc.id === target.id)
+      expect(row, `${reader.name} should list ${target.name}`).toBeDefined()
+      return row!
+    }
+
+    beforeAll(async () => {
+      regionManager = await contactable('Region Manager', 'region-manager')
+      coManager = await contactable('Co Manager', 'co-manager')
+      subRegionManager = await contactable('Sub-region Manager', 'sub-region-manager')
+      subtreeEventManager = await contactable('Subtree Event Manager', 'subtree-event-manager')
+
+      parentRegion = await testData.createRegion(payload, {
+        name: 'Widened Country',
+        level: 'country',
+        managers: [regionManager.id, coManager.id],
+      })
+      subRegion = await testData.createRegion(payload, {
+        name: 'Widened City',
+        parent: parentRegion.id,
+        managers: [subRegionManager.id],
+      })
+      subtreeEvent = await testData.createEvent(payload, {
+        title: 'Subtree Event',
+        manager: subtreeEventManager.id,
+        region: subRegion.id,
+        _status: 'published',
+      })
+    })
+
+    it('reads the email and contact methods of an event manager inside its subtree', async () => {
+      const row = await listAs(regionManager, subtreeEventManager)
+
+      expect(row.email).toBe('subtree-event-manager@example.com')
+      expect(row.contactDetails).toMatchObject([
+        { platform: 'telegram', identifier: '@subtree-event-manager' },
+      ])
+      // Every other locked field stays locked: the fixture holds a value in
+      // each, so a missing key is the lock and not an empty column.
+      expect(Object.keys(row).sort()).toEqual(WIDENED_KEYS)
+    })
+
+    it('reads the email and contact methods of a sub-region manager', async () => {
+      const row = await listAs(regionManager, subRegionManager)
+
+      expect(row.email).toBe('sub-region-manager@example.com')
+      expect(row.contactDetails).toHaveLength(1)
+      expect(Object.keys(row).sort()).toEqual(WIDENED_KEYS)
+    })
+
+    it('reads a co-manager of its own region the same way', async () => {
+      // The owned subtree includes its roots, so a region's co-managers reach
+      // each other — they already hold the same write scope over it.
+      const row = await listAs(regionManager, coManager)
+
+      expect(row.email).toBe('co-manager@example.com')
+      expect(Object.keys(row).sort()).toEqual(WIDENED_KEYS)
+    })
+
+    it('reads only the title of a manager assigned outside its region', async () => {
+      // `eventManager` manages "Managed City", which is not under this region.
+      const row = await listAs(regionManager, eventManager)
+
+      expect(row.email).toBeUndefined()
+      expect(row.contactDetails).toEqual([])
+    })
+
+    it('widens nothing upward: a sub-region manager reads only the parent’s title', async () => {
+      const row = await listAs(subRegionManager, regionManager)
+
+      expect(row.email).toBeUndefined()
+      expect(row.contactDetails).toEqual([])
+    })
+
+    it('widens nothing for an atlas-manager outside the region', async () => {
+      for (const target of [subtreeEventManager, subRegionManager, regionManager]) {
+        const row = await listAs(atlasManager, target)
+        expect(Object.keys(row).sort(), target.name).toEqual([
+          'collection',
+          'contactDetails',
+          'createdAt',
+          'id',
+          'name',
+          'sessions',
+          'updatedAt',
+        ])
+        expect(row.contactDetails).toEqual([])
+      }
+    })
+
+    it('reads no other locked field, asking for each by name', async () => {
+      const row = await payload.findByID({
+        collection: 'managers',
+        id: subtreeEventManager.id,
+        select: {
+          name: true,
+          email: true,
+          contactDetails: true,
+          type: true,
+          roles: true,
+          language: true,
+          notificationPreferences: true,
+          lastRegistrationDigestSentAt: true,
+          legacyId: true,
+          legacyData: true,
+          magicLinkIssuedAt: true,
+          pendingInvitation: true,
+          invitationDueAt: true,
+          _verified: true,
+          managedEvents: true,
+          managedRegions: true,
+        },
+        depth: 0,
+        overrideAccess: false,
+        req: managerReq(regionManager),
+      })
+
+      expect(Object.keys(row).sort()).toEqual([
+        'collection',
+        'contactDetails',
+        'email',
+        'id',
+        'name',
+      ])
+    })
+
+    it('reads the assigned manager’s email through Events.manager and Regions.managers', async () => {
+      const [inside, insideRegion, outside] = await Promise.all([
+        payload.findByID({
+          collection: 'events',
+          id: subtreeEvent.id,
+          select: { manager: true },
+          depth: 1,
+          overrideAccess: false,
+          req: managerReq(regionManager),
+        }),
+        payload.findByID({
+          collection: 'regions',
+          id: subRegion.id,
+          select: { managers: true },
+          depth: 1,
+          overrideAccess: false,
+          req: managerReq(regionManager),
+        }),
+        payload.findByID({
+          collection: 'events',
+          id: event.id,
+          select: { manager: true },
+          depth: 1,
+          overrideAccess: false,
+          req: managerReq(regionManager),
+        }),
+      ])
+
+      const populated = inside.manager as Manager
+      expect(populated.email).toBe('subtree-event-manager@example.com')
+      expect(populated.notificationPreferences).toBeUndefined()
+      expect((insideRegion.managers as Manager[])[0]!.email).toBe('sub-region-manager@example.com')
+      // The same read one region over populates the title alone.
+      expect((outside.manager as Manager).name).toBe('Event Manager')
+      expect((outside.manager as Manager).email).toBeUndefined()
+    })
+
+    it('is offered the two contact inputs in the admin drawer, and no others', async () => {
+      const { fields } = await docAccessOperation({
+        id: subtreeEventManager.id,
+        collection: payload.collections.managers,
+        req: managerReq(regionManager),
+      })
+      if (fields === true) throw new Error('every field allowed: the update locks are gone')
+
+      const asked = ['name', 'email', 'contactDetails', 'notificationPreferences', 'legacyData']
+      const readable = asked.filter((name) => {
+        const field = fields[name]
+        return field === true || field?.read === true
+      })
+      expect(readable).toEqual(['name', 'email', 'contactDetails'])
+    })
+
+    it('still cannot filter, sort or list distinct values on either contact field', async () => {
+      // ⚠ With no row in hand the lock answers for every row: which rows match
+      // `email like …` would read an address out a prefix at a time, for
+      // managers anywhere — the widening reaches only a row actually read.
+      const req = () => managerReq(regionManager)
+      const probes: Where[] = [
+        { email: { like: 'sub-region' } },
+        { 'contactDetails.identifier': { like: '@sub' } },
+        { or: [{ email: { equals: 'event-manager@example.com' } }] },
+      ]
+      for (const where of probes) {
+        await expect(
+          payload.find({ collection: 'managers', where, overrideAccess: false, req: req() }),
+          JSON.stringify(where),
+        ).rejects.toThrow('The following path cannot be queried')
+      }
+      // Across the relationship from another collection, too.
+      await expect(
+        payload.find({
+          collection: 'events',
+          where: { 'manager.email': { like: 'subtree' } },
+          overrideAccess: false,
+          req: req(),
+        }),
+      ).rejects.toThrow('The following path cannot be queried')
+      await expect(
+        payload.find({ collection: 'managers', sort: 'email', overrideAccess: false, req: req() }),
+      ).rejects.toThrow()
+      await expect(
+        payload.findDistinct({
+          collection: 'managers',
+          field: 'email',
+          overrideAccess: false,
+          req: req(),
+        }),
+      ).rejects.toMatchObject({ status: 403 })
+    })
+
+    it('decides a whole list on one events query, however many rows it holds', async () => {
+      // The decision is a per-request set, not a query per row: N managers
+      // must not cost N lookups.
+      const spy = vi.spyOn(payload, 'find')
+      try {
+        const req = managerReq(regionManager)
+        const { docs } = await payload.find({
+          collection: 'managers',
+          depth: 0,
+          pagination: false,
+          overrideAccess: false,
+          req,
+        })
+        expect(docs.length).toBeGreaterThanOrEqual(6)
+        const eventsQueries = spy.mock.calls.filter(([args]) => args.collection === 'events')
+        expect(eventsQueries).toHaveLength(1)
+      } finally {
+        spy.mockRestore()
+      }
     })
   })
 })
