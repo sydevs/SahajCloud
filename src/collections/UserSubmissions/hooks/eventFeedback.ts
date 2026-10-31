@@ -95,9 +95,20 @@ export const syncCommunityFeedback: CollectionAfterChangeHook = async ({
   if (eventId == null) return doc
 
   const trustedReq = asTrustedReq(req)
+  /**
+   * Distinct registrants, counted by Postgres. Each registrant votes once, so
+   * registering twice buys no second vote.
+   *
+   * ⚠ **A row with no registrant is one bucket, not one vote each.** An
+   * anonymous registration carries no `user` — `prepareUserSubmission` sets it
+   * only from a `senderEmail` — and the hand-built `Set` this replaced keyed
+   * such a row on its own id, so every one of them counted. DISTINCT folds
+   * them together instead, which is the cap the rule asks for.
+   */
   const countVotes = async (vote: 'confirmed' | 'denied') => {
-    const { docs } = await req.payload.find({
+    const { totalDocs } = await req.payload.findDistinct({
       collection: 'user-submissions',
+      field: 'user',
       // `activeRegistrationWhere`, not a bare `type` predicate: a row flagged
       // `spam` after its follow-up token was minted frees its seat, so it must
       // not keep a share of the power to unpublish the listing. Five denials
@@ -109,13 +120,11 @@ export const syncCommunityFeedback: CollectionAfterChangeHook = async ({
           { eventFeedback: { equals: vote } },
         ],
       },
-      select: { user: true },
       depth: 0,
-      pagination: false,
       overrideAccess: true,
       req: trustedReq,
     })
-    return new Set(docs.map((row) => relationId(row.user) ?? `row ${row.id}`)).size
+    return totalDocs
   }
   // All three are independent reads — the event's current state doesn't depend
   // on the tallies — so one round trip instead of two in an afterChange hook.
