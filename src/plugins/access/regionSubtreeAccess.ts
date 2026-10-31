@@ -27,6 +27,8 @@
 import type { ContentSlug } from './types'
 import type { PayloadRequest, Where } from 'payload'
 
+import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
+
 import { isManager } from './adminOnly'
 import { getDocManagerFields, relationId, resolveManagedDocIds } from './documentManagers'
 
@@ -76,6 +78,27 @@ export async function ownedRegionFilterOptions({
   return ownedRegionIds.length ? { id: { in: ownedRegionIds } } : false
 }
 
+/** An event as the subtree scope sees it: where it sits, and who owns it. */
+export interface EventScope {
+  regionId: number | null
+  managerId: number | null
+}
+
+/**
+ * Whether one event is inside a manager's scope: its region is in their owned
+ * subtree, or they are its own manager. The single-document form of
+ * `eventScopeWhere`, shared by the write scope below and by who may read the
+ * contact addresses in an event's activity log (`logAddressVisibility.ts`).
+ */
+export function isEventInScope(
+  ownedRegionIds: readonly number[],
+  userId: number,
+  event: EventScope,
+): boolean {
+  if (event.regionId !== null && ownedRegionIds.includes(event.regionId)) return true
+  return event.managerId === userId
+}
+
 /** `Where` selecting events inside the owned subtree, unioned with directly-owned events. */
 function eventScopeWhere(ownedRegionIds: number[], userId: number): Where {
   const or: Where[] = [{ manager: { equals: userId } }]
@@ -83,6 +106,86 @@ function eventScopeWhere(ownedRegionIds: number[], userId: number): Where {
   // manager clause alone still scopes correctly when the user owns no regions.
   if (ownedRegionIds.length) or.unshift({ region: { in: ownedRegionIds } })
   return or.length === 1 ? or[0]! : { or }
+}
+
+/** The `req.context` key {@link resolveContactableManagerIds} memoizes under. */
+export const contactableManagersMemoKey = (userId: number): string =>
+  `contactableManagerIds:${userId}`
+
+/**
+ * The managers assigned anywhere inside a manager's owned subtree, resolved at
+ * most **once per reader per request** — whose email and contact methods that
+ * reader may see on another manager's row (#908, widened by the maintainer on
+ * 2026-10-30 so a region manager can contact the managers below them).
+ *
+ * Assigned means either of the two relationships the write scope reads:
+ *
+ * - the `manager` of an event that passes `eventScopeWhere` — the list form of
+ *   `isEventInScope`, the test this reader's event writes pass;
+ * - one of the `managers` of a region in the owned subtree. The subtree
+ *   includes its roots, so a region's **co-managers** reach each other: they
+ *   already hold the same write scope over that region and every event in it.
+ *
+ * Downward only — a sub-region manager does not reach the region managers
+ * above them, since nothing above is in their subtree.
+ *
+ * ⚠ **A set per request, never a query per row.** Field access runs once per
+ * row, so a picker listing N managers would otherwise pay N lookups. This
+ * costs `resolveOwnedRegionIds` (memoized and shared with every other access
+ * decision on `req`) plus two queries, and none when the reader owns no region.
+ * The memo key carries the reader alone, for the reasons and with the
+ * staleness window `resolveManagedDocIds` documents: both relationships are
+ * non-localized, so a locale copy of `req` sharing `context` reads the same set.
+ *
+ * ⚠ **Its own two queries take no `req`.** They run inside a field lock, which
+ * `afterRead` evaluates on the response of a write while its transaction is
+ * still open — joining it can roll the write back (`src/collections/AGENTS.md`).
+ * An assignment made earlier in the same request is therefore not yet seen,
+ * which hides an address rather than showing one. `resolveOwnedRegionIds` does
+ * pass `req`, as every access decision on it does; on a write it is usually
+ * already memoized by that write's own access check, and when it is not it
+ * joins the transaction with two plain SELECTs.
+ *
+ * A trashed event assigns nobody: `find` excludes trash by default.
+ */
+export function resolveContactableManagerIds(
+  req: PayloadRequest,
+  userId: number,
+): Promise<ReadonlySet<number>> {
+  return memoizeOnRequest(req, contactableManagersMemoKey(userId), async () => {
+    const ownedRegionIds = await resolveOwnedRegionIds(req, userId)
+    if (!ownedRegionIds.length) return new Set<number>()
+    const [events, regions] = await Promise.all([
+      req.payload.find({
+        collection: 'events',
+        where: eventScopeWhere(ownedRegionIds, userId),
+        select: { manager: true },
+        depth: 0,
+        pagination: false,
+        overrideAccess: true,
+      }),
+      req.payload.find({
+        collection: 'regions',
+        where: { id: { in: ownedRegionIds } },
+        select: { managers: true },
+        depth: 0,
+        pagination: false,
+        overrideAccess: true,
+      }),
+    ])
+    const ids = new Set<number>()
+    for (const event of events.docs) {
+      const managerId = relationId(event.manager)
+      if (managerId !== null) ids.add(managerId)
+    }
+    for (const region of regions.docs) {
+      for (const manager of region.managers ?? []) {
+        const managerId = relationId(manager)
+        if (managerId !== null) ids.add(managerId)
+      }
+    }
+    return ids
+  })
 }
 
 /**
@@ -148,9 +251,10 @@ export async function scopeRegionSubtreeWrite({
       req,
     })) as { region?: unknown; manager?: unknown } | null
     if (!event) return false
-    const regionId = relationId(event.region)
-    if (regionId !== null && ownedRegionIds.includes(regionId)) return true
-    return relationId(event.manager) === userId
+    return isEventInScope(ownedRegionIds, userId, {
+      regionId: relationId(event.region),
+      managerId: relationId(event.manager),
+    })
   }
   return eventScopeWhere(ownedRegionIds, userId)
 }

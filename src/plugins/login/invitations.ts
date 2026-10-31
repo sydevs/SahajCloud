@@ -6,6 +6,7 @@ import * as Sentry from '@sentry/nextjs'
 
 import { DEFAULT_LOCALE } from '@/lib/locales'
 import { relationId } from '@/lib/utilities/relationId'
+import { selfOrAdminFieldAccess } from '@/plugins/access'
 
 import { MANAGERS_COLLECTION } from './grantSummary'
 import { composeInvitations } from './invite'
@@ -44,20 +45,30 @@ const BATCH = 50
  * The queue's two fields. Hidden, and `update: () => false` for the same reason
  * as `magicLinkIssuedAt`: self-access would otherwise let a manager rewrite
  * their own queue. The queue's own writes bypass access entirely.
+ *
+ * ⚠ **`read` is locked here rather than by `Managers/access.ts`**, which runs
+ * before the plugin appends these (#908). `pendingInvitation` earns it on its
+ * own: it names the regions, events and pages an account was just granted.
+ *
+ * ⚠ `selfOrAdminFieldAccess` is manager-shaped, and these fields go onto every
+ * collection the plugin serves — only `managers` today
+ * (`src/payload.config.ts`). A second collection's holder would be denied
+ * their own value rather than shown somebody else's, which is fail-closed and
+ * the point at which that collection declares its own lock.
  */
 export const invitationFields: Field[] = [
   {
     name: 'pendingInvitation',
     type: 'json',
     admin: { hidden: true },
-    access: { update: () => false },
+    access: { read: selfOrAdminFieldAccess, update: () => false },
   },
   {
     name: 'invitationDueAt',
     type: 'date',
     index: true,
     admin: { hidden: true },
-    access: { update: () => false },
+    access: { read: selfOrAdminFieldAccess, update: () => false },
   },
 ]
 

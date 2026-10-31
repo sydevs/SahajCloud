@@ -1,18 +1,34 @@
 import type {
   CollectionAfterReadHook,
+  Field,
   FieldAccess,
   FlattenedField,
   SanitizedCollectionConfig,
 } from 'payload'
 
+import { isOwnRow } from './adminOnly'
+
 type LockedField = { name: string; read: FieldAccess }
+
+/**
+ * This field's `read` lock, or `undefined` for a field without one.
+ *
+ * The one runtime definition of "locked for reading", so a sweep asserting
+ * which fields are locked and the hook enforcing it cannot disagree — a lock
+ * declared in a shape only one of them recognised would pass the sweep and
+ * still leak (`tests/unit/manager-field-locks.spec.ts`).
+ */
+export function readLockOf(field: FlattenedField | Field): FieldAccess | undefined {
+  const read = (field as { access?: { read?: unknown } }).access?.read
+  return typeof read === 'function' ? (read as FieldAccess) : undefined
+}
 
 function lockedReadFields(fields: FlattenedField[]): LockedField[] {
   const locked: LockedField[] = []
   for (const field of fields) {
     if (!('name' in field)) continue
-    const read = (field as { access?: { read?: unknown } }).access?.read
-    if (typeof read === 'function') locked.push({ name: field.name, read: read as FieldAccess })
+    const read = readLockOf(field)
+    if (read) locked.push({ name: field.name, read })
   }
   return locked
 }
@@ -55,6 +71,24 @@ function lockedFields(collection: SanitizedCollectionConfig): LockedField[] {
  * Reads by anyone else are untouched, and so are server-side reads, which run
  * with no user. So is authentication: `APIKeyAuthentication` resolves before
  * `req.user` exists, and matches the `apiKeyIndex` hash rather than the field.
+ *
+ * ⚠ **Only the caller's OWN row**, which is the hole's own shape: every
+ * operation in the class it closes re-reads the authenticated document.
+ * Without that test it re-ran the locks on *any* row of the collection,
+ * including a row an internal `overrideAccess: true` read had deliberately
+ * fetched whole: `syncVerificationOnSave` loads an event's manager while a
+ * *different* manager saves the event, and a stripped
+ * `notificationPreferences` silently moved `nextCheckAt` from 30 days to 90
+ * (#908). On `managers` every lock admits the holder, so the hook now strips
+ * nothing there — bar an inactive manager's own read, which `isManager` denies.
+ * It stays live for `Clients.apiKey`, the one field locked against its own
+ * holder.
+ *
+ * ⚠ **Own-row is a proxy for the question Payload will not answer**: whether
+ * this read meant to skip access. `afterRead` is handed no `overrideAccess`, so
+ * the residual is an internal `overrideAccess: true` read of the caller's *own*
+ * row, which is still stripped. No such path exists today — the #908 defect was
+ * this shape one row over.
  */
 export const stripLockedFieldsOnSelfRead: CollectionAfterReadHook = async ({
   collection,
@@ -62,11 +96,16 @@ export const stripLockedFieldsOnSelfRead: CollectionAfterReadHook = async ({
   req,
 }) => {
   if (req.user?.collection !== collection.slug) return doc
+  const id = (doc as { id?: number | string })?.id
+  if (!isOwnRow(req.user.id, id)) return doc
 
   for (const field of lockedFields(collection)) {
+    // A field the read never selected has nothing to delete, and `managers`
+    // carries 18 locks against reads that select two columns.
+    if (!(field.name in (doc as Record<string, unknown>))) continue
     const allowed = await field.read({
       req,
-      id: (doc as { id?: number | string })?.id,
+      id,
       data: doc,
       siblingData: doc,
       doc,

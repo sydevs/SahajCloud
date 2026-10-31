@@ -69,3 +69,44 @@ export const managersOnlyFieldAccess: FieldAccess = ({ req }) => req.user?.colle
  * access guard is the security boundary.
  */
 export const adminOnlyCondition: Condition = (_data, _siblingData, { user }) => isAdminManager(user)
+
+/**
+ * Field-level access: the row's own holder, or an admin manager.
+ *
+ * A different question from `managersOnlyFieldAccess`, which asks which
+ * collection the caller comes from. This one asks whether the caller **is** the
+ * row, and it is what narrows `atlas-manager`'s collection-wide
+ * `managers: read` grant — a picker needs the title, not a colleague's phone
+ * number (#908). See `docs/rules/access.md`.
+ *
+ * ⚠ **The row id arrives as `id` on a read and as `doc.id` on a permissions
+ * check.** `afterRead` passes `id: doc.id`
+ * (`payload/dist/fields/hooks/afterRead/promise.js`), but
+ * `getEntityPermissions` calls `populateFieldPermissions` with no `id` at all —
+ * only the fetched row, as `doc`. Reading `id` alone would report every locked
+ * field unreadable on a manager's own edit view, and `RenderFields` renders
+ * nothing for a field it has no read permission on.
+ *
+ * ⚠ Neither is present on a create, or on the collection-level `/api/access`,
+ * so it reads as admin-only in both. Intended: no field it guards is a
+ * non-admin's to set.
+ *
+ * ⚠ **Spelled as an allowlist**, like `managersOnlyFieldAccess`, so a future
+ * third auth collection arrives denied rather than exempt.
+ */
+export const selfOrAdminFieldAccess: FieldAccess = ({ doc, id, req: { user } }) => {
+  if (isAdminManager(user)) return true
+  if (!isManager(user)) return false
+  return isOwnRow(user.id, id ?? doc?.id)
+}
+
+/**
+ * Whether `rowId` is the row `userId` holds.
+ *
+ * One spelling of the coercion, because the two sides arrive differently
+ * typed: a numeric `req.user.id` against an id REST parsed out of a path. An
+ * unidentifiable row is never the caller's own.
+ */
+export function isOwnRow(userId: number | string, rowId: number | string | undefined): boolean {
+  return rowId !== undefined && String(userId) === String(rowId)
+}
