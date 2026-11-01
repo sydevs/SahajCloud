@@ -676,7 +676,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
             locale: options?.locale,
             file: fileForUpdate,
             publishSpecificLocale: options?.publishSpecificLocale,
-            context: options?.context,
+            context: { ...options?.context, seed: true },
             // `preloadCollection` deliberately includes trashed rows, so this id
             // can be one — and an update without `trash: true` refuses it with
             // `Not Found`. A no-op where trash is disabled.
@@ -712,7 +712,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
             data,
             locale: options?.locale,
             file: options?.file,
-            context: options?.context,
+            context: { ...options?.context, seed: true },
             disableVerificationEmail: options?.disableVerificationEmail,
           }),
         )
@@ -783,7 +783,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
             locale: options?.locale,
             file: fileForUpdate,
             publishSpecificLocale: options?.publishSpecificLocale,
-            context: options?.context,
+            context: { ...options?.context, seed: true },
             // Same reason as the find above — an update targeting a trashed row
             // throws `Not Found` without it. Two archived Atlas events failed
             // on every run until this was passed.
@@ -822,7 +822,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
           data,
           locale: options?.locale,
           file: options?.file,
-          context: options?.context,
+          context: { ...options?.context, seed: true },
           disableVerificationEmail: options?.disableVerificationEmail,
         }),
       )
@@ -1027,6 +1027,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
           publishSpecificLocale: shouldPublishLocale
             ? (translation.locale as TypedLocale)
             : undefined,
+          context: { seed: true },
           trash: true,
         }),
       )

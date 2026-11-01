@@ -107,7 +107,7 @@ const MOUNT_KEY_MESSAGES = {
  *   an `Origin` header.
  *
  * Rate limiting is Cloudflare's at the edge (500/min per client+IP), as for
- * every other client route — this app's `rateLimitHook` is a no-op on Railway.
+ * every other client route — the app has no limiter of its own.
  * On top of that the handler is free when there is nothing new to say: a repeat
  * of a recent identical observation is answered `updated: false` without a read
  * or a write. That is the path most requests take — since

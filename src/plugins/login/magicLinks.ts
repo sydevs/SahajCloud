@@ -21,10 +21,9 @@ import { isAdminPath, SIGNIN_TOKEN_TTL_MS } from './token'
 /**
  * How long an account must wait between sign-in link requests.
  *
- * ⚠ **This is the only in-app bound on per-account link volume.** `rateLimitHook`
- * is a deliberate no-op for every collection — rate limiting is enforced at the
- * Cloudflare edge instead (`src/plugins/usage/hooks.ts`), and the edge keys on
- * IP, which cannot see the email in the request body.
+ * ⚠ **This is the only in-app bound on per-account link volume.** Rate limiting
+ * is enforced at the Cloudflare edge (`docs/rules/api-clients.md`), and the edge
+ * keys on IP, which cannot see the email in the request body.
  */
 export const REQUEST_LINK_THROTTLE_MS = 60 * 1000
 

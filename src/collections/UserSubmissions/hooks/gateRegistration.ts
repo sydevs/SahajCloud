@@ -77,7 +77,12 @@ export const gateRegistration: CollectionBeforeValidateHook = async ({ data, ope
     req,
   })
 
-  const rejection = evaluateRegistrationGate({ event, registrationCount, now: new Date() })
+  const rejection = evaluateRegistrationGate({
+    event,
+    registrationCount,
+    now: new Date(),
+    startingAt: data.startingAt,
+  })
   if (rejection) {
     // `APIError`'s fourth argument is what puts `code` at `errors[].data.code`,
     // which is the envelope sydevs/SahajAtlasWeb#171 reads.

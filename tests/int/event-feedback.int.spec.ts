@@ -266,6 +266,36 @@ describe('Event feedback (registrant voting)', () => {
       })
     })
 
+    it('counts a registrant once, however many times they registered', async () => {
+      const event = await createUnverifiedEvent()
+      const senderEmail = `repeat-${randomUUID().slice(0, 8)}@example.com`
+      for (let i = 0; i < 2; i++) {
+        await vote(await createRegistration(event.id, { senderEmail }), 'denied')
+      }
+
+      const after = await reloadEvent(event.id)
+      expect(readCommunityFeedback(after.systemMeta)).toMatchObject({ denials: 1 })
+    })
+
+    /**
+     * An anonymous registration carries no `user` — `senderEmail` is optional,
+     * and that column is what `prepareUserSubmission` upserts the join from. The
+     * hand-built `Set` this replaced keyed such a row on its own id, so five of
+     * them were five denials: enough to reach the threshold and unpublish the
+     * listing with nobody identified behind it.
+     */
+    it('counts every unidentified registrant as one, not one each', async () => {
+      const event = await createUnverifiedEvent()
+      for (let i = 0; i < 5; i++) {
+        await vote(await createRegistration(event.id, { senderEmail: null }), 'denied')
+      }
+
+      const after = await reloadEvent(event.id)
+      expect(readCommunityFeedback(after.systemMeta)).toMatchObject({ denials: 1 })
+      expect(after.verificationStage).toBe('unverified')
+      expect(after._status).toBe('published')
+    })
+
     describe('an event whose stored data fails a field validator (#842)', () => {
       /** The seed leaves `_status` and `verificationStage` alone, so the vote
        * gate is unaffected by it. */

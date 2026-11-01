@@ -2,6 +2,7 @@ import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { cancelStaleJobs, STALE_JOB_MS } from '@/collections/PayloadJobs/PayloadJobs'
 import { CleanupCollections } from '@/jobs/CleanupCollections/CleanupCollections'
 import { retentionConfigOf, retentionEntries } from '@/jobs/CleanupCollections/entries'
 
@@ -146,5 +147,26 @@ describe('payload-jobs retention', () => {
     await expect(
       runTaskHandler(CleanupCollections, { payload, input: { collection: 'managers' } }),
     ).rejects.toThrow(/"managers" declares no retention — \w[\w-]*, /)
+  })
+
+  // Last: the cancelled row is `hasError`, which the counts above would see.
+  it('cancels on boot a row a dead container left processing, and leaves a live one', async () => {
+    const [stale, live] = [await seedJob({}), await seedJob({})]
+    const markProcessing = (id: number, updatedAt?: string) =>
+      payload.db.updateOne({
+        collection: 'payload-jobs',
+        id,
+        data: { processing: true, ...(updatedAt && { updatedAt }) },
+        req: undefined,
+      })
+    await markProcessing(stale.id, new Date(Date.now() - 2 * STALE_JOB_MS).toISOString())
+    await markProcessing(live.id)
+
+    await cancelStaleJobs(payload)
+
+    const read = (id: number) =>
+      payload.findByID({ collection: 'payload-jobs', id, depth: 0, overrideAccess: true })
+    expect(await read(stale.id)).toMatchObject({ hasError: true, processing: false })
+    expect(await read(live.id)).toMatchObject({ hasError: false, processing: true })
   })
 })

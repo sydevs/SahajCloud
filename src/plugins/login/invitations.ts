@@ -82,10 +82,11 @@ async function enqueue(
   added: Omit<PendingInvitation, 'by'>,
 ): Promise<void> {
   // A manager's own change is not news to them — creating an event they
-  // manage, or a sub-region they look after.
+  // manage, or a sub-region they look after. Nor is a seed import's
+  // (`LoginPluginOptions.invitations`).
   const self =
     req.user?.collection === MANAGERS_COLLECTION && String(req.user.id) === String(managerId)
-  if (self) return
+  if (self || req.context?.seed) return
 
   const { payload } = req
   const manager = await payload
@@ -171,8 +172,8 @@ export const queueOnRoles: CollectionAfterChangeHook = async ({ doc, previousDoc
  * ⚠ **Each queue is claimed — cleared — before its send, not after.** An
  * assignment saved while the email renders then starts a fresh queue instead
  * of being wiped with the one just sent. The cost is that a failed send is not
- * retried; Payload's email adapters log rather than throw, so a failure here is
- * a render bug, and retrying one every five minutes would mail nothing.
+ * retried: it is counted `failed` and reported, and the next assignment
+ * queues a fresh one.
  */
 export function sendInvitationsTask(config: LoginCollectionConfig): TaskConfig<'sendInvitations'> {
   return {

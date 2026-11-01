@@ -22,7 +22,7 @@
  */
 import type { Payload } from 'payload'
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { MANAGER_SIGNIN_PATH, managersLogin } from '@/collections/Managers/login'
 import { escapeRegExp } from '@/lib/utilities/escapeRegExp'
@@ -317,6 +317,30 @@ describe('manager magic-link sign-in', () => {
       expectSignedIn(await consume(token))
 
       expectRefused(await consume(token), 'invalid')
+    })
+
+    it('signs in only one of two concurrent redeems of one link', async () => {
+      const manager = await activeManager()
+      const token = await linkTokenFor(manager.email)
+
+      // Hold both reads of the account until both have happened, so each
+      // request has checked the stamp before either spends it.
+      const findByID = payload.findByID.bind(payload)
+      let reads = 0
+      let bothRead!: () => void
+      const held = new Promise<void>((resolve) => (bothRead = resolve))
+      const spy = vi.spyOn(payload, 'findByID').mockImplementation((async (args: never) => {
+        const doc = await findByID(args)
+        if (++reads === 2) bothRead()
+        if (reads <= 2) await held
+        return doc
+      }) as never)
+
+      const answers = await Promise.all([consume(token), consume(token)]).finally(() =>
+        spy.mockRestore(),
+      )
+
+      expect(answers.filter((answer) => answer.headers.get('Set-Cookie'))).toHaveLength(1)
     })
 
     it('signs in with the break-glass link, which mails nothing', async () => {
