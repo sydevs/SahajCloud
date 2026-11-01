@@ -1,7 +1,6 @@
-import type { CollectionConfig, PayloadRequest } from 'payload'
+import type { CollectionConfig } from 'payload'
 
 import { hideUntilCreated, legacyMigrationFields } from '@/fields'
-import { isAdminManager } from '@/plugins/access/adminOnly'
 
 /**
  * Users — Sahaj Atlas event registrants (the people who sign up for events),
@@ -19,10 +18,12 @@ export const Users: CollectionConfig = {
     group: 'Access',
     useAsTitle: 'name',
     defaultColumns: ['name', 'email', 'blockedAt'],
-    // ⚠ Not `true`, which unregisters the routes too and would leave
-    // `blockedAt` below settable by nobody. The function form takes the user,
-    // so a non-admin still gets neither the sidebar entry nor the route.
-    hidden: ({ user }: { user: unknown }) => !isAdminManager(user as PayloadRequest['user']),
+    // ⚠ No `hidden` key, deliberately: `true` unregisters the routes as well as
+    // the nav entry, leaving `blockedAt` below settable by nobody, and a
+    // hand-written predicate here would be a second spelling of the role table.
+    // `accessPlugin` derives it — no role grants `users` a write, and the
+    // collection is in no project, so only an admin reaches it, and a role
+    // granted `users: ['update']` later is admitted without an edit here.
   },
   fields: [
     {
@@ -38,11 +39,6 @@ export const Users: CollectionConfig = {
       unique: true,
     },
     {
-      // The lasting half of the abuse brake, beside `repeat_sender`'s automatic
-      // 24 hours: screening refuses everything this sender submits while it is
-      // set, and the orphan sweep keeps their row so a cleared block cannot be
-      // the one that got away.
-      //
       // No field access of its own: `users` grants write to no role at all, so
       // only the admin bypass reaches this.
       name: 'blockedAt',

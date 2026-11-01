@@ -5,6 +5,7 @@ import { appendLogEntry, asLog } from '@/fields'
 import { checkEmailAllowed } from '@/lib/antiSpam/antiSpamGuard'
 import { hasMxRecords } from '@/lib/antiSpam/mxRecords'
 import { runQueueSoon } from '@/lib/jobs/runQueueSoon'
+import { relationId } from '@/lib/utilities/relationId'
 import type { UserSubmission } from '@/payload-types'
 
 import { screenProposalContent } from './contentScreening'
@@ -155,10 +156,8 @@ export const ScreenSubmissions: TaskConfig<'screenSubmission'> = {
 
 /**
  * Run the checks in cost order and return the first verdict that hits — the
- * block (a primary-key read) before the address checks (one DNS lookup at
- * worst) before the history read (a query over this sender's day), so an
- * undeliverable address never pays for the last one and a blocked sender pays
- * for none of them.
+ * block (a primary-key read), then the address checks (one DNS lookup at
+ * worst), then the history read (a query over this sender's day).
  */
 async function screen(args: {
   req: PayloadRequest
@@ -179,11 +178,9 @@ async function screen(args: {
     ...(diagnostic ? { diagnostic } : {}),
   })
 
-  // Resolved up front because the block is read from it, not only the history
-  // below. An anonymous submission carries no `user`, so it can be neither
-  // blocked nor counted against a history.
-  const userId =
-    typeof submission.user === 'number' ? submission.user : (submission.user?.id ?? null)
+  // An anonymous submission carries no `user`, so it can be neither blocked nor
+  // counted against a history.
+  const userId = relationId(submission.user)
 
   if (userId != null) {
     const sender = await req.payload.findByID({

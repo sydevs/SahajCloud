@@ -437,23 +437,6 @@ describe('Submission retention sweep', () => {
      * Asserted as a delta, because the count is the whole run's and the cases
      * above leave their own dry-run rows behind.
      */
-    /**
-     * ⚠ Both branches have to read the block, or the dry run stops predicting
-     * the real sweep — the one thing a dry run is for.
-     */
-    it('does not count a blocked sender it would not delete', async () => {
-      const before = await sweep(Date.now(), CONTACT_ACCEPTED_DAYS + 1, true)
-
-      const row = await seed({ senderEmail: 'blocked-dryrun@example.com', status: 'accepted' })
-      await block(userIdOf(row))
-
-      const after = await sweep(Date.now(), CONTACT_ACCEPTED_DAYS + 1, true)
-
-      // The message is due; its sender is not, because the block pins them.
-      expect(deletedIn(after, 'user-submissions')).toBe(deletedIn(before, 'user-submissions') + 1)
-      expect(deletedIn(after, 'users')).toBe(deletedIn(before, 'users'))
-    })
-
     it('keeps a sender whose other row is in a window but not yet due', async () => {
       const before = await sweep(Date.now(), CONTACT_ACCEPTED_DAYS + 1, true)
 
@@ -471,6 +454,23 @@ describe('Submission retention sweep', () => {
       const after = await sweep(Date.now(), CONTACT_ACCEPTED_DAYS + 1, true)
 
       // The contact message is due at 8 days; the proposal is not, at 30.
+      expect(deletedIn(after, 'user-submissions')).toBe(deletedIn(before, 'user-submissions') + 1)
+      expect(deletedIn(after, 'users')).toBe(deletedIn(before, 'users'))
+    })
+
+    /**
+     * ⚠ Both branches have to read the block, or the dry run stops predicting
+     * the real sweep — the one thing a dry run is for.
+     */
+    it('does not count a blocked sender it would not delete', async () => {
+      const before = await sweep(Date.now(), CONTACT_ACCEPTED_DAYS + 1, true)
+
+      const row = await seed({ senderEmail: 'blocked-dryrun@example.com', status: 'accepted' })
+      await block(userIdOf(row))
+
+      const after = await sweep(Date.now(), CONTACT_ACCEPTED_DAYS + 1, true)
+
+      // The message is due; its sender is not, because the block pins them.
       expect(deletedIn(after, 'user-submissions')).toBe(deletedIn(before, 'user-submissions') + 1)
       expect(deletedIn(after, 'users')).toBe(deletedIn(before, 'users'))
     })

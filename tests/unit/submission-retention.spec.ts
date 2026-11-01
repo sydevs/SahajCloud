@@ -5,14 +5,25 @@
 import { describe, expect, it } from 'vitest'
 
 import { HISTORY_WINDOW_HOURS, REPEAT_SENDER_MAX } from '@/jobs/ScreenSubmissions/senderHistory'
+import type { UserSubmission } from '@/payload-types'
 import {
   CONTACT_ACCEPTED_DAYS,
-  DURABLE_TYPES,
   MACHINE_SPAM_DAYS,
   PROPOSAL_DAYS,
   PURGE_WINDOWS,
 } from '@/plugins/formBuilder'
 import type { PurgeWindow } from '@/types/retention'
+
+/**
+ * The two types kept for ever once a person has decided them. Spelled here
+ * rather than in the policy, which no longer composes a list: the windows state
+ * the rule in SQL, and this is the vocabulary the invariant below is asserted
+ * in.
+ */
+const DURABLE_TYPES = [
+  'registration',
+  'subscribe',
+] as const satisfies readonly UserSubmission['type'][]
 
 describe('Submission retention', () => {
   /**
@@ -37,20 +48,12 @@ describe('Submission retention', () => {
    * window reaches a durable type by naming it, or by naming no type at all —
    * so every shape has to be read here.
    *
-   * ⚠ **`machineSpam` is the one window that may reach one**, so the case
-   * asserts that it does. A durable row's promise is about an attendance or a
-   * consent, and a machine refusal is neither — nobody came and nobody
-   * subscribed. Asserted in both directions because the two failures are
-   * opposite: a second window naming no type would delete a real attendance
-   * record, and an exclusion back on this one would keep refused sign-ups for
-   * ever, which is the half nothing red would report.
-   *
-   * The status half is the case below — `machineSpam` selects `spam` alone, so
-   * a *decided* registration stays out of it whatever this asserts.
+   * ⚠ Asserted in **both** directions, because the two failures are opposite: a
+   * second window naming no type would delete a real attendance record, and an
+   * exclusion back on `machineSpam` would keep refused sign-ups for ever —
+   * the half that nothing red would report.
    */
   it('lets only the machine-spam window reach a registration or a subscription', () => {
-    expect([...DURABLE_TYPES].sort()).toEqual(['registration', 'subscribe'])
-
     const reaches = (window: PurgeWindow, type: string) => {
       const where = window.where(new Date().toISOString()) as {
         type?: { equals?: string; in?: string[]; not_in?: string[] }

@@ -18,6 +18,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { proposableEventFields } from '@/collections/UserSubmissions/hooks/validateProposal'
 import { screenProposalContent } from '@/jobs/ScreenSubmissions/contentScreening'
 import { activeRegistrationWhere } from '@/lib/registrations/active'
+import { relationId } from '@/lib/utilities/relationId'
 import type { Event, Form, Manager, UserSubmission } from '@/payload-types'
 
 import { runTaskHandler } from '../utils/taskRunner'
@@ -91,14 +92,19 @@ describe('Submission screening', () => {
     }) as Promise<UserSubmission>
 
   /** Set or lift the block on a sender, as an admin does from their record. */
-  const setBlock = (submission: UserSubmission, blockedAt: string | null) =>
-    payload.update({
+  const setBlock = (submission: UserSubmission, blockedAt: string | null) => {
+    const id = relationId(submission.user)
+    // Rather than address `users/0`, which fails later as a confusing Not Found.
+    if (id == null) throw new Error('The fixture expected an upserted sender and found none.')
+
+    return payload.update({
       collection: 'users',
-      id: typeof submission.user === 'number' ? submission.user : (submission.user?.id ?? 0),
+      id,
       data: { blockedAt },
       overrideAccess: true,
       req: systemReq(),
     })
+  }
 
   /** Whether a delivery job is waiting for this row. */
   const deliveryQueued = async (submissionId: number) => {

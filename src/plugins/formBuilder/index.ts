@@ -67,25 +67,6 @@ export const MACHINE_SPAM_DAYS = 90
 export const PROPOSAL_DAYS = 30
 
 /**
- * The types kept forever **unless the machine refused them**: a
- * **registration** is an attendance record and a **subscribe** row is a consent
- * record, but a `spam` one of either records nothing — nobody attended, nobody
- * consented, and the row is only evidence, which ages out with the rest at
- * `MACHINE_SPAM_DAYS`.
- *
- * One list, two answers — no window below but `machineSpam` may select these
- * types, and a row of one of them that survives still **pins** its `users` row
- * against the orphan sweep. `tests/unit/submission-retention.spec.ts` is what
- * reads it: the windows now state the rule in SQL, so the list is the
- * vocabulary the invariant is asserted in rather than a clause any of them
- * composes.
- *
- * ⚠ `failed` is deliberately in no window: it means we accepted a submission,
- * told nobody, and delivered nothing. It stays until a manager resolves it.
- */
-export const DURABLE_TYPES: readonly UserSubmission['type'][] = ['registration', 'subscribe']
-
-/**
  * The sweeps, in the order they run. **Machine-spam first**, which makes the
  * windows disjoint by construction rather than by reading two `status` clauses
  * together.
@@ -95,15 +76,19 @@ export const DURABLE_TYPES: readonly UserSubmission['type'][] = ['registration',
  * proposal go at 30 days with the rest of its type, rather than waiting out the
  * spam window because nothing cheap could tell the two refusals apart.
  *
- * ⚠ **`machineSpam` is the one window that names no type**, and the only one
- * that may: a `spam` row of any type is evidence and nothing else, so the
- * durable types' promise does not cover it. Every other window has to say which
- * type it is about.
+ * ⚠ **`failed` is deliberately in no window**: it means we accepted a
+ * submission, told nobody, and delivered nothing. It stays until a manager
+ * resolves it.
  */
 export const PURGE_WINDOWS: PurgeWindow[] = [
   {
     days: MACHINE_SPAM_DAYS,
     name: 'machineSpam',
+    // ⚠ The one window that names no type, and the only one that may. A
+    // registration is an attendance record and a subscribe row is a consent
+    // record, kept for ever — but a `spam` one of either is neither, because
+    // nobody came and nobody subscribed. It is evidence like any other
+    // refusal, and ages out with the rest.
     where: (cutoff) => ({
       status: { equals: 'spam' },
       createdAt: { less_than: cutoff },
