@@ -1,7 +1,7 @@
 import type { AtlasSeoResponse, AtlasSitemapUrl } from '../../src/endpoints/responseTypes'
 import type { FetchedPage } from '../../src/lib/embedVerification/seoChecks'
 
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
   EMPTY_VERIFICATION,
@@ -12,6 +12,8 @@ import {
 import {
   bodyProbe,
   comparePage,
+  fetchPage,
+  OFF_HOST,
   parsePageHtml,
   runSeoChecks,
   sameUrl,
@@ -344,6 +346,81 @@ describe('siteListsUrl', () => {
       fetchFn: answering({}),
     })
     expect(verdict.status).toBe('skipped')
+  })
+})
+
+describe('fetchPage bounds a third party\u2019s redirect', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  /**
+   * One scripted answer per URL, recording every URL the process asked for.
+   *
+   * ⚠ It honours `redirect`, because that is the behaviour under test: on
+   * `follow` the platform issues the request to the `Location` itself, and a
+   * stub that answered the 3xx instead would make the hole invisible.
+   */
+  const serving = (answers: Record<string, Response>) => {
+    const asked: string[] = []
+    const answerFor = async (url: string, mode: RequestRedirect): Promise<Response> => {
+      asked.push(url)
+      const answer = answers[url]
+      if (!answer) throw new Error(`unexpected fetch: ${url}`)
+      const location = answer.headers.get('location')
+      if (mode !== 'follow' || !location) return answer
+      return answerFor(new URL(location, url).href, mode)
+    }
+    vi.stubGlobal('fetch', (input: string, init?: RequestInit) =>
+      answerFor(String(input), init?.redirect ?? 'follow'),
+    )
+    return asked
+  }
+
+  const redirectTo = (location: string) =>
+    new Response(null, { status: 302, headers: { location } })
+
+  it('never issues the request a sitemap line redirects to off-host', async () => {
+    const asked = serving({
+      'https://sahajayoga.ca/sitemap.xml': redirectTo('http://169.254.169.254/latest/meta-data/'),
+    })
+
+    const page = await fetchPage('https://sahajayoga.ca/sitemap.xml', {
+      sameHost: 'sahajayoga.ca',
+    })
+
+    expect(page.ok).toBe(false)
+    expect(page.detail).toBe(OFF_HOST)
+    // The whole point: the internal address is absent, not merely discarded.
+    expect(asked).toEqual(['https://sahajayoga.ca/sitemap.xml'])
+  })
+
+  it('still follows a redirect that stays on the host under check', async () => {
+    // http \u2192 https and a trailing slash are ordinary, and refusing them
+    // would report a working site as publishing no sitemap.
+    const asked = serving({
+      'https://sahajayoga.ca/sitemap.xml': redirectTo('/sitemap_index.xml'),
+      'https://sahajayoga.ca/sitemap_index.xml': new Response('<urlset></urlset>', { status: 200 }),
+    })
+
+    const page = await fetchPage('https://sahajayoga.ca/sitemap.xml', {
+      sameHost: 'sahajayoga.ca',
+    })
+
+    expect(page.ok).toBe(true)
+    expect(page.body).toContain('<urlset>')
+    expect(asked).toHaveLength(2)
+  })
+
+  it('leaves an unbounded fetch following redirects, as a page check needs', async () => {
+    const asked = serving({
+      'https://sahajayoga.ca/classes': new Response('<html></html>', { status: 200 }),
+    })
+
+    const page = await fetchPage('https://sahajayoga.ca/classes')
+
+    expect(page.ok).toBe(true)
+    expect(asked).toEqual(['https://sahajayoga.ca/classes'])
   })
 })
 

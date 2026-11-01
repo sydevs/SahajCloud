@@ -11,12 +11,7 @@ import {
 } from '@/lib/clients/embedMetadata'
 import { parseBody, requireClientAccess } from '@/lib/endpoints'
 import type { Client } from '@/payload-types'
-import {
-  getPgPool,
-  isHostAllowed,
-  parseAllowedDomains,
-  quotedDbSchema,
-} from '@/plugins/usage'
+import { getPgPool, isHostAllowed, parseAllowedDomains, quotedDbSchema } from '@/plugins/usage'
 
 /**
  * Merge one mount into `embed_metadata` as a single atomic statement.

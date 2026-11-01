@@ -59,7 +59,28 @@ export interface FetchedPage {
   detail?: string
 }
 
-export type FetchPage = (url: string) => Promise<FetchedPage>
+/** How a caller bounds one fetch. */
+export interface FetchPageOptions {
+  /**
+   * Refuse a redirect that leaves this host, instead of following it.
+   *
+   * ⚠ **Set this for every URL a third party chose.** `redirect: 'follow'`
+   * issues the request to the redirect target and reads its body, so a host
+   * check applied to `response.url` afterwards discards an answer the process
+   * already went and fetched — which is the whole of the hole {@link isOnHost}
+   * exists to close, one hop further out. A `Sitemap:` line on the host under
+   * check that 302s to an internal address is exactly that hop.
+   */
+  sameHost?: string
+}
+
+export type FetchPage = (url: string, options?: FetchPageOptions) => Promise<FetchedPage>
+
+/** Same-host redirects one bounded fetch will follow before giving up. */
+const MAX_SAME_HOST_REDIRECTS = 4
+
+/** The statuses that carry a `Location` worth following. */
+const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308])
 
 /**
  * Most bytes of one document we will read.
@@ -80,25 +101,46 @@ const MAX_BODY_BYTES = 1_024 * 1_024
  * has to tell "their page is wrong" from "we could not look", and an exception
  * erases that distinction. A refused fetch is `skipped`, never `fail`.
  */
-export const fetchPage: FetchPage = async (url) => {
+export const fetchPage: FetchPage = async (url, options = {}) => {
+  const { sameHost } = options
   try {
-    const response = await fetch(url, {
-      redirect: 'follow',
-      headers: {
-        // Named, so an operator reading their own access log can tell what hit
-        // them, and so a site may allowlist us if it challenges unknown agents.
-        'User-Agent': 'SahajCloud-SEO-Check (+https://github.com/sydevs/SahajCloud)',
-        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-      },
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-    })
-    return {
-      ok: response.ok,
-      status: response.status,
-      // `response.url` is the address after redirects, which is what a caller
-      // restricting itself to one host has to check.
-      url: response.url || url,
-      body: response.ok ? await readCapped(response) : '',
+    // Unbounded, the platform follows redirects for us. Bounded, every hop has
+    // to be inspected before it is taken, so `manual` is the only mode that
+    // can refuse one — Node hands back the real 3xx with its `Location`.
+    let current = url
+    for (let hop = 0; ; hop++) {
+      const response = await fetch(current, {
+        redirect: sameHost ? 'manual' : 'follow',
+        headers: {
+          // Named, so an operator reading their own access log can tell what hit
+          // them, and so a site may allowlist us if it challenges unknown agents.
+          'User-Agent': 'SahajCloud-SEO-Check (+https://github.com/sydevs/SahajCloud)',
+          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        },
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      })
+
+      const location =
+        sameHost && REDIRECT_STATUSES.has(response.status) ? response.headers.get('location') : null
+      if (!location) {
+        return {
+          ok: response.ok,
+          status: response.status,
+          // `response.url` is the address after redirects, which is what a caller
+          // restricting itself to one host has to check.
+          url: response.url || current,
+          body: response.ok ? await readCapped(response) : '',
+        }
+      }
+
+      const next = URL.parse(location, current)
+      if (!next || !isOnHost(next.href, sameHost)) {
+        return { ok: false, status: response.status, body: '', url: current, detail: OFF_HOST }
+      }
+      if (hop >= MAX_SAME_HOST_REDIRECTS) {
+        return { ok: false, status: response.status, body: '', url: current, detail: TOO_MANY_HOPS }
+      }
+      current = next.href
     }
   } catch (error) {
     return {
@@ -109,6 +151,10 @@ export const fetchPage: FetchPage = async (url) => {
     }
   }
 }
+
+/** Why a bounded fetch gave up. Named so a spec can assert on them. */
+export const OFF_HOST = 'The redirect left the host under check, so it was not followed.'
+export const TOO_MANY_HOPS = 'Too many redirects on this host.'
 
 /** The first {@link MAX_BODY_BYTES} of a response, decoded as UTF-8. */
 async function readCapped(response: Response): Promise<string> {
@@ -318,7 +364,7 @@ export async function siteListsUrl(args: {
   const host = URL.parse(origin)?.host
   if (!host) return skip('This page has no resolvable origin.')
 
-  const robots = await get(`${origin}/robots.txt`)
+  const robots = await get(`${origin}/robots.txt`, { sameHost: host })
   const declared = robots.ok ? sitemapLinesFrom(robots.body, host) : []
   // `/sitemap.xml` is tried whatever robots.txt said: a site that publishes the
   // file and forgets the line is the common case, and that is a warning about
@@ -334,11 +380,12 @@ export async function siteListsUrl(args: {
     if (seen.has(url)) continue
     seen.add(url)
 
-    const document = await get(url)
+    // ⚠ `sameHost`, not a check on the answer: a candidate that passed the
+    // check above can still redirect off-host, and a verdict that discards
+    // that answer has already made the process fetch it. The re-check stays
+    // too — it costs nothing and it is what holds if the bound ever moves.
+    const document = await get(url, { sameHost: host })
     read++
-    // ⚠ The host is re-checked **after** the fetch too: a candidate that passed
-    // the check above can still redirect off-host, and following that is the
-    // same hole by one more hop.
     if (!document.ok || !isOnHost(document.url ?? url, host)) continue
     reachable = true
 
@@ -360,7 +407,7 @@ export async function siteListsUrl(args: {
 /**
  * Is this URL on the host the check is about?
  *
- * ⚠ **The whole SSRF bound, and the reason it is a bound rather than a filter.**
+ * ⚠ **Half the SSRF bound, and the reason it is a bound rather than a filter.**
  * This is the first code path that makes the CMS process itself fetch a URL a
  * third party chose: the `Sitemap:` lines of somebody else's `robots.txt`, and
  * the `<loc>` children of their sitemap index. Unrestricted, a volunteer's own
@@ -371,6 +418,11 @@ export async function siteListsUrl(args: {
  * Restricting to the one host keeps every fetch pointed where the check already
  * assumed it was pointed. A sitemap hosted on a different domain is a real
  * pattern, and deliberately not one this check follows.
+ *
+ * ⚠ **The other half is {@link FetchPageOptions.sameHost}, and this function
+ * cannot stand in for it.** Judging a URL before the fetch leaves the redirect
+ * chain unjudged, and a redirect is taken by the platform before any caller
+ * sees an answer to discard. Every candidate here is fetched bounded.
  */
 function isOnHost(url: string, host: string): boolean {
   return URL.parse(url)?.host.toLowerCase() === host.toLowerCase()
@@ -522,6 +574,11 @@ async function checkPage(
 ): Promise<SeoCheckResult[]> {
   // The resolve and the fetch are independent: the page URL is known before
   // either, so waiting for the CMS before asking the host is pure latency.
+  //
+  // Unbounded, unlike every sitemap fetch: this URL is built from the mount an
+  // operator designated and verification confirmed, not from a line somebody
+  // wrote in a file we read. A site that redirects its own mount to `www` or
+  // to https is ordinary, and refusing that hop would report it as unindexable.
   const [seo, fetched] = await Promise.all([resolvers.resolveSeo(page.route), get(page.url)])
 
   if (!seo) {
