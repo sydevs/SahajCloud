@@ -1,4 +1,4 @@
-import type { AtlasSeoResponse } from '../../src/endpoints/responseTypes'
+import type { AtlasSeoDocument } from '../../src/endpoints/atlas/seo/seoDocument'
 
 import { describe, expect, it } from 'vitest'
 
@@ -34,7 +34,7 @@ const GRAPH = {
   ],
 }
 
-const regionAnswer = (overrides: Partial<AtlasSeoResponse> = {}): AtlasSeoResponse =>
+const regionAnswer = (overrides: Partial<AtlasSeoDocument> = {}): AtlasSeoDocument =>
   ({
     type: 'region',
     id: 7,
@@ -48,35 +48,34 @@ const regionAnswer = (overrides: Partial<AtlasSeoResponse> = {}): AtlasSeoRespon
       { hreflang: 'x-default', href: 'https://sahajayoga.ca/classes/ca/ontario' },
     ],
     openGraph: { 'og:title': 'Ontario', 'og:type': 'website' },
-    jsonLd: jsonLdEscape(GRAPH),
+    jsonLdGraph: GRAPH,
     breadcrumbs: [],
     content: { name: 'Ontario', subtitle: null, level: 'region', events: [], eventCount: 0 },
     ...overrides,
-  }) as AtlasSeoResponse
+  }) as AtlasSeoDocument
 
 describe('wixStructuredData', () => {
-  it('is the same document /api/atlas/seo serialized, node for node', () => {
-    // The whole reason the serializer parses rather than rebuilding: if this
-    // ever stops holding, two JSON-LD documents describe one route.
-    expect(wixStructuredData(jsonLdEscape(GRAPH))).toEqual(
+  it('is the graph /api/atlas/seo serializes, node for node', () => {
+    // Both surfaces read one graph, so there is nothing here that can disagree
+    // with what the published endpoint escapes — the point of taking objects.
+    expect(wixStructuredData(GRAPH)).toEqual(
       GRAPH['@graph'].map((node) => ({ '@context': GRAPH['@context'], ...node })),
     )
   })
 
+  it('escapes to exactly what /api/atlas/seo publishes for the same route', () => {
+    // The two shapes may differ in form and must not differ in content.
+    expect(JSON.parse(jsonLdEscape(GRAPH))).toEqual(GRAPH)
+  })
+
   it('carries the context onto every node, since Wix emits one script each', () => {
-    for (const node of wixStructuredData(jsonLdEscape(GRAPH))) {
+    for (const node of wixStructuredData(GRAPH)) {
       expect(node['@context']).toBe('https://schema.org')
     }
   })
 
   it('keeps a bare document as one node', () => {
-    expect(wixStructuredData(jsonLdEscape({ '@type': 'Place' }))).toEqual([{ '@type': 'Place' }])
-  })
-
-  it('answers [] rather than throwing on anything unparseable', () => {
-    expect(wixStructuredData('{oops')).toEqual([])
-    expect(wixStructuredData('"a string"')).toEqual([])
-    expect(wixStructuredData('null')).toEqual([])
+    expect(wixStructuredData({ '@type': 'Place' })).toEqual([{ '@type': 'Place' }])
   })
 })
 

@@ -1,4 +1,5 @@
-import type { AtlasSeoResponse, AtlasSitemapUrl } from '@/endpoints/responseTypes'
+import type { AtlasSeoDocument } from '@/endpoints/atlas/seo/seoDocument'
+import type { AtlasSitemapUrl } from '@/endpoints/responseTypes'
 import { canonicalMountUrl, canonicalTargetForHost } from '@/lib/atlas/canonicalUrl'
 import type { RoutingMode } from '@/lib/clients/canonical'
 import type { SeoCheckId, SeoCheckResult, VerifiedEmbed } from '@/lib/clients/verification'
@@ -252,7 +253,7 @@ export function sameUrl(a: string | null, b: string | null): boolean {
  * not `fail` — a region with no classes and a locale with no landing copy are
  * both ordinary.
  */
-export function bodyProbe(seo: AtlasSeoResponse): string | null {
+export function bodyProbe(seo: AtlasSeoDocument): string | null {
   if (seo.type === 'region') {
     const event = seo.content.events.find((card) => card.title)
     return event?.title ?? seo.content.subtitle ?? null
@@ -303,7 +304,7 @@ export type PageVerdicts = Record<Exclude<SeoCheckId, 'sitemap'>, Verdict>
  * values is not something a volunteer can act on.
  */
 export function comparePage(args: {
-  seo: AtlasSeoResponse
+  seo: AtlasSeoDocument
   snapshot: PageSnapshot
   /** The URL fetched, which is the canonical whenever the endpoint answered none. */
   pageUrl: string
@@ -474,7 +475,7 @@ function dedupe(values: string[]): string[] {
  * about whose install is being checked rather than about the checking.
  */
 export interface SeoAuditResolvers {
-  resolveSeo: (route: string) => Promise<AtlasSeoResponse | null>
+  resolveSeo: (route: string) => Promise<AtlasSeoDocument | null>
   resolveSitemap: () => Promise<AtlasSitemapUrl[]>
 }
 

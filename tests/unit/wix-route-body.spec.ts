@@ -1,4 +1,4 @@
-import type { AtlasSeoResponse } from '../../src/endpoints/responseTypes'
+import type { AtlasSeoDocument } from '../../src/endpoints/atlas/seo/seoDocument'
 
 import { describe, expect, it } from 'vitest'
 
@@ -7,7 +7,7 @@ import { safeUrl, wixBodyHtml } from '../../src/endpoints/atlas/wix/wixBody'
 /**
  * The crawlable body — the one place the atlas SEO surface emits markup.
  *
- * ⚠ **Fixture pre-mortem.** These answers assume `AtlasSeoResponse`'s content
+ * ⚠ **Fixture pre-mortem.** These answers assume `AtlasSeoDocument`'s content
  * shape: a root carries `paragraphs` only and takes its heading from the
  * top-level `title`, a region carries `name` / `subtitle` / `events`, and an
  * event carries `schedule.oneLine`, `address.oneLine`, `paragraphs`, `images`
@@ -20,7 +20,7 @@ import { safeUrl, wixBodyHtml } from '../../src/endpoints/atlas/wix/wixBody'
  * same page. Change one and change the other.
  */
 
-const root = (paragraphs: string[], title = 'Free meditation classes'): AtlasSeoResponse =>
+const root = (paragraphs: string[], title = 'Free meditation classes'): AtlasSeoDocument =>
   ({
     type: 'root',
     id: null,
@@ -31,12 +31,12 @@ const root = (paragraphs: string[], title = 'Free meditation classes'): AtlasSeo
     canonical: null,
     alternates: [],
     openGraph: {},
-    jsonLd: '{}',
+    jsonLdGraph: {},
     breadcrumbs: [],
     content: { paragraphs },
-  }) as AtlasSeoResponse
+  }) as AtlasSeoDocument
 
-const region = (content: Record<string, unknown>): AtlasSeoResponse =>
+const region = (content: Record<string, unknown>): AtlasSeoDocument =>
   ({
     type: 'region',
     id: 7,
@@ -47,7 +47,7 @@ const region = (content: Record<string, unknown>): AtlasSeoResponse =>
     canonical: null,
     alternates: [],
     openGraph: {},
-    jsonLd: '{}',
+    jsonLdGraph: {},
     breadcrumbs: [],
     content: {
       name: 'Ontario',
@@ -57,9 +57,9 @@ const region = (content: Record<string, unknown>): AtlasSeoResponse =>
       eventCount: 0,
       ...content,
     },
-  }) as AtlasSeoResponse
+  }) as AtlasSeoDocument
 
-const event = (content: Record<string, unknown>): AtlasSeoResponse =>
+const event = (content: Record<string, unknown>): AtlasSeoDocument =>
   ({
     type: 'event',
     id: 1204,
@@ -70,7 +70,7 @@ const event = (content: Record<string, unknown>): AtlasSeoResponse =>
     canonical: null,
     alternates: [],
     openGraph: {},
-    jsonLd: '{}',
+    jsonLdGraph: {},
     breadcrumbs: [],
     content: {
       title: 'Thursday class',
@@ -92,7 +92,7 @@ const event = (content: Record<string, unknown>): AtlasSeoResponse =>
       images: [],
       ...content,
     },
-  }) as AtlasSeoResponse
+  }) as AtlasSeoDocument
 
 describe('both sinks are closed by construction', () => {
   // The hand-rolled escaper these replace could be forgotten at one of ~15

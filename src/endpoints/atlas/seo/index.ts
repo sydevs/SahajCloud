@@ -1,3 +1,4 @@
+import type { AtlasSeoResponse } from '../../responseTypes'
 import type { Endpoint } from 'payload'
 
 import { APIError } from 'payload'
@@ -10,6 +11,7 @@ import { publicReadCacheHeaders } from '@/plugins/cache'
 import { countClientRead } from '@/plugins/usage'
 
 import { MAX_ATLAS_ROUTE_LENGTH, parseAtlasRoute } from './atlasRoute'
+import { jsonLdEscape } from './jsonLd'
 import { resolveAtlasSeo } from './resolve'
 
 /** Pre-computed for the schema validation message (static, immutable). */
@@ -132,7 +134,17 @@ export const atlasSeo: Endpoint = {
       const seo = await resolveAtlasSeo({ req, target, locale })
       if (!seo) return errorResponse('That route does not name a region or an event.', 404)
 
-      return Response.json(seo, { headers: publicReadCacheHeaders(req, ['events', 'regions']) })
+      // ⚠ **The one place the graph is serialized.** `jsonLd` is a pre-escaped
+      // string because the WordPress plugin echoes it raw into a `<script>`, and
+      // this is the only surface that publishes it that way — so the escape is
+      // the last thing that happens to the document rather than something built
+      // into it, and no other reader has to parse its way back out (#1055).
+      // Annotated, not inferred: `Response.json` takes `unknown`, so dropping
+      // `jsonLd` here would be a silent contract break for 13 installed plugins.
+      const { jsonLdGraph, ...rest } = seo
+      const body: AtlasSeoResponse = { ...rest, jsonLd: jsonLdEscape(jsonLdGraph) }
+
+      return Response.json(body, { headers: publicReadCacheHeaders(req, ['events', 'regions']) })
     } catch (error) {
       // The forwarded reads run the client-query gates, which throw APIError —
       // surface status + message verbatim rather than reporting a server fault.

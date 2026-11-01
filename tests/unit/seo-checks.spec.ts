@@ -1,4 +1,5 @@
-import type { AtlasSeoResponse, AtlasSitemapUrl } from '../../src/endpoints/responseTypes'
+import type { AtlasSeoDocument } from '../../src/endpoints/atlas/seo/seoDocument'
+import type { AtlasSitemapUrl } from '../../src/endpoints/responseTypes'
 import type { FetchedPage } from '../../src/lib/embedVerification/seoChecks'
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -28,7 +29,7 @@ import {
  * the real types so a drift is a compile error rather than a passing test about
  * a shape nothing returns:
  *
- * - `AtlasSeoResponse` — the discriminated union in
+ * - `AtlasSeoDocument` — the discriminated union in
  *   `src/endpoints/responseTypes.ts`, so a region carries `content.events` with
  *   `title`, and the root carries `content.paragraphs`.
  * - `VerifiedEmbed` — `canonical.verification.verified`, whose required keys are
@@ -40,13 +41,13 @@ import {
 
 const PAGE_URL = 'https://sahajayoga.ca/classes/ca/ontario'
 
-type RegionAnswer = Extract<AtlasSeoResponse, { type: 'region' }>
+type RegionAnswer = Extract<AtlasSeoDocument, { type: 'region' }>
 
 const regionSeo = (
   overrides: Partial<Omit<RegionAnswer, 'content'>> & {
     content?: Partial<RegionAnswer['content']>
   } = {},
-): AtlasSeoResponse => {
+): AtlasSeoDocument => {
   const { content, ...rest } = overrides
   return {
     type: 'region',
@@ -58,7 +59,7 @@ const regionSeo = (
     canonical: PAGE_URL,
     alternates: [],
     openGraph: {},
-    jsonLd: '{}',
+    jsonLdGraph: {},
     breadcrumbs: [],
     ...rest,
     content: {
@@ -475,7 +476,7 @@ describe('runSeoChecks', () => {
             id: null,
             route: '/',
             content: { paragraphs: ['Come and sit.'] },
-          } as unknown as AtlasSeoResponse)
+          } as unknown as AtlasSeoDocument)
         : regionSeo(),
     resolveSitemap: async () => [
       { loc: PAGE_URL, lastmod: '2026-10-01T00:00:00.000Z', route: '/ca/ontario' },

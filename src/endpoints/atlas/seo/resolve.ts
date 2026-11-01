@@ -1,5 +1,5 @@
 import type { AtlasRouteTarget } from './atlasRoute'
-import type { AtlasSeoBreadcrumb, AtlasSeoEventCard, AtlasSeoResponse } from '../../responseTypes'
+import type { AtlasSeoBreadcrumb, AtlasSeoEventCard } from '../../responseTypes'
 import type { PayloadRequest, SelectType } from 'payload'
 
 import { APIError } from 'payload'
@@ -18,7 +18,14 @@ import type { Event, Region } from '@/payload-types'
 
 import { getAtlasLocales } from './atlasLocales'
 import { getRootSeoStrings } from './rootStrings'
-import { buildEventSeo, buildRegionSeo, buildRootSeo, eventCard, seoImages } from './seoDocument'
+import {
+  type AtlasSeoDocument,
+  buildEventSeo,
+  buildRegionSeo,
+  buildRootSeo,
+  eventCard,
+  seoImages,
+} from './seoDocument'
 
 /**
  * Resolve one atlas route into the SEO document that describes it.
@@ -156,7 +163,7 @@ async function rootSeo(
   req: PayloadRequest,
   locale: LocaleCode,
   clientId: number | null | undefined,
-): Promise<AtlasSeoResponse> {
+): Promise<AtlasSeoDocument> {
   // Three independent reads — the copy, the enabled locales, the named client's
   // own record — so they overlap rather than queue.
   const [strings, locales, canonical] = await Promise.all([
@@ -173,7 +180,7 @@ async function regionSeo(
   req: PayloadRequest,
   target: Extract<AtlasRouteTarget, { kind: 'region' }>,
   locale: LocaleCode,
-): Promise<AtlasSeoResponse | null> {
+): Promise<AtlasSeoDocument | null> {
   // Keyed on the globally-unique slug, which is one indexed equality.
   //
   // ⚠ **Not** `where['breadcrumbs.url'][equals]`, despite #640 having shipped
@@ -256,7 +263,7 @@ async function eventSeo(
   req: PayloadRequest,
   target: Extract<AtlasRouteTarget, { kind: 'event' }>,
   locale: LocaleCode,
-): Promise<AtlasSeoResponse | null> {
+): Promise<AtlasSeoDocument | null> {
   let event: Event
   try {
     // `depth: 0`, so `images` and `region` come back as ids. Letting Payload
@@ -341,7 +348,7 @@ export async function resolveAtlasSeo(args: {
    * implementation of exactly the thing this module exists to be the only one of.
    */
   clientId?: number | null
-}): Promise<AtlasSeoResponse | null> {
+}): Promise<AtlasSeoDocument | null> {
   const { req, target, locale, clientId = req.user?.id } = args
   // The root always resolves, so it returns before the not-found check — only a
   // lookup can come back empty.

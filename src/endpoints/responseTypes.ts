@@ -168,7 +168,9 @@ type AtlasSeoBase = {
   /**
    * A complete JSON-LD document, **already serialized and escaped** for direct
    * embedding in `<script type="application/ld+json">`. Emit it verbatim — do
-   * not re-serialize it, and do not HTML-escape it again.
+   * not re-serialize it, and do not HTML-escape it again. The escape happens at
+   * this endpoint and nowhere earlier, so no other shape of the same document
+   * has to undo it.
    */
   jsonLd: string
   /** Region ancestry, root first, ending at this page. */
@@ -281,7 +283,8 @@ export type AtlasWixHead = {
   /**
    * JSON-LD as **objects**, not a string: Wix serializes `structuredData`
    * itself. The identical document `GET /api/atlas/seo` returns pre-serialized
-   * as `jsonLd` — see `wixDocument.ts` for why it is parsed rather than rebuilt.
+   * as `jsonLd` — both shapes read one graph, and that endpoint is the only
+   * surface that escapes it.
    */
   structuredData: Record<string, unknown>[]
 }

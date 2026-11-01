@@ -1,16 +1,17 @@
 import type { RouteRelation } from './wixRoute'
 import type {
-  AtlasSeoResponse,
   AtlasWixHead,
   AtlasWixLink,
   AtlasWixMetaTag,
   AtlasWixRouteResponse,
 } from '../../responseTypes'
+import type { JsonLdNode } from '../seo/jsonLd'
+import type { AtlasSeoDocument } from '../seo/seoDocument'
 
 import { wixBodyHtml } from './wixBody'
 
 /**
- * Turn one `AtlasSeoResponse` into the answer a Wix Velo router can hand to
+ * Turn one `AtlasSeoDocument` into the answer a Wix Velo router can hand to
  * `ok()` / `redirect()` / `notFound()` (#1055).
  *
  * **A serializer, never a second resolver.** Every fact here is read off the
@@ -40,37 +41,27 @@ export const WIX_CACHE_SECONDS = 300
 const EMPTY_HEAD: AtlasWixHead = { title: '', metaTags: [], links: [], structuredData: [] }
 
 /**
- * The JSON-LD document as objects, parsed back out of the serialized form.
+ * The JSON-LD graph as the array of nodes Wix publishes.
  *
- * ⚠ **Parsed, deliberately, rather than rebuilt.** `jsonLdEscape` replaces
- * `<`, `>`, `&` and the two Unicode separators with **valid JSON escapes for
- * the same characters**, so the string parses to a value deep-equal to the one
- * it was built from — its own docblock says so, and
- * `tests/unit/wix-route-shape.spec.ts` asserts it. Building a second graph here
- * would be the one thing this whole endpoint exists to avoid: two JSON-LD
- * documents for one route, free to disagree the day an `@type` changes.
+ * ⚠ **The same graph `/api/atlas/seo` serializes, never a second one.** Building
+ * a second graph here would be the one thing this whole endpoint exists to
+ * avoid: two JSON-LD documents for one route, free to disagree the day an
+ * `@type` changes. Reading it off {@link AtlasSeoDocument} is what makes that
+ * structural — before #1055's review this parsed `jsonLd` back out of its own
+ * escaped string, which was provably lossless and still a surface parsing its
+ * own output.
  *
  * A `@graph` is flattened, because Wix takes an array of nodes and would
- * otherwise publish one node wrapping all of them. A parse failure answers `[]`
- * — structured data is an enhancement, and no page should fail to render for it.
+ * otherwise publish one node wrapping all of them.
  */
-export function wixStructuredData(jsonLd: string): Record<string, unknown>[] {
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(jsonLd)
-  } catch {
-    return []
-  }
-  if (!parsed || typeof parsed !== 'object') return []
+export function wixStructuredData(graph: JsonLdNode): Record<string, unknown>[] {
+  const nodes = graph['@graph']
+  if (!Array.isArray(nodes)) return [graph]
 
-  const document = parsed as Record<string, unknown>
-  const graph = document['@graph']
-  if (!Array.isArray(graph)) return [document]
-
-  const context = document['@context']
+  const context = graph['@context']
   // Each node carries the context forward: Wix emits one `<script>` per entry,
   // and a node with no `@context` is not a schema.org document.
-  return graph
+  return nodes
     .filter((node): node is Record<string, unknown> => Boolean(node) && typeof node === 'object')
     .map((node) => (context === undefined ? node : { '@context': context, ...node }))
 }
@@ -82,7 +73,7 @@ export function wixStructuredData(jsonLd: string): Record<string, unknown>[] {
  * CMS, and an empty `<meta name="description">` is a claim that the page has no
  * summary rather than that we have not written one.
  */
-export function wixMetaTags(seo: AtlasSeoResponse, noindex: boolean): AtlasWixMetaTag[] {
+export function wixMetaTags(seo: AtlasSeoDocument, noindex: boolean): AtlasWixMetaTag[] {
   const tags: AtlasWixMetaTag[] = []
   if (seo.description) tags.push({ name: 'description', content: seo.description })
   // `nofollow` is deliberately absent: the body's links are the region tree, and
@@ -101,7 +92,7 @@ export function wixMetaTags(seo: AtlasSeoResponse, noindex: boolean): AtlasWixMe
  * `selfCanonical` is the caller's judgement, not ours to re-derive: only the
  * router knows the URL Wix is rendering. See {@link AtlasWixHead.links}.
  */
-export function wixLinks(seo: AtlasSeoResponse, selfCanonical: boolean): AtlasWixLink[] {
+export function wixLinks(seo: AtlasSeoDocument, selfCanonical: boolean): AtlasWixLink[] {
   if (selfCanonical || !seo.canonical) return []
   return [
     { rel: 'canonical', href: seo.canonical },
@@ -137,7 +128,7 @@ export function wixNotFound(): AtlasWixRouteResponse {
  * document's canonical instead, so a crawler folds the two together itself.
  */
 export function wixRouteAnswer(args: {
-  seo: AtlasSeoResponse
+  seo: AtlasSeoDocument
   /** What the caller's route and the document's route have to do with each other. */
   relation: RouteRelation
   noindex: boolean
@@ -162,7 +153,7 @@ export function wixRouteAnswer(args: {
       title: seo.title,
       metaTags: wixMetaTags(seo, noindex),
       links: wixLinks(seo, selfCanonical),
-      structuredData: wixStructuredData(seo.jsonLd),
+      structuredData: wixStructuredData(seo.jsonLdGraph),
     },
     data: { type: seo.type, route: seo.route, bodyHtml: wixBodyHtml(seo) },
     cacheSeconds: WIX_CACHE_SECONDS,

@@ -1,8 +1,5 @@
-import type {
-  AtlasSeoEventContent,
-  AtlasSeoRegionContent,
-  AtlasSeoResponse,
-} from '../../responseTypes'
+import type { AtlasSeoEventContent, AtlasSeoRegionContent } from '../../responseTypes'
+import type { AtlasSeoDocument } from '../seo/seoDocument'
 import type { ReactNode } from 'react'
 
 import { renderToStaticMarkup } from 'react-dom/server'
@@ -64,7 +61,7 @@ function Paragraphs({ content }: { content: { paragraphs?: string[] } }): ReactN
  * heading and nothing else — which is why this is decided before the `content`
  * guard in {@link wixBodyHtml} rather than after it.
  */
-function RootBody({ seo }: { seo: Extract<AtlasSeoResponse, { type: 'root' }> }): ReactNode {
+function RootBody({ seo }: { seo: Extract<AtlasSeoDocument, { type: 'root' }> }): ReactNode {
   return (
     <section>
       <h1>{seo.title}</h1>
@@ -130,7 +127,7 @@ function RegionBody({ content }: { content: AtlasSeoRegionContent }): ReactNode 
  * A deliberate mirror of `sahaj_atlas_seo_children` in the WordPress plugin, so
  * the two hosts show a crawler the same page.
  */
-export function wixBodyHtml(seo: AtlasSeoResponse): string {
+export function wixBodyHtml(seo: AtlasSeoDocument): string {
   if (seo.type === 'root') return renderToStaticMarkup(<RootBody seo={seo} />)
   if (!seo.content) return ''
   return renderToStaticMarkup(
