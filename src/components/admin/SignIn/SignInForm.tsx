@@ -21,8 +21,16 @@ export type SignInNotice = { tone: 'error' | 'warning'; title: string; message: 
  * @param notice A refused link, stated above the form. Cleared by the first
  *   submission: once the reader has asked for a fresh link, the old one's fate
  *   stops being news.
+ * @param returnTo The page that sent the reader here, which the emailed link
+ *   returns them to. Checked by the action, not here — it is the URL's.
  */
-export function SignInForm({ notice }: { notice: SignInNotice | null }) {
+export function SignInForm({
+  notice,
+  returnTo,
+}: {
+  notice: SignInNotice | null
+  returnTo?: string
+}) {
   const [outcome, formAction, pending] = useActionState(requestSignInLinkAction, null)
   const [email, setEmail] = useState('')
 
@@ -37,6 +45,7 @@ export function SignInForm({ notice }: { notice: SignInNotice | null }) {
 
   return (
     <form action={formAction} className={styles.stack}>
+      {returnTo ? <input name="redirect" type="hidden" value={returnTo} /> : null}
       {notice && !outcome ? (
         <Banner type={notice.tone}>
           <strong>{notice.title}</strong> {notice.message}

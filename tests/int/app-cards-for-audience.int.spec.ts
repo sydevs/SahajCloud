@@ -558,10 +558,10 @@ describe('appCardsForAudience endpoint', () => {
     expect(docs).toHaveLength(1)
   })
 
-  it('threads req through payload.find so usage-tracking and rate-limit hooks see the caller', async () => {
+  it('threads req through payload.find so the usage-tracking hook sees the caller', async () => {
     // The hooks applied by usagePlugin read `req.user` to attribute a request
     // to a client. If the endpoint does not forward `req` to `payload.find`,
-    // the hooks fire without a user and silently skip tracking/rate-limiting.
+    // the hooks fire without a user and silently skip tracking.
     const client = (await testData.createClient(payload, adminUserId, {
       name: 'Usage Tracking Forwarding Test',
     })) as Client

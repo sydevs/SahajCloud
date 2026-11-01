@@ -21,7 +21,7 @@ validation.
 
 | Lane            | Files                                              | Speed                                                                                                                                  | When                                                                                                                               |
 | --------------- | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| **Unit**        | `tests/unit/**/*.spec.ts`                          | ~78 s for 234 files / 2984 cases; 1–3 s for one named spec, under 9 s for the specs one edit can break (4 cores — see `tests/PERF.md`) | Pure functions, no Payload bootstrap. **No** `globalSetup`/`setupFiles`.                                                           |
+| **Unit**        | `tests/unit/**/*.spec.ts`                          | ~78 s for 235 files / 3009 cases; 1–3 s for one named spec, under 9 s for the specs one edit can break (4 cores — see `tests/PERF.md`) | Pure functions, no Payload bootstrap. **No** `globalSetup`/`setupFiles`.                                                           |
 | **Integration** | `tests/int/**/*.int.spec.ts`, `seeds/**/*.test.ts` | bootstrap-heavy per file (full-schema push. See `tests/PERF.md`)                                                                       | Calls `createTestEnvironment()`, exercises hooks/access/virtual fields/relationships. Files run in parallel (`vitest.config.mts`). |
 | **Smoke (E2E)** | `tests/e2e/**/*.e2e.spec.ts`                       | Playwright (REST)                                                                                                                      | Tier-3 smoke against the Railway PR preview (`pnpm test:smoke`). See below.                                                        |
 
@@ -32,7 +32,7 @@ Put it there when it has no `createTestEnvironment()` call, doesn't touch
 schema validator. Examples already in the codebase: rule evaluation, color
 utilities, weighted sampling, the locale builder, duration extraction,
 schedule RRULE/DST computations, Lexical block migration helpers,
-`filterAvailableLocales`, `buildRateLimitKey`, seed pagination helpers,
+`filterAvailableLocales`, seed pagination helpers,
 unify-index-blocks migration transforms.
 
 ### Mounting an admin component in the unit lane

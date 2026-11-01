@@ -43,12 +43,12 @@ export function addressOneLine(address: Address): string {
     .join(', ')
 }
 
-function formatDate(value: unknown, withYear = true): string {
+function formatDate(value: unknown, withYear = true, timeZone = 'UTC'): string {
   if (!value) return ''
   const date = new Date(String(value))
   if (Number.isNaN(date.getTime())) return ''
   return new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'UTC',
+    timeZone,
     day: 'numeric',
     month: 'short',
     ...(withYear ? { year: 'numeric' } : {}),
@@ -132,12 +132,15 @@ function formatBreaks(schedule: Schedule | null | undefined): string[] {
     .filter(Boolean)
 }
 
-/** A full date for deadlines, e.g. "Saturday, 19 July 2026" (UTC). */
-export function formatLongDate(iso: string): string {
+/**
+ * A full date, e.g. "Saturday, 19 July 2026". UTC unless `timeZone` names one —
+ * which a session's start needs, or 19:00 in New York reads as the next day.
+ */
+export function formatLongDate(iso: string, timeZone = 'UTC'): string {
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return ''
   return new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'UTC',
+    timeZone,
     weekday: 'long',
     day: 'numeric',
     month: 'long',
@@ -145,9 +148,9 @@ export function formatLongDate(iso: string): string {
   }).format(date)
 }
 
-/** Compact date for dense lists (the digest), e.g. "5 Aug 2025". */
-export function formatShortDate(iso: string): string {
-  return formatDate(iso)
+/** Compact date for dense lists (the digest), e.g. "5 Aug 2025". `timeZone` as above. */
+export function formatShortDate(iso: string, timeZone?: string): string {
+  return formatDate(iso, true, timeZone)
 }
 
 /** Coarse human duration since `fromIso`, e.g. "3 months" / "5 weeks". */

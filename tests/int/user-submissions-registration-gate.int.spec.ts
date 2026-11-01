@@ -137,6 +137,14 @@ describe('registration gate on the unified create (#797)', () => {
     expect(totalDocs).toBe(1)
   })
 
+  it('refuses a session already started with registration_closed', async () => {
+    const event = await createEvent()
+
+    await expect(
+      register({ event: event.id, startingAt: PAST_ONE_OFF.firstDate }),
+    ).rejects.toMatchObject({ status: 409, data: { code: 'registration_closed' } })
+  })
+
   it('refuses an external-mode event with external_registration', async () => {
     const event = await createEvent({ registrationMode: 'external' })
     await expect(register({ event: event.id })).rejects.toMatchObject({

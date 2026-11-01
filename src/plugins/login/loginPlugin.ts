@@ -60,10 +60,13 @@ export interface LoginPluginOptions {
   collections?: LoginCollectionConfig[]
   enabled?: boolean
   /**
-   * Whether assignments queue invitations. Off for the seed scripts: an import
-   * writes managers onto hundreds of regions and events, and the queue it left
-   * behind would mail every one of them from production's next run. The fields
-   * and the task are wired either way, so the schema never differs.
+   * Whether assignments queue invitations. An import writes managers onto
+   * hundreds of regions and events, and the queue it left behind would mail
+   * every one of them from production's next run. This option is off for an
+   * in-process seed script (`seeds/` in argv). An `/api/seed` import runs inside
+   * the server, so it is covered instead by `context.seed` on every
+   * `BaseImporter` write, which `enqueue` refuses. The fields and the task are
+   * wired either way, so the schema never differs.
    */
   invitations?: boolean
 }
@@ -208,7 +211,7 @@ function adminWithSignInView(
  * and replacing it would delete the project switcher.
  *
  * Deliberately `onInit`-free: `config.onInit` is a single function, and
- * `src/payload.config.ts` already points it at `seedPreviewAdmin`.
+ * `src/payload.config.ts` already owns it.
  *
  * @example
  * ```typescript

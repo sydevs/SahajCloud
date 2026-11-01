@@ -27,6 +27,8 @@ interface KindRules {
   select?: SelectType
   /** Whether this token has not been spent yet. */
   isUnspent: (account: LoginDocument) => boolean
+  /** The stored `magicLinkIssuedAt` a single-use token spends, as ISO. */
+  spends?: string
   /** The `?error=` a spent token is sent back with, where saying so helps. Otherwise `invalid`. */
   spentReason?: string
   /** Where the session lands. Read from the signed claims, never the request. */
@@ -50,6 +52,10 @@ function rulesFor(config: LoginCollectionConfig, token: LoginToken): KindRules {
         isUnspent: ({ magicLinkIssuedAt }) =>
           Boolean(magicLinkIssuedAt) &&
           new Date(magicLinkIssuedAt!).getTime() === token.claims.issuedAt,
+        spends: new Date(token.claims.issuedAt).toISOString(),
+        // The page that sent the holder to sign in, checked as `isAdminPath`
+        // when the token was read.
+        redirectTo: token.claims.to,
       }
     case 'invite':
       // `_verified` is what makes an invitation single-use: it stamps nothing,
@@ -183,6 +189,21 @@ export function redeem(config: LoginCollectionConfig): Endpoint {
       // Reached only with an authentic, unexpired token for an existing,
       // eligible account — so naming it spent tells nothing to anyone probing.
       if (!rules.isUnspent(account)) return refuse(rules.spentReason ?? 'invalid')
+
+      // ⚠ One conditional UPDATE, because the check above is a read: two
+      // concurrent POSTs both pass it, and only the one that clears the stamp
+      // may sign in. Payload's own `forgotPassword` reserves the same way.
+      if (rules.spends) {
+        const spent = await payload.db.updateOne({
+          collection: slug,
+          where: {
+            and: [{ id: { equals: account.id } }, { magicLinkIssuedAt: { equals: rules.spends } }],
+          },
+          data: { magicLinkIssuedAt: null },
+          options: { atomic: true },
+        })
+        if (!spent) return refuse('invalid')
+      }
 
       // ⚠ Deliberately its own operation, not joined to `req`'s transaction:
       // burning the token must survive a failure to mint below.

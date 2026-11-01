@@ -58,6 +58,13 @@ describe('evaluateRegistrationGate', () => {
     expect(gate(startedCourse)?.code).toBe('registration_closed')
   })
 
+  it('rejects a registration for a session already started with registration_closed', () => {
+    const at = (startingAt: string) =>
+      evaluateRegistrationGate({ event: openEvent, registrationCount: 0, now: NOW, startingAt })
+    expect(at(STARTED)?.code).toBe('registration_closed')
+    expect(at(FUTURE)).toBeNull()
+  })
+
   it('never closes a recurring class with no ending (the boundary case)', () => {
     const openEndedClass: RegistrationGateInput = {
       registrationMode: 'sahaj-atlas',

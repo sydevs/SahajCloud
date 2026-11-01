@@ -47,6 +47,7 @@ export function requestMagicLink(config: LoginCollectionConfig): Endpoint {
           payload: req.payload,
           config,
           email: parsed.data.email,
+          redirect: parsed.data.redirect,
         })
         if (signedIn) {
           return Response.json(
