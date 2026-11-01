@@ -1,16 +1,13 @@
 import type { RouteRelation } from './wixRoute'
 import type {
-  AtlasSeoEventContent,
-  AtlasSeoRegionContent,
   AtlasSeoResponse,
-  AtlasSeoRootContent,
   AtlasWixHead,
   AtlasWixLink,
   AtlasWixMetaTag,
   AtlasWixRouteResponse,
 } from '../../responseTypes'
 
-import { escapeHtml, safeUrl } from './wixHtml'
+import { wixBodyHtml } from './wixBody'
 
 /**
  * Turn one `AtlasSeoResponse` into the answer a Wix Velo router can hand to
@@ -114,78 +111,6 @@ export function wixLinks(seo: AtlasSeoResponse, selfCanonical: boolean): AtlasWi
       hreflang: alternate.hreflang,
     })),
   ]
-}
-
-/** One `<p>` per authored block, escaped. The shared half of three renderers. */
-function paragraphs(content: { paragraphs?: string[] }): string {
-  return (content.paragraphs ?? []).map((text) => `<p>${escapeHtml(text)}</p>`).join('')
-}
-
-/**
- * The root view's body.
- *
- * ⚠ Takes the whole answer, not just `content`: the root names no document, so
- * its heading is the page title the operator wrote, which sits at the top level
- * beside every other route's. A locale nobody has written copy for renders the
- * heading and nothing else — which is why this is decided before the `content`
- * guard in {@link wixBodyHtml} rather than after it.
- */
-function rootBody(seo: Extract<AtlasSeoResponse, { type: 'root' }>): string {
-  const content: AtlasSeoRootContent = seo.content ?? { paragraphs: [] }
-  return `<section><h1>${escapeHtml(seo.title)}</h1>${paragraphs(content)}</section>`
-}
-
-/** An event's body: its facts, its description, its photos, its own link. */
-function eventBody(content: AtlasSeoEventContent): string {
-  let out = `<article><h1>${escapeHtml(content.title)}</h1>`
-
-  if (content.schedule?.oneLine) out += `<p>${escapeHtml(content.schedule.oneLine)}</p>`
-  if (content.address?.oneLine) out += `<address>${escapeHtml(content.address.oneLine)}</address>`
-
-  out += paragraphs(content)
-
-  for (const image of content.images ?? []) {
-    const src = safeUrl(image.url)
-    if (!src) continue
-    out += `<img src="${escapeHtml(src)}" alt="${escapeHtml(image.alt ?? '')}" loading="lazy" />`
-  }
-
-  const website = safeUrl(content.website)
-  if (website) out += `<p><a href="${escapeHtml(website)}">${escapeHtml(website)}</a></p>`
-
-  return `${out}</article>`
-}
-
-/** A region's body: its name, its subtitle, and its classes as real links. */
-function regionBody(content: AtlasSeoRegionContent): string {
-  let out = `<section><h1>${escapeHtml(content.name)}</h1>`
-  if (content.subtitle) out += `<p>${escapeHtml(content.subtitle)}</p>`
-
-  const rows = (content.events ?? [])
-    .filter((event) => event.title)
-    .map((event) => {
-      const href = safeUrl(event.url)
-      const label = href
-        ? `<a href="${escapeHtml(href)}">${escapeHtml(event.title)}</a>`
-        : escapeHtml(event.title)
-      const facts = [event.schedule, event.address].filter(Boolean).join(' · ')
-      return `<li>${label}${facts ? ` — ${escapeHtml(facts)}` : ''}</li>`
-    })
-
-  if (rows.length > 0) out += `<ul>${rows.join('')}</ul>`
-  return `${out}</section>`
-}
-
-/**
- * The crawlable body for one answer.
- *
- * A deliberate mirror of `sahaj_atlas_seo_children` in the WordPress plugin, so
- * the two hosts show a crawler the same page.
- */
-export function wixBodyHtml(seo: AtlasSeoResponse): string {
-  if (seo.type === 'root') return rootBody(seo)
-  if (!seo.content) return ''
-  return seo.type === 'event' ? eventBody(seo.content) : regionBody(seo.content)
 }
 
 /** The answer for a path that is not a route, or names nothing. */

@@ -295,7 +295,7 @@ export type AtlasWixRouteData = {
    * The crawlable body, as HTML, for `$w('#sahajAtlasContent').html`.
    *
    * ⚠ The one place the atlas SEO surface emits markup. Every CMS value in it
-   * is escaped here (`wixHtml.ts`), because a Wix `html` sink sanitizes
+   * is escaped here (`wixBody.tsx`), because a Wix `html` sink sanitizes
    * nothing. Links are real `<a>` elements, so a crawler follows them.
    */
   bodyHtml: string

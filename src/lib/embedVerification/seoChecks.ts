@@ -122,7 +122,7 @@ export const fetchPage: FetchPage = async (url, options = {}) => {
 
       const location =
         sameHost && REDIRECT_STATUSES.has(response.status) ? response.headers.get('location') : null
-      if (!location) {
+      if (!sameHost || !location) {
         return {
           ok: response.ok,
           status: response.status,

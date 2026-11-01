@@ -2,8 +2,7 @@ import type { AtlasSeoResponse } from '../../src/endpoints/responseTypes'
 
 import { describe, expect, it } from 'vitest'
 
-import { wixBodyHtml } from '../../src/endpoints/atlas/wix/wixDocument'
-import { escapeHtml, safeUrl } from '../../src/endpoints/atlas/wix/wixHtml'
+import { safeUrl, wixBodyHtml } from '../../src/endpoints/atlas/wix/wixBody'
 
 /**
  * The crawlable body — the one place the atlas SEO surface emits markup.
@@ -95,15 +94,23 @@ const event = (content: Record<string, unknown>): AtlasSeoResponse =>
     },
   }) as AtlasSeoResponse
 
-describe('escapeHtml', () => {
-  it('closes both the text-node and the attribute sinks', () => {
-    expect(escapeHtml(`<a href="x" title='y'>&`)).toBe(
-      '&lt;a href=&quot;x&quot; title=&#39;y&#39;&gt;&amp;',
-    )
+describe('both sinks are closed by construction', () => {
+  // The hand-rolled escaper these replace could be forgotten at one of ~15
+  // interpolations. What is pinned now is that no builder has to call anything.
+  it('escapes a text node', () => {
+    const html = wixBodyHtml(root([`<a href="x" title='y'>&`]))
+    expect(html).toContain('<p>&lt;a href=&quot;x&quot; title=&#x27;y&#x27;&gt;&amp;</p>')
   })
 
-  it('escapes the ampersand first, so an escape is not escaped twice', () => {
-    expect(escapeHtml('&lt;')).toBe('&amp;lt;')
+  it('escapes an attribute value', () => {
+    const html = wixBodyHtml(
+      event({ images: [{ url: 'https://img.example.org/a.jpg', alt: `A "hall" & 'more'` }] }),
+    )
+    expect(html).toContain(`alt="A &quot;hall&quot; &amp; &#x27;more&#x27;"`)
+  })
+
+  it('does not double-escape an entity the operator typed', () => {
+    expect(wixBodyHtml(root(['&lt;']))).toContain('<p>&amp;lt;</p>')
   })
 })
 
@@ -227,7 +234,7 @@ describe('wixBodyHtml — an event', () => {
         '<p>Every Thursday at 7 PM</p>' +
         '<address>Community Hall, Toronto</address>' +
         '<p>All welcome.</p>' +
-        '<img src="https://img.example.org/a.jpg" alt="The hall" loading="lazy" />' +
+        '<img alt="The hall" loading="lazy" src="https://img.example.org/a.jpg"/>' +
         '<p><a href="https://example.org/class">https://example.org/class</a></p>' +
         '</article>',
     )
