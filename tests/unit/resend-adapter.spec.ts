@@ -144,12 +144,26 @@ describe('resendAdapter message mapping', () => {
     expect(payload).not.toHaveProperty('attachments')
   })
 
-  it('does not send when the API key is unconfigured', async () => {
+  it('throws without sending when the API key is unconfigured', async () => {
     env.RESEND_API_KEY = undefined
-    await buildAdapter().sendEmail(baseMessage)
+    await expect(buildAdapter().sendEmail(baseMessage)).rejects.toThrow()
 
     expect(sendMock).not.toHaveBeenCalled()
     expect(logger.error).toHaveBeenCalled()
+  })
+
+  // A caller reads a throw as "not sent"; returning normally read as delivered.
+  it.each([
+    [
+      'refuses it',
+      () => sendMock.mockResolvedValue({ data: null, error: { message: 'no', name: 'x' } }),
+    ],
+    ['rejects', () => sendMock.mockRejectedValue(new Error('socket hang up'))],
+  ])('throws, logging once, when Resend %s', async (_label, arrange) => {
+    arrange()
+    await expect(buildAdapter().sendEmail(baseMessage)).rejects.toThrow()
+
+    expect(logger.error).toHaveBeenCalledTimes(1)
   })
 })
 
@@ -163,7 +177,7 @@ describe('resendAdapter default sender', () => {
   it('defaults to the manager address, which Payload auth mail sends as', () => {
     // Nothing else sets `from` on a verification or password-reset send, so this
     // default IS the auth mail's sender. It must be a Resend-verified domain or
-    // the send is dropped without an error reaching the caller (#790).
+    // Resend refuses every send (#790).
     expect(buildAdapter().defaultFromAddress).toBe(MANAGER_EMAIL_FROM)
   })
 

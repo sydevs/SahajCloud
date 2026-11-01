@@ -43,7 +43,7 @@ import { usagePlugin } from '@/plugins/usage'
 import { writeGuardPlugin } from '@/plugins/writeGuard'
 
 import { collections, Managers } from './collections'
-import { payloadJobsOverrides } from './collections/PayloadJobs/PayloadJobs'
+import { cancelStaleJobs, payloadJobsOverrides } from './collections/PayloadJobs/PayloadJobs'
 import { atlasSeo } from './endpoints/atlas/seo'
 import { atlasSitemap } from './endpoints/atlas/sitemap'
 import { globals } from './globals'
@@ -225,7 +225,10 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     // migrations above have run. A no-op everywhere else — see the gate's docblock in
     // `@/plugins/previewAdmin` for why each of its three conditions is there, and why
     // production is detected by Railway's environment name rather than NODE_ENV.
-    onInit: seedPreviewAdmin,
+    onInit: async (payload) => {
+      await cancelStaleJobs(payload)
+      await seedPreviewAdmin(payload)
+    },
     jobs: {
       tasks,
       // A finished job row is the status source behind a meditation transcript

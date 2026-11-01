@@ -16,8 +16,9 @@ import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import { MANAGER_SIGNIN_PATH } from '@/collections/Managers/login'
+import { MANAGER_SIGNIN_PATH, managersLogin } from '@/collections/Managers/login'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
+import { mintSignInLink, pageLinkUrl, readSigninToken, signInviteToken } from '@/plugins/login'
 import { captureFailure } from '@/plugins/sentry/captureFailure'
 
 import { createAnonRestClient, type RestClient } from '../utils/restRequest'
@@ -46,13 +47,25 @@ describe('manager sign-in page', () => {
   let anon: RestClient
   let cleanup: () => Promise<void>
   let requestSignInLinkAction: (typeof import('@/components/admin/SignIn/actions'))['requestSignInLinkAction']
+  let deliveredLink: (typeof import('@/components/admin/SignIn/deliveredLink'))['deliveredLink']
 
-  /** Submit the form, as `useActionState` does. */
-  const submit = (email: unknown) => {
+  /** Submit the form, as `useActionState` does — `redirect` is its hidden field. */
+  const submit = (email: unknown, redirect?: string) => {
     const form = new FormData()
     if (email !== undefined) form.set('email', email as string)
+    if (redirect !== undefined) form.set('redirect', redirect)
     return requestSignInLinkAction(null, form)
   }
+
+  /** The token in the link a delivered mail carries. */
+  const tokenMailedTo = (email: string) => {
+    const html = emailAdapter.findEmailByTo(email)?.html ?? ''
+    const match = html.match(/[?&]token=([\w.%-]+)/)
+    expect(match, `no sign-in link mailed to ${email}`).not.toBeNull()
+    return decodeURIComponent(match![1])
+  }
+
+  const tokenOf = (url: string) => new URL(url).searchParams.get('token')!
 
   const activeManager = (overrides: Record<string, unknown> = {}) =>
     testData.createManager(payload, { type: 'manager', _verified: true, ...overrides })
@@ -69,6 +82,7 @@ describe('manager sign-in page', () => {
 
     configRef.current = payload.config
     ;({ requestSignInLinkAction } = await import('@/components/admin/SignIn/actions'))
+    ;({ deliveredLink } = await import('@/components/admin/SignIn/deliveredLink'))
   })
 
   afterAll(async () => {
@@ -159,6 +173,121 @@ describe('manager sign-in page', () => {
 
       expect(emailAdapter.findEmailByTo(manager.email)).toBeUndefined()
       expect(await stampOf(manager.id)).toBe(first)
+    })
+  })
+
+  describe('the page that sent the reader to sign in', () => {
+    it('rides the form into the emailed link', async () => {
+      const manager = await activeManager()
+      emailAdapter.clearCapturedEmails()
+
+      await submit(manager.email, '/admin/collections/events/3?locale=fr')
+
+      const read = await readSigninToken(tokenMailedTo(manager.email), payload.secret)
+      expect(read.status === 'valid' && read.claims.to).toBe(
+        '/admin/collections/events/3?locale=fr',
+      )
+    })
+
+    it('is dropped, not refused, when malformed — the answer and the send are unchanged', async () => {
+      const manager = await activeManager()
+      emailAdapter.clearCapturedEmails()
+
+      const answer = await anon(REQUEST_PATH, {
+        method: 'POST',
+        json: { email: manager.email, redirect: 42 },
+      })
+
+      expect(answer.status).toBe(200)
+      expect(answer.body).toEqual({ ok: true })
+      const read = await readSigninToken(tokenMailedTo(manager.email), payload.secret)
+      expect(read.status === 'valid' && read.claims.to).toBeUndefined()
+    })
+  })
+
+  describe('the confirmation a delivered link opens', () => {
+    it('names the account a sign-in link signs in, once', async () => {
+      const manager = await activeManager({ name: 'Jane Doe' })
+      const token = tokenOf(
+        await mintSignInLink({ config: managersLogin, id: manager.id, payload }),
+      )
+
+      expect(await deliveredLink(token, payload)).toMatchObject({
+        email: manager.email,
+        heading: 'Sign in as Jane Doe',
+        detail: manager.email,
+        submitLabel: 'Continue',
+      })
+    })
+
+    it('welcomes an invited account, and names the page a reminder opens', async () => {
+      const manager = await testData.createManager(payload, { name: 'Jane Doe' })
+      const now = new Date()
+      const claims = { collection: 'managers', issuedAt: now.getTime(), userId: manager.id }
+      const invite = await signInviteToken(claims, payload.secret, now)
+      const link = await pageLinkUrl(
+        managersLogin,
+        manager.id,
+        { label: 'Spring retreat', to: '/admin/collections/events/7' },
+        payload.secret,
+      )
+
+      expect(await deliveredLink(invite, payload)).toMatchObject({
+        heading: 'Welcome, Jane Doe',
+        submitLabel: 'Activate account',
+      })
+      expect(await deliveredLink(tokenOf(link), payload)).toMatchObject({
+        heading: 'Sign in as Jane Doe',
+        detail: `${manager.email} · opens “Spring retreat”`,
+      })
+    })
+
+    it('refuses an already-accepted invitation before the click', async () => {
+      const manager = await activeManager({ name: 'Jane Doe' })
+      const now = new Date()
+      const invite = await signInviteToken(
+        { collection: 'managers', issuedAt: now.getTime(), userId: manager.id },
+        payload.secret,
+        now,
+      )
+
+      expect(await deliveredLink(invite, payload)).toMatchObject({
+        title: 'Your email is already confirmed',
+      })
+    })
+
+    it('refuses a link to a deactivated or deleted account before the click', async () => {
+      const deactivated = await activeManager()
+      const deleted = await activeManager()
+      const links = await Promise.all(
+        [deactivated, deleted].map(({ id }) =>
+          mintSignInLink({ config: managersLogin, id, payload }),
+        ),
+      )
+      await payload.update({
+        collection: 'managers',
+        id: deactivated.id,
+        data: { type: 'inactive' },
+      })
+      await payload.delete({ collection: 'managers', id: deleted.id })
+
+      for (const link of links) {
+        expect(await deliveredLink(tokenOf(link), payload)).toMatchObject({
+          title: 'This link is not valid',
+        })
+      }
+    })
+
+    it('writes nothing, so a mail scanner opening the link spends nothing', async () => {
+      const manager = await activeManager()
+      const token = tokenOf(
+        await mintSignInLink({ config: managersLogin, id: manager.id, payload }),
+      )
+      const before = await stampOf(manager.id)
+
+      await deliveredLink(token, payload)
+
+      expect(await stampOf(manager.id)).toBe(before)
     })
   })
 

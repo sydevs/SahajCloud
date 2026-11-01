@@ -7,6 +7,7 @@ import { getPayload } from 'payload'
 import {
   issueMagicLink,
   magicLinkEmailSchema,
+  returnPath,
   sessionCookieParts,
   SIGNIN_VALID_FOR,
 } from '@/plugins/login'
@@ -60,7 +61,10 @@ export async function requestSignInLinkAction(
   _prev: SignInOutcome | null,
   formData: FormData,
 ): Promise<SignInOutcome> {
-  const parsed = magicLinkEmailSchema.safeParse({ email: formData.get('email') })
+  const parsed = magicLinkEmailSchema.safeParse({
+    email: formData.get('email'),
+    redirect: formData.get('redirect') ?? undefined,
+  })
   if (!parsed.success) return MALFORMED
 
   const payload = await getPayload({ config: payloadConfig })
@@ -70,7 +74,7 @@ export async function requestSignInLinkAction(
 
   let signedIn: Awaited<ReturnType<typeof issueMagicLink>>
   try {
-    signedIn = await issueMagicLink({ payload, config, email: parsed.data.email })
+    signedIn = await issueMagicLink({ payload, config, ...parsed.data })
   } catch (error) {
     // Swallowed for the same reason the endpoint swallows it: only a real
     // address gets as far as a send, so a surfaced transport failure would
@@ -97,7 +101,7 @@ export async function requestSignInLinkAction(
   if (signedIn) {
     const { name, options, value } = sessionCookieParts(payload, config.slug, signedIn.token)
     ;(await cookies()).set(name, value, options)
-    redirect(payload.config.routes.admin)
+    redirect(returnPath(payload, parsed.data.redirect) ?? payload.config.routes.admin)
   }
 
   return SENT

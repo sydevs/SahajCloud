@@ -839,5 +839,22 @@ describe('CleanupOrphanedMedia Job', () => {
       expect(await fileExists(payload, videoFile.id)).toBe(true)
       expect(await fileInTrash(payload, videoFile.id)).toBe(false)
     })
+
+    it('preserves an image referenced only by an unpublished draft', async () => {
+      // A draft save writes the versions table alone, so the main row never sees it.
+      const image = await testData.createMediaImage(payload)
+      await backdateCreatedAt(payload, 'images', image.id)
+      const page = await testData.createPage(payload)
+      await payload.update({
+        collection: 'pages',
+        id: page.id,
+        draft: true,
+        data: { content: createLexicalWithTextBoxBlock(image.id) },
+      })
+
+      await runCleanupJob(payload)
+
+      expect(await imageExists(payload, image.id)).toBe(true)
+    })
   })
 })

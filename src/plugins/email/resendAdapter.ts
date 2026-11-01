@@ -111,12 +111,11 @@ export const resendAdapter = (): EmailAdapter => {
       defaultFromName: getEmailBrand().productName,
 
       async sendEmail(message) {
-        // Every path below returns rather than throws — deliberately, because
-        // `sendVerificationEmail` runs inside the manager-create transaction and
-        // a throw would roll the account back. That non-fatal choice is also why
-        // nothing reaches the Sentry plugin's `afterError` hook, so each failure
-        // is reported here explicitly. Without this a delivery failure exists
-        // only as a pino line: no Sentry issue, no admin-visible error (#320).
+        // Every failure below is reported here, then thrown. Most callers catch
+        // the throw to answer "not sent" — the sign-in routes must answer
+        // uniformly whatever happened — so nothing would otherwise reach the
+        // Sentry plugin, and a delivery failure would exist only as a pino line
+        // (#320).
         //
         // ⚠ No part of the MESSAGE goes to Sentry — not the recipient, not the
         // subject. A `user-messages` send carries a viewer-authored subject, and
@@ -127,25 +126,25 @@ export const resendAdapter = (): EmailAdapter => {
         if (!resend) {
           payload.logger.error({ msg: 'Cannot send email - Resend client not initialized' })
           Sentry.captureMessage('Email dropped: Resend client not initialized', { level: 'error' })
-          return
+          throw new Error('Email not sent: Resend client not initialized')
         }
 
-        try {
-          const attachments = toResendAttachments(message.attachments, (filename) =>
-            payload.logger.warn({
-              msg: 'Resend adapter: dropping stream attachment (unsupported)',
-              filename,
-            }),
-          )
-          const replyTo = toAddressList(message.replyTo, (name) =>
-            payload.logger.warn({
-              msg: 'Resend adapter: dropping replyTo entry with no address',
-              name,
-            }),
-          )
+        const attachments = toResendAttachments(message.attachments, (filename) =>
+          payload.logger.warn({
+            msg: 'Resend adapter: dropping stream attachment (unsupported)',
+            filename,
+          }),
+        )
+        const replyTo = toAddressList(message.replyTo, (name) =>
+          payload.logger.warn({
+            msg: 'Resend adapter: dropping replyTo entry with no address',
+            name,
+          }),
+        )
 
-          // Convert Payload's SendEmailOptions to Resend's format
-          const { data, error } = await resend.emails.send({
+        // Convert Payload's SendEmailOptions to Resend's format
+        const { data, error } = await resend.emails
+          .send({
             from: (message.from as string) || MANAGER_EMAIL_FROM,
             to: Array.isArray(message.to) ? (message.to as string[]) : [message.to as string],
             subject: message.subject as string,
@@ -154,29 +153,30 @@ export const resendAdapter = (): EmailAdapter => {
             ...(replyTo && { replyTo }),
             ...(attachments && { attachments }),
           })
-
-          if (error) {
+          .catch((thrown: unknown) => {
             payload.logger.error({
-              msg: 'Resend API error',
-              error: error.message,
-              name: error.name,
+              msg: 'Email sending failed',
+              error: thrown instanceof Error ? thrown.message : String(thrown),
             })
-            Sentry.captureMessage('Email dropped: Resend API error', {
-              level: 'error',
-              extra: { error: error.message, name: error.name },
-            })
-            return
-          }
-
-          if (data) {
-            payload.logger.info({ msg: 'Email sent successfully', messageId: data.id })
-          }
-        } catch (error) {
-          payload.logger.error({
-            msg: 'Email sending failed',
-            error: error instanceof Error ? error.message : String(error),
+            Sentry.captureException(thrown)
+            throw thrown
           })
-          Sentry.captureException(error)
+
+        if (error) {
+          payload.logger.error({
+            msg: 'Resend API error',
+            error: error.message,
+            name: error.name,
+          })
+          Sentry.captureMessage('Email dropped: Resend API error', {
+            level: 'error',
+            extra: { error: error.message, name: error.name },
+          })
+          throw new Error(`Email not sent: ${error.message}`)
+        }
+
+        if (data) {
+          payload.logger.info({ msg: 'Email sent successfully', messageId: data.id })
         }
       },
     }

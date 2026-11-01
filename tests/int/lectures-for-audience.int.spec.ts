@@ -994,7 +994,7 @@ describe('lecturesForAudience endpoint', () => {
   })
 
   describe('req forwarding', () => {
-    it('threads req through the lectures payload.find call for usage-tracking / rate-limit hooks', async () => {
+    it('threads req through the lectures payload.find call for the usage-tracking hook', async () => {
       void audienceIntermediate
       void lectureIntermediateOnly
 

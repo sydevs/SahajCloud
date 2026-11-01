@@ -127,6 +127,7 @@ async function notifyManager(args: {
       registrantName,
       registrantEmail,
       startingAt: submission.startingAt,
+      timeZone: submission.startingAt_tz || event.schedule?.firstDate_tz,
       answers: buildRegistrationAnswers(answersFrom(submission.submissionData)),
     })
   } catch (error) {
