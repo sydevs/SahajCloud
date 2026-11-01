@@ -3,6 +3,7 @@ import type { Payload, PayloadRequest } from 'payload'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { Clients } from '@/collections/Clients/Clients'
+import { claimCanonical } from '@/collections/Clients/endpoints/claimCanonical'
 import { clientEmbedReport } from '@/collections/Clients/endpoints/report'
 import { verifyEmbedOnDemand } from '@/collections/Clients/endpoints/verifyEmbed'
 import { runVerifyEmbeds } from '@/jobs/VerifyEmbeds/VerifyEmbeds'
@@ -1059,6 +1060,189 @@ describe('client canonical ownership + embed metadata', () => {
         verdict: 'path',
         failedAttempts: 0,
       })
+    })
+  })
+
+  /**
+   * `POST /api/clients/:id/claim-canonical` (#1055) — what the Install tab calls
+   * the moment the widget reports itself, so the common case needs no decision
+   * from anyone.
+   *
+   * Every case here is about a refusal, because the success path is one line and
+   * the refusals are what a volunteer actually meets. The uniqueness rule in
+   * particular is **not** re-implemented in the endpoint, so these assert that
+   * the hook's own refusal reaches the caller rather than that a second copy of
+   * it agrees.
+   */
+  describe('claim-canonical', () => {
+    const MOUNT = 'https://claimed.example/classes'
+
+    const callClaim = async (
+      clientId: number,
+      mount: string,
+      user: Record<string, unknown> = { id: managerId, collection: 'managers', type: 'admin' },
+    ): Promise<{ status: number; body: { status?: string; message?: string } }> => {
+      const req = {
+        payload,
+        routeParams: { id: String(clientId) },
+        user,
+        json: async () => ({ mount }),
+      } as unknown as PayloadRequest
+      const response = await (claimCanonical.handler as (r: PayloadRequest) => Promise<Response>)(
+        req,
+      )
+      return { status: response.status, body: await response.json() }
+    }
+
+    /** A client that has reported the mount, which the endpoint requires. */
+    const withReport = async (name: string, overrides: Record<string, unknown> = {}) => {
+      const client = await createClient(name, overrides)
+      await payload.update({
+        collection: 'clients',
+        id: client.id,
+        data: {
+          embedMetadata: {
+            // The column is closed and validated on every save, so a partial
+            // record is refused — every key here is `required` in
+            // `embedMetadataJsonSchema`.
+            [MOUNT]: {
+              mode: 'inline',
+              topLevel: true,
+              urlWritable: true,
+              paramPersisted: true,
+              routing: 'path',
+              lastSeen: new Date().toISOString(),
+            },
+          },
+        },
+        overrideAccess: true,
+      })
+      return client
+    }
+
+    it('switches ownership on for the first service in its region', async () => {
+      const region = await createRegion('claim-first')
+      const client = await withReport('Claim First', { region: region.id })
+
+      const { status, body } = await callClaim(client.id, MOUNT)
+      expect(status).toBe(200)
+      expect(body.status).toBe('claimed')
+
+      const doc = await payload.findByID({
+        collection: 'clients',
+        id: client.id,
+        depth: 0,
+        overrideAccess: true,
+      })
+      expect(doc.canonical?.enabled).toBe(true)
+      expect(doc.canonical?.embed).toBe(MOUNT)
+    })
+
+    it('refuses a mount the widget has never reported', async () => {
+      // Taking the volunteer's typed address instead would designate a page
+      // nobody has seen, which is what the report contract exists to prevent.
+      const region = await createRegion('claim-unreported')
+      const client = await createClient('Claim Unreported', { region: region.id })
+
+      const { body } = await callClaim(client.id, MOUNT)
+      expect(body.status).toBe('unknown-mount')
+
+      const doc = await payload.findByID({
+        collection: 'clients',
+        id: client.id,
+        depth: 0,
+        overrideAccess: true,
+      })
+      expect(doc.canonical?.enabled).toBeFalsy()
+    })
+
+    it('explains a missing region rather than letting the hook say “required”', async () => {
+      const client = await withReport('Claim No Region')
+      const { body } = await callClaim(client.id, MOUNT)
+      expect(body.status).toBe('needs-region')
+      expect(body.message).toMatch(/maintainer/)
+    })
+
+    it('passes the uniqueness refusal through, naming the incumbent', async () => {
+      const region = await createRegion('claim-contested')
+      await createClient('Claim Incumbent', {
+        region: region.id,
+        canonical: { enabled: true, embed: 'https://incumbent.example/map' },
+        _status: 'published',
+      })
+      const challenger = await withReport('Claim Challenger', { region: region.id })
+
+      const { body } = await callClaim(challenger.id, MOUNT)
+      expect(body.status).toBe('taken')
+      expect(body.message).toMatch(/maintainer/)
+
+      const doc = await payload.findByID({
+        collection: 'clients',
+        id: challenger.id,
+        depth: 0,
+        overrideAccess: true,
+      })
+      expect(doc.canonical?.enabled).toBeFalsy()
+    })
+
+    it('says so, and changes nothing, when ownership is already on', async () => {
+      const region = await createRegion('claim-already')
+      const client = await withReport('Claim Already', {
+        region: region.id,
+        canonical: { enabled: true, embed: 'https://already.example/map' },
+        _status: 'published',
+      })
+
+      const { body } = await callClaim(client.id, MOUNT)
+      expect(body.status).toBe('already')
+
+      const doc = await payload.findByID({
+        collection: 'clients',
+        id: client.id,
+        depth: 0,
+        overrideAccess: true,
+      })
+      expect(doc.canonical?.embed).toBe('https://already.example/map')
+    })
+
+    it('refuses a caller who is not an active manager', async () => {
+      const region = await createRegion('claim-anon')
+      const client = await withReport('Claim Anon', { region: region.id })
+
+      expect((await callClaim(client.id, MOUNT, { id: 1, collection: 'clients' })).status).toBe(403)
+    })
+
+    it('refuses a manager who does not manage this service', async () => {
+      // The gate is the row's own read access, which is the document-manager
+      // path — the same thing that makes the Install tab unreachable for them.
+      const other = await testData.createManager(payload, {
+        name: 'Other Manager',
+        email: 'claim-other@example.com',
+      })
+      const region = await createRegion('claim-stranger')
+      const client = await withReport('Claim Stranger', { region: region.id })
+
+      const { status } = await callClaim(client.id, MOUNT, {
+        id: other.id,
+        collection: 'managers',
+        type: 'manager',
+      })
+      expect(status).toBe(404)
+    })
+
+    it('refuses a body with no mount at all', async () => {
+      const region = await createRegion('claim-nobody')
+      const client = await withReport('Claim No Body', { region: region.id })
+      const req = {
+        payload,
+        routeParams: { id: String(client.id) },
+        user: { id: managerId, collection: 'managers', type: 'admin' },
+        json: async () => ({}),
+      } as unknown as PayloadRequest
+      const response = await (claimCanonical.handler as (r: PayloadRequest) => Promise<Response>)(
+        req,
+      )
+      expect(response.status).toBe(400)
     })
   })
 })

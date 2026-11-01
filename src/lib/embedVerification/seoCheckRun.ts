@@ -29,10 +29,22 @@ import { runSeoChecks } from './seoChecks'
 /**
  * Resolve and run, as one client, in one locale.
  *
- * ⚠ **The request is forwarded with `overrideAccess: false` kept at the
- * resolvers' own default**, so the client's published-only view is what is
- * compared — the same document a crawler would be served. Checking against
- * unpublished content would report a page as wrong on the day it is correct.
+ * ⚠ **The resolvers are driven on a request authenticated as the client being
+ * checked, not as whoever started the run.** Both of them read with
+ * `overrideAccess: false`, which is deliberate — the comparison has to be
+ * against the client's own published-only view, since that is what a crawler
+ * was served. But the caller here is a manager pressing Verify or a job running
+ * as nobody, and neither of those reaches a `clients` read at all: the job's
+ * `Forbidden` is what `tests/int/client-canonical.int.spec.ts` catches.
+ *
+ * So the client's own row is loaded and put on a **copy** of the request.
+ * `context` still travels by reference, so the region-tree and locale memos are
+ * shared with the caller rather than paid for twice, and nothing repoints the
+ * caller's own request — the hazard `localeIsolatedReq` exists for.
+ *
+ * Switching to `overrideAccess: true` instead would compare the page against
+ * unpublished content, and report a correct page as wrong on the day it is
+ * correct.
  */
 export async function runSeoChecksForClient(args: {
   req: PayloadRequest
@@ -44,6 +56,17 @@ export async function runSeoChecksForClient(args: {
   deps?: SeoAuditDeps
 }): Promise<SeoCheckResult[]> {
   const { req, clientId, verified, routing, language, deps } = args
+
+  const client = await req.payload.findByID({
+    collection: 'clients',
+    id: clientId,
+    depth: 0,
+    overrideAccess: true,
+  })
+  const auditReq = {
+    ...req,
+    user: { ...client, collection: 'clients' },
+  } as unknown as PayloadRequest
 
   // `Clients.language` is a bare ISO 639-1 subtag, not one of the nineteen
   // locales, so it is matched against them rather than cast to one. A service
@@ -58,9 +81,9 @@ export async function runSeoChecksForClient(args: {
     resolvers: {
       resolveSeo: async (route) => {
         const target = parseAtlasRoute(route)
-        return target ? resolveAtlasSeo({ req, target, locale, clientId }) : null
+        return target ? resolveAtlasSeo({ req: auditReq, target, locale, clientId }) : null
       },
-      resolveSitemap: async () => (await resolveAtlasSitemap({ req, clientId })).urls,
+      resolveSitemap: async () => (await resolveAtlasSitemap({ req: auditReq, clientId })).urls,
     },
   })
 }

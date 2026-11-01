@@ -34,8 +34,16 @@ const TRACK = tracksFor({
   widgetUrl: 'https://sahajatlas.com',
 })['wix-editor']
 
-const mount = (key: string, lastSeen: string): EmbedMetadata =>
-  ({ [key]: { mode: 'contained', lastSeen } }) as unknown as EmbedMetadata
+const mount = (key: string, lastSeen: string): EmbedMetadata => ({
+  [key]: {
+    mode: 'inline',
+    topLevel: true,
+    urlWritable: true,
+    paramPersisted: true,
+    routing: 'path',
+    lastSeen,
+  },
+})
 
 const verified = (overrides: Partial<CanonicalVerification> = {}): CanonicalVerification => ({
   ...EMPTY_VERIFICATION,

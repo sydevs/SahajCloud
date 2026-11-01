@@ -106,18 +106,22 @@ To document one of them, change project membership plus `RESTRICTED_COLLECTIONS`
 
 `payload-oapi` v0.2.5 does not auto-generate paths for endpoints wired through a collection's `endpoints` array. This shim hand-authors those entries and merges them into the raw spec **between** `generateV31Spec` and `filterSpec`, so project-based visibility still applies by collection slug.
 
-| Custom path                                  | Handler                                        | Response schema                                                                                |
-| -------------------------------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `GET /api/frames/by-narrator/{narratorId}`   | `Frames/endpoints/byNarrator.ts`               | `#/components/schemas/Frames`                                                                  |
-| `GET /api/audiences/for-user`                | `Audiences/endpoints/forUser.ts`               | `#/components/schemas/AudienceIdList`                                                          |
-| `GET /api/lectures/for-audience`             | `Lectures/endpoints/forAudience.ts`            | `#/components/schemas/LecturePlayerData` (hand-authored)                                       |
-| `GET /api/app-cards/for-audience`            | `AppCards/endpoints/forAudience.ts`            | `#/components/schemas/AppCards`                                                                |
-| `GET /api/meditations/{id}/related-lectures` | `Meditations/endpoints/lectures.ts`            | `#/components/schemas/LecturePlayerData` (hand-authored)                                       |
-| `GET /api/lectures/{id}/related-meditations` | `Lectures/endpoints/relatedMeditations.ts`     | `#/components/schemas/MeditationCardData` (hand-authored)                                      |
-| `GET /api/events/geojson`                    | `Events/endpoints/geojson.ts`                  | `#/components/schemas/EventFeatureCollection` (hand-authored)                                  |
-| `GET /api/atlas/seo`                         | `src/endpoints/atlas/seo/` (root endpoint)     | `#/components/schemas/AtlasSeoResponse` (hand-authored)                                        |
-| `GET /api/atlas/sitemap`                     | `src/endpoints/atlas/sitemap/` (root endpoint) | `#/components/schemas/AtlasSitemapResponse` (hand-authored)                                    |
-| `POST /api/clients/report`                   | `Clients/endpoints/report.ts`                  | `#/components/schemas/ClientEmbedReportResponse` (hand-authored) — **`x-internal`**, see below |
+| Custom path                                  | Handler                                            | Response schema                                                                                |
+| -------------------------------------------- | -------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `GET /api/frames/by-narrator/{narratorId}`   | `Frames/endpoints/byNarrator.ts`                   | `#/components/schemas/Frames`                                                                  |
+| `GET /api/audiences/for-user`                | `Audiences/endpoints/forUser.ts`                   | `#/components/schemas/AudienceIdList`                                                          |
+| `GET /api/lectures/for-audience`             | `Lectures/endpoints/forAudience.ts`                | `#/components/schemas/LecturePlayerData` (hand-authored)                                       |
+| `GET /api/app-cards/for-audience`            | `AppCards/endpoints/forAudience.ts`                | `#/components/schemas/AppCards`                                                                |
+| `GET /api/meditations/{id}/related-lectures` | `Meditations/endpoints/lectures.ts`                | `#/components/schemas/LecturePlayerData` (hand-authored)                                       |
+| `GET /api/lectures/{id}/related-meditations` | `Lectures/endpoints/relatedMeditations.ts`         | `#/components/schemas/MeditationCardData` (hand-authored)                                      |
+| `GET /api/events/geojson`                    | `Events/endpoints/geojson.ts`                      | `#/components/schemas/EventFeatureCollection` (hand-authored)                                  |
+| `GET /api/atlas/seo`                         | `src/endpoints/atlas/seo/` (root endpoint)         | `#/components/schemas/AtlasSeoResponse` (hand-authored)                                        |
+| `GET /api/atlas/sitemap`                     | `src/endpoints/atlas/sitemap/` (root endpoint)     | `#/components/schemas/AtlasSitemapResponse` (hand-authored)                                    |
+| `GET /api/atlas/wix/route`                   | `src/endpoints/atlas/wix/route/` (root endpoint)   | `#/components/schemas/AtlasWixRouteResponse` (hand-authored)                                   |
+| `GET /api/atlas/wix/sitemap`                 | `src/endpoints/atlas/wix/sitemap/` (root endpoint) | an array of `#/components/schemas/AtlasWixSitemapEntry` (hand-authored)                        |
+| `POST /api/clients/report`                   | `Clients/endpoints/report.ts`                      | `#/components/schemas/ClientEmbedReportResponse` (hand-authored) — **`x-internal`**, see below |
+
+The two `/api/atlas/wix/*` paths are Wix-shaped serializers over the same resolution `/api/atlas/seo` and `/api/atlas/sitemap` answer, and their `description` says so: a non-Wix host wants the published shapes, not these. They are documented rather than `x-internal` because a Wix site's own backend is a third-party integration surface like any other — the router that calls them is generated by the CMS, but the volunteer pasting it can read what it does.
 
 `POST /api/clients/report` is the one custom endpoint deliberately hidden from `/api/docs`: `clients` sits in `ALWAYS_HIDDEN_COLLECTIONS` and belongs to no project, so `filterSpec` marks it `x-internal` under every project tier. That is intended — it is the first-party Atlas widget's telemetry channel, not a third-party integration surface, and advertising it only invites forged reports. It still appears in `/api/openapi-raw.json`, and a pinned test case in `tests/unit/openapi-custom-endpoints.spec.ts` stops a future filter change from publishing it by accident.
 
