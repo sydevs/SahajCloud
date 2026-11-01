@@ -2,7 +2,7 @@ import type { AtlasSeoEventContent, AtlasSeoRegionContent } from '../../response
 import type { AtlasSeoDocument } from '../seo/seoDocument'
 import type { ReactNode } from 'react'
 
-import { renderToStaticMarkup } from 'react-dom/server'
+import { renderToStaticMarkup } from 'react-dom/server.edge'
 
 /**
  * The crawlable body, as HTML, for a host that cannot assemble one itself.
@@ -22,6 +22,13 @@ import { renderToStaticMarkup } from 'react-dom/server'
  * node and attribute value by construction, so there is no call to forget. It is
  * the same reason this PR's warning email dropped its own escaper for React
  * Email, and `react-dom` was already a dependency either way.
+ *
+ * ⚠ **`.edge`, never the `react-dom/server` barrel**, which Turbopack refuses
+ * anywhere in an app graph — and this module sits in `payload.config.ts`'s
+ * through the Wix route handler. Its advice to render as a Server Component
+ * does not apply: nothing here is rendered by Next. `.edge` exports the same
+ * synchronous `renderToStaticMarkup`, and
+ * `tests/unit/server-render-import.spec.ts` holds the graph.
  *
  * {@link safeUrl} is what React does **not** do, and is still load-bearing.
  *
