@@ -235,7 +235,7 @@ Five things to know:
 
 `validateClientOriginHook` is the usage plugin's second beforeOperation gate, run **first** on every non-excluded collection, ahead of the query-param gate and rate accounting. It covers standard client reads and the custom Atlas endpoints, whose internal `payload.find`/`create` calls forward the client `req`.
 
-The rule itself lives in `assertClientOriginAllowed(req)`. The hook is a thin wrapper adding the `currentDepth` exemption. An endpoint whose handler touches no collection runs no beforeOperation hook, so it must call the assertion itself — both `GET /api/atlas/seo` and `GET /api/atlas/sitemap` do, right after `requireActiveClient`. Don't lean on an incidental collection read to trigger it instead — `clients` is excluded from the plugin, so reading the caller's own record wouldn't fire it either.
+The rule itself lives in `assertClientOriginAllowed(req)`. The hook is a thin wrapper adding the `currentDepth` exemption. An endpoint whose handler touches no collection runs no beforeOperation hook, so it must call the assertion itself — the four atlas root endpoints do, through `requireClientAccess`, which is that call and the published-client guard in one. Don't lean on an incidental collection read to trigger it instead — `clients` is excluded from the plugin, so reading the caller's own record wouldn't fire it either.
 
 **Rule**: runs only when `req.user?.collection === 'clients'`. An empty/unset `allowedDomains` allows any origin (the default). A non-empty list requires the request `Origin` (or `Referer` as fallback) to match an entry, else **403**. No `Origin`/`Referer` at all (server-to-server, cron) is allowed — the API key is the gate there.
 

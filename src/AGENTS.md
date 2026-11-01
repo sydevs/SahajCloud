@@ -98,8 +98,8 @@ This folder is the **exception, not a second home for endpoints** — anything
 a collection plausibly owns stays colocated under
 `src/collections/<Name>/endpoints/`. Leaving the collection seam costs you
 the usage plugin's beforeOperation hooks (origin enforcement, usage
-tracking), which a root handler must then compensate for by hand — see
-`docs/rules/endpoints.md`.
+tracking), which a root handler must then compensate for — `requireClientAccess`
+is the first two, `countClientRead` the third, see `docs/rules/endpoints.md`.
 
 ### `src/lib/`
 
@@ -147,7 +147,8 @@ No loose files at the root — every file lives in a named folder:
   Lexical config. Nothing else may flatten Lexical: a second spelling under
   `eventQuality/` cost three silently missing quality findings (#961)
 - `endpoints/` — shared client-endpoint helpers (`requireActiveClient`,
-  `parseQuery`, `emptyPaginatedResponse`). `antiSpamGuard` lived here for
+  `requireClientAccess` — that guard plus the origin check a root endpoint
+  owes, `parseQuery`, `emptyPaginatedResponse`). `antiSpamGuard` lived here for
   the `contactAdmin` endpoint. Once that became a collection (#632), its
   consumers were the write-guard plugin and two jobs — no endpoint at all —
   so it moved to `antiSpam/`
