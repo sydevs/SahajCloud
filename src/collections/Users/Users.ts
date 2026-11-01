@@ -18,12 +18,7 @@ export const Users: CollectionConfig = {
     group: 'Access',
     useAsTitle: 'name',
     defaultColumns: ['name', 'email', 'blockedAt'],
-    // ⚠ No `hidden` key, deliberately: `true` unregisters the routes as well as
-    // the nav entry, leaving `blockedAt` below settable by nobody, and a
-    // hand-written predicate here would be a second spelling of the role table.
-    // `accessPlugin` derives it — no role grants `users` a write, and the
-    // collection is in no project, so only an admin reaches it, and a role
-    // granted `users: ['update']` later is admitted without an edit here.
+    // ⚠ No `hidden` key, deliberately: `accessPlugin` derives it (docs/rules/admin-ui.md)
   },
   fields: [
     {
