@@ -536,3 +536,90 @@ describe('meditation-transcripts (OpenAPI)', () => {
     expect(CUSTOM_ENDPOINT_PATHS['/api/meditations/{id}/transcribe']).toBeUndefined()
   })
 })
+
+/**
+ * `GET /api/atlas/wix/route` and `GET /api/atlas/wix/sitemap` (#1055).
+ *
+ * The two Wix-shaped serializers. Pinned here for the same reason every other
+ * path is: `payload-oapi` generates nothing for a custom endpoint, so a path
+ * missing from the shim is invisible in `/api/docs` with nothing failing.
+ */
+describe('the Wix router endpoints are documented', () => {
+  const route = CUSTOM_ENDPOINT_PATHS['/api/atlas/wix/route']?.get as OpenAPIOperation | undefined
+  const sitemap = CUSTOM_ENDPOINT_PATHS['/api/atlas/wix/sitemap']?.get as
+    OpenAPIOperation | undefined
+
+  it('registers both paths', () => {
+    expect(route).toBeDefined()
+    expect(sitemap).toBeDefined()
+  })
+
+  it('documents every query parameter each handler reads', () => {
+    expect(route?.parameters?.map((parameter) => parameter.name)).toEqual(['path', 'lang'])
+    expect(sitemap?.parameters?.map((parameter) => parameter.name)).toEqual(['prefix'])
+  })
+
+  it('declares `prefix` required, since the handler refuses without it', () => {
+    expect(sitemap?.parameters?.[0]?.required).toBe(true)
+    expect(route?.parameters?.[0]?.required).toBe(true)
+    expect(route?.parameters?.[1]?.required).toBe(false)
+  })
+
+  it('answers the route endpoint with the Wix response schema', () => {
+    expect(route?.responses?.['200']?.content?.['application/json']?.schema).toEqual({
+      $ref: '#/components/schemas/AtlasWixRouteResponse',
+    })
+  })
+
+  it('answers the sitemap endpoint with a bare array, as Wix returns one', () => {
+    expect(sitemap?.responses?.['200']?.content?.['application/json']?.schema).toEqual({
+      type: 'array',
+      items: { $ref: '#/components/schemas/AtlasWixSitemapEntry' },
+    })
+  })
+
+  it('documents the refusals each handler can really make', () => {
+    for (const operation of [route, sitemap]) {
+      expect(Object.keys(operation?.responses ?? {}).sort()).toEqual(['200', '400', '403', '500'])
+    }
+  })
+
+  it('declares every schema the two paths reference', () => {
+    for (const name of [
+      'AtlasWixRouteResponse',
+      'AtlasWixSitemapEntry',
+      'AtlasWixHead',
+      'AtlasWixRouteData',
+      'AtlasWixMetaTag',
+      'AtlasWixLink',
+    ]) {
+      expect(CUSTOM_ENDPOINT_SCHEMAS[name], `${name} is not declared`).toBeDefined()
+    }
+  })
+
+  it('keeps the response schema in lockstep with the type', () => {
+    const response = CUSTOM_ENDPOINT_SCHEMAS.AtlasWixRouteResponse as OpenAPISchema
+    expect(response.required?.sort()).toEqual([
+      'cacheSeconds',
+      'data',
+      'head',
+      'redirect',
+      'status',
+    ])
+    expect(response.properties?.status?.enum).toEqual([200, 301, 404])
+
+    const data = CUSTOM_ENDPOINT_SCHEMAS.AtlasWixRouteData as OpenAPISchema
+    expect(data.properties?.type?.enum).toEqual(['root', 'region', 'event'])
+
+    const entry = CUSTOM_ENDPOINT_SCHEMAS.AtlasWixSitemapEntry as OpenAPISchema
+    expect(entry.required?.sort()).toEqual(['lastmod', 'title', 'url'])
+  })
+
+  it('exempts both root paths from the project filter, as the other two are', () => {
+    const rootEndpointPaths = rootEndpointPathsFrom([
+      { path: '/atlas/wix/route' },
+      { path: '/atlas/wix/sitemap' },
+    ])
+    expect(rootEndpointPaths).toEqual(['/api/atlas/wix/route', '/api/atlas/wix/sitemap'])
+  })
+})

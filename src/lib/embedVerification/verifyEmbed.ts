@@ -122,6 +122,17 @@ export function routingProbeUrls(
 }
 
 /**
+ * What every probe segment starts with.
+ *
+ * ⚠ **Exported because a host has to recognise it.** The Wix router endpoint
+ * answers a probe path as the atlas root rather than 404, or the probe fails
+ * against the host's real 404 and demotes a working client to `?atlas=` URLs
+ * (#1055). A second spelling of this prefix there would break the probe silently
+ * the day either side changed it.
+ */
+export const PROBE_SEGMENT_PREFIX = 'sahaj-atlas-probe-'
+
+/**
  * A path segment no host could be serving on purpose.
  *
  * Random per run, and never a real region slug: a site could have hand-built
@@ -130,7 +141,7 @@ export function routingProbeUrls(
  * can tell what hit them.
  */
 function probeToken(): string {
-  return `sahaj-atlas-probe-${randomBytes(8).toString('hex')}`
+  return `${PROBE_SEGMENT_PREFIX}${randomBytes(8).toString('hex')}`
 }
 
 /** Injectable so a test can pin the token, and drive both renders without an account. */
