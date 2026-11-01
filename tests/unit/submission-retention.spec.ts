@@ -12,6 +12,7 @@ import {
   PROPOSAL_DAYS,
   PURGE_WINDOWS,
 } from '@/plugins/formBuilder'
+import type { PurgeWindow } from '@/types/retention'
 
 describe('Submission retention', () => {
   /**
@@ -34,23 +35,42 @@ describe('Submission retention', () => {
    * asserted a `RETENTION_DAYS` table passed while the spam window deleted a
    * `rejected` registration at 90 days, because nothing read the table. A
    * window reaches a durable type by naming it, or by naming no type at all —
-   * so both shapes have to fail here.
+   * so every shape has to be read here.
+   *
+   * ⚠ **`machineSpam` is the one window that may reach one**, so the case
+   * asserts that it does. A durable row's promise is about an attendance or a
+   * consent, and a machine refusal is neither — nobody came and nobody
+   * subscribed. Asserted in both directions because the two failures are
+   * opposite: a second window naming no type would delete a real attendance
+   * record, and an exclusion back on this one would keep refused sign-ups for
+   * ever, which is the half nothing red would report.
+   *
+   * The status half is the case below — `machineSpam` selects `spam` alone, so
+   * a *decided* registration stays out of it whatever this asserts.
    */
-  it('lets no window reach a registration or a subscription', () => {
+  it('lets only the machine-spam window reach a registration or a subscription', () => {
     expect([...DURABLE_TYPES].sort()).toEqual(['registration', 'subscribe'])
 
-    for (const window of PURGE_WINDOWS) {
+    const reaches = (window: PurgeWindow, type: string) => {
       const where = window.where(new Date().toISOString()) as {
         type?: { equals?: string; in?: string[]; not_in?: string[] }
       }
+      return (
+        where.type == null ||
+        where.type.equals === type ||
+        (where.type.in?.includes(type) ?? false) ||
+        (where.type.not_in != null && !where.type.not_in.includes(type))
+      )
+    }
+
+    for (const window of PURGE_WINDOWS) {
+      const mayReach = window.name === 'machineSpam'
 
       for (const durable of DURABLE_TYPES) {
-        const reachable =
-          where.type == null ||
-          where.type.equals === durable ||
-          (where.type.in?.includes(durable) ?? false) ||
-          (where.type.not_in != null && !where.type.not_in.includes(durable))
-        expect(reachable, `${window.name} may not select a ${durable} row`).toBe(false)
+        expect(
+          reaches(window, durable),
+          `${window.name} ${mayReach ? 'must' : 'may not'} select a ${durable} row`,
+        ).toBe(mayReach)
       }
     }
   })

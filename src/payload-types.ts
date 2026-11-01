@@ -2872,6 +2872,14 @@ export interface User {
   id: number;
   name: string;
   email: string;
+  /**
+   * Set to block this sender. Clear it to lift the block.
+   */
+  blockedAt?: string | null;
+  /**
+   * Why this sender was blocked — for whoever reads the record next.
+   */
+  blockedReason?: string | null;
   submissions?: {
     docs?: (number | UserSubmission)[];
     hasNextPage?: boolean;
@@ -2882,14 +2890,6 @@ export interface User {
     hasNextPage?: boolean;
     totalDocs?: number;
   };
-  /**
-   * Set to block this sender. Clear it to lift the block.
-   */
-  blockedAt?: string | null;
-  /**
-   * Why this sender was blocked — for whoever reads the record next.
-   */
-  blockedReason?: string | null;
   legacyId?: number | null;
   legacyData?:
     | {
@@ -5155,10 +5155,10 @@ export interface EventsSelect<T extends boolean = true> {
 export interface UsersSelect<T extends boolean = true> {
   name?: T;
   email?: T;
-  submissions?: T;
-  submittedEvents?: T;
   blockedAt?: T;
   blockedReason?: T;
+  submissions?: T;
+  submittedEvents?: T;
   legacyId?: T;
   legacyData?: T;
   updatedAt?: T;

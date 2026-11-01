@@ -38,6 +38,27 @@ export const Users: CollectionConfig = {
       unique: true,
     },
     {
+      // The lasting half of the abuse brake, beside `repeat_sender`'s automatic
+      // 24 hours: screening refuses everything this sender submits while it is
+      // set, and the orphan sweep keeps their row so a cleared block cannot be
+      // the one that got away.
+      //
+      // No field access of its own: `users` grants write to no role at all, so
+      // only the admin bypass reaches this.
+      name: 'blockedAt',
+      type: 'date',
+      admin: {
+        description: 'Set to block this sender. Clear it to lift the block.',
+      },
+    },
+    {
+      name: 'blockedReason',
+      type: 'textarea',
+      admin: {
+        description: 'Why this sender was blocked — for whoever reads the record next.',
+      },
+    },
+    {
       // Everything this person has ever sent us, of any kind — a contact
       // message, a subscription, a registration, an event proposal — in one
       // place, where the `registrations` join this replaced could answer one
@@ -66,27 +87,6 @@ export const Users: CollectionConfig = {
       on: 'submitter',
       admin: {
         condition: hideUntilCreated,
-      },
-    },
-    {
-      // The lasting half of the abuse brake, beside `repeat_sender`'s automatic
-      // 24 hours: screening refuses everything this sender submits while it is
-      // set, and the orphan sweep keeps their row so a cleared block cannot be
-      // the one that got away.
-      //
-      // No field access of its own: `users` grants write to no role at all, so
-      // only the admin bypass reaches this.
-      name: 'blockedAt',
-      type: 'date',
-      admin: {
-        description: 'Set to block this sender. Clear it to lift the block.',
-      },
-    },
-    {
-      name: 'blockedReason',
-      type: 'textarea',
-      admin: {
-        description: 'Why this sender was blocked — for whoever reads the record next.',
       },
     },
     ...legacyMigrationFields(),

@@ -14,6 +14,10 @@
  * The read cases go through `payload.find` with `overrideAccess: false`, so the
  * `Where` the access layer returns is actually applied. Asserting the grant
  * alone would say nothing about which rows come back.
+ *
+ * `users` is here too, for the two places a submission's sender is reachable
+ * from: the join a manager reads them through, and the block an admin sets on
+ * them (#630).
  */
 import type { Payload, PayloadRequest } from 'payload'
 
@@ -273,6 +277,80 @@ describe('User submissions access', () => {
       async function asAdminRead() {
         return asUser({ overrideAccess: true })
       }
+    })
+  })
+
+  /**
+   * The block is an admin's decision, and `users` grants write to no role at
+   * all — so there is no field access on the column and this is what says so.
+   */
+  describe('the block on a Registrant', () => {
+    const registrantId = async () => {
+      const { docs } = await payload.find({
+        collection: 'users',
+        where: { email: { equals: 'registrant@example.com' } },
+        limit: 1,
+        depth: 0,
+        overrideAccess: true,
+      })
+      return docs[0]!.id
+    }
+
+    const blockAs = (manager: Manager, id: number, blockedAt: string | null) =>
+      payload.update({
+        collection: 'users',
+        id,
+        data: { blockedAt, blockedReason: blockedAt ? 'Repeated junk.' : null },
+        overrideAccess: false,
+        req: managerReq(manager),
+      })
+
+    it('refuses a manager who may read the Registrant', async () => {
+      const id = await registrantId()
+      // The read grant is what makes the refusal meaningful: this manager can
+      // see the record, so only the write gate stops them blocking the sender.
+      expect(
+        hasPermission(
+          {
+            user: { ...recipient, collection: 'managers' } as never,
+            collection: 'users',
+            operation: 'read',
+            locale: 'en',
+          },
+          bypassPermissions,
+        ),
+      ).toBe(true)
+
+      await expect(blockAs(recipient, id, new Date().toISOString())).rejects.toThrow(
+        'not allowed to perform this action',
+      )
+    })
+
+    it('lets an admin set the block and lift it again', async () => {
+      const id = await registrantId()
+
+      const blocked = await blockAs(adminManager, id, new Date().toISOString())
+      expect(blocked.blockedAt).toEqual(expect.any(String))
+      expect(blocked.blockedReason).toBe('Repeated junk.')
+
+      const lifted = await blockAs(adminManager, id, null)
+      expect(lifted.blockedAt).toBeFalsy()
+    })
+
+    /**
+     * ⚠ `admin.hidden: true` unregisters a collection's routes as well as
+     * hiding its nav entry, so the admin who sets a block has to be able to
+     * open the record at all — and the manager who may not must still get
+     * neither surface.
+     */
+    it('opens the Registrant route to an admin and to nobody else', () => {
+      const hidden = payload.collections.users.config.admin.hidden
+      expect(typeof hidden).toBe('function')
+      const ask = (user: unknown) => (hidden as (args: { user: unknown }) => boolean)({ user })
+
+      expect(ask({ ...adminManager, collection: 'managers' })).toBe(false)
+      expect(ask({ ...recipient, collection: 'managers' })).toBe(true)
+      expect(ask(null)).toBe(true)
     })
   })
 
