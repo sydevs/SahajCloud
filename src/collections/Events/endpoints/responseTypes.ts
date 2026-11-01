@@ -63,7 +63,7 @@ export type EventFeatureCollection = {
  * - `event_ended` — the schedule has fully run out (a one-off past its date, or
  *   a course whose last session is behind us).
  * - `registration_closed` — a limited-run course has already started, so its run
- *   is closed to new registrations.
+ *   is closed to new registrations, or the session a registration names has.
  * - `event_full` — the registration count has reached the event's limit.
  *
  * Sent on the refusal responses only; the plain not-found 404 carries no `code`.

@@ -85,6 +85,13 @@ describe('formatShortDate', () => {
   it('returns empty string for an invalid date', () => {
     expect(formatShortDate('not-a-date')).toBe('')
   })
+
+  it('dates a session in its own zone, not UTC', () => {
+    // 19:00 in New York on Tue 3 Nov is already 4 Nov in UTC.
+    const session = '2026-11-04T00:00:00.000Z'
+    expect(formatShortDate(session, 'America/New_York')).toBe('3 Nov 2026')
+    expect(formatLongDate(session, 'America/New_York')).toContain('3 November 2026')
+  })
 })
 
 describe('humanDurationSince', () => {

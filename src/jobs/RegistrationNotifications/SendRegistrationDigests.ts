@@ -44,6 +44,8 @@ interface DigestRow {
   email: string
   name: string | null
   startingAt?: string | null
+  /** The zone `startingAt` reads in: the registration's own, else the event's. */
+  timeZone?: string
   answers: RegistrationAnswer[]
 }
 
@@ -89,7 +91,11 @@ async function loadManagerDigestEvents(
       depth: 0,
       limit: PAGINATION_LIMIT,
       page,
-      select: { title: true, registrationNotificationEmail: true },
+      select: {
+        title: true,
+        registrationNotificationEmail: true,
+        schedule: { firstDate_tz: true },
+      },
       overrideAccess: true,
       req,
     })
@@ -161,7 +167,13 @@ async function digestForManager(args: {
       page,
       // No `questions` column here — the answers are `submissionData` pairs, and
       // `answersFrom` maps them into the shape `buildRegistrationAnswers` wants.
-      select: { event: true, senderEmail: true, startingAt: true, submissionData: true },
+      select: {
+        event: true,
+        senderEmail: true,
+        startingAt: true,
+        startingAt_tz: true,
+        submissionData: true,
+      },
       sort: 'createdAt',
       overrideAccess: true,
       req,
@@ -176,6 +188,7 @@ async function digestForManager(args: {
         email: registration.senderEmail?.trim() ?? '',
         name: readSubmissionValue(registration.submissionData, 'name') ?? null,
         startingAt: registration.startingAt ?? null,
+        timeZone: registration.startingAt_tz || eventById.get(eventId)?.schedule?.firstDate_tz,
         answers: buildRegistrationAnswers(answersFrom(registration.submissionData)),
       })
     }
@@ -208,7 +221,7 @@ async function digestForManager(args: {
       registrations: eventRows.map((row) => ({
         registrantName: row.name?.trim() || row.email || 'A registrant',
         registrantEmail: row.email,
-        startDate: row.startingAt ? formatShortDate(row.startingAt) || null : null,
+        startDate: row.startingAt ? formatShortDate(row.startingAt, row.timeZone) || null : null,
         answers: row.answers,
       })),
     })

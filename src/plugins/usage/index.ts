@@ -1,7 +1,7 @@
 /**
  * Usage Plugin
  *
- * Consolidates rate limiting and usage tracking into a single plugin.
+ * The client read gates and usage tracking. Rate limiting is Cloudflare's, at the edge.
  *
  * @example
  * ```typescript
@@ -28,7 +28,6 @@ export {
 export {
   assertClientOriginAllowed,
   countClientRead,
-  rateLimitHook,
   usageTrackingBeforeOperationHook,
   validateClientOriginHook,
 } from './hooks'
@@ -40,9 +39,6 @@ export {
   normalizeHost,
   parseAllowedDomains,
 } from './originEnforcement'
-
-// Rate limiting utilities (for testing)
-export { buildRateLimitKey } from './hooks'
 
 // Raw-SQL seam — the pg pool behind Payload's adapter plus its schema, quoted.
 // Shared by anything that has to write a `clients` row outside the request
