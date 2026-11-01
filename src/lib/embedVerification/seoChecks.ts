@@ -576,11 +576,19 @@ async function checkPage(
   // The resolve and the fetch are independent: the page URL is known before
   // either, so waiting for the CMS before asking the host is pure latency.
   //
-  // Unbounded, unlike every sitemap fetch: this URL is built from the mount an
-  // operator designated and verification confirmed, not from a line somebody
-  // wrote in a file we read. A site that redirects its own mount to `www` or
-  // to https is ordinary, and refusing that hop would report it as unindexable.
-  const [seo, fetched] = await Promise.all([resolvers.resolveSeo(page.route), get(page.url)])
+  // ⚠ **Bounded to the mount's own host, like every sitemap fetch, and for a
+  // sharper reason.** Two of `comparePage`'s failures quote what came back — the
+  // page's `<title>` and its `rel=canonical`. Followed off-host, a mount that
+  // 302s to an internal address therefore reads that address's title and
+  // canonical into the stored detail and the manager's warning mail. Designating
+  // the mount takes a verified embed, so the bound is narrow; it is also free,
+  // because a mount that redirects off-host already fails the canonical check it
+  // would otherwise reach, and is reported below in plainer words.
+  const host = URL.parse(page.url)?.host
+  const [seo, fetched] = await Promise.all([
+    resolvers.resolveSeo(page.route),
+    get(page.url, host ? { sameHost: host } : {}),
+  ])
 
   if (!seo) {
     return [
@@ -591,6 +599,16 @@ async function checkPage(
         detail: 'The CMS no longer resolves this route.',
       },
     ]
+  }
+
+  if (fetched.detail === OFF_HOST) {
+    // A real answer about the install, not "we could not look": this address
+    // sends a crawler to another site, so nothing here can be indexed under it.
+    return PAGE_CHECKS.map((check) => ({
+      route: page.route,
+      check,
+      ...fail(`${page.url} redirects to another host, so a crawler never reads this page.`),
+    }))
   }
 
   if (!fetched.ok) {

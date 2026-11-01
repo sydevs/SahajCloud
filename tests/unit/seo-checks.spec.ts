@@ -483,6 +483,30 @@ describe('runSeoChecks', () => {
     ],
   }
 
+  it('fails every page check when the mount redirects off-host', async () => {
+    // Two of comparePage's failures quote what came back, so following the hop
+    // would put another host's title and canonical in the manager's warning
+    // mail. A redirecting mount is also a real answer, not "we could not look".
+    const results = await runSeoChecks({
+      verified: VERIFIED,
+      routing: 'path',
+      resolvers,
+      deps: {
+        fetchFn: async (url, options) =>
+          options?.sameHost
+            ? { ok: false, status: 302, body: '', detail: OFF_HOST }
+            : { ok: true, status: 200, body: '', url },
+      },
+    })
+
+    const pages = results.filter((result) => result.check !== 'sitemap')
+    expect(pages.length).toBeGreaterThan(0)
+    for (const result of pages) {
+      expect(result.status).toBe('fail')
+      expect(result.detail).toContain('redirects to another host')
+    }
+  })
+
   it('checks the root and one sampled region, and the sitemap once', async () => {
     const results = await runSeoChecks({
       verified: VERIFIED,
