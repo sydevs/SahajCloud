@@ -1,6 +1,5 @@
 import type { Endpoint } from 'payload'
 
-import { APIError } from 'payload'
 import { z } from 'zod'
 
 import { ROUTING_MODES } from '@/lib/clients/canonical'
@@ -10,10 +9,9 @@ import {
   mergeEmbedReport,
   parseMountKey,
 } from '@/lib/clients/embedMetadata'
-import { parseBody, requireActiveClient } from '@/lib/endpoints'
+import { parseBody, requireClientAccess } from '@/lib/endpoints'
 import type { Client } from '@/payload-types'
 import {
-  assertClientOriginAllowed,
   getPgPool,
   isHostAllowed,
   parseAllowedDomains,
@@ -127,17 +125,8 @@ export const clientEmbedReport: Endpoint = {
   path: '/report',
   method: 'post',
   handler: async (req) => {
-    const denied = requireActiveClient(req)
+    const denied = requireClientAccess(req)
     if (denied) return denied
-
-    try {
-      assertClientOriginAllowed(req)
-    } catch (error) {
-      if (error instanceof APIError) {
-        return Response.json({ errors: [{ message: error.message }] }, { status: error.status })
-      }
-      throw error
-    }
 
     const parsed = await parseBody(req, bodySchema)
     if (!parsed.ok) return parsed.response

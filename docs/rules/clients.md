@@ -69,7 +69,7 @@ Admin-readonly JSON, keyed by **origin + pathname**, one record per mount (`mode
 
 ### `POST /api/clients/report`
 
-The write path (`Clients/endpoints/report.ts`). Merges into the keyed object. It never replaces it. Since `clients` is excluded from the usage plugin, no `beforeOperation` hook fires here — the handler calls `assertClientOriginAllowed(req)` itself, right after `requireActiveClient`, and usage tracking likewise does not apply.
+The write path (`Clients/endpoints/report.ts`). Merges into the keyed object. It never replaces it. Since `clients` is excluded from the usage plugin, no `beforeOperation` hook fires here — the handler gates on `requireClientAccess`, which runs the origin check itself, and usage tracking likewise does not apply.
 
 Two origin checks apply: the request's `Origin`/`Referer` must be in `allowedDomains`, and so must the reported `url`'s host — a client can only describe pages on domains it owns. `url` is origin plus pathname only. A query string or fragment is rejected (`400`, `query_or_fragment`), not stripped, since the widget already strips them and a payload carrying either means the widget is misbehaving.
 

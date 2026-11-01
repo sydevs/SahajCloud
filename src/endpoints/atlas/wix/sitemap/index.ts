@@ -9,12 +9,12 @@ import { splitMountKey } from '@/lib/clients/verification'
 import {
   errorResponse,
   parseQuery,
-  requireActiveClient,
+  requireClientAccess,
   requireIntegerClientId,
 } from '@/lib/endpoints'
 import type { Client } from '@/payload-types'
 import { publicReadCacheHeaders } from '@/plugins/cache'
-import { assertClientOriginAllowed, countClientRead } from '@/plugins/usage'
+import { countClientRead } from '@/plugins/usage'
 
 import { resolveAtlasSitemap } from '../../sitemap/resolve'
 import { wixSitemapEntries } from '../wixSitemap'
@@ -62,15 +62,8 @@ export const atlasWixSitemap: Endpoint = {
   path: '/atlas/wix/sitemap',
   method: 'get',
   handler: async (req) => {
-    const denied = requireActiveClient(req)
+    const denied = requireClientAccess(req)
     if (denied) return denied
-
-    try {
-      assertClientOriginAllowed(req)
-    } catch (error) {
-      if (error instanceof APIError) return errorResponse(error.message, error.status)
-      throw error
-    }
 
     const parsed = parseQuery(req, querySchema)
     if (!parsed.ok) return parsed.response

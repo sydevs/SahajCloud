@@ -3,11 +3,11 @@ import type { Endpoint } from 'payload'
 import { APIError } from 'payload'
 import { z } from 'zod'
 
-import { errorResponse, parseQuery, requireActiveClient } from '@/lib/endpoints'
+import { errorResponse, parseQuery, requireClientAccess } from '@/lib/endpoints'
 import type { LocaleCode } from '@/lib/locales'
 import { DEFAULT_LOCALE, isValidLocale, LOCALES } from '@/lib/locales'
 import { publicReadCacheHeaders } from '@/plugins/cache'
-import { assertClientOriginAllowed, countClientRead } from '@/plugins/usage'
+import { countClientRead } from '@/plugins/usage'
 
 import { MAX_ATLAS_ROUTE_LENGTH, parseAtlasRoute } from './atlasRoute'
 import { resolveAtlasSeo } from './resolve'
@@ -99,7 +99,7 @@ const querySchema = z.object({
  * Registered at the config root rather than on a collection because the route
  * may name a region *or* an event, so no collection owns it — which means the
  * usage plugin's `beforeOperation` gates don't fire for the handler itself, so
- * `assertClientOriginAllowed` and `countClientRead` are called directly (see
+ * `requireClientAccess` and `countClientRead` stand in for them (see
  * `docs/rules/endpoints.md`). The collection reads it forwards *do* run them, so
  * published-only access and project visibility apply as usual, and the meter is
  * idempotent per request, so they add nothing to the one count (#891).
@@ -110,15 +110,8 @@ export const atlasSeo: Endpoint = {
   path: '/atlas/seo',
   method: 'get',
   handler: async (req) => {
-    const denied = requireActiveClient(req)
+    const denied = requireClientAccess(req)
     if (denied) return denied
-
-    try {
-      assertClientOriginAllowed(req)
-    } catch (error) {
-      if (error instanceof APIError) return errorResponse(error.message, error.status)
-      throw error
-    }
 
     const parsed = parseQuery(req, querySchema)
     if (!parsed.ok) return parsed.response

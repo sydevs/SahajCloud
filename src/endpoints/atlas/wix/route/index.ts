@@ -5,11 +5,11 @@ import { APIError } from 'payload'
 import { z } from 'zod'
 
 import { splitMountKey } from '@/lib/clients/verification'
-import { errorResponse, parseQuery, requireActiveClient } from '@/lib/endpoints'
+import { errorResponse, parseQuery, requireClientAccess } from '@/lib/endpoints'
 import { baseLanguage, DEFAULT_LOCALE } from '@/lib/locales'
 import type { Client } from '@/payload-types'
 import { publicReadCacheHeaders } from '@/plugins/cache'
-import { assertClientOriginAllowed, countClientRead } from '@/plugins/usage'
+import { countClientRead } from '@/plugins/usage'
 
 import { MAX_ATLAS_ROUTE_LENGTH } from '../../seo/atlasRoute'
 import { resolveAtlasSeo } from '../../seo/resolve'
@@ -91,7 +91,7 @@ function hostOf(canonical: string | null): string | null {
  * Registered at the config root for the same reason `/api/atlas/seo` is — the
  * route may name a region *or* an event — so the usage plugin's
  * `beforeOperation` gates do not fire for the handler and
- * `assertClientOriginAllowed` and `countClientRead` are called directly (see
+ * `requireClientAccess` and `countClientRead` stand in for them (see
  * `docs/rules/endpoints.md`).
  *
  * ⚠ **It is metered like any other client read, and a server-rendered site
@@ -106,15 +106,8 @@ export const atlasWixRoute: Endpoint = {
   path: '/atlas/wix/route',
   method: 'get',
   handler: async (req) => {
-    const denied = requireActiveClient(req)
+    const denied = requireClientAccess(req)
     if (denied) return denied
-
-    try {
-      assertClientOriginAllowed(req)
-    } catch (error) {
-      if (error instanceof APIError) return errorResponse(error.message, error.status)
-      throw error
-    }
 
     const parsed = parseQuery(req, querySchema)
     if (!parsed.ok) return parsed.response

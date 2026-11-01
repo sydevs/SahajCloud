@@ -3,7 +3,7 @@ import type { PayloadRequest } from 'payload'
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 
-import { parseQuery, requireActiveClient } from '@/lib/endpoints'
+import { parseQuery, requireActiveClient, requireClientAccess } from '@/lib/endpoints'
 
 /** Build a minimal `req` stub carrying just the fields the helpers read. */
 const reqWith = (parts: Partial<PayloadRequest>): PayloadRequest =>
@@ -41,6 +41,46 @@ describe('requireActiveClient', () => {
   it('returns null for a published client', () => {
     const denied = requireActiveClient(
       reqWith({ user: { collection: 'clients', _status: 'published' } as never }),
+    )
+    expect(denied).toBeNull()
+  })
+})
+
+describe('requireClientAccess', () => {
+  /** A published client whose allowlist excludes every host but `allowed.test`. */
+  const publishedClient = {
+    collection: 'clients',
+    _status: 'published',
+    id: 7,
+    allowedDomains: 'allowed.test',
+  }
+  const loggerReq = (parts: Partial<PayloadRequest>): PayloadRequest =>
+    reqWith({ payload: { logger: { warn: () => undefined } } as never, ...parts })
+
+  it('returns the auth refusal before it reaches the origin check', () => {
+    const denied = requireClientAccess(loggerReq({ user: null }))
+    expect(denied?.status).toBe(403)
+  })
+
+  it('maps the origin refusal onto the standard envelope', async () => {
+    const denied = requireClientAccess(
+      loggerReq({
+        user: publishedClient as never,
+        headers: new Headers({ origin: 'https://attacker.test' }),
+      }),
+    )
+    expect(denied?.status).toBe(403)
+    expect(await denied?.json()).toEqual({
+      errors: [{ message: 'This origin is not allowed for this API client.' }],
+    })
+  })
+
+  it('returns null for a published client on an allowed origin', () => {
+    const denied = requireClientAccess(
+      loggerReq({
+        user: publishedClient as never,
+        headers: new Headers({ origin: 'https://allowed.test' }),
+      }),
     )
     expect(denied).toBeNull()
   })

@@ -3,9 +3,9 @@ import type { Endpoint } from 'payload'
 
 import { APIError } from 'payload'
 
-import { errorResponse, requireActiveClient, requireIntegerClientId } from '@/lib/endpoints'
+import { errorResponse, requireClientAccess, requireIntegerClientId } from '@/lib/endpoints'
 import { publicReadCacheHeaders } from '@/plugins/cache'
-import { assertClientOriginAllowed, countClientRead } from '@/plugins/usage'
+import { countClientRead } from '@/plugins/usage'
 
 import { resolveAtlasSitemap } from './resolve'
 
@@ -53,7 +53,7 @@ import { resolveAtlasSitemap } from './resolve'
  * Registered at the config root rather than on a collection because the answer
  * spans regions *and* events, so no collection owns it — which means the usage
  * plugin's `beforeOperation` gates don't fire for the handler itself and
- * `assertClientOriginAllowed` is called directly (see `docs/rules/endpoints.md`).
+ * `requireClientAccess` stands in for them (see `docs/rules/endpoints.md`).
  * The collection reads it forwards *do* run them, so published-only access and
  * project visibility apply as usual, and the meter is idempotent per request, so
  * they add nothing to the one count (#891).
@@ -64,17 +64,10 @@ export const atlasSitemap: Endpoint = {
   path: '/atlas/sitemap',
   method: 'get',
   handler: async (req) => {
-    const denied = requireActiveClient(req)
+    const denied = requireClientAccess(req)
     if (denied) return denied
 
-    try {
-      assertClientOriginAllowed(req)
-    } catch (error) {
-      if (error instanceof APIError) return errorResponse(error.message, error.status)
-      throw error
-    }
-
-    // `requireActiveClient` has established a published `clients` user; this is
+    // The gate has established a published `clients` user; this is
     // the id that read leaves on the request. Its docblock carries why an
     // unusable one must fail loudly rather than answer "you own nothing".
     const caller = requireIntegerClientId(req, 'Failed to build the sitemap for this client.')
