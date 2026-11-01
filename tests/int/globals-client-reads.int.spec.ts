@@ -35,7 +35,7 @@ import { createTestEnvironment } from '../utils/testHelpers'
  * `overrideAccess` itself, so together they prove the adapter and say nothing
  * about what payload hands it on a real request. If a REST global read ever
  * arrives with the flag `undefined` — a payload bump, a handler rewrite — all
- * four gates no-op and #710 ships inert with each of those cases still green.
+ * three gates no-op and #710 ships inert with each of those cases still green.
  * `the REST default` at the bottom is what closes that: it drives
  * `handleEndpoints`, payload's own REST entry point, and supplies nothing.
  */
@@ -296,7 +296,7 @@ describe('client reads of a global (#710)', () => {
    * `overrideAccess: false`; these two hand them nothing and let payload's REST
    * handler supply it.
    *
-   * That makes this the one place the four gates can be observed reaching a
+   * That makes this the one place the three gates can be observed reaching a
    * real client request. `onlyOnCallerAuthority` returns early unless the
    * flag is exactly `false`, so a default of `true` or `undefined` skips all
    * four — and the refusal below becomes a 200. No assertion elsewhere can see

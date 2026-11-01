@@ -30,10 +30,21 @@ export async function sendRegistrationNotification(args: {
   registrantEmail: string
   /** Start of the session the registrant chose (ISO), when supplied. */
   startingAt?: string | null
+  /** The zone `startingAt` reads in: the registration's own, else the event's. */
+  timeZone?: string
   /** The registrant's answers to the event's registration questions. */
   answers?: { label: string; value: string }[]
 }): Promise<void> {
-  const { payload, recipient, event, registrantName, registrantEmail, startingAt, answers } = args
+  const {
+    payload,
+    recipient,
+    event,
+    registrantName,
+    registrantEmail,
+    startingAt,
+    timeZone,
+    answers,
+  } = args
 
   if (recipient.channel !== 'email') {
     // Parity with the verification stub: no messaging transport is wired yet, so
@@ -49,7 +60,7 @@ export async function sendRegistrationNotification(args: {
 
   const brand = getEmailBrand('sahaj-atlas')
   const eventTitle = typeof event.title === 'string' ? event.title : `Event #${event.id}`
-  const startDate = startingAt ? formatLongDate(startingAt) || null : null
+  const startDate = startingAt ? formatLongDate(startingAt, timeZone) || null : null
 
   await payload.sendEmail({
     to: recipient.destination,

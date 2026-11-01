@@ -279,6 +279,21 @@ describe('manager invitation', () => {
       expect((await queueOf(manager.id)).pending).toBeNull()
     })
 
+    it('queues nothing for a seed import', async () => {
+      const manager = await bare()
+      const region = await testData.createRegion(payload)
+
+      // What every `BaseImporter` write carries: `/api/seed` imports in the server.
+      await payload.update({
+        collection: 'regions',
+        id: region.id,
+        data: { managers: [manager.id] },
+        context: { seed: true },
+      })
+
+      expect((await queueOf(manager.id)).pending).toBeNull()
+    })
+
     it('does not announce an assignment undone before the send', async () => {
       const manager = await bare()
       emailAdapter.clearCapturedEmails()

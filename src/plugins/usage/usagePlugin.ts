@@ -1,9 +1,9 @@
 /**
  * Usage Plugin for PayloadCMS
  *
- * Automatically applies rate limiting and usage tracking to all collections.
+ * Automatically applies the client read gates and usage tracking to all
+ * collections. Rate limiting is Cloudflare's, at the edge.
  *
- * - beforeOperation: Rate limiting (enforced at the Cloudflare edge; the app hook is a no-op)
  * - beforeOperation: Usage tracking via an atomic Postgres UPDATE (counts once per top-level read)
  */
 
@@ -15,7 +15,6 @@ import { resolveLivePreviewHook } from '@/lib/utilities/previewSecret'
 import { SYSTEM_EXCLUSIONS } from './constants'
 import {
   onlyOnCallerAuthority,
-  rateLimitHook,
   usageTrackingBeforeOperationHook,
   validateClientOriginHook,
   validateClientQueryParamsHook,
@@ -23,8 +22,8 @@ import {
 import { resetUsageTask } from './tasks'
 
 /**
- * The four gates, in the order they must run: origin enforcement first, so a
- * disallowed origin is rejected before query-shape validation or any rate
+ * The three gates, in the order they must run: origin enforcement first, so a
+ * disallowed origin is rejected before query-shape validation or any
  * accounting; usage tracking last, so it counts exactly once per top-level
  * read, skipping internal relationship-population sub-reads.
  *
@@ -40,7 +39,6 @@ import { resetUsageTask } from './tasks'
 const BEFORE_OPERATION_HOOKS: ClientReadGate[] = [
   validateClientOriginHook,
   validateClientQueryParamsHook,
-  rateLimitHook,
   usageTrackingBeforeOperationHook,
 ]
 
@@ -94,7 +92,7 @@ export function usagePlugin(
       }
     }),
 
-    // Globals get the same four gates (#710). Before this, `GET
+    // Globals get the same three gates (#710). Before this, `GET
     // /api/globals/<slug>` was unmetered and outside origin enforcement —
     // and every atlas widget boot and WeMeditateWeb request reads one.
     // `exclusions` names collections only, and no global is a Payload system

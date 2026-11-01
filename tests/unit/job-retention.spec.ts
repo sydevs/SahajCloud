@@ -5,8 +5,13 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { JOB_PURGE_WINDOWS, JOB_RETENTION_DAYS } from '@/collections/PayloadJobs/PayloadJobs'
+import {
+  JOB_PURGE_WINDOWS,
+  JOB_RETENTION_DAYS,
+  STALE_JOB_MS,
+} from '@/collections/PayloadJobs/PayloadJobs'
 import { dueWindows } from '@/jobs/CleanupCollections/sweepCollection'
+import { IMPORT_STALL_MS } from '@/plugins/eventImport/constants'
 
 describe('job retention', () => {
   it('puts the cutoff a week behind the clock it is given', () => {
@@ -44,5 +49,21 @@ describe('job retention', () => {
         },
       ],
     })
+  })
+})
+
+/**
+ * The boot sweep's window is the only thing telling a dead run from a slow one:
+ * nothing stamps a plain task's row between pick-up and finish, so cancelling
+ * early takes a live run down and the window above then sweeps the evidence.
+ */
+describe('stale job cancellation', () => {
+  /**
+   * The import's own stall gate is the longest bound anything here declares,
+   * and it was sized for a 500-row run. A job that can legitimately run longer
+   * has to raise `STALE_JOB_MS` rather than lose a run to it.
+   */
+  it('waits longer than the longest run a healthy job declares', () => {
+    expect(STALE_JOB_MS).toBeGreaterThan(IMPORT_STALL_MS)
   })
 })
