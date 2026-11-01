@@ -1,22 +1,16 @@
 /**
- * The #1057 sweep: `20261101_191500_atlas_drop_time_in_place`.
+ * The #1057 sweep: `20261101_191500_atlas_drop_time_in_place`. Why a retired
+ * key refuses every save of its global is `src/globals/AGENTS.md`'s rule.
  *
- * Dropping a key from `translationsSchema.json` does not touch the JSON column
- * that stored it, and `event.display` declares `additionalProperties: false`.
- * Payload merges the stored value into a field the write never mentions and
- * validates it, so a value left holding the retired key refuses every save of
- * `sy-atlas-translations` that does not itself replace that group.
- *
- * So the first case here is the defect, written as an assertion: seed the key
+ * The first case is that defect, written as an assertion: seed the key
  * underneath validation, and a save of another tab is refused. The second is
  * the migration answering it. Empty `up`'s two statements and the second case
  * fails with the first's error — measured, not assumed.
  *
  * **This is the first spec in the repo to import a migration's `up`.** The
  * established shape is the opposite — `region-breadcrumb-url-backfill` and
- * `schedule-last-date-backfill` both exercise a routine kept in `src/lib/` so
- * the spec need not reach into the operator script. Two unqualified SQL
- * statements have no such routine to extract, so `up` is imported directly.
+ * `schedule-last-date-backfill` both exercise a routine kept in `src/lib/`.
+ * Two unqualified SQL statements have no such routine to extract.
  *
  * **And its own file, though `translations-globals.int.spec.ts` owns this
  * ground.** That suite's own cases write the same single global, so a stored
@@ -75,10 +69,8 @@ describe('atlas translations: the retired time_in_place key', () => {
     })
     // Then the retired key, underneath the validator that now refuses it —
     // raw, because `payload.db.updateGlobal` takes no locale and reads a
-    // localized JSON column's own keys as locale codes. Every locale row is
-    // seeded, and the version row with them: a global's update loads the
-    // document it is about to change from `latest: true`, so a key left there
-    // comes back and refuses the save again.
+    // localized JSON column's own keys as locale codes. The version row is
+    // seeded with it, for the reason the migration sweeps that table.
     const patch = JSON.stringify({ time_in_place: RETIRED })
     await withSchema(payload, async (tx) => {
       await tx.execute(sql`
@@ -96,11 +88,8 @@ describe('atlas translations: the retired time_in_place key', () => {
   })
 
   /**
-   * A save of ANOTHER tab, which is where the hazard bites. Payload merges the
-   * stored value into a field the write never mentions and validates it, so
-   * `event_display` is checked on a save that had nothing to do with it. A
-   * write that replaces `event.display` wholesale validates only what it
-   * carries and never sees the stored key — which is why this is not that.
+   * A save of ANOTHER tab, which is where the hazard bites: a write that
+   * replaces `event.display` wholesale never sees the stored key.
    */
   const saveAnotherTab = () =>
     payload.updateGlobal({ slug: SLUG, data: { countries: { title: 'Countries' } } })
