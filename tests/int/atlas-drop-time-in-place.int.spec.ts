@@ -12,14 +12,25 @@
  * the migration answering it. Empty `up`'s two statements and the second case
  * fails with the first's error — measured, not assumed.
  *
+ * **This is the first spec in the repo to import a migration's `up`.** The
+ * established shape is the opposite — `region-breadcrumb-url-backfill` and
+ * `schedule-last-date-backfill` both exercise a routine kept in `src/lib/` so
+ * the spec need not reach into the operator script. Two unqualified SQL
+ * statements have no such routine to extract, so `up` is imported directly.
+ *
+ * **And its own file, though `translations-globals.int.spec.ts` owns this
+ * ground.** That suite's own cases write the same single global, so a stored
+ * key refusing every write would break all of them unless these two ran last
+ * with the sweep as their teardown.
+ *
  * ⚠ **`up` writes unqualified table names**, which is right for production,
  * where the schema is `public`. This lane gives each suite its own Postgres
  * schema, and `execute` draws from a pool, so a bare `SET search_path` would
- * land on whichever connection answered it. Both calls below therefore run
- * inside one transaction with `SET LOCAL search_path` — one connection, undone
- * at commit. That is the only accommodation the migration gets: its statements
- * run verbatim.
+ * land on whichever connection answered it. `withSchema` is one transaction
+ * with `SET LOCAL search_path` — one connection, undone at commit. The
+ * migration's statements run verbatim inside it.
  */
+import type { MigrateUpArgs } from '@payloadcms/db-postgres'
 import type { Payload } from 'payload'
 
 import { sql } from '@payloadcms/db-postgres'
@@ -33,52 +44,50 @@ const SLUG = 'sy-atlas-translations'
 const HOSTED_FROM = 'Hosted from %{city}'
 const RETIRED = '%{time} in %{city}'
 
+/** The transaction `drizzle.transaction` hands its callback. */
+type Tx = Parameters<Parameters<Payload['db']['drizzle']['transaction']>[0]>[0]
+
+/** Runs `body` against this suite's own Postgres schema, on one connection. */
+const withSchema = async (payload: Payload, body: (tx: Tx) => Promise<void>): Promise<void> => {
+  const schema = payload.db.schemaName
+  // Without one, every statement would read `public`, where this suite has no
+  // tables — and the migration case would pass having swept nothing.
+  if (!schema) throw new Error('the suite has no isolated schema to target')
+  await payload.db.drizzle.transaction(async (tx) => {
+    await tx.execute(sql`SET LOCAL search_path TO ${sql.identifier(schema)}`)
+    await body(tx)
+  })
+}
+
 describe('atlas translations: the retired time_in_place key', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
-  /** Runs `body` against this suite's own Postgres schema, on one connection. */
-  let inSchema: (body: (tx: unknown) => Promise<void>) => Promise<void>
 
   beforeAll(async () => {
     const testEnv = await createTestEnvironment()
     payload = testEnv.payload
     cleanup = testEnv.cleanup
 
-    const db = payload.db as unknown as {
-      drizzle: {
-        transaction: (
-          cb: (tx: { execute: (q: unknown) => Promise<unknown> }) => Promise<void>,
-        ) => Promise<void>
-      }
-      schemaName?: string
-    }
-    const schema = db.schemaName
-    // Without it every statement below would read `public`, where this suite
-    // has no tables — and the migration case would pass having swept nothing.
-    if (!schema) throw new Error('the suite has no isolated schema to target')
-    inSchema = (body) =>
-      db.drizzle.transaction(async (tx) => {
-        await tx.execute(sql`SET LOCAL search_path TO ${sql.raw(`"${schema}"`)}`)
-        await body(tx)
-      })
-
     // Through the API first, so the row and its version row exist at all.
     await payload.updateGlobal({
       slug: SLUG,
       data: { event: { display: { hosted_from: HOSTED_FROM } } },
     })
-    // Then the retired key, underneath the validator that now refuses it. The
-    // version row is seeded too: `updateGlobal` loads the document it is about
-    // to change from `latest: true`, so a key left there comes back and
-    // refuses the save again.
-    await inSchema(async (tx) => {
-      const t = tx as { execute: (q: unknown) => Promise<unknown> }
-      await t.execute(sql`
+    // Then the retired key, underneath the validator that now refuses it —
+    // raw, because `payload.db.updateGlobal` takes no locale and reads a
+    // localized JSON column's own keys as locale codes. Every locale row is
+    // seeded, and the version row with them: a global's update loads the
+    // document it is about to change from `latest: true`, so a key left there
+    // comes back and refuses the save again.
+    const patch = JSON.stringify({ time_in_place: RETIRED })
+    await withSchema(payload, async (tx) => {
+      await tx.execute(sql`
         UPDATE "sy_atlas_translations_locales"
-          SET "event_display" = "event_display" || ${sql.raw(`'{"time_in_place":"${RETIRED}"}'::jsonb`)};
+          SET "event_display" = "event_display" || ${patch}::jsonb`)
+      await tx.execute(sql`
         UPDATE "_sy_atlas_translations_v_locales"
-          SET "version_event_display" = coalesce("version_event_display", '{}'::jsonb)
-            || ${sql.raw(`'{"time_in_place":"${RETIRED}"}'::jsonb`)};`)
+          SET "version_event_display" =
+            coalesce("version_event_display", '{}'::jsonb) || ${patch}::jsonb`)
     })
   })
 
@@ -103,9 +112,10 @@ describe('atlas translations: the retired time_in_place key', () => {
   })
 
   it('is swept by the migration, leaving hosted_from in place', async () => {
-    await inSchema(async (tx) => {
-      await up({ db: tx, payload } as never)
-    })
+    // `up` destructures `db` alone. `req` is what the migration chain supplies
+    // and this call has none, so the cast stands in for it rather than for the
+    // whole argument.
+    await withSchema(payload, (tx) => up({ db: tx, payload } as unknown as MigrateUpArgs))
 
     await expect(saveAnotherTab()).resolves.toBeTruthy()
 

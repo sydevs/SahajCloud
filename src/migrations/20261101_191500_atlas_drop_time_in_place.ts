@@ -19,6 +19,15 @@ import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
 // The versions table is swept too: a global's update loads the document it is
 // about to change from the `latest: true` version row, so a key left there
 // comes back on the next save and refuses it again.
+//
+// ⚠ **The `?` guard is load-bearing, not an optimization over ~20 rows.**
+// `jsonb - text` raises `cannot delete from scalar` on a column holding a
+// non-object, which would abort the whole boot migration; `jsonb ? text`
+// answers false there, so such a row is skipped instead. The built-in json
+// validator short-circuits on an "empty" value, which is why a scalar can be
+// stored at all — `createStringsJsonField` compensates for the array case only.
+// Same hazard `20260909_161353_atlas_translations_by_view` guards with
+// `jsonb_typeof`.
 
 export async function up({ db }: MigrateUpArgs): Promise<void> {
   await db.execute(sql`
