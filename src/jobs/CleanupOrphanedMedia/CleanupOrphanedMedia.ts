@@ -600,6 +600,56 @@ function selectRootsOf(fieldPaths: string[]): Record<string, true> {
   return Object.fromEntries(fieldPaths.map((path) => [path.split('.')[0], true]))
 }
 
+/**
+ * Visit every stored copy of a collection's documents that can hold a
+ * reference: each main row, trashed ones included, and — with drafts on — each
+ * latest version, the only row a draft save writes. A reference held by either
+ * alone would otherwise read as an orphan, and the job would trash a file in use.
+ */
+async function forEachStoredDoc(
+  payload: Payload,
+  collectionSlug: string,
+  fieldPaths: string[],
+  visit: (doc: Record<string, unknown>) => void,
+): Promise<void> {
+  const collection = collectionSlug as CollectionSlug
+  const select = selectRootsOf(fieldPaths)
+  const read = {
+    collection,
+    limit: PAGINATION_LIMIT,
+    depth: 0,
+    // A reference held only by a localized field is invisible to a
+    // default-locale read, and an invisible reference reads as an orphan, so
+    // the job trashes a file that is in use (#977).
+    locale: 'all',
+    trash: true,
+  } as const
+  const drafts = Boolean(payload.collections[collection]?.config.versions?.drafts)
+
+  for (const versions of drafts ? [false, true] : [false]) {
+    let page = 1
+    let hasMore = true
+    while (hasMore) {
+      // `select`: `locale: 'all'` returns every translation of every field, and
+      // a field `afterRead` hook runs once per locale, so a read of the whole
+      // document costs what the untouched fields are worth times the locale count.
+      const result = versions
+        ? await payload.findVersions({
+            ...read,
+            page,
+            select: { version: select },
+            where: { latest: { equals: true } },
+          })
+        : await payload.find({ ...read, page, select })
+      for (const doc of result.docs) {
+        visit((versions ? (doc as { version: unknown }).version : doc) as Record<string, unknown>)
+      }
+      hasMore = result.hasNextPage
+      page++
+    }
+  }
+}
+
 /** Scan a collection for references using discovered field paths. */
 async function scanCollectionForReferences(
   payload: Payload,
@@ -607,38 +657,16 @@ async function scanCollectionForReferences(
   references: FieldReference[],
   referencedIds: Set<number>,
 ): Promise<void> {
-  let page = 1
-  let hasMore = true
-
-  while (hasMore) {
-    const result = await payload.find({
-      collection: collectionSlug as CollectionSlug,
-      limit: PAGINATION_LIMIT,
-      page,
-      depth: 0,
-      // A reference held only by a localized field is invisible to a
-      // default-locale read, and an invisible reference reads as an orphan, so
-      // the job trashes a file that is in use (#977).
-      locale: 'all',
-      // `locale: 'all'` returns every translation of every field, and a field
-      // `afterRead` hook runs once per locale, so a read of the whole document
-      // costs what the untouched fields are worth times the locale count.
-      select: selectRootsOf(references.map((ref) => ref.fieldPath)),
-    })
-
-    for (const doc of result.docs) {
-      const docRecord = doc as unknown as Record<string, unknown>
+  await forEachStoredDoc(
+    payload,
+    collectionSlug,
+    references.map((ref) => ref.fieldPath),
+    (doc) => {
       for (const ref of references) {
-        const ids = extractIdsFromDocument(docRecord, ref)
-        for (const id of ids) {
-          referencedIds.add(id)
-        }
+        for (const id of extractIdsFromDocument(doc, ref)) referencedIds.add(id)
       }
-    }
-
-    hasMore = result.hasNextPage
-    page++
-  }
+    },
+  )
 }
 
 /**
@@ -651,36 +679,14 @@ async function scanCollectionForLexicalReferences(
   reference: FieldReference,
   referencedIds: Set<number>,
 ): Promise<void> {
-  let page = 1
-  let hasMore = true
-
-  while (hasMore) {
-    const result = await payload.find({
-      collection: collectionSlug as CollectionSlug,
-      limit: PAGINATION_LIMIT,
-      page,
-      depth: 0,
-      locale: 'all',
-      select: selectRootsOf([reference.fieldPath]),
-    })
-
-    for (const doc of result.docs) {
-      const docRecord = doc as unknown as Record<string, unknown>
-      // The read addresses the field by its whole path as one key, so a
-      // localized rich text is marked at the first segment or unreachable.
-      for (const content of localeValues(
-        docRecord[reference.fieldPath],
-        reference.localizedAt.includes(0),
-      )) {
-        // Use generic Lexical traversal to extract all IDs
-        const ids = extractIdsFromLexicalContent(content)
-        for (const id of ids) {
-          referencedIds.add(id)
-        }
-      }
+  await forEachStoredDoc(payload, collectionSlug, [reference.fieldPath], (doc) => {
+    // The read addresses the field by its whole path as one key, so a
+    // localized rich text is marked at the first segment or unreachable.
+    for (const content of localeValues(
+      doc[reference.fieldPath],
+      reference.localizedAt.includes(0),
+    )) {
+      for (const id of extractIdsFromLexicalContent(content)) referencedIds.add(id)
     }
-
-    hasMore = result.hasNextPage
-    page++
-  }
+  })
 }

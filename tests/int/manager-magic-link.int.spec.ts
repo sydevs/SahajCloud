@@ -22,7 +22,7 @@
  */
 import type { Payload } from 'payload'
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { MANAGER_SIGNIN_PATH, managersLogin } from '@/collections/Managers/login'
 import { escapeRegExp } from '@/lib/utilities/escapeRegExp'
@@ -64,7 +64,8 @@ describe('manager magic-link sign-in', () => {
   let anon: RestClient
   let cleanup: () => Promise<void>
 
-  const requestLinkFor = (email: string) => anon(REQUEST_PATH, { method: 'POST', json: { email } })
+  const requestLinkFor = (email: string, redirect?: string) =>
+    anon(REQUEST_PATH, { method: 'POST', json: { email, redirect } })
 
   /** Open the redeem path the way a mail scanner does: a bare GET, no click. */
   const scan = (token: string) => anon(`${REDEEM_PATH}?token=${encodeURIComponent(token)}`)
@@ -74,9 +75,9 @@ describe('manager magic-link sign-in', () => {
     anon(`${REDEEM_PATH}?token=${encodeURIComponent(token)}`, { method: 'POST' })
 
   /** Ask for a link and hand back the token from the email that arrives. */
-  const linkTokenFor = async (email: string): Promise<string> => {
+  const linkTokenFor = async (email: string, redirect?: string): Promise<string> => {
     emailAdapter.clearCapturedEmails()
-    await requestLinkFor(email)
+    await requestLinkFor(email, redirect)
     const sent = emailAdapter.findEmailByTo(email)
     expect(sent, `no sign-in email captured for ${email}`).toBeDefined()
     const match = sent!.html?.match(SIGN_IN_URL)
@@ -291,6 +292,24 @@ describe('manager magic-link sign-in', () => {
       expect((await rolesAt('cs'))?.cs).toEqual(['web-translator'])
     })
 
+    it('returns the holder to the page that sent them to sign in', async () => {
+      const manager = await activeManager()
+      const page = '/admin/collections/events/12?locale=fr'
+
+      const response = await consume(await linkTokenFor(manager.email, page))
+
+      expect(response.status).toBe(302)
+      expect(response.headers.get('Location')).toBe(`${getServerUrl()}${page}`)
+      expect(response.headers.get('Set-Cookie')).toBeTruthy()
+    })
+
+    it('lands on the dashboard for a return path it will not take, and still sends the link', async () => {
+      for (const redirect of ['https://evil.example/admin/', '/admin/logout']) {
+        const manager = await activeManager()
+        expectSignedIn(await consume(await linkTokenFor(manager.email, redirect)))
+      }
+    })
+
     it('refuses the same link a second time', async () => {
       const manager = await activeManager()
       const token = await linkTokenFor(manager.email)
@@ -298,6 +317,30 @@ describe('manager magic-link sign-in', () => {
       expectSignedIn(await consume(token))
 
       expectRefused(await consume(token), 'invalid')
+    })
+
+    it('signs in only one of two concurrent redeems of one link', async () => {
+      const manager = await activeManager()
+      const token = await linkTokenFor(manager.email)
+
+      // Hold both reads of the account until both have happened, so each
+      // request has checked the stamp before either spends it.
+      const findByID = payload.findByID.bind(payload)
+      let reads = 0
+      let bothRead!: () => void
+      const held = new Promise<void>((resolve) => (bothRead = resolve))
+      const spy = vi.spyOn(payload, 'findByID').mockImplementation((async (args: never) => {
+        const doc = await findByID(args)
+        if (++reads === 2) bothRead()
+        if (reads <= 2) await held
+        return doc
+      }) as never)
+
+      const answers = await Promise.all([consume(token), consume(token)]).finally(() =>
+        spy.mockRestore(),
+      )
+
+      expect(answers.filter((answer) => answer.headers.get('Set-Cookie'))).toHaveLength(1)
     })
 
     it('signs in with the break-glass link, which mails nothing', async () => {

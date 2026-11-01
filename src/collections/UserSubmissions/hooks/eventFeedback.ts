@@ -69,8 +69,9 @@ export const gateEventFeedback: CollectionBeforeChangeHook = async ({ data, orig
 /**
  * afterChange: recount the event's confirm/deny tallies and store the verdict.
  *
- * Recount (two indexed counts), never increment: concurrent votes converge on
- * the true tally instead of compounding a race. Writes the Wilson lower bound
+ * Recount, never increment: concurrent votes converge on the true tally
+ * instead of compounding a race. Each registrant (`user`) counts once, so
+ * registering twice does not buy a second vote. Writes the Wilson lower bound
  * to the indexed `confidenceScore` and the tallies into
  * `systemMeta.communityFeedback` (admin notice), preserving sibling keys.
  * When the denial threshold lands (≥5 denials AND Wilson upper bound < 0.5)
@@ -94,9 +95,24 @@ export const syncCommunityFeedback: CollectionAfterChangeHook = async ({
   if (eventId == null) return doc
 
   const trustedReq = asTrustedReq(req)
-  const countVotes = (vote: 'confirmed' | 'denied') =>
-    req.payload.count({
+  /**
+   * Distinct registrants, counted by Postgres. Each registrant votes once, so
+   * registering twice buys no second vote.
+   *
+   * ⚠ **A row with no registrant is one bucket, not one vote each.** An
+   * anonymous registration carries no `user` — `prepareUserSubmission` sets it
+   * only from a `senderEmail` — and the hand-built `Set` this replaced keyed
+   * such a row on its own id, so every one of them counted. DISTINCT folds
+   * them together instead, which is the cap the rule asks for.
+   *
+   * ⚠ **Passing a `limit` would undo that.** The adapter's paginating branch
+   * counts with `COUNT(DISTINCT …)`, which drops NULL entirely; only the
+   * unpaginated branch returns the NULL group as a value of its own.
+   */
+  const countVotes = async (vote: 'confirmed' | 'denied') => {
+    const { totalDocs } = await req.payload.findDistinct({
       collection: 'user-submissions',
+      field: 'user',
       // `activeRegistrationWhere`, not a bare `type` predicate: a row flagged
       // `spam` after its follow-up token was minted frees its seat, so it must
       // not keep a share of the power to unpublish the listing. Five denials
@@ -108,12 +124,15 @@ export const syncCommunityFeedback: CollectionAfterChangeHook = async ({
           { eventFeedback: { equals: vote } },
         ],
       },
+      depth: 0,
       overrideAccess: true,
       req: trustedReq,
     })
+    return totalDocs
+  }
   // All three are independent reads — the event's current state doesn't depend
   // on the tallies — so one round trip instead of two in an afterChange hook.
-  const [confirmed, denied, event] = await Promise.all([
+  const [confirmations, denials, event] = await Promise.all([
     countVotes('confirmed'),
     countVotes('denied'),
     req.payload.findByID({
@@ -125,8 +144,6 @@ export const syncCommunityFeedback: CollectionAfterChangeHook = async ({
       req: trustedReq,
     }),
   ])
-  const confirmations = confirmed.totalDocs
-  const denials = denied.totalDocs
   const verdict = computeCommunityVerdict({ confirmations, denials })
 
   // Bookkeeping, so it must not re-validate the stored event. This hook is

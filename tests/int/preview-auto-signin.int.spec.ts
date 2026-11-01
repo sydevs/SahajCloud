@@ -40,9 +40,10 @@ const { PREVIEW_ADMIN_EMAIL } = vi.hoisted(() => {
 // at this suite's own. `cookies` and `redirect` are Next's request scope, which a
 // direct call has none of — `redirect` throws, as Next's own does, so the action
 // stops where it would in production.
-const { configRef, cookieJar, REDIRECTED } = vi.hoisted(() => ({
+const { configRef, cookieJar, redirectedTo, REDIRECTED } = vi.hoisted(() => ({
   configRef: { current: undefined as unknown },
   cookieJar: new Map<string, string>(),
+  redirectedTo: { current: undefined as string | undefined },
   REDIRECTED: new Error('NEXT_REDIRECT'),
 }))
 vi.mock('@payload-config', () => ({ default: configRef.current }))
@@ -50,7 +51,8 @@ vi.mock('next/headers', () => ({
   cookies: async () => ({ set: (name: string, value: string) => cookieJar.set(name, value) }),
 }))
 vi.mock('next/navigation', () => ({
-  redirect: () => {
+  redirect: (to: string) => {
+    redirectedTo.current = to
     throw REDIRECTED
   },
 }))
@@ -116,10 +118,11 @@ describe('POST /api/managers/request-magic-link, on a Railway preview', () => {
   })
 
   describe('through the sign-in form', () => {
-    const submit = async (email: string) => {
+    const submit = async (email: string, redirect?: string) => {
       const { requestSignInLinkAction } = await import('@/components/admin/SignIn/actions')
       const form = new FormData()
       form.set('email', email)
+      if (redirect) form.set('redirect', redirect)
       return requestSignInLinkAction(null, form)
     }
 
@@ -133,6 +136,18 @@ describe('POST /api/managers/request-magic-link, on a Railway preview', () => {
       const asAdmin = createRestClientWithAuth(env, { Authorization: `JWT ${token}` })
       const me = await asAdmin('/api/managers/me')
       expect((me.body as { user?: { email?: string } }).user?.email).toBe(PREVIEW_ADMIN_EMAIL)
+    })
+
+    it('lands on the page that sent the admin to sign in, or the dashboard', async () => {
+      await expect(submit(PREVIEW_ADMIN_EMAIL, '/admin/collections/events/3')).rejects.toBe(
+        REDIRECTED,
+      )
+      expect(redirectedTo.current).toBe('/admin/collections/events/3')
+
+      await expect(submit(PREVIEW_ADMIN_EMAIL, 'https://evil.example/admin/')).rejects.toBe(
+        REDIRECTED,
+      )
+      expect(redirectedTo.current).toBe('/admin')
     })
 
     it('answers any other manager with the uniform message, and sets no cookie', async () => {

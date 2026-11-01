@@ -62,8 +62,17 @@ export const syncVerificationOnSave: CollectionBeforeChangeHook = async ({
     return data
   }
   // A managerless event on a managed stage (e.g. `finished` after never being
-  // adopted) has no cadence to verify against — leave it be.
-  if (!managerId) return data
+  // adopted) has no cadence to verify against — leave it be, unless this save
+  // revived it: then it awaits adoption again, or its finished retention date
+  // would trash a live listing.
+  if (!managerId) {
+    if (originalDoc?.verificationStage !== 'finished') return data
+    return {
+      ...data,
+      verificationStage: 'unverified',
+      nextCheckAt: resolveNextCheckAt({ stage: 'unverified', schedule, inactive }),
+    }
+  }
 
   const manager = await req.payload
     .findByID({ collection: 'managers', id: managerId, depth: 0, overrideAccess: true, req })

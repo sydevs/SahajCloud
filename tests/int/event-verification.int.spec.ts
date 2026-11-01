@@ -1075,6 +1075,29 @@ describe('Event verification lifecycle', () => {
       expect(revived.schedule?.lastDate ?? null).toBeNull()
     })
 
+    it('returns a managerless finished event to unverified, with a live watermark', async () => {
+      const event = await createEvent({
+        manager: null,
+        verificationStage: 'unverified',
+        schedule: { firstDate: uniqueStart(daysAgo(30)), firstDate_tz: 'Europe/London' },
+      })
+      await makeDue(payload, event.id)
+      await runJob(payload)
+      expect((await getEvent(payload, event.id)).verificationStage).toBe('finished')
+
+      const revived = await payload.update({
+        collection: 'events',
+        id: event.id,
+        overrideAccess: true,
+        data: {
+          schedule: { firstDate: uniqueStart(inDays(14)), firstDate_tz: 'Europe/London' },
+        } as Partial<Event>,
+      })
+
+      expect(revived.verificationStage).toBe('unverified')
+      expect(new Date(revived.nextCheckAt!).getTime()).toBeGreaterThan(Date.now())
+    })
+
     it('stays finished when a save leaves the schedule still run out', async () => {
       const event = await createFinishedEvent()
 

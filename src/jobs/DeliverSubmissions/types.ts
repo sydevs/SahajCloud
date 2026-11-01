@@ -22,14 +22,11 @@ import type { UserSubmission } from '@/payload-types'
  * - **Not every delivery is an email.** A `subscribe` row is an HTTP call to a
  *   mailing-list provider (`@/lib/mailingList/subscribe.ts:35`), with no
  *   message and no `sendEmail` to route through.
- * - **`sendEmail` reports nothing back.** Its adapter contract returns
- *   `Promise<TSendEmailResponse>` with `unknown` as the app's instantiation
- *   (`payload/dist/email/types.d.ts`, `EmailAdapter`), and this app's
- *   production adapter deliberately never throws — `resendAdapter` returns
- *   normally on a dropped message (`@/plugins/email/resendAdapter.ts:93`, `:119`,
- *   `:135`) so a failed verification email cannot roll back a manager create
- *   (`docs/rules/email.md`). Whether it arrived is therefore the caller's
- *   question to answer, and `ok` is that answer.
+ * - **`sendEmail` reports nothing back but a throw.** Its adapter contract
+ *   returns `Promise<TSendEmailResponse>` with `unknown` as the app's
+ *   instantiation (`payload/dist/email/types.d.ts`, `EmailAdapter`), and both
+ *   adapters throw on a message not sent (`docs/rules/email.md`). `ok` is what
+ *   a deliverer turns that throw, or its absence, into.
  * - **Payload has no retry policy for mail.** The job queue has one
  *   (`TaskConfig.retries`), and `retryable` is the only thing that tells a
  *   permanent refusal — no address, no list configured, a deleted event — from
