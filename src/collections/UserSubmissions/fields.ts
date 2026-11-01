@@ -536,6 +536,7 @@ const regionField: Field = {
  */
 export const SUBMISSION_VERDICTS = [
   'ok',
+  'blocked_sender',
   'disposable_email',
   'invalid_email',
   'no_mx_records',

@@ -2844,6 +2844,7 @@ export interface SubmissionScreeningResult {
    */
   verdict:
     | 'ok'
+    | 'blocked_sender'
     | 'disposable_email'
     | 'invalid_email'
     | 'no_mx_records'
@@ -2881,6 +2882,14 @@ export interface User {
     hasNextPage?: boolean;
     totalDocs?: number;
   };
+  /**
+   * Set to block this sender. Clear it to lift the block.
+   */
+  blockedAt?: string | null;
+  /**
+   * Why this sender was blocked — for whoever reads the record next.
+   */
+  blockedReason?: string | null;
   legacyId?: number | null;
   legacyData?:
     | {
@@ -5148,6 +5157,8 @@ export interface UsersSelect<T extends boolean = true> {
   email?: T;
   submissions?: T;
   submittedEvents?: T;
+  blockedAt?: T;
+  blockedReason?: T;
   legacyId?: T;
   legacyData?: T;
   updatedAt?: T;

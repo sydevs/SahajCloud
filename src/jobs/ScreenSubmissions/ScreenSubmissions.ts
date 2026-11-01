@@ -26,11 +26,13 @@ import { isScreeningResult, VERDICT_NOTES } from './verdicts'
  * the disposable-domain list, the URL scan over `submissionData`) through the
  * write-guard plugin. This adds what costs real time or a second query:
  *
- * 1. a disposable-list re-check plus an **MX lookup** on the sender's address
+ * 1. the **admin-set block** on the sender's Registrant record, which is the
+ *    lasting half of what `repeat_sender` does for 24 hours at a time;
+ * 2. a disposable-list re-check plus an **MX lookup** on the sender's address
  *    (fail-open on DNS trouble);
- * 2. **cross-intake sender history** — what this person has had refused lately,
+ * 3. **cross-intake sender history** — what this person has had refused lately,
  *    whatever intake they used, which is the whole point of one table;
- * 3. for a proposal alone, **content screening of the proposed patch**, which
+ * 4. for a proposal alone, **content screening of the proposed patch**, which
  *    no create-time scan reaches.
  *
  * ⚠ **A machine refusal is `spam`, never `rejected`.** `rejected` is a
@@ -153,8 +155,10 @@ export const ScreenSubmissions: TaskConfig<'screenSubmission'> = {
 
 /**
  * Run the checks in cost order and return the first verdict that hits — the
- * address checks (one DNS lookup at worst) before the history read (a query),
- * so an undeliverable address never pays for it.
+ * block (a primary-key read) before the address checks (one DNS lookup at
+ * worst) before the history read (a query over this sender's day), so an
+ * undeliverable address never pays for the last one and a blocked sender pays
+ * for none of them.
  */
 async function screen(args: {
   req: PayloadRequest
@@ -174,6 +178,24 @@ async function screen(args: {
     verdict,
     ...(diagnostic ? { diagnostic } : {}),
   })
+
+  // Resolved up front because the block is read from it, not only the history
+  // below. An anonymous submission carries no `user`, so it can be neither
+  // blocked nor counted against a history.
+  const userId =
+    typeof submission.user === 'number' ? submission.user : (submission.user?.id ?? null)
+
+  if (userId != null) {
+    const sender = await req.payload.findByID({
+      collection: 'users',
+      id: userId,
+      select: { blockedAt: true },
+      depth: 0,
+      overrideAccess: true,
+      req,
+    })
+    if (sender.blockedAt != null) return settle('blocked_sender')
+  }
 
   // An anonymous submission is allowed — `senderEmail` is optional — so absence
   // skips these rather than failing them.
@@ -201,8 +223,6 @@ async function screen(args: {
     }
   }
 
-  const userId =
-    typeof submission.user === 'number' ? submission.user : (submission.user?.id ?? null)
   if (userId != null) {
     const history = await loadSenderHistory({
       req,

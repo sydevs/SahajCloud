@@ -67,6 +67,15 @@ async function noteSenders(args: {
  * ⚠ **The durable types are not the question**, though they are the common
  * answer. Counting them alone reported a sender with one aged and one recent
  * message as going, and the real sweep then kept them.
+ *
+ * ⚠ **A blocked sender is kept whatever the count says**, or a block would
+ * expire the night their last submission aged out and the next thing they sent
+ * would be screened clean. Both branches read it, so the dry run's count stays
+ * a prediction of what the real sweep does.
+ *
+ * shortcut: lifting a block leaves the row behind, because the sweep only
+ * revisits senders whose submissions it deletes that night. An admin deletes it
+ * by hand. Upgrade this when a cleared block needs to free the row by itself.
  */
 async function sweepOrphanedUsers(args: {
   dryRun: boolean
@@ -78,8 +87,11 @@ async function sweepOrphanedUsers(args: {
   let deleted = 0
 
   const dueWhere: Where = { or: [...wheres] }
+  const blocked = await blockedAmong({ req, touchedUsers })
 
   for (const userId of touchedUsers) {
+    if (blocked.has(userId)) continue
+
     const { totalDocs: remaining } = await req.payload.count({
       collection: 'user-submissions',
       where: { user: { equals: userId } },
@@ -116,4 +128,25 @@ async function sweepOrphanedUsers(args: {
   }
 
   return deleted
+}
+
+/** Which of this run's senders an admin has blocked. */
+async function blockedAmong(args: {
+  req: PayloadRequest
+  touchedUsers: ReadonlySet<number>
+}): Promise<ReadonlySet<number>> {
+  const { req, touchedUsers } = args
+  if (touchedUsers.size === 0) return new Set()
+
+  const { docs } = await req.payload.find({
+    collection: 'users',
+    where: { id: { in: [...touchedUsers] }, blockedAt: { exists: true } },
+    select: { blockedAt: true },
+    depth: 0,
+    pagination: false,
+    overrideAccess: true,
+    req,
+  })
+
+  return new Set(docs.map((doc) => doc.id))
 }
