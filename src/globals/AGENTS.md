@@ -125,7 +125,7 @@ translated.
 
 All translations globals share a tab-based structure, built by
 `buildTranslationTabs()` from a `translationsSchema.json` co-located with
-the global. Versions: max 3.
+the global. Versions: max 10.
 
 - WeMeditate Web tabs: Common, Navigation, Footer, Errors, Discover,
   Article, Meditation, Lecture, Map, Forms, Media, Video, Location, Blocks
@@ -318,6 +318,27 @@ write.
 - **Every property is optional.** Payload validates a stored column on
   every save of its document, so a `required` key would strand a locale
   that predates it, on a save that never touched translations.
+- ⚠ **Retiring a key needs a data migration, or the global cannot be saved.**
+  Deleting a key from a `translationsSchema.json` leaves every stored value
+  holding it, and the group still declares `additionalProperties: false` — so
+  the merge above validates the stored column and refuses the write. Payload
+  reports `The following field is invalid: <Tab> > <Group>` against a tab the
+  editor never opened, and only a write that replaces that whole group escapes
+  it, which is why the retired key's own tab is the one place that looks fine.
+  Sweep both `<global>_locales` and `_<global>_v_locales` — a global's update
+  loads the document from the `latest: true` version row, so a key left there
+  returns on the next save. Guard the delete with `? '<key>'`: `jsonb - text`
+  raises `cannot delete from scalar`, which would abort the boot migration.
+  `20261101_191500_atlas_drop_time_in_place` is the worked example (#1057), and
+  this holds for all three translations globals — `stringsSchema` sets
+  `additionalProperties` from the group, and every leaf group in all three
+  declares it `false`.
+  ⚠ **A local database never runs that sweep.** `push: !isProduction` syncs the
+  schema and never replays the chain, so a checkout seeded before the
+  retirement keeps the key and refuses every save in the local admin.
+  Re-seed it — `pnpm db:migrate` is not the recovery, since an empty
+  `payload_migrations` replays the whole chain and fails on its first
+  `CREATE TABLE`.
 - **Only standard JSON Schema keywords may appear.** Payload runs Ajv 8 in
   strict mode, where an unknown keyword throws at _validate_ time, not at
   boot — so `plural`, `preview`, `screenshot` and `strict` must never reach
