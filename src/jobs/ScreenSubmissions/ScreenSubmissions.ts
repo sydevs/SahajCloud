@@ -178,8 +178,6 @@ async function screen(args: {
     ...(diagnostic ? { diagnostic } : {}),
   })
 
-  // An anonymous submission carries no `user`, so it can be neither blocked nor
-  // counted against a history.
   const userId = relationId(submission.user)
 
   if (userId != null) {
