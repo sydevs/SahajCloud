@@ -184,7 +184,6 @@
       "contact_for_timing": "Зв'яжіться з господарем для уточнення часу",
       "online": "Онлайн",
       "hosted_from": "Організовано з %{city}",
-      "time_in_place": "%{time} (%{city})",
       "distance_away": "за %{distance}",
       "distance_from_place": "%{distance} від %{place}",
       "distance_from_search": "%{distance} від шуканого місця",

@@ -716,10 +716,6 @@
               "type": "string",
               "description": "Where-line for an online class, naming the host’s city. `%{city}` = host city."
             },
-            "time_in_place": {
-              "type": "string",
-              "description": "Viewer-local time under the where-line. `%{time}` = local time, `%{city}` = the event’s city."
-            },
             "distance_away": {
               "type": "string",
               "description": "List card distance from the visitor. `%{distance}` = formatted distance."
