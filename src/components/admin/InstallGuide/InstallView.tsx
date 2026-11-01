@@ -91,7 +91,6 @@ export default async function InstallView(
         apiKey={await revealApiKey(props, clientId)}
         canonicalEmbed={client.canonical?.embed ?? null}
         clientId={clientId}
-        clientName={client.name}
         cmsUrl={getServerUrl()}
         hasRegion={Boolean(client.region)}
         initialEmbedMetadata={(client.embedMetadata ?? null) as EmbedMetadata | null}

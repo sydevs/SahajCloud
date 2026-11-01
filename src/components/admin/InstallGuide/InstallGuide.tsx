@@ -3,7 +3,7 @@
 import type { PlatformId, Step, TrackId } from './steps'
 import type { InstallValues } from './templates'
 
-import { Banner, Button, Pill } from '@payloadcms/ui'
+import { Banner, Button, FieldError, Pill, TextInput } from '@payloadcms/ui'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import type { EmbedMetadata } from '@/lib/clients/embedMetadata'
@@ -12,7 +12,12 @@ import type { Client } from '@/payload-types'
 
 import { CopyBlock } from './CopyBlock'
 import styles from './InstallGuide.module.css'
-import { buildInstallModel, STAGE_MESSAGES, type StepStatus } from './installModel'
+import {
+  buildInstallModel,
+  reportedMountsFor,
+  STAGE_MESSAGES,
+  type StepStatus,
+} from './installModel'
 import {
   atlasUrlProblem,
   hostHints,
@@ -49,7 +54,6 @@ type PolledClient = Pick<Client, 'embedMetadata' | 'canonical' | 'region'>
 
 export interface InstallGuideProps {
   clientId: number
-  clientName: string
   /** The service's API key, revealed server-side for this one render. */
   apiKey: string | null
   cmsUrl: string
@@ -78,19 +82,24 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
   // What has already been confirmed for, so a poll that finds the same report
   // again does not re-run verification every ten seconds.
   const confirmedFor = useRef<string | null>(null)
+  // The last answer, verbatim, so an unchanged poll touches no state.
+  const lastRead = useRef<string | null>(null)
 
   const problem = atlasUrlProblem(atlasUrl)
-  const prefix = problem ? '' : atlasUrl.replace(/^\//, '')
+  // One fallback, spelled once: the snippets have to show *something* while the
+  // address is being typed, and three places agreeing about what is three
+  // places to keep agreeing.
+  const safeUrl = problem ? '/classes' : atlasUrl
 
   const values: InstallValues = useMemo(
     () => ({
       apiKey: apiKey ?? 'YOUR-API-KEY',
-      prefix: prefix || 'classes',
-      atlasUrl: problem ? '/classes' : atlasUrl,
+      prefix: safeUrl.slice(1),
+      atlasUrl: safeUrl,
       cmsUrl,
       widgetUrl,
     }),
-    [apiKey, prefix, problem, atlasUrl, cmsUrl, widgetUrl],
+    [apiKey, safeUrl, cmsUrl, widgetUrl],
   )
 
   const tracks = useMemo(() => tracksFor(values), [values])
@@ -101,19 +110,33 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
     [embedMetadata, verification, atlasUrl, activeTrack, busy],
   )
 
-  const siteHost = model.reported[0]?.host ?? null
+  // The candidate *is* `reported[0]`, so there is one name for it.
+  const siteHost = model.candidate?.host ?? null
   const hints = useMemo(() => hostHints({ host: siteHost, platform }), [siteHost, platform])
 
-  /** Re-read the record. The one thing that makes this tab live. */
+  /**
+   * Re-read the record. The one thing that makes this tab live.
+   *
+   * Two bounds, both because this runs every {@link POLL_MS} for as long as the
+   * tab is open — and the tab is the one page a volunteer is told to leave open
+   * while they work: it asks for the three fields the tab reads rather than the
+   * whole document, and it leaves state untouched when the answer is byte-for-byte
+   * the previous one, so an unchanged poll costs no re-render.
+   */
   const reread = useCallback(async (): Promise<PolledClient | null> => {
     try {
-      const response = await fetch(`/api/clients/${clientId}?depth=0`, {
-        credentials: 'include',
-      })
+      const response = await fetch(
+        `/api/clients/${clientId}?depth=0&select[embedMetadata]=true&select[canonical]=true&select[region]=true`,
+        { credentials: 'include' },
+      )
       if (!response.ok) return null
-      const body = (await response.json()) as PolledClient
-      setEmbedMetadata((body.embedMetadata ?? null) as EmbedMetadata | null)
-      setVerification((body.canonical?.verification ?? null) as CanonicalVerification | null)
+      const text = await response.text()
+      const body = JSON.parse(text) as PolledClient
+      if (text !== lastRead.current) {
+        lastRead.current = text
+        setEmbedMetadata((body.embedMetadata ?? null) as EmbedMetadata | null)
+        setVerification((body.canonical?.verification ?? null) as CanonicalVerification | null)
+      }
       return body
     } catch {
       return null
@@ -159,10 +182,17 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
 
   // The poll. Re-reading the record is what turns a report arriving on the
   // volunteer's own site into a confirmed install with nothing clicked.
+  //
+  // ⚠ **It stops once the install is finished and clean.** Nothing the tab
+  // reads can change from there without a person, and a volunteer leaves this
+  // page open — so polling on would be 360 document reads an hour saying the
+  // same thing. "Check again" is the way back.
+  const settled = model.stage === 'verified'
   useEffect(() => {
+    if (settled) return
     const timer = setInterval(() => void reread(), POLL_MS)
     return () => clearInterval(timer)
-  }, [reread])
+  }, [reread, settled])
 
   // And this is what acts on it. Keyed on the mount, so a second report from the
   // same page does nothing and a report from a different page confirms afresh.
@@ -242,13 +272,16 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
       <section>
         <h3>2. Where should the atlas live?</h3>
         <div className={styles.urlField}>
-          <input
-            aria-label="Atlas address"
-            className="field-type text"
-            onChange={(event) => setAtlasUrl(event.target.value)}
+          <TextInput
+            Error={problem ? <FieldError message={problem} showError /> : undefined}
+            label="Atlas address"
+            onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+              setAtlasUrl(event.target.value)
+            }
+            path="atlasUrl"
+            showError={Boolean(problem)}
             value={atlasUrl}
           />
-          {problem ? <span className={styles.problem}>{problem}</span> : null}
         </div>
       </section>
 
@@ -297,15 +330,19 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
     </div>
   )
 
-  /** Re-run everything after a fix, for a volunteer who has just redone a step. */
+  /**
+   * Re-run everything after a fix, for a volunteer who has just redone a step.
+   *
+   * It asks `reportedMountsFor` directly rather than rebuilding the model: that
+   * function is also what `buildInstallModel` picks the candidate with, so the
+   * button and the poll cannot disagree about which mount to claim.
+   */
   async function recheck(): Promise<void> {
     const polled = await reread()
-    const candidate = buildInstallModel({
+    const candidate = reportedMountsFor({
       embedMetadata: (polled?.embedMetadata ?? embedMetadata) as EmbedMetadata | null,
-      verification,
       atlasUrl,
-      track: activeTrack,
-    }).candidate
+    })[0]
     // Clearing the guard is what makes this button re-run rather than no-op: the
     // poll's effect only acts on a mount it has not confirmed before.
     confirmedFor.current = null

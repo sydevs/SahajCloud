@@ -38,6 +38,14 @@ const FETCH_TIMEOUT_MS = 8000
 /** How many sitemap documents one check will read, index entries included. */
 const MAX_SITEMAP_DOCUMENTS = 6
 
+/**
+ * The checks a single page answers, in the order the tab shows them.
+ *
+ * Named once so the fetch-failed branch and the compare branch cannot cover
+ * different sets — which is what a `Partial` and a hand-written list allowed.
+ */
+const PAGE_CHECKS = ['title', 'canonical', 'json-ld', 'body'] as const
+
 /** How many `<loc>` entries one sitemap index may contribute. */
 const MAX_INDEX_ENTRIES = 20
 
@@ -231,6 +239,17 @@ const fail = (detail: string): Verdict => ({ status: 'fail', detail: clamp(detai
 const skip = (detail: string): Verdict => ({ status: 'skipped', detail: clamp(detail) })
 
 /**
+ * The four checks one page answers, each always present.
+ *
+ * A closed record rather than a `Partial`: the caller spread it with
+ * `Object.entries`, which widens the key to `string`, so a `Partial` bought a
+ * `if (verdict)` guard and a `check as SeoCheckId` assertion — the one
+ * assertion in the module, sitting exactly where a mis-keyed check would be
+ * accepted silently.
+ */
+export type PageVerdicts = Record<Exclude<SeoCheckId, 'sitemap'>, Verdict>
+
+/**
  * The four page checks, given what the endpoint answered and what came back.
  *
  * Each failure's `detail` names what was expected and what arrived, because the
@@ -242,7 +261,7 @@ export function comparePage(args: {
   snapshot: PageSnapshot
   /** The URL fetched, which is the canonical whenever the endpoint answered none. */
   pageUrl: string
-}): Partial<Record<SeoCheckId, Verdict>> {
+}): PageVerdicts {
   const { seo, snapshot, pageUrl } = args
 
   const expectedCanonical = seo.canonical ?? pageUrl
@@ -449,7 +468,6 @@ export async function runSeoChecks(args: {
 }): Promise<SeoCheckResult[]> {
   const { verified, routing, resolvers, deps = {} } = args
   const get = deps.fetchFn ?? fetchPage
-  const results: SeoCheckResult[] = []
 
   // ⚠ `canonicalMountUrl`, not `buildCanonicalUrl(target, '/')`: the root's page
   // *is* the mount, and `buildCanonicalUrl` refuses `/` as a webPath because no
@@ -474,53 +492,69 @@ export async function runSeoChecks(args: {
   const sample = sampleRegion(sitemap)
   if (sample) pages.push({ route: sample.route, url: sample.loc })
 
-  for (const page of pages) {
-    const seo = await resolvers.resolveSeo(page.route)
-    if (!seo) {
-      results.push({
+  // ⚠ **Overlapped, because the serial version could cost a minute per client.**
+  // Each page is an independent resolve plus an independent fetch, the pages are
+  // independent of each other, and the sitemap check depends only on the sample
+  // — so end to end the old order was up to eight `FETCH_TIMEOUT_MS` waits,
+  // inside a job that walks every due client in turn and on top of the three
+  // browser renders a verification already spends. "Verify now" has to answer
+  // inside Cloudflare's 100s origin limit, which is what #644 rearranged the
+  // routing probe for.
+  const sitemapCheck: Promise<SeoCheckResult> = sample
+    ? checkSitemap(sample, get)
+    : Promise.resolve({
+        route: '/',
+        check: 'sitemap',
+        status: 'skipped',
+        detail: 'This service owns no region page to look for yet.',
+      })
+
+  const pageResults = await Promise.all(pages.map((page) => checkPage(page, resolvers, get)))
+
+  return [...pageResults.flat(), await sitemapCheck]
+}
+
+/** Every check one page answers, or why none could be answered. */
+async function checkPage(
+  page: { route: string; url: string },
+  resolvers: SeoAuditResolvers,
+  get: FetchPage,
+): Promise<SeoCheckResult[]> {
+  // The resolve and the fetch are independent: the page URL is known before
+  // either, so waiting for the CMS before asking the host is pure latency.
+  const [seo, fetched] = await Promise.all([resolvers.resolveSeo(page.route), get(page.url)])
+
+  if (!seo) {
+    return [
+      {
         route: page.route,
         check: 'title',
         status: 'skipped',
         detail: 'The CMS no longer resolves this route.',
-      })
-      continue
-    }
-
-    const fetched = await get(page.url)
-    if (!fetched.ok) {
-      // Could not look. Reported as skipped on every check, so the tab shows
-      // why rather than five blanks.
-      for (const check of ['title', 'canonical', 'json-ld', 'body'] as const) {
-        results.push({
-          route: page.route,
-          check,
-          status: 'skipped',
-          detail: clamp(fetched.detail ?? `The page answered ${fetched.status}.`),
-        })
-      }
-      continue
-    }
-
-    const verdicts = comparePage({ seo, snapshot: parsePageHtml(fetched.body), pageUrl: page.url })
-    for (const [check, verdict] of Object.entries(verdicts)) {
-      if (verdict) results.push({ route: page.route, check: check as SeoCheckId, ...verdict })
-    }
+      },
+    ]
   }
 
-  if (sample) {
-    const origin = URL.parse(sample.loc)?.origin
-    const verdict = origin
-      ? await siteListsUrl({ origin, target: sample.loc, fetchFn: get })
-      : skip('This page has no resolvable origin.')
-    results.push({ route: sample.route, check: 'sitemap', ...verdict })
-  } else {
-    results.push({
-      route: '/',
-      check: 'sitemap',
-      status: 'skipped',
-      detail: 'This service owns no region page to look for yet.',
-    })
+  if (!fetched.ok) {
+    // Could not look. Reported as skipped on every check, so the tab shows why
+    // rather than four blanks.
+    return PAGE_CHECKS.map((check) => ({
+      route: page.route,
+      check,
+      status: 'skipped' as const,
+      detail: clamp(fetched.detail ?? `The page answered ${fetched.status}.`),
+    }))
   }
 
-  return results
+  const verdicts = comparePage({ seo, snapshot: parsePageHtml(fetched.body), pageUrl: page.url })
+  return PAGE_CHECKS.map((check) => ({ route: page.route, check, ...verdicts[check] }))
+}
+
+/** Whether a sitemap the site publishes lists the sampled page. */
+async function checkSitemap(sample: AtlasSitemapUrl, get: FetchPage): Promise<SeoCheckResult> {
+  const origin = URL.parse(sample.loc)?.origin
+  const verdict = origin
+    ? await siteListsUrl({ origin, target: sample.loc, fetchFn: get })
+    : skip('This page has no resolvable origin.')
+  return { route: sample.route, check: 'sitemap', ...verdict }
 }

@@ -262,6 +262,90 @@ function wixSteps(values: InstallValues, studio: boolean): Step[] {
   ]
 }
 
+/**
+ * Both WordPress tracks' checks.
+ *
+ * Identical on purpose: the plugin owns the whole `<head>`, the body and the
+ * sitemap, so every failure points at the one step that installed it.
+ */
+const WORDPRESS_CHECKS: CheckRouting = {
+  noReport: 'create-page',
+  head: 'paste-key',
+  body: 'create-page',
+  sitemap: 'create-page',
+}
+
+/**
+ * The WordPress steps, which differ between the two tracks by one menu path and
+ * one sentence — so they share a helper, as the two Wix tracks do.
+ */
+function wordpressSteps(values: InstallValues, options: { dotCom: boolean }): Step[] {
+  const { dotCom } = options
+  const uploadPath = dotCom ? 'Plugins → Upload Plugin' : 'Plugins → Add New → Upload Plugin'
+
+  return [
+    ...(dotCom
+      ? [
+          {
+            id: 'plan' as const,
+            title: 'Check the plan can install plugins',
+            unobservable: true,
+            actions: [
+              'Open Upgrades → Plans. You need the Business plan or higher.',
+              'On a lower plan, WordPress.com allows no plugins at all — use the “Iframe only” track instead. The class pages will not appear in search results.',
+            ],
+          },
+        ]
+      : []),
+    {
+      id: 'install-plugin',
+      title: 'Install the plugin',
+      actions: [
+        'Download the latest sahaj-atlas.zip from the plugin’s releases page.',
+        `Open ${uploadPath}, choose the file, and click Install Now.`,
+        'Click Activate.',
+      ],
+    },
+    {
+      id: 'paste-key',
+      title: 'Paste the key',
+      actions: [
+        'Open Settings → Sahaj Atlas.',
+        'Paste the key below into the API key box, and click Save.',
+      ],
+      snippets: [{ label: 'API key', value: values.apiKey, kind: 'text' }],
+    },
+    {
+      id: 'create-page',
+      title: 'Create the atlas page',
+      actions: [
+        'On the same screen, click Create Atlas page.',
+        ...(dotCom
+          ? []
+          : [
+              'That is the whole installation. The plugin makes the page, sizes the map, and handles search engines itself.',
+            ]),
+      ],
+    },
+  ]
+}
+
+/**
+ * Each track's own label.
+ *
+ * Kept beside the tracks rather than read off them, so the sub-tab row renders
+ * without reaching into a built track — each track's `label` is this map's
+ * entry, which `tests/unit/install-steps.spec.ts` pins.
+ */
+export const TRACK_LABELS: Record<TrackId, string> = {
+  'wp-selfhosted': 'Self-hosted',
+  'wp-com': 'WordPress.com',
+  'wix-editor': 'Wix Editor',
+  'wix-studio': 'Wix Studio',
+  custom: 'Custom site',
+  iframe: 'Iframe only',
+}
+
 /** Every track, prefilled from one service's own key and chosen address. */
 export function tracksFor(values: InstallValues): Record<TrackId, Track> {
   const snippetWithRouting = widgetSnippet(values, { routing: true })
@@ -271,98 +355,28 @@ export function tracksFor(values: InstallValues): Record<TrackId, Track> {
     'wp-selfhosted': {
       id: 'wp-selfhosted',
       platform: 'wordpress',
-      label: 'Self-hosted',
+      label: TRACK_LABELS['wp-selfhosted'],
       recognise: 'You can reach Plugins → Add New in your WordPress admin.',
-      checks: {
-        noReport: 'create-page',
-        head: 'paste-key',
-        body: 'create-page',
-        sitemap: 'create-page',
-      },
-      steps: [
-        {
-          id: 'install-plugin',
-          title: 'Install the plugin',
-          actions: [
-            'Download the latest sahaj-atlas.zip from the plugin’s releases page.',
-            'In WordPress, open Plugins → Add New → Upload Plugin, choose the file, and click Install Now.',
-            'Click Activate.',
-          ],
-        },
-        {
-          id: 'paste-key',
-          title: 'Paste the key',
-          actions: [
-            'Open Settings → Sahaj Atlas.',
-            'Paste the key below into the API key box, and click Save.',
-          ],
-          snippets: [{ label: 'API key', value: values.apiKey, kind: 'text' }],
-        },
-        {
-          id: 'create-page',
-          title: 'Create the atlas page',
-          actions: [
-            'On the same screen, click Create Atlas page.',
-            'That is the whole installation. The plugin makes the page, sizes the map, and handles search engines itself.',
-          ],
-        },
-      ],
+      checks: WORDPRESS_CHECKS,
+      steps: wordpressSteps(values, { dotCom: false }),
     },
 
     'wp-com': {
       id: 'wp-com',
       platform: 'wordpress',
-      label: 'WordPress.com',
+      label: TRACK_LABELS['wp-com'],
       recognise:
         'Your site is hosted at wordpress.com, and you did not install WordPress yourself.',
       caveat:
         'Nobody has installed the plugin on a WordPress.com site yet. The plugin upload, the sitemap line in robots.txt, and automatic updates are all expected to work and none is confirmed. Tell a maintainer what you find.',
-      checks: {
-        noReport: 'create-page',
-        head: 'paste-key',
-        body: 'create-page',
-        sitemap: 'create-page',
-      },
-      steps: [
-        {
-          id: 'plan',
-          title: 'Check the plan can install plugins',
-          unobservable: true,
-          actions: [
-            'Open Upgrades → Plans. You need the Business plan or higher.',
-            'On a lower plan, WordPress.com allows no plugins at all — use the “Iframe only” track instead. The class pages will not appear in search results.',
-          ],
-        },
-        {
-          id: 'install-plugin',
-          title: 'Install the plugin',
-          actions: [
-            'Download the latest sahaj-atlas.zip from the plugin’s releases page.',
-            'Open Plugins → Upload Plugin, choose the file, and click Install Now.',
-            'Click Activate.',
-          ],
-        },
-        {
-          id: 'paste-key',
-          title: 'Paste the key',
-          actions: [
-            'Open Settings → Sahaj Atlas.',
-            'Paste the key below into the API key box, and click Save.',
-          ],
-          snippets: [{ label: 'API key', value: values.apiKey, kind: 'text' }],
-        },
-        {
-          id: 'create-page',
-          title: 'Create the atlas page',
-          actions: ['On the same screen, click Create Atlas page.'],
-        },
-      ],
+      checks: WORDPRESS_CHECKS,
+      steps: wordpressSteps(values, { dotCom: true }),
     },
 
     'wix-editor': {
       id: 'wix-editor',
       platform: 'wix',
-      label: 'Wix Editor',
+      label: TRACK_LABELS['wix-editor'],
       recognise: 'The top bar says “Wix”, and there is a Dev Mode menu.',
       checks: {
         noReport: 'add-element',
@@ -376,7 +390,7 @@ export function tracksFor(values: InstallValues): Record<TrackId, Track> {
     'wix-studio': {
       id: 'wix-studio',
       platform: 'wix',
-      label: 'Wix Studio',
+      label: TRACK_LABELS['wix-studio'],
       recognise: 'The top bar says “Wix Studio”.',
       caveat:
         'The Studio menu names below come from Wix’s own documentation and nobody has walked them on a real site. If a menu is not where this says, it is this guide that is wrong — tell a maintainer, and look for the same words elsewhere in the panel.',
@@ -392,7 +406,7 @@ export function tracksFor(values: InstallValues): Record<TrackId, Track> {
     custom: {
       id: 'custom',
       platform: 'custom',
-      label: 'Custom site',
+      label: TRACK_LABELS['custom'],
       recognise: 'A developer built the site, and can add a line of code to every page.',
       checks: {
         noReport: 'snippet',
@@ -441,7 +455,7 @@ export function tracksFor(values: InstallValues): Record<TrackId, Track> {
     iframe: {
       id: 'iframe',
       platform: 'iframe',
-      label: 'Iframe only',
+      label: TRACK_LABELS['iframe'],
       recognise: 'You can paste an embed box, and nothing else.',
       caveat:
         'This track has no linkable class pages and no search-engine listings. Nothing inside an iframe can give the page around it a title, a canonical link or a sitemap entry. Use it when no other track is possible, and come back to one of them when it is.',
@@ -480,7 +494,6 @@ export function stepForCheck(track: Track, check: SeoCheckId): StepId {
 
 /** A warning a volunteer needs before they start, read off their site address. */
 export interface HostHint {
-  level: 'warn'
   message: string
   /** True when the only honest advice is the iframe track. */
   offerIframe: boolean
@@ -503,7 +516,6 @@ export function hostHints(args: { host: string | null; platform: PlatformId }): 
   if (platform === 'wix' && (lower.endsWith('.wixsite.com') || lower === 'wixsite.com')) {
     return [
       {
-        level: 'warn',
         message:
           'This is a free Wix address. The router this track needs requires a paid Wix Premium plan and your own domain name. Until the site has both, use the “Iframe only” track.',
         offerIframe: true,
@@ -514,7 +526,6 @@ export function hostHints(args: { host: string | null; platform: PlatformId }): 
   if (platform === 'wordpress' && (lower.endsWith('.wordpress.com') || lower === 'wordpress.com')) {
     return [
       {
-        level: 'warn',
         message:
           'This is a WordPress.com address. Installing a plugin there needs the Business plan or higher — check Upgrades → Plans before you start.',
         offerIframe: false,
