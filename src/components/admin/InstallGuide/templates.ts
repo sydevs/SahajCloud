@@ -26,6 +26,15 @@ export interface InstallValues {
   apiKey: string
   /** The router's dynamic-page prefix, one lowercase path segment. */
   prefix: string
+  /**
+   * The same address with its slash, as a volunteer reads it — `/free-classes`.
+   *
+   * Carried beside `prefix` rather than derived at each use: the generated code
+   * needs the bare segment and every instruction needs the address, and
+   * composing one from the other in nine places is nine chances to drop the
+   * slash in a sentence a volunteer then follows literally.
+   */
+  atlasUrl: string
   /** This CMS's own origin — where `/api/atlas/wix/*` lives. */
   cmsUrl: string
   /** The widget loader's origin, from `SAHAJATLAS_URL`. */

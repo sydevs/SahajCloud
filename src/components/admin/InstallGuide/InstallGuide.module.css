@@ -1,0 +1,138 @@
+/*
+ * The Install tab.
+ *
+ * Every colour and size is a Payload variable, so the tab follows the panel's
+ * own theme and elevation scale rather than inventing a second one
+ * (`docs/rules/admin-ui.md`).
+ */
+
+.guide {
+  display: grid;
+  gap: calc(var(--base) * 1.2);
+  max-width: 48rem;
+}
+
+.platforms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--base) * 0.4);
+}
+
+.tracks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--base) * 0.3);
+  margin-top: calc(var(--base) * 0.5);
+}
+
+.recognise {
+  color: var(--theme-elevation-600);
+  font-size: 0.9em;
+  margin: calc(var(--base) * 0.3) 0 0;
+}
+
+.urlField {
+  display: grid;
+  gap: calc(var(--base) * 0.25);
+  max-width: 22rem;
+}
+
+.problem {
+  color: var(--theme-error-500);
+  font-size: 0.9em;
+}
+
+.steps {
+  display: grid;
+  gap: calc(var(--base) * 0.8);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.step {
+  border: 1px solid var(--theme-elevation-150);
+  border-radius: var(--style-radius-m);
+  padding: calc(var(--base) * 0.6);
+}
+
+.stepHeader {
+  align-items: baseline;
+  display: flex;
+  gap: calc(var(--base) * 0.4);
+  justify-content: space-between;
+}
+
+.stepTitle {
+  font-weight: 600;
+  margin: 0;
+}
+
+.actions {
+  color: var(--theme-elevation-800);
+  margin: calc(var(--base) * 0.4) 0 0;
+  padding-left: calc(var(--base) * 0.9);
+}
+
+.actions li + li {
+  margin-top: calc(var(--base) * 0.2);
+}
+
+.copyBlock {
+  margin-top: calc(var(--base) * 0.5);
+}
+
+.copyHeader {
+  align-items: center;
+  display: flex;
+  gap: calc(var(--base) * 0.3);
+}
+
+.copyLabel {
+  color: var(--theme-elevation-600);
+  font-size: 0.85em;
+  text-transform: uppercase;
+}
+
+.copyCode,
+.copyValue {
+  background: var(--theme-elevation-50);
+  border: 1px solid var(--theme-elevation-100);
+  border-radius: var(--style-radius-s);
+  margin: calc(var(--base) * 0.2) 0 0;
+  overflow-x: auto;
+  padding: calc(var(--base) * 0.4);
+  white-space: pre;
+}
+
+.copyCode {
+  font-size: 0.8em;
+  max-height: 24rem;
+  overflow-y: auto;
+}
+
+.copyValue {
+  font-size: 0.9em;
+}
+
+.statusPanel {
+  display: grid;
+  gap: calc(var(--base) * 0.3);
+}
+
+.statusRow {
+  display: flex;
+  gap: calc(var(--base) * 0.4);
+}
+
+.statusKey {
+  color: var(--theme-elevation-600);
+  min-width: 12rem;
+}
+
+.stepMessages {
+  color: var(--theme-error-500);
+  font-size: 0.9em;
+  margin: calc(var(--base) * 0.3) 0 0;
+  padding-left: calc(var(--base) * 0.9);
+}

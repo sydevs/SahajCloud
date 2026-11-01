@@ -155,14 +155,15 @@ export const atlasWixRoute: Endpoint = {
 
       const body: AtlasWixRouteResponse = wixRouteAnswer({
         seo,
-        requestedRoute,
+        relation,
         noindex: probe || (offLanguage && seo.type !== 'root'),
+        // A `view` answer is deliberately not self-canonical: it renders, and
+        // publishes the document's own canonical so a crawler folds the view
+        // and the page together.
         selfCanonical:
           seo.type === 'root' ||
           (relation === 'exact' && hostOf(seo.canonical) === canonicalHostOf(req)),
       })
-      // A `view` answer renders with the document's canonical published, which
-      // `selfCanonical: false` above already expresses.
       return Response.json(body, { headers: cacheHeaders(req) })
     } catch (error) {
       if (error instanceof APIError) return errorResponse(error.message, error.status)

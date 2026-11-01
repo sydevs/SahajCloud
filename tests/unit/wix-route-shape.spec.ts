@@ -132,7 +132,7 @@ describe('wixRouteAnswer', () => {
   it('renders a route the host is already serving', () => {
     const answer = wixRouteAnswer({
       seo: regionAnswer(),
-      requestedRoute: '/ca/ontario',
+      relation: 'exact',
       noindex: false,
       selfCanonical: true,
     })
@@ -145,7 +145,7 @@ describe('wixRouteAnswer', () => {
   it('redirects to the route the document actually lives at, as an atlas route', () => {
     const answer = wixRouteAnswer({
       seo: regionAnswer(),
-      requestedRoute: '/ca/old-ontario',
+      relation: 'moved',
       noindex: false,
       selfCanonical: false,
     })
@@ -153,6 +153,21 @@ describe('wixRouteAnswer', () => {
     // Never a URL, and never prefixed — the router owns its prefix.
     expect(answer.redirect).toBe('/ca/ontario')
     expect(answer.data).toBeNull()
+  })
+
+  it('renders a view route rather than redirecting the widget own deep link', () => {
+    const answer = wixRouteAnswer({
+      seo: regionAnswer(),
+      relation: 'view',
+      noindex: false,
+      selfCanonical: false,
+    })
+    expect(answer.status).toBe(200)
+    // And publishes the canonical, so a crawler folds the view into the page.
+    expect(answer.head.links[0]).toEqual({
+      rel: 'canonical',
+      href: 'https://sahajayoga.ca/classes/ca/ontario',
+    })
   })
 
   it('renders no page on a 404', () => {

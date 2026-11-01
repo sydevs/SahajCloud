@@ -44,6 +44,7 @@ import { default as default_a526de5dee7b7ed8d4ba81b3b51928a9 } from '@/component
 import { default as default_cabea8c3b4d1569bb06e66a73fba2961 } from '@/components/admin/CanonicalEmbedPicker'
 import { default as default_acdce971efa051c30eee554c2f9f8336 } from '@/components/admin/AbuseScore/AbuseScoreCell'
 import { default as default_d600b4f81bb40d92e487891c4971de20 } from '@/components/admin/AbuseScore/AbuseScoreField'
+import { default as default_d5ffe92cc1e7a434f5d407e444f0e427 } from '@/components/admin/InstallGuide'
 import { default as default_0a6b8160e35e150007da27e645325d20 } from '@/components/admin/AppCardViewSchedule'
 import { default as default_ea9ef661de0dfca6f36a4b6ccae0182b } from '@/components/admin/VariableInsert'
 import { default as default_6d9b854e6fdb8fea981b4ce63c2d6380 } from '@/components/admin/FlatArrayField'
@@ -138,6 +139,7 @@ export const importMap = {
   "@/components/admin/CanonicalEmbedPicker#default": default_cabea8c3b4d1569bb06e66a73fba2961,
   "@/components/admin/AbuseScore/AbuseScoreCell#default": default_acdce971efa051c30eee554c2f9f8336,
   "@/components/admin/AbuseScore/AbuseScoreField#default": default_d600b4f81bb40d92e487891c4971de20,
+  "@/components/admin/InstallGuide#default": default_d5ffe92cc1e7a434f5d407e444f0e427,
   "@/components/admin/AppCardViewSchedule#default": default_0a6b8160e35e150007da27e645325d20,
   "@/components/admin/VariableInsert#default": default_ea9ef661de0dfca6f36a4b6ccae0182b,
   "@/components/admin/FlatArrayField#default": default_6d9b854e6fdb8fea981b4ce63c2d6380,

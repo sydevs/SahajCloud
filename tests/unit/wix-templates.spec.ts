@@ -26,6 +26,7 @@ import {
 const VALUES = {
   apiKey: 'abc-123',
   prefix: 'free-classes',
+  atlasUrl: '/free-classes',
   cmsUrl: 'https://cms.sahajatlas.com/',
   widgetUrl: 'https://sahajatlas.com/',
 }

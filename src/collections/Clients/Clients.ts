@@ -22,6 +22,7 @@ import { MAILING_LIST_PROVIDERS } from '@/lib/mailingList/types'
 import { getRoleOptions, managersOnlyFieldAccess } from '@/plugins/access'
 import { abuseScoreSchema, calculateAbuseScore } from '@/plugins/usage'
 
+import { claimCanonical } from './endpoints/claimCanonical'
 import { clientEmbedReport } from './endpoints/report'
 import { verifyEmbedOnDemand } from './endpoints/verifyEmbed'
 import { ensureClientId } from './hooks/ensureClientId'
@@ -297,6 +298,39 @@ export const Clients: CollectionConfig = {
     group: 'System',
     useAsTitle: 'name',
     defaultColumns: ['name', '_status'],
+    components: {
+      views: {
+        edit: {
+          /**
+           * The Install tab: how one non-technical volunteer gets the atlas onto
+           * their own site, with this service's key and address filled in (#1055).
+           *
+           * ⚠ **A document view, not a root one**, which is what makes its access
+           * gate the row's own. Payload only routes here with read access to the
+           * document, and for `clients` that comes from the document-manager path
+           * — so a manager of another service never reaches it, and
+           * `requireAdminAccess` (which guards *root* views declaring a `path`)
+           * is not the gate here. `InstallView` re-reads the row with
+           * `overrideAccess: false` anyway, because it reveals the API key.
+           *
+           * The tab is offered only to a service that holds the atlas role:
+           * nothing here means anything to a service that does not embed the
+           * widget, and `condition` is handed `req` rather than the document, so
+           * the role is read off the row it loads itself.
+           */
+          install: {
+            Component: '@/components/admin/InstallGuide',
+            path: '/install',
+            tab: {
+              label: 'Install',
+              href: '/install',
+              // 400 puts it after Payload's own Edit, API and Versions tabs.
+              order: 400,
+            },
+          },
+        },
+      },
+    },
   },
   // Publish/unpublish is the auth gate: only `_status === 'published'` clients
   // authenticate (see bypassPermissions + requireActiveClient). One version per
@@ -723,7 +757,7 @@ export const Clients: CollectionConfig = {
     },
     ...legacyMigrationFields(),
   ],
-  endpoints: [clientEmbedReport, verifyEmbedOnDemand],
+  endpoints: [clientEmbedReport, verifyEmbedOnDemand, claimCanonical],
   hooks: {
     beforeChange: [
       validateClientData,

@@ -1,3 +1,4 @@
+import type { RouteRelation } from './wixRoute'
 import type {
   AtlasSeoEventContent,
   AtlasSeoRegionContent,
@@ -201,23 +202,25 @@ export function wixNotFound(): AtlasWixRouteResponse {
 /**
  * The answer for one resolved route.
  *
- * **A route that normalized is a 301**, not a rendered page: the answer's own
- * `route` is the URL the host should be serving, so two addresses do not both
- * render the same document. That happens for a legacy prefix (`/events/1204`),
- * a re-slugged country (#556), and a view segment (`/gb/london/calendar`) — all
- * of which `parseAtlasRoute` resolves on purpose, and none of which should stay
- * in a crawler's index.
+ * ⚠ **Only a `moved` route is a 301**, never every route that normalized.
+ * `routeRelation` is what tells the two apart, and the distinction is not
+ * cosmetic: `/gb/london/calendar` and `/search` normalize away too, and both are
+ * addresses the **widget itself writes** into the host's URL. Redirecting them
+ * would break the widget's own navigation on every Wix site, while a legacy
+ * prefix or a re-slugged country is an address nothing links on purpose and is
+ * cheaper for a crawler to be redirected from. A view renders and publishes the
+ * document's canonical instead, so a crawler folds the two together itself.
  */
 export function wixRouteAnswer(args: {
   seo: AtlasSeoResponse
-  /** The atlas route the caller asked for, normalized the same way. */
-  requestedRoute: string
+  /** What the caller's route and the document's route have to do with each other. */
+  relation: RouteRelation
   noindex: boolean
   selfCanonical: boolean
 }): AtlasWixRouteResponse {
-  const { seo, requestedRoute, noindex, selfCanonical } = args
+  const { seo, relation, noindex, selfCanonical } = args
 
-  if (seo.route !== requestedRoute) {
+  if (relation === 'moved') {
     return {
       status: 301,
       redirect: seo.route,
