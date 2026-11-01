@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { WIX_PREFIX_MAX_LENGTH, WIX_PREFIX_PATTERN } from '../../src/lib/atlas/wixPrefix'
 import { ROUTING_MODES } from '../../src/lib/clients/canonical'
 import { EMBED_MODES, MAX_MOUNT_KEY_LENGTH } from '../../src/lib/clients/embedMetadata'
 import { LOCALES } from '../../src/lib/locales'
@@ -562,6 +563,14 @@ describe('the Wix router endpoints are documented', () => {
   it('documents every query parameter each handler reads', () => {
     expect(route?.parameters?.map((parameter) => parameter.name)).toEqual(['path', 'lang'])
     expect(sitemap?.parameters?.map((parameter) => parameter.name)).toEqual(['prefix'])
+  })
+
+  it('publishes the prefix rule the handler enforces, never a copy of it', () => {
+    // Three copies of this regex meant the tab could accept a prefix the
+    // endpoint then 400s, which is the failure the tab exists to prevent.
+    const prefix = sitemap?.parameters?.[0] as { schema?: { pattern?: string; maxLength?: number } }
+    expect(prefix.schema?.pattern).toBe(WIX_PREFIX_PATTERN.source)
+    expect(prefix.schema?.maxLength).toBe(WIX_PREFIX_MAX_LENGTH)
   })
 
   it('declares `prefix` required, since the handler refuses without it', () => {

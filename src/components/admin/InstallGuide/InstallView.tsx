@@ -1,6 +1,8 @@
 import type { DocumentViewServerProps } from 'payload'
 
 import { Gutter } from '@payloadcms/ui'
+import { combineQueries } from 'payload'
+import { executeAccess } from 'payload'
 import React from 'react'
 
 import type { EmbedMetadata } from '@/lib/clients/embedMetadata'
@@ -28,12 +30,21 @@ import { InstallGuide } from './InstallGuide'
  * this service is refused there, and the tab is never rendered.
  *
  * ⚠ **This is the same authority `POST /api/clients/:id/api-key/reveal`
- * requires**, which is admin access, then `update` on the row, then the
- * `apiKey` field's own `managersOnlyFieldAccess` lock — and a document view is
- * only reachable with read access to the row, which for `clients` comes from the
- * document-manager path. A tab that revealed a key to anyone who could open the
- * document would be a wider grant than that endpoint, on a page with no
- * button to press. So the field lock is evaluated here too, by hand.
+ * requires**, and all four of its gates are applied: admin access (by routing —
+ * a document view is reachable only with read access to the row, which for
+ * `clients` comes from the document-manager path), the `overrideAccess: false`
+ * read below, the row's own `update` access, and the `apiKey` field's
+ * `managersOnlyFieldAccess` lock. A tab that revealed a key to anyone who could
+ * open the document would be a wider grant than that endpoint, on a page with no
+ * button to press.
+ *
+ * ⚠ **The key reaches the browser as a prop, not as a POST response.** That is
+ * the feature — every value on the tab is prefilled and copyable — so unlike the
+ * endpoint there is no `Cache-Control: no-store` to lean on. What makes it safe
+ * is that the route is cookie-authenticated and therefore uncacheable, and that
+ * no session replay is configured. A page that ever becomes cacheable, or a
+ * replay integration, makes this a disclosure: check both before changing
+ * either.
  */
 export default async function InstallView(
   props: DocumentViewServerProps,
@@ -115,11 +126,24 @@ async function revealApiKey(
   if (req.user?.collection !== 'managers') return null
 
   try {
+    // ⚠ **The row's `update` access, evaluated and combined into the query** —
+    // the one gate the endpoint applies that routing does not. For `clients`
+    // today `read` and `update` both fall to the same document-manager branch,
+    // so this is equal to reaching the view at all; it is here because that
+    // equality is an invariant nobody states, and `docs/rules/access.md` warns
+    // this collection is where the next narrowed grant arrives. With one, the
+    // tab would silently become wider than the endpoint it mirrors.
+    const update = await executeAccess(
+      { id: clientId, data: {}, disableErrors: true, req },
+      req.payload.collections.clients.config.access.update,
+    )
+    if (!update) return null
+
     const row = await req.payload.db.findOne({
       collection: 'clients',
       req,
       select: { apiKey: true },
-      where: { id: { equals: clientId } },
+      where: combineQueries({ id: { equals: clientId } }, update),
     })
     const stored = (row as { apiKey?: unknown } | null)?.apiKey
     return typeof stored === 'string' ? req.payload.decrypt(stored) : null

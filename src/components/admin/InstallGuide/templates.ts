@@ -1,3 +1,5 @@
+import { isValidWixPrefix } from '@/lib/atlas/wixPrefix'
+
 /**
  * The three things a volunteer pastes into Wix, generated from their own
  * service's key and prefix (#1055).
@@ -55,20 +57,6 @@ export function routerFunctionBase(prefix: string): string {
 }
 
 /**
- * A router prefix Wix will accept, and that `/api/atlas/wix/sitemap` will too.
- *
- * One lowercase path segment. The endpoint applies the identical rule, so a
- * prefix this accepts cannot be refused there — which is what lets the tab tell
- * a volunteer the answer before they publish rather than after.
- */
-export const PREFIX_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
-
-/** Is this a prefix both Wix and our sitemap endpoint will take? */
-export function isValidPrefix(prefix: string): boolean {
-  return prefix.length > 0 && prefix.length <= 64 && PREFIX_PATTERN.test(prefix)
-}
-
-/**
  * The atlas URL a service's own `canonical.embed` implies, as a router prefix.
  *
  * ⚠ **The prefix and the mount must agree**, because the route endpoint decides
@@ -80,7 +68,7 @@ export function isValidPrefix(prefix: string): boolean {
 export function prefixFromMount(mount: string | null | undefined): string {
   const first = (mount ?? '').split('?')[0].split('/').filter(Boolean)[0] ?? ''
   const slug = first.toLowerCase().replace(/[^a-z0-9-]/g, '')
-  return isValidPrefix(slug) ? slug : 'classes'
+  return isValidWixPrefix(slug) ? slug : 'classes'
 }
 
 /** A value going into a JavaScript string literal in generated code. */

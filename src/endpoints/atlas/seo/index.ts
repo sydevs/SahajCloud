@@ -3,7 +3,7 @@ import type { Endpoint } from 'payload'
 import { APIError } from 'payload'
 import { z } from 'zod'
 
-import { parseQuery, requireActiveClient } from '@/lib/endpoints'
+import { errorResponse, parseQuery, requireActiveClient } from '@/lib/endpoints'
 import type { LocaleCode } from '@/lib/locales'
 import { DEFAULT_LOCALE, isValidLocale, LOCALES } from '@/lib/locales'
 import { publicReadCacheHeaders } from '@/plugins/cache'
@@ -25,11 +25,6 @@ const querySchema = z.object({
       message: `Unknown locale. Expected one of: ${VALID_LOCALES_LIST}.`,
     }),
 })
-
-/** The standard error envelope, so every refusal here reads the same. */
-function errorResponse(message: string, status: number): Response {
-  return Response.json({ errors: [{ message }] }, { status })
-}
 
 /**
  * GET /api/atlas/seo?route=/gb/london&locale=fr

@@ -1,4 +1,4 @@
-import type { Endpoint, PayloadRequest } from 'payload'
+import type { Endpoint } from 'payload'
 
 import type { RoutingMode } from '@/lib/clients/canonical'
 import type { SeoCheckResult } from '@/lib/clients/verification'
@@ -9,9 +9,7 @@ import {
 } from '@/lib/clients/verification'
 import { notifySeoFailures, runSeoChecksForClient } from '@/lib/embedVerification/seoCheckRun'
 import { probeForOutcome, probeRouting, verifyEmbed } from '@/lib/embedVerification/verifyEmbed'
-import { requireActiveManager } from '@/lib/endpoints'
-import { relationId } from '@/lib/utilities/relationId'
-import { getServerUrl } from '@/lib/utilities/serverUrl'
+import { errorResponse, requireActiveManager } from '@/lib/endpoints'
 import type { Client } from '@/payload-types'
 
 /** `POST /api/clients/:id/verify-embed` response. */
@@ -70,27 +68,38 @@ export const verifyEmbedOnDemand: Endpoint = {
 
     const clientId = Number(req.routeParams?.id)
     if (!Number.isInteger(clientId)) {
-      return Response.json({ errors: [{ message: 'Invalid service id.' }] }, { status: 400 })
+      return errorResponse('Invalid service id.', 400)
     }
 
+    // ⚠ **`overrideAccess: false`, with the caller's own `req`.**
+    // `requireActiveManager` admits any manager whose `type` is not `inactive`
+    // — no role, no document check — and its own docblock says a caller must
+    // still scope the write rather than taking an arbitrary id. This handler
+    // takes the id from the route, so the row's own read access is what decides
+    // whether this manager may touch this service: for `clients` that is the
+    // document-manager path (`docs/rules/access.md`), and a manager who is not
+    // listed gets the 404 below.
+    //
+    // It matters more since #1055: this endpoint now also spends outbound
+    // fetches against the service's site and mails its primary contact, and it
+    // could already demote a stranger's `routingProbe` verdict — which changes
+    // live public URL shapes — three presses running.
     let client: Client
     try {
       client = await req.payload.findByID({
         collection: 'clients',
         id: clientId,
         depth: 0,
-        overrideAccess: true,
+        overrideAccess: false,
+        req,
       })
     } catch {
-      return Response.json({ errors: [{ message: 'Service not found.' }] }, { status: 404 })
+      return errorResponse('Service not found.', 404)
     }
 
     const mount = client.canonical?.embed
     if (!mount) {
-      return Response.json(
-        { errors: [{ message: 'No canonical embed is selected for this service.' }] },
-        { status: 400 },
-      )
+      return errorResponse('No canonical embed is selected for this service.', 400)
     }
 
     const now = new Date()
@@ -124,7 +133,7 @@ export const verifyEmbedOnDemand: Endpoint = {
       })
       const folded = nextSeoCheckState({ current: verification, results: seo, now })
       withSeo = folded.verification
-      await notifyNewFailures(req, client, clientId, folded.newFailures)
+      await notifySeoFailures({ payload: req.payload, client, failures: folded.newFailures })
     }
 
     await req.payload.update({
@@ -153,50 +162,4 @@ export const verifyEmbedOnDemand: Endpoint = {
     }
     return Response.json(body, { status: 200 })
   },
-}
-
-/**
- * Mail the service's manager about failures this run is the first to see.
- *
- * The same recipient rule `VerifyEmbeds` uses for a disabled canonical: the
- * primary contact, falling back to the first listed manager. A service with
- * neither is not mailed, and that is not an error — the tab still shows every
- * failure to whoever opens it.
- */
-async function notifyNewFailures(
-  req: PayloadRequest,
-  client: Client,
-  clientId: number,
-  failures: readonly SeoCheckResult[],
-): Promise<void> {
-  if (failures.length === 0) return
-
-  const contactId =
-    relationId(client.primaryContact) ??
-    (client.managers ?? []).map((manager) => relationId(manager)).find((id) => id !== null)
-  if (contactId == null) return
-
-  try {
-    const manager = await req.payload.findByID({
-      collection: 'managers',
-      id: contactId,
-      depth: 0,
-      overrideAccess: true,
-    })
-    if (!manager?.email) return
-
-    await notifySeoFailures({
-      payload: req.payload,
-      clientName: client.name,
-      contactEmail: manager.email,
-      failures,
-      installUrl: `${getServerUrl()}/admin/collections/clients/${clientId}/install`,
-    })
-  } catch (error) {
-    req.payload.logger.error({
-      msg: 'verifyEmbedOnDemand: could not resolve a contact for the SEO warning',
-      clientId,
-      error: error instanceof Error ? error.message : String(error),
-    })
-  }
 }

@@ -5,7 +5,7 @@ import { APIError } from 'payload'
 import { z } from 'zod'
 
 import { splitMountKey } from '@/lib/clients/verification'
-import { parseQuery, requireActiveClient } from '@/lib/endpoints'
+import { errorResponse, parseQuery, requireActiveClient } from '@/lib/endpoints'
 import { baseLanguage, DEFAULT_LOCALE } from '@/lib/locales'
 import type { Client } from '@/payload-types'
 import { publicReadCacheHeaders } from '@/plugins/cache'
@@ -21,11 +21,6 @@ const querySchema = z.object({
   path: z.string().min(1).max(MAX_ATLAS_ROUTE_LENGTH),
   lang: z.string().max(20).optional(),
 })
-
-/** The standard error envelope, so every refusal here reads the same. */
-function errorResponse(message: string, status: number): Response {
-  return Response.json({ errors: [{ message }] }, { status })
-}
 
 /**
  * The host this client publishes its own canonical URLs on, or `null`.
@@ -125,13 +120,16 @@ export const atlasWixRoute: Endpoint = {
     if (!parsed.ok) return parsed.response
 
     const locale = localeFromWixLang(parsed.data.lang)
-    await countClientRead(req)
 
     const probe = isProbePath(parsed.data.path)
     // The probe is answered as the root — the document the mount itself serves —
     // rather than as whatever its random token would parse to.
     const target = probe ? { kind: 'root' as const } : parseAtlasRoute(parsed.data.path)
     if (!target) return Response.json(wixNotFound(), { headers: cacheHeaders(req) })
+
+    // Counted once, after the gates and the parse — the same point `/api/atlas/seo`
+    // counts, so an unreadable `path` costs a quota unit on neither.
+    await countClientRead(req)
 
     try {
       const seo = await resolveAtlasSeo({ req, target, locale })

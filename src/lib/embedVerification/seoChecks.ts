@@ -3,6 +3,8 @@ import { canonicalMountUrl, canonicalTargetForHost } from '@/lib/atlas/canonical
 import type { RoutingMode } from '@/lib/clients/canonical'
 import type { SeoCheckId, SeoCheckResult, VerifiedEmbed } from '@/lib/clients/verification'
 
+import { decodeEntities } from './readinessMarker'
+
 /**
  * Whether a verified embed is actually publishing the metadata we gave it
  * (#1055).
@@ -44,10 +46,24 @@ export interface FetchedPage {
   ok: boolean
   status: number
   body: string
+  /** Where the response actually came from, after redirects. */
+  url?: string
   detail?: string
 }
 
 export type FetchPage = (url: string) => Promise<FetchedPage>
+
+/**
+ * Most bytes of one document we will read.
+ *
+ * ⚠ **A cap, because the other end is not ours.** Every value compared here is
+ * in the `<head>` or the first screen of the body, so a megabyte is already far
+ * more than any check needs — and without a bound a hostile or merely broken
+ * host can stream whatever it manages inside the timeout straight into this
+ * process's heap, once per page and up to {@link MAX_SITEMAP_DOCUMENTS} times
+ * again, with the nightly job walking every due client in turn.
+ */
+const MAX_BODY_BYTES = 1_024 * 1_024
 
 /**
  * Fetch one document as a crawler would, and **never throw**.
@@ -68,8 +84,14 @@ export const fetchPage: FetchPage = async (url) => {
       },
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     })
-    const body = response.ok ? await response.text() : ''
-    return { ok: response.ok, status: response.status, body }
+    return {
+      ok: response.ok,
+      status: response.status,
+      // `response.url` is the address after redirects, which is what a caller
+      // restricting itself to one host has to check.
+      url: response.url || url,
+      body: response.ok ? await readCapped(response) : '',
+    }
   } catch (error) {
     return {
       ok: false,
@@ -78,6 +100,35 @@ export const fetchPage: FetchPage = async (url) => {
       detail: error instanceof Error ? error.message : String(error),
     }
   }
+}
+
+/** The first {@link MAX_BODY_BYTES} of a response, decoded as UTF-8. */
+async function readCapped(response: Response): Promise<string> {
+  const declared = Number(response.headers.get('content-length'))
+  // A truthful oversize header saves opening the stream at all.
+  if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) return ''
+
+  const reader = response.body?.getReader()
+  if (!reader) return ''
+
+  const chunks: Uint8Array[] = []
+  let size = 0
+  try {
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) break
+      if (!value) continue
+      chunks.push(value)
+      size += value.byteLength
+      // Stop reading rather than refusing what arrived: the `<head>` is at the
+      // front, so a truncated body still answers every check honestly.
+      if (size >= MAX_BODY_BYTES) break
+    }
+  } finally {
+    await reader.cancel().catch(() => undefined)
+  }
+
+  return new TextDecoder('utf-8').decode(Buffer.concat(chunks.map((chunk) => Buffer.from(chunk))))
 }
 
 /** What a crawler can see on one page, read off the raw HTML. */
@@ -117,34 +168,6 @@ export function parsePageHtml(html: string): PageSnapshot {
     hasJsonLd: /<script\b[^>]*type\s*=\s*["']application\/ld\+json["']/i.test(html),
     body,
   }
-}
-
-/** The five entities our own escaping writes, decoded for comparison. */
-const ENTITIES: Record<string, string> = {
-  '&amp;': '&',
-  '&lt;': '<',
-  '&gt;': '>',
-  '&quot;': '"',
-  '&#39;': "'",
-  '&apos;': "'",
-}
-
-/**
- * Decode the entities a host's template escaped on the way out.
- *
- * A `<title>` we sent as `Classes in Côte & Loire` arrives as
- * `Classes in Côte &amp; Loire`, and comparing the escaped form would report
- * every title containing an ampersand as wrong. Only the five named entities
- * plus numeric escapes are decoded — this is a comparison, not a sanitizer, and
- * nothing is re-emitted.
- */
-function decodeEntities(value: string): string {
-  return value
-    .replace(
-      /&(?:amp|lt|gt|quot|#39|apos);/gi,
-      (entity) => ENTITIES[entity.toLowerCase()] ?? entity,
-    )
-    .replace(/&#(\d+);/g, (_, code: string) => String.fromCodePoint(Number(code)))
 }
 
 /** Compare two URLs the way a `<link rel=canonical>` should be compared. */
@@ -189,9 +212,23 @@ export function bodyProbe(seo: AtlasSeoResponse): string | null {
 /** One check's verdict, before it is tagged with the route it ran on. */
 type Verdict = { status: SeoCheckResult['status']; detail?: string }
 
+/**
+ * Longest `detail` stored.
+ *
+ * ⚠ **A `detail` quotes the remote page**, so its length is the other end's
+ * choice: a failing title check embeds whatever that host put in `<title>`. It
+ * is stored on the `clients` row, re-read on every Install tab load, and
+ * emailed — so it is bounded here, where every verdict is built, rather than at
+ * three sinks.
+ */
+const MAX_DETAIL_LENGTH = 300
+
+const clamp = (detail: string): string =>
+  detail.length <= MAX_DETAIL_LENGTH ? detail : `${detail.slice(0, MAX_DETAIL_LENGTH - 1)}…`
+
 const pass = (): Verdict => ({ status: 'pass' })
-const fail = (detail: string): Verdict => ({ status: 'fail', detail })
-const skip = (detail: string): Verdict => ({ status: 'skipped', detail })
+const fail = (detail: string): Verdict => ({ status: 'fail', detail: clamp(detail) })
+const skip = (detail: string): Verdict => ({ status: 'skipped', detail: clamp(detail) })
 
 /**
  * The four page checks, given what the endpoint answered and what came back.
@@ -259,13 +296,15 @@ export async function siteListsUrl(args: {
   const { origin, target } = args
   const get = args.fetchFn ?? fetchPage
 
+  const host = URL.parse(origin)?.host
+  if (!host) return skip('This page has no resolvable origin.')
+
   const robots = await get(`${origin}/robots.txt`)
-  const declared = robots.ok ? sitemapLinesFrom(robots.body) : []
+  const declared = robots.ok ? sitemapLinesFrom(robots.body, host) : []
   // `/sitemap.xml` is tried whatever robots.txt said: a site that publishes the
   // file and forgets the line is the common case, and that is a warning about
   // the line rather than about the page.
   const queue = dedupe([...declared, `${origin}/sitemap.xml`]).slice(0, MAX_SITEMAP_DOCUMENTS)
-  if (queue.length === 0) return skip('This site publishes no sitemap we could find.')
 
   const seen = new Set<string>()
   let read = 0
@@ -278,14 +317,17 @@ export async function siteListsUrl(args: {
 
     const document = await get(url)
     read++
-    if (!document.ok) continue
+    // ⚠ The host is re-checked **after** the fetch too: a candidate that passed
+    // the check above can still redirect off-host, and following that is the
+    // same hole by one more hop.
+    if (!document.ok || !isOnHost(document.url ?? url, host)) continue
     reachable = true
 
     const locations = locationsFrom(document.body)
     if (locations.some((location) => sameUrl(location, target))) return pass()
 
     if (/<sitemapindex\b/i.test(document.body)) {
-      for (const child of locations.slice(0, MAX_INDEX_ENTRIES)) {
+      for (const child of childSitemaps(locations, host)) {
         if (!seen.has(child)) queue.push(child)
       }
     }
@@ -296,13 +338,49 @@ export async function siteListsUrl(args: {
     : skip('This site publishes no sitemap we could reach.')
 }
 
-/** The `Sitemap:` lines a `robots.txt` declares, absolute URLs only. */
-function sitemapLinesFrom(robots: string): string[] {
+/**
+ * Is this URL on the host the check is about?
+ *
+ * ⚠ **The whole SSRF bound, and the reason it is a bound rather than a filter.**
+ * This is the first code path that makes the CMS process itself fetch a URL a
+ * third party chose: the `Sitemap:` lines of somebody else's `robots.txt`, and
+ * the `<loc>` children of their sitemap index. Unrestricted, a volunteer's own
+ * site — or anyone who can write a line into its `robots.txt` — turns this into
+ * a reachability oracle for the Railway network, since the verdict stored on the
+ * row and emailed differs between "a document answered" and "nothing did".
+ *
+ * Restricting to the one host keeps every fetch pointed where the check already
+ * assumed it was pointed. A sitemap hosted on a different domain is a real
+ * pattern, and deliberately not one this check follows.
+ */
+function isOnHost(url: string, host: string): boolean {
+  return URL.parse(url)?.host.toLowerCase() === host.toLowerCase()
+}
+
+/** The `<loc>` children of a sitemap index, on this host only. */
+function childSitemaps(locations: readonly string[], host: string): string[] {
+  const children: string[] = []
+  for (const location of locations) {
+    const url = URL.parse(location)
+    // The scheme is checked here too: a `<loc>` is as caller-supplied as a
+    // `Sitemap:` line, and this is the queue both feed.
+    if (!url || (url.protocol !== 'http:' && url.protocol !== 'https:')) continue
+    if (!isOnHost(url.href, host)) continue
+    children.push(url.href)
+    if (children.length >= MAX_INDEX_ENTRIES) break
+  }
+  return children
+}
+
+/** The `Sitemap:` lines a `robots.txt` declares, absolute and on this host only. */
+function sitemapLinesFrom(robots: string, host: string): string[] {
   const urls: string[] = []
   for (const line of robots.split(/\r?\n/)) {
     const match = /^\s*sitemap\s*:\s*(\S+)\s*$/i.exec(line)
     const url = match ? URL.parse(match[1]) : null
-    if (url && (url.protocol === 'http:' || url.protocol === 'https:')) urls.push(url.href)
+    if (!url || (url.protocol !== 'http:' && url.protocol !== 'https:')) continue
+    if (!isOnHost(url.href, host)) continue
+    urls.push(url.href)
   }
   return urls
 }
@@ -417,7 +495,7 @@ export async function runSeoChecks(args: {
           route: page.route,
           check,
           status: 'skipped',
-          detail: fetched.detail ?? `The page answered ${fetched.status}.`,
+          detail: clamp(fetched.detail ?? `The page answered ${fetched.status}.`),
         })
       }
       continue

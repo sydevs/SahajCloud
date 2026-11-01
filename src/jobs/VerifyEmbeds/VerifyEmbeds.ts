@@ -3,7 +3,6 @@ import type { Payload, PayloadRequest, TaskConfig } from 'payload'
 import type {
   CanonicalVerification,
   RoutingProbeResult,
-  SeoCheckResult,
   VerificationResult,
 } from '@/lib/clients/verification'
 import {
@@ -14,7 +13,7 @@ import {
 import type { RenderDeps } from '@/lib/embedVerification/browserRendering'
 import { notifySeoFailures, runSeoChecksForClient } from '@/lib/embedVerification/seoCheckRun'
 import { probeForOutcome, probeRouting, verifyEmbed } from '@/lib/embedVerification/verifyEmbed'
-import { getServerUrl } from '@/lib/utilities/serverUrl'
+import { relationId } from '@/lib/utilities/relationId'
 import type { Client } from '@/payload-types'
 import { getPgPool, quotedDbSchema } from '@/plugins/usage'
 
@@ -157,56 +156,24 @@ async function notifyDisabled(payload: Payload, client: DueClient, mount: string
 }
 
 /**
- * Who to tell about a service's canonical or its pages.
+ * Who to tell about a service's canonical.
  *
- * The primary contact, falling back to the first listed manager. Shared by both
- * notices below so one service cannot be mailed about its canonical and not
- * about its metadata.
+ * The primary contact, falling back to the first listed manager — the same rule
+ * `notifySeoFailures` applies to the metadata notice, so one service cannot be
+ * mailed about its canonical and not about its pages. ⚠ **That agreement is
+ * prose, because the two notices sit in different owners' folders.** It held by
+ * two copies until #1055; if a third notice wants the same answer, the rule
+ * belongs in `src/lib/notifications/` beside `resolveRecipients`.
+ *
+ * `relationId` rather than a `typeof` chain, and `!== null` rather than
+ * `.find(Boolean)`, which drops a legitimate id of 0.
  */
 function contactIdFor(client: DueClient): number | null {
-  if (typeof client.primaryContact === 'number') return client.primaryContact
-  if (typeof client.primaryContact === 'object' && client.primaryContact !== null) {
-    return client.primaryContact.id
-  }
-  const fallback = (client.managers ?? [])
-    .map((manager) => (typeof manager === 'number' ? manager : manager?.id))
-    .find(Boolean)
-  return typeof fallback === 'number' ? fallback : null
-}
-
-/** Tell whoever owns the service that a crawler has stopped seeing our metadata. */
-async function notifySeoWarning(
-  payload: Payload,
-  client: DueClient,
-  failures: readonly SeoCheckResult[],
-): Promise<void> {
-  const contactId = contactIdFor(client)
-  if (contactId == null) return
-
-  try {
-    const manager = await payload.findByID({
-      collection: 'managers',
-      id: contactId,
-      depth: 0,
-      overrideAccess: true,
-    })
-    if (!manager?.email) return
-
-    await notifySeoFailures({
-      payload,
-      clientName: client.name,
-      contactEmail: manager.email,
-      failures,
-      installUrl: `${getServerUrl()}/admin/collections/clients/${client.id}/install`,
-    })
-  } catch (error) {
-    // A lost warning must not cost the stored snapshot, which the tab reads.
-    payload.logger.error({
-      msg: 'VerifyEmbeds: could not notify about new SEO check failures',
-      clientId: client.id,
-      error: error instanceof Error ? error.message : String(error),
-    })
-  }
+  return (
+    relationId(client.primaryContact) ??
+    (client.managers ?? []).map((manager) => relationId(manager)).find((id) => id !== null) ??
+    null
+  )
 }
 
 /** Injectable so tests can drive the ladder without a browser or a Cloudflare account. */
@@ -280,7 +247,7 @@ export async function runVerifyEmbeds(args: {
       withSeo = folded.verification
       if (folded.newFailures.length > 0) {
         result.seoWarned++
-        await notifySeoWarning(payload, client, folded.newFailures)
+        await notifySeoFailures({ payload, client, failures: folded.newFailures })
       }
     }
 

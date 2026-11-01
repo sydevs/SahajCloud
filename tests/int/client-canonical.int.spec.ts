@@ -1061,6 +1061,102 @@ describe('client canonical ownership + embed metadata', () => {
         failedAttempts: 0,
       })
     })
+
+    /**
+     * The case that was broken, and that nothing covered.
+     *
+     * The SEO checks resolve as the client being checked, and the audit request
+     * used to be a spread of the caller's — headers included. So
+     * `assertClientOriginAllowed` saw a `clients` user carrying the **admin
+     * panel's** `Origin`, found it outside `allowedDomains`, and threw 403 from
+     * inside the forwarded reads. Nothing caught it, so the verification result
+     * computed above was discarded and the row never written. Every correctly
+     * configured client has a non-empty `allowedDomains`, so this was the
+     * normal path; the nightly job sends no headers and never saw it.
+     *
+     * `verified` is seeded because an inconclusive run keeps the last good
+     * snapshot, which is what makes the checks run at all here.
+     */
+    it('persists the run for a client with allowedDomains set', async () => {
+      const region = await createRegion('verify-origin-gate')
+      const client = await createClient('Verify Origin Gate', {
+        region: region.id,
+        allowedDomains: 'ondemand.example',
+      })
+      await payload.update({
+        collection: 'clients',
+        id: client.id,
+        data: {
+          canonical: {
+            enabled: true,
+            embed: 'https://ondemand.example/classes',
+            verification: {
+              verified: {
+                domain: 'ondemand.example',
+                mount: '/classes',
+                widgetVersion: 3,
+                at: '2026-10-01T00:00:00.000Z',
+              },
+              failureCount: 0,
+              attempts: [],
+            },
+          },
+        },
+        overrideAccess: true,
+      })
+
+      const req = {
+        payload,
+        routeParams: { id: String(client.id) },
+        // A manager's press, so the request carries what a browser sends.
+        headers: new Headers({
+          origin: 'https://cms.example',
+          referer: 'https://cms.example/admin',
+        }),
+        user: { id: managerId, collection: 'managers', type: 'admin' },
+      } as unknown as PayloadRequest
+      const response = await (
+        verifyEmbedOnDemand.handler as (r: PayloadRequest) => Promise<Response>
+      )(req)
+
+      expect(response.status).toBe(200)
+      const body = (await response.json()) as { status: string; seo?: unknown[] }
+      expect(body.status).toBe('inconclusive')
+
+      // The write survived, which is the whole assertion: a 403 escaping the
+      // audit used to take it with it.
+      const doc = await payload.findByID({
+        collection: 'clients',
+        id: client.id,
+        depth: 0,
+        overrideAccess: true,
+      })
+      expect(doc.canonical?.nextVerifyAt).toBeTruthy()
+      expect(doc.canonical?.verification?.verified?.domain).toBe('ondemand.example')
+    }, 60_000)
+
+    it('refuses a manager who does not manage the service', async () => {
+      // `requireActiveManager` admits any manager whose type is not inactive,
+      // so the row's own read access is the whole gate — and this endpoint
+      // spends outbound fetches, mails the service's contact, and can demote
+      // its routing verdict.
+      const other = await testData.createManager(payload, {
+        name: 'Verify Stranger',
+        email: 'verify-stranger@example.com',
+      })
+      const region = await createRegion('verify-stranger')
+      const client = await createClient('Verify Stranger Client', { region: region.id })
+
+      const req = {
+        payload,
+        routeParams: { id: String(client.id) },
+        user: { id: other.id, collection: 'managers', type: 'manager' },
+      } as unknown as PayloadRequest
+      const response = await (
+        verifyEmbedOnDemand.handler as (r: PayloadRequest) => Promise<Response>
+      )(req)
+      expect(response.status).toBe(404)
+    })
   })
 
   /**
@@ -1094,9 +1190,14 @@ describe('client canonical ownership + embed metadata', () => {
       return { status: response.status, body: await response.json() }
     }
 
-    /** A client that has reported the mount, which the endpoint requires. */
+    /**
+     * A client that has reported the mount **and declared its host**.
+     *
+     * Both are required: an undeclared host is what let anyone holding the
+     * browser-shipped key nominate a page on a domain they own.
+     */
     const withReport = async (name: string, overrides: Record<string, unknown> = {}) => {
-      const client = await createClient(name, overrides)
+      const client = await createClient(name, { allowedDomains: 'claimed.example', ...overrides })
       await payload.update({
         collection: 'clients',
         id: client.id,
@@ -1203,6 +1304,59 @@ describe('client canonical ownership + embed metadata', () => {
         overrideAccess: true,
       })
       expect(doc.canonical?.embed).toBe('https://already.example/map')
+    })
+
+    it('refuses a host the service has not declared', async () => {
+      // `POST /api/clients/report` only checks the reported host when
+      // `allowedDomains` is non-empty, and an empty list allows any origin — so
+      // without this an attacker-owned host could be designated, and the
+      // readiness marker carries no nonce to catch it.
+      const region = await createRegion('claim-undeclared')
+      const client = await withReport('Claim Undeclared', {
+        region: region.id,
+        allowedDomains: '',
+      })
+
+      const { body } = await callClaim(client.id, MOUNT)
+      expect(body.status).toBe('needs-domains')
+      expect(body.message).toMatch(/maintainer/)
+
+      const doc = await payload.findByID({
+        collection: 'clients',
+        id: client.id,
+        depth: 0,
+        overrideAccess: true,
+      })
+      expect(doc.canonical?.enabled).toBeFalsy()
+    })
+
+    it('refuses a reported mount on a host outside the declared list', async () => {
+      const region = await createRegion('claim-foreign-host')
+      const client = await createClient('Claim Foreign Host', {
+        region: region.id,
+        allowedDomains: 'sahajayoga.ca',
+      })
+      const foreign = 'https://attacker.example/classes'
+      await payload.update({
+        collection: 'clients',
+        id: client.id,
+        data: {
+          embedMetadata: {
+            [foreign]: {
+              mode: 'inline',
+              topLevel: true,
+              urlWritable: true,
+              paramPersisted: true,
+              routing: 'path',
+              lastSeen: new Date().toISOString(),
+            },
+          },
+        },
+        overrideAccess: true,
+      })
+
+      const { body } = await callClaim(client.id, foreign)
+      expect(body.status).toBe('needs-domains')
     })
 
     it('refuses a caller who is not an active manager', async () => {

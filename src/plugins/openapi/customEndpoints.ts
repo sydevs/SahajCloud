@@ -17,6 +17,7 @@
  * module and the merge block in the route handler.
  */
 
+import { WIX_PREFIX_MAX_LENGTH, WIX_PREFIX_PATTERN } from '@/lib/atlas/wixPrefix'
 import { ROUTING_MODES } from '@/lib/clients/canonical'
 import { EMBED_MODES, MAX_MOUNT_KEY_LENGTH } from '@/lib/clients/embedMetadata'
 import { LOCALES } from '@/lib/locales'
@@ -675,7 +676,12 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
           name: 'prefix',
           in: 'query',
           required: true,
-          schema: { type: 'string', maxLength: 64, pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$' },
+          schema: {
+            type: 'string',
+            maxLength: WIX_PREFIX_MAX_LENGTH,
+            // The enforced rule, not a copy of it — the handler's own regex.
+            pattern: WIX_PREFIX_PATTERN.source,
+          },
           description:
             'The router’s dynamic-page prefix, one lowercase path segment — ' +
             '`free-classes`. Spliced into every entry’s `url`.',

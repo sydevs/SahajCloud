@@ -3,16 +3,11 @@ import type { Endpoint } from 'payload'
 
 import { APIError } from 'payload'
 
-import { requireActiveClient } from '@/lib/endpoints'
+import { errorResponse, requireActiveClient, requireIntegerClientId } from '@/lib/endpoints'
 import { publicReadCacheHeaders } from '@/plugins/cache'
 import { assertClientOriginAllowed, countClientRead } from '@/plugins/usage'
 
 import { resolveAtlasSitemap } from './resolve'
-
-/** The standard error envelope, so every refusal here reads the same. */
-function errorResponse(message: string, status: number): Response {
-  return Response.json({ errors: [{ message }] }, { status })
-}
 
 /**
  * GET /api/atlas/sitemap
@@ -79,24 +74,12 @@ export const atlasSitemap: Endpoint = {
       throw error
     }
 
-    // `requireActiveClient` has established a published `clients` user. Payload
-    // types `id` as `string | number` (its Mongo adapter uses strings) while
-    // this database is Postgres, so this converts rather than asserting:
-    // `CanonicalOwner.clientId` is a number, and `'7' === 7` is false, so a
-    // string id would match no owner and answer "you own nothing".
-    //
-    // That answer is **indistinguishable from the legitimate empty one** — a
-    // client that owns no subtree gets `urls: []` by design — so an unusable id
-    // has to fail loudly. A consumer told it owns nothing publishes an empty
-    // sitemap, which is how a site asks to be de-indexed.
-    const clientId = Number(req.user?.id)
-    if (!Number.isInteger(clientId)) {
-      req.payload.logger.error({
-        msg: 'atlasSitemap: client id is not an integer',
-        clientId: req.user?.id,
-      })
-      return errorResponse('Failed to build the sitemap for this client.', 500)
-    }
+    // `requireActiveClient` has established a published `clients` user; this is
+    // the id that read leaves on the request. Its docblock carries why an
+    // unusable one must fail loudly rather than answer "you own nothing".
+    const caller = requireIntegerClientId(req, 'Failed to build the sitemap for this client.')
+    if (!caller.ok) return caller.response
+    const { clientId } = caller
 
     // A root endpoint runs no collection `beforeOperation` hook, so it counts
     // itself (#891). The reads below happen to count it too — the region tree is

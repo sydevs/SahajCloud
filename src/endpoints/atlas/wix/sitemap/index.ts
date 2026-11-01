@@ -4,8 +4,14 @@ import type { Endpoint } from 'payload'
 import { APIError } from 'payload'
 import { z } from 'zod'
 
+import { WIX_PREFIX_MAX_LENGTH, WIX_PREFIX_PATTERN } from '@/lib/atlas/wixPrefix'
 import { splitMountKey } from '@/lib/clients/verification'
-import { parseQuery, requireActiveClient } from '@/lib/endpoints'
+import {
+  errorResponse,
+  parseQuery,
+  requireActiveClient,
+  requireIntegerClientId,
+} from '@/lib/endpoints'
 import type { Client } from '@/payload-types'
 import { publicReadCacheHeaders } from '@/plugins/cache'
 import { assertClientOriginAllowed, countClientRead } from '@/plugins/usage'
@@ -13,25 +19,13 @@ import { assertClientOriginAllowed, countClientRead } from '@/plugins/usage'
 import { resolveAtlasSitemap } from '../../sitemap/resolve'
 import { wixSitemapEntries } from '../wixSitemap'
 
-/**
- * A Wix router prefix: the dynamic page's own slug, one path segment.
- *
- * Bounded and `[a-z0-9-]` because it is spliced into every entry's `url`, and
- * because that is the set Wix itself accepts for a dynamic page slug — the
- * Install tab validates the operator's choice against the same rule.
- */
-const PREFIX_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
-
 const querySchema = z.object({
-  prefix: z.string().min(1).max(64).regex(PREFIX_PATTERN, {
+  // The one prefix rule, shared with the Install tab that validates the
+  // volunteer's choice — so a prefix the tab accepts cannot be refused here.
+  prefix: z.string().min(1).max(WIX_PREFIX_MAX_LENGTH).regex(WIX_PREFIX_PATTERN, {
     message: 'A router prefix is one lowercase path segment, e.g. free-classes.',
   }),
 })
-
-/** The standard error envelope, so every refusal here reads the same. */
-function errorResponse(message: string, status: number): Response {
-  return Response.json({ errors: [{ message }] }, { status })
-}
 
 /**
  * GET /api/atlas/wix/sitemap?prefix=free-classes
@@ -81,19 +75,9 @@ export const atlasWixSitemap: Endpoint = {
     const parsed = parseQuery(req, querySchema)
     if (!parsed.ok) return parsed.response
 
-    // The same refusal `GET /api/atlas/sitemap` makes, and for the same reason:
-    // a non-integer id matches no owner, and "you own nothing" is
-    // indistinguishable from the legitimate empty answer. A consumer told it
-    // owns nothing publishes an empty sitemap, which is how a site asks to be
-    // de-indexed.
-    const clientId = Number(req.user?.id)
-    if (!Number.isInteger(clientId)) {
-      req.payload.logger.error({
-        msg: 'atlasWixSitemap: client id is not an integer',
-        clientId: req.user?.id,
-      })
-      return errorResponse('Failed to build the sitemap for this client.', 500)
-    }
+    const caller = requireIntegerClientId(req, 'Failed to build the sitemap for this client.')
+    if (!caller.ok) return caller.response
+    const { clientId } = caller
 
     await countClientRead(req)
 

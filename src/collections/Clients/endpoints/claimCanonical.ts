@@ -4,12 +4,14 @@ import { APIError } from 'payload'
 import { z } from 'zod'
 
 import { MAX_MOUNT_KEY_LENGTH } from '@/lib/clients/embedMetadata'
-import { requireActiveManager } from '@/lib/endpoints'
+import { splitMountKey } from '@/lib/clients/verification'
+import { errorResponse, parseBody, requireActiveManager } from '@/lib/endpoints'
 import type { Client } from '@/payload-types'
+import { isHostAllowed, parseAllowedDomains } from '@/plugins/usage/originEnforcement'
 
 /** `POST /api/clients/:id/claim-canonical` response. */
 interface ClaimCanonicalResponse {
-  status: 'claimed' | 'already' | 'needs-region' | 'taken' | 'unknown-mount'
+  status: 'claimed' | 'already' | 'needs-region' | 'needs-domains' | 'taken' | 'unknown-mount'
   /** A sentence for the Install tab to render verbatim. */
   message: string
 }
@@ -39,9 +41,26 @@ const bodySchema = z.object({
  * this endpoint can do is nominate a page that then fails verification, which is
  * the bound `docs/rules/clients.md` already describes.
  *
- * ⚠ **The mount must be one the widget has already reported.** Taking the
- * volunteer's typed address instead would let this endpoint designate a page
- * nobody has seen, which is the one thing the report contract exists to prevent.
+ * ⚠ **The mount must be one the widget has already reported, from a host the
+ * service has declared.** Both halves, and the second is the one that makes
+ * this safe to fire without a human.
+ *
+ * `docs/rules/clients.md` draws the line this feature leans on: *canonical
+ * viability is automatic, canonical identity is not* — a human designates which
+ * discovered mount is canonical, which "bounds tampering: a forged report can
+ * assert viability only for a mount someone already chose". The Install tab
+ * removes that human, so something else has to bound it. `POST
+ * /api/clients/report` checks the reported host against `allowedDomains` **only
+ * when that list is non-empty**, and an empty one allows any origin by
+ * documented default — so for a client with none, anyone holding its key (which
+ * the widget ships to every browser) can report `https://attacker.tld/classes`
+ * and have it designated.
+ *
+ * So an unlisted host is refused here, not in the tab: the endpoint is the
+ * authority, and a maintainer listing the site's domain is cheap next to handing
+ * someone else every canonical URL in a region subtree. The readiness marker
+ * carries no nonce, so verification would not catch it either — any host running
+ * our script can hand-write the marker.
  *
  * **The uniqueness refusal is not re-implemented here.**
  * `validateCanonicalOwnership` already rejects a second enabled client on a
@@ -63,23 +82,10 @@ export const claimCanonical: Endpoint = {
     if (denied) return denied
 
     const clientId = Number(req.routeParams?.id)
-    if (!Number.isInteger(clientId)) {
-      return Response.json({ errors: [{ message: 'Invalid service id.' }] }, { status: 400 })
-    }
+    if (!Number.isInteger(clientId)) return errorResponse('Invalid service id.', 400)
 
-    // `parseQuery` reads `req.query`; this one carries its argument in the body,
-    // so the same envelope is produced by hand rather than by widening that
-    // helper for one caller.
-    let raw: unknown = null
-    try {
-      raw = await req.json?.()
-    } catch {
-      raw = null
-    }
-    const parsed = bodySchema.safeParse(raw)
-    if (!parsed.success) {
-      return Response.json({ errors: parsed.error.issues }, { status: 400 })
-    }
+    const parsed = await parseBody(req, bodySchema)
+    if (!parsed.ok) return parsed.response
 
     let client: Client
     try {
@@ -91,7 +97,7 @@ export const claimCanonical: Endpoint = {
         req,
       })
     } catch {
-      return Response.json({ errors: [{ message: 'Service not found.' }] }, { status: 404 })
+      return errorResponse('Service not found.', 404)
     }
 
     if (client.canonical?.enabled) {
@@ -105,6 +111,16 @@ export const claimCanonical: Endpoint = {
       return answer(
         'unknown-mount',
         'The atlas has not reported itself from that page yet. Nothing was changed.',
+      )
+    }
+
+    // The trust boundary, before anything is written. See the docblock.
+    const patterns = parseAllowedDomains(client.allowedDomains)
+    const host = splitMountKey(parsed.data.mount)?.domain ?? null
+    if (patterns.length === 0 || !host || !isHostAllowed(host, patterns)) {
+      return answer(
+        'needs-domains',
+        'This service has not declared which domains belong to it, so the atlas cannot claim its web addresses yet. Ask a maintainer to add your site’s domain to the service — everything else about your install is finished.',
       )
     }
 

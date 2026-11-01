@@ -38,12 +38,37 @@ export interface ReadinessMarker {
 const HTML_TAG_RE = /<html\b[^>]*>/i
 const ATTR_RE = new RegExp(`${READY_ATTR}\\s*=\\s*(?:"([^"]*)"|'([^']*)')`, 'i')
 
-/** Decode the handful of entities an HTML serializer puts inside an attribute value. */
-function decodeAttribute(raw: string): string {
+/** The named entities an HTML serializer writes. `&amp;` is applied last — see below. */
+const NAMED_ENTITIES: Record<string, string> = {
+  '&quot;': '"',
+  '&lt;': '<',
+  '&gt;': '>',
+  '&#39;': "'",
+  '&apos;': "'",
+}
+
+/**
+ * Decode the entities a host's template escaped on the way out.
+ *
+ * ⚠ **One decoder, because two disagreed.** This began as the readiness
+ * attribute's own reader and gained `&lt;`/`&gt;`/`&apos;` when the SEO checks
+ * (#1055) needed to compare a whole `<title>`. A title we sent as `Don't` comes
+ * back as `Don&#x27;t` from one serializer and `Don&#39;t` from another, so a
+ * decoder missing either reports a correct page as wrong — and that check emails
+ * a manager about it.
+ *
+ * `&amp;` is decoded **last**, so a double-escaped `&amp;lt;` yields `&lt;`
+ * rather than `<`. This is a comparison, never a sanitizer: nothing it returns
+ * is re-emitted as markup.
+ */
+export function decodeEntities(raw: string): string {
   return raw
-    .replace(/&quot;/g, '"')
-    .replace(/&#(\d+);/g, (_, code: string) => String.fromCharCode(Number(code)))
-    .replace(/&#x([0-9a-f]+);/gi, (_, code: string) => String.fromCharCode(parseInt(code, 16)))
+    .replace(
+      /&(?:quot|lt|gt|#39|apos);/gi,
+      (entity) => NAMED_ENTITIES[entity.toLowerCase()] ?? entity,
+    )
+    .replace(/&#(\d+);/g, (_, code: string) => String.fromCodePoint(Number(code)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, code: string) => String.fromCodePoint(parseInt(code, 16)))
     .replace(/&amp;/g, '&')
 }
 
@@ -63,7 +88,7 @@ export function parseReadinessMarker(html: string): ReadinessMarker | null {
 
   let parsed: unknown
   try {
-    parsed = JSON.parse(decodeAttribute(raw))
+    parsed = JSON.parse(decodeEntities(raw))
   } catch {
     return null
   }

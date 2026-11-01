@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 
 import {
   CONTENT_ELEMENT_ID,
-  isValidPrefix,
   prefixFromMount,
   routerFunctionBase,
   WIDGET_TAG_NAME,
@@ -11,6 +10,7 @@ import {
   wixPageCodeTemplate,
   wixRoutersTemplate,
 } from '../../src/components/admin/InstallGuide/templates'
+import { isValidWixPrefix } from '../../src/lib/atlas/wixPrefix'
 
 /**
  * The generated Wix snippets.
@@ -40,20 +40,20 @@ describe('routerFunctionBase', () => {
   })
 })
 
-describe('isValidPrefix', () => {
+describe('isValidWixPrefix', () => {
   it('takes one lowercase path segment', () => {
-    expect(isValidPrefix('free-classes')).toBe(true)
-    expect(isValidPrefix('classes')).toBe(true)
+    expect(isValidWixPrefix('free-classes')).toBe(true)
+    expect(isValidWixPrefix('classes')).toBe(true)
   })
 
   it('refuses what Wix or our own sitemap endpoint would', () => {
-    expect(isValidPrefix('')).toBe(false)
-    expect(isValidPrefix('Free-Classes')).toBe(false)
-    expect(isValidPrefix('free classes')).toBe(false)
-    expect(isValidPrefix('free/classes')).toBe(false)
-    expect(isValidPrefix('-classes')).toBe(false)
-    expect(isValidPrefix('classes-')).toBe(false)
-    expect(isValidPrefix('a'.repeat(65))).toBe(false)
+    expect(isValidWixPrefix('')).toBe(false)
+    expect(isValidWixPrefix('Free-Classes')).toBe(false)
+    expect(isValidWixPrefix('free classes')).toBe(false)
+    expect(isValidWixPrefix('free/classes')).toBe(false)
+    expect(isValidWixPrefix('-classes')).toBe(false)
+    expect(isValidWixPrefix('classes-')).toBe(false)
+    expect(isValidWixPrefix('a'.repeat(65))).toBe(false)
   })
 })
 

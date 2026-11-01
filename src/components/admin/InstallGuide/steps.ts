@@ -1,10 +1,10 @@
 import type { InstallValues } from './templates'
 
+import { isValidWixPrefix } from '@/lib/atlas/wixPrefix'
 import type { SeoCheckId } from '@/lib/clients/verification'
 
 import {
   CONTENT_ELEMENT_ID,
-  isValidPrefix,
   widgetSnippet,
   wixCustomElementSettings,
   wixPageCodeTemplate,
@@ -538,7 +538,7 @@ export function atlasUrlProblem(atlasUrl: string): string | null {
   if (segments.length > 1) {
     return 'Use one level only, like /classes — a Wix router cannot live below another page.'
   }
-  if (!isValidPrefix(segments[0])) {
+  if (!isValidWixPrefix(segments[0])) {
     return 'Use lowercase letters, numbers and hyphens only, like /free-classes.'
   }
   return null

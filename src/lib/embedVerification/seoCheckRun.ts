@@ -1,12 +1,20 @@
 import type { SeoAuditDeps } from './seoChecks'
 import type { Payload, PayloadRequest } from 'payload'
 
+import { createElement } from 'react'
+
+import { AtlasSeoWarningEmail } from '@/emails/AtlasSeoWarningEmail'
 import { parseAtlasRoute } from '@/endpoints/atlas/seo/atlasRoute'
 import { resolveAtlasSeo } from '@/endpoints/atlas/seo/resolve'
 import { resolveAtlasSitemap } from '@/endpoints/atlas/sitemap/resolve'
 import type { RoutingMode } from '@/lib/clients/canonical'
 import type { SeoCheckResult, VerifiedEmbed } from '@/lib/clients/verification'
 import { DEFAULT_LOCALE, isValidLocale } from '@/lib/locales'
+import { adminDocUrl } from '@/lib/utilities/adminUrl'
+import { headerDisplayName, stripNewlines } from '@/lib/utilities/emailSafeText'
+import { relationId } from '@/lib/utilities/relationId'
+import type { Client } from '@/payload-types'
+import { getEmailBrand, MANAGER_EMAIL_FROM, renderEmail } from '@/plugins/email'
 
 import { runSeoChecks } from './seoChecks'
 
@@ -63,8 +71,17 @@ export async function runSeoChecksForClient(args: {
     depth: 0,
     overrideAccess: true,
   })
+  // ⚠ **No headers.** Spreading the caller's request carried the admin panel's
+  // own `Origin` through, and `assertClientOriginAllowed` fires for any request
+  // whose user is a `clients` row — so for every client with a non-empty
+  // `allowedDomains` (i.e. every correctly configured one) the forwarded reads
+  // threw 403, and the throw escaped before the verification write, losing it.
+  // The nightly job never saw it: with no headers at all the origin rule stands
+  // down, which is also what makes an empty set the honest shape here. These
+  // reads *are* server-to-server, and the API key was never the gate for them.
   const auditReq = {
     ...req,
+    headers: new Headers(),
     user: { ...client, collection: 'clients' },
   } as unknown as PayloadRequest
 
@@ -92,71 +109,73 @@ export async function runSeoChecksForClient(args: {
  * Tell the service's manager that one of its pages stopped publishing our
  * metadata.
  *
+ * ⚠ **One seam, because the recipient rule and the install URL were written
+ * twice.** The on-demand endpoint and the nightly job both need this notice,
+ * and each had its own copy — resolve the contact, read the manager, build the
+ * URL, send, log. Both docblocks promised the two paths could not diverge, and
+ * that promise was held by two copies in different owners' folders whose id
+ * extraction already differed in shape. This takes the client row and answers
+ * all of it.
+ *
  * ⚠ **One mail for the whole run, listing every new failure**, rather than one
  * per failure: a router that stops answering fails four checks on two pages at
  * once, and eight emails for one cause is how a volunteer learns to filter us
- * out. `nextSeoCheckState` is what decides which failures are new.
+ * out. `nextSeoCheckState` decides which failures are new.
  *
  * ⚠ **A failed send never fails the run.** The checks are a warning channel, so
  * losing the warning is worse than losing nothing — but it must not cost the
- * stored snapshot, which is what the Install tab reads.
+ * stored snapshot, which the Install tab reads.
  */
 export async function notifySeoFailures(args: {
   payload: Payload
-  clientName: string
-  contactEmail: string
+  /** The service, as any read of it leaves the two contact fields. */
+  client: Pick<Client, 'id' | 'name' | 'managers' | 'primaryContact'>
   failures: readonly SeoCheckResult[]
-  /** Where the manager goes to see the failing step. */
-  installUrl: string
 }): Promise<void> {
-  const { payload, clientName, contactEmail, failures, installUrl } = args
+  const { payload, client, failures } = args
   if (failures.length === 0) return
 
-  const rows = failures
-    .map(
-      (failure) =>
-        `<li><strong>${escape(failure.route)}</strong> — ${escape(CHECK_LABELS[failure.check])}` +
-        (failure.detail ? `: ${escape(failure.detail)}` : '') +
-        `</li>`,
-    )
-    .join('')
+  // The primary contact, falling back to the first listed manager — the same
+  // rule `VerifyEmbeds` uses for a disabled canonical. `relationId` rather than
+  // a `typeof` chain, and `!== null` rather than `.find(Boolean)`, which would
+  // drop a legitimate id of 0.
+  const contactId =
+    relationId(client.primaryContact) ??
+    (client.managers ?? []).map((manager) => relationId(manager)).find((id) => id !== null)
+  // A service with no contact is not an error: the tab still shows every
+  // failure to whoever opens it.
+  if (contactId == null) return
 
   try {
+    const manager = await payload.findByID({
+      collection: 'managers',
+      id: contactId,
+      depth: 0,
+      overrideAccess: true,
+    })
+    if (!manager?.email) return
+
+    const brand = getEmailBrand('sahaj-atlas')
     await payload.sendEmail({
-      to: contactEmail,
-      subject: `Search engines may not be reading ${clientName}’s atlas pages`,
-      html:
-        `<p>The Sahaj Atlas is still showing on <strong>${escape(clientName)}</strong>’s site, ` +
-        `so nobody visiting it is affected. But what a search engine reads is now missing ` +
-        `something:</p><ul>${rows}</ul>` +
-        `<p>Each line names what we expected and what the page says. Open the ` +
-        `<a href="${escape(installUrl)}">Install tab</a> to see which setup step to redo — ` +
-        `the check next to that step will say the same thing.</p>` +
-        `<p>You will not get this email again for the same problem.</p>`,
+      to: manager.email,
+      from: `${headerDisplayName(brand.productName)} <${MANAGER_EMAIL_FROM}>`,
+      subject: stripNewlines(`Search engines may not be reading ${client.name}’s atlas pages`),
+      html: await renderEmail(
+        createElement(AtlasSeoWarningEmail, {
+          brand,
+          siteName: client.name,
+          failures,
+          // `adminDocUrl` plus the view's own path, so the admin route stays
+          // Payload's to change.
+          installUrl: `${adminDocUrl('clients', client.id)}/install`,
+        }),
+      ),
     })
   } catch (error) {
     payload.logger.error({
       msg: 'seoChecks: could not notify about new SEO check failures',
-      clientName,
+      clientId: client.id,
       error: error instanceof Error ? error.message : String(error),
     })
   }
-}
-
-/** What each check is called in an email and in the Install tab. */
-export const CHECK_LABELS: Record<SeoCheckResult['check'], string> = {
-  title: 'the page title',
-  canonical: 'the canonical link',
-  'json-ld': 'the structured-data block',
-  body: 'the text a search engine reads',
-  sitemap: 'the page’s sitemap entry',
-}
-
-/** Minimal escaping for the one email this module sends. */
-function escape(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
 }

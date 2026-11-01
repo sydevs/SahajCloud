@@ -113,6 +113,19 @@ describe('parsePageHtml', () => {
     expect(parsePageHtml(pageHtml({ title: 'Caf&#233;' })).title).toBe('Café')
   })
 
+  it('decodes a hex escape, which is how most serializers write an apostrophe', () => {
+    // `Don&#x27;t` compared unequal to `Don't` and reported a correct page as
+    // wrong — then emailed a manager about it.
+    expect(parsePageHtml(pageHtml({ title: 'Don&#x27;t wait' })).title).toBe(
+      'Don’t wait'.replace('’', "'"),
+    )
+    expect(parsePageHtml(pageHtml({ title: 'Don&#39;t wait' })).title).toBe("Don't wait")
+  })
+
+  it('decodes the ampersand last, so a double escape is not collapsed twice', () => {
+    expect(parsePageHtml(pageHtml({ title: '&amp;lt;tag&amp;gt;' })).title).toBe('&lt;tag&gt;')
+  })
+
   it('reads the canonical however the attributes are ordered or quoted', () => {
     expect(parsePageHtml(`<head><link href='${PAGE_URL}' rel=canonical></head>`).canonical).toBe(
       PAGE_URL,
@@ -208,6 +221,9 @@ describe('siteListsUrl', () => {
     ({
       ok: url in pages,
       status: url in pages ? 200 : 404,
+      // The real `fetchPage` reports where the response came from, and
+      // `siteListsUrl` re-checks it — so a stub has to say so too.
+      url,
       body: pages[url] ?? '',
     }) satisfies FetchedPage
 
@@ -261,6 +277,65 @@ describe('siteListsUrl', () => {
     expect(verdict.detail).toContain(PAGE_URL)
   })
 
+  it('refuses a Sitemap: line pointing off the host under check', async () => {
+    // The SSRF bound. Whoever controls that site's robots.txt chose this URL,
+    // and the verdict difference between "answered" and "did not" is a
+    // reachability oracle for the network this process sits in.
+    const asked: string[] = []
+    const verdict = await siteListsUrl({
+      origin: 'https://sahajayoga.ca',
+      target: PAGE_URL,
+      fetchFn: async (url) => {
+        asked.push(url)
+        return {
+          ok: url.endsWith('/robots.txt'),
+          status: 200,
+          url,
+          body: 'Sitemap: http://169.254.169.254/latest/meta-data/',
+        }
+      },
+    })
+    expect(asked).not.toContain('http://169.254.169.254/latest/meta-data/')
+    expect(verdict.status).toBe('skipped')
+  })
+
+  it('refuses a sitemap index child pointing off the host', async () => {
+    const asked: string[] = []
+    await siteListsUrl({
+      origin: 'https://sahajayoga.ca',
+      target: PAGE_URL,
+      fetchFn: async (url) => {
+        asked.push(url)
+        return {
+          ok: url === 'https://sahajayoga.ca/sitemap.xml',
+          status: 200,
+          url,
+          body:
+            '<sitemapindex><sitemap><loc>http://10.0.0.5:8080/</loc></sitemap>' +
+            '<sitemap><loc>file:///etc/passwd</loc></sitemap></sitemapindex>',
+        }
+      },
+    })
+    expect(asked).not.toContain('http://10.0.0.5:8080/')
+    expect(asked).not.toContain('file:///etc/passwd')
+  })
+
+  it('ignores a document that redirected off the host', async () => {
+    // A same-host candidate can still redirect away, and following that is the
+    // same hole one hop further out.
+    const verdict = await siteListsUrl({
+      origin: 'https://sahajayoga.ca',
+      target: PAGE_URL,
+      fetchFn: async () => ({
+        ok: true,
+        status: 200,
+        url: 'http://10.0.0.5/sitemap.xml',
+        body: `<urlset><url><loc>${PAGE_URL}</loc></url></urlset>`,
+      }),
+    })
+    expect(verdict.status).toBe('skipped')
+  })
+
   it('skips rather than fails when no sitemap could be reached', async () => {
     // We could not look. Not evidence the install is wrong.
     const verdict = await siteListsUrl({
@@ -269,6 +344,20 @@ describe('siteListsUrl', () => {
       fetchFn: answering({}),
     })
     expect(verdict.status).toBe('skipped')
+  })
+})
+
+describe('the stored detail is bounded', () => {
+  it('truncates a detail that quotes the remote page', async () => {
+    // A failing title check embeds whatever that host put in <title>, and the
+    // result is stored on the row, re-read on every tab load, and emailed.
+    const verdicts = comparePage({
+      seo: regionSeo(),
+      snapshot: parsePageHtml(pageHtml({ title: 'x'.repeat(5000) })),
+      pageUrl: PAGE_URL,
+    })
+    expect(verdicts.title?.status).toBe('fail')
+    expect(verdicts.title?.detail?.length).toBeLessThanOrEqual(300)
   })
 })
 
