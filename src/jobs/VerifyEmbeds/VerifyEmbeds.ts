@@ -3,11 +3,18 @@ import type { Payload, PayloadRequest, TaskConfig } from 'payload'
 import type {
   CanonicalVerification,
   RoutingProbeResult,
+  SeoCheckResult,
   VerificationResult,
 } from '@/lib/clients/verification'
-import { nextRoutingProbeState, nextVerificationState } from '@/lib/clients/verification'
+import {
+  nextRoutingProbeState,
+  nextSeoCheckState,
+  nextVerificationState,
+} from '@/lib/clients/verification'
 import type { RenderDeps } from '@/lib/embedVerification/browserRendering'
+import { notifySeoFailures, runSeoChecksForClient } from '@/lib/embedVerification/seoCheckRun'
 import { probeForOutcome, probeRouting, verifyEmbed } from '@/lib/embedVerification/verifyEmbed'
+import { getServerUrl } from '@/lib/utilities/serverUrl'
 import type { Client } from '@/payload-types'
 import { getPgPool, quotedDbSchema } from '@/plugins/usage'
 
@@ -41,7 +48,10 @@ import { getPgPool, quotedDbSchema } from '@/plugins/usage'
  * Not `Client` — a selected read returns only what it asked for, and typing it as the full document
  * would let a later edit reach for a field this query never fetched.
  */
-type DueClient = Pick<Client, 'id' | 'name' | 'canonical' | 'managers' | 'primaryContact'>
+type DueClient = Pick<
+  Client,
+  'id' | 'name' | 'canonical' | 'managers' | 'primaryContact' | 'language'
+>
 
 interface VerifyResult {
   /** Due services examined. */
@@ -56,6 +66,15 @@ interface VerifyResult {
   pathPromoted: number
   /** Services returned to `?atlas=` URLs after repeated negative probes. */
   pathDemoted: number
+  /**
+   * Services whose pages stopped publishing our metadata this run.
+   *
+   * ⚠ Counted separately from `failed`, and never added to it: an SEO warning
+   * means the embed is present and publishing with one `<head>` field wrong.
+   * Rolling it into `failed` would make the job's own output read as though
+   * canonical ownership were at risk.
+   */
+  seoWarned: number
 }
 
 /** Persist one service's outcome. Raw SQL — see the note above. */
@@ -89,7 +108,14 @@ async function dueClients(payload: Payload, req: PayloadRequest, now: Date): Pro
       ],
     },
     depth: 0,
-    select: { name: true, canonical: true, managers: true, primaryContact: true },
+    select: {
+      name: true,
+      canonical: true,
+      managers: true,
+      primaryContact: true,
+      // The service's own language, which the SEO checks resolve expectations in.
+      language: true,
+    },
     pagination: false,
     overrideAccess: true,
     req,
@@ -99,19 +125,13 @@ async function dueClients(payload: Payload, req: PayloadRequest, now: Date): Pro
 
 /** Tell whoever owns the service that its canonical ownership was switched off. */
 async function notifyDisabled(payload: Payload, client: DueClient, mount: string): Promise<void> {
-  const contactId =
-    typeof client.primaryContact === 'number'
-      ? client.primaryContact
-      : typeof client.primaryContact === 'object' && client.primaryContact !== null
-        ? client.primaryContact.id
-        : (client.managers ?? []).map((m) => (typeof m === 'number' ? m : m?.id)).find(Boolean)
-
+  const contactId = contactIdFor(client)
   if (contactId == null) return
 
   try {
     const manager = await payload.findByID({
       collection: 'managers',
-      id: contactId as number,
+      id: contactId,
       depth: 0,
       overrideAccess: true,
     })
@@ -130,6 +150,59 @@ async function notifyDisabled(payload: Payload, client: DueClient, mount: string
     // A failed notice must not undo the disable — the disable is the safety action.
     payload.logger.error({
       msg: 'VerifyEmbeds: could not notify about a disabled canonical',
+      clientId: client.id,
+      error: error instanceof Error ? error.message : String(error),
+    })
+  }
+}
+
+/**
+ * Who to tell about a service's canonical or its pages.
+ *
+ * The primary contact, falling back to the first listed manager. Shared by both
+ * notices below so one service cannot be mailed about its canonical and not
+ * about its metadata.
+ */
+function contactIdFor(client: DueClient): number | null {
+  if (typeof client.primaryContact === 'number') return client.primaryContact
+  if (typeof client.primaryContact === 'object' && client.primaryContact !== null) {
+    return client.primaryContact.id
+  }
+  const fallback = (client.managers ?? [])
+    .map((manager) => (typeof manager === 'number' ? manager : manager?.id))
+    .find(Boolean)
+  return typeof fallback === 'number' ? fallback : null
+}
+
+/** Tell whoever owns the service that a crawler has stopped seeing our metadata. */
+async function notifySeoWarning(
+  payload: Payload,
+  client: DueClient,
+  failures: readonly SeoCheckResult[],
+): Promise<void> {
+  const contactId = contactIdFor(client)
+  if (contactId == null) return
+
+  try {
+    const manager = await payload.findByID({
+      collection: 'managers',
+      id: contactId,
+      depth: 0,
+      overrideAccess: true,
+    })
+    if (!manager?.email) return
+
+    await notifySeoFailures({
+      payload,
+      clientName: client.name,
+      contactEmail: manager.email,
+      failures,
+      installUrl: `${getServerUrl()}/admin/collections/clients/${client.id}/install`,
+    })
+  } catch (error) {
+    // A lost warning must not cost the stored snapshot, which the tab reads.
+    payload.logger.error({
+      msg: 'VerifyEmbeds: could not notify about new SEO check failures',
       clientId: client.id,
       error: error instanceof Error ? error.message : String(error),
     })
@@ -160,6 +233,7 @@ export async function runVerifyEmbeds(args: {
     disabled: 0,
     pathPromoted: 0,
     pathDemoted: 0,
+    seoWarned: 0,
   }
 
   const pool = getPgPool(req)
@@ -189,9 +263,30 @@ export async function runVerifyEmbeds(args: {
       now,
     })
 
+    // The SEO checks compare what a crawler sees against what the endpoint
+    // answered, so they run only where the mount verified on this pass: there is
+    // nothing to compare on a page the widget is not on, and re-checking a site
+    // that is down would report four failures caused by the outage.
+    let withSeo = verification
+    if (outcome.status === 'verified' && verification.verified) {
+      const seo = await runSeoChecksForClient({
+        req,
+        clientId: client.id,
+        verified: verification.verified,
+        routing: verification.routingProbe?.verdict ?? 'query',
+        language: client.language,
+      })
+      const folded = nextSeoCheckState({ current: verification, results: seo, now })
+      withSeo = folded.verification
+      if (folded.newFailures.length > 0) {
+        result.seoWarned++
+        await notifySeoWarning(payload, client, folded.newFailures)
+      }
+    }
+
     try {
       await pool.query(updateSql(schema), [
-        JSON.stringify(verification),
+        JSON.stringify(withSeo),
         transition.nextVerifyAt,
         transition.disable,
         client.id,
@@ -255,6 +350,7 @@ export const VerifyEmbeds: TaskConfig<'verifyEmbeds'> = {
     { name: 'disabled', type: 'number', required: true },
     { name: 'pathPromoted', type: 'number', required: true },
     { name: 'pathDemoted', type: 'number', required: true },
+    { name: 'seoWarned', type: 'number', required: true },
   ],
   schedule: [{ cron: '0 3 * * *', queue: 'nightly' }],
   handler: async ({ req }) => {

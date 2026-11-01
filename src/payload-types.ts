@@ -2795,6 +2795,15 @@ export interface ClientCanonicalVerification {
     verdict: 'query' | 'path';
     failedAttempts: number;
   };
+  seo?: {
+    at: string;
+    results: {
+      route: string;
+      check: 'title' | 'canonical' | 'json-ld' | 'body' | 'sitemap';
+      status: 'pass' | 'fail' | 'skipped';
+      detail?: string;
+    }[];
+  };
   attempts: {
     at: string;
     status: 'verified' | 'failed' | 'inconclusive';
@@ -11039,6 +11048,7 @@ export interface TaskVerifyEmbeds {
     disabled: number;
     pathPromoted: number;
     pathDemoted: number;
+    seoWarned: number;
   };
 }
 /**

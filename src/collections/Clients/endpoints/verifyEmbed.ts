@@ -1,9 +1,17 @@
-import type { Endpoint } from 'payload'
+import type { Endpoint, PayloadRequest } from 'payload'
 
 import type { RoutingMode } from '@/lib/clients/canonical'
-import { nextRoutingProbeState, nextVerificationState } from '@/lib/clients/verification'
+import type { SeoCheckResult } from '@/lib/clients/verification'
+import {
+  nextRoutingProbeState,
+  nextSeoCheckState,
+  nextVerificationState,
+} from '@/lib/clients/verification'
+import { notifySeoFailures, runSeoChecksForClient } from '@/lib/embedVerification/seoCheckRun'
 import { probeForOutcome, probeRouting, verifyEmbed } from '@/lib/embedVerification/verifyEmbed'
 import { requireActiveManager } from '@/lib/endpoints'
+import { relationId } from '@/lib/utilities/relationId'
+import { getServerUrl } from '@/lib/utilities/serverUrl'
 import type { Client } from '@/payload-types'
 
 /** `POST /api/clients/:id/verify-embed` response. */
@@ -14,6 +22,14 @@ interface VerifyEmbedResponse {
   message: string
   /** What this service's canonical URLs are shaped like after the check. */
   routing: RoutingMode
+  /**
+   * What a crawler can see on the pages this service publishes.
+   *
+   * Empty when the embed is not verified — there is no page to check yet — and
+   * every entry is a warning rather than a failure. The tab renders each one
+   * beside the step it confirms.
+   */
+  seo: SeoCheckResult[]
 }
 
 const MESSAGES: Record<VerifyEmbedResponse['status'], (reason?: string) => string> = {
@@ -93,6 +109,24 @@ export const verifyEmbedOnDemand: Endpoint = {
       now,
     })
 
+    // The SEO checks run only on a verified embed: they compare what a crawler
+    // sees against what the endpoint answered, and there is nothing to compare
+    // until the CMS has confirmed the page carries the widget at all.
+    let seo: SeoCheckResult[] = []
+    let withSeo = verification
+    if (verification.verified) {
+      seo = await runSeoChecksForClient({
+        req,
+        clientId,
+        verified: verification.verified,
+        routing: verification.routingProbe?.verdict ?? 'query',
+        language: client.language,
+      })
+      const folded = nextSeoCheckState({ current: verification, results: seo, now })
+      withSeo = folded.verification
+      await notifyNewFailures(req, client, clientId, folded.newFailures)
+    }
+
     await req.payload.update({
       collection: 'clients',
       id: clientId,
@@ -100,7 +134,7 @@ export const verifyEmbedOnDemand: Endpoint = {
       data: {
         canonical: {
           ...client.canonical,
-          verification,
+          verification: withSeo,
           nextVerifyAt: transition.nextVerifyAt,
         },
       },
@@ -115,7 +149,54 @@ export const verifyEmbedOnDemand: Endpoint = {
       // Answered from the object just written, never re-read through Payload,
       // so the `canonical.routing` hook's default is applied here by hand (#644).
       routing: verification.routingProbe?.verdict ?? 'query',
+      seo,
     }
     return Response.json(body, { status: 200 })
   },
+}
+
+/**
+ * Mail the service's manager about failures this run is the first to see.
+ *
+ * The same recipient rule `VerifyEmbeds` uses for a disabled canonical: the
+ * primary contact, falling back to the first listed manager. A service with
+ * neither is not mailed, and that is not an error — the tab still shows every
+ * failure to whoever opens it.
+ */
+async function notifyNewFailures(
+  req: PayloadRequest,
+  client: Client,
+  clientId: number,
+  failures: readonly SeoCheckResult[],
+): Promise<void> {
+  if (failures.length === 0) return
+
+  const contactId =
+    relationId(client.primaryContact) ??
+    (client.managers ?? []).map((manager) => relationId(manager)).find((id) => id !== null)
+  if (contactId == null) return
+
+  try {
+    const manager = await req.payload.findByID({
+      collection: 'managers',
+      id: contactId,
+      depth: 0,
+      overrideAccess: true,
+    })
+    if (!manager?.email) return
+
+    await notifySeoFailures({
+      payload: req.payload,
+      clientName: client.name,
+      contactEmail: manager.email,
+      failures,
+      installUrl: `${getServerUrl()}/admin/collections/clients/${clientId}/install`,
+    })
+  } catch (error) {
+    req.payload.logger.error({
+      msg: 'verifyEmbedOnDemand: could not resolve a contact for the SEO warning',
+      clientId,
+      error: error instanceof Error ? error.message : String(error),
+    })
+  }
 }

@@ -11,6 +11,8 @@ import {
 } from '@/lib/clients/canonical'
 import { embedMetadataJsonSchema } from '@/lib/clients/embedMetadata'
 import {
+  SEO_CHECK_IDS,
+  SEO_CHECK_STATUSES,
   VERIFICATION_FAILURE_REASONS,
   VERIFICATION_INCONCLUSIVE_REASONS,
 } from '@/lib/clients/verification'
@@ -84,6 +86,37 @@ const canonicalVerificationSchema: JSONSchema4 = {
         at: { type: 'string' },
         verdict: { enum: [...ROUTING_MODES] },
         failedAttempts: { type: 'number', minimum: 0 },
+      },
+    },
+    // Optional, and outside `required` above, for the same reason
+    // `routingProbe` is: this object is closed and validated on every save of
+    // the document, so a required key here would strand every row written
+    // before #1055. Its inner shape is closed, since `nextSeoCheckState` is
+    // its only writer.
+    //
+    // ⚠ The post-install SEO checks are a **warning channel**: a failure here
+    // means the embed is present and publishing with one `<head>` field wrong,
+    // never that it is gone. Nothing in this block reaches `failureCount`.
+    seo: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['at', 'results'],
+      properties: {
+        at: { type: 'string' },
+        results: {
+          type: 'array',
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            required: ['route', 'check', 'status'],
+            properties: {
+              route: { type: 'string' },
+              check: { enum: [...SEO_CHECK_IDS] },
+              status: { enum: [...SEO_CHECK_STATUSES] },
+              detail: { type: 'string' },
+            },
+          },
+        },
       },
     },
     attempts: {

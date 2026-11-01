@@ -545,9 +545,14 @@ describe('meditation-transcripts (OpenAPI)', () => {
  * missing from the shim is invisible in `/api/docs` with nothing failing.
  */
 describe('the Wix router endpoints are documented', () => {
-  const route = CUSTOM_ENDPOINT_PATHS['/api/atlas/wix/route']?.get as OpenAPIOperation | undefined
-  const sitemap = CUSTOM_ENDPOINT_PATHS['/api/atlas/wix/sitemap']?.get as
-    OpenAPIOperation | undefined
+  type Operation = {
+    parameters?: { name: string; required?: boolean }[]
+    responses?: Record<string, { content?: Record<string, { schema?: unknown }> }>
+  }
+  type Schema = { required?: string[]; properties?: Record<string, { enum?: unknown[] }> }
+
+  const route = CUSTOM_ENDPOINT_PATHS['/api/atlas/wix/route']?.get as Operation | undefined
+  const sitemap = CUSTOM_ENDPOINT_PATHS['/api/atlas/wix/sitemap']?.get as Operation | undefined
 
   it('registers both paths', () => {
     expect(route).toBeDefined()
@@ -598,7 +603,7 @@ describe('the Wix router endpoints are documented', () => {
   })
 
   it('keeps the response schema in lockstep with the type', () => {
-    const response = CUSTOM_ENDPOINT_SCHEMAS.AtlasWixRouteResponse as OpenAPISchema
+    const response = CUSTOM_ENDPOINT_SCHEMAS.AtlasWixRouteResponse as Schema
     expect(response.required?.sort()).toEqual([
       'cacheSeconds',
       'data',
@@ -608,10 +613,10 @@ describe('the Wix router endpoints are documented', () => {
     ])
     expect(response.properties?.status?.enum).toEqual([200, 301, 404])
 
-    const data = CUSTOM_ENDPOINT_SCHEMAS.AtlasWixRouteData as OpenAPISchema
+    const data = CUSTOM_ENDPOINT_SCHEMAS.AtlasWixRouteData as Schema
     expect(data.properties?.type?.enum).toEqual(['root', 'region', 'event'])
 
-    const entry = CUSTOM_ENDPOINT_SCHEMAS.AtlasWixSitemapEntry as OpenAPISchema
+    const entry = CUSTOM_ENDPOINT_SCHEMAS.AtlasWixSitemapEntry as Schema
     expect(entry.required?.sort()).toEqual(['lastmod', 'title', 'url'])
   })
 

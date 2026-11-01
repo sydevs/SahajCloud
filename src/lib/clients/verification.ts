@@ -46,6 +46,38 @@ export const VERIFICATION_INCONCLUSIVE_REASONS = [
 export type VerificationInconclusiveReason = (typeof VERIFICATION_INCONCLUSIVE_REASONS)[number]
 
 /**
+ * What each post-install SEO check looks at (#1055).
+ *
+ * Every one is a thing a volunteer can get wrong at a step the Install tab
+ * names, and nothing else — a check whose failure names no step to redo is a
+ * red light with no action behind it, which is worse than no light.
+ *
+ * - `title` — the rendered `<title>` is the one the endpoint answered. Fails
+ *   when the router is not calling us, or is calling us and discarding `head`.
+ * - `canonical` — the rendered canonical is the endpoint's, or the page itself
+ *   where the endpoint answered none. Fails the same way, one field over.
+ * - `json-ld` — a `ld+json` block is present at all.
+ * - `body` — the crawlable children are present. Fails when the text element is
+ *   missing, misnamed, or collapsed before a crawler sees it.
+ * - `sitemap` — a sitemap the site publishes lists the sampled page. Fails when
+ *   the site was never republished after the router was added.
+ */
+export const SEO_CHECK_IDS = ['title', 'canonical', 'json-ld', 'body', 'sitemap'] as const
+export type SeoCheckId = (typeof SEO_CHECK_IDS)[number]
+
+/**
+ * How one check came out.
+ *
+ * ⚠ **`skipped` is not `fail`, and conflating them is the whole hazard here.**
+ * A page we could not fetch, a client with no sampled region, a locale with no
+ * copy — none is evidence the install is wrong, and all three are common on a
+ * site mid-setup. Only `fail` is ever shown as a problem or emailed, which is
+ * the same split `inconclusive` makes for the mount ladder above.
+ */
+export const SEO_CHECK_STATUSES = ['pass', 'fail', 'skipped'] as const
+export type SeoCheckStatus = (typeof SEO_CHECK_STATUSES)[number]
+
+/**
  * The stored `canonical.verification` column, straight off the generated type.
  *
  * The chain is one-directional and worth stating, because it is easy to read the
@@ -63,6 +95,16 @@ export type CanonicalVerification = ClientCanonicalVerification
 
 /** What the verifier observed on the live page. Job-written, never typed by hand. */
 export type VerifiedEmbed = NonNullable<CanonicalVerification['verified']>
+
+/**
+ * The stored SEO-check snapshot, off the generated type like its siblings.
+ *
+ * `null` until the first run. Its own writer is {@link nextSeoCheckState}.
+ */
+export type SeoCheckSnapshot = NonNullable<CanonicalVerification['seo']>
+
+/** One check's outcome on one page. */
+export type SeoCheckResult = SeoCheckSnapshot['results'][number]
 
 /** One attempt, newest first in {@link CanonicalVerification.attempts}. */
 export type VerificationAttempt = CanonicalVerification['attempts'][number]
@@ -221,6 +263,58 @@ export function nextRoutingProbeState(args: {
       ? 'query'
       : (previous.routingProbe?.verdict ?? 'query')
   return { ...previous, routingProbe: { at, verdict, failedAttempts } }
+}
+
+/**
+ * A failure's identity, for telling a new one from one already reported.
+ *
+ * The page **and** the check, because the same check failing on the root and on
+ * a region are two different things to fix.
+ */
+export function seoFailureKey(result: Pick<SeoCheckResult, 'route' | 'check'>): string {
+  return `${result.route}#${result.check}`
+}
+
+/**
+ * Fold one SEO-check run into the stored state, and say which failures are new.
+ *
+ * ⚠ **This never touches `failureCount`, and must not.** That counter becomes
+ * `disable` — canonical ownership switched off and the public URLs withdrawn —
+ * and an SEO check failing means the embed is *present and publishing*, with one
+ * of its `<head>` fields wrong. Withdrawing a working site's URLs over a missing
+ * `<title>` would be the same category error `routingProbe` keeps its own
+ * counter to avoid (#644).
+ *
+ * **"One email per new failure" needs no second column.** The previous snapshot
+ * *is* the record of what has already been reported: a failure whose key was
+ * failing last time has been mentioned, and one that was passing or absent has
+ * not. So a site that stays broken is mailed once, and a site that breaks again
+ * after a fix is mailed again — which is the behaviour anyone would want and the
+ * one a `notified` list drifts away from.
+ */
+export function nextSeoCheckState(args: {
+  current: CanonicalVerification | null | undefined
+  results: SeoCheckResult[]
+  now: Date
+}): { verification: CanonicalVerification; newFailures: SeoCheckResult[] } {
+  const { current, results, now } = args
+  const previous = current ?? EMPTY_VERIFICATION
+
+  const failedBefore = new Set(
+    (previous.seo?.results ?? [])
+      .filter((result) => result.status === 'fail')
+      .map((result) => seoFailureKey(result)),
+  )
+  const newFailures = results.filter(
+    (result) => result.status === 'fail' && !failedBefore.has(seoFailureKey(result)),
+  )
+
+  return {
+    // Spread `previous` first: `verified`, `failureCount` and `routingProbe` are
+    // siblings this function does not own.
+    verification: { ...previous, seo: { at: now.toISOString(), results } },
+    newFailures,
+  }
 }
 
 /**

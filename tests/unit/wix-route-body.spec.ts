@@ -50,7 +50,14 @@ const region = (content: Record<string, unknown>): AtlasSeoResponse =>
     openGraph: {},
     jsonLd: '{}',
     breadcrumbs: [],
-    content: { name: 'Ontario', subtitle: null, events: [], eventCount: 0, ...content },
+    content: {
+      name: 'Ontario',
+      subtitle: null,
+      level: 'region',
+      events: [],
+      eventCount: 0,
+      ...content,
+    },
   }) as AtlasSeoResponse
 
 const event = (content: Record<string, unknown>): AtlasSeoResponse =>

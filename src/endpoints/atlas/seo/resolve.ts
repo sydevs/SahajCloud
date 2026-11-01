@@ -137,8 +137,11 @@ async function regionBreadcrumbs(
  * that cannot publish a canonical of its own gets the surface that indexes the
  * atlas, never another client's page.
  */
-async function rootCanonical(req: PayloadRequest): Promise<string | null> {
-  const owner = await canonicalOwnerForClient(req, req.user?.id)
+async function rootCanonical(
+  req: PayloadRequest,
+  clientId: number | null | undefined,
+): Promise<string | null> {
+  const owner = await canonicalOwnerForClient(req, clientId)
   return canonicalMountUrl(canonicalTargetFor(owner))
 }
 
@@ -149,13 +152,17 @@ async function rootCanonical(req: PayloadRequest): Promise<string | null> {
  * operator's, from `sy-atlas-translations` (see `./rootStrings`), and its
  * canonical is the caller's own mount page (see {@link rootCanonical}).
  */
-async function rootSeo(req: PayloadRequest, locale: LocaleCode): Promise<AtlasSeoResponse> {
-  // Three independent reads — the copy, the enabled locales, the caller's own
-  // record — so they overlap rather than queue.
+async function rootSeo(
+  req: PayloadRequest,
+  locale: LocaleCode,
+  clientId: number | null | undefined,
+): Promise<AtlasSeoResponse> {
+  // Three independent reads — the copy, the enabled locales, the named client's
+  // own record — so they overlap rather than queue.
   const [strings, locales, canonical] = await Promise.all([
     getRootSeoStrings(req, locale),
     getAtlasLocales(req),
-    rootCanonical(req),
+    rootCanonical(req, clientId),
   ])
 
   return buildRootSeo({ ...strings, canonical, locale, locales })
@@ -322,11 +329,23 @@ export async function resolveAtlasSeo(args: {
   req: PayloadRequest
   target: AtlasRouteTarget
   locale: LocaleCode
+  /**
+   * Whose root canonical to resolve, when it is not the caller's own.
+   *
+   * ⚠ **The root is the one route whose answer depends on who asked** — it names
+   * no document, so the only page it can describe is the mount of the client
+   * asking (#739). Everything else resolves through region ownership and is the
+   * same for every caller. The SEO checks (#1055) need the answer **a given
+   * client** would get while running as a manager or as no user at all, and
+   * recomputing the root's title and canonical there would be a second
+   * implementation of exactly the thing this module exists to be the only one of.
+   */
+  clientId?: number | null
 }): Promise<AtlasSeoResponse | null> {
-  const { req, target, locale } = args
+  const { req, target, locale, clientId = req.user?.id } = args
   // The root always resolves, so it returns before the not-found check — only a
   // lookup can come back empty.
-  if (target.kind === 'root') return rootSeo(req, locale)
+  if (target.kind === 'root') return rootSeo(req, locale, clientId)
   if (target.kind === 'region') return regionSeo(req, target, locale)
   return eventSeo(req, target, locale)
 }
