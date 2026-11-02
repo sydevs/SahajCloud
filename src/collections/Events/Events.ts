@@ -44,6 +44,7 @@ import { getLanguageOptions } from '@/lib/locales'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
 import {
   adminOnlyCondition,
+  eventManagerFieldAccess,
   managersOnlyFieldAccess,
   ownedRegionFilterOptions,
 } from '@/plugins/access'
@@ -379,7 +380,7 @@ export const Events: CollectionConfig = {
               relationTo: 'regions',
               required: true,
               filterOptions: async (args) => {
-                // City or venue only. For an atlas-manager, also within their
+                // City or venue only. For a region manager, also within their
                 // owned-region subtree.
                 const cityOrVenue = { level: { in: ['city', 'venue'] } }
                 const owned = await ownedRegionFilterOptions(args)
@@ -600,6 +601,11 @@ export const Events: CollectionConfig = {
                   ? true
                   : 'A manager is required — only unverified, denied or finished events can be unmanaged.'
               },
+              // ⚠ Naming someone here grants them `atlas-event-manager` over
+              // this event, so the write is itself a delegation — and the
+              // assignee must not be able to pass it on, or disown the listing
+              // their own grant comes from. See `eventManagerFieldAccess`.
+              access: { update: eventManagerFieldAccess },
               admin: {
                 description:
                   'Manager responsible for verifying this event. Assigning one to an unverified event adopts it into the verification cycle.',

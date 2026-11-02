@@ -763,7 +763,8 @@ export type RoleSlug =
   | 'meditations-editor'
   | 'path-editor'
   | 'web-translator'
-  | 'atlas-manager'
+  | 'atlas-region-manager'
+  | 'atlas-event-manager'
   | 'wemeditate-web-client'
   | 'wemeditate-app-client'
   | 'sahaj-atlas-client';
@@ -1238,7 +1239,7 @@ export interface Manager {
   /**
    * Assign roles for each locale. Different roles can be assigned for different languages.
    */
-  roles?: ('meditations-editor' | 'path-editor' | 'web-translator' | 'atlas-manager')[] | null;
+  roles?: ('meditations-editor' | 'path-editor' | 'web-translator')[] | null;
   /**
    * Pages this manager can edit.
    */

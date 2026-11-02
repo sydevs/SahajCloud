@@ -9,7 +9,12 @@
  * - createFieldAccessConfig: Create access config for field-level access
  */
 
-import type { BypassPermissionFunction, ContentSlug, FieldAccessConfig } from './types'
+import type {
+  BypassPermissionFunction,
+  ContentSlug,
+  FieldAccessConfig,
+  VirtualRoleUser,
+} from './types'
 import type {
   Access,
   AccessArgs,
@@ -24,6 +29,7 @@ import { appendVersionToQueryKey, hasWhereAccessResult } from 'payload'
 import { isLivePreviewRequest } from '@/lib/utilities/previewSecret'
 
 import { isManager } from './adminOnly'
+import { virtualRoles } from './config'
 import {
   getDocManagerFields,
   hasDocManagerAccess,
@@ -33,7 +39,11 @@ import {
 import { isLocaleScopedCollection, scopeLocaleWrite } from './localeScopedWrites'
 import { roleScopeFromLocale } from './localizedRoles'
 import { hasPermission } from './permissions'
-import { isRegionSubtreeCollection, scopeRegionSubtreeWrite } from './regionSubtreeAccess'
+import {
+  isRegionSubtreeCollection,
+  resolveOwnedRegionIds,
+  scopeRegionSubtreeWrite,
+} from './regionSubtreeAccess'
 
 /**
  * True when the entity named by `slug` has drafts enabled — collection **or**
@@ -68,6 +78,31 @@ function scopesWritesByLocale(req: PayloadRequest, collection: ContentSlug): boo
 }
 
 /**
+ * Every column a proposal's responsible region can be named in — the target
+ * event's own region, then the chain `submissionRoutingRegionId` walks.
+ *
+ * ⚠ **A region manager owns a subtree, so these are equivalent to that
+ * function's `??` chain rather than a loose superset of it.** `country`,
+ * `state` and `anchorRegion` are one ancestor line, and an owned subtree is
+ * closed downwards: whenever a broader entry is in it, every narrower one is
+ * too. So matching any entry answers exactly what matching the first non-null
+ * one would.
+ *
+ * `regionHint` is a JSON column, which only Postgres' `jsonb_path_exists` can
+ * reach — fine here, and the reason the hint is not spelled out in a query
+ * anywhere else. It is load-bearing: a proposal for a city the atlas does not
+ * hold yet has no `region` at all, and `deliverProposal` mails its state or
+ * country manager, who would then be unable to read the row.
+ */
+const PROPOSAL_REGION_PATHS = [
+  'event.region',
+  'region',
+  'regionHint.anchorRegion',
+  'regionHint.state',
+  'regionHint.country',
+] as const
+
+/**
  * What of `user-submissions` a manager may see.
  *
  * The role grant that reaches this restricted collection is collection-wide,
@@ -80,19 +115,40 @@ function scopesWritesByLocale(req: PayloadRequest, collection: ContentSlug): boo
  *   recipient lives on the form rather than the submission (one author's
  *   decision, not four hundred rows'), so the clause reaches through the
  *   relationship.
- * - **proposal** rows, per the regional grant they already had on
- *   `event-submissions` — reviewing them is the job.
+ * - **proposal** rows they are the reviewer of, which is the job. Reviewing is
+ *   what the two derived roles differ over, so each contributes its own clause:
+ *   a region manager reads the proposals landing in their subtree, an event
+ *   assignee the update proposals on their own events, and someone who is both
+ *   reads the union.
  *
  * `registration` and `subscribe` rows appear for nobody but an admin. They are
  * consent and attendance records, and no manager task reads them.
  */
-function managerSubmissionScope(userId: number | string): Where {
-  return {
-    or: [
-      { and: [{ type: { equals: 'contact' } }, { 'form.recipient': { equals: userId } }] },
-      { type: { equals: 'proposal' } },
-    ],
+async function managerSubmissionScope(req: PayloadRequest): Promise<Where> {
+  const user = req.user!
+  const roles = virtualRoles(user as VirtualRoleUser)
+
+  const or: Where[] = [
+    { and: [{ type: { equals: 'contact' } }, { 'form.recipient': { equals: user.id } }] },
+  ]
+
+  if (roles.includes('atlas-event-manager')) {
+    or.push({ and: [{ type: { equals: 'proposal' } }, { 'event.manager': { equals: user.id } }] })
   }
+
+  if (roles.includes('atlas-region-manager')) {
+    const ownedRegionIds = await resolveOwnedRegionIds(req, Number(user.id))
+    if (ownedRegionIds.length) {
+      or.push({
+        and: [
+          { type: { equals: 'proposal' } },
+          { or: PROPOSAL_REGION_PATHS.map((path) => ({ [path]: { in: ownedRegionIds } })) },
+        ],
+      })
+    }
+  }
+
+  return { or }
 }
 
 /**
@@ -180,9 +236,10 @@ export function createAccessConfig(
           if (parentScope) return parentScope
         }
 
-        // An atlas-manager's role grants create/update/delete on regions/events,
-        // but only within the region subtree they own — narrow the collection-
-        // wide grant to a scoped Where (or boolean). See regionSubtreeAccess.ts.
+        // The Atlas roles grant create/update/delete on regions/events, but
+        // only within the region subtree a region manager owns, or on the
+        // events an assignee is named on — narrow the collection-wide grant to
+        // a scoped Where (or boolean). See regionSubtreeAccess.ts.
         if (operation !== 'read' && isManager(req.user) && isRegionSubtreeCollection(collection)) {
           return scopeRegionSubtreeWrite({ req, collection, operation, id, data })
         }
@@ -198,7 +255,7 @@ export function createAccessConfig(
         // collection holds four different things — so narrow it to the rows
         // their job actually needs. See `managerSubmissionScope`.
         if (collection === 'user-submissions' && isManager(req.user)) {
-          return managerSubmissionScope(req.user!.id)
+          return managerSubmissionScope(req)
         }
 
         return true

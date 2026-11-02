@@ -101,12 +101,9 @@ export const Managers: CollectionConfig = {
               type: 'select',
               hasMany: true,
               localized: true,
-              options: getRoleOptions([
-                'meditations-editor',
-                'path-editor',
-                'web-translator',
-                'atlas-manager',
-              ]),
+              // The Atlas roles are deliberately absent: each is derived from a
+              // region or event listing, and `getRoleOptions` refuses one here.
+              options: getRoleOptions(['meditations-editor', 'path-editor', 'web-translator']),
               admin: {
                 description:
                   'Assign roles for each locale. Different roles can be assigned for different languages.',

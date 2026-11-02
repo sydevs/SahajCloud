@@ -36,9 +36,12 @@ export {
   getRoleProject,
   getPermissionsForRole,
   getRoleOptions,
+  getRoleLabel,
   isTranslatableCollection,
   getProjectsFromRoles,
   getReadableCollections,
+  isVirtualRole,
+  virtualRoles,
 } from './roles'
 export { getManagerProjects, resolveProject } from './currentProject'
 export type { ProjectUser } from './currentProject'

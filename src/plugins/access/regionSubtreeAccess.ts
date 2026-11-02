@@ -1,11 +1,13 @@
 /**
  * Region-Subtree Write Scoping (Atlas managers)
  *
- * The `atlas-manager` role grants create/update on `regions` and
- * create/update/delete on `events`. Those grants are intentionally **not**
- * collection-wide: an Atlas manager may only write to events and regions inside
+ * The `atlas-region-manager` role grants create/update on `regions` and
+ * create/update/delete on `events`; `atlas-event-manager` grants
+ * update/delete on `events` alone. Those grants are intentionally **not**
+ * collection-wide: a region manager may only write to events and regions inside
  * the region subtree they own (the regions that list them in `managers`, plus
- * every descendant via the nested-docs `breadcrumbs` trail).
+ * every descendant via the nested-docs `breadcrumbs` trail), and an event
+ * assignee only to the events naming them.
  *
  * This module narrows a role-granted write into a scoped `Where` (or a boolean
  * for single-document / create checks). It is wired into `createAccessConfig`
@@ -20,17 +22,17 @@
  * silently opt it into writable-by-subtree behavior.
  *
  * Events are scoped by their `region` relationship (not a manager field of
- * their own); the union with `manager === user` preserves the direct-owner
- * update access the document-manager fallback grants today.
+ * their own); the union with `manager === user` is what an event assignee's
+ * whole grant narrows to, since they own no region.
  */
 
 import type { ContentSlug } from './types'
-import type { PayloadRequest, Where } from 'payload'
+import type { FieldAccess, FieldAccessArgs, PayloadRequest, Where } from 'payload'
 
-import { isManager } from './adminOnly'
+import { isAdminManager, isManager } from './adminOnly'
 import { getDocManagerFields, relationId, resolveManagedDocIds } from './documentManagers'
 
-/** Collections whose writes are scoped to the Atlas manager's owned-region subtree. */
+/** Collections whose writes are scoped to the region manager's owned-region subtree. */
 const REGION_SUBTREE_COLLECTIONS = new Set<ContentSlug>(['regions', 'events'])
 
 /** True when the collection participates in region-subtree write scoping. */
@@ -112,7 +114,7 @@ export async function scopeRegionSubtreeWrite({
       if (parentId !== null) return ownedRegionIds.includes(parentId)
       return ownedRegionIds.length > 0
     }
-    // update (region delete isn't granted to atlas-manager). A re-parent must
+    // update (region delete isn't granted to a region manager). A re-parent must
     // keep the region inside the owned subtree — reject moving it under a region
     // they don't own. Applies to single and bulk updates.
     const newParentId = relationId((data as { parent?: unknown } | null)?.parent)
@@ -154,3 +156,45 @@ export async function scopeRegionSubtreeWrite({
   }
   return eventScopeWhere(ownedRegionIds, userId)
 }
+
+/**
+ * Field access for a `managers` field: whoever may write one hands out
+ * `atlas-region-manager` or `atlas-event-manager`, because the listing **is**
+ * the role. So the write is admins, plus a region manager whose own subtree
+ * holds the row — and never an event assignee, whose grant on their event
+ * would otherwise let them reassign or disown it.
+ *
+ * `regionOfRow` reads the region the row sits in: its own id for `regions`, the
+ * `region` relationship for `events`. With no row to judge — the capability
+ * call `/api/access` makes with no document — it answers whether the user owns
+ * any region at all, the same answer `scopeRegionSubtreeWrite` gives a create.
+ */
+function subtreeDelegationAccess(
+  regionOfRow: (args: FieldAccessArgs) => number | string | null | undefined,
+): FieldAccess {
+  return async (args) => {
+    const { req } = args
+    if (isAdminManager(req.user)) return true
+    if (!isManager(req.user)) return false
+
+    const ownedRegionIds = await resolveOwnedRegionIds(req, Number(req.user.id))
+    if (!ownedRegionIds.length) return false
+
+    const regionId = regionOfRow(args)
+    if (regionId === null || regionId === undefined) return true
+    return ownedRegionIds.includes(Number(regionId))
+  }
+}
+
+/** `Regions.managers` — the row is the region, so its own id is the subtree test. */
+export const regionManagersFieldAccess: FieldAccess = subtreeDelegationAccess(({ id }) => id)
+
+/**
+ * `Events.manager` — the event's region decides. Read off the stored row first:
+ * the subtree test is about where the event sits, not where a caller proposes
+ * to move it, and `scopeRegionSubtreeWrite` already refuses a move out of the
+ * subtree at the row level.
+ */
+export const eventManagerFieldAccess: FieldAccess = subtreeDelegationAccess(({ data, doc }) =>
+  relationId((doc as { region?: unknown } | undefined)?.region ?? (data as { region?: unknown } | undefined)?.region),
+)

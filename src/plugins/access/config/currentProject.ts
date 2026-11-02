@@ -1,31 +1,31 @@
+import type { VirtualRoleUser } from '../types'
+
 import type { ProjectSlug } from '@/payload-types'
 
-import { getProjectsFromRoles } from './roles'
+import { getProjectsFromRoles, virtualRoles } from './roles'
 
 /**
  * What a project decision reads off a user — `req.user` on the server, or
- * `useAuth().user` in the browser. `managedEvents` is the join `Managers`
- * declares, which both reads carry.
+ * `useAuth().user` in the browser. The joins come from {@link VirtualRoleUser},
+ * since the projects they reach are the ones their derived roles name.
  */
-export type ProjectUser = {
+export type ProjectUser = VirtualRoleUser & {
   id?: number | string
   type?: string | null
   roles?: Parameters<typeof getProjectsFromRoles>[0]
   currentProject?: ProjectSlug | null
-  managedEvents?: { docs?: unknown[] | null } | null
 }
 
 /**
- * The projects a manager may work in: their roles' projects, plus Sahaj Atlas
- * for anyone an event is assigned to — an assignee edits that event without
- * holding any role, and the Atlas home is where they find it.
+ * The projects a manager may work in: the projects of their stored roles, plus
+ * the projects of the roles their listings derive — Sahaj Atlas for anyone a
+ * region or an event is assigned to, who edits it without holding a stored
+ * role, and whose home is the Atlas one.
  */
 export function getManagerProjects(user: ProjectUser): ProjectSlug[] {
-  const projects = getProjectsFromRoles(user.roles)
-  if (user.managedEvents?.docs?.length && !projects.includes('sahaj-atlas')) {
-    projects.push('sahaj-atlas')
-  }
-  return projects
+  return [
+    ...new Set([...getProjectsFromRoles(user.roles), ...getProjectsFromRoles(virtualRoles(user))]),
+  ]
 }
 
 /**

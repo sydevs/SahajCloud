@@ -10,7 +10,7 @@
  * - Role helper functions (exported)
  */
 
-import type { ContentSlug, PermissionLevel } from '../types'
+import type { ContentSlug, PermissionLevel, VirtualRoleUser } from '../types'
 import type { CollectionSlug } from 'payload'
 
 import type { ProjectSlug } from '@/payload-types'
@@ -63,25 +63,27 @@ const ROLES = {
       albums: ['translate'] as PermissionLevel[],
     },
   },
-  'atlas-manager': {
-    label: 'Atlas Manager',
-    description: 'Can manage events and regions within their own regions for Sahaj Atlas',
+  // --- Derived manager roles (never stored) ---
+  //
+  // Both are `virtual`: nobody assigns them, `virtualRoles` resolves them from
+  // the `managedRegions` / `managedEvents` joins on every request, and the
+  // listing is therefore the only record of who holds one. Removing someone
+  // from a region or an event withdraws the role on their next request.
+  'atlas-region-manager': {
+    label: 'Atlas Region Manager',
+    description: 'Manages events and regions within their own regions for Sahaj Atlas',
     project: 'sahaj-atlas' as const,
+    virtual: true as const,
     // Read comes implicitly from project membership. These create/update/delete
     // grants are *scoped to the manager's owned-region subtree* in the access
     // layer (regionSubtreeAccess.ts) — they are NOT collection-wide despite
     // appearing here. Regions get create+update; events also get delete (trash).
-    //
-    // `users` is a RESTRICTED collection (no shared implicit read — it carries
-    // personal data), so the read a manager needs is granted explicitly:
-    // registrants show up inside an event's registrations.
     permissions: {
       regions: ['create', 'update'] as PermissionLevel[],
       events: ['create', 'update', 'delete'] as PermissionLevel[],
-      users: ['read'] as PermissionLevel[],
       // Starts a bulk class import. `imports` is restricted and declares its own
       // `access` (imports into their own regions), so this grants no read — it is what keeps
-      // the collection's admin pages visible to an atlas-manager at all, since
+      // the collection's admin pages visible to a region manager at all, since
       // the access plugin hides a collection its role cannot write.
       imports: ['create'] as PermissionLevel[],
       // Collection-wide on purpose (#821): a picker exists to list *other*
@@ -89,8 +91,21 @@ const ROLES = {
       managers: ['read'] as PermissionLevel[],
       // `user-submissions` is restricted too, so this grant is what reaches it
       // at all — and it is narrowed per row in `accessConfigs.ts`: a manager
-      // reads the contact rows addressed to them, plus proposals. It does NOT
-      // open registrations or subscriptions to them.
+      // reads the contact rows addressed to them, plus the proposals in their
+      // subtree. It does NOT open registrations or subscriptions to them.
+      'user-submissions': ['read', 'update'] as PermissionLevel[],
+    },
+  },
+  'atlas-event-manager': {
+    label: 'Atlas Event Manager',
+    description: 'Manages the Sahaj Atlas events they are assigned to',
+    project: 'sahaj-atlas' as const,
+    virtual: true as const,
+    // Scoped to the events naming them, by the `manager == user` union in
+    // regionSubtreeAccess.ts. No `users`, no `managers`, no `imports`: an
+    // assignee runs one listing and needs no roster and no bulk import.
+    permissions: {
+      events: ['update', 'delete'] as PermissionLevel[],
       'user-submissions': ['read', 'update'] as PermissionLevel[],
     },
   },
@@ -197,6 +212,16 @@ export function getPermissionsForRole(role: InternalRoleSlug) {
 }
 
 /**
+ * The human label a role is shown under.
+ *
+ * Separate from `getRoleOptions` because a derived role has a label but is
+ * never an option — the admin UI still has to name the ones a manager holds.
+ */
+export function getRoleLabel(role: InternalRoleSlug): string {
+  return ROLES[role].label
+}
+
+/**
  * Get role options filtered by allowed roles
  * @param allowedRoles - Array of role slugs to include
  * @returns Array of role options with value and label
@@ -210,8 +235,42 @@ export function getRoleOptions(allowedRoles: InternalRoleSlug[]) {
         `Invalid role slug: "${roleSlug}". Valid roles are: ${Object.keys(ROLES).join(', ')}`,
       )
     }
+    // ⚠ Offering a virtual role would write it into `roles`, where nothing
+    // reads it and nothing removes it when the listing behind it goes away.
+    // Thrown at config build, so a stray entry fails the boot rather than
+    // shipping a select whose value grants nothing.
+    if (isVirtualRole(roleSlug)) {
+      throw new Error(
+        `Role "${roleSlug}" is derived from a listing and cannot be assigned. ` +
+          'Add or remove the manager on the region or event instead.',
+      )
+    }
     return { label: roleConfig.label, value: roleSlug }
   })
+}
+
+/** True for a role nobody assigns — {@link virtualRoles} resolves it per request. */
+export function isVirtualRole(role: InternalRoleSlug): boolean {
+  return 'virtual' in ROLES[role]
+}
+
+/**
+ * The Atlas roles a manager holds by being listed, rather than by assignment.
+ *
+ * Being named on a region or an event *is* the role, so there is nothing to
+ * keep in step: the grant appears on the request after the listing is saved
+ * and is gone from the next request after it is removed.
+ *
+ * ⚠ **A join carries at most its own `limit` of rows** (Payload's default is
+ * 10), which is why this reads only whether `docs` is non-empty. It must never
+ * ask *which* regions — `resolveOwnedRegionIds` answers that from a query, and
+ * a truncated join would silently shrink a large country's subtree.
+ */
+export function virtualRoles(user: VirtualRoleUser): InternalRoleSlug[] {
+  const roles: InternalRoleSlug[] = []
+  if (user.managedRegions?.docs?.length) roles.push('atlas-region-manager')
+  if (user.managedEvents?.docs?.length) roles.push('atlas-event-manager')
+  return roles
 }
 
 /**

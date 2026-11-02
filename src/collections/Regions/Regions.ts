@@ -8,7 +8,7 @@ import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
 import { serverEnv } from '@/lib/env/server'
 import { livePreviewUrl } from '@/lib/livePreview/url'
 import { isManualMapboxId } from '@/lib/mapbox/manualLocation'
-import { ownedRegionFilterOptions } from '@/plugins/access'
+import { ownedRegionFilterOptions, regionManagersFieldAccess } from '@/plugins/access'
 
 import { requireOwnedParentOnCreate } from './hooks/requireOwnedParentOnCreate'
 import { buildRegionWebPath } from './webPath'
@@ -199,7 +199,7 @@ export const Regions: CollectionConfig = {
                     // a parent is never the same level or lower.
                     const allowed = ALLOWED_PARENT_LEVELS[args.data?.level as string]
                     if (!allowed) return false
-                    // For an atlas-manager, also restrict to their owned subtree.
+                    // For a region manager, also restrict to their owned subtree.
                     const levelFilter = { level: { in: allowed } }
                     const owned = await ownedRegionFilterOptions(args)
                     if (owned === true) return levelFilter
@@ -220,10 +220,15 @@ export const Regions: CollectionConfig = {
               // Optional: most Atlas regions have no manager on file, so
               // requiring it would block the import. Managers are assigned
               // where they exist.
+              //
+              // ⚠ Listing someone here grants them `atlas-region-manager` over
+              // this region and everything under it, so the write is itself a
+              // delegation — see `regionManagersFieldAccess`.
               name: 'managers',
               type: 'relationship',
               relationTo: 'managers',
               hasMany: true,
+              access: { update: regionManagersFieldAccess },
               admin: {
                 description: 'Managers responsible for this region.',
               },
