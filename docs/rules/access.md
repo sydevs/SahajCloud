@@ -17,7 +17,7 @@ Manager roles are **per-locale**: a manager can hold `meditations-editor` in Eng
 
 ### Two roles nobody assigns (#1068)
 
-`atlas-region-manager` and `atlas-event-manager` are `virtual: true` in `ROLES`. Nothing stores them: `virtualRoles(user)` resolves them on every request from the `managedRegions` and `managedEvents` joins `Managers` declares, and `extractRoles` appends them to the stored set. Being listed on a region, or named on an event, **is** the role — so there is nothing to keep in step, and removing the listing withdraws the grant on that manager's next request.
+`atlas-region-manager` and `atlas-event-manager` declare `virtual: { join: 'managedRegions' }` and `virtual: { join: 'managedEvents' }` in `ROLES`. Nothing stores them: `virtualRoles(user)` resolves them on every request from those joins `Managers` declares, and `extractRoles` appends them to the stored set. Being listed on a region, or named on an event, **is** the role — so there is nothing to keep in step, and removing the listing withdraws the grant on that manager's next request.
 
 This is why they replaced a stored `atlas-manager`: who manages a region was already a fact of the listing beside it, and a second record of the same fact could disagree with it. A program manager held no role at all.
 
@@ -278,5 +278,5 @@ Both public intakes' POSTs are `x-internal` for exactly this reason: neither sit
 Lookup tables compute automatically. No manual update is needed.
 
 2. Run `pnpm generate:types` to regenerate `RoleSlug`.
-3. List it in `Managers.roles`' `getRoleOptions([...])` — unless it is `virtual: true`, which `getRoleOptions` refuses. A virtual role needs a predicate in `virtualRoles` instead, and a reason the thing it reads cannot go stale.
+3. List it in `Managers.roles`' `getRoleOptions([...])` — unless it declares `virtual: { join: '<joinField>' }`, which `getRoleOptions` refuses. That join name is the whole declaration — `virtualRoles` grants the role whenever the join's `docs` are non-empty, so there is no predicate to write. What a virtual role owes instead is a reason the join cannot go stale.
 4. Add tests in `tests/int/role-based-access.int.spec.ts`.
