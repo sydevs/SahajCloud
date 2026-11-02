@@ -194,7 +194,7 @@ const ALL_PROJECT_COLLECTIONS: ContentSlug[] = (() => {
  *
  * ⚠ **This list is a holding pattern, not the permanent mechanism.** Exactly
  * six registered collections sit in no project, and all six are named here
- * — so the set is complete today and fails open the day a sixth is added. A
+ * — so the set is complete today and fails open the day a seventh is added. A
  * complete opt-out list is an inverted default in disguise: the fix is for
  * step 4a to test project membership directly, so a new collection fails
  * closed instead. Deferred, not blocked — #821 settled the question that held
