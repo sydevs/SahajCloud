@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import type { TypedAuthUser } from '@/plugins/access/types'
-import { getRoleOptions, virtualRoles } from '@/plugins/access/config'
 import { bypassPermissions } from '@/plugins/access/bypassPermissions'
+import { getRoleOptions, virtualRoles } from '@/plugins/access/config'
 import { hasPermission } from '@/plugins/access/permissions'
+import type { TypedAuthUser } from '@/plugins/access/types'
 
 /**
  * The Atlas roles are derived from the `managedRegions` / `managedEvents`

@@ -31,7 +31,7 @@ import {
 } from '@/collections/UserSubmissions/statuses'
 import type { WorkflowButtonsProps } from '@/components/admin/WorkflowButtons/stages'
 import { relationId } from '@/lib/utilities/relationId'
-import type { UserSubmission } from '@/payload-types'
+import type { Manager, UserSubmission } from '@/payload-types'
 
 import { createData, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
