@@ -9,6 +9,20 @@ export interface CascadeRule {
   collection: CollectionSlug
   /** Field on the child collection that references the parent */
   field: string
+  /**
+   * The parent's own collection, where `field` is a **polymorphic**
+   * relationship (`relationTo: [...]`).
+   *
+   * ⚠ Required there, and not optional in spirit: Payload resolves only
+   * `<field>`, `<field>.relationTo` and `<field>.value` on a `relationTo`
+   * array, and `{ [field]: { equals: id } }` matches none of them — it throws
+   * `APIError('Not supported')` when the query is built, so every parent
+   * delete would fail. Set it and the match becomes the object form Payload
+   * does resolve, against that one target's column on the rels table.
+   *
+   * Omit it for a single-target relationship, which keeps the bare form.
+   */
+  relationTo?: CollectionSlug
 }
 
 /**
@@ -54,7 +68,11 @@ export function deleteChildren(...rules: CascadeRule[]): CollectionBeforeDeleteH
     for (const rule of rules) {
       await req.payload.delete({
         collection: rule.collection,
-        where: { [rule.field]: { equals: id } },
+        where: {
+          [rule.field]: rule.relationTo
+            ? { equals: { relationTo: rule.relationTo, value: id } }
+            : { equals: id },
+        },
         trash: true,
         req,
       })

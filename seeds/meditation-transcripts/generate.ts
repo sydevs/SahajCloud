@@ -18,7 +18,7 @@ import type { TranscriptEntry } from './import'
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 
-import { normalizeLemonfoxResponse } from '@/collections/MeditationTranscripts/lemonfox'
+import { normalizeLemonfoxResponse } from '@/lib/lemonfox/normalize'
 
 const OUT_PATH = path.resolve(process.cwd(), 'seeds/meditation-transcripts/data.json')
 
