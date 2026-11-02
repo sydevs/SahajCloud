@@ -39,8 +39,10 @@ import { asTrustedReq } from '@/plugins/usage/hooks'
  * {@link buildRegionPath} with the read-time resolver, so the canonical URL and
  * the lookup cannot disagree.
  *
- * ⚠ Breadcrumbs populate on write, so a row saved before #634 has a null `url`
- * until it is next saved.
+ * ⚠ Breadcrumbs populate on write, and the rows predating `generateURL` were
+ * backfilled once (#634). A `url` still null now means a blank slug in the
+ * chain, which no resave repairs — the cascade 400s on the invalid child. See
+ * `scripts/audit-region-slugs.ts`.
  */
 export const REGION_NESTED_DOCS_CONFIG = {
   collections: ['regions'],
