@@ -383,7 +383,7 @@ export const Events: CollectionConfig = {
                 // City or venue only. For a region manager, also within their
                 // owned-region subtree.
                 const cityOrVenue = { level: { in: ['city', 'venue'] } }
-                const owned = await ownedRegionFilterOptions(args, 'region')
+                const owned = await ownedRegionFilterOptions(args, args.data?.region)
                 if (owned === true) return cityOrVenue
                 if (owned === false) return false
                 return { and: [cityOrVenue, owned] }

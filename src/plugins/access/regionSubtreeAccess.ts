@@ -65,27 +65,26 @@ export function resolveOwnedRegionIds(req: PayloadRequest, userId: number): Prom
  * active non-admin manager may only pick from their owned-region subtree; admins
  * and other users see all regions. A manager who owns no region gets no options.
  *
- * ⚠ **`keepCurrent` names the field whose stored value stays selectable, and a
- * document that can hold one owes it.** `validateFilterOptions` re-runs on
- * every save with no exemption for a value that did not change, so without it
- * two managers could not save a document they may edit: an event assignee owns
- * no region at all, and a region manager's own top region sits under a parent
- * above their subtree. Keeping the value is not permission to move it —
- * `scopeRegionSubtreeWrite` refuses an incoming region outside the subtree at
- * the row level, before any field runs.
+ * ⚠ **`keepCurrent` is the region the document already holds, and a document
+ * that can hold one owes it.** `validateFilterOptions` re-runs on every save
+ * with no exemption for a value that did not change, so without it two managers
+ * could not save a document they may edit: an event assignee owns no region at
+ * all, and a region manager's own top region sits under a parent above their
+ * subtree. It is the value the caller **posted**, not a stored one — so keeping
+ * it selectable is not permission to move it. `scopeRegionSubtreeWrite` reads
+ * the stored row and refuses a real move at the row level, before any field
+ * runs.
  */
 export async function ownedRegionFilterOptions(
-  { data, req }: { data?: unknown; req: PayloadRequest },
-  keepCurrent?: 'parent' | 'region',
+  { req }: { req: PayloadRequest },
+  keepCurrent?: unknown,
 ): Promise<Where | boolean> {
   const user = req.user
   if (!isManager(user)) {
     return true
   }
   const ownedRegionIds = await resolveOwnedRegionIds(req, Number(user.id))
-  const current = keepCurrent
-    ? relationId((data as Record<string, unknown> | null | undefined)?.[keepCurrent])
-    : null
+  const current = relationId(keepCurrent)
   const selectable =
     current !== null && !ownedRegionIds.includes(current)
       ? [...ownedRegionIds, current]
