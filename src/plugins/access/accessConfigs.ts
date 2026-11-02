@@ -96,38 +96,22 @@ function managerSubmissionScope(userId: number | string): Where {
 }
 
 /**
- * A client read of a child row, narrowed to the state of the document it hangs
- * off.
- *
- * The published-only clause above and Payload's own trash filter are both
- * **per collection**, so a child carrying neither answers for a parent that
- * refuses to be read at all. A client reads a child because it may read the
- * parent, so the row's own reach has to end where the parent's does.
- *
- * Spelled against the parent relationship rather than a resolved id list: this
- * clause is combined into the join query too (`sanitizeJoinQuery`), where a
- * second round trip per read would be paid on every parent row.
- *
- * ⚠ A row whose parent a hard delete has nulled matches neither key, so no
- * client reads an orphan.
- *
- * Exempt for a live-preview request, for the same reason the published-only
- * clause above is: a preview is a credentialed read of unpublished work.
- */
-const CLIENT_PARENT_STATE_SCOPES: Partial<Record<ContentSlug, Where>> = {}
-
-/**
  * Collections no client key may read at all, however its roles reach them.
  *
- * ⚠ **A last resort, for a child whose parent's state no `Where` can reach.**
- * `transcripts.source` is polymorphic, and Payload resolves only `source`,
- * `source.relationTo` and `source.value` on a `relationTo` array — anything
- * deeper throws `APIError('Not supported')`, so the `source._status` clause
- * that kept a draft meditation's spoken text and its R2 key off every client
- * key (#968) cannot be written. The read goes rather than the protection.
+ * ⚠ **A last resort, for a child row whose parent's state no `Where` can
+ * reach.** The published-only clause below and Payload's trash filter are both
+ * per collection, so a child carrying neither answers for a parent that refuses
+ * to be read — which handed every client key a draft meditation's full spoken
+ * text and the R2 key it plays from (#968). The fix then was a `Where` over the
+ * parent relationship; `transcripts.source` is polymorphic, and Payload
+ * resolves only `source`, `source.relationTo` and `source.value` on a
+ * `relationTo` array, throwing `APIError('Not supported')` on anything deeper.
+ * So `source._status` cannot be written at all, and the read goes rather than
+ * the protection (#1043).
  *
  * Narrower than `RESTRICTED_COLLECTIONS`, which would take a manager's implicit
- * read with it and so the admin Transcript tab (#1043).
+ * read with it and so the admin Transcript tab. `docs/rules/access.md` carries
+ * the choice between the two.
  */
 const CLIENT_UNREADABLE: ContentSlug[] = ['transcripts']
 
@@ -159,6 +143,21 @@ export function createAccessConfig(
       const hasAccess = hasPermission(args, bypassFn)
 
       if (hasAccess) {
+        // ⚠ **Above every clause that returns a `Where`, and deliberately not
+        // exempt for live preview.** Each clause below is a *grant* — narrowed,
+        // but a grant — so a refusal placed after one is skipped whenever that
+        // one matches: put this under the drafts branch and the day
+        // `transcripts` gains `versions.drafts` every client reads it again.
+        // The live-preview exemption exists to let a credentialed preview see
+        // unpublished work, which is not what this list is about.
+        if (
+          operation === 'read' &&
+          req.user?.collection === 'clients' &&
+          CLIENT_UNREADABLE.includes(collection)
+        ) {
+          return false
+        }
+
         if (
           operation === 'read' &&
           req.user?.collection === 'clients' &&
@@ -176,16 +175,6 @@ export function createAccessConfig(
           // page published in English alone returns nothing at `?locale=de`,
           // which is the point rather than a regression.
           return { _status: { equals: 'published' } }
-        }
-
-        if (
-          operation === 'read' &&
-          req.user?.collection === 'clients' &&
-          !isLivePreviewRequest(req)
-        ) {
-          if (CLIENT_UNREADABLE.includes(collection)) return false
-          const parentScope = CLIENT_PARENT_STATE_SCOPES[collection]
-          if (parentScope) return parentScope
         }
 
         // An atlas-manager's role grants create/update/delete on regions/events,
