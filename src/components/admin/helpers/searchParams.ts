@@ -5,6 +5,11 @@
  * Next hands a repeated key over as an array, so a bare `searchParams[key]`
  * is `string | string[]` and a visitor appending `?page=1&page=2` decides
  * which. Both readers take the first value and refuse anything else.
+ *
+ * ⚠ `req.searchParams` is not this query. `Root` rebuilds the request URL by
+ * `qs.stringify`-ing this same object, which spells a repeated key `page[0]`
+ * and `page[1]` — so `req.searchParams.get('page')` is null in exactly the
+ * case these two readers exist for.
  */
 type SearchParams = Record<string, string | string[] | undefined> | undefined
 
