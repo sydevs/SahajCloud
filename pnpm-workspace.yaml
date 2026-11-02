@@ -32,15 +32,13 @@ minimumReleaseAge: 0
 #
 # `happy-dom` (GHSA-834v-8h66-3h79, GHSA-c8p4-j97h-3vg8) gets no entry either.
 # Both need HTML parsed through it, and nothing shipped parses any:
-# @lexical/headless@0.50.0 declares happy-dom but touches it only in its `./dom`
-# subpath (`withDOM`), which nothing imports — richtext-lexical imports the main
-# entry, and @lexical/html names the subpath only in a dev-build error string.
-# The server bundle carries `createHeadlessEditor` and no happy-dom byte. The one
-# way in is a spec switching `@vitest-environment` to happy-dom, which vitest
-# links its own copy for; the eight that opt in all use jsdom. A fix needs 21.0.4,
+# @lexical/headless@0.50.0 touches happy-dom only in its `./dom` subpath
+# (`withDOM`), which nothing imports — richtext-lexical imports the main entry —
+# and no spec sets `@vitest-environment` to happy-dom. A fix needs 21.0.4,
 # demanded by GHSA-834v-8h66-3h79 alone — any 21.x clears the other, no 20.x does,
 # 20.14.6 being the newest (checked 2026-11-02) — so it is an override past the
-# declared `^20.9.0`, which #1066 ruled out. Do not re-derive the reachability.
+# declared `^20.9.0`, which #1066 ruled out. Call paths in #1071. Do not
+# re-derive the reachability.
 overrides:
   # Build tooling: hold vite at 7.x. @vitejs/plugin-react@4.5.2's peer is
   # `^4.2.0 || ^5.0.0 || ^6.0.0 || ^7.0.0-beta.0`, so vite 8 (latest) breaks it.
