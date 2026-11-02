@@ -3,136 +3,207 @@
  *
  * Every colour and size is a Payload variable, so the tab follows the panel's
  * own theme and elevation scale rather than inventing a second one
- * (`docs/rules/admin-ui.md`).
+ * (`docs/rules/admin-ui.md`). The two columns copy the Edit view's
+ * `document-fields` layout: a bordered main column and a sticky sidebar, which
+ * stack below Payload's own mid breakpoint.
  */
 
-.guide {
+.layout {
+  display: flex;
+  align-items: flex-start;
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
   display: grid;
-  gap: calc(var(--base) * 1.2);
-  max-width: 48rem;
+  gap: calc(var(--base) * 2);
+  padding: calc(var(--base) * 1.5) var(--gutter-h) var(--spacing-view-bottom);
+  border-right: 1px solid var(--theme-elevation-100);
 }
 
-.platforms {
-  display: flex;
+.sidebar {
+  position: sticky;
+  top: 0;
+  width: 33.33%;
+  min-width: 325px;
+  display: grid;
+  gap: var(--base);
+  justify-items: start;
+  padding: calc(var(--base) * 1.5) var(--gutter-h) var(--spacing-view-bottom);
+}
+
+@media (max-width: 1024px) {
+  .layout {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .main {
+    border-right: 0;
+    border-bottom: 1px solid var(--theme-elevation-100);
+  }
+
+  .sidebar {
+    position: static;
+    width: auto;
+    min-width: 0;
+  }
+}
+
+/* Payload's Banner carries its own bottom margin; spacing here comes from gaps. */
+.banners {
+  display: grid;
+  gap: calc(var(--base) * 0.5);
+}
+
+.banners :global(.banner) {
+  margin: 0;
+}
+
+.section {
+  display: grid;
+  gap: calc(var(--base) * 0.5);
+}
+
+.heading {
+  margin: 0 0 calc(var(--base) * 0.25);
+}
+
+/* ToggleGroup never wraps on its own, and four 120px segments overflow a phone. */
+.choice :global([role='radiogroup']) {
   flex-wrap: wrap;
-  gap: calc(var(--base) * 0.4);
+  max-width: 100%;
 }
 
-.tracks {
-  display: flex;
-  flex-wrap: wrap;
-  gap: calc(var(--base) * 0.3);
-  margin-top: calc(var(--base) * 0.5);
-}
-
-.recognise {
-  color: var(--theme-elevation-600);
-  font-size: 0.9em;
-  margin: calc(var(--base) * 0.3) 0 0;
+.choice + :global(.field-description) {
+  margin-top: 0;
 }
 
 .urlField {
-  display: grid;
-  gap: calc(var(--base) * 0.25);
-  max-width: 22rem;
+  max-width: 28rem;
 }
 
-.problem {
+.urlField .problem {
   color: var(--theme-error-500);
-  font-size: 0.9em;
 }
 
 .steps {
   display: grid;
-  gap: calc(var(--base) * 0.8);
+  gap: calc(var(--base) * 0.5);
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-.step {
-  border: 1px solid var(--theme-elevation-150);
-  border-radius: var(--style-radius-m);
-  padding: calc(var(--base) * 0.6);
+.steps :global(.collapsible) {
+  margin: 0;
 }
 
-.stepHeader {
-  align-items: baseline;
-  display: flex;
-  gap: calc(var(--base) * 0.4);
-  justify-content: space-between;
+/* Payload sizes the actions slot for one icon button; this one holds a label. */
+.steps :global(.collapsible__actions) {
+  width: auto;
 }
 
 .stepTitle {
   font-weight: 600;
-  margin: 0;
+}
+
+.statePass,
+.stateFail,
+.stateQuiet {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--base) * 0.25);
+  font-size: 0.9em;
+  white-space: nowrap;
+}
+
+.statePass {
+  color: var(--theme-success-500);
+}
+
+.stateFail {
+  color: var(--theme-error-500);
+}
+
+.stateQuiet {
+  color: var(--theme-elevation-500);
+}
+
+/* The header has no room for the quiet label beside a title on a phone. */
+@media (max-width: 768px) {
+  .stateQuiet {
+    display: none;
+  }
+}
+
+.noticeGutter {
+  padding-top: calc(var(--base) * 1.5);
 }
 
 .actions {
-  color: var(--theme-elevation-800);
-  margin: calc(var(--base) * 0.4) 0 0;
-  padding-left: calc(var(--base) * 0.9);
+  margin: 0;
+  padding-left: calc(var(--base) * 1);
 }
 
 .actions li + li {
-  margin-top: calc(var(--base) * 0.2);
+  margin-top: calc(var(--base) * 0.25);
 }
 
 .copyBlock {
-  margin-top: calc(var(--base) * 0.5);
+  display: grid;
+  gap: calc(var(--base) * 0.25);
+  margin-top: var(--base);
 }
 
 .copyHeader {
+  display: flex;
   align-items: center;
-  display: flex;
-  gap: calc(var(--base) * 0.3);
+  gap: calc(var(--base) * 0.25);
 }
 
-.copyLabel {
-  color: var(--theme-elevation-600);
-  font-size: 0.85em;
-  text-transform: uppercase;
+.copyHeader :global(.field-label) {
+  margin: 0;
 }
 
-.copyCode,
 .copyValue {
-  background: var(--theme-elevation-50);
-  border: 1px solid var(--theme-elevation-100);
-  border-radius: var(--style-radius-s);
-  margin: calc(var(--base) * 0.2) 0 0;
+  margin: 0;
   overflow-x: auto;
-  padding: calc(var(--base) * 0.4);
+  padding: calc(var(--base) * 0.5);
+  background: var(--theme-elevation-50);
+  border: 1px solid var(--theme-elevation-150);
+  border-radius: var(--style-radius-s);
   white-space: pre;
-}
-
-.copyCode {
-  font-size: 0.8em;
-  max-height: 24rem;
-  overflow-y: auto;
-}
-
-.copyValue {
-  font-size: 0.9em;
-}
-
-.statusPanel {
-  display: grid;
-  gap: calc(var(--base) * 0.3);
-}
-
-.statusRow {
-  display: flex;
-  gap: calc(var(--base) * 0.4);
-}
-
-.statusKey {
-  color: var(--theme-elevation-600);
-  min-width: 12rem;
 }
 
 .stepMessages {
   color: var(--theme-error-500);
+  margin: var(--base) 0 0;
+  padding-left: calc(var(--base) * 1);
+}
+
+.statusPanel {
+  display: grid;
+  gap: calc(var(--base) * 0.75);
+  margin: 0;
+}
+
+.statusRow {
+  display: grid;
+  gap: calc(var(--base) * 0.1);
+}
+
+.statusKey {
+  color: var(--theme-elevation-500);
   font-size: 0.9em;
-  margin: calc(var(--base) * 0.3) 0 0;
-  padding-left: calc(var(--base) * 0.9);
+}
+
+.statusRow dd {
+  margin: 0;
+}
+
+.notice {
+  margin: 0;
+  color: var(--theme-elevation-800);
 }

@@ -3,11 +3,20 @@
 import type { PlatformId, Step, TrackId } from './steps'
 import type { InstallValues } from './templates'
 
-import { Banner, Button, FieldError, Pill, TextInput } from '@payloadcms/ui'
+import {
+  Banner,
+  Button,
+  Collapsible,
+  FieldDescription,
+  FieldError,
+  TextInput,
+} from '@payloadcms/ui'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import { StatusIcon } from '@/components/admin/ReadinessField/StatusIcon'
+import { ToggleGroup } from '@/components/admin/ToggleGroupField/ToggleGroup'
 import type { EmbedMetadata } from '@/lib/clients/embedMetadata'
-import type { CanonicalVerification } from '@/lib/clients/verification'
+import { type CanonicalVerification, splitMountKey } from '@/lib/clients/verification'
 import type { Client } from '@/payload-types'
 
 import { CopyBlock } from './CopyBlock'
@@ -58,8 +67,10 @@ export interface InstallGuideProps {
   apiKey: string | null
   cmsUrl: string
   widgetUrl: string
-  /** The designated mount, when there already is one — it prefills the address. */
+  /** The designated mount key (origin + path), when there is one — it prefills the address. */
   canonicalEmbed: string | null
+  /** This service's Edit view, where its API key is generated. */
+  editUrl: string
   initialEmbedMetadata: EmbedMetadata | null
   initialVerification: CanonicalVerification | null
   /** Whether a region is set, which canonical ownership needs. */
@@ -67,13 +78,16 @@ export interface InstallGuideProps {
 }
 
 export function InstallGuide(props: InstallGuideProps): React.ReactElement {
-  const { clientId, apiKey, cmsUrl, widgetUrl } = props
+  const { clientId, apiKey, cmsUrl, widgetUrl, editUrl } = props
 
   const [platform, setPlatform] = useState<PlatformId>('wordpress')
   const [track, setTrack] = useState<TrackId>('wp-selfhosted')
-  const [atlasUrl, setAtlasUrl] = useState(() =>
-    props.canonicalEmbed ? `/${prefixFromMount(props.canonicalEmbed)}` : '/classes',
-  )
+  const [atlasUrl, setAtlasUrl] = useState(() => {
+    // `canonical.embed` is a whole `origin + pathname` key, not a path.
+    const mount = props.canonicalEmbed ? splitMountKey(props.canonicalEmbed)?.mount : null
+    return mount ? `/${prefixFromMount(mount)}` : '/classes'
+  })
+  const [canonicalEmbed, setCanonicalEmbed] = useState(props.canonicalEmbed)
   const [embedMetadata, setEmbedMetadata] = useState(props.initialEmbedMetadata)
   const [verification, setVerification] = useState(props.initialVerification)
   const [busy, setBusy] = useState(false)
@@ -136,6 +150,7 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
         lastRead.current = text
         setEmbedMetadata((body.embedMetadata ?? null) as EmbedMetadata | null)
         setVerification((body.canonical?.verification ?? null) as CanonicalVerification | null)
+        setCanonicalEmbed(body.canonical?.embed ?? null)
       }
       return body
     } catch {
@@ -201,101 +216,130 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
     if (!candidate || busy) return
     if (confirmedFor.current === candidate.key) return
     confirmedFor.current = candidate.key
+    // Already claimed and confirmed at this mount: opening the tab again must
+    // not re-run a browser verification. "Check again" still forces one.
+    const verified = verification?.verified
+    if (
+      canonicalEmbed === candidate.key &&
+      verified?.domain === candidate.host &&
+      verified.mount === candidate.mount
+    ) {
+      return
+    }
     void confirm(candidate.key)
-  }, [model.candidate, busy, confirm])
+  }, [model.candidate, busy, confirm, canonicalEmbed, verification])
 
   const choosePlatform = (next: PlatformId) => {
     setPlatform(next)
     setTrack(TRACKS_BY_PLATFORM[next][0])
   }
 
+  const tracksHere = TRACKS_BY_PLATFORM[platform]
+
   return (
-    <div className={styles.guide}>
-      <Banner type={bannerType(model.stage)}>{STAGE_MESSAGES[model.stage]}</Banner>
-
-      {notice ? <Banner type="default">{notice}</Banner> : null}
-
-      {apiKey === null ? (
-        <Banner type="error">
-          This service has no API key yet. Generate one on the Access tab first — every value below
-          needs it.
-        </Banner>
-      ) : null}
-
-      <section>
-        <h3>1. What kind of site is it?</h3>
-        <div className={styles.platforms}>
-          {(Object.keys(PLATFORM_LABELS) as PlatformId[]).map((id) => (
-            <Pill
-              key={id}
-              onClick={() => choosePlatform(id)}
-              pillStyle={platform === id ? 'always-white' : 'light'}
-            >
-              {PLATFORM_LABELS[id]}
-            </Pill>
-          ))}
+    <div className={styles.layout}>
+      <div className={styles.main}>
+        <div className={styles.banners}>
+          <Banner type={bannerType(model.stage)}>{STAGE_MESSAGES[model.stage]}</Banner>
+          {apiKey === null ? (
+            <Banner type="error">
+              This service has no API key yet. <a href={editUrl}>Generate one on the Edit tab</a>{' '}
+              first — every value below needs it.
+            </Banner>
+          ) : null}
         </div>
-        <p className={styles.recognise}>{PLATFORM_RECOGNISE[platform]}</p>
 
-        {TRACKS_BY_PLATFORM[platform].length > 1 ? (
-          <div className={styles.tracks}>
-            {TRACKS_BY_PLATFORM[platform].map((id) => (
-              <Pill
-                key={id}
-                onClick={() => setTrack(id)}
-                pillStyle={track === id ? 'always-white' : 'light'}
-              >
-                {tracks[id].label}
-              </Pill>
-            ))}
+        <section className={styles.section}>
+          <h3 className={styles.heading}>1. What kind of site is it?</h3>
+          <div className={styles.choice}>
+            <ToggleGroup
+              aria-label="What kind of site is it?"
+              onChange={(next) => choosePlatform(next as PlatformId)}
+              options={(Object.keys(PLATFORM_LABELS) as PlatformId[]).map((id) => ({
+                label: PLATFORM_LABELS[id],
+                value: id,
+              }))}
+              value={platform}
+            />
           </div>
-        ) : null}
-        <p className={styles.recognise}>{activeTrack.recognise}</p>
+          <FieldDescription description={PLATFORM_RECOGNISE[platform]} path="platform" />
 
-        {hints.map((hint) => (
-          <Banner key={hint.message} type="error">
-            {hint.message}
-            {hint.offerIframe ? (
-              <>
-                {' '}
-                <Button buttonStyle="none" onClick={() => choosePlatform('iframe')}>
-                  Switch to the iframe track
-                </Button>
-              </>
-            ) : null}
-          </Banner>
-        ))}
+          {tracksHere.length > 1 ? (
+            <div className={styles.choice}>
+              <ToggleGroup
+                aria-label="Which version?"
+                onChange={(next) => setTrack(next as TrackId)}
+                options={tracksHere.map((id) => ({ label: tracks[id].label, value: id }))}
+                value={track}
+              />
+            </div>
+          ) : null}
+          <FieldDescription description={activeTrack.recognise} path="track" />
 
-        {activeTrack.caveat ? <Banner type="default">{activeTrack.caveat}</Banner> : null}
-      </section>
+          {hints.length > 0 || activeTrack.caveat ? (
+            <div className={styles.banners}>
+              {hints.map((hint) => (
+                <Banner key={hint.message} type="error">
+                  {hint.message}
+                  {hint.offerIframe ? (
+                    <>
+                      {' '}
+                      <Button buttonStyle="none" onClick={() => choosePlatform('iframe')}>
+                        Switch to the iframe track
+                      </Button>
+                    </>
+                  ) : null}
+                </Banner>
+              ))}
+              {activeTrack.caveat ? <Banner type="info">{activeTrack.caveat}</Banner> : null}
+            </div>
+          ) : null}
+        </section>
 
-      <section>
-        <h3>2. Where should the atlas live?</h3>
-        <div className={styles.urlField}>
-          <TextInput
-            Error={problem ? <FieldError message={problem} showError /> : undefined}
-            label="Atlas address"
-            onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-              setAtlasUrl(event.target.value)
-            }
-            path="atlasUrl"
-            showError={Boolean(problem)}
-            value={atlasUrl}
-          />
-        </div>
-      </section>
+        <section className={styles.section}>
+          <h3 className={styles.heading}>2. Where should the atlas live?</h3>
+          <div className={styles.urlField}>
+            <TextInput
+              // Payload's error tooltip truncates a sentence, so the whole
+              // message goes in the description and the tooltip stays short.
+              Description={
+                <FieldDescription
+                  className={problem ? styles.problem : undefined}
+                  description={
+                    problem ?? 'The page on your site that will show the atlas, such as /classes.'
+                  }
+                  path="atlasUrl"
+                />
+              }
+              Error={problem ? <FieldError message="Check this address" showError /> : undefined}
+              label="Atlas address"
+              onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+                setAtlasUrl(event.target.value)
+              }
+              path="atlasUrl"
+              showError={Boolean(problem)}
+              value={atlasUrl}
+            />
+          </div>
+        </section>
 
-      <section>
-        <h3>3. Do these, in order</h3>
-        <ol className={styles.steps}>
-          {activeTrack.steps.map((step) => (
-            <StepCard key={step.id} status={model.stepStatus[step.id]} step={step} />
-          ))}
-        </ol>
-      </section>
+        <section className={styles.section}>
+          <h3 className={styles.heading}>3. Do these, in order</h3>
+          <ol className={styles.steps}>
+            {activeTrack.steps.map((step, index) => (
+              <StepCard
+                key={step.id}
+                number={index + 1}
+                status={model.stepStatus[step.id]}
+                step={step}
+              />
+            ))}
+          </ol>
+        </section>
+      </div>
 
-      <section>
-        <h3>Where this install stands</h3>
+      <aside className={styles.sidebar}>
+        <h3 className={styles.heading}>Where this install stands</h3>
         <dl className={styles.statusPanel}>
           <Row label="The atlas has been seen at">
             {model.reported.length === 0
@@ -313,7 +357,7 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
               : 'one address with ?atlas= on the end'}
           </Row>
           <Row label="Owns its region’s addresses">
-            {props.canonicalEmbed ? 'yes' : props.hasRegion ? 'not yet' : 'no region set'}
+            {canonicalEmbed ? 'yes' : props.hasRegion ? 'not yet' : 'no region set'}
           </Row>
           <Row label="What search engines can read">
             {verification?.seo
@@ -323,10 +367,11 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
               : 'not checked yet'}
           </Row>
         </dl>
-        <Button disabled={busy} onClick={() => void recheck()}>
+        {notice ? <p className={styles.notice}>{notice}</p> : null}
+        <Button buttonStyle="secondary" disabled={busy} onClick={() => void recheck()}>
           {busy ? 'Checking…' : 'Check again'}
         </Button>
-      </section>
+      </aside>
     </div>
   )
 
@@ -369,39 +414,62 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 }
 
 /** One step, its instructions, its snippets, and what the checks say about it. */
-function StepCard({ step, status }: { step: Step; status?: StepStatus }): React.ReactElement {
+function StepCard({
+  number,
+  step,
+  status,
+}: {
+  number: number
+  step: Step
+  status?: StepStatus
+}): React.ReactElement {
+  const failed = status?.state === 'fail'
   return (
-    <li className={styles.step} data-step={step.id}>
-      <div className={styles.stepHeader}>
-        <p className={styles.stepTitle}>{step.title}</p>
-        {status && status.state !== 'unknown' ? (
-          <Pill pillStyle={status.state === 'pass' ? 'success' : 'error'}>
-            {status.state === 'pass' ? 'Confirmed' : 'Redo this step'}
-          </Pill>
-        ) : step.unobservable ? (
-          <Pill pillStyle="light">Nothing to check</Pill>
-        ) : null}
-      </div>
-
-      <ol className={styles.actions}>
-        {step.actions.map((action) => (
-          <li key={action}>{action}</li>
-        ))}
-      </ol>
-
-      {(step.snippets ?? []).map((snippet) => (
-        <CopyBlock key={snippet.label} snippet={snippet} />
-      ))}
-
-      {status && status.messages.length > 0 && status.state === 'fail' ? (
-        <ul className={styles.stepMessages}>
-          {status.messages.map((message) => (
-            <li key={message}>{message}</li>
+    <li data-step={step.id}>
+      <Collapsible
+        actions={<StepState status={status} unobservable={step.unobservable} />}
+        collapsibleStyle={failed ? 'error' : 'default'}
+        header={
+          <span className={styles.stepTitle}>
+            {number}. {step.title}
+          </span>
+        }
+        initCollapsed={status?.state === 'pass'}
+      >
+        <ol className={styles.actions}>
+          {step.actions.map((action) => (
+            <li key={action}>{action}</li>
           ))}
-        </ul>
-      ) : null}
+        </ol>
+
+        {(step.snippets ?? []).map((snippet) => (
+          <CopyBlock key={snippet.label} snippet={snippet} />
+        ))}
+
+        {failed && status.messages.length > 0 ? (
+          <ul className={styles.stepMessages}>
+            {status.messages.map((message) => (
+              <li key={message}>{message}</li>
+            ))}
+          </ul>
+        ) : null}
+      </Collapsible>
     </li>
   )
+}
+
+/** The step's check result, quiet unless there is one. */
+function StepState({ status, unobservable }: { status?: StepStatus; unobservable?: boolean }) {
+  if (status && status.state !== 'unknown') {
+    const passed = status.state === 'pass'
+    return (
+      <span className={passed ? styles.statePass : styles.stateFail}>
+        <StatusIcon passed={passed} />
+        {passed ? 'Confirmed' : 'Redo this step'}
+      </span>
+    )
+  }
+  return unobservable ? <span className={styles.stateQuiet}>Not checked automatically</span> : null
 }
 
 export default InstallGuide

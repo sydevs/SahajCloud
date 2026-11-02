@@ -313,10 +313,10 @@ export const Clients: CollectionConfig = {
            * is not the gate here. `InstallView` re-reads the row with
            * `overrideAccess: false` anyway, because it reveals the API key.
            *
-           * The tab is offered only to a service that holds the atlas role:
-           * nothing here means anything to a service that does not embed the
-           * widget, and `condition` is handed `req` rather than the document, so
-           * the role is read off the row it loads itself.
+           * The tab shows on every service: a tab `condition` is handed `req`,
+           * never the document, so it cannot read the row's roles. `InstallView`
+           * reads them off the row it loads and shows a notice instead of the
+           * guide to a service without the atlas role.
            */
           install: {
             Component: '@/components/admin/InstallGuide',

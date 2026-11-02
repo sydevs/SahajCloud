@@ -19,11 +19,17 @@ import { act, createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const copied = vi.hoisted(() => ({ values: [] as string[] }))
+const copied = vi.hoisted(() => ({ values: [] as string[], shown: [] as string[] }))
 vi.mock('@payloadcms/ui', () => ({
   CopyToClipboard: ({ value }: { value: string }) => {
     copied.values.push(value)
     return createElement('button', { type: 'button' }, 'Copy')
+  },
+  // Monaco cannot boot in jsdom; what matters is the `value` it is handed,
+  // which Payload's editor renders verbatim.
+  CodeEditor: ({ value }: { value: string }) => {
+    copied.shown.push(value)
+    return createElement('div', { 'data-editor': true })
   },
 }))
 
@@ -41,8 +47,12 @@ const VALUES = {
 let container: HTMLElement
 let root: Root
 
+// The string a volunteer sees: the `<pre>` for a value, the editor's for code.
+const shownValue = () => container.querySelector('pre')?.textContent ?? copied.shown.at(-1)
+
 beforeEach(() => {
   copied.values = []
+  copied.shown = []
   container = document.createElement('div')
   document.body.appendChild(container)
   root = createRoot(container)
@@ -67,7 +77,7 @@ describe('CopyBlock', () => {
   it('renders the same string it offers to copy', () => {
     const value = 'line one\n  indented\nline three'
     render({ label: 'Page code', value, kind: 'javascript' })
-    expect(container.querySelector('pre')?.textContent).toBe(value)
+    expect(shownValue()).toBe(value)
     expect(copied.values[0]).toBe(value)
   })
 
@@ -93,9 +103,10 @@ describe('every snippet on every track', () => {
 
     for (const snippet of snippets) {
       copied.values = []
+      copied.shown = []
       render(snippet)
       expect(copied.values, snippet.label).toEqual([snippet.value])
-      expect(container.querySelector('pre')?.textContent, snippet.label).toBe(snippet.value)
+      expect(shownValue(), snippet.label).toBe(snippet.value)
     }
   })
 })

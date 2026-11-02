@@ -1,8 +1,9 @@
 import type { DocumentViewServerProps } from 'payload'
 
-import { Gutter } from '@payloadcms/ui'
+import { Gutter, SetDocumentStepNav } from '@payloadcms/ui'
 import { combineQueries } from 'payload'
 import { executeAccess } from 'payload'
+import { formatAdminURL } from 'payload/shared'
 import React from 'react'
 
 import type { EmbedMetadata } from '@/lib/clients/embedMetadata'
@@ -13,6 +14,7 @@ import type { Client } from '@/payload-types'
 
 import { CenteredNotice } from '../CenteredNotice'
 import { InstallGuide } from './InstallGuide'
+import styles from './InstallGuide.module.css'
 
 /**
  * The Install tab's server half (#1055).
@@ -53,13 +55,27 @@ export default async function InstallView(
   const { req } = initPageResult
   const clientId = Number(doc?.id ?? initPageResult.docID)
 
+  // Payload's own document views each set the breadcrumb; a custom one has to.
+  const stepNav = (
+    <SetDocumentStepNav
+      collectionSlug="clients"
+      id={Number.isInteger(clientId) ? clientId : undefined}
+      pluralLabel="Services"
+      useAsTitle="name"
+      view="Install"
+    />
+  )
+  const notice = (title: string, body: string) => (
+    <Gutter className={styles.noticeGutter}>
+      {stepNav}
+      <CenteredNotice title={title}>{body}</CenteredNotice>
+    </Gutter>
+  )
+
   if (!Number.isInteger(clientId)) {
-    return (
-      <Gutter>
-        <CenteredNotice title="Not yet">
-          Save this service first. There is nothing to install until it has a key.
-        </CenteredNotice>
-      </Gutter>
+    return notice(
+      'Not yet',
+      'Save this service first. There is nothing to install until it has a key.',
     )
   }
 
@@ -75,23 +91,31 @@ export default async function InstallView(
       req,
     })
   } catch {
-    return (
-      <Gutter>
-        <CenteredNotice title="Not available">
-          You do not manage this service, so its install details are not shown.
-        </CenteredNotice>
-      </Gutter>
+    return notice(
+      'Not available',
+      'You do not manage this service, so its install details are not shown.',
+    )
+  }
+
+  if (!client.roles?.includes('sahaj-atlas-client')) {
+    return notice(
+      'No atlas to install',
+      'This service does not use the Sahaj Atlas. Add the Sahaj Atlas role under Edit → Access first.',
     )
   }
 
   return (
-    <Gutter>
-      <h2>Install the atlas on {client.name}’s site</h2>
+    <>
+      {stepNav}
       <InstallGuide
         apiKey={await revealApiKey(props, clientId)}
         canonicalEmbed={client.canonical?.embed ?? null}
         clientId={clientId}
         cmsUrl={getServerUrl()}
+        editUrl={formatAdminURL({
+          adminRoute: req.payload.config.routes.admin,
+          path: `/collections/clients/${clientId}`,
+        })}
         hasRegion={Boolean(client.region)}
         initialEmbedMetadata={(client.embedMetadata ?? null) as EmbedMetadata | null}
         initialVerification={
@@ -99,7 +123,7 @@ export default async function InstallView(
         }
         widgetUrl={serverEnv.SAHAJATLAS_URL}
       />
-    </Gutter>
+    </>
   )
 }
 

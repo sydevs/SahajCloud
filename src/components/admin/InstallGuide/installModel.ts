@@ -130,8 +130,10 @@ export function buildInstallModel(args: {
     }
   }
 
+  // No message: a step's messages render only as its failure list, so a
+  // waiting note would show up there in red beside a real failure.
   if (candidate === null) {
-    note(track.checks.noReport, 'unknown', 'Waiting for the atlas to report itself from this page.')
+    note(track.checks.noReport, 'unknown')
   } else {
     note(track.checks.noReport, 'pass')
   }
@@ -167,7 +169,7 @@ export function buildInstallModel(args: {
 /** One sentence for the banner, per stage. */
 export const STAGE_MESSAGES: Record<InstallStage, string> = {
   waiting:
-    'Follow the steps below. This page checks by itself as soon as the atlas appears on your site — there is nothing to click.',
+    'Follow the steps below. This page checks by itself as soon as the atlas appears on your site, so you can leave it open while you work.',
   seen: 'Your atlas is showing on your site. Confirming it now.',
   verifying: 'Checking your site…',
   verified: 'Your atlas is live, and search engines can read your class pages.',

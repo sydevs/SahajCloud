@@ -189,6 +189,10 @@ describe('buildInstallModel — what each step says', () => {
     expect(model.stepStatus[TRACK.checks.noReport]?.state).toBe('unknown')
   })
 
+  it('gives an unresolved step no message, so none can join a failure list', () => {
+    expect(build(null, false).stepStatus[TRACK.checks.noReport]?.messages).toEqual([])
+  })
+
   it('confirms the report step as soon as something does', () => {
     expect(build(null).stepStatus[TRACK.checks.noReport]?.state).toBe('pass')
   })
