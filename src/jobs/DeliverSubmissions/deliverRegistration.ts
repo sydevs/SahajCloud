@@ -1,12 +1,14 @@
 import type { DeliveryContext, DeliveryOutcome } from './types'
 
-import { answersFrom, readSubmissionValue } from '@/collections/UserSubmissions/submissionData'
+import {
+  readSubmissionValue,
+  registrationAnswers,
+} from '@/collections/UserSubmissions/submissionData'
 import type { LocaleCode } from '@/lib/locales'
 import { resolveRegistrationRecipient } from '@/lib/notifications/registrationRecipient'
 import type { EmailClient } from '@/lib/notifications/sendRegistrationConfirmation'
 import { sendRegistrationConfirmation } from '@/lib/notifications/sendRegistrationConfirmation'
 import { sendRegistrationNotification } from '@/lib/notifications/sendRegistrationNotification'
-import { buildRegistrationAnswers } from '@/lib/registrations/questions'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Event } from '@/payload-types'
 import { asTrustedReq } from '@/plugins/usage/hooks'
@@ -127,8 +129,8 @@ async function notifyManager(args: {
       registrantName,
       registrantEmail,
       startingAt: submission.startingAt,
-      timeZone: submission.startingAt_tz || event.schedule?.firstDate_tz,
-      answers: buildRegistrationAnswers(answersFrom(submission.submissionData)),
+      timeZone: submission.startingAt_tz || event.schedule?.firstDate_tz || 'UTC',
+      answers: registrationAnswers(submission.submissionData),
     })
   } catch (error) {
     req.payload.logger.error({

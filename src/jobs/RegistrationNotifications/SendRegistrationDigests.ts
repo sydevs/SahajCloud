@@ -2,13 +2,15 @@ import type { Payload, PayloadRequest, TaskConfig } from 'payload'
 
 import * as Sentry from '@sentry/nextjs'
 
-import { answersFrom, readSubmissionValue } from '@/collections/UserSubmissions/submissionData'
+import {
+  readSubmissionValue,
+  registrationAnswers,
+} from '@/collections/UserSubmissions/submissionData'
 import type { DigestEventGroup, DigestPeriod } from '@/emails/RegistrationDigestEmail'
 import type { RegistrationRecipient } from '@/lib/notifications'
 import { formatShortDate, resolveRegistrationRecipient } from '@/lib/notifications'
 import { activeRegistrationWhere } from '@/lib/registrations/active'
 import type { RegistrationAnswer } from '@/lib/registrations/questions'
-import { buildRegistrationAnswers } from '@/lib/registrations/questions'
 import { adminDocUrl } from '@/lib/utilities/adminUrl'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Event, Manager } from '@/payload-types'
@@ -43,11 +45,8 @@ interface DigestRow {
   email: string
   name: string | null
   startingAt?: string | null
-  /**
-   * The zone `startingAt` reads in: the registration's own, else the event's.
-   * Nullable, because both of those columns are — see `formatDate`.
-   */
-  timeZone?: string | null
+  /** The zone `startingAt` reads in: the registration's own, else the event's. */
+  timeZone?: string
   answers: RegistrationAnswer[]
 }
 
@@ -167,8 +166,8 @@ async function digestForManager(args: {
       depth: 0,
       limit: PAGINATION_LIMIT,
       page,
-      // No `questions` column here — the answers are `submissionData` pairs, and
-      // `answersFrom` maps them into the shape `buildRegistrationAnswers` wants.
+      // No `questions` column here — the answers are `submissionData` pairs,
+      // which `registrationAnswers` reads.
       select: {
         event: true,
         senderEmail: true,
@@ -190,8 +189,9 @@ async function digestForManager(args: {
         email: registration.senderEmail?.trim() ?? '',
         name: readSubmissionValue(registration.submissionData, 'name') ?? null,
         startingAt: registration.startingAt ?? null,
-        timeZone: registration.startingAt_tz || eventById.get(eventId)?.schedule?.firstDate_tz,
-        answers: buildRegistrationAnswers(answersFrom(registration.submissionData)),
+        timeZone:
+          registration.startingAt_tz || eventById.get(eventId)?.schedule?.firstDate_tz || 'UTC',
+        answers: registrationAnswers(registration.submissionData),
       })
     }
     hasNextPage = batch.hasNextPage

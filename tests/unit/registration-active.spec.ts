@@ -80,16 +80,10 @@ describe('withdrawnRegistrationWhere', () => {
    * The Registrations tab offers these two filters and nothing else, so a
    * status in neither would be a row no manager could ever reach.
    */
-  it('selects every status the active query drops, and no other', () => {
-    const active = activeRegistrationWhere.status as { not_in: string[] }
-    const withdrawn = withdrawnRegistrationWhere.status as { in: string[] }
-
-    for (const status of STATUSES) {
-      expect({ status, withdrawn: withdrawn.in.includes(status) }).toEqual({
-        status,
-        withdrawn: active.not_in.includes(status),
-      })
-    }
+  it('selects exactly the statuses the active query drops', () => {
+    expect((withdrawnRegistrationWhere.status as { in: string[] }).in).toEqual(
+      (activeRegistrationWhere.status as { not_in: string[] }).not_in,
+    )
   })
 
   it('selects only registrations', () => {

@@ -2,7 +2,12 @@ import { z } from 'zod'
 
 import { checkEmailAllowed, checkNoUrls } from '@/lib/antiSpam/antiSpamGuard'
 import type { AntiSpamCode, AntiSpamResult } from '@/lib/antiSpam/antiSpamGuard'
-import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
+import type { RegistrationAnswer } from '@/lib/registrations/questions'
+import {
+  buildRegistrationAnswers,
+  EVENT_REGISTRATION_QUESTIONS,
+  REGISTRATION_QUESTION_NAMES,
+} from '@/lib/registrations/questions'
 import { CLIENT_CONTEXT_KEYS } from '@/lib/submissions/clientContext'
 import type { Form, UserSubmission } from '@/payload-types'
 
@@ -358,27 +363,30 @@ export function readSubmissionValue(entries: unknown, key: string): string | und
 }
 
 /**
- * A registrant's answers, as the `{ [name]: value }` map
- * `buildRegistrationAnswers` labels.
+ * Every key a registration row may carry that is **not** an answer.
  *
- * It keeps every other key rather than filtering to the configured question
- * names, because that function already sorts configured answers from extras and
- * labels each appropriately — restating the list here would give it two
- * definitions.
- *
- * ⚠ **`BASE_SUBMISSION_KEYS` are dropped, and that is the whole reason this is
- * not an `Object.fromEntries`.** They are who sent it and from where, never an
- * answer, and an unconfigured key is labelled by the key itself — so leaving
- * them in renders `userAgent: Mozilla/5.0 …` and the registrant's own `name` to
- * a manager as things the visitor was asked.
+ * ⚠ **Derived from the two declarations above, never listed.**
+ * `buildRegistrationAnswers` labels any key it does not recognise by the key
+ * itself, so every reserved key left in reaches a manager as something the
+ * visitor was asked — `userAgent: Mozilla/5.0 …`, the registrant's own `name`,
+ * or `subscribe: Yes`. Deriving it means a reserved key added to either
+ * declaration is excluded the day it is declared, rather than the day someone
+ * remembers this list. What survives is a configured question, or a legacy key
+ * the Atlas dump carried, which is the only thing the extras branch is for.
  */
-export function answersFrom(entries: unknown): Record<string, unknown> {
-  if (!Array.isArray(entries)) return {}
+const NON_ANSWER_KEYS: ReadonlySet<string> = new Set(
+  [...BASE_SUBMISSION_KEYS, ...TYPE_SUBMISSION_KEYS.registration].filter(
+    (key) => !REGISTRATION_QUESTION_NAMES.has(key),
+  ),
+)
+
+/** A registrant's answers to the event's questions, labelled for display. */
+export function registrationAnswers(entries: unknown): RegistrationAnswer[] {
+  if (!Array.isArray(entries)) return []
   const answers: Record<string, unknown> = {}
   for (const entry of entries as SubmissionDataEntry[]) {
-    if (typeof entry?.field !== 'string') continue
-    if ((BASE_SUBMISSION_KEYS as readonly string[]).includes(entry.field)) continue
+    if (typeof entry?.field !== 'string' || NON_ANSWER_KEYS.has(entry.field)) continue
     answers[entry.field] = entry.value
   }
-  return answers
+  return buildRegistrationAnswers(answers)
 }

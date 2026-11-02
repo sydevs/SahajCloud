@@ -30,11 +30,8 @@ export async function sendRegistrationNotification(args: {
   registrantEmail: string
   /** Start of the session the registrant chose (ISO), when supplied. */
   startingAt?: string | null
-  /**
-   * The zone `startingAt` reads in: the registration's own, else the event's.
-   * Nullable, because both of those columns are — see `formatDate`.
-   */
-  timeZone?: string | null
+  /** The zone `startingAt` reads in: the registration's own, else the event's. */
+  timeZone?: string
   /** The registrant's answers to the event's registration questions. */
   answers?: { label: string; value: string }[]
 }): Promise<void> {

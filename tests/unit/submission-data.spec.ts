@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 
 import type { AuthoredBlock } from '@/collections/UserSubmissions/submissionData'
 import {
-  answersFrom,
   authoredBlocks,
   BASE_SUBMISSION_KEYS,
   checkSubmissionData,
@@ -10,8 +9,11 @@ import {
   MAX_SUBMISSION_DATA_ENTRIES,
   MAX_SUBMISSION_DATA_KEY_LENGTH,
   readSubmissionValue,
+  registrationAnswers,
+  TYPE_SUBMISSION_KEYS,
   VALUE_MAX_LENGTHS,
 } from '@/collections/UserSubmissions/submissionData'
+import { REGISTRATION_QUESTION_NAMES } from '@/lib/registrations/questions'
 import type { Form } from '@/payload-types'
 
 /**
@@ -320,32 +322,43 @@ describe('readSubmissionValue', () => {
   })
 })
 
-describe('answersFrom', () => {
-  it('keeps every question answer, configured or not', () => {
+describe('registrationAnswers', () => {
+  it('labels a configured question, and a legacy key by itself', () => {
     expect(
-      answersFrom([
+      registrationAnswers([
         { field: 'referral', value: 'A friend' },
         { field: 'mystery', value: 'legacy answer' },
-        { field: 'subscribe', value: 'true' },
       ]),
-    ).toEqual({ referral: 'A friend', mystery: 'legacy answer', subscribe: 'true' })
+    ).toEqual([
+      { label: 'How did you hear about this event?', value: 'A friend' },
+      { label: 'mystery', value: 'legacy answer' },
+    ])
   })
 
   /**
-   * `buildRegistrationAnswers` labels an unconfigured key by the key itself, so
-   * a context pair left in renders to a manager as something the visitor was
-   * asked — `userAgent: Mozilla/5.0 …` beside their referral.
+   * An unrecognised key is labelled by the key itself, so every reserved key
+   * left in reaches a manager as something the visitor was asked —
+   * `userAgent: Mozilla/5.0 …`, their own name, or `subscribe: Yes`.
+   *
+   * It loops both declarations rather than naming keys, so a reserved key added
+   * to either has to be excluded for this to stay green.
    */
-  it('drops what the client wrote about itself, and the name shown in its own column', () => {
-    const entries = BASE_SUBMISSION_KEYS.map((field) => ({ field, value: `${field} value` }))
+  it('drops every reserved key, not only the ones a list remembered', () => {
+    const reserved = [...BASE_SUBMISSION_KEYS, ...TYPE_SUBMISSION_KEYS.registration].filter(
+      (key) => !REGISTRATION_QUESTION_NAMES.has(key),
+    )
+    expect(reserved).toContain('subscribe')
+    expect(reserved).toContain('userAgent')
+    expect(reserved).toContain('name')
 
-    expect(answersFrom([...entries, { field: 'aspirations', value: 'Calm' }])).toEqual({
-      aspirations: 'Calm',
-    })
+    const entries = reserved.map((field) => ({ field, value: `${field} value` }))
+    expect(registrationAnswers([...entries, { field: 'aspirations', value: 'Calm' }])).toEqual([
+      { label: 'What are you hoping to get out of this?', value: 'Calm' },
+    ])
   })
 
   it('reads nothing out of a blob that is not an array of pairs', () => {
-    expect(answersFrom(undefined)).toEqual({})
-    expect(answersFrom([{ value: 'no field' }])).toEqual({})
+    expect(registrationAnswers(undefined)).toEqual([])
+    expect(registrationAnswers([{ value: 'no field' }])).toEqual([])
   })
 })
