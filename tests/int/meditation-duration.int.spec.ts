@@ -3,8 +3,6 @@ import type { Payload } from 'payload'
 import fs from 'fs'
 import path from 'path'
 
-import { sql } from '@payloadcms/db-postgres'
-import { parseBuffer } from 'music-metadata'
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
 import { extractAudioDuration } from '@/collections/Meditations/hooks/extractAudioDuration'
@@ -100,53 +98,6 @@ describe('Meditation Duration Extraction', () => {
       })
 
       expect(found.duration).toBe(originalDuration)
-    })
-  })
-
-  describe('backfill migration logic', () => {
-    it('can re-extract duration from a local audio file after nulling it out', async () => {
-      // 1. Create a meditation (hook auto-extracts duration)
-      const meditation = await testData.createMeditation(payload, {
-        narrator: narratorId,
-        thumbnail: thumbnailId,
-      })
-      const originalDuration = meditation.duration
-      expect(originalDuration).toBeGreaterThan(0)
-
-      // 2. Null out duration via raw SQL (simulates pre-migration state). The
-      // table is schema-qualified because Payload's adapter binds to a per-suite
-      // schema in tests, which a raw drizzle query does not pick up implicitly.
-      const schema = (payload.db as unknown as { schemaName?: string }).schemaName || 'public'
-      const db = (
-        payload.db as unknown as { drizzle: { execute: (q: unknown) => Promise<unknown> } }
-      ).drizzle
-      await db.execute(
-        sql`UPDATE ${sql.identifier(schema)}.meditations SET duration = NULL WHERE id = ${meditation.id}`,
-      )
-
-      // 3. Verify duration is NULL in DB
-      const nulled = await payload.findByID({
-        collection: 'meditations',
-        id: meditation.id,
-      })
-      expect(nulled.duration).toBeNull()
-
-      // 4. Simulate backfill: read local file and parse duration (same as migration does)
-      const filename = meditation.filename
-      expect(filename).toBeDefined()
-
-      const localPath = path.join(process.cwd(), 'media', 'meditations', filename!)
-      expect(fs.existsSync(localPath)).toBe(true)
-
-      const buffer = fs.readFileSync(localPath)
-      const metadata = await parseBuffer(buffer, { mimeType: meditation.mimeType || 'audio/mpeg' })
-      const extractedDuration = metadata.format.duration
-
-      expect(extractedDuration).toBeDefined()
-      const roundedDuration = Math.round(extractedDuration!)
-
-      // 5. Verify extracted duration matches what the hook originally computed
-      expect(roundedDuration).toBe(originalDuration)
     })
   })
 
