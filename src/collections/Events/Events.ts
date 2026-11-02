@@ -44,6 +44,7 @@ import { getLanguageOptions } from '@/lib/locales'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
 import {
   adminOnlyCondition,
+  isAdminManager,
   managersOnlyFieldAccess,
   ownedRegionFilterOptions,
 } from '@/plugins/access'
@@ -565,19 +566,21 @@ export const Events: CollectionConfig = {
               // Deliberately the bare type, not `activeRegistrationWhere`: a
               // manager needs to see the row they flagged `spam`.
               //
-              // Admin-only, because `user-submissions` is restricted and no
-              // manager role reads it — the join renders empty for every one
-              // of them, and its drawer is what an admin opens a row from.
-              // A manager reads their own event's signups on the Registrations
-              // tab instead (#1069).
+              // ⚠ The condition hides the field; it does not stop the read.
+              // `user-submissions` is restricted and no manager role reads it,
+              // so this rendered empty for every manager — the drawer it opens
+              // is an admin's way into a row, and a manager reads their own
+              // event's signups on the Registrations tab instead (#1069). The
+              // join's subquery still runs for them, which is the cost of
+              // keeping that drawer.
               name: 'registrations',
               type: 'join',
               collection: 'user-submissions',
               on: 'event',
               where: { type: { equals: 'registration' } },
               admin: {
-                condition: (data, _siblingData, context) =>
-                  hideUntilCreated(data) && adminOnlyCondition(data, _siblingData, context),
+                condition: (data, _siblingData, { user }) =>
+                  hideUntilCreated(data) && isAdminManager(user),
               },
             },
           ],

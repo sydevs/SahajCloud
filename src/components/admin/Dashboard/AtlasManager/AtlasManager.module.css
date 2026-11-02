@@ -23,8 +23,7 @@
 .notice {
   gap: calc(var(--base) * 0.75);
 }
-.actions,
-.filters {
+.actions {
   display: flex;
   flex-wrap: wrap;
   gap: calc(var(--base) * 0.5);
@@ -33,12 +32,8 @@
 .header :global(.btn) {
   flex-shrink: 0;
 }
-.filters {
-  gap: calc(var(--base) / 3);
+.filterRow {
   margin: var(--base) 0 calc(var(--base) * 0.75);
-}
-.filterCount {
-  margin-inline-start: calc(var(--base) / 3);
 }
 .programInfo a {
   font-weight: 550;

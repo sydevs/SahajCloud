@@ -2,10 +2,7 @@
 .registrations {
   margin: var(--base) 0 calc(var(--base) * 2);
 }
-.filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: calc(var(--base) / 3);
+.registrations > :first-child {
   margin-bottom: calc(var(--base) * 0.75);
 }
 .name {

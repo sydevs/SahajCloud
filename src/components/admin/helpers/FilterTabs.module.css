@@ -1,0 +1,8 @@
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--base) / 3);
+}
+.count {
+  margin-inline-start: calc(var(--base) / 3);
+}

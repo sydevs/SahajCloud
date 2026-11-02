@@ -2,63 +2,59 @@
 
 import type { ReactNode } from 'react'
 
-import { Button, CalendarIcon, CheckIcon, Gutter, Pagination, Pill, Table } from '@payloadcms/ui'
+import { CalendarIcon, CheckIcon, Gutter, Pagination, Pill, Table } from '@payloadcms/ui'
 
 import { STATUS_LABELS } from '@/collections/UserSubmissions/statuses'
 
 import styles from './EventRegistrations.module.css'
 import {
+  REGISTRATION_FILTERS,
   type EventRegistrationsData,
   type RegistrationFilter,
   type RegistrationQuery,
 } from './model'
 import { CenteredNotice } from '../CenteredNotice'
+import { FilterTabs } from '../helpers/FilterTabs'
 import { tableColumn } from '../helpers/tableColumn'
 import { useSetQuery } from '../helpers/useSetQuery'
 
-const FILTERS: { value: RegistrationFilter; label: string }[] = [
-  { value: 'active', label: 'Registered' },
-  { value: 'withdrawn', label: 'Withdrawn' },
-]
-
-const EMPTY: Record<RegistrationFilter, { icon: ReactNode; title: string; body: string }> = {
+/** One table per filter: its button, and what it says when nothing matches. */
+const FILTERS: Record<
+  RegistrationFilter,
+  { label: string; icon: ReactNode; empty: string; explain: string }
+> = {
   active: {
+    label: 'Registered',
     icon: <CalendarIcon />,
-    title: 'No one has registered yet',
-    body: 'Anyone who signs up through the map appears here, with their answers.',
+    empty: 'No one has registered yet',
+    explain: 'Anyone who signs up through the map appears here, with their answers.',
   },
   withdrawn: {
+    label: 'Withdrawn',
     icon: <CheckIcon />,
-    title: 'Nobody has withdrawn',
-    body: 'A registration you decline, or one screening refuses, is kept here rather than deleted.',
+    empty: 'Nobody has withdrawn',
+    explain:
+      'A registration you decline, or one screening refuses, is kept here rather than deleted.',
   },
 }
+
+const LIST_ID = 'event-registration-list'
 
 /** A composition of native Payload controls; the rows and the gate stay on the server. */
 export function EventRegistrationsView({ data }: { data: EventRegistrationsData }) {
   const setQuery = useSetQuery<RegistrationQuery>()
-  const { query, registrations } = data
+  const { filter, registrations } = data
   const rows = registrations.docs
   return (
     <Gutter className={styles.registrations}>
-      <div className={styles.filters} role="group" aria-label="Filter registrations">
-        {FILTERS.map((filter) => (
-          <Button
-            key={filter.value}
-            margin={false}
-            buttonStyle={query.filter === filter.value ? 'subtle' : 'tab'}
-            size="medium"
-            onClick={() => setQuery({ filter: filter.value, page: 1 })}
-            extraButtonProps={{
-              'aria-pressed': query.filter === filter.value,
-              'aria-controls': 'event-registration-list',
-            }}
-          >
-            {filter.label}
-          </Button>
-        ))}
-      </div>
-      <div id="event-registration-list" aria-live="polite">
+      <FilterTabs
+        controls={LIST_ID}
+        label="Filter registrations"
+        onSelect={(next) => setQuery({ filter: next, page: 1 })}
+        selected={filter}
+        tabs={REGISTRATION_FILTERS.map((value) => ({ value, label: FILTERS[value].label }))}
+      />
+      <div id={LIST_ID} aria-live="polite">
         {rows.length ? (
           <>
             <Table
@@ -128,8 +124,8 @@ export function EventRegistrationsView({ data }: { data: EventRegistrationsData 
             )}
           </>
         ) : (
-          <CenteredNotice icon={EMPTY[query.filter].icon} title={EMPTY[query.filter].title}>
-            <p>{EMPTY[query.filter].body}</p>
+          <CenteredNotice icon={FILTERS[filter].icon} title={FILTERS[filter].empty}>
+            <p>{FILTERS[filter].explain}</p>
           </CenteredNotice>
         )}
       </div>

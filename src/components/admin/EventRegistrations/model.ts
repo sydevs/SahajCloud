@@ -3,6 +3,8 @@ import type { PaginatedDocs } from 'payload'
 import type { RegistrationAnswer } from '@/lib/registrations/questions'
 import type { UserSubmission } from '@/payload-types'
 
+import { firstParam, pageParam } from '../helpers/searchParams'
+
 /**
  * What the loader reads and the table renders: the one shape both sides import.
  *
@@ -12,9 +14,6 @@ import type { UserSubmission } from '@/payload-types'
 
 export const REGISTRATION_FILTERS = ['active', 'withdrawn'] as const
 export type RegistrationFilter = (typeof REGISTRATION_FILTERS)[number]
-
-/** One screenful. No `PerPage` control, so this is the only page size. */
-export const REGISTRATIONS_PER_PAGE = 50
 
 export type RegistrationQuery = { filter: RegistrationFilter; page: number }
 
@@ -38,7 +37,7 @@ export type RegistrationRow = {
 }
 
 export type EventRegistrationsData = {
-  query: RegistrationQuery
+  filter: RegistrationFilter
   registrations: PaginatedDocs<RegistrationRow>
 }
 
@@ -46,11 +45,8 @@ export type EventRegistrationsData = {
 export function parseRegistrationQuery(
   searchParams: Record<string, string | string[] | undefined> | undefined,
 ): RegistrationQuery {
-  const read = (key: string) => {
-    const value = searchParams?.[key]
-    return Array.isArray(value) ? value[0] : value
-  }
-  const filter = REGISTRATION_FILTERS.find((candidate) => candidate === read('filter'))
-  const page = Math.max(1, Number.parseInt(read('page') ?? '', 10) || 1)
-  return { filter: filter ?? 'active', page }
+  const filter = REGISTRATION_FILTERS.find(
+    (candidate) => candidate === firstParam(searchParams, 'filter'),
+  )
+  return { filter: filter ?? 'active', page: pageParam(searchParams) }
 }
