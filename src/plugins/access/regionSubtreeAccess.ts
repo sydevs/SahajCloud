@@ -27,7 +27,7 @@
  */
 
 import type { ContentSlug } from './types'
-import type { FieldAccess, FieldAccessArgs, PayloadRequest, Where } from 'payload'
+import type { FieldAccess, PayloadRequest, Where } from 'payload'
 
 import { isAdminManager, isManager } from './adminOnly'
 import { getDocManagerFields, relationId, resolveManagedDocIds } from './documentManagers'
@@ -173,46 +173,40 @@ export async function scopeRegionSubtreeWrite({
 }
 
 /**
- * Field access for a `managers` field: whoever may write one hands out
- * `atlas-region-manager` or `atlas-event-manager`, because the listing **is**
- * the role. So the write is admins, plus a region manager whose own subtree
- * holds the row — and never an event assignee, whose grant on their event
- * would otherwise let them reassign or disown it.
+ * Whether this request's user may hand out a role on a row sitting in
+ * `regionId` — the test both `managers`-field locks below run.
  *
- * `regionOfRow` reads the region the row sits in: its own id for `regions`, the
- * `region` relationship for `events`. With no row to judge — the capability
- * call `/api/access` makes with no document — it answers whether the user owns
- * any region at all, the same answer `scopeRegionSubtreeWrite` gives a create.
+ * Writing such a field grants `atlas-region-manager` or `atlas-event-manager`,
+ * because the listing **is** the role. So the write is admins, plus a region
+ * manager whose own subtree holds the row — and never an event assignee, whose
+ * grant on their event would otherwise let them reassign or disown it.
+ *
+ * With no row to judge — the capability call `/api/access` makes with no
+ * document — it answers whether the user owns any region at all, the same
+ * answer `scopeRegionSubtreeWrite` gives a create.
  */
-function subtreeDelegationAccess(
-  regionOfRow: (args: FieldAccessArgs) => number | string | null | undefined,
-): FieldAccess {
-  return async (args) => {
-    const { req } = args
-    if (isAdminManager(req.user)) return true
-    if (!isManager(req.user)) return false
+async function maySetManagerOn(
+  req: PayloadRequest,
+  regionId: number | string | null | undefined,
+): Promise<boolean> {
+  if (isAdminManager(req.user)) return true
+  if (!isManager(req.user)) return false
 
-    const ownedRegionIds = await resolveOwnedRegionIds(req, Number(req.user.id))
-    if (!ownedRegionIds.length) return false
-
-    const regionId = regionOfRow(args)
-    if (regionId === null || regionId === undefined) return true
-    return ownedRegionIds.includes(Number(regionId))
-  }
+  const ownedRegionIds = await resolveOwnedRegionIds(req, Number(req.user.id))
+  if (!ownedRegionIds.length) return false
+  if (regionId === null || regionId === undefined) return true
+  return ownedRegionIds.includes(Number(regionId))
 }
 
 /** `Regions.managers` — the row is the region, so its own id is the subtree test. */
-export const regionManagersFieldAccess: FieldAccess = subtreeDelegationAccess(({ id }) => id)
+export const regionManagersFieldAccess: FieldAccess = ({ id, req }) => maySetManagerOn(req, id)
 
 /**
- * `Events.manager` — the event's region decides. Read off the stored row first:
- * the subtree test is about where the event sits, not where a caller proposes
- * to move it, and `scopeRegionSubtreeWrite` already refuses a move out of the
- * subtree at the row level.
+ * `Events.manager` — the event's region decides, read off the stored row. The
+ * subtree test is about where the event sits, not where a caller proposes to
+ * move it, and `scopeRegionSubtreeWrite` already refuses a move out of the
+ * subtree at the row level. The rule is declared on `update` alone, so there is
+ * always a stored row or no row at all.
  */
-export const eventManagerFieldAccess: FieldAccess = subtreeDelegationAccess(({ data, doc }) =>
-  relationId(
-    (doc as { region?: unknown } | undefined)?.region ??
-      (data as { region?: unknown } | undefined)?.region,
-  ),
-)
+export const eventManagerFieldAccess: FieldAccess = ({ doc, req }) =>
+  maySetManagerOn(req, relationId((doc as { region?: unknown } | undefined)?.region))

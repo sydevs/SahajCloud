@@ -52,10 +52,7 @@ export type BypassPermissionFunction = (
  * strategy loads the authenticated manager with `findByID`, which resolves a
  * join by default, so every request carries them.
  */
-export type VirtualRoleUser = {
-  managedRegions?: { docs?: unknown[] | null } | null
-  managedEvents?: { docs?: unknown[] | null } | null
-}
+export type VirtualRoleUser = Partial<Pick<Manager, 'managedEvents' | 'managedRegions'>>
 
 /**
  * Generic authenticated user type for access checking.

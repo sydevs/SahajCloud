@@ -46,9 +46,7 @@ const may = (
 describe('virtualRoles', () => {
   it('reads one role per non-empty join, and nothing from an empty one', () => {
     expect(virtualRoles({})).toEqual([])
-    expect(virtualRoles({ managedRegions: { docs: [] }, managedEvents: { docs: null } })).toEqual(
-      [],
-    )
+    expect(virtualRoles({ managedRegions: { docs: [] }, managedEvents: {} })).toEqual([])
     expect(virtualRoles({ managedRegions: { docs: [3] } })).toEqual(['atlas-region-manager'])
     expect(virtualRoles({ managedEvents: { docs: [9] } })).toEqual(['atlas-event-manager'])
     expect(virtualRoles({ managedRegions: { docs: [3] }, managedEvents: { docs: [9] } })).toEqual([

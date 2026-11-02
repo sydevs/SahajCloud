@@ -73,7 +73,7 @@ const ROLES = {
     label: 'Atlas Region Manager',
     description: 'Manages events and regions within their own regions for Sahaj Atlas',
     project: 'sahaj-atlas' as const,
-    virtual: true as const,
+    virtual: { join: 'managedRegions' as const },
     // Read comes implicitly from project membership. These create/update/delete
     // grants are *scoped to the manager's owned-region subtree* in the access
     // layer (regionSubtreeAccess.ts) — they are NOT collection-wide despite
@@ -100,7 +100,7 @@ const ROLES = {
     label: 'Atlas Event Manager',
     description: 'Manages the Sahaj Atlas events they are assigned to',
     project: 'sahaj-atlas' as const,
-    virtual: true as const,
+    virtual: { join: 'managedEvents' as const },
     // Scoped to the events naming them, by the `manager == user` union in
     // regionSubtreeAccess.ts. No `users`, no `managers`, no `imports`: an
     // assignee runs one listing and needs no roster and no bulk import.
@@ -239,7 +239,7 @@ export function getRoleOptions(allowedRoles: InternalRoleSlug[]) {
     // reads it and nothing removes it when the listing behind it goes away.
     // Thrown at config build, so a stray entry fails the boot rather than
     // shipping a select whose value grants nothing.
-    if (isVirtualRole(roleSlug)) {
+    if (virtualJoinOf(roleSlug) !== undefined) {
       throw new Error(
         `Role "${roleSlug}" is derived from a listing and cannot be assigned. ` +
           'Add or remove the manager on the region or event instead.',
@@ -249,9 +249,10 @@ export function getRoleOptions(allowedRoles: InternalRoleSlug[]) {
   })
 }
 
-/** True for a role nobody assigns — {@link virtualRoles} resolves it per request. */
-export function isVirtualRole(role: InternalRoleSlug): boolean {
-  return 'virtual' in ROLES[role]
+/** The join a derived role is read off, or nothing for a role that is stored. */
+function virtualJoinOf(role: InternalRoleSlug): keyof VirtualRoleUser | undefined {
+  const roleConfig = ROLES[role]
+  return 'virtual' in roleConfig ? roleConfig.virtual.join : undefined
 }
 
 /**
@@ -259,7 +260,8 @@ export function isVirtualRole(role: InternalRoleSlug): boolean {
  *
  * Being named on a region or an event *is* the role, so there is nothing to
  * keep in step: the grant appears on the request after the listing is saved
- * and is gone from the next request after it is removed.
+ * and is gone from the next request after it is removed. Which join each role
+ * is read off is declared beside the role, so adding one is a table edit.
  *
  * ⚠ **A join carries at most its own `limit` of rows** (Payload's default is
  * 10), which is why this reads only whether `docs` is non-empty. It must never
@@ -267,10 +269,10 @@ export function isVirtualRole(role: InternalRoleSlug): boolean {
  * a truncated join would silently shrink a large country's subtree.
  */
 export function virtualRoles(user: VirtualRoleUser): InternalRoleSlug[] {
-  const roles: InternalRoleSlug[] = []
-  if (user.managedRegions?.docs?.length) roles.push('atlas-region-manager')
-  if (user.managedEvents?.docs?.length) roles.push('atlas-event-manager')
-  return roles
+  return getRoleSlugs().filter((role) => {
+    const join = virtualJoinOf(role)
+    return join !== undefined && !!user[join]?.docs?.length
+  })
 }
 
 /**

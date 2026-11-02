@@ -73,7 +73,6 @@ export {
   getRoleLabel,
   getReadableCollections,
   getProjectsFromRoles,
-  isVirtualRole,
   virtualRoles,
   // Unified visibility helper
   isCollectionVisibleInProject,

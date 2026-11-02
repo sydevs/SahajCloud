@@ -9,12 +9,7 @@
  * - createFieldAccessConfig: Create access config for field-level access
  */
 
-import type {
-  BypassPermissionFunction,
-  ContentSlug,
-  FieldAccessConfig,
-  VirtualRoleUser,
-} from './types'
+import type { BypassPermissionFunction, ContentSlug, FieldAccessConfig } from './types'
 import type {
   Access,
   AccessArgs,
@@ -93,8 +88,18 @@ function scopesWritesByLocale(req: PayloadRequest, collection: ContentSlug): boo
  * anywhere else. It is load-bearing: a proposal for a city the atlas does not
  * hold yet has no `region` at all, and `deliverProposal` mails its state or
  * country manager, who would then be unable to read the row.
+ *
+ * shortcut: the three hint paths cost one inlined `jsonb_path_exists` call per
+ * owned region id EACH — `createJSONQuery` expands an `in` into one OR'd
+ * sibling per value — so a country manager owning ~1,000 regions sends ~3,000
+ * unindexable predicates, and the `or` degrades the whole read to a seq scan of
+ * `user_submissions`. Upgrade when a region manager's submissions list is
+ * measurably slow, or when `user_submissions` outgrows a scan: write the
+ * routing region to a real indexed column from the hook that writes
+ * `regionHint`, as `followUpSentAt` already does for the follow-up sweep, and
+ * this clause becomes one `IN`.
  */
-const PROPOSAL_REGION_PATHS = [
+export const PROPOSAL_REGION_PATHS = [
   'event.region',
   'region',
   'regionHint.anchorRegion',
@@ -126,7 +131,9 @@ const PROPOSAL_REGION_PATHS = [
  */
 async function managerSubmissionScope(req: PayloadRequest): Promise<Where> {
   const user = req.user!
-  const roles = virtualRoles(user as VirtualRoleUser)
+  // The same predicate the caller gated on, repeated so the narrowing reaches
+  // the joins: a `Client` shares none of their keys.
+  const roles = isManager(user) ? virtualRoles(user) : []
 
   const or: Where[] = [
     { and: [{ type: { equals: 'contact' } }, { 'form.recipient': { equals: user.id } }] },

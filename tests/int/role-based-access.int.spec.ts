@@ -12,6 +12,7 @@ import { PREVIEW_SECRET_HEADER, resolveLivePreviewHook } from '@/lib/utilities/p
 import { relationId } from '@/lib/utilities/relationId'
 import type { Event, Meditation, Region } from '@/payload-types'
 import { bypassPermissions, hasAnyPermission, hasPermission } from '@/plugins/access'
+import { PROPOSAL_REGION_PATHS } from '@/plugins/access/accessConfigs'
 import { isLocaleScopedCollection } from '@/plugins/access/localeScopedWrites'
 import type { ContentSlug } from '@/plugins/access/types'
 import { createSession } from '@/plugins/login'
@@ -955,6 +956,27 @@ describe('Role-Based Access Control', () => {
         context: { skipVerifyHook: true },
       })
       expect(grants(await reload(manager), 'events')).toBe(false)
+    })
+
+    it('covers every regionHint key a proposal can be routed by', () => {
+      // `managerSubmissionScope`'s subtree clause lists the paths it queries,
+      // and `submissionRoutingRegionId` walks the same hint keys as a `??`
+      // chain — two spellings of one rule, in two files, which no type checks
+      // against the other. A fourth key added to the schema would silently drop
+      // a region manager's read of the rows `deliverProposal` mails them, so the
+      // schema is the input here rather than a second hand-written list.
+      const fields = payload.collections['user-submissions']!.config.flattenedFields
+      const hint = fields.find((field) => 'name' in field && field.name === 'regionHint')
+      const schema = (hint as { jsonSchema?: { schema?: { properties?: object } } }).jsonSchema
+      const keys = Object.keys(schema?.schema?.properties ?? {})
+
+      expect(keys.length).toBeGreaterThan(0)
+      for (const key of keys) {
+        expect(
+          PROPOSAL_REGION_PATHS as readonly string[],
+          `regionHint.${key} is not queried by managerSubmissionScope`,
+        ).toContain(`regionHint.${key}`)
+      }
     })
 
     describe('the delegation lock', () => {

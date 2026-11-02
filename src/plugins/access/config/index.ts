@@ -40,7 +40,6 @@ export {
   isTranslatableCollection,
   getProjectsFromRoles,
   getReadableCollections,
-  isVirtualRole,
   virtualRoles,
 } from './roles'
 export { getManagerProjects, resolveProject } from './currentProject'
