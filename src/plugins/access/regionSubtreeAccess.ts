@@ -93,29 +93,6 @@ export async function ownedRegionFilterOptions(
   return selectable.length ? { id: { in: selectable } } : false
 }
 
-/**
- * One relationship id off a stored row, for telling an unchanged posted value
- * from a real move. `overrideAccess` is deliberate: this answers a question
- * about the row the caller already reached, not about what they may read.
- */
-async function storedRelationId(
-  req: PayloadRequest,
-  collection: 'events' | 'regions',
-  id: number | string,
-  field: 'parent' | 'region',
-): Promise<null | number> {
-  const doc = (await req.payload.findByID({
-    collection,
-    id,
-    depth: 0,
-    overrideAccess: true,
-    disableErrors: true,
-    select: { [field]: true },
-    req,
-  })) as Record<string, unknown> | null
-  return doc ? relationId(doc[field]) : null
-}
-
 /** `Where` selecting events inside the owned subtree, unioned with directly-owned events. */
 function eventScopeWhere(ownedRegionIds: number[], userId: number): Where {
   const or: Where[] = [{ manager: { equals: userId } }]
@@ -164,8 +141,18 @@ export async function scopeRegionSubtreeWrite({
       // parent sits above the subtree — so refusing every outside parent
       // refused every save of the one region the manager is listed on. The
       // stored value is read only here, where the posted one is otherwise
-      // about to be refused.
-      return newParentId === (await storedRelationId(req, 'regions', id, 'parent'))
+      // about to be refused, and `overrideAccess` answers about the row the
+      // caller already reached rather than about what they may read.
+      const stored = (await req.payload.findByID({
+        collection: 'regions',
+        id,
+        depth: 0,
+        overrideAccess: true,
+        disableErrors: true,
+        select: { parent: true },
+        req,
+      })) as { parent?: unknown } | null
+      return stored !== null && newParentId === relationId(stored.parent)
     }
     // Bulk update: no one stored value to compare, so an outside parent is a
     // re-parent attempt.
