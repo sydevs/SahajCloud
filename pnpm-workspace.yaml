@@ -29,11 +29,23 @@ minimumReleaseAge: 0
 # `braces` (GHSA-vfj7-8cjw-p6xm) gets no entry and can get none: `pnpm audit`
 # names `>=3.0.4`, and 3.0.3 is the newest version ever published (checked
 # 2026-10-14). Both parents are build-time. Do not re-derive this.
+#
+# `happy-dom` (GHSA-834v-8h66-3h79, GHSA-c8p4-j97h-3vg8) gets no entry either.
+# Both need HTML parsed through it, and nothing shipped parses any:
+# @lexical/headless@0.50.0 touches happy-dom only in its `./dom` subpath
+# (`withDOM`), which nothing imports — richtext-lexical imports the main entry —
+# and no spec sets `@vitest-environment` to happy-dom. A fix needs 21.0.4,
+# demanded by GHSA-834v-8h66-3h79 alone — any 21.x clears the other, no 20.x does,
+# 20.14.6 being the newest (checked 2026-11-02) — so it is an override past the
+# declared `^20.9.0`, which #1066 ruled out. Call paths in #1071. Do not
+# re-derive the reachability.
 overrides:
-  # Build tooling: hold vite at 7.x (satisfies @vitejs/plugin-react@4.5.2's peer,
-  # which caps at ^7; vite 7.3.6 also widens esbuild to ^0.27 || ^0.28) and
-  # flatten every esbuild copy onto one patched build.
-  vite: '7.3.6'
+  # Build tooling: hold vite at 7.x. @vitejs/plugin-react@4.5.2's peer is
+  # `^4.2.0 || ^5.0.0 || ^6.0.0 || ^7.0.0-beta.0`, so vite 8 (latest) breaks it.
+  # Inside that cap 7.3.7 is the newest published and the first to clear
+  # GHSA-587h-7wmj-h5pm. Its esbuild range is ^0.27 || ^0.28, which the esbuild
+  # entry below flattens onto one patched build.
+  vite: '7.3.7'
   esbuild: '0.28.1'
   dompurify: '^3.4.11'
   ws: '^8.21.0'
