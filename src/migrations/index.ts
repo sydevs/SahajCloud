@@ -104,6 +104,8 @@ import * as migration_20261026_204230_merge_1013_main_snapshot from './20261026_
 import * as migration_20261027_000341_imports_upload_locale_rename from './20261027_000341_imports_upload_locale_rename';
 import * as migration_20261027_190500_pages_blank_slug_to_null from './20261027_190500_pages_blank_slug_to_null';
 import * as migration_20261030_203909_registration_refusals from './20261030_203909_registration_refusals';
+import * as migration_20261101_191500_atlas_drop_time_in_place from './20261101_191500_atlas_drop_time_in_place';
+import * as migration_20261102_012821_merge_1052_main_snapshot from './20261102_012821_merge_1052_main_snapshot';
 
 export const migrations = [
   {
@@ -634,6 +636,16 @@ export const migrations = [
   {
     up: migration_20261030_203909_registration_refusals.up,
     down: migration_20261030_203909_registration_refusals.down,
-    name: '20261030_203909_registration_refusals'
+    name: '20261030_203909_registration_refusals',
+  },
+  {
+    up: migration_20261101_191500_atlas_drop_time_in_place.up,
+    down: migration_20261101_191500_atlas_drop_time_in_place.down,
+    name: '20261101_191500_atlas_drop_time_in_place',
+  },
+  {
+    up: migration_20261102_012821_merge_1052_main_snapshot.up,
+    down: migration_20261102_012821_merge_1052_main_snapshot.down,
+    name: '20261102_012821_merge_1052_main_snapshot'
   },
 ];

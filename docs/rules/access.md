@@ -217,7 +217,7 @@ This cuts the opposite way from implicit read, above, and the obvious reading is
 
 ⚠ **`accessPlugin` never sees them.** `sanitizeConfig` appends `payload-jobs`, `payload-jobs-stats`, `payload-locked-documents`, `payload-preferences`, `payload-migrations` and `payload-kv` after every plugin has run, mostly with `Boolean(user)` access — which a published client key satisfies. Any client key could queue or rewrite jobs, call `/api/payload-jobs/run`, overwrite the job-stats global, create locks, and PATCH another user's preference row into its own.
 
-`restrictPayloadSystemEntities` (`systemEntities.ts`) sets their access on the **sanitized** config, so every `buildConfig` call site applies it — `src/payload.config.ts`, `tests/utils/testHelpers.ts` and `seeds/tests/test-payload.config.ts`. ⚠ Nothing enforces that coupling but prose, so count the call sites when you add one. Not `onInit`: dev hot reload swaps in a freshly sanitized config without re-running it.
+`restrictPayloadSystemEntities` (`systemEntities.ts`) sets their access on the **sanitized** config, so every `buildConfig` call site applies it — `src/payload.config.ts` and `tests/utils/testHelpers.ts`. ⚠ Nothing enforces that coupling but prose, so count the call sites when you add one. Not `onInit`: dev hot reload swaps in a freshly sanitized config without re-running it.
 
 In-app job callers (autoRun, the screening kick) leave `overrideAccess` at its default `true`, so none reaches `jobs.access`. `tests/int/payload-system-access.int.spec.ts` sweeps every `payload-*` entity's access for a client key.
 

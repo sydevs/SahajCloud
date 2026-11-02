@@ -198,14 +198,14 @@ describe('atlas translations schema', () => {
 
   // Every other assertion here filters a list. This one states its size, so
   // none of them can pass by walking an empty schema.
-  it('declares 259 widget-facing keys across 43 leaf groups', () => {
+  it('declares 258 widget-facing keys across 43 leaf groups', () => {
     expect(schemaShape(schema).leafGroups).toBe(43)
     expect(
       declaredKeys().filter(
         (key) =>
           !key.startsWith('emails.') && !key.startsWith('event.title.') && !key.startsWith('seo.'),
       ).length,
-    ).toBe(259)
+    ).toBe(258)
   })
 
   it('describes every key, naming where it appears', () => {
@@ -316,8 +316,6 @@ describe('atlas translations seeds', () => {
     ],
     de: [
       'event.display.online',
-      // `%{time} in %{city}` — `in` is the German preposition too.
-      'event.display.time_in_place',
       'filters.dates.pill_range',
       'filters.format.label',
       'filters.format.online',
@@ -332,7 +330,6 @@ describe('atlas translations seeds', () => {
       'event.actions.contact',
       'event.actions.website',
       'event.display.online',
-      'event.display.time_in_place',
       'filters.chrome.title',
       'filters.dates.pill_range',
       'filters.format.online',

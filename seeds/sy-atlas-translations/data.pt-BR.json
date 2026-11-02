@@ -184,7 +184,6 @@
       "contact_for_timing": "Entre em contato com o anfitrião para saber os horários",
       "online": "On-line",
       "hosted_from": "Hospedado em %{city}",
-      "time_in_place": "%{time} em %{city}",
       "distance_away": "a %{distance}",
       "distance_from_place": "a %{distance} de %{place}",
       "distance_from_search": "%{distance} do local pesquisado",
