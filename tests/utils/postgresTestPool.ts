@@ -4,9 +4,9 @@
  * `synchronous_commit=off` skips the per-commit fsync wait — tests do not need
  * durability, and it is a large speed-up for the write-heavy suites on Postgres.
  *
- * The only consumer is `tests/utils/testHelpers.ts`. Keep this module
- * dependency-free — `vitest.config.mts` imports the default URL below at
- * config load.
+ * `TEST_PG_POOL_OPTIONS` has one consumer, `tests/utils/testHelpers.ts`. Keep
+ * this module dependency-free — `vitest.config.mts` imports the default URL
+ * below at config load.
  */
 export const TEST_PG_POOL_OPTIONS = '-c synchronous_commit=off'
 
