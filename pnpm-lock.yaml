@@ -225,7 +225,7 @@ importers:
         specifier: 26.1.0
         version: 26.1.0
       nodemailer:
-        specifier: ^10.3.1
+        specifier: ^10.1.1
         version: 10.3.1
       playwright:
         specifier: 1.64.1
