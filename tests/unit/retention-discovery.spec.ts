@@ -9,8 +9,8 @@ import type { Field, Payload, SanitizedConfig } from 'payload'
 
 import { describe, expect, it } from 'vitest'
 
-import { ORPHAN_WINDOWS } from '@/collections/MeditationTranscripts/MeditationTranscripts'
 import { JOB_PURGE_WINDOWS } from '@/collections/PayloadJobs/PayloadJobs'
+import { Transcripts } from '@/collections/Transcripts/Transcripts'
 import { orphanedUserHooks } from '@/collections/UserSubmissions/orphanedUsers'
 import { CleanupCollections } from '@/jobs/CleanupCollections/CleanupCollections'
 import { retentionEntries } from '@/jobs/CleanupCollections/entries'
@@ -22,9 +22,14 @@ import { runTaskHandler } from '../utils/taskRunner'
 const fieldNames = (fields: Field[] | undefined) =>
   (fields ?? []).map((field) => ('name' in field ? field.name : undefined))
 
-/** The four real declarations, in the order the app's own config carries them. */
+/**
+ * The three real declarations, in the order the app's own config carries them.
+ *
+ * `transcripts` declared a fourth until #1043: a row's lifetime is now its
+ * source's, through the `beforeDelete` cascade on both parents, so there is no
+ * orphan left for a sweep to find.
+ */
 const DECLARED = [
-  { custom: { retention: { windows: ORPHAN_WINDOWS } }, slug: 'meditation-transcripts' },
   {
     custom: { retention: { hooks: orphanedUserHooks, windows: PURGE_WINDOWS } },
     slug: 'user-submissions',
@@ -53,7 +58,6 @@ describe('retention discovery', () => {
 
   it('reads the collections that declare windows, in config order', () => {
     expect(retentionEntries(DECLARED).map((entry) => entry.collection)).toEqual([
-      'meditation-transcripts',
       'user-submissions',
       'imports',
       'payload-jobs',
@@ -111,7 +115,7 @@ describe('retention discovery', () => {
         input: { collection: 'managers' },
       }),
     ).rejects.toThrow(
-      '"managers" declares no retention — meditation-transcripts, user-submissions, imports, payload-jobs do',
+      '"managers" declares no retention — user-submissions, imports, payload-jobs do',
     )
   })
 
@@ -135,12 +139,7 @@ describe('retention discovery', () => {
       runTaskHandler(CleanupCollections, { payload, input: { dryRun: true } }),
     ).rejects.toThrow(/user-submissions failed/)
 
-    expect(counted).toEqual([
-      'meditation-transcripts',
-      'user-submissions',
-      'imports',
-      'payload-jobs',
-    ])
+    expect(counted).toEqual(['user-submissions', 'imports', 'payload-jobs'])
   })
 
   /**
@@ -173,18 +172,16 @@ describe('retention discovery', () => {
   })
 
   /**
-   * ⚠ **A window with no parent clause sweeps every transcript**, which is the
-   * one mistake here that destroys data rather than keeping it: the rows are
-   * swept on `updatedAt` alone, and every transcript has one. The reviewer set
-   * the grace period at 7 days (#1013), so the days are pinned beside it.
+   * ⚠ **The sweep must never visit `transcripts` again.** Its window was the
+   * one here that destroyed data rather than keeping it — the rows age on
+   * `updatedAt`, which every row has, so a predicate that stopped matching
+   * would take the collection. With a polymorphic source there is no
+   * `meditation_id` for a delete to null and nothing to express, so the
+   * collection declares no retention and the cascade owns the lifetime.
    */
-  it('sweeps only a transcript whose meditation has gone', () => {
-    expect(ORPHAN_WINDOWS).toHaveLength(1)
-    expect(ORPHAN_WINDOWS[0]!.days).toBe(7)
-    expect(ORPHAN_WINDOWS[0]!.where('2026-10-10T05:00:00.000Z')).toEqual({
-      meditation: { exists: false },
-      updatedAt: { less_than: '2026-10-10T05:00:00.000Z' },
-    })
+  it('never sweeps transcripts', () => {
+    expect(Transcripts.custom?.retention).toBeUndefined()
+    expect(retentionEntries(DECLARED).map((entry) => entry.collection)).not.toContain('transcripts')
   })
 
   /**

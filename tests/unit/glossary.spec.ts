@@ -6,13 +6,13 @@
  * of `{ heard, written, language }` whose `language` is a list of base
  * languages — `en`, never `en-AU` — and that every entry names `en` and none
  * names `ru`. Verified against
- * `src/collections/MeditationTranscripts/glossary.json` and
+ * `src/collections/Transcripts/glossary.json` and
  * `src/lib/locales/index.ts`. The last `describe` asserts both rather than
  * trusting them.
  */
 import { describe, expect, it } from 'vitest'
 
-import { applyGlossary, GLOSSARY } from '@/collections/MeditationTranscripts/glossary'
+import { applyGlossary, GLOSSARY } from '@/collections/Transcripts/glossary'
 import { baseLanguage, LOCALES } from '@/lib/locales'
 
 describe('applyGlossary', () => {

@@ -4,7 +4,7 @@
  * `transcript-phase.spec.ts`'s, since the endpoint reads that too; the URLs it
  * builds are pinned in `admin-locale-urls.spec.ts`, with their siblings.
  *
- * Every cue time here is **milliseconds**, as `meditation-transcripts` stores
+ * Every cue time here is **milliseconds**, as `transcripts` stores
  * them; the playhead the preview reports is **seconds**.
  */
 import { describe, expect, it } from 'vitest'

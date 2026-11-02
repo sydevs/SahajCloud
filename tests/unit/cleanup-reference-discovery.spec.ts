@@ -22,15 +22,21 @@ function walk(fields: Field[]): FieldReference[] {
 
 const media: Field = { name: 'media', type: 'upload', relationTo: 'files' }
 
-function reference(fieldPath: string, localizedAt: number[]): FieldReference {
+function reference(
+  fieldPath: string,
+  localizedAt: number[],
+  overrides: Partial<FieldReference> = {},
+): FieldReference {
   return {
     collection: 'lessons',
     fieldPath,
     fieldType: 'upload',
     hasMany: false,
     relationTo: 'files',
+    targetCollection: 'files',
     isLexicalBlock: false,
     localizedAt,
+    ...overrides,
   }
 }
 
@@ -105,6 +111,42 @@ describe('extractIdsFromDocument', () => {
     const ids = extractIdsFromDocument(doc, reference('default.media', []))
 
     expect([...ids]).toEqual([9])
+  })
+
+  /**
+   * ⚠ **A polymorphic value is `{ relationTo, value }` at depth 0**, so a
+   * reader that only knows `.id` answers nothing and the file reads as an
+   * orphan — which the job trashes. `transcripts.source` is the live case:
+   * a transcript's hold on its recording would be invisible (#1043).
+   */
+  it('reads the id a polymorphic value carries for this target', () => {
+    const doc = { source: { relationTo: 'files', value: 11 } }
+
+    const ids = extractIdsFromDocument(doc, reference('source', []))
+
+    expect([...ids]).toEqual([11])
+  })
+
+  /**
+   * ⚠ **And the other half, which a blind `obj.value` would get wrong.** Each
+   * collection numbers its own rows, so reading the id without checking the
+   * target would let meditation 11 protect file 11 from the sweep — worse than
+   * the bug above, because it keeps a file nothing references.
+   */
+  it('ignores a polymorphic value naming another collection', () => {
+    const doc = { source: { relationTo: 'meditations', value: 11 } }
+
+    const ids = extractIdsFromDocument(doc, reference('source', []))
+
+    expect([...ids]).toEqual([])
+  })
+
+  it('reads a populated polymorphic value for this target', () => {
+    const doc = { source: { relationTo: 'files', value: { id: 12, filename: 'cues.mp3' } } }
+
+    const ids = extractIdsFromDocument(doc, reference('source', []))
+
+    expect([...ids]).toEqual([12])
   })
 })
 
