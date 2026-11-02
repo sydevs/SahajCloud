@@ -9759,10 +9759,6 @@ export interface SyAtlasTranslationsEventDisplayStrings {
    */
   hosted_from?: string;
   /**
-   * Viewer-local time under the where-line. `%{time}` = local time, `%{city}` = the event’s city.
-   */
-  time_in_place?: string;
-  /**
    * List card distance from the visitor. `%{distance}` = formatted distance.
    */
   distance_away?: string;
