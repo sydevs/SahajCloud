@@ -5,6 +5,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { getAtlasManagerData } from '@/components/admin/Dashboard/AtlasManager/data'
 import { programStatus, type ProgramQuery } from '@/components/admin/Dashboard/AtlasManager/model'
+import { loadEventRegistrations } from '@/components/admin/EventRegistrations/data'
+import type { RegistrationQuery } from '@/components/admin/EventRegistrations/model'
 import type { Manager as ManagerDoc } from '@/payload-types'
 
 import { createData, testData } from '../utils/testData'
@@ -217,5 +219,142 @@ describe('Atlas manager home', () => {
     expect(statuses.indexOf('finished')).toBeGreaterThan(statuses.lastIndexOf('review'))
     // A page past the end clamps to the last one rather than coming back empty.
     expect(ids(await load(owner, { page: 999, limit: 1 }))).toEqual([ids(all).at(-1)])
+  })
+
+  /**
+   * The event's own Registrations tab (#1069). Nested so it shares the one
+   * environment this file may create (`tests/AGENTS.md`), and declared last so
+   * its fixtures cannot reach the cases above.
+   */
+  describe('Event registrations tab', () => {
+    let tabEventId: number
+    let admin: ManagerDoc
+    let stranger: ManagerDoc
+
+    const register = (
+      eventId: number,
+      name: string,
+      overrides: Record<string, unknown> = {},
+      answers: Record<string, string> = {},
+    ) =>
+      payload.create({
+        collection: 'user-submissions',
+        overrideAccess: true,
+        data: createData<'user-submissions'>({
+          type: 'registration',
+          event: eventId,
+          senderEmail: `${name.toLowerCase().replace(/\W+/g, '-')}@example.com`,
+          submissionData: [
+            { field: 'name', value: name },
+            ...Object.entries(answers).map(([field, value]) => ({ field, value })),
+          ],
+          ...overrides,
+        }),
+      })
+
+    const openTab = async (user: ManagerDoc, query: Partial<RegistrationQuery> = {}) =>
+      loadEventRegistrations(await request(user), tabEventId, {
+        filter: 'active',
+        page: 1,
+        ...query,
+      })
+
+    beforeAll(async () => {
+      admin = await testData.createManager(payload, { type: 'admin' })
+      stranger = await testData.createManager(payload, {
+        type: 'manager',
+        roles: ['atlas-manager'],
+        currentProject: 'sahaj-atlas',
+      })
+      // In `owner`'s region subtree, so `owner` holds `update` on it — the
+      // authority this tab is deliberately narrower than.
+      const tabEvent = await testData.createEvent(payload, {
+        title: 'Tab program',
+        manager: assignee.id,
+        region: cityId,
+      })
+      tabEventId = tabEvent.id
+      await register(
+        tabEventId,
+        'Ada Lovelace',
+        { startingAt: '2099-08-05T18:00:00.000Z' },
+        {
+          referral: 'A friend',
+          locale: 'fr',
+          userAgent: 'Mozilla/5.0',
+        },
+      )
+      await register(tabEventId, 'Grace Hopper', { status: 'spam' })
+      await register(ownId, 'Other Event Registrant')
+    })
+
+    it('shows the event’s own manager their registrants, active first', async () => {
+      const data = await openTab(assignee)
+
+      expect(data?.registrations.docs).toEqual([
+        expect.objectContaining({
+          name: 'Ada Lovelace',
+          email: 'ada-lovelace@example.com',
+          status: 'pending',
+          attending: '5 Aug 2099',
+        }),
+      ])
+      // The answers are the questions asked, never the context the widget sent
+      // about itself — `locale` and `userAgent` are not things a visitor typed.
+      expect(data?.registrations.docs[0]?.answers).toEqual([
+        { label: 'How did you hear about this event?', value: 'A friend' },
+      ])
+      expect(data?.registrations.docs[0]?.registeredOn).toMatch(/^\d{1,2} \w{3} \d{4}$/)
+    })
+
+    it('keeps a withdrawn registration behind its own filter', async () => {
+      const withdrawn = await openTab(assignee, { filter: 'withdrawn' })
+
+      expect(withdrawn?.registrations.docs.map((row) => row.name)).toEqual(['Grace Hopper'])
+      expect(withdrawn?.registrations.docs[0]?.status).toBe('spam')
+    })
+
+    it('refuses every manager but the one the event names', async () => {
+      // `owner` manages the region this event sits in, so the dashboard offers
+      // it to them for editing — and these rows are still not theirs.
+      expect(ids(await load(owner))).toContain(tabEventId)
+
+      expect(await openTab(owner)).toBeNull()
+      expect(await openTab(stranger)).toBeNull()
+    })
+
+    it('shows an admin the same rows', async () => {
+      expect((await openTab(admin))?.registrations.docs.map((row) => row.name)).toEqual([
+        'Ada Lovelace',
+      ])
+    })
+
+    /** A `create` screen and a deleted event both reach the route with no row. */
+    it('refuses a document id that resolves to no event', async () => {
+      const req = await request(admin)
+
+      expect(await loadEventRegistrations(req, 'create', { filter: 'active', page: 1 })).toBeNull()
+      expect(await loadEventRegistrations(req, undefined, { filter: 'active', page: 1 })).toBeNull()
+    })
+
+    /**
+     * The name is the `submissionData` pair, not the `users` row the intake
+     * seeds from it — `users` is restricted, and this page reads none of it.
+     */
+    it('names a registrant from the submission, not from their user row', async () => {
+      const user = await payload.find({
+        collection: 'users',
+        where: { email: { equals: 'ada-lovelace@example.com' } },
+        overrideAccess: true,
+      })
+      await payload.update({
+        collection: 'users',
+        id: user.docs[0]!.id,
+        data: { name: 'Renamed In Users' },
+        overrideAccess: true,
+      })
+
+      expect((await openTab(assignee))?.registrations.docs[0]?.name).toBe('Ada Lovelace')
+    })
   })
 })

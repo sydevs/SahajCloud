@@ -576,8 +576,8 @@ export const Events: CollectionConfig = {
               on: 'event',
               where: { type: { equals: 'registration' } },
               admin: {
-                condition: (data, siblingData, context) =>
-                  hideUntilCreated(data) && adminOnlyCondition(data, siblingData, context),
+                condition: (data, _siblingData, context) =>
+                  hideUntilCreated(data) && adminOnlyCondition(data, _siblingData, context),
               },
             },
           ],
