@@ -47,7 +47,7 @@ This only works because the authenticated user loads **four times**, not once. `
 | ---------------------------------------------------------------------------------- | ----------------- | -------------------------------------------------------------------------------------------------- |
 | `FrameEditor/utils.ts` → `/api/frames/by-narrator/:id`                             | **Yes**           | The endpoint's permission gate resolves `req.locale`                                               |
 | `ThumbnailCell/relationshipDocLoader.ts` → `/api/:collection`                      | **Yes**           | The collection read gate does                                                                      |
-| `MeditationTranscript/transcriptModel.ts` → `/api/meditation-transcripts`          | **Yes**           | The collection read gate does, and it is the SWR key, so it must carry the locale twice over       |
+| `MeditationTranscript/transcriptModel.ts` → `/api/transcripts`                     | **Yes**           | The collection read gate does, and it is the SWR key, so it must carry the locale twice over       |
 | `MeditationTranscript/transcriptModel.ts` → `POST /api/meditations/:id/transcribe` | **Yes**           | The endpoint's permission gate resolves `req.locale`                                               |
 | `ProjectSelector.tsx`, `ProjectContext.tsx` → `/api/managers/set-project`          | No                | Gated on `requireActiveManager`, then reads with `overrideAccess: true` — no per-locale check runs |
 | `CanonicalEmbedPicker/Description.tsx` → `/api/clients/:id/verify-embed`           | No                | Same shape, and `Clients.roles` is not localized                                                   |

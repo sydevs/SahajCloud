@@ -9,7 +9,7 @@ import { Events } from '@/collections/Events/Events'
 import { Lectures } from '@/collections/Lectures/Lectures'
 import { Managers } from '@/collections/Managers/Managers'
 import { Meditations } from '@/collections/Meditations/Meditations'
-import { MeditationTranscripts } from '@/collections/MeditationTranscripts/MeditationTranscripts'
+import { Transcripts } from '@/collections/Transcripts/Transcripts'
 import { Videos } from '@/collections/Videos/Videos'
 import { WeMeditateAppStatus } from '@/globals/WeMeditateAppStatus/WeMeditateAppStatus'
 import { TableOfContentsBlock } from '@/lib/richEditor/blocks/TableOfContentsBlock'
@@ -367,7 +367,7 @@ describe('TableOfContentsBlock.headings', () => {
 })
 
 describe('transcriptSegments', () => {
-  const field = jsonField(MeditationTranscripts.fields, 'segments')
+  const field = jsonField(Transcripts.fields, 'segments')
 
   it('is wired onto the column', () => {
     expect(field.jsonSchema?.schema.title).toBe('TranscriptSegments')

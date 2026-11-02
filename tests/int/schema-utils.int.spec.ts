@@ -169,6 +169,7 @@ describe('Schema Introspection Utilities', () => {
         fieldType: 'upload',
         hasMany: false,
         relationTo: 'files',
+        targetCollection: 'files',
         isLexicalBlock: false,
         localizedAt: [],
       }
@@ -187,6 +188,7 @@ describe('Schema Introspection Utilities', () => {
         fieldType: 'upload',
         hasMany: false,
         relationTo: 'files',
+        targetCollection: 'files',
         isLexicalBlock: false,
         localizedAt: [],
       }
@@ -206,6 +208,7 @@ describe('Schema Introspection Utilities', () => {
         fieldType: 'upload',
         hasMany: true,
         relationTo: 'images',
+        targetCollection: 'images',
         isLexicalBlock: false,
         localizedAt: [],
       }
@@ -226,6 +229,7 @@ describe('Schema Introspection Utilities', () => {
         fieldType: 'upload',
         hasMany: false,
         relationTo: 'images',
+        targetCollection: 'images',
         isLexicalBlock: false,
         localizedAt: [],
       }
@@ -242,6 +246,7 @@ describe('Schema Introspection Utilities', () => {
         fieldType: 'upload',
         hasMany: true,
         relationTo: 'images',
+        targetCollection: 'images',
         isLexicalBlock: true,
         // No blockSlug - the new approach uses a single marker reference for richText fields
         localizedAt: [],
@@ -352,6 +357,7 @@ describe('Schema Introspection Utilities', () => {
           fieldType: 'upload',
           hasMany: false,
           relationTo: 'files',
+          targetCollection: 'files',
           isLexicalBlock: false,
           localizedAt: [],
         },
@@ -361,6 +367,7 @@ describe('Schema Introspection Utilities', () => {
           fieldType: 'upload',
           hasMany: false,
           relationTo: 'files',
+          targetCollection: 'files',
           isLexicalBlock: false,
           localizedAt: [],
         },
@@ -370,6 +377,7 @@ describe('Schema Introspection Utilities', () => {
           fieldType: 'upload',
           hasMany: false,
           relationTo: 'images',
+          targetCollection: 'images',
           isLexicalBlock: false,
           localizedAt: [],
         },
