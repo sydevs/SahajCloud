@@ -35,8 +35,16 @@ export const transcriptUrl = (
   locale: string | undefined,
 ): string | null =>
   meditationId && locale
-    ? `/api/meditation-transcripts${qs.stringify(
-        { depth: 0, limit: 1, locale, where: { meditation: { equals: meditationId } } },
+    ? `/api/transcripts${qs.stringify(
+        {
+          depth: 0,
+          limit: 1,
+          locale,
+          // The object form, which `qs` serialises and `sanitizeQueryValue`
+          // reads back: `source` is polymorphic, so a bare path 500s and
+          // `source.value` would also match the file of that number.
+          where: { source: { equals: { relationTo: 'meditations', value: meditationId } } },
+        },
         { addQueryPrefix: true },
       )}`
     : null

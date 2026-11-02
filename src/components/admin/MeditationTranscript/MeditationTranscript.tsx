@@ -15,7 +15,7 @@ import {
   type TranscriptPhase,
   transcriptPhaseIsRetryable,
 } from '@/lib/meditations/transcriptBounds'
-import type { MeditationTranscript as TranscriptRow } from '@/payload-types'
+import type { Transcript as TranscriptRow } from '@/payload-types'
 
 import styles from './MeditationTranscript.module.css'
 import { RetryTranscript } from './RetryTranscript'

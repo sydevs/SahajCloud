@@ -101,27 +101,30 @@ function managerSubmissionScope(userId: number | string): Where {
  *
  * The published-only clause above and Payload's own trash filter are both
  * **per collection**, so a child carrying neither answers for a parent that
- * refuses to be read at all. A `meditation-transcripts` row is the full spoken
- * word of a recording plus the R2 key it plays from, and a draft or trashed
- * meditation handed both to any client key (#968). A client reads a transcript
- * because it may read the recording, so the row's own reach has to end where
- * the recording's does.
+ * refuses to be read at all. A `transcripts` row is the full spoken word of a
+ * recording plus the R2 key it plays from, and a draft or trashed meditation
+ * handed both to any client key (#968). A client reads a child because it may
+ * read the parent, so the row's own reach has to end where the parent's does.
  *
  * Spelled against the parent relationship rather than a resolved id list: this
  * clause is combined into the join query too (`sanitizeJoinQuery`), where a
- * second round trip per read would be paid on every meditation.
+ * second round trip per read would be paid on every parent row.
  *
- * ⚠ A row whose `meditation` a hard delete has nulled matches neither key, so
- * no client reads an orphan.
+ * ⚠ **`transcripts` is a refusal, because its parent is polymorphic and no
+ * `Where` can reach through one.** Payload resolves only `source`,
+ * `source.relationTo` and `source.value` on a `relationTo` array and throws
+ * `APIError('Not supported')` on any deeper path, so `source._status` cannot be
+ * written at all. The collection is already admin-only working data in the
+ * public spec (`plugins/openapi/specFilter.ts`), and neither consumer repo
+ * reads it, so the client read goes rather than the protection — a weakened
+ * clause would hand every client key a draft meditation's spoken text again.
+ * A manager's read is untouched.
  *
  * Exempt for a live-preview request, for the same reason the published-only
  * clause above is: a preview is a credentialed read of unpublished work.
  */
-const CLIENT_PARENT_STATE_SCOPES: Partial<Record<ContentSlug, Where>> = {
-  'meditation-transcripts': {
-    'meditation._status': { equals: 'published' },
-    'meditation.deletedAt': { exists: false },
-  },
+const CLIENT_PARENT_STATE_SCOPES: Partial<Record<ContentSlug, false | Where>> = {
+  transcripts: false,
 }
 
 /**
@@ -177,7 +180,7 @@ export function createAccessConfig(
           !isLivePreviewRequest(req)
         ) {
           const parentScope = CLIENT_PARENT_STATE_SCOPES[collection]
-          if (parentScope) return parentScope
+          if (parentScope !== undefined) return parentScope
         }
 
         // An atlas-manager's role grants create/update/delete on regions/events,

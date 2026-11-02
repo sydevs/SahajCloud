@@ -8,7 +8,7 @@ import {
   type TranscriptPhase,
   transcriptPhase,
 } from '@/lib/meditations/transcriptBounds'
-import type { MeditationTranscript as TranscriptRow } from '@/payload-types'
+import type { Transcript as TranscriptRow } from '@/payload-types'
 
 /**
  * Which notice the tab shows, and the one re-render that lets `stalled` reach

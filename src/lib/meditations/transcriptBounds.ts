@@ -1,4 +1,4 @@
-import type { MeditationTranscript } from '@/payload-types'
+import type { Transcript } from '@/payload-types'
 
 /**
  * The transcript's two time bounds, and the phase they decide.
@@ -63,7 +63,7 @@ export type TranscriptPhase = 'none' | 'pending' | 'stalled' | 'failed' | 'compl
  * so a button cannot promise a retry the server refuses.
  */
 export function transcriptPhase(
-  row: Pick<MeditationTranscript, 'status' | 'updatedAt'> | undefined,
+  row: Pick<Transcript, 'status' | 'updatedAt'> | undefined,
   now: number = Date.now(),
 ): TranscriptPhase {
   if (!row) return 'none'

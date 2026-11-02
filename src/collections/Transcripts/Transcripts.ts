@@ -1,4 +1,4 @@
-import type { CollectionConfig, Where } from 'payload'
+import type { CollectionConfig } from 'payload'
 
 import type { JobStageConfig } from '@/components/admin/JobStageView/stages'
 import { jsonField } from '@/fields/jsonField'
@@ -9,50 +9,15 @@ import {
   TRANSCRIPTION_STALL_MS,
   transcriptSegmentsSchema,
 } from '@/lib/meditations/transcript'
-import type { PurgeWindow, RetentionConfig } from '@/types/retention'
 
 import { applyGlossaryToSegments } from './hooks/applyGlossaryToSegments'
 import { queueTranscription } from './hooks/queueTranscription'
 import { deriveTranscriptStatus, loadTranscriptJob, transcriptJobError } from './status'
 
 /**
- * How long an orphaned transcript is kept. A transcript is useless the moment
- * its meditation goes — nothing can read the cues or play the recording they
- * time — so the window is a grace period, not a retention promise.
- */
-const ORPHAN_DAYS = 7
-
-/**
- * The one window: a transcript whose meditation has gone.
+ * The timestamped cues of one recording, one row per source.
  *
- * A hard delete of a meditation nulls `meditation` through its foreign key, so
- * a null parent is the orphan test. Nothing else reaches it — the sync hook on
- * `meditations` sets the parent at create and deletes the row outright when a
- * recording is replaced.
- *
- * ⚠ **`updatedAt` is the last app write, not the moment the parent went.** The
- * foreign key nulls the column in the database, so nothing bumps the timestamp
- * — an orphan last written over a week ago therefore goes on the next sweep,
- * and only a recently-written one waits out the rest of its week. That is the
- * safe direction: the grace period protects a transcript somebody is still
- * working on, and the row is worthless either way.
- */
-export const ORPHAN_WINDOWS: PurgeWindow[] = [
-  {
-    days: ORPHAN_DAYS,
-    name: 'orphanedTranscripts',
-    where: (cutoff): Where => ({
-      meditation: { exists: false },
-      updatedAt: { less_than: cutoff },
-    }),
-  },
-]
-
-/**
- * The timestamped transcript of a meditation's recording, one row per
- * meditation.
- *
- * Kept off the meditation itself: Meditations carries drafts and keeps three
+ * Kept off the source itself: Meditations carries drafts and keeps three
  * versions, so a job writing there would push out the versions an editor
  * restores from, and would race their draft. It sits in the two projects that
  * carry `meditations` (`config/projects.ts`), so whoever may read a recording
@@ -62,12 +27,13 @@ export const ORPHAN_WINDOWS: PurgeWindow[] = [
  * `POST /api/meditations/:id/transcribe` (#984), which gates on
  * `meditations: update` and writes these rows with `overrideAccess`, so the
  * authority to re-transcribe stays the authority to edit the meditation.
+ *
+ * A row lives exactly as long as its source: `deleteChildren` on `meditations`
+ * and on `files` takes it before the parent row goes, so no source-less row can
+ * exist and there is no orphan window to sweep.
  */
-export const MeditationTranscripts: CollectionConfig = {
-  slug: 'meditation-transcripts',
-  // Retention is declared beside the window's own reason, and read by
-  // `cleanupCollections` off the built config.
-  custom: { retention: { windows: ORPHAN_WINDOWS } satisfies RetentionConfig },
+export const Transcripts: CollectionConfig = {
+  slug: 'transcripts',
   admin: {
     components: {
       views: {
@@ -94,11 +60,20 @@ export const MeditationTranscripts: CollectionConfig = {
   },
   fields: [
     {
-      // Not `required`: Payload makes a required relationship NOT NULL, and
-      // hard-deleting a meditation nulls this column through its foreign key.
-      name: 'meditation',
+      // Polymorphic, so one value states exactly-one-of and `required` is that
+      // rule: there is no second column for "both" to fill. It costs no
+      // `NOT NULL` either — the value lives in `transcripts_rels`, not in a
+      // column here — and `unique` becomes one `UNIQUE(<target>_id, path)` per
+      // target there, so one transcript per meditation and per file both hold.
+      //
+      // ⚠ **Query it as `{ source: { equals: { relationTo, value } } }`.** A
+      // bare `source` path throws `APIError('Not supported')` and `source.value`
+      // ORs one raw column per target, matching meditation 5 or file 5 — both
+      // at run time, neither at build time, because `Where` is loosely typed.
+      name: 'source',
       type: 'relationship',
-      relationTo: 'meditations',
+      relationTo: ['meditations', 'files'],
+      required: true,
       unique: true,
     },
     {
