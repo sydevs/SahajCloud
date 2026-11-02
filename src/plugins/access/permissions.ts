@@ -137,13 +137,19 @@ export function hasPermission(
  * it is admin-UI nav visibility, which would otherwise be empty for a manager
  * whose only role is derived.
  *
+ * ⚠ **And only for a `managers` caller**, spelled as an allowlist like the
+ * self-access bypass. The joins are declared on `Managers` alone, so no client
+ * document carries one — but `virtualRoles` reads a shape, not a collection,
+ * and a manager role reached by a published API key is the one mistake here
+ * that cannot be undone.
+ *
  * @param user - The authenticated user
  * @param scope - Which locale's roles to evaluate, or `'union'`, or nothing
  * @returns Array of role slugs
  */
 function extractRoles(user: TypedAuthUser, scope?: RoleScope): RoleSlug[] {
   const stored = storedRoles(user.roles, scope)
-  if (!scope) return stored
+  if (!scope || user.collection !== 'managers') return stored
   return [...stored, ...virtualRoles(user)]
 }
 

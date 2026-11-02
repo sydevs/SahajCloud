@@ -1018,6 +1018,30 @@ export const testData = {
   },
 
   /**
+   * Re-read a manager as an authenticated request carries them.
+   *
+   * ⚠ **A `createManager` result is not an authenticated user.** It is the
+   * create response, so its `managedRegions` and `managedEvents` joins are
+   * empty — a region or event listed afterwards is invisible to it, and the
+   * Atlas roles those joins derive would silently not apply. Payload's JWT
+   * strategy loads the user with `findByID` and no `joins: false`
+   * (`payload/dist/auth/strategies/jwt.js`), which resolves both, so a spec
+   * deciding access for a listed manager has to re-read them this way.
+   *
+   * `roles` stays the flat default-locale array, as in every hand-built
+   * fixture here — the per-locale record is `hydrateLocalizedRoles`' job.
+   */
+  async authUser(payload: Payload, manager: { id: number | string }) {
+    const doc = await payload.findByID({
+      collection: 'managers',
+      id: manager.id,
+      depth: 0,
+      overrideAccess: true,
+    })
+    return { ...doc, collection: 'managers' as const }
+  },
+
+  /**
    * Create a dummy user for testing access control
    * @param collection - Collection type ('managers' or 'clients')
    * @param overrides - Optional field overrides

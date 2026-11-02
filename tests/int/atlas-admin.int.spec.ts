@@ -33,7 +33,7 @@ describe('Atlas admin home', () => {
     payload = env.payload
     cleanup = env.cleanup
     admin = env.adminUser
-    manager = await testData.createManager(payload, { type: 'manager', roles: ['atlas-manager'] })
+    manager = await testData.createManager(payload, { type: 'manager', roles: [] })
   })
   afterAll(async () => cleanup())
 

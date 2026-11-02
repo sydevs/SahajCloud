@@ -31,7 +31,7 @@ import {
 } from '@/collections/UserSubmissions/statuses'
 import type { WorkflowButtonsProps } from '@/components/admin/WorkflowButtons/stages'
 import { relationId } from '@/lib/utilities/relationId'
-import type { Manager, UserSubmission } from '@/payload-types'
+import type { UserSubmission } from '@/payload-types'
 
 import { createData, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -39,7 +39,7 @@ import { createTestEnvironment } from '../utils/testHelpers'
 describe('User submission review lifecycle', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
-  let regionManager: Manager
+  let regionManager: Awaited<ReturnType<typeof testData.authUser>>
   let countryId: number
   let cityId: number
   let secondCityId: number
@@ -131,7 +131,7 @@ describe('User submission review lifecycle', () => {
       collection: 'user-submissions',
       id,
       data: { status, ...data } as never,
-      user: { ...regionManager, collection: 'managers' } as never,
+      user: regionManager as never,
       overrideAccess: true,
     }) as Promise<UserSubmission>
 
@@ -162,20 +162,22 @@ describe('User submission review lifecycle', () => {
     payload = env.payload
     cleanup = env.cleanup
 
-    // `atlas-manager` is the one role granting `user-submissions: update`, and
+    // `atlas-region-manager` is what grants `user-submissions: update` here, and
     // `reviewMove` reads that grant — a manager without it is not a reviewer,
-    // whatever rows name them.
-    regionManager = await testData.createManager(payload, {
+    // whatever rows name them. The country listing below is the role, so the
+    // reviewer has to be re-read after it (`authUser`).
+    const listed = await testData.createManager(payload, {
       name: 'Region Reviewer',
       email: 'region-reviewer@example.com',
-      roles: { en: ['atlas-manager'] },
+      roles: {},
     })
     const country = await testData.createRegion(payload, {
       name: 'Submissia',
       level: 'country',
       slug: 'sb',
-      managers: [regionManager.id],
+      managers: [listed.id],
     })
+    regionManager = await testData.authUser(payload, listed)
     countryId = country.id
     const city = await testData.createRegion(payload, {
       name: 'Sub City',

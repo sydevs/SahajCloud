@@ -64,18 +64,33 @@ export function resolveOwnedRegionIds(req: PayloadRequest, userId: number): Prom
  * `filterOptions` for region relationships (events.region, regions.parent): an
  * active non-admin manager may only pick from their owned-region subtree; admins
  * and other users see all regions. A manager who owns no region gets no options.
+ *
+ * ⚠ **`keepCurrent` names the field whose stored value stays selectable, and a
+ * document that can hold one owes it.** `validateFilterOptions` re-runs on
+ * every save with no exemption for a value that did not change, so without it
+ * two managers could not save a document they may edit: an event assignee owns
+ * no region at all, and a region manager's own top region sits under a parent
+ * above their subtree. Keeping the value is not permission to move it —
+ * `scopeRegionSubtreeWrite` refuses an incoming region outside the subtree at
+ * the row level, before any field runs.
  */
-export async function ownedRegionFilterOptions({
-  req,
-}: {
-  req: PayloadRequest
-}): Promise<Where | boolean> {
+export async function ownedRegionFilterOptions(
+  { data, req }: { data?: unknown; req: PayloadRequest },
+  keepCurrent?: 'parent' | 'region',
+): Promise<Where | boolean> {
   const user = req.user
   if (!isManager(user)) {
     return true
   }
   const ownedRegionIds = await resolveOwnedRegionIds(req, Number(user.id))
-  return ownedRegionIds.length ? { id: { in: ownedRegionIds } } : false
+  const current = keepCurrent
+    ? relationId((data as Record<string, unknown> | null | undefined)?.[keepCurrent])
+    : null
+  const selectable =
+    current !== null && !ownedRegionIds.includes(current)
+      ? [...ownedRegionIds, current]
+      : ownedRegionIds
+  return selectable.length ? { id: { in: selectable } } : false
 }
 
 /** `Where` selecting events inside the owned subtree, unioned with directly-owned events. */
@@ -196,5 +211,8 @@ export const regionManagersFieldAccess: FieldAccess = subtreeDelegationAccess(({
  * subtree at the row level.
  */
 export const eventManagerFieldAccess: FieldAccess = subtreeDelegationAccess(({ data, doc }) =>
-  relationId((doc as { region?: unknown } | undefined)?.region ?? (data as { region?: unknown } | undefined)?.region),
+  relationId(
+    (doc as { region?: unknown } | undefined)?.region ??
+      (data as { region?: unknown } | undefined)?.region,
+  ),
 )

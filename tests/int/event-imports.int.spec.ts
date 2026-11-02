@@ -211,13 +211,19 @@ describe('class imports', () => {
       ).toMatch(/required/)
     })
 
-    it('refuses a region outside an atlas-manager’s subtree', async () => {
-      const outsider = await testData.createManager(payload, {
-        name: 'Other Country Manager',
-        roles: ['atlas-manager'],
+    it('refuses a region outside a region manager’s subtree', async () => {
+      const outsider = await testData.createManager(payload, { name: 'Other Country Manager' })
+      await testData.createRegion(payload, {
+        name: 'Elsewhere',
+        slug: 'ew',
+        level: 'country',
+        managers: [outsider.id],
       })
       expect(
-        await fieldErrorMessage(createImport([classLine({})], outsider), 'targetRegion'),
+        await fieldErrorMessage(
+          createImport([classLine({})], await testData.authUser(payload, outsider)),
+          'targetRegion',
+        ),
       ).toMatch(/invalid selection/)
     })
   })
@@ -294,17 +300,15 @@ describe('class imports', () => {
         parent: country,
         mapboxId: 'place.hamburg',
       })
-      const volunteer = await testData.createManager(payload, {
-        name: 'Narrowed Volunteer',
-        roles: ['atlas-manager'],
-      })
+      const narrowed = await testData.createManager(payload, { name: 'Narrowed Volunteer' })
       const germany = await payload.findByID({ collection: 'regions', id: country, depth: 0 })
       const owners = (germany.managers ?? []).map((m) => (typeof m === 'object' ? m.id : m))
       await payload.update({
         collection: 'regions',
         id: country,
-        data: { managers: [...owners, volunteer.id] },
+        data: { managers: [...owners, narrowed.id] },
       })
+      const volunteer = await testData.authUser(payload, narrowed)
       const created = await createImport(
         [
           classLine({ title: 'Allowed in Berlin', startTime: '06:09' }),
@@ -602,31 +606,33 @@ describe('class imports', () => {
   })
 
   describe('access', () => {
-    it('lists Event Imports for an atlas-manager, and refuses a manager who cannot create classes', async () => {
-      const volunteer = await testData.createManager(payload, {
-        name: 'Lister',
-        roles: ['atlas-manager'],
+    it('lists Event Imports for a region manager, and refuses a manager who is listed nowhere', async () => {
+      const lister = await testData.createManager(payload, { name: 'Lister' })
+      await testData.createRegion(payload, {
+        name: 'Listerland',
+        slug: 'll',
+        level: 'country',
+        managers: [lister.id],
       })
       const hidden = payload.collections.imports.config.admin.hidden as (args: {
         user: unknown
       }) => boolean
-      expect(hidden({ user: volunteer })).toBe(false)
+      expect(hidden({ user: await testData.authUser(payload, lister) })).toBe(false)
 
-      const noRoles = await testData.createManager(payload, { name: 'No roles' })
-      await expect(createImport([classLine({})], noRoles)).rejects.toThrow()
+      const unlisted = await testData.createManager(payload, { name: 'Listed nowhere' })
+      expect(hidden({ user: unlisted })).toBe(true)
+      await expect(createImport([classLine({})], unlisted)).rejects.toThrow()
     })
 
     it('shows a manager the imports into their regions, whoever uploaded them', async () => {
-      const owner = await testData.createManager(payload, {
-        name: 'Austria Manager',
-        roles: ['atlas-manager'],
-      })
+      const listed = await testData.createManager(payload, { name: 'Austria Manager' })
       const austria = await testData.createRegion(payload, {
         name: 'Austria',
         slug: 'at',
         level: 'country',
-        managers: [owner.id],
+        managers: [listed.id],
       })
+      const owner = await testData.authUser(payload, listed)
       const mine = await createImport([classLine({})], owner, { targetRegion: austria.id })
       const colleagues = await createImport([classLine({})], admin, { targetRegion: austria.id })
       await createImport([classLine({})], admin)

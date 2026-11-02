@@ -22,12 +22,12 @@ describe('isManager', () => {
   })
 
   it('narrows to the project the manager works in, as resolveProject decides it', () => {
-    const roles: { en: RoleSlug[] } = { en: ['atlas-manager', 'web-translator'] }
-    const atlas = user('managers', { type: 'manager', roles, currentProject: 'sahaj-atlas' })
-    expect(isManager(atlas, 'sahaj-atlas')).toBe(true)
+    const roles: { en: RoleSlug[] } = { en: ['meditations-editor', 'web-translator'] }
+    const atlas = user('managers', { type: 'manager', roles, currentProject: 'wemeditate-app' })
+    expect(isManager(atlas, 'wemeditate-app')).toBe(true)
     expect(isManager(atlas, 'wemeditate-web')).toBe(false)
     // Two projects and none chosen: in neither yet.
-    expect(isManager(user('managers', { type: 'manager', roles }), 'sahaj-atlas')).toBe(false)
+    expect(isManager(user('managers', { type: 'manager', roles }), 'wemeditate-app')).toBe(false)
     // A stored project their roles no longer reach does not count.
     const stale = user('managers', {
       type: 'manager',

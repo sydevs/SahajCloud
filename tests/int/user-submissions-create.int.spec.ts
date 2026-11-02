@@ -798,14 +798,20 @@ describe('User submissions intake (POST /api/user-submissions)', () => {
       // Every access rule and retention window keys on `type`, and a manager
       // holds update. `admin.readOnly` is the admin UI only.
       //
-      // The manager has to be one the row is actually reachable by, or the
-      // per-row scope refuses the update first and this proves nothing about
-      // the field. So: an atlas-manager who is the form's own recipient.
-      const meddler = await testData.createManager(payload, {
+      // The manager has to hold `user-submissions: update` AND be one the row is
+      // actually reachable by, or the per-row scope refuses the update first
+      // and this proves nothing about the field. So: a region manager — the
+      // listing is the role — who is also the form's own recipient.
+      const listed = await testData.createManager(payload, {
         name: 'Meddling Manager',
         email: 'meddler@example.com',
-        roles: ['atlas-manager'],
       })
+      await testData.createRegion(payload, {
+        name: 'Meddleshire',
+        level: 'country',
+        managers: [listed.id],
+      })
+      const meddler = await testData.authUser(payload, listed)
 
       const ownForm = (await payload.create({
         collection: 'forms',
@@ -838,7 +844,7 @@ describe('User submissions intake (POST /api/user-submissions)', () => {
         req: {
           payload,
           headers: new Headers(),
-          user: { ...meddler, collection: 'managers' },
+          user: meddler,
           locale: 'en',
           context: {},
         } as unknown as PayloadRequest,

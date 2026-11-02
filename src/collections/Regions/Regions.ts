@@ -201,7 +201,7 @@ export const Regions: CollectionConfig = {
                     if (!allowed) return false
                     // For a region manager, also restrict to their owned subtree.
                     const levelFilter = { level: { in: allowed } }
-                    const owned = await ownedRegionFilterOptions(args)
+                    const owned = await ownedRegionFilterOptions(args, 'parent')
                     if (owned === true) return levelFilter
                     if (owned === false) return false
                     return { and: [levelFilter, owned] }
