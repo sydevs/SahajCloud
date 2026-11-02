@@ -25,8 +25,8 @@ import { isAdminManager } from './adminOnly'
  * `jobs.access` (`run`/`queue`/`cancel`) had the same default.
  *
  * ⚠ **This runs on the sanitized config, so every `buildConfig` call site must
- * apply it** — `src/payload.config.ts`, `tests/utils/testHelpers.ts` and
- * `seeds/tests/test-payload.config.ts`. Nothing enforces that but this line, so
+ * apply it** — `src/payload.config.ts` and `tests/utils/testHelpers.ts`.
+ * Nothing enforces that but this line, so
  * count the sites when you add one: `grep -rn 'buildConfig(' src tests seeds`.
  * Not in `onInit`: Payload's dev hot reload swaps in a freshly sanitized config
  * without re-running `onInit`, so the patch would silently vanish on the first

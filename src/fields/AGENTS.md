@@ -36,9 +36,6 @@ One **stored** derived column, recomputed on every write (#603):
     write back-fills a NULL for free. Spread, not deep merge — an
     explicit `null` in the patch (a cleared `recurrenceType`) must win.
 
-  Existing rows are brought up to date by
-  `scripts/backfill-schedule-last-date.ts`.
-
 ## Why rrule-temporal (not rrule)
 
 Legacy `rrule` (v2.8.1) has a [double-timezone-conversion
