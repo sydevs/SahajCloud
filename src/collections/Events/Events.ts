@@ -129,6 +129,21 @@ export const Events: CollectionConfig = {
     group: 'Classes',
     useAsTitle: 'title',
     defaultColumns: ['title', 'verificationStage', '_status'],
+    components: {
+      views: {
+        edit: {
+          // The signups this event's own manager may read. A document view is
+          // behind `Root`'s `canAccessAdmin` redirect, unlike a root view with
+          // a `path` (`docs/rules/admin-ui.md`), and the component narrows it
+          // from there to the manager named below.
+          registrations: {
+            Component: '@/components/admin/EventRegistrations',
+            path: '/registrations',
+            tab: { href: '/registrations', label: 'Registrations', order: 200 },
+          },
+        },
+      },
+    },
     // Live Preview loads the Atlas widget's /preview route. Unlike WeMeditate's
     // server-side preview, the widget fetches the document back
     // **client-side**. It forwards the secret in the x-sahajcloud-preview-secret
@@ -549,12 +564,21 @@ export const Events: CollectionConfig = {
               //
               // Deliberately the bare type, not `activeRegistrationWhere`: a
               // manager needs to see the row they flagged `spam`.
+              //
+              // Admin-only, because `user-submissions` is restricted and no
+              // manager role reads it — the join renders empty for every one
+              // of them, and its drawer is what an admin opens a row from.
+              // A manager reads their own event's signups on the Registrations
+              // tab instead (#1069).
               name: 'registrations',
               type: 'join',
               collection: 'user-submissions',
               on: 'event',
               where: { type: { equals: 'registration' } },
-              admin: { condition: hideUntilCreated },
+              admin: {
+                condition: (data, siblingData, context) =>
+                  hideUntilCreated(data) && adminOnlyCondition(data, siblingData, context),
+              },
             },
           ],
         },

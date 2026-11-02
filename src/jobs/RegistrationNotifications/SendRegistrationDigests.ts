@@ -2,9 +2,8 @@ import type { Payload, PayloadRequest, TaskConfig } from 'payload'
 
 import * as Sentry from '@sentry/nextjs'
 
-import { readSubmissionValue } from '@/collections/UserSubmissions/submissionData'
+import { answersFrom, readSubmissionValue } from '@/collections/UserSubmissions/submissionData'
 import type { DigestEventGroup, DigestPeriod } from '@/emails/RegistrationDigestEmail'
-import { answersFrom } from '@/jobs/DeliverSubmissions/deliverRegistration'
 import type { RegistrationRecipient } from '@/lib/notifications'
 import { formatShortDate, resolveRegistrationRecipient } from '@/lib/notifications'
 import { activeRegistrationWhere } from '@/lib/registrations/active'

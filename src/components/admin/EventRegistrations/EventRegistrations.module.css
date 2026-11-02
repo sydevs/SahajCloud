@@ -1,0 +1,37 @@
+/* Layout for this tab alone. The filters, table and pager come from the CMS theme. */
+.registrations {
+  margin: var(--base) 0 calc(var(--base) * 2);
+}
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--base) / 3);
+  margin-bottom: calc(var(--base) * 0.75);
+}
+.name {
+  font-weight: 550;
+}
+.when small {
+  display: block;
+  color: var(--theme-elevation-650);
+}
+.answers {
+  /* An answer runs to 2000 characters, so the cell bounds its own width rather
+     than letting one reply stretch the table past the viewport. */
+  max-width: calc(var(--base) * 18);
+  margin: 0;
+}
+.answers dt {
+  color: var(--theme-elevation-650);
+}
+.answers dd {
+  margin: 0 0 calc(var(--base) / 4);
+  overflow-wrap: anywhere;
+}
+.answers div:last-child dd {
+  margin-bottom: 0;
+}
+.pageControls {
+  display: flex;
+  margin-top: var(--base);
+}

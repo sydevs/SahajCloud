@@ -1,6 +1,6 @@
 import type { DeliveryContext, DeliveryOutcome } from './types'
 
-import { readSubmissionValue } from '@/collections/UserSubmissions/submissionData'
+import { answersFrom, readSubmissionValue } from '@/collections/UserSubmissions/submissionData'
 import type { LocaleCode } from '@/lib/locales'
 import { resolveRegistrationRecipient } from '@/lib/notifications/registrationRecipient'
 import type { EmailClient } from '@/lib/notifications/sendRegistrationConfirmation'
@@ -138,23 +138,6 @@ async function notifyManager(args: {
       error: error instanceof Error ? error.message : String(error),
     })
   }
-}
-
-/**
- * The registrant's answers, as the `{ [name]: value }` map
- * `buildRegistrationAnswers` labels.
- *
- * It reads every pair rather than filtering to the configured question names,
- * because that function already sorts configured answers from extras and labels
- * each appropriately — restating the list here would give it two definitions.
- */
-export function answersFrom(entries: unknown): Record<string, unknown> {
-  if (!Array.isArray(entries)) return {}
-  const answers: Record<string, unknown> = {}
-  for (const entry of entries as { field?: unknown; value?: unknown }[]) {
-    if (typeof entry?.field === 'string') answers[entry.field] = entry.value
-  }
-  return answers
 }
 
 /** The branding fields a registrant email needs; `logo` must be populated. */

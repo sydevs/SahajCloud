@@ -48,3 +48,15 @@ export const activeRegistrationWhere: Where = {
   type: { equals: 'registration' },
   status: { not_in: [...INACTIVE_STATUSES] },
 }
+
+/**
+ * Its complement, for a surface that shows the rows the rule drops.
+ *
+ * `status` is `required` with a default, so the two partition an event's
+ * registrations and a manager reading both filters sees every row. The spec
+ * above pins that over the whole status vocabulary.
+ */
+export const withdrawnRegistrationWhere: Where = {
+  type: { equals: 'registration' },
+  status: { in: [...INACTIVE_STATUSES] },
+}

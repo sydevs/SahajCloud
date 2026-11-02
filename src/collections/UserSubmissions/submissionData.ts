@@ -356,3 +356,29 @@ export function readSubmissionValue(entries: unknown, key: string): string | und
   const found = (entries as SubmissionDataEntry[]).find((entry) => entry?.field === key)
   return typeof found?.value === 'string' ? found.value : undefined
 }
+
+/**
+ * A registrant's answers, as the `{ [name]: value }` map
+ * `buildRegistrationAnswers` labels.
+ *
+ * It keeps every other key rather than filtering to the configured question
+ * names, because that function already sorts configured answers from extras and
+ * labels each appropriately — restating the list here would give it two
+ * definitions.
+ *
+ * ⚠ **`BASE_SUBMISSION_KEYS` are dropped, and that is the whole reason this is
+ * not an `Object.fromEntries`.** They are who sent it and from where, never an
+ * answer, and an unconfigured key is labelled by the key itself — so leaving
+ * them in renders `userAgent: Mozilla/5.0 …` and the registrant's own `name` to
+ * a manager as things the visitor was asked.
+ */
+export function answersFrom(entries: unknown): Record<string, unknown> {
+  if (!Array.isArray(entries)) return {}
+  const answers: Record<string, unknown> = {}
+  for (const entry of entries as SubmissionDataEntry[]) {
+    if (typeof entry?.field !== 'string') continue
+    if ((BASE_SUBMISSION_KEYS as readonly string[]).includes(entry.field)) continue
+    answers[entry.field] = entry.value
+  }
+  return answers
+}
