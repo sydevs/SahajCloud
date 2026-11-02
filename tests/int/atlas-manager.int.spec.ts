@@ -5,16 +5,15 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { getAtlasManagerData } from '@/components/admin/Dashboard/AtlasManager/data'
 import { programStatus, type ProgramQuery } from '@/components/admin/Dashboard/AtlasManager/model'
-import type { Manager as ManagerDoc } from '@/payload-types'
-
 import { createData, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 describe('Atlas manager home', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
-  let owner: ManagerDoc
-  let assignee: ManagerDoc
+  type AuthManager = Awaited<ReturnType<typeof testData.authUser>>
+  let owner: AuthManager
+  let assignee: AuthManager
   let ownId: number
   let cityId: number
   let assignedId: number
@@ -22,12 +21,12 @@ describe('Atlas manager home', () => {
     const env = await createTestEnvironment()
     payload = env.payload
     cleanup = env.cleanup
-    owner = await testData.createManager(payload, {
+    const listed = await testData.createManager(payload, {
       type: 'manager',
-      roles: ['atlas-manager'],
+      roles: [],
       currentProject: 'sahaj-atlas',
     })
-    assignee = await testData.createManager(payload, {
+    const assigned = await testData.createManager(payload, {
       type: 'manager',
       roles: [],
       currentProject: 'sahaj-atlas',
@@ -46,11 +45,14 @@ describe('Atlas manager home', () => {
         name: 'Dashboard City',
         level: 'city',
         parent: country.id,
-        managers: [owner.id],
+        managers: [listed.id],
         mapboxId: 'city.dashboard',
       }),
     })
     cityId = city.id
+    // Both Atlas roles are derived from the listings above and below, so each
+    // user is re-read once theirs exists — see `testData.authUser`.
+    owner = await testData.authUser(payload, listed)
     const otherCity = await payload.create({
       collection: 'regions',
       data: createData<'regions'>({
@@ -72,17 +74,18 @@ describe('Atlas manager home', () => {
       },
     })
     ownId = event.id
-    const assigned = await payload.create({
+    const assignedEvent = await payload.create({
       collection: 'events',
       draft: true,
       data: {
         title: 'Assigned draft',
         region: otherCity.id,
-        manager: assignee.id,
+        manager: assigned.id,
         eventType: 'offline',
       },
     })
-    assignedId = assigned.id
+    assignedId = assignedEvent.id
+    assignee = await testData.authUser(payload, assigned)
     await payload.create({
       collection: 'events',
       draft: true,
@@ -90,9 +93,9 @@ describe('Atlas manager home', () => {
     })
   })
   afterAll(async () => cleanup())
-  const request = (user: ManagerDoc) =>
+  const request = (user: AuthManager) =>
     createLocalReq({ user: { ...user, collection: 'managers' }, locale: 'en' }, payload)
-  const load = async (user: ManagerDoc, query: Partial<ProgramQuery> = {}) =>
+  const load = async (user: AuthManager, query: Partial<ProgramQuery> = {}) =>
     getAtlasManagerData(await request(user), { tab: 'all', page: 1, limit: 50, ...query })
   const ids = (data: { programs: { docs: { id: number }[] } }) =>
     data.programs.docs.map((event) => event.id)
