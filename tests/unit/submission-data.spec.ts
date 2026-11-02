@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 
 import type { AuthoredBlock } from '@/collections/UserSubmissions/submissionData'
 import {
+  answersFrom,
   authoredBlocks,
+  BASE_SUBMISSION_KEYS,
   checkSubmissionData,
   DEFAULT_MAX_VALUE_LENGTH,
   MAX_SUBMISSION_DATA_ENTRIES,
@@ -315,5 +317,35 @@ describe('readSubmissionValue', () => {
     expect(readSubmissionValue(entries, 'name')).toBe('Ada')
     expect(readSubmissionValue(entries, 'message')).toBeUndefined()
     expect(readSubmissionValue(entries, 'absent')).toBeUndefined()
+  })
+})
+
+describe('answersFrom', () => {
+  it('keeps every question answer, configured or not', () => {
+    expect(
+      answersFrom([
+        { field: 'referral', value: 'A friend' },
+        { field: 'mystery', value: 'legacy answer' },
+        { field: 'subscribe', value: 'true' },
+      ]),
+    ).toEqual({ referral: 'A friend', mystery: 'legacy answer', subscribe: 'true' })
+  })
+
+  /**
+   * `buildRegistrationAnswers` labels an unconfigured key by the key itself, so
+   * a context pair left in renders to a manager as something the visitor was
+   * asked — `userAgent: Mozilla/5.0 …` beside their referral.
+   */
+  it('drops what the client wrote about itself, and the name shown in its own column', () => {
+    const entries = BASE_SUBMISSION_KEYS.map((field) => ({ field, value: `${field} value` }))
+
+    expect(answersFrom([...entries, { field: 'aspirations', value: 'Calm' }])).toEqual({
+      aspirations: 'Calm',
+    })
+  })
+
+  it('reads nothing out of a blob that is not an array of pairs', () => {
+    expect(answersFrom(undefined)).toEqual({})
+    expect(answersFrom([{ value: 'no field' }])).toEqual({})
   })
 })

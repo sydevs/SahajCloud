@@ -92,6 +92,17 @@ describe('formatShortDate', () => {
     expect(formatShortDate(session, 'America/New_York')).toBe('3 Nov 2026')
     expect(formatLongDate(session, 'America/New_York')).toContain('3 November 2026')
   })
+
+  /**
+   * ⚠ Every caller's zone comes from a column `payload-types.ts` generates as
+   * non-nullable and Postgres leaves null. A default parameter covers only
+   * `undefined`, so an unset zone used to throw out of `Intl` rather than
+   * reading as UTC — in the digest job, mid-send.
+   */
+  it('falls back to UTC for a zone that is null, not only one that is absent', () => {
+    expect(formatShortDate('2026-07-19T12:00:00.000Z', null)).toBe('19 Jul 2026')
+    expect(formatLongDate('2026-07-19T12:00:00.000Z', null)).toContain('19 July 2026')
+  })
 })
 
 describe('humanDurationSince', () => {

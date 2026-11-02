@@ -43,8 +43,11 @@ interface DigestRow {
   email: string
   name: string | null
   startingAt?: string | null
-  /** The zone `startingAt` reads in: the registration's own, else the event's. */
-  timeZone?: string
+  /**
+   * The zone `startingAt` reads in: the registration's own, else the event's.
+   * Nullable, because both of those columns are — see `formatDate`.
+   */
+  timeZone?: string | null
   answers: RegistrationAnswer[]
 }
 

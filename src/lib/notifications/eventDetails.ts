@@ -43,12 +43,19 @@ export function addressOneLine(address: Address): string {
     .join(', ')
 }
 
-function formatDate(value: unknown, withYear = true, timeZone = 'UTC'): string {
+/**
+ * ⚠ **A default parameter does not cover `null`, and every caller's timezone
+ * arrives from a column that can hold one.** `startingAt_tz` is generated as
+ * `SupportedTimezones` with no `| null`, so an unset one type-checks and then
+ * throws `RangeError: Invalid time zone specified: null` out of `Intl` — in the
+ * digest job, for a registration whose event carries no `firstDate_tz` either.
+ */
+function formatDate(value: unknown, withYear = true, timeZone?: string | null): string {
   if (!value) return ''
   const date = new Date(String(value))
   if (Number.isNaN(date.getTime())) return ''
   return new Intl.DateTimeFormat('en-GB', {
-    timeZone,
+    timeZone: timeZone ?? 'UTC',
     day: 'numeric',
     month: 'short',
     ...(withYear ? { year: 'numeric' } : {}),
@@ -136,11 +143,11 @@ function formatBreaks(schedule: Schedule | null | undefined): string[] {
  * A full date, e.g. "Saturday, 19 July 2026". UTC unless `timeZone` names one —
  * which a session's start needs, or 19:00 in New York reads as the next day.
  */
-export function formatLongDate(iso: string, timeZone = 'UTC'): string {
+export function formatLongDate(iso: string, timeZone?: string | null): string {
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return ''
   return new Intl.DateTimeFormat('en-GB', {
-    timeZone,
+    timeZone: timeZone ?? 'UTC',
     weekday: 'long',
     day: 'numeric',
     month: 'long',
@@ -149,7 +156,7 @@ export function formatLongDate(iso: string, timeZone = 'UTC'): string {
 }
 
 /** Compact date for dense lists (the digest), e.g. "5 Aug 2025". `timeZone` as above. */
-export function formatShortDate(iso: string, timeZone?: string): string {
+export function formatShortDate(iso: string, timeZone?: string | null): string {
   return formatDate(iso, true, timeZone)
 }
 
