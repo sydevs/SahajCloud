@@ -12,11 +12,7 @@ import {
   getCollectionMetadata,
   type ScriptName,
 } from '../../seeds/lib/expectedCounts'
-import {
-  getDefaultBatchSize,
-  validatePaginationParam,
-  type PaginationOptions,
-} from '../../seeds/lib/pagination'
+import { getDefaultBatchSize, validatePaginationParam } from '../../seeds/lib/pagination'
 
 describe('Pagination Utilities', () => {
   describe('getDefaultBatchSize', () => {
@@ -240,31 +236,6 @@ describe('Pagination Utilities', () => {
 
         expect(allPassed).toBe(true)
       })
-    })
-  })
-})
-
-describe('Pagination Options', () => {
-  describe('PaginationOptions type', () => {
-    it('accepts valid pagination options', () => {
-      const options: PaginationOptions = {
-        offset: 0,
-        limit: 25,
-        collection: 'meditations',
-      }
-
-      expect(options.offset).toBe(0)
-      expect(options.limit).toBe(25)
-      expect(options.collection).toBe('meditations')
-    })
-
-    it('allows optional collection field', () => {
-      const options: PaginationOptions = {
-        offset: 10,
-        limit: 50,
-      }
-
-      expect(options.collection).toBeUndefined()
     })
   })
 })
