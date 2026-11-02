@@ -33,8 +33,11 @@ const FILTERS: Record<
     label: 'Withdrawn',
     icon: <CheckIcon />,
     empty: 'Nobody has withdrawn',
+    // All three reasons `isActiveRegistration` drops a row, because the copy
+    // must not tell a manager someone was declined when their confirmation
+    // simply never sent. The Status column names which one.
     explain:
-      'A registration you decline, or one screening refuses, is kept here rather than deleted.',
+      'A registration you declined, one screening refused, and one whose confirmation never sent are kept here rather than deleted.',
   },
 }
 
@@ -55,7 +58,10 @@ export function EventRegistrationsView({ data }: { data: EventRegistrationsData 
         tabs={REGISTRATION_FILTERS.map((value) => ({ value, label: FILTERS[value].label }))}
       />
       <div id={LIST_ID} aria-live="polite">
-        {rows.length ? (
+        {/* On `totalDocs`, not on this page's rows: a hand-typed page past the
+            end has none, and the notice would then claim the event has no
+            registrants while the pager that gets you back was hidden too. */}
+        {registrations.totalDocs > 0 ? (
           <>
             <Table
               data={rows}

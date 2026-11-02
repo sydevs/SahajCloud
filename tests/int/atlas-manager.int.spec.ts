@@ -329,6 +329,31 @@ describe('Atlas manager home', () => {
       ])
     })
 
+    /**
+     * Archiving a long-expired class trashes it, and Payload hides a trashed
+     * row from every read that does not ask for it — so without `trash: true`
+     * the gate reads the event as absent and refuses its own manager.
+     */
+    it('still answers for an archived event', async () => {
+      const archived = await testData.createEvent(payload, {
+        title: 'Archived program',
+        manager: assignee.id,
+        region: cityId,
+      })
+      await register(archived.id, 'Archived Registrant')
+      await payload.update({
+        collection: 'events',
+        id: archived.id,
+        data: { deletedAt: new Date().toISOString() },
+      })
+
+      const data = await loadEventRegistrations(await request(assignee), archived.id, {
+        filter: 'active',
+        page: 1,
+      })
+      expect(data?.registrations.docs.map((row) => row.name)).toEqual(['Archived Registrant'])
+    })
+
     /** A `create` screen and a deleted event both reach the route with no row. */
     it('refuses a document id that resolves to no event', async () => {
       const req = await request(admin)

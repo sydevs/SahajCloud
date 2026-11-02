@@ -73,6 +73,10 @@ export async function loadEventRegistrations(
     disableErrors: true,
     overrideAccess: true,
     select: { manager: true, schedule: { firstDate_tz: true } },
+    // Archiving a long-expired class trashes it, and its registrants are still
+    // its manager's to read. Without this the row reads as absent and the tab
+    // answers the unauthorized redirect (src/collections/AGENTS.md).
+    trash: true,
     req: localeIsolatedReq(req),
   })
   if (!event) return null
