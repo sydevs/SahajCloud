@@ -10,6 +10,7 @@
 import type { TypedAuthUser } from './types'
 import type { Locale, PayloadRequest } from 'payload'
 
+import { virtualRoles } from './config'
 import { normalizeLocalizedRoles, rankLocalesByRoleCount } from './localizedRoles'
 
 type FilterAvailableLocalesArgs = {
@@ -24,6 +25,7 @@ type FilterAvailableLocalesArgs = {
  * - Admin managers: See all locales
  * - API clients: Not filtered (return all locales)
  * - Regular managers: exactly the locales they hold a role in, most roles first
+ * - Managers holding a DERIVED role: every locale, those ranked first
  * - Managers with roles in no locale: English only
  * - Inactive managers: Return only English
  *
@@ -59,16 +61,28 @@ export const filterAvailableLocales = ({ locales, req }: FilterAvailableLocalesA
   // `localeCodes[0]` for a manager whose active locale grants them nothing.
   const ranked = rankLocalesByRoleCount(normalizeLocalizedRoles(authUser.roles))
 
+  const offered = ranked
+    .map((code) => locales.find((l) => l.code === code))
+    .filter((l): l is Locale => Boolean(l))
+
+  // ⚠ **A derived Atlas role names no locale, so it is held in every one.** The
+  // listing it comes from is not localized, and the access layer grants it in
+  // each configured locale — so ranking stored roles alone would pin a manager
+  // whose only role is derived to English and leave the localized title of an
+  // event in their own region unreachable. Ranked locales stay first, so the
+  // landing locale is still the one they hold the most stored roles in.
+  if (virtualRoles(authUser).length > 0) {
+    return [...offered, ...locales.filter((locale) => !offered.includes(locale))]
+  }
+
   // ⚠ Never return an empty array. `views/Root` redirects whenever `req.locale` is
   // not in this list and sends the manager to `localeCodes[0]`; when that is
   // `undefined`, `qs.stringify` drops the key and the route redirects to itself —
   // an infinite loop. English is also what keeps the "No Projects Available"
   // banner reachable, which is the correct outcome for a manager with no roles.
-  if (ranked.length === 0) return [englishLocale]
+  if (offered.length === 0) return [englishLocale]
 
   // Ordered by the ranking, not by the config's locale order: the first entry is
   // both the first dropdown item and the locale Payload lands them on.
-  return ranked
-    .map((code) => locales.find((l) => l.code === code))
-    .filter((l): l is Locale => Boolean(l))
+  return offered
 }

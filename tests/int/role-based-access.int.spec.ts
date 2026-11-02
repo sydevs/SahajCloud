@@ -13,6 +13,7 @@ import { relationId } from '@/lib/utilities/relationId'
 import type { Event, Meditation, Region } from '@/payload-types'
 import { bypassPermissions, hasAnyPermission, hasPermission } from '@/plugins/access'
 import { PROPOSAL_REGION_PATHS } from '@/plugins/access/accessConfigs'
+import { filterAvailableLocales } from '@/plugins/access/filterAvailableLocales'
 import { isLocaleScopedCollection } from '@/plugins/access/localeScopedWrites'
 import type { ContentSlug } from '@/plugins/access/types'
 import { createSession } from '@/plugins/login'
@@ -956,6 +957,127 @@ describe('Role-Based Access Control', () => {
         context: { skipVerifyHook: true },
       })
       expect(grants(await reload(manager), 'events')).toBe(false)
+    })
+
+    it('lets an event assignee save the event their role comes from', async () => {
+      // ⚠ Payload's admin posts the WHOLE document, `region` included. An
+      // assignee owns no region, so a re-home test with no exemption for an
+      // unchanged value refused every save of their own event — and a save is
+      // what re-verifies it.
+      const named = await testData.createManager(payload, { name: 'Saver', roles: {} })
+      const event = await testData.createEvent(payload, {
+        title: 'Assignee saves this',
+        region: farCity,
+        manager: named.id,
+        _status: 'published',
+      })
+      const assignee = await testData.authUser(payload, named)
+
+      const saved = await payload.update({
+        collection: 'events',
+        id: event.id,
+        data: { region: farCity, contactPhone: '+44 20 7777 8888' },
+        user: assignee,
+        overrideAccess: false,
+      })
+      expect(saved.contactPhone).toBe('+44 20 7777 8888')
+
+      // A real re-home is still refused.
+      await expect(
+        payload.update({
+          collection: 'events',
+          id: event.id,
+          data: { region: city },
+          user: assignee,
+          overrideAccess: false,
+        }),
+      ).rejects.toThrow()
+    })
+
+    it('lets a region manager save the region they are listed on', async () => {
+      // Their own top region's parent sits ABOVE the subtree, so the same
+      // unchanged-value refusal blocked every save of it.
+      const parent = await payload.create({
+        collection: 'regions',
+        data: createData<'regions'>({
+          level: 'country',
+          name: 'Above Derivia',
+          mapboxId: 'place.above-derivia',
+        }),
+        depth: 0,
+        overrideAccess: true,
+      })
+      const listed = await testData.createManager(payload, { name: 'Root Saver', roles: {} })
+      const root = await payload.create({
+        collection: 'regions',
+        data: createData<'regions'>({
+          level: 'region',
+          name: 'Derivia State',
+          mapboxId: 'place.derivia-state',
+          parent: parent.id,
+          managers: [listed.id],
+        }),
+        depth: 0,
+        overrideAccess: true,
+      })
+      const manager = await testData.authUser(payload, listed)
+
+      const saved = await payload.update({
+        collection: 'regions',
+        id: root.id,
+        data: { parent: parent.id, subtitle: 'saved by its own manager' },
+        user: manager,
+        overrideAccess: false,
+      })
+      expect(saved.subtitle).toBe('saved by its own manager')
+
+      // A real re-parent out of the subtree is still refused.
+      await expect(
+        payload.update({
+          collection: 'regions',
+          id: root.id,
+          data: { parent: country },
+          user: manager,
+          overrideAccess: false,
+        }),
+      ).rejects.toThrow()
+    })
+
+    it('offers every admin locale to a manager whose only role is derived', async () => {
+      // The role names no locale, so it is held in all of them. Ranking stored
+      // roles alone left such a manager with English only, and the localized
+      // title of an event in their own region unreachable.
+      const listed = await testData.createManager(payload, { name: 'Locales', roles: {} })
+      await payload.update({
+        collection: 'regions',
+        id: country,
+        data: { managers: [listed.id] },
+        overrideAccess: true,
+      })
+      const manager = await testData.authUser(payload, listed)
+      const locales = payload.config.localization
+        ? payload.config.localization.locales
+        : /* v8 ignore next */ []
+
+      const offered = filterAvailableLocales({
+        locales,
+        req: { user: manager } as unknown as PayloadRequest,
+      })
+      expect(offered.map((locale) => locale.code)).toEqual(locales.map((locale) => locale.code))
+
+      await payload.update({
+        collection: 'regions',
+        id: country,
+        data: { managers: [] },
+        overrideAccess: true,
+      })
+      const unlisted = await testData.authUser(payload, listed)
+      expect(
+        filterAvailableLocales({
+          locales,
+          req: { user: unlisted } as unknown as PayloadRequest,
+        }).map((locale) => locale.code),
+      ).toEqual(['en'])
     })
 
     it('covers every regionHint key a proposal can be routed by', () => {

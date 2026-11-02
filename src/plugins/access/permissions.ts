@@ -130,11 +130,13 @@ export function hasPermission(
  * rather than falling back to a locale, because every accidental locale-less check
  * used to resolve to the DEFAULT locale's roles and grant them everywhere (#665).
  *
- * ⚠ **A derived role is appended only once the scope resolves**, so `?locale=all`
- * keeps resolving nothing. Appending it ahead of that test would hand a listed
- * manager their Atlas grants at every locale at once — the over-grant #665
- * removed, re-entered by a door it cannot see. `'union'` does resolve, and must:
- * it is admin-UI nav visibility, which would otherwise be empty for a manager
+ * ⚠ **A derived role is held in every CONFIGURED locale, and in no other
+ * scope.** The listing it comes from is not localized, so it is granted
+ * whenever the scope resolves — but `?locale=all`, and any locale outside
+ * `LOCALES`, still resolve nothing, which is what the `undefined` scope means
+ * and what #665 left it meaning. Appending ahead of that test would answer a
+ * request that names no evaluable locale. `'union'` does resolve, and must: it
+ * is admin-UI nav visibility, which would otherwise be empty for a manager
  * whose only role is derived.
  *
  * ⚠ **And only for a `managers` caller**, spelled as an allowlist like the

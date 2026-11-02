@@ -93,6 +93,29 @@ export async function ownedRegionFilterOptions(
   return selectable.length ? { id: { in: selectable } } : false
 }
 
+/**
+ * One relationship id off a stored row, for telling an unchanged posted value
+ * from a real move. `overrideAccess` is deliberate: this answers a question
+ * about the row the caller already reached, not about what they may read.
+ */
+async function storedRelationId(
+  req: PayloadRequest,
+  collection: 'events' | 'regions',
+  id: number | string,
+  field: 'parent' | 'region',
+): Promise<null | number> {
+  const doc = (await req.payload.findByID({
+    collection,
+    id,
+    depth: 0,
+    overrideAccess: true,
+    disableErrors: true,
+    select: { [field]: true },
+    req,
+  })) as Record<string, unknown> | null
+  return doc ? relationId(doc[field]) : null
+}
+
 /** `Where` selecting events inside the owned subtree, unioned with directly-owned events. */
 function eventScopeWhere(ownedRegionIds: number[], userId: number): Where {
   const or: Where[] = [{ manager: { equals: userId } }]
@@ -131,10 +154,22 @@ export async function scopeRegionSubtreeWrite({
     }
     // update (region delete isn't granted to a region manager). A re-parent must
     // keep the region inside the owned subtree — reject moving it under a region
-    // they don't own. Applies to single and bulk updates.
+    // they don't own.
     const newParentId = relationId((data as { parent?: unknown } | null)?.parent)
+    if (id !== undefined) {
+      if (!ownedRegionIds.includes(Number(id))) return false
+      if (newParentId === null || ownedRegionIds.includes(newParentId)) return true
+      // ⚠ **A posted parent that repeats the stored one is not a re-parent.**
+      // Payload's admin posts the whole document, and a subtree ROOT's own
+      // parent sits above the subtree — so refusing every outside parent
+      // refused every save of the one region the manager is listed on. The
+      // stored value is read only here, where the posted one is otherwise
+      // about to be refused.
+      return newParentId === (await storedRelationId(req, 'regions', id, 'parent'))
+    }
+    // Bulk update: no one stored value to compare, so an outside parent is a
+    // re-parent attempt.
     if (newParentId !== null && !ownedRegionIds.includes(newParentId)) return false
-    if (id !== undefined) return ownedRegionIds.includes(Number(id))
     return ownedRegionIds.length ? { id: { in: ownedRegionIds } } : false
   }
 
@@ -150,10 +185,8 @@ export async function scopeRegionSubtreeWrite({
 
   // update / delete (delete with `trash: true` = soft-delete an event). A
   // re-home must keep the event inside the owned subtree — reject moving it to a
-  // region they don't own (covers single and bulk updates; delete carries no
-  // data, so this is a no-op there).
+  // region they don't own (delete carries no data, so this is a no-op there).
   const newRegionId = relationId((data as { region?: unknown } | null)?.region)
-  if (newRegionId !== null && !ownedRegionIds.includes(newRegionId)) return false
   if (id !== undefined) {
     const event = (await req.payload.findByID({
       collection: 'events',
@@ -166,9 +199,20 @@ export async function scopeRegionSubtreeWrite({
     })) as { region?: unknown; manager?: unknown } | null
     if (!event) return false
     const regionId = relationId(event.region)
+    // ⚠ **A posted region that repeats the stored one is not a re-home.**
+    // Payload's admin posts the whole document, and an event assignee owns no
+    // region at all — so refusing every outside region refused every save of
+    // the event their role comes from, which is also the save that
+    // re-verifies it.
+    if (newRegionId !== null && newRegionId !== regionId && !ownedRegionIds.includes(newRegionId)) {
+      return false
+    }
     if (regionId !== null && ownedRegionIds.includes(regionId)) return true
     return relationId(event.manager) === userId
   }
+  // Bulk update: no one stored row to compare, so an outside region is a
+  // re-home attempt.
+  if (newRegionId !== null && !ownedRegionIds.includes(newRegionId)) return false
   return eventScopeWhere(ownedRegionIds, userId)
 }
 
