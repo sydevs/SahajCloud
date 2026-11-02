@@ -18,7 +18,7 @@ import { FilterTabs } from '../helpers/FilterTabs'
 import { tableColumn } from '../helpers/tableColumn'
 import { useSetQuery } from '../helpers/useSetQuery'
 
-/** One table per filter: its button, and what it says when nothing matches. */
+/** One table per filter: its button, the sentence above it, and its empty title. */
 const FILTERS: Record<
   RegistrationFilter,
   { label: string; icon: ReactNode; empty: string; explain: string }
@@ -35,7 +35,8 @@ const FILTERS: Record<
     empty: 'Nobody has withdrawn',
     // All three reasons `isActiveRegistration` drops a row, because the copy
     // must not tell a manager someone was declined when their confirmation
-    // simply never sent. The Status column names which one.
+    // simply never sent. The Status column names which one — which is why this
+    // sentence sits above the rows and not only in the empty notice.
     explain:
       'A registration you declined, one screening refused, and one whose confirmation never sent are kept here rather than deleted.',
   },
@@ -58,6 +59,7 @@ export function EventRegistrationsView({ data }: { data: EventRegistrationsData 
         tabs={REGISTRATION_FILTERS.map((value) => ({ value, label: FILTERS[value].label }))}
       />
       <div id={LIST_ID} aria-live="polite">
+        <p className={styles.explain}>{FILTERS[filter].explain}</p>
         {/* On `totalDocs`, not on this page's rows: a hand-typed page past the
             end has none, and the notice would then claim the event has no
             registrants while the pager that gets you back was hidden too. */}
@@ -130,9 +132,7 @@ export function EventRegistrationsView({ data }: { data: EventRegistrationsData 
             )}
           </>
         ) : (
-          <CenteredNotice icon={FILTERS[filter].icon} title={FILTERS[filter].empty}>
-            <p>{FILTERS[filter].explain}</p>
-          </CenteredNotice>
+          <CenteredNotice icon={FILTERS[filter].icon} title={FILTERS[filter].empty} />
         )}
       </div>
     </Gutter>
