@@ -39,8 +39,9 @@ import { asTrustedReq } from '@/plugins/usage/hooks'
  * {@link buildRegionPath} with the read-time resolver, so the canonical URL and
  * the lookup cannot disagree.
  *
- * ⚠ Breadcrumbs populate on write, so a row saved before #634 has a null `url`
- * until it is next saved.
+ * ⚠ Breadcrumbs populate on write. The rows predating `generateURL` were
+ * backfilled once (#634); a row that still has a null `url` is repaired by
+ * resaving its root, which the plugin cascades over the whole subtree.
  */
 export const REGION_NESTED_DOCS_CONFIG = {
   collections: ['regions'],
