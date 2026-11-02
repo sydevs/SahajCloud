@@ -52,13 +52,6 @@
 .home :global(.cell-action) {
   white-space: nowrap;
 }
-.pageControls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--base);
-}
 @media (max-width: 700px) {
   .header,
   .notice {

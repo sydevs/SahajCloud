@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react'
 
-import { CalendarIcon, CheckIcon, Gutter, Pagination, Pill, Table } from '@payloadcms/ui'
+import { CalendarIcon, CheckIcon, Gutter, Pill, Table } from '@payloadcms/ui'
 
 import { STATUS_LABELS } from '@/collections/UserSubmissions/statuses'
 
@@ -15,6 +15,7 @@ import {
 } from './model'
 import { CenteredNotice } from '../CenteredNotice'
 import { FilterTabs } from '../helpers/FilterTabs'
+import { PageControls } from '../helpers/PageControls'
 import { tableColumn } from '../helpers/tableColumn'
 import { useSetQuery } from '../helpers/useSetQuery'
 
@@ -117,19 +118,7 @@ export function EventRegistrationsView({ data }: { data: EventRegistrationsData 
                 ),
               ]}
             />
-            {registrations.totalPages > 1 && (
-              <div className={styles.pageControls}>
-                <Pagination
-                  hasNextPage={registrations.hasNextPage}
-                  hasPrevPage={registrations.hasPrevPage}
-                  nextPage={registrations.nextPage ?? undefined}
-                  page={registrations.page}
-                  prevPage={registrations.prevPage ?? undefined}
-                  totalPages={registrations.totalPages}
-                  onChange={(page) => setQuery({ page })}
-                />
-              </div>
-            )}
+            <PageControls docs={registrations} onPage={(page) => setQuery({ page })} />
           </>
         ) : (
           <CenteredNotice icon={FILTERS[filter].icon} title={FILTERS[filter].empty} />

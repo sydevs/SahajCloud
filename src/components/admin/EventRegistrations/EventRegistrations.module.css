@@ -28,10 +28,6 @@
 .answers div:last-child dd {
   margin-bottom: 0;
 }
-.pageControls {
-  display: flex;
-  margin-top: var(--base);
-}
 .explain {
   margin: 0 0 calc(var(--base) * 0.75);
   color: var(--theme-elevation-650);

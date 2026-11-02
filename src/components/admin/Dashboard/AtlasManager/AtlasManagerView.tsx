@@ -1,15 +1,6 @@
 'use client'
 
-import {
-  Banner,
-  Button,
-  CalendarIcon,
-  CheckIcon,
-  Pagination,
-  PerPage,
-  Pill,
-  Table,
-} from '@payloadcms/ui'
+import { Banner, Button, CalendarIcon, CheckIcon, Pill, Table } from '@payloadcms/ui'
 import Link from 'next/link'
 
 import styles from './AtlasManager.module.css'
@@ -26,6 +17,7 @@ import {
 import { NAV_LINKS } from '../../AdminNavLinks/links'
 import { CenteredNotice } from '../../CenteredNotice'
 import { FilterTabs } from '../../helpers/FilterTabs'
+import { PageControls } from '../../helpers/PageControls'
 import { tableColumn } from '../../helpers/tableColumn'
 import { useSetQuery } from '../../helpers/useSetQuery'
 
@@ -188,24 +180,15 @@ export function AtlasManagerView({ data }: { data: AtlasManagerData }) {
                     ),
                   ]}
                 />
-                <div className={styles.pageControls}>
-                  <Pagination
-                    hasNextPage={programs.hasNextPage}
-                    hasPrevPage={programs.hasPrevPage}
-                    nextPage={programs.nextPage ?? undefined}
-                    page={programs.page}
-                    prevPage={programs.prevPage ?? undefined}
-                    totalPages={programs.totalPages}
-                    onChange={(page) => setQuery({ page })}
-                  />
-                  {programs.totalDocs > PROGRAM_LIMITS[0]! && (
-                    <PerPage
-                      limit={query.limit}
-                      limits={PROGRAM_LIMITS}
-                      handleChange={(limit) => setQuery({ limit, page: 1 })}
-                    />
-                  )}
-                </div>
+                <PageControls
+                  docs={programs}
+                  onPage={(page) => setQuery({ page })}
+                  perPage={{
+                    limit: query.limit,
+                    limits: PROGRAM_LIMITS,
+                    onLimit: (limit) => setQuery({ limit, page: 1 }),
+                  }}
+                />
               </>
             ) : (
               <CenteredNotice
