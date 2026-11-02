@@ -20,13 +20,9 @@ export const Files: CollectionConfig = {
   disableDuplicate: true,
   hooks: {
     beforeChange: [restrictUploadToAdmin({ label: 'file' })],
-    // A transcript's cues are useless without the recording they time, and
-    // `transcripts.source` is `required` — so the row has to go before the file
-    // does, or the rels foreign key leaves it with no source and the admin can
-    // neither load nor save it. Trashing a file is an `update` and so keeps it.
-    beforeDelete: [
-      deleteChildren({ collection: 'transcripts', field: 'source', relationTo: 'files' }),
-    ],
+    // `transcripts.source` is `required`, so see `Transcripts.ts` for why the
+    // row cannot outlive its file.
+    beforeDelete: [deleteChildren({ collection: 'transcripts', field: 'source' })],
   },
   admin: {
     group: 'Media',

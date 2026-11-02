@@ -101,31 +101,35 @@ function managerSubmissionScope(userId: number | string): Where {
  *
  * The published-only clause above and Payload's own trash filter are both
  * **per collection**, so a child carrying neither answers for a parent that
- * refuses to be read at all. A `transcripts` row is the full spoken word of a
- * recording plus the R2 key it plays from, and a draft or trashed meditation
- * handed both to any client key (#968). A client reads a child because it may
- * read the parent, so the row's own reach has to end where the parent's does.
+ * refuses to be read at all. A client reads a child because it may read the
+ * parent, so the row's own reach has to end where the parent's does.
  *
  * Spelled against the parent relationship rather than a resolved id list: this
  * clause is combined into the join query too (`sanitizeJoinQuery`), where a
  * second round trip per read would be paid on every parent row.
  *
- * ⚠ **`transcripts` is a refusal, because its parent is polymorphic and no
- * `Where` can reach through one.** Payload resolves only `source`,
- * `source.relationTo` and `source.value` on a `relationTo` array and throws
- * `APIError('Not supported')` on any deeper path, so `source._status` cannot be
- * written at all. The collection is already admin-only working data in the
- * public spec (`plugins/openapi/specFilter.ts`), and neither consumer repo
- * reads it, so the client read goes rather than the protection — a weakened
- * clause would hand every client key a draft meditation's spoken text again.
- * A manager's read is untouched.
+ * ⚠ A row whose parent a hard delete has nulled matches neither key, so no
+ * client reads an orphan.
  *
  * Exempt for a live-preview request, for the same reason the published-only
  * clause above is: a preview is a credentialed read of unpublished work.
  */
-const CLIENT_PARENT_STATE_SCOPES: Partial<Record<ContentSlug, false | Where>> = {
-  transcripts: false,
-}
+const CLIENT_PARENT_STATE_SCOPES: Partial<Record<ContentSlug, Where>> = {}
+
+/**
+ * Collections no client key may read at all, however its roles reach them.
+ *
+ * ⚠ **A last resort, for a child whose parent's state no `Where` can reach.**
+ * `transcripts.source` is polymorphic, and Payload resolves only `source`,
+ * `source.relationTo` and `source.value` on a `relationTo` array — anything
+ * deeper throws `APIError('Not supported')`, so the `source._status` clause
+ * that kept a draft meditation's spoken text and its R2 key off every client
+ * key (#968) cannot be written. The read goes rather than the protection.
+ *
+ * Narrower than `RESTRICTED_COLLECTIONS`, which would take a manager's implicit
+ * read with it and so the admin Transcript tab (#1043).
+ */
+const CLIENT_UNREADABLE: ContentSlug[] = ['transcripts']
 
 /**
  * Create unified access config for collections and globals
@@ -179,8 +183,9 @@ export function createAccessConfig(
           req.user?.collection === 'clients' &&
           !isLivePreviewRequest(req)
         ) {
+          if (CLIENT_UNREADABLE.includes(collection)) return false
           const parentScope = CLIENT_PARENT_STATE_SCOPES[collection]
-          if (parentScope !== undefined) return parentScope
+          if (parentScope) return parentScope
         }
 
         // An atlas-manager's role grants create/update/delete on regions/events,

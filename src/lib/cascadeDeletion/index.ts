@@ -1,4 +1,4 @@
-import type { CollectionBeforeDeleteHook, CollectionSlug } from 'payload'
+import type { CollectionBeforeDeleteHook, CollectionSlug, PayloadRequest } from 'payload'
 
 /**
  * A single cascade target: the child collection and the field on that child
@@ -9,20 +9,6 @@ export interface CascadeRule {
   collection: CollectionSlug
   /** Field on the child collection that references the parent */
   field: string
-  /**
-   * The parent's own collection, where `field` is a **polymorphic**
-   * relationship (`relationTo: [...]`).
-   *
-   * ⚠ Required there, and not optional in spirit: Payload resolves only
-   * `<field>`, `<field>.relationTo` and `<field>.value` on a `relationTo`
-   * array, and `{ [field]: { equals: id } }` matches none of them — it throws
-   * `APIError('Not supported')` when the query is built, so every parent
-   * delete would fail. Set it and the match becomes the object form Payload
-   * does resolve, against that one target's column on the rels table.
-   *
-   * Omit it for a single-target relationship, which keeps the bare form.
-   */
-  relationTo?: CollectionSlug
 }
 
 /**
@@ -40,6 +26,9 @@ export interface CascadeRule {
  * relationship fields — see payloadcms/payload#11177 and PR #1209. This
  * helper runs before the DB-level FK so children are gone before the parent
  * row is physically removed.
+ *
+ * A **polymorphic** child field is the same job needing a different `where`,
+ * and the hook reads that off the child's own schema — see `polymorphicField`.
  *
  * ## Trash-enabled collections
  *
@@ -64,18 +53,45 @@ export interface CascadeRule {
  * ```
  */
 export function deleteChildren(...rules: CascadeRule[]): CollectionBeforeDeleteHook {
-  return async ({ id, req }) => {
+  return async ({ collection, id, req }) => {
     for (const rule of rules) {
       await req.payload.delete({
         collection: rule.collection,
         where: {
-          [rule.field]: rule.relationTo
-            ? { equals: { relationTo: rule.relationTo, value: id } }
+          [rule.field]: polymorphicField(req, rule)
+            ? { equals: { relationTo: collection.slug, value: id } }
             : { equals: id },
         },
+        // Nothing reads the deleted rows, and the config's `defaultDepth` would
+        // populate every child's relationships on the way out. A `select` would
+        // also skip the children's virtual fields, but its type is per
+        // collection and this helper is generic.
+        depth: 0,
         trash: true,
         req,
       })
     }
   }
+}
+
+/**
+ * Whether the child's referencing field is polymorphic, read off the child's
+ * own config.
+ *
+ * ⚠ **Derived, never declared.** The object form needs the parent's slug, and
+ * that is the collection this hook is registered on — so a rule free to state
+ * it is free to state the wrong one, which compiles, deletes nothing, and
+ * leaves the parent's delete to fail on the foreign key. The repo answers every
+ * other "what shape is this column" question the same way
+ * (`isLocaleScopedCollection`, `getDocManagerFields`).
+ *
+ * `flattenedFields`, because sanitization splices a row, a collapsible or an
+ * unnamed group straight into the top level. A dotted `field` reaches no
+ * top-level entry, so it keeps the single-target form.
+ */
+function polymorphicField(req: PayloadRequest, rule: CascadeRule): boolean {
+  const field = req.payload.collections?.[rule.collection]?.config?.flattenedFields?.find(
+    (candidate) => 'name' in candidate && candidate.name === rule.field,
+  )
+  return !!field && 'relationTo' in field && Array.isArray(field.relationTo)
 }

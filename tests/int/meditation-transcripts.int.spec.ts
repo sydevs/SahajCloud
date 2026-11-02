@@ -15,6 +15,7 @@ import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { transcriptSourceWhere } from '@/lib/meditations/transcriptSource'
 import type { Meditation, Transcript } from '@/payload-types'
 
 import { createData, testData, type FixtureOverrides } from '../utils/testData'
@@ -34,10 +35,20 @@ describe('transcripts', () => {
     await cleanup()
   })
 
-  /** The one `where` shape every read of `source` has to use. */
-  const sourcedBy = (relationTo: 'meditations' | 'files', value: number) => ({
-    source: { equals: { relationTo, value } },
-  })
+  /** A row for one source, which is most of this file's setup. */
+  const createTranscript = (
+    relationTo: 'meditations' | 'files',
+    value: number,
+    extra: Partial<Parameters<typeof createData<'transcripts'>>[0]> = {},
+  ) =>
+    payload.create({
+      collection: 'transcripts',
+      data: createData<'transcripts'>({
+        source: { relationTo, value },
+        language: 'en',
+        ...extra,
+      }),
+    })
 
   /**
    * A meditation with no transcript row, which is what every case below builds
@@ -52,34 +63,25 @@ describe('transcripts', () => {
     overrides: FixtureOverrides<Meditation> = { _status: 'published' },
   ): Promise<Meditation> => {
     const meditation = await testData.createMeditation(payload, undefined, overrides)
-    const { docs } = await payload.find({
+    await payload.delete({
       collection: 'transcripts',
-      where: sourcedBy('meditations', meditation.id),
-      pagination: false,
+      where: transcriptSourceWhere('meditations', meditation.id),
       overrideAccess: true,
     })
-    for (const row of docs) {
-      await payload.delete({ collection: 'transcripts', id: row.id })
-    }
     return meditation
   }
 
   describe('access', () => {
     it('answers a manager who may read the recording', async () => {
       const meditation = await createMeditationWithoutTranscript()
-      await payload.create({
-        collection: 'transcripts',
-        data: createData<'transcripts'>({
-          source: { relationTo: 'meditations', value: meditation.id },
-          language: 'en',
-          segments: [
-            {
-              content: 'Place your attention on the top of the head.',
-              startTimeMs: 0,
-              endTimeMs: 4000,
-            },
-          ],
-        }),
+      await createTranscript('meditations', meditation.id, {
+        segments: [
+          {
+            content: 'Place your attention on the top of the head.',
+            startTimeMs: 0,
+            endTimeMs: 4000,
+          },
+        ],
       })
 
       const editor = await testData.createManager(payload, {
@@ -90,7 +92,7 @@ describe('transcripts', () => {
         collection: 'transcripts',
         overrideAccess: false,
         user: editor as Parameters<typeof payload.find>[0]['user'],
-        where: sourcedBy('meditations', meditation.id),
+        where: transcriptSourceWhere('meditations', meditation.id),
         select: idOnlySelect(),
         depth: 0,
       })
@@ -148,13 +150,8 @@ describe('transcripts', () => {
   describe('the join field on meditations', () => {
     it('carries the transcript to whoever may read the recording', async () => {
       const meditation = await createMeditationWithoutTranscript()
-      await payload.create({
-        collection: 'transcripts',
-        data: createData<'transcripts'>({
-          source: { relationTo: 'meditations', value: meditation.id },
-          language: 'en',
-          segments: [{ content: 'Let your hands rest open.', startTimeMs: 0, endTimeMs: 3000 }],
-        }),
+      await createTranscript('meditations', meditation.id, {
+        segments: [{ content: 'Let your hands rest open.', startTimeMs: 0, endTimeMs: 3000 }],
       })
 
       const editor = await testData.createManager(payload, {
@@ -178,19 +175,15 @@ describe('transcripts', () => {
     })
 
     /**
-     * ⚠ Payload correlates a polymorphic join per target itself, so the join
-     * must not list a transcript that names a **file** of the meditation's own
-     * id — the two collections number their rows independently.
+     * ⚠ Payload correlates a polymorphic join per target itself, and the two
+     * collections number their rows independently — so a file-sourced row must
+     * never reach a meditation's join, whatever its id.
      */
-    it('lists one row, and never another target of the same number', async () => {
+    it('lists the meditation’s row and no file-sourced one', async () => {
       const meditation = await createMeditationWithoutTranscript()
-      await payload.create({
-        collection: 'transcripts',
-        data: createData<'transcripts'>({
-          source: { relationTo: 'meditations', value: meditation.id },
-          language: 'en',
-        }),
-      })
+      const own = await createTranscript('meditations', meditation.id)
+      const file = await testData.createFile(payload)
+      const other = await createTranscript('files', file.id)
 
       const read = await payload.findByID({
         collection: 'meditations',
@@ -198,7 +191,11 @@ describe('transcripts', () => {
         depth: 0,
         overrideAccess: true,
       })
-      expect(read.transcript?.docs).toHaveLength(1)
+      const listed = (read.transcript?.docs ?? []).map((doc) =>
+        typeof doc === 'number' ? doc : doc.id,
+      )
+      expect(listed).toEqual([own.id])
+      expect(listed).not.toContain(other.id)
     })
   })
 
@@ -214,18 +211,10 @@ describe('transcripts', () => {
 
     it('refuses a second transcript for a meditation that already has one', async () => {
       const meditation = await createMeditationWithoutTranscript()
-      const transcript = () =>
-        payload.create({
-          collection: 'transcripts',
-          data: createData<'transcripts'>({
-            source: { relationTo: 'meditations', value: meditation.id },
-            language: 'en',
-          }),
-        })
 
-      await transcript()
+      await createTranscript('meditations', meditation.id)
 
-      await expect(transcript()).rejects.toThrow()
+      await expect(createTranscript('meditations', meditation.id)).rejects.toThrow()
     })
 
     /**
@@ -235,18 +224,13 @@ describe('transcripts', () => {
      */
     it('reads a files-sourced row back through the object form', async () => {
       const file = await testData.createFile(payload)
-      const row = await payload.create({
-        collection: 'transcripts',
-        data: createData<'transcripts'>({
-          source: { relationTo: 'files', value: file.id },
-          language: 'en',
-          segments: [{ content: 'Welcome to this path.', startTimeMs: 0, endTimeMs: 1500 }],
-        }),
+      const row = await createTranscript('files', file.id, {
+        segments: [{ content: 'Welcome to this path.', startTimeMs: 0, endTimeMs: 1500 }],
       })
 
       const { docs } = await payload.find({
         collection: 'transcripts',
-        where: sourcedBy('files', file.id),
+        where: transcriptSourceWhere('files', file.id),
         pagination: false,
         depth: 0,
         overrideAccess: true,
@@ -261,13 +245,7 @@ describe('transcripts', () => {
      */
     it('queues no transcription for a files-sourced row', async () => {
       const file = await testData.createFile(payload)
-      const row = await payload.create({
-        collection: 'transcripts',
-        data: createData<'transcripts'>({
-          source: { relationTo: 'files', value: file.id },
-          language: 'en',
-        }),
-      })
+      const row = await createTranscript('files', file.id)
 
       // `job` is what the hook writes back when it queues, and the only thing
       // on the row that says a run was asked for. Read back as well as
@@ -323,16 +301,11 @@ describe('transcripts', () => {
     it('corrects a segment’s spelling on write, without the caller asking', async () => {
       const meditation = await createMeditationWithoutTranscript()
 
-      const row = await payload.create({
-        collection: 'transcripts',
-        data: createData<'transcripts'>({
-          source: { relationTo: 'meditations', value: meditation.id },
-          language: 'en',
-          segments: [
-            { content: 'Let the kundalini rise.', startTimeMs: 0, endTimeMs: 2000 },
-            { content: 'Feel it at the fontanel.', startTimeMs: 2000, endTimeMs: 4000 },
-          ],
-        }),
+      const row = await createTranscript('meditations', meditation.id, {
+        segments: [
+          { content: 'Let the kundalini rise.', startTimeMs: 0, endTimeMs: 2000 },
+          { content: 'Feel it at the fontanel.', startTimeMs: 2000, endTimeMs: 4000 },
+        ],
       })
 
       expect(row.segments).toEqual([
@@ -343,13 +316,7 @@ describe('transcripts', () => {
 
     it('reads the language off the stored row when an update omits it', async () => {
       const meditation = await createMeditationWithoutTranscript()
-      const row = await payload.create({
-        collection: 'transcripts',
-        data: createData<'transcripts'>({
-          source: { relationTo: 'meditations', value: meditation.id },
-          language: 'en',
-        }),
-      })
+      const row = await createTranscript('meditations', meditation.id)
 
       const updated = await payload.update({
         collection: 'transcripts',
@@ -371,17 +338,6 @@ describe('transcripts', () => {
    * unsaveable through the admin.
    */
   describe('the cascade from each parent', () => {
-    const transcriptIdsFor = async (relationTo: 'meditations' | 'files', value: number) => {
-      const { docs } = await payload.find({
-        collection: 'transcripts',
-        where: sourcedBy(relationTo, value),
-        pagination: false,
-        depth: 0,
-        overrideAccess: true,
-      })
-      return docs.map((doc) => doc.id)
-    }
-
     const rowExists = async (id: number) =>
       (
         await payload.count({
@@ -393,13 +349,7 @@ describe('transcripts', () => {
 
     it('deletes a meditation’s transcript when the meditation goes', async () => {
       const meditation = await createMeditationWithoutTranscript()
-      const row = await payload.create({
-        collection: 'transcripts',
-        data: createData<'transcripts'>({
-          source: { relationTo: 'meditations', value: meditation.id },
-          language: 'en',
-        }),
-      })
+      const row = await createTranscript('meditations', meditation.id)
 
       await payload.delete({ collection: 'meditations', id: meditation.id, overrideAccess: true })
 
@@ -408,13 +358,7 @@ describe('transcripts', () => {
 
     it('deletes a file’s transcript when the file goes', async () => {
       const file = await testData.createFile(payload)
-      const row = await payload.create({
-        collection: 'transcripts',
-        data: createData<'transcripts'>({
-          source: { relationTo: 'files', value: file.id },
-          language: 'en',
-        }),
-      })
+      const row = await createTranscript('files', file.id)
 
       await payload.delete({ collection: 'files', id: file.id, overrideAccess: true })
 
@@ -430,15 +374,7 @@ describe('transcripts', () => {
       const first = await createMeditationWithoutTranscript()
       const second = await createMeditationWithoutTranscript()
       const rows = await Promise.all(
-        [first, second].map((meditation) =>
-          payload.create({
-            collection: 'transcripts',
-            data: createData<'transcripts'>({
-              source: { relationTo: 'meditations', value: meditation.id },
-              language: 'en',
-            }),
-          }),
-        ),
+        [first, second].map((meditation) => createTranscript('meditations', meditation.id)),
       )
 
       await payload.delete({
@@ -458,13 +394,7 @@ describe('transcripts', () => {
      */
     it('keeps a transcript while its file is only trashed, and takes it on the real delete', async () => {
       const file = await testData.createFile(payload)
-      const row = await payload.create({
-        collection: 'transcripts',
-        data: createData<'transcripts'>({
-          source: { relationTo: 'files', value: file.id },
-          language: 'en',
-        }),
-      })
+      const row = await createTranscript('files', file.id)
 
       await payload.update({
         collection: 'files',
@@ -473,7 +403,6 @@ describe('transcripts', () => {
         overrideAccess: true,
       })
       expect(await rowExists(row.id)).toBe(true)
-      expect(await transcriptIdsFor('files', file.id)).toEqual([row.id])
 
       await payload.delete({
         collection: 'files',

@@ -32,15 +32,6 @@ export interface FieldReference {
   hasMany: boolean
   /** Target collection(s) this field references */
   relationTo: string | string[]
-  /**
-   * The collection this reference was discovered **for**, which is the one an
-   * id read off the value belongs to.
-   *
-   * ⚠ Load-bearing for a polymorphic field, whose value names its own target:
-   * reading `{ relationTo: 'meditations', value: 7 }` as a bare id would let
-   * meditation 7 protect file 7 from the sweep.
-   */
-  targetCollection: string
   /** Whether this is a Lexical block field (requires content extraction) */
   isLexicalBlock: boolean
   /** Block slug if this is a Lexical block field */
@@ -111,7 +102,6 @@ function traverseField(
           fieldType: 'upload',
           hasMany: uploadField.hasMany ?? false,
           relationTo: uploadField.relationTo,
-          targetCollection,
           isLexicalBlock,
           blockSlug,
           localizedAt: recordLocalized(localizedAt, pathPrefix, uploadField.localized),
@@ -129,7 +119,6 @@ function traverseField(
           fieldType: 'relationship',
           hasMany: relationshipField.hasMany ?? false,
           relationTo: relationshipField.relationTo,
-          targetCollection,
           isLexicalBlock,
           blockSlug,
           localizedAt: recordLocalized(localizedAt, pathPrefix, relationshipField.localized),
@@ -281,7 +270,6 @@ function traverseField(
           fieldType: 'upload',
           hasMany: true,
           relationTo: targetCollection,
-          targetCollection,
           isLexicalBlock: true,
           // No specific blockSlug - generic Lexical traversal
           localizedAt: recordLocalized(localizedAt, pathPrefix, richTextField.localized),
@@ -345,21 +333,22 @@ function isNumericString(str: string): boolean {
 }
 
 /**
- * The id a reference's value carries, or `null` where it names another
- * collection.
+ * The id a **polymorphic** reference's value carries for `targetCollection`, or
+ * `null` where it names a different one.
  *
- * ⚠ **A polymorphic relationship's value is `{ relationTo, value }`**, so the
- * id in it belongs to whichever collection it names. `extractId` reads `.id`
- * and answers `null` for that shape, which would make a transcript's hold on
- * its recording invisible and let the sweep trash a file in use. Returning
- * `value` blind is worse than the bug: a `meditations`-sourced row would then
- * protect the file of that number.
+ * ⚠ Such a value is `{ relationTo, value }` at `depth: 0`, so `extractId`
+ * reads `.id` and answers `null` — which would make a transcript's hold on its
+ * recording invisible and let the sweep trash a file in use. Returning `value`
+ * blind is worse than that bug: a `meditations`-sourced row would then protect
+ * the file of the same number.
+ *
+ * Whether to ask this is the **walk's** answer, off `relationTo`'s own shape,
+ * never a key sniffed from the stored value — the same discipline
+ * `localeValues` states.
  */
-function idForTarget(value: unknown, targetCollection: string): number | null {
-  if (isRecord(value) && 'relationTo' in value && 'value' in value) {
-    return value.relationTo === targetCollection ? extractId(value.value) : null
-  }
-  return extractId(value)
+function polymorphicId(value: unknown, targetCollection: string): number | null {
+  if (!isRecord(value) || !('relationTo' in value) || !('value' in value)) return null
+  return value.relationTo === targetCollection ? extractId(value.value) : null
 }
 
 /**
@@ -454,6 +443,7 @@ function getValueAtPath(
 export function extractIdsFromDocument(
   document: Record<string, unknown>,
   reference: FieldReference,
+  targetCollection: string,
 ): Set<number> {
   const ids = new Set<number>()
 
@@ -465,14 +455,19 @@ export function extractIdsFromDocument(
   const pathParts = reference.fieldPath.split('.')
   const values = getValueAtPath(document, pathParts, reference.localizedAt)
 
+  // A `relationTo` array is the schema saying each value names its own target.
+  const idOf = Array.isArray(reference.relationTo)
+    ? (value: unknown) => polymorphicId(value, targetCollection)
+    : extractId
+
   for (const value of values) {
     if (reference.hasMany && Array.isArray(value)) {
       for (const item of value) {
-        const id = idForTarget(item, reference.targetCollection)
+        const id = idOf(item)
         if (id !== null) ids.add(id)
       }
     } else {
-      const id = idForTarget(value, reference.targetCollection)
+      const id = idOf(value)
       if (id !== null) ids.add(id)
     }
   }

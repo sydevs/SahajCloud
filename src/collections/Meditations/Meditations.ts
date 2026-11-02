@@ -122,13 +122,9 @@ export const Meditations: CollectionConfig = {
       cacheMeditationNodeWeights,
     ],
     afterChange: [syncMeditationTranscript],
-    // `transcripts.source` is `required`, so a deleted meditation would leave a
-    // row the admin can neither load nor save — the rels foreign key takes the
-    // source away and nothing puts one back. Trashing is an `update`, so a
-    // trashed meditation keeps its transcript until the permanent delete.
-    beforeDelete: [
-      deleteChildren({ collection: 'transcripts', field: 'source', relationTo: 'meditations' }),
-    ],
+    // `transcripts.source` is `required`, so see `Transcripts.ts` for why the
+    // row cannot outlive its meditation.
+    beforeDelete: [deleteChildren({ collection: 'transcripts', field: 'source' })],
   },
   defaultPopulate: {
     // Exclude the expensive per-row afterRead virtual fields when a meditation

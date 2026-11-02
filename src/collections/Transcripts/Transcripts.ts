@@ -30,7 +30,8 @@ import { deriveTranscriptStatus, loadTranscriptJob, transcriptJobError } from '.
  *
  * A row lives exactly as long as its source: `deleteChildren` on `meditations`
  * and on `files` takes it before the parent row goes, so no source-less row can
- * exist and there is no orphan window to sweep.
+ * exist and there is no orphan window to sweep. Trashing a parent is an
+ * `update`, so a trashed one keeps its transcript until the permanent delete.
  */
 export const Transcripts: CollectionConfig = {
   slug: 'transcripts',
@@ -66,10 +67,7 @@ export const Transcripts: CollectionConfig = {
       // column here — and `unique` becomes one `UNIQUE(<target>_id, path)` per
       // target there, so one transcript per meditation and per file both hold.
       //
-      // ⚠ **Query it as `{ source: { equals: { relationTo, value } } }`.** A
-      // bare `source` path throws `APIError('Not supported')` and `source.value`
-      // ORs one raw column per target, matching meditation 5 or file 5 — both
-      // at run time, neither at build time, because `Where` is loosely typed.
+      // Query it through `transcriptSourceWhere` (`@/lib/meditations/transcriptSource`).
       name: 'source',
       type: 'relationship',
       relationTo: ['meditations', 'files'],

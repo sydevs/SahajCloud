@@ -18,6 +18,7 @@ import * as path from 'path'
 
 import { getLocaleLabel, type LocaleCode } from '@/lib/locales'
 import { transcriptSegmentsSchema, type TranscriptSegment } from '@/lib/meditations/transcript'
+import { transcriptSourceWhere } from '@/lib/meditations/transcriptSource'
 import { stripPreviewPrefix } from '@/plugins/storage/previewIsolation'
 
 import { BaseImporter, type BaseImportOptions, loadJsonData, type RunVerification } from '../lib'
@@ -84,12 +85,15 @@ export class MeditationTranscriptsImporter extends BaseImporter<BaseImportOption
   protected async setup(): Promise<void> {
     if (this.options.dryRun) return
 
-    // ⚠ **`transcripts` is deliberately not preloaded.** The cache keys on
+    // ⚠ **`transcripts` cannot be preloaded.** The cache keys on
     // `String(doc[naturalKey])` at depth 0, and `source` is polymorphic — so
     // every row's key would be the `{ relationTo, value }` object the preload
     // refuses outright. A preloaded collection takes no fallback find, so every
-    // entry would reach `payload.create` and trip the unique index. 126 finds
-    // is what the correct answer costs here.
+    // entry would reach `payload.create` and trip the unique index.
+    //
+    // TODO: the fallback find costs one unbounded round trip per entry. One
+    // `select: { source: true }, depth: 0` page into a local map would do it in
+    // one, at the price of reimplementing `upsert`'s skip/update reporting.
     await this.loadLibrary()
   }
 
@@ -208,7 +212,7 @@ export class MeditationTranscriptsImporter extends BaseImporter<BaseImportOption
 
     await this.upsert(
       'transcripts',
-      { source: { equals: { relationTo: 'meditations', value: meditationId } } },
+      transcriptSourceWhere('meditations', meditationId),
       {
         source: { relationTo: 'meditations', value: meditationId },
         // These already exist, so the row carries cues from the start and

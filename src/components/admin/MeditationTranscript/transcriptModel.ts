@@ -1,6 +1,7 @@
 import * as qs from 'qs-esm'
 
 import type { TranscriptSegment } from '@/lib/meditations/transcript'
+import { transcriptSourceWhere } from '@/lib/meditations/transcriptSource'
 
 /** A pause this long between phrases starts a new paragraph. */
 const PARAGRAPH_GAP_MS = 3000
@@ -40,10 +41,9 @@ export const transcriptUrl = (
           depth: 0,
           limit: 1,
           locale,
-          // The object form, which `qs` serialises and `sanitizeQueryValue`
-          // reads back: `source` is polymorphic, so a bare path 500s and
-          // `source.value` would also match the file of that number.
-          where: { source: { equals: { relationTo: 'meditations', value: meditationId } } },
+          // `qs` serialises the nested object, and `sanitizeQueryValue` reads
+          // it back through the same guard the Local API uses.
+          where: transcriptSourceWhere('meditations', meditationId),
         },
         { addQueryPrefix: true },
       )}`

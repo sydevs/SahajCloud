@@ -1,5 +1,7 @@
 import type { CollectionAfterChangeHook } from 'payload'
 
+import { transcriptSourceWhere } from '@/lib/meditations/transcriptSource'
+
 /**
  * afterChange: the transcript row follows the recording, and only the recording.
  *
@@ -23,7 +25,7 @@ export const syncMeditationTranscript: CollectionAfterChangeHook = async ({
   // `source` is unique, so there is at most one row to find.
   const { docs } = await req.payload.find({
     collection: 'transcripts',
-    where: { source: { equals: { relationTo: 'meditations', value: Number(doc.id) } } },
+    where: transcriptSourceWhere('meditations', Number(doc.id)),
     depth: 0,
     limit: 1,
     pagination: false,

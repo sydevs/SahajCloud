@@ -22,22 +22,21 @@ function walk(fields: Field[]): FieldReference[] {
 
 const media: Field = { name: 'media', type: 'upload', relationTo: 'files' }
 
-function reference(
-  fieldPath: string,
-  localizedAt: number[],
-  overrides: Partial<FieldReference> = {},
-): FieldReference {
+function reference(fieldPath: string, localizedAt: number[]): FieldReference {
   return {
     collection: 'lessons',
     fieldPath,
     fieldType: 'upload',
     hasMany: false,
     relationTo: 'files',
-    targetCollection: 'files',
     isLexicalBlock: false,
     localizedAt,
-    ...overrides,
   }
+}
+
+/** The same reference, as the walk records it for a polymorphic field. */
+function polymorphicReference(fieldPath: string): FieldReference {
+  return { ...reference(fieldPath, []), relationTo: ['meditations', 'files'] }
 }
 
 describe('discoverReferencesForCollection', () => {
@@ -90,7 +89,7 @@ describe('extractIdsFromDocument', () => {
   it('reads every language of a localized array', () => {
     const doc = { panels: { en: [{ media: 1 }], fr: [{ media: 2 }] } }
 
-    const ids = extractIdsFromDocument(doc, reference('panels.*.media', [0]))
+    const ids = extractIdsFromDocument(doc, reference('panels.*.media', [0]), 'files')
 
     expect([...ids].sort()).toEqual([1, 2])
   })
@@ -100,7 +99,7 @@ describe('extractIdsFromDocument', () => {
     // value under `en` is the reference — not a translation of the group.
     const doc = { translations: { en: 7, fr: 8 } }
 
-    const ids = extractIdsFromDocument(doc, reference('translations.en', []))
+    const ids = extractIdsFromDocument(doc, reference('translations.en', []), 'files')
 
     expect([...ids]).toEqual([7])
   })
@@ -108,7 +107,7 @@ describe('extractIdsFromDocument', () => {
   it('reads a field under a named tab', () => {
     const doc = { default: { media: 9 } }
 
-    const ids = extractIdsFromDocument(doc, reference('default.media', []))
+    const ids = extractIdsFromDocument(doc, reference('default.media', []), 'files')
 
     expect([...ids]).toEqual([9])
   })
@@ -122,7 +121,7 @@ describe('extractIdsFromDocument', () => {
   it('reads the id a polymorphic value carries for this target', () => {
     const doc = { source: { relationTo: 'files', value: 11 } }
 
-    const ids = extractIdsFromDocument(doc, reference('source', []))
+    const ids = extractIdsFromDocument(doc, polymorphicReference('source'), 'files')
 
     expect([...ids]).toEqual([11])
   })
@@ -136,7 +135,7 @@ describe('extractIdsFromDocument', () => {
   it('ignores a polymorphic value naming another collection', () => {
     const doc = { source: { relationTo: 'meditations', value: 11 } }
 
-    const ids = extractIdsFromDocument(doc, reference('source', []))
+    const ids = extractIdsFromDocument(doc, polymorphicReference('source'), 'files')
 
     expect([...ids]).toEqual([])
   })
@@ -144,7 +143,7 @@ describe('extractIdsFromDocument', () => {
   it('reads a populated polymorphic value for this target', () => {
     const doc = { source: { relationTo: 'files', value: { id: 12, filename: 'cues.mp3' } } }
 
-    const ids = extractIdsFromDocument(doc, reference('source', []))
+    const ids = extractIdsFromDocument(doc, polymorphicReference('source'), 'files')
 
     expect([...ids]).toEqual([12])
   })
