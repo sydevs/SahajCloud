@@ -44,9 +44,8 @@ minimumReleaseAge: 0
 overrides:
   # Build tooling: hold vite at 7.x. @vitejs/plugin-react@4.5.2's peer is
   # `^4.2.0 || ^5.0.0 || ^6.0.0 || ^7.0.0-beta.0`, so vite 8 (latest) breaks it.
-  # Inside that cap 7.3.7 is both the newest published and the first to clear
-  # GHSA-587h-7wmj-h5pm, so this pin no longer holds that advisory open — a pin
-  # one patch lower did. Its esbuild range is ^0.27 || ^0.28, which the esbuild
+  # Inside that cap 7.3.7 is the newest published and the first to clear
+  # GHSA-587h-7wmj-h5pm. Its esbuild range is ^0.27 || ^0.28, which the esbuild
   # entry below flattens onto one patched build.
   vite: '7.3.7'
   esbuild: '0.28.1'
