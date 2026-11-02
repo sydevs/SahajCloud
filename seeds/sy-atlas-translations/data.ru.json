@@ -184,7 +184,6 @@
       "contact_for_timing": "Свяжитесь с организатором, чтобы узнать время",
       "online": "Онлайн",
       "hosted_from": "Ведущий из %{city}",
-      "time_in_place": "%{time} (%{city})",
       "distance_away": "в %{distance}",
       "distance_from_place": "%{distance} от %{place}",
       "distance_from_search": "%{distance} от искомого места",

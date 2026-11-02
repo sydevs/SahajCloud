@@ -184,7 +184,6 @@
       "contact_for_timing": "Az időpontokért keresse a szervezőt",
       "online": "Online",
       "hosted_from": "Közvetítve innen: %{city}",
-      "time_in_place": "%{time} (%{city})",
       "distance_away": "%{distance} távolságra",
       "distance_from_place": "%{distance} innen: %{place}",
       "distance_from_search": "%{distance} a keresett helytől",

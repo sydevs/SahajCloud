@@ -184,7 +184,6 @@
       "contact_for_timing": "Neem contact op met de gastheer voor de tijden",
       "online": "Online",
       "hosted_from": "Gehost vanuit %{city}",
-      "time_in_place": "%{time} in %{city}",
       "distance_away": "%{distance} verderop",
       "distance_from_place": "%{distance} vanaf %{place}",
       "distance_from_search": "%{distance} van de gezochte locatie",
