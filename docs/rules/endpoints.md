@@ -51,10 +51,12 @@ Almost every endpoint belongs to a collection and lives in its `endpoints/` fold
 import { atlasSeo } from './endpoints/atlas/seo'
 import { atlasSitemap } from './endpoints/atlas/sitemap'
 
-endpoints: [atlasSeo, atlasSitemap],
+endpoints: [atlasSeo, atlasSitemap, atlasChallenge],
 ```
 
-The bar is high. Two endpoints clear it: `GET /api/atlas/seo` takes a **route** that may name a region or an event, so no single collection owns it. `GET /api/atlas/sitemap` spans regions and events for the same reason, and its real unit is the **client's ownership** — a `clients` fact, not either collection's.
+The bar is high. Three endpoints clear it: `GET /api/atlas/seo` takes a **route** that may name a region or an event, so no single collection owns it. `GET /api/atlas/sitemap` spans regions and events for the same reason, and its real unit is the **client's ownership** — a `clients` fact, not either collection's. `GET /api/atlas/challenge` (#1072) is an HTML document the Atlas widget frames to render its captcha, gated by every client's `allowedDomains` at once rather than by one row.
+
+⚠ **The challenge page is the one root endpoint with no client guard, no meter and no OpenAPI entry**, all for one reason: a frame navigation carries no `Authorization` header, so it is anonymous by construction, and it is a page rather than an API a third party integrates. Its docblock says so, as the rule below requires.
 
 A third case, `POST /api/contact-admin`, once justified itself as "stored nowhere, owned by nothing" — true only because it chose not to store anything. Once the feature needed spam screening, it needed a collection, so the endpoint was deleted and the intake became a plain create on a collection (#632, now `user-submissions`), recovering the origin checks and usage tracking it had skipped. Before reaching for a root endpoint, ask whether the resource is genuinely ownerless, or merely unpersisted. Prefer a collection endpoint whenever a collection plausibly owns the resource.
 
