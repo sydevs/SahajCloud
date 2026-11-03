@@ -248,12 +248,13 @@ describe('isTestSiteKey', () => {
 describe('the parent allowlist', () => {
   const FIRST_PARTY = ['https://sahajatlas.com', 'https://wemeditate.com/map']
 
-  it('admits both first-party frontends with their subdomains, and loopback', () => {
+  it('admits both first-party frontends with their subdomains, the preview subdomain, and loopback', () => {
     expect(builtInParentHosts(FIRST_PARTY)).toEqual([
       'sahajatlas.com',
       '*.sahajatlas.com',
       'wemeditate.com',
       '*.wemeditate.com',
+      '*.contact-c66.workers.dev',
       'localhost',
       '127.0.0.1',
     ])
@@ -262,6 +263,8 @@ describe('the parent allowlist', () => {
   it.each([
     'https://sahajatlas.com',
     'https://design.sahajatlas.com',
+    'https://pr-355-sahajatlas-web.contact-c66.workers.dev',
+    'https://pr-12-wemeditate-web.contact-c66.workers.dev',
     'http://localhost:61000',
     'http://127.0.0.1:5174',
     'https://partner.org',
@@ -276,6 +279,9 @@ describe('the parent allowlist', () => {
     'https://evil-partner.org',
     'https://other-partner.net',
     'https://partner.org.evil.example',
+    // Another account's Workers subdomain, and the apex the wildcard must not reach.
+    'https://pr-1-theirs.evil-c66.workers.dev',
+    'https://contact-c66.workers.dev',
   ])('refuses %s', (parent) => {
     const patterns = allowedParentHosts(FIRST_PARTY, ['partner.org', '*.other-partner.net'])
     expect(isParentAllowed(parent, patterns)).toBe(false)

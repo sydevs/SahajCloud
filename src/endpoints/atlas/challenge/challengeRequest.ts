@@ -55,19 +55,38 @@ export function readChallengeRequest(query: Record<string, unknown>): ChallengeR
 export const isTestSiteKey = (key: string): boolean => /^[123]x0{16,}/i.test(key.trim())
 
 /**
+ * Our own Cloudflare account's Workers subdomain. Every SahajAtlasWeb and WeMeditateWeb PR
+ * preview lands at `<preview>-<worker>.<this>` (`scripts/assert-preview-host.mjs` in
+ * sydevs/SahajAtlasWeb holds the same literal, with the account it names).
+ */
+const WORKERS_PREVIEW_PARENT = '*.contact-c66.workers.dev'
+
+/**
  * Hosts allowed to frame the challenge before any client record is read: the two first-party
- * frontends with every subdomain under them (design and preview hosts), plus loopback.
+ * frontends with every subdomain under them, which is what admits each one's design playground;
+ * our Workers preview subdomain; and loopback.
  *
- * ⚠ **Loopback is allowed in production on purpose.** What this list protects is a token reaching
- * a page in somebody else's visitor's browser. A loopback page only ever runs on the solver's own
- * machine, which can already open this page directly and read its own token, so allowing it costs
- * nothing and keeps `pnpm dev` and `pnpm ladle` working against the production CMS.
+ * ⚠ **Loopback and the preview subdomain are allowed in production on purpose.** What this list
+ * protects is a token reaching a page in somebody else's visitor's browser, and neither is one. A
+ * loopback page only ever runs on the solver's own machine, which can already open this page
+ * directly and read its own token. A Workers preview is publishable only by someone who can
+ * deploy to our Cloudflare account, who already holds both halves of the Turnstile credential.
+ *
+ * Both earn their place: loopback keeps `pnpm dev` and `pnpm ladle` working against the production
+ * CMS, and a preview build keeps `.env`'s `VITE_SAHAJCLOUD_URL`, so it frames THIS service rather
+ * than its own PR's. Without the subdomain every Atlas preview shows the captcha-blocked screen,
+ * which is the one place a consumer PR is reviewable in a browser.
  */
 export function builtInParentHosts(firstPartyUrls: readonly string[]): string[] {
   const hosts = firstPartyUrls
     .map((url) => normalizeHost(url))
     .filter((host): host is string => host !== null)
-  return [...hosts.flatMap((host) => [host, `*.${host}`]), 'localhost', '127.0.0.1']
+  return [
+    ...hosts.flatMap((host) => [host, `*.${host}`]),
+    WORKERS_PREVIEW_PARENT,
+    'localhost',
+    '127.0.0.1',
+  ]
 }
 
 /** Every published client's `allowedDomains`, beside the built-in hosts. */

@@ -51,6 +51,8 @@ The "Admin Access" section in `AGENTS.md` covers each environment's way in; none
 - `WEMEDITATE_WEB_URL` — required. We Meditate preview URL, for Pages/Meditations live preview and the CSP `frame-src`. Its host and subdomains may also frame the Atlas challenge page.
 - `SAHAJATLAS_URL` — required. Sahaj Atlas preview URL, for the same purposes plus the `csrf` allowlist, and the same challenge-page allowance. Not a canonical base — the Atlas host is `noindex`, so `webUrl` never points at it.
 
+  ⚠ **Neither variable covers a PR preview**, which lands on the Cloudflare account's Workers subdomain rather than under either host. `src/endpoints/atlas/challenge/challengeRequest.ts` lists that subdomain outright, and says why it is safe to.
+
   ⚠ **This is `https://sahajatlas.com`, the replacement.** `atlas.sydevelopers.com` is the legacy service: it serves none of the document paths the Live Preview panel points at, so preview aimed there 404s. Production carried the legacy value (visible in the admin's own CSP `frame-src`), which is why atlas live preview did not work. Changing it moves the preview target, the CSP `frame-src` and the `csrf` allowlist together.
 
   ⚠ `next.config.mjs` falls back to a literal when this is unset at **build** time, which is any local or CI build. That fallback must stay equal to the production value above — it was left pointing at the legacy host, so such a build emitted a `frame-src` admitting the old atlas and blocking the real one.
