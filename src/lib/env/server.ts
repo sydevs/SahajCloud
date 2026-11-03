@@ -116,6 +116,17 @@ const ServerEnvSchema = ClientEnvSchema.extend({
   TURNSTILE_SECRET_KEY: z.string().min(1).optional(),
 
   /**
+   * Cloudflare Turnstile site key — the public half of the pair above, baked into the challenge
+   * page the Atlas widget frames (`GET /api/atlas/challenge`). Both halves live here, so a
+   * mismatched pair is one service's misconfiguration rather than two repos'.
+   *
+   * Required in production, and validated at the point of use like the secret: unset, the
+   * challenge page refuses with a 503, and the widget fails to its captcha-blocked screen.
+   * In development, use Cloudflare's always-passing test key `1x00000000000000000000AA`.
+   */
+  TURNSTILE_SITE_KEY: z.string().min(1).optional(),
+
+  /**
    * Lemonfox speech-to-text API key, for meditation transcripts
    * (`src/lib/lemonfox`). Optional, and an empty value counts as unset — every
    * other third-party key here is optional, and a required one would refuse to

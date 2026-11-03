@@ -184,7 +184,6 @@
       "contact_for_timing": "Kontaktujte hostitele pro načasování",
       "online": "Online",
       "hosted_from": "Hostováno z %{city}",
-      "time_in_place": "%{time} (%{city})",
       "distance_away": "%{distance} daleko",
       "distance_from_place": "%{distance} od %{place}",
       "distance_from_search": "%{distance} od hledaného místa",

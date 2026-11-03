@@ -188,7 +188,6 @@
       "room": "Room: %{room}",
       "online": "Online",
       "hosted_from": "Hosted from %{city}",
-      "time_in_place": "%{time} in %{city}",
       "distance_away": "%{distance} away",
       "distance_from_place": "%{distance} from %{place}",
       "distance_from_search": "%{distance} from the searched location",

@@ -62,9 +62,15 @@ const nextConfig = {
     // stay equal to the production values in `.env.example`. A wrong one is
     // invisible: the build succeeds and the panel is simply blank.
     // `tests/unit/csp-frame-src.spec.ts` pins them.
+    //
+    // ⚠ This policy reaches every document served here, `GET /api/atlas/challenge` included,
+    // and that page frames Cloudflare's Turnstile. A route cannot override it either: Next drops
+    // a route's own `Content-Security-Policy` once config has set one
+    // (`next/dist/server/send-response.js`), so Cloudflare's origin has to be listed here.
     const frameSources = [
       "'self'",
       'https://app.usefathom.com',
+      'https://challenges.cloudflare.com',
       process.env.WEMEDITATE_WEB_URL || 'https://wemeditate.com',
       process.env.SAHAJATLAS_URL || 'https://sahajatlas.com',
     ].join(' ')
