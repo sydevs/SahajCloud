@@ -326,15 +326,18 @@ describe('User submissions access', () => {
       )
     })
 
-    it('lets an admin set the block and lift it again', async () => {
+    /**
+     * The Block button's endpoint is the one way in, because a block also
+     * refuses the sender's open submissions — a hand-set date would not.
+     * `block-user.int.spec.ts` covers the endpoint.
+     */
+    it('ignores even an admin’s direct write of the block date', async () => {
       const id = await registrantId()
 
-      const blocked = await blockAs(adminManager, id, new Date().toISOString())
-      expect(blocked.blockedAt).toEqual(expect.any(String))
-      expect(blocked.blockedReason).toBe('Repeated junk.')
-
-      const lifted = await blockAs(adminManager, id, null)
-      expect(lifted.blockedAt).toBeFalsy()
+      const written = await blockAs(adminManager, id, new Date().toISOString())
+      expect(written.blockedAt).toBeFalsy()
+      // The reason is still a plain field: an admin may amend it.
+      expect(written.blockedReason).toBe('Repeated junk.')
     })
 
     /**

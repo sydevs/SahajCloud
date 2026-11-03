@@ -1,6 +1,39 @@
-import type { CollectionConfig } from 'payload'
+import type { CollectionBeforeDeleteHook, CollectionConfig } from 'payload'
+
+import { APIError } from 'payload'
 
 import { hideUntilCreated, legacyMigrationFields } from '@/fields'
+import { normalizeEmail } from '@/lib/users/upsertUserByEmail'
+
+import { blockUser } from './endpoints/block'
+
+/**
+ * Refuse deleting a Registrant who still has submissions.
+ *
+ * `user-submissions.user` is the only stored record of who sent a row, and
+ * `ON DELETE SET NULL` — so a delete would make their history anonymous and
+ * leave a pending registration with nobody to remind. The retention sweep is
+ * the automated deleter, and it removes a Registrant only once none remain,
+ * so this refuses no system writer. Delete their submissions first.
+ */
+const refuseDeletingSender: CollectionBeforeDeleteHook = async ({ id, req }) => {
+  const { totalDocs } = await req.payload.count({
+    collection: 'user-submissions',
+    where: { user: { equals: id } },
+    overrideAccess: true,
+    req,
+  })
+  if (totalDocs > 0) {
+    throw new APIError(
+      `This registrant still has ${totalDocs} submission${totalDocs === 1 ? '' : 's'}, which would lose their sender. Delete those first.`,
+      409,
+      undefined,
+      true,
+    )
+  }
+}
+
+const BLOCK_BUTTON = '@/components/admin/BlockUserButton'
 
 /**
  * Users — Sahaj Atlas event registrants (the people who sign up for events),
@@ -16,9 +49,21 @@ export const Users: CollectionConfig = {
   labels: { singular: 'Registrant', plural: 'Registrants' },
   admin: {
     group: 'Access',
-    useAsTitle: 'name',
-    defaultColumns: ['name', 'email', 'blockedAt'],
+    // The address, not the name: the name is often guessed from the address's
+    // local part (`displayNameFor`), and a submission's "Submitted By" chip is
+    // where a reader looks for who wrote in.
+    useAsTitle: 'email',
+    defaultColumns: ['email', 'name', 'blockedAt'],
     // ⚠ No `hidden` key, deliberately: `accessPlugin` derives it (docs/rules/admin-ui.md)
+    components: {
+      edit: {
+        beforeDocumentControls: [{ path: BLOCK_BUTTON, clientProps: { source: 'users' } }],
+      },
+    },
+  },
+  endpoints: [blockUser],
+  hooks: {
+    beforeDelete: [refuseDeletingSender],
   },
   fields: [
     {
@@ -32,21 +77,32 @@ export const Users: CollectionConfig = {
       type: 'email',
       required: true,
       unique: true,
+      // Every writer, not only the public upsert: an admin correcting an address
+      // must not mint a second spelling that `upsertUserByEmail` never matches.
+      hooks: {
+        beforeValidate: [
+          ({ value }) => (typeof value === 'string' ? normalizeEmail(value) : value),
+        ],
+      },
     },
     {
-      // No field access of its own: `users` grants write to no role at all, so
-      // only the admin bypass reaches this.
+      // Written by the Block / Unblock button alone (`endpoints/block.ts`), which
+      // also refuses the sender's open submissions — a hand-set date would block
+      // without doing that.
       name: 'blockedAt',
       type: 'date',
+      access: { create: () => false, update: () => false },
       admin: {
-        description: 'Set to block this sender. Clear it to lift the block.',
+        readOnly: true,
+        description: 'Set by the Block button. Nothing this sender submits is delivered while set.',
       },
     },
     {
       name: 'blockedReason',
       type: 'textarea',
       admin: {
-        description: 'Why this sender was blocked — for whoever reads the record next.',
+        description:
+          'Why this sender was blocked — for whoever reads the record next. Kept when the block is lifted.',
       },
     },
     {

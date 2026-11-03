@@ -2213,10 +2213,7 @@ export interface Import {
 export interface UserSubmission {
   id: number;
   type: 'contact' | 'subscribe' | 'registration' | 'proposal';
-  /**
-   * Composed when the submission arrives.
-   */
-  subject?: string | null;
+  user?: (number | null) | User;
   form?: (number | null) | Form;
   submissionData?:
     | {
@@ -2225,9 +2222,6 @@ export interface UserSubmission {
         id?: string | null;
       }[]
     | null;
-  /**
-   * Who sent this. Normalized.
-   */
   senderEmail?: string | null;
   status: 'pending' | 'accepted' | 'rejected' | 'spam' | 'failed';
   /**
@@ -2239,6 +2233,7 @@ export interface UserSubmission {
    */
   startingAt?: string | null;
   startingAt_tz?: SupportedTimezones;
+  unsubscribedAt?: string | null;
   /**
    * Registrant’s verdict on an unverified event.
    */
@@ -2272,13 +2267,54 @@ export interface UserSubmission {
   region?: (number | null) | Region;
   screeningResult?: SubmissionScreeningResult;
   activityLog?: ActivityLog;
+  /**
+   * Composed when the submission arrives.
+   */
+  subject?: string | null;
   uuid?: string | null;
   client?: (number | null) | Client;
-  user?: (number | null) | User;
-  unsubscribedAt?: string | null;
   location?: SubmissionLocation;
   regionHint?: SubmissionRegionHint;
   followUpSentAt?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "users".
+ */
+export interface User {
+  id: number;
+  name: string;
+  email: string;
+  /**
+   * Set by the Block button. Nothing this sender submits is delivered while set.
+   */
+  blockedAt?: string | null;
+  /**
+   * Why this sender was blocked — for whoever reads the record next. Kept when the block is lifted.
+   */
+  blockedReason?: string | null;
+  submissions?: {
+    docs?: (number | UserSubmission)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  submittedEvents?: {
+    docs?: (number | Event)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  legacyId?: number | null;
+  legacyData?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -2863,45 +2899,6 @@ export interface SubmissionScreeningResult {
    * When screening reached this verdict (ISO 8601).
    */
   screenedAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "users".
- */
-export interface User {
-  id: number;
-  name: string;
-  email: string;
-  /**
-   * Set to block this sender. Clear it to lift the block.
-   */
-  blockedAt?: string | null;
-  /**
-   * Why this sender was blocked — for whoever reads the record next.
-   */
-  blockedReason?: string | null;
-  submissions?: {
-    docs?: (number | UserSubmission)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  submittedEvents?: {
-    docs?: (number | Event)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  legacyId?: number | null;
-  legacyData?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  updatedAt: string;
-  createdAt: string;
 }
 export interface SubmissionLocation {
   /**
@@ -5319,7 +5316,7 @@ export interface FormsSelect<T extends boolean = true> {
  */
 export interface UserSubmissionsSelect<T extends boolean = true> {
   type?: T;
-  subject?: T;
+  user?: T;
   form?: T;
   submissionData?:
     | T
@@ -5333,6 +5330,7 @@ export interface UserSubmissionsSelect<T extends boolean = true> {
   event?: T;
   startingAt?: T;
   startingAt_tz?: T;
+  unsubscribedAt?: T;
   eventFeedback?: T;
   proposed?: T;
   proposedChanges?: T;
@@ -5341,10 +5339,9 @@ export interface UserSubmissionsSelect<T extends boolean = true> {
   region?: T;
   screeningResult?: T;
   activityLog?: T;
+  subject?: T;
   uuid?: T;
   client?: T;
-  user?: T;
-  unsubscribedAt?: T;
   location?: T;
   regionHint?: T;
   followUpSentAt?: T;

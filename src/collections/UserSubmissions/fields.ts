@@ -1,4 +1,5 @@
 import type {
+  ArrayField,
   Field,
   FieldAccess,
   RelationshipField,
@@ -99,12 +100,13 @@ const reviewProjectionAccess: { read: FieldAccess } = {
 export function userSubmissionFields({ defaultFields }: { defaultFields: Field[] }): Field[] {
   return [
     typeField,
-    subjectField,
-    ...defaultFields.map(perTypeForm),
+    userField,
+    ...defaultFields.map(perTypeForm).map(readOnlySubmissionData),
     senderEmailField,
     statusField,
     eventField,
     startingAtField,
+    unsubscribedAtField,
     eventFeedbackField,
     proposedField,
     proposedChangesField,
@@ -245,16 +247,92 @@ function perTypeForm(field: Field): Field {
 }
 
 /**
- * The sender's address. Indexed: screening counts a sender's recent history
- * **across every type**, which is the whole reason for one table — a sender
- * hitting contact, proposals and registrations is one history, and no
- * per-collection design can express that.
+ * The person, upserted from the posted `senderEmail` for **every** type. Grants
+ * nothing — it is what makes a sender's history one history across all four
+ * intakes, what `Users.submissions` joins on, and the only stored record of
+ * who sent the row.
+ *
+ * ⚠ **A Registrant with submissions cannot be deleted** (`Users`
+ * `refuseDeletingSender`): the column is `ON DELETE SET NULL`, and with no
+ * address stored here a deleted user would turn their history anonymous and
+ * leave a pending registration with no one to remind.
+ */
+const userField: Field = {
+  name: 'user',
+  label: 'Submitted By',
+  type: 'relationship',
+  relationTo: 'users',
+  index: true,
+  access: systemFieldAccess,
+  admin: { readOnly: true },
+}
+
+/**
+ * The sender's address: an **input** on create and the user's email on read,
+ * never a column of its own.
+ *
+ * Both frontends post it, and the write guard names it in a refusal, so the
+ * create contract keeps it. `prepareUserSubmission` turns it into `user`, and
+ * `virtual: 'user.email'` reads it back from there — at any depth, in a
+ * `select` or a `where`, so the jobs reading it needed no change.
+ *
+ * ⚠ **It resolves under the reader's access.** A client cannot read `users`,
+ * so on a client's create the value is absent from the response *and from
+ * every `afterChange` hook's `doc`*. A hook that needs the address reads the
+ * user itself (`spawnSubscribeFromRegistration`).
  */
 const senderEmailField: Field = {
   name: 'senderEmail',
   type: 'email',
-  index: true,
-  admin: { description: 'Who sent this. Normalized.' },
+  virtual: 'user.email',
+  // An admin save posts the form's copy back; the column it would land in no
+  // longer exists, but refusing it keeps an update from looking like it moved
+  // the sender.
+  access: { update: () => false },
+  admin: { hidden: true },
+}
+
+/**
+ * The plugin's `[{ field, value }]` answers, frozen once received.
+ *
+ * Read-only at the API as well as in the form: nothing re-validates the blob
+ * after create (`prepareUserSubmission` is create-only), so an editable copy was
+ * an unbounded, unchecked write. A system writer passes `overrideAccess`.
+ *
+ * The answers render here as a table, labelled from the form's own fields; the
+ * client-context keys render separately, under System (`submissionContextField`).
+ */
+function readOnlySubmissionData(field: Field): Field {
+  if (!('name' in field) || field.name !== 'submissionData') return field
+
+  const base = field as ArrayField
+
+  return {
+    ...base,
+    label: 'Submission',
+    access: { ...base.access, update: () => false },
+    admin: {
+      ...base.admin,
+      readOnly: true,
+      components: {
+        Field: { path: SUBMISSION_DATA_TABLE, serverProps: { part: 'answers' } },
+      },
+    },
+  }
+}
+
+const SUBMISSION_DATA_TABLE = '@/components/admin/SubmissionReview/SubmissionData'
+
+/** The `submissionData` keys a client writes about itself, rather than answers. */
+const submissionContextField: Field = {
+  name: 'submissionContext',
+  label: 'Context',
+  type: 'ui',
+  admin: {
+    components: {
+      Field: { path: SUBMISSION_DATA_TABLE, serverProps: { part: 'context' } },
+    },
+  },
 }
 
 /** One four-state vocabulary for every type. `SUBMISSION_STATUSES` says what each means. */
@@ -350,6 +428,27 @@ const startingAtField: Field = {
     condition: (data) => data?.type === 'registration',
     date: { pickerAppearance: 'dayAndTime' },
     description: 'Which occurrence the registrant is attending.',
+  },
+}
+
+/**
+ * When the registrant turned off reminders for this registration. Written by
+ * the unsubscribe token flow and queried by the reminder sweep.
+ *
+ * Registration-only today, and named generically so a subscribe-type
+ * unsubscribe can reuse the column. Shown beside `startingAt`, because whether
+ * this person still hears from us is part of reading the registration.
+ */
+const unsubscribedAtField: Field = {
+  name: 'unsubscribedAt',
+  label: 'Reminders Unsubscribed',
+  type: 'date',
+  index: true,
+  access: systemFieldAccess,
+  admin: {
+    condition: (data) => data?.type === 'registration',
+    readOnly: true,
+    date: { pickerAppearance: 'dayAndTime' },
   },
 }
 
@@ -610,6 +709,8 @@ const systemGroup: Field = {
   type: 'collapsible',
   admin: { initCollapsed: true },
   fields: [
+    // Only the document title reads it, and that is the header already.
+    subjectField,
     {
       // The stable public identifier, issued at create and returned to the
       // caller. `unique` already creates the index.
@@ -625,33 +726,14 @@ const systemGroup: Field = {
       // from the body — it brands the emails sent about the submission, so a
       // caller able to set it could attribute its rows to another service.
       name: 'client',
+      label: 'Submitted Via',
       type: 'relationship',
       relationTo: 'clients',
       index: true,
       access: systemFieldAccess,
       admin: { readOnly: true },
     },
-    {
-      // The person, upserted from the normalized `senderEmail` for **every**
-      // type. Grants nothing — it exists so a sender's history is one history,
-      // and so `Users` can show everything one person has ever sent.
-      name: 'user',
-      type: 'relationship',
-      relationTo: 'users',
-      index: true,
-      access: systemFieldAccess,
-      admin: { readOnly: true },
-    },
-    {
-      // Deliberately generic, and registration-only for now: a future
-      // subscribe-type unsubscribe reuses the same column. Queried by the
-      // reminder sweep, written by the unsubscribe token flow.
-      name: 'unsubscribedAt',
-      type: 'date',
-      index: true,
-      access: systemFieldAccess,
-      admin: { readOnly: true },
-    },
+    submissionContextField,
     {
       // The layers above where the visitor placed a new event (#1021): what the
       // Events address group cannot carry. The address's own id already rides

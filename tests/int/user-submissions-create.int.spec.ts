@@ -164,9 +164,14 @@ describe('User submissions intake (POST /api/user-submissions)', () => {
       expect(doc.type).toBe('contact')
       expect(doc.status).toBe('pending')
       expect(doc.uuid).toEqual(expect.stringMatching(/^[0-9a-f-]{36}$/))
-      // Normalized, because `users` is keyed on the lowercased address and a
-      // sender's history has to be one history.
-      expect(doc.senderEmail).toBe('reporter@example.com')
+      // `senderEmail` is no column: it reads back through `user`, which a client
+      // cannot read — so the create response carries none, and the address
+      // lives on the Registrant, normalized, because a sender's history has to
+      // be one history.
+      expect(doc.senderEmail).toBeUndefined()
+      const stored = await payload.findByID({ collection: 'user-submissions', id: doc.id })
+      expect(stored.senderEmail).toBe('reporter@example.com')
+      expect(stored.user).toEqual(expect.objectContaining({ email: 'reporter@example.com' }))
       // Composed, not submitted: the form's title leads.
       expect(doc.subject).toContain('Report an issue')
     })
@@ -196,6 +201,33 @@ describe('User submissions intake (POST /api/user-submissions)', () => {
       expect(doc.type).toBe('registration')
       expect(doc.uuid).toBeTruthy()
       expect(doc.form).toBeFalsy()
+    })
+
+    /**
+     * ⚠ Through a **client** create, which is the only way one really arrives.
+     * The spawn hook used to read `doc.senderEmail`, and that now resolves
+     * through `users` under the caller's access — which a client lacks — so a
+     * Local-API create (overrideAccess) would pass while every real opt-in
+     * spawned nothing.
+     */
+    it('spawns the opt-in subscribe row for a client registration', async () => {
+      const event = await publishedEvent()
+      const doc = await send({
+        type: 'registration',
+        event: event.id,
+        senderEmail: 'Opt.In@Example.com',
+        startingAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        submissionData: [{ field: 'subscribe', value: 'yes' }],
+      })
+
+      const { docs } = await payload.find({
+        collection: 'user-submissions',
+        where: { type: { equals: 'subscribe' }, event: { equals: event.id } },
+        depth: 0,
+      })
+      expect(docs).toHaveLength(1)
+      expect(docs[0]!.user).toBe(typeof doc.user === 'object' ? doc.user?.id : doc.user)
+      expect(docs[0]!.senderEmail).toBe('opt.in@example.com')
     })
 
     it('gates the proposed patch against the live Events config', async () => {
@@ -845,8 +877,30 @@ describe('User submissions intake (POST /api/user-submissions)', () => {
       })) as UserSubmission
       // The write went through (so the scope did let them in) and `type` is
       // unchanged — which is the property under test.
-      expect(after.senderEmail).toBe('immutable@example.com')
       expect(after.type).toBe('contact')
+
+      // The answers are frozen the same way: nothing re-validates the blob after
+      // create, so an editable copy would be an unchecked write.
+      const rewritten = (await payload.update({
+        collection: 'user-submissions',
+        id: doc.id,
+        data: {
+          submissionData: [{ field: 'message', value: 'Rewritten after the fact.' }],
+          senderEmail: 'someone-else@example.com',
+        },
+        overrideAccess: false,
+        req: {
+          payload,
+          headers: new Headers(),
+          user: { ...meddler, collection: 'managers' },
+          locale: 'en',
+          context: {},
+        } as unknown as PayloadRequest,
+      })) as UserSubmission
+      const stored = await payload.findByID({ collection: 'user-submissions', id: doc.id })
+      expect(rewritten.id).toBe(doc.id)
+      expect(stored.submissionData?.map((pair) => pair.value)).toEqual(['Should stay a contact.'])
+      expect(stored.senderEmail).toBe('immutable@example.com')
     })
   })
 

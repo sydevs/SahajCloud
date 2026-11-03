@@ -290,9 +290,14 @@ const formBuilder = (config: Parameters<Plugin>[0]) =>
       admin: {
         group: 'System',
         useAsTitle: 'subject',
-        defaultColumns: ['subject', 'type', 'status', 'senderEmail', 'createdAt'],
+        defaultColumns: ['subject', 'type', 'status', 'user', 'createdAt'],
         components: {
           edit: {
+            // Beside Save rather than in it: `SaveButton` is the review buttons'
+            // slot. Serves all four intakes, and hides itself on an anonymous row.
+            beforeDocumentControls: [
+              { path: '@/components/admin/BlockUserButton', clientProps: { source: 'submission' } },
+            ],
             // No `skipValidation` on any button: the no-region refusal reaches
             // the form as a field error on `region`, which validation is what
             // delivers.

@@ -138,7 +138,6 @@ export const prepareUserSubmission: CollectionBeforeValidateHook = async ({
     submissionData: Array.isArray(data.submissionData) ? data.submissionData : [],
     uuid: typeof data.uuid === 'string' && data.uuid ? data.uuid : randomUUID(),
     subject: await composeSubject({ data, req, type }),
-    ...(senderEmail ? { senderEmail: senderEmail.toLowerCase() } : {}),
     ...(user != null ? { user } : {}),
     ...(fromClient && req.user?.id != null ? { client: req.user.id } : {}),
     ...(fromClient ? { status: 'pending' } : {}),

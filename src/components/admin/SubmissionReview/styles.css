@@ -154,3 +154,26 @@
   margin: calc(var(--base) * 0.4) 0 0;
   padding-left: 1.2em;
 }
+
+/* `submissionData` as key/value rows. */
+.submission-data {
+  margin-bottom: var(--base);
+}
+
+.submission-data__key {
+  color: var(--theme-elevation-600);
+  white-space: nowrap;
+}
+
+/* A message keeps its own line breaks, and a long URL wraps instead of
+   widening the table past the form. */
+.submission-data__value {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.submission-data__empty {
+  color: var(--theme-elevation-500);
+  font-style: italic;
+  font-size: 13px;
+}
