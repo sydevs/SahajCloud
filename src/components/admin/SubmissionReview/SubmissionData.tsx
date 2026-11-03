@@ -1,6 +1,6 @@
 import type { Field, FieldServerComponent, Payload, PayloadRequest } from 'payload'
 
-import { FieldLabel, Table } from '@payloadcms/ui'
+import { FieldLabel } from '@payloadcms/ui'
 import { toWords } from 'payload/shared'
 import React from 'react'
 
@@ -10,7 +10,7 @@ import { CLIENT_CONTEXT_KEYS } from '@/lib/submissions/clientContext'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Form } from '@/payload-types'
 
-import { tableColumn } from '../helpers/tableColumn'
+import { CompactTable } from '../helpers/CompactTable'
 
 import './styles.css'
 
@@ -67,27 +67,29 @@ const SubmissionData: FieldServerComponent<Field, never, { part?: Part }> = asyn
       {entries.length === 0 ? (
         <div className="submission-data__empty">Nothing was submitted.</div>
       ) : (
-        <Table
-          data={entries.map((_, index) => ({ id: index }))}
+        <CompactTable
           columns={[
-            tableColumn(
-              'field',
-              'Field',
-              entries.map((entry, index) => (
+            {
+              key: 'field',
+              heading: 'Field',
+              // As wide as the longest label, so a registration question stays on
+              // one line; only a label past the cap wraps.
+              fit: { maxWidth: '28em' },
+              cells: entries.map((entry, index) => (
                 <span key={index} className="submission-data__key">
                   {keyLabel(entry.field)}
                 </span>
               )),
-            ),
-            tableColumn(
-              'value',
-              'Value',
-              entries.map((entry, index) => (
+            },
+            {
+              key: 'value',
+              heading: 'Value',
+              cells: entries.map((entry, index) => (
                 <span key={index} className="submission-data__value">
                   {entry.value == null || entry.value === '' ? '—' : String(entry.value)}
                 </span>
               )),
-            ),
+            },
           ]}
         />
       )}

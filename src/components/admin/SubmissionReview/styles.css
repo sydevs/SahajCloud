@@ -160,23 +160,7 @@
   margin-bottom: var(--base);
 }
 
-/*
- * The Field column is as wide as its longest label, up to 28em: Payload's own
- * 150px minimum on every cell otherwise left short keys far from their values,
- * and a column squeezed to fit wrapped every registration question. The cell
- * shrinks to the key, and the key holds its full width — `max-content`, capped —
- * so only a label longer than the cap wraps.
- */
-.submission-data th:first-child,
-.submission-data td:first-child {
-  width: 1%;
-  min-width: 0;
-}
-
 .submission-data__key {
-  display: block;
-  width: max-content;
-  max-width: 28em;
   color: var(--theme-elevation-600);
 }
 
@@ -189,4 +173,39 @@
   color: var(--theme-elevation-500);
   font-style: italic;
   font-size: 13px;
+}
+
+/* The sidebar summary: who sent it, through what, about what. */
+.submission-summary__list {
+  margin: 0;
+}
+
+.submission-summary__row {
+  margin-bottom: calc(var(--base) * 0.6);
+}
+
+.submission-summary__row dt {
+  color: var(--theme-elevation-500);
+  font-size: 0.85em;
+}
+
+.submission-summary__row dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.submission-summary__muted {
+  color: var(--theme-elevation-500);
+}
+
+/* A drawer toggler is a button; this one reads as the link it behaves as. */
+.submission-summary__link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-decoration: underline;
+  cursor: pointer;
 }

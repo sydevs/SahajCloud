@@ -84,6 +84,28 @@ const reviewProjectionAccess: { read: FieldAccess } = {
 }
 
 /**
+ * Renders nothing in the edit view, keeping the field's form-state value and
+ * its list column — for the fields `submissionSummaryField` shows instead.
+ */
+const SHOWN_IN_SUMMARY = { Field: '@/components/admin/FormStateOnly' }
+
+/**
+ * Who sent it, through what, about what — `type`, `user`, `form` and `event`
+ * as one block at the top of the sidebar, each document a link that opens it
+ * in a drawer. The four fields themselves render nothing in the form
+ * (`SHOWN_IN_SUMMARY`), and keep their list columns.
+ */
+const submissionSummaryField: Field = {
+  name: 'submissionSummary',
+  label: 'Summary',
+  type: 'ui',
+  admin: {
+    position: 'sidebar',
+    components: { Field: '@/components/admin/SubmissionReview/SubmissionSummary' },
+  },
+}
+
+/**
  * The `user-submissions` field list, as `formSubmissionOverrides.fields` hands
  * it to us.
  *
@@ -98,10 +120,11 @@ const reviewProjectionAccess: { read: FieldAccess } = {
  * `jsonSchema`, which an array field cannot carry.
  */
 export function userSubmissionFields({ defaultFields }: { defaultFields: Field[] }): Field[] {
-  // Sidebar fields (form, event, activity log) take their order from here too.
+  // Sidebar fields (the summary, then the activity log) take their order from here too.
   return [
     screeningResultField,
     proposedChangesField,
+    submissionSummaryField,
     typeField,
     userField,
     startingAtField,
@@ -111,9 +134,9 @@ export function userSubmissionFields({ defaultFields }: { defaultFields: Field[]
     eventField,
     unsubscribedAtField,
     eventFeedbackField,
-    proposedField,
     previewEventField,
     proposalPreviewTargetField,
+    closedPreviewTargetField,
     managerField,
     regionField,
     activityLogField,
@@ -146,7 +169,7 @@ const typeField: Field = {
   // manager's reads by it, and a manager holds `update`. A system writer
   // needing to change it passes `overrideAccess`.
   access: { update: () => false },
-  admin: { readOnly: true },
+  admin: { readOnly: true, components: SHOWN_IN_SUMMARY },
 }
 
 /**
@@ -248,8 +271,8 @@ function perTypeForm(field: Field): Field {
     admin: {
       ...field.admin,
       condition: (data) => needsForm(data),
-      position: 'sidebar',
       readOnly: true,
+      components: SHOWN_IN_SUMMARY,
     },
   } as RelationshipField
 }
@@ -272,7 +295,7 @@ const userField: Field = {
   relationTo: 'users',
   index: true,
   access: systemFieldAccess,
-  admin: { readOnly: true },
+  admin: { readOnly: true, components: SHOWN_IN_SUMMARY },
 }
 
 /**
@@ -435,8 +458,8 @@ const eventField: Field = {
   access: { update: () => false },
   admin: {
     condition: showsEvent,
-    position: 'sidebar',
     readOnly: true,
+    components: SHOWN_IN_SUMMARY,
     description:
       'The event this registration attends, this proposal targets, or this subscription came from.',
   },
@@ -546,6 +569,10 @@ const proposedField: Field = jsonField({
   admin: {
     condition: (data) => data?.type === 'proposal',
     readOnly: true,
+    // Under System: Proposed Changes is what a reviewer reads. This stays as
+    // the record of exactly what was sent, which the diff cannot be — it drops
+    // values equal to the event's, and once accepted it diffs against the event
+    // this patch already changed.
     description: 'The proposed Events field patch, exactly as submitted.',
   },
 })
@@ -606,6 +633,25 @@ const proposalPreviewTargetField: Field = {
   admin: {
     ...proposalPreviewTarget.admin,
     condition: (data) => data?.type === 'proposal',
+  },
+}
+
+const closedPreviewTarget = previewTargetField({ autoClose: true }, 'other__preview_target')
+
+/**
+ * The inverse, for the other three intakes: closes the panel on arrival. Their
+ * preview has nothing to show — `livePreview.url` sends them to the
+ * explanation page — and Payload keeps one open/closed preference for the
+ * whole collection, so a panel a reviewer left open on a proposal would
+ * otherwise greet the next contact message.
+ *
+ * Not mounted before `type` is known (the create form), where neither applies.
+ */
+const closedPreviewTargetField: Field = {
+  ...closedPreviewTarget,
+  admin: {
+    ...closedPreviewTarget.admin,
+    condition: (data) => typeof data?.type === 'string' && data.type !== 'proposal',
   },
 }
 
@@ -815,6 +861,7 @@ const systemGroup: Field = {
         },
       }),
     },
+    proposedField,
     {
       // The follow-up sweep's query filter. `activityLog` records *that* it was
       // sent, but nothing can `where` on a JSON column cheaply, so the scan

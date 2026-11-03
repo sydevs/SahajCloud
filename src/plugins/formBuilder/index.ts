@@ -329,7 +329,8 @@ const formBuilder = (config: Parameters<Plugin>[0]) =>
         // cannot branch on `type`, so opening it for the reviewer's benefit
         // would greet every contact, subscribe and registration row with that
         // explanation page. A conditioned `previewTargetField` opens the panel
-        // for `proposal` alone instead — `proposalPreviewTargetField` in
+        // for `proposal` alone instead, and a second closes it for the other
+        // three — `proposalPreviewTargetField` and `closedPreviewTargetField` in
         // `UserSubmissions/fields.ts`.
         livePreview: {
           url: ({ data, locale }) =>

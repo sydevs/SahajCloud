@@ -2248,7 +2248,6 @@ export interface UserSubmission {
    * Registrant’s verdict on an unverified event, from the link in their email.
    */
   eventFeedback?: ('confirmed' | 'denied') | null;
-  proposed?: SubmissionProposal;
   previewEvent?:
     | {
         [k: string]: unknown;
@@ -2275,6 +2274,7 @@ export interface UserSubmission {
   client?: (number | null) | Client;
   location?: SubmissionLocation;
   regionHint?: SubmissionRegionHint;
+  proposed?: SubmissionProposal;
   followUpSentAt?: string | null;
   updatedAt: string;
   createdAt: string;
@@ -2897,9 +2897,6 @@ export interface ClientAbuseScore {
     current: number;
   };
 }
-export interface SubmissionProposal {
-  [k: string]: unknown;
-}
 export interface SubmissionLocation {
   /**
    * The `place` layer — the city. An online class’s city goes here.
@@ -2927,6 +2924,9 @@ export interface SubmissionRegionHint {
    * The matched city or venue, kept after a reviewer changes `region`.
    */
   anchorRegion?: number;
+}
+export interface SubmissionProposal {
+  [k: string]: unknown;
 }
 export interface EventSystemMeta {
   communityFeedback?: {
@@ -5334,7 +5334,6 @@ export interface UserSubmissionsSelect<T extends boolean = true> {
   event?: T;
   unsubscribedAt?: T;
   eventFeedback?: T;
-  proposed?: T;
   previewEvent?: T;
   manager?: T;
   region?: T;
@@ -5344,6 +5343,7 @@ export interface UserSubmissionsSelect<T extends boolean = true> {
   client?: T;
   location?: T;
   regionHint?: T;
+  proposed?: T;
   followUpSentAt?: T;
   updatedAt?: T;
   createdAt?: T;

@@ -20,7 +20,9 @@ Import directly from `@payloadcms/ui` (e.g. `import { Banner, Button, Pill } fro
 
 ⚠ **`ProgressBar` is exported, and it reads as though it should show a job's count.** It is the route-transition bar: it takes no props and reads its value from `RouteTransitionProvider`, so it cannot show a job's own count. A job's count belongs in `JobStageView`'s banner instead (below), which is where both consumers put it and why this repo now renders no bar of its own. For a determinate bar, should one be wanted again, use a native `<progress>` — it carries the value to assistive technology, which no styled div does, and `max={0}` is invalid, so an unknown total means omitting both attributes rather than passing zero.
 
-`Table` is list-view-shaped: pass `data` (rows with an `id`) and `columns: Column[]`, each column carrying pre-rendered `renderedCells` (one node per row), `accessor`, and `active: true`. `Column` also requires a `field` the component never reads — stub it (`field: {} as never`). See `src/components/admin/LogTable/` for the working pattern, and note what it hand-rolls: `Table` exposes nothing per row, so opening a row's detail needs a delegated `closest('tr[data-id]')` listener (Payload writes the row's `id` there), and `cursor` must be a stylesheet rule because it targets Payload's own `<tr>`.
+`Table` is list-view-shaped: pass `data` (rows with an `id`) and `columns: Column[]`, each column carrying pre-rendered `renderedCells` (one node per row), `accessor`, and `active: true`. `Column` also requires a `field` the component never reads — stub it (`field: {} as never`).
+
+**A table inside a field uses `CompactTable`** (`src/components/admin/helpers/CompactTable/`), not `Table` directly. It is `Table` in Payload's default appearance, tightened: `appearance="condensed"` gives the header the same background as the striped rows, so the two read as one band. It adds what every field table hand-rolled before — a `fit` column sized to its content with an optional cap, a delegated row click resolved by position in `<tbody>` (`Table` exposes nothing per row), and `rowIds` for a per-row `data-id` style hook. `LogTable`, `ImportResultsTable` and `SubmissionData` use it; the dashboards' full-page tables use `Table`.
 
 ### A multipart save renders its own feedback
 
@@ -130,7 +132,7 @@ Five rules, each of which cost something to learn:
 
 The component renders `null` rather than taking `admin.hidden: true`: a hidden field renders Payload's own `HiddenField`, and this one exists to run an effect, not to carry a value into form state.
 
-Declared today in `translationsSchema.json` (a `preview` key beside `screenshot`, read on top-level groups only) and on the Meditations frame and Transcript tabs, which declare `autoOpen` with no path.
+Declared today in `translationsSchema.json` (a `preview` key beside `screenshot`, read on top-level groups only) and on the Meditations frame and Transcript tabs, which declare `autoOpen` with no path. `user-submissions` declares a conditioned pair: `autoOpen` for a proposal and `autoClose` for every other intake, because Payload keeps one open/closed preference per collection and a panel left open on a proposal would otherwise greet the next contact message.
 
 ## Styling — PayloadCMS CSS variables
 
