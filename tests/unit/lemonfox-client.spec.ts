@@ -4,7 +4,7 @@
  *
  * Fixture pre-mortem: the error bodies below claim Lemonfox answers an
  * OpenAI-shaped `{ error: { message } }`. That claim is only read back by
- * `readErrorMessage` in `src/lib/lemonfox/transcribe.ts`, which this spec and
+ * `readErrorMessage` in `src/jobs/TranscribeMeditation/lemonfox/transcribe.ts`, which this spec and
  * that module are the two halves of, so nothing here depends on repo config.
  * The key cases do: `LEMONFOX_API_KEY: ''` in `vitest.config.mts` is what makes
  * the unset case the lane's default, and it is checked there.
