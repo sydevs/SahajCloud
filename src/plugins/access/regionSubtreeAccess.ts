@@ -77,7 +77,7 @@ export function resolveOwnedRegionIds(req: PayloadRequest, userId: number): Prom
  */
 export async function ownedRegionFilterOptions(
   { req }: { req: PayloadRequest },
-  keepCurrent?: unknown,
+  keepCurrent?: null | number | string,
 ): Promise<Where | boolean> {
   const user = req.user
   if (!isManager(user)) {
