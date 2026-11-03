@@ -86,7 +86,8 @@ raw GitHub URL (same shape as `Events/endpoints/responseTypes.ts`).
 `src/endpoints/<name>.ts`. One with supporting modules is a folder whose
 path _is_ the URL path, handler in `index.ts` (`src/endpoints/atlas/seo/` →
 `GET /api/atlas/seo`, #645. `src/endpoints/atlas/sitemap/` → `GET
-/api/atlas/sitemap`, #650). #632 turned another into a collection once its
+/api/atlas/sitemap`, #650. `src/endpoints/atlas/challenge/` → `GET
+/api/atlas/challenge`, #1072). #632 turned another into a collection once its
 resource needed storing — the intake `user-submissions` now carries. Those supporting modules are
 single-owner code and stay in the folder — putting them in `src/lib/` fails
 the one-consumer check below.

@@ -121,6 +121,8 @@ To document one of them, change project membership plus `RESTRICTED_COLLECTIONS`
 
 `POST /api/clients/report` is the one custom endpoint deliberately hidden from `/api/docs`: `clients` sits in `ALWAYS_HIDDEN_COLLECTIONS` and belongs to no project, so `filterSpec` marks it `x-internal` under every project tier. That is intended — it is the first-party Atlas widget's telemetry channel, not a third-party integration surface, and advertising it only invites forged reports. It still appears in `/api/openapi-raw.json`, and a pinned test case in `tests/unit/openapi-custom-endpoints.spec.ts` stops a future filter change from publishing it by accident.
 
+`GET /api/atlas/challenge` (`src/endpoints/atlas/challenge/`, #1072) is absent from the shim altogether rather than `x-internal`: it answers HTML to a frame navigation, takes no API key, and its only consumer is the Atlas widget, whose `turnstile-frame.ts` module (sydevs/SahajAtlasWeb) holds the other half of the protocol.
+
 ### Root-level endpoints have no collection to key visibility off
 
 `filterSpec` derives project visibility from a path's first segment (`getCollectionFromPath`). A **root** endpoint (registered on `config.endpoints`, not a collection) has a segment that looks like a slug but names no collection, so every project tier reads it as "not in this project" and hides it.
