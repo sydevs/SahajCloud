@@ -11,6 +11,13 @@ import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
  *
  * The order in `up()` is load-bearing: the rels rows are inserted while
  * `meditation_id` still holds them, and the column goes afterwards.
+ *
+ * A row whose `meditation_id` was already null gets no rels row, and `required`
+ * on `source` then makes it unsaveable — while the 7-day orphan sweep that was
+ * the only thing reaching it goes with this change. So the last statement
+ * deletes what that sweep would have. It runs after both cascading foreign keys
+ * exist, so the rels and locked-document rows go with it, and `down()` cannot
+ * bring such a row back.
  */
 export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   await db.execute(sql`
@@ -53,7 +60,8 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   CREATE UNIQUE INDEX "transcripts_rels_meditations_id_idx" ON "transcripts_rels" USING btree ("meditations_id","path");
   CREATE UNIQUE INDEX "transcripts_rels_files_id_idx" ON "transcripts_rels" USING btree ("files_id","path");
   ALTER TABLE "payload_locked_documents_rels" ADD CONSTRAINT "payload_locked_documents_rels_transcripts_fk" FOREIGN KEY ("transcripts_id") REFERENCES "public"."transcripts"("id") ON DELETE cascade ON UPDATE no action;
-  CREATE INDEX "payload_locked_documents_rels_transcripts_id_idx" ON "payload_locked_documents_rels" USING btree ("transcripts_id");`)
+  CREATE INDEX "payload_locked_documents_rels_transcripts_id_idx" ON "payload_locked_documents_rels" USING btree ("transcripts_id");
+  DELETE FROM "transcripts" WHERE NOT EXISTS (SELECT 1 FROM "transcripts_rels" "r" WHERE "r"."parent_id" = "transcripts"."id" AND "r"."path" = 'source');`)
 }
 
 /**
