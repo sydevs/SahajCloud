@@ -4,12 +4,15 @@
 
 Copy `.env.example` and configure it.
 
+⚠ **The tracked `.env` holds no production credential.** This repository is public, so `.env` carries only local defaults that a worktree needs on checkout. Where one of those is secret-shaped — `PAYLOAD_SECRET`, `LIVE_PREVIEW_SIGNING_KEY`, `TURNSTILE_SECRET_KEY` — the comment beside it says why publishing that value costs nothing, and production sets its own. A real credential goes in `.env.local`, which is gitignored (`.env*.local`). That includes `SENTRY_AUTH_TOKEN` (source-map upload at build; the Railway service must carry its own) and `STORYBLOK_ACCESS_TOKEN` (`pnpm seed storyblok` only). A value committed once is public for good: rotate it at the provider, because removing it from the file does not help (#877).
+
 ### Core
 
 - `PAYLOAD_SECRET` — secret key for authentication (min 32 chars).
 - `DATABASE_URL` — PostgreSQL connection string: `postgres://user:password@host:5432/dbname`.
 - `NEXT_PUBLIC_LOG_LEVEL` — `silent` | `error` | `warn` | `info` | `debug`, for the server Pino logger and the client logger.
 - `RESEND_API_KEY` — Resend API key. Falls back to a mock in dev.
+- `TURNSTILE_SECRET_KEY`, `TURNSTILE_SITE_KEY` — the Cloudflare Turnstile pair, both held here: the secret verifies every public write, and the site key renders the Atlas widget's challenge page (`GET /api/atlas/challenge`). `.env` carries Cloudflare's always-passes test pair. Production sets both — see `DEPLOYMENT.md` → Captcha.
 - `LEMONFOX_API_KEY` — Lemonfox speech-to-text key, for meditation transcripts. Optional, and an empty value counts as unset. Without it transcription is unavailable: a request writes a failed transcript row saying so, queues no job, and nothing stands in for the real text.
 
 ### Storage (R2, S3-compatible)
@@ -45,8 +48,10 @@ The "Admin Access" section in `AGENTS.md` covers each environment's way in; none
 
 ### Live Preview URLs
 
-- `WEMEDITATE_WEB_URL` — required. We Meditate preview URL, for Pages/Meditations live preview and the CSP `frame-src`.
-- `SAHAJATLAS_URL` — required. Sahaj Atlas preview URL, for the same purposes plus the `csrf` allowlist. Not a canonical base — the Atlas host is `noindex`, so `webUrl` never points at it.
+- `WEMEDITATE_WEB_URL` — required. We Meditate preview URL, for Pages/Meditations live preview and the CSP `frame-src`. Its host and subdomains may also frame the Atlas challenge page.
+- `SAHAJATLAS_URL` — required. Sahaj Atlas preview URL, for the same purposes plus the `csrf` allowlist, and the same challenge-page allowance. Not a canonical base — the Atlas host is `noindex`, so `webUrl` never points at it.
+
+  ⚠ **Neither variable covers a PR preview**, which lands on the Cloudflare account's Workers subdomain rather than under either host. `src/endpoints/atlas/challenge/challengeRequest.ts` lists that subdomain outright, and says why it is safe to.
 
   ⚠ **This is `https://sahajatlas.com`, the replacement.** `atlas.sydevelopers.com` is the legacy service: it serves none of the document paths the Live Preview panel points at, so preview aimed there 404s. Production carried the legacy value (visible in the admin's own CSP `frame-src`), which is why atlas live preview did not work. Changing it moves the preview target, the CSP `frame-src` and the `csrf` allowlist together.
 

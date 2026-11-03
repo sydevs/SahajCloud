@@ -48,13 +48,18 @@ Almost every endpoint belongs to a collection and lives in its `endpoints/` fold
 
 ```typescript
 // src/payload.config.ts
+import { atlasChallenge } from './endpoints/atlas/challenge'
 import { atlasSeo } from './endpoints/atlas/seo'
 import { atlasSitemap } from './endpoints/atlas/sitemap'
+import { atlasWixRoute } from './endpoints/atlas/wix/route'
+import { atlasWixSitemap } from './endpoints/atlas/wix/sitemap'
 
-endpoints: [atlasSeo, atlasSitemap],
+endpoints: [atlasSeo, atlasSitemap, atlasChallenge, atlasWixRoute, atlasWixSitemap],
 ```
 
-The bar is high. Four endpoints clear it, and they are two resources answered in two shapes. `GET /api/atlas/seo` takes a **route** that may name a region or an event, so no single collection owns it. `GET /api/atlas/sitemap` spans regions and events for the same reason, and its real unit is the **client's ownership** — a `clients` fact, not either collection's. `GET /api/atlas/wix/route` and `GET /api/atlas/wix/sitemap` (#1055) are Wix-shaped **serializers** over the same two resolutions, so they inherit the same answer: a Wix Velo router needs JSON-LD as objects, the crawlable body as HTML, and `description`/`robots` as `metaTags` rows, each of which would break a current reader of the published shapes. ⚠ **A resolution therefore carries what every shape needs, and each shape serializes its own way out** — `resolveAtlasSeo` answers `AtlasSeoDocument`, with the JSON-LD as a graph, and `GET /api/atlas/seo` is the one surface that escapes it into a string. Pushing a serialization into the resolution makes the other shape parse it back out. They clear the bar because they serialize an ownerless resource, not because a second shape is reason enough for a second endpoint — a new shape over a **collection's** resource still belongs in that collection's folder.
+The bar is high. Five endpoints clear it, over three resources. `GET /api/atlas/seo` takes a **route** that may name a region or an event, so no single collection owns it. `GET /api/atlas/sitemap` spans regions and events for the same reason, and its real unit is the **client's ownership** — a `clients` fact, not either collection's. `GET /api/atlas/wix/route` and `GET /api/atlas/wix/sitemap` (#1055) are Wix-shaped **serializers** over those same two resolutions, so they inherit the same answer: a Wix Velo router needs JSON-LD as objects, the crawlable body as HTML, and `description`/`robots` as `metaTags` rows, each of which would break a current reader of the published shapes. ⚠ **A resolution therefore carries what every shape needs, and each shape serializes its own way out** — `resolveAtlasSeo` answers `AtlasSeoDocument`, with the JSON-LD as a graph, and `GET /api/atlas/seo` is the one surface that escapes it into a string. Pushing a serialization into the resolution makes the other shape parse it back out. They clear the bar because they serialize an ownerless resource, not because a second shape is reason enough for a second endpoint — a new shape over a **collection's** resource still belongs in that collection's folder. `GET /api/atlas/challenge` (#1072) is an HTML document the Atlas widget frames to render its captcha, gated by every client's `allowedDomains` at once rather than by one row.
+
+⚠ **The challenge page is the one root endpoint with no client guard, no meter and no OpenAPI entry**, all for one reason: a frame navigation carries no `Authorization` header, so it is anonymous by construction, and it is a page rather than an API a third party integrates. Its docblock says so, as the rule below requires.
 
 A third case, `POST /api/contact-admin`, once justified itself as "stored nowhere, owned by nothing" — true only because it chose not to store anything. Once the feature needed spam screening, it needed a collection, so the endpoint was deleted and the intake became a plain create on a collection (#632, now `user-submissions`), recovering the origin checks and usage tracking it had skipped. Before reaching for a root endpoint, ask whether the resource is genuinely ownerless, or merely unpersisted. Prefer a collection endpoint whenever a collection plausibly owns the resource.
 

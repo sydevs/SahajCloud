@@ -132,7 +132,7 @@ query:  https://{domain}{mount}{?|&}atlas={webPath}
 - **Never a fragment.** Hash routing is gone from the widget with no back-compat.
 - **The verified host is re-checked at read time, not trusted** — `VerifyEmbeds` writes via raw SQL, bypassing the JSON schema's domain pattern. `loadDirectOwners` re-validates before the ancestor walk, so an unusable client is skipped rather than collapsing its whole subtree to the fallback.
 - **The path is emitted raw**, not percent-encoded — safe only because region slugs are `[a-z0-9-]` and event ids are numeric (`tests/unit/atlas-canonical-url.spec.ts` pins this).
-- **Region paths are queryable** via `where[breadcrumbs.url][equals]='/nl/amsterdam'`, but this matches descendants too — add `slug` to resolve exactly one. Existing rows need `pnpm tsx scripts/backfill-region-breadcrumb-urls.ts` once.
+- **Region paths are queryable** via `where[breadcrumbs.url][equals]='/nl/amsterdam'`, but this matches descendants too — add `slug` to resolve exactly one.
 
 ## Mailing-list configuration on `clients`
 

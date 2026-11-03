@@ -62,9 +62,15 @@ const nextConfig = {
     // stay equal to the production values in `.env.example`. A wrong one is
     // invisible: the build succeeds and the panel is simply blank.
     // `tests/unit/csp-frame-src.spec.ts` pins them.
+    //
+    // ⚠ This policy reaches every document served here, `GET /api/atlas/challenge` included,
+    // and that page frames Cloudflare's Turnstile. A route cannot override it either: Next drops
+    // a route's own `Content-Security-Policy` once config has set one
+    // (`next/dist/server/send-response.js`), so Cloudflare's origin has to be listed here.
     const frameSources = [
       "'self'",
       'https://app.usefathom.com',
+      'https://challenges.cloudflare.com',
       process.env.WEMEDITATE_WEB_URL || 'https://wemeditate.com',
       process.env.SAHAJATLAS_URL || 'https://sahajatlas.com',
     ].join(' ')
@@ -137,6 +143,13 @@ const configWithPayload = withPayload(nextConfig, { devBundleServerPackages: fal
 // SENTRY_AUTH_TOKEN and the org and project settings are set, in CI or on
 // Railway. Otherwise the build skips the upload. `silent` keeps local
 // builds quiet.
+//
+// ⚠ A Railway build sets no CI, so `silent: !CI` alone also hid the
+// skipped-upload notice on the one build whose source maps ship. #877 untracked
+// the token, leaving the dashboard its only source, so a missing one has to
+// reach the deploy log.
+const onRailway = Boolean(process.env.RAILWAY_ENVIRONMENT_NAME || process.env.RAILWAY_ENVIRONMENT)
+
 export default withSentryConfig(configWithPayload, {
-  silent: !process.env.CI,
+  silent: !process.env.CI && !onRailway,
 })
