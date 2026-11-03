@@ -60,8 +60,8 @@ function respond(config: ChallengeConfig, status: number): Response {
  * - It checks every ancestor. An iframe embed puts the widget on the Atlas origin inside a partner
  *   page that no list names, and the token only ever reaches the immediate parent — which is what
  *   this pins.
- * - A refused frame is silent to its parent, so the widget would wait out its handshake timeout and
- *   could not tell the host's developer what to fix. This page posts `reason: 'origin'` instead.
+ * - A refused frame is silent to its parent, so the widget could fail only at its handshake
+ *   timeout. This page posts its refusal at once instead.
  *
  * ⚠ **Anonymous by necessity, so no `requireActiveClient`.** A frame navigation carries no
  * `Authorization` header, and the page reads nothing a client owns. For the same reason it is not

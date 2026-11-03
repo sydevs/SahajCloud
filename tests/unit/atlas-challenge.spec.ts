@@ -88,7 +88,7 @@ describe('the challenge page script', () => {
     expect(page.scripts).toHaveLength(0)
     expect(page.posted).toEqual([
       {
-        message: { type: 'error', reason: 'origin', channel: CHALLENGE_CHANNEL },
+        message: { type: 'error', channel: CHALLENGE_CHANNEL },
         targetOrigin: '*',
       },
     ])

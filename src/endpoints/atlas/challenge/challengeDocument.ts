@@ -2,8 +2,8 @@
  * The challenge page's HTML, and the script it runs in the browser.
  *
  * ⚠ **Cross-repo contract** with sydevs/SahajAtlasWeb's `src/hooks/use-turnstile.ts`, which frames
- * this page and parses every message it sends. Change the channel, a message `type`, a `reason`
- * or a query parameter in both repos in the same release: a drifted protocol fails silently, with
+ * this page and parses every message it sends. Change the channel, a message `type` or a query
+ * parameter in both repos in the same release: a drifted protocol fails silently, with
  * the widget waiting out its handshake timeout and nothing on the console.
  */
 
@@ -49,7 +49,7 @@ export const CHALLENGE_SCRIPT = `(function (config) {
     parentWindow.postMessage(message, targetOrigin || config.parent);
   }
   if (config.refusal) {
-    send({ type: 'error', reason: config.refusal }, '*');
+    send({ type: 'error' }, '*');
     return;
   }
   var script = document.createElement('script');

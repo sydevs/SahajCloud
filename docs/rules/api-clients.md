@@ -243,7 +243,7 @@ The rule itself lives in `assertClientOriginAllowed(req)`. The hook is a thin wr
 
 **Rule**: runs only when `req.user?.collection === 'clients'`. An empty/unset `allowedDomains` allows any origin (the default). A non-empty list requires the request `Origin` (or `Referer` as fallback) to match an entry, else **403**. No `Origin`/`Referer` at all (server-to-server, cron) is allowed — the API key is the gate there.
 
-⚠ **The challenge page reads the same lists with one difference: an empty list contributes nothing there.** "Empty allows any origin" is safe for reads because the key is the gate, but `GET /api/atlas/challenge` is anonymous, so treating empty as "any" would let one unfilled client turn the page into a token minter for every site on the web (#1072, question 1). A client whose embed host is listed nowhere gets the captcha-blocked screen, and the widget's console names the host to add.
+⚠ **The challenge page reads the same lists with one difference: an empty list contributes nothing there.** "Empty allows any origin" is safe for reads because the key is the gate, but `GET /api/atlas/challenge` is anonymous, so treating empty as "any" would let one unfilled client turn the page into a token minter for every site on the web (#1072, question 1). A client whose embed host is listed nowhere gets the captcha-blocked screen, and the widget's console names the host to check.
 
 **Matching** (`originEnforcement.ts`): both sides normalize to a bare host (scheme, userinfo, port, path, trailing dot stripped, lowercased). An exact host matches only itself. A `*.` wildcard matches any subdomain but not the apex, and blocks the injection `evil-example.org` against `*.example.org`.
 
