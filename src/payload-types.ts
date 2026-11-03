@@ -2212,8 +2212,14 @@ export interface Import {
  */
 export interface UserSubmission {
   id: number;
+  screeningResult?: SubmissionScreeningResult;
   type: 'contact' | 'subscribe' | 'registration' | 'proposal';
   user?: (number | null) | User;
+  /**
+   * Which occurrence the registrant is attending.
+   */
+  startingAt?: string | null;
+  startingAt_tz?: SupportedTimezones;
   form?: (number | null) | Form;
   submissionData?:
     | {
@@ -2228,14 +2234,9 @@ export interface UserSubmission {
    * The event this registration attends, this proposal targets, or this subscription came from.
    */
   event?: (number | null) | Event;
-  /**
-   * Which occurrence the registrant is attending.
-   */
-  startingAt?: string | null;
-  startingAt_tz?: SupportedTimezones;
   unsubscribedAt?: string | null;
   /**
-   * Registrant’s verdict on an unverified event.
+   * Registrant’s verdict on an unverified event, from the link in their email.
    */
   eventFeedback?: ('confirmed' | 'denied') | null;
   proposed?: SubmissionProposal;
@@ -2265,7 +2266,6 @@ export interface UserSubmission {
    * The city or venue this event belongs to. Matched from the visitor’s location — correct it here if it came back empty or wrong.
    */
   region?: (number | null) | Region;
-  screeningResult?: SubmissionScreeningResult;
   activityLog?: ActivityLog;
   /**
    * Composed when the submission arrives.
@@ -2278,6 +2278,32 @@ export interface UserSubmission {
   followUpSentAt?: string | null;
   updatedAt: string;
   createdAt: string;
+}
+export interface SubmissionScreeningResult {
+  /**
+   * `ok`, or the first check that refused this submission.
+   */
+  verdict:
+    | 'ok'
+    | 'blocked_sender'
+    | 'disposable_email'
+    | 'invalid_email'
+    | 'no_mx_records'
+    | 'repeat_sender'
+    | 'duplicate_body'
+    | 'content_rejected';
+  /**
+   * Everything an admin needs, as complete sentences: what happened and what follows from it. An accepted submission normally has none.
+   */
+  notes?: string[];
+  /**
+   * A technical detail kept for triage and NOT rendered — an inconclusive MX lookup, or a transport’s own error string.
+   */
+  diagnostic?: string;
+  /**
+   * When screening reached this verdict (ISO 8601).
+   */
+  screenedAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -2873,32 +2899,6 @@ export interface ClientAbuseScore {
 }
 export interface SubmissionProposal {
   [k: string]: unknown;
-}
-export interface SubmissionScreeningResult {
-  /**
-   * `ok`, or the first check that refused this submission.
-   */
-  verdict:
-    | 'ok'
-    | 'blocked_sender'
-    | 'disposable_email'
-    | 'invalid_email'
-    | 'no_mx_records'
-    | 'repeat_sender'
-    | 'duplicate_body'
-    | 'content_rejected';
-  /**
-   * Everything an admin needs, as complete sentences: what happened and what follows from it. An accepted submission normally has none.
-   */
-  notes?: string[];
-  /**
-   * A technical detail kept for triage and NOT rendered — an inconclusive MX lookup, or a transport’s own error string.
-   */
-  diagnostic?: string;
-  /**
-   * When screening reached this verdict (ISO 8601).
-   */
-  screenedAt: string;
 }
 export interface SubmissionLocation {
   /**
@@ -5315,8 +5315,11 @@ export interface FormsSelect<T extends boolean = true> {
  * via the `definition` "user-submissions_select".
  */
 export interface UserSubmissionsSelect<T extends boolean = true> {
+  screeningResult?: T;
   type?: T;
   user?: T;
+  startingAt?: T;
+  startingAt_tz?: T;
   form?: T;
   submissionData?:
     | T
@@ -5328,8 +5331,6 @@ export interface UserSubmissionsSelect<T extends boolean = true> {
   senderEmail?: T;
   status?: T;
   event?: T;
-  startingAt?: T;
-  startingAt_tz?: T;
   unsubscribedAt?: T;
   eventFeedback?: T;
   proposed?: T;
@@ -5337,7 +5338,6 @@ export interface UserSubmissionsSelect<T extends boolean = true> {
   previewEvent?: T;
   manager?: T;
   region?: T;
-  screeningResult?: T;
   activityLog?: T;
   subject?: T;
   uuid?: T;

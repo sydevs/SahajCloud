@@ -68,7 +68,6 @@ const SubmissionData: FieldServerComponent<Field, never, { part?: Part }> = asyn
         <div className="submission-data__empty">Nothing was submitted.</div>
       ) : (
         <Table
-          appearance="condensed"
           data={entries.map((_, index) => ({ id: index }))}
           columns={[
             tableColumn(

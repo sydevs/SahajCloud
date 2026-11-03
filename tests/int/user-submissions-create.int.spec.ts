@@ -904,6 +904,74 @@ describe('User submissions intake (POST /api/user-submissions)', () => {
     })
   })
 
+  /**
+   * What the submitter chose, and the registrant's own vote, are fixed once
+   * received — even against an admin, who passes every collection gate, so only
+   * the field locks can be what refuses. System writers (an accept stamping
+   * `event`, the feedback page writing the vote) pass `overrideAccess`.
+   */
+  describe('fields fixed at create', () => {
+    it('ignores an admin’s write of form, event, startingAt and eventFeedback', async () => {
+      const event = await publishedEvent()
+      const otherEvent = await publishedEvent()
+      const startingAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+      const registration = await send({
+        type: 'registration',
+        event: event.id,
+        senderEmail: 'fixed-at-create@example.com',
+        startingAt,
+      })
+      const contact = await send({
+        type: 'contact',
+        form: contactForm.id,
+        senderEmail: 'fixed-at-create@example.com',
+        submissionData: [{ field: 'message', value: 'Stays on its form.' }],
+      })
+      const admin = await testData.createManager(payload, { type: 'admin' })
+      const asAdmin = {
+        payload,
+        headers: new Headers(),
+        user: { ...admin, collection: 'managers' },
+        locale: 'en',
+        context: {},
+      } as unknown as PayloadRequest
+
+      await payload.update({
+        collection: 'user-submissions',
+        id: registration.id,
+        data: {
+          event: otherEvent.id,
+          startingAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+          eventFeedback: 'denied',
+        },
+        overrideAccess: false,
+        req: asAdmin,
+      })
+      await payload.update({
+        collection: 'user-submissions',
+        id: contact.id,
+        data: { form: subscribeForm.id },
+        overrideAccess: false,
+        req: asAdmin,
+      })
+
+      const storedRegistration = await payload.findByID({
+        collection: 'user-submissions',
+        id: registration.id,
+        depth: 0,
+      })
+      expect(storedRegistration.event).toBe(event.id)
+      expect(storedRegistration.startingAt).toBe(startingAt)
+      expect(storedRegistration.eventFeedback).toBeFalsy()
+      const storedContact = await payload.findByID({
+        collection: 'user-submissions',
+        id: contact.id,
+        depth: 0,
+      })
+      expect(storedContact.form).toBe(contactForm.id)
+    })
+  })
+
   describe('the audit trail', () => {
     it('refuses a client-forged activityLog', async () => {
       // `logField` promised in prose that it is never API-writable, and said so

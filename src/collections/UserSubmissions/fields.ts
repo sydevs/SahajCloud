@@ -98,14 +98,16 @@ const reviewProjectionAccess: { read: FieldAccess } = {
  * `jsonSchema`, which an array field cannot carry.
  */
 export function userSubmissionFields({ defaultFields }: { defaultFields: Field[] }): Field[] {
+  // Sidebar fields (form, event, activity log) take their order from here too.
   return [
+    screeningResultField,
     typeField,
     userField,
+    startingAtField,
     ...defaultFields.map(perTypeForm).map(readOnlySubmissionData),
     senderEmailField,
     statusField,
     eventField,
-    startingAtField,
     unsubscribedAtField,
     eventFeedbackField,
     proposedField,
@@ -114,7 +116,6 @@ export function userSubmissionFields({ defaultFields }: { defaultFields: Field[]
     proposalPreviewTargetField,
     managerField,
     regionField,
-    screeningResultField,
     activityLogField,
     systemGroup,
   ]
@@ -242,7 +243,14 @@ function perTypeForm(field: Field): Field {
     required: true,
     index: true,
     validate,
-    admin: { ...field.admin, condition: (data) => needsForm(data) },
+    // Fixed at create: the type's rules were judged against this form.
+    access: { ...field.access, update: () => false },
+    admin: {
+      ...field.admin,
+      condition: (data) => needsForm(data),
+      position: 'sidebar',
+      readOnly: true,
+    },
   } as RelationshipField
 }
 
@@ -345,7 +353,23 @@ const statusField: Field = {
   options: SUBMISSION_STATUSES.map((value) => ({ label: STATUS_LABELS[value], value })),
   enumName: 'enum_user_submissions_status',
   access: systemFieldAccess,
-  admin: { readOnly: true },
+  // The banner on `screeningResult` is where the edit view shows it; the list
+  // keeps its column, and the review buttons read it from form state.
+  admin: { readOnly: true, components: { Field: '@/components/admin/FormStateOnly' } },
+}
+
+/**
+ * Whether a row has an event to show: always for a registration or a proposal
+ * (a new-event proposal shows it empty until accepted), and for a subscribe row
+ * only when a registration opt-in spawned it.
+ *
+ * ⚠ **This is also when `eventPlacement` runs**, because a false condition skips
+ * validation. Narrowing `subscribe` to rows that carry an event skips it only
+ * where the value is empty, which the validator passes anyway.
+ */
+function showsEvent(data?: { event?: unknown; type?: unknown }): boolean {
+  if (data?.type === 'registration' || data?.type === 'proposal') return true
+  return data?.type === 'subscribe' && data?.event != null
 }
 
 /**
@@ -396,8 +420,8 @@ const eventPlacement: RelationshipFieldSingleValidation = async (value, options)
  * that is what links the consent record back to the registration it came from,
  * and what exempts it from needing a form of its own (`needsForm`).
  *
- * ⚠ **The condition is `type !== 'contact'`, not `… && !data?.form`.** Adding
- * the form clause would switch `eventPlacement` off for precisely the rows it
+ * ⚠ **The condition is `showsEvent`, and never `… && !data?.form`.** Adding a
+ * form clause would switch `eventPlacement` off for precisely the rows it
  * judges — one naming both a form and an event — and a skipped validator
  * refuses nothing.
  */
@@ -407,8 +431,12 @@ const eventField: Field = {
   relationTo: 'events',
   index: true,
   validate: eventPlacement,
+  // Set at create, or by an accept (`applyReview`, with `overrideAccess`).
+  access: { update: () => false },
   admin: {
-    condition: (data) => data?.type !== 'contact',
+    condition: showsEvent,
+    position: 'sidebar',
+    readOnly: true,
     description:
       'The event this registration attends, this proposal targets, or this subscription came from.',
   },
@@ -424,8 +452,11 @@ const startingAtField: Field = {
   name: 'startingAt',
   type: 'date',
   timezone: true,
+  // The registrant's own choice, posted at create.
+  access: { update: () => false },
   admin: {
     condition: (data) => data?.type === 'registration',
+    readOnly: true,
     date: { pickerAppearance: 'dayAndTime' },
     description: 'Which occurrence the registrant is attending.',
   },
@@ -468,10 +499,13 @@ const eventFeedbackField: Field = {
     { label: 'Denied', value: 'denied' },
   ],
   enumName: 'enum_user_submissions_event_feedback',
-  access: systemFieldAccess,
+  // The registrant's vote and nobody else's: the feedback page writes it with
+  // `overrideAccess`, so no admin edit can stand in for one.
+  access: { create: systemFieldAccess.create, update: () => false },
   admin: {
     condition: (data) => data?.type === 'registration',
-    description: 'Registrant’s verdict on an unverified event.',
+    readOnly: true,
+    description: 'Registrant’s verdict on an unverified event, from the link in their email.',
   },
 }
 
@@ -695,13 +729,18 @@ const screeningResultField: Field = jsonField({
  * Everything recorded about this submission. Promoted to every type here: the
  * three collections being replaced logged ad hoc, or not at all.
  */
-const activityLogField: Field = logField({
+const activityLogBase = logField({
   description: 'Everything recorded about this submission — screening, delivery, decisions.',
   columns: [
     { key: 'activity', label: 'Event' },
     { key: 'sentTo', label: 'Sent to' },
   ],
 })
+
+const activityLogField: Field = {
+  ...activityLogBase,
+  admin: { ...activityLogBase.admin, position: 'sidebar' },
+} as Field
 
 /** The columns a reader needs only when something has gone wrong. */
 const systemGroup: Field = {

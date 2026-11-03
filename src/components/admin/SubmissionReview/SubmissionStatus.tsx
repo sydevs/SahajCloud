@@ -1,11 +1,10 @@
 'use client'
 
-import type { FieldClientComponent, JSONFieldClient } from 'payload'
+import type { FieldClientComponent } from 'payload'
 
 import {
   Banner,
   ErrorIcon,
-  FieldLabel,
   InfoIcon,
   SuccessIcon,
   useDocumentInfo,
@@ -14,12 +13,17 @@ import {
 } from '@payloadcms/ui'
 import React from 'react'
 
-import { OPEN_REVIEW_STATUSES, STATUS_LABELS } from '@/collections/UserSubmissions/statuses'
+import {
+  OPEN_REVIEW_STATUSES,
+  STATUS_LABELS,
+  VERDICT_LABELS,
+} from '@/collections/UserSubmissions/statuses'
 import type { SubmissionScreeningResult, UserSubmission } from '@/payload-types'
 
 import './styles.css'
 
 type SubmissionStatus = UserSubmission['status']
+type SubmissionType = UserSubmission['type']
 
 /**
  * How loudly a status is drawn. There is deliberately no `warning`: the one
@@ -29,54 +33,62 @@ type SubmissionStatus = UserSubmission['status']
  */
 type Severity = 'info' | 'error' | 'success'
 
+const SEVERITY: Record<SubmissionStatus, Severity> = {
+  pending: 'info',
+  accepted: 'success',
+  // Red like spam: both are refusals, and a reviewer scanning the list should
+  // read "this was turned down" at the same glance either way.
+  rejected: 'error',
+  spam: 'error',
+  failed: 'error',
+}
+
 /**
- * How loudly to draw each status, and what to do about it. The **heading** is
- * not here — it is `STATUS_LABELS`, shared with the list column and the
- * `status` select, so a row and the banner it opens onto can't call the same
- * state two different things.
+ * What a status means for each intake, beside the screening line. The
+ * **heading** is not here — it is `STATUS_LABELS`, shared with the list column,
+ * so a row and the banner it opens onto can't call the same state two names.
  *
  * Written for a manager who runs meditation classes, not for whoever built
- * this. So: no internal vocabulary ("adopt into the verification cycle"), no
- * delivery bookkeeping (who got emailed), and nothing that restates the
- * heading. `spam` deliberately carries no message of its own — the reason it
- * was classified that way is a screening note, and a fixed line beside it just
- * said the same thing twice.
+ * this: no internal vocabulary, nothing that restates the heading. `spam` has
+ * no line of its own — screening's note is the reason, and a fixed line beside
+ * it said the same thing twice.
+ *
+ * ⚠ **`failed` means two different things.** For the three delivered intakes
+ * the delivery itself failed, after its retries. For a proposal the decision
+ * path is fine and only the reviewer email did not send, so it is still open.
  */
-const COPY: Record<SubmissionStatus, { severity: Severity; message?: string }> = {
-  pending: {
-    severity: 'info',
-    message: 'Compare the proposed changes with the preview, then accept or reject.',
+const COPY: Record<SubmissionType, Partial<Record<SubmissionStatus, string>>> = {
+  contact: {
+    pending: 'Waiting to be delivered to the form’s recipient.',
+    accepted: 'Delivered to the form’s recipient.',
+    failed: 'Could not be delivered. The activity log has the error.',
   },
-  spam: { severity: 'error' },
-  accepted: {
-    severity: 'success',
-    message:
+  subscribe: {
+    pending: 'Waiting to be added to the mailing list.',
+    accepted: 'Added to the mailing list.',
+    failed: 'Could not be added to the mailing list. The activity log has the error.',
+  },
+  registration: {
+    pending: 'Waiting for the confirmation to be sent.',
+    accepted: 'Registered for this event.',
+    failed: 'The confirmation could not be sent. The activity log has the error.',
+  },
+  proposal: {
+    pending: 'Compare the proposed changes with the preview, then accept or reject.',
+    accepted:
       'This event is on the map, but the public sees it marked unverified. Give it a manager to have it verified.',
-  },
-  rejected: {
-    // Red like spam: both are refusals, and a reviewer scanning the list
-    // should read "this was turned down" at the same glance either way.
-    severity: 'error',
-    message: 'Nothing was created or changed.',
-  },
-  // The decision went fine and the review email did not send. Still open, so
-  // the banner has to say the row is actionable rather than broken.
-  failed: {
-    severity: 'info',
-    message: 'The review email could not be sent. Accept or reject it here.',
+    rejected: 'Nothing was created or changed.',
+    failed: 'The review email could not be sent. Accept or reject it here.',
   },
 }
 
 /**
  * A manager was assigned, so the event was adopted as it was created and is
- * already verified — the default `created` line would tell the reviewer to go
+ * already verified — the default accepted line would tell the reviewer to go
  * and do something they have just done.
  */
 const CREATED_WITH_MANAGER =
   'This event is on the map and verified, looked after by the manager you assigned.'
-
-/** Said when a submission is spam but screening left no reason. */
-const SPAM_FALLBACK = 'The submitter’s contact details could not be verified.'
 
 const ICONS: Record<Severity, React.FC> = {
   info: InfoIcon,
@@ -106,49 +118,56 @@ function notesOf(result: SubmissionScreeningResult | null | undefined): string[]
     : []
 }
 
+/** What screening concluded, in one line — or that it has not run. */
+function screeningLine(
+  result: SubmissionScreeningResult | null | undefined,
+  status: SubmissionStatus,
+): string {
+  const verdict = result?.verdict
+  if (verdict && verdict in VERDICT_LABELS) {
+    return verdict === 'ok'
+      ? 'Passed screening.'
+      : `Refused by screening: ${VERDICT_LABELS[verdict]}.`
+  }
+  // Pending with no verdict is the queue not having reached it. Anything else
+  // with none was settled before screening existed — an imported row.
+  return status === 'pending' ? 'Waiting to be screened.' : 'Not screened.'
+}
+
 /**
- * Status banner atop a proposal submission: what state it's in, what follows
- * from it, and whatever screening found.
+ * The submission's status, atop every submission: the state it is in, what
+ * screening found, and what follows. **The one place status shows in the edit
+ * view** — the `status` field renders nothing there, so the two can never be
+ * read side by side and disagree.
  *
- * The notes are rendered verbatim — screening composes them as complete
- * sentences, because it is the party that knows *why* it decided what it did.
- * This component used to assemble one from an enum (`Email verdict: disposable
- * email`), which read like a debug dump and left the reviewer to infer the
- * consequence. Screening now writes only notes that ask something of the
- * reviewer, so most submissions show none at all.
+ * Screening's notes are rendered verbatim: screening composes them as complete
+ * sentences, because it is the party that knows *why* it decided. They show
+ * while a decision is still open, and on spam, where the note is the reason.
+ * Once a proposal is decided they are spent advice about fields the page no
+ * longer shows.
  *
- * Mounted on `screeningResult` — the data it renders — rather than on a `ui`
- * field, so it reads its own value through `useField` instead of reaching
- * across form state for it.
+ * Mounted on `screeningResult` — the data it renders — so it reads its own
+ * value through `useField`, and `status` from form state.
  */
-export const SubmissionStatus: FieldClientComponent = ({ field }) => {
-  const { name, label } = field as JSONFieldClient
+export const SubmissionStatus: FieldClientComponent = () => {
   const { id } = useDocumentInfo()
   const status = useFormFields(([fields]) => fields?.status?.value as SubmissionStatus | undefined)
+  const type = useFormFields(([fields]) => fields?.type?.value as SubmissionType | undefined)
   const hasManager = useFormFields(([fields]) => Boolean(fields?.manager?.value))
-  const type = useFormFields(
-    ([fields]) => fields?.type?.value as UserSubmission['type'] | undefined,
-  )
   const { value } = useField<SubmissionScreeningResult | null>()
 
-  // One table, four intakes. The banner speaks the review path's language, so
-  // it renders for the one type that has a review path.
-  if (!id || type !== 'proposal' || !status || !COPY[status]) return null
+  if (!id || !status || !type || !(status in SEVERITY)) return null
 
-  const { severity } = COPY[status]
-  const title = STATUS_LABELS[status]
+  const severity = SEVERITY[status]
   const Icon = ICONS[severity]
-  const message = status === 'accepted' && hasManager ? CREATED_WITH_MANAGER : COPY[status].message
-  // Screening's notes tell the reviewer what to settle *before* deciding
-  // ("check the Region below looks right"). Once the decision is made they are
-  // spent advice about a field the page no longer even shows — an accepted
-  // submission hides Region, because the event owns it now. Spam is the
-  // exception: its note is the reason, which is the whole point of the banner.
+  const message =
+    type === 'proposal' && status === 'accepted' && hasManager
+      ? CREATED_WITH_MANAGER
+      : COPY[type]?.[status]
   const notes = OPEN_REVIEW_STATUSES.includes(status) || status === 'spam' ? notesOf(value) : []
 
   return (
     <div className="field-type json read-only">
-      <FieldLabel label={label} path={name} />
       <Banner
         className={`event-submission-status event-submission-status--${severity}`}
         type={BANNER_TYPE[severity]}
@@ -156,11 +175,8 @@ export const SubmissionStatus: FieldClientComponent = ({ field }) => {
         alignIcon="left"
       >
         <div>
-          <strong className="event-submission-status__title">{title}</strong>
-          {message && <div>{message}</div>}
-          {/* Spam has no fixed message — the screening note *is* the reason,
-              and it must not be left saying nothing if screening wrote none. */}
-          {!message && notes.length === 0 && status === 'spam' && <div>{SPAM_FALLBACK}</div>}
+          <strong className="event-submission-status__title">{STATUS_LABELS[status]}</strong>
+          <div>{screeningLine(value, status)}</div>
           {notes.length > 0 && (
             <ul className="event-submission-status__notes">
               {notes.map((note) => (
@@ -168,6 +184,7 @@ export const SubmissionStatus: FieldClientComponent = ({ field }) => {
               ))}
             </ul>
           )}
+          {message && <div>{message}</div>}
         </div>
       </Banner>
     </div>

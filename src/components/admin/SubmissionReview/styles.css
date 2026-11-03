@@ -160,9 +160,25 @@
   margin-bottom: var(--base);
 }
 
-.submission-data__key {
-  color: var(--theme-elevation-600);
+/*
+ * The Field column takes only what its labels need. Payload gives every cell a
+ * 150px minimum; on this column a label shorter than that left the values
+ * floating away from their keys. `width: 1%` shrinks the column to its content,
+ * and a long label (a registration question) wraps at 20em instead of
+ * stretching it.
+ */
+.submission-data th:first-child,
+.submission-data td:first-child {
+  width: 1%;
+  min-width: 0;
   white-space: nowrap;
+}
+
+.submission-data__key {
+  display: inline-block;
+  max-width: 20em;
+  white-space: normal;
+  color: var(--theme-elevation-600);
 }
 
 /* A message keeps its own line breaks, and a long URL wraps instead of
