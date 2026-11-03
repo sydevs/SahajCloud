@@ -56,6 +56,7 @@ const VALID_SCRIPTS: ScriptName[] = [
   'wm-app-translations',
   'translations',
   'atlas',
+  'preview',
 ]
 
 // Dependency order: tags first (referenced by other content), then wemeditate (authors/categories),
@@ -82,6 +83,7 @@ const SCRIPT_DESCRIPTIONS: Record<ScriptName, string> = {
   'wm-app-translations': 'Seed English copy for the wm-app-translations global',
   translations: 'Seed English copy for all three translation globals',
   atlas: 'Seed Sahaj Atlas events, regions, managers, registrations + clients',
+  preview: 'Example submissions of every type, for a PR preview (refuses production)',
 }
 
 const VALID_OPTIONS = ['--dry-run', '--clear-cache', '--update']
