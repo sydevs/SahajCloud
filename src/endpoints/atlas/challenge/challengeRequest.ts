@@ -45,6 +45,16 @@ export function readChallengeRequest(query: Record<string, unknown>): ChallengeR
 }
 
 /**
+ * Cloudflare's dummy site keys — `1x…` passes, `2x…` blocks, `3x…` forces a challenge — matched
+ * by shape so an unpublished variant counts too. A real key starts `0x`.
+ *
+ * ⚠ Production refuses one (sydevs/SahajAtlasWeb#259's guard, moved here with the key): the
+ * tracked `.env` carries the test pair, and a production service that picked up both halves of
+ * it would run a captcha that passes everything, with nothing failing to say so.
+ */
+export const isTestSiteKey = (key: string): boolean => /^[123]x0{16,}/i.test(key.trim())
+
+/**
  * Hosts allowed to frame the challenge before any client record is read: the two first-party
  * frontends with every subdomain under them (design and preview hosts), plus loopback.
  *

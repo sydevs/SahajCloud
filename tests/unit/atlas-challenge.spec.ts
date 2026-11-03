@@ -13,6 +13,7 @@ import {
   allowedParentHosts,
   builtInParentHosts,
   isParentAllowed,
+  isTestSiteKey,
   parentOrigin,
   readChallengeRequest,
 } from '@/endpoints/atlas/challenge/challengeRequest'
@@ -230,6 +231,17 @@ describe('readChallengeRequest', () => {
 
   it('takes the first of a repeated parameter', () => {
     expect(readChallengeRequest({ parent: [PARENT, 'https://evil.example'] }).parent).toBe(PARENT)
+  })
+})
+
+describe('isTestSiteKey', () => {
+  it.each(['1x00000000000000000000AA', '2x00000000000000000000AB', '3x00000000000000000000FF'])(
+    'recognises the dummy key %s',
+    (key) => expect(isTestSiteKey(key)).toBe(true),
+  )
+
+  it.each(['0x4AAAAAAAB1cDeFgHiJkLmN', '1x0000AA', ''])('passes %j', (key) => {
+    expect(isTestSiteKey(key)).toBe(false)
   })
 })
 

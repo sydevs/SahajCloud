@@ -2,9 +2,15 @@ import type { ChallengeConfig } from './challengeDocument'
 import type { Endpoint, PayloadRequest } from 'payload'
 
 import { serverEnv } from '@/lib/env/server'
+import { isProductionDeployment } from '@/plugins/storage/previewIsolation'
 
 import { challengeDocument } from './challengeDocument'
-import { allowedParentHosts, isParentAllowed, readChallengeRequest } from './challengeRequest'
+import {
+  allowedParentHosts,
+  isParentAllowed,
+  isTestSiteKey,
+  readChallengeRequest,
+} from './challengeRequest'
 
 /** Every published client's raw `allowedDomains`. About 31 rows, one query per frame load. */
 async function publishedClientDomains(req: PayloadRequest): Promise<Array<string | null>> {
@@ -70,6 +76,10 @@ export const atlasChallenge: Endpoint = {
 
     if (!siteKey) {
       req.payload.logger.error({ msg: 'atlasChallenge: TURNSTILE_SITE_KEY is not set' })
+      return respond({ refusal: 'unavailable' }, 503)
+    }
+    if (isProductionDeployment() && isTestSiteKey(siteKey)) {
+      req.payload.logger.error({ msg: 'atlasChallenge: production carries a Turnstile TEST key' })
       return respond({ refusal: 'unavailable' }, 503)
     }
     if (request.parent === null) return respond({ refusal: 'origin' }, 403)
