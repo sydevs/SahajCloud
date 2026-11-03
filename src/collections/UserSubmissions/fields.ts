@@ -90,9 +90,9 @@ const reviewProjectionAccess: { read: FieldAccess } = {
 const SHOWN_IN_SUMMARY = { Field: '@/components/admin/FormStateOnly' }
 
 /**
- * Who sent it, through what, about what — `type`, `user`, `form` and `event`
- * as one block at the top of the sidebar, each document a link that opens it
- * in a drawer. The four fields themselves render nothing in the form
+ * Who sent it, through what, about what — `type`, `user`, `client`, `form` and
+ * `event` as one block at the top of the sidebar, each document a link that
+ * opens it in a drawer. The five fields themselves render nothing in the form
  * (`SHOWN_IN_SUMMARY`), and keep their list columns.
  */
 const submissionSummaryField: Field = {
@@ -812,7 +812,7 @@ const systemGroup: Field = {
       relationTo: 'clients',
       index: true,
       access: systemFieldAccess,
-      admin: { readOnly: true },
+      admin: { readOnly: true, components: SHOWN_IN_SUMMARY },
     },
     submissionContextField,
     {

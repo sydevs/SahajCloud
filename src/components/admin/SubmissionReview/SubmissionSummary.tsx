@@ -1,5 +1,6 @@
 import type { CollectionSlug, Field, FieldServerComponent, Payload, PayloadRequest } from 'payload'
 
+import { FieldLabel, Pill } from '@payloadcms/ui'
 import React from 'react'
 
 import { TYPE_LABELS } from '@/collections/UserSubmissions/fields'
@@ -15,100 +16,118 @@ interface Row {
   value: React.ReactNode
 }
 
+/** The collection each linked document lives in, and the field that names it. */
+const TITLE_FIELDS = {
+  users: 'email',
+  clients: 'name',
+  forms: 'title',
+  events: 'title',
+} as const
+
+type Linked = keyof typeof TITLE_FIELDS
+
 /**
  * Who sent a submission, through what, and about what — `type`, `user`,
- * `form` and `event` as one block, each document a link opening it in a drawer.
+ * `client`, `form` and `event` as one read-only field, each document a link
+ * opening it in a drawer.
+ *
+ * Marked up as a Payload field — `field-type`, its `FieldLabel`, the value in
+ * `field-type__wrap` — so it sits in the sidebar like the fields around it.
  *
  * **A server component**, so a title costs no client fetch. Each read runs
  * under the viewer's own access: a document they cannot read shows as plain
  * text, since its drawer would refuse them anyway.
  */
-const SubmissionSummary: FieldServerComponent<Field> = async ({ data, payload, req }) => {
+const SubmissionSummary: FieldServerComponent<Field> = async ({ data, field, payload, req }) => {
   const type = data?.type as UserSubmission['type'] | undefined
   if (!type || !(type in TYPE_LABELS)) return null
 
-  const userId = relationId(data?.user)
-  const formId = relationId(data?.form)
-  const eventId = relationId(data?.event)
+  const ids = {
+    users: relationId(data?.user),
+    clients: relationId(data?.client),
+    forms: relationId(data?.form),
+    events: relationId(data?.event),
+  }
 
   // One after another rather than `Promise.all`: concurrent reads on one `req`
   // can race on its locale (`src/collections/AGENTS.md`).
-  const user = userId != null ? await titleOf(payload, req, 'users', userId, 'email') : null
-  const form = formId != null ? await titleOf(payload, req, 'forms', formId, 'title') : null
-  const event = eventId != null ? await titleOf(payload, req, 'events', eventId, 'title') : null
+  const links: Partial<Record<Linked, React.ReactNode>> = {}
+  for (const collection of Object.keys(ids) as Linked[]) {
+    const id = ids[collection]
+    if (id == null) continue
+    links[collection] = await linkTo(payload, req, collection, id)
+  }
+
+  const muted = (text: string) => <span className="submission-summary__muted">{text}</span>
 
   const rows: Row[] = [
-    { label: 'Type', value: TYPE_LABELS[type] },
     {
-      label: 'Submitted By',
-      value:
-        userId == null ? (
-          <span className="submission-summary__muted">Anonymous</span>
-        ) : (
-          linkOrText('users', userId, user, `Registrant #${userId}`)
-        ),
+      label: 'Type',
+      value: (
+        <Pill pillStyle="light-gray" size="small">
+          {TYPE_LABELS[type]}
+        </Pill>
+      ),
     },
+    { label: 'Submitted By', value: links.users ?? muted('Anonymous') },
+    { label: 'Submitted Via', value: links.clients ?? muted('Not recorded') },
   ]
-  if (formId != null) {
-    rows.push({ label: 'Form', value: linkOrText('forms', formId, form, `Form #${formId}`) })
-  }
-  if (eventId != null) {
-    rows.push({ label: 'Event', value: linkOrText('events', eventId, event, `Event #${eventId}`) })
-  } else if (type === 'proposal') {
-    rows.push({
-      label: 'Event',
-      value: <span className="submission-summary__muted">A new event, created on accept</span>,
-    })
+  if (links.forms) rows.push({ label: 'Form', value: links.forms })
+  if (links.events) rows.push({ label: 'Event', value: links.events })
+  else if (type === 'proposal') {
+    rows.push({ label: 'Event', value: muted('A new event, created on accept') })
   }
 
+  const label = 'label' in field && typeof field.label === 'string' ? field.label : 'Summary'
+
   return (
-    <div className="field-type submission-summary">
-      <dl className="submission-summary__list">
-        {rows.map((row) => (
-          <div className="submission-summary__row" key={row.label}>
-            <dt>{row.label}</dt>
-            <dd>{row.value}</dd>
-          </div>
-        ))}
-      </dl>
+    <div className="field-type submission-summary read-only">
+      <FieldLabel label={label} />
+      <div className="field-type__wrap">
+        <ul className="submission-summary__list">
+          {rows.map((row) => (
+            <li key={row.label}>
+              <strong>{row.label}:</strong> {row.value}
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   )
 }
 
-function linkOrText(
-  collection: CollectionSlug,
-  id: number,
-  title: string | null,
-  fallback: string,
-): React.ReactNode {
-  if (title === null) return fallback
-  return <SummaryLink collectionSlug={collection} id={id} label={title || fallback} />
-}
-
 /**
- * A document's display field, or `null` when the viewer cannot read it. An
- * empty string means readable but untitled.
+ * A drawer link to the document, named by its title field — or plain text when
+ * the viewer cannot read it.
  */
-async function titleOf(
+async function linkTo(
   payload: Payload,
   req: PayloadRequest,
-  collection: 'users' | 'forms' | 'events',
+  collection: Linked,
   id: number,
-  field: 'email' | 'title',
-): Promise<string | null> {
+): Promise<React.ReactNode> {
+  const titleField = TITLE_FIELDS[collection]
   const doc = await payload.findByID({
     collection,
     id,
     depth: 0,
-    select: { [field]: true },
+    select: { [titleField]: true },
     locale: req.locale ?? undefined,
     overrideAccess: false,
     user: req.user,
     disableErrors: true,
   })
-  if (!doc) return null
-  const value = (doc as unknown as Record<string, unknown>)[field]
-  return typeof value === 'string' ? value : ''
+  const fallback = `#${id}`
+  if (!doc) return fallback
+
+  const title = (doc as unknown as Record<string, unknown>)[titleField]
+  return (
+    <SummaryLink
+      collectionSlug={collection as CollectionSlug}
+      id={id}
+      label={typeof title === 'string' && title ? title : fallback}
+    />
+  )
 }
 
 export default SubmissionSummary
