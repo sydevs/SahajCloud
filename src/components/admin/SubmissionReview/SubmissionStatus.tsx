@@ -77,7 +77,7 @@ const COPY: Record<SubmissionType, Partial<Record<SubmissionStatus, string>>> = 
     pending: 'Compare the proposed changes with the preview, then accept or reject.',
     accepted:
       'This event is on the map, but the public sees it marked unverified. Give it a manager to have it verified.',
-    rejected: 'Nothing was created or changed.',
+    rejected: 'A reviewer rejected this proposal. Nothing was created or changed.',
     failed: 'The review email could not be sent. Accept or reject it here.',
   },
 }
@@ -118,20 +118,24 @@ function notesOf(result: SubmissionScreeningResult | null | undefined): string[]
     : []
 }
 
-/** What screening concluded, in one line — or that it has not run. */
+/**
+ * What screening concluded, in one line — while screening is still the story.
+ *
+ * Only `pending` and `spam` say anything. Past those, a delivery or a person
+ * decided the row, and "Passed screening" beside "Rejected" reads as the two
+ * disagreeing; the activity log keeps the verdict for whoever wants it.
+ */
 function screeningLine(
   result: SubmissionScreeningResult | null | undefined,
   status: SubmissionStatus,
-): string {
+): string | null {
+  if (status !== 'pending' && status !== 'spam') return null
   const verdict = result?.verdict
-  if (verdict && verdict in VERDICT_LABELS) {
-    return verdict === 'ok'
-      ? 'Passed screening.'
-      : `Refused by screening: ${VERDICT_LABELS[verdict]}.`
+  if (verdict && verdict in VERDICT_LABELS && verdict !== 'ok') {
+    return `Refused by screening: ${VERDICT_LABELS[verdict]}.`
   }
-  // Pending with no verdict is the queue not having reached it. Anything else
-  // with none was settled before screening existed — an imported row.
-  return status === 'pending' ? 'Waiting to be screened.' : 'Not screened.'
+  if (status === 'spam') return 'Refused by screening.'
+  return verdict === 'ok' ? 'Passed screening.' : 'Waiting to be screened.'
 }
 
 /**
@@ -165,6 +169,7 @@ export const SubmissionStatus: FieldClientComponent = () => {
       ? CREATED_WITH_MANAGER
       : COPY[type]?.[status]
   const notes = OPEN_REVIEW_STATUSES.includes(status) || status === 'spam' ? notesOf(value) : []
+  const screening = screeningLine(value, status)
 
   return (
     <div className="field-type json read-only">
@@ -176,7 +181,7 @@ export const SubmissionStatus: FieldClientComponent = () => {
       >
         <div>
           <strong className="event-submission-status__title">{STATUS_LABELS[status]}</strong>
-          <div>{screeningLine(value, status)}</div>
+          {screening && <div>{screening}</div>}
           {notes.length > 0 && (
             <ul className="event-submission-status__notes">
               {notes.map((note) => (

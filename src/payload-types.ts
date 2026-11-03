@@ -2213,6 +2213,15 @@ export interface Import {
 export interface UserSubmission {
   id: number;
   screeningResult?: SubmissionScreeningResult;
+  proposedChanges?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   type: 'contact' | 'subscribe' | 'registration' | 'proposal';
   user?: (number | null) | User;
   /**
@@ -2240,15 +2249,6 @@ export interface UserSubmission {
    */
   eventFeedback?: ('confirmed' | 'denied') | null;
   proposed?: SubmissionProposal;
-  proposedChanges?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
   previewEvent?:
     | {
         [k: string]: unknown;
@@ -5316,6 +5316,7 @@ export interface FormsSelect<T extends boolean = true> {
  */
 export interface UserSubmissionsSelect<T extends boolean = true> {
   screeningResult?: T;
+  proposedChanges?: T;
   type?: T;
   user?: T;
   startingAt?: T;
@@ -5334,7 +5335,6 @@ export interface UserSubmissionsSelect<T extends boolean = true> {
   unsubscribedAt?: T;
   eventFeedback?: T;
   proposed?: T;
-  proposedChanges?: T;
   previewEvent?: T;
   manager?: T;
   region?: T;

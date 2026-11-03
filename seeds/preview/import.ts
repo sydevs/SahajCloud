@@ -351,6 +351,14 @@ export class PreviewImporter extends BaseImporter<BaseImportOptions> {
         startingAt: ago(10),
         unsubscribedAt: ago(9),
         screeningResult: screened('ok'),
+        activityLog: [
+          {
+            at: ago(9),
+            type: 'unsubscribe',
+            key: 'reminders',
+            cells: { activity: 'Unsubscribed from reminders' },
+          },
+        ],
         submissionData: [
           { field: 'name', value: 'Ada Visitor' },
           { field: 'experience', value: 'None yet.' },

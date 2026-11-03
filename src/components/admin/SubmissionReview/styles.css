@@ -161,28 +161,25 @@
 }
 
 /*
- * The Field column takes only what its labels need. Payload gives every cell a
- * 150px minimum; on this column a label shorter than that left the values
- * floating away from their keys. `width: 1%` shrinks the column to its content,
- * and a long label (a registration question) wraps at 20em instead of
- * stretching it.
+ * The Field column is as wide as its longest label, up to 28em: Payload's own
+ * 150px minimum on every cell otherwise left short keys far from their values,
+ * and a column squeezed to fit wrapped every registration question. The cell
+ * shrinks to the key, and the key holds its full width — `max-content`, capped —
+ * so only a label longer than the cap wraps.
  */
 .submission-data th:first-child,
 .submission-data td:first-child {
   width: 1%;
   min-width: 0;
-  white-space: nowrap;
 }
 
 .submission-data__key {
-  display: inline-block;
-  max-width: 20em;
-  white-space: normal;
+  display: block;
+  width: max-content;
+  max-width: 28em;
   color: var(--theme-elevation-600);
 }
 
-/* A message keeps its own line breaks, and a long URL wraps instead of
-   widening the table past the form. */
 .submission-data__value {
   white-space: pre-wrap;
   overflow-wrap: anywhere;

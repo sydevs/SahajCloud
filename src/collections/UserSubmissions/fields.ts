@@ -101,6 +101,7 @@ export function userSubmissionFields({ defaultFields }: { defaultFields: Field[]
   // Sidebar fields (form, event, activity log) take their order from here too.
   return [
     screeningResultField,
+    proposedChangesField,
     typeField,
     userField,
     startingAtField,
@@ -111,7 +112,6 @@ export function userSubmissionFields({ defaultFields }: { defaultFields: Field[]
     unsubscribedAtField,
     eventFeedbackField,
     proposedField,
-    proposedChangesField,
     previewEventField,
     proposalPreviewTargetField,
     managerField,
@@ -463,24 +463,20 @@ const startingAtField: Field = {
 }
 
 /**
- * When the registrant turned off reminders for this registration. Written by
- * the unsubscribe token flow and queried by the reminder sweep.
+ * When the registrant turned off reminders for this registration: the
+ * reminder sweep's filter, written by the unsubscribe token flow.
  *
- * Registration-only today, and named generically so a subscribe-type
- * unsubscribe can reuse the column. Shown beside `startingAt`, because whether
- * this person still hears from us is part of reading the registration.
+ * Hidden, like `followUpSentAt` and for the same reason — a reader learns of it
+ * from the activity log entry the same write records, and the column exists
+ * only because nothing can `where` on a JSON log cheaply. Named generically so
+ * a subscribe-type unsubscribe can reuse it.
  */
 const unsubscribedAtField: Field = {
   name: 'unsubscribedAt',
-  label: 'Reminders Unsubscribed',
   type: 'date',
   index: true,
   access: systemFieldAccess,
-  admin: {
-    condition: (data) => data?.type === 'registration',
-    readOnly: true,
-    date: { pickerAppearance: 'dayAndTime' },
-  },
+  admin: { hidden: true },
 }
 
 /**
