@@ -1,3 +1,4 @@
+import { originOf } from '@/lib/utilities/url'
 import {
   isHostAllowed,
   normalizeHost,
@@ -23,9 +24,9 @@ const first = (value: unknown): string | undefined =>
  * anything else is not the widget.
  */
 export function parentOrigin(raw: string | undefined): string | null {
-  const url = raw ? URL.parse(raw) : null
-  if (!url || (url.protocol !== 'https:' && url.protocol !== 'http:')) return null
-  return url.origin === raw ? url.origin : null
+  const origin = originOf(raw)
+  if (!origin || !/^https?:\/\//.test(origin)) return null
+  return origin === raw ? origin : null
 }
 
 /**
