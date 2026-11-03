@@ -15,7 +15,7 @@ import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { transcriptSourceWhere } from '@/lib/meditations/transcriptSource'
+import { transcriptSourceWhere } from '@/lib/transcripts/source'
 import type { Meditation, Transcript } from '@/payload-types'
 
 import { createData, testData, type FixtureOverrides } from '../utils/testData'

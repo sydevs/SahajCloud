@@ -7,7 +7,7 @@ import {
 } from '@/jobs/TranscribeMeditation/lemonfox/transcribe'
 import { ExpectedJobFailure } from '@/lib/jobs/expectedFailure'
 import { normalizeLemonfoxResponse } from '@/lib/lemonfox/normalize'
-import { transcriptSourceWhere } from '@/lib/meditations/transcriptSource'
+import { transcriptSourceWhere } from '@/lib/transcripts/source'
 import type { Transcript } from '@/payload-types'
 import { getR2Url } from '@/plugins/storage'
 import { isProductionDeployment } from '@/plugins/storage/previewIsolation'

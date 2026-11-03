@@ -1,6 +1,6 @@
 import type { CollectionAfterChangeHook } from 'payload'
 
-import { transcriptSourceWhere } from '@/lib/meditations/transcriptSource'
+import { transcriptSourceWhere } from '@/lib/transcripts/source'
 
 /**
  * afterChange: the transcript row follows the recording, and only the recording.

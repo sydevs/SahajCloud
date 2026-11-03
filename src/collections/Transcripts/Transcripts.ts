@@ -67,7 +67,7 @@ export const Transcripts: CollectionConfig = {
       // column here — and `unique` becomes one `UNIQUE(<target>_id, path)` per
       // target there, so one transcript per meditation and per file both hold.
       //
-      // Query it through `transcriptSourceWhere` (`@/lib/meditations/transcriptSource`).
+      // Query it through `transcriptSourceWhere` (`@/lib/transcripts/source`).
       name: 'source',
       type: 'relationship',
       relationTo: ['meditations', 'files'],

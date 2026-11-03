@@ -1,7 +1,7 @@
 import * as qs from 'qs-esm'
 
 import type { TranscriptSegment } from '@/lib/meditations/transcript'
-import { transcriptSourceWhere } from '@/lib/meditations/transcriptSource'
+import { transcriptSourceWhere } from '@/lib/transcripts/source'
 
 /** A pause this long between phrases starts a new paragraph. */
 const PARAGRAPH_GAP_MS = 3000

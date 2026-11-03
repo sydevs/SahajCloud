@@ -15,7 +15,7 @@ import {
   transcriptPhase,
   transcriptPhaseIsRetryable,
 } from '@/lib/meditations/transcriptBounds'
-import { transcriptSourceWhere } from '@/lib/meditations/transcriptSource'
+import { transcriptSourceWhere } from '@/lib/transcripts/source'
 import { isOutsideWritableLocale } from '@/plugins/access/localeScopedWrites'
 
 const refusal = (message: string, status: number, headers?: HeadersInit): Response =>
