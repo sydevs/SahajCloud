@@ -50,6 +50,8 @@ Access is permission-based via `accessPlugin` — a client needs an explicit per
 
 ⚠ **The gate fails closed on our own misconfiguration, on purpose.** A captcha that silently disables itself on a missing secret is worse than none, since nothing would surface the misconfiguration. There is no dev/test bypass — point `TURNSTILE_SECRET_KEY` at Cloudflare's always-passes test key locally.
 
+**The Atlas widget's token is minted here too, on `GET /api/atlas/challenge`** (#1072), a page the widget frames because Turnstile checks the hostname of the document that renders it. Both halves of the key pair therefore live in this service (`TURNSTILE_SITE_KEY` beside the secret), and the production key's Cloudflare hostname list names this deployment's host alone. The page renders only for a `parent` origin its allowlist admits and posts every message to exactly that origin, so a token cannot reach a page we do not serve. That allowlist is every published client's `allowedDomains` plus the two first-party frontends, our Cloudflare Workers preview subdomain and loopback — see the endpoint's docblock for why the last two are safe, and why none of it is `frame-ancestors`.
+
 ### `POST /api/user-submissions` — the unified intake
 
 One collection accepts every public write, discriminated by `type`: `contact`, `subscribe`, `registration`, `proposal` (#723). Turnstile, the disposable-email check and the URL scan apply to all four — the guard runs before anything reads `type`, so a policy relaxed for one type would be reachable by claiming to be that type.
@@ -240,6 +242,8 @@ Five things to know:
 The rule itself lives in `assertClientOriginAllowed(req)`. The hook is a thin wrapper adding the `currentDepth` exemption. An endpoint whose handler touches no collection runs no beforeOperation hook, so it must call the assertion itself — both `GET /api/atlas/seo` and `GET /api/atlas/sitemap` do, right after `requireActiveClient`. Don't lean on an incidental collection read to trigger it instead — `clients` is excluded from the plugin, so reading the caller's own record wouldn't fire it either.
 
 **Rule**: runs only when `req.user?.collection === 'clients'`. An empty/unset `allowedDomains` allows any origin (the default). A non-empty list requires the request `Origin` (or `Referer` as fallback) to match an entry, else **403**. No `Origin`/`Referer` at all (server-to-server, cron) is allowed — the API key is the gate there.
+
+⚠ **The challenge page reads the same lists with one difference: an empty list contributes nothing there.** "Empty allows any origin" is safe for reads because the key is the gate, but `GET /api/atlas/challenge` is anonymous, so treating empty as "any" would let one unfilled client turn the page into a token minter for every site on the web (#1072, question 1). A client whose embed host is listed nowhere gets the captcha-blocked screen, and the widget's console names the host to check.
 
 **Matching** (`originEnforcement.ts`): both sides normalize to a bare host (scheme, userinfo, port, path, trailing dot stripped, lowercased). An exact host matches only itself. A `*.` wildcard matches any subdomain but not the apex, and blocks the injection `evil-example.org` against `*.example.org`.
 
