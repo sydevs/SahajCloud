@@ -11,10 +11,11 @@ import type { CollectionSlug, Where } from 'payload'
  * **or** file 5. One builder is what keeps every call site — and
  * `cascadeDeletion`'s hook — on the one shape.
  *
- * Here rather than in `./transcript`, which builds zod schemas at module scope:
- * the Transcript tab is a `'use client'` module and calls this, so reaching it
- * through that one would ship zod to the browser to describe a shape only the
- * server validates. Same split as `./transcriptBounds`.
+ * Here rather than in `@/lib/meditations/transcript`, which builds zod schemas
+ * at module scope: the Transcript tab is a `'use client'` module and calls this,
+ * so reaching it through that one would ship zod to the browser to describe a
+ * shape only the server validates. Same split as that folder's
+ * `transcriptBounds`.
  */
 export const transcriptSourceWhere = (
   relationTo: Extract<CollectionSlug, 'meditations' | 'files'>,
