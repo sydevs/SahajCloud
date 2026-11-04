@@ -10,7 +10,6 @@
 import type { TypedAuthUser } from './types'
 import type { Locale, PayloadRequest } from 'payload'
 
-import { virtualRoles } from './config'
 import { normalizeLocalizedRoles, rankLocalesByRoleCount } from './localizedRoles'
 
 type FilterAvailableLocalesArgs = {
@@ -25,7 +24,6 @@ type FilterAvailableLocalesArgs = {
  * - Admin managers: See all locales
  * - API clients: Not filtered (return all locales)
  * - Regular managers: exactly the locales they hold a role in, most roles first
- * - Managers holding a DERIVED role: every locale, those ranked first
  * - Managers with roles in no locale: English only
  * - Inactive managers: Return only English
  *
@@ -65,15 +63,12 @@ export const filterAvailableLocales = ({ locales, req }: FilterAvailableLocalesA
     .map((code) => locales.find((l) => l.code === code))
     .filter((l): l is Locale => Boolean(l))
 
-  // ⚠ **A derived Atlas role names no locale, so it is held in every one.** The
-  // listing it comes from is not localized, and the access layer grants it in
-  // each configured locale — so ranking stored roles alone would pin a manager
-  // whose only role is derived to English and leave the localized title of an
-  // event in their own region unreachable. Ranked locales stay first, so the
-  // landing locale is still the one they hold the most stored roles in.
-  if (virtualRoles(authUser).length > 0) {
-    return [...offered, ...locales.filter((locale) => !offered.includes(locale))]
-  }
+  // ⚠ A derived Atlas role is deliberately NOT widened to every locale here,
+  // though it is held in every one. Nothing either Atlas role grants carries a
+  // localized field — `regions` and `events` declare none, and an event's
+  // `title` is one non-localized value — so a second language in this dropdown
+  // would open no content the first does not (#1068). A manager whose only
+  // role is derived therefore lands on English, below.
 
   // ⚠ Never return an empty array. `views/Root` redirects whenever `req.locale` is
   // not in this list and sends the manager to `localeCodes[0]`; when that is

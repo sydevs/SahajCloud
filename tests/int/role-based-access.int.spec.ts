@@ -1043,10 +1043,12 @@ describe('Role-Based Access Control', () => {
       ).rejects.toThrow()
     })
 
-    it('offers every admin locale to a manager whose only role is derived', async () => {
-      // The role names no locale, so it is held in all of them. Ranking stored
-      // roles alone left such a manager with English only, and the localized
-      // title of an event in their own region unreachable.
+    it('offers English alone to a manager whose only role is derived', async () => {
+      // The role is held in every locale, and still opens no locale here:
+      // nothing either Atlas role grants carries a localized field, so a
+      // second language would reach no content the first does not. Asserted
+      // against the booted config rather than trusted, since the day one of
+      // those collections takes a localized field this answer is wrong.
       const listed = await testData.createManager(payload, { name: 'Locales', roles: {} })
       await payload.update({
         collection: 'regions',
@@ -1063,21 +1065,14 @@ describe('Role-Based Access Control', () => {
         locales,
         req: { user: manager } as unknown as PayloadRequest,
       })
-      expect(offered.map((locale) => locale.code)).toEqual(locales.map((locale) => locale.code))
+      expect(offered.map((locale) => locale.code)).toEqual(['en'])
 
-      await payload.update({
-        collection: 'regions',
-        id: country,
-        data: { managers: [] },
-        overrideAccess: true,
-      })
-      const unlisted = await testData.authUser(payload, listed)
-      expect(
-        filterAvailableLocales({
-          locales,
-          req: { user: unlisted } as unknown as PayloadRequest,
-        }).map((locale) => locale.code),
-      ).toEqual(['en'])
+      for (const slug of ['regions', 'events'] as const) {
+        const localized = payload.collections[slug]!.config.flattenedFields.filter(
+          (field) => 'localized' in field && field.localized,
+        )
+        expect(localized.map((field) => ('name' in field ? field.name : ''))).toEqual([])
+      }
     })
 
     it('covers every regionHint key a proposal can be routed by', () => {
