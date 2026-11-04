@@ -54,7 +54,9 @@ There is no width prop: `Drawer` sets `width: calc(100% - (drawerDepth * var(--g
 
 `admin.hidden: true` removes a collection from the nav **and** unregisters its routes — `/admin/collections/<slug>/<id>` 404s. It does not make the documents unreachable: a `join` field on another collection still renders its rows and opens each in a document drawer, which never touches the route. Nested drawers work from there too.
 
-That combination is often what you want — reachable where it's explained, absent from the sidebar. An event's registrations are read this way, through the join on its Registrations tab rather than the collection's own list. A 404 on the route is not evidence a field needs surfacing elsewhere — try the surfaces that already embed the document first.
+That combination is often what you want — reachable where it's explained, absent from the sidebar. An admin opens a registration this way, through the join on an event's Registration tab rather than the collection's own list. A 404 on the route is not evidence a field needs surfacing elsewhere — try the surfaces that already embed the document first.
+
+⚠ **A join is not a way around the related collection's access.** `user-submissions` is restricted and no manager role reads it, so that join renders empty for every manager however the field is configured, and `admin.condition` hides the field without stopping its subquery. A manager reads their own event's signups on the Registrations **view** instead — a document view of its own, below (#1069).
 
 ### `WorkflowButtons` — stage-dependent document buttons as data
 
@@ -150,6 +152,17 @@ So call `requireAdminAccess(initPageResult)` first thing in such a view (`src/co
 
 **Dropping the `path` is not the alternative.** `isPathMatchingRoute` returns false for a pathless view, and `getRouteData` then routes it only by matching its key against Payload's own `oneSegmentViews` — which is why `loginPlugin`'s pathless `login` view works and why a pathless `analytics` would be reachable at no URL at all. A view with a name of its own needs a path, and therefore needs the guard.
 
+### A collection's own edit view is the opposite case
+
+⚠ **`isCustomAdminView` reads the root `admin.components.views` map alone**, so a `path` under a collection's `admin.components.views.edit` never matches it and `Root` applies its `canAccessAdmin` redirect as usual. `getDocumentView` then throws `not-found` unless the caller holds `read` on the document. Such a view therefore needs no `requireAdminAccess`, and `sanitized-config-rules.spec.ts` does not ask it for one.
+
+What it owes instead is **whatever is narrower than admin access**, because nothing upstream knows about it. An event's Registrations view (`src/components/admin/EventRegistrations/`) admits the event's own `manager`, while their account is active, and an admin — narrower than `events` `read`, which is project-wide, and than `events` `update`, which a whole region subtree holds. It calls `redirectRefused` from the same module, which is `requireAdminAccess`'s redirect without its `canAccessAdmin` test.
+
+Two mechanics bound what such a gate can be:
+
+- **A `tab.condition` is handed no document** — only `req`, `permissions` and the configs (`DocumentTabCondition`) — so a per-document decision cannot hide the tab. The tab shows; the view refuses.
+- **The route is reachable with no document.** `/admin/collections/<slug>/create/<path>` resolves to the custom view with `docID` of `'create'`, and `ShouldRenderTabs` hides the tabs on the create screen but not the URL. Answer it the same way as a refusal rather than letting a read throw.
+
 ## Performance — direct Payload access
 
 A server component has direct DB access via `getPayload()`. Don't fetch internal data over HTTP from a client component. Reserve `fetch()` for external APIs.
@@ -161,6 +174,10 @@ A server component has direct DB access via `getPayload()`. Don't fetch internal
 Group a component family (main plus sub-components) in a folder with a barrel. Keep a standalone component as a single file. A barrel export **must include a default export** — Payload imports by name.
 
 A module several components share, rather than one a collection registers, goes in `admin/helpers/`. The root of `admin/` is for what Payload mounts.
+
+**What a URL-driven view takes from there**, rather than restating: `useSetQuery<Q>()` patches the query and pushes, typed by the view's own query shape; `firstParam` / `pageParam` (`helpers/searchParams.ts`) read one back, taking the first value of a key Next handed over as an array. The pager is Payload's own `Pagination`, composed in the view rather than wrapped. Payload's composed equivalents — `DefaultListViewTabs`, `PageControls` — are bound to a collection's list view (the first hard-wired to All, Folders and Trash, the second `@internal` and reading `ListQuery` state), so neither fits a view of its own. The Registrations view's filters are instead Payload's **document-tab markup** — a `buttonStyle="tab"` `Button` carrying the `doc-tab` classes, disabled while selected, with a `pill-version-count` per filter — so they read as the header's Edit / Versions row, counts included, with no stylesheet of their own.
+
+**A document tab's count is a `tab.Pill`** — a server component rendered beside the label, as the Versions tab's is. It is handed `req` but no document id, so it reads the id `Root` resolved from `req.routeParams`, and Payload's own `pill-version-count` class makes the two pills match in every tab state. The Registrations tab's pill (`EventRegistrations/RegistrationsPill.tsx`) counts **accepted** registrations — pending ones are not confirmed yet — behind the same gate as its view, which also serves the accepted rows as a CSV (`GET /api/events/:id/registrations/csv`, admin-panel only, so not in the OpenAPI spec).
 
 ## Import map generation
 

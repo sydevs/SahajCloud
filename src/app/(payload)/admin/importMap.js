@@ -61,6 +61,8 @@ import { default as default_d73215fe105de40829b40e0975052656 } from '@/component
 import { default as default_3db810cf95b8f600a49837ee6d29b565 } from '@/components/admin/LogTable'
 import { default as default_42fbdbfc3b16bbe7c43aa9f07c715c1c } from '@/components/admin/EventQualityPanel'
 import { default as default_b0b21389e90eb8a40a1646856bc83729 } from '@/components/admin/EventImport/ImportListMenuItem'
+import { default as default_d399306e9eb751dd1037d9f56fc69750 } from '@/components/admin/EventRegistrations'
+import { default as default_f41daa650822ea524a81bf42bba8e1e9 } from '@/components/admin/EventRegistrations/RegistrationsPill'
 import { default as default_5a57e9e555983fc436bd80367eb221cd } from '@/components/admin/BlockUserButton'
 import { default as default_e9a0c1434d297758857abb1b1ab57cc0 } from '@/components/admin/EventImport/ImportResultsField'
 import { default as default_1101b8f453ec78808b3e5a5bddfd811b } from '@/components/admin/EventImport/TemplateLink'
@@ -159,6 +161,8 @@ export const importMap = {
   "@/components/admin/LogTable#default": default_3db810cf95b8f600a49837ee6d29b565,
   "@/components/admin/EventQualityPanel#default": default_42fbdbfc3b16bbe7c43aa9f07c715c1c,
   "@/components/admin/EventImport/ImportListMenuItem#default": default_b0b21389e90eb8a40a1646856bc83729,
+  "@/components/admin/EventRegistrations#default": default_d399306e9eb751dd1037d9f56fc69750,
+  "@/components/admin/EventRegistrations/RegistrationsPill#default": default_f41daa650822ea524a81bf42bba8e1e9,
   "@/components/admin/BlockUserButton#default": default_5a57e9e555983fc436bd80367eb221cd,
   "@/components/admin/EventImport/ImportResultsField#default": default_e9a0c1434d297758857abb1b1ab57cc0,
   "@/components/admin/EventImport/TemplateLink#default": default_1101b8f453ec78808b3e5a5bddfd811b,

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
+  redirectRefused,
   type AdminAccessContext,
   requireAdminAccess,
 } from '@/components/admin/helpers/requireAdminAccess'
@@ -94,6 +95,26 @@ describe('requireAdminAccess', () => {
 
     expect(redirect).toHaveBeenCalledWith(
       '/admin/unauthorized?redirect=%2Fadmin%2Fanalytics%3Frange%3D30d',
+    )
+  })
+})
+
+/**
+ * A collection edit view is already behind `canAccessAdmin`, so what it refuses
+ * is narrower than admin access and it calls the redirect directly — the
+ * Registrations tab on an event does (#1069).
+ */
+describe('redirectRefused', () => {
+  beforeEach(() => {
+    redirect.mockClear()
+  })
+
+  it('refuses a signed-in visitor who passed the admin gate', () => {
+    const { req } = context({ canAccessAdmin: true, query: 'filter=withdrawn', signedIn: true })
+
+    expect(() => redirectRefused(req)).toThrow(REDIRECTED)
+    expect(redirect).toHaveBeenCalledWith(
+      '/admin/unauthorized?redirect=%2Fadmin%2Fanalytics%3Ffilter%3Dwithdrawn',
     )
   })
 })
