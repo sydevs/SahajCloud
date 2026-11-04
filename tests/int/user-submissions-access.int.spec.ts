@@ -323,45 +323,46 @@ describe('User submissions access', () => {
   })
 
   describe('the Users join', () => {
-    it('is unreachable, because no manager role reads a registrant', async () => {
-      // `Users.submissions` is a join on `user-submissions.user`, so a join
-      // running outside the joined collection's access would hand a manager
-      // reading a registrant every submission that registrant ever sent —
-      // contact messages addressed to somebody else included. The Atlas role
-      // held `users: ['read']` and made that reachable; #1068 withdrew it,
-      // since registrations moved to `user-submissions` (#723) and nothing
-      // needs it. So the leak is now closed one layer earlier, and this is the
-      // layer to assert.
-      //
-      // ⚠ Should any role regain `users: ['read']`, this case has to go back
-      // to asserting the join's own scope: read the registrant as that role
-      // and require `submissions.docs` to hold only the rows the per-row scope
-      // admits. A read refused by the collection proves nothing about a join.
-      for (const manager of [recipient, otherManager, eventAssignee]) {
-        await expect(
-          payload.find({
-            collection: 'users',
-            where: { email: { equals: 'theirs@example.com' } },
-            depth: 1,
-            limit: 1,
-            overrideAccess: false,
-            req: managerReq(manager),
-          }),
-          `${manager.name} should not read a registrant`,
-        ).rejects.toThrow(/not allowed to perform this action/i)
+    it('does not hand a manager rows the per-row scope withholds', async () => {
+      // `Users.submissions` is a join on `user-submissions.user`, and both
+      // Atlas roles hold `users: ['read']` — so if a join ran outside the
+      // joined collection's access, reading a registrant would return every
+      // submission they ever sent, contact messages addressed to somebody else
+      // included. That is the leak worth asserting; the join's usefulness is
+      // not.
+      const joined = async (email: string, req?: PayloadRequest) => {
+        const { docs } = await payload.find({
+          collection: 'users',
+          where: { email: { equals: email } },
+          depth: 1,
+          limit: 1,
+          ...(req ? { overrideAccess: false, req } : { overrideAccess: true }),
+        })
+        // The manager really can read the registrant — so an empty join below
+        // is the access layer's doing, not a missing row.
+        expect(docs, `${email} should be readable`).toHaveLength(1)
+        return (docs[0]!.submissions?.docs ?? []).map((doc) =>
+          typeof doc === 'number' ? doc : doc.id,
+        )
       }
 
-      // The control: the row is there, and the join does populate — so the
-      // refusals above are the access layer's doing, not a missing fixture.
-      const asAdmin = await payload.find({
-        collection: 'users',
-        where: { email: { equals: 'theirs@example.com' } },
-        depth: 1,
-        limit: 1,
-        overrideAccess: true,
-      })
-      expect(asAdmin.docs).toHaveLength(1)
-      expect(asAdmin.docs[0]!.submissions?.docs ?? []).toHaveLength(1)
+      // The control. Without it a zero below could mean the join never
+      // populates, which would prove nothing about access at all.
+      expect(await joined('theirs@example.com')).toHaveLength(1)
+      expect(await joined('proposer@example.com')).toHaveLength(Object.keys(proposals).length)
+
+      expect(await joined('theirs@example.com', managerReq(recipient))).toEqual([])
+
+      // ⚠ The positive half, and the zero above means nothing without it.
+      // `?? []` cannot tell "the join was filtered to nothing" from "the join
+      // does not populate on a non-override read at all" — so read a sender
+      // with rows in scope, and require exactly those back, per role.
+      expect((await joined('proposer@example.com', managerReq(recipient))).sort()).toEqual(
+        [proposals.inSubtree, proposals.byRoutingRegion].sort(),
+      )
+      expect(await joined('proposer@example.com', managerReq(eventAssignee))).toEqual([
+        proposals.onAssignedEvent,
+      ])
     })
   })
 

@@ -332,22 +332,29 @@ describe('Managers access (#821)', () => {
   })
 
   describe('an event-only Atlas manager', () => {
-    it('reads neither the roster nor the registrants', async () => {
+    it('reads the registrants but not the roster', async () => {
       // `atlas-event-manager` runs one listing. It picks on nothing, so it
-      // holds neither the `managers` grant the region role needs for its
-      // pickers nor any `users` grant — both collections are restricted, so no
-      // implicit read reaches them either.
-      for (const collection of ['managers', 'users'] as const) {
-        await expect(
-          payload.find({
-            collection,
-            depth: 0,
-            overrideAccess: false,
-            req: managerReq(eventOnlyManager),
-          }),
-          `an event assignee should not read ${collection}`,
-        ).rejects.toThrow(/not allowed to perform this action/i)
-      }
+      // holds none of the `managers` grant the region role needs for its
+      // pickers — and `managers` is restricted, so no implicit read reaches it.
+      await expect(
+        payload.find({
+          collection: 'managers',
+          depth: 0,
+          overrideAccess: false,
+          req: managerReq(eventOnlyManager),
+        }),
+      ).rejects.toThrow(/not allowed to perform this action/i)
+
+      // `users` it does read: a submission's `senderEmail` resolves through
+      // it, under the reader's own access (#1060).
+      await expect(
+        payload.find({
+          collection: 'users',
+          depth: 0,
+          overrideAccess: false,
+          req: managerReq(eventOnlyManager),
+        }),
+      ).resolves.toBeDefined()
     })
 
     it('holds the event it is named on, and no other in the same region', async () => {
