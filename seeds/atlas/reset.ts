@@ -81,6 +81,20 @@ export class AtlasResetImporter extends BaseImporter<BaseImportOptions> {
           'would block or cascade differently than this script assumes. Review it first.',
       )
     }
+
+    // Deleting regions nulls every client's `region`, and the import re-links
+    // only the clients Atlas created. A client SahajCloud made for itself would
+    // lose its region for good, so refuse and name it instead.
+    const ownClients = await pool.query<{ id: number; name: string }>(
+      `select id, name from ${this.schema}."clients" where region_id is not null and legacy_id is null`,
+    )
+    if (ownClients.rows.length) {
+      throw new Error(
+        `Refusing to reset: ${ownClients.rows.map((c) => `clients/${c.id} ("${c.name}")`).join(', ')} ` +
+          'did not come from Atlas but points at a region the reset deletes. Note its region, clear ' +
+          'it, and set it again after `atlas --update`.',
+      )
+    }
     if (this.options.dryRun) {
       await this.logger.info(
         'Dry run — nothing deleted. Run without --dry-run to empty these tables.',

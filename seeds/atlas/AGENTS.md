@@ -121,8 +121,10 @@ Each run spends its own sign-in link. [reset.ts](reset.ts) empties events
 (with their versions), regions, users and user-submissions in one
 transaction, below the Local API — no hooks, so no revalidation storm and no
 half-emptied map — and refuses to start if a RESTRICT foreign key has
-appeared. `clients.region` goes null until the import re-links it. **Take a
-database backup before running it against production.** `--update` then
+appeared. `clients.region` goes null until the import re-links it, which it
+does only for clients Atlas created — so the reset also refuses while a client
+SahajCloud made for itself points at a region. **Take a database backup
+before running it against production.** `--update` then
 takes Atlas's side of every manager and client field, prunes managers Atlas
 deleted (keeping, with a warning, any admin, any manager holding a non-Atlas
 role, and any manager a non-Atlas client or form names), and never touches a
