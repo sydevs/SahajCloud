@@ -18,6 +18,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { proposableEventFields } from '@/collections/UserSubmissions/hooks/validateProposal'
 import { screenProposalContent } from '@/jobs/ScreenSubmissions/contentScreening'
 import { activeRegistrationWhere } from '@/lib/registrations/active'
+import { relationId } from '@/lib/utilities/relationId'
 import type { Event, Form, Manager, UserSubmission } from '@/payload-types'
 
 import { runTaskHandler } from '../utils/taskRunner'
@@ -89,6 +90,21 @@ describe('Submission screening', () => {
       depth: 0,
       overrideAccess: true,
     }) as Promise<UserSubmission>
+
+  /** Set or lift the block on a sender, as an admin does from their record. */
+  const setBlock = (submission: UserSubmission, blockedAt: string | null) => {
+    const id = relationId(submission.user)
+    // Rather than address `users/0`, which fails later as a confusing Not Found.
+    if (id == null) throw new Error('The fixture expected an upserted sender and found none.')
+
+    return payload.update({
+      collection: 'users',
+      id,
+      data: { blockedAt },
+      overrideAccess: true,
+      req: systemReq(),
+    })
+  }
 
   /** Whether a delivery job is waiting for this row. */
   const deliveryQueued = async (submissionId: number) => {
@@ -277,6 +293,140 @@ describe('Submission screening', () => {
         verdict: 'duplicate_body',
         status: 'spam',
       })
+    })
+  })
+
+  /**
+   * The lasting half of the brake `repeat_sender` applies for 24 hours at a
+   * time: a person sets it, and it holds until a person lifts it.
+   */
+  describe('a sender an admin has blocked', () => {
+    it('refuses every intake, delivers nothing, and costs no DNS lookup', async () => {
+      const first = await seed({ senderEmail: 'blocked@example.com' })
+      await setBlock(first, new Date().toISOString())
+
+      for (const data of [
+        { senderEmail: 'blocked@example.com' },
+        {
+          type: 'proposal',
+          form: undefined,
+          senderEmail: 'blocked@example.com',
+          proposed: { title: 'Thursday evening class' },
+          submissionData: [{ field: 'note', value: 'A blocked proposal.' }],
+        },
+        {
+          type: 'registration',
+          form: undefined,
+          event: event.id,
+          senderEmail: 'blocked@example.com',
+          submissionData: [{ field: 'referral', value: 'A friend, blocked.' }],
+        },
+      ]) {
+        const submission = await seed(data)
+
+        await expect(screen(submission.id)).resolves.toEqual({
+          verdict: 'blocked_sender',
+          status: 'spam',
+        })
+
+        const row = await reload(submission.id)
+        expect(row.screeningResult?.notes?.[0]).toContain('blocked')
+        expect(await deliveryQueued(submission.id)).toBe(false)
+      }
+
+      // ⚠ The block is read before the address checks on purpose: a
+      // primary-key read is cheaper than an MX lookup, and a blocked sender
+      // should pay for neither. A called stub means the order slipped back.
+      expect(mxMock).not.toHaveBeenCalled()
+    })
+
+    /**
+     * ⚠ The row stands and so does any email already sent, exactly as every
+     * other refusal does. What `spam` buys is the exclusion below.
+     */
+    it('leaves a blocked registration out of the reminder and fullness query', async () => {
+      const first = await seed({
+        type: 'registration',
+        form: undefined,
+        event: event.id,
+        senderEmail: 'blocked-attendee@example.com',
+        submissionData: [{ field: 'referral', value: 'A friend, pre-block.' }],
+      })
+      await setBlock(first, new Date().toISOString())
+
+      const refused = await seed({
+        type: 'registration',
+        form: undefined,
+        event: event.id,
+        senderEmail: 'blocked-attendee@example.com',
+        submissionData: [{ field: 'referral', value: 'A friend, post-block.' }],
+      })
+      await screen(refused.id)
+
+      const { docs } = await payload.find({
+        collection: 'user-submissions',
+        where: { ...activeRegistrationWhere, event: { equals: event.id } },
+        pagination: false,
+        depth: 0,
+        overrideAccess: true,
+      })
+
+      expect((await reload(refused.id)).status).toBe('spam')
+      expect(docs.map((doc) => doc.id)).not.toContain(refused.id)
+    })
+
+    /**
+     * ⚠ The subscribe row a registration spawns is screened on its own, and it
+     * carries the same `user` — so the block reaches it without the
+     * registration's own verdict being copied anywhere.
+     */
+    it('refuses the subscribe row a blocked registrant opting in spawns', async () => {
+      const email = 'blocked-optin@example.com'
+      const first = await seed({ senderEmail: email })
+      await setBlock(first, new Date().toISOString())
+
+      await seed({
+        type: 'registration',
+        form: undefined,
+        event: event.id,
+        senderEmail: email,
+        submissionData: [
+          { field: 'name', value: 'Ada' },
+          { field: 'locale', value: 'en' },
+          { field: 'subscribe', value: 'true' },
+        ],
+      })
+
+      const { docs } = await payload.find({
+        collection: 'user-submissions',
+        where: { type: { equals: 'subscribe' }, senderEmail: { equals: email } },
+        depth: 0,
+        pagination: false,
+        overrideAccess: true,
+      })
+      expect(docs).toHaveLength(1)
+
+      await expect(screen(docs[0]!.id)).resolves.toEqual({
+        verdict: 'blocked_sender',
+        status: 'spam',
+      })
+      expect(fetchMock).not.toHaveBeenCalled()
+    })
+
+    it('screens the sender normally once the block is lifted', async () => {
+      const first = await seed({ senderEmail: 'reprieved@example.com' })
+      await setBlock(first, new Date().toISOString())
+
+      const whileBlocked = await seed({ senderEmail: 'reprieved@example.com' })
+      await expect(screen(whileBlocked.id)).resolves.toEqual({
+        verdict: 'blocked_sender',
+        status: 'spam',
+      })
+
+      await setBlock(first, null)
+
+      const afterLift = await seed({ senderEmail: 'reprieved@example.com' })
+      await expect(screen(afterLift.id)).resolves.toEqual({ verdict: 'ok', status: 'pending' })
     })
   })
 

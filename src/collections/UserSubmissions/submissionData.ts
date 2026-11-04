@@ -100,7 +100,7 @@ export function parseOptIn(value: string | undefined): boolean {
  * Keys a type adds to the base set, beyond whatever its form authored.
  *
  * `subscribe` adds none: an address plus a name is the whole of a subscription,
- * and the address is a real column.
+ * and the address becomes the row's `user`.
  */
 export const TYPE_SUBMISSION_KEYS: Record<UserSubmission['type'], readonly string[]> = {
   contact: ['subject', 'message'],

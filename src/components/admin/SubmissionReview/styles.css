@@ -154,3 +154,59 @@
   margin: calc(var(--base) * 0.4) 0 0;
   padding-left: 1.2em;
 }
+
+/* `submissionData` as key/value rows. */
+.submission-data {
+  margin-bottom: var(--base);
+}
+
+/*
+ * The Field column is as wide as its longest label, up to 28em. Payload gives
+ * every cell a 150px minimum and shares the rest out, which left short keys far
+ * from their values; shrinking the cell to `1%` alone wrapped every
+ * registration question. The cell shrinks, and the key holds its own width.
+ */
+.submission-data .cell-field,
+.submission-data #heading-field {
+  width: 1%;
+  min-width: 0;
+}
+
+.submission-data__key {
+  display: block;
+  width: max-content;
+  max-width: 28em;
+  color: var(--theme-elevation-600);
+}
+
+.submission-data__value {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.submission-data__empty {
+  color: var(--theme-elevation-500);
+  font-style: italic;
+  font-size: 13px;
+}
+
+/* The sidebar Context table: who sent it, through what, about what. */
+.submission-summary__value {
+  overflow-wrap: anywhere;
+}
+
+.submission-summary__muted {
+  color: var(--theme-elevation-500);
+}
+
+/* A drawer toggler is a button; this one reads as the link it behaves as. */
+.submission-summary__link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-decoration: underline;
+  cursor: pointer;
+}

@@ -26,6 +26,8 @@ export type SubmissionScreeningResult = NonNullable<UserSubmission['screeningRes
  */
 export const VERDICT_NOTES: Record<SubmissionVerdict, string | null> = {
   ok: null,
+  blocked_sender:
+    'This sender is blocked, so nothing they send is delivered. Lift the block on their Registrant record.',
   disposable_email:
     'The sender used a disposable-email domain. Treat any address here as unreachable.',
   invalid_email: 'The sender’s address is not a usable email address.',

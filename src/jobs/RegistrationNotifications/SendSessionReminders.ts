@@ -191,10 +191,10 @@ async function remindForEvent(args: {
       if (due.length === 0) continue
       pending.push({
         submissionId: registration.id,
-        // The address is the row's own column and the name is a submission
-        // pair — the authoritative copy `prepareUserSubmission` seeds the
-        // `users` row *from*. Reading the join would read a derived value one
-        // hop away. `deliverRegistration` addresses the registrant the same way.
+        // ⚠ `senderEmail` is `virtual: 'user.email'` (#630), so this is the
+        // Registrant's address through the join. Payload resolves a
+        // relationship-path virtual in the query, so the `select` above needs
+        // no `user` beside it — pinned by this job's own spec.
         email: registration.senderEmail?.trim() || null,
         name: readSubmissionValue(registration.submissionData, 'name') ?? null,
         clientId: relationId(registration.client),
