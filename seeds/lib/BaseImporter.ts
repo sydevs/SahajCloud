@@ -147,6 +147,15 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     return this.runVerification
   }
 
+  /**
+   * Floors the data itself carries, which replace the script's committed ones.
+   * For a script whose data changes with every refresh, where a constant would
+   * drift (atlas: the build manifest). Default: none, so `EXPECTED_COUNTS` holds.
+   */
+  getExpectedCounts(): Record<string, number> | null {
+    return null
+  }
+
   /** Gives SSE heartbeats context during a long operation. */
   setCurrentOperation(operation: string): void {
     this.currentOperation = operation

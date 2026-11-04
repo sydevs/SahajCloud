@@ -1,15 +1,10 @@
 /**
- * One-shot Atlas → JSON extractor (Phase 1 of the Atlas migration).
+ * Atlas → JSON extractor: one target-shaped JSON file per imported table,
+ * read from a scratch Postgres restored from a Heroku backup.
  *
- * Reads the legacy Sahaj Atlas data from a scratch local Postgres (restored
- * from `atlas.dump`) and writes one target-shaped JSON file per imported table
- * into `seeds/atlas/data/`. This is throwaway tooling — the importer that
- * consumes these files is a separate ticket (see seeds/atlas/MIGRATION_PLAN.md).
- *
- * Usage:
- *   1. createdb atlas_scratch && pg_restore --no-owner --no-privileges \
- *        -d atlas_scratch atlas.dump
- *   2. ATLAS_DB_URL=postgres://localhost/atlas_scratch pnpm tsx seeds/atlas/extract.ts
+ * The output is *mechanical* — no curation. `pnpm atlas:sync fetch` runs it
+ * into `seeds/atlas/local/raw/<backup>/`, and `pnpm atlas:sync build` lays the
+ * grooming overlay over it (seeds/atlas/AGENTS.md, "The sync pipeline").
  */
 import { mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
@@ -25,9 +20,12 @@ import { normalizeDate, parseSchedule } from './helpers/recurrence'
 // match. All Atlas ids are well under 2^53 — parse int8 as a JS number for a
 // single consistent numeric id type everywhere.
 types.setTypeParser(20, (v) => (v === null ? null : parseInt(v, 10)))
-
-const DB_URL = process.env.ATLAS_DB_URL ?? 'postgres://localhost:5432/atlas_scratch'
-const OUT_DIR = path.resolve(process.cwd(), 'seeds/atlas/data')
+// ⚠ node-postgres reads `timestamp without time zone` and `date` in the
+// *extracting machine's* zone, so the same dump extracted twice could disagree
+// by hours — and every timestamp was shifted by the operator's UTC offset.
+// Rails writes these columns in UTC: read them as UTC, and keep a date a date.
+types.setTypeParser(1114, (v) => (v === null ? null : new Date(`${v.replace(' ', 'T')}Z`)))
+types.setTypeParser(1082, (v) => v)
 
 const EVENT_CATEGORY: Record<number, string> = {
   1: 'dropin',
@@ -106,9 +104,11 @@ function recordTypeToLevel(recordType: string): 'country' | 'region' | 'area' | 
   }
 }
 
-async function main() {
+/** Extract every imported table from `dbUrl` into `outDir`, then de-duplicate in place. */
+export async function extractAtlas(dbUrl: string, outDir: string): Promise<Record<string, number>> {
+  const OUT_DIR = path.resolve(process.cwd(), outDir)
   mkdirSync(OUT_DIR, { recursive: true })
-  const db = new Client({ connectionString: DB_URL })
+  const db = new Client({ connectionString: dbUrl })
   await db.connect()
   const all = async (sql: string): Promise<Row[]> => (await db.query(sql)).rows
 
@@ -375,9 +375,5 @@ async function main() {
   // (unique) mapboxId on import — repeatable on every refetch. See dedupe.ts.
   const dedupe = dedupeAtlasFiles(OUT_DIR)
   console.log('De-duplicated:', JSON.stringify(dedupe))
+  return written
 }
-
-main().catch((err) => {
-  console.error(err)
-  process.exit(1)
-})

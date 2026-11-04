@@ -305,7 +305,12 @@ export async function POST(
         results: verification,
         allPassed: countsPassed,
         skippedReason: verificationSkippedReason,
-      } = verifyCountsForScript(script as ScriptName, counts, pagination)
+      } = verifyCountsForScript(
+        script as ScriptName,
+        counts,
+        pagination,
+        importer.getExpectedCounts(),
+      )
 
       // The importer's own invariants, which hold whatever the target carries.
       // `run()` decides whether this run was one to check.
@@ -435,6 +440,10 @@ async function getImporter(
     case 'atlas': {
       const { AtlasImporter } = await import('../../../../../../seeds/atlas/import')
       return new AtlasImporter(options)
+    }
+    case 'atlas-reset': {
+      const { AtlasResetImporter } = await import('../../../../../../seeds/atlas/reset')
+      return new AtlasResetImporter(options)
     }
     default:
       return null

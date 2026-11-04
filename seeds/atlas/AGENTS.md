@@ -38,26 +38,101 @@ states`). An on-by-default checkbox would rewrite them back to the bare,
   upserts pin `generateSlug: false`, so the explicit slug is never
   rewritten.
 
-## events.json is curated — a re-extraction destroys it
+## The sync pipeline — the data is local, the curation is an overlay
 
-[extract.ts](extract.ts) regenerates `events.json` from `select * from
-events`, so **every value below is silently dropped by a re-extraction**
-and must be re-applied before the regenerated file is committed. The raw
-dumps are not in this repo, so re-extraction is not routine — but work
-through this list if you do it.
+⚠ **The Atlas data is personal data and is never committed.** Registrant and
+manager names, emails, and phone numbers live only on the operator's machine,
+in two gitignored directories: `seeds/atlas/local/` (dumps, raw extractions,
+the overlay, reports) and `seeds/atlas/data/` (the importer's input). The
+seed CLI uploads `seeds/atlas/data/` as `inlineData`, so a deployed target
+never needs the files on disk. Until the 2026-11 refresh they were committed
+to this public repository, and they remain in its history.
 
-`tests/unit/atlas-events-data.spec.ts` asserts most of these invariants,
-so a naive re-extraction fails the unit lane rather than shipping quietly.
+The legacy Atlas runs on Heroku (`sahajatlas`), and `pnpm atlas:sync` turns
+its database into that input, the same way every time:
 
-**Re-applying is mechanical for unchanged rows.** Each committed event
-carries its raw source row in `legacyData`, so a refresh ports curated
-values per field: where the fresh dump's raw value equals the committed
-`legacyData` value, the curated top-level value is still valid and copies
-over verbatim (`contactEmail`/`website` port when their sources —
-`description`, `contact_info`, and for `website` the URL fields — are all
-unchanged). Only rows a manager edited upstream, plus brand-new rows, need
-a fresh grooming pass. That is how the 2026-08 refresh ran: ~170 events
-ported automatically, ~330 groomed by hand.
+```bash
+pnpm atlas:sync fetch                 # capture a Heroku backup, restore it, extract to local/raw/<bNNN>/
+pnpm atlas:sync build                 # raw + merges + overlay → seeds/atlas/data/, a report, a worksheet
+# groom the worksheet rows (below), then:
+pnpm atlas:sync groom --patch <file>  # mechanical clean of worksheet rows, then your patch
+pnpm atlas:sync check                 # grooming and write-contract invariants
+pnpm atlas:sync record --groomed      # the groomed data becomes the new overlay
+pnpm atlas:sync build && pnpm atlas:sync check   # proves the overlay reproduces it
+```
+
+`fetch --backup bNNN` reuses an existing backup instead of capturing one. It
+needs the Heroku CLI signed in to the account that owns `sahajatlas`, and a
+local Postgres 16+ to restore into (`atlas_scratch_<bNNN>`).
+
+**The overlay is what makes a refresh repeatable.** `local/overlay/` records,
+per row, the mechanical values it was groomed against (`basis`) and the
+curated values that differ (`set`) — [sync/overlay.ts](sync/overlay.ts).
+`build` copies a curated value over only while every field it was derived
+from is unchanged upstream, and sends the row back for review otherwise. So
+a refresh re-grooms only what moved: the 2026-11 refresh re-applied 609
+events untouched and put 65 events and 35 venues on the worksheet.
+**`record` only after grooming**: it marks every row of `seeds/atlas/data/`
+as reviewed, which is why it demands `--groomed` while the worksheet is not
+empty.
+
+What lives where:
+
+| Decision                                             | Lives in                                                                        | Committed?                    |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------- | ----------------------------- |
+| Wording, titles, rooms, websites, contacts, weekdays | `local/overlay/*.json`                                                          | No — it carries personal data |
+| Merged duplicates and their survivors                | [sync/merges.ts](sync/merges.ts), applied by `build`                            | Yes — ids only                |
+| Duplicate venues and cities, venue field repairs     | [dedupe.ts](dedupe.ts), applied by `fetch` and again by `build`                 | Yes — ids only                |
+| Verification floors                                  | `data/manifest.json`, derived by [sync/counts.ts](sync/counts.ts) on each build | No — and needs no constant    |
+
+Neither committed list needs a deploy to take effect: both run locally, and
+the importer only ever sees their result. A merge found at the final sync is
+a change to commit, but not one to ship before seeding.
+
+⚠ **The extraction reads Atlas timestamps as UTC.** Rails writes
+`timestamp without time zone` in UTC, and node-postgres reads that type in
+the extracting machine's zone, so every timestamp before the 2026-11 refresh
+was shifted by its operator's offset — and the same dump extracted in two
+zones disagreed. `extract.ts` sets the type parsers; extracting in two zones
+now produces identical files.
+
+**Grooming a worksheet.** `local/groom/<bNNN>.json` lists each row with its
+previous mechanical value, its previous curated value, and the current one —
+everything a three-way groom needs. `local/reports/<bNNN>.md` adds what moved
+upstream (managers, clients, geo nodes) and the duplicate candidates to rule
+on, which are evidence and never merges. Write decisions as a patch,
+`{ "events": { "<legacyId>": { field: value } }, "venues": { … } }`, and let
+`groom` apply it after its mechanical clean ([sync/clean.ts](sync/clean.ts) —
+whitespace, invisible characters, stray HTML, empty contact values). The
+rules are the ones below. `check` ([sync/check.ts](sync/check.ts)) enforces
+the parts a machine can, against today's year.
+
+**Re-syncing a target.** The importer cannot undo an earlier import, and
+Atlas renumbers geo nodes, so a target is emptied first, then seeded in
+update mode, which reconciles managers and clients in place:
+
+```bash
+pnpm tsx scripts/redeem-signin-link.ts '<link>' --seed atlas-reset --dry-run   # counts only
+pnpm tsx scripts/redeem-signin-link.ts '<link>' --seed atlas-reset             # ⚠ deletes
+pnpm tsx scripts/redeem-signin-link.ts '<link>' --seed atlas --update
+```
+
+Each run spends its own sign-in link. [reset.ts](reset.ts) empties events
+(with their versions), regions, users and user-submissions in one
+transaction, below the Local API — no hooks, so no revalidation storm and no
+half-emptied map — and refuses to start if a RESTRICT foreign key has
+appeared. `clients.region` goes null until the import re-links it. **Take a
+database backup before running it against production.** `--update` then
+takes Atlas's side of every manager and client field, prunes managers Atlas
+deleted (keeping, with a warning, any admin, any manager holding a non-Atlas
+role, and any manager a non-Atlas client or form names), and never touches a
+client Atlas did not create. Every event gets a fresh verification lease.
+
+### What the overlay carries
+
+`extract.ts` reads Atlas mechanically, so every value below is curation,
+kept in the overlay rather than recomputed. The scope is as of the 2026-08
+refresh (#621); later refreshes add to it.
 
 | What                                          | Scope                                                                                                                                                                                                                                     |
 | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -158,7 +233,7 @@ monthly meet-ups are stored as `daily`).
 - Two Atlas _areas_ are actually street addresses masquerading as geo
   nodes — `Rue de Nimy 46` (Mons) and `Rue du Petit Bruxelles 94 Quenast
 (Rebecq)` — surfacing as oddly-named region entries.
-- Venue-side typos in [data/venues.json](data/venues.json): city
+- Venue-side typos in `data/venues.json`: city
   `Bichinno do Mato` (#586/#587), `Феодосия Росиия` jammed into #1465's
   city, the junk street `Rua A` (#2719) and `-` (#4106), and #448's street
   being an office address rather than Kitsilano Beach.
@@ -238,10 +313,9 @@ manager may have hung content or child nodes off it.
 Atlas let one real class be entered twice. The #605 pairs were confirmed
 by sharing a venue **and** an identical `frequency`/`interval`/`weekday`/
 `weekNumber`/`startTime`, then differing only in title, description,
-lifecycle status, or language. Their superseded rows are deleted from
-[data/events.json](data/events.json) and listed in
-`EXCLUDED_EVENT_LEGACY_IDS` ([import.ts](import.ts)), so a re-extraction
-can't bring them back.
+lifecycle status, or language. Their superseded rows are listed in
+`EXCLUDED_EVENT_LEGACY_IDS` ([sync/merges.ts](sync/merges.ts)), which
+`build` applies to every extraction, so a refresh can't bring them back.
 
 Atlas's own `status` decided which row survives: `0` = verified/live, `6`
 = finished. A `6/0` pair means Atlas had already retired one side.
@@ -287,30 +361,31 @@ Two knock-on effects:
 - **Venue topology.** `multiUseVenueIds` counts events per venue, so
   removing a row can drop a venue from multi-use to single-use — its
   address then inlines onto the event instead of becoming a Regions
-  `venue` node. `atlas-events-data.spec.ts` recomputes the count from the
-  data and asserts `expectedCounts` matches, so a removal that changes the
-  topology fails the unit lane instead of drifting silently.
-- **`expectedCounts.events` is 649** (653 rows, less test record #494,
-  #4958 — which has no Atlas area and so no resolvable region — and the 2
-  archived events #75/#199, which import straight into the trash where
-  `payload.count` doesn't see them). Registrations on merged-away
-  duplicates re-attach to the merge survivor via `MERGED_EVENT_TARGETS` (a
-  merge is not a delete — #195's 39 registrants belong to #603's class).
+  `venue` node. The regions floor is recomputed from the data on every
+  build ([sync/counts.ts](sync/counts.ts)), so a removal that changes the
+  topology moves the floor with it instead of leaving a stale constant.
+- **The events floor** is every row whose manager and region resolve, less
+  the ones that import straight into the trash, which `payload.count` does
+  not see: at the 2026-08 refresh, 653 rows less #494 (test record), #4958
+  (no Atlas area, so no resolvable region) and the archived #75/#199 — 649.
+  Registrations on merged-away duplicates re-attach to the merge survivor via
+  `MERGED_EVENT_TARGETS` ([sync/merges.ts](sync/merges.ts), applied by
+  `build`) — a merge is not a delete; #195's 39 registrants belong to #603's
+  class.
   Dropped: the 2 registrations whose event has neither a row nor a
   survivor, and the 1 on the archived #199 — **Payload silently rolls
   back a `create` whose relationship target is trashed** (the API returns
   201 with a doc id, but the row never lands. Reproduced with a bare REST
   create), so trashed events stay out of the registration id-map and that
-  skip is visible instead of a phantom success. **`expectedCounts['user-submissions']`
-  is 2004**, counted under `activeRegistrationWhere` rather than as a whole-
-  collection count — contact, subscribe and proposal rows share that table.
-- **`expectedCounts.regions` is 646** — 595 source geo nodes (34 country +
-  101 region + 460 area, post-dedupe) plus 52 shared-venue nodes, less
-  region:East (#42), whose invalid source coordinates fail validation on
-  every run. Because verification is `actual >= expected`, an understated
-  value there is not conservative — it just stops confirming. Both floors
-  are proven reachable by the local end-to-end reseed against a cleaned
-  database.
+  skip is visible instead of a phantom success. The **user-submissions**
+  floor is counted under `activeRegistrationWhere` rather than as a
+  whole-collection count — contact, subscribe and proposal rows share that
+  table.
+- **The regions floor** is every source geo node (post-dedupe) plus one
+  shared-venue node per venue more than one surviving event uses, less the
+  nodes in `UNIMPORTABLE_REGIONS` — region:East (#42), whose source carries
+  no usable location. Because verification is `actual >= expected`, an
+  understated value is not conservative — it just stops confirming.
 
 ### `languageCodes` — a curated multi-language override
 
@@ -345,10 +420,10 @@ DE/EN). Every other row leaves it unset.
 
 ### Test records
 
-#494 (`Test`) is the one leftover Atlas test row still in events.json —
-the importer skips it via `EXCLUDED_EVENT_LEGACY_IDS` ([import.ts](import.ts)),
-which keeps it in the list handed to `multiUseVenueIds` so the venue
-topology is unchanged. (#575, the other #605-era test record, has since
+#494 (`Test`) is the one leftover Atlas test row still in the dump. `build`
+drops it via `EXCLUDED_EVENT_LEGACY_IDS` ([sync/merges.ts](sync/merges.ts));
+no venue's multi-use status hinges on it, so the venue topology is
+unchanged. (#575, the other #605-era test record, has since
 been deleted in Atlas itself.)
 
 **Skipping can't undo an earlier import.** Any environment seeded before
@@ -365,8 +440,9 @@ exists for regions (`reportUpstreamDeletedRegions`), and there it is
 to 1208 between dumps), and because `slug` and `mapboxId` are unique, a
 stale doc under the old id _blocks the renumbered node's create_ — a
 region upsert failing with "The following field is invalid:
-Slug"/"mapboxId" means exactly this. Trash the reported docs in the admin
-panel, then re-run the import. Check prod.
+Slug"/"mapboxId" means exactly this. **A re-sync avoids all of it by
+running `atlas-reset` first** (above, "Re-syncing a target"); the reports
+remain for a target seeded on top of an earlier import without one.
 
 ## Event titles: a blank title beats a generic one
 
@@ -405,7 +481,7 @@ Meditazione`, `Meditatie Cursus`, `Viikoittainen meditaatio`,
 Aprofundamento`), a language (`Viikoittainen meditaatio suomeksi`,
   `Meditationskurs auf Deutsch`), a format (`Music and Meditation`, `Live
 Online WhatsApp Video Meditation`) or a named event (`Corso Leopold`,
-  `Puja a Shri Ganesha`). `tests/unit/atlas-events-data.spec.ts` enforces
+  `Puja a Shri Ganesha`). `pnpm atlas:sync check` enforces
   this with a regex over the bare "meditation/class/course" shapes.
 - **Keep it** when it names the **venue**: a library, institute,
   university, or community centre. Ten titles were kept on that basis
@@ -437,7 +513,7 @@ than title).
 
 Where no venue name survives, the auto-fill takes the **first
 comma-segment** of `street`, so a stray comma or a lowercase town name
-surfaces straight into the listing's name. Three venue records in [data/venues.json](data/venues.json) were
+surfaces straight into the listing's name. Three venue records in `data/venues.json` were
 fixed for that reason (they also improve the rendered address): venue 65
 `"9, St Peter's Park Rd"` → `"9 St Peter's Park Rd"` (the comma split "9"
 off as the whole place), 198 `solihull` → `Solihull`, 382 `old bar` →

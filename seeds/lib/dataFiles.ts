@@ -44,7 +44,11 @@ export type AtlasTranslationLocale = (typeof ATLAS_TRANSLATION_LOCALES)[number]
 export const atlasTranslationsDataFile = (locale: AtlasTranslationLocale): string =>
   `seeds/sy-atlas-translations/data.${locale}.json`
 
-/** The eight pre-extracted dumps the atlas importer reads. */
+/**
+ * The atlas importer's input: eight extracted tables plus the build manifest
+ * that carries the run's verification floors. ⚠ Local only — personal data,
+ * gitignored, written by `pnpm atlas:sync build` (seeds/atlas/AGENTS.md).
+ */
 export const ATLAS_DUMP_NAMES = [
   'users',
   'managers',
@@ -54,6 +58,7 @@ export const ATLAS_DUMP_NAMES = [
   'registrations',
   'clients',
   'pictures',
+  'manifest',
 ] as const
 
 export type AtlasDumpName = (typeof ATLAS_DUMP_NAMES)[number]

@@ -22,6 +22,7 @@
     "test:unit": "vitest run --project unit --config ./vitest.config.mts",
     "test:coverage": "vitest run --coverage --config ./vitest.config.mts",
     "seed": "tsx seeds/run.ts",
+    "atlas:sync": "tsx seeds/atlas/sync/cli.ts",
     "seed:prod": "SAHAJCLOUD_URL=https://cloud.sydevelopers.com tsx seeds/run.ts",
     "generate:importmap": "payload generate:importmap",
     "generate:types": "payload generate:types && pnpm generate:statusConfig",

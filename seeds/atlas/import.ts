@@ -47,6 +47,7 @@ import {
   managerVerificationCadence,
   mapNotificationPreferences,
 } from './helpers/managerMapper'
+import { registrationSubmissionData } from './helpers/registrations'
 import { type AtlasSchedule, mapSchedule, supportedTimezone } from './helpers/scheduleMapper'
 import {
   type AtlasVenue,
@@ -56,6 +57,7 @@ import {
   venueToEventAddress,
 } from './helpers/venueRouter'
 import { buildImportVerification, importDeletedAt } from './helpers/verification'
+import { EXCLUDED_EVENT_LEGACY_IDS, MERGED_EVENT_TARGETS } from './sync/merges'
 
 // --- SOURCE DATA TYPES (shape of seeds/atlas/data/*.json) ---
 
@@ -159,7 +161,14 @@ interface AtlasPicture {
   sourceUrl: string | null
 }
 
+/** Written by `pnpm atlas:sync build`; the floors are `sync/counts.ts`'s. */
+interface AtlasManifest {
+  source: { backupId: string; finishedAt: string | null }
+  expectedCounts: Record<string, number>
+}
+
 interface AtlasData {
+  manifest: AtlasManifest
   users: AtlasUser[]
   managers: AtlasManager[]
   regions: AtlasRegion[]
@@ -205,81 +214,9 @@ const REGISTRATION_QUESTION_NAMES = new Set<string>(
 
 const DEFAULT_LOCALE = 'en'
 
-/**
- * Atlas rows that must never become events.
- *
- * #494 and #575 are test records still in events.json. Skipping, not
- * deleting, keeps them out of the import while leaving the events list
- * handed to `multiUseVenueIds` unchanged, so venue-to-region topology
- * stays correct.
- *
- * The rest were removed from events.json as confirmed duplicates of a
- * surviving row. This map exists so a re-extraction, which rebuilds the
- * file from `select * from events`, cannot silently bring them back. See
- * seeds/atlas/AGENTS.md ("Merged duplicates") for the evidence behind
- * each one.
- */
-const EXCLUDED_EVENT_LEGACY_IDS = new Map<number, string>([
-  // ── #605 pass (June dump). Rows whose Atlas source has since been
-  // deleted upstream (575, 458, 461, 468, 469) stay here as harmless
-  // no-ops, so an older dump can never resurrect them.
-  [494, 'Atlas test record'],
-  [575, 'Atlas test record'],
-  [195, 'duplicate — same Zoom room + slot as #603'],
-  [752, 'duplicate — merged into the bilingual #753'],
-  [360, 'duplicate — retired half of the pair kept as #684'],
-  [392, 'duplicate — retired half of the pair kept as #698'],
-  [458, 'duplicate — retired half of the pair kept as #560'],
-  [461, 'duplicate — retired half of the pair kept as #565'],
-  [464, 'duplicate — retired half of the pair kept as #562'],
-  [468, 'duplicate — retired half of the pair kept as #570'],
-  [469, 'duplicate — retired half of the pair kept as #571'],
-  [82, 'duplicate of #496; both sides already retired'],
-  [496, 'duplicate of #82; both sides already retired'],
-  [497, 'duplicate of #534; both sides already retired'],
-  [534, 'duplicate of #497; both sides already retired'],
-  [355, 'duplicate of #535; both sides already retired'],
-  [535, 'duplicate of #355; both sides already retired'],
-  // ── 2026-08 dump refresh. Same evidence bar: same manager, plus a
-  // shared venue or Zoom room, and an identical slot. "Session re-listing"
-  // means sequential, non-overlapping terms of one class, where the
-  // latest term survives.
-  [2951, 'duplicate — re-entered as #3440 (same manager, venue, slot)'],
-  [1988, 'duplicate — superseded by #4662 (same manager, library, slot)'],
-  [1328, 'duplicate — session re-listing; open-ended term kept as #2945'],
-  [3078, 'duplicate — session re-listing; latest term kept as #4332'],
-  [4331, 'duplicate — session re-listing; latest term kept as #4332'],
-  [4365, 'duplicate — triple entry of #4364 (identical rows)'],
-  [4366, 'duplicate — triple entry of #4364 (identical rows)'],
-  [4299, 'duplicate — merged into the bilingual #4298 (FR/NL pair)'],
-  [5849, 'duplicate — double entry of #5684 (identical rows)'],
-])
-
-/**
- * Merge survivors for rows removed as duplicates. A merge is not a
- * delete, so a registration on the removed listing belongs to the class
- * that survived it. Pairs with no living survivor have no entry here,
- * and their registrations are skipped as unresolvable. See
- * seeds/atlas/AGENTS.md ("Merged duplicates") for which pairs those are.
- */
-const MERGED_EVENT_TARGETS: Record<number, number> = {
-  195: 603,
-  752: 753,
-  360: 684,
-  392: 698,
-  458: 560,
-  461: 565,
-  464: 562,
-  2951: 3440,
-  1988: 4662,
-  1328: 2945,
-  3078: 4332,
-  4331: 4332,
-  4365: 4364,
-  4366: 4364,
-  4299: 4298,
-  5849: 5684,
-}
+// `EXCLUDED_EVENT_LEGACY_IDS` / `MERGED_EVENT_TARGETS` live in sync/merges.ts.
+// `pnpm atlas:sync build` already applies both, so here they are a guard
+// against a hand-assembled data set, not the mechanism.
 
 // --- Atlas importer ---
 
@@ -464,8 +401,9 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
       return loadJsonData<T>({ localPath, inlineContent: this.options.inlineData?.[localPath] })
     }
 
-    const [users, managers, regions, venues, events, registrations, clients, pictures] =
+    const [manifest, users, managers, regions, venues, events, registrations, clients, pictures] =
       await Promise.all([
+        load<AtlasManifest>('manifest'),
         load<AtlasUser[]>('users'),
         load<AtlasManager[]>('managers'),
         load<AtlasRegion[]>('regions'),
@@ -476,8 +414,22 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
         load<AtlasPicture[]>('pictures'),
       ])
 
-    this.cachedData = { users, managers, regions, venues, events, registrations, clients, pictures }
+    this.cachedData = {
+      manifest,
+      users,
+      managers,
+      regions,
+      venues,
+      events,
+      registrations,
+      clients,
+      pictures,
+    }
     return this.cachedData
+  }
+
+  getExpectedCounts(): Record<string, number> | null {
+    return this.cachedData?.manifest.expectedCounts ?? null
   }
 
   // ─── Dry run: counts + referential-integrity validation (no DB, no network) ─
@@ -639,6 +591,78 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
         this.addError(`Manager ${manager.email} (#${manager.legacyId})`, error as Error)
       }
     }
+
+    if (this.options.updateMode) await this.pruneUpstreamDeletedManagers(data)
+  }
+
+  /**
+   * Delete Atlas-imported managers that Atlas itself no longer has — Atlas is
+   * the source of truth for its managers until launch. Only an `--update` run
+   * prunes, so a default resume can never delete anyone.
+   *
+   * A manager carrying anything SahajCloud gave them is kept, with a warning
+   * naming it: an admin, a role outside Sahaj Atlas, or a reference from a
+   * client or form that Atlas did not create. Their events and regions are
+   * re-pointed by the import itself, so nothing Atlas-side holds them.
+   */
+  private async pruneUpstreamDeletedManagers(data: AtlasData): Promise<void> {
+    const known = new Set(data.managers.map((m) => m.legacyId))
+    const imported = await this.payload.find({
+      collection: 'managers',
+      where: { legacyId: { exists: true } },
+      locale: 'all',
+      limit: 0,
+      pagination: false,
+      depth: 0,
+      overrideAccess: true,
+      select: { legacyId: true, email: true, type: true, roles: true },
+    })
+    const gone = imported.docs.filter((doc) => !known.has(doc.legacyId as number))
+    if (!gone.length) return
+    await this.logger.info(`\n=== Pruning ${gone.length} manager(s) deleted in Atlas ===`)
+
+    let deleted = 0
+    for (const doc of gone) {
+      const label = `managers/${doc.id} (${doc.email}, Atlas #${doc.legacyId})`
+      const roles = Object.values((doc.roles ?? {}) as Record<string, string[] | null>).flat()
+      const keptFor: string[] = []
+      if (doc.type === 'admin') keptFor.push('an admin')
+      if (roles.some((role) => role && role !== 'atlas-manager'))
+        keptFor.push('holds a non-Atlas role')
+      const [clients, forms] = await Promise.all([
+        this.payload.count({
+          collection: 'clients',
+          where: {
+            and: [
+              { legacyId: { exists: false } },
+              { or: [{ managers: { contains: doc.id } }, { primaryContact: { equals: doc.id } }] },
+            ],
+          },
+          overrideAccess: true,
+        }),
+        this.payload.count({
+          collection: 'forms',
+          where: { recipient: { equals: doc.id } },
+          overrideAccess: true,
+        }),
+      ])
+      if (clients.totalDocs) keptFor.push(`managing ${clients.totalDocs} non-Atlas client(s)`)
+      if (forms.totalDocs) keptFor.push(`receiving ${forms.totalDocs} form(s)`)
+      if (keptFor.length) {
+        this.addWarning(
+          `Kept ${label}, deleted in Atlas but ${keptFor.join(', ')} — review by hand`,
+        )
+        continue
+      }
+      try {
+        await this.payload.delete({ collection: 'managers', id: doc.id, overrideAccess: true })
+        await this.logger.info(`  deleted ${label}`)
+        deleted++
+      } catch (error) {
+        this.addError(`Pruning ${label}`, error as Error)
+      }
+    }
+    await this.logger.success(`Pruned ${deleted} of ${gone.length} manager(s) deleted in Atlas`)
   }
 
   // ─── Regions (country → region → city → venue) ──────────────────────────
@@ -1609,34 +1633,6 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     }
     return Object.keys(result).length > 0 ? result : undefined
   }
-}
-
-/**
- * The registrant's answers as `submissionData` pairs, plus their name.
- *
- * `name` is a base key every type accepts, and it is what
- * `prepareUserSubmission` reads to name the `users` row it upserts — without it
- * a historical registrant is renamed after the local part of their address.
- * There is deliberately no `locale` pair: the Atlas dump carries no locale for
- * a registrant, and deriving one from the event's region would put an
- * unevidenced value in a column the reminder emails read.
- */
-export function registrationSubmissionData(
-  reg: Pick<AtlasRegistration, 'questions'>,
-  registrant: Pick<AtlasUser, 'name'>,
-): { field: string; value: string }[] {
-  const pairs: { field: string; value: string }[] = []
-  const name = registrant.name?.trim()
-  if (name) pairs.push({ field: 'name', value: name })
-
-  // The contract's order, not the dump's, so two rows with the same answers
-  // produce the same pairs.
-  for (const question of EVENT_REGISTRATION_QUESTIONS) {
-    const raw = reg.questions?.[question.name]
-    const value = typeof raw === 'string' ? raw.trim() : raw == null ? '' : String(raw)
-    if (value) pairs.push({ field: question.name, value })
-  }
-  return pairs
 }
 
 /** Whether a value is a #RGB / #RRGGBB hex color (what `colorField` accepts). */
