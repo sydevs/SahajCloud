@@ -163,6 +163,14 @@ describe('PreviewTarget', () => {
     expect(panel.url).toBe(DEFAULT_URL)
   })
 
+  it('closes an open panel for an autoClose tab, and repoints nothing', () => {
+    panel.open = true
+    openTab({ autoClose: true })
+
+    expect(panel.open).toBe(false)
+    expect(panel.url).toBe(DEFAULT_URL)
+  })
+
   it('leaves the panel alone for a target that would change the origin', () => {
     openTab({ path: 'https://evil.example/x' })
 

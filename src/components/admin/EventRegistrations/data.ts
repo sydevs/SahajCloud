@@ -77,7 +77,11 @@ const registrationsOf = (eventId: number, filter: RegistrationFilter): Where => 
   ],
 })
 
-/** The row's own columns: the name is a `submissionData` pair, so no `users` row is read. */
+/**
+ * What the table shows. The name is a `submissionData` pair; `senderEmail` is
+ * `virtual: 'user.email'` (#630), which Payload resolves through the join in
+ * the query, so the `select` needs no `user` beside it.
+ */
 const ROW_SELECT = {
   createdAt: true,
   senderEmail: true,
