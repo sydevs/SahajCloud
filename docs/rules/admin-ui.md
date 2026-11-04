@@ -173,6 +173,7 @@ After registering a component in `payload.config.ts` (`admin.components`), run `
 - **`Option` is `string | OptionObject`** — normalize with a small map. A string becomes `{ label: opt, value: opt }`. An object's `label` falls back to its `value`.
 - **A `StaticLabel` may be a string or a locale map** — for an aria-label, read the string directly, or `label['en'] || Object.values(label)[0] || name`.
 - **Markup**: wrap in `<FieldLabel>` / a `field-type__wrap` div holding `<FieldError>` and your input / `<FieldDescription>`. Base class `field-type` (not `field`), plus a type class (`select`, `text`) and state classes (`error`, `read-only`). Use Payload's `FieldLabel`/`FieldError`/`FieldDescription` rather than rolling your own, and match the markup of Payload's built-in fields.
+- ⚠ **Put `mergeFieldStyles(field.admin)` on the root div** (`src/components/admin/helpers/mergeFieldStyles.ts`). Payload merges `admin.style` and `admin.width` for a built-in field and does not export the function that does it, so a custom field that skips this is content-width while its siblings flex — and nothing in the field's own config says so. It stays invisible until someone sets a width, which is how `RolesField` shipped without it. One helper, not a copy per component.
 
 ## Custom cell components (list views)
 
