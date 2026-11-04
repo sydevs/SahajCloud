@@ -5,8 +5,11 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { getAtlasManagerData } from '@/components/admin/Dashboard/AtlasManager/data'
 import { programStatus, type ProgramQuery } from '@/components/admin/Dashboard/AtlasManager/model'
-import { loadEventRegistrations } from '@/components/admin/EventRegistrations/data'
-import type { RegistrationQuery } from '@/components/admin/EventRegistrations/model'
+import {
+  countActiveRegistrations,
+  loadEventRegistrations,
+} from '@/components/admin/EventRegistrations/data'
+import type { RegistrationQuery } from '@/components/admin/EventRegistrations/data'
 import type { Manager as ManagerDoc } from '@/payload-types'
 
 import { createData, testData } from '../utils/testData'
@@ -327,6 +330,17 @@ describe('Atlas manager home', () => {
       expect((await openTab(admin))?.registrations.docs.map((row) => row.name)).toEqual([
         'Ada Lovelace',
       ])
+    })
+
+    /** The tab's pill: the `spam` row is withdrawn, so only Ada counts. */
+    it('counts active registrations for the tab, behind the same gate', async () => {
+      const count = async (user: ManagerDoc) =>
+        countActiveRegistrations(await request(user), tabEventId)
+
+      expect(await count(assignee)).toBe(1)
+      expect(await count(admin)).toBe(1)
+      expect(await count(owner)).toBeNull()
+      expect(await count(stranger)).toBeNull()
     })
 
     /**

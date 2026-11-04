@@ -1,21 +1,14 @@
 'use client'
 
+import type { EventRegistrationsData, RegistrationFilter, RegistrationQuery } from './data'
 import type { ReactNode } from 'react'
 
-import { CalendarIcon, CheckIcon, Gutter, Pill, Table } from '@payloadcms/ui'
+import { Button, CalendarIcon, CheckIcon, Gutter, Pagination, Pill, Table } from '@payloadcms/ui'
 
 import { STATUS_LABELS } from '@/collections/UserSubmissions/statuses'
 
 import styles from './EventRegistrations.module.css'
-import {
-  REGISTRATION_FILTERS,
-  type EventRegistrationsData,
-  type RegistrationFilter,
-  type RegistrationQuery,
-} from './model'
 import { CenteredNotice } from '../CenteredNotice'
-import { FilterTabs } from '../helpers/FilterTabs'
-import { PageControls } from '../helpers/PageControls'
 import { tableColumn } from '../helpers/tableColumn'
 import { useSetQuery } from '../helpers/useSetQuery'
 
@@ -34,10 +27,8 @@ const FILTERS: Record<
     label: 'Withdrawn',
     icon: <CheckIcon />,
     empty: 'Nobody has withdrawn',
-    // All three reasons `isActiveRegistration` drops a row, because the copy
-    // must not tell a manager someone was declined when their confirmation
-    // simply never sent. The Status column names which one — which is why this
-    // sentence sits above the rows and not only in the empty notice.
+    // All three reasons `isActiveRegistration` drops a row, so a manager is not
+    // told someone was declined when their confirmation simply never sent.
     explain:
       'A registration you declined, one screening refused, and one whose confirmation never sent are kept here rather than deleted.',
   },
@@ -52,18 +43,25 @@ export function EventRegistrationsView({ data }: { data: EventRegistrationsData 
   const rows = registrations.docs
   return (
     <Gutter className={styles.registrations}>
-      <FilterTabs
-        controls={LIST_ID}
-        label="Filter registrations"
-        onSelect={(next) => setQuery({ filter: next, page: 1 })}
-        selected={filter}
-        tabs={REGISTRATION_FILTERS.map((value) => ({ value, label: FILTERS[value].label }))}
-      />
+      {/* The same filter row as the manager dashboard's. */}
+      <div className={styles.filters} role="group" aria-label="Filter registrations">
+        {(Object.keys(FILTERS) as RegistrationFilter[]).map((value) => (
+          <Button
+            key={value}
+            margin={false}
+            buttonStyle={filter === value ? 'subtle' : 'tab'}
+            size="medium"
+            onClick={() => setQuery({ filter: value, page: 1 })}
+            extraButtonProps={{ 'aria-pressed': filter === value, 'aria-controls': LIST_ID }}
+          >
+            {FILTERS[value].label}
+          </Button>
+        ))}
+      </div>
       <div id={LIST_ID} aria-live="polite">
         <p className={styles.explain}>{FILTERS[filter].explain}</p>
-        {/* On `totalDocs`, not on this page's rows: a hand-typed page past the
-            end has none, and the notice would then claim the event has no
-            registrants while the pager that gets you back was hidden too. */}
+        {/* On `totalDocs`, not this page's rows: a hand-typed page past the end
+            has none, and the pager that gets you back must still render. */}
         {registrations.totalDocs > 0 ? (
           <>
             <Table
@@ -118,7 +116,15 @@ export function EventRegistrationsView({ data }: { data: EventRegistrationsData 
                 ),
               ]}
             />
-            <PageControls docs={registrations} onPage={(page) => setQuery({ page })} />
+            <Pagination
+              hasNextPage={registrations.hasNextPage}
+              hasPrevPage={registrations.hasPrevPage}
+              nextPage={registrations.nextPage ?? undefined}
+              page={registrations.page}
+              prevPage={registrations.prevPage ?? undefined}
+              totalPages={registrations.totalPages}
+              onChange={(page) => setQuery({ page })}
+            />
           </>
         ) : (
           <CenteredNotice icon={FILTERS[filter].icon} title={FILTERS[filter].empty} />

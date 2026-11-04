@@ -140,7 +140,12 @@ export const Events: CollectionConfig = {
           registrations: {
             Component: '@/components/admin/EventRegistrations',
             path: '/registrations',
-            tab: { href: '/registrations', label: 'Registrations', order: 200 },
+            tab: {
+              href: '/registrations',
+              label: 'Registrations',
+              order: 200,
+              Pill: '@/components/admin/EventRegistrations/RegistrationsPill',
+            },
           },
         },
       },

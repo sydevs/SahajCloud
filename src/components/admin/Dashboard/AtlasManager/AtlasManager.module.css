@@ -23,7 +23,8 @@
 .notice {
   gap: calc(var(--base) * 0.75);
 }
-.actions {
+.actions,
+.filters {
   display: flex;
   flex-wrap: wrap;
   gap: calc(var(--base) * 0.5);
@@ -32,8 +33,12 @@
 .header :global(.btn) {
   flex-shrink: 0;
 }
-.filterRow {
+.filters {
+  gap: calc(var(--base) / 3);
   margin: var(--base) 0 calc(var(--base) * 0.75);
+}
+.filterCount {
+  margin-inline-start: calc(var(--base) / 3);
 }
 .programInfo a {
   font-weight: 550;
@@ -51,6 +56,13 @@
 }
 .home :global(.cell-action) {
   white-space: nowrap;
+}
+.pageControls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--base);
 }
 @media (max-width: 700px) {
   .header,

@@ -1,4 +1,4 @@
-import type { PayloadRequest, Where } from 'payload'
+import type { PaginatedDocs, PayloadRequest, Where } from 'payload'
 
 import { extractID } from 'payload/shared'
 
@@ -8,64 +8,81 @@ import {
 } from '@/collections/UserSubmissions/submissionData'
 import { formatShortDate } from '@/lib/notifications/eventDetails'
 import { activeRegistrationWhere, withdrawnRegistrationWhere } from '@/lib/registrations/active'
+import type { RegistrationAnswer } from '@/lib/registrations/questions'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
+import type { UserSubmission } from '@/payload-types'
 import { isAdminManager } from '@/plugins/access/adminOnly'
 
-import {
-  type EventRegistrationsData,
-  type RegistrationFilter,
-  type RegistrationQuery,
-  type RegistrationRow,
-} from './model'
+import { firstParam, pageParam } from '../helpers/searchParams'
 
-/** One screenful. There is no `PerPage` control, so this is the only page size. */
-const PER_PAGE = 50
+export type RegistrationFilter = 'active' | 'withdrawn'
+
+export type RegistrationQuery = { filter: RegistrationFilter; page: number }
 
 /**
- * A `Record` rather than a ternary, so a third filter is a build error here
- * instead of silently reading as the first.
+ * One registrant, from the registration row's own columns.
+ *
+ * ⚠ `name`, `email` and every answer are text the visitor typed, so a renderer
+ * must escape them and must never put one in an `href`
+ * (`submissionData.ts`, `URL_EXEMPT_KEYS`).
  */
+export type RegistrationRow = {
+  id: number
+  name: string
+  email: string
+  /** Formatted here, because only the server knows the event's timezone. */
+  registeredOn: string
+  /** Which occurrence they are attending, where the row names one. */
+  attending: string | null
+  status: UserSubmission['status']
+  answers: RegistrationAnswer[]
+}
+
+export type EventRegistrationsData = {
+  filter: RegistrationFilter
+  registrations: PaginatedDocs<RegistrationRow>
+}
+
+/** There is no `PerPage` control, so this is the only page size. */
+const PER_PAGE = 50
+
+/** A `Record`, so a third filter is a build error here rather than reading as the first. */
 const FILTER_WHERE: Record<RegistrationFilter, Where> = {
   active: activeRegistrationWhere,
   withdrawn: withdrawnRegistrationWhere,
 }
 
+const registrationsOf = (eventId: number, filter: RegistrationFilter): Where => ({
+  and: [FILTER_WHERE[filter], { event: { equals: eventId } }],
+})
+
+/** The view's URL state; anything unrecognised falls back to the first active page. */
+export function parseRegistrationQuery(
+  searchParams: Record<string, string | string[] | undefined> | undefined,
+): RegistrationQuery {
+  return {
+    filter: firstParam(searchParams, 'filter') === 'withdrawn' ? 'withdrawn' : 'active',
+    page: pageParam(searchParams),
+  }
+}
+
 /**
- * One event's registrants, or `null` when the caller may not see them.
+ * The event, when the caller may read its registrants — its own manager or an
+ * admin — and `null` otherwise.
  *
- * **The event's own manager and an admin may; nobody else, a region manager
- * included.** That is narrower than the Events collection's `read`, which is
- * project-wide, and narrower than its `update`, which a whole region subtree
- * holds — so neither answers this question and the view cannot lean on
- * Payload's document gate for it (`docs/rules/access.md`, "A collection's own
- * `update` is wider than its role grants"). `null` is what the view turns into
- * the unauthorized redirect.
+ * That is narrower than the Events collection's `read` (project-wide) and its
+ * `update` (a whole region subtree), so Payload's document gate cannot answer
+ * it (`docs/rules/access.md`, "A collection's own `update` is wider than its
+ * role grants").
  *
- * ⚠ **The gate reads the event itself rather than the `doc` prop Payload
- * already loaded for this route.** That one is a `draft: true` read, and a
- * region manager holds `update` on every event in their subtree — so gating on
- * it would let a draft-only reassignment of `manager` hand someone the
- * registrants of an event they do not run, with nothing published.
- *
- * ⚠ **And it reads the event before the rows, not beside them.** The sibling
- * dashboard loader runs its two reads under one `Promise.all`; this one must
- * not, because the rows are `user-submissions` — restricted personal data — and
- * a refused visitor's query would otherwise still have read them.
- *
- * The rows go through `overrideAccess: true` and an explicit `where` because
- * this gate, not the `user-submissions` read gate, is the authority. `depth: 0`
- * and a column list keep it to the registration row itself: the registrant's
- * name is a `submissionData` pair, so no `users` row is read for it.
+ * ⚠ **It reads the event itself rather than the `doc` prop Payload passes the
+ * view.** That one is a `draft: true` read, and a region manager holds `update`
+ * on every event in their subtree — so a draft-only reassignment of `manager`
+ * would hand them the registrants of an event they do not run.
  */
-export async function loadEventRegistrations(
-  req: PayloadRequest,
-  docID: number | string | undefined,
-  query: RegistrationQuery,
-): Promise<EventRegistrationsData | null> {
+async function readableEvent(req: PayloadRequest, docID: number | string | undefined) {
   if (docID == null) return null
 
-  // A server-component tree renders concurrently, so every read takes its own
-  // `req` copy (src/collections/AGENTS.md).
   const event = await req.payload.findByID({
     collection: 'events',
     id: docID,
@@ -73,10 +90,11 @@ export async function loadEventRegistrations(
     disableErrors: true,
     overrideAccess: true,
     select: { manager: true, schedule: { firstDate_tz: true } },
-    // Archiving a long-expired class trashes it, and its registrants are still
-    // its manager's to read. Without this the row reads as absent and the tab
-    // answers the unauthorized redirect (src/collections/AGENTS.md).
+    // An archived class is trashed, and its registrants are still its manager's
+    // to read (src/collections/AGENTS.md).
     trash: true,
+    // A server-component tree renders concurrently, so every read takes its
+    // own `req` copy (src/collections/AGENTS.md).
     req: localeIsolatedReq(req),
   })
   if (!event) return null
@@ -84,11 +102,31 @@ export async function loadEventRegistrations(
   const managerId = event.manager == null ? null : extractID(event.manager)
   const ownManager =
     req.user?.collection === 'managers' && managerId !== null && req.user.id === managerId
-  if (!ownManager && !isAdminManager(req.user)) return null
+  return ownManager || isAdminManager(req.user) ? event : null
+}
+
+/**
+ * One event's registrants, or `null` when the caller may not see them — which
+ * the view turns into the unauthorized redirect.
+ *
+ * ⚠ **The rows are read after the gate, never beside it.** They are
+ * `user-submissions` — restricted personal data — so a `Promise.all` would
+ * have read them for a refused visitor too. They go through
+ * `overrideAccess: true` because the gate above, not the collection's read
+ * access, is the authority. The name is a `submissionData` pair, so no
+ * `users` row is read for it.
+ */
+export async function loadEventRegistrations(
+  req: PayloadRequest,
+  docID: number | string | undefined,
+  query: RegistrationQuery,
+): Promise<EventRegistrationsData | null> {
+  const event = await readableEvent(req, docID)
+  if (!event) return null
 
   const page = await req.payload.find({
     collection: 'user-submissions',
-    where: { and: [FILTER_WHERE[query.filter], { event: { equals: event.id } }] },
+    where: registrationsOf(event.id, query.filter),
     depth: 0,
     limit: PER_PAGE,
     page: query.page,
@@ -112,8 +150,6 @@ export async function loadEventRegistrations(
       ...page,
       docs: page.docs.map((row): RegistrationRow => ({
         id: row.id,
-        // The row's own columns, not a `users` join: `prepareUserSubmission`
-        // seeds that row *from* these, so the join is the derived copy.
         name: readSubmissionValue(row.submissionData, 'name')?.trim() ?? '',
         email: row.senderEmail?.trim() ?? '',
         registeredOn: formatShortDate(row.createdAt),
@@ -125,4 +161,24 @@ export async function loadEventRegistrations(
       })),
     },
   }
+}
+
+/**
+ * The number on the Registrations tab: active registrations only, behind the
+ * same gate as the view, so a refused visitor does not learn the count either.
+ */
+export async function countActiveRegistrations(
+  req: PayloadRequest,
+  docID: number | string | undefined,
+): Promise<number | null> {
+  const event = await readableEvent(req, docID)
+  if (!event) return null
+
+  const { totalDocs } = await req.payload.count({
+    collection: 'user-submissions',
+    where: registrationsOf(event.id, 'active'),
+    overrideAccess: true,
+    req: localeIsolatedReq(req),
+  })
+  return totalDocs
 }

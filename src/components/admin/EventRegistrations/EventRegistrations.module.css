@@ -1,9 +1,16 @@
-/* Layout for this tab alone. The filters, table and pager come from the CMS theme. */
+/* Layout for this tab alone. The buttons, table and pager come from the CMS theme. */
 .registrations {
   margin: var(--base) 0 calc(var(--base) * 2);
 }
-.registrations > :first-child {
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--base) / 3);
   margin-bottom: calc(var(--base) * 0.75);
+}
+.explain {
+  margin: 0 0 calc(var(--base) * 0.75);
+  color: var(--theme-elevation-650);
 }
 .name {
   font-weight: 550;
@@ -27,8 +34,4 @@
 }
 .answers div:last-child dd {
   margin-bottom: 0;
-}
-.explain {
-  margin: 0 0 calc(var(--base) * 0.75);
-  color: var(--theme-elevation-650);
 }

@@ -175,7 +175,9 @@ Group a component family (main plus sub-components) in a folder with a barrel. K
 
 A module several components share, rather than one a collection registers, goes in `admin/helpers/`. The root of `admin/` is for what Payload mounts.
 
-**What a URL-driven view takes from there**, rather than restating: `useSetQuery<Q>()` patches the query and pushes, typed by the view's own query shape; `firstParam` / `pageParam` (`helpers/searchParams.ts`) read one back, taking the first value of a key Next handed over as an array; `FilterTabs` is the row of tab buttons, which owns the convention that a selected tab is `subtle` rather than `tab` and carries `aria-pressed` plus an `aria-controls` naming the region it filters; and `PageControls` is the pager, with an optional `PerPage` slot, which owns the nullable-neighbour mapping `Pagination` refuses and the rule that a page size is offered only past the smallest one. The manager dashboard and an event's Registrations view are the two consumers of all four.
+**What a URL-driven view takes from there**, rather than restating: `useSetQuery<Q>()` patches the query and pushes, typed by the view's own query shape; `firstParam` / `pageParam` (`helpers/searchParams.ts`) read one back, taking the first value of a key Next handed over as an array. The filter row and the pager are Payload's own `Button` and `Pagination`, composed in each view rather than wrapped: Payload's composed equivalents — `DefaultListViewTabs`, `PageControls` — are bound to a collection's list view (the first hard-wired to All, Folders and Trash, the second `@internal` and reading `ListQuery` state), so neither fits a view of its own.
+
+**A document tab's count is a `tab.Pill`** — a server component rendered beside the label, as the Versions tab's is. It is handed `req` but no document id, so it reads the id `Root` resolved from `req.routeParams`, and Payload's own `pill-version-count` class makes the two pills match in every tab state. The Registrations tab's pill (`EventRegistrations/RegistrationsPill.tsx`) counts active registrations behind the same gate as its view.
 
 ## Import map generation
 

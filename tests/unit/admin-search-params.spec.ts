@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { parseRegistrationQuery } from '@/components/admin/EventRegistrations/model'
+import { parseRegistrationQuery } from '@/components/admin/EventRegistrations/data'
 import { firstParam, pageParam } from '@/components/admin/helpers/searchParams'
 
 /**

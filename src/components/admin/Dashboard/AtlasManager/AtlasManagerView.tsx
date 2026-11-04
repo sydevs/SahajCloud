@@ -1,12 +1,20 @@
 'use client'
 
-import { Banner, Button, CalendarIcon, CheckIcon, Pill, Table } from '@payloadcms/ui'
+import {
+  Banner,
+  Button,
+  CalendarIcon,
+  CheckIcon,
+  Pagination,
+  PerPage,
+  Pill,
+  Table,
+} from '@payloadcms/ui'
 import Link from 'next/link'
 
 import styles from './AtlasManager.module.css'
 import {
   PROGRAM_LIMITS,
-  PROGRAM_TABS,
   programStatus,
   type AtlasManagerData,
   type Program,
@@ -16,16 +24,14 @@ import {
 } from './model'
 import { NAV_LINKS } from '../../AdminNavLinks/links'
 import { CenteredNotice } from '../../CenteredNotice'
-import { FilterTabs } from '../../helpers/FilterTabs'
-import { PageControls } from '../../helpers/PageControls'
 import { tableColumn } from '../../helpers/tableColumn'
 import { useSetQuery } from '../../helpers/useSetQuery'
 
-const TAB_LABELS: Record<ProgramTab, string> = {
-  all: 'All programs',
-  review: 'Needs review',
-  drafts: 'Drafts',
-}
+const TABS: { value: ProgramTab; label: string }[] = [
+  { value: 'all', label: 'All programs' },
+  { value: 'review', label: 'Needs review' },
+  { value: 'drafts', label: 'Drafts' },
+]
 
 const STATUS: Record<
   ProgramStatus,
@@ -112,18 +118,23 @@ export function AtlasManagerView({ data }: { data: AtlasManagerData }) {
               </div>
             </Banner>
           )}
-          <div className={styles.filterRow}>
-            <FilterTabs
-              controls="atlas-program-list"
-              label="Filter programs"
-              onSelect={(tab) => setQuery({ tab, page: 1 })}
-              selected={query.tab}
-              tabs={PROGRAM_TABS.map((tab) => ({
-                value: tab,
-                label: TAB_LABELS[tab],
-                count: counts[tab],
-              }))}
-            />
+          <div className={styles.filters} role="group" aria-label="Filter programs">
+            {TABS.map((item) => (
+              <Button
+                key={item.value}
+                margin={false}
+                buttonStyle={query.tab === item.value ? 'subtle' : 'tab'}
+                size="medium"
+                onClick={() => setQuery({ tab: item.value, page: 1 })}
+                extraButtonProps={{
+                  'aria-pressed': query.tab === item.value,
+                  'aria-controls': 'atlas-program-list',
+                }}
+              >
+                {item.label}
+                <span className={styles.filterCount}>{counts[item.value]}</span>
+              </Button>
+            ))}
           </div>
           <div id="atlas-program-list" aria-live="polite">
             {rows.length ? (
@@ -180,15 +191,24 @@ export function AtlasManagerView({ data }: { data: AtlasManagerData }) {
                     ),
                   ]}
                 />
-                <PageControls
-                  docs={programs}
-                  onPage={(page) => setQuery({ page })}
-                  perPage={{
-                    limit: query.limit,
-                    limits: PROGRAM_LIMITS,
-                    onLimit: (limit) => setQuery({ limit, page: 1 }),
-                  }}
-                />
+                <div className={styles.pageControls}>
+                  <Pagination
+                    hasNextPage={programs.hasNextPage}
+                    hasPrevPage={programs.hasPrevPage}
+                    nextPage={programs.nextPage ?? undefined}
+                    page={programs.page}
+                    prevPage={programs.prevPage ?? undefined}
+                    totalPages={programs.totalPages}
+                    onChange={(page) => setQuery({ page })}
+                  />
+                  {programs.totalDocs > PROGRAM_LIMITS[0]! && (
+                    <PerPage
+                      limit={query.limit}
+                      limits={PROGRAM_LIMITS}
+                      handleChange={(limit) => setQuery({ limit, page: 1 })}
+                    />
+                  )}
+                </div>
               </>
             ) : (
               <CenteredNotice
