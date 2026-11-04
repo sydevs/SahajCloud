@@ -3,6 +3,8 @@ import type { PaginatedDocs } from 'payload'
 import { stageRank } from '@/lib/eventVerification/stages'
 import type { Event } from '@/payload-types'
 
+import { firstParam, pageParam } from '../../helpers/searchParams'
+
 export type Program = Pick<Event, 'id' | 'title' | '_status' | 'verificationStage' | 'updatedAt'> &
   Partial<Pick<Event, 'eventType' | 'address'>> & {
     published: boolean
@@ -28,14 +30,15 @@ export type AtlasManagerData = {
 export function parseProgramQuery(
   searchParams: Record<string, string | string[] | undefined> | undefined,
 ): ProgramQuery {
-  const read = (key: string) => {
-    const value = searchParams?.[key]
-    return Array.isArray(value) ? value[0] : value
+  const tab = PROGRAM_TABS.find((candidate) => candidate === firstParam(searchParams, 'tab'))
+  const limit = PROGRAM_LIMITS.find(
+    (candidate) => String(candidate) === firstParam(searchParams, 'limit'),
+  )
+  return {
+    tab: tab ?? 'all',
+    page: pageParam(searchParams),
+    limit: limit ?? DEFAULT_LIMIT,
   }
-  const tab = PROGRAM_TABS.find((candidate) => candidate === read('tab')) ?? 'all'
-  const page = Math.max(1, Number.parseInt(read('page') ?? '', 10) || 1)
-  const limit = PROGRAM_LIMITS.find((candidate) => String(candidate) === read('limit'))
-  return { tab, page, limit: limit ?? DEFAULT_LIMIT }
 }
 
 /** The columns the home orders and counts by, read for every program in scope. */

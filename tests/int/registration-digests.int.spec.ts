@@ -92,7 +92,7 @@ describe('SendRegistrationDigests job', () => {
   /**
    * A registration is a `user-submissions` row. The address is the row's own
    * `senderEmail` column; the name and the question answers are
-   * `submissionData` pairs, which is what `answersFrom` maps for the digest.
+   * `submissionData` pairs, which `registrationAnswers` reads for the digest.
    */
   async function register(
     eventId: number,
