@@ -105,6 +105,7 @@ import * as migration_20261027_000341_imports_upload_locale_rename from './20261
 import * as migration_20261027_190500_pages_blank_slug_to_null from './20261027_190500_pages_blank_slug_to_null';
 import * as migration_20261101_191500_atlas_drop_time_in_place from './20261101_191500_atlas_drop_time_in_place';
 import * as migration_20261102_213524_derive_atlas_roles from './20261102_213524_derive_atlas_roles';
+import * as migration_20261104_180154_routing_region from './20261104_180154_routing_region';
 
 export const migrations = [
   {
@@ -640,6 +641,11 @@ export const migrations = [
   {
     up: migration_20261102_213524_derive_atlas_roles.up,
     down: migration_20261102_213524_derive_atlas_roles.down,
-    name: '20261102_213524_derive_atlas_roles'
+    name: '20261102_213524_derive_atlas_roles',
+  },
+  {
+    up: migration_20261104_180154_routing_region.up,
+    down: migration_20261104_180154_routing_region.down,
+    name: '20261104_180154_routing_region'
   },
 ];

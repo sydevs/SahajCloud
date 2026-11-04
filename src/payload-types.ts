@@ -2279,6 +2279,10 @@ export interface UserSubmission {
   unsubscribedAt?: string | null;
   location?: SubmissionLocation;
   regionHint?: SubmissionRegionHint;
+  /**
+   * The region whose manager reviews this — matched from the location.
+   */
+  routingRegion?: (number | null) | Region;
   followUpSentAt?: string | null;
   updatedAt: string;
   createdAt: string;
@@ -5337,6 +5341,7 @@ export interface UserSubmissionsSelect<T extends boolean = true> {
   unsubscribedAt?: T;
   location?: T;
   regionHint?: T;
+  routingRegion?: T;
   followUpSentAt?: T;
   updatedAt?: T;
   createdAt?: T;

@@ -698,6 +698,37 @@ const systemGroup: Field = {
       }),
     },
     {
+      /**
+       * Who reviews this proposal: the deepest region intake matched, at
+       * whatever level — a venue, a city, or the state or country above a city
+       * the atlas does not hold yet.
+       *
+       * ⚠ **A real indexed column, because the access layer queries it.**
+       * `managerSubmissionScope` narrows a region manager's read to their owned
+       * subtree, and asking that of `regionHint` meant three
+       * `jsonb_path_exists` predicates per owned region id — `createJSONQuery`
+       * inlines one OR'd sibling per value, so a country manager owning ~1,000
+       * regions sent ~3,000 unindexable predicates and the read degraded to a
+       * seq scan of `user_submissions` (#1068). This is one `IN`.
+       *
+       * ⚠ **Not the region an accepted event is created in.** That one must be
+       * a city or venue and is the reviewer's to correct, so it stays `region`;
+       * this is where to look for the reviewer, and the two disagree exactly
+       * when the atlas has no city for the address. `submissionRoutingRegionId`
+       * is the one reader that orders them.
+       */
+      name: 'routingRegion',
+      type: 'relationship',
+      relationTo: 'regions',
+      index: true,
+      access: systemFieldAccess,
+      admin: {
+        condition: (data) => data?.type === 'proposal',
+        readOnly: true,
+        description: 'The region whose manager reviews this — matched from the location.',
+      },
+    },
+    {
       // The follow-up sweep's query filter. `activityLog` records *that* it was
       // sent, but nothing can `where` on a JSON column cheaply, so the scan
       // still needs a real dated column. Record and filter are different jobs.

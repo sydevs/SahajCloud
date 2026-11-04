@@ -6,6 +6,7 @@ import path from 'path'
 import { getAccessResults } from 'payload'
 import { describe, it, beforeAll, afterAll, expect, vi } from 'vitest'
 
+import { submissionRoutingRegionId } from '@/collections/UserSubmissions/lifecycle/mergeProposal'
 import { serverEnv } from '@/lib/env'
 import { mintLivePreviewToken } from '@/lib/livePreview/token'
 import { PREVIEW_SECRET_HEADER, resolveLivePreviewHook } from '@/lib/utilities/previewSecret'
@@ -1075,25 +1076,46 @@ describe('Role-Based Access Control', () => {
       }
     })
 
-    it('covers every regionHint key a proposal can be routed by', () => {
-      // `managerSubmissionScope`'s subtree clause lists the paths it queries,
-      // and `submissionRoutingRegionId` walks the same hint keys as a `??`
-      // chain — two spellings of one rule, in two files, which no type checks
-      // against the other. A fourth key added to the schema would silently drop
-      // a region manager's read of the rows `deliverProposal` mails them, so the
-      // schema is the input here rather than a second hand-written list.
-      const fields = payload.collections['user-submissions']!.config.flattenedFields
-      const hint = fields.find((field) => 'name' in field && field.name === 'regionHint')
-      const schema = (hint as { jsonSchema?: { schema?: { properties?: object } } }).jsonSchema
-      const keys = Object.keys(schema?.schema?.properties ?? {})
+    it('routes a proposal only by indexed relationship columns', () => {
+      // ⚠ Every path in the subtree clause must be a real relationship column.
+      // These facts lived in the `regionHint` JSON column until #1068, where
+      // each path cost one inlined `jsonb_path_exists` per owned region id and
+      // a country manager's read degraded to a seq scan. A JSON path added back
+      // here would reintroduce that silently — the query still answers
+      // correctly, only slowly — so the shape is asserted rather than trusted.
+      const fieldsOf = (slug: 'user-submissions' | 'events') =>
+        payload.collections[slug]!.config.flattenedFields
 
-      expect(keys.length).toBeGreaterThan(0)
-      for (const key of keys) {
-        expect(
-          PROPOSAL_REGION_PATHS as readonly string[],
-          `regionHint.${key} is not queried by managerSubmissionScope`,
-        ).toContain(`regionHint.${key}`)
+      expect(PROPOSAL_REGION_PATHS.length).toBeGreaterThan(0)
+      for (const path of PROPOSAL_REGION_PATHS) {
+        // A dotted path crosses one relationship, so resolve the hop first.
+        const [head, tail] = path.split('.')
+        const onSubmission = fieldsOf('user-submissions').find(
+          (field) => 'name' in field && field.name === head,
+        )
+        expect(onSubmission, `${path} names no field on user-submissions`).toBeDefined()
+        expect(onSubmission!.type, `${path} does not start at a relationship`).toBe('relationship')
+
+        const resolved = tail
+          ? fieldsOf('events').find((field) => 'name' in field && field.name === tail)
+          : onSubmission
+        expect(resolved, `${path} names no field on the related collection`).toBeDefined()
+        expect(resolved!.type, `${path} is not a relationship column`).toBe('relationship')
       }
+    })
+
+    it('reaches the routing region a proposal with no city is reviewed by', () => {
+      // The clause and `submissionRoutingRegionId` are two spellings of one
+      // rule, in two files, which no type checks against the other. The chain's
+      // answer for the case that has no `region` at all — a proposal above a
+      // city the atlas does not hold — has to be a column the clause queries,
+      // or its region manager cannot read the row `deliverProposal` mailed them.
+      expect(submissionRoutingRegionId({ region: null, routingRegion: 7 })).toBe(7)
+      expect(PROPOSAL_REGION_PATHS as readonly string[]).toContain('routingRegion')
+
+      // And a reviewer's correction still wins, so moving a proposal moves who
+      // reviews it rather than leaving intake's match in charge.
+      expect(submissionRoutingRegionId({ region: 4, routingRegion: 7 })).toBe(4)
     })
 
     describe('the delegation lock', () => {

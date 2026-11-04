@@ -163,6 +163,7 @@ describe('atlas submission routing', () => {
       })
 
       expect(doc.region).toMatchObject({ id: region.city })
+      expect(doc.routingRegion).toMatchObject({ id: region.city })
       expect(doc.regionHint).toEqual({
         country: region.country,
         state: region.state,
@@ -175,7 +176,11 @@ describe('atlas submission routing', () => {
         location: { placeId: 'routing-missing-city', regionId: `${PREFIX}-state` },
       })
 
+      // ⚠ The whole reason `routingRegion` is its own column: there is no
+      // `region` to route by, and this is the row whose state manager
+      // `deliverProposal` mails and whose subtree read must therefore reach it.
       expect(doc.region).toBeFalsy()
+      expect(doc.routingRegion).toMatchObject({ id: region.state })
       expect(doc.regionHint).toEqual({ state: region.state })
     })
 
@@ -186,6 +191,7 @@ describe('atlas submission routing', () => {
       })
 
       expect(doc.region).toMatchObject({ id: region.venue })
+      expect(doc.routingRegion).toMatchObject({ id: region.venue })
       expect(doc.regionHint).toEqual({ anchorRegion: region.venue })
     })
 
@@ -198,14 +204,16 @@ describe('atlas submission routing', () => {
       expect(doc.region).toMatchObject({ id: region.otherCity })
     })
 
-    it('ignores a region or regionHint the client writes itself', async () => {
+    it('ignores a region, routingRegion or regionHint the client writes itself', async () => {
       const doc = await propose({
         region: region.otherCity,
+        routingRegion: region.otherCity,
         regionHint: { anchorRegion: region.otherCity },
         location: { placeId: `${PREFIX}-city` },
       })
 
       expect(doc.region).toMatchObject({ id: region.city })
+      expect(doc.routingRegion).toMatchObject({ id: region.city })
       expect(doc.regionHint).toEqual({ anchorRegion: region.city })
     })
 
@@ -235,6 +243,7 @@ describe('atlas submission routing', () => {
       const doc = await propose({ event: event.id, location: { placeId: `${PREFIX}-city` } })
 
       expect(doc.region).toBeFalsy()
+      expect(doc.routingRegion).toBeFalsy()
       expect(doc.regionHint).toBeFalsy()
     })
 

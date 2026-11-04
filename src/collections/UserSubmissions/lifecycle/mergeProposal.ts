@@ -82,17 +82,25 @@ export function submissionRegionId(submission: {
 }
 
 /**
- * Where to look for a reviewer: the event's region, else the deepest layer
- * intake matched above a city the atlas does not have yet. Never an Accept
- * target — an event must sit in a city or venue, which is
- * {@link submissionRegionId}'s answer.
+ * Where to look for a reviewer: the region a reviewer set or intake matched,
+ * else `routingRegion` — the deepest layer intake matched, which above a city
+ * the atlas does not have yet is a state or a country.
+ *
+ * ⚠ **Never an Accept target.** An event must sit in a city or venue, and
+ * `routingRegion` is whatever level matched, so the listing's own region is
+ * {@link submissionRegionId}'s narrower answer. The two disagree exactly when
+ * the atlas holds no city for the address.
+ *
+ * `region` is read first because it is the one a reviewer can correct, and a
+ * correction must move who reviews it. `routingRegion` is written once, at
+ * intake.
  */
 export function submissionRoutingRegionId(submission: {
   region?: unknown
   regionHint?: SubmissionRegionHint | null
+  routingRegion?: unknown
 }): number | null {
-  const hint = submission.regionHint
-  return submissionRegionId(submission) ?? hint?.state ?? hint?.country ?? null
+  return submissionRegionId(submission) ?? relationId(submission.routingRegion) ?? null
 }
 
 /**

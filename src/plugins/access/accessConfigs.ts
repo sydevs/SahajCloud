@@ -74,38 +74,29 @@ function scopesWritesByLocale(req: PayloadRequest, collection: ContentSlug): boo
 
 /**
  * Every column a proposal's responsible region can be named in — the target
- * event's own region, then the chain `submissionRoutingRegionId` walks.
+ * event's own region, the listing's own, and the one intake routed it by.
  *
- * ⚠ **A region manager owns a subtree, so these are equivalent to that
- * function's `??` chain rather than a loose superset of it.** `country`,
- * `state` and `anchorRegion` are one ancestor line, and an owned subtree is
- * closed downwards: whenever a broader entry is in it, every narrower one is
- * too. So matching any entry answers exactly what matching the first non-null
- * one would.
+ * ⚠ **A region manager owns a subtree, so these are equivalent to
+ * `submissionRoutingRegionId`'s `??` chain rather than a loose superset of
+ * it.** `routingRegion` holds the deepest level intake matched, and an owned
+ * subtree is closed downwards: whenever a broader region is in it, every
+ * narrower one is too. So matching any path answers exactly what matching the
+ * first non-null one would.
  *
- * `regionHint` is a JSON column, which only Postgres' `jsonb_path_exists` can
- * reach — fine here, and the reason the hint is not spelled out in a query
- * anywhere else. It is load-bearing: a proposal for a city the atlas does not
- * hold yet has no `region` at all, and `deliverProposal` mails its state or
- * country manager, who would then be unable to read the row.
+ * `routingRegion` is load-bearing, not a cache of `region`: a proposal for a
+ * city the atlas does not hold yet has no `region` at all, and
+ * `deliverProposal` mails its state or country manager — who would otherwise
+ * be unable to read the row they were asked to review.
  *
- * shortcut: the three hint paths cost one inlined `jsonb_path_exists` call per
- * owned region id EACH — `createJSONQuery` expands an `in` into one OR'd
- * sibling per value — so a country manager owning ~1,000 regions sends ~3,000
- * unindexable predicates, and the `or` degrades the whole read to a seq scan of
- * `user_submissions`. Upgrade when a region manager's submissions list is
- * measurably slow, or when `user_submissions` outgrows a scan: write the
- * routing region to a real indexed column from the hook that writes
- * `regionHint`, as `followUpSentAt` already does for the follow-up sweep, and
- * this clause becomes one `IN`.
+ * ⚠ **It is an indexed relationship column because this clause queries it.**
+ * The same facts lived in the `regionHint` JSON column, which only
+ * `jsonb_path_exists` can reach, and `createJSONQuery` inlines one OR'd
+ * sibling per value — so three hint paths cost three predicates per owned
+ * region id, a country manager owning ~1,000 regions sent ~3,000 unindexable
+ * ones, and the `or` degraded the whole read to a seq scan of
+ * `user_submissions`. Never route this clause back through a JSON path.
  */
-export const PROPOSAL_REGION_PATHS = [
-  'event.region',
-  'region',
-  'regionHint.anchorRegion',
-  'regionHint.state',
-  'regionHint.country',
-] as const
+export const PROPOSAL_REGION_PATHS = ['event.region', 'region', 'routingRegion'] as const
 
 /**
  * What of `user-submissions` a manager may see.

@@ -45,7 +45,10 @@ describe('User submissions access', () => {
   let otherForm: Form
   let subscribeForm: Form
   /** Proposal rows, by where each one lands on the region tree. */
-  let proposals: Record<'byHint' | 'elsewhere' | 'inSubtree' | 'onAssignedEvent', number>
+  let proposals: Record<
+    'byRoutingRegion' | 'elsewhere' | 'inSubtree' | 'onAssignedEvent' | 'strandedHint',
+    number
+  >
 
   const managerReq = (manager: AuthManager | Manager): PayloadRequest =>
     ({
@@ -201,7 +204,11 @@ describe('User submissions access', () => {
       ).id
     proposals = {
       inSubtree: await proposal({ region: myCity.id }),
-      byHint: await proposal({ regionHint: { country: mine.id } }),
+      byRoutingRegion: await proposal({ routingRegion: mine.id }),
+      // A row written before #1068 added the column: its routing region lives
+      // only in the JSON hint the access clause no longer queries. The
+      // migration backfills these, and until it runs one is admin-only.
+      strandedHint: await proposal({ regionHint: { country: mine.id } }),
       onAssignedEvent: await proposal({ event: assignedEvent.id }),
       elsewhere: await proposal({ region: nobodys.id }),
     }
@@ -263,10 +270,10 @@ describe('User submissions access', () => {
 
     it('reads the proposals landing in their own subtree, and no other', async () => {
       const seen = (await readAs(recipient)).docs.map((doc) => doc.id)
-      // Placed in their subtree, and placed only by `regionHint` because the
-      // city is not on the atlas yet — both are theirs to review.
+      // Placed in their subtree, and routed to their country because the city
+      // is not on the atlas yet — both are theirs to review.
       expect(seen).toContain(proposals.inSubtree)
-      expect(seen).toContain(proposals.byHint)
+      expect(seen).toContain(proposals.byRoutingRegion)
       // Another manager's subtree, and a city nobody owns.
       expect(seen).not.toContain(proposals.onAssignedEvent)
       expect(seen).not.toContain(proposals.elsewhere)
@@ -276,8 +283,17 @@ describe('User submissions access', () => {
       const seen = (await readAs(otherManager)).docs.map((doc) => doc.id)
       expect(seen).toContain(proposals.onAssignedEvent)
       expect(seen).not.toContain(proposals.inSubtree)
-      expect(seen).not.toContain(proposals.byHint)
+      expect(seen).not.toContain(proposals.byRoutingRegion)
       expect(seen).not.toContain(proposals.elsewhere)
+    })
+
+    it('no longer reaches a row routed only by the JSON hint', async () => {
+      // ⚠ The deliberate cutover in #1068, pinned so it is visible rather than
+      // discovered. `regionHint.country` was a queried path until the routing
+      // region became an indexed column; the migration backfills every row
+      // from the hint, so a stranded row means the backfill did not run.
+      const seen = (await readAs(recipient)).docs.map((doc) => doc.id)
+      expect(seen).not.toContain(proposals.strandedHint)
     })
 
     it('shows an event assignee the proposals on their own events alone', async () => {

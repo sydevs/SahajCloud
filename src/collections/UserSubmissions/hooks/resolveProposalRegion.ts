@@ -9,11 +9,18 @@ import type { Region, SubmissionLocation, SubmissionRegionHint } from '@/payload
  * can match a venue) and the layers in `location` — matched against
  * `regions.mapboxId`.
  *
- * Only a venue or city becomes `region`, because an event must sit in one; a
- * state or country match is kept in `regionHint` so delivery can still reach
- * the manager above a city the atlas does not have yet. A correction keeps its
- * target's region. Both outputs carry `systemFieldAccess`, which strips a
- * client's own value before this runs.
+ * Only a venue or city becomes `region`, because an event must sit in one.
+ * `routingRegion` takes the deepest match at whatever level, so delivery and a
+ * region manager's own read still reach the manager above a city the atlas
+ * does not have yet. A correction keeps its target's region. Every output
+ * carries `systemFieldAccess`, which strips a client's own value before this
+ * runs.
+ *
+ * ⚠ **`regionHint.state` and `.country` now have no reader.** They are still
+ * written, and still declared, because the column is a closed `strictObject`:
+ * dropping either key makes every row already carrying it fail validation on
+ * its next save, the reviewer's Accept included. Retiring them is a migration
+ * of its own.
  *
  * Read without `req`: a nested read joining the create's transaction can take
  * the create down with it.
@@ -54,5 +61,14 @@ export const resolveProposalRegion: CollectionBeforeValidateHook = async ({
     state: first('region'),
     anchorRegion,
   }
-  return { ...data, region: anchorRegion ?? data.region, regionHint }
+  // Deepest first: a venue or city beats the state above it, which beats the
+  // country. One column, so the access clause and `deliverProposal` read an
+  // answer rather than walking a chain.
+  const routingRegion = anchorRegion ?? regionHint.state ?? regionHint.country ?? null
+  return {
+    ...data,
+    region: anchorRegion ?? data.region,
+    regionHint,
+    routingRegion: routingRegion ?? data.routingRegion,
+  }
 }
