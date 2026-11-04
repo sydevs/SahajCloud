@@ -3,6 +3,15 @@ import type { PayloadRequest } from 'payload'
 import { asTrustedReq } from '@/plugins/usage/hooks'
 
 /**
+ * The one spelling of a Registrant's address: trimmed and lowercased. Nothing
+ * provider-specific — folding Gmail dots or `+tags` would merge people who are
+ * genuinely different, and `users.email` is unique.
+ */
+export function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase()
+}
+
+/**
  * Find-or-create a `users` (registrant) row by normalized email — the shared
  * identity step behind every public flow that captures a person (event
  * registration, event submission). Race-safe: a concurrent request with the
@@ -23,7 +32,7 @@ export async function upsertUserByEmail(args: {
   email: string
 }): Promise<number> {
   const { req, name } = args
-  const normalizedEmail = args.email.toLowerCase()
+  const normalizedEmail = normalizeEmail(args.email)
 
   const { docs } = await req.payload.find({
     collection: 'users',
