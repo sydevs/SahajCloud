@@ -311,12 +311,19 @@ Never paste a secret into git or email.
   `x-turnstile-token` header). Validated at point of use, not at boot, so a missing key cannot
   take the app or a PR preview down — but the verifier then **fails closed**: it refuses the
   write with `500` and logs `antiSpamGuard: Turnstile verification could not be completed`,
-  `reason: "not-configured"`. It never lets a message through unverified. Pair it with the
-  matching **site key** in the client widget (a different value, held by SahajAtlasWeb and
-  WeMeditateWeb). Non-production can use Cloudflare's test keys —
+  `reason: "not-configured"`. It never lets a message through unverified. Non-production can use Cloudflare's test keys —
   `1x0000000000000000000000000000000AA` always passes, `2x0000000000000000000000000000000AA`
   always fails — never in production. See [Turnstile
   testing](https://developers.cloudflare.com/turnstile/troubleshooting/testing/).
+- `TURNSTILE_SITE_KEY` — **required in production**, the public half of the same pair. The Atlas
+  widget's challenge page (`GET /api/atlas/challenge`, #1072) renders it, so the widget's own
+  build carries no Turnstile configuration at all. Unset, that page answers `503` and logs
+  `atlasChallenge: TURNSTILE_SITE_KEY is not set`, and the widget fails to its captcha-blocked
+  screen. The test site key `1x00000000000000000000AA` pairs with the test secret above.
+  ⚠ **The production key's hostname list in the Cloudflare dashboard is this service's host
+  alone** (`cloud.sydevelopers.com`), since the challenge always renders here — no partner
+  hostname, no `localhost`. Which pages may receive a token is decided by `clients.allowedDomains`
+  instead (`docs/rules/api-clients.md`).
 
 ### Frontend URLs
 

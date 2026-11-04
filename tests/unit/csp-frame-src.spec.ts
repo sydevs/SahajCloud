@@ -56,6 +56,12 @@ describe('the admin CSP frame-src', () => {
     expect(policy).not.toContain('https://sahajatlas.com')
   })
 
+  it('admits Turnstile, which the Atlas challenge page on this origin frames', async () => {
+    // The policy reaches `/api/atlas/challenge` too, and a route cannot replace it: Next drops a
+    // route's own CSP once config has set one. Without this the captcha never renders.
+    expect(await frameSrc({})).toContain('https://challenges.cloudflare.com')
+  })
+
   it("keeps 'self', so the live-preview-unavailable page still frames", async () => {
     // `livePreview.url` never returns null — it returns a same-origin
     // `/live-preview-unavailable?reason=…` instead, which needs 'self'.
