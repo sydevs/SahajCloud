@@ -15,6 +15,7 @@ import {
 } from '@payloadcms/ui'
 import React, { useCallback, useMemo } from 'react'
 
+import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
 import type { RoleSlug } from '@/payload-types'
 import { getRoleLabel, virtualRoles } from '@/plugins/access/config'
 
@@ -46,6 +47,7 @@ const derivedChipClassNames = {
  */
 const RolesFieldComponent: SelectFieldClientComponent = ({ field, readOnly }) => {
   const {
+    admin,
     admin: { className, description } = {},
     label,
     localized,
@@ -101,8 +103,10 @@ const RolesFieldComponent: SelectFieldClientComponent = ({ field, readOnly }) =>
     .filter(Boolean)
     .join(' ')
 
+  const fieldStyles = useMemo(() => mergeFieldStyles(admin), [admin])
+
   return (
-    <div className={fieldClasses} id={`field-${path.replace(/\./g, '__')}`}>
+    <div className={fieldClasses} id={`field-${path.replace(/\./g, '__')}`} style={fieldStyles}>
       <RenderCustomComponent
         CustomComponent={Label}
         Fallback={
