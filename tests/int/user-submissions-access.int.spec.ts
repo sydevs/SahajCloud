@@ -386,8 +386,8 @@ describe('User submissions access', () => {
           context: {},
         } as unknown as PayloadRequest,
       })
-      // Two contact rows, four proposals, one registration, one subscription.
-      expect(docs).toHaveLength(8)
+      // Two contact rows, five proposals, one registration, one subscription.
+      expect(docs).toHaveLength(9)
       expect(new Set(docs.map((doc) => doc.type)).size).toBe(4)
     })
   })
