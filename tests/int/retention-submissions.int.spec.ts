@@ -104,6 +104,16 @@ describe('Submission retention sweep', () => {
     return doc != null
   }
 
+  /** Block a sender, as an admin does from their Registrant record. */
+  const block = (userId: number) =>
+    payload.update({
+      collection: 'users',
+      id: userId,
+      data: { blockedAt: new Date().toISOString() },
+      overrideAccess: true,
+      req: systemReq(),
+    })
+
   /** The `users` row a submission's sender was upserted into. */
   const userIdOf = (submission: UserSubmission): number => {
     const user = submission.user
@@ -243,13 +253,13 @@ describe('Submission retention sweep', () => {
     })
 
     /**
-     * ⚠ The case above seeds `accepted` rows, and that is why it passed while
-     * the spam window deleted these two at 90 days: the window selects the
-     * machine refusal, and named no `type` at all. A refused registration is
-     * flagged and kept — #724's own criterion — so "forever" has to be
-     * asserted in the status the bug actually reached.
+     * ⚠ The case above seeds `accepted` rows, and the difference is the whole
+     * rule: "forever" is a promise about an attendance and a consent, and a
+     * machine-refused sign-up is neither — nobody came and nobody subscribed.
+     * So these two are evidence like every other refusal, and age out with it
+     * rather than being kept for ever by a type clause.
      */
-    it('keeps a refused registration and subscription forever too', async () => {
+    it('purges a refused registration and subscription on the spam window', async () => {
       const registration = await seed({
         type: 'registration',
         form: undefined,
@@ -266,10 +276,36 @@ describe('Submission retention sweep', () => {
       })
       const anchor = Date.now()
 
+      // Still evidence inside the window — the point of keeping a refusal at
+      // all is that a sender's pattern stays visible.
+      await sweep(anchor, MACHINE_SPAM_DAYS - 1)
+      expect(await exists('user-submissions', registration.id)).toBe(true)
+      expect(await exists('user-submissions', subscription.id)).toBe(true)
+
+      await sweep(anchor, MACHINE_SPAM_DAYS + 1)
+      expect(await exists('user-submissions', registration.id)).toBe(false)
+      expect(await exists('user-submissions', subscription.id)).toBe(false)
+    })
+
+    /**
+     * ⚠ Only the machine refusal goes. A registration a manager decided, or
+     * one still waiting, is the record the promise is about — and the status is
+     * what separates the two, so a window reaching one type reaches neither
+     * status by accident.
+     */
+    it('keeps a declined registration for ever, however old', async () => {
+      const registration = await seed({
+        type: 'registration',
+        form: undefined,
+        event: event.id,
+        senderEmail: 'declined-attendee@example.com',
+        status: 'rejected',
+      })
+      const anchor = Date.now()
+
       await sweep(anchor, MACHINE_SPAM_DAYS * 10)
 
       expect(await exists('user-submissions', registration.id)).toBe(true)
-      expect(await exists('user-submissions', subscription.id)).toBe(true)
     })
 
     /**
@@ -344,6 +380,25 @@ describe('Submission retention sweep', () => {
       expect(await exists('users', userId)).toBe(true)
     })
 
+    /**
+     * ⚠ A block outlives the submissions that earned it. Without this the block
+     * would expire the night the sender's last row aged out, and the next thing
+     * they sent would be screened clean — the sweep undoing a decision
+     * somebody made on purpose.
+     */
+    it('keeps a blocked sender once their last submission has gone', async () => {
+      const row = await seed({ senderEmail: 'blocked-orphan@example.com', status: 'accepted' })
+      const userId = userIdOf(row)
+      await block(userId)
+      const anchor = Date.now()
+
+      const output = await sweep(anchor, CONTACT_ACCEPTED_DAYS + 1)
+
+      expect(await exists('user-submissions', row.id)).toBe(false)
+      expect(await exists('users', userId)).toBe(true)
+      expect(deletedIn(output, 'users')).toBe(0)
+    })
+
     it('keeps a sender another message still points at', async () => {
       const email = 'two-messages@example.com'
       const old = await seed({ senderEmail: email, status: 'accepted' })
@@ -399,6 +454,23 @@ describe('Submission retention sweep', () => {
       const after = await sweep(Date.now(), CONTACT_ACCEPTED_DAYS + 1, true)
 
       // The contact message is due at 8 days; the proposal is not, at 30.
+      expect(deletedIn(after, 'user-submissions')).toBe(deletedIn(before, 'user-submissions') + 1)
+      expect(deletedIn(after, 'users')).toBe(deletedIn(before, 'users'))
+    })
+
+    /**
+     * ⚠ Both branches have to read the block, or the dry run stops predicting
+     * the real sweep — the one thing a dry run is for.
+     */
+    it('does not count a blocked sender it would not delete', async () => {
+      const before = await sweep(Date.now(), CONTACT_ACCEPTED_DAYS + 1, true)
+
+      const row = await seed({ senderEmail: 'blocked-dryrun@example.com', status: 'accepted' })
+      await block(userIdOf(row))
+
+      const after = await sweep(Date.now(), CONTACT_ACCEPTED_DAYS + 1, true)
+
+      // The message is due; its sender is not, because the block pins them.
       expect(deletedIn(after, 'user-submissions')).toBe(deletedIn(before, 'user-submissions') + 1)
       expect(deletedIn(after, 'users')).toBe(deletedIn(before, 'users'))
     })

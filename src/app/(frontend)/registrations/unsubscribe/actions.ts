@@ -5,6 +5,7 @@ import type { UnsubscribeOutcome } from './UnsubscribeCard'
 import { getPayload } from 'payload'
 
 import { readSubmissionValue } from '@/collections/UserSubmissions/submissionData'
+import { appendLogEntry, asLog } from '@/fields'
 import type { LocaleCode } from '@/lib/locales'
 import { readUnsubscribeToken } from '@/lib/registrations/unsubscribeToken'
 import { EMAIL_STRING_DEFAULTS, resolveEmailStrings } from '@/lib/translations/emailStrings'
@@ -54,13 +55,24 @@ export async function unsubscribeAction(
         null) as LocaleCode | null,
     })
 
-    // The column is `unsubscribedAt` here — deliberately generic, so a future
-    // subscribe-type unsubscribe reuses it.
+    // Two writes of one fact, for two readers: `unsubscribedAt` is the column
+    // the reminder sweep filters on (a JSON log is no cheap `where`), and the
+    // log entry is what a manager reads. The column is deliberately generic, so
+    // a future subscribe-type unsubscribe reuses it.
     if (!registration.unsubscribedAt) {
+      const now = new Date().toISOString()
       await payload.update({
         collection: 'user-submissions',
         id: registration.id,
-        data: { unsubscribedAt: new Date().toISOString() },
+        data: {
+          unsubscribedAt: now,
+          activityLog: appendLogEntry(asLog(registration.activityLog), {
+            at: now,
+            type: 'unsubscribe',
+            key: 'reminders',
+            cells: { activity: 'Unsubscribed from reminders' },
+          }),
+        },
         overrideAccess: true,
       })
     }

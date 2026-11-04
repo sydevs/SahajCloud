@@ -130,7 +130,7 @@ Five rules, each of which cost something to learn:
 
 The component renders `null` rather than taking `admin.hidden: true`: a hidden field renders Payload's own `HiddenField`, and this one exists to run an effect, not to carry a value into form state.
 
-Declared today in `translationsSchema.json` (a `preview` key beside `screenshot`, read on top-level groups only) and on the Meditations frame and Transcript tabs, which declare `autoOpen` with no path.
+Declared today in `translationsSchema.json` (a `preview` key beside `screenshot`, read on top-level groups only) and on the Meditations frame and Transcript tabs, which declare `autoOpen` with no path. `user-submissions` declares a conditioned pair: `autoOpen` for a proposal and `autoClose` for every other intake, because Payload keeps one open/closed preference per collection and a panel left open on a proposal would otherwise greet the next contact message.
 
 ## Styling — PayloadCMS CSS variables
 
@@ -261,7 +261,7 @@ The Managers `currentProject` field stores the selection. `ProjectSelector` (`be
 
 ## Project visibility (collection sidebar filtering)
 
-`accessPlugin` auto-generates `admin.hidden` for every collection and global. **Never hand-write project visibility — let the plugin do it.** A collection may still hand-write `admin.hidden`, and the plugin composes it (`accessPlugin.ts`): `true` hides the collection outright (`Songs`, `Users`, `MeditationTranscripts`), and a function is asked first, with project visibility applied only when it returns false. A global's own `admin.hidden` is overwritten.
+`accessPlugin` auto-generates `admin.hidden` for every collection and global. **Never hand-write project visibility — let the plugin do it.** A collection may still hand-write `admin.hidden`, and the plugin composes it (`accessPlugin.ts`): `true` hides the collection outright (`Songs`, `MeditationTranscripts`), and a function is asked first, with project visibility applied only when it returns false. ⚠ Reach for neither where the role table already answers: `users` grants a write to no role and sits in no project, so deleting its `hidden` key left the derivation admitting admins alone — and admitting a role granted `users: ['update']` later, which a hand-written `isAdminManager` predicate would have refused (#630). A global's own `admin.hidden` is overwritten.
 
 Project assignments live in the internal `PROJECTS` constant (`src/plugins/access/config/projects.ts`). Add a collection to a project by editing its `collections:` array there. Lookup tables recompute automatically.
 
