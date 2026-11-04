@@ -27,7 +27,6 @@ export type ScriptName =
   | 'wm-app-translations'
   | 'translations'
   | 'atlas'
-  | 'preview'
 
 export interface ExpectedCounts {
   [collection: string]: number
@@ -137,15 +136,6 @@ export const EXPECTED_COUNTS: Record<ScriptName, ScriptExpectation> = {
     'user-submissions': 2004,
     clients: 31,
   },
-  // Floors, not totals: a preview may already hold rows of its own.
-  preview: {
-    regions: 1,
-    clients: 1,
-    forms: 2,
-    events: 1,
-    users: 6,
-    'user-submissions': 12,
-  },
 }
 
 /**
@@ -202,21 +192,6 @@ export function verifyCountsForScript(
  * Collection metadata per script (in dependency order)
  * Used by CLI to orchestrate paginated imports
  */
-/** One unpaginated step whose rows land in the collection it is named after. */
-const step = (
-  collection: CollectionSlug,
-  totalItems: number,
-  dependencies: string[],
-  naturalKey: string,
-): CollectionMetadata => ({
-  slug: collection,
-  collection,
-  totalItems,
-  requiresPagination: false,
-  dependencies,
-  naturalKey,
-})
-
 const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
   tags: [
     {
@@ -421,15 +396,6 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
       // No `collection`: this step uploads into `images`, which `meditations`
       // and `storyblok` also write, so no floor could be attributed to it.
     },
-  ],
-  // One unpaginated request: a dozen example rows, in dependency order.
-  preview: [
-    step('regions', 1, [], 'mapboxId'),
-    step('clients', 1, [], 'name'),
-    step('forms', 2, ['clients'], 'title'),
-    step('events', 1, ['regions'], 'contactName'),
-    step('users', 6, [], 'email'),
-    step('user-submissions', 12, ['forms', 'events', 'users'], 'uuid'),
   ],
 }
 

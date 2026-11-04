@@ -54,7 +54,6 @@ const VALID_SCRIPTS: ScriptName[] = [
   'wm-app-translations',
   'translations',
   'atlas',
-  'preview',
 ]
 
 /**
@@ -436,10 +435,6 @@ async function getImporter(
     case 'atlas': {
       const { AtlasImporter } = await import('../../../../../../seeds/atlas/import')
       return new AtlasImporter(options)
-    }
-    case 'preview': {
-      const { PreviewImporter } = await import('../../../../../../seeds/preview/import')
-      return new PreviewImporter(options)
     }
     default:
       return null

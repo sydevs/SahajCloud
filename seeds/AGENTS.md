@@ -120,35 +120,15 @@ automatically — printing per-batch progress as it goes.
 
 ## Available scripts
 
-| Script                 | Command                                 | Prerequisites                                         | Target Collections                                                                                                           |
-| ---------------------- | --------------------------------------- | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| storyblok              | `pnpm seed storyblok`                   | STORYBLOK_ACCESS_TOKEN                                | lessons, images, files                                                                                                       |
-| wemeditate             | `pnpm seed wemeditate`                  | data.json (pre-extracted)                             | pages, authors, page-tags, albums                                                                                            |
-| meditations            | `pnpm seed meditations`                 | Run `tags` + `wemeditate` first, data.json            | meditations, frames, music, narrators                                                                                        |
-| meditation-transcripts | `pnpm seed meditation-transcripts`      | The meditations the transcripts were made from        | meditation-transcripts                                                                                                       |
-| tags                   | `pnpm seed tags`                        | None                                                  | user-choices, music-tags                                                                                                     |
-| atlas                  | `pnpm seed atlas`                       | The 8 JSON dumps in `seeds/atlas/data/`               | managers, regions, users, events, user-submissions, clients                                                                  |
-| preview                | `pnpm tsx scripts/seed-preview.ts <pr>` | `PREVIEW_ADMIN_EMAIL`; a PR preview, never production | one example `user-submissions` row per type and status, plus the region, event, client, forms and Registrants they reference |
-| translations           | `pnpm seed translations`                | None                                                  | the three translations globals (see below)                                                                                   |
-
-### `preview` — example submissions for a PR preview
-
-A preview boots with one row, its admin, so every link a PR body writes opens
-an empty list. This fills `user-submissions` with one row per type in the
-statuses a reviewer needs (pending, accepted, failed, spam, rejected, a blocked
-sender, an unsubscribed registration) and creates what they reference.
-
-⚠ **Every row is inserted settled.** A preview inherits production's
-variables, so a row that reached delivery would mail the form's recipient and
-the live mailing provider. A `pending` row carries a `screeningResult`, so
-screening is a no-op and nothing queues delivery; no registration opts into the
-mailing list. `tests/int/preview-seed.int.spec.ts` drains the screening queue
-and asserts no delivery job exists.
-
-⚠ **Never part of a full seed** (absent from `SCRIPT_RUN_ORDER`), and the
-importer refuses production. Reserved `@example.org` addresses only.
-
-Re-runnable: rows the retention windows purge are recreated on the next run.
+| Script                 | Command                            | Prerequisites                                  | Target Collections                                          |
+| ---------------------- | ---------------------------------- | ---------------------------------------------- | ----------------------------------------------------------- |
+| storyblok              | `pnpm seed storyblok`              | STORYBLOK_ACCESS_TOKEN                         | lessons, images, files                                      |
+| wemeditate             | `pnpm seed wemeditate`             | data.json (pre-extracted)                      | pages, authors, page-tags, albums                           |
+| meditations            | `pnpm seed meditations`            | Run `tags` + `wemeditate` first, data.json     | meditations, frames, music, narrators                       |
+| meditation-transcripts | `pnpm seed meditation-transcripts` | The meditations the transcripts were made from | meditation-transcripts                                      |
+| tags                   | `pnpm seed tags`                   | None                                           | user-choices, music-tags                                    |
+| atlas                  | `pnpm seed atlas`                  | The 8 JSON dumps in `seeds/atlas/data/`        | managers, regions, users, events, user-submissions, clients |
+| translations           | `pnpm seed translations`           | None                                           | the three translations globals (see below)                  |
 
 ### `translations` — real copy everywhere, and the locales it publishes
 
