@@ -60,13 +60,19 @@ export class AtlasResetImporter extends BaseImporter<BaseImportOptions> {
     return counts
   }
 
+  /** To the operator's terminal as well as the server log: a dry run that shows nothing reassures nobody. */
+  private async say(message: string): Promise<void> {
+    await this.logger.info(message)
+    await this.sendEvent({ type: 'info', message })
+  }
+
   protected async import(): Promise<void> {
     if (!this.payload)
       throw new Error('atlas-reset runs against a target; it has nothing to do offline')
 
     const pool = this.pool()
     const before = await this.countRows(pool)
-    await this.logger.info(`Rows in scope: ${JSON.stringify(before)}`)
+    await this.say(`Rows in scope: ${JSON.stringify(before)}`)
 
     const restrict = await pool.query<{ constraint: string; from: string; to: string }>(
       `select c.conname as constraint, c.conrelid::regclass::text as from, c.confrelid::regclass::text as to
@@ -96,9 +102,7 @@ export class AtlasResetImporter extends BaseImporter<BaseImportOptions> {
       )
     }
     if (this.options.dryRun) {
-      await this.logger.info(
-        'Dry run — nothing deleted. Run without --dry-run to empty these tables.',
-      )
+      await this.say('Dry run — nothing deleted. Run without --dry-run to empty these tables.')
       return
     }
 
@@ -118,7 +122,7 @@ export class AtlasResetImporter extends BaseImporter<BaseImportOptions> {
         deleted[table] = result.rowCount ?? 0
       }
       await client.query('commit')
-      await this.logger.success(`Deleted: ${JSON.stringify(deleted)}`)
+      await this.say(`Deleted: ${JSON.stringify(deleted)}`)
     } catch (error) {
       await client.query('rollback')
       throw error
