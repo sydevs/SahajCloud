@@ -1488,6 +1488,26 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
 
   // ─── Pictures (GCS → Images, linked to events) ──────────────────────────
 
+  /**
+   * The image an earlier run uploaded for this Atlas picture, if any. Storage
+   * renames an upload (a hash suffix, and `preview-` off production), so the
+   * filename match `MediaUploader` tries never found one, and every run —
+   * including each re-sync, whose `atlas-reset` keeps images — uploaded all of
+   * them again. The `picture-<legacyId>-` stem survives the renaming.
+   */
+  private async findUploadedPicture(legacyId: number): Promise<number | null> {
+    const { docs } = await this.payload.find({
+      collection: 'images',
+      where: { filename: { contains: `picture-${legacyId}-` } },
+      sort: 'id',
+      limit: 1,
+      depth: 0,
+      overrideAccess: true,
+      select: { filename: true },
+    })
+    return (docs[0]?.id as number | undefined) ?? null
+  }
+
   private async importPictures(data: AtlasData): Promise<void> {
     await this.logger.info('\n=== Importing Pictures ===')
     const batch = this.paginateItems(data.pictures)
@@ -1521,21 +1541,26 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
         continue
       }
       try {
-        const cachePath = path.join(
-          this.cacheDir,
-          `picture-${picture.legacyId}-${picture.filename}`,
-        )
-        const buffer = await fetchAsset(picture.sourceUrl, { cachePath })
-        const result = await this.mediaUploader.uploadWithDeduplication(cachePath, {
-          buffer,
-          sourceUrl: picture.sourceUrl,
-          originalFilename: picture.filename,
-          alt: 'Event photo',
-        })
+        let imageId = await this.findUploadedPicture(picture.legacyId)
+        const reused = imageId != null
+        if (imageId == null) {
+          const cachePath = path.join(
+            this.cacheDir,
+            `picture-${picture.legacyId}-${picture.filename}`,
+          )
+          const buffer = await fetchAsset(picture.sourceUrl, { cachePath })
+          const result = await this.mediaUploader.uploadWithDeduplication(cachePath, {
+            buffer,
+            sourceUrl: picture.sourceUrl,
+            originalFilename: picture.filename,
+            alt: 'Event photo',
+          })
+          imageId = result.id as number
+        }
         const list = imagesByEvent.get(picture.eventId) ?? []
-        list.push(result.id as number)
+        list.push(imageId)
         imagesByEvent.set(picture.eventId, list)
-        await this.reportDocument('images', identifier, result.wasReused ? 'skipped' : 'created', {
+        await this.reportDocument('images', identifier, reused ? 'skipped' : 'created', {
           current: offset + i + 1,
           total,
         })
