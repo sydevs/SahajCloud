@@ -1,0 +1,14 @@
+/* A derived chip: drawn dashed, and with no remove button to press. */
+.derived {
+  border-style: dashed;
+  background: transparent;
+}
+.derived :global(.multi-value-remove) {
+  display: none;
+}
+.note {
+  margin-top: calc(var(--base) * 0.25);
+  color: var(--theme-elevation-500);
+  font-size: 12px;
+  line-height: 1.4;
+}

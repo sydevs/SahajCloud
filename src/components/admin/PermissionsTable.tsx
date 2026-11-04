@@ -12,7 +12,6 @@ import {
   getProjectIcon,
   getProjectLabel,
   getReadableCollections,
-  getRoleLabel,
   getRoleProject,
   virtualRoles,
 } from '@/plugins/access/config'
@@ -28,11 +27,10 @@ import type { PermissionLevel } from '@/plugins/access/types'
  * This component is rendered as afterInput for the roles field.
  * Works for both managers (localized roles) and clients (non-localized roles).
  *
- * ⚠ The field above it holds the stored roles only, so the derived Atlas roles
- * would otherwise grant a manager access this table cannot explain. They are
- * read off the saved document's region and event joins — the same source
- * `virtualRoles` reads on the server — and named in their own footer row,
- * since no select will ever show them.
+ * ⚠ The field's value holds the stored roles only, so the derived Atlas roles
+ * are merged in here too, or a manager's table would omit access they hold.
+ * They are read off the saved document's region and event joins — the same
+ * source `virtualRoles` reads on the server, and the chips `RolesField` shows.
  */
 export const PermissionsTable: FieldClientComponent = () => {
   const { value: storedRoles } = useField<RoleSlug[]>()
@@ -154,18 +152,6 @@ export const PermissionsTable: FieldClientComponent = () => {
         </tbody>
         {!isClient && projects.length > 0 && (
           <tfoot>
-            {derivedRoles.length > 0 && (
-              <tr style={{ borderTop: '1px solid var(--theme-elevation-150)' }}>
-                <td style={{ ...cellStyle, fontWeight: 500 }}>Derived from listings</td>
-                <td style={cellStyle}>
-                  <div style={pillRowStyle}>
-                    {derivedRoles.map((role) => (
-                      <Pill key={role}>{getRoleLabel(role)}</Pill>
-                    ))}
-                  </div>
-                </td>
-              </tr>
-            )}
             <tr
               style={{
                 borderTop: '2px solid var(--theme-elevation-200)',

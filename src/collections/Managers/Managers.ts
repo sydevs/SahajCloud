@@ -103,12 +103,14 @@ export const Managers: CollectionConfig = {
               localized: true,
               // The Atlas roles are deliberately absent: each is derived from a
               // region or event listing, and `getRoleOptions` refuses one here.
+              // `RolesField` still shows a held one, as a chip nothing removes.
               options: getRoleOptions(['meditations-editor', 'path-editor', 'web-translator']),
               admin: {
                 description:
                   'Assign roles for each locale. Different roles can be assigned for different languages.',
                 condition: (data) => data.type === 'manager',
                 components: {
+                  Field: '@/components/admin/RolesField',
                   afterInput: ['@/components/admin/PermissionsTable'],
                 },
               },
