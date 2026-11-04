@@ -22,6 +22,20 @@
   gap: calc(var(--base) / 2);
 }
 
+.event-import__results .table table {
+  width: 100%;
+}
+
+/* The checkbox and row-number columns take only the width they need. */
+.event-import__results #heading-select,
+.event-import__results .cell-select,
+.event-import__results #heading-row,
+.event-import__results .cell-row {
+  width: 1%;
+  min-width: 0;
+  white-space: nowrap;
+}
+
 .event-import__results .field-description {
   margin-top: calc(var(--base) / 2);
 }

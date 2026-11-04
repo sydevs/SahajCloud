@@ -84,16 +84,10 @@ const reviewProjectionAccess: { read: FieldAccess } = {
 }
 
 /**
- * Renders nothing in the edit view, keeping the field's form-state value and
- * its list column — for the fields `submissionSummaryField` shows instead.
- */
-const SHOWN_IN_SUMMARY = { Field: '@/components/admin/FormStateOnly' }
-
-/**
  * Who sent it, through what, about what — `type`, `user`, `client`, `form` and
  * `event` as one block at the top of the sidebar, each document a link that
- * opens it in a drawer. The five fields themselves render nothing in the form
- * (`SHOWN_IN_SUMMARY`), and keep their list columns.
+ * opens it in a drawer. The five fields themselves sit under System, where
+ * they keep their list columns and their form-state values.
  */
 const submissionSummaryField: Field = {
   name: 'submissionSummary',
@@ -120,18 +114,17 @@ const submissionSummaryField: Field = {
  * `jsonSchema`, which an array field cannot carry.
  */
 export function userSubmissionFields({ defaultFields }: { defaultFields: Field[] }): Field[] {
+  const plugin = defaultFields.map(perTypeForm).map(readOnlySubmissionData)
+  const form = plugin.find((field) => 'name' in field && field.name === 'form')
+
   // Sidebar fields (the summary, then the activity log) take their order from here too.
   return [
     screeningResultField,
     proposedChangesField,
     submissionSummaryField,
-    typeField,
-    userField,
     startingAtField,
-    ...defaultFields.map(perTypeForm).map(readOnlySubmissionData),
+    ...plugin.filter((field) => field !== form),
     senderEmailField,
-    statusField,
-    eventField,
     unsubscribedAtField,
     eventFeedbackField,
     previewEventField,
@@ -140,7 +133,7 @@ export function userSubmissionFields({ defaultFields }: { defaultFields: Field[]
     managerField,
     regionField,
     activityLogField,
-    systemGroup,
+    systemGroup(form),
   ]
 }
 
@@ -169,7 +162,7 @@ const typeField: Field = {
   // manager's reads by it, and a manager holds `update`. A system writer
   // needing to change it passes `overrideAccess`.
   access: { update: () => false },
-  admin: { readOnly: true, components: SHOWN_IN_SUMMARY },
+  admin: { readOnly: true },
 }
 
 /**
@@ -272,7 +265,6 @@ function perTypeForm(field: Field): Field {
       ...field.admin,
       condition: (data) => needsForm(data),
       readOnly: true,
-      components: SHOWN_IN_SUMMARY,
     },
   } as RelationshipField
 }
@@ -295,7 +287,7 @@ const userField: Field = {
   relationTo: 'users',
   index: true,
   access: systemFieldAccess,
-  admin: { readOnly: true, components: SHOWN_IN_SUMMARY },
+  admin: { readOnly: true },
 }
 
 /**
@@ -377,9 +369,9 @@ const statusField: Field = {
   options: SUBMISSION_STATUSES.map((value) => ({ label: STATUS_LABELS[value], value })),
   enumName: 'enum_user_submissions_status',
   access: systemFieldAccess,
-  // The banner on `screeningResult` is where the edit view shows it; the list
-  // keeps its column, and the review buttons read it from form state.
-  admin: { readOnly: true, components: { Field: '@/components/admin/FormStateOnly' } },
+  // Under System: the banner on `screeningResult` is where a reader meets it.
+  // The review buttons read it from form state, which a collapsed group keeps.
+  admin: { readOnly: true },
 }
 
 /**
@@ -460,7 +452,6 @@ const eventField: Field = {
   admin: {
     condition: showsEvent,
     readOnly: true,
-    components: SHOWN_IN_SUMMARY,
     description:
       'The event this registration attends, this proposal targets, or this subscription came from.',
   },
@@ -785,24 +776,21 @@ const activityLogField: Field = {
   admin: { ...activityLogBase.admin, position: 'sidebar' },
 } as Field
 
-/** The columns a reader needs only when something has gone wrong. */
-const systemGroup: Field = {
+/**
+ * The columns a reader needs only when something has gone wrong — and the raw
+ * fields the status banner and the Context summary present. An unnamed
+ * collapsible adds no data path, so moving a field in here is display only.
+ */
+const systemGroup = (form: Field | undefined): Field => ({
   label: 'System',
   type: 'collapsible',
   admin: { initCollapsed: true },
   fields: [
     // Only the document title reads it, and that is the header already.
     subjectField,
-    {
-      // The stable public identifier, issued at create and returned to the
-      // caller. `unique` already creates the index.
-      name: 'uuid',
-      label: 'Identifier',
-      type: 'text',
-      unique: true,
-      access: systemFieldAccess,
-      admin: { readOnly: true },
-    },
+    typeField,
+    statusField,
+    userField,
     {
       // Which service relayed this, taken from the authenticated key and never
       // from the body — it brands the emails sent about the submission, so a
@@ -813,7 +801,19 @@ const systemGroup: Field = {
       relationTo: 'clients',
       index: true,
       access: systemFieldAccess,
-      admin: { readOnly: true, components: SHOWN_IN_SUMMARY },
+      admin: { readOnly: true },
+    },
+    ...(form ? [form] : []),
+    eventField,
+    {
+      // The stable public identifier, issued at create and returned to the
+      // caller. `unique` already creates the index.
+      name: 'uuid',
+      label: 'Identifier',
+      type: 'text',
+      unique: true,
+      access: systemFieldAccess,
+      admin: { readOnly: true },
     },
     submissionContextField,
     {
@@ -873,4 +873,4 @@ const systemGroup: Field = {
       admin: { hidden: true },
     },
   ],
-}
+})

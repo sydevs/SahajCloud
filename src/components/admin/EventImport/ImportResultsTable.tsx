@@ -8,6 +8,7 @@ import {
   ConfirmationModal,
   FieldDescription,
   FieldLabel,
+  Table,
   toast,
   useConfig,
   useDocumentDrawer,
@@ -19,7 +20,7 @@ import { formatDate } from '@payloadcms/ui/shared'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 
-import { CompactTable } from '../helpers/CompactTable'
+import { tableColumn } from '../helpers/tableColumn'
 
 import './styles.css'
 
@@ -79,13 +80,12 @@ const stacked = (lines: readonly React.ReactNode[]) =>
  *
  * ⚠ **Not Payload's `RelationshipTable`.** That table lists one collection's
  * documents, and half these rows — the skipped ones — never became a document.
- * The pieces are Payload's own: `Table` (through `CompactTable`, the shared
- * field table), `CheckboxInput`, pill `Button`s laid out like that table's
- * header, `ConfirmationModal`, and the document drawer.
+ * The pieces are Payload's own: `Table`, `CheckboxInput`, pill `Button`s laid
+ * out like that table's header, `ConfirmationModal`, and the document drawer.
  *
- * ⚠ **The row colour rides on the row's `data-id`** (`styles.css`, set through
- * `rowIds`), the one per-row hook Payload's `Table` renders, which is why each
- * id leads with its status.
+ * ⚠ **The row colour rides on the row's `data-id`** (`styles.css`), the one
+ * per-row hook Payload's `Table` renders, which is why each id leads with its
+ * status.
  */
 export const ImportResultsTable: React.FC<{
   description: string
@@ -242,24 +242,21 @@ export const ImportResultsTable: React.FC<{
           {skipped > 0 && pill(`Download Skipped Rows (${skipped})`, download)}
         </div>
       </div>
-      <CompactTable
-        rowIds={rows.map(({ row, status }) => `${status}-${row}`)}
+      <Table
+        appearance="condensed"
         columns={[
           ...(drafts.length
             ? [
-                {
-                  key: 'select',
-                  fit: true,
-                  heading: (
-                    <CheckboxInput
-                      checked={toPublish.length === drafts.length}
-                      onToggle={() =>
-                        setChecked(new Set(toPublish.length === drafts.length ? [] : drafts))
-                      }
-                      partialChecked={toPublish.length > 0 && toPublish.length < drafts.length}
-                    />
-                  ),
-                  cells: rows.map(({ approximate, eventId, status }) =>
+                tableColumn(
+                  'select',
+                  <CheckboxInput
+                    checked={toPublish.length === drafts.length}
+                    onToggle={() =>
+                      setChecked(new Set(toPublish.length === drafts.length ? [] : drafts))
+                    }
+                    partialChecked={toPublish.length > 0 && toPublish.length < drafts.length}
+                  />,
+                  rows.map(({ approximate, eventId, status }) =>
                     status === 'draft' && eventId && !approximate ? (
                       <CheckboxInput
                         checked={checked.has(eventId)}
@@ -268,33 +265,36 @@ export const ImportResultsTable: React.FC<{
                       />
                     ) : null,
                   ),
-                },
+                ),
               ]
             : []),
-          { key: 'row', heading: 'Row', fit: true, cells: rows.map(({ row }) => row) },
-          {
-            key: 'title',
-            heading: 'Title',
-            cells: rows.map(({ eventId, title }) =>
-              eventId ? eventLink(eventId, title) : title || '—',
-            ),
-          },
-          {
-            key: 'details',
-            heading: 'Details',
-            cells: rows.map(({ city, schedule }) => stacked([city || '—', schedule])),
-          },
-          {
-            key: 'manager',
-            heading: 'Manager',
-            cells: rows.map(({ manager }) =>
+          tableColumn(
+            'row',
+            'Row',
+            rows.map(({ row }) => row),
+          ),
+          tableColumn(
+            'title',
+            'Title',
+            rows.map(({ eventId, title }) => (eventId ? eventLink(eventId, title) : title || '—')),
+          ),
+          tableColumn(
+            'details',
+            'Details',
+            rows.map(({ city, schedule }) => stacked([city || '—', schedule])),
+          ),
+          tableColumn(
+            'manager',
+            'Manager',
+            rows.map(({ manager }) =>
               manager?.id !== undefined
                 ? link(() => managerDrawer.open(manager.id!), manager.name)
                 : (manager?.name ?? '—'),
             ),
-          },
-          { key: 'status', heading: 'Status', cells: rows.map(statusOf) },
+          ),
+          tableColumn('status', 'Status', rows.map(statusOf)),
         ]}
+        data={rows.map(({ row, status }) => ({ id: `${status}-${row}` }))}
       />
       <FieldDescription description={description} path={path} />
       <eventDrawer.Drawer onDelete={refresh} onSave={refresh} />

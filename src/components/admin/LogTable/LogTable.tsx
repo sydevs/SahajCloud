@@ -6,6 +6,7 @@ import {
   Drawer,
   FieldDescription,
   FieldLabel,
+  Table,
   useDrawerSlug,
   useField,
   useModal,
@@ -16,7 +17,9 @@ import React, { useState } from 'react'
 import type { LogCell, LogColumn, LogEntry } from '@/fields/logField'
 import { asLog } from '@/fields/logField'
 
-import { CompactTable } from '../helpers/CompactTable'
+import { tableColumn } from '../helpers/tableColumn'
+
+import './styles.css'
 
 /**
  * The renderer for every {@link logField} — what happened to this document,
@@ -43,7 +46,11 @@ import { CompactTable } from '../helpers/CompactTable'
  * nobody asked for while reading. A click is deliberate, and Payload's own
  * `Drawer` handles the overlay, focus trap and dismissal.
  *
- * The table is `CompactTable`, which owns the row click and its cursor.
+ * `Table` takes only `columns` and `data` — it exposes nothing per row, so the
+ * click is **one delegated listener** on the wrapper, which resolves the row by
+ * its position in `<tbody>` — no dependency on Payload's markup beyond the
+ * table being a table. The cursor is the one thing that has to be a stylesheet
+ * rule, since it belongs on a `<tr>` we don't render.
  */
 export const LogTable: FieldClientComponent = ({ field }) => {
   const { name, label, admin } = field as JSONFieldClient
@@ -60,7 +67,21 @@ export const LogTable: FieldClientComponent = ({ field }) => {
   const drawerSlug = useDrawerSlug('log-entry')
   const { openModal } = useModal()
 
-  const openEntry = (index: number) => {
+  /**
+   * Resolve the clicked row and open its entry.
+   *
+   * By position within `<tbody>`, which also excludes the header row. An
+   * earlier version read Payload's `data-id` attribute — correct today, but a
+   * silent no-op the day that attribute is renamed, since a click would simply
+   * find nothing. Row order is inherent to a table; the attribute is Payload's
+   * to change.
+   */
+  const openRow = (target: EventTarget | null) => {
+    const row = (target as HTMLElement | null)?.closest?.('tr')
+    const body = row?.parentElement
+    if (!row || body?.tagName !== 'TBODY') return
+    const index = Array.prototype.indexOf.call(body.children, row)
+    if (index < 0 || index >= entries.length) return
     setSelected(index)
     openModal(drawerSlug)
   }
@@ -72,36 +93,56 @@ export const LogTable: FieldClientComponent = ({ field }) => {
         {entries.length === 0 ? (
           <div style={emptyStyle}>Nothing recorded yet.</div>
         ) : (
-          <>
-            <CompactTable
-              onRowClick={openEntry}
+          <div
+            className="log-table"
+            // One delegated listener rather than per-cell handlers: it covers
+            // the whole row including its padding, and needs no extra markup
+            // inside Payload's cells.
+            onClick={(event) => openRow(event.target)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') openRow(event.target)
+            }}
+          >
+            <Table
+              appearance="condensed"
+              data={entries.map((_, index) => ({ id: index }))}
               columns={[
-                {
-                  key: 'when',
-                  heading: 'When',
-                  fit: true,
+                tableColumn(
+                  'when',
+                  'When',
                   // The one tab stop per row — the keyboard's way in.
-                  cells: entries.map((entry, index) => (
+                  entries.map((entry, index) => (
                     <span key={index} tabIndex={0} style={focusableStyle}>
                       {formatLogDate(entry.at)}
                     </span>
                   )),
-                },
-                ...columns.map((column) => ({
-                  key: column.key,
-                  heading: column.label ?? toWords(column.key),
-                  cells: entries.map((entry, index) => (
-                    <CellView key={index} cell={entry.cells?.[column.key]} />
-                  )),
-                })),
+                ),
+                ...columns.map((column) =>
+                  tableColumn(
+                    column.key,
+                    column.label ?? toWords(column.key),
+                    entries.map((entry, index) => (
+                      <CellView key={index} cell={entry.cells?.[column.key]} />
+                    )),
+                  ),
+                ),
               ]}
             />
+            {/*
+              Mounted unconditionally, which is what makes it *slide*. The
+              Drawer seeds its own `animateIn` from `modalState[slug].isOpen`
+              at mount and only adds `drawer--is-open` in a layout effect — so
+              a Drawer mounted while already open has the class on its first
+              paint and appears in place, with no transition to play. Rendering
+              it always means it mounts closed and animates on open. It returns
+              null until then, so this costs nothing.
+            */}
             <Drawer slug={drawerSlug} title="Activity entry">
               {selected === null ? null : (
                 <pre style={jsonStyle}>{JSON.stringify(entries[selected], null, 2)}</pre>
               )}
             </Drawer>
-          </>
+          </div>
         )}
       </div>
       <FieldDescription description={admin?.description} path={name} />

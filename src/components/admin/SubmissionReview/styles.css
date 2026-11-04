@@ -160,7 +160,22 @@
   margin-bottom: var(--base);
 }
 
+/*
+ * The Field column is as wide as its longest label, up to 28em. Payload gives
+ * every cell a 150px minimum and shares the rest out, which left short keys far
+ * from their values; shrinking the cell to `1%` alone wrapped every
+ * registration question. The cell shrinks, and the key holds its own width.
+ */
+.submission-data .cell-field,
+.submission-data #heading-field {
+  width: 1%;
+  min-width: 0;
+}
+
 .submission-data__key {
+  display: block;
+  width: max-content;
+  max-width: 28em;
   color: var(--theme-elevation-600);
 }
 

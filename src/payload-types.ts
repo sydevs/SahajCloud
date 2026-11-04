@@ -2222,14 +2222,11 @@ export interface UserSubmission {
     | number
     | boolean
     | null;
-  type: 'contact' | 'subscribe' | 'registration' | 'proposal';
-  user?: (number | null) | User;
   /**
    * Which occurrence the registrant is attending.
    */
   startingAt?: string | null;
   startingAt_tz?: SupportedTimezones;
-  form?: (number | null) | Form;
   submissionData?:
     | {
         field: string;
@@ -2238,11 +2235,6 @@ export interface UserSubmission {
       }[]
     | null;
   senderEmail?: string | null;
-  status: 'pending' | 'accepted' | 'rejected' | 'spam' | 'failed';
-  /**
-   * The event this registration attends, this proposal targets, or this subscription came from.
-   */
-  event?: (number | null) | Event;
   unsubscribedAt?: string | null;
   /**
    * Registrant’s verdict on an unverified event, from the link in their email.
@@ -2270,8 +2262,16 @@ export interface UserSubmission {
    * Composed when the submission arrives.
    */
   subject?: string | null;
-  uuid?: string | null;
+  type: 'contact' | 'subscribe' | 'registration' | 'proposal';
+  status: 'pending' | 'accepted' | 'rejected' | 'spam' | 'failed';
+  user?: (number | null) | User;
   client?: (number | null) | Client;
+  form?: (number | null) | Form;
+  /**
+   * The event this registration attends, this proposal targets, or this subscription came from.
+   */
+  event?: (number | null) | Event;
+  uuid?: string | null;
   location?: SubmissionLocation;
   regionHint?: SubmissionRegionHint;
   proposed?: SubmissionProposal;
@@ -2341,157 +2341,6 @@ export interface User {
     | number
     | boolean
     | null;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "forms".
- */
-export interface Form {
-  id: number;
-  title?: string | null;
-  fields?:
-    | (
-        | {
-            name: string;
-            label?: string | null;
-            width?: number | null;
-            required?: boolean | null;
-            defaultValue?: boolean | null;
-            id?: string | null;
-            blockName?: string | null;
-            blockType: 'checkbox';
-          }
-        | {
-            name: string;
-            label?: string | null;
-            width?: number | null;
-            required?: boolean | null;
-            id?: string | null;
-            blockName?: string | null;
-            blockType: 'country';
-          }
-        | {
-            name: string;
-            label?: string | null;
-            width?: number | null;
-            required?: boolean | null;
-            id?: string | null;
-            blockName?: string | null;
-            blockType: 'email';
-          }
-        | {
-            message?: {
-              root: {
-                type: string;
-                children: {
-                  type: any;
-                  version: number;
-                  [k: string]: unknown;
-                }[];
-                direction: ('ltr' | 'rtl') | null;
-                format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
-                indent: number;
-                version: number;
-              };
-              [k: string]: unknown;
-            } | null;
-            id?: string | null;
-            blockName?: string | null;
-            blockType: 'message';
-          }
-        | {
-            name: string;
-            label?: string | null;
-            width?: number | null;
-            defaultValue?: number | null;
-            required?: boolean | null;
-            id?: string | null;
-            blockName?: string | null;
-            blockType: 'number';
-          }
-        | {
-            name: string;
-            label?: string | null;
-            width?: number | null;
-            defaultValue?: string | null;
-            placeholder?: string | null;
-            options?:
-              | {
-                  label: string;
-                  value: string;
-                  id?: string | null;
-                }[]
-              | null;
-            required?: boolean | null;
-            id?: string | null;
-            blockName?: string | null;
-            blockType: 'select';
-          }
-        | {
-            name: string;
-            label?: string | null;
-            width?: number | null;
-            required?: boolean | null;
-            id?: string | null;
-            blockName?: string | null;
-            blockType: 'state';
-          }
-        | {
-            name: string;
-            label?: string | null;
-            width?: number | null;
-            defaultValue?: string | null;
-            required?: boolean | null;
-            id?: string | null;
-            blockName?: string | null;
-            blockType: 'text';
-          }
-        | {
-            name: string;
-            label?: string | null;
-            width?: number | null;
-            defaultValue?: string | null;
-            required?: boolean | null;
-            id?: string | null;
-            blockName?: string | null;
-            blockType: 'textarea';
-          }
-      )[]
-    | null;
-  submitButtonLabel?: string | null;
-  confirmationType?: ('message' | 'redirect') | null;
-  confirmationMessage?: {
-    root: {
-      type: string;
-      children: {
-        type: any;
-        version: number;
-        [k: string]: unknown;
-      }[];
-      direction: ('ltr' | 'rtl') | null;
-      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
-      indent: number;
-      version: number;
-    };
-    [k: string]: unknown;
-  } | null;
-  redirect?: {
-    url?: string | null;
-  };
-  /**
-   * Contact forms deliver the message to a recipient. Subscribe forms add the sender to a client’s mailing list.
-   */
-  actionType: 'contact' | 'subscribe';
-  /**
-   * Who receives messages from this form. Leave blank to send to contact@sydevelopers.com.
-   */
-  recipient?: (number | null) | Manager;
-  /**
-   * Whose mailing list a subscriber joins.
-   */
-  client?: (number | null) | Client;
   updatedAt: string;
   createdAt: string;
 }
@@ -2896,6 +2745,157 @@ export interface ClientAbuseScore {
      */
     current: number;
   };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "forms".
+ */
+export interface Form {
+  id: number;
+  title?: string | null;
+  fields?:
+    | (
+        | {
+            name: string;
+            label?: string | null;
+            width?: number | null;
+            required?: boolean | null;
+            defaultValue?: boolean | null;
+            id?: string | null;
+            blockName?: string | null;
+            blockType: 'checkbox';
+          }
+        | {
+            name: string;
+            label?: string | null;
+            width?: number | null;
+            required?: boolean | null;
+            id?: string | null;
+            blockName?: string | null;
+            blockType: 'country';
+          }
+        | {
+            name: string;
+            label?: string | null;
+            width?: number | null;
+            required?: boolean | null;
+            id?: string | null;
+            blockName?: string | null;
+            blockType: 'email';
+          }
+        | {
+            message?: {
+              root: {
+                type: string;
+                children: {
+                  type: any;
+                  version: number;
+                  [k: string]: unknown;
+                }[];
+                direction: ('ltr' | 'rtl') | null;
+                format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+                indent: number;
+                version: number;
+              };
+              [k: string]: unknown;
+            } | null;
+            id?: string | null;
+            blockName?: string | null;
+            blockType: 'message';
+          }
+        | {
+            name: string;
+            label?: string | null;
+            width?: number | null;
+            defaultValue?: number | null;
+            required?: boolean | null;
+            id?: string | null;
+            blockName?: string | null;
+            blockType: 'number';
+          }
+        | {
+            name: string;
+            label?: string | null;
+            width?: number | null;
+            defaultValue?: string | null;
+            placeholder?: string | null;
+            options?:
+              | {
+                  label: string;
+                  value: string;
+                  id?: string | null;
+                }[]
+              | null;
+            required?: boolean | null;
+            id?: string | null;
+            blockName?: string | null;
+            blockType: 'select';
+          }
+        | {
+            name: string;
+            label?: string | null;
+            width?: number | null;
+            required?: boolean | null;
+            id?: string | null;
+            blockName?: string | null;
+            blockType: 'state';
+          }
+        | {
+            name: string;
+            label?: string | null;
+            width?: number | null;
+            defaultValue?: string | null;
+            required?: boolean | null;
+            id?: string | null;
+            blockName?: string | null;
+            blockType: 'text';
+          }
+        | {
+            name: string;
+            label?: string | null;
+            width?: number | null;
+            defaultValue?: string | null;
+            required?: boolean | null;
+            id?: string | null;
+            blockName?: string | null;
+            blockType: 'textarea';
+          }
+      )[]
+    | null;
+  submitButtonLabel?: string | null;
+  confirmationType?: ('message' | 'redirect') | null;
+  confirmationMessage?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  redirect?: {
+    url?: string | null;
+  };
+  /**
+   * Contact forms deliver the message to a recipient. Subscribe forms add the sender to a client’s mailing list.
+   */
+  actionType: 'contact' | 'subscribe';
+  /**
+   * Who receives messages from this form. Leave blank to send to contact@sydevelopers.com.
+   */
+  recipient?: (number | null) | Manager;
+  /**
+   * Whose mailing list a subscriber joins.
+   */
+  client?: (number | null) | Client;
+  updatedAt: string;
+  createdAt: string;
 }
 export interface SubmissionLocation {
   /**
@@ -5317,11 +5317,8 @@ export interface FormsSelect<T extends boolean = true> {
 export interface UserSubmissionsSelect<T extends boolean = true> {
   screeningResult?: T;
   proposedChanges?: T;
-  type?: T;
-  user?: T;
   startingAt?: T;
   startingAt_tz?: T;
-  form?: T;
   submissionData?:
     | T
     | {
@@ -5330,8 +5327,6 @@ export interface UserSubmissionsSelect<T extends boolean = true> {
         id?: T;
       };
   senderEmail?: T;
-  status?: T;
-  event?: T;
   unsubscribedAt?: T;
   eventFeedback?: T;
   previewEvent?: T;
@@ -5339,8 +5334,13 @@ export interface UserSubmissionsSelect<T extends boolean = true> {
   region?: T;
   activityLog?: T;
   subject?: T;
-  uuid?: T;
+  type?: T;
+  status?: T;
+  user?: T;
   client?: T;
+  form?: T;
+  event?: T;
+  uuid?: T;
   location?: T;
   regionHint?: T;
   proposed?: T;
