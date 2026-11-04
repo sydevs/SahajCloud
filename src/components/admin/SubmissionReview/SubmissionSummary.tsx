@@ -8,6 +8,7 @@ import { relationId } from '@/lib/utilities/relationId'
 import type { UserSubmission } from '@/payload-types'
 
 import { SummaryLink } from './SummaryLink'
+import { CompactTable } from '../helpers/CompactTable'
 
 import './styles.css'
 
@@ -31,8 +32,8 @@ type Linked = keyof typeof TITLE_FIELDS
  * `client`, `form` and `event` as one read-only field, each document a link
  * opening it in a drawer.
  *
- * Marked up as a Payload field — `field-type`, its `FieldLabel`, the value in
- * `field-type__wrap` — so it sits in the sidebar like the fields around it.
+ * Marked up as a Payload field — `field-type` and its `FieldLabel` — around a
+ * `CompactTable`, the same key/value shape as the submission data beside it.
  *
  * **A server component**, so a title costs no client fetch. Each read runs
  * under the viewer's own access: a document they cannot read shows as plain
@@ -78,20 +79,34 @@ const SubmissionSummary: FieldServerComponent<Field> = async ({ data, field, pay
     rows.push({ label: 'Event', value: muted('A new event, created on accept') })
   }
 
-  const label = 'label' in field && typeof field.label === 'string' ? field.label : 'Summary'
+  const label = 'label' in field && typeof field.label === 'string' ? field.label : 'Context'
 
   return (
-    <div className="field-type submission-summary read-only">
+    <div className="field-type submission-data submission-summary read-only">
       <FieldLabel label={label} />
-      <div className="field-type__wrap">
-        <ul className="submission-summary__list">
-          {rows.map((row) => (
-            <li key={row.label}>
-              <strong>{row.label}:</strong> {row.value}
-            </li>
-          ))}
-        </ul>
-      </div>
+      <CompactTable
+        columns={[
+          {
+            key: 'field',
+            heading: 'Field',
+            fit: true,
+            cells: rows.map((row) => (
+              <span key={row.label} className="submission-data__key">
+                {row.label}
+              </span>
+            )),
+          },
+          {
+            key: 'value',
+            heading: 'Value',
+            cells: rows.map((row) => (
+              <span key={row.label} className="submission-summary__value">
+                {row.value}
+              </span>
+            )),
+          },
+        ]}
+      />
     </div>
   )
 }

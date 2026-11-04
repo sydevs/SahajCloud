@@ -175,14 +175,8 @@
   font-size: 13px;
 }
 
-/* The sidebar summary: who sent it, through what, about what. */
-.submission-summary__list {
-  margin: 0;
-  padding-inline-start: 1.2em;
-}
-
-.submission-summary__list li {
-  margin-bottom: calc(var(--base) * 0.3);
+/* The sidebar Context table: who sent it, through what, about what. */
+.submission-summary__value {
   overflow-wrap: anywhere;
 }
 

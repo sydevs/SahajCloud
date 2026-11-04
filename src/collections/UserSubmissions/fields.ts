@@ -97,7 +97,7 @@ const SHOWN_IN_SUMMARY = { Field: '@/components/admin/FormStateOnly' }
  */
 const submissionSummaryField: Field = {
   name: 'submissionSummary',
-  label: 'Summary',
+  label: 'Context',
   type: 'ui',
   admin: {
     position: 'sidebar',
@@ -357,7 +357,8 @@ const SUBMISSION_DATA_TABLE = '@/components/admin/SubmissionReview/SubmissionDat
 /** The `submissionData` keys a client writes about itself, rather than answers. */
 const submissionContextField: Field = {
   name: 'submissionContext',
-  label: 'Context',
+  // Not "Context": that is the sidebar summary of who sent this and through what.
+  label: 'Request Details',
   type: 'ui',
   admin: {
     components: {
