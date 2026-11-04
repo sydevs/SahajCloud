@@ -2,7 +2,12 @@ import { z } from 'zod'
 
 import { checkEmailAllowed, checkNoUrls } from '@/lib/antiSpam/antiSpamGuard'
 import type { AntiSpamCode, AntiSpamResult } from '@/lib/antiSpam/antiSpamGuard'
-import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
+import type { RegistrationAnswer } from '@/lib/registrations/questions'
+import {
+  buildRegistrationAnswers,
+  EVENT_REGISTRATION_QUESTIONS,
+  REGISTRATION_QUESTION_NAMES,
+} from '@/lib/registrations/questions'
 import { CLIENT_CONTEXT_KEYS } from '@/lib/submissions/clientContext'
 import type { Form, UserSubmission } from '@/payload-types'
 
@@ -100,7 +105,7 @@ export function parseOptIn(value: string | undefined): boolean {
  * Keys a type adds to the base set, beyond whatever its form authored.
  *
  * `subscribe` adds none: an address plus a name is the whole of a subscription,
- * and the address is a real column.
+ * and the address becomes the row's `user`.
  */
 export const TYPE_SUBMISSION_KEYS: Record<UserSubmission['type'], readonly string[]> = {
   contact: ['subject', 'message'],
@@ -355,4 +360,33 @@ export function readSubmissionValue(entries: unknown, key: string): string | und
   if (!Array.isArray(entries)) return undefined
   const found = (entries as SubmissionDataEntry[]).find((entry) => entry?.field === key)
   return typeof found?.value === 'string' ? found.value : undefined
+}
+
+/**
+ * Every key a registration row may carry that is **not** an answer.
+ *
+ * ⚠ **Derived from the two declarations above, never listed.**
+ * `buildRegistrationAnswers` labels any key it does not recognise by the key
+ * itself, so every reserved key left in reaches a manager as something the
+ * visitor was asked — `userAgent: Mozilla/5.0 …`, the registrant's own `name`,
+ * or `subscribe: Yes`. Deriving it means a reserved key added to either
+ * declaration is excluded the day it is declared, rather than the day someone
+ * remembers this list. What survives is a configured question, or a legacy key
+ * the Atlas dump carried, which is the only thing the extras branch is for.
+ */
+const NON_ANSWER_KEYS: ReadonlySet<string> = new Set(
+  [...BASE_SUBMISSION_KEYS, ...TYPE_SUBMISSION_KEYS.registration].filter(
+    (key) => !REGISTRATION_QUESTION_NAMES.has(key),
+  ),
+)
+
+/** A registrant's answers to the event's questions, labelled for display. */
+export function registrationAnswers(entries: unknown): RegistrationAnswer[] {
+  if (!Array.isArray(entries)) return []
+  const answers: Record<string, unknown> = {}
+  for (const entry of entries as SubmissionDataEntry[]) {
+    if (typeof entry?.field !== 'string' || NON_ANSWER_KEYS.has(entry.field)) continue
+    answers[entry.field] = entry.value
+  }
+  return buildRegistrationAnswers(answers)
 }

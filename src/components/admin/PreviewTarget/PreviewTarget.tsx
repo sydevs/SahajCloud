@@ -65,6 +65,11 @@ export const PreviewTarget: UIFieldClientComponent = ({ field }) => {
   }, [isLivePreviewEnabled, setIsLivePreviewing, target?.autoOpen])
 
   useEffect(() => {
+    if (!isLivePreviewEnabled || !target?.autoClose) return
+    setIsLivePreviewing(false)
+  }, [isLivePreviewEnabled, setIsLivePreviewing, target?.autoClose])
+
+  useEffect(() => {
     // An empty `url` is the provider before it has resolved one. Composing
     // against the last document's default instead is how the panel would end
     // up on another global's origin.

@@ -177,7 +177,11 @@ No loose files at the root — every file lives in a named folder:
   its `copy.ts`), `registrations/` (the `EVENT_REGISTRATION_QUESTIONS`
   contract + `questions` validation, shared by Events, `user-submissions`,
   and the notification email, plus the `unsubscribeToken`/`unsubscribeUrl`
-  helpers), `submissions/` (`CLIENT_CONTEXT_KEYS` — the `submissionData`
+  helpers. It owns the question vocabulary and how an answer is
+  **labelled**; which `submissionData` keys are answers at all is
+  `user-submissions`' own `registrationAnswers`, because that is derived
+  from the key declarations on the collection), `submissions/`
+  (`CLIENT_CONTEXT_KEYS` — the `submissionData`
   keys the client writes about itself, rather than answers a visitor typed.
   `user-submissions` derives its URL-scan exemption from them and `Forms`
   refuses a field named after one, so the list belongs to neither collection)

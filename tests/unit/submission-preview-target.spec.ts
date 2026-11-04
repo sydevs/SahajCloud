@@ -1,6 +1,6 @@
 /**
- * The Live Preview panel opens by itself on a `proposal` row, and on no other
- * intake.
+ * The Live Preview panel opens by itself on a `proposal` row, and closes by
+ * itself on every other intake.
  *
  * `admin.openByDefault` is the option that would say this. It is collection-wide
  * and takes no function, so on a table holding four intakes it would greet a
@@ -39,36 +39,45 @@ const conditionArgs = (operation: Operation) => ({
 const fields = userSubmissionFields({ defaultFields: [] })
 
 const targets = fields.filter((field) => previewTargetOf(field) !== undefined) as UIField[]
+const opener = targets.find((field) => previewTargetOf(field)?.autoOpen)
+const closer = targets.find((field) => previewTargetOf(field)?.autoClose)
 
-describe('the proposal live-preview target', () => {
-  // Without this, every case below would pass over an empty list if the field
+describe('the submission live-preview targets', () => {
+  // Without this, every case below would pass over an empty list if a field
   // were dropped or renamed.
-  it('is declared exactly once', () => {
-    expect(targets).toHaveLength(1)
+  it('declares one opener and one closer', () => {
+    expect(targets).toHaveLength(2)
+    expect(opener).toBeDefined()
+    expect(closer).toBeDefined()
   })
 
-  it('opens the panel and repoints nothing', () => {
-    const target = previewTargetOf(targets[0]!)!
+  it.each([
+    ['opener', () => opener],
+    ['closer', () => closer],
+  ] as const)('the %s repoints nothing', (_, get) => {
+    const target = previewTargetOf(get()!)!
 
-    expect(target.autoOpen).toBe(true)
     expect(target.path).toBeUndefined()
     expect(target.params).toBeUndefined()
+    expect(Boolean(target.autoOpen) && Boolean(target.autoClose)).toBe(false)
   })
 
   it.each(SUBMISSION_TYPES.map((type) => [type] as const))(
-    'mounts for %s only when that is the reviewable type',
+    'on %s, exactly one of the two mounts, and the opener only for a proposal',
     (type) => {
-      const condition = targets[0]!.admin?.condition
-      expect(condition).toBeTypeOf('function')
+      const opens = opener!.admin!.condition!({ type }, {}, conditionArgs('update'))
+      const closes = closer!.admin!.condition!({ type }, {}, conditionArgs('update'))
 
-      expect(condition!({ type }, {}, conditionArgs('update'))).toBe(type === 'proposal')
+      expect(opens).toBe(type === 'proposal')
+      expect(closes).toBe(type !== 'proposal')
     },
   )
 
-  it('does not mount before a type is known', () => {
-    const condition = targets[0]!.admin!.condition!
-
-    expect(condition({}, {}, conditionArgs('create'))).toBe(false)
-    expect(condition({ type: undefined }, {}, conditionArgs('create'))).toBe(false)
+  it('mounts neither before a type is known', () => {
+    for (const target of [opener!, closer!]) {
+      const condition = target.admin!.condition!
+      expect(condition({}, {}, conditionArgs('create'))).toBe(false)
+      expect(condition({ type: undefined }, {}, conditionArgs('create'))).toBe(false)
+    }
   })
 })
