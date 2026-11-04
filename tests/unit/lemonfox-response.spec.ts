@@ -4,15 +4,15 @@
  *
  * Fixture pre-mortem: these bodies claim to be what Lemonfox's
  * OpenAI-compatible `verbose_json` returns. Verified against the shape the
- * normaliser declares in `src/collections/MeditationTranscripts/lemonfox.ts` —
+ * normaliser declares in `src/lib/lemonfox/normalize.ts` —
  * `segments[]` of `{ text, start, end }`, with word timings arriving either on
  * each segment (WhisperX) or in one top-level list (OpenAI). Nothing stores
  * the timings, so both layouts must reduce to the same answer.
  */
 import { describe, expect, it } from 'vitest'
 
-import { normalizeLemonfoxResponse } from '@/collections/MeditationTranscripts/lemonfox'
 import { ExpectedJobFailure } from '@/lib/jobs/expectedFailure'
+import { normalizeLemonfoxResponse } from '@/lib/lemonfox/normalize'
 
 const PER_SEGMENT_WORDS = {
   text: 'Place your attention. Let the thoughts settle.',

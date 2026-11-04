@@ -105,7 +105,9 @@ import * as migration_20261027_000341_imports_upload_locale_rename from './20261
 import * as migration_20261027_190500_pages_blank_slug_to_null from './20261027_190500_pages_blank_slug_to_null';
 import * as migration_20261101_191500_atlas_drop_time_in_place from './20261101_191500_atlas_drop_time_in_place';
 import * as migration_20261101_202242_block_submitter from './20261101_202242_block_submitter';
+import * as migration_20261102_225511_rename_transcripts from './20261102_225511_rename_transcripts';
 import * as migration_20261103_215150_submitter_identity from './20261103_215150_submitter_identity';
+import * as migration_20261104_182008_merge_1075_main_snapshot from './20261104_182008_merge_1075_main_snapshot';
 
 export const migrations = [
   {
@@ -644,8 +646,18 @@ export const migrations = [
     name: '20261101_202242_block_submitter',
   },
   {
+    up: migration_20261102_225511_rename_transcripts.up,
+    down: migration_20261102_225511_rename_transcripts.down,
+    name: '20261102_225511_rename_transcripts',
+  },
+  {
     up: migration_20261103_215150_submitter_identity.up,
     down: migration_20261103_215150_submitter_identity.down,
-    name: '20261103_215150_submitter_identity'
+    name: '20261103_215150_submitter_identity',
+  },
+  {
+    up: migration_20261104_182008_merge_1075_main_snapshot.up,
+    down: migration_20261104_182008_merge_1075_main_snapshot.down,
+    name: '20261104_182008_merge_1075_main_snapshot'
   },
 ];

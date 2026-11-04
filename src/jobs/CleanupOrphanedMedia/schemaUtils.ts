@@ -333,6 +333,25 @@ function isNumericString(str: string): boolean {
 }
 
 /**
+ * The id a **polymorphic** reference's value carries for `targetCollection`, or
+ * `null` where it names a different one.
+ *
+ * ⚠ Such a value is `{ relationTo, value }` at `depth: 0`, so `extractId`
+ * reads `.id` and answers `null` — which would make a transcript's hold on its
+ * recording invisible and let the sweep trash a file in use. Returning `value`
+ * blind is worse than that bug: a `meditations`-sourced row would then protect
+ * the file of the same number.
+ *
+ * Whether to ask this is the **walk's** answer, off `relationTo`'s own shape,
+ * never a key sniffed from the stored value — the same discipline
+ * `localeValues` states.
+ */
+function polymorphicId(value: unknown, targetCollection: string): number | null {
+  if (!isRecord(value) || !('relationTo' in value) || !('value' in value)) return null
+  return value.relationTo === targetCollection ? extractId(value.value) : null
+}
+
+/**
  * Extract a numeric ID from a relationship field value.
  * Handles: number, string (fully numeric only), or populated object with .id
  */
@@ -424,6 +443,7 @@ function getValueAtPath(
 export function extractIdsFromDocument(
   document: Record<string, unknown>,
   reference: FieldReference,
+  targetCollection: string,
 ): Set<number> {
   const ids = new Set<number>()
 
@@ -435,14 +455,19 @@ export function extractIdsFromDocument(
   const pathParts = reference.fieldPath.split('.')
   const values = getValueAtPath(document, pathParts, reference.localizedAt)
 
+  // A `relationTo` array is the schema saying each value names its own target.
+  const idOf = Array.isArray(reference.relationTo)
+    ? (value: unknown) => polymorphicId(value, targetCollection)
+    : extractId
+
   for (const value of values) {
     if (reference.hasMany && Array.isArray(value)) {
       for (const item of value) {
-        const id = extractId(item)
+        const id = idOf(item)
         if (id !== null) ids.add(id)
       }
     } else {
-      const id = extractId(value)
+      const id = idOf(value)
       if (id !== null) ids.add(id)
     }
   }

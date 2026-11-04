@@ -7,10 +7,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import {
-  deriveTranscriptStatus,
-  transcriptJobError,
-} from '@/collections/MeditationTranscripts/status'
+import { deriveTranscriptStatus, transcriptJobError } from '@/collections/Transcripts/status'
 
 const cues = [{ text: 'Let the thoughts settle.', start: 0, end: 1000 }]
 

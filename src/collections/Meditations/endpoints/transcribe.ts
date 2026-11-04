@@ -15,24 +15,32 @@ import {
   transcriptPhase,
   transcriptPhaseIsRetryable,
 } from '@/lib/meditations/transcriptBounds'
+import { transcriptSourceWhere } from '@/lib/transcripts/source'
 import { isOutsideWritableLocale } from '@/plugins/access/localeScopedWrites'
 
 const refusal = (message: string, status: number, headers?: HeadersInit): Response =>
   Response.json({ errors: [{ message }] }, { headers, status })
 
 /**
- * Whether this is the `unique` index on `meditation` refusing a second row —
- * two requests racing, where the loser's insert lands after the winner's.
+ * Whether this is the `unique` index on `source` refusing a second row — two
+ * requests racing, where the loser's insert lands after the winner's.
  *
  * ⚠ **The driver's SQLSTATE never reaches here.** `handleUpsertError` in
  * `@payloadcms/drizzle` converts a `23505` into this `ValidationError` and does
  * not keep the Postgres error as `cause`, so `@/lib/databaseErrors` cannot see
- * it and the field path is what is left. `meditation` is the only unique column
- * on the collection, and this handler supplies the id itself, so a validation
- * error naming it can only be the duplicate.
+ * it and the path is what is left.
+ *
+ * ⚠ **And that path is a Postgres `detail` string, not a field name.** `source`
+ * is polymorphic, so its unique index lives on `transcripts_rels` as
+ * `UNIQUE(meditations_id, path)` — and `adapter.fieldConstraints`, the map that
+ * turns a constraint name into a field path, is filled only for column-backed
+ * relationships. With no entry to match, `handleUpsertError` falls back to the
+ * `Key (…)` list in Postgres's own `detail`. `transcripts` carries no unique
+ * column of its own, and this handler supplies the id itself, so a validation
+ * error naming that pair can only be the duplicate.
  */
 const isDuplicateTranscript = (error: ValidationError): boolean =>
-  error.data.errors.some(({ path }) => path === 'meditation')
+  error.data.errors.some(({ path }) => path === 'meditations_id, path')
 
 /**
  * POST /api/meditations/:id/transcribe — ask for this meditation's recording to
@@ -108,17 +116,17 @@ export const meditationTranscribe: Endpoint = {
 
     // ⚠ **No `select`, because the row has to arrive whole.** `status` is
     // virtual, computed by its own `afterRead` from `segments` and `job`
-    // (`MeditationTranscripts.ts`) — so a `select` would starve that hook and
+    // (`Transcripts.ts`) — so a `select` would starve that hook and
     // the phase below would read every row as `completed`, refusing every
     // retry. The integration lane's phase cases are what hold this.
-    // `meditation` is unique, so there is at most one row.
+    // `source` is unique, so there is at most one row.
     //
     // `overrideAccess` here and on the two writes below: the authority is the
-    // `meditations: update` gate above, and `meditation-transcripts` carries no
-    // write grant of its own (`MeditationTranscripts.ts`).
+    // `meditations: update` gate above, and `transcripts` carries no write
+    // grant of its own (`Transcripts.ts`).
     const { docs } = await req.payload.find({
-      collection: 'meditation-transcripts',
-      where: { meditation: { equals: id } },
+      collection: 'transcripts',
+      where: transcriptSourceWhere('meditations', id),
       depth: 0,
       limit: 1,
       pagination: false,
@@ -151,7 +159,7 @@ export const meditationTranscribe: Endpoint = {
     // no transcript at all.** An endpoint inherits none — a hook would
     // (`queueTranscription.ts`) — so this opens its own and kills it on any
     // throw, which puts the previous row back. `create` before `delete` is not
-    // an alternative: `meditation` is unique.
+    // an alternative: `source` is unique.
     const opened = await initTransaction(req)
     try {
       if (existing) {
@@ -165,8 +173,8 @@ export const meditationTranscribe: Endpoint = {
         // through to the create, trip the unique index, and be reported as a
         // race — with the real cause logged nowhere.
         const { errors } = await req.payload.delete({
-          collection: 'meditation-transcripts',
-          where: { meditation: { equals: id } },
+          collection: 'transcripts',
+          where: transcriptSourceWhere('meditations', id),
           overrideAccess: true,
           req,
         })
@@ -178,11 +186,11 @@ export const meditationTranscribe: Endpoint = {
       }
       // No row at all is the lost-run case — create without the delete.
       const created = await req.payload.create({
-        collection: 'meditation-transcripts',
+        collection: 'transcripts',
         data: {
           audioFilename: meditation.filename,
           language: meditation.locale,
-          meditation: id,
+          source: { relationTo: 'meditations', value: id },
         },
         depth: 0,
         overrideAccess: true,

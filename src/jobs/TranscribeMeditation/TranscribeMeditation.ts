@@ -1,13 +1,14 @@
 import type { PayloadRequest, TaskConfig } from 'payload'
 
-import { normalizeLemonfoxResponse } from '@/collections/MeditationTranscripts/lemonfox'
 import {
   lemonfoxApiKey,
   requestLemonfoxTranscript,
   TRANSCRIPTION_UNAVAILABLE_ERROR,
 } from '@/jobs/TranscribeMeditation/lemonfox/transcribe'
 import { ExpectedJobFailure } from '@/lib/jobs/expectedFailure'
-import type { MeditationTranscript } from '@/payload-types'
+import { normalizeLemonfoxResponse } from '@/lib/lemonfox/normalize'
+import { transcriptSourceWhere } from '@/lib/transcripts/source'
+import type { Transcript } from '@/payload-types'
 import { getR2Url } from '@/plugins/storage'
 import { isProductionDeployment } from '@/plugins/storage/previewIsolation'
 
@@ -20,7 +21,7 @@ const configGap = (message: string): Error =>
   isProductionDeployment() ? new Error(message) : new ExpectedJobFailure(message)
 
 /**
- * Transcribe one meditation's recording into `meditation-transcripts`.
+ * Transcribe one meditation's recording into `transcripts`.
  *
  * Queued by the transcript row's own afterChange, which also starts the
  * `transcription` queue. That queue's autoRun only picks up a run the start
@@ -84,7 +85,7 @@ export const TranscribeMeditation: TaskConfig<'transcribeMeditation'> = {
     }
 
     await req.payload.update({
-      collection: 'meditation-transcripts',
+      collection: 'transcripts',
       id: row.id,
       data: { provider: 'lemonfox', segments },
       depth: 0,
@@ -98,7 +99,7 @@ export const TranscribeMeditation: TaskConfig<'transcribeMeditation'> = {
 /**
  * The meditation's transcript row, while it still names `audioFilename`.
  *
- * `meditation` is unique, so there is at most one row per meditation and the
+ * `source` is unique, so there is at most one row per meditation and the
  * recording is a field comparison rather than a second query. `overrideAccess`
  * because this run owns the row it is filling in.
  */
@@ -106,10 +107,10 @@ async function findCurrentRow(
   req: PayloadRequest,
   meditationId: number,
   audioFilename: string,
-): Promise<MeditationTranscript | undefined> {
+): Promise<Transcript | undefined> {
   const { docs } = await req.payload.find({
-    collection: 'meditation-transcripts',
-    where: { meditation: { equals: meditationId } },
+    collection: 'transcripts',
+    where: transcriptSourceWhere('meditations', meditationId),
     depth: 0,
     limit: 1,
     pagination: false,

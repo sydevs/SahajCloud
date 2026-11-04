@@ -8,6 +8,7 @@ import { CREATE_STAGE, WORKFLOW_BUTTONS } from '@/components/admin/WorkflowButto
 import { hideUntilCreated, mediaField } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
 import { previewTargetField } from '@/fields/previewTargetField'
+import { deleteChildren } from '@/lib/cascadeDeletion'
 import { serverEnv } from '@/lib/env'
 import { livePreviewUrl, wmWebLocalePath } from '@/lib/livePreview/url'
 import { LOCALES } from '@/lib/locales'
@@ -121,6 +122,9 @@ export const Meditations: CollectionConfig = {
       cacheMeditationNodeWeights,
     ],
     afterChange: [syncMeditationTranscript],
+    // `transcripts.source` is `required`, so see `Transcripts.ts` for why the
+    // row cannot outlive its meditation.
+    beforeDelete: [deleteChildren({ collection: 'transcripts', field: 'source' })],
   },
   defaultPopulate: {
     // Exclude the expensive per-row afterRead virtual fields when a meditation
@@ -337,9 +341,10 @@ export const Meditations: CollectionConfig = {
             },
             {
               // Native, not a `virtualJoinField`: #249's workaround exists for a
-              // join onto a *localized* relationship, and `meditation-transcripts`
-              // localizes nothing. `meditation` is unique there, so this resolves
-              // to at most one row.
+              // join onto a *localized* relationship, and `transcripts` localizes
+              // nothing. Payload correlates the polymorphic `source` per target
+              // itself, and the rels table's unique index per target is what
+              // keeps this to at most one row.
               //
               // Whoever may read the recording reads its transcript here, through
               // the two projects both collections sit in (`config/projects.ts`).
@@ -347,8 +352,8 @@ export const Meditations: CollectionConfig = {
               // in for one.
               name: 'transcript',
               type: 'join',
-              collection: 'meditation-transcripts',
-              on: 'meditation',
+              collection: 'transcripts',
+              on: 'source',
               defaultLimit: 1,
               // Like every join, it resolves nothing until the document exists.
               admin: { condition: hideUntilCreated },

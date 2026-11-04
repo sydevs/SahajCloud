@@ -129,8 +129,8 @@ describe('meditation-transcripts seed', () => {
   const createLibraryMeditation = async (overrides: FixtureOverrides<Meditation>) => {
     const meditation = await testData.createMeditation(payload, undefined, overrides)
     await payload.delete({
-      collection: 'meditation-transcripts',
-      where: { meditation: { equals: meditation.id } },
+      collection: 'transcripts',
+      where: { source: { equals: { relationTo: 'meditations', value: meditation.id } } },
       overrideAccess: true,
     })
     return meditation
@@ -162,8 +162,8 @@ describe('meditation-transcripts seed', () => {
 
   const readRow = async (meditationId: number) => {
     const { docs } = await payload.find({
-      collection: 'meditation-transcripts',
-      where: { meditation: { equals: meditationId } },
+      collection: 'transcripts',
+      where: { source: { equals: { relationTo: 'meditations', value: meditationId } } },
       depth: 0,
       overrideAccess: true,
     })

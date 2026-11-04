@@ -1,4 +1,4 @@
-import type { CollectionBeforeDeleteHook, CollectionSlug } from 'payload'
+import type { CollectionBeforeDeleteHook, CollectionSlug, PayloadRequest } from 'payload'
 
 /**
  * A single cascade target: the child collection and the field on that child
@@ -27,6 +27,9 @@ export interface CascadeRule {
  * helper runs before the DB-level FK so children are gone before the parent
  * row is physically removed.
  *
+ * A **polymorphic** child field is the same job needing a different `where`,
+ * and the hook reads that off the child's own schema — see `polymorphicField`.
+ *
  * ## Trash-enabled collections
  *
  * On trash-enabled collections, `payload.delete()` still physically removes
@@ -50,14 +53,45 @@ export interface CascadeRule {
  * ```
  */
 export function deleteChildren(...rules: CascadeRule[]): CollectionBeforeDeleteHook {
-  return async ({ id, req }) => {
+  return async ({ collection, id, req }) => {
     for (const rule of rules) {
       await req.payload.delete({
         collection: rule.collection,
-        where: { [rule.field]: { equals: id } },
+        where: {
+          [rule.field]: polymorphicField(req, rule)
+            ? { equals: { relationTo: collection.slug, value: id } }
+            : { equals: id },
+        },
+        // Nothing reads the deleted rows, and the config's `defaultDepth` would
+        // populate every child's relationships on the way out. A `select` would
+        // also skip the children's virtual fields, but its type is per
+        // collection and this helper is generic.
+        depth: 0,
         trash: true,
         req,
       })
     }
   }
+}
+
+/**
+ * Whether the child's referencing field is polymorphic, read off the child's
+ * own config.
+ *
+ * ⚠ **Derived, never declared.** The object form needs the parent's slug, and
+ * that is the collection this hook is registered on — so a rule free to state
+ * it is free to state the wrong one, which compiles, deletes nothing, and
+ * leaves the parent's delete to fail on the foreign key. The repo answers every
+ * other "what shape is this column" question the same way
+ * (`isLocaleScopedCollection`, `getDocManagerFields`).
+ *
+ * `flattenedFields`, because sanitization splices a row, a collapsible or an
+ * unnamed group straight into the top level. A dotted `field` reaches no
+ * top-level entry, so it keeps the single-target form.
+ */
+function polymorphicField(req: PayloadRequest, rule: CascadeRule): boolean {
+  const field = req.payload.collections?.[rule.collection]?.config?.flattenedFields?.find(
+    (candidate) => 'name' in candidate && candidate.name === rule.field,
+  )
+  return !!field && 'relationTo' in field && Array.isArray(field.relationTo)
 }

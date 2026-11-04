@@ -47,7 +47,7 @@ This only works because the authenticated user loads **four times**, not once. `
 | ---------------------------------------------------------------------------------- | ----------------- | -------------------------------------------------------------------------------------------------- |
 | `FrameEditor/utils.ts` → `/api/frames/by-narrator/:id`                             | **Yes**           | The endpoint's permission gate resolves `req.locale`                                               |
 | `ThumbnailCell/relationshipDocLoader.ts` → `/api/:collection`                      | **Yes**           | The collection read gate does                                                                      |
-| `MeditationTranscript/transcriptModel.ts` → `/api/meditation-transcripts`          | **Yes**           | The collection read gate does, and it is the SWR key, so it must carry the locale twice over       |
+| `MeditationTranscript/transcriptModel.ts` → `/api/transcripts`                     | **Yes**           | The collection read gate does, and it is the SWR key, so it must carry the locale twice over       |
 | `MeditationTranscript/transcriptModel.ts` → `POST /api/meditations/:id/transcribe` | **Yes**           | The endpoint's permission gate resolves `req.locale`                                               |
 | `ProjectSelector.tsx`, `ProjectContext.tsx` → `/api/managers/set-project`          | No                | Gated on `requireActiveManager`, then reads with `overrideAccess: true` — no per-locale check runs |
 | `CanonicalEmbedPicker/Description.tsx` → `/api/clients/:id/verify-embed`           | No                | Same shape, and `Clients.roles` is not localized                                                   |
@@ -242,12 +242,39 @@ It is deliberately **wider** than `adminOnlyFieldAccess`, which is the wrong too
 | Want                            | Do                                                                                  |
 | ------------------------------- | ----------------------------------------------------------------------------------- |
 | Nobody reads it implicitly      | Add it to `RESTRICTED_COLLECTIONS`                                                  |
+| **No client key may read it**   | Add it to `CLIENT_UNREADABLE` (`accessConfigs.ts`) — managers keep implicit read    |
 | A client may still create it    | Grant `['create']` in that client's role                                            |
 | **No manager role may read it** | Grant it in **no** role                                                             |
 | Only _some_ rows, for a manager | Grant `read`, then narrow to a `Where` in `createAccessConfig` (`user-submissions`) |
 | Visible in `/api/docs`          | Add it to a project's `collections` (`docs/rules/openapi.md`)                       |
 
 Both public intakes' POSTs are `x-internal` for exactly this reason: neither sits in a project.
+
+### A child row whose parent's state no `Where` can reach
+
+The published-only clause and Payload's trash filter are both **per collection**, so a child
+carrying neither answers for a parent that refuses to be read at all — which handed every client
+key a draft meditation's full spoken text and the R2 key it plays from (#968). The fix was a
+`Where` over the parent relationship, spelled against the relationship rather than a resolved id
+list because the same clause is combined into the join query (`sanitizeJoinQuery`), where an id
+list would cost a second round trip on every parent row.
+
+⚠ **That fix is unavailable once the parent is polymorphic.** Payload resolves `source`,
+`source.relationTo` and `source.value` on a `relationTo` array and throws
+`APIError('Not supported')` on anything deeper, so `source._status` cannot be written. `transcripts`
+is that case (#1043), and the client read goes rather than the protection: the collection is named
+in `CLIENT_UNREADABLE`, which `createAccessConfig` refuses **above every clause that returns a
+`Where`**. Order is load-bearing there — each clause below it is a narrowed grant, so a refusal
+placed under one is skipped whenever that one matches, and the day the collection gained
+`versions.drafts` every client would read it again.
+
+**Why not `RESTRICTED_COLLECTIONS`.** It skips implicit read for every role, managers included, so
+it would 403 the admin Transcript tab — a manager read that resolves purely through project
+membership today — until every role that opens a meditation gained an explicit `transcripts: ['read']`
+grant. That is the one enumerable home for "who may read this", and it is the reviewer's call; the
+cost is that a role nobody remembers to list gets a silently broken tab, which is the same accepted
+cost this file already records for `web-translator` and restricted `managers`. ⚠ Removing the
+collection from `PROJECTS` is **not** the third option — "in no project" reads as _shared_.
 
 ## Adding a new role
 

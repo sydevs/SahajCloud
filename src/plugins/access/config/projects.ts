@@ -31,7 +31,7 @@ const PROJECTS = {
     collections: [
       'pages',
       'meditations',
-      'meditation-transcripts',
+      'transcripts',
       'songs',
       'albums',
       'videos',
@@ -59,7 +59,7 @@ const PROJECTS = {
     collections: [
       'pages',
       'meditations',
-      'meditation-transcripts',
+      'transcripts',
       'songs',
       'albums',
       'videos',

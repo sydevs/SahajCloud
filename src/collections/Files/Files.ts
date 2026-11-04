@@ -1,5 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
+import { deleteChildren } from '@/lib/cascadeDeletion'
 import { restrictUploadToAdmin } from '@/plugins/access'
 import { videoAdminThumbnail } from '@/plugins/storage/adminThumbnail'
 import {
@@ -19,6 +20,9 @@ export const Files: CollectionConfig = {
   disableDuplicate: true,
   hooks: {
     beforeChange: [restrictUploadToAdmin({ label: 'file' })],
+    // `transcripts.source` is `required`, so see `Transcripts.ts` for why the
+    // row cannot outlive its file.
+    beforeDelete: [deleteChildren({ collection: 'transcripts', field: 'source' })],
   },
   admin: {
     group: 'Media',

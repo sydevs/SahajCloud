@@ -13,13 +13,13 @@ import {
   transcriptPhase,
   transcriptPhaseIsRetryable,
 } from '@/lib/meditations/transcriptBounds'
-import type { MeditationTranscript } from '@/payload-types'
+import type { Transcript } from '@/payload-types'
 
 const NOW = Date.parse('2026-10-17T12:00:00.000Z')
 
 const row = (
-  overrides: Partial<Pick<MeditationTranscript, 'status' | 'updatedAt'>>,
-): Pick<MeditationTranscript, 'status' | 'updatedAt'> => ({
+  overrides: Partial<Pick<Transcript, 'status' | 'updatedAt'>>,
+): Pick<Transcript, 'status' | 'updatedAt'> => ({
   status: 'completed',
   updatedAt: new Date(NOW).toISOString(),
   ...overrides,

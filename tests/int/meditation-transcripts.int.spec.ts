@@ -1,7 +1,11 @@
 /**
- * What the `meditation-transcripts` table itself enforces: who may read it,
- * that a meditation carries at most one transcript, and that the column's own
- * validator refuses a segment it cannot seek through.
+ * What the `transcripts` table itself enforces: who may read it, that every row
+ * names exactly one source, that a source carries at most one transcript, that
+ * a row's lifetime is its source's, and that the column's own validator refuses
+ * a segment it cannot seek through.
+ *
+ * ⚠ A different suite from `meditation-transcription.int.spec.ts`, which covers
+ * the run that fills a row in.
  *
  * The read cases go through `payload.find` with `overrideAccess: false`.
  * Project membership proves nothing on its own — asserting `hasPermission`
@@ -11,15 +15,13 @@ import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { CleanupCollections } from '@/jobs/CleanupCollections/CleanupCollections'
-import type { Meditation, MeditationTranscript } from '@/payload-types'
+import { transcriptSourceWhere } from '@/lib/transcripts/source'
+import type { Meditation, Transcript } from '@/payload-types'
 
-import { deletedIn } from '../utils/retention'
-import { runTaskHandler } from '../utils/taskRunner'
 import { createData, testData, type FixtureOverrides } from '../utils/testData'
 import { createTestEnvironment, idOnlySelect } from '../utils/testHelpers'
 
-describe('meditation transcripts', () => {
+describe('transcripts', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
 
@@ -33,62 +35,92 @@ describe('meditation transcripts', () => {
     await cleanup()
   })
 
+  /** A row for one source, which is most of this file's setup. */
+  const createTranscript = (
+    relationTo: 'meditations' | 'files',
+    value: number,
+    extra: Partial<Parameters<typeof createData<'transcripts'>>[0]> = {},
+  ) =>
+    payload.create({
+      collection: 'transcripts',
+      data: createData<'transcripts'>({
+        source: { relationTo, value },
+        language: 'en',
+        ...extra,
+      }),
+    })
+
   /**
    * A meditation with no transcript row, which is what every case below builds
    * its own row on.
    *
-   * ⚠ Published, because `_status` defaults to `draft` and a client now reads
-   * a transcript only while its recording is readable. Left at the default,
-   * the access case below would assert its refusal for the wrong reason.
-   *
    * ⚠ Since #953 an upload asks for a transcription by itself, so the row
-   * already exists and `meditation` is unique. The two cases that assert a
-   * refusal would otherwise be refused by that constraint instead of by the
-   * rule under test — green, and testing nothing.
+   * already exists and `source` is unique. The cases that assert a refusal
+   * would otherwise be refused by that constraint instead of by the rule under
+   * test — green, and testing nothing.
    */
   const createMeditationWithoutTranscript = async (
     overrides: FixtureOverrides<Meditation> = { _status: 'published' },
   ): Promise<Meditation> => {
     const meditation = await testData.createMeditation(payload, undefined, overrides)
-    const { docs } = await payload.find({
-      collection: 'meditation-transcripts',
-      where: { meditation: { equals: meditation.id } },
-      pagination: false,
+    await payload.delete({
+      collection: 'transcripts',
+      where: transcriptSourceWhere('meditations', meditation.id),
       overrideAccess: true,
     })
-    for (const row of docs) {
-      await payload.delete({ collection: 'meditation-transcripts', id: row.id })
-    }
     return meditation
   }
 
   describe('access', () => {
-    it('answers whoever may read the recording, and refuses whoever may not', async () => {
+    it('answers a manager who may read the recording', async () => {
       const meditation = await createMeditationWithoutTranscript()
-      await payload.create({
-        collection: 'meditation-transcripts',
-        data: createData<'meditation-transcripts'>({
-          meditation: meditation.id,
-          language: 'en',
-          segments: [
-            {
-              content: 'Place your attention on the top of the head.',
-              startTimeMs: 0,
-              endTimeMs: 4000,
-            },
-          ],
-        }),
+      await createTranscript('meditations', meditation.id, {
+        segments: [
+          {
+            content: 'Place your attention on the top of the head.',
+            startTimeMs: 0,
+            endTimeMs: 4000,
+          },
+        ],
       })
 
-      // Real rows, not stubs. A caller the access layer cannot interpret — an
-      // id matching nothing, a client that was never published — is refused
-      // for the wrong reason, which reads exactly like a working restriction.
       const editor = await testData.createManager(payload, {
         roles: { en: ['meditations-editor'] },
       })
+
+      const read = await payload.find({
+        collection: 'transcripts',
+        overrideAccess: false,
+        user: editor as Parameters<typeof payload.find>[0]['user'],
+        where: transcriptSourceWhere('meditations', meditation.id),
+        select: idOnlySelect(),
+        depth: 0,
+      })
+      expect(read.totalDocs).toBe(1)
+    })
+
+    /**
+     * ⚠ **Every client key is refused, and this is the clause that replaced a
+     * narrowing.** A client used to read a transcript whose meditation was
+     * published and untrashed, spelled `meditation._status` — and a polymorphic
+     * `source` cannot carry that path at all: Payload resolves `source`,
+     * `source.relationTo` and `source.value` and throws `Not supported` on
+     * anything deeper. So the read goes rather than the protection, which is
+     * what kept a draft meditation's full spoken text and its R2 key off every
+     * client key (#968, #1043).
+     *
+     * Real clients, not stubs. A caller the access layer cannot interpret — a
+     * client that was never published — is refused for the wrong reason, which
+     * reads exactly like a working restriction.
+     */
+    it('refuses every client key, whatever its project', async () => {
+      const editor = await testData.createManager(payload, {
+        roles: { en: ['meditations-editor'] },
+      })
+
       const read = (user: unknown) =>
         payload.find({
-          collection: 'meditation-transcripts',
+          collection: 'transcripts',
           overrideAccess: false,
           user: user as Parameters<typeof payload.find>[0]['user'],
           // A client read carries `select`, or the query-validation hook
@@ -99,102 +131,27 @@ describe('meditation transcripts', () => {
           depth: 0,
         })
 
-      for (const user of [
-        editor,
-        await testData.createClient(payload, editor.id, { roles: ['wemeditate-app-client'] }),
-        await testData.createClient(payload, editor.id, { roles: ['wemeditate-web-client'] }),
-      ]) {
-        expect((await read(user)).totalDocs).toBe(1)
+      for (const roles of [
+        ['wemeditate-app-client'],
+        ['wemeditate-web-client'],
+        ['sahaj-atlas-client'],
+      ] as const) {
+        await expect(
+          read(await testData.createClient(payload, editor.id, { roles: [...roles] })),
+        ).rejects.toThrow()
       }
 
-      // The atlas project carries images and files, not meditations, so its
-      // key reads neither a recording nor what was said in one. Both
-      // directions are asserted: membership granting read to everyone would
-      // pass a one-sided case.
-      await expect(
-        read(await testData.createClient(payload, editor.id, { roles: ['sahaj-atlas-client'] })),
-      ).rejects.toThrow()
-    })
-
-    /**
-     * A client reads a transcript because it may read the recording. The
-     * published-only clause and the trash filter are per collection, so
-     * without the narrowing in `accessConfigs.ts` this row carried a draft
-     * meditation's full spoken text — and its R2 key — out to every client
-     * key (#968). A manager's read is unchanged: drafts are their work.
-     */
-    it('refuses a client the transcript of a meditation it cannot read', async () => {
-      const editor = await testData.createManager(payload, {
-        roles: { en: ['meditations-editor'] },
-      })
-      const client = await testData.createClient(payload, editor.id, {
-        roles: ['wemeditate-web-client'],
-      })
-
-      const transcriptFor = async (overrides: FixtureOverrides<Meditation>) => {
-        const meditation = await createMeditationWithoutTranscript(overrides)
-        const row = await payload.create({
-          collection: 'meditation-transcripts',
-          data: createData<'meditation-transcripts'>({
-            meditation: meditation.id,
-            language: 'en',
-            segments: [{ content: 'Unpublished words.', startTimeMs: 0, endTimeMs: 2000 }],
-          }),
-        })
-        return { meditation, row }
-      }
-
-      const draft = await transcriptFor({ _status: 'draft' })
-      const published = await transcriptFor({ _status: 'published' })
-      const trashed = await transcriptFor({ _status: 'published' })
-      // ⚠ Scoped to these three rows. Every case above leaves its own row in
-      // the suite's schema, and an unscoped count reads them as this one's.
-      const theseRows = [draft.row.id, published.row.id, trashed.row.id]
-
-      // Payload's `trash` filter never reaches this collection: the row
-      // carries no `deletedAt` of its own, which is half of what the
-      // narrowing replaces.
-      await payload.update({
-        collection: 'meditations',
-        id: trashed.meditation.id,
-        data: { deletedAt: new Date().toISOString() },
-      })
-
-      const readAs = async (user: unknown) =>
-        (
-          await payload.find({
-            collection: 'meditation-transcripts',
-            overrideAccess: false,
-            user: user as Parameters<typeof payload.find>[0]['user'],
-            where: { id: { in: theseRows } },
-            select: idOnlySelect(),
-            depth: 0,
-            // `pagination: false` alone is an unbounded read, which a client is
-            // refused (#889). The `limit` is what keeps this bounded — and
-            // keeps the three rows off a page boundary, which is why
-            // `pagination` was here at all.
-            limit: theseRows.length,
-            pagination: false,
-          })
-        ).docs.map((row) => row.id)
-
-      expect(await readAs(client)).toEqual([published.row.id])
-      // The editor is the control: a narrowing that denied everyone would
-      // pass the line above while emptying the admin panel.
-      expect((await readAs(editor)).sort()).toEqual([...theseRows].sort())
+      // The editor is the control: a refusal that denied everyone would pass
+      // the loop above while emptying the admin panel.
+      await expect(read(editor)).resolves.toBeTruthy()
     })
   })
 
   describe('the join field on meditations', () => {
     it('carries the transcript to whoever may read the recording', async () => {
       const meditation = await createMeditationWithoutTranscript()
-      await payload.create({
-        collection: 'meditation-transcripts',
-        data: createData<'meditation-transcripts'>({
-          meditation: meditation.id,
-          language: 'en',
-          segments: [{ content: 'Let your hands rest open.', startTimeMs: 0, endTimeMs: 3000 }],
-        }),
+      await createTranscript('meditations', meditation.id, {
+        segments: [{ content: 'Let your hands rest open.', startTimeMs: 0, endTimeMs: 3000 }],
       })
 
       const editor = await testData.createManager(payload, {
@@ -212,27 +169,95 @@ describe('meditation transcripts', () => {
       // is what a restricted collection answers, and it reads as working.
       const [row] = read.transcript?.docs ?? []
       expect(typeof row).toBe('object')
-      expect((row as MeditationTranscript).segments).toEqual([
+      expect((row as Transcript).segments).toEqual([
         { content: 'Let your hands rest open.', startTimeMs: 0, endTimeMs: 3000 },
       ])
     })
+
+    /**
+     * ⚠ Payload correlates a polymorphic join per target itself, and the two
+     * collections number their rows independently — so a file-sourced row must
+     * never reach a meditation's join, whatever its id.
+     */
+    it('lists the meditation’s row and no file-sourced one', async () => {
+      const meditation = await createMeditationWithoutTranscript()
+      const own = await createTranscript('meditations', meditation.id)
+      const file = await testData.createFile(payload)
+      const other = await createTranscript('files', file.id)
+
+      const read = await payload.findByID({
+        collection: 'meditations',
+        id: meditation.id,
+        depth: 0,
+        overrideAccess: true,
+      })
+      const listed = (read.transcript?.docs ?? []).map((doc) =>
+        typeof doc === 'number' ? doc : doc.id,
+      )
+      expect(listed).toEqual([own.id])
+      expect(listed).not.toContain(other.id)
+    })
   })
 
-  describe('the stored shape', () => {
+  describe('the source field', () => {
+    it('refuses a row that names no source', async () => {
+      await expect(
+        payload.create({
+          collection: 'transcripts',
+          data: createData<'transcripts'>({ language: 'en' } as never),
+        }),
+      ).rejects.toThrow()
+    })
+
     it('refuses a second transcript for a meditation that already has one', async () => {
       const meditation = await createMeditationWithoutTranscript()
-      const transcript = () =>
-        payload.create({
-          collection: 'meditation-transcripts',
-          data: createData<'meditation-transcripts'>({
-            meditation: meditation.id,
-            language: 'en',
-          }),
-        })
 
-      await transcript()
+      await createTranscript('meditations', meditation.id)
 
-      await expect(transcript()).rejects.toThrow()
+      await expect(createTranscript('meditations', meditation.id)).rejects.toThrow()
+    })
+
+    /**
+     * ⚠ The rels table holds one unique index per target, and Postgres treats
+     * nulls as distinct — so a file-sourced row must not collide with the
+     * meditation-sourced rows beside it, whatever their ids.
+     */
+    it('reads a files-sourced row back through the object form', async () => {
+      const file = await testData.createFile(payload)
+      const row = await createTranscript('files', file.id, {
+        segments: [{ content: 'Welcome to this path.', startTimeMs: 0, endTimeMs: 1500 }],
+      })
+
+      const { docs } = await payload.find({
+        collection: 'transcripts',
+        where: transcriptSourceWhere('files', file.id),
+        pagination: false,
+        depth: 0,
+        overrideAccess: true,
+      })
+      expect(docs.map((doc) => doc.id)).toEqual([row.id])
+    })
+
+    /**
+     * ⚠ **The task's input is a `meditationId`**, so a file-sourced row would
+     * queue a run that can resolve nothing. The row is the request, and this is
+     * the only thing that says which requests exist.
+     */
+    it('queues no transcription for a files-sourced row', async () => {
+      const file = await testData.createFile(payload)
+      const row = await createTranscript('files', file.id)
+
+      // `job` is what the hook writes back when it queues, and the only thing
+      // on the row that says a run was asked for. Read back as well as
+      // returned: the write-back is a second update.
+      expect(row.job).toBeFalsy()
+      const reread = await payload.findByID({
+        collection: 'transcripts',
+        id: row.id,
+        depth: 0,
+        overrideAccess: true,
+      })
+      expect(reread.job).toBeFalsy()
     })
 
     it('refuses a row with no language, which would skip the glossary pass', async () => {
@@ -240,9 +265,9 @@ describe('meditation transcripts', () => {
 
       await expect(
         payload.create({
-          collection: 'meditation-transcripts',
-          data: createData<'meditation-transcripts'>({
-            meditation: meditation.id,
+          collection: 'transcripts',
+          data: createData<'transcripts'>({
+            source: { relationTo: 'meditations', value: meditation.id },
           } as never),
         }),
       ).rejects.toThrow()
@@ -252,9 +277,9 @@ describe('meditation transcripts', () => {
       const meditation = await createMeditationWithoutTranscript()
       const withSegments = (segments: unknown) =>
         payload.create({
-          collection: 'meditation-transcripts',
-          data: createData<'meditation-transcripts'>({
-            meditation: meditation.id,
+          collection: 'transcripts',
+          data: createData<'transcripts'>({
+            source: { relationTo: 'meditations', value: meditation.id },
             language: 'en',
             segments: segments as never,
           }),
@@ -276,16 +301,11 @@ describe('meditation transcripts', () => {
     it('corrects a segment’s spelling on write, without the caller asking', async () => {
       const meditation = await createMeditationWithoutTranscript()
 
-      const row = await payload.create({
-        collection: 'meditation-transcripts',
-        data: createData<'meditation-transcripts'>({
-          meditation: meditation.id,
-          language: 'en',
-          segments: [
-            { content: 'Let the kundalini rise.', startTimeMs: 0, endTimeMs: 2000 },
-            { content: 'Feel it at the fontanel.', startTimeMs: 2000, endTimeMs: 4000 },
-          ],
-        }),
+      const row = await createTranscript('meditations', meditation.id, {
+        segments: [
+          { content: 'Let the kundalini rise.', startTimeMs: 0, endTimeMs: 2000 },
+          { content: 'Feel it at the fontanel.', startTimeMs: 2000, endTimeMs: 4000 },
+        ],
       })
 
       expect(row.segments).toEqual([
@@ -296,16 +316,10 @@ describe('meditation transcripts', () => {
 
     it('reads the language off the stored row when an update omits it', async () => {
       const meditation = await createMeditationWithoutTranscript()
-      const row = await payload.create({
-        collection: 'meditation-transcripts',
-        data: createData<'meditation-transcripts'>({
-          meditation: meditation.id,
-          language: 'en',
-        }),
-      })
+      const row = await createTranscript('meditations', meditation.id)
 
       const updated = await payload.update({
-        collection: 'meditation-transcripts',
+        collection: 'transcripts',
         id: row.id,
         data: { segments: [{ content: 'the kundalini', startTimeMs: 0, endTimeMs: 1000 }] },
       })
@@ -315,77 +329,88 @@ describe('meditation transcripts', () => {
       ])
     })
   })
+
   /**
-   * The retention window (#1013). Asserted through the whole task rather than
-   * against the window object, because the one thing a unit case cannot answer
-   * is whether `exists: false` matches a parent the **foreign key** nulled —
-   * no application write puts a transcript in that state.
+   * The cascade that replaced the orphan sweep (#1043). With the source in a
+   * rels table there is no column for a delete to null, and the rels row's own
+   * foreign keys cascade — so without `deleteChildren` a deleted parent leaves a
+   * transcript with no source at all, which `required` makes unloadable and
+   * unsaveable through the admin.
    */
-  describe('retention', () => {
-    it('sweeps an orphan past the window and keeps a parented row', async () => {
-      const orphaned = await createMeditationWithoutTranscript()
-      const kept = await createMeditationWithoutTranscript()
-      const rows = await Promise.all(
-        [orphaned, kept].map((meditation) =>
-          payload.create({
-            collection: 'meditation-transcripts',
-            data: createData<'meditation-transcripts'>({
-              meditation: meditation.id,
-              language: 'en',
-            }),
-          }),
-        ),
-      )
+  describe('the cascade from each parent', () => {
+    const rowExists = async (id: number) =>
+      (
+        await payload.count({
+          collection: 'transcripts',
+          where: { id: { equals: id } },
+          overrideAccess: true,
+        })
+      ).totalDocs === 1
 
-      // A hard delete, which is what nulls the transcript's parent — the sync
-      // hook on `meditations` deletes the row outright on every other path.
-      await payload.delete({ collection: 'meditations', id: orphaned.id, overrideAccess: true })
-
-      const output = await runTaskHandler(CleanupCollections, {
-        payload,
-        input: {
-          collection: 'meditation-transcripts',
-          now: new Date(Date.now() + 8 * 24 * 60 * 60 * 1000).toISOString(),
-        },
-      })
-
-      expect(deletedIn(output, 'meditation-transcripts')).toBe(1)
-      const remaining = await payload.find({
-        collection: 'meditation-transcripts',
-        where: { id: { in: rows.map((row) => row.id) } },
-        pagination: false,
-        overrideAccess: true,
-      })
-      expect(remaining.docs.map((row) => row.id)).toEqual([rows[1]!.id])
-    })
-
-    /**
-     * ⚠ The grace period is what stops a transcript going the night its
-     * meditation does. It is seven days, and the row is swept on `updatedAt`,
-     * so a clock inside the window must delete nothing.
-     */
-    it('keeps an orphan still inside the window', async () => {
+    it('deletes a meditation’s transcript when the meditation goes', async () => {
       const meditation = await createMeditationWithoutTranscript()
-      const row = await payload.create({
-        collection: 'meditation-transcripts',
-        data: createData<'meditation-transcripts'>({ meditation: meditation.id, language: 'en' }),
-      })
+      const row = await createTranscript('meditations', meditation.id)
 
       await payload.delete({ collection: 'meditations', id: meditation.id, overrideAccess: true })
 
-      const output = await runTaskHandler(CleanupCollections, {
-        payload,
-        input: { collection: 'meditation-transcripts', now: new Date().toISOString() },
+      expect(await rowExists(row.id)).toBe(false)
+    })
+
+    it('deletes a file’s transcript when the file goes', async () => {
+      const file = await testData.createFile(payload)
+      const row = await createTranscript('files', file.id)
+
+      await payload.delete({ collection: 'files', id: file.id, overrideAccess: true })
+
+      expect(await rowExists(row.id)).toBe(false)
+    })
+
+    /**
+     * ⚠ `beforeDelete` fires per document inside the bulk loop, so a
+     * `delete({ where })` taking several parents at once is covered too — but
+     * nothing says so except this case.
+     */
+    it('covers a delete by `where` that takes several meditations', async () => {
+      const first = await createMeditationWithoutTranscript()
+      const second = await createMeditationWithoutTranscript()
+      const rows = await Promise.all(
+        [first, second].map((meditation) => createTranscript('meditations', meditation.id)),
+      )
+
+      await payload.delete({
+        collection: 'meditations',
+        where: { id: { in: [first.id, second.id] } },
+        overrideAccess: true,
       })
 
-      expect(deletedIn(output, 'meditation-transcripts')).toBe(0)
-      await expect(
-        payload.findByID({
-          collection: 'meditation-transcripts',
-          id: row.id,
-          overrideAccess: true,
-        }),
-      ).resolves.toMatchObject({ id: row.id })
+      expect(await Promise.all(rows.map((row) => rowExists(row.id)))).toEqual([false, false])
+    })
+
+    /**
+     * ⚠ **Trashing is an `update`, so it fires no `beforeDelete`.** A trashed
+     * parent keeps its transcript, and the permanent delete that follows is what
+     * takes it — which is also the path `CleanupOrphanedMedia` and the nightly
+     * retention sweep both go through.
+     */
+    it('keeps a transcript while its file is only trashed, and takes it on the real delete', async () => {
+      const file = await testData.createFile(payload)
+      const row = await createTranscript('files', file.id)
+
+      await payload.update({
+        collection: 'files',
+        id: file.id,
+        data: { deletedAt: new Date().toISOString() },
+        overrideAccess: true,
+      })
+      expect(await rowExists(row.id)).toBe(true)
+
+      await payload.delete({
+        collection: 'files',
+        id: file.id,
+        trash: true,
+        overrideAccess: true,
+      })
+      expect(await rowExists(row.id)).toBe(false)
     })
   })
 })

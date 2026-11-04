@@ -1,6 +1,7 @@
 import * as qs from 'qs-esm'
 
 import type { TranscriptSegment } from '@/lib/meditations/transcript'
+import { transcriptSourceWhere } from '@/lib/transcripts/source'
 
 /** A pause this long between phrases starts a new paragraph. */
 const PARAGRAPH_GAP_MS = 3000
@@ -35,8 +36,15 @@ export const transcriptUrl = (
   locale: string | undefined,
 ): string | null =>
   meditationId && locale
-    ? `/api/meditation-transcripts${qs.stringify(
-        { depth: 0, limit: 1, locale, where: { meditation: { equals: meditationId } } },
+    ? `/api/transcripts${qs.stringify(
+        {
+          depth: 0,
+          limit: 1,
+          locale,
+          // `qs` serialises the nested object, and `sanitizeQueryValue` reads
+          // it back through the same guard the Local API uses.
+          where: transcriptSourceWhere('meditations', meditationId),
+        },
         { addQueryPrefix: true },
       )}`
     : null
