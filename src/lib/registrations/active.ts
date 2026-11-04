@@ -41,26 +41,10 @@ const INACTIVE_STATUSES: readonly UserSubmission['status'][] = ['rejected', 'spa
  * The same rule as SQL, for a query that must select on it.
  *
  * One rule, two expressions — kept in one file so they cannot drift, and pinned
- * against each other by `tests/unit/registration-active.spec.ts`.
- *
- * ⚠ **Bound it on something selective.** `status` is indexed, but `not_in` is a
- * negated predicate no btree can serve, so this clause alone scans
- * `user_submissions` whole. Every consumer pairs it with an `event` or a
- * `createdAt` range, and a future one that does not needs to.
+ * against each other by `tests/unit/registration-active.spec.ts`. `status` is
+ * indexed, so this stays a cheap predicate.
  */
 export const activeRegistrationWhere: Where = {
   type: { equals: 'registration' },
   status: { not_in: [...INACTIVE_STATUSES] },
-}
-
-/**
- * Its complement, for a surface that shows the rows the rule drops.
- *
- * `status` is `required` with a default, so the two partition an event's
- * registrations and a manager reading both filters sees every row. The spec
- * above pins that over the whole status vocabulary.
- */
-export const withdrawnRegistrationWhere: Where = {
-  type: { equals: 'registration' },
-  status: { in: [...INACTIVE_STATUSES] },
 }

@@ -1,6 +1,6 @@
 import type { PayloadRequest } from 'payload'
 
-import { countActiveRegistrations } from './data'
+import { countAcceptedRegistrations } from './data'
 
 /**
  * The count on the Registrations tab, beside its label like the Versions tab's.
@@ -10,7 +10,7 @@ import { countActiveRegistrations } from './data'
  */
 export default async function RegistrationsPill({ req }: { req: PayloadRequest }) {
   const id = req.routeParams?.id
-  const count = await countActiveRegistrations(
+  const count = await countAcceptedRegistrations(
     req,
     typeof id === 'string' || typeof id === 'number' ? id : undefined,
   )

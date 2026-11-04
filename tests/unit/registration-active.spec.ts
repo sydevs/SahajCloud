@@ -8,11 +8,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import {
-  activeRegistrationWhere,
-  isActiveRegistration,
-  withdrawnRegistrationWhere,
-} from '@/lib/registrations/active'
+import { activeRegistrationWhere, isActiveRegistration } from '@/lib/registrations/active'
 import type { UserSubmission } from '@/payload-types'
 
 /** Every status, so a new one cannot be added without a decision being made. */
@@ -72,21 +68,5 @@ describe('activeRegistrationWhere', () => {
 
   it('selects only registrations', () => {
     expect(activeRegistrationWhere.type).toEqual({ equals: 'registration' })
-  })
-})
-
-describe('withdrawnRegistrationWhere', () => {
-  /**
-   * The Registrations tab offers these two filters and nothing else, so a
-   * status in neither would be a row no manager could ever reach.
-   */
-  it('selects exactly the statuses the active query drops', () => {
-    expect((withdrawnRegistrationWhere.status as { in: string[] }).in).toEqual(
-      (activeRegistrationWhere.status as { not_in: string[] }).not_in,
-    )
-  })
-
-  it('selects only registrations', () => {
-    expect(withdrawnRegistrationWhere.type).toEqual({ equals: 'registration' })
   })
 })

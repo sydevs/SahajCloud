@@ -1,9 +1,24 @@
 'use client'
 
-import type { EventRegistrationsData, RegistrationFilter, RegistrationQuery } from './data'
+import type {
+  EventRegistrationsData,
+  RegistrationFilter,
+  RegistrationQuery,
+  RegistrationRow,
+} from './data'
+import type { PillProps } from '@payloadcms/ui/elements/Pill'
 import type { ReactNode } from 'react'
 
-import { Button, CalendarIcon, CheckIcon, Gutter, Pagination, Pill, Table } from '@payloadcms/ui'
+import {
+  Button,
+  CalendarIcon,
+  CheckIcon,
+  Gutter,
+  Pagination,
+  Pill,
+  Table,
+  XIcon,
+} from '@payloadcms/ui'
 
 import { STATUS_LABELS } from '@/collections/UserSubmissions/statuses'
 
@@ -12,26 +27,31 @@ import { CenteredNotice } from '../CenteredNotice'
 import { tableColumn } from '../helpers/tableColumn'
 import { useSetQuery } from '../helpers/useSetQuery'
 
-/** One table per filter: its button, the sentence above it, and its empty title. */
-const FILTERS: Record<
-  RegistrationFilter,
-  { label: string; icon: ReactNode; empty: string; explain: string }
-> = {
-  active: {
-    label: 'Registered',
+const FILTERS: Record<RegistrationFilter, { label: string; icon: ReactNode; empty: string }> = {
+  accepted: { label: 'Accepted', icon: <CheckIcon />, empty: 'No accepted registrations yet' },
+  pending: {
+    label: 'Pending',
     icon: <CalendarIcon />,
-    empty: 'No one has registered yet',
-    explain: 'Anyone who signs up through the map appears here, with their answers.',
+    empty: 'Nothing is waiting to be confirmed',
   },
-  withdrawn: {
-    label: 'Withdrawn',
-    icon: <CheckIcon />,
-    empty: 'Nobody has withdrawn',
-    // All three reasons `isActiveRegistration` drops a row, so a manager is not
-    // told someone was declined when their confirmation simply never sent.
-    explain:
-      'A registration you declined, one screening refused, and one whose confirmation never sent are kept here rather than deleted.',
-  },
+  withdrawn: { label: 'Withdrawn', icon: <XIcon />, empty: 'Nobody has withdrawn' },
+}
+
+/**
+ * Green once confirmed, yellow while waiting, red once it no longer counts —
+ * the three filters at a glance. The detail says which of the three withdrawn
+ * statuses it is, because "Failed" alone does not tell a manager the
+ * registrant was never told they are registered.
+ */
+const STATUS: Record<
+  RegistrationRow['status'],
+  { pillStyle: PillProps['pillStyle']; detail: string }
+> = {
+  accepted: { pillStyle: 'success', detail: 'Confirmation email sent' },
+  pending: { pillStyle: 'warning', detail: 'Awaiting screening and confirmation' },
+  failed: { pillStyle: 'error', detail: 'Confirmation email could not be sent' },
+  spam: { pillStyle: 'error', detail: 'Flagged by spam screening' },
+  rejected: { pillStyle: 'error', detail: 'Declined by an admin' },
 }
 
 const LIST_ID = 'event-registration-list'
@@ -39,27 +59,39 @@ const LIST_ID = 'event-registration-list'
 /** A composition of native Payload controls; the rows and the gate stay on the server. */
 export function EventRegistrationsView({ data }: { data: EventRegistrationsData }) {
   const setQuery = useSetQuery<RegistrationQuery>()
-  const { filter, registrations } = data
+  const { counts, csvUrl, filter, registrations } = data
   const rows = registrations.docs
   return (
     <Gutter className={styles.registrations}>
-      {/* The same filter row as the manager dashboard's. */}
-      <div className={styles.filters} role="group" aria-label="Filter registrations">
-        {(Object.keys(FILTERS) as RegistrationFilter[]).map((value) => (
-          <Button
-            key={value}
-            margin={false}
-            buttonStyle={filter === value ? 'subtle' : 'tab'}
-            size="medium"
-            onClick={() => setQuery({ filter: value, page: 1 })}
-            extraButtonProps={{ 'aria-pressed': filter === value, 'aria-controls': LIST_ID }}
-          >
-            {FILTERS[value].label}
+      <div className={styles.toolbar}>
+        {/* Payload's own document-tab markup — the header's Edit / Versions
+            row — so the filters and their counts match it in every state. */}
+        <div className="doc-tabs__tabs" role="group" aria-label="Filter registrations">
+          {(Object.keys(FILTERS) as RegistrationFilter[]).map((value) => (
+            <Button
+              key={value}
+              buttonStyle="tab"
+              className={value === filter ? 'doc-tab doc-tab--active' : 'doc-tab'}
+              disabled={value === filter}
+              margin={false}
+              size="medium"
+              onClick={() => setQuery({ filter: value, page: 1 })}
+              extraButtonProps={{ 'aria-pressed': value === filter, 'aria-controls': LIST_ID }}
+            >
+              <span className="doc-tab__label">
+                {FILTERS[value].label}
+                <span className="pill-version-count">{counts[value]}</span>
+              </span>
+            </Button>
+          ))}
+        </div>
+        {counts.accepted > 0 && (
+          <Button buttonStyle="secondary" el="anchor" margin={false} size="medium" url={csvUrl}>
+            Download accepted (CSV)
           </Button>
-        ))}
+        )}
       </div>
       <div id={LIST_ID} aria-live="polite">
-        <p className={styles.explain}>{FILTERS[filter].explain}</p>
         {/* On `totalDocs`, not this page's rows: a hand-typed page past the end
             has none, and the pager that gets you back must still render. */}
         {registrations.totalDocs > 0 ? (
@@ -85,7 +117,7 @@ export function EventRegistrationsView({ data }: { data: EventRegistrationsData 
                   'registered',
                   'Registered on',
                   rows.map((row) => (
-                    <div key={row.id} className={styles.when}>
+                    <div key={row.id} className={styles.stacked}>
                       {row.registeredOn}
                       {row.attending && <small>Attending {row.attending}</small>}
                     </div>
@@ -95,9 +127,12 @@ export function EventRegistrationsView({ data }: { data: EventRegistrationsData 
                   'status',
                   'Status',
                   rows.map((row) => (
-                    <Pill key={row.id} size="small">
-                      {STATUS_LABELS[row.status]}
-                    </Pill>
+                    <div key={row.id} className={styles.stacked}>
+                      <Pill pillStyle={STATUS[row.status].pillStyle} size="small">
+                        {STATUS_LABELS[row.status]}
+                      </Pill>
+                      <small>{STATUS[row.status].detail}</small>
+                    </div>
                   )),
                 ),
                 tableColumn(

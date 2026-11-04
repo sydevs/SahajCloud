@@ -35,12 +35,13 @@ describe('pageParam', () => {
  * `atlas-manager-model.spec.ts` pins the dashboard's.
  */
 describe('parseRegistrationQuery', () => {
-  it('shows registrations active-first, refusing a filter it does not offer', () => {
+  it('shows accepted registrations first, refusing a filter it does not offer', () => {
     expect(parseRegistrationQuery({ filter: 'withdrawn', page: '3' })).toEqual({
       filter: 'withdrawn',
       page: 3,
     })
-    expect(parseRegistrationQuery({ filter: 'spam' })).toEqual({ filter: 'active', page: 1 })
-    expect(parseRegistrationQuery(undefined)).toEqual({ filter: 'active', page: 1 })
+    expect(parseRegistrationQuery({ filter: 'pending' })).toEqual({ filter: 'pending', page: 1 })
+    expect(parseRegistrationQuery({ filter: 'spam' })).toEqual({ filter: 'accepted', page: 1 })
+    expect(parseRegistrationQuery(undefined)).toEqual({ filter: 'accepted', page: 1 })
   })
 })

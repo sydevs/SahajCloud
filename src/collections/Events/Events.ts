@@ -51,6 +51,7 @@ import {
 import { relationId } from '@/plugins/access/documentManagers'
 
 import { eventsGeoJson } from './endpoints/geojson'
+import { registrationsCsv } from './endpoints/registrationsCsv'
 import { verifyEventAction } from './endpoints/verifyEventAction'
 import {
   EVENT_REGISTRATION_MODE_OPTIONS,
@@ -199,7 +200,7 @@ export const Events: CollectionConfig = {
     afterChange: [revalidateAtlasSidebarHook],
     afterDelete: [revalidateAtlasSidebarHook],
   },
-  endpoints: [verifyEventAction, eventsGeoJson],
+  endpoints: [verifyEventAction, eventsGeoJson, registrationsCsv],
   fields: [
     {
       // The bulk import this class came from (`src/plugins/eventImport`). The
