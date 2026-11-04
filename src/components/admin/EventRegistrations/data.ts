@@ -54,8 +54,9 @@ const FILTER_WHERE: Record<RegistrationFilter, Where> = {
  *
  * The rows go through `overrideAccess: true` and an explicit `where` because
  * this gate, not the `user-submissions` read gate, is the authority. `depth: 0`
- * and a column list keep it to the registration row itself: the registrant's
- * name is a `submissionData` pair, so no `users` row is read for it.
+ * and a column list keep the read to what the table shows: the registrant's
+ * name is a `submissionData` pair, and `senderEmail` is a virtual Payload
+ * resolves in the query (#630).
  */
 export async function loadEventRegistrations(
   req: PayloadRequest,
@@ -112,8 +113,9 @@ export async function loadEventRegistrations(
       ...page,
       docs: page.docs.map((row): RegistrationRow => ({
         id: row.id,
-        // The row's own columns, not a `users` join: `prepareUserSubmission`
-        // seeds that row *from* these, so the join is the derived copy.
+        // The name is a `submissionData` pair. `senderEmail` is
+        // `virtual: 'user.email'` (#630), so Payload resolves it through the
+        // join in the query and the `select` needs no `user` beside it.
         name: readSubmissionValue(row.submissionData, 'name')?.trim() ?? '',
         email: row.senderEmail?.trim() ?? '',
         registeredOn: formatShortDate(row.createdAt),
