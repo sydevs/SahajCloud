@@ -173,6 +173,24 @@ describe('Blocking a sender', () => {
       )
     })
 
+    it('clears the kept reason when the next block is posted without one', async () => {
+      const sender = await createSender('reblocked@example.com')
+      await adminRest(`/api/users/${sender.id}/block`, {
+        method: 'POST',
+        json: { blocked: true, reason: 'The first time.' },
+      })
+      await adminRest(`/api/users/${sender.id}/block`, { method: 'POST', json: { blocked: false } })
+
+      const { body } = await adminRest(`/api/users/${sender.id}/block`, {
+        method: 'POST',
+        json: { blocked: true },
+      })
+
+      expect(body.blockedReason).toBeNull()
+      const user = await payload.findByID({ collection: 'users', id: sender.id })
+      expect(user.blockedReason).toBeFalsy()
+    })
+
     it('answers 404 for a Registrant that does not exist', async () => {
       const { status } = await adminRest('/api/users/999999/block', {
         method: 'POST',

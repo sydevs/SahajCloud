@@ -37,8 +37,9 @@ const BLOCKED_NOTE =
  * `spam` would drop it out of fullness and reminders. Screening reads the block
  * for everything after.
  *
- * **Unblock** clears `blockedAt` only. The reason stays as history, and no
- * refused row comes back — a proposal is reopened by its own Reopen button.
+ * **Unblock** clears `blockedAt` only. The reason stays as history until the
+ * next block writes its own, and no refused row comes back — a proposal is
+ * reopened by its own Reopen button.
  *
  * ⚠ **The writes run on a request with no user.** `reviewMove` refuses any
  * status move a manager makes on a non-proposal row — a manager has no business
@@ -76,9 +77,10 @@ export const blockUser: Endpoint = {
       const user = await req.payload.update({
         collection: 'users',
         id,
-        data: blocked
-          ? { blockedAt: now, ...(reason ? { blockedReason: reason } : {}) }
-          : { blockedAt: null },
+        // A block always writes its own reason, `null` included: the button
+        // pre-fills the textarea from the lifted block's reason, so an admin
+        // who clears it would otherwise leave that text reading as current.
+        data: blocked ? { blockedAt: now, blockedReason: reason ?? null } : { blockedAt: null },
         depth: 0,
         overrideAccess: true,
         req: systemReq,
