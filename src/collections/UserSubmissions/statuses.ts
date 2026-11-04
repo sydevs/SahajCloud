@@ -61,3 +61,22 @@ export const OPEN_REVIEW_STATUSES: readonly UserSubmission['status'][] = ['pendi
  * patch a manager has since edited away.
  */
 export const REOPENABLE_REVIEW_STATUSES: readonly UserSubmission['status'][] = ['rejected', 'spam']
+
+/**
+ * What each screening verdict is called where a reader meets it — the status
+ * banner's "Refused by screening: …". The complete sentence is screening's own
+ * note; this is the short form beside the heading.
+ */
+export const VERDICT_LABELS: Record<
+  NonNullable<UserSubmission['screeningResult']>['verdict'],
+  string
+> = {
+  ok: 'passed',
+  blocked_sender: 'blocked sender',
+  disposable_email: 'disposable email address',
+  invalid_email: 'invalid email address',
+  no_mx_records: 'email domain accepts no mail',
+  repeat_sender: 'repeatedly refused sender',
+  duplicate_body: 'duplicate message',
+  content_rejected: 'content refused',
+}

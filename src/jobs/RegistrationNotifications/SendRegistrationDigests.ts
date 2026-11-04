@@ -183,8 +183,8 @@ async function digestForManager(args: {
       if (eventId == null || !eventById.has(eventId)) continue
       rows.push({
         eventId,
-        // The row's own columns, not a `users` join: `prepareUserSubmission`
-        // seeds that row *from* these, so the join is the derived copy.
+        // `senderEmail` reaches the Registrant through the join (#630) — see
+        // `SendSessionReminders` for why the `select` needs no `user`.
         email: registration.senderEmail?.trim() ?? '',
         name: readSubmissionValue(registration.submissionData, 'name') ?? null,
         startingAt: registration.startingAt ?? null,

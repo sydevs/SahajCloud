@@ -58,15 +58,25 @@ async function noteSenders(args: {
  * Delete each `users` row whose last referencing submission has just gone.
  *
  * ⚠ **One rule, read two ways.** A row survives while any submission still
- * points at it — a registration or a subscription, which no window selects, but
- * equally a second contact message not yet due. After a real delete the
- * remaining count answers that directly. A dry run has not deleted anything, so
- * it subtracts what the windows selected from what the sender has, and asks
- * whether the difference is nothing.
+ * points at it — a decided registration or subscription, which no window
+ * selects, but equally a second contact message not yet due. After a real
+ * delete the remaining count answers that directly. A dry run has not deleted
+ * anything, so it subtracts what the windows selected from what the sender has,
+ * and asks whether the difference is nothing.
  *
  * ⚠ **The durable types are not the question**, though they are the common
  * answer. Counting them alone reported a sender with one aged and one recent
  * message as going, and the real sweep then kept them.
+ *
+ * ⚠ **A blocked sender is never swept**, or a block would expire the night
+ * their last submission aged out and the next thing they sent would be screened
+ * clean. Reading it as a `where` rather than a test inside the loop is what
+ * keeps the dry run a prediction of what the real sweep does.
+ *
+ * shortcut: lifting a block leaves the row behind for good — `touchedUsers` is
+ * only ever filled from submissions being deleted, so nothing revisits a sender
+ * who has none left. An admin deletes it by hand. Upgrade this when a cleared
+ * block must free the row by itself.
  */
 async function sweepOrphanedUsers(args: {
   dryRun: boolean
@@ -75,11 +85,22 @@ async function sweepOrphanedUsers(args: {
   wheres: readonly Where[]
 }): Promise<number> {
   const { dryRun, req, touchedUsers, wheres } = args
+  if (touchedUsers.size === 0) return 0
   let deleted = 0
 
   const dueWhere: Where = { or: [...wheres] }
 
-  for (const userId of touchedUsers) {
+  const { docs: sweepable } = await req.payload.find({
+    collection: 'users',
+    where: { id: { in: [...touchedUsers] }, blockedAt: { exists: false } },
+    select: { blockedAt: true },
+    depth: 0,
+    pagination: false,
+    overrideAccess: true,
+    req,
+  })
+
+  for (const { id: userId } of sweepable) {
     const { totalDocs: remaining } = await req.payload.count({
       collection: 'user-submissions',
       where: { user: { equals: userId } },
