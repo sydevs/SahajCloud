@@ -91,11 +91,10 @@ describe('Blocking a sender', () => {
       expect(stored.blockedAt).toBeFalsy()
     })
 
-    it('blocks, and refuses the row it was pressed on plus every other pending one', async () => {
+    it('blocks and refuses every pending submission, leaving other senders alone', async () => {
       const sender = await createSender('nuisance@example.com')
-      const current = await createSubmission(sender, 'accepted', 'The one on screen.')
       const pending = await createSubmission(sender, 'pending', 'Still waiting.')
-      const delivered = await createSubmission(sender, 'accepted', 'Delivered last week.')
+      const second = await createSubmission(sender, 'pending', 'Also waiting.')
       const bystander = await createSubmission(
         await createSender('bystander@example.com'),
         'pending',
@@ -104,7 +103,7 @@ describe('Blocking a sender', () => {
 
       const { status, body } = await adminRest(`/api/users/${sender.id}/block`, {
         method: 'POST',
-        json: { blocked: true, reason: 'Repeated junk.', submission: current.id },
+        json: { blocked: true, reason: 'Repeated junk.', submission: pending.id },
       })
 
       expect(status).toBe(200)
@@ -114,7 +113,7 @@ describe('Blocking a sender', () => {
       expect(user.blockedAt).toEqual(expect.any(String))
       expect(user.blockedReason).toBe('Repeated junk.')
 
-      for (const id of [current.id, pending.id]) {
+      for (const id of [pending.id, second.id]) {
         const row = await reload(id)
         expect(row.status).toBe('spam')
         expect(row.screeningResult?.verdict).toBe('blocked_sender')
@@ -127,9 +126,26 @@ describe('Blocking a sender', () => {
           ]),
         )
       }
-      // Delivered history and other senders are left alone.
-      expect((await reload(delivered.id)).status).toBe('accepted')
       expect((await reload(bystander.id)).status).toBe('pending')
+    })
+
+    it('leaves the accepted row it was pressed on delivered, and still active', async () => {
+      const sender = await createSender('late-block@example.com')
+      const accepted = await createSubmission(sender, 'accepted', 'Delivered last week.')
+
+      const { status, body } = await adminRest(`/api/users/${sender.id}/block`, {
+        method: 'POST',
+        json: { blocked: true, submission: accepted.id },
+      })
+
+      expect(status).toBe(200)
+      expect(body.markedSpam).toBe(0)
+
+      // `spam` sits in INACTIVE_STATUSES, so refusing this row would drop a real
+      // registration out of fullness and reminders.
+      const row = await reload(accepted.id)
+      expect(row.status).toBe('accepted')
+      expect(row.screeningResult?.verdict).not.toBe('blocked_sender')
     })
 
     it('unblocks, keeps the reason, and brings no refused row back', async () => {
@@ -155,6 +171,24 @@ describe('Blocking a sender', () => {
       expect(after.activityLog?.map((entry) => entry.type)).toEqual(
         expect.arrayContaining(['block', 'unblock']),
       )
+    })
+
+    it('clears the kept reason when the next block is posted without one', async () => {
+      const sender = await createSender('reblocked@example.com')
+      await adminRest(`/api/users/${sender.id}/block`, {
+        method: 'POST',
+        json: { blocked: true, reason: 'The first time.' },
+      })
+      await adminRest(`/api/users/${sender.id}/block`, { method: 'POST', json: { blocked: false } })
+
+      const { body } = await adminRest(`/api/users/${sender.id}/block`, {
+        method: 'POST',
+        json: { blocked: true },
+      })
+
+      expect(body.blockedReason).toBeNull()
+      const user = await payload.findByID({ collection: 'users', id: sender.id })
+      expect(user.blockedReason).toBeFalsy()
     })
 
     it('answers 404 for a Registrant that does not exist', async () => {

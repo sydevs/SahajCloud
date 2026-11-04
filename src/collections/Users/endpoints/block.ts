@@ -30,13 +30,16 @@ const BLOCKED_NOTE =
  * role grants, so only the admin bypass passes; and absent from the OpenAPI spec
  * for the same reason `users` is (in no project).
  *
- * **Block** stamps `blockedAt`/`blockedReason` and refuses, as spam, the
- * submission it was pressed on plus every other one of theirs still `pending`.
- * Accepted history is left alone: it was delivered already, and a registration
- * is an attendance record. Screening reads the block for everything after.
+ * **Block** stamps `blockedAt`/`blockedReason` and refuses, as spam, every
+ * submission of theirs still `pending` — the one it was pressed on among them,
+ * when that row is still awaiting a decision. Accepted history is left alone:
+ * it was delivered already, and a registration is an attendance record, and
+ * `spam` would drop it out of fullness and reminders. Screening reads the block
+ * for everything after.
  *
- * **Unblock** clears `blockedAt` only. The reason stays as history, and no
- * refused row comes back — a proposal is reopened by its own Reopen button.
+ * **Unblock** clears `blockedAt` only. The reason stays as history until the
+ * next block writes its own, and no refused row comes back — a proposal is
+ * reopened by its own Reopen button.
  *
  * ⚠ **The writes run on a request with no user.** `reviewMove` refuses any
  * status move a manager makes on a non-proposal row — a manager has no business
@@ -74,23 +77,17 @@ export const blockUser: Endpoint = {
       const user = await req.payload.update({
         collection: 'users',
         id,
-        data: blocked
-          ? { blockedAt: now, ...(reason ? { blockedReason: reason } : {}) }
-          : { blockedAt: null },
+        // A block always writes its own reason, `null` included: the button
+        // pre-fills the textarea from the lifted block's reason, so an admin
+        // who clears it would otherwise leave that text reading as current.
+        data: blocked ? { blockedAt: now, blockedReason: reason ?? null } : { blockedAt: null },
         depth: 0,
         overrideAccess: true,
         req: systemReq,
       })
 
       const logged = blocked
-        ? await refuseOpenSubmissions({
-            req: systemReq,
-            userId: id,
-            submission,
-            actor,
-            now,
-            reason,
-          })
+        ? await refuseOpenSubmissions({ req: systemReq, userId: id, actor, now, reason })
         : await logOnSubmission({
             req: systemReq,
             userId: id,
@@ -120,34 +117,27 @@ export const blockUser: Endpoint = {
 }
 
 /**
- * Mark as spam the named submission (whatever its status, unless it is spam
- * already) and the sender's other `pending` ones. Returns how many moved.
+ * Mark as spam every `pending` submission this sender has. Returns how many
+ * moved.
  *
- * A row naming some other sender is ignored rather than refused: the button
- * reads `user` off the form it sits in, so a mismatch is a stale page, not an
- * instruction.
+ * ⚠ **The status is the whole selection — the row the button sat on gets no
+ * exemption from it.** Refusing that row at any status moved an `accepted`
+ * registration to `spam`, which `INACTIVE_STATUSES` drops out of fullness and
+ * reminders (`lib/registrations/active.ts`), against the modal's promise that
+ * delivered history is left alone.
  */
 async function refuseOpenSubmissions(args: {
   req: PayloadRequest
   userId: number
-  submission: number | undefined
   actor: string
   now: string
   reason: string | undefined
 }): Promise<number> {
-  const { req, userId, submission, actor, now, reason } = args
+  const { req, userId, actor, now, reason } = args
 
   const { docs } = await req.payload.find({
     collection: 'user-submissions',
-    where: {
-      and: [
-        { user: { equals: userId } },
-        { status: { not_equals: 'spam' } },
-        submission != null
-          ? { or: [{ status: { equals: 'pending' } }, { id: { equals: submission } }] }
-          : { status: { equals: 'pending' } },
-      ],
-    },
+    where: { user: { equals: userId }, status: { equals: 'pending' } },
     select: { activityLog: true, screeningResult: true },
     depth: 0,
     pagination: false,

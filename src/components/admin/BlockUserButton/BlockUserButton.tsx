@@ -16,6 +16,7 @@ import {
 import { useRouter } from 'next/navigation'
 import React, { useEffect, useState } from 'react'
 
+import { relationId } from '@/lib/utilities/relationId'
 import { isAdminManager } from '@/plugins/access/adminOnly'
 
 export interface BlockUserButtonProps {
@@ -60,7 +61,7 @@ export const BlockUserButton: React.FC<BlockUserButtonProps> = ({ source }) => {
     blockedReason: (fields.blockedReason?.value as string | null | undefined) ?? null,
   }))
 
-  const userId = source === 'users' ? id : relationValue(submissionUser)
+  const userId = source === 'users' ? id : relationId(submissionUser)
   const [fetched, setFetched] = useState<BlockState | null>(null)
   const [reason, setReason] = useState('')
 
@@ -164,17 +165,6 @@ export const BlockUserButton: React.FC<BlockUserButtonProps> = ({ source }) => {
       />
     </>
   )
-}
-
-function relationValue(value: unknown): number | string | null {
-  if (typeof value === 'number' || typeof value === 'string') return value
-  if (value && typeof value === 'object' && 'value' in value) {
-    return relationValue((value as { value: unknown }).value)
-  }
-  if (value && typeof value === 'object' && 'id' in value) {
-    return relationValue((value as { id: unknown }).id)
-  }
-  return null
 }
 
 export default BlockUserButton

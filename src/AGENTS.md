@@ -86,7 +86,8 @@ raw GitHub URL (same shape as `Events/endpoints/responseTypes.ts`).
 `src/endpoints/<name>.ts`. One with supporting modules is a folder whose
 path _is_ the URL path, handler in `index.ts` (`src/endpoints/atlas/seo/` →
 `GET /api/atlas/seo`, #645. `src/endpoints/atlas/sitemap/` → `GET
-/api/atlas/sitemap`, #650). #632 turned another into a collection once its
+/api/atlas/sitemap`, #650. `src/endpoints/atlas/challenge/` → `GET
+/api/atlas/challenge`, #1072). #632 turned another into a collection once its
 resource needed storing — the intake `user-submissions` now carries. Those supporting modules are
 single-owner code and stay in the folder — putting them in `src/lib/` fails
 the one-consumer check below.
@@ -131,8 +132,8 @@ No loose files at the root — every file lives in a named folder:
   `where`, `eventImages` — an event's photos as documents, in the order the
   editor arranged them, with the `url` co-select that stops them arriving
   blank (the atlas SEO endpoint and the proposal preview both read them),
-  `url` — `originOf` for admin code deciding whether to trust a URL
-  the browser handed it, where an opaque origin reads as none. Parsing itself
+  `url` — `originOf` for code deciding whether to trust a URL someone
+  else handed it, where an opaque origin reads as none. Parsing itself
   is `URL.parse`, the built-in that returns `null` rather than throwing —
   do not re-wrap it)
 - `locales/` — locale config (`@/lib/locales` resolves to `locales/index.ts`)
