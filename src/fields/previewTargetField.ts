@@ -32,6 +32,12 @@ export interface PreviewTarget {
   params?: Record<string, string>
   /** Open the Live Preview panel when this tab mounts. */
   autoOpen?: boolean
+  /**
+   * Close it instead — for a document the preview has nothing to show for.
+   * Payload keeps one open/closed preference per collection, so closing it here
+   * is what stops a panel opened on one document greeting the next.
+   */
+  autoClose?: boolean
 }
 
 /**
