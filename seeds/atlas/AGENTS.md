@@ -446,6 +446,25 @@ Slug"/"mapboxId" means exactly this. **A re-sync avoids all of it by
 running `atlas-reset` first** (above, "Re-syncing a target"); the reports
 remain for a target seeded on top of an earlier import without one.
 
+## One-offs, and the duplicate-class guard
+
+**Atlas stores a one-off as an open-ended daily.** A `single` or `concert`
+event carries `type: daily`, a start date and no end. The 2026-08 import read
+that literally, so every past concert listed upcoming dates every day,
+forever. `isAtlasOneOff` ([helpers/scheduleMapper.ts](helpers/scheduleMapper.ts))
+maps it to a schedule that does not repeat, which also finishes it after its
+date. A `festival` with an end date is a genuine daily run and is left alone.
+
+**The seed skips `refuseDuplicateClass`** (`context.skipDuplicateClassCheck`).
+The guard (#912, 2026-10) refuses a class whose type, region, place, start time
+and cadence match another's. For a manager entering a class that is right, but
+Atlas's own listings already carry pairs left unmerged on purpose — two
+managers, one slot (above, "Not merged, and why") — and the guard dropped all
+of them on a clean import, 16 events at the 2026-08 data. Which Atlas rows
+repeat each other is decided by evidence in [sync/merges.ts](sync/merges.ts).
+⚠ The guard also runs on update, so a manager saving either half of such a
+pair is refused until the pair is resolved.
+
 ## Event titles: a blank title beats a generic one
 
 `customName` maps to the Events `title`, and an empty title is auto-filled

@@ -48,7 +48,12 @@ import {
   mapNotificationPreferences,
 } from './helpers/managerMapper'
 import { registrationSubmissionData } from './helpers/registrations'
-import { type AtlasSchedule, mapSchedule, supportedTimezone } from './helpers/scheduleMapper'
+import {
+  type AtlasSchedule,
+  isAtlasOneOff,
+  mapSchedule,
+  supportedTimezone,
+} from './helpers/scheduleMapper'
 import {
   type AtlasVenue,
   multiUseVenueIds,
@@ -1234,7 +1239,11 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     // Mapped once: the verification watermark is capped by the schedule's end
     // (and a finished event's retention runs from it), so it needs the same
     // value the document is written with.
-    const schedule = inactive ? undefined : (mapSchedule(event.schedule, timeZone) ?? undefined)
+    const schedule = inactive
+      ? undefined
+      : (mapSchedule(event.schedule, timeZone, {
+          oneOff: isAtlasOneOff(event.category, event.schedule),
+        }) ?? undefined)
     this.reportTimezoneSubstitution(`Event #${event.legacyId}`, timeZone, schedule?.firstDate_tz)
     // `legacyId` seeds the deterministic stagger on `nextCheckAt` — without it the
     // whole dump falls due in the same week. See importCheckOffsetDays.
@@ -1312,7 +1321,10 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
       current: ctx.current,
       total: ctx.total,
       // Keep the imported verification snapshot. Do not let verifyOnSave reset it.
-      context: { skipVerifyHook: true },
+      // Atlas's own listings are not new classes: which of them repeat another
+      // is decided by evidence in sync/merges.ts, and pairs left unmerged on
+      // purpose (two managers, one slot) must still import.
+      context: { skipVerifyHook: true, skipDuplicateClassCheck: true },
     }
     const where = { legacyId: { equals: event.legacyId } }
 
@@ -1537,7 +1549,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
           collection: 'events',
           id: eventId,
           data: { images: merged },
-          context: { skipVerifyHook: true },
+          context: { skipVerifyHook: true, skipDuplicateClassCheck: true },
         })
       } catch (error) {
         this.addWarning(`Linking images to event #${legacyEventId}: ${(error as Error).message}`)

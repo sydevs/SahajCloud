@@ -33,6 +33,10 @@ export const refuseDuplicateClass: CollectionBeforeValidateHook = async ({
   req,
 }) => {
   if (operation !== 'create' && operation !== 'update') return data
+  // The Atlas seed imports listings Atlas already holds, whose duplicates are
+  // decided in seeds/atlas/sync/merges.ts — it must not drop the pairs
+  // deliberately left unmerged there.
+  if (req.context?.skipDuplicateClassCheck) return data
   const merged = { ...(originalDoc ?? {}), ...(data ?? {}) } as Partial<Event>
   const twin = await findDuplicateClass(req, merged, originalDoc?.id as number | undefined)
   if (twin) {

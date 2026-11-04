@@ -6,7 +6,7 @@
 
 import { describe, expect, it } from 'vitest'
 
-import { classKey } from '@/collections/Events/hooks/refuseDuplicateClass'
+import { classKey, refuseDuplicateClass } from '@/collections/Events/hooks/refuseDuplicateClass'
 import type { SupportedTimezones } from '@/payload-types'
 
 const BERLIN: SupportedTimezones = 'Europe/Berlin'
@@ -108,5 +108,16 @@ describe('classKey', () => {
 
   it('answers null for a class with no time to compare', () => {
     expect(classKey({ eventType: 'offline', inactive: true })).toBeNull()
+  })
+})
+
+describe('refuseDuplicateClass', () => {
+  it('stands down for the Atlas seed, which imports listings Atlas already holds', async () => {
+    const data = offline('2026-04-18T16:00:00.000Z')
+    // No `payload` on the request: the hook must return before it would look.
+    const req = { context: { skipDuplicateClassCheck: true } }
+    await expect(refuseDuplicateClass({ data, operation: 'create', req } as never)).resolves.toBe(
+      data,
+    )
   })
 })
