@@ -34,6 +34,7 @@ import { getPayload } from 'payload'
 import config from '@payload-config'
 
 import {
+  EXPECTED_COUNTS,
   getCountTargets,
   getScriptMetadata,
   verifyCountsForScript,
@@ -45,16 +46,9 @@ import {
   type PaginationResult,
 } from '../../../../../../seeds/lib/pagination'
 
-const VALID_SCRIPTS: ScriptName[] = [
-  'tags',
-  'wemeditate',
-  'meditations',
-  'meditation-transcripts',
-  'storyblok',
-  'wm-app-translations',
-  'translations',
-  'atlas',
-]
+// Every script, read off a table typed `Record<ScriptName, …>`, so a new script
+// cannot be left out here the way `atlas-reset` first was.
+const VALID_SCRIPTS = Object.keys(EXPECTED_COUNTS) as ScriptName[]
 
 /**
  * Heartbeat interval, in milliseconds (5 seconds).
