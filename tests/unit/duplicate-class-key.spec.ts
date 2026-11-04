@@ -121,3 +121,15 @@ describe('refuseDuplicateClass', () => {
     )
   })
 })
+
+describe('refuseDuplicateClass on update', () => {
+  it('lets a save through that leaves the class identity alone, without looking for a twin', async () => {
+    const originalDoc = { ...offline('2026-04-18T16:00:00.000Z'), region: 7, id: 1 }
+    // A bookkeeping write: `registrationsFull`, nothing the identity reads.
+    const data = { registrationsFull: true }
+    const req = { context: {} } // no `payload` — the hook must not query
+    await expect(
+      refuseDuplicateClass({ data, operation: 'update', originalDoc, req } as never),
+    ).resolves.toBe(data)
+  })
+})

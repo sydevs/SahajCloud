@@ -47,6 +47,7 @@ import {
   managerVerificationCadence,
   mapNotificationPreferences,
 } from './helpers/managerMapper'
+import { isUnreachableInactive } from './helpers/reachability'
 import { registrationSubmissionData } from './helpers/registrations'
 import {
   type AtlasSchedule,
@@ -1192,6 +1193,14 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
         collection: 'events',
         identifier: `event-${event.legacyId}`,
       })
+      return
+    }
+
+    if (isUnreachableInactive(event)) {
+      await this.skip(
+        `event #${event.legacyId}: inactive with no phone or email — give it a contact in Atlas`,
+        { collection: 'events', identifier: `event-${event.legacyId}` },
+      )
       return
     }
 

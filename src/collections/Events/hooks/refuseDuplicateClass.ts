@@ -4,6 +4,9 @@
  * hall, the join link for an online one — and the same schedule, down to the
  * date a one-off falls on and the cadence a repeat keeps.
  *
+ * Only a change to that identity is checked on update, so a class that already
+ * has a twin — Atlas imported some on purpose — can still be saved.
+ *
  * A `beforeValidate` hook rather than a field `validate`, so it runs for a
  * draft save too: the bulk import creates drafts, and a repeat has to be
  * refused there rather than at the publish. Drafts count as well — importing
@@ -38,6 +41,17 @@ export const refuseDuplicateClass: CollectionBeforeValidateHook = async ({
   // deliberately left unmerged there.
   if (req.context?.skipDuplicateClassCheck) return data
   const merged = { ...(originalDoc ?? {}), ...(data ?? {}) } as Partial<Event>
+  // An update that leaves the class's identity alone cannot make it a repeat.
+  // Checking anyway refused every save of a class that already had a twin —
+  // a manager's edit, and the bookkeeping write a registration triggers, which
+  // took the registration down with it.
+  if (
+    operation === 'update' &&
+    originalDoc &&
+    sameIdentity(originalDoc as Partial<Event>, merged)
+  ) {
+    return data
+  }
   const twin = await findDuplicateClass(req, merged, originalDoc?.id as number | undefined)
   if (twin) {
     throw new APIError(
@@ -101,6 +115,14 @@ export async function findDuplicateClass(
   })
   const twin = (docs as Candidate[]).find((candidate) => classKey(candidate) === key)
   return twin ? { id: twin.id, title: twin.title ?? '' } : null
+}
+
+/** Whether two states of a class share the identity `findDuplicateClass` compares. */
+function sameIdentity(before: Partial<Event>, after: Partial<Event>): boolean {
+  return (
+    relationId(before.region) === relationId(after.region) &&
+    classKey(before as Partial<Candidate>) === classKey(after as Partial<Candidate>)
+  )
 }
 
 /** The identity of a class with a time, or null for one without. */

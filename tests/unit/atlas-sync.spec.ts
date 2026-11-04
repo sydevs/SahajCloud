@@ -172,15 +172,25 @@ describe('deriveExpectedCounts', () => {
       { legacyId: 3, email: 'not an address' },
     ],
     events: [
-      { legacyId: 1, managerId: 1, venueId: 100, areaId: 10 },
-      { legacyId: 2, managerId: 1, venueId: 100, areaId: 10 },
-      { legacyId: 3, managerId: 1, venueId: null, areaId: null },
+      { legacyId: 1, category: 'dropin', managerId: 1, venueId: 100, areaId: 10 },
+      { legacyId: 2, category: 'dropin', managerId: 1, venueId: 100, areaId: 10 },
+      { legacyId: 3, category: 'dropin', managerId: 1, venueId: null, areaId: null },
       {
         legacyId: 4,
+        category: 'dropin',
         managerId: 1,
         venueId: null,
         areaId: 10,
         legacyData: { archived_at: '2025-01-01T00:00:00.000Z', verified_at: null },
+      },
+      // Inactive with nobody to reach: Events refuses it, so it never counts.
+      {
+        legacyId: 5,
+        category: 'inactive',
+        managerId: 1,
+        venueId: null,
+        areaId: 10,
+        contactInfo: null,
       },
     ],
     registrations: [
@@ -199,7 +209,7 @@ describe('deriveExpectedCounts', () => {
       regions: 3,
       // Case-variant duplicates collapse, and a non-address never imports.
       users: 1,
-      // #3 has no region, and #4 imports straight into the trash.
+      // #3 has no region, #4 imports straight into the trash, #5 has no contact.
       events: 2,
       // Only the valid registrant on a counted event lands.
       'user-submissions': 1,
