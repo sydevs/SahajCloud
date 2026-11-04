@@ -67,18 +67,6 @@ export const MACHINE_SPAM_DAYS = 90
 export const PROPOSAL_DAYS = 30
 
 /**
- * The types kept forever: a **registration** is an attendance record, a
- * **subscribe** row is a consent record.
- *
- * One list, two answers — no window below may select these types, and a row of
- * one of them **pins** its `users` row against the orphan sweep.
- *
- * ⚠ `failed` is deliberately in no window: it means we accepted a submission,
- * told nobody, and delivered nothing. It stays until a manager resolves it.
- */
-export const DURABLE_TYPES: readonly UserSubmission['type'][] = ['registration', 'subscribe']
-
-/**
  * The sweeps, in the order they run. **Machine-spam first**, which makes the
  * windows disjoint by construction rather than by reading two `status` clauses
  * together.
@@ -87,15 +75,21 @@ export const DURABLE_TYPES: readonly UserSubmission['type'][] = ['registration',
  * each reaches exactly one window. That separation is what lets a declined
  * proposal go at 30 days with the rest of its type, rather than waiting out the
  * spam window because nothing cheap could tell the two refusals apart.
+ *
+ * ⚠ **`failed` is deliberately in no window**: it means we accepted a
+ * submission, told nobody, and delivered nothing. It stays until a manager
+ * resolves it.
  */
 export const PURGE_WINDOWS: PurgeWindow[] = [
   {
     days: MACHINE_SPAM_DAYS,
     name: 'machineSpam',
+    // ⚠ The one window that names no type, and the only one that may. A
+    // registration is an attendance record and a subscribe row is a consent
+    // record, kept for ever — but a `spam` one of either is neither, because
+    // nobody came and nobody subscribed. It is evidence like any other
+    // refusal, and ages out with the rest.
     where: (cutoff) => ({
-      // The one window naming no type otherwise, so it is the one that has to
-      // say which types it does not reach.
-      type: { not_in: [...DURABLE_TYPES] },
       status: { equals: 'spam' },
       createdAt: { less_than: cutoff },
     }),
@@ -296,9 +290,14 @@ const formBuilder = (config: Parameters<Plugin>[0]) =>
       admin: {
         group: 'System',
         useAsTitle: 'subject',
-        defaultColumns: ['subject', 'type', 'status', 'senderEmail', 'createdAt'],
+        defaultColumns: ['subject', 'type', 'status', 'user', 'createdAt'],
         components: {
           edit: {
+            // Beside Save rather than in it: `SaveButton` is the review buttons'
+            // slot. Serves all four intakes, and hides itself on an anonymous row.
+            beforeDocumentControls: [
+              { path: '@/components/admin/BlockUserButton', clientProps: { source: 'submission' } },
+            ],
             // No `skipValidation` on any button: the no-region refusal reaches
             // the form as a field error on `region`, which validation is what
             // delivers.
@@ -330,7 +329,8 @@ const formBuilder = (config: Parameters<Plugin>[0]) =>
         // cannot branch on `type`, so opening it for the reviewer's benefit
         // would greet every contact, subscribe and registration row with that
         // explanation page. A conditioned `previewTargetField` opens the panel
-        // for `proposal` alone instead — `proposalPreviewTargetField` in
+        // for `proposal` alone instead, and a second closes it for the other
+        // three — `proposalPreviewTargetField` and `closedPreviewTargetField` in
         // `UserSubmissions/fields.ts`.
         livePreview: {
           url: ({ data, locale }) =>

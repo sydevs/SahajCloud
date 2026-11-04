@@ -1,4 +1,5 @@
 import type {
+  ArrayField,
   Field,
   FieldAccess,
   RelationshipField,
@@ -84,6 +85,22 @@ const reviewProjectionAccess: { read: FieldAccess } = {
 }
 
 /**
+ * Who sent it, through what, about what — `type`, `user`, `client`, `form` and
+ * `event` as one block at the top of the sidebar, each document a link that
+ * opens it in a drawer. The five fields themselves sit under System, where
+ * they keep their list columns and their form-state values.
+ */
+const submissionSummaryField: Field = {
+  name: 'submissionSummary',
+  label: 'Context',
+  type: 'ui',
+  admin: {
+    position: 'sidebar',
+    components: { Field: '@/components/admin/SubmissionReview/SubmissionSummary' },
+  },
+}
+
+/**
  * The `user-submissions` field list, as `formSubmissionOverrides.fields` hands
  * it to us.
  *
@@ -98,24 +115,26 @@ const reviewProjectionAccess: { read: FieldAccess } = {
  * `jsonSchema`, which an array field cannot carry.
  */
 export function userSubmissionFields({ defaultFields }: { defaultFields: Field[] }): Field[] {
+  const plugin = defaultFields.map(perTypeForm).map(readOnlySubmissionData)
+  const form = plugin.find((field) => 'name' in field && field.name === 'form')
+
+  // Sidebar fields (the summary, then the activity log) take their order from here too.
   return [
-    typeField,
-    subjectField,
-    ...defaultFields.map(perTypeForm),
-    senderEmailField,
-    statusField,
-    eventField,
-    startingAtField,
-    eventFeedbackField,
-    proposedField,
+    screeningResultField,
     proposedChangesField,
+    submissionSummaryField,
+    startingAtField,
+    ...plugin.filter((field) => field !== form),
+    senderEmailField,
+    unsubscribedAtField,
+    eventFeedbackField,
     previewEventField,
     proposalPreviewTargetField,
+    closedPreviewTargetField,
     managerField,
     regionField,
-    screeningResultField,
     activityLogField,
-    systemGroup,
+    systemGroup(form),
   ]
 }
 
@@ -241,21 +260,104 @@ function perTypeForm(field: Field): Field {
     required: true,
     index: true,
     validate,
-    admin: { ...field.admin, condition: (data) => needsForm(data) },
+    // Fixed at create: the type's rules were judged against this form.
+    access: { ...field.access, update: () => false },
+    admin: {
+      ...field.admin,
+      condition: (data) => needsForm(data),
+      readOnly: true,
+    },
   } as RelationshipField
 }
 
 /**
- * The sender's address. Indexed: screening counts a sender's recent history
- * **across every type**, which is the whole reason for one table — a sender
- * hitting contact, proposals and registrations is one history, and no
- * per-collection design can express that.
+ * The person, upserted from the posted `senderEmail` for **every** type. Grants
+ * nothing — it is what makes a sender's history one history across all four
+ * intakes, what `Users.submissions` joins on, and the only stored record of
+ * who sent the row.
+ *
+ * ⚠ **A Registrant with submissions cannot be deleted** (`Users`
+ * `refuseDeletingSender`): the column is `ON DELETE SET NULL`, and with no
+ * address stored here a deleted user would turn their history anonymous and
+ * leave a pending registration with no one to remind.
+ */
+const userField: Field = {
+  name: 'user',
+  label: 'Submitted By',
+  type: 'relationship',
+  relationTo: 'users',
+  index: true,
+  access: systemFieldAccess,
+  admin: { readOnly: true },
+}
+
+/**
+ * The sender's address: an **input** on create and the user's email on read,
+ * never a column of its own.
+ *
+ * Both frontends post it, and the write guard names it in a refusal, so the
+ * create contract keeps it. `prepareUserSubmission` turns it into `user`, and
+ * `virtual: 'user.email'` reads it back from there — at any depth, in a
+ * `select` or a `where`, so the jobs reading it needed no change.
+ *
+ * ⚠ **It resolves under the reader's access.** A client cannot read `users`,
+ * so on a client's create the value is absent from the response *and from
+ * every `afterChange` hook's `doc`*. A hook that needs the address reads the
+ * user itself (`spawnSubscribeFromRegistration`).
  */
 const senderEmailField: Field = {
   name: 'senderEmail',
   type: 'email',
-  index: true,
-  admin: { description: 'Who sent this. Normalized.' },
+  virtual: 'user.email',
+  // An admin save posts the form's copy back; the column it would land in no
+  // longer exists, but refusing it keeps an update from looking like it moved
+  // the sender.
+  access: { update: () => false },
+  admin: { hidden: true },
+}
+
+/**
+ * The plugin's `[{ field, value }]` answers, frozen once received.
+ *
+ * Read-only at the API as well as in the form: nothing re-validates the blob
+ * after create (`prepareUserSubmission` is create-only), so an editable copy was
+ * an unbounded, unchecked write. A system writer passes `overrideAccess`.
+ *
+ * The answers render here as a table, labelled from the form's own fields; the
+ * client-context keys render separately, under System (`submissionContextField`).
+ */
+function readOnlySubmissionData(field: Field): Field {
+  if (!('name' in field) || field.name !== 'submissionData') return field
+
+  const base = field as ArrayField
+
+  return {
+    ...base,
+    label: 'Submission',
+    access: { ...base.access, update: () => false },
+    admin: {
+      ...base.admin,
+      readOnly: true,
+      components: {
+        Field: { path: SUBMISSION_DATA_TABLE, serverProps: { part: 'answers' } },
+      },
+    },
+  }
+}
+
+const SUBMISSION_DATA_TABLE = '@/components/admin/SubmissionReview/SubmissionData'
+
+/** The `submissionData` keys a client writes about itself, rather than answers. */
+const submissionContextField: Field = {
+  name: 'submissionContext',
+  // Not "Context": that is the sidebar summary of who sent this and through what.
+  label: 'Request Details',
+  type: 'ui',
+  admin: {
+    components: {
+      Field: { path: SUBMISSION_DATA_TABLE, serverProps: { part: 'context' } },
+    },
+  },
 }
 
 /** One four-state vocabulary for every type. `SUBMISSION_STATUSES` says what each means. */
@@ -268,7 +370,23 @@ const statusField: Field = {
   options: SUBMISSION_STATUSES.map((value) => ({ label: STATUS_LABELS[value], value })),
   enumName: 'enum_user_submissions_status',
   access: systemFieldAccess,
+  // Under System: the banner on `screeningResult` is where a reader meets it.
+  // The review buttons read it from form state, which a collapsed group keeps.
   admin: { readOnly: true },
+}
+
+/**
+ * Whether a row has an event to show: always for a registration or a proposal
+ * (a new-event proposal shows it empty until accepted), and for a subscribe row
+ * only when a registration opt-in spawned it.
+ *
+ * ⚠ **This is also when `eventPlacement` runs**, because a false condition skips
+ * validation. Narrowing `subscribe` to rows that carry an event skips it only
+ * where the value is empty, which the validator passes anyway.
+ */
+function showsEvent(data?: { event?: unknown; type?: unknown }): boolean {
+  if (data?.type === 'registration' || data?.type === 'proposal') return true
+  return data?.type === 'subscribe' && data?.event != null
 }
 
 /**
@@ -319,8 +437,8 @@ const eventPlacement: RelationshipFieldSingleValidation = async (value, options)
  * that is what links the consent record back to the registration it came from,
  * and what exempts it from needing a form of its own (`needsForm`).
  *
- * ⚠ **The condition is `type !== 'contact'`, not `… && !data?.form`.** Adding
- * the form clause would switch `eventPlacement` off for precisely the rows it
+ * ⚠ **The condition is `showsEvent`, and never `… && !data?.form`.** Adding a
+ * form clause would switch `eventPlacement` off for precisely the rows it
  * judges — one naming both a form and an event — and a skipped validator
  * refuses nothing.
  */
@@ -330,8 +448,11 @@ const eventField: Field = {
   relationTo: 'events',
   index: true,
   validate: eventPlacement,
+  // Set at create, or by an accept (`applyReview`, with `overrideAccess`).
+  access: { update: () => false },
   admin: {
-    condition: (data) => data?.type !== 'contact',
+    condition: showsEvent,
+    readOnly: true,
     description:
       'The event this registration attends, this proposal targets, or this subscription came from.',
   },
@@ -347,11 +468,31 @@ const startingAtField: Field = {
   name: 'startingAt',
   type: 'date',
   timezone: true,
+  // The registrant's own choice, posted at create.
+  access: { update: () => false },
   admin: {
     condition: (data) => data?.type === 'registration',
+    readOnly: true,
     date: { pickerAppearance: 'dayAndTime' },
     description: 'Which occurrence the registrant is attending.',
   },
+}
+
+/**
+ * When the registrant turned off reminders for this registration: the
+ * reminder sweep's filter, written by the unsubscribe token flow.
+ *
+ * Hidden, like `followUpSentAt` and for the same reason — a reader learns of it
+ * from the activity log entry the same write records, and the column exists
+ * only because nothing can `where` on a JSON log cheaply. Named generically so
+ * a subscribe-type unsubscribe can reuse it.
+ */
+const unsubscribedAtField: Field = {
+  name: 'unsubscribedAt',
+  type: 'date',
+  index: true,
+  access: systemFieldAccess,
+  admin: { hidden: true },
 }
 
 /**
@@ -370,10 +511,13 @@ const eventFeedbackField: Field = {
     { label: 'Denied', value: 'denied' },
   ],
   enumName: 'enum_user_submissions_event_feedback',
-  access: systemFieldAccess,
+  // The registrant's vote and nobody else's: the feedback page writes it with
+  // `overrideAccess`, so no admin edit can stand in for one.
+  access: { create: systemFieldAccess.create, update: () => false },
   admin: {
     condition: (data) => data?.type === 'registration',
-    description: 'Registrant’s verdict on an unverified event.',
+    readOnly: true,
+    description: 'Registrant’s verdict on an unverified event, from the link in their email.',
   },
 }
 
@@ -418,6 +562,10 @@ const proposedField: Field = jsonField({
   admin: {
     condition: (data) => data?.type === 'proposal',
     readOnly: true,
+    // Under System: Proposed Changes is what a reviewer reads. This stays as
+    // the record of exactly what was sent, which the diff cannot be — it drops
+    // values equal to the event's, and once accepted it diffs against the event
+    // this patch already changed.
     description: 'The proposed Events field patch, exactly as submitted.',
   },
 })
@@ -481,6 +629,25 @@ const proposalPreviewTargetField: Field = {
   },
 }
 
+const closedPreviewTarget = previewTargetField({ autoClose: true }, 'other__preview_target')
+
+/**
+ * The inverse, for the other three intakes: closes the panel on arrival. Their
+ * preview has nothing to show — `livePreview.url` sends them to the
+ * explanation page — and Payload keeps one open/closed preference for the
+ * whole collection, so a panel a reviewer left open on a proposal would
+ * otherwise greet the next contact message.
+ *
+ * Not mounted before `type` is known (the create form), where neither applies.
+ */
+const closedPreviewTargetField: Field = {
+  ...closedPreviewTarget,
+  admin: {
+    ...closedPreviewTarget.admin,
+    condition: (data) => typeof data?.type === 'string' && data.type !== 'proposal',
+  },
+}
+
 /**
  * Optional adoption, in the same act as accepting: a created event with a
  * manager is verified on the spot (see `newEventDefaults`), and without one it
@@ -537,6 +704,7 @@ const regionField: Field = {
  */
 export const SUBMISSION_VERDICTS = [
   'ok',
+  'blocked_sender',
   'disposable_email',
   'invalid_email',
   'no_mx_records',
@@ -596,7 +764,7 @@ const screeningResultField: Field = jsonField({
  * Everything recorded about this submission. Promoted to every type here: the
  * three collections being replaced logged ad hoc, or not at all.
  */
-const activityLogField: Field = logField({
+const activityLogBase = logField({
   description: 'Everything recorded about this submission — screening, delivery, decisions.',
   columns: [
     { key: 'activity', label: 'Event' },
@@ -609,12 +777,40 @@ const activityLogField: Field = logField({
   },
 })
 
-/** The columns a reader needs only when something has gone wrong. */
-const systemGroup: Field = {
+const activityLogField: Field = {
+  ...activityLogBase,
+  admin: { ...activityLogBase.admin, position: 'sidebar' },
+} as Field
+
+/**
+ * The columns a reader needs only when something has gone wrong — and the raw
+ * fields the status banner and the Context summary present. An unnamed
+ * collapsible adds no data path, so moving a field in here is display only.
+ */
+const systemGroup = (form: Field | undefined): Field => ({
   label: 'System',
   type: 'collapsible',
   admin: { initCollapsed: true },
   fields: [
+    // Only the document title reads it, and that is the header already.
+    subjectField,
+    typeField,
+    statusField,
+    userField,
+    {
+      // Which service relayed this, taken from the authenticated key and never
+      // from the body — it brands the emails sent about the submission, so a
+      // caller able to set it could attribute its rows to another service.
+      name: 'client',
+      label: 'Submitted Via',
+      type: 'relationship',
+      relationTo: 'clients',
+      index: true,
+      access: systemFieldAccess,
+      admin: { readOnly: true },
+    },
+    ...(form ? [form] : []),
+    eventField,
     {
       // The stable public identifier, issued at create and returned to the
       // caller. `unique` already creates the index.
@@ -625,38 +821,7 @@ const systemGroup: Field = {
       access: systemFieldAccess,
       admin: { readOnly: true },
     },
-    {
-      // Which service relayed this, taken from the authenticated key and never
-      // from the body — it brands the emails sent about the submission, so a
-      // caller able to set it could attribute its rows to another service.
-      name: 'client',
-      type: 'relationship',
-      relationTo: 'clients',
-      index: true,
-      access: systemFieldAccess,
-      admin: { readOnly: true },
-    },
-    {
-      // The person, upserted from the normalized `senderEmail` for **every**
-      // type. Grants nothing — it exists so a sender's history is one history,
-      // and so `Users` can show everything one person has ever sent.
-      name: 'user',
-      type: 'relationship',
-      relationTo: 'users',
-      index: true,
-      access: systemFieldAccess,
-      admin: { readOnly: true },
-    },
-    {
-      // Deliberately generic, and registration-only for now: a future
-      // subscribe-type unsubscribe reuses the same column. Queried by the
-      // reminder sweep, written by the unsubscribe token flow.
-      name: 'unsubscribedAt',
-      type: 'date',
-      index: true,
-      access: systemFieldAccess,
-      admin: { readOnly: true },
-    },
+    submissionContextField,
     {
       // The layers above where the visitor placed a new event (#1021): what the
       // Events address group cannot carry. The address's own id already rides
@@ -703,6 +868,7 @@ const systemGroup: Field = {
         },
       }),
     },
+    proposedField,
     {
       // The follow-up sweep's query filter. `activityLog` records *that* it was
       // sent, but nothing can `where` on a JSON column cheaply, so the scan
@@ -713,4 +879,4 @@ const systemGroup: Field = {
       admin: { hidden: true },
     },
   ],
-}
+})

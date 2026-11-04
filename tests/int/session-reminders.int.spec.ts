@@ -210,6 +210,16 @@ describe('SendSessionReminders job', () => {
       overrideAccess: true,
     })
     expect(after.unsubscribedAt).toBeTruthy()
+    // The column is the sweep's filter and hidden in the admin; the log entry is
+    // how a manager learns of it.
+    expect(after.activityLog).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'unsubscribe',
+          cells: { activity: 'Unsubscribed from reminders' },
+        }),
+      ]),
+    )
 
     await runReminders(payload)
     expect(emailsTo('page-control@example.com')).toHaveLength(1)

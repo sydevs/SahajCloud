@@ -1,6 +1,12 @@
 import type { CollectionConfig } from 'payload'
 
 import { hideUntilCreated, legacyMigrationFields } from '@/fields'
+import { normalizeEmail } from '@/lib/users/upsertUserByEmail'
+
+import { blockUser } from './endpoints/block'
+import { refuseDeletingSender } from './hooks/refuseDeletingSender'
+
+const BLOCK_BUTTON = '@/components/admin/BlockUserButton'
 
 /**
  * Users — Sahaj Atlas event registrants (the people who sign up for events),
@@ -16,9 +22,21 @@ export const Users: CollectionConfig = {
   labels: { singular: 'Registrant', plural: 'Registrants' },
   admin: {
     group: 'Access',
-    useAsTitle: 'name',
-    defaultColumns: ['name', 'email'],
-    hidden: true,
+    // The address, not the name: the name is often guessed from the address's
+    // local part (`displayNameFor`), and a submission's "Submitted By" chip is
+    // where a reader looks for who wrote in.
+    useAsTitle: 'email',
+    defaultColumns: ['email', 'name', 'blockedAt'],
+    // ⚠ No `hidden` key, deliberately: `accessPlugin` derives it (docs/rules/admin-ui.md)
+    components: {
+      edit: {
+        beforeDocumentControls: [{ path: BLOCK_BUTTON, clientProps: { source: 'users' } }],
+      },
+    },
+  },
+  endpoints: [blockUser],
+  hooks: {
+    beforeDelete: [refuseDeletingSender],
   },
   fields: [
     {
@@ -32,6 +50,33 @@ export const Users: CollectionConfig = {
       type: 'email',
       required: true,
       unique: true,
+      // Every writer, not only the public upsert: an admin correcting an address
+      // must not mint a second spelling that `upsertUserByEmail` never matches.
+      hooks: {
+        beforeValidate: [
+          ({ value }) => (typeof value === 'string' ? normalizeEmail(value) : value),
+        ],
+      },
+    },
+    {
+      // Written by the Block / Unblock button alone (`endpoints/block.ts`), which
+      // also refuses the sender's open submissions — a hand-set date would block
+      // without doing that.
+      name: 'blockedAt',
+      type: 'date',
+      access: { create: () => false, update: () => false },
+      admin: {
+        readOnly: true,
+        description: 'Set by the Block button. Nothing this sender submits is delivered while set.',
+      },
+    },
+    {
+      name: 'blockedReason',
+      type: 'textarea',
+      admin: {
+        description:
+          'Why this sender was blocked — for whoever reads the record next. Kept when the block is lifted.',
+      },
     },
     {
       // Everything this person has ever sent us, of any kind — a contact

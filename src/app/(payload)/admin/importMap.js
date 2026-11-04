@@ -60,6 +60,9 @@ import { default as default_d73215fe105de40829b40e0975052656 } from '@/component
 import { default as default_3db810cf95b8f600a49837ee6d29b565 } from '@/components/admin/LogTable'
 import { default as default_42fbdbfc3b16bbe7c43aa9f07c715c1c } from '@/components/admin/EventQualityPanel'
 import { default as default_b0b21389e90eb8a40a1646856bc83729 } from '@/components/admin/EventImport/ImportListMenuItem'
+import { default as default_d399306e9eb751dd1037d9f56fc69750 } from '@/components/admin/EventRegistrations'
+import { default as default_f41daa650822ea524a81bf42bba8e1e9 } from '@/components/admin/EventRegistrations/RegistrationsPill'
+import { default as default_5a57e9e555983fc436bd80367eb221cd } from '@/components/admin/BlockUserButton'
 import { default as default_e9a0c1434d297758857abb1b1ab57cc0 } from '@/components/admin/EventImport/ImportResultsField'
 import { default as default_1101b8f453ec78808b3e5a5bddfd811b } from '@/components/admin/EventImport/TemplateLink'
 import { HorizontalRuleFeatureClient as HorizontalRuleFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
@@ -71,8 +74,10 @@ import { SuperscriptFeatureClient as SuperscriptFeatureClient_e70f5e05f09f93e00b
 import { SubscriptFeatureClient as SubscriptFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { StrikethroughFeatureClient as StrikethroughFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { UnderlineFeatureClient as UnderlineFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
-import { default as default_1362f9d401458600fb8b976a104ad7f3 } from '@/components/admin/SubmissionReview/SubmissionChanges'
 import { default as default_af29cb1ab17d55265c927ecaae54b307 } from '@/components/admin/SubmissionReview/SubmissionStatus'
+import { default as default_1362f9d401458600fb8b976a104ad7f3 } from '@/components/admin/SubmissionReview/SubmissionChanges'
+import { default as default_5139fef8b5e559130c51ed95012c326b } from '@/components/admin/SubmissionReview/SubmissionSummary'
+import { default as default_a9d176679e4f19c43cebe0b9b8ecff14 } from '@/components/admin/SubmissionReview/SubmissionData'
 import { default as default_4e22aa57842837eff3a83b422834aab2 } from '@/components/admin/TranslationsRow'
 import { default as default_cbd7ea31609971bfa7093afb69bf75ad } from '@/components/admin/TabScreenshot'
 import { TranslationsRichTextField as TranslationsRichTextField_4e22aa57842837eff3a83b422834aab2 } from '@/components/admin/TranslationsRow'
@@ -154,6 +159,9 @@ export const importMap = {
   "@/components/admin/LogTable#default": default_3db810cf95b8f600a49837ee6d29b565,
   "@/components/admin/EventQualityPanel#default": default_42fbdbfc3b16bbe7c43aa9f07c715c1c,
   "@/components/admin/EventImport/ImportListMenuItem#default": default_b0b21389e90eb8a40a1646856bc83729,
+  "@/components/admin/EventRegistrations#default": default_d399306e9eb751dd1037d9f56fc69750,
+  "@/components/admin/EventRegistrations/RegistrationsPill#default": default_f41daa650822ea524a81bf42bba8e1e9,
+  "@/components/admin/BlockUserButton#default": default_5a57e9e555983fc436bd80367eb221cd,
   "@/components/admin/EventImport/ImportResultsField#default": default_e9a0c1434d297758857abb1b1ab57cc0,
   "@/components/admin/EventImport/TemplateLink#default": default_1101b8f453ec78808b3e5a5bddfd811b,
   "@payloadcms/richtext-lexical/client#HorizontalRuleFeatureClient": HorizontalRuleFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
@@ -165,8 +173,10 @@ export const importMap = {
   "@payloadcms/richtext-lexical/client#SubscriptFeatureClient": SubscriptFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#StrikethroughFeatureClient": StrikethroughFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#UnderlineFeatureClient": UnderlineFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
-  "@/components/admin/SubmissionReview/SubmissionChanges#default": default_1362f9d401458600fb8b976a104ad7f3,
   "@/components/admin/SubmissionReview/SubmissionStatus#default": default_af29cb1ab17d55265c927ecaae54b307,
+  "@/components/admin/SubmissionReview/SubmissionChanges#default": default_1362f9d401458600fb8b976a104ad7f3,
+  "@/components/admin/SubmissionReview/SubmissionSummary#default": default_5139fef8b5e559130c51ed95012c326b,
+  "@/components/admin/SubmissionReview/SubmissionData#default": default_a9d176679e4f19c43cebe0b9b8ecff14,
   "@/components/admin/TranslationsRow#default": default_4e22aa57842837eff3a83b422834aab2,
   "@/components/admin/TabScreenshot#default": default_cbd7ea31609971bfa7093afb69bf75ad,
   "@/components/admin/TranslationsRow#TranslationsRichTextField": TranslationsRichTextField_4e22aa57842837eff3a83b422834aab2,

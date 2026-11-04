@@ -2212,38 +2212,7 @@ export interface Import {
  */
 export interface UserSubmission {
   id: number;
-  type: 'contact' | 'subscribe' | 'registration' | 'proposal';
-  /**
-   * Composed when the submission arrives.
-   */
-  subject?: string | null;
-  form?: (number | null) | Form;
-  submissionData?:
-    | {
-        field: string;
-        value: string;
-        id?: string | null;
-      }[]
-    | null;
-  /**
-   * Who sent this. Normalized.
-   */
-  senderEmail?: string | null;
-  status: 'pending' | 'accepted' | 'rejected' | 'spam' | 'failed';
-  /**
-   * The event this registration attends, this proposal targets, or this subscription came from.
-   */
-  event?: (number | null) | Event;
-  /**
-   * Which occurrence the registrant is attending.
-   */
-  startingAt?: string | null;
-  startingAt_tz?: SupportedTimezones;
-  /**
-   * Registrant’s verdict on an unverified event.
-   */
-  eventFeedback?: ('confirmed' | 'denied') | null;
-  proposed?: SubmissionProposal;
+  screeningResult?: SubmissionScreeningResult;
   proposedChanges?:
     | {
         [k: string]: unknown;
@@ -2253,6 +2222,24 @@ export interface UserSubmission {
     | number
     | boolean
     | null;
+  /**
+   * Which occurrence the registrant is attending.
+   */
+  startingAt?: string | null;
+  startingAt_tz?: SupportedTimezones;
+  submissionData?:
+    | {
+        field: string;
+        value: string;
+        id?: string | null;
+      }[]
+    | null;
+  senderEmail?: string | null;
+  unsubscribedAt?: string | null;
+  /**
+   * Registrant’s verdict on an unverified event, from the link in their email.
+   */
+  eventFeedback?: ('confirmed' | 'denied') | null;
   previewEvent?:
     | {
         [k: string]: unknown;
@@ -2270,166 +2257,90 @@ export interface UserSubmission {
    * The city or venue this event belongs to. Matched from the visitor’s location — correct it here if it came back empty or wrong.
    */
   region?: (number | null) | Region;
-  screeningResult?: SubmissionScreeningResult;
   activityLog?: ActivityLog;
-  uuid?: string | null;
-  client?: (number | null) | Client;
+  /**
+   * Composed when the submission arrives.
+   */
+  subject?: string | null;
+  type: 'contact' | 'subscribe' | 'registration' | 'proposal';
+  status: 'pending' | 'accepted' | 'rejected' | 'spam' | 'failed';
   user?: (number | null) | User;
-  unsubscribedAt?: string | null;
+  client?: (number | null) | Client;
+  form?: (number | null) | Form;
+  /**
+   * The event this registration attends, this proposal targets, or this subscription came from.
+   */
+  event?: (number | null) | Event;
+  uuid?: string | null;
   location?: SubmissionLocation;
   regionHint?: SubmissionRegionHint;
+  proposed?: SubmissionProposal;
   followUpSentAt?: string | null;
   updatedAt: string;
   createdAt: string;
 }
+export interface SubmissionScreeningResult {
+  /**
+   * `ok`, or the first check that refused this submission.
+   */
+  verdict:
+    | 'ok'
+    | 'blocked_sender'
+    | 'disposable_email'
+    | 'invalid_email'
+    | 'no_mx_records'
+    | 'repeat_sender'
+    | 'duplicate_body'
+    | 'content_rejected';
+  /**
+   * Everything an admin needs, as complete sentences: what happened and what follows from it. An accepted submission normally has none.
+   */
+  notes?: string[];
+  /**
+   * A technical detail kept for triage and NOT rendered — an inconclusive MX lookup, or a transport’s own error string.
+   */
+  diagnostic?: string;
+  /**
+   * When screening reached this verdict (ISO 8601).
+   */
+  screenedAt: string;
+}
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "forms".
+ * via the `definition` "users".
  */
-export interface Form {
+export interface User {
   id: number;
-  title?: string | null;
-  fields?:
-    | (
-        | {
-            name: string;
-            label?: string | null;
-            width?: number | null;
-            required?: boolean | null;
-            defaultValue?: boolean | null;
-            id?: string | null;
-            blockName?: string | null;
-            blockType: 'checkbox';
-          }
-        | {
-            name: string;
-            label?: string | null;
-            width?: number | null;
-            required?: boolean | null;
-            id?: string | null;
-            blockName?: string | null;
-            blockType: 'country';
-          }
-        | {
-            name: string;
-            label?: string | null;
-            width?: number | null;
-            required?: boolean | null;
-            id?: string | null;
-            blockName?: string | null;
-            blockType: 'email';
-          }
-        | {
-            message?: {
-              root: {
-                type: string;
-                children: {
-                  type: any;
-                  version: number;
-                  [k: string]: unknown;
-                }[];
-                direction: ('ltr' | 'rtl') | null;
-                format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
-                indent: number;
-                version: number;
-              };
-              [k: string]: unknown;
-            } | null;
-            id?: string | null;
-            blockName?: string | null;
-            blockType: 'message';
-          }
-        | {
-            name: string;
-            label?: string | null;
-            width?: number | null;
-            defaultValue?: number | null;
-            required?: boolean | null;
-            id?: string | null;
-            blockName?: string | null;
-            blockType: 'number';
-          }
-        | {
-            name: string;
-            label?: string | null;
-            width?: number | null;
-            defaultValue?: string | null;
-            placeholder?: string | null;
-            options?:
-              | {
-                  label: string;
-                  value: string;
-                  id?: string | null;
-                }[]
-              | null;
-            required?: boolean | null;
-            id?: string | null;
-            blockName?: string | null;
-            blockType: 'select';
-          }
-        | {
-            name: string;
-            label?: string | null;
-            width?: number | null;
-            required?: boolean | null;
-            id?: string | null;
-            blockName?: string | null;
-            blockType: 'state';
-          }
-        | {
-            name: string;
-            label?: string | null;
-            width?: number | null;
-            defaultValue?: string | null;
-            required?: boolean | null;
-            id?: string | null;
-            blockName?: string | null;
-            blockType: 'text';
-          }
-        | {
-            name: string;
-            label?: string | null;
-            width?: number | null;
-            defaultValue?: string | null;
-            required?: boolean | null;
-            id?: string | null;
-            blockName?: string | null;
-            blockType: 'textarea';
-          }
-      )[]
-    | null;
-  submitButtonLabel?: string | null;
-  confirmationType?: ('message' | 'redirect') | null;
-  confirmationMessage?: {
-    root: {
-      type: string;
-      children: {
-        type: any;
-        version: number;
-        [k: string]: unknown;
-      }[];
-      direction: ('ltr' | 'rtl') | null;
-      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
-      indent: number;
-      version: number;
-    };
-    [k: string]: unknown;
-  } | null;
-  redirect?: {
-    url?: string | null;
+  name: string;
+  email: string;
+  /**
+   * Set by the Block button. Nothing this sender submits is delivered while set.
+   */
+  blockedAt?: string | null;
+  /**
+   * Why this sender was blocked — for whoever reads the record next. Kept when the block is lifted.
+   */
+  blockedReason?: string | null;
+  submissions?: {
+    docs?: (number | UserSubmission)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
   };
-  /**
-   * Contact forms deliver the message to a recipient. Subscribe forms add the sender to a client’s mailing list.
-   */
-  actionType: 'contact' | 'subscribe';
-  /**
-   * Who receives messages from this form. Leave blank to send to contact@sydevelopers.com.
-   */
-  recipient?: (number | null) | Manager;
-  /**
-   * Whose mailing list a subscriber joins.
-   */
-  client?: (number | null) | Client;
+  submittedEvents?: {
+    docs?: (number | Event)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  legacyId?: number | null;
+  legacyData?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -2835,62 +2746,154 @@ export interface ClientAbuseScore {
     current: number;
   };
 }
-export interface SubmissionProposal {
-  [k: string]: unknown;
-}
-export interface SubmissionScreeningResult {
-  /**
-   * `ok`, or the first check that refused this submission.
-   */
-  verdict:
-    | 'ok'
-    | 'disposable_email'
-    | 'invalid_email'
-    | 'no_mx_records'
-    | 'repeat_sender'
-    | 'duplicate_body'
-    | 'content_rejected';
-  /**
-   * Everything an admin needs, as complete sentences: what happened and what follows from it. An accepted submission normally has none.
-   */
-  notes?: string[];
-  /**
-   * A technical detail kept for triage and NOT rendered — an inconclusive MX lookup, or a transport’s own error string.
-   */
-  diagnostic?: string;
-  /**
-   * When screening reached this verdict (ISO 8601).
-   */
-  screenedAt: string;
-}
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "users".
+ * via the `definition` "forms".
  */
-export interface User {
+export interface Form {
   id: number;
-  name: string;
-  email: string;
-  submissions?: {
-    docs?: (number | UserSubmission)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  submittedEvents?: {
-    docs?: (number | Event)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  legacyId?: number | null;
-  legacyData?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
+  title?: string | null;
+  fields?:
+    | (
+        | {
+            name: string;
+            label?: string | null;
+            width?: number | null;
+            required?: boolean | null;
+            defaultValue?: boolean | null;
+            id?: string | null;
+            blockName?: string | null;
+            blockType: 'checkbox';
+          }
+        | {
+            name: string;
+            label?: string | null;
+            width?: number | null;
+            required?: boolean | null;
+            id?: string | null;
+            blockName?: string | null;
+            blockType: 'country';
+          }
+        | {
+            name: string;
+            label?: string | null;
+            width?: number | null;
+            required?: boolean | null;
+            id?: string | null;
+            blockName?: string | null;
+            blockType: 'email';
+          }
+        | {
+            message?: {
+              root: {
+                type: string;
+                children: {
+                  type: any;
+                  version: number;
+                  [k: string]: unknown;
+                }[];
+                direction: ('ltr' | 'rtl') | null;
+                format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+                indent: number;
+                version: number;
+              };
+              [k: string]: unknown;
+            } | null;
+            id?: string | null;
+            blockName?: string | null;
+            blockType: 'message';
+          }
+        | {
+            name: string;
+            label?: string | null;
+            width?: number | null;
+            defaultValue?: number | null;
+            required?: boolean | null;
+            id?: string | null;
+            blockName?: string | null;
+            blockType: 'number';
+          }
+        | {
+            name: string;
+            label?: string | null;
+            width?: number | null;
+            defaultValue?: string | null;
+            placeholder?: string | null;
+            options?:
+              | {
+                  label: string;
+                  value: string;
+                  id?: string | null;
+                }[]
+              | null;
+            required?: boolean | null;
+            id?: string | null;
+            blockName?: string | null;
+            blockType: 'select';
+          }
+        | {
+            name: string;
+            label?: string | null;
+            width?: number | null;
+            required?: boolean | null;
+            id?: string | null;
+            blockName?: string | null;
+            blockType: 'state';
+          }
+        | {
+            name: string;
+            label?: string | null;
+            width?: number | null;
+            defaultValue?: string | null;
+            required?: boolean | null;
+            id?: string | null;
+            blockName?: string | null;
+            blockType: 'text';
+          }
+        | {
+            name: string;
+            label?: string | null;
+            width?: number | null;
+            defaultValue?: string | null;
+            required?: boolean | null;
+            id?: string | null;
+            blockName?: string | null;
+            blockType: 'textarea';
+          }
+      )[]
     | null;
+  submitButtonLabel?: string | null;
+  confirmationType?: ('message' | 'redirect') | null;
+  confirmationMessage?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  redirect?: {
+    url?: string | null;
+  };
+  /**
+   * Contact forms deliver the message to a recipient. Subscribe forms add the sender to a client’s mailing list.
+   */
+  actionType: 'contact' | 'subscribe';
+  /**
+   * Who receives messages from this form. Leave blank to send to contact@sydevelopers.com.
+   */
+  recipient?: (number | null) | Manager;
+  /**
+   * Whose mailing list a subscriber joins.
+   */
+  client?: (number | null) | Client;
   updatedAt: string;
   createdAt: string;
 }
@@ -2921,6 +2924,9 @@ export interface SubmissionRegionHint {
    * The matched city or venue, kept after a reviewer changes `region`.
    */
   anchorRegion?: number;
+}
+export interface SubmissionProposal {
+  [k: string]: unknown;
 }
 export interface EventSystemMeta {
   communityFeedback?: {
@@ -5146,6 +5152,8 @@ export interface EventsSelect<T extends boolean = true> {
 export interface UsersSelect<T extends boolean = true> {
   name?: T;
   email?: T;
+  blockedAt?: T;
+  blockedReason?: T;
   submissions?: T;
   submittedEvents?: T;
   legacyId?: T;
@@ -5307,9 +5315,10 @@ export interface FormsSelect<T extends boolean = true> {
  * via the `definition` "user-submissions_select".
  */
 export interface UserSubmissionsSelect<T extends boolean = true> {
-  type?: T;
-  subject?: T;
-  form?: T;
+  screeningResult?: T;
+  proposedChanges?: T;
+  startingAt?: T;
+  startingAt_tz?: T;
   submissionData?:
     | T
     | {
@@ -5318,24 +5327,23 @@ export interface UserSubmissionsSelect<T extends boolean = true> {
         id?: T;
       };
   senderEmail?: T;
-  status?: T;
-  event?: T;
-  startingAt?: T;
-  startingAt_tz?: T;
+  unsubscribedAt?: T;
   eventFeedback?: T;
-  proposed?: T;
-  proposedChanges?: T;
   previewEvent?: T;
   manager?: T;
   region?: T;
-  screeningResult?: T;
   activityLog?: T;
-  uuid?: T;
-  client?: T;
+  subject?: T;
+  type?: T;
+  status?: T;
   user?: T;
-  unsubscribedAt?: T;
+  client?: T;
+  form?: T;
+  event?: T;
+  uuid?: T;
   location?: T;
   regionHint?: T;
+  proposed?: T;
   followUpSentAt?: T;
   updatedAt?: T;
   createdAt?: T;

@@ -38,10 +38,25 @@ export const spawnSubscribeFromRegistration: CollectionAfterChangeHook = async (
   if (operation !== 'create' || doc.type !== 'registration') return doc
   if (!parseOptIn(readSubmissionValue(doc.submissionData, SUBSCRIBE_OPT_IN))) return doc
 
-  const senderEmail = typeof doc.senderEmail === 'string' ? doc.senderEmail.trim() : ''
   // Nothing to subscribe. A registration may be anonymous; an opt-in with no
   // address is a caller bug, and a row nobody could ever deliver is worse than
   // no row.
+  const userId = relationId(doc.user)
+  if (userId == null) return doc
+
+  // ⚠ Read here, not off `doc.senderEmail`: that virtual resolves under the
+  // caller's access, and a client cannot read `users`, so on every real create
+  // it is absent. `req` because the user row was upserted in this transaction.
+  const sender = await req.payload.findByID({
+    collection: 'users',
+    id: userId,
+    select: { email: true },
+    depth: 0,
+    overrideAccess: true,
+    disableErrors: true,
+    req,
+  })
+  const senderEmail = sender?.email?.trim() ?? ''
   if (!senderEmail) return doc
 
   try {
@@ -51,7 +66,7 @@ export const spawnSubscribeFromRegistration: CollectionAfterChangeHook = async (
         type: 'subscribe',
         senderEmail,
         event: relationId(doc.event),
-        user: relationId(doc.user),
+        user: userId,
         client: relationId(doc.client),
         status: 'pending',
         // Carried over rather than re-derived: the provider wants a name and a

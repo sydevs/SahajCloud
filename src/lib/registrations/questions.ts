@@ -35,7 +35,11 @@ export interface RegistrationAnswer {
   value: string
 }
 
-const CONFIGURED_QUESTION_NAMES = new Set<string>(
+/**
+ * The keys above, as a set. Exported because deciding what is *not* an answer
+ * needs it too, and a second spelling of this list is a second definition.
+ */
+export const REGISTRATION_QUESTION_NAMES = new Set<string>(
   EVENT_REGISTRATION_QUESTIONS.map((question) => question.name),
 )
 
@@ -73,7 +77,7 @@ export function buildRegistrationAnswers(
   }
 
   for (const [key, raw] of Object.entries(questions)) {
-    if (CONFIGURED_QUESTION_NAMES.has(key)) continue
+    if (REGISTRATION_QUESTION_NAMES.has(key)) continue
     const value = formatAnswer(raw)
     if (value) answers.push({ label: key, value })
   }

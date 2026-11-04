@@ -45,6 +45,7 @@ import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
 import {
   adminOnlyCondition,
   eventAddressScope,
+  isAdminManager,
   managersOnlyFieldAccess,
   ownedRegionFilterOptions,
   regionScopedAddressVisibility,
@@ -52,6 +53,7 @@ import {
 import { relationId } from '@/plugins/access/documentManagers'
 
 import { eventsGeoJson } from './endpoints/geojson'
+import { registrationsCsv } from './endpoints/registrationsCsv'
 import { verifyEventAction } from './endpoints/verifyEventAction'
 import {
   EVENT_REGISTRATION_MODE_OPTIONS,
@@ -131,6 +133,26 @@ export const Events: CollectionConfig = {
     group: 'Classes',
     useAsTitle: 'title',
     defaultColumns: ['title', 'verificationStage', '_status'],
+    components: {
+      views: {
+        edit: {
+          // The signups this event's own manager may read. A document view is
+          // behind `Root`'s `canAccessAdmin` redirect, unlike a root view with
+          // a `path` (`docs/rules/admin-ui.md`), and the component narrows it
+          // from there to the manager named below.
+          registrations: {
+            Component: '@/components/admin/EventRegistrations',
+            path: '/registrations',
+            tab: {
+              href: '/registrations',
+              label: 'Registrations',
+              order: 200,
+              Pill: '@/components/admin/EventRegistrations/RegistrationsPill',
+            },
+          },
+        },
+      },
+    },
     // Live Preview loads the Atlas widget's /preview route. Unlike WeMeditate's
     // server-side preview, the widget fetches the document back
     // **client-side**. It forwards the secret in the x-sahajcloud-preview-secret
@@ -180,7 +202,7 @@ export const Events: CollectionConfig = {
     afterChange: [revalidateAtlasSidebarHook],
     afterDelete: [revalidateAtlasSidebarHook],
   },
-  endpoints: [verifyEventAction, eventsGeoJson],
+  endpoints: [verifyEventAction, eventsGeoJson, registrationsCsv],
   fields: [
     {
       // The bulk import this class came from (`src/plugins/eventImport`). The
@@ -551,12 +573,23 @@ export const Events: CollectionConfig = {
               //
               // Deliberately the bare type, not `activeRegistrationWhere`: a
               // manager needs to see the row they flagged `spam`.
+              //
+              // ⚠ The condition hides the field; it does not stop the read.
+              // `user-submissions` is restricted and no manager role reads it,
+              // so this rendered empty for every manager — the drawer it opens
+              // is an admin's way into a row, and a manager reads their own
+              // event's signups on the Registrations tab instead (#1069). The
+              // join's subquery still runs for them, which is the cost of
+              // keeping that drawer.
               name: 'registrations',
               type: 'join',
               collection: 'user-submissions',
               on: 'event',
               where: { type: { equals: 'registration' } },
-              admin: { condition: hideUntilCreated },
+              admin: {
+                condition: (data, _siblingData, { user }) =>
+                  hideUntilCreated(data) && isAdminManager(user),
+              },
             },
           ],
         },
