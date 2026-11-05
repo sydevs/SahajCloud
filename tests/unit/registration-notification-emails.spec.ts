@@ -1,12 +1,13 @@
 /**
- * Unit tests for the session-reminder + registration-digest email templates and
- * the reminder occurrence-detail shaping. Pure render/shape contract — no
- * Payload, no DB.
+ * Unit tests for the session-reminder email template and the reminder
+ * occurrence-detail shaping. Pure render/shape contract — no Payload, no DB.
+ *
+ * The manager digest moved to `tests/unit/digest-email.spec.ts` when #1070
+ * replaced `RegistrationDigestEmail` with one per-role template.
  */
 import { createElement } from 'react'
 import { describe, expect, it } from 'vitest'
 
-import { RegistrationDigestEmail, registrationDigestText } from '@/emails/RegistrationDigestEmail'
 import { SessionReminderEmail, sessionReminderText } from '@/emails/SessionReminderEmail'
 import type { RegistrationEmailDetails } from '@/lib/notifications/registrationDetails'
 import { buildReminderEmailDetails, occurrenceLine } from '@/lib/notifications/registrationDetails'
@@ -80,65 +81,6 @@ describe('SessionReminderEmail', () => {
     })
     expect(text).toContain('Tuesday, 21 July 2026')
     expect(text).toContain(UNSUBSCRIBE_URL)
-  })
-})
-
-describe('RegistrationDigestEmail', () => {
-  const groups = [
-    {
-      eventTitle: 'Morning Meditation',
-      eventAdminUrl: 'https://cloud.test/admin/collections/events/1',
-      registrations: [
-        {
-          registrantName: 'Alice',
-          registrantEmail: 'alice@example.com',
-          startDate: null,
-          answers: [
-            { label: 'How did you hear about this event?', value: 'A friend recommended it' },
-          ],
-        },
-        { registrantName: 'Bob', registrantEmail: 'bob@example.com', startDate: '5 Aug 2025' },
-      ],
-    },
-    {
-      eventTitle: 'Evening Class',
-      eventAdminUrl: 'https://cloud.test/admin/collections/events/2',
-      registrations: [
-        { registrantName: 'Cara', registrantEmail: 'cara@example.com', startDate: null },
-      ],
-    },
-  ]
-
-  it('groups registrations by event, renders their answers, and shows a total (no per-event count)', async () => {
-    const html = await renderEmail(
-      createElement(RegistrationDigestEmail, { recipientName: 'Mgr', period: 'day', groups }),
-    )
-    expect(html).toContain('Morning Meditation')
-    expect(html).toContain('Evening Class')
-    expect(html).toContain('Alice')
-    expect(html).toContain('Bob')
-    expect(html).toContain('Cara')
-    // The registrant's registration-question answer is included.
-    expect(html).toContain('How did you hear about this event?')
-    expect(html).toContain('A friend recommended it')
-    // The session date is labelled so a bare date cannot be misread as a signup date.
-    expect(html).toContain('Attending 5 Aug 2025')
-    // Grand total in the intro + daily phrasing. The redundant per-event count is gone.
-    expect(html).toContain('3 registrations')
-    expect(html).toContain('in the last day')
-    expect(html).not.toContain('2 registrations')
-    expect(html).toContain('https://cloud.test/admin/collections/events/1')
-  })
-
-  it('singularizes a one-registration count and uses the weekly phrase', async () => {
-    const text = registrationDigestText({
-      recipientName: 'Mgr',
-      period: 'week',
-      groups: [groups[1]],
-    })
-    expect(text).toContain('1 registration')
-    expect(text).not.toContain('1 registrations')
-    expect(text).toContain('in the last week')
   })
 })
 

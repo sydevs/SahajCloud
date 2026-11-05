@@ -1,99 +1,44 @@
 import type { PayloadRequest } from 'payload'
 
+import { loadOpenItems, loadStatistics, type OverviewStatistics } from '@/lib/atlasOverview'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 
-import {
-  inProgramTab,
-  paginate,
-  PROGRAM_TABS,
-  sortPrograms,
-  type AtlasManagerData,
-  type Program,
-  type ProgramQuery,
-} from './model'
+import type { DashboardQuery, OpenItemsData } from '../shared/model'
+import { openItemsData } from '../shared/rows'
+
+export interface AtlasManagerData {
+  canCreate: boolean
+  items: OpenItemsData
+  statistics: OverviewStatistics
+}
 
 /**
- * Use the collection's actual write scope: project read access alone is wider.
- * Containment to the Atlas project is the dashboard view's call, not this read's.
+ * A program manager's home: the events they manage, most urgent first.
  *
- * Every program in scope is read, but only the four columns that order and
- * count it — a manager's scope is a region subtree, so this stays small, and
- * the stage ranks need no column of their own. Those are the base documents:
- * the stage and status the nightly job acts on. Only the page shown then reads
- * its latest drafts, for what the manager last wrote.
+ * ⚠ **Read with `overrideAccess: false`**, so the list is exactly what their
+ * own access admits rather than what this loader believes it should be — the
+ * same contract the previous home kept, and what makes the `?region=` and
+ * subtree rules below answerable from one place.
  */
 export async function getAtlasManagerData(
   req: PayloadRequest,
-  query: ProgramQuery,
+  query: DashboardQuery,
 ): Promise<AtlasManagerData> {
-  const access = req.payload.collections.events.config.access
-  // Concurrent reads on one req must not share it (src/collections/AGENTS.md).
-  const [scope, canCreate] = await Promise.all([
-    access.update!({ req: localeIsolatedReq(req) }),
-    access.create!({ req: localeIsolatedReq(req) }),
-  ])
-  const rows =
-    scope === false
-      ? []
-      : (
-          await req.payload.find({
-            collection: 'events',
-            req: localeIsolatedReq(req),
-            overrideAccess: false,
-            depth: 0,
-            pagination: false,
-            where: scope === true ? {} : scope,
-            select: { _status: true, verificationStage: true, updatedAt: true },
-          })
-        ).docs
-  const ordered = sortPrograms(rows)
-  const page = paginate(
-    ordered.filter((row) => inProgramTab(row, query.tab)),
-    query.page,
-    query.limit,
-  )
+  const now = new Date()
+  const managerId = Number(req.user!.id)
+  const scope = { managerId, role: 'program' } as const
+  const access = req.payload.collections.events!.config.access
 
-  const latest = page.docs.length
-    ? await req.payload.find({
-        collection: 'events',
-        req: localeIsolatedReq(req),
-        overrideAccess: false,
-        depth: 0,
-        draft: true,
-        pagination: false,
-        locale: req.locale,
-        where: { id: { in: page.docs.map((row) => row.id) } },
-        select: {
-          title: true,
-          _status: true,
-          eventType: true,
-          address: { venueName: true, city: true },
-        },
-      })
-    : { docs: [] }
-  const latestById = new Map(latest.docs.map((event) => [event.id, event]))
+  // Concurrent reads on one req must not share it (src/collections/AGENTS.md).
+  const [canCreate, result, statistics] = await Promise.all([
+    access.create!({ req: localeIsolatedReq(req) }),
+    loadOpenItems({ now, overrideAccess: false, req, scope }),
+    loadStatistics({ now, overrideAccess: false, req: localeIsolatedReq(req), scope }),
+  ])
 
   return {
     canCreate: canCreate === true,
-    query: { ...query, page: page.page ?? query.page },
-    counts: Object.fromEntries(
-      PROGRAM_TABS.map((tab) => [tab, ordered.filter((row) => inProgramTab(row, tab)).length]),
-    ) as AtlasManagerData['counts'],
-    programs: {
-      ...page,
-      docs: page.docs.map((row): Program => {
-        const draft = latestById.get(row.id)
-        return {
-          id: row.id,
-          title: draft?.title ?? '',
-          _status: draft?._status ?? row._status,
-          verificationStage: row.verificationStage,
-          updatedAt: row.updatedAt,
-          eventType: draft?.eventType,
-          address: draft?.address,
-          published: row._status === 'published',
-        }
-      }),
-    },
+    items: await openItemsData({ now, query, req, result }),
+    statistics,
   }
 }

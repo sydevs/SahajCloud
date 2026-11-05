@@ -1,0 +1,191 @@
+/* Layout the three Atlas homes share. Pills, buttons and the table come from
+   the CMS theme; nothing here restyles a Payload component. */
+.home {
+  margin: calc(var(--base) * 0.5) 0 calc(var(--base) * 2);
+}
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--base);
+}
+.header h1 {
+  margin: 0 0 calc(var(--base) / 3);
+}
+.subtitle {
+  margin: 0 0 var(--base);
+  color: var(--theme-elevation-650);
+}
+.actions,
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--base) * 0.5);
+}
+.header :global(.btn) {
+  flex-shrink: 0;
+}
+
+/* Statistics: flat, no border, no radius — numbers to glance at. */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(calc(var(--base) * 8), 1fr));
+  gap: calc(var(--base) / 6);
+  margin: 0 0 var(--base);
+  padding: 0;
+  list-style: none;
+}
+.tiles li {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--base) / 8);
+  padding: calc(var(--base) * 0.6) calc(var(--base) * 0.7);
+  background: var(--theme-elevation-50);
+}
+.tileLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--theme-elevation-500);
+}
+.tileValue {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+.tileValue small {
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: var(--theme-elevation-500);
+}
+.tileChange {
+  font-size: 0.75rem;
+  color: var(--theme-elevation-500);
+}
+
+.meter {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--base) * 0.5);
+  margin: calc(var(--base) * 0.5) 0;
+  font-size: 0.85rem;
+  color: var(--theme-elevation-650);
+}
+.meter meter {
+  width: calc(var(--base) * 8);
+  height: calc(var(--base) / 3);
+}
+
+.sections {
+  margin: var(--base) 0 calc(var(--base) * 0.75);
+}
+.tabCheck {
+  display: inline-flex;
+  margin-inline-start: calc(var(--base) / 4);
+  color: var(--theme-success-500);
+}
+
+.filters {
+  gap: calc(var(--base) / 3);
+  margin: 0 0 calc(var(--base) * 0.75);
+}
+.filterCount {
+  margin-inline-start: calc(var(--base) / 3);
+  color: var(--theme-elevation-500);
+}
+
+.itemInfo a {
+  font-weight: 550;
+  text-decoration: none;
+}
+.itemInfo a:hover {
+  text-decoration: underline;
+}
+.statuses {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--base) / 4);
+}
+.status p {
+  margin: calc(var(--base) / 8) 0 0;
+  font-size: 0.8rem;
+  color: var(--theme-elevation-650);
+}
+.upToDate {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--base) / 6);
+  color: var(--theme-success-500);
+}
+.list :global(.cell-item) {
+  width: 100%;
+  min-width: calc(var(--base) * 10);
+}
+.list :global(.cell-action) {
+  white-space: nowrap;
+}
+
+/* The overview is a plain table: `Table` renders one column of pre-rendered
+   cells per column, and eight of those for numeric data is more machinery
+   than markup. */
+.regions {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+.regions th,
+.regions td {
+  padding: calc(var(--base) / 3) calc(var(--base) / 2);
+  text-align: left;
+  border-bottom: 1px solid var(--theme-elevation-100);
+}
+.regions thead th {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--theme-elevation-500);
+}
+.regionName {
+  position: relative;
+  font-weight: 550;
+}
+.regionName a {
+  text-decoration: none;
+}
+.regionName small {
+  display: block;
+  font-weight: 400;
+  color: var(--theme-elevation-500);
+}
+/* The row's own link, stretched over the cell so the whole name area opens the
+   region while Edit keeps its own click. */
+.stretched::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+.pageControls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--base);
+  margin-top: calc(var(--base) * 0.5);
+}
+.closingNote {
+  margin: calc(var(--base) * 0.5) 0 0;
+  font-size: 0.85rem;
+  color: var(--theme-elevation-650);
+}
+@media (max-width: 700px) {
+  .header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .regions {
+    font-size: 0.8rem;
+  }
+}

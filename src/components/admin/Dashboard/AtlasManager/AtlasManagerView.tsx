@@ -1,242 +1,32 @@
 'use client'
 
-import {
-  Banner,
-  Button,
-  CalendarIcon,
-  CheckIcon,
-  Pagination,
-  PerPage,
-  Pill,
-  Table,
-} from '@payloadcms/ui'
-import Link from 'next/link'
+import { Button, CalendarIcon } from '@payloadcms/ui'
 
-import styles from './AtlasManager.module.css'
-import {
-  PROGRAM_LIMITS,
-  programStatus,
-  type AtlasManagerData,
-  type Program,
-  type ProgramQuery,
-  type ProgramStatus,
-  type ProgramTab,
-} from './model'
+import type { AtlasManagerData } from './data'
 import { NAV_LINKS } from '../../AdminNavLinks/links'
 import { CenteredNotice } from '../../CenteredNotice'
-import { tableColumn } from '../../helpers/tableColumn'
-import { useSetQuery } from '../../helpers/useSetQuery'
+import styles from '../shared/Dashboard.module.css'
+import { OpenItemsList } from '../shared/OpenItemsList'
+import { ProgressMeter } from '../shared/ProgressMeter'
+import { SectionTabs } from '../shared/SectionTabs'
+import { StatTiles } from '../shared/StatTiles'
 
-const TABS: { value: ProgramTab; label: string }[] = [
-  { value: 'all', label: 'All programs' },
-  { value: 'review', label: 'Needs review' },
-  { value: 'drafts', label: 'Drafts' },
-]
-
-const STATUS: Record<
-  ProgramStatus,
-  { label: string; pillStyle: 'light-gray' | 'warning' | 'success' }
-> = {
-  finished: { label: 'Finished', pillStyle: 'light-gray' },
-  review: { label: 'Needs review', pillStyle: 'warning' },
-  published: { label: 'Published', pillStyle: 'success' },
-  draft: { label: 'Draft', pillStyle: 'light-gray' },
-}
-
-function programTitle(program: Program): string {
-  return program.title?.trim() || 'Untitled program'
-}
-
-function locationLabel(program: Program): string {
-  if (program.eventType === 'online') return 'Online program'
-  const location = [program.address?.venueName, program.address?.city].filter(Boolean).join(' · ')
-  return location || 'Location to be added'
-}
-
-function nextStep(program: Program): string {
-  const status = programStatus(program)
-  if (status === 'finished') return 'View program'
-  if (status === 'review') return 'Review details'
-  // `_status`, not `published`: a live program with unpublished edits continues as a draft.
-  return program._status === 'draft' ? 'Continue editing' : 'Edit program'
-}
-
-/** A small composition of native Payload controls; data and permissions stay on the server. */
+/**
+ * A program manager's home.
+ *
+ * It opens on the one list that matters — what is waiting for them — rather
+ * than on a page of programs they then have to read for problems. The
+ * analytics above it are context, and the meter says how close to done they
+ * are, which is the question a volunteer actually has.
+ */
 export function AtlasManagerView({ data }: { data: AtlasManagerData }) {
-  const setQuery = useSetQuery<ProgramQuery>()
-  const { counts, programs, query } = data
-  const rows = programs.docs
-  return (
-    <section className={styles.home} aria-label="Atlas manager dashboard">
-      <header className={styles.header}>
-        <div>
-          <h1>Your programs</h1>
-          <p className={styles.subtitle}>
-            Manage your classes and keep their public details up to date.
-          </p>
-        </div>
-        <div className={styles.actions}>
-          <Button el="link" url={NAV_LINKS.map.href} buttonStyle="secondary" margin={false}>
-            {NAV_LINKS.map.label}
-          </Button>
-          {data.canCreate && counts.all > 0 && (
-            <Button
-              el="link"
-              url="/admin/collections/events/create"
-              icon="plus"
-              iconPosition="left"
-              margin={false}
-            >
-              Add new program
-            </Button>
-          )}
-        </div>
-      </header>
-      {counts.all > 0 ? (
-        <>
-          {counts.review > 0 && (
-            <Banner type="warning">
-              <div className={styles.notice}>
-                <div>
-                  <strong>
-                    {counts.review === 1
-                      ? 'One program needs a check'
-                      : `${counts.review} programs need a check`}
-                  </strong>
-                  <div>Confirm the time and location so visitors see current details.</div>
-                </div>
-                {query.tab !== 'review' && (
-                  <Button
-                    buttonStyle="secondary"
-                    size="small"
-                    margin={false}
-                    onClick={() => setQuery({ tab: 'review', page: 1 })}
-                  >
-                    Show {counts.review === 1 ? 'it' : 'them'}
-                  </Button>
-                )}
-              </div>
-            </Banner>
-          )}
-          <div className={styles.filters} role="group" aria-label="Filter programs">
-            {TABS.map((item) => (
-              <Button
-                key={item.value}
-                margin={false}
-                buttonStyle={query.tab === item.value ? 'subtle' : 'tab'}
-                size="medium"
-                onClick={() => setQuery({ tab: item.value, page: 1 })}
-                extraButtonProps={{
-                  'aria-pressed': query.tab === item.value,
-                  'aria-controls': 'atlas-program-list',
-                }}
-              >
-                {item.label}
-                <span className={styles.filterCount}>{counts[item.value]}</span>
-              </Button>
-            ))}
-          </div>
-          <div id="atlas-program-list" aria-live="polite">
-            {rows.length ? (
-              <>
-                <Table
-                  data={rows}
-                  columns={[
-                    tableColumn(
-                      'program',
-                      'Program',
-                      rows.map((program) => (
-                        <div key={program.id} className={styles.programInfo}>
-                          <Link href={`/admin/collections/events/${program.id}`} prefetch={false}>
-                            {programTitle(program)}
-                          </Link>
-                          <p>{locationLabel(program)}</p>
-                          {program.published && program._status === 'draft' && (
-                            <small>Unpublished changes</small>
-                          )}
-                        </div>
-                      )),
-                    ),
-                    tableColumn(
-                      'status',
-                      'Status',
-                      rows.map((program) => {
-                        const status = STATUS[programStatus(program)]
-                        return (
-                          <Pill key={program.id} size="small" pillStyle={status.pillStyle}>
-                            {status.label}
-                          </Pill>
-                        )
-                      }),
-                    ),
-                    tableColumn(
-                      'action',
-                      'Next step',
-                      rows.map((program) => {
-                        const action = nextStep(program)
-                        return (
-                          <Button
-                            key={program.id}
-                            el="link"
-                            url={`/admin/collections/events/${program.id}`}
-                            buttonStyle="secondary"
-                            size="small"
-                            margin={false}
-                            aria-label={`${action}: ${programTitle(program)}`}
-                          >
-                            {action}
-                          </Button>
-                        )
-                      }),
-                    ),
-                  ]}
-                />
-                <div className={styles.pageControls}>
-                  <Pagination
-                    hasNextPage={programs.hasNextPage}
-                    hasPrevPage={programs.hasPrevPage}
-                    nextPage={programs.nextPage ?? undefined}
-                    page={programs.page}
-                    prevPage={programs.prevPage ?? undefined}
-                    totalPages={programs.totalPages}
-                    onChange={(page) => setQuery({ page })}
-                  />
-                  {programs.totalDocs > PROGRAM_LIMITS[0]! && (
-                    <PerPage
-                      limit={query.limit}
-                      limits={PROGRAM_LIMITS}
-                      handleChange={(limit) => setQuery({ limit, page: 1 })}
-                    />
-                  )}
-                </div>
-              </>
-            ) : (
-              <CenteredNotice
-                icon={<CheckIcon />}
-                title={
-                  query.tab === 'review'
-                    ? 'Nothing needs your attention'
-                    : 'No drafts at the moment'
-                }
-              >
-                <p>
-                  {query.tab === 'review'
-                    ? 'Your programs are up to date.'
-                    : 'New programs you save as drafts will appear here.'}
-                </p>
-                <Button
-                  buttonStyle="secondary"
-                  margin={false}
-                  size="small"
-                  onClick={() => setQuery({ tab: 'all', page: 1 })}
-                >
-                  Show all programs
-                </Button>
-              </CenteredNotice>
-            )}
-          </div>
-        </>
-      ) : (
+  const { items, statistics } = data
+  const open = items.progress?.open ?? 0
+  const hasPrograms = statistics.analytics[0]?.value ?? 0
+
+  if (!hasPrograms) {
+    return (
+      <section aria-label="Your programs" className={styles.home}>
         <CenteredNotice
           icon={<CalendarIcon />}
           title={data.canCreate ? 'Your first program starts here' : 'A home for your programs'}
@@ -250,10 +40,10 @@ export function AtlasManagerView({ data }: { data: AtlasManagerData }) {
             <>
               <Button
                 el="link"
-                url="/admin/collections/events/create"
                 icon="plus"
                 iconPosition="left"
                 margin={false}
+                url="/admin/collections/events/create"
               >
                 Add your first program
               </Button>
@@ -261,7 +51,52 @@ export function AtlasManagerView({ data }: { data: AtlasManagerData }) {
             </>
           )}
         </CenteredNotice>
-      )}
+      </section>
+    )
+  }
+
+  return (
+    <section aria-label="Your programs" className={styles.home}>
+      <header className={styles.header}>
+        <div>
+          <h1>Your programs</h1>
+          <p className={styles.subtitle}>
+            Manage your classes and keep their public details up to date.
+          </p>
+        </div>
+        <div className={styles.actions}>
+          <Button buttonStyle="secondary" el="link" margin={false} url={NAV_LINKS.map.href}>
+            {NAV_LINKS.map.label}
+          </Button>
+          {data.canCreate && (
+            <Button
+              el="link"
+              icon="plus"
+              iconPosition="left"
+              margin={false}
+              url="/admin/collections/events/create"
+            >
+              Add new program
+            </Button>
+          )}
+        </div>
+      </header>
+
+      <StatTiles label="Your programs in the last 30 days" tiles={statistics.analytics} />
+      {statistics.mostRegistered ? (
+        <p className={styles.closingNote}>
+          Most registered: {statistics.mostRegistered.title} ·{' '}
+          {statistics.mostRegistered.registrations} sign-ups
+        </p>
+      ) : null}
+
+      <SectionTabs active="items" tabs={[{ count: open, label: 'Open items', value: 'items' }]} />
+      {items.progress ? <ProgressMeter progress={items.progress} /> : null}
+      <OpenItemsList
+        data={items}
+        emptyBanner="All clear. Every program is on track."
+        open={open}
+      />
     </section>
   )
 }

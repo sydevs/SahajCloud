@@ -1,12 +1,27 @@
 /**
  * What is open on the Sahaj Atlas, for one role.
  *
- * One cohesive surface, imported as a unit by the three homes and by the
- * nightly digest — so this folder gets a barrel (`src/AGENTS.md`). The status
- * table is the load-bearing part: every word a reader sees about an open item
- * is in `status.ts` and nowhere else.
+ * One cohesive surface, imported as a unit by the three homes' loaders and by
+ * the nightly digest — so this folder gets a barrel (`src/AGENTS.md`). The
+ * status table is the load-bearing part: every word a reader sees about an open
+ * item is in `status.ts` and nowhere else.
+ *
+ * ⚠ **A `'use client'` component must import `./filters` by its own path, not
+ * through here.** This barrel reaches the loaders, and through them the whole
+ * submissions and email layer — a browser entry taking one filter name off it
+ * would pull `@/lib/env/server` into an admin chunk, and the build would fail
+ * on the Railway deploy rather than in CI (`src/AGENTS.md`).
+ * `tests/unit/client-bundle-safety.spec.ts` is what holds that.
  */
 
+export {
+  OPEN_ITEM_FILTER_LABELS,
+  OPEN_ITEM_FILTERS,
+  OPEN_ITEM_STATUSES,
+  type OpenItemFilter,
+  type OpenItemPill,
+  type OpenItemStatusKey,
+} from './filters'
 export { loadOpenItems, type OpenItemsResult, withRecommendations } from './openItems'
 export {
   loadRegionOverview,
@@ -34,12 +49,8 @@ export {
   sumSnapshot,
 } from './statistics'
 export {
-  OPEN_ITEM_FILTER_LABELS,
-  OPEN_ITEM_FILTERS,
-  OPEN_ITEM_STATUSES,
   type OpenItem,
   type OpenItemEvent,
-  type OpenItemFilter,
   openItem,
   openItemFilters,
   type OpenItemProposal,
@@ -47,7 +58,6 @@ export {
   type OpenItemRow,
   openItemStatus,
   type OpenItemStatus,
-  type OpenItemStatusKey,
   type OpenItemTarget,
   overviewProgress,
   type OverviewProgress,

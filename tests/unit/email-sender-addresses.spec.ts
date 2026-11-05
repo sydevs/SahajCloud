@@ -12,7 +12,8 @@ import type { Payload } from 'payload'
 
 import { describe, expect, it } from 'vitest'
 
-import { sendRegistrationDigest } from '@/jobs/RegistrationNotifications/sendRegistrationDigest'
+import { sendDigest } from '@/jobs/Digests/sendDigest'
+import type { Manager } from '@/payload-types'
 import { sendSessionReminder } from '@/jobs/RegistrationNotifications/sendSessionReminder'
 import { sendRegistrationConfirmation } from '@/lib/notifications/sendRegistrationConfirmation'
 import { sendRegistrationNotification } from '@/lib/notifications/sendRegistrationNotification'
@@ -90,21 +91,34 @@ const CASES: {
       }),
   },
   {
-    label: 'registration digest',
+    label: 'manager digest',
     to: MANAGER,
     from: MANAGER_EMAIL_FROM,
     send: (payload) =>
-      sendRegistrationDigest({
+      sendDigest({
+        manager: {
+          email: MANAGER,
+          id: 1,
+          name: 'Mgr',
+          notificationPreferences: { open_items: { frequency: 'Monthly', method: 'email' } },
+        } as unknown as Manager,
         payload,
-        recipient,
-        period: 'day',
-        groups: [
-          {
-            eventTitle: 'Sunday meditation',
-            eventAdminUrl: 'https://cloud.example.org/admin/collections/events/7',
-            registrations: [{ registrantName: 'Asha', registrantEmail: REGISTRANT }],
-          },
-        ],
+        props: {
+          dashboardUrl: 'https://cloud.example.org/admin/',
+          date: '5 November 2026',
+          heading: 'Your programs',
+          notificationsUrl: 'https://cloud.example.org/admin/account',
+          recipientName: 'Mgr',
+          registrations: [
+            {
+              allUrl: 'https://cloud.example.org/admin/collections/events/7/registrations',
+              heading: 'Sunday meditation · 1 new',
+              rows: [{ email: REGISTRANT, name: 'Asha' }],
+            },
+          ],
+          summary: '1 new registration',
+        },
+        subject: 'Your programs: 1 new registration',
       }),
   },
   {

@@ -18,33 +18,7 @@
 import { unpublishDate, type VerificationStage } from '@/lib/eventVerification/stages'
 import { formatShortDate } from '@/lib/notifications/eventDetails'
 
-/** The tabs a filter row offers, beside All. A status in no filter is unfiltered. */
-export const OPEN_ITEM_FILTERS = ['overdue', 'review', 'no-manager', 'recommendations'] as const
-
-export type OpenItemFilter = (typeof OPEN_ITEM_FILTERS)[number]
-
-export const OPEN_ITEM_FILTER_LABELS: Record<OpenItemFilter, string> = {
-  overdue: 'Overdue',
-  review: 'To review',
-  'no-manager': 'No manager',
-  recommendations: 'Recommendations',
-}
-
-/** Every status, as a key a filter, a test and a translation can all name. */
-export const OPEN_ITEM_STATUSES = [
-  'overdue',
-  'change-proposed',
-  'class-proposed',
-  'confirmed-spam-pending',
-  'no-manager',
-  'recommendations',
-  'draft',
-  'expired',
-  'up-to-date',
-  'finished',
-] as const
-
-export type OpenItemStatusKey = (typeof OPEN_ITEM_STATUSES)[number]
+import type { OpenItemFilter, OpenItemPill, OpenItemStatusKey } from './filters'
 
 /** Where a next step leads. The URL is the reader's to spell — see the loaders. */
 export interface OpenItemTarget {
@@ -56,11 +30,7 @@ export interface OpenItemStatus {
   key: OpenItemStatusKey
   /** The pill's text, or the text beside the tick for `up-to-date`. */
   label: string
-  /**
-   * `check` is the tick rather than a pill — the one status that is not a
-   * problem, and a grey pill saying "Up to date" reads like one.
-   */
-  pill: 'always-white' | 'check' | 'error' | 'light-gray' | 'success' | 'warning'
+  pill: OpenItemPill
   /** The line under the pill. Empty where the status says everything. */
   line: string
   /** Lower comes first. `OPEN_ITEM_STATUSES` is not this order — see below. */
