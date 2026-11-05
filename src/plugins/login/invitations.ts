@@ -4,6 +4,10 @@ import type { CollectionAfterChangeHook, Field, PayloadRequest, TaskConfig } fro
 
 import * as Sentry from '@sentry/nextjs'
 
+import {
+  NEVER_FREQUENCY,
+  notificationFrequency,
+} from '@/components/admin/NotificationPreferences/config'
 import { DEFAULT_LOCALE } from '@/lib/locales'
 import { relationId } from '@/lib/utilities/relationId'
 
@@ -258,7 +262,9 @@ async function sendOne({
   const { payload } = req
   if (!doc.email || !doc.pendingInvitation) return false
   if (config.isEligible && !config.isEligible(doc)) return false
-  if (doc.notificationPreferences?.[PREFERENCE_KEY]?.frequency === 'Never') return false
+  if (notificationFrequency(doc.notificationPreferences, PREFERENCE_KEY) === NEVER_FREQUENCY) {
+    return false
+  }
 
   const { by } = doc.pendingInvitation
   const assigner =

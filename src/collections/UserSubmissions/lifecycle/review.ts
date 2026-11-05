@@ -4,11 +4,17 @@ import { appendLogEntry, asLog } from '@/fields'
 import { relationId } from '@/lib/utilities/relationId'
 import type { UserSubmission } from '@/payload-types'
 import { holdsCollectionPermission } from '@/plugins/access'
+import { isAdminManager } from '@/plugins/access/adminOnly'
 
-import { OPEN_REVIEW_STATUSES, REOPENABLE_REVIEW_STATUSES, STATUS_LABELS } from '../statuses'
+import {
+  OPEN_REVIEW_STATUSES,
+  REOPENABLE_REVIEW_STATUSES,
+  SPAM_REVIEW_STATUSES,
+  STATUS_LABELS,
+} from '../statuses'
 import { newEventDefaults, type ProposedPatch, submissionRegionId } from './mergeProposal'
 
-export type ReviewAction = 'accept' | 'reject' | 'reopen'
+export type ReviewAction = 'accept' | 'confirm-spam' | 'reject' | 'reopen'
 
 /**
  * What one write means for review: nothing to judge, a move no reviewer may
@@ -32,6 +38,28 @@ const isOpen = (status: UserSubmission['status']) =>
 
 const isReopenable = (status: UserSubmission['status']) =>
   (REOPENABLE_REVIEW_STATUSES as readonly string[]).includes(status)
+
+const isSpamRefusal = (status: UserSubmission['status']) =>
+  (SPAM_REVIEW_STATUSES as readonly string[]).includes(status)
+
+/**
+ * Settling a spam refusal, which is an admin's call on **any** intake rather
+ * than a reviewer's on a proposal.
+ *
+ * A `spam` row of any type is a machine refusal, so agreeing with it or
+ * withdrawing it reads the same whichever intake it came in through — and a
+ * registration is the one the admin home lists. Returns `null` for a move that
+ * is not one of those two.
+ */
+function spamActionFor(
+  from: UserSubmission['status'],
+  to: UserSubmission['status'],
+): ReviewAction | null {
+  if (!isSpamRefusal(from)) return null
+  if (to === 'confirmed_spam' && from === 'spam') return 'confirm-spam'
+  if (to === 'pending') return 'reopen'
+  return null
+}
 
 /** Which decision a status move is, or `null` for one no reviewer may make. */
 function actionFor(
@@ -89,6 +117,17 @@ export function reviewMove(args: {
     return { kind: 'illegal', reason: 'You do not have permission to review submissions.' }
   }
 
+  // Settling a spam refusal comes before the proposal gate, because it is the
+  // one decision every intake carries. Admins only: the strike it confirms, and
+  // the seat a released registration takes back, are map-wide consequences.
+  const spamAction = spamActionFor(from, to)
+  if (spamAction) {
+    if (!isAdminManager(req.user)) {
+      return { kind: 'illegal', reason: 'Only an admin can settle a spam refusal.' }
+    }
+    return { kind: 'decision', action: spamAction }
+  }
+
   // One table holds four intakes sharing one status vocabulary, so without this
   // a contact row could be walked through the review states and reach the
   // accept path with no `proposed` to apply.
@@ -113,6 +152,10 @@ export function reviewMove(args: {
  * Nothing here writes `status`: the review's own update already did, which is
  * also why `submission` is the document that update wrote rather than a fresh
  * read — an edit the reviewer made in the same post is already in it.
+ *
+ * A spam decision writes nothing but that log line: `confirm-spam` and the
+ * `reopen` that withdraws it are status moves whose whole effect is which rows
+ * `INACTIVE_STATUSES`, the spam-strike count and the admin's open items select.
  *
  * Accept:
  * - update proposal (`event` set) → the proposed patch is applied with a
@@ -169,6 +212,11 @@ export async function applyReview(args: {
       context: { skipSubmissionReview: true, skipWriteGuard: true },
       req,
     })
+
+  if (action === 'confirm-spam') {
+    await decide('Confirmed as spam')
+    return
+  }
 
   if (action === 'reopen') {
     // A screening false positive, or a rejection a manager wants back.

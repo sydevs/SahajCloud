@@ -51,6 +51,7 @@ const WorkflowButtons: React.FC<WorkflowButtonsProps> = ({
   onlyWhen,
   stages,
   statusField,
+  ungatedStages,
 }) => {
   const { uploadStatus } = useDocumentInfo()
   const operation = useOperation()
@@ -73,15 +74,17 @@ const WorkflowButtons: React.FC<WorkflowButtonsProps> = ({
     [submit],
   )
 
+  const named = resolveStage({ operation, status, statusField })
+  // An ungated stage is consulted first, so the one decision every kind of
+  // document shares answers for all of them — including the kinds `onlyWhen`
+  // gates out, which otherwise name no stage at all.
+  const ungated = named === undefined ? undefined : ungatedStages?.[named]
   // A gated-out document names no stage, which is the same answer as a status
   // the declaration never mentioned — so it takes the fallback path already
   // below. ⚠ That is also what puts it ahead of a stage declared `[]`, which
   // renders nothing: a gated-out row would otherwise lose its Save button.
-  const stage =
-    onlyWhen && gate !== onlyWhen.equals
-      ? undefined
-      : resolveStage({ operation, status, statusField })
-  const actions = stage === undefined ? undefined : stages[stage]
+  const stage = onlyWhen && gate !== onlyWhen.equals ? undefined : named
+  const actions = ungated ?? (stage === undefined ? undefined : stages[stage])
 
   if (!actions) {
     if (!fallback) return null

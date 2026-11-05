@@ -1,5 +1,6 @@
 import { Albums } from './Albums/Albums'
 import { AppCards } from './AppCards/AppCards'
+import { AtlasSnapshots } from './AtlasSnapshots/AtlasSnapshots'
 import { Audiences } from './Audiences/Audiences'
 import { Authors } from './Authors/Authors'
 import { Clients } from './Clients/Clients'
@@ -15,6 +16,7 @@ import { MeditationTranscripts } from './MeditationTranscripts/MeditationTranscr
 import { Narrators } from './Narrators/Narrators'
 import { Pages } from './Pages/Pages'
 import { Regions } from './Regions/Regions'
+import { RegistrationRefusals } from './RegistrationRefusals/RegistrationRefusals'
 import { Songs } from './Songs/Songs'
 import { SongTags } from './SongTags/SongTags'
 import { SubtleSystemNodes } from './SubtleSystemNodes/SubtleSystemNodes'
@@ -53,6 +55,8 @@ export const collections = [
   Regions,
   Events,
   Users,
+  AtlasSnapshots,
+  RegistrationRefusals,
 ]
 
 export {
@@ -67,6 +71,8 @@ export {
   // Classes
   Regions,
   Events,
+  AtlasSnapshots,
+  RegistrationRefusals,
   // Resources
   Lectures,
   Frames,

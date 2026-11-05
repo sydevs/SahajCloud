@@ -8,13 +8,20 @@ import {
   FieldError,
   FieldLabel,
   useAllFormFields,
+  useDocumentInfo,
   useField,
 } from '@payloadcms/ui'
 import React, { useMemo } from 'react'
 
+import { managerRoles } from '@/lib/notifications/managerRoles'
 import type { NotificationPreferences } from '@/payload-types'
 
-import { DEFAULT_NOTIFICATION_METHOD, NEVER_FREQUENCY } from './config'
+import {
+  DEFAULT_NOTIFICATION_METHOD,
+  NEVER_FREQUENCY,
+  notificationFrequency,
+  notificationTypesFor,
+} from './config'
 
 /**
  * NotificationPreferences Field
@@ -25,6 +32,17 @@ import { DEFAULT_NOTIFICATION_METHOD, NEVER_FREQUENCY } from './config'
  * platforms from their `contactDetails`, read reactively from form state) and
  * a Frequency (the type's options). Selecting "Never" hides Method and
  * disables the row. Stored as `{ [key]: { frequency, method } }`.
+ *
+ * ⚠ **Rows are filtered by the roles the SAVED document derives**, read the
+ * same way `RolesField` reads them: `virtualRoles` resolves both Atlas roles
+ * from the page/region/event joins, which only a saved row carries. So a
+ * manager assigned their first region sees the region rows after that save, not
+ * while making it.
+ *
+ * ⚠ **A row the manager never saved shows its own default, not blank.** The
+ * column's DEFAULT reaches new rows only, so every manager predating a row has
+ * no value for it — and a blank select beside a job that sends daily is how
+ * someone concludes the digest is off.
  */
 
 /**
@@ -66,16 +84,28 @@ export const NotificationPreferencesField: FieldClientComponent = ({ field, read
   // label/error/description wrappers (see ToggleGroupField).
   const { value, setValue, showError } = useField<NotificationPreferences>()
   const [formState] = useAllFormFields()
+  const { savedDocumentData } = useDocumentInfo()
 
   const methodOptions = useMemo(
     () => [DEFAULT_NOTIFICATION_METHOD, ...collectContactPlatforms(formState)],
     [formState],
   )
 
+  const visibleTypes = useMemo(
+    () => notificationTypesFor(managerRoles(savedDocumentData ?? {}), notificationTypes),
+    [notificationTypes, savedDocumentData],
+  )
+
   const prefs = value ?? {}
 
   const updateRow = (key: string, patch: Partial<{ frequency: string; method: string }>) => {
-    const updated = { ...(prefs[key] ?? { frequency: '', method: '' }), ...patch }
+    // The resolved pace, not the stored one: a row showing its default must
+    // save that default when the manager changes only the method beside it.
+    const current = {
+      frequency: notificationFrequency(prefs, key, notificationTypes),
+      method: prefs[key]?.method ?? DEFAULT_NOTIFICATION_METHOD,
+    }
+    const updated = { ...current, ...patch }
     // Switching to "Never" clears the now-hidden method to keep data honest.
     if (updated.frequency === NEVER_FREQUENCY) updated.method = ''
     setValue({ ...prefs, [key]: updated })
@@ -92,6 +122,11 @@ export const NotificationPreferencesField: FieldClientComponent = ({ field, read
       <div className="field-type__wrap">
         <FieldError path={name} showError={showError} />
 
+        {visibleTypes.length === 0 ? (
+          <p style={{ color: 'var(--theme-elevation-500)', fontSize: '13px', margin: 0 }}>
+            Nothing is assigned to this manager yet, so there is nothing to send them.
+          </p>
+        ) : (
         <table
           style={{
             width: '100%',
@@ -112,8 +147,12 @@ export const NotificationPreferencesField: FieldClientComponent = ({ field, read
             </tr>
           </thead>
           <tbody>
-            {notificationTypes.map((type) => {
-              const pref = prefs[type.key] ?? { frequency: '', method: '' }
+            {visibleTypes.map((type) => {
+              const stored = prefs[type.key]
+              const pref = {
+                frequency: notificationFrequency(prefs, type.key, notificationTypes),
+                method: stored?.method ?? DEFAULT_NOTIFICATION_METHOD,
+              }
               const isNever = pref.frequency === NEVER_FREQUENCY
               const methodRequired = Boolean(pref.frequency) && !isNever
               const methodMissing = methodRequired && !pref.method
@@ -143,7 +182,7 @@ export const NotificationPreferencesField: FieldClientComponent = ({ field, read
                     ) : (
                       <select
                         aria-label={`${type.title} method`}
-                        value={pref.method ?? ''}
+                        value={pref.method}
                         disabled={readOnly}
                         onChange={(e) => updateRow(type.key, { method: e.target.value })}
                         style={{
@@ -163,12 +202,13 @@ export const NotificationPreferencesField: FieldClientComponent = ({ field, read
                   <td style={cellStyle}>
                     <select
                       aria-label={`${type.title} frequency`}
-                      value={pref.frequency ?? ''}
+                      value={pref.frequency}
                       disabled={readOnly}
                       onChange={(e) => updateRow(type.key, { frequency: e.target.value })}
                       style={selectStyle}
                     >
-                      <option value="">— Select —</option>
+                      {/* No empty option: every row resolves to a pace, its
+                          own default where the manager never saved one. */}
                       {type.frequencyOptions.map((option) => (
                         <option key={option} value={option}>
                           {option}
@@ -181,6 +221,7 @@ export const NotificationPreferencesField: FieldClientComponent = ({ field, read
             })}
           </tbody>
         </table>
+        )}
       </div>
 
       <FieldDescription description={admin?.description} path={name} />

@@ -240,14 +240,28 @@ export const Managers: CollectionConfig = {
               },
             }),
             {
-              // Watermark for the registration digest run: the start of the last
-              // digest sent to this manager. The digest job covers registrations
-              // created after it and advances it to the run's start, so no
-              // registration lands in two digests and a retry re-sends nothing.
-              // Only consulted when this manager's `event_registration` frequency
-              // is a summary cadence; machine-managed, so hidden from the UI.
-              name: 'lastRegistrationDigestSentAt',
-              type: 'date',
+              // Watermarks for the digest run: per role, per section key, the
+              // start of the last run whose email carried that section. The run
+              // covers `(max(watermark, runStart − period), runStart]` and
+              // advances it, so nothing lands in two emails and a task retry
+              // re-sends nothing.
+              //
+              // ⚠ **No `jsonField` here, deliberately.** A schema is validated
+              // on every save of the *document*, and this column's only writer
+              // is `payload.db.updateOne` from the job — which runs no
+              // validator — so a declared shape would be a contract nothing
+              // checks on the write that makes it and a refusal on every
+              // unrelated manager save that predates it.
+              //
+              // ⚠ **`access.update: () => false` is what makes it the job's
+              // alone.** Payload strips a field its `access.update` refuses
+              // rather than erroring, so a manager PATCHing their own
+              // watermarks succeeds with the column unchanged — which is the
+              // point: a manager who could rewind one would re-send themselves
+              // every open item the window covers.
+              name: 'digestWatermarks',
+              type: 'json',
+              access: { update: () => false },
               admin: { readOnly: true, hidden: true },
             },
           ],

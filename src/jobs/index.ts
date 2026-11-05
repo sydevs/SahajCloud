@@ -1,3 +1,4 @@
+import { RecordAtlasSnapshot } from './AtlasSnapshot/RecordAtlasSnapshot'
 import { CleanupCollections } from './CleanupCollections/CleanupCollections'
 import { CleanupOrphanedMedia } from './CleanupOrphanedMedia/CleanupOrphanedMedia'
 import { DeliverSubmissions } from './DeliverSubmissions/DeliverSubmissions'
@@ -13,6 +14,7 @@ import { VerifyEmbeds } from './VerifyEmbeds/VerifyEmbeds'
 // Export all tasks as an array
 // Note: TrackUsage and ResetUsage tasks are auto-registered by the usagePlugin
 export const tasks = [
+  RecordAtlasSnapshot,
   CleanupOrphanedMedia,
   DeliverSubmissions,
   ExpireEvents,

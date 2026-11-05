@@ -1,6 +1,7 @@
 import type { Payload, PayloadRequest } from 'payload'
 
 import type { ActorRef, VerificationMethod } from '@/lib/eventVerification/log'
+import { notificationFrequency } from '@/components/admin/NotificationPreferences/config'
 import { buildVerificationEntry } from '@/lib/eventVerification/log'
 import { addDays, verificationPeriodDays } from '@/lib/eventVerification/periods'
 import { resolveNextCheckAt } from '@/lib/eventVerification/watermark'
@@ -36,7 +37,7 @@ export interface VerifyFields {
 /** Pull the `event_verification` cadence off a (possibly unpopulated) manager. */
 export function managerCadence(manager: Manager | number | null | undefined): string | undefined {
   if (!manager || typeof manager !== 'object') return undefined
-  return manager.notificationPreferences?.event_verification?.frequency
+  return notificationFrequency(manager.notificationPreferences, 'event_verification')
 }
 
 /** Build a log actor reference from the acting user (a manager). */

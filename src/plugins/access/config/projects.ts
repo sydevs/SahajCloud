@@ -163,11 +163,7 @@ const ALL_PROJECT_COLLECTIONS: ContentSlug[] = (() => {
  *
  * - `users` — Atlas registrants (names + emails). Was implicitly readable by
  *   any published API client before this list existed — including the Atlas
- *   widget's public key. ⚠ **No role holds an explicit grant.** The Atlas
- *   manager role carried one until registrations moved to `user-submissions`
- *   (#723), after which the only `users` relations left were record-keeping —
- *   `Events.submitter` and `UserSubmissions.user` — which now render a bare id
- *   for a manager, the same accepted cost `web-translator` pays on `managers`.
+ *   widget's public key.
  * - `user-submissions` — the unified public intake (#723): contact messages,
  *   subscriptions, registrations and proposals in one table, so it carries
  *   every kind of personal data the collections it replaced held. It was the
@@ -176,10 +172,8 @@ const ALL_PROJECT_COLLECTIONS: ContentSlug[] = (() => {
  *   membership is gone. Clients may create and never read. A manager's read is
  *   narrowed further, per row, in `accessConfigs.ts`.
  * - `managers` — names and email addresses of the people who run the org
- *   (#821). No client key may read one, ever. `atlas-region-manager` holds the
- *   only explicit grant, because it picks on `Events.manager` and
- *   `Regions.managers`; `atlas-event-manager` runs one listing and picks on
- *   neither, so it gets none.
+ *   (#821). No client key may read one, ever. `atlas-manager` holds the only
+ *   explicit grant, because it picks on `Events.manager` and `Regions.managers`.
  *   ⚠ **This entry reaches a relationship, never a copy** — a field holding a
  *   manager's name or address as a value needs its own field lock. Ask which
  *   kind you have before trusting this (`docs/rules/access.md`).
@@ -194,14 +188,21 @@ const ALL_PROJECT_COLLECTIONS: ContentSlug[] = (() => {
  *   it skipped, with contact names, phone numbers and email addresses. The
  *   collection's own `access` narrows it to admins and the managers of its
  *   target region's subtree (`src/plugins/eventImport/importCollection.ts`).
+ * - `registration-refusals` — the class sign-ups the spam check refused, each
+ *   naming the class and, after screening, the refused registration. Its own
+ *   `access` is admin-only (`src/collections/RegistrationRefusals/`).
+ *
+ * - `atlas-snapshots` — a day's event counts per region, the only record of
+ *   what the map looked like yesterday. Its own `access` is admin-read-only
+ *   and writes nothing through the API (`src/collections/AtlasSnapshots/`).
  *
  * ⚠ **This list is a holding pattern, not the permanent mechanism.** Exactly
- * five registered collections sit in no project, and all five are named here
- * — so the set is complete today and fails open the day a sixth is added. A
+ * seven registered collections sit in no project, and all seven are named here
+ * — so the set is complete today and fails open the day an eighth is added. A
  * complete opt-out list is an inverted default in disguise: the fix is for
  * step 4a to test project membership directly, so a new collection fails
  * closed instead. Deferred, not blocked — #821 settled the question that held
- * it up, by giving the Atlas region role the explicit grant its pickers need.
+ * it up, by giving `atlas-manager` the explicit grant its pickers need.
  */
 const RESTRICTED_COLLECTIONS: ReadonlySet<string> = new Set([
   'users',
@@ -210,6 +211,9 @@ const RESTRICTED_COLLECTIONS: ReadonlySet<string> = new Set([
   'clients',
   // The bulk class import's rows (contact details).
   'imports',
+  'registration-refusals',
+  // A region's event counts, per day.
+  'atlas-snapshots',
 ])
 
 /** Whether implicit (project/shared) read must never apply to this collection. */

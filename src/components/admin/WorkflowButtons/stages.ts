@@ -54,6 +54,16 @@ export interface WorkflowButtonsProps<TStage extends string = string> {
   onlyWhen?: { field: string; equals: string | number | boolean | null }
   /** Buttons per stage. An empty array is a stage with no action, not a missing one. */
   stages: Partial<Record<TStage, WorkflowButton[]>>
+  /**
+   * Stages whose buttons are offered whatever `onlyWhen` says, consulted
+   * before `stages`.
+   *
+   * For the decision a slot's every kind of document shares. `onlyWhen` keeps
+   * `user-submissions`' Accept and Reject off a contact row, but a `spam` row
+   * of **any** intake is one refusal an admin settles the same way — and gated
+   * out, such a row reaches no stage at all.
+   */
+  ungatedStages?: Partial<Record<TStage, WorkflowButton[]>>
   /** What a stage with no entry renders: Payload's own button, or nothing. */
   fallback: 'publish' | 'save' | 'saveDraft' | null
 }

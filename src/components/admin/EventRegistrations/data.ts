@@ -61,6 +61,7 @@ const FILTER_OF: Record<UserSubmission['status'], RegistrationFilter> = {
   pending: 'pending',
   rejected: 'withdrawn',
   spam: 'withdrawn',
+  confirmed_spam: 'withdrawn',
   failed: 'withdrawn',
 }
 
