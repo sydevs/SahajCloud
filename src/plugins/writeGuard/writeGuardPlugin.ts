@@ -7,6 +7,7 @@ import type { AntiSpamFailure } from '@/lib/antiSpam/antiSpamGuard'
 import { checkEmailAllowed, checkNoUrls, verifyTurnstileOrFail } from '@/lib/antiSpam/antiSpamGuard'
 import type { ProposalLeaves } from '@/lib/antiSpam/proposalLeaves'
 import { proposalLeaves } from '@/lib/antiSpam/proposalLeaves'
+import { TURNSTILE_TOKEN_HEADER } from '@/lib/turnstile/header'
 
 import { DEFAULT_WRITE_GUARD_POLICIES } from './policies'
 
@@ -180,7 +181,7 @@ async function runPolicy(
   }
 
   if (policy.turnstile) {
-    const token = req.headers?.get?.('x-turnstile-token')
+    const token = req.headers?.get?.(TURNSTILE_TOKEN_HEADER)
     const result = await verifyTurnstileOrFail(req, token)
     if (!result.ok) throwFailure(result)
   }
