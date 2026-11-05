@@ -181,10 +181,10 @@ export const Events: CollectionConfig = {
   // banner's Verify button. A reminder's link opens the `/events/verify` page,
   // which runs the shared verify operation from its button's Server Action.
   hooks: {
-    // Keep each computed field resolvable when a read selects it without the
-    // stored fields its hook reads. Then drop finished events from API-client
-    // list reads. They stay published so their pages resolve, but should not
-    // be listed. See excludeFinishedEvents.
+    // `webPath` and `webUrl` derive from `region` and are publish-gated on
+    // `_status`; `offersMailingList` derives from `region`. Then drop finished
+    // events from API-client list reads. They stay published so their pages
+    // resolve, but should not be listed. See excludeFinishedEvents.
     beforeOperation: [
       ensureVirtualFieldDeps({
         webPath: ['region', '_status'],

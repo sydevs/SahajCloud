@@ -71,14 +71,6 @@ function buildPasses(): Map<BaseLanguage, Pass> {
 }
 
 /**
- * Rewrite every glossary word in `text` to the spelling the list names.
- *
- * Only entries naming the locale's own language are considered, so a spelling
- * never reaches a transcript whose entry does not claim it (#897, success line
- * 8). Word boundaries keep `fontanel` from matching inside `fontanelle`, which
- * is what makes the pass idempotent.
- */
-/**
  * Roughly 224 tokens is Whisper's prompt window, and two characters per token
  * is the floor for transliterated Sanskrit, which tokenises worse than English
  * prose.
@@ -113,6 +105,14 @@ export function glossaryPrompt(language: LocaleCode): string | undefined {
   return prompt
 }
 
+/**
+ * Rewrite every glossary word in `text` to the spelling the list names.
+ *
+ * Only entries naming the locale's own language are considered, so a spelling
+ * never reaches a transcript whose entry does not claim it (#897, success line
+ * 8). Word boundaries keep `fontanel` from matching inside `fontanelle`, which
+ * is what makes the pass idempotent.
+ */
 export function applyGlossary(text: string, language: LocaleCode): string {
   const pass = PASSES.get(baseLanguage(language))
   if (!pass) return text

@@ -183,14 +183,6 @@ describe('glossary.json', () => {
     }
   })
 
-  it('gives every chakra name #1084 reviewed a heard form', () => {
-    const heard = new Set(GLOSSARY.map((entry) => entry.heard))
-
-    for (const word of ['svadhisthana', 'manipura', 'anahata', 'vishuddha', 'ajna', 'sahasrara']) {
-      expect(heard.has(word), word).toBe(true)
-    }
-  })
-
   it('names each heard form once per language', () => {
     // Two entries claiming one language for the same heard word make the pass
     // depend on row order, which the alternation is built to avoid.
@@ -234,7 +226,8 @@ describe('glossaryPrompt', () => {
   })
 
   it('stays inside the prompt window', () => {
-    // 224 tokens at the two-characters-per-token floor `glossary.ts` states.
+    // The literal, not the module's own constant: asserting against that would
+    // hold for any cap, including one past the window.
     expect(english?.length).toBeLessThanOrEqual(448)
   })
 

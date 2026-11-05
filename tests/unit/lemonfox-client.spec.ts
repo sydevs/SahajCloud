@@ -74,7 +74,11 @@ describe('requestLemonfoxTranscript', () => {
       fetchFn: fetchFn as unknown as typeof fetch,
     })
 
-    expect((await sentForm(fetchFn)).get('language')).toBeNull()
+    const form = await sentForm(fetchFn)
+    expect(form.get('language')).toBeNull()
+    // Nor a prompt: the word list is per language, and English spellings would
+    // bias a transcript in any other.
+    expect(form.get('prompt')).toBeNull()
   })
 
   /**
@@ -93,20 +97,6 @@ describe('requestLemonfoxTranscript', () => {
     })
 
     expect((await sentForm(fetchFn)).get('prompt')).toBe(glossaryPrompt('en'))
-  })
-
-  it('sends no prompt when the caller names no locale', async () => {
-    // The list is per language, and an unknown language has no spellings to
-    // ask for. Sending English ones would bias a transcript in any other.
-    const fetchFn = vi.fn().mockResolvedValue(okResponse())
-
-    await requestLemonfoxTranscript({
-      apiKey: 'lf-test-key',
-      audioUrl: AUDIO_URL,
-      fetchFn: fetchFn as unknown as typeof fetch,
-    })
-
-    expect((await sentForm(fetchFn)).get('prompt')).toBeNull()
   })
 
   it('sends no prompt for a language no glossary entry claims', async () => {
