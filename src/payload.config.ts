@@ -222,10 +222,11 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       // NODE_ENV=production). Dev/test use Drizzle `push` above instead.
       prodMigrations: migrations,
     }),
-    // Reconcile the Railway preview's admin from PREVIEW_ADMIN_EMAIL, after the
-    // migrations above have run. A no-op everywhere else — see the gate's docblock in
-    // `@/plugins/previewAdmin` for why each of its three conditions is there, and why
-    // production is detected by Railway's environment name rather than NODE_ENV.
+    // Reconcile the Railway preview's admin account, at a committed constant
+    // address, after the migrations above have run. A no-op everywhere else —
+    // see the gate's docblock in `@/plugins/previewAdmin` for why each of its
+    // two conditions is there, and why production is detected by Railway's
+    // environment name rather than NODE_ENV.
     onInit: async (payload) => {
       await cancelStaleJobs(payload)
       await seedPreviewAdmin(payload)

@@ -1,21 +1,29 @@
 import type { Payload } from 'payload'
 
 import { managersLogin } from '@/collections/Managers/login'
-import { serverEnv } from '@/lib/env'
 import { railwayEnvironmentName } from '@/lib/env/deploymentEnvironment'
 import type { LoginCollectionConfig } from '@/plugins/login'
 import { isProductionDeployment } from '@/plugins/storage/previewIsolation'
 
 /**
- * The Railway preview's admin account: one address, provisioned on every boot
- * and signed in on request without a mail (#662, #840).
+ * The Railway preview's own admin account, and the environments that sign a
+ * manager in without a mail (#662, #840).
  *
- * ⚠ **The address is the credential**, so both halves resolve it from
- * {@link previewAdminEmail} and nowhere else. Two copies would let the seeder
- * provision one address while the sign-in page signed in another — a mailed
- * link nobody can open, reported as "the deploy did not seed". The sign-in half
- * reads it through {@link managersLoginHere}.
+ * ⚠ **The address is no longer a credential**, and that is the whole of what
+ * changed: a preview is reachable only through Cloudflare Access and the
+ * shared-secret gate (`src/middleware.ts`), so who may ask is settled before a
+ * request arrives. It is a committed constant for that reason — one spelling
+ * for the account the seeder provisions and the one CI's fill signs in as, and
+ * nothing to set per environment.
  */
+
+/**
+ * The provisioned admin, spelled once.
+ *
+ * Lowercase and untrimmed on purpose: Payload's `email` field lowercases and
+ * trims on every write, so any other spelling here would match no row.
+ */
+export const PREVIEW_ADMIN_ADDRESS = 'preview-admin@sydevelopers.com'
 
 /**
  * What the gate reads. Passed in rather than read from `process.env`, so the
@@ -26,51 +34,39 @@ export type PreviewAdminGateInput = {
   environmentName: string | undefined
   /** True only on the canonical production environment. */
   isProduction: boolean
-  /** `PREVIEW_ADMIN_EMAIL`, absent everywhere it is not deliberately supplied. */
-  email: string | undefined
 }
 
 /**
- * The preview admin's address, or `undefined` wherever there must be none.
+ * Whether this environment signs its managers in directly.
  *
- * Three conditions, and each excludes a place the admin must never exist:
+ * Two conditions, and each excludes a place it must never happen:
  *
- * - **On Railway at all.** `environmentName` is `undefined` for local dev, CI and
- *   the test lanes. That matters because CI *does* hold `PREVIEW_ADMIN_EMAIL` as
- *   a secret, and a gate reading only the address would write an admin into the
- *   integration lane's database.
+ * - **On Railway at all.** `environmentName` is `undefined` for local dev, CI
+ *   and the test lanes, none of which is reachable only through Access — so
+ *   there the sign-in surface would be an open account-enumeration oracle.
  * - **Not production.** Read from `isProductionDeployment()`, the Railway
  *   environment-name check the email adapter and the storage guard make.
  *   Deliberately NOT `NODE_ENV`: previews run `NODE_ENV=production`, the trap
  *   that once sent preview mail through Resend to real addresses.
- * - **An address was supplied.** There is no default, because anyone who opens a
- *   preview and types the address becomes its admin — so it must not be
- *   guessable, and an environment without it gets no admin at all.
  *
- * Normalised to the stored spelling: Payload's `email` field lowercases and trims
- * on every write, so a capital in the variable would match no row.
- *
- * Fail-safe in the direction that matters: an unknown environment yields
- * `undefined`, so the failure mode is a preview without an admin — loud, and
- * caught by the smoke lane — never a write to production.
+ * Fail-safe in the direction that matters: an unknown environment answers
+ * `false`, so the failure mode is a preview nobody can sign in to — loud, and
+ * caught by the smoke lane — never an oracle on the live site.
  */
-export function resolvePreviewAdminEmail({
-  email,
+export function managersSignInDirectly({
   environmentName,
   isProduction,
-}: PreviewAdminGateInput): string | undefined {
-  const address = email?.trim().toLowerCase()
-  return environmentName && !isProduction && address ? address : undefined
+}: PreviewAdminGateInput): boolean {
+  return !!environmentName && !isProduction
 }
 
 /**
  * The same answer, for the live environment. Read through
- * {@link managersLoginHere}, never spread by hand — `loginPlugin` itself knows
- * nothing about Railway.
+ * {@link managersLoginHere} and {@link previewSignInHere}, never spread by hand
+ * — `loginPlugin` itself knows nothing about Railway.
  */
-export const previewAdminEmail = (): string | undefined =>
-  resolvePreviewAdminEmail({
-    email: serverEnv.PREVIEW_ADMIN_EMAIL,
+export const previewSignInHere = (): boolean =>
+  managersSignInDirectly({
     environmentName: railwayEnvironmentName(),
     isProduction: isProductionDeployment(),
   })
@@ -87,7 +83,7 @@ export const previewAdminEmail = (): string | undefined =>
  */
 export const managersLoginHere = (): LoginCollectionConfig => ({
   ...managersLogin,
-  previewAutoSignIn: previewAdminEmail(),
+  previewAutoSignIn: previewSignInHere(),
 })
 
 /**
@@ -105,8 +101,8 @@ export const managersLoginHere = (): LoginCollectionConfig => ({
  * the smoke lane's sign-in is what reports the problem.
  */
 export async function seedPreviewAdmin(payload: Payload): Promise<void> {
-  const email = previewAdminEmail()
-  if (!email) return
+  if (!previewSignInHere()) return
+  const email = PREVIEW_ADMIN_ADDRESS
 
   try {
     const { docs } = await payload.find({

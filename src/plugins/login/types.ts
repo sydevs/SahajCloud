@@ -56,22 +56,20 @@ export interface LoginCollectionConfig {
    */
   passwordless?: boolean
   /**
-   * One address that signs in on request, with no mail and no token.
+   * This environment signs its accounts in on request, with no mail and no
+   * token — **any** account of this collection, not one named address.
    *
-   * ⚠ **The address IS the credential**, so it is only ever set where the same
-   * gate provisions the account — a Railway preview, never production, never CI,
-   * never local dev (`src/plugins/previewAdmin`). Absent, `issueMagicLink` has
-   * no branch to take and every address is mailed.
+   * ⚠ **It is an anonymous enumeration surface**, which is the one thing
+   * `request-magic-link` refuses to be on production. So it is only ever set
+   * where the gate that owns the question says so — a Railway preview behind
+   * Cloudflare Access, never production, never CI, never local dev
+   * (`src/plugins/previewAdmin`). Off, `issueMagicLink` has no branch to take
+   * and every address is mailed.
    *
-   * ⚠ **Per collection, for the same reason as `passwordless`.** It names one
-   * address on one collection, so setting it plugin-wide would sign a caller
-   * into the next slug added to `collections` with the *manager* address.
-   *
-   * ⚠ Stored lowercased and trimmed, matching what Payload writes and what
-   * `magicLinkEmailSchema` parses — a capital here would otherwise match nothing
-   * and mail the preview admin a link no lane can open.
+   * ⚠ **Per collection, for the same reason as `passwordless`.** A plugin-wide
+   * flag would sign a caller into the next slug added to `collections`.
    */
-  previewAutoSignIn?: string
+  previewAutoSignIn?: boolean
   /**
    * Refuse a link for a document this rejects — a deactivated account, say.
    * Runs on both endpoints, so a document that stops qualifying cannot spend a

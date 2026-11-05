@@ -31,6 +31,7 @@ export {
 } from './magicLinks'
 export { createSession, sessionCookie, sessionCookieParts } from './session'
 export { summarizeGrants } from './grantSummary'
+export type { GrantSummary } from './grantSummary'
 export {
   INVITE_TOKEN_TTL_MS,
   isAdminPath,

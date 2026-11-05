@@ -123,7 +123,14 @@ cache (Vary: Authorization)"_, and the only rule in the zone's cache phase:
 
 - **`GET` with `Authorization` present** — caching applies to client API-key reads and nothing
   else. Manager and admin reads are cookie-authenticated, carry no `Authorization`, and never
-  match; neither does any write.
+  match; neither does any write. **On the live site.**
+- **⚠️ A preview is not covered by any of that, and is uncacheable by construction.** Every
+  preview request now arrives at a Workers Custom Domain, and a Worker runs **ahead** of the
+  cache — so this rule is evaluated on the Worker's own `fetch()` to Railway, never on the
+  inbound request, and the conditions above describe a request Cloudflare no longer sees. The
+  Worker therefore stamps `private, no-store` on everything it returns **and** sends
+  `cf: { cacheTtl: -1 }` on that subrequest (`preview-proxy/index.ts`). Nothing served from a
+  preview is ever cached, which also means a caching fault can only be found on the live site.
 - **⚠️ The `Authorization`-present condition is mandatory — never match a bare `/api/*`.**
   `Vary: Authorization` partitions the cache per API-key _value_, but it does not isolate the
   _absent_-header case. Without requiring the header, Cloudflare serves the cached **authed**

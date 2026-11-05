@@ -5,8 +5,10 @@ import { redirect } from 'next/navigation'
 
 import Logo from '@/components/branding/Logo'
 import { returnPath } from '@/plugins/login'
+import { previewSignInHere } from '@/plugins/previewAdmin'
 
 import { deliveredLink, linkNotice } from './deliveredLink'
+import { PreviewPicker } from './PreviewPicker'
 import styles from './SignIn.module.css'
 import { SignInForm } from './SignInForm'
 import { firstParam } from '../helpers/searchParams'
@@ -35,6 +37,11 @@ import { firstParam } from '../helpers/searchParams'
  * carries it into the emailed link, so following that link lands on the page
  * the visitor first asked for — and a visitor who is already signed in is sent
  * there directly. `returnPath` is the one rule for both.
+ *
+ * ⚠ **On a Railway preview, and only there, the picker lists every account.**
+ * `previewSignInHere()` is the one gate on that block — the same predicate that
+ * turns `previewAutoSignIn` on, so the list and the sign-in it offers cannot
+ * disagree. The live view is unchanged.
  */
 export default async function SignInView({
   initPageResult,
@@ -78,7 +85,12 @@ export default async function SignInView({
           </Button>
         </form>
       ) : (
-        <SignInForm notice={shown ?? linkNotice(error)} returnTo={returnTo} />
+        <>
+          {previewSignInHere() ? (
+            <PreviewPicker req={initPageResult.req} returnTo={returnTo} />
+          ) : null}
+          <SignInForm notice={shown ?? linkNotice(error)} returnTo={returnTo} />
+        </>
       )}
     </>
   )

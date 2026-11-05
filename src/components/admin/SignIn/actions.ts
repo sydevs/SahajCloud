@@ -57,6 +57,15 @@ const MALFORMED: SignInOutcome = {
  * the throttle, the eligibility refusal and the uniform answer have a single
  * implementation — see `issueMagicLink`.
  */
+/**
+ * The preview picker's row submit. A `<form action>` must resolve to `void`, so
+ * this adapts the shape and nothing else — the outcome is unobservable anyway,
+ * since the branch that matters `redirect()`s by throwing.
+ */
+export async function signInAsAction(formData: FormData): Promise<void> {
+  await requestSignInLinkAction(null, formData)
+}
+
 export async function requestSignInLinkAction(
   _prev: SignInOutcome | null,
   formData: FormData,
@@ -69,7 +78,7 @@ export async function requestSignInLinkAction(
 
   const payload = await getPayload({ config: payloadConfig })
   // Not the bare `managersLogin`: that has no `previewAutoSignIn`, so a preview's
-  // own form would mail its admin rather than sign them in.
+  // own form would mail a manager a link rather than sign them in.
   const config = managersLoginHere()
 
   let signedIn: Awaited<ReturnType<typeof issueMagicLink>>
@@ -90,10 +99,12 @@ export async function requestSignInLinkAction(
     return SENT
   }
 
-  // A Railway preview signs its own admin in rather than mailing a link, which
-  // is the whole of how anyone gets into a preview since #840 — see
-  // `previewAutoSignIn`. Nowhere else can reach this: the option is unset in
-  // production, in CI and in local dev.
+  // A Railway preview signs any manager in rather than mailing a link, which is
+  // the whole of how anyone gets into a preview since #840 — see
+  // `previewAutoSignIn`. Nowhere else can reach this: the option is off in
+  // production, in CI and in local dev. This is also the branch the sign-in
+  // picker's rows submit through, so the session cookie and the redirect have
+  // one implementation.
   //
   // ⚠ Outside the `try` on purpose: Next signals a navigation by throwing, and
   // a `catch` around `redirect` would swallow it — leaving the caller on this
