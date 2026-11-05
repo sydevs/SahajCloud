@@ -2359,7 +2359,7 @@ export interface Client {
    */
   notes?: string | null;
   /**
-   * Assign API client roles. Roles apply to all locales.
+   * What this service’s API key may read and write, in every locale.
    */
   roles?: ('wemeditate-web-client' | 'wemeditate-app-client' | 'sahaj-atlas-client')[] | null;
   /**

@@ -396,6 +396,7 @@ export const Clients: CollectionConfig = {
             {
               name: 'roles',
               type: 'select',
+              label: 'Access',
               hasMany: true,
               options: getRoleOptions([
                 'wemeditate-web-client',
@@ -403,7 +404,7 @@ export const Clients: CollectionConfig = {
                 'sahaj-atlas-client',
               ]),
               admin: {
-                description: 'Assign API client roles. Roles apply to all locales.',
+                description: 'What this service’s API key may read and write, in every locale.',
                 components: {
                   afterInput: ['@/components/admin/PermissionsTable'],
                 },

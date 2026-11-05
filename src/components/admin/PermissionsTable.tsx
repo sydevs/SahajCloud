@@ -1,6 +1,6 @@
 'use client'
 
-import type { CollectionSlug, FieldClientComponent } from 'payload'
+import type { FieldClientComponent } from 'payload'
 
 import { Pill, useDocumentInfo, useField } from '@payloadcms/ui'
 import { PillProps } from '@payloadcms/ui/elements/Pill'
@@ -13,6 +13,7 @@ import {
   getProjectLabel,
   getReadableCollections,
   getRoleProject,
+  isRestrictedCollection,
 } from '@/plugins/access/config'
 import type { PermissionLevel } from '@/plugins/access/types'
 
@@ -25,6 +26,13 @@ import type { PermissionLevel } from '@/plugins/access/types'
  *
  * This component is rendered as afterInput for the roles field.
  * Works for both managers (localized roles) and clients (non-localized roles).
+ *
+ * **A client's reads are rows of their own; a manager's stay in the footer.** A
+ * manager reads nearly everything, so listing it would bury the writes. A
+ * service key reads a handful of collections, and which ones is the thing an
+ * operator is deciding — so its implicit reads (`hasPermission` step 4a, the
+ * role's project minus `RESTRICTED_COLLECTIONS`) and the self-read every key has
+ * of its own `clients` row are shown beside its writes.
  */
 export const PermissionsTable: FieldClientComponent = () => {
   const { value: roles } = useField<RoleSlug[]>()
@@ -40,23 +48,35 @@ export const PermissionsTable: FieldClientComponent = () => {
     }
 
     // Merge permissions from all roles
-    const merged: Record<CollectionSlug, Set<PermissionLevel>> = {} as Record<
-      CollectionSlug,
-      Set<PermissionLevel>
-    >
+    // Keyed by string: a client's reads include globals, which are no collection.
+    const merged: Record<string, Set<PermissionLevel>> = {}
 
     for (const roleSlug of roles) {
       const rolePerms = getPermissionsForRole(roleSlug)
       for (const [collection, perms] of Object.entries(rolePerms)) {
-        const collSlug = collection as CollectionSlug
-        if (!merged[collSlug]) merged[collSlug] = new Set()
-        perms.forEach((p) => merged[collSlug].add(p as PermissionLevel))
+        if (!merged[collection]) merged[collection] = new Set()
+        perms.forEach((p) => merged[collection].add(p as PermissionLevel))
       }
     }
 
-    // Convert Sets back to arrays
+    // Compute readable collections using helper
+    // Filter out collections that already have explicit permissions
+    const readableCollections = getReadableCollections(roles)
+
+    if (isClient) {
+      for (const collection of readableCollections) {
+        if (isRestrictedCollection(collection)) continue
+        if (!merged[collection]) merged[collection] = new Set()
+        merged[collection].add('read')
+      }
+    }
+
+    // Convert Sets back to arrays, reads first
     const permissions = Object.fromEntries(
-      Object.entries(merged).map(([k, v]) => [k, Array.from(v)]),
+      Object.entries(merged).map(([k, v]) => [
+        k,
+        Array.from(v).sort((a, b) => OPERATION_ORDER.indexOf(a) - OPERATION_ORDER.indexOf(b)),
+      ]),
     )
 
     // Compute projects for managers only
@@ -70,10 +90,6 @@ export const PermissionsTable: FieldClientComponent = () => {
           ),
         ]
 
-    // Compute readable collections using helper
-    // Filter out collections that already have explicit permissions
-    const readableCollections = getReadableCollections(roles)
-
     return { permissions, projects, readableCollections }
   }, [roles, isClient])
 
@@ -86,7 +102,9 @@ export const PermissionsTable: FieldClientComponent = () => {
           fontStyle: 'italic',
         }}
       >
-        No permissions assigned. Assign roles to grant access.
+        {isClient
+          ? 'No access yet. Choose what this service’s key may reach.'
+          : 'No permissions assigned. Assign roles to grant access.'}
       </div>
     )
   }
@@ -134,6 +152,14 @@ export const PermissionsTable: FieldClientComponent = () => {
                 </td>
               </tr>
             ))}
+          {isClient ? (
+            <tr style={{ borderTop: '1px solid var(--theme-elevation-150)' }}>
+              <td style={{ ...cellStyle, fontWeight: 500 }}>Its own service record</td>
+              <td style={cellStyle}>
+                <Pill pillStyle={getOperationPillStyle('read')}>read</Pill>
+              </td>
+            </tr>
+          ) : null}
         </tbody>
         {!isClient && projects.length > 0 && (
           <tfoot>
@@ -213,6 +239,8 @@ export const PermissionsTable: FieldClientComponent = () => {
     </div>
   )
 }
+
+const OPERATION_ORDER: PermissionLevel[] = ['read', 'create', 'update', 'delete', 'translate']
 
 /** Map permission operation to Pill style */
 function getOperationPillStyle(operation: PermissionLevel): PillProps['pillStyle'] {
