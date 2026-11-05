@@ -17,9 +17,8 @@ import { isAdminManager } from '@/plugins/access/adminOnly'
 import { type DashboardQuery, type OpenItemsData, paginate } from '../shared/model'
 import { openItemsData } from '../shared/rows'
 
-export interface AtlasRegionData {
-  /** `false` renders the unauthorized view instead — a region outside the subtree. */
-  allowed: boolean
+export interface AtlasRegionHome {
+  allowed: true
   /** The breadcrumb trail, nearest last, for `SetStepNav`. */
   breadcrumbs: { label: string; url?: string }[]
   /** "<region> · N programs · M managers". */
@@ -29,12 +28,14 @@ export interface AtlasRegionData {
   statistics: OverviewStatistics
 }
 
-const EMPTY_ITEMS = (query: DashboardQuery): OpenItemsData => ({
-  counts: { all: 0, mine: 0, 'no-manager': 0, overdue: 0, recommendations: 0, review: 0 },
-  progress: null,
-  query,
-  rows: paginate([], 1, query.limit),
-})
+/**
+ * A union, not one shape with an `allowed` flag: a refusal has no data, and
+ * flattening the two obliged the refusal path to build a zeroed `OpenItemsData`
+ * and an empty `OverviewStatistics` — two restatements of shapes owned
+ * elsewhere, constructed only to be thrown away by a caller that reads the flag
+ * and renders the unauthorized view.
+ */
+export type AtlasRegionData = { allowed: false } | AtlasRegionHome
 
 /**
  * A region manager's home, and an admin's view of one region.
@@ -56,16 +57,7 @@ export async function getAtlasRegionData(
   const nodes = await loadRegionNodes(req)
 
   if (regionId !== undefined && managerId !== null) {
-    if (!(await mayOpenRegion(req, managerId, regionId, nodes))) {
-      return {
-        allowed: false,
-        breadcrumbs: [],
-        description: '',
-        items: EMPTY_ITEMS(query),
-        regions: paginate([], 1, query.limit),
-        statistics: { analytics: [], health: [], mostRegistered: null },
-      }
-    }
+    if (!(await mayOpenRegion(req, managerId, regionId))) return { allowed: false }
   }
 
   const scope: OverviewScope = { managerId, regionId, role: 'region' }
@@ -108,7 +100,7 @@ function breadcrumbsFor(
   node: RegionNode | undefined,
   nodes: Map<number, RegionNode>,
   admin: boolean,
-): AtlasRegionData['breadcrumbs'] {
+): AtlasRegionHome['breadcrumbs'] {
   const root = { label: admin ? 'Sahaj Atlas' : 'Your regions', url: '/admin' }
   if (!node) return [root]
   const trail = node.ancestorIds

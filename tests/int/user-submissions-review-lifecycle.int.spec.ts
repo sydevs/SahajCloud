@@ -28,8 +28,9 @@ import { reviewMove } from '@/collections/UserSubmissions/lifecycle/review'
 import {
   OPEN_REVIEW_STATUSES,
   REOPENABLE_REVIEW_STATUSES,
+  SPAM_REVIEW_STATUSES,
 } from '@/collections/UserSubmissions/statuses'
-import type { WorkflowButtonsProps } from '@/components/admin/WorkflowButtons/stages'
+import type { WorkflowButtonsProps, WorkflowRule } from '@/components/admin/WorkflowButtons/stages'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Manager, UserSubmission } from '@/payload-types'
 
@@ -372,14 +373,31 @@ describe('User submission review lifecycle', () => {
       return slot.clientProps as WorkflowButtonsProps<UserSubmission['status']>
     }
 
-    it('gates on the one intake with a review path', () => {
-      expect(declaration().onlyWhen).toEqual({ field: 'type', equals: 'proposal' })
+    /** The rule gated on the viewer's being an admin, or the one that is not. */
+    const ruleFor = (userType?: 'admin') => {
+      const rule = declaration().rules.find((candidate) => candidate.when?.userType === userType)
+      if (!rule) throw new Error(`expected a rule for userType ${String(userType)}`)
+      return rule
+    }
+
+    /** Every (from, button) pair one rule offers. */
+    const offers = (rule: WorkflowRule<UserSubmission['status']>) =>
+      Object.entries(rule.stages).flatMap(([from, buttons]) =>
+        (buttons ?? []).map((button) => ({
+          button,
+          from: from as UserSubmission['status'],
+          to: button.overrides.status as UserSubmission['status'],
+        })),
+      )
+
+    it('gates the review rule on the one intake with a review path', () => {
+      expect(ruleFor().when).toEqual({ equals: 'proposal', field: 'type' })
       // Every other intake, and the create screen, keep Payload's own button.
       expect(declaration().fallback).toBe('save')
     })
 
     it('offers buttons at exactly the statuses a decision is still open at', () => {
-      const stages = declaration().stages
+      const stages = ruleFor().stages
       expect(Object.keys(stages).sort()).toEqual(
         [...OPEN_REVIEW_STATUSES, ...REOPENABLE_REVIEW_STATUSES, 'accepted'].sort(),
       )
@@ -388,16 +406,16 @@ describe('User submission review lifecycle', () => {
       expect(stages.accepted).toEqual([])
     })
 
+    it('settles a refusal on an admin’s authority alone, on every intake', () => {
+      // Keyed by status and gated by viewer rather than by intake, because
+      // `reviewMove` runs its spam branch ahead of the proposal gate — the
+      // offer has to reach a registration, which is what an admin's home lists.
+      expect(Object.keys(ruleFor('admin').stages).sort()).toEqual([...SPAM_REVIEW_STATUSES].sort())
+    })
+
     it('aims every button at a move the server would accept', () => {
-      const stages = declaration().stages
-      for (const [from, buttons] of Object.entries(stages) as [
-        UserSubmission['status'],
-        NonNullable<
-          WorkflowButtonsProps<UserSubmission['status']>['stages'][UserSubmission['status']]
-        >,
-      ][]) {
-        for (const button of buttons) {
-          const to = button.overrides.status as UserSubmission['status']
+      for (const rule of declaration().rules) {
+        for (const { button, from, to } of offers(rule)) {
           const move = reviewMove({
             from,
             to,
@@ -413,12 +431,34 @@ describe('User submission review lifecycle', () => {
       }
     })
 
+    /**
+     * ⚠ **The coupling the viewer gate exists for.** A button is an offer and
+     * the server owes its own guard, so a move only an admin may make must not
+     * be offered through a rule every reviewer matches — that is a control which
+     * can only answer 403 (`docs/rules/admin-ui.md`). This reviewer holds the
+     * grant and is not an admin, so the only thing left for `reviewMove` to
+     * refuse is the authority the rule failed to name.
+     */
+    it('offers a non-admin reviewer no move an admin alone may make', () => {
+      for (const rule of declaration().rules.filter((r) => r.when?.userType !== 'admin')) {
+        for (const { button, from, to } of offers(rule)) {
+          const move = reviewMove({
+            from,
+            to,
+            type: 'proposal',
+            req: { locale: 'en', user: { ...regionManager, collection: 'managers' } } as never,
+          })
+          expect(move, `${button.label}: ${from} → ${to}`).toMatchObject({ kind: 'decision' })
+        }
+      }
+    })
+
     it('leaves every button enabled on a row nobody edited', () => {
       // `WorkflowButtons` disables an action whose `overrides` are empty, the
       // rule Payload's own Save button applies to an unmodified document — so a
       // review button carrying none would be unreachable until something moved.
-      for (const buttons of Object.values(declaration().stages)) {
-        for (const button of buttons ?? []) {
+      for (const rule of declaration().rules) {
+        for (const { button } of offers(rule)) {
           expect(Object.keys(button.overrides).length, button.label).toBeGreaterThan(0)
         }
       }

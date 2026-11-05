@@ -468,9 +468,7 @@ describe('SendDigests job', () => {
         user: { ...self, collection: 'managers' },
       })
 
-      expect((await watermarksOf(managerId)).program?.open_items).toBe(
-        '2026-11-01T00:00:00.000Z',
-      )
+      expect((await watermarksOf(managerId)).program?.open_items).toBe('2026-11-01T00:00:00.000Z')
     })
 
     it('declares the single-run concurrency lock', () => {

@@ -66,7 +66,7 @@ async function persistSampleEvent(): Promise<SampleData> {
         invitation: { frequency: 'Immediate', method: 'email' },
         event_verification: { frequency: 'Monthly', method: 'email' },
         event_registration: { frequency: 'Immediate', method: 'email' },
-        regional_summary: { frequency: 'Monthly', method: 'email' },
+        open_items: { frequency: 'Monthly', method: 'email' },
       },
       contactDetails: [{ platform: 'whatsapp', identifier: '+91 98765 43210', verified: true }],
     },

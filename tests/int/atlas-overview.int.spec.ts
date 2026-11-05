@@ -323,12 +323,19 @@ describe('Atlas overview', () => {
       ])
     })
 
-    /** `?region=` is a URL anyone can type. */
+    /**
+     * `?region=` is a URL anyone can type.
+     *
+     * ⚠ **The refusal carries no data at all**, rather than an emptied copy of
+     * the home's shape: the loader returns before it reads, so there is nothing
+     * for a caller to render by mistake and nothing a refused visitor can learn
+     * about what is in there. `Object.keys` is the assertion, because an
+     * emptied payload would satisfy any check on a single field's contents.
+     */
     it('refuses a region outside its subtree, and reads nothing from it', async () => {
       const data = await load({ region: orphanCityId })
       expect(data.allowed).toBe(false)
-      expect(data.items.rows.docs).toEqual([])
-      expect(data.description).toBe('')
+      expect(Object.keys(data)).toEqual(['allowed'])
     })
 
     it('lists its subtree in the regions overview, with the scoped region as the header', async () => {

@@ -31,6 +31,7 @@ import {
 import type {
   WorkflowButton,
   WorkflowButtonsProps,
+  WorkflowRule,
 } from '@/components/admin/WorkflowButtons/stages'
 import { stagesFor, WORKFLOW_BUTTONS } from '@/components/admin/WorkflowButtons/stages'
 import { CONTACT_EMAIL } from '@/lib/contact'
@@ -183,11 +184,12 @@ const SPAM_STAGES: Record<SpamReviewStatus, WorkflowButton[]> = {
  * exactly this reason before the move to data.
  *
  * The two spam statuses are in `REOPENABLE_REVIEW_STATUSES` too, so they get a
- * Reopen here — and `SPAM_STAGES` is consulted first, so what a reader sees on
- * one is "Not spam" beside the confirmation. The entry stays because the server
- * rule it mirrors still allows the move.
+ * Reopen here. An admin sees `SPAM_STAGES` on such a row instead, since that
+ * rule comes first; a region manager reviewing a refused **proposal** sees this
+ * Reopen, which is the move `reviewMove` grants them — the admin-only gate
+ * covers settling a refusal, not re-opening a proposal.
  */
-const REVIEW_STAGES: WorkflowButtonsProps<UserSubmission['status']>['stages'] = {
+const REVIEW_STAGES: WorkflowRule<UserSubmission['status']>['stages'] = {
   ...stagesFor(OPEN_REVIEW_STATUSES, REVIEW_BUTTONS),
   ...stagesFor(REOPENABLE_REVIEW_STATUSES, REOPEN_BUTTONS),
   // A stage with no action, not a missing one: Payload's own ⋯ menu carries this
@@ -339,13 +341,18 @@ const formBuilder = (config: Parameters<Plugin>[0]) =>
             SaveButton: {
               path: WORKFLOW_BUTTONS,
               clientProps: {
-                statusField: 'status',
-                onlyWhen: { field: 'type', equals: 'proposal' },
                 fallback: 'save',
-                stages: REVIEW_STAGES,
-                // Ungated: a `spam` registration is what the admin home lists,
-                // and settling one is the same decision on every intake.
-                ungatedStages: SPAM_STAGES,
+                rules: [
+                  // First, because settling a refusal is one decision on every
+                  // intake and it outranks re-opening one: a reader looking at
+                  // a refused proposal is asked whether it is spam, not whether
+                  // to review it. Admin-only on both sides of the wire — only
+                  // an admin may make the move (`reviewMove`), so only an admin
+                  // is offered it.
+                  { stages: SPAM_STAGES, when: { userType: 'admin' } },
+                  { stages: REVIEW_STAGES, when: { equals: 'proposal', field: 'type' } },
+                ],
+                statusField: 'status',
               } satisfies WorkflowButtonsProps<UserSubmission['status']>,
             },
           },

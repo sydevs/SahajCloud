@@ -2,6 +2,8 @@ import type { PayloadRequest } from 'payload'
 
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import { relationId } from '@/lib/utilities/relationId'
+import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
+import { breadcrumbAncestorIds } from '@/plugins/access/documentManagers'
 import { resolveOwnedRegionIds } from '@/plugins/access/regionSubtreeAccess'
 
 /**
@@ -39,36 +41,39 @@ export interface OverviewArgs {
   now?: Date
 }
 
-/** A region, its parent and its own managers — what every subtree answer needs. */
+/** A region, its ancestors and its own managers — what every subtree answer needs. */
 export interface RegionNode {
   id: number
   name: string
   level: 'city' | 'country' | 'region' | 'venue'
-  parentId: null | number
-  /** Ancestor ids from the breadcrumb trail, nearest last, excluding self. */
+  /**
+   * Ancestor ids from the breadcrumb trail, nearest last, excluding self.
+   *
+   * The immediate parent is `ancestorIds.at(-1)`, so there is no `parentId`
+   * beside it: every question here is about the whole chain, and a second
+   * spelling of "who is above me" is one that can disagree with the trail.
+   */
   ancestorIds: number[]
   managerIds: number[]
 }
 
 const REGION_SELECT = {
   name: true,
-  level: true,
-  parent: true,
   breadcrumbs: true,
+  level: true,
   managers: true,
 } as const
 
 function toNode(doc: Record<string, unknown>): RegionNode {
   const id = doc.id as number
-  const crumbs = Array.isArray(doc.breadcrumbs) ? doc.breadcrumbs : []
   return {
     id,
     name: typeof doc.name === 'string' && doc.name.trim() ? doc.name : `#${id}`,
     level: doc.level as RegionNode['level'],
-    parentId: relationId(doc.parent),
-    ancestorIds: crumbs
-      .map((crumb) => relationId((crumb as { doc?: unknown } | null)?.doc))
-      .filter((crumbId): crumbId is number => crumbId !== null && crumbId !== id),
+    // The nested-docs trail convention has one owner, and it dedupes — which an
+    // inline copy here did not, so a trail naming a document twice gave that
+    // ancestor two entries and `managersInSubtree` counted its managers twice.
+    ancestorIds: breadcrumbAncestorIds(doc, id),
     managerIds: (Array.isArray(doc.managers) ? doc.managers : [])
       .map((manager) => relationId(manager))
       .filter((managerId): managerId is number => managerId !== null),
@@ -76,24 +81,34 @@ function toNode(doc: Record<string, unknown>): RegionNode {
 }
 
 /**
- * Every region, once.
+ * Every region, once per request.
  *
  * ⚠ **Read with a query, never off a join's `docs`**, which carries at most its
  * own `limit` (Payload's default is 10) — so a country manager's subtree would
  * silently shrink to ten regions. The whole table is one read of five columns,
  * and the tree questions below are then answered in memory rather than by a
  * query per node.
+ *
+ * ⚠ **Memoized per request, because every loader in this folder needs it and
+ * each is its own entry point.** A region home renders `loadOpenItems`,
+ * `loadStatistics` and `loadRegionOverview` beside its own breadcrumb read —
+ * four full scans of a table that holds a node per country, region, area, city
+ * **and** venue, with a breadcrumbs join each. The digest pays it twice per
+ * manager per role. `localeIsolatedReq` copies the locale keys and shares
+ * `req.context` by reference, so a nested copy hits this same memo.
  */
 export async function loadRegionNodes(req: PayloadRequest): Promise<Map<number, RegionNode>> {
-  const { docs } = await req.payload.find({
-    collection: 'regions',
-    depth: 0,
-    pagination: false,
-    overrideAccess: true,
-    req: localeIsolatedReq(req),
-    select: REGION_SELECT,
+  return memoizeOnRequest(req, 'atlasOverview:regionNodes', async () => {
+    const { docs } = await req.payload.find({
+      collection: 'regions',
+      depth: 0,
+      pagination: false,
+      overrideAccess: true,
+      req: localeIsolatedReq(req),
+      select: REGION_SELECT,
+    })
+    return new Map(docs.map((doc) => [doc.id, toNode(doc as Record<string, unknown>)]))
   })
-  return new Map(docs.map((doc) => [doc.id, toNode(doc as Record<string, unknown>)]))
 }
 
 /**
@@ -143,12 +158,17 @@ export async function scopeRegionIds(
     return scope.regionId === undefined ? null : subtreeOf(nodes, [scope.regionId])
   }
 
-  const owned = await resolveOwnedRegionIds(req, scope.managerId)
-  const subtree = subtreeOf(nodes, owned)
-  if (scope.regionId === undefined) return subtree
+  // ⚠ **Already a subtree, so it is not expanded again.** `resolveOwnedRegionIds`
+  // delegates to `resolveManagedDocIds`, whose query returns the regions listing
+  // the manager **plus every descendant** via `breadcrumbs.doc`, unpaginated —
+  // so wrapping it in `subtreeOf` re-derived in memory what the query already
+  // answered, and left two readings of "owned region ids" that look different
+  // and are not.
+  const owned = new Set(await resolveOwnedRegionIds(req, scope.managerId))
+  if (scope.regionId === undefined) return owned
   // `?region=` is a URL anyone can type, so a region outside the subtree
   // resolves to nothing rather than to the subtree's own answer.
-  if (!subtree.has(scope.regionId)) return new Set()
+  if (!owned.has(scope.regionId)) return new Set()
   return subtreeOf(nodes, [scope.regionId])
 }
 
@@ -157,8 +177,6 @@ export async function mayOpenRegion(
   req: PayloadRequest,
   managerId: number,
   regionId: number,
-  nodes: Map<number, RegionNode>,
 ): Promise<boolean> {
-  const owned = await resolveOwnedRegionIds(req, managerId)
-  return subtreeOf(nodes, owned).has(regionId)
+  return (await resolveOwnedRegionIds(req, managerId)).includes(regionId)
 }

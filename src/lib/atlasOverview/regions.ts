@@ -15,9 +15,8 @@ import { relationId } from '@/lib/utilities/relationId'
 import type { Region } from '@/payload-types'
 
 import { loadRegionNodes, type OverviewArgs, type RegionNode, scopeRegionIds } from './scope'
-
-const DAY_MS = 24 * 60 * 60 * 1000
-export const SIGNUP_WINDOW_DAYS = 30
+import { loadSignupWindows } from './signups'
+import { OVERDUE_QUERY_STAGES } from './status'
 
 /** What one row of either overview shows. */
 export interface RegionOverviewRow {
@@ -59,7 +58,7 @@ const emptyMetrics = (): RegionMetrics => ({
 })
 
 /** Stages that make a listing overdue — the ones a region manager is pulled into. */
-const OVERDUE_STAGES = new Set(['escalated', 'expired', 'urgent'])
+const OVERDUE_STAGES: Set<string> = new Set(OVERDUE_QUERY_STAGES)
 
 interface MetricEvent {
   hasManager: boolean
@@ -102,32 +101,43 @@ export function rollUpRegionMetrics(
   return metrics
 }
 
-/** Managers listed on a region or anywhere below it, counted once each. */
-function managersInSubtree(
-  node: RegionNode,
+/**
+ * Managers listed on each region or anywhere below it, counted once each.
+ *
+ * One accumulating pass up each node's ancestor chain, the same shape as
+ * `rollUpRegionMetrics` — asked per row instead, it walked the whole node table
+ * for each row it emitted, so an admin's ~200 country rows against a table of
+ * thousands cost a million `includes` probes of blocking CPU on the render path.
+ */
+export function rollUpRegionManagers(
   nodes: Map<number, RegionNode>,
   inScope: Set<number>,
-): number {
-  const managers = new Set<number>(node.managerIds)
-  for (const other of nodes.values()) {
-    if (!inScope.has(other.id)) continue
-    if (!other.ancestorIds.includes(node.id)) continue
-    for (const managerId of other.managerIds) managers.add(managerId)
+): Map<number, Set<number>> {
+  const managers = new Map<number, Set<number>>()
+  const add = (regionId: number, managerIds: number[]) => {
+    if (!inScope.has(regionId)) return
+    const current = managers.get(regionId) ?? new Set<number>()
+    for (const managerId of managerIds) current.add(managerId)
+    managers.set(regionId, current)
   }
-  return managers.size
+  for (const node of nodes.values()) {
+    if (!inScope.has(node.id)) continue
+    add(node.id, node.managerIds)
+    for (const ancestorId of node.ancestorIds) add(ancestorId, node.managerIds)
+  }
+  return managers
 }
 
 function toRow(
   node: RegionNode,
   metrics: RegionMetrics,
-  nodes: Map<number, RegionNode>,
-  inScope: Set<number>,
+  managers: Map<number, Set<number>>,
 ): RegionOverviewRow {
   return {
     id: node.id,
     name: node.name,
     level: node.level,
-    managers: managersInSubtree(node, nodes, inScope),
+    managers: managers.get(node.id)?.size ?? 0,
     programs: metrics.programs,
     healthy:
       metrics.programs > 0 ? Math.round((metrics.healthyNumerator / metrics.programs) * 100) : null,
@@ -175,43 +185,23 @@ export async function loadRegionOverview(
   const scoped = await scopeRegionIds(args, nodes)
   const inScope = scoped ?? new Set(nodes.keys())
 
-  const since = new Date(now.getTime() - 2 * SIGNUP_WINDOW_DAYS * DAY_MS)
-  const windowStart = new Date(now.getTime() - SIGNUP_WINDOW_DAYS * DAY_MS)
-
-  const [events, signups] = await Promise.all([
+  const [events, signupsByEvent] = await Promise.all([
     req.payload.find({
       collection: 'events',
+      // ⚠ **Narrowed to the scope, not read whole.** `subtreeOf` is closed
+      // downwards, so a region outside `inScope` cannot have an ancestor inside
+      // it — which means `rollUpRegionMetrics` would discard every row this
+      // excludes anyway. Unnarrowed, a region manager looking at one city read
+      // every event on the atlas on each render.
+      where: scoped ? { region: { in: [...scoped] } } : {},
       depth: 0,
       pagination: false,
       overrideAccess: true,
       req: localeIsolatedReq(req),
       select: { manager: true, region: true, verificationStage: true },
     }),
-    req.payload.find({
-      collection: 'user-submissions',
-      where: {
-        and: [
-          { type: { equals: 'registration' } },
-          { createdAt: { greater_than: since.toISOString() } },
-        ],
-      },
-      depth: 0,
-      pagination: false,
-      overrideAccess: true,
-      req: localeIsolatedReq(req),
-      select: { createdAt: true, event: true },
-    }),
+    loadSignupWindows({ now, req }),
   ])
-
-  const signupsByEvent = new Map<number, { now: number; previous: number }>()
-  for (const row of signups.docs) {
-    const eventId = relationId(row.event)
-    if (eventId == null) continue
-    const bucket = signupsByEvent.get(eventId) ?? { now: 0, previous: 0 }
-    if (new Date(row.createdAt) >= windowStart) bucket.now += 1
-    else bucket.previous += 1
-    signupsByEvent.set(eventId, bucket)
-  }
 
   const metricEvents: MetricEvent[] = []
   for (const event of events.docs) {
@@ -228,13 +218,12 @@ export async function loadRegionOverview(
   }
 
   const metrics = rollUpRegionMetrics(metricEvents, nodes, inScope)
+  const managers = rollUpRegionManagers(nodes, inScope)
   const listed = [...inScope]
     .map((id) => nodes.get(id))
     .filter((node): node is RegionNode => node !== undefined)
     .filter((node) => !args.countriesOnly || node.level === 'country')
 
-  const rows = listed.map((node) =>
-    toRow(node, metrics.get(node.id) ?? emptyMetrics(), nodes, inScope),
-  )
+  const rows = listed.map((node) => toRow(node, metrics.get(node.id) ?? emptyMetrics(), managers))
   return sortRegionRows(rows, (row) => (nodes.get(row.id)?.managerIds.length ?? 0) === 0)
 }

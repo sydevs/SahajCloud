@@ -78,7 +78,7 @@ interface UserMessageEmailProps {
   details: UserMessageRow[]
   /**
    * Resolved brand, passed in rather than looked up here (the
-   * `SessionReminderEmail` / `RegistrationDigestEmail` shape). The sender also
+   * `SessionReminderEmail` / `DigestEmail` shape). The sender also
    * needs it for the `From` display name, so resolving it once at the send site
    * keeps the header and the body from ever disagreeing.
    */

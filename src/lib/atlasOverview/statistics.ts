@@ -19,12 +19,12 @@
 
 import type { PayloadRequest } from 'payload'
 
-import { VERIFICATION_STAGES, type VerificationStage } from '@/lib/eventVerification/stages'
+import { type VerificationStage } from '@/lib/eventVerification/stages'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
-import { relationId } from '@/lib/utilities/relationId'
 import type { AtlasSnapshotCounts } from '@/payload-types'
 
-import { loadRegionNodes, type OverviewArgs, type RegionNode, scopeRegionIds } from './scope'
+import { loadRegionNodes, type OverviewArgs, scopeRegionIds } from './scope'
+import { loadSignupWindows, sumSignupWindows } from './signups'
 import { snapshotDate } from './snapshots'
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -116,51 +116,40 @@ async function liveStageCounts(
     req: localeIsolatedReq(args.req),
     select: { region: true, verificationStage: true },
   })
+  // No zero prefill: every reader already coalesces a missing stage, so seeding
+  // the ladder only made a second place for the stage list to be wrong.
   const byStage: Record<string, number> = {}
-  for (const stage of VERIFICATION_STAGES) byStage[stage] = 0
   for (const doc of docs) byStage[doc.verificationStage] = (byStage[doc.verificationStage] ?? 0) + 1
   return { byStage, eventIds: docs.map((doc) => doc.id) }
 }
 
-/** Sign-ups on a set of events, split into this window and the one before it. */
+/**
+ * Sign-ups on a set of events: the two window totals, and the current window's
+ * count per event.
+ *
+ * ⚠ **`byEvent` holds the current window only, and holds no zero.** Both its
+ * readers ask about now rather than about the comparison — "Programs with a
+ * sign-up" is its `size`, and Most registered its maximum — so an event whose
+ * only sign-ups fell in the *previous* window must not appear, or a quiet
+ * month's listing counts as one with a sign-up.
+ */
 async function signupCounts(
   req: PayloadRequest,
   eventIds: number[],
   now: Date,
 ): Promise<{ byEvent: Map<number, number>; now: number; previous: number }> {
-  const empty = { byEvent: new Map<number, number>(), now: 0, previous: 0 }
-  if (!eventIds.length) return empty
+  if (!eventIds.length) return { byEvent: new Map(), now: 0, previous: 0 }
 
-  const windowStart = new Date(now.getTime() - CHANGE_WINDOW_DAYS * DAY_MS)
-  const since = new Date(now.getTime() - 2 * CHANGE_WINDOW_DAYS * DAY_MS)
-  const { docs } = await req.payload.find({
-    collection: 'user-submissions',
-    where: {
-      and: [
-        { type: { equals: 'registration' } },
-        { event: { in: eventIds } },
-        { createdAt: { greater_than: since.toISOString() } },
-      ],
-    },
-    depth: 0,
-    pagination: false,
-    overrideAccess: true,
-    req: localeIsolatedReq(req),
-    select: { createdAt: true, event: true },
+  const windows = await loadSignupWindows({
+    extraWhere: [{ event: { in: eventIds } }],
+    now,
+    req,
   })
-
-  const result = { byEvent: new Map<number, number>(), now: 0, previous: 0 }
-  for (const doc of docs) {
-    const eventId = relationId(doc.event)
-    if (eventId == null) continue
-    if (new Date(doc.createdAt) >= windowStart) {
-      result.now += 1
-      result.byEvent.set(eventId, (result.byEvent.get(eventId) ?? 0) + 1)
-    } else {
-      result.previous += 1
-    }
+  const byEvent = new Map<number, number>()
+  for (const [eventId, window] of windows) {
+    if (window.now > 0) byEvent.set(eventId, window.now)
   }
-  return result
+  return { byEvent, ...sumSignupWindows(windows) }
 }
 
 /**
@@ -173,14 +162,16 @@ async function signupCounts(
 export async function loadStatistics(args: OverviewArgs): Promise<OverviewStatistics> {
   const { req, scope } = args
   const now = args.now ?? new Date()
-  const nodes: Map<number, RegionNode> = await loadRegionNodes(req)
+  // The snapshot depends on neither the region tree nor the events, so it joins
+  // the first wave rather than waiting two round trips for them.
+  const [nodes, snapshot] = await Promise.all([
+    loadRegionNodes(req),
+    loadComparisonSnapshot(req, now),
+  ])
   const regionIds = await scopeRegionIds(args, nodes)
 
   const { byStage, eventIds } = await liveStageCounts(args, regionIds)
-  const [snapshot, signups] = await Promise.all([
-    loadComparisonSnapshot(req, now),
-    signupCounts(req, eventIds, now),
-  ])
+  const signups = await signupCounts(req, eventIds, now)
 
   const snapshotTotals = snapshot ? sumSnapshot(snapshot, regionIds) : null
 

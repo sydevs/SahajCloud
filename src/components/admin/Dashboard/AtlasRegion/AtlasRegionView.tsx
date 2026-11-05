@@ -1,6 +1,6 @@
 'use client'
 
-import type { AtlasRegionData } from './data'
+import type { AtlasRegionHome } from './data'
 
 import { Button, SetStepNav } from '@payloadcms/ui'
 
@@ -20,7 +20,7 @@ import { StatTiles } from '../shared/StatTiles'
  * server-side equivalent — and a region opened from the overview needs the
  * trail or a reader cannot tell which subtree they are in.
  */
-export function AtlasRegionView({ data }: { data: AtlasRegionData }) {
+export function AtlasRegionView({ data }: { data: AtlasRegionHome }) {
   const { items, regions, statistics } = data
   const open = items.progress?.open ?? 0
   const section = items.query.section

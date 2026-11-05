@@ -47,19 +47,26 @@ const isSpamRefusal = (status: UserSubmission['status']) =>
  * reviewer's.
  *
  * ⚠ **Only the part the reviewer path cannot already answer.** Reopening a
- * refused *proposal* has always been a reviewer's call and stays one, below:
- * narrowing it to admins would take a reviewer's own false-positive recovery
- * away. What is new here is confirming a refusal, and reopening one on an
- * intake nobody reviews — a registration, which is what an admin's home lists.
+ * refused *reviewable* row has always been a reviewer's call and stays one,
+ * below: narrowing it to admins would take a reviewer's own false-positive
+ * recovery away. What is new here is confirming a refusal, and reopening one on
+ * an intake nobody reviews — a registration, which is what an admin's home
+ * lists.
+ *
+ * ⚠ **It takes `reviewable`, never the intake.** Which intakes a reviewer
+ * reviews is one fact, and `reviewMove` reads it below to refuse an unreviewable
+ * row outright — spelled here as well, with the opposite polarity, the two would
+ * silently disagree the day a second intake becomes reviewable, routing that
+ * intake's reopen to admins alone with nothing failing.
  */
 function spamActionFor(
   from: UserSubmission['status'],
   to: UserSubmission['status'],
-  type: UserSubmission['type'],
+  reviewable: boolean,
 ): ReviewAction | null {
   if (!isSpamRefusal(from)) return null
   if (to === 'confirmed_spam' && from === 'spam') return 'confirm-spam'
-  if (to === 'pending' && type !== 'proposal') return 'reopen'
+  if (to === 'pending' && !reviewable) return 'reopen'
   return null
 }
 
@@ -119,10 +126,16 @@ export function reviewMove(args: {
     return { kind: 'illegal', reason: 'You do not have permission to review submissions.' }
   }
 
-  // Settling a spam refusal comes before the proposal gate, because it is the
-  // one decision no reviewer makes. Admins only: the strike it confirms, and
+  // One table holds four intakes sharing one status vocabulary, and only one of
+  // them has a review path: without that, a contact row could be walked through
+  // the review states and reach the accept path with no `proposed` to apply.
+  // Read once, because the spam branch below needs the same answer.
+  const reviewable = type === 'proposal'
+
+  // Settling a spam refusal comes before the reviewability gate, because it is
+  // the one decision no reviewer makes. Admins only: the strike it confirms, and
   // the seat a released registration takes back, are map-wide consequences.
-  const spamAction = spamActionFor(from, to, type)
+  const spamAction = spamActionFor(from, to, reviewable)
   if (spamAction) {
     if (!isAdminManager(req.user)) {
       return { kind: 'illegal', reason: 'Only an admin can settle a spam refusal.' }
@@ -130,10 +143,7 @@ export function reviewMove(args: {
     return { kind: 'decision', action: spamAction }
   }
 
-  // One table holds four intakes sharing one status vocabulary, so without this
-  // a contact row could be walked through the review states and reach the
-  // accept path with no `proposed` to apply.
-  if (type !== 'proposal') {
+  if (!reviewable) {
     return { kind: 'illegal', reason: `A ${type} submission is not reviewable.` }
   }
 

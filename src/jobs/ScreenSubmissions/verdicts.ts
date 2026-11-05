@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import { SUBMISSION_VERDICTS } from '@/collections/UserSubmissions/fields'
+import { SPAM_REVIEW_STATUSES } from '@/collections/UserSubmissions/statuses'
 import type { UserSubmission } from '@/payload-types'
 
 /**
@@ -60,8 +61,15 @@ export function isScreeningResult(value: unknown): value is SubmissionScreeningR
   return screeningResultGuard.safeParse(value).success
 }
 
-/** Statuses that count a spam strike against the sender. */
-const SPAM_STRIKE_STATUSES: readonly UserSubmission['status'][] = ['spam', 'confirmed_spam']
+/**
+ * Statuses that count a spam strike against the sender.
+ *
+ * The same pair `SPAM_REVIEW_STATUSES` names, taken from there rather than
+ * listed again: that one carries the `as const satisfies` guard, which a copy
+ * here would not, so a third spam status would join the review surface and be
+ * silently missing from the strike count.
+ */
+const SPAM_STRIKE_STATUSES: readonly UserSubmission['status'][] = SPAM_REVIEW_STATUSES
 
 /**
  * Whether this row is a spam strike against its sender.

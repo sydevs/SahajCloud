@@ -20,6 +20,19 @@ import type { OpenItemFilter, OpenItemPill, OpenItemStatusKey } from './filters'
 import { unpublishDate, type VerificationStage } from '@/lib/eventVerification/stages'
 import { formatShortDate } from '@/lib/notifications/eventDetails'
 
+/**
+ * The stages a query treats as overdue: escalated or worse.
+ *
+ * ⚠ **Not the same set as the **Overdue** status above, and deliberately so.**
+ * That one also carries `reminded`, because a manager who has been reminded has
+ * something to do — but a reminded listing is still on the map and still counts
+ * as healthy, and a region manager does not join another manager's event until
+ * it escalates (`docs/rules/access.md`). So: this is the set two queries share
+ * — the Healthy denominator and the region-manager scope — and the status table
+ * is what a reader is told. Resist merging them; the difference is the point.
+ */
+export const OVERDUE_QUERY_STAGES = ['escalated', 'urgent', 'expired'] as const
+
 /** Where a next step leads. The URL is the reader's to spell — see the loaders. */
 export interface OpenItemTarget {
   collection: 'events' | 'regions' | 'user-submissions'

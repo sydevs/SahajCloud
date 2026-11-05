@@ -22,6 +22,7 @@ import { buildEventQualityReport, loadTitleTemplates } from '@/lib/eventQuality'
 import { EVENT_QUALITY_COPY } from '@/lib/eventQuality/copy'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import { relationId } from '@/lib/utilities/relationId'
+import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
 import type { Event, UserSubmission } from '@/payload-types'
 
 import {
@@ -39,13 +40,28 @@ import {
   type OpenItemRow,
   overviewProgress,
   type OverviewProgress,
+  OVERDUE_QUERY_STAGES,
   sortOpenItems,
 } from './status'
 
-const PAGE_READ_LIMIT = 500
+/**
+ * The backstop on a read this module does not otherwise bound.
+ *
+ * Not a page size — the page is at most 100 (`PAGE_LIMITS`) and both readers
+ * here sit above paging. It is the ceiling that keeps one pathological scope
+ * from loading a table into the render path.
+ */
+const LIST_READ_LIMIT = 500
 
-/** Stages a region manager joins another manager's event at (`docs/rules/access.md`). */
-const ESCALATED_STAGES = ['escalated', 'urgent', 'expired'] as const
+/**
+ * The stages a scope beyond the event's own manager lists it at: escalated or
+ * worse, plus an unverified listing nobody has adopted.
+ *
+ * One `in`, not an `or` of an `in` and an `equals`: both the region and the
+ * admin branch want the same four, and two spellings could diverge on which
+ * stages each role sees.
+ */
+const LISTED_STAGES = [...OVERDUE_QUERY_STAGES, 'unverified'] as const
 
 const EVENT_SELECT = {
   title: true,
@@ -90,6 +106,19 @@ type EventDoc = Pick<
   | 'title'
   | 'updatedAt'
   | 'verificationStage'
+>
+
+/** What the proposals read selects, named so the memo can carry its type. */
+type ProposalDoc = Pick<
+  UserSubmission,
+  | 'activityLog'
+  | 'createdAt'
+  | 'event'
+  | 'id'
+  | 'proposed'
+  | 'region'
+  | 'routingRegion'
+  | 'submissionData'
 >
 
 /** One page of open items, with everything a surface needs to draw it. */
@@ -154,42 +183,59 @@ const openProposalsWhere: Where = {
 }
 
 /**
- * The open proposals in play, read once.
+ * The open proposals in play, read once per request.
  *
- * Read with `overrideAccess: true` whatever the caller asked for, and then
- * narrowed by this loader's own rules: a region manager's reach has to pass
- * `routingRegion` for a city the atlas does not hold yet (`docs/rules/access.md`),
- * and an admin's depends on where the delivery went — neither of which the
- * collection's `Where` can express. The rows never leave this module unfiltered.
+ * One read serves every role, then this loader's own rules narrow it: an
+ * admin's reach depends on where the delivery went, which lives in a JSON
+ * `activityLog` and so is a test no `Where` can make. (A region manager's
+ * `routingRegion` reach *is* expressible — it is an indexed column
+ * `managerSubmissionScope` already filters on — but splitting the query per
+ * role would cost a read per role on a run that mails three.) The rows never
+ * leave this module unfiltered.
+ *
+ * Memoized, because the digest run asks the same scope-independent question
+ * once per manager per role, and the `where` is a module constant.
  */
-async function loadOpenProposals(req: PayloadRequest) {
-  const { docs } = await req.payload.find({
-    collection: 'user-submissions',
-    where: openProposalsWhere,
-    depth: 0,
-    pagination: false,
-    overrideAccess: true,
-    req: localeIsolatedReq(req),
-    select: {
-      activityLog: true,
-      createdAt: true,
-      event: true,
-      proposed: true,
-      region: true,
-      routingRegion: true,
-      submissionData: true,
-    },
+async function loadOpenProposals(req: PayloadRequest): Promise<ProposalDoc[]> {
+  return memoizeOnRequest(req, 'atlasOverview:openProposals', async () => {
+    const { docs } = await req.payload.find({
+      collection: 'user-submissions',
+      where: openProposalsWhere,
+      depth: 0,
+      pagination: false,
+      overrideAccess: true,
+      req: localeIsolatedReq(req),
+      select: {
+        activityLog: true,
+        createdAt: true,
+        event: true,
+        proposed: true,
+        region: true,
+        routingRegion: true,
+        submissionData: true,
+      },
+    })
+    return docs as ProposalDoc[]
   })
-  return docs
 }
 
-/** Sign-ups the spam check refused and no admin has settled. */
+/**
+ * Sign-ups the spam check refused and no admin has settled.
+ *
+ * ⚠ **Bounded, because a spam wave is not.** Age is already capped — the
+ * `user-submissions` retention windows purge a machine refusal — but nothing
+ * caps how many arrive inside that window, and an unlimited read loads every
+ * one of them into memory to feed a list that pages at 100, on the admin home's
+ * own render path and in every admin digest. Newest first, so the cap drops the
+ * stalest rather than an arbitrary page.
+ */
 async function loadRefusals(req: PayloadRequest): Promise<OpenItemRow[]> {
   const { docs } = await req.payload.find({
     collection: 'user-submissions',
     where: { and: [{ type: { equals: 'registration' } }, { status: { equals: 'spam' } }] },
     depth: 0,
-    pagination: false,
+    limit: LIST_READ_LIMIT,
+    sort: '-createdAt',
     overrideAccess: true,
     req: localeIsolatedReq(req),
     select: { createdAt: true, screeningResult: true, submissionData: true },
@@ -208,11 +254,17 @@ async function loadRefusals(req: PayloadRequest): Promise<OpenItemRow[]> {
   })
 }
 
-/** The events one scope lists, by id, with the per-row facts the statuses need. */
+/**
+ * The events one scope lists, by id, with the per-row facts the statuses need.
+ *
+ * `unmanagedRegions` is passed in rather than walked here: the caller needs the
+ * same answer to mark each admin row, and the walk is over the whole region
+ * table.
+ */
 async function loadScopedEvents(
   args: OverviewArgs,
-  nodes: Map<number, RegionNode>,
   regionIds: null | Set<number>,
+  unmanagedRegions: Set<number>,
 ): Promise<{ docs: EventDoc[]; ownEventIds: Set<number> }> {
   const { req, scope } = args
   const read = (where: Where) =>
@@ -240,15 +292,7 @@ async function loadScopedEvents(
     if (scope.managerId !== null) or.push({ manager: { equals: scope.managerId } })
     if (ids.length) {
       or.push({
-        and: [
-          { region: { in: ids } },
-          {
-            or: [
-              { verificationStage: { in: [...ESCALATED_STAGES] } },
-              { verificationStage: { equals: 'unverified' } },
-            ],
-          },
-        ],
+        and: [{ region: { in: ids } }, { verificationStage: { in: [...LISTED_STAGES] } }],
       })
     }
     if (!or.length) return { docs: [], ownEventIds: new Set() }
@@ -266,18 +310,10 @@ async function loadScopedEvents(
   // Admin: only what nobody below them covers. A region with a manager
   // anywhere above it is that manager's work, and listing it here would ask an
   // admin to do everyone's.
-  const unmanaged = [...regionsWithNoManagerAbove(nodes)]
+  const unmanaged = [...unmanagedRegions]
   if (!unmanaged.length) return { docs: [], ownEventIds: new Set() }
   const found = await read({
-    and: [
-      { region: { in: unmanaged } },
-      {
-        or: [
-          { verificationStage: { in: [...ESCALATED_STAGES] } },
-          { verificationStage: { equals: 'unverified' } },
-        ],
-      },
-    ],
+    and: [{ region: { in: unmanaged } }, { verificationStage: { in: [...LISTED_STAGES] } }],
   })
   return { docs: found.docs as EventDoc[], ownEventIds: new Set() }
 }
@@ -296,10 +332,14 @@ export async function loadOpenItems(args: OverviewArgs): Promise<OpenItemsResult
   const now = args.now ?? new Date()
   const nodes = await loadRegionNodes(req)
   const regionIds = await scopeRegionIds(args, nodes)
-  const unmanagedRegions = regionsWithNoManagerAbove(nodes)
+  // Only an admin's list reads this — it marks the rows nobody below them
+  // covers, and bounds their query — and the walk is over the whole region
+  // table, so a region or program scope does not pay for it.
+  const unmanagedRegions =
+    scope.role === 'admin' ? regionsWithNoManagerAbove(nodes) : new Set<number>()
 
   const [{ docs: eventDocs, ownEventIds }, proposals] = await Promise.all([
-    loadScopedEvents(args, nodes, regionIds),
+    loadScopedEvents(args, regionIds, unmanagedRegions),
     loadOpenProposals(req),
   ])
 
@@ -435,7 +475,7 @@ export async function withRecommendations(
       where: { id: { in: ids } },
       depth: 0,
       draft: true,
-      limit: PAGE_READ_LIMIT,
+      limit: LIST_READ_LIMIT,
       overrideAccess: true,
       req: localeIsolatedReq(req),
       select: QUALITY_SELECT,

@@ -1,16 +1,20 @@
 /**
  * The open-items vocabulary, in a leaf with no runtime imports.
  *
- * ⚠ **Separate from `status.ts` because the homes' client components need
- * it.** That file builds each status's wording, which means formatting a date,
- * which means `@/lib/notifications/eventDetails` — a server module that reaches
- * `@/lib/env/server`. A `'use client'` component importing the filter names
- * through it would ship the whole email layer to the browser, and the build
- * would fail on the deploy rather than in CI
- * (`src/AGENTS.md`, "That barrel hazard is not hypothetical").
+ * Separate from `status.ts` so a `'use client'` component can take a filter
+ * name without the status table, whose job is server-side: the lines are built
+ * on the server in both consumers, so nothing in the browser needs it.
  *
- * The lines themselves are built on the server in both consumers, so nothing
- * in the browser needs `status.ts` at all.
+ * ⚠ **What client code must not reach is the folder's barrel, not this file's
+ * siblings.** `index.ts` pulls `./openItems`, and through
+ * `@/collections/UserSubmissions/submissionData` → `@/lib/antiSpam/antiSpamGuard`
+ * → `@/lib/turnstile/verifyTurnstile` it reaches `@/lib/env/server` — so a
+ * browser entry importing one filter name off the barrel ships that whole graph
+ * and fails on the Railway deploy rather than in CI (`src/AGENTS.md`, "That
+ * barrel hazard is not hypothetical"). Deep-import the module you want.
+ * `tests/unit/client-bundle-safety.spec.ts` walks the real graph and is what
+ * holds this; measured with its own walk, `status.ts` reaches six files and no
+ * server-only entry, while the barrel reaches sixty-seven.
  */
 
 /** The tabs a filter row offers, beside All. A status in no filter is unfiltered. */
