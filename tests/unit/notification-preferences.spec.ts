@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import type { NotificationType } from '@/components/admin/NotificationPreferences/config'
+import type {
+  NotificationKey,
+  NotificationType,
+} from '@/components/admin/NotificationPreferences/config'
 import {
   buildDefaultNotificationPreferences,
+  NOTIFICATION_KEYS,
   NOTIFICATION_TYPES,
   notificationFrequency,
   notificationTypesFor,
@@ -27,6 +31,17 @@ describe('notification preferences config', () => {
         expect(type.roles.length).toBeGreaterThan(0)
         for (const role of type.roles) expect(MANAGER_ROLES).toContain(role)
       }
+    })
+
+    /**
+     * `NOTIFICATION_KEYS` is declared rather than derived, because a key typed
+     * as the derived union would be `string` again and a misspelling at a
+     * reader would resolve to `Never` in silence. Declared, it can drift — so
+     * it is pinned here in both directions, which is the whole reason the
+     * declaration is allowed to exist.
+     */
+    it('declares exactly the keys the rows carry', () => {
+      expect([...NOTIFICATION_KEYS]).toEqual(NOTIFICATION_TYPES.map((type) => type.key))
     })
 
     /**
@@ -96,8 +111,13 @@ describe('notification preferences config', () => {
       }
     })
 
+    /**
+     * The cast is the case: `NotificationKey` is what stops a reader naming a
+     * row that does not exist, and a manager's stored preferences can still
+     * carry one the vocabulary has retired.
+     */
     it('reads Never for a key nothing declares', () => {
-      expect(notificationFrequency({}, 'retired_row')).toBe('Never')
+      expect(notificationFrequency({}, 'retired_row' as NotificationKey)).toBe('Never')
     })
   })
 
@@ -123,13 +143,13 @@ describe('notification preferences config', () => {
           defaultFrequency: 'Never',
           description: '',
           frequencyOptions: ['Never', 'Daily'],
-          key: 'optional',
+          key: 'statistics',
           roles: ['program'],
-          title: 'Optional',
+          title: 'Statistics',
         },
       ]
       expect(buildDefaultNotificationPreferences(types)).toEqual({
-        optional: { frequency: 'Never', method: '' },
+        statistics: { frequency: 'Never', method: '' },
       })
     })
   })

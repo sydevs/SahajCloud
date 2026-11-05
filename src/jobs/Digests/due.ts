@@ -13,32 +13,32 @@
  * than mailed daily.
  */
 
-import { type SummaryFrequency } from '@/components/admin/NotificationPreferences/config'
+import { isSummaryFrequency } from '@/components/admin/NotificationPreferences/config'
 
 const DAY_MS = 24 * 60 * 60 * 1000
-
-/**
- * The three paces, taken from the preferences config rather than restated.
- *
- * ⚠ **`isDue` answers `false` for anything it does not name**, which is right
- * for a retired option and wrong for a newly added one: a fourth cadence listed
- * on a row would leave every manager who chose it silently unmailed, with
- * nothing failing. Reading the vocabulary from its owner is what makes a
- * cadence added there a type error here instead.
- */
-const DAILY: SummaryFrequency = 'Daily'
-const WEEKLY: SummaryFrequency = 'Weekly'
-const MONTHLY: SummaryFrequency = 'Monthly'
 
 /** Weekly digests fire on this UTC weekday (Sunday = 0 … Monday = 1). */
 const WEEKLY_ANCHOR_WEEKDAY = 1
 
-/** Whether a pace sends on this run. */
+/**
+ * Whether a pace sends on this run.
+ *
+ * ⚠ **The switch is exhaustive over `SummaryFrequency` and carries no
+ * `default`**, so a fourth cadence added to `SUMMARY_FREQUENCIES` fails
+ * `tsc` here rather than leaving every manager who picks it silently unmailed.
+ * A chain of `if`s typed against the same union does not: it compiles, and
+ * falls through to `false`.
+ */
 export function isDue(frequency: string, now: Date): boolean {
-  if (frequency === DAILY) return true
-  if (frequency === WEEKLY) return now.getUTCDay() === WEEKLY_ANCHOR_WEEKDAY
-  if (frequency === MONTHLY) return now.getUTCDate() === 1
-  return false
+  if (!isSummaryFrequency(frequency)) return false
+  switch (frequency) {
+    case 'Daily':
+      return true
+    case 'Weekly':
+      return now.getUTCDay() === WEEKLY_ANCHOR_WEEKDAY
+    case 'Monthly':
+      return now.getUTCDate() === 1
+  }
 }
 
 /**
@@ -49,9 +49,15 @@ export function isDue(frequency: string, now: Date): boolean {
  * two of these wants the same span either time.
  */
 function periodMs(frequency: string): number {
-  if (frequency === WEEKLY) return 7 * DAY_MS
-  if (frequency === MONTHLY) return 30 * DAY_MS
-  return DAY_MS
+  if (!isSummaryFrequency(frequency)) return DAY_MS
+  switch (frequency) {
+    case 'Daily':
+      return DAY_MS
+    case 'Weekly':
+      return 7 * DAY_MS
+    case 'Monthly':
+      return 30 * DAY_MS
+  }
 }
 
 /**

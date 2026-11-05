@@ -21,8 +21,31 @@ import type { NotificationPreferences } from '@/payload-types'
 export const NEVER_FREQUENCY = 'Never'
 export const DEFAULT_NOTIFICATION_METHOD = 'email'
 
+/**
+ * The preference rows, as a vocabulary every reader is checked against.
+ *
+ * ⚠ **Declared here, not derived from `NOTIFICATION_TYPES`.** This is what
+ * makes a misspelled key a type error rather than a silent `Never`: derived the
+ * other way round, `NotificationType['key']` would be `string` again and
+ * `DIGEST_KEYS`, `PROPOSAL_KEY` and the rest could each name a row that does
+ * not exist. `tests/unit/notification-preferences.spec.ts` pins the two lists
+ * against each other in both directions, which is what keeps the declaration
+ * honest.
+ */
+export const NOTIFICATION_KEYS = [
+  'invitation',
+  'event_verification',
+  'event_registration',
+  'new_proposals',
+  'open_items',
+  'refused_signups',
+  'statistics',
+] as const
+
+export type NotificationKey = (typeof NOTIFICATION_KEYS)[number]
+
 export interface NotificationType {
-  key: string
+  key: NotificationKey
   title: string
   description: string
   frequencyOptions: string[]
@@ -109,7 +132,7 @@ export const NOTIFICATION_TYPES: NotificationType[] = [
 ]
 
 /** One notification type by key, or nothing for a key nothing declares. */
-function notificationType(key: string): NotificationType | undefined {
+function notificationType(key: NotificationKey): NotificationType | undefined {
   return NOTIFICATION_TYPES.find((type) => type.key === key)
 }
 
@@ -119,7 +142,7 @@ function notificationType(key: string): NotificationType | undefined {
  * fields in `Events.ts`) derive their choices instead of re-listing literals
  * that could drift from `NOTIFICATION_TYPES`.
  */
-export function getFrequencyOptions(key: string): string[] {
+export function getFrequencyOptions(key: NotificationKey): string[] {
   return notificationType(key)?.frequencyOptions ?? []
 }
 
@@ -148,7 +171,7 @@ export function notificationTypesFor(
  */
 export function notificationFrequency(
   preferences: NotificationPreferences | null | undefined,
-  key: string,
+  key: NotificationKey,
   types: NotificationType[] = NOTIFICATION_TYPES,
 ): string {
   const stored = preferences?.[key]?.frequency
@@ -165,6 +188,17 @@ export function notificationFrequency(
 export const SUMMARY_FREQUENCIES = ['Daily', 'Weekly', 'Monthly'] as const
 
 export type SummaryFrequency = (typeof SUMMARY_FREQUENCIES)[number]
+
+/**
+ * Whether a stored pace is one a digest run sends on.
+ *
+ * The narrowing is the point: a reader that switches over `SummaryFrequency`
+ * exhaustively owes a branch to anything added here, so a fourth cadence is a
+ * compile error at `isDue` rather than a manager nobody mails.
+ */
+export function isSummaryFrequency(frequency: string): frequency is SummaryFrequency {
+  return (SUMMARY_FREQUENCIES as readonly string[]).includes(frequency)
+}
 
 /**
  * Cadence options for the per-event `registrationNotificationEmail` override.
@@ -217,7 +251,9 @@ export function validateNotificationPreferences(
   if (!value || typeof value !== 'object') return true
 
   const prefs = value as NotificationPreferences
-  const titleByKey = new Map(types.map((type) => [type.key, type.title]))
+  // Keyed by `string`, not `NotificationKey`: this walks the keys a manager has
+  // STORED, which still carry rows the vocabulary has since retired.
+  const titleByKey = new Map<string, string>(types.map((type) => [type.key, type.title]))
   const missing: string[] = []
 
   for (const [key, pref] of Object.entries(prefs)) {

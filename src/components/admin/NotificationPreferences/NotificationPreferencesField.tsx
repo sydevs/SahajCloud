@@ -1,6 +1,6 @@
 'use client'
 
-import type { NotificationType } from './config'
+import type { NotificationKey, NotificationType } from './config'
 import type { FieldClientComponent, FormState, JSONFieldClient } from 'payload'
 
 import {
@@ -104,7 +104,10 @@ export const NotificationPreferencesField: FieldClientComponent = ({ field, read
 
   const prefs = value ?? {}
 
-  const updateRow = (key: string, patch: Partial<{ frequency: string; method: string }>) => {
+  const updateRow = (
+    key: NotificationKey,
+    patch: Partial<{ frequency: string; method: string }>,
+  ) => {
     // The resolved pace, not the stored one: a row showing its default must
     // save that default when the manager changes only the method beside it.
     const current = {

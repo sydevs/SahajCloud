@@ -4,7 +4,10 @@ import * as Sentry from '@sentry/nextjs'
 
 import { submissionRoutingRegionId } from '@/collections/UserSubmissions/lifecycle/mergeProposal'
 import { readSubmissionValue } from '@/collections/UserSubmissions/submissionData'
-import { notificationFrequency } from '@/components/admin/NotificationPreferences/config'
+import {
+  type NotificationKey,
+  notificationFrequency,
+} from '@/components/admin/NotificationPreferences/config'
 import { CONTACT_EMAIL } from '@/lib/contact'
 import { findManagerForRegion } from '@/lib/notifications/recipients'
 import { sendSubmissionReview } from '@/lib/notifications/sendSubmissionReview'
@@ -116,7 +119,7 @@ async function loadTarget(
 }
 
 /** The preference row that decides when a proposal reaches its reviewer. */
-const PROPOSAL_KEY = 'new_proposals'
+const PROPOSAL_KEY: NotificationKey = 'new_proposals'
 
 /**
  * Whether a pace sends at once.

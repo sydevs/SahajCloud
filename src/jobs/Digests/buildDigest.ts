@@ -1,6 +1,9 @@
 import type { PayloadRequest } from 'payload'
 
-import { notificationFrequency } from '@/components/admin/NotificationPreferences/config'
+import {
+  type NotificationKey,
+  notificationFrequency,
+} from '@/components/admin/NotificationPreferences/config'
 import type { DigestEmailProps, DigestTileBlock } from '@/emails/DigestEmail'
 import type { ItemTableRow, StatusPillStyle } from '@/emails/EmailLayout'
 import {
@@ -24,8 +27,13 @@ import { watermarkFor } from './watermarks'
 
 /** How far back an admin's closing line counts sign-ups the form turned away. */
 
-/** The preference keys a digest reads, each its own section or part of one. */
-export const DIGEST_KEYS = {
+/**
+ * The preference keys a digest reads, each its own section or part of one.
+ *
+ * Typed against the vocabulary rather than inferred, so a typo here is a
+ * compile error instead of a section that resolves to `Never` and never sends.
+ */
+export const DIGEST_KEYS: Record<string, NotificationKey> = {
   openItems: 'open_items',
   proposals: 'new_proposals',
   refusals: 'refused_signups',
@@ -141,8 +149,8 @@ export async function buildDigest(args: {
 }): Promise<BuiltDigest> {
   const { manager, req, role, runStart } = args
   const prefs = manager.notificationPreferences
-  const pace = (key: string) => notificationFrequency(prefs, key)
-  const due = (key: string) => isDue(pace(key), runStart)
+  const pace = (key: NotificationKey) => notificationFrequency(prefs, key)
+  const due = (key: NotificationKey) => isDue(pace(key), runStart)
 
   const scope = scopeFor(role, manager.id)
   const advance: string[] = []
@@ -174,7 +182,8 @@ export async function buildDigest(args: {
   }
 
   /** A section's "new since" bound: its watermark, or one period back. */
-  const since = (key: string) => windowStart(watermarkFor(manager, role, key), pace(key), runStart)
+  const since = (key: NotificationKey) =>
+    windowStart(watermarkFor(manager, role, key), pace(key), runStart)
 
   const statistics: DigestTileBlock[] = []
   if (due(DIGEST_KEYS.statistics)) {
