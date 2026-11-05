@@ -2355,33 +2355,29 @@ export interface Client {
    */
   name: string;
   /**
+   * Purpose and usage notes for this client
+   */
+  notes?: string | null;
+  /**
+   * Assign API client roles. Roles apply to all locales.
+   */
+  roles?: ('wemeditate-web-client' | 'wemeditate-app-client' | 'sahaj-atlas-client')[] | null;
+  /**
+   * Users who can manage this client
+   */
+  managers: (number | Manager)[];
+  /**
+   * Primary user contact for this client. Only needed when more than one manager is assigned.
+   */
+  primaryContact?: (number | null) | Manager;
+  /**
    * What domains are associated with this client. Put each domain on a new line.
    */
   allowedDomains?: string | null;
   /**
-   * Hex color code (e.g., #FF5733)
+   * Atlas geographic scope for this service.
    */
-  color1?: string | null;
-  /**
-   * Hex color code (e.g., #FF5733)
-   */
-  color2?: string | null;
-  /**
-   * Hex color code (e.g., #FF5733)
-   */
-  color3?: string | null;
-  /**
-   * Logo shown in registrant emails. Resolved to a PNG at send time — email clients render SVG poorly or not at all.
-   */
-  logo?: (number | null) | Image;
-  /**
-   * Linked from the footer of registrant emails.
-   */
-  websiteUrl?: string | null;
-  /**
-   * Reply-To on registrant emails, so replies reach this service rather than us.
-   */
-  supportEmail?: string | null;
+  region?: (number | null) | Region;
   /**
    * Primary language for this service (any language).
    */
@@ -2572,10 +2568,21 @@ export interface Client {
         | 'zu'
       )
     | null;
+  color1?: string | null;
+  color2?: string | null;
+  color3?: string | null;
   /**
-   * Atlas geographic scope for this service.
+   * Logo shown in registrant emails. Resolved to a PNG at send time — email clients render SVG poorly or not at all.
    */
-  region?: (number | null) | Region;
+  logo?: (number | null) | Image;
+  /**
+   * Linked from the footer of registrant emails.
+   */
+  websiteUrl?: string | null;
+  /**
+   * Reply-To on registrant emails, so replies reach this service rather than us.
+   */
+  supportEmail?: string | null;
   /**
    * Where subscribe submissions relayed by this service are delivered. Off by default, and nothing is pushed anywhere until it is switched on.
    */
@@ -2615,33 +2622,6 @@ export interface Client {
     nextVerifyAt?: string | null;
   };
   embedMetadata?: ClientEmbedMetadata;
-  /**
-   * Purpose and usage notes for this client
-   */
-  notes?: string | null;
-  /**
-   * Assign API client roles. Roles apply to all locales.
-   */
-  roles?: ('wemeditate-web-client' | 'wemeditate-app-client' | 'sahaj-atlas-client')[] | null;
-  /**
-   * Users who can manage this client
-   */
-  managers: (number | Manager)[];
-  /**
-   * Primary user contact for this client. Only needed when more than one manager is assigned.
-   */
-  primaryContact?: (number | null) | Manager;
-  /**
-   * Public identifier for this service. Auto-generated, or the Atlas public key for imported services.
-   */
-  clientId?: string | null;
-  /**
-   * Timestamp of last API key generation
-   */
-  keyGeneratedAt?: string | null;
-  /**
-   * API usage statistics
-   */
   usage?: {
     abuseScore?: ClientAbuseScore;
     /**
@@ -2673,6 +2653,10 @@ export interface Client {
      */
     firstRequestAt?: string | null;
   };
+  /**
+   * Public identifier for this service. Auto-generated, or the Atlas public key for imported services.
+   */
+  clientId?: string | null;
   legacyId?: number | null;
   legacyData?:
     | {
@@ -4867,15 +4851,19 @@ export interface ManagersSelect<T extends boolean = true> {
  */
 export interface ClientsSelect<T extends boolean = true> {
   name?: T;
+  notes?: T;
+  roles?: T;
+  managers?: T;
+  primaryContact?: T;
   allowedDomains?: T;
+  region?: T;
+  language?: T;
   color1?: T;
   color2?: T;
   color3?: T;
   logo?: T;
   websiteUrl?: T;
   supportEmail?: T;
-  language?: T;
-  region?: T;
   mailingList?:
     | T
     | {
@@ -4895,12 +4883,6 @@ export interface ClientsSelect<T extends boolean = true> {
         nextVerifyAt?: T;
       };
   embedMetadata?: T;
-  notes?: T;
-  roles?: T;
-  managers?: T;
-  primaryContact?: T;
-  clientId?: T;
-  keyGeneratedAt?: T;
   usage?:
     | T
     | {
@@ -4913,6 +4895,7 @@ export interface ClientsSelect<T extends boolean = true> {
         lastHighUsageAt?: T;
         firstRequestAt?: T;
       };
+  clientId?: T;
   legacyId?: T;
   legacyData?: T;
   updatedAt?: T;

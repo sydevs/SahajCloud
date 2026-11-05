@@ -106,6 +106,7 @@ import * as migration_20261027_190500_pages_blank_slug_to_null from './20261027_
 import * as migration_20261101_191500_atlas_drop_time_in_place from './20261101_191500_atlas_drop_time_in_place';
 import * as migration_20261101_202242_block_submitter from './20261101_202242_block_submitter';
 import * as migration_20261103_215150_submitter_identity from './20261103_215150_submitter_identity';
+import * as migration_20261105_214631_drop_client_key_generated_at from './20261105_214631_drop_client_key_generated_at';
 
 export const migrations = [
   {
@@ -646,6 +647,11 @@ export const migrations = [
   {
     up: migration_20261103_215150_submitter_identity.up,
     down: migration_20261103_215150_submitter_identity.down,
-    name: '20261103_215150_submitter_identity'
+    name: '20261103_215150_submitter_identity',
+  },
+  {
+    up: migration_20261105_214631_drop_client_key_generated_at.up,
+    down: migration_20261105_214631_drop_client_key_generated_at.down,
+    name: '20261105_214631_drop_client_key_generated_at'
   },
 ];

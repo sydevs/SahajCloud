@@ -19,7 +19,7 @@ import {
 import { getLanguageOptions } from '@/lib/locales'
 import type { MailingListProvider } from '@/lib/mailingList/types'
 import { MAILING_LIST_PROVIDERS } from '@/lib/mailingList/types'
-import { getRoleOptions, managersOnlyFieldAccess } from '@/plugins/access'
+import { adminOnlyCondition, getRoleOptions, managersOnlyFieldAccess } from '@/plugins/access'
 import { abuseScoreSchema, calculateAbuseScore } from '@/plugins/usage'
 
 import { claimCanonical } from './endpoints/claimCanonical'
@@ -150,6 +150,22 @@ const canonicalVerificationSchema: JSONSchema4 = {
 const canonicalEnabled = (data: { canonical?: { enabled?: boolean | null } | null }): boolean =>
   Boolean(data?.canonical?.enabled)
 
+/** The Atlas-only settings, shown to a service holding the Atlas role. */
+const isAtlasClient = (data: { roles?: unknown }): boolean =>
+  Array.isArray(data?.roles) && data.roles.includes('sahaj-atlas-client')
+
+/**
+ * What the atlas paints with while a colour is unset.
+ *
+ * ⚠ Mirrors `DEFAULT_SEEDS` in SahajAtlasWeb's `src/config/theme/palette.ts`,
+ * where `color3` themes the `contrast` role. Change both together.
+ */
+const ATLAS_DEFAULT_COLORS = {
+  primary: '#1E6C71',
+  secondary: '#A1C3D7',
+  contrast: '#E08E79',
+} as const
+
 /** Same master-switch shape as `canonicalEnabled`, for the mailing-list group. */
 const mailingListEnabled = (data: { mailingList?: { enabled?: boolean | null } | null }): boolean =>
   Boolean(data?.mailingList?.enabled)
@@ -182,8 +198,10 @@ const OPT_IN_NOTES: Record<MailingListProvider, string> = {
 /**
  * Where a client's mailing-list provider is configured.
  *
- * **Not conditioned on a role**, unlike the Sahaj Atlas collapsible above it:
- * any service, whatever it does, may run a list.
+ * **Not conditioned on a role**, unlike the Atlas groups beside it: any
+ * service, whatever it does, may run a list — We Meditate Web relays its own
+ * subscribe forms with its own key. That is why the Atlas tab shows for every
+ * service rather than carrying a role condition of its own.
  *
  * ⚠ **Every field carries `managersOnlyFieldAccess`, and that is the security
  * boundary rather than a nicety.** Self-access lets a published key read its own
@@ -196,85 +214,77 @@ const OPT_IN_NOTES: Record<MailingListProvider, string> = {
  * shape as `canonical.embed`.
  */
 const mailingListGroup: Field = {
-  type: 'collapsible',
+  name: 'mailingList',
+  type: 'group',
   label: 'Mailing List',
-  admin: { initCollapsed: true },
+  access: {
+    read: managersOnlyFieldAccess,
+    create: managersOnlyFieldAccess,
+    update: managersOnlyFieldAccess,
+  },
+  admin: {
+    description:
+      'Where subscribe submissions relayed by this service are delivered. Off by default, and nothing is pushed anywhere until it is switched on.',
+  },
   fields: [
     {
-      name: 'mailingList',
-      type: 'group',
-      label: false,
-      access: {
-        read: managersOnlyFieldAccess,
-        create: managersOnlyFieldAccess,
-        update: managersOnlyFieldAccess,
-      },
+      name: 'enabled',
+      type: 'checkbox',
+      defaultValue: false,
+      label: 'This service has a mailing list',
+    },
+    {
+      name: 'provider',
+      type: 'select',
+      required: true,
+      options: MAILING_LIST_PROVIDERS.map((value) => ({
+        label: PROVIDER_LABELS[value],
+        value,
+      })),
+      enumName: 'enum_clients_mailing_list_provider',
       admin: {
-        description:
-          'Where subscribe submissions relayed by this service are delivered. Off by default, and nothing is pushed anywhere until it is switched on.',
+        condition: (data) => mailingListEnabled(data),
+        // The opt-in note for the chosen provider, in place of a checkbox
+        // two of the three cannot honour. See `OPT_IN_NOTES`.
+        custom: { descriptions: OPT_IN_NOTES },
+        components: { Description: '@/components/admin/SelectDescription' },
       },
-      fields: [
-        {
-          name: 'enabled',
-          type: 'checkbox',
-          defaultValue: false,
-          label: 'This service has a mailing list',
-        },
-        {
-          name: 'provider',
-          type: 'select',
-          required: true,
-          options: MAILING_LIST_PROVIDERS.map((value) => ({
-            label: PROVIDER_LABELS[value],
-            value,
-          })),
-          enumName: 'enum_clients_mailing_list_provider',
-          admin: {
-            condition: (data) => mailingListEnabled(data),
-            // The opt-in note for the chosen provider, in place of a checkbox
-            // two of the three cannot honour. See `OPT_IN_NOTES`.
-            custom: { descriptions: OPT_IN_NOTES },
-            components: { Description: '@/components/admin/SelectDescription' },
-          },
-        },
-        {
-          name: 'listId',
-          type: 'text',
-          label: 'List ID',
-          required: true,
-          admin: {
-            condition: (data) => mailingListEnabled(data),
-            // One sentence naming all three, rather than a per-provider hint:
-            // `admin.description`'s function form is handed `{ i18n, t }` and
-            // never the document, so it cannot see which provider is chosen.
-            description: 'Mailchimp’s Audience ID, Brevo’s numeric list id, or Klaviyo’s List ID.',
-          },
-        },
-        {
-          name: 'apiKey',
-          type: 'text',
-          label: 'API Key',
-          required: true,
-          admin: {
-            condition: (data) => mailingListEnabled(data),
-            description:
-              'The provider secret. Checked against the provider when you save, and never readable by an API client.',
-          },
-        },
-        {
-          name: 'doubleOptIn',
-          type: 'checkbox',
-          defaultValue: true,
-          label: 'Send a confirmation email before subscribing',
-          admin: {
-            // Mailchimp only — the one provider with a per-call lever.
-            condition: (data) =>
-              mailingListEnabled(data) && data?.mailingList?.provider === 'mailchimp',
-            description:
-              'Mailchimp adds the address as `pending` and emails it a confirmation link.',
-          },
-        },
-      ],
+    },
+    {
+      name: 'listId',
+      type: 'text',
+      label: 'List ID',
+      required: true,
+      admin: {
+        condition: (data) => mailingListEnabled(data),
+        // One sentence naming all three, rather than a per-provider hint:
+        // `admin.description`'s function form is handed `{ i18n, t }` and
+        // never the document, so it cannot see which provider is chosen.
+        description: 'Mailchimp’s Audience ID, Brevo’s numeric list id, or Klaviyo’s List ID.',
+      },
+    },
+    {
+      name: 'apiKey',
+      type: 'text',
+      label: 'API Key',
+      required: true,
+      admin: {
+        condition: (data) => mailingListEnabled(data),
+        description:
+          'The provider secret. Checked against the provider when you save, and never readable by an API client.',
+      },
+    },
+    {
+      name: 'doubleOptIn',
+      type: 'checkbox',
+      defaultValue: true,
+      label: 'Send a confirmation email before subscribing',
+      admin: {
+        // Mailchimp only — the one provider with a per-call lever.
+        condition: (data) =>
+          mailingListEnabled(data) && data?.mailingList?.provider === 'mailchimp',
+        description: 'Mailchimp adds the address as `pending` and emails it a confirmation link.',
+      },
     },
   ],
 }
@@ -363,7 +373,7 @@ export const Clients: CollectionConfig = {
       type: 'tabs',
       tabs: [
         {
-          label: 'Config',
+          label: 'General',
           fields: [
             {
               name: 'name',
@@ -375,17 +385,71 @@ export const Clients: CollectionConfig = {
               },
             },
             {
-              // The Atlas-only settings. The condition sits here rather than on the
-              // tab because `name` is required and `useAsTitle` — hiding the whole tab
-              // from a non-Atlas service would hide the one field every service must
-              // have, and Payload skips `required` on a field behind a false condition.
-              type: 'collapsible',
-              label: 'Sahaj Atlas',
+              name: 'notes',
+              type: 'textarea',
+              label: 'Notes',
               admin: {
-                initCollapsed: false,
-                condition: (data) =>
-                  Array.isArray(data?.roles) && data.roles.includes('sahaj-atlas-client'),
+                description: 'Purpose and usage notes for this client',
               },
+            },
+            // Roles field (non-localized multi-select)
+            {
+              name: 'roles',
+              type: 'select',
+              hasMany: true,
+              options: getRoleOptions([
+                'wemeditate-web-client',
+                'wemeditate-app-client',
+                'sahaj-atlas-client',
+              ]),
+              admin: {
+                description: 'Assign API client roles. Roles apply to all locales.',
+                components: {
+                  afterInput: ['@/components/admin/PermissionsTable'],
+                },
+              },
+            },
+            {
+              type: 'row',
+              fields: [
+                {
+                  name: 'managers',
+                  type: 'relationship',
+                  relationTo: 'managers',
+                  hasMany: true,
+                  required: true,
+                  admin: {
+                    description: 'Users who can manage this client',
+                  },
+                },
+                {
+                  name: 'primaryContact',
+                  type: 'relationship',
+                  relationTo: 'managers',
+                  hasMany: false,
+                  required: true,
+                  admin: {
+                    description:
+                      'Primary user contact for this client. Only needed when more than one manager is assigned.',
+                    // Hidden (and not required) with a single manager — that
+                    // lone manager is implicitly the primary contact.
+                    condition: (data) => Array.isArray(data?.managers) && data.managers.length > 1,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+        {
+          // Unnamed groups only, so moving a field between them never moves
+          // its column. The Atlas groups carry the role condition one by one,
+          // and the mailing list none (`mailingListGroup`).
+          label: 'Atlas',
+          fields: [
+            {
+              type: 'group',
+              label: 'Website',
+              admin: { condition: isAtlasClient },
               fields: [
                 {
                   name: 'allowedDomains',
@@ -396,13 +460,57 @@ export const Clients: CollectionConfig = {
                   },
                 },
                 {
+                  name: 'region',
+                  type: 'relationship',
+                  relationTo: 'regions',
+                  admin: { description: 'Atlas geographic scope for this service.' },
+                },
+                {
+                  // Not `locale`: this is the service's own preferred language,
+                  // not a localization locale, and the old name read as one —
+                  // `clients` is not a localized collection (#980).
+                  name: 'language',
+                  type: 'select',
+                  options: getLanguageOptions(),
+                  admin: { description: 'Primary language for this service (any language).' },
+                },
+              ],
+            },
+            {
+              type: 'group',
+              label: 'Brand Colors',
+              admin: {
+                condition: isAtlasClient,
+                description: 'How the atlas looks on this service’s site.',
+              },
+              fields: [
+                {
                   type: 'row',
                   fields: [
-                    colorField({ name: 'color1', label: 'Primary Color' }),
-                    colorField({ name: 'color2', label: 'Secondary Color' }),
-                    colorField({ name: 'color3', label: 'Tertiary Color' }),
+                    colorField({
+                      name: 'color1',
+                      label: 'Primary Color',
+                      fallback: ATLAS_DEFAULT_COLORS.primary,
+                    }),
+                    colorField({
+                      name: 'color2',
+                      label: 'Secondary Color',
+                      fallback: ATLAS_DEFAULT_COLORS.secondary,
+                    }),
+                    colorField({
+                      name: 'color3',
+                      label: 'Tertiary Color',
+                      fallback: ATLAS_DEFAULT_COLORS.contrast,
+                    }),
                   ],
                 },
+              ],
+            },
+            {
+              type: 'group',
+              label: 'Registrant Emails',
+              admin: { condition: isAtlasClient },
+              fields: [
                 {
                   name: 'logo',
                   type: 'upload',
@@ -430,21 +538,6 @@ export const Clients: CollectionConfig = {
                     },
                   ],
                 },
-                {
-                  // Not `locale`: this is the service's own preferred language,
-                  // not a localization locale, and the old name read as one —
-                  // `clients` is not a localized collection (#980).
-                  name: 'language',
-                  type: 'select',
-                  options: getLanguageOptions(),
-                  admin: { description: 'Primary language for this service (any language).' },
-                },
-                {
-                  name: 'region',
-                  type: 'relationship',
-                  relationTo: 'regions',
-                  admin: { description: 'Atlas geographic scope for this service.' },
-                },
               ],
             },
             mailingListGroup,
@@ -452,10 +545,7 @@ export const Clients: CollectionConfig = {
         },
         {
           label: 'SEO',
-          admin: {
-            condition: (data) =>
-              Array.isArray(data?.roles) && data.roles.includes('sahaj-atlas-client'),
-          },
+          admin: { condition: isAtlasClient },
           fields: [
             {
               name: 'canonical',
@@ -582,61 +672,97 @@ export const Clients: CollectionConfig = {
           ],
         },
         {
-          label: 'Access',
+          // A named tab stores exactly what the sidebar group it replaced did —
+          // `usage.*`, in the same `usage_*` columns the usage plugin's raw SQL
+          // writes — so moving it out of the sidebar moved no data.
+          name: 'usage',
+          label: 'Usage',
+          description: 'API usage statistics',
+          admin: { condition: adminOnlyCondition },
           fields: [
-            {
-              name: 'notes',
-              type: 'textarea',
-              label: 'Notes',
-              admin: {
-                description: 'Purpose and usage notes for this client',
+            jsonField({
+              // Virtual: written by the hook below, never stored. The schema generates
+              // `ClientAbuseScore`. See `src/collections/AGENTS.md`.
+              name: 'abuseScore',
+              virtual: true,
+              schemaTitle: 'ClientAbuseScore',
+              schema: abuseScoreSchema,
+              hooks: {
+                afterRead: [
+                  ({ siblingData }) => {
+                    if (!siblingData) return null
+                    return calculateAbuseScore(siblingData)
+                  },
+                ],
               },
-            },
-            // Roles field (non-localized multi-select)
-            {
-              name: 'roles',
-              type: 'select',
-              hasMany: true,
-              options: getRoleOptions([
-                'wemeditate-web-client',
-                'wemeditate-app-client',
-                'sahaj-atlas-client',
-              ]),
               admin: {
-                description: 'Assign API client roles. Roles apply to all locales.',
+                readOnly: true,
                 components: {
-                  afterInput: ['@/components/admin/PermissionsTable'],
+                  beforeInput: ['@/components/admin/AbuseScore/AbuseScoreField'],
+                  Cell: '@/components/admin/AbuseScore/AbuseScoreCell',
                 },
+              },
+            }),
+            {
+              name: 'dailyRequests',
+              type: 'number',
+              defaultValue: 0,
+              admin: {
+                readOnly: true,
+                description: "Today's request count",
               },
             },
             {
-              type: 'row',
-              fields: [
-                {
-                  name: 'managers',
-                  type: 'relationship',
-                  relationTo: 'managers',
-                  hasMany: true,
-                  required: true,
-                  admin: {
-                    description: 'Users who can manage this client',
-                  },
-                },
-                {
-                  name: 'primaryContact',
-                  type: 'relationship',
-                  relationTo: 'managers',
-                  hasMany: false,
-                  required: true,
-                  admin: {
-                    description:
-                      'Primary user contact for this client. Only needed when more than one manager is assigned.',
-                    // Hidden (and not required) with a single manager — that
-                    // lone manager is implicitly the primary contact.
-                    condition: (data) => Array.isArray(data?.managers) && data.managers.length > 1,
-                  },
-                },
-              ],
+              name: 'peakDailyRequests',
+              type: 'number',
+              defaultValue: 0,
+              admin: {
+                readOnly: true,
+                description: 'Maximum historical request count',
+              },
+            },
+            {
+              name: 'lastRequestAt',
+              type: 'date',
+              admin: {
+                readOnly: true,
+                description: 'Last API call timestamp',
+              },
+            },
+            // Abuse detection fields
+            {
+              name: 'totalRequests',
+              type: 'number',
+              defaultValue: 0,
+              admin: {
+                readOnly: true,
+                description: 'Lifetime total requests (never resets)',
+              },
+            },
+            {
+              name: 'highUsageDays',
+              type: 'number',
+              defaultValue: 0,
+              admin: {
+                readOnly: true,
+                description: 'Count of days exceeding threshold',
+              },
+            },
+            {
+              name: 'lastHighUsageAt',
+              type: 'date',
+              admin: {
+                readOnly: true,
+                description: 'Last date threshold was exceeded',
+              },
+            },
+            {
+              name: 'firstRequestAt',
+              type: 'date',
+              admin: {
+                readOnly: true,
+                description: 'First API request (tracking start)',
+              },
             },
           ],
         },
@@ -651,109 +777,6 @@ export const Clients: CollectionConfig = {
         description:
           'Public identifier for this service. Auto-generated, or the Atlas public key for imported services.',
       },
-    },
-    {
-      name: 'keyGeneratedAt',
-      type: 'date',
-      admin: {
-        readOnly: true,
-        description: 'Timestamp of last API key generation',
-        position: 'sidebar',
-      },
-    },
-    {
-      name: 'usage',
-      type: 'group',
-      admin: {
-        description: 'API usage statistics',
-        position: 'sidebar',
-      },
-      fields: [
-        jsonField({
-          // Virtual: written by the hook below, never stored. The schema generates
-          // `ClientAbuseScore`. See `src/collections/AGENTS.md`.
-          name: 'abuseScore',
-          virtual: true,
-          schemaTitle: 'ClientAbuseScore',
-          schema: abuseScoreSchema,
-          hooks: {
-            afterRead: [
-              ({ siblingData }) => {
-                if (!siblingData) return null
-                return calculateAbuseScore(siblingData)
-              },
-            ],
-          },
-          admin: {
-            readOnly: true,
-            components: {
-              beforeInput: ['@/components/admin/AbuseScore/AbuseScoreField'],
-              Cell: '@/components/admin/AbuseScore/AbuseScoreCell',
-            },
-          },
-        }),
-        {
-          name: 'dailyRequests',
-          type: 'number',
-          defaultValue: 0,
-          admin: {
-            readOnly: true,
-            description: "Today's request count",
-          },
-        },
-        {
-          name: 'peakDailyRequests',
-          type: 'number',
-          defaultValue: 0,
-          admin: {
-            readOnly: true,
-            description: 'Maximum historical request count',
-          },
-        },
-        {
-          name: 'lastRequestAt',
-          type: 'date',
-          admin: {
-            readOnly: true,
-            description: 'Last API call timestamp',
-          },
-        },
-        // Abuse detection fields
-        {
-          name: 'totalRequests',
-          type: 'number',
-          defaultValue: 0,
-          admin: {
-            readOnly: true,
-            description: 'Lifetime total requests (never resets)',
-          },
-        },
-        {
-          name: 'highUsageDays',
-          type: 'number',
-          defaultValue: 0,
-          admin: {
-            readOnly: true,
-            description: 'Count of days exceeding threshold',
-          },
-        },
-        {
-          name: 'lastHighUsageAt',
-          type: 'date',
-          admin: {
-            readOnly: true,
-            description: 'Last date threshold was exceeded',
-          },
-        },
-        {
-          name: 'firstRequestAt',
-          type: 'date',
-          admin: {
-            readOnly: true,
-            description: 'First API request (tracking start)',
-          },
-        },
-      ],
     },
     ...legacyMigrationFields(),
   ],

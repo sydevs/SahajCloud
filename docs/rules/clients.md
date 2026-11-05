@@ -14,7 +14,7 @@ What a `clients` document holds beyond its key: canonical ownership and the embe
 
 ## Canonical ownership + observed embeds (#633)
 
-Two Atlas white-label fields, split across the **Config** and **SEO** tabs. `canonical.enabled` defaults false, so a client owns nothing until opted in — but once opted in **and verified**, these fields build `webUrl` for the client's region (#634, below).
+Two Atlas white-label fields, split across the **Atlas** and **SEO** tabs. `canonical.enabled` defaults false, so a client owns nothing until opted in — but once opted in **and verified**, these fields build `webUrl` for the client's region (#634, below).
 
 ### `canonical` — who owns a region's canonical URLs
 
@@ -136,7 +136,7 @@ query:  https://{domain}{mount}{?|&}atlas={webPath}
 
 ## Mailing-list configuration on `clients`
 
-A service that relays subscribe submissions names its own provider, under **Config → Mailing List**. Any service may run a list, whatever its roles.
+A service that relays subscribe submissions names its own provider, under **Atlas → Mailing List**. Any service may run a list, whatever its roles — which is why the Atlas tab shows for every service, and only its Atlas groups carry the role condition.
 
 ⚠ **No API client can read any of it, at any depth.** Two things hold that up, and both are needed. The group carries `managersOnlyFieldAccess` (`@/plugins/access`), which closes the read `RESTRICTED_COLLECTIONS` never reaches — self-access hands a published key its own row whole over `GET /api/clients/me`. And `stripLockedFieldsOnSelfRead`, the `afterRead` hook `accessPlugin` gives every auth collection, closes `POST /api/clients/refresh-token`, which re-reads the row at `overrideAccess: true` and so skips field access entirely (#822). The group still appears in `payload-types.ts`; both strip it at runtime, not from the generated type.
 
