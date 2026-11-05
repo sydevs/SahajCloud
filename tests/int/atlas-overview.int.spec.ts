@@ -234,6 +234,42 @@ describe('Atlas overview', () => {
     })
   })
 
+  /**
+   * ⚠ **A join carries at most its own `limit`** (Payload's default is 10), so
+   * a home that read "which events" off `req.user.managedEvents` would show a
+   * busy manager ten of them and call it their whole list. Every owned set
+   * here comes from a query.
+   */
+  describe('a manager with more events than a join carries', () => {
+    it('sees all of them', async () => {
+      const busy = await testData.createManager(payload, {
+        currentProject: 'sahaj-atlas',
+        roles: [],
+        type: 'manager',
+      })
+      const city = await payload.create({
+        collection: 'regions',
+        data: createData<'regions'>({
+          level: 'city',
+          mapboxId: 'city.overview-busy',
+          name: 'Busy City',
+          parent: countryId,
+        }),
+      })
+      for (let index = 0; index < 13; index += 1) {
+        await testData.createEvent(payload, {
+          manager: busy.id,
+          region: city.id,
+          title: `Busy program ${index}`,
+        })
+      }
+      const user = await testData.authUser(payload, busy)
+      const data = await getAtlasManagerData(await reqAs(user), query_({ limit: 100 }))
+      expect(data.items.counts.all).toBe(13)
+      expect(data.items.rows.docs).toHaveLength(13)
+    })
+  })
+
   describe('a region manager', () => {
     const load = async (query: Partial<DashboardQuery> = {}) =>
       getAtlasRegionData(await reqAs(regionManager), query_(query))

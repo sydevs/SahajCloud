@@ -442,6 +442,37 @@ describe('SendDigests job', () => {
   })
 
   describe('exactly once', () => {
+    /**
+     * ⚠ **A manager who could rewind their own marks would re-send themselves
+     * every open item the window covers.** Payload strips a field its
+     * `access.update` refuses rather than erroring, so the PATCH succeeds with
+     * the column unchanged — which is the behaviour to assert, not a 403.
+     */
+    it('refuses a manager writing their own watermarks', async () => {
+      const managerId = await createManager('rewind@example.com', {
+        open_items: { frequency: 'Never', method: '' },
+      })
+      await payload.db.updateOne({
+        collection: 'managers',
+        data: { digestWatermarks: { program: { open_items: '2026-11-01T00:00:00.000Z' } } },
+        id: managerId,
+        req: undefined,
+      })
+      const self = await testData.authUser(payload, { id: managerId })
+
+      await payload.update({
+        collection: 'managers',
+        data: { digestWatermarks: { program: { open_items: '2020-01-01T00:00:00.000Z' } } },
+        id: managerId,
+        overrideAccess: false,
+        user: { ...self, collection: 'managers' },
+      })
+
+      expect((await watermarksOf(managerId)).program?.open_items).toBe(
+        '2026-11-01T00:00:00.000Z',
+      )
+    })
+
     it('declares the single-run concurrency lock', () => {
       const concurrency = SendDigests.concurrency as
         | undefined
