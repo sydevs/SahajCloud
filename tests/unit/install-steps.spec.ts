@@ -188,7 +188,8 @@ describe('what each track prefills', () => {
   })
 
   it('names the plan WordPress.com needs, as a condition rather than a step', () => {
-    expect(tracks['wp-com'].requires?.text).toContain('Business')
+    expect(tracks['wp-com'].requires?.title).toBe('Requires WordPress Business plan')
+    expect(tracks['wp-com'].requires?.offerIframe).toBe(true)
     expect(tracks['wp-com'].steps.map((step) => step.id)).not.toContain('plan')
   })
 
@@ -239,6 +240,12 @@ describe('what each track prefills', () => {
     const more = JSON.stringify(tracks.custom.more?.steps)
     expect(more).toContain('/free-classes/ca/ontario')
     expect(more).toContain('routing=path')
+  })
+
+  it('puts the height choice just above the custom snippet it changes', () => {
+    const [first] = tracks.custom.steps[0].actions
+    expect(typeof first === 'object' && first.choice).toBe('embed-height')
+    expect(typeof first === 'object' && first.snippet?.label).toBe('Embed snippet')
   })
 
   it('gives a custom site both endpoints, prefilled with its own key', () => {

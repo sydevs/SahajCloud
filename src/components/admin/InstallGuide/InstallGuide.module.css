@@ -167,6 +167,11 @@
   margin: 0;
 }
 
+/* Monaco lays out against this container, which otherwise keeps its content height. */
+.copyBlock :global(.code-editor) {
+  height: 100%;
+}
+
 .copyValue {
   margin: 0;
   overflow-x: auto;
@@ -213,6 +218,16 @@
   font-weight: 600;
   text-decoration: underline;
   color: inherit;
+}
+
+.inlineChoice {
+  display: grid;
+  gap: calc(var(--base) * 0.25);
+  margin: calc(var(--base) * 0.5) 0;
+}
+
+.inlineChoice :global(.field-description) {
+  margin: 0;
 }
 
 /* A value to copy, or a file to download, right under the instruction that uses it. */

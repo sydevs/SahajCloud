@@ -298,8 +298,10 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
 
   const stepCard = (step: Step, number: number, quiet: boolean) => (
     <StepCard
+      embedHeight={embedHeight}
       key={step.id}
       number={number}
+      onEmbedHeight={setEmbedHeight}
       quiet={quiet}
       status={model.stepStatus[step.id]}
       step={step}
@@ -435,27 +437,18 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
           <section className={styles.section}>
             <h3 className={styles.heading}>3. Get the atlas on your site</h3>
             {activeTrack.requires ? (
-              <TitledBanner title={activeTrack.requires.title}>
+              <TitledBanner
+                action={
+                  activeTrack.requires.offerIframe ? (
+                    <InlineAction onClick={() => choosePlatform('iframe')}>
+                      No Business plan? Switch to Iframe only
+                    </InlineAction>
+                  ) : undefined
+                }
+                title={activeTrack.requires.title}
+              >
                 {activeTrack.requires.text}
               </TitledBanner>
-            ) : null}
-            {activeTrack.embedHeight ? (
-              <div className={styles.choice}>
-                <span className="field-label">Map height</span>
-                <ToggleGroup
-                  aria-label="Map height"
-                  onChange={(next) => setEmbedHeight(next as EmbedHeight)}
-                  options={(Object.keys(EMBED_HEIGHT_LABELS) as EmbedHeight[]).map((id) => ({
-                    label: EMBED_HEIGHT_LABELS[id].label,
-                    value: id,
-                  }))}
-                  value={embedHeight}
-                />
-                <FieldDescription
-                  description={EMBED_HEIGHT_LABELS[embedHeight].description}
-                  path="embedHeight"
-                />
-              </div>
             ) : null}
             <ol className={styles.steps}>
               {activeTrack.steps.map((step, index) => stepCard(step, index + 1, false))}
@@ -568,17 +561,25 @@ function StepCard({
   step,
   status,
   quiet,
+  embedHeight,
+  onEmbedHeight,
 }: {
   number: number
   step: Step
   status?: StepStatus
   /** A step nothing checks, in a section where saying so on each one is noise. */
   quiet: boolean
+  embedHeight: EmbedHeight
+  onEmbedHeight: (next: EmbedHeight) => void
 }): React.ReactElement {
   const failed = status?.state === 'fail'
+  const finished = status?.state === 'pass' || status?.state === 'done'
   return (
     <li data-step={step.id}>
       <Collapsible
+        // `initCollapsed` is read once, at mount. Keyed on the result, a step
+        // folds away when a check confirms it and opens again when one fails.
+        key={status?.state ?? 'none'}
         actions={quiet ? null : <StepState status={status} unobservable={step.unobservable} />}
         collapsibleStyle={failed ? 'error' : 'default'}
         header={
@@ -586,11 +587,16 @@ function StepCard({
             {number}. {step.title}
           </span>
         }
-        initCollapsed={status?.state === 'pass'}
+        initCollapsed={finished}
       >
         <ol className={styles.actions}>
           {step.actions.map((action) => (
-            <ActionItem action={action} key={typeof action === 'string' ? action : action.text} />
+            <ActionItem
+              action={action}
+              embedHeight={embedHeight}
+              key={typeof action === 'string' ? action : action.text}
+              onEmbedHeight={onEmbedHeight}
+            />
           ))}
         </ol>
 
@@ -611,12 +617,37 @@ function StepCard({
  * to download. A short value sits on one line with its Copy button; code keeps
  * the read-only editor.
  */
-function ActionItem({ action }: { action: Action }) {
+function ActionItem({
+  action,
+  embedHeight,
+  onEmbedHeight,
+}: {
+  action: Action
+  embedHeight: EmbedHeight
+  onEmbedHeight: (next: EmbedHeight) => void
+}) {
   if (typeof action === 'string') return <li>{action}</li>
-  const { text, snippet, download } = action
+  const { text, snippet, download, choice } = action
   return (
     <li>
       {text}
+      {choice === 'embed-height' ? (
+        <div className={styles.inlineChoice}>
+          <ToggleGroup
+            aria-label="Map height"
+            onChange={(next) => onEmbedHeight(next as EmbedHeight)}
+            options={(Object.keys(EMBED_HEIGHT_LABELS) as EmbedHeight[]).map((id) => ({
+              label: EMBED_HEIGHT_LABELS[id].label,
+              value: id,
+            }))}
+            value={embedHeight}
+          />
+          <FieldDescription
+            description={EMBED_HEIGHT_LABELS[embedHeight].description}
+            path="embedHeight"
+          />
+        </div>
+      ) : null}
       {download ? (
         <div className={styles.inlineValue}>
           <Button buttonStyle="primary" el="anchor" margin={false} size="small" url={download.url}>
@@ -640,6 +671,14 @@ function ActionItem({ action }: { action: Action }) {
 
 /** The step's check result, quiet unless there is one. */
 function StepState({ status, unobservable }: { status?: StepStatus; unobservable?: boolean }) {
+  if (status?.state === 'done') {
+    return (
+      <span className={styles.statePass} title="A later step is confirmed, so this one was done.">
+        <StatusIcon passed title="Done" />
+        Done
+      </span>
+    )
+  }
   if (status && status.state !== 'unknown') {
     const passed = status.state === 'pass'
     return (

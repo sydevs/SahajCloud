@@ -93,6 +93,8 @@ export type Action =
       text: string
       snippet?: Snippet
       download?: { label: string; url: string }
+      /** A choice the volunteer makes here, which changes the snippet below it. */
+      choice?: 'embed-height'
     }
 
 export interface Step {
@@ -155,9 +157,7 @@ export interface Track {
    * plan, so there is nothing to tick off — and most sites already have it, so
    * it is not worded as a warning.
    */
-  requires?: Notice
-  /** Offers the map-height choice, for a track whose snippet the volunteer pastes as written. */
-  embedHeight?: boolean
+  requires?: Notice & { offerIframe?: boolean }
   /** Step 3: the atlas working on the site. */
   steps: Step[]
   /** Step 4, where the track has one. */
@@ -496,8 +496,9 @@ export function tracksFor(values: InstallValues): Record<TrackId, Track> {
       recognise:
         'Your site is hosted at wordpress.com, and you did not install WordPress yourself.',
       requires: {
-        title: 'Uses the Business plan',
+        title: 'Requires WordPress Business plan',
         text: 'WordPress.com allows plugins on the Business plan and higher.',
+        offerIframe: true,
       },
       checks: WORDPRESS_CHECKS,
       steps: wordpressSteps(values, { dotCom: true }),
@@ -534,7 +535,6 @@ export function tracksFor(values: InstallValues): Record<TrackId, Track> {
       platform: 'custom',
       label: TRACK_LABELS['custom'],
       recognise: PLATFORM_RECOGNISE.custom,
-      embedHeight: true,
       checks: {
         noReport: 'snippet',
         head: 'render-seo',
@@ -547,7 +547,8 @@ export function tracksFor(values: InstallValues): Record<TrackId, Track> {
           title: 'Add the widget to the page',
           actions: [
             {
-              text: `Paste this into the page at ${values.atlasUrl}, where the map should appear:`,
+              text: `Choose how tall the map should be, then paste this into the page at ${values.atlasUrl}, where the map should appear:`,
+              choice: 'embed-height',
               snippet: { label: 'Embed snippet', value: snippetPlain, kind: 'html' },
             },
             values.embedHeight === 'window'

@@ -27,6 +27,11 @@ const FILE_MAX_HEIGHT = 384
  * `minHeight` and `recalculatedHeightAt` props are the seam for a height it
  * cannot count: Monaco reports the wrapped height, and every change of it — a
  * narrower window re-wraps — is fed back. Only a whole file is capped.
+ *
+ * ⚠ **That height reaches only CodeEditor's outer wrapper.** Payload's
+ * `.code-editor` container inside it keeps its content height, and Monaco lays
+ * out against the container, so the stylesheet makes it fill the wrapper —
+ * without that rule the box grows and the editor in it does not.
  */
 export function CopyBlock({ snippet }: { snippet: Snippet }): React.ReactElement {
   const [fit, setFit] = useState<{ height: number; at: number } | null>(null)
@@ -44,7 +49,8 @@ export function CopyBlock({ snippet }: { snippet: Snippet }): React.ReactElement
           maxHeight={snippet.kind === 'javascript' ? FILE_MAX_HEIGHT : undefined}
           minHeight={fit?.height}
           onMount={(editor) => {
-            const measure = () => setFit({ height: editor.getContentHeight(), at: Date.now() })
+            // +2 for the container's border, as CodeEditor's own line count adds.
+            const measure = () => setFit({ height: editor.getContentHeight() + 2, at: Date.now() })
             editor.onDidContentSizeChange(measure)
             measure()
           }}

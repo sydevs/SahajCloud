@@ -428,3 +428,42 @@ describe('checkOutcome', () => {
     )
   })
 })
+
+describe('buildInstallModel — steps a later confirmation implies', () => {
+  const embedMetadata = mount('https://sahajayoga.ca/free-classes', '2026-10-01T00:00:00.000Z')
+  const status = (verification: CanonicalVerification | null, reported = true) =>
+    buildInstallModel({
+      atlasUrl: '/free-classes',
+      track: TRACK,
+      embedMetadata: reported ? embedMetadata : null,
+      verification,
+    }).stepStatus
+
+  it('marks the unchecked page step done once the map on it is detected', () => {
+    // add-page has no check of its own; add-element, after it, passes on detection.
+    expect(status(null)['add-page']?.state).toBe('done')
+    expect(status(null, false)['add-page']).toBeUndefined()
+  })
+
+  it('infers within step 4 only as far as its last confirmed step', () => {
+    const steps = status(verified({ seo: seo([{ route: '/', check: 'title', status: 'pass' }]) }))
+    expect(steps['paste-routers']?.state).toBe('pass')
+    expect(steps['add-router']?.state).toBe('done')
+    // Nothing after the router code has passed, so the steps after it are not implied.
+    expect(steps['move-map']).toBeUndefined()
+  })
+
+  it('never paints over a failure', () => {
+    const steps = status(
+      verified({
+        seo: seo([
+          { route: '/', check: 'title', status: 'fail' },
+          { route: '/', check: 'body', status: 'pass' },
+        ]),
+      }),
+    )
+    expect(steps['paste-routers']?.state).toBe('fail')
+    expect(steps['move-map']?.state).toBe('done')
+    expect(steps['add-router']?.state).toBe('done')
+  })
+})

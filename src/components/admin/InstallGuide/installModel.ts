@@ -1,4 +1,4 @@
-import type { StepId, Track, TrackId } from './steps'
+import type { Step, StepId, Track, TrackId } from './steps'
 
 import type { EmbedMetadata } from '@/lib/clients/embedMetadata'
 import type { CanonicalVerification, SeoCheckResult } from '@/lib/clients/verification'
@@ -73,9 +73,15 @@ function normalizeMountPath(mount: string): string {
 /** How far along the install is. One answer, for the banner at the top. */
 export type InstallStage = 'waiting' | 'seen' | 'verifying' | 'verified' | 'warnings' | 'failed'
 
-/** What one step's light says, and why. */
+/**
+ * What one step's light says, and why.
+ *
+ * `done` is inferred, never checked: a step nothing can observe, sitting before
+ * one in the same section that passed. Every step is done in order, so a later
+ * step confirmed is evidence the earlier ones were too.
+ */
 export interface StepStatus {
-  state: 'pass' | 'fail' | 'unknown'
+  state: 'pass' | 'fail' | 'unknown' | 'done'
   /** Shown beside the step. Empty for `unknown`. */
   messages: string[]
 }
@@ -149,6 +155,11 @@ export function buildInstallModel(args: {
     )
   }
 
+  if (track) {
+    inferEarlierSteps(stepStatus, track.steps)
+    if (track.more && !track.more.optional) inferEarlierSteps(stepStatus, track.more.steps)
+  }
+
   const stage: InstallStage = busy
     ? 'verifying'
     : candidate === null
@@ -162,6 +173,25 @@ export function buildInstallModel(args: {
           : 'verified'
 
   return { stage, candidate, reported, stepStatus, failures }
+}
+
+/**
+ * Mark each step with no result of its own as done when a later step in the
+ * same section passed.
+ *
+ * ⚠ **A failure is never inferred over.** A step that failed keeps its red light
+ * whatever passed after it, and a step after the last pass stays unmarked — it
+ * may not have been reached yet.
+ */
+function inferEarlierSteps(stepStatus: Partial<Record<StepId, StepStatus>>, steps: Step[]): void {
+  let laterPassed = false
+  for (const step of [...steps].reverse()) {
+    const state = stepStatus[step.id]?.state
+    if (state === 'pass') laterPassed = true
+    else if (laterPassed && (state === undefined || state === 'unknown')) {
+      stepStatus[step.id] = { state: 'done', messages: [] }
+    }
+  }
 }
 
 /** A banner the tab shows: its colour, its title, and one or two sentences. */
