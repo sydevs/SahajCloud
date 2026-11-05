@@ -2,9 +2,9 @@
  * Parse the Atlas event `recurrence_data` Ruby-YAML blob into the structured
  * `schedule` shape that events.json carries (and `scheduleMapper` consumes).
  *
- * Extracted from extract.ts so it is unit-testable: extract.ts runs `main()` at
- * module load, so a test cannot import from it. Pure + side-effect free, like the
- * rest of seeds/atlas/helpers.
+ * Kept out of extract.ts so it is unit-testable without a database: extract.ts
+ * opens a Postgres connection. Pure + side-effect free, like the rest of
+ * seeds/atlas/helpers.
  */
 
 /** The parsed schedule shape written to events.json. */
