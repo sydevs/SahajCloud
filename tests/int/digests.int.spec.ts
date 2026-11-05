@@ -52,7 +52,11 @@ describe('SendDigests job', () => {
   let startSlot = 0
 
   const systemReq = () =>
-    ({ context: { skipWriteGuard: true }, headers: new Headers(), payload }) as unknown as PayloadRequest
+    ({
+      context: { skipWriteGuard: true },
+      headers: new Headers(),
+      payload,
+    }) as unknown as PayloadRequest
 
   beforeAll(async () => {
     const env = await createTestEnvironmentWithEmail()
@@ -358,7 +362,7 @@ describe('SendDigests job', () => {
       expect(emailsTo('override@example.com')).toHaveLength(0)
     })
 
-    it("includes a registrant who opted out of their own reminders", async () => {
+    it('includes a registrant who opted out of their own reminders', async () => {
       // `unsubscribedAt` covers registrant reminders only; the manager's digest
       // is their own preference's business.
       const managerId = await createManager('unsub@example.com', {

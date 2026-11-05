@@ -178,7 +178,8 @@ export const REGISTRATION_OVERRIDE_FREQUENCY_OPTIONS = getFrequencyOptions(
  * Fallback cadence when an override address is set but no frequency is chosen.
  * `Immediate`, the only non-summary pace an override may carry.
  */
-export const DEFAULT_REGISTRATION_FREQUENCY = REGISTRATION_OVERRIDE_FREQUENCY_OPTIONS[0] ?? 'Immediate'
+export const DEFAULT_REGISTRATION_FREQUENCY =
+  REGISTRATION_OVERRIDE_FREQUENCY_OPTIONS[0] ?? 'Immediate'
 
 /**
  * Seed value for a fresh manager: every row at its own default, with the

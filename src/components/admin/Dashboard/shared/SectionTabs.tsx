@@ -1,10 +1,11 @@
 'use client'
 
+import type { DashboardSection } from './model'
+
 import { CheckIcon, Pill } from '@payloadcms/ui'
 import Link from 'next/link'
 
 import styles from './Dashboard.module.css'
-import type { DashboardSection } from './model'
 
 export interface SectionTab {
   /** `null` hides the count entirely — a section that is not a to-do list. */

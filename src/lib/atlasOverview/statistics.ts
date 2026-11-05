@@ -192,7 +192,12 @@ export async function loadStatistics(args: OverviewArgs): Promise<OverviewStatis
           const before = snapshotTotals
             ? stages.reduce((sum, stage) => sum + (snapshotTotals[stage] ?? 0), 0)
             : null
-          return { key: label.toLowerCase(), label, value, change: before === null ? null : value - before }
+          return {
+            key: label.toLowerCase(),
+            label,
+            value,
+            change: before === null ? null : value - before,
+          }
         })
 
   const withSignups = signups.byEvent.size

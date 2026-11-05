@@ -1,7 +1,7 @@
 import type { PayloadRequest } from 'payload'
 
-import { relationId } from '@/lib/utilities/relationId'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
+import { relationId } from '@/lib/utilities/relationId'
 import { resolveOwnedRegionIds } from '@/plugins/access/regionSubtreeAccess'
 
 /**

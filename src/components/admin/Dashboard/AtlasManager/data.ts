@@ -1,9 +1,9 @@
+import type { DashboardQuery, OpenItemsData } from '../shared/model'
 import type { PayloadRequest } from 'payload'
 
 import { loadOpenItems, loadStatistics, type OverviewStatistics } from '@/lib/atlasOverview'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 
-import type { DashboardQuery, OpenItemsData } from '../shared/model'
 import { openItemsData } from '../shared/rows'
 
 export interface AtlasManagerData {

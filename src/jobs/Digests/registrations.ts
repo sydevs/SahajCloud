@@ -1,6 +1,9 @@
 import type { PayloadRequest } from 'payload'
 
-import { readSubmissionValue, registrationAnswers } from '@/collections/UserSubmissions/submissionData'
+import {
+  readSubmissionValue,
+  registrationAnswers,
+} from '@/collections/UserSubmissions/submissionData'
 import type { DigestRegistrationGroup } from '@/emails/DigestEmail'
 import { formatShortDate } from '@/lib/notifications'
 import { activeRegistrationWhere } from '@/lib/registrations/active'
@@ -90,7 +93,8 @@ export async function registrationGroups(args: {
       const zone = row.startingAt_tz || event.schedule?.firstDate_tz || 'UTC'
       const list = rowsByEvent.get(eventId) ?? []
       list.push({
-        answers: answers.map((answer) => `${answer.label}: ${answer.value}`).join(' · ') || undefined,
+        answers:
+          answers.map((answer) => `${answer.label}: ${answer.value}`).join(' · ') || undefined,
         attending: row.startingAt ? formatShortDate(row.startingAt, zone) || null : null,
         email: row.senderEmail?.trim() ?? '',
         name: readSubmissionValue(row.submissionData, 'name')?.trim() || 'A registrant',

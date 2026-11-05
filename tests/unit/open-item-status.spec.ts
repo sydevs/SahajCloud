@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { OPEN_ITEM_STATUSES } from '@/lib/atlasOverview/filters'
 import type { OpenItemEvent, OpenItemRow } from '@/lib/atlasOverview/status'
 import {
   openItem,
@@ -8,7 +9,6 @@ import {
   overviewProgress,
   sortOpenItems,
 } from '@/lib/atlasOverview/status'
-import { OPEN_ITEM_STATUSES } from '@/lib/atlasOverview/filters'
 
 const NOW = new Date('2026-11-05T12:00:00.000Z')
 

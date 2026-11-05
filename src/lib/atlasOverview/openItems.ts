@@ -7,18 +7,19 @@
  * `Table`, the email as an `ItemTable`.
  */
 
+import type { OpenItemFilter } from './filters'
 import type { PayloadRequest, Where } from 'payload'
 import type { FlattenedField } from 'payload'
 
-import { CONTACT_EMAIL } from '@/lib/contact'
-import { OPEN_REVIEW_STATUSES } from '@/collections/UserSubmissions/statuses'
-import { labelForPath } from '@/collections/UserSubmissions/lifecycle/proposedChanges'
 import { submissionRoutingRegionId } from '@/collections/UserSubmissions/lifecycle/mergeProposal'
-import { readSubmissionValue } from '@/collections/UserSubmissions/submissionData'
+import { labelForPath } from '@/collections/UserSubmissions/lifecycle/proposedChanges'
+import { OPEN_REVIEW_STATUSES } from '@/collections/UserSubmissions/statuses'
 import { VERDICT_LABELS } from '@/collections/UserSubmissions/statuses'
-import { EVENT_QUALITY_COPY } from '@/lib/eventQuality/copy'
-import { buildEventQualityReport, loadTitleTemplates } from '@/lib/eventQuality'
+import { readSubmissionValue } from '@/collections/UserSubmissions/submissionData'
 import { asLog } from '@/fields'
+import { CONTACT_EMAIL } from '@/lib/contact'
+import { buildEventQualityReport, loadTitleTemplates } from '@/lib/eventQuality'
+import { EVENT_QUALITY_COPY } from '@/lib/eventQuality/copy'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Event, UserSubmission } from '@/payload-types'
@@ -30,7 +31,6 @@ import {
   regionsWithNoManagerAbove,
   scopeRegionIds,
 } from './scope'
-import type { OpenItemFilter } from './filters'
 import {
   openItem,
   type OpenItem,
@@ -201,7 +201,8 @@ async function loadRefusals(req: PayloadRequest): Promise<OpenItemRow[]> {
       kind: 'refusal' as const,
       id: doc.id,
       title: name?.trim() || 'A refused sign-up',
-      reason: verdict && verdict in VERDICT_LABELS ? VERDICT_LABELS[verdict] : 'refused by screening',
+      reason:
+        verdict && verdict in VERDICT_LABELS ? VERDICT_LABELS[verdict] : 'refused by screening',
       receivedAt: doc.createdAt,
     }
   })
@@ -372,7 +373,8 @@ export async function loadOpenItems(args: OverviewArgs): Promise<OpenItemsResult
     const regionId = relationId(doc.region)
     rows.push(
       eventRow(doc, {
-        noRegionManager: scope.role === 'admin' && regionId !== null && unmanagedRegions.has(regionId),
+        noRegionManager:
+          scope.role === 'admin' && regionId !== null && unmanagedRegions.has(regionId),
         ownEvent: scope.role === 'region' && ownEventIds.has(doc.id),
         proposal: changeByEvent.get(doc.id) ?? null,
         region: regionId === null ? null : (nodes.get(regionId) ?? null),

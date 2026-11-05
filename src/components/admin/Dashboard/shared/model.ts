@@ -66,7 +66,9 @@ export interface DashboardQuery {
 export function parseDashboardQuery(
   searchParams: Record<string, string | string[] | undefined> | undefined,
 ): DashboardQuery {
-  const filter = OPEN_ITEM_TABS.find((candidate) => candidate === firstParam(searchParams, 'filter'))
+  const filter = OPEN_ITEM_TABS.find(
+    (candidate) => candidate === firstParam(searchParams, 'filter'),
+  )
   const section = DASHBOARD_SECTIONS.find(
     (candidate) => candidate === firstParam(searchParams, 'section'),
   )

@@ -15,10 +15,10 @@
  * queue for.
  */
 
+import type { OpenItemFilter, OpenItemPill, OpenItemStatusKey } from './filters'
+
 import { unpublishDate, type VerificationStage } from '@/lib/eventVerification/stages'
 import { formatShortDate } from '@/lib/notifications/eventDetails'
-
-import type { OpenItemFilter, OpenItemPill, OpenItemStatusKey } from './filters'
 
 /** Where a next step leads. The URL is the reader's to spell — see the loaders. */
 export interface OpenItemTarget {
@@ -193,7 +193,10 @@ function eventStatuses(event: OpenItemEvent, now: Date): OpenItemStatus[] {
       rank: 1,
       filter: 'review',
       counts: true,
-      action: { label: 'Review', target: { collection: 'user-submissions', id: event.proposal.id } },
+      action: {
+        label: 'Review',
+        target: { collection: 'user-submissions', id: event.proposal.id },
+      },
       deadline: event.proposal.receivedAt,
     })
   }
@@ -209,9 +212,10 @@ function eventStatuses(event: OpenItemEvent, now: Date): OpenItemStatus[] {
       rank: 3,
       filter: 'no-manager',
       counts: true,
-      action: event.noRegionManager && event.region
-        ? { label: 'Add region manager', target: { collection: 'regions', id: event.region.id } }
-        : { label: 'Assign manager', target: { collection: 'events', id: event.id } },
+      action:
+        event.noRegionManager && event.region
+          ? { label: 'Add region manager', target: { collection: 'regions', id: event.region.id } }
+          : { label: 'Assign manager', target: { collection: 'events', id: event.id } },
       deadline: null,
     })
   }

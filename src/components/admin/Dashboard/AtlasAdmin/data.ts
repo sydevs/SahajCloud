@@ -61,7 +61,11 @@ export async function getAtlasAdminData(
       where: {
         and: [
           { stage: { equals: 'request' } },
-          { hour: { greater_than: new Date(now.getTime() - REFUSAL_WINDOW_DAYS * DAY_MS).toISOString() } },
+          {
+            hour: {
+              greater_than: new Date(now.getTime() - REFUSAL_WINDOW_DAYS * DAY_MS).toISOString(),
+            },
+          },
         ],
       },
     }),

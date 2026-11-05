@@ -78,13 +78,19 @@ const selectStyle: React.CSSProperties = {
 
 export const NotificationPreferencesField: FieldClientComponent = ({ field, readOnly }) => {
   const { name, label, admin } = field as JSONFieldClient
-  const notificationTypes = (admin?.custom?.notificationTypes ?? []) as NotificationType[]
 
   // Path is inferred from FieldPathContext; `name` is the path for the
   // label/error/description wrappers (see ToggleGroupField).
   const { value, setValue, showError } = useField<NotificationPreferences>()
   const [formState] = useAllFormFields()
   const { savedDocumentData } = useDocumentInfo()
+
+  // Its own memo, because `??` makes a fresh array on every render and this
+  // one is the dependency of the memo below.
+  const notificationTypes = useMemo(
+    () => (admin?.custom?.notificationTypes ?? []) as NotificationType[],
+    [admin?.custom?.notificationTypes],
+  )
 
   const methodOptions = useMemo(
     () => [DEFAULT_NOTIFICATION_METHOD, ...collectContactPlatforms(formState)],
@@ -127,100 +133,100 @@ export const NotificationPreferencesField: FieldClientComponent = ({ field, read
             Nothing is assigned to this manager yet, so there is nothing to send them.
           </p>
         ) : (
-        <table
-          style={{
-            width: '100%',
-            borderCollapse: 'collapse',
-            border: '1px solid var(--theme-elevation-150)',
-            fontSize: '13px',
-          }}
-        >
-          <thead>
-            <tr style={{ backgroundColor: 'var(--theme-elevation-50)' }}>
-              {/* The Notification column absorbs spare width so Method +
+          <table
+            style={{
+              width: '100%',
+              borderCollapse: 'collapse',
+              border: '1px solid var(--theme-elevation-150)',
+              fontSize: '13px',
+            }}
+          >
+            <thead>
+              <tr style={{ backgroundColor: 'var(--theme-elevation-50)' }}>
+                {/* The Notification column absorbs spare width so Method +
                   Frequency shrink to just their dropdown content. */}
-              <th style={{ ...cellStyle, fontWeight: 600, textAlign: 'left', width: '100%' }}>
-                Notification
-              </th>
-              <th style={{ ...cellStyle, fontWeight: 600, textAlign: 'left' }}>Method</th>
-              <th style={{ ...cellStyle, fontWeight: 600, textAlign: 'left' }}>Frequency</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visibleTypes.map((type) => {
-              const stored = prefs[type.key]
-              const pref = {
-                frequency: notificationFrequency(prefs, type.key, notificationTypes),
-                method: stored?.method ?? DEFAULT_NOTIFICATION_METHOD,
-              }
-              const isNever = pref.frequency === NEVER_FREQUENCY
-              const methodRequired = Boolean(pref.frequency) && !isNever
-              const methodMissing = methodRequired && !pref.method
-              // Keep a method that's no longer in contactDetails selectable so
-              // it isn't silently dropped from the dropdown.
-              const rowMethodOptions =
-                pref.method && !methodOptions.includes(pref.method)
-                  ? [...methodOptions, pref.method]
-                  : methodOptions
+                <th style={{ ...cellStyle, fontWeight: 600, textAlign: 'left', width: '100%' }}>
+                  Notification
+                </th>
+                <th style={{ ...cellStyle, fontWeight: 600, textAlign: 'left' }}>Method</th>
+                <th style={{ ...cellStyle, fontWeight: 600, textAlign: 'left' }}>Frequency</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibleTypes.map((type) => {
+                const stored = prefs[type.key]
+                const pref = {
+                  frequency: notificationFrequency(prefs, type.key, notificationTypes),
+                  method: stored?.method ?? DEFAULT_NOTIFICATION_METHOD,
+                }
+                const isNever = pref.frequency === NEVER_FREQUENCY
+                const methodRequired = Boolean(pref.frequency) && !isNever
+                const methodMissing = methodRequired && !pref.method
+                // Keep a method that's no longer in contactDetails selectable so
+                // it isn't silently dropped from the dropdown.
+                const rowMethodOptions =
+                  pref.method && !methodOptions.includes(pref.method)
+                    ? [...methodOptions, pref.method]
+                    : methodOptions
 
-              // Fade only the Notification + Method cells when muted ("Never")
-              // — the Frequency cell stays full-opacity so it never reads as
-              // uneditable (it's how the user un-mutes the row).
-              const mutedStyle = { ...cellStyle, opacity: isNever ? 0.55 : 1 }
+                // Fade only the Notification + Method cells when muted ("Never")
+                // — the Frequency cell stays full-opacity so it never reads as
+                // uneditable (it's how the user un-mutes the row).
+                const mutedStyle = { ...cellStyle, opacity: isNever ? 0.55 : 1 }
 
-              return (
-                <tr key={type.key} style={{ borderTop: '1px solid var(--theme-elevation-150)' }}>
-                  <td style={mutedStyle}>
-                    <div style={{ fontWeight: 500 }}>{type.title}</div>
-                    <div style={{ color: 'var(--theme-elevation-500)', marginTop: '2px' }}>
-                      {type.description}
-                    </div>
-                  </td>
-                  <td style={mutedStyle}>
-                    {isNever ? (
-                      <span style={{ color: 'var(--theme-elevation-400)' }}>—</span>
-                    ) : (
+                return (
+                  <tr key={type.key} style={{ borderTop: '1px solid var(--theme-elevation-150)' }}>
+                    <td style={mutedStyle}>
+                      <div style={{ fontWeight: 500 }}>{type.title}</div>
+                      <div style={{ color: 'var(--theme-elevation-500)', marginTop: '2px' }}>
+                        {type.description}
+                      </div>
+                    </td>
+                    <td style={mutedStyle}>
+                      {isNever ? (
+                        <span style={{ color: 'var(--theme-elevation-400)' }}>—</span>
+                      ) : (
+                        <select
+                          aria-label={`${type.title} method`}
+                          value={pref.method}
+                          disabled={readOnly}
+                          onChange={(e) => updateRow(type.key, { method: e.target.value })}
+                          style={{
+                            ...selectStyle,
+                            ...(methodMissing ? { borderColor: 'var(--theme-error-500)' } : {}),
+                          }}
+                        >
+                          <option value="">— Select —</option>
+                          {rowMethodOptions.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </td>
+                    <td style={cellStyle}>
                       <select
-                        aria-label={`${type.title} method`}
-                        value={pref.method}
+                        aria-label={`${type.title} frequency`}
+                        value={pref.frequency}
                         disabled={readOnly}
-                        onChange={(e) => updateRow(type.key, { method: e.target.value })}
-                        style={{
-                          ...selectStyle,
-                          ...(methodMissing ? { borderColor: 'var(--theme-error-500)' } : {}),
-                        }}
+                        onChange={(e) => updateRow(type.key, { frequency: e.target.value })}
+                        style={selectStyle}
                       >
-                        <option value="">— Select —</option>
-                        {rowMethodOptions.map((option) => (
+                        {/* No empty option: every row resolves to a pace, its
+                          own default where the manager never saved one. */}
+                        {type.frequencyOptions.map((option) => (
                           <option key={option} value={option}>
                             {option}
                           </option>
                         ))}
                       </select>
-                    )}
-                  </td>
-                  <td style={cellStyle}>
-                    <select
-                      aria-label={`${type.title} frequency`}
-                      value={pref.frequency}
-                      disabled={readOnly}
-                      onChange={(e) => updateRow(type.key, { frequency: e.target.value })}
-                      style={selectStyle}
-                    >
-                      {/* No empty option: every row resolves to a pace, its
-                          own default where the manager never saved one. */}
-                      {type.frequencyOptions.map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
         )}
       </div>
 

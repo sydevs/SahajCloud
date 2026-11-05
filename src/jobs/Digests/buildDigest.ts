@@ -11,8 +11,8 @@ import {
   type OverviewScope,
   type StatTile,
 } from '@/lib/atlasOverview'
-import { type ManagerRole, MANAGER_ROLE_LABELS } from '@/lib/notifications/managerRoles'
 import { formatLongDate } from '@/lib/notifications'
+import { type ManagerRole, MANAGER_ROLE_LABELS } from '@/lib/notifications/managerRoles'
 import { adminDocUrl, adminUrl } from '@/lib/utilities/adminUrl'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import type { Manager } from '@/payload-types'
@@ -85,10 +85,7 @@ function toEmailRow(item: OpenItem): ItemTableRow {
 }
 
 const tileText = (tile: StatTile) => ({
-  change:
-    tile.change === null
-      ? null
-      : `${tile.change >= 0 ? '+' : ''}${tile.change} in 30 days`,
+  change: tile.change === null ? null : `${tile.change >= 0 ? '+' : ''}${tile.change} in 30 days`,
   label: tile.label,
   of: tile.of === undefined ? null : String(tile.of),
   value: String(tile.value),
@@ -103,8 +100,7 @@ function scopeFor(role: ManagerRole, managerId: number): OverviewScope {
 
 /** A proposal or refusal that arrived inside the window, for a "new since" section. */
 function arrivedSince(item: OpenItem, since: Date): boolean {
-  const at =
-    item.row.kind === 'event' ? item.row.proposal?.receivedAt : item.row.receivedAt
+  const at = item.row.kind === 'event' ? item.row.proposal?.receivedAt : item.row.receivedAt
   return at !== undefined && at !== null && new Date(at) > since
 }
 
@@ -180,7 +176,9 @@ export async function buildDigest(args: {
       // click, and this is the one surface where clicking costs a page load.
       statistics.push({ heading: 'Analytics', tiles: stats.analytics.map(tileText) })
       advance.push(DIGEST_KEYS.statistics)
-      parts.push(`${formatLongDate(runStart.toISOString()).split(' ').slice(1).join(' ')} analytics`)
+      parts.push(
+        `${formatLongDate(runStart.toISOString()).split(' ').slice(1).join(' ')} analytics`,
+      )
     } catch (error) {
       failed += 1
       req.payload.logger.warn({
@@ -222,15 +220,15 @@ export async function buildDigest(args: {
         }
         return Boolean(
           newRefusals &&
-            item.row.kind === 'refusal' &&
-            arrivedSince(
-              item,
-              windowStart(
-                watermarkFor(manager, role, DIGEST_KEYS.refusals),
-                pace(DIGEST_KEYS.refusals),
-                runStart,
-              ),
+          item.row.kind === 'refusal' &&
+          arrivedSince(
+            item,
+            windowStart(
+              watermarkFor(manager, role, DIGEST_KEYS.refusals),
+              pace(DIGEST_KEYS.refusals),
+              runStart,
             ),
+          ),
         )
       })
 

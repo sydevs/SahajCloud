@@ -1,7 +1,7 @@
 import type { Payload, PayloadRequest } from 'payload'
 
-import type { ActorRef, VerificationMethod } from '@/lib/eventVerification/log'
 import { notificationFrequency } from '@/components/admin/NotificationPreferences/config'
+import type { ActorRef, VerificationMethod } from '@/lib/eventVerification/log'
 import { buildVerificationEntry } from '@/lib/eventVerification/log'
 import { addDays, verificationPeriodDays } from '@/lib/eventVerification/periods'
 import { resolveNextCheckAt } from '@/lib/eventVerification/watermark'

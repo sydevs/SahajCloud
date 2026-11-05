@@ -102,7 +102,7 @@ describe('notification preferences config', () => {
   })
 
   describe('buildDefaultNotificationPreferences', () => {
-    it("seeds every row at its own default, not its first option", () => {
+    it('seeds every row at its own default, not its first option', () => {
       const defaults = buildDefaultNotificationPreferences()
 
       expect(Object.keys(defaults)).toEqual(NOTIFICATION_TYPES.map((type) => type.key))

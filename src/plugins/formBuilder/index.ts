@@ -27,7 +27,6 @@ import type { SpamReviewStatus } from '@/collections/UserSubmissions/statuses'
 import {
   OPEN_REVIEW_STATUSES,
   REOPENABLE_REVIEW_STATUSES,
-  SPAM_REVIEW_STATUSES,
 } from '@/collections/UserSubmissions/statuses'
 import type {
   WorkflowButton,

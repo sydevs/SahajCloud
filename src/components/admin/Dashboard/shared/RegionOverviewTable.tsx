@@ -10,7 +10,6 @@ import type { RegionOverviewRow } from '@/lib/atlasOverview/regions'
 import styles from './Dashboard.module.css'
 import { type DashboardQuery, PAGE_LIMITS } from './model'
 import { CenteredNotice } from '../../CenteredNotice'
-import { tableColumn } from '../../helpers/tableColumn'
 import { useSetQuery } from '../../helpers/useSetQuery'
 
 function signupLabel(signups: RegionOverviewRow['signups']): string {

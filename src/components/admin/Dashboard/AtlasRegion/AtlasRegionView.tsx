@@ -1,8 +1,9 @@
 'use client'
 
+import type { AtlasRegionData } from './data'
+
 import { Button, SetStepNav } from '@payloadcms/ui'
 
-import type { AtlasRegionData } from './data'
 import { NAV_LINKS } from '../../AdminNavLinks/links'
 import styles from '../shared/Dashboard.module.css'
 import { OpenItemsList } from '../shared/OpenItemsList'

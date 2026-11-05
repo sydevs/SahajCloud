@@ -1,9 +1,10 @@
 'use client'
 
+import type { AtlasAdminData } from './data'
+
 import { Button } from '@payloadcms/ui'
 import Link from 'next/link'
 
-import type { AtlasAdminData } from './data'
 import { NAV_LINKS } from '../../AdminNavLinks/links'
 import styles from '../shared/Dashboard.module.css'
 import { OpenItemsList } from '../shared/OpenItemsList'

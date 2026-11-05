@@ -13,11 +13,11 @@ import type { Payload } from 'payload'
 import { describe, expect, it } from 'vitest'
 
 import { sendDigest } from '@/jobs/Digests/sendDigest'
-import type { Manager } from '@/payload-types'
 import { sendSessionReminder } from '@/jobs/RegistrationNotifications/sendSessionReminder'
 import { sendRegistrationConfirmation } from '@/lib/notifications/sendRegistrationConfirmation'
 import { sendRegistrationNotification } from '@/lib/notifications/sendRegistrationNotification'
 import { sendSubmissionReview } from '@/lib/notifications/sendSubmissionReview'
+import type { Manager } from '@/payload-types'
 import type { Event } from '@/payload-types'
 import { MANAGER_EMAIL_FROM, USER_EMAIL_FROM } from '@/plugins/email'
 

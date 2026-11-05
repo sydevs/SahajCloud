@@ -31,7 +31,6 @@ describe('Event registrations', () => {
   let assignee: AuthManager
   let ownId: number
   let cityId: number
-  let assignedId: number
   beforeAll(async () => {
     env = await createTestEnvironment()
     payload = env.payload
@@ -89,7 +88,9 @@ describe('Event registrations', () => {
       },
     })
     ownId = event.id
-    const assignedEvent = await payload.create({
+    // The event the Registrations gate is about: `assignee` is its manager,
+    // and `owner` manages the region it sits in.
+    await payload.create({
       collection: 'events',
       draft: true,
       data: {
@@ -99,7 +100,6 @@ describe('Event registrations', () => {
         eventType: 'offline',
       },
     })
-    assignedId = assignedEvent.id
     assignee = await testData.authUser(payload, assigned)
     await payload.create({
       collection: 'events',

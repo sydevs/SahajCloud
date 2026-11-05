@@ -10,8 +10,6 @@
  * that pair, and calling it six times would walk the events six times.
  */
 
-import type { PayloadRequest } from 'payload'
-
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Region } from '@/payload-types'
@@ -132,9 +130,7 @@ function toRow(
     managers: managersInSubtree(node, nodes, inScope),
     programs: metrics.programs,
     healthy:
-      metrics.programs > 0
-        ? Math.round((metrics.healthyNumerator / metrics.programs) * 100)
-        : null,
+      metrics.programs > 0 ? Math.round((metrics.healthyNumerator / metrics.programs) * 100) : null,
     overdue: metrics.overdue,
     unverified: metrics.unverified,
     signups: {

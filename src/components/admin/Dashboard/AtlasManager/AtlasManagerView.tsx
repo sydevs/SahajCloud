@@ -1,8 +1,9 @@
 'use client'
 
+import type { AtlasManagerData } from './data'
+
 import { Button, CalendarIcon } from '@payloadcms/ui'
 
-import type { AtlasManagerData } from './data'
 import { NAV_LINKS } from '../../AdminNavLinks/links'
 import { CenteredNotice } from '../../CenteredNotice'
 import styles from '../shared/Dashboard.module.css'
@@ -92,11 +93,7 @@ export function AtlasManagerView({ data }: { data: AtlasManagerData }) {
 
       <SectionTabs active="items" tabs={[{ count: open, label: 'Open items', value: 'items' }]} />
       {items.progress ? <ProgressMeter progress={items.progress} /> : null}
-      <OpenItemsList
-        data={items}
-        emptyBanner="All clear. Every program is on track."
-        open={open}
-      />
+      <OpenItemsList data={items} emptyBanner="All clear. Every program is on track." open={open} />
     </section>
   )
 }

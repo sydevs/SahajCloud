@@ -47,10 +47,4 @@ export type OpenItemStatusKey = (typeof OPEN_ITEM_STATUSES)[number]
  * `check` is the tick rather than a pill — the one status that is not a
  * problem, and a grey pill saying "Up to date" reads like one.
  */
-export type OpenItemPill =
-  | 'always-white'
-  | 'check'
-  | 'error'
-  | 'light-gray'
-  | 'success'
-  | 'warning'
+export type OpenItemPill = 'always-white' | 'check' | 'error' | 'light-gray' | 'success' | 'warning'

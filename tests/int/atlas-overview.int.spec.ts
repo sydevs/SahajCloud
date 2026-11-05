@@ -52,7 +52,11 @@ describe('Atlas overview', () => {
   let regionOwnId: number
 
   const systemReq = () =>
-    ({ context: { skipWriteGuard: true }, headers: new Headers(), payload }) as unknown as PayloadRequest
+    ({
+      context: { skipWriteGuard: true },
+      headers: new Headers(),
+      payload,
+    }) as unknown as PayloadRequest
 
   beforeAll(async () => {
     const env = await createTestEnvironment()
@@ -253,9 +257,7 @@ describe('Atlas overview', () => {
      */
     it("shows recommendations on nobody else's events", async () => {
       const data = await load()
-      const mine = data.items.rows.docs.find(
-        (row) => row.title === 'Region manager own program',
-      )
+      const mine = data.items.rows.docs.find((row) => row.title === 'Region manager own program')
       const theirs = data.items.rows.docs.find((row) => row.title === 'Escalated elsewhere')
       expect(mine?.statuses.map((status) => status.key)).toContain('recommendations')
       expect(theirs?.statuses.map((status) => status.key)).not.toContain('recommendations')

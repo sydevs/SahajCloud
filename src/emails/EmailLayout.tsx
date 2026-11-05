@@ -1,7 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react'
 
 import { Fragment } from 'react'
-
 import {
   Body,
   Button,
