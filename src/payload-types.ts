@@ -2586,19 +2586,27 @@ export interface Client {
    */
   mailingList?: {
     enabled?: boolean | null;
-    provider?: ('mailchimp' | 'brevo' | 'klaviyo') | null;
+    provider?: ('mailchimp' | 'brevo' | 'klaviyo' | 'cleverreach') | null;
     /**
-     * Mailchimp’s Audience ID, Brevo’s numeric list id, or Klaviyo’s List ID.
+     * From the OAuth app under Account → Extras → REST API. The secret below is that app’s client secret.
+     */
+    clientId?: string | null;
+    /**
+     * Mailchimp’s Audience ID, Brevo’s numeric list id, Klaviyo’s List ID, or CleverReach’s group ID.
      */
     listId?: string | null;
     /**
-     * The provider secret. Checked against the provider when you save, and never readable by an API client.
+     * The provider secret, which for CleverReach is the OAuth app’s client secret. Checked against the provider when you save, and never readable by an API client.
      */
     apiKey?: string | null;
     /**
-     * Mailchimp adds the address as `pending` and emails it a confirmation link.
+     * Mailchimp adds the address as `pending` and emails it a confirmation link. CleverReach adds it inactive and sends the confirmation through the flow below.
      */
     doubleOptIn?: boolean | null;
+    /**
+     * The CleverReach flow whose double opt-in email is sent. Create the form in CleverReach, then take the Flow ID it reports.
+     */
+    doiFlowId?: string | null;
   };
   /**
    * Declares that this service owns the canonical Atlas URLs for its region. Off by default, and nothing resolves differently until it is switched on.
@@ -4863,9 +4871,11 @@ export interface ClientsSelect<T extends boolean = true> {
     | {
         enabled?: T;
         provider?: T;
+        clientId?: T;
         listId?: T;
         apiKey?: T;
         doubleOptIn?: T;
+        doiFlowId?: T;
       };
   canonical?:
     | T

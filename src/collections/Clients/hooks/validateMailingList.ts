@@ -7,8 +7,8 @@ import { isMailingListConfigured } from '@/lib/mailingList/subscribe'
 import type { MailingListConfig } from '@/lib/mailingList/types'
 import { PROVIDER_TIMEOUT_MS } from '@/lib/mailingList/types'
 
-/** The three fields whose change makes a save worth a provider round trip. */
-const CREDENTIAL_KEYS = ['provider', 'listId', 'apiKey'] as const
+/** The fields whose change makes a save worth a provider round trip. */
+const CREDENTIAL_KEYS = ['provider', 'listId', 'apiKey', 'clientId', 'doiFlowId'] as const
 
 /**
  * beforeChange: prove a newly-entered mailing-list credential actually works,

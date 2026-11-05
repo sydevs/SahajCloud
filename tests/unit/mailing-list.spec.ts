@@ -36,9 +36,50 @@ const KLAVIYO: MailingListConfig = {
   apiKey: 'pk_klaviyo',
 }
 
+const CLEVERREACH: MailingListConfig = {
+  enabled: true,
+  provider: 'cleverreach',
+  listId: '1337',
+  apiKey: 'cr-secret',
+  clientId: 'cr-id',
+  doubleOptIn: true,
+  doiFlowId: 'flow-9',
+}
+
 /** A stubbed provider answer. `body` is what the adapter's error reader parses. */
 const answer = (status: number, body: unknown = {}) =>
   ({ ok: status >= 200 && status < 300, status, json: async () => body }) as Response
+
+/**
+ * CleverReach is the one provider that takes several calls — a token, then a
+ * receiver read, then the upsert, then the confirmation flow — so each case
+ * names only the answers it changes and the order stays an assertion about
+ * which calls were made rather than about which mock came next.
+ *
+ * The receiver rule sits above the group rule, and `/send` above the flow
+ * rule, because each longer path contains the shorter one.
+ */
+const cleverreachAnswers =
+  (stub: Partial<Record<'token' | 'receiver' | 'upsert' | 'send' | 'flow' | 'group', Response>>) =>
+  (url: unknown) => {
+    const target = String(url)
+    if (target.includes('/oauth/token.php')) return stub.token ?? answer(200, { access_token: 'tok' })
+    if (target.includes('/receivers/upsert')) return stub.upsert ?? answer(200)
+    if (target.includes('/receivers/')) return stub.receiver ?? answer(404)
+    if (target.endsWith('/send')) return stub.send ?? answer(200)
+    if (target.includes('/flow/flow/')) return stub.flow ?? answer(200)
+    if (target.includes('/groups.json/')) return stub.group ?? answer(200)
+    throw new Error(`unstubbed CleverReach call: ${target}`)
+  }
+
+/** Every CleverReach request body this adapter sent, by URL fragment. */
+const bodyFor = (fetchMock: ReturnType<typeof vi.fn>, fragment: string) => {
+  const call = fetchMock.mock.calls.find(([url]) => String(url).includes(fragment))
+  return call ? JSON.parse(String((call[1] as RequestInit).body)) : undefined
+}
+
+const called = (fetchMock: ReturnType<typeof vi.fn>, fragment: string) =>
+  fetchMock.mock.calls.some(([url]) => String(url).includes(fragment))
 
 const subscribe = (config: MailingListConfig) =>
   subscribeToMailingList({ config, email: 'person@example.test', name: 'Ada' })
@@ -248,6 +289,106 @@ describe('subscribeToMailingList', () => {
       expect(JSON.parse(raw).data.type).toBe('profile-subscription-bulk-create-job')
     })
   })
+
+  describe('CleverReach', () => {
+    /**
+     * The only adapter with two credentials and its own confirmation mail, so
+     * what is pinned here is the opt-in ladder: inactive plus a flow send for
+     * `pending`, active in one write for `subscribed`.
+     */
+    it('reports `pending` with double opt-in on, and `subscribed` with it off', async () => {
+      fetchMock.mockImplementation(cleverreachAnswers({}))
+      await expect(subscribe(CLEVERREACH)).resolves.toEqual({ ok: true, status: 'pending' })
+      expect(bodyFor(fetchMock, '/receivers/upsert').activated).toBe(0)
+      expect(bodyFor(fetchMock, '/flow/flow/').receiver_id).toBe('person@example.test')
+
+      fetchMock.mockClear()
+      await expect(subscribe({ ...CLEVERREACH, doubleOptIn: false })).resolves.toEqual({
+        ok: true,
+        status: 'subscribed',
+      })
+      expect(bodyFor(fetchMock, '/receivers/upsert').activated).toBeGreaterThan(0)
+      expect(called(fetchMock, '/flow/flow/')).toBe(false)
+    })
+
+    it('sends the opt-in record the submission row happened to carry', async () => {
+      fetchMock.mockImplementation(cleverreachAnswers({}))
+      await subscribeToMailingList({
+        config: CLEVERREACH,
+        email: 'person@example.test',
+        userAgent: 'Mozilla/5.0',
+        hostUrl: 'https://host.example/classes',
+      })
+      // No `user_ip`: no submission row stores one, and none is invented.
+      expect(bodyFor(fetchMock, '/flow/flow/').doidata).toEqual({
+        referer: 'https://host.example/classes',
+        user_agent: 'Mozilla/5.0',
+      })
+    })
+
+    it('sends no confirmation to an address already active on the group', async () => {
+      fetchMock.mockImplementation(cleverreachAnswers({ receiver: answer(200, { active: 1 }) }))
+      await expect(subscribe(CLEVERREACH)).resolves.toEqual({ ok: true, status: 'subscribed' })
+      expect(called(fetchMock, '/receivers/upsert')).toBe(false)
+      expect(called(fetchMock, '/flow/flow/')).toBe(false)
+    })
+
+    /**
+     * ⚠ The mapping that must not be wrong in the permissive direction. The
+     * upsert carries `activated`, so writing one over a receiver that opted
+     * out is what resurrects them — hence the read, and hence no write here.
+     */
+    it('refuses to resurrect a deactivated receiver, and writes nothing', async () => {
+      fetchMock.mockImplementation(
+        cleverreachAnswers({ receiver: answer(200, { deactivated: 1700000000 }) }),
+      )
+      await expect(subscribe(CLEVERREACH)).resolves.toEqual(
+        expect.objectContaining({ ok: false, code: 'previously_unsubscribed', retryable: false }),
+      )
+      expect(called(fetchMock, '/receivers/upsert')).toBe(false)
+    })
+
+    it('reads a blocklist refusal on the upsert as the same terminal case', async () => {
+      fetchMock.mockImplementation(
+        cleverreachAnswers({
+          upsert: answer(400, { error: { message: 'receiver is on the blacklist' } }),
+        }),
+      )
+      await expect(subscribe(CLEVERREACH)).resolves.toEqual(
+        expect.objectContaining({ code: 'previously_unsubscribed', retryable: false }),
+      )
+    })
+
+    it('refuses a config with no client ID, or no flow ID, before calling anything', async () => {
+      // `isMailingListConfigured` stays provider-blind, so these are the
+      // adapter's own refusals rather than the caller's.
+      await expect(subscribe({ ...CLEVERREACH, clientId: null })).resolves.toEqual(
+        expect.objectContaining({ code: 'provider_rejected', retryable: false }),
+      )
+      await expect(subscribe({ ...CLEVERREACH, doiFlowId: '' })).resolves.toEqual(
+        expect.objectContaining({ code: 'provider_rejected', retryable: false }),
+      )
+      expect(fetchMock).not.toHaveBeenCalled()
+    })
+
+    it('retries a token 503 and not a token 401', async () => {
+      fetchMock.mockImplementation(
+        cleverreachAnswers({ token: answer(503, { error: 'server_error' }) }),
+      )
+      await expect(subscribe(CLEVERREACH)).resolves.toEqual(
+        expect.objectContaining({ code: 'provider_unavailable', retryable: true }),
+      )
+
+      fetchMock.mockImplementation(
+        cleverreachAnswers({
+          token: answer(401, { error: 'invalid_client', error_description: 'bad secret' }),
+        }),
+      )
+      await expect(subscribe(CLEVERREACH)).resolves.toEqual(
+        expect.objectContaining({ code: 'provider_rejected', retryable: false, message: 'invalid_client: bad secret' }),
+      )
+    })
+  })
 })
 
 /**
@@ -310,5 +451,51 @@ describe('verifyCredentials', () => {
       'must be a number',
     )
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  /**
+   * CleverReach's token exchange is a POST, so "never writes" is about every
+   * call after it: the group and the flow are both read back.
+   */
+  describe('CleverReach', () => {
+    it('writes nothing but the token exchange', async () => {
+      fetchMock.mockImplementation(cleverreachAnswers({}))
+      await expect(verify(CLEVERREACH)).resolves.toBeNull()
+
+      const [first, ...rest] = fetchMock.mock.calls
+      expect((first?.[1] as RequestInit).method).toBe('POST')
+      expect(String(first?.[0])).toContain('/oauth/token.php')
+      for (const [url, init] of rest) {
+        expect((init as RequestInit | undefined)?.method).toBeUndefined()
+        expect((init as RequestInit | undefined)?.body).toBeUndefined()
+        expect(String(url)).toMatch(/\/groups\.json\/|\/flow\/flow\//)
+      }
+    })
+
+    it('names the credential, the group and the flow apart', async () => {
+      fetchMock.mockImplementation(cleverreachAnswers({ token: answer(401) }))
+      await expect(verify(CLEVERREACH)).resolves.toBe('that client ID or secret was refused.')
+
+      fetchMock.mockImplementation(cleverreachAnswers({ group: answer(404) }))
+      await expect(verify(CLEVERREACH)).resolves.toBe(
+        'that list id does not exist on this account.',
+      )
+
+      fetchMock.mockImplementation(cleverreachAnswers({ flow: answer(404) }))
+      await expect(verify(CLEVERREACH)).resolves.toBe(
+        'that confirmation flow ID does not exist on this account.',
+      )
+    })
+
+    it('proves nothing from a token 5xx, rather than refusing the save', async () => {
+      fetchMock.mockImplementation(cleverreachAnswers({ token: answer(503) }))
+      await expect(verify(CLEVERREACH)).resolves.toBeNull()
+    })
+
+    it('reads no flow with double opt-in off', async () => {
+      fetchMock.mockImplementation(cleverreachAnswers({}))
+      await expect(verify({ ...CLEVERREACH, doubleOptIn: false })).resolves.toBeNull()
+      expect(called(fetchMock, '/flow/flow/')).toBe(false)
+    })
   })
 })

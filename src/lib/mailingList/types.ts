@@ -15,7 +15,7 @@ export type MailingListProvider = NonNullable<MailingListConfig['provider']>
  * union, so a provider offered here with no adapter — or an adapter for one no
  * longer offered — fails to compile.
  */
-export const MAILING_LIST_PROVIDERS = ['mailchimp', 'brevo', 'klaviyo'] as const
+export const MAILING_LIST_PROVIDERS = ['mailchimp', 'brevo', 'klaviyo', 'cleverreach'] as const
 
 /**
  * What one subscribe attempt produced.
@@ -23,11 +23,11 @@ export const MAILING_LIST_PROVIDERS = ['mailchimp', 'brevo', 'klaviyo'] as const
  * The success arm carries the status the provider can actually **justify**,
  * which is why there are three of them rather than a boolean:
  *
- * - `subscribed` — the address is on the list now (Mailchimp with double
- *   opt-in off, Brevo always, and either provider for an address already there
- *   — idempotent, and it does not leak list membership).
+ * - `subscribed` — the address is on the list now (Mailchimp and CleverReach
+ *   with double opt-in off, Brevo always, and any of the three for an address
+ *   already there — idempotent, and it does not leak list membership).
  * - `pending` — accepted, and the provider is waiting on the person to confirm
- *   (Mailchimp with double opt-in on).
+ *   (Mailchimp and CleverReach with double opt-in on).
  * - `accepted` — **Klaviyo only.** Its subscribe job answers 202 with no
  *   per-profile result, so the adapter genuinely cannot tell "newly
  *   subscribed" from "already there" from "previously unsubscribed" inline.
@@ -70,6 +70,14 @@ export interface SubscribeArgs {
   locale?: string
   /** A short provenance tag — `event-registration`, a form's slug. */
   source?: string
+  /**
+   * The two facts CleverReach's double opt-in record is built from, when the
+   * submission row happens to carry them. Nothing starts storing a visitor's IP
+   * for this: an incomplete opt-in record is worth more than a new column of
+   * personal data (#1086).
+   */
+  userAgent?: string
+  hostUrl?: string
   /** Bounds every provider call. A hung third party must not hold a job open. */
   signal: AbortSignal
 }
