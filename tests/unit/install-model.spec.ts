@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   buildInstallModel,
+  buildMilestones,
   reportedMountsFor,
 } from '../../src/components/admin/InstallGuide/installModel'
 import { tracksFor } from '../../src/components/admin/InstallGuide/steps'
@@ -242,5 +243,106 @@ describe('buildInstallModel — what each step says', () => {
     )
     expect(model.stepStatus[TRACK.checks.sitemap]).toBeUndefined()
     expect(model.failures).toEqual([])
+  })
+})
+
+describe('buildInstallModel — before the volunteer has chosen', () => {
+  const embedMetadata = mount('https://sahajayoga.ca/free-classes', '2026-10-01T00:00:00.000Z')
+
+  it('still finds the report with no track, and marks no step', () => {
+    const model = buildInstallModel({
+      atlasUrl: '/free-classes',
+      track: null,
+      embedMetadata,
+      verification: verified({ seo: seo([{ route: '/', check: 'title', status: 'fail' }]) }),
+    })
+    expect(model.candidate?.key).toBe('https://sahajayoga.ca/free-classes')
+    expect(model.stage).toBe('warnings')
+    expect(model.stepStatus).toEqual({})
+  })
+
+  it('matches nothing while the address has a problem', () => {
+    // A null address must not fall back to matching the site root.
+    expect(reportedMountsFor({ embedMetadata, atlasUrl: null })).toEqual([])
+    expect(
+      buildInstallModel({ atlasUrl: null, track: TRACK, embedMetadata, verification: null })
+        .candidate,
+    ).toBeNull()
+  })
+})
+
+describe('buildMilestones', () => {
+  const embedMetadata = mount('https://sahajayoga.ca/free-classes', '2026-10-01T00:00:00.000Z')
+  const milestones = (args: {
+    verification?: CanonicalVerification | null
+    reported?: boolean
+    canonicalEmbed?: string | null
+    hasRegion?: boolean
+    trackId?: 'iframe' | 'wix-editor' | null
+  }) => {
+    const verification = args.verification ?? null
+    const model = buildInstallModel({
+      atlasUrl: '/free-classes',
+      track: TRACK,
+      embedMetadata: args.reported === false ? null : embedMetadata,
+      verification,
+    })
+    return buildMilestones({
+      model,
+      verification,
+      canonicalEmbed: args.canonicalEmbed ?? null,
+      hasRegion: args.hasRegion ?? true,
+      trackId: args.trackId === undefined ? 'wix-editor' : args.trackId,
+    })
+  }
+  const states = (list: ReturnType<typeof milestones>) =>
+    Object.fromEntries(list.map((milestone) => [milestone.id, milestone.state]))
+
+  it('starts with everything still to come', () => {
+    expect(states(milestones({ reported: false }))).toEqual({
+      seen: 'todo',
+      confirmed: 'todo',
+      region: 'todo',
+      routing: 'todo',
+      search: 'todo',
+    })
+  })
+
+  it('names where the atlas was found', () => {
+    const [seen] = milestones({})
+    expect(seen).toMatchObject({ state: 'done', detail: 'sahajayoga.ca/free-classes' })
+  })
+
+  it('finishes every row for a clean install', () => {
+    const list = milestones({
+      canonicalEmbed: 'https://sahajayoga.ca/free-classes',
+      verification: verified({
+        routingProbe: { at: '2026-10-01T00:00:00.000Z', verdict: 'path', failedAttempts: 0 },
+        seo: seo([{ route: '/', check: 'title', status: 'pass' }]),
+      }),
+    })
+    expect(list.every((milestone) => milestone.state === 'done')).toBe(true)
+  })
+
+  it('counts search problems, and flags a service with no region', () => {
+    const list = milestones({
+      hasRegion: false,
+      verification: verified({
+        seo: seo([
+          { route: '/', check: 'title', status: 'fail' },
+          { route: '/', check: 'body', status: 'fail' },
+        ]),
+      }),
+    })
+    const byId = Object.fromEntries(list.map((milestone) => [milestone.id, milestone]))
+    expect(byId.search).toMatchObject({ state: 'failed', detail: '2 problems' })
+    expect(byId.region).toMatchObject({ state: 'warning', detail: 'No region set' })
+  })
+
+  it('gives an iframe only the rows it can finish', () => {
+    expect(milestones({ trackId: 'iframe' }).map((milestone) => milestone.id)).toEqual([
+      'seen',
+      'confirmed',
+    ])
   })
 })

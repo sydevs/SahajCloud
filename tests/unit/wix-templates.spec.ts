@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 
 import {
   CONTENT_ELEMENT_ID,
-  prefixFromMount,
   routerFunctionBase,
   WIDGET_TAG_NAME,
   widgetSnippet,
@@ -54,19 +53,6 @@ describe('isValidWixPrefix', () => {
     expect(isValidWixPrefix('-classes')).toBe(false)
     expect(isValidWixPrefix('classes-')).toBe(false)
     expect(isValidWixPrefix('a'.repeat(65))).toBe(false)
-  })
-})
-
-describe('prefixFromMount', () => {
-  it('offers the mount own first segment, which the endpoint assumes', () => {
-    expect(prefixFromMount('/free-classes/')).toBe('free-classes')
-    expect(prefixFromMount('/free-classes/map')).toBe('free-classes')
-  })
-
-  it('falls back to a usable default rather than an invalid prefix', () => {
-    expect(prefixFromMount('/')).toBe('classes')
-    expect(prefixFromMount(null)).toBe('classes')
-    expect(prefixFromMount('/?p=42')).toBe('classes')
   })
 })
 

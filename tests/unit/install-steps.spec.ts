@@ -1,15 +1,17 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  atlasUrlProblem,
+  allSteps,
   hostHints,
   type PlatformId,
   PLATFORM_LABELS,
+  readAtlasAddress,
   signalFor,
   stepForCheck,
   type TrackId,
   TRACKS_BY_PLATFORM,
   tracksFor,
+  WORDPRESS_PLUGIN_ZIP_URL,
 } from '../../src/components/admin/InstallGuide/steps'
 import { CONTENT_ELEMENT_ID } from '../../src/components/admin/InstallGuide/templates'
 
@@ -64,7 +66,7 @@ describe('every track', () => {
     // with nowhere to go.
     for (const id of TRACK_IDS) {
       const track = tracks[id]
-      const stepIds = new Set(track.steps.map((step) => step.id))
+      const stepIds = new Set(allSteps(track).map((step) => step.id))
       for (const signal of ['noReport', 'head', 'body', 'sitemap'] as const) {
         expect(stepIds, `${id} routes ${signal} nowhere`).toContain(track.checks[signal])
       }
@@ -73,9 +75,33 @@ describe('every track', () => {
 
   it('gives every step at least one instruction', () => {
     for (const id of TRACK_IDS) {
-      for (const step of tracks[id].steps) {
+      for (const step of allSteps(tracks[id])) {
         expect(step.actions.length, `${id}/${step.id}`).toBeGreaterThan(0)
       }
+    }
+  })
+
+  it('never repeats a step id, so a check cannot land on two steps at once', () => {
+    for (const id of TRACK_IDS) {
+      const ids = allSteps(tracks[id]).map((step) => step.id)
+      expect(new Set(ids).size, id).toBe(ids.length)
+    }
+  })
+
+  it('ends the working embed with the Check button, never a check by hand', () => {
+    // Step 3 is the one every track finishes; the CMS checks it, not the volunteer.
+    for (const id of TRACK_IDS) {
+      expect(
+        tracks[id].steps.some((step) => step.check),
+        id,
+      ).toBe(true)
+    }
+  })
+
+  it('puts the noReport step in step 3, where the atlas first appears', () => {
+    for (const id of TRACK_IDS) {
+      const embed = tracks[id].steps.map((step) => step.id)
+      expect(embed, id).toContain(tracks[id].checks.noReport)
     }
   })
 
@@ -85,7 +111,9 @@ describe('every track', () => {
     for (const id of TRACK_IDS) {
       const track = tracks[id]
       const unobservable = new Set(
-        track.steps.filter((step) => step.unobservable).map((step) => step.id),
+        allSteps(track)
+          .filter((step) => step.unobservable)
+          .map((step) => step.id),
       )
       for (const signal of ['noReport', 'head', 'body', 'sitemap'] as const) {
         expect(unobservable, `${id} routes ${signal} to an unobservable step`).not.toContain(
@@ -97,7 +125,7 @@ describe('every track', () => {
 
   it('never leaves a placeholder in a value a volunteer will paste', () => {
     for (const id of TRACK_IDS) {
-      for (const snippet of tracks[id].steps.flatMap((step) => step.snippets ?? [])) {
+      for (const snippet of allSteps(tracks[id]).flatMap((step) => step.snippets ?? [])) {
         expect(snippet.value, `${id}/${snippet.label}`).not.toContain('undefined')
         expect(snippet.value, `${id}/${snippet.label}`).not.toContain('${')
       }
@@ -115,7 +143,7 @@ describe('what each track prefills', () => {
 
   it('gives both Wix tracks the router code, the element settings and the text id', () => {
     for (const id of ['wix-editor', 'wix-studio'] as const) {
-      const snippets = tracks[id].steps.flatMap((step) => step.snippets ?? [])
+      const snippets = allSteps(tracks[id]).flatMap((step) => step.snippets ?? [])
       const joined = snippets.map((snippet) => snippet.value).join('\n')
       expect(joined, id).toContain('free_classes_Router')
       expect(joined, id).toContain('https://sahajatlas.com/auto.js?key=abc-123')
@@ -124,8 +152,8 @@ describe('what each track prefills', () => {
   })
 
   it('gives the Studio track Wix Studio menu names, and the Editor track Dev Mode', () => {
-    const studio = JSON.stringify(tracks['wix-studio'].steps)
-    const editor = JSON.stringify(tracks['wix-editor'].steps)
+    const studio = JSON.stringify(allSteps(tracks['wix-studio']))
+    const editor = JSON.stringify(allSteps(tracks['wix-editor']))
     expect(studio).toContain('Start coding')
     expect(editor).toContain('Dev Mode')
     expect(editor).not.toContain('Start coding')
@@ -133,29 +161,58 @@ describe('what each track prefills', () => {
 
   it('says plainly that the Studio steps are unverified', () => {
     // A volunteer who hits a menu that is not there must know that was expected.
-    expect(tracks['wix-studio'].caveat).toMatch(/unverified|not been|nobody has/i)
+    expect(tracks['wix-studio'].caveat?.text).toMatch(/unverified|not been|nobody has/i)
   })
 
   it('says plainly that the iframe track has no search-engine listings', () => {
-    expect(tracks.iframe.caveat).toMatch(/search/i)
+    expect(tracks.iframe.caveat?.text).toMatch(/search/i)
+    expect(tracks.iframe.caveat?.tone).toBe('warning')
   })
 
-  it('says plainly that WordPress.com is unconfirmed, and names the plan', () => {
-    expect(tracks['wp-com'].caveat).toMatch(/confirmed/i)
-    expect(JSON.stringify(tracks['wp-com'].steps)).toContain('Business')
+  it('names the plan WordPress.com needs, as a condition rather than a step', () => {
+    expect(tracks['wp-com'].requires).toContain('Business')
+    expect(tracks['wp-com'].steps.map((step) => step.id)).not.toContain('plan')
   })
 
-  it('tells a custom site it must serve every address under the atlas page', () => {
-    const custom = JSON.stringify(tracks.custom.steps)
-    expect(custom).toContain('/free-classes/ca/ontario')
-    expect(custom).toContain('routing=path')
+  it('links the plugin zip at an address that survives the next release', () => {
+    // A versioned asset name would go stale the day the plugin ships an update.
+    expect(WORDPRESS_PLUGIN_ZIP_URL).toMatch(/\/releases\/latest\/download\/sahaj-atlas\.zip$/)
+    for (const id of ['wp-selfhosted', 'wp-com'] as const) {
+      const install = tracks[id].steps.find((step) => step.id === 'install-plugin')
+      expect(install?.download?.url, id).toBe(WORDPRESS_PLUGIN_ZIP_URL)
+    }
   })
 
-  it('offers a custom site the endpoint as a prefilled curl', () => {
-    const snippets = tracks.custom.steps.flatMap((step) => step.snippets ?? [])
-    const curl = snippets.find((snippet) => snippet.value.startsWith('curl'))
-    expect(curl?.value).toContain('abc-123')
-    expect(curl?.value).toContain('https://cms.sahajatlas.com/api/atlas/seo')
+  it('offers both WordPress tracks the shortcode and the block as step 4', () => {
+    for (const id of ['wp-selfhosted', 'wp-com'] as const) {
+      const more = tracks[id].more
+      expect(more?.optional, id).toBe(true)
+      expect(JSON.stringify(more?.steps), id).toContain('[sahaj_atlas]')
+    }
+  })
+
+  it('gets a Wix map working before any code, and leaves the router to step 4', () => {
+    for (const id of ['wix-editor', 'wix-studio'] as const) {
+      const embed = JSON.stringify(tracks[id].steps)
+      expect(embed, id).toContain('https://sahajatlas.com/auto.js?key=abc-123')
+      expect(embed, id).not.toContain('Router')
+      expect(JSON.stringify(tracks[id].more?.steps), id).toContain('free_classes_Router')
+    }
+  })
+
+  it('gives a custom site the plain snippet first, and path routing only in step 4', () => {
+    expect(JSON.stringify(tracks.custom.steps)).not.toContain('routing=path')
+    const more = JSON.stringify(tracks.custom.more?.steps)
+    expect(more).toContain('/free-classes/ca/ontario')
+    expect(more).toContain('routing=path')
+  })
+
+  it('gives a custom site both endpoints, prefilled with its own key', () => {
+    const snippets = allSteps(tracks.custom).flatMap((step) => step.snippets ?? [])
+    const values = snippets.map((snippet) => snippet.value).join('\n')
+    expect(values).toContain('https://cms.sahajatlas.com/api/atlas/seo')
+    expect(values).toContain('https://cms.sahajatlas.com/api/atlas/sitemap')
+    expect(values).toContain('clients API-Key abc-123')
   })
 
   it('sends no routing parameter on the iframe track, which has no URLs of its own', () => {
@@ -177,8 +234,8 @@ describe('stepForCheck', () => {
     expect(stepForCheck(track, 'body')).toBe('add-text')
   })
 
-  it('sends a missing sitemap entry to the publish step', () => {
-    expect(stepForCheck(track, 'sitemap')).toBe('publish')
+  it('sends a missing sitemap entry to the final publish', () => {
+    expect(stepForCheck(track, 'sitemap')).toBe('publish-seo')
   })
 
   it('groups the three head checks into one signal', () => {
@@ -216,26 +273,45 @@ describe('hostHints', () => {
   })
 })
 
-describe('atlasUrlProblem', () => {
-  it('accepts a one-level lowercase address', () => {
-    expect(atlasUrlProblem('/classes')).toBeNull()
-    expect(atlasUrlProblem('/free-classes')).toBeNull()
+describe('readAtlasAddress', () => {
+  const read = (input: string, wix = false) => readAtlasAddress(input, { wix })
+
+  it('takes the path out of a whole address, which is what a volunteer copies', () => {
+    expect(read('https://www.sahajayoga.org.uk/classes')).toEqual({
+      path: '/classes',
+      host: 'www.sahajayoga.org.uk',
+      problem: null,
+    })
+    expect(read('https://sahajayoga.ca/free-classes/?utm_source=x#map').path).toBe('/free-classes')
   })
 
-  it('refuses the home page, which a Wix router cannot be', () => {
-    expect(atlasUrlProblem('/')).toMatch(/own address/)
+  it('takes an address with no scheme, and a bare path', () => {
+    expect(read('sahajayoga.ca/classes')).toMatchObject({ path: '/classes', host: 'sahajayoga.ca' })
+    expect(read('/classes')).toMatchObject({ path: '/classes', host: null })
+    expect(read('classes')).toMatchObject({ path: '/classes', host: null })
   })
 
-  it('refuses a nested address, which a Wix router cannot be either', () => {
-    expect(atlasUrlProblem('/about/classes')).toMatch(/one level/)
+  it('keeps a nested page anywhere but Wix', () => {
+    expect(read('https://site.org/about/classes').path).toBe('/about/classes')
+    expect(read('https://site.org/about/classes', true).problem).toMatch(/one level/)
   })
 
-  it('refuses what Wix would not accept as a page slug', () => {
-    expect(atlasUrlProblem('/Free Classes')).toMatch(/lowercase/)
+  it('keeps a WordPress plain permalink, whose query is the page', () => {
+    expect(read('https://site.org/?p=42').path).toBe('/?p=42')
   })
 
-  it('names the slash, which is the mistake a volunteer actually makes', () => {
-    expect(atlasUrlProblem('classes')).toMatch(/slash/)
-    expect(atlasUrlProblem('')).toMatch(/Enter/)
+  it('refuses the home page', () => {
+    expect(read('https://site.org/').problem).toMatch(/home page/)
+    expect(read('/').problem).toMatch(/home page/)
+  })
+
+  it('holds a Wix address to what a router prefix accepts', () => {
+    expect(read('https://site.org/free-classes', true).path).toBe('/free-classes')
+    expect(read('https://site.org/Free-Classes', true).problem).toMatch(/lowercase/)
+  })
+
+  it('asks for an address when there is none, and refuses what is not one', () => {
+    expect(read('  ').problem).toMatch(/Paste/)
+    expect(read('ftp://site.org/classes').problem).toMatch(/not a web address/)
   })
 })

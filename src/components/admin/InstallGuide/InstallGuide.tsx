@@ -1,6 +1,6 @@
 'use client'
 
-import type { PlatformId, Step, TrackId } from './steps'
+import type { PlatformId, Step, StepId, TrackId } from './steps'
 import type { InstallValues } from './templates'
 
 import {
@@ -16,26 +16,27 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { StatusIcon } from '@/components/admin/ReadinessField/StatusIcon'
 import { ToggleGroup } from '@/components/admin/ToggleGroupField/ToggleGroup'
 import type { EmbedMetadata } from '@/lib/clients/embedMetadata'
-import { type CanonicalVerification, splitMountKey } from '@/lib/clients/verification'
+import type { CanonicalVerification } from '@/lib/clients/verification'
 import type { Client } from '@/payload-types'
 
 import { CopyBlock } from './CopyBlock'
 import styles from './InstallGuide.module.css'
 import {
   buildInstallModel,
+  buildMilestones,
   reportedMountsFor,
   STAGE_MESSAGES,
   type StepStatus,
 } from './installModel'
+import { InstallProgress } from './InstallProgress'
 import {
-  atlasUrlProblem,
   hostHints,
   PLATFORM_LABELS,
   PLATFORM_RECOGNISE,
+  readAtlasAddress,
   TRACKS_BY_PLATFORM,
   tracksFor,
 } from './steps'
-import { prefixFromMount } from './templates'
 
 /**
  * The Install tab: how one volunteer gets the atlas onto their own site (#1055).
@@ -46,7 +47,10 @@ import { prefixFromMount } from './templates'
  * region's canonical URLs if nobody else holds them, and runs the SEO checks.
  * A button to remember is a button somebody does not press, and the failure that
  * follows — a site that looks installed and is unindexable — is invisible to the
- * person who caused it.
+ * person who caused it. The Check buttons only bring that forward.
+ *
+ * **Each section waits for the one before it.** Nothing is chosen for the
+ * volunteer, so the steps never show for a platform they did not pick.
  *
  * **Everything it knows comes off the service's own record**, re-read on a
  * timer. There is no state here that outlives the tab: the platform choice and
@@ -60,6 +64,9 @@ const POLL_MS = 10_000
 
 /** What `GET /api/clients/:id` gives the tab, narrowed to what it reads. */
 type PolledClient = Pick<Client, 'embedMetadata' | 'canonical' | 'region'>
+
+/** Where a check's answer is shown: beside the button that asked for it. */
+type NoticeAt = 'sidebar' | StepId
 
 export interface InstallGuideProps {
   clientId: number
@@ -80,18 +87,16 @@ export interface InstallGuideProps {
 export function InstallGuide(props: InstallGuideProps): React.ReactElement {
   const { clientId, apiKey, cmsUrl, widgetUrl, editUrl } = props
 
-  const [platform, setPlatform] = useState<PlatformId>('wordpress')
-  const [track, setTrack] = useState<TrackId>('wp-selfhosted')
-  const [atlasUrl, setAtlasUrl] = useState(() => {
-    // `canonical.embed` is a whole `origin + pathname` key, not a path.
-    const mount = props.canonicalEmbed ? splitMountKey(props.canonicalEmbed)?.mount : null
-    return mount ? `/${prefixFromMount(mount)}` : '/classes'
-  })
+  const [platform, setPlatform] = useState<PlatformId | null>(null)
+  const [track, setTrack] = useState<TrackId | null>(null)
+  // `canonical.embed` is a whole `origin + pathname` key, which is exactly the
+  // kind of address the field takes.
+  const [addressInput, setAddressInput] = useState(props.canonicalEmbed ?? '')
   const [canonicalEmbed, setCanonicalEmbed] = useState(props.canonicalEmbed)
   const [embedMetadata, setEmbedMetadata] = useState(props.initialEmbedMetadata)
   const [verification, setVerification] = useState(props.initialVerification)
   const [busy, setBusy] = useState(false)
-  const [notice, setNotice] = useState<string | null>(null)
+  const [notice, setNotice] = useState<{ at: NoticeAt; text: string } | null>(null)
 
   // What has already been confirmed for, so a poll that finds the same report
   // again does not re-run verification every ten seconds.
@@ -99,34 +104,52 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
   // The last answer, verbatim, so an unchanged poll touches no state.
   const lastRead = useRef<string | null>(null)
 
-  const problem = atlasUrlProblem(atlasUrl)
-  // One fallback, spelled once: the snippets have to show *something* while the
-  // address is being typed, and three places agreeing about what is three
-  // places to keep agreeing.
-  const safeUrl = problem ? '/classes' : atlasUrl
+  const address = readAtlasAddress(addressInput, { wix: platform === 'wix' })
+  const atlasPath = address.path
 
-  const values: InstallValues = useMemo(
-    () => ({
+  const values: InstallValues = useMemo(() => {
+    // The snippets need *something* while the address has a problem; the
+    // sections showing them are hidden until it has none.
+    const path = atlasPath ?? '/classes'
+    return {
       apiKey: apiKey ?? 'YOUR-API-KEY',
-      prefix: safeUrl.slice(1),
-      atlasUrl: safeUrl,
+      prefix: path.slice(1),
+      atlasUrl: path,
       cmsUrl,
       widgetUrl,
-    }),
-    [apiKey, safeUrl, cmsUrl, widgetUrl],
-  )
+    }
+  }, [apiKey, atlasPath, cmsUrl, widgetUrl])
 
   const tracks = useMemo(() => tracksFor(values), [values])
-  const activeTrack = tracks[track]
+  const activeTrack = track ? tracks[track] : null
 
   const model = useMemo(
-    () => buildInstallModel({ embedMetadata, verification, atlasUrl, track: activeTrack, busy }),
-    [embedMetadata, verification, atlasUrl, activeTrack, busy],
+    () =>
+      buildInstallModel({
+        embedMetadata,
+        verification,
+        atlasUrl: atlasPath,
+        track: activeTrack,
+        busy,
+      }),
+    [embedMetadata, verification, atlasPath, activeTrack, busy],
   )
 
-  // The candidate *is* `reported[0]`, so there is one name for it.
-  const siteHost = model.candidate?.host ?? null
-  const hints = useMemo(() => hostHints({ host: siteHost, platform }), [siteHost, platform])
+  const milestones = buildMilestones({
+    model,
+    verification,
+    canonicalEmbed,
+    hasRegion: props.hasRegion,
+    trackId: track,
+  })
+
+  // What the volunteer typed outranks what has reported: it is the site they
+  // are setting up now.
+  const siteHost = address.host ?? model.candidate?.host ?? null
+  const hints = useMemo(
+    () => (platform ? hostHints({ host: siteHost, platform }) : []),
+    [siteHost, platform],
+  )
 
   /**
    * Re-read the record. The one thing that makes this tab live.
@@ -168,7 +191,7 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
    * third call.
    */
   const confirm = useCallback(
-    async (mountKey: string) => {
+    async (mountKey: string, at: NoticeAt) => {
       setBusy(true)
       setNotice(null)
       try {
@@ -179,7 +202,7 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
           body: JSON.stringify({ mount: mountKey }),
         })
         const claimed = (await claim.json().catch(() => null)) as { message?: string } | null
-        if (claimed?.message) setNotice(claimed.message)
+        if (claimed?.message) setNotice({ at, text: claimed.message })
 
         await fetch(`/api/clients/${clientId}/verify-embed`, {
           method: 'POST',
@@ -187,7 +210,10 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
         })
         await reread()
       } catch {
-        setNotice('Could not reach the CMS to confirm your site. Nothing was changed.')
+        setNotice({
+          at,
+          text: 'Could not reach the CMS to confirm your site. Nothing was changed.',
+        })
       } finally {
         setBusy(false)
       }
@@ -226,15 +252,55 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
     ) {
       return
     }
-    void confirm(candidate.key)
+    void confirm(candidate.key, 'sidebar')
   }, [model.candidate, busy, confirm, canonicalEmbed, verification])
+
+  /**
+   * Re-run everything after a fix, for a volunteer who has just redone a step.
+   *
+   * It asks `reportedMountsFor` directly rather than rebuilding the model: that
+   * function is also what `buildInstallModel` picks the candidate with, so the
+   * button and the poll cannot disagree about which mount to claim.
+   */
+  const recheck = async (at: NoticeAt): Promise<void> => {
+    const polled = await reread()
+    const candidate = reportedMountsFor({
+      embedMetadata: (polled?.embedMetadata ?? embedMetadata) as EmbedMetadata | null,
+      atlasUrl: atlasPath,
+    })[0]
+    // Clearing the guard is what makes this button re-run rather than no-op: the
+    // poll's effect only acts on a mount it has not confirmed before.
+    confirmedFor.current = null
+    if (candidate) await confirm(candidate.key, at)
+    else
+      setNotice({
+        at,
+        text: `The atlas has not shown up at ${atlasPath ?? 'this address'} yet. Publish the page, open it once in your browser, then check again.`,
+      })
+  }
 
   const choosePlatform = (next: PlatformId) => {
     setPlatform(next)
-    setTrack(TRACKS_BY_PLATFORM[next][0])
+    const choices = TRACKS_BY_PLATFORM[next]
+    setTrack(choices.length === 1 ? choices[0] : null)
   }
 
-  const tracksHere = TRACKS_BY_PLATFORM[platform]
+  const tracksHere = platform ? TRACKS_BY_PLATFORM[platform] : []
+  const showProblem = addressInput.trim() !== '' && address.problem !== null
+  const ready = activeTrack !== null && atlasPath !== null
+
+  const stepCard = (step: Step, number: number, quiet: boolean) => (
+    <StepCard
+      checking={busy}
+      key={step.id}
+      notice={notice?.at === step.id ? notice.text : null}
+      number={number}
+      onCheck={() => void recheck(step.id)}
+      quiet={quiet}
+      status={model.stepStatus[step.id]}
+      step={step}
+    />
+  )
 
   return (
     <div className={styles.layout}>
@@ -259,141 +325,142 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
                 label: PLATFORM_LABELS[id],
                 value: id,
               }))}
-              value={platform}
+              value={platform ?? ''}
             />
           </div>
-          <FieldDescription description={PLATFORM_RECOGNISE[platform]} path="platform" />
+          <FieldDescription
+            description={platform ? PLATFORM_RECOGNISE[platform] : 'Choose how your site is built.'}
+            path="platform"
+          />
 
           {tracksHere.length > 1 ? (
-            <div className={styles.choice}>
-              <ToggleGroup
-                aria-label="Which version?"
-                onChange={(next) => setTrack(next as TrackId)}
-                options={tracksHere.map((id) => ({ label: tracks[id].label, value: id }))}
-                value={track}
+            <>
+              <div className={styles.choice}>
+                <ToggleGroup
+                  aria-label="Which version?"
+                  onChange={(next) => setTrack(next as TrackId)}
+                  options={tracksHere.map((id) => ({ label: tracks[id].label, value: id }))}
+                  value={track ?? ''}
+                />
+              </div>
+              <FieldDescription
+                description={activeTrack ? activeTrack.recognise : 'Which version is it?'}
+                path="track"
               />
-            </div>
+            </>
           ) : null}
-          <FieldDescription description={activeTrack.recognise} path="track" />
 
-          {hints.length > 0 || activeTrack.caveat ? (
+          {hints.length > 0 || activeTrack?.caveat ? (
             <div className={styles.banners}>
               {hints.map((hint) => (
-                <Banner key={hint.message} type="error">
+                <Banner icon={<WarningIcon />} key={hint.message} type="error">
                   {hint.message}
                   {hint.offerIframe ? (
-                    <>
-                      {' '}
-                      <Button buttonStyle="none" onClick={() => choosePlatform('iframe')}>
-                        Switch to the iframe track
-                      </Button>
-                    </>
+                    <SwitchToIframe onClick={() => choosePlatform('iframe')} />
                   ) : null}
                 </Banner>
               ))}
-              {activeTrack.caveat ? <Banner type="info">{activeTrack.caveat}</Banner> : null}
+              {activeTrack?.caveat ? (
+                <Banner
+                  icon={activeTrack.caveat.tone === 'warning' ? <WarningIcon /> : undefined}
+                  type={activeTrack.caveat.tone}
+                >
+                  {activeTrack.caveat.text}
+                </Banner>
+              ) : null}
             </div>
           ) : null}
         </section>
 
-        <section className={styles.section}>
-          <h3 className={styles.heading}>2. Where should the atlas live?</h3>
-          <div className={styles.urlField}>
-            <TextInput
-              // Payload's error tooltip truncates a sentence, so the whole
-              // message goes in the description and the tooltip stays short.
-              Description={
-                <FieldDescription
-                  className={problem ? styles.problem : undefined}
-                  description={
-                    problem ?? 'The page on your site that will show the atlas, such as /classes.'
-                  }
-                  path="atlasUrl"
-                />
-              }
-              Error={problem ? <FieldError message="Check this address" showError /> : undefined}
-              label="Atlas address"
-              onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-                setAtlasUrl(event.target.value)
-              }
-              path="atlasUrl"
-              showError={Boolean(problem)}
-              value={atlasUrl}
-            />
-          </div>
-        </section>
-
-        <section className={styles.section}>
-          <h3 className={styles.heading}>3. Do these, in order</h3>
-          <ol className={styles.steps}>
-            {activeTrack.steps.map((step, index) => (
-              <StepCard
-                key={step.id}
-                number={index + 1}
-                status={model.stepStatus[step.id]}
-                step={step}
+        {activeTrack ? (
+          <section className={styles.section}>
+            <h3 className={styles.heading}>2. Where should the atlas live?</h3>
+            <div className={styles.urlField}>
+              <TextInput
+                // Payload's error tooltip truncates a sentence, so the whole
+                // message goes in the description and the tooltip stays short.
+                Description={
+                  <FieldDescription
+                    className={showProblem ? styles.problem : undefined}
+                    description={
+                      showProblem && address.problem
+                        ? address.problem
+                        : atlasPath && address.host
+                          ? `The atlas will live at ${atlasPath} on ${address.host}.`
+                          : addressHelp(activeTrack.platform)
+                    }
+                    path="atlasUrl"
+                  />
+                }
+                Error={
+                  showProblem ? <FieldError message="Check this address" showError /> : undefined
+                }
+                label="Atlas address"
+                onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+                  setAddressInput(event.target.value)
+                }
+                path="atlasUrl"
+                placeholder={
+                  activeTrack.platform === 'wordpress'
+                    ? 'https://yoursite.org/find-a-class'
+                    : 'https://yoursite.org/classes'
+                }
+                showError={showProblem}
+                value={addressInput}
               />
-            ))}
-          </ol>
-        </section>
+            </div>
+          </section>
+        ) : null}
+
+        {ready ? (
+          <section className={styles.section}>
+            <h3 className={styles.heading}>3. Get the atlas on your site</h3>
+            {activeTrack.requires ? (
+              <Banner icon={<WarningIcon />} type="warning">
+                {activeTrack.requires}
+                <SwitchToIframe onClick={() => choosePlatform('iframe')} />
+              </Banner>
+            ) : null}
+            <ol className={styles.steps}>
+              {activeTrack.steps.map((step, index) => stepCard(step, index + 1, false))}
+            </ol>
+          </section>
+        ) : null}
+
+        {ready && activeTrack.more ? (
+          <section className={styles.section}>
+            <h3 className={styles.heading}>4. {activeTrack.more.title}</h3>
+            <p className={styles.intro}>{activeTrack.more.intro}</p>
+            <ol className={styles.steps}>
+              {activeTrack.more.steps.map((step, index) =>
+                stepCard(step, index + 1, Boolean(activeTrack.more?.optional)),
+              )}
+            </ol>
+          </section>
+        ) : null}
       </div>
 
       <aside className={styles.sidebar}>
         <h3 className={styles.heading}>Where this install stands</h3>
-        <dl className={styles.statusPanel}>
-          <Row label="The atlas has been seen at">
-            {model.reported.length === 0
-              ? 'nowhere yet'
-              : model.reported.map((mount) => `${mount.host}${mount.mount}`).join(', ')}
-          </Row>
-          <Row label="Confirmed by the CMS">
-            {verification?.verified
-              ? `yes, on ${verification.verified.domain}${verification.verified.mount}`
-              : 'not yet'}
-          </Row>
-          <Row label="Web address shape">
-            {verification?.routingProbe?.verdict === 'path'
-              ? 'one address per class page'
-              : 'one address with ?atlas= on the end'}
-          </Row>
-          <Row label="Owns its region’s addresses">
-            {canonicalEmbed ? 'yes' : props.hasRegion ? 'not yet' : 'no region set'}
-          </Row>
-          <Row label="What search engines can read">
-            {verification?.seo
-              ? model.failures.length === 0
-                ? 'everything we publish'
-                : `${model.failures.length} problem${model.failures.length === 1 ? '' : 's'} — see the marked steps`
-              : 'not checked yet'}
-          </Row>
-        </dl>
-        {notice ? <p className={styles.notice}>{notice}</p> : null}
-        <Button buttonStyle="secondary" disabled={busy} onClick={() => void recheck()}>
+        <InstallProgress milestones={milestones} />
+        {notice?.at === 'sidebar' ? <p className={styles.notice}>{notice.text}</p> : null}
+        <Button buttonStyle="secondary" disabled={busy} onClick={() => void recheck('sidebar')}>
           {busy ? 'Checking…' : 'Check again'}
         </Button>
       </aside>
     </div>
   )
+}
 
-  /**
-   * Re-run everything after a fix, for a volunteer who has just redone a step.
-   *
-   * It asks `reportedMountsFor` directly rather than rebuilding the model: that
-   * function is also what `buildInstallModel` picks the candidate with, so the
-   * button and the poll cannot disagree about which mount to claim.
-   */
-  async function recheck(): Promise<void> {
-    const polled = await reread()
-    const candidate = reportedMountsFor({
-      embedMetadata: (polled?.embedMetadata ?? embedMetadata) as EmbedMetadata | null,
-      atlasUrl,
-    })[0]
-    // Clearing the guard is what makes this button re-run rather than no-op: the
-    // poll's effect only acts on a mount it has not confirmed before.
-    confirmedFor.current = null
-    if (candidate) await confirm(candidate.key)
-    else setNotice('The atlas has not reported itself from this page yet.')
+/** What the address field asks for before anything is typed. */
+function addressHelp(platform: PlatformId): string {
+  if (platform === 'wordpress') {
+    return 'The plugin makes its page at /find-a-class. Paste that page’s address, or the one you renamed it to.'
   }
+  if (platform === 'wix') {
+    return 'Paste the address the atlas page will have, such as https://yoursite.org/classes — one word after the domain, lowercase.'
+  }
+  return 'Paste the address of the page that will show the atlas, such as https://yoursite.org/classes.'
 }
 
 function bannerType(
@@ -404,12 +471,40 @@ function bannerType(
   return 'default'
 }
 
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
+function SwitchToIframe({ onClick }: { onClick: () => void }) {
   return (
-    <div className={styles.statusRow}>
-      <dt className={styles.statusKey}>{label}</dt>
-      <dd>{children}</dd>
-    </div>
+    <>
+      {' '}
+      <Button buttonStyle="none" className={styles.inlineAction} onClick={onClick}>
+        Switch to Iframe only
+      </Button>
+    </>
+  )
+}
+
+/**
+ * A warning triangle for `Banner`'s icon slot.
+ *
+ * Payload ships no warning glyph. The `stroke` class is what `Banner`'s own
+ * `color-svg` rule recolours per banner type, so it follows the theme.
+ */
+function WarningIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      className={styles.bannerIcon}
+      height="20"
+      viewBox="0 0 20 20"
+      width="20"
+    >
+      <path
+        className="stroke"
+        d="M10 3.5L18 17H2L10 3.5ZM10 8.5V12M10 14.5V14.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.5"
+      />
+    </svg>
   )
 }
 
@@ -418,16 +513,25 @@ function StepCard({
   number,
   step,
   status,
+  quiet,
+  checking,
+  notice,
+  onCheck,
 }: {
   number: number
   step: Step
   status?: StepStatus
+  /** A step nothing checks, in a section where saying so on each one is noise. */
+  quiet: boolean
+  checking: boolean
+  notice: string | null
+  onCheck: () => void
 }): React.ReactElement {
   const failed = status?.state === 'fail'
   return (
     <li data-step={step.id}>
       <Collapsible
-        actions={<StepState status={status} unobservable={step.unobservable} />}
+        actions={quiet ? null : <StepState status={status} unobservable={step.unobservable} />}
         collapsibleStyle={failed ? 'error' : 'default'}
         header={
           <span className={styles.stepTitle}>
@@ -442,6 +546,14 @@ function StepCard({
           ))}
         </ol>
 
+        {step.download ? (
+          <div className={styles.download}>
+            <Button buttonStyle="primary" el="anchor" size="medium" url={step.download.url}>
+              {step.download.label}
+            </Button>
+          </div>
+        ) : null}
+
         {(step.snippets ?? []).map((snippet) => (
           <CopyBlock key={snippet.label} snippet={snippet} />
         ))}
@@ -452,6 +564,15 @@ function StepCard({
               <li key={message}>{message}</li>
             ))}
           </ul>
+        ) : null}
+
+        {step.check ? (
+          <div className={styles.checkRow}>
+            <Button buttonStyle="secondary" disabled={checking} onClick={onCheck} size="medium">
+              {checking ? 'Checking…' : 'Check my site'}
+            </Button>
+            {notice ? <p className={styles.notice}>{notice}</p> : null}
+          </div>
         ) : null}
       </Collapsible>
     </li>

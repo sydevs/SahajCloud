@@ -20,6 +20,13 @@ import {
  * volunteer can be *told to redo* when a check fails. A step with no id nothing
  * can point at is a step a failing check cannot name.
  *
+ * **A working map first, search listings second.** Step 3 of the tab ends with
+ * the atlas live on the site; step 4 is what comes after (`Track.more`). A
+ * volunteer who stops halfway has a working page, not a half-built router.
+ *
+ * **No step asks the volunteer to check anything by hand.** The CMS checks; a
+ * step whose result it can see ends with the Check button (`Step.check`).
+ *
  * Kept out of the component so it is readable as a list and
  * `tests/unit/install-steps.spec.ts` can check the couplings — a track whose
  * check routing names a step it does not have is a red light with nowhere to go.
@@ -39,24 +46,31 @@ export type TrackId = 'wp-selfhosted' | 'wp-com' | 'wix-editor' | 'wix-studio' |
  * rather than a silent mis-route.
  */
 export type StepId =
-  | 'prereqs'
-  | 'plan'
   | 'install-plugin'
-  | 'paste-key'
-  | 'create-page'
-  | 'dev-mode'
-  | 'free-slug'
+  | 'set-up'
+  | 'shortcode'
+  | 'block'
+  | 'add-page'
+  | 'add-element'
   | 'add-router'
   | 'paste-routers'
-  | 'add-element'
-  | 'size-element'
+  | 'move-map'
   | 'add-text'
-  | 'paste-page-code'
-  | 'publish'
-  | 'add-to-menu'
+  | 'publish-seo'
   | 'snippet'
   | 'catch-all'
-  | 'check-endpoint'
+  | 'render-seo'
+
+/**
+ * The plugin's release zip, at an address that never changes.
+ *
+ * ⚠ **Resolves only while every release attaches an unversioned
+ * `sahaj-atlas.zip`** beside its versioned one — `releases/latest/download/`
+ * names an asset, not a pattern. That asset is sydevs/SahajAtlasWordpress's
+ * `release.yml` to attach; drop it there and this link 404s for every volunteer.
+ */
+export const WORDPRESS_PLUGIN_ZIP_URL =
+  'https://github.com/sydevs/SahajAtlasWordpress/releases/latest/download/sahaj-atlas.zip'
 
 /** A block of text with a Copy button beside it. */
 export interface Snippet {
@@ -72,15 +86,28 @@ export interface Step {
   /** One instruction per entry, in the order they are done. */
   actions: string[]
   snippets?: Snippet[]
+  /** A file to download, shown as a button under the instructions. */
+  download?: { label: string; url: string }
   /**
    * Nothing we can fetch tells us whether this step was done.
    *
-   * ⚠ **Marked rather than hidden.** Dev Mode, the element's size and the menu
-   * link are real steps; they just cannot carry a check, and a step showing a
-   * permanent grey light reads as broken. Saying so is what lets the tab show
-   * every other step's result honestly.
+   * ⚠ **Marked rather than hidden.** Renaming a page or moving the map are real
+   * steps; they just cannot carry a check, and a step showing a permanent grey
+   * light reads as broken. Saying so is what lets the tab show every other
+   * step's result honestly.
    */
   unobservable?: boolean
+  /** Ends with the Check button: the step after which the CMS can see the result. */
+  check?: boolean
+}
+
+/** Step 4 of the tab: what comes once the atlas works. */
+export interface FollowOn {
+  title: string
+  intro: string
+  /** Nothing in it is checked, so its steps carry no status at all. */
+  optional?: boolean
+  steps: Step[]
 }
 
 /**
@@ -104,22 +131,35 @@ export interface Track {
   id: TrackId
   platform: PlatformId
   label: string
-  /** Shown under the platform choice: how a volunteer recognises their own site. */
+  /** Shown under the sub-choice: how a volunteer recognises their own site. */
   recognise: string
+  /**
+   * What the site must already have, shown above the steps with a way out to the
+   * iframe track. A condition rather than a step: nothing done in this tab
+   * changes a site's plan, so there is nothing to tick off.
+   */
+  requires?: string
+  /** Step 3: the atlas working on the site. */
   steps: Step[]
+  /** Step 4, where the track has one. */
+  more?: FollowOn
   checks: CheckRouting
   /**
-   * What is unverified about this track, in the volunteer's own words.
+   * What the volunteer should know before choosing this track.
    *
    * ⚠ **Shown, not hidden in a comment.** The Studio menu names come from Wix's
-   * own documentation and nobody has walked them; WordPress.com's plugin upload
-   * and `robots.txt` line are unconfirmed. A volunteer who hits a menu that is
-   * not there needs to know that was expected rather than assume they broke it.
+   * own documentation and nobody has walked them. A volunteer who hits a menu
+   * that is not there needs to know that was expected rather than assume they
+   * broke it.
    */
-  caveat?: string
+  caveat?: { tone: 'info' | 'warning'; text: string }
 }
 
-/** Where the four platform choices send a volunteer who picked wrong. */
+/** Every step a track renders, in both of its sections. */
+export function allSteps(track: Track): Step[] {
+  return [...track.steps, ...(track.more?.steps ?? [])]
+}
+
 export const PLATFORM_LABELS: Record<PlatformId, string> = {
   wordpress: 'WordPress',
   wix: 'Wix',
@@ -130,7 +170,7 @@ export const PLATFORM_LABELS: Record<PlatformId, string> = {
 export const PLATFORM_RECOGNISE: Record<PlatformId, string> = {
   wordpress: 'Your admin address ends in /wp-admin, and the dashboard says “WordPress”.',
   wix: 'You edit the site by dragging things on the page, and the top bar says “Wix”.',
-  custom: 'A developer built the site, and you can add a line of code to every page.',
+  custom: 'A developer built the site, and can add a line of code to every page.',
   iframe: 'You can only paste an embed box, and cannot add code to the page itself.',
 }
 
@@ -142,192 +182,215 @@ export const TRACKS_BY_PLATFORM: Record<PlatformId, TrackId[]> = {
   iframe: ['iframe'],
 }
 
-/** The Wix steps both Wix tracks share, with the menu names switched. */
-function wixSteps(values: InstallValues, studio: boolean): Step[] {
-  const element = wixCustomElementSettings(values)
-  const devMode = studio ? 'Code → Start coding' : 'Dev Mode → Turn on Dev Mode'
-  const addRouter = studio
-    ? 'Code panel → Backend → Routers → Add Router'
-    : 'Dev Mode sidebar → Backend → Routers → Add Router'
+/** Step 4's title wherever it is search listings. */
+const SEO_TITLE = 'Let search engines list your classes'
 
+/** Getting the map onto an ordinary Wix page — no code, no router. */
+function wixEmbedSteps(values: InstallValues, studio: boolean): Step[] {
+  const element = wixCustomElementSettings(values)
   return [
     {
-      id: 'prereqs',
-      title: 'Check the site is ready',
+      id: 'add-page',
+      title: 'Add the atlas page',
       unobservable: true,
       actions: [
-        'The site must be on a paid Wix Premium plan. A free site cannot do this.',
-        'The site must use your own domain name, not an address ending in wixsite.com.',
-        'Wix ads must be switched off, which the Premium plan does.',
-        'If any of these is not true, use the “Iframe only” track instead — it works on a free site, but the class pages will not appear in search results.',
-      ],
-    },
-    {
-      id: 'dev-mode',
-      title: 'Turn on coding',
-      unobservable: true,
-      actions: [`In the top bar, open ${devMode}.`, 'Wix reloads the editor. This is normal.'],
-    },
-    {
-      id: 'free-slug',
-      title: `Make sure nothing else uses /${values.prefix}`,
-      unobservable: true,
-      actions: [
-        `Open Pages and check that no existing page is called “${values.prefix}”.`,
-        'If one is, rename it, or choose a different atlas address above.',
-      ],
-    },
-    {
-      id: 'add-router',
-      title: 'Add the router',
-      unobservable: true,
-      actions: [
-        `Open ${addRouter}.`,
-        `Enter ${values.prefix} as the router prefix.`,
-        `Name the page it creates ${values.prefix} as well. The code below looks for that name.`,
-      ],
-    },
-    {
-      id: 'paste-routers',
-      title: 'Paste the router code',
-      actions: [
-        'Open Backend → routers.js in the code panel.',
-        'Delete everything already in the file, and paste this in its place.',
-        'If the file already has other routers in it, paste this at the end instead.',
-      ],
-      snippets: [
-        { label: 'backend/routers.js', value: wixRoutersTemplate(values), kind: 'javascript' },
+        `Open ${studio ? 'Pages' : 'Pages & Menu'}, click + Add Page, and choose a blank page.`,
+        'Name it what visitors would look for, such as “Free classes”. That name shows in your site menu.',
+        `In the page’s ⋯ menu, open SEO Basics and set its URL slug to ${values.prefix}.`,
       ],
     },
     {
       id: 'add-element',
-      title: 'Add the map',
+      title: 'Add the map, and publish',
+      check: true,
       actions: [
-        `On the ${values.prefix} page, click Add → Embed & Social → Custom Element.`,
+        'On that page, click Add → Embed & Social → Custom Element.',
         'Click Choose Source, pick “Server URL”, and paste the address below.',
         'Paste the tag name below into the “Tag Name” box.',
+        'Stretch the element to the full width of the page and about as tall as the screen. The map draws inside this box, so a box with no height shows nothing.',
+        'Click Publish.',
       ],
       snippets: [
         { label: 'Server URL', value: element.serverUrl, kind: 'text' },
         { label: 'Tag Name', value: element.tagName, kind: 'text' },
       ],
     },
-    {
-      id: 'size-element',
-      title: 'Give the map a size',
-      unobservable: true,
-      actions: [
-        'Drag the custom element to the full width of the page.',
-        'Drag its bottom edge down until it is about as tall as the screen.',
-        'The map draws inside this box, so a box with no height shows nothing.',
-      ],
-    },
-    {
-      id: 'add-text',
-      title: 'Add the text search engines read',
-      actions: [
-        'Click Add → Text → Paragraph, and drop it below the map.',
-        `With it selected, open the Properties panel and set its ID to ${CONTENT_ELEMENT_ID}.`,
-        'Add it last in its section, so it sits after the map.',
-        'Leave its own text empty. The code below fills it in.',
-      ],
-      snippets: [{ label: 'Element ID', value: CONTENT_ELEMENT_ID, kind: 'text' }],
-    },
-    {
-      id: 'paste-page-code',
-      title: 'Paste the page code',
-      actions: [
-        `Click on the ${values.prefix} page, and open its own code panel at the bottom.`,
-        'Paste this in.',
-      ],
-      snippets: [{ label: 'Page code', value: wixPageCodeTemplate(), kind: 'javascript' }],
-    },
-    {
-      id: 'publish',
-      title: 'Publish the site',
-      actions: [
-        'Click Publish in the top right.',
-        'Nothing above this point is live until you do.',
-      ],
-    },
-    {
-      id: 'add-to-menu',
-      title: 'Add it to the site menu',
-      unobservable: true,
-      actions: [
-        `Open Menus & Pages, and add a link to /${values.prefix}.`,
-        'Call it whatever your visitors would look for — “Free classes”, say.',
-      ],
-    },
   ]
 }
+
+/**
+ * Turning the working page into a router page, which is what gives every class
+ * its own indexable address.
+ *
+ * ⚠ **The router needs the page's own slug.** Wix refuses a router prefix an
+ * ordinary page already uses, so the step-3 page is renamed out of the way, its
+ * map carried across, and the page deleted. None of it is live until the last
+ * Publish, so visitors keep the working map throughout.
+ */
+function wixSeoSteps(values: InstallValues, studio: boolean): FollowOn {
+  const devMode = studio ? 'Code → Start coding' : 'Dev Mode → Turn on Dev Mode'
+  const addRouter = studio
+    ? 'Code panel → Backend → Routers → Add Router'
+    : 'Dev Mode sidebar → Backend → Routers → Add Router'
+
+  return {
+    title: SEO_TITLE,
+    intro:
+      'Once the map works, these steps give every class and city its own page in search results. Visitors see no change until you publish at the end.',
+    steps: [
+      {
+        id: 'add-router',
+        title: 'Add the router',
+        unobservable: true,
+        actions: [
+          `In the atlas page’s ⋯ menu → SEO Basics, change its URL slug to ${values.prefix}-old. The router needs /${values.prefix} for itself.`,
+          `In the top bar, open ${devMode}. Wix reloads the editor, which is normal.`,
+          `Open ${addRouter}, and enter ${values.prefix} as the router prefix.`,
+          `Name the page it creates ${values.prefix} as well. The code in the next step looks for that name.`,
+        ],
+      },
+      {
+        id: 'paste-routers',
+        title: 'Paste the router code',
+        actions: [
+          'Open Backend → routers.js in the code panel.',
+          'Delete everything already in the file, and paste this in its place.',
+          'If the file already has other routers in it, paste this at the end instead.',
+        ],
+        snippets: [
+          { label: 'backend/routers.js', value: wixRoutersTemplate(values), kind: 'javascript' },
+        ],
+      },
+      {
+        id: 'move-map',
+        title: 'Move the map onto the router page',
+        unobservable: true,
+        actions: [
+          `Open the ${values.prefix}-old page, select the map, and copy it (Ctrl+C, or ⌘C on a Mac).`,
+          `Open the ${values.prefix} router page and paste it (Ctrl+V, or ⌘V). Stretch it to full width and screen height again if it shrank.`,
+          `Delete the ${values.prefix}-old page from its ⋯ menu.`,
+        ],
+      },
+      {
+        id: 'add-text',
+        title: 'Add the text search engines read',
+        actions: [
+          'On the router page, click Add → Text → Paragraph, and drop it below the map.',
+          `With it selected, open the Properties panel and set its ID to ${CONTENT_ELEMENT_ID}. Leave its own text empty.`,
+          `Open the ${values.prefix} page’s own code panel at the bottom of the screen, and paste the page code in. It fills the paragraph for you.`,
+        ],
+        snippets: [
+          { label: 'Element ID', value: CONTENT_ELEMENT_ID, kind: 'text' },
+          { label: 'Page code', value: wixPageCodeTemplate(), kind: 'javascript' },
+        ],
+      },
+      {
+        id: 'publish-seo',
+        title: 'Publish again',
+        check: true,
+        actions: ['Click Publish. Wix lists every class page in your sitemap when you do.'],
+      },
+    ],
+  }
+}
+
+const WIX_CHECKS: CheckRouting = {
+  noReport: 'add-element',
+  head: 'paste-routers',
+  body: 'add-text',
+  sitemap: 'publish-seo',
+}
+
+const WIX_REQUIRES =
+  'Wix needs a paid Premium plan and your own domain name for this — not an address ending in wixsite.com. Without both, use “Iframe only”.'
 
 /**
  * Both WordPress tracks' checks.
  *
- * Identical on purpose: the plugin owns the whole `<head>`, the body and the
- * sitemap, so every failure points at the one step that installed it.
+ * All one step on purpose: the plugin owns the whole `<head>`, the body and the
+ * sitemap, and every one of them follows from the key and the page it creates.
  */
 const WORDPRESS_CHECKS: CheckRouting = {
-  noReport: 'create-page',
-  head: 'paste-key',
-  body: 'create-page',
-  sitemap: 'create-page',
+  noReport: 'set-up',
+  head: 'set-up',
+  body: 'set-up',
+  sitemap: 'set-up',
 }
 
 /**
- * The WordPress steps, which differ between the two tracks by one menu path and
- * one sentence — so they share a helper, as the two Wix tracks do.
+ * The WordPress steps, which differ between the two tracks by one menu path —
+ * so they share a helper, as the two Wix tracks do.
  */
 function wordpressSteps(values: InstallValues, options: { dotCom: boolean }): Step[] {
-  const { dotCom } = options
-  const uploadPath = dotCom ? 'Plugins → Upload Plugin' : 'Plugins → Add New → Upload Plugin'
+  const uploadPath = options.dotCom
+    ? 'Plugins → Upload Plugin'
+    : 'Plugins → Add New Plugin → Upload Plugin'
 
   return [
-    ...(dotCom
-      ? [
-          {
-            id: 'plan' as const,
-            title: 'Check the plan can install plugins',
-            unobservable: true,
-            actions: [
-              'Open Upgrades → Plans. You need the Business plan or higher.',
-              'On a lower plan, WordPress.com allows no plugins at all — use the “Iframe only” track instead. The class pages will not appear in search results.',
-            ],
-          },
-        ]
-      : []),
     {
       id: 'install-plugin',
       title: 'Install the plugin',
       actions: [
-        'Download the latest sahaj-atlas.zip from the plugin’s releases page.',
-        `Open ${uploadPath}, choose the file, and click Install Now.`,
-        'Click Activate.',
+        'Download the plugin with the button below.',
+        `In WordPress, open ${uploadPath}, choose the file, and click Install Now.`,
+        'Click Activate. The plugin keeps itself up to date from then on.',
       ],
+      download: { label: 'Download sahaj-atlas.zip', url: WORDPRESS_PLUGIN_ZIP_URL },
     },
     {
-      id: 'paste-key',
-      title: 'Paste the key',
+      id: 'set-up',
+      title: 'Connect it, and create the page',
+      check: true,
       actions: [
         'Open Settings → Sahaj Atlas.',
-        'Paste the key below into the API key box, and click Save.',
+        'Paste the key below into the API key box, and click Save Changes.',
+        'Click Create the Atlas page. The plugin makes the page, sizes the map, and handles search engines itself.',
+        'Add the new page to your site’s menu (Appearance → Menus).',
       ],
       snippets: [{ label: 'API key', value: values.apiKey, kind: 'text' }],
     },
+  ]
+}
+
+/** The shortcode and the block, for an atlas inside some other page. */
+const WORDPRESS_MORE: FollowOn = {
+  title: 'Show the atlas inside other pages',
+  intro:
+    'Optional. The page from step 3 is all most sites need. To also show the atlas inside another page — a classes section on your home page, say — use the shortcode or the block. One atlas per page.',
+  optional: true,
+  steps: [
     {
-      id: 'create-page',
-      title: 'Create the atlas page',
+      id: 'shortcode',
+      title: 'With the shortcode',
       actions: [
-        'On the same screen, click Create Atlas page.',
-        ...(dotCom
-          ? []
-          : [
-              'That is the whole installation. The plugin makes the page, sizes the map, and handles search engines itself.',
-            ]),
+        'Type it into any page or post, or into a page builder’s Shortcode widget.',
+        'To open it somewhere else, find the place on sahajatlas.com and paste its address between the quotes.',
+        'map="false" shows a list of classes instead of the map.',
+      ],
+      snippets: [
+        { label: 'The map', value: '[sahaj_atlas]', kind: 'text' },
+        {
+          label: 'The map, opened at a country',
+          value: '[sahaj_atlas atlas="https://sahajatlas.com/gb"]',
+          kind: 'text',
+        },
+        {
+          label: 'One city’s classes, as a list',
+          value: '[sahaj_atlas map="false" atlas="https://sahajatlas.com/gb/london"]',
+          kind: 'text',
+        },
       ],
     },
-  ]
+    {
+      id: 'block',
+      title: 'With the block',
+      actions: [
+        'In the block editor, add the Sahaj Atlas block.',
+        'In its settings on the right: Open at takes an address from sahajatlas.com, Show the map switches between the map and a list, and Shape sets its proportions, such as 16:9.',
+        'In Beaver Builder, add the Sahaj Atlas module instead. It has the same three settings.',
+      ],
+    },
+  ],
 }
 
 /**
@@ -350,15 +413,18 @@ export const TRACK_LABELS: Record<TrackId, string> = {
 export function tracksFor(values: InstallValues): Record<TrackId, Track> {
   const snippetWithRouting = widgetSnippet(values, { routing: true })
   const snippetPlain = widgetSnippet(values, { routing: false })
+  const cms = values.cmsUrl.replace(/\/+$/, '')
+  const auth = `Authorization: clients API-Key ${values.apiKey}`
 
   return {
     'wp-selfhosted': {
       id: 'wp-selfhosted',
       platform: 'wordpress',
       label: TRACK_LABELS['wp-selfhosted'],
-      recognise: 'You can reach Plugins → Add New in your WordPress admin.',
+      recognise: 'You can reach Plugins → Add New Plugin in your WordPress admin.',
       checks: WORDPRESS_CHECKS,
       steps: wordpressSteps(values, { dotCom: false }),
+      more: WORDPRESS_MORE,
     },
 
     'wp-com': {
@@ -367,10 +433,11 @@ export function tracksFor(values: InstallValues): Record<TrackId, Track> {
       label: TRACK_LABELS['wp-com'],
       recognise:
         'Your site is hosted at wordpress.com, and you did not install WordPress yourself.',
-      caveat:
-        'Nobody has installed the plugin on a WordPress.com site yet. The plugin upload, the sitemap line in robots.txt, and automatic updates are all expected to work and none is confirmed. Tell a maintainer what you find.',
+      requires:
+        'WordPress.com allows plugins only on the Business plan or higher (Upgrades → Plans). On a lower plan, use “Iframe only”.',
       checks: WORDPRESS_CHECKS,
       steps: wordpressSteps(values, { dotCom: true }),
+      more: WORDPRESS_MORE,
     },
 
     'wix-editor': {
@@ -378,13 +445,10 @@ export function tracksFor(values: InstallValues): Record<TrackId, Track> {
       platform: 'wix',
       label: TRACK_LABELS['wix-editor'],
       recognise: 'The top bar says “Wix”, and there is a Dev Mode menu.',
-      checks: {
-        noReport: 'add-element',
-        head: 'paste-routers',
-        body: 'add-text',
-        sitemap: 'publish',
-      },
-      steps: wixSteps(values, false),
+      requires: WIX_REQUIRES,
+      checks: WIX_CHECKS,
+      steps: wixEmbedSteps(values, false),
+      more: wixSeoSteps(values, false),
     },
 
     'wix-studio': {
@@ -392,73 +456,87 @@ export function tracksFor(values: InstallValues): Record<TrackId, Track> {
       platform: 'wix',
       label: TRACK_LABELS['wix-studio'],
       recognise: 'The top bar says “Wix Studio”.',
-      caveat:
-        'The Studio menu names below come from Wix’s own documentation and nobody has walked them on a real site. If a menu is not where this says, it is this guide that is wrong — tell a maintainer, and look for the same words elsewhere in the panel.',
-      checks: {
-        noReport: 'add-element',
-        head: 'paste-routers',
-        body: 'add-text',
-        sitemap: 'publish',
+      requires: WIX_REQUIRES,
+      caveat: {
+        tone: 'info',
+        text: 'The Studio menu names below come from Wix’s own documentation and nobody has walked them on a real site. If a menu is not where this says, it is this guide that is wrong — tell a maintainer, and look for the same words elsewhere in the panel.',
       },
-      steps: wixSteps(values, true),
+      checks: WIX_CHECKS,
+      steps: wixEmbedSteps(values, true),
+      more: wixSeoSteps(values, true),
     },
 
     custom: {
       id: 'custom',
       platform: 'custom',
       label: TRACK_LABELS['custom'],
-      recognise: 'A developer built the site, and can add a line of code to every page.',
+      recognise: PLATFORM_RECOGNISE.custom,
       checks: {
         noReport: 'snippet',
-        head: 'check-endpoint',
-        body: 'check-endpoint',
-        sitemap: 'check-endpoint',
+        head: 'render-seo',
+        body: 'render-seo',
+        sitemap: 'render-seo',
       },
       steps: [
         {
           id: 'snippet',
           title: 'Add the widget to the page',
+          check: true,
           actions: [
-            `Paste this where the map should appear, on the page at ${values.atlasUrl}.`,
-            'The height is deliberate: an unsized element covers the whole page instead of drawing in its own box.',
+            `Paste this into the page at ${values.atlasUrl}, where the map should appear.`,
+            'Keep the height: an element with no height covers the whole page instead of drawing in its own box.',
           ],
-          snippets: [{ label: 'Embed snippet', value: snippetWithRouting, kind: 'html' }],
-        },
-        {
-          id: 'catch-all',
-          title: 'Serve every address under that page',
-          unobservable: true,
-          actions: [
-            `Your server must answer every address under ${values.atlasUrl} with the same page — ${values.atlasUrl}/ca/ontario included.`,
-            'Without that, every link into a specific city is a 404 and no search engine will index them.',
-            `If you cannot do that, remove routing=path from the snippet. The links then look like ${values.atlasUrl}?atlas=/ca/ontario, which works and is uglier.`,
-          ],
-        },
-        {
-          id: 'check-endpoint',
-          title: 'Render the page metadata on your server',
-          actions: [
-            'For each page, read the metadata below and render it into the page’s <head> and body before sending it.',
-            'The guide at docs/embedding.md in the Sahaj Atlas repository has the full contract.',
-          ],
-          snippets: [
-            {
-              label: 'Try it',
-              value: `curl -H 'Authorization: clients API-Key ${values.apiKey}' \\\n  '${values.cmsUrl.replace(/\/+$/, '')}/api/atlas/seo?route=/'`,
-              kind: 'text',
-            },
-          ],
+          snippets: [{ label: 'Embed snippet', value: snippetPlain, kind: 'html' }],
         },
       ],
+      more: {
+        title: SEO_TITLE,
+        intro:
+          'Once the map works, give every class its own address and render each page’s title and text on your server, so search engines can list them.',
+        steps: [
+          {
+            id: 'catch-all',
+            title: 'Give every class its own address',
+            unobservable: true,
+            actions: [
+              `Make your server answer every address under ${values.atlasUrl} with the same page — ${values.atlasUrl}/ca/ontario included.`,
+              'Then replace the snippet from step 3 with this one, which writes each class’s own address into the address bar.',
+            ],
+            snippets: [
+              { label: 'Embed snippet, with addresses', value: snippetWithRouting, kind: 'html' },
+            ],
+          },
+          {
+            id: 'render-seo',
+            title: 'Render each page’s metadata on your server',
+            check: true,
+            actions: [
+              'For each address under the atlas page, ask the CMS for that page’s metadata and render it into the page’s <head> and body before sending it.',
+              'List every page the sitemap request answers in your site’s own sitemap.',
+              'The guide at docs/embedding.md in the Sahaj Atlas repository has the full contract.',
+            ],
+            snippets: [
+              {
+                label: 'Page metadata',
+                value: `GET ${cms}/api/atlas/seo?route=/ca/ontario\n${auth}`,
+                kind: 'text',
+              },
+              { label: 'Sitemap', value: `GET ${cms}/api/atlas/sitemap\n${auth}`, kind: 'text' },
+            ],
+          },
+        ],
+      },
     },
 
     iframe: {
       id: 'iframe',
       platform: 'iframe',
       label: TRACK_LABELS['iframe'],
-      recognise: 'You can paste an embed box, and nothing else.',
-      caveat:
-        'This track has no linkable class pages and no search-engine listings. Nothing inside an iframe can give the page around it a title, a canonical link or a sitemap entry. Use it when no other track is possible, and come back to one of them when it is.',
+      recognise: PLATFORM_RECOGNISE.iframe,
+      caveat: {
+        tone: 'warning',
+        text: 'No search listings: nothing inside an iframe can give your page class titles, addresses or a sitemap. Use this only when no other option works.',
+      },
       checks: {
         noReport: 'snippet',
         head: 'snippet',
@@ -469,6 +547,7 @@ export function tracksFor(values: InstallValues): Record<TrackId, Track> {
         {
           id: 'snippet',
           title: 'Paste the embed',
+          check: true,
           actions: [
             'Add an HTML or “embed code” block to the page where the map should appear.',
             'Paste this into it, and publish.',
@@ -517,7 +596,7 @@ export function hostHints(args: { host: string | null; platform: PlatformId }): 
     return [
       {
         message:
-          'This is a free Wix address. The router this track needs requires a paid Wix Premium plan and your own domain name. Until the site has both, use the “Iframe only” track.',
+          'This is a free Wix address. The map needs a paid Wix Premium plan and your own domain name. Until the site has both, use the “Iframe only” track.',
         offerIframe: true,
       },
     ]
@@ -536,21 +615,76 @@ export function hostHints(args: { host: string | null; platform: PlatformId }): 
   return []
 }
 
-/** What is wrong with the atlas address the volunteer typed, or nothing. */
-export function atlasUrlProblem(atlasUrl: string): string | null {
-  const trimmed = atlasUrl.trim()
-  if (trimmed === '') return 'Enter the address the atlas should live at, such as /classes.'
-  if (!trimmed.startsWith('/')) return 'The address has to start with a slash, like /classes.'
+/** The atlas address as the tab uses it, read off whatever the volunteer pasted. */
+export interface AtlasAddress {
+  /**
+   * The page's path, or `null` while there is a problem. This is what reports
+   * are matched on and what the steps name, so a whole URL and a bare path for
+   * the same page give the same answer.
+   */
+  path: string | null
+  /** The site's host, when the volunteer pasted more than a path. */
+  host: string | null
+  problem: string | null
+}
 
-  const segments = trimmed.slice(1).split('/').filter(Boolean)
-  if (segments.length === 0) {
-    return 'The atlas needs its own address, not the site’s home page. Try /classes.'
+/**
+ * Read the atlas address out of a URL, a host and path, or a bare path.
+ *
+ * A volunteer copies the address bar, so a whole URL is the normal input and a
+ * path the exception. Only the path is used — reports are matched on it
+ * (`reportedMountsFor`) — but the host is kept for `hostHints`, which can then
+ * warn about a free Wix site before anything has reported.
+ *
+ * ⚠ **The query survives only on the home page**, where it *is* the page: a
+ * WordPress plain permalink is `/?p=42`. Anywhere else it is tracking noise
+ * copied with the address.
+ *
+ * ⚠ **A Wix address is held to the router's rules** — one lowercase segment —
+ * though step 3's ordinary page could live anywhere. Step 4 moves that page's
+ * address to a router, and an address the router cannot take would strand it.
+ *
+ * ⚠ **On Wix the router prefix *is* this path, and must stay the claimed
+ * mount's.** The route endpoint decides whether a page is self-canonical by
+ * comparing hosts, trusting that the router sits at the mount the client
+ * designated — so the tab prefills the address from `canonical.embed` rather
+ * than offering a free choice.
+ */
+export function readAtlasAddress(input: string, options: { wix: boolean }): AtlasAddress {
+  const trimmed = input.trim()
+  const fail = (problem: string): AtlasAddress => ({ path: null, host: null, problem })
+  if (trimmed === '') return fail('Paste the address of the page that will show the atlas.')
+
+  const hasScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed)
+  const bare = trimmed.replace(/^\/+/, '')
+  const looksLikeHost = !hasScheme && !trimmed.startsWith('/') && /^[^/?#]+\.[^/?#]+/.test(bare)
+  const url = URL.parse(
+    hasScheme ? trimmed : looksLikeHost ? `https://${bare}` : `https://site.invalid/${bare}`,
+  )
+  if (!url || (url.protocol !== 'https:' && url.protocol !== 'http:')) {
+    return fail('That is not a web address. Copy it from your browser’s address bar.')
   }
-  if (segments.length > 1) {
-    return 'Use one level only, like /classes — a Wix router cannot live below another page.'
+
+  const host = hasScheme || looksLikeHost ? url.hostname : null
+  const segments = url.pathname.split('/').filter(Boolean)
+  const query = segments.length === 0 && url.search.length > 1 ? url.search : ''
+
+  if (segments.length === 0 && query === '') {
+    return fail(
+      'That is the site’s home page. The atlas needs a page of its own, such as /classes.',
+    )
   }
-  if (!isValidWixPrefix(segments[0])) {
-    return 'Use lowercase letters, numbers and hyphens only, like /free-classes.'
+
+  if (options.wix) {
+    if (segments.length !== 1) {
+      return fail(
+        'On Wix, use a page one level down, like /classes — a Wix router cannot sit below another page.',
+      )
+    }
+    if (!isValidWixPrefix(segments[0])) {
+      return fail('On Wix, use lowercase letters, numbers and hyphens only, like /free-classes.')
+    }
   }
-  return null
+
+  return { path: `/${segments.join('/')}${query}`, host, problem: null }
 }

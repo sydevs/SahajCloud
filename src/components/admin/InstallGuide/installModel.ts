@@ -1,4 +1,4 @@
-import type { StepId, Track } from './steps'
+import type { StepId, Track, TrackId } from './steps'
 
 import type { EmbedMetadata } from '@/lib/clients/embedMetadata'
 import type { CanonicalVerification, SeoCheckResult } from '@/lib/clients/verification'
@@ -38,10 +38,11 @@ export interface ReportedMount {
  */
 export function reportedMountsFor(args: {
   embedMetadata: EmbedMetadata | null | undefined
-  atlasUrl: string
+  /** `null` while the address has a problem, which matches nothing. */
+  atlasUrl: string | null
 }): ReportedMount[] {
   const { embedMetadata, atlasUrl } = args
-  if (!embedMetadata || typeof embedMetadata !== 'object') return []
+  if (atlasUrl === null || !embedMetadata || typeof embedMetadata !== 'object') return []
 
   const wanted = normalizeMountPath(atlasUrl)
   const mounts: ReportedMount[] = []
@@ -105,8 +106,9 @@ export interface InstallModel {
 export function buildInstallModel(args: {
   embedMetadata: EmbedMetadata | null | undefined
   verification: CanonicalVerification | null | undefined
-  atlasUrl: string
-  track: Track
+  atlasUrl: string | null
+  /** `null` until the volunteer has chosen one; the stage needs none, the steps do. */
+  track: Track | null
   /** True while the tab is running verification or the checks. */
   busy?: boolean
 }): InstallModel {
@@ -132,14 +134,10 @@ export function buildInstallModel(args: {
 
   // No message: a step's messages render only as its failure list, so a
   // waiting note would show up there in red beside a real failure.
-  if (candidate === null) {
-    note(track.checks.noReport, 'unknown')
-  } else {
-    note(track.checks.noReport, 'pass')
-  }
+  if (track) note(track.checks.noReport, candidate === null ? 'unknown' : 'pass')
 
   for (const result of results) {
-    if (result.status === 'skipped') continue
+    if (!track || result.status === 'skipped') continue
     const step = stepForCheck(track, result.check)
     const where = result.route === '/' ? 'the main page' : `the page at ${result.route}`
     note(
@@ -177,4 +175,89 @@ export const STAGE_MESSAGES: Record<InstallStage, string> = {
     'Your atlas is live and nobody visiting your site is affected — but search engines cannot read part of it. The steps marked below say what to redo.',
   failed:
     'The atlas was reported on this page, but the CMS could not confirm it by loading the page itself. The step marked below is the one to check.',
+}
+
+/** How one row of the progress table stands. */
+export type MilestoneState = 'done' | 'failed' | 'warning' | 'todo'
+
+export interface Milestone {
+  id: 'seen' | 'confirmed' | 'region' | 'routing' | 'search'
+  label: string
+  state: MilestoneState
+  detail: string
+}
+
+/**
+ * The progress table: what is done, in the order it happens.
+ *
+ * ⚠ **Only rows the chosen track can finish.** An iframe has no addresses of its
+ * own and nothing a search engine can read, so it gets neither row — a row that
+ * can never turn green would leave the count short for good and read as a
+ * failure of the install rather than of the track.
+ */
+export function buildMilestones(args: {
+  model: InstallModel
+  verification: CanonicalVerification | null | undefined
+  canonicalEmbed: string | null
+  hasRegion: boolean
+  trackId: TrackId | null
+}): Milestone[] {
+  const { model, verification, canonicalEmbed, hasRegion, trackId } = args
+  const [first, ...rest] = model.reported
+  const problems = model.failures.length
+
+  const milestones: Milestone[] = [
+    {
+      id: 'seen',
+      label: 'Found on your site',
+      state: first ? 'done' : 'todo',
+      detail: first
+        ? `${first.host}${first.mount}${rest.length > 0 ? ` and ${rest.length} more` : ''}`
+        : 'Not yet',
+    },
+    {
+      id: 'confirmed',
+      label: 'Confirmed by the CMS',
+      state: verification?.verified ? 'done' : model.stage === 'failed' ? 'failed' : 'todo',
+      detail: verification?.verified
+        ? 'Yes'
+        : model.stage === 'failed'
+          ? 'Could not load the page'
+          : model.stage === 'verifying'
+            ? 'Checking…'
+            : 'Not yet',
+    },
+  ]
+  if (trackId === 'iframe') return milestones
+
+  return [
+    ...milestones,
+    {
+      id: 'region',
+      label: 'Owns its region’s addresses',
+      state: canonicalEmbed ? 'done' : hasRegion ? 'todo' : 'warning',
+      detail: canonicalEmbed ? 'Yes' : hasRegion ? 'Not yet' : 'No region set',
+    },
+    {
+      id: 'routing',
+      label: 'Each class has its own address',
+      state: verification?.routingProbe?.verdict === 'path' ? 'done' : 'todo',
+      detail:
+        verification?.routingProbe?.verdict === 'path'
+          ? 'Yes'
+          : verification?.routingProbe
+            ? 'Uses ?atlas='
+            : 'Not yet',
+    },
+    {
+      id: 'search',
+      label: 'Readable by search engines',
+      state: !verification?.seo ? 'todo' : problems > 0 ? 'failed' : 'done',
+      detail: !verification?.seo
+        ? 'Not checked yet'
+        : problems > 0
+          ? `${problems} problem${problems === 1 ? '' : 's'}`
+          : 'Yes',
+    },
+  ]
 }

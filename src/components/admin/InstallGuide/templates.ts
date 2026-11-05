@@ -1,5 +1,3 @@
-import { isValidWixPrefix } from '@/lib/atlas/wixPrefix'
-
 /**
  * The three things a volunteer pastes into Wix, generated from their own
  * service's key and prefix (#1055).
@@ -54,21 +52,6 @@ export interface InstallValues {
  */
 export function routerFunctionBase(prefix: string): string {
   return prefix.replace(/-/g, '_')
-}
-
-/**
- * The atlas URL a service's own `canonical.embed` implies, as a router prefix.
- *
- * ⚠ **The prefix and the mount must agree**, because the route endpoint decides
- * whether a page is self-canonical by comparing hosts and trusting that the
- * router sits at the mount the client designated. So the tab offers the mount's
- * own first segment rather than letting a volunteer pick freely, and validates
- * whatever they type.
- */
-export function prefixFromMount(mount: string | null | undefined): string {
-  const first = (mount ?? '').split('?')[0].split('/').filter(Boolean)[0] ?? ''
-  const slug = first.toLowerCase().replace(/[^a-z0-9-]/g, '')
-  return isValidWixPrefix(slug) ? slug : 'classes'
 }
 
 /** A value going into a JavaScript string literal in generated code. */
