@@ -63,7 +63,8 @@ const cleverreachAnswers =
   (stub: Partial<Record<'token' | 'receiver' | 'upsert' | 'send' | 'flow' | 'group', Response>>) =>
   (url: unknown) => {
     const target = String(url)
-    if (target.includes('/oauth/token.php')) return stub.token ?? answer(200, { access_token: 'tok' })
+    if (target.includes('/oauth/token.php'))
+      return stub.token ?? answer(200, { access_token: 'tok' })
     if (target.includes('/receivers/upsert')) return stub.upsert ?? answer(200)
     if (target.includes('/receivers/')) return stub.receiver ?? answer(404)
     if (target.endsWith('/send')) return stub.send ?? answer(200)
@@ -385,7 +386,11 @@ describe('subscribeToMailingList', () => {
         }),
       )
       await expect(subscribe(CLEVERREACH)).resolves.toEqual(
-        expect.objectContaining({ code: 'provider_rejected', retryable: false, message: 'invalid_client: bad secret' }),
+        expect.objectContaining({
+          code: 'provider_rejected',
+          retryable: false,
+          message: 'invalid_client: bad secret',
+        }),
       )
     })
   })
