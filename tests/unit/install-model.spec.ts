@@ -9,6 +9,7 @@ import {
   checkOutcome,
   MILESTONE_STATUS,
   reportedMountsFor,
+  sectionConfirmed,
 } from '../../src/components/admin/InstallGuide/installModel'
 import { tracksFor } from '../../src/components/admin/InstallGuide/steps'
 import { EMPTY_VERIFICATION } from '../../src/lib/clients/verification'
@@ -499,5 +500,42 @@ describe('a track with no search listings', () => {
       searchListings: false,
     })
     expect(banner).toMatchObject({ type: 'success', text: 'The atlas is live on your site.' })
+  })
+})
+
+describe('sectionConfirmed — when a section stops offering Check my site', () => {
+  const embedMetadata = mount('https://sahajayoga.ca/free-classes', '2026-10-01T00:00:00.000Z')
+  const model = (verification: CanonicalVerification | null, reported = true) =>
+    buildInstallModel({
+      atlasUrl: '/free-classes',
+      track: TRACK,
+      embedMetadata: reported ? embedMetadata : null,
+      verification,
+    })
+  const step4 = TRACK.more?.steps ?? []
+
+  it('keeps step 3 checkable until the map is detected', () => {
+    expect(sectionConfirmed(TRACK.steps, model(null, false).stepStatus)).toBe(false)
+    expect(sectionConfirmed(TRACK.steps, model(null).stepStatus)).toBe(true)
+  })
+
+  it('keeps step 3 checkable while a step in it needs redoing', () => {
+    const failing = model(verified({ seo: seo([{ route: '/', check: 'title', status: 'fail' }]) }))
+    expect(sectionConfirmed(TRACK.steps, failing.stepStatus)).toBe(false)
+  })
+
+  it('offers step 4 its own check until its text is confirmed', () => {
+    const before = model(verified({ seo: seo([{ route: '/', check: 'title', status: 'pass' }]) }))
+    expect(sectionConfirmed(TRACK.steps, before.stepStatus)).toBe(true)
+    expect(sectionConfirmed(step4, before.stepStatus)).toBe(false)
+    const after = model(
+      verified({
+        seo: seo([
+          { route: '/', check: 'title', status: 'pass' },
+          { route: '/', check: 'body', status: 'pass' },
+        ]),
+      }),
+    )
+    expect(sectionConfirmed(step4, after.stepStatus)).toBe(true)
   })
 })

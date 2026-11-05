@@ -423,3 +423,20 @@ export function checkOutcome(args: {
     text: 'Nothing was changed. Try again in a moment.',
   }
 }
+
+/**
+ * Whether every step in a section is confirmed, or implied by one that is.
+ *
+ * A section's Check button has nothing left to find once this holds, so the
+ * section drops it; the sidebar's Check again stays for a volunteer who changed
+ * something anyway.
+ */
+export function sectionConfirmed(
+  steps: Step[],
+  stepStatus: Partial<Record<StepId, StepStatus>>,
+): boolean {
+  return steps.every((step) => {
+    const state = stepStatus[step.id]?.state
+    return state === 'pass' || state === 'done'
+  })
+}

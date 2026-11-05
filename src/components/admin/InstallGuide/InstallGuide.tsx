@@ -29,6 +29,7 @@ import {
   type ClaimAnswer,
   checkOutcome,
   reportedMountsFor,
+  sectionConfirmed,
   stageBanner,
   type StepStatus,
   type VerifyAnswer,
@@ -73,7 +74,7 @@ const POLL_MS = 10_000
 type PolledClient = Pick<Client, 'embedMetadata' | 'canonical' | 'region'>
 
 /** Which Check button asked, so its answer shows beside it. */
-type CheckSource = 'sidebar' | 'steps'
+type CheckSource = 'sidebar' | 'section3' | 'section4'
 
 export interface InstallGuideProps {
   clientId: number
@@ -459,17 +460,10 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
             <ol className={styles.steps}>
               {activeTrack.steps.map((step, index) => stepCard(step, index + 1, false))}
             </ol>
-            <div className={styles.checkRow}>
-              <Button
-                buttonStyle="primary"
-                disabled={busy}
-                onClick={() => void recheck('steps')}
-                size="large"
-              >
-                {busy ? 'Checking…' : 'Check my site'}
-              </Button>
-            </div>
-            {result?.from === 'steps' ? <ResultBanner banner={result.banner} /> : null}
+            {sectionConfirmed(activeTrack.steps, model.stepStatus) ? null : (
+              <CheckButton busy={busy} onClick={() => void recheck('section3')} />
+            )}
+            {result?.from === 'section3' ? <ResultBanner banner={result.banner} /> : null}
           </section>
         ) : null}
 
@@ -482,6 +476,11 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
                 stepCard(step, index + 1, Boolean(activeTrack.more?.optional)),
               )}
             </ol>
+            {activeTrack.more.optional ||
+            sectionConfirmed(activeTrack.more.steps, model.stepStatus) ? null : (
+              <CheckButton busy={busy} onClick={() => void recheck('section4')} />
+            )}
+            {result?.from === 'section4' ? <ResultBanner banner={result.banner} /> : null}
           </section>
         ) : null}
       </div>
@@ -525,6 +524,17 @@ function addressHelp(platform: PlatformId): string {
     return 'Paste the address the atlas page will have, such as https://yoursite.org/classes — one word after the domain, lowercase.'
   }
   return 'Paste the address of the page that will show the atlas, such as https://yoursite.org/classes.'
+}
+
+/** A section's own Check button, the primary action at its foot. */
+function CheckButton({ busy, onClick }: { busy: boolean; onClick: () => void }) {
+  return (
+    <div className={styles.checkRow}>
+      <Button buttonStyle="primary" disabled={busy} onClick={onClick} size="large">
+        {busy ? 'Checking…' : 'Check my site'}
+      </Button>
+    </div>
+  )
 }
 
 function ResultBanner({ banner }: { banner: BannerContent }) {
