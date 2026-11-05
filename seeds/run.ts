@@ -56,6 +56,8 @@ const VALID_SCRIPTS: ScriptName[] = [
   'wm-app-translations',
   'translations',
   'atlas',
+  // Never in SCRIPT_RUN_ORDER: destructive, so it runs only when named.
+  'atlas-reset',
 ]
 
 // Dependency order: tags first (referenced by other content), then wemeditate (authors/categories),
@@ -82,6 +84,7 @@ const SCRIPT_DESCRIPTIONS: Record<ScriptName, string> = {
   'wm-app-translations': 'Seed English copy for the wm-app-translations global',
   translations: 'Seed English copy for all three translation globals',
   atlas: 'Seed Sahaj Atlas events, regions, managers, registrations + clients',
+  'atlas-reset': '⚠ Delete every Atlas event, region, user and user-submission (before a re-sync)',
 }
 
 const VALID_OPTIONS = ['--dry-run', '--clear-cache', '--update']
