@@ -26,6 +26,7 @@ import type { AtlasSnapshotCounts } from '@/payload-types'
 import { loadRegionNodes, type OverviewArgs, scopeRegionIds } from './scope'
 import { loadSignupWindows, sumSignupWindows } from './signups'
 import { snapshotDate } from './snapshots'
+import { countPrograms, isProgramStage } from './status'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 export const CHANGE_WINDOW_DAYS = 30
@@ -109,11 +110,18 @@ async function loadComparisonSnapshot(
   return (docs[0]?.counts as AtlasSnapshotCounts | undefined) ?? null
 }
 
-/** Events in scope by stage, live. */
+/**
+ * Events in scope by stage, live, with the two id sets a tile needs.
+ *
+ * `eventIds` is every event in scope and bounds the sign-up queries, which
+ * count a sign-up on a listing that has since finished — the Sign-ups column
+ * beside them does too. `programIds` is the subset the reader is told are
+ * programs, and is what every count of them is taken over.
+ */
 async function liveStageCounts(
   args: OverviewArgs,
   regionIds: null | Set<number>,
-): Promise<{ byStage: Record<string, number>; eventIds: number[] }> {
+): Promise<{ byStage: Record<string, number>; eventIds: number[]; programIds: number[] }> {
   const { docs } = await args.req.payload.find({
     collection: 'events',
     where:
@@ -132,7 +140,11 @@ async function liveStageCounts(
   // the ladder only made a second place for the stage list to be wrong.
   const byStage: Record<string, number> = {}
   for (const doc of docs) byStage[doc.verificationStage] = (byStage[doc.verificationStage] ?? 0) + 1
-  return { byStage, eventIds: docs.map((doc) => doc.id) }
+  return {
+    byStage,
+    eventIds: docs.map((doc) => doc.id),
+    programIds: docs.filter((doc) => isProgramStage(doc.verificationStage)).map((doc) => doc.id),
+  }
 }
 
 /**
@@ -144,10 +156,17 @@ async function liveStageCounts(
  * sign-up" is its `size`, and Most registered its maximum — so an event whose
  * only sign-ups fell in the *previous* window must not appear, or a quiet
  * month's listing counts as one with a sign-up.
+ *
+ * ⚠ **The totals are over every event, `byEvent` over the programs alone.**
+ * Both readers of `byEvent` are counted against a denominator of programs, so a
+ * finished listing in it could put "Programs with a sign-up" above the Total
+ * programs beside it. The Registrations total is not a count of programs and
+ * matches the Sign-ups column, which counts a finished listing's sign-ups too.
  */
 async function signupCounts(
   req: PayloadRequest,
   eventIds: number[],
+  programIds: number[],
   now: Date,
 ): Promise<{ byEvent: Map<number, number>; now: number; previous: number }> {
   if (!eventIds.length) return { byEvent: new Map(), now: 0, previous: 0 }
@@ -157,9 +176,10 @@ async function signupCounts(
     now,
     req,
   })
+  const programs = new Set(programIds)
   const byEvent = new Map<number, number>()
   for (const [eventId, window] of windows) {
-    if (window.now > 0) byEvent.set(eventId, window.now)
+    if (window.now > 0 && programs.has(eventId)) byEvent.set(eventId, window.now)
   }
   return { byEvent, ...sumSignupWindows(windows) }
 }
@@ -182,8 +202,8 @@ export async function loadStatistics(args: OverviewArgs): Promise<OverviewStatis
   ])
   const regionIds = await scopeRegionIds(args, nodes)
 
-  const { byStage, eventIds } = await liveStageCounts(args, regionIds)
-  const signups = await signupCounts(req, eventIds, now)
+  const { byStage, eventIds, programIds } = await liveStageCounts(args, regionIds)
+  const signups = await signupCounts(req, eventIds, programIds, now)
 
   const snapshotTotals = snapshot ? sumSnapshot(snapshot, regionIds) : null
 
@@ -208,15 +228,14 @@ export async function loadStatistics(args: OverviewArgs): Promise<OverviewStatis
   // describes — so the snapshot, which is keyed by region, cannot say what
   // they had 30 days ago, and the tile shows no change rather than the map's.
   const programsBefore =
-    scope.role !== 'program' && snapshotTotals
-      ? Object.values(snapshotTotals).reduce((sum, n) => sum + n, 0)
-      : null
+    scope.role !== 'program' && snapshotTotals ? countPrograms(snapshotTotals) : null
+  const programs = programIds.length
   const analytics: StatTile[] = [
     {
       key: 'programs',
       label: 'Total programs',
-      value: eventIds.length,
-      change: programsBefore === null ? null : eventIds.length - programsBefore,
+      value: programs,
+      change: programsBefore === null ? null : programs - programsBefore,
     },
     {
       key: 'registrations',
@@ -228,7 +247,7 @@ export async function loadStatistics(args: OverviewArgs): Promise<OverviewStatis
       key: 'programs-with-signup',
       label: 'Programs with a sign-up',
       value: withSignups,
-      of: eventIds.length,
+      of: programs,
       change: null,
     },
   ]
@@ -236,7 +255,7 @@ export async function loadStatistics(args: OverviewArgs): Promise<OverviewStatis
   return {
     analytics,
     health,
-    mostRegistered: await mostRegistered(req, signups.byEvent, eventIds.length),
+    mostRegistered: await mostRegistered(req, signups.byEvent, programs),
   }
 }
 

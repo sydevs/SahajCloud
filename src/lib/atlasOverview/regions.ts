@@ -16,7 +16,7 @@ import type { Region } from '@/payload-types'
 
 import { loadRegionNodes, type OverviewArgs, type RegionNode, scopeRegionIds } from './scope'
 import { loadSignupWindows } from './signups'
-import { OVERDUE_QUERY_STAGES } from './status'
+import { isProgramStage, OVERDUE_QUERY_STAGES } from './status'
 
 /** What one row of either overview shows. */
 export interface RegionOverviewRow {
@@ -84,7 +84,7 @@ export function rollUpRegionMetrics(
   const bump = (regionId: number, event: MetricEvent) => {
     if (!inScope.has(regionId)) return
     const current = metrics.get(regionId) ?? emptyMetrics()
-    if (event.stage !== 'finished') {
+    if (isProgramStage(event.stage)) {
       current.programs += 1
       if (event.hasManager && !OVERDUE_STAGES.has(event.stage)) current.healthyNumerator += 1
     }

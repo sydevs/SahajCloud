@@ -33,6 +33,28 @@ import { formatShortDate } from '@/lib/notifications/eventDetails'
  */
 export const OVERDUE_QUERY_STAGES = ['escalated', 'urgent', 'expired'] as const
 
+/**
+ * Whether a listing at this stage is one of the **programs** a reader is
+ * counted.
+ *
+ * ⚠ **One definition, because two surfaces of one page show it.** The Total
+ * programs tile and the Programs column beside it read the same scope, so
+ * `stage !== 'finished'` written at each is two numbers a reader can watch
+ * disagree about the same set — which is what the tile did, counting finished
+ * listings the column excluded.
+ */
+export function isProgramStage(stage: string): boolean {
+  return stage !== 'finished'
+}
+
+/** Programs in a stage-keyed count map: a tile's value, and its snapshot's. */
+export function countPrograms(byStage: Record<string, number | undefined>): number {
+  return Object.entries(byStage).reduce(
+    (sum, [stage, n]) => (isProgramStage(stage) ? sum + (n ?? 0) : sum),
+    0,
+  )
+}
+
 /** Where a next step leads. The URL is the reader's to spell — see the loaders. */
 export interface OpenItemTarget {
   collection: 'events' | 'regions' | 'user-submissions'
