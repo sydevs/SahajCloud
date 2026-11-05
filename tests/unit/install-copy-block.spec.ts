@@ -34,7 +34,7 @@ vi.mock('@payloadcms/ui', () => ({
 }))
 
 const { CopyBlock } = await import('@/components/admin/InstallGuide/CopyBlock')
-const { tracksFor } = await import('@/components/admin/InstallGuide/steps')
+const { allSteps, snippetsOf, tracksFor } = await import('@/components/admin/InstallGuide/steps')
 
 const VALUES = {
   apiKey: 'abc-123',
@@ -96,9 +96,7 @@ describe('every snippet on every track', () => {
     // The criterion is per snippet, so this walks all of them rather than
     // trusting one representative.
     const tracks = tracksFor(VALUES)
-    const snippets = Object.values(tracks).flatMap((track) =>
-      track.steps.flatMap((step) => step.snippets ?? []),
-    )
+    const snippets = Object.values(tracks).flatMap((track) => allSteps(track).flatMap(snippetsOf))
     expect(snippets.length).toBeGreaterThan(0)
 
     for (const snippet of snippets) {

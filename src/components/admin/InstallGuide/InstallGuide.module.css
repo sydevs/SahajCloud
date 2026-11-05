@@ -183,41 +183,63 @@
   padding-left: calc(var(--base) * 1);
 }
 
-.notice {
-  margin: 0;
-  color: var(--theme-elevation-800);
-}
-
 .intro {
   margin: 0;
   color: var(--theme-elevation-650);
 }
 
-.download,
 .checkRow {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: calc(var(--base) * 0.5);
-  margin-top: var(--base);
+  margin-top: calc(var(--base) * 0.5);
 }
 
-.download :global(.btn),
 .checkRow :global(.btn) {
   margin: 0;
 }
 
-/* A text-link button inside a banner sentence: Payload's 'none' style keeps its own font. */
+.result :global(.banner) {
+  margin: 0;
+}
+
+/* The sidebar sizes children to their content; a result banner should span it. */
+.sidebar .result {
+  justify-self: stretch;
+}
+
+/* A text-link button inside a banner: Payload's 'none' style keeps the banner's font. */
 .inlineAction {
   margin: 0;
+  padding: 0;
   font-weight: 600;
   text-decoration: underline;
   color: inherit;
 }
 
-.bannerIcon {
-  flex-shrink: 0;
-  margin-right: calc(var(--base) * 0.5);
+/* A value to copy, or a file to download, right under the instruction that uses it. */
+.inlineValue {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: calc(var(--base) * 0.25);
+  margin: calc(var(--base) * 0.25) 0 calc(var(--base) * 0.5);
+}
+
+.inlineValue :global(.btn) {
+  margin: 0;
+}
+
+.inlineCode {
+  padding: calc(var(--base) * 0.15) calc(var(--base) * 0.4);
+  background: var(--theme-elevation-50);
+  border: 1px solid var(--theme-elevation-150);
+  border-radius: var(--style-radius-s);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.actions :global(.code-editor),
+.actions .copyBlock {
+  margin-bottom: calc(var(--base) * 0.5);
 }
 
 /* The progress table fills the sidebar, which otherwise sizes children to content. */
@@ -252,48 +274,82 @@
   margin: 0;
 }
 
+/*
+ * One colour per state, set on the row's cells as --state. The badge, the
+ * status word and nothing else take it, so every row reads the same way.
+ */
+.stateDone {
+  --state: var(--theme-success-500);
+}
+
+.stateFailed {
+  --state: var(--theme-error-500);
+}
+
+.stateWarning {
+  --state: var(--theme-warning-500);
+}
+
+.stateTodo,
+.stateNa {
+  --state: var(--theme-elevation-400);
+}
+
 .milestone {
   display: inline-flex;
-  align-items: center;
+  align-items: flex-start;
   gap: calc(var(--base) * 0.4);
 }
 
-.milestoneIcon {
+.badge {
   flex-shrink: 0;
-}
-
-.iconDone {
-  color: var(--theme-success-500);
-}
-
-.iconFailed {
-  color: var(--theme-error-500);
-}
-
-.iconWarning {
-  color: var(--theme-warning-500);
-}
-
-.iconTodo {
-  color: var(--theme-elevation-400);
-}
-
-.detailDone {
-  color: var(--theme-success-600);
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid var(--state);
+  border-radius: 50%;
+  background: var(--state);
+  color: var(--theme-elevation-0);
+  font-size: 11px;
   font-weight: 600;
+  line-height: 1;
+}
+
+/* Still to come: the same badge, outlined. Not available: outlined and dashed. */
+.stateTodo .badge,
+.stateNa .badge {
+  background: transparent;
+  color: var(--state);
+}
+
+.stateNa .badge {
+  border-style: dashed;
+}
+
+.milestoneLabel {
+  display: block;
+}
+
+.stateNa .milestoneLabel {
+  color: var(--theme-elevation-500);
+}
+
+.milestoneNote {
+  display: block;
+  font-size: 0.85em;
+  color: var(--theme-elevation-500);
   overflow-wrap: anywhere;
 }
 
-.detailFailed {
-  color: var(--theme-error-500);
+.status {
   font-weight: 600;
+  color: var(--state);
+  white-space: nowrap;
 }
 
-.detailWarning {
-  color: var(--theme-warning-600);
-  font-weight: 600;
-}
-
-.detailTodo {
+.stateTodo.status,
+.stateNa.status {
+  font-weight: 400;
   color: var(--theme-elevation-500);
 }

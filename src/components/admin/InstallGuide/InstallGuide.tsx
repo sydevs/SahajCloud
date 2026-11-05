@@ -1,18 +1,19 @@
 'use client'
 
-import type { PlatformId, Step, StepId, TrackId } from './steps'
+import type { Action, PlatformId, Step, TrackId } from './steps'
 import type { InstallValues } from './templates'
 
 import {
-  Banner,
   Button,
   Collapsible,
+  CopyToClipboard,
   FieldDescription,
   FieldError,
   TextInput,
 } from '@payloadcms/ui'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import { TitledBanner } from '@/components/admin/helpers/TitledBanner'
 import { StatusIcon } from '@/components/admin/ReadinessField/StatusIcon'
 import { ToggleGroup } from '@/components/admin/ToggleGroupField/ToggleGroup'
 import type { EmbedMetadata } from '@/lib/clients/embedMetadata'
@@ -22,11 +23,15 @@ import type { Client } from '@/payload-types'
 import { CopyBlock } from './CopyBlock'
 import styles from './InstallGuide.module.css'
 import {
+  type BannerContent,
   buildInstallModel,
   buildMilestones,
+  type ClaimAnswer,
+  checkOutcome,
   reportedMountsFor,
-  STAGE_MESSAGES,
+  STAGE_BANNERS,
   type StepStatus,
+  type VerifyAnswer,
 } from './installModel'
 import { InstallProgress } from './InstallProgress'
 import {
@@ -50,7 +55,9 @@ import {
  * person who caused it. The Check buttons only bring that forward.
  *
  * **Each section waits for the one before it.** Nothing is chosen for the
- * volunteer, so the steps never show for a platform they did not pick.
+ * volunteer, so the steps never show for a platform they did not pick, and
+ * step 4 waits until the atlas is detected and confirmed: it builds on a working
+ * map, and on Wix it starts by renaming the page step 3 made.
  *
  * **Everything it knows comes off the service's own record**, re-read on a
  * timer. There is no state here that outlives the tab: the platform choice and
@@ -65,8 +72,8 @@ const POLL_MS = 10_000
 /** What `GET /api/clients/:id` gives the tab, narrowed to what it reads. */
 type PolledClient = Pick<Client, 'embedMetadata' | 'canonical' | 'region'>
 
-/** Where a check's answer is shown: beside the button that asked for it. */
-type NoticeAt = 'sidebar' | StepId
+/** Which Check button asked, so its answer shows beside it. */
+type CheckSource = 'sidebar' | 'steps'
 
 export interface InstallGuideProps {
   clientId: number
@@ -96,7 +103,7 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
   const [embedMetadata, setEmbedMetadata] = useState(props.initialEmbedMetadata)
   const [verification, setVerification] = useState(props.initialVerification)
   const [busy, setBusy] = useState(false)
-  const [notice, setNotice] = useState<{ at: NoticeAt; text: string } | null>(null)
+  const [result, setResult] = useState<{ from: CheckSource; banner: BannerContent } | null>(null)
 
   // What has already been confirmed for, so a poll that finds the same report
   // again does not re-run verification every ten seconds.
@@ -142,6 +149,9 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
     hasRegion: props.hasRegion,
     trackId: track,
   })
+  const working = milestones
+    .filter((milestone) => milestone.id === 'seen' || milestone.id === 'confirmed')
+    .every((milestone) => milestone.state === 'done')
 
   // What the volunteer typed outranks what has reported: it is the site they
   // are setting up now.
@@ -188,32 +198,20 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
    * the canonical this service publishes, so claiming it afterwards would check
    * the previous owner's answer. `verify-embed` runs the checks itself once the
    * mount verifies, which is why this ends with one more read rather than a
-   * third call.
+   * third call. Answers what both calls said, for the Check buttons to show.
    */
   const confirm = useCallback(
-    async (mountKey: string, at: NoticeAt) => {
+    async (
+      mountKey: string,
+    ): Promise<{ claim: ClaimAnswer | null; verify: VerifyAnswer | null }> => {
       setBusy(true)
-      setNotice(null)
       try {
-        const claim = await fetch(`/api/clients/${clientId}/claim-canonical`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ mount: mountKey }),
+        const claim = await post<ClaimAnswer>(`/api/clients/${clientId}/claim-canonical`, {
+          mount: mountKey,
         })
-        const claimed = (await claim.json().catch(() => null)) as { message?: string } | null
-        if (claimed?.message) setNotice({ at, text: claimed.message })
-
-        await fetch(`/api/clients/${clientId}/verify-embed`, {
-          method: 'POST',
-          credentials: 'include',
-        })
+        const verify = await post<VerifyAnswer>(`/api/clients/${clientId}/verify-embed`)
         await reread()
-      } catch {
-        setNotice({
-          at,
-          text: 'Could not reach the CMS to confirm your site. Nothing was changed.',
-        })
+        return { claim, verify }
       } finally {
         setBusy(false)
       }
@@ -252,7 +250,7 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
     ) {
       return
     }
-    void confirm(candidate.key, 'sidebar')
+    void confirm(candidate.key)
   }, [model.candidate, busy, confirm, canonicalEmbed, verification])
 
   /**
@@ -262,7 +260,8 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
    * function is also what `buildInstallModel` picks the candidate with, so the
    * button and the poll cannot disagree about which mount to claim.
    */
-  const recheck = async (at: NoticeAt): Promise<void> => {
+  const recheck = async (from: CheckSource): Promise<void> => {
+    setResult(null)
     const polled = await reread()
     const candidate = reportedMountsFor({
       embedMetadata: (polled?.embedMetadata ?? embedMetadata) as EmbedMetadata | null,
@@ -270,17 +269,17 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
     })[0]
     // Clearing the guard is what makes this button re-run rather than no-op: the
     // poll's effect only acts on a mount it has not confirmed before.
-    confirmedFor.current = null
-    if (candidate) await confirm(candidate.key, at)
-    else
-      setNotice({
-        at,
-        text: `The atlas has not shown up at ${atlasPath ?? 'this address'} yet. Publish the page, open it once in your browser, then check again.`,
-      })
+    confirmedFor.current = candidate?.key ?? null
+    const answers = candidate ? await confirm(candidate.key) : { claim: null, verify: null }
+    setResult({
+      from,
+      banner: checkOutcome({ path: atlasPath, reported: Boolean(candidate), ...answers }),
+    })
   }
 
   const choosePlatform = (next: PlatformId) => {
     setPlatform(next)
+    setResult(null)
     const choices = TRACKS_BY_PLATFORM[next]
     setTrack(choices.length === 1 ? choices[0] : null)
   }
@@ -288,14 +287,12 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
   const tracksHere = platform ? TRACKS_BY_PLATFORM[platform] : []
   const showProblem = addressInput.trim() !== '' && address.problem !== null
   const ready = activeTrack !== null && atlasPath !== null
+  const stage = STAGE_BANNERS[model.stage]
 
   const stepCard = (step: Step, number: number, quiet: boolean) => (
     <StepCard
-      checking={busy}
       key={step.id}
-      notice={notice?.at === step.id ? notice.text : null}
       number={number}
-      onCheck={() => void recheck(step.id)}
       quiet={quiet}
       status={model.stepStatus[step.id]}
       step={step}
@@ -306,12 +303,17 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
     <div className={styles.layout}>
       <div className={styles.main}>
         <div className={styles.banners}>
-          <Banner type={bannerType(model.stage)}>{STAGE_MESSAGES[model.stage]}</Banner>
+          <TitledBanner title={stage.title} type={stage.type}>
+            {stage.text}
+          </TitledBanner>
           {apiKey === null ? (
-            <Banner type="error">
-              This service has no API key yet. <a href={editUrl}>Generate one on the Edit tab</a>{' '}
-              first — every value below needs it.
-            </Banner>
+            <TitledBanner
+              action={<a href={editUrl}>Generate one on the Edit tab</a>}
+              title="No API key yet"
+              type="error"
+            >
+              Every value below needs one.
+            </TitledBanner>
           ) : null}
         </div>
 
@@ -353,20 +355,26 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
           {hints.length > 0 || activeTrack?.caveat ? (
             <div className={styles.banners}>
               {hints.map((hint) => (
-                <Banner icon={<WarningIcon />} key={hint.message} type="error">
-                  {hint.message}
-                  {hint.offerIframe ? (
-                    <SwitchToIframe onClick={() => choosePlatform('iframe')} />
-                  ) : null}
-                </Banner>
+                <TitledBanner
+                  action={
+                    hint.offerIframe ? (
+                      <SwitchToIframe onClick={() => choosePlatform('iframe')} />
+                    ) : undefined
+                  }
+                  key={hint.title}
+                  title={hint.title}
+                  type="warning"
+                >
+                  {hint.text}
+                </TitledBanner>
               ))}
               {activeTrack?.caveat ? (
-                <Banner
-                  icon={activeTrack.caveat.tone === 'warning' ? <WarningIcon /> : undefined}
-                  type={activeTrack.caveat.tone}
+                <TitledBanner
+                  title={activeTrack.caveat.title}
+                  type={activeTrack.caveat.tone === 'warning' ? 'warning' : 'default'}
                 >
                   {activeTrack.caveat.text}
-                </Banner>
+                </TitledBanner>
               ) : null}
             </div>
           ) : null}
@@ -400,11 +408,7 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
                   setAddressInput(event.target.value)
                 }
                 path="atlasUrl"
-                placeholder={
-                  activeTrack.platform === 'wordpress'
-                    ? 'https://yoursite.org/find-a-class'
-                    : 'https://yoursite.org/classes'
-                }
+                placeholder="https://yoursite.org/classes"
                 showError={showProblem}
                 value={addressInput}
               />
@@ -416,18 +420,32 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
           <section className={styles.section}>
             <h3 className={styles.heading}>3. Get the atlas on your site</h3>
             {activeTrack.requires ? (
-              <Banner icon={<WarningIcon />} type="warning">
-                {activeTrack.requires}
-                <SwitchToIframe onClick={() => choosePlatform('iframe')} />
-              </Banner>
+              <TitledBanner
+                action={<SwitchToIframe onClick={() => choosePlatform('iframe')} />}
+                title={activeTrack.requires.title}
+                type="warning"
+              >
+                {activeTrack.requires.text}
+              </TitledBanner>
             ) : null}
             <ol className={styles.steps}>
               {activeTrack.steps.map((step, index) => stepCard(step, index + 1, false))}
             </ol>
+            <div className={styles.checkRow}>
+              <Button
+                buttonStyle="primary"
+                disabled={busy}
+                onClick={() => void recheck('steps')}
+                size="large"
+              >
+                {busy ? 'Checking…' : 'Check my site'}
+              </Button>
+            </div>
+            {result?.from === 'steps' ? <ResultBanner banner={result.banner} /> : null}
           </section>
         ) : null}
 
-        {ready && activeTrack.more ? (
+        {ready && working && activeTrack.more ? (
           <section className={styles.section}>
             <h3 className={styles.heading}>4. {activeTrack.more.title}</h3>
             <p className={styles.intro}>{activeTrack.more.intro}</p>
@@ -443,89 +461,69 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
       <aside className={styles.sidebar}>
         <h3 className={styles.heading}>Where this install stands</h3>
         <InstallProgress milestones={milestones} />
-        {notice?.at === 'sidebar' ? <p className={styles.notice}>{notice.text}</p> : null}
         <Button buttonStyle="secondary" disabled={busy} onClick={() => void recheck('sidebar')}>
           {busy ? 'Checking…' : 'Check again'}
         </Button>
+        {result?.from === 'sidebar' ? <ResultBanner banner={result.banner} /> : null}
       </aside>
     </div>
   )
 }
 
+/** POST to one of this service's endpoints; `null` for anything but a JSON 200. */
+async function post<T>(url: string, body?: unknown): Promise<T | null> {
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      credentials: 'include',
+      ...(body === undefined
+        ? {}
+        : { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
+    })
+    return response.ok ? ((await response.json()) as T) : null
+  } catch {
+    return null
+  }
+}
+
 /** What the address field asks for before anything is typed. */
 function addressHelp(platform: PlatformId): string {
-  if (platform === 'wordpress') {
-    return 'The plugin makes its page at /find-a-class. Paste that page’s address, or the one you renamed it to.'
-  }
   if (platform === 'wix') {
     return 'Paste the address the atlas page will have, such as https://yoursite.org/classes — one word after the domain, lowercase.'
   }
   return 'Paste the address of the page that will show the atlas, such as https://yoursite.org/classes.'
 }
 
-function bannerType(
-  stage: ReturnType<typeof buildInstallModel>['stage'],
-): 'default' | 'error' | 'success' {
-  if (stage === 'verified') return 'success'
-  if (stage === 'warnings' || stage === 'failed') return 'error'
-  return 'default'
+function ResultBanner({ banner }: { banner: BannerContent }) {
+  return (
+    <div className={styles.result} role="status">
+      <TitledBanner title={banner.title} type={banner.type}>
+        {banner.text}
+      </TitledBanner>
+    </div>
+  )
 }
 
 function SwitchToIframe({ onClick }: { onClick: () => void }) {
   return (
-    <>
-      {' '}
-      <Button buttonStyle="none" className={styles.inlineAction} onClick={onClick}>
-        Switch to Iframe only
-      </Button>
-    </>
+    <Button buttonStyle="none" className={styles.inlineAction} onClick={onClick}>
+      Switch to Iframe only
+    </Button>
   )
 }
 
-/**
- * A warning triangle for `Banner`'s icon slot.
- *
- * Payload ships no warning glyph. The `stroke` class is what `Banner`'s own
- * `color-svg` rule recolours per banner type, so it follows the theme.
- */
-function WarningIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      className={styles.bannerIcon}
-      height="20"
-      viewBox="0 0 20 20"
-      width="20"
-    >
-      <path
-        className="stroke"
-        d="M10 3.5L18 17H2L10 3.5ZM10 8.5V12M10 14.5V14.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="1.5"
-      />
-    </svg>
-  )
-}
-
-/** One step, its instructions, its snippets, and what the checks say about it. */
+/** One step, its instructions, and what the checks say about it. */
 function StepCard({
   number,
   step,
   status,
   quiet,
-  checking,
-  notice,
-  onCheck,
 }: {
   number: number
   step: Step
   status?: StepStatus
   /** A step nothing checks, in a section where saying so on each one is noise. */
   quiet: boolean
-  checking: boolean
-  notice: string | null
-  onCheck: () => void
 }): React.ReactElement {
   const failed = status?.state === 'fail'
   return (
@@ -542,21 +540,9 @@ function StepCard({
       >
         <ol className={styles.actions}>
           {step.actions.map((action) => (
-            <li key={action}>{action}</li>
+            <ActionItem action={action} key={typeof action === 'string' ? action : action.text} />
           ))}
         </ol>
-
-        {step.download ? (
-          <div className={styles.download}>
-            <Button buttonStyle="primary" el="anchor" size="medium" url={step.download.url}>
-              {step.download.label}
-            </Button>
-          </div>
-        ) : null}
-
-        {(step.snippets ?? []).map((snippet) => (
-          <CopyBlock key={snippet.label} snippet={snippet} />
-        ))}
 
         {failed && status.messages.length > 0 ? (
           <ul className={styles.stepMessages}>
@@ -565,16 +551,39 @@ function StepCard({
             ))}
           </ul>
         ) : null}
-
-        {step.check ? (
-          <div className={styles.checkRow}>
-            <Button buttonStyle="secondary" disabled={checking} onClick={onCheck} size="medium">
-              {checking ? 'Checking…' : 'Check my site'}
-            </Button>
-            {notice ? <p className={styles.notice}>{notice}</p> : null}
-          </div>
-        ) : null}
       </Collapsible>
+    </li>
+  )
+}
+
+/**
+ * One instruction, with what it needs right under it: a value to copy, or a file
+ * to download. A short value sits on one line with its Copy button; code keeps
+ * the read-only editor.
+ */
+function ActionItem({ action }: { action: Action }) {
+  if (typeof action === 'string') return <li>{action}</li>
+  const { text, snippet, download } = action
+  return (
+    <li>
+      {text}
+      {download ? (
+        <div className={styles.inlineValue}>
+          <Button buttonStyle="primary" el="anchor" margin={false} size="small" url={download.url}>
+            {download.label}
+          </Button>
+        </div>
+      ) : null}
+      {snippet?.kind === 'text' ? (
+        <div className={styles.inlineValue}>
+          <code aria-label={snippet.label} className={styles.inlineCode}>
+            {snippet.value}
+          </code>
+          <CopyToClipboard value={snippet.value} />
+        </div>
+      ) : snippet ? (
+        <CopyBlock snippet={snippet} />
+      ) : null}
     </li>
   )
 }

@@ -1,16 +1,19 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  actionText,
   allSteps,
   hostHints,
   type PlatformId,
   PLATFORM_LABELS,
   readAtlasAddress,
   signalFor,
+  snippetsOf,
   stepForCheck,
   type TrackId,
   TRACKS_BY_PLATFORM,
   tracksFor,
+  WORDPRESS_DEFAULT_PATH,
   WORDPRESS_PLUGIN_ZIP_URL,
 } from '../../src/components/admin/InstallGuide/steps'
 import { CONTENT_ELEMENT_ID } from '../../src/components/admin/InstallGuide/templates'
@@ -88,13 +91,24 @@ describe('every track', () => {
     }
   })
 
-  it('ends the working embed with the Check button, never a check by hand', () => {
-    // Step 3 is the one every track finishes; the CMS checks it, not the volunteer.
+  it('never asks the volunteer to check by hand — the Check button does that', () => {
     for (const id of TRACK_IDS) {
-      expect(
-        tracks[id].steps.some((step) => step.check),
-        id,
-      ).toBe(true)
+      for (const step of allSteps(tracks[id])) {
+        const text = step.actions.map(actionText).join(' ')
+        expect(text, `${id}/${step.id}`).not.toMatch(/\b(check|verify|make sure|confirm)\b/i)
+      }
+    }
+  })
+
+  it('puts every value beside the instruction that uses it', () => {
+    // A snippet with no sentence before it is a value the volunteer has to place.
+    for (const id of TRACK_IDS) {
+      for (const step of allSteps(tracks[id])) {
+        for (const action of step.actions) {
+          if (typeof action === 'string') continue
+          expect(action.text.length, `${id}/${step.id}`).toBeGreaterThan(0)
+        }
+      }
     }
   })
 
@@ -125,7 +139,7 @@ describe('every track', () => {
 
   it('never leaves a placeholder in a value a volunteer will paste', () => {
     for (const id of TRACK_IDS) {
-      for (const snippet of allSteps(tracks[id]).flatMap((step) => step.snippets ?? [])) {
+      for (const snippet of allSteps(tracks[id]).flatMap(snippetsOf)) {
         expect(snippet.value, `${id}/${snippet.label}`).not.toContain('undefined')
         expect(snippet.value, `${id}/${snippet.label}`).not.toContain('${')
       }
@@ -136,14 +150,14 @@ describe('every track', () => {
 describe('what each track prefills', () => {
   it('puts the service own key in both WordPress tracks', () => {
     for (const id of ['wp-selfhosted', 'wp-com'] as const) {
-      const values = tracks[id].steps.flatMap((step) => step.snippets ?? []).map((s) => s.value)
+      const values = tracks[id].steps.flatMap(snippetsOf).map((s) => s.value)
       expect(values, id).toContain('abc-123')
     }
   })
 
   it('gives both Wix tracks the router code, the element settings and the text id', () => {
     for (const id of ['wix-editor', 'wix-studio'] as const) {
-      const snippets = allSteps(tracks[id]).flatMap((step) => step.snippets ?? [])
+      const snippets = allSteps(tracks[id]).flatMap(snippetsOf)
       const joined = snippets.map((snippet) => snippet.value).join('\n')
       expect(joined, id).toContain('free_classes_Router')
       expect(joined, id).toContain('https://sahajatlas.com/auto.js?key=abc-123')
@@ -165,12 +179,12 @@ describe('what each track prefills', () => {
   })
 
   it('says plainly that the iframe track has no search-engine listings', () => {
-    expect(tracks.iframe.caveat?.text).toMatch(/search/i)
+    expect(`${tracks.iframe.caveat?.title} ${tracks.iframe.caveat?.text}`).toMatch(/search/i)
     expect(tracks.iframe.caveat?.tone).toBe('warning')
   })
 
   it('names the plan WordPress.com needs, as a condition rather than a step', () => {
-    expect(tracks['wp-com'].requires).toContain('Business')
+    expect(tracks['wp-com'].requires?.text).toContain('Business')
     expect(tracks['wp-com'].steps.map((step) => step.id)).not.toContain('plan')
   })
 
@@ -179,8 +193,24 @@ describe('what each track prefills', () => {
     expect(WORDPRESS_PLUGIN_ZIP_URL).toMatch(/\/releases\/latest\/download\/sahaj-atlas\.zip$/)
     for (const id of ['wp-selfhosted', 'wp-com'] as const) {
       const install = tracks[id].steps.find((step) => step.id === 'install-plugin')
-      expect(install?.download?.url, id).toBe(WORDPRESS_PLUGIN_ZIP_URL)
+      const download = install?.actions.find(
+        (action) => typeof action !== 'string' && action.download,
+      )
+      expect(typeof download === 'object' && download.download?.url, id).toBe(
+        WORDPRESS_PLUGIN_ZIP_URL,
+      )
     }
+  })
+
+  it('tells WordPress how to move the page only when the address is not the default', () => {
+    const setUp = (atlasUrl: string) =>
+      tracksFor({ ...VALUES, atlasUrl, prefix: atlasUrl.slice(1) })['wp-selfhosted'].steps.find(
+        (step) => step.id === 'set-up',
+      )
+    const moved = setUp('/free-classes')
+    expect(JSON.stringify(moved)).toContain('Quick Edit')
+    expect(moved && snippetsOf(moved).map((snippet) => snippet.value)).toContain('free-classes')
+    expect(JSON.stringify(setUp(WORDPRESS_DEFAULT_PATH))).not.toContain('Quick Edit')
   })
 
   it('offers both WordPress tracks the shortcode and the block as step 4', () => {
@@ -208,7 +238,7 @@ describe('what each track prefills', () => {
   })
 
   it('gives a custom site both endpoints, prefilled with its own key', () => {
-    const snippets = allSteps(tracks.custom).flatMap((step) => step.snippets ?? [])
+    const snippets = allSteps(tracks.custom).flatMap(snippetsOf)
     const values = snippets.map((snippet) => snippet.value).join('\n')
     expect(values).toContain('https://cms.sahajatlas.com/api/atlas/seo')
     expect(values).toContain('https://cms.sahajatlas.com/api/atlas/sitemap')
@@ -216,7 +246,7 @@ describe('what each track prefills', () => {
   })
 
   it('sends no routing parameter on the iframe track, which has no URLs of its own', () => {
-    const snippets = tracks.iframe.steps.flatMap((step) => step.snippets ?? [])
+    const snippets = tracks.iframe.steps.flatMap(snippetsOf)
     expect(snippets.map((snippet) => snippet.value).join('')).not.toContain('routing=')
   })
 })
@@ -251,14 +281,14 @@ describe('hostHints', () => {
   it('warns a free Wix address and offers the iframe track', () => {
     const hints = hostHints({ host: 'sahajayoga-ca.wixsite.com', platform: 'wix' })
     expect(hints).toHaveLength(1)
-    expect(hints[0].message).toMatch(/Premium/)
+    expect(hints[0].text).toMatch(/Premium/)
     expect(hints[0].offerIframe).toBe(true)
   })
 
   it('warns a wordpress.com address about the plan, without offering the iframe', () => {
     const hints = hostHints({ host: 'sahajayoga.wordpress.com', platform: 'wordpress' })
     expect(hints).toHaveLength(1)
-    expect(hints[0].message).toMatch(/Business/)
+    expect(hints[0].text).toMatch(/Business/)
     expect(hints[0].offerIframe).toBe(false)
   })
 

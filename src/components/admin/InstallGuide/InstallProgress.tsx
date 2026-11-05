@@ -9,29 +9,25 @@ import { tableColumn } from '@/components/admin/helpers/tableColumn'
 
 import styles from './InstallGuide.module.css'
 
-const DETAIL_CLASS: Record<MilestoneState, string | undefined> = {
-  done: styles.detailDone,
-  failed: styles.detailFailed,
-  warning: styles.detailWarning,
-  todo: styles.detailTodo,
-}
-
-const ICON_CLASS: Record<MilestoneState, string | undefined> = {
-  done: styles.iconDone,
-  failed: styles.iconFailed,
-  warning: styles.iconWarning,
-  todo: styles.iconTodo,
+const STATE_CLASS: Record<MilestoneState, string | undefined> = {
+  done: styles.stateDone,
+  failed: styles.stateFailed,
+  warning: styles.stateWarning,
+  todo: styles.stateTodo,
+  na: styles.stateNa,
 }
 
 /**
  * The sidebar's progress: a count, a bar, and one row per milestone.
  *
- * A milestone still to come shows its number rather than an empty light, so the
- * table reads as a list of things to get through rather than of things missing.
+ * Every row carries its number in the same badge, filled in the row's colour
+ * once it has an answer and outlined before, so the table reads as one list of
+ * things to get through.
  */
 export function InstallProgress({ milestones }: { milestones: Milestone[] }): React.ReactElement {
-  const done = milestones.filter((milestone) => milestone.state === 'done').length
-  const total = milestones.length
+  const counted = milestones.filter((milestone) => milestone.state !== 'na')
+  const done = counted.filter((milestone) => milestone.state === 'done').length
+  const total = counted.length
 
   return (
     <div className={styles.progress}>
@@ -53,9 +49,19 @@ export function InstallProgress({ milestones }: { milestones: Milestone[] }): Re
             'milestone',
             'Milestone',
             milestones.map((milestone, index) => (
-              <span className={styles.milestone} key={milestone.id}>
-                <MilestoneIcon number={index + 1} state={milestone.state} />
-                {milestone.label}
+              <span
+                className={`${styles.milestone} ${STATE_CLASS[milestone.state] ?? ''}`}
+                key={milestone.id}
+              >
+                <span aria-hidden className={styles.badge}>
+                  {index + 1}
+                </span>
+                <span>
+                  <span className={styles.milestoneLabel}>{milestone.label}</span>
+                  {milestone.note ? (
+                    <span className={styles.milestoneNote}>{milestone.note}</span>
+                  ) : null}
+                </span>
               </span>
             )),
           ),
@@ -63,8 +69,11 @@ export function InstallProgress({ milestones }: { milestones: Milestone[] }): Re
             'status',
             'Status',
             milestones.map((milestone) => (
-              <span className={DETAIL_CLASS[milestone.state]} key={milestone.id}>
-                {milestone.detail}
+              <span
+                className={`${styles.status} ${STATE_CLASS[milestone.state] ?? ''}`}
+                key={milestone.id}
+              >
+                {milestone.status}
               </span>
             )),
           ),
@@ -72,58 +81,5 @@ export function InstallProgress({ milestones }: { milestones: Milestone[] }): Re
         data={milestones.map((milestone) => ({ id: milestone.id }))}
       />
     </div>
-  )
-}
-
-const ICON_LABEL: Record<MilestoneState, string> = {
-  done: 'Done',
-  failed: 'Needs fixing',
-  warning: 'Needs attention',
-  todo: 'Still to come',
-}
-
-/** A filled badge once a milestone has an answer, a numbered ring before. */
-function MilestoneIcon({ state, number }: { state: MilestoneState; number: number }) {
-  return (
-    <svg
-      aria-label={ICON_LABEL[state]}
-      className={`${styles.milestoneIcon} ${ICON_CLASS[state] ?? ''}`}
-      height="20"
-      role="img"
-      viewBox="0 0 20 20"
-      width="20"
-    >
-      {state === 'todo' ? (
-        <>
-          <circle cx="10" cy="10" fill="none" r="8.5" stroke="currentColor" strokeWidth="1.5" />
-          <text
-            dominantBaseline="central"
-            fill="currentColor"
-            fontSize="10"
-            fontWeight="600"
-            textAnchor="middle"
-            x="10"
-            y="10.5"
-          >
-            {number}
-          </text>
-        </>
-      ) : (
-        <>
-          <circle cx="10" cy="10" fill="currentColor" r="10" />
-          <g
-            fill="none"
-            stroke="var(--theme-elevation-0)"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-          >
-            {state === 'done' ? <path d="M5.5 10.5l3 3 6-6.5" /> : null}
-            {state === 'failed' ? <path d="M6.5 6.5l7 7M13.5 6.5l-7 7" /> : null}
-            {state === 'warning' ? <path d="M10 5.5v5.5M10 14.5v0.01" /> : null}
-          </g>
-        </>
-      )}
-    </svg>
   )
 }

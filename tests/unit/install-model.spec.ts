@@ -6,6 +6,8 @@ import { describe, expect, it } from 'vitest'
 import {
   buildInstallModel,
   buildMilestones,
+  checkOutcome,
+  MILESTONE_STATUS,
   reportedMountsFor,
 } from '../../src/components/admin/InstallGuide/installModel'
 import { tracksFor } from '../../src/components/admin/InstallGuide/steps'
@@ -310,7 +312,22 @@ describe('buildMilestones', () => {
 
   it('names where the atlas was found', () => {
     const [seen] = milestones({})
-    expect(seen).toMatchObject({ state: 'done', detail: 'sahajayoga.ca/free-classes' })
+    expect(seen).toMatchObject({
+      state: 'done',
+      status: 'Done',
+      note: 'sahajayoga.ca/free-classes',
+    })
+  })
+
+  it('words every status from one vocabulary, so the column reads the same way', () => {
+    const vocabulary = new Set(Object.values(MILESTONE_STATUS))
+    for (const list of [
+      milestones({ reported: false }),
+      milestones({ hasRegion: false }),
+      milestones({ trackId: 'iframe' }),
+    ]) {
+      for (const milestone of list) expect(vocabulary).toContain(milestone.status)
+    }
   })
 
   it('finishes every row for a clean install', () => {
@@ -335,14 +352,79 @@ describe('buildMilestones', () => {
       }),
     })
     const byId = Object.fromEntries(list.map((milestone) => [milestone.id, milestone]))
-    expect(byId.search).toMatchObject({ state: 'failed', detail: '2 problems' })
-    expect(byId.region).toMatchObject({ state: 'warning', detail: 'No region set' })
+    expect(byId.search).toMatchObject({ state: 'failed', status: 'Needs fixing' })
+    expect(byId.search.note).toMatch(/^2 problems/)
+    expect(byId.region).toMatchObject({ state: 'warning', status: 'Needs action' })
   })
 
-  it('gives an iframe only the rows it can finish', () => {
-    expect(milestones({ trackId: 'iframe' }).map((milestone) => milestone.id)).toEqual([
-      'seen',
-      'confirmed',
-    ])
+  it('shows an iframe the two rows it can never finish, as not available', () => {
+    const states = Object.fromEntries(
+      milestones({ trackId: 'iframe' }).map((milestone) => [milestone.id, milestone.state]),
+    )
+    expect(states).toMatchObject({ routing: 'na', search: 'na' })
+    expect(states.seen).toBe('done')
+  })
+})
+
+describe('checkOutcome', () => {
+  const verified = (seo: SeoCheckResult[] = []) =>
+    ({ status: 'verified', message: 'Verified.', seo }) as const
+
+  it('says nothing was found when the widget has not reported from this address', () => {
+    const banner = checkOutcome({ path: '/classes', reported: false, claim: null, verify: null })
+    expect(banner).toMatchObject({ type: 'warning', title: 'Not found yet' })
+    expect(banner.text).toContain('/classes')
+  })
+
+  it('celebrates a clean pass', () => {
+    expect(
+      checkOutcome({
+        path: '/classes',
+        reported: true,
+        claim: { status: 'claimed', message: '' },
+        verify: verified([{ route: '/', check: 'title', status: 'pass' }]),
+      }),
+    ).toMatchObject({ type: 'success' })
+  })
+
+  it('counts search problems on a live install', () => {
+    const banner = checkOutcome({
+      path: '/classes',
+      reported: true,
+      claim: { status: 'already', message: '' },
+      verify: verified([
+        { route: '/', check: 'title', status: 'fail' },
+        { route: '/', check: 'body', status: 'skipped' },
+      ]),
+    })
+    expect(banner).toMatchObject({ type: 'warning', title: 'Live, with 1 search problem' })
+  })
+
+  it('leads with the claim when there was nothing to verify', () => {
+    const banner = checkOutcome({
+      path: '/classes',
+      reported: true,
+      claim: { status: 'needs-region', message: 'Set a region on this service first.' },
+      verify: null,
+    })
+    expect(banner).toMatchObject({ type: 'warning', title: 'Set a region first' })
+    expect(banner.text).toBe('Set a region on this service first.')
+  })
+
+  it('reports a failed verification as an error, in the endpoint own words', () => {
+    expect(
+      checkOutcome({
+        path: '/classes',
+        reported: true,
+        claim: { status: 'already', message: '' },
+        verify: { status: 'failed', message: 'That page could not be reached.', seo: [] },
+      }),
+    ).toMatchObject({ type: 'error', text: 'That page could not be reached.' })
+  })
+
+  it('admits it could not reach the CMS at all', () => {
+    expect(checkOutcome({ path: '/classes', reported: true, claim: null, verify: null }).type).toBe(
+      'error',
+    )
   })
 })

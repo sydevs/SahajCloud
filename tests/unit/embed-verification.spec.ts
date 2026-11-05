@@ -15,7 +15,11 @@ import {
   ROUTING_PROBE_FAILURE_LIMIT,
   splitMountKey,
 } from '../../src/lib/clients/verification'
-import { classifyRenderError } from '../../src/lib/embedVerification/browserRendering'
+import {
+  classifyRenderError,
+  isLocalDevTarget,
+  renderLocally,
+} from '../../src/lib/embedVerification/browserRendering'
 import { parseReadinessMarker, READY_ATTR } from '../../src/lib/embedVerification/readinessMarker'
 import {
   routingProbeUrls,
@@ -432,5 +436,43 @@ describe('the stored verdict', () => {
     })
     expect(state.verified).toBeNull()
     expect(state.routingProbe?.verdict).toBe('path')
+  })
+})
+
+describe('the local development render', () => {
+  const page = (body: string, status = 200) =>
+    (async () => new Response(body, { status })) as unknown as typeof fetch
+
+  it('applies only under next dev, and only to this machine', () => {
+    expect(isLocalDevTarget('http://localhost:4610/classes', 'development')).toBe(true)
+    expect(isLocalDevTarget('http://127.0.0.1:4610/classes', 'development')).toBe(true)
+    expect(isLocalDevTarget('http://localhost:4610/classes', 'production')).toBe(false)
+    expect(isLocalDevTarget('http://localhost:4610/classes', undefined)).toBe(false)
+    expect(isLocalDevTarget('https://sahajayoga.ca/classes', 'development')).toBe(false)
+    // A lookalike that only starts with the word is somebody else's host.
+    expect(isLocalDevTarget('http://localhost.evil.example/classes', 'development')).toBe(false)
+  })
+
+  it('answers the page when the marker is in it', async () => {
+    const html = `<html ${READY_ATTR}='{"v":1,"routing":"path"}'></html>`
+    expect(await renderLocally('http://localhost/x', `[${READY_ATTR}]`, page(html))).toEqual({
+      ok: true,
+      html,
+    })
+  })
+
+  it('answers a missing marker the way a render that waited for it does', async () => {
+    const result = await renderLocally('http://localhost/x', `[${READY_ATTR}]`, page('<html>'))
+    expect(result).toMatchObject({ ok: false, kind: 'selector-timeout' })
+  })
+
+  it('answers an unreachable page as navigation', async () => {
+    const refused = (async () => {
+      throw new Error('connect ECONNREFUSED')
+    }) as unknown as typeof fetch
+    expect(await renderLocally('http://localhost/x', `[${READY_ATTR}]`, refused)).toMatchObject({
+      ok: false,
+      kind: 'navigation',
+    })
   })
 })

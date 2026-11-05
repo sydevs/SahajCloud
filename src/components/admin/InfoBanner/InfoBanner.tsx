@@ -2,9 +2,11 @@
 
 import type { UIFieldClientComponent } from 'payload'
 
-import { Banner, InfoIcon, WarningIcon } from '@payloadcms/ui'
+import { InfoIcon, WarningIcon } from '@payloadcms/ui'
 import { GraduationCap } from 'lucide-react'
 import React from 'react'
+
+import { TitledBanner } from '@/components/admin/helpers/TitledBanner'
 
 /** Banner variants supported by Payload's `Banner`. */
 type BannerType = 'default' | 'error' | 'info' | 'success'
@@ -35,29 +37,20 @@ const ICONS: Record<string, React.FC> = {
  * the field's `admin.custom`:
  *   { icon?: 'tutorial' | 'info' | 'warning', title?, text?, type? }
  *
- * The icon is laid out inside the banner's content (not Payload's `icon` slot,
- * which is a bare flex row with no gap/alignment — fine for one-line banners but
- * it strands a small icon at the top-left beside multi-line text). A flex row
- * with `flex-shrink: 0` keeps the icon full-size and top-aligned with the title.
+ * Laid out by `TitledBanner`, the admin panel's one notice shape.
  */
 export const InfoBanner: UIFieldClientComponent = ({ field }) => {
   const { icon, title, text, type = 'default' } = (field?.admin?.custom ?? {}) as InfoBannerConfig
   if (!title && !text) return null
   const Icon = icon ? ICONS[icon] : undefined
   return (
-    <Banner type={type}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 'calc(var(--base) * 0.5)' }}>
-        {Icon ? (
-          <span style={{ display: 'flex', flexShrink: 0, marginTop: '2px' }} aria-hidden>
-            <Icon />
-          </span>
-        ) : null}
-        <div>
-          {title ? <div style={{ fontWeight: 600 }}>{title}</div> : null}
-          {text ? <div>{text}</div> : null}
-        </div>
-      </div>
-    </Banner>
+    <TitledBanner
+      icon={Icon ? <Icon /> : null}
+      title={title}
+      type={type === 'info' ? 'default' : type}
+    >
+      {text}
+    </TitledBanner>
   )
 }
 

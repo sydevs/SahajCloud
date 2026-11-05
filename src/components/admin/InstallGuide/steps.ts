@@ -16,16 +16,16 @@ import {
  *
  * **Written for one non-technical volunteer per site, across 13 national
  * organisations.** That is not a tone note, it is the whole shape: one action
- * per line, the exact menu name, every value prefilled, and a step the
- * volunteer can be *told to redo* when a check fails. A step with no id nothing
- * can point at is a step a failing check cannot name.
+ * per line, the exact menu name, every value prefilled beside the line that
+ * uses it, and a step the volunteer can be *told to redo* when a check fails. A
+ * step with no id nothing can point at is a step a failing check cannot name.
  *
  * **A working map first, search listings second.** Step 3 of the tab ends with
  * the atlas live on the site; step 4 is what comes after (`Track.more`). A
  * volunteer who stops halfway has a working page, not a half-built router.
  *
- * **No step asks the volunteer to check anything by hand.** The CMS checks; a
- * step whose result it can see ends with the Check button (`Step.check`).
+ * **No step asks the volunteer to check anything by hand.** The CMS checks, and
+ * step 3 ends with the button that asks it to.
  *
  * Kept out of the component so it is readable as a list and
  * `tests/unit/install-steps.spec.ts` can check the couplings — a track whose
@@ -67,12 +67,16 @@ export type StepId =
  * ⚠ **Resolves only while every release attaches an unversioned
  * `sahaj-atlas.zip`** beside its versioned one — `releases/latest/download/`
  * names an asset, not a pattern. That asset is sydevs/SahajAtlasWordpress's
- * `release.yml` to attach; drop it there and this link 404s for every volunteer.
+ * `release.yml` to attach (sydevs/SahajAtlasWordpress#76); drop it there and
+ * this link 404s for every volunteer.
  */
 export const WORDPRESS_PLUGIN_ZIP_URL =
   'https://github.com/sydevs/SahajAtlasWordpress/releases/latest/download/sahaj-atlas.zip'
 
-/** A block of text with a Copy button beside it. */
+/** Where the plugin puts the page it creates, before anyone renames it. */
+export const WORDPRESS_DEFAULT_PATH = '/find-a-class'
+
+/** A value with a Copy button beside it. */
 export interface Snippet {
   label: string
   value: string
@@ -80,14 +84,20 @@ export interface Snippet {
   kind: 'javascript' | 'html' | 'text'
 }
 
+/** One instruction, with the value or file it needs right beside it. */
+export type Action =
+  | string
+  | {
+      text: string
+      snippet?: Snippet
+      download?: { label: string; url: string }
+    }
+
 export interface Step {
   id: StepId
   title: string
-  /** One instruction per entry, in the order they are done. */
-  actions: string[]
-  snippets?: Snippet[]
-  /** A file to download, shown as a button under the instructions. */
-  download?: { label: string; url: string }
+  /** In the order they are done. */
+  actions: Action[]
   /**
    * Nothing we can fetch tells us whether this step was done.
    *
@@ -97,8 +107,12 @@ export interface Step {
    * step's result honestly.
    */
   unobservable?: boolean
-  /** Ends with the Check button: the step after which the CMS can see the result. */
-  check?: boolean
+}
+
+/** A banner's two lines: what it is about, then what to do. */
+export interface Notice {
+  title: string
+  text: string
 }
 
 /** Step 4 of the tab: what comes once the atlas works. */
@@ -138,7 +152,7 @@ export interface Track {
    * iframe track. A condition rather than a step: nothing done in this tab
    * changes a site's plan, so there is nothing to tick off.
    */
-  requires?: string
+  requires?: Notice
   /** Step 3: the atlas working on the site. */
   steps: Step[]
   /** Step 4, where the track has one. */
@@ -152,12 +166,24 @@ export interface Track {
    * that is not there needs to know that was expected rather than assume they
    * broke it.
    */
-  caveat?: { tone: 'info' | 'warning'; text: string }
+  caveat?: Notice & { tone: 'info' | 'warning' }
 }
 
 /** Every step a track renders, in both of its sections. */
 export function allSteps(track: Track): Step[] {
   return [...track.steps, ...(track.more?.steps ?? [])]
+}
+
+/** The sentence of an action, whatever it carries. */
+export function actionText(action: Action): string {
+  return typeof action === 'string' ? action : action.text
+}
+
+/** Every value a step puts in front of the volunteer to copy. */
+export function snippetsOf(step: Step): Snippet[] {
+  return step.actions.flatMap((action) =>
+    typeof action !== 'string' && action.snippet ? [action.snippet] : [],
+  )
 }
 
 export const PLATFORM_LABELS: Record<PlatformId, string> = {
@@ -196,23 +222,27 @@ function wixEmbedSteps(values: InstallValues, studio: boolean): Step[] {
       actions: [
         `Open ${studio ? 'Pages' : 'Pages & Menu'}, click + Add Page, and choose a blank page.`,
         'Name it what visitors would look for, such as “Free classes”. That name shows in your site menu.',
-        `In the page’s ⋯ menu, open SEO Basics and set its URL slug to ${values.prefix}.`,
+        {
+          text: 'In the page’s ⋯ menu, open SEO Basics and set its URL slug to:',
+          snippet: { label: 'URL slug', value: values.prefix, kind: 'text' },
+        },
       ],
     },
     {
       id: 'add-element',
       title: 'Add the map, and publish',
-      check: true,
       actions: [
         'On that page, click Add → Embed & Social → Custom Element.',
-        'Click Choose Source, pick “Server URL”, and paste the address below.',
-        'Paste the tag name below into the “Tag Name” box.',
+        {
+          text: 'Click Choose Source, pick “Server URL”, and paste:',
+          snippet: { label: 'Server URL', value: element.serverUrl, kind: 'text' },
+        },
+        {
+          text: 'In the “Tag Name” box, paste:',
+          snippet: { label: 'Tag Name', value: element.tagName, kind: 'text' },
+        },
         'Stretch the element to the full width of the page and about as tall as the screen. The map draws inside this box, so a box with no height shows nothing.',
         'Click Publish.',
-      ],
-      snippets: [
-        { label: 'Server URL', value: element.serverUrl, kind: 'text' },
-        { label: 'Tag Name', value: element.tagName, kind: 'text' },
       ],
     },
   ]
@@ -236,7 +266,7 @@ function wixSeoSteps(values: InstallValues, studio: boolean): FollowOn {
   return {
     title: SEO_TITLE,
     intro:
-      'Once the map works, these steps give every class and city its own page in search results. Visitors see no change until you publish at the end.',
+      'Your map works. These steps give every class and city its own page in search results. Visitors see no change until you publish at the end.',
     steps: [
       {
         id: 'add-router',
@@ -245,7 +275,10 @@ function wixSeoSteps(values: InstallValues, studio: boolean): FollowOn {
         actions: [
           `In the atlas page’s ⋯ menu → SEO Basics, change its URL slug to ${values.prefix}-old. The router needs /${values.prefix} for itself.`,
           `In the top bar, open ${devMode}. Wix reloads the editor, which is normal.`,
-          `Open ${addRouter}, and enter ${values.prefix} as the router prefix.`,
+          {
+            text: `Open ${addRouter}, and enter this as the router prefix:`,
+            snippet: { label: 'Router prefix', value: values.prefix, kind: 'text' },
+          },
           `Name the page it creates ${values.prefix} as well. The code in the next step looks for that name.`,
         ],
       },
@@ -254,11 +287,14 @@ function wixSeoSteps(values: InstallValues, studio: boolean): FollowOn {
         title: 'Paste the router code',
         actions: [
           'Open Backend → routers.js in the code panel.',
-          'Delete everything already in the file, and paste this in its place.',
-          'If the file already has other routers in it, paste this at the end instead.',
-        ],
-        snippets: [
-          { label: 'backend/routers.js', value: wixRoutersTemplate(values), kind: 'javascript' },
+          {
+            text: 'Delete everything already in the file, and paste this in its place. If the file already has other routers in it, paste this at the end instead.',
+            snippet: {
+              label: 'backend/routers.js',
+              value: wixRoutersTemplate(values),
+              kind: 'javascript',
+            },
+          },
         ],
       },
       {
@@ -275,19 +311,20 @@ function wixSeoSteps(values: InstallValues, studio: boolean): FollowOn {
         id: 'add-text',
         title: 'Add the text search engines read',
         actions: [
-          'On the router page, click Add → Text → Paragraph, and drop it below the map.',
-          `With it selected, open the Properties panel and set its ID to ${CONTENT_ELEMENT_ID}. Leave its own text empty.`,
-          `Open the ${values.prefix} page’s own code panel at the bottom of the screen, and paste the page code in. It fills the paragraph for you.`,
-        ],
-        snippets: [
-          { label: 'Element ID', value: CONTENT_ELEMENT_ID, kind: 'text' },
-          { label: 'Page code', value: wixPageCodeTemplate(), kind: 'javascript' },
+          'On the router page, click Add → Text → Paragraph, and drop it below the map. Leave its own text empty.',
+          {
+            text: 'With it selected, open the Properties panel and set its ID to:',
+            snippet: { label: 'Element ID', value: CONTENT_ELEMENT_ID, kind: 'text' },
+          },
+          {
+            text: `Open the ${values.prefix} page’s own code panel at the bottom of the screen, and paste this. It fills the paragraph for you.`,
+            snippet: { label: 'Page code', value: wixPageCodeTemplate(), kind: 'javascript' },
+          },
         ],
       },
       {
         id: 'publish-seo',
         title: 'Publish again',
-        check: true,
         actions: ['Click Publish. Wix lists every class page in your sitemap when you do.'],
       },
     ],
@@ -301,8 +338,10 @@ const WIX_CHECKS: CheckRouting = {
   sitemap: 'publish-seo',
 }
 
-const WIX_REQUIRES =
-  'Wix needs a paid Premium plan and your own domain name for this — not an address ending in wixsite.com. Without both, use “Iframe only”.'
+const WIX_REQUIRES: Notice = {
+  title: 'Needs Wix Premium and your own domain',
+  text: 'A free site, or an address ending in wixsite.com, cannot run the map. Use Iframe only until it has both.',
+}
 
 /**
  * Both WordPress tracks' checks.
@@ -320,34 +359,52 @@ const WORDPRESS_CHECKS: CheckRouting = {
 /**
  * The WordPress steps, which differ between the two tracks by one menu path —
  * so they share a helper, as the two Wix tracks do.
+ *
+ * The page the plugin creates is always at {@link WORDPRESS_DEFAULT_PATH}, so a
+ * site that wants the atlas anywhere else is told how to move it there — where
+ * the address is, not before, because the page does not exist until this step.
  */
 function wordpressSteps(values: InstallValues, options: { dotCom: boolean }): Step[] {
   const uploadPath = options.dotCom
     ? 'Plugins → Upload Plugin'
     : 'Plugins → Add New Plugin → Upload Plugin'
+  const slug = values.atlasUrl.split('?')[0].split('/').filter(Boolean).pop()
+  const rename =
+    slug && values.atlasUrl !== WORDPRESS_DEFAULT_PATH
+      ? [
+          {
+            text: `The page starts at ${WORDPRESS_DEFAULT_PATH}. To move it to ${values.atlasUrl}, open Pages, hover over “Find a meditation class”, click Quick Edit, set its Slug to the value below, and click Update.`,
+            snippet: { label: 'Slug', value: slug, kind: 'text' as const },
+          },
+        ]
+      : []
 
   return [
     {
       id: 'install-plugin',
       title: 'Install the plugin',
       actions: [
-        'Download the plugin with the button below.',
+        {
+          text: 'Download the plugin:',
+          download: { label: 'Download sahaj-atlas.zip', url: WORDPRESS_PLUGIN_ZIP_URL },
+        },
         `In WordPress, open ${uploadPath}, choose the file, and click Install Now.`,
         'Click Activate. The plugin keeps itself up to date from then on.',
       ],
-      download: { label: 'Download sahaj-atlas.zip', url: WORDPRESS_PLUGIN_ZIP_URL },
     },
     {
       id: 'set-up',
       title: 'Connect it, and create the page',
-      check: true,
       actions: [
         'Open Settings → Sahaj Atlas.',
-        'Paste the key below into the API key box, and click Save Changes.',
+        {
+          text: 'Paste this key into the API key box, and click Save Changes:',
+          snippet: { label: 'API key', value: values.apiKey, kind: 'text' },
+        },
         'Click Create the Atlas page. The plugin makes the page, sizes the map, and handles search engines itself.',
-        'Add the new page to your site’s menu (Appearance → Menus).',
+        ...rename,
+        'Add the page to your site’s menu (Appearance → Menus).',
       ],
-      snippets: [{ label: 'API key', value: values.apiKey, kind: 'text' }],
     },
   ]
 }
@@ -363,21 +420,25 @@ const WORDPRESS_MORE: FollowOn = {
       id: 'shortcode',
       title: 'With the shortcode',
       actions: [
-        'Type it into any page or post, or into a page builder’s Shortcode widget.',
-        'To open it somewhere else, find the place on sahajatlas.com and paste its address between the quotes.',
-        'map="false" shows a list of classes instead of the map.',
-      ],
-      snippets: [
-        { label: 'The map', value: '[sahaj_atlas]', kind: 'text' },
         {
-          label: 'The map, opened at a country',
-          value: '[sahaj_atlas atlas="https://sahajatlas.com/gb"]',
-          kind: 'text',
+          text: 'Type it into any page or post, or into a page builder’s Shortcode widget:',
+          snippet: { label: 'The map', value: '[sahaj_atlas]', kind: 'text' },
         },
         {
-          label: 'One city’s classes, as a list',
-          value: '[sahaj_atlas map="false" atlas="https://sahajatlas.com/gb/london"]',
-          kind: 'text',
+          text: 'To open it at a country or city, find the place on sahajatlas.com and paste its address between the quotes:',
+          snippet: {
+            label: 'Opened at a country',
+            value: '[sahaj_atlas atlas="https://sahajatlas.com/gb"]',
+            kind: 'text',
+          },
+        },
+        {
+          text: 'To show a list of classes instead of the map, add map="false":',
+          snippet: {
+            label: 'One city’s classes, as a list',
+            value: '[sahaj_atlas map="false" atlas="https://sahajatlas.com/gb/london"]',
+            kind: 'text',
+          },
         },
       ],
     },
@@ -433,8 +494,10 @@ export function tracksFor(values: InstallValues): Record<TrackId, Track> {
       label: TRACK_LABELS['wp-com'],
       recognise:
         'Your site is hosted at wordpress.com, and you did not install WordPress yourself.',
-      requires:
-        'WordPress.com allows plugins only on the Business plan or higher (Upgrades → Plans). On a lower plan, use “Iframe only”.',
+      requires: {
+        title: 'Needs the Business plan',
+        text: 'WordPress.com allows plugins only on Business or higher (Upgrades → Plans). On a lower plan, use Iframe only.',
+      },
       checks: WORDPRESS_CHECKS,
       steps: wordpressSteps(values, { dotCom: true }),
       more: WORDPRESS_MORE,
@@ -459,7 +522,8 @@ export function tracksFor(values: InstallValues): Record<TrackId, Track> {
       requires: WIX_REQUIRES,
       caveat: {
         tone: 'info',
-        text: 'The Studio menu names below come from Wix’s own documentation and nobody has walked them on a real site. If a menu is not where this says, it is this guide that is wrong — tell a maintainer, and look for the same words elsewhere in the panel.',
+        title: 'Menu names not yet confirmed',
+        text: 'Nobody has walked these Studio steps on a real site. If a menu is not where it says, look for the same words nearby, and tell a maintainer.',
       },
       checks: WIX_CHECKS,
       steps: wixEmbedSteps(values, true),
@@ -481,18 +545,19 @@ export function tracksFor(values: InstallValues): Record<TrackId, Track> {
         {
           id: 'snippet',
           title: 'Add the widget to the page',
-          check: true,
           actions: [
-            `Paste this into the page at ${values.atlasUrl}, where the map should appear.`,
+            {
+              text: `Paste this into the page at ${values.atlasUrl}, where the map should appear:`,
+              snippet: { label: 'Embed snippet', value: snippetPlain, kind: 'html' },
+            },
             'Keep the height: an element with no height covers the whole page instead of drawing in its own box.',
           ],
-          snippets: [{ label: 'Embed snippet', value: snippetPlain, kind: 'html' }],
         },
       ],
       more: {
         title: SEO_TITLE,
         intro:
-          'Once the map works, give every class its own address and render each page’s title and text on your server, so search engines can list them.',
+          'Your map works. Now give every class its own address and render each page’s title and text on your server, so search engines can list them.',
         steps: [
           {
             id: 'catch-all',
@@ -500,28 +565,37 @@ export function tracksFor(values: InstallValues): Record<TrackId, Track> {
             unobservable: true,
             actions: [
               `Make your server answer every address under ${values.atlasUrl} with the same page — ${values.atlasUrl}/ca/ontario included.`,
-              'Then replace the snippet from step 3 with this one, which writes each class’s own address into the address bar.',
-            ],
-            snippets: [
-              { label: 'Embed snippet, with addresses', value: snippetWithRouting, kind: 'html' },
+              {
+                text: 'Then replace the snippet from step 3 with this one, which writes each class’s own address into the address bar:',
+                snippet: {
+                  label: 'Embed snippet, with addresses',
+                  value: snippetWithRouting,
+                  kind: 'html',
+                },
+              },
             ],
           },
           {
             id: 'render-seo',
             title: 'Render each page’s metadata on your server',
-            check: true,
             actions: [
-              'For each address under the atlas page, ask the CMS for that page’s metadata and render it into the page’s <head> and body before sending it.',
-              'List every page the sitemap request answers in your site’s own sitemap.',
-              'The guide at docs/embedding.md in the Sahaj Atlas repository has the full contract.',
-            ],
-            snippets: [
               {
-                label: 'Page metadata',
-                value: `GET ${cms}/api/atlas/seo?route=/ca/ontario\n${auth}`,
-                kind: 'text',
+                text: 'For each address under the atlas page, ask the CMS for that page’s metadata and render it into the page’s <head> and body before sending it:',
+                snippet: {
+                  label: 'Page metadata',
+                  value: `GET ${cms}/api/atlas/seo?route=/ca/ontario\n${auth}`,
+                  kind: 'text',
+                },
               },
-              { label: 'Sitemap', value: `GET ${cms}/api/atlas/sitemap\n${auth}`, kind: 'text' },
+              {
+                text: 'List every page this answers in your site’s own sitemap:',
+                snippet: {
+                  label: 'Sitemap',
+                  value: `GET ${cms}/api/atlas/sitemap\n${auth}`,
+                  kind: 'text',
+                },
+              },
+              'The guide at docs/embedding.md in the Sahaj Atlas repository has the full contract.',
             ],
           },
         ],
@@ -535,7 +609,8 @@ export function tracksFor(values: InstallValues): Record<TrackId, Track> {
       recognise: PLATFORM_RECOGNISE.iframe,
       caveat: {
         tone: 'warning',
-        text: 'No search listings: nothing inside an iframe can give your page class titles, addresses or a sitemap. Use this only when no other option works.',
+        title: 'No search listings',
+        text: 'An iframe cannot give your page class titles, addresses or a sitemap. Use it only when nothing else works.',
       },
       checks: {
         noReport: 'snippet',
@@ -547,12 +622,13 @@ export function tracksFor(values: InstallValues): Record<TrackId, Track> {
         {
           id: 'snippet',
           title: 'Paste the embed',
-          check: true,
           actions: [
             'Add an HTML or “embed code” block to the page where the map should appear.',
-            'Paste this into it, and publish.',
+            {
+              text: 'Paste this into it, and publish:',
+              snippet: { label: 'Embed snippet', value: snippetPlain, kind: 'html' },
+            },
           ],
-          snippets: [{ label: 'Embed snippet', value: snippetPlain, kind: 'html' }],
         },
       ],
     },
@@ -572,8 +648,7 @@ export function stepForCheck(track: Track, check: SeoCheckId): StepId {
 }
 
 /** A warning a volunteer needs before they start, read off their site address. */
-export interface HostHint {
-  message: string
+export interface HostHint extends Notice {
   /** True when the only honest advice is the iframe track. */
   offerIframe: boolean
 }
@@ -595,8 +670,8 @@ export function hostHints(args: { host: string | null; platform: PlatformId }): 
   if (platform === 'wix' && (lower.endsWith('.wixsite.com') || lower === 'wixsite.com')) {
     return [
       {
-        message:
-          'This is a free Wix address. The map needs a paid Wix Premium plan and your own domain name. Until the site has both, use the “Iframe only” track.',
+        title: 'This is a free Wix address',
+        text: 'The map needs a paid Wix Premium plan and your own domain name. Until the site has both, use Iframe only.',
         offerIframe: true,
       },
     ]
@@ -605,8 +680,8 @@ export function hostHints(args: { host: string | null; platform: PlatformId }): 
   if (platform === 'wordpress' && (lower.endsWith('.wordpress.com') || lower === 'wordpress.com')) {
     return [
       {
-        message:
-          'This is a WordPress.com address. Installing a plugin there needs the Business plan or higher — check Upgrades → Plans before you start.',
+        title: 'This is a WordPress.com address',
+        text: 'Installing a plugin there needs the Business plan or higher. Check Upgrades → Plans before you start.',
         offerIframe: false,
       },
     ]

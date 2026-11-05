@@ -164,36 +164,82 @@ export function buildInstallModel(args: {
   return { stage, candidate, reported, stepStatus, failures }
 }
 
-/** One sentence for the banner, per stage. */
-export const STAGE_MESSAGES: Record<InstallStage, string> = {
-  waiting:
-    'Follow the steps below. This page checks by itself as soon as the atlas appears on your site, so you can leave it open while you work.',
-  seen: 'Your atlas is showing on your site. Confirming it now.',
-  verifying: 'Checking your site…',
-  verified: 'Your atlas is live, and search engines can read your class pages.',
-  warnings:
-    'Your atlas is live and nobody visiting your site is affected — but search engines cannot read part of it. The steps marked below say what to redo.',
-  failed:
-    'The atlas was reported on this page, but the CMS could not confirm it by loading the page itself. The step marked below is the one to check.',
+/** A banner the tab shows: its colour, its title, and one or two sentences. */
+export interface BannerContent {
+  type: 'default' | 'error' | 'success' | 'warning'
+  title: string
+  text: string
 }
 
-/** How one row of the progress table stands. */
-export type MilestoneState = 'done' | 'failed' | 'warning' | 'todo'
+/** The banner at the top of the tab, per stage. */
+export const STAGE_BANNERS: Record<InstallStage, BannerContent> = {
+  waiting: {
+    type: 'default',
+    title: 'Not installed yet',
+    text: 'Follow the steps below. This page notices by itself when the atlas appears on your site.',
+  },
+  seen: {
+    type: 'default',
+    title: 'Atlas found on your site',
+    text: 'Confirming it now.',
+  },
+  verifying: { type: 'default', title: 'Checking your site…', text: 'This takes a few seconds.' },
+  verified: {
+    type: 'success',
+    title: 'Your atlas is live',
+    text: 'Visitors can use it, and search engines can read your class pages.',
+  },
+  warnings: {
+    type: 'warning',
+    title: 'Live, with search problems',
+    text: 'Visitors are not affected, but search engines cannot read part of it. Redo the steps marked in red.',
+  },
+  failed: {
+    type: 'error',
+    title: 'Could not confirm the install',
+    text: 'The atlas reported itself, but the CMS could not load the page. Check the step marked in red.',
+  },
+}
+
+/**
+ * How one row of the progress table stands.
+ *
+ * `na` is a row the chosen track can never finish. It is shown, so the volunteer
+ * sees what the track gives up, and left out of the count, so the count can
+ * still reach the end.
+ */
+export type MilestoneState = 'done' | 'failed' | 'warning' | 'todo' | 'na'
 
 export interface Milestone {
   id: 'seen' | 'confirmed' | 'region' | 'routing' | 'search'
   label: string
   state: MilestoneState
-  detail: string
+  /** One of {@link MILESTONE_STATUS}, or "Checking…" while a check runs. */
+  status: string
+  /** A second line under the label, where there is something specific to say. */
+  note?: string
+}
+
+/** The Status column's whole vocabulary, so every row reads the same way. */
+export const MILESTONE_STATUS: Record<MilestoneState, string> = {
+  done: 'Done',
+  todo: 'Not yet',
+  failed: 'Needs fixing',
+  warning: 'Needs action',
+  na: 'Not available',
 }
 
 /**
  * The progress table: what is done, in the order it happens.
  *
- * ⚠ **Only rows the chosen track can finish.** An iframe has no addresses of its
- * own and nothing a search engine can read, so it gets neither row — a row that
- * can never turn green would leave the count short for good and read as a
- * failure of the install rather than of the track.
+ * Every label is a thing and its state ("Atlas detected"), and every status is
+ * one of five words, so the rows can be read down the column. What is specific
+ * to one row — where the atlas was found, how many search problems — goes in
+ * its note.
+ *
+ * ⚠ **An iframe cannot finish the last two rows.** It has no addresses of its
+ * own and nothing a search engine can read, so they are `na`: shown, and out of
+ * the count.
  */
 export function buildMilestones(args: {
   model: InstallModel
@@ -205,59 +251,129 @@ export function buildMilestones(args: {
   const { model, verification, canonicalEmbed, hasRegion, trackId } = args
   const [first, ...rest] = model.reported
   const problems = model.failures.length
+  const iframe = trackId === 'iframe'
+  const row = (
+    id: Milestone['id'],
+    label: string,
+    state: MilestoneState,
+    note?: string,
+  ): Milestone => ({ id, label, state, status: MILESTONE_STATUS[state], ...(note ? { note } : {}) })
 
-  const milestones: Milestone[] = [
-    {
-      id: 'seen',
-      label: 'Found on your site',
-      state: first ? 'done' : 'todo',
-      detail: first
-        ? `${first.host}${first.mount}${rest.length > 0 ? ` and ${rest.length} more` : ''}`
-        : 'Not yet',
-    },
-    {
-      id: 'confirmed',
-      label: 'Confirmed by the CMS',
-      state: verification?.verified ? 'done' : model.stage === 'failed' ? 'failed' : 'todo',
-      detail: verification?.verified
-        ? 'Yes'
-        : model.stage === 'failed'
-          ? 'Could not load the page'
-          : model.stage === 'verifying'
-            ? 'Checking…'
-            : 'Not yet',
-    },
-  ]
-  if (trackId === 'iframe') return milestones
+  const confirmed: Milestone = verification?.verified
+    ? row('confirmed', 'Install confirmed', 'done')
+    : model.stage === 'failed'
+      ? row('confirmed', 'Install confirmed', 'failed', 'The CMS could not load the page.')
+      : {
+          ...row('confirmed', 'Install confirmed', 'todo'),
+          ...(model.stage === 'verifying' ? { status: 'Checking…' } : {}),
+        }
 
+  const probe = verification?.routingProbe?.verdict
   return [
-    ...milestones,
-    {
-      id: 'region',
-      label: 'Owns its region’s addresses',
-      state: canonicalEmbed ? 'done' : hasRegion ? 'todo' : 'warning',
-      detail: canonicalEmbed ? 'Yes' : hasRegion ? 'Not yet' : 'No region set',
-    },
-    {
-      id: 'routing',
-      label: 'Each class has its own address',
-      state: verification?.routingProbe?.verdict === 'path' ? 'done' : 'todo',
-      detail:
-        verification?.routingProbe?.verdict === 'path'
-          ? 'Yes'
-          : verification?.routingProbe
-            ? 'Uses ?atlas='
-            : 'Not yet',
-    },
-    {
-      id: 'search',
-      label: 'Readable by search engines',
-      state: !verification?.seo ? 'todo' : problems > 0 ? 'failed' : 'done',
-      detail: !verification?.seo
-        ? 'Not checked yet'
+    first
+      ? row(
+          'seen',
+          'Atlas detected',
+          'done',
+          `${first.host}${first.mount}${rest.length > 0 ? ` and ${rest.length} more` : ''}`,
+        )
+      : row('seen', 'Atlas detected', 'todo'),
+    confirmed,
+    canonicalEmbed
+      ? row('region', 'Region claimed', 'done')
+      : hasRegion
+        ? row('region', 'Region claimed', 'todo')
+        : row('region', 'Region claimed', 'warning', 'Set a region on the Edit tab.'),
+    iframe
+      ? row('routing', 'Class addresses', 'na', 'An iframe has no addresses of its own.')
+      : probe === 'path'
+        ? row('routing', 'Class addresses', 'done')
+        : row('routing', 'Class addresses', 'todo', probe ? 'Using ?atlas= addresses.' : undefined),
+    iframe
+      ? row('search', 'Search listings', 'na', 'Search engines cannot read an iframe.')
+      : !verification?.seo
+        ? row('search', 'Search listings', 'todo')
         : problems > 0
-          ? `${problems} problem${problems === 1 ? '' : 's'}`
-          : 'Yes',
-    },
+          ? row(
+              'search',
+              'Search listings',
+              'failed',
+              `${problems} problem${problems === 1 ? '' : 's'}, marked in the steps.`,
+            )
+          : row('search', 'Search listings', 'done'),
   ]
+}
+
+/** What `POST /api/clients/:id/claim-canonical` answered, as far as the tab reads it. */
+export interface ClaimAnswer {
+  status: 'claimed' | 'already' | 'needs-region' | 'needs-domains' | 'taken' | 'unknown-mount'
+  message: string
+}
+
+/** What `POST /api/clients/:id/verify-embed` answered, as far as the tab reads it. */
+export interface VerifyAnswer {
+  status: 'verified' | 'failed' | 'inconclusive'
+  message: string
+  seo: SeoCheckResult[]
+}
+
+const CLAIM_TITLES: Partial<Record<ClaimAnswer['status'], string>> = {
+  'needs-region': 'Set a region first',
+  'needs-domains': 'This domain is not allowed',
+  taken: 'Another service owns this region',
+  'unknown-mount': 'Page not reported yet',
+}
+
+/**
+ * What one press of a Check button found, as a banner.
+ *
+ * The verification answer leads when there is one, because it is about the page
+ * the volunteer just worked on. A claim that went wrong leads otherwise: without
+ * a claim there is often nothing to verify, and its message says why.
+ */
+export function checkOutcome(args: {
+  /** `null` when the widget has not reported itself from this address. */
+  path: string | null
+  reported: boolean
+  claim: ClaimAnswer | null
+  verify: VerifyAnswer | null
+}): BannerContent {
+  const { path, reported, claim, verify } = args
+  if (!reported) {
+    return {
+      type: 'warning',
+      title: 'Not found yet',
+      text: `The atlas has not shown up at ${path ?? 'this address'}. Publish the page, open it once in your browser, then check again.`,
+    }
+  }
+
+  const claimTitle = claim ? CLAIM_TITLES[claim.status] : undefined
+
+  if (verify?.status === 'verified') {
+    const problems = verify.seo.filter((result) => result.status === 'fail').length
+    if (claimTitle && claim) return { type: 'warning', title: claimTitle, text: claim.message }
+    return problems > 0
+      ? {
+          type: 'warning',
+          title: `Live, with ${problems} search problem${problems === 1 ? '' : 's'}`,
+          text: 'Visitors are not affected. Redo the steps marked in red, then check again.',
+        }
+      : {
+          type: 'success',
+          title: 'Everything checks out',
+          text: 'The atlas is live, and search engines can read it.',
+        }
+  }
+  if (verify?.status === 'failed') {
+    return { type: 'error', title: 'Could not confirm the install', text: verify.message }
+  }
+  if (claimTitle && claim) return { type: 'warning', title: claimTitle, text: claim.message }
+  if (verify?.status === 'inconclusive') {
+    return { type: 'default', title: 'Could not check right now', text: verify.message }
+  }
+  return {
+    type: 'error',
+    title: 'Could not reach the CMS',
+    text: 'Nothing was changed. Try again in a moment.',
+  }
 }
