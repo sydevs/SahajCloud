@@ -1,6 +1,6 @@
 import type { PayloadRequest, TaskConfig } from 'payload'
 
-import { snapshotDate } from '@/lib/atlasOverview/snapshots'
+import { snapshotDate } from '@/lib/atlasOverview/statistics'
 import type { VerificationStage } from '@/lib/eventVerification/stages'
 import { relationId } from '@/lib/utilities/relationId'
 import type { AtlasSnapshotCounts } from '@/payload-types'

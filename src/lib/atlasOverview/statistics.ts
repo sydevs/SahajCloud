@@ -25,11 +25,24 @@ import type { AtlasSnapshotCounts } from '@/payload-types'
 
 import { loadRegionNodes, type OverviewArgs, scopeRegionIds } from './scope'
 import { loadSignupWindows, sumSignupWindows } from './signups'
-import { snapshotDate } from './snapshots'
 import { countPrograms, isProgramStage } from './status'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 export const CHANGE_WINDOW_DAYS = 30
+
+/**
+ * How a day is spelled in `atlas-snapshots`.
+ *
+ * Here with the reader rather than in its own module, because this is where
+ * the key is read back: spelled twice, one side would eventually format a date
+ * the other cannot find, and a tile with no comparison looks exactly like a
+ * tile whose comparison is zero. The nightly task
+ * (`jobs/AtlasSnapshot/RecordAtlasSnapshot.ts`) is the other caller, and it
+ * writes the key this reads.
+ */
+export function snapshotDate(now: Date): string {
+  return now.toISOString().slice(0, 10)
+}
 
 /**
  * How a tile's change reads beside it: a sign, the number, and the window.
