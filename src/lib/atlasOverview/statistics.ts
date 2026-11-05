@@ -30,6 +30,18 @@ import { snapshotDate } from './snapshots'
 const DAY_MS = 24 * 60 * 60 * 1000
 export const CHANGE_WINDOW_DAYS = 30
 
+/**
+ * How a tile's change reads beside it: a sign, the number, and the window.
+ *
+ * Here beside `StatTile` and the window it measures, because the home renders
+ * these tiles and the digest re-renders them as table cells — written at each,
+ * neither copy read `CHANGE_WINDOW_DAYS`, so moving the window would have left
+ * the page and the email saying different things about the same number.
+ */
+export function changeLabel(change: number): string {
+  return `${change >= 0 ? '+' : ''}${change} in ${CHANGE_WINDOW_DAYS} days`
+}
+
 /** One flat tile: a label, a value, and the two optional lines beside it. */
 export interface StatTile {
   key: string

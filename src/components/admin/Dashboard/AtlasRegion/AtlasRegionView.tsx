@@ -22,7 +22,6 @@ import { StatTiles } from '../shared/StatTiles'
  */
 export function AtlasRegionView({ data }: { data: AtlasRegionHome }) {
   const { items, regions, statistics } = data
-  const open = items.progress?.open ?? 0
   const section = items.query.section
 
   return (
@@ -55,7 +54,11 @@ export function AtlasRegionView({ data }: { data: AtlasRegionHome }) {
       <SectionTabs
         active={section}
         tabs={[
-          { count: open, label: 'Open items', value: 'items' },
+          {
+            count: items.progress?.open ?? items.counts.all,
+            label: 'Open items',
+            value: 'items',
+          },
           { count: null, label: 'Regions overview', value: 'regions' },
         ]}
       />
@@ -68,7 +71,6 @@ export function AtlasRegionView({ data }: { data: AtlasRegionHome }) {
           <OpenItemsList
             data={items}
             emptyBanner="All clear. Every program in your regions is on track."
-            open={open}
             showMine
           />
         </>

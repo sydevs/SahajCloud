@@ -109,7 +109,7 @@ export const NOTIFICATION_TYPES: NotificationType[] = [
 ]
 
 /** One notification type by key, or nothing for a key nothing declares. */
-export function notificationType(key: string): NotificationType | undefined {
+function notificationType(key: string): NotificationType | undefined {
   return NOTIFICATION_TYPES.find((type) => type.key === key)
 }
 
@@ -162,7 +162,9 @@ export function notificationFrequency(
  * because `SendDigests` skips any event carrying an override address, so a
  * summary cadence chosen there would silently do nothing.
  */
-export const SUMMARY_FREQUENCIES = ['Daily', 'Weekly', 'Monthly']
+export const SUMMARY_FREQUENCIES = ['Daily', 'Weekly', 'Monthly'] as const
+
+export type SummaryFrequency = (typeof SUMMARY_FREQUENCIES)[number]
 
 /**
  * Cadence options for the per-event `registrationNotificationEmail` override.
@@ -172,7 +174,7 @@ export const SUMMARY_FREQUENCIES = ['Daily', 'Weekly', 'Monthly']
  */
 export const REGISTRATION_OVERRIDE_FREQUENCY_OPTIONS = getFrequencyOptions(
   'event_registration',
-).filter((frequency) => !SUMMARY_FREQUENCIES.includes(frequency))
+).filter((frequency) => !(SUMMARY_FREQUENCIES as readonly string[]).includes(frequency))
 
 /**
  * Fallback cadence when an override address is set but no frequency is chosen.

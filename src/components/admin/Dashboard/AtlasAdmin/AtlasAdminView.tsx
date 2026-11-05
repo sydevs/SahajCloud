@@ -21,7 +21,6 @@ import { StatTiles } from '../shared/StatTiles'
  */
 export function AtlasAdminView({ data }: { data: AtlasAdminData }) {
   const { countries, items, statistics } = data
-  const open = items.progress?.open ?? items.counts.all
   const section = items.query.section
   const programs = statistics.analytics[0]?.value ?? 0
 
@@ -57,12 +56,10 @@ export function AtlasAdminView({ data }: { data: AtlasAdminData }) {
           <OpenItemsList
             data={items}
             emptyBanner="All clear. Every region has someone looking after it."
-            open={open}
           />
           {data.refusedAtTheForm === null ? null : (
             <p className={styles.closingNote}>
-              {data.refusedAtTheForm} sign-up{data.refusedAtTheForm === 1 ? '' : 's'} blocked at the
-              form in the last 7 days ·{' '}
+              {data.refusedAtTheForm} ·{' '}
               <Link href="/admin/collections/registration-refusals" prefetch={false}>
                 View
               </Link>

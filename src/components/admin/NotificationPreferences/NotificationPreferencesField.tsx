@@ -160,8 +160,11 @@ export const NotificationPreferencesField: FieldClientComponent = ({ field, read
                   method: stored?.method ?? DEFAULT_NOTIFICATION_METHOD,
                 }
                 const isNever = pref.frequency === NEVER_FREQUENCY
-                const methodRequired = Boolean(pref.frequency) && !isNever
-                const methodMissing = methodRequired && !pref.method
+                // No `Boolean(pref.frequency)` test: `notificationFrequency`
+                // resolves a row the manager never saved to its own default and
+                // falls back to Never, so the blank-pace state this used to
+                // guard no longer exists.
+                const methodMissing = !isNever && !pref.method
                 // Keep a method that's no longer in contactDetails selectable so
                 // it isn't silently dropped from the dropdown.
                 const rowMethodOptions =

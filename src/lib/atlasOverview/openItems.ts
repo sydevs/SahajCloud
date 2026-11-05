@@ -126,9 +126,14 @@ export interface OpenItemsResult {
   items: OpenItem[]
   /** How many rows each filter holds, before paging. */
   counts: { all: number } & Record<OpenItemFilter, number>
-  /** Every counted row in scope, however it is filtered. */
-  open: number
-  /** `null` for an admin, whose list has no denominator (`AtlasAdmin` shows no meter). */
+  /**
+   * `null` for an admin, whose list has no denominator (`AtlasAdmin` shows no
+   * meter) — their open count is `counts.all`.
+   *
+   * There is no sibling `open` beside this: it was the same number as
+   * `progress.open` wherever a meter exists, and a third name for "how many are
+   * open" left the next reader working out which of the three was authoritative.
+   */
   progress: null | OverviewProgress
 }
 
@@ -445,7 +450,6 @@ export async function loadOpenItems(args: OverviewArgs): Promise<OpenItemsResult
   return {
     items,
     counts,
-    open,
     progress: scope.role === 'admin' ? null : overviewProgress(open, total),
   }
 }

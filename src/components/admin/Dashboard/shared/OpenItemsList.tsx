@@ -58,20 +58,23 @@ function StatusPill({ status }: { status: OpenItemsRow['statuses'][number] }) {
 export function OpenItemsList({
   data,
   emptyBanner,
-  open,
   showMine,
 }: {
   data: OpenItemsData
   /** The all-clear line, shown when nothing counts against progress. */
   emptyBanner: string
-  /** Counted rows — N. Zero is all-clear, whatever else the list still holds. */
-  open: number
   /** Offer the "Your programs" filter — a region home only. */
   showMine?: boolean
 }) {
   const setQuery = useSetQuery<DashboardQuery>()
   const { counts, query, rows } = data
   const docs = rows.docs
+
+  // Derived here rather than taken as a prop: all three homes computed the same
+  // expression, and each carried a branch that cannot fire — `progress` is
+  // `null` for the admin alone, so their `?? counts.all` was the only arm ever
+  // taken and the other two's `?? 0` never was.
+  const open = data.progress?.open ?? counts.all
 
   const visible = FILTERS.filter((filter) => {
     if (filter.value === 'all') return true
@@ -158,7 +161,12 @@ export function OpenItemsList({
                   ),
                 ),
               ]}
-              data={docs}
+              // `Table` reads nothing off a row but `id` — every cell above is
+              // pre-rendered — so it is handed the ids alone rather than the
+              // domain rows, which would oblige `OpenItemsRow` to carry an
+              // index signature and lose its typo-checking. Payload's own
+              // `LogTable` does the same.
+              data={docs.map(({ id }) => ({ id }))}
             />
             <div className={styles.pageControls}>
               <Pagination

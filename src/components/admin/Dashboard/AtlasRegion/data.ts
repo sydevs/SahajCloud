@@ -65,7 +65,7 @@ export async function getAtlasRegionData(
   const [result, statistics, regionRows] = await Promise.all([
     loadOpenItems({ now, overrideAccess: false, req, scope }),
     loadStatistics({ now, overrideAccess: false, req: localeIsolatedReq(req), scope }),
-    loadRegionOverview({ now, overrideAccess: false, req: localeIsolatedReq(req), scope }),
+    loadRegionOverview({ now, req: localeIsolatedReq(req), scope }),
   ])
 
   const node = regionId === undefined ? undefined : nodes.get(regionId)

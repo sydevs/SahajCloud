@@ -177,7 +177,13 @@ export function sortRegionRows(
  * ancestors' and a country is where that cover runs out.
  */
 export async function loadRegionOverview(
-  args: OverviewArgs & { countriesOnly?: boolean },
+  // ⚠ **No `overrideAccess`, because this loader cannot honour one.** Every read
+  // it makes is `overrideAccess: true` on purpose — a row's counts are a roll-up
+  // over a whole subtree, and a reader's own grants would silently undercount a
+  // region rather than refuse it. `scopeRegionIds` is what bounds this list, so
+  // taking the flag would have told a caller auditing "is this scoped to the
+  // reader's access?" the wrong thing.
+  args: Omit<OverviewArgs, 'overrideAccess'> & { countriesOnly?: boolean },
 ): Promise<RegionOverviewRow[]> {
   const { req } = args
   const now = args.now ?? new Date()

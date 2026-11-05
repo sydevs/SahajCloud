@@ -11,19 +11,18 @@ import {
   type OverviewScope,
   type StatTile,
 } from '@/lib/atlasOverview'
+import { refusedAtTheForm } from '@/lib/atlasOverview/refusals'
+import { changeLabel } from '@/lib/atlasOverview/statistics'
 import { formatLongDate } from '@/lib/notifications'
 import { type ManagerRole, MANAGER_ROLE_LABELS } from '@/lib/notifications/managerRoles'
 import { adminDocUrl, adminUrl } from '@/lib/utilities/adminUrl'
-import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import type { Manager } from '@/payload-types'
 
 import { isDue, windowStart } from './due'
 import { registrationGroups } from './registrations'
 import { watermarkFor } from './watermarks'
 
-const DAY_MS = 24 * 60 * 60 * 1000
 /** How far back an admin's closing line counts sign-ups the form turned away. */
-const REFUSAL_WINDOW_DAYS = 7
 
 /** The preference keys a digest reads, each its own section or part of one. */
 export const DIGEST_KEYS = {
@@ -85,7 +84,7 @@ function toEmailRow(item: OpenItem): ItemTableRow {
 }
 
 const tileText = (tile: StatTile) => ({
-  change: tile.change === null ? null : `${tile.change >= 0 ? '+' : ''}${tile.change} in 30 days`,
+  change: tile.change === null ? null : changeLabel(tile.change),
   label: tile.label,
   of: tile.of === undefined ? null : String(tile.of),
   value: String(tile.value),
@@ -111,28 +110,13 @@ function arrivedSince(item: OpenItem, since: Date): boolean {
  * counter rather than a row per refusal: anyone holding the published widget
  * key can be refused for free, so a flood moves a number.
  */
-async function refusedAtTheForm(
+async function refusalNote(
   req: PayloadRequest,
   now: Date,
 ): Promise<null | { href: string; text: string }> {
-  const since = new Date(now.getTime() - REFUSAL_WINDOW_DAYS * DAY_MS)
-  const { docs } = await req.payload.find({
-    collection: 'registration-refusals',
-    where: {
-      and: [{ stage: { equals: 'request' } }, { hour: { greater_than: since.toISOString() } }],
-    },
-    depth: 0,
-    pagination: false,
-    overrideAccess: true,
-    req: localeIsolatedReq(req),
-    select: { count: true },
-  })
-  const total = docs.reduce((sum, row) => sum + (row.count ?? 0), 0)
-  if (total === 0) return null
-  return {
-    href: adminUrl('/collections/registration-refusals'),
-    text: `${total} sign-up${total === 1 ? '' : 's'} blocked at the form in the last ${REFUSAL_WINDOW_DAYS} days`,
-  }
+  const refused = await refusedAtTheForm({ now, overrideAccess: true, req })
+  if (!refused) return null
+  return { href: adminUrl('/collections/registration-refusals'), text: refused.text }
 }
 
 /**
@@ -165,9 +149,36 @@ export async function buildDigest(args: {
   const parts: string[] = []
   let failed = 0
 
+  /**
+   * Run one section, counting and skipping a failure rather than letting it
+   * empty the email.
+   *
+   * ⚠ **One wrapper, because `failed` is what rides out in the task's output.**
+   * Written per section, a fourth was one copy-paste away from catching an
+   * error without counting it — and the job row would then read green while the
+   * email was silently short a section, which is the failure this rule exists
+   * to prevent.
+   */
+  const section = async (name: string, run: () => Promise<void>): Promise<void> => {
+    try {
+      await run()
+    } catch (error) {
+      failed += 1
+      req.payload.logger.warn({
+        error: error instanceof Error ? error.message : String(error),
+        managerId: manager.id,
+        msg: `SendDigests: ${name} section failed — left out`,
+        role,
+      })
+    }
+  }
+
+  /** A section's "new since" bound: its watermark, or one period back. */
+  const since = (key: string) => windowStart(watermarkFor(manager, role, key), pace(key), runStart)
+
   const statistics: DigestTileBlock[] = []
   if (due(DIGEST_KEYS.statistics)) {
-    try {
+    await section('statistics', async () => {
       const stats = await loadStatistics({ now: runStart, overrideAccess: true, req, scope })
       if (stats.health.length) {
         statistics.push({ heading: 'Verification health', tiles: stats.health.map(tileText) })
@@ -179,15 +190,7 @@ export async function buildDigest(args: {
       parts.push(
         `${formatLongDate(runStart.toISOString()).split(' ').slice(1).join(' ')} analytics`,
       )
-    } catch (error) {
-      failed += 1
-      req.payload.logger.warn({
-        error: error instanceof Error ? error.message : String(error),
-        managerId: manager.id,
-        msg: 'SendDigests: statistics section failed — left out',
-        role,
-      })
-    }
+    })
   }
 
   let openItems: DigestEmailProps['openItems']
@@ -197,7 +200,7 @@ export async function buildDigest(args: {
   const newRefusals = role === 'admin' && due(DIGEST_KEYS.refusals)
 
   if (wholeList || newProposals || newRefusals) {
-    try {
+    await section('open items', async () => {
       const result = await loadOpenItems({ now: runStart, overrideAccess: true, req, scope })
       const items = result.items.filter((item) => {
         // A region email leaves out the manager's own listings: those are the
@@ -205,30 +208,11 @@ export async function buildDigest(args: {
         // read every one of them twice.
         if (role === 'region' && item.row.kind === 'event' && item.row.ownEvent) return false
         if (wholeList) return true
-        if (
-          newProposals &&
-          arrivedSince(
-            item,
-            windowStart(
-              watermarkFor(manager, role, DIGEST_KEYS.proposals),
-              pace(DIGEST_KEYS.proposals),
-              runStart,
-            ),
-          )
-        ) {
-          return true
-        }
+        if (newProposals && arrivedSince(item, since(DIGEST_KEYS.proposals))) return true
         return Boolean(
           newRefusals &&
           item.row.kind === 'refusal' &&
-          arrivedSince(
-            item,
-            windowStart(
-              watermarkFor(manager, role, DIGEST_KEYS.refusals),
-              pace(DIGEST_KEYS.refusals),
-              runStart,
-            ),
-          ),
+          arrivedSince(item, since(DIGEST_KEYS.refusals)),
         )
       })
 
@@ -239,42 +223,26 @@ export async function buildDigest(args: {
       if (wholeList) advance.push(DIGEST_KEYS.openItems)
       if (newProposals) advance.push(DIGEST_KEYS.proposals)
       if (newRefusals) advance.push(DIGEST_KEYS.refusals)
-      if (role === 'admin' && openItems) closingNote = await refusedAtTheForm(req, runStart)
-    } catch (error) {
-      failed += 1
-      req.payload.logger.warn({
-        error: error instanceof Error ? error.message : String(error),
-        managerId: manager.id,
-        msg: 'SendDigests: open items section failed — left out',
-        role,
-      })
-    }
+      if (role === 'admin' && openItems) closingNote = await refusalNote(req, runStart)
+    })
   }
 
   let registrations: DigestEmailProps['registrations']
   if (role === 'program' && due(DIGEST_KEYS.registrations)) {
-    try {
-      const since = windowStart(
-        watermarkFor(manager, role, DIGEST_KEYS.registrations),
-        pace(DIGEST_KEYS.registrations),
+    await section('registrations', async () => {
+      const groups = await registrationGroups({
+        managerId: manager.id,
+        req,
         runStart,
-      )
-      const groups = await registrationGroups({ managerId: manager.id, req, runStart, since })
+        since: since(DIGEST_KEYS.registrations),
+      })
       if (groups.length) {
         registrations = groups
         const total = groups.reduce((sum, group) => sum + group.rows.length, 0)
         parts.push(`${total} new registration${total === 1 ? '' : 's'}`)
       }
       advance.push(DIGEST_KEYS.registrations)
-    } catch (error) {
-      failed += 1
-      req.payload.logger.warn({
-        error: error instanceof Error ? error.message : String(error),
-        managerId: manager.id,
-        msg: 'SendDigests: registrations section failed — left out',
-        role,
-      })
-    }
+    })
   }
 
   // Nothing to say is not an email.

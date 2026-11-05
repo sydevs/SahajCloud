@@ -1,11 +1,7 @@
 import type { StatTile } from '@/lib/atlasOverview/statistics'
+import { changeLabel } from '@/lib/atlasOverview/statistics'
 
 import styles from './Dashboard.module.css'
-
-/** How a change reads beside a tile: a sign, a number, and the window. */
-export function changeLabel(change: number): string {
-  return `${change >= 0 ? '+' : ''}${change} in 30 days`
-}
 
 /**
  * The home's statistics: flat tiles, no border and no radius.

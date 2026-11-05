@@ -7,22 +7,26 @@ import {
   type OverviewStatistics,
   type RegionOverviewRow,
 } from '@/lib/atlasOverview'
+import { refusedAtTheForm } from '@/lib/atlasOverview/refusals'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 
 import { type DashboardQuery, type OpenItemsData, paginate } from '../shared/model'
 import { openItemsData } from '../shared/rows'
-
-/** How far back the home counts sign-ups the form turned away. */
-const REFUSAL_WINDOW_DAYS = 7
-const DAY_MS = 24 * 60 * 60 * 1000
 
 export interface AtlasAdminData {
   countries: PaginatedDocs<RegionOverviewRow>
   /** How many countries the map holds, for the header's description. */
   countryCount: number
   items: OpenItemsData
-  /** Sign-ups the form refused in the last week, or `null` for none. */
-  refusedAtTheForm: null | number
+  /**
+   * The finished "N sign-ups blocked at the form in the last 7 days" line, or
+   * `null` for a quiet week.
+   *
+   * The sentence arrives built rather than as a count, so the home and the
+   * admin digest cannot word the same fact differently or disagree about how
+   * long the window is (`atlasOverview/refusals.ts`).
+   */
+  refusedAtTheForm: null | string
   statistics: OverviewStatistics
 }
 
@@ -41,43 +45,23 @@ export async function getAtlasAdminData(
   const now = new Date()
   const scope = { role: 'admin' } as const
 
-  const [result, statistics, countries, refusals] = await Promise.all([
+  const [result, statistics, countries, refused] = await Promise.all([
     loadOpenItems({ now, overrideAccess: false, req, scope }),
     loadStatistics({ now, overrideAccess: false, req: localeIsolatedReq(req), scope }),
     loadRegionOverview({
       countriesOnly: true,
       now,
-      overrideAccess: false,
       req: localeIsolatedReq(req),
       scope,
     }),
-    req.payload.find({
-      collection: 'registration-refusals',
-      depth: 0,
-      overrideAccess: false,
-      pagination: false,
-      req: localeIsolatedReq(req),
-      select: { count: true },
-      where: {
-        and: [
-          { stage: { equals: 'request' } },
-          {
-            hour: {
-              greater_than: new Date(now.getTime() - REFUSAL_WINDOW_DAYS * DAY_MS).toISOString(),
-            },
-          },
-        ],
-      },
-    }),
+    refusedAtTheForm({ now, overrideAccess: false, req: localeIsolatedReq(req) }),
   ])
-
-  const refused = refusals.docs.reduce((sum, row) => sum + (row.count ?? 0), 0)
 
   return {
     countries: paginate(countries, query.page, query.limit),
     countryCount: countries.length,
     items: await openItemsData({ now, query, req, result }),
-    refusedAtTheForm: refused > 0 ? refused : null,
+    refusedAtTheForm: refused?.text ?? null,
     statistics,
   }
 }

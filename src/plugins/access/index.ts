@@ -38,6 +38,7 @@ export {
 export type { LocalizedRoles } from './localizedRoles'
 export {
   adminOnlyCondition,
+  adminOnlyAccess,
   adminOnlyFieldAccess,
   isAdminManager,
   isManager,

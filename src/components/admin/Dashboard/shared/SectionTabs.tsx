@@ -26,7 +26,11 @@ export interface SectionTab {
  * number worth saying differently.
  */
 export function SectionTabs({ active, tabs }: { active: DashboardSection; tabs: SectionTab[] }) {
-  if (tabs.length < 2) return null
+  // ⚠ **A lone tab still renders.** It is not navigation then, but it is still
+  // where that section's count — or the tick standing in for zero — is shown,
+  // which the program home has nowhere else to put. Refusing to draw one left
+  // that home with no count and no tick at all.
+  if (tabs.length === 0) return null
   return (
     <div className={`tabs-field__tabs ${styles.sections}`} role="tablist">
       {tabs.map((tab) => (

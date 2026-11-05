@@ -9,12 +9,14 @@ import { firstParam, pageParam } from '../../helpers/searchParams'
 /**
  * One open-item row, flattened to what a client view can be handed.
  *
- * ⚠ **An index signature, because Payload's `Table` takes `Record<string,
- * unknown>[]` as its `data`.** It reads nothing off a row but `id`; the
- * declared members are what the cells are built from.
+ * ⚠ **No index signature.** Payload's `Table` takes `Record<string, unknown>[]`
+ * and reads nothing off a row but `id`, so the list hands it `{ id }` alone
+ * (the pattern `LogTable` uses) rather than widening this type to fit. Widened,
+ * every misspelled read on the one row type three homes and the digest share
+ * resolved to `unknown` instead of erroring, and `toRow` could emit a typo'd
+ * key with nothing noticing.
  */
 export interface OpenItemsRow {
-  [key: string]: unknown
   /** Unique across the row kinds a list mixes, which share an id space. */
   id: string
   title: string
@@ -41,13 +43,15 @@ export const DASHBOARD_SECTIONS = ['items', 'regions'] as const
 export type DashboardSection = (typeof DASHBOARD_SECTIONS)[number]
 
 /**
- * ⚠ **An index signature, because `useSetQuery<Q>` demands one.** The hook is
- * generic over `Record<string, number | string>` so a misspelled key is a build
- * error; a closed interface does not satisfy that constraint, and the named
- * members are still what typo-checks.
+ * ⚠ **A `type`, not an `interface`, and that is what makes it typo-checked.**
+ * `useSetQuery<Q>` is generic over `Record<string, number | string>`; an object
+ * *type literal* satisfies that through TypeScript's implicit index signature,
+ * while an `interface` does not — so writing it as one obliged an explicit
+ * `[key: string]: number | string`, and that signature then accepted every
+ * misspelling the constraint existed to catch (`setQuery({ filtr: 'overdue' })`
+ * compiled clean).
  */
-export interface DashboardQuery {
-  [key: string]: number | string
+export type DashboardQuery = {
   filter: OpenItemTab
   limit: number
   page: number

@@ -22,7 +22,6 @@ import { StatTiles } from '../shared/StatTiles'
  */
 export function AtlasManagerView({ data }: { data: AtlasManagerData }) {
   const { items, statistics } = data
-  const open = items.progress?.open ?? 0
   const hasPrograms = statistics.analytics[0]?.value ?? 0
 
   if (!hasPrograms) {
@@ -91,9 +90,14 @@ export function AtlasManagerView({ data }: { data: AtlasManagerData }) {
         </p>
       ) : null}
 
-      <SectionTabs active="items" tabs={[{ count: open, label: 'Open items', value: 'items' }]} />
+      <SectionTabs
+        active="items"
+        tabs={[
+          { count: items.progress?.open ?? items.counts.all, label: 'Open items', value: 'items' },
+        ]}
+      />
       {items.progress ? <ProgressMeter progress={items.progress} /> : null}
-      <OpenItemsList data={items} emptyBanner="All clear. Every program is on track." open={open} />
+      <OpenItemsList data={items} emptyBanner="All clear. Every program is on track." />
     </section>
   )
 }

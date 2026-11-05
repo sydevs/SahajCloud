@@ -146,7 +146,9 @@ export function subtreeOf(nodes: Map<number, RegionNode>, roots: number[]): Set<
  * anyone can type.
  */
 export async function scopeRegionIds(
-  args: OverviewArgs,
+  // Scoping is a question about the region tree, not about the reader's grants,
+  // so it asks for no `overrideAccess` and both shapes of caller satisfy it.
+  args: Omit<OverviewArgs, 'overrideAccess'>,
   nodes: Map<number, RegionNode>,
 ): Promise<null | Set<number>> {
   const { req, scope } = args

@@ -13,11 +13,22 @@
  * than mailed daily.
  */
 
+import { type SummaryFrequency } from '@/components/admin/NotificationPreferences/config'
+
 const DAY_MS = 24 * 60 * 60 * 1000
 
-export const DAILY = 'Daily'
-export const WEEKLY = 'Weekly'
-export const MONTHLY = 'Monthly'
+/**
+ * The three paces, taken from the preferences config rather than restated.
+ *
+ * ⚠ **`isDue` answers `false` for anything it does not name**, which is right
+ * for a retired option and wrong for a newly added one: a fourth cadence listed
+ * on a row would leave every manager who chose it silently unmailed, with
+ * nothing failing. Reading the vocabulary from its owner is what makes a
+ * cadence added there a type error here instead.
+ */
+const DAILY: SummaryFrequency = 'Daily'
+const WEEKLY: SummaryFrequency = 'Weekly'
+const MONTHLY: SummaryFrequency = 'Monthly'
 
 /** Weekly digests fire on this UTC weekday (Sunday = 0 … Monday = 1). */
 const WEEKLY_ANCHOR_WEEKDAY = 1
@@ -37,7 +48,7 @@ export function isDue(frequency: string, now: Date): boolean {
  * a missing watermark, not a statement about the month, and a reader comparing
  * two of these wants the same span either time.
  */
-export function periodMs(frequency: string): number {
+function periodMs(frequency: string): number {
   if (frequency === WEEKLY) return 7 * DAY_MS
   if (frequency === MONTHLY) return 30 * DAY_MS
   return DAY_MS

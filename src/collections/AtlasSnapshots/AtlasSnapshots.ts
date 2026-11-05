@@ -4,7 +4,7 @@ import { z } from 'zod'
 
 import { jsonField } from '@/fields/jsonField'
 import { VERIFICATION_STAGES } from '@/lib/eventVerification/stages'
-import { adminOnlyFieldAccess } from '@/plugins/access'
+import { adminOnlyAccess, adminOnlyFieldAccess } from '@/plugins/access'
 import type { PurgeWindow, RetentionConfig } from '@/types/retention'
 
 /**
@@ -15,9 +15,9 @@ import type { PurgeWindow, RetentionConfig } from '@/types/retention'
  * so a window at 30 would race the sweep and show no change line on the days it
  * won. 45 leaves two weeks of missed runs before a comparison goes blind.
  */
-export const SNAPSHOT_RETENTION_DAYS = 45
+const SNAPSHOT_RETENTION_DAYS = 45
 
-export const SNAPSHOT_WINDOWS: PurgeWindow[] = [
+const SNAPSHOT_WINDOWS: PurgeWindow[] = [
   {
     days: SNAPSHOT_RETENTION_DAYS,
     name: 'atlasSnapshots',
@@ -56,7 +56,7 @@ export const AtlasSnapshots: CollectionConfig = {
     // and a region's event counts are not a published key's business.
     create: () => false,
     delete: () => false,
-    read: ({ req }) => req.user?.collection === 'managers' && req.user.type === 'admin',
+    read: adminOnlyAccess,
     update: () => false,
   },
   fields: [

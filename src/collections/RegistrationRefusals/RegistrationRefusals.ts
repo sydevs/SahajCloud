@@ -24,9 +24,9 @@
  * row through the API; both writers pass `overrideAccess`.
  */
 
-import type { Access, CollectionConfig } from 'payload'
+import type { CollectionConfig } from 'payload'
 
-import { isAdminManager } from '@/plugins/access'
+import { adminOnlyAccess } from '@/plugins/access'
 import type { PurgeWindow, RetentionConfig } from '@/types/retention'
 
 /**
@@ -36,7 +36,7 @@ import type { PurgeWindow, RetentionConfig } from '@/types/retention'
  * digest that reads it, so a digest that failed for days still finds its rows
  * when it retries.
  */
-export const REFUSAL_RETENTION_DAYS = 90
+const REFUSAL_RETENTION_DAYS = 90
 
 const REFUSAL_WINDOWS: PurgeWindow[] = [
   {
@@ -58,7 +58,7 @@ export const refusalHour = (at: Date): Date => {
   return hour
 }
 
-const adminsOnly: Access = ({ req }) => isAdminManager(req.user)
+const adminsOnly = adminOnlyAccess
 
 export const RegistrationRefusals: CollectionConfig = {
   slug: 'registration-refusals',
