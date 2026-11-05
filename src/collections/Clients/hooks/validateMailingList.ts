@@ -1,4 +1,4 @@
-import type { CollectionBeforeChangeHook } from 'payload'
+import type { CollectionBeforeChangeHook, PayloadRequest } from 'payload'
 
 import { APIError } from 'payload'
 
@@ -7,8 +7,22 @@ import { isMailingListConfigured } from '@/lib/mailingList/subscribe'
 import type { MailingListConfig } from '@/lib/mailingList/types'
 import { PROVIDER_TIMEOUT_MS } from '@/lib/mailingList/types'
 
-/** The fields whose change makes a save worth a provider round trip. */
-const CREDENTIAL_KEYS = ['provider', 'listId', 'apiKey', 'clientId', 'doiFlowId'] as const
+/**
+ * The fields whose change makes a save worth a provider round trip.
+ *
+ * `doubleOptIn` is one of them because it changes **what** is checked, not only
+ * what is sent: with it on, CleverReach's `verifyCredentials` also reads the
+ * confirmation flow, so turning it back on makes a stored `doiFlowId`
+ * load-bearing again and worth proving.
+ */
+const CREDENTIAL_KEYS = [
+  'provider',
+  'listId',
+  'apiKey',
+  'clientId',
+  'doiFlowId',
+  'doubleOptIn',
+] as const
 
 /**
  * beforeChange: prove a newly-entered mailing-list credential actually works,
@@ -44,7 +58,7 @@ export const validateMailingList: CollectionBeforeChangeHook = async ({
   // these exact three values when they were entered.
   if (!changed) return data
 
-  const failure = await checkCredentials(config)
+  const failure = await checkCredentials(config, req)
   if (failure) {
     // `APIError`, not a field `validate`: the message is the provider's own
     // words, and a validator returning a foreign error string against one field
@@ -52,11 +66,6 @@ export const validateMailingList: CollectionBeforeChangeHook = async ({
     // refused, and it says who refused it.
     throw new APIError(`Mailing list: ${failure}`, 400, { code: 'mailing_list_invalid' }, true)
   }
-
-  req.payload.logger.info({
-    msg: 'validateMailingList: credentials confirmed',
-    provider: config.provider,
-  })
 
   return data
 }
@@ -71,17 +80,39 @@ export const validateMailingList: CollectionBeforeChangeHook = async ({
  * time somebody edited a key. This function owns only what a *save* should do
  * with the answer.
  */
-async function checkCredentials(config: MailingListConfig): Promise<string | null> {
+async function checkCredentials(
+  config: MailingListConfig,
+  req: PayloadRequest,
+): Promise<string | null> {
   const adapter = adapterFor(config.provider)
   if (!adapter) return unknownProviderMessage(config.provider)
 
   try {
-    return await adapter.verifyCredentials(config, AbortSignal.timeout(PROVIDER_TIMEOUT_MS))
+    const failure = await adapter.verifyCredentials(
+      config,
+      AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
+    )
+    if (!failure) {
+      req.payload.logger.info({
+        msg: 'validateMailingList: credentials confirmed',
+        provider: config.provider,
+      })
+    }
+    return failure
   } catch {
     // The provider being unreachable is **not** a reason to refuse the save.
     // An operator cannot fix a Mailchimp outage, and blocking their edit until
     // it clears would be this hook doing more harm than the typo it exists to
     // catch. The credential goes in unproven, and delivery is what finds out.
+    //
+    // ⚠ Its own log line, never the success one. A provider that timed out and
+    // a provider that said yes must not read the same afterwards, and an
+    // adapter spending its budget over several round trips reaches this on
+    // ordinary latency.
+    req.payload.logger.warn({
+      msg: 'validateMailingList: provider unreachable, credentials unproven',
+      provider: config.provider,
+    })
     return null
   }
 }

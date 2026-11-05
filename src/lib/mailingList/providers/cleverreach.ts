@@ -18,7 +18,9 @@ type Failure = Extract<MailingListResult, { ok: false }>
  *
  * Every flag is `unknown` because the same key arrives as a number, a numeric
  * string or a boolean depending on the endpoint, so each is read through
- * `flagged` rather than compared to a value.
+ * `flagged` rather than compared to a value. `active` is CleverReach's computed
+ * answer and `activated` the timestamp an upsert writes; both are read because
+ * which one a group-receiver read carries is the endpoint's choice, not ours.
  */
 type Receiver = {
   active?: unknown
@@ -148,16 +150,12 @@ function authed(
   path: string,
   { token, signal, body }: { token: string; signal: AbortSignal; body?: unknown },
 ): Promise<Response> {
+  const post = body !== undefined
   return fetch(`${CLEVERREACH_HOST}/v3${path}`, {
-    ...(body === undefined
-      ? {}
-      : {
-          method: 'POST',
-          body: JSON.stringify(body),
-        }),
+    ...(post ? { method: 'POST', body: JSON.stringify(body) } : {}),
     headers: {
       Authorization: `Bearer ${token}`,
-      ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+      ...(post ? { 'Content-Type': 'application/json' } : {}),
     },
     signal,
   })
@@ -209,9 +207,13 @@ function refused(message: string): Failure {
   return { ok: false, code: 'provider_rejected', message, retryable: false }
 }
 
-/** Whether one of `Receiver`'s three-shaped flags is set. */
+/**
+ * Whether one of `Receiver`'s flags is set, whichever shape it arrived in.
+ * `Number` answers a boolean, a number and a numeric string alike, and anything
+ * else is `NaN`, which is not set.
+ */
 function flagged(value: unknown): boolean {
-  return typeof value === 'boolean' ? value : Number(value) > 0
+  return Number(value) > 0
 }
 
 /**
@@ -246,7 +248,13 @@ async function verifyCleverReach(
   signal: AbortSignal,
 ): Promise<string | null> {
   const clientId = config.clientId?.trim() ?? ''
+  const doubleOptIn = config.doubleOptIn !== false
+  const flowId = config.doiFlowId?.trim() ?? ''
+
+  // Both before the first call, as `subscribeCleverReach` checks them: neither
+  // needs a provider to answer it.
   if (clientId === '') return 'the CleverReach client ID is missing.'
+  if (doubleOptIn && flowId === '') return 'the CleverReach confirmation flow ID is missing.'
 
   const token = await accessToken(clientId, config.apiKey ?? '', signal)
   if (typeof token !== 'string') {
@@ -261,17 +269,16 @@ async function verifyCleverReach(
     signal,
   )
   if (group !== null) return group
-  if (config.doubleOptIn === false) return null
+  if (!doubleOptIn) return null
 
-  const flowId = config.doiFlowId?.trim() ?? ''
-  if (flowId === '') return 'the CleverReach confirmation flow ID is missing.'
-
-  // Not `probeCredentials`: its 404 names a list id, which is the wrong noun
-  // for a flow and would send the operator to the wrong field.
-  const flow = await authed(`/flow/flow/${encodeURIComponent(flowId)}`, { token, signal })
-  if (flow.status === 404) return 'that confirmation flow ID does not exist on this account.'
-  if (!flow.ok && flow.status < 500) return await readError(flow)
-  return null
+  // The same ladder as the group read, with the one message it cannot write:
+  // "that list id" would send the operator to the wrong field.
+  return probeCredentials(
+    `${CLEVERREACH_HOST}/v3/flow/flow/${encodeURIComponent(flowId)}`,
+    { Authorization: `Bearer ${token}` },
+    signal,
+    'that confirmation flow ID does not exist on this account.',
+  )
 }
 
 export const cleverreachAdapter: MailingListAdapter = {

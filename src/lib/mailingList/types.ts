@@ -71,11 +71,11 @@ export interface SubscribeArgs {
   /** A short provenance tag — `event-registration`, a form's slug. */
   source?: string
   /**
-   * The two facts CleverReach's double opt-in record is built from, when the
-   * submission row happens to carry them — both client-reported, like every
-   * other `submissionData` context key. Nothing starts storing a visitor's IP
-   * for this: an incomplete opt-in record is worth more than a new column of
-   * personal data (#1086).
+   * Client-reported request context off the submission row
+   * (`CLIENT_CONTEXT_KEYS`), for a provider that keeps a record of the opt-in.
+   * Passed whenever the row carries them, like `locale` above. Nothing starts
+   * storing a visitor's IP for this: an incomplete record is worth more than a
+   * new column of personal data (#1086).
    */
   userAgent?: string
   hostUrl?: string

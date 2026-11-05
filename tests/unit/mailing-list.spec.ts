@@ -360,6 +360,21 @@ describe('subscribeToMailingList', () => {
       )
     })
 
+    /**
+     * The one leg that can have landed before it was reported failed: the
+     * receiver is upserted by then, so a retry sends a second confirmation.
+     * Retryable is the ticket's mapping; the exposure is the PR's question.
+     */
+    it('reports a failed confirmation send as retryable, receiver already upserted', async () => {
+      fetchMock.mockImplementation(
+        cleverreachAnswers({ send: answer(503, { error: { message: 'busy' } }) }),
+      )
+      await expect(subscribe(CLEVERREACH)).resolves.toEqual(
+        expect.objectContaining({ code: 'provider_unavailable', retryable: true }),
+      )
+      expect(called(fetchMock, '/receivers/upsert')).toBe(true)
+    })
+
     it('refuses a config with no client ID, or no flow ID, before calling anything', async () => {
       // `isMailingListConfigured` stays provider-blind, so these are the
       // adapter's own refusals rather than the caller's.

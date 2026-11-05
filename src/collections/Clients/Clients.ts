@@ -120,6 +120,38 @@ const canonicalEnabled = (data: { canonical?: { enabled?: boolean | null } | nul
 const mailingListEnabled = (data: { mailingList?: { enabled?: boolean | null } | null }): boolean =>
   Boolean(data?.mailingList?.enabled)
 
+/**
+ * Which of the provider-specific fields each provider shows.
+ *
+ * A record rather than a provider comparison inside each `admin.condition`,
+ * because `Condition`'s `data` is untyped: a mistyped provider literal compiles,
+ * reads false, and hides the field — and with it Payload's `required`, which is
+ * gated on the same condition — so the row saves with no credential at all.
+ * Keyed on the derived union, so a fifth provider does not compile until it
+ * answers for each field.
+ */
+const PROVIDER_FIELDS: Record<
+  MailingListProvider,
+  { clientId: boolean; doubleOptIn: boolean; doiFlowId: boolean }
+> = {
+  mailchimp: { clientId: false, doubleOptIn: true, doiFlowId: false },
+  brevo: { clientId: false, doubleOptIn: false, doiFlowId: false },
+  klaviyo: { clientId: false, doubleOptIn: false, doiFlowId: false },
+  cleverreach: { clientId: true, doubleOptIn: true, doiFlowId: true },
+}
+
+/** Whether the chosen provider shows one of those fields, with the group on. */
+const providerShows = (
+  data: { mailingList?: { enabled?: boolean | null; provider?: string | null } | null },
+  field: keyof (typeof PROVIDER_FIELDS)[MailingListProvider],
+): boolean => {
+  const provider = data?.mailingList?.provider
+  return (
+    mailingListEnabled(data) &&
+    Boolean(provider && PROVIDER_FIELDS[provider as MailingListProvider]?.[field])
+  )
+}
+
 /** What each provider is called in the select. */
 const PROVIDER_LABELS: Record<MailingListProvider, string> = {
   mailchimp: 'Mailchimp',
@@ -132,12 +164,12 @@ const PROVIDER_LABELS: Record<MailingListProvider, string> = {
  * What opt-in actually does, per provider — the description under the provider
  * select, switched by the chosen value (`SelectDescription`).
  *
- * **Only Mailchimp and CleverReach have a per-call lever**, so only those two
- * get the `doubleOptIn` checkbox. A checkbox rendered for all four would be a
- * promise the CMS cannot keep on the other two: an operator who ticked it for
- * Brevo would believe a confirmation email was going out when none was. These
- * notes are what stands in its place, and they are read-only because the
- * behaviour they describe is not ours to change.
+ * **Only Mailchimp and CleverReach have a per-call lever** (`PROVIDER_FIELDS`),
+ * so only those two get the `doubleOptIn` checkbox. A checkbox rendered for all
+ * four would be a promise the CMS cannot keep on the other two: an operator who
+ * ticked it for Brevo would believe a confirmation email was going out when none
+ * was. These notes are what stands in its place, and they are read-only because
+ * the behaviour they describe is not ours to change.
  */
 const OPT_IN_NOTES: Record<MailingListProvider, string> = {
   mailchimp: 'Opt-in is set per subscriber, by the checkbox below.',
@@ -212,8 +244,7 @@ const mailingListGroup: Field = {
           label: 'Client ID',
           required: true,
           admin: {
-            condition: (data) =>
-              mailingListEnabled(data) && data?.mailingList?.provider === 'cleverreach',
+            condition: (data) => providerShows(data, 'clientId'),
             description:
               'From the OAuth app under Account → Extras → REST API. The secret below is that app’s client secret.',
           },
@@ -249,11 +280,7 @@ const mailingListGroup: Field = {
           defaultValue: true,
           label: 'Send a confirmation email before subscribing',
           admin: {
-            // The two providers with a per-call lever. See `OPT_IN_NOTES`.
-            condition: (data) =>
-              mailingListEnabled(data) &&
-              (data?.mailingList?.provider === 'mailchimp' ||
-                data?.mailingList?.provider === 'cleverreach'),
+            condition: (data) => providerShows(data, 'doubleOptIn'),
             description:
               'Mailchimp adds the address as `pending` and emails it a confirmation link. CleverReach adds it inactive and sends the confirmation through the flow below.',
           },
@@ -265,9 +292,7 @@ const mailingListGroup: Field = {
           required: true,
           admin: {
             condition: (data) =>
-              mailingListEnabled(data) &&
-              data?.mailingList?.provider === 'cleverreach' &&
-              data?.mailingList?.doubleOptIn !== false,
+              providerShows(data, 'doiFlowId') && data?.mailingList?.doubleOptIn !== false,
             description:
               'The CleverReach flow whose double opt-in email is sent. Create the form in CleverReach, then take the Flow ID it reports.',
           },
