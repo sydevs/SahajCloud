@@ -271,8 +271,18 @@ describe('Atlas overview', () => {
   })
 
   describe('a region manager', () => {
-    const load = async (query: Partial<DashboardQuery> = {}) =>
-      getAtlasRegionData(await reqAs(regionManager), query_(query))
+    /**
+     * The home, with the refusal narrowed away.
+     *
+     * `getAtlasRegionData` answers a union — a refusal carries no data at all —
+     * so a case about the home says so once here rather than guarding every
+     * read. The refusal has its own case below, which asserts the whole shape.
+     */
+    const load = async (query: Partial<DashboardQuery> = {}) => {
+      const data = await getAtlasRegionData(await reqAs(regionManager), query_(query))
+      if (!data.allowed) throw new Error('expected the region home, not the refusal')
+      return data
+    }
 
     it('sees escalated listings, unadopted ones, and their own — not a quiet one', async () => {
       const data = await load()
@@ -314,7 +324,6 @@ describe('Atlas overview', () => {
 
     it('scopes to one region of its own subtree', async () => {
       const data = await load({ region: managedCityId })
-      expect(data.allowed).toBe(true)
       expect(data.description).toMatch(/^Managed City · \d+ programs? · \d+ managers?$/)
       expect(data.breadcrumbs.map((crumb) => crumb.label)).toEqual([
         'Your regions',
@@ -333,14 +342,16 @@ describe('Atlas overview', () => {
      * emptied payload would satisfy any check on a single field's contents.
      */
     it('refuses a region outside its subtree, and reads nothing from it', async () => {
-      const data = await load({ region: orphanCityId })
+      const data = await getAtlasRegionData(
+        await reqAs(regionManager),
+        query_({ region: orphanCityId }),
+      )
       expect(data.allowed).toBe(false)
       expect(Object.keys(data)).toEqual(['allowed'])
     })
 
     it('lists its subtree in the regions overview, with the scoped region as the header', async () => {
       const data = await load({ region: countryId, section: 'regions' })
-      expect(data.allowed).toBe(true)
       const names = data.regions.docs.map((row) => row.name)
       expect(names).toContain('Managed City')
       expect(names).not.toContain('Overview Country')
