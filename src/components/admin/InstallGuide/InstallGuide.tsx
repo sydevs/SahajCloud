@@ -307,6 +307,7 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
       key={step.id}
       number={number}
       onEmbedHeight={setEmbedHeight}
+      onSwitchToIframe={() => choosePlatform('iframe')}
       quiet={quiet}
       status={model.stepStatus[step.id]}
       step={step}
@@ -568,6 +569,7 @@ function StepCard({
   quiet,
   embedHeight,
   onEmbedHeight,
+  onSwitchToIframe,
 }: {
   number: number
   step: Step
@@ -576,6 +578,7 @@ function StepCard({
   quiet: boolean
   embedHeight: EmbedHeight
   onEmbedHeight: (next: EmbedHeight) => void
+  onSwitchToIframe: () => void
 }): React.ReactElement {
   const failed = status?.state === 'fail'
   const finished = status?.state === 'pass' || status?.state === 'done'
@@ -594,6 +597,20 @@ function StepCard({
         }
         initCollapsed={finished}
       >
+        {step.notice ? (
+          <div className={styles.stepNotice}>
+            <TitledBanner
+              action={
+                step.notice.offerIframe ? (
+                  <InlineAction onClick={onSwitchToIframe}>{step.notice.offerIframe}</InlineAction>
+                ) : undefined
+              }
+              title={step.notice.title}
+            >
+              {step.notice.text}
+            </TitledBanner>
+          </div>
+        ) : null}
         <ol className={styles.actions}>
           {step.actions.map((action) => (
             <ActionItem

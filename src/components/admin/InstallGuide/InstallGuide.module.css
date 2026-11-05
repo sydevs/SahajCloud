@@ -147,6 +147,14 @@
   padding-left: calc(var(--base) * 1);
 }
 
+.stepNotice {
+  margin-bottom: var(--base);
+}
+
+.stepNotice :global(.banner) {
+  margin: 0;
+}
+
 .subItems {
   margin: calc(var(--base) * 0.25) 0 0;
   padding-left: calc(var(--base) * 1);

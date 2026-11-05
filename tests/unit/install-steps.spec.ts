@@ -253,10 +253,12 @@ describe('what each track prefills', () => {
 
   it('sends Harmony and Studio Two sites to the iframe track', () => {
     // Told apart by what is missing, since a volunteer does not know the editor's
-    // name — and said above the steps, where the first one asks for Dev Mode.
-    expect(tracks.wix.requires?.title).toMatch(/Dev Mode/)
-    expect(tracks.wix.requires?.text).toMatch(/Harmony/)
-    expect(tracks.wix.requires?.offerIframe).toMatch(/Iframe only/)
+    // name — and said in the step that asks for Dev Mode.
+    const [coding] = tracks.wix.steps
+    expect(coding.notice?.title).toMatch(/Dev Mode/)
+    expect(coding.notice?.text).toMatch(/Harmony/)
+    expect(coding.notice?.offerIframe).toMatch(/Iframe only/)
+    expect(tracks.wix.requires).toBeUndefined()
   })
 
   it('gives a custom site the plain snippet first, and path routing only in step 4', () => {

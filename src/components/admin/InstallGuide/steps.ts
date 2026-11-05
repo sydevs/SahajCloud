@@ -111,6 +111,14 @@ export interface Step {
    * step's result honestly.
    */
   unobservable?: boolean
+  /** A notice at the top of the step, for a site the step cannot work on. */
+  notice?: SwitchNotice
+}
+
+/** A notice that can offer the iframe track, under a button of its own name. */
+export type SwitchNotice = Notice & {
+  /** The label of a button that switches to the iframe track, for a site that cannot. */
+  offerIframe?: string
 }
 
 /** A banner's two lines: what it is about, then what to do. */
@@ -157,10 +165,7 @@ export interface Track {
    * plan, so there is nothing to tick off — and most sites already have it, so
    * it is not worded as a warning.
    */
-  requires?: Notice & {
-    /** The label of a button that switches to the iframe track, for a site that cannot. */
-    offerIframe?: string
-  }
+  requires?: SwitchNotice
   /**
    * `false` where no class can have its own address or search listing — an
    * iframe, or a site that cannot serve a page for every address under it.
@@ -254,6 +259,7 @@ function wixSteps(values: InstallValues): Step[] {
       id: 'add-router',
       title: 'Turn on coding, and add the router',
       unobservable: true,
+      notice: WIX_NO_CODING,
       actions: [
         {
           text: 'Turn on coding:',
@@ -337,7 +343,7 @@ function wixMore(values: InstallValues): FollowOn {
 }
 
 /**
- * Shown above the Wix steps, where the first of them asks for Dev Mode.
+ * Shown in the Wix step that asks for Dev Mode, where a site without it finds out.
  *
  * ⚠ **Wix's two newest editors cannot run this install, and new Wix sites
  * start in one of them.** Harmony has no custom code at all and Studio Two has
@@ -347,7 +353,7 @@ function wixMore(values: InstallValues): FollowOn {
  * apart by what is missing: neither has Dev Mode in the top bar or `{ }` in the
  * left bar. Checked on a real account, 2026-11-05.
  */
-const WIX_REQUIRES: NonNullable<Track['requires']> = {
+const WIX_NO_CODING: SwitchNotice = {
   title: 'No Dev Mode or { } in your editor?',
   text: 'Then your site uses Wix Harmony or Studio Two, which cannot run the map’s code.',
   offerIframe: 'Switch to Iframe only',
@@ -526,7 +532,6 @@ export function tracksFor(values: InstallValues): Record<TrackId, Track> {
       platform: 'wix',
       label: TRACK_LABELS['wix'],
       recognise: PLATFORM_RECOGNISE.wix,
-      requires: WIX_REQUIRES,
       checks: WIX_CHECKS,
       steps: wixSteps(values),
       more: wixMore(values),
