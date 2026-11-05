@@ -61,7 +61,7 @@ describe('wixRoutersTemplate', () => {
 
   it('names both functions the way Wix will look for them', () => {
     expect(source).toContain('export async function free_classes_Router(request)')
-    expect(source).toContain('export async function free_classes_SiteMap(request)')
+    expect(source).toContain('export async function free_classes_SiteMap()')
   })
 
   it('embeds the key and prefix as string literals, not interpolated bare', () => {
@@ -109,7 +109,12 @@ describe('wixRoutersTemplate', () => {
 
   it('bounds the wait, since a visitor is held on it', () => {
     expect(source).toMatch(/const TIMEOUT_MS = \d+/)
-    expect(source).toContain('timeout: TIMEOUT_MS')
+    expect(source).toContain('withTimeout(')
+  })
+
+  it('passes wix-fetch only options its type accepts', () => {
+    // Wix's editor rejects `timeout` on WixFetchRequest, in red, for every volunteer.
+    expect(source).not.toMatch(/timeout:\s*TIMEOUT_MS/)
   })
 })
 
@@ -119,6 +124,12 @@ describe('wixPageCodeTemplate', () => {
   it('fills the element the Install tab tells the volunteer to add', () => {
     expect(source).toContain(`$w('#${CONTENT_ELEMENT_ID}')`)
     expect(source).toContain('content.html = data.bodyHtml')
+  })
+
+  it('imports only modules Wix has', () => {
+    // `wix-rendering` does not exist; `rendering` is wix-window-frontend's.
+    expect(source).toContain("import { getRouterData, rendering } from 'wix-window-frontend'")
+    expect(source).not.toContain('wix-rendering')
   })
 
   it('collapses rather than hides, so the map keeps its own box', () => {

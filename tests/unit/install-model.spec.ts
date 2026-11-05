@@ -35,7 +35,7 @@ const TRACK = tracksFor({
   atlasUrl: '/free-classes',
   cmsUrl: 'https://cms.example.org',
   widgetUrl: 'https://sahajatlas.com',
-})['wix-editor']
+}).wix
 
 const mount = (key: string, lastSeen: string): EmbedMetadata => ({
   [key]: {
@@ -288,7 +288,7 @@ describe('buildMilestones', () => {
     reported?: boolean
     canonicalEmbed?: string | null
     hasRegion?: boolean
-    trackId?: 'iframe' | 'wix-editor' | null
+    trackId?: 'iframe' | 'wix' | null
   }) => {
     const verification = args.verification ?? null
     const model = buildInstallModel({
@@ -302,7 +302,7 @@ describe('buildMilestones', () => {
       verification,
       canonicalEmbed: args.canonicalEmbed ?? null,
       hasRegion: args.hasRegion ?? true,
-      trackId: args.trackId === undefined ? 'wix-editor' : args.trackId,
+      trackId: args.trackId === undefined ? 'wix' : args.trackId,
     })
   }
   const states = (list: ReturnType<typeof milestones>) =>

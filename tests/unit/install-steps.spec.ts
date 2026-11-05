@@ -47,9 +47,10 @@ describe('the four platform choices', () => {
     expect(Object.keys(PLATFORM_LABELS).sort()).toEqual(['custom', 'iframe', 'wix', 'wordpress'])
   })
 
-  it('gives WordPress and Wix two sub-tabs each, and the others none', () => {
+  it('gives WordPress two sub-tabs, and the others none', () => {
     expect(TRACKS_BY_PLATFORM.wordpress).toEqual(['wp-selfhosted', 'wp-com'])
-    expect(TRACKS_BY_PLATFORM.wix).toEqual(['wix-editor', 'wix-studio'])
+    // One Wix track: the Editor and Studio share every panel this install touches.
+    expect(TRACKS_BY_PLATFORM.wix).toEqual(['wix'])
     expect(TRACKS_BY_PLATFORM.custom).toHaveLength(1)
     expect(TRACKS_BY_PLATFORM.iframe).toHaveLength(1)
   })
@@ -161,7 +162,7 @@ describe('what each track prefills', () => {
   })
 
   it('gives both Wix tracks the router code, the element settings and the text id', () => {
-    for (const id of ['wix-editor', 'wix-studio'] as const) {
+    for (const id of ['wix'] as const) {
       const snippets = allSteps(tracks[id]).flatMap(snippetsOf)
       const joined = snippets.map((snippet) => snippet.value).join('\n')
       expect(joined, id).toContain('free_classes_Router')
@@ -170,13 +171,14 @@ describe('what each track prefills', () => {
     }
   })
 
-  it('gives the Studio track Wix Studio menu names, and the Editor track Dev Mode', () => {
-    const studio = JSON.stringify(allSteps(tracks['wix-studio']))
-    const editor = JSON.stringify(allSteps(tracks['wix-editor']))
-    expect(studio).toContain('Start Coding')
-    expect(editor).toContain('Dev Mode')
-    expect(editor).not.toContain('Start Coding')
-    expect(studio).not.toContain('Dev Mode')
+  it('names both editors where they differ, and only there', () => {
+    const steps = JSON.stringify(allSteps(tracks.wix))
+    // Turning coding on, the Custom Element menu, and stretching it.
+    expect(steps).toContain('Turn on Dev Mode')
+    expect(steps).toContain('Start Coding Manually')
+    expect(steps).toContain('Embed Code → Custom element')
+    expect(steps).toContain('Embed & Social')
+    expect(steps).toContain('Add router')
   })
 
   it('says plainly that the iframe track has no search-engine listings', () => {
@@ -224,7 +226,7 @@ describe('what each track prefills', () => {
   })
 
   it('sets up the Wix router from the start, so no page is carried across', () => {
-    for (const id of ['wix-editor', 'wix-studio'] as const) {
+    for (const id of ['wix'] as const) {
       const embed = tracks[id].steps.map((step) => step.id)
       expect(embed, id).toEqual(['add-router', 'paste-routers', 'add-element'])
       expect(JSON.stringify(tracks[id].steps), id).toContain('free_classes_Router')
@@ -237,13 +239,15 @@ describe('what each track prefills', () => {
   })
 
   it('names the router page as Wix creates it, and the code agrees', () => {
-    const steps = JSON.stringify(tracks['wix-editor'].steps)
+    const steps = JSON.stringify(tracks.wix.steps)
     expect(steps).toContain('free-classes-page')
     expect(steps).toContain('const PAGE = \\"free-classes-page\\"')
   })
 
   it('sends Harmony and Studio Two sites to the iframe track', () => {
-    expect(PLATFORM_NOTICES.wix?.title).toMatch(/Harmony/)
+    // Told apart by what is missing, since a volunteer does not know the editor's name.
+    expect(PLATFORM_NOTICES.wix?.title).toMatch(/Dev Mode/)
+    expect(PLATFORM_NOTICES.wix?.text).toMatch(/Harmony/)
     expect(PLATFORM_NOTICES.wix?.offerIframe).toBe(true)
   })
 
@@ -275,7 +279,7 @@ describe('what each track prefills', () => {
 })
 
 describe('stepForCheck', () => {
-  const track = tracks['wix-editor']
+  const track = tracks.wix
 
   it('sends a wrong title to the router-code step', () => {
     expect(stepForCheck(track, 'title')).toBe('paste-routers')

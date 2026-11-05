@@ -39,7 +39,7 @@ import {
 export type PlatformId = 'wordpress' | 'wix' | 'custom' | 'iframe'
 
 /** The sub-choice inside a platform, or the platform itself where there is none. */
-export type TrackId = 'wp-selfhosted' | 'wp-com' | 'wix-editor' | 'wix-studio' | 'custom' | 'iframe'
+export type TrackId = 'wp-selfhosted' | 'wp-com' | 'wix' | 'custom' | 'iframe'
 
 /**
  * Every step any track can have.
@@ -199,22 +199,26 @@ export const PLATFORM_LABELS: Record<PlatformId, string> = {
 
 export const PLATFORM_RECOGNISE: Record<PlatformId, string> = {
   wordpress: 'Your admin address ends in /wp-admin, and the dashboard says “WordPress”.',
-  wix: 'You edit the site by dragging things on the page, and the top bar says “Wix”.',
+  wix: 'You edit the site in the Wix Editor or Wix Studio.',
   custom: 'A developer built the site, and can add a line of code to every page.',
   iframe: 'You can only paste an embed box, and cannot add code to the page itself.',
 }
 
 /**
- * Said once a platform is chosen, before its version is.
+ * Said once a platform is chosen.
  *
- * ⚠ **Wix's two newest editors cannot run this install.** Studio Two has
- * neither routers nor custom elements, and Wix Harmony allows no custom code
- * (dev.wix.com, "Compare Studio Two"; support.wix.com, "About Wix Harmony").
+ * ⚠ **Wix's two newest editors cannot run this install, and new Wix sites
+ * start in one of them.** Harmony has no custom code at all and Studio Two has
+ * neither routers nor custom elements (dev.wix.com, "Compare Studio Two";
+ * support.wix.com, "About Wix Harmony") — and Wix's own Create New Site flow
+ * makes a Harmony site, which cannot be moved to another editor. Both are told
+ * apart by what is missing: neither has Dev Mode in the top bar or `{ }` in the
+ * left bar. Checked on a real account, 2026-11-05.
  */
 export const PLATFORM_NOTICES: Partial<Record<PlatformId, Notice & { offerIframe: boolean }>> = {
   wix: {
-    title: 'Using Wix Harmony or Studio Two?',
-    text: 'Those editors cannot add the map’s code yet.',
+    title: 'No Dev Mode or { } in your editor?',
+    text: 'Then your site uses Wix Harmony or Studio Two, which cannot run the map’s code.',
     offerIframe: true,
   },
 }
@@ -222,7 +226,7 @@ export const PLATFORM_NOTICES: Partial<Record<PlatformId, Notice & { offerIframe
 /** Which tracks sit under each platform, in the order they are offered. */
 export const TRACKS_BY_PLATFORM: Record<PlatformId, TrackId[]> = {
   wordpress: ['wp-selfhosted', 'wp-com'],
-  wix: ['wix-editor', 'wix-studio'],
+  wix: ['wix'],
   custom: ['custom'],
   iframe: ['iframe'],
 }
@@ -231,41 +235,23 @@ export const TRACKS_BY_PLATFORM: Record<PlatformId, TrackId[]> = {
 const SEO_TITLE = 'Let search engines list your classes'
 
 /**
- * Wix menu names, per editor, from Wix's own docs (dev.wix.com/docs/develop-websites,
- * support.wix.com) — the classic Editor and Studio differ in nearly every one.
- *
- * ⚠ **Studio has no Dev Mode.** Coding is always on there and is opened from
- * the Code icon, so the Editor's "turn on Dev Mode" has no Studio twin.
- */
-function wixMenus(studio: boolean) {
-  return studio
-    ? {
-        coding: 'In the left sidebar, click Code, then Start Coding.',
-        addRouter: 'Open Pages, click Add New Page, then click Add under Router.',
-        routersFile: 'Open routers.js under Code → Public & Backend → Backend.',
-        customElement: 'Add Elements → Embed & Social → Custom Element',
-      }
-    : {
-        coding: 'In the top bar, click Dev Mode → Turn on Dev Mode. Wix reloads the editor.',
-        addRouter:
-          'In the left sidebar, open Page Code → Main Pages, click +, and choose Add a Router.',
-        routersFile: 'Wix opens backend/routers.js for you.',
-        customElement: 'Add Elements → Embed Code → Custom Element',
-      }
-}
-
-/**
- * The router and the map on it, from the start.
+ * The router and the map on it, from the start, in the Wix Editor and Wix Studio
+ * alike.
  *
  * ⚠ **The router comes first because a page cannot become one.** Wix gives a
  * router a page of its own, so a map first placed on an ordinary page has to be
- * carried across, and that page renamed and deleted, before any class has an
- * address. Coding and routers are free on every Wix plan; the Custom Element is
- * what needs Premium, so no site that can show the map is unable to do this.
+ * carried across before any class has an address. Coding and routers are free on
+ * every Wix plan; the Custom Element is what needs Premium.
+ *
+ * ⚠ **One track for both editors, walked on a real account (2026-11-05).** Once
+ * coding is on they share every panel this install touches — Page Code → Main
+ * Pages → + → Add router, the routers.js tab, `<prefix>-page`, Choose Source with
+ * Server URL preselected, the ID box — and differ in three places, each said in
+ * the one line it applies to: turning coding on, the Custom Element's menu, and
+ * how an element is stretched.
  */
-function wixSteps(values: InstallValues, studio: boolean): Step[] {
+function wixSteps(values: InstallValues): Step[] {
   const element = wixCustomElementSettings(values)
-  const menus = wixMenus(studio)
   const page = wixRouterPageName(values.prefix)
   return [
     {
@@ -273,23 +259,22 @@ function wixSteps(values: InstallValues, studio: boolean): Step[] {
       title: 'Turn on coding, and add the router',
       unobservable: true,
       actions: [
-        `If a page already uses /${values.prefix}, change its URL slug first (its ⋯ menu → SEO Basics). The router needs that address for itself.`,
-        menus.coding,
-        menus.addRouter,
+        'Turn on coding. In the Wix Editor, click Dev Mode in the top bar, then Turn on Dev Mode. In Wix Studio, click { } in the left bar, then Start Coding Manually.',
+        'In the Page Code panel, click + next to Main Pages, choose Add router, and click Continue.',
         {
           text: 'Enter this as the URL prefix, and click Add & Edit Code:',
           snippet: { label: 'URL prefix', value: values.prefix, kind: 'text' },
         },
-        `Leave the page Wix creates, ${page}, named as it is. The code in the next step looks for that name.`,
+        `If Wix says a page already uses that prefix, change that page’s URL slug (its ⋯ menu → SEO Basics), then try again.`,
+        `Wix creates a page called ${page}. Leave its name as it is — the code in the next step looks for it.`,
       ],
     },
     {
       id: 'paste-routers',
       title: 'Paste the router code',
       actions: [
-        menus.routersFile,
         {
-          text: 'Delete everything in it, and paste this in its place:',
+          text: 'Click the routers.js tab in the code panel at the bottom, select everything in it, and paste this in its place:',
           snippet: {
             label: 'backend/routers.js',
             value: wixRoutersTemplate(values),
@@ -302,17 +287,17 @@ function wixSteps(values: InstallValues, studio: boolean): Step[] {
       id: 'add-element',
       title: 'Add the map, and publish',
       actions: [
-        `Open the ${page} page, and click ${menus.customElement}.`,
+        `On the ${page} page, click Add Elements (+), then Embed Code → Custom element. In Wix Studio it is under Embed & Social.`,
         {
-          text: 'Click Choose Source, pick “Server URL”, and paste:',
+          text: 'Click Choose Source. Server URL is already selected — replace the address in its box with this one:',
           snippet: { label: 'Server URL', value: element.serverUrl, kind: 'text' },
         },
         {
-          text: 'In the “Tag Name” box, paste:',
-          snippet: { label: 'Tag Name', value: element.tagName, kind: 'text' },
+          text: 'Replace the Tag name below it with:',
+          snippet: { label: 'Tag name', value: element.tagName, kind: 'text' },
         },
-        'Stretch the element to the full width of the page and about as tall as the screen. The map draws inside this box, so a box with no height shows nothing.',
-        'Click Publish. The map shows only on the published site, not in the editor.',
+        'Make the element the full width of the page and about as tall as the screen: in the Wix Editor with the ↔ button above it, in Wix Studio with W and H on the right. A box with no height shows nothing.',
+        'Click Publish. The map shows only on your published site, not in the editor.',
       ],
     },
   ]
@@ -333,13 +318,13 @@ function wixMore(values: InstallValues): FollowOn {
         id: 'add-text',
         title: 'Add the text search engines read',
         actions: [
-          `On the ${page} page, click Add Elements → Text → Paragraph, and drop it below the map. Leave its own text empty.`,
+          `On the ${page} page, click Add Elements (+) → Text, and add a paragraph below the map. Its words do not matter — the code replaces them.`,
           {
-            text: 'With it selected, open the Properties panel and set its ID to:',
+            text: 'With the paragraph selected, set the ID box at the right of the code panel to:',
             snippet: { label: 'Element ID', value: CONTENT_ELEMENT_ID, kind: 'text' },
           },
           {
-            text: 'Open the page’s code panel at the bottom of the screen, and paste this. It fills the paragraph for you.',
+            text: `Click the ${page} tab in the code panel, select everything in it, and paste this in its place:`,
             snippet: { label: 'Page code', value: wixPageCodeTemplate(), kind: 'javascript' },
           },
           'Click Publish.',
@@ -349,10 +334,7 @@ function wixMore(values: InstallValues): FollowOn {
   }
 }
 
-/**
- * Both Wix tracks' checks. The sitemap is the router code's own `_SiteMap`, so a
- * missing entry points there.
- */
+/** The Wix track's checks. The sitemap is the router code's own `_SiteMap`, so a missing entry points there. */
 const WIX_CHECKS: CheckRouting = {
   noReport: 'add-element',
   head: 'paste-routers',
@@ -481,8 +463,7 @@ const WORDPRESS_MORE: FollowOn = {
 export const TRACK_LABELS: Record<TrackId, string> = {
   'wp-selfhosted': 'Self-hosted',
   'wp-com': 'WordPress.com',
-  'wix-editor': 'Wix Editor',
-  'wix-studio': 'Wix Studio',
+  wix: 'Wix',
   custom: 'Custom site',
   iframe: 'Iframe only',
 }
@@ -521,23 +502,13 @@ export function tracksFor(values: InstallValues): Record<TrackId, Track> {
       more: WORDPRESS_MORE,
     },
 
-    'wix-editor': {
-      id: 'wix-editor',
+    wix: {
+      id: 'wix',
       platform: 'wix',
-      label: TRACK_LABELS['wix-editor'],
-      recognise: 'The top bar says “Wix”, and there is a Dev Mode menu.',
+      label: TRACK_LABELS['wix'],
+      recognise: PLATFORM_RECOGNISE.wix,
       checks: WIX_CHECKS,
-      steps: wixSteps(values, false),
-      more: wixMore(values),
-    },
-
-    'wix-studio': {
-      id: 'wix-studio',
-      platform: 'wix',
-      label: TRACK_LABELS['wix-studio'],
-      recognise: 'The top bar says “Wix Studio”.',
-      checks: WIX_CHECKS,
-      steps: wixSteps(values, true),
+      steps: wixSteps(values),
       more: wixMore(values),
     },
 
