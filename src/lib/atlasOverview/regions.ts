@@ -3,13 +3,14 @@
  *
  * Every number is rolled up over a region's whole subtree, because that is
  * what a reader asking "how is Germany doing" means. One pass over the events
- * in scope does all of it: each event contributes to its own region and to
- * every ancestor, which is `rollUpRegionCounts`'s algorithm
- * (`src/lib/atlasSidebar/sidebarModel.ts`) with this table's counters instead
- * of the sidebar's published/total pair. Six counters cannot be expressed as
- * that pair, and calling it six times would walk the events six times.
+ * in scope does all of it, through `rollUpRegionTree`
+ * (`src/lib/regionTree/rollUp.ts`) — the walk the sidebar's published/total
+ * pair also instantiates. What is this table's own is the accumulator: six
+ * counters plus a dated sign-up pair, which the sidebar's shape cannot carry
+ * and which calling it six times would walk the events six times to fill.
  */
 
+import { rollUpRegionTree } from '@/lib/regionTree/rollUp'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Region } from '@/payload-types'
@@ -69,63 +70,58 @@ interface MetricEvent {
   signupsPrevious: number
 }
 
-/**
- * Roll each event up to its own region and every ancestor of it, in one pass.
- *
- * An ancestor outside `inScope` is skipped, so a manager's own subtree does
- * not accumulate the countries above it.
- */
+/** What one event adds to its own region's row and to every ancestor's. */
 export function rollUpRegionMetrics(
   events: MetricEvent[],
   nodes: Map<number, RegionNode>,
   inScope: Set<number>,
 ): Map<number, RegionMetrics> {
-  const metrics = new Map<number, RegionMetrics>()
-  const bump = (regionId: number, event: MetricEvent) => {
-    if (!inScope.has(regionId)) return
-    const current = metrics.get(regionId) ?? emptyMetrics()
-    if (isProgramStage(event.stage)) {
-      current.programs += 1
-      if (event.hasManager && !OVERDUE_STAGES.has(event.stage)) current.healthyNumerator += 1
-    }
-    if (OVERDUE_STAGES.has(event.stage)) current.overdue += 1
-    if (event.stage === 'unverified') current.unverified += 1
-    current.signupsNow += event.signupsNow
-    current.signupsPrevious += event.signupsPrevious
-    metrics.set(regionId, current)
-  }
-  for (const event of events) {
-    bump(event.regionId, event)
-    for (const ancestorId of nodes.get(event.regionId)?.ancestorIds ?? []) bump(ancestorId, event)
-  }
-  return metrics
+  return rollUpRegionTree<MetricEvent, RegionMetrics>({
+    bump: (metrics, event) => {
+      if (isProgramStage(event.stage)) {
+        metrics.programs += 1
+        if (event.hasManager && !OVERDUE_STAGES.has(event.stage)) metrics.healthyNumerator += 1
+      }
+      if (OVERDUE_STAGES.has(event.stage)) metrics.overdue += 1
+      if (event.stage === 'unverified') metrics.unverified += 1
+      metrics.signupsNow += event.signupsNow
+      metrics.signupsPrevious += event.signupsPrevious
+    },
+    chainOf: (event) => ({
+      ancestorIds: nodes.get(event.regionId)?.ancestorIds ?? [],
+      regionId: event.regionId,
+    }),
+    empty: emptyMetrics,
+    inScope,
+    items: events,
+  })
 }
 
 /**
  * Managers listed on each region or anywhere below it, counted once each.
  *
- * One accumulating pass up each node's ancestor chain, the same shape as
- * `rollUpRegionMetrics` — asked per row instead, it walked the whole node table
- * for each row it emitted, so an admin's ~200 country rows against a table of
- * thousands cost a million `includes` probes of blocking CPU on the render path.
+ * ⚠ **The nodes are filtered, not just gated.** Every other roll-up here
+ * offers an item to its own region and lets `inScope` refuse it; an
+ * out-of-scope region's own managers must not reach an in-scope ancestor's
+ * count at all, so this one drops the node before the walk.
+ *
+ * Asked per row instead, this walked the whole node table for each row it
+ * emitted — an admin's ~200 country rows against a table of thousands cost a
+ * million `includes` probes of blocking CPU on the render path.
  */
 export function rollUpRegionManagers(
   nodes: Map<number, RegionNode>,
   inScope: Set<number>,
 ): Map<number, Set<number>> {
-  const managers = new Map<number, Set<number>>()
-  const add = (regionId: number, managerIds: number[]) => {
-    if (!inScope.has(regionId)) return
-    const current = managers.get(regionId) ?? new Set<number>()
-    for (const managerId of managerIds) current.add(managerId)
-    managers.set(regionId, current)
-  }
-  for (const node of nodes.values()) {
-    if (!inScope.has(node.id)) continue
-    add(node.id, node.managerIds)
-    for (const ancestorId of node.ancestorIds) add(ancestorId, node.managerIds)
-  }
-  return managers
+  return rollUpRegionTree<RegionNode, Set<number>>({
+    bump: (managers, node) => {
+      for (const managerId of node.managerIds) managers.add(managerId)
+    },
+    chainOf: (node) => ({ ancestorIds: node.ancestorIds, regionId: node.id }),
+    empty: () => new Set<number>(),
+    inScope,
+    items: [...nodes.values()].filter((node) => inScope.has(node.id)),
+  })
 }
 
 function toRow(
