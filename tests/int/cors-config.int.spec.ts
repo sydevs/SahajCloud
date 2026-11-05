@@ -3,6 +3,7 @@ import type { PayloadRequest } from 'payload'
 import { headersWithCors } from 'payload'
 import { describe, expect, it } from 'vitest'
 
+import { TURNSTILE_TOKEN_HEADER } from '@/lib/turnstile/header'
 import { PREVIEW_SECRET_HEADER } from '@/lib/utilities/previewSecret'
 import configPromise from '@/payload.config'
 
@@ -15,7 +16,7 @@ import configPromise from '@/payload.config'
  * which #509 requires stays off.
  */
 describe('CORS preflight config', () => {
-  it('allows the live-preview secret header without enabling credentials', async () => {
+  it('allows the live-preview secret and Turnstile token headers without enabling credentials', async () => {
     const config = await configPromise
     const req = {
       payload: { config },
@@ -26,6 +27,10 @@ describe('CORS preflight config', () => {
 
     const allowed = (headers.get('Access-Control-Allow-Headers') ?? '').toLowerCase()
     expect(allowed).toContain(PREVIEW_SECRET_HEADER)
+    // The Atlas widget sends every registration and report with its Turnstile
+    // token, from the visitor's browser. Without it here the browser drops the
+    // POST after the preflight, and every atlas form fails unsent.
+    expect(allowed).toContain(TURNSTILE_TOKEN_HEADER)
     // The object-form `cors.headers` must APPEND to Payload's default
     // allow-list, not replace it — clients still send Authorization.
     expect(allowed).toContain('authorization')
