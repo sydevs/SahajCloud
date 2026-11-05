@@ -91,6 +91,8 @@ export type Action =
       text: string
       snippet?: Snippet
       download?: { label: string; url: string }
+      /** Alternatives, shown as bullets under the sentence — one per editor, say. */
+      items?: string[]
       /** A choice the volunteer makes here, which changes the snippet below it. */
       choice?: 'embed-height'
     }
@@ -155,7 +157,20 @@ export interface Track {
    * plan, so there is nothing to tick off — and most sites already have it, so
    * it is not worded as a warning.
    */
-  requires?: Notice & { offerIframe?: boolean }
+  requires?: Notice & {
+    /** The label of a button that switches to the iframe track, for a site that cannot. */
+    offerIframe?: string
+  }
+  /**
+   * `false` where no class can have its own address or search listing — an
+   * iframe, or a site that cannot serve a page for every address under it.
+   *
+   * ⚠ **The CMS runs its search checks on every confirmed install**, knowing
+   * nothing of the track, and on such a site they can only fail. So the tab
+   * ignores them there rather than calling a working install broken, and the
+   * two progress rows they feed read Not available.
+   */
+  searchListings?: false
   /** Step 3: the atlas working on the site. */
   steps: Step[]
   /** Step 4, where the track has one. */
@@ -177,9 +192,9 @@ export function allSteps(track: Track): Step[] {
   return [...track.steps, ...(track.more?.steps ?? [])]
 }
 
-/** The sentence of an action, whatever it carries. */
+/** The words of an action, its bullets included, whatever else it carries. */
 export function actionText(action: Action): string {
-  return typeof action === 'string' ? action : action.text
+  return typeof action === 'string' ? action : [action.text, ...(action.items ?? [])].join(' ')
 }
 
 /** Every value a step puts in front of the volunteer to copy. */
@@ -202,25 +217,6 @@ export const PLATFORM_RECOGNISE: Record<PlatformId, string> = {
   wix: 'You edit the site in the Wix Editor or Wix Studio.',
   custom: 'A developer built the site, and can add a line of code to every page.',
   iframe: 'You can only paste an embed box, and cannot add code to the page itself.',
-}
-
-/**
- * Said once a platform is chosen.
- *
- * ⚠ **Wix's two newest editors cannot run this install, and new Wix sites
- * start in one of them.** Harmony has no custom code at all and Studio Two has
- * neither routers nor custom elements (dev.wix.com, "Compare Studio Two";
- * support.wix.com, "About Wix Harmony") — and Wix's own Create New Site flow
- * makes a Harmony site, which cannot be moved to another editor. Both are told
- * apart by what is missing: neither has Dev Mode in the top bar or `{ }` in the
- * left bar. Checked on a real account, 2026-11-05.
- */
-export const PLATFORM_NOTICES: Partial<Record<PlatformId, Notice & { offerIframe: boolean }>> = {
-  wix: {
-    title: 'No Dev Mode or { } in your editor?',
-    text: 'Then your site uses Wix Harmony or Studio Two, which cannot run the map’s code.',
-    offerIframe: true,
-  },
 }
 
 /** Which tracks sit under each platform, in the order they are offered. */
@@ -259,7 +255,13 @@ function wixSteps(values: InstallValues): Step[] {
       title: 'Turn on coding, and add the router',
       unobservable: true,
       actions: [
-        'Turn on coding. In the Wix Editor, click Dev Mode in the top bar, then Turn on Dev Mode. In Wix Studio, click { } in the left bar, then Start Coding Manually.',
+        {
+          text: 'Turn on coding:',
+          items: [
+            'In the Wix Editor, click Dev Mode in the top bar, then Turn on Dev Mode.',
+            'In Wix Studio, click { } in the left bar, then Start Coding Manually.',
+          ],
+        },
         'In the Page Code panel, click + next to Main Pages, choose Add router, and click Continue.',
         {
           text: 'Enter this as the URL prefix, and click Add & Edit Code:',
@@ -332,6 +334,23 @@ function wixMore(values: InstallValues): FollowOn {
       },
     ],
   }
+}
+
+/**
+ * Shown above the Wix steps, where the first of them asks for Dev Mode.
+ *
+ * ⚠ **Wix's two newest editors cannot run this install, and new Wix sites
+ * start in one of them.** Harmony has no custom code at all and Studio Two has
+ * neither routers nor custom elements (dev.wix.com, "Compare Studio Two";
+ * support.wix.com, "About Wix Harmony") — and Wix's own Create New Site flow
+ * makes a Harmony site, which cannot be moved to another editor. Both are told
+ * apart by what is missing: neither has Dev Mode in the top bar or `{ }` in the
+ * left bar. Checked on a real account, 2026-11-05.
+ */
+const WIX_REQUIRES: NonNullable<Track['requires']> = {
+  title: 'No Dev Mode or { } in your editor?',
+  text: 'Then your site uses Wix Harmony or Studio Two, which cannot run the map’s code.',
+  offerIframe: 'Switch to Iframe only',
 }
 
 /** The Wix track's checks. The sitemap is the router code's own `_SiteMap`, so a missing entry points there. */
@@ -495,7 +514,7 @@ export function tracksFor(values: InstallValues): Record<TrackId, Track> {
       requires: {
         title: 'Requires WordPress Business plan',
         text: 'WordPress.com allows plugins on the Business plan and higher.',
-        offerIframe: true,
+        offerIframe: 'No Business plan? Switch to Iframe only',
       },
       checks: WORDPRESS_CHECKS,
       steps: wordpressSteps(values, { dotCom: true }),
@@ -507,6 +526,7 @@ export function tracksFor(values: InstallValues): Record<TrackId, Track> {
       platform: 'wix',
       label: TRACK_LABELS['wix'],
       recognise: PLATFORM_RECOGNISE.wix,
+      requires: WIX_REQUIRES,
       checks: WIX_CHECKS,
       steps: wixSteps(values),
       more: wixMore(values),
@@ -592,6 +612,7 @@ export function tracksFor(values: InstallValues): Record<TrackId, Track> {
       platform: 'iframe',
       label: TRACK_LABELS['iframe'],
       recognise: PLATFORM_RECOGNISE.iframe,
+      searchListings: false,
       caveat: {
         tone: 'warning',
         title: 'No search listings',

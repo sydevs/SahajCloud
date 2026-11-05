@@ -147,6 +147,12 @@
   padding-left: calc(var(--base) * 1);
 }
 
+.subItems {
+  margin: calc(var(--base) * 0.25) 0 0;
+  padding-left: calc(var(--base) * 1);
+  list-style: disc;
+}
+
 .actions li + li {
   margin-top: calc(var(--base) * 0.25);
 }

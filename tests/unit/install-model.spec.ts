@@ -302,7 +302,7 @@ describe('buildMilestones', () => {
       verification,
       canonicalEmbed: args.canonicalEmbed ?? null,
       hasRegion: args.hasRegion ?? true,
-      trackId: args.trackId === undefined ? 'wix' : args.trackId,
+      searchListings: args.trackId !== 'iframe',
     })
   }
   const states = (list: ReturnType<typeof milestones>) =>
@@ -464,5 +464,40 @@ describe('buildInstallModel — steps a later confirmation implies', () => {
     const steps = status(verified({ seo: seo([{ route: '/', check: 'title', status: 'fail' }]) }))
     expect(steps['paste-routers']?.state).toBe('fail')
     expect(steps['add-router']?.state).toBe('done')
+  })
+})
+
+describe('a track with no search listings', () => {
+  const iframe = tracksFor({
+    apiKey: 'k',
+    prefix: 'free-classes',
+    atlasUrl: '/free-classes',
+    cmsUrl: 'https://cms.example.org',
+    widgetUrl: 'https://sahajatlas.com',
+  }).iframe
+  const embedMetadata = mount('https://sahajayoga.ca/free-classes', '2026-10-01T00:00:00.000Z')
+  const failing = verified({ seo: seo([{ route: '/', check: 'title', status: 'fail' }]) })
+
+  it('ignores the search checks the CMS ran anyway, rather than calling it broken', () => {
+    const model = buildInstallModel({
+      atlasUrl: '/free-classes',
+      track: iframe,
+      embedMetadata,
+      verification: failing,
+    })
+    expect(model.stage).toBe('verified')
+    expect(model.failures).toEqual([])
+    expect(model.stepStatus.snippet?.state).toBe('pass')
+  })
+
+  it('reports a clean check, not search problems', () => {
+    const banner = checkOutcome({
+      path: '/free-classes',
+      reported: true,
+      claim: { status: 'already', message: '' },
+      verify: { status: 'verified', message: '', seo: failing.seo?.results ?? [] },
+      searchListings: false,
+    })
+    expect(banner).toMatchObject({ type: 'success', text: 'The atlas is live on your site.' })
   })
 })

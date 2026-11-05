@@ -1,4 +1,4 @@
-import type { Step, StepId, Track, TrackId } from './steps'
+import type { Step, StepId, Track } from './steps'
 
 import type { EmbedMetadata } from '@/lib/clients/embedMetadata'
 import type { CanonicalVerification, SeoCheckResult } from '@/lib/clients/verification'
@@ -122,7 +122,8 @@ export function buildInstallModel(args: {
 
   const reported = reportedMountsFor({ embedMetadata, atlasUrl })
   const candidate = reported[0] ?? null
-  const results = verification?.seo?.results ?? []
+  // A track with no search listings ignores the checks the CMS runs regardless.
+  const results = track?.searchListings === false ? [] : (verification?.seo?.results ?? [])
   const failures = results.filter((result) => result.status === 'fail')
 
   const stepStatus: Partial<Record<StepId, StepStatus>> = {}
@@ -231,6 +232,14 @@ export const STAGE_BANNERS: Record<InstallStage, BannerContent> = {
   },
 }
 
+/** The top banner for a stage, worded for a track with no search listings where that differs. */
+export function stageBanner(stage: InstallStage, searchListings: boolean): BannerContent {
+  const banner = STAGE_BANNERS[stage]
+  return stage === 'verified' && !searchListings
+    ? { ...banner, text: 'Visitors can find classes on your site.' }
+    : banner
+}
+
 /**
  * How one row of the progress table stands.
  *
@@ -267,21 +276,22 @@ export const MILESTONE_STATUS: Record<MilestoneState, string> = {
  * to one row — where the atlas was found, how many search problems — goes in
  * its note.
  *
- * ⚠ **An iframe cannot finish the last two rows.** It has no addresses of its
- * own and nothing a search engine can read, so they are `na`: shown, and out of
- * the count.
+ * ⚠ **A track with no search listings cannot finish the last two rows** — an
+ * iframe, or a site that serves no page per class (`Track.searchListings`) — so
+ * they are `na`: shown, and out of the count.
  */
 export function buildMilestones(args: {
   model: InstallModel
   verification: CanonicalVerification | null | undefined
   canonicalEmbed: string | null
   hasRegion: boolean
-  trackId: TrackId | null
+  /** `false` for a track that can give no class its own address. */
+  searchListings: boolean
 }): Milestone[] {
-  const { model, verification, canonicalEmbed, hasRegion, trackId } = args
+  const { model, verification, canonicalEmbed, hasRegion } = args
   const [first, ...rest] = model.reported
   const problems = model.failures.length
-  const iframe = trackId === 'iframe'
+  const iframe = !args.searchListings
   const row = (
     id: Milestone['id'],
     label: string,
@@ -315,12 +325,12 @@ export function buildMilestones(args: {
         ? row('region', 'Region claimed', 'todo')
         : row('region', 'Region claimed', 'warning', 'Set a region on the Edit tab.'),
     iframe
-      ? row('routing', 'Class addresses', 'na', 'An iframe has no addresses of its own.')
+      ? row('routing', 'Class addresses', 'na', 'Not possible on this kind of site.')
       : probe === 'path'
         ? row('routing', 'Class addresses', 'done')
         : row('routing', 'Class addresses', 'todo', probe ? 'Using ?atlas= addresses.' : undefined),
     iframe
-      ? row('search', 'Search listings', 'na', 'Search engines cannot read an iframe.')
+      ? row('search', 'Search listings', 'na', 'Search engines see one page, not each class.')
       : !verification?.seo
         ? row('search', 'Search listings', 'todo')
         : problems > 0
@@ -367,8 +377,10 @@ export function checkOutcome(args: {
   reported: boolean
   claim: ClaimAnswer | null
   verify: VerifyAnswer | null
+  /** `false` for a track whose search checks say nothing (`Track.searchListings`). */
+  searchListings?: boolean
 }): BannerContent {
-  const { path, reported, claim, verify } = args
+  const { path, reported, claim, verify, searchListings = true } = args
   if (!reported) {
     return {
       type: 'warning',
@@ -380,7 +392,9 @@ export function checkOutcome(args: {
   const claimTitle = claim ? CLAIM_TITLES[claim.status] : undefined
 
   if (verify?.status === 'verified') {
-    const problems = verify.seo.filter((result) => result.status === 'fail').length
+    const problems = searchListings
+      ? verify.seo.filter((result) => result.status === 'fail').length
+      : 0
     if (claimTitle && claim) return { type: 'warning', title: claimTitle, text: claim.message }
     return problems > 0
       ? {
@@ -391,7 +405,9 @@ export function checkOutcome(args: {
       : {
           type: 'success',
           title: 'Everything checks out',
-          text: 'The atlas is live, and search engines can read it.',
+          text: searchListings
+            ? 'The atlas is live, and search engines can read it.'
+            : 'The atlas is live on your site.',
         }
   }
   if (verify?.status === 'failed') {

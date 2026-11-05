@@ -6,7 +6,6 @@ import {
   hostHints,
   type PlatformId,
   PLATFORM_LABELS,
-  PLATFORM_NOTICES,
   readAtlasAddress,
   signalFor,
   snippetsOf,
@@ -171,6 +170,14 @@ describe('what each track prefills', () => {
     }
   })
 
+  it('gives each editor its own bullet for turning on coding', () => {
+    const [coding] = tracks.wix.steps[0].actions
+    expect(typeof coding === 'object' && coding.items).toEqual([
+      expect.stringContaining('In the Wix Editor'),
+      expect.stringContaining('In Wix Studio'),
+    ])
+  })
+
   it('names both editors where they differ, and only there', () => {
     const steps = JSON.stringify(allSteps(tracks.wix))
     // Turning coding on, the Custom Element menu, and stretching it.
@@ -188,7 +195,7 @@ describe('what each track prefills', () => {
 
   it('names the plan WordPress.com needs, as a condition rather than a step', () => {
     expect(tracks['wp-com'].requires?.title).toBe('Requires WordPress Business plan')
-    expect(tracks['wp-com'].requires?.offerIframe).toBe(true)
+    expect(tracks['wp-com'].requires?.offerIframe).toMatch(/Iframe only/)
     expect(tracks['wp-com'].steps.map((step) => step.id)).not.toContain('plan')
   })
 
@@ -245,10 +252,11 @@ describe('what each track prefills', () => {
   })
 
   it('sends Harmony and Studio Two sites to the iframe track', () => {
-    // Told apart by what is missing, since a volunteer does not know the editor's name.
-    expect(PLATFORM_NOTICES.wix?.title).toMatch(/Dev Mode/)
-    expect(PLATFORM_NOTICES.wix?.text).toMatch(/Harmony/)
-    expect(PLATFORM_NOTICES.wix?.offerIframe).toBe(true)
+    // Told apart by what is missing, since a volunteer does not know the editor's
+    // name — and said above the steps, where the first one asks for Dev Mode.
+    expect(tracks.wix.requires?.title).toMatch(/Dev Mode/)
+    expect(tracks.wix.requires?.text).toMatch(/Harmony/)
+    expect(tracks.wix.requires?.offerIframe).toMatch(/Iframe only/)
   })
 
   it('gives a custom site the plain snippet first, and path routing only in step 4', () => {

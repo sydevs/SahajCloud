@@ -29,7 +29,7 @@ import {
   type ClaimAnswer,
   checkOutcome,
   reportedMountsFor,
-  STAGE_BANNERS,
+  stageBanner,
   type StepStatus,
   type VerifyAnswer,
 } from './installModel'
@@ -37,7 +37,6 @@ import { InstallProgress } from './InstallProgress'
 import {
   hostHints,
   PLATFORM_LABELS,
-  PLATFORM_NOTICES,
   PLATFORM_RECOGNISE,
   readAtlasAddress,
   TRACKS_BY_PLATFORM,
@@ -155,7 +154,7 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
     verification,
     canonicalEmbed,
     hasRegion: props.hasRegion,
-    trackId: track,
+    searchListings: activeTrack?.searchListings !== false,
   })
   const working = milestones
     .filter((milestone) => milestone.id === 'seen' || milestone.id === 'confirmed')
@@ -281,7 +280,12 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
     const answers = candidate ? await confirm(candidate.key) : { claim: null, verify: null }
     setResult({
       from,
-      banner: checkOutcome({ path: atlasPath, reported: Boolean(candidate), ...answers }),
+      banner: checkOutcome({
+        path: atlasPath,
+        reported: Boolean(candidate),
+        searchListings: activeTrack?.searchListings !== false,
+        ...answers,
+      }),
     })
   }
 
@@ -295,7 +299,7 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
   const tracksHere = platform ? TRACKS_BY_PLATFORM[platform] : []
   const showProblem = addressInput.trim() !== '' && address.problem !== null
   const ready = activeTrack !== null && atlasPath !== null
-  const stage = STAGE_BANNERS[model.stage]
+  const stage = stageBanner(model.stage, activeTrack?.searchListings !== false)
 
   const stepCard = (step: Step, number: number, quiet: boolean) => (
     <StepCard
@@ -360,23 +364,6 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
                 path="track"
               />
             </>
-          ) : null}
-
-          {platform && PLATFORM_NOTICES[platform] ? (
-            <div className={styles.banners}>
-              <TitledBanner
-                action={
-                  PLATFORM_NOTICES[platform].offerIframe ? (
-                    <InlineAction onClick={() => choosePlatform('iframe')}>
-                      Switch to Iframe only
-                    </InlineAction>
-                  ) : undefined
-                }
-                title={PLATFORM_NOTICES[platform].title}
-              >
-                {PLATFORM_NOTICES[platform].text}
-              </TitledBanner>
-            </div>
           ) : null}
 
           {activeTrack?.caveat ? (
@@ -459,7 +446,7 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
                 action={
                   activeTrack.requires.offerIframe ? (
                     <InlineAction onClick={() => choosePlatform('iframe')}>
-                      No Business plan? Switch to Iframe only
+                      {activeTrack.requires.offerIframe}
                     </InlineAction>
                   ) : undefined
                 }
@@ -645,10 +632,17 @@ function ActionItem({
   onEmbedHeight: (next: EmbedHeight) => void
 }) {
   if (typeof action === 'string') return <li>{action}</li>
-  const { text, snippet, download, choice } = action
+  const { text, snippet, download, choice, items } = action
   return (
     <li>
       {text}
+      {items ? (
+        <ul className={styles.subItems}>
+          {items.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+      ) : null}
       {choice === 'embed-height' ? (
         <div className={styles.inlineChoice}>
           <ToggleGroup
