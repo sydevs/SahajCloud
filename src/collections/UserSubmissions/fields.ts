@@ -16,6 +16,7 @@ import { previewTargetField } from '@/fields/previewTargetField'
 import type { UserSubmission } from '@/payload-types'
 
 import { computePreviewEvent, computeProposedChanges } from './hooks/computeReviewFields'
+import { submissionLogAddressVisibility } from './logAddressScope'
 import { STATUS_LABELS, SUBMISSION_STATUSES } from './statuses'
 
 /**
@@ -769,6 +770,11 @@ const activityLogBase = logField({
     { key: 'activity', label: 'Event' },
     { key: 'sentTo', label: 'Sent to' },
   ],
+  addresses: {
+    types: ['delivery'],
+    keys: ['cells.sentTo'],
+    visibility: submissionLogAddressVisibility,
+  },
 })
 
 const activityLogField: Field = {

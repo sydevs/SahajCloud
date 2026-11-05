@@ -7,6 +7,8 @@ import type {
   Plugin,
 } from 'payload'
 
+import { selfOrAdminFieldAccess } from '@/plugins/access'
+
 import { redeem } from './endpoints/redeem'
 import { requestMagicLink } from './endpoints/requestMagicLink'
 import { managerJoins, MANAGERS_COLLECTION } from './grantSummary'
@@ -31,6 +33,9 @@ import {
  * it they could burn their own outstanding link, or stamp it in the future and
  * throttle their own sends forever. Both endpoints write it through
  * `overrideAccess: true`, so neither is affected.
+ *
+ * ⚠ **The `read` lock is this field's own, because the plugin appends it after
+ * the collection's own locker has run** (`Managers/access.ts`, #908).
  */
 export const magicLinkIssuedAt: Field = {
   name: 'magicLinkIssuedAt',
@@ -39,6 +44,7 @@ export const magicLinkIssuedAt: Field = {
     hidden: true,
   },
   access: {
+    read: selfOrAdminFieldAccess,
     update: () => false,
   },
 }

@@ -44,9 +44,11 @@ import { getLanguageOptions } from '@/lib/locales'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
 import {
   adminOnlyCondition,
+  eventAddressScope,
   isAdminManager,
   managersOnlyFieldAccess,
   ownedRegionFilterOptions,
+  regionScopedAddressVisibility,
 } from '@/plugins/access'
 import { relationId } from '@/plugins/access/documentManagers'
 
@@ -675,6 +677,15 @@ export const Events: CollectionConfig = {
                 { key: 'who', label: 'Who' },
                 { key: 'delivery', label: 'Delivery' },
               ],
+              // A reminder records the address it went to twice: as data, and
+              // as the Delivery cell (`buildReminderEntry`).
+              addresses: {
+                types: ['reminder'],
+                keys: ['destination', 'cells.delivery'],
+                visibility: regionScopedAddressVisibility(async ({ doc, docId }) =>
+                  eventAddressScope(doc, docId),
+                ),
+              },
             }),
             {
               // The Wilson lower bound of registrant confirm/deny votes, in
