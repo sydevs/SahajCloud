@@ -23,6 +23,7 @@
 import * as path from 'path'
 
 import { makeManualMapboxId } from '@/lib/mapbox/manualLocation'
+import { isProductionDeployment } from '@/plugins/storage/previewIsolation'
 
 import { BaseImporter, type BaseImportOptions } from '../lib'
 import { PREVIEW_FIXTURE_DATA_FILE } from '../lib/dataFiles'
@@ -79,6 +80,20 @@ export class PreviewFixtureImporter extends BaseImporter<BaseImportOptions> {
   private readonly users = new Map<string, Id>()
 
   protected async setup(): Promise<void> {
+    // ⚠ **Never production, whatever credential the caller holds.** The seed
+    // route's only gate is "an admin manager", and this script is in
+    // `VALID_SCRIPTS` like every other — so an operator with a production
+    // `ADMIN_TOKEN` could write two `_verified` managers holding real region
+    // and event grants into the live site. They could not sign in (every
+    // address is `.invalid`), but they would be real rows. The test lanes name
+    // no deployment, so they are unaffected.
+    if (isProductionDeployment()) {
+      throw new Error(
+        'The preview fixture refuses to run against production: it writes manager accounts ' +
+          'holding real region and event grants. Target a preview instead.',
+      )
+    }
+
     await this.preloadCollection('managers', 'email')
     await this.preloadCollection('regions', 'mapboxId')
     await this.preloadCollection('forms', 'title')
@@ -129,10 +144,14 @@ export class PreviewFixtureImporter extends BaseImporter<BaseImportOptions> {
   private async importRegions(data: Fixture): Promise<void> {
     await this.logger.info('\n=== Regions ===')
     for (const [index, region] of data.regions.entries()) {
+      // ⚠ A warning, never an error, and never a `continue`. A dry run's
+      // `upsert` returns the data it was given rather than a document, so no id
+      // is mapped and every child region's parent is unresolved — reported as
+      // an error, that made `--dry-run` exit 1 with two defects that do not
+      // exist. `seeds/atlas/import.ts` warns here for the same reason.
       const parentId = region.parent ? this.regions.get(region.parent) : undefined
       if (region.parent && parentId == null) {
-        this.addError(`Region "${region.name}"`, `parent ${region.parent} unresolved`)
-        continue
+        this.addWarning(`Region "${region.name}": parent ${region.parent} unresolved`)
       }
 
       const result = await this.upsert<{ id: Id }>(
@@ -265,7 +284,6 @@ export class PreviewFixtureImporter extends BaseImporter<BaseImportOptions> {
           uuid: row.uuid,
         },
         status: row.status,
-        uuid: row.uuid,
       })),
       ...data.contacts.map((row) => ({
         data: {
@@ -275,21 +293,25 @@ export class PreviewFixtureImporter extends BaseImporter<BaseImportOptions> {
           uuid: row.uuid,
         },
         status: row.status,
-        uuid: row.uuid,
       })),
     ]
 
     for (const [index, row] of rows.entries()) {
       const created = await this.upsert<{ id: Id }>(
         'user-submissions',
-        { uuid: { equals: row.uuid } },
+        { uuid: { equals: row.data.uuid } },
         // `accepted` stands in for `pending` at create, so the row skips
         // screening; the update below is what makes it pending.
         { ...row.data, status: row.status === 'pending' ? 'accepted' : row.status },
-        { current: index + 1, identifier: row.uuid, total: rows.length },
+        { current: index + 1, identifier: row.data.uuid, total: rows.length },
       )
 
-      if (row.status !== 'pending' || this.options.dryRun) continue
+      // ⚠ Guarded on the id, not on `dryRun` alone. `upsert` also returns the
+      // bare data — with no id — on its error and slug-collision paths, and an
+      // `update` with no id routes to Payload's BULK operation, which throws
+      // and takes the whole run down. `upsert`'s contract is that an import
+      // continues past one failed row.
+      if (row.status !== 'pending' || created.doc?.id == null) continue
       await this.payload.update({
         collection: 'user-submissions',
         id: created.doc.id,

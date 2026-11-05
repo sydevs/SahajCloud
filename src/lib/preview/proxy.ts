@@ -1,12 +1,21 @@
 /**
  * The contract between a Railway preview, the Cloudflare Worker in front of it,
- * and the scripts that create and sweep its address. Four consumers spell these
- * values, so they live here rather than in any one of them: `src/middleware.ts`
- * (the gate), `src/lib/utilities/serverUrl.ts` (the CSRF origin),
- * `preview-proxy/index.ts` (the Worker), and `scripts/preview-domain.ts`.
+ * and the scripts that create, sweep and reach its address. Six consumers spell
+ * these values, so they live here rather than in any one of them:
+ * `src/middleware.ts` (the gate), `src/lib/utilities/serverUrl.ts` (the CSRF
+ * origin), `src/plugins/previewAdmin` (the environment test),
+ * `preview-proxy/index.ts` (the Worker), `scripts/preview-domain.ts` and
+ * `seeds/run.ts`.
  *
- * Pure, with no imports: `src/middleware.ts` reaches it from the Edge bundle and
- * the Worker reaches it by relative path, outside this app's module resolution.
+ * Pure, with no imports: `src/middleware.ts` reaches it from a bundle that must
+ * stay free of `serverEnv` and Payload, the Worker reaches it by relative path
+ * outside this app's module resolution, and `playwright.config.ts` reaches it
+ * outside the app altogether.
+ *
+ * ⚠ **Not the live-preview secret.** `@/lib/utilities/previewSecret` and
+ * `x-sahajcloud-preview-secret` are the Lexical draft-preview credential, which
+ * has nothing to do with this. Everything here is about a Railway PR preview of
+ * the whole deployment.
  */
 
 /**
@@ -17,8 +26,15 @@
  * before the Worker ran; this only says the hop happened. The Railway host
  * carries the same `Host` on the Worker's own subrequest, so nothing else can
  * tell the two apart.
+ *
+ * ⚠ **The value is compared, never merely counted.** The header's name is in a
+ * public repository, so a gate that asked whether the header was *present*
+ * would be opened by anyone who read this file.
  */
 export const PREVIEW_PROXY_SECRET_HEADER = 'x-sahajcloud-preview-proxy'
+
+/** The zone every per-PR preview address is created under. */
+export const PREVIEW_DOMAIN_SUFFIX = 'cloud-preview.sydevelopers.com'
 
 /**
  * The admin account every preview provisions, spelled once.
@@ -31,68 +47,98 @@ export const PREVIEW_PROXY_SECRET_HEADER = 'x-sahajcloud-preview-proxy'
  *
  * Lowercase and untrimmed on purpose: Payload's `email` field lowercases and
  * trims on every write, so any other spelling here would match no row. It lives
- * in this leaf rather than beside the seeder so the seed CLI can read it without
- * loading the Payload config.
+ * in this leaf rather than beside the seeder so the seed CLI and the smoke lane
+ * can read it without loading the Payload config.
  */
 export const PREVIEW_ADMIN_ADDRESS = 'preview-admin@sydevelopers.com'
 
-/** The zone every per-PR preview address is created under. */
-export const PREVIEW_DOMAIN_SUFFIX = 'cloud-preview.sydevelopers.com'
+/** One pull request's label, which is both its hostname's first part and its KV key. */
+const previewLabel = (pr: number | string): string => `pr-${pr}`
 
 /**
  * The fixed address for one pull request, known the moment the PR exists.
  * A Workers Custom Domain is created at this hostname on the first push and
  * deleted by the daily sweep a day after the PR closes.
  */
-export const previewHostname = (pr: number | string): string => `pr-${pr}.${PREVIEW_DOMAIN_SUFFIX}`
+export const previewHostname = (pr: number | string): string =>
+  `${previewLabel(pr)}.${PREVIEW_DOMAIN_SUFFIX}`
 
 /** The same address as an origin. */
 export const previewOrigin = (pr: number | string): string => `https://${previewHostname(pr)}`
 
-/** The KV key mapping one PR to the Railway host CI discovered for it. */
-export const previewHostKey = (pr: number | string): string => `pr-${pr}`
+/** The KV key mapping one PR to the Railway host CI discovered. */
+export const previewHostKey = previewLabel
 
 /**
- * Paths served on the raw Railway host without the Worker's header.
+ * The one path a Railway preview serves without the Worker's header, and then
+ * only for a `GET` or a `HEAD`.
  *
- * ⚠ **Railway's healthcheck is the whole reason this list exists.** It arrives
- * inside Railway as `Host: healthcheck.railway.app` and never traverses
- * Cloudflare, so a host-only gate makes every preview undeployable — and
- * because the gate ships in the PR that gates its own preview, the only symptom
- * is three failed deploys in a row. Exempting it app-side needs no Access
- * bypass policy, which is what keeps every use of the gate logged.
+ * ⚠ **Its consumer is CI's discovery poll**, which has to reach the Railway host
+ * before the fixed address can answer for this push — `scripts/get-railway-preview-url.ts`
+ * reads the served commit there, with no credential. Railway's own healthcheck
+ * needs no exemption at all: it reaches the container directly rather than
+ * through this deployment's public host, and the gate's own docstring used to
+ * claim otherwise.
+ *
+ * ⚠ **Compared exactly, never by prefix, and never for a write.** This is the
+ * gate's only hole. A prefix test would widen it to every
+ * `/api/health/<anything>`, which falls through to Payload's catch-all — paths
+ * no collection serves today and nothing would notice tomorrow.
  */
-export const PREVIEW_GATE_EXEMPT_PATHS = ['/api/health'] as const
-
-/** True for a path Railway's own healthcheck reaches. */
-export const isPreviewGateExempt = (pathname: string): boolean =>
-  PREVIEW_GATE_EXEMPT_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`))
+export const PREVIEW_HEALTH_PATH = '/api/health'
 
 /**
- * The pull-request number inside a Railway preview host, or `null`.
+ * The pull-request number a **fixed** address belongs to, read off the leftmost
+ * label. Any other hostname is not one of ours.
  *
- * ⚠ **Reading a number out of the host is safe; building the host from one is
- * not.** Railway appends a random suffix to some generated domains, so a
- * constructed host turns #661's loud failure into a 502 — the Railway host only
- * ever comes from `scripts/get-railway-preview-url.ts`'s discovery. This
- * direction is what lets the gate name a visitor's fixed address with no
- * environment variable, from the Edge bundle, where Railway injects nothing at
- * build time.
+ * The Worker answers on it, and the sweep decides which Custom Domains are ours
+ * by it. Both used to spell the parse themselves, and neither copy checked the
+ * suffix — so a change to the address shape would have stopped the Worker
+ * routing while the sweep kept matching, or left the sweep silently matching
+ * nothing while the zone's 100-domain ceiling filled up.
  */
-export const previewNumberFromRailwayHost = (host: string | undefined | null): null | string => {
-  const matched = /-pr-(\d+)(?:[-.]|$)/.exec(host ?? '')
-  return matched?.[1] ?? null
+export const previewNumberFromProxyHost = (host: string | undefined | null): null | string => {
+  if (!host || !host.endsWith(`.${PREVIEW_DOMAIN_SUFFIX}`)) return null
+  return /^pr-(\d+)$/.exec(host.slice(0, -(PREVIEW_DOMAIN_SUFFIX.length + 1)))?.[1] ?? null
 }
 
-/** Railway's own generated-domain suffix. */
-export const RAILWAY_HOST_SUFFIX = '.up.railway.app'
+/**
+ * True for the Railway environment name of a PR preview, and nothing else.
+ *
+ * ⚠ **Every preview decision keys on this, and on nothing a caller can write.**
+ * The gate, the sign-in bypass and the login page's account list all turn on it,
+ * so they cover exactly one set and cannot drift apart. An earlier shape read
+ * the request's own `Host` header, which fails **open** on every host it does
+ * not recognise — an absent header, a `:port` suffix, a `railway.app` domain
+ * without `up.` — and a gate that serves what it cannot identify is not a gate.
+ *
+ * ⚠ **An allowlist, not "any name but production".** A named non-production
+ * environment — `staging`, a renamed production, a one-off `hotfix` — is reached
+ * on a host no Worker answers for and no Access app covers, so answering `true`
+ * there would publish every manager's name, address, roles and managed records,
+ * with one-click admin sign-in beside them, on an ordinary public URL.
+ */
+export const isPreviewEnvironmentName = (name: string | undefined | null): boolean =>
+  !!name && /^pr-\d+$/.test(name.trim())
+
+/** The pull-request number a preview environment's name names, or `null`. */
+export const previewNumberFromEnvironmentName = (name: string | undefined | null): null | string =>
+  isPreviewEnvironmentName(name) ? name!.trim().slice('pr-'.length) : null
 
 /**
- * True for a Railway **preview** host — the generated domain of a `pr-<n>`
- * environment, and nothing else.
+ * The Cloudflare Access service-token headers, or none when either half is
+ * missing.
  *
- * ⚠ Production keeps a `*.up.railway.app` domain of its own, and must (#661),
- * so the suffix alone cannot decide this. The `-pr-<n>` segment is what does.
+ * ⚠ **Both or neither.** Access reads a blank client id as a failed
+ * service-token attempt and logs one, so a half-set pair is worse than an
+ * unauthenticated request. The seed CLI and `playwright.config.ts` both attach
+ * these and read their own environment — only the vendor's header names, which
+ * nothing validates, are shared.
  */
-export const isRailwayPreviewHost = (host: string | undefined | null): boolean =>
-  !!host && host.endsWith(RAILWAY_HOST_SUFFIX) && previewNumberFromRailwayHost(host) !== null
+export const accessTokenHeaders = (
+  clientId: string | undefined,
+  clientSecret: string | undefined,
+): Record<string, string> =>
+  clientId && clientSecret
+    ? { 'CF-Access-Client-Id': clientId, 'CF-Access-Client-Secret': clientSecret }
+    : {}

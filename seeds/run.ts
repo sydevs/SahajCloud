@@ -46,7 +46,7 @@ import type { ScriptMetadata, PaginationResult } from './lib/pagination'
 
 import { seedEnv } from './env'
 import { SCRIPT_DATA_FILES } from './lib/dataFiles'
-import { PREVIEW_ADMIN_ADDRESS } from '../src/lib/preview/proxy'
+import { accessTokenHeaders, PREVIEW_ADMIN_ADDRESS } from '../src/lib/preview/proxy'
 
 const VALID_SCRIPTS: ScriptName[] = [
   'storyblok',
@@ -118,9 +118,7 @@ async function loadInlineData(scriptName: ScriptName): Promise<Record<string, st
  * client id as a failed service-token attempt.
  */
 function accessHeaders(): Record<string, string> {
-  const id = seedEnv.CF_ACCESS_CLIENT_ID
-  const secret = seedEnv.CF_ACCESS_CLIENT_SECRET
-  return id && secret ? { 'CF-Access-Client-Id': id, 'CF-Access-Client-Secret': secret } : {}
+  return accessTokenHeaders(seedEnv.CF_ACCESS_CLIENT_ID, seedEnv.CF_ACCESS_CLIENT_SECRET)
 }
 
 /**
@@ -301,7 +299,8 @@ async function authenticate(baseUrl: string): Promise<string | null> {
     return null
   }
 
-  const token = seedEnv.ADMIN_TOKEN ?? (await previewSignIn(baseUrl))
+  const supplied = seedEnv.ADMIN_TOKEN
+  const token = supplied ?? (await previewSignIn(baseUrl))
 
   if (!token) {
     throw new Error(
@@ -322,7 +321,7 @@ async function authenticate(baseUrl: string): Promise<string | null> {
   // Not verified here: the first seeded write reports a stale or wrong token as
   // its own 403, and there is no cheap probe that would not be a second guess at
   // what "authenticated" means.
-  console.log('🔐 Using the supplied ADMIN_TOKEN\n')
+  if (supplied) console.log('🔐 Using the supplied ADMIN_TOKEN\n')
   return token
 }
 

@@ -48,6 +48,17 @@ describe('managersSignInDirectly', () => {
     // rather than guessing it is a preview.
     expect(managersSignInDirectly({ ...preview, environmentName: '' })).toBe(false)
   })
+
+  it('never holds on a named environment that is not a PR preview', () => {
+    // ⚠ The fail-open this replaced, and the one the docblock used to deny. The
+    // test was "any Railway name but production", so a `staging` deployment —
+    // reached on its own public URL, with no Worker in front of it and no
+    // Access app covering it — published every manager's address, roles and
+    // managed records, with one-click admin sign-in beside them.
+    for (const environmentName of ['staging', 'hotfix', 'production-eu', 'pr-', 'pr-x', 'PR-1']) {
+      expect(managersSignInDirectly({ ...preview, environmentName }), environmentName).toBe(false)
+    }
+  })
 })
 
 describe('the sign-in view', () => {

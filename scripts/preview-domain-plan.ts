@@ -3,8 +3,10 @@
  * addresses the daily sweep should delete.
  *
  * Pure — no network, no clock — so `tests/unit/preview-domain-plan.spec.ts`
- * covers it. The CLI half holds the Cloudflare and GitHub calls.
+ * covers it. The CLI half holds the Cloudflare and GitHub calls, and words
+ * every line an operator reads.
  */
+import { previewNumberFromProxyHost } from '../src/lib/preview/proxy'
 
 /** One Workers Custom Domain as Cloudflare lists it. */
 export interface PreviewDomain {
@@ -19,12 +21,13 @@ export interface PullRequestState {
   number: number
 }
 
-/** One address the sweep will delete, and why. */
+/** One address the sweep will delete, and the fact that decided it. */
 export interface SweepTarget {
+  /** When GitHub says the pull request closed. The CLI words the line. */
+  closedAt: string
   domainId: string
   hostname: string
   pr: string
-  reason: string
 }
 
 /**
@@ -58,7 +61,11 @@ export function sweepTargets({
   const targets: SweepTarget[] = []
 
   for (const domain of domains) {
-    const pr = /^pr-(\d+)\./.exec(domain.hostname)?.[1]
+    // ⚠ The same predicate the Worker answers on, not a copy. Two spellings
+    // that disagreed would either leave the sweep matching nothing while the
+    // zone's 100-domain ceiling filled up, or have it delete an address the
+    // Worker still serves.
+    const pr = previewNumberFromProxyHost(domain.hostname)
     if (!pr) continue
     if (!closedAt.has(pr)) continue
 
@@ -68,12 +75,7 @@ export function sweepTargets({
     const closedMs = Date.parse(closed)
     if (!Number.isFinite(closedMs) || now - closedMs < graceMs) continue
 
-    targets.push({
-      domainId: domain.id,
-      hostname: domain.hostname,
-      pr,
-      reason: `pull request #${pr} closed ${closed}`,
-    })
+    targets.push({ closedAt: closed, domainId: domain.id, hostname: domain.hostname, pr })
   }
 
   return targets

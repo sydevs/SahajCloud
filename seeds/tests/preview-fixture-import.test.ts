@@ -166,4 +166,31 @@ describe('seed: preview-fixture', () => {
       users: await count('users'),
     }).toEqual(before)
   }, 180_000)
+
+  /**
+   * The floors the seed route checks this run against.
+   *
+   * ⚠ **`EXPECTED_COUNTS` is keyed by collection and `COLLECTION_METADATA` may
+   * filter that collection's count, so the two have to agree about what is being
+   * counted.** They did not: the `user-submissions` floor was the fixture's whole
+   * 13 rows while the count was filtered to `pending` registrations, of which
+   * there is one — so `pnpm seed preview-fixture` exited 1 on every run, and the
+   * CI step whose whole point is to go red on a failed fill went red on a
+   * successful one. Nothing above this catches it: the cases there count rows
+   * themselves rather than running the verification.
+   */
+  it('passes every declared floor against what the fixture actually wrote', async () => {
+    const { getCountTargets, verifyCountsForScript } = await import('../lib/expectedCounts')
+
+    const counts: Record<string, number> = {}
+    for (const { collection, where } of getCountTargets('preview-fixture')) {
+      const { totalDocs } = await payload.count({ collection, where, overrideAccess: true })
+      counts[collection] = totalDocs
+    }
+
+    const { allPassed, results } = verifyCountsForScript('preview-fixture', counts)
+
+    expect(results.filter((r) => !r.passed)).toEqual([])
+    expect(allPassed).toBe(true)
+  })
 })

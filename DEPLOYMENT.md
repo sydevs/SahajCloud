@@ -124,16 +124,37 @@ moment the pull request exists.
 | The app-side gate on the raw Railway host           | `src/middleware.ts`                                                                          |
 | The content a reviewer opens it on                  | `seeds/preview-fixture/`, filled by `ci.yml`                                                 |
 
-⚠ **Railway's own address for a preview is shut.** A browser `GET` there is 302'd
-to the fixed address and anything else is refused, because Access never sees a
-request that arrives on the Railway host. The one exception is `/api/health`,
-exempt by path: Railway's healthcheck arrives inside Railway as
-`Host: healthcheck.railway.app` and never traverses Cloudflare, so a host-only
-gate would make every preview undeployable.
+⚠ **Railway's own address for a preview is shut.** A browser read there is sent
+on to the fixed address and anything else is refused, because Access never sees a
+request that arrives on the Railway host. Two things decide that, and neither is
+the request's own `Host`: whether this deployment is a `pr-<n>` Railway
+environment, and whether the request carries the Worker's shared secret **by
+value**. A host test would fail open on every shape it did not recognise, and a
+presence test on the header would be opened by anyone who read the repository.
+
+The one exception is a read of `/api/health`, exempt by exact path — for CI's
+discovery poll, which must reach the Railway host before the fixed address can
+answer for this push. Railway's own healthcheck needs no exemption: it reaches
+the container directly rather than through this deployment's public host.
+
+⚠ **With `PREVIEW_PROXY_SECRET` unset, a preview refuses everything but that one
+path.** Loud, and reported by the smoke lane — the alternative is a deployment
+that looks healthy and serves its whole admin panel to anyone.
 
 ⚠ **Two per-zone ceilings the nightly sweep defends**: 100 Workers Custom Domains,
 and the Advanced Certificate each one generates — which a Custom Domain delete
 does **not** remove. That certificate is residue to clear by hand.
+
+**Why one address per pull request, and not one wildcard.** A single
+`*.cloud-preview.sydevelopers.com` Workers **route** would delete most of the
+machinery above: the create call, the nightly sweep, the 100-domain ceiling and
+the per-PR certificates, leaving only a KV key per PR, which has no ceiling. It
+was weighed and rejected (sydevs/SahajCloud#1078, decided 2026-11-04): a route
+needs a proxied wildcard DNS record, and it **fails open to the record's origin**
+past the Worker's request limit, where a Custom Domain fails closed. A Custom
+Domain is also the only one of the two a same-zone `fetch()` can target. The
+sweep is the price of failing closed. If that premise is ever re-tested, this is
+the paragraph to correct — not the scripts.
 
 **Live rule** (Cloudflare dashboard → Caching → Cache Rules) — enabled, named _"Client read edge
 cache (Vary: Authorization)"_, and the only rule in the zone's cache phase:

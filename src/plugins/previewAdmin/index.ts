@@ -2,7 +2,7 @@ import type { Payload } from 'payload'
 
 import { managersLogin } from '@/collections/Managers/login'
 import { railwayEnvironmentName } from '@/lib/env/deploymentEnvironment'
-import { PREVIEW_ADMIN_ADDRESS } from '@/lib/preview/proxy'
+import { isPreviewEnvironmentName, PREVIEW_ADMIN_ADDRESS } from '@/lib/preview/proxy'
 import type { LoginCollectionConfig } from '@/plugins/login'
 import { isProductionDeployment } from '@/plugins/storage/previewIsolation'
 
@@ -51,7 +51,7 @@ export function managersSignInDirectly({
   environmentName,
   isProduction,
 }: PreviewAdminGateInput): boolean {
-  return !!environmentName && !isProduction
+  return isPreviewEnvironmentName(environmentName) && !isProduction
 }
 
 /**

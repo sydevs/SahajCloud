@@ -98,14 +98,22 @@ async function fetchStatuses(): Promise<CommitStatus[]> {
  * The poll reaches the Railway host on the one path the preview gate exempts, so
  * it still needs no credential.
  */
-async function waitServing(url: string, sha: string): Promise<'behind' | 'ok' | 'unknown'> {
+async function waitServing(
+  url: string,
+  sha: string,
+): Promise<'behind' | 'ok' | 'silent' | 'unknown'> {
   const deadline = Date.now() + HEALTH_TIMEOUT_MS
   let attempt = 0
+  // ⚠ Which failure it was decides what the error tells the reader to look at.
+  // Reported as "behind", a preview that never answered at all sent them to
+  // Railway's deploy list for a build that was down.
+  let answered = false
   while (Date.now() < deadline) {
     attempt++
     try {
       const res = await fetch(`${url}${HEALTH_PATH}`, { signal: AbortSignal.timeout(10_000) })
       if (res.ok) {
+        answered = true
         const verdict = servingVerdict(await res.json(), sha)
         if (verdict === 'serving') {
           console.error(`preview serving ${sha} after ${attempt} attempt(s)`)
@@ -121,7 +129,7 @@ async function waitServing(url: string, sha: string): Promise<'behind' | 'ok' | 
     }
     await sleep(POLL_INTERVAL_MS)
   }
-  return 'behind'
+  return answered ? 'behind' : 'silent'
 }
 
 function exportUrl(url: string): void {
@@ -226,6 +234,16 @@ async function main(): Promise<void> {
       '::error title=Railway preview never caught up::The preview answered but kept serving an ' +
         'earlier commit for the whole budget, so testing it would have reported on the previous ' +
         "push. Check the PR environment's deploy list in Railway.",
+    )
+    exportUrl('')
+    process.exit(1)
+  }
+
+  if (serving === 'silent') {
+    console.error(
+      '::error title=Railway preview never answered::The deploy published a host, but nothing ' +
+        'answered on it for the whole budget — so the preview is down rather than behind. Read ' +
+        "the PR environment's deploy logs in Railway.",
     )
     exportUrl('')
     process.exit(1)

@@ -86,10 +86,12 @@ export const EXPECTED_COUNTS: Record<ScriptName, ScriptExpectation> = {
     forms: 1,
     events: 2,
     users: 6,
-    // Registrations and contact messages share this table, and so do the
-    // proposals and subscriptions a reviewer may add by hand, so the floor is
-    // the fixture's own 13 rows.
-    'user-submissions': 13,
+    // ⚠ **One, not thirteen, and the reason is the `countWhere` below.**
+    // `getCountTargets` counts this collection *under* that filter, so the floor
+    // is the number of rows it matches — a `pending` registration — and not the
+    // fixture's 13 rows. Stated as 13 it could never pass, and the fixture's
+    // whole run would report as failed verification.
+    'user-submissions': 1,
   },
   tags: {
     'user-choices': 27,

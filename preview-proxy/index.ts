@@ -19,9 +19,9 @@
  * the slice of the Workers runtime it actually uses.
  */
 import {
-  PREVIEW_DOMAIN_SUFFIX,
   PREVIEW_PROXY_SECRET_HEADER,
   previewHostKey,
+  previewNumberFromProxyHost,
 } from '../src/lib/preview/proxy'
 
 /** The KV namespace binding, narrowed to the one read this Worker makes. */
@@ -58,15 +58,6 @@ const plain = (status: number, body: string): Response =>
   })
 
 /**
- * The pull-request number this address belongs to, read off the leftmost label
- * of the fixed hostname. Any other hostname is not one of ours.
- */
-export const previewNumberFromProxyHost = (host: string): null | string => {
-  if (!host.endsWith(`.${PREVIEW_DOMAIN_SUFFIX}`)) return null
-  return /^pr-(\d+)$/.exec(host.slice(0, -(PREVIEW_DOMAIN_SUFFIX.length + 1)))?.[1] ?? null
-}
-
-/**
  * Proxy one request to its PR's Railway host.
  *
  * `fetcher` is injected so `tests/unit/preview-proxy.spec.ts` can assert the
@@ -90,7 +81,14 @@ export async function handle(
     )
   }
 
-  const target = new URL(url.pathname + url.search, `https://${upstreamHost}`)
+  // ⚠ **Never `new URL(path, base)`.** A relative reference beginning `//` is
+  // scheme-relative, so it REPLACES the base's authority: a request for
+  // `//evil.example/x` proxied to `https://evil.example/x`, carrying the shared
+  // secret, the caller's cookies and their Access assertion, and returned under
+  // this preview's own origin. Assigning the parts keeps the host.
+  const target = new URL(`https://${upstreamHost}`)
+  target.pathname = url.pathname
+  target.search = url.search
   const headers = new Headers(request.headers)
   headers.set(PREVIEW_PROXY_SECRET_HEADER, env.PREVIEW_PROXY_SECRET)
 

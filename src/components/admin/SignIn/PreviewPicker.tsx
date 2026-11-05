@@ -42,6 +42,12 @@ export async function PreviewPicker({ req, returnTo }: { req: PayloadRequest; re
     // Nobody is signed in on this page, so access would filter every row out.
     overrideAccess: true,
     select: { currentProject: true, email: true, name: true, type: true },
+    // ⚠ **Only accounts a click can actually sign in.** `issueMagicLink`
+    // refuses an inactive manager (`isEligible`) and an unaccepted one (the
+    // `_verified` guard), and the row's Server Action discards the outcome — so
+    // an offered row that cannot sign in just re-renders the page, saying
+    // nothing. Not offering it is the honest surface.
+    where: { _verified: { equals: true }, type: { not_equals: 'inactive' } },
   })
 
   const rows: { email: string; name?: null | string; summaries: GrantSummary[]; type: unknown }[] =

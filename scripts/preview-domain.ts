@@ -4,10 +4,10 @@
  *
  * `create` runs on every push to a pull request, from `ci.yml`, once the
  * Railway host is discovered. It registers a Workers Custom Domain at
- * `pr-<n>.cloud-preview.sydevelopers.com` and writes the KV mapping the Worker
- * reads. ⚠ **It takes the Railway host as an argument and never builds one**:
- * Railway appends a random suffix to some generated domains, so a constructed
- * host turns #661's loud failure into a 502.
+ * `pr-<n>.cloud-preview.sydevelopers.com`, writes the KV mapping the Worker
+ * reads, and waits for the address to answer. ⚠ **It takes the Railway host as
+ * an argument and never builds one**: Railway appends a random suffix to some
+ * generated domains, so a constructed host turns #661's loud failure into a 502.
  *
  * `sweep` runs nightly beside `cleanup-preview-assets.ts` and deletes the
  * address and KV key of a pull request closed more than a day ago. It defends
@@ -19,7 +19,7 @@
  * Usage:
  *   pnpm tsx scripts/preview-domain.ts create --pr 470 --host sahajcloud-…up.railway.app
  *   pnpm tsx scripts/preview-domain.ts sweep             # dry run
- *   pnpm tsx scripts/preview-domain.ts sweep --apply
+ *   pnpm tsx scripts/preview-domain.ts sweep --apply     # or --force
  *
  * Env required:
  *   CLOUDFLARE_ACCOUNT_ID
@@ -31,13 +31,31 @@
  * Optional:
  *   PREVIEW_WORKER_NAME         default `sahajcloud-preview-proxy`
  */
-import { previewHostKey, previewHostname } from '../src/lib/preview/proxy'
+import {
+  previewHostKey,
+  previewHostname,
+  previewNumberFromProxyHost,
+} from '../src/lib/preview/proxy'
 import { sweepTargets, type PreviewDomain, type PullRequestState } from './preview-domain-plan'
 
 const CF_API_BASE = 'https://api.cloudflare.com/client/v4'
 const WORKER_NAME = process.env.PREVIEW_WORKER_NAME || 'sahajcloud-preview-proxy'
 /** A PR reopened within the day keeps its address, and its certificate. */
 const SWEEP_GRACE_MS = 24 * 60 * 60_000
+/** How long to wait for a fresh Custom Domain's certificate, and how often to look. */
+const REACHABLE_TIMEOUT_MS = 3 * 60_000
+const REACHABLE_POLL_MS = 10_000
+
+/**
+ * The Railway hosts this script will write into KV.
+ *
+ * ⚠ **The KV value is what the Worker proxies to, carrying the shared secret
+ * and the caller's Access session with it**, so a wrong one would hand both to
+ * whatever host it named. `scripts/get-railway-preview-url.ts` already
+ * constrains its output to this shape; asserting it here makes that a guarantee
+ * rather than a convention.
+ */
+const RAILWAY_HOST = /^[a-z0-9-]+\.(?:up\.)?railway\.app$/i
 
 interface CloudflareEnvelope {
   errors?: { code?: number; message?: string }[]
@@ -45,7 +63,20 @@ interface CloudflareEnvelope {
   success?: boolean
 }
 
-function required(name: string): string {
+class CloudflareError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message)
+    this.name = 'CloudflareError'
+  }
+}
+
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
+
+/** Named as in `cleanup-preview-assets.ts` and `setup-stream-webhook.ts`, so one grep finds all three. */
+function requireEnv(name: string): string {
   const value = process.env[name]?.trim()
   if (!value) {
     console.error(`${name} is not set. See this script's header for the full list.`)
@@ -55,40 +86,83 @@ function required(name: string): string {
 }
 
 async function cfFetch(
-  method: 'DELETE' | 'GET' | 'POST' | 'PUT',
+  method: 'DELETE' | 'GET' | 'PUT',
   path: string,
   init?: { body?: string; contentType?: string },
 ): Promise<CloudflareEnvelope> {
   const res = await fetch(`${CF_API_BASE}${path}`, {
     method,
     headers: {
-      Authorization: `Bearer ${required('CLOUDFLARE_API_KEY')}`,
+      Authorization: `Bearer ${requireEnv('CLOUDFLARE_API_KEY')}`,
       ...(init?.body ? { 'Content-Type': init.contentType ?? 'application/json' } : {}),
     },
     body: init?.body,
   })
 
-  // A KV write answers with an empty body on success, so parse defensively
-  // rather than assuming an envelope.
+  // A KV write answers with an empty body on success, and an edge error page is
+  // not JSON at all — so neither a missing body nor an unparseable one may lose
+  // the status, which is the only thing that then says what went wrong.
   const text = await res.text()
-  const parsed: CloudflareEnvelope = text ? (JSON.parse(text) as CloudflareEnvelope) : {}
-  if (!res.ok && parsed.success !== true) {
+  let parsed: CloudflareEnvelope = {}
+  try {
+    if (text) parsed = JSON.parse(text) as CloudflareEnvelope
+  } catch {
+    if (!res.ok) {
+      throw new CloudflareError(`Cloudflare ${method} ${path}: HTTP ${res.status}`, res.status)
+    }
+  }
+
+  // ⚠ `||`, not `&&`. Cloudflare answers some failures 200 with
+  // `success: false`, which an `&&` accepted silently.
+  if (!res.ok || parsed.success === false) {
     const detail = parsed.errors?.map((e) => `${e.code}: ${e.message}`).join('; ')
-    throw new Error(
+    throw new CloudflareError(
       `Cloudflare ${method} ${path}: HTTP ${res.status}${detail ? ` — ${detail}` : ''}`,
+      res.status,
     )
   }
   return parsed
 }
 
-/** The hostname is already taken by this same Worker — the second push's case. */
-const alreadyAttached = (error: unknown): boolean =>
-  /already|duplicate|exists/i.test(error instanceof Error ? error.message : String(error))
+/** Wait until the fixed address completes a TLS handshake and answers anything at all. */
+async function waitReachable(hostname: string): Promise<void> {
+  const deadline = Date.now() + REACHABLE_TIMEOUT_MS
+  let last = 'no attempt'
+  for (let attempt = 1; Date.now() < deadline; attempt++) {
+    try {
+      const res = await fetch(`https://${hostname}/`, {
+        redirect: 'manual',
+        signal: AbortSignal.timeout(10_000),
+      })
+      console.error(`https://${hostname} answered ${res.status} after ${attempt} attempt(s)`)
+      return
+    } catch (error) {
+      last = error instanceof Error ? error.message : String(error)
+      console.error(`reachability attempt ${attempt}: ${last}`)
+    }
+    await sleep(REACHABLE_POLL_MS)
+  }
+  console.error(
+    `::error title=Preview address never answered::https://${hostname} was attached but did ` +
+      `not answer within ${REACHABLE_TIMEOUT_MS / 60_000} minutes (${last}). Its edge ` +
+      `certificate may still be provisioning, or the Worker is not deployed.`,
+  )
+  process.exit(1)
+}
 
 async function create(pr: string, railwayHost: string): Promise<void> {
-  const account = required('CLOUDFLARE_ACCOUNT_ID')
-  const namespace = required('PREVIEW_KV_NAMESPACE_ID')
+  const account = requireEnv('CLOUDFLARE_ACCOUNT_ID')
+  const namespace = requireEnv('PREVIEW_KV_NAMESPACE_ID')
+  const zone = requireEnv('CLOUDFLARE_ZONE_ID')
   const hostname = previewHostname(pr)
+
+  if (!RAILWAY_HOST.test(railwayHost)) {
+    console.error(
+      `--host ${railwayHost} is not a Railway host. Refusing to map ${hostname} to it: the ` +
+        `Worker sends the shared secret and the caller's Access session to whatever this names.`,
+    )
+    process.exit(1)
+  }
 
   // The mapping first: the Worker answers 503 with a hostname and no mapping,
   // and 404 with neither, so writing KV first means the address is never live
@@ -100,24 +174,24 @@ async function create(pr: string, railwayHost: string): Promise<void> {
   )
   console.error(`KV ${previewHostKey(pr)} → ${railwayHost}`)
 
-  try {
-    await cfFetch('POST', `/accounts/${account}/workers/domains`, {
-      body: JSON.stringify({
-        environment: 'production',
-        hostname,
-        service: WORKER_NAME,
-        zone_id: required('CLOUDFLARE_ZONE_ID'),
-      }),
-    })
-    console.error(`created https://${hostname}`)
-  } catch (error) {
-    // ⚠ **Every push runs this**, so an existing domain is the normal case and
-    // must exit 0. A hostname that already holds a CNAME is refused the same
-    // way, which is also why this key cannot take over the live
-    // `cloud.sydevelopers.com`.
-    if (!alreadyAttached(error)) throw error
-    console.error(`https://${hostname} already exists — nothing to create`)
-  }
+  // ⚠ **`PUT`, not `POST`.** Cloudflare's attach-domain operation is a PUT and
+  // answers a POST 405, which would fail this CI step before the preview was
+  // ever reachable. Being an upsert is also what makes "every push runs this"
+  // free: a second push gets a 200 rather than a conflict, so there is no error
+  // to swallow — and a REAL conflict, a hostname already holding a CNAME, still
+  // fails loudly. Swallowing that one had CI seed and smoke an address the
+  // Worker does not serve. It is also why this key cannot take over the live
+  // `cloud.sydevelopers.com`.
+  await cfFetch('PUT', `/accounts/${account}/workers/domains`, {
+    body: JSON.stringify({ hostname, service: WORKER_NAME, zone_id: zone }),
+  })
+  console.error(`attached https://${hostname}`)
+
+  // ⚠ **Attached is not reachable yet.** A fresh Custom Domain provisions its
+  // edge certificate asynchronously, and the steps after this one — the fill and
+  // the smoke lane — assume the address answers. Any HTTP response proves the
+  // handshake, so the Access login page counts.
+  await waitReachable(hostname)
 
   console.log(`https://${hostname}`)
 }
@@ -135,8 +209,8 @@ async function listDomains(account: string): Promise<PreviewDomain[]> {
 }
 
 async function listPullRequests(numbers: string[]): Promise<PullRequestState[]> {
-  const repo = required('GITHUB_REPOSITORY')
-  const token = required('GITHUB_TOKEN')
+  const repo = requireEnv('GITHUB_REPOSITORY')
+  const token = requireEnv('GITHUB_TOKEN')
   const states: PullRequestState[] = []
 
   // One read per address rather than a paginated list of every pull request:
@@ -166,13 +240,13 @@ async function listPullRequests(numbers: string[]): Promise<PullRequestState[]> 
 }
 
 async function sweep(apply: boolean): Promise<void> {
-  const account = required('CLOUDFLARE_ACCOUNT_ID')
-  const namespace = required('PREVIEW_KV_NAMESPACE_ID')
+  const account = requireEnv('CLOUDFLARE_ACCOUNT_ID')
+  const namespace = requireEnv('PREVIEW_KV_NAMESPACE_ID')
 
   const domains = await listDomains(account)
   console.error(`${domains.length} Custom Domain(s) on ${WORKER_NAME}`)
 
-  const numbers = domains.flatMap((d) => /^pr-(\d+)\./.exec(d.hostname)?.[1] ?? [])
+  const numbers = domains.flatMap((d) => previewNumberFromProxyHost(d.hostname) ?? [])
   const targets = sweepTargets({
     domains,
     graceMs: SWEEP_GRACE_MS,
@@ -186,8 +260,9 @@ async function sweep(apply: boolean): Promise<void> {
   }
 
   for (const target of targets) {
+    const reason = `pull request #${target.pr} closed ${target.closedAt}`
     if (!apply) {
-      console.error(`would delete ${target.hostname} (${target.reason})`)
+      console.error(`would delete ${target.hostname} (${reason})`)
       continue
     }
     await cfFetch('DELETE', `/accounts/${account}/workers/domains/${target.domainId}`)
@@ -195,7 +270,7 @@ async function sweep(apply: boolean): Promise<void> {
       'DELETE',
       `/accounts/${account}/storage/kv/namespaces/${namespace}/values/${previewHostKey(target.pr)}`,
     )
-    console.error(`deleted ${target.hostname} (${target.reason})`)
+    console.error(`deleted ${target.hostname} (${reason})`)
   }
 
   console.error(
@@ -204,12 +279,27 @@ async function sweep(apply: boolean): Promise<void> {
   )
 }
 
+const KNOWN_FLAGS = new Set(['--apply', '--force', '--host', '--pr'])
+
 async function main(): Promise<void> {
   const argv = process.argv.slice(2)
   const command = argv[0]
   const flag = (name: string): string | undefined => {
     const at = argv.indexOf(`--${name}`)
     return at === -1 ? undefined : argv[at + 1]
+  }
+
+  // ⚠ **Refuse an unknown argument rather than ignoring it.** `sweep` deletes
+  // live preview addresses, so a typo'd `--aply` silently became a dry run the
+  // operator believed was the real thing — and on `create`, a typo'd `--prs`
+  // mapped nothing while exiting 0.
+  const values = new Set([flag('host'), flag('pr')])
+  const unknown = argv
+    .slice(1)
+    .filter((arg) => (arg.startsWith('--') ? !KNOWN_FLAGS.has(arg) : !values.has(arg)))
+  if (unknown.length > 0) {
+    console.error(`Unrecognised argument(s): ${unknown.join(' ')}`)
+    process.exit(1)
   }
 
   if (command === 'create') {
@@ -224,7 +314,9 @@ async function main(): Promise<void> {
   }
 
   if (command === 'sweep') {
-    await sweep(argv.includes('--apply'))
+    // `--force` beside `--apply`, as `scripts/AGENTS.md` asks of any script that
+    // changes state.
+    await sweep(argv.includes('--apply') || argv.includes('--force'))
     return
   }
 

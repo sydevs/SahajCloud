@@ -1,9 +1,6 @@
 import { serverEnv } from '@/lib/env'
-import {
-  isRailwayPreviewHost,
-  previewNumberFromRailwayHost,
-  previewOrigin,
-} from '@/lib/preview/proxy'
+import { railwayEnvironmentName } from '@/lib/env/deploymentEnvironment'
+import { previewNumberFromEnvironmentName, previewOrigin } from '@/lib/preview/proxy'
 
 /**
  * This deployment's own public URL: its fixed preview address on a Railway PR
@@ -33,15 +30,15 @@ export function getServerUrl(): string {
 /**
  * The fixed `pr-<n>` address, on a Railway preview only.
  *
- * Read off `process.env` directly, like `deploymentEnvironment`: Railway injects
- * `RAILWAY_PUBLIC_DOMAIN` at runtime and no schema describes it. The PR number
- * is read **out of** that host rather than from an environment name, so nothing
- * here constructs a Railway host.
+ * Read through `railwayEnvironmentName()`, the one module that knows Railway
+ * sets two variables for this: no schema describes either, and reading only the
+ * newer one answers `undefined` on an environment carrying only the legacy one.
+ * The **name** decides, not `RAILWAY_PUBLIC_DOMAIN` — the same answer the gate
+ * and the sign-in bypass read, so a deployment cannot compose links for an
+ * address nothing serves it at.
  */
 function previewServerUrl(): string | undefined {
-  const domain = process.env.RAILWAY_PUBLIC_DOMAIN?.trim()
-  if (!isRailwayPreviewHost(domain)) return undefined
-  const pr = previewNumberFromRailwayHost(domain)
+  const pr = previewNumberFromEnvironmentName(railwayEnvironmentName())
   return pr ? previewOrigin(pr) : undefined
 }
 

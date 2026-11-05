@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { PREVIEW_PROXY_SECRET_HEADER } from '@/lib/preview/proxy'
+import { PREVIEW_PROXY_SECRET_HEADER, previewNumberFromProxyHost } from '@/lib/preview/proxy'
 
-import { handle, previewNumberFromProxyHost, type Env } from '../../preview-proxy/index'
+import { handle, type Env } from '../../preview-proxy/index'
 
 /**
  * The Worker in front of each Railway preview (`preview-proxy/index.ts`).
@@ -104,5 +104,39 @@ describe('the preview proxy', () => {
     expect(pending.status).toBe(503)
     expect(stranger.status).toBe(404)
     expect(stranger.headers.get('cache-control')).toBe('private, no-store')
+  })
+})
+
+describe('the target it proxies to', () => {
+  const targetOf = async (path: string) => {
+    const fetcher = vi.fn(ok)
+    await handle(
+      new Request(`https://pr-470.cloud-preview.sydevelopers.com${path}`),
+      env(),
+      fetcher as unknown as typeof fetch,
+    )
+    return String((fetcher.mock.calls[0] as unknown as [URL])[0])
+  }
+
+  it('keeps the Railway host whatever the path looks like', async () => {
+    // ⚠ The defect this exists for. `new URL('//evil.example/x', base)` is a
+    // SCHEME-RELATIVE reference, so it replaces the authority — and the Worker
+    // would have sent the shared secret, the caller's cookies and their Access
+    // assertion to that host, then served its body under this preview's origin.
+    for (const path of [
+      '//evil.example.com/steal',
+      '//evil.example.com',
+      '/\\/evil.example.com/steal',
+      '//user:pw@evil.example.com/x',
+    ]) {
+      expect(await targetOf(path), path).toContain(`https://${RAILWAY_HOST}/`)
+      expect(await targetOf(path), path).not.toContain('evil.example.com/steal?')
+    }
+  })
+
+  it('still carries an ordinary path and query through unchanged', async () => {
+    expect(await targetOf('/admin/collections/events?limit=5')).toBe(
+      `https://${RAILWAY_HOST}/admin/collections/events?limit=5`,
+    )
   })
 })

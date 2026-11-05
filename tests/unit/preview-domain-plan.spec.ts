@@ -29,6 +29,8 @@ describe('sweepTargets', () => {
 
     expect(targets.map((t) => t.hostname)).toEqual(['pr-1.cloud-preview.sydevelopers.com'])
     expect(targets[0]!.domainId).toBe('d1')
+    // The fact, not a sentence: the CLI words every line an operator reads.
+    expect(targets[0]!.closedAt).toBe('2026-11-01T00:00:00Z')
   })
 
   it('keeps an open PR however old it is', () => {
@@ -51,8 +53,19 @@ describe('sweepTargets', () => {
     expect(plan([domain(4)], [])).toEqual([])
   })
 
-  it('ignores a hostname that names no PR', () => {
-    expect(plan([{ hostname: 'docs.cloud-preview.sydevelopers.com', id: 'dx' }], [])).toEqual([])
+  it('ignores a hostname that is not a preview address of ours', () => {
+    // ⚠ The same predicate the Worker answers on. A hostname in the zone that
+    // does not name a PR, and a `pr-<n>` label in another zone, are both
+    // somebody else's — deleting either is a live address gone.
+    for (const hostname of [
+      'docs.cloud-preview.sydevelopers.com',
+      'pr-9.example.com',
+      'pr-x.cloud-preview.sydevelopers.com',
+    ]) {
+      expect(
+        plan([{ hostname, id: 'dx' }], [{ closedAt: '2020-01-01T00:00:00Z', number: 9 }]),
+      ).toEqual([])
+    }
   })
 
   it('refuses an unparseable close timestamp rather than guessing', () => {

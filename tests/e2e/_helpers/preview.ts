@@ -1,5 +1,7 @@
 import type { APIRequestContext } from '@playwright/test'
 
+import { PREVIEW_ADMIN_ADDRESS } from '../../../src/lib/preview/proxy'
+
 /**
  * The preview admin's address.
  *
@@ -10,11 +12,12 @@ import type { APIRequestContext } from '@playwright/test'
  * is the `github-ci` Access service token, which `playwright.config.ts` attaches
  * to every request.
  *
- * ⚠ **Kept in step with `PREVIEW_ADMIN_ADDRESS` by hand**, like `REQUEST_PATH`
- * below: the specs run over HTTP against a deployed preview, so they import
- * nothing from `src/`. `tests/unit/e2e-preview-constants.spec.ts` pins both.
+ * Imported, not copied: the specs import nothing from `src/` as a rule, and
+ * `@/lib/preview/proxy` is the exception the rule allows — it is written with
+ * zero imports of its own, so reading it pulls no module graph into the
+ * Playwright process. A relative path, because Playwright resolves no `@/`.
  */
-export const PREVIEW_ADMIN = { email: 'preview-admin@sydevelopers.com' }
+export const PREVIEW_ADMIN = { email: PREVIEW_ADMIN_ADDRESS }
 
 export function getBaseUrl(): string {
   return process.env.PREVIEW_URL ?? 'http://localhost:3000'
@@ -27,7 +30,7 @@ export function getBaseUrl(): string {
  * ⚠ **Kept in step with `REQUEST_MAGIC_LINK_PATH` by hand**, for the reason
  * above.
  */
-const REQUEST_PATH = '/api/managers/request-magic-link'
+export const REQUEST_PATH = '/api/managers/request-magic-link'
 
 /**
  * Sign in to the preview as the admin and return a JWT.

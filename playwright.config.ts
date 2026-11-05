@@ -2,6 +2,13 @@ import { defineConfig, devices } from '@playwright/test'
 
 import 'dotenv/config'
 
+import { accessTokenHeaders } from './src/lib/preview/proxy'
+
+const accessHeaders = accessTokenHeaders(
+  process.env.CF_ACCESS_CLIENT_ID,
+  process.env.CF_ACCESS_CLIENT_SECRET,
+)
+
 /**
  * Playwright config for smoke specs that hit a deployed preview environment.
  *
@@ -27,16 +34,11 @@ export default defineConfig({
   reporter: [[process.env.CI ? 'github' : 'html'], ['./tests/e2e/_helpers/failOnSkipReporter.ts']],
   use: {
     baseURL: process.env.PREVIEW_URL ?? 'http://localhost:3000',
-    // Omitted entirely when unset, rather than sent empty: Access treats a
-    // blank client id as a failed service-token attempt and logs one.
-    ...(process.env.CF_ACCESS_CLIENT_ID && process.env.CF_ACCESS_CLIENT_SECRET
-      ? {
-          extraHTTPHeaders: {
-            'CF-Access-Client-Id': process.env.CF_ACCESS_CLIENT_ID,
-            'CF-Access-Client-Secret': process.env.CF_ACCESS_CLIENT_SECRET,
-          },
-        }
-      : {}),
+    // `accessTokenHeaders` omits the pair entirely when either half is unset,
+    // rather than sending one blank: Access reads a blank client id as a failed
+    // service-token attempt and logs one. The vendor's header names are shared
+    // with the seed CLI, which nothing else validates.
+    ...(Object.keys(accessHeaders).length > 0 ? { extraHTTPHeaders: accessHeaders } : {}),
     trace: 'on-first-retry',
   },
   projects: [
