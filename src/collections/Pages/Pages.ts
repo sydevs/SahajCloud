@@ -122,7 +122,8 @@ export const Pages: CollectionConfig = {
     {
       // Document-level access: managers listed here can read + update this page
       // even without role-based access (see src/plugins/access/documentManagers.ts).
-      // Assigning editors is admin-only; editors edit content, not the editor list.
+      // ⚠ Listing someone here also grants them the derived `page-editor` role
+      // (config/roles.ts), so assigning editors stays admin-only.
       name: 'managers',
       type: 'relationship',
       relationTo: 'managers',

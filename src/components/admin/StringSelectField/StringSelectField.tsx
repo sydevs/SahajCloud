@@ -12,6 +12,7 @@ import {
 } from '@payloadcms/ui'
 import React from 'react'
 
+import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
 import { getCountryOptions, getRegionOptions, type GeographyOption } from '@/lib/geography'
 
 interface StringSelectCustom {
@@ -38,7 +39,7 @@ function toSiblingPath(path: string, siblingName: string): string {
  *    nested inside a group (e.g. `address`).
  */
 export const StringSelectField: TextFieldClientComponent = ({ field, path, readOnly }) => {
-  const { label, localized, required, admin: { description, custom, style, width } = {} } = field
+  const { label, localized, required, admin, admin: { description, custom } = {} } = field
   const config = (custom ?? {}) as StringSelectCustom
   const isRegion = config.source === 'region'
 
@@ -63,16 +64,7 @@ export const StringSelectField: TextFieldClientComponent = ({ field, path, readO
     .filter(Boolean)
     .join(' ')
 
-  // Match built-in fields (mirrors Payload's internal `mergeFieldStyles`):
-  // `admin.width` → `--field-width`, otherwise `flex: 1 1 auto` so the dropdown
-  // grows to fill its slot in a row. Without this the custom component is
-  // content-width while sibling built-in fields flex. Payload's `.field-type`
-  // SCSS consumes `--field-width`.
-  const styles = {
-    ...style,
-    ...(width ? { '--field-width': width } : { flex: '1 1 auto' }),
-    ...(style?.flex ? { flex: style.flex } : {}),
-  } as React.CSSProperties
+  const styles = mergeFieldStyles(admin)
 
   return (
     <div className={fieldClasses} id={`field-${path.replace(/\./g, '__')}`} style={styles}>

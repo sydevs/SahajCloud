@@ -163,7 +163,11 @@ const ALL_PROJECT_COLLECTIONS: ContentSlug[] = (() => {
  *
  * - `users` — Atlas registrants (names + emails). Was implicitly readable by
  *   any published API client before this list existed — including the Atlas
- *   widget's public key.
+ *   widget's public key. ⚠ **No role holds an explicit grant.** The Atlas
+ *   manager role carried one until registrations moved to `user-submissions`
+ *   (#723), after which the only `users` relations left were record-keeping —
+ *   `Events.submitter` and `UserSubmissions.user` — which now render a bare id
+ *   for a manager, the same accepted cost `web-translator` pays on `managers`.
  * - `user-submissions` — the unified public intake (#723): contact messages,
  *   subscriptions, registrations and proposals in one table, so it carries
  *   every kind of personal data the collections it replaced held. It was the
@@ -172,8 +176,10 @@ const ALL_PROJECT_COLLECTIONS: ContentSlug[] = (() => {
  *   membership is gone. Clients may create and never read. A manager's read is
  *   narrowed further, per row, in `accessConfigs.ts`.
  * - `managers` — names and email addresses of the people who run the org
- *   (#821). No client key may read one, ever. `atlas-manager` holds the only
- *   explicit grant, because it picks on `Events.manager` and `Regions.managers`.
+ *   (#821). No client key may read one, ever. `atlas-region-manager` holds the
+ *   only explicit grant, because it picks on `Events.manager` and
+ *   `Regions.managers`; `atlas-event-manager` runs one listing and picks on
+ *   neither, so it gets none.
  *   ⚠ **This entry reaches a relationship, never a copy** — a field holding a
  *   manager's name or address as a value needs its own field lock. Ask which
  *   kind you have before trusting this (`docs/rules/access.md`).
@@ -195,7 +201,7 @@ const ALL_PROJECT_COLLECTIONS: ContentSlug[] = (() => {
  * complete opt-out list is an inverted default in disguise: the fix is for
  * step 4a to test project membership directly, so a new collection fails
  * closed instead. Deferred, not blocked — #821 settled the question that held
- * it up, by giving `atlas-manager` the explicit grant its pickers need.
+ * it up, by giving the Atlas region role the explicit grant its pickers need.
  */
 const RESTRICTED_COLLECTIONS: ReadonlySet<string> = new Set([
   'users',

@@ -101,17 +101,16 @@ export const Managers: CollectionConfig = {
               type: 'select',
               hasMany: true,
               localized: true,
-              options: getRoleOptions([
-                'meditations-editor',
-                'path-editor',
-                'web-translator',
-                'atlas-manager',
-              ]),
+              // The derived roles are deliberately absent: each is read off a
+              // page, region or event listing, and `getRoleOptions` refuses one here.
+              // `RolesField` still shows a held one, as a chip nothing removes.
+              options: getRoleOptions(['meditations-editor', 'path-editor', 'web-translator']),
               admin: {
                 description:
                   'Assign roles for each locale. Different roles can be assigned for different languages.',
                 condition: (data) => data.type === 'manager',
                 components: {
+                  Field: '@/components/admin/RolesField',
                   afterInput: ['@/components/admin/PermissionsTable'],
                 },
               },

@@ -8,7 +8,7 @@ import type { ProjectSlug } from '@/payload-types'
 import {
   getProjectCollections,
   getProjectSlugs,
-  getRoleOptions,
+  getRoleLabel,
   getRoleProject,
   getRoleSlugs,
   hydrateLocalizedRoles,
@@ -82,13 +82,11 @@ export interface PendingInvitation {
 /**
  * Every role's label by slug, built once.
  *
- * `getRoleOptions` throws on a slug it does not know, so it is fed
- * `getRoleSlugs()`, which is exactly the set it accepts. A stored value outside
- * that set falls back to the slug rather than throwing.
+ * ⚠ Not `getRoleOptions`, which refuses a derived role and would throw here on
+ * the full slug set. A stored value outside that set falls back to the slug
+ * rather than throwing.
  */
-const ROLE_LABELS = new Map(
-  getRoleOptions(getRoleSlugs()).map(({ label, value }) => [value as string, label]),
-)
+const ROLE_LABELS = new Map(getRoleSlugs().map((slug) => [slug as string, getRoleLabel(slug)]))
 
 /** The one collection whose grants this can describe. @see summarizeGrants */
 export const MANAGERS_COLLECTION = 'managers'

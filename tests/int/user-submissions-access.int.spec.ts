@@ -38,15 +38,20 @@ vi.mock('@/lib/turnstile/verifyTurnstile', () => ({
 describe('User submissions access', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
-  let recipient: Manager
-  let otherManager: Manager
+  type AuthManager = Awaited<ReturnType<typeof testData.authUser>>
+  let recipient: AuthManager
+  let otherManager: AuthManager
+  /** Named on one event in `otherManager`'s subtree — `atlas-event-manager` alone. */
+  let eventAssignee: AuthManager
   let client: Client
   let adminManager: Manager
   let addressedForm: Form
   let otherForm: Form
   let subscribeForm: Form
+  /** Proposal rows, by where each one lands on the region tree. */
+  let proposals: Record<'byRoutingRegion' | 'elsewhere' | 'inSubtree' | 'onAssignedEvent', number>
 
-  const managerReq = (manager: Manager): PayloadRequest =>
+  const managerReq = (manager: AuthManager | Manager): PayloadRequest =>
     ({
       payload,
       headers: new Headers(),
@@ -55,7 +60,7 @@ describe('User submissions access', () => {
       context: {},
     }) as unknown as PayloadRequest
 
-  const readAs = (manager: Manager) =>
+  const readAs = (manager: AuthManager) =>
     payload.find({
       collection: 'user-submissions',
       depth: 0,
@@ -78,27 +83,67 @@ describe('User submissions access', () => {
     payload = env.payload
     cleanup = env.cleanup
 
-    recipient = await testData.createManager(payload, {
+    const addressed = await testData.createManager(payload, {
       name: 'Addressed Manager',
       email: 'addressed@example.com',
-      roles: ['atlas-manager'],
+      roles: [],
     })
-    otherManager = await testData.createManager(payload, {
+    const other = await testData.createManager(payload, {
       name: 'Other Manager',
       email: 'other-manager@example.com',
-      roles: ['atlas-manager'],
+      roles: [],
+    })
+    const assignee = await testData.createManager(payload, {
+      name: 'Event Assignee',
+      email: 'event-assignee@example.com',
+      roles: [],
     })
     adminManager = await testData.createManager(payload, {
       name: 'Submissions Admin',
       email: 'submissions-admin@example.com',
       type: 'admin',
     })
+    // Two subtrees, each with its own region manager, plus a city neither owns.
+    // `atlas-region-manager` is derived from these listings, so each manager has
+    // to be re-read once theirs exists — see `testData.authUser`.
+    const mine = await testData.createRegion(payload, {
+      name: 'Mineland',
+      level: 'country',
+      managers: [addressed.id],
+    })
+    const myCity = await testData.createRegion(payload, {
+      name: 'Mine City',
+      level: 'city',
+      parent: mine.id,
+    })
+    const theirs = await testData.createRegion(payload, {
+      name: 'Theirsland',
+      level: 'country',
+      managers: [other.id],
+    })
+    const theirCity = await testData.createRegion(payload, {
+      name: 'Their City',
+      level: 'city',
+      parent: theirs.id,
+    })
+    const nobodys = await testData.createRegion(payload, { name: 'Nobody City', level: 'city' })
+    recipient = await testData.authUser(payload, addressed)
+    otherManager = await testData.authUser(payload, other)
+
+    const assignedEvent = await testData.createEvent(payload, {
+      title: 'Assigned Event',
+      manager: assignee.id,
+      region: theirCity.id,
+      _status: 'published',
+    })
+    eventAssignee = await testData.authUser(payload, assignee)
+
     client = await testData.createClient(payload, recipient.id, {
       name: 'Atlas Widget',
       roles: ['sahaj-atlas-client'],
     })
 
-    const form = (title: string, manager: Manager) =>
+    const form = (title: string, manager: AuthManager) =>
       payload.create({
         collection: 'forms',
         data: {
@@ -145,11 +190,25 @@ describe('User submissions access', () => {
       senderEmail: 'theirs@example.com',
       submissionData: [{ field: 'message', value: 'For somebody else.' }],
     })
-    await seed({
-      type: 'proposal',
-      senderEmail: 'proposer@example.com',
-      proposed: { title: 'New' },
-    })
+    // One proposal per way a reviewer can be responsible for it. The hint row
+    // is the load-bearing one: a city the atlas does not hold yet leaves
+    // `region` null, and `deliverProposal` mails the state or country manager
+    // — who must be able to read what they were told to review.
+    const proposal = async (data: Record<string, unknown>) =>
+      (
+        await seed({
+          type: 'proposal',
+          senderEmail: 'proposer@example.com',
+          proposed: { title: 'New' },
+          ...data,
+        })
+      ).id
+    proposals = {
+      inSubtree: await proposal({ region: myCity.id }),
+      byRoutingRegion: await proposal({ routingRegion: mine.id }),
+      onAssignedEvent: await proposal({ event: assignedEvent.id }),
+      elsewhere: await proposal({ region: nobodys.id }),
+    }
     await seed({ type: 'registration', senderEmail: 'registrant@example.com' })
     await seed({ type: 'subscribe', form: subscribeForm.id, senderEmail: 'sub@example.com' })
   })
@@ -203,12 +262,42 @@ describe('User submissions access', () => {
       const contacts = docs.filter((doc) => doc.type === 'contact')
 
       expect(contacts).toHaveLength(1)
-      expect(contacts[0]!.senderEmail).toBe('mine@example.com')
+      expect(contacts[0]!.form).toBe(addressedForm.id)
     })
 
-    it('reads proposals, whoever sent them', async () => {
+    it('reads a contact row without its sender address', async () => {
+      // ⚠ Deliberate: `senderEmail` is `virtual: 'user.email'` (#1060), resolved
+      // under the reader's access, and no manager role reads `users` (#1068).
+      // The recipient gets the address in the delivery mail's `replyTo`, which
+      // `deliverContact` reads with `overrideAccess`.
       const { docs } = await readAs(recipient)
-      expect(docs.some((doc) => doc.type === 'proposal')).toBe(true)
+      const contact = docs.find((doc) => doc.type === 'contact')
+      expect(contact?.user).toEqual(expect.any(Number))
+      expect(contact?.senderEmail).toBeUndefined()
+    })
+
+    it('reads the proposals landing in their own subtree, and no other', async () => {
+      const seen = (await readAs(recipient)).docs.map((doc) => doc.id)
+      // Placed in their subtree, and routed to their country because the city
+      // is not on the atlas yet — both are theirs to review.
+      expect(seen).toContain(proposals.inSubtree)
+      expect(seen).toContain(proposals.byRoutingRegion)
+      // Another manager's subtree, and a city nobody owns.
+      expect(seen).not.toContain(proposals.onAssignedEvent)
+      expect(seen).not.toContain(proposals.elsewhere)
+    })
+
+    it('reads a proposal on an event in their subtree, through the event', async () => {
+      const seen = (await readAs(otherManager)).docs.map((doc) => doc.id)
+      expect(seen).toContain(proposals.onAssignedEvent)
+      expect(seen).not.toContain(proposals.inSubtree)
+      expect(seen).not.toContain(proposals.byRoutingRegion)
+      expect(seen).not.toContain(proposals.elsewhere)
+    })
+
+    it('shows an event assignee the proposals on their own events alone', async () => {
+      const seen = (await readAs(eventAssignee)).docs.map((doc) => doc.id)
+      expect(seen).toEqual([proposals.onAssignedEvent])
     })
 
     it('reads no registration or subscription at all', async () => {
@@ -220,63 +309,54 @@ describe('User submissions access', () => {
       expect(docs.some((doc) => doc.type === 'subscribe')).toBe(false)
     })
 
-    it('shows a manager addressed by nothing only the proposals', async () => {
+    it('scopes the contact rows per manager, not to "any contact row"', async () => {
       const { docs } = await readAs(otherManager)
-      // Their own addressed row is the one contact they see — the scope is per
-      // manager, not "any contact row".
       const contacts = docs.filter((doc) => doc.type === 'contact')
       expect(contacts).toHaveLength(1)
-      expect(contacts[0]!.senderEmail).toBe('theirs@example.com')
+      expect(contacts[0]!.form).toBe(otherForm.id)
     })
   })
 
   describe('the Users join', () => {
-    it('does not hand a manager rows the per-row scope withholds', async () => {
-      // `Users.submissions` is a join on `user-submissions.user`, and
-      // `atlas-manager` holds `users: ['read']` — so if a join ran outside the
-      // joined collection's access, reading a registrant would return every
-      // submission they ever sent, contact messages addressed to somebody else
-      // included. That is the leak worth asserting; the join's usefulness is
-      // not.
-      const asUser = (options: { overrideAccess: boolean; req?: PayloadRequest }) =>
-        payload.find({
-          collection: 'users',
-          where: { email: { equals: 'theirs@example.com' } },
-          depth: 1,
-          limit: 1,
-          ...options,
-        })
+    it('is unreachable, because no manager role reads a registrant', async () => {
+      // `Users.submissions` is a join on `user-submissions.user`, so a join
+      // running outside the joined collection's access would hand a manager
+      // reading a registrant every submission that registrant ever sent —
+      // contact messages addressed to somebody else included. The Atlas role
+      // held `users: ['read']` and made that reachable; #1068 withdrew it,
+      // since registrations moved to `user-submissions` (#723) and nothing
+      // needs it. So the leak is now closed one layer earlier, and this is the
+      // layer to assert.
+      //
+      // ⚠ Should any role regain `users: ['read']`, this case has to go back
+      // to asserting the join's own scope: read the registrant as that role
+      // and require `submissions.docs` to hold only the rows the per-row scope
+      // admits. A read refused by the collection proves nothing about a join.
+      for (const manager of [recipient, otherManager, eventAssignee]) {
+        await expect(
+          payload.find({
+            collection: 'users',
+            where: { email: { equals: 'theirs@example.com' } },
+            depth: 1,
+            limit: 1,
+            overrideAccess: false,
+            req: managerReq(manager),
+          }),
+          `${manager.name} should not read a registrant`,
+        ).rejects.toThrow(/not allowed to perform this action/i)
+      }
 
-      // The control. Without it a zero below could mean the join never
-      // populates, which would prove nothing about access at all.
-      const asAdmin = await asAdminRead()
-      expect(asAdmin.docs).toHaveLength(1)
-      expect(asAdmin.docs[0]!.submissions?.docs ?? []).toHaveLength(1)
-
-      const { docs } = await asUser({ overrideAccess: false, req: managerReq(recipient) })
-      // The manager really can read the registrant — so the empty join below
-      // is the access layer's doing, not a missing row.
-      expect(docs).toHaveLength(1)
-      expect(docs[0]!.submissions?.docs ?? []).toHaveLength(0)
-
-      // ⚠ The positive half, and the zero above means nothing without it.
-      // `?? []` cannot tell "the join was filtered to nothing" from "the join
-      // does not populate on a non-override read at all" — so read a sender
-      // whose only row IS in scope, and require it to come back.
-      const inScope = await payload.find({
+      // The control: the row is there, and the join does populate — so the
+      // refusals above are the access layer's doing, not a missing fixture.
+      const asAdmin = await payload.find({
         collection: 'users',
-        where: { email: { equals: 'proposer@example.com' } },
+        where: { email: { equals: 'theirs@example.com' } },
         depth: 1,
         limit: 1,
-        overrideAccess: false,
-        req: managerReq(recipient),
+        overrideAccess: true,
       })
-      expect(inScope.docs).toHaveLength(1)
-      expect(inScope.docs[0]!.submissions?.docs ?? []).toHaveLength(1)
-
-      async function asAdminRead() {
-        return asUser({ overrideAccess: true })
-      }
+      expect(asAdmin.docs).toHaveLength(1)
+      expect(asAdmin.docs[0]!.submissions?.docs ?? []).toHaveLength(1)
     })
   })
 
@@ -305,10 +385,10 @@ describe('User submissions access', () => {
         req: managerReq(manager),
       })
 
-    it('refuses a manager who may read the Registrant', async () => {
+    it('refuses an Atlas manager, who may neither read nor write a Registrant', async () => {
       const id = await registrantId()
-      // The read grant is what makes the refusal meaningful: this manager can
-      // see the record, so only the write gate stops them blocking the sender.
+      // `users` is restricted and no manager role names it (#1068), so the
+      // refusal comes from the collection, not from the column.
       expect(
         hasPermission(
           {
@@ -319,7 +399,7 @@ describe('User submissions access', () => {
           },
           bypassPermissions,
         ),
-      ).toBe(true)
+      ).toBe(false)
 
       await expect(blockAs(recipient, id, new Date().toISOString())).rejects.toThrow(
         'not allowed to perform this action',
@@ -382,7 +462,8 @@ describe('User submissions access', () => {
           context: {},
         } as unknown as PayloadRequest,
       })
-      expect(docs).toHaveLength(5)
+      // Two contact rows, four proposals, one registration, one subscription.
+      expect(docs).toHaveLength(8)
       expect(new Set(docs.map((doc) => doc.type)).size).toBe(4)
     })
   })

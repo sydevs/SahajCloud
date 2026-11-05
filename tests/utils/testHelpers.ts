@@ -279,23 +279,6 @@ export async function createTestEnvironmentWithEmail(): Promise<{
   return { payload, cleanup, emailAdapter, config }
 }
 
-/** Creates an authenticated request for testing */
-export async function createAuthenticatedRequest(
-  payload: Payload,
-  userId: string,
-): Promise<PayloadRequest> {
-  const user = await payload.findByID({
-    collection: 'managers',
-    id: userId,
-  })
-
-  return {
-    user,
-    headers: {},
-    payload,
-  } as PayloadRequest
-}
-
 /** Wait for an email to be captured by the EmailTestAdapter */
 /**
  * Waits for an email to be captured by the EmailTestAdapter

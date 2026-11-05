@@ -59,16 +59,28 @@ export const filterAvailableLocales = ({ locales, req }: FilterAvailableLocalesA
   // `localeCodes[0]` for a manager whose active locale grants them nothing.
   const ranked = rankLocalesByRoleCount(normalizeLocalizedRoles(authUser.roles))
 
+  const offered = ranked
+    .map((code) => locales.find((l) => l.code === code))
+    .filter((l): l is Locale => Boolean(l))
+
+  // ⚠ A derived Atlas role is deliberately NOT widened to every locale here,
+  // though it is held in every one. Nothing either Atlas role grants carries a
+  // localized field — `regions` and `events` declare none, and an event's
+  // `title` is one non-localized value — so a second language in this dropdown
+  // would open no content the first does not (#1068). `page-editor` is not
+  // widened either, though `pages` is localized: a page assignment carries no
+  // language, so a listed editor works on English unless a stored role names
+  // another. A manager whose only role is derived therefore lands on English,
+  // below.
+
   // ⚠ Never return an empty array. `views/Root` redirects whenever `req.locale` is
   // not in this list and sends the manager to `localeCodes[0]`; when that is
   // `undefined`, `qs.stringify` drops the key and the route redirects to itself —
   // an infinite loop. English is also what keeps the "No Projects Available"
   // banner reachable, which is the correct outcome for a manager with no roles.
-  if (ranked.length === 0) return [englishLocale]
+  if (offered.length === 0) return [englishLocale]
 
   // Ordered by the ranking, not by the config's locale order: the first entry is
   // both the first dropdown item and the locale Payload lands them on.
-  return ranked
-    .map((code) => locales.find((l) => l.code === code))
-    .filter((l): l is Locale => Boolean(l))
+  return offered
 }

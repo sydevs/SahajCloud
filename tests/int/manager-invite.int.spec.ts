@@ -164,13 +164,13 @@ describe('manager invitation', () => {
       emailAdapter.clearCapturedEmails()
       const manager = await testData.createManager(payload, {
         type: 'manager',
-        roles: { en: ['atlas-manager'] },
+        roles: { en: ['web-translator'] },
       })
 
       // The create queued the role and sent nothing.
       expect(mailTo(manager.email)).toHaveLength(0)
       const { due, pending } = await queueOf(manager.id)
-      expect(pending).toMatchObject({ roles: { en: ['atlas-manager'] } })
+      expect(pending).toMatchObject({ roles: { en: ['web-translator'] } })
       expect(due).toBeTruthy()
 
       // Not yet due: the window is still open for more.
@@ -180,7 +180,7 @@ describe('manager invitation', () => {
       await runQueue()
       const sent = mailTo(manager.email)
       expect(sent).toHaveLength(1)
-      expect(sent[0]!.subject).toBe("You've been invited to help as Atlas Manager")
+      expect(sent[0]!.subject).toBe("You've been invited to help as Web Translator")
       expect(tokenIn(sent[0]!.html, INVITE_URL)).not.toBeNull()
       expect(await queueOf(manager.id)).toEqual({ due: null, pending: null })
     })

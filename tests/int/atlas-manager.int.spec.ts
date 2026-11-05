@@ -11,7 +11,6 @@ import {
   loadEventRegistrations,
 } from '@/components/admin/EventRegistrations/data'
 import type { RegistrationQuery } from '@/components/admin/EventRegistrations/data'
-import type { Manager as ManagerDoc } from '@/payload-types'
 
 import { createRestClientAs } from '../utils/restRequest'
 import { createData, testData } from '../utils/testData'
@@ -21,8 +20,9 @@ describe('Atlas manager home', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
   let env: Awaited<ReturnType<typeof createTestEnvironment>>
-  let owner: ManagerDoc
-  let assignee: ManagerDoc
+  type AuthManager = Awaited<ReturnType<typeof testData.authUser>>
+  let owner: AuthManager
+  let assignee: AuthManager
   let ownId: number
   let cityId: number
   let assignedId: number
@@ -30,12 +30,12 @@ describe('Atlas manager home', () => {
     env = await createTestEnvironment()
     payload = env.payload
     cleanup = env.cleanup
-    owner = await testData.createManager(payload, {
+    const listed = await testData.createManager(payload, {
       type: 'manager',
-      roles: ['atlas-manager'],
+      roles: [],
       currentProject: 'sahaj-atlas',
     })
-    assignee = await testData.createManager(payload, {
+    const assigned = await testData.createManager(payload, {
       type: 'manager',
       roles: [],
       currentProject: 'sahaj-atlas',
@@ -54,11 +54,14 @@ describe('Atlas manager home', () => {
         name: 'Dashboard City',
         level: 'city',
         parent: country.id,
-        managers: [owner.id],
+        managers: [listed.id],
         mapboxId: 'city.dashboard',
       }),
     })
     cityId = city.id
+    // Both Atlas roles are derived from the listings above and below, so each
+    // user is re-read once theirs exists — see `testData.authUser`.
+    owner = await testData.authUser(payload, listed)
     const otherCity = await payload.create({
       collection: 'regions',
       data: createData<'regions'>({
@@ -80,17 +83,18 @@ describe('Atlas manager home', () => {
       },
     })
     ownId = event.id
-    const assigned = await payload.create({
+    const assignedEvent = await payload.create({
       collection: 'events',
       draft: true,
       data: {
         title: 'Assigned draft',
         region: otherCity.id,
-        manager: assignee.id,
+        manager: assigned.id,
         eventType: 'offline',
       },
     })
-    assignedId = assigned.id
+    assignedId = assignedEvent.id
+    assignee = await testData.authUser(payload, assigned)
     await payload.create({
       collection: 'events',
       draft: true,
@@ -98,9 +102,9 @@ describe('Atlas manager home', () => {
     })
   })
   afterAll(async () => cleanup())
-  const request = (user: ManagerDoc) =>
+  const request = (user: AuthManager) =>
     createLocalReq({ user: { ...user, collection: 'managers' }, locale: 'en' }, payload)
-  const load = async (user: ManagerDoc, query: Partial<ProgramQuery> = {}) =>
+  const load = async (user: AuthManager, query: Partial<ProgramQuery> = {}) =>
     getAtlasManagerData(await request(user), { tab: 'all', page: 1, limit: 50, ...query })
   const ids = (data: { programs: { docs: { id: number }[] } }) =>
     data.programs.docs.map((event) => event.id)
@@ -234,8 +238,8 @@ describe('Atlas manager home', () => {
    */
   describe('Event registrations tab', () => {
     let tabEventId: number
-    let admin: ManagerDoc
-    let stranger: ManagerDoc
+    let admin: AuthManager
+    let stranger: AuthManager
 
     const register = (
       eventId: number,
@@ -258,7 +262,7 @@ describe('Atlas manager home', () => {
         }),
       })
 
-    const openTab = async (user: ManagerDoc, query: Partial<RegistrationQuery> = {}) =>
+    const openTab = async (user: AuthManager, query: Partial<RegistrationQuery> = {}) =>
       loadEventRegistrations(await request(user), tabEventId, {
         filter: 'accepted',
         page: 1,
@@ -266,12 +270,28 @@ describe('Atlas manager home', () => {
       })
 
     beforeAll(async () => {
-      admin = await testData.createManager(payload, { type: 'admin' })
-      stranger = await testData.createManager(payload, {
+      admin = await testData.authUser(
+        payload,
+        await testData.createManager(payload, { type: 'admin' }),
+      )
+      // An Atlas region manager of a subtree of their own: the listing is
+      // where that role comes from now, so these refusals are about this
+      // event rather than about holding no Atlas role at all.
+      const unrelated = await testData.createManager(payload, {
         type: 'manager',
-        roles: ['atlas-manager'],
+        roles: [],
         currentProject: 'sahaj-atlas',
       })
+      await payload.create({
+        collection: 'regions',
+        data: createData<'regions'>({
+          name: 'Stranger Country',
+          level: 'country',
+          managers: [unrelated.id],
+          mapboxId: 'country.stranger',
+        }),
+      })
+      stranger = await testData.authUser(payload, unrelated)
       // In `owner`'s region subtree, so `owner` holds `update` on it — the
       // authority this tab is deliberately narrower than.
       const tabEvent = await testData.createEvent(payload, {
@@ -338,7 +358,10 @@ describe('Atlas manager home', () => {
 
     /** The admin shell still admits an inactive manager, so the gate must not. */
     it('refuses the named manager once their account is inactive', async () => {
-      const retired = await testData.createManager(payload, { type: 'inactive' })
+      const retired = await testData.authUser(
+        payload,
+        await testData.createManager(payload, { type: 'inactive' }),
+      )
       const event = await testData.createEvent(payload, { manager: retired.id, region: cityId })
 
       expect(
@@ -357,7 +380,7 @@ describe('Atlas manager home', () => {
 
     /** The tab's pill: only Ada is accepted — pending is not yet confirmed. */
     it('counts accepted registrations for the tab, behind the same gate', async () => {
-      const count = async (user: ManagerDoc) =>
+      const count = async (user: AuthManager) =>
         countAcceptedRegistrations(await request(user), tabEventId)
 
       expect(await count(assignee)).toBe(1)

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   type AtlasSchedule,
+  isAtlasOneOff,
   mapSchedule,
   supportedTimezone,
 } from '../../seeds/atlas/helpers/scheduleMapper'
@@ -140,5 +141,41 @@ describe('supportedTimezone', () => {
     expect(supportedTimezone(null)).toBe('UTC')
     expect(supportedTimezone(undefined)).toBe('UTC')
     expect(supportedTimezone('   ')).toBe('UTC')
+  })
+})
+
+describe('one-off events', () => {
+  // How Atlas stores a concert: `type: daily`, a start date, and no end.
+  const concert: AtlasSchedule = {
+    ...base,
+    frequency: 'daily',
+    weekday: null,
+    startDate: '2026-04-18',
+    startTime: '18:00',
+    endTime: '20:00',
+    endDate: null,
+  }
+
+  it('reads a single session or a concert stored as an open-ended daily as a one-off', () => {
+    expect(isAtlasOneOff('concert', concert)).toBe(true)
+    expect(isAtlasOneOff('single', concert)).toBe(true)
+  })
+
+  it('leaves a genuine daily repeat, or one with an end, alone', () => {
+    expect(isAtlasOneOff('dropin', concert)).toBe(false)
+    expect(isAtlasOneOff('festival', { ...concert, endDate: '2026-04-20' })).toBe(false)
+    expect(isAtlasOneOff('single', { ...concert, endDate: '2026-04-20' })).toBe(false)
+    expect(isAtlasOneOff('single', { ...concert, frequency: 'weekly' })).toBe(false)
+  })
+
+  it('maps a one-off to a schedule that does not repeat, written as null', () => {
+    const result = mapSchedule(concert, 'Europe/Berlin', { oneOff: true })
+    expect(result).toMatchObject({
+      firstDate: '2026-04-18T16:00:00.000Z',
+      recurrenceType: null,
+      endTime: '20:00',
+    })
+    expect(result).not.toHaveProperty('weekdays')
+    expect(result).not.toHaveProperty('untilDate')
   })
 })

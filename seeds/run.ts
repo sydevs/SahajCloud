@@ -56,6 +56,8 @@ const VALID_SCRIPTS: ScriptName[] = [
   'wm-app-translations',
   'translations',
   'atlas',
+  // Never in SCRIPT_RUN_ORDER: destructive, so it runs only when named.
+  'atlas-reset',
 ]
 
 // Dependency order: tags first (referenced by other content), then wemeditate (authors/categories),
@@ -82,6 +84,7 @@ const SCRIPT_DESCRIPTIONS: Record<ScriptName, string> = {
   'wm-app-translations': 'Seed English copy for the wm-app-translations global',
   translations: 'Seed English copy for all three translation globals',
   atlas: 'Seed Sahaj Atlas events, regions, managers, registrations + clients',
+  'atlas-reset': '⚠ Delete every Atlas event, region, user and user-submission (before a re-sync)',
 }
 
 const VALID_OPTIONS = ['--dry-run', '--clear-cache', '--update']
@@ -489,6 +492,32 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
+const SEND_ATTEMPTS = 4
+
+/**
+ * Send a seed request again when it never got a response. `fetch` rejects only
+ * before the response headers arrive, which here means while the body was still
+ * uploading — the server logs the same request as `aborted` and runs nothing.
+ * Every batch re-uploads the whole data set (Atlas: ~3.7 MB, ~300 times), and a
+ * long import to production drops one now and then; without a retry the
+ * 2026-11 re-sync died 13 batches into `users`, twice. A failure after the
+ * response starts is never retried: the server may still be running that batch.
+ */
+async function sendSeedRequest(url: string, init: RequestInit): Promise<Response> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await fetch(url, init)
+    } catch (error) {
+      if (attempt >= SEND_ATTEMPTS) throw error
+      const cause = (error as { cause?: { code?: string; message?: string } }).cause
+      console.warn(
+        `   ⚠️  Request dropped (${cause?.code ?? cause?.message ?? String(error)}), resending (${attempt}/${SEND_ATTEMPTS - 1})`,
+      )
+      await delay(5000 * attempt)
+    }
+  }
+}
+
 /** Fetch script metadata from GET endpoint */
 async function fetchScriptMetadata(
   scriptName: ScriptName,
@@ -532,7 +561,7 @@ async function runPaginatedRequest(
 
   const url = `${baseUrl}/api/seed/${scriptName}?${params.toString()}`
 
-  const response = await fetch(url, seedPostInit(token, options.inlineData))
+  const response = await sendSeedRequest(url, seedPostInit(token, options.inlineData))
 
   if (!response.ok) {
     const errorText = await response.text()
@@ -706,7 +735,7 @@ async function runScript(
 
   try {
     // Call the seed API
-    const response = await fetch(url, seedPostInit(token, options.inlineData))
+    const response = await sendSeedRequest(url, seedPostInit(token, options.inlineData))
 
     if (!response.ok) {
       const errorText = await response.text()
