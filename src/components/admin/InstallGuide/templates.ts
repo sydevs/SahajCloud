@@ -74,6 +74,18 @@ export function routerFunctionBase(prefix: string): string {
   return prefix.replace(/-/g, '_')
 }
 
+/**
+ * The page Wix creates for a router, named as Wix names it.
+ *
+ * ⚠ **`<prefix>-page` is Wix's default, and `ok()` routes to a page by name.**
+ * "If you named your router "myRouter", a page named myRouter-page is added"
+ * (dev.wix.com, "Create a Router"). Generating the default is what lets the
+ * volunteer leave the page alone instead of renaming it to match the code.
+ */
+export function wixRouterPageName(prefix: string): string {
+  return `${prefix}-page`
+}
+
 /** A value going into a JavaScript string literal in generated code. */
 const js = (value: string): string => JSON.stringify(value)
 
@@ -109,10 +121,9 @@ const CMS_URL = ${js(cmsUrl.replace(/\/+$/, ''))}
 const API_KEY = ${js(apiKey)}
 const PREFIX = ${js(prefix)}
 
-// The router page's own name, as the Routers panel shows it. Wix routes to a
-// page by this name, so it has to match what you called the page when you added
-// the router — the Install tab's step names it for you.
-const PAGE = ${js(prefix)}
+// The router page's own name, as Wix created it with the router. Wix routes to a
+// page by this name, so leave the page named as it is.
+const PAGE = ${js(wixRouterPageName(prefix))}
 
 // Short on purpose: a visitor waits for this before the page renders, and the
 // widget shows the real atlas either way. A slow answer is worth less than a

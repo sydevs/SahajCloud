@@ -10,6 +10,7 @@ import {
   widgetSnippet,
   wixCustomElementSettings,
   wixPageCodeTemplate,
+  wixRouterPageName,
   wixRoutersTemplate,
 } from './templates'
 
@@ -52,13 +53,10 @@ export type StepId =
   | 'set-up'
   | 'shortcode'
   | 'block'
-  | 'add-page'
   | 'add-element'
   | 'add-router'
   | 'paste-routers'
-  | 'move-map'
   | 'add-text'
-  | 'publish-seo'
   | 'snippet'
   | 'catch-all'
   | 'render-seo'
@@ -206,6 +204,21 @@ export const PLATFORM_RECOGNISE: Record<PlatformId, string> = {
   iframe: 'You can only paste an embed box, and cannot add code to the page itself.',
 }
 
+/**
+ * Said once a platform is chosen, before its version is.
+ *
+ * ⚠ **Wix's two newest editors cannot run this install.** Studio Two has
+ * neither routers nor custom elements, and Wix Harmony allows no custom code
+ * (dev.wix.com, "Compare Studio Two"; support.wix.com, "About Wix Harmony").
+ */
+export const PLATFORM_NOTICES: Partial<Record<PlatformId, Notice & { offerIframe: boolean }>> = {
+  wix: {
+    title: 'Using Wix Harmony or Studio Two?',
+    text: 'Those editors cannot add the map’s code yet.',
+    offerIframe: true,
+  },
+}
+
 /** Which tracks sit under each platform, in the order they are offered. */
 export const TRACKS_BY_PLATFORM: Record<PlatformId, TrackId[]> = {
   wordpress: ['wp-selfhosted', 'wp-com'],
@@ -217,20 +230,71 @@ export const TRACKS_BY_PLATFORM: Record<PlatformId, TrackId[]> = {
 /** Step 4's title wherever it is search listings. */
 const SEO_TITLE = 'Let search engines list your classes'
 
-/** Getting the map onto an ordinary Wix page — no code, no router. */
-function wixEmbedSteps(values: InstallValues, studio: boolean): Step[] {
+/**
+ * Wix menu names, per editor, from Wix's own docs (dev.wix.com/docs/develop-websites,
+ * support.wix.com) — the classic Editor and Studio differ in nearly every one.
+ *
+ * ⚠ **Studio has no Dev Mode.** Coding is always on there and is opened from
+ * the Code icon, so the Editor's "turn on Dev Mode" has no Studio twin.
+ */
+function wixMenus(studio: boolean) {
+  return studio
+    ? {
+        coding: 'In the left sidebar, click Code, then Start Coding.',
+        addRouter: 'Open Pages, click Add New Page, then click Add under Router.',
+        routersFile: 'Open routers.js under Code → Public & Backend → Backend.',
+        customElement: 'Add Elements → Embed & Social → Custom Element',
+      }
+    : {
+        coding: 'In the top bar, click Dev Mode → Turn on Dev Mode. Wix reloads the editor.',
+        addRouter:
+          'In the left sidebar, open Page Code → Main Pages, click +, and choose Add a Router.',
+        routersFile: 'Wix opens backend/routers.js for you.',
+        customElement: 'Add Elements → Embed Code → Custom Element',
+      }
+}
+
+/**
+ * The router and the map on it, from the start.
+ *
+ * ⚠ **The router comes first because a page cannot become one.** Wix gives a
+ * router a page of its own, so a map first placed on an ordinary page has to be
+ * carried across, and that page renamed and deleted, before any class has an
+ * address. Coding and routers are free on every Wix plan; the Custom Element is
+ * what needs Premium, so no site that can show the map is unable to do this.
+ */
+function wixSteps(values: InstallValues, studio: boolean): Step[] {
   const element = wixCustomElementSettings(values)
+  const menus = wixMenus(studio)
+  const page = wixRouterPageName(values.prefix)
   return [
     {
-      id: 'add-page',
-      title: 'Add the atlas page',
+      id: 'add-router',
+      title: 'Turn on coding, and add the router',
       unobservable: true,
       actions: [
-        `Open ${studio ? 'Pages' : 'Pages & Menu'}, click + Add Page, and choose a blank page.`,
-        'Name it what visitors would look for, such as “Free classes”. That name shows in your site menu.',
+        `If a page already uses /${values.prefix}, change its URL slug first (its ⋯ menu → SEO Basics). The router needs that address for itself.`,
+        menus.coding,
+        menus.addRouter,
         {
-          text: 'In the page’s ⋯ menu, open SEO Basics and set its URL slug to:',
-          snippet: { label: 'URL slug', value: values.prefix, kind: 'text' },
+          text: 'Enter this as the URL prefix, and click Add & Edit Code:',
+          snippet: { label: 'URL prefix', value: values.prefix, kind: 'text' },
+        },
+        `Leave the page Wix creates, ${page}, named as it is. The code in the next step looks for that name.`,
+      ],
+    },
+    {
+      id: 'paste-routers',
+      title: 'Paste the router code',
+      actions: [
+        menus.routersFile,
+        {
+          text: 'Delete everything in it, and paste this in its place:',
+          snippet: {
+            label: 'backend/routers.js',
+            value: wixRoutersTemplate(values),
+            kind: 'javascript',
+          },
         },
       ],
     },
@@ -238,7 +302,7 @@ function wixEmbedSteps(values: InstallValues, studio: boolean): Step[] {
       id: 'add-element',
       title: 'Add the map, and publish',
       actions: [
-        'On that page, click Add → Embed & Social → Custom Element.',
+        `Open the ${page} page, and click ${menus.customElement}.`,
         {
           text: 'Click Choose Source, pick “Server URL”, and paste:',
           snippet: { label: 'Server URL', value: element.serverUrl, kind: 'text' },
@@ -248,100 +312,52 @@ function wixEmbedSteps(values: InstallValues, studio: boolean): Step[] {
           snippet: { label: 'Tag Name', value: element.tagName, kind: 'text' },
         },
         'Stretch the element to the full width of the page and about as tall as the screen. The map draws inside this box, so a box with no height shows nothing.',
-        'Click Publish.',
+        'Click Publish. The map shows only on the published site, not in the editor.',
       ],
     },
   ]
 }
 
 /**
- * Turning the working page into a router page, which is what gives every class
- * its own indexable address.
- *
- * ⚠ **The router needs the page's own slug.** Wix refuses a router prefix an
- * ordinary page already uses, so the step-3 page is renamed out of the way, its
- * map carried across, and the page deleted. None of it is live until the last
- * Publish, so visitors keep the working map throughout.
+ * The one thing the router does not already give search engines: each page's
+ * text, in an element the page code fills.
  */
-function wixSeoSteps(values: InstallValues, studio: boolean): FollowOn {
-  const devMode = studio ? 'Code → Start coding' : 'Dev Mode → Turn on Dev Mode'
-  const addRouter = studio
-    ? 'Code panel → Backend → Routers → Add Router'
-    : 'Dev Mode sidebar → Backend → Routers → Add Router'
-
+function wixMore(values: InstallValues): FollowOn {
+  const page = wixRouterPageName(values.prefix)
   return {
-    title: SEO_TITLE,
+    title: 'Let search engines read your classes',
     intro:
-      'Your map works. These steps give every class and city its own page in search results. Visitors see no change until you publish at the end.',
+      'Every class already has its own address and title. This last step puts each page’s text where search engines read it.',
     steps: [
-      {
-        id: 'add-router',
-        title: 'Add the router',
-        unobservable: true,
-        actions: [
-          `In the atlas page’s ⋯ menu → SEO Basics, change its URL slug to ${values.prefix}-old. The router needs /${values.prefix} for itself.`,
-          `In the top bar, open ${devMode}. Wix reloads the editor, which is normal.`,
-          {
-            text: `Open ${addRouter}, and enter this as the router prefix:`,
-            snippet: { label: 'Router prefix', value: values.prefix, kind: 'text' },
-          },
-          `Name the page it creates ${values.prefix} as well. The code in the next step looks for that name.`,
-        ],
-      },
-      {
-        id: 'paste-routers',
-        title: 'Paste the router code',
-        actions: [
-          'Open Backend → routers.js in the code panel.',
-          {
-            text: 'Delete everything already in the file, and paste this in its place. If the file already has other routers in it, paste this at the end instead.',
-            snippet: {
-              label: 'backend/routers.js',
-              value: wixRoutersTemplate(values),
-              kind: 'javascript',
-            },
-          },
-        ],
-      },
-      {
-        id: 'move-map',
-        title: 'Move the map onto the router page',
-        unobservable: true,
-        actions: [
-          `Open the ${values.prefix}-old page, select the map, and copy it (Ctrl+C, or ⌘C on a Mac).`,
-          `Open the ${values.prefix} router page and paste it (Ctrl+V, or ⌘V). Stretch it to full width and screen height again if it shrank.`,
-          `Delete the ${values.prefix}-old page from its ⋯ menu.`,
-        ],
-      },
       {
         id: 'add-text',
         title: 'Add the text search engines read',
         actions: [
-          'On the router page, click Add → Text → Paragraph, and drop it below the map. Leave its own text empty.',
+          `On the ${page} page, click Add Elements → Text → Paragraph, and drop it below the map. Leave its own text empty.`,
           {
             text: 'With it selected, open the Properties panel and set its ID to:',
             snippet: { label: 'Element ID', value: CONTENT_ELEMENT_ID, kind: 'text' },
           },
           {
-            text: `Open the ${values.prefix} page’s own code panel at the bottom of the screen, and paste this. It fills the paragraph for you.`,
+            text: 'Open the page’s code panel at the bottom of the screen, and paste this. It fills the paragraph for you.',
             snippet: { label: 'Page code', value: wixPageCodeTemplate(), kind: 'javascript' },
           },
+          'Click Publish.',
         ],
-      },
-      {
-        id: 'publish-seo',
-        title: 'Publish again',
-        actions: ['Click Publish. Wix lists every class page in your sitemap when you do.'],
       },
     ],
   }
 }
 
+/**
+ * Both Wix tracks' checks. The sitemap is the router code's own `_SiteMap`, so a
+ * missing entry points there.
+ */
 const WIX_CHECKS: CheckRouting = {
   noReport: 'add-element',
   head: 'paste-routers',
   body: 'add-text',
-  sitemap: 'publish-seo',
+  sitemap: 'paste-routers',
 }
 
 /**
@@ -511,8 +527,8 @@ export function tracksFor(values: InstallValues): Record<TrackId, Track> {
       label: TRACK_LABELS['wix-editor'],
       recognise: 'The top bar says “Wix”, and there is a Dev Mode menu.',
       checks: WIX_CHECKS,
-      steps: wixEmbedSteps(values, false),
-      more: wixSeoSteps(values, false),
+      steps: wixSteps(values, false),
+      more: wixMore(values),
     },
 
     'wix-studio': {
@@ -520,14 +536,9 @@ export function tracksFor(values: InstallValues): Record<TrackId, Track> {
       platform: 'wix',
       label: TRACK_LABELS['wix-studio'],
       recognise: 'The top bar says “Wix Studio”.',
-      caveat: {
-        tone: 'info',
-        title: 'Menu names not yet confirmed',
-        text: 'Nobody has walked these Studio steps on a real site. If a menu is not where it says, look for the same words nearby, and tell a maintainer.',
-      },
       checks: WIX_CHECKS,
-      steps: wixEmbedSteps(values, true),
-      more: wixSeoSteps(values, true),
+      steps: wixSteps(values, true),
+      more: wixMore(values),
     },
 
     custom: {

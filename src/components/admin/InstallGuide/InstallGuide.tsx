@@ -37,6 +37,7 @@ import { InstallProgress } from './InstallProgress'
 import {
   hostHints,
   PLATFORM_LABELS,
+  PLATFORM_NOTICES,
   PLATFORM_RECOGNISE,
   readAtlasAddress,
   TRACKS_BY_PLATFORM,
@@ -359,6 +360,23 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
                 path="track"
               />
             </>
+          ) : null}
+
+          {platform && PLATFORM_NOTICES[platform] ? (
+            <div className={styles.banners}>
+              <TitledBanner
+                action={
+                  PLATFORM_NOTICES[platform].offerIframe ? (
+                    <InlineAction onClick={() => choosePlatform('iframe')}>
+                      Switch to Iframe only
+                    </InlineAction>
+                  ) : undefined
+                }
+                title={PLATFORM_NOTICES[platform].title}
+              >
+                {PLATFORM_NOTICES[platform].text}
+              </TitledBanner>
+            </div>
           ) : null}
 
           {activeTrack?.caveat ? (

@@ -241,9 +241,17 @@ describe('buildInstallModel — what each step says', () => {
 
   it('shows a skipped check as nothing at all, never as a problem', () => {
     const model = build(
-      verified({ seo: seo([{ route: '/', check: 'sitemap', status: 'skipped' }]) }),
+      verified({
+        seo: seo([
+          { route: '/', check: 'sitemap', status: 'skipped' },
+          { route: '/', check: 'body', status: 'skipped' },
+        ]),
+      }),
     )
-    expect(model.stepStatus[TRACK.checks.sitemap]).toBeUndefined()
+    // The text step has nothing after it to imply it, so the skip alone leaves it blank.
+    expect(model.stepStatus[TRACK.checks.body]).toBeUndefined()
+    // The router-code step is implied by the detected map after it, never failed by the skip.
+    expect(model.stepStatus[TRACK.checks.sitemap]).toEqual({ state: 'done', messages: [] })
     expect(model.failures).toEqual([])
   })
 })
@@ -439,31 +447,22 @@ describe('buildInstallModel — steps a later confirmation implies', () => {
       verification,
     }).stepStatus
 
-  it('marks the unchecked page step done once the map on it is detected', () => {
-    // add-page has no check of its own; add-element, after it, passes on detection.
-    expect(status(null)['add-page']?.state).toBe('done')
-    expect(status(null, false)['add-page']).toBeUndefined()
+  it('marks the router steps done once the map on the router page is detected', () => {
+    // The map can only show on the router page once the router and its code work.
+    expect(status(null)['add-router']?.state).toBe('done')
+    expect(status(null)['paste-routers']?.state).toBe('done')
+    expect(status(null, false)['add-router']).toBeUndefined()
   })
 
-  it('infers within step 4 only as far as its last confirmed step', () => {
+  it('implies nothing past the last confirmed step', () => {
     const steps = status(verified({ seo: seo([{ route: '/', check: 'title', status: 'pass' }]) }))
     expect(steps['paste-routers']?.state).toBe('pass')
-    expect(steps['add-router']?.state).toBe('done')
-    // Nothing after the router code has passed, so the steps after it are not implied.
-    expect(steps['move-map']).toBeUndefined()
+    expect(steps['add-text']).toBeUndefined()
   })
 
   it('never paints over a failure', () => {
-    const steps = status(
-      verified({
-        seo: seo([
-          { route: '/', check: 'title', status: 'fail' },
-          { route: '/', check: 'body', status: 'pass' },
-        ]),
-      }),
-    )
+    const steps = status(verified({ seo: seo([{ route: '/', check: 'title', status: 'fail' }]) }))
     expect(steps['paste-routers']?.state).toBe('fail')
-    expect(steps['move-map']?.state).toBe('done')
     expect(steps['add-router']?.state).toBe('done')
   })
 })

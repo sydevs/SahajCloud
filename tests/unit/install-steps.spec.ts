@@ -6,6 +6,7 @@ import {
   hostHints,
   type PlatformId,
   PLATFORM_LABELS,
+  PLATFORM_NOTICES,
   readAtlasAddress,
   signalFor,
   snippetsOf,
@@ -172,14 +173,10 @@ describe('what each track prefills', () => {
   it('gives the Studio track Wix Studio menu names, and the Editor track Dev Mode', () => {
     const studio = JSON.stringify(allSteps(tracks['wix-studio']))
     const editor = JSON.stringify(allSteps(tracks['wix-editor']))
-    expect(studio).toContain('Start coding')
+    expect(studio).toContain('Start Coding')
     expect(editor).toContain('Dev Mode')
-    expect(editor).not.toContain('Start coding')
-  })
-
-  it('says plainly that the Studio steps are unverified', () => {
-    // A volunteer who hits a menu that is not there must know that was expected.
-    expect(tracks['wix-studio'].caveat?.text).toMatch(/unverified|not been|nobody has/i)
+    expect(editor).not.toContain('Start Coding')
+    expect(studio).not.toContain('Dev Mode')
   })
 
   it('says plainly that the iframe track has no search-engine listings', () => {
@@ -226,13 +223,28 @@ describe('what each track prefills', () => {
     }
   })
 
-  it('gets a Wix map working before any code, and leaves the router to step 4', () => {
+  it('sets up the Wix router from the start, so no page is carried across', () => {
     for (const id of ['wix-editor', 'wix-studio'] as const) {
-      const embed = JSON.stringify(tracks[id].steps)
-      expect(embed, id).toContain('https://sahajatlas.com/auto.js?key=abc-123')
-      expect(embed, id).not.toContain('Router')
-      expect(JSON.stringify(tracks[id].more?.steps), id).toContain('free_classes_Router')
+      const embed = tracks[id].steps.map((step) => step.id)
+      expect(embed, id).toEqual(['add-router', 'paste-routers', 'add-element'])
+      expect(JSON.stringify(tracks[id].steps), id).toContain('free_classes_Router')
+      expect(
+        tracks[id].more?.steps.map((step) => step.id),
+        id,
+      ).toEqual(['add-text'])
+      expect(JSON.stringify(allSteps(tracks[id])), id).not.toMatch(/-old\b|Delete the/)
     }
+  })
+
+  it('names the router page as Wix creates it, and the code agrees', () => {
+    const steps = JSON.stringify(tracks['wix-editor'].steps)
+    expect(steps).toContain('free-classes-page')
+    expect(steps).toContain('const PAGE = \\"free-classes-page\\"')
+  })
+
+  it('sends Harmony and Studio Two sites to the iframe track', () => {
+    expect(PLATFORM_NOTICES.wix?.title).toMatch(/Harmony/)
+    expect(PLATFORM_NOTICES.wix?.offerIframe).toBe(true)
   })
 
   it('gives a custom site the plain snippet first, and path routing only in step 4', () => {
@@ -275,8 +287,8 @@ describe('stepForCheck', () => {
     expect(stepForCheck(track, 'body')).toBe('add-text')
   })
 
-  it('sends a missing sitemap entry to the final publish', () => {
-    expect(stepForCheck(track, 'sitemap')).toBe('publish-seo')
+  it('sends a missing sitemap entry to the router code, whose _SiteMap it is', () => {
+    expect(stepForCheck(track, 'sitemap')).toBe('paste-routers')
   })
 
   it('groups the three head checks into one signal', () => {
