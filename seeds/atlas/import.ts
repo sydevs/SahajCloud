@@ -1196,14 +1196,6 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
       return
     }
 
-    if (isUnreachableInactive(event)) {
-      await this.skip(
-        `event #${event.legacyId}: inactive with no phone or email — give it a contact in Atlas`,
-        { collection: 'events', identifier: `event-${event.legacyId}` },
-      )
-      return
-    }
-
     const venue = event.venueId != null ? ctx.venuesById.get(event.venueId) : undefined
     const isSharedVenue = event.venueId != null && ctx.sharedVenueIds.has(event.venueId)
     const regionId = isSharedVenue
@@ -1222,7 +1214,6 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     // A number with no name against it is still a number a seeker can call —
     // Atlas has several, and pairing the two threw the phone away with the
     // missing name, leaving dormant listings with no contact route at all.
-    const hasContact = !!rawContactPhone
     const contactName = rawContactName || undefined
     const contactPhone = rawContactPhone || undefined
 
@@ -1272,7 +1263,9 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     // Publish state. Inactive events with no contact info cannot satisfy the
     // contact requirement, so import them as a draft (drafts skip validation).
     const wantsPublish = event.published
-    const draftReason = inactive && !hasContact ? 'inactive event without contact info' : null
+    const draftReason = isUnreachableInactive(event)
+      ? 'inactive with no phone or email, which Events refuses to publish'
+      : null
     if (draftReason && wantsPublish) {
       this.addWarning(`Event #${event.legacyId}: importing as draft — ${draftReason}`)
     }
@@ -1339,7 +1332,10 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
 
     let result: { doc: { id: number } }
     try {
-      result = await this.upsert<{ id: number }>('events', where, eventData, upsertOpts)
+      result = await this.upsert<{ id: number }>('events', where, eventData, {
+        ...upsertOpts,
+        draft: status === 'draft',
+      })
     } catch (error) {
       // Do not drop a published event for incomplete or malformed source
       // data, for example a bad onlineUrl. Re-import it as a draft
@@ -1350,7 +1346,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
         'events',
         where,
         { ...eventData, _status: 'draft' },
-        upsertOpts,
+        { ...upsertOpts, draft: true },
       )
     }
     this.idMaps.events.set(event.legacyId, result.doc.id)

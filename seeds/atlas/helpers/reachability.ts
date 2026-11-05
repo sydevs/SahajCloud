@@ -3,7 +3,7 @@
  * has no schedule, so a person is the only way in, and Events refuses one with
  * neither a phone nor an email (`contactPhone`'s validate). Atlas holds such
  * rows — a dormant listing whose only contact is a Meetup page — so the
- * importer skips them by name, and the events floor leaves them out.
+ * importer parks them as drafts a manager can complete and publish.
  */
 export function isUnreachableInactive(event: {
   category: string | null

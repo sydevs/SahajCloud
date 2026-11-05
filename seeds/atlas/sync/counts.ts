@@ -8,7 +8,6 @@
  * for that collection, so the floor is exactly what a clean target ends with.
  */
 import { UNIMPORTABLE_REGIONS } from './merges'
-import { isUnreachableInactive } from '../helpers/reachability'
 import { multiUseVenueIds } from '../helpers/venueRouter'
 import { importDeletedAt } from '../helpers/verification'
 
@@ -22,9 +21,6 @@ export interface CountInput {
   users: { legacyId: number; email: string | null }[]
   events: {
     legacyId: number
-    category: string | null
-    contactInfo?: { phone_number?: string | null } | null
-    contactEmail?: string | null
     managerId: number | null
     venueId: number | null
     areaId: number | null
@@ -57,7 +53,7 @@ export function deriveExpectedCounts(data: CountInput): AtlasExpectedCounts {
     if (e.managerId == null || !managerIds.has(e.managerId)) continue
     const hasRegion =
       e.venueId != null && shared.has(e.venueId) ? true : e.areaId != null && areaIds.has(e.areaId)
-    if (!hasRegion || importDeletedAt(e.legacyData) || isUnreachableInactive(e)) continue
+    if (!hasRegion || importDeletedAt(e.legacyData)) continue
     counted.add(e.legacyId)
   }
 

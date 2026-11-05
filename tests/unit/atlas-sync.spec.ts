@@ -183,7 +183,7 @@ describe('deriveExpectedCounts', () => {
         areaId: 10,
         legacyData: { archived_at: '2025-01-01T00:00:00.000Z', verified_at: null },
       },
-      // Inactive with nobody to reach: Events refuses it, so it never counts.
+      // Inactive with nobody to reach: imported as a draft, which still counts.
       {
         legacyId: 5,
         category: 'inactive',
@@ -209,8 +209,8 @@ describe('deriveExpectedCounts', () => {
       regions: 3,
       // Case-variant duplicates collapse, and a non-address never imports.
       users: 1,
-      // #3 has no region, #4 imports straight into the trash, #5 has no contact.
-      events: 2,
+      // #3 has no region, and #4 imports straight into the trash.
+      events: 3,
       // Only the valid registrant on a counted event lands.
       'user-submissions': 1,
       clients: 1,
