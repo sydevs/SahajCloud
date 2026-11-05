@@ -124,8 +124,9 @@ async function subscribeCleverReach(args: SubscribeArgs): Promise<MailingListRes
       signal,
       body: {
         receiver_id: email,
-        // CleverReach keeps this as the legal record of the opt-in. The IP is
-        // absent because no submission row stores one.
+        // CleverReach's own record of the opt-in. Both values are
+        // client-reported rather than observed, and no row stores an IP, so
+        // this is weaker proof than a form CleverReach hosted itself.
         doidata: {
           ...(hostUrl ? { referer: hostUrl } : {}),
           ...(userAgent ? { user_agent: userAgent } : {}),

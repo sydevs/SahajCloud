@@ -72,7 +72,8 @@ export interface SubscribeArgs {
   source?: string
   /**
    * The two facts CleverReach's double opt-in record is built from, when the
-   * submission row happens to carry them. Nothing starts storing a visitor's IP
+   * submission row happens to carry them — both client-reported, like every
+   * other `submissionData` context key. Nothing starts storing a visitor's IP
    * for this: an incomplete opt-in record is worth more than a new column of
    * personal data (#1086).
    */
