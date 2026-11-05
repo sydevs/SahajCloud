@@ -1,15 +1,11 @@
 import type { PayloadRequest, TaskConfig } from 'payload'
 
+import { snapshotDate } from '@/lib/atlasOverview/snapshots'
 import type { VerificationStage } from '@/lib/eventVerification/stages'
 import { relationId } from '@/lib/utilities/relationId'
 import type { AtlasSnapshotCounts } from '@/payload-types'
 
 const PAGINATION_LIMIT = 500
-
-/** The UTC day a date falls in, as the collection spells it. */
-export function snapshotDate(now: Date): string {
-  return now.toISOString().slice(0, 10)
-}
 
 /**
  * Count each region's own non-trashed events by stage.

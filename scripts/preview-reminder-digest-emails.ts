@@ -1,6 +1,6 @@
 /**
- * Operator script: send the #589 scheduled emails, the registrant
- * session reminder and the manager registration digest, in each
+ * Operator script: send the two scheduled emails — the registrant session
+ * reminder (#589) and a manager's per-role digest (#1070) — in each
  * meaningful state to the Mailpit capture inbox, for visual review.
  * Prints a direct preview link per scenario.
  *
@@ -8,7 +8,7 @@
  *   pnpm tsx scripts/preview-reminder-digest-emails.ts
  *
  * No database is touched. The script drives the real send paths
- * (`sendSessionReminder` and `sendRegistrationDigest`) through a stub
+ * (`sendSessionReminder` and `sendDigest`) through a stub
  * `payload` object. That stub only covers `findGlobal`, `sendEmail`,
  * `logger`, and `secret`, the only Payload calls these paths make. So
  * what you see is what the jobs send: the same subject, `From`,
@@ -20,11 +20,11 @@
  * resolve in the preview.
  */
 
-import type { DigestEventGroup, DigestPeriod } from '@/emails/RegistrationDigestEmail'
+import type { DigestEmailProps, DigestRegistrationGroup } from '@/emails/DigestEmail'
+import type { ItemTableRow } from '@/emails/EmailLayout'
 import type { EmailClient } from '@/lib/notifications/sendRegistrationConfirmation'
-import type { RegistrationRecipient } from '@/lib/notifications'
 import type { LocaleCode } from '@/lib/locales'
-import type { Event } from '@/payload-types'
+import type { Event, Manager } from '@/payload-types'
 
 import { Temporal } from '@js-temporal/polyfill'
 import dotenv from 'dotenv'
@@ -163,48 +163,34 @@ const REMINDER_SCENARIOS: ReminderScenario[] = [
   },
 ]
 
-const managerRecipient = (name: string): RegistrationRecipient => ({
-  destination: 'manager@example.com',
-  name,
-  channel: 'email',
-  frequency: 'Daily Summary',
-})
+/** A manager the digest can reach: an address, and the `open_items` method it reads. */
+const digestManager = (name: string): Manager =>
+  ({
+    email: 'manager@example.com',
+    id: 1,
+    name,
+    notificationPreferences: { open_items: { frequency: 'Monthly', method: 'email' } },
+  }) as unknown as Manager
 
 const ADMIN = 'https://cloud.sydevelopers.com/admin/collections/events'
+const SUBMISSIONS = 'https://cloud.sydevelopers.com/admin/collections/user-submissions'
 
 interface DigestScenario {
   label: string
+  manager: Manager
   note: string
-  recipient: RegistrationRecipient
-  period: DigestPeriod
-  groups: DigestEventGroup[]
+  props: DigestEmailProps
+  subject: string
 }
 
-// Realistic Q&A drawn from EVENT_REGISTRATION_QUESTIONS, cycled through
-// so the high-volume scenario shows a mix of full, partial, and
-// unanswered registrations.
-const QA: { label: string; value: string }[][] = [
-  [
-    {
-      label: 'Have you practised Sahaja Yoga meditation before?',
-      value: 'No, this is my first time',
-    },
-    { label: 'How did you hear about this event?', value: 'A friend recommended it' },
-  ],
-  [
-    { label: 'How did you hear about this event?', value: 'Instagram' },
-    { label: 'Will you be bringing any guests?', value: '2 guests' },
-  ],
-  [
-    { label: 'Have you practised Sahaja Yoga meditation before?', value: 'Yes, occasionally' },
-    {
-      label: 'Is there anything about your health we should know?',
-      value: 'Recovering from a knee injury — I may need to sit on a chair.',
-    },
-    { label: 'Do you have any accessibility requirements?', value: 'Step-free access, please' },
-  ],
-  [], // some registrants leave every optional question blank
-  [{ label: 'How did you hear about this event?', value: 'Google search' }],
+// Realistic answers drawn from EVENT_REGISTRATION_QUESTIONS, cycled through so
+// the high-volume scenario shows a mix of full, partial and empty ones.
+const QA: string[] = [
+  'Have you practised Sahaja Yoga meditation before?: No, this is my first time · How did you hear about this event?: A friend recommended it',
+  'How did you hear about this event?: Instagram · Will you be bringing any guests?: 2 guests',
+  'Have you practised Sahaja Yoga meditation before?: Yes, occasionally · Is there anything about your health we should know?: Recovering from a knee injury',
+  '', // some registrants leave every optional question blank
+  'How did you hear about this event?: Google search',
 ]
 
 const NAMES = [
@@ -225,105 +211,183 @@ const NAMES = [
   'Omar Farouk',
 ]
 
+const SHELL = {
+  dashboardUrl: 'https://cloud.sydevelopers.com/admin/',
+  date: '5 November 2026',
+  notificationsUrl: 'https://cloud.sydevelopers.com/admin/account',
+}
+
 /**
  * A busy manager's week: many events, each with a different number of
- * registrations, and most carrying answers. This is deterministic,
- * index-driven with no RNG, so re-runs match. The point is to judge how
- * manageable a dense digest reads.
+ * registrations, and most carrying answers. Deterministic and index-driven
+ * with no RNG, so re-runs match. The point is to judge how manageable a dense
+ * digest reads.
  */
-function buildStressGroups(): DigestEventGroup[] {
+function buildStressGroups(): DigestRegistrationGroup[] {
   const events = [
-    { title: 'Monday Morning Meditation — Camden', count: 8 },
-    { title: 'Tuesday Evening Class — Islington', count: 3 },
-    { title: 'Wednesday Lunchtime Sit — City of London', count: 6 },
-    { title: 'Thursday Beginners Course — Hackney', count: 2 },
-    { title: 'Friday Family Meditation — Greenwich', count: 7 },
-    { title: 'Saturday Morning Class — Richmond', count: 4 },
-    { title: 'Sunday Introduction — Croydon', count: 5 },
+    { count: 8, title: 'Monday Morning Meditation — Camden' },
+    { count: 3, title: 'Tuesday Evening Class — Islington' },
+    { count: 6, title: 'Wednesday Lunchtime Sit — City of London' },
+    { count: 2, title: 'Thursday Beginners Course — Hackney' },
+    { count: 7, title: 'Friday Family Meditation — Greenwich' },
+    { count: 4, title: 'Saturday Morning Class — Richmond' },
+    { count: 5, title: 'Sunday Introduction — Croydon' },
   ] // ~35 registrations across 7 events
   let person = 0
-  return events.map(({ title, count }, e) => ({
-    eventTitle: title,
-    eventAdminUrl: `${ADMIN}/${2000 + e}`,
-    registrations: Array.from({ length: count }, (_, r) => {
-      const name = NAMES[person % NAMES.length]
-      const answers = QA[person % QA.length]
+  return events.map(({ count, title }, e) => ({
+    allUrl: `${ADMIN}/${2000 + e}/registrations`,
+    heading: `${title} · ${count} new`,
+    rows: Array.from({ length: count }, (_, r) => {
+      const name = NAMES[person % NAMES.length]!
+      const answers = QA[person % QA.length]!
       person += 1
       return {
-        registrantName: name,
-        registrantEmail: `${name.split(' ')[0].toLowerCase()}${person}@example.com`,
-        startDate: r % 3 === 0 ? '5 Aug 2025' : null,
-        answers,
+        answers: answers || undefined,
+        attending: r % 3 === 0 ? '5 Aug 2025' : null,
+        email: `${name.split(' ')[0]!.toLowerCase()}${person}@example.com`,
+        name,
       }
     }),
   }))
 }
 
+const OPEN_ROWS: ItemTableRow[] = [
+  {
+    action: { href: `${ADMIN}/1041`, label: 'Verify' },
+    href: `${ADMIN}/1041`,
+    statuses: [
+      { line: 'Unpublishes 12 Nov 2026', pillStyle: 'error', text: 'Overdue' },
+      {
+        line: 'Add photos, Improve the event description',
+        pillStyle: 'light-gray',
+        text: '2 recommendations',
+      },
+    ],
+    title: 'Tuesday Evening Meditation',
+  },
+  {
+    action: { href: `${SUBMISSIONS}/5120`, label: 'Review' },
+    href: `${SUBMISSIONS}/5120`,
+    statuses: [
+      {
+        line: 'Address › City, Schedule › Start Time · received 3 Nov 2026',
+        pillStyle: 'success',
+        text: 'Change proposed',
+      },
+    ],
+    title: 'Saturday Morning Meditation',
+  },
+  {
+    action: { href: `${ADMIN}/1044`, label: 'Assign manager' },
+    href: `${ADMIN}/1044`,
+    statuses: [{ line: 'Added 28 Oct 2026', pillStyle: 'warning', text: 'No manager' }],
+    title: 'Introduction to Meditation — Open Day',
+  },
+]
+
 const DIGEST_SCENARIOS: DigestScenario[] = [
   {
-    label: 'digest · daily · two events',
-    note: 'registrations grouped across two events, each an itemised card with answers',
-    recipient: managerRecipient('Priya Deshmukh'),
-    period: 'day',
-    groups: [
-      {
-        eventTitle: 'Tuesday Evening Meditation',
-        eventAdminUrl: `${ADMIN}/1042`,
-        registrations: [
-          {
-            registrantName: 'Alice Nguyen',
-            registrantEmail: 'alice@example.com',
-            startDate: null,
-            answers: QA[0],
-          },
-          {
-            registrantName: 'Bob Fernández',
-            registrantEmail: 'bob@example.com',
-            startDate: '5 Aug 2025',
-            answers: QA[2],
-          },
-        ],
-      },
-      {
-        eventTitle: 'Saturday Morning Meditation',
-        eventAdminUrl: `${ADMIN}/1043`,
-        registrations: [
-          {
-            registrantName: 'Cara Silva',
-            registrantEmail: 'cara@example.com',
-            startDate: null,
-            answers: QA[1],
-          },
-        ],
-      },
-    ],
+    label: 'digest · program · open items + registrations',
+    manager: digestManager('Priya Deshmukh'),
+    note: 'the common program email: what is open, then who signed up',
+    props: {
+      ...SHELL,
+      heading: 'Your programs',
+      openItems: { rows: OPEN_ROWS.slice(0, 2) },
+      recipientName: 'Priya Deshmukh',
+      registrations: buildStressGroups().slice(0, 2),
+      statistics: [
+        {
+          heading: 'Analytics',
+          tiles: [
+            { change: '+2 in 30 days', label: 'Total programs', value: '6' },
+            { change: '+11 in 30 days', label: 'Registrations', value: '34' },
+            { label: 'Programs with a sign-up', of: '6', value: '4' },
+          ],
+        },
+      ],
+      summary: '2 open items · 11 new registrations · November analytics',
+    },
+    subject: 'Your programs: 2 open items · 11 new registrations · November analytics',
   },
   {
-    label: 'digest · weekly · one event',
-    note: 'single registration — total reads "1 registration", weekly period phrasing',
-    recipient: { ...managerRecipient('Sam Okafor'), frequency: 'Weekly Summary' },
-    period: 'week',
-    groups: [
-      {
-        eventTitle: 'Introduction to Meditation — Open Day',
-        eventAdminUrl: `${ADMIN}/1044`,
-        registrations: [
+    label: 'digest · region · statistics + open items',
+    manager: digestManager('Sam Okafor'),
+    note: 'two tile blocks, and a list holding none of their own programs',
+    props: {
+      ...SHELL,
+      heading: 'Your regions',
+      openItems: { rows: OPEN_ROWS },
+      recipientName: 'Sam Okafor',
+      statistics: [
+        {
+          heading: 'Verification health',
+          tiles: [
+            { change: '+4 in 30 days', label: 'Verified', value: '58' },
+            { change: '-1 in 30 days', label: 'Escalated', value: '3' },
+            { change: '+0 in 30 days', label: 'Urgent', value: '1' },
+            { change: null, label: 'Expired', value: '0' },
+            { change: '+2 in 30 days', label: 'Unverified', value: '7' },
+          ],
+        },
+        {
+          heading: 'Analytics',
+          tiles: [
+            { change: '+5 in 30 days', label: 'Total programs', value: '69' },
+            { change: '-3 in 30 days', label: 'Registrations', value: '112' },
+            { label: 'Programs with a sign-up', of: '69', value: '31' },
+          ],
+        },
+      ],
+      summary: '3 open items · November analytics',
+    },
+    subject: 'Your regions: 3 open items · November analytics',
+  },
+  {
+    label: 'digest · admin · refused sign-ups + closing line',
+    manager: digestManager('Rosa Delgado'),
+    note: 'the one email that counts what the form turned away',
+    props: {
+      ...SHELL,
+      closingNote: {
+        href: 'https://cloud.sydevelopers.com/admin/collections/registration-refusals',
+        text: '27 sign-ups blocked at the form in the last 7 days',
+      },
+      heading: 'Sahaj Atlas',
+      openItems: {
+        rows: [
+          ...OPEN_ROWS.slice(2),
           {
-            registrantName: 'Dana Petrova',
-            registrantEmail: 'dana@example.com',
-            startDate: null,
-            answers: QA[4],
+            action: { href: `${SUBMISSIONS}/5400`, label: 'Review' },
+            href: `${SUBMISSIONS}/5400`,
+            statuses: [
+              {
+                line: 'repeatedly refused sender · 4 Nov 2026',
+                pillStyle: 'success',
+                text: 'Flagged as spam',
+              },
+            ],
+            title: 'Nadia Haddad',
           },
         ],
       },
-    ],
+      recipientName: 'Rosa Delgado',
+      summary: '2 open items',
+    },
+    subject: 'Sahaj Atlas: 2 open items',
   },
   {
-    label: 'digest · weekly · high volume',
-    note: '~35 registrations across 7 events with answers — how manageable is a busy week?',
-    recipient: { ...managerRecipient('Rosa Delgado'), frequency: 'Weekly Summary' },
-    period: 'week',
-    groups: buildStressGroups(),
+    label: 'digest · program · high volume',
+    manager: digestManager('Lena Novak'),
+    note: '~35 registrations across 7 events — how manageable is a busy week?',
+    props: {
+      ...SHELL,
+      heading: 'Your programs',
+      recipientName: 'Lena Novak',
+      registrations: buildStressGroups(),
+      summary: '35 new registrations',
+    },
+    subject: 'Your programs: 35 new registrations',
   },
 ]
 
@@ -333,8 +397,7 @@ async function main() {
   const nodemailer = (await import('nodemailer')).default
   const { sendSessionReminder } =
     await import('@/jobs/RegistrationNotifications/sendSessionReminder')
-  const { sendRegistrationDigest } =
-    await import('@/jobs/RegistrationNotifications/sendRegistrationDigest')
+  const { sendDigest } = await import('@/jobs/Digests/sendDigest')
 
   const { transport, messageUrl } = createCaptureTransport()
 
@@ -372,16 +435,16 @@ async function main() {
   }
 
   for (const s of DIGEST_SCENARIOS) {
-    await sendRegistrationDigest({
+    await sendDigest({
+      manager: s.manager,
       payload: stubPayload(s.label),
-      recipient: s.recipient,
-      period: s.period,
-      groups: s.groups,
+      props: s.props,
+      subject: s.subject,
     })
     previews[previews.length - 1].note = s.note
   }
 
-  console.log('\n━━━ Session reminder + registration digest email previews (#589) ━━━\n')
+  console.log('\n━━━ Session reminder + manager digest email previews ━━━\n')
   console.log(`Mailpit inbox (all messages): ${process.env.MAILPIT_URL ?? '(set MAILPIT_URL)'}`)
   console.log('  credentials: MAILPIT_UI_AUTH in .env.claude.local — messages kept 7 days')
   console.log(`\nIcons + unsubscribe origin resolve against: ${process.env.SAHAJCLOUD_URL}`)

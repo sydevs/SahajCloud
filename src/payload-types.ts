@@ -995,7 +995,7 @@ export interface Config {
       expireEvents: TaskExpireEvents;
       screenSubmission: TaskScreenSubmission;
       sendPostEventFollowUps: TaskSendPostEventFollowUps;
-      sendRegistrationDigests: TaskSendRegistrationDigests;
+      sendDigests: TaskSendDigests;
       sendSessionReminders: TaskSendSessionReminders;
       cleanupCollections: TaskCleanupCollections;
       syncLectureMetadata: TaskSyncLectureMetadata;
@@ -3228,7 +3228,7 @@ export interface PayloadJob {
           | 'expireEvents'
           | 'screenSubmission'
           | 'sendPostEventFollowUps'
-          | 'sendRegistrationDigests'
+          | 'sendDigests'
           | 'sendSessionReminders'
           | 'cleanupCollections'
           | 'syncLectureMetadata'
@@ -3279,7 +3279,7 @@ export interface PayloadJob {
         | 'expireEvents'
         | 'screenSubmission'
         | 'sendPostEventFollowUps'
-        | 'sendRegistrationDigests'
+        | 'sendDigests'
         | 'sendSessionReminders'
         | 'cleanupCollections'
         | 'syncLectureMetadata'
@@ -11047,14 +11047,15 @@ export interface TaskSendPostEventFollowUps {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "TaskSendRegistrationDigests".
+ * via the `definition` "TaskSendDigests".
  */
-export interface TaskSendRegistrationDigests {
+export interface TaskSendDigests {
   input?: unknown;
   output: {
-    eligibleManagers: number;
-    digestsSent: number;
-    registrationsIncluded: number;
+    managers: number;
+    sent: number;
+    quiet: number;
+    sectionsFailed: number;
     failed: number;
   };
 }

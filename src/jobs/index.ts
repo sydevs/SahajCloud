@@ -1,10 +1,10 @@
 import { RecordAtlasSnapshot } from './AtlasSnapshot/RecordAtlasSnapshot'
+import { SendDigests } from './Digests/SendDigests'
 import { CleanupCollections } from './CleanupCollections/CleanupCollections'
 import { CleanupOrphanedMedia } from './CleanupOrphanedMedia/CleanupOrphanedMedia'
 import { DeliverSubmissions } from './DeliverSubmissions/DeliverSubmissions'
 import { ExpireEvents } from './ExpireEvents/ExpireEvents'
 import { SendPostEventFollowUps } from './RegistrationNotifications/SendPostEventFollowUps'
-import { SendRegistrationDigests } from './RegistrationNotifications/SendRegistrationDigests'
 import { SendSessionReminders } from './RegistrationNotifications/SendSessionReminders'
 import { ScreenSubmissions } from './ScreenSubmissions/ScreenSubmissions'
 import { SyncLectureMetadata } from './SyncLectureMetadata/SyncLectureMetadata'
@@ -20,7 +20,7 @@ export const tasks = [
   ExpireEvents,
   ScreenSubmissions,
   SendPostEventFollowUps,
-  SendRegistrationDigests,
+  SendDigests,
   SendSessionReminders,
   CleanupCollections,
   SyncLectureMetadata,
