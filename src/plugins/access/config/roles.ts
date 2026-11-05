@@ -94,11 +94,10 @@ const ROLES = {
       // reads the contact rows addressed to them, plus the proposals in their
       // subtree. It does NOT open registrations or subscriptions to them.
       'user-submissions': ['read', 'update'] as PermissionLevel[],
-      // ⚠ Load-bearing for the row above: `senderEmail` is `virtual:
-      // 'user.email'` (#1060), resolved under the reader's access, so without
-      // it a recipient reads every message with no sender address. It also
-      // reaches the `Users.submissions` join, which the per-row scope narrows.
-      users: ['read'] as PermissionLevel[],
+      // ⚠ No `users` grant, on either Atlas role, deliberately. A row's
+      // `senderEmail` is `virtual: 'user.email'` (#1060), so it reads as absent
+      // for a manager. An event's Registrations view and the contact delivery
+      // mail each read the address with `overrideAccess` instead.
     },
   },
   'atlas-event-manager': {
@@ -107,13 +106,11 @@ const ROLES = {
     project: 'sahaj-atlas' as const,
     virtual: { join: 'managedEvents' as const },
     // Scoped to the events naming them, by the `manager == user` union in
-    // regionSubtreeAccess.ts. No `managers`, no `imports`: an assignee runs
-    // one listing and needs no roster and no bulk import.
+    // regionSubtreeAccess.ts. No `users`, no `managers`, no `imports`: an
+    // assignee runs one listing and needs no roster and no bulk import.
     permissions: {
       events: ['update', 'delete'] as PermissionLevel[],
       'user-submissions': ['read', 'update'] as PermissionLevel[],
-      // As for a region manager: a sender's address resolves through `users`.
-      users: ['read'] as PermissionLevel[],
     },
   },
 

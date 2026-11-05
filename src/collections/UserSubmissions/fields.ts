@@ -302,7 +302,8 @@ const userField: Field = {
  * ⚠ **It resolves under the reader's access.** A client cannot read `users`,
  * so on a client's create the value is absent from the response *and from
  * every `afterChange` hook's `doc`*. A hook that needs the address reads the
- * user itself (`spawnSubscribeFromRegistration`).
+ * user itself (`spawnSubscribeFromRegistration`). No manager role reads
+ * `users` either (#1068), so only an admin's read carries it.
  */
 const senderEmailField: Field = {
   name: 'senderEmail',

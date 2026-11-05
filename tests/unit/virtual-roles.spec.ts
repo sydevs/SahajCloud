@@ -107,14 +107,11 @@ describe('a derived role in hasPermission', () => {
     expect(may(assignedAnEvent, 'imports', 'create', 'en')).toBe(false)
   })
 
-  it('grants both roles a read of the registrants in `users`, and no write', () => {
-    // `users` is restricted, so only this explicit grant reaches it — and it is
-    // what resolves a submission's `senderEmail`, a `virtual: 'user.email'`
-    // read under the reader's own access (#1060).
-    for (const manager of [listedOnRegion, assignedAnEvent]) {
-      expect(may(manager, 'users', 'read', 'en')).toBe(true)
-      expect(may(manager, 'users', 'update', 'en')).toBe(false)
-    }
+  it('grants neither role a read of the registrants in `users`', () => {
+    // Dead since registrations moved to `user-submissions` (#723). `users` is
+    // restricted, so with no explicit grant nothing but an admin reaches it.
+    expect(may(listedOnRegion, 'users', 'read', 'en')).toBe(false)
+    expect(may(assignedAnEvent, 'users', 'read', 'en')).toBe(false)
   })
 
   it('reaches the Atlas project implicitly, as a stored role would', () => {

@@ -78,7 +78,7 @@ describe('Blocking a sender', () => {
   })
 
   describe('POST /api/users/:id/block', () => {
-    it('refuses a manager who may read Registrants but not write them', async () => {
+    it('refuses an Atlas manager, who holds no grant on Registrants', async () => {
       const sender = await createSender('refused-block@example.com')
 
       const { status } = await managerRest(`/api/users/${sender.id}/block`, {
