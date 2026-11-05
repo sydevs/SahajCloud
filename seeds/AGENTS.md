@@ -71,7 +71,7 @@ POST /api/seed/<script>?collection=X&offset=0&limit=25  # Paginated import
 
 Requires an admin session (a Manager with `admin: true`). The response is
 Server-Sent Events (SSE) with progress updates. Scripts: `tags`,
-`wemeditate`, `meditations`, `storyblok`, `atlas`.
+`wemeditate`, `meditations`, `storyblok`, `atlas`, `atlas-reset`.
 
 ## Pagination support
 
@@ -85,7 +85,9 @@ paginates every collection with `requiresPagination: true`.
 
 **Batch sizes**: 100 without file uploads, 10 with.
 
-Each script's collection metadata lives in `seeds/lib/expectedCounts.ts`:
+Each script's collection metadata lives in `seeds/lib/expectedCounts.ts`.
+Atlas's floors ride in its build manifest instead (`data` below), because they
+change with every refresh:
 
 | Script                 | Collection       | Items | Paginated? | Dependencies            |
 | ---------------------- | ---------------- | ----- | ---------- | ----------------------- |
@@ -101,12 +103,12 @@ Each script's collection metadata lives in `seeds/lib/expectedCounts.ts`:
 | meditation-transcripts | transcripts      | 126   | No         | meditations             |
 | storyblok              | lessons          | 17    | Yes        | None                    |
 | storyblok              | lectures         | 0     | No         | None                    |
-| atlas                  | managers         | 495   | No         | None                    |
-| atlas                  | regions          | 646   | No         | managers                |
-| atlas                  | users            | 1864  | Yes        | None                    |
-| atlas                  | events           | 649   | Yes        | managers, regions       |
-| atlas                  | user-submissions | 2004  | Yes        | events, users           |
-| atlas                  | clients          | 31    | No         | managers                |
+| atlas                  | managers         | data  | No         | None                    |
+| atlas                  | regions          | data  | No         | managers                |
+| atlas                  | users            | data  | Yes        | None                    |
+| atlas                  | events           | data  | Yes        | managers, regions       |
+| atlas                  | user-submissions | data  | Yes        | events, users           |
+| atlas                  | clients          | data  | No         | managers                |
 
 **Meditations note**: targeting `collection=meditations` also runs
 `narrators`, `frames`, and `tags` in bulk (unpaginated) in the same
@@ -120,15 +122,16 @@ automatically — printing per-batch progress as it goes.
 
 ## Available scripts
 
-| Script                 | Command                            | Prerequisites                                  | Target Collections                                          |
-| ---------------------- | ---------------------------------- | ---------------------------------------------- | ----------------------------------------------------------- |
-| storyblok              | `pnpm seed storyblok`              | STORYBLOK_ACCESS_TOKEN                         | lessons, images, files                                      |
-| wemeditate             | `pnpm seed wemeditate`             | data.json (pre-extracted)                      | pages, authors, page-tags, albums                           |
-| meditations            | `pnpm seed meditations`            | Run `tags` + `wemeditate` first, data.json     | meditations, frames, music, narrators                       |
-| meditation-transcripts | `pnpm seed meditation-transcripts` | The meditations the transcripts were made from | transcripts                                                 |
-| tags                   | `pnpm seed tags`                   | None                                           | user-choices, music-tags                                    |
-| atlas                  | `pnpm seed atlas`                  | The 8 JSON dumps in `seeds/atlas/data/`        | managers, regions, users, events, user-submissions, clients |
-| translations           | `pnpm seed translations`           | None                                           | the three translations globals (see below)                  |
+| Script                 | Command                            | Prerequisites                                      | Target Collections                                          |
+| ---------------------- | ---------------------------------- | -------------------------------------------------- | ----------------------------------------------------------- |
+| storyblok              | `pnpm seed storyblok`              | STORYBLOK_ACCESS_TOKEN                             | lessons, images, files                                      |
+| wemeditate             | `pnpm seed wemeditate`             | data.json (pre-extracted)                          | pages, authors, page-tags, albums                           |
+| meditations            | `pnpm seed meditations`            | Run `tags` + `wemeditate` first, data.json         | meditations, frames, music, narrators                       |
+| meditation-transcripts | `pnpm seed meditation-transcripts` | The meditations the transcripts were made from     | transcripts                                                 |
+| tags                   | `pnpm seed tags`                   | None                                               | user-choices, music-tags                                    |
+| atlas                  | `pnpm seed atlas`                  | `pnpm atlas:sync build` (local data, below)        | managers, regions, users, events, user-submissions, clients |
+| atlas-reset            | `pnpm seed atlas-reset`            | ⚠ Destructive — run only by name, before a re-sync | events, regions, users, user-submissions (emptied)          |
+| translations           | `pnpm seed translations`           | None                                               | the three translations globals (see below)                  |
 
 ### `translations` — real copy everywhere, and the locales it publishes
 
@@ -195,16 +198,16 @@ set of collections and can run at any point. Its own six collections have
 an internal order the importer handles. `SCRIPT_RUN_ORDER` in
 [run.ts](run.ts) places it last.
 
-Atlas reads its eight pre-extracted dumps from `seeds/atlas/data/`
-(regenerated by [atlas/extract.ts](atlas/extract.ts) from a PostgreSQL
-dump. Current data is the 2026-08 dump). `events.json` carries curated
-`website`/`contactEmail`/`languageCodes` values and a groomed
-`customName`/`description`/`room` for most events, all of which a
-re-extraction drops — each row's `legacyData` preserves the raw source, so
-unchanged rows re-port mechanically. See [atlas/AGENTS.md](atlas/AGENTS.md)
-for the procedure. For the Atlas backend surface and importer decisions,
-see [atlas/AGENTS.md](atlas/AGENTS.md) and
-[atlas/MIGRATION_PLAN.md](atlas/MIGRATION_PLAN.md).
+Atlas reads nine files from `seeds/atlas/data/` — eight tables and a build
+manifest carrying the run's verification floors. ⚠ **They are personal data,
+gitignored, and built locally** from the legacy Atlas's Heroku database by
+`pnpm atlas:sync` (fetch → build → groom → check → record). The CLI uploads
+them with the seed request, so a deployed target needs nothing on disk. The
+grooming lives in a local overlay that each refresh re-applies to the rows
+Atlas has not changed. A re-sync empties the target with `pnpm seed
+atlas-reset`, then seeds with `--update`. See [atlas/AGENTS.md](atlas/AGENTS.md)
+("The sync pipeline") for the procedure, and
+[atlas/MIGRATION_PLAN.md](atlas/MIGRATION_PLAN.md) for the importer design.
 
 ### `meditation-transcripts` — where the data came from, and the id it cannot trust
 

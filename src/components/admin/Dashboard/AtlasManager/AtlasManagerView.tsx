@@ -9,10 +9,8 @@ import {
   PerPage,
   Pill,
   Table,
-  useRouteTransition,
 } from '@payloadcms/ui'
 import Link from 'next/link'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 
 import styles from './AtlasManager.module.css'
 import {
@@ -27,6 +25,7 @@ import {
 import { NAV_LINKS } from '../../AdminNavLinks/links'
 import { CenteredNotice } from '../../CenteredNotice'
 import { tableColumn } from '../../helpers/tableColumn'
+import { useSetQuery } from '../../helpers/useSetQuery'
 
 const TABS: { value: ProgramTab; label: string }[] = [
   { value: 'all', label: 'All programs' },
@@ -42,19 +41,6 @@ const STATUS: Record<
   review: { label: 'Needs review', pillStyle: 'warning' },
   published: { label: 'Published', pillStyle: 'success' },
   draft: { label: 'Draft', pillStyle: 'light-gray' },
-}
-
-/** The tab, page and page size live in the URL, so the server reads them and Back works. */
-function useProgramQuery(): (patch: Partial<ProgramQuery>) => void {
-  const router = useRouter()
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
-  const { startRouteTransition } = useRouteTransition()
-  return (patch) => {
-    const params = new URLSearchParams(searchParams?.toString())
-    for (const [key, value] of Object.entries(patch)) params.set(key, String(value))
-    startRouteTransition(() => router.push(`${pathname}?${params.toString()}`))
-  }
 }
 
 function programTitle(program: Program): string {
@@ -77,7 +63,7 @@ function nextStep(program: Program): string {
 
 /** A small composition of native Payload controls; data and permissions stay on the server. */
 export function AtlasManagerView({ data }: { data: AtlasManagerData }) {
-  const setQuery = useProgramQuery()
+  const setQuery = useSetQuery<ProgramQuery>()
   const { counts, programs, query } = data
   const rows = programs.docs
   return (

@@ -27,6 +27,7 @@ export type ScriptName =
   | 'wm-app-translations'
   | 'translations'
   | 'atlas'
+  | 'atlas-reset'
 
 export interface ExpectedCounts {
   [collection: string]: number
@@ -45,12 +46,27 @@ export interface NotApplicableCounts {
   reason: string
 }
 
-export type ScriptExpectation = ExpectedCounts | NotApplicableCounts
+/**
+ * A script whose floors ride in its own uploaded data, because the data
+ * changes with every refresh and a committed constant would drift. The
+ * importer hands them over (`BaseImporter.getExpectedCounts`); a run that
+ * carries none fails verification rather than passing with nothing checked.
+ */
+export interface FromDataCounts {
+  kind: 'from-data'
+  source: string
+}
+
+export type ScriptExpectation = ExpectedCounts | NotApplicableCounts | FromDataCounts
 
 export function isNotApplicable(
   expectation: ScriptExpectation,
 ): expectation is NotApplicableCounts {
   return 'kind' in expectation && expectation.kind === 'not-applicable'
+}
+
+export function isFromData(expectation: ScriptExpectation): expectation is FromDataCounts {
+  return 'kind' in expectation && expectation.kind === 'from-data'
 }
 
 /**
@@ -100,41 +116,16 @@ export const EXPECTED_COUNTS: Record<ScriptName, ScriptExpectation> = {
     kind: 'not-applicable',
     reason: 'targets three translation globals, so no collection gains a row',
   },
-  // Counts follow the 2026-08 Atlas dump (activity through Aug 2026. The
-  // previous dump's data ended Oct 2024). Counted, not estimated —
-  // verification is `actual >= expected`, so an understated value passes even
-  // when the import silently loses rows. `tests/unit/atlas-events-data.spec.ts`
-  // re-derives regions/users/registrations from the data files.
+  // Derived from the data on every build (seeds/atlas/sync/counts.ts) and
+  // uploaded in its manifest, so a refresh cannot leave a stale floor behind.
+  // The importer hands them to `verifyCountsForScript` as an override.
   atlas: {
-    managers: 495,
-    // 595 source geo nodes (34 country + 101 region + 460 area, post-dedupe),
-    // plus the 52 shared-venue nodes the importer creates for venues used by
-    // more than one surviving event, less region:East (#42), whose source
-    // latitude/longitude/radius are invalid and can never import.
-    regions: 646,
-    // 2284 source registrants → 2255 with something usable as an email (29
-    // hold typed-in junk, which Payload's email validation refuses and the
-    // importer skips by name) → 1864 once case-variant duplicates collapse
-    // onto one account.
-    users: 1864,
-    // 653 rows in events.json (673 extracted, less 11 previously-merged
-    // duplicates re-dropped and 9 new ones), less: the 1 leftover test record
-    // the importer skips (EXCLUDED_EVENT_LEGACY_IDS in seeds/atlas/import.ts),
-    // #4958 (no Atlas area, so no resolvable region), and the 2 archived
-    // events (#75, #199) that import straight into the trash, which
-    // `payload.count` does not see.
-    events: 649,
-    // 2034 source rows, less: the 27 belonging to a registrant whose email was
-    // never an address, the 2 whose event has neither a row in events.json nor
-    // a merge survivor (MERGED_EVENT_TARGETS in seeds/atlas/import.ts), and the
-    // 1 on an event that imports straight into the trash — Payload silently
-    // rolls back a create whose relationship target is trashed.
-    //
-    // Counted under `activeRegistrationWhere`, not as a whole-collection count:
-    // `user-submissions` also holds contact, subscribe and proposal rows, and
-    // an unfiltered count would pass on those alone.
-    'user-submissions': 2004,
-    clients: 31,
+    kind: 'from-data',
+    source: 'seeds/atlas/data/manifest.json (seeds/atlas/sync/counts.ts)',
+  },
+  'atlas-reset': {
+    kind: 'not-applicable',
+    reason: 'empties the atlas collections, so it has no floor — its own run checks they are empty',
   },
 }
 
@@ -145,7 +136,7 @@ export const EXPECTED_COUNTS: Record<ScriptName, ScriptExpectation> = {
  */
 export function getExpectedCounts(script: ScriptName): ExpectedCounts {
   const expectation = EXPECTED_COUNTS[script]
-  if (!expectation || isNotApplicable(expectation)) return {}
+  if (!expectation || isNotApplicable(expectation) || isFromData(expectation)) return {}
   return expectation
 }
 
@@ -160,13 +151,22 @@ export function verifyCountsForScript(
   script: ScriptName,
   actualCounts: Record<string, number>,
   pagination?: { collection?: string; offset: number; limit: number },
+  /** Floors the importer read from its data, replacing the committed ones. */
+  override?: ExpectedCounts | null,
 ): { results: VerificationResult[]; allPassed: boolean; skippedReason?: string } {
   const expectation = EXPECTED_COUNTS[script]
   if (expectation && isNotApplicable(expectation)) {
     return { results: [], allPassed: true, skippedReason: expectation.reason }
   }
+  if (expectation && isFromData(expectation) && !override) {
+    // No floors arrived with the data, so nothing was checked: say so as a failure.
+    return {
+      results: [{ collection: expectation.source, actual: 0, expected: 1, passed: false }],
+      allPassed: false,
+    }
+  }
 
-  const expected = getExpectedCounts(script)
+  const expected = override ?? getExpectedCounts(script)
   const results: VerificationResult[] = []
   let allPassed = true
 
@@ -330,6 +330,8 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
   'wm-app-translations': [],
   // translations targets three PayloadCMS globals, not collections.
   translations: [],
+  // Deletes in one transaction; nothing to paginate.
+  'atlas-reset': [],
   // Atlas migration. Order is the import order (the runner iterates this
   // array): managers and regions before events and clients, events and
   // users before registrations, events before pictures. Managers, regions,

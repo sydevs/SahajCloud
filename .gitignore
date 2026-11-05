@@ -81,3 +81,7 @@ seed*.log
 
 # Local debug/log files (e.g. pasted console output)
 *.log
+
+# Atlas migration data — personal data, local only (seeds/atlas/AGENTS.md)
+/seeds/atlas/data/
+/seeds/atlas/local/

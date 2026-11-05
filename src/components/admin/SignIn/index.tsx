@@ -9,6 +9,7 @@ import { returnPath } from '@/plugins/login'
 import { deliveredLink, linkNotice } from './deliveredLink'
 import styles from './SignIn.module.css'
 import { SignInForm } from './SignInForm'
+import { firstParam } from '../helpers/searchParams'
 
 /**
  * `/admin/login`, replacing Payload's own login view (#840): the one surface for
@@ -40,14 +41,9 @@ export default async function SignInView({
   searchParams = {},
 }: AdminViewServerProps) {
   const { payload, user } = initPageResult.req
-  const query = (key: string): string | undefined => {
-    // Next hands a repeated key over as an array.
-    const value = searchParams[key]
-    return Array.isArray(value) ? value[0] : value
-  }
-  const error = query('error')
-  const token = query('token')
-  const returnTo = query('redirect')
+  const error = firstParam(searchParams, 'error')
+  const token = firstParam(searchParams, 'token')
+  const returnTo = firstParam(searchParams, 'redirect')
 
   if (user && !error && !token) {
     // `returnPath`, not Payload's `getSafeRedirect`: that one keeps any
