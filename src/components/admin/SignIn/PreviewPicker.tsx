@@ -1,9 +1,9 @@
-import type { GrantSummary } from '@/plugins/login'
 import type { PayloadRequest } from 'payload'
 
 import { Button } from '@payloadcms/ui'
 
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
+import type { GrantSummary } from '@/plugins/login'
 import { summarizeGrants } from '@/plugins/login'
 
 import { signInAsAction } from './actions'

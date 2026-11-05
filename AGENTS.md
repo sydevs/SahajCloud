@@ -44,7 +44,7 @@ Admin panel: `http://localhost:{PORT}/admin/login`, once the dev server runs.
 
 Use the `/workflow:dev-server` skill for a dev server shared across sessions. It prevents port conflicts. Default port 3000. Override with `PORT=4000`. `SAHAJCLOUD_URL` derives from `PORT`.
 
-- `pnpm test:unit` — the unit lane, no Payload bootstrap. About 78 s for all 239 files, so name one spec while editing (`tests/PERF.md`).
+- `pnpm test:unit` — the unit lane, no Payload bootstrap. About 78 s for all 243 files, so name one spec while editing (`tests/PERF.md`).
 - `pnpm format:check` — Prettier. `pnpm lint` checks no formatting, so the lean gate and CI run both.
 
 Locally, run lint, `pnpm test:unit`, and the integration spec for the area you changed. Let CI run the full suite. See `docs/rules/testing-reqs.md` for the tier policy and the CPU rules (never run test commands, or a test and a build, in parallel).
@@ -102,7 +102,7 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for the full documentation.
 
 ## Project Structure
 
-Standard Next.js + Payload layout under `src/`. See **`src/AGENTS.md`** for that layout and where new code belongs (`plugins/` vs `jobs/` vs `lib/` vs an owner's folder). Tests live under `tests/` — see **`tests/AGENTS.md`** for the lanes and where a new spec belongs.
+Standard Next.js + Payload layout under `src/`. One directory sits outside it: **`preview-proxy/`**, the Cloudflare Worker in front of every Railway preview, deployed by hand and never from CI — the pull request shipping a change to it gates its own preview, so a broken Worker deployed from inside that PR could not be fixed from inside it. See **`src/AGENTS.md`** for the `src/` layout and where new code belongs (`plugins/` vs `jobs/` vs `lib/` vs an owner's folder). Tests live under `tests/` — see **`tests/AGENTS.md`** for the lanes and where a new spec belongs.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

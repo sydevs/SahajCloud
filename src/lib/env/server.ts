@@ -322,7 +322,6 @@ const ServerEnvSchema = ClientEnvSchema.extend({
    */
   DOCS_PASSWORD: z.string().min(8, 'DOCS_PASSWORD must be at least 8 characters').optional(),
 
-
   /**
    * Server port number.
    * @default 3000

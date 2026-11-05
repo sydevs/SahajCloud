@@ -26,6 +26,10 @@ import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
+import { PREVIEW_ADMIN_ADDRESS } from '@/lib/preview/proxy'
+import { issueMagicLink } from '@/plugins/login'
+import { managersLoginHere } from '@/plugins/previewAdmin'
+
 import {
   createAnonRestClient,
   createRestClientWithAuth,
@@ -33,8 +37,6 @@ import {
 } from '../utils/restRequest'
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
-import { issueMagicLink } from '@/plugins/login'
-import { managersLoginHere, PREVIEW_ADMIN_ADDRESS } from '@/plugins/previewAdmin'
 
 vi.hoisted(() => {
   process.env.RAILWAY_ENVIRONMENT_NAME = 'pr-840'

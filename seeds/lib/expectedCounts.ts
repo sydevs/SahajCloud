@@ -28,6 +28,7 @@ export type ScriptName =
   | 'translations'
   | 'atlas'
   | 'atlas-reset'
+  | 'preview-fixture'
 
 export interface ExpectedCounts {
   [collection: string]: number
@@ -79,6 +80,17 @@ export function isFromData(expectation: ScriptExpectation): expectation is FromD
  * - storyblok: Based on current Storyblok content
  */
 export const EXPECTED_COUNTS: Record<ScriptName, ScriptExpectation> = {
+  'preview-fixture': {
+    managers: 2,
+    regions: 3,
+    forms: 1,
+    events: 2,
+    users: 6,
+    // Registrations and contact messages share this table, and so do the
+    // proposals and subscriptions a reviewer may add by hand, so the floor is
+    // the fixture's own 13 rows.
+    'user-submissions': 13,
+  },
   tags: {
     'user-choices': 27,
     'song-tags': 7,
@@ -193,6 +205,63 @@ export function verifyCountsForScript(
  * Used by CLI to orchestrate paginated imports
  */
 const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
+  'preview-fixture': [
+    {
+      slug: 'managers',
+      collection: 'managers',
+      totalItems: 2,
+      requiresPagination: false,
+      dependencies: [],
+      naturalKey: 'email',
+    },
+    {
+      slug: 'regions',
+      collection: 'regions',
+      totalItems: 3,
+      requiresPagination: false,
+      dependencies: ['managers'],
+      naturalKey: 'mapboxId',
+    },
+    {
+      slug: 'forms',
+      collection: 'forms',
+      totalItems: 1,
+      requiresPagination: false,
+      dependencies: ['managers'],
+      naturalKey: 'title',
+    },
+    {
+      slug: 'events',
+      collection: 'events',
+      totalItems: 2,
+      requiresPagination: false,
+      dependencies: ['managers', 'regions'],
+      naturalKey: 'title',
+    },
+    {
+      slug: 'users',
+      collection: 'users',
+      totalItems: 6,
+      requiresPagination: false,
+      dependencies: [],
+      naturalKey: 'email',
+    },
+    {
+      slug: 'user-submissions',
+      collection: 'user-submissions',
+      // ⚠ The one floor a count cannot state. A registration can only REACH
+      // `pending` by a second update pass, and delivery runs on `pending` and
+      // `failed` rows — so the whole-table count would stay met while the
+      // status a reviewer most needs to see had been written away.
+      countWhere: {
+        and: [{ status: { equals: 'pending' } }, { type: { equals: 'registration' } }],
+      },
+      totalItems: 13,
+      requiresPagination: false,
+      dependencies: ['events', 'users', 'forms'],
+      naturalKey: 'uuid',
+    },
+  ],
   tags: [
     {
       slug: 'user-choices',

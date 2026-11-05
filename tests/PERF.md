@@ -115,7 +115,7 @@ reads, so keep those labels and cell shapes when you add a row.
 
 | Metric                                                                                          | Value                                                             |
 | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Files / tests                                                                                   | 239 / 3079                                                        |
+| Files / tests                                                                                   | 243 / 3112                                                        |
 | Whole lane, 3 workers (slowest session median, what the consumer docs quote)                    | **77.9 s**                                                        |
 | One spec alone, the typical edit (third session)                                                | 1.3 s                                                             |
 | Slowest per-edit selection timed on 4 cores, the 3 specs naming `@/payload.config` (2026-10-21) | **8.7 s**                                                         |
@@ -151,7 +151,7 @@ over the slowest cold run, not over the median**. Time it warm to compare agains
 this row.
 
 **The Format step (#1006) postdates the 174 s cold run.** `pnpm format:check`
-cost 15 s cold on 4 cores on 2026-10-20 (`89f6569`, 239 files), so a 4-core cold
+cost 15 s cold on 4 cores on 2026-10-20 (`89f6569`, 243 files), so a 4-core cold
 gate lands near 189 s — still inside the 210 s target. The two M3 Pro rows above
 are warm runs with the step in place; re-take the 4-core cold row with it before
 moving the target.

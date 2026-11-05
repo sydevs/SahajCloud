@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
+import { PREVIEW_ADMIN_ADDRESS } from '@/lib/preview/proxy'
 import { REQUEST_MAGIC_LINK_PATH } from '@/plugins/login/endpoints/requestMagicLink'
-import { PREVIEW_ADMIN_ADDRESS } from '@/plugins/previewAdmin'
 
 import { PREVIEW_ADMIN } from '../e2e/_helpers/preview'
 

@@ -1,9 +1,9 @@
+import { serverEnv } from '@/lib/env'
 import {
   isRailwayPreviewHost,
   previewNumberFromRailwayHost,
   previewOrigin,
 } from '@/lib/preview/proxy'
-import { serverEnv } from '@/lib/env'
 
 /**
  * This deployment's own public URL: its fixed preview address on a Railway PR

@@ -20,6 +20,22 @@
  */
 export const PREVIEW_PROXY_SECRET_HEADER = 'x-sahajcloud-preview-proxy'
 
+/**
+ * The admin account every preview provisions, spelled once.
+ *
+ * ⚠ **It is not a credential**, and that is what changed in #1081: a preview is
+ * reachable only behind Cloudflare Access and the gate above, so who may ask is
+ * settled before a request arrives. It used to be `PREVIEW_ADMIN_EMAIL`, a
+ * secret in Railway, in GitHub and in the loop's environment, which could not be
+ * taken away from one of them alone.
+ *
+ * Lowercase and untrimmed on purpose: Payload's `email` field lowercases and
+ * trims on every write, so any other spelling here would match no row. It lives
+ * in this leaf rather than beside the seeder so the seed CLI can read it without
+ * loading the Payload config.
+ */
+export const PREVIEW_ADMIN_ADDRESS = 'preview-admin@sydevelopers.com'
+
 /** The zone every per-PR preview address is created under. */
 export const PREVIEW_DOMAIN_SUFFIX = 'cloud-preview.sydevelopers.com'
 

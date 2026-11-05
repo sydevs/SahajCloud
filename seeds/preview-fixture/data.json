@@ -1,0 +1,192 @@
+{
+  "_meta": {
+    "purpose": "The made-up content CI fills every preview of this repo with, so a reviewer opens a change's pages on data instead of empty lists.",
+    "noRealPeople": "Every name is invented and every address ends in the reserved .invalid TLD, so a search for a surname or for gmail.com on a filled preview returns nothing.",
+    "inactiveFalse": "Both events carry a real weekly schedule rather than `inactive: true`, because an event with no schedule shows nothing on the map, the calendar or the listing — which are the pages most changes here are about.",
+    "timezone": "Europe/London is in both the full IANA set production configures and the narrow 47-zone default the integration lane's schema push bakes in (seeds/atlas/AGENTS.md)."
+  },
+  "managers": [
+    {
+      "key": "region",
+      "name": "Rina Devi",
+      "email": "region-manager@sahaj-preview.invalid",
+      "type": "manager"
+    },
+    {
+      "key": "event",
+      "name": "Ewan Park",
+      "email": "event-manager@sahaj-preview.invalid",
+      "type": "manager"
+    }
+  ],
+  "regions": [
+    {
+      "key": "country",
+      "level": "country",
+      "name": "Vasanta",
+      "slug": "vx",
+      "parent": null,
+      "latitude": 51.5,
+      "longitude": -0.12,
+      "radius": 400000
+    },
+    {
+      "key": "city",
+      "level": "city",
+      "name": "Harmony City",
+      "slug": "harmony-city",
+      "parent": "country",
+      "subtitle": "Vasanta",
+      "latitude": 51.507,
+      "longitude": -0.128,
+      "radius": 20000,
+      "managers": ["region"]
+    },
+    {
+      "key": "venue",
+      "level": "venue",
+      "name": "Lotus Community Hall",
+      "slug": "lotus-community-hall",
+      "parent": "city",
+      "subtitle": "14 Blossom Lane",
+      "latitude": 51.5105,
+      "longitude": -0.1301,
+      "radius": 200
+    }
+  ],
+  "form": {
+    "title": "Preview fixture contact form",
+    "recipient": "region"
+  },
+  "events": [
+    {
+      "key": "thursday",
+      "title": "Thursday Evening Meditation",
+      "manager": "event",
+      "region": "venue",
+      "description": "A weekly beginners' class at the Lotus Community Hall.",
+      "firstDate": "2026-01-01T18:30:00.000Z",
+      "weekdays": ["TH"],
+      "endTime": "19:30"
+    },
+    {
+      "key": "saturday",
+      "title": "Saturday Morning Meditation",
+      "manager": "region",
+      "region": "city",
+      "description": "An open session in Harmony City, every Saturday morning.",
+      "firstDate": "2026-01-03T10:00:00.000Z",
+      "weekdays": ["SA"],
+      "endTime": "11:00"
+    }
+  ],
+  "users": [
+    {
+      "key": "amara",
+      "name": "Amara Okonjo",
+      "email": "amara.okonjo@sahaj-preview.invalid"
+    },
+    {
+      "key": "bruno",
+      "name": "Bruno Salles",
+      "email": "bruno.salles@sahaj-preview.invalid"
+    },
+    {
+      "key": "chen",
+      "name": "Chen Wei",
+      "email": "chen.wei@sahaj-preview.invalid"
+    },
+    {
+      "key": "dana",
+      "name": "Dana Horvath",
+      "email": "dana.horvath@sahaj-preview.invalid"
+    },
+    {
+      "key": "elif",
+      "name": "Elif Yilmaz",
+      "email": "elif.yilmaz@sahaj-preview.invalid"
+    },
+    {
+      "key": "finn",
+      "name": "Finn Aaltonen",
+      "email": "finn.aaltonen@sahaj-preview.invalid"
+    }
+  ],
+  "registrations": [
+    {
+      "uuid": "preview-fixture-reg-1",
+      "event": "thursday",
+      "user": "amara",
+      "status": "accepted"
+    },
+    {
+      "uuid": "preview-fixture-reg-2",
+      "event": "thursday",
+      "user": "bruno",
+      "status": "accepted"
+    },
+    {
+      "uuid": "preview-fixture-reg-3",
+      "event": "thursday",
+      "user": "chen",
+      "status": "pending"
+    },
+    {
+      "uuid": "preview-fixture-reg-4",
+      "event": "thursday",
+      "user": "dana",
+      "status": "rejected"
+    },
+    {
+      "uuid": "preview-fixture-reg-5",
+      "event": "thursday",
+      "user": "elif",
+      "status": "spam"
+    },
+    {
+      "uuid": "preview-fixture-reg-6",
+      "event": "saturday",
+      "user": "finn",
+      "status": "accepted"
+    },
+    {
+      "uuid": "preview-fixture-reg-7",
+      "event": "saturday",
+      "user": "amara",
+      "status": "failed"
+    },
+    {
+      "uuid": "preview-fixture-reg-8",
+      "event": "saturday",
+      "user": "bruno",
+      "status": "failed"
+    }
+  ],
+  "contacts": [
+    {
+      "uuid": "preview-fixture-contact-1",
+      "status": "pending",
+      "message": "Is the Thursday class suitable for a complete beginner?"
+    },
+    {
+      "uuid": "preview-fixture-contact-2",
+      "status": "accepted",
+      "message": "Thank you for the session last week — where can I find more?"
+    },
+    {
+      "uuid": "preview-fixture-contact-3",
+      "status": "rejected",
+      "message": "Could you run a class in my office on a weekday afternoon?"
+    },
+    {
+      "uuid": "preview-fixture-contact-4",
+      "status": "spam",
+      "message": "Boost your ranking fast, reply for our unbeatable offer."
+    },
+    {
+      "uuid": "preview-fixture-contact-5",
+      "status": "failed",
+      "message": "Please add me to the Harmony City mailing list."
+    }
+  ]
+}

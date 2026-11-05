@@ -109,6 +109,32 @@ source of truth: adding a collection, a global, or a root endpoint there is the 
 > never been added, `/api/atlas/sitemap` was stamped but uncovered, and `/api/user-choices` (#804)
 > likewise — all three served `DYNAMIC` in production while this file said otherwise.
 
+### Previews are gated, at a fixed address per pull request
+
+Every Railway PR preview is reached at `pr-<n>.cloud-preview.sydevelopers.com`, a
+Workers Custom Domain in front of the Cloudflare Worker in `preview-proxy/`.
+Cloudflare Access runs **ahead** of that Worker, so only a `sydevs` member — or
+one of two named service tokens — gets through, and the address is known the
+moment the pull request exists.
+
+| Piece                                               | Where                                                                                        |
+| --------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| The Worker                                          | `preview-proxy/`, deployed by hand (`wrangler deploy --config preview-proxy/wrangler.jsonc`) |
+| The address, created on each push and swept nightly | `scripts/preview-domain.ts`, from `ci.yml` and `cleanup-preview-assets.yml`                  |
+| The app-side gate on the raw Railway host           | `src/middleware.ts`                                                                          |
+| The content a reviewer opens it on                  | `seeds/preview-fixture/`, filled by `ci.yml`                                                 |
+
+⚠ **Railway's own address for a preview is shut.** A browser `GET` there is 302'd
+to the fixed address and anything else is refused, because Access never sees a
+request that arrives on the Railway host. The one exception is `/api/health`,
+exempt by path: Railway's healthcheck arrives inside Railway as
+`Host: healthcheck.railway.app` and never traverses Cloudflare, so a host-only
+gate would make every preview undeployable.
+
+⚠ **Two per-zone ceilings the nightly sweep defends**: 100 Workers Custom Domains,
+and the Advanced Certificate each one generates — which a Custom Domain delete
+does **not** remove. That certificate is residue to clear by hand.
+
 **Live rule** (Cloudflare dashboard → Caching → Cache Rules) — enabled, named _"Client read edge
 cache (Vary: Authorization)"_, and the only rule in the zone's cache phase:
 

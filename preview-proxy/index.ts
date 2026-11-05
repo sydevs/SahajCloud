@@ -120,6 +120,8 @@ export async function handle(
   return response
 }
 
-export default {
+const worker = {
   fetch: (request: Request, env: Env): Promise<Response> => handle(request, env),
 }
+
+export default worker

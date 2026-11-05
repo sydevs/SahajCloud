@@ -2,6 +2,7 @@ import type { Payload } from 'payload'
 
 import { managersLogin } from '@/collections/Managers/login'
 import { railwayEnvironmentName } from '@/lib/env/deploymentEnvironment'
+import { PREVIEW_ADMIN_ADDRESS } from '@/lib/preview/proxy'
 import type { LoginCollectionConfig } from '@/plugins/login'
 import { isProductionDeployment } from '@/plugins/storage/previewIsolation'
 
@@ -12,18 +13,11 @@ import { isProductionDeployment } from '@/plugins/storage/previewIsolation'
  * ⚠ **The address is no longer a credential**, and that is the whole of what
  * changed: a preview is reachable only through Cloudflare Access and the
  * shared-secret gate (`src/middleware.ts`), so who may ask is settled before a
- * request arrives. It is a committed constant for that reason — one spelling
- * for the account the seeder provisions and the one CI's fill signs in as, and
- * nothing to set per environment.
+ * request arrives. It is a committed constant for that reason
+ * (`PREVIEW_ADMIN_ADDRESS`, in `@/lib/preview/proxy` so the seed CLI can read
+ * it too) — one spelling for the account the seeder provisions and the one CI's
+ * fill signs in as, and nothing to set per environment.
  */
-
-/**
- * The provisioned admin, spelled once.
- *
- * Lowercase and untrimmed on purpose: Payload's `email` field lowercases and
- * trims on every write, so any other spelling here would match no row.
- */
-export const PREVIEW_ADMIN_ADDRESS = 'preview-admin@sydevelopers.com'
 
 /**
  * What the gate reads. Passed in rather than read from `process.env`, so the
