@@ -19,8 +19,8 @@ export type ProjectUser = VirtualRoleUser & {
 /**
  * The projects a manager may work in: the projects of their stored roles, plus
  * the projects of the roles their listings derive — Sahaj Atlas for anyone a
- * region or an event is assigned to, who edits it without holding a stored
- * role, and whose home is the Atlas one.
+ * region or an event is assigned to, and We Meditate Web for anyone listed on
+ * a page, neither of whom needs a stored role to edit it.
  */
 export function getManagerProjects(user: ProjectUser): ProjectSlug[] {
   return [

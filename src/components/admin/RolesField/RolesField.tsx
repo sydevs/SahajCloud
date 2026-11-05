@@ -41,7 +41,8 @@ const derivedChipClassNames = {
  * same exported `ReactSelect` and field primitives instead, and `withCondition`,
  * which a custom field owes itself or its `admin.condition` is ignored.
  *
- * The derived roles are read off the saved document's region and event joins —
+ * The derived roles are read off the saved document's page, region and event
+ * joins —
  * the source `virtualRoles` reads on the server — and never enter the field's
  * value: `storedRoles` strips them from every change.
  */

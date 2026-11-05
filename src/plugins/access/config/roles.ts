@@ -65,10 +65,25 @@ const ROLES = {
   },
   // --- Derived manager roles (never stored) ---
   //
-  // Both are `virtual`: nobody assigns them, `virtualRoles` resolves them from
-  // the `managedRegions` / `managedEvents` joins on every request, and the
-  // listing is therefore the only record of who holds one. Removing someone
-  // from a region or an event withdraws the role on their next request.
+  // Each is `virtual`: nobody assigns them, `virtualRoles` resolves them from
+  // the `managedPages` / `managedRegions` / `managedEvents` joins on every
+  // request, and the listing is therefore the only record of who holds one.
+  // Removing someone from a page, a region or an event withdraws the role on
+  // their next request.
+  'page-editor': {
+    label: 'Page Editor',
+    description: 'Edits the We Meditate pages they are assigned to',
+    project: 'wemeditate-web' as const,
+    virtual: { join: 'managedPages' as const },
+    // No `pages` grant: a role grant is collection-wide, and the listed pages
+    // already reach them through document-level access (documentManagers.ts),
+    // which is exactly the scope. The role adds the project — its sidebar and
+    // implicit read — and the media uploads a page edit needs.
+    permissions: {
+      images: ['create'] as PermissionLevel[],
+      files: ['create'] as PermissionLevel[],
+    },
+  },
   'atlas-region-manager': {
     label: 'Atlas Region Manager',
     description: 'Manages events and regions within their own regions for Sahaj Atlas',
@@ -246,7 +261,7 @@ export function getRoleOptions(allowedRoles: InternalRoleSlug[]) {
     if (virtualJoinOf(roleSlug) !== undefined) {
       throw new Error(
         `Role "${roleSlug}" is derived from a listing and cannot be assigned. ` +
-          'Add or remove the manager on the region or event instead.',
+          'Add or remove the manager on the page, region or event instead.',
       )
     }
     return { label: roleConfig.label, value: roleSlug }
@@ -260,9 +275,9 @@ function virtualJoinOf(role: InternalRoleSlug): keyof VirtualRoleUser | undefine
 }
 
 /**
- * The Atlas roles a manager holds by being listed, rather than by assignment.
+ * The roles a manager holds by being listed, rather than by assignment.
  *
- * Being named on a region or an event *is* the role, so there is nothing to
+ * Being named on a page, a region or an event *is* the role, so there is nothing to
  * keep in step: the grant appears on the request after the listing is saved
  * and is gone from the next request after it is removed. Which join each role
  * is read off is declared beside the role, so adding one is a table edit.

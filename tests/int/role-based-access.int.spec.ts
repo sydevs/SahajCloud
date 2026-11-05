@@ -12,7 +12,7 @@ import { mintLivePreviewToken } from '@/lib/livePreview/token'
 import { PREVIEW_SECRET_HEADER, resolveLivePreviewHook } from '@/lib/utilities/previewSecret'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Event, Meditation, Region } from '@/payload-types'
-import { bypassPermissions, hasAnyPermission, hasPermission } from '@/plugins/access'
+import { bypassPermissions, hasAnyPermission, hasPermission, virtualRoles } from '@/plugins/access'
 import { PROPOSAL_REGION_PATHS } from '@/plugins/access/accessConfigs'
 import { filterAvailableLocales } from '@/plugins/access/filterAvailableLocales'
 import { isLocaleScopedCollection } from '@/plugins/access/localeScopedWrites'
@@ -372,6 +372,86 @@ describe('Role-Based Access Control', () => {
             overrideAccess: false,
           }),
         ).rejects.toThrow()
+      })
+    })
+
+    describe('Pages — the derived `page-editor` role', () => {
+      // `authUser`, not the create response: the role is read off the
+      // `managedPages` join, which only a re-read carries.
+      it('reads the web project but updates only the pages listing them', async () => {
+        const created = await testData.createManager(payload, {
+          name: 'Derived Page Editor',
+          roles: [],
+        })
+        const mine = await testData.createPage(payload, {
+          title: 'Derived Mine',
+          managers: [created.id],
+        })
+        const other = await testData.createPage(payload, { title: 'Derived Other' })
+        const editor = await testData.authUser(payload, created)
+        expect(virtualRoles(editor)).toEqual(['page-editor'])
+
+        // Project membership is implicit read of every page in it.
+        const read = await payload.findByID({
+          collection: 'pages',
+          id: other.id,
+          user: editor,
+          overrideAccess: false,
+        })
+        expect(read.id).toBe(other.id)
+
+        const updated = await payload.update({
+          collection: 'pages',
+          id: mine.id,
+          data: { title: 'Derived Mine Edited' },
+          user: editor,
+          overrideAccess: false,
+        })
+        expect(updated.title).toBe('Derived Mine Edited')
+
+        await expect(
+          payload.update({
+            collection: 'pages',
+            id: other.id,
+            data: { title: 'Should Not Save' },
+            user: editor,
+            overrideAccess: false,
+          }),
+        ).rejects.toThrow()
+      })
+
+      it('cannot list itself, or anyone else, on a page', async () => {
+        // The field-level lock: writing `Pages.managers` hands out the role.
+        const created = await testData.createManager(payload, { name: 'Self Lister', roles: [] })
+        const outsider = await testData.createManager(payload, { name: 'Hopeful', roles: [] })
+        const page = await testData.createPage(payload, {
+          title: 'Locked Editors',
+          managers: [created.id],
+        })
+        const editor = await testData.authUser(payload, created)
+
+        const saved = await payload.update({
+          collection: 'pages',
+          id: page.id,
+          data: { managers: [created.id, outsider.id] },
+          user: editor,
+          overrideAccess: false,
+          depth: 0,
+        })
+        expect(saved.managers).toEqual([created.id])
+      })
+
+      it('offers English alone, though pages are localized', async () => {
+        // A deliberate choice: a page assignment names no language, so another
+        // locale comes from a stored role (`filterAvailableLocales`).
+        const created = await testData.createManager(payload, { name: 'Page Locales', roles: {} })
+        await testData.createPage(payload, { title: 'Locale Page', managers: [created.id] })
+        const editor = await testData.authUser(payload, created)
+        const offered = filterAvailableLocales({
+          locales: payload.config.localization ? payload.config.localization.locales : [],
+          req: { user: editor } as unknown as PayloadRequest,
+        })
+        expect(offered.map((locale) => locale.code)).toEqual(['en'])
       })
     })
 

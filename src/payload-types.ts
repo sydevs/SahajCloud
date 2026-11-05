@@ -763,6 +763,7 @@ export type RoleSlug =
   | 'meditations-editor'
   | 'path-editor'
   | 'web-translator'
+  | 'page-editor'
   | 'atlas-region-manager'
   | 'atlas-event-manager'
   | 'wemeditate-web-client'

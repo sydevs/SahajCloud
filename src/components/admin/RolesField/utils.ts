@@ -1,8 +1,8 @@
 import type { RoleSlug } from '@/payload-types'
 
 /**
- * One chip in the Roles select. `derived` marks a role read off a region or
- * event listing: it is shown beside the stored roles, but never stored.
+ * One chip in the Roles select. `derived` marks a role read off a page, region
+ * or event listing: it is shown beside the stored roles, but never stored.
  */
 export type RoleChip = { derived: boolean; label: string; value: RoleSlug }
 
@@ -49,7 +49,7 @@ export function derivedRolesNote(labels: readonly string[]): string | null {
   const [verb, pronoun, applies] =
     labels.length === 1 ? ['is', 'it', 'applies'] : ['are', 'they', 'apply']
   return (
-    `${named} ${verb} derived from this manager's region and event listings, so ${pronoun} ` +
+    `${named} ${verb} derived from this manager's page, region and event listings, so ${pronoun} ` +
     `${applies} in every locale and can't be removed here. Edit the listing instead.`
   )
 }

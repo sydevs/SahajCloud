@@ -120,8 +120,8 @@ export function hasPermission(
 }
 
 /**
- * Every role this user holds for the scope — the stored ones, plus the Atlas
- * roles their region and event listings derive (`virtualRoles`).
+ * Every role this user holds for the scope — the stored ones, plus the roles
+ * their page, region and event listings derive (`virtualRoles`).
  *
  * ⚠ `Clients.roles` is deliberately NOT localized, so a client's roles are a flat
  * array and `scope` never applies to them. Everything below concerns managers.

@@ -59,6 +59,10 @@ describe('resolveProject', () => {
       'sahaj-atlas',
     ])
     expect(getManagerProjects({ ...assignee, managedEvents: { docs: [] } })).toEqual([])
+    // A listed page reaches We Meditate Web the same way.
+    expect(getManagerProjects({ type: 'manager', roles: [], managedPages: { docs: [5] } })).toEqual(
+      ['wemeditate-web'],
+    )
     // A stored role's project is unioned with the joins', not replaced by it.
     expect(getManagerProjects({ ...regionManager, roles: ['web-translator'] })).toEqual([
       'wemeditate-web',

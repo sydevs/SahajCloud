@@ -101,8 +101,8 @@ export const Managers: CollectionConfig = {
               type: 'select',
               hasMany: true,
               localized: true,
-              // The Atlas roles are deliberately absent: each is derived from a
-              // region or event listing, and `getRoleOptions` refuses one here.
+              // The derived roles are deliberately absent: each is read off a
+              // page, region or event listing, and `getRoleOptions` refuses one here.
               // `RolesField` still shows a held one, as a chip nothing removes.
               options: getRoleOptions(['meditations-editor', 'path-editor', 'web-translator']),
               admin: {

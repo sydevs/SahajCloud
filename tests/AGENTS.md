@@ -152,8 +152,8 @@ can pass. `select: {}` is **not** equivalent — the client gate rejects an
 empty select with a 400.
 
 ⚠ **`testData.createManager`'s result is not an authenticated user.** It is the
-create response, so its `managedRegions` and `managedEvents` joins are empty —
-and the Atlas roles are derived from exactly those, so a manager listed on a
+create response, so its `managedPages`, `managedRegions` and `managedEvents` joins are empty —
+and the derived roles are read off exactly those, so a manager listed on a
 region _after_ the fixture was built holds no role as far as that object is
 concerned, and the case passes for the wrong reason. `testData.authUser(payload,
 manager)` re-reads them the way Payload's JWT strategy does. Use it whenever a

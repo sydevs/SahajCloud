@@ -1021,7 +1021,7 @@ export const testData = {
    * Re-read a manager as an authenticated request carries them.
    *
    * ⚠ **A `createManager` result is not an authenticated user.** It is the
-   * create response, so its `managedRegions` and `managedEvents` joins are
+   * create response, so its `managedPages`, `managedRegions` and `managedEvents` joins are
    * empty — a region or event listed afterwards is invisible to it, and the
    * Atlas roles those joins derive would silently not apply. Payload's JWT
    * strategy loads the user with `findByID` and no `joins: false`

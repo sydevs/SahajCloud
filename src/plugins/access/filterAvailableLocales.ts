@@ -67,8 +67,11 @@ export const filterAvailableLocales = ({ locales, req }: FilterAvailableLocalesA
   // though it is held in every one. Nothing either Atlas role grants carries a
   // localized field — `regions` and `events` declare none, and an event's
   // `title` is one non-localized value — so a second language in this dropdown
-  // would open no content the first does not (#1068). A manager whose only
-  // role is derived therefore lands on English, below.
+  // would open no content the first does not (#1068). `page-editor` is not
+  // widened either, though `pages` is localized: a page assignment carries no
+  // language, so a listed editor works on English unless a stored role names
+  // another. A manager whose only role is derived therefore lands on English,
+  // below.
 
   // ⚠ Never return an empty array. `views/Root` redirects whenever `req.locale` is
   // not in this list and sends the manager to `localeCodes[0]`; when that is

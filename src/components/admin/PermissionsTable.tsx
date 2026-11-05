@@ -27,9 +27,9 @@ import type { PermissionLevel } from '@/plugins/access/types'
  * This component is rendered as afterInput for the roles field.
  * Works for both managers (localized roles) and clients (non-localized roles).
  *
- * ⚠ The field's value holds the stored roles only, so the derived Atlas roles
- * are merged in here too, or a manager's table would omit access they hold.
- * They are read off the saved document's region and event joins — the same
+ * ⚠ The field's value holds the stored roles only, so the derived roles are
+ * merged in here too, or a manager's table would omit access they hold.
+ * They are read off the saved document's page, region and event joins — the same
  * source `virtualRoles` reads on the server, and the chips `RolesField` shows.
  */
 export const PermissionsTable: FieldClientComponent = () => {

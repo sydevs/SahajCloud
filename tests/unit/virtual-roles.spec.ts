@@ -6,8 +6,8 @@ import { hasPermission } from '@/plugins/access/permissions'
 import type { TypedAuthUser } from '@/plugins/access/types'
 
 /**
- * The Atlas roles are derived from the `managedRegions` / `managedEvents`
- * joins, so nothing stores them and nothing can assign them.
+ * The derived roles are read off the `managedPages` / `managedRegions` /
+ * `managedEvents` joins, so nothing stores them and nothing can assign them.
  *
  * ⚠ **The fixtures below carry `roles: {}`** — an empty per-locale record, the
  * shape `hydrateLocalizedRoles` produces for a manager with no stored role —
@@ -30,6 +30,7 @@ const manager = (overrides: Partial<TypedAuthUser> = {}): TypedAuthUser =>
 
 const listedOnRegion = manager({ managedRegions: { docs: [3] } })
 const assignedAnEvent = manager({ managedEvents: { docs: [9] } })
+const listedOnPage = manager({ managedPages: { docs: [5] } })
 
 /**
  * ⚠ `locale` is passed through, never defaulted. A default parameter would
@@ -49,6 +50,8 @@ describe('virtualRoles', () => {
     expect(virtualRoles({ managedRegions: { docs: [] }, managedEvents: {} })).toEqual([])
     expect(virtualRoles({ managedRegions: { docs: [3] } })).toEqual(['atlas-region-manager'])
     expect(virtualRoles({ managedEvents: { docs: [9] } })).toEqual(['atlas-event-manager'])
+    expect(virtualRoles({ managedPages: { docs: [5] } })).toEqual(['page-editor'])
+    expect(virtualRoles({ managedPages: { docs: [] } })).toEqual([])
     expect(virtualRoles({ managedRegions: { docs: [3] }, managedEvents: { docs: [9] } })).toEqual([
       'atlas-region-manager',
       'atlas-event-manager',
@@ -60,6 +63,7 @@ describe('getRoleOptions', () => {
   it('refuses a derived role, so no select can offer one', () => {
     expect(() => getRoleOptions(['atlas-region-manager'])).toThrow(/cannot be assigned/)
     expect(() => getRoleOptions(['atlas-event-manager'])).toThrow(/cannot be assigned/)
+    expect(() => getRoleOptions(['page-editor'])).toThrow(/cannot be assigned/)
     expect(getRoleOptions(['web-translator'])).toEqual([
       { label: 'Web Translator', value: 'web-translator' },
     ])
@@ -112,6 +116,18 @@ describe('a derived role in hasPermission', () => {
     // restricted, so with no explicit grant nothing but an admin reaches it.
     expect(may(listedOnRegion, 'users', 'read', 'en')).toBe(false)
     expect(may(assignedAnEvent, 'users', 'read', 'en')).toBe(false)
+  })
+
+  it('gives a page editor media uploads and the web project, but no page grant', () => {
+    expect(may(listedOnPage, 'images', 'create', 'en')).toBe(true)
+    expect(may(listedOnPage, 'files', 'create', 'en')).toBe(true)
+    expect(may(listedOnPage, 'pages', 'read', 'en')).toBe(true)
+    // Their own pages reach them through document-level access, which this
+    // collection-wide check does not consult — so a grant here would be every page.
+    expect(may(listedOnPage, 'pages', 'update', 'en')).toBe(false)
+    expect(may(listedOnPage, 'pages', 'create', 'en')).toBe(false)
+    expect(may(listedOnPage, 'meditations', 'update', 'en')).toBe(false)
+    expect(may(listedOnPage, 'events', 'read', 'en')).toBe(false)
   })
 
   it('reaches the Atlas project implicitly, as a stored role would', () => {
