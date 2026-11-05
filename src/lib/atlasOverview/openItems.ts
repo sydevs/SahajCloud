@@ -30,11 +30,11 @@ import {
   regionsWithNoManagerAbove,
   scopeRegionIds,
 } from './scope'
+import type { OpenItemFilter } from './filters'
 import {
   openItem,
   type OpenItem,
   type OpenItemEvent,
-  type OpenItemFilter,
   openItemFilters,
   type OpenItemRow,
   overviewProgress,
