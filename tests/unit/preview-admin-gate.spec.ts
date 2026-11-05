@@ -14,10 +14,11 @@ import { managersSignInDirectly } from '@/plugins/previewAdmin'
  * integration lane's database — is entirely this predicate. Each case below is
  * a place it must not hold.
  *
- * ⚠ **The address arm is gone on purpose.** The gate used to require
- * `PREVIEW_ADMIN_EMAIL`, because the address was the credential. A preview is
- * now reachable only through Cloudflare Access and the proxy gate, so the
- * environment alone decides and the account's address is a committed constant.
+ * ⚠ **The address arm is gone on purpose.** The gate used to require the
+ * address as an environment variable, because the address was the credential. A
+ * preview is now reachable only through Cloudflare Access and the proxy gate, so
+ * the environment alone decides and the account's address is a committed
+ * constant.
  */
 describe('managersSignInDirectly', () => {
   const preview = { environmentName: 'pr-662', isProduction: false }

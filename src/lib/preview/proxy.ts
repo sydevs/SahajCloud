@@ -25,9 +25,9 @@ export const PREVIEW_PROXY_SECRET_HEADER = 'x-sahajcloud-preview-proxy'
  *
  * ⚠ **It is not a credential**, and that is what changed in #1081: a preview is
  * reachable only behind Cloudflare Access and the gate above, so who may ask is
- * settled before a request arrives. It used to be `PREVIEW_ADMIN_EMAIL`, a
- * secret in Railway, in GitHub and in the loop's environment, which could not be
- * taken away from one of them alone.
+ * settled before a request arrives. It used to be an environment variable held
+ * as a secret in Railway, in GitHub and in the loop's own settings at once,
+ * which could not be taken away from one of them alone.
  *
  * Lowercase and untrimmed on purpose: Payload's `email` field lowercases and
  * trims on every write, so any other spelling here would match no row. It lives
