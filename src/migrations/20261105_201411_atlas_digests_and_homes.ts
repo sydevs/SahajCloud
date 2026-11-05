@@ -19,13 +19,17 @@ import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
  *    is what they were before an admin agreed.
  * 3. **Preferences are rewritten, not just re-defaulted.** The column DEFAULT
  *    above reaches new rows only, so every existing manager keeps whatever
- *    they chose — and two of those choices no longer exist. 'Daily Summary'
+ *    they chose — and three of those spellings are gone. 'Daily Summary'
  *    becomes 'Daily' and 'Weekly Summary' becomes 'Weekly', so a manager on a
- *    summary cadence stays on it; `regional_summary` is dropped, because
- *    #1070 replaced it with two rows Atlas never asked about, and
- *    `notificationFrequency` resolves both from their own defaults. The
+ *    summary cadence stays on it; `regional_summary` becomes `statistics`,
+ *    which is the row #1070 gave its content to. Carrying the value rather
+ *    than dropping the key is what keeps an opt-out an opt-out: the two rows
+ *    offer the same `['Monthly', 'Never']` pair, so every value a manager
+ *    could have chosen is one `statistics` accepts — anything else is
+ *    off-contract already and is dropped rather than carried, because a pace
+ *    the row never offered would mail on a cadence nobody picked. The
  *    precedent is `20260928_051738_add_manager_invitation_queue.ts`.
- * 4. **`down` puts all three back**, so the chain round-trips — and drops the
+ * 4. **`down` puts all four back**, so the chain round-trips — and drops the
  *    two `DROP CONSTRAINT` statements the generator emits for FKs the
  *    `DROP TABLE … CASCADE` above has already taken. It emits those for every
  *    new collection with a locked-documents relationship.
@@ -96,13 +100,21 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   ALTER TABLE "managers" DROP COLUMN "last_registration_digest_sent_at";`)
 
   // The DEFAULT above reaches new rows only, so every existing manager keeps
-  // the cadence they chose — and two of those spellings are gone. Renaming the
-  // value rather than clearing the key is what keeps a manager on 'Weekly
-  // Summary' on 'Weekly' instead of silently back on the default.
+  // the cadence they chose — and three of those spellings are gone. Renaming
+  // the value rather than clearing the key is what keeps a manager on 'Weekly
+  // Summary' on 'Weekly' instead of silently back on the default, and a manager
+  // who muted regional summaries muted rather than back on Monthly.
   await db.execute(sql`
   UPDATE "managers"
   SET "notification_preferences" = jsonb_strip_nulls(
     ("notification_preferences" - 'regional_summary')
+    || CASE "notification_preferences" -> 'regional_summary' ->> 'frequency'
+      WHEN 'Monthly' THEN
+        jsonb_build_object('statistics', "notification_preferences" -> 'regional_summary')
+      WHEN 'Never' THEN
+        jsonb_build_object('statistics', "notification_preferences" -> 'regional_summary')
+      ELSE '{}'::jsonb
+    END
     || jsonb_build_object(
       'event_registration',
       CASE "notification_preferences" -> 'event_registration' ->> 'frequency'
@@ -164,13 +176,25 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   ALTER TABLE "payload_locked_documents_rels" DROP COLUMN "registration_refusals_id";
   DROP TYPE "public"."enum_registration_refusals_stage";`)
 
-  // The three rows #1070 added have no earlier spelling, so they are simply
-  // dropped; the two renamed cadences go back to the names the old column
-  // DEFAULT above names.
+  // `statistics` carries what `regional_summary` chose, so it goes back under
+  // that key; the other three rows #1070 added have no earlier spelling and are
+  // simply dropped.
+  //
+  // ⚠ **Both branches are conditional, and `jsonb_strip_nulls` wraps the lot**,
+  // because `jsonb_build_object` on an absent key writes a literal `null` rather
+  // than nothing. Unconditional, this planted `regional_summary` on a manager
+  // who never held one and `"event_registration": null` on every manager
+  // without that row — measured against a throwaway Postgres, which is also how
+  // the round trip above is known to be lossless.
   await db.execute(sql`
   UPDATE "managers"
-  SET "notification_preferences" =
+  SET "notification_preferences" = jsonb_strip_nulls(
     ("notification_preferences" - 'new_proposals' - 'open_items' - 'refused_signups' - 'statistics')
+    || CASE
+      WHEN "notification_preferences" ? 'statistics' THEN
+        jsonb_build_object('regional_summary', "notification_preferences" -> 'statistics')
+      ELSE '{}'::jsonb
+    END
     || jsonb_build_object(
       'event_registration',
       CASE "notification_preferences" -> 'event_registration' ->> 'frequency'
@@ -183,6 +207,7 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
         ELSE "notification_preferences" -> 'event_registration'
       END
     )
+  )
   WHERE "notification_preferences" IS NOT NULL
     AND jsonb_typeof("notification_preferences") = 'object';`)
 }
