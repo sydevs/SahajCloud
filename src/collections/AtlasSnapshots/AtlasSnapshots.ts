@@ -72,14 +72,19 @@ export const AtlasSnapshots: CollectionConfig = {
     jsonField({
       name: 'counts',
       schemaTitle: 'AtlasSnapshotCounts',
-      // Closed value, open keys: a region id is a number nothing can enumerate,
-      // and a stage is a name this schema can. Written only by the nightly
-      // task, so the value shape is safe to close — see `src/collections/AGENTS.md`.
+      // ⚠ **Open keys at both levels, and the inner one is not a mistake.**
+      // `z.record(z.enum(VERIFICATION_STAGES), …)` would be exhaustive — Zod
+      // emits every member as `required`, so a day on which no listing was
+      // `denied` fails validation. A region holds only the stages it has rows
+      // for, and the stage names are documented rather than enumerated.
       schema: z.record(
         z.string().describe('A region id.'),
         z
-          .record(z.enum(VERIFICATION_STAGES), z.number())
-          .describe("Events in that region's own node, by verification stage."),
+          .record(z.string(), z.number())
+          .describe(
+            "Events in that region's own node, keyed by verification stage " +
+              `(${VERIFICATION_STAGES.join(', ')}).`,
+          ),
       ),
       admin: { readOnly: true },
     }),

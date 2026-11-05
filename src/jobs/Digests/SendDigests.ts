@@ -116,7 +116,9 @@ export const SendDigests: TaskConfig<'sendDigests'> = {
             } else {
               result.quiet += 1
             }
-            await advanceWatermarks({
+            // Assigned back, so the next role in this loop merges into the
+            // marks the last one wrote rather than over them.
+            manager.digestWatermarks = await advanceWatermarks({
               keys: built.advance,
               manager,
               payload,

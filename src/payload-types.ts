@@ -4241,7 +4241,7 @@ export interface AtlasSnapshot {
 }
 export interface AtlasSnapshotCounts {
   /**
-   * Events in that region's own node, by verification stage.
+   * Events in that region's own node, keyed by verification stage (unverified, denied, verified, reminded, escalated, urgent, expired, finished).
    */
   [k: string]: {
     [k: string]: number;

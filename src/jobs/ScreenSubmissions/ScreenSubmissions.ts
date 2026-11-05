@@ -29,11 +29,13 @@ import { isScreeningResult, VERDICT_NOTES } from './verdicts'
  * the disposable-domain list, the URL scan over `submissionData`) through the
  * write-guard plugin. This adds what costs real time or a second query:
  *
- * 1. a disposable-list re-check plus an **MX lookup** on the sender's address
+ * 1. the **admin-set block** on the sender's Registrant record, which is the
+ *    lasting half of what `repeat_sender` does for 24 hours at a time;
+ * 2. a disposable-list re-check plus an **MX lookup** on the sender's address
  *    (fail-open on DNS trouble);
- * 2. **cross-intake sender history** — what this person has had refused lately,
+ * 3. **cross-intake sender history** — what this person has had refused lately,
  *    whatever intake they used, which is the whole point of one table;
- * 3. for a proposal alone, **content screening of the proposed patch**, which
+ * 4. for a proposal alone, **content screening of the proposed patch**, which
  *    no create-time scan reaches.
  *
  * ⚠ **A machine refusal is `spam`, never `rejected`.** `rejected` is a
@@ -42,10 +44,10 @@ import { isScreeningResult, VERDICT_NOTES } from './verdicts'
  *
  * ⚠ **A refused registration is flagged, never unwound.** It becomes
  * `spam`, which excludes it from reminders and fullness counts
- * (`src/lib/registrations/active.ts`), and nothing is undone: the row
- * stands, any email already sent stands, and no job ever recalls an email. A
- * `registration-refusals` row puts it in the admins' digest, which is how a
- * real mistake reaches someone who can unwind it by hand.
+ * (`src/lib/registrations/active.ts`), and nothing is undone: the row stands,
+ * any email already sent stands, and no job ever recalls an email. A
+ * `registration-refusals` row is what puts it on the admin's own home and in
+ * their digest, which is how a real mistake reaches someone who can unwind it.
  *
  * Known gap, filed separately: the duplicate-body check is scoped to one
  * sender, because the cross-sender version needs a queryable `bodyHash` column
@@ -103,8 +105,9 @@ export const ScreenSubmissions: TaskConfig<'screenSubmission'> = {
 
     const passed = verdict === 'ok'
 
-    const eventId = relationId(submission.event)
-    const refusedRegistration = !passed && submission.type === 'registration' && eventId != null
+    const refusedEventId = relationId(submission.event)
+    const refusedRegistration =
+      !passed && submission.type === 'registration' && refusedEventId != null
 
     // A refused registration is two writes, and they land together or not at
     // all. Payload gives a task no transaction of its own, so without this the
@@ -136,12 +139,13 @@ export const ScreenSubmissions: TaskConfig<'screenSubmission'> = {
       })
 
       // The visitor was told they were signed up, so this refusal reaches no
-      // one unless the admins' digest names it (sydevs/SahajAtlasWeb#259).
+      // one unless the admin's home and their digest name it
+      // (sydevs/SahajAtlasWeb#259).
       if (refusedRegistration) {
         await payload.create({
           collection: 'registration-refusals',
           data: {
-            event: eventId,
+            event: refusedEventId,
             stage: 'screening',
             reason: verdict,
             count: 1,
@@ -188,8 +192,8 @@ export const ScreenSubmissions: TaskConfig<'screenSubmission'> = {
 
 /**
  * Run the checks in cost order and return the first verdict that hits — the
- * address checks (one DNS lookup at worst) before the history read (a query),
- * so an undeliverable address never pays for it.
+ * block (a primary-key read), then the address checks (one DNS lookup at
+ * worst), then the history read (a query over this sender's day).
  */
 async function screen(args: {
   req: PayloadRequest
@@ -209,6 +213,20 @@ async function screen(args: {
     verdict,
     ...(diagnostic ? { diagnostic } : {}),
   })
+
+  const userId = relationId(submission.user)
+
+  if (userId != null) {
+    const sender = await req.payload.findByID({
+      collection: 'users',
+      id: userId,
+      select: { blockedAt: true },
+      depth: 0,
+      overrideAccess: true,
+      req,
+    })
+    if (sender.blockedAt != null) return settle('blocked_sender')
+  }
 
   // An anonymous submission is allowed — `senderEmail` is optional — so absence
   // skips these rather than failing them.
@@ -236,8 +254,6 @@ async function screen(args: {
     }
   }
 
-  const userId =
-    typeof submission.user === 'number' ? submission.user : (submission.user?.id ?? null)
   if (userId != null) {
     const history = await loadSenderHistory({
       req,

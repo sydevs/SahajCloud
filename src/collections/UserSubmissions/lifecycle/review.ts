@@ -43,21 +43,23 @@ const isSpamRefusal = (status: UserSubmission['status']) =>
   (SPAM_REVIEW_STATUSES as readonly string[]).includes(status)
 
 /**
- * Settling a spam refusal, which is an admin's call on **any** intake rather
- * than a reviewer's on a proposal.
+ * Settling a spam refusal — the move that is an admin's rather than a
+ * reviewer's.
  *
- * A `spam` row of any type is a machine refusal, so agreeing with it or
- * withdrawing it reads the same whichever intake it came in through — and a
- * registration is the one the admin home lists. Returns `null` for a move that
- * is not one of those two.
+ * ⚠ **Only the part the reviewer path cannot already answer.** Reopening a
+ * refused *proposal* has always been a reviewer's call and stays one, below:
+ * narrowing it to admins would take a reviewer's own false-positive recovery
+ * away. What is new here is confirming a refusal, and reopening one on an
+ * intake nobody reviews — a registration, which is what an admin's home lists.
  */
 function spamActionFor(
   from: UserSubmission['status'],
   to: UserSubmission['status'],
+  type: UserSubmission['type'],
 ): ReviewAction | null {
   if (!isSpamRefusal(from)) return null
   if (to === 'confirmed_spam' && from === 'spam') return 'confirm-spam'
-  if (to === 'pending') return 'reopen'
+  if (to === 'pending' && type !== 'proposal') return 'reopen'
   return null
 }
 
@@ -118,9 +120,9 @@ export function reviewMove(args: {
   }
 
   // Settling a spam refusal comes before the proposal gate, because it is the
-  // one decision every intake carries. Admins only: the strike it confirms, and
+  // one decision no reviewer makes. Admins only: the strike it confirms, and
   // the seat a released registration takes back, are map-wide consequences.
-  const spamAction = spamActionFor(from, to)
+  const spamAction = spamActionFor(from, to, type)
   if (spamAction) {
     if (!isAdminManager(req.user)) {
       return { kind: 'illegal', reason: 'Only an admin can settle a spam refusal.' }
