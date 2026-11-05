@@ -42,8 +42,14 @@ describe('the four platform choices', () => {
     expect(Object.keys(PLATFORM_LABELS)[0]).toBe('custom')
   })
 
-  it('offers exactly the four the ticket names', () => {
-    expect(Object.keys(PLATFORM_LABELS).sort()).toEqual(['custom', 'iframe', 'wix', 'wordpress'])
+  it('offers the five platforms', () => {
+    expect(Object.keys(PLATFORM_LABELS).sort()).toEqual([
+      'custom',
+      'iframe',
+      'squarespace',
+      'wix',
+      'wordpress',
+    ])
   })
 
   it('gives WordPress two sub-tabs, and the others none', () => {
@@ -288,6 +294,57 @@ describe('what each track prefills', () => {
   })
 })
 
+describe('Squarespace', () => {
+  const track = tracks.squarespace
+  const text = JSON.stringify(allSteps(track))
+
+  it('is one track, with no search listings to promise', () => {
+    expect(TRACKS_BY_PLATFORM.squarespace).toEqual(['squarespace'])
+    expect(track.searchListings).toBe(false)
+    expect(track.more).toBeUndefined()
+  })
+
+  it('names the plan that runs code, and offers the iframe track below it', () => {
+    expect(track.requires?.title).toMatch(/Core/)
+    expect(track.requires?.text).toMatch(/Public/)
+    expect(track.requires?.offerIframe).toMatch(/Iframe only/)
+  })
+
+  it('uses a Code Block with the plain snippet, since no page answers a sub-path', () => {
+    expect(text).toContain('Add Block')
+    expect(text).toContain('Mode to HTML')
+    const snippets = allSteps(track).flatMap(snippetsOf)
+    const embed = snippets.find((snippet) => snippet.label === 'Embed snippet')
+    expect(embed?.value).toContain('https://sahajatlas.com/auto.js?key=abc-123')
+    expect(embed?.value).not.toContain('routing=')
+  })
+
+  it('sets the page slug to the atlas address', () => {
+    const slug = allSteps(track)
+      .flatMap(snippetsOf)
+      .find((snippet) => snippet.label === 'URL slug')
+    expect(slug?.value).toBe('free-classes')
+  })
+
+  it('warns that the map does not show while logged in, and where to see it', () => {
+    expect(text).toMatch(/private window/)
+  })
+
+  it('tells a 7.0 site to turn off Ajax loading', () => {
+    const notice = track.steps.find((step) => step.id === 'snippet')?.notice
+    expect(notice?.text).toMatch(/Enable Ajax loading/)
+  })
+})
+
+describe('readAtlasAddress — a Squarespace slug', () => {
+  it('holds a Squarespace address to one lowercase word, naming Squarespace', () => {
+    const read = (input: string) => readAtlasAddress(input, { oneLevel: 'Squarespace' })
+    expect(read('https://site.org/classes').path).toBe('/classes')
+    expect(read('https://site.org/about/classes').problem).toMatch(/On Squarespace/)
+    expect(read('https://site.org/Classes').problem).toMatch(/lowercase/)
+  })
+})
+
 describe('stepForCheck', () => {
   const track = tracks.wix
 
@@ -321,7 +378,7 @@ describe('hostHints', () => {
     options: { trackId?: TrackId | null; allowed?: string[] } = {},
   ) =>
     hostHints({
-      address: readAtlasAddress(url, { wix: platform === 'wix' }),
+      address: readAtlasAddress(url, { oneLevel: platform === 'wix' ? 'Wix' : undefined }),
       platform,
       trackId: options.trackId ?? null,
       allowedDomains: options.allowed ?? [URL.parse(url)?.hostname ?? ''],
@@ -378,7 +435,8 @@ describe('hostHints', () => {
 })
 
 describe('readAtlasAddress', () => {
-  const read = (input: string, wix = false) => readAtlasAddress(input, { wix })
+  const read = (input: string, wix = false) =>
+    readAtlasAddress(input, { oneLevel: wix ? 'Wix' : undefined })
 
   it('takes the path out of a whole address, which is what a volunteer copies', () => {
     expect(read('https://www.sahajayoga.org.uk/classes')).toEqual({

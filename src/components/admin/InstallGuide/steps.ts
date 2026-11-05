@@ -36,10 +36,10 @@ import {
  */
 
 /** Which family of site this is. The volunteer's first and only real choice. */
-export type PlatformId = 'wordpress' | 'wix' | 'custom' | 'iframe'
+export type PlatformId = 'wordpress' | 'wix' | 'squarespace' | 'custom' | 'iframe'
 
 /** The sub-choice inside a platform, or the platform itself where there is none. */
-export type TrackId = 'wp-selfhosted' | 'wp-com' | 'wix' | 'custom' | 'iframe'
+export type TrackId = 'wp-selfhosted' | 'wp-com' | 'wix' | 'squarespace' | 'custom' | 'iframe'
 
 /**
  * Every step any track can have.
@@ -53,6 +53,7 @@ export type StepId =
   | 'set-up'
   | 'shortcode'
   | 'block'
+  | 'add-page'
   | 'add-element'
   | 'add-router'
   | 'paste-routers'
@@ -214,6 +215,7 @@ export const PLATFORM_LABELS: Record<PlatformId, string> = {
   custom: 'Custom site',
   wordpress: 'WordPress',
   wix: 'Wix',
+  squarespace: 'Squarespace',
   iframe: 'Iframe only',
 }
 
@@ -221,6 +223,7 @@ export const PLATFORM_RECOGNISE: Record<PlatformId, string> = {
   wordpress: 'Your admin address ends in /wp-admin, and the dashboard says “WordPress”.',
   wix: 'You edit the site in the Wix Editor or Wix Studio.',
   custom: 'A developer built the site, and can add a line of code to every page.',
+  squarespace: 'You edit the site at squarespace.com.',
   iframe: 'You can only paste an embed box, and cannot add code to the page itself.',
 }
 
@@ -229,6 +232,7 @@ export const TRACKS_BY_PLATFORM: Record<PlatformId, TrackId[]> = {
   wordpress: ['wp-selfhosted', 'wp-com'],
   wix: ['wix'],
   custom: ['custom'],
+  squarespace: ['squarespace'],
   iframe: ['iframe'],
 }
 
@@ -479,6 +483,58 @@ const WORDPRESS_MORE: FollowOn = {
 }
 
 /**
+ * The atlas on one Squarespace page, in a Code Block.
+ *
+ * ⚠ **No class gets its own address here, and nothing can change that.**
+ * Squarespace serves no page for an address it has no page for, prints no head
+ * tags per address, and drops the query string from its canonical — so the
+ * snippet carries no `routing=path` and the track has no search listings. From
+ * Squarespace's own help pages, 2026-11-05; untested on a real site.
+ *
+ * ⚠ **Logged in, Squarespace shows no map.** It swaps every script in a Code
+ * Block for a "disabled while you're logged in" notice, and its "Preview in safe
+ * mode" renders the code in a sandboxed frame the widget may not run in — so the
+ * step sends the volunteer to a private window instead.
+ */
+function squarespaceSteps(values: InstallValues, snippet: string): Step[] {
+  const slug = values.prefix
+  return [
+    {
+      id: 'add-page',
+      title: 'Add the atlas page',
+      unobservable: true,
+      actions: [
+        'In the Pages panel, click + next to Main Navigation, then + Add Blank → Page. Name it what visitors would look for, such as “Free classes”.',
+        {
+          text: 'Hover over the new page, click its gear icon, set the URL slug to this, and click Save:',
+          snippet: { label: 'URL slug', value: slug, kind: 'text' },
+        },
+      ],
+    },
+    {
+      id: 'snippet',
+      title: 'Add the map, and save',
+      notice: {
+        title: 'On an older 7.0 template?',
+        text: 'If the bottom of your Pages panel shows a template name rather than “Version 7.1”, open Site styles and turn off Enable Ajax loading — or the map appears only after a refresh.',
+      },
+      actions: [
+        'Click Edit at the top left. Hover over the page, click Add Block, and search for Code.',
+        'Click the Code block’s pencil icon. Set Mode to HTML, and leave Display Source off.',
+        {
+          text: 'Choose how tall the map should be, then paste this into the block:',
+          choice: 'embed-height',
+          snippet: { label: 'Embed snippet', value: snippet, kind: 'html' },
+        },
+        'Drag the block’s edges out to the full width of the section.',
+        'Click Exit, then Save. While you are logged in, Squarespace shows “Embedded scripts are disabled” instead of the map — open the page in a private window to see it.',
+        'If the site is not public yet, open Settings → Site availability and choose Public. The CMS cannot see a private or password-protected site.',
+      ],
+    },
+  ]
+}
+
+/**
  * Each track's own label.
  *
  * Kept beside the tracks rather than read off them, so the sub-tab row renders
@@ -489,6 +545,7 @@ export const TRACK_LABELS: Record<TrackId, string> = {
   'wp-selfhosted': 'Self-hosted',
   'wp-com': 'WordPress.com',
   wix: 'Wix',
+  squarespace: 'Squarespace',
   custom: 'Custom site',
   iframe: 'Iframe only',
 }
@@ -610,6 +667,26 @@ export function tracksFor(values: InstallValues): Record<TrackId, Track> {
           },
         ],
       },
+    },
+
+    squarespace: {
+      id: 'squarespace',
+      platform: 'squarespace',
+      label: TRACK_LABELS['squarespace'],
+      recognise: PLATFORM_RECOGNISE.squarespace,
+      searchListings: false,
+      requires: {
+        title: 'Requires Squarespace Core or higher',
+        text: 'The map’s code runs on Core, Plus and Advanced, and on older Business and Commerce plans — on a paid site set to Public.',
+        offerIframe: 'On Basic or Personal? Switch to Iframe only',
+      },
+      checks: {
+        noReport: 'snippet',
+        head: 'snippet',
+        body: 'snippet',
+        sitemap: 'snippet',
+      },
+      steps: squarespaceSteps(values, snippetPlain),
     },
 
     iframe: {
@@ -756,9 +833,9 @@ export interface AtlasAddress {
  * WordPress plain permalink is `/?p=42`. Anywhere else it is tracking noise
  * copied with the address.
  *
- * ⚠ **A Wix address is held to the router's rules** — one lowercase segment —
- * though step 3's ordinary page could live anywhere. Step 4 moves that page's
- * address to a router, and an address the router cannot take would strand it.
+ * ⚠ **A Wix or Squarespace address is one lowercase segment** (`oneLevel`). A
+ * Wix router prefix is exactly that, and a Squarespace URL slug takes no slash
+ * and no capital, so any other address could never be the page the steps build.
  *
  * ⚠ **On Wix the router prefix *is* this path, and must stay the claimed
  * mount's.** The route endpoint decides whether a page is self-canonical by
@@ -766,7 +843,16 @@ export interface AtlasAddress {
  * designated — so the tab prefills the address from `canonical.embed` rather
  * than offering a free choice.
  */
-export function readAtlasAddress(input: string, options: { wix: boolean }): AtlasAddress {
+export function readAtlasAddress(
+  input: string,
+  options: {
+    /**
+     * The platform whose address is one lowercase word after the domain — a Wix
+     * router prefix, a Squarespace URL slug — named for the message.
+     */
+    oneLevel?: string
+  } = {},
+): AtlasAddress {
   const trimmed = input.trim()
   const fail = (problem: string): AtlasAddress => ({
     path: null,
@@ -797,14 +883,17 @@ export function readAtlasAddress(input: string, options: { wix: boolean }): Atla
     )
   }
 
-  if (options.wix) {
+  const { oneLevel } = options
+  if (oneLevel) {
     if (segments.length !== 1) {
       return fail(
-        'On Wix, use a page one level down, like /classes — a Wix router cannot sit below another page.',
+        `On ${oneLevel}, use a page one level down, like /classes — it cannot sit below another page.`,
       )
     }
     if (!isValidWixPrefix(segments[0])) {
-      return fail('On Wix, use lowercase letters, numbers and hyphens only, like /free-classes.')
+      return fail(
+        `On ${oneLevel}, use lowercase letters, numbers and hyphens only, like /free-classes.`,
+      )
     }
   }
 

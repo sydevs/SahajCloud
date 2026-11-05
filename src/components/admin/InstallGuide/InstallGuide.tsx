@@ -116,7 +116,11 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
   const lastRead = useRef<string | null>(null)
 
   const address = useMemo(
-    () => readAtlasAddress(addressInput, { wix: platform === 'wix' }),
+    () =>
+      readAtlasAddress(addressInput, {
+        oneLevel:
+          platform === 'wix' || platform === 'squarespace' ? PLATFORM_LABELS[platform] : undefined,
+      }),
     [addressInput, platform],
   )
   const atlasPath = address.path
@@ -520,7 +524,7 @@ async function post<T>(url: string, body?: unknown): Promise<T | null> {
 
 /** What the address field asks for before anything is typed. */
 function addressHelp(platform: PlatformId): string {
-  if (platform === 'wix') {
+  if (platform === 'wix' || platform === 'squarespace') {
     return 'Paste the address the atlas page will have, such as https://yoursite.org/classes — one word after the domain, lowercase.'
   }
   return 'Paste the address of the page that will show the atlas, such as https://yoursite.org/classes.'
