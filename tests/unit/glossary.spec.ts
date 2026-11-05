@@ -5,14 +5,19 @@
  * Fixture pre-mortem: the cases below assume `glossary.json` is a flat array
  * of `{ heard, written, language }` whose `language` is a list of base
  * languages — `en`, never `en-AU` — and that every entry names `en` and none
- * names `ru`. Verified against
+ * names `ru`. The prompt cases assume one more: every entry names `pt` as well
+ * as `en`, so the two languages' prompts are the same string. Verified against
  * `src/collections/MeditationTranscripts/glossary.json` and
- * `src/lib/locales/index.ts`. The last `describe` asserts both rather than
- * trusting them.
+ * `src/lib/locales/index.ts`. The `glossary.json` `describe` asserts the shape
+ * rather than trusting it.
  */
 import { describe, expect, it } from 'vitest'
 
-import { applyGlossary, GLOSSARY } from '@/collections/MeditationTranscripts/glossary'
+import {
+  applyGlossary,
+  GLOSSARY,
+  glossaryPrompt,
+} from '@/collections/MeditationTranscripts/glossary'
 import { baseLanguage, LOCALES } from '@/lib/locales'
 
 describe('applyGlossary', () => {
@@ -26,6 +31,33 @@ describe('applyGlossary', () => {
     ['the swadhisthana', 'the Swadhisthana'],
   ])('rewrites %j to %j', (heard, written) => {
     expect(applyGlossary(heard, 'en')).toBe(written)
+  })
+
+  it.each([
+    ['at the muladhara', 'at the Mooladhara'],
+    ['the condalini rises', 'the Kundalini rises'],
+    ['the kundalinee rises', 'the Kundalini rises'],
+    ['the svadhisthana', 'the Swadhisthana'],
+    ['the ajna chakra', 'the Agnya chakra'],
+  ])('rewrites the IAST form %j to %j', (heard, written) => {
+    // What a request carrying no prompt wrote (#1084). The prompt makes these
+    // less likely; this pass is what guarantees they never reach a reader.
+    expect(applyGlossary(heard, 'en')).toBe(written)
+  })
+
+  it.each([
+    ['the manipura', 'the Manipura'],
+    ['the vishuddha', 'the Vishuddha'],
+  ])('capitalises the classical name %j without renaming it, giving %j', (heard, written) => {
+    // A narrator saying "Manipura" said Manipura, not Nabhi — a rename here
+    // would impose a terminology choice nobody made, as `anahat`/`anahata`
+    // already shows for a spelling.
+    expect(applyGlossary(heard, 'en')).toBe(written)
+    expect(applyGlossary(written, 'en')).toBe(written)
+  })
+
+  it('leaves the house form each classical name sits beside alone', () => {
+    expect(applyGlossary('Nabhi, Vishuddhi and Agnya', 'en')).toBe('Nabhi, Vishuddhi and Agnya')
   })
 
   it('leaves an already-correct form alone, so the pass is idempotent', () => {
@@ -151,6 +183,14 @@ describe('glossary.json', () => {
     }
   })
 
+  it('gives every chakra name #1084 reviewed a heard form', () => {
+    const heard = new Set(GLOSSARY.map((entry) => entry.heard))
+
+    for (const word of ['svadhisthana', 'manipura', 'anahata', 'vishuddha', 'ajna', 'sahasrara']) {
+      expect(heard.has(word), word).toBe(true)
+    }
+  })
+
   it('names each heard form once per language', () => {
     // Two entries claiming one language for the same heard word make the pass
     // depend on row order, which the alternation is built to avoid.
@@ -163,5 +203,50 @@ describe('glossary.json', () => {
         seen.add(key)
       }
     }
+  })
+})
+
+describe('glossaryPrompt', () => {
+  const english = glossaryPrompt('en')
+
+  it('names our own spellings, not the forms they correct', () => {
+    expect(english).toContain('Mooladhara')
+    expect(english).toContain('Kundalini')
+    expect(english).toContain('Sahasrara')
+    // The prompt tells the vendor what to write, so a heard form in it would
+    // ask for the misspelling this list exists to replace.
+    expect(english).not.toContain('muladhara')
+    expect(english).not.toContain('condalini')
+  })
+
+  it('names each spelling once, however many forms correct to it', () => {
+    // `kundalini`, `condalini` and `kundalinee` all write `Kundalini`.
+    expect(english?.match(/Kundalini/g)).toHaveLength(1)
+  })
+
+  it('carries today’s whole list, so nothing is silently cut', () => {
+    // The cap bounds a list that grows; it fires on nothing today. When this
+    // fails the list has outgrown the window and the cap dropped its tail —
+    // decide what to leave out rather than raising the cap.
+    for (const entry of GLOSSARY.filter((row) => row.language.includes('en'))) {
+      expect(english, entry.written).toContain(entry.written)
+    }
+  })
+
+  it('stays inside the prompt window', () => {
+    // 224 tokens at the two-characters-per-token floor `glossary.ts` states.
+    expect(english?.length).toBeLessThanOrEqual(448)
+  })
+
+  it('answers nothing for a language no entry claims', () => {
+    // Russian wants its own script, so there is no prompt to send — the same
+    // condition under which the pass is a no-op.
+    expect(glossaryPrompt('ru')).toBeUndefined()
+  })
+
+  it('answers a regional locale through its base language', () => {
+    // No entry names a region, so without the reduction both are undefined.
+    expect(glossaryPrompt('en-AU')).toBe(english)
+    expect(glossaryPrompt('pt-BR')).toBe(english)
   })
 })

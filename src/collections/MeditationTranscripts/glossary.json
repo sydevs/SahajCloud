@@ -5,6 +5,11 @@
     "language": ["en", "es", "de", "it", "fr", "ro", "cs", "pl", "pt", "tr", "hu", "nl"]
   },
   {
+    "heard": "muladhara",
+    "written": "Mooladhara",
+    "language": ["en", "es", "de", "it", "fr", "ro", "cs", "pl", "pt", "tr", "hu", "nl"]
+  },
+  {
     "heard": "swadhistan",
     "written": "Swadhistan",
     "language": ["en", "es", "de", "it", "fr", "ro", "cs", "pl", "pt", "tr", "hu", "nl"]
@@ -15,8 +20,18 @@
     "language": ["en", "es", "de", "it", "fr", "ro", "cs", "pl", "pt", "tr", "hu", "nl"]
   },
   {
+    "heard": "svadhisthana",
+    "written": "Swadhisthana",
+    "language": ["en", "es", "de", "it", "fr", "ro", "cs", "pl", "pt", "tr", "hu", "nl"]
+  },
+  {
     "heard": "nabhi",
     "written": "Nabhi",
+    "language": ["en", "es", "de", "it", "fr", "ro", "cs", "pl", "pt", "tr", "hu", "nl"]
+  },
+  {
+    "heard": "manipura",
+    "written": "Manipura",
     "language": ["en", "es", "de", "it", "fr", "ro", "cs", "pl", "pt", "tr", "hu", "nl"]
   },
   {
@@ -35,7 +50,17 @@
     "language": ["en", "es", "de", "it", "fr", "ro", "cs", "pl", "pt", "tr", "hu", "nl"]
   },
   {
+    "heard": "vishuddha",
+    "written": "Vishuddha",
+    "language": ["en", "es", "de", "it", "fr", "ro", "cs", "pl", "pt", "tr", "hu", "nl"]
+  },
+  {
     "heard": "agnya",
+    "written": "Agnya",
+    "language": ["en", "es", "de", "it", "fr", "ro", "cs", "pl", "pt", "tr", "hu", "nl"]
+  },
+  {
+    "heard": "ajna",
     "written": "Agnya",
     "language": ["en", "es", "de", "it", "fr", "ro", "cs", "pl", "pt", "tr", "hu", "nl"]
   },
@@ -46,6 +71,16 @@
   },
   {
     "heard": "kundalini",
+    "written": "Kundalini",
+    "language": ["en", "es", "de", "it", "fr", "ro", "cs", "pl", "pt", "tr", "hu", "nl"]
+  },
+  {
+    "heard": "condalini",
+    "written": "Kundalini",
+    "language": ["en", "es", "de", "it", "fr", "ro", "cs", "pl", "pt", "tr", "hu", "nl"]
+  },
+  {
+    "heard": "kundalinee",
     "written": "Kundalini",
     "language": ["en", "es", "de", "it", "fr", "ro", "cs", "pl", "pt", "tr", "hu", "nl"]
   },

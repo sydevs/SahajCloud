@@ -1,6 +1,7 @@
 /**
  * The one word list that decides how a Sahaja Yoga word is spelled in a
- * transcript, and the pure pass that applies it.
+ * transcript, the pure pass that applies it, and the same list as the nudge
+ * sent ahead of the vendor's own transcription.
  *
  * `glossary.json` beside this file is the list — plain data, no code around
  * it, so anyone with a GitHub account can propose a change (#897).
@@ -77,6 +78,41 @@ function buildPasses(): Map<BaseLanguage, Pass> {
  * 8). Word boundaries keep `fontanel` from matching inside `fontanelle`, which
  * is what makes the pass idempotent.
  */
+/**
+ * Roughly 224 tokens is Whisper's prompt window, and two characters per token
+ * is the floor for transliterated Sanskrit, which tokenises worse than English
+ * prose.
+ */
+const PROMPT_MAX_CHARS = 448
+
+/**
+ * The language's own spellings, as the `prompt` sent with a transcription
+ * request: the nudge that makes the vendor write our words our way in the
+ * first place.
+ *
+ * It does not replace the pass below — a prompt makes a right spelling likelier
+ * and guarantees nothing (#897, decision 3), and a request carrying none wrote
+ * `muladhara` and `condalini` (#1084). `undefined` for a language no entry
+ * claims, which is also the language that takes no pass.
+ *
+ * ⚠ **Nothing reports an overflow of that window.** So the list is cut here,
+ * in file order, rather than left to be cut at an end we cannot see.
+ * `tests/unit/glossary.spec.ts` pins that today's list is not cut at all.
+ */
+export function glossaryPrompt(language: LocaleCode): string | undefined {
+  const pass = PASSES.get(baseLanguage(language))
+  if (!pass) return undefined
+
+  let prompt = ''
+  // A `written` repeats whenever several heard forms correct to it.
+  for (const written of new Set(pass.written.values())) {
+    const next = prompt ? `${prompt}, ${written}` : written
+    if (next.length > PROMPT_MAX_CHARS) break
+    prompt = next
+  }
+  return prompt
+}
+
 export function applyGlossary(text: string, language: LocaleCode): string {
   const pass = PASSES.get(baseLanguage(language))
   if (!pass) return text
