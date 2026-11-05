@@ -841,28 +841,6 @@ const systemGroup = (form: Field | undefined): Field => ({
         },
       }),
     },
-    {
-      // What `resolveProposalRegion` matched `location` to. Closed: that hook is
-      // its only writer, since `systemFieldAccess` strips a client's own value.
-      ...jsonField({
-        name: 'regionHint',
-        schemaTitle: 'SubmissionRegionHint',
-        schema: z.strictObject({
-          country: z.int().optional().describe('The matched country region.'),
-          state: z.int().optional().describe('The matched state region.'),
-          anchorRegion: z
-            .int()
-            .optional()
-            .describe('The matched city or venue, kept after a reviewer changes `region`.'),
-        }),
-        access: systemFieldAccess,
-        admin: {
-          condition: (data) => data?.type === 'proposal',
-          readOnly: true,
-          description: 'Regions matched from the location (country / state / anchor).',
-        },
-      }),
-    },
     proposedField,
     {
       /**
@@ -872,7 +850,7 @@ const systemGroup = (form: Field | undefined): Field => ({
        *
        * ⚠ **A real indexed column, because the access layer queries it.**
        * `managerSubmissionScope` narrows a region manager's read to their owned
-       * subtree, and asking that of `regionHint` meant three
+       * subtree, and asking that of a JSON column meant three
        * `jsonb_path_exists` predicates per owned region id — `createJSONQuery`
        * inlines one OR'd sibling per value, so a country manager owning ~1,000
        * regions sent ~3,000 unindexable predicates and the read degraded to a

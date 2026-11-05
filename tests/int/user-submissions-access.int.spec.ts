@@ -49,10 +49,7 @@ describe('User submissions access', () => {
   let otherForm: Form
   let subscribeForm: Form
   /** Proposal rows, by where each one lands on the region tree. */
-  let proposals: Record<
-    'byRoutingRegion' | 'elsewhere' | 'inSubtree' | 'onAssignedEvent' | 'strandedHint',
-    number
-  >
+  let proposals: Record<'byRoutingRegion' | 'elsewhere' | 'inSubtree' | 'onAssignedEvent', number>
 
   const managerReq = (manager: AuthManager | Manager): PayloadRequest =>
     ({
@@ -209,10 +206,6 @@ describe('User submissions access', () => {
     proposals = {
       inSubtree: await proposal({ region: myCity.id }),
       byRoutingRegion: await proposal({ routingRegion: mine.id }),
-      // A row written before #1068 added the column: its routing region lives
-      // only in the JSON hint the access clause no longer queries. The
-      // migration backfills these, and until it runs one is admin-only.
-      strandedHint: await proposal({ regionHint: { country: mine.id } }),
       onAssignedEvent: await proposal({ event: assignedEvent.id }),
       elsewhere: await proposal({ region: nobodys.id }),
     }
@@ -300,15 +293,6 @@ describe('User submissions access', () => {
       expect(seen).not.toContain(proposals.inSubtree)
       expect(seen).not.toContain(proposals.byRoutingRegion)
       expect(seen).not.toContain(proposals.elsewhere)
-    })
-
-    it('no longer reaches a row routed only by the JSON hint', async () => {
-      // ⚠ The deliberate cutover in #1068, pinned so it is visible rather than
-      // discovered. `regionHint.country` was a queried path until the routing
-      // region became an indexed column; the migration backfills every row
-      // from the hint, so a stranded row means the backfill did not run.
-      const seen = (await readAs(recipient)).docs.map((doc) => doc.id)
-      expect(seen).not.toContain(proposals.strandedHint)
     })
 
     it('shows an event assignee the proposals on their own events alone', async () => {
@@ -478,8 +462,8 @@ describe('User submissions access', () => {
           context: {},
         } as unknown as PayloadRequest,
       })
-      // Two contact rows, five proposals, one registration, one subscription.
-      expect(docs).toHaveLength(9)
+      // Two contact rows, four proposals, one registration, one subscription.
+      expect(docs).toHaveLength(8)
       expect(new Set(docs.map((doc) => doc.type)).size).toBe(4)
     })
   })

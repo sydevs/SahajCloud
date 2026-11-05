@@ -1,7 +1,7 @@
 import type { CollectionBeforeValidateHook } from 'payload'
 
 import { isManualMapboxId } from '@/lib/mapbox/manualLocation'
-import type { Region, SubmissionLocation, SubmissionRegionHint } from '@/payload-types'
+import type { Region, SubmissionLocation } from '@/payload-types'
 
 /**
  * beforeValidate (create): place a new-event proposal on the region tree from
@@ -15,12 +15,6 @@ import type { Region, SubmissionLocation, SubmissionRegionHint } from '@/payload
  * does not have yet. A correction keeps its target's region. Every output
  * carries `systemFieldAccess`, which strips a client's own value before this
  * runs.
- *
- * ⚠ **`regionHint.state` and `.country` now have no reader.** They are still
- * written, and still declared, because the column is a closed `strictObject`:
- * dropping either key makes every row already carrying it fail validation on
- * its next save, the reviewer's Accept included. Retiring them is a migration
- * of its own.
  *
  * Read without `req`: a nested read joining the create's transaction can take
  * the create down with it.
@@ -56,19 +50,13 @@ export const resolveProposalRegion: CollectionBeforeValidateHook = async ({
   const first = (level: Region['level']) => docs.find((region) => region.level === level)?.id
 
   const anchorRegion = first('venue') ?? first('city')
-  const regionHint: SubmissionRegionHint = {
-    country: first('country'),
-    state: first('region'),
-    anchorRegion,
-  }
   // Deepest first: a venue or city beats the state above it, which beats the
   // country. One column, so the access clause and `deliverProposal` read an
   // answer rather than walking a chain.
-  const routingRegion = anchorRegion ?? regionHint.state ?? regionHint.country ?? null
+  const routingRegion = anchorRegion ?? first('region') ?? first('country') ?? null
   return {
     ...data,
     region: anchorRegion ?? data.region,
-    regionHint,
     routingRegion: routingRegion ?? data.routingRegion,
   }
 }

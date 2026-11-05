@@ -1,5 +1,5 @@
 import { relationId } from '@/lib/utilities/relationId'
-import type { Event, SubmissionRegionHint } from '@/payload-types'
+import type { Event } from '@/payload-types'
 
 /**
  * What a submission would make the event look like.
@@ -67,18 +67,20 @@ export function newEventDefaults(
 }
 
 /**
- * The region a new listing is created in: the one a reviewer set, else the one
- * screening anchored.
+ * The region a new listing is created in: the proposal's own `region`, which
+ * intake sets to the matched city or venue and a reviewer may correct.
+ *
+ * ⚠ **No fallback when a reviewer clears it.** `routingRegion` may be a state
+ * or a country, and an event must sit in a city or venue, so a cleared Region
+ * refuses the Accept on that field (`guardStatusTransition`) rather than
+ * quietly creating the listing somewhere the reviewer just took away.
  *
  * Deliberately outside {@link newEventDefaults}. In the merge it would add a
  * Region line to every new-event diff, so `previewEvent` mirrors the write
  * through this function instead and `proposedChanges` is left as it was.
  */
-export function submissionRegionId(submission: {
-  region?: unknown
-  regionHint?: SubmissionRegionHint | null
-}): number | null {
-  return relationId(submission.region) ?? submission.regionHint?.anchorRegion ?? null
+export function submissionRegionId(submission: { region?: unknown }): number | null {
+  return relationId(submission.region)
 }
 
 /**
@@ -97,7 +99,6 @@ export function submissionRegionId(submission: {
  */
 export function submissionRoutingRegionId(submission: {
   region?: unknown
-  regionHint?: SubmissionRegionHint | null
   routingRegion?: unknown
 }): number | null {
   return submissionRegionId(submission) ?? relationId(submission.routingRegion) ?? null

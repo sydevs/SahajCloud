@@ -51,14 +51,10 @@ export const guardStatusTransition: CollectionBeforeChangeHook = ({ data, origin
     // never named. The gate then passed a row whose written `region` is empty,
     // leaving `applyReview` to refuse it with a bare `Error` no field can
     // render.
-    const written = (field: 'event' | 'region' | 'regionHint') =>
-      field in data ? data[field] : previous[field]
+    const written = (field: 'event' | 'region') => (field in data ? data[field] : previous[field])
 
     const event = relationId(written('event'))
-    const region = submissionRegionId({
-      region: written('region'),
-      regionHint: written('regionHint'),
-    })
+    const region = submissionRegionId({ region: written('region') })
     if (event == null && region == null) {
       throw new ValidationError({ errors: [{ path: 'region', message: NO_REGION_MESSAGE }] })
     }

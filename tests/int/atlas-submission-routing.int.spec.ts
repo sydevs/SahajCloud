@@ -4,7 +4,7 @@
  *
  * The intake cases run as a real published client with `overrideAccess: false`,
  * because the point of `location` is that it is the one location input a client
- * can write — `region` and `regionHint` must still be stripped.
+ * can write — `region` and `routingRegion` must still be stripped.
  *
  * Fixture pre-mortem: `createRegionNode` stores `mapboxId` as `<prefix>-<slug>`,
  * which `MAPBOX_FEATURE_ID` in `src/collections/UserSubmissions/fields.ts`
@@ -164,11 +164,6 @@ describe('atlas submission routing', () => {
 
       expect(doc.region).toMatchObject({ id: region.city })
       expect(doc.routingRegion).toMatchObject({ id: region.city })
-      expect(doc.regionHint).toEqual({
-        country: region.country,
-        state: region.state,
-        anchorRegion: region.city,
-      })
     })
 
     it('leaves the city empty when only the state is on the atlas', async () => {
@@ -181,7 +176,6 @@ describe('atlas submission routing', () => {
       // `deliverProposal` mails and whose subtree read must therefore reach it.
       expect(doc.region).toBeFalsy()
       expect(doc.routingRegion).toMatchObject({ id: region.state })
-      expect(doc.regionHint).toEqual({ state: region.state })
     })
 
     it('anchors it in a venue the address itself is', async () => {
@@ -192,7 +186,6 @@ describe('atlas submission routing', () => {
 
       expect(doc.region).toMatchObject({ id: region.venue })
       expect(doc.routingRegion).toMatchObject({ id: region.venue })
-      expect(doc.regionHint).toEqual({ anchorRegion: region.venue })
     })
 
     it('places an online class by the city it names', async () => {
@@ -204,17 +197,15 @@ describe('atlas submission routing', () => {
       expect(doc.region).toMatchObject({ id: region.otherCity })
     })
 
-    it('ignores a region, routingRegion or regionHint the client writes itself', async () => {
+    it('ignores a region or routingRegion the client writes itself', async () => {
       const doc = await propose({
         region: region.otherCity,
         routingRegion: region.otherCity,
-        regionHint: { anchorRegion: region.otherCity },
         location: { placeId: `${PREFIX}-city` },
       })
 
       expect(doc.region).toMatchObject({ id: region.city })
       expect(doc.routingRegion).toMatchObject({ id: region.city })
-      expect(doc.regionHint).toEqual({ anchorRegion: region.city })
     })
 
     it('refuses a location value that is not a Mapbox id', async () => {
@@ -244,7 +235,6 @@ describe('atlas submission routing', () => {
 
       expect(doc.region).toBeFalsy()
       expect(doc.routingRegion).toBeFalsy()
-      expect(doc.regionHint).toBeFalsy()
     })
 
     it('emails the nearest manager above the placed region', async () => {

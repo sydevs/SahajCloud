@@ -20,9 +20,8 @@ import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
  * foreign key: the hint records ids that were live when it was written, and a
  * region deleted since is simply not routable.
  *
- * `region_hint` keeps all three keys. Nothing reads `.state` or `.country` any
- * more, but dropping either from the schema makes every row still carrying it
- * fail validation on its next save — the reviewer's own Accept included.
+ * ⚠ `20261105_181908_retire_region_hint` drops `region_hint` right after this
+ * backfill, so this is the last migration that may read it.
  */
 export async function up({ db }: MigrateUpArgs): Promise<void> {
   await db.execute(sql`

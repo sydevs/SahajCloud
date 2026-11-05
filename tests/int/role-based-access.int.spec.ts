@@ -1078,7 +1078,7 @@ describe('Role-Based Access Control', () => {
 
     it('routes a proposal only by indexed relationship columns', () => {
       // ⚠ Every path in the subtree clause must be a real relationship column.
-      // These facts lived in the `regionHint` JSON column until #1068, where
+      // These facts lived in a JSON column until #1068, where
       // each path cost one inlined `jsonb_path_exists` per owned region id and
       // a country manager's read degraded to a seq scan. A JSON path added back
       // here would reintroduce that silently — the query still answers

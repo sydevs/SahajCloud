@@ -89,7 +89,7 @@ function scopesWritesByLocale(req: PayloadRequest, collection: ContentSlug): boo
  * be unable to read the row they were asked to review.
  *
  * ⚠ **It is an indexed relationship column because this clause queries it.**
- * The same facts lived in the `regionHint` JSON column, which only
+ * The same facts once lived in a JSON column (#1068), which only
  * `jsonb_path_exists` can reach, and `createJSONQuery` inlines one OR'd
  * sibling per value — so three hint paths cost three predicates per owned
  * region id, a country manager owning ~1,000 regions sent ~3,000 unindexable

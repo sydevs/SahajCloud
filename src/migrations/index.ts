@@ -109,6 +109,7 @@ import * as migration_20261102_213524_derive_atlas_roles from './20261102_213524
 import * as migration_20261103_215150_submitter_identity from './20261103_215150_submitter_identity';
 import * as migration_20261104_180154_routing_region from './20261104_180154_routing_region';
 import * as migration_20261104_185158_snapshot_resync from './20261104_185158_snapshot_resync';
+import * as migration_20261105_181908_retire_region_hint from './20261105_181908_retire_region_hint';
 
 export const migrations = [
   {
@@ -664,6 +665,11 @@ export const migrations = [
   {
     up: migration_20261104_185158_snapshot_resync.up,
     down: migration_20261104_185158_snapshot_resync.down,
-    name: '20261104_185158_snapshot_resync'
+    name: '20261104_185158_snapshot_resync',
+  },
+  {
+    up: migration_20261105_181908_retire_region_hint.up,
+    down: migration_20261105_181908_retire_region_hint.down,
+    name: '20261105_181908_retire_region_hint'
   },
 ];

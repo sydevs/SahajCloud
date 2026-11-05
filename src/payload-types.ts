@@ -2274,7 +2274,6 @@ export interface UserSubmission {
   event?: (number | null) | Event;
   uuid?: string | null;
   location?: SubmissionLocation;
-  regionHint?: SubmissionRegionHint;
   proposed?: SubmissionProposal;
   /**
    * The region whose manager reviews this — matched from the location.
@@ -2915,20 +2914,6 @@ export interface SubmissionLocation {
    * The `country` layer.
    */
   countryId?: string;
-}
-export interface SubmissionRegionHint {
-  /**
-   * The matched country region.
-   */
-  country?: number;
-  /**
-   * The matched state region.
-   */
-  state?: number;
-  /**
-   * The matched city or venue, kept after a reviewer changes `region`.
-   */
-  anchorRegion?: number;
 }
 export interface SubmissionProposal {
   [k: string]: unknown;
@@ -5347,7 +5332,6 @@ export interface UserSubmissionsSelect<T extends boolean = true> {
   event?: T;
   uuid?: T;
   location?: T;
-  regionHint?: T;
   proposed?: T;
   routingRegion?: T;
   followUpSentAt?: T;
