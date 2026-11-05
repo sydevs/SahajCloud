@@ -135,7 +135,11 @@ No loose files at the root — every file lives in a named folder:
   `url` — `originOf` for code deciding whether to trust a URL someone
   else handed it, where an opaque origin reads as none. Parsing itself
   is `URL.parse`, the built-in that returns `null` rather than throwing —
-  do not re-wrap it)
+  do not re-wrap it, `virtualFieldDeps` — `ensureVirtualFieldDeps(deps)`
+  builds the `beforeOperation` hook that puts a computed field's stored
+  inputs back into an include-mode `select`, declared by Events and
+  `meditation-transcripts`. The input is returned too, so a large column
+  named there is paid for by every caller selecting the field above it)
 - `locales/` — locale config (`@/lib/locales` resolves to `locales/index.ts`)
 - `richEditor/` — Lexical editor presets + `blocks/` (the editor's block
   set) + `lexicalHooks`, plus the two conversions either way:
