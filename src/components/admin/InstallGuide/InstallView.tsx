@@ -101,7 +101,7 @@ export default async function InstallView(
   if (!client.roles?.includes('sahaj-atlas-client')) {
     return notice(
       'No atlas to install',
-      'This service does not use the Sahaj Atlas. Add the Sahaj Atlas role under Edit → Access first.',
+      'This service does not use the Sahaj Atlas yet. An admin can turn it on under Edit → Config → Access.',
     )
   }
 
@@ -119,6 +119,7 @@ export default async function InstallView(
           path: `/collections/clients/${clientId}`,
         })}
         hasRegion={Boolean(client.region)}
+        regionName={await readRegionName(props, client.region)}
         initialEmbedMetadata={(client.embedMetadata ?? null) as EmbedMetadata | null}
         initialVerification={
           (client.canonical?.verification ?? null) as CanonicalVerification | null
@@ -127,6 +128,28 @@ export default async function InstallView(
       />
     </>
   )
+}
+
+/** The service's region by name, for the progress table, or `null`. */
+async function readRegionName(
+  props: DocumentViewServerProps,
+  region: Client['region'],
+): Promise<string | null> {
+  if (region === null || region === undefined) return null
+  if (typeof region === 'object') return region.name ?? null
+  const { req } = props.initPageResult
+  try {
+    const doc = await req.payload.findByID({
+      collection: 'regions',
+      id: region,
+      depth: 0,
+      select: { name: true },
+      req,
+    })
+    return doc.name ?? null
+  } catch {
+    return null
+  }
 }
 
 /**

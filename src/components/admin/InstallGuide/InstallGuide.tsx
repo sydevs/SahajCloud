@@ -90,6 +90,8 @@ export interface InstallGuideProps {
   initialVerification: CanonicalVerification | null
   /** Whether a region is set, which canonical ownership needs. */
   hasRegion: boolean
+  /** The region's name, or `null` when it has none or it could not be read. */
+  regionName: string | null
   /** The service's `allowedDomains`, parsed — a host outside them cannot be claimed. */
   allowedDomains: string[]
 }
@@ -161,6 +163,9 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
     hasRegion: props.hasRegion,
     searchListings: activeTrack?.searchListings !== false,
     classAddresses: activeTrack?.classAddresses !== false,
+    siteKind: platform ? PLATFORM_LABELS[platform] : undefined,
+    regionName: props.regionName,
+    host: address.host,
   })
   const working = milestones
     .filter((milestone) => milestone.id === 'seen' || milestone.id === 'confirmed')
@@ -307,7 +312,8 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
   const ready = activeTrack !== null && atlasPath !== null
   const stage = stageBanner(model.stage, activeTrack?.searchListings !== false)
 
-  const stepCard = (step: Step, number: number, quiet: boolean) => (
+  // A lone step, and the unordered follow-on steps, carry no number.
+  const stepCard = (step: Step, number: number | null, quiet: boolean) => (
     <StepCard
       embedHeight={embedHeight}
       key={step.id}
@@ -398,9 +404,7 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
                     description={
                       showProblem && address.problem
                         ? address.problem
-                        : atlasPath && address.host
-                          ? `The atlas will live at ${atlasPath} on ${address.host}.`
-                          : addressHelp(activeTrack.platform)
+                        : addressHelp(activeTrack.platform)
                     }
                     path="atlasUrl"
                   />
@@ -463,7 +467,9 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
               </TitledBanner>
             ) : null}
             <ol className={styles.steps}>
-              {activeTrack.steps.map((step, index) => stepCard(step, index + 1, false))}
+              {activeTrack.steps.map((step, index) =>
+                stepCard(step, activeTrack.steps.length === 1 ? null : index + 1, false),
+              )}
             </ol>
             {sectionConfirmed(activeTrack.steps, model.stepStatus) ? null : (
               <CheckButton busy={busy} onClick={() => void recheck('section3')} />
@@ -477,8 +483,8 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
             <h3 className={styles.heading}>4. {activeTrack.more.title}</h3>
             <p className={styles.intro}>{activeTrack.more.intro}</p>
             <ol className={styles.steps}>
-              {activeTrack.more.steps.map((step, index) =>
-                stepCard(step, index + 1, Boolean(activeTrack.more?.optional)),
+              {activeTrack.more.steps.map((step) =>
+                stepCard(step, null, Boolean(activeTrack.more?.optional)),
               )}
             </ol>
             {activeTrack.more.optional ||
@@ -526,9 +532,12 @@ async function post<T>(url: string, body?: unknown): Promise<T | null> {
 /** What the address field asks for before anything is typed. */
 function addressHelp(platform: PlatformId): string {
   if (platform === 'wix' || platform === 'squarespace') {
-    return 'Paste the address the atlas page will have, such as https://yoursite.org/classes — one word after the domain, lowercase.'
+    return 'Choose the address your atlas page will have: your domain, then one lowercase word. You will create the page in step 3.'
   }
-  return 'Paste the address of the page that will show the atlas, such as https://yoursite.org/classes.'
+  if (platform === 'wordpress') {
+    return 'Choose the address your atlas page will have. The plugin creates the page for you in step 3.'
+  }
+  return 'Open the page where the map should appear, and copy its address from your browser’s address bar. No page yet? Type the address it will have.'
 }
 
 /** A section's own Check button, the primary action at its foot. */
@@ -586,7 +595,7 @@ function StepCard({
   onEmbedHeight,
   onSwitchToIframe,
 }: {
-  number: number
+  number: number | null
   step: Step
   status?: StepStatus
   /** A step nothing checks, in a section where saying so on each one is noise. */
@@ -607,7 +616,7 @@ function StepCard({
         collapsibleStyle={failed ? 'error' : 'default'}
         header={
           <span className={styles.stepTitle}>
-            {number}. {step.title}
+            {number === null ? step.title : `${number}. ${step.title}`}
           </span>
         }
         initCollapsed={finished}
@@ -663,15 +672,23 @@ function ActionItem({
   embedHeight: EmbedHeight
   onEmbedHeight: (next: EmbedHeight) => void
 }) {
-  if (typeof action === 'string') return <li>{action}</li>
+  if (typeof action === 'string') {
+    return (
+      <li>
+        <Inline text={action} />
+      </li>
+    )
+  }
   const { text, snippet, download, choice, items } = action
   return (
     <li>
-      {text}
+      <Inline text={text} />
       {items ? (
         <ul className={styles.subItems}>
           {items.map((item) => (
-            <li key={item}>{item}</li>
+            <li key={item}>
+              <Inline text={item} />
+            </li>
           ))}
         </ul>
       ) : null}
@@ -710,6 +727,28 @@ function ActionItem({
         <CopyBlock snippet={snippet} />
       ) : null}
     </li>
+  )
+}
+
+/**
+ * Step text, with the two marks a step may carry: `**bold**` for a button the
+ * volunteer has to find, and `` `code` `` for a name a developer types.
+ */
+function Inline({ text }: { text: string }) {
+  return (
+    <>
+      {text.split(/(\*\*[^*]+\*\*|`[^`]+`)/).map((part, index) =>
+        part.startsWith('**') && part.endsWith('**') && part.length > 4 ? (
+          <strong key={index}>{part.slice(2, -2)}</strong>
+        ) : part.startsWith('`') && part.endsWith('`') && part.length > 2 ? (
+          <code className={styles.inlineMark} key={index}>
+            {part.slice(1, -1)}
+          </code>
+        ) : (
+          part
+        ),
+      )}
+    </>
   )
 }
 

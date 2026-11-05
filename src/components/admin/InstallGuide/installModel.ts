@@ -146,20 +146,32 @@ export function buildInstallModel(args: {
   for (const result of results) {
     if (!track || result.status === 'skipped') continue
     const step = stepForCheck(track, result.check)
-    const where = result.route === '/' ? 'the main page' : `the page at ${result.route}`
+    const where = result.route === '/' ? 'your atlas page' : `the page for ${result.route}`
     note(
       step,
       result.status === 'pass' ? 'pass' : 'fail',
       result.status === 'fail'
-        ? `On ${where}: ${result.detail ?? 'this is not what the CMS published.'}`
+        ? `On ${where}: ${result.detail ?? 'this does not match what Sahaj Atlas expects.'}`
         : undefined,
     )
   }
 
-  if (track) {
-    inferEarlierSteps(stepStatus, track.steps)
-    if (track.more && !track.more.optional) inferEarlierSteps(stepStatus, track.more.steps)
+  const routingStep = track?.checks.routing
+  if (routingStep && candidate) {
+    const routing = routingOutcome({ embedMetadata, verification, candidate })
+    if (routing === 'pass') note(routingStep, 'pass')
+    if (routing === 'fail') {
+      note(
+        routingStep,
+        'fail',
+        `Opening an address under ${candidate.mount}, such as ${candidate.mount.replace(/\/$/, '')}/ca/ontario, does not show the atlas yet.`,
+      )
+    }
   }
+
+  // Section 3 only: its steps are done in order. The follow-on steps are not,
+  // so one passing there says nothing about another.
+  if (track) inferEarlierSteps(stepStatus, track.steps)
 
   const stage: InstallStage = busy
     ? 'verifying'
@@ -174,6 +186,34 @@ export function buildInstallModel(args: {
           : 'verified'
 
   return { stage, candidate, reported, stepStatus, failures }
+}
+
+/**
+ * Whether every class has an address of its own on the page being installed.
+ *
+ * Two observations, one per half of the step: the widget's report says the
+ * snippet asks for `routing=path`, and the routing probe found the server
+ * answering a made-up address under the page. The probe is of the canonical
+ * mount, so it says nothing about any other page.
+ *
+ * ⚠ **A negative probe fails the step only once it is newer than the report.**
+ * A snippet swapped since the last check reads `path` beside a probe taken
+ * before the server was set up, which is not yet a failure.
+ */
+function routingOutcome(args: {
+  embedMetadata: EmbedMetadata | null | undefined
+  verification: CanonicalVerification | null | undefined
+  candidate: ReportedMount
+}): 'pass' | 'fail' | 'unknown' {
+  const { embedMetadata, verification, candidate } = args
+  const asked = embedMetadata?.[candidate.key]?.routing
+  const probe = verification?.routingProbe
+  const verifiedMount = verification?.verified?.mount
+  if (asked !== 'path' || !probe || verifiedMount === undefined) return 'unknown'
+  if (normalizeMountPath(verifiedMount) !== normalizeMountPath(candidate.mount)) return 'unknown'
+  if (probe.verdict === 'path') return 'pass'
+  const probedSince = candidate.lastSeen === undefined || probe.at > candidate.lastSeen
+  return probe.failedAttempts > 0 && probedSince ? 'fail' : 'unknown'
 }
 
 /**
@@ -223,12 +263,12 @@ export const STAGE_BANNERS: Record<InstallStage, BannerContent> = {
   warnings: {
     type: 'warning',
     title: 'Live, with search problems',
-    text: 'Visitors are not affected, but search engines cannot read part of it. Redo the steps marked in red.',
+    text: 'Your atlas works for visitors, but search engines cannot read part of it. Redo the steps marked in red.',
   },
   failed: {
     type: 'error',
     title: 'Could not confirm the install',
-    text: 'The atlas reported itself, but the CMS could not load the page. Check the step marked in red.',
+    text: 'Your page reported the atlas, but we could not open the page ourselves. See the step marked in red.',
   },
 }
 
@@ -253,7 +293,10 @@ export interface Milestone {
   id: 'seen' | 'confirmed' | 'region' | 'routing' | 'search'
   label: string
   state: MilestoneState
-  /** One of {@link MILESTONE_STATUS}, or "Checking…" while a check runs. */
+  /**
+   * One of {@link MILESTONE_STATUS}, "Checking…" while a check runs, or "Not
+   * available for <kind of site>" for a row the site can never finish.
+   */
   status: string
   /** A second line under the label, where there is something specific to say. */
   note?: string
@@ -294,21 +337,42 @@ export function buildMilestones(args: {
   searchListings: boolean
   /** `false` for a track that cannot put a class's address in the page URL. */
   classAddresses: boolean
+  /** The kind of site, named in a Not available status — "Iframe only", "Squarespace". */
+  siteKind?: string
+  /** The service's region, named in the Region claimed note. */
+  regionName?: string | null
+  /** The host the volunteer typed, for the notes, until a canonical embed names one. */
+  host?: string | null
 }): Milestone[] {
   const { model, verification, canonicalEmbed, hasRegion, searchListings, classAddresses } = args
   const [first, ...rest] = model.reported
+  const site =
+    (canonicalEmbed ? URL.parse(canonicalEmbed)?.host : undefined) ??
+    args.host ??
+    first?.host ??
+    'your site'
+  const region = args.regionName ?? 'your region'
   const problems = model.failures.length
   const row = (
     id: Milestone['id'],
     label: string,
     state: MilestoneState,
     note?: string,
-  ): Milestone => ({ id, label, state, status: MILESTONE_STATUS[state], ...(note ? { note } : {}) })
+  ): Milestone => ({
+    id,
+    label,
+    state,
+    status:
+      state === 'na' && args.siteKind
+        ? `${MILESTONE_STATUS.na} for ${args.siteKind}`
+        : MILESTONE_STATUS[state],
+    ...(note ? { note } : {}),
+  })
 
   const confirmed: Milestone = verification?.verified
     ? row('confirmed', 'Install confirmed', 'done')
     : model.stage === 'failed'
-      ? row('confirmed', 'Install confirmed', 'failed', 'The CMS could not load the page.')
+      ? row('confirmed', 'Install confirmed', 'failed', 'We could not open your page')
       : {
           ...row('confirmed', 'Install confirmed', 'todo'),
           ...(model.stage === 'verifying' ? { status: 'Checking…' } : {}),
@@ -326,19 +390,29 @@ export function buildMilestones(args: {
       : row('seen', 'Atlas detected', 'todo'),
     confirmed,
     canonicalEmbed
-      ? row('region', 'Region claimed', 'done')
+      ? row('region', 'Region claimed', 'done', `Atlas links for ${region} lead to ${site}`)
       : hasRegion
-        ? row('region', 'Region claimed', 'todo')
-        : row('region', 'Region claimed', 'warning', 'Set a region on the Edit tab.'),
+        ? row('region', 'Region claimed', 'todo', `Atlas links for ${region} will lead to ${site}`)
+        : row('region', 'Region claimed', 'warning', 'Ask a maintainer to set your region'),
     !classAddresses
-      ? row('routing', 'Class addresses', 'na', 'An iframe cannot change your page’s address.')
+      ? row('routing', 'Class addresses', 'na', 'An iframe cannot change your page’s address')
       : probe === 'path'
-        ? row('routing', 'Class addresses', 'done', 'A page of its own for each class.')
+        ? row(
+            'routing',
+            'Class addresses',
+            'done',
+            `Each class has its own shareable link on ${site}`,
+          )
         : probe === 'query'
-          ? row('routing', 'Class addresses', 'done', 'As ?atlas= links.')
+          ? row(
+              'routing',
+              'Class addresses',
+              'done',
+              `Each class has its own shareable link on ${site}`,
+            )
           : row('routing', 'Class addresses', 'todo'),
     !searchListings
-      ? row('search', 'Search listings', 'na', 'Search engines see one page, not each class.')
+      ? row('search', 'Search listings', 'na', 'Search engines see one page, not each class')
       : !verification?.seo
         ? row('search', 'Search listings', 'todo')
         : problems > 0
@@ -346,9 +420,14 @@ export function buildMilestones(args: {
               'search',
               'Search listings',
               'failed',
-              `${problems} problem${problems === 1 ? '' : 's'}, marked in the steps.`,
+              `${problems} problem${problems === 1 ? '' : 's'}, marked in the steps`,
             )
-          : row('search', 'Search listings', 'done'),
+          : row(
+              'search',
+              'Search listings',
+              'done',
+              `Google can read information about your classes on ${site}`,
+            ),
   ]
 }
 
@@ -366,10 +445,10 @@ export interface VerifyAnswer {
 }
 
 const CLAIM_TITLES: Partial<Record<ClaimAnswer['status'], string>> = {
-  'needs-region': 'Set a region first',
-  'needs-domains': 'This domain is not allowed',
-  taken: 'Another service owns this region',
-  'unknown-mount': 'Page not reported yet',
+  'needs-region': 'Your service needs a region',
+  'needs-domains': 'Your domain is not set up yet',
+  taken: 'Another site already has this region',
+  'unknown-mount': 'We have not seen this page yet',
 }
 
 /**
@@ -393,7 +472,7 @@ export function checkOutcome(args: {
     return {
       type: 'warning',
       title: 'Not found yet',
-      text: `The atlas has not shown up at ${path ?? 'this address'}. Publish the page, open it once in your browser, then check again.`,
+      text: `We have not seen the atlas at ${path ?? 'this address'} yet. Publish the page, open it once in your browser, then check again.`,
     }
   }
 
@@ -427,7 +506,7 @@ export function checkOutcome(args: {
   }
   return {
     type: 'error',
-    title: 'Could not reach the CMS',
+    title: 'Could not run the check',
     text: 'Nothing was changed. Try again in a moment.',
   }
 }

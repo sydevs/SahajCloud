@@ -407,7 +407,7 @@ describe('hostHints', () => {
 
   it('asks for the https address', () => {
     expect(titles(hints('http://sahajayoga.ca/classes', 'custom'))).toEqual([
-      'Use the https address',
+      'Use the address that starts with https',
     ])
   })
 
@@ -464,7 +464,9 @@ describe('readAtlasAddress', () => {
 
   it('keeps a nested page anywhere but Wix', () => {
     expect(read('https://site.org/about/classes').path).toBe('/about/classes')
-    expect(read('https://site.org/about/classes', true).problem).toMatch(/one level/)
+    expect(read('https://site.org/about/classes', true).problem).toMatch(
+      /straight after your domain/,
+    )
   })
 
   it('keeps a WordPress plain permalink, whose query is the page', () => {
@@ -482,6 +484,6 @@ describe('readAtlasAddress', () => {
 
   it('asks for an address when there is none, and refuses what is not one', () => {
     expect(read('  ').problem).toMatch(/Paste/)
-    expect(read('ftp://site.org/classes').problem).toMatch(/not a web address/)
+    expect(read('ftp://site.org/classes').problem).toMatch(/not look like a web address/)
   })
 })

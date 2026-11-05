@@ -317,25 +317,27 @@ export function comparePage(args: {
   return {
     title:
       snapshot.title === null
-        ? fail('The page has no <title> element at all.')
+        ? fail('The page has no title.')
         : snapshot.title === seo.title
           ? pass()
-          : fail(`Expected “${seo.title}”, the page says “${snapshot.title}”.`),
+          : fail(`The page title should be “${seo.title}”, but it is “${snapshot.title}”.`),
     canonical:
       snapshot.canonical === null
-        ? fail('The page publishes no <link rel="canonical">.')
+        ? fail('The page does not say which address is its main one.')
         : sameUrl(snapshot.canonical, expectedCanonical)
           ? pass()
-          : fail(`Expected ${expectedCanonical}, the page says ${snapshot.canonical}.`),
+          : fail(
+              `The page should name ${expectedCanonical} as its main address, but names ${snapshot.canonical}.`,
+            ),
     'json-ld': snapshot.hasJsonLd
       ? pass()
-      : fail('No <script type="application/ld+json"> block on the page.'),
+      : fail('The page is missing the class details search engines read (structured data).'),
     body:
       probe === null
         ? skip('This page has no distinctive text to look for.')
         : snapshot.body.includes(probe)
           ? pass()
-          : fail(`The page body does not contain “${probe}”.`),
+          : fail(`The page text does not include “${probe}”.`),
   }
 }
 
@@ -401,7 +403,7 @@ export async function siteListsUrl(args: {
   }
 
   return reachable
-    ? fail(`No sitemap on this site lists ${target}.`)
+    ? fail(`Your site’s sitemap does not list ${target} yet.`)
     : skip('This site publishes no sitemap we could reach.')
 }
 
@@ -607,7 +609,7 @@ async function checkPage(
     return PAGE_CHECKS.map((check) => ({
       route: page.route,
       check,
-      ...fail(`${page.url} redirects to another host, so a crawler never reads this page.`),
+      ...fail(`${page.url} redirects to another site, so search engines never see this page.`),
     }))
   }
 

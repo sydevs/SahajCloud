@@ -217,10 +217,10 @@ describe('buildInstallModel — what each step says', () => {
     const step = model.stepStatus[TRACK.checks.head]
     expect(step?.state).toBe('fail')
     expect(step?.messages[0]).toContain('Expected “A”')
-    expect(step?.messages[0]).toContain('the main page')
+    expect(step?.messages[0]).toContain('your atlas page')
   })
 
-  it('names the region page rather than “the main page” for a region failure', () => {
+  it('names the region page rather than “your atlas page” for a region failure', () => {
     const model = build(verified({ seo: seo([{ route: '/ca', check: 'body', status: 'fail' }]) }))
     expect(model.stepStatus[TRACK.checks.body]?.messages[0]).toContain('/ca')
   })
@@ -305,6 +305,8 @@ describe('buildMilestones', () => {
       hasRegion: args.hasRegion ?? true,
       searchListings: args.trackId !== 'iframe' && args.trackId !== 'squarespace',
       classAddresses: args.trackId !== 'iframe',
+      siteKind: args.trackId === 'iframe' ? 'Iframe only' : 'Squarespace',
+      regionName: 'Ontario',
     })
   }
   const states = (list: ReturnType<typeof milestones>) =>
@@ -336,7 +338,11 @@ describe('buildMilestones', () => {
       milestones({ hasRegion: false }),
       milestones({ trackId: 'iframe' }),
     ]) {
-      for (const milestone of list) expect(vocabulary).toContain(milestone.status)
+      for (const milestone of list) {
+        expect(vocabulary).toContain(
+          milestone.state === 'na' ? MILESTONE_STATUS.na : milestone.status,
+        )
+      }
     }
   })
 
@@ -349,6 +355,26 @@ describe('buildMilestones', () => {
       }),
     })
     expect(list.every((milestone) => milestone.state === 'done')).toBe(true)
+  })
+
+  it('names the region, and the site its links lead to', () => {
+    const byId = (list: ReturnType<typeof milestones>) =>
+      Object.fromEntries(list.map((milestone) => [milestone.id, milestone.note]))
+    expect(byId(milestones({})).region).toBe('Atlas links for Ontario will lead to sahajayoga.ca')
+    const done = byId(
+      milestones({
+        canonicalEmbed: 'https://sahajayoga.ca/free-classes',
+        verification: verified({
+          routingProbe: { at: '2026-10-01T00:00:00.000Z', verdict: 'path', failedAttempts: 0 },
+          seo: seo([{ route: '/', check: 'title', status: 'pass' }]),
+        }),
+      }),
+    )
+    expect(done).toMatchObject({
+      region: 'Atlas links for Ontario lead to sahajayoga.ca',
+      routing: 'Each class has its own shareable link on sahajayoga.ca',
+      search: 'Google can read information about your classes on sahajayoga.ca',
+    })
   })
 
   it('counts search problems, and flags a service with no region', () => {
@@ -367,7 +393,7 @@ describe('buildMilestones', () => {
     expect(byId.region).toMatchObject({ state: 'warning', status: 'Needs action' })
   })
 
-  it('counts ?atlas= links as class addresses, and says which shape', () => {
+  it('counts ?atlas= links as class addresses', () => {
     const query = milestones({
       verification: verified({
         routingProbe: { at: '2026-10-01T00:00:00.000Z', verdict: 'query', failedAttempts: 1 },
@@ -375,7 +401,7 @@ describe('buildMilestones', () => {
     })
     expect(query.find((m) => m.id === 'routing')).toMatchObject({
       state: 'done',
-      note: 'As ?atlas= links.',
+      note: 'Each class has its own shareable link on sahajayoga.ca',
     })
   })
 
@@ -388,6 +414,7 @@ describe('buildMilestones', () => {
     })
     const byId = Object.fromEntries(list.map((m) => [m.id, m.state]))
     expect(byId).toMatchObject({ routing: 'done', search: 'na' })
+    expect(list.find((m) => m.id === 'search')?.status).toBe('Not available for Squarespace')
   })
 
   it('shows an iframe the two rows it can never finish, as not available', () => {
@@ -396,6 +423,14 @@ describe('buildMilestones', () => {
     )
     expect(states).toMatchObject({ routing: 'na', search: 'na' })
     expect(states.seen).toBe('done')
+  })
+
+  it('names the kind of site in a Not available status', () => {
+    const list = milestones({ trackId: 'iframe' }).filter((milestone) => milestone.state === 'na')
+    expect(list.map((milestone) => milestone.status)).toEqual([
+      'Not available for Iframe only',
+      'Not available for Iframe only',
+    ])
   })
 })
 
@@ -440,7 +475,7 @@ describe('checkOutcome', () => {
       claim: { status: 'needs-region', message: 'Set a region on this service first.' },
       verify: null,
     })
-    expect(banner).toMatchObject({ type: 'warning', title: 'Set a region first' })
+    expect(banner).toMatchObject({ type: 'warning', title: 'Your service needs a region' })
     expect(banner.text).toBe('Set a region on this service first.')
   })
 
@@ -489,6 +524,54 @@ describe('buildInstallModel — steps a later confirmation implies', () => {
     const steps = status(verified({ seo: seo([{ route: '/', check: 'title', status: 'fail' }]) }))
     expect(steps['paste-routers']?.state).toBe('fail')
     expect(steps['add-router']?.state).toBe('done')
+  })
+})
+
+describe('buildInstallModel — class addresses on a custom site', () => {
+  const CUSTOM = tracksFor({
+    apiKey: 'k',
+    prefix: 'free-classes',
+    atlasUrl: '/free-classes',
+    cmsUrl: 'https://cms.example.org',
+    widgetUrl: 'https://sahajatlas.com',
+  }).custom
+  const KEY = 'https://sahajayoga.ca/free-classes'
+  const report = (routing: 'path' | 'query'): EmbedMetadata => ({
+    [KEY]: { ...mount(KEY, '2026-10-01T00:00:00.000Z')[KEY], routing },
+  })
+  const probe = (verdict: 'path' | 'query', at = '2026-10-02T00:00:00.000Z') =>
+    verified({ routingProbe: { at, verdict, failedAttempts: verdict === 'path' ? 0 : 1 } })
+  const catchAll = (embedMetadata: EmbedMetadata, verification: CanonicalVerification) =>
+    buildInstallModel({ atlasUrl: '/free-classes', track: CUSTOM, embedMetadata, verification })
+      .stepStatus['catch-all']
+
+  it('confirms the step once the snippet asks for paths and the server answers them', () => {
+    expect(catchAll(report('path'), probe('path'))?.state).toBe('pass')
+  })
+
+  it('fails it when the snippet asks for paths and a later probe found none', () => {
+    const status = catchAll(report('path'), probe('query'))
+    expect(status?.state).toBe('fail')
+    expect(status?.messages[0]).toContain('/free-classes/ca/ontario')
+  })
+
+  it('waits on a probe older than the report, which predates the server change', () => {
+    expect(catchAll(report('path'), probe('query', '2026-09-30T00:00:00.000Z'))).toBeUndefined()
+  })
+
+  it('waits while the snippet still asks for ?atlas= links, whatever the server does', () => {
+    expect(catchAll(report('query'), probe('path'))).toBeUndefined()
+  })
+
+  it('infers nothing in the follow-on section, whose steps have no order', () => {
+    const status = buildInstallModel({
+      atlasUrl: '/free-classes',
+      track: CUSTOM,
+      embedMetadata: report('query'),
+      verification: verified({ seo: seo([{ route: '/', check: 'title', status: 'pass' }]) }),
+    }).stepStatus
+    expect(status['render-seo']?.state).toBe('pass')
+    expect(status['catch-all']).toBeUndefined()
   })
 })
 

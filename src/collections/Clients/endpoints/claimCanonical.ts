@@ -101,7 +101,7 @@ export const claimCanonical: Endpoint = {
     }
 
     if (client.canonical?.enabled) {
-      return answer('already', 'This service already owns its region’s canonical URLs.')
+      return answer('already', 'Your site is already the home for its region’s atlas links.')
     }
 
     // The mount has to be one the widget reported. `embedMetadata` is written
@@ -110,7 +110,7 @@ export const claimCanonical: Endpoint = {
     if (!reported || typeof reported !== 'object' || !(parsed.data.mount in reported)) {
       return answer(
         'unknown-mount',
-        'The atlas has not reported itself from that page yet. Nothing was changed.',
+        'We have not seen the atlas on that page yet. Nothing was changed.',
       )
     }
 
@@ -120,7 +120,7 @@ export const claimCanonical: Endpoint = {
     if (patterns.length === 0 || !host || !isHostAllowed(host, patterns)) {
       return answer(
         'needs-domains',
-        'This service has not declared which domains belong to it, so the atlas cannot claim its web addresses yet. Ask a maintainer to add your site’s domain to the service — everything else about your install is finished.',
+        'Your site’s domain is not set up for this service yet. Ask a maintainer to add it — everything else about your install is done.',
       )
     }
 
@@ -130,7 +130,7 @@ export const claimCanonical: Endpoint = {
     if (!client.region) {
       return answer(
         'needs-region',
-        'This service has no Atlas region yet, so it cannot own its canonical URLs. Ask a maintainer to set one — everything else about your install is finished.',
+        'This service has no region yet, so atlas links cannot lead to your site. Ask a maintainer to set one — everything else about your install is done.',
       )
     }
 
@@ -150,7 +150,7 @@ export const claimCanonical: Endpoint = {
       if (error instanceof APIError) {
         return answer(
           'taken',
-          `Another service already owns this region’s canonical URLs, so this one was left as it is. Ask a maintainer to sort out which should own them. (${error.message})`,
+          `Another site is already the home for this region’s atlas links, so nothing was changed. Ask a maintainer which site should have them. (${error.message})`,
         )
       }
       throw error
@@ -158,7 +158,7 @@ export const claimCanonical: Endpoint = {
 
     return answer(
       'claimed',
-      'Your site now owns the canonical web addresses for its region, so search engines will send people to your pages.',
+      'Your site is now the home for its region’s atlas links, so people looking for classes there will be sent to your pages.',
     )
   },
 }

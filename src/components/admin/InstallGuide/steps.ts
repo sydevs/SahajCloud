@@ -152,6 +152,12 @@ export interface CheckRouting {
   body: StepId
   /** No sitemap on the site lists the page. */
   sitemap: StepId
+  /**
+   * The step that gives each class an address of its own, for a track whose
+   * own steps set that up. Confirmed when the widget reports `routing=path`
+   * and the routing probe finds the server answering under the page.
+   */
+  routing?: StepId
 }
 
 export interface Track {
@@ -228,9 +234,9 @@ export const PLATFORM_LABELS: Record<PlatformId, string> = {
 export const PLATFORM_RECOGNISE: Record<PlatformId, string> = {
   wordpress: 'Your admin address ends in /wp-admin, and the dashboard says “WordPress”.',
   wix: 'You edit the site in the Wix Editor or Wix Studio.',
-  custom: 'A developer built the site, and can add a line of code to every page.',
+  custom: 'A developer built your site and can add code to it.',
   squarespace: 'You edit the site at squarespace.com.',
-  iframe: 'You can only paste an embed box, and cannot add code to the page itself.',
+  iframe: 'You can paste an embed box on a page, but not add code to the page itself.',
 }
 
 /** Which tracks sit under each platform, in the order they are offered. */
@@ -275,7 +281,7 @@ function wixSteps(values: InstallValues): Step[] {
           text: 'Turn on coding:',
           items: [
             'In the Wix Editor, click Dev Mode in the top bar, then Turn on Dev Mode.',
-            'In Wix Studio, click { } in the left bar, then Start Coding Manually.',
+            'In Wix Studio, click **{ }** in the left bar, then Start Coding Manually.',
           ],
         },
         'In the Page Code panel, click + next to Main Pages, choose Add router, and click Continue.',
@@ -283,7 +289,7 @@ function wixSteps(values: InstallValues): Step[] {
           text: 'Enter this as the URL prefix, and click Add & Edit Code:',
           snippet: { label: 'URL prefix', value: values.prefix, kind: 'text' },
         },
-        `If Wix says a page already uses that prefix, change that page’s URL slug (its ⋯ menu → SEO Basics), then try again.`,
+        `If Wix says a page already uses that prefix, change that page’s address (its ⋯ menu → SEO Basics → URL slug), then try again.`,
         `Wix creates a page called ${page}. Leave its name as it is — the code in the next step looks for it.`,
       ],
     },
@@ -305,7 +311,13 @@ function wixSteps(values: InstallValues): Step[] {
       id: 'add-element',
       title: 'Add the map, and publish',
       actions: [
-        `On the ${page} page, click Add Elements (+), then Embed Code → Custom element. In Wix Studio it is under Embed & Social.`,
+        {
+          text: `On the ${page} page, add a Custom element:`,
+          items: [
+            'In the Wix Editor, click Add Elements (+), then Embed Code → Custom element.',
+            'In Wix Studio, click Add Elements (+), then Embed & Social → Custom Element.',
+          ],
+        },
         {
           text: 'Click Choose Source. Server URL is already selected — replace the address in its box with this one:',
           snippet: { label: 'Server URL', value: element.serverUrl, kind: 'text' },
@@ -314,7 +326,13 @@ function wixSteps(values: InstallValues): Step[] {
           text: 'Replace the Tag name below it with:',
           snippet: { label: 'Tag name', value: element.tagName, kind: 'text' },
         },
-        'Make the element the full width of the page and about as tall as the screen: in the Wix Editor with the ↔ button above it, in Wix Studio with W and H on the right. A box with no height shows nothing.',
+        {
+          text: 'Make the map the full width of the page and about as tall as the screen. A box with no height shows nothing.',
+          items: [
+            'In the Wix Editor, click the ↔ button above it, then drag its bottom edge down.',
+            'In Wix Studio, set its width (W) and height (H) in the panel on the right.',
+          ],
+        },
         'Click Publish. The map shows only on your published site, not in the editor.',
       ],
     },
@@ -330,7 +348,7 @@ function wixMore(values: InstallValues): FollowOn {
   return {
     title: 'Let search engines read your classes',
     intro:
-      'Every class already has its own address and title. This last step puts each page’s text where search engines read it.',
+      'Every class already has its own address and title in search results. This last step adds each class’s description, so search engines can read that too.',
     steps: [
       {
         id: 'add-text',
@@ -365,7 +383,7 @@ function wixMore(values: InstallValues): FollowOn {
  */
 const WIX_NO_CODING: SwitchNotice = {
   title: 'No Dev Mode or { } in your editor?',
-  text: 'Then your site uses Wix Harmony or Studio Two, which cannot run the map’s code.',
+  text: 'Then your site was made with Wix Harmony or Studio Two, which cannot run the map’s code yet.',
   offerIframe: 'Switch to Iframe only',
 }
 
@@ -435,7 +453,7 @@ function wordpressSteps(values: InstallValues, options: { dotCom: boolean }): St
           text: 'Paste this key into the API key box, and click Save Changes:',
           snippet: { label: 'API key', value: values.apiKey, kind: 'text' },
         },
-        'Click Create the Atlas page. The plugin makes the page, sizes the map, and handles search engines itself.',
+        'Click Create the Atlas page. The plugin makes the page, sizes the map, and takes care of search engines for you.',
         ...rename,
         'Add the page to your site’s menu (Appearance → Menus).',
       ],
@@ -447,7 +465,7 @@ function wordpressSteps(values: InstallValues, options: { dotCom: boolean }): St
 const WORDPRESS_MORE: FollowOn = {
   title: 'Show the atlas inside other pages',
   intro:
-    'Optional. The page from step 3 is all most sites need. To also show the atlas inside another page — a classes section on your home page, say — use the shortcode or the block. One atlas per page.',
+    'Optional — the page from step 3 is all most sites need. To also show the atlas inside another page, such as a classes section on your home page, use a shortcode or the Sahaj Atlas block. Each page can show one atlas.',
   optional: true,
   steps: [
     {
@@ -481,7 +499,14 @@ const WORDPRESS_MORE: FollowOn = {
       title: 'With the block',
       actions: [
         'In the block editor, add the Sahaj Atlas block.',
-        'In its settings on the right: Open at takes an address from sahajatlas.com, Show the map switches between the map and a list, and Shape sets its proportions, such as 16:9.',
+        {
+          text: 'Choose its settings on the right:',
+          items: [
+            'Open at: paste an address from sahajatlas.com to open at a country or city.',
+            'Show the map: turn this off to show a list of classes instead.',
+            'Shape: the map’s proportions, such as 16:9. Leave it empty for a square.',
+          ],
+        },
         'In Beaver Builder, add the Sahaj Atlas module instead. It has the same three settings.',
       ],
     },
@@ -524,7 +549,7 @@ function squarespaceSteps(values: InstallValues, snippet: string): Step[] {
       title: 'Add the map, and save',
       notice: {
         title: 'On an older 7.0 template?',
-        text: 'If the bottom of your Pages panel shows a template name rather than “Version 7.1”, open Site styles and turn off Enable Ajax loading — or the map appears only after a refresh.',
+        text: 'If the bottom of your Pages panel shows a template name instead of “Version 7.1”, open Site styles and turn off Enable Ajax loading. Otherwise the map only appears after a page refresh.',
       },
       actions: [
         'Click Edit at the top left. Hover over the page, click Add Block, and search for Code.',
@@ -535,8 +560,9 @@ function squarespaceSteps(values: InstallValues, snippet: string): Step[] {
           snippet: { label: 'Embed snippet', value: snippet, kind: 'html' },
         },
         'Drag the block’s edges out to the full width of the section.',
-        'Click Exit, then Save. While you are logged in, Squarespace shows “Embedded scripts are disabled” instead of the map — open the page in a private window to see it.',
-        'If the site is not public yet, open Settings → Site availability and choose Public. The CMS cannot see a private or password-protected site.',
+        'Click Exit, then Save.',
+        'While you are logged in, Squarespace shows “Embedded scripts are disabled” instead of the map. To see the map, open the page in a private window.',
+        'If your site is not public yet, open Settings → Site availability and choose Public. We cannot see a private or password-protected site.',
       ],
     },
   ]
@@ -580,8 +606,7 @@ export function tracksFor(values: InstallValues): Record<TrackId, Track> {
       id: 'wp-com',
       platform: 'wordpress',
       label: TRACK_LABELS['wp-com'],
-      recognise:
-        'Your site is hosted at wordpress.com, and you did not install WordPress yourself.',
+      recognise: 'Your site is hosted by WordPress.com.',
       requires: {
         title: 'Requires WordPress Business plan',
         text: 'WordPress.com allows plugins on the Business plan and higher.',
@@ -612,65 +637,83 @@ export function tracksFor(values: InstallValues): Record<TrackId, Track> {
         head: 'render-seo',
         body: 'render-seo',
         sitemap: 'render-seo',
+        routing: 'catch-all',
       },
       steps: [
         {
           id: 'snippet',
-          title: 'Add the widget to the page',
+          title: 'Add the map to the page',
           actions: [
             {
-              text: `Choose how tall the map should be, then paste this into the page at ${values.atlasUrl}, where the map should appear:`,
+              text: `Choose how tall the map should be, then paste this into the page at ${values.atlasUrl}, where the map should appear${values.embedHeight === 'window' ? '' : '. Keep its `style` attribute: that is what gives the map its height'}:`,
               choice: 'embed-height',
               snippet: { label: 'Embed snippet', value: snippetPlain, kind: 'html' },
             },
-            values.embedHeight === 'window'
-              ? 'With no height, the map covers the whole browser window, your header included.'
-              : 'Keep the style as it is: without a height the map covers the whole window instead of drawing in its own box.',
+            'Publish the change, then open the page once in your browser. That is how the map tells us where it is.',
           ],
         },
       ],
       more: {
         title: SEO_TITLE,
         intro:
-          'Your map works. Now give every class its own address and render each page’s title and text on your server, so search engines can list them.',
+          'Your map works. To get each class into search results, give every class its own address, and have your server add each page’s title and text.',
         steps: [
           {
             id: 'catch-all',
             title: 'Give every class its own address',
-            unobservable: true,
             actions: [
-              `Make your server answer every address under ${values.atlasUrl} with the same page — ${values.atlasUrl}/ca/ontario included.`,
+              `Today a class opens at an address like ${values.atlasUrl}?atlas=/ca/ontario. This step changes that to ${values.atlasUrl}/ca/ontario: a clean address that search engines can list as a page of its own.`,
               {
-                text: 'Then replace the snippet from step 3 with this one, which writes each class’s own address into the address bar:',
+                text: `Set up your server so that every address starting with ${values.atlasUrl}/ shows the same page as ${values.atlasUrl}, and keeps the address as it is, with no redirect. Without this, anyone who opens a shared class link gets a “Page not found” error. It is usually one of these:`,
+                items: [
+                  'A catch-all route for the page, in a framework such as Next.js, Nuxt or Astro.',
+                  'A rewrite rule, in Nginx, Apache or your hosting’s settings.',
+                  'A rewrite with status 200, on Netlify or Cloudflare Pages.',
+                ],
+              },
+              {
+                text: 'Then swap the snippet from step 3 for this one. It shows each class’s own address in the browser’s address bar:',
                 snippet: {
-                  label: 'Embed snippet, with addresses',
+                  label: 'Embed snippet, with class addresses',
                   value: snippetWithRouting,
                   kind: 'html',
                 },
               },
+              'The map starts using the new addresses once Region claimed shows Done. From then on, links already shared in the ?atlas= form open the main atlas page.',
             ],
           },
           {
             id: 'render-seo',
-            title: 'Render each page’s metadata on your server',
+            title: 'Add each page’s title and text on your server',
             actions: [
               {
-                text: 'For each address under the atlas page, ask the CMS for that page’s metadata and render it into the page’s <head> and body before sending it:',
+                text: `Each time your server builds a page under ${values.atlasUrl}, have it ask Sahaj Atlas about that page first. Send the part of the address after ${values.atlasUrl} as \`route\` (\`/\` for the atlas page itself), and the page’s language as \`locale\`, such as \`en\` or \`de\`:`,
                 snippet: {
-                  label: 'Page metadata',
-                  value: `GET ${cms}/api/atlas/seo?route=/ca/ontario\n${auth}`,
+                  label: 'Page details',
+                  value: `GET ${cms}/api/atlas/seo?route=/ca/ontario&locale=en\n${auth}`,
                   kind: 'text',
                 },
               },
               {
-                text: 'List every page this answers in your site’s own sitemap:',
+                text: 'Put what comes back into the page before your server sends it:',
+                items: [
+                  '`title` in the page’s `<title>`.',
+                  '`description` in `<meta name="description">`. When it is empty, write a one-line description of your own.',
+                  '`canonical` in `<link rel="canonical">`, and each of `alternates` as a `<link rel="alternate">`. When `canonical` is empty, use the page’s own address.',
+                  '`openGraph` as `<meta property>` tags, for link previews on social media.',
+                  '`jsonLd` inside `<script type="application/ld+json">`, exactly as it arrives.',
+                  '`content` as text in the page body, beside the map rather than inside it: class names, times and addresses, so search engines can read what the map shows.',
+                ],
+              },
+              'Keep each answer for up to five minutes, for each address and language, instead of asking again on every visit.',
+              {
+                text: 'Add every address this lists to your site’s own sitemap, so search engines find each class:',
                 snippet: {
                   label: 'Sitemap',
                   value: `GET ${cms}/api/atlas/sitemap\n${auth}`,
                   kind: 'text',
                 },
               },
-              'The guide at docs/embedding.md in the Sahaj Atlas repository has the full contract.',
             ],
           },
         ],
@@ -685,7 +728,7 @@ export function tracksFor(values: InstallValues): Record<TrackId, Track> {
       searchListings: false,
       requires: {
         title: 'Requires Squarespace Core or higher',
-        text: 'The map’s code runs on Core, Plus and Advanced, and on older Business and Commerce plans — on a paid site set to Public.',
+        text: 'The map needs a paid Core, Plus or Advanced plan (or an older Business or Commerce plan), on a site set to Public.',
         offerIframe: 'On Basic or Personal? Switch to Iframe only',
       },
       checks: {
@@ -707,7 +750,7 @@ export function tracksFor(values: InstallValues): Record<TrackId, Track> {
       caveat: {
         tone: 'warning',
         title: 'No search listings',
-        text: 'An iframe cannot give your page class titles, addresses or a sitemap. Use it only when nothing else works.',
+        text: 'With an iframe, classes do not get their own links or search results. Use it only when nothing else works.',
       },
       checks: {
         noReport: 'snippet',
@@ -732,8 +775,8 @@ export function tracksFor(values: InstallValues): Record<TrackId, Track> {
   }
 }
 
-/** Which of the four signals a failing SEO check belongs to. */
-export function signalFor(check: SeoCheckId): keyof CheckRouting {
+/** Which of the three signals a failing SEO check belongs to. */
+export function signalFor(check: SeoCheckId): 'head' | 'body' | 'sitemap' {
   if (check === 'sitemap') return 'sitemap'
   if (check === 'body') return 'body'
   return 'head'
@@ -781,16 +824,16 @@ export function hostHints(args: {
   if (!allowedDomains.some((pattern) => isHostAllowed(host, [pattern]))) {
     hints.push({
       tone: 'warning',
-      title: `${host} is not on this service yet`,
-      text: 'Ask a maintainer to add it to the service’s allowed domains, or the CMS cannot confirm the install.',
+      title: `${host} is not set up for this service yet`,
+      text: 'Ask a Sahaj Atlas maintainer to add it. Until then, we cannot confirm your install.',
     })
   }
 
   if (!address.secure) {
     hints.push({
       tone: 'warning',
-      title: 'Use the https address',
-      text: 'Search engines are sent to the https version of each class page. Paste the address with https if your site has it.',
+      title: 'Use the address that starts with https',
+      text: 'Search engines link to the secure (https) version of your page. Use it if your site has one.',
     })
   }
 
@@ -798,7 +841,7 @@ export function hostHints(args: {
     hints.push({
       tone: 'warning',
       title: 'This is a free Wix address',
-      text: 'The map needs Wix Premium and your own domain. Until the site has both, use Iframe only.',
+      text: 'The map needs Wix Premium and your own domain name. Until the site has both, use Iframe only.',
       action: 'switch-to-iframe',
     })
   }
@@ -807,7 +850,7 @@ export function hostHints(args: {
     hints.push({
       tone: 'info',
       title: 'This is a WordPress.com site',
-      text: 'Its steps differ slightly from a self-hosted WordPress.',
+      text: 'The steps for WordPress.com are slightly different.',
       action: 'switch-to-wp-com',
     })
   }
@@ -879,7 +922,7 @@ export function readAtlasAddress(
   }
   const url = URL.parse(hasScheme ? trimmed : `https://${bare}`)
   if (!url || (url.protocol !== 'https:' && url.protocol !== 'http:') || !url.hostname) {
-    return fail('That is not a web address. Copy it from your browser’s address bar.')
+    return fail('That does not look like a web address. Copy it from your browser’s address bar.')
   }
 
   const host = url.hostname
@@ -888,7 +931,7 @@ export function readAtlasAddress(
 
   if (segments.length === 0 && query === '') {
     return fail(
-      'That is the site’s home page. The atlas needs a page of its own, such as /classes.',
+      'That is your site’s home page. The atlas needs a page of its own, such as /classes.',
     )
   }
 
@@ -896,7 +939,7 @@ export function readAtlasAddress(
   if (oneLevel) {
     if (segments.length !== 1) {
       return fail(
-        `On ${oneLevel}, use a page one level down, like /classes — it cannot sit below another page.`,
+        `On ${oneLevel}, the atlas page must come straight after your domain, like /classes — not inside another page.`,
       )
     }
     if (!isValidWixPrefix(segments[0])) {

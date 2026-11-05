@@ -503,7 +503,7 @@ describe('runSeoChecks', () => {
     expect(pages.length).toBeGreaterThan(0)
     for (const result of pages) {
       expect(result.status).toBe('fail')
-      expect(result.detail).toContain('redirects to another host')
+      expect(result.detail).toContain('redirects to another site')
     }
   })
 

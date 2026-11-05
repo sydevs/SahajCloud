@@ -31,14 +31,14 @@ interface VerifyEmbedResponse {
 }
 
 const MESSAGES: Record<VerifyEmbedResponse['status'], (reason?: string) => string> = {
-  verified: () => 'Verified — the widget is live on that page.',
+  verified: () => 'Confirmed — the atlas is live on that page.',
   failed: (reason) =>
     reason === 'marker-absent'
-      ? 'The page loaded but the widget was not running on it.'
-      : 'That page could not be reached.',
+      ? 'The page opened, but the atlas was not running on it.'
+      : 'We could not open that page.',
   inconclusive: (reason) =>
     reason === 'not-configured'
-      ? 'Verification is not configured on this environment.'
+      ? 'Checks are not set up on this server.'
       : 'Could not check right now — nothing was changed. Try again shortly.',
 }
 
