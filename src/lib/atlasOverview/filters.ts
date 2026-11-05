@@ -6,15 +6,9 @@
  * on the server in both consumers, so nothing in the browser needs it.
  *
  * ⚠ **What client code must not reach is the folder's barrel, not this file's
- * siblings.** `index.ts` pulls `./openItems`, and through
- * `@/collections/UserSubmissions/submissionData` → `@/lib/antiSpam/antiSpamGuard`
- * → `@/lib/turnstile/verifyTurnstile` it reaches `@/lib/env/server` — so a
- * browser entry importing one filter name off the barrel ships that whole graph
- * and fails on the Railway deploy rather than in CI (`src/AGENTS.md`, "That
- * barrel hazard is not hypothetical"). Deep-import the module you want.
- * `tests/unit/client-bundle-safety.spec.ts` walks the real graph and is what
- * holds this; measured with its own walk, `status.ts` reaches six files and no
- * server-only entry, while the barrel reaches sixty-seven.
+ * siblings** — deep-import the module you want. The story is in `src/AGENTS.md`
+ * ("That barrel hazard is not hypothetical"), and
+ * `tests/unit/client-bundle-safety.spec.ts` holds it.
  */
 
 /** The tabs a filter row offers, beside All. A status in no filter is unfiltered. */

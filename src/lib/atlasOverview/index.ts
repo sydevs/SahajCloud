@@ -14,14 +14,8 @@
  * for the folder by its entry point rather than by each file.
  *
  * ⚠ **A `'use client'` component must import `./filters` by its own path, not
- * through here.** This barrel reaches the loaders, and through
- * `UserSubmissions/submissionData` → `antiSpam/antiSpamGuard` →
- * `turnstile/verifyTurnstile` it reaches `@/lib/env/server` — so a browser
- * entry taking one filter name off it would pull that graph into an admin
- * chunk, and the build would fail on the Railway deploy rather than in CI
- * (`src/AGENTS.md`). The hazard is this file, not the folder: `status.ts`
- * itself reaches no server-only module.
- * `tests/unit/client-bundle-safety.spec.ts` is what holds that.
+ * through here.** The hazard is this file, not the folder — see `src/AGENTS.md`,
+ * which `tests/unit/client-bundle-safety.spec.ts` holds.
  */
 
 export { type OpenItemFilter } from './filters'
