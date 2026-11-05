@@ -75,7 +75,9 @@ const SCENARIOS: Scenario[] = [
     name: 'Lena Fischer',
     type: 'manager',
     assignedBy: 'Anna Schmidt',
-    roles: { en: ['atlas-manager'] },
+    // No stored role: being named on the region and the events IS the Atlas
+    // role, and the `managed` block below is what the email names.
+    roles: {},
     managed: {
       regions: [{ title: 'Berlin', url: `${ATLAS}/germany/berlin` }],
       events: [event('Tuesday Evening Meditation'), event('Sunday Morning Introduction', false)],
@@ -153,7 +155,7 @@ const SCENARIOS: Scenario[] = [
     name: 'Priya Shah',
     type: 'manager',
     assignedBy: 'Anna Schmidt',
-    roles: { en: ['atlas-manager'], fr: ['web-translator'] },
+    roles: { fr: ['web-translator'] },
     managed: {
       events: [event('Tuesday Evening Meditation')],
       pages: [{ title: 'About Sahaja Yoga', url: 'https://wemeditate.com/about' }],
@@ -165,7 +167,7 @@ const SCENARIOS: Scenario[] = [
     note: 'an unaccepted manager asks for a link — the invitation names everything they hold',
     name: 'Ravi Menon',
     type: 'manager',
-    roles: { en: ['atlas-manager'] },
+    roles: {},
     managed: {
       regions: [
         { title: 'Bavaria', url: `${ATLAS}/germany/bavaria` },

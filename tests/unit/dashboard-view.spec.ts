@@ -3,7 +3,6 @@ import type { PayloadRequest } from 'payload'
 import { describe, expect, it, vi } from 'vitest'
 
 import { dashboardChoiceFor } from '@/components/admin/Dashboard/DashboardView'
-import type { RoleSlug } from '@/payload-types'
 
 import { testData } from '../utils/testData'
 
@@ -16,11 +15,16 @@ vi.mock('@payloadcms/ui/rsc', () => ({}))
 const choiceFor = (overrides: Parameters<typeof testData.dummyUser>[1]) =>
   dashboardChoiceFor(testData.dummyUser('managers', overrides) as unknown as PayloadRequest['user'])
 
-const atlas: { en: RoleSlug[] } = { en: ['atlas-manager'] }
+/** A listed region manager: the Atlas role is derived, so `roles` stays empty. */
+const listedFor = (overrides: Parameters<typeof testData.dummyUser>[1]) =>
+  dashboardChoiceFor({
+    ...testData.dummyUser('managers', overrides),
+    managedRegions: { docs: [3] },
+  } as unknown as PayloadRequest['user'])
 
 describe('dashboardChoiceFor', () => {
   it('gives an Atlas manager their programs and an admin the overview', () => {
-    expect(choiceFor({ type: 'manager', roles: atlas, currentProject: 'sahaj-atlas' })).toEqual({
+    expect(listedFor({ type: 'manager', currentProject: 'sahaj-atlas' })).toEqual({
       kind: 'atlas-manager',
     })
     expect(choiceFor({ type: 'admin', currentProject: 'sahaj-atlas' })).toEqual({
@@ -29,12 +33,12 @@ describe('dashboardChoiceFor', () => {
   })
 
   it('renders the project a single-project manager is about to be moved into', () => {
-    expect(choiceFor({ type: 'manager', roles: atlas, currentProject: null })).toEqual({
+    expect(listedFor({ type: 'manager', currentProject: null })).toEqual({
       kind: 'atlas-manager',
     })
   })
 
-  it('counts an assigned event as access to Sahaj Atlas, with no role', () => {
+  it('counts an assigned event as access to Sahaj Atlas, with no stored role', () => {
     const assignee = {
       ...testData.dummyUser('managers', { type: 'manager', currentProject: 'sahaj-atlas' }),
       managedEvents: { docs: [7] },

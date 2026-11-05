@@ -50,10 +50,10 @@ describe('Blocking a sender', () => {
     cleanup = env.cleanup
 
     adminRest = await createRestClientAs(env, env.adminUser)
-    const atlasManager: Manager = await testData.createManager(payload, {
-      name: 'Atlas Manager',
-      roles: ['atlas-manager'],
-    })
+    const atlasManager: Manager = await testData.createManager(payload, { name: 'Atlas Manager' })
+    // The listing is the role (#1068). The REST client's JWT strategy re-reads
+    // the manager, joins included, so it resolves `atlas-region-manager`.
+    await testData.createRegion(payload, { managers: [atlasManager.id] })
     managerRest = await createRestClientAs(env, atlasManager)
 
     const form = await payload.create({
@@ -78,7 +78,7 @@ describe('Blocking a sender', () => {
   })
 
   describe('POST /api/users/:id/block', () => {
-    it('refuses a manager who may read Registrants but not write them', async () => {
+    it('refuses an Atlas manager, who holds no grant on Registrants', async () => {
       const sender = await createSender('refused-block@example.com')
 
       const { status } = await managerRest(`/api/users/${sender.id}/block`, {

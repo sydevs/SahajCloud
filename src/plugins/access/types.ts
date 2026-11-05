@@ -47,12 +47,23 @@ export type BypassPermissionFunction = (
 // --- User Types ---
 
 /**
+ * What a derived role is read off — `req.user` on the server, `useAuth().user`
+ * in the browser. Every join is declared on `Managers`, and Payload's JWT
+ * strategy loads the authenticated manager with `findByID`, which resolves a
+ * join by default, so every request carries them.
+ */
+export type VirtualRoleUser = Partial<
+  Pick<Manager, 'managedEvents' | 'managedPages' | 'managedRegions'>
+>
+
+/**
  * Generic authenticated user type for access checking.
  * Works with any auth collection (managers, clients, or custom).
  */
 export type TypedAuthUser = TypedUser &
   Partial<Pick<Manager, 'currentProject' | 'type'>> &
-  Partial<Pick<Client, '_status'>> & {
+  Partial<Pick<Client, '_status'>> &
+  VirtualRoleUser & {
     /** Auth collection this user belongs to */
     collection: 'managers' | 'clients'
     /**
@@ -63,6 +74,10 @@ export type TypedAuthUser = TypedUser &
      * type can express it — the collection declares `roles` as `localized`, so
      * Payload generates the single-locale array (#665). A manager read any
      * other way carries that flat, default-locale array instead.
+     *
+     * The derived roles are in neither shape: nothing stores them, and
+     * `virtualRoles` resolves them from the joins {@link VirtualRoleUser}
+     * carries.
      */
     roles?: RoleSlug[] | Record<LocaleCode, RoleSlug[]>
   }

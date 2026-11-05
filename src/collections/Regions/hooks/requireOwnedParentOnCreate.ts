@@ -5,8 +5,8 @@ import { APIError } from 'payload'
 import { isAdminManager, isManager } from '@/plugins/access'
 
 /**
- * Atlas managers may only create regions inside their owned subtree — i.e. as a
- * child of a region they own. The access grant (`regionSubtreeAccess`) already
+ * Atlas region managers may only create regions inside their owned subtree —
+ * i.e. as a child of a region they own. The access grant (`regionSubtreeAccess`) already
  * validates a chosen `parent` against that subtree, but the create-capability
  * check can't tell "opening the create form" (no parent yet) from a rootless
  * submit, so it has to allow the parentless case. This hook closes that gap: it
@@ -15,9 +15,10 @@ import { isAdminManager, isManager } from '@/plugins/access'
  *
  * Admins create regions anywhere — including root countries — so they're let
  * through explicitly up front. Beyond admins, only the subtree-scoped
- * atlas-manager role grants `regions: create` (the document-manager fallback
- * grants read/update only), so a non-admin manager reaching this create is
- * necessarily that scoped manager.
+ * atlas-region-manager role grants `regions: create` (the document-manager
+ * fallback grants read/update only, and atlas-event-manager grants nothing on
+ * regions), so a non-admin manager reaching this create is necessarily that
+ * scoped manager.
  */
 export const requireOwnedParentOnCreate: CollectionBeforeValidateHook = ({
   data,

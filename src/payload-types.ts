@@ -763,7 +763,9 @@ export type RoleSlug =
   | 'meditations-editor'
   | 'path-editor'
   | 'web-translator'
-  | 'atlas-manager'
+  | 'page-editor'
+  | 'atlas-region-manager'
+  | 'atlas-event-manager'
   | 'wemeditate-web-client'
   | 'wemeditate-app-client'
   | 'sahaj-atlas-client';
@@ -1238,7 +1240,7 @@ export interface Manager {
   /**
    * Assign roles for each locale. Different roles can be assigned for different languages.
    */
-  roles?: ('meditations-editor' | 'path-editor' | 'web-translator' | 'atlas-manager')[] | null;
+  roles?: ('meditations-editor' | 'path-editor' | 'web-translator')[] | null;
   /**
    * Pages this manager can edit.
    */
@@ -2273,8 +2275,11 @@ export interface UserSubmission {
   event?: (number | null) | Event;
   uuid?: string | null;
   location?: SubmissionLocation;
-  regionHint?: SubmissionRegionHint;
   proposed?: SubmissionProposal;
+  /**
+   * The region whose manager reviews this — matched from the location.
+   */
+  routingRegion?: (number | null) | Region;
   followUpSentAt?: string | null;
   updatedAt: string;
   createdAt: string;
@@ -2910,20 +2915,6 @@ export interface SubmissionLocation {
    * The `country` layer.
    */
   countryId?: string;
-}
-export interface SubmissionRegionHint {
-  /**
-   * The matched country region.
-   */
-  country?: number;
-  /**
-   * The matched state region.
-   */
-  state?: number;
-  /**
-   * The matched city or venue, kept after a reviewer changes `region`.
-   */
-  anchorRegion?: number;
 }
 export interface SubmissionProposal {
   [k: string]: unknown;
@@ -5342,8 +5333,8 @@ export interface UserSubmissionsSelect<T extends boolean = true> {
   event?: T;
   uuid?: T;
   location?: T;
-  regionHint?: T;
   proposed?: T;
+  routingRegion?: T;
   followUpSentAt?: T;
   updatedAt?: T;
   createdAt?: T;
