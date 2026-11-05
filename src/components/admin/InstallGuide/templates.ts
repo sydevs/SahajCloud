@@ -39,6 +39,26 @@ export interface InstallValues {
   cmsUrl: string
   /** The widget loader's origin, from `SAHAJATLAS_URL`. */
   widgetUrl: string
+  /** How tall a pasted embed is. Defaults to `screen`. */
+  embedHeight?: EmbedHeight
+}
+
+/**
+ * How tall a pasted `<sahaj-atlas>` is: a definite height, or none at all.
+ *
+ * Those are the embed contract's only two shapes (sydevs/SahajAtlasWeb
+ * `docs/embedding.md`, "Sizing the element"): with a height the map lives in the
+ * page between header and footer, and with none it fills the browser window. A
+ * free number is not offered because below 420px the widget gives up on the map
+ * and shows its compact card.
+ */
+export type EmbedHeight = 'fixed' | 'screen' | 'window'
+
+/** The element's inline style per choice; `null` is the window-filling map. */
+export const EMBED_HEIGHT_STYLE: Record<EmbedHeight, string | null> = {
+  fixed: 'display:block;height:640px',
+  screen: 'display:block;height:80vh',
+  window: null,
 }
 
 /**
@@ -240,10 +260,15 @@ export function wixCustomElementSettings(values: InstallValues): CustomElementSe
  * `routing=path` only where the host serves the whole subtree — which is what
  * the custom-site track's catch-all requirement is about. An iframe-only site
  * gets neither, because it has no URLs of its own to route into.
+ *
+ * ⚠ **`display:block` comes with every height.** A custom element is inline by
+ * default and cannot take one, so a height alone leaves it unsized — and an
+ * unsized element is the window-filling map, not the box that was asked for.
  */
 export function widgetSnippet(values: InstallValues, options: { routing: boolean }): string {
   const origin = values.widgetUrl.replace(/\/+$/, '')
   const routing = options.routing ? '&routing=path' : ''
+  const style = EMBED_HEIGHT_STYLE[values.embedHeight ?? 'screen']
   return `<script type="module" src="${origin}/auto.js?key=${encodeURIComponent(values.apiKey)}${routing}"></script>
-<${WIDGET_TAG_NAME} style="display:block;height:80vh"></${WIDGET_TAG_NAME}>`
+<${WIDGET_TAG_NAME}${style ? ` style="${style}"` : ''}></${WIDGET_TAG_NAME}>`
 }

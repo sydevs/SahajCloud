@@ -146,6 +146,15 @@ describe('wixCustomElementSettings', () => {
 })
 
 describe('widgetSnippet', () => {
+  it('gives every chosen height display:block, and the window no height at all', () => {
+    const element = (embedHeight: 'fixed' | 'screen' | 'window') =>
+      widgetSnippet({ ...VALUES, embedHeight }, { routing: false }).split('\n')[1]
+    expect(element('fixed')).toContain('style="display:block;height:640px"')
+    expect(element('screen')).toContain('style="display:block;height:80vh"')
+    // No height is the contract's window-filling map, not a missing style.
+    expect(element('window')).toBe('<sahaj-atlas></sahaj-atlas>')
+  })
+
   it('sizes the element, which is the opt-in for a contained map', () => {
     // An unsized element becomes position:fixed;inset:0 and covers the page
     // (sydevs/SahajAtlasWeb#170), so `display:block` and a definite height are

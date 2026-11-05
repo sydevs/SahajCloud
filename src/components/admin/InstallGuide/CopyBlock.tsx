@@ -3,9 +3,12 @@
 import type { Snippet } from './steps'
 
 import { CodeEditor, CopyToClipboard } from '@payloadcms/ui'
-import React from 'react'
+import React, { useState } from 'react'
 
 import styles from './InstallGuide.module.css'
+
+/** Past this, a whole file scrolls inside its box rather than pushing the steps off the page. */
+const FILE_MAX_HEIGHT = 384
 
 /**
  * One value a volunteer has to get into another system, with a Copy button.
@@ -14,11 +17,19 @@ import styles from './InstallGuide.module.css'
  * change: the router code has to agree with the endpoint, the key is the key,
  * and a field that accepts typing invites a correction that breaks the install
  * with no error anywhere. Code goes in Payload's `CodeEditor` with `readOnly`,
- * for its highlighting and line numbers; a single value stays a `<pre>`.
- * `CopyToClipboard` is Payload's own, so it behaves like the Reveal button
- * beside the API key rather than like a second idiom.
+ * for its highlighting; a single value stays a `<pre>`. `CopyToClipboard` is
+ * Payload's own, so it behaves like the Reveal button beside the API key rather
+ * than like a second idiom.
+ *
+ * ⚠ **Sized from the editor's own content height.** `CodeEditor` sizes itself
+ * by counting lines at 18px, but it also wraps them, so a two-line snippet with
+ * a long `<script>` tag wraps to four and scrolls inside a two-line box. Its
+ * `minHeight` and `recalculatedHeightAt` props are the seam for a height it
+ * cannot count: Monaco reports the wrapped height, and every change of it — a
+ * narrower window re-wraps — is fed back. Only a whole file is capped.
  */
 export function CopyBlock({ snippet }: { snippet: Snippet }): React.ReactElement {
+  const [fit, setFit] = useState<{ height: number; at: number } | null>(null)
   return (
     <div className={styles.copyBlock}>
       <div className={styles.copyHeader}>
@@ -28,7 +39,21 @@ export function CopyBlock({ snippet }: { snippet: Snippet }): React.ReactElement
       {snippet.kind === 'text' ? (
         <pre className={styles.copyValue}>{snippet.value}</pre>
       ) : (
-        <CodeEditor language={snippet.kind} maxHeight={384} readOnly value={snippet.value} />
+        <CodeEditor
+          language={snippet.kind}
+          maxHeight={snippet.kind === 'javascript' ? FILE_MAX_HEIGHT : undefined}
+          minHeight={fit?.height}
+          onMount={(editor) => {
+            const measure = () => setFit({ height: editor.getContentHeight(), at: Date.now() })
+            editor.onDidContentSizeChange(measure)
+            measure()
+          }}
+          readOnly
+          // Starts at 0, not undefined: the editor applies a new height only
+          // when this grows past the value it mounted with.
+          recalculatedHeightAt={fit?.at ?? 0}
+          value={snippet.value}
+        />
       )}
     </div>
   )

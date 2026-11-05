@@ -560,6 +560,29 @@ describe('client canonical ownership + embed metadata', () => {
       expect(stored['https://sahajayoga.nl/meditations-kurse-finden'].mode).toBe('inline')
     })
 
+    it('keeps a reported mount through a later save of the service', async () => {
+      // Payload builds every update on the latest *version* row, so a mount
+      // written to the published row alone was dropped by the next save — the
+      // claim and the verification included, which is what emptied "Atlas
+      // detected" on the Install tab right after a successful check.
+      const client = await createClient('Saved Reporter', { _status: 'published' })
+      await clientEmbedReport.handler(
+        reportReq({
+          clientId: client.id,
+          body: { origin: 'https://a.org', pathname: '/x', ...OBSERVATION },
+        }),
+      )
+
+      await payload.update({
+        collection: 'clients',
+        id: client.id,
+        data: { notes: 'Saved after a report' },
+        overrideAccess: true,
+      })
+
+      expect(Object.keys((await storedMetadata(client.id)) ?? {})).toEqual(['https://a.org/x'])
+    })
+
     it('answers a repeated identical report without writing', async () => {
       const client = await createClient('Repeat Reporter')
       const req = () =>

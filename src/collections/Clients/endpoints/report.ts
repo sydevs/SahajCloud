@@ -35,14 +35,25 @@ import { getPgPool, isHostAllowed, parseAllowedDomains, quotedDbSchema } from '@
  * the right operator: a whole-column overwrite would reintroduce the read-modify-write window on the
  * one path where the record is largest. An empty array is a no-op.
  *
- * Same trade-off the usage counters already accept — this writes the published `clients` row and
- * not `_clients_v`, and skips the column's JSON Schema validator. Safe because the entry is built
- * here from a Zod-validated body; no caller-supplied shape reaches the column.
+ * ⚠ **The latest `_clients_v` row gets the merged value too, in the same statement.** Payload builds
+ * every update on that version row (`getLatestCollectionVersion` in `updateByID`), not on the
+ * published one, so a mount written to `clients` alone was dropped by the next save of the service
+ * — `claim-canonical` and `verify-embed` included, which is what emptied "Atlas detected" on the
+ * Install tab right after a successful check.
+ *
+ * It skips the column's JSON Schema validator. Safe because the entry is built here from a
+ * Zod-validated body; no caller-supplied shape reaches the column.
  */
 const embedMergeSql = (quotedSchema: string) => `
-  UPDATE ${quotedSchema}.clients
-  SET embed_metadata = (COALESCE(embed_metadata, '{}'::jsonb) || $1::jsonb) - $2::text[]
-  WHERE id = $3
+  WITH merged AS (
+    UPDATE ${quotedSchema}.clients
+    SET embed_metadata = (COALESCE(embed_metadata, '{}'::jsonb) || $1::jsonb) - $2::text[]
+    WHERE id = $3
+    RETURNING embed_metadata
+  )
+  UPDATE ${quotedSchema}._clients_v
+  SET version_embed_metadata = (SELECT embed_metadata FROM merged)
+  WHERE parent_id = $3 AND latest = true
 `
 
 /** Response body of a successful `POST /api/clients/report`. */

@@ -11,6 +11,7 @@ import type { CanonicalVerification } from '@/lib/clients/verification'
 import { serverEnv } from '@/lib/env/server'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 import type { Client } from '@/payload-types'
+import { parseAllowedDomains } from '@/plugins/usage/originEnforcement'
 
 import { CenteredNotice } from '../CenteredNotice'
 import { InstallGuide } from './InstallGuide'
@@ -108,6 +109,7 @@ export default async function InstallView(
     <>
       {stepNav}
       <InstallGuide
+        allowedDomains={parseAllowedDomains(client.allowedDomains)}
         apiKey={await revealApiKey(props, clientId)}
         canonicalEmbed={client.canonical?.embed ?? null}
         clientId={clientId}

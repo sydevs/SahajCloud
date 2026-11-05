@@ -1,7 +1,7 @@
 'use client'
 
 import type { Action, PlatformId, Step, TrackId } from './steps'
-import type { InstallValues } from './templates'
+import type { EmbedHeight, InstallValues } from './templates'
 
 import {
   Button,
@@ -89,6 +89,8 @@ export interface InstallGuideProps {
   initialVerification: CanonicalVerification | null
   /** Whether a region is set, which canonical ownership needs. */
   hasRegion: boolean
+  /** The service's `allowedDomains`, parsed — a host outside them cannot be claimed. */
+  allowedDomains: string[]
 }
 
 export function InstallGuide(props: InstallGuideProps): React.ReactElement {
@@ -102,6 +104,7 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
   const [canonicalEmbed, setCanonicalEmbed] = useState(props.canonicalEmbed)
   const [embedMetadata, setEmbedMetadata] = useState(props.initialEmbedMetadata)
   const [verification, setVerification] = useState(props.initialVerification)
+  const [embedHeight, setEmbedHeight] = useState<EmbedHeight>('screen')
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<{ from: CheckSource; banner: BannerContent } | null>(null)
 
@@ -111,7 +114,10 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
   // The last answer, verbatim, so an unchanged poll touches no state.
   const lastRead = useRef<string | null>(null)
 
-  const address = readAtlasAddress(addressInput, { wix: platform === 'wix' })
+  const address = useMemo(
+    () => readAtlasAddress(addressInput, { wix: platform === 'wix' }),
+    [addressInput, platform],
+  )
   const atlasPath = address.path
 
   const values: InstallValues = useMemo(() => {
@@ -124,8 +130,9 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
       atlasUrl: path,
       cmsUrl,
       widgetUrl,
+      embedHeight,
     }
-  }, [apiKey, atlasPath, cmsUrl, widgetUrl])
+  }, [apiKey, atlasPath, cmsUrl, widgetUrl, embedHeight])
 
   const tracks = useMemo(() => tracksFor(values), [values])
   const activeTrack = track ? tracks[track] : null
@@ -153,12 +160,12 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
     .filter((milestone) => milestone.id === 'seen' || milestone.id === 'confirmed')
     .every((milestone) => milestone.state === 'done')
 
-  // What the volunteer typed outranks what has reported: it is the site they
-  // are setting up now.
-  const siteHost = address.host ?? model.candidate?.host ?? null
+  const { allowedDomains } = props
+  const hasTrack = activeTrack !== null
   const hints = useMemo(
-    () => (platform ? hostHints({ host: siteHost, platform }) : []),
-    [siteHost, platform],
+    () =>
+      platform && hasTrack ? hostHints({ address, platform, trackId: track, allowedDomains }) : [],
+    [address, platform, hasTrack, track, allowedDomains],
   )
 
   /**
@@ -352,30 +359,14 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
             </>
           ) : null}
 
-          {hints.length > 0 || activeTrack?.caveat ? (
+          {activeTrack?.caveat ? (
             <div className={styles.banners}>
-              {hints.map((hint) => (
-                <TitledBanner
-                  action={
-                    hint.offerIframe ? (
-                      <SwitchToIframe onClick={() => choosePlatform('iframe')} />
-                    ) : undefined
-                  }
-                  key={hint.title}
-                  title={hint.title}
-                  type="warning"
-                >
-                  {hint.text}
-                </TitledBanner>
-              ))}
-              {activeTrack?.caveat ? (
-                <TitledBanner
-                  title={activeTrack.caveat.title}
-                  type={activeTrack.caveat.tone === 'warning' ? 'warning' : 'default'}
-                >
-                  {activeTrack.caveat.text}
-                </TitledBanner>
-              ) : null}
+              <TitledBanner
+                title={activeTrack.caveat.title}
+                type={activeTrack.caveat.tone === 'warning' ? 'warning' : 'default'}
+              >
+                {activeTrack.caveat.text}
+              </TitledBanner>
             </div>
           ) : null}
         </section>
@@ -413,6 +404,30 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
                 value={addressInput}
               />
             </div>
+            {hints.length > 0 ? (
+              <div className={styles.banners}>
+                {hints.map((hint) => (
+                  <TitledBanner
+                    action={
+                      hint.action === 'switch-to-iframe' ? (
+                        <InlineAction onClick={() => choosePlatform('iframe')}>
+                          Switch to Iframe only
+                        </InlineAction>
+                      ) : hint.action === 'switch-to-wp-com' ? (
+                        <InlineAction onClick={() => setTrack('wp-com')}>
+                          Switch to WordPress.com
+                        </InlineAction>
+                      ) : undefined
+                    }
+                    key={hint.title}
+                    title={hint.title}
+                    type={hint.tone === 'warning' ? 'warning' : 'default'}
+                  >
+                    {hint.text}
+                  </TitledBanner>
+                ))}
+              </div>
+            ) : null}
           </section>
         ) : null}
 
@@ -420,13 +435,27 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
           <section className={styles.section}>
             <h3 className={styles.heading}>3. Get the atlas on your site</h3>
             {activeTrack.requires ? (
-              <TitledBanner
-                action={<SwitchToIframe onClick={() => choosePlatform('iframe')} />}
-                title={activeTrack.requires.title}
-                type="warning"
-              >
+              <TitledBanner title={activeTrack.requires.title}>
                 {activeTrack.requires.text}
               </TitledBanner>
+            ) : null}
+            {activeTrack.embedHeight ? (
+              <div className={styles.choice}>
+                <span className="field-label">Map height</span>
+                <ToggleGroup
+                  aria-label="Map height"
+                  onChange={(next) => setEmbedHeight(next as EmbedHeight)}
+                  options={(Object.keys(EMBED_HEIGHT_LABELS) as EmbedHeight[]).map((id) => ({
+                    label: EMBED_HEIGHT_LABELS[id].label,
+                    value: id,
+                  }))}
+                  value={embedHeight}
+                />
+                <FieldDescription
+                  description={EMBED_HEIGHT_LABELS[embedHeight].description}
+                  path="embedHeight"
+                />
+              </div>
             ) : null}
             <ol className={styles.steps}>
               {activeTrack.steps.map((step, index) => stepCard(step, index + 1, false))}
@@ -461,7 +490,12 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
       <aside className={styles.sidebar}>
         <h3 className={styles.heading}>Where this install stands</h3>
         <InstallProgress milestones={milestones} />
-        <Button buttonStyle="secondary" disabled={busy} onClick={() => void recheck('sidebar')}>
+        <Button
+          buttonStyle="secondary"
+          disabled={busy}
+          margin={false}
+          onClick={() => void recheck('sidebar')}
+        >
           {busy ? 'Checking…' : 'Check again'}
         </Button>
         {result?.from === 'sidebar' ? <ResultBanner banner={result.banner} /> : null}
@@ -504,10 +538,26 @@ function ResultBanner({ banner }: { banner: BannerContent }) {
   )
 }
 
-function SwitchToIframe({ onClick }: { onClick: () => void }) {
+/** What each map height does, in the volunteer's terms. */
+const EMBED_HEIGHT_LABELS: Record<EmbedHeight, { label: string; description: string }> = {
+  fixed: {
+    label: '640 pixels',
+    description: 'A fixed box between your header and footer. Fits any page.',
+  },
+  screen: {
+    label: '80% of screen',
+    description: 'Grows with the screen, leaving room for your header.',
+  },
+  window: {
+    label: 'Whole window',
+    description: 'Covers the browser window, your header included, like an app.',
+  },
+}
+
+function InlineAction({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
   return (
     <Button buttonStyle="none" className={styles.inlineAction} onClick={onClick}>
-      Switch to Iframe only
+      {children}
     </Button>
   )
 }

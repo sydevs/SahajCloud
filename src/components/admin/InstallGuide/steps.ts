@@ -2,6 +2,8 @@ import type { InstallValues } from './templates'
 
 import { isValidWixPrefix } from '@/lib/atlas/wixPrefix'
 import type { SeoCheckId } from '@/lib/clients/verification'
+// Deep, never the `@/plugins/usage` barrel: this module reaches the browser.
+import { isHostAllowed } from '@/plugins/usage/originEnforcement'
 
 import {
   CONTENT_ELEMENT_ID,
@@ -148,11 +150,14 @@ export interface Track {
   /** Shown under the sub-choice: how a volunteer recognises their own site. */
   recognise: string
   /**
-   * What the site must already have, shown above the steps with a way out to the
-   * iframe track. A condition rather than a step: nothing done in this tab
-   * changes a site's plan, so there is nothing to tick off.
+   * A plan the track relies on, stated above the steps as information. A
+   * condition rather than a step: nothing done in this tab changes a site's
+   * plan, so there is nothing to tick off — and most sites already have it, so
+   * it is not worded as a warning.
    */
   requires?: Notice
+  /** Offers the map-height choice, for a track whose snippet the volunteer pastes as written. */
+  embedHeight?: boolean
   /** Step 3: the atlas working on the site. */
   steps: Step[]
   /** Step 4, where the track has one. */
@@ -186,10 +191,11 @@ export function snippetsOf(step: Step): Snippet[] {
   )
 }
 
+/** In the order they are offered. */
 export const PLATFORM_LABELS: Record<PlatformId, string> = {
+  custom: 'Custom site',
   wordpress: 'WordPress',
   wix: 'Wix',
-  custom: 'Custom site',
   iframe: 'Iframe only',
 }
 
@@ -336,11 +342,6 @@ const WIX_CHECKS: CheckRouting = {
   head: 'paste-routers',
   body: 'add-text',
   sitemap: 'publish-seo',
-}
-
-const WIX_REQUIRES: Notice = {
-  title: 'Needs Wix Premium and your own domain',
-  text: 'A free site, or an address ending in wixsite.com, cannot run the map. Use Iframe only until it has both.',
 }
 
 /**
@@ -495,8 +496,8 @@ export function tracksFor(values: InstallValues): Record<TrackId, Track> {
       recognise:
         'Your site is hosted at wordpress.com, and you did not install WordPress yourself.',
       requires: {
-        title: 'Needs the Business plan',
-        text: 'WordPress.com allows plugins only on Business or higher (Upgrades → Plans). On a lower plan, use Iframe only.',
+        title: 'Uses the Business plan',
+        text: 'WordPress.com allows plugins on the Business plan and higher.',
       },
       checks: WORDPRESS_CHECKS,
       steps: wordpressSteps(values, { dotCom: true }),
@@ -508,7 +509,6 @@ export function tracksFor(values: InstallValues): Record<TrackId, Track> {
       platform: 'wix',
       label: TRACK_LABELS['wix-editor'],
       recognise: 'The top bar says “Wix”, and there is a Dev Mode menu.',
-      requires: WIX_REQUIRES,
       checks: WIX_CHECKS,
       steps: wixEmbedSteps(values, false),
       more: wixSeoSteps(values, false),
@@ -519,7 +519,6 @@ export function tracksFor(values: InstallValues): Record<TrackId, Track> {
       platform: 'wix',
       label: TRACK_LABELS['wix-studio'],
       recognise: 'The top bar says “Wix Studio”.',
-      requires: WIX_REQUIRES,
       caveat: {
         tone: 'info',
         title: 'Menu names not yet confirmed',
@@ -535,6 +534,7 @@ export function tracksFor(values: InstallValues): Record<TrackId, Track> {
       platform: 'custom',
       label: TRACK_LABELS['custom'],
       recognise: PLATFORM_RECOGNISE.custom,
+      embedHeight: true,
       checks: {
         noReport: 'snippet',
         head: 'render-seo',
@@ -550,7 +550,9 @@ export function tracksFor(values: InstallValues): Record<TrackId, Track> {
               text: `Paste this into the page at ${values.atlasUrl}, where the map should appear:`,
               snippet: { label: 'Embed snippet', value: snippetPlain, kind: 'html' },
             },
-            'Keep the height: an element with no height covers the whole page instead of drawing in its own box.',
+            values.embedHeight === 'window'
+              ? 'With no height, the map covers the whole browser window, your header included.'
+              : 'Keep the style as it is: without a height the map covers the whole window instead of drawing in its own box.',
           ],
         },
       ],
@@ -647,47 +649,75 @@ export function stepForCheck(track: Track, check: SeoCheckId): StepId {
   return track.checks[signalFor(check)]
 }
 
-/** A warning a volunteer needs before they start, read off their site address. */
+/** What the volunteer can do about a hint, offered as a button in its banner. */
+export type HintAction = 'switch-to-iframe' | 'switch-to-wp-com'
+
+/** Something a site's address already tells us, before anything is installed. */
 export interface HostHint extends Notice {
-  /** True when the only honest advice is the iframe track. */
-  offerIframe: boolean
+  tone: 'warning' | 'info'
+  action?: HintAction
 }
 
 /**
  * What a site's own address already tells us, before anything is installed.
  *
- * Two addresses answer a question the volunteer would otherwise only discover
- * after an hour of work, and both are checked as they type rather than at a
- * Verify step nobody reaches. There is deliberately no server-side detection of
- * anything else: a guess about somebody's hosting that turns out wrong is worse
- * than asking.
+ * Each answers a question the volunteer would otherwise only discover at the
+ * end — a claim refused for an undeclared domain, a free Wix site that cannot
+ * run the element — and all are read off the address as it is typed. There is
+ * deliberately no server-side detection: a guess about somebody's hosting that
+ * turns out wrong is worse than asking.
+ *
+ * `allowedDomains` is the service's own list, already parsed. An empty list
+ * declares nothing, and `claim-canonical` refuses it exactly as it refuses a
+ * host the list does not name.
  */
-export function hostHints(args: { host: string | null; platform: PlatformId }): HostHint[] {
-  const { host, platform } = args
+export function hostHints(args: {
+  address: AtlasAddress
+  platform: PlatformId
+  trackId: TrackId | null
+  allowedDomains: string[]
+}): HostHint[] {
+  const { address, platform, trackId, allowedDomains } = args
+  const host = address.host?.toLowerCase()
   if (!host) return []
-  const lower = host.toLowerCase()
+  const hints: HostHint[] = []
+  const under = (domain: string) => host === domain || host.endsWith(`.${domain}`)
 
-  if (platform === 'wix' && (lower.endsWith('.wixsite.com') || lower === 'wixsite.com')) {
-    return [
-      {
-        title: 'This is a free Wix address',
-        text: 'The map needs a paid Wix Premium plan and your own domain name. Until the site has both, use Iframe only.',
-        offerIframe: true,
-      },
-    ]
+  if (!allowedDomains.some((pattern) => isHostAllowed(host, [pattern]))) {
+    hints.push({
+      tone: 'warning',
+      title: `${host} is not on this service yet`,
+      text: 'Ask a maintainer to add it to the service’s allowed domains, or the CMS cannot confirm the install.',
+    })
   }
 
-  if (platform === 'wordpress' && (lower.endsWith('.wordpress.com') || lower === 'wordpress.com')) {
-    return [
-      {
-        title: 'This is a WordPress.com address',
-        text: 'Installing a plugin there needs the Business plan or higher. Check Upgrades → Plans before you start.',
-        offerIframe: false,
-      },
-    ]
+  if (!address.secure) {
+    hints.push({
+      tone: 'warning',
+      title: 'Use the https address',
+      text: 'Search engines are sent to the https version of each class page. Paste the address with https if your site has it.',
+    })
   }
 
-  return []
+  if (platform === 'wix' && under('wixsite.com')) {
+    hints.push({
+      tone: 'warning',
+      title: 'This is a free Wix address',
+      text: 'The map needs Wix Premium and your own domain. Until the site has both, use Iframe only.',
+      action: 'switch-to-iframe',
+    })
+  }
+
+  if (platform === 'wordpress' && under('wordpress.com') && trackId !== 'wp-com') {
+    hints.push({
+      tone: 'info',
+      title: 'This is a WordPress.com site',
+      text: 'Its steps differ slightly from a self-hosted WordPress.',
+      action: 'switch-to-wp-com',
+    })
+  }
+
+  return hints
 }
 
 /** The atlas address as the tab uses it, read off whatever the volunteer pasted. */
@@ -698,18 +728,20 @@ export interface AtlasAddress {
    * the same page give the same answer.
    */
   path: string | null
-  /** The site's host, when the volunteer pasted more than a path. */
+  /** The site's host, or `null` while there is a problem. */
   host: string | null
+  /** Whether the address is https — the only scheme a canonical URL is built with. */
+  secure: boolean
   problem: string | null
 }
 
 /**
- * Read the atlas address out of a URL, a host and path, or a bare path.
+ * Read the atlas address out of a whole URL, with or without its scheme.
  *
- * A volunteer copies the address bar, so a whole URL is the normal input and a
- * path the exception. Only the path is used — reports are matched on it
- * (`reportedMountsFor`) — but the host is kept for `hostHints`, which can then
- * warn about a free Wix site before anything has reported.
+ * ⚠ **The domain is required.** A volunteer copies the address bar, so a whole
+ * URL is what they have — and the host is what `hostHints` reads to warn about
+ * an undeclared domain or a free Wix site before anything has reported. Reports
+ * are still matched on the path alone (`reportedMountsFor`).
  *
  * ⚠ **The query survives only on the home page**, where it *is* the page: a
  * WordPress plain permalink is `/?p=42`. Anywhere else it is tracking noise
@@ -727,20 +759,26 @@ export interface AtlasAddress {
  */
 export function readAtlasAddress(input: string, options: { wix: boolean }): AtlasAddress {
   const trimmed = input.trim()
-  const fail = (problem: string): AtlasAddress => ({ path: null, host: null, problem })
+  const fail = (problem: string): AtlasAddress => ({
+    path: null,
+    host: null,
+    secure: false,
+    problem,
+  })
   if (trimmed === '') return fail('Paste the address of the page that will show the atlas.')
 
   const hasScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed)
   const bare = trimmed.replace(/^\/+/, '')
   const looksLikeHost = !hasScheme && !trimmed.startsWith('/') && /^[^/?#]+\.[^/?#]+/.test(bare)
-  const url = URL.parse(
-    hasScheme ? trimmed : looksLikeHost ? `https://${bare}` : `https://site.invalid/${bare}`,
-  )
-  if (!url || (url.protocol !== 'https:' && url.protocol !== 'http:')) {
+  if (!hasScheme && !looksLikeHost) {
+    return fail('Paste the whole address, with your domain — such as https://yoursite.org/classes.')
+  }
+  const url = URL.parse(hasScheme ? trimmed : `https://${bare}`)
+  if (!url || (url.protocol !== 'https:' && url.protocol !== 'http:') || !url.hostname) {
     return fail('That is not a web address. Copy it from your browser’s address bar.')
   }
 
-  const host = hasScheme || looksLikeHost ? url.hostname : null
+  const host = url.hostname
   const segments = url.pathname.split('/').filter(Boolean)
   const query = segments.length === 0 && url.search.length > 1 ? url.search : ''
 
@@ -761,5 +799,10 @@ export function readAtlasAddress(input: string, options: { wix: boolean }): Atla
     }
   }
 
-  return { path: `/${segments.join('/')}${query}`, host, problem: null }
+  return {
+    path: `/${segments.join('/')}${query}`,
+    host,
+    secure: url.protocol === 'https:',
+    problem: null,
+  }
 }

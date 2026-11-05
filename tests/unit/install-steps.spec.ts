@@ -38,6 +38,10 @@ const tracks = tracksFor(VALUES)
 const TRACK_IDS = Object.keys(tracks) as TrackId[]
 
 describe('the four platform choices', () => {
+  it('offers Custom site first', () => {
+    expect(Object.keys(PLATFORM_LABELS)[0]).toBe('custom')
+  })
+
   it('offers exactly the four the ticket names', () => {
     expect(Object.keys(PLATFORM_LABELS).sort()).toEqual(['custom', 'iframe', 'wix', 'wordpress'])
   })
@@ -278,28 +282,65 @@ describe('stepForCheck', () => {
 })
 
 describe('hostHints', () => {
-  it('warns a free Wix address and offers the iframe track', () => {
-    const hints = hostHints({ host: 'sahajayoga-ca.wixsite.com', platform: 'wix' })
-    expect(hints).toHaveLength(1)
-    expect(hints[0].text).toMatch(/Premium/)
-    expect(hints[0].offerIframe).toBe(true)
+  const hints = (
+    url: string,
+    platform: PlatformId,
+    options: { trackId?: TrackId | null; allowed?: string[] } = {},
+  ) =>
+    hostHints({
+      address: readAtlasAddress(url, { wix: platform === 'wix' }),
+      platform,
+      trackId: options.trackId ?? null,
+      allowedDomains: options.allowed ?? [URL.parse(url)?.hostname ?? ''],
+    })
+  const titles = (list: ReturnType<typeof hints>) => list.map((hint) => hint.title)
+
+  it('says nothing about a declared https domain', () => {
+    expect(hints('https://sahajayoga.ca/classes', 'wix')).toEqual([])
+    expect(hints('https://sahajayoga.ca/classes', 'custom')).toEqual([])
   })
 
-  it('warns a wordpress.com address about the plan, without offering the iframe', () => {
-    const hints = hostHints({ host: 'sahajayoga.wordpress.com', platform: 'wordpress' })
-    expect(hints).toHaveLength(1)
-    expect(hints[0].text).toMatch(/Business/)
-    expect(hints[0].offerIframe).toBe(false)
+  it('warns about a domain the service has not declared, which the claim would refuse', () => {
+    const list = hints('https://sahajayoga.ca/classes', 'custom', { allowed: ['other.org'] })
+    expect(list).toHaveLength(1)
+    expect(list[0]).toMatchObject({ tone: 'warning' })
+    expect(list[0].title).toContain('sahajayoga.ca')
+    // An empty list declares nothing, so the claim refuses that too.
+    expect(hints('https://sahajayoga.ca/classes', 'custom', { allowed: [] })).toHaveLength(1)
   })
 
-  it('does not warn a real domain, or a host it has nothing to say about', () => {
-    expect(hostHints({ host: 'sahajayoga.ca', platform: 'wix' })).toEqual([])
-    expect(hostHints({ host: 'sahajayoga.wordpress.com', platform: 'wix' })).toEqual([])
-    expect(hostHints({ host: null, platform: 'wix' })).toEqual([])
+  it('accepts a host a wildcard entry covers', () => {
+    expect(
+      hints('https://www.sahajayoga.ca/classes', 'custom', { allowed: ['*.sahajayoga.ca'] }),
+    ).toEqual([])
+  })
+
+  it('asks for the https address', () => {
+    expect(titles(hints('http://sahajayoga.ca/classes', 'custom'))).toEqual([
+      'Use the https address',
+    ])
+  })
+
+  it('warns a free Wix address only, and offers the iframe track', () => {
+    const list = hints('https://sahajayoga-ca.wixsite.com/classes', 'wix')
+    expect(list).toHaveLength(1)
+    expect(list[0]).toMatchObject({ tone: 'warning', action: 'switch-to-iframe' })
+    expect(list[0].text).toMatch(/Premium/)
+    // A custom domain on Wix needs Premium already, so it gets no notice at all.
+    expect(hints('https://sahajayoga.ca/classes', 'wix')).toEqual([])
+  })
+
+  it('points a WordPress.com address at the WordPress.com track, until it is chosen', () => {
+    const url = 'https://sahajayoga.wordpress.com/classes'
+    expect(hints(url, 'wordpress', { trackId: 'wp-selfhosted' })[0]).toMatchObject({
+      tone: 'info',
+      action: 'switch-to-wp-com',
+    })
+    expect(hints(url, 'wordpress', { trackId: 'wp-com' })).toEqual([])
   })
 
   it('is not fooled by a lookalike domain', () => {
-    expect(hostHints({ host: 'evil-wixsite.com', platform: 'wix' })).toEqual([])
+    expect(hints('https://evil-wixsite.com/classes', 'wix')).toEqual([])
   })
 })
 
@@ -310,15 +351,24 @@ describe('readAtlasAddress', () => {
     expect(read('https://www.sahajayoga.org.uk/classes')).toEqual({
       path: '/classes',
       host: 'www.sahajayoga.org.uk',
+      secure: true,
       problem: null,
     })
     expect(read('https://sahajayoga.ca/free-classes/?utm_source=x#map').path).toBe('/free-classes')
   })
 
-  it('takes an address with no scheme, and a bare path', () => {
-    expect(read('sahajayoga.ca/classes')).toMatchObject({ path: '/classes', host: 'sahajayoga.ca' })
-    expect(read('/classes')).toMatchObject({ path: '/classes', host: null })
-    expect(read('classes')).toMatchObject({ path: '/classes', host: null })
+  it('takes an address with no scheme as https', () => {
+    expect(read('sahajayoga.ca/classes')).toMatchObject({
+      path: '/classes',
+      host: 'sahajayoga.ca',
+      secure: true,
+    })
+    expect(read('http://sahajayoga.ca/classes').secure).toBe(false)
+  })
+
+  it('asks for the domain when only a path is given', () => {
+    expect(read('/classes').problem).toMatch(/whole address/)
+    expect(read('classes').problem).toMatch(/whole address/)
   })
 
   it('keeps a nested page anywhere but Wix', () => {
@@ -332,7 +382,6 @@ describe('readAtlasAddress', () => {
 
   it('refuses the home page', () => {
     expect(read('https://site.org/').problem).toMatch(/home page/)
-    expect(read('/').problem).toMatch(/home page/)
   })
 
   it('holds a Wix address to what a router prefix accepts', () => {
