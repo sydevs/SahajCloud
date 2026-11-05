@@ -19,7 +19,12 @@ import {
 import { getLanguageOptions } from '@/lib/locales'
 import type { MailingListProvider } from '@/lib/mailingList/types'
 import { MAILING_LIST_PROVIDERS } from '@/lib/mailingList/types'
-import { adminOnlyCondition, getRoleOptions, managersOnlyFieldAccess } from '@/plugins/access'
+import {
+  adminOnlyCondition,
+  adminOnlyFieldAccess,
+  getRoleOptions,
+  managersOnlyFieldAccess,
+} from '@/plugins/access'
 import { abuseScoreSchema, calculateAbuseScore } from '@/plugins/usage'
 
 import { claimCanonical } from './endpoints/claimCanonical'
@@ -149,6 +154,9 @@ const canonicalVerificationSchema: JSONSchema4 = {
  */
 const canonicalEnabled = (data: { canonical?: { enabled?: boolean | null } | null }): boolean =>
   Boolean(data?.canonical?.enabled)
+
+/** The Config tab's lock: everyone who reaches the row reads these, only an admin writes them. */
+const ADMIN_WRITES = { create: adminOnlyFieldAccess, update: adminOnlyFieldAccess }
 
 /** The Atlas-only settings, shown to a service holding the Atlas role. */
 const isAtlasClient = (data: { roles?: unknown }): boolean =>
@@ -373,10 +381,17 @@ export const Clients: CollectionConfig = {
       type: 'tabs',
       tabs: [
         {
-          label: 'General',
+          // Operator configuration end to end, so admins only — and not by the
+          // tab's condition alone, which hides fields without stopping a write:
+          // a service's listed managers hold `update` on its row through
+          // document-level manager access, so without the field locks below
+          // they could PATCH their key new roles, or themselves new co-managers.
+          label: 'Config',
+          admin: { condition: adminOnlyCondition },
           fields: [
             {
               name: 'name',
+              access: ADMIN_WRITES,
               type: 'text',
               required: true,
               label: 'Client Name',
@@ -386,6 +401,7 @@ export const Clients: CollectionConfig = {
             },
             {
               name: 'notes',
+              access: ADMIN_WRITES,
               type: 'textarea',
               label: 'Notes',
               admin: {
@@ -395,6 +411,7 @@ export const Clients: CollectionConfig = {
             // Roles field (non-localized multi-select)
             {
               name: 'roles',
+              access: ADMIN_WRITES,
               type: 'select',
               label: 'Access',
               hasMany: true,
@@ -415,6 +432,7 @@ export const Clients: CollectionConfig = {
               fields: [
                 {
                   name: 'managers',
+                  access: ADMIN_WRITES,
                   type: 'relationship',
                   relationTo: 'managers',
                   hasMany: true,
@@ -425,6 +443,7 @@ export const Clients: CollectionConfig = {
                 },
                 {
                   name: 'primaryContact',
+                  access: ADMIN_WRITES,
                   type: 'relationship',
                   relationTo: 'managers',
                   hasMany: false,

@@ -411,11 +411,39 @@ describe('Clients access', () => {
       const updated = (await payload.update({
         collection: 'clients',
         id: otherClient.id,
-        data: { name: 'OTHER SERVICE, RENAMED' },
+        data: { supportEmail: 'help@other-service.example' },
         overrideAccess: false,
         req: managerReq(listedManager),
       })) as Client
-      expect(updated.name).toBe('OTHER SERVICE, RENAMED')
+      expect(updated.supportEmail).toBe('help@other-service.example')
+    })
+
+    it('keeps a listed manager out of the admin-only Config fields', async () => {
+      // A field-level refusal strips the value out of a 200, so the row is
+      // what says it held (see the header).
+      await payload.update({
+        collection: 'clients',
+        id: otherClient.id,
+        data: {
+          name: 'OTHER SERVICE, SELF-RENAMED',
+          notes: 'Written by its own manager',
+          roles: ['wemeditate-web-client', 'sahaj-atlas-client'],
+          managers: [listedManager.id, outsideManager.id],
+        },
+        overrideAccess: false,
+        req: managerReq(listedManager),
+      })
+
+      const row = (await payload.findByID({
+        collection: 'clients',
+        id: otherClient.id,
+        depth: 0,
+        overrideAccess: true,
+      })) as Client
+      expect(row.name).not.toBe('OTHER SERVICE, SELF-RENAMED')
+      expect(row.notes ?? null).toBeNull()
+      expect(row.roles).toEqual(['wemeditate-web-client'])
+      expect(row.managers).toEqual([listedManager.id])
     })
 
     it('gives a manager listed on nothing no clients at all', async () => {
