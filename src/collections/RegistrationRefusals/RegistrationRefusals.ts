@@ -24,9 +24,9 @@
  * row through the API; both writers pass `overrideAccess`.
  */
 
-import type { CollectionConfig } from 'payload'
+import type { CollectionConfig, PayloadRequest } from 'payload'
 
-import { adminOnlyAccess } from '@/plugins/access'
+import { adminOnlyAccess, isAdminManager } from '@/plugins/access'
 import type { PurgeWindow, RetentionConfig } from '@/types/retention'
 
 /**
@@ -68,6 +68,15 @@ export const RegistrationRefusals: CollectionConfig = {
     defaultColumns: ['event', 'stage', 'reason', 'count', 'createdAt'],
     description:
       'Class sign-ups the spam check refused. Admins see these on their home and in their digest, at the Refused sign-ups pace.',
+    // The nav half of the admin-only `access` below: a collection in no project
+    // reads as *shared* for visibility (`docs/rules/access.md`), so without this
+    // every manager saw a sidebar entry that could only 403 on open.
+    //
+    // ⚠ **The function form, not `true`.** `hidden: true` unregisters the routes
+    // as well, and the admin home's own "View" link points at
+    // `/admin/collections/registration-refusals` — so `true` would 404 the one
+    // reader this collection exists for.
+    hidden: ({ user }: { user: unknown }) => !isAdminManager(user as PayloadRequest['user']),
   },
   access: {
     create: () => false,
