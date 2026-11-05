@@ -168,15 +168,21 @@ export interface Track {
    */
   requires?: SwitchNotice
   /**
-   * `false` where no class can have its own address or search listing — an
-   * iframe, or a site that cannot serve a page for every address under it.
+   * `false` where no class can have a search listing of its own — an iframe, or
+   * a site whose own canonical tag sends every class address back to the page.
    *
    * ⚠ **The CMS runs its search checks on every confirmed install**, knowing
    * nothing of the track, and on such a site they can only fail. So the tab
    * ignores them there rather than calling a working install broken, and the
-   * two progress rows they feed read Not available.
+   * Search listings row reads Not available.
    */
   searchListings?: false
+  /**
+   * `false` where the widget cannot put a class's address in the page's URL at
+   * all — an iframe. Every other embed has class addresses, as `?atlas=` links
+   * at the least, whether or not the site can also serve `/classes/ca/ontario`.
+   */
+  classAddresses?: false
   /** Step 3: the atlas working on the site. */
   steps: Step[]
   /** Step 4, where the track has one. */
@@ -485,11 +491,13 @@ const WORDPRESS_MORE: FollowOn = {
 /**
  * The atlas on one Squarespace page, in a Code Block.
  *
- * ⚠ **No class gets its own address here, and nothing can change that.**
- * Squarespace serves no page for an address it has no page for, prints no head
- * tags per address, and drops the query string from its canonical — so the
- * snippet carries no `routing=path` and the track has no search listings. From
- * Squarespace's own help pages, 2026-11-05; untested on a real site.
+ * ⚠ **Class addresses, as `?atlas=` links, and no search listings.** The widget
+ * runs in the page itself, so each class has an address of its own in query
+ * form. But Squarespace serves no page for an address it has no page for, so
+ * there is no `/classes/ca/ontario` and the snippet carries no `routing=path`;
+ * and its own canonical tag drops the query string, so search engines see every
+ * class address as the one page. From Squarespace's help pages, 2026-11-05;
+ * untested on a real site.
  *
  * ⚠ **Logged in, Squarespace shows no map.** It swaps every script in a Code
  * Block for a "disabled while you're logged in" notice, and its "Preview in safe
@@ -695,6 +703,7 @@ export function tracksFor(values: InstallValues): Record<TrackId, Track> {
       label: TRACK_LABELS['iframe'],
       recognise: PLATFORM_RECOGNISE.iframe,
       searchListings: false,
+      classAddresses: false,
       caveat: {
         tone: 'warning',
         title: 'No search listings',

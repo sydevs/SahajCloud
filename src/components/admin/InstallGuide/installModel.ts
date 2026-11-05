@@ -276,22 +276,28 @@ export const MILESTONE_STATUS: Record<MilestoneState, string> = {
  * to one row — where the atlas was found, how many search problems — goes in
  * its note.
  *
- * ⚠ **A track with no search listings cannot finish the last two rows** — an
- * iframe, or a site that serves no page per class (`Track.searchListings`) — so
- * they are `na`: shown, and out of the count.
+ * ⚠ **A row the track can never finish is `na`**: shown, and out of the count.
+ * An iframe has neither class addresses nor search listings; a Squarespace page
+ * has addresses, as `?atlas=` links, but no listings (`Track.classAddresses`,
+ * `Track.searchListings`).
+ *
+ * **Class addresses are done in either shape.** A `?atlas=` link is an address a
+ * visitor can share and land on; serving `/classes/ca/ontario` as well is what
+ * search listings need, and that row says so.
  */
 export function buildMilestones(args: {
   model: InstallModel
   verification: CanonicalVerification | null | undefined
   canonicalEmbed: string | null
   hasRegion: boolean
-  /** `false` for a track that can give no class its own address. */
+  /** `false` for a track that can give no class a search listing. */
   searchListings: boolean
+  /** `false` for a track that cannot put a class's address in the page URL. */
+  classAddresses: boolean
 }): Milestone[] {
-  const { model, verification, canonicalEmbed, hasRegion } = args
+  const { model, verification, canonicalEmbed, hasRegion, searchListings, classAddresses } = args
   const [first, ...rest] = model.reported
   const problems = model.failures.length
-  const iframe = !args.searchListings
   const row = (
     id: Milestone['id'],
     label: string,
@@ -324,12 +330,14 @@ export function buildMilestones(args: {
       : hasRegion
         ? row('region', 'Region claimed', 'todo')
         : row('region', 'Region claimed', 'warning', 'Set a region on the Edit tab.'),
-    iframe
-      ? row('routing', 'Class addresses', 'na', 'Not possible on this kind of site.')
+    !classAddresses
+      ? row('routing', 'Class addresses', 'na', 'An iframe cannot change your page’s address.')
       : probe === 'path'
-        ? row('routing', 'Class addresses', 'done')
-        : row('routing', 'Class addresses', 'todo', probe ? 'Using ?atlas= addresses.' : undefined),
-    iframe
+        ? row('routing', 'Class addresses', 'done', 'A page of its own for each class.')
+        : probe === 'query'
+          ? row('routing', 'Class addresses', 'done', 'As ?atlas= links.')
+          : row('routing', 'Class addresses', 'todo'),
+    !searchListings
       ? row('search', 'Search listings', 'na', 'Search engines see one page, not each class.')
       : !verification?.seo
         ? row('search', 'Search listings', 'todo')

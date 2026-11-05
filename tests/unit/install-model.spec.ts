@@ -289,7 +289,7 @@ describe('buildMilestones', () => {
     reported?: boolean
     canonicalEmbed?: string | null
     hasRegion?: boolean
-    trackId?: 'iframe' | 'wix' | null
+    trackId?: 'iframe' | 'wix' | 'squarespace' | null
   }) => {
     const verification = args.verification ?? null
     const model = buildInstallModel({
@@ -303,7 +303,8 @@ describe('buildMilestones', () => {
       verification,
       canonicalEmbed: args.canonicalEmbed ?? null,
       hasRegion: args.hasRegion ?? true,
-      searchListings: args.trackId !== 'iframe',
+      searchListings: args.trackId !== 'iframe' && args.trackId !== 'squarespace',
+      classAddresses: args.trackId !== 'iframe',
     })
   }
   const states = (list: ReturnType<typeof milestones>) =>
@@ -364,6 +365,29 @@ describe('buildMilestones', () => {
     expect(byId.search).toMatchObject({ state: 'failed', status: 'Needs fixing' })
     expect(byId.search.note).toMatch(/^2 problems/)
     expect(byId.region).toMatchObject({ state: 'warning', status: 'Needs action' })
+  })
+
+  it('counts ?atlas= links as class addresses, and says which shape', () => {
+    const query = milestones({
+      verification: verified({
+        routingProbe: { at: '2026-10-01T00:00:00.000Z', verdict: 'query', failedAttempts: 1 },
+      }),
+    })
+    expect(query.find((m) => m.id === 'routing')).toMatchObject({
+      state: 'done',
+      note: 'As ?atlas= links.',
+    })
+  })
+
+  it('gives Squarespace class addresses but no search listings', () => {
+    const list = milestones({
+      trackId: 'squarespace',
+      verification: verified({
+        routingProbe: { at: '2026-10-01T00:00:00.000Z', verdict: 'query', failedAttempts: 1 },
+      }),
+    })
+    const byId = Object.fromEntries(list.map((m) => [m.id, m.state]))
+    expect(byId).toMatchObject({ routing: 'done', search: 'na' })
   })
 
   it('shows an iframe the two rows it can never finish, as not available', () => {

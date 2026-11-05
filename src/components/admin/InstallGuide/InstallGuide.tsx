@@ -160,6 +160,7 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
     canonicalEmbed,
     hasRegion: props.hasRegion,
     searchListings: activeTrack?.searchListings !== false,
+    classAddresses: activeTrack?.classAddresses !== false,
   })
   const working = milestones
     .filter((milestone) => milestone.id === 'seen' || milestone.id === 'confirmed')
