@@ -507,6 +507,20 @@ describe('verifyCredentials', () => {
       )
     })
 
+    /**
+     * ⚠ The token already proved the id and secret by the time either read
+     * runs, so the shared "that API key was refused." sentence would send the
+     * operator back to a field that is correct.
+     */
+    it('blames the app’s permissions, not the API key, for a refused read', async () => {
+      for (const stub of [{ group: answer(401) }, { flow: answer(403) }]) {
+        fetchMock.mockImplementation(cleverreachAnswers(stub))
+        await expect(verify(CLEVERREACH)).resolves.toBe(
+          'that REST API app is not permitted to read it — check its permissions in CleverReach.',
+        )
+      }
+    })
+
     it('proves nothing from a token 5xx, rather than refusing the save', async () => {
       fetchMock.mockImplementation(cleverreachAnswers({ token: answer(503) }))
       await expect(verify(CLEVERREACH)).resolves.toBeNull()

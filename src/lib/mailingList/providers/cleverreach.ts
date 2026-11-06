@@ -227,6 +227,15 @@ async function readError(response: Response): Promise<string> {
 }
 
 /**
+ * What a 401 or 403 means once the token has been issued. The grant already
+ * proved the client id and secret, so the only thing left to refuse the read is
+ * the OAuth app's own scope — and `probeCredentials`' default sentence would
+ * send the operator back to an API key field that is correct.
+ */
+const SCOPE_REFUSED =
+  'that REST API app is not permitted to read it — check its permissions in CleverReach.'
+
+/**
  * Read the group back, and the confirmation flow too when one is in use. Both
  * are reads, as the interface requires.
  */
@@ -254,6 +263,7 @@ async function verifyCleverReach(
     `${CLEVERREACH_HOST}/v3/groups.json/${encodeURIComponent(config.listId ?? '')}`,
     { Authorization: `Bearer ${token}` },
     signal,
+    { refused: SCOPE_REFUSED },
   )
   if (group !== null) return group
   if (!doubleOptIn) return null
@@ -264,7 +274,7 @@ async function verifyCleverReach(
     `${CLEVERREACH_HOST}/v3/flow/flow/${encodeURIComponent(flowId)}`,
     { Authorization: `Bearer ${token}` },
     signal,
-    'that confirmation flow ID does not exist on this account.',
+    { missing: 'that confirmation flow ID does not exist on this account.', refused: SCOPE_REFUSED },
   )
 }
 
