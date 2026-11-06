@@ -1,5 +1,7 @@
 import type { PayloadRequest } from 'payload'
 
+import { APIError } from 'payload'
+
 /**
  * The refusal envelope every public endpoint answers with.
  *
@@ -12,6 +14,25 @@ import type { PayloadRequest } from 'payload'
  */
 export function errorResponse(message: string, status: number): Response {
   return Response.json({ errors: [{ message }] }, { status })
+}
+
+/**
+ * The answer for a read that threw: an `APIError` — the client-query gates the
+ * forwarded reads run — keeps its status and message, and anything else is
+ * logged and answered as a 500 carrying `failure`.
+ */
+export function readFailureResponse(
+  req: PayloadRequest,
+  error: unknown,
+  failure: string,
+  log: { msg: string } & Record<string, unknown>,
+): Response {
+  if (error instanceof APIError) return errorResponse(error.message, error.status)
+  req.payload.logger.error({
+    ...log,
+    error: error instanceof Error ? error.message : String(error),
+  })
+  return errorResponse(failure, 500)
 }
 
 /**

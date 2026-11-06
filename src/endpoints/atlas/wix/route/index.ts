@@ -1,10 +1,9 @@
 import type { Endpoint } from 'payload'
 
-import { APIError } from 'payload'
 import { z } from 'zod'
 
 import { primaryPageUrl } from '@/lib/clients/site'
-import { errorResponse, parseQuery, requireClientAccess } from '@/lib/endpoints'
+import { parseQuery, readFailureResponse, requireClientAccess } from '@/lib/endpoints'
 import { baseLanguage, DEFAULT_LOCALE } from '@/lib/locales'
 import type { Client } from '@/payload-types'
 import { publicReadCacheHeaders } from '@/plugins/cache'
@@ -150,14 +149,11 @@ export const atlasWixRoute: Endpoint = {
       })
       return Response.json(body, { headers })
     } catch (error) {
-      if (error instanceof APIError) return errorResponse(error.message, error.status)
-      req.payload.logger.error({
+      return readFailureResponse(req, error, 'Failed to build the page metadata for that route.', {
         msg: 'atlasWixRoute: read failed',
         clientId: req.user?.id,
         path: parsed.data.path,
-        error: error instanceof Error ? error.message : String(error),
       })
-      return errorResponse('Failed to build the page metadata for that route.', 500)
     }
   },
 }

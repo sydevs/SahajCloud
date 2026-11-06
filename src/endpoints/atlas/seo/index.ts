@@ -1,10 +1,14 @@
 import type { AtlasSeoResponse } from '../../responseTypes'
 import type { Endpoint } from 'payload'
 
-import { APIError } from 'payload'
 import { z } from 'zod'
 
-import { errorResponse, parseQuery, requireClientAccess } from '@/lib/endpoints'
+import {
+  errorResponse,
+  parseQuery,
+  readFailureResponse,
+  requireClientAccess,
+} from '@/lib/endpoints'
 import type { LocaleCode } from '@/lib/locales'
 import { DEFAULT_LOCALE, isValidLocale, LOCALES } from '@/lib/locales'
 import { publicReadCacheHeaders } from '@/plugins/cache'
@@ -146,16 +150,11 @@ export const atlasSeo: Endpoint = {
 
       return Response.json(body, { headers: publicReadCacheHeaders(req, ['events', 'regions']) })
     } catch (error) {
-      // The forwarded reads run the client-query gates, which throw APIError —
-      // surface status + message verbatim rather than reporting a server fault.
-      if (error instanceof APIError) return errorResponse(error.message, error.status)
-      req.payload.logger.error({
+      return readFailureResponse(req, error, 'Failed to build the SEO metadata for that route.', {
         msg: 'atlasSeo: read failed',
         clientId: req.user?.id,
         route: parsed.data.route,
-        error: error instanceof Error ? error.message : String(error),
       })
-      return errorResponse('Failed to build the SEO metadata for that route.', 500)
     }
   },
 }

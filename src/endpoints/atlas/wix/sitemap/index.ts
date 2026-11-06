@@ -1,13 +1,12 @@
 import type { Endpoint } from 'payload'
 
-import { APIError } from 'payload'
 import { z } from 'zod'
 
 import { WIX_PREFIX_MAX_LENGTH, WIX_PREFIX_PATTERN } from '@/lib/atlas/wixPrefix'
 import { primaryPageUrl } from '@/lib/clients/site'
 import {
-  errorResponse,
   parseQuery,
+  readFailureResponse,
   requireClientAccess,
   requireIntegerClientId,
 } from '@/lib/endpoints'
@@ -81,13 +80,10 @@ export const atlasWixSitemap: Endpoint = {
       })
       return Response.json(body, { headers: publicReadCacheHeaders(req, ['events', 'regions']) })
     } catch (error) {
-      if (error instanceof APIError) return errorResponse(error.message, error.status)
-      req.payload.logger.error({
+      return readFailureResponse(req, error, 'Failed to build the sitemap for this client.', {
         msg: 'atlasWixSitemap: read failed',
         clientId,
-        error: error instanceof Error ? error.message : String(error),
       })
-      return errorResponse('Failed to build the sitemap for this client.', 500)
     }
   },
 }

@@ -1,9 +1,7 @@
 import type { AtlasSitemapResponse } from '../../responseTypes'
 import type { Endpoint } from 'payload'
 
-import { APIError } from 'payload'
-
-import { errorResponse, requireClientAccess, requireIntegerClientId } from '@/lib/endpoints'
+import { readFailureResponse, requireClientAccess, requireIntegerClientId } from '@/lib/endpoints'
 import { publicReadCacheHeaders } from '@/plugins/cache'
 import { countClientRead } from '@/plugins/usage'
 
@@ -88,15 +86,10 @@ export const atlasSitemap: Endpoint = {
       }
       return Response.json(body, { headers: publicReadCacheHeaders(req, ['events', 'regions']) })
     } catch (error) {
-      // The forwarded reads run the client-query gates, which throw APIError —
-      // surface status + message verbatim rather than reporting a server fault.
-      if (error instanceof APIError) return errorResponse(error.message, error.status)
-      req.payload.logger.error({
+      return readFailureResponse(req, error, 'Failed to build the sitemap for this client.', {
         msg: 'atlasSitemap: read failed',
         clientId,
-        error: error instanceof Error ? error.message : String(error),
       })
-      return errorResponse('Failed to build the sitemap for this client.', 500)
     }
   },
 }

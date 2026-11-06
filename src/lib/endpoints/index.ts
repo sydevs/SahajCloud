@@ -6,7 +6,7 @@
 
 export { commaSeparatedIntIds } from './commaSeparatedIntIds'
 export { emptyPaginatedResponse } from './emptyPaginatedResponse'
-export { errorResponse, requireIntegerClientId } from './errorResponse'
+export { errorResponse, readFailureResponse, requireIntegerClientId } from './errorResponse'
 export { parseBody } from './parseBody'
 export { parseQuery, type ParseQueryResult } from './parseQuery'
 export { requireActiveClient } from './requireActiveClient'
