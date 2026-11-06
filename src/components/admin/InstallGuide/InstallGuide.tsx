@@ -169,7 +169,7 @@ function AppearancePreview({ appearance }: { appearance: Appearance }) {
           columns={[
             tableColumn('setting', 'Setting', ['Contact Email', 'Mailing List']),
             tableColumn('value', 'Current', [
-              `Seekers’ replies are sent to ${appearance.supportEmail ?? CONTACT_EMAIL}`,
+              `${appearance.supportEmail ?? CONTACT_EMAIL} — Seekers’ replies to emails are sent here`,
               appearance.mailingList ??
                 'None configured — configure it to automatically subscribe new seekers to your mailing list',
             ]),
