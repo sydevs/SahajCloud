@@ -43,7 +43,7 @@ export interface DigestEmailProps {
   statistics?: DigestTileBlock[]
   /** Open items, when any are due. */
   openItems?: { rows: ItemTableRow[] }
-  /** An admin's closing line: sign-ups the form turned away. */
+  /** An admin's closing line: sign-ups filed as spam. */
   closingNote?: null | { href: string; text: string }
   /** New registrations, grouped by event (the program role only). */
   registrations?: DigestRegistrationGroup[]

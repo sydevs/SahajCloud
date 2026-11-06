@@ -57,10 +57,10 @@ export function AtlasAdminView({ data }: { data: AtlasAdminData }) {
             data={items}
             emptyBanner="All clear. Every region has someone looking after it."
           />
-          {data.refusedAtTheForm === null ? null : (
+          {data.spamSignups === null ? null : (
             <p className={styles.closingNote}>
-              {data.refusedAtTheForm} ·{' '}
-              <Link href="/admin/collections/registration-refusals" prefetch={false}>
+              {data.spamSignups.text} ·{' '}
+              <Link href={data.spamSignups.href} prefetch={false}>
                 View
               </Link>
             </p>

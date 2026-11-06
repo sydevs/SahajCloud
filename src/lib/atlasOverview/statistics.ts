@@ -6,8 +6,8 @@
  * and the two blocks get theirs from different places on purpose:
  *
  * - a **stage count** has no history on the event — the stage is overwritten in
- *   place — so its change comes from `atlas-snapshots`, the daily row the
- *   nightly task writes;
+ *   place — so its change comes from the daily snapshot the nightly task writes
+ *   to `payload.kv`;
  * - a **sign-up count** is a dated row, so its change is two queries over
  *   `createdAt` and needs no snapshot at all.
  *
@@ -21,7 +21,6 @@ import type { PayloadRequest } from 'payload'
 
 import { type VerificationStage } from '@/lib/eventVerification/stages'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
-import type { AtlasSnapshotCounts } from '@/payload-types'
 
 import { loadRegionNodes, type OverviewArgs, scopeRegionIds } from './scope'
 import { loadSignupWindows, sumSignupWindows } from './signups'
@@ -30,18 +29,25 @@ import { countPrograms, isProgramStage } from './status'
 const DAY_MS = 24 * 60 * 60 * 1000
 export const CHANGE_WINDOW_DAYS = 30
 
+/** One day's snapshot: region id → verification stage → that region's own events. */
+export type AtlasSnapshotCounts = Record<string, Partial<Record<VerificationStage, number>>>
+
+export const SNAPSHOT_KEY_PREFIX = 'atlas-snapshot:'
+
 /**
- * How a day is spelled in `atlas-snapshots`.
+ * How a day is spelled in a snapshot's `payload.kv` key.
  *
- * Here with the reader rather than in its own module, because this is where
- * the key is read back: spelled twice, one side would eventually format a date
- * the other cannot find, and a tile with no comparison looks exactly like a
- * tile whose comparison is zero. The nightly task
- * (`jobs/AtlasSnapshot/RecordAtlasSnapshot.ts`) is the other caller, and it
- * writes the key this reads.
+ * Here with the reader rather than in its own module, because spelled twice,
+ * one side would eventually format a date the other cannot find, and a tile with
+ * no comparison looks exactly like a tile whose comparison is zero. The nightly
+ * task (`jobs/AtlasSnapshot/RecordAtlasSnapshot.ts`) writes the key this reads.
  */
 export function snapshotDate(now: Date): string {
   return now.toISOString().slice(0, 10)
+}
+
+export function snapshotKey(date: string): string {
+  return `${SNAPSHOT_KEY_PREFIX}${date}`
 }
 
 /**
@@ -87,7 +93,7 @@ const HEALTH_TILES: { label: string; stages: VerificationStage[] }[] = [
 /**
  * A snapshot's counts, summed over the regions in scope.
  *
- * ⚠ **Each row holds a region's OWN events**, so this is where the rollup
+ * ⚠ **A snapshot holds each region's OWN events**, so this is where the rollup
  * happens: summing over the scope's region set is the subtree rollup, with no
  * double counting, because every event is in exactly one region's bucket.
  */
@@ -106,21 +112,12 @@ export function sumSnapshot(
 }
 
 /** The snapshot from `CHANGE_WINDOW_DAYS` ago, or nothing if none was kept. */
-async function loadComparisonSnapshot(
+function loadComparisonSnapshot(
   req: PayloadRequest,
   now: Date,
 ): Promise<AtlasSnapshotCounts | null> {
   const date = snapshotDate(new Date(now.getTime() - CHANGE_WINDOW_DAYS * DAY_MS))
-  const { docs } = await req.payload.find({
-    collection: 'atlas-snapshots',
-    where: { date: { equals: date } },
-    depth: 0,
-    limit: 1,
-    overrideAccess: true,
-    req: localeIsolatedReq(req),
-    select: { counts: true },
-  })
-  return (docs[0]?.counts as AtlasSnapshotCounts | undefined) ?? null
+  return req.payload.kv.get<AtlasSnapshotCounts>(snapshotKey(date))
 }
 
 /**

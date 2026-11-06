@@ -14509,283 +14509,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.atlas_snapshots": {
-      "name": "atlas_snapshots",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "date": {
-          "name": "date",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "counts": {
-          "name": "counts",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp(3) with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp(3) with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "atlas_snapshots_date_idx": {
-          "name": "atlas_snapshots_date_idx",
-          "columns": [
-            {
-              "expression": "date",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "atlas_snapshots_updated_at_idx": {
-          "name": "atlas_snapshots_updated_at_idx",
-          "columns": [
-            {
-              "expression": "updated_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "atlas_snapshots_created_at_idx": {
-          "name": "atlas_snapshots_created_at_idx",
-          "columns": [
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.registration_refusals": {
-      "name": "registration_refusals",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "event_id": {
-          "name": "event_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "stage": {
-          "name": "stage",
-          "type": "enum_registration_refusals_stage",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "reason": {
-          "name": "reason",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "hour": {
-          "name": "hour",
-          "type": "timestamp(3) with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "count": {
-          "name": "count",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 1
-        },
-        "submission_id": {
-          "name": "submission_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp(3) with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp(3) with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "registration_refusals_event_idx": {
-          "name": "registration_refusals_event_idx",
-          "columns": [
-            {
-              "expression": "event_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "registration_refusals_submission_idx": {
-          "name": "registration_refusals_submission_idx",
-          "columns": [
-            {
-              "expression": "submission_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "registration_refusals_updated_at_idx": {
-          "name": "registration_refusals_updated_at_idx",
-          "columns": [
-            {
-              "expression": "updated_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "registration_refusals_created_at_idx": {
-          "name": "registration_refusals_created_at_idx",
-          "columns": [
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "event_reason_hour_idx": {
-          "name": "event_reason_hour_idx",
-          "columns": [
-            {
-              "expression": "event_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "reason",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "hour",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "registration_refusals_event_id_events_id_fk": {
-          "name": "registration_refusals_event_id_events_id_fk",
-          "tableFrom": "registration_refusals",
-          "tableTo": "events",
-          "columnsFrom": [
-            "event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "registration_refusals_submission_id_user_submissions_id_fk": {
-          "name": "registration_refusals_submission_id_user_submissions_id_fk",
-          "tableFrom": "registration_refusals",
-          "tableTo": "user_submissions",
-          "columnsFrom": [
-            "submission_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.imports_default_languages": {
       "name": "imports_default_languages",
       "schema": "",
@@ -18502,18 +18225,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "atlas_snapshots_id": {
-          "name": "atlas_snapshots_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "registration_refusals_id": {
-          "name": "registration_refusals_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
         "forms_id": {
           "name": "forms_id",
           "type": "integer",
@@ -18918,36 +18629,6 @@
           "method": "btree",
           "with": {}
         },
-        "payload_locked_documents_rels_atlas_snapshots_id_idx": {
-          "name": "payload_locked_documents_rels_atlas_snapshots_id_idx",
-          "columns": [
-            {
-              "expression": "atlas_snapshots_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "payload_locked_documents_rels_registration_refusals_id_idx": {
-          "name": "payload_locked_documents_rels_registration_refusals_id_idx",
-          "columns": [
-            {
-              "expression": "registration_refusals_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "payload_locked_documents_rels_forms_id_idx": {
           "name": "payload_locked_documents_rels_forms_id_idx",
           "columns": [
@@ -19285,32 +18966,6 @@
           "tableTo": "users",
           "columnsFrom": [
             "users_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "payload_locked_documents_rels_atlas_snapshots_fk": {
-          "name": "payload_locked_documents_rels_atlas_snapshots_fk",
-          "tableFrom": "payload_locked_documents_rels",
-          "tableTo": "atlas_snapshots",
-          "columnsFrom": [
-            "atlas_snapshots_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "payload_locked_documents_rels_registration_refusals_fk": {
-          "name": "payload_locked_documents_rels_registration_refusals_fk",
-          "tableFrom": "payload_locked_documents_rels",
-          "tableTo": "registration_refusals",
-          "columnsFrom": [
-            "registration_refusals_id"
           ],
           "columnsTo": [
             "id"
@@ -28567,14 +28222,6 @@
         "nl"
       ]
     },
-    "public.enum_registration_refusals_stage": {
-      "name": "enum_registration_refusals_stage",
-      "schema": "public",
-      "values": [
-        "request",
-        "screening"
-      ]
-    },
     "public.enum_imports_default_languages": {
       "name": "enum_imports_default_languages",
       "schema": "public",
@@ -29939,6 +29586,6 @@
     "tables": {},
     "columns": {}
   },
-  "id": "a0a38131-3ef0-4320-8185-a4623584d1a1",
+  "id": "b9510d82-ec25-4496-9687-c6c8d346a6c0",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }

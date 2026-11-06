@@ -203,13 +203,6 @@ const ALL_PROJECT_COLLECTIONS: ContentSlug[] = (() => {
  *   it skipped, with contact names, phone numbers and email addresses. The
  *   collection's own `access` narrows it to admins and the managers of its
  *   target region's subtree (`src/plugins/eventImport/importCollection.ts`).
- * - `registration-refusals` — the class sign-ups the spam check refused, each
- *   naming the class and, after screening, the refused registration. Its own
- *   `access` is admin-only (`src/collections/RegistrationRefusals/`).
- * - `atlas-snapshots` — a day's event counts per region, which is the only
- *   record of what the map looked like yesterday. Its own `access` is
- *   admin-read-only, and nothing writes one through the API
- *   (`src/collections/AtlasSnapshots/`).
  */
 export function isImplicitlyReadable(
   collection: ContentSlug,

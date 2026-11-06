@@ -437,6 +437,7 @@ describe('SendDigests job', () => {
       expect(sent).toHaveLength(1)
       expect(String(sent[0]!.subject)).toMatch(/^Sahaj Atlas: /)
       expect(String(sent[0]!.html)).toContain('Jude Spam')
+      expect(String(sent[0]!.text)).toMatch(/\d+ sign-ups? filed as spam in the last 7 days http/)
       expect((await watermarksOf(adminId)).admin?.refused_signups).toBeTruthy()
     })
   })

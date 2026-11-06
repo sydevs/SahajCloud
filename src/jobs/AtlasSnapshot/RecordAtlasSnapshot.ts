@@ -1,12 +1,27 @@
 import type { PayloadRequest, TaskConfig } from 'payload'
 
-import { snapshotDate } from '@/lib/atlasOverview/statistics'
+import {
+  type AtlasSnapshotCounts,
+  SNAPSHOT_KEY_PREFIX,
+  snapshotDate,
+  snapshotKey,
+} from '@/lib/atlasOverview/statistics'
 import type { VerificationStage } from '@/lib/eventVerification/stages'
 import { runClock } from '@/lib/jobs/runClock'
 import { relationId } from '@/lib/utilities/relationId'
-import type { AtlasSnapshotCounts } from '@/payload-types'
 
 const PAGINATION_LIMIT = 500
+const DAY_MS = 24 * 60 * 60 * 1000
+
+/**
+ * How long a day's counts are kept.
+ *
+ * ⚠ **Lower bound: the longest comparison a tile makes, plus slack.** The homes
+ * and the statistics email compare against 30 days ago, so a window at 30 would
+ * race the prune. 45 leaves two weeks of missed runs before a comparison goes
+ * blind.
+ */
+const SNAPSHOT_RETENTION_DAYS = 45
 
 /**
  * Count each region's own non-trashed events by stage.
@@ -49,10 +64,13 @@ export async function countEventsByRegion(req: PayloadRequest): Promise<AtlasSna
  * ahead of `sendDigests`, so the statistics an email quotes are the ones the
  * home shows.
  *
- * ⚠ **One row per UTC day, replaced rather than added to.** `date` is unique,
- * so a re-run of the same day overwrites: a retry after a crash must not leave
- * the day half counted, and two rows for one day would make "the snapshot from
- * 30 days ago" ambiguous.
+ * ⚠ **One `payload.kv` key per UTC day, replaced rather than added to**, so a
+ * retry after a crash cannot leave the day half counted. This is the whole
+ * history: the stage is overwritten in place on the event, so a tile's "+12 in
+ * 30 days" has no other source.
+ *
+ * Also prunes days older than `SNAPSHOT_RETENTION_DAYS`. The keys sort as their
+ * dates do, so the cutoff is a string comparison.
  */
 export const RecordAtlasSnapshot: TaskConfig<'recordAtlasSnapshot'> = {
   slug: 'recordAtlasSnapshot',
@@ -67,7 +85,8 @@ export const RecordAtlasSnapshot: TaskConfig<'recordAtlasSnapshot'> = {
   schedule: [{ cron: '0 6 * * *', queue: 'nightly' }],
   handler: async ({ req }) => {
     const payload = req.payload
-    const date = snapshotDate(runClock(req))
+    const now = runClock(req)
+    const date = snapshotDate(now)
 
     const counts = await countEventsByRegion(req)
     const events = Object.values(counts).reduce(
@@ -75,34 +94,15 @@ export const RecordAtlasSnapshot: TaskConfig<'recordAtlasSnapshot'> = {
       0,
     )
 
-    const existing = await payload.find({
-      collection: 'atlas-snapshots',
-      where: { date: { equals: date } },
-      depth: 0,
-      limit: 1,
-      overrideAccess: true,
-      req,
-      select: {},
-    })
+    await payload.kv.set(snapshotKey(date), counts)
 
-    if (existing.docs[0]) {
-      await payload.update({
-        collection: 'atlas-snapshots',
-        id: existing.docs[0].id,
-        data: { counts },
-        depth: 0,
-        overrideAccess: true,
-        req,
-      })
-    } else {
-      await payload.create({
-        collection: 'atlas-snapshots',
-        data: { counts, date },
-        depth: 0,
-        overrideAccess: true,
-        req,
-      })
-    }
+    const cutoff = snapshotKey(
+      snapshotDate(new Date(now.getTime() - SNAPSHOT_RETENTION_DAYS * DAY_MS)),
+    )
+    const expired = (await payload.kv.keys()).filter(
+      (key) => key.startsWith(SNAPSHOT_KEY_PREFIX) && key < cutoff,
+    )
+    for (const key of expired) await payload.kv.delete(key)
 
     const output = { date, events, regions: Object.keys(counts).length }
     payload.logger.info({ msg: 'RecordAtlasSnapshot complete', ...output })

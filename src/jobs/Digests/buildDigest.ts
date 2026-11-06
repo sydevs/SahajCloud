@@ -14,7 +14,7 @@ import {
   type OverviewScope,
   type StatTile,
 } from '@/lib/atlasOverview'
-import { refusedAtTheForm } from '@/lib/atlasOverview/refusals'
+import { SPAM_SIGNUPS_PATH, spamSignups } from '@/lib/atlasOverview/refusals'
 import { changeLabel } from '@/lib/atlasOverview/statistics'
 import { formatLongDate } from '@/lib/notifications'
 import { type ManagerRole, MANAGER_ROLE_LABELS } from '@/lib/notifications/managerRoles'
@@ -24,8 +24,6 @@ import type { Manager } from '@/payload-types'
 import { isDue, windowStart } from './due'
 import { registrationGroups } from './registrations'
 import { watermarkFor } from './watermarks'
-
-/** How far back an admin's closing line counts sign-ups the form turned away. */
 
 /**
  * The preference keys a digest reads, each its own section or part of one.
@@ -111,20 +109,14 @@ function arrivedSince(item: OpenItem, since: Date): boolean {
   return at !== undefined && at !== null && new Date(at) > since
 }
 
-/**
- * Sign-ups the form turned away in the last week — an admin's closing line.
- *
- * Counted from `registration-refusals` at stage `request`, which is an hourly
- * counter rather than a row per refusal: anyone holding the published widget
- * key can be refused for free, so a flood moves a number.
- */
-async function refusalNote(
+/** Sign-ups filed as spam in the last week — an admin's closing line. */
+async function spamNote(
   req: PayloadRequest,
   now: Date,
 ): Promise<null | { href: string; text: string }> {
-  const refused = await refusedAtTheForm({ now, overrideAccess: true, req })
-  if (!refused) return null
-  return { href: adminUrl('/collections/registration-refusals'), text: refused.text }
+  const spam = await spamSignups({ now, overrideAccess: true, req })
+  if (!spam) return null
+  return { href: adminUrl(SPAM_SIGNUPS_PATH), text: spam.text }
 }
 
 /**
@@ -232,7 +224,7 @@ export async function buildDigest(args: {
       if (wholeList) advance.push(DIGEST_KEYS.openItems)
       if (newProposals) advance.push(DIGEST_KEYS.proposals)
       if (newRefusals) advance.push(DIGEST_KEYS.refusals)
-      if (role === 'admin' && openItems) closingNote = await refusalNote(req, runStart)
+      if (role === 'admin' && openItems) closingNote = await spamNote(req, runStart)
     })
   }
 

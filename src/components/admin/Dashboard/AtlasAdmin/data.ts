@@ -7,7 +7,7 @@ import {
   type OverviewStatistics,
   type RegionOverviewRow,
 } from '@/lib/atlasOverview'
-import { refusedAtTheForm } from '@/lib/atlasOverview/refusals'
+import { SPAM_SIGNUPS_PATH, spamSignups } from '@/lib/atlasOverview/refusals'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 
 import { type DashboardQuery, type OpenItemsData, paginate } from '../shared/model'
@@ -19,14 +19,11 @@ export interface AtlasAdminData {
   countryCount: number
   items: OpenItemsData
   /**
-   * The finished "N sign-ups blocked at the form in the last 7 days" line, or
-   * `null` for a quiet week.
-   *
-   * The sentence arrives built rather than as a count, so the home and the
-   * admin digest cannot word the same fact differently or disagree about how
-   * long the window is (`atlasOverview/refusals.ts`).
+   * The finished "N sign-ups filed as spam in the last 7 days" line and its
+   * list, or `null` for a quiet week. Built rather than counted, so the home and
+   * the admin digest cannot word it differently (`atlasOverview/refusals.ts`).
    */
-  refusedAtTheForm: null | string
+  spamSignups: null | { href: string; text: string }
   statistics: OverviewStatistics
 }
 
@@ -45,7 +42,7 @@ export async function getAtlasAdminData(
   const now = new Date()
   const scope = { role: 'admin' } as const
 
-  const [result, statistics, countries, refused] = await Promise.all([
+  const [result, statistics, countries, spam] = await Promise.all([
     loadOpenItems({ now, overrideAccess: false, req, scope }),
     loadStatistics({ now, overrideAccess: false, req: localeIsolatedReq(req), scope }),
     loadRegionOverview({
@@ -54,14 +51,14 @@ export async function getAtlasAdminData(
       req: localeIsolatedReq(req),
       scope,
     }),
-    refusedAtTheForm({ now, overrideAccess: false, req: localeIsolatedReq(req) }),
+    spamSignups({ now, overrideAccess: false, req: localeIsolatedReq(req) }),
   ])
 
   return {
     countries: paginate(countries, query.page, query.limit),
     countryCount: countries.length,
     items: await openItemsData({ now, query, req, result }),
-    refusedAtTheForm: refused?.text ?? null,
+    spamSignups: spam && { href: `/admin${SPAM_SIGNUPS_PATH}`, text: spam.text },
     statistics,
   }
 }

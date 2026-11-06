@@ -28,6 +28,9 @@ import type { Event, Manager } from '@/payload-types'
 
 import { Temporal } from '@js-temporal/polyfill'
 import dotenv from 'dotenv'
+
+import { SPAM_SIGNUPS_PATH } from '@/lib/atlasOverview/refusals'
+
 import { createCaptureTransport } from './mailpit-transport'
 
 // Shell env wins, then .env.local, then .env (see seeds/env.ts).
@@ -346,12 +349,12 @@ const DIGEST_SCENARIOS: DigestScenario[] = [
   {
     label: 'digest · admin · refused sign-ups + closing line',
     manager: digestManager('Rosa Delgado'),
-    note: 'the one email that counts what the form turned away',
+    note: 'the one email that counts the sign-ups filed as spam',
     props: {
       ...SHELL,
       closingNote: {
-        href: 'https://cloud.sydevelopers.com/admin/collections/registration-refusals',
-        text: '27 sign-ups blocked at the form in the last 7 days',
+        href: `https://cloud.sydevelopers.com/admin${SPAM_SIGNUPS_PATH}`,
+        text: '27 sign-ups filed as spam in the last 7 days',
       },
       heading: 'Sahaj Atlas',
       openItems: {

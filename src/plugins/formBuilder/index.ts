@@ -14,7 +14,6 @@ import { gateRegistration } from '@/collections/UserSubmissions/hooks/gateRegist
 import { guardStatusTransition } from '@/collections/UserSubmissions/hooks/guardStatusTransition'
 import { prepareUserSubmission } from '@/collections/UserSubmissions/hooks/prepareUserSubmission'
 import { queueScreening } from '@/collections/UserSubmissions/hooks/queueScreening'
-import { recordRefusedRegistration } from '@/collections/UserSubmissions/hooks/recordRefusedRegistration'
 import { resolveProposalRegion } from '@/collections/UserSubmissions/hooks/resolveProposalRegion'
 import { spawnSubscribeFromRegistration } from '@/collections/UserSubmissions/hooks/spawnSubscribeFromRegistration'
 import {
@@ -424,7 +423,6 @@ const formBuilder = (config: Parameters<Plugin>[0]) =>
         // wrapper's whole-array replacement discard them.
         beforeChange: [gateEventFeedback, guardStatusTransition],
         afterDelete: [syncFullnessAfterDelete],
-        afterError: [recordRefusedRegistration],
       },
     },
   })(config)

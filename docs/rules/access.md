@@ -220,7 +220,7 @@ Withdrawing the bypass is the whole close: no client role names `clients` at all
 
 ### A collection in no project fails closed
 
-Implicit read (step 4a) asks one question: does the role's project name this collection? `isImplicitlyReadable` (`config/projects.ts`) is that test. A collection in no project is therefore reachable by an explicit `read` grant, the admin bypass, or self-access, and nothing else — `users`, `user-submissions`, `managers`, `clients`, `imports`, `registration-refusals` and `atlas-snapshots` today, each held there for a reason its docblock names. A new collection starts closed; putting one in a project is what opens it to that project's roles.
+Implicit read (step 4a) asks one question: does the role's project name this collection? `isImplicitlyReadable` (`config/projects.ts`) is that test. A collection in no project is therefore reachable by an explicit `read` grant, the admin bypass, or self-access, and nothing else — `users`, `user-submissions`, `managers`, `clients` and `imports` today, each held there for a reason its docblock names. A new collection starts closed; putting one in a project is what opens it to that project's roles.
 
 ⚠ **It used to be the opposite.** For read, "no project" meant shared, readable by every role, and an opt-out list, `RESTRICTED_COLLECTIONS`, was all that kept personal data and credentials out of that rule. It named every project-less collection, so it was complete — and would have failed open on the next one. The history below is why each entry was added.
 
@@ -237,8 +237,6 @@ Implicit read (step 4a) asks one question: does the role's project name this col
 ⚠ **It does not cover the caller's own row.** Self-access read answers at step 2, before the check, so a published client still reads its whole `clients` document over `GET /api/clients/me` — deliberately, because the atlas widget suspends on that read at every boot. Keeping `clients` out of every project is what stops a key reading _other_ services (#822); the field lock below is what keeps `apiKey` out of its own answer. Neither layer does the other's job.
 
 ⚠ **A collection's own `access` block outranks all of this**, because `accessPlugin` composes `{ ...createAccessConfig(slug, …), ...collection.access }` so a deliberate override is never clobbered. A plugin-created collection can therefore arrive with an `access` nobody here chose: the form-builder's submissions collection ships `read: ({ req: { user } }) => !!user`, which grants read to every authenticated user, API clients included. `src/plugins/formBuilder` clears it for `user-submissions` for exactly that reason. **Leaving a collection out of every project proves nothing on its own** — assert it by reading rows back through `overrideAccess: false`, as `tests/int/user-submissions-access.int.spec.ts` does. Asserting `hasPermission` alone would have passed while the hole was open.
-
-**A collection that declares its own admin-only block takes `adminOnlyAccess`** (`@/plugins/access`), the collection-level twin of `adminOnlyFieldAccess` — never a hand-written `user.collection === 'managers' && user.type === 'admin'`. That is the body of `isAdminManager`, and `adminOnly.ts` exists to own the question; spelled out at a collection it drifts from the module, which is the shape #630 records as having silently refused a role that should have been admitted. `atlas-snapshots` and `registration-refusals` use it (#1070), and `imports` is the next candidate.
 
 ### Payload's own `payload-*` entities
 

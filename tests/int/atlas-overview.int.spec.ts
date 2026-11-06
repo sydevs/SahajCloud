@@ -408,6 +408,11 @@ describe('Atlas overview', () => {
         req: systemReq(),
       })
       expect(titles((await load()).items.rows.docs)).toContain('Nadia Haddad')
+      const { spamSignups } = await load()
+      expect(spamSignups?.text).toMatch(/^\d+ sign-ups? filed as spam in the last 7 days$/)
+      expect(decodeURIComponent(spamSignups!.href)).toContain(
+        '/admin/collections/user-submissions?where[and][0][type][equals]=registration&where[and][1][status][equals]=spam',
+      )
 
       await payload.update({
         collection: 'user-submissions',
@@ -450,6 +455,20 @@ describe('Atlas overview', () => {
       const after = await load()
       const verified = after.statistics.health.find((tile) => tile.key === 'verified')!
       expect(verified.change).toBe(0)
+    })
+
+    it('prunes snapshots older than 45 days, and keeps the rest', async () => {
+      const day = 24 * 60 * 60 * 1000
+      const now = new Date()
+      const key = (daysAgo: number) =>
+        `atlas-snapshot:${new Date(now.getTime() - daysAgo * day).toISOString().slice(0, 10)}`
+      await payload.kv.set(key(46), {})
+      await payload.kv.set(key(44), {})
+
+      await runTaskHandler(RecordAtlasSnapshot, { context: { now }, payload })
+      expect(await payload.kv.has(key(46))).toBe(false)
+      expect(await payload.kv.has(key(44))).toBe(true)
+      expect(await payload.kv.has(key(0))).toBe(true)
     })
 
     it('counts each region only for its own events, so a rollup cannot double count', async () => {

@@ -1,4 +1,4 @@
-import type { Access, Condition, FieldAccess, PayloadRequest } from 'payload'
+import type { Condition, FieldAccess, PayloadRequest } from 'payload'
 
 import type { ProjectSlug } from '@/payload-types'
 
@@ -47,17 +47,6 @@ export function isManager(
  * default to open; apply explicitly where you want them restricted too.
  */
 export const adminOnlyFieldAccess: FieldAccess = ({ req }) => isAdminManager(req.user)
-
-/**
- * Collection-level access: admins alone.
- *
- * For a collection that declares its own `access` block rather than taking the
- * role table's — one in no project, where "no project" reads as *shared* and so
- * as readable by every published key (`docs/rules/access.md`). Spelling the
- * predicate out at the collection is how a hand-written `type === 'admin'`
- * drifts from this module, which exists to own that question.
- */
-export const adminOnlyAccess: Access = ({ req }) => isAdminManager(req.user)
 
 /**
  * Field-level access: a `clients`-collection caller may never read or write it.

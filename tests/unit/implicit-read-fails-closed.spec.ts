@@ -68,8 +68,7 @@ describe('implicit read', () => {
       hasPermission({ user: atlasClient, collection, operation: 'read' })
 
     expect(read('events')).toBe(true)
-    expect(read('atlas-snapshots')).toBe(false)
-    expect(read('registration-refusals')).toBe(false)
+    expect(read('user-submissions')).toBe(false)
     expect(read('managers')).toBe(false)
   })
 })
