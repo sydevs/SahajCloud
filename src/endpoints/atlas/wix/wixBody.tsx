@@ -5,47 +5,31 @@ import type { ReactNode } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server.edge'
 
 /**
- * The crawlable body, as HTML, for a host that cannot assemble one itself.
+ * The crawlable body, as HTML, for a Wix page's `$w('#…').html` sink.
  *
  * ⚠ **This is the one place in the atlas SEO surface where we emit markup.**
- * `GET /api/atlas/seo` deliberately sends no HTML at all — the WordPress plugin
- * assembles it from `content.paragraphs` and friends, and its own output never
- * passes through `wp_kses`. A Wix router cannot do that: `getRouterData()` hands
- * its payload to `$w('#…').html`, so the host needs one finished string.
  *
  * ⚠ **So React renders it, rather than a string template and an escaper.**
- * Every value below is operator- or importer-authored CMS text reaching
- * somebody else's document, and the escaping that lives in
- * `SahajAtlasWordpress/includes/seo.php` has to live here instead. A hand-rolled
- * escaper puts that obligation at ~15 interpolations, where one omission is an
- * injection into a client's own page; `renderToStaticMarkup` escapes every text
- * node and attribute value by construction, so there is no call to forget. It is
- * the same reason this PR's warning email dropped its own escaper for React
- * Email, and `react-dom` was already a dependency either way.
+ * Every value is CMS text reaching somebody else's document, and
+ * `renderToStaticMarkup` escapes every text node and attribute by construction
+ * — the escaping `SahajAtlasWordpress/includes/seo.php` does has no call to
+ * forget here. {@link safeUrl} is what React does **not** do.
  *
  * ⚠ **`.edge`, never the `react-dom/server` barrel**, which Turbopack refuses
- * anywhere in an app graph — and this module sits in `payload.config.ts`'s
- * through the Wix route handler. Its advice to render as a Server Component
- * does not apply: nothing here is rendered by Next. `.edge` exports the same
- * synchronous `renderToStaticMarkup`, and
+ * anywhere in an app graph, and this module is in `payload.config.ts`'s.
  * `tests/unit/server-render-import.spec.ts` holds the graph.
  *
- * {@link safeUrl} is what React does **not** do, and is still load-bearing.
- *
- * The structure is a deliberate mirror of `sahaj_atlas_seo_children` and its
- * three renderers, so the two hosts show a crawler the same page —
- * `tests/unit/wix-route-body.spec.ts` pins the element order against that file.
+ * The structure mirrors `sahaj_atlas_seo_children` in the WordPress plugin, so
+ * the two hosts show a crawler the same page — `tests/unit/wix-route-body.spec.ts`
+ * pins the element order against that file.
  */
 
 /**
- * A URL safe to put in an `href` or `src`, or `null`.
+ * An `http(s)` URL safe for an `href` or `src`, or `null`.
  *
- * `http` and `https` only. A CMS `website` or `onlineUrl` is free text an
- * importer or a region manager typed, so `javascript:alert(1)` is a value this
- * endpoint can really be handed — and unlike every other value here, **neither
- * escaping nor JSX makes it safe**: React renders a `javascript:` href as
- * written. WordPress gets this from `esc_url`'s own scheme allowlist; nothing in
- * Wix's `html` sink does.
+ * A CMS `website` is free text, so `javascript:alert(1)` can really arrive, and
+ * **neither escaping nor JSX makes it safe**: React renders a `javascript:`
+ * href as written. WordPress gets this from `esc_url`; Wix's sink has nothing.
  */
 export function safeUrl(value: string | null | undefined): string | null {
   if (!value) return null
@@ -54,19 +38,16 @@ export function safeUrl(value: string | null | undefined): string | null {
   return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : null
 }
 
-/** One `<p>` per authored block. The shared half of three renderers. */
+/** One `<p>` per authored block. */
 function Paragraphs({ content }: { content: { paragraphs?: string[] } }): ReactNode {
   return (content.paragraphs ?? []).map((text, index) => <p key={index}>{text}</p>)
 }
 
 /**
- * The root view's body.
- *
  * ⚠ Takes the whole answer, not just `content`: the root names no document, so
- * its heading is the page title the operator wrote, which sits at the top level
- * beside every other route's. A locale nobody has written copy for renders the
- * heading and nothing else — which is why this is decided before the `content`
- * guard in {@link wixBodyHtml} rather than after it.
+ * its heading is the top-level title. A locale with no copy still renders the
+ * heading, which is why it is decided before the `content` guard in
+ * {@link wixBodyHtml}.
  */
 function RootBody({ seo }: { seo: Extract<AtlasSeoDocument, { type: 'root' }> }): ReactNode {
   return (
@@ -77,7 +58,6 @@ function RootBody({ seo }: { seo: Extract<AtlasSeoDocument, { type: 'root' }> })
   )
 }
 
-/** An event's body: its facts, its description, its photos, its own link. */
 function EventBody({ content }: { content: AtlasSeoEventContent }): ReactNode {
   const website = safeUrl(content.website)
   return (
@@ -103,7 +83,6 @@ function EventBody({ content }: { content: AtlasSeoEventContent }): ReactNode {
   )
 }
 
-/** A region's body: its name, its subtitle, and its classes as real links. */
 function RegionBody({ content }: { content: AtlasSeoRegionContent }): ReactNode {
   const rows = (content.events ?? []).filter((event) => event.title)
   return (
@@ -128,12 +107,6 @@ function RegionBody({ content }: { content: AtlasSeoRegionContent }): ReactNode 
   )
 }
 
-/**
- * The crawlable body for one answer.
- *
- * A deliberate mirror of `sahaj_atlas_seo_children` in the WordPress plugin, so
- * the two hosts show a crawler the same page.
- */
 export function wixBodyHtml(seo: AtlasSeoDocument): string {
   if (seo.type === 'root') return renderToStaticMarkup(<RootBody seo={seo} />)
   if (!seo.content) return ''

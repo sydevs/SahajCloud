@@ -8,49 +8,32 @@ import { decodeEntities } from './readinessMarker'
 
 /**
  * Whether a verified embed is actually publishing the metadata we gave it
- * (#1055).
+ * (#1055): what a **crawler** sees — raw HTML, no JavaScript — carries the
+ * `<title>`, canonical, JSON-LD and crawlable body the SEO endpoint answered.
+ * `verifyEmbed` asks the opposite question, and a page can pass one and fail
+ * the other; this failure looks perfect to the volunteer and is unindexable.
  *
- * **What this adds to `verifyEmbed`, which already loads the page.** That one
- * asks whether the widget booted, in a real browser, because the widget is
- * JavaScript. This asks the opposite question: whether what a **crawler** sees —
- * raw HTML, no JavaScript — carries the `<title>`, canonical, JSON-LD and
- * crawlable body the SEO endpoint answered. A host can pass one and fail the
- * other in both directions, and the second failure is invisible to everyone: the
- * page looks perfect to the volunteer who installed it, and is unindexable.
- *
- * **Plain HTTP, deliberately.** A headless render would show the page *after*
- * the widget replaced its own children, which is exactly the state no crawler
- * is in. `fetch` is also two orders of magnitude cheaper, which is what lets
- * this run on every nightly verification rather than on a button.
+ * **Plain HTTP, deliberately.** A headless render shows the page *after* the
+ * widget replaced its children, the state no crawler is in.
  *
  * ⚠ **Every result is a warning, never a failure.** Nothing here reaches
- * `failureCount`, so nothing here can withdraw a working site's canonical URLs.
- * `nextSeoCheckState` owns that rule and its docblock says why.
+ * `failureCount`; `nextSeoCheckState` says why.
  *
- * ⚠ **The resolvers are injected rather than imported.** They live in the
- * endpoint folders that own them (`docs/rules/endpoints.md`), and taking them as
- * arguments is also what makes this whole module testable with no database and
- * no network — `tests/unit/seo-checks.spec.ts` drives all five checks that way.
+ * ⚠ **The resolvers are injected rather than imported**, which is also what
+ * lets `tests/unit/seo-checks.spec.ts` drive every check with no database.
  */
 
-/** How long one page or sitemap fetch may take. A crawler is not waiting on us. */
 const FETCH_TIMEOUT_MS = 8000
 
-/** How many sitemap documents one check will read, index entries included. */
+/** Sitemap documents one check will read, index entries included. */
 const MAX_SITEMAP_DOCUMENTS = 6
 
-/**
- * The checks a single page answers, in the order the tab shows them.
- *
- * Named once so the fetch-failed branch and the compare branch cannot cover
- * different sets — which is what a `Partial` and a hand-written list allowed.
- */
+/** In the tab's order. One list, so every branch covers the same set. */
 const PAGE_CHECKS = ['title', 'canonical', 'json-ld', 'body'] as const
 
-/** How many `<loc>` entries one sitemap index may contribute. */
+/** `<loc>` entries one sitemap index may contribute. */
 const MAX_INDEX_ENTRIES = 20
 
-/** What one fetch came back with, or why it did not. */
 export interface FetchedPage {
   ok: boolean
   status: number
@@ -58,59 +41,45 @@ export interface FetchedPage {
   detail?: string
 }
 
-/** How a caller bounds one fetch. */
 interface FetchPageOptions {
   /**
    * Refuse a redirect that leaves this host, instead of following it.
    *
-   * ⚠ **Set this for every URL a third party chose.** `redirect: 'follow'`
-   * issues the request to the redirect target and reads its body, so a host
-   * check applied to `response.url` afterwards discards an answer the process
-   * already went and fetched — which is the whole of the hole {@link isOnHost}
-   * exists to close, one hop further out. A `Sitemap:` line on the host under
-   * check that 302s to an internal address is exactly that hop.
+   * ⚠ **Judged before each hop, never on the answer.** A followed redirect has
+   * already issued the request — a `Sitemap:` line that 302s to an internal
+   * address is the hole {@link isOnHost} closes, one hop further out.
    */
   sameHost: string
 }
 
 export type FetchPage = (url: string, options: FetchPageOptions) => Promise<FetchedPage>
 
-/** Same-host redirects one bounded fetch will follow before giving up. */
 const MAX_SAME_HOST_REDIRECTS = 4
 
-/** The statuses that carry a `Location` worth following. */
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308])
 
 /**
  * Most bytes of one document we will read.
  *
- * ⚠ **A cap, because the other end is not ours.** Every value compared here is
- * in the `<head>` or the first screen of the body, so a megabyte is already far
- * more than any check needs — and without a bound a hostile or merely broken
- * host can stream whatever it manages inside the timeout straight into this
- * process's heap, once per page and up to {@link MAX_SITEMAP_DOCUMENTS} times
- * again, with the nightly job walking every due client in turn.
+ * ⚠ **A cap, because the other end is not ours.** Every value compared is near
+ * the top of the page, and unbounded a hostile host can stream whatever it
+ * manages inside the timeout into this process's heap.
  */
 const MAX_BODY_BYTES = 1_024 * 1_024
 
 /**
- * Fetch one document as a crawler would, and **never throw**.
- *
- * The same contract `browserRendering` keeps, for the same reason: the caller
- * has to tell "their page is wrong" from "we could not look", and an exception
- * erases that distinction. A refused fetch is `skipped`, never `fail`.
+ * Fetch one document as a crawler would, and **never throw**: the caller has to
+ * tell "their page is wrong" from "we could not look", as with `browserRendering`.
  */
 export const fetchPage: FetchPage = async (url, { sameHost }) => {
   try {
-    // Every hop has to be inspected before it is taken, so `manual` is the only
-    // mode that can refuse one — Node hands back the real 3xx with its `Location`.
+    // `manual` is the only mode that can refuse a hop before it is taken.
     let current = url
     for (let hop = 0; ; hop++) {
       const response = await fetch(current, {
         redirect: 'manual',
         headers: {
-          // Named, so an operator reading their own access log can tell what hit
-          // them, and so a site may allowlist us if it challenges unknown agents.
+          // Named, so a site can tell what hit it and allowlist us.
           'User-Agent': 'SahajCloud-SEO-Check (+https://github.com/sydevs/SahajCloud)',
           Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         },
@@ -147,14 +116,13 @@ export const fetchPage: FetchPage = async (url, { sameHost }) => {
   }
 }
 
-/** Why a bounded fetch gave up. Named so a spec can assert on them. */
+/** Why a bounded fetch gave up. */
 export const OFF_HOST = 'The redirect left the host under check, so it was not followed.'
 const TOO_MANY_HOPS = 'Too many redirects on this host.'
 
 /** The first {@link MAX_BODY_BYTES} of a response, decoded as UTF-8. */
 async function readCapped(response: Response): Promise<string> {
   const declared = Number(response.headers.get('content-length'))
-  // A truthful oversize header saves opening the stream at all.
   if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) return ''
 
   const reader = response.body?.getReader()
@@ -169,8 +137,7 @@ async function readCapped(response: Response): Promise<string> {
       if (!value) continue
       chunks.push(value)
       size += value.byteLength
-      // Stop reading rather than refusing what arrived: the `<head>` is at the
-      // front, so a truncated body still answers every check honestly.
+      // Truncate rather than refuse: the `<head>` is at the front.
       if (size >= MAX_BODY_BYTES) break
     }
   } finally {
@@ -180,12 +147,11 @@ async function readCapped(response: Response): Promise<string> {
   return new TextDecoder('utf-8').decode(Buffer.concat(chunks.map((chunk) => Buffer.from(chunk))))
 }
 
-/** What a crawler can see on one page, read off the raw HTML. */
 interface PageSnapshot {
   title: string | null
   canonical: string | null
   hasJsonLd: boolean
-  /** Everything after `</head>`, which is where a crawlable body has to be. */
+  /** Everything after `</head>`. */
   body: string
 }
 
@@ -193,11 +159,9 @@ interface PageSnapshot {
  * Read one page's `<head>` facts and its body text out of raw HTML.
  *
  * ⚠ **Regex, not a parser, and that is a bounded decision rather than a
- * shortcut.** Every value compared here is one *we* generated and handed to the
- * host, so the question is only whether that exact string came back — never
- * what the document means. Adding an HTML parser to answer a presence check
- * would be a dependency on every deploy for a warning channel. What it costs is
- * stated at each check that could be fooled.
+ * shortcut.** Every value compared is one *we* generated, so the only question
+ * is whether that exact string came back — not worth a parser dependency for a
+ * warning channel.
  */
 export function parsePageHtml(html: string): PageSnapshot {
   const headEnd = html.search(/<\/head\s*>/i)
@@ -213,7 +177,7 @@ export function parsePageHtml(html: string): PageSnapshot {
   return {
     title: title === null ? null : decodeEntities(title).trim(),
     canonical: canonical === null ? null : decodeEntities(canonical).trim(),
-    // `ld+json` anywhere, since a host is free to put it in either half.
+    // Anywhere: a host is free to put it in either half.
     hasJsonLd: /<script\b[^>]*type\s*=\s*["']application\/ld\+json["']/i.test(html),
     body,
   }
@@ -235,17 +199,11 @@ export function sameUrl(a: string | null, b: string | null): boolean {
 }
 
 /**
- * The distinctive body text to look for on one page.
+ * The distinctive body text to look for on one page, or `null` (`skipped`).
  *
- * ⚠ **Never the page title.** A theme renders the title in the body as well as
- * the head, so a title-shaped probe passes on a page whose crawlable children
- * never arrived — the exact failure this check exists to catch. So the probe is
- * taken from `content` instead: a class's name on a region page, the schedule or
- * address line on an event, the first authored paragraph on the root.
- *
- * `null` means there is nothing distinctive to look for, which is `skipped` and
- * not `fail` — a region with no classes and a locale with no landing copy are
- * both ordinary.
+ * ⚠ **Never the page title.** A theme renders the title in the body too, so it
+ * passes on a page whose crawlable children never arrived — the failure this
+ * check exists to catch.
  */
 export function bodyProbe(seo: AtlasSeoDocument): string | null {
   if (seo.type === 'region') {
@@ -258,17 +216,14 @@ export function bodyProbe(seo: AtlasSeoDocument): string | null {
   return seo.content.paragraphs.find((paragraph) => paragraph.trim().length > 0) ?? null
 }
 
-/** One check's verdict, before it is tagged with the route it ran on. */
 type Verdict = { status: SeoCheckResult['status']; detail?: string }
 
 /**
  * Longest `detail` stored.
  *
  * ⚠ **A `detail` quotes the remote page**, so its length is the other end's
- * choice: a failing title check embeds whatever that host put in `<title>`. It
- * is stored on the `clients` row, re-read on every Install tab load, and
- * emailed — so it is bounded here, where every verdict is built, rather than at
- * three sinks.
+ * choice. Bounded here, where every verdict is built, rather than at the row,
+ * the tab and the email.
  */
 const MAX_DETAIL_LENGTH = 300
 
@@ -279,28 +234,17 @@ const pass = (): Verdict => ({ status: 'pass' })
 const fail = (detail: string): Verdict => ({ status: 'fail', detail: clamp(detail) })
 const skip = (detail: string): Verdict => ({ status: 'skipped', detail: clamp(detail) })
 
-/**
- * The four checks one page answers, each always present.
- *
- * A closed record rather than a `Partial`: the caller spread it with
- * `Object.entries`, which widens the key to `string`, so a `Partial` bought a
- * `if (verdict)` guard and a `check as SeoCheckId` assertion — the one
- * assertion in the module, sitting exactly where a mis-keyed check would be
- * accepted silently.
- */
+/** Closed, not `Partial`, so a mis-keyed check is a compile error. */
 type PageVerdicts = Record<Exclude<SeoCheckId, 'sitemap'>, Verdict>
 
 /**
- * The four page checks, given what the endpoint answered and what came back.
- *
- * Each failure's `detail` names what was expected and what arrived, because the
- * tab shows it next to the step to redo and "the title is wrong" without the two
- * values is not something a volunteer can act on.
+ * The four page checks. Each failure names what was expected and what arrived,
+ * which is what a volunteer can act on.
  */
 export function comparePage(args: {
   seo: AtlasSeoDocument
   snapshot: PageSnapshot
-  /** The URL fetched, which is the canonical whenever the endpoint answered none. */
+  /** The expected canonical whenever the endpoint answered none. */
   pageUrl: string
 }): PageVerdicts {
   const { seo, snapshot, pageUrl } = args
@@ -338,17 +282,9 @@ export function comparePage(args: {
 /**
  * Does a sitemap this site publishes list `target`?
  *
- * **Platform-agnostic on purpose.** Four SEO plugins and two site builders each
- * publish a sitemap in their own place, and adapting to each is how
- * SahajAtlasWordpress ended up deciding to serve one file and point every system
- * at it. So this looks where every crawler looks: the `Sitemap:` lines in
- * `robots.txt`, which is the line that actually matters, plus `/sitemap.xml` as
- * the convention almost everything also honours.
- *
- * **One level of index.** A `<sitemapindex>` has its children read, and their
- * children are not. Both bounds are real: `MAX_SITEMAP_DOCUMENTS` caps the
- * fetches a single check can make against somebody else's server, and the depth
- * cap stops a malformed index from being a crawl.
+ * **Platform-agnostic on purpose**: it looks where every crawler looks — the
+ * `Sitemap:` lines in `robots.txt`, plus `/sitemap.xml`. One level of
+ * `<sitemapindex>` is read, so a malformed index is not a crawl.
  */
 export async function siteListsUrl(args: {
   origin: string
@@ -363,9 +299,7 @@ export async function siteListsUrl(args: {
 
   const robots = await get(`${origin}/robots.txt`, { sameHost: host })
   const declared = robots.ok ? sitemapLinesFrom(robots.body, host) : []
-  // `/sitemap.xml` is tried whatever robots.txt said: a site that publishes the
-  // file and forgets the line is the common case, and that is a warning about
-  // the line rather than about the page.
+  // Whatever robots.txt said: publishing the file and forgetting the line is common.
   const queue = [...declared, `${origin}/sitemap.xml`]
 
   const seen = new Set<string>()
@@ -377,9 +311,7 @@ export async function siteListsUrl(args: {
     if (seen.has(url)) continue
     seen.add(url)
 
-    // ⚠ `sameHost`, not a check on the answer: a candidate that passed the
-    // check above can still redirect off-host, and a verdict that discards
-    // that answer has already made the process fetch it.
+    // ⚠ `sameHost`, not a check on the answer: an on-host candidate can still redirect off it.
     const document = await get(url, { sameHost: host })
     read++
     if (!document.ok) continue
@@ -404,21 +336,13 @@ export async function siteListsUrl(args: {
  * Is this URL on the host the check is about?
  *
  * ⚠ **Half the SSRF bound, and the reason it is a bound rather than a filter.**
- * This is the first code path that makes the CMS process itself fetch a URL a
- * third party chose: the `Sitemap:` lines of somebody else's `robots.txt`, and
- * the `<loc>` children of their sitemap index. Unrestricted, a volunteer's own
- * site — or anyone who can write a line into its `robots.txt` — turns this into
- * a reachability oracle for the Railway network, since the verdict stored on the
- * row and emailed differs between "a document answered" and "nothing did".
- *
- * Restricting to the one host keeps every fetch pointed where the check already
- * assumed it was pointed. A sitemap hosted on a different domain is a real
- * pattern, and deliberately not one this check follows.
+ * The `Sitemap:` lines and `<loc>` children are URLs a third party chose, and
+ * unrestricted they make this a reachability oracle for the Railway network:
+ * the stored, emailed verdict differs between "a document answered" and
+ * "nothing did". A sitemap on another domain is deliberately not followed.
  *
  * ⚠ **The other half is {@link FetchPageOptions.sameHost}, and this function
- * cannot stand in for it.** Judging a URL before the fetch leaves the redirect
- * chain unjudged, and a redirect is taken by the platform before any caller
- * sees an answer to discard. Every candidate here is fetched bounded.
+ * cannot stand in for it**: it leaves the redirect chain unjudged.
  */
 function isOnHost(url: string, host: string): boolean {
   return URL.parse(url)?.host.toLowerCase() === host.toLowerCase()
@@ -454,12 +378,7 @@ function locationsFrom(xml: string): string[] {
   )
 }
 
-/**
- * The two resolutions the audit needs, injected — see the module docblock.
- *
- * The caller bakes in the locale as well as the client, because both are facts
- * about whose install is being checked rather than about the checking.
- */
+/** Injected, with the client and locale baked in — see the module docblock. */
 interface SeoAuditResolvers {
   resolveSeo: (route: string) => Promise<AtlasSeoDocument | null>
   resolveSitemap: () => Promise<AtlasSitemapUrl[]>
@@ -470,14 +389,9 @@ export interface SeoAuditDeps {
 }
 
 /**
- * The sampled region, from the client's own sitemap.
- *
- * One page, not all of them: these checks run nightly against somebody else's
- * server, and a client owning a country has hundreds of routes. A region rather
- * than a class, because a region page is the one with a listing to look for and
- * is what a client's own navigation links to — and the shallowest one, because
- * that is the page most likely to be linked and least likely to have been
- * re-slugged.
+ * The one region page checked, from the client's own sitemap: these run nightly
+ * against somebody else's server. A region has a listing to look for, and the
+ * shallowest is the most linked and least likely to have been re-slugged.
  */
 export function sampleRegion(urls: readonly AtlasSitemapUrl[]): AtlasSitemapUrl | null {
   const regions = urls.filter((url) => {
@@ -493,11 +407,8 @@ export function sampleRegion(urls: readonly AtlasSitemapUrl[]): AtlasSitemapUrl 
 /**
  * Run every check on the atlas root and one sampled region.
  *
- * The root is always checked, because every host mounts it and it is the page a
- * client links from its own nav. The sitemap check runs on the sampled region
- * alone: the root's URL is the mount itself, which a site's own sitemap lists
- * for reasons that have nothing to do with us, so finding it there would prove
- * nothing.
+ * The sitemap check runs on the region alone: a site lists its own mount for
+ * reasons that have nothing to do with us, so finding the root proves nothing.
  */
 export async function runSeoChecks(args: {
   verified: VerifiedEmbed
@@ -508,10 +419,9 @@ export async function runSeoChecks(args: {
   const { verified, routing, resolvers, deps = {} } = args
   const get = deps.fetchFn ?? fetchPage
 
-  // ⚠ `canonicalMountUrl`, not `buildCanonicalUrl(target, '/')`: the root's page
-  // *is* the mount, and `buildCanonicalUrl` refuses `/` as a webPath because no
-  // document has that path. The `routing` argument is still required, so a
-  // target cannot be built from the widget's own self-report (#644).
+  // ⚠ `canonicalMountUrl`, not `buildCanonicalUrl(target, '/')`, which refuses
+  // `/` as a webPath. `routing` stays required, so no target is built from the
+  // widget's own self-report (#644).
   const target = canonicalTargetForHost(verified, routing)
   const mountUrl = target ? canonicalMountUrl(target) : null
   if (!mountUrl) {
@@ -531,14 +441,9 @@ export async function runSeoChecks(args: {
   const sample = sampleRegion(sitemap)
   if (sample) pages.push({ route: sample.route, url: sample.loc })
 
-  // ⚠ **Overlapped, because the serial version could cost a minute per client.**
-  // Each page is an independent resolve plus an independent fetch, the pages are
-  // independent of each other, and the sitemap check depends only on the sample
-  // — so end to end the old order was up to eight `FETCH_TIMEOUT_MS` waits,
-  // inside a job that walks every due client in turn and on top of the three
-  // browser renders a verification already spends. "Verify now" has to answer
-  // inside Cloudflare's 100s origin limit, which is what #644 rearranged the
-  // routing probe for.
+  // ⚠ **Overlapped, because the serial version could cost a minute per client**
+  // — up to eight `FETCH_TIMEOUT_MS` waits on top of three browser renders, and
+  // "Verify now" has to answer inside Cloudflare's 100s origin limit (#644).
   const sitemapCheck: Promise<SeoCheckResult> = sample
     ? checkSitemap(sample, get)
     : Promise.resolve({
@@ -553,23 +458,15 @@ export async function runSeoChecks(args: {
   return [...pageResults.flat(), await sitemapCheck]
 }
 
-/** Every check one page answers, or why none could be answered. */
 async function checkPage(
   page: { route: string; url: string },
   resolvers: SeoAuditResolvers,
   get: FetchPage,
 ): Promise<SeoCheckResult[]> {
-  // The resolve and the fetch are independent: the page URL is known before
-  // either, so waiting for the CMS before asking the host is pure latency.
-  //
   // ⚠ **Bounded to the mount's own host, like every sitemap fetch, and for a
-  // sharper reason.** Two of `comparePage`'s failures quote what came back — the
-  // page's `<title>` and its `rel=canonical`. Followed off-host, a mount that
-  // 302s to an internal address therefore reads that address's title and
-  // canonical into the stored detail and the manager's warning mail. Designating
-  // the mount takes a verified embed, so the bound is narrow; it is also free,
-  // because a mount that redirects off-host already fails the canonical check it
-  // would otherwise reach, and is reported below in plainer words.
+  // sharper reason.** Two failures quote what came back, so a mount that 302s to
+  // an internal address would read that address's title and canonical into the
+  // stored detail and the manager's mail.
   const [seo, fetched] = await Promise.all([
     resolvers.resolveSeo(page.route),
     get(page.url, { sameHost: URL.parse(page.url)?.host ?? '' }),
@@ -587,8 +484,7 @@ async function checkPage(
   }
 
   if (fetched.detail === OFF_HOST) {
-    // A real answer about the install, not "we could not look": this address
-    // sends a crawler to another site, so nothing here can be indexed under it.
+    // A real answer about the install, not "we could not look".
     return PAGE_CHECKS.map((check) => ({
       route: page.route,
       check,
@@ -597,8 +493,7 @@ async function checkPage(
   }
 
   if (!fetched.ok) {
-    // Could not look. Reported as skipped on every check, so the tab shows why
-    // rather than four blanks.
+    // Could not look: skipped on every check, so the tab shows why.
     return PAGE_CHECKS.map((check) => ({
       route: page.route,
       check,
@@ -611,7 +506,6 @@ async function checkPage(
   return PAGE_CHECKS.map((check) => ({ route: page.route, check, ...verdicts[check] }))
 }
 
-/** Whether a sitemap the site publishes lists the sampled page. */
 async function checkSitemap(sample: AtlasSitemapUrl, get: FetchPage): Promise<SeoCheckResult> {
   const origin = URL.parse(sample.loc)?.origin
   const verdict = origin

@@ -18,8 +18,7 @@ import { resolveAtlasSitemap } from '../../sitemap/resolve'
 import { type AtlasWixSitemapEntry, hostOf, wixSitemapEntries } from '../shape'
 
 const querySchema = z.object({
-  // The one prefix rule, shared with the Install tab that validates the
-  // volunteer's choice — so a prefix the tab accepts cannot be refused here.
+  // The Install tab's own rule, so a prefix it accepts cannot be refused here.
   prefix: z.string().min(1).max(WIX_PREFIX_MAX_LENGTH).regex(WIX_PREFIX_PATTERN, {
     message: 'A router prefix is one lowercase path segment, e.g. free-classes.',
   }),
@@ -28,33 +27,17 @@ const querySchema = z.object({
 /**
  * GET /api/atlas/wix/sitemap?prefix=free-classes
  *
- * Every atlas page this client owns, as the relative entries a Velo
- * `*_SiteMap` function returns (#1055). A serializer over
- * `resolveAtlasSitemap` — the same ownership resolution `GET
- * /api/atlas/sitemap` answers from, so a Wix site's sitemap and its pages'
- * canonicals cannot name different URLs.
+ * Every atlas page this client owns, as Velo `*_SiteMap` entries (#1055) — the
+ * resolution `GET /api/atlas/sitemap` answers from, so a Wix sitemap and its
+ * pages' canonicals cannot name different URLs.
  *
- * **Contract notes the generated `routers.js` depends on:**
+ * - **An array, not an envelope**, returned verbatim by the generated function.
+ *   No `generated` timestamp: Wix caches whole responses, and it is the one
+ *   field that moves between two identical answers.
+ * - A client that has designated no canonical embed has no host, and gets
+ *   `[]` — an answer, not an error.
  *
- * - **An array, not an envelope.** Wix's `router_SiteMap` returns a list, and
- *   the generated function returns this body verbatim rather than reaching into
- *   it. `/api/atlas/sitemap`'s `generated` timestamp is deliberately absent:
- *   it is the one field that moves between two identical answers, and Wix
- *   caches whole responses.
- * - **Every `url` is relative and carries `prefix`.** See
- *   {@link wixSitemapEntries} for why this differs from `redirect` on the route
- *   endpoint.
- * - **Only pages on this client's own host.** A client that has designated no
- *   canonical embed yet has no host, and gets `[]` — which is an answer, not an
- *   error: it owns pages it is not yet publishing.
- * - **Finished classes are excluded**, and a document whose canonical cannot be
- *   published is omitted rather than sent empty, exactly as on
- *   `/api/atlas/sitemap`.
- *
- * Registered at the config root because the answer spans regions *and* events,
- * so the gates are called by hand (see `docs/rules/endpoints.md`).
- *
- * Returns `AtlasWixSitemapEntry[]` (see ../shape).
+ * A root endpoint, so the gates are called by hand (`docs/rules/endpoints.md`).
  */
 export const atlasWixSitemap: Endpoint = {
   path: '/atlas/wix/sitemap',

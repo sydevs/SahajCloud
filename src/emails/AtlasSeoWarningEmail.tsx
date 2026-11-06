@@ -12,7 +12,6 @@ interface AtlasSeoWarningEmailProps {
   installUrl: string
 }
 
-/** What each check is called in a sentence a volunteer reads. */
 const CHECK_LABELS: Record<SeoCheckResult['check'], string> = {
   title: 'the page title',
   canonical: 'the canonical link',
@@ -25,13 +24,7 @@ const CHECK_LABELS: Record<SeoCheckResult['check'], string> = {
  * One notice when a live atlas stops publishing the metadata we gave it (#1055).
  *
  * ⚠ **It opens by saying nobody visiting the site is affected**, because that is
- * true and it decides whether the reader panics or reads on: the widget is
- * still rendering the real atlas. What is broken is only what a crawler sees,
- * and the fix is a setup step the Install tab names.
- *
- * Every value is interpolated through React, which escapes by construction — so
- * there is no escaping helper here, and the CMS titles and detail strings these
- * lines carry need none.
+ * true and it decides whether the reader panics or reads on.
  */
 export function AtlasSeoWarningEmail({
   brand,

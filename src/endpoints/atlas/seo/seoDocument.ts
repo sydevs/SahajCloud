@@ -42,30 +42,24 @@ import type { Event } from '@/payload-types'
 
 import { breadcrumbList, compactNode, jsonLdGraph } from './jsonLd'
 
+/** Distributive, so each union member keeps its own `content` narrowing. */
+type WithGraph<T> = T extends unknown ? Omit<T, 'jsonLd'> & { jsonLdGraph: JsonLdGraph } : never
+
+/**
+ * One resolved SEO answer, carrying its JSON-LD as **objects**.
+ *
+ * ⚠ **This is the internal shape; the published one is derived from it.** Only
+ * `GET /api/atlas/seo` needs the pre-escaped string, so it escapes on the way
+ * out and no surface parses its own output back (#1055).
+ */
+export type AtlasSeoDocument = WithGraph<AtlasSeoResponse>
+
 /**
  * A rich-text value as plain-text paragraphs; `[]` when it is empty, absent or
  * malformed — `lexicalToPlainText` is where all three become `''`. This feeds a
  * public read on somebody else's page render, so one bad document must not take
  * the response down.
  */
-/** Replace the serialized `jsonLd` with the graph, per union member. */
-type WithGraph<T> = T extends unknown ? Omit<T, 'jsonLd'> & { jsonLdGraph: JsonLdGraph } : never
-
-/**
- * One resolved SEO answer, carrying its JSON-LD as **objects**.
- *
- * ⚠ **This is the internal shape; the published one is derived from it.** Every
- * reader but one wants the graph: the Wix route shape publishes objects, and
- * `GET /api/atlas/seo` is the single surface needing the pre-escaped string,
- * because the WordPress plugin echoes it raw into a `<script>` (#1055). So
- * {@link jsonLdEscape} runs at that handler, on the way out, and neither
- * surface parses its own output back.
- *
- * `WithGraph` is distributive on purpose, so the three-member union and the
- * `content` narrowing each member carries both survive the substitution.
- */
-export type AtlasSeoDocument = WithGraph<AtlasSeoResponse>
-
 export function lexicalToParagraphs(value: unknown): string[] {
   return lexicalToPlainText(value)
     .split(/\n{2,}/)

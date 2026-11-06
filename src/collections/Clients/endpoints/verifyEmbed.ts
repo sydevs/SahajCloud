@@ -16,13 +16,7 @@ interface VerifyEmbedResponse {
   message: string
   /** What this service's canonical URLs are shaped like after the check. */
   routing: RoutingMode
-  /**
-   * What a crawler can see on the pages this service publishes.
-   *
-   * Empty when the embed is not verified — there is no page to check yet — and
-   * every entry is a warning rather than a failure. The tab renders each one
-   * beside the step it confirms.
-   */
+  /** Empty until the embed is verified. Every entry is a warning, never a failure. */
   seo: SeoCheckResult[]
 }
 
@@ -68,18 +62,11 @@ export const verifyEmbedOnDemand: Endpoint = {
     }
 
     // ⚠ **`overrideAccess: false`, with the caller's own `req`.**
-    // `requireActiveManager` admits any manager whose `type` is not `inactive`
-    // — no role, no document check — and its own docblock says a caller must
-    // still scope the write rather than taking an arbitrary id. This handler
-    // takes the id from the route, so the row's own read access is what decides
-    // whether this manager may touch this service: for `clients` that is the
-    // document-manager path (`docs/rules/access.md`), and a manager who is not
-    // listed gets the 404 below.
-    //
-    // It matters more since #1055: this endpoint now also spends outbound
-    // fetches against the service's site and mails its primary contact, and it
-    // could already demote a stranger's `routingProbe` verdict — which changes
-    // live public URL shapes — three presses running.
+    // `requireActiveManager` admits any active manager, with no document check,
+    // so the row's own read access — the document-manager path
+    // (`docs/rules/access.md`) — decides whether this manager may touch this
+    // service. A press spends outbound fetches, mails the contact, and can demote
+    // the `routingProbe` verdict (#1055); an unlisted manager gets the 404.
     let client: Client
     try {
       client = await req.payload.findByID({
@@ -111,8 +98,7 @@ export const verifyEmbedOnDemand: Endpoint = {
       now: new Date(),
       verify: verifyEmbed,
       probe: probeRouting,
-      // Wherever the CMS has ever confirmed the page carries the widget, not only
-      // on a pass that just did.
+      // Wherever the CMS has ever confirmed the widget, not only on this pass.
       runSeo: () => true,
     })
 

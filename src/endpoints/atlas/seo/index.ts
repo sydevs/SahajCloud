@@ -138,13 +138,9 @@ export const atlasSeo: Endpoint = {
       const seo = await resolveAtlasSeo({ req, target, locale })
       if (!seo) return errorResponse('That route does not name a region or an event.', 404)
 
-      // ⚠ **The one place the graph is serialized.** `jsonLd` is a pre-escaped
-      // string because the WordPress plugin echoes it raw into a `<script>`, and
-      // this is the only surface that publishes it that way — so the escape is
-      // the last thing that happens to the document rather than something built
-      // into it, and no other reader has to parse its way back out (#1055).
-      // Annotated, not inferred: `Response.json` takes `unknown`, so dropping
-      // `jsonLd` here would be a silent contract break for 13 installed plugins.
+      // ⚠ **The one place the graph is serialized** (#1055), so no other reader
+      // parses its way back out. Annotated, not inferred: `Response.json` takes
+      // `unknown`, and dropping `jsonLd` would silently break 13 installed plugins.
       const { jsonLdGraph, ...rest } = seo
       const body: AtlasSeoResponse = { ...rest, jsonLd: jsonLdEscape(jsonLdGraph) }
 

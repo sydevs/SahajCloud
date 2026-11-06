@@ -10,14 +10,10 @@ import { asTrustedReq } from '@/plugins/usage/hooks'
 import { fallbackRegionIds, ownedRegionIds, sitemapUrls } from './sitemapUrls'
 
 /**
- * Which atlas URLs one client owns, resolved once for both serializers.
- *
- * Split out of the `GET /api/atlas/sitemap` handler so `GET
- * /api/atlas/wix/sitemap` (#1055) answers the **same** set in Wix's own shape
- * rather than enumerating ownership a second time. The reason is #650's: a
- * second implementation of the URL rule is free to disagree about mount
- * joining, trailing slashes and query-vs-path routing, and a sitemap that
- * disagrees is a set of 404s submitted to a crawler on purpose.
+ * Which atlas URLs one client owns — the one resolution `GET /api/atlas/sitemap`
+ * and `GET /api/atlas/wix/sitemap` (#1055) both serialize. A second
+ * implementation of the URL rule is free to disagree, and a sitemap that
+ * disagrees is a set of 404s submitted to a crawler (#650).
  */
 
 /**
@@ -35,10 +31,7 @@ const REGION_SELECT: SelectType = {
   webPath: true,
   webUrl: true,
   updatedAt: true,
-  // The document's own display name, for a consumer whose sitemap format carries
-  // one. Wix's `WixRouterSitemapEntry` does (#1055). One more column on a read
-  // that already happens, never a second query — which is the whole reason it is
-  // selected here rather than looked up by the Wix serializer.
+  // For Wix's `WixRouterSitemapEntry` (#1055): one more column, never a second query.
   name: true,
 }
 const EVENT_SELECT: SelectType = {
@@ -108,6 +101,15 @@ async function ownedDocuments(
   return [...(regions.docs as SitemapCandidate[]), ...(events.docs as SitemapCandidate[])]
 }
 
+export interface AtlasSitemapResolution {
+  urls: AtlasSitemapUrl[]
+  /**
+   * Each route's display name. Not a key on `AtlasSitemapUrl`, which client
+   * repos sync by raw GitHub URL — a fourth key there changes three repos' contract.
+   */
+  titleByRoute: Map<string, string>
+}
+
 /**
  * Every atlas URL `clientId` owns, ascending by route.
  *
@@ -116,18 +118,6 @@ async function ownedDocuments(
  * is the complement of the ownership map. Both rules live in `./sitemapUrls`;
  * this is the read around them.
  */
-export interface AtlasSitemapResolution {
-  urls: AtlasSitemapUrl[]
-  /**
-   * The display name of each route's document, keyed by route.
-   *
-   * Separate from `urls` on purpose: `AtlasSitemapUrl` is a published type that
-   * client repos sync by raw GitHub URL, so a fourth key there is a change to
-   * three other repos' contract. A consumer that needs a title joins on `route`.
-   */
-  titleByRoute: Map<string, string>
-}
-
 export async function resolveAtlasSitemap(args: {
   req: PayloadRequest
   clientId: number

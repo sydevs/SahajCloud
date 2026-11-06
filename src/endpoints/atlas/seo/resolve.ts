@@ -28,18 +28,12 @@ import {
 } from './seoDocument'
 
 /**
- * Resolve one atlas route into the SEO document that describes it.
+ * Resolve one atlas route into the SEO document that describes it — the one
+ * resolution `GET /api/atlas/seo` and `GET /api/atlas/wix/route` (#1055) both
+ * serialize, so no host's `<title>` and canonical describe different documents.
  *
- * Split out of the `GET /api/atlas/seo` handler so a second serializer can
- * answer the **same** document in another shape (`GET /api/atlas/wix/route`,
- * #1055) without re-implementing the reads. The alternative was a Wix endpoint
- * that resolved routes itself, which is how a host's `<title>` and its
- * canonical come to describe different documents — the failure the whole
- * "generated once, served as data" design exists to prevent.
- *
- * Everything here forwards the caller's `req` with `overrideAccess: false`, so
- * published-only access and project visibility apply exactly as they did when
- * this code sat in the handler.
+ * Every read forwards the caller's `req` with `overrideAccess: false`, so
+ * published-only access and project visibility apply.
  */
 
 /**
@@ -275,7 +269,6 @@ async function eventSeo(
   const regionId = relationId(event.region)
   const route = event.webPath ?? `/${event.id}`
 
-  // Parallelize independent reads: images, breadcrumbs, and locales.
   // Independent reads, so they overlap. Each is skipped entirely when there is
   // nothing to fetch — most classes have no photos, and only a region-less
   // event has no ancestry.
@@ -302,13 +295,8 @@ async function eventSeo(
 }
 
 /**
- * The resolution of one parsed route.
- *
- * `null` means the route named a region or an event that does not exist — which
- * is a different answer from "that string is not a route at all"
- * ({@link parseAtlasRoute} returning `null`). Both are a 404 on `/api/atlas/seo`;
- * the Wix serializer needs them separate, because one is a page a crawler may
- * revisit and the other is a malformed URL.
+ * The resolution of one parsed route, or `null` when it names a region or event
+ * that does not exist.
  */
 export async function resolveAtlasSeo(args: {
   req: PayloadRequest

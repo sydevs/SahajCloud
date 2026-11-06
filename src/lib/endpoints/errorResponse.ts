@@ -3,14 +3,11 @@ import type { PayloadRequest } from 'payload'
 import { APIError } from 'payload'
 
 /**
- * The refusal envelope every public endpoint answers with.
+ * The refusal envelope every public endpoint answers with — the shape
+ * `parseQuery` returns for a 400 and `requireActiveClient` for a 403.
  *
  * ⚠ **One definition, because four drifting copies is how a "standard" stops
- * being one.** Each atlas handler carried its own private `errorResponse` with
- * the same comment — "the standard error envelope, so every refusal here reads
- * the same" — and nothing held them to it. It is the same shape `parseQuery`
- * returns for a 400 and `requireActiveClient` for a 403, so those three are now
- * the whole vocabulary a client sees.
+ * being one.**
  */
 export function errorResponse(message: string, status: number): Response {
   return Response.json({ errors: [{ message }] }, { status })

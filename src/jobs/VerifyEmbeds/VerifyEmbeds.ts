@@ -63,10 +63,8 @@ interface VerifyResult {
   /**
    * Services whose pages stopped publishing our metadata this run.
    *
-   * ⚠ Counted separately from `failed`, and never added to it: an SEO warning
-   * means the embed is present and publishing with one `<head>` field wrong.
-   * Rolling it into `failed` would make the job's own output read as though
-   * canonical ownership were at risk.
+   * ⚠ Counted separately from `failed`, and never added to it: the embed is
+   * present and publishing, and `failed` would read as ownership at risk.
    */
   seoWarned: number
 }
@@ -111,7 +109,7 @@ async function dueClients(payload: Payload, req: PayloadRequest, now: Date): Pro
       site: true,
       managers: true,
       primaryContact: true,
-      // The service's own language, which the SEO checks resolve expectations in.
+      // The SEO checks resolve expectations in it.
       language: true,
     },
     pagination: false,
@@ -188,9 +186,8 @@ export async function runVerifyEmbeds(args: {
       now,
       verify,
       probe,
-      // Only where the mount verified on this pass: there is nothing to compare
-      // on a page the widget is not on, and re-checking a site that is down
-      // would report four failures caused by the outage.
+      // Only where the mount verified on this pass: a site that is down would
+      // report four failures caused by the outage.
       runSeo: (result) => result.status === 'verified',
     })
     result[outcome.status === 'verified' ? 'verified' : outcome.status]++

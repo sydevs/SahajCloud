@@ -50,16 +50,13 @@ const NAMED_ENTITIES: Record<string, string> = {
 /**
  * Decode the entities a host's template escaped on the way out.
  *
- * ⚠ **One decoder, because two disagreed.** This began as the readiness
- * attribute's own reader and gained `&lt;`/`&gt;`/`&apos;` when the SEO checks
- * (#1055) needed to compare a whole `<title>`. A title we sent as `Don't` comes
- * back as `Don&#x27;t` from one serializer and `Don&#39;t` from another, so a
- * decoder missing either reports a correct page as wrong — and that check emails
- * a manager about it.
+ * ⚠ **One decoder, because two disagreed.** The SEO checks (#1055) compare a
+ * whole `<title>`, and `Don't` comes back as `Don&#x27;t` from one serializer
+ * and `Don&#39;t` from another — a decoder missing either reports a correct
+ * page as wrong, and emails a manager about it.
  *
- * `&amp;` is decoded **last**, so a double-escaped `&amp;lt;` yields `&lt;`
- * rather than `<`. This is a comparison, never a sanitizer: nothing it returns
- * is re-emitted as markup.
+ * `&amp;` is decoded **last**, so `&amp;lt;` yields `&lt;` rather than `<`. A
+ * comparison, never a sanitizer: nothing it returns is re-emitted as markup.
  */
 export function decodeEntities(raw: string): string {
   return raw
