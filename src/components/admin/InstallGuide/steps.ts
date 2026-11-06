@@ -1,5 +1,6 @@
 import type { InstallValues } from './templates'
 
+import type { Snippet } from '@/components/admin/CopyBlock'
 import { isValidWixPrefix } from '@/lib/atlas/wixPrefix'
 // Deep, never the `@/plugins/usage` barrel: this module reaches the browser.
 import type { SiteTrack } from '@/lib/clients/site'
@@ -78,14 +79,6 @@ export const WORDPRESS_PLUGIN_ZIP_URL =
 
 /** Where the plugin puts the page it creates, before anyone renames it. */
 export const WORDPRESS_DEFAULT_PATH = '/find-a-class'
-
-/** A value with a Copy button beside it. */
-export interface Snippet {
-  label: string
-  value: string
-  /** Shown as code when set. `text` is a single value, like a key or a tag name. */
-  kind: 'javascript' | 'html' | 'text'
-}
 
 /** One instruction, with the value or file it needs right beside it. */
 export type Action =

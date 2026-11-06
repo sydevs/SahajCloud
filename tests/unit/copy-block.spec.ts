@@ -5,7 +5,7 @@
  * **exactly** (#1055).
  *
  * What needs a DOM is only this: that the rendered value and the copied value
- * are the same string. Both halves can drift apart silently — a `<pre>` that
+ * are the same string. Both halves can drift apart silently — markup that
  * trimmed its own whitespace, or a Copy button handed a label instead of a
  * value — and either leaves a volunteer pasting something that looks right. A
  * generated `routers.js` is 70 lines of code whose first wrong character is a
@@ -33,8 +33,8 @@ vi.mock('@payloadcms/ui', () => ({
   },
 }))
 
-const { CopyBlock } = await import('@/components/admin/InstallGuide/CopyBlock')
-const { allSteps, snippetsOf, tracksFor } = await import('@/components/admin/InstallGuide/steps')
+const { CopyBlock } = await import('@/components/admin/CopyBlock')
+const { tracksFor } = await import('@/components/admin/InstallGuide/steps')
 
 const VALUES = {
   apiKey: 'abc-123',
@@ -47,8 +47,8 @@ const VALUES = {
 let container: HTMLElement
 let root: Root
 
-// The string a volunteer sees: the `<pre>` for a value, the editor's for code.
-const shownValue = () => container.querySelector('pre')?.textContent ?? copied.shown.at(-1)
+// The string a volunteer sees: the `<code>` for a value, the editor's for code.
+const shownValue = () => container.querySelector('code')?.textContent ?? copied.shown.at(-1)
 
 beforeEach(() => {
   copied.values = []
@@ -81,13 +81,20 @@ describe('CopyBlock', () => {
     expect(copied.values[0]).toBe(value)
   })
 
-  it('shows the label, so a volunteer knows which box it goes in', () => {
+  it('shows code under its label, so a volunteer knows which box it goes in', () => {
+    render({ label: 'backend/routers.js', value: 'export {}', kind: 'javascript' })
+    expect(container.textContent).toContain('backend/routers.js')
+  })
+
+  it('names a single value for assistive technology, beside it on one line', () => {
     render({
       label: 'Server URL',
       value: 'https://sahajatlas.com/auto.js?key=abc-123',
       kind: 'text',
     })
-    expect(container.textContent).toContain('Server URL')
+    const code = container.querySelector('code')
+    expect(code?.getAttribute('aria-label')).toBe('Server URL')
+    expect(code?.nextElementSibling?.textContent).toBe('Copy')
   })
 })
 
@@ -96,7 +103,10 @@ describe('every snippet on every track', () => {
     // The criterion is per snippet, so this walks all of them rather than
     // trusting one representative.
     const tracks = tracksFor(VALUES)
-    const snippets = Object.values(tracks).flatMap((track) => allSteps(track).flatMap(snippetsOf))
+    const snippets = Object.values(tracks)
+      .flatMap((track) => [...track.steps, ...(track.more?.steps ?? [])])
+      .flatMap((step) => step.actions)
+      .flatMap((action) => (typeof action !== 'string' && action.snippet ? [action.snippet] : []))
     expect(snippets.length).toBeGreaterThan(0)
 
     for (const snippet of snippets) {

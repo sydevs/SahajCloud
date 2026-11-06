@@ -165,37 +165,6 @@
   margin-top: calc(var(--base) * 0.25);
 }
 
-.copyBlock {
-  display: grid;
-  gap: calc(var(--base) * 0.25);
-  margin-top: var(--base);
-}
-
-.copyHeader {
-  display: flex;
-  align-items: center;
-  gap: calc(var(--base) * 0.25);
-}
-
-.copyHeader :global(.field-label) {
-  margin: 0;
-}
-
-/* Monaco lays out against this container, which otherwise keeps its content height. */
-.copyBlock :global(.code-editor) {
-  height: 100%;
-}
-
-.copyValue {
-  margin: 0;
-  overflow-x: auto;
-  padding: calc(var(--base) * 0.5);
-  background: var(--theme-elevation-50);
-  border: 1px solid var(--theme-elevation-150);
-  border-radius: var(--style-radius-s);
-  white-space: pre;
-}
-
 .stepMessages {
   color: var(--theme-error-500);
   margin: var(--base) 0 0;
@@ -244,7 +213,7 @@
   margin: 0;
 }
 
-/* A value to copy, or a file to download, right under the instruction that uses it. */
+/* A file to download, right under the instruction that uses it. */
 .inlineValue {
   display: flex;
   align-items: center;
@@ -263,20 +232,6 @@
   background: var(--theme-elevation-50);
   border-radius: var(--style-radius-s);
   font-size: 0.92em;
-}
-
-.inlineCode {
-  padding: calc(var(--base) * 0.15) calc(var(--base) * 0.4);
-  background: var(--theme-elevation-50);
-  border: 1px solid var(--theme-elevation-150);
-  border-radius: var(--style-radius-s);
-  overflow-wrap: anywhere;
-  white-space: pre-wrap;
-}
-
-.actions :global(.code-editor),
-.actions .copyBlock {
-  margin-bottom: calc(var(--base) * 0.5);
 }
 
 /* The progress table fills the sidebar, which otherwise sizes children to content. */

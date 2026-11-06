@@ -6,7 +6,6 @@ import type { EmbedHeight, InstallValues } from './templates'
 import {
   Button,
   Collapsible,
-  CopyToClipboard,
   FieldDescription,
   FieldError,
   SelectInput,
@@ -15,6 +14,7 @@ import {
 } from '@payloadcms/ui'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import { CopyBlock } from '@/components/admin/CopyBlock'
 import { tableColumn } from '@/components/admin/helpers/tableColumn'
 import { InfoBanner } from '@/components/admin/InfoBanner'
 import { StatusIcon } from '@/components/admin/ReadinessField/StatusIcon'
@@ -30,7 +30,6 @@ import { primaryPageUrl } from '@/lib/clients/site'
 import type { CanonicalVerification } from '@/lib/clients/verification'
 import type { Client } from '@/payload-types'
 
-import { CopyBlock } from './CopyBlock'
 import styles from './InstallGuide.module.css'
 import {
   type BannerContent,
@@ -966,16 +965,7 @@ function ActionItem({
           </Button>
         </div>
       ) : null}
-      {snippet?.kind === 'text' ? (
-        <div className={styles.inlineValue}>
-          <code aria-label={snippet.label} className={styles.inlineCode}>
-            {snippet.value}
-          </code>
-          <CopyToClipboard value={snippet.value} />
-        </div>
-      ) : snippet ? (
-        <CopyBlock snippet={snippet} />
-      ) : null}
+      {snippet ? <CopyBlock snippet={snippet} /> : null}
     </li>
   )
 }
