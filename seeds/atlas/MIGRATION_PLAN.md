@@ -16,24 +16,23 @@ environment via the seed API.
 
 ## Overview & status
 
-| Phase                        | Scope                                                                          | Status                                                   |
-| ---------------------------- | ------------------------------------------------------------------------------ | -------------------------------------------------------- |
-| **1 — Data export**          | Decide keep/discard. Extract `seeds/atlas/data/*.json` in target-shaped format | **done** ✅                                              |
-| **2 — Collections & schema** | Create collections + nested-docs plugin + Payload migration                    | #457 (new collections). #462 (extend Managers + Clients) |
-| **3 — Seed importer**        | `seeds/atlas/import.ts` reads the JSON into Payload                            | **done** ✅ (#479)                                       |
-| **4 — Verification**         | Counts, referential integrity, spot-checks against a seeded env                | planned                                                  |
+| Phase                        | Scope                                                                           | Status                                                   |
+| ---------------------------- | ------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| **1 — Data export**          | Decide keep/discard. Extract target-shaped JSON (local only, `pnpm atlas:sync`) | **done** ✅                                              |
+| **2 — Collections & schema** | Create collections + nested-docs plugin + Payload migration                     | #457 (new collections). #462 (extend Managers + Clients) |
+| **3 — Seed importer**        | `seeds/atlas/import.ts` reads the JSON into Payload                             | **done** ✅ (#479)                                       |
+| **4 — Verification**         | Counts, referential integrity, spot-checks against a seeded env                 | planned                                                  |
 
 ## Phases
 
 ### Phase 1 — Data export (this ticket)
 
-Restore the dump into a scratch local Postgres, run a one-shot `tsx`
-extractor (`seeds/atlas/extract.ts`) that applies the transforms below, and
-write **one JSON file per imported table** to `seeds/atlas/data/`. No
-collections, plugins, or migrations are touched here. To regenerate:
-`createdb atlas_scratch && pg_restore --no-owner --no-privileges -d
-atlas_scratch atlas.dump && ATLAS_DB_URL=postgres://localhost/atlas_scratch
-pnpm tsx seeds/atlas/extract.ts`.
+Restore the dump into a scratch local Postgres, run the extractor
+(`seeds/atlas/extract.ts`) that applies the transforms below, and write
+**one JSON file per imported table**. No collections, plugins, or migrations
+are touched here. Since the 2026-11 refresh this is the `fetch` step of
+`pnpm atlas:sync`, and the files are local only — see
+[AGENTS.md](AGENTS.md#the-sync-pipeline--the-data-is-local-the-curation-is-an-overlay).
 
 8 output files: `events.json`, `registrations.json`, `regions.json`,
 `venues.json`, `users.json`, `managers.json`, `clients.json`,

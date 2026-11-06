@@ -94,6 +94,10 @@ maintainer's laptop, for scale: Apple M3 Pro, 11 cores, 18 GB, so 10 workers.
 | thirtieth, #1029 after merging `main` (2026-10-27)     | 233 / 2955    | 42.54 s                                      | 42.5 s     |
 | thirty-first, #1039 on its own branch (2026-10-28)     | 233 / 2962    | 66.21 s (inside the gate)                    | 66.2 s     |
 | thirty-second, #1055 on its own branch (2026-11-01)    | 241 / 3138    | 63.73 s (inside the gate)                    | 63.7 s     |
+| thirty-third, #1074 after merging `main` (2026-11-03)  | 236 / 3051    | 52.22 s                                      | 52.2 s     |
+| thirty-fourth, #1074, M3 Pro laptop (2026-11-04)       | 237 / 3061    | 17.80 s (inside the gate)                    | 17.8 s     |
+| thirty-fifth, #1074 addressing a review (2026-11-04)   | 238 / 3065    | 55.44 s                                      | 55.4 s     |
+| thirty-sixth, #1055 after merging `main` (2026-11-05)  | 248 / 3268    | 40.64 s                                      | 40.6 s     |
 
 ⚠ **Those three medians span 47 to 78 s — 66% — and six spec files do not
 explain it.** Identical container spec, all on 2026-10-20, 3% more files
@@ -113,7 +117,7 @@ reads, so keep those labels and cell shapes when you add a row.
 
 | Metric                                                                                          | Value                                                             |
 | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Files / tests                                                                                   | 245 / 3238                                                        |
+| Files / tests                                                                                   | 248 / 3268                                                        |
 | Whole lane, 3 workers (slowest session median, what the consumer docs quote)                    | **77.9 s**                                                        |
 | One spec alone, the typical edit (third session)                                                | 1.3 s                                                             |
 | Slowest per-edit selection timed on 4 cores, the 3 specs naming `@/payload.config` (2026-10-21) | **8.7 s**                                                         |

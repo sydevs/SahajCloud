@@ -83,6 +83,10 @@ const VENUE_MERGES: Record<number, number> = {
   // the same building as the older 492. Three different managers list there.
   5095: 492,
   5096: 492,
+  // ── 2026-11 dump ──
+  // Universitätsring 15, Trier — one campus, two rooms 169 m apart (#6443 in
+  // B 22, #6577 in E 44), one manager. 6481 carries the name "Universität Trier".
+  6846: 6481,
 }
 
 /**

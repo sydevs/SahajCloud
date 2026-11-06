@@ -51,7 +51,8 @@ export interface AtlasSchedule {
 export interface ScheduleInput {
   firstDate: EventSchedule['firstDate']
   firstDate_tz: SupportedTimezones
-  recurrenceType: NonNullable<EventSchedule['recurrenceType']>
+  /** `null` is the field's "Does not repeat" — a one-off (`isAtlasOneOff`). */
+  recurrenceType: EventSchedule['recurrenceType']
   interval: NonNullable<EventSchedule['interval']>
   weekdays?: WeekdayCode[]
   monthlyMode?: NonNullable<EventSchedule['monthlyMode']>
@@ -162,17 +163,39 @@ function toFirstDateUtc(
 }
 
 /**
+ * Whether an Atlas event is a one-off. Atlas stores a single session or a
+ * concert as `type: daily` with a start date and no end — read literally, a
+ * class that repeats every day forever, which is how the 2026-08 import listed
+ * every past concert as still upcoming, and why the duplicate-class guard read
+ * concerts on different dates at one venue as one class.
+ */
+export function isAtlasOneOff(
+  category: string | null | undefined,
+  schedule: AtlasSchedule | null | undefined,
+): boolean {
+  return (
+    (category === 'single' || category === 'concert') &&
+    schedule?.frequency === 'daily' &&
+    !schedule.endDate
+  )
+}
+
+/**
  * Map an Atlas schedule to the `scheduleFields` group, or null when there's no
- * schedule (inactive events) or it lacks a usable start date.
+ * schedule (inactive events) or it lacks a usable start date. A one-off maps to
+ * a schedule that does not repeat.
  */
 export function mapSchedule(
   schedule: AtlasSchedule | null | undefined,
   timeZone: string | null | undefined,
+  options: { oneOff?: boolean } = {},
 ): ScheduleInput | null {
   if (!schedule || !schedule.startDate) return null
 
-  const recurrenceType = FREQUENCY_TO_RECURRENCE[schedule.frequency]
-  if (!recurrenceType) return null
+  // ⚠ Written as `null`, not omitted: an `--update` drops an undefined key and
+  // would keep the `DAILY` an earlier import wrote.
+  const recurrenceType = options.oneOff ? null : FREQUENCY_TO_RECURRENCE[schedule.frequency]
+  if (recurrenceType === undefined) return null
 
   // Resolved once: `firstDate` is an instant computed *in* this zone and
   // `firstDate_tz` is the zone it is read back in. They must be the same string.

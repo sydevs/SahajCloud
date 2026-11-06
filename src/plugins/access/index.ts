@@ -45,7 +45,12 @@ export {
 } from './adminOnly'
 export { restrictUploadToAdmin } from './restrictUploadToAdmin'
 export { restrictPayloadSystemEntities } from './systemEntities'
-export { ownedRegionFilterOptions, resolveOwnedRegionIds } from './regionSubtreeAccess'
+export {
+  eventManagerFieldAccess,
+  ownedRegionFilterOptions,
+  regionManagersFieldAccess,
+  resolveOwnedRegionIds,
+} from './regionSubtreeAccess'
 
 // --- HELPER FUNCTIONS (public API - consolidated from projects.ts and data.ts) ---
 
@@ -65,8 +70,10 @@ export {
   getAllProjectCollections,
   getRoleOptions,
   getPermissionsForRole,
+  getRoleLabel,
   getReadableCollections,
   getProjectsFromRoles,
+  virtualRoles,
   // Unified visibility helper
   isCollectionVisibleInProject,
 } from './config'

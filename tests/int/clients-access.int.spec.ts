@@ -132,11 +132,11 @@ describe('Clients access', () => {
 
     listedManager = await testData.createManager(payload, {
       name: 'Listed Manager',
-      roles: ['atlas-manager'],
+      roles: [],
     })
     outsideManager = await testData.createManager(payload, {
       name: 'Outside Manager',
-      roles: ['atlas-manager'],
+      roles: [],
     })
 
     atlasClient = await testData.createClient(payload, adminManager.id, {

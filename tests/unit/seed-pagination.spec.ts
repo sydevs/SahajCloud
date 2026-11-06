@@ -325,6 +325,7 @@ const NO_FLOOR_REASONS: Partial<Record<ScriptName, RegExp>> = {
   'meditation-transcripts': /the target still carries/,
   'wm-app-translations': /global/,
   translations: /global/,
+  'atlas-reset': /empties the atlas collections/,
 }
 
 describe('a script that can state no floor says so', () => {

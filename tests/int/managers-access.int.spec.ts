@@ -42,8 +42,14 @@ const REMINDER_DESTINATION = 'reminded-manager@example.com'
 describe('Managers access (#821)', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
-  let eventManager: Manager
-  let atlasManager: Manager
+  type AuthManager = Awaited<ReturnType<typeof testData.authUser>>
+  let eventManager: AuthManager
+  let atlasManager: AuthManager
+  /** Named on one event and listed on no region — `atlas-event-manager` alone. */
+  let eventOnlyManager: AuthManager
+  /** The event that assignee is named on, and one in the same region they are not. */
+  let assignedEvent: Event
+  let unassignedEvent: Event
   let client: Client
   let event: Event
   let region: Region
@@ -54,13 +60,13 @@ describe('Managers access (#821)', () => {
     return { ...base, payload, context: {} } as unknown as PayloadRequest
   }
 
-  const managerReq = (manager: Manager): PayloadRequest =>
+  const managerReq = (manager: AuthManager): PayloadRequest =>
     ({
       payload,
       headers: new Headers(),
       context: {},
       locale: 'en',
-      user: { ...manager, collection: 'managers' },
+      user: manager,
     }) as unknown as PayloadRequest
 
   beforeAll(async () => {
@@ -68,21 +74,34 @@ describe('Managers access (#821)', () => {
     payload = env.payload
     cleanup = env.cleanup
 
-    eventManager = await testData.createManager(payload, {
+    const listedOnRegion = await testData.createManager(payload, {
       name: 'Event Manager',
       email: 'event-manager@example.com',
-      roles: ['atlas-manager'],
+      roles: [],
     })
-    atlasManager = await testData.createManager(payload, {
+    const listedElsewhere = await testData.createManager(payload, {
       name: 'Atlas Manager',
       email: 'atlas-manager@example.com',
-      roles: ['atlas-manager'],
+      roles: [],
+    })
+    const assignedOnly = await testData.createManager(payload, {
+      name: 'Event-only Manager',
+      email: 'event-only-manager@example.com',
+      roles: [],
     })
 
     region = await testData.createRegion(payload, {
       name: 'Managed City',
-      managers: [eventManager.id],
+      managers: [listedOnRegion.id],
     })
+    await testData.createRegion(payload, {
+      name: 'Another Managed City',
+      managers: [listedElsewhere.id],
+    })
+    // Both Atlas roles are derived from these joins, so each user has to be
+    // re-read once the listing exists — see `testData.authUser`.
+    eventManager = await testData.authUser(payload, listedOnRegion)
+    atlasManager = await testData.authUser(payload, listedElsewhere)
     event = await testData.createEvent(payload, {
       title: 'Managed Event',
       manager: eventManager.id,
@@ -92,6 +111,20 @@ describe('Managers access (#821)', () => {
       contactEmail: PUBLIC_EMAIL,
       _status: 'published',
     })
+    const unowned = await testData.createRegion(payload, { name: 'Unowned City' })
+    assignedEvent = await testData.createEvent(payload, {
+      title: 'Assigned Event',
+      manager: assignedOnly.id,
+      region: unowned.id,
+      _status: 'published',
+    })
+    unassignedEvent = await testData.createEvent(payload, {
+      title: 'Nobody’s Event',
+      region: unowned.id,
+      _status: 'published',
+    })
+    eventOnlyManager = await testData.authUser(payload, assignedOnly)
+
     // Written after the create, under `skipVerifyHook` — `syncVerificationOnSave`
     // RESETS `activityLog` to a single `re-save` entry on any managed save, so
     // a log passed to the create, or written without the flag, is discarded and
@@ -282,7 +315,7 @@ describe('Managers access (#821)', () => {
     })
   })
 
-  describe('an atlas-manager', () => {
+  describe('an Atlas region manager', () => {
     it('still reads managers, through the explicit grant', async () => {
       const { docs } = await payload.find({
         collection: 'managers',
@@ -295,6 +328,47 @@ describe('Managers access (#821)', () => {
       // The picker lists OTHER managers, so a self-scoped result would be a
       // regression rather than a pass.
       expect(docs.some((doc) => doc.id === eventManager.id)).toBe(true)
+    })
+  })
+
+  describe('an event-only Atlas manager', () => {
+    it('reads neither the roster nor the registrants', async () => {
+      // `atlas-event-manager` runs one listing. It picks on nothing, so it
+      // holds neither the `managers` grant the region role needs for its
+      // pickers nor any `users` grant — both collections are restricted, so no
+      // implicit read reaches them either.
+      for (const collection of ['managers', 'users'] as const) {
+        await expect(
+          payload.find({
+            collection,
+            depth: 0,
+            overrideAccess: false,
+            req: managerReq(eventOnlyManager),
+          }),
+          `an event assignee should not read ${collection}`,
+        ).rejects.toThrow(/not allowed to perform this action/i)
+      }
+    })
+
+    it('holds the event it is named on, and no other in the same region', async () => {
+      const own = await payload.update({
+        collection: 'events',
+        id: assignedEvent.id,
+        data: { contactPhone: '+44 20 1234 5678' },
+        overrideAccess: false,
+        req: managerReq(eventOnlyManager),
+      })
+      expect(own.contactPhone).toBe('+44 20 1234 5678')
+
+      await expect(
+        payload.update({
+          collection: 'events',
+          id: unassignedEvent.id,
+          data: { contactPhone: '+44 20 8765 4321' },
+          overrideAccess: false,
+          req: managerReq(eventOnlyManager),
+        }),
+      ).rejects.toThrow()
     })
 
     it('still reads and writes registrationNotificationEmail', async () => {

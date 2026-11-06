@@ -135,10 +135,9 @@ describe('summarizeGrants', () => {
   })
 
   it('lists every document naming the manager, linked where it is public', async () => {
-    const { payload, reads } = fakePayload(
-      { en: ['atlas-manager'] },
-      { regions: [BERLIN], events: [TUESDAY, DRAFT] },
-    )
+    // No stored role: on Sahaj Atlas the listings below ARE the role, so the
+    // summary names them and has no grant to report.
+    const { payload, reads } = fakePayload({}, { regions: [BERLIN], events: [TUESDAY, DRAFT] })
 
     const [atlas, ...rest] = await summarizeGrants({ ...managers, payload, type: 'manager' })
 
@@ -146,7 +145,7 @@ describe('summarizeGrants', () => {
     expect(atlas).toEqual({
       project: 'sahaj-atlas',
       fullAccess: false,
-      grants: [{ locale: 'English', roles: ['Atlas Manager'] }],
+      grants: [],
       responsibilities: [
         { label: 'Regions', singular: 'Region', items: [{ title: 'Berlin', url: BERLIN.url }] },
         {
@@ -170,7 +169,7 @@ describe('summarizeGrants', () => {
 
   it('splits what it names by project — one invitation each', async () => {
     const parts = await summarize(
-      { en: ['atlas-manager'], fr: ['web-translator'] },
+      { fr: ['web-translator'] },
       { events: [TUESDAY], pages: [{ id: 3, title: 'About' }] },
     )
 
@@ -180,7 +179,7 @@ describe('summarizeGrants', () => {
       responsibilities: [{ label: 'Pages' }],
     })
     expect(parts[1]).toMatchObject({
-      grants: [{ locale: 'English', roles: ['Atlas Manager'] }],
+      grants: [],
       responsibilities: [{ label: 'Events' }],
     })
   })
@@ -212,12 +211,14 @@ describe('summarizeGrants', () => {
 
   it('names only what was queued, and only while it is still held', async () => {
     const parts = await summarize(
-      { en: ['atlas-manager', 'web-translator'] },
+      { en: ['web-translator'] },
       { regions: [BERLIN], events: [TUESDAY, DRAFT] },
       {
         only: {
-          // `path-editor` was queued, then taken away before the send.
-          roles: { en: ['atlas-manager', 'path-editor'] },
+          // `path-editor` was queued, then taken away before the send. The
+          // held `web-translator` and Berlin were never queued, so neither is
+          // named either.
+          roles: { en: ['path-editor'] },
           managed: { events: [TUESDAY.id] },
         },
       },
@@ -226,7 +227,7 @@ describe('summarizeGrants', () => {
     expect(parts).toHaveLength(1)
     expect(parts[0]).toMatchObject({
       project: 'sahaj-atlas',
-      grants: [{ locale: 'English', roles: ['Atlas Manager'] }],
+      grants: [],
       responsibilities: [{ items: [{ title: TUESDAY.title, url: TUESDAY.url }] }],
     })
   })
@@ -299,7 +300,7 @@ describe('composeInvitations', () => {
     })
 
   it('invites an unaccepted account through the sign-in page, never Payload’s verify route', async () => {
-    const [invitation] = await compose({ en: ['atlas-manager'] }, { regions: [BERLIN] })
+    const [invitation] = await compose({}, { regions: [BERLIN] })
 
     const match = invitation?.html.match(
       new RegExp(`${getServerUrl()}${MANAGER_SIGNIN_PATH}\\?token=([\\w.%-]+)`),

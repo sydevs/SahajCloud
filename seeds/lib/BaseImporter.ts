@@ -147,6 +147,15 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     return this.runVerification
   }
 
+  /**
+   * Floors the data itself carries, which replace the script's committed ones.
+   * For a script whose data changes with every refresh, where a constant would
+   * drift (atlas: the build manifest). Default: none, so `EXPECTED_COUNTS` holds.
+   */
+  getExpectedCounts(): Record<string, number> | null {
+    return null
+  }
+
   /** Gives SSE heartbeats context during a long operation. */
   setCurrentOperation(operation: string): void {
     this.currentOperation = operation
@@ -620,6 +629,12 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
       context?: Record<string, unknown>
       /** Skip Payload's verification email on create (bulk auth imports avoid mail rate limits). */
       disableVerificationEmail?: boolean
+      /**
+       * Save as a draft. ⚠ `_status: 'draft'` in `data` alone does not make a
+       * draft save: Payload skips validation only for a call passing `draft`,
+       * so an incomplete row the caller means to park as a draft is refused.
+       */
+      draft?: boolean
     },
   ): Promise<UpsertResult<T>> {
     const identifier = options?.identifier || this.summarizeKey(naturalKey)
@@ -677,6 +692,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
             file: fileForUpdate,
             publishSpecificLocale: options?.publishSpecificLocale,
             context: { ...options?.context, seed: true },
+            draft: options?.draft,
             // `preloadCollection` deliberately includes trashed rows, so this id
             // can be one — and an update without `trash: true` refuses it with
             // `Not Found`. A no-op where trash is disabled.
@@ -713,6 +729,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
             locale: options?.locale,
             file: options?.file,
             context: { ...options?.context, seed: true },
+            draft: options?.draft,
             disableVerificationEmail: options?.disableVerificationEmail,
           }),
         )
@@ -784,6 +801,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
             file: fileForUpdate,
             publishSpecificLocale: options?.publishSpecificLocale,
             context: { ...options?.context, seed: true },
+            draft: options?.draft,
             // Same reason as the find above — an update targeting a trashed row
             // throws `Not Found` without it. Two archived Atlas events failed
             // on every run until this was passed.
@@ -823,6 +841,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
           locale: options?.locale,
           file: options?.file,
           context: { ...options?.context, seed: true },
+          draft: options?.draft,
           disableVerificationEmail: options?.disableVerificationEmail,
         }),
       )

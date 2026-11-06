@@ -155,6 +155,29 @@ writes against the newest committed `.json` snapshot, as **sets**:
   host-dependent source. That is a bug in this checkout, never a schema change,
   and must not be committed.
 
+### Shrinking an enum needs two hand edits, and both are load-bearing
+
+Removing a value from a Postgres enum is the one generated migration that
+cannot be committed as emitted. `migrate:create` writes the rebuild —
+`SET DATA TYPE text`, `DROP TYPE`, `CREATE TYPE` without the value, then
+`SET DATA TYPE <enum> USING "value"::<enum>` — and both halves of it are wrong
+for a database that holds the value:
+
+- **`up` needs the rows gone first.** That final cast throws
+  `invalid input value for enum <type>: "<value>"` on any surviving row, which
+  aborts the boot migration and crash-loops the deploy. Put the `DELETE` (or the
+  `UPDATE` to the replacement value) **above** the rebuild, while the column is
+  still the enum, so the literal is still a valid member to compare against.
+- **`down` must rebuild, never `ALTER TYPE … ADD VALUE`.** The generator emits
+  the `ADD VALUE`, which is legal in a transaction — but Postgres refuses to let
+  the *same* transaction use the value it added (`unsafe use of new value`,
+  `New enum values must be committed before they can be used`), and a migration
+  runs in one. So a `down` that re-inserts rows carrying the value has to create
+  a fresh type instead, exactly as `up` does.
+
+Both were measured against a throwaway database, not reasoned about.
+`20261102_213524_derive_atlas_roles.{ts,json}` is the worked example.
+
 ### "Exit 0, no new files" is ambiguous — check the snapshot
 
 It means either *no schema changes* or *the CLI died silently* (exit 0, zero

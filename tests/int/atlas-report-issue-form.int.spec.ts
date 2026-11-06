@@ -65,7 +65,7 @@ describe('Atlas report-issue form', () => {
     recipient = await testData.createManager(payload, {
       name: 'Atlas Inbox',
       email: 'atlas-inbox@example.com',
-      roles: ['atlas-manager'],
+      roles: [],
     })
     webManager = await testData.createManager(payload, {
       name: 'Web Editor',

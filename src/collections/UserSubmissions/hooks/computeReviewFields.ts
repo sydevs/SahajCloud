@@ -129,7 +129,7 @@ export const computePreviewEvent: FieldHook = async ({ data, findMany, req }) =>
     // Accept attaches the listing to this region, and a preview that promised
     // a different one would be the disagreement `mergeProposal` exists to
     // prevent.
-    const regionId = submissionRegionId({ region: data?.region, regionHint: data?.regionHint })
+    const regionId = submissionRegionId({ region: data?.region })
     return regionId == null ? merged : { ...merged, region: regionId }
   }
 
