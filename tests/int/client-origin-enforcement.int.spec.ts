@@ -175,6 +175,26 @@ describe('client Origin/Referer enforcement', () => {
     })
   })
 
+  // The two branches `siteHosts` answers `[]` for. Collapsing them turns the gate
+  // off for the second, which is the opposite of what a wildcard asked for.
+  describe('a service whose domain names no host', () => {
+    it('rejects every origin for a wildcard domain, apex and subdomain alike', async () => {
+      const domain = '*.allowed.org'
+      await expect(
+        findNarrators(clientReq({ domain, origin: 'https://sub.allowed.org' })),
+      ).rejects.toMatchObject({ status: 403 })
+      await expect(
+        findNarrators(clientReq({ domain, origin: 'https://allowed.org' })),
+      ).rejects.toMatchObject({ status: 403 })
+    })
+
+    it('rejects a server-to-server read too — there is no origin to allow', async () => {
+      await expect(findNarrators(clientReq({ domain: '*' }))).rejects.toMatchObject({
+        status: 403,
+      })
+    })
+  })
+
   describe('custom Atlas endpoints', () => {
     const domain = 'allowed.org'
 

@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 // Deep import (not the plugin barrel) keeps this in the unit lane — the barrel
 // pulls in hooks → db → pg pool, which the unit lane must not bootstrap.
-import { siteHosts } from '@/lib/clients/site'
+import { hasSiteDomain, siteHosts } from '@/lib/clients/site'
 import { extractRequestHost, isHostAllowed, normalizeHost } from '@/plugins/usage/originEnforcement'
 
 describe('normalizeHost', () => {
@@ -72,6 +72,19 @@ describe('siteHosts', () => {
     expect(siteHosts('')).toEqual([])
     expect(siteHosts(null)).toEqual([])
     expect(siteHosts(undefined)).toEqual([])
+  })
+})
+
+describe('hasSiteDomain', () => {
+  // `siteHosts` is empty for both, and the origin gate allows one and refuses
+  // the other, so the two answers have to be separable.
+  it('separates a domain that names no host from no domain at all', () => {
+    expect(hasSiteDomain('*.sahajayoga.ca')).toBe(true)
+    expect(hasSiteDomain('*')).toBe(true)
+    expect(hasSiteDomain(null)).toBe(false)
+    expect(hasSiteDomain(undefined)).toBe(false)
+    expect(hasSiteDomain('')).toBe(false)
+    expect(hasSiteDomain('   ')).toBe(false)
   })
 })
 

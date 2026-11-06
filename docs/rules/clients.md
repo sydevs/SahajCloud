@@ -18,7 +18,7 @@ What a `clients` document holds beyond its key: where its atlas lives (`site`), 
 
 A service is **one site**: `site.domain` (a bare host) plus `site.page` (the primary page's path), with `site.track` and `site.embedHeight` remembering the Install tab's choices. All four are the Install tab's, and `admin.disabled` keeps them out of the edit form's state, so saving the form can never write an older copy back. `src/lib/clients/site.ts` is the vocabulary every reader shares:
 
-- **`siteHosts(domain)`** is the whole origin allowlist: the domain and its www or bare twin. No wildcards, no second domain — a second site needs a service and key of its own. No domain means no browser origin to enforce, which is an app's key.
+- **`siteHosts(domain)`** is the whole origin allowlist: the domain and its www or bare twin. No wildcards, no second domain — a second site needs a service and key of its own. No domain means no browser origin to enforce, which is an app's key. ⚠ An empty list is **not** the same as no domain: **`hasSiteDomain(domain)`** answers that, and a domain naming no host is refused every origin rather than allowed any (`docs/rules/api-clients.md`).
 - **`primaryPageUrl(site)`** is the page that is verified, probed, routed from and, for an owner, published on — always `https://` on the bare host.
 - **`primaryReport(embedMetadata, site)`** is the widget's latest report from that page, on either host, and **`supportsClassAddresses(record)`** reads from it whether the page can give a class its own link (inline, and able to write the URL). That observation, not the chosen track, decides whether a site may own its region.
 

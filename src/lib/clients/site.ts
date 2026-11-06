@@ -59,6 +59,21 @@ export function siteHosts(domain: string | null | undefined): string[] {
 }
 
 /**
+ * Whether a service has a domain at all, whether or not it names a usable host.
+ *
+ * ⚠ **Not the same question as `siteHosts` being empty, and the origin gate owes
+ * both.** `siteHosts` answers `[]` for a service with no domain *and* for one
+ * whose domain is no bare host — a wildcard, or a value raw SQL wrote past
+ * `siteDomainValidate`. Reading those two alike turns the gate off for the
+ * second: a key restricted to `*.sahajayoga.ca` would be accepted from every
+ * origin. No domain is an app's key, whose requests carry no browser origin. A
+ * domain we refuse is a misconfigured site, and gets no origin.
+ */
+export function hasSiteDomain(domain: string | null | undefined): boolean {
+  return Boolean(domain?.trim())
+}
+
+/**
  * The primary page as a URL, or `null` until both halves are set.
  *
  * Always `https` on the bare domain, which is the shape every canonical URL

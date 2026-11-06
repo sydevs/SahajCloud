@@ -26,7 +26,13 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
     "site_domain" = lower(regexp_replace(regexp_replace("canonical_embed", '^[a-z]+://', '', 'i'), '[:/?#].*$', '')),
     "site_page" = coalesce(nullif(regexp_replace("canonical_embed", '^[a-z]+://[^/?#]+', '', 'i'), ''), '/')
     WHERE coalesce("canonical_embed", '') <> '';
-  -- Not a bare host (a wildcard, an "n/a"): no domain, rather than a wrong one.
+  -- A wildcard keeps its apex and never becomes no domain. No domain is what
+  -- the origin gate reads as "an app's key, nothing to enforce", so dropping
+  -- "*.sahajayoga.ca" would hand that key every origin on the web. The apex and
+  -- its www twin stay enforced; any other subdomain stops loading until the
+  -- volunteer installs the address the site is really served at.
+  UPDATE "clients" SET "site_domain" = substr("site_domain", 3) WHERE "site_domain" LIKE '*.%';
+  -- Still not a bare host (an "n/a"): no domain, rather than a wrong one.
   UPDATE "clients" SET "site_domain" = NULL
     WHERE "site_domain" !~ '^[a-z0-9-]+([.][a-z0-9-]+)+$' AND "site_domain" <> 'localhost';
   -- Ownership carries over only where it was on and the page verified.
