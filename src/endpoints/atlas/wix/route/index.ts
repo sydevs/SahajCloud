@@ -4,7 +4,7 @@ import { z } from 'zod'
 
 import { primaryPageUrl } from '@/lib/clients/site'
 import { parseQuery, readFailureResponse, requireClientAccess } from '@/lib/endpoints'
-import { baseLanguage, DEFAULT_LOCALE } from '@/lib/locales'
+import { baseLanguage, DEFAULT_LOCALE, localeForLanguage } from '@/lib/locales'
 import type { Client } from '@/payload-types'
 import { publicReadCacheHeaders } from '@/plugins/cache'
 import { countClientRead } from '@/plugins/usage'
@@ -15,7 +15,6 @@ import {
   type AtlasWixRouteResponse,
   hostOf,
   isProbePath,
-  localeFromWixLang,
   normalizeAtlasPath,
   routeRelation,
   wixNotFound,
@@ -68,7 +67,7 @@ export const atlasWixRoute: Endpoint = {
     if (!parsed.ok) return parsed.response
     const headers = publicReadCacheHeaders(req, ['events', 'regions'])
 
-    const locale = localeFromWixLang(parsed.data.lang)
+    const locale = localeForLanguage(parsed.data.lang)
 
     const probe = isProbePath(parsed.data.path)
     const target = probe ? { kind: 'root' as const } : parseAtlasRoute(parsed.data.path)

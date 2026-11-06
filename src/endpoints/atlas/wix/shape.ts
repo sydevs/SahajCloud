@@ -3,8 +3,6 @@ import type { AtlasSeoDocument } from '../seo/seoDocument'
 import type { AtlasSitemapResolution } from '../sitemap/resolve'
 
 import { PROBE_SEGMENT_PREFIX } from '@/lib/embedVerification/verifyEmbed'
-import type { LocaleCode } from '@/lib/locales'
-import { baseLanguage, DEFAULT_LOCALE, isValidLocale, LOCALES } from '@/lib/locales'
 
 import { wixBodyHtml } from './wixBody'
 import { parseAtlasRoute } from '../seo/atlasRoute'
@@ -99,25 +97,6 @@ const EMPTY_HEAD: WixHead = { title: '', metaTags: [], links: [], structuredData
 /** The host a URL names, or `null`. */
 export function hostOf(url: string | null | undefined): string | null {
   return url ? (URL.parse(url)?.host ?? null) : null
-}
-
-/**
- * Which SEO locale a Wix language code names.
- *
- * ⚠ **Wix hands the router a language, and we answer in a locale.** A
- * Multilingual site's `request.baseUrl` gives a bare subtag (`fr`), and two of
- * our locales (`pt-BR`, `en-AU`) have no bare form, so `isValidLocale` alone
- * would send every Portuguese page to English. A bare subtag takes the first
- * matching locale in `LOCALES` order — which is why `en` precedes `en-AU` there
- * — and an unknown one takes the default, since the page still has to render.
- */
-export function localeFromWixLang(lang: string | undefined): LocaleCode {
-  if (!lang) return DEFAULT_LOCALE
-  if (isValidLocale(lang)) return lang
-
-  const subtag = lang.split('-')[0].toLowerCase()
-  const match = LOCALES.find((locale) => baseLanguage(locale.code) === subtag)
-  return match?.code ?? DEFAULT_LOCALE
 }
 
 /**

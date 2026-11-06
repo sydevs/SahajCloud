@@ -5,7 +5,6 @@ import { describe, expect, it } from 'vitest'
 import { jsonLdEscape } from '../../src/endpoints/atlas/seo/jsonLd'
 import {
   isProbePath,
-  localeFromWixLang,
   normalizeAtlasPath,
   routeRelation,
   WIX_CACHE_SECONDS,
@@ -165,26 +164,6 @@ describe('wixRouteAnswer', () => {
 
   it('renders no page on a 404', () => {
     expect(wixNotFound()).toMatchObject({ status: 404, redirect: null, data: null })
-  })
-})
-
-describe('localeFromWixLang', () => {
-  it('takes an exact locale code', () => {
-    expect(localeFromWixLang('pt-BR')).toBe('pt-BR')
-  })
-
-  it('resolves a bare subtag to a regional variant that has no bare form', () => {
-    // The case a plain isValidLocale check sends to English.
-    expect(localeFromWixLang('pt')).toBe('pt-BR')
-  })
-
-  it('resolves a bare subtag to the unmarked variant where one exists', () => {
-    expect(localeFromWixLang('en')).toBe('en')
-  })
-
-  it('falls back to English rather than refusing', () => {
-    expect(localeFromWixLang('zz')).toBe('en')
-    expect(localeFromWixLang(undefined)).toBe('en')
   })
 })
 

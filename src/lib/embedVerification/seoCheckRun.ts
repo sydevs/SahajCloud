@@ -20,7 +20,7 @@ import {
   nextSeoCheckState,
   nextVerificationState,
 } from '@/lib/clients/verification'
-import { DEFAULT_LOCALE, isValidLocale } from '@/lib/locales'
+import { localeForLanguage } from '@/lib/locales'
 import { adminDocUrl } from '@/lib/utilities/adminUrl'
 import { headerDisplayName, stripNewlines } from '@/lib/utilities/emailSafeText'
 import { relationId } from '@/lib/utilities/relationId'
@@ -79,9 +79,9 @@ export async function runSeoChecksForClient(args: {
   } as unknown as PayloadRequest
 
   // `Clients.language` is a bare ISO 639-1 subtag, so it is matched against the
-  // locales rather than cast; one that is not a locale is checked in English,
-  // what its pages fall back to.
-  const locale = language && isValidLocale(language) ? language : DEFAULT_LOCALE
+  // locales the way the Wix route matches it: `pt` is checked in `pt-BR`, and
+  // a language with no locale in English, what its pages fall back to.
+  const locale = localeForLanguage(language)
 
   return runSeoChecks({
     verified,
