@@ -1,13 +1,8 @@
+import type { Tone } from './tones'
+
 import React from 'react'
 
-export type ProgressTone = 'success' | 'warning' | 'danger' | 'neutral'
-
-const TONE_COLORS: Record<ProgressTone, string> = {
-  success: 'var(--theme-success-500)',
-  warning: 'var(--theme-warning-500)',
-  danger: 'var(--theme-error-500)',
-  neutral: 'var(--theme-elevation-400)',
-}
+import { TONE_COLORS } from './tones'
 
 /**
  * A determinate progress bar: a thin rounded track, filled in its tone.
@@ -24,7 +19,7 @@ export function Progress({
 }: {
   value: number
   max: number
-  tone?: ProgressTone
+  tone?: Tone
   label: string
 }): React.ReactElement {
   const percent = max > 0 ? Math.round((Math.min(value, max) / max) * 100) : 0

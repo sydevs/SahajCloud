@@ -252,6 +252,12 @@
   margin: 0;
 }
 
+.milestone {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: calc(var(--base) * 0.4);
+}
+
 .milestoneLabel,
 .milestoneNa {
   display: block;
@@ -267,6 +273,29 @@
   line-height: 1.35;
   color: var(--theme-elevation-500);
   overflow-wrap: anywhere;
+}
+
+.statusDone,
+.statusFailed {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.statusDone {
+  color: var(--theme-success-500);
+}
+
+.statusFailed {
+  color: var(--theme-error-500);
+}
+
+.statusTodo,
+.statusNa {
+  color: var(--theme-elevation-500);
+}
+
+.statusTodo {
+  white-space: nowrap;
 }
 
 /* Whether the last choice was kept: quiet, beside the section heading. */

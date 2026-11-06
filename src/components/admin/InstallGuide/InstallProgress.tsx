@@ -2,20 +2,28 @@
 
 import type { Milestone, MilestoneState } from './installModel'
 
-import { Pill, Table } from '@payloadcms/ui'
+import { Table } from '@payloadcms/ui'
 import React from 'react'
 
+import type { NumberBadgeFill } from '@/components/admin/helpers/NumberBadge'
+import { NumberBadge } from '@/components/admin/helpers/NumberBadge'
 import { Progress } from '@/components/admin/helpers/Progress'
 import { tableColumn } from '@/components/admin/helpers/tableColumn'
+import type { Tone } from '@/components/admin/helpers/tones'
 
 import styles from './InstallGuide.module.css'
 import { installProgress } from './installModel'
 
-const PILL_STYLE: Record<MilestoneState, React.ComponentProps<typeof Pill>['pillStyle']> = {
-  done: 'success',
-  failed: 'error',
-  todo: 'light-gray',
-  na: 'light-gray',
+/**
+ * One look per state, shared by the row's badge and its status word: filled in
+ * the state's colour once it has an answer, outlined before, dashed when the
+ * site can never reach it.
+ */
+const STATE_LOOK: Record<MilestoneState, { tone: Tone; fill: NumberBadgeFill; status: string }> = {
+  done: { tone: 'success', fill: 'solid', status: styles.statusDone },
+  failed: { tone: 'danger', fill: 'solid', status: styles.statusFailed },
+  todo: { tone: 'neutral', fill: 'outline', status: styles.statusTodo },
+  na: { tone: 'neutral', fill: 'dashed', status: styles.statusNa },
 }
 
 /** The sidebar's progress: a count, a bar, and one row per milestone. */
@@ -29,16 +37,25 @@ export function InstallProgress({ milestones }: { milestones: Milestone[] }): Re
           tableColumn(
             'milestone',
             'Milestone',
-            milestones.map((milestone) => (
-              <span key={milestone.id}>
-                <span
-                  className={milestone.state === 'na' ? styles.milestoneNa : styles.milestoneLabel}
-                >
-                  {milestone.label}
+            milestones.map((milestone, index) => (
+              <span className={styles.milestone} key={milestone.id}>
+                <NumberBadge
+                  fill={STATE_LOOK[milestone.state].fill}
+                  tone={STATE_LOOK[milestone.state].tone}
+                  value={index + 1}
+                />
+                <span>
+                  <span
+                    className={
+                      milestone.state === 'na' ? styles.milestoneNa : styles.milestoneLabel
+                    }
+                  >
+                    {milestone.label}
+                  </span>
+                  {milestone.note ? (
+                    <span className={styles.milestoneNote}>{milestone.note}</span>
+                  ) : null}
                 </span>
-                {milestone.note ? (
-                  <span className={styles.milestoneNote}>{milestone.note}</span>
-                ) : null}
               </span>
             )),
           ),
@@ -46,9 +63,9 @@ export function InstallProgress({ milestones }: { milestones: Milestone[] }): Re
             'status',
             'Status',
             milestones.map((milestone) => (
-              <Pill key={milestone.id} pillStyle={PILL_STYLE[milestone.state]} size="small">
+              <span className={STATE_LOOK[milestone.state].status} key={milestone.id}>
                 {milestone.status}
-              </Pill>
+              </span>
             )),
           ),
         ]}
