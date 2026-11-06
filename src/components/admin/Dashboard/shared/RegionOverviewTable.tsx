@@ -4,12 +4,15 @@ import type { PaginatedDocs } from 'payload'
 import type { ReactNode } from 'react'
 
 import { Button, Pill, Table } from '@payloadcms/ui'
+import { Building2, Globe, type LucideIcon, Map as MapIcon, MapPin } from 'lucide-react'
 import Link from 'next/link'
 
 import type { RegionOverviewRow } from '@/lib/atlasOverview/regions'
+import { regionLevelLabel } from '@/lib/atlasSidebar/sidebarModel'
 
 import styles from './Dashboard.module.css'
 import { PAGE_LIMITS } from './model'
+import { HoverTooltip } from '../../AtlasNav/HoverTooltip'
 import { CenteredNotice } from '../../CenteredNotice'
 import { QueryPager } from '../../helpers/listControls'
 import { tableColumn } from '../../helpers/tableColumn'
@@ -17,6 +20,35 @@ import { tableColumn } from '../../helpers/tableColumn'
 function signupLabel(signups: RegionOverviewRow['signups']): string {
   if (signups.change === 0) return String(signups.last30)
   return `${signups.last30} (${signups.change > 0 ? '+' : ''}${signups.change})`
+}
+
+const LEVEL_ICON: Record<RegionOverviewRow['level'], LucideIcon> = {
+  country: Globe,
+  region: MapIcon,
+  city: Building2,
+  venue: MapPin,
+}
+
+function LevelIcon({ level }: { level: RegionOverviewRow['level'] }) {
+  const Icon = LEVEL_ICON[level]
+  return (
+    <span className={styles.levelIcon}>
+      <HoverTooltip text={regionLevelLabel(level)}>
+        <Icon aria-label={regionLevelLabel(level)} role="img" size={16} />
+      </HoverTooltip>
+    </span>
+  )
+}
+
+function managersLabel({ count, first }: RegionOverviewRow['managers']): ReactNode {
+  if (!first) return '—'
+  return count > 1 ? (
+    <>
+      {first} <span className={styles.muted}>+{count - 1}</span>
+    </>
+  ) : (
+    first
+  )
 }
 
 const countPill = (count: number, pillStyle: 'error' | 'warning'): ReactNode =>
@@ -43,7 +75,7 @@ export function RegionOverviewTable({
   /** What the column of names is called: "Country", or "Region". */
   label: string
   rows: PaginatedDocs<RegionOverviewRow>
-  /** A manager's own subtree rather than the top level — shows each row's level. */
+  /** A manager's own subtree rather than the top level — marks each row's level. */
   subtree?: boolean
 }) {
   const docs = rows.docs
@@ -67,7 +99,8 @@ export function RegionOverviewTable({
       <Table
         columns={[
           column('name', label, (row) => (
-            <div className={styles.itemInfo}>
+            <div className={`${styles.itemInfo} ${styles.regionName}`}>
+              {subtree ? <LevelIcon level={row.level} /> : null}
               <Link
                 className={styles.stretched}
                 href={`?section=regions&region=${row.id}`}
@@ -75,10 +108,9 @@ export function RegionOverviewTable({
               >
                 {row.name}
               </Link>
-              {subtree ? <small>{row.level}</small> : null}
             </div>
           )),
-          column('managers', 'Managers', (row) => row.managers),
+          column('managers', 'Managers', (row) => managersLabel(row.managers)),
           column('programs', 'Programs', (row) => row.programs),
           column('healthy', 'Healthy', (row) => (row.healthy === null ? '—' : `${row.healthy}%`)),
           column('overdue', 'Overdue', (row) => countPill(row.overdue, 'error')),

@@ -48,6 +48,7 @@ describe('Atlas overview', () => {
 
     const listed = await testData.createManager(payload, {
       currentProject: 'sahaj-atlas',
+      name: 'Listed Manager',
       roles: [],
       type: 'manager',
     })
@@ -257,6 +258,15 @@ describe('Atlas overview', () => {
       ])
     })
 
+    it('measures progress against every unfinished program it covers, quiet ones included', async () => {
+      const data = await load({ limit: 100 })
+      const country = data.regions.docs.find((row) => row.name === 'Overview Country')!
+      expect(data.items.progress?.total).toBe(country.programs)
+      expect(data.items.progress!.open).toBeLessThan(country.programs)
+      // The header counts the subtree once, not once per level of it.
+      expect(data.description).toContain(` · ${country.programs} programs · `)
+    })
+
     /** ⚠ A region manager sees recommendations on their own events only. */
     it("shows recommendations on nobody else's events", async () => {
       const data = await load()
@@ -304,7 +314,11 @@ describe('Atlas overview', () => {
       expect(names).not.toContain('Overview Country')
       const city = data.regions.docs.find((row) => row.name === 'Managed City')!
       // The city lists nobody itself; its cover comes from the country above.
-      expect(city).toMatchObject({ managers: 0, overdue: 2, unverified: 1 })
+      expect(city).toMatchObject({
+        managers: { count: 0, first: null },
+        overdue: 2,
+        unverified: 1,
+      })
       // Healthy = managed and not overdue, over everything not finished: the
       // quiet listing alone, out of four.
       expect(city.healthy).toBe(25)
@@ -380,6 +394,9 @@ describe('Atlas overview', () => {
       const levels = new Set(data.countries.docs.map((row) => row.level))
       expect([...levels]).toEqual(['country'])
       expect(data.countries.docs.map((row) => row.name)).toContain('Orphan Country')
+      const country = data.countries.docs.find((row) => row.name === 'Overview Country')!
+      // The country's own manager is named first, ahead of any listed below it.
+      expect(country.managers.first).toBe('Listed Manager')
     })
 
     it('lists a registration the spam check refused, and loses it once it is settled', async () => {

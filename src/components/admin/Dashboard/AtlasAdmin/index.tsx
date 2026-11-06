@@ -39,6 +39,7 @@ export default async function AtlasAdmin({ req, searchParams }: AtlasAdminProps)
       <StatTiles label="Verification health" tiles={statistics.health} />
       <SectionTabs
         active={items.query.section}
+        progress={null}
         tabs={[
           { count: items.counts.all, label: 'Open items', value: 'items' },
           { count: null, label: 'Countries overview', value: 'regions' },

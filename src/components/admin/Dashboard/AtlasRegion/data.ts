@@ -52,9 +52,16 @@ export async function getAtlasRegionData(
     loadRegionOverview({ now, req: localeIsolatedReq(req), scope }),
   ])
 
-  const totals = regionRows.find((row) => row.id === regionId)
-  const programs = totals?.programs ?? regionRows.reduce((sum, row) => sum + row.programs, 0)
-  const managers = totals?.managers ?? Math.max(...regionRows.map((row) => row.managers), 0)
+  // Without `?region=`, the owned subtrees' roots: summing every row would count a city once per ancestor.
+  const listed = new Set(regionRows.map((row) => row.id))
+  const roots =
+    regionId === undefined
+      ? regionRows.filter(
+          (row) => !tree.chainById.get(row.id)?.some((id) => id !== row.id && listed.has(id)),
+        )
+      : regionRows.filter((row) => row.id === regionId)
+  const programs = roots.reduce((sum, row) => sum + row.programs, 0)
+  const managers = roots.reduce((sum, row) => sum + row.managers.count, 0)
 
   return {
     ...base,

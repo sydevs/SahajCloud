@@ -62,6 +62,7 @@ export default async function AtlasManager({ req, searchParams }: AtlasManagerPr
       ) : null}
       <SectionTabs
         active="items"
+        progress={items.progress}
         tabs={[
           { count: items.progress?.open ?? items.counts.all, label: 'Open items', value: 'items' },
         ]}

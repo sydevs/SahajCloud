@@ -44,7 +44,7 @@ function StatusPill({ status }: { status: OpenItemsRow['statuses'][number] }) {
 }
 
 /**
- * The open-items list every home opens on: progress, filters, the rows, and paging.
+ * The open-items list every home opens on: filters, the rows, and paging.
  *
  * ⚠ **Every next step is a link to an edit view that already exists.** Verify
  * works because a manager's republish re-verifies
@@ -76,22 +76,6 @@ export function OpenItemsList({
 
   return (
     <div className={styles.list} id={LIST_ID}>
-      {/* ⚠ A native `<meter>` carries the value to assistive technology, and
-          Payload's `ProgressBar` is the route-transition bar. `max` is never
-          zero: an empty scope is 100% on track. */}
-      {progress && (
-        <div className={styles.meter}>
-          <meter
-            aria-label="Progress"
-            high={99}
-            low={60}
-            max={100}
-            optimum={100}
-            value={progress.percent}
-          />
-          <span>{progress.label}</span>
-        </div>
-      )}
       {/* All clear is about the counted rows: up-to-date programs still list under it. */}
       {open === 0 && <Banner type="success">{emptyBanner}</Banner>}
       {counts.all > 0 && (

@@ -21,9 +21,10 @@ export function StatTiles({ label, tiles }: { label: string; tiles: StatTile[] }
             {tile.value}
             {tile.of === undefined ? null : <small> of {tile.of}</small>}
           </span>
-          {tile.change === null ? null : (
-            <span className={styles.tileChange}>{changeLabel(tile.change)}</span>
-          )}
+          {/* Always rendered, so a tile with no change line keeps the row's height. */}
+          <span className={styles.tileChange}>
+            {tile.change === null ? null : changeLabel(tile.change)}
+          </span>
         </li>
       ))}
     </ul>

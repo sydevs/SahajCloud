@@ -59,6 +59,7 @@
   color: var(--theme-elevation-500);
 }
 .tileChange {
+  min-height: 1lh;
   font-size: 0.75rem;
   color: var(--theme-elevation-500);
 }
@@ -67,9 +68,13 @@
   display: flex;
   align-items: center;
   gap: calc(var(--base) * 0.5);
-  margin: calc(var(--base) * 0.5) 0;
+  /* Level with the tab labels, which sit above Payload's 20px tab padding. */
+  height: 20px;
+  margin-inline-start: auto;
+  padding-inline-start: var(--base);
   font-size: 0.85rem;
   color: var(--theme-elevation-650);
+  white-space: nowrap;
 }
 .meter meter {
   width: calc(var(--base) * 8);
@@ -78,6 +83,13 @@
 
 .sections {
   margin: var(--base) 0 calc(var(--base) * 0.75);
+}
+.tabList {
+  display: flex;
+}
+/* The tabs are links, so the global link underline has to be taken off. */
+.sections a {
+  text-decoration: none;
 }
 .sections .tick {
   margin-inline-start: calc(var(--base) / 4);
@@ -90,8 +102,19 @@
 .itemInfo a:hover {
   text-decoration: underline;
 }
-.itemInfo small {
-  display: block;
+.regionName {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--base) / 3);
+}
+/* Above the stretched name link, so the icon's own tooltip can be hovered. */
+.levelIcon {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  color: var(--theme-elevation-500);
+}
+.muted {
   color: var(--theme-elevation-500);
 }
 .statuses {

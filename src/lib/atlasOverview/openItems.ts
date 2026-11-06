@@ -185,6 +185,31 @@ function scopedEventsWhere(
 }
 
 /**
+ * A region scope's unfinished events, quiet ones included: its list holds only
+ * what needs a hand, but progress is measured against everything it covers.
+ */
+async function countRegionPrograms(
+  args: OverviewArgs,
+  regionIds: null | Set<number>,
+): Promise<number> {
+  const { req, scope } = args
+  if (scope.role !== 'region') return 0
+  const covers: Where[] = [
+    ...(regionIds === null ? [{ region: { exists: true } }] : []),
+    ...(regionIds?.size ? [{ region: { in: [...regionIds] } }] : []),
+    ...(scope.managerId === null ? [] : [{ manager: { equals: scope.managerId } }]),
+  ]
+  if (!covers.length) return 0
+  const { totalDocs } = await req.payload.count({
+    collection: 'events',
+    where: { and: [{ verificationStage: { not_equals: 'finished' } }, { or: covers }] },
+    overrideAccess: args.overrideAccess,
+    req: localeIsolatedReq(req),
+  })
+  return totalDocs
+}
+
+/**
  * Every row one role sees, already ordered.
  *
  * ⚠ **A change proposal is a status on the event it changes, never a row**, or
@@ -290,9 +315,11 @@ export async function loadOpenItems(args: OverviewArgs): Promise<OpenItemsResult
   if (scope.role === 'admin') rows.push(...(await loadRefusals(req)))
 
   const items = sortOpenItems(rows.map((row) => openItem(row, now)))
-  const total =
-    [...byId.values()].filter((doc) => isProgramStage(doc.verificationStage)).length +
-    standalone.length
+  const programs =
+    scope.role === 'region'
+      ? await countRegionPrograms(args, regionIds)
+      : [...byId.values()].filter((doc) => isProgramStage(doc.verificationStage)).length
+  const total = programs + standalone.length
 
   return {
     items,

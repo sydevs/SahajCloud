@@ -13,8 +13,8 @@ export interface RegionOverviewRow {
   id: number
   name: string
   level: Region['level']
-  /** Managers listed on this region or any below it. */
-  managers: number
+  /** Managers listed on this region or any below it; `first` is one of the region's own when it has one. */
+  managers: { count: number; first: null | string }
   /** Events that are not finished. */
   programs: number
   /** Managed and not overdue, over programs — whole per cent, `null` with no programs. */
@@ -46,7 +46,8 @@ export async function loadRegionOverview(
 
   // ⚠ Narrowed to the scope: a subtree is closed downwards, so nothing excluded could roll up into it.
   const narrow = scoped ? [...scoped] : null
-  const [events, signups] = await Promise.all([
+  const managerIds = [...new Set([...inScope].flatMap((id) => tree.managersById.get(id) ?? []))]
+  const [events, signups, managerDocs] = await Promise.all([
     req.payload.find({
       collection: 'events',
       where: narrow ? { region: { in: narrow } } : {},
@@ -61,7 +62,19 @@ export async function loadRegionOverview(
       now,
       req,
     }),
+    managerIds.length
+      ? req.payload.find({
+          collection: 'managers',
+          where: { id: { in: managerIds } },
+          depth: 0,
+          pagination: false,
+          overrideAccess: true,
+          req: localeIsolatedReq(req),
+          select: { name: true },
+        })
+      : { docs: [] },
   ])
+  const managerName = new Map(managerDocs.docs.map((doc) => [doc.id, doc.name]))
 
   const empty = () => ({
     healthy: 0,
@@ -107,11 +120,15 @@ export async function loadRegionOverview(
     const level = tree.levelById.get(id)
     if (!level || (args.countriesOnly && level !== 'country')) continue
     const row = metrics.get(id) ?? empty()
+    const listed = [...new Set([...(tree.managersById.get(id) ?? []), ...(managers.get(id) ?? [])])]
     rows.push({
       id,
       name: tree.nameById.get(id)?.trim() || `#${id}`,
       level,
-      managers: managers.get(id)?.size ?? 0,
+      managers: {
+        count: listed.length,
+        first: listed.length ? managerName.get(listed[0]!)?.trim() || 'Unnamed manager' : null,
+      },
       programs: row.programs,
       healthy: row.programs > 0 ? Math.round((row.healthy / row.programs) * 100) : null,
       overdue: row.overdue,
@@ -120,13 +137,13 @@ export async function loadRegionOverview(
     })
   }
 
-  // Countries with no manager of their own first, then Healthy ascending.
+  // Least healthy first, then those with no manager of their own.
   // ⚠ `healthy: null` sorts last: an empty region is not an unhealthy one.
   const managerless = (row: RegionOverviewRow) => !tree.managersById.get(row.id)?.length
   return rows.sort(
     (a, b) =>
-      Number(managerless(b)) - Number(managerless(a)) ||
       (a.healthy ?? 101) - (b.healthy ?? 101) ||
+      Number(managerless(b)) - Number(managerless(a)) ||
       a.name.localeCompare(b.name),
   )
 }

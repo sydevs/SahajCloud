@@ -42,6 +42,7 @@ export default async function AtlasRegion({ req, searchParams }: AtlasRegionProp
       <StatTiles label="The last 30 days" tiles={statistics.analytics} />
       <SectionTabs
         active={items.query.section}
+        progress={items.progress}
         tabs={[
           { count: items.progress?.open ?? items.counts.all, label: 'Open items', value: 'items' },
           { count: null, label: 'Regions overview', value: 'regions' },
