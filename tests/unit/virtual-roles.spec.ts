@@ -139,7 +139,7 @@ describe('a derived role in hasPermission', () => {
     const client = {
       id: 2,
       collection: 'clients',
-      _status: 'published',
+      enabled: true,
       roles: ['sahaj-atlas-client'],
       managedRegions: { docs: [3] },
     } as unknown as TypedAuthUser
