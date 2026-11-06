@@ -436,6 +436,38 @@ describe('Atlas manager home', () => {
       expect(data?.registrations.docs.map((row) => row.name)).toEqual(['Archived Registrant'])
     })
 
+    it('reports the listing’s recommendations only while nobody has registered', async () => {
+      const open = async (eventId: number) =>
+        (
+          await loadEventRegistrations(await request(assignee), eventId, {
+            filter: 'accepted',
+            page: 1,
+          })
+        )?.recommendations
+
+      expect(await open(tabEventId)).toBeNull()
+
+      const bare = await testData.createEvent(payload, {
+        title: 'Unregistered program',
+        manager: assignee.id,
+        region: cityId,
+      })
+      // Unpublished, so the panel would say it does not check the listing.
+      expect(await open(bare.id)).toEqual({ checked: false, reason: expect.any(String) })
+
+      await payload.update({
+        collection: 'events',
+        id: bare.id,
+        data: { _status: 'published' },
+        context: { skipVerifyHook: true },
+        overrideAccess: true,
+      })
+      expect(await open(bare.id)).toEqual({
+        checked: true,
+        open: expect.arrayContaining(['Add a description', 'Add photos']),
+      })
+    })
+
     /** A `create` screen and a deleted event both reach the route with no row. */
     it('refuses a document id that resolves to no event', async () => {
       const req = await request(admin)
