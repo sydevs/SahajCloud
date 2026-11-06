@@ -75,7 +75,6 @@ export type SeoCheckId = (typeof SEO_CHECK_IDS)[number]
  * the same split `inconclusive` makes for the mount ladder above.
  */
 export const SEO_CHECK_STATUSES = ['pass', 'fail', 'skipped'] as const
-export type SeoCheckStatus = (typeof SEO_CHECK_STATUSES)[number]
 
 /**
  * The stored `canonical.verification` column, straight off the generated type.
@@ -96,15 +95,8 @@ export type CanonicalVerification = ClientCanonicalVerification
 /** What the verifier observed on the live page. Job-written, never typed by hand. */
 export type VerifiedEmbed = NonNullable<CanonicalVerification['verified']>
 
-/**
- * The stored SEO-check snapshot, off the generated type like its siblings.
- *
- * `null` until the first run. Its own writer is {@link nextSeoCheckState}.
- */
-export type SeoCheckSnapshot = NonNullable<CanonicalVerification['seo']>
-
-/** One check's outcome on one page. */
-export type SeoCheckResult = SeoCheckSnapshot['results'][number]
+/** One check's outcome on one page, off the generated type like its siblings. */
+export type SeoCheckResult = NonNullable<CanonicalVerification['seo']>['results'][number]
 
 /** One attempt, newest first in {@link CanonicalVerification.attempts}. */
 export type VerificationAttempt = CanonicalVerification['attempts'][number]

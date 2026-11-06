@@ -72,5 +72,3 @@ export function AtlasSeoWarningEmail({
     </EmailLayout>
   )
 }
-
-export default AtlasSeoWarningEmail

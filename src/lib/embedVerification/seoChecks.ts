@@ -61,7 +61,7 @@ export interface FetchedPage {
 }
 
 /** How a caller bounds one fetch. */
-export interface FetchPageOptions {
+interface FetchPageOptions {
   /**
    * Refuse a redirect that leaves this host, instead of following it.
    *
@@ -155,7 +155,7 @@ export const fetchPage: FetchPage = async (url, options = {}) => {
 
 /** Why a bounded fetch gave up. Named so a spec can assert on them. */
 export const OFF_HOST = 'The redirect left the host under check, so it was not followed.'
-export const TOO_MANY_HOPS = 'Too many redirects on this host.'
+const TOO_MANY_HOPS = 'Too many redirects on this host.'
 
 /** The first {@link MAX_BODY_BYTES} of a response, decoded as UTF-8. */
 async function readCapped(response: Response): Promise<string> {
@@ -187,7 +187,7 @@ async function readCapped(response: Response): Promise<string> {
 }
 
 /** What a crawler can see on one page, read off the raw HTML. */
-export interface PageSnapshot {
+interface PageSnapshot {
   title: string | null
   canonical: string | null
   hasJsonLd: boolean
@@ -294,7 +294,7 @@ const skip = (detail: string): Verdict => ({ status: 'skipped', detail: clamp(de
  * assertion in the module, sitting exactly where a mis-keyed check would be
  * accepted silently.
  */
-export type PageVerdicts = Record<Exclude<SeoCheckId, 'sitemap'>, Verdict>
+type PageVerdicts = Record<Exclude<SeoCheckId, 'sitemap'>, Verdict>
 
 /**
  * The four page checks, given what the endpoint answered and what came back.
@@ -476,7 +476,7 @@ function dedupe(values: string[]): string[] {
  * The caller bakes in the locale as well as the client, because both are facts
  * about whose install is being checked rather than about the checking.
  */
-export interface SeoAuditResolvers {
+interface SeoAuditResolvers {
   resolveSeo: (route: string) => Promise<AtlasSeoDocument | null>
   resolveSitemap: () => Promise<AtlasSitemapUrl[]>
 }
