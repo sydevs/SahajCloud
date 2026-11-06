@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  actionText,
-  allSteps,
+  type Action,
   hostHints,
   type PlatformId,
   PLATFORM_LABELS,
   readAtlasAddress,
   signalFor,
-  snippetsOf,
+  type Step,
   stepForCheck,
+  type Track,
   type TrackId,
   TRACKS_BY_PLATFORM,
   tracksFor,
@@ -35,6 +35,19 @@ const VALUES = {
 }
 
 const tracks = tracksFor(VALUES)
+
+/** Every step a track renders, in both of its sections. */
+const allSteps = (track: Track): Step[] => [...track.steps, ...(track.more?.steps ?? [])]
+
+/** The words of an action, its bullets included, whatever else it carries. */
+const actionText = (action: Action): string =>
+  typeof action === 'string' ? action : [action.text, ...(action.items ?? [])].join(' ')
+
+/** Every value a step puts in front of the volunteer to copy. */
+const snippetsOf = (step: Step) =>
+  step.actions.flatMap((action) =>
+    typeof action !== 'string' && action.snippet ? [action.snippet] : [],
+  )
 const TRACK_IDS = Object.keys(tracks) as TrackId[]
 
 describe('the four platform choices', () => {
@@ -196,7 +209,6 @@ describe('what each track prefills', () => {
 
   it('says plainly that the iframe track has no search-engine listings', () => {
     expect(`${tracks.iframe.caveat?.title} ${tracks.iframe.caveat?.text}`).toMatch(/search/i)
-    expect(tracks.iframe.caveat?.tone).toBe('warning')
   })
 
   it('names the plan WordPress.com needs, as a condition rather than a step', () => {

@@ -194,31 +194,14 @@ export interface Track extends TrackMeta {
   more?: FollowOn
   checks: CheckRouting
   /**
-   * What the volunteer should know before choosing this track.
+   * What the volunteer should know before choosing this track, shown as a warning.
    *
    * ⚠ **Shown, not hidden in a comment.** The Studio menu names come from Wix's
    * own documentation and nobody has walked them. A volunteer who hits a menu
    * that is not there needs to know that was expected rather than assume they
    * broke it.
    */
-  caveat?: Notice & { tone: 'info' | 'warning' }
-}
-
-/** Every step a track renders, in both of its sections. */
-export function allSteps(track: Track): Step[] {
-  return [...track.steps, ...(track.more?.steps ?? [])]
-}
-
-/** The words of an action, its bullets included, whatever else it carries. */
-export function actionText(action: Action): string {
-  return typeof action === 'string' ? action : [action.text, ...(action.items ?? [])].join(' ')
-}
-
-/** Every value a step puts in front of the volunteer to copy. */
-export function snippetsOf(step: Step): Snippet[] {
-  return step.actions.flatMap((action) =>
-    typeof action !== 'string' && action.snippet ? [action.snippet] : [],
-  )
+  caveat?: Notice
 }
 
 /** In the order they are offered. */
@@ -737,7 +720,6 @@ export function tracksFor(values: InstallValues): Record<TrackId, Track> {
 
     iframe: track('iframe', {
       caveat: {
-        tone: 'warning',
         title: 'No search listings',
         text: 'With an iframe, classes do not get their own links or search results. Use it only when nothing else works.',
       },

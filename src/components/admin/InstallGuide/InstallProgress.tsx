@@ -13,7 +13,6 @@ import { installProgress } from './installModel'
 const STATE_CLASS: Record<MilestoneState, string | undefined> = {
   done: styles.stateDone,
   failed: styles.stateFailed,
-  warning: styles.stateWarning,
   todo: styles.stateTodo,
   na: styles.stateNa,
 }

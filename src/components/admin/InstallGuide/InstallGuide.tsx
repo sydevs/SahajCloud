@@ -139,7 +139,6 @@ function AppearancePreview({ appearance }: { appearance: Appearance }) {
     <>
       <div className={styles.appearance}>
         <figure className={styles.tile}>
-          {}
           <img
             alt=""
             className={styles.tileLogo}
@@ -523,10 +522,7 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
 
           {activeTrack?.caveat ? (
             <div className={styles.banners}>
-              <InfoBanner
-                title={activeTrack.caveat.title}
-                type={activeTrack.caveat.tone === 'warning' ? 'warning' : 'default'}
-              >
+              <InfoBanner title={activeTrack.caveat.title} type="warning">
                 {activeTrack.caveat.text}
               </InfoBanner>
             </div>
@@ -699,15 +695,9 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
 }
 
 /** POST to one of this service's endpoints; `null` for anything but a JSON 200. */
-async function post<T>(url: string, body?: unknown): Promise<T | null> {
+async function post<T>(url: string): Promise<T | null> {
   try {
-    const response = await fetch(url, {
-      method: 'POST',
-      credentials: 'include',
-      ...(body === undefined
-        ? {}
-        : { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
-    })
+    const response = await fetch(url, { method: 'POST', credentials: 'include' })
     return response.ok ? ((await response.json()) as T) : null
   } catch {
     return null
@@ -1011,5 +1001,3 @@ function StepState({ status, unobservable }: { status?: StepStatus; unobservable
   }
   return unobservable ? <span className={styles.stateQuiet}>Not checked automatically</span> : null
 }
-
-export default InstallGuide

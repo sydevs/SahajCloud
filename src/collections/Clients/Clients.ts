@@ -368,7 +368,7 @@ export const Clients: CollectionConfig = {
            * for anyone typing it, so `InstallView` shows a notice there instead.
            */
           install: {
-            Component: '@/components/admin/InstallGuide',
+            Component: '@/components/admin/InstallGuide/InstallView',
             path: '/install',
             tab: {
               Component: '@/components/admin/InstallGuide/InstallTab',

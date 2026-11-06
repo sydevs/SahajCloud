@@ -243,7 +243,7 @@ export interface BannerContent {
 }
 
 /** The banner at the top of the tab, per stage. */
-export const STAGE_BANNERS: Record<InstallStage, BannerContent> = {
+const STAGE_BANNERS: Record<InstallStage, BannerContent> = {
   waiting: {
     type: 'default',
     title: 'Not installed yet',
@@ -287,7 +287,7 @@ export function stageBanner(stage: InstallStage, searchListings: boolean): Banne
  * sees what the track gives up, and left out of the count, so the count can
  * still reach the end.
  */
-export type MilestoneState = 'done' | 'failed' | 'warning' | 'todo' | 'na'
+export type MilestoneState = 'done' | 'failed' | 'todo' | 'na'
 
 export interface Milestone {
   id: 'seen' | 'confirmed' | 'region' | 'routing' | 'search'
@@ -307,7 +307,6 @@ export const MILESTONE_STATUS: Record<MilestoneState, string> = {
   done: 'Done',
   todo: 'Not yet',
   failed: 'Needs fixing',
-  warning: 'Needs action',
   na: 'Not available',
 }
 

@@ -278,10 +278,6 @@
   --state: var(--theme-error-500);
 }
 
-.stateWarning {
-  --state: var(--theme-warning-500);
-}
-
 .stateTodo,
 .stateNa {
   --state: var(--theme-elevation-400);
