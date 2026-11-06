@@ -760,7 +760,7 @@ function addressHelp(platform: PlatformId): string {
 function CheckButton({ busy, onClick }: { busy: boolean; onClick: () => void }) {
   return (
     <div className={styles.checkRow}>
-      <Button buttonStyle="primary" disabled={busy} onClick={onClick} size="large">
+      <Button buttonStyle="primary" disabled={busy} margin={false} onClick={onClick} size="large">
         {busy ? 'Checking…' : 'Check my site'}
       </Button>
     </div>

@@ -181,10 +181,6 @@
   margin-top: calc(var(--base) * 0.5);
 }
 
-.checkRow :global(.btn) {
-  margin: 0;
-}
-
 .result :global(.banner) {
   margin: 0;
 }
@@ -220,10 +216,6 @@
   flex-wrap: wrap;
   gap: calc(var(--base) * 0.25);
   margin: calc(var(--base) * 0.25) 0 calc(var(--base) * 0.5);
-}
-
-.inlineValue :global(.btn) {
-  margin: 0;
 }
 
 /* A name inside a sentence, in a step a developer follows. */
