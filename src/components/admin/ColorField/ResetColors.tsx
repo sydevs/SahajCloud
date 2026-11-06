@@ -5,7 +5,7 @@ import type { UIFieldClientComponent } from 'payload'
 import { Button, useField } from '@payloadcms/ui'
 import React from 'react'
 
-import { isBrandColor } from '@/lib/clients/site'
+import { isBrandColor } from '@/lib/clients/appearance'
 
 /**
  * One button that puts a service's three brand colours back to the Atlas

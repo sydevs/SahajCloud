@@ -7,6 +7,8 @@ import {
   ATLAS_DEFAULT_COLORS,
   effectiveColor,
   isBrandColor,
+} from '../../src/lib/clients/appearance'
+import {
   normalizeMountPath,
   primaryPageUrl,
   primaryReport,

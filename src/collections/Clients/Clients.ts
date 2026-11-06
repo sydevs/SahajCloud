@@ -3,6 +3,7 @@ import type { CollectionConfig, Condition, Field, PayloadRequest } from 'payload
 
 import { colorField, legacyMigrationFields } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
+import { ATLAS_DEFAULT_COLORS } from '@/lib/clients/appearance'
 import type { RoutingMode } from '@/lib/clients/canonical'
 import {
   CANONICAL_DOMAIN_PATTERN,
@@ -12,12 +13,7 @@ import {
 } from '@/lib/clients/canonical'
 import { embedMetadataJsonSchema } from '@/lib/clients/embedMetadata'
 import type { SiteFields } from '@/lib/clients/site'
-import {
-  ATLAS_DEFAULT_COLORS,
-  EMBED_HEIGHTS,
-  primaryPageUrl,
-  SITE_TRACKS,
-} from '@/lib/clients/site'
+import { EMBED_HEIGHTS, primaryPageUrl, SITE_TRACKS } from '@/lib/clients/site'
 import {
   SEO_CHECK_IDS,
   SEO_CHECK_STATUSES,

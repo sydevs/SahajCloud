@@ -19,14 +19,14 @@ import { tableColumn } from '@/components/admin/helpers/tableColumn'
 import { TitledBanner } from '@/components/admin/helpers/TitledBanner'
 import { StatusIcon } from '@/components/admin/ReadinessField/StatusIcon'
 import { ToggleGroup } from '@/components/admin/ToggleGroupField/ToggleGroup'
-import type { EmbedMetadata } from '@/lib/clients/embedMetadata'
 import {
   ATLAS_DEFAULT_COLORS,
   DEFAULT_SERVICE_LOGO,
   effectiveColor,
   isBrandColor,
-  primaryPageUrl,
-} from '@/lib/clients/site'
+} from '@/lib/clients/appearance'
+import type { EmbedMetadata } from '@/lib/clients/embedMetadata'
+import { primaryPageUrl } from '@/lib/clients/site'
 import type { CanonicalVerification } from '@/lib/clients/verification'
 import type { Client } from '@/payload-types'
 

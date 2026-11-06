@@ -5,7 +5,7 @@ import type { TextFieldClientComponent } from 'payload'
 import { FieldDescription, FieldError, FieldLabel, useField } from '@payloadcms/ui'
 import React, { useCallback } from 'react'
 
-import { isBrandColor } from '@/lib/clients/site'
+import { isBrandColor } from '@/lib/clients/appearance'
 
 /**
  * Color Field Component
