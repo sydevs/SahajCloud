@@ -98,7 +98,7 @@ export async function runSeoChecksForClient(args: {
     resolvers: {
       resolveSeo: async (route) => {
         const target = parseAtlasRoute(route)
-        return target ? resolveAtlasSeo({ req: auditReq, target, locale, clientId }) : null
+        return target ? resolveAtlasSeo({ req: auditReq, target, locale }) : null
       },
       resolveSitemap: async () => (await resolveAtlasSitemap({ req: auditReq, clientId })).urls,
     },

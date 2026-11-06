@@ -66,27 +66,10 @@ const REGION_SELECT: SelectType = {
 }
 
 /**
- * Fields an event's own read needs. `region` and `_status` back `webPath` /
+ * Fields a listing card needs. `region` and `_status` back `webPath` /
  * `webUrl`; the `ensureVirtualFieldDeps` beforeOperation hook keeps them present
  * even when a caller selects the URL fields without them.
  */
-const EVENT_SELECT: SelectType = {
-  title: true,
-  languages: true,
-  description: true,
-  website: true,
-  images: true,
-  eventType: true,
-  onlineUrl: true,
-  address: true,
-  inactive: true,
-  schedule: true,
-  region: true,
-  webPath: true,
-  webUrl: true,
-}
-
-/** The subset of the above a listing card needs — no description, no images. */
 const EVENT_CARD_SELECT: SelectType = {
   title: true,
   eventType: true,
@@ -96,6 +79,16 @@ const EVENT_CARD_SELECT: SelectType = {
   region: true,
   webPath: true,
   webUrl: true,
+}
+
+/** An event's own page: the card plus what only that page renders. */
+const EVENT_SELECT: SelectType = {
+  ...EVENT_CARD_SELECT,
+  languages: true,
+  description: true,
+  website: true,
+  images: true,
+  onlineUrl: true,
 }
 
 /**
@@ -125,7 +118,10 @@ async function regionBreadcrumbs(
 }
 
 /**
- * The canonical URL for the atlas root: **the caller's own mount page** (#739).
+ * Answer the atlas root — `/`, and every bare view route (#739). Its copy is the
+ * operator's, from `sy-atlas-translations` (see `./rootStrings`).
+ *
+ * Its canonical is **the caller's own mount page**.
  *
  * Every other route resolves its canonical through region ownership, because
  * the document decides who speaks for it. The root names no document, so the
@@ -144,33 +140,15 @@ async function regionBreadcrumbs(
  * that cannot publish a canonical of its own gets the surface that indexes the
  * atlas, never another client's page.
  */
-async function rootCanonical(
-  req: PayloadRequest,
-  clientId: number | null | undefined,
-): Promise<string | null> {
-  const owner = await canonicalOwnerForClient(req, clientId)
-  return canonicalMountUrl(canonicalTargetFor(owner))
-}
-
-/**
- * Answer the atlas root — `/`, and every bare view route (#739).
- *
- * The only branch here that reads no region and no event. Its copy is the
- * operator's, from `sy-atlas-translations` (see `./rootStrings`), and its
- * canonical is the caller's own mount page (see {@link rootCanonical}).
- */
-async function rootSeo(
-  req: PayloadRequest,
-  locale: LocaleCode,
-  clientId: number | null | undefined,
-): Promise<AtlasSeoDocument> {
-  // Three independent reads — the copy, the enabled locales, the named client's
-  // own record — so they overlap rather than queue.
-  const [strings, locales, canonical] = await Promise.all([
+async function rootSeo(req: PayloadRequest, locale: LocaleCode): Promise<AtlasSeoDocument> {
+  // Three independent reads — the copy, the enabled locales, the caller's own
+  // record — so they overlap rather than queue.
+  const [strings, locales, owner] = await Promise.all([
     getRootSeoStrings(req, locale),
     getAtlasLocales(req),
-    rootCanonical(req, clientId),
+    canonicalOwnerForClient(req, req.user?.id),
   ])
+  const canonical = canonicalMountUrl(canonicalTargetFor(owner))
 
   return buildRootSeo({ ...strings, canonical, locale, locales })
 }
@@ -336,23 +314,11 @@ export async function resolveAtlasSeo(args: {
   req: PayloadRequest
   target: AtlasRouteTarget
   locale: LocaleCode
-  /**
-   * Whose root canonical to resolve, when it is not the caller's own.
-   *
-   * ⚠ **The root is the one route whose answer depends on who asked** — it names
-   * no document, so the only page it can describe is the mount of the client
-   * asking (#739). Everything else resolves through region ownership and is the
-   * same for every caller. The SEO checks (#1055) need the answer **a given
-   * client** would get while running as a manager or as no user at all, and
-   * recomputing the root's title and canonical there would be a second
-   * implementation of exactly the thing this module exists to be the only one of.
-   */
-  clientId?: number | null
 }): Promise<AtlasSeoDocument | null> {
-  const { req, target, locale, clientId = req.user?.id } = args
-  // The root always resolves, so it returns before the not-found check — only a
-  // lookup can come back empty.
-  if (target.kind === 'root') return rootSeo(req, locale, clientId)
+  const { req, target, locale } = args
+  // ⚠ **The root is the one route whose answer depends on who asked** (#739):
+  // a caller resolving it for another client puts that client on `req.user`.
+  if (target.kind === 'root') return rootSeo(req, locale)
   if (target.kind === 'region') return regionSeo(req, target, locale)
   return eventSeo(req, target, locale)
 }
