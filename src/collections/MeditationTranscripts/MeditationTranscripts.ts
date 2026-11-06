@@ -9,6 +9,7 @@ import {
   TRANSCRIPTION_STALL_MS,
   transcriptSegmentsSchema,
 } from '@/lib/meditations/transcript'
+import { ensureVirtualFieldDeps } from '@/lib/utilities/virtualFieldDeps'
 import type { PurgeWindow, RetentionConfig } from '@/types/retention'
 
 import { applyGlossaryToSegments } from './hooks/applyGlossaryToSegments'
@@ -91,6 +92,11 @@ export const MeditationTranscripts: CollectionConfig = {
   hooks: {
     afterChange: [queueTranscription],
     beforeChange: [applyGlossaryToSegments],
+    // `status` and `error` are derived on read, so a `select` naming either
+    // without their inputs made every finished transcript read `failed`
+    // (#1084). `segments` is the costly one: a reader selecting `status` is
+    // served the cues too, because nothing can select a field for a hook alone.
+    beforeOperation: [ensureVirtualFieldDeps({ status: ['segments', 'job'], error: ['job'] })],
   },
   fields: [
     {

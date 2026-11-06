@@ -42,6 +42,7 @@ import {
 import { livePreviewUrl } from '@/lib/livePreview/url'
 import { getLanguageOptions } from '@/lib/locales'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
+import { ensureVirtualFieldDeps } from '@/lib/utilities/virtualFieldDeps'
 import {
   adminOnlyCondition,
   eventManagerFieldAccess,
@@ -59,7 +60,6 @@ import {
   EVENT_TYPE_OPTIONS,
   VERIFICATION_STAGE_OPTIONS,
 } from './eventOptions'
-import { ensureVirtualFieldDeps } from './hooks/ensureVirtualFieldDeps'
 import { computeEventQualityReport, stampEventQuality } from './hooks/eventQuality'
 import { eventTitleBeforeChange, eventTitleValidate } from './hooks/eventTitle'
 import { excludeFinishedEvents } from './hooks/excludeFinishedEvents'
@@ -181,12 +181,18 @@ export const Events: CollectionConfig = {
   // banner's Verify button. A reminder's link opens the `/events/verify` page,
   // which runs the shared verify operation from its button's Server Action.
   hooks: {
-    // Keep `webPath`/`webUrl` resolvable when a read selects them without
-    // their inputs (`region`, and `_status` for `webUrl`). See ensureVirtualFieldDeps.
-    // Then drop finished events from API-client list reads. They stay
-    // published so their pages resolve, but should not be listed. See
-    // excludeFinishedEvents.
-    beforeOperation: [ensureVirtualFieldDeps, excludeFinishedEvents],
+    // `webPath` and `webUrl` derive from `region` and are publish-gated on
+    // `_status`; `offersMailingList` derives from `region`. Then drop finished
+    // events from API-client list reads. They stay published so their pages
+    // resolve, but should not be listed. See excludeFinishedEvents.
+    beforeOperation: [
+      ensureVirtualFieldDeps({
+        webPath: ['region', '_status'],
+        webUrl: ['region', '_status'],
+        offersMailingList: ['region'],
+      }),
+      excludeFinishedEvents,
+    ],
     // A class that repeats one already listed is refused before anything else
     // runs, drafts included — see refuseDuplicateClass.
     beforeValidate: [refuseDuplicateClass],

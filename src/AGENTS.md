@@ -132,6 +132,12 @@ No loose files at the root — every file lives in a named folder:
   `where`, `eventImages` — an event's photos as documents, in the order the
   editor arranged them, with the `url` co-select that stops them arriving
   blank (the atlas SEO endpoint and the proposal preview both read them),
+  `virtualFieldDeps` — `ensureVirtualFieldDeps(deps)` builds the
+  `beforeOperation` hook that puts a computed field's stored inputs back
+  into an include-mode `select`, which strips them before the afterRead
+  field hooks run. Declared by `events`, `pages`, `meditations` and
+  `meditation-transcripts`; a collection has to declare it and nothing
+  makes it, which is how #1084 happened,
   `url` — `originOf` for code deciding whether to trust a URL someone
   else handed it, where an opaque origin reads as none. Parsing itself
   is `URL.parse`, the built-in that returns `null` rather than throwing —

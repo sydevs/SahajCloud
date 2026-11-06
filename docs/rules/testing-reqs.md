@@ -59,7 +59,7 @@ If the lane is unavailable, say so. Do not guess why. Name the layer that refuse
 
 Locally, default to targeted runs:
 
-- `pnpm test:unit` — the whole unit lane, 239 files and 3079 tests (about 78 s on 4 cores, no Payload boot — `tests/PERF.md`). For one spec, name it: `pnpm exec vitest run tests/unit/<file>.spec.ts --project unit --config ./vitest.config.mts`, 1–3 s.
+- `pnpm test:unit` — the whole unit lane, 240 files and 3108 tests (about 78 s on 4 cores, no Payload boot — `tests/PERF.md`). For one spec, name it: `pnpm exec vitest run tests/unit/<file>.spec.ts --project unit --config ./vitest.config.mts`, 1–3 s.
 - `pnpm exec vitest run tests/int/<file>.int.spec.ts --config ./vitest.config.mts` — one integration spec, for the area you touched.
 - `pnpm exec vitest run tests/int/<file>.int.spec.ts -t "<case name>"` — one test case.
 

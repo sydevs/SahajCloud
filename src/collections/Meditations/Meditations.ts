@@ -19,6 +19,7 @@ import {
   normalizeMeditationFrames,
   normalizeMeditationFramesForStorage,
 } from '@/lib/meditations/frames'
+import { ensureVirtualFieldDeps } from '@/lib/utilities/virtualFieldDeps'
 import { restrictUploadToAdmin } from '@/plugins/access'
 import { virtualUrlField } from '@/plugins/storage/urlFields'
 import { KeyframeData } from '@/types/frames'
@@ -112,7 +113,19 @@ export const Meditations: CollectionConfig = {
   trash: true,
   endpoints: [meditationLectures, meditationSongs, meditationTranscribe],
   hooks: {
-    beforeOperation: [filterMeditationsByLocale],
+    // `durationMinutes` derives from `duration` and `title` from the
+    // `subtleSystemNodeWeights` cache, both of which an include-mode `select`
+    // strips (#1084). `MEDITATION_CARD_SELECT` co-selects them by hand for the
+    // card reads; an API client sending its own `select` has nothing to.
+    // `url` is not here: the `filename` co-select is still each caller's, on
+    // all eight upload collections (`docs/rules/endpoints.md`).
+    beforeOperation: [
+      ensureVirtualFieldDeps({
+        durationMinutes: ['duration'],
+        title: ['subtleSystemNodeWeights'],
+      }),
+      filterMeditationsByLocale,
+    ],
     beforeChange: [
       restrictUploadToAdmin({ label: 'audio file on a meditation' }),
       // After `extractAudioDuration`: the weights are computed against the
