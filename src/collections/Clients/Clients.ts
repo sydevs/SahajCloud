@@ -12,7 +12,12 @@ import {
 } from '@/lib/clients/canonical'
 import { embedMetadataJsonSchema } from '@/lib/clients/embedMetadata'
 import type { SiteFields } from '@/lib/clients/site'
-import { EMBED_HEIGHTS, primaryPageUrl, SITE_TRACKS } from '@/lib/clients/site'
+import {
+  ATLAS_DEFAULT_COLORS,
+  EMBED_HEIGHTS,
+  primaryPageUrl,
+  SITE_TRACKS,
+} from '@/lib/clients/site'
 import {
   SEO_CHECK_IDS,
   SEO_CHECK_STATUSES,
@@ -205,18 +210,6 @@ const adminTabs: Condition = (_data, _siblingData, { user }) => !user || isAdmin
 const isAtlasClient = (data: { roles?: unknown }): boolean =>
   Array.isArray(data?.roles) && data.roles.includes('sahaj-atlas-client')
 
-/**
- * What the atlas paints with while a colour is unset.
- *
- * ⚠ Mirrors `DEFAULT_SEEDS` in SahajAtlasWeb's `src/config/theme/palette.ts`,
- * where `color3` themes the `contrast` role. Change both together.
- */
-const ATLAS_DEFAULT_COLORS = {
-  primary: '#1E6C71',
-  secondary: '#A1C3D7',
-  contrast: '#E08E79',
-} as const
-
 /** The mailing-list group's master switch. */
 const mailingListEnabled = (data: { mailingList?: { enabled?: boolean | null } | null }): boolean =>
   Boolean(data?.mailingList?.enabled)
@@ -357,6 +350,8 @@ export const Clients: CollectionConfig = {
     useAsTitle: 'name',
     defaultColumns: ['name', 'enabled'],
     components: {
+      // A banner under the document header while the atlas install is unfinished.
+      Description: '@/components/admin/InstallGuide/InstallBanner',
       views: {
         edit: {
           /**
@@ -553,19 +548,27 @@ export const Clients: CollectionConfig = {
                     colorField({
                       name: 'color1',
                       label: 'Primary Color',
-                      fallback: ATLAS_DEFAULT_COLORS.primary,
+                      fallback: ATLAS_DEFAULT_COLORS.color1,
                     }),
                     colorField({
                       name: 'color2',
                       label: 'Secondary Color',
-                      fallback: ATLAS_DEFAULT_COLORS.secondary,
+                      fallback: ATLAS_DEFAULT_COLORS.color2,
                     }),
                     colorField({
                       name: 'color3',
                       label: 'Tertiary Color',
-                      fallback: ATLAS_DEFAULT_COLORS.contrast,
+                      fallback: ATLAS_DEFAULT_COLORS.color3,
                     }),
                   ],
+                },
+                {
+                  // One button for all three, shown while any is the service's own.
+                  name: 'resetColors',
+                  type: 'ui',
+                  admin: {
+                    components: { Field: '@/components/admin/ColorField/ResetColors' },
+                  },
                 },
               ],
             },

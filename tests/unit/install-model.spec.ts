@@ -11,6 +11,10 @@ import {
   reportedMountsFor,
   sectionConfirmed,
 } from '../../src/components/admin/InstallGuide/installModel'
+import {
+  installComplete,
+  milestonesForRecord,
+} from '../../src/components/admin/InstallGuide/installStatus'
 import { tracksFor } from '../../src/components/admin/InstallGuide/steps'
 import { EMPTY_VERIFICATION } from '../../src/lib/clients/verification'
 
@@ -674,5 +678,47 @@ describe('sectionConfirmed — when a section stops offering Check my site', () 
       }),
     )
     expect(sectionConfirmed(step4, after.stepStatus)).toBe(true)
+  })
+})
+
+describe('milestonesForRecord — progress off the stored record', () => {
+  const site = { domain: 'sahajayoga.ca', page: '/free-classes', track: 'custom' as const }
+  const reported = mount('https://sahajayoga.ca/free-classes', '2026-10-01T00:00:00.000Z')
+
+  it('counts nothing done for a service with no page yet', () => {
+    const list = milestonesForRecord({
+      site: null,
+      embedMetadata: null,
+      verification: null,
+      owned: false,
+      regionName: 'Ontario',
+    })
+    expect(list.find((m) => m.id === 'seen')?.state).toBe('todo')
+    expect(installComplete(list)).toBe(false)
+  })
+
+  it('is complete when every row it can reach is done', () => {
+    const list = milestonesForRecord({
+      site,
+      embedMetadata: reported,
+      verification: verified({
+        routingProbe: { at: '2026-10-02T00:00:00.000Z', verdict: 'path', failedAttempts: 0 },
+        seo: seo([{ route: '/', check: 'title', status: 'pass' }]),
+      }),
+      owned: true,
+      regionName: 'Ontario',
+    })
+    expect(installComplete(list)).toBe(true)
+  })
+
+  it('reads a reported page on another domain as not this site', () => {
+    const list = milestonesForRecord({
+      site,
+      embedMetadata: mount('https://elsewhere.example/free-classes', '2026-10-01T00:00:00.000Z'),
+      verification: null,
+      owned: false,
+      regionName: 'Ontario',
+    })
+    expect(list.find((m) => m.id === 'seen')?.state).toBe('todo')
   })
 })

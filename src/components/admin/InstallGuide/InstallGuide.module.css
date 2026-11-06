@@ -434,3 +434,67 @@
     overflow-wrap: anywhere;
   }
 }
+
+.summaryLink {
+  display: inline-block;
+  margin-top: calc(var(--base) * 0.5);
+}
+
+/* The not-yet-installed banner under a service's document header. */
+.installBanner {
+  margin-top: var(--base);
+}
+
+/* "Make it yours": the logo and the three colours, as four tiles. */
+.appearance {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--base);
+  max-width: calc(var(--base) * 32);
+  margin: var(--base) 0;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--base) * 0.35);
+  margin: 0;
+
+  figcaption {
+    display: flex;
+    flex-direction: column;
+    font-weight: 600;
+  }
+}
+
+.tileLogo,
+.tileColor {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  border: 1px solid var(--theme-elevation-150);
+  border-radius: var(--style-radius-m);
+}
+
+.tileLogo {
+  padding: calc(var(--base) * 0.75);
+  object-fit: contain;
+  background: var(--theme-elevation-0);
+}
+
+.tileNote {
+  font-size: 0.85em;
+  font-weight: 400;
+  color: var(--theme-elevation-500);
+}
+
+.appearanceNote {
+  margin: 0 0 var(--base);
+  color: var(--theme-elevation-600);
+}
+
+@media (max-width: 600px) {
+  .appearance {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

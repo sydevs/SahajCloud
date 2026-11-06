@@ -25,23 +25,9 @@ const STATE_CLASS: Record<MilestoneState, string | undefined> = {
  * things to get through.
  */
 export function InstallProgress({ milestones }: { milestones: Milestone[] }): React.ReactElement {
-  const counted = milestones.filter((milestone) => milestone.state !== 'na')
-  const done = counted.filter((milestone) => milestone.state === 'done').length
-  const total = counted.length
-
   return (
     <div className={styles.progress}>
-      <div className={styles.progressHeader}>
-        <span className={done === total ? styles.progressComplete : styles.progressCount}>
-          {done === total ? 'All done' : `${done} of ${total} done`}
-        </span>
-        <progress
-          aria-label="Install progress"
-          className={styles.progressBar}
-          max={total}
-          value={done}
-        />
-      </div>
+      <InstallProgressBar milestones={milestones} />
       <Table
         appearance="condensed"
         columns={[
@@ -79,6 +65,35 @@ export function InstallProgress({ milestones }: { milestones: Milestone[] }): Re
           ),
         ]}
         data={milestones.map((milestone) => ({ id: milestone.id }))}
+      />
+    </div>
+  )
+}
+
+/**
+ * The count and the bar on their own, for a place that shows how far an install
+ * has got without its table — the Atlas tab's summary. A row the site can never
+ * finish is out of the count, as it is in the table.
+ */
+export function InstallProgressBar({
+  milestones,
+}: {
+  milestones: Milestone[]
+}): React.ReactElement {
+  const counted = milestones.filter((milestone) => milestone.state !== 'na')
+  const done = counted.filter((milestone) => milestone.state === 'done').length
+  const total = counted.length
+
+  return (
+    <div className={styles.progressHeader}>
+      <span className={done === total ? styles.progressComplete : styles.progressCount}>
+        {done === total ? 'All done' : `${done} of ${total} done`}
+      </span>
+      <progress
+        aria-label="Install progress"
+        className={styles.progressBar}
+        max={total}
+        value={done}
       />
     </div>
   )

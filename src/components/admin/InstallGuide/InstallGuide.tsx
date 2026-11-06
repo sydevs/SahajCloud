@@ -18,7 +18,13 @@ import { TitledBanner } from '@/components/admin/helpers/TitledBanner'
 import { StatusIcon } from '@/components/admin/ReadinessField/StatusIcon'
 import { ToggleGroup } from '@/components/admin/ToggleGroupField/ToggleGroup'
 import type { EmbedMetadata } from '@/lib/clients/embedMetadata'
-import { primaryPageUrl } from '@/lib/clients/site'
+import {
+  ATLAS_DEFAULT_COLORS,
+  DEFAULT_SERVICE_LOGO,
+  effectiveColor,
+  isBrandColor,
+  primaryPageUrl,
+} from '@/lib/clients/site'
 import type { CanonicalVerification } from '@/lib/clients/verification'
 import type { Client } from '@/payload-types'
 
@@ -40,6 +46,7 @@ import { InstallProgress } from './InstallProgress'
 import {
   hostHints,
   PLATFORM_LABELS,
+  platformOf,
   PLATFORM_RECOGNISE,
   readAtlasAddress,
   TRACKS_BY_PLATFORM,
@@ -97,14 +104,72 @@ export interface InstallGuideProps {
   initialOwned: boolean
   /** The region's name, or `null` for a worldwide map. Set by an admin, read-only here. */
   regionName: string | null
+  /** What "Make it yours" previews, as stored — `null` where nothing is set. */
+  appearance: Appearance
 }
 
-/** Which platform a stored track sits under, for reopening the tab on it. */
-const PLATFORM_OF: Record<TrackId, PlatformId> = Object.fromEntries(
-  (Object.entries(TRACKS_BY_PLATFORM) as Array<[PlatformId, TrackId[]]>).flatMap(
-    ([platform, ids]) => ids.map((id) => [id, platform]),
-  ),
-) as Record<TrackId, PlatformId>
+/** A service's look, as the Atlas tab holds it. */
+export interface Appearance {
+  logoUrl: string | null
+  colors: Record<keyof typeof ATLAS_DEFAULT_COLORS, string | null>
+  supportEmail: string | null
+  /** The mailing-list provider's name while the list is on, else `null`. */
+  mailingList: string | null
+}
+
+const COLOR_LABELS: Record<keyof typeof ATLAS_DEFAULT_COLORS, string> = {
+  color1: 'Primary',
+  color2: 'Secondary',
+  color3: 'Tertiary',
+}
+
+/**
+ * Four tiles — the logo and the three brand colours — each showing the
+ * default when the service has none of its own, plus where replies and
+ * subscribers go, which are the other two things the Atlas tab sets.
+ */
+function AppearancePreview({ appearance }: { appearance: Appearance }) {
+  return (
+    <>
+      <div className={styles.appearance}>
+        <figure className={styles.tile}>
+          {}
+          <img
+            alt=""
+            className={styles.tileLogo}
+            src={appearance.logoUrl ?? DEFAULT_SERVICE_LOGO}
+          />
+          <figcaption>
+            Logo
+            <span className={styles.tileNote}>{appearance.logoUrl ? 'Yours' : 'Default'}</span>
+          </figcaption>
+        </figure>
+        {(Object.keys(COLOR_LABELS) as Array<keyof typeof ATLAS_DEFAULT_COLORS>).map((column) => {
+          const value = appearance.colors[column]
+          const color = effectiveColor(column, value)
+          return (
+            <figure className={styles.tile} key={column}>
+              <span className={styles.tileColor} style={{ background: color }} />
+              <figcaption>
+                {COLOR_LABELS[column]}
+                <span className={styles.tileNote}>
+                  {color.toUpperCase()} {isBrandColor(value) ? '' : '· Default'}
+                </span>
+              </figcaption>
+            </figure>
+          )
+        })}
+      </div>
+      <p className={styles.appearanceNote}>
+        Replies to registration emails go to{' '}
+        {appearance.supportEmail ?? 'the Sahaj Atlas team, until you add a support email'}.{' '}
+        {appearance.mailingList
+          ? `Subscribers join your ${appearance.mailingList} list.`
+          : 'No mailing list is connected.'}
+      </p>
+    </>
+  )
+}
 
 export function InstallGuide(props: InstallGuideProps): React.ReactElement {
   const { clientId, apiKey, cmsUrl, widgetUrl, editUrl } = props
@@ -112,7 +177,7 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
   const saved = props.initialSite
   const [track, setTrackState] = useState<TrackId | null>(saved?.track ?? null)
   const [platform, setPlatform] = useState<PlatformId | null>(
-    saved?.track ? PLATFORM_OF[saved.track] : null,
+    saved?.track ? platformOf(saved.track) : null,
   )
   const [addressInput, setAddressInput] = useState(() => primaryPageUrl(saved) ?? '')
   const [embedHeight, setEmbedHeightState] = useState<EmbedHeight>(saved?.embedHeight ?? 'screen')
@@ -349,7 +414,8 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
     const choices = TRACKS_BY_PLATFORM[next]
     setTrack(choices.length === 1 ? choices[0] : null)
   }
-  const nextSection = activeTrack?.more ? 5 : 4
+  // The last section, after step 4 whenever step 4 shows.
+  const nextSection = activeTrack?.more && working ? 5 : 4
 
   const tracksHere = platform ? TRACKS_BY_PLATFORM[platform] : []
   const showProblem = addressInput.trim() !== '' && address.problem !== null
@@ -568,16 +634,17 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
           </section>
         ) : null}
 
-        {ready && working ? (
+        {ready ? (
           <section className={styles.section}>
             <h3 className={styles.heading}>{nextSection}. Make it yours</h3>
             <p className={styles.intro}>
-              Your atlas is working. Choose its colours, the logo and reply address on the emails
-              people get when they register, and a mailing list, on the Atlas tab.
+              How the atlas and the emails people get when they register look today. Anything not
+              set yet shows the default.
             </p>
+            <AppearancePreview appearance={props.appearance} />
             <div>
               <Button buttonStyle="secondary" el="link" margin={false} url={editUrl}>
-                Open the Atlas tab
+                Customize Atlas appearance
               </Button>
             </div>
           </section>

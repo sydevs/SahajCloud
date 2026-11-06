@@ -41,8 +41,10 @@ import { default as default_c76ed6d3c3881bbd4c90e56dac27b1a7 } from '@/component
 import { default as default_49cc57155f60c2bacf9eaa38c760d251 } from '@/components/admin/PermissionsTable'
 import { default as default_62cc53570223acc00863adec1af8b6de } from '@/components/admin/NotificationPreferences'
 import { default as default_177ca2347588afbf7bf1219542d02c7f } from '@/components/admin/InstallGuide/InstallSummary'
+import { default as default_11724ca90c0e3bae2f937752e8aadbff } from '@/components/admin/ColorField/ResetColors'
 import { default as default_acdce971efa051c30eee554c2f9f8336 } from '@/components/admin/AbuseScore/AbuseScoreCell'
 import { default as default_d600b4f81bb40d92e487891c4971de20 } from '@/components/admin/AbuseScore/AbuseScoreField'
+import { default as default_d498427cbe3f9e971622125cc691d73d } from '@/components/admin/InstallGuide/InstallBanner'
 import { default as default_d5ffe92cc1e7a434f5d407e444f0e427 } from '@/components/admin/InstallGuide'
 import { default as default_0a6b8160e35e150007da27e645325d20 } from '@/components/admin/AppCardViewSchedule'
 import { default as default_ea9ef661de0dfca6f36a4b6ccae0182b } from '@/components/admin/VariableInsert'
@@ -140,8 +142,10 @@ export const importMap = {
   "@/components/admin/PermissionsTable#default": default_49cc57155f60c2bacf9eaa38c760d251,
   "@/components/admin/NotificationPreferences#default": default_62cc53570223acc00863adec1af8b6de,
   "@/components/admin/InstallGuide/InstallSummary#default": default_177ca2347588afbf7bf1219542d02c7f,
+  "@/components/admin/ColorField/ResetColors#default": default_11724ca90c0e3bae2f937752e8aadbff,
   "@/components/admin/AbuseScore/AbuseScoreCell#default": default_acdce971efa051c30eee554c2f9f8336,
   "@/components/admin/AbuseScore/AbuseScoreField#default": default_d600b4f81bb40d92e487891c4971de20,
+  "@/components/admin/InstallGuide/InstallBanner#default": default_d498427cbe3f9e971622125cc691d73d,
   "@/components/admin/InstallGuide#default": default_d5ffe92cc1e7a434f5d407e444f0e427,
   "@/components/admin/AppCardViewSchedule#default": default_0a6b8160e35e150007da27e645325d20,
   "@/components/admin/VariableInsert#default": default_ea9ef661de0dfca6f36a4b6ccae0182b,

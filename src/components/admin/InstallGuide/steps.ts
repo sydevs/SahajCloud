@@ -250,6 +250,14 @@ export const TRACKS_BY_PLATFORM: Record<PlatformId, TrackId[]> = {
   iframe: ['iframe'],
 }
 
+/** Which platform a track sits under. */
+export function platformOf(track: TrackId): PlatformId {
+  const entry = (Object.entries(TRACKS_BY_PLATFORM) as Array<[PlatformId, TrackId[]]>).find(
+    ([, ids]) => ids.includes(track),
+  )
+  return entry ? entry[0] : 'custom'
+}
+
 /** Step 4's title wherever it is search listings. */
 const SEO_TITLE = 'Let search engines list your classes'
 

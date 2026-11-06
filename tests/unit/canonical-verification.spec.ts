@@ -4,6 +4,9 @@ import type { CanonicalVerification, VerifiedEmbed } from '../../src/lib/clients
 import { describe, expect, it } from 'vitest'
 
 import {
+  ATLAS_DEFAULT_COLORS,
+  effectiveColor,
+  isBrandColor,
   normalizeMountPath,
   primaryPageUrl,
   primaryReport,
@@ -213,5 +216,21 @@ describe('supportsClassAddresses', () => {
     expect(supportsClassAddresses(record({ routing: 'query', paramPersisted: false }))).toBe(true)
     expect(supportsClassAddresses(record({ mode: 'iframe' }))).toBe(false)
     expect(supportsClassAddresses(record({ urlWritable: false }))).toBe(false)
+  })
+})
+
+describe('isBrandColor and effectiveColor', () => {
+  it('reads black, white and grey as unset, as the widget does', () => {
+    for (const value of ['#000000', '#FFFFFF', '#808080', '#000', null, undefined, '', 'teal']) {
+      expect(isBrandColor(value)).toBe(false)
+    }
+    expect(isBrandColor('#7B4EA8')).toBe(true)
+    expect(isBrandColor('#f60')).toBe(true)
+  })
+
+  it('paints the default for an unset column and the service’s own otherwise', () => {
+    expect(effectiveColor('color1', '#000000')).toBe(ATLAS_DEFAULT_COLORS.color1)
+    expect(effectiveColor('color3', null)).toBe(ATLAS_DEFAULT_COLORS.color3)
+    expect(effectiveColor('color2', '#7B4EA8')).toBe('#7B4EA8')
   })
 })

@@ -14,7 +14,7 @@ import { getServerUrl } from '@/lib/utilities/serverUrl'
 import type { Client } from '@/payload-types'
 
 import { CenteredNotice } from '../CenteredNotice'
-import { InstallGuide } from './InstallGuide'
+import { type Appearance, InstallGuide } from './InstallGuide'
 import styles from './InstallGuide.module.css'
 
 /**
@@ -124,11 +124,56 @@ export default async function InstallView(
           (client.canonical?.verification ?? null) as CanonicalVerification | null
         }
         languageOptions={getLanguageOptions()}
+        appearance={await readAppearance(props, client)}
         regionName={await readRegionName(props, client.region)}
         widgetUrl={serverEnv.SAHAJATLAS_URL}
       />
     </>
   )
+}
+
+/** What the Install tab's "Make it yours" previews, as the record holds it. */
+async function readAppearance(props: DocumentViewServerProps, client: Client): Promise<Appearance> {
+  const list = client.mailingList
+  return {
+    logoUrl: await readLogoUrl(props, client.logo),
+    colors: {
+      color1: client.color1 ?? null,
+      color2: client.color2 ?? null,
+      color3: client.color3 ?? null,
+    },
+    supportEmail: client.supportEmail ?? null,
+    mailingList: list?.enabled && list.provider ? PROVIDER_NAMES[list.provider] : null,
+  }
+}
+
+const PROVIDER_NAMES: Record<
+  NonNullable<NonNullable<Client['mailingList']>['provider']>,
+  string
+> = {
+  mailchimp: 'Mailchimp',
+  brevo: 'Brevo',
+  klaviyo: 'Klaviyo',
+}
+
+/** The logo's own URL, or `null` when there is none or it cannot be read. */
+async function readLogoUrl(
+  props: DocumentViewServerProps,
+  logo: Client['logo'],
+): Promise<string | null> {
+  if (logo === null || logo === undefined) return null
+  if (typeof logo === 'object') return logo.url ?? null
+  try {
+    const image = await props.initPageResult.req.payload.findByID({
+      collection: 'images',
+      id: logo,
+      depth: 0,
+      select: { url: true },
+    })
+    return image.url ?? null
+  } catch {
+    return null
+  }
 }
 
 /** The service's region by name, for the progress table, or `null` for Worldwide. */
