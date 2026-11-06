@@ -28,7 +28,6 @@ import {
   primaryPageUrl,
 } from '@/lib/clients/site'
 import type { CanonicalVerification } from '@/lib/clients/verification'
-import { CONTACT_EMAIL } from '@/lib/contact'
 import type { Client } from '@/payload-types'
 
 import { CopyBlock } from './CopyBlock'
@@ -115,7 +114,12 @@ export interface InstallGuideProps {
 export interface Appearance {
   logoUrl: string | null
   colors: Record<keyof typeof ATLAS_DEFAULT_COLORS, string | null>
-  supportEmail: string | null
+  /**
+   * Where a seeker's reply lands: the support email, else the sender address
+   * (`USER_EMAIL_FROM`, server-only), since a registration email without one
+   * carries no Reply-To.
+   */
+  replyTo: string
   /** The mailing-list provider's name while the list is on, else `null`. */
   mailingList: string | null
 }
@@ -169,7 +173,7 @@ function AppearancePreview({ appearance }: { appearance: Appearance }) {
           columns={[
             tableColumn('setting', 'Setting', ['Contact Email', 'Mailing List']),
             tableColumn('value', 'Current', [
-              `${appearance.supportEmail ?? CONTACT_EMAIL} — Seekers’ replies to emails are sent here`,
+              `${appearance.replyTo} — Seekers’ replies to emails are sent here`,
               appearance.mailingList ??
                 'None configured — configure it to automatically subscribe new seekers to your mailing list',
             ]),

@@ -12,6 +12,7 @@ import { serverEnv } from '@/lib/env/server'
 import { getLanguageOptions } from '@/lib/locales'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 import type { Client } from '@/payload-types'
+import { USER_EMAIL_FROM } from '@/plugins/email'
 
 import { CenteredNotice } from '../CenteredNotice'
 import { type Appearance, InstallGuide } from './InstallGuide'
@@ -142,7 +143,7 @@ async function readAppearance(props: DocumentViewServerProps, client: Client): P
       color2: client.color2 ?? null,
       color3: client.color3 ?? null,
     },
-    supportEmail: client.supportEmail ?? null,
+    replyTo: client.supportEmail || USER_EMAIL_FROM,
     mailingList: list?.enabled && list.provider ? PROVIDER_NAMES[list.provider] : null,
   }
 }
