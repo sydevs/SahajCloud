@@ -10,8 +10,8 @@ import { relationId } from '@/lib/utilities/relationId'
 import type { Client } from '@/payload-types'
 
 import styles from './InstallGuide.module.css'
+import { milestonesForRecord } from './installModel'
 import { InstallProgressBar } from './InstallProgress'
-import { milestonesForRecord } from './installStatus'
 
 /**
  * Where this service's atlas lives, read-only, at the top of the Atlas tab.

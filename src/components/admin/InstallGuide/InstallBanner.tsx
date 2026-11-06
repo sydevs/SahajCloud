@@ -9,7 +9,7 @@ import { relationId } from '@/lib/utilities/relationId'
 import type { Client } from '@/payload-types'
 
 import { InstallBannerNotice } from './InstallBannerNotice'
-import { installComplete, milestonesForRecord } from './installStatus'
+import { installComplete, milestonesForRecord } from './installModel'
 
 /**
  * A banner above a service's document views while its atlas install is not

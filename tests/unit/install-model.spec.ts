@@ -7,14 +7,12 @@ import {
   buildInstallModel,
   buildMilestones,
   checkOutcome,
+  installComplete,
   MILESTONE_STATUS,
+  milestonesForRecord,
   reportedMountsFor,
   sectionConfirmed,
 } from '../../src/components/admin/InstallGuide/installModel'
-import {
-  installComplete,
-  milestonesForRecord,
-} from '../../src/components/admin/InstallGuide/installStatus'
 import { tracksFor } from '../../src/components/admin/InstallGuide/steps'
 import { EMPTY_VERIFICATION } from '../../src/lib/clients/verification'
 
