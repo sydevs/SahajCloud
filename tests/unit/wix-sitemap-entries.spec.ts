@@ -2,7 +2,7 @@ import type { AtlasSitemapResolution } from '../../src/endpoints/atlas/sitemap/r
 
 import { describe, expect, it } from 'vitest'
 
-import { wixSitemapEntries } from '../../src/endpoints/atlas/wix/wixSitemap'
+import { wixSitemapEntries } from '../../src/endpoints/atlas/wix/shape'
 
 /**
  * Which of a client's owned URLs reach a Wix sitemap, and how they are spelled.

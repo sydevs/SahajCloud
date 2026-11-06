@@ -4,19 +4,17 @@ import { describe, expect, it } from 'vitest'
 
 import { jsonLdEscape } from '../../src/endpoints/atlas/seo/jsonLd'
 import {
+  isProbePath,
+  localeFromWixLang,
+  normalizeAtlasPath,
+  routeRelation,
   WIX_CACHE_SECONDS,
   wixLinks,
   wixMetaTags,
   wixNotFound,
   wixRouteAnswer,
   wixStructuredData,
-} from '../../src/endpoints/atlas/wix/wixDocument'
-import { localeFromWixLang } from '../../src/endpoints/atlas/wix/wixLang'
-import {
-  isProbePath,
-  normalizeAtlasPath,
-  routeRelation,
-} from '../../src/endpoints/atlas/wix/wixRoute'
+} from '../../src/endpoints/atlas/wix/shape'
 import { PROBE_SEGMENT_PREFIX } from '../../src/lib/embedVerification/verifyEmbed'
 
 /**

@@ -12,7 +12,7 @@
  * consumers span an endpoint, an admin component and the OpenAPI shim — and
  * because it has to stay importable from a `'use client'` module. **It imports
  * nothing**, deliberately: the endpoint folder would have been the natural home
- * for a contract, but `wixRoute.ts` there reaches `verifyEmbed` →
+ * for a contract, but `shape.ts` there reaches `verifyEmbed` →
  * `browserRendering` → `@/lib/env/server`, and the admin bundle must not carry
  * that (`tests/unit/client-bundle-safety.spec.ts`, #633).
  */

@@ -1,43 +1,32 @@
 import type { AtlasWixRouteResponse } from '../../../responseTypes'
-import type { Endpoint, PayloadRequest } from 'payload'
+import type { Endpoint } from 'payload'
 
 import { APIError } from 'payload'
 import { z } from 'zod'
 
 import { primaryPageUrl } from '@/lib/clients/site'
-import { splitMountKey } from '@/lib/clients/verification'
 import { errorResponse, parseQuery, requireClientAccess } from '@/lib/endpoints'
 import { baseLanguage, DEFAULT_LOCALE } from '@/lib/locales'
 import type { Client } from '@/payload-types'
 import { publicReadCacheHeaders } from '@/plugins/cache'
 import { countClientRead } from '@/plugins/usage'
 
-import { MAX_ATLAS_ROUTE_LENGTH } from '../../seo/atlasRoute'
+import { MAX_ATLAS_ROUTE_LENGTH, parseAtlasRoute } from '../../seo/atlasRoute'
 import { resolveAtlasSeo } from '../../seo/resolve'
-import { wixNotFound, wixRouteAnswer } from '../wixDocument'
-import { localeFromWixLang } from '../wixLang'
-import { isProbePath, normalizeAtlasPath, parseAtlasRoute, routeRelation } from '../wixRoute'
+import {
+  hostOf,
+  isProbePath,
+  localeFromWixLang,
+  normalizeAtlasPath,
+  routeRelation,
+  wixNotFound,
+  wixRouteAnswer,
+} from '../shape'
 
 const querySchema = z.object({
   path: z.string().min(1).max(MAX_ATLAS_ROUTE_LENGTH),
   lang: z.string().max(20).optional(),
 })
-
-/**
- * The host this client publishes its own canonical URLs on, or `null`.
- *
- * Read off the service's own primary page (`site`) rather than off the request,
- * because a Wix router calls us server-to-server and sends no `Origin` at all.
- */
-function canonicalHostOf(req: PayloadRequest): string | null {
-  const page = primaryPageUrl((req.user as Client | undefined)?.site)
-  return page ? (splitMountKey(page)?.domain ?? null) : null
-}
-
-/** The host a canonical URL names, or `null` when there is no canonical. */
-function hostOf(canonical: string | null): string | null {
-  return canonical ? (URL.parse(canonical)?.host ?? null) : null
-}
 
 /**
  * GET /api/atlas/wix/route?path=/ca/ontario&lang=en
@@ -52,7 +41,7 @@ function hostOf(canonical: string | null): string | null {
  * of `/api/atlas/seo`: the WordPress plugin echoes the pre-escaped `jsonLd`
  * string raw and renders `content` as plain text through output that never
  * passes `wp_kses`; WeMeditateWeb parses the published shape; and the plugin
- * versions already installed on 13 sites cannot be changed. `wixDocument.ts`
+ * versions already installed on 13 sites cannot be changed. `../shape.ts`
  * carries the full list.
  *
  * **Contract notes the generated `routers.js` depends on:**
@@ -111,6 +100,7 @@ export const atlasWixRoute: Endpoint = {
 
     const parsed = parseQuery(req, querySchema)
     if (!parsed.ok) return parsed.response
+    const headers = publicReadCacheHeaders(req, ['events', 'regions'])
 
     const locale = localeFromWixLang(parsed.data.lang)
 
@@ -118,7 +108,7 @@ export const atlasWixRoute: Endpoint = {
     // The probe is answered as the root — the document the mount itself serves —
     // rather than as whatever its random token would parse to.
     const target = probe ? { kind: 'root' as const } : parseAtlasRoute(parsed.data.path)
-    if (!target) return Response.json(wixNotFound(), { headers: cacheHeaders(req) })
+    if (!target) return Response.json(wixNotFound(), { headers })
 
     // Counted once, after the gates and the parse — the same point `/api/atlas/seo`
     // counts, so an unreadable `path` costs a quota unit on neither.
@@ -126,7 +116,8 @@ export const atlasWixRoute: Endpoint = {
 
     try {
       const seo = await resolveAtlasSeo({ req, target, locale })
-      if (!seo) return Response.json(wixNotFound(), { headers: cacheHeaders(req) })
+      const client = req.user as Client | undefined
+      if (!seo) return Response.json(wixNotFound(), { headers })
 
       // A probe never compares routes: its path is a token, so every comparison
       // would say `moved` and redirect the probe away from the page it is
@@ -140,8 +131,7 @@ export const atlasWixRoute: Endpoint = {
       // `Clients.language` is a bare ISO 639-1 subtag from `getLanguageOptions()`,
       // not one of the nineteen locales — so the locale is reduced to its own
       // language before the comparison rather than the other way round (#957).
-      const siteLanguage =
-        (req.user as Client | undefined)?.language ?? baseLanguage(DEFAULT_LOCALE)
+      const siteLanguage = client?.language ?? baseLanguage(DEFAULT_LOCALE)
       const offLanguage = baseLanguage(locale) !== siteLanguage
 
       const body: AtlasWixRouteResponse = wixRouteAnswer({
@@ -153,9 +143,12 @@ export const atlasWixRoute: Endpoint = {
         // and the page together.
         selfCanonical:
           seo.type === 'root' ||
-          (relation === 'exact' && hostOf(seo.canonical) === canonicalHostOf(req)),
+          (relation === 'exact' &&
+            // The service's own primary page, not the request: a Wix router
+            // calls us server-to-server and sends no `Origin` at all.
+            hostOf(seo.canonical) === hostOf(primaryPageUrl(client?.site))),
       })
-      return Response.json(body, { headers: cacheHeaders(req) })
+      return Response.json(body, { headers })
     } catch (error) {
       if (error instanceof APIError) return errorResponse(error.message, error.status)
       req.payload.logger.error({
@@ -167,9 +160,4 @@ export const atlasWixRoute: Endpoint = {
       return errorResponse('Failed to build the page metadata for that route.', 500)
     }
   },
-}
-
-/** The same edge-cache policy `/api/atlas/seo` publishes, over the same tags. */
-function cacheHeaders(req: PayloadRequest): Record<string, string> {
-  return publicReadCacheHeaders(req, ['events', 'regions'])
 }

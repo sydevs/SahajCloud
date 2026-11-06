@@ -6,7 +6,6 @@ import { z } from 'zod'
 
 import { WIX_PREFIX_MAX_LENGTH, WIX_PREFIX_PATTERN } from '@/lib/atlas/wixPrefix'
 import { primaryPageUrl } from '@/lib/clients/site'
-import { splitMountKey } from '@/lib/clients/verification'
 import {
   errorResponse,
   parseQuery,
@@ -18,7 +17,7 @@ import { publicReadCacheHeaders } from '@/plugins/cache'
 import { countClientRead } from '@/plugins/usage'
 
 import { resolveAtlasSitemap } from '../../sitemap/resolve'
-import { wixSitemapEntries } from '../wixSitemap'
+import { hostOf, wixSitemapEntries } from '../shape'
 
 const querySchema = z.object({
   // The one prefix rule, shared with the Install tab that validates the
@@ -76,11 +75,10 @@ export const atlasWixSitemap: Endpoint = {
     await countClientRead(req)
 
     try {
-      const page = primaryPageUrl((req.user as Client | undefined)?.site)
       const body: AtlasWixSitemapEntry[] = wixSitemapEntries({
         resolution: await resolveAtlasSitemap({ req, clientId }),
         prefix: parsed.data.prefix,
-        host: page ? (splitMountKey(page)?.domain ?? null) : null,
+        host: hostOf(primaryPageUrl((req.user as Client | undefined)?.site)),
       })
       return Response.json(body, { headers: publicReadCacheHeaders(req, ['events', 'regions']) })
     } catch (error) {
