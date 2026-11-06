@@ -28,6 +28,7 @@ import {
   primaryPageUrl,
 } from '@/lib/clients/site'
 import type { CanonicalVerification } from '@/lib/clients/verification'
+import { CONTACT_EMAIL } from '@/lib/contact'
 import type { Client } from '@/payload-types'
 
 import { CopyBlock } from './CopyBlock'
@@ -166,17 +167,11 @@ function AppearancePreview({ appearance }: { appearance: Appearance }) {
         <Table
           appearance="condensed"
           columns={[
-            tableColumn('when', 'When someone…', [
-              'replies to the email they got after registering',
-              'asks to get news from you',
-            ]),
-            tableColumn('then', 'What happens now', [
-              appearance.supportEmail
-                ? `Their reply goes to ${appearance.supportEmail}.`
-                : 'Their reply goes to the Sahaj Atlas team, not to you. Add your own email address to get replies yourself.',
-              appearance.mailingList
-                ? `They are added to your ${appearance.mailingList} mailing list.`
-                : 'Nothing yet. Connect a mailing list to collect their email addresses.',
+            tableColumn('setting', 'Setting', ['Contact Email', 'Mailing List']),
+            tableColumn('value', 'Current', [
+              `Seekers’ replies are sent to ${appearance.supportEmail ?? CONTACT_EMAIL}`,
+              appearance.mailingList ??
+                'None configured — configure it to automatically subscribe new seekers to your mailing list',
             ]),
           ]}
           data={[{ id: 'replies' }, { id: 'list' }]}
