@@ -355,6 +355,30 @@ describe('subscribeToMailingList', () => {
       expect(called(fetchMock, '/receivers/upsert')).toBe(false)
     })
 
+    /**
+     * ⚠ The same mapping, against a shape `Number` cannot read. Nothing proves
+     * CleverReach spells `deactivated` as a number on every endpoint, and a
+     * predicate that answered "not deactivated" to a date would resurrect the
+     * address. An unreadable value counts as set, and only a recognisable zero
+     * does not.
+     */
+    it('counts an unreadable deactivated value as set, and a zero as not', async () => {
+      for (const deactivated of ['2026-01-01T00:00:00Z', true, '1700000000']) {
+        fetchMock.mockImplementation(cleverreachAnswers({ receiver: answer(200, { deactivated }) }))
+        await expect(subscribe(CLEVERREACH)).resolves.toEqual(
+          expect.objectContaining({ ok: false, code: 'previously_unsubscribed' }),
+        )
+        expect(called(fetchMock, '/receivers/upsert')).toBe(false)
+        fetchMock.mockClear()
+      }
+
+      for (const deactivated of [0, '0', '', false, null]) {
+        fetchMock.mockImplementation(cleverreachAnswers({ receiver: answer(200, { deactivated }) }))
+        await expect(subscribe(CLEVERREACH)).resolves.toEqual({ ok: true, status: 'pending' })
+        fetchMock.mockClear()
+      }
+    })
+
     it('reads a blocklist refusal on the upsert as the same terminal case', async () => {
       fetchMock.mockImplementation(
         cleverreachAnswers({

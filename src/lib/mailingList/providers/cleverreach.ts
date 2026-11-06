@@ -74,7 +74,7 @@ async function subscribeCleverReach(args: SubscribeArgs): Promise<MailingListRes
 
     if (existing.ok) {
       const receiver = (await existing.json().catch(() => null)) as Receiver | null
-      if (flagged(receiver?.deactivated) || flagged(receiver?.blacklisted)) {
+      if (suppressed(receiver?.deactivated) || suppressed(receiver?.blacklisted)) {
         return {
           ok: false,
           code: 'previously_unsubscribed',
@@ -204,10 +204,28 @@ function refused(message: string): MailingListFailure {
 /**
  * Whether one of `Receiver`'s flags is set, whichever shape it arrived in.
  * `Number` answers a boolean, a number and a numeric string alike, and anything
- * else is `NaN`, which is not set.
+ * else is `NaN`, which is not set — the safe answer for `active` and
+ * `activated`, and the wrong one for the two flags `suppressed` reads.
  */
 function flagged(value: unknown): boolean {
   return Number(value) > 0
+}
+
+/**
+ * Whether CleverReach is holding this receiver back: deactivated, or on the
+ * account blocklist.
+ *
+ * ⚠ `flagged`'s deliberate opposite, in one character. `NaN` is not `> 0` and
+ * is `!== 0`, so a shape `Number` cannot read counts as set here and as unset
+ * there. `deactivated` is a timestamp, and nothing proves CleverReach spells
+ * one as a number on every endpoint — spelled as a date string it would read as
+ * "never deactivated", and the upsert that carries `activated` would then
+ * re-subscribe an opt-out. Refusing a live address costs one delivery. The
+ * other direction costs a sender reputation.
+ */
+function suppressed(value: unknown): boolean {
+  if (value === undefined || value === null || value === false || value === '') return false
+  return Number(value) !== 0
 }
 
 /**
