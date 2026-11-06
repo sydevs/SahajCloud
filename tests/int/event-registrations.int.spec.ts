@@ -14,14 +14,7 @@ import { createRestClientAs } from '../utils/restRequest'
 import { createData, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
-/**
- * The event's own Registrations view (#1069).
- *
- * The three homes' own cases live in `atlas-overview.int.spec.ts`, which reads
- * one loader through all three roles — this file keeps the fixture because the
- * view's gate is about who manages the event, which that fixture already sets
- * up.
- */
+/** The event's own Registrations view (#1069). The three homes live in `atlas-overview.int.spec.ts`. */
 describe('Event registrations', () => {
   let payload: Payload
   let cleanup: () => Promise<void>

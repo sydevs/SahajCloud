@@ -16,8 +16,7 @@
   margin: 0 0 var(--base);
   color: var(--theme-elevation-650);
 }
-.actions,
-.filters {
+.actions {
   display: flex;
   flex-wrap: wrap;
   gap: calc(var(--base) * 0.5);
@@ -80,19 +79,8 @@
 .sections {
   margin: var(--base) 0 calc(var(--base) * 0.75);
 }
-.tabCheck {
-  display: inline-flex;
+.sections .tick {
   margin-inline-start: calc(var(--base) / 4);
-  color: var(--theme-success-500);
-}
-
-.filters {
-  gap: calc(var(--base) / 3);
-  margin: 0 0 calc(var(--base) * 0.75);
-}
-.filterCount {
-  margin-inline-start: calc(var(--base) / 3);
-  color: var(--theme-elevation-500);
 }
 
 .itemInfo a {
@@ -101,6 +89,10 @@
 }
 .itemInfo a:hover {
   text-decoration: underline;
+}
+.itemInfo small {
+  display: block;
+  color: var(--theme-elevation-500);
 }
 .statuses {
   display: flex;
@@ -112,7 +104,7 @@
   font-size: 0.8rem;
   color: var(--theme-elevation-650);
 }
-.upToDate {
+.tick {
   display: inline-flex;
   align-items: center;
   gap: calc(var(--base) / 6);
@@ -126,55 +118,12 @@
   white-space: nowrap;
 }
 
-/* The overview is a plain table: `Table` renders one column of pre-rendered
-   cells per column, and eight of those for numeric data is more machinery
-   than markup. */
-.regions {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.9rem;
-}
-.regions th,
-.regions td {
-  padding: calc(var(--base) / 3) calc(var(--base) / 2);
-  text-align: left;
-  border-bottom: 1px solid var(--theme-elevation-100);
-}
-.regions thead th {
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--theme-elevation-500);
-}
-.regionName {
-  position: relative;
-  font-weight: 550;
-}
-.regionName a {
-  text-decoration: none;
-}
-.regionName small {
-  display: block;
-  font-weight: 400;
-  color: var(--theme-elevation-500);
-}
-/* The row's own link, stretched over the cell so the whole name area opens the
-   region while Edit keeps its own click. */
 .stretched::after {
   content: '';
   position: absolute;
   inset: 0;
 }
 
-.pageControls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--base);
-  margin-top: calc(var(--base) * 0.5);
-}
 .closingNote {
   margin: calc(var(--base) * 0.5) 0 0;
   font-size: 0.85rem;
@@ -184,8 +133,5 @@
   .header {
     align-items: flex-start;
     flex-direction: column;
-  }
-  .regions {
-    font-size: 0.8rem;
   }
 }

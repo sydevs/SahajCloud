@@ -1,34 +1,19 @@
 import type { PaginatedDocs } from 'payload'
 
-import type { OpenItemFilter, OpenItemPill } from '@/lib/atlasOverview/filters'
+import type { OpenItemFilter } from '@/lib/atlasOverview/filters'
 import { OPEN_ITEM_FILTERS } from '@/lib/atlasOverview/filters'
-import type { OpenItemStatusKey, OverviewProgress } from '@/lib/atlasOverview/status'
+import type { OpenItemStatus, OverviewProgress } from '@/lib/atlasOverview/status'
 
 import { firstParam, pageParam } from '../../helpers/searchParams'
 
-/**
- * One open-item row, flattened to what a client view can be handed.
- *
- * ⚠ **No index signature.** Payload's `Table` takes `Record<string, unknown>[]`
- * and reads nothing off a row but `id`, so the list hands it `{ id }` alone
- * (the pattern `LogTable` uses) rather than widening this type to fit. Widened,
- * every misspelled read on the one row type three homes and the digest share
- * resolved to `unknown` instead of erroring, and `toRow` could emit a typo'd
- * key with nothing noticing.
- */
+/** One open-item row, flattened to what a client view can be handed. */
 export interface OpenItemsRow {
   /** Unique across the row kinds a list mixes, which share an id space. */
   id: string
   title: string
   href: string
-  statuses: {
-    key: OpenItemStatusKey
-    label: string
-    pill: OpenItemPill
-    line: string
-  }[]
+  statuses: Pick<OpenItemStatus, 'key' | 'label' | 'line' | 'pill'>[]
   action: null | { href: string; label: string }
-  filters: OpenItemFilter[]
 }
 
 /** The filter row's values: every filter, plus All and the region scope's own. */
@@ -43,13 +28,9 @@ export const DASHBOARD_SECTIONS = ['items', 'regions'] as const
 export type DashboardSection = (typeof DASHBOARD_SECTIONS)[number]
 
 /**
- * ⚠ **A `type`, not an `interface`, and that is what makes it typo-checked.**
- * `useSetQuery<Q>` is generic over `Record<string, number | string>`; an object
- * *type literal* satisfies that through TypeScript's implicit index signature,
- * while an `interface` does not — so writing it as one obliged an explicit
- * `[key: string]: number | string`, and that signature then accepted every
- * misspelling the constraint existed to catch (`setQuery({ filtr: 'overdue' })`
- * compiled clean).
+ * ⚠ **A `type`, not an `interface`**: only a type literal satisfies
+ * `useSetQuery`'s `Record<string, …>` constraint without an explicit index
+ * signature, and that signature would accept every misspelled key.
  */
 export type DashboardQuery = {
   filter: OpenItemTab
@@ -60,13 +41,7 @@ export type DashboardQuery = {
   section: DashboardSection
 }
 
-/**
- * The home's URL state.
- *
- * ⚠ **Every piece of it lives in the query**, so Back works, a link is
- * shareable and the server renders the answer — the same contract
- * `parseProgramQuery` had, widened to the section and the region.
- */
+/** The home's URL state: all of it lives in the query, so Back works and a link is shareable. */
 export function parseDashboardQuery(
   searchParams: Record<string, string | string[] | undefined> | undefined,
 ): DashboardQuery {
@@ -87,6 +62,18 @@ export function parseDashboardQuery(
     region: Number.isFinite(region) && region > 0 ? region : 0,
     section: section ?? 'items',
   }
+}
+
+/**
+ * A section tab's link. It keeps the rest of the query — `region` above all,
+ * or a region home falls back to the reader's whole scope — and drops `page`,
+ * which belongs to the section being left.
+ */
+export function sectionHref(search: string, section: DashboardSection): string {
+  const params = new URLSearchParams(search)
+  params.set('section', section)
+  params.delete('page')
+  return `?${params.toString()}`
 }
 
 /** One page of `items`, in Payload's own paginated shape; a page past the end clamps. */

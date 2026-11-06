@@ -1,31 +1,17 @@
 'use client'
 
-import type {
-  EventRegistrationsData,
-  RegistrationFilter,
-  RegistrationQuery,
-  RegistrationRow,
-} from './data'
+import type { EventRegistrationsData, RegistrationFilter, RegistrationRow } from './data'
 import type { PillProps } from '@payloadcms/ui/elements/Pill'
 import type { ReactNode } from 'react'
 
-import {
-  Button,
-  CalendarIcon,
-  CheckIcon,
-  Gutter,
-  Pagination,
-  Pill,
-  Table,
-  XIcon,
-} from '@payloadcms/ui'
+import { Button, CalendarIcon, CheckIcon, Gutter, Pill, Table, XIcon } from '@payloadcms/ui'
 
 import { STATUS_LABELS } from '@/collections/UserSubmissions/statuses'
 
 import styles from './EventRegistrations.module.css'
 import { CenteredNotice } from '../CenteredNotice'
+import { FilterTabs, QueryPager } from '../helpers/listControls'
 import { tableColumn } from '../helpers/tableColumn'
-import { useSetQuery } from '../helpers/useSetQuery'
 
 const FILTERS: Record<RegistrationFilter, { label: string; icon: ReactNode; empty: string }> = {
   accepted: { label: 'Accepted', icon: <CheckIcon />, empty: 'No accepted registrations yet' },
@@ -59,39 +45,26 @@ const LIST_ID = 'event-registration-list'
 
 /** A composition of native Payload controls; the rows and the gate stay on the server. */
 export function EventRegistrationsView({ data }: { data: EventRegistrationsData }) {
-  const setQuery = useSetQuery<RegistrationQuery>()
   const { counts, csvUrl, filter, registrations } = data
   const rows = registrations.docs
   return (
     <Gutter className={styles.registrations}>
-      <div className={styles.toolbar}>
-        {/* Payload's own document-tab markup — the header's Edit / Versions
-            row — so the filters and their counts match it in every state. */}
-        <div className="doc-tabs__tabs" role="group" aria-label="Filter registrations">
-          {(Object.keys(FILTERS) as RegistrationFilter[]).map((value) => (
-            <Button
-              key={value}
-              buttonStyle="tab"
-              className={value === filter ? 'doc-tab doc-tab--active' : 'doc-tab'}
-              disabled={value === filter}
-              margin={false}
-              size="medium"
-              onClick={() => setQuery({ filter: value, page: 1 })}
-              extraButtonProps={{ 'aria-pressed': value === filter, 'aria-controls': LIST_ID }}
-            >
-              <span className="doc-tab__label">
-                {FILTERS[value].label}
-                <span className="pill-version-count">{counts[value]}</span>
-              </span>
-            </Button>
-          ))}
-        </div>
+      <FilterTabs
+        active={filter}
+        controls={LIST_ID}
+        label="Filter registrations"
+        tabs={(Object.keys(FILTERS) as RegistrationFilter[]).map((value) => ({
+          count: counts[value],
+          label: FILTERS[value].label,
+          value,
+        }))}
+      >
         {counts.accepted > 0 && (
           <Button buttonStyle="secondary" el="anchor" margin={false} size="medium" url={csvUrl}>
             Download accepted (CSV)
           </Button>
         )}
-      </div>
+      </FilterTabs>
       <div id={LIST_ID} aria-live="polite">
         {/* On `totalDocs`, not this page's rows: a hand-typed page past the end
             has none, and the pager that gets you back must still render. */}
@@ -152,15 +125,7 @@ export function EventRegistrationsView({ data }: { data: EventRegistrationsData 
                 ),
               ]}
             />
-            <Pagination
-              hasNextPage={registrations.hasNextPage}
-              hasPrevPage={registrations.hasPrevPage}
-              nextPage={registrations.nextPage ?? undefined}
-              page={registrations.page}
-              prevPage={registrations.prevPage ?? undefined}
-              totalPages={registrations.totalPages}
-              onChange={(page) => setQuery({ page })}
-            />
+            <QueryPager docs={registrations} />
           </>
         ) : (
           <CenteredNotice icon={FILTERS[filter].icon} title={FILTERS[filter].empty} />

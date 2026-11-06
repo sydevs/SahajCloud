@@ -1,16 +1,72 @@
 import type { PayloadRequest } from 'payload'
 
-import { AtlasManagerView } from './AtlasManagerView'
+import { CalendarIcon } from '@payloadcms/ui'
+
 import { getAtlasManagerData } from './data'
+import { CenteredNotice } from '../../CenteredNotice'
+import styles from '../shared/Dashboard.module.css'
+import { AddProgramButton, HomeHeader } from '../shared/HomeHeader'
 import { parseDashboardQuery } from '../shared/model'
+import { OpenItemsList } from '../shared/OpenItemsList'
+import { SectionTabs } from '../shared/SectionTabs'
+import { StatTiles } from '../shared/StatTiles'
 
 type AtlasManagerProps = {
   req: PayloadRequest
   searchParams?: Record<string, string | string[] | undefined>
 }
 
-/** The Sahaj Atlas home for a program manager: what is open on their own classes. */
+/** The Sahaj Atlas home for a program manager: what is waiting on their own classes. */
 export default async function AtlasManager({ req, searchParams }: AtlasManagerProps) {
-  const data = await getAtlasManagerData(req, parseDashboardQuery(searchParams))
-  return <AtlasManagerView data={data} />
+  const { canCreate, items, statistics } = await getAtlasManagerData(
+    req,
+    parseDashboardQuery(searchParams),
+  )
+
+  if (!statistics.analytics[0]?.value) {
+    return (
+      <section aria-label="Your programs" className={styles.home}>
+        <CenteredNotice
+          icon={<CalendarIcon />}
+          title={canCreate ? 'Your first program starts here' : 'A home for your programs'}
+        >
+          <p>
+            {canCreate
+              ? 'Add the details, save a draft, and publish when you’re ready. We’ll help people find their way to you.'
+              : 'Once a region manager assigns a program to you, you can keep its details up to date here.'}
+          </p>
+          {canCreate && (
+            <>
+              <AddProgramButton>Add your first program</AddProgramButton>
+              <p>Nothing goes live until you publish.</p>
+            </>
+          )}
+        </CenteredNotice>
+      </section>
+    )
+  }
+
+  return (
+    <section aria-label="Your programs" className={styles.home}>
+      <HomeHeader
+        canCreate={canCreate}
+        subtitle="Manage your classes and keep their public details up to date."
+        title="Your programs"
+      />
+      <StatTiles label="Your programs in the last 30 days" tiles={statistics.analytics} />
+      {statistics.mostRegistered ? (
+        <p className={styles.closingNote}>
+          Most registered: {statistics.mostRegistered.title} ·{' '}
+          {statistics.mostRegistered.registrations} sign-ups
+        </p>
+      ) : null}
+      <SectionTabs
+        active="items"
+        tabs={[
+          { count: items.progress?.open ?? items.counts.all, label: 'Open items', value: 'items' },
+        ]}
+      />
+      <OpenItemsList data={items} emptyBanner="All clear. Every program is on track." />
+    </section>
+  )
 }

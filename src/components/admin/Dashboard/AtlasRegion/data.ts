@@ -1,16 +1,15 @@
 import type { PaginatedDocs, PayloadRequest } from 'payload'
 
 import { getRegionTree, type RegionTree } from '@/lib/atlas/regionTree'
-import { loadOpenItems } from '@/lib/atlasOverview/openItems'
 import { loadRegionOverview, type RegionOverviewRow } from '@/lib/atlasOverview/regions'
 import type { OverviewScope } from '@/lib/atlasOverview/scope'
-import { loadStatistics, type OverviewStatistics } from '@/lib/atlasOverview/statistics'
+import type { OverviewStatistics } from '@/lib/atlasOverview/statistics'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import { isAdminManager } from '@/plugins/access/adminOnly'
 import { resolveOwnedRegionIds } from '@/plugins/access/regionSubtreeAccess'
 
 import { type DashboardQuery, type OpenItemsData, paginate } from '../shared/model'
-import { openItemsData } from '../shared/rows'
+import { loadHomeBase } from '../shared/rows'
 
 export interface AtlasRegionHome {
   allowed: true
@@ -23,23 +22,14 @@ export interface AtlasRegionHome {
   statistics: OverviewStatistics
 }
 
-/**
- * A union, not one shape with an `allowed` flag: a refusal has no data, and
- * flattening the two obliged the refusal path to build a zeroed `OpenItemsData`
- * and an empty `OverviewStatistics` — two restatements of shapes owned
- * elsewhere, constructed only to be thrown away by a caller that reads the flag
- * and renders the unauthorized view.
- */
+/** A union, so a refusal carries no zeroed copy of the home's shapes. */
 export type AtlasRegionData = { allowed: false } | AtlasRegionHome
 
 /**
  * A region manager's home, and an admin's view of one region.
  *
- * ⚠ **`?region=` is a URL anyone can type**, so the scope is resolved before
- * anything is read: a region manager outside their own subtree gets
- * `allowed: false` and the unauthorized view, while an admin may open any
- * region. `scopeRegionIds` answers the same question for the queries, so a
- * refusal here and an empty list there cannot disagree.
+ * ⚠ **`?region=` is a URL anyone can type**, so a region manager outside their
+ * own subtree is refused before anything is read; an admin may open any region.
  */
 export async function getAtlasRegionData(
   req: PayloadRequest,
@@ -57,9 +47,8 @@ export async function getAtlasRegionData(
 
   const scope: OverviewScope = { managerId, regionId, role: 'region' }
 
-  const [result, statistics, regionRows] = await Promise.all([
-    loadOpenItems({ now, overrideAccess: false, req, scope }),
-    loadStatistics({ now, overrideAccess: false, req: localeIsolatedReq(req), scope }),
+  const [base, regionRows] = await Promise.all([
+    loadHomeBase({ now, query, req, scope }),
     loadRegionOverview({ now, req: localeIsolatedReq(req), scope }),
   ])
 
@@ -68,6 +57,7 @@ export async function getAtlasRegionData(
   const managers = totals?.managers ?? Math.max(...regionRows.map((row) => row.managers), 0)
 
   return {
+    ...base,
     allowed: true,
     breadcrumbs: breadcrumbsFor(regionId, tree, admin),
     description: [
@@ -77,14 +67,12 @@ export async function getAtlasRegionData(
       `${programs} program${programs === 1 ? '' : 's'}`,
       `${managers} manager${managers === 1 ? '' : 's'}`,
     ].join(' · '),
-    items: await openItemsData({ now, query, req, result }),
     regions: paginate(
       // A region's own row is the header's description, not a row under it.
       regionRows.filter((row) => row.id !== regionId),
       query.page,
       query.limit,
     ),
-    statistics,
   }
 }
 
