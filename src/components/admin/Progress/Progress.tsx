@@ -1,8 +1,7 @@
-import type { Tone } from './tones'
-
 import React from 'react'
 
-import { TONE_COLORS } from './tones'
+import type { Tone } from '@/components/admin/helpers/tones'
+import { TONE_COLORS } from '@/components/admin/helpers/tones'
 
 /**
  * A determinate progress bar: a thin rounded track, filled in its tone.

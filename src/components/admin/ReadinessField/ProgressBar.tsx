@@ -1,12 +1,10 @@
 'use client'
 
-import type { SummaryTone } from './summary'
-
 import React from 'react'
 
-import { Progress } from '@/components/admin/helpers/Progress'
-
-import { summaryTone } from './summary'
+import type { Tone } from '@/components/admin/helpers/tones'
+import { ratioTone } from '@/components/admin/helpers/tones'
+import { Progress } from '@/components/admin/Progress'
 
 interface ProgressBarProps {
   passing: number
@@ -16,7 +14,7 @@ interface ProgressBarProps {
    * When provided, the fill color follows this tone (so the bar matches its
    * section's status icon). Otherwise the color is derived from the ratio.
    */
-  tone?: SummaryTone
+  tone?: Tone
 }
 
 export const ProgressBar: React.FC<ProgressBarProps> = ({
@@ -36,12 +34,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
         marginTop: 'calc(var(--base) * 0.15)',
       }}
     >
-      <Progress
-        label={unit}
-        max={total}
-        tone={tone ?? summaryTone(passing, total)}
-        value={passing}
-      />
+      <Progress label={unit} max={total} tone={tone ?? ratioTone(passing, total)} value={passing} />
       <span
         style={{
           flexShrink: 0,
