@@ -157,6 +157,74 @@ export interface OpenItem {
 const shortDate = (iso: null | string | undefined): string =>
   iso ? formatShortDate(iso) || '' : ''
 
+/**
+ * What a status is, whichever row carries it: its pill, its place, its filter,
+ * and whether it counts against progress. A row supplies only what is its own —
+ * the line, the next step and the deadline.
+ *
+ * `rank` orders the list, lower first; `OPEN_ITEM_STATUSES` is not this order.
+ * Overdue's is the `reminded`/`escalated` rank — `urgent` jumps to 0 at the
+ * call site.
+ */
+const STATUS_TABLE: Record<
+  OpenItemStatusKey,
+  Pick<OpenItemStatus, 'counts' | 'filter' | 'label' | 'pill' | 'rank'>
+> = {
+  overdue: { label: 'Overdue', pill: 'error', rank: 2, filter: 'overdue', counts: true },
+  'change-proposed': {
+    label: 'Change proposed',
+    pill: 'success',
+    rank: 1,
+    filter: 'review',
+    counts: true,
+  },
+  'class-proposed': {
+    label: 'New class proposed',
+    pill: 'success',
+    rank: 1,
+    filter: 'review',
+    counts: true,
+  },
+  // In no filter: an admin's list is the only one that holds these, and a tab
+  // for one kind of row would read as a fifth kind of problem.
+  'confirmed-spam-pending': {
+    label: 'Flagged as spam',
+    pill: 'success',
+    rank: 1,
+    filter: null,
+    counts: true,
+  },
+  'no-manager': {
+    label: 'No manager',
+    pill: 'warning',
+    rank: 3,
+    filter: 'no-manager',
+    counts: true,
+  },
+  // Advice, never a deadline: counting it would mean a manager who did
+  // everything asked of them still read "80% on track".
+  recommendations: {
+    label: 'Recommendations',
+    pill: 'always-white',
+    rank: 4,
+    filter: 'recommendations',
+    counts: false,
+  },
+  draft: { label: 'Draft', pill: 'light-gray', rank: 5, filter: 'review', counts: true },
+  expired: { label: 'Expired', pill: 'error', rank: 6, filter: 'overdue', counts: true },
+  'up-to-date': { label: 'Up to date', pill: 'check', rank: 7, filter: null, counts: false },
+  finished: { label: 'Finished', pill: 'light-gray', rank: 8, filter: null, counts: false },
+}
+
+/** A status from the table, with what only the row can say. */
+function status(
+  key: OpenItemStatusKey,
+  own: Pick<OpenItemStatus, 'action' | 'line'> &
+    Partial<Pick<OpenItemStatus, 'deadline' | 'label' | 'rank'>>,
+): OpenItemStatus {
+  return { key, ...STATUS_TABLE[key], ...own }
+}
+
 /** "· no region manager" on an admin's row, and nothing on anyone else's. */
 function regionNote(event: OpenItemEvent): string {
   return event.noRegionManager ? ' · no region manager' : ''
@@ -184,135 +252,108 @@ function eventStatuses(event: OpenItemEvent, now: Date): OpenItemStatus[] {
   const stage = event.verificationStage
 
   if (stage === 'finished') {
-    statuses.push({
-      key: 'finished',
-      label: 'Finished',
-      pill: 'light-gray',
-      line: event.scheduleEnd ? `Ended ${shortDate(event.scheduleEnd)}` : 'The schedule has ended',
-      rank: 8,
-      filter: null,
-      counts: false,
-      action: null,
-    })
+    statuses.push(
+      status('finished', {
+        line: event.scheduleEnd
+          ? `Ended ${shortDate(event.scheduleEnd)}`
+          : 'The schedule has ended',
+        action: null,
+      }),
+    )
     return statuses
   }
 
   if (stage === 'urgent' || stage === 'reminded' || stage === 'escalated') {
     const due = unpublishDate(stage, now).toISOString()
-    statuses.push({
-      key: 'overdue',
-      label: 'Overdue',
-      pill: 'error',
-      line: `Unpublishes ${shortDate(due)}${regionNote(event)}`,
-      // `urgent` is the last reminder before the listing comes off the map, so
-      // it outranks everything — including a proposal somebody is waiting on.
-      rank: stage === 'urgent' ? 0 : 2,
-      filter: 'overdue',
-      counts: true,
-      action: overdueAction(event),
-      deadline: due,
-    })
+    statuses.push(
+      status('overdue', {
+        line: `Unpublishes ${shortDate(due)}${regionNote(event)}`,
+        // `urgent` is the last reminder before the listing comes off the map, so
+        // it outranks everything — including a proposal somebody is waiting on.
+        ...(stage === 'urgent' && { rank: 0 }),
+        action: overdueAction(event),
+        deadline: due,
+      }),
+    )
   }
 
   if (event.proposal) {
-    statuses.push({
-      key: 'change-proposed',
-      label: 'Change proposed',
-      pill: 'success',
-      line: [
-        event.proposal.changedFields.join(', '),
-        `received ${shortDate(event.proposal.receivedAt)}`,
-      ]
-        .filter(Boolean)
-        .join(' · '),
-      rank: 1,
-      filter: 'review',
-      counts: true,
-      action: {
-        label: 'Review',
-        target: { collection: 'user-submissions', id: event.proposal.id },
-      },
-      deadline: event.proposal.receivedAt,
-    })
+    statuses.push(
+      status('change-proposed', {
+        line: [
+          event.proposal.changedFields.join(', '),
+          `received ${shortDate(event.proposal.receivedAt)}`,
+        ]
+          .filter(Boolean)
+          .join(' · '),
+        action: {
+          label: 'Review',
+          target: { collection: 'user-submissions', id: event.proposal.id },
+        },
+        deadline: event.proposal.receivedAt,
+      }),
+    )
   }
 
   // `denied` is excluded: the community voted it off the map, so adopting it is
   // not the next step and listing it as unmanaged would ask for one.
   if (stage === 'unverified' && !event.hasManager) {
-    statuses.push({
-      key: 'no-manager',
-      label: 'No manager',
-      pill: 'warning',
-      line: `Added ${shortDate(event.createdAt)}${regionNote(event)}`,
-      rank: 3,
-      filter: 'no-manager',
-      counts: true,
-      action:
-        event.noRegionManager && event.region
-          ? { label: 'Add region manager', target: { collection: 'regions', id: event.region.id } }
-          : { label: 'Assign manager', target: { collection: 'events', id: event.id } },
-      deadline: null,
-    })
+    statuses.push(
+      status('no-manager', {
+        line: `Added ${shortDate(event.createdAt)}${regionNote(event)}`,
+        action:
+          event.noRegionManager && event.region
+            ? {
+                label: 'Add region manager',
+                target: { collection: 'regions', id: event.region.id },
+              }
+            : { label: 'Assign manager', target: { collection: 'events', id: event.id } },
+        deadline: null,
+      }),
+    )
   }
 
   if (event.qualityOpenCount > 0) {
     const count = event.qualityOpenCount
-    statuses.push({
-      key: 'recommendations',
-      label: `${count} recommendation${count === 1 ? '' : 's'}`,
-      pill: 'always-white',
-      line: event.recommendations?.length
-        ? event.recommendations.join(', ')
-        : `${count} thing${count === 1 ? '' : 's'} would make this listing easier to find`,
-      rank: 4,
-      filter: 'recommendations',
-      // Advice, never a deadline: counting it would mean a manager who did
-      // everything asked of them still read "80% on track".
-      counts: false,
-      action: { label: 'Improve listing', target: { collection: 'events', id: event.id } },
-    })
+    statuses.push(
+      status('recommendations', {
+        label: `${count} recommendation${count === 1 ? '' : 's'}`,
+        line: event.recommendations?.length
+          ? event.recommendations.join(', ')
+          : `${count} thing${count === 1 ? '' : 's'} would make this listing easier to find`,
+        action: { label: 'Improve listing', target: { collection: 'events', id: event.id } },
+      }),
+    )
   }
 
   if (event.draft) {
-    statuses.push({
-      key: 'draft',
-      label: 'Draft',
-      pill: 'light-gray',
-      line: `Last edited ${shortDate(event.updatedAt)}`,
-      rank: 5,
-      filter: 'review',
-      counts: true,
-      action: { label: 'Continue editing', target: { collection: 'events', id: event.id } },
-    })
+    statuses.push(
+      status('draft', {
+        line: `Last edited ${shortDate(event.updatedAt)}`,
+        action: { label: 'Continue editing', target: { collection: 'events', id: event.id } },
+      }),
+    )
   }
 
   if (stage === 'expired') {
-    statuses.push({
-      key: 'expired',
-      label: 'Expired',
-      pill: 'error',
-      line: event.nextCheckAt
-        ? `Deleted on ${shortDate(event.nextCheckAt)}${regionNote(event)}`
-        : `Unpublished${regionNote(event)}`,
-      rank: 6,
-      filter: 'overdue',
-      counts: true,
-      action: overdueAction(event),
-      deadline: event.nextCheckAt ?? null,
-    })
+    statuses.push(
+      status('expired', {
+        line: event.nextCheckAt
+          ? `Deleted on ${shortDate(event.nextCheckAt)}${regionNote(event)}`
+          : `Unpublished${regionNote(event)}`,
+        action: overdueAction(event),
+        deadline: event.nextCheckAt ?? null,
+      }),
+    )
   }
 
   if (statuses.length === 0) {
-    statuses.push({
-      key: 'up-to-date',
-      label: 'Up to date',
-      pill: 'check',
-      line: event.nextCheckAt ? `Next check ${shortDate(event.nextCheckAt)}` : '',
-      rank: 7,
-      filter: null,
-      counts: false,
-      action: null,
-    })
+    statuses.push(
+      status('up-to-date', {
+        line: event.nextCheckAt ? `Next check ${shortDate(event.nextCheckAt)}` : '',
+        action: null,
+      }),
+    )
   }
 
   return statuses
@@ -330,34 +371,20 @@ export function openItemStatus(row: OpenItemRow, now: Date): OpenItemStatus[] {
 
   if (row.kind === 'proposal') {
     return [
-      {
-        key: 'class-proposed',
-        label: 'New class proposed',
-        pill: 'success',
+      status('class-proposed', {
         line: `Received ${shortDate(row.receivedAt)}`,
-        rank: 1,
-        filter: 'review',
-        counts: true,
         action: { label: 'Review', target: { collection: 'user-submissions', id: row.id } },
         deadline: row.receivedAt,
-      },
+      }),
     ]
   }
 
   return [
-    {
-      key: 'confirmed-spam-pending',
-      label: 'Flagged as spam',
-      pill: 'success',
+    status('confirmed-spam-pending', {
       line: [row.reason, shortDate(row.receivedAt)].filter(Boolean).join(' · '),
-      rank: 1,
-      // In no filter: an admin's list is the only one that holds these, and a
-      // tab for one kind of row would read as a fifth kind of problem.
-      filter: null,
-      counts: true,
       action: { label: 'Review', target: { collection: 'user-submissions', id: row.id } },
       deadline: row.receivedAt,
-    },
+    }),
   ]
 }
 
