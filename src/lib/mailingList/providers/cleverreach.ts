@@ -281,7 +281,10 @@ async function verifyCleverReach(
     `${CLEVERREACH_HOST}/v3/flow/flow/${encodeURIComponent(flowId)}`,
     { Authorization: `Bearer ${token}` },
     signal,
-    { missing: 'that confirmation flow ID does not exist on this account.', refused: SCOPE_REFUSED },
+    {
+      missing: 'that confirmation flow ID does not exist on this account.',
+      refused: SCOPE_REFUSED,
+    },
   )
 }
 
