@@ -266,60 +266,12 @@
   margin: 0;
 }
 
-/*
- * One colour per state, set on the row's cells as --state. The badge, the
- * status word and nothing else take it, so every row reads the same way.
- */
-.stateDone {
-  --state: var(--theme-success-500);
-}
-
-.stateFailed {
-  --state: var(--theme-error-500);
-}
-
-.stateTodo,
-.stateNa {
-  --state: var(--theme-elevation-400);
-}
-
-.milestone {
-  display: inline-flex;
-  align-items: flex-start;
-  gap: calc(var(--base) * 0.4);
-}
-
-.badge {
-  flex-shrink: 0;
-  display: inline-grid;
-  place-items: center;
-  width: 20px;
-  height: 20px;
-  border: 1.5px solid var(--state);
-  border-radius: 50%;
-  background: var(--state);
-  color: var(--theme-elevation-0);
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1;
-}
-
-/* Still to come: the same badge, outlined. Not available: outlined and dashed. */
-.stateTodo .badge,
-.stateNa .badge {
-  background: transparent;
-  color: var(--state);
-}
-
-.stateNa .badge {
-  border-style: dashed;
-}
-
-.milestoneLabel {
+.milestoneLabel,
+.milestoneNa {
   display: block;
 }
 
-.stateNa .milestoneLabel {
+.milestoneNa {
   color: var(--theme-elevation-500);
 }
 
@@ -329,23 +281,6 @@
   line-height: 1.35;
   color: var(--theme-elevation-500);
   overflow-wrap: anywhere;
-}
-
-.status {
-  font-weight: 600;
-  color: var(--state);
-  white-space: nowrap;
-}
-
-.stateTodo.status,
-.stateNa.status {
-  font-weight: 400;
-  color: var(--theme-elevation-500);
-}
-
-/* "Not available for Iframe only" is too long to keep on one line. */
-.stateNa.status {
-  white-space: normal;
 }
 
 /* Whether the last choice was kept: quiet, beside the section heading. */

@@ -2,7 +2,7 @@
 
 import type { Milestone, MilestoneState } from './installModel'
 
-import { Table } from '@payloadcms/ui'
+import { Pill, Table } from '@payloadcms/ui'
 import React from 'react'
 
 import { tableColumn } from '@/components/admin/helpers/tableColumn'
@@ -10,20 +10,15 @@ import { tableColumn } from '@/components/admin/helpers/tableColumn'
 import styles from './InstallGuide.module.css'
 import { installProgress } from './installModel'
 
-const STATE_CLASS: Record<MilestoneState, string | undefined> = {
-  done: styles.stateDone,
-  failed: styles.stateFailed,
-  todo: styles.stateTodo,
-  na: styles.stateNa,
+/** Payload's own pill colours; a row still to come and a row out of reach share the quiet one. */
+const PILL_STYLE: Record<MilestoneState, React.ComponentProps<typeof Pill>['pillStyle']> = {
+  done: 'success',
+  failed: 'error',
+  todo: 'light-gray',
+  na: 'light-gray',
 }
 
-/**
- * The sidebar's progress: a count, a bar, and one row per milestone.
- *
- * Every row carries its number in the same badge, filled in the row's colour
- * once it has an answer and outlined before, so the table reads as one list of
- * things to get through.
- */
+/** The sidebar's progress: a count, a bar, and one row per milestone. */
 export function InstallProgress({ milestones }: { milestones: Milestone[] }): React.ReactElement {
   return (
     <div className={styles.progress}>
@@ -34,20 +29,16 @@ export function InstallProgress({ milestones }: { milestones: Milestone[] }): Re
           tableColumn(
             'milestone',
             'Milestone',
-            milestones.map((milestone, index) => (
-              <span
-                className={`${styles.milestone} ${STATE_CLASS[milestone.state] ?? ''}`}
-                key={milestone.id}
-              >
-                <span aria-hidden className={styles.badge}>
-                  {index + 1}
+            milestones.map((milestone) => (
+              <span key={milestone.id}>
+                <span
+                  className={milestone.state === 'na' ? styles.milestoneNa : styles.milestoneLabel}
+                >
+                  {milestone.label}
                 </span>
-                <span>
-                  <span className={styles.milestoneLabel}>{milestone.label}</span>
-                  {milestone.note ? (
-                    <span className={styles.milestoneNote}>{milestone.note}</span>
-                  ) : null}
-                </span>
+                {milestone.note ? (
+                  <span className={styles.milestoneNote}>{milestone.note}</span>
+                ) : null}
               </span>
             )),
           ),
@@ -55,12 +46,9 @@ export function InstallProgress({ milestones }: { milestones: Milestone[] }): Re
             'status',
             'Status',
             milestones.map((milestone) => (
-              <span
-                className={`${styles.status} ${STATE_CLASS[milestone.state] ?? ''}`}
-                key={milestone.id}
-              >
+              <Pill key={milestone.id} pillStyle={PILL_STYLE[milestone.state]} size="small">
                 {milestone.status}
-              </span>
+              </Pill>
             )),
           ),
         ]}
