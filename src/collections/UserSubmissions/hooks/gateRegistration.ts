@@ -2,10 +2,13 @@ import type { CollectionBeforeValidateHook } from 'payload'
 
 import { APIError } from 'payload'
 
+import { isActiveRegistration } from '@/lib/registrations/active'
 import { countActiveRegistrations } from '@/lib/registrations/fullness'
 import { evaluateRegistrationGate } from '@/lib/registrations/gating'
 import { relationId } from '@/lib/utilities/relationId'
 import { asTrustedReq } from '@/plugins/usage/hooks'
+
+import { findRepeatRegistration } from '../lifecycle/repeatRegistration'
 
 /**
  * Refuse a registration the event is not open to, with the machine-readable
@@ -77,12 +80,26 @@ export const gateRegistration: CollectionBeforeValidateHook = async ({ data, ope
     req,
   })
 
-  const rejection = evaluateRegistrationGate({
-    event,
-    registrationCount,
-    now: new Date(),
-    startingAt: data.startingAt,
-  })
+  const gate = (count: number) =>
+    evaluateRegistrationGate({
+      event,
+      registrationCount: count,
+      now: new Date(),
+      startingAt: data.startingAt,
+    })
+  let rejection = gate(registrationCount)
+
+  // A registrant updating their own registration (`mergeRepeatRegistration`)
+  // already holds a seat, so a full event is not full to them. Asked only on
+  // `event_full`, so an ordinary signup pays no extra read.
+  if (rejection?.code === 'event_full' && typeof data.senderEmail === 'string') {
+    const existing = await findRepeatRegistration({
+      req: asTrustedReq(req),
+      eventId,
+      sender: { email: data.senderEmail },
+    })
+    if (existing && isActiveRegistration(existing)) rejection = gate(registrationCount - 1)
+  }
   if (rejection) {
     // `APIError`'s fourth argument is what puts `code` at `errors[].data.code`,
     // which is the envelope sydevs/SahajAtlasWeb#171 reads.
