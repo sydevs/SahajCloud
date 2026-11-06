@@ -3,15 +3,11 @@ import type { UIFieldServerComponent } from 'payload'
 import { formatAdminURL } from 'payload/shared'
 import React from 'react'
 
-import type { EmbedMetadata } from '@/lib/clients/embedMetadata'
 import { primaryPageUrl } from '@/lib/clients/site'
-import type { CanonicalVerification } from '@/lib/clients/verification'
-import { relationId } from '@/lib/utilities/relationId'
-import type { Client } from '@/payload-types'
 
 import styles from './InstallGuide.module.css'
-import { milestonesForRecord } from './installModel'
 import { InstallProgressBar } from './InstallProgress'
+import { loadInstallRecord } from './installRecord'
 
 /**
  * Where this service's atlas lives, read-only, at the top of the Atlas tab.
@@ -26,29 +22,9 @@ const InstallSummary: UIFieldServerComponent = async ({ data, payload }) => {
   const id = (data as { id?: unknown } | undefined)?.id
   if (typeof id !== 'number') return null
 
-  const client = (await payload.findByID({
-    collection: 'clients',
-    id,
-    depth: 1,
-    select: { site: true, region: true, canonical: true, embedMetadata: true },
-    overrideAccess: true,
-    disableErrors: true,
-  })) as Pick<Client, 'site' | 'region' | 'canonical' | 'embedMetadata'> | null
-  if (!client) return null
-
-  const regionName =
-    relationId(client.region) == null
-      ? null
-      : client.region && typeof client.region === 'object'
-        ? (client.region.name ?? 'Set')
-        : 'Set'
-  const milestones = milestonesForRecord({
-    site: client.site,
-    embedMetadata: (client.embedMetadata ?? null) as EmbedMetadata | null,
-    verification: (client.canonical?.verification ?? null) as CanonicalVerification | null,
-    owned: Boolean(client.canonical?.owned),
-    regionName,
-  })
+  const record = await loadInstallRecord(payload, id)
+  if (!record) return null
+  const { client, regionName, milestones } = record
   const installUrl = formatAdminURL({
     adminRoute: payload.config.routes.admin,
     path: `/collections/clients/${id}/install`,

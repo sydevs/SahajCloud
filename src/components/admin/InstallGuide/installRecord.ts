@@ -1,0 +1,60 @@
+import type { Payload } from 'payload'
+
+import { cache } from 'react'
+
+import type { EmbedMetadata } from '@/lib/clients/embedMetadata'
+import type { CanonicalVerification } from '@/lib/clients/verification'
+import { relationId } from '@/lib/utilities/relationId'
+import type { Client } from '@/payload-types'
+
+import { type Milestone, milestonesForRecord } from './installModel'
+
+export interface InstallRecord {
+  client: Pick<Client, 'roles' | 'site' | 'region' | 'canonical' | 'embedMetadata'>
+  /** Whether the service has the atlas role, and so an install at all. */
+  atlas: boolean
+  /** The region's name, `'Set'` when it cannot be read, `null` for a worldwide map. */
+  regionName: string | null
+  milestones: Milestone[]
+}
+
+/**
+ * A service's install, off its stored row, for the server components that show
+ * it outside the Install tab: the document tab, the banner above the document
+ * views and the Atlas tab's summary.
+ *
+ * Wrapped in React's `cache`, so one request reads the row once however many of
+ * them render — and so all three count the same milestones.
+ */
+export const loadInstallRecord = cache(
+  async (payload: Payload, id: number): Promise<InstallRecord | null> => {
+    const client = (await payload.findByID({
+      collection: 'clients',
+      id,
+      depth: 1,
+      select: { roles: true, site: true, region: true, canonical: true, embedMetadata: true },
+      overrideAccess: true,
+      disableErrors: true,
+    })) as InstallRecord['client'] | null
+    if (!client) return null
+
+    const regionName =
+      relationId(client.region) == null
+        ? null
+        : client.region && typeof client.region === 'object'
+          ? (client.region.name ?? 'Set')
+          : 'Set'
+    return {
+      client,
+      atlas: Boolean(client.roles?.includes('sahaj-atlas-client')),
+      regionName,
+      milestones: milestonesForRecord({
+        site: client.site,
+        embedMetadata: (client.embedMetadata ?? null) as EmbedMetadata | null,
+        verification: (client.canonical?.verification ?? null) as CanonicalVerification | null,
+        owned: Boolean(client.canonical?.owned),
+        regionName,
+      }),
+    }
+  },
+)

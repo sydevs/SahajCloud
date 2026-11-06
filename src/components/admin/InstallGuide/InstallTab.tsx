@@ -2,6 +2,7 @@ import type { DocumentTabServerProps } from 'payload'
 
 import React from 'react'
 
+import { loadInstallRecord } from './installRecord'
 import { InstallTabLink } from './InstallTabLink'
 
 /**
@@ -20,15 +21,7 @@ export default async function InstallTab({
   const id = Number(req.routeParams?.id)
   if (!Number.isInteger(id)) return null
 
-  const client = await req.payload.findByID({
-    collection: 'clients',
-    id,
-    depth: 0,
-    select: { roles: true },
-    overrideAccess: true,
-    disableErrors: true,
-  })
-  if (!client?.roles?.includes('sahaj-atlas-client')) return null
+  if (!(await loadInstallRecord(req.payload, id))?.atlas) return null
 
   return <InstallTabLink adminRoute={req.payload.config.routes.admin} path={path} />
 }

@@ -3,13 +3,9 @@ import type { PayloadRequest } from 'payload'
 import { formatAdminURL } from 'payload/shared'
 import React from 'react'
 
-import type { EmbedMetadata } from '@/lib/clients/embedMetadata'
-import type { CanonicalVerification } from '@/lib/clients/verification'
-import { relationId } from '@/lib/utilities/relationId'
-import type { Client } from '@/payload-types'
-
 import { InstallBannerNotice } from './InstallBannerNotice'
-import { installComplete, milestonesForRecord } from './installModel'
+import { installComplete } from './installModel'
+import { loadInstallRecord } from './installRecord'
 
 /**
  * A banner above a service's document views while its atlas install is not
@@ -30,31 +26,10 @@ export default async function InstallBanner(props: {
   const id = Number(props.id)
   if (!Number.isInteger(id)) return null
 
-  const client = (await props.payload.findByID({
-    collection: 'clients',
-    id,
-    depth: 1,
-    select: { roles: true, site: true, region: true, canonical: true, embedMetadata: true },
-    overrideAccess: true,
-    disableErrors: true,
-  })) as Pick<Client, 'roles' | 'site' | 'region' | 'canonical' | 'embedMetadata'> | null
-  if (!client?.roles?.includes('sahaj-atlas-client')) return null
+  const record = await loadInstallRecord(props.payload, id)
+  if (!record?.atlas || installComplete(record.milestones)) return null
 
-  const milestones = milestonesForRecord({
-    site: client.site,
-    embedMetadata: (client.embedMetadata ?? null) as EmbedMetadata | null,
-    verification: (client.canonical?.verification ?? null) as CanonicalVerification | null,
-    owned: Boolean(client.canonical?.owned),
-    regionName:
-      relationId(client.region) == null
-        ? null
-        : client.region && typeof client.region === 'object'
-          ? (client.region.name ?? 'Set')
-          : 'Set',
-  })
-  if (installComplete(milestones)) return null
-
-  const counted = milestones.filter((milestone) => milestone.state !== 'na')
+  const counted = record.milestones.filter((milestone) => milestone.state !== 'na')
   return (
     <InstallBannerNotice
       done={counted.filter((milestone) => milestone.state === 'done').length}
