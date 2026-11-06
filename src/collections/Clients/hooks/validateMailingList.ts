@@ -55,7 +55,7 @@ export const validateMailingList: CollectionBeforeChangeHook = async ({
   const previous = (originalDoc?.mailingList ?? null) as MailingListConfig | null
   const changed = CREDENTIAL_KEYS.some((key) => config[key] !== previous?.[key])
   // Nothing a provider could have an opinion about has changed. It said yes to
-  // these exact three values when they were entered.
+  // these exact values when they were entered.
   if (!changed) return data
 
   const failure = await checkCredentials(config, req)
