@@ -112,6 +112,7 @@ import * as migration_20261104_185158_snapshot_resync from './20261104_185158_sn
 import * as migration_20261105_181908_retire_region_hint from './20261105_181908_retire_region_hint';
 import * as migration_20261105_214631_drop_client_key_generated_at from './20261105_214631_drop_client_key_generated_at';
 import * as migration_20261105_233009_clients_site_and_enabled from './20261105_233009_clients_site_and_enabled';
+import * as migration_20261106_021740_merge_1058_main_snapshot from './20261106_021740_merge_1058_main_snapshot';
 
 export const migrations = [
   {
@@ -682,6 +683,11 @@ export const migrations = [
   {
     up: migration_20261105_233009_clients_site_and_enabled.up,
     down: migration_20261105_233009_clients_site_and_enabled.down,
-    name: '20261105_233009_clients_site_and_enabled'
+    name: '20261105_233009_clients_site_and_enabled',
+  },
+  {
+    up: migration_20261106_021740_merge_1058_main_snapshot.up,
+    down: migration_20261106_021740_merge_1058_main_snapshot.down,
+    name: '20261106_021740_merge_1058_main_snapshot'
   },
 ];
