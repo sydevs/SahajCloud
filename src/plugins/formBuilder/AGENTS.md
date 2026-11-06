@@ -16,7 +16,7 @@ Five things this repo does that the plugin options cannot:
   composes `{ ...rbac, ...collection.access }`, so a collection's own access
   wins — and the plugin always supplies `read: ({ req: { user } }) => !!user`,
   which grants read to any authenticated user, every API client included. Left
-  in place it outranks the role table and `RESTRICTED_COLLECTIONS` alike.
+  in place it outranks the role table and project-membership read alike.
   `forms` keeps its plugin access (`read: () => true`), which is the intended
   rule: a public site renders a form anonymously.
 - **Removes the plugin's `sendEmail` afterChange hook.** `formOverrides.fields`

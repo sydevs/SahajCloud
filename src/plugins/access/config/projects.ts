@@ -38,8 +38,8 @@ const PROJECTS = {
       'forms',
       // `user-submissions` is deliberately NOT here. It replaced
       // `form-submissions`, and it now holds unscreened stranger messages,
-      // registrant addresses and proposals — so it joins RESTRICTED_COLLECTIONS
-      // below instead, and every read of it takes an explicit grant.
+      // registrant addresses and proposals — so it sits in no project, which
+      // makes every read of it take an explicit grant (`isImplicitlyReadable`).
       'authors',
       'lectures',
       'user-choices',
@@ -151,23 +151,32 @@ const ALL_PROJECT_COLLECTIONS: ContentSlug[] = (() => {
   return Array.from(allCollections)
 })()
 
-// --- Restricted collections ---
+// --- Implicit read ---
 
 /**
- * Collections that must NEVER fall under the "not in any project → shared,
- * readable by every role" rule — personal data, credentials, or internal data
- * no client key should hold.
- * Implicit read (`hasPermission` step 4a) skips these entirely; only an
- * explicit `read` grant in a role, the admin bypass, or — for the caller's own
- * document — self-access reaches them.
+ * Whether a role in `project` may read this collection with no explicit grant:
+ * only when the collection is named in that project.
+ *
+ * ⚠ **A collection in no project fails closed.** For read, "no project" used to
+ * mean the opposite — shared, readable by every role — and an opt-out list
+ * (`RESTRICTED_COLLECTIONS`) was all that kept personal data and credentials
+ * out of that rule. A complete opt-out list is an inverted default in disguise:
+ * it held every project-less collection and would have failed open on the
+ * next. Now a collection in no project is reachable by an explicit `read`
+ * grant in a role, the admin bypass, or — for the caller's own document —
+ * self-access, and nothing else. Admin-nav visibility is a separate question,
+ * answered by {@link isCollectionVisibleInProject}.
+ *
+ * Why each project-less collection must stay that way, and must not be added
+ * to a project to make a picker work:
  *
  * - `users` — Atlas registrants (names + emails). Was implicitly readable by
- *   any published API client before this list existed — including the Atlas
- *   widget's public key. ⚠ **No role holds an explicit grant.** The Atlas
- *   manager role carried one until registrations moved to `user-submissions`
- *   (#723), after which the only `users` relations left were record-keeping —
- *   `Events.submitter` and `UserSubmissions.user` — which now render a bare id
- *   for a manager, the same accepted cost `web-translator` pays on `managers`.
+ *   any published API client — including the Atlas widget's public key.
+ *   ⚠ **No role holds an explicit grant.** The Atlas manager role carried one
+ *   until registrations moved to `user-submissions` (#723), after which the
+ *   only `users` relations left were record-keeping — `Events.submitter` and
+ *   `UserSubmissions.user` — which now render a bare id for a manager, the same
+ *   accepted cost `web-translator` pays on `managers`.
  * - `user-submissions` — the unified public intake (#723): contact messages,
  *   subscriptions, registrations and proposals in one table, so it carries
  *   every kind of personal data the collections it replaced held. It was the
@@ -180,7 +189,7 @@ const ALL_PROJECT_COLLECTIONS: ContentSlug[] = (() => {
  *   only explicit grant, because it picks on `Events.manager` and
  *   `Regions.managers`; `atlas-event-manager` runs one listing and picks on
  *   neither, so it gets none.
- *   ⚠ **This entry reaches a relationship, never a copy** — a field holding a
+ *   ⚠ **This reaches a relationship, never a copy** — a field holding a
  *   manager's name or address as a value needs its own field lock. Ask which
  *   kind you have before trusting this (`docs/rules/access.md`).
  * - ⚠ `clients` — every service's credentials, origin allowlist and usage
@@ -201,31 +210,13 @@ const ALL_PROJECT_COLLECTIONS: ContentSlug[] = (() => {
  *   record of what the map looked like yesterday. Its own `access` is
  *   admin-read-only, and nothing writes one through the API
  *   (`src/collections/AtlasSnapshots/`).
- *
- * ⚠ **This list is a holding pattern, not the permanent mechanism.** Exactly
- * seven registered collections sit in no project, and all seven are named here
- * — so the set is complete today and fails open the day an eighth is added. A
- * complete opt-out list is an inverted default in disguise: the fix is for
- * step 4a to test project membership directly, so a new collection fails
- * closed instead. Deferred, not blocked — #821 settled the question that held
- * it up, by giving the Atlas region role the explicit grant its pickers need.
  */
-const RESTRICTED_COLLECTIONS: ReadonlySet<string> = new Set([
-  'users',
-  'user-submissions',
-  'managers',
-  'clients',
-  // The bulk class import's rows (contact details).
-  'imports',
-  // Sign-ups the spam check refused, each naming a class and a registrant.
-  'registration-refusals',
-  // A region's event counts, per day.
-  'atlas-snapshots',
-])
-
-/** Whether implicit (project/shared) read must never apply to this collection. */
-export function isRestrictedCollection(collection: ContentSlug): boolean {
-  return RESTRICTED_COLLECTIONS.has(collection)
+export function isImplicitlyReadable(
+  collection: ContentSlug,
+  project: ProjectSlug | undefined,
+): boolean {
+  if (!project) return false
+  return COLLECTION_TO_PROJECTS[collection]?.includes(project) ?? false
 }
 
 // --- Type Generation Helper ---

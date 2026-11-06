@@ -224,7 +224,7 @@ const REVIEW_STAGES: WorkflowRule<UserSubmission['status']>['stages'] = {
  * - **`read: ({ req: { user } }) => !!user`** — read for any authenticated
  *   user, every API client included, on a table of unscreened stranger
  *   messages and registrant addresses. It outranks the role table, the per-row
- *   manager scope and `RESTRICTED_COLLECTIONS` alike.
+ *   manager scope and project-membership read alike.
  * - **`update: () => false`** — nothing could ever update a submission.
  *   Clearing it hands `update` to the roles that hold it, which is a real
  *   behaviour change from `form-submissions` and the reason `type`,

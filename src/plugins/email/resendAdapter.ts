@@ -119,8 +119,8 @@ export const resendAdapter = (): EmailAdapter => {
         //
         // ⚠ No part of the MESSAGE goes to Sentry — not the recipient, not the
         // subject. A `user-messages` send carries a viewer-authored subject, and
-        // that collection is in `RESTRICTED_COLLECTIONS` precisely because it
-        // holds personal data; copying it into a third-party error tracker would
+        // that collection sits in no project precisely because it holds
+        // personal data; copying it into a third-party error tracker would
         // widen where that data lives. The pino line beside each capture already
         // carries the detail, in the log system that is meant to hold it.
         if (!resend) {

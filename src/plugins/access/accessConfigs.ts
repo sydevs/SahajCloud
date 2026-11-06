@@ -101,7 +101,7 @@ export const PROPOSAL_REGION_PATHS = ['event.region', 'region', 'routingRegion']
 /**
  * What of `user-submissions` a manager may see.
  *
- * The role grant that reaches this restricted collection is collection-wide,
+ * The role grant that reaches this project-less collection is collection-wide,
  * and the collection now holds four different things in one table — so without
  * this narrowing, granting a manager the proposals they review would also hand
  * them every registrant's address and every stranger's message. The grant says

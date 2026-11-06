@@ -42,7 +42,7 @@ Each failure path — no client, a Resend API error, a thrown exception — logs
 
 A throw cannot roll back a manager create: a create sends no mail (`suppressCreateMail`, `src/plugins/login/loginPlugin.ts`).
 
-⚠ **The capture carries nothing from the message** — no recipient, no subject. A contact send carries a viewer-authored subject, and `user-submissions` sits in `RESTRICTED_COLLECTIONS` because it holds personal data. Copying it into a third-party error tracker would widen where that data lives. The pino line beside each capture already has the detail — don't add more.
+⚠ **The capture carries nothing from the message** — no recipient, no subject. A contact send carries a viewer-authored subject, and `user-submissions` sits in no project — so no role reads it implicitly — because it holds personal data. Copying it into a third-party error tracker would widen where that data lives. The pino line beside each capture already has the detail — don't add more.
 
 ### It hand-maps the message — an unmapped field is silently dropped
 
