@@ -13,14 +13,13 @@ import type { Meditation, MeditationsSelect, Narrator } from '@/payload-types'
  * `frames` enrichment — never fire. Without it those hooks turn a card read into
  * an N+1 that scales with the candidate pool (see #541).
  *
- * The two co-selected dependencies are load-bearing, not decorative — each
- * virtual field's `afterRead` reads a sibling that would otherwise be stripped
- * first (same pattern as `url`→`filename` in `Meditations/endpoints/songs.ts`):
- *   - `duration` feeds the `durationMinutes` afterRead.
- *   - `subtleSystemNodeWeights` feeds the `title` afterRead (and the endpoint's
- *     own `scoreMeditationByNodes`).
- * Drop either and the virtual reads to `null`, so `shapeMeditation` discards the
- * card — a silent correctness regression, not just a slow one.
+ * Each virtual field's `afterRead` reads a sibling an include-mode `select`
+ * would otherwise strip first: `duration` feeds `durationMinutes`, and
+ * `subtleSystemNodeWeights` feeds `title`. The collection's own
+ * `ensureVirtualFieldDeps` declaration puts both back for any caller (#1084), so
+ * naming them here no longer carries that on its own — `scoreMeditationByNodes`
+ * in `/api/lectures/:id/related-meditations` reads the weights itself, which is
+ * what still earns `subtleSystemNodeWeights` its place.
  */
 export const MEDITATION_CARD_SELECT = {
   title: true,

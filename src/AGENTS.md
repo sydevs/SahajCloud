@@ -135,7 +135,7 @@ No loose files at the root — every file lives in a named folder:
   `virtualFieldDeps` — `ensureVirtualFieldDeps(deps)` builds the
   `beforeOperation` hook that puts a computed field's stored inputs back
   into an include-mode `select`, which strips them before the afterRead
-  field hooks run. Declared by `events`, `pages` and
+  field hooks run. Declared by `events`, `pages`, `meditations` and
   `meditation-transcripts`; a collection has to declare it and nothing
   makes it, which is how #1084 happened,
   `url` — `originOf` for code deciding whether to trust a URL someone
