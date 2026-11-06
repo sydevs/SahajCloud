@@ -81,7 +81,7 @@
 }
 
 .urlField {
-  max-width: 28rem;
+  max-width: none;
 }
 
 .urlField .problem {
@@ -445,39 +445,41 @@
   margin-top: var(--base);
 }
 
-/* "Make it yours": the logo and the three colours, as four tiles. */
+/* "Make it yours": the logo and the three colours, as four small tiles. */
 .appearance {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--base);
-  max-width: calc(var(--base) * 32);
   margin: var(--base) 0;
 }
 
 .tile {
   display: flex;
-  flex-direction: column;
-  gap: calc(var(--base) * 0.35);
+  align-items: center;
+  gap: calc(var(--base) * 0.5);
   margin: 0;
 
   figcaption {
     display: flex;
     flex-direction: column;
     font-weight: 600;
+    line-height: 1.3;
   }
 }
 
+/* A third of the first tiles' size: 48px, at Payload's 20px base. */
 .tileLogo,
 .tileColor {
+  flex: none;
   display: block;
-  width: 100%;
-  aspect-ratio: 1;
+  width: calc(var(--base) * 2.4);
+  height: calc(var(--base) * 2.4);
   border: 1px solid var(--theme-elevation-150);
-  border-radius: var(--style-radius-m);
+  border-radius: var(--style-radius-s);
 }
 
 .tileLogo {
-  padding: calc(var(--base) * 0.75);
+  padding: calc(var(--base) * 0.25);
   object-fit: contain;
   background: var(--theme-elevation-0);
 }
@@ -488,13 +490,6 @@
   color: var(--theme-elevation-500);
 }
 
-.appearanceNote {
-  margin: 0 0 var(--base);
-  color: var(--theme-elevation-600);
-}
-
-@media (max-width: 600px) {
-  .appearance {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+.appearanceTable {
+  margin-bottom: var(--base);
 }

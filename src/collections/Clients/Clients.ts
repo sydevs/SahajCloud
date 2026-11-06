@@ -242,10 +242,9 @@ const OPT_IN_NOTES: Record<MailingListProvider, string> = {
 /**
  * Where a client's mailing-list provider is configured.
  *
- * **Not conditioned on a role**, unlike the Atlas groups beside it: any
- * service, whatever it does, may run a list — We Meditate Web relays its own
- * subscribe forms with its own key. That is why the Atlas tab shows for every
- * service rather than carrying a role condition of its own.
+ * **Shown on the Atlas tab, so only to a service with the atlas role.** Delivery
+ * reads a stored list whatever the roles, so a service without the role keeps
+ * one it already has; it simply cannot be edited here.
  *
  * ⚠ **Every field carries `managersOnlyFieldAccess`, and that is the security
  * boundary rather than a nicety.** Self-access lets a published key read its own
@@ -366,15 +365,17 @@ export const Clients: CollectionConfig = {
            * is not the gate here. `InstallView` re-reads the row with
            * `overrideAccess: false` anyway, because it reveals the API key.
            *
-           * The tab shows on every service: a tab `condition` is handed `req`,
-           * never the document, so it cannot read the row's roles. `InstallView`
-           * reads them off the row it loads and shows a notice instead of the
-           * guide to a service without the atlas role.
+           * The tab shows only on a service with the atlas role. A tab
+           * `condition` is synchronous and handed no document, so the tab is a
+           * server `Component` of its own (`InstallTab`) that reads the row's
+           * roles and renders nothing without that role. The URL still resolves
+           * for anyone typing it, so `InstallView` shows a notice there instead.
            */
           install: {
             Component: '@/components/admin/InstallGuide',
             path: '/install',
             tab: {
+              Component: '@/components/admin/InstallGuide/InstallTab',
               label: 'Install',
               href: '/install',
               // 400 puts it after Payload's own Edit, API and Versions tabs.
@@ -521,26 +522,23 @@ export const Clients: CollectionConfig = {
         },
         {
           // Unnamed groups only, so moving a field between them never moves
-          // its column. The Atlas groups carry the role condition one by one,
-          // and the mailing list none (`mailingListGroup`). Where the atlas
-          // lives is the Install tab's, shown here read-only.
+          // its column. Shown to a service with the atlas role alone, mailing
+          // list included. Where the atlas lives is the Install tab's, shown
+          // here read-only.
           label: 'Atlas',
+          admin: { condition: isAtlasClient },
           fields: [
             {
               name: 'installSummary',
               type: 'ui',
               admin: {
-                condition: isAtlasClient,
                 components: { Field: '@/components/admin/InstallGuide/InstallSummary' },
               },
             },
             {
               type: 'group',
               label: 'Brand Colors',
-              admin: {
-                condition: isAtlasClient,
-                description: 'How the atlas looks on this service’s site.',
-              },
+              admin: { description: 'How the atlas looks on this service’s site.' },
               fields: [
                 {
                   type: 'row',
@@ -575,7 +573,6 @@ export const Clients: CollectionConfig = {
             {
               type: 'group',
               label: 'Registrant Emails',
-              admin: { condition: isAtlasClient },
               fields: [
                 {
                   name: 'logo',

@@ -21,6 +21,7 @@ export function InstallBannerNotice(props: {
       <TitledBanner
         action={<a href={props.installUrl}>Open the Install tab</a>}
         title="The atlas is not fully installed yet"
+        type="warning"
       >
         {props.done} of {props.total} steps are done. The Install tab walks you through the rest.
       </TitledBanner>

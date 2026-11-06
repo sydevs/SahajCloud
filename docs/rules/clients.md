@@ -150,7 +150,7 @@ query:  https://{domain}{mount}{?|&}atlas={webPath}
 
 ## Mailing-list configuration on `clients`
 
-A service that relays subscribe submissions names its own provider, under **Atlas → Mailing List**. Any service may run a list, whatever its roles — which is why the Atlas tab shows for every service, and only its Atlas groups carry the role condition.
+A service that relays subscribe submissions names its own provider, under **Atlas → Mailing List**. The Atlas tab, and so the list, shows only for a service with the atlas role; delivery still reads a stored list whatever the roles, so a service without the role keeps one it already has, but cannot edit it there. The Install tab hides the same way (`InstallTab`, a tab component reading the row's roles, since a tab `condition` is handed no document).
 
 ⚠ **No API client can read any of it, at any depth.** Two things hold that up, and both are needed. The group carries `managersOnlyFieldAccess` (`@/plugins/access`), which closes the read `RESTRICTED_COLLECTIONS` never reaches — self-access hands a published key its own row whole over `GET /api/clients/me`. And `stripLockedFieldsOnSelfRead`, the `afterRead` hook `accessPlugin` gives every auth collection, closes `POST /api/clients/refresh-token`, which re-reads the row at `overrideAccess: true` and so skips field access entirely (#822). The group still appears in `payload-types.ts`; both strip it at runtime, not from the generated type.
 

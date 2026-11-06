@@ -10,10 +10,12 @@ import {
   FieldDescription,
   FieldError,
   SelectInput,
+  Table,
   TextInput,
 } from '@payloadcms/ui'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import { tableColumn } from '@/components/admin/helpers/tableColumn'
 import { TitledBanner } from '@/components/admin/helpers/TitledBanner'
 import { StatusIcon } from '@/components/admin/ReadinessField/StatusIcon'
 import { ToggleGroup } from '@/components/admin/ToggleGroupField/ToggleGroup'
@@ -124,9 +126,9 @@ const COLOR_LABELS: Record<keyof typeof ATLAS_DEFAULT_COLORS, string> = {
 }
 
 /**
- * Four tiles — the logo and the three brand colours — each showing the
- * default when the service has none of its own, plus where replies and
- * subscribers go, which are the other two things the Atlas tab sets.
+ * Four small tiles — the logo and the three brand colours — each showing the
+ * default when the service has none of its own, and a two-row table of where
+ * replies and subscribers go, the other two things the Atlas tab sets.
  */
 function AppearancePreview({ appearance }: { appearance: Appearance }) {
   return (
@@ -160,13 +162,19 @@ function AppearancePreview({ appearance }: { appearance: Appearance }) {
           )
         })}
       </div>
-      <p className={styles.appearanceNote}>
-        Replies to registration emails go to{' '}
-        {appearance.supportEmail ?? 'the Sahaj Atlas team, until you add a support email'}.{' '}
-        {appearance.mailingList
-          ? `Subscribers join your ${appearance.mailingList} list.`
-          : 'No mailing list is connected.'}
-      </p>
+      <div className={styles.appearanceTable}>
+        <Table
+          appearance="condensed"
+          columns={[
+            tableColumn('setting', 'Setting', ['Email replies go to', 'Mailing list']),
+            tableColumn('value', 'Now', [
+              appearance.supportEmail ?? 'The Sahaj Atlas team (no support email set)',
+              appearance.mailingList ?? 'None connected',
+            ]),
+          ]}
+          data={[{ id: 'replies' }, { id: 'list' }]}
+        />
+      </div>
     </>
   )
 }
