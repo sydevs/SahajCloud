@@ -6,7 +6,7 @@ import type {
 } from '../types'
 
 import { probeCredentials } from '../probe'
-import { transportFailure } from '../types'
+import { statusFailure, transportFailure } from '../types'
 
 /**
  * Mailchimp's datacenter is carried in the key's own suffix (`…-us14`), so the
@@ -88,15 +88,7 @@ async function subscribeMailchimp(args: SubscribeArgs): Promise<MailingListResul
     }
   }
 
-  // 5xx and 429 are the provider having a bad moment; a 4xx is us being wrong,
-  // and will be wrong identically next time.
-  const retryable = response.status >= 500 || response.status === 429
-  return {
-    ok: false,
-    code: retryable ? 'provider_unavailable' : 'provider_rejected',
-    message: detail,
-    retryable,
-  }
+  return statusFailure(response.status, detail)
 }
 
 /**

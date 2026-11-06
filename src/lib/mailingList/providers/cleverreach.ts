@@ -1,17 +1,15 @@
 import type {
   MailingListAdapter,
   MailingListConfig,
+  MailingListFailure,
   MailingListResult,
   SubscribeArgs,
 } from '../types'
 
 import { probeCredentials } from '../probe'
-import { transportFailure } from '../types'
+import { statusFailure, transportFailure } from '../types'
 
 const CLEVERREACH_HOST = 'https://rest.cleverreach.com'
-
-/** The failure arm alone, for the helpers below that can only refuse. */
-type Failure = Extract<MailingListResult, { ok: false }>
 
 /**
  * As much of CleverReach's receiver object as this adapter reads.
@@ -71,7 +69,7 @@ async function subscribeCleverReach(args: SubscribeArgs): Promise<MailingListRes
       signal,
     })
     if (!existing.ok && existing.status !== 404) {
-      return mapFailure(existing.status, await readError(existing))
+      return statusFailure(existing.status, await readError(existing))
     }
 
     if (existing.ok) {
@@ -116,7 +114,7 @@ async function subscribeCleverReach(args: SubscribeArgs): Promise<MailingListRes
       if (/blacklist|blocklist|unsubscrib|deactivated/i.test(detail)) {
         return { ok: false, code: 'previously_unsubscribed', message: detail, retryable: false }
       }
-      return mapFailure(upsert.status, detail)
+      return statusFailure(upsert.status, detail)
     }
 
     if (!doubleOptIn) return { ok: true, status: 'subscribed' }
@@ -135,7 +133,7 @@ async function subscribeCleverReach(args: SubscribeArgs): Promise<MailingListRes
         },
       },
     })
-    if (!send.ok) return mapFailure(send.status, await readError(send))
+    if (!send.ok) return statusFailure(send.status, await readError(send))
 
     return { ok: true, status: 'pending' }
   } catch (error) {
@@ -171,7 +169,7 @@ async function accessToken(
   clientId: string,
   secret: string,
   signal: AbortSignal,
-): Promise<string | Failure> {
+): Promise<string | MailingListFailure> {
   const response = await fetch(`${CLEVERREACH_HOST}/oauth/token.php`, {
     method: 'POST',
     headers: {
@@ -182,7 +180,7 @@ async function accessToken(
     signal,
   })
 
-  if (!response.ok) return mapFailure(response.status, await readError(response))
+  if (!response.ok) return statusFailure(response.status, await readError(response))
 
   const body = (await response.json().catch(() => null)) as { access_token?: unknown } | null
   if (typeof body?.access_token !== 'string' || body.access_token === '') {
@@ -191,19 +189,8 @@ async function accessToken(
   return body.access_token
 }
 
-/** 5xx and 429 are the provider having a bad moment; any other 4xx is us being wrong. */
-function mapFailure(status: number, message: string): Failure {
-  const retryable = status >= 500 || status === 429
-  return {
-    ok: false,
-    code: retryable ? 'provider_unavailable' : 'provider_rejected',
-    message,
-    retryable,
-  }
-}
-
 /** A refusal this adapter reaches on its own, before or instead of a call. */
-function refused(message: string): Failure {
+function refused(message: string): MailingListFailure {
   return { ok: false, code: 'provider_rejected', message, retryable: false }
 }
 

@@ -42,6 +42,9 @@ export type MailingListResult =
   | { ok: true; status: 'subscribed' | 'pending' | 'accepted' }
   | { ok: false; code: MailingListFailureCode; message: string; retryable: boolean }
 
+/** The failure arm alone, for a helper or a caller that can only refuse. */
+export type MailingListFailure = Extract<MailingListResult, { ok: false }>
+
 export type MailingListFailureCode =
   /**
    * The address opted out, or sits in a provider compliance state.
@@ -117,4 +120,23 @@ export const PROVIDER_TIMEOUT_MS = 8000
 export function transportFailure(error: unknown): MailingListResult {
   const message = error instanceof Error ? error.message : String(error)
   return { ok: false, code: 'provider_unavailable', message, retryable: true }
+}
+
+/**
+ * Narrow a refusal status onto the failure union.
+ *
+ * `transportFailure`'s twin, shared for the same reason: 5xx and 429 are the
+ * provider having a bad moment, and any other status is us being wrong, which
+ * will be wrong identically next time. A provider's own compliance answer — the
+ * words it reports an opt-out in — is read before this, by the adapter that
+ * knows them.
+ */
+export function statusFailure(status: number, message: string): MailingListFailure {
+  const retryable = status >= 500 || status === 429
+  return {
+    ok: false,
+    code: retryable ? 'provider_unavailable' : 'provider_rejected',
+    message,
+    retryable,
+  }
 }

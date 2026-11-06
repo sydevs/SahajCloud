@@ -6,7 +6,7 @@ import type {
 } from '../types'
 
 import { probeCredentials } from '../probe'
-import { transportFailure } from '../types'
+import { statusFailure, transportFailure } from '../types'
 
 /**
  * Subscribe one address to a Brevo list.
@@ -68,13 +68,7 @@ async function subscribeBrevo(args: SubscribeArgs): Promise<MailingListResult> {
     return { ok: false, code: 'previously_unsubscribed', message: detail, retryable: false }
   }
 
-  const retryable = response.status >= 500 || response.status === 429
-  return {
-    ok: false,
-    code: retryable ? 'provider_unavailable' : 'provider_rejected',
-    message: detail,
-    retryable,
-  }
+  return statusFailure(response.status, detail)
 }
 
 /** Brevo's error body, as one sentence. Never throws — see the Mailchimp twin. */
