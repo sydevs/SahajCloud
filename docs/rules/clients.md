@@ -5,28 +5,42 @@ paths:
 
 # API Clients — the `clients` record
 
-What a `clients` document holds beyond its key: canonical ownership and the embeds that prove it (#633), the per-region `webUrl` it owns (#634), and a service's mailing list. How a client authenticates, what it may read and write, and how it is counted and rate-limited is in `docs/rules/api-clients.md`.
+What a `clients` document holds beyond its key: where its atlas lives (`site`), the region it may own and the embeds that prove it (#633), the per-region `webUrl` it owns (#634), and a service's mailing list. How a client authenticates, what it may read and write, and how it is counted and rate-limited is in `docs/rules/api-clients.md`.
 
 ## Clients collection (`src/collections/Clients/Clients.ts`)
 
 - `useAPIKey: { reveal: true }` — Payload generates an API key per client. Managers regenerate keys and manage settings through the **document-manager** path, not a role: no role holds any `clients` grant, so an admin, or a manager listed in that client's `managers` field, is the whole of who reaches the document. No read returns a stored key (Payload 3.90+) — the admin's **Reveal** button, `POST /api/clients/:id/api-key/reveal`, is the only way to see one again, gated as in `docs/rules/access.md`.
+- **No drafts.** `enabled` (Config tab, admin-only) is the switch a key works by — `bypassPermissions` and `requireActiveClient` deny anything but `enabled === true`. One row per service, so a save builds on the row itself, and what the usage plugin and the report endpoint write straight to it survives the next save (with drafts, every save rebuilt the row from its latest version row and reverted both).
+- **The Config tab is admin-only, writes included.** `name`, `enabled`, `notes`, `roles` (labelled Access), `managers`, `primaryContact` and `region` carry an admin-only write lock as well as the tab's condition: a listed manager holds `update` on the row through document-level access, and a hidden field stops no PATCH.
 - ⚠ **`clients` is a restricted collection, and `apiKey` is locked on top of that** (#822). One key read every other service's decrypted key until both landed. The reads a client still gets are of its own row — `GET /api/clients/me` and `POST /api/clients/refresh-token` — and the field lock plus `stripLockedFieldsOnSelfRead` are what keep the key out of those answers. See `docs/rules/access.md`.
 
-## Canonical ownership + observed embeds (#633)
+## Where the atlas lives — `site` (one domain, one page)
 
-Two Atlas white-label fields, split across the **Atlas** and **SEO** tabs. `canonical.enabled` defaults false, so a client owns nothing until opted in — but once opted in **and verified**, these fields build `webUrl` for the client's region (#634, below).
+A service is **one site**: `site.domain` (a bare host) plus `site.page` (the primary page's path), with `site.track` and `site.embedHeight` remembering the Install tab's choices. All four are the Install tab's, and `admin.disabled` keeps them out of the edit form's state, so saving the form can never write an older copy back. `src/lib/clients/site.ts` is the vocabulary every reader shares:
 
-### `canonical` — who owns a region's canonical URLs
+- **`siteHosts(domain)`** is the whole origin allowlist: the domain and its www or bare twin. No wildcards, no second domain — a second site needs a service and key of its own. No domain means no browser origin to enforce, which is an app's key.
+- **`primaryPageUrl(site)`** is the page that is verified, probed, routed from and, for an owner, published on — always `https://` on the bare host.
+- **`primaryReport(embedMetadata, site)`** is the widget's latest report from that page, on either host, and **`supportsClassAddresses(record)`** reads from it whether the page can give a class its own link (inline, and able to write the URL). That observation, not the chosen track, decides whether a site may own its region.
 
-`client.region` alone can't identify an owner — several published clients can map to one country. Ownership is an explicit opt-in with a uniqueness rule.
+Any other page on the same domain is a secondary embed automatically: it reports, it shows on the Install tab as evidence, it owns nothing.
 
-`validateCanonicalOwnership` (beforeChange) enforces this: enabling requires `region` and `canonical.embed`, and a second enabled client on a region is rejected, naming the incumbent. It watches `region` too, so moving an enabled client onto an owned region can't dodge the check, and skips when nothing the rule reads has moved. Uniqueness checks against **committed** state, so a conflicting draft is caught only on publish.
+⚠ **`allowedDomains` and `canonical.embed` are computed compatibility fields**, no columns behind them, read from `site` for the widget's current `/clients/me` select (the analytics domain and the `routing=path` prefix). They go once SahajAtlasWeb reads `site` directly.
 
-`required` plus an `admin.condition` is the mechanism, not a hazard — Payload skips both `required` and a custom `validate` while the condition is false, so `required` on `embed` reads as "required when ownership is on." An integration test saves a canonical-disabled service with no embed through a plain API write, proving this holds for non-admin writes too. The whole gating design rests on it.
+## Region ownership + observed embeds (#633)
+
+`region` is set by an admin and does two things on purpose: it is where the map opens, and the region whose atlas links the service's site may own. Empty is **Worldwide** — the map opens on the world and the site owns nothing, except the client `sy-atlas-config` names as the canonical fallback.
+
+### `canonical.owned` — who owns a region's canonical URLs
+
+`client.region` alone can't identify an owner — several services can map to one country. Ownership is a flag the server writes: the Install tab's claim (`POST /api/clients/:id/claim-canonical`) sets it when the region is unowned, the page has reported and can give classes their own links; the VerifyEmbeds job clears it after three failures; an admin may release it on the Diagnostics tab.
+
+**One definition of ownership, read everywhere.** `CANONICAL_ELIGIBLE` (`owned` and `enabled`) plus `canonicalOwnerFrom` (a valid verified host) in `src/lib/atlas/regionOwners.ts`, with `ownedSiteOrigin(row)` as the in-memory twin for a row already in hand. Canonical URLs, the sitemap, the SEO root, the fallback client and the registrant emails' site link all go through them — the emails link to `https://<verified host>` only while the service owns its region.
+
+`validateCanonicalOwnership` (beforeChange) enforces the rest: a second owner of a region is rejected, naming the incumbent; a Worldwide service cannot own unless it is the fallback; and **ownership does not follow a region change** — moving an owning service clears the flag, and the next Check claims the new region if it is free. It skips when nothing the rule reads has moved.
 
 ### Verification — how a nomination becomes a canonical URL
 
-`canonical.embed` is only a nomination. A canonical URL is built from `canonical.verification.verified`, written **solely** by the CMS after it loads the page itself — a real browser is required, since the widget is JavaScript and fetching HTML would only prove a `<script>` tag exists.
+The primary page is only a nomination. A canonical URL is built from `canonical.verification.verified`, written **solely** by the CMS after it loads the page itself — a real browser is required, since the widget is JavaScript and fetching HTML would only prove a `<script>` tag exists.
 
 - **The marker** is `data-sahaj-atlas-ready` on `<html>`, carrying `{ v, routing, topLevel, urlWritable }` (the cross-repo contract from sydevs/SahajAtlasWeb#153, #159). Its `routing` says what the widget was asked to do, so the verifier no longer records it — see "Routing is derived, never configured" below.
 - **`src/jobs/VerifyEmbeds`** runs nightly, watermarked on `nextVerifyAt`, bounded to enabled services. Three consecutive failures turn ownership off and notify `primaryContact`, via the atomic-SQL seam, not `payload.update`.
@@ -36,7 +50,7 @@ Two Atlas white-label fields, split across the **Atlas** and **SEO** tabs. `cano
 
 **Exercised for real** by `pnpm tsx scripts/verify-embed-live.ts --self-test`, which drives all four outcomes against the live API — every unit test stubs the render. Its error codes (`6002` selector timeout, `5006` network/DNS, `10000` auth) are pinned in `tests/unit/embed-verification.spec.ts`. Prose matching is a fallback only, since the messages are generic enough to be misleading.
 
-**What the marker proves, precisely.** It detects an embed that is installed and _not working_ — the one thing a client-sent report can never reveal. It does **not** prove the page is honest: the attribute carries no nonce, so any host running our script can hand-write it. The trust boundary stays `allowedDomains`. What the marker buys is that a stolen key can claim a mount on the client's domain, but can't make that domain serve a marker it doesn't control.
+**What the marker proves, precisely.** It detects an embed that is installed and _not working_ — the one thing a client-sent report can never reveal. It does **not** prove the page is honest: the attribute carries no nonce, so any host running our script can hand-write it. The trust boundary stays the service's domain. What the marker buys is that a stolen key can claim a mount on the client's domain, but can't make that domain serve a marker it doesn't control.
 
 ### Routing is derived, never configured (#644)
 
@@ -48,7 +62,7 @@ Read it at the call site, as `verification?.routingProbe?.verdict ?? 'query'` �
 
 - **The probe is a second render, not a new subsystem.** `probeRouting` loads `<mount>/<random-token>` and the control `<origin>/<random-token>`. A positive needs both: the marker under the prefix **and** its absence at the origin, which is what a host mounting the widget on its own 404 page fails. The token is random and never a real slug — a site can hand-build `/gb/london`, and one working page proves nothing about the subtree.
 - **The two probe renders start together, and that is a latency rule, not a verdict rule.** The verdict still reads the probe first and returns it unless positive. Sequentially the promote path was three renders end to end at `RENDER_TIMEOUT_MS` each, and Cloudflare abandons an origin response at 100s — so "Verify now" answered a 524 on the very press that promoted a service, after the row was written. The cost is the control render on a host that fails the probe, where it used to be skipped: an enabled owner now spends three renders (mount, token, control), which is the budget #644 sets, and one where the mount verification failed.
-- **Both URLs are derived from `canonical.embed` in one place** (`routingProbeUrls`), so an operator-typed string cannot reach the renderer by another route. A mount carrying a query string is a negative spending no render — `canonicalUrlBase` refuses that combination anyway.
+- **Both URLs are derived from the primary page in one place** (`routingProbeUrls`), so an operator-typed string cannot reach the renderer by another route. A mount carrying a query string is a negative spending no render — `canonicalUrlBase` refuses that combination anyway.
 - **The ladder is asymmetric, because the failures are.** A wrong `path` 404s every deep link and puts dead URLs in the sitemap. A wrong `query` only produces uglier URLs that work. So: promote on one positive, demote only after `ROUTING_PROBE_FAILURE_LIMIT` consecutive negatives.
 - **Its own counter, never `failureCount`.** That one becomes `disable`, which switches canonical ownership off and emails the manager. A routing negative means the embed is present and publishing, so a shared counter would delete working public URLs over a URL-shape preference. `query` is a real canonical: the builder has a full arm for it, it is the default in both readers, and six `query` cases are pinned in `atlas-url-contract.json`.
 - **The verdict survives a null `verified`**, which is why it sits beside it: a client should path-route as soon as its host serves the subtree, whether or not it is publishing canonical URLs yet.
@@ -71,17 +85,17 @@ Admin-readonly JSON, keyed by **origin + pathname**, one record per mount (`mode
 
 The write path (`Clients/endpoints/report.ts`). Merges into the keyed object. It never replaces it. Since `clients` is excluded from the usage plugin, no `beforeOperation` hook fires here — the handler gates on `requireClientAccess`, which runs the origin check itself, and usage tracking likewise does not apply.
 
-Two origin checks apply: the request's `Origin`/`Referer` must be in `allowedDomains`, and so must the reported `url`'s host — a client can only describe pages on domains it owns. `url` is origin plus pathname only. A query string or fragment is rejected (`400`, `query_or_fragment`), not stripped, since the widget already strips them and a payload carrying either means the widget is misbehaving.
+Two origin checks apply: the request's `Origin`/`Referer` must be the service's domain (`siteHosts`), and so must the reported `url`'s host — a client can only describe pages on its own site, and a service with no domain reports nothing. `url` is origin plus pathname only. A query string or fragment is rejected (`400`, `query_or_fragment`), not stripped, since the widget already strips them and a payload carrying either means the widget is misbehaving.
 
 Rate limiting is Cloudflare's, at the edge, as for every client route. On top of that, a repeat of a recent identical observation gets `updated: false` with **no read and no write** — the widget reports on every page load, so this path carries most of the traffic.
 
-- **The cap bounds storage, never which mounts are knowable** (#639). `MAX_EMBED_MOUNTS` (50) caps what a forger can accumulate. A client at the cap still reports a new mount, evicting the least-recently-seen entry, so the held 50 reflect what is currently live. There is no 429 — refusing growth was tried first, and once ordinary traffic filled the budget an operator's intended page could never get reported. Two exceptions to eviction: the designated `canonical.embed` is never evicted, and the mount just reported can't be evicted by the write that reports it.
+- **The cap bounds storage, never which mounts are knowable** (#639). `MAX_EMBED_MOUNTS` (50) caps what a forger can accumulate. A client at the cap still reports a new mount, evicting the least-recently-seen entry, so the held 50 reflect what is currently live. There is no 429 — refusing growth was tried first, and once ordinary traffic filled the budget an operator's intended page could never get reported. Two exceptions to eviction: the primary page's report is never evicted, and the mount just reported can't be evicted by the write that reports it.
 
   `mergeEmbedReport` (`embedMetadata.ts`) computes the decision. The endpoint applies it in one statement — `|| $1::jsonb` merges, `- $2::text[]` deletes evicted keys. Both halves matter: `||` alone can't delete, so the column would grow unbounded while the cap stayed inert.
 
 - Registered in the OpenAPI shim but stays `x-internal` (`docs/rules/openapi.md`).
 
-Tests: `tests/unit/client-embed-metadata.spec.ts` (mount keys incl. `?p=`, the merge), `tests/unit/embed-verification.spec.ts` (marker parsing, error classification, failed/inconclusive), `tests/unit/canonical-embed-picker.spec.ts` (URL building, the three-strike ladder, picker options), `tests/int/client-canonical.int.spec.ts` (the hook, the endpoint, the job ladder, the cap, and that enabling ownership re-roots `webUrl` while `webPath` stays byte-identical).
+Tests: `tests/unit/client-embed-metadata.spec.ts` (mount keys incl. `?p=`, the merge), `tests/unit/embed-verification.spec.ts` (marker parsing, error classification, failed/inconclusive), `tests/int/client-canonical.int.spec.ts` (the hook, the endpoint, the job ladder, the cap, and that enabling ownership re-roots `webUrl` while `webPath` stays byte-identical).
 
 ### Post-install SEO checks — what a crawler can see (#1055)
 
@@ -105,9 +119,9 @@ A custom document view on `clients`, at `/admin/collections/clients/:id/install`
 
 - **There is no Verify step.** The address is validated as it is typed; a `*.wixsite.com` or `*.wordpress.com` host is named before an hour is spent on a track that cannot work there; and the moment the widget reports itself from the chosen page the tab confirms the embed, claims the region's canonical URLs if nobody holds them, and runs the SEO checks. A button to remember is a button somebody does not press.
 - **Every step has an id**, so a failing check names the step to redo rather than saying something is wrong somewhere. A step nothing can observe says so instead of showing a permanent grey light, and `tests/unit/install-steps.spec.ts` fails a track that routes a check to such a step.
-- **Nothing about the choice or the address is stored.** Neither is worth a column: the install either worked, or the record says what is wrong with it.
+- **Every choice is saved as it is made** — site kind, address, map height, language — with Payload's own `PATCH /api/clients/:id`, so field locks and hooks apply as they do for the form. The region is shown read-only: only an admin sets it. Once the atlas works, a last section links to the Atlas tab for colours, emails and the mailing list.
 - ⚠ **The view reveals the API key**, which is why it reads the row through the database adapter — every ordinary read strips the column (Payload 3.90+). It re-reads the document with the caller's own `req` and `overrideAccess: false` first, and evaluates the `apiKey` field's own lock by hand, so it grants exactly what `POST /api/clients/:id/api-key/reveal` requires and no more.
-- **`POST /api/clients/:id/claim-canonical`** is what switches ownership on. It designates a mount the widget has **already reported** and nothing else, so a forged report can at worst nominate a page that then fails verification — the bound this file already describes. It does **not** re-implement the uniqueness rule: `validateCanonicalOwnership` refuses a second owner and names the incumbent, and the endpoint passes that refusal through in the volunteer's own words.
+- **`POST /api/clients/:id/claim-canonical`** is what sets `canonical.owned`. It takes no body — the page is the record's own primary page — and it claims only a page the widget has **already reported** that can give classes their own links, so a forged report can at worst nominate a page that then fails verification — the bound this file already describes. It does **not** re-implement the uniqueness rule: `validateCanonicalOwnership` refuses a second owner and names the incumbent, and the endpoint passes that refusal through in the volunteer's own words.
 
 The generated Wix snippets — `backend/routers.js`, the router page code, the Custom Element settings — live in `src/components/admin/InstallGuide/templates.ts` and have to agree with `GET /api/atlas/wix/*`; both are in this repo and ship together. Tests: `tests/unit/install-steps.spec.ts`, `tests/unit/install-model.spec.ts`, `tests/unit/wix-templates.spec.ts`.
 

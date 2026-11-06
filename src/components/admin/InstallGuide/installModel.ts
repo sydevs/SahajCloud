@@ -1,6 +1,7 @@
 import type { Step, StepId, Track } from './steps'
 
 import type { EmbedMetadata } from '@/lib/clients/embedMetadata'
+import { normalizeMountPath, siteHosts } from '@/lib/clients/site'
 import type { CanonicalVerification, SeoCheckResult } from '@/lib/clients/verification'
 import { splitMountKey } from '@/lib/clients/verification'
 
@@ -17,7 +18,7 @@ import { stepForCheck } from './steps'
 
 /** A mount the widget has reported, matched against the address being set up. */
 export interface ReportedMount {
-  /** The `origin + pathname` key, which is what `canonical.embed` stores. */
+  /** The `origin + pathname` key `embedMetadata` is keyed by. */
   key: string
   host: string
   mount: string
@@ -27,11 +28,10 @@ export interface ReportedMount {
 /**
  * The reported mounts whose page is the address being installed.
  *
- * ⚠ **Matched on the path, not the host.** The volunteer types `/classes`; only
- * their own site knows what origin it serves that from, and a service may have
- * reported several hosts (a staging copy, a www and an apex). So every mount at
- * that path counts as the atlas showing up, and the one chosen as canonical is
- * the most recently seen — which is the live one.
+ * Matched on the path, and on the host when one is known: a service is one site,
+ * served at its domain or that domain's www twin (`siteHosts`), and the browser
+ * reports whichever the visitor typed. The one chosen is the most recently seen
+ * — which is the live one.
  *
  * A WordPress permalink mount (`/?p=42`) is compared with its query intact,
  * because that query *is* the page there.
@@ -40,16 +40,20 @@ export function reportedMountsFor(args: {
   embedMetadata: EmbedMetadata | null | undefined
   /** `null` while the address has a problem, which matches nothing. */
   atlasUrl: string | null
+  /** The service's domain, which narrows the match to its own site. */
+  host?: string | null
 }): ReportedMount[] {
   const { embedMetadata, atlasUrl } = args
   if (atlasUrl === null || !embedMetadata || typeof embedMetadata !== 'object') return []
 
   const wanted = normalizeMountPath(atlasUrl)
+  const hosts = siteHosts(args.host)
   const mounts: ReportedMount[] = []
 
   for (const [key, record] of Object.entries(embedMetadata)) {
     const split = splitMountKey(key)
     if (!split || normalizeMountPath(split.mount) !== wanted) continue
+    if (hosts.length > 0 && !hosts.includes(split.domain.split(':')[0].toLowerCase())) continue
     const lastSeen = (record as { lastSeen?: unknown } | null)?.lastSeen
     mounts.push({
       key,
@@ -61,13 +65,6 @@ export function reportedMountsFor(args: {
 
   // Newest first, so the live host wins over a staging copy reported last month.
   return mounts.sort((a, b) => (b.lastSeen ?? '').localeCompare(a.lastSeen ?? ''))
-}
-
-/** A mount path, compared the way two spellings of one page should be. */
-function normalizeMountPath(mount: string): string {
-  const [path, query] = mount.split('?')
-  const trimmed = `/${path.split('/').filter(Boolean).join('/')}`
-  return query ? `${trimmed}?${query}` : trimmed
 }
 
 /** How far along the install is. One answer, for the banner at the top. */
@@ -117,10 +114,12 @@ export function buildInstallModel(args: {
   track: Track | null
   /** True while the tab is running verification or the checks. */
   busy?: boolean
+  /** The service's domain, which narrows the reports to its own site. */
+  host?: string | null
 }): InstallModel {
   const { embedMetadata, verification, atlasUrl, track, busy = false } = args
 
-  const reported = reportedMountsFor({ embedMetadata, atlasUrl })
+  const reported = reportedMountsFor({ embedMetadata, atlasUrl, host: args.host })
   const candidate = reported[0] ?? null
   // A track with no search listings ignores the checks the CMS runs regardless.
   const results = track?.searchListings === false ? [] : (verification?.seo?.results ?? [])
@@ -331,40 +330,37 @@ export const MILESTONE_STATUS: Record<MilestoneState, string> = {
 export function buildMilestones(args: {
   model: InstallModel
   verification: CanonicalVerification | null | undefined
-  canonicalEmbed: string | null
-  hasRegion: boolean
+  /** Whether this service's site is the home for its region's links (`canonical.owned`). */
+  owned: boolean
   /** `false` for a track that can give no class a search listing. */
   searchListings: boolean
   /** `false` for a track that cannot put a class's address in the page URL. */
   classAddresses: boolean
   /** The kind of site, named in a Not available status — "Iframe only", "Squarespace". */
   siteKind?: string
-  /** The service's region, named in the Region claimed note. */
-  regionName?: string | null
+  /** The service's region, named in the Region claimed note; `null` is Worldwide. */
+  regionName: string | null
   /** The host the volunteer typed, for the notes, until a canonical embed names one. */
   host?: string | null
 }): Milestone[] {
-  const { model, verification, canonicalEmbed, hasRegion, searchListings, classAddresses } = args
+  const { model, verification, owned, regionName, searchListings, classAddresses } = args
   const [first, ...rest] = model.reported
-  const site =
-    (canonicalEmbed ? URL.parse(canonicalEmbed)?.host : undefined) ??
-    args.host ??
-    first?.host ??
-    'your site'
-  const region = args.regionName ?? 'your region'
+  const site = verification?.verified?.domain ?? args.host ?? first?.host ?? 'your site'
   const problems = model.failures.length
   const row = (
     id: Milestone['id'],
     label: string,
     state: MilestoneState,
     note?: string,
+    /** What a `na` row is not available for, when it is not the kind of site. */
+    naFor?: string,
   ): Milestone => ({
     id,
     label,
     state,
     status:
-      state === 'na' && args.siteKind
-        ? `${MILESTONE_STATUS.na} for ${args.siteKind}`
+      state === 'na' && (naFor ?? args.siteKind)
+        ? `${MILESTONE_STATUS.na} for ${naFor ?? args.siteKind}`
         : MILESTONE_STATUS[state],
     ...(note ? { note } : {}),
   })
@@ -389,11 +385,29 @@ export function buildMilestones(args: {
         )
       : row('seen', 'Atlas detected', 'todo'),
     confirmed,
-    canonicalEmbed
-      ? row('region', 'Region claimed', 'done', `Atlas links for ${region} lead to ${site}`)
-      : hasRegion
-        ? row('region', 'Region claimed', 'todo', `Atlas links for ${region} will lead to ${site}`)
-        : row('region', 'Region claimed', 'warning', 'Ask a maintainer to set your region'),
+    owned
+      ? row(
+          'region',
+          'Region claimed',
+          'done',
+          `Atlas links for ${regionName ?? 'regions without a site of their own'} lead to ${site}`,
+        )
+      : !classAddresses
+        ? row('region', 'Region claimed', 'na', 'Only a page that gives each class its own link')
+        : regionName === null
+          ? row(
+              'region',
+              'Region claimed',
+              'na',
+              'Your map shows the whole world',
+              'a worldwide map',
+            )
+          : row(
+              'region',
+              'Region claimed',
+              'todo',
+              `Atlas links for ${regionName} will lead to ${site}`,
+            ),
     !classAddresses
       ? row('routing', 'Class addresses', 'na', 'An iframe cannot change your page’s address')
       : probe === 'path'
@@ -433,7 +447,14 @@ export function buildMilestones(args: {
 
 /** What `POST /api/clients/:id/claim-canonical` answered, as far as the tab reads it. */
 export interface ClaimAnswer {
-  status: 'claimed' | 'already' | 'needs-region' | 'needs-domains' | 'taken' | 'unknown-mount'
+  status:
+    | 'claimed'
+    | 'already'
+    | 'worldwide'
+    | 'no-class-addresses'
+    | 'taken'
+    | 'unknown-mount'
+    | 'no-page'
   message: string
 }
 
@@ -444,11 +465,15 @@ export interface VerifyAnswer {
   seo: SeoCheckResult[]
 }
 
+/**
+ * The claim answers worth a banner of their own. `worldwide` and
+ * `no-class-addresses` are not here: neither is something to fix, and the status
+ * table already says what each means.
+ */
 const CLAIM_TITLES: Partial<Record<ClaimAnswer['status'], string>> = {
-  'needs-region': 'Your service needs a region',
-  'needs-domains': 'Your domain is not set up yet',
   taken: 'Another site already has this region',
   'unknown-mount': 'We have not seen this page yet',
+  'no-page': 'Add your atlas address first',
 }
 
 /**

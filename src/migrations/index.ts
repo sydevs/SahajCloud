@@ -107,6 +107,7 @@ import * as migration_20261101_191500_atlas_drop_time_in_place from './20261101_
 import * as migration_20261101_202242_block_submitter from './20261101_202242_block_submitter';
 import * as migration_20261103_215150_submitter_identity from './20261103_215150_submitter_identity';
 import * as migration_20261105_214631_drop_client_key_generated_at from './20261105_214631_drop_client_key_generated_at';
+import * as migration_20261105_233009_clients_site_and_enabled from './20261105_233009_clients_site_and_enabled';
 
 export const migrations = [
   {
@@ -652,6 +653,11 @@ export const migrations = [
   {
     up: migration_20261105_214631_drop_client_key_generated_at.up,
     down: migration_20261105_214631_drop_client_key_generated_at.down,
-    name: '20261105_214631_drop_client_key_generated_at'
+    name: '20261105_214631_drop_client_key_generated_at',
+  },
+  {
+    up: migration_20261105_233009_clients_site_and_enabled.up,
+    down: migration_20261105_233009_clients_site_and_enabled.down,
+    name: '20261105_233009_clients_site_and_enabled'
   },
 ];

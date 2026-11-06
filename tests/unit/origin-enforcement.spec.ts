@@ -4,12 +4,8 @@ import { describe, expect, it } from 'vitest'
 
 // Deep import (not the plugin barrel) keeps this in the unit lane — the barrel
 // pulls in hooks → db → pg pool, which the unit lane must not bootstrap.
-import {
-  extractRequestHost,
-  isHostAllowed,
-  normalizeHost,
-  parseAllowedDomains,
-} from '@/plugins/usage/originEnforcement'
+import { siteHosts } from '@/lib/clients/site'
+import { extractRequestHost, isHostAllowed, normalizeHost } from '@/plugins/usage/originEnforcement'
 
 describe('normalizeHost', () => {
   it('strips scheme, userinfo, port, path and lowercases', () => {
@@ -56,23 +52,26 @@ describe('normalizeHost', () => {
   })
 })
 
-describe('parseAllowedDomains', () => {
-  it('splits on newlines and normalizes each entry', () => {
-    expect(parseAllowedDomains('https://a.org\nb.org\n  *.c.org  ')).toEqual([
-      'a.org',
-      'b.org',
-      '*.c.org',
+describe('siteHosts', () => {
+  it('accepts a service on its domain and that domain’s www twin, nothing else', () => {
+    expect(siteHosts('sahajayoga.ca')).toEqual(['sahajayoga.ca', 'www.sahajayoga.ca'])
+    expect(siteHosts('www.sahajayoga.ca')).toEqual(['www.sahajayoga.ca', 'sahajayoga.ca'])
+  })
+
+  it('normalizes what it is given, so a stray scheme or path still names the host', () => {
+    expect(siteHosts('https://Sahajayoga.ca/classes')).toEqual([
+      'sahajayoga.ca',
+      'www.sahajayoga.ca',
     ])
   })
 
-  it('tolerates comma separators, CRLF, and blank lines', () => {
-    expect(parseAllowedDomains('a.org,,\r\n , b.org\n')).toEqual(['a.org', 'b.org'])
-  })
-
-  it('returns [] for empty / null / undefined', () => {
-    expect(parseAllowedDomains('')).toEqual([])
-    expect(parseAllowedDomains(null)).toEqual([])
-    expect(parseAllowedDomains(undefined)).toEqual([])
+  it('never twins a www host down to a bare suffix, and gives a wildcard or no domain nothing', () => {
+    expect(siteHosts('www.ca')).toEqual(['www.ca'])
+    expect(siteHosts('localhost')).toEqual(['localhost', 'www.localhost'])
+    expect(siteHosts('*.sahajayoga.ca')).toEqual([])
+    expect(siteHosts('')).toEqual([])
+    expect(siteHosts(null)).toEqual([])
+    expect(siteHosts(undefined)).toEqual([])
   })
 })
 

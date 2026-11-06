@@ -34,7 +34,7 @@ import { createTestEnvironment } from '../utils/testHelpers'
 type TestUser = {
   id: number | string
   collection: string
-  _status?: 'published' | 'draft'
+  enabled?: boolean
   roles?: string[]
 } | null
 
@@ -178,9 +178,9 @@ describe('atlasSeo endpoint', () => {
       name: 'UK Atlas Client',
       roles: ['sahaj-atlas-client'],
       region: region.uk,
+      site: { domain: OWNER_DOMAIN, page: OWNER_MOUNT },
       canonical: {
-        enabled: true,
-        embed: `https://${OWNER_DOMAIN}${OWNER_MOUNT}`,
+        owned: true,
         verification: {
           verified: {
             domain: OWNER_DOMAIN,
@@ -195,7 +195,7 @@ describe('atlasSeo endpoint', () => {
           routingProbe: { at: '2026-08-18T00:00:00.000Z', verdict: 'path', failedAttempts: 0 },
         },
       },
-      _status: 'published',
+      enabled: true,
     } as never)
 
     const clientDoc = await testData.createClient(payload, managerId, {
@@ -205,7 +205,7 @@ describe('atlasSeo endpoint', () => {
     client = {
       id: clientDoc.id,
       collection: 'clients',
-      _status: 'published',
+      enabled: true,
       roles: ['sahaj-atlas-client'],
     }
 
@@ -228,7 +228,7 @@ describe('atlasSeo endpoint', () => {
     it.each([
       ['unauthenticated callers', null],
       ['managers', { id: 1, collection: 'managers' }],
-      ['unpublished (draft) clients', { id: 1, collection: 'clients', _status: 'draft' as const }],
+      ['unpublished (draft) clients', { id: 1, collection: 'clients', enabled: false }],
     ])('rejects %s with 403', async (_label, user) => {
       const { status } = await callSeo({ route: '/united-kingdom' }, user as TestUser)
       expect(status).toBe(403)
@@ -770,7 +770,7 @@ describe('atlasSeo endpoint', () => {
       const ownerUser = {
         id: owner.docs[0].id,
         collection: 'clients',
-        _status: 'published',
+        enabled: true,
         roles: ['sahaj-atlas-client'],
       } as TestUser
 

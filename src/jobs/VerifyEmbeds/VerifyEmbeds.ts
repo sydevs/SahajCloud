@@ -1,5 +1,6 @@
 import type { Payload, PayloadRequest, TaskConfig } from 'payload'
 
+import { primaryPageUrl } from '@/lib/clients/site'
 import type {
   CanonicalVerification,
   RoutingProbeResult,
@@ -49,7 +50,7 @@ import { getPgPool, quotedDbSchema } from '@/plugins/usage'
  */
 type DueClient = Pick<
   Client,
-  'id' | 'name' | 'canonical' | 'managers' | 'primaryContact' | 'language'
+  'id' | 'name' | 'canonical' | 'site' | 'managers' | 'primaryContact' | 'language'
 >
 
 interface VerifyResult {
@@ -59,7 +60,7 @@ interface VerifyResult {
   failed: number
   /** Runs that told us nothing — provider errors, quota, bot challenges. */
   inconclusive: number
-  /** Services whose canonical ownership was switched off this run. */
+  /** Services that stopped being the home for their region's links this run. */
   disabled: number
   /** Services the routing probe moved onto `path` URLs this run. */
   pathPromoted: number
@@ -81,15 +82,16 @@ const updateSql = (quotedSchema: string) => `
   UPDATE ${quotedSchema}.clients
   SET canonical_verification = $1::jsonb,
       canonical_next_verify_at = $2,
-      canonical_enabled = CASE WHEN $3::boolean THEN false ELSE canonical_enabled END
+      canonical_owned = CASE WHEN $3::boolean THEN false ELSE canonical_owned END
   WHERE id = $4
 `
 
 /**
  * Services due for a check.
  *
- * One indexed predicate plus the ownership flag, the same shape `ExpireEvents` uses against
- * `nextCheckAt`. A service that has never been checked has a null watermark, so it is picked up by
+ * Every active service with a primary page, not only the ones that own their region: a page
+ * that is not running the atlas is worth knowing about whatever it owns. One indexed watermark,
+ * the same shape `ExpireEvents` uses against `nextCheckAt`. A service that has never been checked has a null watermark, so it is picked up by
  * the `exists: false` arm rather than waiting for a backfill.
  */
 async function dueClients(payload: Payload, req: PayloadRequest, now: Date): Promise<DueClient[]> {
@@ -97,7 +99,9 @@ async function dueClients(payload: Payload, req: PayloadRequest, now: Date): Pro
     collection: 'clients',
     where: {
       and: [
-        { 'canonical.enabled': { equals: true } },
+        { enabled: { equals: true } },
+        { 'site.domain': { exists: true } },
+        { 'site.page': { exists: true } },
         {
           or: [
             { 'canonical.nextVerifyAt': { less_than_equal: now.toISOString() } },
@@ -110,6 +114,7 @@ async function dueClients(payload: Payload, req: PayloadRequest, now: Date): Pro
     select: {
       name: true,
       canonical: true,
+      site: true,
       managers: true,
       primaryContact: true,
       // The service's own language, which the SEO checks resolve expectations in.
@@ -138,12 +143,13 @@ async function notifyDisabled(payload: Payload, client: DueClient, mount: string
 
     await payload.sendEmail({
       to: manager.email,
-      subject: `Canonical URLs switched off for ${client.name}`,
+      subject: `${client.name} is no longer the home for its region’s atlas links`,
       html:
-        `<p>The Sahaj Atlas embed at <code>${mount}</code> failed verification three times in a row, ` +
-        `so canonical ownership for <strong>${client.name}</strong> has been switched off.</p>` +
-        `<p>Nothing else about the service changed. Once the embed is working again, re-enable ` +
-        `canonical ownership in the admin panel and use “Verify now” to confirm it.</p>`,
+        `<p>We could not find the Sahaj Atlas on <code>${mount}</code> three times in a row, ` +
+        `so <strong>${client.name}</strong> is no longer the home for its region’s atlas links.</p>` +
+        `<p>Nothing else about the service changed. Once the map is working again, open the ` +
+        `service’s Install tab and press Check again: the region comes back to your site if no ` +
+        `other site has taken it.</p>`,
     })
   } catch (error) {
     // A failed notice must not undo the disable — the disable is the safety action.
@@ -211,7 +217,7 @@ export async function runVerifyEmbeds(args: {
   const schema = quotedDbSchema(req)
 
   for (const client of await dueClients(payload, req, now)) {
-    const mount = client.canonical?.embed
+    const mount = primaryPageUrl(client.site)
     if (!mount) continue
 
     result.processed++
@@ -287,10 +293,12 @@ export async function runVerifyEmbeds(args: {
       })
     }
 
-    if (transition.disable) {
+    // Every service is checked, but only an owner has anything to lose: the
+    // write clears `owned` either way, and only a cleared one is news.
+    if (transition.disable && client.canonical?.owned) {
       result.disabled++
       payload.logger.warn({
-        msg: 'VerifyEmbeds: canonical ownership switched off after repeated failures',
+        msg: 'VerifyEmbeds: region ownership released after repeated failures',
         clientId: client.id,
         mount,
       })

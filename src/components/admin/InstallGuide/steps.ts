@@ -1,9 +1,10 @@
 import type { InstallValues } from './templates'
 
 import { isValidWixPrefix } from '@/lib/atlas/wixPrefix'
-import type { SeoCheckId } from '@/lib/clients/verification'
 // Deep, never the `@/plugins/usage` barrel: this module reaches the browser.
-import { isHostAllowed } from '@/plugins/usage/originEnforcement'
+import type { SiteTrack } from '@/lib/clients/site'
+import { siteHosts } from '@/lib/clients/site'
+import type { SeoCheckId } from '@/lib/clients/verification'
 
 import {
   CONTENT_ELEMENT_ID,
@@ -39,7 +40,8 @@ import {
 export type PlatformId = 'wordpress' | 'wix' | 'squarespace' | 'custom' | 'iframe'
 
 /** The sub-choice inside a platform, or the platform itself where there is none. */
-export type TrackId = 'wp-selfhosted' | 'wp-com' | 'wix' | 'squarespace' | 'custom' | 'iframe'
+/** `site.track`'s vocabulary, which the record stores so the tab reopens on the same track. */
+export type TrackId = SiteTrack
 
 /**
  * Every step any track can have.
@@ -805,27 +807,28 @@ export interface HostHint extends Notice {
  * deliberately no server-side detection: a guess about somebody's hosting that
  * turns out wrong is worse than asking.
  *
- * `allowedDomains` is the service's own list, already parsed. An empty list
- * declares nothing, and `claim-canonical` refuses it exactly as it refuses a
- * host the list does not name.
+ * `savedDomain` is the domain the service had when the tab opened. A service is
+ * one site, and its key works on that site alone, so an address on another
+ * domain moves the whole service there — which deserves a warning, not silence.
  */
 export function hostHints(args: {
   address: AtlasAddress
   platform: PlatformId
   trackId: TrackId | null
-  allowedDomains: string[]
+  savedDomain?: string | null
 }): HostHint[] {
-  const { address, platform, trackId, allowedDomains } = args
+  const { address, platform, trackId, savedDomain } = args
   const host = address.host?.toLowerCase()
   if (!host) return []
   const hints: HostHint[] = []
   const under = (domain: string) => host === domain || host.endsWith(`.${domain}`)
 
-  if (!allowedDomains.some((pattern) => isHostAllowed(host, [pattern]))) {
+  const saved = siteHosts(savedDomain)
+  if (saved.length > 0 && !saved.includes(host)) {
     hints.push({
       tone: 'warning',
-      title: `${host} is not set up for this service yet`,
-      text: 'Ask a Sahaj Atlas maintainer to add it. Until then, we cannot confirm your install.',
+      title: `This moves the service to ${host}`,
+      text: `The map will only load on ${host} from now on. A second site needs a service of its own.`,
     })
   }
 
@@ -892,8 +895,8 @@ export interface AtlasAddress {
  * ⚠ **On Wix the router prefix *is* this path, and must stay the claimed
  * mount's.** The route endpoint decides whether a page is self-canonical by
  * comparing hosts, trusting that the router sits at the mount the client
- * designated — so the tab prefills the address from `canonical.embed` rather
- * than offering a free choice.
+ * designated — so the tab reopens on the saved address (`site`) rather than
+ * an empty field.
  */
 export function readAtlasAddress(
   input: string,

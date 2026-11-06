@@ -13,6 +13,7 @@
  * Pure strings, no React, so the Install tab renders them and
  * `tests/unit/wix-templates.spec.ts` pins them against the endpoint's own shape.
  */
+import type { EmbedHeight } from '@/lib/clients/site'
 
 /** What the generated snippets expect the router page's text element to be named. */
 export const CONTENT_ELEMENT_ID = 'sahajAtlasContent'
@@ -52,7 +53,7 @@ export interface InstallValues {
  * free number is not offered because below 420px the widget gives up on the map
  * and shows its compact card.
  */
-export type EmbedHeight = 'fixed' | 'screen' | 'window'
+export type { EmbedHeight }
 
 /** The element's inline style per choice; `null` is the window-filling map. */
 export const EMBED_HEIGHT_STYLE: Record<EmbedHeight, string | null> = {

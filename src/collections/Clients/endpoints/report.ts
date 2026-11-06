@@ -9,9 +9,10 @@ import {
   mergeEmbedReport,
   parseMountKey,
 } from '@/lib/clients/embedMetadata'
+import { primaryReport, siteHosts } from '@/lib/clients/site'
 import { parseBody, requireClientAccess } from '@/lib/endpoints'
 import type { Client } from '@/payload-types'
-import { getPgPool, isHostAllowed, parseAllowedDomains, quotedDbSchema } from '@/plugins/usage'
+import { getPgPool, isHostAllowed, quotedDbSchema } from '@/plugins/usage'
 
 /**
  * Merge one mount into `embed_metadata` as a single atomic statement.
@@ -35,25 +36,17 @@ import { getPgPool, isHostAllowed, parseAllowedDomains, quotedDbSchema } from '@
  * the right operator: a whole-column overwrite would reintroduce the read-modify-write window on the
  * one path where the record is largest. An empty array is a no-op.
  *
- * ⚠ **The latest `_clients_v` row gets the merged value too, in the same statement.** Payload builds
- * every update on that version row (`getLatestCollectionVersion` in `updateByID`), not on the
- * published one, so a mount written to `clients` alone was dropped by the next save of the service
- * — `claim-canonical` and `verify-embed` included, which is what emptied "Atlas detected" on the
- * Install tab right after a successful check.
+ * `clients` keeps no versions, so the row is the whole record: a later save of the service builds
+ * on it and keeps the merged value. (While it had drafts, every save rebuilt the row from its
+ * latest version row and dropped a mount written here alone.)
  *
  * It skips the column's JSON Schema validator. Safe because the entry is built here from a
  * Zod-validated body; no caller-supplied shape reaches the column.
  */
 const embedMergeSql = (quotedSchema: string) => `
-  WITH merged AS (
-    UPDATE ${quotedSchema}.clients
-    SET embed_metadata = (COALESCE(embed_metadata, '{}'::jsonb) || $1::jsonb) - $2::text[]
-    WHERE id = $3
-    RETURNING embed_metadata
-  )
-  UPDATE ${quotedSchema}._clients_v
-  SET version_embed_metadata = (SELECT embed_metadata FROM merged)
-  WHERE parent_id = $3 AND latest = true
+  UPDATE ${quotedSchema}.clients
+  SET embed_metadata = (COALESCE(embed_metadata, '{}'::jsonb) || $1::jsonb) - $2::text[]
+  WHERE id = $3
 `
 
 /** Response body of a successful `POST /api/clients/report`. */
@@ -109,13 +102,15 @@ const MOUNT_KEY_MESSAGES = {
  *
  * Two origin checks, both needed:
  *
- * - **The request's** `Origin`/`Referer` must be in `allowedDomains`. `clients`
+ * - **The request's** `Origin`/`Referer` must be the service's domain. `clients`
  *   is excluded from the usage plugin (`usagePlugin.ts`), so *no*
  *   `beforeOperation` hook fires on this route — the assertion is called by hand,
  *   the way the root `atlasSeo` endpoint does it.
- * - **The reported mount's host** must be in `allowedDomains` too. A client can
- *   only ever describe pages on domains it owns, whether or not a browser sent
- *   an `Origin` header.
+ * - **The reported mount's host** must be the service's domain too
+ *   (`siteHosts`). A client can only ever describe pages on its own site,
+ *   whether or not a browser sent an `Origin` header — and a service with no
+ *   domain yet reports nothing, which is what keeps a key holder from filling
+ *   an unconfigured service's reports with pages of their choosing.
  *
  * Rate limiting is Cloudflare's at the edge (500/min per client+IP), as for
  * every other client route — the app has no limiter of its own.
@@ -147,18 +142,18 @@ export const clientEmbedReport: Endpoint = {
     }
 
     // `req.user` is the full client doc — the API-key strategy loads it, which
-    // is why origin enforcement reads `allowedDomains` off it too. Reading
+    // is why origin enforcement reads `site.domain` off it too. Reading
     // `embedMetadata` from there keeps the no-op path free of any query.
     const client = req.user as Client
-    const patterns = parseAllowedDomains(client.allowedDomains)
-    if (patterns.length > 0 && !isHostAllowed(mount.host, patterns)) {
+    const hosts = siteHosts(client.site?.domain)
+    if (!isHostAllowed(mount.host, hosts)) {
       req.payload.logger.warn({
-        msg: 'clientEmbedReport: reported mount host is not in allowedDomains',
+        msg: 'clientEmbedReport: reported mount host is not the service’s domain',
         clientId: client.id,
         host: mount.host,
       })
       return Response.json(
-        { errors: [{ message: 'This URL is not on a domain allowed for this API client.' }] },
+        { errors: [{ message: 'This URL is not on this API client’s domain.' }] },
         { status: 403 },
       )
     }
@@ -169,7 +164,7 @@ export const clientEmbedReport: Endpoint = {
       observation,
       at: new Date().toISOString(),
       // Spared by the cap whatever its `lastSeen` — see `pinned`.
-      pinned: client.canonical?.embed,
+      pinned: primaryReport(client.embedMetadata, client.site)?.key,
     })
 
     if (changed) {

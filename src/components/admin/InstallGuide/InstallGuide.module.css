@@ -396,3 +396,41 @@
 .stateNa.status {
   white-space: normal;
 }
+
+/* Whether the last choice was kept: quiet, beside the section heading. */
+.saveState,
+.saveError {
+  margin-left: calc(var(--base) * 0.5);
+  font-size: 0.6em;
+  font-weight: 400;
+  vertical-align: middle;
+  color: var(--theme-elevation-500);
+}
+
+.saveError {
+  color: var(--theme-error-500);
+}
+
+/* The Atlas tab's read-only summary of where the atlas lives. */
+.summary {
+  margin-bottom: calc(var(--base) * 1.5);
+  padding: calc(var(--base) * 0.75) var(--base);
+  border: 1px solid var(--theme-elevation-150);
+  border-radius: var(--style-radius-m);
+}
+
+.summaryList {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: calc(var(--base) * 0.25) var(--base);
+  margin: 0 0 calc(var(--base) * 0.5);
+
+  dt {
+    color: var(--theme-elevation-500);
+  }
+
+  dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+}

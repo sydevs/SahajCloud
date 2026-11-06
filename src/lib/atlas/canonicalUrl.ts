@@ -59,7 +59,7 @@ export const ATLAS_QUERY_PARAM = 'atlas'
  * `splitMountKey` records `url.host`, which keeps a port.
  *
  * A mount of `https://example.org:8080/` therefore stores `example.org:8080` —
- * past `allowedDomains`, which compares port-stripped hostnames — and would
+ * past the origin check, which compares port-stripped hostnames — and would
  * interpolate into a public canonical naming a port nobody chose. Refusing it
  * here means such a client owns nothing and falls through to the next ancestor,
  * which is the honest answer: we cannot express that page as a canonical host.

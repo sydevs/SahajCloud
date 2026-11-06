@@ -134,7 +134,7 @@ export type MountKeyResult =
  * the widget is misbehaving, and quietly cleaning it up would hide that.
  *
  * Returns the normalized `origin + pathname` key plus the bare `host`, which
- * the caller checks against the client's `allowedDomains`.
+ * the caller checks against the client's domain (`siteHosts`).
  */
 export function parseMountKey(raw: string): MountKeyResult {
   if (raw.length > MAX_MOUNT_KEY_LENGTH) return { ok: false, reason: 'too_long' }
@@ -273,7 +273,7 @@ export interface MergeEmbedReportArgs {
   at: string
   /**
    * A mount that must survive eviction whatever its `lastSeen` — in practice
-   * the client's `canonical.embed`, the one an operator designated.
+   * the report from the client's own primary page (`primaryReport`).
    *
    * Eviction is keyed on recency, and recency is a proxy for "still live" that
    * a canonical page can fail: it is one page competing with however many the

@@ -1,6 +1,7 @@
 import type { Endpoint } from 'payload'
 
 import type { RoutingMode } from '@/lib/clients/canonical'
+import { primaryPageUrl } from '@/lib/clients/site'
 import type { SeoCheckResult } from '@/lib/clients/verification'
 import {
   nextRoutingProbeState,
@@ -97,9 +98,9 @@ export const verifyEmbedOnDemand: Endpoint = {
       return errorResponse('Service not found.', 404)
     }
 
-    const mount = client.canonical?.embed
+    const mount = primaryPageUrl(client.site)
     if (!mount) {
-      return errorResponse('No canonical embed is selected for this service.', 400)
+      return errorResponse('This service has no atlas address yet.', 400)
     }
 
     const now = new Date()

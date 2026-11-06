@@ -268,26 +268,29 @@ describe('the parent allowlist', () => {
     'http://localhost:61000',
     'http://127.0.0.1:5174',
     'https://partner.org',
-    'https://www.other-partner.net',
+    // A client's domain brings its www twin, both ways round.
+    'https://www.partner.org',
+    'https://other-partner.net',
   ])('allows %s', (parent) => {
-    const patterns = allowedParentHosts(FIRST_PARTY, ['partner.org', '*.other-partner.net'])
+    const patterns = allowedParentHosts(FIRST_PARTY, ['partner.org', 'www.other-partner.net'])
     expect(isParentAllowed(parent, patterns)).toBe(true)
   })
 
   it.each([
     'https://www.example.org',
     'https://evil-partner.org',
-    'https://other-partner.net',
+    // One domain per client: no other subdomain rides along with it.
+    'https://lyon.partner.org',
     'https://partner.org.evil.example',
     // Another account's Workers subdomain, and the apex the wildcard must not reach.
     'https://pr-1-theirs.evil-c66.workers.dev',
     'https://contact-c66.workers.dev',
   ])('refuses %s', (parent) => {
-    const patterns = allowedParentHosts(FIRST_PARTY, ['partner.org', '*.other-partner.net'])
+    const patterns = allowedParentHosts(FIRST_PARTY, ['partner.org', 'www.other-partner.net'])
     expect(isParentAllowed(parent, patterns)).toBe(false)
   })
 
-  it('takes nothing from a client with an empty list — empty is not "any origin" here', () => {
+  it('takes nothing from a client with no domain — none is not "any origin" here', () => {
     const patterns = allowedParentHosts(FIRST_PARTY, [null, '', '  '])
 
     expect(patterns).toEqual(builtInParentHosts(FIRST_PARTY))

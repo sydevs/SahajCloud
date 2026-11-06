@@ -287,8 +287,9 @@ describe('buildMilestones', () => {
   const milestones = (args: {
     verification?: CanonicalVerification | null
     reported?: boolean
-    canonicalEmbed?: string | null
-    hasRegion?: boolean
+    owned?: boolean
+    /** A worldwide map: no region. */
+    worldwide?: boolean
     trackId?: 'iframe' | 'wix' | 'squarespace' | null
   }) => {
     const verification = args.verification ?? null
@@ -301,12 +302,11 @@ describe('buildMilestones', () => {
     return buildMilestones({
       model,
       verification,
-      canonicalEmbed: args.canonicalEmbed ?? null,
-      hasRegion: args.hasRegion ?? true,
+      owned: args.owned ?? false,
       searchListings: args.trackId !== 'iframe' && args.trackId !== 'squarespace',
       classAddresses: args.trackId !== 'iframe',
       siteKind: args.trackId === 'iframe' ? 'Iframe only' : 'Squarespace',
-      regionName: 'Ontario',
+      regionName: args.worldwide ? null : 'Ontario',
     })
   }
   const states = (list: ReturnType<typeof milestones>) =>
@@ -335,7 +335,7 @@ describe('buildMilestones', () => {
     const vocabulary = new Set(Object.values(MILESTONE_STATUS))
     for (const list of [
       milestones({ reported: false }),
-      milestones({ hasRegion: false }),
+      milestones({ worldwide: true }),
       milestones({ trackId: 'iframe' }),
     ]) {
       for (const milestone of list) {
@@ -348,7 +348,7 @@ describe('buildMilestones', () => {
 
   it('finishes every row for a clean install', () => {
     const list = milestones({
-      canonicalEmbed: 'https://sahajayoga.ca/free-classes',
+      owned: true,
       verification: verified({
         routingProbe: { at: '2026-10-01T00:00:00.000Z', verdict: 'path', failedAttempts: 0 },
         seo: seo([{ route: '/', check: 'title', status: 'pass' }]),
@@ -363,7 +363,7 @@ describe('buildMilestones', () => {
     expect(byId(milestones({})).region).toBe('Atlas links for Ontario will lead to sahajayoga.ca')
     const done = byId(
       milestones({
-        canonicalEmbed: 'https://sahajayoga.ca/free-classes',
+        owned: true,
         verification: verified({
           routingProbe: { at: '2026-10-01T00:00:00.000Z', verdict: 'path', failedAttempts: 0 },
           seo: seo([{ route: '/', check: 'title', status: 'pass' }]),
@@ -377,9 +377,9 @@ describe('buildMilestones', () => {
     })
   })
 
-  it('counts search problems, and flags a service with no region', () => {
+  it('counts search problems, and marks a worldwide map as owning no region', () => {
     const list = milestones({
-      hasRegion: false,
+      worldwide: true,
       verification: verified({
         seo: seo([
           { route: '/', check: 'title', status: 'fail' },
@@ -390,7 +390,22 @@ describe('buildMilestones', () => {
     const byId = Object.fromEntries(list.map((milestone) => [milestone.id, milestone]))
     expect(byId.search).toMatchObject({ state: 'failed', status: 'Needs fixing' })
     expect(byId.search.note).toMatch(/^2 problems/)
-    expect(byId.region).toMatchObject({ state: 'warning', status: 'Needs action' })
+    expect(byId.region).toMatchObject({ state: 'na', status: 'Not available for a worldwide map' })
+  })
+
+  it('names the regions a worldwide fallback owner is the home for', () => {
+    const region = milestones({ worldwide: true, owned: true, verification: verified() }).find(
+      (milestone) => milestone.id === 'region',
+    )
+    expect(region).toMatchObject({
+      state: 'done',
+      note: 'Atlas links for regions without a site of their own lead to sahajayoga.ca',
+    })
+  })
+
+  it('gives a page with no class addresses no region to own, whatever its region', () => {
+    const region = milestones({ trackId: 'iframe' }).find((milestone) => milestone.id === 'region')
+    expect(region).toMatchObject({ state: 'na', status: 'Not available for Iframe only' })
   })
 
   it('counts ?atlas= links as class addresses', () => {
@@ -427,7 +442,9 @@ describe('buildMilestones', () => {
 
   it('names the kind of site in a Not available status', () => {
     const list = milestones({ trackId: 'iframe' }).filter((milestone) => milestone.state === 'na')
+    // Region, class addresses and search listings: an iframe can have none of them.
     expect(list.map((milestone) => milestone.status)).toEqual([
+      'Not available for Iframe only',
       'Not available for Iframe only',
       'Not available for Iframe only',
     ])
@@ -472,11 +489,24 @@ describe('checkOutcome', () => {
     const banner = checkOutcome({
       path: '/classes',
       reported: true,
-      claim: { status: 'needs-region', message: 'Set a region on this service first.' },
+      claim: { status: 'taken', message: 'Another site already owns it.' },
       verify: null,
     })
-    expect(banner).toMatchObject({ type: 'warning', title: 'Your service needs a region' })
-    expect(banner.text).toBe('Set a region on this service first.')
+    expect(banner).toMatchObject({ type: 'warning', title: 'Another site already has this region' })
+    expect(banner.text).toBe('Another site already owns it.')
+  })
+
+  it('raises no warning for a claim that has nothing to fix', () => {
+    for (const status of ['worldwide', 'no-class-addresses'] as const) {
+      expect(
+        checkOutcome({
+          path: '/classes',
+          reported: true,
+          claim: { status, message: 'Nothing to own.' },
+          verify: verified([{ route: '/', check: 'title', status: 'pass' }]),
+        }),
+      ).toMatchObject({ type: 'success' })
+    }
   })
 
   it('reports a failed verification as an error, in the endpoint own words', () => {

@@ -73,8 +73,8 @@ export async function runSeoChecksForClient(args: {
   })
   // ⚠ **No headers.** Spreading the caller's request carried the admin panel's
   // own `Origin` through, and `assertClientOriginAllowed` fires for any request
-  // whose user is a `clients` row — so for every client with a non-empty
-  // `allowedDomains` (i.e. every correctly configured one) the forwarded reads
+  // whose user is a `clients` row — so for every client with a domain
+  // (i.e. every correctly configured one) the forwarded reads
   // threw 403, and the throw escaped before the verification write, losing it.
   // The nightly job never saw it: with no headers at all the origin rule stands
   // down, which is also what makes an empty set the honest shape here. These

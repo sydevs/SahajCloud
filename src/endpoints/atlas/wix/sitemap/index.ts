@@ -5,6 +5,7 @@ import { APIError } from 'payload'
 import { z } from 'zod'
 
 import { WIX_PREFIX_MAX_LENGTH, WIX_PREFIX_PATTERN } from '@/lib/atlas/wixPrefix'
+import { primaryPageUrl } from '@/lib/clients/site'
 import { splitMountKey } from '@/lib/clients/verification'
 import {
   errorResponse,
@@ -75,11 +76,11 @@ export const atlasWixSitemap: Endpoint = {
     await countClientRead(req)
 
     try {
-      const embed = (req.user as Client | undefined)?.canonical?.embed
+      const page = primaryPageUrl((req.user as Client | undefined)?.site)
       const body: AtlasWixSitemapEntry[] = wixSitemapEntries({
         resolution: await resolveAtlasSitemap({ req, clientId }),
         prefix: parsed.data.prefix,
-        host: embed ? (splitMountKey(embed)?.domain ?? null) : null,
+        host: page ? (splitMountKey(page)?.domain ?? null) : null,
       })
       return Response.json(body, { headers: publicReadCacheHeaders(req, ['events', 'regions']) })
     } catch (error) {

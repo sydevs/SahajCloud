@@ -69,9 +69,8 @@ export function resultFromRender(mountKey: string, render: RenderResult): Verifi
 /**
  * True when `value` is a mount we are willing to send a browser at.
  *
- * `canonical.embed` normally comes from the picker, whose options are report keys that
- * `parseMountKey` has already constrained to http(s) — but it is a plain text field, so an admin
- * can type into it, and this is the point where a string becomes an outbound page load. Refusing
+ * The mount is built from `site` (`primaryPageUrl`), which a service's managers type, so this is
+ * the point where a string becomes an outbound page load. Refusing
  * anything but http(s) keeps `data:`, `file:` and `javascript:` out of the renderer.
  */
 function isFetchableMount(value: string): boolean {

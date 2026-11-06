@@ -6,19 +6,23 @@ import { Clients } from '@/collections/Clients/Clients'
 import { claimCanonical } from '@/collections/Clients/endpoints/claimCanonical'
 import { clientEmbedReport } from '@/collections/Clients/endpoints/report'
 import { verifyEmbedOnDemand } from '@/collections/Clients/endpoints/verifyEmbed'
+import { SKIP_AVAILABLE_LOCALES_CHECK } from '@/fields/availableLocalesField'
 import { runVerifyEmbeds } from '@/jobs/VerifyEmbeds/VerifyEmbeds'
 import { MAX_EMBED_MOUNTS } from '@/lib/clients/embedMetadata'
 import type { RoutingProbeResult, VerificationResult } from '@/lib/clients/verification'
 import type { Client } from '@/payload-types'
 
-import { createData, testData } from '../utils/testData'
+import { createData, testData, type FixtureOverrides } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 /**
- * Canonical ownership + observed embed metadata on Clients (#633).
+ * Region ownership + observed embed metadata on Clients (#633), on the
+ * one-site model: a service has one domain and one primary page (`site`), and
+ * owns its region's links when `canonical.owned` is set and its page verified.
  *
- * Three surfaces, one Payload bootstrap: the `validateCanonicalOwnership`
- * beforeChange hook, the `POST /api/clients/report` write path, and the
+ * Surfaces, one Payload bootstrap: the `validateCanonicalOwnership` hook, the
+ * `POST /api/clients/report` write path, the VerifyEmbeds job, verify-on-demand
+ * and the Install tab's claim.
  */
 describe('client canonical ownership + embed metadata', () => {
   let payload: Payload
@@ -34,12 +38,27 @@ describe('client canonical ownership + embed metadata', () => {
       data: { name: slug, level, mapboxId: `mb-${slug}`, slug },
     })
 
-  const createClient = async (name: string, overrides: Record<string, unknown> = {}) =>
+  const createClient = async (name: string, overrides: FixtureOverrides<Client> = {}) =>
     testData.createClient(payload, managerId, {
       name,
       roles: ['sahaj-atlas-client'],
       ...overrides,
     })
+
+  /** Point `sy-atlas-config`'s fallback at a client, or clear it. */
+  const setFallbackClient = (clientId: number | null) =>
+    payload.updateGlobal({
+      slug: 'sy-atlas-config',
+      // `availableLocales` is required, and this fresh schema holds none.
+      data: { availableLocales: ['en'], canonicalFallbackClient: clientId },
+      overrideAccess: true,
+      // Nothing is published in this suite's schema, and `availableLocales`
+      // refuses an unpublished locale; this is the field's own local-API escape.
+      context: { [SKIP_AVAILABLE_LOCALES_CHECK]: true },
+    })
+
+  const readClient = (id: number) =>
+    payload.findByID({ collection: 'clients', id, depth: 0, overrideAccess: true })
 
   /**
    * The per-field message off a rejected write. Payload's ValidationError keeps
@@ -89,112 +108,121 @@ describe('client canonical ownership + embed metadata', () => {
       return null
     }
 
-    it('declares canonical.embed required and conditional — required only when enabled', () => {
-      // `required` + the `enabled` condition is the whole "an embed must be chosen
-      // whenever canonical ownership is on" rule.
-      const embed = findField(Clients.fields as unknown[], 'embed')
-      expect(embed?.required).toBe(true)
-      const condition = (embed?.admin as { condition?: (d: unknown) => boolean } | undefined)
-        ?.condition
-      expect(condition?.({ canonical: { enabled: true } })).toBe(true)
-      expect(condition?.({ canonical: { enabled: false } })).toBe(false)
-      expect(condition?.({})).toBe(false)
+    it('serves canonical.embed and allowedDomains computed for the widget, never stored', () => {
+      // The widget still selects both; they come from `site` until SahajAtlasWeb
+      // reads it directly. `virtual` is the guarantee: no column to drift.
+      expect(findField(Clients.fields as unknown[], 'embed')?.virtual).toBe(true)
+      expect(findField(Clients.fields as unknown[], 'allowedDomains')?.virtual).toBe(true)
     })
 
-    it('no longer declares legacyConfig, or the hand-typed canonical fields', () => {
-      for (const gone of ['legacyConfig', 'domain', 'mount']) {
+    it('keeps the Install tab’s fields out of the edit form', () => {
+      // `admin.disabled` keeps a field out of the form's state, so saving the
+      // form can never write back an older copy of what Install saved.
+      for (const name of ['site', 'language']) {
+        const field = findField(Clients.fields as unknown[], name)
+        expect((field?.admin as { disabled?: boolean } | undefined)?.disabled).toBe(true)
+      }
+    })
+
+    it('no longer declares legacyConfig, or the retired fields', () => {
+      for (const gone of ['legacyConfig', 'mount', 'websiteUrl', 'keyGeneratedAt']) {
         expect(findField(Clients.fields as unknown[], gone)).toBeNull()
       }
     })
 
+    it('locks the region and region ownership to admin writes', () => {
+      for (const name of ['region', 'owned']) {
+        const access = findField(Clients.fields as unknown[], name)?.access as
+          { update?: (args: unknown) => boolean } | undefined
+        const manager = { req: { user: { collection: 'managers', type: 'manager' } } }
+        const admin = { req: { user: { collection: 'managers', type: 'admin' } } }
+        expect(access?.update?.(manager)).toBe(false)
+        expect(access?.update?.(admin)).toBe(true)
+      }
+    })
+
     it('declares canonical.routing derived and untypeable, never an operator setting', () => {
-      // The hand-typed `routing` field was deleted in #633, and #644 gives the
-      // name back to the derived verdict. What the deletion actually protected
-      // is that nobody can assert a routing mode — so that is what this pins,
-      // rather than the absence of the name. `virtual` is the whole guarantee:
-      // no stored column, so a write has nowhere to land, whatever the admin
-      // panel or a client sends.
+      // `virtual` is the whole guarantee: no stored column, so a write has
+      // nowhere to land, whatever the admin panel or a client sends.
       const routing = findField(Clients.fields as unknown[], 'routing')
       expect(routing?.virtual).toBe(true)
       expect((routing?.admin as { readOnly?: boolean } | undefined)?.readOnly).toBe(true)
       expect(routing?.hooks).toBeDefined()
+    })
+
+    it('computes both compatibility fields from `site` for a read that selects neither', async () => {
+      // The widget's own read selects `canonical` and `allowedDomains`, never
+      // `site`, so the hook has to find `site` itself.
+      const client = await createClient('Compat Reader', {
+        site: { domain: 'compat.example', page: '/classes' },
+      })
+      const doc = await payload.findByID({
+        collection: 'clients',
+        id: client.id,
+        depth: 0,
+        select: { canonical: true, allowedDomains: true },
+        overrideAccess: true,
+      })
+      expect(doc.canonical?.embed).toBe('https://compat.example/classes')
+      expect(doc.allowedDomains).toBe('compat.example')
     })
   })
 
   // ── validateCanonicalOwnership ────────────────────────────────────────────
 
   describe('validateCanonicalOwnership', () => {
-    it('rejects enabling with neither a region nor an embed, naming both', async () => {
-      const client = await createClient('No Region No Domain')
+    it('refuses ownership to a worldwide service, naming why', async () => {
+      const client = await createClient('Worldwide Owner')
       const message = await fieldErrorMessage(
         payload.update({
           collection: 'clients',
           id: client.id,
-          data: { canonical: { enabled: true } },
+          data: { canonical: { owned: true } },
           overrideAccess: true,
         }),
-        'canonical.enabled',
+        'canonical.owned',
       )
-      expect(message).toContain('a region and a canonical embed')
+      expect(message).toContain('worldwide service owns no region')
     })
 
-    it('rejects enabling without an embed, naming the embed', async () => {
-      const client = await createClient('No Domain', { region: czechiaId })
-      const message = await fieldErrorMessage(
-        payload.update({
+    it('lets the sy-atlas-config fallback own with no region of its own', async () => {
+      const client = await createClient('Fallback Owner')
+      await setFallbackClient(client.id)
+      try {
+        const updated = await payload.update({
           collection: 'clients',
           id: client.id,
-          data: { canonical: { enabled: true } },
+          data: { canonical: { owned: true } },
           overrideAccess: true,
-        }),
-        'canonical.enabled',
-      )
-      expect(message).toContain('a canonical embed')
-      expect(message).not.toContain('a region')
+        })
+        expect(updated.canonical?.owned).toBe(true)
+      } finally {
+        await setFallbackClient(null)
+      }
     })
 
-    it('rejects enabling without a region, naming the region', async () => {
-      const client = await createClient('No Region')
-      const message = await fieldErrorMessage(
-        payload.update({
-          collection: 'clients',
-          id: client.id,
-          data: { canonical: { enabled: true, embed: 'https://nirmala.cz/' } },
-          overrideAccess: true,
-        }),
-        'canonical.enabled',
-      )
-      expect(message).toContain('a region')
-      expect(message).not.toContain('canonical embed')
-    })
-
-    it('accepts an enabled client with a region and an embed', async () => {
-      const client = await createClient('Czechia Owner', { region: czechiaId })
+    it('accepts an owner with a region, and verifies nothing for it', async () => {
+      const client = await createClient('Czechia Owner', {
+        region: czechiaId,
+        site: { domain: 'nirmala.cz', page: '/lessons' },
+      })
       const updated = await payload.update({
         collection: 'clients',
         id: client.id,
-        data: { canonical: { enabled: true, embed: 'https://nirmala.cz/lessons' } },
+        data: { canonical: { owned: true } },
         overrideAccess: true,
       })
 
-      expect(updated.canonical?.enabled).toBe(true)
-      expect(updated.canonical?.embed).toBe('https://nirmala.cz/lessons')
-      // Nothing is verified yet — the operator nominated a mount, and only the
-      // job may fill in what a canonical URL is actually built from.
+      expect(updated.canonical?.owned).toBe(true)
+      // Only the job may fill in what a canonical URL is actually built from.
       expect(updated.canonical?.verification ?? null).toBeNull()
     })
 
     it('refuses a verification snapshot whose host is not a bare host', async () => {
-      // The bare-host rule moved from a field validator into the JSON Schema: the
-      // host is job-written now, so the guard belongs at the write it governs.
+      // The bare-host rule lives in the JSON Schema: the host is job-written,
+      // so the guard belongs at the write it governs.
       const region = await createRegion('latvia')
       const client = await createClient('Bad Verified Host', { region: region.id })
-      await payload.update({
-        collection: 'clients',
-        id: client.id,
-        data: { canonical: { enabled: true, embed: 'https://bad.example/' } },
-        overrideAccess: true,
-      })
 
       await expect(
         payload.update({
@@ -220,82 +248,86 @@ describe('client canonical ownership + embed metadata', () => {
       ).rejects.toThrow()
     })
 
-    it('rejects a second enabled client on an owned region, naming the incumbent', async () => {
-      const incumbent = await createClient('Meditace Online', { region: finlandId })
-      await payload.update({
-        collection: 'clients',
-        id: incumbent.id,
-        data: { canonical: { enabled: true, embed: 'https://meditoi.fi/' } },
-        overrideAccess: true,
-      })
+    it('rejects a second owner on an owned region, naming the incumbent', async () => {
+      await createClient('Meditace Online', { region: finlandId, canonical: { owned: true } })
 
       const challenger = await createClient('Jooga', { region: finlandId })
-      // The whole point of the rule: "who owns Finland" has to be answerable,
-      // and the error has to say who to talk to.
+      // "Who owns Finland" has to be answerable, and the error has to say who
+      // to talk to.
       const message = await fieldErrorMessage(
         payload.update({
           collection: 'clients',
           id: challenger.id,
-          data: { canonical: { enabled: true, embed: 'https://jooga.org/' } },
+          data: { canonical: { owned: true } },
           overrideAccess: true,
         }),
-        'canonical.enabled',
+        'canonical.owned',
       )
       expect(message).toContain('Meditace Online')
     })
 
-    it('lets the incumbent re-save itself', async () => {
+    it('lets the incumbent release and re-take its own region', async () => {
+      // Self-exclusion — otherwise the incumbent becomes its own conflict.
       const { docs } = await payload.find({
         collection: 'clients',
         where: { name: { equals: 'Meditace Online' } },
         limit: 1,
         overrideAccess: true,
       })
-      const updated = await payload.update({
-        collection: 'clients',
-        id: docs[0].id,
-        data: { canonical: { enabled: true, embed: 'https://meditoi.fi/?p=123' } },
-        overrideAccess: true,
-      })
-      // Self-exclusion — otherwise the incumbent becomes its own conflict and
-      // can never be edited again.
-      expect(updated.canonical?.embed).toBe('https://meditoi.fi/?p=123')
-    })
-
-    it('allows a second DISABLED client on an owned region', async () => {
-      const client = await createClient('Finland Runner-up', { region: finlandId })
-      const updated = await payload.update({
-        collection: 'clients',
-        id: client.id,
-        data: { canonical: { enabled: false, embed: 'https://freemeditation.fi/' } },
-        overrideAccess: true,
-      })
-      expect(updated.canonical?.enabled).toBe(false)
-      expect(updated.canonical?.embed).toBe('https://freemeditation.fi/')
-    })
-
-    it('rejects a region change that would collide with an incumbent', async () => {
-      // The hook has to watch `region` too, not just `canonical` — otherwise
-      // moving an already-enabled client onto an owned region walks around it.
-      const ownRegion = await createRegion('mover-home')
-      const client = await createClient('Region Mover', { region: ownRegion.id })
+      const id = docs[0].id
       await payload.update({
         collection: 'clients',
-        id: client.id,
-        data: { canonical: { enabled: true, embed: 'https://mcpraha.org/' } },
+        id,
+        data: { canonical: { owned: false } },
         overrideAccess: true,
       })
+      const updated = await payload.update({
+        collection: 'clients',
+        id,
+        data: { canonical: { owned: true } },
+        overrideAccess: true,
+      })
+      expect(updated.canonical?.owned).toBe(true)
+    })
 
-      const message = await fieldErrorMessage(
-        payload.update({
-          collection: 'clients',
-          id: client.id,
-          data: { region: finlandId },
-          overrideAccess: true,
-        }),
-        'canonical.enabled',
-      )
-      expect(message).toContain('Meditace Online')
+    it('allows a second service on an owned region that does not own it', async () => {
+      const client = await createClient('Finland Runner-up', {
+        region: finlandId,
+        site: { domain: 'freemeditation.fi', page: '/' },
+      })
+      expect(client.canonical?.owned ?? false).toBe(false)
+    })
+
+    it('releases ownership when an admin moves a service to another region', async () => {
+      // Ownership does not follow a region change, even onto a free region:
+      // the old region's links must not silently move with the service.
+      const home = await createRegion('mover-home')
+      const away = await createRegion('mover-away')
+      const client = await createClient('Region Mover', {
+        region: home.id,
+        canonical: { owned: true },
+      })
+
+      const moved = await payload.update({
+        collection: 'clients',
+        id: client.id,
+        data: { region: away.id },
+        overrideAccess: true,
+      })
+      expect(moved.canonical?.owned).toBe(false)
+
+      // And onto an owned region it is a release, not a collision.
+      const ontoOwned = await createClient('Region Mover Two', {
+        region: home.id,
+        canonical: { owned: true },
+      })
+      const collided = await payload.update({
+        collection: 'clients',
+        id: ontoOwned.id,
+        data: { region: finlandId },
+        overrideAccess: true,
+      })
+      expect(collided.canonical?.owned).toBe(false)
     })
   })
 
@@ -331,25 +363,20 @@ describe('client canonical ownership + embed metadata', () => {
     })
     expect(before.webUrl).toBeTruthy()
 
-    const owner = await createClient('WebUrl Owner', { region: region.id })
-    await payload.update({
-      collection: 'clients',
-      id: owner.id,
-      data: { canonical: { enabled: true, embed: 'https://example.org/' } },
-      overrideAccess: true,
+    const owner = await createClient('WebUrl Owner', {
+      region: region.id,
+      site: { domain: 'example.org', page: '/' },
+      canonical: { owned: true },
     })
 
-    const enabledOnly = await payload.findByID({
+    const ownedOnly = await payload.findByID({
       collection: 'events',
       id: event.id,
       overrideAccess: true,
     })
-    // Opting in is a *nomination*, not an attestation. `canonical.embed` names
-    // one of the mounts the widget reported, and a report is reachable by anyone
-    // holding a published key from an allowed origin — so until the CMS has
-    // loaded that page itself, this client owns nothing and the canonical must
-    // not move.
-    expect(enabledOnly.webUrl).toBe(before.webUrl)
+    // Owning is a claim, not an attestation: until the CMS has loaded the page
+    // itself, this client publishes nothing and the canonical must not move.
+    expect(ownedOnly.webUrl).toBe(before.webUrl)
 
     await payload.update({
       collection: 'clients',
@@ -388,6 +415,21 @@ describe('client canonical ownership + embed metadata', () => {
     // …while the path itself — the part every consumer joins to a base — is
     // untouched by ownership.
     expect(after.webPath).toBe(before.webPath)
+
+    // An inactive service owns nothing, verified or not: the one rule of
+    // ownership applies to every reader (`CANONICAL_ELIGIBLE`).
+    await payload.update({
+      collection: 'clients',
+      id: owner.id,
+      data: { enabled: false },
+      overrideAccess: true,
+    })
+    const inactive = await payload.findByID({
+      collection: 'events',
+      id: event.id,
+      overrideAccess: true,
+    })
+    expect(inactive.webUrl).toBe(before.webUrl)
   })
 
   // ── POST /api/clients/report ──────────────────────────────────────────────
@@ -404,12 +446,13 @@ describe('client canonical ownership + embed metadata', () => {
     /** A client request carrying headers + a JSON body, as the handler reads them. */
     const reportReq = (opts: {
       clientId: number
-      allowedDomains?: string | null
+      /** The service's one domain; `null` for a service with none yet. */
+      domain?: string | null
+      page?: string | null
       embedMetadata?: unknown
-      canonical?: Client['canonical']
       origin?: string
       body?: unknown
-      status?: string
+      enabled?: boolean
     }): PayloadRequest => {
       const headers = new Headers()
       if (opts.origin) headers.set('origin', opts.origin)
@@ -420,17 +463,19 @@ describe('client canonical ownership + embed metadata', () => {
         json: async () => opts.body,
         // The whole client doc, as `APIKeyAuthentication` hands it over — it
         // finds the row with no `select`, so every field the handler reads off
-        // `req.user` is present. `canonical` is one of them (the mount cap
-        // spares the designated embed), and a fixture that omitted it would
-        // report a pass for a pin that never applied.
+        // `req.user` is present. `site` is one of them (the host check, and the
+        // mount cap sparing the primary page), and a fixture that omitted it
+        // would report a pass for a pin that never applied.
         user: {
           id: opts.clientId,
           collection: 'clients',
-          _status: opts.status ?? 'published',
+          enabled: opts.enabled ?? true,
           roles: ['sahaj-atlas-client'],
-          allowedDomains: opts.allowedDomains ?? null,
+          site: {
+            domain: opts.domain === undefined ? 'sahajayoga.nl' : opts.domain,
+            page: opts.page ?? null,
+          },
           embedMetadata: opts.embedMetadata,
-          canonical: opts.canonical,
         },
       } as unknown as PayloadRequest
     }
@@ -445,24 +490,23 @@ describe('client canonical ownership + embed metadata', () => {
       return doc.embedMetadata
     }
 
-    it('refuses an unpublished client', async () => {
-      const client = await createClient('Draft Reporter')
+    it('refuses an inactive client', async () => {
+      const client = await createClient('Inactive Reporter')
       const res = await clientEmbedReport.handler(
         reportReq({
           clientId: client.id,
-          status: 'draft',
-          body: { origin: 'https://a.org', pathname: '/x', ...OBSERVATION },
+          enabled: false,
+          body: { origin: 'https://sahajayoga.nl', pathname: '/x', ...OBSERVATION },
         }),
       )
       expect(res.status).toBe(403)
     })
 
-    it('refuses an Origin absent from allowedDomains', async () => {
+    it('refuses an Origin that is not the service’s domain', async () => {
       const client = await createClient('Origin Reporter')
       const res = await clientEmbedReport.handler(
         reportReq({
           clientId: client.id,
-          allowedDomains: 'sahajayoga.nl',
           origin: 'https://evil.example',
           body: { origin: 'https://sahajayoga.nl', pathname: '/x', ...OBSERVATION },
         }),
@@ -470,20 +514,49 @@ describe('client canonical ownership + embed metadata', () => {
       expect(res.status).toBe(403)
     })
 
-    it('refuses a reported url on a host absent from allowedDomains', async () => {
-      // Defence in depth: a report can only ever describe a page on a domain
-      // this client owns, whether or not a browser sent an Origin header.
+    it('refuses a reported url on another host', async () => {
+      // Defence in depth: a report can only ever describe a page on this
+      // service's own site, whether or not a browser sent an Origin header.
       const client = await createClient('Host Reporter')
       const res = await clientEmbedReport.handler(
         reportReq({
           clientId: client.id,
-          allowedDomains: 'sahajayoga.nl',
           origin: 'https://sahajayoga.nl',
           body: { origin: 'https://evil.example', pathname: '/x', ...OBSERVATION },
         }),
       )
       expect(res.status).toBe(403)
       expect(await storedMetadata(client.id)).toBeFalsy()
+    })
+
+    it('refuses every report from a service with no domain yet', async () => {
+      // With no domain there is no site to describe, so a key holder cannot
+      // fill an unconfigured service's reports with pages of their choosing.
+      const client = await createClient('Domainless Reporter')
+      const res = await clientEmbedReport.handler(
+        reportReq({
+          clientId: client.id,
+          domain: null,
+          body: { origin: 'https://attacker.example', pathname: '/x', ...OBSERVATION },
+        }),
+      )
+      expect(res.status).toBe(403)
+      expect(await storedMetadata(client.id)).toBeFalsy()
+    })
+
+    it('accepts a report from the www twin of the service’s domain', async () => {
+      const client = await createClient('Twin Reporter')
+      const res = await clientEmbedReport.handler(
+        reportReq({
+          clientId: client.id,
+          origin: 'https://www.sahajayoga.nl',
+          body: { origin: 'https://www.sahajayoga.nl', pathname: '/x', ...OBSERVATION },
+        }),
+      )
+      expect(res.status).toBe(200)
+      expect(Object.keys((await storedMetadata(client.id)) ?? {})).toEqual([
+        'https://www.sahajayoga.nl/x',
+      ])
     })
 
     it.each([
@@ -518,13 +591,12 @@ describe('client canonical ownership + embed metadata', () => {
 
     it('stores two keys for two pages of one site, not one overwrite', async () => {
       const client = await createClient('Two Page Reporter', {
-        allowedDomains: 'sahajayoga.nl',
+        site: { domain: 'sahajayoga.nl' },
       })
 
       const first = await clientEmbedReport.handler(
         reportReq({
           clientId: client.id,
-          allowedDomains: 'sahajayoga.nl',
           origin: 'https://sahajayoga.nl',
           body: { origin: 'https://sahajayoga.nl', pathname: '/locatelessons', ...OBSERVATION },
         }),
@@ -538,7 +610,6 @@ describe('client canonical ownership + embed metadata', () => {
       const second = await clientEmbedReport.handler(
         reportReq({
           clientId: client.id,
-          allowedDomains: 'sahajayoga.nl',
           origin: 'https://sahajayoga.nl',
           embedMetadata: afterFirst,
           body: {
@@ -561,14 +632,15 @@ describe('client canonical ownership + embed metadata', () => {
     })
 
     it('keeps a reported mount through a later save of the service', async () => {
-      // Payload builds every update on the latest *version* row, so a mount
-      // written to the published row alone was dropped by the next save — the
-      // claim and the verification included, which is what emptied "Atlas
-      // detected" on the Install tab right after a successful check.
-      const client = await createClient('Saved Reporter', { _status: 'published' })
+      // While `clients` had drafts, Payload built every update on the latest
+      // *version* row, so a mount written to the row alone was dropped by the
+      // next save — the claim and the verification included. The collection
+      // keeps no versions now, so the row is the record.
+      const client = await createClient('Saved Reporter', { site: { domain: 'a.org' } })
       await clientEmbedReport.handler(
         reportReq({
           clientId: client.id,
+          domain: 'a.org',
           body: { origin: 'https://a.org', pathname: '/x', ...OBSERVATION },
         }),
       )
@@ -588,6 +660,7 @@ describe('client canonical ownership + embed metadata', () => {
       const req = () =>
         reportReq({
           clientId: client.id,
+          domain: 'a.org',
           body: { origin: 'https://a.org', pathname: '/x', ...OBSERVATION },
         })
 
@@ -602,6 +675,7 @@ describe('client canonical ownership + embed metadata', () => {
       const repeat = await clientEmbedReport.handler(
         reportReq({
           clientId: client.id,
+          domain: 'a.org',
           embedMetadata: stored,
           body: { origin: 'https://a.org', pathname: '/x', ...OBSERVATION },
         }),
@@ -658,7 +732,7 @@ describe('client canonical ownership + embed metadata', () => {
        * populated `req.user` would exercise the merge and never the write.
        */
       const seedAtCap = async (name: string) => {
-        const client = await createClient(name, { allowedDomains: 'sahajayoga.nl' })
+        const client = await createClient(name, { site: { domain: 'sahajayoga.nl' } })
         await payload.update({
           collection: 'clients',
           id: client.id,
@@ -670,7 +744,7 @@ describe('client canonical ownership + embed metadata', () => {
 
       const report = async (clientId: number, pathname: string) => {
         // Re-read the whole row, the way the API-key strategy would on the next
-        // request — the cap reads `canonical` as well as `embedMetadata`.
+        // request — the cap reads `site` as well as `embedMetadata`.
         const doc = await payload.findByID({
           collection: 'clients',
           id: clientId,
@@ -679,10 +753,9 @@ describe('client canonical ownership + embed metadata', () => {
         return clientEmbedReport.handler(
           reportReq({
             clientId,
-            allowedDomains: 'sahajayoga.nl',
             origin: 'https://sahajayoga.nl',
             embedMetadata: doc.embedMetadata,
-            canonical: doc.canonical,
+            page: doc.site?.page,
             body: { origin: 'https://sahajayoga.nl', pathname, ...OBSERVATION },
           }),
         )
@@ -722,13 +795,13 @@ describe('client canonical ownership + embed metadata', () => {
         expect(stored['https://sahajayoga.nl/three']).toBeDefined()
       })
 
-      it('never evicts the designated canonical, whatever its lastSeen', async () => {
+      it('never evicts the primary page’s report, whatever its lastSeen', async () => {
         const client = await seedAtCap('Canonical Capped Reporter')
-        // `p0` is both the oldest mount and the one an operator nominated.
+        // `p0` is both the oldest mount and the service's primary page.
         await payload.update({
           collection: 'clients',
           id: client.id,
-          data: { canonical: { embed: 'https://sahajayoga.nl/p0' } },
+          data: { site: { domain: 'sahajayoga.nl', page: '/p0' } },
           overrideAccess: true,
         })
 
@@ -758,21 +831,24 @@ describe('client canonical ownership + embed metadata', () => {
     const failed: VerificationResult = { status: 'failed', reason: 'marker-absent' }
     const inconclusive: VerificationResult = { status: 'inconclusive', reason: 'provider-error' }
 
-    /** A service that owns canonical URLs and is due for a check. */
-    async function createOwner(name: string, slug: string, embed = 'https://verify.example/embed') {
+    /** The `site` group a primary-page URL names. */
+    const siteOf = (page: string) => {
+      const url = new URL(page)
+      return { domain: url.hostname, page: `${url.pathname}${url.search}` }
+    }
+
+    /** A service that owns its region, with a primary page, due for a check. */
+    async function createOwner(name: string, slug: string, page = 'https://verify.example/embed') {
       const region = await createRegion(slug)
-      const client = await createClient(name, { region: region.id })
-      await payload.update({
-        collection: 'clients',
-        id: client.id,
-        data: { canonical: { enabled: true, embed } },
-        overrideAccess: true,
+      const client = await createClient(name, {
+        region: region.id,
+        site: siteOf(page),
+        canonical: { owned: true },
       })
       return client.id
     }
 
-    const read = async (id: number) =>
-      payload.findByID({ collection: 'clients', id, depth: 0, overrideAccess: true })
+    const read = readClient
 
     /**
      * Run the job with a stubbed verifier — never reaches Cloudflare.
@@ -799,10 +875,10 @@ describe('client canonical ownership + embed metadata', () => {
       const doc = await read(id)
       expect(doc.canonical?.verification?.verified).toMatchObject({ domain: 'verify.example' })
       expect(doc.canonical?.nextVerifyAt).toBeTruthy()
-      expect(doc.canonical?.enabled).toBe(true)
+      expect(doc.canonical?.owned).toBe(true)
     })
 
-    it('disables canonical ownership on the third definitive failure, not the second', async () => {
+    it('releases region ownership on the third definitive failure, not the second', async () => {
       const id = await createOwner('Verify Failing', 'verify-failing')
 
       // 1× = +24h, 2× = +48h — each run has to sit past the previous backoff.
@@ -810,12 +886,15 @@ describe('client canonical ownership + embed metadata', () => {
       await run(failed, daysAfter(2))
       let doc = await read(id)
       expect(doc.canonical?.verification?.failureCount).toBe(2)
-      expect(doc.canonical?.enabled).toBe(true)
+      expect(doc.canonical?.owned).toBe(true)
 
-      await run(failed, daysAfter(6))
+      const output = await run(failed, daysAfter(6))
       doc = await read(id)
       expect(doc.canonical?.verification?.failureCount).toBe(3)
-      expect(doc.canonical?.enabled).toBe(false)
+      expect(doc.canonical?.owned).toBe(false)
+      // The service itself stays on: losing the region is not losing the key.
+      expect(doc.enabled).toBe(true)
+      expect(output.disabled).toBeGreaterThanOrEqual(1)
     })
 
     // The rule the whole design leans on: our integration breaking is not their embed breaking.
@@ -832,21 +911,55 @@ describe('client canonical ownership + embed metadata', () => {
       expect(after.canonical?.verification?.failureCount).toBe(
         before.canonical?.verification?.failureCount,
       )
-      expect(after.canonical?.enabled).toBe(true)
+      expect(after.canonical?.owned).toBe(true)
     })
 
-    it('ignores services that do not own canonical URLs', async () => {
-      await createClient('Not An Owner', { allowedDomains: 'sahajayoga.nl' })
-      const output = await run(verified, daysAfter(30))
-      // Only the enabled owners above are ever examined.
-      expect(output.processed).toBeGreaterThanOrEqual(0)
-      const doc = await payload.find({
-        collection: 'clients',
-        where: { name: { equals: 'Not An Owner' } },
-        depth: 0,
-        overrideAccess: true,
+    it('checks a service with a page whether or not it owns its region', async () => {
+      // A page that is not running the atlas is worth knowing about whatever
+      // it owns, so every active service with a page is examined.
+      const client = await createClient('Not An Owner', {
+        site: siteOf('https://notowner.example/'),
       })
-      expect(doc.docs[0]?.canonical?.verification ?? null).toBeNull()
+      await run(verified, daysAfter(30))
+      expect((await read(client.id)).canonical?.verification?.verified).toMatchObject({
+        domain: 'verify.example',
+      })
+    })
+
+    it('releases and reports nothing for a non-owner, however often its page fails', async () => {
+      const client = await createClient('Failing Non-Owner', {
+        site: siteOf('https://failing-nonowner.example/'),
+      })
+      // Only this page fails, so any release the run reports would be this one.
+      const runOnlyThisFailing = (now: Date) =>
+        runVerifyEmbeds({
+          payload,
+          req: { payload } as never,
+          now,
+          deps: {
+            verify: async (mount: string) =>
+              mount.includes('failing-nonowner') ? failed : verified,
+          },
+        })
+      await runOnlyThisFailing(daysAfter(100))
+      await runOnlyThisFailing(daysAfter(102))
+      const third = await runOnlyThisFailing(daysAfter(106))
+      const doc = await read(client.id)
+      expect(doc.canonical?.verification?.failureCount).toBe(3)
+      expect(doc.canonical?.owned ?? false).toBe(false)
+      // A third strike on a page that owns nothing releases nothing.
+      expect(third.disabled).toBe(0)
+    })
+
+    it('skips a service with no page, and an inactive one', async () => {
+      const pageless = await createClient('Pageless', { site: { domain: 'pageless.example' } })
+      const inactive = await createClient('Inactive With Page', {
+        enabled: false,
+        site: siteOf('https://inactive.example/classes'),
+      })
+      await run(verified, daysAfter(200))
+      expect((await read(pageless.id)).canonical?.verification ?? null).toBeNull()
+      expect((await read(inactive.id)).canonical?.verification ?? null).toBeNull()
     })
 
     // ── The routing probe (#644) ───────────────────────────────────────
@@ -921,7 +1034,7 @@ describe('client canonical ownership + embed metadata', () => {
       expect(doc.canonical?.routing).toBe('query')
       // The embed is present and publishing — in `?atlas=` shape, which is a
       // real canonical. Nothing about ownership may have moved.
-      expect(doc.canonical?.enabled).toBe(true)
+      expect(doc.canonical?.owned).toBe(true)
       expect(doc.canonical?.verification?.failureCount).toBe(0)
       expect(doc.canonical?.verification?.verified).toMatchObject({ domain: 'verify.example' })
     })
@@ -965,8 +1078,6 @@ describe('client canonical ownership + embed metadata', () => {
         id,
         data: {
           canonical: {
-            enabled: true,
-            embed: PROBE_MOUNT,
             verification: {
               verified: null,
               failureCount: 0,
@@ -993,8 +1104,6 @@ describe('client canonical ownership + embed metadata', () => {
         id,
         data: {
           canonical: {
-            enabled: true,
-            embed: PROBE_MOUNT,
             verification: {
               verified: {
                 domain: 'probe.example',
@@ -1039,14 +1148,16 @@ describe('client canonical ownership + embed metadata', () => {
      */
     it('answers with the derived routing, and changes nothing it could not observe', async () => {
       const region = await createRegion('verify-on-demand')
-      const client = await createClient('Verify On Demand', { region: region.id })
+      const client = await createClient('Verify On Demand', {
+        region: region.id,
+        site: { domain: 'ondemand.example', page: '/classes' },
+        canonical: { owned: true },
+      })
       await payload.update({
         collection: 'clients',
         id: client.id,
         data: {
           canonical: {
-            enabled: true,
-            embed: 'https://ondemand.example/classes',
             verification: {
               verified: null,
               failureCount: 0,
@@ -1091,28 +1202,27 @@ describe('client canonical ownership + embed metadata', () => {
      * The SEO checks resolve as the client being checked, and the audit request
      * used to be a spread of the caller's — headers included. So
      * `assertClientOriginAllowed` saw a `clients` user carrying the **admin
-     * panel's** `Origin`, found it outside `allowedDomains`, and threw 403 from
-     * inside the forwarded reads. Nothing caught it, so the verification result
-     * computed above was discarded and the row never written. Every correctly
-     * configured client has a non-empty `allowedDomains`, so this was the
-     * normal path; the nightly job sends no headers and never saw it.
+     * panel's** `Origin`, found it outside the client's domain, and threw 403
+     * from inside the forwarded reads. Nothing caught it, so the verification
+     * result computed above was discarded and the row never written. Every
+     * correctly configured client has a domain, so this was the normal path;
+     * the nightly job sends no headers and never saw it.
      *
      * `verified` is seeded because an inconclusive run keeps the last good
      * snapshot, which is what makes the checks run at all here.
      */
-    it('persists the run for a client with allowedDomains set', async () => {
+    it('persists the run for a client with a domain set', async () => {
       const region = await createRegion('verify-origin-gate')
       const client = await createClient('Verify Origin Gate', {
         region: region.id,
-        allowedDomains: 'ondemand.example',
+        site: { domain: 'ondemand.example', page: '/classes' },
+        canonical: { owned: true },
       })
       await payload.update({
         collection: 'clients',
         id: client.id,
         data: {
           canonical: {
-            enabled: true,
-            embed: 'https://ondemand.example/classes',
             verification: {
               verified: {
                 domain: 'ondemand.example',
@@ -1158,6 +1268,18 @@ describe('client canonical ownership + embed metadata', () => {
       expect(doc.canonical?.verification?.verified?.domain).toBe('ondemand.example')
     }, 60_000)
 
+    it('answers 400 for a service with no atlas address yet', async () => {
+      const client = await createClient('Verify Addressless')
+      const response = await (
+        verifyEmbedOnDemand.handler as (r: PayloadRequest) => Promise<Response>
+      )({
+        payload,
+        routeParams: { id: String(client.id) },
+        user: { id: managerId, collection: 'managers', type: 'admin' },
+      } as unknown as PayloadRequest)
+      expect(response.status).toBe(400)
+    })
+
     it('refuses a manager who does not manage the service', async () => {
       // `requireActiveManager` admits any manager whose type is not inactive,
       // so the row's own read access is the whole gate — and this endpoint
@@ -1194,18 +1316,20 @@ describe('client canonical ownership + embed metadata', () => {
    * it agrees.
    */
   describe('claim-canonical', () => {
-    const MOUNT = 'https://claimed.example/classes'
+    const DOMAIN = 'claimed.example'
+    const PAGE = '/classes'
+    const MOUNT = `https://${DOMAIN}${PAGE}`
 
+    /** No body: the page is the service's own `site`. */
     const callClaim = async (
       clientId: number,
-      mount: string,
       user: Record<string, unknown> = { id: managerId, collection: 'managers', type: 'admin' },
     ): Promise<{ status: number; body: { status?: string; message?: string } }> => {
       const req = {
         payload,
         routeParams: { id: String(clientId) },
         user,
-        json: async () => ({ mount }),
+        json: async () => ({}),
       } as unknown as PayloadRequest
       const response = await (claimCanonical.handler as (r: PayloadRequest) => Promise<Response>)(
         req,
@@ -1213,30 +1337,36 @@ describe('client canonical ownership + embed metadata', () => {
       return { status: response.status, body: await response.json() }
     }
 
-    /**
-     * A client that has reported the mount **and declared its host**.
-     *
-     * Both are required: an undeclared host is what let anyone holding the
-     * browser-shipped key nominate a page on a domain they own.
-     */
-    const withReport = async (name: string, overrides: Record<string, unknown> = {}) => {
-      const client = await createClient(name, { allowedDomains: 'claimed.example', ...overrides })
+    const observation = (report: { mode?: 'inline' | 'iframe'; urlWritable?: boolean }) => ({
+      mode: report.mode ?? 'inline',
+      topLevel: true,
+      urlWritable: report.urlWritable ?? true,
+      paramPersisted: true,
+      routing: 'path' as const,
+      lastSeen: new Date().toISOString(),
+    })
+
+    /** A service with a primary page the widget has reported from. */
+    const withReport = async (
+      name: string,
+      overrides: FixtureOverrides<Client> = {},
+      report: { key?: string; mode?: 'inline' | 'iframe'; urlWritable?: boolean } = {},
+    ) => {
+      const client = await createClient(name, {
+        site: { domain: DOMAIN, page: PAGE },
+        ...overrides,
+      })
       await payload.update({
         collection: 'clients',
         id: client.id,
         data: {
+          // The column is closed and validated on every save, so a partial
+          // record is refused — every key here is `required`.
           embedMetadata: {
-            // The column is closed and validated on every save, so a partial
-            // record is refused — every key here is `required` in
-            // `embedMetadataJsonSchema`.
-            [MOUNT]: {
-              mode: 'inline',
-              topLevel: true,
-              urlWritable: true,
-              paramPersisted: true,
-              routing: 'path',
-              lastSeen: new Date().toISOString(),
-            },
+            [report.key ?? MOUNT]: observation({
+              mode: report.mode,
+              urlWritable: report.urlWritable,
+            }),
           },
         },
         overrideAccess: true,
@@ -1244,149 +1374,168 @@ describe('client canonical ownership + embed metadata', () => {
       return client
     }
 
-    it('switches ownership on for the first service in its region', async () => {
+    it('makes the first service in its region the home for its links', async () => {
       const region = await createRegion('claim-first')
       const client = await withReport('Claim First', { region: region.id })
 
-      const { status, body } = await callClaim(client.id, MOUNT)
+      const { status, body } = await callClaim(client.id)
       expect(status).toBe(200)
       expect(body.status).toBe('claimed')
-
-      const doc = await payload.findByID({
-        collection: 'clients',
-        id: client.id,
-        depth: 0,
-        overrideAccess: true,
-      })
-      expect(doc.canonical?.enabled).toBe(true)
-      expect(doc.canonical?.embed).toBe(MOUNT)
+      expect((await readClient(client.id)).canonical?.owned).toBe(true)
     })
 
-    it('refuses a mount the widget has never reported', async () => {
-      // Taking the volunteer's typed address instead would designate a page
-      // nobody has seen, which is what the report contract exists to prevent.
+    it('needs no mount in the body — a body naming one changes nothing', async () => {
+      // The page is the record's own. A forged mount in the body is ignored.
+      const region = await createRegion('claim-forged-body')
+      const client = await withReport('Claim Forged Body', { region: region.id })
+      const req = {
+        payload,
+        routeParams: { id: String(client.id) },
+        user: { id: managerId, collection: 'managers', type: 'admin' },
+        json: async () => ({ mount: 'https://attacker.example/classes' }),
+      } as unknown as PayloadRequest
+      const response = await (claimCanonical.handler as (r: PayloadRequest) => Promise<Response>)(
+        req,
+      )
+      expect(((await response.json()) as { status: string }).status).toBe('claimed')
+      expect((await readClient(client.id)).canonical?.embed).toBe(MOUNT)
+    })
+
+    it('asks for the address first when the service has none', async () => {
+      const region = await createRegion('claim-no-page')
+      const client = await createClient('Claim No Page', { region: region.id })
+      const { body } = await callClaim(client.id)
+      expect(body.status).toBe('no-page')
+      expect((await readClient(client.id)).canonical?.owned ?? false).toBe(false)
+    })
+
+    it('refuses a page the widget has never reported', async () => {
       const region = await createRegion('claim-unreported')
-      const client = await createClient('Claim Unreported', { region: region.id })
-
-      const { body } = await callClaim(client.id, MOUNT)
-      expect(body.status).toBe('unknown-mount')
-
-      const doc = await payload.findByID({
-        collection: 'clients',
-        id: client.id,
-        depth: 0,
-        overrideAccess: true,
+      const client = await createClient('Claim Unreported', {
+        region: region.id,
+        site: { domain: DOMAIN, page: PAGE },
       })
-      expect(doc.canonical?.enabled).toBeFalsy()
+      const { body } = await callClaim(client.id)
+      expect(body.status).toBe('unknown-mount')
+      expect((await readClient(client.id)).canonical?.owned ?? false).toBe(false)
     })
 
-    it('explains a missing region rather than letting the hook say “required”', async () => {
-      const client = await withReport('Claim No Region')
-      const { body } = await callClaim(client.id, MOUNT)
-      expect(body.status).toBe('needs-region')
-      expect(body.message).toMatch(/maintainer/)
+    it('reads no report from another site, whatever its path', async () => {
+      // The report must come from the service's own domain, or its www twin.
+      const region = await createRegion('claim-foreign-host')
+      const client = await withReport(
+        'Claim Foreign Host',
+        { region: region.id },
+        { key: `https://attacker.example${PAGE}` },
+      )
+      const { body } = await callClaim(client.id)
+      expect(body.status).toBe('unknown-mount')
+    })
+
+    it('accepts a report from the www twin of the domain', async () => {
+      const region = await createRegion('claim-www')
+      const client = await withReport(
+        'Claim Www',
+        { region: region.id },
+        { key: `https://www.${DOMAIN}${PAGE}` },
+      )
+      expect((await callClaim(client.id)).body.status).toBe('claimed')
+    })
+
+    it('refuses a page that cannot give each class its own link', async () => {
+      for (const [name, report, track] of [
+        ['Claim In A Frame', { mode: 'iframe' as const }, undefined],
+        ['Claim Unwritable', { urlWritable: false }, undefined],
+        ['Claim Iframe Track', {}, 'iframe' as const],
+      ] as const) {
+        const region = await createRegion(`claim-${name.toLowerCase().replace(/ /g, '-')}`)
+        const client = await withReport(
+          name,
+          { region: region.id, site: { domain: DOMAIN, page: PAGE, track } },
+          report,
+        )
+        const { body } = await callClaim(client.id)
+        expect(body.status).toBe('no-class-addresses')
+        expect((await readClient(client.id)).canonical?.owned ?? false).toBe(false)
+      }
+    })
+
+    it('answers worldwide for a service with no region, and changes nothing', async () => {
+      const client = await withReport('Claim Worldwide')
+      const { body } = await callClaim(client.id)
+      expect(body.status).toBe('worldwide')
+      expect((await readClient(client.id)).canonical?.owned ?? false).toBe(false)
+    })
+
+    it('lets the sy-atlas-config fallback claim with no region of its own', async () => {
+      const client = await withReport('Claim Fallback')
+      await setFallbackClient(client.id)
+      try {
+        expect((await callClaim(client.id)).body.status).toBe('claimed')
+        expect((await readClient(client.id)).canonical?.owned).toBe(true)
+      } finally {
+        await setFallbackClient(null)
+      }
     })
 
     it('passes the uniqueness refusal through, naming the incumbent', async () => {
       const region = await createRegion('claim-contested')
-      await createClient('Claim Incumbent', {
-        region: region.id,
-        canonical: { enabled: true, embed: 'https://incumbent.example/map' },
-        _status: 'published',
-      })
+      await createClient('Claim Incumbent', { region: region.id, canonical: { owned: true } })
       const challenger = await withReport('Claim Challenger', { region: region.id })
 
-      const { body } = await callClaim(challenger.id, MOUNT)
+      const { body } = await callClaim(challenger.id)
       expect(body.status).toBe('taken')
       expect(body.message).toMatch(/maintainer/)
-
-      const doc = await payload.findByID({
-        collection: 'clients',
-        id: challenger.id,
-        depth: 0,
-        overrideAccess: true,
-      })
-      expect(doc.canonical?.enabled).toBeFalsy()
+      expect(body.message).toContain('Claim Incumbent')
+      expect((await readClient(challenger.id)).canonical?.owned ?? false).toBe(false)
     })
 
     it('says so, and changes nothing, when ownership is already on', async () => {
       const region = await createRegion('claim-already')
       const client = await withReport('Claim Already', {
         region: region.id,
-        canonical: { enabled: true, embed: 'https://already.example/map' },
-        _status: 'published',
+        canonical: { owned: true },
       })
+      const before = await readClient(client.id)
 
-      const { body } = await callClaim(client.id, MOUNT)
+      const { body } = await callClaim(client.id)
       expect(body.status).toBe('already')
-
-      const doc = await payload.findByID({
-        collection: 'clients',
-        id: client.id,
-        depth: 0,
-        overrideAccess: true,
-      })
-      expect(doc.canonical?.embed).toBe('https://already.example/map')
+      expect((await readClient(client.id)).updatedAt).toBe(before.updatedAt)
     })
 
-    it('refuses a host the service has not declared', async () => {
-      // `POST /api/clients/report` only checks the reported host when
-      // `allowedDomains` is non-empty, and an empty list allows any origin — so
-      // without this an attacker-owned host could be designated, and the
-      // readiness marker carries no nonce to catch it.
-      const region = await createRegion('claim-undeclared')
-      const client = await withReport('Claim Undeclared', {
+    it('lets a listed manager claim, though they may not write the flag themselves', async () => {
+      // `canonical.owned` is admin-write-locked, so the claim is the one door a
+      // manager has to it — and it opens only on the rules above.
+      const lister = await testData.createManager(payload, {
+        name: 'Claim Lister',
+        email: 'claim-lister@example.com',
+      })
+      const region = await createRegion('claim-listed')
+      const client = await withReport('Claim Listed', {
         region: region.id,
-        allowedDomains: '',
+        managers: [lister.id],
+        primaryContact: lister.id,
       })
+      const listerUser = { ...lister, collection: 'managers' }
 
-      const { body } = await callClaim(client.id, MOUNT)
-      expect(body.status).toBe('needs-domains')
-      expect(body.message).toMatch(/maintainer/)
-
-      const doc = await payload.findByID({
-        collection: 'clients',
-        id: client.id,
-        depth: 0,
-        overrideAccess: true,
-      })
-      expect(doc.canonical?.enabled).toBeFalsy()
-    })
-
-    it('refuses a reported mount on a host outside the declared list', async () => {
-      const region = await createRegion('claim-foreign-host')
-      const client = await createClient('Claim Foreign Host', {
-        region: region.id,
-        allowedDomains: 'sahajayoga.ca',
-      })
-      const foreign = 'https://attacker.example/classes'
       await payload.update({
         collection: 'clients',
         id: client.id,
-        data: {
-          embedMetadata: {
-            [foreign]: {
-              mode: 'inline',
-              topLevel: true,
-              urlWritable: true,
-              paramPersisted: true,
-              routing: 'path',
-              lastSeen: new Date().toISOString(),
-            },
-          },
-        },
-        overrideAccess: true,
+        data: { canonical: { owned: true } },
+        overrideAccess: false,
+        user: listerUser as never,
       })
+      expect((await readClient(client.id)).canonical?.owned ?? false).toBe(false)
 
-      const { body } = await callClaim(client.id, foreign)
-      expect(body.status).toBe('needs-domains')
+      expect((await callClaim(client.id, listerUser)).body.status).toBe('claimed')
+      expect((await readClient(client.id)).canonical?.owned).toBe(true)
     })
 
     it('refuses a caller who is not an active manager', async () => {
       const region = await createRegion('claim-anon')
       const client = await withReport('Claim Anon', { region: region.id })
 
-      expect((await callClaim(client.id, MOUNT, { id: 1, collection: 'clients' })).status).toBe(403)
+      expect((await callClaim(client.id, { id: 1, collection: 'clients' })).status).toBe(403)
     })
 
     it('refuses a manager who does not manage this service', async () => {
@@ -1399,27 +1548,12 @@ describe('client canonical ownership + embed metadata', () => {
       const region = await createRegion('claim-stranger')
       const client = await withReport('Claim Stranger', { region: region.id })
 
-      const { status } = await callClaim(client.id, MOUNT, {
+      const { status } = await callClaim(client.id, {
         id: other.id,
         collection: 'managers',
         type: 'manager',
       })
       expect(status).toBe(404)
-    })
-
-    it('refuses a body with no mount at all', async () => {
-      const region = await createRegion('claim-nobody')
-      const client = await withReport('Claim No Body', { region: region.id })
-      const req = {
-        payload,
-        routeParams: { id: String(client.id) },
-        user: { id: managerId, collection: 'managers', type: 'admin' },
-        json: async () => ({}),
-      } as unknown as PayloadRequest
-      const response = await (claimCanonical.handler as (r: PayloadRequest) => Promise<Response>)(
-        req,
-      )
-      expect(response.status).toBe(400)
     })
   })
 })

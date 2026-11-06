@@ -40,7 +40,7 @@ import { createTestEnvironment } from '../utils/testHelpers'
 type TestUser = {
   id: number | string
   collection: string
-  _status?: 'published' | 'draft'
+  enabled?: boolean
   roles?: string[]
 } | null
 
@@ -160,9 +160,9 @@ describe('atlasSitemap endpoint', () => {
       name: args.name,
       roles: ['sahaj-atlas-client'],
       region: args.regionId,
+      site: { domain: args.domain, page: args.mount },
       canonical: {
-        enabled: true,
-        embed: `https://${args.domain}${args.mount}`,
+        owned: true,
         verification: {
           verified: {
             domain: args.domain,
@@ -181,12 +181,12 @@ describe('atlasSitemap endpoint', () => {
           },
         },
       },
-      _status: 'published',
+      enabled: true,
     } as never)
     return {
       id: doc.id,
       collection: 'clients',
-      _status: 'published',
+      enabled: true,
       roles: ['sahaj-atlas-client'],
     }
   }
@@ -263,7 +263,7 @@ describe('atlasSitemap endpoint', () => {
     unownedClient = {
       id: plain.id,
       collection: 'clients',
-      _status: 'published',
+      enabled: true,
       roles: ['sahaj-atlas-client'],
     }
 
@@ -297,7 +297,7 @@ describe('atlasSitemap endpoint', () => {
     it.each([
       ['unauthenticated callers', null],
       ['managers', { id: 1, collection: 'managers' }],
-      ['unpublished (draft) clients', { id: 1, collection: 'clients', _status: 'draft' as const }],
+      ['unpublished (draft) clients', { id: 1, collection: 'clients', enabled: false }],
     ])('rejects %s with 403', async (_label, user) => {
       const { status } = await callSitemap(user as TestUser)
       expect(status).toBe(403)
@@ -376,7 +376,7 @@ describe('atlasSitemap endpoint', () => {
       const { status, body } = await callSitemap({
         id: 'not-an-integer',
         collection: 'clients',
-        _status: 'published',
+        enabled: true,
         roles: ['sahaj-atlas-client'],
       })
       expect(status).toBe(500)
@@ -580,7 +580,7 @@ describe('atlasSitemap endpoint', () => {
         collection: 'clients',
         id: Number(lapsed!.id),
         // Spread, so the verified snapshot survives exactly as the job leaves it.
-        data: { canonical: { ...stored.canonical, enabled: false } } as never,
+        data: { canonical: { ...stored.canonical, owned: false } } as never,
         overrideAccess: true,
       })
 

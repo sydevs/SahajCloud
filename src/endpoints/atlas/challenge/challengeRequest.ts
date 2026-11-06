@@ -1,9 +1,6 @@
+import { siteHosts } from '@/lib/clients/site'
 import { originOf } from '@/lib/utilities/url'
-import {
-  isHostAllowed,
-  normalizeHost,
-  parseAllowedDomains,
-} from '@/plugins/usage/originEnforcement'
+import { isHostAllowed, normalizeHost } from '@/plugins/usage/originEnforcement'
 
 /** What the frame URL asks for. `parent` is `null` when it is missing or not an http(s) origin. */
 export type ChallengeRequest = {
@@ -90,18 +87,18 @@ export function builtInParentHosts(firstPartyUrls: readonly string[]): string[] 
   ]
 }
 
-/** Every published client's `allowedDomains`, beside the built-in hosts. */
+/** Every active client's domain and its www twin, beside the built-in hosts. */
 export function allowedParentHosts(
   firstPartyUrls: readonly string[],
   clientDomains: ReadonlyArray<string | null | undefined>,
 ): string[] {
-  return [...builtInParentHosts(firstPartyUrls), ...clientDomains.flatMap(parseAllowedDomains)]
+  return [...builtInParentHosts(firstPartyUrls), ...clientDomains.flatMap(siteHosts)]
 }
 
 /**
  * Whether `parent` may receive this page's messages. The same matcher API origin enforcement
  * uses, so an embed whose reads pass for a listed host passes here too, with one exception that
- * is the point: a client with an EMPTY list contributes nothing here (sydevs/SahajCloud#1072,
+ * is the point: a client with no domain contributes nothing here (sydevs/SahajCloud#1072,
  * question 1), where API reads treat empty as "allow any origin". Widening that to every origin
  * would hand any third party a token minter.
  */

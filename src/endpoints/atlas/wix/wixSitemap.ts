@@ -9,7 +9,7 @@ import type { AtlasSitemapResolution } from '../sitemap/resolve'
  *
  * - **This host only.** `GET /api/atlas/sitemap` publishes absolute canonical
  *   URLs, and a client's answer can legitimately contain another host's — a
- *   mis-set `canonical.embed`, or a key shared between two sites. Wix resolves a
+ *   mis-set `site` address, or a key shared between two sites. Wix resolves a
  *   `WixRouterSitemapEntry.url` against the site's own domain, so a foreign
  *   canonical would be republished as this site's page. That is the same guard
  *   the WordPress plugin numbers 15, and the reason it is a guard rather than a

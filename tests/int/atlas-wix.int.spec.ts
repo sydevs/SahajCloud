@@ -38,11 +38,11 @@ import { createTestEnvironment } from '../utils/testHelpers'
 type TestUser = {
   id: number | string
   collection: string
-  _status?: 'published' | 'draft'
+  enabled?: boolean
   roles?: string[]
   canonical?: Record<string, unknown>
+  site?: Record<string, unknown>
   language?: string
-  allowedDomains?: string
 } | null
 
 const OWNER_DOMAIN = 'sahajayoga.ca'
@@ -128,9 +128,11 @@ describe('atlas Wix endpoints', () => {
     })
     region.germany = await createRegion({ name: 'Germany', slug: 'germany', level: 'country' })
 
+    // The router reads the primary page off the client (`site`), and the
+    // canonical URLs off the verified snapshot beside it.
+    const site = { domain: OWNER_DOMAIN, page: OWNER_MOUNT }
     const canonical = {
-      enabled: true,
-      embed: `https://${OWNER_DOMAIN}${OWNER_MOUNT}`,
+      owned: true,
       verification: {
         verified: {
           domain: OWNER_DOMAIN,
@@ -149,14 +151,16 @@ describe('atlas Wix endpoints', () => {
       roles: ['sahaj-atlas-client'],
       region: region.canada,
       language: 'en',
+      site,
       canonical,
-      _status: 'published',
+      enabled: true,
     } as never)
     owner = {
       id: ownerDoc.id,
       collection: 'clients',
-      _status: 'published',
+      enabled: true,
       roles: ['sahaj-atlas-client'],
+      site,
       canonical,
       language: 'en',
     }
@@ -168,7 +172,7 @@ describe('atlas Wix endpoints', () => {
     stranger = {
       id: strangerDoc.id,
       collection: 'clients',
-      _status: 'published',
+      enabled: true,
       roles: ['sahaj-atlas-client'],
     }
 
@@ -205,7 +209,7 @@ describe('atlas Wix endpoints', () => {
     it.each([
       ['unauthenticated callers', null],
       ['managers', { id: 1, collection: 'managers' }],
-      ['unpublished clients', { id: 1, collection: 'clients', _status: 'draft' as const }],
+      ['unpublished clients', { id: 1, collection: 'clients', enabled: false }],
     ])('refuses %s on both endpoints', async (_label, user) => {
       expect((await callRoute({ path: '/canada' }, user as TestUser)).status).toBe(403)
       expect((await callSitemap({ prefix: 'classes' }, user as TestUser)).status).toBe(403)

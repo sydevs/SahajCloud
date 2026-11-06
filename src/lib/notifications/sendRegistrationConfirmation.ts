@@ -18,6 +18,8 @@ import {
   RegistrationConfirmationEmail,
   registrationConfirmationText,
 } from '@/emails/RegistrationConfirmationEmail'
+import type { ClientRow } from '@/lib/atlas/regionOwners'
+import { ownedSiteOrigin } from '@/lib/atlas/regionOwners'
 import type { LocaleCode } from '@/lib/locales'
 import { buildEventCalendar } from '@/lib/schedule/icsBuilder'
 import { interpolate, resolveEmailStrings } from '@/lib/translations/emailStrings'
@@ -27,11 +29,13 @@ import { getClientEmailBrand, getEmailBrand, renderEmail, USER_EMAIL_FROM } from
 
 import { buildRegistrationEmailDetails } from './registrationDetails'
 
-/** The client fields the email needs; `logo` must be populated (`depth >= 1`). */
-export type EmailClient = Pick<
-  Client,
-  'color1' | 'color2' | 'logo' | 'name' | 'supportEmail' | 'websiteUrl'
->
+/**
+ * The client fields the email needs; `logo` must be populated (`depth >= 1`).
+ * `enabled` and `canonical` decide the site link: the email links to a
+ * service's site only while it owns its region (`ownedSiteOrigin`).
+ */
+export type EmailClient = Pick<Client, 'color1' | 'color2' | 'logo' | 'name' | 'supportEmail'> &
+  Pick<ClientRow, 'enabled' | 'canonical'>
 
 export async function sendRegistrationConfirmation(args: {
   payload: Payload
@@ -73,7 +77,7 @@ export async function sendRegistrationConfirmation(args: {
     strings,
     details,
     locale,
-    websiteUrl: client?.websiteUrl,
+    websiteUrl: client ? ownedSiteOrigin({ id: 0, ...client }) : null,
   }
 
   await payload.sendEmail({

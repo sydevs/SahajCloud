@@ -375,34 +375,36 @@ describe('hostHints', () => {
   const hints = (
     url: string,
     platform: PlatformId,
-    options: { trackId?: TrackId | null; allowed?: string[] } = {},
+    options: { trackId?: TrackId | null; saved?: string | null } = {},
   ) =>
     hostHints({
       address: readAtlasAddress(url, { oneLevel: platform === 'wix' ? 'Wix' : undefined }),
       platform,
       trackId: options.trackId ?? null,
-      allowedDomains: options.allowed ?? [URL.parse(url)?.hostname ?? ''],
+      savedDomain: options.saved === undefined ? URL.parse(url)?.hostname : options.saved,
     })
   const titles = (list: ReturnType<typeof hints>) => list.map((hint) => hint.title)
 
-  it('says nothing about a declared https domain', () => {
+  it('says nothing about an https address on the saved domain', () => {
     expect(hints('https://sahajayoga.ca/classes', 'wix')).toEqual([])
     expect(hints('https://sahajayoga.ca/classes', 'custom')).toEqual([])
   })
 
-  it('warns about a domain the service has not declared, which the claim would refuse', () => {
-    const list = hints('https://sahajayoga.ca/classes', 'custom', { allowed: ['other.org'] })
+  it('warns that an address on another domain moves the whole service there', () => {
+    const list = hints('https://sahajayoga.ca/classes', 'custom', { saved: 'other.org' })
     expect(list).toHaveLength(1)
     expect(list[0]).toMatchObject({ tone: 'warning' })
-    expect(list[0].title).toContain('sahajayoga.ca')
-    // An empty list declares nothing, so the claim refuses that too.
-    expect(hints('https://sahajayoga.ca/classes', 'custom', { allowed: [] })).toHaveLength(1)
+    expect(list[0].title).toBe('This moves the service to sahajayoga.ca')
   })
 
-  it('accepts a host a wildcard entry covers', () => {
+  it('treats the www twin as the same site, and a first address as no move', () => {
     expect(
-      hints('https://www.sahajayoga.ca/classes', 'custom', { allowed: ['*.sahajayoga.ca'] }),
+      hints('https://www.sahajayoga.ca/classes', 'custom', { saved: 'sahajayoga.ca' }),
     ).toEqual([])
+    expect(
+      hints('https://sahajayoga.ca/classes', 'custom', { saved: 'www.sahajayoga.ca' }),
+    ).toEqual([])
+    expect(hints('https://sahajayoga.ca/classes', 'custom', { saved: null })).toEqual([])
   })
 
   it('asks for the https address', () => {

@@ -26,7 +26,7 @@ describe('requireActiveClient', () => {
 
   it('returns a 403 when the client is a draft (unpublished)', () => {
     const denied = requireActiveClient(
-      reqWith({ user: { collection: 'clients', _status: 'draft' } as never }),
+      reqWith({ user: { collection: 'clients', enabled: false } as never }),
     )
     expect(denied?.status).toBe(403)
   })
@@ -40,19 +40,19 @@ describe('requireActiveClient', () => {
 
   it('returns null for a published client', () => {
     const denied = requireActiveClient(
-      reqWith({ user: { collection: 'clients', _status: 'published' } as never }),
+      reqWith({ user: { collection: 'clients', enabled: true } as never }),
     )
     expect(denied).toBeNull()
   })
 })
 
 describe('requireClientAccess', () => {
-  /** A published client whose allowlist excludes every host but `allowed.test`. */
+  /** An active client whose one site is `allowed.test`, so every other host is refused. */
   const publishedClient = {
     collection: 'clients',
-    _status: 'published',
+    enabled: true,
     id: 7,
-    allowedDomains: 'allowed.test',
+    site: { domain: 'allowed.test' },
   }
   const loggerReq = (parts: Partial<PayloadRequest>): PayloadRequest =>
     reqWith({ payload: { logger: { warn: () => undefined } } as never, ...parts })

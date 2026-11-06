@@ -102,7 +102,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     },
     // CORS is intentionally open. Per-client origin enforcement is server-side:
     // `validateClientOriginHook` (usagePlugin) checks each request's Origin/Referer
-    // against the client's `allowedDomains`, and the API key gates access. CORS
+    // against the client's `site.domain`, and the API key gates access. CORS
     // preflight is anonymous — the browser omits Authorization, so the server
     // cannot return a per-client allowlist at preflight time. `origins: '*'` lets
     // embedded Atlas widgets' preflight succeed on any host page; Payload omits

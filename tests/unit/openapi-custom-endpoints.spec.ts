@@ -264,7 +264,7 @@ describe('clients embed-report custom endpoint (OpenAPI)', () => {
     for (const code of ['query_or_fragment', 'invalid_url', 'unsupported_scheme']) {
       expect(post?.responses?.['400']?.description).toContain(code)
     }
-    expect(post?.responses?.['403']?.description).toContain('allowedDomains')
+    expect(post?.responses?.['403']?.description).toContain('client’s domain')
   })
 
   // `clients` is in ALWAYS_HIDDEN_COLLECTIONS and belongs to no project, so

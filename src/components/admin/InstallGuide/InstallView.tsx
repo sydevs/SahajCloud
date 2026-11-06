@@ -9,9 +9,9 @@ import React from 'react'
 import type { EmbedMetadata } from '@/lib/clients/embedMetadata'
 import type { CanonicalVerification } from '@/lib/clients/verification'
 import { serverEnv } from '@/lib/env/server'
+import { getLanguageOptions } from '@/lib/locales'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 import type { Client } from '@/payload-types'
-import { parseAllowedDomains } from '@/plugins/usage/originEnforcement'
 
 import { CenteredNotice } from '../CenteredNotice'
 import { InstallGuide } from './InstallGuide'
@@ -109,28 +109,29 @@ export default async function InstallView(
     <>
       {stepNav}
       <InstallGuide
-        allowedDomains={parseAllowedDomains(client.allowedDomains)}
         apiKey={await revealApiKey(props, clientId)}
-        canonicalEmbed={client.canonical?.embed ?? null}
         clientId={clientId}
         cmsUrl={getServerUrl()}
         editUrl={formatAdminURL({
           adminRoute: req.payload.config.routes.admin,
           path: `/collections/clients/${clientId}`,
         })}
-        hasRegion={Boolean(client.region)}
-        regionName={await readRegionName(props, client.region)}
         initialEmbedMetadata={(client.embedMetadata ?? null) as EmbedMetadata | null}
+        initialLanguage={client.language ?? null}
+        initialOwned={Boolean(client.canonical?.owned)}
+        initialSite={client.site ?? null}
         initialVerification={
           (client.canonical?.verification ?? null) as CanonicalVerification | null
         }
+        languageOptions={getLanguageOptions()}
+        regionName={await readRegionName(props, client.region)}
         widgetUrl={serverEnv.SAHAJATLAS_URL}
       />
     </>
   )
 }
 
-/** The service's region by name, for the progress table, or `null`. */
+/** The service's region by name, for the progress table, or `null` for Worldwide. */
 async function readRegionName(
   props: DocumentViewServerProps,
   region: Client['region'],

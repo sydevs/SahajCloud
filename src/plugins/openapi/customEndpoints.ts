@@ -366,7 +366,7 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
           },
         },
         '400': errorResponse('`select` missing, or `populate` missing at `depth > 1`.'),
-        '403': errorResponse('Caller is not a published API client.'),
+        '403': errorResponse('Caller is not an active API client.'),
       },
     },
   },
@@ -391,7 +391,7 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
         'only — a query string or fragment is rejected (`400`), not silently stripped, ' +
         'because the widget already strips them and a payload carrying either means it ' +
         'is misbehaving. Both the request `Origin`/`Referer` **and** the reported ' +
-        '`url`’s host must be in the client’s `allowedDomains`. The report is ' +
+        '`url`’s host must be in the client’s domain (`site.domain`, or its www twin). The report is ' +
         'observation only: it decides whether a mount currently *qualifies* as ' +
         'canonical, never which mount *is* canonical — a human sets that on the ' +
         'client. Repeating a recent identical observation is answered `updated: false` ' +
@@ -420,8 +420,8 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
             '`unsupported_scheme`, `query_or_fragment`, `credentials`, or `too_long`.',
         ),
         '403': errorResponse(
-          'Caller is not a published API client, its `Origin`/`Referer` is not in the ' +
-            'client’s `allowedDomains`, or the reported `url` is on a host that is not.',
+          'Caller is not an active API client, its `Origin`/`Referer` is not the ' +
+            'client’s domain, or the reported `url` is on a host that is not.',
         ),
       },
     },
@@ -506,8 +506,8 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
         },
         '400': errorResponse('`route` is missing/too long, or `locale` is not a known locale.'),
         '403': errorResponse(
-          'Caller is not a published API client, or its `Origin`/`Referer` is not in ' +
-            'the client’s `allowedDomains`.',
+          'Caller is not an active API client, or its `Origin`/`Referer` is not in ' +
+            'the client’s domain (`site.domain`, or its www twin).',
         ),
         '404': errorResponse(
           'Either the route names a region or class that does not exist — an unknown ' +
@@ -566,8 +566,8 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
           },
         },
         '403': errorResponse(
-          'Caller is not a published API client, or its `Origin`/`Referer` is not in ' +
-            'the client’s `allowedDomains`.',
+          'Caller is not an active API client, or its `Origin`/`Referer` is not in ' +
+            'the client’s domain (`site.domain`, or its www twin).',
         ),
         '500': errorResponse('The sitemap could not be built.'),
       },
@@ -642,8 +642,8 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
         },
         '400': errorResponse('`path` is missing, empty, or over 512 characters.'),
         '403': errorResponse(
-          'Caller is not a published API client, or its `Origin`/`Referer` is not in ' +
-            'the client’s `allowedDomains`.',
+          'Caller is not an active API client, or its `Origin`/`Referer` is not in ' +
+            'the client’s domain (`site.domain`, or its www twin).',
         ),
         '500': errorResponse('The page metadata could not be built.'),
       },
@@ -703,8 +703,8 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
         },
         '400': errorResponse('`prefix` is missing, or not one lowercase path segment.'),
         '403': errorResponse(
-          'Caller is not a published API client, or its `Origin`/`Referer` is not in ' +
-            'the client’s `allowedDomains`.',
+          'Caller is not an active API client, or its `Origin`/`Referer` is not in ' +
+            'the client’s domain (`site.domain`, or its www twin).',
         ),
         '500': errorResponse('The sitemap could not be built.'),
       },

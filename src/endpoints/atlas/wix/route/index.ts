@@ -4,6 +4,7 @@ import type { Endpoint, PayloadRequest } from 'payload'
 import { APIError } from 'payload'
 import { z } from 'zod'
 
+import { primaryPageUrl } from '@/lib/clients/site'
 import { splitMountKey } from '@/lib/clients/verification'
 import { errorResponse, parseQuery, requireClientAccess } from '@/lib/endpoints'
 import { baseLanguage, DEFAULT_LOCALE } from '@/lib/locales'
@@ -25,13 +26,12 @@ const querySchema = z.object({
 /**
  * The host this client publishes its own canonical URLs on, or `null`.
  *
- * Read off `canonical.embed` — the mount an operator designated and the
- * verification job confirmed — rather than off the request, because a Wix router
- * calls us server-to-server and sends no `Origin` at all.
+ * Read off the service's own primary page (`site`) rather than off the request,
+ * because a Wix router calls us server-to-server and sends no `Origin` at all.
  */
 function canonicalHostOf(req: PayloadRequest): string | null {
-  const embed = (req.user as Client | undefined)?.canonical?.embed
-  return embed ? (splitMountKey(embed)?.domain ?? null) : null
+  const page = primaryPageUrl((req.user as Client | undefined)?.site)
+  return page ? (splitMountKey(page)?.domain ?? null) : null
 }
 
 /** The host a canonical URL names, or `null` when there is no canonical. */

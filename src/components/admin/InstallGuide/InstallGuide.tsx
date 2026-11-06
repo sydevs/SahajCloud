@@ -9,6 +9,7 @@ import {
   CopyToClipboard,
   FieldDescription,
   FieldError,
+  SelectInput,
   TextInput,
 } from '@payloadcms/ui'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -17,6 +18,7 @@ import { TitledBanner } from '@/components/admin/helpers/TitledBanner'
 import { StatusIcon } from '@/components/admin/ReadinessField/StatusIcon'
 import { ToggleGroup } from '@/components/admin/ToggleGroupField/ToggleGroup'
 import type { EmbedMetadata } from '@/lib/clients/embedMetadata'
+import { primaryPageUrl } from '@/lib/clients/site'
 import type { CanonicalVerification } from '@/lib/clients/verification'
 import type { Client } from '@/payload-types'
 
@@ -61,17 +63,18 @@ import {
  * map, and on Wix it starts by renaming the page step 3 made.
  *
  * **Everything it knows comes off the service's own record**, re-read on a
- * timer. There is no state here that outlives the tab: the platform choice and
- * the address are this visit's, because nothing about them is worth a column and
- * a migration, and the install either worked or the record says what is wrong
- * with it.
+ * timer, and every choice made here is saved back to it as it is made
+ * (`useSiteSave`): the kind of site, the address, the map's height and the
+ * site's language. Reopening the tab picks up where it was left. The edit form
+ * never carries those fields (`admin.disabled` on `Clients.site`), so saving
+ * the form cannot write back an older copy.
  */
 
 /** How often the tab re-reads the record while it is open. */
 const POLL_MS = 10_000
 
 /** What `GET /api/clients/:id` gives the tab, narrowed to what it reads. */
-type PolledClient = Pick<Client, 'embedMetadata' | 'canonical' | 'region'>
+type PolledClient = Pick<Client, 'embedMetadata' | 'canonical'>
 
 /** Which Check button asked, so its answer shows beside it. */
 type CheckSource = 'sidebar' | 'section3' | 'section4'
@@ -82,32 +85,42 @@ export interface InstallGuideProps {
   apiKey: string | null
   cmsUrl: string
   widgetUrl: string
-  /** The designated mount key (origin + path), when there is one — it prefills the address. */
-  canonicalEmbed: string | null
-  /** This service's Edit view, where its API key is generated. */
+  /** This service's Edit view, where its API key is generated and its branding set. */
   editUrl: string
+  /** What the tab saved last time: the kind of site, the address, the map's height. */
+  initialSite: Client['site'] | null
+  initialLanguage: string | null
+  languageOptions: Array<{ label: string; value: string }>
   initialEmbedMetadata: EmbedMetadata | null
   initialVerification: CanonicalVerification | null
-  /** Whether a region is set, which canonical ownership needs. */
-  hasRegion: boolean
-  /** The region's name, or `null` when it has none or it could not be read. */
+  /** Whether this service's site is the home for its region's links. */
+  initialOwned: boolean
+  /** The region's name, or `null` for a worldwide map. Set by an admin, read-only here. */
   regionName: string | null
-  /** The service's `allowedDomains`, parsed — a host outside them cannot be claimed. */
-  allowedDomains: string[]
 }
+
+/** Which platform a stored track sits under, for reopening the tab on it. */
+const PLATFORM_OF: Record<TrackId, PlatformId> = Object.fromEntries(
+  (Object.entries(TRACKS_BY_PLATFORM) as Array<[PlatformId, TrackId[]]>).flatMap(
+    ([platform, ids]) => ids.map((id) => [id, platform]),
+  ),
+) as Record<TrackId, PlatformId>
 
 export function InstallGuide(props: InstallGuideProps): React.ReactElement {
   const { clientId, apiKey, cmsUrl, widgetUrl, editUrl } = props
 
-  const [platform, setPlatform] = useState<PlatformId | null>(null)
-  const [track, setTrack] = useState<TrackId | null>(null)
-  // `canonical.embed` is a whole `origin + pathname` key, which is exactly the
-  // kind of address the field takes.
-  const [addressInput, setAddressInput] = useState(props.canonicalEmbed ?? '')
-  const [canonicalEmbed, setCanonicalEmbed] = useState(props.canonicalEmbed)
+  const saved = props.initialSite
+  const [track, setTrackState] = useState<TrackId | null>(saved?.track ?? null)
+  const [platform, setPlatform] = useState<PlatformId | null>(
+    saved?.track ? PLATFORM_OF[saved.track] : null,
+  )
+  const [addressInput, setAddressInput] = useState(() => primaryPageUrl(saved) ?? '')
+  const [embedHeight, setEmbedHeightState] = useState<EmbedHeight>(saved?.embedHeight ?? 'screen')
+  const [language, setLanguageState] = useState(props.initialLanguage)
+  const [owned, setOwned] = useState(props.initialOwned)
   const [embedMetadata, setEmbedMetadata] = useState(props.initialEmbedMetadata)
   const [verification, setVerification] = useState(props.initialVerification)
-  const [embedHeight, setEmbedHeight] = useState<EmbedHeight>('screen')
+  const { state: saveState, save } = useSiteSave(clientId)
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<{ from: CheckSource; banner: BannerContent } | null>(null)
 
@@ -152,15 +165,15 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
         atlasUrl: atlasPath,
         track: activeTrack,
         busy,
+        host: address.host,
       }),
-    [embedMetadata, verification, atlasPath, activeTrack, busy],
+    [embedMetadata, verification, atlasPath, activeTrack, busy, address.host],
   )
 
   const milestones = buildMilestones({
     model,
     verification,
-    canonicalEmbed,
-    hasRegion: props.hasRegion,
+    owned,
     searchListings: activeTrack?.searchListings !== false,
     classAddresses: activeTrack?.classAddresses !== false,
     siteKind: platform ? PLATFORM_LABELS[platform] : undefined,
@@ -171,13 +184,49 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
     .filter((milestone) => milestone.id === 'seen' || milestone.id === 'confirmed')
     .every((milestone) => milestone.state === 'done')
 
-  const { allowedDomains } = props
+  const savedDomain = saved?.domain ?? null
   const hasTrack = activeTrack !== null
   const hints = useMemo(
     () =>
-      platform && hasTrack ? hostHints({ address, platform, trackId: track, allowedDomains }) : [],
-    [address, platform, hasTrack, track, allowedDomains],
+      platform && hasTrack ? hostHints({ address, platform, trackId: track, savedDomain }) : [],
+    [address, platform, hasTrack, track, savedDomain],
   )
+
+  // Each choice is saved as it is made. The address waits for a pause in typing
+  // and for an address with no problem, so a half-typed one is never stored.
+  const siteNow = useCallback(
+    (patch: Partial<NonNullable<Client['site']>>) => ({
+      domain: address.problem === null ? address.host : (saved?.domain ?? null),
+      page: address.problem === null ? address.path : (saved?.page ?? null),
+      track,
+      embedHeight,
+      ...patch,
+    }),
+    [address, saved, track, embedHeight],
+  )
+  const setTrack = (next: TrackId | null) => {
+    setTrackState(next)
+    if (next) save({ site: siteNow({ track: next }) })
+  }
+  const setEmbedHeight = (next: EmbedHeight) => {
+    setEmbedHeightState(next)
+    save({ site: siteNow({ embedHeight: next }) })
+  }
+  const setLanguage = (next: string | null) => {
+    setLanguageState(next)
+    save({ language: next })
+  }
+  const storedAddress = useRef(primaryPageUrl(saved))
+  useEffect(() => {
+    if (address.problem !== null || !address.host || !address.path) return
+    const next = primaryPageUrl({ domain: address.host, page: address.path })
+    if (next === storedAddress.current) return
+    const timer = setTimeout(() => {
+      storedAddress.current = next
+      save({ site: siteNow({}) })
+    }, ADDRESS_SAVE_DELAY_MS)
+    return () => clearTimeout(timer)
+  }, [address, save, siteNow])
 
   /**
    * Re-read the record. The one thing that makes this tab live.
@@ -191,7 +240,7 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
   const reread = useCallback(async (): Promise<PolledClient | null> => {
     try {
       const response = await fetch(
-        `/api/clients/${clientId}?depth=0&select[embedMetadata]=true&select[canonical]=true&select[region]=true`,
+        `/api/clients/${clientId}?depth=0&select[embedMetadata]=true&select[canonical]=true`,
         { credentials: 'include' },
       )
       if (!response.ok) return null
@@ -201,7 +250,7 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
         lastRead.current = text
         setEmbedMetadata((body.embedMetadata ?? null) as EmbedMetadata | null)
         setVerification((body.canonical?.verification ?? null) as CanonicalVerification | null)
-        setCanonicalEmbed(body.canonical?.embed ?? null)
+        setOwned(Boolean(body.canonical?.owned))
       }
       return body
     } catch {
@@ -218,24 +267,23 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
    * mount verifies, which is why this ends with one more read rather than a
    * third call. Answers what both calls said, for the Check buttons to show.
    */
-  const confirm = useCallback(
-    async (
-      mountKey: string,
-    ): Promise<{ claim: ClaimAnswer | null; verify: VerifyAnswer | null }> => {
-      setBusy(true)
-      try {
-        const claim = await post<ClaimAnswer>(`/api/clients/${clientId}/claim-canonical`, {
-          mount: mountKey,
-        })
-        const verify = await post<VerifyAnswer>(`/api/clients/${clientId}/verify-embed`)
-        await reread()
-        return { claim, verify }
-      } finally {
-        setBusy(false)
-      }
-    },
-    [clientId, reread],
-  )
+  const confirm = useCallback(async (): Promise<{
+    claim: ClaimAnswer | null
+    verify: VerifyAnswer | null
+  }> => {
+    setBusy(true)
+    try {
+      // The primary page is the record's own, so the claim takes no body —
+      // and the address must be saved before it can name the right page.
+      await save.flush()
+      const claim = await post<ClaimAnswer>(`/api/clients/${clientId}/claim-canonical`)
+      const verify = await post<VerifyAnswer>(`/api/clients/${clientId}/verify-embed`)
+      await reread()
+      return { claim, verify }
+    } finally {
+      setBusy(false)
+    }
+  }, [clientId, reread, save])
 
   // The poll. Re-reading the record is what turns a report arriving on the
   // volunteer's own site into a confirmed install with nothing clicked.
@@ -258,18 +306,12 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
     if (!candidate || busy) return
     if (confirmedFor.current === candidate.key) return
     confirmedFor.current = candidate.key
-    // Already claimed and confirmed at this mount: opening the tab again must
-    // not re-run a browser verification. "Check again" still forces one.
+    // Already confirmed at this page: opening the tab again must not re-run a
+    // browser verification. "Check again" still forces one.
     const verified = verification?.verified
-    if (
-      canonicalEmbed === candidate.key &&
-      verified?.domain === candidate.host &&
-      verified.mount === candidate.mount
-    ) {
-      return
-    }
-    void confirm(candidate.key)
-  }, [model.candidate, busy, confirm, canonicalEmbed, verification])
+    if (verified?.domain === candidate.host && verified.mount === candidate.mount) return
+    void confirm()
+  }, [model.candidate, busy, confirm, verification])
 
   /**
    * Re-run everything after a fix, for a volunteer who has just redone a step.
@@ -284,11 +326,12 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
     const candidate = reportedMountsFor({
       embedMetadata: (polled?.embedMetadata ?? embedMetadata) as EmbedMetadata | null,
       atlasUrl: atlasPath,
+      host: address.host,
     })[0]
     // Clearing the guard is what makes this button re-run rather than no-op: the
     // poll's effect only acts on a mount it has not confirmed before.
     confirmedFor.current = candidate?.key ?? null
-    const answers = candidate ? await confirm(candidate.key) : { claim: null, verify: null }
+    const answers = candidate ? await confirm() : { claim: null, verify: null }
     setResult({
       from,
       banner: checkOutcome({
@@ -306,6 +349,7 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
     const choices = TRACKS_BY_PLATFORM[next]
     setTrack(choices.length === 1 ? choices[0] : null)
   }
+  const nextSection = activeTrack?.more ? 5 : 4
 
   const tracksHere = platform ? TRACKS_BY_PLATFORM[platform] : []
   const showProblem = addressInput.trim() !== '' && address.problem !== null
@@ -345,7 +389,9 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
         </div>
 
         <section className={styles.section}>
-          <h3 className={styles.heading}>1. What kind of site is it?</h3>
+          <h3 className={styles.heading}>
+            1. What kind of site is it? <SaveState state={saveState} />
+          </h3>
           <div className={styles.choice}>
             <ToggleGroup
               aria-label="What kind of site is it?"
@@ -422,6 +468,33 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
                 value={addressInput}
               />
             </div>
+            <div className={styles.urlField}>
+              <SelectInput
+                description="Search engines read your class pages in this language."
+                label="Language of your site"
+                name="language"
+                onChange={(option) =>
+                  setLanguage((option as { value?: string } | null)?.value ?? null)
+                }
+                options={props.languageOptions}
+                path="language"
+                value={language ?? ''}
+              />
+            </div>
+            <div className={styles.urlField}>
+              <TextInput
+                Description={
+                  <FieldDescription
+                    description={regionHelp(props.regionName, activeTrack.classAddresses !== false)}
+                    path="region"
+                  />
+                }
+                label="Region"
+                path="region"
+                readOnly
+                value={props.regionName ?? 'Worldwide'}
+              />
+            </div>
             {hints.length > 0 ? (
               <div className={styles.banners}>
                 {hints.map((hint) => (
@@ -494,6 +567,21 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
             {result?.from === 'section4' ? <ResultBanner banner={result.banner} /> : null}
           </section>
         ) : null}
+
+        {ready && working ? (
+          <section className={styles.section}>
+            <h3 className={styles.heading}>{nextSection}. Make it yours</h3>
+            <p className={styles.intro}>
+              Your atlas is working. Choose its colours, the logo and reply address on the emails
+              people get when they register, and a mailing list, on the Atlas tab.
+            </p>
+            <div>
+              <Button buttonStyle="secondary" el="link" margin={false} url={editUrl}>
+                Open the Atlas tab
+              </Button>
+            </div>
+          </section>
+        ) : null}
       </div>
 
       <aside className={styles.sidebar}>
@@ -527,6 +615,68 @@ async function post<T>(url: string, body?: unknown): Promise<T | null> {
   } catch {
     return null
   }
+}
+
+/** How long the address waits after the last keystroke before it is saved. */
+const ADDRESS_SAVE_DELAY_MS = 800
+
+type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
+
+/**
+ * Save part of the record, as the Install tab's choices are made.
+ *
+ * ⚠ **Payload's own `PATCH /api/clients/:id`, not an endpoint of this tab's.**
+ * Field access and hooks apply exactly as they do for the edit form — the
+ * Config tab's locks included — so the tab can write nothing a manager could
+ * not. `clients` keeps no drafts, so a PATCH is a plain update of the row.
+ *
+ * Saves run one at a time, in order, so a slow save cannot land after a later
+ * one and undo it. `save.flush()` waits for the queue, which is what the Check
+ * runs before claiming: the claim reads the saved address, not the typed one.
+ */
+function useSiteSave(clientId: number) {
+  const [state, setState] = useState<SaveStatus>('idle')
+  const queue = useRef<Promise<void>>(Promise.resolve())
+  const save = useMemo(() => {
+    const run = (patch: Record<string, unknown>) => {
+      setState('saving')
+      queue.current = queue.current.then(async () => {
+        try {
+          const response = await fetch(`/api/clients/${clientId}?depth=0&select[id]=true`, {
+            method: 'PATCH',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(patch),
+          })
+          setState(response.ok ? 'saved' : 'error')
+        } catch {
+          setState('error')
+        }
+      })
+    }
+    return Object.assign(run, { flush: () => queue.current })
+  }, [clientId])
+  return { state, save }
+}
+
+/** A quiet word beside a heading, saying whether the last change was kept. */
+function SaveState({ state }: { state: SaveStatus }) {
+  if (state === 'idle') return null
+  return (
+    <span className={state === 'error' ? styles.saveError : styles.saveState}>
+      {state === 'saving' ? 'Saving…' : state === 'saved' ? 'Saved' : 'Could not save'}
+    </span>
+  )
+}
+
+/** What the read-only region means for this site. */
+function regionHelp(regionName: string | null, classAddresses: boolean): string {
+  if (regionName === null) {
+    return 'The map opens on the whole world. Only an admin can change this.'
+  }
+  return classAddresses
+    ? `The map opens on ${regionName}, and atlas links for ${regionName} lead to your site once it is confirmed. Only an admin can change this.`
+    : `The map opens on ${regionName}. Only an admin can change this.`
 }
 
 /** What the address field asks for before anything is typed. */

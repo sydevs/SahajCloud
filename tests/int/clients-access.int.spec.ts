@@ -34,6 +34,7 @@ import { getRegionOwners } from '@/lib/atlas/regionOwners'
 import type { CanonicalVerification } from '@/lib/clients/verification'
 import { EMPTY_VERIFICATION } from '@/lib/clients/verification'
 import type { Client, Manager } from '@/payload-types'
+import { getPgPool, quotedDbSchema } from '@/plugins/usage'
 
 import { createRestClientAs, type RestClient } from '../utils/restRequest'
 import { testData } from '../utils/testData'
@@ -168,9 +169,9 @@ describe('Clients access', () => {
 
     const writerFields = {
       roles: ['sahaj-atlas-client'] as Client['roles'],
-      // Non-empty on purpose: an empty allowlist already allows every origin,
-      // so widening it to '' would be indistinguishable from the write failing.
-      allowedDomains: 'atlas-self-update.example',
+      // Set on purpose: a service with no domain already allows every origin,
+      // so clearing it would be indistinguishable from the write failing.
+      site: { domain: 'atlas-self-update.example' },
       usage: {
         highUsageDays: 9,
         totalRequests: 4242,
@@ -429,6 +430,13 @@ describe('Clients access', () => {
           notes: 'Written by its own manager',
           roles: ['wemeditate-web-client', 'sahaj-atlas-client'],
           managers: [listedManager.id, outsideManager.id],
+          enabled: false,
+          // The region an admin gives a service decides which links it may own,
+          // so it is locked like the rest, and so is everything the server
+          // writes about the service.
+          region: unownedRegion,
+          canonical: { owned: true },
+          usage: { totalRequests: 0 },
         },
         overrideAccess: false,
         req: managerReq(listedManager),
@@ -444,6 +452,37 @@ describe('Clients access', () => {
       expect(row.notes ?? null).toBeNull()
       expect(row.roles).toEqual(['wemeditate-web-client'])
       expect(row.managers).toEqual([listedManager.id])
+      expect(row.enabled).toBe(true)
+      expect(row.region ?? null).toBeNull()
+      expect(row.canonical?.owned ?? false).toBe(false)
+    })
+
+    it('keeps raw-SQL usage counters through a manager’s save of the service', async () => {
+      // The usage plugin writes counters straight to the row. While `clients`
+      // had drafts, every save rebuilt the row from its latest version row,
+      // which that write never reaches — so any save quietly reverted them.
+      // The same pool and schema the plugin writes through.
+      const req = { payload } as PayloadRequest
+      await getPgPool(req)!.query(
+        `UPDATE ${quotedDbSchema(req)}.clients SET usage_daily_requests = 77 WHERE id = $1`,
+        [otherClient.id],
+      )
+      await payload.update({
+        collection: 'clients',
+        id: otherClient.id,
+        data: { supportEmail: 'counters@other-service.example' },
+        overrideAccess: false,
+        req: managerReq(listedManager),
+      })
+
+      const row = (await payload.findByID({
+        collection: 'clients',
+        id: otherClient.id,
+        depth: 0,
+        overrideAccess: true,
+      })) as Client
+      expect(row.supportEmail).toBe('counters@other-service.example')
+      expect(row.usage?.dailyRequests).toBe(77)
     })
 
     it('gives a manager listed on nothing no clients at all', async () => {
@@ -518,12 +557,14 @@ describe('Clients access', () => {
       expect((await readWriter()).roles).toEqual(['sahaj-atlas-client'])
     })
 
-    it('refuses it an emptied allowedDomains', async () => {
-      // An empty allowlist allows every origin, and the same column is the host
-      // check on `POST /api/clients/report`.
-      await patchSelf({ allowedDomains: '' })
+    it('refuses it an emptied or moved domain', async () => {
+      // No domain allows every origin, and the same column is the host check on
+      // `POST /api/clients/report`.
+      await patchSelf({ site: { domain: null } })
+      expect((await readWriter()).site?.domain).toBe('atlas-self-update.example')
 
-      expect((await readWriter()).allowedDomains).toBe('atlas-self-update.example')
+      await patchSelf({ site: { domain: 'attacker.example', page: '/classes' } })
+      expect((await readWriter()).site?.domain).toBe('atlas-self-update.example')
     })
 
     it('refuses it a region', async () => {
@@ -545,20 +586,16 @@ describe('Clients access', () => {
     })
 
     it('refuses it canonical ownership of an unowned region', async () => {
-      // Region, enable, embed and a forged snapshot in one PATCH: one grant
-      // covered all four, and no incumbent means the uniqueness hook would have
+      // Region, ownership and a forged snapshot in one PATCH: one grant covered
+      // all three, and no incumbent means the uniqueness hook would have
       // accepted the claim.
       await patchSelf({
         region: unownedRegion,
-        canonical: {
-          enabled: true,
-          embed: 'https://atlas-self-update.example/map',
-          verification: FORGED_VERIFICATION,
-        },
+        canonical: { owned: true, verification: FORGED_VERIFICATION },
       })
 
       const after = await readWriter()
-      expect(after.canonical?.enabled).toBeFalsy()
+      expect(after.canonical?.owned).toBeFalsy()
       expect(after.canonical?.verification ?? null).toBeNull()
 
       // The published consequence, not just the column: no owner resolves for
@@ -601,23 +638,19 @@ describe('Clients access', () => {
         id: managedClient.id,
         data: {
           roles: ['sahaj-atlas-client', 'wemeditate-web-client'],
-          allowedDomains: 'atlas-self-update.example\nsecond.example',
+          site: { domain: 'second.example', page: '/map' },
           region: managedRegion,
           usage: { highUsageDays: 0 },
-          canonical: {
-            enabled: true,
-            embed: 'https://atlas-self-update.example/map',
-            verification: FORGED_VERIFICATION,
-          },
+          canonical: { owned: true, verification: FORGED_VERIFICATION },
         },
         overrideAccess: false,
         req: managerReq(adminManager),
       })) as Client
 
       expect(updated.roles).toEqual(['sahaj-atlas-client', 'wemeditate-web-client'])
-      expect(updated.allowedDomains).toContain('second.example')
+      expect(updated.site?.domain).toBe('second.example')
       expect(updated.usage?.highUsageDays).toBe(0)
-      expect(updated.canonical?.enabled).toBe(true)
+      expect(updated.canonical?.owned).toBe(true)
 
       const owners = await getRegionOwners(bareReq())
       expect(owners.get(managedRegion)?.clientId).toBe(managedClient.id)

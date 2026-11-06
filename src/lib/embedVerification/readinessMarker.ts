@@ -10,7 +10,7 @@ import { ROUTING_MODES } from '@/lib/clients/canonical'
  * **What this proves, precisely.** It detects an embed that is *installed but not working* — the
  * case a report can never reveal, because the report is sent by the same widget whose health is in
  * question. It does **not** prove the page is honest: the attribute carries no nonce, and any host
- * that can run our script can hand-write it. The trust boundary stays `allowedDomains`, server
+ * that can run our script can hand-write it. The trust boundary stays the service's domain, server
  * side. What it does buy against a *third party* holding a stolen key is real, though: they can
  * claim a mount on the client's domain in a report, but they cannot make that domain serve a
  * marker they control.

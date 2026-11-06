@@ -819,7 +819,7 @@ export const testData = {
         managers: [managerId],
         primaryContact: managerId,
         enableAPIKey: true,
-        _status: 'published', // Published = active (publish/unpublish is the auth gate)
+        enabled: true, // `Clients.enabled` is the key's switch
         ...overrides,
       }),
     })
@@ -1062,11 +1062,11 @@ export const testData = {
       } as TypedUser
     }
 
-    // Add status for clients (bypass requires _status === 'published')
+    // Clients authenticate only while active (`Clients.enabled`)
     return {
       ...baseUser,
-      _status: 'published', // Default to a published (active) client
-      ...overrides, // Allow overriding _status
+      enabled: true,
+      ...overrides, // Allow overriding enabled
     } as TypedUser
   },
 

@@ -52,7 +52,7 @@ export type BypassPermissionFunction = (
  */
 export type TypedAuthUser = TypedUser &
   Partial<Pick<Manager, 'currentProject' | 'type'>> &
-  Partial<Pick<Client, '_status'>> & {
+  Partial<Pick<Client, 'enabled'>> & {
     /** Auth collection this user belongs to */
     collection: 'managers' | 'clients'
     /**
