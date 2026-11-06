@@ -2,6 +2,12 @@ import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
 
 export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   await db.execute(sql`
+  -- keyGeneratedAt was never written, and an unset brand colour stores nothing.
+  ALTER TABLE "clients" ALTER COLUMN "color1" DROP DEFAULT;
+  ALTER TABLE "clients" ALTER COLUMN "color2" DROP DEFAULT;
+  ALTER TABLE "clients" ALTER COLUMN "color3" DROP DEFAULT;
+  ALTER TABLE "clients" DROP COLUMN "key_generated_at";
+
   CREATE TYPE "public"."enum_clients_site_track" AS ENUM('custom', 'wp-selfhosted', 'wp-com', 'wix', 'squarespace', 'iframe');
   CREATE TYPE "public"."enum_clients_site_embed_height" AS ENUM('fixed', 'screen', 'window');
   ALTER TABLE "clients" ADD COLUMN "enabled" boolean DEFAULT false;
@@ -199,5 +205,13 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   ALTER TABLE "clients" DROP COLUMN "site_track";
   ALTER TABLE "clients" DROP COLUMN "site_embed_height";
   DROP TYPE "public"."enum_clients_site_track";
-  DROP TYPE "public"."enum_clients_site_embed_height";`)
+  DROP TYPE "public"."enum_clients_site_embed_height";
+  ALTER TABLE "clients" ALTER COLUMN "color1" SET DEFAULT '#000000';
+  ALTER TABLE "clients" ALTER COLUMN "color2" SET DEFAULT '#000000';
+  ALTER TABLE "clients" ALTER COLUMN "color3" SET DEFAULT '#000000';
+  ALTER TABLE "_clients_v" ALTER COLUMN "version_color1" SET DEFAULT '#000000';
+  ALTER TABLE "_clients_v" ALTER COLUMN "version_color2" SET DEFAULT '#000000';
+  ALTER TABLE "_clients_v" ALTER COLUMN "version_color3" SET DEFAULT '#000000';
+  ALTER TABLE "clients" ADD COLUMN "key_generated_at" timestamp(3) with time zone;
+  ALTER TABLE "_clients_v" ADD COLUMN "version_key_generated_at" timestamp(3) with time zone;`)
 }

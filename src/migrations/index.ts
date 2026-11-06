@@ -110,9 +110,7 @@ import * as migration_20261103_215150_submitter_identity from './20261103_215150
 import * as migration_20261104_180154_routing_region from './20261104_180154_routing_region';
 import * as migration_20261104_185158_snapshot_resync from './20261104_185158_snapshot_resync';
 import * as migration_20261105_181908_retire_region_hint from './20261105_181908_retire_region_hint';
-import * as migration_20261105_214631_drop_client_key_generated_at from './20261105_214631_drop_client_key_generated_at';
-import * as migration_20261105_233009_clients_site_and_enabled from './20261105_233009_clients_site_and_enabled';
-import * as migration_20261106_021740_merge_1058_main_snapshot from './20261106_021740_merge_1058_main_snapshot';
+import * as migration_20261106_094841_clients_one_site from './20261106_094841_clients_one_site'
 
 export const migrations = [
   {
@@ -676,18 +674,8 @@ export const migrations = [
     name: '20261105_181908_retire_region_hint',
   },
   {
-    up: migration_20261105_214631_drop_client_key_generated_at.up,
-    down: migration_20261105_214631_drop_client_key_generated_at.down,
-    name: '20261105_214631_drop_client_key_generated_at',
+    up: migration_20261106_094841_clients_one_site.up,
+    down: migration_20261106_094841_clients_one_site.down,
+    name: '20261106_094841_clients_one_site',
   },
-  {
-    up: migration_20261105_233009_clients_site_and_enabled.up,
-    down: migration_20261105_233009_clients_site_and_enabled.down,
-    name: '20261105_233009_clients_site_and_enabled',
-  },
-  {
-    up: migration_20261106_021740_merge_1058_main_snapshot.up,
-    down: migration_20261106_021740_merge_1058_main_snapshot.down,
-    name: '20261106_021740_merge_1058_main_snapshot'
-  },
-];
+]
