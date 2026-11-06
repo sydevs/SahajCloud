@@ -9,7 +9,7 @@ import { errorResponse, requireActiveManager } from '@/lib/endpoints'
 import type { Client } from '@/payload-types'
 
 /** `POST /api/clients/:id/verify-embed` response. */
-interface VerifyEmbedResponse {
+export interface VerifyEmbedResponse {
   status: 'verified' | 'failed' | 'inconclusive'
   reason?: string
   /** Human sentence for the admin panel to render verbatim. */

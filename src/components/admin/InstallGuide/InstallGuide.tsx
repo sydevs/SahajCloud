@@ -14,6 +14,8 @@ import {
 } from '@payloadcms/ui'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import type { ClaimCanonicalResponse } from '@/collections/Clients/endpoints/claimCanonical'
+import type { VerifyEmbedResponse } from '@/collections/Clients/endpoints/verifyEmbed'
 import { CopyBlock } from '@/components/admin/CopyBlock'
 import { tableColumn } from '@/components/admin/helpers/tableColumn'
 import { InfoBanner } from '@/components/admin/InfoBanner'
@@ -35,13 +37,11 @@ import {
   type BannerContent,
   buildInstallModel,
   buildMilestones,
-  type ClaimAnswer,
   checkOutcome,
   reportedMountsFor,
   sectionConfirmed,
   stageBanner,
   type StepStatus,
-  type VerifyAnswer,
 } from './installModel'
 import { InstallProgress } from './InstallProgress'
 import {
@@ -343,16 +343,16 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
    * third call. Answers what both calls said, for the Check buttons to show.
    */
   const confirm = useCallback(async (): Promise<{
-    claim: ClaimAnswer | null
-    verify: VerifyAnswer | null
+    claim: ClaimCanonicalResponse | null
+    verify: VerifyEmbedResponse | null
   }> => {
     setBusy(true)
     try {
       // The primary page is the record's own, so the claim takes no body —
       // and the address must be saved before it can name the right page.
       await save.flush()
-      const claim = await post<ClaimAnswer>(`/api/clients/${clientId}/claim-canonical`)
-      const verify = await post<VerifyAnswer>(`/api/clients/${clientId}/verify-embed`)
+      const claim = await post<ClaimCanonicalResponse>(`/api/clients/${clientId}/claim-canonical`)
+      const verify = await post<VerifyEmbedResponse>(`/api/clients/${clientId}/verify-embed`)
       await reread()
       return { claim, verify }
     } finally {

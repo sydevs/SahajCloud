@@ -1,5 +1,7 @@
 import type { Step, StepId, Track, TrackMeta } from './steps'
 
+import type { ClaimCanonicalResponse } from '@/collections/Clients/endpoints/claimCanonical'
+import type { VerifyEmbedResponse } from '@/collections/Clients/endpoints/verifyEmbed'
 import type { EmbedMetadata } from '@/lib/clients/embedMetadata'
 import { normalizeMountPath, siteHosts } from '@/lib/clients/site'
 import type { CanonicalVerification, SeoCheckResult } from '@/lib/clients/verification'
@@ -489,32 +491,12 @@ export function installComplete(milestones: Milestone[]): boolean {
   return done === total
 }
 
-/** What `POST /api/clients/:id/claim-canonical` answered, as far as the tab reads it. */
-export interface ClaimAnswer {
-  status:
-    | 'claimed'
-    | 'already'
-    | 'worldwide'
-    | 'no-class-addresses'
-    | 'taken'
-    | 'unknown-mount'
-    | 'no-page'
-  message: string
-}
-
-/** What `POST /api/clients/:id/verify-embed` answered, as far as the tab reads it. */
-export interface VerifyAnswer {
-  status: 'verified' | 'failed' | 'inconclusive'
-  message: string
-  seo: SeoCheckResult[]
-}
-
 /**
  * The claim answers worth a banner of their own. `worldwide` and
  * `no-class-addresses` are not here: neither is something to fix, and the status
  * table already says what each means.
  */
-const CLAIM_TITLES: Partial<Record<ClaimAnswer['status'], string>> = {
+const CLAIM_TITLES: Partial<Record<ClaimCanonicalResponse['status'], string>> = {
   taken: 'Another site already has this region',
   'unknown-mount': 'We have not seen this page yet',
   'no-page': 'Add your atlas address first',
@@ -531,8 +513,8 @@ export function checkOutcome(args: {
   /** `null` when the widget has not reported itself from this address. */
   path: string | null
   reported: boolean
-  claim: ClaimAnswer | null
-  verify: VerifyAnswer | null
+  claim: ClaimCanonicalResponse | null
+  verify: Pick<VerifyEmbedResponse, 'status' | 'message' | 'seo'> | null
   /** `false` for a track whose search checks say nothing (`Track.searchListings`). */
   searchListings?: boolean
 }): BannerContent {
