@@ -5,6 +5,7 @@ import type { Milestone, MilestoneState } from './installModel'
 import { Pill, Table } from '@payloadcms/ui'
 import React from 'react'
 
+import { Progress } from '@/components/admin/helpers/Progress'
 import { tableColumn } from '@/components/admin/helpers/tableColumn'
 
 import styles from './InstallGuide.module.css'
@@ -75,12 +76,7 @@ export function InstallProgressBar({
       <span className={done === total ? styles.progressComplete : styles.progressCount}>
         {done === total ? 'Installation complete' : `${done} of ${total} done`}
       </span>
-      <progress
-        aria-label="Install progress"
-        className={styles.progressBar}
-        max={total}
-        value={done}
-      />
+      <Progress label="Install progress" max={total} value={done} />
     </div>
   )
 }

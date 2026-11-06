@@ -256,12 +256,6 @@
   color: var(--theme-success-500);
 }
 
-.progressBar {
-  width: 100%;
-  height: calc(var(--base) * 0.4);
-  accent-color: var(--theme-success-500);
-}
-
 .progress :global(.table) {
   margin: 0;
 }

@@ -4,6 +4,8 @@ import type { SummaryTone } from './summary'
 
 import React from 'react'
 
+import { Progress } from '@/components/admin/helpers/Progress'
+
 import { summaryTone } from './summary'
 
 interface ProgressBarProps {
@@ -17,29 +19,13 @@ interface ProgressBarProps {
   tone?: SummaryTone
 }
 
-function toneToFill(tone: SummaryTone): string {
-  switch (tone) {
-    case 'success':
-      return 'var(--theme-success-500, #10b981)'
-    case 'danger':
-      return 'var(--theme-error-500, #ef4444)'
-    case 'warning':
-      return 'var(--theme-warning-500, #f59e0b)'
-    case 'neutral':
-    default:
-      return 'var(--theme-elevation-400)'
-  }
-}
-
 export const ProgressBar: React.FC<ProgressBarProps> = ({
   passing,
   total,
   unit = 'ready',
   tone,
 }) => {
-  const percent = total === 0 ? 0 : Math.round((passing / total) * 100)
   const allPassing = total > 0 && passing === total
-  const fillColor = toneToFill(tone ?? summaryTone(passing, total))
 
   return (
     <div
@@ -50,25 +36,12 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
         marginTop: 'calc(var(--base) * 0.15)',
       }}
     >
-      <div
-        style={{
-          flex: 1,
-          height: '6px',
-          borderRadius: '3px',
-          background: 'var(--theme-elevation-200)',
-          overflow: 'hidden',
-        }}
-      >
-        <div
-          style={{
-            width: `${percent}%`,
-            height: '100%',
-            borderRadius: '3px',
-            background: fillColor,
-            transition: 'width 0.2s ease',
-          }}
-        />
-      </div>
+      <Progress
+        label={unit}
+        max={total}
+        tone={tone ?? summaryTone(passing, total)}
+        value={passing}
+      />
       <span
         style={{
           flexShrink: 0,
