@@ -26,3 +26,27 @@ test('CORS preflight allows the live-preview secret header without credentials',
   expect(headers['access-control-allow-origin']).toBe('*')
   expect(headers['access-control-allow-credentials']).toBeUndefined()
 })
+
+/**
+ * The Atlas widget posts registrations and reports from the visitor's browser
+ * with `x-turnstile-token`. A preflight that omits it makes the browser drop the
+ * POST unsent, so the forms fail with nothing in this server's logs.
+ */
+test('CORS preflight allows the Turnstile token header on user-submissions', async ({
+  request,
+}) => {
+  const res = await request.fetch('/api/user-submissions', {
+    method: 'OPTIONS',
+    headers: {
+      Origin: 'https://atlas-widget.example.org',
+      'Access-Control-Request-Method': 'POST',
+      'Access-Control-Request-Headers': 'authorization, content-type, x-turnstile-token',
+    },
+  })
+
+  expect(res.ok()).toBe(true)
+  const allowed = (res.headers()['access-control-allow-headers'] ?? '').toLowerCase()
+  expect(allowed).toContain('x-turnstile-token')
+  expect(allowed).toContain('authorization')
+  expect(allowed).toContain('content-type')
+})

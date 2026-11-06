@@ -14,6 +14,7 @@ import { serverEnv } from '@/lib/env'
 import { buildPayloadLocales, DEFAULT_LOCALE } from '@/lib/locales'
 import { createWorkerSafeLogger } from '@/lib/logger/workerSafeLogger'
 import { SUPPORTED_TIMEZONES } from '@/lib/timezones'
+import { TURNSTILE_TOKEN_HEADER } from '@/lib/turnstile/header'
 import { PREVIEW_SECRET_HEADER } from '@/lib/utilities/previewSecret'
 import { getServerUrl, ownOrigins } from '@/lib/utilities/serverUrl'
 import {
@@ -108,10 +109,12 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     // embedded Atlas widgets' preflight succeed on any host page; Payload omits
     // Access-Control-Allow-Credentials for `'*'`, so cookie-based admin sessions
     // stay protected (the static `csrf` list below is unchanged). See #509.
-    // `headers` APPENDS the live-preview secret to Payload's default allow-list
-    // (Authorization etc. stay): the Atlas widget fetches drafts client-side, so
-    // the header rides a cross-origin request and must clear preflight. See #575.
-    cors: { origins: '*', headers: [PREVIEW_SECRET_HEADER] },
+    // `headers` APPENDS to Payload's default allow-list (Authorization etc. stay).
+    // Both ride cross-origin requests from the Atlas widget, so each must clear
+    // preflight: the live-preview secret on draft reads (#575), and the Turnstile
+    // token on every registration and report. ⚠ A header missing here makes the
+    // browser drop the request unsent, so nothing reaches this server to log.
+    cors: { origins: '*', headers: [PREVIEW_SECRET_HEADER, TURNSTILE_TOKEN_HEADER] },
     csrf: [...ownOrigins(), serverEnv.WEMEDITATE_WEB_URL, serverEnv.SAHAJATLAS_URL],
     // `routes.admin` stays unset, and so do `admin.routes.account` and
     // `.reset`: the panel's hrefs and `isAdminPath` spell `/admin`, and two

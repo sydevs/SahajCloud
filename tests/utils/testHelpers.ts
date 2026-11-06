@@ -146,12 +146,16 @@ function createBaseTestConfig(emailConfig: any, schemaName: string, debug = fals
       enableConcurrencyControl: true,
     },
     plugins: [
-      usagePlugin({ enabled: true }),
       // Form builder: creates `forms` and the unified `user-submissions`
       // intake. Configured in one place, shared with the real config — a
       // plugin configured in only one of the two behaves differently under
       // test than in production (the trap nested-docs already taught us).
       formsPlugin(),
+      // ⚠ After `formsPlugin`, as in payload.config.ts: the usage plugin wraps
+      // only the collections that exist when it runs. Listed first, it left
+      // `forms` and `user-submissions` without the client read gates, so no
+      // spec saw the plugin's form-exists check refused for an API client.
+      usagePlugin({ enabled: true }),
       // Write Guard: anti-spam checks on client-originated writes (mirrors the
       // real payload.config.ts — the event-submission specs exercise it).
       writeGuardPlugin(),
