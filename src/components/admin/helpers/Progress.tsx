@@ -10,11 +10,11 @@ const TONE_COLORS: Record<ProgressTone, string> = {
 }
 
 /**
- * A determinate progress bar: a native `<progress>`, which carries its value to
- * assistive technology as no styled div does, coloured through `accent-color`.
+ * A determinate progress bar: a thin rounded track, filled in its tone.
  *
- * ⚠ **`max={0}` is invalid, and leaving both attributes off draws an
- * indeterminate bar**, so a total of nothing is drawn as none of one.
+ * Drawn as divs rather than a native `<progress>`, whose track and fill each
+ * browser paints its own way, and given the `progressbar` role so assistive
+ * technology still reads its value. A total of nothing is drawn empty.
  */
 export function Progress({
   value,
@@ -27,12 +27,33 @@ export function Progress({
   tone?: ProgressTone
   label: string
 }): React.ReactElement {
+  const percent = max > 0 ? Math.round((Math.min(value, max) / max) * 100) : 0
+
   return (
-    <progress
+    <div
       aria-label={label}
-      max={max > 0 ? max : 1}
-      style={{ width: '100%', height: 'calc(var(--base) * 0.4)', accentColor: TONE_COLORS[tone] }}
-      value={max > 0 ? value : 0}
-    />
+      aria-valuemax={max}
+      aria-valuemin={0}
+      aria-valuenow={max > 0 ? value : 0}
+      role="progressbar"
+      style={{
+        flex: 1,
+        width: '100%',
+        height: '6px',
+        borderRadius: '3px',
+        background: 'var(--theme-elevation-200)',
+        overflow: 'hidden',
+      }}
+    >
+      <div
+        style={{
+          width: `${percent}%`,
+          height: '100%',
+          borderRadius: '3px',
+          background: TONE_COLORS[tone],
+          transition: 'width 0.2s ease',
+        }}
+      />
+    </div>
   )
 }
