@@ -21,7 +21,7 @@ import { installComplete, milestonesForRecord } from './installStatus'
  * where `InstallBannerNotice` hides it.
  *
  * Counts what the Install tab counts (`milestonesForRecord`), so the banner goes
- * exactly when the tab says "All done".
+ * exactly when the tab says "Installation complete".
  */
 export default async function InstallBanner(props: {
   id?: number | string

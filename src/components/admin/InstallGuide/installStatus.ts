@@ -53,7 +53,7 @@ export function milestonesForRecord(args: {
   })
 }
 
-/** Whether every milestone a site can reach is done — the "All done" of the Install tab. */
+/** Whether every milestone a site can reach is done — the "Installation complete" of the Install tab. */
 export function installComplete(milestones: Milestone[]): boolean {
   return milestones.every((milestone) => milestone.state === 'done' || milestone.state === 'na')
 }

@@ -87,7 +87,7 @@ export function InstallProgressBar({
   return (
     <div className={styles.progressHeader}>
       <span className={done === total ? styles.progressComplete : styles.progressCount}>
-        {done === total ? 'All done' : `${done} of ${total} done`}
+        {done === total ? 'Installation complete' : `${done} of ${total} done`}
       </span>
       <progress
         aria-label="Install progress"

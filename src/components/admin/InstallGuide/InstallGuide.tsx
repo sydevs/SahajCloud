@@ -166,10 +166,17 @@ function AppearancePreview({ appearance }: { appearance: Appearance }) {
         <Table
           appearance="condensed"
           columns={[
-            tableColumn('setting', 'Setting', ['Email replies go to', 'Mailing list']),
-            tableColumn('value', 'Now', [
-              appearance.supportEmail ?? 'The Sahaj Atlas team (no support email set)',
-              appearance.mailingList ?? 'None connected',
+            tableColumn('when', 'When someone…', [
+              'replies to the email they got after registering',
+              'asks to get news from you',
+            ]),
+            tableColumn('then', 'What happens now', [
+              appearance.supportEmail
+                ? `Their reply goes to ${appearance.supportEmail}.`
+                : 'Their reply goes to the Sahaj Atlas team, not to you. Add your own email address to get replies yourself.',
+              appearance.mailingList
+                ? `They are added to your ${appearance.mailingList} mailing list.`
+                : 'Nothing yet. Connect a mailing list to collect their email addresses.',
             ]),
           ]}
           data={[{ id: 'replies' }, { id: 'list' }]}
@@ -429,6 +436,10 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
   const showProblem = addressInput.trim() !== '' && address.problem !== null
   const ready = activeTrack !== null && atlasPath !== null
   const stage = stageBanner(model.stage, activeTrack?.searchListings !== false)
+  const verifiedPage = verification?.verified
+  const livePage = verifiedPage
+    ? `https://${verifiedPage.domain}${verifiedPage.mount}`
+    : primaryPageUrl(saved)
 
   // A lone step, and the unordered follow-on steps, carry no number.
   const stepCard = (step: Step, number: number | null, quiet: boolean) => (
@@ -448,7 +459,22 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
     <div className={styles.layout}>
       <div className={styles.main}>
         <div className={styles.banners}>
-          <TitledBanner title={stage.title} type={stage.type}>
+          <TitledBanner
+            title={
+              // Live means verified, so the verified page is the one to link.
+              model.stage === 'verified' && livePage ? (
+                <>
+                  Your atlas is live at{' '}
+                  <a href={livePage} rel="noreferrer" target="_blank">
+                    {livePage.replace(/^https:\/\//, '')}
+                  </a>
+                </>
+              ) : (
+                stage.title
+              )
+            }
+            type={stage.type}
+          >
             {stage.text}
           </TitledBanner>
           {apiKey === null ? (
@@ -646,8 +672,8 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
           <section className={styles.section}>
             <h3 className={styles.heading}>{nextSection}. Make it yours</h3>
             <p className={styles.intro}>
-              How the atlas and the emails people get when they register look today. Anything not
-              set yet shows the default.
+              This is how your map and the emails people get after registering look right now.
+              Anything you haven’t chosen yet uses a default.
             </p>
             <AppearancePreview appearance={props.appearance} />
             <div>
