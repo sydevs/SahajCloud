@@ -3,7 +3,7 @@
 import { usePathname } from 'next/navigation'
 import React from 'react'
 
-import { TitledBanner } from '@/components/admin/helpers/TitledBanner'
+import { InfoBanner } from '@/components/admin/InfoBanner'
 
 import styles from './InstallGuide.module.css'
 
@@ -18,13 +18,13 @@ export function InstallBannerNotice(props: {
 
   return (
     <div className={styles.installBanner}>
-      <TitledBanner
+      <InfoBanner
         action={<a href={props.installUrl}>Open the Install tab</a>}
         title="The atlas is not fully installed yet"
         type="warning"
       >
         {props.done} of {props.total} steps are done. The Install tab walks you through the rest.
-      </TitledBanner>
+      </InfoBanner>
     </div>
   )
 }

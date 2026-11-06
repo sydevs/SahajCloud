@@ -16,7 +16,7 @@ import {
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { tableColumn } from '@/components/admin/helpers/tableColumn'
-import { TitledBanner } from '@/components/admin/helpers/TitledBanner'
+import { InfoBanner } from '@/components/admin/InfoBanner'
 import { StatusIcon } from '@/components/admin/ReadinessField/StatusIcon'
 import { ToggleGroup } from '@/components/admin/ToggleGroupField/ToggleGroup'
 import {
@@ -458,7 +458,7 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
     <div className={styles.layout}>
       <div className={styles.main}>
         <div className={styles.banners}>
-          <TitledBanner
+          <InfoBanner
             title={
               // Live means verified, so the verified page is the one to link.
               model.stage === 'verified' && livePage ? (
@@ -475,15 +475,15 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
             type={stage.type}
           >
             {stage.text}
-          </TitledBanner>
+          </InfoBanner>
           {apiKey === null ? (
-            <TitledBanner
+            <InfoBanner
               action={<a href={editUrl}>Generate one on the Edit tab</a>}
               title="No API key yet"
               type="error"
             >
               Every value below needs one.
-            </TitledBanner>
+            </InfoBanner>
           ) : null}
         </div>
 
@@ -526,12 +526,12 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
 
           {activeTrack?.caveat ? (
             <div className={styles.banners}>
-              <TitledBanner
+              <InfoBanner
                 title={activeTrack.caveat.title}
                 type={activeTrack.caveat.tone === 'warning' ? 'warning' : 'default'}
               >
                 {activeTrack.caveat.text}
-              </TitledBanner>
+              </InfoBanner>
             </div>
           ) : null}
         </section>
@@ -597,7 +597,7 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
             {hints.length > 0 ? (
               <div className={styles.banners}>
                 {hints.map((hint) => (
-                  <TitledBanner
+                  <InfoBanner
                     action={
                       hint.action === 'switch-to-iframe' ? (
                         <InlineAction onClick={() => choosePlatform('iframe')}>
@@ -614,7 +614,7 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
                     type={hint.tone === 'warning' ? 'warning' : 'default'}
                   >
                     {hint.text}
-                  </TitledBanner>
+                  </InfoBanner>
                 ))}
               </div>
             ) : null}
@@ -625,7 +625,7 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
           <section className={styles.section}>
             <h3 className={styles.heading}>3. Get the atlas on your site</h3>
             {activeTrack.requires ? (
-              <TitledBanner
+              <InfoBanner
                 action={
                   activeTrack.requires.offerIframe ? (
                     <InlineAction onClick={() => choosePlatform('iframe')}>
@@ -636,7 +636,7 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
                 title={activeTrack.requires.title}
               >
                 {activeTrack.requires.text}
-              </TitledBanner>
+              </InfoBanner>
             ) : null}
             <ol className={styles.steps}>
               {activeTrack.steps.map((step, index) =>
@@ -804,9 +804,9 @@ function CheckButton({ busy, onClick }: { busy: boolean; onClick: () => void }) 
 function ResultBanner({ banner }: { banner: BannerContent }) {
   return (
     <div className={styles.result} role="status">
-      <TitledBanner title={banner.title} type={banner.type}>
+      <InfoBanner title={banner.title} type={banner.type}>
         {banner.text}
-      </TitledBanner>
+      </InfoBanner>
     </div>
   )
 }
@@ -873,7 +873,7 @@ function StepCard({
       >
         {step.notice ? (
           <div className={styles.stepNotice}>
-            <TitledBanner
+            <InfoBanner
               action={
                 step.notice.offerIframe ? (
                   <InlineAction onClick={onSwitchToIframe}>{step.notice.offerIframe}</InlineAction>
@@ -882,7 +882,7 @@ function StepCard({
               title={step.notice.title}
             >
               {step.notice.text}
-            </TitledBanner>
+            </InfoBanner>
           </div>
         ) : null}
         <ol className={styles.actions}>
