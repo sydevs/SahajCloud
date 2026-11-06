@@ -475,9 +475,19 @@ export function milestonesForRecord(args: {
   })
 }
 
+/** How many of the milestones a site can reach are done. A `na` row is in neither count. */
+export function installProgress(milestones: Milestone[]): { done: number; total: number } {
+  const counted = milestones.filter((milestone) => milestone.state !== 'na')
+  return {
+    done: counted.filter((milestone) => milestone.state === 'done').length,
+    total: counted.length,
+  }
+}
+
 /** Whether every milestone a site can reach is done — the "Installation complete" of the Install tab. */
 export function installComplete(milestones: Milestone[]): boolean {
-  return milestones.every((milestone) => milestone.state === 'done' || milestone.state === 'na')
+  const { done, total } = installProgress(milestones)
+  return done === total
 }
 
 /** What `POST /api/clients/:id/claim-canonical` answered, as far as the tab reads it. */

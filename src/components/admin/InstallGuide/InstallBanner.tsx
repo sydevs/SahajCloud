@@ -4,7 +4,7 @@ import { formatAdminURL } from 'payload/shared'
 import React from 'react'
 
 import { InstallBannerNotice } from './InstallBannerNotice'
-import { installComplete } from './installModel'
+import { installComplete, installProgress } from './installModel'
 import { loadInstallRecord } from './installRecord'
 
 /**
@@ -29,15 +29,15 @@ export default async function InstallBanner(props: {
   const record = await loadInstallRecord(props.payload, id)
   if (!record?.atlas || installComplete(record.milestones)) return null
 
-  const counted = record.milestones.filter((milestone) => milestone.state !== 'na')
+  const { done, total } = installProgress(record.milestones)
   return (
     <InstallBannerNotice
-      done={counted.filter((milestone) => milestone.state === 'done').length}
+      done={done}
       installUrl={formatAdminURL({
         adminRoute: props.payload.config.routes.admin,
         path: `/collections/clients/${id}/install`,
       })}
-      total={counted.length}
+      total={total}
     />
   )
 }

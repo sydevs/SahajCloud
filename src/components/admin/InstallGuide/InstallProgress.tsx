@@ -8,6 +8,7 @@ import React from 'react'
 import { tableColumn } from '@/components/admin/helpers/tableColumn'
 
 import styles from './InstallGuide.module.css'
+import { installProgress } from './installModel'
 
 const STATE_CLASS: Record<MilestoneState, string | undefined> = {
   done: styles.stateDone,
@@ -80,9 +81,7 @@ export function InstallProgressBar({
 }: {
   milestones: Milestone[]
 }): React.ReactElement {
-  const counted = milestones.filter((milestone) => milestone.state !== 'na')
-  const done = counted.filter((milestone) => milestone.state === 'done').length
-  const total = counted.length
+  const { done, total } = installProgress(milestones)
 
   return (
     <div className={styles.progressHeader}>
