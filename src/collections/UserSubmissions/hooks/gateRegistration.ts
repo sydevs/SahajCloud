@@ -8,7 +8,7 @@ import { evaluateRegistrationGate } from '@/lib/registrations/gating'
 import { relationId } from '@/lib/utilities/relationId'
 import { asTrustedReq } from '@/plugins/usage/hooks'
 
-import { findRepeatRegistration } from '../lifecycle/repeatRegistration'
+import { findRepeatRegistration, senderByEmail } from './mergeRepeatRegistration'
 
 /**
  * Refuse a registration the event is not open to, with the machine-readable
@@ -80,25 +80,23 @@ export const gateRegistration: CollectionBeforeValidateHook = async ({ data, ope
     req,
   })
 
-  const gate = (count: number) =>
-    evaluateRegistrationGate({
-      event,
-      registrationCount: count,
-      now: new Date(),
-      startingAt: data.startingAt,
-    })
-  let rejection = gate(registrationCount)
+  let rejection = evaluateRegistrationGate({
+    event,
+    registrationCount,
+    now: new Date(),
+    startingAt: data.startingAt,
+  })
 
-  // A registrant updating their own registration (`mergeRepeatRegistration`)
-  // already holds a seat, so a full event is not full to them. Asked only on
-  // `event_full`, so an ordinary signup pays no extra read.
+  // Updating a seat already held (`mergeRepeatRegistration`) takes no new one.
+  // `event_full` is the gate's last check, so nothing else is waived; and only
+  // then is the extra read paid.
   if (rejection?.code === 'event_full' && typeof data.senderEmail === 'string') {
-    const existing = await findRepeatRegistration({
-      req: asTrustedReq(req),
+    const existing = await findRepeatRegistration(
+      asTrustedReq(req),
       eventId,
-      sender: { email: data.senderEmail },
-    })
-    if (existing && isActiveRegistration(existing)) rejection = gate(registrationCount - 1)
+      senderByEmail(data.senderEmail),
+    )
+    if (existing && isActiveRegistration(existing)) rejection = null
   }
   if (rejection) {
     // `APIError`'s fourth argument is what puts `code` at `errors[].data.code`,

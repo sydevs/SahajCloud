@@ -1,92 +1,71 @@
-import type { CollectionAfterChangeHook } from 'payload'
+import type { CollectionAfterChangeHook, PayloadRequest, Where } from 'payload'
 
 import { appendLogEntry, asLog } from '@/fields'
+import { normalizeEmail } from '@/lib/users/upsertUserByEmail'
 import { relationId } from '@/lib/utilities/relationId'
 import type { UserSubmission } from '@/payload-types'
 import { asTrustedReq } from '@/plugins/usage/hooks'
 
-import { findRepeatRegistration } from '../lifecycle/repeatRegistration'
-
 /**
  * afterChange (create): a registrant signing up again for an event they are
  * already registered for updates that registration instead of adding a second.
- * They may have changed their start date, their name, or their answers.
  *
  * ⚠ **The create runs to completion first, on purpose.** Payload cannot turn a
  * create into an update, and every refusal a public signup owes — the write
- * guard's captcha and link scan, `gateRegistration`, the `submissionData`
- * allow-list — lives on the create path and nowhere else. So the new row is
- * validated and inserted exactly as any signup is, then folded into the
- * existing one and deleted, all inside the create's transaction: a failure
- * anywhere rolls back both.
+ * guard, `gateRegistration`, the `submissionData` allow-list — lives on the
+ * create path alone. So the new row is validated and inserted like any signup,
+ * then folded into the existing one and deleted, inside the create's
+ * transaction.
  *
- * What the existing row keeps is its identity — `id`, `createdAt`, `uuid`
- * (which keys the registrant's calendar entry, so a re-sent confirmation moves
- * that entry instead of adding one) and its activity log (which keys the
- * reminder ledger per occurrence). What it takes is everything the registrant
- * typed, and `pending` with no screening verdict, so the new answers are
- * screened and a fresh confirmation goes out.
+ * The existing row keeps its `id`, `createdAt`, activity log and `uuid` — which
+ * keys the registrant's calendar entry, so the re-sent confirmation moves it
+ * rather than adding one. It takes what the registrant sent, back at `pending`
+ * with no verdict, so the new answers are screened and re-confirmed.
  *
- * ⚠ **Listed first in `afterChange`.** It returns the existing row's identity
- * as the create's `doc`, and every hook after it — the opt-in spawn, the
- * fullness sync, the screening queue — must act on that row, not the deleted
- * one. The response keeps the shape the client's own read access produced:
- * only `id`, `uuid` and the timestamps are swapped in, so the merge widens
- * nothing a client may see.
- *
- * Client-originated creates only, the same condition as `gateRegistration`: a
- * manager recording a registration by hand, or an import, is deliberate.
+ * ⚠ **Listed first in `afterChange`**, because every hook after it must act on
+ * the surviving row. Only `id`, `uuid` and the timestamps are swapped into the
+ * client-shaped `doc`, so the response shows the client nothing new.
  */
 export const mergeRepeatRegistration: CollectionAfterChangeHook = async ({
+  data,
   doc,
   operation,
   req,
 }) => {
   if (operation !== 'create' || doc.type !== 'registration') return doc
+  // A manager's own write, or an import, is deliberate — as for the gate.
   if (req.user?.collection !== 'clients') return doc
 
   const eventId = relationId(doc.event)
   const userId = relationId(doc.user)
   if (eventId == null || userId == null) return doc
 
-  // Every nested call below rides the client's `req`, so each is exempt from
-  // the client `select` requirement, which is meant for the client's own reads.
   const trusted = asTrustedReq(req)
-
-  const existing = await findRepeatRegistration({
-    req: trusted,
+  const existing = await findRepeatRegistration(
+    trusted,
     eventId,
-    sender: { userId },
-    excludeId: doc.id,
-  })
+    { user: { equals: userId } },
+    doc.id,
+  )
   if (!existing) return doc
-
-  // `doc` went through the client's read access, so it may lack what the
-  // registrant sent; the row itself does not.
-  const fresh = (await req.payload.findByID({
-    collection: 'user-submissions',
-    id: doc.id,
-    depth: 0,
-    overrideAccess: true,
-    req: trusted,
-  })) as UserSubmission
 
   const now = new Date().toISOString()
   const updated = await req.payload.update({
     collection: 'user-submissions',
     id: existing.id,
+    // `data` is the create's input after `prepareUserSubmission`, which `doc`
+    // (shaped by the client's read access) is not.
     data: {
-      // Without the array rows' own ids: those belong to the row being
-      // deleted, and the array table holds them unique.
-      submissionData: (fresh.submissionData ?? []).map(({ field, value }) => ({ field, value })),
-      startingAt: fresh.startingAt ?? null,
-      startingAt_tz: fresh.startingAt_tz,
-      subject: fresh.subject,
-      client: fresh.client,
+      // Without the array rows' ids, which belong to the row being deleted.
+      submissionData: ((data.submissionData ?? []) as { field: string; value: string }[]).map(
+        ({ field, value }) => ({ field, value }),
+      ),
+      startingAt: data.startingAt ?? null,
+      startingAt_tz: data.startingAt_tz,
+      client: data.client,
       status: 'pending',
-      // Cleared so `ScreenSubmissions` screens the new answers: it skips a row
-      // that already carries a verdict. The generated type omits the column's
-      // `null` (src/collections/AGENTS.md, "A JSON column declares its shape").
+      // `ScreenSubmissions` skips a row that already carries a verdict. The
+      // generated type omits the column's `null` (src/collections/AGENTS.md).
       screeningResult: null as unknown as UserSubmission['screeningResult'],
       activityLog: appendLogEntry(asLog(existing.activityLog), {
         at: now,
@@ -100,7 +79,6 @@ export const mergeRepeatRegistration: CollectionAfterChangeHook = async ({
     context: { skipWriteGuard: true },
     req: trusted,
   })
-
   await req.payload.delete({
     collection: 'user-submissions',
     id: doc.id,
@@ -109,12 +87,44 @@ export const mergeRepeatRegistration: CollectionAfterChangeHook = async ({
     req: trusted,
   })
 
-  return {
-    ...doc,
-    id: updated.id,
-    uuid: updated.uuid,
-    createdAt: updated.createdAt,
-    updatedAt: updated.updatedAt,
-    status: 'pending',
-  }
+  const { id, uuid, createdAt, updatedAt } = updated
+  return { ...doc, id, uuid, createdAt, updatedAt, status: 'pending' }
 }
+
+/**
+ * The registration a repeat signup from this sender updates, newest first.
+ * `spam` and `rejected` are left out: each is a verdict on that row, which a
+ * fresh signup must neither hide behind nor overturn.
+ */
+export async function findRepeatRegistration(
+  req: PayloadRequest,
+  eventId: number,
+  sender: Where,
+  excludeId?: number,
+) {
+  const { docs } = await req.payload.find({
+    collection: 'user-submissions',
+    where: {
+      and: [
+        { type: { equals: 'registration' } },
+        { event: { equals: eventId } },
+        { status: { in: ['accepted', 'pending', 'failed'] } },
+        sender,
+        ...(excludeId != null ? [{ id: { not_equals: excludeId } }] : []),
+      ],
+    },
+    sort: '-createdAt',
+    limit: 1,
+    depth: 0,
+    pagination: false,
+    select: { activityLog: true, status: true, type: true },
+    overrideAccess: true,
+    req,
+  })
+  return docs[0] ?? null
+}
+
+/** The sender, by an address the create has not yet resolved to a `users` row. */
+export const senderByEmail = (email: string): Where => ({
+  'user.email': { equals: normalizeEmail(email) },
+})
