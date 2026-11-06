@@ -3,13 +3,8 @@ import type { Endpoint } from 'payload'
 import type { RoutingMode } from '@/lib/clients/canonical'
 import { primaryPageUrl } from '@/lib/clients/site'
 import type { SeoCheckResult } from '@/lib/clients/verification'
-import {
-  nextRoutingProbeState,
-  nextSeoCheckState,
-  nextVerificationState,
-} from '@/lib/clients/verification'
-import { notifySeoFailures, runSeoChecksForClient } from '@/lib/embedVerification/seoCheckRun'
-import { probeForOutcome, probeRouting, verifyEmbed } from '@/lib/embedVerification/verifyEmbed'
+import { verifyMount } from '@/lib/embedVerification/seoCheckRun'
+import { probeRouting, verifyEmbed } from '@/lib/embedVerification/verifyEmbed'
 import { errorResponse, requireActiveManager } from '@/lib/endpoints'
 import type { Client } from '@/payload-types'
 
@@ -103,39 +98,23 @@ export const verifyEmbedOnDemand: Endpoint = {
       return errorResponse('This service has no atlas address yet.', 400)
     }
 
-    const now = new Date()
-    const result = await verifyEmbed(mount)
-    const transition = nextVerificationState({
+    const {
+      outcome: result,
+      transition,
+      verification,
+      seo,
+    } = await verifyMount({
+      req,
+      client,
       current: client.canonical?.verification ?? null,
-      result,
-      now,
+      mount,
+      now: new Date(),
+      verify: verifyEmbed,
+      probe: probeRouting,
+      // Wherever the CMS has ever confirmed the page carries the widget, not only
+      // on a pass that just did.
+      runSeo: () => true,
     })
-
-    // `probeForOutcome` is the job's gate, shared rather than restated, so a
-    // button press and a scheduled run spend the same renders.
-    const verification = nextRoutingProbeState({
-      current: transition.verification,
-      result: await probeForOutcome(mount, result, probeRouting),
-      now,
-    })
-
-    // The SEO checks run only on a verified embed: they compare what a crawler
-    // sees against what the endpoint answered, and there is nothing to compare
-    // until the CMS has confirmed the page carries the widget at all.
-    let seo: SeoCheckResult[] = []
-    let withSeo = verification
-    if (verification.verified) {
-      seo = await runSeoChecksForClient({
-        req,
-        clientId,
-        verified: verification.verified,
-        routing: verification.routingProbe?.verdict ?? 'query',
-        language: client.language,
-      })
-      const folded = nextSeoCheckState({ current: verification, results: seo, now })
-      withSeo = folded.verification
-      await notifySeoFailures({ payload: req.payload, client, failures: folded.newFailures })
-    }
 
     await req.payload.update({
       collection: 'clients',
@@ -144,7 +123,7 @@ export const verifyEmbedOnDemand: Endpoint = {
       data: {
         canonical: {
           ...client.canonical,
-          verification: withSeo,
+          verification,
           nextVerifyAt: transition.nextVerifyAt,
         },
       },

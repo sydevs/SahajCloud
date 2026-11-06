@@ -8,7 +8,18 @@ import { parseAtlasRoute } from '@/endpoints/atlas/seo/atlasRoute'
 import { resolveAtlasSeo } from '@/endpoints/atlas/seo/resolve'
 import { resolveAtlasSitemap } from '@/endpoints/atlas/sitemap/resolve'
 import type { RoutingMode } from '@/lib/clients/canonical'
-import type { SeoCheckResult, VerifiedEmbed } from '@/lib/clients/verification'
+import type {
+  CanonicalVerification,
+  RoutingProbeResult,
+  SeoCheckResult,
+  VerificationResult,
+  VerifiedEmbed,
+} from '@/lib/clients/verification'
+import {
+  nextRoutingProbeState,
+  nextSeoCheckState,
+  nextVerificationState,
+} from '@/lib/clients/verification'
 import { DEFAULT_LOCALE, isValidLocale } from '@/lib/locales'
 import { adminDocUrl } from '@/lib/utilities/adminUrl'
 import { headerDisplayName, stripNewlines } from '@/lib/utilities/emailSafeText'
@@ -17,6 +28,7 @@ import type { Client } from '@/payload-types'
 import { getEmailBrand, MANAGER_EMAIL_FROM, renderEmail } from '@/plugins/email'
 
 import { runSeoChecks } from './seoChecks'
+import { probeForOutcome } from './verifyEmbed'
 
 /**
  * The one place the SEO checks are wired to this service's own resolvers, and
@@ -135,15 +147,51 @@ export async function notifySeoFailures(args: {
   const { payload, client, failures } = args
   if (failures.length === 0) return
 
-  // The primary contact, falling back to the first listed manager — the same
-  // rule `VerifyEmbeds` uses for a disabled canonical. `relationId` rather than
-  // a `typeof` chain, and `!== null` rather than `.find(Boolean)`, which would
-  // drop a legitimate id of 0.
+  await notifyServiceContact({
+    payload,
+    client,
+    failure: 'seoChecks: could not notify about new SEO check failures',
+    message: async () => {
+      const brand = getEmailBrand('sahaj-atlas')
+      return {
+        from: `${headerDisplayName(brand.productName)} <${MANAGER_EMAIL_FROM}>`,
+        subject: stripNewlines(`Search engines may not be reading ${client.name}’s atlas pages`),
+        html: await renderEmail(
+          createElement(AtlasSeoWarningEmail, {
+            brand,
+            siteName: client.name,
+            failures,
+            // `adminDocUrl` plus the view's own path, so the admin route stays
+            // Payload's to change.
+            installUrl: `${adminDocUrl('clients', client.id)}/install`,
+          }),
+        ),
+      }
+    },
+  })
+}
+
+/**
+ * Mail a service's contact: its primary contact, falling back to the first
+ * listed manager, so one service is never mailed about its canonical and not
+ * about its pages. A service with no contact is not an error.
+ *
+ * ⚠ **A failed send never throws.** Every notice reports a state change the
+ * caller is about to persist or already has, and losing the mail must not cost
+ * that.
+ */
+export async function notifyServiceContact(args: {
+  payload: Payload
+  client: Pick<Client, 'id' | 'managers' | 'primaryContact'>
+  /** Logged, with the client id, when the send fails. */
+  failure: string
+  message: () => Promise<Omit<Parameters<Payload['sendEmail']>[0], 'to'>>
+}): Promise<void> {
+  const { payload, client, failure, message } = args
+  // `!== null` rather than `.find(Boolean)`, which would drop a legitimate id of 0.
   const contactId =
     relationId(client.primaryContact) ??
     (client.managers ?? []).map((manager) => relationId(manager)).find((id) => id !== null)
-  // A service with no contact is not an error: the tab still shows every
-  // failure to whoever opens it.
   if (contactId == null) return
 
   try {
@@ -154,28 +202,61 @@ export async function notifySeoFailures(args: {
       overrideAccess: true,
     })
     if (!manager?.email) return
-
-    const brand = getEmailBrand('sahaj-atlas')
-    await payload.sendEmail({
-      to: manager.email,
-      from: `${headerDisplayName(brand.productName)} <${MANAGER_EMAIL_FROM}>`,
-      subject: stripNewlines(`Search engines may not be reading ${client.name}’s atlas pages`),
-      html: await renderEmail(
-        createElement(AtlasSeoWarningEmail, {
-          brand,
-          siteName: client.name,
-          failures,
-          // `adminDocUrl` plus the view's own path, so the admin route stays
-          // Payload's to change.
-          installUrl: `${adminDocUrl('clients', client.id)}/install`,
-        }),
-      ),
-    })
+    await payload.sendEmail({ to: manager.email, ...(await message()) })
   } catch (error) {
     payload.logger.error({
-      msg: 'seoChecks: could not notify about new SEO check failures',
+      msg: failure,
       clientId: client.id,
       error: error instanceof Error ? error.message : String(error),
     })
   }
+}
+
+/**
+ * Verify one mount, probe its routing, and run the SEO checks, folding all three
+ * into one verification object and mailing any new SEO failure.
+ *
+ * The nightly job and "Verify now" both run this, so a button press and a
+ * scheduled run spend the same renders and fold identically. Persistence,
+ * counters and `disable` stay with each caller, as does the SEO gate:
+ * `runSeo` is asked only once the record holds a verified snapshot.
+ */
+export async function verifyMount(args: {
+  req: PayloadRequest
+  client: Pick<Client, 'id' | 'name' | 'managers' | 'primaryContact' | 'language'>
+  current: CanonicalVerification | null
+  mount: string
+  now: Date
+  verify: (mount: string) => Promise<VerificationResult>
+  probe: (mount: string) => Promise<RoutingProbeResult>
+  runSeo: (outcome: VerificationResult) => boolean
+}) {
+  const { req, client, current, mount, now, verify, probe, runSeo } = args
+
+  const outcome = await verify(mount)
+  const transition = nextVerificationState({ current, result: outcome, now })
+
+  // The routing verdict folds into the same object, so one owner is still one
+  // write. It never touches `failureCount`, and so can never reach `disable`.
+  const probeResult = await probeForOutcome(mount, outcome, probe)
+  const probed = nextRoutingProbeState({
+    current: transition.verification,
+    result: probeResult,
+    now,
+  })
+
+  if (!probed.verified || !runSeo(outcome)) {
+    return { outcome, transition, probeResult, verification: probed, seo: [], newFailures: [] }
+  }
+
+  const seo = await runSeoChecksForClient({
+    req,
+    clientId: client.id,
+    verified: probed.verified,
+    routing: probed.routingProbe?.verdict ?? 'query',
+    language: client.language,
+  })
+  const { verification, newFailures } = nextSeoCheckState({ current: probed, results: seo, now })
+  await notifySeoFailures({ payload: req.payload, client, failures: newFailures })
+  return { outcome, transition, probeResult, verification, seo, newFailures }
 }

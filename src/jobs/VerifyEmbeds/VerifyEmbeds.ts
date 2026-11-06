@@ -6,15 +6,9 @@ import type {
   RoutingProbeResult,
   VerificationResult,
 } from '@/lib/clients/verification'
-import {
-  nextRoutingProbeState,
-  nextSeoCheckState,
-  nextVerificationState,
-} from '@/lib/clients/verification'
 import type { RenderDeps } from '@/lib/embedVerification/browserRendering'
-import { notifySeoFailures, runSeoChecksForClient } from '@/lib/embedVerification/seoCheckRun'
-import { probeForOutcome, probeRouting, verifyEmbed } from '@/lib/embedVerification/verifyEmbed'
-import { relationId } from '@/lib/utilities/relationId'
+import { notifyServiceContact, verifyMount } from '@/lib/embedVerification/seoCheckRun'
+import { probeRouting, verifyEmbed } from '@/lib/embedVerification/verifyEmbed'
 import type { Client } from '@/payload-types'
 import { getPgPool, quotedDbSchema } from '@/plugins/usage'
 
@@ -128,21 +122,13 @@ async function dueClients(payload: Payload, req: PayloadRequest, now: Date): Pro
 }
 
 /** Tell whoever owns the service that its canonical ownership was switched off. */
-async function notifyDisabled(payload: Payload, client: DueClient, mount: string): Promise<void> {
-  const contactId = contactIdFor(client)
-  if (contactId == null) return
-
-  try {
-    const manager = await payload.findByID({
-      collection: 'managers',
-      id: contactId,
-      depth: 0,
-      overrideAccess: true,
-    })
-    if (!manager?.email) return
-
-    await payload.sendEmail({
-      to: manager.email,
+function notifyDisabled(payload: Payload, client: DueClient, mount: string): Promise<void> {
+  // A failed notice must not undo the disable — the disable is the safety action.
+  return notifyServiceContact({
+    payload,
+    client,
+    failure: 'VerifyEmbeds: could not notify about a disabled canonical',
+    message: async () => ({
       subject: `${client.name} is no longer the home for its region’s atlas links`,
       html:
         `<p>We could not find the Sahaj Atlas on <code>${mount}</code> three times in a row, ` +
@@ -150,36 +136,8 @@ async function notifyDisabled(payload: Payload, client: DueClient, mount: string
         `<p>Nothing else about the service changed. Once the map is working again, open the ` +
         `service’s Install tab and press Check again: the region comes back to your site if no ` +
         `other site has taken it.</p>`,
-    })
-  } catch (error) {
-    // A failed notice must not undo the disable — the disable is the safety action.
-    payload.logger.error({
-      msg: 'VerifyEmbeds: could not notify about a disabled canonical',
-      clientId: client.id,
-      error: error instanceof Error ? error.message : String(error),
-    })
-  }
-}
-
-/**
- * Who to tell about a service's canonical.
- *
- * The primary contact, falling back to the first listed manager — the same rule
- * `notifySeoFailures` applies to the metadata notice, so one service cannot be
- * mailed about its canonical and not about its pages. ⚠ **That agreement is
- * prose, because the two notices sit in different owners' folders.** It held by
- * two copies until #1055; if a third notice wants the same answer, the rule
- * belongs in `src/lib/notifications/` beside `resolveRecipients`.
- *
- * `relationId` rather than a `typeof` chain, and `!== null` rather than
- * `.find(Boolean)`, which drops a legitimate id of 0.
- */
-function contactIdFor(client: DueClient): number | null {
-  return (
-    relationId(client.primaryContact) ??
-    (client.managers ?? []).map((manager) => relationId(manager)).find((id) => id !== null) ??
-    null
-  )
+    }),
+  })
 }
 
 /** Injectable so tests can drive the ladder without a browser or a Cloudflare account. */
@@ -221,45 +179,26 @@ export async function runVerifyEmbeds(args: {
     if (!mount) continue
 
     result.processed++
-    const outcome = await verify(mount)
-    result[outcome.status === 'verified' ? 'verified' : outcome.status]++
-
     const current = client.canonical?.verification as CanonicalVerification | null
-    const transition = nextVerificationState({ current, result: outcome, now })
-
-    // The routing verdict folds into the same object, so one owner is still one
-    // write. It never touches `failureCount`, and so can never reach `disable`.
-    const probeResult = await probeForOutcome(mount, outcome, probe)
-    const verification = nextRoutingProbeState({
-      current: transition.verification,
-      result: probeResult,
+    const { outcome, transition, probeResult, verification, newFailures } = await verifyMount({
+      req,
+      client,
+      current,
+      mount,
       now,
+      verify,
+      probe,
+      // Only where the mount verified on this pass: there is nothing to compare
+      // on a page the widget is not on, and re-checking a site that is down
+      // would report four failures caused by the outage.
+      runSeo: (result) => result.status === 'verified',
     })
-
-    // The SEO checks compare what a crawler sees against what the endpoint
-    // answered, so they run only where the mount verified on this pass: there is
-    // nothing to compare on a page the widget is not on, and re-checking a site
-    // that is down would report four failures caused by the outage.
-    let withSeo = verification
-    if (outcome.status === 'verified' && verification.verified) {
-      const seo = await runSeoChecksForClient({
-        req,
-        clientId: client.id,
-        verified: verification.verified,
-        routing: verification.routingProbe?.verdict ?? 'query',
-        language: client.language,
-      })
-      const folded = nextSeoCheckState({ current: verification, results: seo, now })
-      withSeo = folded.verification
-      if (folded.newFailures.length > 0) {
-        result.seoWarned++
-        await notifySeoFailures({ payload, client, failures: folded.newFailures })
-      }
-    }
+    result[outcome.status === 'verified' ? 'verified' : outcome.status]++
+    if (newFailures.length > 0) result.seoWarned++
 
     try {
       await pool.query(updateSql(schema), [
-        JSON.stringify(withSeo),
+        JSON.stringify(verification),
         transition.nextVerifyAt,
         transition.disable,
         client.id,
