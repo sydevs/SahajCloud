@@ -213,7 +213,7 @@ describe('what each track prefills', () => {
 
   it('names the plan WordPress.com needs, as a condition rather than a step', () => {
     expect(tracks['wp-com'].requires?.title).toBe('Requires WordPress Business plan')
-    expect(tracks['wp-com'].requires?.offerIframe).toMatch(/Iframe only/)
+    expect(tracks['wp-com'].requires?.action).toMatchObject({ label: /Iframe only/, to: 'iframe' })
     expect(tracks['wp-com'].steps.map((step) => step.id)).not.toContain('plan')
   })
 
@@ -275,7 +275,7 @@ describe('what each track prefills', () => {
     const [coding] = tracks.wix.steps
     expect(coding.notice?.title).toMatch(/Dev Mode/)
     expect(coding.notice?.text).toMatch(/Harmony/)
-    expect(coding.notice?.offerIframe).toMatch(/Iframe only/)
+    expect(coding.notice?.action).toMatchObject({ label: /Iframe only/, to: 'iframe' })
     expect(tracks.wix.requires).toBeUndefined()
   })
 
@@ -319,7 +319,7 @@ describe('Squarespace', () => {
   it('names the plan that runs code, and offers the iframe track below it', () => {
     expect(track.requires?.title).toMatch(/Core/)
     expect(track.requires?.text).toMatch(/Public/)
-    expect(track.requires?.offerIframe).toMatch(/Iframe only/)
+    expect(track.requires?.action).toMatchObject({ label: /Iframe only/, to: 'iframe' })
   })
 
   it('uses a Code Block with the plain snippet, since no page answers a sub-path', () => {
@@ -428,7 +428,7 @@ describe('hostHints', () => {
   it('warns a free Wix address only, and offers the iframe track', () => {
     const list = hints('https://sahajayoga-ca.wixsite.com/classes', 'wix')
     expect(list).toHaveLength(1)
-    expect(list[0]).toMatchObject({ tone: 'warning', action: 'switch-to-iframe' })
+    expect(list[0]).toMatchObject({ tone: 'warning', action: { to: 'iframe' } })
     expect(list[0].text).toMatch(/Premium/)
     // A custom domain on Wix needs Premium already, so it gets no notice at all.
     expect(hints('https://sahajayoga.ca/classes', 'wix')).toEqual([])
@@ -436,10 +436,9 @@ describe('hostHints', () => {
 
   it('points a WordPress.com address at the WordPress.com track, until it is chosen', () => {
     const url = 'https://sahajayoga.wordpress.com/classes'
-    expect(hints(url, 'wordpress', { trackId: 'wp-selfhosted' })[0]).toMatchObject({
-      tone: 'info',
-      action: 'switch-to-wp-com',
-    })
+    const [hint] = hints(url, 'wordpress', { trackId: 'wp-selfhosted' })
+    expect(hint).toMatchObject({ action: { label: 'Switch to WordPress.com', to: 'wp-com' } })
+    expect(hint.tone).toBeUndefined()
     expect(hints(url, 'wordpress', { trackId: 'wp-com' })).toEqual([])
   })
 

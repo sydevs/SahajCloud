@@ -108,19 +108,16 @@ export interface Step {
    */
   unobservable?: boolean
   /** A notice at the top of the step, for a site the step cannot work on. */
-  notice?: SwitchNotice
-}
-
-/** A notice that can offer the iframe track, under a button of its own name. */
-export type SwitchNotice = Notice & {
-  /** The label of a button that switches to the iframe track, for a site that cannot. */
-  offerIframe?: string
+  notice?: Notice
 }
 
 /** A banner's two lines: what it is about, then what to do. */
 export interface Notice {
   title: string
   text: string
+  tone?: 'warning'
+  /** A button that switches the tab to a track that works where this one cannot. */
+  action?: { label: string; to: TrackId }
 }
 
 /** Step 4 of the tab: what comes once the atlas works. */
@@ -187,7 +184,7 @@ export interface Track extends TrackMeta {
    * plan, so there is nothing to tick off — and most sites already have it, so
    * it is not worded as a warning.
    */
-  requires?: SwitchNotice
+  requires?: Notice
   /** Step 3: the atlas working on the site. */
   steps: Step[]
   /** Step 4, where the track has one. */
@@ -391,10 +388,10 @@ function wixMore(values: InstallValues): FollowOn {
  * apart by what is missing: neither has Dev Mode in the top bar or `{ }` in the
  * left bar. Checked on a real account, 2026-11-05.
  */
-const WIX_NO_CODING: SwitchNotice = {
+const WIX_NO_CODING: Notice = {
   title: 'No Dev Mode or { } in your editor?',
   text: 'Then your site was made with Wix Harmony or Studio Two, which cannot run the map’s code yet.',
-  offerIframe: 'Switch to Iframe only',
+  action: { label: 'Switch to Iframe only', to: 'iframe' },
 }
 
 /** The Wix track's checks. The sitemap is the router code's own `_SiteMap`, so a missing entry points there. */
@@ -601,7 +598,7 @@ export function tracksFor(values: InstallValues): Record<TrackId, Track> {
       requires: {
         title: 'Requires WordPress Business plan',
         text: 'WordPress.com allows plugins on the Business plan and higher.',
-        offerIframe: 'No Business plan? Switch to Iframe only',
+        action: { label: 'No Business plan? Switch to Iframe only', to: 'iframe' },
       },
       checks: WORDPRESS_CHECKS,
       steps: wordpressSteps(values, { dotCom: true }),
@@ -707,7 +704,7 @@ export function tracksFor(values: InstallValues): Record<TrackId, Track> {
       requires: {
         title: 'Requires Squarespace Core or higher',
         text: 'The map needs a paid Core, Plus or Advanced plan (or an older Business or Commerce plan), on a site set to Public.',
-        offerIframe: 'On Basic or Personal? Switch to Iframe only',
+        action: { label: 'On Basic or Personal? Switch to Iframe only', to: 'iframe' },
       },
       checks: {
         noReport: 'snippet',
@@ -758,15 +755,6 @@ export function stepForCheck(track: Track, check: SeoCheckId): StepId {
   return track.checks[signalFor(check)]
 }
 
-/** What the volunteer can do about a hint, offered as a button in its banner. */
-export type HintAction = 'switch-to-iframe' | 'switch-to-wp-com'
-
-/** Something a site's address already tells us, before anything is installed. */
-export interface HostHint extends Notice {
-  tone: 'warning' | 'info'
-  action?: HintAction
-}
-
 /**
  * What a site's own address already tells us, before anything is installed.
  *
@@ -785,11 +773,11 @@ export function hostHints(args: {
   platform: PlatformId
   trackId: TrackId | null
   savedDomain?: string | null
-}): HostHint[] {
+}): Notice[] {
   const { address, platform, trackId, savedDomain } = args
   const host = address.host?.toLowerCase()
   if (!host) return []
-  const hints: HostHint[] = []
+  const hints: Notice[] = []
   const under = (domain: string) => host === domain || host.endsWith(`.${domain}`)
 
   const saved = siteHosts(savedDomain)
@@ -814,16 +802,15 @@ export function hostHints(args: {
       tone: 'warning',
       title: 'This is a free Wix address',
       text: 'The map needs Wix Premium and your own domain name. Until the site has both, use Iframe only.',
-      action: 'switch-to-iframe',
+      action: { label: 'Switch to Iframe only', to: 'iframe' },
     })
   }
 
   if (platform === 'wordpress' && under('wordpress.com') && trackId !== 'wp-com') {
     hints.push({
-      tone: 'info',
       title: 'This is a WordPress.com site',
       text: 'The steps for WordPress.com are slightly different.',
-      action: 'switch-to-wp-com',
+      action: { label: 'Switch to WordPress.com', to: 'wp-com' },
     })
   }
 

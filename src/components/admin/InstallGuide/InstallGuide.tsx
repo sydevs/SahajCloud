@@ -1,6 +1,6 @@
 'use client'
 
-import type { Action, PlatformId, Step, TrackId } from './steps'
+import type { Action, Notice, PlatformId, Step, TrackId } from './steps'
 import type { EmbedHeight, InstallValues } from './templates'
 
 import {
@@ -424,6 +424,14 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
     const choices = TRACKS_BY_PLATFORM[next]
     setTrack(choices.length === 1 ? choices[0] : null)
   }
+  const switchTo = (to: TrackId) => {
+    const next = TRACK_META[to].platform
+    if (next !== platform) {
+      setPlatform(next)
+      setResult(null)
+    }
+    setTrack(to)
+  }
   // The last section, after step 4 whenever step 4 shows.
   const nextSection = activeTrack?.more && working ? 5 : 4
 
@@ -443,7 +451,7 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
       key={step.id}
       number={number}
       onEmbedHeight={setEmbedHeight}
-      onSwitchToIframe={() => choosePlatform('iframe')}
+      onSwitch={switchTo}
       quiet={quiet}
       status={model.stepStatus[step.id]}
       step={step}
@@ -522,9 +530,10 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
 
           {activeTrack?.caveat ? (
             <div className={styles.banners}>
-              <InfoBanner title={activeTrack.caveat.title} type="warning">
-                {activeTrack.caveat.text}
-              </InfoBanner>
+              <NoticeBanner
+                notice={{ ...activeTrack.caveat, tone: 'warning' }}
+                onSwitch={switchTo}
+              />
             </div>
           ) : null}
         </section>
@@ -590,24 +599,7 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
             {hints.length > 0 ? (
               <div className={styles.banners}>
                 {hints.map((hint) => (
-                  <InfoBanner
-                    action={
-                      hint.action === 'switch-to-iframe' ? (
-                        <InlineAction onClick={() => choosePlatform('iframe')}>
-                          Switch to Iframe only
-                        </InlineAction>
-                      ) : hint.action === 'switch-to-wp-com' ? (
-                        <InlineAction onClick={() => setTrack('wp-com')}>
-                          Switch to WordPress.com
-                        </InlineAction>
-                      ) : undefined
-                    }
-                    key={hint.title}
-                    title={hint.title}
-                    type={hint.tone === 'warning' ? 'warning' : 'default'}
-                  >
-                    {hint.text}
-                  </InfoBanner>
+                  <NoticeBanner key={hint.title} notice={hint} onSwitch={switchTo} />
                 ))}
               </div>
             ) : null}
@@ -618,18 +610,7 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
           <section className={styles.section}>
             <h3 className={styles.heading}>3. Get the atlas on your site</h3>
             {activeTrack.requires ? (
-              <InfoBanner
-                action={
-                  activeTrack.requires.offerIframe ? (
-                    <InlineAction onClick={() => choosePlatform('iframe')}>
-                      {activeTrack.requires.offerIframe}
-                    </InlineAction>
-                  ) : undefined
-                }
-                title={activeTrack.requires.title}
-              >
-                {activeTrack.requires.text}
-              </InfoBanner>
+              <NoticeBanner notice={activeTrack.requires} onSwitch={switchTo} />
             ) : null}
             <ol className={styles.steps}>
               {activeTrack.steps.map((step, index) =>
@@ -814,11 +795,27 @@ const EMBED_HEIGHT_LABELS: Record<EmbedHeight, { label: string; description: str
   },
 }
 
-function InlineAction({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
+/** A step's or a track's notice, with a text-link button where it offers another track. */
+function NoticeBanner({ notice, onSwitch }: { notice: Notice; onSwitch: (to: TrackId) => void }) {
+  const { action } = notice
   return (
-    <Button buttonStyle="none" className={styles.inlineAction} onClick={onClick}>
-      {children}
-    </Button>
+    <InfoBanner
+      action={
+        action ? (
+          <Button
+            buttonStyle="none"
+            className={styles.inlineAction}
+            onClick={() => onSwitch(action.to)}
+          >
+            {action.label}
+          </Button>
+        ) : undefined
+      }
+      title={notice.title}
+      type={notice.tone ?? 'default'}
+    >
+      {notice.text}
+    </InfoBanner>
   )
 }
 
@@ -830,7 +827,7 @@ function StepCard({
   quiet,
   embedHeight,
   onEmbedHeight,
-  onSwitchToIframe,
+  onSwitch,
 }: {
   number: number | null
   step: Step
@@ -839,7 +836,7 @@ function StepCard({
   quiet: boolean
   embedHeight: EmbedHeight
   onEmbedHeight: (next: EmbedHeight) => void
-  onSwitchToIframe: () => void
+  onSwitch: (to: TrackId) => void
 }): React.ReactElement {
   const failed = status?.state === 'fail'
   const finished = status?.state === 'pass' || status?.state === 'done'
@@ -860,16 +857,7 @@ function StepCard({
       >
         {step.notice ? (
           <div className={styles.stepNotice}>
-            <InfoBanner
-              action={
-                step.notice.offerIframe ? (
-                  <InlineAction onClick={onSwitchToIframe}>{step.notice.offerIframe}</InlineAction>
-                ) : undefined
-              }
-              title={step.notice.title}
-            >
-              {step.notice.text}
-            </InfoBanner>
+            <NoticeBanner notice={step.notice} onSwitch={onSwitch} />
           </div>
         ) : null}
         <ol className={styles.actions}>
