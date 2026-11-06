@@ -87,13 +87,11 @@ export async function renderPage(
 ): Promise<RenderResult> {
   const accountId = serverEnv.CLOUDFLARE_ACCOUNT_ID
   const token = serverEnv.CLOUDFLARE_API_KEY
-  const doFetch = deps.fetchFn ?? fetch
   if (!accountId || !token) {
-    if (isLocalDevTarget(url, process.env.NODE_ENV)) {
-      return renderLocally(url, waitForSelector, doFetch)
-    }
     return { ok: false, kind: 'unconfigured', detail: 'Cloudflare credentials are not configured.' }
   }
+
+  const doFetch = deps.fetchFn ?? fetch
 
   let response: Response
   try {
@@ -142,51 +140,4 @@ export async function renderPage(
   }
 
   return { ok: true, html: body.result }
-}
-
-/**
- * Whether a render may skip Cloudflare and fetch the page directly.
- *
- * ⚠ **`next dev` and a loopback host, both.** Cloudflare cannot reach a page on
- * the developer's own machine, so without this the Install tab's checks cannot
- * be exercised locally at all (`scripts/atlas-test-site.ts`). Anywhere else a
- * credential-less render stays `unconfigured`: a deployed server fetching
- * `localhost` is fetching itself, with the response quoted back to whoever
- * reported the mount.
- */
-export function isLocalDevTarget(url: string, nodeEnv: string | undefined): boolean {
-  if (nodeEnv !== 'development') return false
-  const host = URL.parse(url)?.hostname
-  return host === 'localhost' || host === '127.0.0.1' || host === '[::1]'
-}
-
-/**
- * Cloudflare's answer for a local page, from a plain fetch.
- *
- * Runs no JavaScript, so it finds a selector only in the HTML as served — which
- * is what the local test site sends. An attribute selector (`[name]`) missing
- * from the page answers `selector-timeout`, as a render that never saw it does.
- */
-export async function renderLocally(
-  url: string,
-  waitForSelector: string,
-  fetchFn: typeof fetch,
-): Promise<RenderResult> {
-  let html: string
-  try {
-    const response = await fetchFn(url, { signal: AbortSignal.timeout(10_000) })
-    html = await response.text()
-  } catch (error) {
-    return {
-      ok: false,
-      kind: 'navigation',
-      detail: error instanceof Error ? error.message : String(error),
-    }
-  }
-
-  const attribute = /^\[([\w-]+)\]$/.exec(waitForSelector)?.[1]
-  if (attribute && !html.includes(attribute)) {
-    return { ok: false, kind: 'selector-timeout', detail: `No ${waitForSelector} in ${url}.` }
-  }
-  return { ok: true, html }
 }
