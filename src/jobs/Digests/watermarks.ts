@@ -1,22 +1,20 @@
 import type { Payload } from 'payload'
 
 import type { ManagerRole } from '@/lib/notifications/managerRoles'
-import type { Manager } from '@/payload-types'
+import type { DigestWatermarks, Manager } from '@/payload-types'
 
 /**
- * `Managers.digestWatermarks`: per role, per section key, the start of the last
- * run whose email carried that section.
+ * `Managers.digestWatermarks`, never null: per role, per section key, the start
+ * of the last run whose email carried that section.
  *
  * ⚠ **Per role AND per key.** One manager can hold three roles, and each gets
  * its own email at its own pace — a single mark per key would let the region
  * email's send suppress the program email's items.
  */
-export type DigestWatermarks = Partial<Record<ManagerRole, Record<string, string>>>
-
-export function readWatermarks(manager: Pick<Manager, 'digestWatermarks'>): DigestWatermarks {
-  const value = manager.digestWatermarks
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
-  return value as DigestWatermarks
+export function readWatermarks(
+  manager: Pick<Manager, 'digestWatermarks'>,
+): NonNullable<DigestWatermarks> {
+  return manager.digestWatermarks ?? {}
 }
 
 export function watermarkFor(
@@ -24,8 +22,7 @@ export function watermarkFor(
   role: ManagerRole,
   key: string,
 ): null | string {
-  const mark = readWatermarks(manager)[role]?.[key]
-  return typeof mark === 'string' ? mark : null
+  return readWatermarks(manager)[role]?.[key] ?? null
 }
 
 /**
@@ -59,12 +56,12 @@ export async function advanceWatermarks(args: {
   payload: Payload
   role: ManagerRole
   runStart: Date
-}): Promise<DigestWatermarks> {
+}): Promise<NonNullable<DigestWatermarks>> {
   const { keys, manager, payload, role, runStart } = args
   const current = readWatermarks(manager)
   if (!keys.length) return current
   const at = runStart.toISOString()
-  const next: DigestWatermarks = {
+  const next: NonNullable<DigestWatermarks> = {
     ...current,
     [role]: { ...(current[role] ?? {}), ...Object.fromEntries(keys.map((key) => [key, at])) },
   }

@@ -441,15 +441,13 @@ import, or a third-party payload. Say so in a one-line comment naming
 where the type already lives, rather than restating that type as a second
 definition.
 
-⚠ **And leave a column with no schema at all where no write of it would run
-one.** `Managers.digestWatermarks` (#1070) is the one such column: a bare
-`type: 'json'` whose only writer is `payload.db.updateOne` from the digest
-run, which runs no validator. A declared shape there would be a contract
-unchecked on the write that makes it, and a refusal on every unrelated
-manager save made before it — the `required`-key hazard above, arriving
-through a column nobody edits. Pair it with `access: { update: () => false }`
-so the job really is the only writer, and say both things in a comment at the
-field. A column a **person** can write still takes `jsonField`.
+⚠ **A column only a job writes still takes `jsonField`, open at every level.**
+`Managers.digestWatermarks` (#1070) is written by `payload.db.updateOne` from
+the digest run, which runs no validator, so its schema checks nothing on the
+write that makes it. It still types the column, and it is still validated on
+every _other_ save of the manager — so declare it as nested `z.record`s with
+no `required` key, which no row the job writes can fail. Pair it with
+`access: { update: () => false }` so the job really is the only writer.
 
 ### A virtual column takes a schema too, and it can be closed
 

@@ -712,6 +712,14 @@ export type EventQualityReport =
        */
       openCount: number;
     };
+export type DigestWatermarks = {
+  [k: string]: {
+    /**
+     * ISO start of the last run whose email carried this key.
+     */
+    [k: string]: string;
+  };
+} | null;
 export type MeditationNodeWeights = {
   [k: string]: number;
 } | null;
@@ -1478,15 +1486,7 @@ export interface Manager {
       }[]
     | null;
   notificationPreferences?: NotificationPreferences;
-  digestWatermarks?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  digestWatermarks?: DigestWatermarks;
   legacyId?: number | null;
   legacyData?:
     | {
