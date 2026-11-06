@@ -43,6 +43,21 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   UPDATE "clients" SET "color1" = NULL WHERE lower("color1") = '#000000';
   UPDATE "clients" SET "color2" = NULL WHERE lower("color2") = '#000000';
   UPDATE "clients" SET "color3" = NULL WHERE lower("color3") = '#000000';
+  -- ⚠ This is reversible in schema, not in data. One site per service keeps one
+  -- host, and `down` rebuilds "allowed_domains" and "website_url" from "site" —
+  -- so the allowlist lines after the first, and every website URL, are gone both
+  -- ways round. Record them verbatim on the row, where an operator can read them
+  -- back, rather than dropping them silently.
+  UPDATE "clients" SET "notes" = concat_ws(chr(10) || chr(10),
+    nullif(btrim("notes", chr(9) || chr(10) || chr(13) || ' '), ''),
+    'One site per service, migrated ' || to_char(now(), 'YYYY-MM-DD') || '. Dropped columns:' ||
+    coalesce(chr(10) || 'allowedDomains: ' || nullif(btrim(
+      replace("allowed_domains", chr(13), ''), chr(9) || chr(10) || ' '), ''), '') ||
+    coalesce(chr(10) || 'websiteUrl: ' || nullif(btrim(
+      "website_url", chr(9) || chr(10) || chr(13) || ' '), ''), ''))
+    WHERE coalesce(array_length(array_remove(string_to_array(
+      replace(coalesce("allowed_domains", ''), chr(13), ''), chr(10)), ''), 1), 0) > 1
+      OR coalesce(btrim("website_url", chr(9) || chr(10) || chr(13) || ' '), '') <> '';
   ALTER TABLE "_clients_v_version_roles" DISABLE ROW LEVEL SECURITY;
   ALTER TABLE "_clients_v" DISABLE ROW LEVEL SECURITY;
   ALTER TABLE "_clients_v_rels" DISABLE ROW LEVEL SECURITY;
@@ -170,6 +185,9 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   CREATE INDEX "_clients_v_rels_managers_id_idx" ON "_clients_v_rels" USING btree ("managers_id");
   CREATE INDEX "clients__status_idx" ON "clients" USING btree ("_status");
   UPDATE "clients" SET "_status" = CASE WHEN "enabled" THEN 'published'::"enum_clients_status" ELSE 'draft'::"enum_clients_status" END;
+  -- One host, because that is all "site" holds. "website_url" comes back empty
+  -- for the same reason. `up` records both originals in "notes" rather than
+  -- pretending this restores them.
   UPDATE "clients" SET "allowed_domains" = "site_domain";
   UPDATE "clients" SET "canonical_enabled" = "canonical_owned";
   UPDATE "clients" SET "canonical_embed" = 'https://' || "site_domain" || "site_page"
