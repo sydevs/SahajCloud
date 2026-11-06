@@ -20,11 +20,10 @@ export interface InstallRecord {
 
 /**
  * A service's install, off its stored row, for the server components that show
- * it outside the Install tab: the document tab, the banner above the document
- * views and the Atlas tab's summary.
+ * it outside the Install tab: the edit form's banner and the Atlas tab's summary.
  *
  * Wrapped in React's `cache`, so one request reads the row once however many of
- * them render — and so all three count the same milestones.
+ * them render — and so both count the same milestones.
  */
 export const loadInstallRecord = cache(
   async (payload: Payload, id: number): Promise<InstallRecord | null> => {

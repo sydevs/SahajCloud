@@ -345,8 +345,6 @@ export const Clients: CollectionConfig = {
     useAsTitle: 'name',
     defaultColumns: ['name', 'enabled'],
     components: {
-      // A banner under the document header while the atlas install is unfinished.
-      Description: '@/components/admin/InstallGuide/InstallBanner',
       views: {
         edit: {
           /**
@@ -361,17 +359,13 @@ export const Clients: CollectionConfig = {
            * is not the gate here. `InstallView` re-reads the row with
            * `overrideAccess: false` anyway, because it reveals the API key.
            *
-           * The tab shows only on a service with the atlas role. A tab
-           * `condition` is synchronous and handed no document, so the tab is a
-           * server `Component` of its own (`InstallTab`) that reads the row's
-           * roles and renders nothing without that role. The URL still resolves
-           * for anyone typing it, so `InstallView` shows a notice there instead.
+           * Every service shows the tab; one without the atlas role has nothing
+           * to install, and `InstallView` says so there.
            */
           install: {
             Component: '@/components/admin/InstallGuide/InstallView',
             path: '/install',
             tab: {
-              Component: '@/components/admin/InstallGuide/InstallTab',
               label: 'Install',
               href: '/install',
               // 400 puts it after Payload's own Edit, API and Versions tabs.
@@ -388,6 +382,12 @@ export const Clients: CollectionConfig = {
   // report write straight to the row — a draft collection rebuilds every save
   // from its latest version row, which neither of those writes reaches.
   fields: [
+    {
+      // While the atlas install is unfinished, a banner pointing at the Install tab.
+      name: 'installBanner',
+      type: 'ui',
+      admin: { components: { Field: '@/components/admin/InstallGuide/InstallBanner' } },
+    },
     {
       // ⚠ Top level, beside `tabs`, never inside it — `mergeBaseFields` matches
       // the auth base field by name only at the level it is handed, so a nested
