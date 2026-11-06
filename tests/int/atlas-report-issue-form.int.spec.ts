@@ -219,8 +219,18 @@ describe('Atlas report-issue form', () => {
     })
 
     it('still refuses a form id that does not exist', async () => {
+      // The thrown message is the wrapper (`System > Form`), which is also what
+      // the defect above produced — so the field's own message is the assertion.
       // No answers: an unknown form names no fields, so any answer is refused first.
-      await expect(report(999_999, [])).rejects.toThrow(/Form/)
+      let messages: string[] = []
+      try {
+        await report(999_999, [])
+      } catch (error) {
+        const { errors } = (error as { data?: { errors?: { message?: string }[] } }).data ?? {}
+        messages = (errors ?? []).map((entry) => entry.message ?? '')
+      }
+
+      expect(messages).toEqual([expect.stringContaining('this form does not exist')])
     })
   })
 
