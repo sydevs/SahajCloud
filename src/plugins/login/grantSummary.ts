@@ -109,6 +109,18 @@ export function managerJoins(fields: Field[]): { collection: CollectionSlug; on:
 }
 
 /**
+ * How one kind of managed document is named: the singular for a count of one,
+ * the plural otherwise.
+ *
+ * Three surfaces render the same `Responsibility`, and one rule means they
+ * cannot disagree — the invitation email says it twice (its list and its
+ * subject) and the preview sign-in picker a third time, with only the email's
+ * copy under test.
+ */
+export const responsibilityLabel = (responsibility: Responsibility): string =>
+  responsibility.items.length === 1 ? responsibility.singular : responsibility.label
+
+/**
  * Name the access a manager holds — roles per locale, and the documents naming
  * them — as one summary per project, in project order. Given `only`, just the
  * part of that listed there.

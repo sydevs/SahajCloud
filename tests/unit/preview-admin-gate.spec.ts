@@ -1,51 +1,82 @@
+import { readFileSync } from 'node:fs'
+
 import { describe, expect, it } from 'vitest'
 
-import { resolvePreviewAdminEmail } from '@/plugins/previewAdmin'
+import { managersSignInDirectly } from '@/plugins/previewAdmin'
 
 /**
- * The gate on the preview-admin seeder (sydevs/SahajCloud#662).
+ * The gate on the preview-admin seeder (sydevs/SahajCloud#662), and on the two
+ * things it now also decides: whether `previewAutoSignIn` is on, and whether
+ * `/admin/login` lists every account in the environment.
  *
- * `onInit` fires on every boot in every environment, so what keeps this from writing an
- * admin into production — or into the integration lane's database, where CI genuinely
- * does hold `PREVIEW_ADMIN_EMAIL` — is entirely this predicate. Each case below is a
- * place it must not run.
+ * `onInit` fires on every boot in every environment, and the sign-in view
+ * renders everywhere, so what keeps either from reaching production — or the
+ * integration lane's database — is entirely this predicate. Each case below is
+ * a place it must not hold.
+ *
+ * ⚠ **The address arm is gone on purpose.** The gate used to require the
+ * address as an environment variable, because the address was the credential. A
+ * preview is now reachable only through Cloudflare Access and the proxy gate, so
+ * the environment alone decides and the account's address is a committed
+ * constant.
  */
-describe('resolvePreviewAdminEmail', () => {
-  const preview = {
-    email: 'preview-admin@sydevelopers.test',
-    environmentName: 'pr-662',
-    isProduction: false,
-  }
+describe('managersSignInDirectly', () => {
+  const preview = { environmentName: 'pr-662', isProduction: false }
 
-  it('seeds on a Railway preview holding an address', () => {
-    expect(resolvePreviewAdminEmail(preview)).toBe(preview.email)
+  it('holds on a Railway preview', () => {
+    expect(managersSignInDirectly(preview)).toBe(true)
   })
 
-  it('never seeds on production, whatever else is set', () => {
-    expect(
-      resolvePreviewAdminEmail({ ...preview, environmentName: 'production', isProduction: true }),
-    ).toBeUndefined()
+  it('never holds on production', () => {
+    // Read from Railway's environment name, never NODE_ENV: a preview runs
+    // NODE_ENV=production, the trap that once sent preview mail to real
+    // addresses.
+    expect(managersSignInDirectly({ environmentName: 'production', isProduction: true })).toBe(
+      false,
+    )
   })
 
-  it('never seeds off Railway, which is local dev, CI and both test lanes', () => {
-    // The load-bearing case: `pnpm test:int` boots Payload with NODE_ENV=test and no
-    // Railway environment. If the gate read only the address, a CI run holding the
-    // secret would provision an admin into the integration database.
-    expect(resolvePreviewAdminEmail({ ...preview, environmentName: undefined })).toBeUndefined()
+  it('never holds off Railway, which is local dev, CI and both test lanes', () => {
+    // The load-bearing case: `pnpm test:int` boots Payload with NODE_ENV=test
+    // and no Railway environment. Holding there would provision an admin into
+    // the integration database and make the sign-in page an open account list.
+    expect(managersSignInDirectly({ ...preview, environmentName: undefined })).toBe(false)
   })
 
-  it('does not seed an environment that names no address', () => {
-    // Two cases in one: a preview forked before the variable existed (out of scope on
-    // the ticket, keeping the admin it was already seeded with), and — since #840 — one
-    // whose admin would otherwise be openable by anyone who guessed a default address.
-    expect(resolvePreviewAdminEmail({ ...preview, email: undefined })).toBeUndefined()
-    expect(resolvePreviewAdminEmail({ ...preview, email: '' })).toBeUndefined()
-    expect(resolvePreviewAdminEmail({ ...preview, email: '   ' })).toBeUndefined()
+  it('does not hold for an unnamed environment, whatever else is set', () => {
+    // Fail-safe direction: an unknown or misnamed environment signs nobody in
+    // rather than guessing it is a preview.
+    expect(managersSignInDirectly({ ...preview, environmentName: '' })).toBe(false)
   })
 
-  it('does not seed an unnamed environment, whatever else is set', () => {
-    // Fail-safe direction: an unknown or misnamed environment seeds nothing rather than
-    // guessing it is a preview.
-    expect(resolvePreviewAdminEmail({ ...preview, environmentName: '' })).toBeUndefined()
+  it('never holds on a named environment that is not a PR preview', () => {
+    // ⚠ The fail-open this replaced, and the one the docblock used to deny. The
+    // test was "any Railway name but production", so a `staging` deployment —
+    // reached on its own public URL, with no Worker in front of it and no
+    // Access app covering it — published every manager's address, roles and
+    // managed records, with one-click admin sign-in beside them.
+    for (const environmentName of ['staging', 'hotfix', 'production-eu', 'pr-', 'pr-x', 'PR-1']) {
+      expect(managersSignInDirectly({ ...preview, environmentName }), environmentName).toBe(false)
+    }
+  })
+})
+
+describe('the sign-in view', () => {
+  const view = readFileSync(
+    new URL('../../src/components/admin/SignIn/index.tsx', import.meta.url),
+    'utf8',
+  )
+
+  it('renders the account picker behind that predicate and nowhere else', () => {
+    // ⚠ Source text, because the picker is an anonymous list of every account
+    // in the environment and the whole of what keeps it off the live view is
+    // one conditional. A second, ungated call site would not fail any other
+    // assertion here — the view needs a booted Payload to render.
+    const rendered = view.match(/<PreviewPicker/g) ?? []
+
+    expect(rendered).toHaveLength(1)
+    // Whitespace-insensitive: Prettier breaks the ternary over three lines
+    // once the props are long enough, and has already done so once.
+    expect(view.replace(/\s+/g, '')).toContain('previewSignInHere()?(<PreviewPicker')
   })
 })

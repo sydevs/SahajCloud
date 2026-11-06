@@ -19,6 +19,7 @@ import type { LocaleCode } from '../../src/lib/locales'
 export const WM_APP_TRANSLATIONS_DATA_FILE = 'seeds/wm-app-translations/data.en.json'
 export const WM_WEB_TRANSLATIONS_DATA_FILE = 'seeds/wm-web-translations/data.en.json'
 export const MEDITATION_TRANSCRIPTS_DATA_FILE = 'seeds/meditation-transcripts/data.json'
+export const PREVIEW_FIXTURE_DATA_FILE = 'seeds/preview-fixture/data.json'
 
 /**
  * The locales `sy-atlas-translations` carries a seed file for. Each is
@@ -73,5 +74,6 @@ export const SCRIPT_DATA_FILES: Partial<Record<ScriptName, string[]>> = {
     ...ATLAS_TRANSLATION_LOCALES.map(atlasTranslationsDataFile),
   ],
   'meditation-transcripts': [MEDITATION_TRANSCRIPTS_DATA_FILE],
+  'preview-fixture': [PREVIEW_FIXTURE_DATA_FILE],
   atlas: ATLAS_DUMP_NAMES.map(atlasDataFile),
 }

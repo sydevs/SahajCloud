@@ -109,6 +109,12 @@ change with every refresh:
 | atlas                  | events                 | data  | Yes        | managers, regions       |
 | atlas                  | user-submissions       | data  | Yes        | events, users           |
 | atlas                  | clients                | data  | No         | managers                |
+| preview-fixture        | managers               | 2     | No         | None                    |
+| preview-fixture        | regions                | 3     | No         | managers                |
+| preview-fixture        | forms                  | 1     | No         | managers                |
+| preview-fixture        | events                 | 2     | No         | managers, regions       |
+| preview-fixture        | users                  | 6     | No         | None                    |
+| preview-fixture        | user-submissions       | 13    | No         | events, users, forms    |
 
 **Meditations note**: targeting `collection=meditations` also runs
 `narrators`, `frames`, and `tags` in bulk (unpaginated) in the same
@@ -132,6 +138,7 @@ automatically — printing per-batch progress as it goes.
 | atlas                  | `pnpm seed atlas`                  | `pnpm atlas:sync build` (local data, below)        | managers, regions, users, events, user-submissions, clients |
 | atlas-reset            | `pnpm seed atlas-reset`            | ⚠ Destructive — run only by name, before a re-sync | events, regions, users, user-submissions (emptied)          |
 | translations           | `pnpm seed translations`           | None                                               | the three translations globals (see below)                  |
+| preview-fixture        | `pnpm seed preview-fixture`        | A Railway preview, reached at its fixed address    | managers, regions, forms, events, users, user-submissions   |
 
 ### `translations` — real copy everywhere, and the locales it publishes
 
@@ -208,6 +215,42 @@ Atlas has not changed. A re-sync empties the target with `pnpm seed
 atlas-reset`, then seeds with `--update`. See [atlas/AGENTS.md](atlas/AGENTS.md)
 ("The sync pipeline") for the procedure, and
 [atlas/MIGRATION_PLAN.md](atlas/MIGRATION_PLAN.md) for the importer design.
+
+### `preview-fixture` — the content CI puts into every preview
+
+A Railway PR preview forks service configuration and variables, never volume
+data, so it boots with one row anywhere: the admin `previewAdmin` reconciles. The
+pages a change is about therefore showed empty lists, and the only thing a change
+could do about it was admit so in a line of its own description (#1073). CI now
+fills every preview from `seeds/preview-fixture/data.json` — three regions in a
+country → city → venue tree, two accepted managers, two published classes, eight
+registrations and five contact messages across all five statuses — and **goes red
+when a preview exists and the fill does not succeed**.
+
+Three things worth knowing before you edit the data file:
+
+- ⚠ **A registration cannot be created `pending`.** A created-`pending` row
+  queues screening; a screening **pass leaves it `pending`**, and delivery then
+  writes `accepted`, because `registration`'s `deliveredStatus` is `accepted`.
+  Both guards read the status at **create**, so every row is authored with a
+  terminal status — which skips screening — and a `pending` one is reached by a
+  second, update pass. `COLLECTION_METADATA` states a `countWhere` floor for the
+  surviving row rather than trusting the count.
+- ⚠ **Every manager needs `_verified: true`.** `Managers.auth.verify` is
+  configured and the JWT strategy yields no user while that flag is false, so an
+  unaccepted manager is offered by the preview's sign-in picker and signs nobody
+  in.
+- **No real person is in it, structurally.** Every name is invented and every
+  address ends in the reserved `.invalid` TLD, and since #1079 the real-data files
+  are not in the checkout at all — so no CI run holds a real name to leak. That
+  is a promise about what CI writes and **not** about a preview somebody filled by
+  hand: the `atlas` script still loads whatever it is pointed at.
+
+It is deliberately absent from `SCRIPT_RUN_ORDER`, so a full seed of any other
+target never pulls it in. A run against a gated preview needs no `ADMIN_TOKEN`:
+the CLI asks the preview to sign its own admin in, carrying only the
+`CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET` service token that gets the
+request past Cloudflare Access.
 
 ### `meditation-transcripts` — where the data came from, and the id it cannot trust
 

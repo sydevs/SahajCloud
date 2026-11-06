@@ -16,9 +16,11 @@ const nextConfig = {
   // one, and both flags below fail open — an unset cap truncates at 10 MB, an
   // unset Turbopack flag restores the corrupt store.
   experimental: {
-    // `src/middleware.ts` matches `/api/:path*`, so Next buffers a copy of
-    // every API request body and silently truncates it at this cap. Payload
-    // then reads a cut-off upload and throws "Unexpected end of form" (#938).
+    // `src/middleware.ts` matches every path but static assets, so Next
+    // buffers a copy of every request body and silently truncates it at this
+    // cap. Payload then reads a cut-off upload and throws "Unexpected end of
+    // form" (#938). The matcher widened for the preview gate, so this cap now
+    // bounds pre-auth memory on every route rather than on `/api` alone.
     //
     // ⚠ Keep this STRICTLY above `upload.requestSizeLimit` in
     // `src/payload.config.ts`. Payload refuses a body only once it exceeds

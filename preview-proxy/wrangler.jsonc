@@ -1,0 +1,27 @@
+{
+  // The gate in front of every Railway preview of this app. Deployed by hand
+  // (`npx wrangler deploy --config preview-proxy/wrangler.jsonc`), never from
+  // CI: the pull request shipping it gates its own preview.
+  //
+  // The per-PR Custom Domains are NOT listed here. `scripts/preview-domain.ts`
+  // creates one on each push and the daily sweep deletes it, so this file would
+  // go stale within a day of every merge.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "sahajcloud-preview-proxy",
+  "main": "index.ts",
+  "compatibility_date": "2026-09-01",
+  // Without it the `cf: { cacheTtl: -1 }` override on the subrequest to Railway
+  // is ignored, and the zone's cache-phase rule governs that hop.
+  "compatibility_flags": ["request_cf_overrides_cache_rules"],
+  "observability": { "enabled": true },
+  "kv_namespaces": [
+    {
+      "binding": "PREVIEW_HOSTS",
+      // Replace with the namespace id `wrangler kv namespace create PREVIEW_HOSTS`
+      // prints. It is an account-scoped identifier, not a credential.
+      "id": "REPLACE_WITH_PREVIEW_HOSTS_NAMESPACE_ID",
+    },
+  ],
+  // PREVIEW_PROXY_SECRET is a Worker secret (`wrangler secret put`), so it is
+  // deliberately absent here.
+}

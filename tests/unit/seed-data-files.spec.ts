@@ -20,6 +20,7 @@ import {
   WM_APP_TRANSLATIONS_DATA_FILE,
   WM_WEB_TRANSLATIONS_DATA_FILE,
 } from '../../seeds/lib/dataFiles'
+import { EXPECTED_COUNTS } from '../../seeds/lib/expectedCounts'
 
 describe('seed data file registry', () => {
   it('registers a file that exists on disk, for every committed script', () => {
@@ -57,5 +58,44 @@ describe('seed data file registry', () => {
     expect(SCRIPT_DATA_FILES.atlas).toEqual(ATLAS_DUMP_NAMES.map(atlasDataFile))
     expect(SCRIPT_DATA_FILES.atlas).toHaveLength(9)
     expect(SCRIPT_DATA_FILES.atlas).toContain('seeds/atlas/data/manifest.json')
+  })
+})
+
+/**
+ * The two registries TypeScript cannot check, and the one the route reads.
+ *
+ * `EXPECTED_COUNTS` and `SCRIPT_DESCRIPTIONS` are total over `ScriptName`, so a
+ * missing entry is a build error. These three are not: `VALID_SCRIPTS` in
+ * `run.ts` is an array, and `getImporter`'s `switch` falls through to `null`.
+ * A script left out of either is accepted by `tsc` and then refused at run
+ * time — by the CLI as "invalid script", or by the route as a 500 — which is
+ * the same class of failure as an unregistered data file above, and the one
+ * `seeds/AGENTS.md`'s checklist exists to prevent.
+ *
+ * Read as source text because importing either module runs it: `run.ts` is a
+ * CLI with a top-level `main()`, and the route pulls in the Payload config.
+ */
+describe('the registries TypeScript cannot check', () => {
+  const read = (relative: string) => readFileSync(path.resolve(process.cwd(), relative), 'utf-8')
+
+  const scripts = Object.keys(EXPECTED_COUNTS)
+
+  it('names every script in the CLI, which holds a plain array', () => {
+    const cli = read('seeds/run.ts')
+    // Bounded by the next declaration, not by the name `SCRIPT_RUN_ORDER`: a
+    // comment inside the array mentions it, and cutting there hid the last
+    // entry — which is how this assertion first failed against correct code.
+    const listed = cli.slice(
+      cli.indexOf('const VALID_SCRIPTS'),
+      cli.indexOf('const SCRIPT_RUN_ORDER'),
+    )
+
+    for (const script of scripts) expect(listed, script).toContain(`'${script}'`)
+  })
+
+  it('names every script in the seed route, whose switch falls through to null', () => {
+    const route = read('src/app/(payload)/api/seed/[script]/route.ts')
+
+    for (const script of scripts) expect(route, script).toContain(`case '${script}':`)
   })
 })

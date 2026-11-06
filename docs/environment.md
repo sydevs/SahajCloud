@@ -91,13 +91,15 @@ A missing `PAYLOAD_SECRET` or `DATABASE_URL` stops the app from starting. A miss
 
 ### Preview environments provision their own admin
 
-`PREVIEW_ADMIN_EMAIL` is set on Railway's preview environments, and passed to the smoke lane as a CI secret. On every boot, `onInit` reconciles the admin account (`src/plugins/previewAdmin`) — present, admin, and `_verified`.
+The account's address is a committed constant, `PREVIEW_ADMIN_ADDRESS` in `src/plugins/previewAdmin`. On every boot of a preview, `onInit` reconciles it — present, admin, and `_verified`. There is no environment variable to set and no CI secret to rotate.
 
-Rotating it takes effect on the next deploy, and the CI secret must change with it: the smoke lane asks for a link as the CI value, and a preview answers any other address with mail rather than a session.
+**It stopped being a credential**, which is the whole of what #1081 changed. A preview answers only behind Cloudflare Access at `pr-<n>.cloud-preview.sydevelopers.com` and behind the shared-secret gate in `src/middleware.ts`, so who may ask is settled before a request arrives — and a preview then signs **any** manager in, which is how a reviewer checks what a region or event manager sees.
 
-Production is detected by Railway's environment name, never `NODE_ENV`. Previews also run `NODE_ENV=production` — the same trap that once sent preview mail through Resend to real addresses. The gate also requires a Railway environment name at all. This keeps `onInit` inert in local dev, CI, and both test lanes. CI does hold the address as a secret, so a gate reading only that would write an admin into the integration lane's database.
+Production is detected by Railway's environment name, never `NODE_ENV`. Previews also run `NODE_ENV=production` — the same trap that once sent preview mail through Resend to real addresses. The gate also requires a Railway environment name at all, which keeps `onInit` inert and the account list off the sign-in page in local dev, CI, and both test lanes.
 
-⚠ **On a preview that address is also the credential.** The sign-in page mints a session for it instead of mailing a link (#840), which is how the smoke lane gets in with no password anywhere — so treat it as a secret and keep the local part unguessable. There is no default: an environment without the variable provisions no admin and signs nobody in. Environments forked before 2026-08-27 keep whatever admin an early smoke run seeded.
+**Two variables a preview does need**, both a person's to set: `PREVIEW_PROXY_SECRET`, the value the Worker sends and `src/middleware.ts` compares — a preview with none refuses everything but its health route, which is the safe direction — and, in CI, the `github-ci` Access service token as `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET`, which the seed step and the smoke lane attach to every request. Neither is read through `serverEnv`: the first is read in the middleware bundle, which no schema describes, and the second never reaches the app at all.
+
+⚠ **Whether a deployment is a preview is read from Railway's environment name, through `railwayEnvironmentName()`.** The gate, the sign-in bypass, the login page's account list and `getServerUrl()` all read that one answer, so they cover one set by construction — and it is an allowlist, `pr-<n>`, not "any name but production": a `staging` environment is served at no fixed address and covered by no Access app, so the wider test published every manager's account there.
 
 ### `NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT` — set by the build, never by hand
 

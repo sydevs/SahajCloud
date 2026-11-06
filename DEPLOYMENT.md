@@ -109,6 +109,53 @@ source of truth: adding a collection, a global, or a root endpoint there is the 
 > never been added, `/api/atlas/sitemap` was stamped but uncovered, and `/api/user-choices` (#804)
 > likewise — all three served `DYNAMIC` in production while this file said otherwise.
 
+### Previews are gated, at a fixed address per pull request
+
+Every Railway PR preview is reached at `pr-<n>.cloud-preview.sydevelopers.com`, a
+Workers Custom Domain in front of the Cloudflare Worker in `preview-proxy/`.
+Cloudflare Access runs **ahead** of that Worker, so only a `sydevs` member — or
+one of two named service tokens — gets through, and the address is known the
+moment the pull request exists.
+
+| Piece                                               | Where                                                                                        |
+| --------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| The Worker                                          | `preview-proxy/`, deployed by hand (`wrangler deploy --config preview-proxy/wrangler.jsonc`) |
+| The address, created on each push and swept nightly | `scripts/preview-domain.ts`, from `ci.yml` and `cleanup-preview-assets.yml`                  |
+| The app-side gate on the raw Railway host           | `src/middleware.ts`                                                                          |
+| The content a reviewer opens it on                  | `seeds/preview-fixture/`, filled by `ci.yml`                                                 |
+
+⚠ **Railway's own address for a preview is shut.** A browser read there is sent
+on to the fixed address and anything else is refused, because Access never sees a
+request that arrives on the Railway host. Two things decide that, and neither is
+the request's own `Host`: whether this deployment is a `pr-<n>` Railway
+environment, and whether the request carries the Worker's shared secret **by
+value**. A host test would fail open on every shape it did not recognise, and a
+presence test on the header would be opened by anyone who read the repository.
+
+The one exception is a read of `/api/health`, exempt by exact path — for CI's
+discovery poll, which must reach the Railway host before the fixed address can
+answer for this push. Railway's own healthcheck needs no exemption: it reaches
+the container directly rather than through this deployment's public host.
+
+⚠ **With `PREVIEW_PROXY_SECRET` unset, a preview refuses everything but that one
+path.** Loud, and reported by the smoke lane — the alternative is a deployment
+that looks healthy and serves its whole admin panel to anyone.
+
+⚠ **Two per-zone ceilings the nightly sweep defends**: 100 Workers Custom Domains,
+and the Advanced Certificate each one generates — which a Custom Domain delete
+does **not** remove. That certificate is residue to clear by hand.
+
+**Why one address per pull request, and not one wildcard.** A single
+`*.cloud-preview.sydevelopers.com` Workers **route** would delete most of the
+machinery above: the create call, the nightly sweep, the 100-domain ceiling and
+the per-PR certificates, leaving only a KV key per PR, which has no ceiling. It
+was weighed and rejected (sydevs/SahajCloud#1078, decided 2026-11-04): a route
+needs a proxied wildcard DNS record, and it **fails open to the record's origin**
+past the Worker's request limit, where a Custom Domain fails closed. A Custom
+Domain is also the only one of the two a same-zone `fetch()` can target. The
+sweep is the price of failing closed. If that premise is ever re-tested, this is
+the paragraph to correct — not the scripts.
+
 **Live rule** (Cloudflare dashboard → Caching → Cache Rules) — enabled, named _"Client read edge
 cache (Vary: Authorization)"_, and the only rule in the zone's cache phase:
 
@@ -123,7 +170,14 @@ cache (Vary: Authorization)"_, and the only rule in the zone's cache phase:
 
 - **`GET` with `Authorization` present** — caching applies to client API-key reads and nothing
   else. Manager and admin reads are cookie-authenticated, carry no `Authorization`, and never
-  match; neither does any write.
+  match; neither does any write. **On the live site.**
+- **⚠️ A preview is not covered by any of that, and is uncacheable by construction.** Every
+  preview request now arrives at a Workers Custom Domain, and a Worker runs **ahead** of the
+  cache — so this rule is evaluated on the Worker's own `fetch()` to Railway, never on the
+  inbound request, and the conditions above describe a request Cloudflare no longer sees. The
+  Worker therefore stamps `private, no-store` on everything it returns **and** sends
+  `cf: { cacheTtl: -1 }` on that subrequest (`preview-proxy/index.ts`). Nothing served from a
+  preview is ever cached, which also means a caching fault can only be found on the live site.
 - **⚠️ The `Authorization`-present condition is mandatory — never match a bare `/api/*`.**
   `Vary: Authorization` partitions the cache per API-key _value_, but it does not isolate the
   _absent_-header case. Without requiring the header, Cloudflare serves the cached **authed**
