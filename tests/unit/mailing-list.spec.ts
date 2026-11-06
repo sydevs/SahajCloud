@@ -327,6 +327,12 @@ describe('subscribeToMailingList', () => {
       })
     })
 
+    it('sends no opt-in record at all when the row carried none', async () => {
+      fetchMock.mockImplementation(cleverreachAnswers({}))
+      await expect(subscribe(CLEVERREACH)).resolves.toEqual({ ok: true, status: 'pending' })
+      expect(bodyFor(fetchMock, '/flow/flow/')).not.toHaveProperty('doidata')
+    })
+
     it('sends no confirmation to an address already active on the group', async () => {
       fetchMock.mockImplementation(cleverreachAnswers({ receiver: answer(200, { active: 1 }) }))
       await expect(subscribe(CLEVERREACH)).resolves.toEqual({ ok: true, status: 'subscribed' })

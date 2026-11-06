@@ -119,18 +119,25 @@ async function subscribeCleverReach(args: SubscribeArgs): Promise<MailingListRes
 
     if (!doubleOptIn) return { ok: true, status: 'subscribed' }
 
+    // CleverReach's own record of the opt-in. Both values are client-reported
+    // rather than observed, and no row stores an IP, so this is weaker proof
+    // than a form CleverReach hosted itself.
+    const doidata = {
+      ...(hostUrl ? { referer: hostUrl } : {}),
+      ...(userAgent ? { user_agent: userAgent } : {}),
+    }
+
     const send = await authed(`/flow/flow/${encodeURIComponent(flowId)}/send`, {
       token,
       signal,
       body: {
+        // `receiver_id` takes the address, not the id the upsert answered with
+        // — CleverReach's own double opt-in guide sends an email here.
         receiver_id: email,
-        // CleverReach's own record of the opt-in. Both values are
-        // client-reported rather than observed, and no row stores an IP, so
-        // this is weaker proof than a form CleverReach hosted itself.
-        doidata: {
-          ...(hostUrl ? { referer: hostUrl } : {}),
-          ...(userAgent ? { user_agent: userAgent } : {}),
-        },
+        // Left out entirely when the row carried neither key. An empty object
+        // claims a record that does not exist, and the vendor documents no
+        // shape for one.
+        ...(Object.keys(doidata).length > 0 ? { doidata } : {}),
       },
     })
     if (!send.ok) return statusFailure(send.status, await readError(send))
