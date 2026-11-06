@@ -1,13 +1,9 @@
 import type { PaginatedDocs, PayloadRequest } from 'payload'
 
-import {
-  loadOpenItems,
-  loadRegionOverview,
-  loadStatistics,
-  type OverviewStatistics,
-  type RegionOverviewRow,
-} from '@/lib/atlasOverview'
+import { loadOpenItems } from '@/lib/atlasOverview/openItems'
 import { SPAM_SIGNUPS_PATH, spamSignups } from '@/lib/atlasOverview/refusals'
+import { loadRegionOverview, type RegionOverviewRow } from '@/lib/atlasOverview/regions'
+import { loadStatistics, type OverviewStatistics } from '@/lib/atlasOverview/statistics'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 
 import { type DashboardQuery, type OpenItemsData, paginate } from '../shared/model'

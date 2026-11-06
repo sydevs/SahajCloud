@@ -2,16 +2,15 @@ import type { PayloadRequest, TaskConfig } from 'payload'
 
 import {
   type AtlasSnapshotCounts,
+  countByRegion,
   SNAPSHOT_KEY_PREFIX,
   snapshotDate,
   snapshotKey,
 } from '@/lib/atlasOverview/statistics'
-import type { VerificationStage } from '@/lib/eventVerification/stages'
+import { addDays } from '@/lib/eventVerification/periods'
 import { runClock } from '@/lib/jobs/runClock'
-import { relationId } from '@/lib/utilities/relationId'
 
 const PAGINATION_LIMIT = 500
-const DAY_MS = 24 * 60 * 60 * 1000
 
 /**
  * How long a day's counts are kept.
@@ -23,13 +22,7 @@ const DAY_MS = 24 * 60 * 60 * 1000
  */
 const SNAPSHOT_RETENTION_DAYS = 45
 
-/**
- * Count each region's own non-trashed events by stage.
- *
- * Two columns per event, no population: the rollup to a subtree happens at
- * read time from the breadcrumbs the regions already carry, so this needs
- * nothing but the region id and the stage.
- */
+/** Count each region's own non-trashed events by stage; the subtree rollup happens at read time. */
 export async function countEventsByRegion(req: PayloadRequest): Promise<AtlasSnapshotCounts> {
   const counts: AtlasSnapshotCounts = {}
   let page = 1
@@ -44,13 +37,7 @@ export async function countEventsByRegion(req: PayloadRequest): Promise<AtlasSna
       req,
       select: { region: true, verificationStage: true },
     })
-    for (const event of batch.docs) {
-      const regionId = relationId(event.region)
-      if (regionId == null) continue
-      const stage = event.verificationStage as VerificationStage
-      const region = (counts[String(regionId)] ??= {})
-      region[stage] = (region[stage] ?? 0) + 1
-    }
+    countByRegion(batch.docs, counts)
     hasNextPage = batch.hasNextPage
     page++
   }
@@ -96,9 +83,7 @@ export const RecordAtlasSnapshot: TaskConfig<'recordAtlasSnapshot'> = {
 
     await payload.kv.set(snapshotKey(date), counts)
 
-    const cutoff = snapshotKey(
-      snapshotDate(new Date(now.getTime() - SNAPSHOT_RETENTION_DAYS * DAY_MS)),
-    )
+    const cutoff = snapshotKey(snapshotDate(addDays(now, -SNAPSHOT_RETENTION_DAYS)))
     const expired = (await payload.kv.keys()).filter(
       (key) => key.startsWith(SNAPSHOT_KEY_PREFIX) && key < cutoff,
     )

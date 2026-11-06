@@ -3,39 +3,20 @@ import { virtualRoles } from '@/plugins/access/config'
 import type { VirtualRoleUser } from '@/plugins/access/types'
 
 /**
- * The three hats an Atlas manager can wear, in the order a reader meets them.
- *
- * Distinct from the role slugs the access layer grants, and deliberately so:
- * `admin` is a manager `type` rather than a role, and the two Atlas roles are
- * derived from listings. One manager can wear all three, and then gets three of
- * everything — three home sections, three digest emails — because each is a
- * different job done on a different day.
+ * The three hats an Atlas manager can wear — not access role slugs: `admin` is
+ * a manager `type`, and the other two derive from listings.
  */
-export const MANAGER_ROLES = ['program', 'region', 'admin'] as const
-
-export type ManagerRole = (typeof MANAGER_ROLES)[number]
-
-/** What each role is called in a digest subject line. */
-export const MANAGER_ROLE_LABELS: Record<ManagerRole, string> = {
-  program: 'Your programs',
-  region: 'Your regions',
-  admin: 'Sahaj Atlas',
-}
-
-/** The shape every reader of {@link managerRoles} can supply. */
-export type ManagerRoleUser = Partial<Pick<Manager, 'type'>> & VirtualRoleUser
+export type ManagerRole = 'admin' | 'program' | 'region'
 
 /**
- * Which roles a manager holds.
+ * Which roles a manager holds, in the order a reader meets them.
  *
- * ⚠ **Read off the same joins `virtualRoles` reads**, never off a stored list:
- * being named on a region or an event *is* the role (`docs/rules/access.md`),
- * so anything keeping its own copy could disagree with the access layer about
- * what a manager is. `admin` comes from `type`, which no join carries.
- *
- * An admin also listed on a region holds both, in {@link MANAGER_ROLES} order.
+ * ⚠ **Read off the same joins `virtualRoles` reads**, never a stored list, so
+ * this cannot disagree with the access layer (`docs/rules/access.md`).
  */
-export function managerRoles(user: ManagerRoleUser | null | undefined): ManagerRole[] {
+export function managerRoles(
+  user: (Partial<Pick<Manager, 'type'>> & VirtualRoleUser) | null | undefined,
+): ManagerRole[] {
   if (!user) return []
   const derived = virtualRoles(user)
   const roles: ManagerRole[] = []

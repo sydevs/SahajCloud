@@ -9,32 +9,19 @@ import { getAtlasRegionData } from '@/components/admin/Dashboard/AtlasRegion/dat
 import type { DashboardQuery } from '@/components/admin/Dashboard/shared/model'
 import { countEventsByRegion, RecordAtlasSnapshot } from '@/jobs/AtlasSnapshot/RecordAtlasSnapshot'
 
+import { storeInvalidEvent } from '../utils/storeInvalidEvent'
 import { runTaskHandler } from '../utils/taskRunner'
 import { createData, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 const QUERY: DashboardQuery = { filter: 'all', limit: 50, page: 1, region: 0, section: 'items' }
 
-/**
- * ⚠ **A spread of a `Partial` widens `DashboardQuery`'s index signature** to
- * include `undefined`, which the type refuses. The named keys are what this
- * merge is about, so it names them.
- */
-const query_ = (overrides: Partial<DashboardQuery>): DashboardQuery => ({
-  filter: overrides.filter ?? QUERY.filter,
-  limit: overrides.limit ?? QUERY.limit,
-  page: overrides.page ?? QUERY.page,
-  region: overrides.region ?? QUERY.region,
-  section: overrides.section ?? QUERY.section,
+const query_ = (overrides: Partial<DashboardQuery> = {}): DashboardQuery => ({
+  ...QUERY,
+  ...overrides,
 })
 
-/**
- * The three homes, each reading the same open-items list through its own role.
- *
- * ⚠ **Every loader runs with `overrideAccess: false`**, so a case that passes
- * here is a case the reader's own access admits — the thing a hand-built
- * `Where` in a spec cannot tell you.
- */
+/** ⚠ Every loader runs with `overrideAccess: false`, so a passing case is one the reader's access admits. */
 describe('Atlas overview', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
@@ -45,11 +32,6 @@ describe('Atlas overview', () => {
   let countryId: number
   let managedCityId: number
   let orphanCityId: number
-  let ownProgramId: number
-  let escalatedId: number
-  let unadoptedId: number
-  let quietId: number
-  let regionOwnId: number
 
   const systemReq = () =>
     ({
@@ -121,11 +103,7 @@ describe('Atlas overview', () => {
       region: managedCity.id,
       title: 'Assigned program',
     })
-    ownProgramId = own.id
-    // ⚠ Published, and the count is the hook's. `stampEventQuality` recomputes
-    // `qualityOpenCount` on every write, and `shouldSkipQualityChecks` skips an
-    // unpublished listing — so a draft fixture carries no recommendations
-    // whatever this data says. A minimal event has findings of its own.
+    // ⚠ Published: `stampEventQuality` skips a draft, so only a published fixture has recommendations.
     await payload.update({
       collection: 'events',
       context: { skipVerifyHook: true },
@@ -141,7 +119,6 @@ describe('Atlas overview', () => {
       region: managedCity.id,
       title: 'Escalated elsewhere',
     })
-    escalatedId = escalated.id
     await payload.update({
       collection: 'events',
       context: { skipVerifyHook: true },
@@ -150,21 +127,19 @@ describe('Atlas overview', () => {
     })
 
     // Unadopted, in the subtree.
-    const unadopted = await testData.createEvent(payload, {
+    await testData.createEvent(payload, {
       manager: null,
       region: managedCity.id,
       title: 'Unadopted listing',
       verificationStage: 'unverified',
     })
-    unadoptedId = unadopted.id
 
     // Verified and quiet, in the subtree: on nobody's list but "all".
-    const quiet = await testData.createEvent(payload, {
+    await testData.createEvent(payload, {
       manager: other.id,
       region: managedCity.id,
       title: 'Quiet listing',
     })
-    quietId = quiet.id
 
     // Escalated, with nobody above it at all — the admin's own row.
     const orphanEvent = await testData.createEvent(payload, {
@@ -193,7 +168,6 @@ describe('Atlas overview', () => {
       region: secondCity.id,
       title: 'Region manager own program',
     })
-    regionOwnId = regionOwn.id
     await payload.update({
       collection: 'events',
       context: { skipVerifyHook: true },
@@ -234,12 +208,7 @@ describe('Atlas overview', () => {
     })
   })
 
-  /**
-   * ⚠ **A join carries at most its own `limit`** (Payload's default is 10), so
-   * a home that read "which events" off `req.user.managedEvents` would show a
-   * busy manager ten of them and call it their whole list. Every owned set
-   * here comes from a query.
-   */
+  /** ⚠ A join carries at most its own `limit` (default 10), so every owned set comes from a query. */
   describe('a manager with more events than a join carries', () => {
     it('sees all of them', async () => {
       const busy = await testData.createManager(payload, {
@@ -271,13 +240,7 @@ describe('Atlas overview', () => {
   })
 
   describe('a region manager', () => {
-    /**
-     * The home, with the refusal narrowed away.
-     *
-     * `getAtlasRegionData` answers a union — a refusal carries no data at all —
-     * so a case about the home says so once here rather than guarding every
-     * read. The refusal has its own case below, which asserts the whole shape.
-     */
+    /** The home, with the refusal narrowed away; the refusal has its own case. */
     const load = async (query: Partial<DashboardQuery> = {}) => {
       const data = await getAtlasRegionData(await reqAs(regionManager), query_(query))
       if (!data.allowed) throw new Error('expected the region home, not the refusal')
@@ -292,15 +255,9 @@ describe('Atlas overview', () => {
         'Region manager own program',
         'Unadopted listing',
       ])
-      expect(data.items.rows.docs.map((row) => row.title)).not.toContain('Quiet listing')
-      expect(quietId).toBeTypeOf('number')
     })
 
-    /**
-     * ⚠ Recommendations are a manager's own housekeeping, so a region manager
-     * sees them on their own events only — otherwise every listing in a large
-     * country would arrive as advice they cannot act on.
-     */
+    /** ⚠ A region manager sees recommendations on their own events only. */
     it("shows recommendations on nobody else's events", async () => {
       const data = await load()
       const mine = data.items.rows.docs.find((row) => row.title === 'Region manager own program')
@@ -312,14 +269,12 @@ describe('Atlas overview', () => {
       expect(asProgram.items.rows.docs[0]!.statuses.map((status) => status.key)).toContain(
         'recommendations',
       )
-      expect([escalatedId, ownProgramId, unadoptedId]).toHaveLength(3)
     })
 
     it('offers "Your programs" for the events they manage themselves', async () => {
       const data = await load({ filter: 'mine' })
       expect(titles(data.items.rows.docs)).toEqual(['Region manager own program'])
       expect(data.items.counts.mine).toBe(1)
-      expect(regionOwnId).toBeTypeOf('number')
     })
 
     it('scopes to one region of its own subtree', async () => {
@@ -332,15 +287,7 @@ describe('Atlas overview', () => {
       ])
     })
 
-    /**
-     * `?region=` is a URL anyone can type.
-     *
-     * ⚠ **The refusal carries no data at all**, rather than an emptied copy of
-     * the home's shape: the loader returns before it reads, so there is nothing
-     * for a caller to render by mistake and nothing a refused visitor can learn
-     * about what is in there. `Object.keys` is the assertion, because an
-     * emptied payload would satisfy any check on a single field's contents.
-     */
+    /** ⚠ `?region=` is a URL anyone can type, so the refusal carries no data at all. */
     it('refuses a region outside its subtree, and reads nothing from it', async () => {
       const data = await getAtlasRegionData(
         await reqAs(regionManager),
@@ -368,14 +315,54 @@ describe('Atlas overview', () => {
     const load = async (query: Partial<DashboardQuery> = {}) =>
       getAtlasAdminData(await reqAs(admin), query_(query))
 
-    /**
-     * ⚠ Only what nobody below them covers. A region with a manager anywhere
-     * above it is that manager's work.
-     */
+    /** ⚠ Only what nobody below them covers. */
     it('sees only the listings with no region manager above them', async () => {
       const data = await load()
       expect(titles(data.items.rows.docs)).toEqual(['Orphan escalated'])
       expect(data.items.progress).toBeNull()
+    })
+
+    it('sees the new-class proposals routed nowhere or under no manager, and no others', async () => {
+      const propose = (name: string, routingRegion: null | number) =>
+        payload.create({
+          collection: 'user-submissions',
+          data: {
+            proposed: { eventType: 'offline' },
+            routingRegion,
+            senderEmail: 'proposer@example.com',
+            submissionData: [{ field: 'name', value: name }],
+            type: 'proposal',
+          } as never,
+          overrideAccess: true,
+          req: systemReq(),
+        })
+      await propose('Proposed nowhere', null)
+      await propose('Proposed in the orphan city', orphanCityId)
+      await propose('Proposed in the managed city', managedCityId)
+
+      const adminTitles = titles((await load()).items.rows.docs)
+      expect(adminTitles).toEqual(
+        expect.arrayContaining(['Proposed nowhere', 'Proposed in the orphan city']),
+      )
+      expect(adminTitles).not.toContain('Proposed in the managed city')
+
+      const region = await getAtlasRegionData(await reqAs(regionManager), QUERY)
+      if (!region.allowed) throw new Error('expected the region home')
+      expect(titles(region.items.rows.docs)).toContain('Proposed in the managed city')
+    })
+
+    /** Live tiles count what a snapshot counts, so an event with no region counts on neither. */
+    it('totals the Countries rows in the Total programs tile, leaving out an event with no region', async () => {
+      const stray = await testData.createEvent(payload, {
+        manager: admin.id,
+        region: orphanCityId,
+        title: 'Stray listing',
+      })
+      await storeInvalidEvent(payload, stray.id, { region: null })
+
+      const data = await load({ limit: 100, section: 'regions' })
+      const total = data.statistics.analytics.find((tile) => tile.key === 'programs')!
+      expect(total.value).toBe(data.countries.docs.reduce((sum, row) => sum + row.programs, 0))
     })
 
     it('offers to add a region manager rather than to verify', async () => {
@@ -434,10 +421,7 @@ describe('Atlas overview', () => {
       expect(titles((await load()).items.rows.docs)).not.toContain('Nadia Haddad')
     })
 
-    /**
-     * ⚠ A tile with no snapshot shows no change line, never "+0" — a freshly
-     * deployed environment knows nothing about 30 days ago.
-     */
+    /** ⚠ A tile with no snapshot shows no change line, never "+0". */
     it('shows no change line until a snapshot 30 days old exists', async () => {
       const before = await load()
       for (const tile of [...before.statistics.health, ...before.statistics.analytics]) {
@@ -450,8 +434,7 @@ describe('Atlas overview', () => {
         context: { now: thirtyDaysAgo },
         payload,
       })
-      // The snapshot is of today's map, so every stage count matches and the
-      // change is zero — which is a change line, not an absent one.
+      // A snapshot of today's map: a change of zero, which is still a line.
       const after = await load()
       const verified = after.statistics.health.find((tile) => tile.key === 'verified')!
       expect(verified.change).toBe(0)

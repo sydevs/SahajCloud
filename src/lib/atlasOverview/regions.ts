@@ -1,25 +1,14 @@
-/**
- * The Regions overview and the Countries overview — one answer, two scopes.
- *
- * Every number is rolled up over a region's whole subtree, because that is
- * what a reader asking "how is Germany doing" means. One pass over the events
- * in scope does all of it, through `rollUpRegionTree`
- * (`src/lib/regionTree/rollUp.ts`) — the walk the sidebar's published/total
- * pair also instantiates. What is this table's own is the accumulator: six
- * counters plus a dated sign-up pair, which the sidebar's shape cannot carry
- * and which calling it six times would walk the events six times to fill.
- */
+/** The Regions and Countries overviews: every number rolled up over a region's whole subtree. */
 
-import { rollUpRegionTree } from '@/lib/regionTree/rollUp'
+import { getRegionTree } from '@/lib/atlas/regionTree'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Region } from '@/payload-types'
 
-import { loadRegionNodes, type OverviewArgs, type RegionNode, scopeRegionIds } from './scope'
-import { loadSignupWindows } from './signups'
+import { type OverviewArgs, scopeRegionIds } from './scope'
+import { loadSignupWindows } from './statistics'
 import { isProgramStage, OVERDUE_QUERY_STAGES } from './status'
 
-/** What one row of either overview shows. */
 export interface RegionOverviewRow {
   id: number
   name: string
@@ -28,10 +17,7 @@ export interface RegionOverviewRow {
   managers: number
   /** Events that are not finished. */
   programs: number
-  /**
-   * Events with a manager that are not overdue, over events that are not
-   * finished — whole per cent, or `null` where there is nothing to be healthy.
-   */
+  /** Managed and not overdue, over programs — whole per cent, `null` with no programs. */
   healthy: null | number
   overdue: number
   unverified: number
@@ -39,193 +25,108 @@ export interface RegionOverviewRow {
   signups: { change: number; last30: number }
 }
 
-/** The counters one pass over the events fills, per region. */
-interface RegionMetrics {
-  healthyNumerator: number
-  overdue: number
-  programs: number
-  signupsNow: number
-  signupsPrevious: number
-  unverified: number
-}
-
-const emptyMetrics = (): RegionMetrics => ({
-  healthyNumerator: 0,
-  overdue: 0,
-  programs: 0,
-  signupsNow: 0,
-  signupsPrevious: 0,
-  unverified: 0,
-})
-
-/** Stages that make a listing overdue — the ones a region manager is pulled into. */
-const OVERDUE_STAGES: Set<string> = new Set(OVERDUE_QUERY_STAGES)
-
-interface MetricEvent {
-  hasManager: boolean
-  regionId: number
-  stage: string
-  /** Sign-ups on this event in the current window, and in the one before it. */
-  signupsNow: number
-  signupsPrevious: number
-}
-
-/** What one event adds to its own region's row and to every ancestor's. */
-export function rollUpRegionMetrics(
-  events: MetricEvent[],
-  nodes: Map<number, RegionNode>,
-  inScope: Set<number>,
-): Map<number, RegionMetrics> {
-  return rollUpRegionTree<MetricEvent, RegionMetrics>({
-    bump: (metrics, event) => {
-      if (isProgramStage(event.stage)) {
-        metrics.programs += 1
-        if (event.hasManager && !OVERDUE_STAGES.has(event.stage)) metrics.healthyNumerator += 1
-      }
-      if (OVERDUE_STAGES.has(event.stage)) metrics.overdue += 1
-      if (event.stage === 'unverified') metrics.unverified += 1
-      metrics.signupsNow += event.signupsNow
-      metrics.signupsPrevious += event.signupsPrevious
-    },
-    chainOf: (event) => ({
-      ancestorIds: nodes.get(event.regionId)?.ancestorIds ?? [],
-      regionId: event.regionId,
-    }),
-    empty: emptyMetrics,
-    inScope,
-    items: events,
-  })
-}
-
 /**
- * Managers listed on each region or anywhere below it, counted once each.
- *
- * ⚠ **The nodes are filtered, not just gated.** Every other roll-up here
- * offers an item to its own region and lets `inScope` refuse it; an
- * out-of-scope region's own managers must not reach an in-scope ancestor's
- * count at all, so this one drops the node before the walk.
- *
- * Asked per row instead, this walked the whole node table for each row it
- * emitted — an admin's ~200 country rows against a table of thousands cost a
- * million `includes` probes of blocking CPU on the render path.
- */
-export function rollUpRegionManagers(
-  nodes: Map<number, RegionNode>,
-  inScope: Set<number>,
-): Map<number, Set<number>> {
-  return rollUpRegionTree<RegionNode, Set<number>>({
-    bump: (managers, node) => {
-      for (const managerId of node.managerIds) managers.add(managerId)
-    },
-    chainOf: (node) => ({ ancestorIds: node.ancestorIds, regionId: node.id }),
-    empty: () => new Set<number>(),
-    inScope,
-    items: [...nodes.values()].filter((node) => inScope.has(node.id)),
-  })
-}
-
-function toRow(
-  node: RegionNode,
-  metrics: RegionMetrics,
-  managers: Map<number, Set<number>>,
-): RegionOverviewRow {
-  return {
-    id: node.id,
-    name: node.name,
-    level: node.level,
-    managers: managers.get(node.id)?.size ?? 0,
-    programs: metrics.programs,
-    healthy:
-      metrics.programs > 0 ? Math.round((metrics.healthyNumerator / metrics.programs) * 100) : null,
-    overdue: metrics.overdue,
-    unverified: metrics.unverified,
-    signups: {
-      change: metrics.signupsNow - metrics.signupsPrevious,
-      last30: metrics.signupsNow,
-    },
-  }
-}
-
-/**
- * Countries with no manager first, then by Healthy ascending.
- *
- * ⚠ **A region with nothing in it is not unhealthy.** `healthy: null` sorts
- * last rather than as zero, which would put every empty country above the ones
- * genuinely falling behind.
- */
-export function sortRegionRows(
-  rows: RegionOverviewRow[],
-  managerless: (row: RegionOverviewRow) => boolean,
-): RegionOverviewRow[] {
-  return [...rows].sort(
-    (a, b) =>
-      Number(managerless(b)) - Number(managerless(a)) ||
-      (a.healthy ?? 101) - (b.healthy ?? 101) ||
-      a.name.localeCompare(b.name),
-  )
-}
-
-/**
- * Both overviews: the rows, ordered.
- *
- * `countriesOnly` is the admin's view — the top of the escalation ladder,
- * since a region with no manager of its own is still covered by its
- * ancestors' and a country is where that cover runs out.
+ * Both overviews, ordered. `countriesOnly` is the admin's view: a country is
+ * where an ancestor's cover runs out.
  */
 export async function loadRegionOverview(
-  // ⚠ **No `overrideAccess`, because this loader cannot honour one.** Every read
-  // it makes is `overrideAccess: true` on purpose — a row's counts are a roll-up
-  // over a whole subtree, and a reader's own grants would silently undercount a
-  // region rather than refuse it. `scopeRegionIds` is what bounds this list, so
-  // taking the flag would have told a caller auditing "is this scoped to the
-  // reader's access?" the wrong thing.
+  // ⚠ No `overrideAccess`: a subtree roll-up read under a reader's grants would
+  // silently undercount, so every read here overrides and `scopeRegionIds` bounds it.
   args: Omit<OverviewArgs, 'overrideAccess'> & { countriesOnly?: boolean },
 ): Promise<RegionOverviewRow[]> {
-  const { req } = args
-  const now = args.now ?? new Date()
-  const nodes = await loadRegionNodes(req)
-  const scoped = await scopeRegionIds(args, nodes)
-  const inScope = scoped ?? new Set(nodes.keys())
+  const { now, req, scope } = args
+  const tree = await getRegionTree(req)
+  const scoped = await scopeRegionIds(req, scope, tree)
+  const inScope = scoped ?? new Set(tree.chainById.keys())
+  /** A region and its ancestors inside the scope; ⚠ the scope gates the roll-up, not the item. */
+  const upChain = (regionId: number) =>
+    [...new Set([regionId, ...(tree.chainById.get(regionId) ?? [])])].filter((id) =>
+      inScope.has(id),
+    )
 
-  const [events, signupsByEvent] = await Promise.all([
+  // ⚠ Narrowed to the scope: a subtree is closed downwards, so nothing excluded could roll up into it.
+  const narrow = scoped ? [...scoped] : null
+  const [events, signups] = await Promise.all([
     req.payload.find({
       collection: 'events',
-      // ⚠ **Narrowed to the scope, not read whole.** `subtreeOf` is closed
-      // downwards, so a region outside `inScope` cannot have an ancestor inside
-      // it — which means `rollUpRegionMetrics` would discard every row this
-      // excludes anyway. Unnarrowed, a region manager looking at one city read
-      // every event on the atlas on each render.
-      where: scoped ? { region: { in: [...scoped] } } : {},
+      where: narrow ? { region: { in: narrow } } : {},
       depth: 0,
       pagination: false,
       overrideAccess: true,
       req: localeIsolatedReq(req),
       select: { manager: true, region: true, verificationStage: true },
     }),
-    loadSignupWindows({ now, req }),
+    loadSignupWindows({
+      extraWhere: narrow ? [{ 'event.region': { in: narrow } }] : [],
+      now,
+      req,
+    }),
   ])
 
-  const metricEvents: MetricEvent[] = []
+  const empty = () => ({
+    healthy: 0,
+    overdue: 0,
+    programs: 0,
+    signupsNow: 0,
+    signupsPrevious: 0,
+    unverified: 0,
+  })
+  const metrics = new Map<number, ReturnType<typeof empty>>()
   for (const event of events.docs) {
     const regionId = relationId(event.region)
-    if (regionId == null) continue
-    const bucket = signupsByEvent.get(event.id)
-    metricEvents.push({
-      hasManager: relationId(event.manager) !== null,
-      regionId,
-      signupsNow: bucket?.now ?? 0,
-      signupsPrevious: bucket?.previous ?? 0,
-      stage: event.verificationStage,
+    if (regionId === null) continue
+    const stage = event.verificationStage
+    const overdue = (OVERDUE_QUERY_STAGES as readonly string[]).includes(stage)
+    const window = signups.get(event.id)
+    for (const id of upChain(regionId)) {
+      const row = metrics.get(id) ?? empty()
+      if (isProgramStage(stage)) {
+        row.programs += 1
+        if (relationId(event.manager) !== null && !overdue) row.healthy += 1
+      }
+      if (overdue) row.overdue += 1
+      if (stage === 'unverified') row.unverified += 1
+      row.signupsNow += window?.now ?? 0
+      row.signupsPrevious += window?.previous ?? 0
+      metrics.set(id, row)
+    }
+  }
+
+  // ⚠ Out-of-scope regions are dropped, not just gated: their managers must not reach an in-scope ancestor.
+  const managers = new Map<number, Set<number>>()
+  for (const regionId of inScope) {
+    for (const id of upChain(regionId)) {
+      const set = managers.get(id) ?? new Set<number>()
+      for (const managerId of tree.managersById.get(regionId) ?? []) set.add(managerId)
+      managers.set(id, set)
+    }
+  }
+
+  const rows: RegionOverviewRow[] = []
+  for (const id of inScope) {
+    const level = tree.levelById.get(id)
+    if (!level || (args.countriesOnly && level !== 'country')) continue
+    const row = metrics.get(id) ?? empty()
+    rows.push({
+      id,
+      name: tree.nameById.get(id)?.trim() || `#${id}`,
+      level,
+      managers: managers.get(id)?.size ?? 0,
+      programs: row.programs,
+      healthy: row.programs > 0 ? Math.round((row.healthy / row.programs) * 100) : null,
+      overdue: row.overdue,
+      unverified: row.unverified,
+      signups: { change: row.signupsNow - row.signupsPrevious, last30: row.signupsNow },
     })
   }
 
-  const metrics = rollUpRegionMetrics(metricEvents, nodes, inScope)
-  const managers = rollUpRegionManagers(nodes, inScope)
-  const listed = [...inScope]
-    .map((id) => nodes.get(id))
-    .filter((node): node is RegionNode => node !== undefined)
-    .filter((node) => !args.countriesOnly || node.level === 'country')
-
-  const rows = listed.map((node) => toRow(node, metrics.get(node.id) ?? emptyMetrics(), managers))
-  return sortRegionRows(rows, (row) => (nodes.get(row.id)?.managerIds.length ?? 0) === 0)
+  // Countries with no manager of their own first, then Healthy ascending.
+  // ⚠ `healthy: null` sorts last: an empty region is not an unhealthy one.
+  const managerless = (row: RegionOverviewRow) => !tree.managersById.get(row.id)?.length
+  return rows.sort(
+    (a, b) =>
+      Number(managerless(b)) - Number(managerless(a)) ||
+      (a.healthy ?? 101) - (b.healthy ?? 101) ||
+      a.name.localeCompare(b.name),
+  )
 }

@@ -163,21 +163,12 @@ No loose files at the root — every file lives in a named folder:
   captcha siteverify) — single-consumer today, but an integration seam
   rather than one endpoint's private helper, and unit-testable without
   booting it
-- `atlasOverview/` — what is open on the Sahaj Atlas, for one role. Barrelled,
-  and read by the three admin homes' loaders and by the nightly digest. Its
-  `status.ts` owns **every word a reader sees about an open item** — the pill,
-  the line, the rank that places the row, the filter, whether it counts against
-  progress, and the next step — because four surfaces show the same list and a
-  status spelled at each is four chances to call one state four things. ⚠ **A
-  `'use client'` component imports `./filters` by its own path**, never the
-  barrel: the barrel reaches the loaders and, through them, `@/lib/env/server`,
-  which is the browser-bundle hazard this file states below. Measured with that
-  guard's own walk, `status.ts` reaches six files and no server-only entry,
-  while the barrel reaches sixty-seven (`docs/rules/admin-ui.md`)
-- `regionTree/` — the one walk up the region tree, which the atlas sidebar's
-  published/total pair and both overviews' counters instantiate with their own
-  accumulators. It owns the ancestor chain and the scope gate; a caller owns
-  what it adds per item
+- `atlasOverview/` — what is open on the Sahaj Atlas, for one role, read by
+  the three admin homes' loaders and by the nightly digest. Its `status.ts`
+  owns **every word a reader sees about an open item** — the pill, the line,
+  the rank, the filter, whether it counts against progress, and the next step
+  — because four surfaces show the same list. No barrel: import each module
+  by its own path
 - domain folders shared across 2+ owners (**2+ is enforced** — see "One
   consumer ⇒ it isn't shared" below): `audiences/`, `meditations/`,
   `branding/`, `status/`, `lectures/`, `schedule/`, `subtleSystem/`,

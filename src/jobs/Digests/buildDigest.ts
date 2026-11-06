@@ -6,18 +6,14 @@ import {
 } from '@/components/admin/NotificationPreferences/config'
 import type { DigestEmailProps, DigestTileBlock } from '@/emails/DigestEmail'
 import type { ItemTableRow, StatusPillStyle } from '@/emails/EmailLayout'
-import {
-  loadOpenItems,
-  loadStatistics,
-  type OpenItem,
-  type OpenItemStatus,
-  type OverviewScope,
-  type StatTile,
-} from '@/lib/atlasOverview'
+import { changeLabel } from '@/lib/atlasOverview/filters'
+import { loadOpenItems } from '@/lib/atlasOverview/openItems'
 import { SPAM_SIGNUPS_PATH, spamSignups } from '@/lib/atlasOverview/refusals'
-import { changeLabel } from '@/lib/atlasOverview/statistics'
+import type { OverviewScope } from '@/lib/atlasOverview/scope'
+import { loadStatistics, type StatTile } from '@/lib/atlasOverview/statistics'
+import type { OpenItem, OpenItemStatus } from '@/lib/atlasOverview/status'
 import { formatLongDate } from '@/lib/notifications'
-import { type ManagerRole, MANAGER_ROLE_LABELS } from '@/lib/notifications/managerRoles'
+import type { ManagerRole } from '@/lib/notifications/managerRoles'
 import { adminDocUrl, adminUrl } from '@/lib/utilities/adminUrl'
 import type { Manager } from '@/payload-types'
 
@@ -38,6 +34,13 @@ export const DIGEST_KEYS: Record<string, NotificationKey> = {
   registrations: 'event_registration',
   statistics: 'statistics',
 } as const
+
+/** What each role is called in a digest's heading and subject. */
+const ROLE_LABELS: Record<ManagerRole, string> = {
+  program: 'Your programs',
+  region: 'Your regions',
+  admin: 'Sahaj Atlas',
+}
 
 /** One role's email, plus what the run needs to record afterwards. */
 export interface BuiltDigest {
@@ -68,7 +71,7 @@ function pillFor(status: OpenItemStatus): StatusPillStyle {
 }
 
 function toEmailRow(item: OpenItem): ItemTableRow {
-  const placing = item.statuses.find((status) => status.rank === item.rank) ?? item.statuses[0]!
+  const { placing } = item
   const target = placing.action?.target
   return {
     action: placing.action
@@ -257,7 +260,7 @@ export async function buildDigest(args: {
         closingNote,
         dashboardUrl: adminUrl('/'),
         date: formatLongDate(runStart.toISOString()),
-        heading: MANAGER_ROLE_LABELS[role],
+        heading: ROLE_LABELS[role],
         notificationsUrl: adminUrl('/account'),
         openItems,
         recipientName: manager.name || null,
@@ -265,7 +268,7 @@ export async function buildDigest(args: {
         statistics: statistics.length ? statistics : undefined,
         summary,
       },
-      subject: `${MANAGER_ROLE_LABELS[role]}: ${summary}`,
+      subject: `${ROLE_LABELS[role]}: ${summary}`,
     },
     failed,
   }

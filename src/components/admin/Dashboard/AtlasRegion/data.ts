@@ -1,18 +1,13 @@
 import type { PaginatedDocs, PayloadRequest } from 'payload'
 
-import {
-  loadOpenItems,
-  loadRegionNodes,
-  loadRegionOverview,
-  loadStatistics,
-  mayOpenRegion,
-  type OverviewScope,
-  type OverviewStatistics,
-  type RegionNode,
-  type RegionOverviewRow,
-} from '@/lib/atlasOverview'
+import { getRegionTree, type RegionTree } from '@/lib/atlas/regionTree'
+import { loadOpenItems } from '@/lib/atlasOverview/openItems'
+import { loadRegionOverview, type RegionOverviewRow } from '@/lib/atlasOverview/regions'
+import type { OverviewScope } from '@/lib/atlasOverview/scope'
+import { loadStatistics, type OverviewStatistics } from '@/lib/atlasOverview/statistics'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import { isAdminManager } from '@/plugins/access/adminOnly'
+import { resolveOwnedRegionIds } from '@/plugins/access/regionSubtreeAccess'
 
 import { type DashboardQuery, type OpenItemsData, paginate } from '../shared/model'
 import { openItemsData } from '../shared/rows'
@@ -54,10 +49,10 @@ export async function getAtlasRegionData(
   const admin = isAdminManager(req.user)
   const managerId = admin ? null : Number(req.user!.id)
   const regionId = query.region || undefined
-  const nodes = await loadRegionNodes(req)
+  const tree = await getRegionTree(req)
 
   if (regionId !== undefined && managerId !== null) {
-    if (!(await mayOpenRegion(req, managerId, regionId))) return { allowed: false }
+    if (!(await resolveOwnedRegionIds(req, managerId)).includes(regionId)) return { allowed: false }
   }
 
   const scope: OverviewScope = { managerId, regionId, role: 'region' }
@@ -68,16 +63,17 @@ export async function getAtlasRegionData(
     loadRegionOverview({ now, req: localeIsolatedReq(req), scope }),
   ])
 
-  const node = regionId === undefined ? undefined : nodes.get(regionId)
   const totals = regionRows.find((row) => row.id === regionId)
   const programs = totals?.programs ?? regionRows.reduce((sum, row) => sum + row.programs, 0)
   const managers = totals?.managers ?? Math.max(...regionRows.map((row) => row.managers), 0)
 
   return {
     allowed: true,
-    breadcrumbs: breadcrumbsFor(node, nodes, admin),
+    breadcrumbs: breadcrumbsFor(regionId, tree, admin),
     description: [
-      node?.name ?? 'Your regions',
+      regionId !== undefined && tree.chainById.has(regionId)
+        ? nameOf(tree, regionId)
+        : 'Your regions',
       `${programs} program${programs === 1 ? '' : 's'}`,
       `${managers} manager${managers === 1 ? '' : 's'}`,
     ].join(' · '),
@@ -92,20 +88,22 @@ export async function getAtlasRegionData(
   }
 }
 
+const nameOf = (tree: RegionTree, id: number) => tree.nameById.get(id)?.trim() || `#${id}`
+
 /**
  * "Sahaj Atlas › Germany" for an admin, "Your regions › Upper Bavaria" for a
  * manager — the trail says whose map this is before it says where in it.
  */
 function breadcrumbsFor(
-  node: RegionNode | undefined,
-  nodes: Map<number, RegionNode>,
+  regionId: number | undefined,
+  tree: RegionTree,
   admin: boolean,
 ): AtlasRegionHome['breadcrumbs'] {
   const root = { label: admin ? 'Sahaj Atlas' : 'Your regions', url: '/admin' }
-  if (!node) return [root]
-  const trail = node.ancestorIds
-    .map((id) => nodes.get(id))
-    .filter((ancestor): ancestor is RegionNode => ancestor !== undefined)
-    .map((ancestor) => ({ label: ancestor.name, url: `/admin?region=${ancestor.id}` }))
-  return [root, ...trail, { label: node.name }]
+  const chain = regionId === undefined ? undefined : tree.chainById.get(regionId)
+  if (regionId === undefined || !chain) return [root]
+  const trail = [...new Set(chain)]
+    .filter((id) => id !== regionId && tree.chainById.has(id))
+    .map((id) => ({ label: nameOf(tree, id), url: `/admin?region=${id}` }))
+  return [root, ...trail, { label: nameOf(tree, regionId) }]
 }

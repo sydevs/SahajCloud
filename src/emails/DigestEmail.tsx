@@ -59,7 +59,7 @@ export interface DigestEmailProps {
  * ⚠ **One email per role, and the role is the subject line.** A manager who
  * runs a class, looks after a region and administers the map does three
  * different jobs, and a single email mixing them would make every section
- * somebody else's problem. `MANAGER_ROLE_LABELS` names the role; this template
+ * somebody else's problem. `ROLE_LABELS` in `buildDigest` names the role; this template
  * takes the words rather than the role, so nothing here has to know how many
  * there are.
  *

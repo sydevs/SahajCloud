@@ -1,47 +1,31 @@
 /**
- * The tiles both a home and a statistics email show.
+ * The tiles a home and a statistics email show.
  *
- * Two blocks: **Verification health**, which a region manager and an admin get,
- * and **Analytics**, which everyone gets. Each tile may carry a change line,
- * and the two blocks get theirs from different places on purpose:
+ * A stage is overwritten in place on the event, so a stage tile's change comes
+ * from the nightly snapshot in `payload.kv`; a sign-up is a dated row, so its
+ * change is read off `createdAt`.
  *
- * - a **stage count** has no history on the event — the stage is overwritten in
- *   place — so its change comes from the daily snapshot the nightly task writes
- *   to `payload.kv`;
- * - a **sign-up count** is a dated row, so its change is two queries over
- *   `createdAt` and needs no snapshot at all.
- *
- * ⚠ **With no snapshot that old, a tile shows no change line.** Not a zero: a
- * freshly deployed environment, or one whose nightly task has been down for a
- * month and a half (`SNAPSHOT_RETENTION_DAYS`), knows nothing about 30 days
- * ago, and "+0" would claim it does.
+ * ⚠ **With no snapshot that old, a tile shows no change line**, never "+0".
  */
 
-import type { PayloadRequest } from 'payload'
+import type { PayloadRequest, Where } from 'payload'
 
-import { type VerificationStage } from '@/lib/eventVerification/stages'
+import { getRegionTree } from '@/lib/atlas/regionTree'
+import { addDays } from '@/lib/eventVerification/periods'
+import type { VerificationStage } from '@/lib/eventVerification/stages'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
+import { relationId } from '@/lib/utilities/relationId'
 
-import { loadRegionNodes, type OverviewArgs, scopeRegionIds } from './scope'
-import { loadSignupWindows, sumSignupWindows } from './signups'
+import { WINDOW_DAYS } from './filters'
+import { type OverviewArgs, scopeRegionIds } from './scope'
 import { countPrograms, isProgramStage } from './status'
-
-const DAY_MS = 24 * 60 * 60 * 1000
-export const CHANGE_WINDOW_DAYS = 30
 
 /** One day's snapshot: region id → verification stage → that region's own events. */
 export type AtlasSnapshotCounts = Record<string, Partial<Record<VerificationStage, number>>>
 
 export const SNAPSHOT_KEY_PREFIX = 'atlas-snapshot:'
 
-/**
- * How a day is spelled in a snapshot's `payload.kv` key.
- *
- * Here with the reader rather than in its own module, because spelled twice,
- * one side would eventually format a date the other cannot find, and a tile with
- * no comparison looks exactly like a tile whose comparison is zero. The nightly
- * task (`jobs/AtlasSnapshot/RecordAtlasSnapshot.ts`) writes the key this reads.
- */
+/** ⚠ The nightly task writes the key this reads, so both spell the day here. */
 export function snapshotDate(now: Date): string {
   return now.toISOString().slice(0, 10)
 }
@@ -51,18 +35,73 @@ export function snapshotKey(date: string): string {
 }
 
 /**
- * How a tile's change reads beside it: a sign, the number, and the window.
- *
- * Here beside `StatTile` and the window it measures, because the home renders
- * these tiles and the digest re-renders them as table cells — written at each,
- * neither copy read `CHANGE_WINDOW_DAYS`, so moving the window would have left
- * the page and the email saying different things about the same number.
+ * Each event under its own region by stage — what a snapshot stores, and what
+ * the live tiles sum, so the two count the same set. An event with no region
+ * is in neither.
  */
-export function changeLabel(change: number): string {
-  return `${change >= 0 ? '+' : ''}${change} in ${CHANGE_WINDOW_DAYS} days`
+export function countByRegion(
+  events: Iterable<{ region?: unknown; verificationStage: string }>,
+  counts: AtlasSnapshotCounts = {},
+): AtlasSnapshotCounts {
+  for (const event of events) {
+    const regionId = relationId(event.region)
+    if (regionId === null) continue
+    const stages = (counts[String(regionId)] ??= {})
+    const stage = event.verificationStage as VerificationStage
+    stages[stage] = (stages[stage] ?? 0) + 1
+  }
+  return counts
 }
 
-/** One flat tile: a label, a value, and the two optional lines beside it. */
+/** ⚠ A snapshot holds each region's OWN events, so summing over the scope is the subtree rollup. */
+function sumSnapshot(
+  counts: AtlasSnapshotCounts,
+  regionIds: null | Set<number>,
+): Record<string, number> {
+  const totals: Record<string, number> = {}
+  for (const [regionId, stages] of Object.entries(counts)) {
+    if (regionIds && !regionIds.has(Number(regionId))) continue
+    for (const [stage, n] of Object.entries(stages)) totals[stage] = (totals[stage] ?? 0) + (n ?? 0)
+  }
+  return totals
+}
+
+/** Sign-ups per event in the last window and the one before it, from one read over both. */
+export async function loadSignupWindows(args: {
+  extraWhere?: Where[]
+  now: Date
+  req: PayloadRequest
+}): Promise<Map<number, { now: number; previous: number }>> {
+  const { extraWhere = [], now, req } = args
+  const windowStart = addDays(now, -WINDOW_DAYS)
+  const { docs } = await req.payload.find({
+    collection: 'user-submissions',
+    where: {
+      and: [
+        { type: { equals: 'registration' } },
+        { createdAt: { greater_than: addDays(now, -2 * WINDOW_DAYS).toISOString() } },
+        ...extraWhere,
+      ],
+    },
+    depth: 0,
+    pagination: false,
+    overrideAccess: true,
+    req: localeIsolatedReq(req),
+    select: { createdAt: true, event: true },
+  })
+
+  const byEvent = new Map<number, { now: number; previous: number }>()
+  for (const doc of docs) {
+    const eventId = relationId(doc.event)
+    if (eventId === null) continue
+    const bucket = byEvent.get(eventId) ?? { now: 0, previous: 0 }
+    if (new Date(doc.createdAt) >= windowStart) bucket.now += 1
+    else bucket.previous += 1
+    byEvent.set(eventId, bucket)
+  }
+  return byEvent
+}
+
 export interface StatTile {
   key: string
   label: string
@@ -74,10 +113,10 @@ export interface StatTile {
 }
 
 export interface OverviewStatistics {
-  /** Region managers and admins only; a program manager has no ladder to watch. */
+  /** Empty for a program manager, who has no ladder to watch. */
   health: StatTile[]
   analytics: StatTile[]
-  /** The busiest listing, hidden for a manager with one. */
+  /** The busiest listing, hidden for a scope with one. */
   mostRegistered: null | { id: number; registrations: number; title: string }
 }
 
@@ -90,213 +129,109 @@ const HEALTH_TILES: { label: string; stages: VerificationStage[] }[] = [
   { label: 'Unverified', stages: ['unverified'] },
 ]
 
-/**
- * A snapshot's counts, summed over the regions in scope.
- *
- * ⚠ **A snapshot holds each region's OWN events**, so this is where the rollup
- * happens: summing over the scope's region set is the subtree rollup, with no
- * double counting, because every event is in exactly one region's bucket.
- */
-export function sumSnapshot(
-  counts: AtlasSnapshotCounts | null | undefined,
-  regionIds: null | Set<number>,
-): Record<string, number> {
-  const totals: Record<string, number> = {}
-  for (const [regionId, stages] of Object.entries(counts ?? {})) {
-    if (regionIds && !regionIds.has(Number(regionId))) continue
-    for (const [stage, n] of Object.entries(stages ?? {})) {
-      totals[stage] = (totals[stage] ?? 0) + (n ?? 0)
-    }
-  }
-  return totals
-}
+/** Every tile one scope shows. */
+export async function loadStatistics(args: OverviewArgs): Promise<OverviewStatistics> {
+  const { now, req, scope } = args
+  const [tree, snapshot] = await Promise.all([
+    getRegionTree(req),
+    req.payload.kv.get<AtlasSnapshotCounts>(snapshotKey(snapshotDate(addDays(now, -WINDOW_DAYS)))),
+  ])
+  const regionIds = await scopeRegionIds(req, scope, tree)
 
-/** The snapshot from `CHANGE_WINDOW_DAYS` ago, or nothing if none was kept. */
-function loadComparisonSnapshot(
-  req: PayloadRequest,
-  now: Date,
-): Promise<AtlasSnapshotCounts | null> {
-  const date = snapshotDate(new Date(now.getTime() - CHANGE_WINDOW_DAYS * DAY_MS))
-  return req.payload.kv.get<AtlasSnapshotCounts>(snapshotKey(date))
-}
-
-/**
- * Events in scope by stage, live, with the two id sets a tile needs.
- *
- * `eventIds` is every event in scope and bounds the sign-up queries, which
- * count a sign-up on a listing that has since finished — the Sign-ups column
- * beside them does too. `programIds` is the subset the reader is told are
- * programs, and is what every count of them is taken over.
- */
-async function liveStageCounts(
-  args: OverviewArgs,
-  regionIds: null | Set<number>,
-): Promise<{ byStage: Record<string, number>; eventIds: number[]; programIds: number[] }> {
-  const { docs } = await args.req.payload.find({
+  const { docs } = await req.payload.find({
     collection: 'events',
     where:
-      args.scope.role === 'program'
-        ? { manager: { equals: args.scope.managerId } }
-        : regionIds
-          ? { region: { in: [...regionIds] } }
-          : {},
+      scope.role === 'program'
+        ? { manager: { equals: scope.managerId } }
+        : { region: regionIds ? { in: [...regionIds] } : { exists: true } },
     depth: 0,
     pagination: false,
     overrideAccess: args.overrideAccess,
-    req: localeIsolatedReq(args.req),
-    select: { region: true, verificationStage: true },
+    req: localeIsolatedReq(req),
+    select: { region: true, title: true, verificationStage: true },
   })
-  // No zero prefill: every reader already coalesces a missing stage, so seeding
-  // the ladder only made a second place for the stage list to be wrong.
-  const byStage: Record<string, number> = {}
-  for (const doc of docs) byStage[doc.verificationStage] = (byStage[doc.verificationStage] ?? 0) + 1
-  return {
-    byStage,
-    eventIds: docs.map((doc) => doc.id),
-    programIds: docs.filter((doc) => isProgramStage(doc.verificationStage)).map((doc) => doc.id),
+
+  let byStage: Record<string, number> = {}
+  if (scope.role === 'program') {
+    for (const doc of docs)
+      byStage[doc.verificationStage] = (byStage[doc.verificationStage] ?? 0) + 1
+  } else {
+    byStage = sumSnapshot(countByRegion(docs), regionIds)
   }
-}
-
-/**
- * Sign-ups on a set of events: the two window totals, and the current window's
- * count per event.
- *
- * ⚠ **`byEvent` holds the current window only, and holds no zero.** Both its
- * readers ask about now rather than about the comparison — "Programs with a
- * sign-up" is its `size`, and Most registered its maximum — so an event whose
- * only sign-ups fell in the *previous* window must not appear, or a quiet
- * month's listing counts as one with a sign-up.
- *
- * ⚠ **The totals are over every event, `byEvent` over the programs alone.**
- * Both readers of `byEvent` are counted against a denominator of programs, so a
- * finished listing in it could put "Programs with a sign-up" above the Total
- * programs beside it. The Registrations total is not a count of programs and
- * matches the Sign-ups column, which counts a finished listing's sign-ups too.
- */
-async function signupCounts(
-  req: PayloadRequest,
-  eventIds: number[],
-  programIds: number[],
-  now: Date,
-): Promise<{ byEvent: Map<number, number>; now: number; previous: number }> {
-  if (!eventIds.length) return { byEvent: new Map(), now: 0, previous: 0 }
-
-  const windows = await loadSignupWindows({
-    extraWhere: [{ event: { in: eventIds } }],
-    now,
-    req,
-  })
-  const programs = new Set(programIds)
-  const byEvent = new Map<number, number>()
-  for (const [eventId, window] of windows) {
-    if (window.now > 0 && programs.has(eventId)) byEvent.set(eventId, window.now)
-  }
-  return { byEvent, ...sumSignupWindows(windows) }
-}
-
-/**
- * Every tile one scope shows.
- *
- * A program manager gets Analytics alone: the verification ladder is the shape
- * of somebody else's workload, and their own listing's place on it is already
- * the first row of their open items.
- */
-export async function loadStatistics(args: OverviewArgs): Promise<OverviewStatistics> {
-  const { req, scope } = args
-  const now = args.now ?? new Date()
-  // The snapshot depends on neither the region tree nor the events, so it joins
-  // the first wave rather than waiting two round trips for them.
-  const [nodes, snapshot] = await Promise.all([
-    loadRegionNodes(req),
-    loadComparisonSnapshot(req, now),
-  ])
-  const regionIds = await scopeRegionIds(args, nodes)
-
-  const { byStage, eventIds, programIds } = await liveStageCounts(args, regionIds)
-  const signups = await signupCounts(req, eventIds, programIds, now)
-
-  const snapshotTotals = snapshot ? sumSnapshot(snapshot, regionIds) : null
+  const before = snapshot ? sumSnapshot(snapshot, regionIds) : null
 
   const health =
     scope.role === 'program'
       ? []
       : HEALTH_TILES.map(({ label, stages }) => {
-          const value = stages.reduce((sum, stage) => sum + (byStage[stage] ?? 0), 0)
-          const before = snapshotTotals
-            ? stages.reduce((sum, stage) => sum + (snapshotTotals[stage] ?? 0), 0)
-            : null
+          const sum = (counts: Record<string, number>) =>
+            stages.reduce((total, stage) => total + (counts[stage] ?? 0), 0)
+          const value = sum(byStage)
           return {
             key: label.toLowerCase(),
             label,
             value,
-            change: before === null ? null : value - before,
+            change: before ? value - sum(before) : null,
           }
         })
 
-  const withSignups = signups.byEvent.size
-  // A program manager's scope is their own events, which no region set
-  // describes — so the snapshot, which is keyed by region, cannot say what
-  // they had 30 days ago, and the tile shows no change rather than the map's.
-  const programsBefore =
-    scope.role !== 'program' && snapshotTotals ? countPrograms(snapshotTotals) : null
-  const programs = programIds.length
-  const analytics: StatTile[] = [
-    {
-      key: 'programs',
-      label: 'Total programs',
-      value: programs,
-      change: programsBefore === null ? null : programs - programsBefore,
-    },
-    {
-      key: 'registrations',
-      label: 'Registrations',
-      value: signups.now,
-      change: signups.now - signups.previous,
-    },
-    {
-      key: 'programs-with-signup',
-      label: 'Programs with a sign-up',
-      value: withSignups,
-      of: programs,
-      change: null,
-    },
-  ]
-
-  return {
-    analytics,
-    health,
-    mostRegistered: await mostRegistered(req, signups.byEvent, programs),
+  const programs = new Map(
+    docs.filter((doc) => isProgramStage(doc.verificationStage)).map((doc) => [doc.id, doc]),
+  )
+  const windows = docs.length
+    ? await loadSignupWindows({
+        extraWhere: [{ event: { in: docs.map((doc) => doc.id) } }],
+        now,
+        req,
+      })
+    : new Map<number, { now: number; previous: number }>()
+  let signupsNow = 0
+  let signupsPrevious = 0
+  for (const window of windows.values()) {
+    signupsNow += window.now
+    signupsPrevious += window.previous
   }
-}
+  // ⚠ Programs only, and this window only: a finished listing could put the
+  // share above its denominator, and a quiet month's listing has no sign-up.
+  const withSignups = [...windows].filter(([id, window]) => window.now > 0 && programs.has(id))
+  const top = withSignups.reduce<(typeof withSignups)[number] | undefined>(
+    (best, entry) => (!best || entry[1].now > best[1].now ? entry : best),
+    undefined,
+  )
 
-/**
- * The busiest listing of the window.
- *
- * Hidden for a scope holding one program: naming the only listing somebody runs
- * as their most registered is a tile that can never say anything.
- */
-async function mostRegistered(
-  req: PayloadRequest,
-  byEvent: Map<number, number>,
-  programs: number,
-): Promise<OverviewStatistics['mostRegistered']> {
-  if (programs < 2) return null
-  const ranked = [...byEvent.entries()].sort((a, b) => b[1] - a[1])
-  const top = ranked[0]
-  if (!top) return null
-  const event = await req.payload.findByID({
-    collection: 'events',
-    id: top[0],
-    depth: 0,
-    disableErrors: true,
-    overrideAccess: true,
-    req: localeIsolatedReq(req),
-    select: { title: true },
-  })
-  if (!event) return null
+  // A program manager's events are no region set, so the snapshot cannot say what they had.
+  const programsBefore = scope.role !== 'program' && before ? countPrograms(before) : null
   return {
-    id: top[0],
-    registrations: top[1],
-    title: event.title?.trim() || 'Untitled program',
+    health,
+    analytics: [
+      {
+        key: 'programs',
+        label: 'Total programs',
+        value: programs.size,
+        change: programsBefore === null ? null : programs.size - programsBefore,
+      },
+      {
+        key: 'registrations',
+        label: 'Registrations',
+        value: signupsNow,
+        change: signupsNow - signupsPrevious,
+      },
+      {
+        key: 'programs-with-signup',
+        label: 'Programs with a sign-up',
+        value: withSignups.length,
+        of: programs.size,
+        change: null,
+      },
+    ],
+    // Hidden for one program: naming the only listing as the busiest says nothing.
+    mostRegistered:
+      programs.size < 2 || !top
+        ? null
+        : {
+            id: top[0],
+            registrations: top[1].now,
+            title: programs.get(top[0])!.title?.trim() || 'Untitled program',
+          },
   }
 }

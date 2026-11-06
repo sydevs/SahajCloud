@@ -1,5 +1,5 @@
+import { changeLabel } from '@/lib/atlasOverview/filters'
 import type { StatTile } from '@/lib/atlasOverview/statistics'
-import { changeLabel } from '@/lib/atlasOverview/statistics'
 
 import styles from './Dashboard.module.css'
 

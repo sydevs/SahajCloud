@@ -3,7 +3,8 @@
 import { Banner, Button, CheckIcon, Pagination, PerPage, Pill, Table } from '@payloadcms/ui'
 import Link from 'next/link'
 
-import { OPEN_ITEM_FILTER_LABELS, OPEN_ITEM_FILTERS } from '@/lib/atlasOverview/filters'
+import type { OpenItemFilter } from '@/lib/atlasOverview/filters'
+import { OPEN_ITEM_FILTERS } from '@/lib/atlasOverview/filters'
 
 import styles from './Dashboard.module.css'
 import {
@@ -16,11 +17,18 @@ import {
 import { tableColumn } from '../../helpers/tableColumn'
 import { useSetQuery } from '../../helpers/useSetQuery'
 
+const FILTER_LABELS: Record<OpenItemFilter, string> = {
+  'no-manager': 'No manager',
+  overdue: 'Overdue',
+  recommendations: 'Recommendations',
+  review: 'To review',
+}
+
 /** The filter row, in the order a reader meets the problems behind it. */
 const FILTERS: { label: string; value: OpenItemTab }[] = [
   { label: 'All', value: 'all' },
   ...OPEN_ITEM_FILTERS.map((filter) => ({
-    label: OPEN_ITEM_FILTER_LABELS[filter],
+    label: FILTER_LABELS[filter],
     value: filter as OpenItemTab,
   })),
   { label: 'Your programs', value: 'mine' },

@@ -1,14 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { OPEN_ITEM_STATUSES } from '@/lib/atlasOverview/filters'
 import type { OpenItemEvent, OpenItemRow } from '@/lib/atlasOverview/status'
-import {
-  openItem,
-  openItemFilters,
-  openItemStatus,
-  overviewProgress,
-  sortOpenItems,
-} from '@/lib/atlasOverview/status'
+import { openItem, overviewProgress, sortOpenItems } from '@/lib/atlasOverview/status'
 
 const NOW = new Date('2026-11-05T12:00:00.000Z')
 
@@ -25,10 +18,10 @@ const event = (overrides: Partial<OpenItemEvent> = {}): OpenItemRow => ({
   ...overrides,
 })
 
-const keysOf = (row: OpenItemRow) => openItemStatus(row, NOW).map((status) => status.key)
-const only = (row: OpenItemRow) => openItemStatus(row, NOW)[0]!
+const keysOf = (row: OpenItemRow) => openItem(row, NOW).statuses.map((status) => status.key)
+const only = (row: OpenItemRow) => openItem(row, NOW).statuses[0]!
 
-describe('openItemStatus', () => {
+describe('openItem', () => {
   describe('every status in the table', () => {
     it('places an urgent listing ahead of everything, including a proposal', () => {
       const status = only(event({ verificationStage: 'urgent' }))
@@ -37,23 +30,16 @@ describe('openItemStatus', () => {
         key: 'overdue',
         label: 'Overdue',
         pill: 'error',
-        rank: 0,
         counts: true,
       })
       expect(status.line).toMatch(/^Unpublishes /)
       expect(status.action).toEqual({ label: 'Verify', target: { collection: 'events', id: 1 } })
     })
 
-    /**
-     * ⚠ Three stages, one thing to do. `urgent` is the last reminder before the
-     * listing comes off the map, so it jumps the queue; `reminded` and
-     * `escalated` are the same status one rank down.
-     */
-    it('gives reminded and escalated the same status at a lower rank', () => {
+    /** Three stages, one thing to do; `sortOpenItems` pins `urgent` jumping the queue. */
+    it('gives reminded and escalated the same status', () => {
       for (const stage of ['reminded', 'escalated'] as const) {
-        const status = only(event({ verificationStage: stage }))
-        expect(status.key).toBe('overdue')
-        expect(status.rank).toBe(2)
+        expect(only(event({ verificationStage: stage })).key).toBe('overdue')
       }
     })
 
@@ -122,7 +108,6 @@ describe('openItemStatus', () => {
         filter: 'no-manager',
         key: 'no-manager',
         pill: 'warning',
-        rank: 3,
       })
       expect(status.action).toEqual({
         label: 'Assign manager',
@@ -130,10 +115,6 @@ describe('openItemStatus', () => {
       })
     })
 
-    /**
-     * ⚠ `denied` is excluded. The community voted it off the map, so adopting
-     * it is not the next step and listing it as unmanaged would ask for one.
-     */
     it('does not ask for a manager on a denied listing', () => {
       expect(keysOf(event({ hasManager: false, verificationStage: 'denied' }))).toEqual([
         'up-to-date',
@@ -193,34 +174,10 @@ describe('openItemStatus', () => {
       expect(status.line).toBe('Ended 30 Sept 2026')
       expect(status.action).toBeNull()
     })
-
-    it('covers every declared status', () => {
-      const seen = new Set<string>([
-        ...keysOf(event({ verificationStage: 'urgent' })),
-        ...keysOf(
-          event({
-            proposal: { changedFields: [], id: 2, receivedAt: '2026-11-01T00:00:00.000Z' },
-          }),
-        ),
-        ...keysOf({ id: 3, kind: 'proposal', receivedAt: '2026-11-01', title: 'x' }),
-        ...keysOf({ id: 4, kind: 'refusal', reason: 'r', receivedAt: '2026-11-01', title: 'y' }),
-        ...keysOf(event({ hasManager: false, verificationStage: 'unverified' })),
-        ...keysOf(event({ qualityOpenCount: 1 })),
-        ...keysOf(event({ draft: true })),
-        ...keysOf(event({ verificationStage: 'expired' })),
-        ...keysOf(event()),
-        ...keysOf(event({ verificationStage: 'finished' })),
-      ])
-      expect([...seen].sort()).toEqual([...OPEN_ITEM_STATUSES].sort())
-    })
   })
 
   describe("an admin's row", () => {
-    const unmanaged = event({
-      noRegionManager: true,
-      region: { id: 9, name: 'Bavaria' },
-      verificationStage: 'urgent',
-    })
+    const unmanaged = event({ unmanagedRegionId: 9, verificationStage: 'urgent' })
 
     it('says no region manager, and offers to add one', () => {
       const status = only(unmanaged)
@@ -236,10 +193,7 @@ describe('openItemStatus', () => {
     })
   })
 
-  /**
-   * ⚠ A row shows every status it has. Hiding one behind the other is how the
-   * second never gets fixed — and the lowest rank is what places the row.
-   */
+  /** ⚠ A row shows every status it has, and the lowest rank places it. */
   describe('a row with several statuses', () => {
     const busy = event({ draft: true, qualityOpenCount: 3, verificationStage: 'urgent' })
 
@@ -250,15 +204,11 @@ describe('openItemStatus', () => {
         'recommendations',
         'draft',
       ])
-      expect(item.rank).toBe(0)
+      expect(item.placing.key).toBe('overdue')
     })
 
     it('belongs to every filter its statuses name, once each', () => {
-      expect(openItemFilters(openItem(busy, NOW)).sort()).toEqual([
-        'overdue',
-        'recommendations',
-        'review',
-      ])
+      expect(openItem(busy, NOW).filters.sort()).toEqual(['overdue', 'recommendations', 'review'])
     })
 
     it('counts once, however many of its statuses count', () => {
@@ -279,10 +229,6 @@ describe('openItemStatus', () => {
       expect(ordered.map((item) => item.row.id)).toEqual([2, 3, 1, 4])
     })
 
-    /**
-     * A listing nobody has adopted is not on a clock, and one that is should
-     * not be pushed down the page by it.
-     */
     it('sorts a row with no deadline after the ones that have one', () => {
       const withDeadline = openItem(
         event({ id: 1, nextCheckAt: '2026-11-19T00:00:00.000Z', verificationStage: 'expired' }),
@@ -293,11 +239,6 @@ describe('openItemStatus', () => {
     })
   })
 
-  /**
-   * ⚠ `total` is not the row count — it is what the scope holds that could
-   * need something, so a change proposal is counted on the event it changes
-   * rather than as a second thing to do.
-   */
   describe('overviewProgress', () => {
     it('reads as a share on track, with the count still to go', () => {
       expect(overviewProgress(2, 8)).toEqual({

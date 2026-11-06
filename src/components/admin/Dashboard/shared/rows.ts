@@ -1,7 +1,7 @@
 import type { PayloadRequest } from 'payload'
 
-import type { OpenItem, OpenItemFilter, OpenItemTarget, OpenItemsResult } from '@/lib/atlasOverview'
-import { openItemFilters, withRecommendations } from '@/lib/atlasOverview'
+import { type OpenItemsResult, withRecommendations } from '@/lib/atlasOverview/openItems'
+import type { OpenItem, OpenItemTarget } from '@/lib/atlasOverview/status'
 import { adminDocPath } from '@/lib/utilities/adminUrl'
 
 import { type DashboardQuery, type OpenItemsData, type OpenItemsRow, paginate } from './model'
@@ -19,13 +19,13 @@ function hrefFor(target: OpenItemTarget): string {
 }
 
 function toRow(item: OpenItem): OpenItemsRow {
-  const placing = item.statuses.find((status) => status.rank === item.rank) ?? item.statuses[0]!
+  const { placing } = item
   const own = item.row.kind === 'event' ? ('events' as const) : ('user-submissions' as const)
   return {
     action: placing.action
       ? { href: hrefFor(placing.action.target), label: placing.action.label }
       : null,
-    filters: openItemFilters(item),
+    filters: item.filters,
     href: adminDocPath(own, item.row.id),
     id: `${item.row.kind}-${item.row.id}`,
     statuses: item.statuses.map((status) => ({
@@ -42,7 +42,7 @@ function toRow(item: OpenItem): OpenItemsRow {
 function inFilter(item: OpenItem, filter: DashboardQuery['filter']): boolean {
   if (filter === 'all') return true
   if (filter === 'mine') return item.row.kind === 'event' && Boolean(item.row.ownEvent)
-  return openItemFilters(item).includes(filter as OpenItemFilter)
+  return item.filters.includes(filter)
 }
 
 /**
@@ -63,11 +63,21 @@ export async function openItemsData(args: {
   const page = paginate(filtered, query.page, query.limit)
   const enriched = await withRecommendations(req, page.docs, now)
 
+  const counts: OpenItemsData['counts'] = {
+    all: result.items.length,
+    mine: 0,
+    'no-manager': 0,
+    overdue: 0,
+    recommendations: 0,
+    review: 0,
+  }
+  for (const item of result.items) {
+    if (inFilter(item, 'mine')) counts.mine += 1
+    for (const filter of item.filters) counts[filter] += 1
+  }
+
   return {
-    counts: {
-      ...result.counts,
-      mine: result.items.filter((item) => inFilter(item, 'mine')).length,
-    },
+    counts,
     progress: result.progress,
     query: { ...query, page: page.page ?? query.page },
     rows: { ...page, docs: enriched.map(toRow) },

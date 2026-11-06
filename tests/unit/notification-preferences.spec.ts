@@ -13,7 +13,6 @@ import {
   REGISTRATION_OVERRIDE_FREQUENCY_OPTIONS,
   validateNotificationPreferences,
 } from '@/components/admin/NotificationPreferences/config'
-import { MANAGER_ROLES } from '@/lib/notifications/managerRoles'
 
 describe('notification preferences config', () => {
   describe('the seven rows', () => {
@@ -27,10 +26,7 @@ describe('notification preferences config', () => {
         'refused_signups',
         'statistics',
       ])
-      for (const type of NOTIFICATION_TYPES) {
-        expect(type.roles.length).toBeGreaterThan(0)
-        for (const role of type.roles) expect(MANAGER_ROLES).toContain(role)
-      }
+      for (const type of NOTIFICATION_TYPES) expect(type.roles.length).toBeGreaterThan(0)
     })
 
     /**

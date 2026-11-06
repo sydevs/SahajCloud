@@ -1,8 +1,8 @@
 import type { PaginatedDocs } from 'payload'
 
-import type { OpenItemFilter, OpenItemPill, OpenItemStatusKey } from '@/lib/atlasOverview/filters'
+import type { OpenItemFilter, OpenItemPill } from '@/lib/atlasOverview/filters'
 import { OPEN_ITEM_FILTERS } from '@/lib/atlasOverview/filters'
-import type { OverviewProgress } from '@/lib/atlasOverview/status'
+import type { OpenItemStatusKey, OverviewProgress } from '@/lib/atlasOverview/status'
 
 import { firstParam, pageParam } from '../../helpers/searchParams'
 
