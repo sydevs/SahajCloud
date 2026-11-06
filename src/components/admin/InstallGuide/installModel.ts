@@ -316,14 +316,14 @@ export const MILESTONE_STATUS: Record<MilestoneState, string> = {
  * The progress table: what is done, in the order it happens.
  *
  * Every label is a thing and its state ("Atlas detected"), and every status is
- * one of five words, so the rows can be read down the column. What is specific
+ * one of four words, so the rows can be read down the column. What is specific
  * to one row — where the atlas was found, how many search problems — goes in
  * its note.
  *
  * ⚠ **A row the track can never finish is `na`**: shown, and out of the count.
  * An iframe has neither class addresses nor search listings; a Squarespace page
- * has addresses, as `?atlas=` links, but no listings (`Track.classAddresses`,
- * `Track.searchListings`).
+ * has addresses, as `?atlas=` links, but no listings (`TrackMeta.classAddresses`,
+ * `TrackMeta.searchListings`).
  *
  * **Class addresses are done in either shape.** A `?atlas=` link is an address a
  * visitor can share and land on; serving `/classes/ca/ontario` as well is what
@@ -515,7 +515,7 @@ export function checkOutcome(args: {
   reported: boolean
   claim: ClaimCanonicalResponse | null
   verify: Pick<VerifyEmbedResponse, 'status' | 'message' | 'seo'> | null
-  /** `false` for a track whose search checks say nothing (`Track.searchListings`). */
+  /** `false` for a track whose search checks say nothing (`TrackMeta.searchListings`). */
   searchListings?: boolean
 }): BannerContent {
   const { path, reported, claim, verify, searchListings = true } = args

@@ -11,7 +11,6 @@ import { tableColumn } from '@/components/admin/helpers/tableColumn'
 import styles from './InstallGuide.module.css'
 import { installProgress } from './installModel'
 
-/** Payload's own pill colours; a row still to come and a row out of reach share the quiet one. */
 const PILL_STYLE: Record<MilestoneState, React.ComponentProps<typeof Pill>['pillStyle']> = {
   done: 'success',
   failed: 'error',

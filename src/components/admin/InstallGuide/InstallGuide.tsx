@@ -78,7 +78,6 @@ import {
  * the form cannot write back an older copy.
  */
 
-/** How often the tab re-reads the record while it is open. */
 const POLL_MS = 10_000
 
 /** What `GET /api/clients/:id` gives the tab, narrowed to what it reads. */
@@ -685,7 +684,6 @@ async function post<T>(url: string): Promise<T | null> {
   }
 }
 
-/** How long the address waits after the last keystroke before it is saved. */
 const ADDRESS_SAVE_DELAY_MS = 800
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
@@ -885,8 +883,7 @@ function StepCard({
 
 /**
  * One instruction, with what it needs right under it: a value to copy, or a file
- * to download. A short value sits on one line with its Copy button; code keeps
- * the read-only editor.
+ * to download.
  */
 function ActionItem({
   action,

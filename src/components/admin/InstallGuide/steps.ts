@@ -40,8 +40,10 @@ import {
 /** Which family of site this is. The volunteer's first and only real choice. */
 export type PlatformId = 'wordpress' | 'wix' | 'squarespace' | 'custom' | 'iframe'
 
-/** The sub-choice inside a platform, or the platform itself where there is none. */
-/** `site.track`'s vocabulary, which the record stores so the tab reopens on the same track. */
+/**
+ * The sub-choice inside a platform, or the platform itself where there is none:
+ * `site.track`'s vocabulary, which the record stores so the tab reopens on it.
+ */
 export type TrackId = SiteTrack
 
 /**
@@ -417,7 +419,7 @@ const WORDPRESS_CHECKS: CheckRouting = {
 
 /**
  * The WordPress steps, which differ between the two tracks by one menu path —
- * so they share a helper, as the two Wix tracks do.
+ * so they share a helper.
  *
  * The page the plugin creates is always at {@link WORDPRESS_DEFAULT_PATH}, so a
  * site that wants the atlas anywhere else is told how to move it there — where
