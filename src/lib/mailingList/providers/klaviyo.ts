@@ -6,7 +6,7 @@ import type {
 } from '../types'
 
 import { probeCredentials } from '../probe'
-import { transportFailure } from '../types'
+import { statusFailure, transportFailure } from '../types'
 
 /**
  * Klaviyo's API is versioned by a date header rather than a path segment, so
@@ -74,14 +74,7 @@ async function subscribeKlaviyo(args: SubscribeArgs): Promise<MailingListResult>
 
   if (response.ok) return { ok: true, status: 'accepted' }
 
-  const detail = await readError(response)
-  const retryable = response.status >= 500 || response.status === 429
-  return {
-    ok: false,
-    code: retryable ? 'provider_unavailable' : 'provider_rejected',
-    message: detail,
-    retryable,
-  }
+  return statusFailure(response.status, await readError(response))
 }
 
 /** Klaviyo's JSON:API error body, as one sentence. Never throws. */
