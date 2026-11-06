@@ -1,4 +1,3 @@
-import type { AtlasWixRouteResponse } from '../../../responseTypes'
 import type { Endpoint } from 'payload'
 
 import { APIError } from 'payload'
@@ -14,6 +13,7 @@ import { countClientRead } from '@/plugins/usage'
 import { MAX_ATLAS_ROUTE_LENGTH, parseAtlasRoute } from '../../seo/atlasRoute'
 import { resolveAtlasSeo } from '../../seo/resolve'
 import {
+  type AtlasWixRouteResponse,
   hostOf,
   isProbePath,
   localeFromWixLang,
@@ -89,7 +89,7 @@ const querySchema = z.object({
  * publishes the generated router without its cache block will cross
  * `HIGH_USAGE_THRESHOLD` on ordinary traffic.
  *
- * Returns `AtlasWixRouteResponse` (see ../../responseTypes).
+ * Returns `AtlasWixRouteResponse` (see ../shape).
  */
 export const atlasWixRoute: Endpoint = {
   path: '/atlas/wix/route',

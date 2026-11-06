@@ -131,7 +131,7 @@ describe('wixRouteAnswer', () => {
     })
     expect(answer.status).toBe(200)
     expect(answer.redirect).toBeNull()
-    expect(answer.data?.route).toBe('/ca/ontario')
+    expect(answer.data?.bodyHtml).toContain('Ontario')
     expect(answer.cacheSeconds).toBe(WIX_CACHE_SECONDS)
   })
 

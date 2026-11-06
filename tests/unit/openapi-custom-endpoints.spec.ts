@@ -550,7 +550,12 @@ describe('the Wix router endpoints are documented', () => {
     parameters?: { name: string; required?: boolean }[]
     responses?: Record<string, { content?: Record<string, { schema?: unknown }> }>
   }
-  type Schema = { required?: string[]; properties?: Record<string, { enum?: unknown[] }> }
+  type Schema = {
+    required?: string[]
+    enum?: unknown[]
+    anyOf?: Schema[]
+    properties?: Record<string, Schema>
+  }
 
   const route = CUSTOM_ENDPOINT_PATHS['/api/atlas/wix/route']?.get as Operation | undefined
   const sitemap = CUSTOM_ENDPOINT_PATHS['/api/atlas/wix/sitemap']?.get as Operation | undefined
@@ -599,14 +604,7 @@ describe('the Wix router endpoints are documented', () => {
   })
 
   it('declares every schema the two paths reference', () => {
-    for (const name of [
-      'AtlasWixRouteResponse',
-      'AtlasWixSitemapEntry',
-      'AtlasWixHead',
-      'AtlasWixRouteData',
-      'AtlasWixMetaTag',
-      'AtlasWixLink',
-    ]) {
+    for (const name of ['AtlasWixRouteResponse', 'AtlasWixSitemapEntry']) {
       expect(CUSTOM_ENDPOINT_SCHEMAS[name], `${name} is not declared`).toBeDefined()
     }
   })
@@ -621,9 +619,8 @@ describe('the Wix router endpoints are documented', () => {
       'status',
     ])
     expect(response.properties?.status?.enum).toEqual([200, 301, 404])
-
-    const data = CUSTOM_ENDPOINT_SCHEMAS.AtlasWixRouteData as Schema
-    expect(data.properties?.type?.enum).toEqual(['root', 'region', 'event'])
+    // The page code reads `bodyHtml` and nothing else off `data`.
+    expect(response.properties?.data?.anyOf?.[0]?.required).toEqual(['bodyHtml'])
 
     const entry = CUSTOM_ENDPOINT_SCHEMAS.AtlasWixSitemapEntry as Schema
     expect(entry.required?.sort()).toEqual(['lastmod', 'title', 'url'])

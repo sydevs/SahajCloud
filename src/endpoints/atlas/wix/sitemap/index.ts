@@ -1,4 +1,3 @@
-import type { AtlasWixSitemapEntry } from '../../../responseTypes'
 import type { Endpoint } from 'payload'
 
 import { APIError } from 'payload'
@@ -17,7 +16,7 @@ import { publicReadCacheHeaders } from '@/plugins/cache'
 import { countClientRead } from '@/plugins/usage'
 
 import { resolveAtlasSitemap } from '../../sitemap/resolve'
-import { hostOf, wixSitemapEntries } from '../shape'
+import { type AtlasWixSitemapEntry, hostOf, wixSitemapEntries } from '../shape'
 
 const querySchema = z.object({
   // The one prefix rule, shared with the Install tab that validates the
@@ -56,7 +55,7 @@ const querySchema = z.object({
  * Registered at the config root because the answer spans regions *and* events,
  * so the gates are called by hand (see `docs/rules/endpoints.md`).
  *
- * Returns `AtlasWixSitemapEntry[]` (see ../../responseTypes).
+ * Returns `AtlasWixSitemapEntry[]` (see ../shape).
  */
 export const atlasWixSitemap: Endpoint = {
   path: '/atlas/wix/sitemap',

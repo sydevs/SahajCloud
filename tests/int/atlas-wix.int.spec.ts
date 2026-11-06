@@ -5,11 +5,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { atlasSeo } from '@/endpoints/atlas/seo'
 import { atlasWixRoute } from '@/endpoints/atlas/wix/route'
 import { atlasWixSitemap } from '@/endpoints/atlas/wix/sitemap'
-import type {
-  AtlasSeoResponse,
-  AtlasWixRouteResponse,
-  AtlasWixSitemapEntry,
-} from '@/endpoints/responseTypes'
+import type { AtlasWixRouteResponse, AtlasWixSitemapEntry } from '@/endpoints/atlas/wix/shape'
+import type { AtlasSeoResponse } from '@/endpoints/responseTypes'
 import { PROBE_SEGMENT_PREFIX } from '@/lib/embedVerification/verifyEmbed'
 import type { Event } from '@/payload-types'
 
@@ -220,15 +217,14 @@ describe('atlas Wix endpoints', () => {
     it('answers the root as a rendered page', async () => {
       const { body } = await callRoute({ path: '/', lang: 'en' })
       expect(body.status).toBe(200)
-      expect(body.data?.type).toBe('root')
-      expect(body.data?.route).toBe('/')
+      // The root is always self-canonical, so Wix writes its own links.
+      expect(body.head.links).toEqual([])
       expect(body.head.title.length).toBeGreaterThan(0)
     })
 
     it('answers a region, with its classes as real links in the body', async () => {
       const { body } = await callRoute({ path: '/canada/ontario', lang: 'en' })
       expect(body.status).toBe(200)
-      expect(body.data?.type).toBe('region')
       expect(body.data?.bodyHtml).toContain('<h1>Ontario</h1>')
       expect(body.data?.bodyHtml).toContain('Thursday Ontario class')
       expect(body.data?.bodyHtml).toContain('<a href="https://sahajayoga.ca/classes/canada/ontario')
@@ -237,7 +233,6 @@ describe('atlas Wix endpoints', () => {
     it('answers an event', async () => {
       const { body } = await callRoute({ path: `/canada/ontario/${eventId}`, lang: 'en' })
       expect(body.status).toBe(200)
-      expect(body.data?.type).toBe('event')
       expect(body.data?.bodyHtml).toContain('<article>')
     })
 
@@ -253,7 +248,7 @@ describe('atlas Wix endpoints', () => {
       // navigation.
       const { body } = await callRoute({ path: '/canada/ontario/calendar', lang: 'en' })
       expect(body.status).toBe(200)
-      expect(body.data?.route).toBe('/canada/ontario')
+      expect(body.data?.bodyHtml).toContain('<h1>Ontario</h1>')
       // And it publishes the canonical, so a crawler folds the two together.
       expect(body.head.links.some((link) => link.rel === 'canonical')).toBe(true)
     })
@@ -269,8 +264,10 @@ describe('atlas Wix endpoints', () => {
       // Or `probeRouting` fails against the host's real 404 and demotes every
       // working Wix client three probes later (#644).
       const { body } = await callRoute({ path: `/${PROBE_SEGMENT_PREFIX}abc123`, lang: 'en' })
+      const root = await callRoute({ path: '/', lang: 'en' })
       expect(body.status).toBe(200)
-      expect(body.data?.type).toBe('root')
+      expect(body.head.title).toBe(root.body.head.title)
+      expect(body.data?.bodyHtml).toBe(root.body.data?.bodyHtml)
       expect(body.head.metaTags).toContainEqual({ name: 'robots', content: 'noindex' })
     })
 

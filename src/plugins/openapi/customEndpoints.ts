@@ -1649,73 +1649,9 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
       },
     },
   },
-  /** One `<meta>` row from `GET /api/atlas/wix/route`. Exactly one key beside `content`. */
-  AtlasWixMetaTag: {
-    type: 'object',
-    required: ['content'],
-    properties: {
-      name: { type: 'string', description: 'A standard meta name — `description`, `robots`.' },
-      property: { type: 'string', description: 'An Open Graph property — `og:title`.' },
-      content: { type: 'string' },
-    },
-  },
-  /** One `<link>` row. `hreflang` is present only on an `alternate`. */
-  AtlasWixLink: {
-    type: 'object',
-    required: ['rel', 'href'],
-    properties: {
-      rel: { type: 'string', description: '`canonical` or `alternate`.' },
-      href: { type: 'string' },
-      hreflang: { type: 'string', description: 'A widget locale code, or `x-default`.' },
-    },
-  },
-  /** The `head` half of a Wix router answer, in the shape `ok()` takes. */
-  AtlasWixHead: {
-    type: 'object',
-    required: ['title', 'metaTags', 'links', 'structuredData'],
-    properties: {
-      title: { type: 'string', description: 'Ready for `<title>`, already plain text.' },
-      metaTags: {
-        type: 'array',
-        items: { $ref: '#/components/schemas/AtlasWixMetaTag' },
-        description:
-          '`description` and `robots` live here and nowhere else — Wix honours no ' +
-          'top-level copy of either.',
-      },
-      links: {
-        type: 'array',
-        items: { $ref: '#/components/schemas/AtlasWixLink' },
-        description:
-          'Empty for the atlas root and wherever this client canonicalises on its own ' +
-          'host, so Wix writes the self-canonical and Multilingual the hreflang cluster.',
-      },
-      structuredData: {
-        type: 'array',
-        items: { type: 'object', additionalProperties: true },
-        description:
-          'JSON-LD as objects — the identical document `/api/atlas/seo` returns ' +
-          'pre-serialized as `jsonLd`. Wix serializes it itself.',
-      },
-    },
-  },
-  /** The `data` half — what the router hands its page through `getRouterData()`. */
-  AtlasWixRouteData: {
-    type: 'object',
-    required: ['type', 'route', 'bodyHtml'],
-    properties: {
-      type: { type: 'string', enum: ['root', 'region', 'event'] },
-      route: { type: 'string', description: 'The normalized atlas route this describes.' },
-      bodyHtml: {
-        type: 'string',
-        description:
-          'The crawlable body, as escaped HTML, for `$w(…).html`. Links are real `<a>` ' +
-          'elements. The one place this surface emits markup.',
-      },
-    },
-  },
   /**
    * `GET /api/atlas/wix/route` success body. Keep in lockstep with
-   * `AtlasWixRouteResponse` in `src/endpoints/responseTypes.ts`.
+   * `AtlasWixRouteResponse` in `src/endpoints/atlas/wix/shape.ts`.
    */
   AtlasWixRouteResponse: {
     type: 'object',
@@ -1734,10 +1670,70 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
           'On a `301`, the atlas route to redirect to — never a URL and never prefixed. ' +
           'The router composes its own prefix.',
       },
-      head: { $ref: '#/components/schemas/AtlasWixHead' },
+      head: {
+        type: 'object',
+        required: ['title', 'metaTags', 'links', 'structuredData'],
+        description: 'The `head` half of a Wix router answer, in the shape `ok()` takes.',
+        properties: {
+          title: { type: 'string', description: 'Ready for `<title>`, already plain text.' },
+          metaTags: {
+            type: 'array',
+            items: {
+              type: 'object',
+              required: ['content'],
+              properties: {
+                name: { type: 'string', description: 'A standard meta — `description`, `robots`.' },
+                property: { type: 'string', description: 'An Open Graph property — `og:title`.' },
+                content: { type: 'string' },
+              },
+            },
+            description:
+              'Exactly one of `name` or `property` per row. `description` and `robots` live ' +
+              'here and nowhere else — Wix honours no top-level copy of either.',
+          },
+          links: {
+            type: 'array',
+            items: {
+              type: 'object',
+              required: ['rel', 'href'],
+              properties: {
+                rel: { type: 'string', description: '`canonical` or `alternate`.' },
+                href: { type: 'string' },
+                hreflang: { type: 'string', description: 'On an `alternate` only.' },
+              },
+            },
+            description:
+              'Empty for the atlas root and wherever this client canonicalises on its own ' +
+              'host, so Wix writes the self-canonical and Multilingual the hreflang cluster.',
+          },
+          structuredData: {
+            type: 'array',
+            items: { type: 'object', additionalProperties: true },
+            description:
+              'JSON-LD as objects — the identical document `/api/atlas/seo` returns ' +
+              'pre-serialized as `jsonLd`. Wix serializes it itself.',
+          },
+        },
+      },
       data: {
-        anyOf: [{ $ref: '#/components/schemas/AtlasWixRouteData' }, { type: 'null' }],
-        description: '`null` on a `301` or a `404` — there is no page to render.',
+        anyOf: [
+          {
+            type: 'object',
+            required: ['bodyHtml'],
+            properties: {
+              bodyHtml: {
+                type: 'string',
+                description:
+                  'The crawlable body, as escaped HTML, for `$w(…).html`. Links are real ' +
+                  '`<a>` elements. The one place this surface emits markup.',
+              },
+            },
+          },
+          { type: 'null' },
+        ],
+        description:
+          'What the router hands its page through `getRouterData()`. `null` on a `301` ' +
+          'or a `404` — there is no page to render.',
       },
       cacheSeconds: {
         type: 'integer',
