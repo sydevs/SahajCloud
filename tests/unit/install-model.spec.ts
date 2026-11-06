@@ -13,7 +13,7 @@ import {
   reportedMountsFor,
   sectionConfirmed,
 } from '../../src/components/admin/InstallGuide/installModel'
-import { tracksFor } from '../../src/components/admin/InstallGuide/steps'
+import { TRACK_META, tracksFor } from '../../src/components/admin/InstallGuide/steps'
 import { EMPTY_VERIFICATION } from '../../src/lib/clients/verification'
 
 /**
@@ -305,9 +305,7 @@ describe('buildMilestones', () => {
       model,
       verification,
       owned: args.owned ?? false,
-      searchListings: args.trackId !== 'iframe' && args.trackId !== 'squarespace',
-      classAddresses: args.trackId !== 'iframe',
-      siteKind: args.trackId === 'iframe' ? 'Iframe only' : 'Squarespace',
+      track: args.trackId ? TRACK_META[args.trackId] : null,
       regionName: args.worldwide ? null : 'Ontario',
     })
   }

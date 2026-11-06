@@ -252,9 +252,7 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
     model,
     verification,
     owned,
-    searchListings: activeTrack?.searchListings !== false,
-    classAddresses: activeTrack?.classAddresses !== false,
-    siteKind: platform ? PLATFORM_LABELS[platform] : undefined,
+    track: activeTrack,
     regionName: props.regionName,
     host: address.host,
   })

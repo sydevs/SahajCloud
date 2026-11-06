@@ -1,4 +1,4 @@
-import type { Step, StepId, Track } from './steps'
+import type { Step, StepId, Track, TrackMeta } from './steps'
 
 import type { EmbedMetadata } from '@/lib/clients/embedMetadata'
 import { normalizeMountPath, siteHosts } from '@/lib/clients/site'
@@ -333,18 +333,17 @@ export function buildMilestones(args: {
   verification: CanonicalVerification | null | undefined
   /** Whether this service's site is the home for its region's links (`canonical.owned`). */
   owned: boolean
-  /** `false` for a track that can give no class a search listing. */
-  searchListings: boolean
-  /** `false` for a track that cannot put a class's address in the page URL. */
-  classAddresses: boolean
-  /** The kind of site, named in a Not available status — "Iframe only", "Squarespace". */
-  siteKind?: string
+  /** `null` until one is chosen. Its platform names a Not available status — "Iframe only". */
+  track: TrackMeta | null
   /** The service's region, named in the Region claimed note; `null` is Worldwide. */
   regionName: string | null
   /** The host the volunteer typed, for the notes, until a canonical embed names one. */
   host?: string | null
 }): Milestone[] {
-  const { model, verification, owned, regionName, searchListings, classAddresses } = args
+  const { model, verification, owned, regionName, track } = args
+  const searchListings = track?.searchListings !== false
+  const classAddresses = track?.classAddresses !== false
+  const siteKind = track ? PLATFORM_LABELS[track.platform] : undefined
   const [first, ...rest] = model.reported
   const site = verification?.verified?.domain ?? args.host ?? first?.host ?? 'your site'
   const problems = model.failures.length
@@ -360,8 +359,8 @@ export function buildMilestones(args: {
     label,
     state,
     status:
-      state === 'na' && (naFor ?? args.siteKind)
-        ? `${MILESTONE_STATUS.na} for ${naFor ?? args.siteKind}`
+      state === 'na' && (naFor ?? siteKind)
+        ? `${MILESTONE_STATUS.na} for ${naFor ?? siteKind}`
         : MILESTONE_STATUS[state],
     ...(note ? { note } : {}),
   })
@@ -411,21 +410,14 @@ export function buildMilestones(args: {
             ),
     !classAddresses
       ? row('routing', 'Class addresses', 'na', 'An iframe cannot change your page’s address')
-      : probe === 'path'
+      : probe
         ? row(
             'routing',
             'Class addresses',
             'done',
             `Each class has its own shareable link on ${site}`,
           )
-        : probe === 'query'
-          ? row(
-              'routing',
-              'Class addresses',
-              'done',
-              `Each class has its own shareable link on ${site}`,
-            )
-          : row('routing', 'Class addresses', 'todo'),
+        : row('routing', 'Class addresses', 'todo'),
     !searchListings
       ? row('search', 'Search listings', 'na', 'Search engines see one page, not each class')
       : !verification?.seo
@@ -464,8 +456,6 @@ export function milestonesForRecord(args: {
   regionName: string | null
 }): Milestone[] {
   const { site, embedMetadata, verification, owned, regionName } = args
-  const track = site?.track ? TRACK_META[site.track] : null
-
   // No steps to mark: the milestones read the reports, the stage and — only on
   // a track with search listings — the failures, none of which needs the track.
   const model = buildInstallModel({
@@ -479,9 +469,7 @@ export function milestonesForRecord(args: {
     model,
     verification,
     owned,
-    searchListings: track?.searchListings !== false,
-    classAddresses: track?.classAddresses !== false,
-    siteKind: track ? PLATFORM_LABELS[track.platform] : undefined,
+    track: site?.track ? TRACK_META[site.track] : null,
     regionName,
     host: site?.domain,
   })
